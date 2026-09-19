@@ -35,10 +35,10 @@
 
 - [x] Repository structure inspected through GitHub
 - [x] Cross-file resource paths reviewed statically
-- [ ] Godot 4.7.2 import/parse run
-- [ ] Main scene launched successfully in Godot 4.7.2
+- [x] Godot 4.7.2 import/parse run — user-reported clean on 2026-09-18
+- [x] Main scene launched successfully in Godot 4.7.2 — user-reported clean on 2026-09-18
 
-The engine-runtime checks remain intentionally unchecked until they have actually been run.
+The initial engine smoke test was run by the user in Godot 4.7.2 and reported clean. The current scene is intentionally only a bootstrap, so there is not yet a visible gameplay test.
 
 ## Next after runtime validation
 
