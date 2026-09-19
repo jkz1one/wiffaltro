@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/sidearm.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.riser"
+display_name = "Sidearm Riser"
+category = 3
+rarity = 1
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 24.0
+nominal_spin_rpm = 1850.0
+nominal_spin_axis_pitcher_frame = Vector3(0.98, -0.18, 0)
+nominal_hole_axis_ball_local = Vector3(0.15, 0.92, 0.36)
+perforation_influence = 0.80
+control_difficulty = 1.20
+execution_difficulty = 1.25
+stamina_cost = 6.5
+tags = [&"unconventional", &"rise", &"sidearm"]
