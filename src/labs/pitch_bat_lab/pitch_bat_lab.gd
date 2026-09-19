@@ -175,7 +175,7 @@ func _throw_pitch() -> void:
 	_trajectory_draw.clear()
 	_contact_vector_draw.clear()
 
-	var target_position := Vector3(
+	var target_position: Vector3 = Vector3(
 		_pitch_target.x,
 		_pitch_target.y,
 		0.0
@@ -274,7 +274,7 @@ func _attempt_swing(profile_id: StringName) -> void:
 		push_error("Pitch/Bat Lab: swing profile missing: %s" % String(profile_id))
 		return
 
-	var intent := SwingIntent.new()
+	var intent: SwingIntent = SwingIntent.new()
 	intent.profile_id = profile_id
 	intent.aim_point = _batting_aim
 	intent.handedness_left = false
@@ -466,7 +466,7 @@ func _refresh_markers() -> void:
 			-0.015
 		)
 
-func _contact_outcome_name(outcome: ContactResult.Outcome) -> String:
+func _contact_outcome_name(outcome: int) -> String:
 	match outcome:
 		ContactResult.Outcome.FOUL:
 			return "FOUL"
@@ -501,10 +501,10 @@ func _build_pitch_actor() -> void:
 	add_child(_contact_vector_draw)
 
 func _build_environment() -> void:
-	var ground := MeshInstance3D.new()
+	var ground: MeshInstance3D = MeshInstance3D.new()
 	ground.name = "Ground"
 
-	var ground_mesh := PlaneMesh.new()
+	var ground_mesh: PlaneMesh = PlaneMesh.new()
 	ground_mesh.size = Vector2(20.0, 22.0)
 	ground.mesh = ground_mesh
 	ground.position = Vector3(0.0, 0.0, 7.0)
@@ -528,7 +528,7 @@ func _build_environment() -> void:
 	_build_strike_zone_outline()
 	_build_aim_markers()
 
-	var light := DirectionalLight3D.new()
+	var light: DirectionalLight3D = DirectionalLight3D.new()
 	light.name = "Sun"
 	light.rotation_degrees = Vector3(-55.0, -30.0, 0.0)
 	light.shadow_enabled = true
@@ -541,7 +541,7 @@ func _build_environment() -> void:
 	_apply_camera_mode()
 
 func _build_strike_zone_outline() -> void:
-	var zone_color := Color(0.86, 0.90, 0.96)
+	var zone_color: Color = Color(0.86, 0.90, 0.96)
 	var thickness: float = 0.025
 
 	_add_box(
@@ -573,7 +573,7 @@ func _build_aim_markers() -> void:
 	_pitch_target_marker = MeshInstance3D.new()
 	_pitch_target_marker.name = "PitchTarget"
 
-	var pitch_marker_mesh := SphereMesh.new()
+	var pitch_marker_mesh: SphereMesh = SphereMesh.new()
 	pitch_marker_mesh.radius = 0.055
 	pitch_marker_mesh.height = 0.11
 	_pitch_target_marker.mesh = pitch_marker_mesh
@@ -585,7 +585,7 @@ func _build_aim_markers() -> void:
 	_batting_aim_marker = MeshInstance3D.new()
 	_batting_aim_marker.name = "BattingAim"
 
-	var bat_marker_mesh := BoxMesh.new()
+	var bat_marker_mesh: BoxMesh = BoxMesh.new()
 	bat_marker_mesh.size = Vector3(0.12, 0.12, 0.025)
 	_batting_aim_marker.mesh = bat_marker_mesh
 	_batting_aim_marker.material_override = _make_unshaded_material(
@@ -594,7 +594,7 @@ func _build_aim_markers() -> void:
 	add_child(_batting_aim_marker)
 
 func _build_ui() -> void:
-	var canvas := CanvasLayer.new()
+	var canvas: CanvasLayer = CanvasLayer.new()
 	canvas.name = "DebugUI"
 	add_child(canvas)
 
@@ -624,7 +624,7 @@ func _build_ui() -> void:
 	)
 	canvas.add_child(_controls_label)
 
-	var footer := Label.new()
+	var footer: Label = Label.new()
 	footer.position = Vector2(20.0, 670.0)
 	footer.add_theme_font_size_override("font_size", 13)
 	footer.text = (
@@ -638,11 +638,11 @@ func _add_box(
 	size: Vector3,
 	color: Color
 ) -> MeshInstance3D:
-	var instance := MeshInstance3D.new()
+	var instance: MeshInstance3D = MeshInstance3D.new()
 	instance.name = node_name
 	instance.position = world_position
 
-	var box := BoxMesh.new()
+	var box: BoxMesh = BoxMesh.new()
 	box.size = size
 	instance.mesh = box
 	instance.material_override = _make_material(color)
@@ -651,7 +651,7 @@ func _add_box(
 	return instance
 
 func _make_material(color: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
+	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.9
 	return material
