@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SwingProfileDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/swing_profile_definition.gd" id="1_swing"]
+
+[resource]
+script = ExtResource("1_swing")
+id = &"swing.contact"
+display_name = "Contact Swing"
+contact_radius_x_m = 0.36
+contact_radius_y_m = 0.32
+contact_depth_m = 0.68
+bat_speed_mps = 24.0
+attack_angle_degrees = 7.0
+exit_velocity_multiplier = 0.92
+minimum_contact_quality = 0.12
