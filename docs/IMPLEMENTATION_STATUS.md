@@ -61,6 +61,19 @@ Implemented in repository:
 - [x] SPACE repeat throw
 - [x] R clear/reset
 - [x] live speed/position/flight-time readout
-- [ ] Godot 4.7.2 runtime validation of Phase 1 visible milestone
+- [x] Godot 4.7.2 runtime validation of Phase 1 visible milestone — user screenshot confirmed visible ball, trajectory trace, strike-zone crossing, and telemetry on 2026-09-18
 
 The current launch target is deliberately a debug value chosen to place the nominal Four-Seam through the visible zone before PitchAimSolver exists. It is not the final aiming model.
+
+
+## Phase 1 runtime observation
+
+User screenshot from Godot 4.7.2 confirmed the first visible Pitch Lab milestone is functioning:
+
+- Four-Seam crossed the displayed strike zone at approximately x 0.06 m / y 1.20 m
+- trajectory trace rendered
+- live ball position/speed telemetry rendered
+- measured plate speed was approximately 26.4 mph
+- measured flight time was approximately 0.783 s
+
+The large velocity loss is a tuning/calibration question, not evidence that the solver pipeline failed. Before pitch families are balanced, the Lab should add better comparative instrumentation so release speed, plate speed, displacement, and pitch-to-pitch differences can be evaluated directly.
