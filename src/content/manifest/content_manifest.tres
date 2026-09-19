@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentManifest" load_steps=18 format=3]
+[gd_resource type="Resource" script_class="ContentManifest" load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://src/content/manifest/content_manifest.gd" id="1_manifest"]
 [ext_resource type="Resource" path="res://src/content/pitches/overhand_four_seam.tres" id="2_four_seam"]
@@ -17,6 +17,7 @@
 [ext_resource type="Resource" path="res://src/content/balls/fresh_ball.tres" id="15_setup"]
 [ext_resource type="Resource" path="res://src/content/swings/contact_swing.tres" id="16_contact_swing"]
 [ext_resource type="Resource" path="res://src/content/swings/power_swing.tres" id="17_power_swing"]
+[ext_resource type="Resource" path="res://src/content/fields/starter_field.tres" id="18_starter_field"]
 
 [resource]
 script = ExtResource("1_manifest")
@@ -36,3 +37,4 @@ deliveries = [ExtResource("12_overhand"), ExtResource("13_sidearm")]
 ball_aero_profiles = [ExtResource("14_aero")]
 ball_setups = [ExtResource("15_setup")]
 swing_profiles = [ExtResource("16_contact_swing"), ExtResource("17_power_swing")]
+fields = [ExtResource("18_starter_field")]

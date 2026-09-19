@@ -6,5 +6,5 @@ extends Resource
 @export var deliveries: Array[DeliveryProfileDefinition] = []
 @export var ball_aero_profiles: Array[BallAeroProfileDefinition] = []
 @export var ball_setups: Array[BallSetupDefinition] = []
-
 @export var swing_profiles: Array[SwingProfileDefinition] = []
+@export var fields: Array[FieldDefinition] = []

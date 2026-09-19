@@ -4,7 +4,7 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 ## Status
 
-Preproduction is frozen and **Phase 0 Foundation** is underway in Godot 4.7.2.
+Preproduction is frozen and the **Phase 2 Ball-in-Play Lab** is awaiting Godot 4.7.2 runtime validation.
 
 Canonical docs:
 
@@ -18,23 +18,27 @@ Canonical docs:
 - Mobile renderer
 - Jolt 3D physics
 - 60 Hz Godot physics
-- planned 240 Hz custom Pitch solver
+- 240 Hz custom Pitch solver
 - Blender → glTF/GLB
 - Steam/PC + iOS + Android architecture
 
 Core rule: **Godot owns presentation, collision, and environment physics. Our code owns baseball.**
 
-## Current foundation
+## Current implementation
 
 The repository now contains:
 
 - stable content IDs
 - immutable Resource definition types
 - explicit ContentManifest + ContentDB
-- Pitch and player definition scaffolding
-- physical Pitch runtime-state scaffolding
-- a prototype Overhand Four-Seam, fresh ball setup, and debug player
-- the initial Pitch/Bat Lab scene
+- nine prototype Pitches and two deliveries
+- intended-location aiming, fatigue/execution, and Pitch telemetry
+- Contact and Power swings with authored contact resolution
+- Jolt physical ball-in-play with custom aerodynamics
+- starter-field authored hit rules
+- automatic Primary Fielder and Pitcher defense
+- ghost-base and sacrifice-fly resolution
+- one integrated core-mechanics Lab scene
 
 ## Milestone order
 

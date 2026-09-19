@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 1 — Pitch/Bat Lab
+**Current phase:** Phase 2 — Ball-in-Play Lab implementation; Godot runtime validation pending
 
 ## Implemented in repository
 
@@ -38,11 +38,7 @@
 - [x] Godot 4.7.2 import/parse run — user-reported clean on 2026-09-18
 - [x] Main scene launched successfully in Godot 4.7.2 — user-reported clean on 2026-09-18
 
-The initial engine smoke test was run by the user in Godot 4.7.2 and reported clean. The current scene is intentionally only a bootstrap, so there is not yet a visible gameplay test.
-
-## Next after runtime validation
-
-Begin Phase 1 with the fixed-step Pitch solver and trajectory lab.
+The initial engine smoke test was run by the user in Godot 4.7.2 and reported clean. That validation predates the Phase 2 changes documented below.
 
 
 ## Phase 1 first visible milestone
@@ -79,7 +75,7 @@ User screenshot from Godot 4.7.2 confirmed the first visible Pitch Lab milestone
 The large velocity loss is a tuning/calibration question, not evidence that the solver pipeline failed. Before pitch families are balanced, the Lab should add better comparative instrumentation so release speed, plate speed, displacement, and pitch-to-pitch differences can be evaluated directly.
 
 
-## Phase 1 expanded milestone — implementation complete, runtime validation pending
+## Phase 1 expanded milestone — runtime validated; fatigue correction pending retest
 
 Implemented after the first Four-Seam smoke test:
 
@@ -110,8 +106,8 @@ Implemented after the first Four-Seam smoke test:
 - [x] exit velocity / launch angle / spray output
 - [x] debug contact launch vector
 - [x] Godot 4.7.2 parse/import validation for expanded milestone — user screenshots confirmed clean runtime on 2026-09-18
-- [ ] hands-on pitch-family differentiation test
-- [ ] hands-on aim/execution/fatigue test
+- [x] hands-on pitch-family differentiation test — user reported the Pitching and hitting feel promising on 2026-09-18
+- [ ] hands-on corrected fatigue/hanger test
 - [x] hands-on Contact/Power swing functionality test — user screenshots confirmed both swing paths produce contact telemetry
 
 Do not mark the unchecked items complete until the expanded build has actually been run in Godot.
@@ -132,3 +128,45 @@ User-provided Godot screenshots confirmed:
 - the solver, aim system, and contact resolver are connected end-to-end
 
 Balance/feel remain provisional. Pitch-family differentiation and fatigue feel should continue to be judged during later playtests rather than blocking Phase 2 architecture.
+
+
+## Fatigue/hanger correction — implemented, runtime validation pending
+
+The 2026-09-18 playtest found that fatigue mostly drove Pitches into the dirt while preserving too much velocity and movement. The implementation now:
+
+- [x] applies a stronger high-fatigue velocity penalty
+- [x] degrades spin, perforation movement, and instability authority
+- [x] increases command error with Pitch difficulty
+- [x] compensates only the extra vertical drop caused by velocity loss
+- [x] leaves attenuated movement and command error uncorrected so hangers emerge without a center-target override
+- [x] displays nominal release speed, executed release speed, and predicted plate speed separately
+- [ ] Godot 4.7.2 hands-on fatigue/hanger retest
+
+
+## Phase 2 Ball-in-Play Lab — implementation complete, runtime validation pending
+
+Implemented in repository:
+
+- [x] ContactResult to BattedBallLaunch transition
+- [x] Jolt RigidBody3D batted ball with CCD and contact monitoring
+- [x] batted-ball drag, spin lift, and orientation-dependent perforation force
+- [x] authored starter FieldDefinition and graybox field
+- [x] physical ground, back-wall, and live-object collisions
+- [x] mathematical Safe, Deep Air, and Home Run segment crossings
+- [x] BallPlayState, BallPlayResolver, and BallPlayOutcome
+- [x] Out / Single / Double / Triple / Home Run resolution
+- [x] nine persistent Primary Fielder anchors
+- [x] simple trajectory prediction and automatic fielder movement
+- [x] deterministic clean / bobble / miss thresholds
+- [x] physical bobble deflections and limited recovery attempts
+- [x] automatic restricted-envelope Pitcher defense
+- [x] pure ghost BaseState hit advancement
+- [x] deterministic tag/sacrifice-fly advancement
+- [x] fourth field camera and automatic contact camera switch
+- [x] four direct ball-in-play diagnostic launches
+- [x] player-facing telemetry for result floor, defense, result, runs, and bases
+- [x] all GDScript passes `gdparse` and `gdlint` static checks on 2026-09-19
+- [ ] Godot 4.7.2 import/parse validation
+- [ ] Godot 4.7.2 Ball-in-Play Lab runtime validation
+
+Static parsing is not engine validation. Do not treat Phase 2 as runtime-tested until the Godot checks above are completed.

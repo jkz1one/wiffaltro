@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1  
-**Status:** FROZEN PRE-REPO BASELINE  
+**Version:** v0.1.1
+**Status:** FROZEN BASELINE WITH FATIGUE IMPLEMENTATION AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play  
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -623,6 +623,12 @@ Because this is one ball and a tiny search problem, runtime cost is negligible.
 # 22. Execution Error and Hangers
 
 Apply execution/fatigue error **after** nominal target solving.
+
+Velocity degradation must not create a dominant artificial dirt bias. The
+execution layer may apply a bounded vertical release-angle compensation for
+the extra gravity drop caused by lost velocity. This compensation preserves
+the intended vertical reach only; it does not correct lateral movement,
+attenuated break, release error, or later command error.
 
 Possible degraded launch properties:
 
