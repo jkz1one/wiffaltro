@@ -79,7 +79,9 @@ static func build_environment(lab: PitchBatLab) -> void:
 	lab._camera.name = "LabCamera"
 	lab._camera.current = true
 	lab.add_child(lab._camera)
+	lab._camera_director = MatchCameraDirector.new()
 	apply_camera_mode(lab)
+	lab._camera_director.snap(lab._camera)
 
 static func build_ui(lab: PitchBatLab) -> void:
 	var canvas: CanvasLayer = CanvasLayer.new()
@@ -103,19 +105,17 @@ static func cycle_camera(lab: PitchBatLab) -> void:
 	apply_camera_mode(lab)
 
 static func apply_camera_mode(lab: PitchBatLab) -> void:
+	if lab._camera_director == null:
+		lab._camera_director = MatchCameraDirector.new()
 	match lab._camera_mode:
 		0:
-			lab._camera.position = Vector3(0.0, 1.65, -2.8)
-			lab._camera.look_at(Vector3(0.0, 1.20, 8.0), Vector3.UP)
+			lab._camera_director.set_shot(MatchCameraDirector.Shot.BATTING)
 		1:
-			lab._camera.position = Vector3(0.0, 2.35, 16.8)
-			lab._camera.look_at(Vector3(0.0, 1.10, 0.0), Vector3.UP)
+			lab._camera_director.set_shot(MatchCameraDirector.Shot.PITCHING)
 		2:
-			lab._camera.position = Vector3(8.5, 2.5, 6.8)
-			lab._camera.look_at(Vector3(0.0, 1.15, 6.8), Vector3.UP)
+			lab._camera_director.set_shot(MatchCameraDirector.Shot.SIDE)
 		3:
-			lab._camera.position = Vector3(0.0, 13.0, -8.5)
-			lab._camera.look_at(Vector3(0.0, 2.2, 13.5), Vector3.UP)
+			lab._camera_director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
 
 static func apply_role_camera(lab: PitchBatLab) -> void:
 	if lab._camera == null:
@@ -182,14 +182,14 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 		return
 	if lab._match_mode:
 		lab._controls_label.text = (
-			"F1 debug overlay   F2 Mechanics Lab   SPACE pitch/continue   V camera\n"
-			+ "BATTING: WASD aim   Z Contact   X Power\n"
-			+ "PITCHING: 1–9 Pitch   arrows target   -/= effort   Q/E Pitcher\n"
-			+ "F Fielder   C position   [/] fatigue test floor   R new match"
+			"F1 debug   F2 Lab   F3 print records   V camera   R new match\n"
+			+ "BATTING: WASD/left stick aim   Z/A Contact   X/X Power\n"
+			+ "PITCHING: 1–9 Pitch   arrows/right stick aim   -/= effort\n"
+			+ "hold/release SPACE/A to deliver   Q/E Pitcher   F Fielder   C position"
 		)
 	else:
 		lab._controls_label.text = (
-			"F1 overlay   F2 Match   1–9 Pitch   SPACE throw   V camera   -/= effort\n"
+			"F1 overlay   F2 Match   F3 records   1–9 Pitch   SPACE throw   V camera\n"
 			+ "arrows pitch target   WASD bat aim   Z Contact   X Power\n"
 			+ ",/. execution   [/] fatigue   C fielder   G bases   B BIP diagnostic   R reset"
 		)
@@ -252,20 +252,23 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 			batter_state.definition.contact,
 		]
 	else:
+		var release_text: String = PitchBatLabFeelSupport.release_meter_text(lab)
 		lab._action_label.text = (
-			"%d: %s     EFFORT %.0f%%     TARGET %.2f / %.2f"
-		) % [
-			lab._selected_pitch_index + 1,
-			pitch.display_name if pitch != null else "None",
-			lab._pitch_effort * 100.0,
-			lab._pitch_target.x,
-			lab._pitch_target.y,
-		]
+			release_text
+			if not release_text.is_empty()
+			else "%d: %s   EFFORT %.0f%%   TARGET %.2f / %.2f   hold SPACE to deliver" % [
+				lab._selected_pitch_index + 1,
+				pitch.display_name if pitch != null else "None",
+				lab._pitch_effort * 100.0,
+				lab._pitch_target.x,
+				lab._pitch_target.y,
+			]
+		)
 	lab._config_label.text = (
 		"DEBUG   %s   match %.1f s\n"
 		+ "pitch %d/%d %s   effort %.0f%%   target %.2f / %.2f\n"
 		+ "bat aim %.2f / %.2f   fatigue floor %.0f%%\n"
-		+ "fielder %s: %s   anchor %s"
+		+ "fielder %s: %s   anchor %s   records %d"
 	) % [
 		"PLAYER BATTING" if lab._player_is_batting() else "PLAYER PITCHING",
 		match_state.elapsed_seconds,
@@ -281,6 +284,7 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		fielder_state.definition.display_name,
 		str(fielder_state.definition.fielding),
 		lab._field_definition.fielder_anchor_name(lab._fielder_anchor_index),
+		lab._play_records.size(),
 	]
 
 static func _refresh_lab(lab: PitchBatLab, pitch: PitchDefinition) -> void:

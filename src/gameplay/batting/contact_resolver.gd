@@ -32,6 +32,9 @@ static func resolve(
 		pitch_state.position.y - intent.aim_point.y
 	)
 	var depth_error: float = pitch_state.position.z - CONTACT_PLANE_Z
+	result.horizontal_error_m = horizontal_error
+	result.vertical_error_m = vertical_error
+	result.timing_error_m = depth_error
 
 	var nx: float = (
 		horizontal_error / (profile.contact_radius_x_m * contact_factor)
@@ -41,9 +44,16 @@ static func resolve(
 	)
 	var nz: float = depth_error / (profile.contact_depth_m * contact_factor)
 	var normalized_error_squared: float = nx * nx + ny * ny + nz * nz
+	result.spatial_quality = clampf(
+		1.0 - sqrt(nx * nx + ny * ny),
+		0.0,
+		1.0
+	)
+	result.timing_quality = clampf(1.0 - absf(nz), 0.0, 1.0)
 
 	if normalized_error_squared > 1.0:
 		result.outcome = ContactResult.Outcome.MISS
+		result.miss_reason = _primary_miss_reason(nx, ny, nz)
 		return result
 
 	var quality: float = clampf(
@@ -104,3 +114,29 @@ static func resolve(
 	result.exit_velocity = toward_field
 	result.backspin_rad_s = maxf(0.0, vertical_ratio) * 110.0 * quality
 	return result
+
+static func _primary_miss_reason(
+	normalized_x: float,
+	normalized_y: float,
+	normalized_timing: float
+) -> ContactResult.MissReason:
+	var timing_amount: float = absf(normalized_timing)
+	var horizontal_amount: float = absf(normalized_x)
+	var vertical_amount: float = absf(normalized_y)
+	if timing_amount >= horizontal_amount and timing_amount >= vertical_amount:
+		return (
+			ContactResult.MissReason.EARLY
+			if normalized_timing > 0.0
+			else ContactResult.MissReason.LATE
+		)
+	if horizontal_amount >= vertical_amount:
+		return (
+			ContactResult.MissReason.RIGHT
+			if normalized_x > 0.0
+			else ContactResult.MissReason.LEFT
+		)
+	return (
+		ContactResult.MissReason.ABOVE
+		if normalized_y > 0.0
+		else ContactResult.MissReason.BELOW
+	)

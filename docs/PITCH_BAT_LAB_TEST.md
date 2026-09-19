@@ -25,24 +25,31 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - batting order, current/on-deck batter, counts, walks, outs, runs, and innings
 - Stamina, pitch counts, pitching changes, mercy, extra innings, and game over
 - automatic batting, pitching, and ball-in-play cameras
+- smooth camera transitions and dynamic ball-in-play follow
 - bounded Pitch effort and outside-zone aiming
 - larger visible Contact and Power batting coverage
+- player-timed Pitch release influenced by Control and fatigue
+- early/late and directional swing feedback
+- count-aware deterministic opponent decisions
+- deterministic per-play diagnostic records
 - preserved Mechanics Lab and debug telemetry
 
 ## Shared controls
 
 - `F1`: toggle detailed telemetry and trajectory overlays
 - `F2`: switch between Match Mode and Mechanics Lab
+- `F3`: print completed deterministic play records to the Output panel
 - `V`: cycle camera manually
 
 ## Match Mode controls
 
-- `Space`: request/throw the next Pitch or continue after a dead play
-- `W A S D`: move batting aim, including outside the strike zone
-- `Z`: Contact Swing
-- `X`: Power Swing
+- `Space`: request the next Pitch or continue after a dead play; while pitching,
+  hold to start the delivery and release near the meter's center mark
+- `W A S D` / left stick: continuously move batting aim
+- `Z` / controller A: Contact Swing
+- `X` / controller X: Power Swing
 - `1–9`: select from the active Pitcher's repertoire while pitching
-- Arrow keys: move the precise Pitch target, including outside the strike zone
+- Arrow keys / right stick: continuously move the Pitch target
 - `- / =`: lower / raise Pitch effort from 82–112%
 - `Q / E`: previous / next Pitcher between batters
 - `F`: cycle Primary Fielder between batters
@@ -89,6 +96,16 @@ The Knuckleball is intentionally less repeatable because its seeded orientation 
 For batting, aim the coverage reticle with WASD and press Z or X while the ball is near the plate. The outer cyan rectangle is Contact coverage and the inner orange rectangle is Power coverage. Batter Contact rating scales both regions. Successful contact transfers to the Jolt batted ball, switches to the field camera, activates both defenders, and resolves the play through authored baseball rules.
 
 In Match Mode, the player bats in the top half and pitches in the bottom half. The camera should switch to the correct role before the next Pitch, switch to the field on contact, and return only after `Space` advances the dead play. Counts must persist within a plate appearance, the batter must advance only when that plate appearance ends, and the scoreboard must always show score, inning half, count, outs, bases, current/on-deck batter, Pitcher, pitch count, and Stamina.
+
+While pitching, hold `Space` (or controller A) and release near the center cue.
+High-Control, fresh Pitchers should have a more forgiving useful window than
+tired, low-Control Pitchers. Early and late releases should reduce command
+without allowing any mid-flight steering. Holding beyond the window must
+auto-release rather than stall the match.
+
+Missed swings should report whether timing or aim was the dominant error. The
+opponent should protect more often with two strikes, take more selectively in
+three-ball counts, and avoid feeling like a purely uniform random chooser.
 
 Effort changes the speed of every Pitch, including off-speed Pitches. Higher effort should be faster and costlier without making an Eephus, Slider, or Drop feel identical to a Four-Seam.
 

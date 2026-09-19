@@ -82,19 +82,45 @@ static func assign_ai_defense_for_half(lab: PitchBatLab) -> void:
 static func ai_pitch_choice(
 	option_count: int,
 	throw_number: int,
-	inning: int
+	inning: int,
+	balls: int = 0,
+	strikes: int = 0,
+	previous_pitch_index: int = -1
 ) -> Dictionary:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = (throw_number + 1) * 7919 + inning * 101
+	rng.seed = (
+		(throw_number + 1) * 7919
+		+ inning * 101
+		+ balls * 43
+		+ strikes * 67
+	)
+	var pitch_index: int = rng.randi_range(0, maxi(0, option_count - 1))
+	if (
+		option_count > 1
+		and pitch_index == previous_pitch_index
+		and rng.randf() < 0.58
+	):
+		pitch_index = (pitch_index + rng.randi_range(1, option_count - 1)) % option_count
+	var strike_probability: float = 0.70
+	if balls >= 3 and strikes >= 2:
+		strike_probability = 0.82
+	elif balls >= 3:
+		strike_probability = 0.90
+	elif strikes >= 2:
+		strike_probability = 0.50
 	var result: Dictionary = {
-		"pitch_index": rng.randi_range(0, maxi(0, option_count - 1)),
+		"pitch_index": pitch_index,
 		"target": Vector2.ZERO,
-		"effort": rng.randf_range(0.88, 1.08),
+		"effort": (
+			rng.randf_range(0.90, 1.04)
+			if balls >= 3
+			else rng.randf_range(0.88, 1.10)
+		),
 	}
-	if rng.randf() < 0.72:
+	if rng.randf() < strike_probability:
 		result.target = Vector2(
-			rng.randf_range(-0.34, 0.34),
-			rng.randf_range(0.66, 1.44)
+			rng.randf_range(-0.37, 0.37),
+			rng.randf_range(0.62, 1.48)
 		)
 		return result
 
@@ -128,9 +154,13 @@ static func apply_ai_pitch_choice(lab: PitchBatLab) -> void:
 	var choice: Dictionary = ai_pitch_choice(
 		options.size(),
 		lab._throw_number,
-		lab._match_state.inning
+		lab._match_state.inning,
+		lab._match_state.balls,
+		lab._match_state.strikes,
+		lab._last_ai_pitch_index
 	)
 	lab._selected_pitch_index = int(choice["pitch_index"])
+	lab._last_ai_pitch_index = lab._selected_pitch_index
 	lab._pitch_target = choice["target"]
 	lab._pitch_effort = float(choice["effort"])
 	lab._refresh_markers()
@@ -164,7 +194,13 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		lab._throw_number * 3571
 		+ lab._match_state.plate_appearance_number * 97
 	)
-	var swing_chance: float = 0.84 if appears_hittable else 0.14
+	var swing_chance: float
+	if appears_hittable:
+		swing_chance = 0.94 if lab._match_state.strikes >= 2 else 0.78
+	else:
+		swing_chance = 0.22 if lab._match_state.strikes >= 2 else 0.10
+	if lab._match_state.balls >= 3 and lab._match_state.strikes < 2:
+		swing_chance *= 0.62
 	if rng.randf() > swing_chance:
 		return
 	var aim_sigma: float = lerpf(

@@ -2,18 +2,15 @@ class_name PitchBatLabInput
 extends RefCounted
 
 static func handle(lab: PitchBatLab, event: InputEvent) -> void:
+	if _handle_action_event(lab, event):
+		lab.get_viewport().set_input_as_handled()
+		return
 	if not event is InputEventKey:
 		return
 	var key_event: InputEventKey = event as InputEventKey
 	if not key_event.pressed or key_event.echo:
 		return
-
-	if key_event.keycode == KEY_F1:
-		lab._toggle_debug_overlay()
-		lab.get_viewport().set_input_as_handled()
-		return
-	if key_event.keycode == KEY_F2:
-		lab._toggle_match_mode()
+	if _handle_debug_key(lab, key_event.keycode):
 		lab.get_viewport().set_input_as_handled()
 		return
 
@@ -24,6 +21,56 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 		handled = _handle_lab_key(lab, key_event.keycode)
 	if handled:
 		lab.get_viewport().set_input_as_handled()
+
+static func _handle_action_event(
+	lab: PitchBatLab,
+	event: InputEvent
+) -> bool:
+	if event.is_action_pressed(&"swing_contact", false, true):
+		if not lab._match_mode or lab._player_is_batting():
+			lab._attempt_swing(lab.CONTACT_SWING_ID)
+			return true
+	if event.is_action_pressed(&"swing_power", false, true):
+		if not lab._match_mode or lab._player_is_batting():
+			lab._attempt_swing(lab.POWER_SWING_ID)
+			return true
+	if event.is_action_pressed(&"pitch_release", false, true):
+		if (
+			lab._match_mode
+			and lab._player_is_pitching()
+			and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		):
+			PitchBatLabFeelSupport.begin_pitch_release(lab)
+			return true
+	if event.is_action_pressed(&"match_advance", false, true):
+		if (
+			lab._match_mode
+			and lab._player_is_pitching()
+			and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		):
+			return true
+		if lab._match_mode:
+			lab._handle_match_advance()
+		else:
+			lab._throw_pitch()
+		return true
+	if event.is_action_released(&"pitch_release", true):
+		if lab._match_mode and lab._player_is_pitching():
+			PitchBatLabFeelSupport.commit_pitch_release(lab)
+		return true
+	return false
+
+static func _handle_debug_key(lab: PitchBatLab, keycode: Key) -> bool:
+	match keycode:
+		KEY_F1:
+			lab._toggle_debug_overlay()
+		KEY_F2:
+			lab._toggle_match_mode()
+		KEY_F3:
+			PitchBatLabFeelSupport.dump_records(lab)
+		_:
+			return false
+	return true
 
 static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 	if keycode >= KEY_1 and keycode <= KEY_9:
@@ -36,8 +83,6 @@ static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 		return true
 
 	match keycode:
-		KEY_SPACE:
-			lab._handle_match_advance()
 		KEY_R:
 			lab._start_new_match()
 		KEY_V:
@@ -56,42 +101,12 @@ static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 		KEY_EQUAL:
 			if lab._player_is_pitching():
 				lab._adjust_pitch_effort(0.05)
-		KEY_LEFT:
-			if lab._player_is_pitching():
-				lab._adjust_pitch_target(Vector2(-lab.AIM_STEP_M, 0.0))
-		KEY_RIGHT:
-			if lab._player_is_pitching():
-				lab._adjust_pitch_target(Vector2(lab.AIM_STEP_M, 0.0))
-		KEY_UP:
-			if lab._player_is_pitching():
-				lab._adjust_pitch_target(Vector2(0.0, lab.AIM_STEP_M))
-		KEY_DOWN:
-			if lab._player_is_pitching():
-				lab._adjust_pitch_target(Vector2(0.0, -lab.AIM_STEP_M))
-		KEY_A:
-			if lab._player_is_batting():
-				lab._adjust_batting_aim(Vector2(-lab.AIM_STEP_M, 0.0))
-		KEY_D:
-			if lab._player_is_batting():
-				lab._adjust_batting_aim(Vector2(lab.AIM_STEP_M, 0.0))
-		KEY_W:
-			if lab._player_is_batting():
-				lab._adjust_batting_aim(Vector2(0.0, lab.AIM_STEP_M))
-		KEY_S:
-			if lab._player_is_batting():
-				lab._adjust_batting_aim(Vector2(0.0, -lab.AIM_STEP_M))
 		KEY_BRACKETLEFT:
 			lab._fatigue = clampf(lab._fatigue - 0.10, 0.0, 1.0)
 			lab._refresh_config()
 		KEY_BRACKETRIGHT:
 			lab._fatigue = clampf(lab._fatigue + 0.10, 0.0, 1.0)
 			lab._refresh_config()
-		KEY_Z:
-			if lab._player_is_batting():
-				lab._attempt_swing(lab.CONTACT_SWING_ID)
-		KEY_X:
-			if lab._player_is_batting():
-				lab._attempt_swing(lab.POWER_SWING_ID)
 		_:
 			return false
 	return true
@@ -105,8 +120,6 @@ static func _handle_lab_key(lab: PitchBatLab, keycode: Key) -> bool:
 		return true
 
 	match keycode:
-		KEY_SPACE:
-			lab._throw_pitch()
 		KEY_R:
 			lab._reset_lab()
 		KEY_V:
@@ -121,22 +134,6 @@ static func _handle_lab_key(lab: PitchBatLab, keycode: Key) -> bool:
 			lab._adjust_pitch_effort(-0.05)
 		KEY_EQUAL:
 			lab._adjust_pitch_effort(0.05)
-		KEY_LEFT:
-			lab._adjust_pitch_target(Vector2(-lab.AIM_STEP_M, 0.0))
-		KEY_RIGHT:
-			lab._adjust_pitch_target(Vector2(lab.AIM_STEP_M, 0.0))
-		KEY_UP:
-			lab._adjust_pitch_target(Vector2(0.0, lab.AIM_STEP_M))
-		KEY_DOWN:
-			lab._adjust_pitch_target(Vector2(0.0, -lab.AIM_STEP_M))
-		KEY_A:
-			lab._adjust_batting_aim(Vector2(-lab.AIM_STEP_M, 0.0))
-		KEY_D:
-			lab._adjust_batting_aim(Vector2(lab.AIM_STEP_M, 0.0))
-		KEY_W:
-			lab._adjust_batting_aim(Vector2(0.0, lab.AIM_STEP_M))
-		KEY_S:
-			lab._adjust_batting_aim(Vector2(0.0, -lab.AIM_STEP_M))
 		KEY_COMMA:
 			lab._execution_quality = clampf(
 				lab._execution_quality - 0.10,
@@ -157,10 +154,6 @@ static func _handle_lab_key(lab: PitchBatLab, keycode: Key) -> bool:
 		KEY_BRACKETRIGHT:
 			lab._fatigue = clampf(lab._fatigue + 0.10, 0.0, 1.0)
 			lab._refresh_config()
-		KEY_Z:
-			lab._attempt_swing(lab.CONTACT_SWING_ID)
-		KEY_X:
-			lab._attempt_swing(lab.POWER_SWING_ID)
 		_:
 			return false
 	return true

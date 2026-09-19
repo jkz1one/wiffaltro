@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.2
-**Status:** FROZEN BASELINE WITH FATIGUE, EFFORT, AND MATCH AMENDMENTS
+**Version:** v0.1.3
+**Status:** FROZEN BASELINE WITH FEEL-HARDENING AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -1512,6 +1512,12 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 20. visible pitch count, Stamina, bases, and complete count
 21. shared Match Mode / Mechanics Lab debug layer
 22. bounded per-pitch effort control
+23. action-mapped keyboard/controller aim, swing, advance, and release inputs
+24. player-timed release with Control- and fatigue-sensitive timing windows
+25. count-aware deterministic opponent pitch and swing decisions
+26. smooth role and ball-in-play camera direction
+27. deterministic per-play records for reproduction and tuning
+28. headless core regression scene
 
 ### Phase 3 acceptance
 
@@ -1582,8 +1588,17 @@ Before large-scale gameplay systems exist, prioritize pure logic tests for:
 - BallPlayResolver
 - sacrifice advancement
 - match-state transitions
+- release timing quality and stat/fatigue influence
+- count-aware opponent decision determinism
+- JSON-safe per-play record serialization
 
 Physics-heavy behaviors should also have small regression scenes with known expected ranges rather than relying only on unit tests.
+
+The core regression scene runs with:
+
+```text
+godot --headless --path . res://src/tests/core_regression_test.tscn
+```
 
 ---
 

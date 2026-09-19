@@ -4,7 +4,9 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 ## Status
 
-The **Phase 3 vanilla-match simulator** is implemented and awaiting Godot 4.7.2 runtime validation.
+The **Phase 3 vanilla-match simulator** imports, launches, and passes its
+headless core regression scene in Godot 4.7.2. Hands-on match/feel validation is
+still pending.
 
 Canonical docs:
 
@@ -41,6 +43,10 @@ The repository now contains:
 - complete five-inning match state, counts, batting order, Stamina, mercy, and extras
 - role-aware opponent control and automatic camera changes
 - per-Pitch effort control
+- timed player release, continuous action-mapped aim, and controller basics
+- actionable swing miss feedback and smooth camera direction
+- deterministic count-aware opponent decisions and per-play records
+- a headless core regression scene
 - one integrated Match Mode plus preserved Mechanics Lab scene
 
 ## Milestone order

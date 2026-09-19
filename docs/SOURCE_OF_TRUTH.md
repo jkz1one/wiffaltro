@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.4
-**Status:** FROZEN BASELINE WITH PITCH-EFFORT AMENDMENT
-**Supersedes:** v0.4.3 and all earlier planning notes
+**Version:** v0.4.5
+**Status:** FROZEN BASELINE WITH PLAYER-RELEASE AMENDMENT
+**Supersedes:** v0.4.4 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -200,6 +200,11 @@ Stats and modifiers should amplify user execution rather than replace it.
 Choose **Pitch → target location → effort/execution → release**.
 
 No steering after release.
+
+The player's release timing is an execution input, not a post-release steering
+system. Control widens the useful timing window, fatigue narrows it, and the
+result feeds the existing command/error model. A held delivery auto-releases so
+the match cannot remain stuck indefinitely.
 
 Effort applies to every Pitch rather than belonging only to fastballs. A harder
 Eephus, Slider, Drop, or other off-speed Pitch is still that Pitch, but travels

@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Complete Vanilla Match implementation; Godot runtime validation pending
+**Current phase:** Phase 3 — Vanilla Match feel hardening; hands-on validation pending
 
 ## Implemented in repository
 
@@ -178,7 +178,7 @@ Fielding is provisionally approved for continued development. Result-boundary,
 base-advancement, and tuning details remain subject to the combined match test.
 
 
-## Phase 3 Complete Vanilla Match — implementation complete, runtime validation pending
+## Phase 3 Complete Vanilla Match — implementation and headless smoke validated
 
 Implemented in repository:
 
@@ -204,10 +204,22 @@ Implemented in repository:
 - [x] batting and pitching targets can move outside the strike zone
 - [x] bounded 82–112% Pitch effort with velocity, movement, command, and Stamina tradeoffs
 - [x] match timing telemetry
+- [x] action-mapped continuous keyboard and controller aim
+- [x] held player delivery with timed release and forced auto-release
+- [x] Control widens and fatigue narrows the useful release window
+- [x] actionable early/late and directional swing feedback
+- [x] smooth role transitions and dynamic ball-in-play camera follow
+- [x] deterministic count-aware opponent pitch/swing choices
+- [x] JSON-safe deterministic per-play records with F3 output
+- [x] headless regression scene for release, AI, count rules, and records
+- [x] Godot script UID sidecars committed for stable cross-clone references
 - [x] all current GDScript passes `gdparse` and `gdlint` static checks on 2026-09-19
-- [ ] Godot 4.7.2 Phase 3 import/parse validation
+- [x] Godot 4.7.2 Phase 3 import/parse validation on 2026-09-19
+- [x] Godot 4.7.2 headless main-scene smoke on 2026-09-19
+- [x] Godot 4.7.2 headless core regression checks on 2026-09-19
 - [ ] complete five-inning match runtime test
 - [ ] corrected fatigue/hanger retest during Match or Mechanics Lab play
 
-Static parsing is not engine validation. Phase 3 remains provisional until the
-Godot runtime checks above are completed.
+The engine now imports, launches, and passes the automated core regression
+scene. Phase 3 remains provisional until the hands-on match and feel checks are
+completed.
