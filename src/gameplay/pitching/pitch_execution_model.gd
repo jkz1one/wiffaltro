@@ -19,7 +19,7 @@ static func apply(
 	var fatigue_amount: float = clampf(fatigue, 0.0, 1.0)
 	var difficulty_amount: float = clampf(difficulty, 0.0, 2.0)
 
-	var rng := RandomNumberGenerator.new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
 
 	var error_strength: float = clampf(
@@ -29,7 +29,7 @@ static func apply(
 		1.5
 	)
 
-	var release_error := Vector3(
+	var release_error: Vector3 = Vector3(
 		rng.randf_range(-1.0, 1.0),
 		rng.randf_range(-1.0, 1.0),
 		rng.randf_range(-0.25, 0.25)
@@ -69,7 +69,7 @@ static func apply(
 	)
 	result.angular_velocity *= 1.0 - spin_loss
 
-	var orientation_axis := Vector3(
+	var orientation_axis: Vector3 = Vector3(
 		rng.randf_range(-1.0, 1.0),
 		rng.randf_range(-1.0, 1.0),
 		rng.randf_range(-1.0, 1.0)
