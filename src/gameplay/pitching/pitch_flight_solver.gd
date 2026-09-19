@@ -9,6 +9,10 @@ static func step(
 	parameters: PitchLaunchParameters,
 	delta_seconds: float = SUBSTEP_SECONDS
 ) -> void:
+	var orientation_spin: Vector3 = (
+		state.angular_velocity + _instability_angular_velocity(state, parameters)
+	)
+
 	var acceleration_start: Vector3 = PitchAerodynamics.acceleration(
 		state.velocity,
 		state.orientation,
@@ -22,7 +26,7 @@ static func step(
 	)
 	var midpoint_orientation: Quaternion = PitchAerodynamics.advance_orientation(
 		state.orientation,
-		state.angular_velocity,
+		orientation_spin,
 		delta_seconds * 0.5
 	)
 
@@ -37,7 +41,24 @@ static func step(
 	state.velocity += acceleration_midpoint * delta_seconds
 	state.orientation = PitchAerodynamics.advance_orientation(
 		state.orientation,
-		state.angular_velocity,
+		orientation_spin,
 		delta_seconds
 	)
 	state.elapsed_time += delta_seconds
+
+static func _instability_angular_velocity(
+	state: PitchState,
+	parameters: PitchLaunchParameters
+) -> Vector3:
+	if parameters.instability_strength <= 0.0:
+		return Vector3.ZERO
+
+	var phase: float = float(abs(parameters.seed) % 997) * 0.01337
+	var omega: float = TAU * parameters.instability_frequency_hz
+	var t: float = state.elapsed_time
+
+	return Vector3(
+		sin(omega * t + phase),
+		cos(omega * 0.73 * t + phase * 1.71),
+		sin(omega * 1.19 * t + phase * 0.61)
+	) * parameters.instability_strength
