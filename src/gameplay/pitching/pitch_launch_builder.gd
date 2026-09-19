@@ -63,5 +63,7 @@ static func build_nominal(
 		aero.orientation_stability
 		* ball_setup.stability_multiplier
 	)
+	parameters.instability_strength = pitch.instability_strength
+	parameters.instability_frequency_hz = pitch.instability_frequency_hz
 
 	return parameters
