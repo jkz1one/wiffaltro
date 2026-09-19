@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="PlayerDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/player_definition.gd" id="1_player"]
+[ext_resource type="Resource" path="res://src/content/deliveries/overhand.tres" id="2_delivery"]
+[ext_resource type="Resource" path="res://src/content/pitches/overhand_four_seam.tres" id="3_pitch"]
+
+[resource]
+script = ExtResource("1_player")
+id = &"player.debug_pitcher"
+display_name = "Debug Pitcher"
+bats = 0
+throws = 0
+contact = 5
+power = 5
+fielding = 5
+velocity = 6
+break_rating = 5
+control = 6
+stamina = 6
+natural_delivery = ExtResource("2_delivery")
+pitch_capacity = 3
+starting_pitches = [ExtResource("3_pitch")]
