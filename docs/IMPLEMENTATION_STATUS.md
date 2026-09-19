@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 0 — Foundation
+**Current phase:** Phase 1 — Pitch/Bat Lab
 
 ## Implemented in repository
 
@@ -43,3 +43,24 @@ The initial engine smoke test was run by the user in Godot 4.7.2 and reported cl
 ## Next after runtime validation
 
 Begin Phase 1 with the fixed-step Pitch solver and trajectory lab.
+
+
+## Phase 1 first visible milestone
+
+Implemented in repository:
+
+- [x] 240 Hz fixed-step RK2 PitchFlightSolver
+- [x] gravity + quadratic drag
+- [x] spin/Magnus-style lift
+- [x] orientation-dependent perforation/asymmetry force
+- [x] nominal PitchLaunchBuilder
+- [x] visible PitchFlightActor
+- [x] live trajectory trace
+- [x] graybox mound / plate / strike zone
+- [x] automatic prototype Overhand Four-Seam throw
+- [x] SPACE repeat throw
+- [x] R clear/reset
+- [x] live speed/position/flight-time readout
+- [ ] Godot 4.7.2 runtime validation of Phase 1 visible milestone
+
+The current launch target is deliberately a debug value chosen to place the nominal Four-Seam through the visible zone before PitchAimSolver exists. It is not the final aiming model.
