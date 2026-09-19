@@ -130,7 +130,7 @@ User-provided Godot screenshots confirmed:
 Balance/feel remain provisional. Pitch-family differentiation and fatigue feel should continue to be judged during later playtests rather than blocking Phase 2 architecture.
 
 
-## Fatigue/hanger correction — implemented, runtime validation pending
+## Fatigue/hanger correction — revised after playtest, runtime validation pending
 
 The 2026-09-18 playtest found that fatigue mostly drove Pitches into the dirt while preserving too much velocity and movement. The implementation now:
 
@@ -140,6 +140,10 @@ The 2026-09-18 playtest found that fatigue mostly drove Pitches into the dirt wh
 - [x] compensates only the extra vertical drop caused by velocity loss
 - [x] leaves attenuated movement and command error uncorrected so hangers emerge without a center-target override
 - [x] displays nominal release speed, executed release speed, and predicted plate speed separately
+- [x] samples velocity, spin, perforation movement, and command degradation independently per Pitch
+- [x] uses each Pitch's control difficulty to scale two-axis command dispersion
+- [x] adds seeded heavy-tail fatigue lapses, with extra vulnerability for breaking Pitches
+- [x] avoids a deterministic fatigue-to-center rule while allowing tired breaking Pitches to leak over the plate
 - [ ] Godot 4.7.2 hands-on fatigue/hanger retest
 
 

@@ -639,7 +639,17 @@ Possible degraded launch properties:
 - launch direction
 - velocity
 
-A fatigued Slider aimed outside may fail to achieve expected movement and remain over the plate.
+Fatigue changes the distribution of those properties rather than applying one
+fixed degradation amount. Velocity, movement authority, release position, and
+launch direction receive separate seeded rolls. Command dispersion expands in
+both axes, and occasional fatigue lapses create heavier failure tails. Breaking
+Pitches are more vulnerable to those lapses, so one tired Slider may retain
+some bite, another may miss badly, and another may fail to finish and leak over
+the plate.
+
+A fatigued Slider aimed outside may fail to achieve expected movement and
+remain over the plate. This must emerge from degraded stuff plus variable
+execution; fatigue does not replace the player's target with the zone center.
 
 That naturally creates a hanger.
 

@@ -1,14 +1,23 @@
 class_name PitchExecutionModel
 extends RefCounted
 
-const MAX_DIRECTION_ERROR_RADIANS: float = 0.060
-const MAX_RELEASE_ERROR_M: float = 0.10
+const MAX_DIRECTION_ERROR_RADIANS: float = 0.130
+const MAX_RELEASE_ERROR_M: float = 0.18
 const MAX_VELOCITY_LOSS: float = 0.28
 const MAX_SPIN_LOSS: float = 0.68
 const MAX_PERFORATION_LOSS: float = 0.50
 const MAX_INSTABILITY_LOSS: float = 0.35
 const MAX_ORIENTATION_ERROR_RADIANS: float = 0.55
-const FATIGUE_CURVE_EXPONENT: float = 1.35
+const FATIGUE_CURVE_EXPONENT: float = 1.10
+const EXECUTION_DIRECTION_SIGMA_RADIANS: float = 0.018
+const FATIGUE_DIRECTION_SIGMA_RADIANS: float = 0.042
+const LAPSE_DIRECTION_SIGMA_RADIANS: float = 0.022
+const EXECUTION_RELEASE_SIGMA_M: float = 0.035
+const FATIGUE_RELEASE_SIGMA_M: float = 0.055
+const LAPSE_RELEASE_SIGMA_M: float = 0.035
+const BASE_LAPSE_CHANCE: float = 0.12
+const DIFFICULTY_LAPSE_CHANCE: float = 0.12
+const BREAKING_LAPSE_BONUS: float = 0.14
 const REACH_COMPENSATION_ITERATIONS: int = 4
 const REACH_TOLERANCE_M: float = 0.015
 const MAX_REACH_ADJUSTMENT_RADIANS: float = 0.09
@@ -17,7 +26,9 @@ static func apply(
 	base_parameters: PitchLaunchParameters,
 	execution_quality: float,
 	fatigue: float,
-	difficulty: float,
+	control_difficulty: float,
+	execution_difficulty: float,
+	is_breaking_pitch: bool,
 	seed: int,
 	plate_z: float = 0.0
 ) -> PitchLaunchParameters:
@@ -28,23 +39,57 @@ static func apply(
 		fatigue_amount,
 		FATIGUE_CURVE_EXPONENT
 	)
-	var difficulty_amount: float = clampf(difficulty, 0.0, 2.0)
+	var control_amount: float = clampf(control_difficulty, 0.0, 2.0)
+	var execution_amount: float = clampf(execution_difficulty, 0.0, 2.0)
 
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
 
-	var error_strength: float = clampf(
-		(1.0 - quality) * (0.85 + difficulty_amount * 0.20)
-		+ fatigue_pressure * (0.75 + difficulty_amount * 0.20),
+	# Fatigue changes the distribution of outcomes, not one fixed degradation
+	# amount. Independent rolls prevent every part of a Pitch from worsening in
+	# lockstep. A lapse is an occasional heavier tail, especially for breaking
+	# Pitches, but it never changes the intended target.
+	var lapse_chance: float = fatigue_pressure * (
+		BASE_LAPSE_CHANCE
+		+ DIFFICULTY_LAPSE_CHANCE * execution_amount
+		+ (BREAKING_LAPSE_BONUS if is_breaking_pitch else 0.0)
+	)
+	var lapse_strength: float = 0.0
+	if rng.randf() < lapse_chance:
+		lapse_strength = (
+			rng.randf_range(0.25, 0.65) * fatigue_amount
+		)
+
+	var velocity_pressure: float = clampf(
+		fatigue_pressure * rng.randf_range(0.70, 1.30)
+		+ lapse_strength * 0.35,
 		0.0,
-		1.5
+		1.30
+	)
+	var spin_pressure: float = clampf(
+		fatigue_pressure * rng.randf_range(0.45, 1.45)
+		+ lapse_strength * 0.80,
+		0.0,
+		1.35
+	)
+	var perforation_pressure: float = clampf(
+		fatigue_pressure * rng.randf_range(0.40, 1.60)
+		+ lapse_strength * 0.85,
+		0.0,
+		1.50
+	)
+	var instability_pressure: float = clampf(
+		fatigue_pressure * rng.randf_range(0.60, 1.40)
+		+ lapse_strength * 0.50,
+		0.0,
+		1.35
 	)
 
 	var velocity_loss: float = clampf(
-		fatigue_pressure * MAX_VELOCITY_LOSS
+		velocity_pressure * MAX_VELOCITY_LOSS
 		+ (1.0 - quality) * 0.05,
 		0.0,
-		0.35
+		0.38
 	)
 	result.velocity *= 1.0 - velocity_loss
 
@@ -56,35 +101,54 @@ static func apply(
 	_compensate_vertical_reach(base_parameters, result, plate_z)
 
 	var spin_loss: float = clampf(
-		fatigue_pressure * MAX_SPIN_LOSS
+		spin_pressure * MAX_SPIN_LOSS
 		+ (1.0 - quality) * 0.12,
 		0.0,
-		0.75
+		0.88
 	)
 	result.angular_velocity *= 1.0 - spin_loss
-	result.perforation_force_scale *= 1.0 - (
-		fatigue_pressure * MAX_PERFORATION_LOSS
+	var perforation_loss: float = clampf(
+		perforation_pressure * MAX_PERFORATION_LOSS,
+		0.0,
+		0.85
 	)
-	result.instability_strength *= 1.0 - (
-		fatigue_pressure * MAX_INSTABILITY_LOSS
+	result.perforation_force_scale *= 1.0 - perforation_loss
+	var instability_loss: float = clampf(
+		instability_pressure * MAX_INSTABILITY_LOSS,
+		0.0,
+		0.65
 	)
+	result.instability_strength *= 1.0 - instability_loss
 
+	var control_scale: float = 0.75 + control_amount * 0.35
+	var release_sigma_m: float = (
+		(1.0 - quality) * EXECUTION_RELEASE_SIGMA_M
+		+ fatigue_amount * FATIGUE_RELEASE_SIGMA_M * control_scale
+		+ lapse_strength * LAPSE_RELEASE_SIGMA_M
+	)
 	var release_error: Vector3 = Vector3(
-		rng.randf_range(-1.0, 1.0),
-		rng.randf_range(-1.0, 1.0),
-		rng.randf_range(-0.25, 0.25)
-	) * MAX_RELEASE_ERROR_M * error_strength
+		rng.randfn(0.0, release_sigma_m),
+		rng.randfn(0.0, release_sigma_m),
+		rng.randfn(0.0, release_sigma_m * 0.25)
+	)
+	if release_error.length() > MAX_RELEASE_ERROR_M:
+		release_error = release_error.normalized() * MAX_RELEASE_ERROR_M
 	result.position += release_error
 
-	var yaw_error: float = (
-		rng.randf_range(-1.0, 1.0)
-		* MAX_DIRECTION_ERROR_RADIANS
-		* error_strength
+	var direction_sigma: float = (
+		(1.0 - quality) * EXECUTION_DIRECTION_SIGMA_RADIANS
+		+ fatigue_amount * FATIGUE_DIRECTION_SIGMA_RADIANS * control_scale
+		+ lapse_strength * LAPSE_DIRECTION_SIGMA_RADIANS
 	)
-	var pitch_error: float = (
-		rng.randf_range(-1.0, 1.0)
-		* MAX_DIRECTION_ERROR_RADIANS
-		* error_strength
+	var yaw_error: float = clampf(
+		rng.randfn(0.0, direction_sigma),
+		-MAX_DIRECTION_ERROR_RADIANS,
+		MAX_DIRECTION_ERROR_RADIANS
+	)
+	var pitch_error: float = clampf(
+		rng.randfn(0.0, direction_sigma),
+		-MAX_DIRECTION_ERROR_RADIANS,
+		MAX_DIRECTION_ERROR_RADIANS
 	)
 
 	var direction: Vector3 = result.velocity.normalized()
@@ -102,10 +166,15 @@ static func apply(
 	)
 	if orientation_axis.length_squared() > 0.000001:
 		orientation_axis = orientation_axis.normalized()
+		var orientation_strength: float = clampf(
+			(1.0 - quality) + fatigue_pressure + lapse_strength,
+			0.0,
+			1.5
+		)
 		var orientation_angle: float = (
 			rng.randf_range(-1.0, 1.0)
 			* MAX_ORIENTATION_ERROR_RADIANS
-			* error_strength
+			* orientation_strength
 		)
 		result.orientation = (
 			Quaternion(orientation_axis, orientation_angle)

@@ -295,7 +295,9 @@ func _throw_pitch() -> void:
 		base_parameters,
 		_execution_quality,
 		_fatigue,
+		pitch.control_difficulty,
 		pitch.execution_difficulty,
+		pitch.category == PitchDefinition.Category.BREAKING,
 		_throw_number * 1009 + _selected_pitch_index
 	)
 	_last_executed_release_speed_mps = executed_parameters.velocity.length()

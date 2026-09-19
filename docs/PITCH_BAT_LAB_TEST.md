@@ -54,7 +54,7 @@ This is a debug lab, not a polished game screen.
 
 At 100% execution / 0% fatigue, different Pitches aimed at the same marker should generally finish around that intended location while taking visibly different paths.
 
-At high fatigue, executed release speed should be visibly lower than nominal release speed. Pitches should lose shape and command but generally reach the plate. Breaking Pitches should sometimes hang in hittable territory instead of overwhelmingly dying in the dirt.
+At high fatigue, executed release speed should be visibly lower than nominal release speed. Pitches should generally reach the plate, but velocity, shape, and location should vary materially from throw to throw. Breaking Pitches should sometimes retain usable bite, sometimes miss unpredictably in either axis, and sometimes fail to finish into hittable territory. Repeated tired Pitches should not trace one linear miss pattern or always become center-cut gifts.
 
 The Knuckleball is intentionally less repeatable because its seeded orientation instability is part of the Pitch identity.
 
