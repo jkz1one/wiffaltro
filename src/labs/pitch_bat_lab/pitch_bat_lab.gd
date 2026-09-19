@@ -5,7 +5,7 @@ const BALL_SETUP_ID: StringName = &"ball_setup.fresh"
 
 # Debug-only lab geometry. This is not a locked regulation distance.
 const MOUND_ORIGIN := Vector3(0.0, 0.0, 13.716)
-const TARGET_POSITION := Vector3(0.0, 1.25, 0.0)
+const TARGET_POSITION := Vector3(0.0, 0.80, 0.0)
 
 var _pitch_actor: PitchFlightActor
 var _trajectory_draw: TrajectoryDebugDraw
