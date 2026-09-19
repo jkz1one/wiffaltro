@@ -26,7 +26,7 @@ func set_batter_handedness(is_left_handed: bool) -> void:
 	_batter_side = 1.0 if is_left_handed else -1.0
 
 func cycle_shot() -> void:
-	shot = (int(shot) + 1) % Shot.size()
+	shot = ((int(shot) + 1) % Shot.size()) as Shot
 
 func snap(camera: Camera3D, ball_position: Vector3 = Vector3.ZERO) -> void:
 	if camera == null:

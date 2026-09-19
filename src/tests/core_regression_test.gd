@@ -435,6 +435,13 @@ func _test_at_bat_cadence() -> void:
 	)
 
 func _test_match_presentation_sequence() -> void:
+	var camera_director: MatchCameraDirector = MatchCameraDirector.new()
+	camera_director.cycle_shot()
+	_check(
+		camera_director.shot == MatchCameraDirector.Shot.PITCHING,
+		"camera shot cycling should preserve the typed Shot enum"
+	)
+
 	var first: MatchPresentationDirector = MatchPresentationDirector.new()
 	var replay: MatchPresentationDirector = MatchPresentationDirector.new()
 	first.begin_intro(219)

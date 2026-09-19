@@ -338,6 +338,8 @@ This revision supersedes the earlier one-acceptance and click-through flow.
 - [x] intro/outro input lock, skip handling, and role-camera settlement
 - [x] deterministic regression coverage for swept contact, early miss
       continuation, automatic terminal cadence, and camera-shot selection
+- [x] camera cycling explicitly casts its wrapped index back to the typed `Shot`
+      enum, preventing the Godot 4.7.2 script-reload failure found in playtest
 - [x] all current GDScript passes `gdparse` and `gdlint` static checks on
       2026-09-19
 - [ ] Godot 4.7.2 import/headless regression validation
