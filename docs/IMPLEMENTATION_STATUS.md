@@ -109,9 +109,26 @@ Implemented after the first Four-Seam smoke test:
 - [x] spatial/timing ContactResolver
 - [x] exit velocity / launch angle / spray output
 - [x] debug contact launch vector
-- [ ] Godot 4.7.2 parse/import validation for expanded milestone
+- [x] Godot 4.7.2 parse/import validation for expanded milestone — user screenshots confirmed clean runtime on 2026-09-18
 - [ ] hands-on pitch-family differentiation test
 - [ ] hands-on aim/execution/fatigue test
-- [ ] hands-on Contact vs Power swing test
+- [x] hands-on Contact/Power swing functionality test — user screenshots confirmed both swing paths produce contact telemetry
 
 Do not mark the unchecked items complete until the expanded build has actually been run in Godot.
+
+
+## Phase 1 screenshot evidence
+
+User-provided Godot screenshots confirmed:
+
+- selectable Pitch UI is functioning
+- pitch target and batting aim markers render
+- multiple camera views render correctly
+- trajectory traces are visible in both catcher and side views
+- Eephus and Overhand Slider produce visibly different flight timing/shapes
+- Contact Swing generated contact telemetry (42% quality, 35.4 mph EV in the captured Eephus example)
+- Power Swing generated contact telemetry (84% quality, 80.9 mph EV in the captured Slider example)
+- launch angle and spray outputs render
+- the solver, aim system, and contact resolver are connected end-to-end
+
+Balance/feel remain provisional. Pitch-family differentiation and fatigue feel should continue to be judged during later playtests rather than blocking Phase 2 architecture.
