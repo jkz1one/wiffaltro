@@ -10,7 +10,7 @@ static func resolve(
 	intent: SwingIntent,
 	profile: SwingProfileDefinition
 ) -> ContactResult:
-	var result := ContactResult.new()
+	var result: ContactResult = ContactResult.new()
 	result.contact_position = pitch_state.position
 
 	var horizontal_error: float = (
@@ -79,7 +79,7 @@ static func resolve(
 	var spray_radians: float = deg_to_rad(result.spray_degrees)
 	var horizontal_speed: float = cos(launch_angle_radians) * exit_speed
 
-	var toward_field := Vector3(
+	var toward_field: Vector3 = Vector3(
 		sin(spray_radians) * horizontal_speed,
 		sin(launch_angle_radians) * exit_speed,
 		cos(spray_radians) * horizontal_speed
