@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/overhand.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.overhand_sinker"
+display_name = "Overhand Sinker"
+category = 0
+rarity = 0
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 25.5
+nominal_spin_rpm = 900.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.72, -0.58, 0)
+nominal_hole_axis_ball_local = Vector3(0.65, -0.35, 0.68)
+perforation_influence = 0.55
+control_difficulty = 0.95
+execution_difficulty = 0.95
+stamina_cost = 5.5
+tags = [&"fastball", &"arm_side", &"drop"]
