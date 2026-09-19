@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 2 — Ball-in-Play Lab implementation; Godot runtime validation pending
+**Current phase:** Phase 3 — Complete Vanilla Match implementation; Godot runtime validation pending
 
 ## Implemented in repository
 
@@ -170,7 +170,44 @@ Implemented in repository:
 - [x] four direct ball-in-play diagnostic launches
 - [x] player-facing telemetry for result floor, defense, result, runs, and bases
 - [x] all GDScript passes `gdparse` and `gdlint` static checks on 2026-09-19
-- [ ] Godot 4.7.2 import/parse validation
-- [ ] Godot 4.7.2 Ball-in-Play Lab runtime validation
+- [x] Godot 4.7.2 import/parse validation — user ran the Phase 2 build successfully
+- [x] automated fielding runtime smoke — user reported fielding looked good on 2026-09-19
+- [ ] exhaustive Ball-in-Play result-boundary and ghost-base runtime pass
 
-Static parsing is not engine validation. Do not treat Phase 2 as runtime-tested until the Godot checks above are completed.
+Fielding is provisionally approved for continued development. Result-boundary,
+base-advancement, and tuning details remain subject to the combined match test.
+
+
+## Phase 3 Complete Vanilla Match — implementation complete, runtime validation pending
+
+Implemented in repository:
+
+- [x] explicit match phase state machine
+- [x] two four-player provisional lab rosters
+- [x] fixed batting orders with current and on-deck batter handling
+- [x] Ball / Strike / Out counts, including two-strike fouls
+- [x] walks with forced ghost-base advancement
+- [x] hits, outs, sacrifice advancement, and runs connected to match score
+- [x] top/bottom half-innings and five-inning regulation structure
+- [x] 10-run mercy logic after three completed innings
+- [x] extra innings with a ghost runner on second
+- [x] walk-off and game-over states
+- [x] persistent per-player Stamina and pitch counts
+- [x] between-batter Pitcher changes, re-entry, and Primary Fielder changes
+- [x] player batting against a visible-input AI pitcher
+- [x] player pitching against a visible-flight AI batter
+- [x] player ratings connected to batting coverage, exit speed, fielding, velocity, break, Control, and Stamina
+- [x] automatic batting, pitching, and ball-in-play camera changes
+- [x] clean scoreboard plus optional F1 debug telemetry
+- [x] F2 switch between Match Mode and the preserved Mechanics Lab
+- [x] larger visible/effective Contact and Power coverage regions
+- [x] batting and pitching targets can move outside the strike zone
+- [x] bounded 82–112% Pitch effort with velocity, movement, command, and Stamina tradeoffs
+- [x] match timing telemetry
+- [x] all current GDScript passes `gdparse` and `gdlint` static checks on 2026-09-19
+- [ ] Godot 4.7.2 Phase 3 import/parse validation
+- [ ] complete five-inning match runtime test
+- [ ] corrected fatigue/hanger retest during Match or Mechanics Lab play
+
+Static parsing is not engine validation. Phase 3 remains provisional until the
+Godot runtime checks above are completed.

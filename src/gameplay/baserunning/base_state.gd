@@ -50,6 +50,17 @@ func advance_for_hit(
 			clear()
 	return runs_scored
 
+func advance_for_walk(batter: StringName) -> int:
+	var runs_scored: int = 0
+	if not first.is_empty():
+		if not second.is_empty():
+			if not third.is_empty():
+				runs_scored = 1
+			third = second
+		second = first
+	first = batter
+	return runs_scored
+
 func occupied_count() -> int:
 	var count: int = 0
 	if not first.is_empty():

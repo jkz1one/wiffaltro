@@ -2,7 +2,7 @@ class_name StarterFieldLabGeometry
 extends Node3D
 
 var pitch_target_marker: MeshInstance3D
-var batting_aim_marker: MeshInstance3D
+var batting_aim_marker: Node3D
 
 func build(
 	field: FieldDefinition,
@@ -10,7 +10,9 @@ func build(
 	zone_min_x: float,
 	zone_max_x: float,
 	zone_min_y: float,
-	zone_max_y: float
+	zone_max_y: float,
+	contact_aim_size: Vector2,
+	power_aim_size: Vector2
 ) -> void:
 	_add_static_box(
 		"Ground",
@@ -67,7 +69,7 @@ func build(
 		zone_min_y,
 		zone_max_y
 	)
-	_build_aim_markers()
+	_build_aim_markers(contact_aim_size, power_aim_size)
 
 	var light: DirectionalLight3D = DirectionalLight3D.new()
 	light.name = "Sun"
@@ -112,7 +114,10 @@ func _build_strike_zone(
 		zone_color
 	)
 
-func _build_aim_markers() -> void:
+func _build_aim_markers(
+	contact_aim_size: Vector2,
+	power_aim_size: Vector2
+) -> void:
 	pitch_target_marker = MeshInstance3D.new()
 	pitch_target_marker.name = "PitchTarget"
 	var pitch_marker_mesh: SphereMesh = SphereMesh.new()
@@ -125,16 +130,71 @@ func _build_aim_markers() -> void:
 	)
 	add_child(pitch_target_marker)
 
-	batting_aim_marker = MeshInstance3D.new()
+	batting_aim_marker = Node3D.new()
 	batting_aim_marker.name = "BattingAim"
-	var bat_marker_mesh: BoxMesh = BoxMesh.new()
-	bat_marker_mesh.size = Vector3(0.12, 0.12, 0.025)
-	batting_aim_marker.mesh = bat_marker_mesh
-	batting_aim_marker.material_override = _make_material(
-		Color(0.20, 0.90, 1.0),
-		true
+	_add_aim_outline(
+		batting_aim_marker,
+		contact_aim_size,
+		Color(0.20, 0.90, 1.0, 0.82),
+		"ContactCoverage"
+	)
+	_add_aim_outline(
+		batting_aim_marker,
+		power_aim_size,
+		Color(1.0, 0.52, 0.18, 0.92),
+		"PowerCoverage"
 	)
 	add_child(batting_aim_marker)
+
+func _add_aim_outline(
+	parent: Node3D,
+	size: Vector2,
+	color: Color,
+	outline_name: String
+) -> void:
+	var outline: Node3D = Node3D.new()
+	outline.name = outline_name
+	parent.add_child(outline)
+	var thickness: float = 0.018
+	var depth: float = 0.012
+	_add_marker_bar(
+		outline,
+		Vector3(0.0, size.y * 0.5, 0.0),
+		Vector3(size.x, thickness, depth),
+		color
+	)
+	_add_marker_bar(
+		outline,
+		Vector3(0.0, -size.y * 0.5, 0.0),
+		Vector3(size.x, thickness, depth),
+		color
+	)
+	_add_marker_bar(
+		outline,
+		Vector3(size.x * 0.5, 0.0, 0.0),
+		Vector3(thickness, size.y, depth),
+		color
+	)
+	_add_marker_bar(
+		outline,
+		Vector3(-size.x * 0.5, 0.0, 0.0),
+		Vector3(thickness, size.y, depth),
+		color
+	)
+
+func _add_marker_bar(
+	parent: Node3D,
+	local_position: Vector3,
+	size: Vector3,
+	color: Color
+) -> void:
+	var bar: MeshInstance3D = MeshInstance3D.new()
+	var mesh: BoxMesh = BoxMesh.new()
+	mesh.size = size
+	bar.mesh = mesh
+	bar.position = local_position
+	bar.material_override = _make_material(color, true)
+	parent.add_child(bar)
 
 func _add_box(
 	node_name: String,
@@ -188,6 +248,8 @@ func _make_material(
 	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.9
+	if color.a < 1.0:
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	if unshaded:
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	return material

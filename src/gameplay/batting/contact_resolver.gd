@@ -8,10 +8,22 @@ const BASE_TRANSFER_FACTOR: float = 0.32
 static func resolve(
 	pitch_state: PitchState,
 	intent: SwingIntent,
-	profile: SwingProfileDefinition
+	profile: SwingProfileDefinition,
+	contact_rating: int = 5,
+	power_rating: int = 5
 ) -> ContactResult:
 	var result: ContactResult = ContactResult.new()
 	result.contact_position = pitch_state.position
+	var contact_factor: float = lerpf(
+		0.82,
+		1.18,
+		clampf(float(contact_rating) / 10.0, 0.0, 1.0)
+	)
+	var power_factor: float = lerpf(
+		0.85,
+		1.15,
+		clampf(float(power_rating) / 10.0, 0.0, 1.0)
+	)
 
 	var horizontal_error: float = (
 		pitch_state.position.x - intent.aim_point.x
@@ -21,9 +33,13 @@ static func resolve(
 	)
 	var depth_error: float = pitch_state.position.z - CONTACT_PLANE_Z
 
-	var nx: float = horizontal_error / profile.contact_radius_x_m
-	var ny: float = vertical_error / profile.contact_radius_y_m
-	var nz: float = depth_error / profile.contact_depth_m
+	var nx: float = (
+		horizontal_error / (profile.contact_radius_x_m * contact_factor)
+	)
+	var ny: float = (
+		vertical_error / (profile.contact_radius_y_m * contact_factor)
+	)
+	var nz: float = depth_error / (profile.contact_depth_m * contact_factor)
 	var normalized_error_squared: float = nx * nx + ny * ny + nz * nz
 
 	if normalized_error_squared > 1.0:
@@ -57,7 +73,7 @@ static func resolve(
 	)
 
 	var vertical_ratio: float = clampf(
-		vertical_error / profile.contact_radius_y_m,
+		vertical_error / (profile.contact_radius_y_m * contact_factor),
 		-1.0,
 		1.0
 	)
@@ -72,7 +88,7 @@ static func resolve(
 	var ideal_exit_speed: float = (
 		profile.bat_speed_mps
 		+ incoming_speed * BASE_TRANSFER_FACTOR
-	) * profile.exit_velocity_multiplier
+	) * profile.exit_velocity_multiplier * power_factor
 	var exit_speed: float = ideal_exit_speed * lerpf(0.35, 1.0, quality)
 
 	var launch_angle_radians: float = deg_to_rad(result.launch_angle_degrees)

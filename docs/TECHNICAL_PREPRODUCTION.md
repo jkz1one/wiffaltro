@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.1
-**Status:** FROZEN BASELINE WITH FATIGUE IMPLEMENTATION AMENDMENT
-**Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play  
+**Version:** v0.1.2
+**Status:** FROZEN BASELINE WITH FATIGUE, EFFORT, AND MATCH AMENDMENTS
+**Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
 ---
@@ -405,6 +405,11 @@ PitchLaunchParameters
 The aerodynamic solver receives physical launch parameters.
 
 It should not know whether the Pitch came from Sal, an Endorsement, or an Exhausted state.
+
+Prototype effort is a bounded per-pitch input. It scales launch velocity and
+modestly changes movement authority before nominal aim solving. Higher effort
+also raises Stamina cost and introduces a small execution penalty. The initial
+lab range is 82–112%; exact limits and curves remain tuning values.
 
 ---
 
@@ -1502,6 +1507,11 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 15. extra-inning runner on second
 16. game-over state
 17. match timing telemetry
+18. role-aware batting / pitching / ball-in-play cameras
+19. current and on-deck batter presentation
+20. visible pitch count, Stamina, bases, and complete count
+21. shared Match Mode / Mechanics Lab debug layer
+22. bounded per-pitch effort control
 
 ### Phase 3 acceptance
 

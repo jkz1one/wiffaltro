@@ -1,6 +1,6 @@
-# Core Mechanics Lab — Phase 2 Milestone Test
+# Vanilla Match + Mechanics Lab — Phase 3 Milestone Test
 
-This is a debug lab, not a polished game screen.
+This is a functional match simulator and shared debug lab, not a polished game screen.
 
 ## What this milestone now contains
 
@@ -21,8 +21,36 @@ This is a debug lab, not a polished game screen.
 - deterministic clean, bobble, deflection, miss, and recovery handling
 - ghost-base hit advancement and sacrifice-fly/tag advancement
 - four debug camera views
+- full five-inning Match Mode with provisional four-player rosters
+- batting order, current/on-deck batter, counts, walks, outs, runs, and innings
+- Stamina, pitch counts, pitching changes, mercy, extra innings, and game over
+- automatic batting, pitching, and ball-in-play cameras
+- bounded Pitch effort and outside-zone aiming
+- larger visible Contact and Power batting coverage
+- preserved Mechanics Lab and debug telemetry
 
-## Controls
+## Shared controls
+
+- `F1`: toggle detailed telemetry and trajectory overlays
+- `F2`: switch between Match Mode and Mechanics Lab
+- `V`: cycle camera manually
+
+## Match Mode controls
+
+- `Space`: request/throw the next Pitch or continue after a dead play
+- `W A S D`: move batting aim, including outside the strike zone
+- `Z`: Contact Swing
+- `X`: Power Swing
+- `1–9`: select from the active Pitcher's repertoire while pitching
+- Arrow keys: move the precise Pitch target, including outside the strike zone
+- `- / =`: lower / raise Pitch effort from 82–112%
+- `Q / E`: previous / next Pitcher between batters
+- `F`: cycle Primary Fielder between batters
+- `C`: cycle Primary Fielder position through the 3×3 grid
+- `[ / ]`: set a minimum fatigue level for focused testing
+- `R`: restart the match
+
+## Mechanics Lab controls
 
 - `1–9`: select Pitch
 - `Space`: throw selected Pitch
@@ -30,12 +58,12 @@ This is a debug lab, not a polished game screen.
 - `W A S D`: move batting aim
 - `Z`: Contact Swing
 - `X`: Power Swing
+- `- / =`: lower / raise Pitch effort
 - `, / .`: lower / raise execution quality
 - `[ / ]`: lower / raise fatigue
 - `C`: cycle Primary Fielder position through the 3×3 grid
 - `G`: cycle empty / runner-on-third / bases-loaded test states
 - `B`: launch the next direct Ball-in-Play diagnostic
-- `V`: cycle camera
 - `R`: reset lab conditions
 
 ## Pitch keys
@@ -58,7 +86,11 @@ At high fatigue, executed release speed should be visibly lower than nominal rel
 
 The Knuckleball is intentionally less repeatable because its seeded orientation instability is part of the Pitch identity.
 
-For batting, aim the cyan marker with WASD and press Z or X while the ball is near the plate. Successful contact now transfers to the Jolt batted ball, switches to the field camera, activates both defenders, and resolves the play through authored baseball rules.
+For batting, aim the coverage reticle with WASD and press Z or X while the ball is near the plate. The outer cyan rectangle is Contact coverage and the inner orange rectangle is Power coverage. Batter Contact rating scales both regions. Successful contact transfers to the Jolt batted ball, switches to the field camera, activates both defenders, and resolves the play through authored baseball rules.
+
+In Match Mode, the player bats in the top half and pitches in the bottom half. The camera should switch to the correct role before the next Pitch, switch to the field on contact, and return only after `Space` advances the dead play. Counts must persist within a plate appearance, the batter must advance only when that plate appearance ends, and the scoreboard must always show score, inning half, count, outs, bases, current/on-deck batter, Pitcher, pitch count, and Stamina.
+
+Effort changes the speed of every Pitch, including off-speed Pitches. Higher effort should be faster and costlier without making an Eephus, Slider, or Drop feel identical to a Four-Seam.
 
 The yellow line marks the ordinary Safe boundary. The cyan line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall strike on the fly is a Triple, and a fair airborne ball clearing the wall top is a Home Run. The brown pole is a live object: it should physically redirect the ball without deciding the baseball result by itself.
 

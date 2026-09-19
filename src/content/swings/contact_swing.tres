@@ -6,8 +6,8 @@
 script = ExtResource("1_swing")
 id = &"swing.contact"
 display_name = "Contact Swing"
-contact_radius_x_m = 0.36
-contact_radius_y_m = 0.32
+contact_radius_x_m = 0.42
+contact_radius_y_m = 0.38
 contact_depth_m = 0.68
 bat_speed_mps = 24.0
 attack_angle_degrees = 7.0

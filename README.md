@@ -4,7 +4,7 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 ## Status
 
-Preproduction is frozen and the **Phase 2 Ball-in-Play Lab** is awaiting Godot 4.7.2 runtime validation.
+The **Phase 3 vanilla-match simulator** is implemented and awaiting Godot 4.7.2 runtime validation.
 
 Canonical docs:
 
@@ -38,10 +38,13 @@ The repository now contains:
 - starter-field authored hit rules
 - automatic Primary Fielder and Pitcher defense
 - ghost-base and sacrifice-fly resolution
-- one integrated core-mechanics Lab scene
+- complete five-inning match state, counts, batting order, Stamina, mercy, and extras
+- role-aware opponent control and automatic camera changes
+- per-Pitch effort control
+- one integrated Match Mode plus preserved Mechanics Lab scene
 
 ## Milestone order
 
-Phase 0 Foundation → Pitch/Bat Lab → Ball-in-Play Lab → complete vanilla match.
+Phase 0 Foundation → Pitch/Bat Lab → Ball-in-Play Lab → complete vanilla match → sport fun gate.
 
 **Wiffaltro is a working title.**
