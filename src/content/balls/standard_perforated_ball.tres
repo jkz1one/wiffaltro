@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BallAeroProfileDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/ball_aero_profile_definition.gd" id="1_aero"]
+
+[resource]
+script = ExtResource("1_aero")
+id = &"ball_aero.standard_perforated"
+display_name = "Standard Perforated Ball"
+mass_kg = 0.02
+radius_m = 0.0365
+drag_coefficient = 0.5
+magnus_scale = 1.0
+perforation_force_scale = 1.0
+orientation_stability = 1.0
