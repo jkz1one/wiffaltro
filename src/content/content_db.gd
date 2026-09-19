@@ -9,6 +9,7 @@ var player_by_id: Dictionary = {}
 var delivery_by_id: Dictionary = {}
 var ball_aero_by_id: Dictionary = {}
 var ball_setup_by_id: Dictionary = {}
+var swing_by_id: Dictionary = {}
 
 func _ready() -> void:
 	reload_manifest()
@@ -27,6 +28,7 @@ func reload_manifest() -> bool:
 	valid = _index_definitions(manifest.deliveries, delivery_by_id, "Delivery") and valid
 	valid = _index_definitions(manifest.ball_aero_profiles, ball_aero_by_id, "BallAeroProfile") and valid
 	valid = _index_definitions(manifest.ball_setups, ball_setup_by_id, "BallSetup") and valid
+	valid = _index_definitions(manifest.swing_profiles, swing_by_id, "SwingProfile") and valid
 	return valid
 
 func validate_or_error() -> bool:
@@ -39,6 +41,7 @@ func validate_or_error() -> bool:
 		and _validate_index(delivery_by_id, "Delivery")
 		and _validate_index(ball_aero_by_id, "BallAeroProfile")
 		and _validate_index(ball_setup_by_id, "BallSetup")
+		and _validate_index(swing_by_id, "SwingProfile")
 	)
 
 func get_pitch(id: StringName) -> PitchDefinition:
@@ -53,12 +56,16 @@ func get_delivery(id: StringName) -> DeliveryProfileDefinition:
 func get_ball_setup(id: StringName) -> BallSetupDefinition:
 	return ball_setup_by_id.get(id) as BallSetupDefinition
 
+func get_swing(id: StringName) -> SwingProfileDefinition:
+	return swing_by_id.get(id) as SwingProfileDefinition
+
 func _clear_indexes() -> void:
 	pitch_by_id.clear()
 	player_by_id.clear()
 	delivery_by_id.clear()
 	ball_aero_by_id.clear()
 	ball_setup_by_id.clear()
+	swing_by_id.clear()
 
 func _index_definitions(definitions: Array, target: Dictionary, label: String) -> bool:
 	var valid := true
