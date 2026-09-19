@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.9
-**Status:** FROZEN BASELINE WITH TIMED-CONTACT/BROADCAST-FLOW AMENDMENT
-**Supersedes:** v0.4.8 and all earlier planning notes
+**Version:** v0.4.10
+**Status:** FROZEN BASELINE WITH POST-GATE ROADMAP/PLAYER-CARD AMENDMENT
+**Supersedes:** v0.4.9 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -65,7 +65,7 @@ Top four qualify → higher-seed semifinal → neutral-site championship.
 
 ### Season end
 
-Temporary build resets → career history is recorded → Club Funds are awarded → unlocks progress → jerseys/emblems/stadium can be improved → begin another season.
+Temporary build resets → career history is recorded → Club Funds are awarded → post-season player-card rewards and other unlocks resolve → jerseys/emblems/stadium can be improved → begin another season.
 
 ---
 
@@ -920,6 +920,21 @@ After leaving it, roster locks for Games 7–10 and playoffs.
 
 Exact Free Agent appearance frequency remains a simulation/tuning decision.
 
+## Locked-player seasonal appearances
+
+A named player may occasionally appear as a Free Agent or special seasonal
+opportunity before their permanent player card has been unlocked.
+
+Recruiting that player grants access only for the current season. It does not:
+
+- add them to future preseason draft pools
+- mark their permanent player card as owned
+- bypass their achievement or pack-eligibility requirement
+
+Encountering a locked player may reveal their collection slot, identity, and an
+appropriate unlock hint in Records & Unlocks. This creates discovery without
+turning a lucky seasonal appearance into permanent progression.
+
 ---
 
 # 24. Roster Construction
@@ -928,7 +943,7 @@ Baseline recommendation:
 
 **Four-round tryout draft.**
 
-Each round:
+Each round draws from the player's permanently draftable player-card pool:
 
 - 3 player cards appear
 - choose 1
@@ -1062,11 +1077,47 @@ Design law:
 - home stadium
 - owned stadium pieces
 - career records/history
-- trophies/accomplishments- League × Difficulty clears
+- trophies/accomplishments
+- League × Difficulty clears
 - unlock pools
+- owned player cards / permanently draftable player pool
+- player-card collection discovery
 - cosmetics
 
 Potentially named-player career statistical history may persist as history only, not power.
+
+## Player-card collection and unlocks
+
+Named players are represented by baseball-style player cards in the persistent
+Records & Unlocks collection. These cards are roster identities and stat
+references, not temporary Gear and not permanent stat upgrades.
+
+Each player card can occupy three distinct progression states:
+
+1. **Encountered** — the player has appeared in a season; their collection slot
+   and an appropriate unlock hint may be revealed, but they remain locked.
+2. **Pack-eligible** — the player has entered the reward pool because their
+   prerequisite is satisfied or they belong to the baseline pack pool.
+3. **Draftable** — the card has been permanently obtained and the player can
+   appear in future preseason tryout drafts.
+
+At season end, earned player-card packs offer cards from the currently eligible
+pool. Obtaining a card permanently moves that player into the draftable pool.
+The reward pool may contain:
+
+- baseline players available from the beginning
+- players made pack-eligible by League/Difficulty clears, records, stadium
+  milestones, or other achievements
+- rare players available only after a specific hidden or visible condition
+
+Some achievements may award a specific player card directly instead of merely
+adding that player to the pack pool. The reward presentation must distinguish
+clearly between **made pack-eligible** and **card obtained**.
+
+Post-season packs are earned progression rewards, not real-money loot boxes.
+They expand roster-building options without granting permanent universal stat
+power. Packs should prioritize unobtained eligible players; exact pack size,
+choice format, and duplicate protection remain tuning decisions.
 
 ## Resets every season
 
@@ -1119,6 +1170,9 @@ Preferred model:
 Progression unlocks a permanent item into the available catalog.
 
 Club Funds purchase ownership.
+
+Player cards are a direct earned-unlock track and do not require an additional
+Club Funds purchase after the card is obtained.
 
 Once owned, remodeling among owned pieces is generally free between seasons.
 
@@ -1245,7 +1299,7 @@ See `TECHNICAL_PREPRODUCTION.md`.
 
 ---
 
-# 35. Prototype / Production Order
+# 35. Development Roadmap
 
 ## Phase 0 — Foundation
 
@@ -1267,19 +1321,67 @@ Four-player rosters, batting order, counts, Stamina, pitching changes, five inni
 
 The core sport must be fun before building the roguelite shell.
 
-Only after that:
+## Phase 4 — Season Shell
 
-- shops
-- abilities
-- Pitches as economy content
+Build the complete season structure around the validated vanilla game:
+
+- preseason flow
+- four-player roster construction and loadouts
+- six-team league
+- 10-game double round robin
+- standings and lightweight AI-game simulation
+- four-team playoffs
+
+The first Season Shell should work with mostly vanilla player power so its
+schedule, pacing, standings, and reset loop can be evaluated independently.
+
+## Phase 5 — Seasonal Build Systems
+
+Layer the run-specific build economy onto the functioning Season Shell:
+
+- Pitches
+- Hitting Abilities
+- Fielding Abilities
 - Gear
 - Endorsements
-- Free Agents
-- micro-season
-- full season
-- League × Difficulty
-- persistent stadium
-- meta progression
+- Season Cash and Hype
+- postgame shops and rerolls
+- Free Agents and the Game 6 trade deadline
+
+## Phase 6 — Opponents, Fields, Leagues, and Difficulty
+
+Make repeat seasons strategically distinct:
+
+- authored opponent identities
+- opponent development across rematches
+- unusual physical parks and field objects
+- League rules
+- Difficulty progression tracked per League
+
+## Phase 7 — Persistent Club Layer
+
+Connect seasons into a career without adding permanent universal stat power:
+
+- season history and records
+- player-card packs, collection discovery, and draftable-player unlocks
+- broader unlock pools
+- Club Funds
+- stadium development
+- visual club identity
+
+## Phase 8 — Production and Content Scale
+
+Bring the validated game to production quality:
+
+- character animation and final bat presentation
+- audio, effects, and UI polish
+- broader player, Pitch, Ability, Gear, Endorsement, opponent, and field content
+- performance profiling
+- real-device mobile testing
+
+Phase numbers describe dependency order, not a requirement to finish every
+piece of one phase before starting safe preparatory work in the next. The sport
+fun gate still blocks full investment in Phases 4–8.
 
 ---
 
@@ -1295,6 +1397,9 @@ These are **not unresolved architecture blockers**:
 - exact development-break cadence
 - exact shop category weights
 - final Hype name/formula
+- exact number of player cards offered per post-season pack
+- player-card choice/reveal format and duplicate-protection details
+- exact achievement-to-player eligibility mapping
 - exact five-inning/mercy balance after real timing tests
 - final pitch coefficient values
 - final stat ranges

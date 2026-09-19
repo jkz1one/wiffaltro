@@ -64,6 +64,8 @@ The repository now contains:
 
 ## Milestone order
 
-Phase 0 Foundation → Pitch/Bat Lab → Ball-in-Play Lab → complete vanilla match → sport fun gate.
+Phase 0 Foundation → Pitch/Bat Lab → Ball-in-Play Lab → complete vanilla match
+→ sport fun gate → Season Shell → Seasonal Build Systems → Opponents/Fields/
+Leagues/Difficulty → Persistent Club Layer → Production and Content Scale.
 
 **Wiffaltro is a working title.**

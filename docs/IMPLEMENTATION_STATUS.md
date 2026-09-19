@@ -331,3 +331,16 @@ This revision supersedes the earlier one-acceptance and click-through flow.
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on timed Swing, receiver, handed bat, cadence, release meter, and
       intro/outro validation
+
+
+## Canonical post-fun-gate roadmap — not implemented
+
+The ordered roadmap now lives in `SOURCE_OF_TRUTH.md` §35. Phase 3 and the
+sport fun gate remain the current priority.
+
+- [ ] Phase 4 — Season Shell
+- [ ] Phase 5 — Seasonal Build Systems
+- [ ] Phase 6 — Opponents, Fields, Leagues, and Difficulty
+- [ ] Phase 7 — Persistent Club Layer, including earned post-season player-card
+      packs and draftable-player unlocks
+- [ ] Phase 8 — Production and Content Scale
