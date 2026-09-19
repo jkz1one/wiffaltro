@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DeliveryProfileDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/delivery_profile_definition.gd" id="1_delivery"]
+
+[resource]
+script = ExtResource("1_delivery")
+id = &"delivery.sidearm"
+display_name = "Sidearm"
+delivery = 2
+release_offset_pitcher_frame_m = Vector3(0.72, 1.25, 0)
