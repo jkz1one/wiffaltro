@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BallSetupDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/ball_setup_definition.gd" id="1_setup"]
+[ext_resource type="Resource" path="res://src/content/balls/standard_perforated_ball.tres" id="2_aero"]
+
+[resource]
+script = ExtResource("1_setup")
+id = &"ball_setup.fresh"
+display_name = "Fresh Ball"
+aero_profile = ExtResource("2_aero")
+drag_multiplier = 1.0
+magnus_multiplier = 1.0
+perforation_multiplier = 1.0
+stability_multiplier = 1.0
