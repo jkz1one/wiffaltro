@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.8
-**Status:** FROZEN BASELINE WITH INPUT/PRESENTATION HARDENING AMENDMENT
-**Supersedes:** v0.4.7 and all earlier planning notes
+**Version:** v0.4.9
+**Status:** FROZEN BASELINE WITH TIMED-CONTACT/BROADCAST-FLOW AMENDMENT
+**Supersedes:** v0.4.8 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -168,11 +168,14 @@ contact region, left click commits to Contact, and right click commits to
 Power. Keyboard/controller reticle aim remains an equivalent supported input,
 not merely a diagnostic path.
 
-An at-bat begins with one ready/accept input. Pitches within that plate
-appearance then arrive on a readable automatic cadence with a visible Pitcher
-set and windup. Cadence may vary within a bounded readable range so delivery
-timing does not become metronomic. The player should not have to approve every
-individual Pitch.
+Match flow does not require a separate ready/accept input for each at-bat or
+after a terminal result. After a readable dead-ball hold, the next batter,
+half-inning, and opponent delivery advance automatically. Opponent Pitcher set
+and windup cadence varies within a bounded readable range so delivery timing
+does not become metronomic. When the player is pitching, the automatic hold
+returns to a ready state and the player sets the tempo by choosing when to
+begin the next click-and-hold delivery. Pitch, aim, effort, Pitcher, and legal
+defensive choices remain available during the appropriate ready state.
 
 The batting camera uses a modest handed over-shoulder angle rather than a
 perfectly centered tunnel. This improves depth perception without changing the
@@ -1200,6 +1203,21 @@ Audio should enter early:
 - ball whoosh
 - strike target impact
 - fence/wall/material impacts
+
+## Match presentation
+
+A match begins with a short, skippable broadcast-style introduction. The game
+automatically selects two or three views from an authored camera pool and
+displays a temporary game-start title before settling into the role camera.
+The player does not select these views. Game completion receives the same basic
+treatment with a win/loss title and final score.
+
+Higher-stakes games may later use longer authored cinematic packages for
+clinch opportunities, elimination games, playoff-round finales, rivalries,
+championships, and major milestones. Those packages must remain readable,
+skippable, state-driven presentation; they cannot create or change baseball
+results. Detailed broadcast research and content production are deferred until
+the vanilla sport clears its fun gate.
 
 ---
 

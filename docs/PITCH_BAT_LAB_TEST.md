@@ -12,7 +12,7 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - execution error and fatigue degradation
 - release/plate-speed and aerodynamic movement instrumentation
 - Contact and Power swing profiles
-- timing/spatial contact resolution
+- 240 Hz swept timing/spatial contact resolution against a moving Swing
 - exit velocity, launch-angle, and spray output
 - corrected fatigue degradation and release-speed telemetry
 - Jolt physical ball-in-play with custom aerodynamic forces
@@ -32,11 +32,13 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - early/late and directional swing feedback
 - count-aware deterministic opponent decisions
 - deterministic per-play diagnostic records
-- one-acceptance automatic at-bat cadence and Pitcher windup telegraph
+- zero-acceptance automatic dead-ball cadence and Pitcher windup telegraph
 - pointer-projected mouse batting
 - clickable four-player pitching-staff panel
 - full-simulation debug pause
 - handed Batter/Pitcher/Fielder avatars and independent visible bat swing
+- visible non-authoritative receiver for taken and missed Pitches
+- automatic two-to-three-shot game intro and win/loss outro
 - handed over-shoulder batting camera
 - Batter approach memory for Pitch/location repetition
 - varied delivery rhythm and distinct Pitch speed bands
@@ -54,9 +56,10 @@ This is a functional match simulator and shared debug lab, not a polished game s
 
 ## Match Mode controls
 
-- Left click: begin/advance an at-bat when the ball is dead
-- `Space`: equivalent keyboard/controller advance; while pitching, hold to
-  start the delivery and release near the meter's center mark
+- During the intro: left click, `Space`, or `Escape` skips to gameplay
+- During automatic dead-ball holds: no acceptance input is required
+- `Space` while pitching: hold to start the delivery and release near the
+  meter's center mark
 - Mouse movement: position batting coverage on the contact plane
 - Left click: aim at the pointer and commit a Contact Swing
 - Right click: aim at the pointer and commit a Power Swing
@@ -77,6 +80,7 @@ This is a functional match simulator and shared debug lab, not a polished game s
   click `RETURN TO PITCH`
 - `[ / ]`: set a minimum fatigue level for focused testing
 - `R`: restart the match
+- After the outro: `R` starts a new match
 
 ## Mechanics Lab controls
 
@@ -125,24 +129,41 @@ into the dirt.
 
 The Knuckleball is intentionally less repeatable because its seeded orientation instability is part of the Pitch identity.
 
-For batting, move the pointer over the approaching ball and click near the
-plate. Left click uses Contact; right click uses Power. Mouse position is
-projected onto the same mathematical contact plane used by the WASD and
-controller reticle, so both paths exercise the same ContactResolver. The outer
-cyan rectangle is Contact coverage and the inner orange rectangle is Power
-coverage. Batter Contact rating scales both regions. The camera should sit at
-a subtle handed over-shoulder angle, and the visible Batter's bat should swing
-from the correct side. The widened depth should improve timing without making
-poor X/Y aim succeed.
+For batting, move the pointer over the approaching ball and click early enough
+for the bat to reach it near the plate. Left click uses Contact; right click
+uses Power. The click starts a real authored-duration Swing; it does not freeze
+the ball or decide contact immediately. Mouse position is projected onto the
+same mathematical contact plane used by the WASD and controller reticle, so
+both paths exercise the same ContactResolver. The outer cyan rectangle is
+Contact coverage and the inner orange rectangle is Power coverage. Batter
+Contact rating scales both regions. The camera should sit at a subtle handed
+over-shoulder angle. Right-handed Batters must stand on the third-base side
+with hands and bat on the back/right shoulder; left-handed Batters must mirror
+the full setup. The widened depth should improve timing without making poor
+X/Y aim succeed.
 
-In Match Mode, left click once to begin an at-bat. The Pitcher should visibly
-set, wind up, and deliver. Taken Pitches, fouls, and non-terminal misses should
-flow into the next Pitch automatically after a longer readable hold. A walk,
-strikeout, hit, out, or inning change waits for left click (or `Space`) before
-continuing. The
-camera should switch to the field on contact and return for the next role.
-Counts must persist within a plate appearance, and the batter must advance only
-when that plate appearance ends.
+Swing deliberately too early and too late. On a miss, the Pitch must keep
+moving, cross the plate, continue visually to the receiver ring, and only then
+enter the dead-ball flow. A miss may be identified when the authored Swing
+window closes, but that identification must not stop authoritative Pitch
+flight. Fair contact and fouls should still end the Pitch at the resolved
+encounter. Contact should feel quicker than the prior slow placeholder Swing,
+with Power remaining slightly longer and less forgiving.
+
+Starting a new match should automatically play two or three short camera views
+with `GAME START`, then settle into the correct batting camera and begin the
+opponent delivery without a ready click. The sequence must be skippable. Taken
+Pitches, fouls, misses, walks, strikeouts, hits, outs, new batters, and inning
+changes should all flow after a readable automatic hold. The camera should
+switch to the field on contact and return for the next role. Counts must
+persist within a plate appearance, and the batter must advance only when that
+plate appearance ends.
+
+During the player's defensive half, the automatic hold should return to a
+ready pitching state without throwing by itself. Use that state to change
+Pitch, aim, effort, or legal defensive assignments, then set the tempo by
+starting the next hold/release delivery. No extra advance click should be
+required before that delivery input.
 
 During the player's defensive half, the pitching-staff panel should list all
 four players, Stamina, and fatigue state. Selection is enabled only between
@@ -151,11 +172,15 @@ the Primary Fielder role to another player. Middle Center must visibly start
 clear of the mound rather than overlap the Pitcher.
 
 While pitching, hold left click, `Space`, or controller A and release near the
-center cue. Mouse and keyboard must show and use the same timing bar.
+center cue. Mouse and keyboard must show and use the same faster timing bar.
 High-Control, fresh Pitchers should have a more forgiving useful window than
 tired, low-Control Pitchers. Early and late releases should reduce command
 without allowing any mid-flight steering. Holding beyond the window must
 auto-release rather than stall the match.
+
+At game completion, a short automatic camera sequence must show `WIN` or
+`LOSS`, the final score, and the new-match control. It must not alter the final
+MatchState. Skipping the sequence should preserve the result overlay.
 
 Missed swings should report whether timing or aim was the dominant error. The
 opponent should protect more often with two strikes, take more selectively in

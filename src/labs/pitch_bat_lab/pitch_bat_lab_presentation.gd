@@ -7,6 +7,7 @@ static func build_pitch_actor(lab: PitchBatLab) -> void:
 	lab._pitch_actor.process_mode = Node.PROCESS_MODE_PAUSABLE
 	lab._pitch_actor.trace_every_substeps = 2
 	lab._pitch_actor.trace_sampled.connect(lab._on_trace_sampled)
+	lab._pitch_actor.segment_advanced.connect(lab._on_pitch_segment_advanced)
 	lab._pitch_actor.plate_crossed.connect(lab._on_plate_crossed)
 	lab._pitch_actor.flight_stopped.connect(lab._on_flight_stopped)
 	lab.add_child(lab._pitch_actor)
@@ -72,7 +73,7 @@ static func sync_players(lab: PitchBatLab) -> void:
 	var batter_left: bool = batter.bats == PlayerDefinition.Handedness.LEFT
 	if lab._batter_avatar != null:
 		var batter_position: Vector3 = Vector3(
-			-0.82 if batter_left else 0.82,
+			0.82 if batter_left else -0.82,
 			0.0,
 			0.34
 		)
@@ -97,9 +98,12 @@ static func sync_players(lab: PitchBatLab) -> void:
 	if lab._camera_director != null:
 		lab._camera_director.set_batter_handedness(batter_left)
 
-static func play_batter_swing(lab: PitchBatLab, power: bool) -> void:
+static func play_batter_swing(
+	lab: PitchBatLab,
+	profile: SwingProfileDefinition
+) -> void:
 	if lab._bat_actor != null:
-		lab._bat_actor.play_swing(power)
+		lab._bat_actor.play_swing(profile)
 
 static func show_pitcher_fielding_attempt(
 	lab: PitchBatLab,
@@ -172,7 +176,31 @@ static func build_ui(lab: PitchBatLab) -> void:
 
 	var footer: Label = _add_label(canvas, Vector2(20.0, 680.0), 13)
 	footer.text = "Phase 3 match simulator + shared mechanics lab. F1 overlay, F2 mode."
+	_build_match_presentation(lab, canvas)
 	refresh_controls(lab)
+
+static func show_match_intro(lab: PitchBatLab) -> void:
+	if lab._presentation_backdrop == null:
+		return
+	lab._presentation_backdrop.visible = true
+	lab._presentation_title.text = "GAME START"
+	lab._presentation_subtitle.text = "%s at %s" % [
+		lab.PLAYER_TEAM_NAME,
+		lab.RIVAL_TEAM_NAME,
+	]
+
+static func show_match_outro(lab: PitchBatLab, player_won: bool) -> void:
+	if lab._presentation_backdrop == null or lab._match_state == null:
+		return
+	lab._presentation_backdrop.visible = true
+	lab._presentation_title.text = "WIN" if player_won else "LOSS"
+	lab._presentation_subtitle.text = "%s\nR: NEW MATCH" % (
+		lab._match_state.score_label()
+	)
+
+static func hide_match_presentation(lab: PitchBatLab) -> void:
+	if lab._presentation_backdrop != null:
+		lab._presentation_backdrop.visible = false
 
 static func cycle_camera(lab: PitchBatLab) -> void:
 	if lab._field_setup_active:
@@ -268,7 +296,7 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 			+ "BATTING: mouse tracks aim   left click Contact   right click Power\n"
 			+ "WASD/left stick aim   Z/A Contact   X/X Power\n"
 			+ "PITCHING: hold left click or SPACE, release on cue   1–9 Pitch   -/= effort\n"
-			+ "Click through dead balls   FIELD VIEW positions   F changes Fielder"
+			+ "Dead balls advance automatically   FIELD VIEW positions   F changes Fielder"
 		)
 	else:
 		lab._controls_label.text = (
@@ -337,7 +365,7 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 			"FIELD SETUP     choose an anchor     RETURN TO PITCH when ready"
 		)
 	elif lab._player_is_batting():
-		var cadence_text: String = "LEFT CLICK: begin at-bat"
+		var cadence_text: String = "PITCHER READYING"
 		if (
 			lab._at_bat_cadence != null
 			and lab._at_bat_cadence.state
@@ -464,6 +492,34 @@ static func _build_pitch_release_meter(
 	)
 	lab._pitch_release_ideal_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(lab._pitch_release_ideal_marker)
+
+static func _build_match_presentation(
+	lab: PitchBatLab,
+	canvas: CanvasLayer
+) -> void:
+	lab._presentation_backdrop = ColorRect.new()
+	lab._presentation_backdrop.position = Vector2.ZERO
+	lab._presentation_backdrop.size = Vector2(1280.0, 720.0)
+	lab._presentation_backdrop.color = Color(0.0, 0.0, 0.0, 0.42)
+	lab._presentation_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(lab._presentation_backdrop)
+
+	lab._presentation_title = Label.new()
+	lab._presentation_title.position = Vector2(0.0, 270.0)
+	lab._presentation_title.size = Vector2(1280.0, 78.0)
+	lab._presentation_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab._presentation_title.add_theme_font_size_override("font_size", 52)
+	lab._presentation_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab._presentation_backdrop.add_child(lab._presentation_title)
+
+	lab._presentation_subtitle = Label.new()
+	lab._presentation_subtitle.position = Vector2(0.0, 350.0)
+	lab._presentation_subtitle.size = Vector2(1280.0, 90.0)
+	lab._presentation_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab._presentation_subtitle.add_theme_font_size_override("font_size", 22)
+	lab._presentation_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab._presentation_backdrop.add_child(lab._presentation_subtitle)
+	lab._presentation_backdrop.visible = false
 
 static func _refresh_pitch_release_meter(lab: PitchBatLab) -> void:
 	if lab._pitch_release_bar == null or lab._pitch_release_ideal_marker == null:

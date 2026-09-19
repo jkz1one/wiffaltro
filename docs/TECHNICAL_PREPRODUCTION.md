@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.6
-**Status:** FROZEN BASELINE WITH INPUT/PRESENTATION HARDENING AMENDMENT
+**Version:** v0.1.7
+**Status:** FROZEN BASELINE WITH TIMED-CONTACT/BROADCAST-FLOW AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -769,7 +769,9 @@ contact_radius_x
 contact_radius_y
 contact_depth
 swing_duration
-time_to_sweet_spot
+contact_window_start
+contact_window_end
+sweet_spot_time
 bat_speed
 attack_angle
 exit_velocity_multiplier
@@ -827,7 +829,11 @@ a second collision-based batting result.
 
 # 29. Contact Resolver
 
-During the valid contact interval, compare the Pitch trajectory against the moving virtual contact region.
+During the valid contact interval, compare each authoritative 240 Hz Pitch
+segment against the moving virtual contact region. Resolve the closest valid
+encounter within that segment rather than evaluating the ball only at the input
+frame. A committed swing may therefore begin before the Pitch reaches the
+contact plane.
 
 Evaluate:
 
@@ -846,6 +852,24 @@ Outcomes can include:
 - near-perfect/perfect contact
 
 Exact thresholds remain tuning data.
+
+If the moving Pitch never encounters the virtual region before the authored
+window closes, record an early/late or spatial miss but do not stop Pitch
+flight. The authoritative Pitch continues to its plate-crossing call and its
+non-interactive receiver presentation. Fair contact and fouls end Pitch flight
+at the resolved encounter.
+
+### Research basis
+
+The arcade resolver should preserve the useful relationships from Alan
+Nathan's ball-bat collision work without attempting a deformable-body bat
+simulation: incoming Pitch velocity/spin, bat velocity/direction, attack angle,
+ball-bat centerline offset, and actual encounter timing jointly determine exit
+speed, launch angle, spray, and spin. In particular, centerline offset remains
+the primary launch-angle control, while useful attack-angle alignment preserves
+exit speed. See [Optimizing the Swing](https://baseball.physics.illinois.edu/OptimizingTheSwing.pdf),
+[Optimizing the Swing II](https://baseball.physics.illinois.edu/OptimizingTheSwingII.pdf),
+and [Modeling the Ball-Bat Collision](https://baseball.physics.illinois.edu/AJP-Oct2006.pdf).
 
 ---
 
@@ -1382,6 +1406,22 @@ Presentation
 
 This is the central gameplay pipeline.
 
+## Match cadence and presentation
+
+Dead-ball holds are state-driven and advance automatically. They use separate
+bounded timing ranges for another Pitch in the same plate appearance, a new
+batter, and an inning transition. On defense, completion of the hold returns
+the player to `PRE_PITCH`; the player controls tempo by choosing when to begin
+the next delivery. On offense, the opponent delivery director begins its own
+bounded set/windup cadence.
+
+`MatchPresentationDirector` is a match-local presentation state machine. It
+selects two or three unique, seeded intro/outro shots from an authored pool,
+blocks gameplay during the sequence, returns through the correct role camera,
+and exposes a skip path. It observes `MatchState`; it does not own innings,
+scores, results, or gameplay timing. High-stakes cinematic packages remain a
+future extension of this director, not a second match state machine.
+
 ---
 
 # 53. Event Architecture
@@ -1575,7 +1615,7 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 26. smooth role and ball-in-play camera direction
 27. deterministic per-play records for reproduction and tuning
 28. headless core regression scene
-29. one-acceptance-per-at-bat automatic Pitch cadence with Pitcher telegraph
+29. zero-acceptance automatic dead-ball cadence with Pitcher telegraph
 30. pointer-projected Contact/Power Swing input
 31. pausable debug inspection
 32. visible four-player pitching-staff selection between batters
@@ -1587,6 +1627,12 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 38. overhead 3×3 Field Setup view
 39. mathematical back-wall segment fallback
 40. independent BatActor presentation and post-plate visual catch-through
+41. 240 Hz swept Pitch-versus-moving-contact-region resolution
+42. missed-swing continuation through plate call and receiver presentation
+43. faster authored Swing and player Pitch-release timing
+44. automatic two-to-three-shot game intro and win/loss outro
+45. state-safe presentation skipping and role-camera settlement
+46. future high-stakes broadcast package seam without baseball-state ownership
 
 ### Phase 3 acceptance
 
@@ -1653,6 +1699,7 @@ Before large-scale gameplay systems exist, prioritize pure logic tests for:
 - timestep convergence
 - strike-zone crossing
 - contact resolution
+- swept Swing timing and miss continuation
 - BaseState advancement
 - BallPlayResolver
 - sacrifice advancement
@@ -1660,6 +1707,7 @@ Before large-scale gameplay systems exist, prioritize pure logic tests for:
 - release timing quality and stat/fatigue influence
 - count-aware opponent decision determinism
 - JSON-safe per-play record serialization
+- automatic dead-ball cadence and presentation-director sequencing
 
 Physics-heavy behaviors should also have small regression scenes with known expected ranges rather than relying only on unit tests.
 

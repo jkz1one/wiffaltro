@@ -2,13 +2,14 @@ class_name PitchFlightActor
 extends Node3D
 
 signal trace_sampled(point: Vector3)
+signal segment_advanced(previous_position: Vector3, previous_elapsed_seconds: float)
 signal plate_crossed(point: Vector3, speed_mps: float, elapsed_seconds: float)
 signal flight_stopped(reason: StringName)
 
-const PLATE_FOLLOW_THROUGH_SECONDS: float = 0.12
+const RECEIVER_PLANE_Z: float = -1.05
+const MIN_RECEIVER_TRAVEL_SECONDS: float = 0.055
+const MAX_RECEIVER_TRAVEL_SECONDS: float = 0.16
 const RECEIVER_HOLD_SECONDS: float = 0.18
-const MIN_FOLLOW_THROUGH_M: float = 0.60
-const MAX_FOLLOW_THROUGH_M: float = 0.95
 
 @export var plate_z: float = 0.0
 @export var max_flight_seconds: float = 3.0
@@ -74,9 +75,13 @@ func _physics_process(delta: float) -> void:
 		and running
 	):
 		var previous_position: Vector3 = state.position
+		var previous_elapsed_seconds: float = state.elapsed_time
 		PitchFlightSolver.step(state, parameters)
 		_accumulator_seconds -= PitchFlightSolver.SUBSTEP_SECONDS
 		_substep_count += 1
+		segment_advanced.emit(previous_position, previous_elapsed_seconds)
+		if not running:
+			break
 
 		if _substep_count % maxi(1, trace_every_substeps) == 0:
 			trace_sampled.emit(state.position)
@@ -119,20 +124,25 @@ func _begin_plate_follow_through(
 	crossing_point: Vector3,
 	crossing_velocity: Vector3
 ) -> void:
-	var direction: Vector3 = crossing_velocity.normalized()
-	var travel_m: float = clampf(
-		crossing_velocity.length() * 0.045,
-		MIN_FOLLOW_THROUGH_M,
-		MAX_FOLLOW_THROUGH_M
+	var receiver_seconds: float = clampf(
+		(RECEIVER_PLANE_Z - crossing_point.z)
+		/ minf(-0.001, crossing_velocity.z),
+		MIN_RECEIVER_TRAVEL_SECONDS,
+		MAX_RECEIVER_TRAVEL_SECONDS
 	)
-	var receiver_point: Vector3 = crossing_point + direction * travel_m
+	var receiver_point: Vector3 = (
+		crossing_point
+		+ crossing_velocity * receiver_seconds
+		+ Vector3.DOWN * 4.9 * receiver_seconds * receiver_seconds
+	)
+	receiver_point.z = RECEIVER_PLANE_Z
 	_plate_follow_tween = create_tween().bind_node(self)
 	_plate_follow_tween.tween_property(
 		self,
 		"global_position",
 		receiver_point,
-		PLATE_FOLLOW_THROUGH_SECONDS
-	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		receiver_seconds
+	).set_trans(Tween.TRANS_LINEAR)
 	_plate_follow_tween.tween_interval(RECEIVER_HOLD_SECONDS)
 	_plate_follow_tween.tween_callback(_hide_after_plate_follow_through)
 

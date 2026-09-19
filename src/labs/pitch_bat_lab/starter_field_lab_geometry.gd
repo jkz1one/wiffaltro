@@ -69,6 +69,7 @@ func build(
 		zone_min_y,
 		zone_max_y
 	)
+	_build_pitch_receiver()
 	_build_aim_markers(contact_aim_size, power_aim_size)
 
 	var light: DirectionalLight3D = DirectionalLight3D.new()
@@ -112,6 +113,39 @@ func _build_strike_zone(
 		Vector3(0.0, zone_max_y, 0.0),
 		Vector3(width, thickness, thickness),
 		zone_color
+	)
+
+func _build_pitch_receiver() -> void:
+	var receiver_color: Color = Color(0.16, 0.22, 0.23)
+	var receiver_z: float = PitchFlightActor.RECEIVER_PLANE_Z
+	var half_width: float = 0.95
+	var bottom_y: float = 0.18
+	var top_y: float = 1.98
+	var center_y: float = (bottom_y + top_y) * 0.5
+	var thickness: float = 0.045
+	_add_box(
+		"ReceiverLeft",
+		Vector3(-half_width, center_y, receiver_z),
+		Vector3(thickness, top_y - bottom_y, thickness),
+		receiver_color
+	)
+	_add_box(
+		"ReceiverRight",
+		Vector3(half_width, center_y, receiver_z),
+		Vector3(thickness, top_y - bottom_y, thickness),
+		receiver_color
+	)
+	_add_box(
+		"ReceiverTop",
+		Vector3(0.0, top_y, receiver_z),
+		Vector3(half_width * 2.0, thickness, thickness),
+		receiver_color
+	)
+	_add_box(
+		"ReceiverBottom",
+		Vector3(0.0, bottom_y, receiver_z),
+		Vector3(half_width * 2.0, thickness, thickness),
+		receiver_color
 	)
 
 func _build_aim_markers(

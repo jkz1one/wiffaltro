@@ -14,6 +14,39 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 	if lab._debug_paused:
 		lab.get_viewport().set_input_as_handled()
 		return
+	if (
+		lab._match_presentation_director != null
+		and lab._match_presentation_director.blocks_gameplay()
+	):
+		if event is InputEventKey:
+			var presentation_key: InputEventKey = event as InputEventKey
+			if (
+				presentation_key.pressed
+				and not presentation_key.echo
+				and presentation_key.keycode == KEY_R
+				and lab._match_presentation_director.mode
+				== MatchPresentationDirector.Mode.OUTRO_HOLD
+			):
+				lab._start_new_match()
+			elif (
+				presentation_key.pressed
+				and not presentation_key.echo
+				and (
+					presentation_key.keycode == KEY_SPACE
+					or presentation_key.keycode == KEY_ESCAPE
+				)
+			):
+				PitchBatLabFeelSupport.skip_match_presentation(lab)
+		elif event is InputEventMouseButton:
+			var presentation_click: InputEventMouseButton = (
+				event as InputEventMouseButton
+			)
+			if presentation_click.pressed:
+				PitchBatLabFeelSupport.skip_match_presentation(lab)
+		elif event.is_action_pressed(&"match_advance", false, true):
+			PitchBatLabFeelSupport.skip_match_presentation(lab)
+		lab.get_viewport().set_input_as_handled()
+		return
 	if _handle_pointer_event(lab, event):
 		lab.get_viewport().set_input_as_handled()
 		return
@@ -41,14 +74,13 @@ static func _handle_pointer_event(
 		var advance_click: InputEventMouseButton = event as InputEventMouseButton
 		if (
 			advance_click.pressed
-			and advance_click.button_index == MOUSE_BUTTON_LEFT
 			and lab._match_state != null
 			and (
 				lab._match_state.phase == MatchState.Phase.PLAY_DEAD
 				or lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
+				or lab._match_state.phase == MatchState.Phase.GAME_END
 			)
 		):
-			lab._handle_match_advance()
 			return true
 	if lab._match_mode and lab._player_is_pitching():
 		if lab._field_setup_active:
@@ -82,22 +114,6 @@ static func _handle_pointer_event(
 				PitchBatLabFeelSupport.commit_pitch_release(lab)
 				return true
 		return false
-	if (
-		lab._match_mode
-		and lab._player_is_batting()
-		and event is InputEventMouseButton
-	):
-		var ready_click: InputEventMouseButton = event as InputEventMouseButton
-		if (
-			ready_click.pressed
-			and ready_click.button_index == MOUSE_BUTTON_LEFT
-			and lab._match_state != null
-			and lab._match_state.phase == MatchState.Phase.PRE_PITCH
-			and lab._at_bat_cadence.state == AtBatCadenceController.State.IDLE
-			and (lab._pitch_actor == null or not lab._pitch_actor.running)
-		):
-			lab._handle_match_advance()
-			return true
 	if event is InputEventMouseMotion:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		return PitchBatLabFeelSupport.set_batting_aim_from_screen(
@@ -146,15 +162,7 @@ static func _handle_action_event(
 			PitchBatLabFeelSupport.begin_pitch_release(lab)
 			return true
 	if event.is_action_pressed(&"match_advance", false, true):
-		if (
-			lab._match_mode
-			and lab._player_is_pitching()
-			and lab._match_state.phase == MatchState.Phase.PRE_PITCH
-		):
-			return true
-		if lab._match_mode:
-			lab._handle_match_advance()
-		else:
+		if not lab._match_mode:
 			lab._throw_pitch()
 		return true
 	if event.is_action_released(&"pitch_release", true):

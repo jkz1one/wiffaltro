@@ -7,6 +7,7 @@ enum Shot {
 	SIDE,
 	BALL_IN_PLAY,
 	FIELD_SETUP,
+	ESTABLISHING,
 }
 
 const TRANSITION_SPEED: float = 7.5
@@ -20,7 +21,9 @@ func set_shot(next_shot: Shot) -> void:
 	shot = next_shot
 
 func set_batter_handedness(is_left_handed: bool) -> void:
-	_batter_side = -1.0 if is_left_handed else 1.0
+	# Match the camera to the batter's box/shoulder side: left-handed Batters
+	# occupy +X, while right-handed Batters occupy -X.
+	_batter_side = 1.0 if is_left_handed else -1.0
 
 func cycle_shot() -> void:
 	shot = (int(shot) + 1) % Shot.size()
@@ -81,6 +84,9 @@ func _desired_transform(
 		Shot.FIELD_SETUP:
 			camera_position = Vector3(0.0, 27.0, 9.8)
 			focus = Vector3(0.0, 0.0, 13.5)
+		Shot.ESTABLISHING:
+			camera_position = Vector3(-16.5, 11.5, -7.0)
+			focus = Vector3(0.0, 1.1, 12.0)
 		_:
 			focus = _field_focus
 			var depth_pullback: float = clampf(ball_position.z * 0.16, 0.0, 7.0)

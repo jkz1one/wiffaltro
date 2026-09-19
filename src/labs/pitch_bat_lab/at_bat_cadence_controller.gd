@@ -21,6 +21,10 @@ const MAX_DELIVERY_SECONDS: float = 1.78
 const LONG_SET_CHANCE: float = 0.18
 const MIN_DEAD_BALL_HOLD_SECONDS: float = 1.55
 const MAX_DEAD_BALL_HOLD_SECONDS: float = 2.05
+const MIN_BETWEEN_BATTERS_SECONDS: float = 1.95
+const MAX_BETWEEN_BATTERS_SECONDS: float = 2.45
+const MIN_INNING_TRANSITION_SECONDS: float = 2.35
+const MAX_INNING_TRANSITION_SECONDS: float = 2.85
 
 var state: State = State.IDLE
 var elapsed_seconds: float = 0.0
@@ -43,13 +47,28 @@ func mark_pitch_live() -> void:
 	state = State.PITCH_LIVE
 	elapsed_seconds = 0.0
 
-func hold_dead_ball(seed: int = 0) -> void:
+func hold_dead_ball(
+	seed: int = 0,
+	between_batters: bool = false,
+	inning_transition: bool = false
+) -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
-	active_hold_seconds = rng.randf_range(
-		MIN_DEAD_BALL_HOLD_SECONDS,
-		MAX_DEAD_BALL_HOLD_SECONDS
-	)
+	if inning_transition:
+		active_hold_seconds = rng.randf_range(
+			MIN_INNING_TRANSITION_SECONDS,
+			MAX_INNING_TRANSITION_SECONDS
+		)
+	elif between_batters:
+		active_hold_seconds = rng.randf_range(
+			MIN_BETWEEN_BATTERS_SECONDS,
+			MAX_BETWEEN_BATTERS_SECONDS
+		)
+	else:
+		active_hold_seconds = rng.randf_range(
+			MIN_DEAD_BALL_HOLD_SECONDS,
+			MAX_DEAD_BALL_HOLD_SECONDS
+		)
 	state = State.DEAD_BALL_HOLD
 	elapsed_seconds = 0.0
 

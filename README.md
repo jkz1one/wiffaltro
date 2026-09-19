@@ -5,8 +5,8 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 ## Status
 
 The **Phase 3 vanilla-match simulator** has passed multiple hands-on match
-smokes. The current player-presence, Pitch-identity, Batter-awareness, and
-defensive-tuning revision awaits Godot 4.7.2 runtime validation.
+smokes. The current timed-contact, automatic-cadence, and broadcast-flow
+revision awaits Godot 4.7.2 runtime validation.
 
 Canonical docs:
 
@@ -35,7 +35,7 @@ The repository now contains:
 - explicit ContentManifest + ContentDB
 - nine prototype Pitches and two deliveries
 - intended-location aiming, fatigue/execution, and Pitch telemetry
-- Contact and Power swings with authored contact resolution
+- Contact and Power swings with 240 Hz swept, authored contact resolution
 - Jolt physical ball-in-play with custom aerodynamics
 - starter-field authored hit rules
 - automatic Primary Fielder and Pitcher defense
@@ -54,6 +54,9 @@ The repository now contains:
 - shared hold/release mouse pitching and overhead 3×3 Field Setup
 - varied Pitcher rhythm and readable fast/off-speed identity
 - post-plate Pitch visibility, hardened back wall, and tighter Fielder/Pitcher defense
+- a visible Pitch receiver; missed Swings no longer stop the Pitch
+- automatic dead-ball flow with player-controlled defensive Pitch tempo
+- short automatic game intro and win/loss broadcast sequences
 - actionable swing miss feedback and smooth camera direction
 - deterministic count-aware opponent decisions and per-play records
 - a headless core regression scene

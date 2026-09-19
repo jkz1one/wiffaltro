@@ -43,16 +43,69 @@ static func initialize(lab: PitchBatLab) -> void:
 	lab._release_controller = PitchReleaseController.new()
 	lab._at_bat_cadence = AtBatCadenceController.new()
 	lab._batter_approach = BatterApproachModel.new()
+	lab._swing_tracker = SwingContactTracker.new()
+	lab._match_presentation_director = MatchPresentationDirector.new()
 	if lab._camera_director == null:
 		lab._camera_director = MatchCameraDirector.new()
 	lab._camera_director.set_shot(MatchCameraDirector.Shot.BATTING)
 	lab._camera_director.snap(lab._camera)
 
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
+	if _update_match_presentation(lab, delta_seconds):
+		_update_camera(lab, delta_seconds)
+		return
 	_update_continuous_input(lab, delta_seconds)
 	_update_pitch_release(lab, delta_seconds)
 	_update_at_bat_cadence(lab, delta_seconds)
 	_update_pitcher_telegraph(lab)
+	_update_camera(lab, delta_seconds)
+
+static func begin_match_intro(lab: PitchBatLab) -> void:
+	if lab._match_presentation_director == null:
+		lab._match_presentation_director = MatchPresentationDirector.new()
+	lab._at_bat_cadence.stop()
+	lab._match_presentation_director.begin_intro(
+		int(Time.get_ticks_usec() & 0x7fffffff)
+	)
+	lab._camera_director.set_shot(
+		lab._match_presentation_director.current_shot()
+	)
+	lab._camera_director.snap(lab._camera)
+	PitchBatLabPresentation.show_match_intro(lab)
+
+static func begin_match_outro(lab: PitchBatLab) -> void:
+	if (
+		lab._match_state == null
+		or lab._match_state.phase != MatchState.Phase.GAME_END
+		or lab._match_presentation_director == null
+		or lab._match_presentation_director.mode
+		== MatchPresentationDirector.Mode.OUTRO
+		or lab._match_presentation_director.mode
+		== MatchPresentationDirector.Mode.OUTRO_HOLD
+	):
+		return
+	lab._at_bat_cadence.stop()
+	lab._match_presentation_director.begin_outro(
+		int(Time.get_ticks_usec() & 0x7fffffff)
+	)
+	lab._camera_director.set_shot(
+		lab._match_presentation_director.current_shot()
+	)
+	PitchBatLabPresentation.show_match_outro(
+		lab,
+		lab._match_state.winner_name == lab.PLAYER_TEAM_NAME
+	)
+
+static func skip_match_presentation(lab: PitchBatLab) -> void:
+	if lab._match_presentation_director == null:
+		return
+	var event: MatchPresentationDirector.Event = (
+		lab._match_presentation_director.skip()
+	)
+	if event == MatchPresentationDirector.Event.INTRO_COMPLETE:
+		_finish_intro(lab, true)
+
+static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
 	var ball_live: bool = lab._ball_in_play_is_live()
 	var ball_position: Vector3 = (
 		lab._batted_ball.global_position
@@ -65,6 +118,42 @@ static func update(lab: PitchBatLab, delta_seconds: float) -> void:
 		ball_live,
 		ball_position
 	)
+
+static func _update_match_presentation(
+	lab: PitchBatLab,
+	delta_seconds: float
+) -> bool:
+	if (
+		lab._match_presentation_director == null
+		or not lab._match_presentation_director.blocks_gameplay()
+	):
+		return false
+	var event: MatchPresentationDirector.Event = (
+		lab._match_presentation_director.advance(delta_seconds)
+	)
+	match event:
+		MatchPresentationDirector.Event.SHOT_CHANGED:
+			lab._camera_director.set_shot(
+				lab._match_presentation_director.current_shot()
+			)
+		MatchPresentationDirector.Event.RETURN_TO_GAMEPLAY:
+			lab._apply_role_camera()
+		MatchPresentationDirector.Event.INTRO_COMPLETE:
+			_finish_intro(lab, false)
+		_:
+			pass
+	return true
+
+static func _finish_intro(lab: PitchBatLab, snap_camera: bool) -> void:
+	lab._apply_role_camera()
+	if snap_camera:
+		lab._camera_director.snap(lab._camera)
+	PitchBatLabPresentation.hide_match_presentation(lab)
+	if lab._player_is_batting():
+		begin_ai_delivery(lab)
+	else:
+		lab._status_label.text = "Aim, then hold click or SPACE to deliver"
+		lab._refresh_config()
 
 static func begin_ai_delivery(lab: PitchBatLab) -> void:
 	if (
@@ -122,9 +211,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			lab._apply_defensive_assignment()
 			lab._apply_role_camera()
 			if lab._match_state.phase == MatchState.Phase.GAME_END:
-				lab._status_label.text = (
-					"%s\nR: new match" % lab._match_state.last_event
-				)
+				begin_match_outro(lab)
 			else:
 				var next_prompt: String = (
 					"Pitcher setting for next at-bat"
@@ -143,20 +230,29 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			):
 				begin_ai_delivery(lab)
 		MatchState.Phase.GAME_END:
-			lab._status_label.text = (
-				"%s\nR: new match" % lab._match_state.last_event
-			)
+			begin_match_outro(lab)
 
 static func notify_pitch_dead(lab: PitchBatLab) -> void:
 	_reset_pitcher_telegraph(lab)
 	if (
 		lab._match_state != null
-		and lab._match_state.phase == MatchState.Phase.PLAY_DEAD
-		and not lab._match_state.between_batters
+		and lab._match_state.phase == MatchState.Phase.GAME_END
+	):
+		lab._at_bat_cadence.stop()
+		begin_match_outro(lab)
+		return
+	if (
+		lab._match_state != null
+		and (
+			lab._match_state.phase == MatchState.Phase.PLAY_DEAD
+			or lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
+		)
 	):
 		lab._at_bat_cadence.hold_dead_ball(
 			lab._throw_number * 457
-			+ lab._match_state.plate_appearance_number * 73
+			+ lab._match_state.plate_appearance_number * 73,
+			lab._match_state.between_batters,
+			lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
 		)
 		return
 	lab._at_bat_cadence.stop()

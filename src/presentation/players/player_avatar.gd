@@ -66,8 +66,8 @@ func _apply_stance() -> void:
 	var throw_side: float = -1.0 if throws_left else 1.0
 	_body_root.rotation = Vector3.ZERO
 	if role == Role.BATTER:
-		_throw_hand.position = Vector3(-bat_side * 0.18, 1.15, 0.01)
-		_glove_hand.position = Vector3(-bat_side * 0.29, 1.15, 0.03)
+		_throw_hand.position = Vector3(bat_side * 0.18, 1.15, 0.01)
+		_glove_hand.position = Vector3(bat_side * 0.29, 1.15, 0.03)
 		_throw_hand.material_override = _material(Color(1.0, 0.76, 0.42))
 		_glove_hand.material_override = _material(Color(1.0, 0.76, 0.42))
 	else:

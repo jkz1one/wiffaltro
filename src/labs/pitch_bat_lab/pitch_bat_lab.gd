@@ -58,6 +58,7 @@ var _batting_aim_marker: Node3D
 var _camera: Camera3D
 var _camera_mode: int = 0
 var _camera_director: MatchCameraDirector
+var _match_presentation_director: MatchPresentationDirector
 var _status_label: Label
 var _live_label: Label
 var _config_label: Label
@@ -66,6 +67,9 @@ var _scoreboard_label: Label
 var _action_label: Label
 var _pitch_release_bar: ProgressBar
 var _pitch_release_ideal_marker: ColorRect
+var _presentation_backdrop: ColorRect
+var _presentation_title: Label
+var _presentation_subtitle: Label
 var _pitching_staff_panel: VBoxContainer
 var _pitcher_buttons: Array[Button] = []
 var _field_setup_toggle_button: Button
@@ -79,6 +83,8 @@ var _fatigue: float = 0.0
 var _pitch_effort: float = 1.0
 var _throw_number: int = 0
 var _swing_consumed: bool = false
+var _swing_tracker: SwingContactTracker
+var _pending_swing_miss: ContactResult
 var _fielder_anchor_index: int = 4
 var _base_preset_index: int = 0
 var _debug_launch_index: int = 0
@@ -151,7 +157,13 @@ func _process(delta: float) -> void:
 		return
 	PitchBatLabFeelSupport.update(self, delta)
 	if _match_mode and _match_state != null:
-		if _match_state.phase != MatchState.Phase.GAME_END:
+		if (
+			_match_state.phase != MatchState.Phase.GAME_END
+			and (
+				_match_presentation_director == null
+				or not _match_presentation_director.blocks_gameplay()
+			)
+		):
 			_match_state.elapsed_seconds += delta
 		MatchLabSupport.try_ai_swing(self)
 
@@ -271,6 +283,7 @@ func _throw_pitch() -> void:
 	_cleanup_batted_ball()
 	var candidate_throw_number: int = _throw_number + 1
 	_swing_consumed = false
+	PitchBatLabSwingSupport.reset(self)
 	_ai_swing_decided = false
 	_trajectory_points.clear()
 	_trajectory_draw.clear()
@@ -411,122 +424,24 @@ func _resolve_swing(
 	profile_id: StringName,
 	aim_point: Vector2
 ) -> void:
-	if (
-		_pitch_actor == null
-		or not _pitch_actor.running
-		or _pitch_actor.state == null
-		or _swing_consumed
-	):
-		return
+	PitchBatLabSwingSupport.begin_swing(self, profile_id, aim_point)
 
-	var profile: SwingProfileDefinition = ContentDB.get_swing(profile_id)
-	if profile == null:
-		push_error("Pitch/Bat Lab: swing profile missing: %s" % String(profile_id))
-		return
-	PitchBatLabPresentation.play_batter_swing(
+func _on_pitch_segment_advanced(
+	previous_position: Vector3,
+	previous_elapsed_seconds: float
+) -> void:
+	PitchBatLabSwingSupport.advance_swing(
 		self,
-		profile_id == POWER_SWING_ID
+		previous_position,
+		previous_elapsed_seconds
 	)
-
-	var intent: SwingIntent = SwingIntent.new()
-	intent.profile_id = profile_id
-	intent.aim_point = aim_point
-	var contact_rating: int = 5
-	var power_rating: int = 5
-	if _match_mode:
-		var batter_definition: PlayerDefinition = (
-			_match_state.batter().definition
-		)
-		intent.handedness_left = (
-			batter_definition.bats == PlayerDefinition.Handedness.LEFT
-		)
-		contact_rating = batter_definition.contact
-		power_rating = batter_definition.power
-
-	var result: ContactResult = ContactResolver.resolve(
-		_pitch_actor.state,
-		intent,
-		profile,
-		contact_rating,
-		power_rating
-	)
-	PitchBatLabFeelSupport.note_swing(self, profile_id, aim_point, result)
-
-	_swing_consumed = true
-	_pitch_actor.stop_pitch(&"swing")
-
-	var outcome_name: String = PitchBatLabPresentation.contact_outcome_name(
-		result.outcome
-	)
-
-	if result.outcome == ContactResult.Outcome.MISS:
-		if _match_mode:
-			_match_state.record_strike(true)
-		_status_label.text = (
-			"%s — %s\n"
-			+ "timing %s   aim %s   ball x %.2f / y %.2f / z %.2f"
-		) % [
-			profile.display_name,
-			result.miss_reason_name(),
-			result.timing_name(),
-			result.aim_name(),
-			result.contact_position.x,
-			result.contact_position.y,
-			result.contact_position.z,
-		]
-		PitchBatLabFeelSupport.finish_record(self, &"swinging_strike")
-		_finish_non_contact_pitch()
-		return
-	if result.outcome == ContactResult.Outcome.FOUL:
-		if _match_mode:
-			_match_state.record_foul()
-		_status_label.text = (
-			"%s — FOUL\n"
-			+ "quality %.0f%%   no fair ball-in-play"
-		) % [
-			profile.display_name,
-			result.quality * 100.0,
-		]
-		PitchBatLabFeelSupport.finish_record(self, &"foul")
-		_finish_non_contact_pitch()
-		return
-
-	var exit_speed_mph: float = result.exit_velocity.length() * 2.236936
-	_status_label.text = (
-		"%s — %s   quality %.0f%%\n"
-		+ "timing %s   aim %s\n"
-		+ "EV %.1f mph   launch %+0.1f°   spray %+0.1f°\n"
-		+ "Physical ball launched into starter field."
-	) % [
-		profile.display_name,
-		outcome_name,
-		result.quality * 100.0,
-		result.timing_name(),
-		result.aim_name(),
-		exit_speed_mph,
-		result.launch_angle_degrees,
-		result.spray_degrees,
-	]
-
-	var vector_end: Vector3 = (
-		result.contact_position
-		+ result.exit_velocity.normalized() * 4.0
-	)
-	var launch_points: Array[Vector3] = [
-		result.contact_position,
-		vector_end,
-	]
-	_contact_vector_draw.draw_polyline(launch_points)
-	_start_ball_in_play(BattedBallLaunch.from_contact(result))
 
 func _finish_non_contact_pitch() -> void:
 	if not _match_mode:
 		return
 	PitchBatLabFeelSupport.notify_pitch_dead(self)
 	_live_label.text = (
-		"PLAY DEAD   next pitch automatic"
-		if not _match_state.between_batters
-		else "PLAY DEAD   CLICK: next batter"
+		"PLAY DEAD   next Pitch readying automatically"
 	)
 	_refresh_config()
 
@@ -708,11 +623,7 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 		_base_state.display_string(),
 	]
 	if _match_mode:
-		_live_label.text = (
-			"PLAY DEAD   CLICK: next batter"
-			if _match_state.between_batters
-			else "PLAY DEAD   next pitch automatic"
-		)
+		_live_label.text = "PLAY DEAD   next state readying automatically"
 	else:
 		_live_label.text = "PLAY DEAD   B: next diagnostic launch   SPACE: next pitch"
 	PitchBatLabFeelSupport.finish_record(
@@ -736,23 +647,32 @@ func _on_plate_crossed(
 	var target_error_x: float = point.x - _pitch_target.x
 	var target_error_y: float = point.y - _pitch_target.y
 	var call_text: String = ""
+	var swing_feedback: String = ""
 	if _match_mode:
-		var in_zone: bool = (
-			point.x >= ZONE_MIN_X
-			and point.x <= ZONE_MAX_X
-			and point.y >= ZONE_MIN_Y
-			and point.y <= ZONE_MAX_Y
-		)
-		var call: StringName = _match_state.record_called_pitch(in_zone)
+		var call: StringName
+		if _swing_consumed:
+			var miss: ContactResult = PitchBatLabSwingSupport.ensure_miss(self)
+			call = _match_state.record_strike(true)
+			if miss != null:
+				swing_feedback = "   %s" % miss.miss_reason_name()
+		else:
+			var in_zone: bool = (
+				point.x >= ZONE_MIN_X
+				and point.x <= ZONE_MAX_X
+				and point.y >= ZONE_MIN_Y
+				and point.y <= ZONE_MAX_Y
+			)
+			call = _match_state.record_called_pitch(in_zone)
 		call_text = "   %s" % String(call).replace("_", " ").to_upper()
 
 	_status_label.text = (
-		"PLATE — %s%s\n"
+		"PLATE — %s%s%s\n"
 		+ "cross x %.2f / y %.2f   miss X %+0.1f cm / Y %+0.1f cm\n"
 		+ "release %.1f → %.1f mph   plate %.1f mph   flight %.3f s"
 	) % [
 		_selected_pitch().display_name,
 		call_text,
+		swing_feedback,
 		point.x,
 		point.y,
 		target_error_x * 100.0,
@@ -764,42 +684,40 @@ func _on_plate_crossed(
 	]
 	if _match_mode:
 		PitchBatLabFeelSupport.notify_pitch_dead(self)
-		_live_label.text = (
-			"PLAY DEAD   next pitch automatic"
-			if not _match_state.between_batters
-			else "PLAY DEAD   CLICK: next batter"
-		)
+		_live_label.text = "PLAY DEAD   next state readying automatically"
 		_refresh_config()
-	PitchBatLabFeelSupport.finish_record(
-		self,
-		StringName(call_text.strip_edges().to_lower().replace(" ", "_"))
-		if not call_text.is_empty()
-		else &"plate_crossed"
-	)
+	var record_result: StringName = &"plate_crossed"
+	if _swing_consumed:
+		record_result = &"swinging_strike"
+	elif not call_text.is_empty():
+		record_result = StringName(
+			call_text.strip_edges().to_lower().replace(" ", "_")
+		)
+	PitchBatLabFeelSupport.finish_record(self, record_result)
 
 func _on_flight_stopped(reason: StringName) -> void:
-	if reason == &"plate_crossed" or reason == &"swing":
+	if reason == &"plate_crossed" or reason == &"contact":
 		return
 	if (
 		_match_mode
 		and _match_state != null
 		and _match_state.phase == MatchState.Phase.PITCH_IN_FLIGHT
 	):
-		_match_state.record_ball()
-		PitchBatLabFeelSupport.finish_record(self, &"ball_no_crossing")
+		var record_result: StringName = &"ball_no_crossing"
+		if _swing_consumed:
+			PitchBatLabSwingSupport.ensure_miss(self)
+			_match_state.record_strike(true)
+			record_result = &"swinging_strike"
+		else:
+			_match_state.record_ball()
+		PitchBatLabFeelSupport.finish_record(self, record_result)
 		PitchBatLabFeelSupport.notify_pitch_dead(self)
-		_live_label.text = (
-			"PLAY DEAD   next pitch automatic"
-			if not _match_state.between_batters
-			else "PLAY DEAD   CLICK: next batter"
-		)
+		_live_label.text = "PLAY DEAD   next state readying automatically"
 		_refresh_config()
 
 	var continuation: String = "SPACE: continue"
-	if _match_mode and not _match_state.between_batters:
-		continuation = "Next Pitch automatic"
-	elif _match_mode:
-		continuation = "CLICK: next batter"
+	if _match_mode:
+		continuation = "Next state automatic"
 	_status_label.text = "Pitch stopped: %s\n%s" % [
 		String(reason),
 		continuation,
@@ -874,6 +792,10 @@ func _cleanup_batted_ball() -> void:
 func _reset_lab() -> void:
 	PitchBatLabFeelSupport.reset_debug_pause(self)
 	PitchBatLabFeelSupport.cancel_release(self)
+	PitchBatLabSwingSupport.reset(self)
+	if _match_presentation_director != null:
+		_match_presentation_director.reset()
+	PitchBatLabPresentation.hide_match_presentation(self)
 	if _pitch_actor != null:
 		_pitch_actor.reset_pitch()
 	_cleanup_batted_ball()
@@ -903,6 +825,10 @@ func _reset_lab() -> void:
 func _start_new_match() -> void:
 	PitchBatLabFeelSupport.reset_debug_pause(self)
 	PitchBatLabFeelSupport.cancel_release(self)
+	PitchBatLabSwingSupport.reset(self)
+	if _match_presentation_director != null:
+		_match_presentation_director.reset()
+	PitchBatLabPresentation.hide_match_presentation(self)
 	PitchBatLabFeelSupport.clear_records(self)
 	if _pitch_actor != null:
 		_pitch_actor.reset_pitch()
@@ -937,10 +863,11 @@ func _start_new_match() -> void:
 		_contact_vector_draw.clear()
 	_apply_defensive_assignment()
 	_apply_role_camera()
-	_status_label.text = "TOP 1 — Player batting\nLEFT CLICK: begin first at-bat"
+	_status_label.text = "TOP 1 — Player batting\nGame presentation starting"
 	_live_label.text = ""
 	_refresh_markers()
 	_refresh_config()
+	PitchBatLabFeelSupport.begin_match_intro(self)
 
 func _player_is_batting() -> bool:
 	return _match_mode and _match_state != null and _match_state.top_half

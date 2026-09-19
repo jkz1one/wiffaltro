@@ -49,11 +49,13 @@ func trigger_z(
 		0.0,
 		1.0
 	)
-	var depth: float = lerpf(0.10, 0.31, speed_pressure)
-	depth += (pitch.timing_difficulty - 1.0) * 0.10
-	depth += (pitch.recognition_difficulty - 1.0) * 0.055
-	depth -= awareness * 0.16
-	return ContactResolver.CONTACT_PLANE_Z + clampf(depth, 0.06, 0.42)
+	var swing_lead_seconds: float = lerpf(0.125, 0.115, speed_pressure)
+	swing_lead_seconds += awareness * 0.018
+	swing_lead_seconds -= (pitch.recognition_difficulty - 1.0) * 0.012
+	swing_lead_seconds -= (pitch.timing_difficulty - 1.0) * 0.008
+	swing_lead_seconds = clampf(swing_lead_seconds, 0.085, 0.15)
+	var depth: float = plate_speed_mps * swing_lead_seconds
+	return ContactResolver.CONTACT_PLANE_Z + clampf(depth, 0.85, 4.8)
 
 func decide(
 	pitch: PitchDefinition,

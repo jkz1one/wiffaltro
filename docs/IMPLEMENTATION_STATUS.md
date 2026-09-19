@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Vanilla Match feel hardening; hands-on validation pending
+**Current phase:** Phase 3 — Timed contact and broadcast-flow hardening; hands-on validation pending
 
 ## Implemented in repository
 
@@ -221,6 +221,7 @@ Implemented in repository:
 - [x] JSON-safe deterministic per-play records with F3 output
 - [x] headless regression scene for release, AI, count rules, and records
 - [x] one acceptance per at-bat with automatic between-Pitch cadence
+      (superseded by the zero-acceptance revision below)
 - [x] readable Pitcher set / windup / delivery telegraph
 - [x] pointer-projected batting aim with left-click Contact and right-click Power
 - [x] full-simulation `P` debug pause
@@ -285,6 +286,7 @@ the next feel bottlenecks. Implemented in response:
 - [x] mapped mouse pitching to the same hold/release execution meter as Space
 - [x] added a visible release bar and ideal-release marker
 - [x] made left click advance dead balls/plate appearances without requiring Space
+      (superseded by the zero-acceptance revision below)
 - [x] added roughly one second to the readable dead-ball hold and automatic
       continuation within an unfinished plate appearance on offense and defense
 - [x] reduced Primary Fielder movement speed, horizontal/vertical reach, and
@@ -292,3 +294,40 @@ the next feel bottlenecks. Implemented in response:
 - [x] added deterministic reach/height rejection regressions
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on cadence, release meter, Pitch visibility, bat, and defense retest
+
+
+## Phase 3 timed-contact and broadcast-flow revision — runtime validation pending
+
+This revision supersedes the earlier one-acceptance and click-through flow.
+
+- [x] Swing input now starts an authored-duration Swing instead of immediately
+      resolving contact on the click frame
+- [x] ContactResolver sweeps every 240 Hz Pitch segment against the moving
+      virtual contact region
+- [x] Contact and Power have distinct authored duration, valid window, and
+      sweet-spot timing
+- [x] missed Swings leave the Pitch in flight for the plate call and visible
+      receiver continuation
+- [x] a non-authoritative receiver ring gives taken and missed Pitches a visual
+      destination
+- [x] independent BatActor Swing timing is shorter and synchronized to the
+      authored profile
+- [x] right- and left-handed Batter box, hands, shoulder, bat, and Swing
+      presentation mirror from the same handedness
+- [x] opponent Swing commitment uses visible ball timing with lead time rather
+      than snapshot contact
+- [x] player Pitch release meter reaches its ideal and auto-release sooner
+- [x] all dead-ball, batter-change, and inning-transition holds advance without
+      an additional acceptance click
+- [x] player pitching tempo remains deliberate because the next Pitch begins
+      only when the player starts the delivery
+- [x] automatic seeded two-to-three-shot `GAME START` presentation
+- [x] automatic seeded win/loss and final-score presentation
+- [x] intro/outro input lock, skip handling, and role-camera settlement
+- [x] deterministic regression coverage for swept contact, early miss
+      continuation, automatic terminal cadence, and camera-shot selection
+- [x] all current GDScript passes `gdparse` and `gdlint` static checks on
+      2026-09-19
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on timed Swing, receiver, handed bat, cadence, release meter, and
+      intro/outro validation

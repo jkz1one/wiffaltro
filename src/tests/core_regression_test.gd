@@ -4,11 +4,13 @@ var _failures: int = 0
 
 func _ready() -> void:
 	_test_pitch_release_quality()
+	_test_swept_swing_timeline()
 	_test_fatigue_curve_and_capacity()
 	_test_fatigue_pitch_outcomes()
 	_test_fresh_pitch_reachability()
 	_test_low_effort_eephus_reachability()
 	_test_at_bat_cadence()
+	_test_match_presentation_sequence()
 	_test_pitch_identity_and_batter_awareness()
 	_test_ai_pitch_determinism_and_counts()
 	_test_match_count_rules()
@@ -23,8 +25,12 @@ func _ready() -> void:
 		get_tree().quit(1)
 
 func _test_pitch_release_quality() -> void:
-	var perfect: float = PitchReleaseController.quality_at(0.72, 5, 0.0)
-	var early: float = PitchReleaseController.quality_at(0.42, 5, 0.0)
+	var perfect: float = PitchReleaseController.quality_at(
+		PitchReleaseController.IDEAL_RELEASE_SECONDS,
+		5,
+		0.0
+	)
+	var early: float = PitchReleaseController.quality_at(0.28, 5, 0.0)
 	var tired_low_control: float = PitchReleaseController.quality_at(
 		0.84,
 		2,
@@ -40,6 +46,94 @@ func _test_pitch_release_quality() -> void:
 	_check(
 		fresh_high_control > tired_low_control,
 		"Control and freshness should widen the release window"
+	)
+	_check(
+		PitchReleaseController.AUTO_RELEASE_SECONDS < 1.0,
+		"the player delivery meter should complete in under one second"
+	)
+
+func _test_swept_swing_timeline() -> void:
+	var profile: SwingProfileDefinition = ContentDB.get_swing(&"swing.contact")
+	var intent: SwingIntent = SwingIntent.new()
+	intent.profile_id = profile.id
+	intent.aim_point = Vector2(0.0, 1.05)
+	intent.start_time_seconds = 0.0
+	var tracker: SwingContactTracker = SwingContactTracker.new()
+	tracker.begin(intent, profile, 5, 5)
+	var state: PitchState = PitchState.new()
+	state.position = Vector3(0.0, 1.05, 2.38)
+	state.velocity = Vector3(0.0, 0.0, -20.0)
+	var result: ContactResult
+	for _step in range(80):
+		var previous_position: Vector3 = state.position
+		var previous_time: float = state.elapsed_time
+		state.position += state.velocity * PitchFlightSolver.SUBSTEP_SECONDS
+		state.elapsed_time += PitchFlightSolver.SUBSTEP_SECONDS
+		result = tracker.sample_segment(previous_position, previous_time, state)
+		if result != null:
+			break
+	_check(result != null, "a centered timed swing should produce an encounter")
+	_check(
+		result != null and result.outcome != ContactResult.Outcome.MISS,
+		"a centered timed swing should make contact"
+	)
+
+	var outside_intent: SwingIntent = SwingIntent.new()
+	outside_intent.profile_id = profile.id
+	outside_intent.aim_point = Vector2(0.75, 1.05)
+	outside_intent.start_time_seconds = 0.0
+	var outside_tracker: SwingContactTracker = SwingContactTracker.new()
+	outside_tracker.begin(outside_intent, profile, 5, 5)
+	var outside_state: PitchState = PitchState.new()
+	outside_state.position = Vector3(0.0, 1.05, 2.38)
+	outside_state.velocity = Vector3(0.0, 0.0, -20.0)
+	var outside_result: ContactResult
+	for _step in range(80):
+		var previous_position: Vector3 = outside_state.position
+		var previous_time: float = outside_state.elapsed_time
+		outside_state.position += (
+			outside_state.velocity * PitchFlightSolver.SUBSTEP_SECONDS
+		)
+		outside_state.elapsed_time += PitchFlightSolver.SUBSTEP_SECONDS
+		outside_result = outside_tracker.sample_segment(
+			previous_position,
+			previous_time,
+			outside_state
+		)
+		if outside_result != null:
+			break
+	_check(
+		outside_result != null
+		and outside_result.outcome == ContactResult.Outcome.MISS
+		and outside_result.miss_reason == ContactResult.MissReason.LEFT,
+		"depth encounter should report a spatial miss for bad X aim"
+	)
+
+	var early_tracker: SwingContactTracker = SwingContactTracker.new()
+	early_tracker.begin(intent, profile, 5, 5)
+	var early_state: PitchState = PitchState.new()
+	early_state.position = Vector3(0.0, 1.05, 6.0)
+	early_state.velocity = Vector3(0.0, 0.0, -12.0)
+	var early_result: ContactResult
+	for _step in range(80):
+		var previous_position: Vector3 = early_state.position
+		var previous_time: float = early_state.elapsed_time
+		early_state.position += (
+			early_state.velocity * PitchFlightSolver.SUBSTEP_SECONDS
+		)
+		early_state.elapsed_time += PitchFlightSolver.SUBSTEP_SECONDS
+		early_result = early_tracker.sample_segment(
+			previous_position,
+			previous_time,
+			early_state
+		)
+		if early_result != null:
+			break
+	_check(
+		early_result != null
+		and early_result.outcome == ContactResult.Outcome.MISS
+		and early_result.miss_reason == ContactResult.MissReason.EARLY,
+		"an early swing should finish while the Pitch keeps advancing"
 	)
 
 func _test_fatigue_curve_and_capacity() -> void:
@@ -257,6 +351,17 @@ func _test_at_bat_cadence() -> void:
 		== AtBatCadenceController.Event.CONTINUE_PLAY,
 		"an unfinished at-bat should continue without another acceptance"
 	)
+	cadence.hold_dead_ball(85, true)
+	_check(
+		cadence.active_hold_seconds
+		>= AtBatCadenceController.MIN_BETWEEN_BATTERS_SECONDS,
+		"a completed plate appearance should also advance automatically"
+	)
+	_check(
+		cadence.advance(cadence.active_hold_seconds + 0.01)
+		== AtBatCadenceController.Event.CONTINUE_PLAY,
+		"terminal dead-ball holds should not wait for acceptance input"
+	)
 	var replay: AtBatCadenceController = AtBatCadenceController.new()
 	replay.begin_delivery(42)
 	_check(
@@ -265,6 +370,64 @@ func _test_at_bat_cadence() -> void:
 			replay.active_delivery_seconds
 		),
 		"Pitch rhythm variation should replay from its seed"
+	)
+
+func _test_match_presentation_sequence() -> void:
+	var first: MatchPresentationDirector = MatchPresentationDirector.new()
+	var replay: MatchPresentationDirector = MatchPresentationDirector.new()
+	first.begin_intro(219)
+	replay.begin_intro(219)
+	_check(
+		first.shot_sequence == replay.shot_sequence,
+		"broadcast intro shot selection should replay from its seed"
+	)
+	_check(
+		first.shot_sequence.size() >= 2
+		and first.shot_sequence.size() <= 3,
+		"a basic game intro should automatically select two or three shots"
+	)
+	var unique_shots: Dictionary = {}
+	for shot in first.shot_sequence:
+		unique_shots[shot] = true
+	_check(
+		unique_shots.size() == first.shot_sequence.size(),
+		"a short intro should not repeat the same camera"
+	)
+	var intro_event: MatchPresentationDirector.Event
+	for index in range(first.shot_sequence.size()):
+		intro_event = first.advance(MatchPresentationDirector.SHOT_SECONDS)
+		var expected_event: MatchPresentationDirector.Event = (
+			MatchPresentationDirector.Event.SHOT_CHANGED
+			if index + 1 < first.shot_sequence.size()
+			else MatchPresentationDirector.Event.RETURN_TO_GAMEPLAY
+		)
+		_check(
+			intro_event == expected_event,
+			"intro shots should advance and return through the role camera"
+		)
+	_check(
+		first.advance(MatchPresentationDirector.SETTLE_SECONDS)
+		== MatchPresentationDirector.Event.INTRO_COMPLETE
+		and not first.blocks_gameplay(),
+		"intro settlement should release gameplay"
+	)
+
+	first.begin_outro(220)
+	var outro_event: MatchPresentationDirector.Event
+	for _index in range(first.shot_sequence.size()):
+		outro_event = first.advance(MatchPresentationDirector.SHOT_SECONDS)
+	_check(
+		outro_event == MatchPresentationDirector.Event.OUTRO_COMPLETE
+		and first.mode == MatchPresentationDirector.Mode.OUTRO_HOLD
+		and first.blocks_gameplay(),
+		"outro completion should hold the final result until restart"
+	)
+
+	replay.begin_intro(221)
+	_check(
+		replay.skip() == MatchPresentationDirector.Event.INTRO_COMPLETE
+		and not replay.blocks_gameplay(),
+		"skipping the intro should release gameplay immediately"
 	)
 
 func _test_pitch_identity_and_batter_awareness() -> void:

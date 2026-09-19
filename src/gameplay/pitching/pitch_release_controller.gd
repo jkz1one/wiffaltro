@@ -1,10 +1,10 @@
 class_name PitchReleaseController
 extends RefCounted
 
-const IDEAL_RELEASE_SECONDS: float = 0.72
-const AUTO_RELEASE_SECONDS: float = 1.24
-const MIN_GOOD_WINDOW_SECONDS: float = 0.105
-const MAX_GOOD_WINDOW_SECONDS: float = 0.205
+const IDEAL_RELEASE_SECONDS: float = 0.50
+const AUTO_RELEASE_SECONDS: float = 0.88
+const MIN_GOOD_WINDOW_SECONDS: float = 0.090
+const MAX_GOOD_WINDOW_SECONDS: float = 0.170
 
 var active: bool = false
 var elapsed_seconds: float = 0.0
