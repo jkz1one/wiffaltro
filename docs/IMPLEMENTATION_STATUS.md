@@ -77,3 +77,41 @@ User screenshot from Godot 4.7.2 confirmed the first visible Pitch Lab milestone
 - measured flight time was approximately 0.783 s
 
 The large velocity loss is a tuning/calibration question, not evidence that the solver pipeline failed. Before pitch families are balanced, the Lab should add better comparative instrumentation so release speed, plate speed, displacement, and pitch-to-pitch differences can be evaluated directly.
+
+
+## Phase 1 expanded milestone — implementation complete, runtime validation pending
+
+Implemented after the first Four-Seam smoke test:
+
+- [x] iterative intended-location PitchAimSolver
+- [x] deterministic trajectory simulator for aim/instrumentation
+- [x] execution-quality perturbation
+- [x] fatigue-driven velocity/spin/control degradation
+- [x] seeded orientation instability for knuckle-style movement
+- [x] prototype drag recalibration
+- [x] Overhand Four-Seam
+- [x] Overhand Sinker
+- [x] Sidearm Sinker
+- [x] Overhand Slider
+- [x] Sidearm Slider
+- [x] Eephus
+- [x] Knuckleball
+- [x] Sidearm Riser
+- [x] Drop
+- [x] Pitch selection controls
+- [x] movable intended Pitch target
+- [x] release speed / plate speed instrumentation
+- [x] aerodynamic movement comparison against a no-spin/no-asymmetry baseline
+- [x] three debug camera views
+- [x] Contact Swing profile
+- [x] Power Swing profile
+- [x] movable batting aim
+- [x] spatial/timing ContactResolver
+- [x] exit velocity / launch angle / spray output
+- [x] debug contact launch vector
+- [ ] Godot 4.7.2 parse/import validation for expanded milestone
+- [ ] hands-on pitch-family differentiation test
+- [ ] hands-on aim/execution/fatigue test
+- [ ] hands-on Contact vs Power swing test
+
+Do not mark the unchecked items complete until the expanded build has actually been run in Godot.
