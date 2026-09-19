@@ -62,25 +62,25 @@ func _physics_process(delta: float) -> void:
 		_accumulator_seconds >= PitchFlightSolver.SUBSTEP_SECONDS
 		and running
 	):
-		var previous_position := state.position
+		var previous_position: Vector3 = state.position
 		PitchFlightSolver.step(state, parameters)
 		_accumulator_seconds -= PitchFlightSolver.SUBSTEP_SECONDS
 		_substep_count += 1
 
-		if _substep_count % max(1, trace_every_substeps) == 0:
+		if _substep_count % maxi(1, trace_every_substeps) == 0:
 			trace_sampled.emit(state.position)
 
 		if previous_position.z > plate_z and state.position.z <= plate_z:
-			var denominator := previous_position.z - state.position.z
-			var fraction := 1.0
+			var denominator: float = previous_position.z - state.position.z
+			var fraction: float = 1.0
 			if absf(denominator) > 0.000001:
-				fraction = clamp(
+				fraction = clampf(
 					(previous_position.z - plate_z) / denominator,
 					0.0,
 					1.0
 				)
 
-			var crossing_point := previous_position.lerp(state.position, fraction)
+			var crossing_point: Vector3 = previous_position.lerp(state.position, fraction)
 			trace_sampled.emit(crossing_point)
 			plate_crossed.emit(
 				crossing_point,
@@ -101,15 +101,15 @@ func _physics_process(delta: float) -> void:
 	global_position = state.position
 
 func _build_debug_ball() -> void:
-	var mesh_instance := MeshInstance3D.new()
+	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
 	mesh_instance.name = "DebugBall"
 
-	var sphere := SphereMesh.new()
+	var sphere: SphereMesh = SphereMesh.new()
 	sphere.radius = 0.075
 	sphere.height = 0.15
 	mesh_instance.mesh = sphere
 
-	var material := StandardMaterial3D.new()
+	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.albedo_color = Color(0.95, 0.95, 0.90)
 	material.roughness = 0.85
 	mesh_instance.material_override = material
