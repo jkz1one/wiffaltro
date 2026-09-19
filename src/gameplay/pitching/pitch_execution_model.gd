@@ -23,9 +23,8 @@ static func apply(
 	rng.seed = seed
 
 	var error_strength: float = clampf(
-		(1.0 - quality) * 0.85
-		+ fatigue_amount * 0.60
-		+ difficulty_amount * 0.15,
+		(1.0 - quality) * (0.85 + difficulty_amount * 0.20)
+		+ fatigue_amount * (0.60 + difficulty_amount * 0.15),
 		0.0,
 		1.5
 	)
