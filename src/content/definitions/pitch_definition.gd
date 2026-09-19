@@ -28,6 +28,8 @@ enum Rarity {
 # Ball-local unit direction toward the perforated hemisphere.
 @export var nominal_hole_axis_ball_local := Vector3.RIGHT
 @export_range(0.0, 3.0, 0.001, "or_greater") var perforation_influence: float = 1.0
+@export_range(0.0, 12.0, 0.01, "or_greater") var instability_strength: float = 0.0
+@export_range(0.1, 20.0, 0.1, "or_greater") var instability_frequency_hz: float = 3.0
 
 @export_range(0.0, 2.0, 0.001, "or_greater") var control_difficulty: float = 1.0
 @export_range(0.0, 2.0, 0.001, "or_greater") var execution_difficulty: float = 1.0
