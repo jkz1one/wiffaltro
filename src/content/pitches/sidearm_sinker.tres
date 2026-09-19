@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/sidearm.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.sidearm_sinker"
+display_name = "Sidearm Sinker"
+category = 0
+rarity = 1
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 24.5
+nominal_spin_rpm = 820.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.30, -0.95, 0)
+nominal_hole_axis_ball_local = Vector3(0.82, -0.20, 0.54)
+perforation_influence = 0.75
+control_difficulty = 1.10
+execution_difficulty = 1.10
+stamina_cost = 6.0
+tags = [&"fastball", &"arm_side", &"horizontal", &"drop"]
