@@ -6,8 +6,8 @@ static func simulate_to_plane(
 	plane_z: float,
 	max_seconds: float = 3.0
 ) -> PitchCrossingResult:
-	var result := PitchCrossingResult.new()
-	var state := PitchState.new()
+	var result: PitchCrossingResult = PitchCrossingResult.new()
+	var state: PitchState = PitchState.new()
 	state.position = parameters.position
 	state.velocity = parameters.velocity
 	state.orientation = parameters.orientation
