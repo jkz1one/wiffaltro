@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/sidearm.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.sidearm_slider"
+display_name = "Sidearm Slider"
+category = 1
+rarity = 1
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 21.5
+nominal_spin_rpm = 1380.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.08, 0.997, 0)
+nominal_hole_axis_ball_local = Vector3(-0.85, 0.10, 0.52)
+perforation_influence = 0.65
+control_difficulty = 1.15
+execution_difficulty = 1.20
+stamina_cost = 6.0
+tags = [&"breaking", &"glove_side", &"horizontal"]
