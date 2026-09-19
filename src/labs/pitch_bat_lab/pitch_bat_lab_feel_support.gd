@@ -3,9 +3,46 @@ extends RefCounted
 
 const AIM_SPEED_MPS: float = 0.82
 
+static func adjust_pitch_target(lab: PitchBatLab, delta_xy: Vector2) -> void:
+	lab._pitch_target.x = clampf(
+		lab._pitch_target.x + delta_xy.x,
+		lab.PITCH_AIM_MIN_X,
+		lab.PITCH_AIM_MAX_X
+	)
+	lab._pitch_target.y = clampf(
+		lab._pitch_target.y + delta_xy.y,
+		lab.PITCH_AIM_MIN_Y,
+		lab.PITCH_AIM_MAX_Y
+	)
+	lab._refresh_markers()
+	lab._refresh_config()
+
+static func adjust_pitch_effort(lab: PitchBatLab, delta: float) -> void:
+	lab._pitch_effort = clampf(
+		lab._pitch_effort + delta,
+		MatchLabSupport.MIN_EFFORT,
+		MatchLabSupport.MAX_EFFORT
+	)
+	lab._refresh_config()
+
+static func adjust_batting_aim(lab: PitchBatLab, delta_xy: Vector2) -> void:
+	lab._batting_aim.x = clampf(
+		lab._batting_aim.x + delta_xy.x,
+		lab.BATTING_AIM_MIN_X,
+		lab.BATTING_AIM_MAX_X
+	)
+	lab._batting_aim.y = clampf(
+		lab._batting_aim.y + delta_xy.y,
+		lab.BATTING_AIM_MIN_Y,
+		lab.BATTING_AIM_MAX_Y
+	)
+	lab._refresh_markers()
+	lab._refresh_config()
+
 static func initialize(lab: PitchBatLab) -> void:
 	lab._release_controller = PitchReleaseController.new()
 	lab._at_bat_cadence = AtBatCadenceController.new()
+	lab._batter_approach = BatterApproachModel.new()
 	if lab._camera_director == null:
 		lab._camera_director = MatchCameraDirector.new()
 	lab._camera_director.set_shot(MatchCameraDirector.Shot.BATTING)
@@ -40,7 +77,11 @@ static func begin_ai_delivery(lab: PitchBatLab) -> void:
 		return
 	MatchLabSupport.apply_ai_pitch_choice(lab)
 	lab._ai_pitch_preselected = true
-	lab._at_bat_cadence.begin_delivery()
+	lab._at_bat_cadence.begin_delivery(
+		lab._throw_number * 811
+		+ lab._match_state.plate_appearance_number * 131
+		+ lab._match_state.inning * 17
+	)
 	lab._status_label.text = (
 		"%s — %s\nMove the cursor, then click the ball to swing."
 		% [lab._match_state.batter().definition.display_name, "PITCHER SET"]
@@ -60,10 +101,20 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			var changed_half: bool = (
 				lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
 			)
+			var completed_plate_appearance: bool = (
+				lab._match_state.between_batters
+			)
 			lab._cleanup_batted_ball()
 			lab._match_state.continue_after_dead_ball()
 			lab._base_state = lab._match_state.bases
+			if completed_plate_appearance and lab._batter_approach != null:
+				lab._batter_approach.reset(
+					lab._match_state.plate_appearance_number
+				)
+				lab._last_ai_awareness = 0.0
+				lab._last_ai_read_text = "New batter"
 			if changed_half:
+				lab._field_setup_active = false
 				lab._selected_pitch_index = 0
 				lab._pitch_effort = 1.0
 				MatchLabSupport.assign_ai_defense_for_half(lab)
@@ -98,7 +149,10 @@ static func notify_pitch_dead(lab: PitchBatLab) -> void:
 		and lab._match_state.phase == MatchState.Phase.PLAY_DEAD
 		and not lab._match_state.between_batters
 	):
-		lab._at_bat_cadence.hold_dead_ball()
+		lab._at_bat_cadence.hold_dead_ball(
+			lab._throw_number * 457
+			+ lab._match_state.plate_appearance_number * 73
+		)
 		return
 	lab._at_bat_cadence.stop()
 
@@ -125,6 +179,49 @@ static func set_batting_aim_from_screen(
 	lab._refresh_markers()
 	return true
 
+static func set_pitch_target_from_screen(
+	lab: PitchBatLab,
+	screen_position: Vector2
+) -> bool:
+	if lab._camera == null:
+		return false
+	var ray_origin: Vector3 = lab._camera.project_ray_origin(screen_position)
+	var ray_direction: Vector3 = lab._camera.project_ray_normal(screen_position)
+	if absf(ray_direction.z) <= 0.000001:
+		return false
+	var distance: float = -ray_origin.z / ray_direction.z
+	if distance <= 0.0:
+		return false
+	var world_point: Vector3 = ray_origin + ray_direction * distance
+	lab._pitch_target = Vector2(
+		clampf(world_point.x, lab.PITCH_AIM_MIN_X, lab.PITCH_AIM_MAX_X),
+		clampf(world_point.y, lab.PITCH_AIM_MIN_Y, lab.PITCH_AIM_MAX_Y)
+	)
+	lab._refresh_markers()
+	lab._refresh_config()
+	return true
+
+static func throw_point_pitch(lab: PitchBatLab) -> void:
+	if (
+		not lab._player_is_pitching()
+		or lab._match_state == null
+		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
+		or lab._field_setup_active
+	):
+		return
+	var pitcher: PlayerMatchState = lab._match_state.pitcher()
+	var fatigue: float = maxf(pitcher.fatigue_ratio(), lab._fatigue)
+	lab._pending_release_quality = clampf(
+		0.82
+		+ float(pitcher.definition.control) * 0.016
+		- PitchExecutionModel.fatigue_pressure(fatigue) * 0.05,
+		0.0,
+		1.0
+	)
+	lab._last_release_quality = lab._pending_release_quality
+	lab._last_release_offset_seconds = 0.0
+	lab._throw_pitch()
+
 static func toggle_debug_pause(lab: PitchBatLab) -> void:
 	lab._debug_paused = not lab._debug_paused
 	lab.get_tree().paused = lab._debug_paused
@@ -147,6 +244,7 @@ static func begin_pitch_release(lab: PitchBatLab) -> void:
 		or lab._match_state == null
 		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
 		or lab._release_controller.active
+		or lab._field_setup_active
 	):
 		return
 	lab._release_controller.begin()

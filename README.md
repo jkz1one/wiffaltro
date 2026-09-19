@@ -4,9 +4,9 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 ## Status
 
-The **Phase 3 vanilla-match simulator** has passed an initial hands-on match
-smoke. A second fatigue, batting-cadence, and roster-UI revision is implemented
-and awaiting Godot 4.7.2 runtime validation.
+The **Phase 3 vanilla-match simulator** has passed multiple hands-on match
+smokes. The current player-presence, Pitch-identity, Batter-awareness, and
+defensive-tuning revision awaits Godot 4.7.2 runtime validation.
 
 Canonical docs:
 
@@ -49,6 +49,11 @@ The repository now contains:
 - nonlinear late-game fatigue with plate-reach protection
 - clickable four-player pitching-staff management
 - full-simulation debug pause
+- handed player avatars, visible bat swing, and angled batting camera
+- deterministic Batter awareness for repeated Pitches and visible locations
+- point-and-click pitching and overhead 3×3 Field Setup
+- varied Pitcher rhythm and stronger fast/off-speed identity
+- hardened back-wall and tuned Fielder/Pitcher defense
 - actionable swing miss feedback and smooth camera direction
 - deterministic count-aware opponent decisions and per-play records
 - a headless core regression scene

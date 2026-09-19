@@ -18,4 +18,7 @@ perforation_influence = 0.65
 control_difficulty = 1.15
 execution_difficulty = 1.20
 stamina_cost = 6.0
+recognition_difficulty = 1.38
+timing_difficulty = 1.10
+mistake_punish = 1.22
 tags = [&"breaking", &"glove_side", &"horizontal"]

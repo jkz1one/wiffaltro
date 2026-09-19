@@ -54,6 +54,10 @@ func observe_segment(previous: Vector3, current: Vector3) -> void:
 			state.raise_result_floor(BallPlayState.ResultFloor.HOME_RUN)
 			_resolve_floor(&"cleared_hr_boundary", wall_crossing)
 			return
+		# The collision remains physical, but the baseball result does not depend
+		# on Jolt reporting a thin, high-speed wall contact on the same frame.
+		record_back_wall_contact(wall_crossing)
+		return
 
 	if current.z >= field.dead_ball_z_m or current.y < -2.0:
 		resolve_settled(current)

@@ -42,6 +42,7 @@ func stop_pitch(reason: StringName = &"stopped") -> void:
 		return
 
 	running = false
+	visible = false
 	flight_stopped.emit(reason)
 
 func reset_pitch() -> void:

@@ -36,6 +36,12 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - pointer-projected mouse batting
 - clickable four-player pitching-staff panel
 - full-simulation debug pause
+- handed Batter/Pitcher/Fielder avatars and visible bat swing
+- handed over-shoulder batting camera
+- Batter approach memory for Pitch/location repetition
+- varied delivery rhythm and stronger Pitch speed bands
+- point-and-click pitching
+- overhead 3×3 Field Setup view
 - preserved Mechanics Lab and debug telemetry
 
 ## Shared controls
@@ -58,12 +64,16 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `Z` / controller A: Contact Swing
 - `X` / controller X: Power Swing
 - `1–9`: select from the active Pitcher's repertoire while pitching
+- Mouse movement while pitching: aim directly on the plate plane
+- Left click while pitching: throw immediately at the pointer target
 - Arrow keys / right stick: continuously move the Pitch target
 - `- / =`: lower / raise Pitch effort from 82–112%
 - Click the pitching-staff panel: select any of the four Pitchers between batters
 - `Q / E`: previous / next Pitcher between batters
 - `F`: cycle Primary Fielder between batters
 - `C`: cycle Primary Fielder position through the 3×3 grid
+- Click `FIELD VIEW / POSITION`: enter the overhead view, select an anchor, and
+  click `RETURN TO PITCH`
 - `[ / ]`: set a minimum fatigue level for focused testing
 - `R`: restart the match
 
@@ -115,7 +125,10 @@ plate. Left click uses Contact; right click uses Power. Mouse position is
 projected onto the same mathematical contact plane used by the WASD and
 controller reticle, so both paths exercise the same ContactResolver. The outer
 cyan rectangle is Contact coverage and the inner orange rectangle is Power
-coverage. Batter Contact rating scales both regions.
+coverage. Batter Contact rating scales both regions. The camera should sit at
+a subtle handed over-shoulder angle, and the visible Batter's bat should swing
+from the correct side. The widened depth should improve timing without making
+poor X/Y aim succeed.
 
 In Match Mode, press `Space` once to begin an at-bat. The Pitcher should visibly
 set, wind up, and deliver. Taken Pitches, fouls, and non-terminal misses should
@@ -140,10 +153,26 @@ auto-release rather than stall the match.
 Missed swings should report whether timing or aim was the dominant error. The
 opponent should protect more often with two strikes, take more selectively in
 three-ball counts, and avoid feeling like a purely uniform random chooser.
+Repeatedly using the same Pitch and visible location should raise debug
+awareness and make good contact more likely. Mixing Pitch, speed, and location
+should suppress that advantage. Far chase Pitches should remain difficult to
+hit; the outer half should be more approachable than the inner edge.
 
 Effort changes the speed of every Pitch, including off-speed Pitches. Higher effort should be faster and costlier without making an Eephus, Slider, or Drop feel identical to a Four-Seam.
 
+The Four-Seam should now occupy a clearly faster band, while the Eephus should
+arrive dramatically slower and disrupt timing. A first well-located Eephus may
+deceive; a repeated or center-hanging Eephus should be dangerous to throw.
+AI Pitcher set/windup duration should vary readably rather than repeat one exact
+interval.
+
 The yellow line marks the ordinary Safe boundary. The cyan line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall strike on the fly is a Triple, and a fair airborne ball clearing the wall top is a Home Run. The brown pole is a live object: it should physically redirect the ball without deciding the baseball result by itself.
+
+The Primary Fielder should show a brief rating-scaled reaction delay and no
+longer arrive at every ball at one universal speed. Bobbles should be less
+frequent and remain near the defender. The Pitcher should react only to true
+comebackers inside the small mound envelope. A below-wall ball must resolve at
+the wall even if the physical contact callback misses a fast frame.
 
 `B` cycles Grounder, Deep Air, Wall On Fly, and Home Run Arc diagnostics. These bypass Pitch/contact only so field physics and rulings can be inspected deliberately; normal swings still exercise the full contact-to-ball pipeline.
 

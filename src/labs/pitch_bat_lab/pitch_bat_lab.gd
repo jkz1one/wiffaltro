@@ -48,6 +48,8 @@ var _ball_play_resolver: BallPlayResolver
 var _field_definition: FieldDefinition
 var _primary_fielder: FielderController
 var _pitcher_marker: Node3D
+var _pitcher_avatar: PlayerAvatar
+var _batter_avatar: PlayerAvatar
 var _debug_base_state: BaseState = BaseState.new()
 var _base_state: BaseState = _debug_base_state
 var _match_state: MatchState
@@ -69,6 +71,9 @@ var _scoreboard_label: Label
 var _action_label: Label
 var _pitching_staff_panel: VBoxContainer
 var _pitcher_buttons: Array[Button] = []
+var _field_setup_toggle_button: Button
+var _field_setup_panel: VBoxContainer
+var _field_anchor_buttons: Array[Button] = []
 
 var _selected_pitch_index: int = 0
 var _pitch_target: Vector2 = DEFAULT_TARGET
@@ -104,7 +109,11 @@ var _last_release_offset_seconds: float = 0.0
 var _active_play_record: PlayRecord
 var _play_records: Array[PlayRecord] = []
 var _at_bat_cadence: AtBatCadenceController
+var _batter_approach: BatterApproachModel
 var _ai_pitch_preselected: bool = false
+var _last_ai_awareness: float = 0.0
+var _last_ai_read_text: String = "No read"
+var _field_setup_active: bool = false
 var _debug_paused: bool = false
 var _status_before_pause: String = ""
 
@@ -240,6 +249,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	PitchBatLabInput.handle(self, event)
 
 func _throw_pitch() -> void:
+	if _field_setup_active:
+		return
+	if _pitcher_marker != null:
+		_pitcher_marker.position = MOUND_ORIGIN
+		_pitcher_marker.rotation = Vector3.ZERO
 	if _match_mode:
 		if _match_state == null or not _match_state.begin_pitch():
 			return
@@ -405,6 +419,10 @@ func _resolve_swing(
 	if profile == null:
 		push_error("Pitch/Bat Lab: swing profile missing: %s" % String(profile_id))
 		return
+	PitchBatLabPresentation.play_batter_swing(
+		self,
+		profile_id == POWER_SWING_ID
+	)
 
 	var intent: SwingIntent = SwingIntent.new()
 	intent.profile_id = profile_id
@@ -602,6 +620,12 @@ func _apply_fielding_outcome(
 	defender_position: Vector3,
 	outcome: FieldingResolver.Outcome
 ) -> void:
+	if defender_id == &"pitcher":
+		PitchBatLabPresentation.show_pitcher_fielding_attempt(
+			self,
+			_batted_ball.global_position,
+			outcome
+		)
 	_last_fielding_text = "%s: %s" % [
 		String(defender_id).replace("_", " ").capitalize(),
 		FieldingResolver.outcome_name(outcome),
@@ -633,6 +657,7 @@ func _apply_fielding_outcome(
 
 func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 	if _batted_ball != null:
+		_batted_ball.global_position = outcome.resolution_position
 		_batted_ball.stop_and_freeze()
 	_primary_fielder.end_play()
 
@@ -770,40 +795,13 @@ func _on_flight_stopped(reason: StringName) -> void:
 	]
 
 func _adjust_pitch_target(delta_xy: Vector2) -> void:
-	_pitch_target.x = clampf(
-		_pitch_target.x + delta_xy.x,
-		PITCH_AIM_MIN_X,
-		PITCH_AIM_MAX_X
-	)
-	_pitch_target.y = clampf(
-		_pitch_target.y + delta_xy.y,
-		PITCH_AIM_MIN_Y,
-		PITCH_AIM_MAX_Y
-	)
-	_refresh_markers()
-	_refresh_config()
+	PitchBatLabFeelSupport.adjust_pitch_target(self, delta_xy)
 
 func _adjust_pitch_effort(delta: float) -> void:
-	_pitch_effort = clampf(
-		_pitch_effort + delta,
-		MatchLabSupport.MIN_EFFORT,
-		MatchLabSupport.MAX_EFFORT
-	)
-	_refresh_config()
+	PitchBatLabFeelSupport.adjust_pitch_effort(self, delta)
 
 func _adjust_batting_aim(delta_xy: Vector2) -> void:
-	_batting_aim.x = clampf(
-		_batting_aim.x + delta_xy.x,
-		BATTING_AIM_MIN_X,
-		BATTING_AIM_MAX_X
-	)
-	_batting_aim.y = clampf(
-		_batting_aim.y + delta_xy.y,
-		BATTING_AIM_MIN_Y,
-		BATTING_AIM_MAX_Y
-	)
-	_refresh_markers()
-	_refresh_config()
+	PitchBatLabFeelSupport.adjust_batting_aim(self, delta_xy)
 
 func _selected_pitch() -> PitchDefinition:
 	if _match_mode:
@@ -832,26 +830,19 @@ func _current_pitch_options() -> Array[PitchDefinition]:
 	return result
 
 func _cycle_fielder_anchor() -> void:
-	if (
-		(_pitch_actor != null and _pitch_actor.running)
-		or _ball_in_play_is_live()
-	):
-		_status_label.text = "Fielder position is locked during the play."
-		return
-	_fielder_anchor_index = (_fielder_anchor_index + 1) % 9
-	if _primary_fielder != null:
-		_primary_fielder.set_anchor(
-			_field_definition.fielder_anchor(_fielder_anchor_index)
-		)
-	_refresh_config()
+	MatchLabSupport.select_fielder_anchor(
+		self,
+		(_fielder_anchor_index + 1) % 9
+	)
+
+func _toggle_field_setup() -> void:
+	MatchLabSupport.toggle_field_setup(self)
+
+func _select_fielder_anchor(anchor_index: int) -> void:
+	MatchLabSupport.select_fielder_anchor(self, anchor_index)
 
 func _cycle_base_preset() -> void:
-	if _ball_in_play_is_live():
-		_status_label.text = "Base state is locked during the play."
-		return
-	_base_preset_index = (_base_preset_index + 1) % 3
-	_base_state.set_debug_preset(_base_preset_index)
-	_refresh_config()
+	MatchLabSupport.cycle_base_preset(self)
 
 func _ball_in_play_is_live() -> bool:
 	return (
@@ -922,6 +913,11 @@ func _start_new_match() -> void:
 	_ai_swing_decided = false
 	_last_ai_pitch_index = -1
 	_ai_pitch_preselected = false
+	_field_setup_active = false
+	_last_ai_awareness = 0.0
+	_last_ai_read_text = "No read"
+	if _batter_approach != null:
+		_batter_approach.reset(_match_state.plate_appearance_number)
 	_fielder_anchor_index = 4
 	_trajectory_points.clear()
 	if _trajectory_draw != null:
@@ -949,13 +945,15 @@ func _apply_defensive_assignment() -> void:
 		return
 	var fielder_state: PlayerMatchState = _match_state.fielder()
 	if fielder_state != null and _primary_fielder != null:
-		_primary_fielder.fielding_rating = fielder_state.definition.fielding
+		_primary_fielder.configure_player(fielder_state.definition)
 		_primary_fielder.set_anchor(
 			_field_definition.fielder_anchor(_fielder_anchor_index)
 		)
+	PitchBatLabPresentation.sync_players(self)
 
 func _toggle_match_mode() -> void:
 	PitchBatLabFeelSupport.reset_debug_pause(self)
+	_field_setup_active = false
 	_match_mode = not _match_mode
 	if _match_mode:
 		_start_new_match()

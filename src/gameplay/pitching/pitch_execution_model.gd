@@ -119,7 +119,21 @@ static func apply(
 		0.0,
 		0.34
 	)
-	result.velocity *= 1.0 - velocity_loss
+	var delivery_speed_sigma: float = lerpf(0.012, 0.030, 1.0 - quality)
+	if (
+		pitch_category == PitchDefinition.Category.OFF_SPEED
+		or pitch_category == PitchDefinition.Category.UNCONVENTIONAL
+	):
+		delivery_speed_sigma *= 1.35
+	var delivery_speed_variance: float = clampf(
+		rng.randfn(0.0, delivery_speed_sigma),
+		-0.065,
+		0.050
+	)
+	result.velocity *= maxf(
+		0.62,
+		1.0 + delivery_speed_variance - velocity_loss
+	)
 
 	# Preserve vertical reach after the velocity loss, without correcting the
 	# movement loss or command error that makes a tired Pitch hittable.

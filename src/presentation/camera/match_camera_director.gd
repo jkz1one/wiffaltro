@@ -6,6 +6,7 @@ enum Shot {
 	PITCHING,
 	SIDE,
 	BALL_IN_PLAY,
+	FIELD_SETUP,
 }
 
 const TRANSITION_SPEED: float = 7.5
@@ -13,9 +14,13 @@ const FIELD_FOLLOW_SPEED: float = 4.5
 
 var shot: Shot = Shot.BATTING
 var _field_focus: Vector3 = Vector3(0.0, 2.2, 10.0)
+var _batter_side: float = 1.0
 
 func set_shot(next_shot: Shot) -> void:
 	shot = next_shot
+
+func set_batter_handedness(is_left_handed: bool) -> void:
+	_batter_side = -1.0 if is_left_handed else 1.0
 
 func cycle_shot() -> void:
 	shot = (int(shot) + 1) % Shot.size()
@@ -63,14 +68,19 @@ func _desired_transform(
 	var focus: Vector3
 	match shot:
 		Shot.BATTING:
-			camera_position = Vector3(0.0, 1.68, -2.85)
-			focus = Vector3(0.0, 1.18, 8.0)
+			# A modest handed over-shoulder angle exposes depth without changing
+			# the authored plate-local contact coordinates.
+			camera_position = Vector3(_batter_side * 0.48, 1.76, -3.10)
+			focus = Vector3(_batter_side * -0.08, 1.16, 7.2)
 		Shot.PITCHING:
 			camera_position = Vector3(0.0, 2.45, 16.9)
 			focus = Vector3(0.0, 1.05, 0.0)
 		Shot.SIDE:
 			camera_position = Vector3(8.6, 2.65, 6.8)
 			focus = Vector3(0.0, 1.15, 6.8)
+		Shot.FIELD_SETUP:
+			camera_position = Vector3(0.0, 27.0, 9.8)
+			focus = Vector3(0.0, 0.0, 13.5)
 		_:
 			focus = _field_focus
 			var depth_pullback: float = clampf(ball_position.z * 0.16, 0.0, 7.0)

@@ -233,10 +233,41 @@ Implemented in repository:
 - [x] prior Phase 3 revision: Godot 4.7.2 headless main-scene smoke on 2026-09-19
 - [x] prior Phase 3 revision: Godot 4.7.2 headless core regression checks on 2026-09-19
 - [x] hands-on match smoke — user reported the match works well overall on 2026-09-19
-- [ ] Godot 4.7.2 import/headless regression validation of the current feel revision
+- [x] Godot 4.7.2 main-scene hands-on validation of the fatigue/cadence revision
+      — user reported it works pretty well overall on 2026-09-19
+- [ ] Godot 4.7.2 headless regression validation of the fatigue/cadence revision
 - [ ] complete five-inning match runtime test
-- [ ] current fatigue/click-batting/cadence/staff UI hands-on test
+- [x] fatigue/click-batting/cadence/staff UI hands-on test; findings feed the
+      player-presence and Pitch-identity revision below
 
 The prior Phase 3 revision imports, launches, and passes the automated core
-regression scene. The current feel revision is statically validated only and
-remains provisional until its Godot and hands-on checks are completed.
+regression scene. The fatigue/cadence revision has now received a hands-on
+match pass; its remaining feel findings are addressed by the next revision.
+
+
+## Phase 3 player-presence and pitch-identity revision — runtime validation pending
+
+The 2026-09-19 hands-on match pass reported good overall function and exposed
+the next feel bottlenecks. Implemented in response:
+
+- [x] stopped Pitch visuals hide immediately instead of lingering at the plate
+- [x] wider authored Contact and Power timing depths
+- [x] handed over-shoulder batting camera for clearer depth perception
+- [x] visible handed Batter, Pitcher, Primary Fielder, and animated bat
+- [x] stronger Pitch speed bands, including a genuinely slow Eephus
+- [x] small seeded per-delivery speed variation
+- [x] pitch-authored recognition, timing, and mistake-punish values
+- [x] deterministic Batter approach memory for repeated Pitch/location patterns
+- [x] Batter decisions use visible late-flight location, never hidden target input
+- [x] fatigue-slowed Pitches naturally reduce AI reaction pressure
+- [x] bounded seeded Pitcher cadence and dead-ball rhythm variation
+- [x] plate-plane mouse aim and single-click pitching
+- [x] overhead Field Setup camera with direct 3×3 anchor selection
+- [x] rating-scaled Fielder speed, explicit reaction delay, and fewer bobbles
+- [x] shorter physical bobble deflections
+- [x] visibly reactive automatic Pitcher defense in a 0.95 m mound envelope
+- [x] mathematical back-wall crossing fallback and wall-position freeze
+- [x] regression coverage for pitch bands, awareness, chase geometry, cadence,
+      Pitcher radius, and back-wall resolution
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on pitch identity, batting angle/window, AI approach, and defense retest

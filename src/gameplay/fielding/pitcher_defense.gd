@@ -1,8 +1,8 @@
 class_name PitcherDefense
 extends RefCounted
 
-const REACTION_RADIUS_M: float = 1.15
-const MAX_REACTION_HEIGHT_M: float = 2.10
+const REACTION_RADIUS_M: float = 0.95
+const MAX_REACTION_HEIGHT_M: float = 1.85
 
 static func can_attempt(ball_position: Vector3, pitcher_position: Vector3) -> bool:
 	var horizontal_distance: float = Vector2(

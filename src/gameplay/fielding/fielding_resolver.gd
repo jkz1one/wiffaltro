@@ -20,19 +20,19 @@ static func resolve(
 	if ball_height_m < 0.0 or ball_height_m > allowed_height:
 		return Outcome.MISS
 
-	var reach_limit: float = 0.72 + rating * 0.045
+	var reach_limit: float = 0.74 + rating * 0.040
 	if distance_m > reach_limit:
 		return Outcome.MISS
 
-	var difficulty: float = ball_speed_mps * (0.030 if has_grounded else 0.024)
-	difficulty += distance_m * 0.85
-	difficulty -= reaction_margin_seconds * 0.55
-	var skill: float = 0.48 + rating * 0.105
+	var difficulty: float = ball_speed_mps * (0.024 if has_grounded else 0.020)
+	difficulty += distance_m * 0.68
+	difficulty -= reaction_margin_seconds * 0.62
+	var skill: float = 0.58 + rating * 0.115
 	var control_margin: float = skill - difficulty
 
-	if control_margin >= 0.18:
+	if control_margin >= 0.14:
 		return Outcome.CLEAN
-	if control_margin >= -0.28:
+	if control_margin >= -0.16:
 		return Outcome.BOBBLE
 	return Outcome.MISS
 

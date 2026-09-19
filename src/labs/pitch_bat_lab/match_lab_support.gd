@@ -107,6 +107,52 @@ static func cycle_primary_fielder(lab: PitchBatLab) -> void:
 	lab._apply_defensive_assignment()
 	lab._refresh_config()
 
+static func toggle_field_setup(lab: PitchBatLab) -> void:
+	if lab._field_setup_active:
+		lab._field_setup_active = false
+		lab._apply_role_camera()
+		lab._status_label.text = "Field position locked. Point and click to pitch."
+		lab._refresh_config()
+		return
+	if (
+		not lab._player_is_pitching()
+		or lab._match_state == null
+		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
+		or (lab._pitch_actor != null and lab._pitch_actor.running)
+		or lab._release_controller.active
+	):
+		lab._status_label.text = "Field setup is available before a defensive Pitch."
+		return
+	lab._field_setup_active = true
+	lab._camera_director.set_shot(MatchCameraDirector.Shot.FIELD_SETUP)
+	lab._status_label.text = "FIELD SETUP — choose a 3×3 anchor, then return to Pitch."
+	lab._refresh_config()
+
+static func select_fielder_anchor(lab: PitchBatLab, anchor_index: int) -> void:
+	if (
+		(lab._pitch_actor != null and lab._pitch_actor.running)
+		or lab._ball_in_play_is_live()
+	):
+		lab._status_label.text = "Fielder position is locked during the play."
+		return
+	lab._fielder_anchor_index = clampi(anchor_index, 0, 8)
+	if lab._primary_fielder != null:
+		lab._primary_fielder.set_anchor(
+			lab._field_definition.fielder_anchor(lab._fielder_anchor_index)
+		)
+	lab._status_label.text = "Primary Fielder: %s" % [
+		lab._field_definition.fielder_anchor_name(lab._fielder_anchor_index),
+	]
+	lab._refresh_config()
+
+static func cycle_base_preset(lab: PitchBatLab) -> void:
+	if lab._ball_in_play_is_live():
+		lab._status_label.text = "Base state is locked during the play."
+		return
+	lab._base_preset_index = (lab._base_preset_index + 1) % 3
+	lab._base_state.set_debug_preset(lab._base_preset_index)
+	lab._refresh_config()
+
 static func assign_ai_defense_for_half(lab: PitchBatLab) -> void:
 	if not lab._player_is_batting():
 		return
@@ -209,50 +255,53 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		or lab._pitch_actor == null
 		or not lab._pitch_actor.running
 		or lab._pitch_actor.state == null
-		or lab._pitch_actor.state.position.z > 0.60
 	):
 		return
-	lab._ai_swing_decided = true
-	var batter_state: PlayerMatchState = lab._match_state.batter()
+	var pitch: PitchDefinition = lab._selected_pitch()
+	if pitch == null or lab._batter_approach == null:
+		return
+	if (
+		lab._batter_approach.plate_appearance_number
+		!= lab._match_state.plate_appearance_number
+	):
+		lab._batter_approach.reset(lab._match_state.plate_appearance_number)
 	var ball_xy: Vector2 = Vector2(
 		lab._pitch_actor.state.position.x,
 		lab._pitch_actor.state.position.y
 	)
-	var appears_hittable: bool = (
-		ball_xy.x >= lab.ZONE_MIN_X - 0.10
-		and ball_xy.x <= lab.ZONE_MAX_X + 0.10
-		and ball_xy.y >= lab.ZONE_MIN_Y - 0.10
-		and ball_xy.y <= lab.ZONE_MAX_Y + 0.10
+	var plate_speed_mps: float = lab._pitch_actor.state.velocity.length()
+	var trigger_z: float = lab._batter_approach.trigger_z(
+		pitch,
+		plate_speed_mps,
+		ball_xy
 	)
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = (
+	if lab._pitch_actor.state.position.z > trigger_z:
+		return
+	lab._ai_swing_decided = true
+	var batter_state: PlayerMatchState = lab._match_state.batter()
+	var decision: Dictionary = lab._batter_approach.decide(
+		pitch,
+		ball_xy,
+		ball_xy,
+		batter_state.definition,
+		lab._match_state.balls,
+		lab._match_state.strikes,
+		plate_speed_mps,
 		lab._throw_number * 3571
 		+ lab._match_state.plate_appearance_number * 97
 	)
-	var swing_chance: float
-	if appears_hittable:
-		swing_chance = 0.94 if lab._match_state.strikes >= 2 else 0.78
-	else:
-		swing_chance = 0.22 if lab._match_state.strikes >= 2 else 0.10
-	if lab._match_state.balls >= 3 and lab._match_state.strikes < 2:
-		swing_chance *= 0.62
-	if rng.randf() > swing_chance:
+	lab._last_ai_awareness = float(decision["awareness"])
+	lab._last_ai_read_text = "%s • swing %.0f%% • aim σ %.0f cm" % [
+		String(decision["location_read"]),
+		float(decision["swing_chance"]) * 100.0,
+		float(decision["aim_sigma"]) * 100.0,
+	]
+	lab._batter_approach.observe(pitch, ball_xy)
+	if not bool(decision["swing"]):
 		return
-	var aim_sigma: float = lerpf(
-		0.16,
-		0.055,
-		float(batter_state.definition.contact) / 10.0
-	)
-	var ai_aim: Vector2 = ball_xy + Vector2(
-		rng.randfn(0.0, aim_sigma),
-		rng.randfn(0.0, aim_sigma)
-	)
-	var use_power: bool = (
-		batter_state.definition.power > batter_state.definition.contact
-		and rng.randf() < 0.52
-	)
+	var ai_aim: Vector2 = decision["aim"]
 	lab._resolve_swing(
-		lab.POWER_SWING_ID if use_power else lab.CONTACT_SWING_ID,
+		lab.POWER_SWING_ID if bool(decision["use_power"]) else lab.CONTACT_SWING_ID,
 		ai_aim
 	)
 

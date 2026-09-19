@@ -35,4 +35,10 @@ enum Rarity {
 @export_range(0.0, 2.0, 0.001, "or_greater") var execution_difficulty: float = 1.0
 @export_range(0.0, 100.0, 0.1, "or_greater") var stamina_cost: float = 5.0
 
+# Batter-facing identity. These tune recognition and timing without changing
+# the physical trajectory or replacing the shared ContactResolver.
+@export_range(0.0, 2.0, 0.01) var recognition_difficulty: float = 1.0
+@export_range(0.0, 2.0, 0.01) var timing_difficulty: float = 1.0
+@export_range(0.0, 2.0, 0.01) var mistake_punish: float = 1.0
+
 @export var tags: Array[StringName] = []

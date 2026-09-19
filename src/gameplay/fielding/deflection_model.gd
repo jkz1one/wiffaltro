@@ -14,12 +14,12 @@ static func velocity_after_bobble(
 
 	var retained_horizontal: Vector3 = incoming_velocity
 	retained_horizontal.y = 0.0
-	retained_horizontal *= 0.24
+	retained_horizontal *= 0.07
 	return (
 		retained_horizontal
-		+ away * maxf(1.4, incoming_velocity.length() * 0.10)
-		+ Vector3.UP * clampf(incoming_velocity.length() * 0.08, 1.0, 3.5)
+		+ away * clampf(incoming_velocity.length() * 0.035, 0.50, 1.10)
+		+ Vector3.UP * clampf(incoming_velocity.length() * 0.025, 0.25, 0.85)
 	)
 
 static func spin_after_bobble(incoming_spin: Vector3) -> Vector3:
-	return incoming_spin * 0.38 + Vector3(0.0, 7.0, 3.0)
+	return incoming_spin * 0.24 + Vector3(0.0, 4.0, 1.5)

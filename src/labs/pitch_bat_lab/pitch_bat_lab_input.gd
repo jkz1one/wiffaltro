@@ -37,7 +37,29 @@ static func _handle_pointer_event(
 	lab: PitchBatLab,
 	event: InputEvent
 ) -> bool:
-	if lab._match_mode and not lab._player_is_batting():
+	if lab._match_mode and lab._player_is_pitching():
+		if lab._field_setup_active:
+			return false
+		if (
+			lab._match_state == null
+			or lab._match_state.phase != MatchState.Phase.PRE_PITCH
+		):
+			return false
+		if event is InputEventMouseMotion:
+			var pitch_motion: InputEventMouseMotion = event as InputEventMouseMotion
+			return PitchBatLabFeelSupport.set_pitch_target_from_screen(
+				lab,
+				pitch_motion.position
+			)
+		if event is InputEventMouseButton:
+			var pitch_click: InputEventMouseButton = event as InputEventMouseButton
+			if pitch_click.pressed and pitch_click.button_index == MOUSE_BUTTON_LEFT:
+				if PitchBatLabFeelSupport.set_pitch_target_from_screen(
+					lab,
+					pitch_click.position
+				):
+					PitchBatLabFeelSupport.throw_point_pitch(lab)
+					return true
 		return false
 	if event is InputEventMouseMotion:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion

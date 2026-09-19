@@ -7,9 +7,11 @@ func _ready() -> void:
 	_test_fatigue_curve_and_capacity()
 	_test_fatigue_pitch_outcomes()
 	_test_at_bat_cadence()
+	_test_pitch_identity_and_batter_awareness()
 	_test_ai_pitch_determinism_and_counts()
 	_test_match_count_rules()
 	_test_defensive_separation()
+	_test_back_wall_segment_resolution()
 	_test_play_record_serialization()
 	if _failures == 0:
 		print("Wiffaltro core regression checks passed.")
@@ -138,9 +140,9 @@ func _test_fatigue_pitch_outcomes() -> void:
 
 func _test_at_bat_cadence() -> void:
 	var cadence: AtBatCadenceController = AtBatCadenceController.new()
-	cadence.begin_delivery()
+	cadence.begin_delivery(42)
 	_check(
-		cadence.advance(AtBatCadenceController.DELIVERY_SECONDS - 0.01)
+		cadence.advance(cadence.active_delivery_seconds - 0.01)
 		== AtBatCadenceController.Event.NONE,
 		"AI delivery should visibly telegraph before release"
 	)
@@ -148,11 +150,67 @@ func _test_at_bat_cadence() -> void:
 		cadence.advance(0.02) == AtBatCadenceController.Event.THROW_PITCH,
 		"AI delivery should release after its windup"
 	)
-	cadence.hold_dead_ball()
+	cadence.hold_dead_ball(84)
 	_check(
-		cadence.advance(AtBatCadenceController.DEAD_BALL_HOLD_SECONDS + 0.01)
+		cadence.advance(cadence.active_hold_seconds + 0.01)
 		== AtBatCadenceController.Event.CONTINUE_PLAY,
 		"an unfinished at-bat should continue without another acceptance"
+	)
+	var replay: AtBatCadenceController = AtBatCadenceController.new()
+	replay.begin_delivery(42)
+	_check(
+		is_equal_approx(
+			cadence.active_delivery_seconds,
+			replay.active_delivery_seconds
+		),
+		"Pitch rhythm variation should replay from its seed"
+	)
+
+func _test_pitch_identity_and_batter_awareness() -> void:
+	var fastball: PitchDefinition = ContentDB.get_pitch(
+		&"pitch.overhand_four_seam"
+	)
+	var eephus: PitchDefinition = ContentDB.get_pitch(&"pitch.eephus")
+	_check(
+		fastball.nominal_velocity_mps >= eephus.nominal_velocity_mps * 2.4,
+		"Four-Seam and Eephus must occupy clearly different speed bands"
+	)
+	_check(
+		eephus.category == PitchDefinition.Category.OFF_SPEED,
+		"Eephus should be authored as an off-speed Pitch"
+	)
+	var model: BatterApproachModel = BatterApproachModel.new()
+	model.reset(1)
+	var target: Vector2 = Vector2(0.31, 1.08)
+	var initial_awareness: float = model.awareness_for(fastball, target)
+	model.observe(fastball, target)
+	model.observe(fastball, target)
+	_check(
+		model.awareness_for(fastball, target) > initial_awareness + 0.25,
+		"repeating a Pitch and location should raise batter awareness"
+	)
+	var batter: PlayerDefinition = PlayerDefinition.new()
+	batter.contact = 6
+	batter.power = 6
+	var center: Dictionary = model.decide(
+		fastball, Vector2(0.0, 1.05), target, batter, 0, 0, 24.0, 51
+	)
+	var chase: Dictionary = model.decide(
+		fastball, Vector2(0.88, 1.05), target, batter, 0, 0, 24.0, 51
+	)
+	var outside: Dictionary = model.decide(
+		fastball, Vector2(-0.18, 1.05), target, batter, 0, 0, 24.0, 51
+	)
+	var inside: Dictionary = model.decide(
+		fastball, Vector2(0.36, 1.05), target, batter, 0, 0, 24.0, 51
+	)
+	_check(
+		float(center["swing_chance"]) > float(chase["swing_chance"]) * 3.0,
+		"far chase Pitches should be much harder to offer at than center mistakes"
+	)
+	_check(
+		float(outside["aim_sigma"]) < float(inside["aim_sigma"]),
+		"the reachable outer half should be easier than the inner edge"
 	)
 
 func _test_ai_pitch_determinism_and_counts() -> void:
@@ -207,6 +265,23 @@ func _test_defensive_separation() -> void:
 	_check(
 		team.pitcher_index != team.fielder_index,
 		"Pitcher and Primary Fielder must remain different players"
+	)
+	_check(
+		PitcherDefense.REACTION_RADIUS_M <= 1.0,
+		"Pitcher defense must remain a small comebacker radius"
+	)
+
+func _test_back_wall_segment_resolution() -> void:
+	var resolver: BallPlayResolver = BallPlayResolver.new()
+	var field: FieldDefinition = FieldDefinition.new()
+	resolver.start_play(field)
+	resolver.observe_segment(
+		Vector3(0.0, 2.0, field.back_wall_z_m - 0.3),
+		Vector3(0.0, 2.0, field.back_wall_z_m + 0.3)
+	)
+	_check(
+		resolver.state.dead,
+		"back-wall rulings should survive a missed thin collision callback"
 	)
 
 func _test_play_record_serialization() -> void:

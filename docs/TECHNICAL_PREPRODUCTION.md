@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.4
-**Status:** FROZEN BASELINE WITH FATIGUE, CADENCE, AND INPUT AMENDMENT
+**Version:** v0.1.5
+**Status:** FROZEN BASELINE WITH BATTER MODEL AND PLAYER-PRESENCE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -320,6 +320,9 @@ hole_orientation
 control_difficulty
 execution_difficulty
 stamina_cost
+recognition_difficulty
+timing_difficulty
+mistake_punish
 rarity
 tags
 aero_recipe/profile references
@@ -798,6 +801,17 @@ Swing Profile. This preserves the same mathematical ContactResolver authority
 used by keyboard/controller aim; mouse picking never substitutes a physics
 collider for contact resolution.
 
+`BatterApproachModel` owns deterministic opponent recognition and decision
+quality. Its memory resets per plate appearance and may learn from previously
+observed Pitch identities and visible late-flight location buckets. It must not
+read the player's intended target. Pitch-authored recognition, timing, and
+mistake-punish values preserve differences such as a deceptive first Eephus
+versus a repeated center-hanging Eephus.
+
+The visual Batter and bat mirror handedness and animate the committed Swing,
+but `ContactResolver` remains authoritative. Presentation geometry never adds
+a second collision-based batting result.
+
 ---
 
 # 29. Contact Resolver
@@ -1162,6 +1176,10 @@ The user's pre-pitch strategic choice selects one anchor.
 Authored anchors must respect a Pitcher exclusion radius. The center lane may
 use a field-specific depth offset so Middle Center remains selectable without
 overlapping the mound.
+
+The Match UI may expose these anchors in an overhead Field Setup camera. The
+view is pre-pitch only and must return to the normal Pitching shot before a
+Pitch can begin.
 
 After contact, the fielder moves according to the planner.
 
@@ -1546,6 +1564,12 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 31. pausable debug inspection
 32. visible four-player pitching-staff selection between batters
 33. nonlinear fatigue-band and plate-reach regression coverage
+34. handed Batter/Pitcher/Fielder presentation and visible bat swing
+35. deterministic Batter approach memory without hidden-input reads
+36. point-and-click plate-plane pitching
+37. bounded delivery-rhythm variance
+38. overhead 3×3 Field Setup view
+39. mathematical back-wall segment fallback
 
 ### Phase 3 acceptance
 

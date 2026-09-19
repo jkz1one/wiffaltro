@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.6
-**Status:** FROZEN BASELINE WITH FATIGUE AND BATTING-CADENCE AMENDMENT
-**Supersedes:** v0.4.5 and all earlier planning notes
+**Version:** v0.4.7
+**Status:** FROZEN BASELINE WITH PLAYER-PRESENCE AND BATTER-AWARENESS AMENDMENT
+**Supersedes:** v0.4.6 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -170,7 +170,21 @@ not merely a diagnostic path.
 
 An at-bat begins with one ready/accept input. Pitches within that plate
 appearance then arrive on a readable automatic cadence with a visible Pitcher
-set and windup. The player should not have to approve every individual Pitch.
+set and windup. Cadence may vary within a bounded readable range so delivery
+timing does not become metronomic. The player should not have to approve every
+individual Pitch.
+
+The batting camera uses a modest handed over-shoulder angle rather than a
+perfectly centered tunnel. This improves depth perception without changing the
+plate-local contact math. A visible handed Batter and bat must mirror the
+current roster player; the bat is presentation for the authored ContactResolver,
+not a second physics authority.
+
+Opponent Batters have readable approach memory. Repeating a recognized Pitch
+or visible location increases awareness and execution, while changing speed,
+shape, and location reduces predictability. They may consider visible flight,
+count, handed inside/outside geometry, and player ratings, but never the
+pitcher's hidden intended target or unreleased input.
 
 ## Contact Swing
 
@@ -214,6 +228,11 @@ The player's release timing is an execution input, not a post-release steering
 system. Control widens the useful timing window, fatigue narrows it, and the
 result feeds the existing command/error model. A held delivery auto-releases so
 the match cannot remain stuck indefinitely.
+
+Mouse pitching may project a pointer onto the plate plane and commit the Pitch
+with a click. The timed release remains available as a higher-execution input;
+both paths feed the same pre-flight aim and execution pipeline, with no
+mid-flight steering.
 
 Effort applies to every Pitch rather than belonging only to fastballs. A harder
 Eephus, Slider, Drop, or other off-speed Pitch is still that Pitch, but travels
@@ -465,6 +484,9 @@ Position persists until changed.
 
 Position locks once the pitching motion begins.
 
+The positioning UI may enter a temporary overhead Field Setup view with nine
+direct anchor choices, then return to the normal pitching camera before play.
+
 ## Pitcher defense
 
 The Pitcher automatically participates on:
@@ -474,7 +496,8 @@ The Pitcher automatically participates on:
 - close mound-area plays
 - possible hard deflections
 
-The Pitcher does not roam as the Primary Fielder.
+The Pitcher does not roam as the Primary Fielder. Pitcher defense is limited to
+a small, visibly reactive comebacker envelope around the mound.
 
 ## Fielding outcomes
 

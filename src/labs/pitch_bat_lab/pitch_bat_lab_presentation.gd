@@ -39,14 +39,76 @@ static func build_defenders(lab: PitchBatLab) -> void:
 	lab._pitcher_marker.position = lab.MOUND_ORIGIN
 	lab.add_child(lab._pitcher_marker)
 
-	var pitcher_mesh: MeshInstance3D = MeshInstance3D.new()
-	var capsule: CapsuleMesh = CapsuleMesh.new()
-	capsule.radius = 0.31
-	capsule.height = 1.72
-	pitcher_mesh.mesh = capsule
-	pitcher_mesh.position.y = 0.86
-	pitcher_mesh.material_override = _make_material(Color(0.92, 0.30, 0.18))
-	lab._pitcher_marker.add_child(pitcher_mesh)
+	lab._pitcher_avatar = PlayerAvatar.new()
+	lab._pitcher_avatar.name = "PitcherAvatar"
+	lab._pitcher_marker.add_child(lab._pitcher_avatar)
+	lab._pitcher_avatar.configure(
+		PlayerAvatar.Role.PITCHER,
+		false,
+		false,
+		Color(0.92, 0.30, 0.18)
+	)
+
+	lab._batter_avatar = PlayerAvatar.new()
+	lab._batter_avatar.name = "BatterAvatar"
+	lab.add_child(lab._batter_avatar)
+	lab._batter_avatar.configure(
+		PlayerAvatar.Role.BATTER,
+		false,
+		false,
+		Color(0.94, 0.78, 0.18)
+	)
+
+static func sync_players(lab: PitchBatLab) -> void:
+	if lab._match_state == null:
+		return
+	var batter: PlayerDefinition = lab._match_state.batter().definition
+	var pitcher: PlayerDefinition = lab._match_state.pitcher().definition
+	var fielder: PlayerDefinition = lab._match_state.fielder().definition
+	var batter_left: bool = batter.bats == PlayerDefinition.Handedness.LEFT
+	if lab._batter_avatar != null:
+		lab._batter_avatar.configure(
+			PlayerAvatar.Role.BATTER,
+			batter_left,
+			batter.throws == PlayerDefinition.Handedness.LEFT,
+			Color(0.94, 0.78, 0.18)
+		)
+		lab._batter_avatar.position = Vector3(
+			-0.82 if batter_left else 0.82,
+			0.0,
+			0.34
+		)
+	if lab._pitcher_avatar != null:
+		lab._pitcher_avatar.configure(
+			PlayerAvatar.Role.PITCHER,
+			pitcher.bats == PlayerDefinition.Handedness.LEFT,
+			pitcher.throws == PlayerDefinition.Handedness.LEFT,
+			Color(0.92, 0.30, 0.18)
+		)
+	if lab._primary_fielder != null:
+		lab._primary_fielder.configure_player(fielder)
+	if lab._camera_director != null:
+		lab._camera_director.set_batter_handedness(batter_left)
+
+static func play_batter_swing(lab: PitchBatLab, power: bool) -> void:
+	if lab._batter_avatar != null:
+		lab._batter_avatar.play_swing(power)
+
+static func show_pitcher_fielding_attempt(
+	lab: PitchBatLab,
+	ball_position: Vector3,
+	outcome: FieldingResolver.Outcome
+) -> void:
+	if lab._pitcher_marker == null:
+		return
+	var offset: Vector3 = ball_position - lab.MOUND_ORIGIN
+	offset.y = 0.0
+	if offset.length_squared() > 0.0001:
+		offset = offset.normalized() * minf(0.72, offset.length())
+	lab._pitcher_marker.position = lab.MOUND_ORIGIN + offset
+	lab._pitcher_marker.rotation.z = (
+		0.18 if outcome == FieldingResolver.Outcome.CLEAN else 0.10
+	) * signf(offset.x if absf(offset.x) > 0.01 else 1.0)
 
 static func build_environment(lab: PitchBatLab) -> void:
 	var geometry: StarterFieldLabGeometry = StarterFieldLabGeometry.new()
@@ -98,12 +160,15 @@ static func build_ui(lab: PitchBatLab) -> void:
 	lab._live_label = _add_label(canvas, Vector2(20.0, 405.0), 16)
 	lab._controls_label = _add_label(canvas, Vector2(20.0, 550.0), 14)
 	_build_pitching_staff(lab, canvas)
+	_build_field_setup(lab, canvas)
 
 	var footer: Label = _add_label(canvas, Vector2(20.0, 680.0), 13)
 	footer.text = "Phase 3 match simulator + shared mechanics lab. F1 overlay, F2 mode."
 	refresh_controls(lab)
 
 static func cycle_camera(lab: PitchBatLab) -> void:
+	if lab._field_setup_active:
+		return
 	lab._camera_mode = (lab._camera_mode + 1) % 4
 	apply_camera_mode(lab)
 
@@ -124,6 +189,9 @@ static func apply_role_camera(lab: PitchBatLab) -> void:
 	if lab._camera == null:
 		return
 	if lab._match_mode:
+		if lab._field_setup_active:
+			lab._camera_director.set_shot(MatchCameraDirector.Shot.FIELD_SETUP)
+			return
 		lab._camera_mode = 0 if lab._player_is_batting() else 1
 	else:
 		lab._camera_mode = 0
@@ -142,6 +210,7 @@ static func refresh(lab: PitchBatLab) -> void:
 	else:
 		_refresh_lab(lab, pitch)
 	_refresh_pitching_staff(lab)
+	_refresh_field_setup(lab)
 	lab._action_label.visible = lab._match_mode
 	lab._config_label.visible = lab._debug_overlay_visible
 	lab._live_label.visible = lab._debug_overlay_visible
@@ -189,8 +258,8 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 			"F1 debug   F2 Lab   F3 records   P pause   V camera   R new match\n"
 			+ "BATTING: mouse tracks aim   left click Contact   right click Power\n"
 			+ "WASD/left stick aim   Z/A Contact   X/X Power\n"
-			+ "PITCHING: 1–9 Pitch   arrows/right stick aim   -/= effort\n"
-			+ "hold/release SPACE/A   click staff to change Pitcher   F Fielder   C position"
+			+ "PITCHING: mouse aim + left click throw   1–9 Pitch   -/= effort\n"
+			+ "SPACE timing delivery   click FIELD VIEW to position   F changes Fielder"
 		)
 	else:
 		lab._controls_label.text = (
@@ -233,8 +302,8 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 	lab._scoreboard_label.text = (
 		"%s     %s\n"
 		+ "BALLS %d   STRIKES %d   OUTS %d     %s\n"
-		+ "BAT %s   ON DECK %s\n"
-		+ "PIT %s   PITCHES %d   STAMINA %.0f%%   %s"
+		+ "BAT %s (%s)   ON DECK %s\n"
+		+ "PIT %s (%s)   PITCHES %d   STAMINA %.0f%%   %s"
 	) % [
 		match_state.half_label(),
 		match_state.score_label(),
@@ -243,8 +312,10 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		match_state.outs,
 		lab._base_state.display_string(),
 		batter_state.definition.display_name,
+		"L" if batter_state.definition.bats == PlayerDefinition.Handedness.LEFT else "R",
 		on_deck_state.definition.display_name,
 		pitcher_state.definition.display_name,
+		"L" if pitcher_state.definition.throws == PlayerDefinition.Handedness.LEFT else "R",
 		pitcher_state.pitch_count,
 		pitcher_state.stamina_percent() * 100.0,
 		PitchExecutionModel.fatigue_stage_name(pitcher_state.fatigue_ratio()),
@@ -252,6 +323,10 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 	var options: Array[PitchDefinition] = lab._current_pitch_options()
 	if lab._debug_paused:
 		lab._action_label.text = "DEBUG PAUSED     P: resume"
+	elif lab._field_setup_active:
+		lab._action_label.text = (
+			"FIELD SETUP     choose an anchor     RETURN TO PITCH when ready"
+		)
 	elif lab._player_is_batting():
 		var cadence_text: String = "SPACE: begin at-bat"
 		if (
@@ -274,7 +349,7 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		lab._action_label.text = (
 			release_text
 			if not release_text.is_empty()
-			else "%d: %s   EFFORT %.0f%%   TARGET %.2f / %.2f   hold SPACE to deliver" % [
+			else "%d: %s   EFFORT %.0f%%   TARGET %.2f / %.2f   CLICK to throw • SPACE precision" % [
 				lab._selected_pitch_index + 1,
 				pitch.display_name if pitch != null else "None",
 				lab._pitch_effort * 100.0,
@@ -290,7 +365,8 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		"DEBUG   %s   match %.1f s\n"
 		+ "pitch %d/%d %s   effort %.0f%%   target %.2f / %.2f\n"
 		+ "bat aim %.2f / %.2f   fatigue %.0f%% → effect %.0f%% %s\n"
-		+ "fielder %s: %s   anchor %s   records %d"
+		+ "fielder %s: %s (%s)   anchor %s   records %d\n"
+		+ "AI batter awareness %.0f%%   %s"
 	) % [
 		"PLAYER BATTING" if lab._player_is_batting() else "PLAYER PITCHING",
 		match_state.elapsed_seconds,
@@ -307,8 +383,11 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		PitchExecutionModel.fatigue_stage_name(applied_fatigue),
 		fielder_state.definition.display_name,
 		str(fielder_state.definition.fielding),
+		"L" if fielder_state.definition.throws == PlayerDefinition.Handedness.LEFT else "R",
 		lab._field_definition.fielder_anchor_name(lab._fielder_anchor_index),
 		lab._play_records.size(),
+		lab._last_ai_awareness * 100.0,
+		lab._last_ai_read_text,
 	]
 
 static func _refresh_lab(lab: PitchBatLab, pitch: PitchDefinition) -> void:
@@ -354,6 +433,69 @@ static func _build_pitching_staff(
 		lab._pitching_staff_panel.add_child(button)
 		lab._pitcher_buttons.append(button)
 
+static func _build_field_setup(
+	lab: PitchBatLab,
+	canvas: CanvasLayer
+) -> void:
+	lab._field_setup_toggle_button = Button.new()
+	lab._field_setup_toggle_button.position = Vector2(960.0, 322.0)
+	lab._field_setup_toggle_button.custom_minimum_size = Vector2(295.0, 38.0)
+	lab._field_setup_toggle_button.focus_mode = Control.FOCUS_NONE
+	lab._field_setup_toggle_button.pressed.connect(lab._toggle_field_setup)
+	canvas.add_child(lab._field_setup_toggle_button)
+
+	lab._field_setup_panel = VBoxContainer.new()
+	lab._field_setup_panel.position = Vector2(910.0, 365.0)
+	canvas.add_child(lab._field_setup_panel)
+	var title: Label = Label.new()
+	title.text = "PRIMARY FIELDER POSITION"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab._field_setup_panel.add_child(title)
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = 3
+	lab._field_setup_panel.add_child(grid)
+	for index in range(9):
+		var anchor_button: Button = Button.new()
+		anchor_button.custom_minimum_size = Vector2(112.0, 38.0)
+		anchor_button.focus_mode = Control.FOCUS_NONE
+		anchor_button.text = lab._field_definition.fielder_anchor_name(index)
+		anchor_button.pressed.connect(lab._select_fielder_anchor.bind(index))
+		grid.add_child(anchor_button)
+		lab._field_anchor_buttons.append(anchor_button)
+	var exit_button: Button = Button.new()
+	exit_button.text = "RETURN TO PITCH"
+	exit_button.custom_minimum_size = Vector2(336.0, 38.0)
+	exit_button.focus_mode = Control.FOCUS_NONE
+	exit_button.pressed.connect(lab._toggle_field_setup)
+	lab._field_setup_panel.add_child(exit_button)
+
+static func _refresh_field_setup(lab: PitchBatLab) -> void:
+	if lab._field_setup_toggle_button == null or lab._field_setup_panel == null:
+		return
+	var on_defense: bool = (
+		lab._match_mode
+		and lab._match_state != null
+		and lab._player_is_pitching()
+	)
+	lab._field_setup_toggle_button.visible = on_defense
+	lab._field_setup_panel.visible = on_defense and lab._field_setup_active
+	if not on_defense:
+		return
+	lab._field_setup_toggle_button.text = (
+		"RETURN TO PITCH" if lab._field_setup_active else "FIELD VIEW / POSITION"
+	)
+	lab._field_setup_toggle_button.disabled = (
+		lab._debug_paused
+		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
+		or lab._release_controller.active
+		or lab._ball_in_play_is_live()
+		or (lab._pitch_actor != null and lab._pitch_actor.running)
+	)
+	for index in range(lab._field_anchor_buttons.size()):
+		lab._field_anchor_buttons[index].disabled = (
+			index == lab._fielder_anchor_index
+		)
+
 static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 	if lab._pitching_staff_panel == null:
 		return
@@ -391,12 +533,6 @@ static func _add_label(
 	label.add_theme_font_size_override("font_size", font_size)
 	canvas.add_child(label)
 	return label
-
-static func _make_material(color: Color) -> StandardMaterial3D:
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 0.9
-	return material
 
 static func _make_unshaded_material(color: Color) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()

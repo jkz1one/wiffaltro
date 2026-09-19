@@ -1,7 +1,7 @@
 class_name FielderController
 extends CharacterBody3D
 
-@export var move_speed_mps: float = 6.2
+@export var move_speed_mps: float = 5.2
 @export var fielding_rating: int = 6
 @export var reach_m: float = 0.98
 
@@ -9,6 +9,9 @@ var anchor_position: Vector3 = Vector3.ZERO
 var target_position: Vector3 = Vector3.ZERO
 var active: bool = false
 var last_reaction_margin_seconds: float = 0.0
+var reaction_delay_seconds: float = 0.11
+var _play_elapsed_seconds: float = 0.0
+var _avatar: PlayerAvatar
 
 func _ready() -> void:
 	_build_debug_fielder()
@@ -21,6 +24,7 @@ func set_anchor(new_anchor: Vector3) -> void:
 
 func begin_play() -> void:
 	active = true
+	_play_elapsed_seconds = 0.0
 	global_position = anchor_position
 	target_position = anchor_position
 
@@ -29,6 +33,34 @@ func end_play() -> void:
 	velocity = Vector3.ZERO
 	global_position = anchor_position
 	target_position = anchor_position
+	_play_elapsed_seconds = 0.0
+
+func configure_player(player: PlayerDefinition) -> void:
+	if player == null:
+		return
+	fielding_rating = player.fielding
+	move_speed_mps = lerpf(
+		4.55,
+		5.85,
+		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
+	)
+	reach_m = lerpf(
+		0.82,
+		1.08,
+		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
+	)
+	reaction_delay_seconds = lerpf(
+		0.19,
+		0.055,
+		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
+	)
+	if _avatar != null:
+		_avatar.configure(
+			PlayerAvatar.Role.FIELDER,
+			player.bats == PlayerDefinition.Handedness.LEFT,
+			player.throws == PlayerDefinition.Handedness.LEFT,
+			Color(0.18, 0.52, 0.95)
+		)
 
 func plan_for_ball(
 	ball_position: Vector3,
@@ -36,6 +68,8 @@ func plan_for_ball(
 	has_grounded: bool
 ) -> void:
 	if not active:
+		return
+	if _play_elapsed_seconds < reaction_delay_seconds:
 		return
 	var plan_result: FielderPlan = FielderPlanner.plan(
 		ball_position,
@@ -54,8 +88,12 @@ func horizontal_distance_to(point: Vector3) -> float:
 		point.z - global_position.z
 	).length()
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not active:
+		return
+	_play_elapsed_seconds += maxf(0.0, delta)
+	if _play_elapsed_seconds < reaction_delay_seconds:
+		velocity = Vector3.ZERO
 		return
 	var displacement: Vector3 = target_position - global_position
 	displacement.y = 0.0
@@ -66,18 +104,15 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 
 func _build_debug_fielder() -> void:
-	var body_mesh: MeshInstance3D = MeshInstance3D.new()
-	var capsule: CapsuleMesh = CapsuleMesh.new()
-	capsule.radius = 0.34
-	capsule.height = 1.65
-	body_mesh.mesh = capsule
-	body_mesh.position.y = 0.825
-
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = Color(0.18, 0.52, 0.95)
-	material.roughness = 0.8
-	body_mesh.material_override = material
-	add_child(body_mesh)
+	_avatar = PlayerAvatar.new()
+	_avatar.name = "FielderAvatar"
+	add_child(_avatar)
+	_avatar.configure(
+		PlayerAvatar.Role.FIELDER,
+		false,
+		false,
+		Color(0.18, 0.52, 0.95)
+	)
 
 	var shadow_marker: MeshInstance3D = MeshInstance3D.new()
 	var cylinder: CylinderMesh = CylinderMesh.new()
