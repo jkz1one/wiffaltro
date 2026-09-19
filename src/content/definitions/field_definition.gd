@@ -10,6 +10,7 @@ extends DefinitionBase
 
 @export var shallow_anchor_z_m: float = 8.5
 @export var middle_anchor_z_m: float = 14.0
+@export var middle_center_anchor_z_m: float = 17.0
 @export var deep_anchor_z_m: float = 19.5
 @export var side_anchor_x_m: float = 5.5
 
@@ -36,7 +37,10 @@ func fielder_anchor(index: int) -> Vector3:
 		0.0,
 		side_anchor_x_m,
 	]
-	return Vector3(x_positions[column], 0.0, z_positions[row])
+	var anchor_z: float = z_positions[row]
+	if row == 1 and column == 1:
+		anchor_z = middle_center_anchor_z_m
+	return Vector3(x_positions[column], 0.0, anchor_z)
 
 func fielder_anchor_name(index: int) -> String:
 	var names: Array[String] = [

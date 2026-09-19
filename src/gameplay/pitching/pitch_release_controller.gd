@@ -50,12 +50,12 @@ static func quality_at(
 	fatigue: float
 ) -> float:
 	var control: float = clampf(float(control_rating) / 10.0, 0.0, 1.0)
-	var fatigue_amount: float = clampf(fatigue, 0.0, 1.0)
+	var fatigue_pressure: float = PitchExecutionModel.fatigue_pressure(fatigue)
 	var good_window: float = lerpf(
 		MIN_GOOD_WINDOW_SECONDS,
 		MAX_GOOD_WINDOW_SECONDS,
 		control
-	) * lerpf(1.0, 0.62, fatigue_amount)
+	) * lerpf(1.0, 0.80, fatigue_pressure)
 	var offset: float = absf(release_seconds - IDEAL_RELEASE_SECONDS)
 	var normalized_offset: float = offset / maxf(0.001, good_window)
 	return clampf(exp(-0.5 * normalized_offset * normalized_offset), 0.0, 1.0)

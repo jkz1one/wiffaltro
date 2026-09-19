@@ -1,8 +1,8 @@
 class_name PlayerMatchState
 extends RefCounted
 
-const BASE_STAMINA: float = 45.0
-const STAMINA_PER_RATING: float = 10.0
+const BASE_STAMINA: float = 105.0
+const STAMINA_PER_RATING: float = 18.0
 
 var definition: PlayerDefinition
 var stamina_max: float = 0.0

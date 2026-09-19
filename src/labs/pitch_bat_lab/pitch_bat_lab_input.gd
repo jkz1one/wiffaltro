@@ -2,6 +2,21 @@ class_name PitchBatLabInput
 extends RefCounted
 
 static func handle(lab: PitchBatLab, event: InputEvent) -> void:
+	if event is InputEventKey:
+		var debug_key: InputEventKey = event as InputEventKey
+		if (
+			debug_key.pressed
+			and not debug_key.echo
+			and _handle_debug_key(lab, debug_key.keycode)
+		):
+			lab.get_viewport().set_input_as_handled()
+			return
+	if lab._debug_paused:
+		lab.get_viewport().set_input_as_handled()
+		return
+	if _handle_pointer_event(lab, event):
+		lab.get_viewport().set_input_as_handled()
+		return
 	if _handle_action_event(lab, event):
 		lab.get_viewport().set_input_as_handled()
 		return
@@ -10,10 +25,6 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 	var key_event: InputEventKey = event as InputEventKey
 	if not key_event.pressed or key_event.echo:
 		return
-	if _handle_debug_key(lab, key_event.keycode):
-		lab.get_viewport().set_input_as_handled()
-		return
-
 	var handled: bool
 	if lab._match_mode:
 		handled = _handle_match_key(lab, key_event.keycode)
@@ -21,6 +32,39 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 		handled = _handle_lab_key(lab, key_event.keycode)
 	if handled:
 		lab.get_viewport().set_input_as_handled()
+
+static func _handle_pointer_event(
+	lab: PitchBatLab,
+	event: InputEvent
+) -> bool:
+	if lab._match_mode and not lab._player_is_batting():
+		return false
+	if event is InputEventMouseMotion:
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		return PitchBatLabFeelSupport.set_batting_aim_from_screen(
+			lab,
+			motion.position
+		)
+	if not event is InputEventMouseButton:
+		return false
+	var mouse_button: InputEventMouseButton = event as InputEventMouseButton
+	if not mouse_button.pressed:
+		return false
+	var profile_id: StringName
+	match mouse_button.button_index:
+		MOUSE_BUTTON_LEFT:
+			profile_id = lab.CONTACT_SWING_ID
+		MOUSE_BUTTON_RIGHT:
+			profile_id = lab.POWER_SWING_ID
+		_:
+			return false
+	if not PitchBatLabFeelSupport.set_batting_aim_from_screen(
+		lab,
+		mouse_button.position
+	):
+		return false
+	lab._attempt_swing(profile_id)
+	return true
 
 static func _handle_action_event(
 	lab: PitchBatLab,
@@ -68,6 +112,8 @@ static func _handle_debug_key(lab: PitchBatLab, keycode: Key) -> bool:
 			lab._toggle_match_mode()
 		KEY_F3:
 			PitchBatLabFeelSupport.dump_records(lab)
+		KEY_P:
+			PitchBatLabFeelSupport.toggle_debug_pause(lab)
 		_:
 			return false
 	return true
@@ -90,11 +136,11 @@ static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 		KEY_C:
 			lab._cycle_fielder_anchor()
 		KEY_Q:
-			lab._cycle_pitcher(-1)
+			MatchLabSupport.cycle_pitcher(lab, -1)
 		KEY_E:
-			lab._cycle_pitcher(1)
+			MatchLabSupport.cycle_pitcher(lab, 1)
 		KEY_F:
-			lab._cycle_primary_fielder()
+			MatchLabSupport.cycle_primary_fielder(lab)
 		KEY_MINUS:
 			if lab._player_is_pitching():
 				lab._adjust_pitch_effort(-0.05)

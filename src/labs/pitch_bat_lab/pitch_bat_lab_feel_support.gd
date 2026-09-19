@@ -5,6 +5,7 @@ const AIM_SPEED_MPS: float = 0.82
 
 static func initialize(lab: PitchBatLab) -> void:
 	lab._release_controller = PitchReleaseController.new()
+	lab._at_bat_cadence = AtBatCadenceController.new()
 	if lab._camera_director == null:
 		lab._camera_director = MatchCameraDirector.new()
 	lab._camera_director.set_shot(MatchCameraDirector.Shot.BATTING)
@@ -13,6 +14,8 @@ static func initialize(lab: PitchBatLab) -> void:
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
 	_update_continuous_input(lab, delta_seconds)
 	_update_pitch_release(lab, delta_seconds)
+	_update_at_bat_cadence(lab, delta_seconds)
+	_update_pitcher_telegraph(lab)
 	var ball_live: bool = lab._ball_in_play_is_live()
 	var ball_position: Vector3 = (
 		lab._batted_ball.global_position
@@ -25,6 +28,118 @@ static func update(lab: PitchBatLab, delta_seconds: float) -> void:
 		ball_live,
 		ball_position
 	)
+
+static func begin_ai_delivery(lab: PitchBatLab) -> void:
+	if (
+		not lab._player_is_batting()
+		or lab._match_state == null
+		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
+		or lab._pitch_actor.running
+		or lab._at_bat_cadence.state == AtBatCadenceController.State.DELIVERY
+	):
+		return
+	MatchLabSupport.apply_ai_pitch_choice(lab)
+	lab._ai_pitch_preselected = true
+	lab._at_bat_cadence.begin_delivery()
+	lab._status_label.text = (
+		"%s — %s\nMove the cursor, then click the ball to swing."
+		% [lab._match_state.batter().definition.display_name, "PITCHER SET"]
+	)
+	lab._refresh_config()
+
+static func handle_match_advance(lab: PitchBatLab) -> void:
+	if lab._match_state == null or lab._ball_in_play_is_live():
+		return
+	match lab._match_state.phase:
+		MatchState.Phase.PRE_PITCH:
+			if lab._player_is_batting():
+				begin_ai_delivery(lab)
+			else:
+				lab._throw_pitch()
+		MatchState.Phase.PLAY_DEAD, MatchState.Phase.INNING_TRANSITION:
+			var changed_half: bool = (
+				lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
+			)
+			lab._cleanup_batted_ball()
+			lab._match_state.continue_after_dead_ball()
+			lab._base_state = lab._match_state.bases
+			if changed_half:
+				lab._selected_pitch_index = 0
+				lab._pitch_effort = 1.0
+				MatchLabSupport.assign_ai_defense_for_half(lab)
+			lab._apply_defensive_assignment()
+			lab._apply_role_camera()
+			if lab._match_state.phase == MatchState.Phase.GAME_END:
+				lab._status_label.text = (
+					"%s\nR: new match" % lab._match_state.last_event
+				)
+			else:
+				lab._status_label.text = (
+					"%s\nSPACE: begin next at-bat"
+					% lab._match_state.last_event
+				)
+			lab._refresh_markers()
+			lab._refresh_config()
+			if (
+				lab._player_is_batting()
+				and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+			):
+				begin_ai_delivery(lab)
+		MatchState.Phase.GAME_END:
+			lab._status_label.text = (
+				"%s\nR: new match" % lab._match_state.last_event
+			)
+
+static func notify_pitch_dead(lab: PitchBatLab) -> void:
+	_reset_pitcher_telegraph(lab)
+	if (
+		lab._player_is_batting()
+		and lab._match_state != null
+		and lab._match_state.phase == MatchState.Phase.PLAY_DEAD
+		and not lab._match_state.between_batters
+	):
+		lab._at_bat_cadence.hold_dead_ball()
+		return
+	lab._at_bat_cadence.stop()
+
+static func set_batting_aim_from_screen(
+	lab: PitchBatLab,
+	screen_position: Vector2
+) -> bool:
+	if lab._camera == null:
+		return false
+	var ray_origin: Vector3 = lab._camera.project_ray_origin(screen_position)
+	var ray_direction: Vector3 = lab._camera.project_ray_normal(screen_position)
+	if absf(ray_direction.z) <= 0.000001:
+		return false
+	var distance: float = (
+		ContactResolver.CONTACT_PLANE_Z - ray_origin.z
+	) / ray_direction.z
+	if distance <= 0.0:
+		return false
+	var world_point: Vector3 = ray_origin + ray_direction * distance
+	lab._batting_aim = Vector2(
+		clampf(world_point.x, lab.BATTING_AIM_MIN_X, lab.BATTING_AIM_MAX_X),
+		clampf(world_point.y, lab.BATTING_AIM_MIN_Y, lab.BATTING_AIM_MAX_Y)
+	)
+	lab._refresh_markers()
+	return true
+
+static func toggle_debug_pause(lab: PitchBatLab) -> void:
+	lab._debug_paused = not lab._debug_paused
+	lab.get_tree().paused = lab._debug_paused
+	if lab._debug_paused:
+		lab._status_before_pause = lab._status_label.text
+		lab._status_label.text = "DEBUG PAUSED — P to resume"
+	else:
+		lab._status_label.text = lab._status_before_pause
+	lab._refresh_config()
+
+static func reset_debug_pause(lab: PitchBatLab) -> void:
+	if not lab._debug_paused:
+		return
+	lab._debug_paused = false
+	lab.get_tree().paused = false
 
 static func begin_pitch_release(lab: PitchBatLab) -> void:
 	if (
@@ -61,6 +176,9 @@ static func cancel_release(lab: PitchBatLab) -> void:
 		lab._release_controller.cancel()
 	lab._pending_release_quality = 1.0
 	lab._last_release_offset_seconds = 0.0
+	if lab._at_bat_cadence != null:
+		lab._at_bat_cadence.stop()
+	_reset_pitcher_telegraph(lab)
 
 static func release_meter_text(lab: PitchBatLab) -> String:
 	if lab._release_controller == null or not lab._release_controller.active:
@@ -189,6 +307,66 @@ static func _update_pitch_release(
 		commit_pitch_release(lab)
 	else:
 		lab._refresh_config()
+
+static func _update_at_bat_cadence(
+	lab: PitchBatLab,
+	delta_seconds: float
+) -> void:
+	if lab._at_bat_cadence == null:
+		return
+	var event: AtBatCadenceController.Event = (
+		lab._at_bat_cadence.advance(delta_seconds)
+	)
+	match event:
+		AtBatCadenceController.Event.THROW_PITCH:
+			_reset_pitcher_telegraph(lab)
+			lab._throw_pitch()
+		AtBatCadenceController.Event.CONTINUE_PLAY:
+			lab._handle_match_advance()
+		_:
+			pass
+
+static func _update_pitcher_telegraph(lab: PitchBatLab) -> void:
+	if (
+		lab._pitcher_marker == null
+		or lab._at_bat_cadence == null
+		or lab._at_bat_cadence.state != AtBatCadenceController.State.DELIVERY
+	):
+		return
+	var progress: float = lab._at_bat_cadence.delivery_progress()
+	var lift: float = sin(progress * PI)
+	var selected_pitch: PitchDefinition = lab._selected_pitch()
+	var slot_amount: float = 0.08
+	if (
+		selected_pitch != null
+		and selected_pitch.delivery_profile != null
+		and selected_pitch.delivery_profile.delivery
+		>= DeliveryProfileDefinition.Delivery.SIDEARM
+	):
+		slot_amount = 0.22
+	var handedness: float = -1.0 if (
+		lab._match_state.pitcher().definition.throws
+		== PlayerDefinition.Handedness.LEFT
+	) else 1.0
+	lab._pitcher_marker.position = lab.MOUND_ORIGIN + Vector3(
+		handedness * slot_amount * lift,
+		0.16 * lift,
+		-0.18 * smoothstep(0.55, 1.0, progress)
+	)
+	lab._pitcher_marker.rotation.z = handedness * slot_amount * lift
+	lab._status_label.text = (
+		"%s — %s\nLeft click Contact • Right click Power"
+		% [
+			lab._match_state.batter().definition.display_name,
+			lab._at_bat_cadence.delivery_cue(),
+		]
+	)
+
+static func _reset_pitcher_telegraph(lab: PitchBatLab) -> void:
+	if lab._pitcher_marker == null:
+		return
+	lab._pitcher_marker.position = lab.MOUND_ORIGIN
+	lab._pitcher_marker.rotation = Vector3.ZERO
 
 static func _update_continuous_input(
 	lab: PitchBatLab,

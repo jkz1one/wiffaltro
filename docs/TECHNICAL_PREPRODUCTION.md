@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.3
-**Status:** FROZEN BASELINE WITH FEEL-HARDENING AMENDMENT
+**Version:** v0.1.4
+**Status:** FROZEN BASELINE WITH FATIGUE, CADENCE, AND INPUT AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -644,19 +644,32 @@ Possible degraded launch properties:
 - launch direction
 - velocity
 
-Fatigue changes the distribution of those properties rather than applying one
-fixed degradation amount. Velocity, movement authority, release position, and
-launch direction receive separate seeded rolls. Command dispersion expands in
-both axes, and occasional fatigue lapses create heavier failure tails. Breaking
-Pitches are more vulnerable to those lapses, so one tired Slider may retain
-some bite, another may miss badly, and another may fail to finish and leak over
-the plate.
+Fatigue uses a back-loaded severity curve rather than raw linear Stamina loss.
+The initial match bands are:
+
+- 0–35% fatigue: no mechanical penalty
+- 35–50%: trace variance, reaching only 2.5% effect at 50%
+- 50–92%: progressive nonlinear degradation
+- 92–100%: steep danger band
+
+Velocity, movement authority, release position, and launch direction receive
+separate seeded rolls. Faster Pitches have more velocity to lose; breaking
+Pitches lose a larger share of spin/finish. Heavy-tail lapses are reserved for
+the upper fatigue band instead of appearing throughout an ordinary outing.
 
 A fatigued Slider aimed outside may fail to achieve expected movement and
-remain over the plate. This must emerge from degraded stuff plus variable
-execution; fatigue does not replace the player's target with the zone center.
+remain over the plate. At high fatigue, a continuous seeded command-regression
+term also pulls misses toward the heart, weighted most strongly for edge and
+corner targets. This supplements degraded stuff and variable execution; it
+does not replace every target with the zone center.
 
 That naturally creates a hanger.
+
+A final reach guard prevents velocity loss and error from sending exhausted
+Pitches below the simulation world before the plate plane. It does not force a
+strike: low, high, and lateral misses remain valid. At 100% fatigue, Pitches
+should still arrive but resemble batting practice through lost speed, flattened
+shape, and frequent hittable location.
 
 Avoid special-case code like:
 
@@ -778,6 +791,12 @@ handedness
 plus any minimal modifier state required.
 
 This becomes `SwingIntent`.
+
+For mouse input, project the pointer ray onto the authored contact plane. The
+projected plate-local X/Y becomes `aim_point`, and the mouse button chooses the
+Swing Profile. This preserves the same mathematical ContactResolver authority
+used by keyboard/controller aim; mouse picking never substitutes a physics
+collider for contact resolution.
 
 ---
 
@@ -1139,6 +1158,10 @@ Do not build a perfect general future-physics solver before the prototype needs 
 - Deep Right
 
 The user's pre-pitch strategic choice selects one anchor.
+
+Authored anchors must respect a Pitcher exclusion radius. The center lane may
+use a field-specific depth offset so Middle Center remains selectable without
+overlapping the mound.
 
 After contact, the fielder moves according to the planner.
 
@@ -1518,6 +1541,11 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 26. smooth role and ball-in-play camera direction
 27. deterministic per-play records for reproduction and tuning
 28. headless core regression scene
+29. one-acceptance-per-at-bat automatic Pitch cadence with Pitcher telegraph
+30. pointer-projected Contact/Power Swing input
+31. pausable debug inspection
+32. visible four-player pitching-staff selection between batters
+33. nonlinear fatigue-band and plate-reach regression coverage
 
 ### Phase 3 acceptance
 

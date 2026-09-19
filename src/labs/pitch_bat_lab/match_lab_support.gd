@@ -72,6 +72,41 @@ static func pitcher_fielding_rating(lab: PitchBatLab) -> int:
 		return lab._match_state.pitcher().definition.fielding
 	return 5
 
+static func select_pitcher(lab: PitchBatLab, roster_index: int) -> void:
+	if not lab._player_is_pitching() or not lab._match_state.can_change_defense():
+		lab._status_label.text = (
+			"Pitching changes are allowed only between batters."
+		)
+		return
+	var team: TeamMatchState = lab._match_state.defensive_team()
+	if not team.select_pitcher(roster_index):
+		return
+	lab._selected_pitch_index = 0
+	lab._apply_defensive_assignment()
+	lab._status_label.text = "%s is now pitching." % [
+		team.current_pitcher().definition.display_name,
+	]
+	lab._refresh_config()
+
+static func cycle_pitcher(lab: PitchBatLab, direction: int) -> void:
+	if lab._match_state == null:
+		return
+	var team: TeamMatchState = lab._match_state.defensive_team()
+	select_pitcher(
+		lab,
+		posmod(team.pitcher_index + direction, team.roster.size())
+	)
+
+static func cycle_primary_fielder(lab: PitchBatLab) -> void:
+	if not lab._player_is_pitching() or not lab._match_state.can_change_defense():
+		lab._status_label.text = (
+			"Fielder changes are allowed only between batters."
+		)
+		return
+	lab._match_state.defensive_team().cycle_fielder(1)
+	lab._apply_defensive_assignment()
+	lab._refresh_config()
+
 static func assign_ai_defense_for_half(lab: PitchBatLab) -> void:
 	if not lab._player_is_batting():
 		return

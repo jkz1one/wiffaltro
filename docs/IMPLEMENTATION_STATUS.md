@@ -130,21 +130,29 @@ User-provided Godot screenshots confirmed:
 Balance/feel remain provisional. Pitch-family differentiation and fatigue feel should continue to be judged during later playtests rather than blocking Phase 2 architecture.
 
 
-## Fatigue/hanger correction — revised after playtest, runtime validation pending
+## Fatigue/hanger correction — second revision after match playtest
 
-The 2026-09-18 playtest found that fatigue mostly drove Pitches into the dirt while preserving too much velocity and movement. The implementation now:
+The 2026-09-18 playtest found that fatigue mostly drove Pitches into the dirt
+while preserving too much velocity and movement. The first correction added
+variation, but the 2026-09-19 match playtest found that penalties still arrived
+far too early and could make pitching unplayable before a practical pitching
+change. The implementation now:
 
-- [x] applies a stronger high-fatigue velocity penalty
-- [x] degrades spin, perforation movement, and instability authority
-- [x] increases command error with Pitch difficulty
-- [x] compensates only the extra vertical drop caused by velocity loss
-- [x] leaves attenuated movement and command error uncorrected so hangers emerge without a center-target override
+- [x] keeps fatigue mechanically dormant through 35% and only 2.5% effective at 50%
+- [x] ramps nonlinear degradation from 50–92% and steeply from 92–100%
+- [x] roughly doubles provisional Pitcher Stamina capacity
+- [x] makes faster Pitches lose more velocity
+- [x] makes breaking Pitches lose more spin and finish
+- [x] degrades perforation movement and instability authority independently
+- [x] reserves seeded heavy-tail lapses for the upper fatigue band
+- [x] adds probabilistic edge-to-heart command regression rather than a fixed center target
+- [x] preserves location variance while making 100% fatigue resemble batting practice
+- [x] guarantees exhausted Pitches can still reach the plate plane
+- [x] makes release-window shrinkage use nonlinear fatigue pressure instead of raw fatigue
 - [x] displays nominal release speed, executed release speed, and predicted plate speed separately
-- [x] samples velocity, spin, perforation movement, and command degradation independently per Pitch
-- [x] uses each Pitch's control difficulty to scale two-axis command dispersion
-- [x] adds seeded heavy-tail fatigue lapses, with extra vulnerability for breaking Pitches
-- [x] avoids a deterministic fatigue-to-center rule while allowing tired breaking Pitches to leak over the plate
-- [ ] Godot 4.7.2 hands-on fatigue/hanger retest
+- [x] displays raw fatigue, effective pressure, and named fatigue band in debug telemetry
+- [x] adds deterministic curve, capacity, plate-reach, velocity, spin, and hanger regressions
+- [ ] Godot 4.7.2 hands-on second-revision fatigue/hanger retest
 
 
 ## Phase 2 Ball-in-Play Lab — implementation complete, runtime validation pending
@@ -212,14 +220,23 @@ Implemented in repository:
 - [x] deterministic count-aware opponent pitch/swing choices
 - [x] JSON-safe deterministic per-play records with F3 output
 - [x] headless regression scene for release, AI, count rules, and records
+- [x] one acceptance per at-bat with automatic between-Pitch cadence
+- [x] readable Pitcher set / windup / delivery telegraph
+- [x] pointer-projected batting aim with left-click Contact and right-click Power
+- [x] full-simulation `P` debug pause
+- [x] visible clickable four-player pitching-staff selector between batters
+- [x] authored Middle Center anchor clearance from the Pitcher
+- [x] fatigue/stamina/cadence/defensive-separation regression coverage
 - [x] Godot script UID sidecars committed for stable cross-clone references
 - [x] all current GDScript passes `gdparse` and `gdlint` static checks on 2026-09-19
-- [x] Godot 4.7.2 Phase 3 import/parse validation on 2026-09-19
-- [x] Godot 4.7.2 headless main-scene smoke on 2026-09-19
-- [x] Godot 4.7.2 headless core regression checks on 2026-09-19
+- [x] prior Phase 3 revision: Godot 4.7.2 import/parse validation on 2026-09-19
+- [x] prior Phase 3 revision: Godot 4.7.2 headless main-scene smoke on 2026-09-19
+- [x] prior Phase 3 revision: Godot 4.7.2 headless core regression checks on 2026-09-19
+- [x] hands-on match smoke — user reported the match works well overall on 2026-09-19
+- [ ] Godot 4.7.2 import/headless regression validation of the current feel revision
 - [ ] complete five-inning match runtime test
-- [ ] corrected fatigue/hanger retest during Match or Mechanics Lab play
+- [ ] current fatigue/click-batting/cadence/staff UI hands-on test
 
-The engine now imports, launches, and passes the automated core regression
-scene. Phase 3 remains provisional until the hands-on match and feel checks are
-completed.
+The prior Phase 3 revision imports, launches, and passes the automated core
+regression scene. The current feel revision is statically validated only and
+remains provisional until its Godot and hands-on checks are completed.

@@ -50,9 +50,15 @@ func advance_batter() -> void:
 func cycle_pitcher(direction: int = 1) -> void:
 	if roster.is_empty():
 		return
-	pitcher_index = posmod(pitcher_index + direction, roster.size())
+	select_pitcher(posmod(pitcher_index + direction, roster.size()))
+
+func select_pitcher(index: int) -> bool:
+	if index < 0 or index >= roster.size():
+		return false
+	pitcher_index = index
 	if fielder_index == pitcher_index:
 		cycle_fielder(1)
+	return true
 
 func cycle_fielder(direction: int = 1) -> void:
 	if roster.size() <= 1:

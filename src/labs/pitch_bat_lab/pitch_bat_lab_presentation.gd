@@ -4,6 +4,7 @@ extends RefCounted
 static func build_pitch_actor(lab: PitchBatLab) -> void:
 	lab._pitch_actor = PitchFlightActor.new()
 	lab._pitch_actor.name = "PitchFlightActor"
+	lab._pitch_actor.process_mode = Node.PROCESS_MODE_PAUSABLE
 	lab._pitch_actor.trace_every_substeps = 2
 	lab._pitch_actor.trace_sampled.connect(lab._on_trace_sampled)
 	lab._pitch_actor.plate_crossed.connect(lab._on_plate_crossed)
@@ -27,6 +28,7 @@ static func build_pitch_actor(lab: PitchBatLab) -> void:
 static func build_defenders(lab: PitchBatLab) -> void:
 	lab._primary_fielder = FielderController.new()
 	lab._primary_fielder.name = "PrimaryFielder"
+	lab._primary_fielder.process_mode = Node.PROCESS_MODE_PAUSABLE
 	lab.add_child(lab._primary_fielder)
 	lab._primary_fielder.set_anchor(
 		lab._field_definition.fielder_anchor(lab._fielder_anchor_index)
@@ -95,6 +97,7 @@ static func build_ui(lab: PitchBatLab) -> void:
 	lab._status_label.text = "Loading Pitch Lab..."
 	lab._live_label = _add_label(canvas, Vector2(20.0, 405.0), 16)
 	lab._controls_label = _add_label(canvas, Vector2(20.0, 550.0), 14)
+	_build_pitching_staff(lab, canvas)
 
 	var footer: Label = _add_label(canvas, Vector2(20.0, 680.0), 13)
 	footer.text = "Phase 3 match simulator + shared mechanics lab. F1 overlay, F2 mode."
@@ -138,6 +141,7 @@ static func refresh(lab: PitchBatLab) -> void:
 		_refresh_match(lab, pitch)
 	else:
 		_refresh_lab(lab, pitch)
+	_refresh_pitching_staff(lab)
 	lab._action_label.visible = lab._match_mode
 	lab._config_label.visible = lab._debug_overlay_visible
 	lab._live_label.visible = lab._debug_overlay_visible
@@ -182,15 +186,16 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 		return
 	if lab._match_mode:
 		lab._controls_label.text = (
-			"F1 debug   F2 Lab   F3 print records   V camera   R new match\n"
-			+ "BATTING: WASD/left stick aim   Z/A Contact   X/X Power\n"
+			"F1 debug   F2 Lab   F3 records   P pause   V camera   R new match\n"
+			+ "BATTING: mouse tracks aim   left click Contact   right click Power\n"
+			+ "WASD/left stick aim   Z/A Contact   X/X Power\n"
 			+ "PITCHING: 1–9 Pitch   arrows/right stick aim   -/= effort\n"
-			+ "hold/release SPACE/A to deliver   Q/E Pitcher   F Fielder   C position"
+			+ "hold/release SPACE/A   click staff to change Pitcher   F Fielder   C position"
 		)
 	else:
 		lab._controls_label.text = (
-			"F1 overlay   F2 Match   F3 records   1–9 Pitch   SPACE throw   V camera\n"
-			+ "arrows pitch target   WASD bat aim   Z Contact   X Power\n"
+			"F1 overlay   F2 Match   F3 records   P pause   1–9 Pitch   SPACE throw\n"
+			+ "arrows target   mouse/WASD bat aim   click or Z/X swing   V camera\n"
 			+ ",/. execution   [/] fatigue   C fielder   G bases   B BIP diagnostic   R reset"
 		)
 
@@ -229,7 +234,7 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		"%s     %s\n"
 		+ "BALLS %d   STRIKES %d   OUTS %d     %s\n"
 		+ "BAT %s   ON DECK %s\n"
-		+ "PIT %s   PITCHES %d   STAMINA %.0f%%"
+		+ "PIT %s   PITCHES %d   STAMINA %.0f%%   %s"
 	) % [
 		match_state.half_label(),
 		match_state.score_label(),
@@ -242,12 +247,25 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		pitcher_state.definition.display_name,
 		pitcher_state.pitch_count,
 		pitcher_state.stamina_percent() * 100.0,
+		PitchExecutionModel.fatigue_stage_name(pitcher_state.fatigue_ratio()),
 	]
 	var options: Array[PitchDefinition] = lab._current_pitch_options()
-	if lab._player_is_batting():
+	if lab._debug_paused:
+		lab._action_label.text = "DEBUG PAUSED     P: resume"
+	elif lab._player_is_batting():
+		var cadence_text: String = "SPACE: begin at-bat"
+		if (
+			lab._at_bat_cadence != null
+			and lab._at_bat_cadence.state
+			== AtBatCadenceController.State.DELIVERY
+		):
+			cadence_text = lab._at_bat_cadence.delivery_cue()
+		elif lab._pitch_actor != null and lab._pitch_actor.running:
+			cadence_text = "TRACK THE BALL"
 		lab._action_label.text = (
-			"WASD AIM     Z CONTACT     X POWER     coverage scales with %s Contact %d"
+			"%s     LEFT CLICK CONTACT     RIGHT CLICK POWER     %s Contact %d"
 		) % [
+			cadence_text,
 			batter_state.definition.display_name,
 			batter_state.definition.contact,
 		]
@@ -264,10 +282,14 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 				lab._pitch_target.y,
 			]
 		)
+	var applied_fatigue: float = maxf(
+		pitcher_state.fatigue_ratio(),
+		lab._fatigue
+	)
 	lab._config_label.text = (
 		"DEBUG   %s   match %.1f s\n"
 		+ "pitch %d/%d %s   effort %.0f%%   target %.2f / %.2f\n"
-		+ "bat aim %.2f / %.2f   fatigue floor %.0f%%\n"
+		+ "bat aim %.2f / %.2f   fatigue %.0f%% → effect %.0f%% %s\n"
 		+ "fielder %s: %s   anchor %s   records %d"
 	) % [
 		"PLAYER BATTING" if lab._player_is_batting() else "PLAYER PITCHING",
@@ -280,7 +302,9 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		lab._pitch_target.y,
 		lab._batting_aim.x,
 		lab._batting_aim.y,
-		lab._fatigue * 100.0,
+		applied_fatigue * 100.0,
+		PitchExecutionModel.fatigue_pressure(applied_fatigue) * 100.0,
+		PitchExecutionModel.fatigue_stage_name(applied_fatigue),
 		fielder_state.definition.display_name,
 		str(fielder_state.definition.fielding),
 		lab._field_definition.fielder_anchor_name(lab._fielder_anchor_index),
@@ -291,7 +315,7 @@ static func _refresh_lab(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 	lab._scoreboard_label.visible = false
 	lab._config_label.text = (
 		"MECHANICS LAB   PITCH %d/%d  %s   effort %.0f%%\n"
-		+ "target x %.2f / y %.2f   execution %.0f%%   fatigue %.0f%%\n"
+		+ "target x %.2f / y %.2f   execution %.0f%%   fatigue %.0f%% → effect %.0f%%\n"
 		+ "bat aim x %.2f / y %.2f\n"
 		+ "fielder %s   %s"
 	) % [
@@ -303,11 +327,59 @@ static func _refresh_lab(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		lab._pitch_target.y,
 		lab._execution_quality * 100.0,
 		lab._fatigue * 100.0,
+		PitchExecutionModel.fatigue_pressure(lab._fatigue) * 100.0,
 		lab._batting_aim.x,
 		lab._batting_aim.y,
 		lab._field_definition.fielder_anchor_name(lab._fielder_anchor_index),
 		lab._base_state.display_string(),
 	]
+
+static func _build_pitching_staff(
+	lab: PitchBatLab,
+	canvas: CanvasLayer
+) -> void:
+	lab._pitching_staff_panel = VBoxContainer.new()
+	lab._pitching_staff_panel.position = Vector2(960.0, 125.0)
+	lab._pitching_staff_panel.custom_minimum_size = Vector2(295.0, 0.0)
+	canvas.add_child(lab._pitching_staff_panel)
+	var title: Label = Label.new()
+	title.text = "PITCHING STAFF — CLICK TO CHANGE"
+	title.add_theme_font_size_override("font_size", 15)
+	lab._pitching_staff_panel.add_child(title)
+	for index in range(TeamMatchState.ROSTER_SIZE):
+		var button: Button = Button.new()
+		button.custom_minimum_size = Vector2(295.0, 36.0)
+		button.focus_mode = Control.FOCUS_NONE
+		button.pressed.connect(lab._select_pitcher.bind(index))
+		lab._pitching_staff_panel.add_child(button)
+		lab._pitcher_buttons.append(button)
+
+static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
+	if lab._pitching_staff_panel == null:
+		return
+	var should_show: bool = (
+		lab._match_mode
+		and lab._match_state != null
+		and lab._player_is_pitching()
+	)
+	lab._pitching_staff_panel.visible = should_show
+	if not should_show:
+		return
+	var team: TeamMatchState = lab._match_state.defensive_team()
+	var can_change: bool = (
+		lab._match_state.can_change_defense() and not lab._debug_paused
+	)
+	for index in range(mini(lab._pitcher_buttons.size(), team.roster.size())):
+		var player: PlayerMatchState = team.roster[index]
+		var button: Button = lab._pitcher_buttons[index]
+		var role: String = "PITCHER" if index == team.pitcher_index else "READY"
+		button.text = "%s   %s   %.0f%% stamina   %s" % [
+			role,
+			player.definition.display_name,
+			player.stamina_percent() * 100.0,
+			PitchExecutionModel.fatigue_stage_name(player.fatigue_ratio()),
+		]
+		button.disabled = not can_change or index == team.pitcher_index
 
 static func _add_label(
 	canvas: CanvasLayer,

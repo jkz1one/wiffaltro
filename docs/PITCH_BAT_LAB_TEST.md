@@ -32,6 +32,10 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - early/late and directional swing feedback
 - count-aware deterministic opponent decisions
 - deterministic per-play diagnostic records
+- one-acceptance automatic at-bat cadence and Pitcher windup telegraph
+- pointer-projected mouse batting
+- clickable four-player pitching-staff panel
+- full-simulation debug pause
 - preserved Mechanics Lab and debug telemetry
 
 ## Shared controls
@@ -39,18 +43,24 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `F1`: toggle detailed telemetry and trajectory overlays
 - `F2`: switch between Match Mode and Mechanics Lab
 - `F3`: print completed deterministic play records to the Output panel
+- `P`: pause/resume the simulation for debug inspection
 - `V`: cycle camera manually
 
 ## Match Mode controls
 
-- `Space`: request the next Pitch or continue after a dead play; while pitching,
-  hold to start the delivery and release near the meter's center mark
+- `Space`: begin the next at-bat or acknowledge a completed plate appearance;
+  while pitching, hold to start the delivery and release near the meter's
+  center mark
+- Mouse movement: position batting coverage on the contact plane
+- Left click: aim at the pointer and commit a Contact Swing
+- Right click: aim at the pointer and commit a Power Swing
 - `W A S D` / left stick: continuously move batting aim
 - `Z` / controller A: Contact Swing
 - `X` / controller X: Power Swing
 - `1–9`: select from the active Pitcher's repertoire while pitching
 - Arrow keys / right stick: continuously move the Pitch target
 - `- / =`: lower / raise Pitch effort from 82–112%
+- Click the pitching-staff panel: select any of the four Pitchers between batters
 - `Q / E`: previous / next Pitcher between batters
 - `F`: cycle Primary Fielder between batters
 - `C`: cycle Primary Fielder position through the 3×3 grid
@@ -63,8 +73,8 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `Space`: throw selected Pitch
 - Arrow keys: move intended Pitch target
 - `W A S D`: move batting aim
-- `Z`: Contact Swing
-- `X`: Power Swing
+- Left click / `Z`: Contact Swing
+- Right click / `X`: Power Swing
 - `- / =`: lower / raise Pitch effort
 - `, / .`: lower / raise execution quality
 - `[ / ]`: lower / raise fatigue
@@ -89,13 +99,37 @@ This is a functional match simulator and shared debug lab, not a polished game s
 
 At 100% execution / 0% fatigue, different Pitches aimed at the same marker should generally finish around that intended location while taking visibly different paths.
 
-At high fatigue, executed release speed should be visibly lower than nominal release speed. Pitches should generally reach the plate, but velocity, shape, and location should vary materially from throw to throw. Breaking Pitches should sometimes retain usable bite, sometimes miss unpredictably in either axis, and sometimes fail to finish into hittable territory. Repeated tired Pitches should not trace one linear miss pattern or always become center-cut gifts.
+Fatigue should be virtually invisible from 0–50%. Debug telemetry reports both
+raw fatigue and effective pressure: 50% raw fatigue is only 2.5% effect. From
+50–92%, velocity, movement, and command should worsen progressively. At 92%+
+the Pitcher is in the danger band. At 100%, faster Pitches should be clearly
+slower, breaking Pitches should lose most of their finish, and edge targets
+should frequently leak toward hittable center territory. Location still varies,
+but exhausted Pitches must generally reach the plate rather than disappearing
+into the dirt.
 
 The Knuckleball is intentionally less repeatable because its seeded orientation instability is part of the Pitch identity.
 
-For batting, aim the coverage reticle with WASD and press Z or X while the ball is near the plate. The outer cyan rectangle is Contact coverage and the inner orange rectangle is Power coverage. Batter Contact rating scales both regions. Successful contact transfers to the Jolt batted ball, switches to the field camera, activates both defenders, and resolves the play through authored baseball rules.
+For batting, move the pointer over the approaching ball and click near the
+plate. Left click uses Contact; right click uses Power. Mouse position is
+projected onto the same mathematical contact plane used by the WASD and
+controller reticle, so both paths exercise the same ContactResolver. The outer
+cyan rectangle is Contact coverage and the inner orange rectangle is Power
+coverage. Batter Contact rating scales both regions.
 
-In Match Mode, the player bats in the top half and pitches in the bottom half. The camera should switch to the correct role before the next Pitch, switch to the field on contact, and return only after `Space` advances the dead play. Counts must persist within a plate appearance, the batter must advance only when that plate appearance ends, and the scoreboard must always show score, inning half, count, outs, bases, current/on-deck batter, Pitcher, pitch count, and Stamina.
+In Match Mode, press `Space` once to begin an at-bat. The Pitcher should visibly
+set, wind up, and deliver. Taken Pitches, fouls, and non-terminal misses should
+flow into the next Pitch automatically after a short readable hold. A walk,
+strikeout, hit, out, or inning change waits for `Space` before continuing. The
+camera should switch to the field on contact and return for the next role.
+Counts must persist within a plate appearance, and the batter must advance only
+when that plate appearance ends.
+
+During the player's defensive half, the pitching-staff panel should list all
+four players, Stamina, and fatigue state. Selection is enabled only between
+batters. Choosing the active Primary Fielder as Pitcher must automatically move
+the Primary Fielder role to another player. Middle Center must visibly start
+clear of the mound rather than overlap the Pitcher.
 
 While pitching, hold `Space` (or controller A) and release near the center cue.
 High-Control, fresh Pitchers should have a more forgiving useful window than

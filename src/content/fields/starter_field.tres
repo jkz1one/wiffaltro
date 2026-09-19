@@ -14,5 +14,6 @@ home_run_height_m = 3.8
 dead_ball_z_m = 29.0
 shallow_anchor_z_m = 8.5
 middle_anchor_z_m = 14.0
+middle_center_anchor_z_m = 17.0
 deep_anchor_z_m = 19.5
 side_anchor_x_m = 5.5

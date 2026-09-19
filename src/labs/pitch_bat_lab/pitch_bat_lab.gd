@@ -67,6 +67,8 @@ var _config_label: Label
 var _controls_label: Label
 var _scoreboard_label: Label
 var _action_label: Label
+var _pitching_staff_panel: VBoxContainer
+var _pitcher_buttons: Array[Button] = []
 
 var _selected_pitch_index: int = 0
 var _pitch_target: Vector2 = DEFAULT_TARGET
@@ -101,8 +103,13 @@ var _last_release_quality: float = 1.0
 var _last_release_offset_seconds: float = 0.0
 var _active_play_record: PlayRecord
 var _play_records: Array[PlayRecord] = []
+var _at_bat_cadence: AtBatCadenceController
+var _ai_pitch_preselected: bool = false
+var _debug_paused: bool = false
+var _status_before_pause: String = ""
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	if not ContentDB.validate_or_error():
 		push_error("Pitch/Bat Lab loaded with invalid content.")
 		return
@@ -130,8 +137,14 @@ func _ready() -> void:
 		]
 	)
 
+func _exit_tree() -> void:
+	if _debug_paused:
+		get_tree().paused = false
+
 
 func _process(delta: float) -> void:
+	if _debug_paused:
+		return
 	PitchBatLabFeelSupport.update(self, delta)
 	if _match_mode and _match_state != null:
 		if _match_state.phase != MatchState.Phase.GAME_END:
@@ -178,6 +191,8 @@ func _process(delta: float) -> void:
 	]
 
 func _physics_process(delta: float) -> void:
+	if _debug_paused:
+		return
 	if (
 		_batted_ball == null
 		or _ball_play_resolver == null
@@ -229,7 +244,9 @@ func _throw_pitch() -> void:
 		if _match_state == null or not _match_state.begin_pitch():
 			return
 		if _player_is_batting():
-			MatchLabSupport.apply_ai_pitch_choice(self)
+			if not _ai_pitch_preselected:
+				MatchLabSupport.apply_ai_pitch_choice(self)
+			_ai_pitch_preselected = false
 			_pending_release_quality = 1.0
 			_last_release_offset_seconds = 0.0
 
@@ -321,7 +338,7 @@ func _throw_pitch() -> void:
 		applied_fatigue,
 		pitch.control_difficulty,
 		pitch.execution_difficulty,
-		pitch.category == PitchDefinition.Category.BREAKING,
+		pitch.category,
 		_throw_number * 1009 + _selected_pitch_index
 	)
 	_last_executed_release_speed_mps = executed_parameters.velocity.length()
@@ -362,37 +379,12 @@ func _throw_pitch() -> void:
 	]
 
 	_pitch_actor.start_pitch(executed_parameters)
+	if _player_is_batting() and _at_bat_cadence != null:
+		_at_bat_cadence.mark_pitch_live()
 	_refresh_config()
 
 func _handle_match_advance() -> void:
-	if _match_state == null or _ball_in_play_is_live():
-		return
-	match _match_state.phase:
-		MatchState.Phase.PRE_PITCH:
-			_throw_pitch()
-		MatchState.Phase.PLAY_DEAD, MatchState.Phase.INNING_TRANSITION:
-			var changed_half: bool = (
-				_match_state.phase == MatchState.Phase.INNING_TRANSITION
-			)
-			_cleanup_batted_ball()
-			_match_state.continue_after_dead_ball()
-			_base_state = _match_state.bases
-			if changed_half:
-				_selected_pitch_index = 0
-				_pitch_effort = 1.0
-				MatchLabSupport.assign_ai_defense_for_half(self)
-			_apply_defensive_assignment()
-			_apply_role_camera()
-			if _match_state.phase == MatchState.Phase.GAME_END:
-				_status_label.text = "%s\nR: new match" % _match_state.last_event
-			else:
-				_status_label.text = (
-					"%s\nSPACE: start next pitch" % _match_state.last_event
-				)
-			_refresh_markers()
-			_refresh_config()
-		MatchState.Phase.GAME_END:
-			_status_label.text = "%s\nR: new match" % _match_state.last_event
+	PitchBatLabFeelSupport.handle_match_advance(self)
 
 func _attempt_swing(profile_id: StringName) -> void:
 	_resolve_swing(profile_id, _batting_aim)
@@ -508,7 +500,12 @@ func _resolve_swing(
 func _finish_non_contact_pitch() -> void:
 	if not _match_mode:
 		return
-	_live_label.text = "PLAY DEAD   SPACE: continue"
+	PitchBatLabFeelSupport.notify_pitch_dead(self)
+	_live_label.text = (
+		"PLAY DEAD   next pitch automatic"
+		if not _match_state.between_batters
+		else "PLAY DEAD   SPACE: next batter"
+	)
 	_refresh_config()
 
 func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
@@ -527,6 +524,7 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 
 	_batted_ball = BattedBallBody.new()
 	_batted_ball.name = "BattedBall"
+	_batted_ball.process_mode = Node.PROCESS_MODE_PAUSABLE
 	_batted_ball.configure_aero(ContentDB.get_ball_setup(BALL_SETUP_ID))
 	_batted_ball.surface_contact.connect(_on_batted_surface_contact)
 	add_child(_batted_ball)
@@ -688,6 +686,7 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 		StringName(outcome.display_name().to_snake_case()),
 		runs_scored
 	)
+	PitchBatLabFeelSupport.notify_pitch_dead(self)
 	_refresh_config()
 
 func _on_trace_sampled(point: Vector3) -> void:
@@ -730,7 +729,12 @@ func _on_plate_crossed(
 		elapsed_seconds,
 	]
 	if _match_mode:
-		_live_label.text = "PLAY DEAD   SPACE: continue"
+		PitchBatLabFeelSupport.notify_pitch_dead(self)
+		_live_label.text = (
+			"PLAY DEAD   next pitch automatic"
+			if not _match_state.between_batters
+			else "PLAY DEAD   SPACE: next batter"
+		)
 		_refresh_config()
 	PitchBatLabFeelSupport.finish_record(
 		self,
@@ -749,13 +753,21 @@ func _on_flight_stopped(reason: StringName) -> void:
 	):
 		_match_state.record_ball()
 		PitchBatLabFeelSupport.finish_record(self, &"ball_no_crossing")
-		_live_label.text = "PLAY DEAD   SPACE: continue"
+		PitchBatLabFeelSupport.notify_pitch_dead(self)
+		_live_label.text = (
+			"PLAY DEAD   next pitch automatic"
+			if not _match_state.between_batters
+			else "PLAY DEAD   SPACE: next batter"
+		)
 		_refresh_config()
 
-	_status_label.text = (
-		"Pitch stopped: %s\nSPACE: continue"
-		% String(reason)
-	)
+	var continuation: String = "SPACE: continue"
+	if _match_mode and not _match_state.between_batters:
+		continuation = "Next Pitch automatic"
+	_status_label.text = "Pitch stopped: %s\n%s" % [
+		String(reason),
+		continuation,
+	]
 
 func _adjust_pitch_target(delta_xy: Vector2) -> void:
 	_pitch_target.x = clampf(
@@ -858,6 +870,7 @@ func _cleanup_batted_ball() -> void:
 	_settled_seconds = 0.0
 
 func _reset_lab() -> void:
+	PitchBatLabFeelSupport.reset_debug_pause(self)
 	PitchBatLabFeelSupport.cancel_release(self)
 	if _pitch_actor != null:
 		_pitch_actor.reset_pitch()
@@ -886,6 +899,7 @@ func _reset_lab() -> void:
 	_refresh_config()
 
 func _start_new_match() -> void:
+	PitchBatLabFeelSupport.reset_debug_pause(self)
 	PitchBatLabFeelSupport.cancel_release(self)
 	PitchBatLabFeelSupport.clear_records(self)
 	if _pitch_actor != null:
@@ -907,6 +921,7 @@ func _start_new_match() -> void:
 	_swing_consumed = false
 	_ai_swing_decided = false
 	_last_ai_pitch_index = -1
+	_ai_pitch_preselected = false
 	_fielder_anchor_index = 4
 	_trajectory_points.clear()
 	if _trajectory_draw != null:
@@ -915,7 +930,7 @@ func _start_new_match() -> void:
 		_contact_vector_draw.clear()
 	_apply_defensive_assignment()
 	_apply_role_camera()
-	_status_label.text = "TOP 1 — Player batting\nSPACE: request first pitch"
+	_status_label.text = "TOP 1 — Player batting\nSPACE: begin first at-bat"
 	_live_label.text = ""
 	_refresh_markers()
 	_refresh_config()
@@ -926,22 +941,8 @@ func _player_is_batting() -> bool:
 func _player_is_pitching() -> bool:
 	return _match_mode and _match_state != null and not _match_state.top_half
 
-func _cycle_pitcher(direction: int) -> void:
-	if not _player_is_pitching() or not _match_state.can_change_defense():
-		_status_label.text = "Pitching changes are allowed only between batters."
-		return
-	_match_state.defensive_team().cycle_pitcher(direction)
-	_selected_pitch_index = 0
-	_apply_defensive_assignment()
-	_refresh_config()
-
-func _cycle_primary_fielder() -> void:
-	if not _player_is_pitching() or not _match_state.can_change_defense():
-		_status_label.text = "Fielder changes are allowed only between batters."
-		return
-	_match_state.defensive_team().cycle_fielder(1)
-	_apply_defensive_assignment()
-	_refresh_config()
+func _select_pitcher(roster_index: int) -> void:
+	MatchLabSupport.select_pitcher(self, roster_index)
 
 func _apply_defensive_assignment() -> void:
 	if not _match_mode or _match_state == null:
@@ -954,6 +955,7 @@ func _apply_defensive_assignment() -> void:
 		)
 
 func _toggle_match_mode() -> void:
+	PitchBatLabFeelSupport.reset_debug_pause(self)
 	_match_mode = not _match_mode
 	if _match_mode:
 		_start_new_match()

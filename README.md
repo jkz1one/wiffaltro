@@ -4,9 +4,9 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 ## Status
 
-The **Phase 3 vanilla-match simulator** imports, launches, and passes its
-headless core regression scene in Godot 4.7.2. Hands-on match/feel validation is
-still pending.
+The **Phase 3 vanilla-match simulator** has passed an initial hands-on match
+smoke. A second fatigue, batting-cadence, and roster-UI revision is implemented
+and awaiting Godot 4.7.2 runtime validation.
 
 Canonical docs:
 
@@ -44,6 +44,11 @@ The repository now contains:
 - role-aware opponent control and automatic camera changes
 - per-Pitch effort control
 - timed player release, continuous action-mapped aim, and controller basics
+- reactive mouse batting on the mathematical contact plane
+- automatic within-at-bat Pitch cadence and visible Pitcher telegraph
+- nonlinear late-game fatigue with plate-reach protection
+- clickable four-player pitching-staff management
+- full-simulation debug pause
 - actionable swing miss feedback and smooth camera direction
 - deterministic count-aware opponent decisions and per-play records
 - a headless core regression scene

@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.5
-**Status:** FROZEN BASELINE WITH PLAYER-RELEASE AMENDMENT
-**Supersedes:** v0.4.4 and all earlier planning notes
+**Version:** v0.4.6
+**Status:** FROZEN BASELINE WITH FATIGUE AND BATTING-CADENCE AMENDMENT
+**Supersedes:** v0.4.5 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -162,6 +162,15 @@ The player:
 1. aims a forgiving contact region
 2. chooses **Contact Swing** or **Power Swing**
 3. commits to the swing
+
+Mouse batting may combine aim and commitment: moving the pointer positions the
+contact region, left click commits to Contact, and right click commits to
+Power. Keyboard/controller reticle aim remains an equivalent supported input,
+not merely a diagnostic path.
+
+An at-bat begins with one ready/accept input. Pitches within that plate
+appearance then arrive on a readable automatic cadence with a visible Pitcher
+set and windup. The player should not have to approve every individual Pitch.
 
 ## Contact Swing
 
@@ -395,7 +404,15 @@ Low/zero Stamina creates increasing risk through:
 - execution failures
 - hangers
 
-A hanger should preferably emerge from degraded execution/movement rather than a scripted “throw center” rule.
+Fatigue is deliberately back-loaded. It is virtually unnoticeable through 50%,
+ramps progressively from 50–92%, becomes overtly dangerous at 92%+, and turns
+0 Stamina into batting-practice quality without preventing the Pitch from
+reaching the plate.
+
+A hanger should emerge from reduced velocity, lost movement, execution error,
+and a seeded tendency for tired edge targets to leak toward the heart. Fatigue
+may progressively regress command toward center, but must not replace every
+target with one deterministic center-cut result.
 
 Pitching changes:
 
@@ -427,6 +444,10 @@ The player may change:
 - Primary Fielder
 
 Selections persist until changed.
+
+Every authored Primary Fielder anchor must maintain clear physical separation
+from the Pitcher. A valid strategic grid position may never spawn both visible
+defenders on top of one another.
 
 If the current fielder becomes the Pitcher, another player must be selected as the Primary Fielder.
 
