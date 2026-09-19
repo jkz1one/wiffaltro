@@ -5,6 +5,11 @@ signal trace_sampled(point: Vector3)
 signal plate_crossed(point: Vector3, speed_mps: float, elapsed_seconds: float)
 signal flight_stopped(reason: StringName)
 
+const PLATE_FOLLOW_THROUGH_SECONDS: float = 0.12
+const RECEIVER_HOLD_SECONDS: float = 0.18
+const MIN_FOLLOW_THROUGH_M: float = 0.60
+const MAX_FOLLOW_THROUGH_M: float = 0.95
+
 @export var plate_z: float = 0.0
 @export var max_flight_seconds: float = 3.0
 @export var trace_every_substeps: int = 4
@@ -15,12 +20,14 @@ var running: bool = false
 
 var _accumulator_seconds: float = 0.0
 var _substep_count: int = 0
+var _plate_follow_tween: Tween
 
 func _ready() -> void:
 	_build_debug_ball()
 	visible = false
 
 func start_pitch(new_parameters: PitchLaunchParameters) -> void:
+	_cancel_plate_follow_through()
 	parameters = new_parameters
 	state = PitchState.new()
 	state.position = parameters.position
@@ -38,7 +45,9 @@ func start_pitch(new_parameters: PitchLaunchParameters) -> void:
 	trace_sampled.emit(state.position)
 
 func stop_pitch(reason: StringName = &"stopped") -> void:
+	_cancel_plate_follow_through()
 	if not running:
+		visible = false
 		return
 
 	running = false
@@ -46,6 +55,7 @@ func stop_pitch(reason: StringName = &"stopped") -> void:
 	flight_stopped.emit(reason)
 
 func reset_pitch() -> void:
+	_cancel_plate_follow_through()
 	running = false
 	state = null
 	parameters = null
@@ -82,13 +92,17 @@ func _physics_process(delta: float) -> void:
 				)
 
 			var crossing_point: Vector3 = previous_position.lerp(state.position, fraction)
+			state.position = crossing_point
+			global_position = crossing_point
 			trace_sampled.emit(crossing_point)
+			running = false
 			plate_crossed.emit(
 				crossing_point,
 				state.velocity.length(),
 				state.elapsed_time
 			)
-			stop_pitch(&"plate_crossed")
+			flight_stopped.emit(&"plate_crossed")
+			_begin_plate_follow_through(crossing_point, state.velocity)
 			break
 
 		if state.elapsed_time >= max_flight_seconds:
@@ -100,6 +114,36 @@ func _physics_process(delta: float) -> void:
 			break
 
 	global_position = state.position
+
+func _begin_plate_follow_through(
+	crossing_point: Vector3,
+	crossing_velocity: Vector3
+) -> void:
+	var direction: Vector3 = crossing_velocity.normalized()
+	var travel_m: float = clampf(
+		crossing_velocity.length() * 0.045,
+		MIN_FOLLOW_THROUGH_M,
+		MAX_FOLLOW_THROUGH_M
+	)
+	var receiver_point: Vector3 = crossing_point + direction * travel_m
+	_plate_follow_tween = create_tween().bind_node(self)
+	_plate_follow_tween.tween_property(
+		self,
+		"global_position",
+		receiver_point,
+		PLATE_FOLLOW_THROUGH_SECONDS
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_plate_follow_tween.tween_interval(RECEIVER_HOLD_SECONDS)
+	_plate_follow_tween.tween_callback(_hide_after_plate_follow_through)
+
+func _hide_after_plate_follow_through() -> void:
+	visible = false
+	_plate_follow_tween = null
+
+func _cancel_plate_follow_through() -> void:
+	if _plate_follow_tween != null and _plate_follow_tween.is_valid():
+		_plate_follow_tween.kill()
+	_plate_follow_tween = null
 
 func _build_debug_ball() -> void:
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()

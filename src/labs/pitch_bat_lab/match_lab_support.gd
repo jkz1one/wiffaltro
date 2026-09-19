@@ -111,7 +111,9 @@ static func toggle_field_setup(lab: PitchBatLab) -> void:
 	if lab._field_setup_active:
 		lab._field_setup_active = false
 		lab._apply_role_camera()
-		lab._status_label.text = "Field position locked. Point and click to pitch."
+		lab._status_label.text = (
+			"Field position locked. Hold click, then release on the timing cue."
+		)
 		lab._refresh_config()
 		return
 	if (

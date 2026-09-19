@@ -1,9 +1,9 @@
 class_name FielderController
 extends CharacterBody3D
 
-@export var move_speed_mps: float = 5.2
+@export var move_speed_mps: float = 4.6
 @export var fielding_rating: int = 6
-@export var reach_m: float = 0.98
+@export var reach_m: float = 0.66
 
 var anchor_position: Vector3 = Vector3.ZERO
 var target_position: Vector3 = Vector3.ZERO
@@ -12,6 +12,7 @@ var last_reaction_margin_seconds: float = 0.0
 var reaction_delay_seconds: float = 0.11
 var _play_elapsed_seconds: float = 0.0
 var _avatar: PlayerAvatar
+var _reach_marker: MeshInstance3D
 
 func _ready() -> void:
 	_build_debug_fielder()
@@ -40,20 +41,22 @@ func configure_player(player: PlayerDefinition) -> void:
 		return
 	fielding_rating = player.fielding
 	move_speed_mps = lerpf(
-		4.55,
-		5.85,
+		3.80,
+		5.20,
 		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
 	)
 	reach_m = lerpf(
-		0.82,
-		1.08,
+		0.52,
+		0.76,
 		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
 	)
 	reaction_delay_seconds = lerpf(
-		0.19,
-		0.055,
+		0.24,
+		0.09,
 		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
 	)
+	if _reach_marker != null:
+		_reach_marker.scale = Vector3(reach_m, 1.0, reach_m)
 	if _avatar != null:
 		_avatar.configure(
 			PlayerAvatar.Role.FIELDER,
@@ -114,17 +117,18 @@ func _build_debug_fielder() -> void:
 		Color(0.18, 0.52, 0.95)
 	)
 
-	var shadow_marker: MeshInstance3D = MeshInstance3D.new()
+	_reach_marker = MeshInstance3D.new()
 	var cylinder: CylinderMesh = CylinderMesh.new()
-	cylinder.top_radius = reach_m
-	cylinder.bottom_radius = reach_m
+	cylinder.top_radius = 1.0
+	cylinder.bottom_radius = 1.0
 	cylinder.height = 0.018
-	shadow_marker.mesh = cylinder
-	shadow_marker.position.y = 0.018
+	_reach_marker.mesh = cylinder
+	_reach_marker.position.y = 0.018
+	_reach_marker.scale = Vector3(reach_m, 1.0, reach_m)
 
 	var marker_material: StandardMaterial3D = StandardMaterial3D.new()
 	marker_material.albedo_color = Color(0.15, 0.55, 1.0, 0.16)
 	marker_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	shadow_marker.material_override = marker_material
-	add_child(shadow_marker)
+	_reach_marker.material_override = marker_material
+	add_child(_reach_marker)

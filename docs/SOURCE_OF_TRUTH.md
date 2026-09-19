@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.7
-**Status:** FROZEN BASELINE WITH PLAYER-PRESENCE AND BATTER-AWARENESS AMENDMENT
-**Supersedes:** v0.4.6 and all earlier planning notes
+**Version:** v0.4.8
+**Status:** FROZEN BASELINE WITH INPUT/PRESENTATION HARDENING AMENDMENT
+**Supersedes:** v0.4.7 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -178,7 +178,8 @@ The batting camera uses a modest handed over-shoulder angle rather than a
 perfectly centered tunnel. This improves depth perception without changing the
 plate-local contact math. A visible handed Batter and bat must mirror the
 current roster player; the bat is presentation for the authored ContactResolver,
-not a second physics authority.
+not a second physics authority. The bat and Batter are independent presentation
+actors so equipment animation/lifecycle does not become character geometry.
 
 Opponent Batters have readable approach memory. Repeating a recognized Pitch
 or visible location increases awareness and execution, while changing speed,
@@ -229,9 +230,10 @@ system. Control widens the useful timing window, fatigue narrows it, and the
 result feeds the existing command/error model. A held delivery auto-releases so
 the match cannot remain stuck indefinitely.
 
-Mouse pitching may project a pointer onto the plate plane and commit the Pitch
-with a click. The timed release remains available as a higher-execution input;
-both paths feed the same pre-flight aim and execution pipeline, with no
+Mouse pitching projects the pointer onto the plate plane. Pressing and holding
+left click begins the same execution meter as the keyboard/controller delivery;
+releasing commits the Pitch. Mouse and keyboard feed the same pre-flight aim,
+effort, and execution pipeline, with no instant-quality shortcut and no
 mid-flight steering.
 
 Effort applies to every Pitch rather than belonging only to fastballs. A harder
@@ -502,6 +504,11 @@ a small, visibly reactive comebacker envelope around the mound.
 ## Fielding outcomes
 
 Base defense should be deterministic/readable rather than built primarily on hidden random percentages.
+
+The interaction must also match the visible play: a Primary Fielder cannot
+cleanly control a ball outside the authored horizontal or vertical reach
+envelope merely because the planner predicted a nearby intercept. Movement,
+reach, reaction delay, and clean-control difficulty remain separately tunable.
 
 Possible outcomes:
 

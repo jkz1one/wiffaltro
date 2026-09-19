@@ -7,10 +7,10 @@
 script = ExtResource("1_pitch")
 id = &"pitch.eephus"
 display_name = "Eephus"
-category = 2
+category = 3
 rarity = 1
 delivery_profile = ExtResource("2_delivery")
-nominal_velocity_mps = 11.5
+nominal_velocity_mps = 15.5
 nominal_spin_rpm = 180.0
 nominal_spin_axis_pitcher_frame = Vector3(0.15, 0, 0.98)
 nominal_hole_axis_ball_local = Vector3(0.20, 0.90, 0.38)

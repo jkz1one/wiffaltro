@@ -37,6 +37,19 @@ static func _handle_pointer_event(
 	lab: PitchBatLab,
 	event: InputEvent
 ) -> bool:
+	if lab._match_mode and event is InputEventMouseButton:
+		var advance_click: InputEventMouseButton = event as InputEventMouseButton
+		if (
+			advance_click.pressed
+			and advance_click.button_index == MOUSE_BUTTON_LEFT
+			and lab._match_state != null
+			and (
+				lab._match_state.phase == MatchState.Phase.PLAY_DEAD
+				or lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
+			)
+		):
+			lab._handle_match_advance()
+			return true
 	if lab._match_mode and lab._player_is_pitching():
 		if lab._field_setup_active:
 			return false
@@ -46,6 +59,8 @@ static func _handle_pointer_event(
 		):
 			return false
 		if event is InputEventMouseMotion:
+			if lab._release_controller.active:
+				return true
 			var pitch_motion: InputEventMouseMotion = event as InputEventMouseMotion
 			return PitchBatLabFeelSupport.set_pitch_target_from_screen(
 				lab,
@@ -53,14 +68,36 @@ static func _handle_pointer_event(
 			)
 		if event is InputEventMouseButton:
 			var pitch_click: InputEventMouseButton = event as InputEventMouseButton
-			if pitch_click.pressed and pitch_click.button_index == MOUSE_BUTTON_LEFT:
-				if PitchBatLabFeelSupport.set_pitch_target_from_screen(
+			if pitch_click.button_index != MOUSE_BUTTON_LEFT:
+				return false
+			if pitch_click.pressed:
+				if not PitchBatLabFeelSupport.set_pitch_target_from_screen(
 					lab,
 					pitch_click.position
 				):
-					PitchBatLabFeelSupport.throw_point_pitch(lab)
-					return true
+					return false
+				PitchBatLabFeelSupport.begin_pitch_release(lab)
+				return true
+			if lab._release_controller.active:
+				PitchBatLabFeelSupport.commit_pitch_release(lab)
+				return true
 		return false
+	if (
+		lab._match_mode
+		and lab._player_is_batting()
+		and event is InputEventMouseButton
+	):
+		var ready_click: InputEventMouseButton = event as InputEventMouseButton
+		if (
+			ready_click.pressed
+			and ready_click.button_index == MOUSE_BUTTON_LEFT
+			and lab._match_state != null
+			and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+			and lab._at_bat_cadence.state == AtBatCadenceController.State.IDLE
+			and (lab._pitch_actor == null or not lab._pitch_actor.running)
+		):
+			lab._handle_match_advance()
+			return true
 	if event is InputEventMouseMotion:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		return PitchBatLabFeelSupport.set_batting_aim_from_screen(

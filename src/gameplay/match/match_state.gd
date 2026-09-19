@@ -30,6 +30,7 @@ var elapsed_seconds: float = 0.0
 var between_batters: bool = true
 var last_event: String = "Game ready"
 var winner_name: String = ""
+var _between_batters_before_pitch: bool = true
 
 static func create(
 	away: TeamMatchState,
@@ -61,9 +62,16 @@ func fielder() -> PlayerMatchState:
 func begin_pitch() -> bool:
 	if phase != Phase.PRE_PITCH:
 		return false
+	_between_batters_before_pitch = between_batters
 	phase = Phase.PITCH_IN_FLIGHT
 	between_batters = false
 	return true
+
+func cancel_pitch() -> void:
+	if phase != Phase.PITCH_IN_FLIGHT:
+		return
+	phase = Phase.PRE_PITCH
+	between_batters = _between_batters_before_pitch
 
 func begin_ball_in_play() -> void:
 	phase = Phase.BALL_IN_PLAY

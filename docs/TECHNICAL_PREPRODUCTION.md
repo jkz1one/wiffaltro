@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.5
-**Status:** FROZEN BASELINE WITH BATTER MODEL AND PLAYER-PRESENCE AMENDMENT
+**Version:** v0.1.6
+**Status:** FROZEN BASELINE WITH INPUT/PRESENTATION HARDENING AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -96,6 +96,7 @@ Examples:
 - PitchFlightActor
 - BattedBallBody
 - BatterActor
+- BatActor
 - PitcherActor
 - FielderController
 - MatchController
@@ -428,6 +429,11 @@ PitchFlightActor : Node3D
 
 owns a `PitchState`.
 
+The authoritative Pitch ends at the mathematical plate-crossing event. Its
+presentation may continue a short, non-interactive catch-through beyond the
+plate before hiding. That visual tail cannot accept contact, change the call,
+or remain visible into the next Pitch.
+
 The custom solver advances the Pitch.
 
 Godot/Jolt provides world collision queries.
@@ -625,6 +631,11 @@ Conceptually:
 6. repeat a small number of iterations
 
 Because this is one ball and a tiny search problem, runtime cost is negligible.
+
+Very slow/high-arc Pitches should seed the search with a gravity-compensated
+guide height and retain enough bounded iterations to find a crossing across the
+authored aim area. A failed solve must restore `PRE_PITCH` without spending
+Stamina, incrementing pitch count, or leaving the match soft-locked.
 
 ---
 
@@ -1205,6 +1216,11 @@ Base result bands:
 
 Prefer readable deterministic thresholds over hidden RNG in the baseline.
 
+The resolver must reject interactions outside explicit horizontal and vertical
+reach limits before applying clean/bobble bands. The visible actor's actual
+position—not only the planner's predicted intercept—supplies interaction
+distance.
+
 Randomness can be introduced later only when it improves the game.
 
 ---
@@ -1566,10 +1582,11 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 33. nonlinear fatigue-band and plate-reach regression coverage
 34. handed Batter/Pitcher/Fielder presentation and visible bat swing
 35. deterministic Batter approach memory without hidden-input reads
-36. point-and-click plate-plane pitching
+36. plate-plane mouse pitching through the shared hold/release execution meter
 37. bounded delivery-rhythm variance
 38. overhead 3×3 Field Setup view
 39. mathematical back-wall segment fallback
+40. independent BatActor presentation and post-plate visual catch-through
 
 ### Phase 3 acceptance
 

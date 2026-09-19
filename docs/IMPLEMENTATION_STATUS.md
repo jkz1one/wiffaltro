@@ -245,23 +245,23 @@ regression scene. The fatigue/cadence revision has now received a hands-on
 match pass; its remaining feel findings are addressed by the next revision.
 
 
-## Phase 3 player-presence and pitch-identity revision — runtime validation pending
+## Phase 3 player-presence and pitch-identity revision — hands-on findings received
 
 The 2026-09-19 hands-on match pass reported good overall function and exposed
 the next feel bottlenecks. Implemented in response:
 
-- [x] stopped Pitch visuals hide immediately instead of lingering at the plate
+- [x] stopped Pitch visuals no longer persist into the next Pitch
 - [x] wider authored Contact and Power timing depths
 - [x] handed over-shoulder batting camera for clearer depth perception
 - [x] visible handed Batter, Pitcher, Primary Fielder, and animated bat
-- [x] stronger Pitch speed bands, including a genuinely slow Eephus
+- [x] authored Pitch speed bands and per-delivery variation
 - [x] small seeded per-delivery speed variation
 - [x] pitch-authored recognition, timing, and mistake-punish values
 - [x] deterministic Batter approach memory for repeated Pitch/location patterns
 - [x] Batter decisions use visible late-flight location, never hidden target input
 - [x] fatigue-slowed Pitches naturally reduce AI reaction pressure
 - [x] bounded seeded Pitcher cadence and dead-ball rhythm variation
-- [x] plate-plane mouse aim and single-click pitching
+- [x] plate-plane mouse aim and pitching input
 - [x] overhead Field Setup camera with direct 3×3 anchor selection
 - [x] rating-scaled Fielder speed, explicit reaction delay, and fewer bobbles
 - [x] shorter physical bobble deflections
@@ -270,4 +270,25 @@ the next feel bottlenecks. Implemented in response:
 - [x] regression coverage for pitch bands, awareness, chase geometry, cadence,
       Pitcher radius, and back-wall resolution
 - [ ] Godot 4.7.2 import/headless regression validation
-- [ ] hands-on pitch identity, batting angle/window, AI approach, and defense retest
+- [x] hands-on/video review of Pitch identity, cadence, bat, and defense on 2026-09-19
+
+## Phase 3 recording-driven hardening — runtime validation pending
+
+- [x] restored the better-playing prior Pitch velocity baselines after the
+      fast/slow extremes overshot the useful range
+- [x] added fresh-state reachability regression coverage across all nine Pitches
+- [x] hardened slow/high-arc aim solving with a gravity-compensated initial guide
+- [x] added low-effort Eephus aim-area regression coverage and safe solve-failure
+      rollback so a failed launch cannot strand the match in flight
+- [x] separated `BatActor` from `PlayerAvatar` and rebuilt the procedural bat
+- [x] added a short non-interactive post-plate visual catch-through
+- [x] mapped mouse pitching to the same hold/release execution meter as Space
+- [x] added a visible release bar and ideal-release marker
+- [x] made left click advance dead balls/plate appearances without requiring Space
+- [x] added roughly one second to the readable dead-ball hold and automatic
+      continuation within an unfinished plate appearance on offense and defense
+- [x] reduced Primary Fielder movement speed, horizontal/vertical reach, and
+      clean-control generosity; debug coverage now matches actual reach
+- [x] added deterministic reach/height rejection regressions
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on cadence, release meter, Pitch visibility, bat, and defense retest

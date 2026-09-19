@@ -49,11 +49,11 @@ The repository now contains:
 - nonlinear late-game fatigue with plate-reach protection
 - clickable four-player pitching-staff management
 - full-simulation debug pause
-- handed player avatars, visible bat swing, and angled batting camera
+- handed player avatars, independent visible bat actor, and angled batting camera
 - deterministic Batter awareness for repeated Pitches and visible locations
-- point-and-click pitching and overhead 3×3 Field Setup
-- varied Pitcher rhythm and stronger fast/off-speed identity
-- hardened back-wall and tuned Fielder/Pitcher defense
+- shared hold/release mouse pitching and overhead 3×3 Field Setup
+- varied Pitcher rhythm and readable fast/off-speed identity
+- post-plate Pitch visibility, hardened back wall, and tighter Fielder/Pitcher defense
 - actionable swing miss feedback and smooth camera direction
 - deterministic count-aware opponent decisions and per-play records
 - a headless core regression scene

@@ -15,10 +15,12 @@ enum Event {
 }
 
 const DELIVERY_SECONDS: float = 1.35
-const DEAD_BALL_HOLD_SECONDS: float = 0.90
+const DEAD_BALL_HOLD_SECONDS: float = 1.80
 const MIN_DELIVERY_SECONDS: float = 1.12
 const MAX_DELIVERY_SECONDS: float = 1.78
 const LONG_SET_CHANCE: float = 0.18
+const MIN_DEAD_BALL_HOLD_SECONDS: float = 1.55
+const MAX_DEAD_BALL_HOLD_SECONDS: float = 2.05
 
 var state: State = State.IDLE
 var elapsed_seconds: float = 0.0
@@ -44,7 +46,10 @@ func mark_pitch_live() -> void:
 func hold_dead_ball(seed: int = 0) -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
-	active_hold_seconds = rng.randf_range(0.72, 1.08)
+	active_hold_seconds = rng.randf_range(
+		MIN_DEAD_BALL_HOLD_SECONDS,
+		MAX_DEAD_BALL_HOLD_SECONDS
+	)
 	state = State.DEAD_BALL_HOLD
 	elapsed_seconds = 0.0
 

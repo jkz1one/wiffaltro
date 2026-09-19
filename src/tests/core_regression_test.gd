@@ -6,6 +6,8 @@ func _ready() -> void:
 	_test_pitch_release_quality()
 	_test_fatigue_curve_and_capacity()
 	_test_fatigue_pitch_outcomes()
+	_test_fresh_pitch_reachability()
+	_test_low_effort_eephus_reachability()
 	_test_at_bat_cadence()
 	_test_pitch_identity_and_batter_awareness()
 	_test_ai_pitch_determinism_and_counts()
@@ -138,6 +140,98 @@ func _test_fatigue_pitch_outcomes() -> void:
 		"an exhausted edge-targeted Slider should leak toward center"
 	)
 
+func _test_fresh_pitch_reachability() -> void:
+	var ball: BallSetupDefinition = ContentDB.get_ball_setup(&"ball_setup.fresh")
+	var mound: Vector3 = Vector3(0.0, 0.0, 13.716)
+	var target: Vector3 = Vector3(0.0, 1.05, 0.0)
+	var pitch_ids: Array[StringName] = [
+		&"pitch.overhand_four_seam",
+		&"pitch.overhand_sinker",
+		&"pitch.sidearm_sinker",
+		&"pitch.overhand_slider",
+		&"pitch.sidearm_slider",
+		&"pitch.eephus",
+		&"pitch.knuckleball",
+		&"pitch.riser",
+		&"pitch.drop",
+	]
+	for index in range(pitch_ids.size()):
+		var pitch: PitchDefinition = ContentDB.get_pitch(pitch_ids[index])
+		var base: PitchLaunchParameters = PitchAimSolver.solve(
+			pitch,
+			ball,
+			mound,
+			target,
+			false,
+			700 + index
+		)
+		_check(base != null, "%s should produce an aimed launch" % pitch.display_name)
+		if base == null:
+			continue
+		for sample in range(8):
+			var executed: PitchLaunchParameters = PitchExecutionModel.apply(
+				base,
+				0.90,
+				0.35,
+				pitch.control_difficulty,
+				pitch.execution_difficulty,
+				pitch.category,
+				9000 + index * 31 + sample
+			)
+			var crossing: PitchCrossingResult = (
+				PitchTrajectorySimulator.simulate_to_plane(executed, 0.0)
+			)
+			_check(
+				crossing.crossed,
+				"%s should reach the plate when fresh" % pitch.display_name
+			)
+
+func _test_low_effort_eephus_reachability() -> void:
+	var eephus: PitchDefinition = ContentDB.get_pitch(&"pitch.eephus")
+	var ball: BallSetupDefinition = ContentDB.get_ball_setup(&"ball_setup.fresh")
+	var pitcher: PlayerDefinition = PlayerDefinition.new()
+	pitcher.velocity = 5
+	pitcher.break_rating = 4
+	var rated: PitchDefinition = MatchLabSupport.rated_pitch(
+		eephus,
+		pitcher,
+		MatchLabSupport.MIN_EFFORT
+	)
+	var targets: Array[Vector3] = [
+		Vector3(-0.65, 0.35, 0.0),
+		Vector3(0.0, 1.05, 0.0),
+		Vector3(0.65, 1.75, 0.0),
+	]
+	for index in range(targets.size()):
+		var solved: PitchLaunchParameters = PitchAimSolver.solve(
+			rated,
+			ball,
+			Vector3(0.0, 0.0, 13.716),
+			targets[index],
+			false,
+			1200 + index
+		)
+		_check(
+			solved != null,
+			"low-effort Eephus should solve across the authored aim area"
+		)
+		if solved == null:
+			continue
+		var crossing: PitchCrossingResult = (
+			PitchTrajectorySimulator.simulate_to_plane(solved, 0.0)
+		)
+		_check(
+			crossing.crossed,
+			"low-effort Eephus should reach the plate plane"
+		)
+		if crossing.crossed:
+			_check(
+				Vector2(crossing.point.x, crossing.point.y).distance_to(
+					Vector2(targets[index].x, targets[index].y)
+				) <= 0.08,
+				"low-effort Eephus should retain intended-location aiming"
+			)
+
 func _test_at_bat_cadence() -> void:
 	var cadence: AtBatCadenceController = AtBatCadenceController.new()
 	cadence.begin_delivery(42)
@@ -151,6 +245,13 @@ func _test_at_bat_cadence() -> void:
 		"AI delivery should release after its windup"
 	)
 	cadence.hold_dead_ball(84)
+	_check(
+		cadence.active_hold_seconds
+		>= AtBatCadenceController.MIN_DEAD_BALL_HOLD_SECONDS
+		and cadence.active_hold_seconds
+		<= AtBatCadenceController.MAX_DEAD_BALL_HOLD_SECONDS,
+		"dead-ball rhythm should leave time to read the previous result"
+	)
 	_check(
 		cadence.advance(cadence.active_hold_seconds + 0.01)
 		== AtBatCadenceController.Event.CONTINUE_PLAY,
@@ -172,12 +273,12 @@ func _test_pitch_identity_and_batter_awareness() -> void:
 	)
 	var eephus: PitchDefinition = ContentDB.get_pitch(&"pitch.eephus")
 	_check(
-		fastball.nominal_velocity_mps >= eephus.nominal_velocity_mps * 2.4,
+		fastball.nominal_velocity_mps >= eephus.nominal_velocity_mps * 1.75,
 		"Four-Seam and Eephus must occupy clearly different speed bands"
 	)
 	_check(
-		eephus.category == PitchDefinition.Category.OFF_SPEED,
-		"Eephus should be authored as an off-speed Pitch"
+		eephus.category == PitchDefinition.Category.UNCONVENTIONAL,
+		"Eephus should remain an unconventional Pitch"
 	)
 	var model: BatterApproachModel = BatterApproachModel.new()
 	model.reset(1)
@@ -240,6 +341,13 @@ func _test_match_count_rules() -> void:
 		_make_team("Away"),
 		_make_team("Home")
 	)
+	_check(match_state.begin_pitch(), "a ready match should begin a Pitch")
+	match_state.cancel_pitch()
+	_check(
+		match_state.phase == MatchState.Phase.PRE_PITCH
+		and match_state.between_batters,
+		"a failed launch should restore the pre-Pitch match state"
+	)
 	match_state.strikes = 2
 	match_state.record_foul()
 	_check(match_state.strikes == 2, "two-strike foul should preserve the count")
@@ -269,6 +377,21 @@ func _test_defensive_separation() -> void:
 	_check(
 		PitcherDefense.REACTION_RADIUS_M <= 1.0,
 		"Pitcher defense must remain a small comebacker radius"
+	)
+	_check(
+		FieldingResolver.resolve(0.82, 8.0, 1.1, false, 6)
+		== FieldingResolver.Outcome.MISS,
+		"the Primary Fielder must not control balls outside visible reach"
+	)
+	_check(
+		FieldingResolver.resolve(
+			0.45,
+			8.0,
+			FieldingResolver.MAX_AIR_CONTROL_HEIGHT_M + 0.05,
+			false,
+			10
+		) == FieldingResolver.Outcome.MISS,
+		"the Primary Fielder must not catch balls above authored hand reach"
 	)
 
 func _test_back_wall_segment_resolution() -> void:

@@ -98,6 +98,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			else:
 				lab._throw_pitch()
 		MatchState.Phase.PLAY_DEAD, MatchState.Phase.INNING_TRANSITION:
+			lab._at_bat_cadence.stop()
 			var changed_half: bool = (
 				lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
 			)
@@ -125,10 +126,15 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 					"%s\nR: new match" % lab._match_state.last_event
 				)
 			else:
-				lab._status_label.text = (
-					"%s\nSPACE: begin next at-bat"
-					% lab._match_state.last_event
+				var next_prompt: String = (
+					"Pitcher setting for next at-bat"
+					if lab._player_is_batting()
+					else "Aim, then hold click or SPACE to deliver"
 				)
+				lab._status_label.text = "%s\n%s" % [
+					lab._match_state.last_event,
+					next_prompt,
+				]
 			lab._refresh_markers()
 			lab._refresh_config()
 			if (
@@ -144,8 +150,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 static func notify_pitch_dead(lab: PitchBatLab) -> void:
 	_reset_pitcher_telegraph(lab)
 	if (
-		lab._player_is_batting()
-		and lab._match_state != null
+		lab._match_state != null
 		and lab._match_state.phase == MatchState.Phase.PLAY_DEAD
 		and not lab._match_state.between_batters
 	):
@@ -155,6 +160,20 @@ static func notify_pitch_dead(lab: PitchBatLab) -> void:
 		)
 		return
 	lab._at_bat_cadence.stop()
+
+static func recover_failed_pitch(
+	lab: PitchBatLab,
+	pitch: PitchDefinition
+) -> void:
+	if lab._match_mode:
+		lab._match_state.cancel_pitch()
+		lab._at_bat_cadence.stop()
+	lab._pending_release_quality = 1.0
+	lab._status_label.text = (
+		"%s could not produce a valid flight. Adjust effort/target and retry."
+		% pitch.display_name
+	)
+	lab._refresh_config()
 
 static func set_batting_aim_from_screen(
 	lab: PitchBatLab,
@@ -200,27 +219,6 @@ static func set_pitch_target_from_screen(
 	lab._refresh_markers()
 	lab._refresh_config()
 	return true
-
-static func throw_point_pitch(lab: PitchBatLab) -> void:
-	if (
-		not lab._player_is_pitching()
-		or lab._match_state == null
-		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
-		or lab._field_setup_active
-	):
-		return
-	var pitcher: PlayerMatchState = lab._match_state.pitcher()
-	var fatigue: float = maxf(pitcher.fatigue_ratio(), lab._fatigue)
-	lab._pending_release_quality = clampf(
-		0.82
-		+ float(pitcher.definition.control) * 0.016
-		- PitchExecutionModel.fatigue_pressure(fatigue) * 0.05,
-		0.0,
-		1.0
-	)
-	lab._last_release_quality = lab._pending_release_quality
-	lab._last_release_offset_seconds = 0.0
-	lab._throw_pitch()
 
 static func toggle_debug_pause(lab: PitchBatLab) -> void:
 	lab._debug_paused = not lab._debug_paused
@@ -286,7 +284,7 @@ static func release_meter_text(lab: PitchBatLab) -> String:
 		progress - lab._release_controller.ideal_progress()
 	)
 	var cue: String = "●" if marker_distance <= 0.055 else "○"
-	return "RELEASE %s %3.0f%%   ideal at %3.0f%%" % [
+	return "HOLD / RELEASE %s %3.0f%%   ideal at %3.0f%%" % [
 		cue,
 		progress * 100.0,
 		lab._release_controller.ideal_progress() * 100.0,

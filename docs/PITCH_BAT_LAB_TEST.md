@@ -36,11 +36,11 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - pointer-projected mouse batting
 - clickable four-player pitching-staff panel
 - full-simulation debug pause
-- handed Batter/Pitcher/Fielder avatars and visible bat swing
+- handed Batter/Pitcher/Fielder avatars and independent visible bat swing
 - handed over-shoulder batting camera
 - Batter approach memory for Pitch/location repetition
-- varied delivery rhythm and stronger Pitch speed bands
-- point-and-click pitching
+- varied delivery rhythm and distinct Pitch speed bands
+- hold/release mouse pitching through the shared execution meter
 - overhead 3×3 Field Setup view
 - preserved Mechanics Lab and debug telemetry
 
@@ -54,9 +54,9 @@ This is a functional match simulator and shared debug lab, not a polished game s
 
 ## Match Mode controls
 
-- `Space`: begin the next at-bat or acknowledge a completed plate appearance;
-  while pitching, hold to start the delivery and release near the meter's
-  center mark
+- Left click: begin/advance an at-bat when the ball is dead
+- `Space`: equivalent keyboard/controller advance; while pitching, hold to
+  start the delivery and release near the meter's center mark
 - Mouse movement: position batting coverage on the contact plane
 - Left click: aim at the pointer and commit a Contact Swing
 - Right click: aim at the pointer and commit a Power Swing
@@ -65,7 +65,8 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `X` / controller X: Power Swing
 - `1–9`: select from the active Pitcher's repertoire while pitching
 - Mouse movement while pitching: aim directly on the plate plane
-- Left click while pitching: throw immediately at the pointer target
+- Hold left click while pitching: lock the pointer target, fill the release
+  meter, and release near its center marker to throw
 - Arrow keys / right stick: continuously move the Pitch target
 - `- / =`: lower / raise Pitch effort from 82–112%
 - Click the pitching-staff panel: select any of the four Pitchers between batters
@@ -109,6 +110,10 @@ This is a functional match simulator and shared debug lab, not a polished game s
 
 At 100% execution / 0% fatigue, different Pitches aimed at the same marker should generally finish around that intended location while taking visibly different paths.
 
+At minimum effort, throw the Eephus to low, middle, and high targets. Every
+attempt should launch and cross the plate plane; no attempt may display an aim
+solver failure or leave the game unable to continue.
+
 Fatigue should be virtually invisible from 0–50%. Debug telemetry reports both
 raw fatigue and effective pressure: 50% raw fatigue is only 2.5% effect. From
 50–92%, velocity, movement, and command should worsen progressively. At 92%+
@@ -130,10 +135,11 @@ a subtle handed over-shoulder angle, and the visible Batter's bat should swing
 from the correct side. The widened depth should improve timing without making
 poor X/Y aim succeed.
 
-In Match Mode, press `Space` once to begin an at-bat. The Pitcher should visibly
+In Match Mode, left click once to begin an at-bat. The Pitcher should visibly
 set, wind up, and deliver. Taken Pitches, fouls, and non-terminal misses should
-flow into the next Pitch automatically after a short readable hold. A walk,
-strikeout, hit, out, or inning change waits for `Space` before continuing. The
+flow into the next Pitch automatically after a longer readable hold. A walk,
+strikeout, hit, out, or inning change waits for left click (or `Space`) before
+continuing. The
 camera should switch to the field on contact and return for the next role.
 Counts must persist within a plate appearance, and the batter must advance only
 when that plate appearance ends.
@@ -144,7 +150,8 @@ batters. Choosing the active Primary Fielder as Pitcher must automatically move
 the Primary Fielder role to another player. Middle Center must visibly start
 clear of the mound rather than overlap the Pitcher.
 
-While pitching, hold `Space` (or controller A) and release near the center cue.
+While pitching, hold left click, `Space`, or controller A and release near the
+center cue. Mouse and keyboard must show and use the same timing bar.
 High-Control, fresh Pitchers should have a more forgiving useful window than
 tired, low-Control Pitchers. Early and late releases should reduce command
 without allowing any mid-flight steering. Holding beyond the window must
@@ -160,17 +167,19 @@ hit; the outer half should be more approachable than the inner edge.
 
 Effort changes the speed of every Pitch, including off-speed Pitches. Higher effort should be faster and costlier without making an Eephus, Slider, or Drop feel identical to a Four-Seam.
 
-The Four-Seam should now occupy a clearly faster band, while the Eephus should
-arrive dramatically slower and disrupt timing. A first well-located Eephus may
+The Four-Seam should occupy a clearly faster but still readable band, while the
+Eephus should arrive slower without becoming a novelty-speed Pitch. A first
+well-located Eephus may
 deceive; a repeated or center-hanging Eephus should be dangerous to throw.
 AI Pitcher set/windup duration should vary readably rather than repeat one exact
 interval.
 
 The yellow line marks the ordinary Safe boundary. The cyan line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall strike on the fly is a Triple, and a fair airborne ball clearing the wall top is a Home Run. The brown pole is a live object: it should physically redirect the ball without deciding the baseball result by itself.
 
-The Primary Fielder should show a brief rating-scaled reaction delay and no
-longer arrive at every ball at one universal speed. Bobbles should be less
-frequent and remain near the defender. The Pitcher should react only to true
+The Primary Fielder should show a brief rating-scaled reaction delay, run at a
+believable speed, and only control balls the visible actor actually reaches.
+High or horizontally distant balls must pass as misses. Bobbles should remain
+near the defender. The Pitcher should react only to true
 comebackers inside the small mound envelope. A below-wall ball must resolve at
 the wall even if the physical contact callback misses a fast frame.
 

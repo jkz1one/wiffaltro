@@ -7,20 +7,12 @@ enum Role {
 	FIELDER,
 }
 
-const CONTACT_SWING_SECONDS: float = 0.34
-const POWER_SWING_SECONDS: float = 0.43
-
 var role: Role = Role.FIELDER
 var bats_left: bool = false
 var throws_left: bool = false
 var _body_root: Node3D
-var _bat_pivot: Node3D
-var _bat_mesh: MeshInstance3D
 var _throw_hand: MeshInstance3D
 var _glove_hand: MeshInstance3D
-var _swing_elapsed: float = 0.0
-var _swing_duration: float = CONTACT_SWING_SECONDS
-var _swinging: bool = false
 
 func _ready() -> void:
 	_build_avatar()
@@ -39,32 +31,6 @@ func configure(
 		return
 	_set_body_color(body_color)
 	_apply_stance()
-
-func play_swing(power: bool) -> void:
-	if role != Role.BATTER:
-		return
-	_swing_duration = POWER_SWING_SECONDS if power else CONTACT_SWING_SECONDS
-	_swing_elapsed = 0.0
-	_swinging = true
-	_apply_stance()
-
-func _process(delta: float) -> void:
-	if not _swinging or _bat_pivot == null:
-		return
-	_swing_elapsed += maxf(0.0, delta)
-	var progress: float = clampf(_swing_elapsed / _swing_duration, 0.0, 1.0)
-	var handedness: float = -1.0 if bats_left else 1.0
-	var sweep: float = smoothstep(0.0, 0.72, progress)
-	var follow: float = smoothstep(0.72, 1.0, progress)
-	_bat_pivot.rotation.y = deg_to_rad(
-		handedness * lerpf(-42.0, 128.0, sweep)
-	)
-	_body_root.rotation.y = deg_to_rad(
-		handedness * lerpf(-8.0, 34.0, sweep) * (1.0 - follow * 0.35)
-	)
-	if progress >= 1.0:
-		_swinging = false
-		_apply_stance()
 
 func _build_avatar() -> void:
 	_body_root = Node3D.new()
@@ -93,38 +59,22 @@ func _build_avatar() -> void:
 	_glove_hand = _hand_mesh(Color(0.18, 0.12, 0.08))
 	_body_root.add_child(_glove_hand)
 
-	_bat_pivot = Node3D.new()
-	_bat_pivot.name = "BatPivot"
-	_bat_pivot.position.y = 1.13
-	_body_root.add_child(_bat_pivot)
-	_bat_mesh = MeshInstance3D.new()
-	var bat: CylinderMesh = CylinderMesh.new()
-	bat.top_radius = 0.035
-	bat.bottom_radius = 0.065
-	bat.height = 1.15
-	_bat_mesh.mesh = bat
-	_bat_mesh.position = Vector3(0.0, 0.48, 0.0)
-	_bat_mesh.rotation.z = deg_to_rad(68.0)
-	_bat_mesh.material_override = _material(Color(0.82, 0.68, 0.36))
-	_bat_pivot.add_child(_bat_mesh)
-
 func _apply_stance() -> void:
 	if _body_root == null:
 		return
 	var bat_side: float = -1.0 if bats_left else 1.0
 	var throw_side: float = -1.0 if throws_left else 1.0
 	_body_root.rotation = Vector3.ZERO
-	_bat_pivot.visible = role == Role.BATTER
-	_bat_pivot.position.x = bat_side * 0.20
-	_bat_pivot.rotation = Vector3(
-		deg_to_rad(8.0),
-		deg_to_rad(bat_side * -42.0),
-		0.0
-	)
-	_throw_hand.position = Vector3(throw_side * 0.38, 1.12, 0.0)
-	_glove_hand.position = Vector3(-throw_side * 0.38, 1.10, 0.02)
-	_throw_hand.visible = role != Role.BATTER
-	_glove_hand.visible = role != Role.BATTER
+	if role == Role.BATTER:
+		_throw_hand.position = Vector3(-bat_side * 0.18, 1.15, 0.01)
+		_glove_hand.position = Vector3(-bat_side * 0.29, 1.15, 0.03)
+		_throw_hand.material_override = _material(Color(1.0, 0.76, 0.42))
+		_glove_hand.material_override = _material(Color(1.0, 0.76, 0.42))
+	else:
+		_throw_hand.position = Vector3(throw_side * 0.38, 1.12, 0.0)
+		_glove_hand.position = Vector3(-throw_side * 0.38, 1.10, 0.02)
+		_throw_hand.material_override = _material(Color(1.0, 0.76, 0.42))
+		_glove_hand.material_override = _material(Color(0.18, 0.12, 0.08))
 
 func _set_body_color(color: Color) -> void:
 	if _body_root.get_child_count() <= 0:

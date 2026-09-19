@@ -12,7 +12,6 @@ const PITCH_IDS: Array[StringName] = [
 	&"pitch.riser",
 	&"pitch.drop",
 ]
-
 const CONTACT_SWING_ID: StringName = &"swing.contact"
 const POWER_SWING_ID: StringName = &"swing.power"
 const BALL_SETUP_ID: StringName = &"ball_setup.fresh"
@@ -20,11 +19,9 @@ const FIELD_ID: StringName = &"field.starter_backyard"
 const DEBUG_PLAYER_ID: StringName = &"player.debug_pitcher"
 const PLAYER_TEAM_NAME: String = "PLAYER"
 const RIVAL_TEAM_NAME: String = "RIVAL"
-
 const MOUND_ORIGIN: Vector3 = Vector3(0.0, 0.0, 13.716)
 const DEFAULT_TARGET: Vector2 = Vector2(0.0, 1.05)
 const DEFAULT_BATTING_AIM: Vector2 = Vector2(0.0, 1.05)
-
 const ZONE_MIN_X: float = -0.43
 const ZONE_MAX_X: float = 0.43
 const ZONE_MIN_Y: float = 0.55
@@ -41,7 +38,6 @@ const AIM_STEP_M: float = 0.05
 const BATTED_BALL_TIMEOUT_SECONDS: float = 9.0
 const SETTLED_SPEED_MPS: float = 0.55
 const SETTLED_HOLD_SECONDS: float = 0.65
-
 var _pitch_actor: PitchFlightActor
 var _batted_ball: BattedBallBody
 var _ball_play_resolver: BallPlayResolver
@@ -50,31 +46,31 @@ var _primary_fielder: FielderController
 var _pitcher_marker: Node3D
 var _pitcher_avatar: PlayerAvatar
 var _batter_avatar: PlayerAvatar
+var _bat_actor: BatActor
 var _debug_base_state: BaseState = BaseState.new()
 var _base_state: BaseState = _debug_base_state
 var _match_state: MatchState
 var _trajectory_draw: TrajectoryDebugDraw
 var _contact_vector_draw: TrajectoryDebugDraw
 var _trajectory_points: Array[Vector3] = []
-
 var _pitch_target_marker: MeshInstance3D
 var _batting_aim_marker: Node3D
 var _camera: Camera3D
 var _camera_mode: int = 0
 var _camera_director: MatchCameraDirector
-
 var _status_label: Label
 var _live_label: Label
 var _config_label: Label
 var _controls_label: Label
 var _scoreboard_label: Label
 var _action_label: Label
+var _pitch_release_bar: ProgressBar
+var _pitch_release_ideal_marker: ColorRect
 var _pitching_staff_panel: VBoxContainer
 var _pitcher_buttons: Array[Button] = []
 var _field_setup_toggle_button: Button
 var _field_setup_panel: VBoxContainer
 var _field_anchor_buttons: Array[Button] = []
-
 var _selected_pitch_index: int = 0
 var _pitch_target: Vector2 = DEFAULT_TARGET
 var _batting_aim: Vector2 = DEFAULT_BATTING_AIM
@@ -149,7 +145,6 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if _debug_paused:
 		get_tree().paused = false
-
 
 func _process(delta: float) -> void:
 	if _debug_paused:
@@ -268,11 +263,13 @@ func _throw_pitch() -> void:
 	var ball_setup: BallSetupDefinition = ContentDB.get_ball_setup(BALL_SETUP_ID)
 
 	if pitch == null or ball_setup == null:
+		if _match_mode:
+			_match_state.cancel_pitch()
 		push_error("Pitch/Bat Lab: required prototype content is missing.")
 		return
 
 	_cleanup_batted_ball()
-	_throw_number += 1
+	var candidate_throw_number: int = _throw_number + 1
 	_swing_consumed = false
 	_ai_swing_decided = false
 	_trajectory_points.clear()
@@ -289,14 +286,13 @@ func _throw_pitch() -> void:
 	var is_left_handed: bool = false
 	var execution_quality: float = _execution_quality
 	var applied_fatigue: float = _fatigue
+	var pitcher_state: PlayerMatchState
+	var pending_stamina_cost: float = 0.0
 	if _match_mode:
-		var pitcher_state: PlayerMatchState = _match_state.pitcher()
-		pitcher_state.spend_stamina(
-			MatchLabSupport.stamina_cost(pitch, _pitch_effort)
-		)
-		applied_fatigue = maxf(
-			pitcher_state.fatigue_ratio(),
-			_fatigue
+		pitcher_state = _match_state.pitcher()
+		pending_stamina_cost = MatchLabSupport.stamina_cost(
+			pitch,
+			_pitch_effort
 		)
 		var authored_quality: float = (
 			_pending_release_quality if _player_is_pitching() else 1.0
@@ -333,12 +329,20 @@ func _throw_pitch() -> void:
 		MOUND_ORIGIN,
 		target_position,
 		is_left_handed,
-		_throw_number
+		candidate_throw_number
 	)
 
 	if base_parameters == null:
-		_status_label.text = "Aim solver failed for %s." % pitch.display_name
+		PitchBatLabFeelSupport.recover_failed_pitch(self, pitch)
 		return
+
+	_throw_number = candidate_throw_number
+	if pitcher_state != null:
+		pitcher_state.spend_stamina(pending_stamina_cost)
+		applied_fatigue = maxf(
+			pitcher_state.fatigue_ratio(),
+			_fatigue
+		)
 
 	PitchBatLabFeelSupport.measure_nominal_pitch(
 		self,
@@ -522,7 +526,7 @@ func _finish_non_contact_pitch() -> void:
 	_live_label.text = (
 		"PLAY DEAD   next pitch automatic"
 		if not _match_state.between_batters
-		else "PLAY DEAD   SPACE: next batter"
+		else "PLAY DEAD   CLICK: next batter"
 	)
 	_refresh_config()
 
@@ -592,7 +596,9 @@ func _try_primary_fielder() -> void:
 		return
 	var ball_position: Vector3 = _batted_ball.global_position
 	var allowed_height: float = (
-		1.15 if _ball_play_resolver.state.has_grounded else 2.35
+		FieldingResolver.MAX_GROUND_CONTROL_HEIGHT_M
+		if _ball_play_resolver.state.has_grounded
+		else FieldingResolver.MAX_AIR_CONTROL_HEIGHT_M
 	)
 	if ball_position.y < 0.0 or ball_position.y > allowed_height:
 		return
@@ -701,11 +707,14 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 		advancement_text,
 		_base_state.display_string(),
 	]
-	_live_label.text = (
-		"PLAY DEAD   SPACE: continue"
-		if _match_mode
-		else "PLAY DEAD   B: next diagnostic launch   SPACE: next pitch"
-	)
+	if _match_mode:
+		_live_label.text = (
+			"PLAY DEAD   CLICK: next batter"
+			if _match_state.between_batters
+			else "PLAY DEAD   next pitch automatic"
+		)
+	else:
+		_live_label.text = "PLAY DEAD   B: next diagnostic launch   SPACE: next pitch"
 	PitchBatLabFeelSupport.finish_record(
 		self,
 		StringName(outcome.display_name().to_snake_case()),
@@ -758,7 +767,7 @@ func _on_plate_crossed(
 		_live_label.text = (
 			"PLAY DEAD   next pitch automatic"
 			if not _match_state.between_batters
-			else "PLAY DEAD   SPACE: next batter"
+			else "PLAY DEAD   CLICK: next batter"
 		)
 		_refresh_config()
 	PitchBatLabFeelSupport.finish_record(
@@ -782,13 +791,15 @@ func _on_flight_stopped(reason: StringName) -> void:
 		_live_label.text = (
 			"PLAY DEAD   next pitch automatic"
 			if not _match_state.between_batters
-			else "PLAY DEAD   SPACE: next batter"
+			else "PLAY DEAD   CLICK: next batter"
 		)
 		_refresh_config()
 
 	var continuation: String = "SPACE: continue"
 	if _match_mode and not _match_state.between_batters:
 		continuation = "Next Pitch automatic"
+	elif _match_mode:
+		continuation = "CLICK: next batter"
 	_status_label.text = "Pitch stopped: %s\n%s" % [
 		String(reason),
 		continuation,
@@ -926,7 +937,7 @@ func _start_new_match() -> void:
 		_contact_vector_draw.clear()
 	_apply_defensive_assignment()
 	_apply_role_camera()
-	_status_label.text = "TOP 1 — Player batting\nSPACE: begin first at-bat"
+	_status_label.text = "TOP 1 — Player batting\nLEFT CLICK: begin first at-bat"
 	_live_label.text = ""
 	_refresh_markers()
 	_refresh_config()
@@ -981,7 +992,6 @@ func _apply_role_camera() -> void:
 
 func _refresh_config() -> void:
 	PitchBatLabPresentation.refresh(self)
-
 func _refresh_markers() -> void:
 	PitchBatLabPresentation.refresh_markers(self)
 
