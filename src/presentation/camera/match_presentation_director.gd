@@ -17,7 +17,7 @@ enum Event {
 	OUTRO_COMPLETE,
 }
 
-const SHOT_SECONDS: float = 0.82
+const SHOT_SECONDS: float = 1.25
 const SETTLE_SECONDS: float = 0.38
 
 var mode: Mode = Mode.IDLE
@@ -25,14 +25,14 @@ var shot_sequence: Array[int] = []
 var shot_index: int = 0
 var elapsed_seconds: float = 0.0
 
-func begin_intro(seed: int) -> void:
-	shot_sequence = _select_shots(seed, true)
+func begin_intro(sequence_seed: int) -> void:
+	shot_sequence = _select_shots(sequence_seed, true)
 	shot_index = 0
 	elapsed_seconds = 0.0
 	mode = Mode.INTRO
 
-func begin_outro(seed: int) -> void:
-	shot_sequence = _select_shots(seed, false)
+func begin_outro(sequence_seed: int) -> void:
+	shot_sequence = _select_shots(sequence_seed, false)
 	shot_index = 0
 	elapsed_seconds = 0.0
 	mode = Mode.OUTRO
@@ -84,7 +84,10 @@ func skip() -> Event:
 		return Event.OUTRO_COMPLETE
 	return Event.NONE
 
-static func _select_shots(seed: int, include_batting: bool) -> Array[int]:
+static func _select_shots(
+	sequence_seed: int,
+	include_batting: bool
+) -> Array[int]:
 	var pool: Array[int] = [
 		MatchCameraDirector.Shot.ESTABLISHING,
 		MatchCameraDirector.Shot.SIDE,
@@ -93,13 +96,15 @@ static func _select_shots(seed: int, include_batting: bool) -> Array[int]:
 	if include_batting:
 		pool.append(MatchCameraDirector.Shot.BATTING)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = sequence_seed
 	for index in range(pool.size() - 1, 0, -1):
 		var swap_index: int = rng.randi_range(0, index)
 		var held: int = pool[index]
 		pool[index] = pool[swap_index]
 		pool[swap_index] = held
-	var shot_count: int = rng.randi_range(2, 3)
+	# Alternate deterministically so ordinary matches visibly use both the
+	# two-shot and three-shot packages rather than merely allowing either.
+	var shot_count: int = 2 + (absi(sequence_seed) % 2)
 	var result: Array[int] = []
 	for index in range(mini(shot_count, pool.size())):
 		result.append(pool[index])

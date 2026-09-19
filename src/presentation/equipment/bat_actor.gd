@@ -2,6 +2,7 @@ class_name BatActor
 extends Node3D
 
 const DEFAULT_SWING_SECONDS: float = 0.26
+const FOLLOW_THROUGH_SECONDS: float = 0.12
 
 var bats_left: bool = false
 var _pivot: Node3D
@@ -9,6 +10,7 @@ var _bat_axis: Node3D
 var _swing_elapsed: float = 0.0
 var _swing_duration: float = DEFAULT_SWING_SECONDS
 var _sweet_spot_progress: float = 0.44
+var _attack_angle_degrees: float = 7.0
 var _swinging: bool = false
 
 func _ready() -> void:
@@ -30,6 +32,7 @@ func play_swing(profile: SwingProfileDefinition) -> void:
 		0.25,
 		0.72
 	)
+	_attack_angle_degrees = profile.attack_angle_degrees
 	_swing_elapsed = 0.0
 	_swinging = true
 	_apply_stance()
@@ -46,7 +49,7 @@ func _process(delta: float) -> void:
 	_swing_elapsed += maxf(0.0, delta)
 	var progress: float = clampf(_swing_elapsed / _swing_duration, 0.0, 1.0)
 	var side: float = -1.0 if bats_left else 1.0
-	var load: float = smoothstep(0.0, 0.15, progress)
+	var load_phase: float = smoothstep(0.0, 0.15, progress)
 	var drive: float = smoothstep(
 		0.12,
 		minf(0.72, _sweet_spot_progress + 0.18),
@@ -57,15 +60,28 @@ func _process(delta: float) -> void:
 		1.0,
 		progress
 	)
-	var yaw_degrees: float = lerpf(-28.0, -38.0, load)
-	yaw_degrees = lerpf(yaw_degrees, 142.0, drive)
-	yaw_degrees = lerpf(yaw_degrees, 168.0, finish)
-	_pivot.rotation.y = deg_to_rad(side * yaw_degrees)
-	_bat_axis.rotation.z = deg_to_rad(
-		-side * lerpf(58.0, 84.0, drive) * (1.0 - finish * 0.12)
+	var yaw_degrees: float = lerpf(-64.0, -72.0, load_phase)
+	yaw_degrees = lerpf(yaw_degrees, 96.0, drive)
+	yaw_degrees = lerpf(yaw_degrees, 142.0, finish)
+	var tilt_degrees: float = (
+		lerpf(58.0, 78.0, drive) * (1.0 - finish * 0.16)
 	)
+	if _swing_elapsed > _swing_duration:
+		var recover: float = smoothstep(
+			0.0,
+			1.0,
+			(_swing_elapsed - _swing_duration) / FOLLOW_THROUGH_SECONDS
+		)
+		# Continue around the body to the equivalent stance angle instead of
+		# visibly reversing the bat back through the contact path.
+		yaw_degrees = lerpf(142.0, 296.0, recover)
+		tilt_degrees = lerpf(64.0, 58.0, recover)
+	_pivot.rotation.y = deg_to_rad(side * yaw_degrees)
+	_pivot.rotation.x = deg_to_rad(-_attack_angle_degrees)
+	_bat_axis.rotation.z = deg_to_rad(side * tilt_degrees)
 	if progress >= 1.0:
-		reset_swing()
+		if _swing_elapsed >= _swing_duration + FOLLOW_THROUGH_SECONDS:
+			reset_swing()
 
 func _build_bat() -> void:
 	_pivot = Node3D.new()
@@ -107,11 +123,15 @@ func _build_bat() -> void:
 
 func _apply_stance() -> void:
 	var side: float = -1.0 if bats_left else 1.0
-	# Batters face the mound along +Z. Right-handed presentation therefore
-	# starts at +X on the back/right shoulder; left-handed presentation mirrors.
-	_pivot.position = Vector3(side * 0.24, 1.15, 0.02)
-	_pivot.rotation = Vector3(0.0, deg_to_rad(side * -28.0), 0.0)
-	_bat_axis.rotation = Vector3(0.0, 0.0, deg_to_rad(-side * 58.0))
+	# From the behind-Batter camera, a right-handed Batter's back shoulder is
+	# -X; left-handed presentation mirrors the whole rig.
+	_pivot.position = Vector3(-side * 0.24, 1.15, 0.02)
+	_pivot.rotation = Vector3(
+		deg_to_rad(-_attack_angle_degrees),
+		deg_to_rad(side * -64.0),
+		0.0
+	)
+	_bat_axis.rotation = Vector3(0.0, 0.0, deg_to_rad(side * 58.0))
 
 static func _material(color: Color) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()

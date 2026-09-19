@@ -13,7 +13,7 @@ static func solve(
 	mound_origin: Vector3,
 	target_position: Vector3,
 	is_left_handed: bool,
-	seed: int
+	flight_seed: int
 ) -> PitchLaunchParameters:
 	var guide_target: Vector3 = target_position
 	var direct_distance_m: float = absf(target_position.z - mound_origin.z)
@@ -34,7 +34,7 @@ static func solve(
 			mound_origin,
 			guide_target,
 			is_left_handed,
-			seed
+			flight_seed
 		)
 		if candidate == null:
 			return null

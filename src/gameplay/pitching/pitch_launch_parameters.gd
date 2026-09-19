@@ -17,6 +17,7 @@ var instability_strength: float = 0.0
 var instability_frequency_hz: float = 3.0
 
 var hole_axis_ball_local: Vector3 = Vector3.RIGHT
+@warning_ignore("shadowed_global_identifier")
 var seed: int = 0
 
 func copy() -> PitchLaunchParameters:

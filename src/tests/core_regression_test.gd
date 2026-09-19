@@ -1,10 +1,13 @@
 extends Node
 
 var _failures: int = 0
+var _contact_cancel_actor: PitchFlightActor
 
 func _ready() -> void:
 	_test_pitch_release_quality()
 	_test_swept_swing_timeline()
+	_test_signed_contact_spin()
+	_test_pitch_actor_contact_cancellation()
 	_test_fatigue_curve_and_capacity()
 	_test_fatigue_pitch_outcomes()
 	_test_fresh_pitch_reachability()
@@ -136,6 +139,65 @@ func _test_swept_swing_timeline() -> void:
 		"an early swing should finish while the Pitch keeps advancing"
 	)
 
+func _test_pitch_actor_contact_cancellation() -> void:
+	var actor: PitchFlightActor = PitchFlightActor.new()
+	_contact_cancel_actor = actor
+	actor.segment_advanced.connect(_cancel_pitch_during_segment)
+	add_child(actor)
+	var parameters: PitchLaunchParameters = PitchLaunchParameters.new()
+	parameters.position = Vector3(0.0, 1.05, 2.0)
+	parameters.velocity = Vector3(0.0, 0.0, -18.0)
+	actor.start_pitch(parameters)
+	actor._physics_process(PitchFlightSolver.SUBSTEP_SECONDS * 2.0)
+	_check(
+		not actor.running and actor.state == null,
+		"contact-time Pitch cancellation should survive the rest of its physics frame"
+	)
+	remove_child(actor)
+	actor.queue_free()
+	_contact_cancel_actor = null
+
+func _test_signed_contact_spin() -> void:
+	var profile: SwingProfileDefinition = ContentDB.get_swing(&"swing.contact")
+	var pitch_state: PitchState = PitchState.new()
+	pitch_state.position = Vector3(0.0, 1.05, 0.18)
+	pitch_state.velocity = Vector3(0.0, 0.0, -18.0)
+	pitch_state.elapsed_time = 0.11
+	var undercut: SwingIntent = SwingIntent.new()
+	undercut.aim_point = Vector2(0.0, 0.90)
+	undercut.start_time_seconds = 0.0
+	var rollover: SwingIntent = SwingIntent.new()
+	rollover.aim_point = Vector2(0.0, 1.20)
+	rollover.start_time_seconds = 0.0
+	var undercut_result: ContactResult = ContactResolver.resolve_swept_segment(
+		Vector3(0.0, 1.05, 0.38),
+		0.10,
+		pitch_state,
+		undercut,
+		profile
+	)
+	var rollover_result: ContactResult = ContactResolver.resolve_swept_segment(
+		Vector3(0.0, 1.05, 0.38),
+		0.10,
+		pitch_state,
+		rollover,
+		profile
+	)
+	_check(
+		undercut_result != null
+		and rollover_result != null
+		and undercut_result.backspin_rad_s > 0.0
+		and rollover_result.backspin_rad_s < 0.0,
+		"vertical contact offset should produce signed backspin and topspin"
+	)
+
+func _cancel_pitch_during_segment(
+	_previous_position: Vector3,
+	_previous_elapsed_seconds: float
+) -> void:
+	if _contact_cancel_actor != null:
+		_contact_cancel_actor.reset_pitch()
+
 func _test_fatigue_curve_and_capacity() -> void:
 	var previous_pressure: float = 0.0
 	for step in range(21):
@@ -191,12 +253,12 @@ func _test_fatigue_pitch_outcomes() -> void:
 	var tired_crossings: int = 0
 	var sample_count: int = 32
 	for sample in range(sample_count):
-		var seed: int = 1000 + sample
+		var sample_seed: int = 1000 + sample
 		var fresh: PitchLaunchParameters = PitchExecutionModel.apply(
-			base, 1.0, 0.50, 1.0, 1.05, pitch.category, seed
+			base, 1.0, 0.50, 1.0, 1.05, pitch.category, sample_seed
 		)
 		var tired: PitchLaunchParameters = PitchExecutionModel.apply(
-			base, 1.0, 1.0, 1.0, 1.05, pitch.category, seed
+			base, 1.0, 1.0, 1.0, 1.05, pitch.category, sample_seed
 		)
 		var fresh_crossing: PitchCrossingResult = (
 			PitchTrajectorySimulator.simulate_to_plane(fresh, 0.0)
@@ -385,6 +447,13 @@ func _test_match_presentation_sequence() -> void:
 		first.shot_sequence.size() >= 2
 		and first.shot_sequence.size() <= 3,
 		"a basic game intro should automatically select two or three shots"
+	)
+	var two_shot: MatchPresentationDirector = MatchPresentationDirector.new()
+	two_shot.begin_intro(218)
+	_check(
+		two_shot.shot_sequence.size() == 2
+		and first.shot_sequence.size() == 3,
+		"ordinary match seeds should deliberately exercise two- and three-shot intros"
 	)
 	var unique_shots: Dictionary = {}
 	for shot in first.shot_sequence:

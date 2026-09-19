@@ -45,7 +45,8 @@ The repository now contains:
 - per-Pitch effort control
 - timed player release, continuous action-mapped aim, and controller basics
 - reactive mouse batting on the mathematical contact plane
-- automatic within-at-bat Pitch cadence and visible Pitcher telegraph
+- one confirmation per new offensive Batter, followed by automatic
+  within-at-bat Pitch cadence and a visible Pitcher telegraph
 - nonlinear late-game fatigue with plate-reach protection
 - clickable four-player pitching-staff management
 - full-simulation debug pause
@@ -54,7 +55,7 @@ The repository now contains:
 - shared hold/release mouse pitching and overhead 3×3 Field Setup
 - varied Pitcher rhythm and readable fast/off-speed identity
 - post-plate Pitch visibility, hardened back wall, and tighter Fielder/Pitcher defense
-- a visible Pitch receiver; missed Swings no longer stop the Pitch
+- a debug-only Pitch receiver; missed Swings no longer stop the Pitch
 - automatic dead-ball flow with player-controlled defensive Pitch tempo
 - short automatic game intro and win/loss broadcast sequences
 - actionable swing miss feedback and smooth camera direction

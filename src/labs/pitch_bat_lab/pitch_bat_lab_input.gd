@@ -114,6 +114,12 @@ static func _handle_pointer_event(
 				PitchBatLabFeelSupport.commit_pitch_release(lab)
 				return true
 		return false
+	if lab._match_mode and lab._player_is_batting() and lab._awaiting_batter_confirm:
+		if event is InputEventMouseButton:
+			var ready_click: InputEventMouseButton = event as InputEventMouseButton
+			if ready_click.pressed and ready_click.button_index == MOUSE_BUTTON_LEFT:
+				PitchBatLabFeelSupport.confirm_batter_ready(lab)
+			return true
 	if event is InputEventMouseMotion:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
 		return PitchBatLabFeelSupport.set_batting_aim_from_screen(
@@ -145,6 +151,17 @@ static func _handle_action_event(
 	lab: PitchBatLab,
 	event: InputEvent
 ) -> bool:
+	if (
+		lab._match_mode
+		and lab._player_is_batting()
+		and lab._awaiting_batter_confirm
+		and (
+			event.is_action_pressed(&"match_advance", false, true)
+			or event.is_action_pressed(&"swing_contact", false, true)
+		)
+	):
+		PitchBatLabFeelSupport.confirm_batter_ready(lab)
+		return true
 	if event.is_action_pressed(&"swing_contact", false, true):
 		if not lab._match_mode or lab._player_is_batting():
 			lab._attempt_swing(lab.CONTACT_SWING_ID)

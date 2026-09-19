@@ -118,7 +118,10 @@ func _physics_process(delta: float) -> void:
 			stop_pitch(&"below_world")
 			break
 
-	global_position = state.position
+	# A segment callback can resolve contact and reset this actor immediately.
+	# Control then returns here in the same physics frame with no live state.
+	if state != null:
+		global_position = state.position
 
 func _begin_plate_follow_through(
 	crossing_point: Vector3,

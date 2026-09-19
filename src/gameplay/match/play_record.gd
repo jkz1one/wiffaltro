@@ -15,6 +15,7 @@ var effort: float = 1.0
 var fatigue: float = 0.0
 var execution_quality: float = 1.0
 var release_offset_seconds: float = 0.0
+@warning_ignore("shadowed_global_identifier")
 var seed: int = 0
 var crossed_plate: bool = false
 var crossing_point: Vector2 = Vector2.ZERO

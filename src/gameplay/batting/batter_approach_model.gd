@@ -65,10 +65,10 @@ func decide(
 	balls: int,
 	strikes: int,
 	plate_speed_mps: float,
-	seed: int
+	decision_seed: int
 ) -> Dictionary:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = decision_seed
 	var awareness: float = awareness_for(pitch, target)
 	var body_side: float = (
 		-1.0

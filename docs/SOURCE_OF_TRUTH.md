@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.10
-**Status:** FROZEN BASELINE WITH POST-GATE ROADMAP/PLAYER-CARD AMENDMENT
-**Supersedes:** v0.4.9 and all earlier planning notes
+**Version:** v0.4.11
+**Status:** FROZEN BASELINE WITH MATCH-CADENCE/PRESENTATION AMENDMENT
+**Supersedes:** v0.4.10 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -168,14 +168,17 @@ contact region, left click commits to Contact, and right click commits to
 Power. Keyboard/controller reticle aim remains an equivalent supported input,
 not merely a diagnostic path.
 
-Match flow does not require a separate ready/accept input for each at-bat or
-after a terminal result. After a readable dead-ball hold, the next batter,
-half-inning, and opponent delivery advance automatically. Opponent Pitcher set
-and windup cadence varies within a bounded readable range so delivery timing
-does not become metronomic. When the player is pitching, the automatic hold
-returns to a ready state and the player sets the tempo by choosing when to
-begin the next click-and-hold delivery. Pitch, aim, effort, Pitcher, and legal
-defensive choices remain available during the appropriate ready state.
+Each player-controlled offensive plate appearance begins in a deliberate
+ready state. The player confirms once after the current Batter steps in, which
+preserves a future pre-at-bat window for consumables and tactical choices.
+Pitches within that same plate appearance continue automatically after a
+readable dead-ball hold; there is no extra acceptance click between Pitches.
+Opponent Pitcher set and windup cadence varies within a bounded readable range
+so delivery timing does not become metronomic. When the player is pitching,
+the automatic hold returns to a ready state and the player sets the tempo by
+choosing when to begin the next click-and-hold delivery. Pitch, aim, effort,
+Pitcher, and legal defensive choices remain available during the appropriate
+ready state.
 
 The batting camera uses a modest handed over-shoulder angle rather than a
 perfectly centered tunnel. This improves depth perception without changing the
@@ -1263,6 +1266,8 @@ Audio should enter early:
 A match begins with a short, skippable broadcast-style introduction. The game
 automatically selects two or three views from an authored camera pool and
 displays a temporary game-start title before settling into the role camera.
+Ordinary intros must actually vary between two-shot and three-shot packages;
+shots hold long enough to read rather than cutting rapidly.
 The player does not select these views. Game completion receives the same basic
 treatment with a win/loss title and final score.
 

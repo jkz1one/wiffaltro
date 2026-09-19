@@ -150,10 +150,27 @@ static func _finish_intro(lab: PitchBatLab, snap_camera: bool) -> void:
 		lab._camera_director.snap(lab._camera)
 	PitchBatLabPresentation.hide_match_presentation(lab)
 	if lab._player_is_batting():
-		begin_ai_delivery(lab)
+		lab._awaiting_batter_confirm = true
+		lab._status_label.text = (
+			"%s steps in\nLeft click, SPACE, or controller A to begin the at-bat."
+			% lab._match_state.batter().definition.display_name
+		)
+		lab._refresh_config()
 	else:
+		lab._awaiting_batter_confirm = false
 		lab._status_label.text = "Aim, then hold click or SPACE to deliver"
 		lab._refresh_config()
+
+static func confirm_batter_ready(lab: PitchBatLab) -> void:
+	if (
+		not lab._awaiting_batter_confirm
+		or not lab._player_is_batting()
+		or lab._match_state == null
+		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
+	):
+		return
+	lab._awaiting_batter_confirm = false
+	begin_ai_delivery(lab)
 
 static func begin_ai_delivery(lab: PitchBatLab) -> void:
 	if (
@@ -183,7 +200,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 	match lab._match_state.phase:
 		MatchState.Phase.PRE_PITCH:
 			if lab._player_is_batting():
-				begin_ai_delivery(lab)
+				confirm_batter_ready(lab)
 			else:
 				lab._throw_pitch()
 		MatchState.Phase.PLAY_DEAD, MatchState.Phase.INNING_TRANSITION:
@@ -208,13 +225,17 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 				lab._selected_pitch_index = 0
 				lab._pitch_effort = 1.0
 				MatchLabSupport.assign_ai_defense_for_half(lab)
+			lab._awaiting_batter_confirm = (
+				lab._player_is_batting()
+				and (completed_plate_appearance or changed_half)
+			)
 			lab._apply_defensive_assignment()
 			lab._apply_role_camera()
 			if lab._match_state.phase == MatchState.Phase.GAME_END:
 				begin_match_outro(lab)
 			else:
 				var next_prompt: String = (
-					"Pitcher setting for next at-bat"
+					"Click to begin the next at-bat"
 					if lab._player_is_batting()
 					else "Aim, then hold click or SPACE to deliver"
 				)
@@ -227,6 +248,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			if (
 				lab._player_is_batting()
 				and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+				and not lab._awaiting_batter_confirm
 			):
 				begin_ai_delivery(lab)
 		MatchState.Phase.GAME_END:
@@ -391,7 +413,7 @@ static func start_record(
 	pitch: PitchDefinition,
 	fatigue: float,
 	execution_quality: float,
-	seed: int
+	play_seed: int
 ) -> void:
 	var record: PlayRecord = PlayRecord.new()
 	record.play_number = lab._throw_number
@@ -401,7 +423,7 @@ static func start_record(
 	record.fatigue = fatigue
 	record.execution_quality = execution_quality
 	record.release_offset_seconds = lab._last_release_offset_seconds
-	record.seed = seed
+	record.seed = play_seed
 	if lab._match_mode and lab._match_state != null:
 		record.inning = lab._match_state.inning
 		record.top_half = lab._match_state.top_half

@@ -58,6 +58,8 @@ This is a functional match simulator and shared debug lab, not a polished game s
 
 - During the intro: left click, `Space`, or `Escape` skips to gameplay
 - During automatic dead-ball holds: no acceptance input is required
+- When a new player-controlled Batter steps in: left click, `Space`, or
+  controller A confirms that plate appearance once
 - `Space` while pitching: hold to start the delivery and release near the
   meter's center mark
 - Mouse movement: position batting coverage on the contact plane
@@ -97,6 +99,10 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `G`: cycle empty / runner-on-third / bases-loaded test states
 - `B`: launch the next direct Ball-in-Play diagnostic
 - `R`: reset lab conditions
+
+Mechanics Lab must preserve its manually selected camera through contact and
+ball-in-play so a chosen angle can be inspected. Match Mode retains automatic
+role and contact camera direction.
 
 ## Pitch keys
 
@@ -143,18 +149,26 @@ the full setup. The widened depth should improve timing without making poor
 X/Y aim succeed.
 
 Swing deliberately too early and too late. On a miss, the Pitch must keep
-moving, cross the plate, continue visually to the receiver ring, and only then
+moving, cross the plate, continue visually to the receiver catch point, and
+only then
 enter the dead-ball flow. A miss may be identified when the authored Swing
 window closes, but that identification must not stop authoritative Pitch
 flight. Fair contact and fouls should still end the Pitch at the resolved
 encounter. Contact should feel quicker than the prior slow placeholder Swing,
-with Power remaining slightly longer and less forgiving.
+with Power remaining slightly longer and less forgiving. Fair contact must not
+produce a `PitchFlightActor` null-state error. The bat should begin behind the
+handed back shoulder, drive forward through contact, and continue through a
+short recovery instead of snapping back to stance. The large receiver outline
+must remain hidden unless the explicit debug layer is enabled.
 
-Starting a new match should automatically play two or three short camera views
-with `GAME START`, then settle into the correct batting camera and begin the
-opponent delivery without a ready click. The sequence must be skippable. Taken
+Starting a new match should automatically play two or three readable camera
+views with `GAME START`, then settle into the correct batting camera and wait
+for the Batter-ready confirmation. Across restarts, both two-view and
+three-view packages should occur. The sequence must be skippable. Taken
 Pitches, fouls, misses, walks, strikeouts, hits, outs, new batters, and inning
-changes should all flow after a readable automatic hold. The camera should
+changes should all flow after a readable automatic hold. A new
+player-controlled Batter waits for one confirmation; additional Pitches in
+the same plate appearance do not. The camera should
 switch to the field on contact and return for the next role. Counts must
 persist within a plate appearance, and the batter must advance only when that
 plate appearance ends.

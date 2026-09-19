@@ -7,7 +7,7 @@ static func build_nominal(
 	mound_origin: Vector3,
 	target_position: Vector3,
 	is_left_handed: bool,
-	seed: int
+	flight_seed: int
 ) -> PitchLaunchParameters:
 	if pitch == null:
 		push_error("PitchLaunchBuilder: pitch is null.")
@@ -23,7 +23,7 @@ static func build_nominal(
 
 	var parameters: PitchLaunchParameters = PitchLaunchParameters.new()
 	parameters.pitch_id = pitch.id
-	parameters.seed = seed
+	parameters.seed = flight_seed
 
 	var release_offset: Vector3 = pitch.delivery_profile.release_offset_pitcher_frame_m
 	parameters.position = mound_origin + CoordinateFrame.pitcher_frame_vector(

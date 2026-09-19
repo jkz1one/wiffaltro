@@ -149,6 +149,7 @@ static func build_environment(lab: PitchBatLab) -> void:
 	)
 	lab._pitch_target_marker = geometry.pitch_target_marker
 	lab._batting_aim_marker = geometry.batting_aim_marker
+	lab._receiver_marker = geometry.receiver_marker
 
 	lab._camera = Camera3D.new()
 	lab._camera.name = "LabCamera"
@@ -253,6 +254,8 @@ static func refresh(lab: PitchBatLab) -> void:
 	lab._live_label.visible = lab._debug_overlay_visible
 	lab._trajectory_draw.visible = lab._debug_overlay_visible
 	lab._contact_vector_draw.visible = lab._debug_overlay_visible
+	if lab._receiver_marker != null:
+		lab._receiver_marker.visible = lab._debug_overlay_visible
 	refresh_controls(lab)
 
 static func refresh_markers(lab: PitchBatLab) -> void:
@@ -293,7 +296,8 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 	if lab._match_mode:
 		lab._controls_label.text = (
 			"F1 debug   F2 Lab   F3 records   P pause   V camera   R new match\n"
-			+ "BATTING: mouse tracks aim   left click Contact   right click Power\n"
+			+ "BATTING: click once for each new Batter; then click Contact / Power\n"
+			+ "Mouse tracks aim   left click Contact   right click Power\n"
 			+ "WASD/left stick aim   Z/A Contact   X/X Power\n"
 			+ "PITCHING: hold left click or SPACE, release on cue   1–9 Pitch   -/= effort\n"
 			+ "Dead balls advance automatically   FIELD VIEW positions   F changes Fielder"
@@ -365,7 +369,11 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 			"FIELD SETUP     choose an anchor     RETURN TO PITCH when ready"
 		)
 	elif lab._player_is_batting():
-		var cadence_text: String = "PITCHER READYING"
+		var cadence_text: String = (
+			"CLICK TO BEGIN AT-BAT"
+			if lab._awaiting_batter_confirm
+			else "PITCHER READYING"
+		)
 		if (
 			lab._at_bat_cadence != null
 			and lab._at_bat_cadence.state

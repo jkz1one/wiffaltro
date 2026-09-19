@@ -233,7 +233,10 @@ static func _resolve_at_contact(
 	)
 
 	result.exit_velocity = toward_field
-	result.backspin_rad_s = maxf(0.0, vertical_ratio) * 110.0 * quality
+	# Ball-above-barrel contact produces backspin; ball-below-barrel contact
+	# produces topspin. Keep this signed so the physical BIP flight receives
+	# both sides of the oblique-impact result.
+	result.backspin_rad_s = vertical_ratio * 110.0 * quality
 	return result
 
 static func _swing_center_z(

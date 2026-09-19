@@ -309,7 +309,7 @@ This revision supersedes the earlier one-acceptance and click-through flow.
 - [x] missed Swings leave the Pitch in flight for the plate call and visible
       receiver continuation
 - [x] a non-authoritative receiver ring gives taken and missed Pitches a visual
-      destination
+      destination in the explicit debug layer without obstructing either role
 - [x] independent BatActor Swing timing is shorter and synchronized to the
       authored profile
 - [x] right- and left-handed Batter box, hands, shoulder, bat, and Swing
@@ -317,11 +317,23 @@ This revision supersedes the earlier one-acceptance and click-through flow.
 - [x] opponent Swing commitment uses visible ball timing with lead time rather
       than snapshot contact
 - [x] player Pitch release meter reaches its ideal and auto-release sooner
-- [x] all dead-ball, batter-change, and inning-transition holds advance without
-      an additional acceptance click
+- [x] dead-ball and inning-transition holds advance automatically; each new
+      player-controlled offensive Batter receives one explicit confirmation,
+      while Pitches within that plate appearance need no extra acceptance
 - [x] player pitching tempo remains deliberate because the next Pitch begins
       only when the player starts the delivery
 - [x] automatic seeded two-to-three-shot `GAME START` presentation
+- [x] deterministic two/three-shot variation with longer readable intro holds
+- [x] guarded contact-time Pitch reset against same-frame null-state access
+- [x] handed bat stance now begins behind the back shoulder and completes a
+      short continuous follow-through instead of snapping to rest
+- [x] BatActor visibly uses the authored Swing attack angle while remaining
+      independent from authoritative mathematical contact
+- [x] oblique contact now passes signed backspin/topspin into physical BIP
+- [x] Mechanics Lab preserves its manually selected camera through contact;
+      Match Mode retains automatic broadcast camera changes
+- [x] narrowed Godot warning suppression to support-owned lab fields and
+      removed built-in-shadowing names from the touched gameplay paths
 - [x] automatic seeded win/loss and final-score presentation
 - [x] intro/outro input lock, skip handling, and role-camera settlement
 - [x] deterministic regression coverage for swept contact, early miss

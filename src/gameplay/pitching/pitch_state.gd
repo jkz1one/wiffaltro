@@ -7,6 +7,7 @@ var orientation := Quaternion.IDENTITY
 var angular_velocity := Vector3.ZERO
 var elapsed_time: float = 0.0
 var pitch_id: StringName
+@warning_ignore("shadowed_global_identifier")
 var seed: int = 0
 
 func copy() -> PitchState:

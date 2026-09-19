@@ -733,7 +733,10 @@ The rendered bat is **not** authoritative for gameplay contact.
 
 Use a mathematical arcade contact model.
 
-The bat animation exists for presentation and synchronization.
+The bat animation exists for presentation and synchronization. Its handed
+stance, swing direction, and visible swing-plane tilt should read from the same
+`SwingProfileDefinition` handedness and attack angle used by the resolver, but
+the mesh remains non-authoritative.
 
 Do not determine whether a swing succeeds based on tiny collider overlap at engine physics frequency.
 
@@ -901,7 +904,11 @@ Simplified concept:
 
 - contact below ball center → more lift/backspin
 - contact near center → line-drive tendency
-- contact above ball center → ground-ball tendency
+- contact above ball center → ground-ball/topspin tendency
+
+Preserve the sign of this spin tendency when launching the physical ball.
+Clamping negative offset to zero spin erases a useful, readable distinction
+between undercut fly contact and rollover ground contact.
 
 This produces understandable arcade outcomes while retaining a physical basis.
 
@@ -1410,13 +1417,18 @@ This is the central gameplay pipeline.
 
 Dead-ball holds are state-driven and advance automatically. They use separate
 bounded timing ranges for another Pitch in the same plate appearance, a new
-batter, and an inning transition. On defense, completion of the hold returns
+batter, and an inning transition. A completed player-offense plate appearance
+returns to a one-time Batter-ready confirmation before the opponent begins its
+delivery; subsequent Pitches in that plate appearance need no confirmation.
+This is the future pre-at-bat consumable/tactical boundary. On defense,
+completion of the hold returns
 the player to `PRE_PITCH`; the player controls tempo by choosing when to begin
 the next delivery. On offense, the opponent delivery director begins its own
 bounded set/windup cadence.
 
 `MatchPresentationDirector` is a match-local presentation state machine. It
 selects two or three unique, seeded intro/outro shots from an authored pool,
+deliberately varies the package length between matches, uses readable holds,
 blocks gameplay during the sequence, returns through the correct role camera,
 and exposes a skip path. It observes `MatchState`; it does not own innings,
 scores, results, or gameplay timing. High-stakes cinematic packages remain a

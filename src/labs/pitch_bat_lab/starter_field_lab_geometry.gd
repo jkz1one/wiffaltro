@@ -3,6 +3,7 @@ extends Node3D
 
 var pitch_target_marker: MeshInstance3D
 var batting_aim_marker: Node3D
+var receiver_marker: Node3D
 
 func build(
 	field: FieldDefinition,
@@ -116,6 +117,9 @@ func _build_strike_zone(
 	)
 
 func _build_pitch_receiver() -> void:
+	receiver_marker = Node3D.new()
+	receiver_marker.name = "PitchReceiverDebug"
+	add_child(receiver_marker)
 	var receiver_color: Color = Color(0.16, 0.22, 0.23)
 	var receiver_z: float = PitchFlightActor.RECEIVER_PLANE_Z
 	var half_width: float = 0.95
@@ -123,30 +127,31 @@ func _build_pitch_receiver() -> void:
 	var top_y: float = 1.98
 	var center_y: float = (bottom_y + top_y) * 0.5
 	var thickness: float = 0.045
-	_add_box(
-		"ReceiverLeft",
+	_add_marker_bar(
+		receiver_marker,
 		Vector3(-half_width, center_y, receiver_z),
 		Vector3(thickness, top_y - bottom_y, thickness),
 		receiver_color
 	)
-	_add_box(
-		"ReceiverRight",
+	_add_marker_bar(
+		receiver_marker,
 		Vector3(half_width, center_y, receiver_z),
 		Vector3(thickness, top_y - bottom_y, thickness),
 		receiver_color
 	)
-	_add_box(
-		"ReceiverTop",
+	_add_marker_bar(
+		receiver_marker,
 		Vector3(0.0, top_y, receiver_z),
 		Vector3(half_width * 2.0, thickness, thickness),
 		receiver_color
 	)
-	_add_box(
-		"ReceiverBottom",
+	_add_marker_bar(
+		receiver_marker,
 		Vector3(0.0, bottom_y, receiver_z),
 		Vector3(half_width * 2.0, thickness, thickness),
 		receiver_color
 	)
+	receiver_marker.visible = false
 
 func _build_aim_markers(
 	contact_aim_size: Vector2,

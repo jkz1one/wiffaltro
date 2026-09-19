@@ -58,7 +58,7 @@ static func apply(
 	control_difficulty: float,
 	execution_difficulty: float,
 	pitch_category: int,
-	seed: int,
+	execution_seed: int,
 	plate_z: float = 0.0
 ) -> PitchLaunchParameters:
 	var result: PitchLaunchParameters = base_parameters.copy()
@@ -71,7 +71,7 @@ static func apply(
 	var is_breaking: bool = pitch_category == PitchDefinition.Category.BREAKING
 
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = execution_seed
 
 	# Heavy tails belong to the danger band. Below 50% fatigue, the small
 	# pressure value is deliberately too weak to dominate normal execution.

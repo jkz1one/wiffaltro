@@ -1,6 +1,7 @@
 class_name PitchBatLab
 extends Node3D
 
+@warning_ignore_start("unused_private_class_variable")
 const PITCH_IDS: Array[StringName] = [
 	&"pitch.overhand_four_seam",
 	&"pitch.overhand_sinker",
@@ -55,6 +56,7 @@ var _contact_vector_draw: TrajectoryDebugDraw
 var _trajectory_points: Array[Vector3] = []
 var _pitch_target_marker: MeshInstance3D
 var _batting_aim_marker: Node3D
+var _receiver_marker: Node3D
 var _camera: Camera3D
 var _camera_mode: int = 0
 var _camera_director: MatchCameraDirector
@@ -113,11 +115,14 @@ var _play_records: Array[PlayRecord] = []
 var _at_bat_cadence: AtBatCadenceController
 var _batter_approach: BatterApproachModel
 var _ai_pitch_preselected: bool = false
+var _awaiting_batter_confirm: bool = true
 var _last_ai_awareness: float = 0.0
 var _last_ai_read_text: String = "No read"
 var _field_setup_active: bool = false
 var _debug_paused: bool = false
 var _status_before_pause: String = ""
+
+@warning_ignore_restore("unused_private_class_variable")
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -469,20 +474,21 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 	_previous_batted_position = launch_data.position
 	_primary_fielder.begin_play()
 
-	_camera_mode = 3
-	PitchBatLabPresentation.apply_camera_mode(self)
+	if _match_mode:
+		_camera_mode = 3
+		PitchBatLabPresentation.apply_camera_mode(self)
 
 func _on_batted_surface_contact(
 	surface_id: StringName,
-	position: Vector3
+	contact_position: Vector3
 ) -> void:
 	if _ball_play_resolver == null:
 		return
 	match surface_id:
 		&"ground":
-			_ball_play_resolver.record_ground_contact(position)
+			_ball_play_resolver.record_ground_contact(contact_position)
 		&"back_wall":
-			_ball_play_resolver.record_back_wall_contact(position)
+			_ball_play_resolver.record_back_wall_contact(contact_position)
 		&"live_object":
 			_ball_play_resolver.record_live_object_contact(&"starter_pole")
 
@@ -649,10 +655,10 @@ func _on_plate_crossed(
 	var call_text: String = ""
 	var swing_feedback: String = ""
 	if _match_mode:
-		var call: StringName
+		var plate_call: StringName
 		if _swing_consumed:
 			var miss: ContactResult = PitchBatLabSwingSupport.ensure_miss(self)
-			call = _match_state.record_strike(true)
+			plate_call = _match_state.record_strike(true)
 			if miss != null:
 				swing_feedback = "   %s" % miss.miss_reason_name()
 		else:
@@ -662,8 +668,8 @@ func _on_plate_crossed(
 				and point.y >= ZONE_MIN_Y
 				and point.y <= ZONE_MAX_Y
 			)
-			call = _match_state.record_called_pitch(in_zone)
-		call_text = "   %s" % String(call).replace("_", " ").to_upper()
+			plate_call = _match_state.record_called_pitch(in_zone)
+		call_text = "   %s" % String(plate_call).replace("_", " ").to_upper()
 
 	_status_label.text = (
 		"PLATE — %s%s%s\n"
@@ -850,6 +856,7 @@ func _start_new_match() -> void:
 	_ai_swing_decided = false
 	_last_ai_pitch_index = -1
 	_ai_pitch_preselected = false
+	_awaiting_batter_confirm = true
 	_field_setup_active = false
 	_last_ai_awareness = 0.0
 	_last_ai_read_text = "No read"

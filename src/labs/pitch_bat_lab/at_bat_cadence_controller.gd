@@ -31,9 +31,9 @@ var elapsed_seconds: float = 0.0
 var active_delivery_seconds: float = DELIVERY_SECONDS
 var active_hold_seconds: float = DEAD_BALL_HOLD_SECONDS
 
-func begin_delivery(seed: int = 0) -> void:
+func begin_delivery(cadence_seed: int = 0) -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = cadence_seed
 	active_delivery_seconds = rng.randf_range(
 		MIN_DELIVERY_SECONDS,
 		MAX_DELIVERY_SECONDS
@@ -48,12 +48,12 @@ func mark_pitch_live() -> void:
 	elapsed_seconds = 0.0
 
 func hold_dead_ball(
-	seed: int = 0,
+	cadence_seed: int = 0,
 	between_batters: bool = false,
 	inning_transition: bool = false
 ) -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = cadence_seed
 	if inning_transition:
 		active_hold_seconds = rng.randf_range(
 			MIN_INNING_TRANSITION_SECONDS,
