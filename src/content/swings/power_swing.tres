@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SwingProfileDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/swing_profile_definition.gd" id="1_swing"]
+
+[resource]
+script = ExtResource("1_swing")
+id = &"swing.power"
+display_name = "Power Swing"
+contact_radius_x_m = 0.24
+contact_radius_y_m = 0.22
+contact_depth_m = 0.42
+bat_speed_mps = 31.0
+attack_angle_degrees = 11.0
+exit_velocity_multiplier = 1.10
+minimum_contact_quality = 0.22
