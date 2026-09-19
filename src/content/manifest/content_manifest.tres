@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ContentManifest" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/content/manifest/content_manifest.gd" id="1_manifest"]
+[ext_resource type="Resource" path="res://src/content/pitches/overhand_four_seam.tres" id="2_pitch"]
+[ext_resource type="Resource" path="res://src/content/players/debug_pitcher.tres" id="3_player"]
+[ext_resource type="Resource" path="res://src/content/deliveries/overhand.tres" id="4_delivery"]
+[ext_resource type="Resource" path="res://src/content/balls/standard_perforated_ball.tres" id="5_aero"]
+[ext_resource type="Resource" path="res://src/content/balls/fresh_ball.tres" id="6_setup"]
+
+[resource]
+script = ExtResource("1_manifest")
+pitches = [ExtResource("2_pitch")]
+players = [ExtResource("3_player")]
+deliveries = [ExtResource("4_delivery")]
+ball_aero_profiles = [ExtResource("5_aero")]
+ball_setups = [ExtResource("6_setup")]
