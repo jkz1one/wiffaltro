@@ -121,6 +121,19 @@ static func _test_field_layout(check: Callable) -> void:
 		and starter_field.is_fielder_anchor_available(7),
 		"the starter field should reserve the shallow/middle center Pitcher sightline"
 	)
+	var all_legal_anchors_clear_lane: bool = true
+	for anchor_index in range(9):
+		if starter_field.is_fielder_anchor_available(anchor_index):
+			var anchor: Vector3 = starter_field.fielder_anchor(anchor_index)
+			all_legal_anchors_clear_lane = (
+				all_legal_anchors_clear_lane
+				and (absf(anchor.x) >= 5.5 or anchor.z >= starter_field.deep_anchor_z_m)
+			)
+	check.call(
+		all_legal_anchors_clear_lane
+		and starter_field.fielder_anchor(0).z < PitchBatLab.MOUND_ORIGIN.z,
+		"shallow side anchors should be legal while the delivery sightline stays clear"
+	)
 	check.call(
 		PitcherDefense.REACTION_RADIUS_M <= 0.65,
 		"Pitcher defense should remain a deliberately small reaction envelope"
@@ -171,19 +184,33 @@ static func _test_pitcher_swept_reaction(check: Callable) -> void:
 	)
 
 static func _test_defender_territory(check: Callable) -> void:
-	var fielder: FielderController = FielderController.new()
-	fielder.set_pitcher_lane(PitchBatLab.MOUND_ORIGIN.z)
-	fielder.set_anchor(Vector3(0.0, 0.0, 14.0))
-	check.call(
-		fielder.territory_min_z > PitchBatLab.MOUND_ORIGIN.z,
-		"a behind-mound Fielder should stay out of the Pitcher's comebacker lane"
-	)
-	fielder.set_anchor(Vector3(0.0, 0.0, 8.5))
-	check.call(
-		fielder.territory_min_z == -INF,
-		"a deliberately shallow Fielder should retain the authored shallow territory"
-	)
-	fielder.free()
+	var mound: Vector3 = PitchBatLab.MOUND_ORIGIN
+	var starts: Array[Vector3] = [
+		mound + Vector3(0.0, 0.0, 5.0),
+		mound + Vector3(0.0, 0.0, -5.0),
+		mound + Vector3(5.5, 0.0, 0.0),
+		mound + Vector3(-5.5, 0.0, 0.0),
+	]
+	for start in starts:
+		var target: Vector3 = mound - (start - mound)
+		var current: Vector3 = start
+		var clear: bool = true
+		for _frame in range(300):
+			var next: Vector3 = DefenderSpacing.step_around_mound(current, target, mound, 0.1)
+			clear = clear and DefenderSpacing.segment_distance_xz(
+				mound, current, next
+			) >= DefenderSpacing.MOUND_CLEARANCE_M - 0.00001
+			current = next
+		check.call(
+			clear and current.distance_to(target) < 0.15,
+			"a Fielder should reach the other side of the mound without crossing the Pitcher"
+		)
+		var large_step: Vector3 = DefenderSpacing.step_around_mound(start, target, mound, 20.0)
+		check.call(
+			DefenderSpacing.segment_distance_xz(mound, start, large_step)
+			>= DefenderSpacing.MOUND_CLEARANCE_M,
+			"a large movement step must not tunnel through the Pitcher"
+		)
 
 static func _test_roster_handedness_mix(check: Callable) -> void:
 	var match_state: MatchState = MatchLabSupport.create_match(

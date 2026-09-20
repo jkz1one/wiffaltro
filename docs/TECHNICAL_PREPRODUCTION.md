@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.14
+**Version:** v0.1.15
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -1282,22 +1282,34 @@ The user's pre-pitch strategic choice selects one anchor.
 Authored anchors must respect both the Pitcher exclusion radius and the delivery
 sightline. The starter field disables Shallow Center and Middle Center as
 `PITCHER LANE`; Deep Center remains legal. Direct selection, cycling, defaults,
-and AI placement must all honor the same availability rule.
+and AI placement must all honor the same availability rule. Shallow side
+anchors may be in front of the mound in depth but must stay laterally clear of
+Pitch trajectories and batting/pitching camera sightlines. The starter field
+uses X +/-5.5 m and depth rows 8.5, 14.0, and 19.5 m. Tests sample the actual
+Pitch solver across all nine Pitches, both throwing hands, corner targets, and
+fresh/stressed execution. Passing that finite matrix is not proof of a global
+maximum trajectory envelope; unusual flights still require runtime QC.
 
 The Match UI may expose these anchors in an overhead Field Setup camera. The
 view is pre-pitch only and must return to the normal Pitching shot before a
 Pitch can begin. Its player-facing grid is displayed from deep to shallow, with
 disabled Pitcher-lane cells retained so the spatial layout stays legible.
 Left/right labels follow the view from home plate toward the field rather than
-raw world-X naming.
+raw world-X naming. The starter Field Setup view is orthographic so authored
+depth and scoring-plane spacing are not compressed by perspective.
 
 After contact, the fielder moves according to the planner.
 
 The opponent chooses a new anchor between batters from visible Batter
 handedness and Power plus a deterministic seed. It cannot read future contact.
-A fielder starting behind the mound is clamped out of the Pitcher's immediate
-comebacker lane so the two automated defenders do not visibly race through the
-same territory.
+The Fielder remains inactive at its anchor until ball-in-play begins. After
+contact it may cross in front of the mound. `DefenderSpacing` checks full
+movement segments against a 1.55 m mound-centered body-clearance disc and picks
+a deterministic clear heading toward the intercept. The clearance includes
+both avatars and the Pitcher's existing visual reaction step. It is not a
+ball-control radius or a whole-field depth clamp. FieldingResolver still owns
+ball control; movement has no ball collider. Physical bump/error responses
+remain deferred.
 
 ---
 

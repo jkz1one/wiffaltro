@@ -617,6 +617,15 @@ static func clear_records(lab: PitchBatLab) -> void:
 
 
 static func dump_records(lab: PitchBatLab) -> void:
+	print("WIFFALTRO_FIELD_QC ", JSON.stringify({
+		"field_id": String(lab._field_definition.id),
+		"single_m": lab._field_definition.safe_hit_z_m,
+		"deep_air_m": lab._field_definition.deep_air_z_m,
+		"wall_m": lab._field_definition.back_wall_z_m,
+		"hr_height_m": lab._field_definition.home_run_height_m,
+		"shallow_anchor_m": lab._field_definition.shallow_anchor_z_m,
+		"side_anchor_x_m": lab._field_definition.side_anchor_x_m,
+	}))
 	var serialized: Array[Dictionary] = []
 	for record in lab._play_records:
 		serialized.append(record.to_dict())

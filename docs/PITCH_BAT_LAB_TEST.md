@@ -228,6 +228,12 @@ selectable Pitches. Shallow Center and Middle Center must appear as disabled
 `PITCHER LANE` cells; neither cycling nor AI setup may place the Primary Fielder
 there. Deep Center remains selectable.
 
+Shallow side anchors may stand in front of the mound at X +/-5.5 m, Z 8.5 m.
+They must not obscure the Batter, Pitcher, or curved Pitch flight in either
+gameplay camera. Fielders stay at their anchors until contact. After contact,
+they may charge forward past the mound depth but must route around the Pitcher
+without overlapping. This is body clearance, not collision-induced errors.
+
 While pitching, hold left click, `Space`, or controller A and release near the
 late gold cue at roughly 85% of the short meter. Mouse and keyboard must show
 and use the same faster timing bar. The visible Pitcher should load and deliver
@@ -334,7 +340,8 @@ High or horizontally distant balls must pass as misses. Bobbles should remain
 near the defender. The Pitcher should react only to true
 comebackers inside the small mound envelope, including a fast ball whose swept
 frame segment crosses that envelope. A behind-mound Primary Fielder should not
-run through the Pitcher to steal that play. Across player offensive plate
+run through the Pitcher to steal that play, but may route around the Pitcher
+and charge into the near field after contact. Across player offensive plate
 appearances, the AI should visibly choose different sensible grid anchors based
 on Batter handedness/Power with deterministic variation. A below-wall ball must resolve at
 the wall even if the physical contact callback misses a fast frame.
@@ -356,5 +363,34 @@ Fielder speed/reach thresholds apply in both halves.
 Use `G` to put a runner on third, then produce or diagnose a fly catch at different fielder depths. Shallow catches should normally hold the runner; sufficiently deep catches can score a sacrifice fly.
 
 ## Not yet final
+
+### Focused field QC collection
+
+1. Run Godot 4.7.2 import and the core regression scene before playtesting:
+   `godot --headless --editor --path . --quit`, then
+   `godot --headless --path . res://src/tests/core_regression_test.tscn`.
+2. Check all seven anchors, then both role cameras with sidearm breaking
+   Pitches and extreme aim/effort/fatigue. Neither defender may obscure the
+   pitch lane. Check left- and right-handed delivery where available.
+3. Verify Field Setup shows Single 10.5 m, Deep Air 17.0 m, wall 23.4 m and
+   returns to perspective normally. Capture a current-build screenshot if the
+   lines still look crowded; do not infer loaded geometry from an older image.
+4. Collect an initial target of 100 fair balls in normal Match Mode across
+   multiple matches, both offensive sides, and both swing types. This is a
+   diagnostic sample, not a statistically conclusive balance target. Keep
+   Mechanics Lab/direct-launch results separate. Save F3 output before `R`
+   restarts the match and clears its records. Repeated F3 dumps are cumulative,
+   not additional samples.
+5. Keep `WIFFALTRO_FIELD_QC` metadata with each `WIFFALTRO_PLAY_RECORDS` dump.
+   Compare fair-ball results and first-ground depth by swing type and player/AI
+   offense; exclude balls, strikes, and fouls from the fair-ball denominator.
+   First-ground proportions use only records with `has_first_ground = true`.
+6. Separately test grounders crossing both internal lines (still Single),
+   grounders reaching wall (Double), untouched airborne Deep Air crossings
+   (Double unless caught), wall on fly (Triple), HR clears, and Pitcher
+   clean/bobble/miss plays. Record seed/play number and video for mismatches.
+
+No Contact/Power, aerodynamic, or scoring-boundary tuning should precede review
+of that sample. Physical bump-induced errors are not part of this pass.
 
 All coefficients, field dimensions, fielding thresholds, Pitch identities, swing windows, camera framing, UI, and visual geometry remain tuning/debug content.

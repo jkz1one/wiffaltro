@@ -9,6 +9,9 @@ func _ready() -> void:
 	_test_bat_handedness_mapping()
 	_test_swept_swing_timeline()
 	BatSwingRegressionTest.run(self, Callable(self, "_check"))
+	PlayabilityRegressionTest.run(Callable(self, "_check"))
+	PitchClearanceRegressionTest.run(self, Callable(self, "_check"))
+	FieldScoringRegressionTest.run(Callable(self, "_check"))
 	_test_signed_contact_spin()
 	_test_pitch_actor_contact_cancellation()
 	_test_fatigue_curve_and_capacity()
@@ -752,6 +755,14 @@ func _test_match_presentation_sequence() -> void:
 	)
 	var camera: Camera3D = Camera3D.new()
 	add_child(camera)
+	camera_director.set_shot(MatchCameraDirector.Shot.FIELD_SETUP)
+	camera_director.snap(camera)
+	_check(
+		camera.projection == Camera3D.PROJECTION_ORTHOGONAL
+		and camera.global_basis.y.is_equal_approx(Vector3.BACK)
+		and is_equal_approx(camera.global_basis.determinant(), 1.0),
+		"Field Setup should use an undistorted orthographic view"
+	)
 	var live_ball_position: Vector3 = Vector3(1.0, 2.0, 10.0)
 	camera_director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
 	camera_director.prepare_ball_in_play(true, live_ball_position)
@@ -761,7 +772,8 @@ func _test_match_presentation_sequence() -> void:
 	camera_director.snap(camera, live_ball_position)
 	_check(
 		defense_camera_z > live_ball_position.z
-		and camera.global_position.z < live_ball_position.z,
+		and camera.global_position.z < live_ball_position.z
+		and camera.projection == Camera3D.PROJECTION_PERSPECTIVE,
 		"ball-in-play tracking should preserve defense or batting field orientation"
 	)
 	camera.queue_free()
@@ -941,6 +953,31 @@ func _test_match_count_rules() -> void:
 func _test_defensive_separation() -> void:
 	var field: FieldDefinition = ContentDB.get_field(&"field.starter_backyard")
 	var mound: Vector3 = Vector3(0.0, 0.0, 13.716)
+	var fielder: FielderController = FielderController.new()
+	add_child(fielder)
+	fielder.set_pitcher_lane(mound.z)
+	fielder.set_anchor(field.fielder_anchor(7))
+	fielder.reaction_delay_seconds = 0.0
+	fielder.target_position = Vector3(0.0, 0.0, 8.5)
+	fielder._physics_process(1.0)
+	_check(
+		fielder.global_position.is_equal_approx(fielder.anchor_position),
+		"the Primary Fielder must stay at its anchor before contact"
+	)
+	fielder.begin_play()
+	fielder.target_position = Vector3(0.0, 0.0, 8.5)
+	for _frame in range(300):
+		fielder._physics_process(1.0 / 60.0)
+	_check(
+		fielder.global_position.distance_to(fielder.target_position) < 0.15,
+		"a deep Fielder should charge into the near field after contact"
+	)
+	fielder.end_play()
+	_check(
+		not fielder.active and fielder.global_position.is_equal_approx(fielder.anchor_position),
+		"dead play must restore the safe pre-Pitch anchor"
+	)
+	fielder.queue_free()
 	_check(
 		not field.is_fielder_anchor_available(1)
 		and not field.is_fielder_anchor_available(4)

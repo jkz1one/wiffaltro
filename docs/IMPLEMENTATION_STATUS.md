@@ -595,6 +595,33 @@ supported a closer Single plane without changing contact or aero coefficients.
       crossings, and Pitcher clean/bobble/miss validation
 
 
+## Pitch-lane clearance and charging defense — runtime validation pending
+
+This revision supersedes the unpushed all-anchors-behind-mound interpretation.
+The user clarified that side defenders may start shallow and may charge in
+front of the Pitcher after contact; visibility and non-overlap are the rules.
+
+- [x] restored starter side anchors to X +/-5.5 m, with depth rows 8.5/14.0/19.5 m
+- [x] retained disabled Shallow Center and Middle Center cells in every selection path
+- [x] replaced the post-contact depth clamp with local swept body-clearance routing
+- [x] retained top-down orthographic Field Setup and perspective restoration
+- [x] moved the existing playability-suite call from the bat suite to the core
+      runner, avoiding the accidental duplicate call in the prior local commit
+- [x] added deterministic scoring, movement, projection, and 180-flight Pitch/sightline
+      clearance regression coverage; Godot execution remains pending
+- [x] gdparse, gdtoolkit 4.3.4 gdlint, and diff whitespace checks passed;
+      independent Python routing-math checks passed for four approach directions
+- [x] added field-geometry metadata alongside the existing F3 records
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] human QC of wild-Pitch sightlines, shallow side anchors, charging/routing,
+      camera transitions, rolling crossings, and Pitcher clean/bobble/miss plays
+
+Single 10.5 m, Deep Air 17.0 m, wall 23.4 m, HR height 3.25 m, and all
+Contact/Power/aero coefficients remain unchanged. The earlier claim that the
+playability suite was unreachable was incorrect: it was called by the bat
+suite. The earlier attribution of the reported line-spacing problem to camera
+perspective was not established by a current-build runtime observation.
+
 ## Canonical post-fun-gate roadmap — not implemented
 
 The ordered roadmap now lives in `SOURCE_OF_TRUTH.md` §35. Phase 3 and the

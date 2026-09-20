@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.19
+**Version:** v0.4.20
 **Status:** FROZEN BASELINE WITH SIMULATED STARTER-FIELD CALIBRATION
-**Supersedes:** v0.4.18 and all earlier planning notes
+**Supersedes:** v0.4.19 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -520,7 +520,10 @@ persistent 3×3 tactical grid:
 
 The starter field reserves the shallow- and middle-center cells for the
 Pitcher's delivery sightline and comebacker responsibility. Deep Center remains
-available for true center-field coverage. Position persists until changed.
+available for true center-field coverage. Shallow side anchors may be level
+with or in front of the mound, provided they remain laterally clear of Pitch
+flight and both gameplay-camera sightlines. The starter shallow side anchors
+are at X +/-5.5 m, Z 8.5 m. Position persists until changed.
 
 Opponent defense also repositions between batters among the same legal anchors.
 Its authored baseline uses the visible Batter's handedness and Power to choose
@@ -528,6 +531,12 @@ among shallow/middle/deep and pull/center/opposite anchors, with deterministic
 seeded variation rather than hidden knowledge of the coming contact.
 
 Position locks once the pitching motion begins.
+
+The Primary Fielder stays at the selected anchor through delivery and Pitch
+flight, then may charge forward after contact. It must move around the Pitcher,
+not through them. A local mound body-clearance area replaces any blanket
+behind-mound movement restriction. This does not enlarge the Pitcher's 0.60 m
+ball-control radius. Collision-induced stumbles/errors remain deferred.
 
 The positioning UI may enter a temporary overhead Field Setup view with seven
 legal anchor choices and two visibly disabled Pitcher-lane cells, then return

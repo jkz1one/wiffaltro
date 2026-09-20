@@ -70,6 +70,7 @@ func cycle_shot() -> void:
 func snap(camera: Camera3D, ball_position: Vector3 = Vector3.ZERO) -> void:
 	if camera == null:
 		return
+	_apply_projection(camera)
 	var desired: Transform3D = _desired_transform(ball_position, 1.0)
 	camera.global_transform = desired
 
@@ -79,6 +80,7 @@ func update(
 ) -> void:
 	if camera == null:
 		return
+	_apply_projection(camera)
 	if ball_live and shot == Shot.BALL_IN_PLAY:
 		var follow_weight: float = 1.0 - exp(-FIELD_FOLLOW_SPEED * delta_seconds)
 		_field_focus = _field_focus.lerp(
@@ -110,8 +112,8 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 			camera_position = Vector3(8.6, 2.65, 6.8)
 			focus = Vector3(0.0, 1.15, 6.8)
 		Shot.FIELD_SETUP:
-			camera_position = Vector3(0.0, 29.5, 7.0)
-			focus = Vector3(0.0, 0.0, 9.0)
+			camera_position = Vector3(0.0, 32.0, 11.7)
+			focus = Vector3(0.0, 0.0, 11.7)
 		Shot.PITCHING_STAFF:
 			camera_position = Vector3(-15.0, 8.4, 22.0)
 			focus = Vector3(0.0, 1.1, 9.8)
@@ -159,4 +161,15 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 		_:
 			pass
 	var direction: Vector3 = (focus - camera_position).normalized()
-	return Transform3D(Basis.looking_at(direction, Vector3.UP), camera_position)
+	var up_direction: Vector3 = (
+		Vector3.BACK if shot == Shot.FIELD_SETUP else Vector3.UP
+	)
+	return Transform3D(Basis.looking_at(direction, up_direction), camera_position)
+
+
+func _apply_projection(camera: Camera3D) -> void:
+	if shot == Shot.FIELD_SETUP:
+		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera.size = 29.0
+	else:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE

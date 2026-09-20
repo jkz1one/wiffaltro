@@ -5,7 +5,6 @@ static func run(host: Node, check: Callable) -> void:
 	_test_batter_motion(host, check)
 	_test_staged_mirrored_bat_path(check)
 	_test_attack_plane(check)
-	PlayabilityRegressionTest.run(check)
 
 static func _test_batter_motion(host: Node, check: Callable) -> void:
 	var profile: SwingProfileDefinition = ContentDB.get_swing(&"swing.contact")
