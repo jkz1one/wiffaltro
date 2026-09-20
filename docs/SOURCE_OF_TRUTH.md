@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.15
-**Status:** FROZEN BASELINE WITH MATCH-PRESENTATION / DEFENSIVE-VARIETY AMENDMENT
-**Supersedes:** v0.4.14 and all earlier planning notes
+**Version:** v0.4.16
+**Status:** FROZEN BASELINE WITH SWING-PRESENTATION / DEFENSIVE-CAMERA AMENDMENT
+**Supersedes:** v0.4.15 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -193,11 +193,14 @@ actors so equipment animation/lifecycle does not become character geometry.
 Each bat must visibly load at the Batter's back shoulder, drive across the
 plate toward the front shoulder, and mirror that complete path for opposite
 handedness. The ready pose is already the load: committed motion begins with
-the forward drive, the barrel reaches its square-across-plate presentation at
-the profile's authored sweet-spot time, then finishes toward the front
-shoulder without wrapping through a full circular recovery. The independent
-Batter actor's hands and torso must move with that same profile timing so the
-bat does not appear detached from a static character.
+the forward drive through a readable slot, the barrel reaches its
+square-across-plate presentation at the profile's authored sweet-spot time,
+extends through the ball, then decelerates toward the front shoulder without
+wrapping through a full circular recovery. The independent Batter actor's
+hands and torso must move with that same profile timing so the bat does not
+appear detached from a static character. Subtle aim-driven load height/tilt
+remains partially visible through contact rather than disappearing at the
+instant the Swing becomes authoritative.
 
 The virtual contact center moves through the aimed plate point on the Swing
 Profile's authored attack-angle plane. Matching the bat path to the descending
@@ -1305,6 +1308,12 @@ or vertical tilt selected from the authored presentation pool. Camera motion is
 presentation-only and cannot alter game time or baseball state.
 The player does not select these views. Game completion receives the same basic
 treatment with a win/loss title and final score.
+
+When the player is defending, contact must preserve the pitching/defensive side
+of the field. The camera pulls wider and tracks the physical ball from behind
+the defense rather than flipping through 180 degrees to the Batter's view.
+Player-offense ball-in-play tracking may retain its behind-the-Batter field
+orientation.
 
 During play, a compact broadcast-style scorebug owns the persistent essentials:
 team score, half/inning, count, outs, occupied bases, current Batter, Pitcher,

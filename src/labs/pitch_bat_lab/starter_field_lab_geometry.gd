@@ -30,8 +30,9 @@ func build(
 			field.back_wall_z_m + 0.25
 		),
 		Vector3(38.0, field.home_run_height_m, 0.5),
-		Color(0.34, 0.30, 0.27),
-		&"back_wall"
+		Color(0.24, 0.36, 0.46),
+		&"back_wall",
+		true
 	)
 	_add_box(
 		"SafeBoundary",
@@ -100,8 +101,8 @@ func _build_strike_zone(
 	zone_min_y: float,
 	zone_max_y: float
 ) -> void:
-	var zone_color: Color = Color(0.86, 0.90, 0.96)
-	var thickness: float = 0.025
+	var zone_color: Color = Color(1.0, 0.95, 0.68)
+	var thickness: float = 0.034
 	var center_y: float = (zone_min_y + zone_max_y) * 0.5
 	var width: float = zone_max_x - zone_min_x
 	var height: float = zone_max_y - zone_min_y
@@ -110,25 +111,29 @@ func _build_strike_zone(
 		"ZoneLeft",
 		Vector3(zone_min_x, center_y, 0.0),
 		Vector3(thickness, height, thickness),
-		zone_color
+		zone_color,
+		true
 	)
 	_add_box(
 		"ZoneRight",
 		Vector3(zone_max_x, center_y, 0.0),
 		Vector3(thickness, height, thickness),
-		zone_color
+		zone_color,
+		true
 	)
 	_add_box(
 		"ZoneBottom",
 		Vector3(0.0, zone_min_y, 0.0),
 		Vector3(width, thickness, thickness),
-		zone_color
+		zone_color,
+		true
 	)
 	_add_box(
 		"ZoneTop",
 		Vector3(0.0, zone_max_y, 0.0),
 		Vector3(width, thickness, thickness),
-		zone_color
+		zone_color,
+		true
 	)
 
 func _build_pitch_receiver() -> void:
@@ -254,7 +259,8 @@ func _add_box(
 	node_name: String,
 	world_position: Vector3,
 	size: Vector3,
-	color: Color
+	color: Color,
+	unshaded: bool = false
 ) -> MeshInstance3D:
 	var instance: MeshInstance3D = MeshInstance3D.new()
 	instance.name = node_name
@@ -262,7 +268,7 @@ func _add_box(
 	var box: BoxMesh = BoxMesh.new()
 	box.size = size
 	instance.mesh = box
-	instance.material_override = _make_material(color)
+	instance.material_override = _make_material(color, unshaded)
 	add_child(instance)
 	return instance
 
@@ -288,7 +294,8 @@ func _add_static_box(
 	world_position: Vector3,
 	size: Vector3,
 	color: Color,
-	surface_id: StringName
+	surface_id: StringName,
+	unshaded: bool = false
 ) -> StaticBody3D:
 	var body: StaticBody3D = StaticBody3D.new()
 	body.name = node_name
@@ -307,7 +314,7 @@ func _add_static_box(
 	var box_mesh: BoxMesh = BoxMesh.new()
 	box_mesh.size = size
 	mesh_instance.mesh = box_mesh
-	mesh_instance.material_override = _make_material(color)
+	mesh_instance.material_override = _make_material(color, unshaded)
 	body.add_child(mesh_instance)
 	add_child(body)
 	return body

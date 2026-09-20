@@ -31,6 +31,7 @@ var _field_focus: Vector3 = Vector3(0.0, 2.2, 10.0)
 var _batter_side: float = 1.0
 var _presentation_motion: PresentationMotion = PresentationMotion.STILL
 var _presentation_progress: float = 0.0
+var _defense_ball_view: bool = false
 
 
 func set_shot(next_shot: Shot) -> void:
@@ -41,6 +42,15 @@ func set_batter_handedness(is_left_handed: bool) -> void:
 	# Match the camera to the batter's box/shoulder side: left-handed Batters
 	# occupy +X, while right-handed Batters occupy -X.
 	_batter_side = 1.0 if is_left_handed else -1.0
+
+
+func prepare_ball_in_play(defense_view: bool, ball_position: Vector3) -> void:
+	_defense_ball_view = defense_view
+	_field_focus = Vector3(
+		ball_position.x * 0.40,
+		clampf(ball_position.y * 0.25 + 1.2, 1.2, 4.0),
+		lerpf(1.0, ball_position.z, 0.55)
+	)
 
 
 func set_presentation_motion(motion: PresentationMotion, progress: float) -> void:
@@ -114,11 +124,22 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 		Shot.OUTFIELD:
 			camera_position = Vector3(0.0, 7.8, 25.5)
 			focus = Vector3(0.0, 1.2, 7.0)
-		_:
+		Shot.BALL_IN_PLAY:
 			focus = _field_focus
 			var depth_pullback: float = clampf(ball_position.z * 0.16, 0.0, 7.0)
-			var height: float = 13.0 + clampf(ball_position.y * 0.38, 0.0, 5.0)
-			camera_position = focus + Vector3(0.0, height, -14.0 - depth_pullback)
+			if _defense_ball_view:
+				var defense_height: float = 8.5 + clampf(ball_position.y * 0.30, 0.0, 4.0)
+				camera_position = focus + Vector3(
+					0.0, defense_height, 15.5 + depth_pullback * 0.55
+				)
+			else:
+				var offense_height: float = 13.0 + clampf(ball_position.y * 0.38, 0.0, 5.0)
+				camera_position = focus + Vector3(
+					0.0, offense_height, -14.0 - depth_pullback
+				)
+		_:
+			camera_position = Vector3(0.0, 5.0, -10.0)
+			focus = Vector3(0.0, 1.0, 6.0)
 	var motion_amount: float = smoothstep(0.0, 1.0, _presentation_progress)
 	match _presentation_motion:
 		PresentationMotion.ZOOM_IN:

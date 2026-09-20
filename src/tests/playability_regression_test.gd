@@ -51,13 +51,17 @@ static func _test_moving_ground_out_rule(check: Callable) -> void:
 	)
 	resolver.start_play(field)
 	resolver.record_ground_contact(Vector3(0.0, 0.0, 6.0))
-	resolver.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.7), false, true)
+	resolver.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.25), false, true)
 	check.call(
-		field.safe_hit_z_m > PitchBatLab.MOUND_ORIGIN.z
-		and field.deep_air_z_m - field.safe_hit_z_m >= 1.0
+		field.safe_hit_z_m > PitchBatLab.MOUND_ORIGIN.z - PitcherDefense.REACTION_RADIUS_M
+		and field.safe_hit_z_m < PitchBatLab.MOUND_ORIGIN.z
+		and field.deep_air_z_m - field.safe_hit_z_m >= 1.5
+		and PitcherDefense.can_attempt(
+			Vector3(0.0, 0.7, field.safe_hit_z_m - 0.05), PitchBatLab.MOUND_ORIGIN
+		)
 		and outcomes.size() == 1
 		and outcomes[0].result == BallPlayOutcome.Result.OUT,
-		"the singles line should leave readable room for moving ground Outs"
+		"the closer singles line should preserve a small Pitcher ground-Out window"
 	)
 
 	var stopped: BallPlayResolver = BallPlayResolver.new()
@@ -67,7 +71,7 @@ static func _test_moving_ground_out_rule(check: Callable) -> void:
 	)
 	stopped.start_play(field)
 	stopped.record_ground_contact(Vector3(0.0, 0.0, 6.0))
-	stopped.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.7), false, false)
+	stopped.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.25), false, false)
 	check.call(
 		stopped_outcomes.size() == 1
 		and stopped_outcomes[0].result == BallPlayOutcome.Result.SINGLE,

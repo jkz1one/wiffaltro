@@ -248,7 +248,7 @@ func _physics_process(delta: float) -> void:
 	var current_ball_position: Vector3 = _batted_ball.global_position
 	# Resolve the restricted mound envelope before downstream rule planes from
 	# the same swept segment. A clean comebacker at z=13.7 must not be turned
-	# into a Single merely because that frame also crosses the z=13.8 line.
+	# into a Single merely because that frame also crosses the authored line.
 	_try_pitcher_defense(previous_ball_position, current_ball_position)
 	if _ball_play_resolver.state.dead:
 		_previous_batted_position = current_ball_position
@@ -456,6 +456,9 @@ func _finish_non_contact_pitch() -> void:
 func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 	_cleanup_batted_ball()
 	_pitch_actor.reset_pitch()
+	_camera_director.prepare_ball_in_play(
+		_match_mode and _player_is_pitching(), launch_data.position
+	)
 
 	_ball_play_resolver.start_play(_field_definition, launch_data.is_foul)
 	_primary_attempts = 0

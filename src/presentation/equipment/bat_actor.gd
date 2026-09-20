@@ -3,11 +3,18 @@ extends Node3D
 
 const DEFAULT_SWING_SECONDS: float = 0.26
 const FOLLOW_THROUGH_HOLD_SECONDS: float = 0.10
-const STANCE_YAW_DEGREES: float = 64.0
-const FINISH_YAW_DEGREES: float = -88.0
-const STANCE_AXIS_TILT_DEGREES: float = 58.0
-const CONTACT_AXIS_TILT_DEGREES: float = 84.0
-const FINISH_AXIS_TILT_DEGREES: float = 52.0
+const SLOT_SPLIT: float = 0.34
+const EXTENSION_SPLIT: float = 0.48
+const STANCE_YAW_DEGREES: float = 72.0
+const SLOT_YAW_DEGREES: float = 38.0
+const CONTACT_YAW_DEGREES: float = 0.0
+const EXTENSION_YAW_DEGREES: float = -28.0
+const FINISH_YAW_DEGREES: float = -102.0
+const STANCE_AXIS_TILT_DEGREES: float = 54.0
+const SLOT_AXIS_TILT_DEGREES: float = 68.0
+const CONTACT_AXIS_TILT_DEGREES: float = 88.0
+const EXTENSION_AXIS_TILT_DEGREES: float = 78.0
+const FINISH_AXIS_TILT_DEGREES: float = 42.0
 
 var bats_left: bool = false
 var _pivot: Node3D
@@ -72,12 +79,12 @@ func _apply_swing_pose(elapsed_seconds: float) -> void:
 	var phases: Vector2 = phase_progress_at_elapsed(
 		elapsed_seconds, _sweet_spot_progress * _swing_duration, _swing_duration
 	)
-	var load_influence: float = 0.0 if phases.y > 0.0 else 1.0 - phases.x
+	var aim_influence: float = aim_influence_at_phases(phases)
 	_pivot.position = (
 		pivot_position_at_elapsed(
 			bats_left, elapsed_seconds, _sweet_spot_progress * _swing_duration, _swing_duration
 		)
-		+ aim_pose_position_offset(_aim_pose) * load_influence
+		+ aim_pose_position_offset(_aim_pose) * aim_influence
 	)
 	_pivot.rotation = Vector3(
 		deg_to_rad(-_attack_angle_degrees),
@@ -89,7 +96,7 @@ func _apply_swing_pose(elapsed_seconds: float) -> void:
 					_sweet_spot_progress * _swing_duration,
 					_swing_duration
 				)
-				+ aim_pose_yaw_offset_degrees(_aim_pose) * load_influence
+				+ aim_pose_yaw_offset_degrees(_aim_pose) * aim_influence
 			)
 		),
 		0.0
@@ -101,7 +108,7 @@ func _apply_swing_pose(elapsed_seconds: float) -> void:
 				axis_tilt_degrees_at_elapsed(
 					elapsed_seconds, _sweet_spot_progress * _swing_duration, _swing_duration
 				)
-				+ aim_pose_axis_tilt_degrees(_aim_pose) * load_influence
+				+ aim_pose_axis_tilt_degrees(_aim_pose) * aim_influence
 			)
 		)
 	)
@@ -189,7 +196,7 @@ static func stance_yaw_degrees(is_left_handed: bool) -> float:
 
 
 static func contact_yaw_degrees(_is_left_handed: bool) -> float:
-	return 0.0
+	return CONTACT_YAW_DEGREES
 
 
 static func finish_yaw_degrees(is_left_handed: bool) -> float:
@@ -197,15 +204,23 @@ static func finish_yaw_degrees(is_left_handed: bool) -> float:
 
 
 static func stance_pivot_position(is_left_handed: bool) -> Vector3:
-	return Vector3(stance_pivot_x(is_left_handed), 1.15, -0.14)
+	return Vector3(stance_pivot_x(is_left_handed), 1.20, -0.20)
+
+
+static func slot_pivot_position(is_left_handed: bool) -> Vector3:
+	return Vector3(handed_side(is_left_handed) * 0.19, 1.08, -0.04)
 
 
 static func contact_pivot_position(is_left_handed: bool) -> Vector3:
-	return Vector3(handed_side(is_left_handed) * 0.33, 0.97, 0.08)
+	return Vector3(handed_side(is_left_handed) * 0.34, 0.98, 0.09)
+
+
+static func extension_pivot_position(is_left_handed: bool) -> Vector3:
+	return Vector3(handed_side(is_left_handed) * 0.42, 1.02, 0.34)
 
 
 static func finish_pivot_position(is_left_handed: bool) -> Vector3:
-	return Vector3(handed_side(is_left_handed) * 0.12, 1.18, 0.22)
+	return Vector3(handed_side(is_left_handed) * 0.12, 1.30, 0.22)
 
 
 static func pivot_position_at_elapsed(
@@ -218,11 +233,19 @@ static func pivot_position_at_elapsed(
 		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
 	)
 	if phases.y <= 0.0:
-		return stance_pivot_position(is_left_handed).lerp(
-			contact_pivot_position(is_left_handed), phases.x
+		return _interpolate_keyed_vector3(
+			stance_pivot_position(is_left_handed),
+			slot_pivot_position(is_left_handed),
+			contact_pivot_position(is_left_handed),
+			phases.x,
+			SLOT_SPLIT
 		)
-	return contact_pivot_position(is_left_handed).lerp(
-		finish_pivot_position(is_left_handed), phases.y
+	return _interpolate_keyed_vector3(
+		contact_pivot_position(is_left_handed),
+		extension_pivot_position(is_left_handed),
+		finish_pivot_position(is_left_handed),
+		phases.y,
+		EXTENSION_SPLIT
 	)
 
 
@@ -235,11 +258,22 @@ static func yaw_degrees_at_elapsed(
 	var phases: Vector2 = phase_progress_at_elapsed(
 		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
 	)
+	var side: float = handed_side(is_left_handed)
 	if phases.y <= 0.0:
-		return lerpf(
-			stance_yaw_degrees(is_left_handed), contact_yaw_degrees(is_left_handed), phases.x
+		return side * _interpolate_keyed_float(
+			STANCE_YAW_DEGREES,
+			SLOT_YAW_DEGREES,
+			CONTACT_YAW_DEGREES,
+			phases.x,
+			SLOT_SPLIT
 		)
-	return lerpf(contact_yaw_degrees(is_left_handed), finish_yaw_degrees(is_left_handed), phases.y)
+	return side * _interpolate_keyed_float(
+		CONTACT_YAW_DEGREES,
+		EXTENSION_YAW_DEGREES,
+		FINISH_YAW_DEGREES,
+		phases.y,
+		EXTENSION_SPLIT
+	)
 
 
 static func axis_tilt_degrees_at_elapsed(
@@ -249,8 +283,64 @@ static func axis_tilt_degrees_at_elapsed(
 		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
 	)
 	if phases.y <= 0.0:
-		return lerpf(STANCE_AXIS_TILT_DEGREES, CONTACT_AXIS_TILT_DEGREES, phases.x)
-	return lerpf(CONTACT_AXIS_TILT_DEGREES, FINISH_AXIS_TILT_DEGREES, phases.y)
+		return _interpolate_keyed_float(
+			STANCE_AXIS_TILT_DEGREES,
+			SLOT_AXIS_TILT_DEGREES,
+			CONTACT_AXIS_TILT_DEGREES,
+			phases.x,
+			SLOT_SPLIT
+		)
+	return _interpolate_keyed_float(
+		CONTACT_AXIS_TILT_DEGREES,
+		EXTENSION_AXIS_TILT_DEGREES,
+		FINISH_AXIS_TILT_DEGREES,
+		phases.y,
+		EXTENSION_SPLIT
+	)
+
+
+static func torso_yaw_degrees_at_elapsed(
+	is_left_handed: bool,
+	elapsed_seconds: float,
+	sweet_spot_seconds: float,
+	swing_duration_seconds: float
+) -> float:
+	var phases: Vector2 = phase_progress_at_elapsed(
+		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
+	)
+	var side: float = handed_side(is_left_handed)
+	if phases.y <= 0.0:
+		return side * _interpolate_keyed_float(-10.0, 4.0, 20.0, phases.x, SLOT_SPLIT)
+	return side * _interpolate_keyed_float(20.0, 32.0, 42.0, phases.y, EXTENSION_SPLIT)
+
+
+static func body_offset_at_elapsed(
+	elapsed_seconds: float, sweet_spot_seconds: float, swing_duration_seconds: float
+) -> Vector3:
+	var phases: Vector2 = phase_progress_at_elapsed(
+		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
+	)
+	if phases.y <= 0.0:
+		return _interpolate_keyed_vector3(
+			Vector3(0.0, 0.0, -0.02),
+			Vector3.ZERO,
+			Vector3(0.0, 0.0, 0.07),
+			phases.x,
+			SLOT_SPLIT
+		)
+	return _interpolate_keyed_vector3(
+		Vector3(0.0, 0.0, 0.07),
+		Vector3(0.0, 0.0, 0.09),
+		Vector3(0.0, 0.0, 0.05),
+		phases.y,
+		EXTENSION_SPLIT
+	)
+
+
+static func aim_influence_at_phases(phases: Vector2) -> float:
+	if phases.y <= 0.0:
+		return lerpf(1.0, 0.65, phases.x)
+	return lerpf(0.65, 0.15, phases.y)
 
 
 static func phase_progress_at_elapsed(
@@ -276,6 +366,32 @@ static func phase_progress_at_elapsed(
 		1.5 * post_contact - 0.5 * post_contact * post_contact * post_contact
 	)
 	return Vector2(1.0, follow_through)
+
+
+static func _interpolate_keyed_float(
+	start_value: float, middle_value: float, end_value: float, progress: float, split: float
+) -> float:
+	var bounded: float = clampf(progress, 0.0, 1.0)
+	if bounded <= split:
+		var first_progress: float = smoothstep(0.0, split, bounded)
+		return lerpf(start_value, middle_value, first_progress)
+	var second_progress: float = smoothstep(split, 1.0, bounded)
+	return lerpf(middle_value, end_value, second_progress)
+
+
+static func _interpolate_keyed_vector3(
+	start_value: Vector3,
+	middle_value: Vector3,
+	end_value: Vector3,
+	progress: float,
+	split: float
+) -> Vector3:
+	var bounded: float = clampf(progress, 0.0, 1.0)
+	if bounded <= split:
+		var first_progress: float = smoothstep(0.0, split, bounded)
+		return start_value.lerp(middle_value, first_progress)
+	var second_progress: float = smoothstep(split, 1.0, bounded)
+	return middle_value.lerp(end_value, second_progress)
 
 
 static func _material(color: Color) -> StandardMaterial3D:

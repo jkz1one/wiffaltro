@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.12
-**Status:** FROZEN BASELINE WITH MATCH-PRESENTATION / DEFENSIVE-VARIETY AMENDMENT
+**Version:** v0.1.13
+**Status:** FROZEN BASELINE WITH SWING-PRESENTATION / DEFENSIVE-CAMERA AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -879,6 +879,14 @@ Outcomes can include:
 
 Exact thresholds remain tuning data.
 
+The independent `BatActor` uses the same profile sweet-spot time but remains
+presentation-only. Its authored pose path is load → slot/drive → square contact
+→ extension → decelerating front-shoulder finish. `PlayerAvatar` mirrors the
+same handed path and adds bounded torso/weight transfer while counter-transforming
+the hands so they remain attached to the bat. Aim posture is strongest at rest,
+still partially expressed at contact, and fades during the finish. No mesh
+collision may replace `ContactResolver` as baseball authority.
+
 If the moving Pitch never encounters the virtual region before the authored
 window closes, record an early/late or spatial miss but do not stop Pitch
 flight. The authoritative Pitch continues to its plate-crossing call and its
@@ -1514,6 +1522,13 @@ The presentation director observes `MatchState`; it does not own innings,
 scores, results, or gameplay timing. High-stakes cinematic packages remain a
 future extension of this director, not a second match state machine.
 
+`MatchCameraDirector.prepare_ball_in_play()` receives the current player role
+before switching shots. Player defense initializes the follow camera on the
+pitching side, then raises/pulls back and tracks the live ball without crossing
+to the Batter's side. Player offense retains the behind-the-Batter follow.
+Camera interpolation changes presentation only and cannot affect ball physics
+or fielding resolution.
+
 Match HUD ownership is split by purpose. `MatchScorebug` renders persistent
 baseball state from `MatchState` at a user-selectable bottom-right, top-left, or
 top-right anchor. A small boxless label beneath that anchor renders routine
@@ -1736,7 +1751,7 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 41. 240 Hz swept Pitch-versus-moving-contact-region resolution
 42. missed-swing continuation through plate call and receiver presentation
 43. faster authored Swing and player Pitch-release timing
-44. automatic two-to-three-shot game intro and win/loss outro
+44. automatic one-to-three-shot game intro and win/loss outro
 45. state-safe presentation skipping and role-camera settlement
 46. future high-stakes broadcast package seam without baseball-state ownership
 47. seeded per-shot still / zoom / pan / tilt presentation motion

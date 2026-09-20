@@ -80,8 +80,19 @@ func _apply_stance() -> void:
 	if _body_root == null:
 		return
 	var throw_side: float = -1.0 if throws_left else 1.0
-	_body_root.rotation = Vector3.ZERO
 	if role == Role.BATTER:
+		_body_root.position = BatActor.body_offset_at_elapsed(
+			0.0, _batting_sweet_spot_seconds, _batting_swing_duration
+		)
+		_body_root.rotation = Vector3(
+			0.0,
+			deg_to_rad(
+				BatActor.torso_yaw_degrees_at_elapsed(
+					bats_left, 0.0, _batting_sweet_spot_seconds, _batting_swing_duration
+				)
+			),
+			0.0
+		)
 		_set_batter_hands(
 			(
 				BatActor.stance_pivot_position(bats_left)
@@ -91,6 +102,8 @@ func _apply_stance() -> void:
 		_throw_hand.material_override = _material(Color(1.0, 0.76, 0.42))
 		_glove_hand.material_override = _material(Color(1.0, 0.76, 0.42))
 	else:
+		_body_root.position = Vector3.ZERO
+		_body_root.rotation = Vector3.ZERO
 		_throw_hand.position = Vector3(throw_side * 0.38, 1.12, 0.0)
 		_glove_hand.position = Vector3(-throw_side * 0.38, 1.10, 0.02)
 		_throw_hand.material_override = _material(Color(1.0, 0.76, 0.42))
@@ -142,18 +155,21 @@ func _apply_batting_swing_pose(elapsed_seconds: float) -> void:
 	var phases: Vector2 = BatActor.phase_progress_at_elapsed(
 		elapsed_seconds, _batting_sweet_spot_seconds, _batting_swing_duration
 	)
-	var side: float = BatActor.handed_side(bats_left)
-	if phases.y <= 0.0:
-		_body_root.rotation.y = side * lerpf(-0.10, 0.16, phases.x)
-	else:
-		_body_root.rotation.y = side * lerpf(0.16, 0.38, phases.y)
-	var load_influence: float = 0.0 if phases.y > 0.0 else 1.0 - phases.x
+	_body_root.position = BatActor.body_offset_at_elapsed(
+		elapsed_seconds, _batting_sweet_spot_seconds, _batting_swing_duration
+	)
+	_body_root.rotation.y = deg_to_rad(
+		BatActor.torso_yaw_degrees_at_elapsed(
+			bats_left, elapsed_seconds, _batting_sweet_spot_seconds, _batting_swing_duration
+		)
+	)
+	var aim_influence: float = BatActor.aim_influence_at_phases(phases)
 	_set_batter_hands(
 		(
 			BatActor.pivot_position_at_elapsed(
 				bats_left, elapsed_seconds, _batting_sweet_spot_seconds, _batting_swing_duration
 			)
-			+ BatActor.aim_pose_position_offset(_batting_aim_pose) * load_influence
+			+ BatActor.aim_pose_position_offset(_batting_aim_pose) * aim_influence
 		)
 	)
 

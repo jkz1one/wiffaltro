@@ -165,12 +165,15 @@ higher/lower and change tilt, but the motion must stay subtle, bounded, and
 must not move the authoritative contact target.
 
 At swing commitment, the hands and bat should begin together at the back
-shoulder. At the moment the ball reaches the authored contact encounter, the
-barrel should be visually square across the plate; it should then finish once
-toward the front shoulder and hold briefly, never wrap around the Batter in a
+shoulder, slot forward, accelerate to a square-across-plate pose at the authored
+contact encounter, extend through the ball, and then finish once toward the
+front shoulder. It should hold briefly and never wrap around the Batter in a
 full circle. Repeat with both handednesses and verify that the complete motion,
-not just the Batter's box position, mirrors. The torso may turn modestly, but
-the independently owned hands and bat must remain visually connected.
+not just the Batter's box position, mirrors. The torso and weight should drive
+modestly in sequence, while the independently owned hands and bat remain
+visually connected. Aim high/low before swinging and verify that a bounded
+amount of that posture remains visible through contact rather than snapping to
+one universal path.
 
 Try a descending Pitch with early, centered, and late versions of the same
 aimed Swing. The virtual barrel should move upward through the aimed contact
@@ -289,9 +292,11 @@ deceive; a repeated or center-hanging Eephus should be dangerous to throw.
 AI Pitcher set/windup duration should vary readably rather than repeat one exact
 interval.
 
-The yellow line marks the ordinary Safe boundary and should sit just beyond the
-mound center with a visibly useful gap before the cyan Deep Air line. A clean
-play on a still-moving grounded ball before that line is an Out;
+The yellow line marks the ordinary Safe boundary and now sits inside the front
+edge of the Pitcher's deliberately small mound reaction envelope. This brings
+Singles closer while retaining a narrow, visible comebacker ground-Out window.
+It should have a clearly larger gap before the closer cyan Deep Air line. A clean
+play on a still-moving grounded ball before the yellow line is an Out;
 a stopped ball or a ball that crossed the line is at least a Single. The cyan
 line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall
 strike on the fly is a Triple, and a fair airborne ball clearing the modestly
@@ -299,6 +304,11 @@ lower/closer wall top is a Home Run. Thin chalk foul lines remain as readable
 fair-territory guides because airborne fouls are now live catch opportunities;
 they are presentation, not the rules authority. The brown pole is a live object:
 it should physically redirect the ball without deciding the baseball result.
+
+While the player is pitching, put a fair ball in play and verify that the camera
+stays on the defensive/pitching side, pulls wider, and follows the ball. It must
+not rotate through to the behind-the-Batter view at contact. Player-offense
+contact should retain the ordinary behind-the-Batter follow orientation.
 
 The Primary Fielder should show a brief rating-scaled reaction delay, run at a
 believable speed, and only control balls the visible actor actually reaches.

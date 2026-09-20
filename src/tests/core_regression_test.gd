@@ -744,6 +744,21 @@ func _test_match_presentation_sequence() -> void:
 		camera_director.shot == MatchCameraDirector.Shot.PITCHING,
 		"camera shot cycling should preserve the typed Shot enum"
 	)
+	var camera: Camera3D = Camera3D.new()
+	add_child(camera)
+	var live_ball_position: Vector3 = Vector3(1.0, 2.0, 10.0)
+	camera_director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
+	camera_director.prepare_ball_in_play(true, live_ball_position)
+	camera_director.snap(camera, live_ball_position)
+	var defense_camera_z: float = camera.global_position.z
+	camera_director.prepare_ball_in_play(false, live_ball_position)
+	camera_director.snap(camera, live_ball_position)
+	_check(
+		defense_camera_z > live_ball_position.z
+		and camera.global_position.z < live_ball_position.z,
+		"ball-in-play tracking should preserve defense or batting field orientation"
+	)
+	camera.queue_free()
 
 	var first: MatchPresentationDirector = MatchPresentationDirector.new()
 	var replay: MatchPresentationDirector = MatchPresentationDirector.new()

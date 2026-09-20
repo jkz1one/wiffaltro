@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Presentation/defensive-variety hardening complete statically; hands-on validation pending
+**Current phase:** Phase 3 — Swing/camera/readability hardening complete statically; hands-on validation pending
 
 ## Implemented in repository
 
@@ -323,7 +323,7 @@ one deliberate confirmation for each new player-controlled Batter.
       while Pitches within that plate appearance need no extra acceptance
 - [x] player pitching tempo remains deliberate because the next Pitch begins
       only when the player starts the delivery
-- [x] automatic seeded two-to-three-shot `GAME START` presentation
+- [x] automatic seeded one-to-three-shot `GAME START` presentation
 - [x] deterministic two/three-shot variation with longer readable intro holds
 - [x] guarded contact-time Pitch reset against same-frame null-state access
 - [x] handed bat stance now begins behind the back shoulder and completes a
@@ -441,8 +441,9 @@ Primary Fielder speed/reach remains symmetric for both teams and was not raised.
       Out; first ground/out-of-play contact resolves the Foul count
 - [x] clean control of a still-moving fair grounder before the Single line is
       an Out, while stopped or boundary-crossed balls retain at least a Single
-- [x] moved the starter Single line behind the mound, preserved Double/Triple
-      boundaries, and modestly lowered the Home Run wall
+- [x] placed the starter Single line inside the front of the small mound
+      reaction envelope, preserved Double/Triple rules, and modestly lowered
+      the Home Run wall
 - [x] kept Pitcher defense inside a 0.60 m reaction envelope and removed the
       former edge-trigger mismatch that spent its only attempt outside actual
       control reach
@@ -506,6 +507,34 @@ readability playtest without expanding into season/meta scope.
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on HUD anchors/menu, sky, camera framing, Pitcher/Fielder territory,
       AI variation, batted-ball variety, and field-boundary validation
+
+
+## Swing, defensive-camera, and field-readability pass — runtime validation pending
+
+This pass incorporates the supplied real-swing phase/arc references and the
+2026-09-20 field screenshots without changing ContactResolver authority.
+
+- [x] replaced the visible two-key swing interpolation with a staged loaded
+      stance, slot/drive, square contact, extension, and decelerating finish
+- [x] mirrored the complete path for left/right Batters and synchronized the
+      independent torso, weight shift, hands, and bat
+- [x] retained bounded aim-driven height/tilt through contact instead of
+      erasing the presentation offset at the sweet spot
+- [x] preserved the existing profile timing, attack plane, contact regions,
+      and physical launch authority
+- [x] made the starter back wall a lighter slate-blue surface and changed the
+      strike-zone frame to thicker unshaded warm-white bars for contrast
+- [x] moved the Single and Deep Air boundaries closer while increasing their
+      separation; the Single line still intersects the 0.60 m Pitcher envelope
+- [x] added role-aware ball-in-play perspective so player defense pulls wider
+      and tracks from the pitching side instead of flipping behind the Batter
+- [x] added static regressions for staged/mirrored swing transforms, retained
+      aim posture, closer boundary geometry, Pitcher opportunity, and defensive
+      camera orientation
+- [x] all GDScript passes `gdparse` and `gdlint` static checks on 2026-09-20
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on swing arc/hand attachment, wall/zone contrast, boundary balance,
+      and player-defense ball tracking
 
 
 ## Canonical post-fun-gate roadmap — not implemented
