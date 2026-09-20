@@ -154,7 +154,9 @@ static func _resolve_at_contact(
 		* profile.exit_velocity_multiplier
 		* power_factor
 	)
-	var exit_speed: float = ideal_exit_speed * lerpf(0.35, 1.0, quality)
+	# Weak contact can die into a true slow roller while middled contact retains
+	# carry. The curve broadens outcomes without adding hidden result RNG.
+	var exit_speed: float = ideal_exit_speed * lerpf(0.20, 1.0, pow(quality, 0.82))
 
 	var launch_angle_radians: float = deg_to_rad(result.launch_angle_degrees)
 	var spray_radians: float = deg_to_rad(result.spray_degrees)

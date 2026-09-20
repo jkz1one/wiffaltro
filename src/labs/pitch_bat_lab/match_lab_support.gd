@@ -207,6 +207,35 @@ static func assign_ai_defense_for_half(lab: PitchBatLab) -> void:
 	var team: TeamMatchState = lab._match_state.defensive_team()
 	team.pitcher_index = posmod(lab._match_state.inning - 1, team.roster.size())
 	team.fielder_index = (team.pitcher_index + 1) % team.roster.size()
+	assign_ai_fielder_anchor(lab)
+
+
+static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:
+	if not lab._player_is_batting() or lab._match_state == null:
+		return
+	var batter: PlayerDefinition = lab._match_state.batter().definition
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = (
+		lab._match_state.inning * 1009
+		+ lab._match_state.plate_appearance_number * 313
+		+ batter.power * 43
+		+ batter.contact * 17
+	)
+	var depth_row: int = 1
+	if batter.power >= 8:
+		depth_row = 2 if rng.randf() < 0.72 else 1
+	elif batter.power <= 5:
+		depth_row = 0 if rng.randf() < 0.58 else 1
+	var pull_column: int = (
+		0 if batter.bats == PlayerDefinition.Handedness.LEFT else 2
+	)
+	var column_roll: float = rng.randf()
+	var column: int = 1
+	if column_roll >= 0.46 and column_roll < 0.84:
+		column = pull_column
+	elif column_roll >= 0.84:
+		column = 2 - pull_column
+	lab._fielder_anchor_index = depth_row * 3 + column
 
 
 static func ai_pitch_choice(
@@ -365,13 +394,19 @@ static func _build_roster(
 		var player: PlayerDefinition = template.duplicate() as PlayerDefinition
 		player.id = StringName("player.lab_%s_%d" % [prefix.to_lower(), index])
 		player.display_name = "%s %s" % [prefix, role_names[index]]
+		var is_left_handed: bool = (
+			(index == 2 and not mirror_handedness)
+			or (index == 3 and mirror_handedness)
+		)
 		player.bats = (
 			PlayerDefinition.Handedness.LEFT
-			if (index + int(mirror_handedness)) % 2 == 1
+			if is_left_handed
 			else PlayerDefinition.Handedness.RIGHT
 		)
 		player.throws = (
-			PlayerDefinition.Handedness.LEFT if index == 2 else PlayerDefinition.Handedness.RIGHT
+			PlayerDefinition.Handedness.LEFT
+			if is_left_handed
+			else PlayerDefinition.Handedness.RIGHT
 		)
 		_configure_player(player, index, mirror_handedness)
 		result.append(player)

@@ -64,6 +64,21 @@ func build(
 		Vector3(0.8, 0.05, 0.8),
 		Color(0.55, 0.38, 0.22)
 	)
+	var foul_half_width: float = field.back_wall_z_m * tan(
+		deg_to_rad(field.fair_half_angle_degrees)
+	)
+	_add_field_line(
+		"RightFoulLine",
+		Vector3.ZERO,
+		Vector3(-foul_half_width, 0.0, field.back_wall_z_m),
+		Color(0.88, 0.88, 0.78, 0.78)
+	)
+	_add_field_line(
+		"LeftFoulLine",
+		Vector3.ZERO,
+		Vector3(foul_half_width, 0.0, field.back_wall_z_m),
+		Color(0.88, 0.88, 0.78, 0.78)
+	)
 	_build_strike_zone(
 		zone_min_x,
 		zone_max_x,
@@ -250,6 +265,23 @@ func _add_box(
 	instance.material_override = _make_material(color)
 	add_child(instance)
 	return instance
+
+func _add_field_line(
+	node_name: String,
+	start: Vector3,
+	end: Vector3,
+	color: Color
+) -> void:
+	var delta: Vector3 = end - start
+	var line: MeshInstance3D = MeshInstance3D.new()
+	line.name = node_name
+	line.position = (start + end) * 0.5 + Vector3.UP * 0.018
+	line.rotation.y = atan2(delta.x, delta.z)
+	var mesh: BoxMesh = BoxMesh.new()
+	mesh.size = Vector3(0.045, 0.018, delta.length())
+	line.mesh = mesh
+	line.material_override = _make_material(color, true)
+	add_child(line)
 
 func _add_static_box(
 	node_name: String,

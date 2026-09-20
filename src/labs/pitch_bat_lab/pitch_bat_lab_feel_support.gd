@@ -232,6 +232,8 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 				lab._selected_pitch_index = 0
 				lab._pitch_effort = 1.0
 				MatchLabSupport.assign_ai_defense_for_half(lab)
+			elif completed_plate_appearance and lab._player_is_batting():
+				MatchLabSupport.assign_ai_fielder_anchor(lab)
 			lab._awaiting_batter_confirm = (
 				lab._player_is_batting() and (completed_plate_appearance or changed_half)
 			)

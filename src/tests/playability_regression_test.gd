@@ -5,6 +5,10 @@ static func run(check: Callable) -> void:
 	_test_live_foul_resolution(check)
 	_test_moving_ground_out_rule(check)
 	_test_field_layout(check)
+	_test_pitcher_swept_reaction(check)
+	_test_defender_territory(check)
+	_test_roster_handedness_mix(check)
+	_test_batted_ball_variety_bridge(check)
 	_test_fastball_speed_challenge(check)
 	_test_player_repertoire_exception(check)
 	_test_batting_aim_pose(check)
@@ -50,9 +54,10 @@ static func _test_moving_ground_out_rule(check: Callable) -> void:
 	resolver.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.7), false, true)
 	check.call(
 		field.safe_hit_z_m > PitchBatLab.MOUND_ORIGIN.z
+		and field.deep_air_z_m - field.safe_hit_z_m >= 1.0
 		and outcomes.size() == 1
 		and outcomes[0].result == BallPlayOutcome.Result.OUT,
-		"a moving fair grounder controlled before the singles line should be an Out"
+		"the singles line should leave readable room for moving ground Outs"
 	)
 
 	var stopped: BallPlayResolver = BallPlayResolver.new()
@@ -80,6 +85,69 @@ static func _test_field_layout(check: Callable) -> void:
 	check.call(
 		PitcherDefense.REACTION_RADIUS_M <= 0.65,
 		"Pitcher defense should remain a deliberately small reaction envelope"
+	)
+
+static func _test_pitcher_swept_reaction(check: Callable) -> void:
+	var mound: Vector3 = PitchBatLab.MOUND_ORIGIN
+	var crossing: Vector3 = PitcherDefense.attempt_position(
+		mound + Vector3(0.0, 0.7, -1.1),
+		mound + Vector3(0.0, 0.7, 1.1),
+		mound
+	)
+	var miss: Vector3 = PitcherDefense.attempt_position(
+		mound + Vector3(0.8, 0.7, -1.1),
+		mound + Vector3(0.8, 0.7, 1.1),
+		mound
+	)
+	check.call(
+		crossing != Vector3.INF and miss == Vector3.INF,
+		"Pitcher defense should catch swept comebackers without expanding its radius"
+	)
+
+static func _test_defender_territory(check: Callable) -> void:
+	var fielder: FielderController = FielderController.new()
+	fielder.set_pitcher_lane(PitchBatLab.MOUND_ORIGIN.z)
+	fielder.set_anchor(Vector3(0.0, 0.0, 14.0))
+	check.call(
+		fielder.territory_min_z > PitchBatLab.MOUND_ORIGIN.z,
+		"a behind-mound Fielder should stay out of the Pitcher's comebacker lane"
+	)
+	fielder.set_anchor(Vector3(0.0, 0.0, 8.5))
+	check.call(
+		fielder.territory_min_z == -INF,
+		"a deliberately shallow Fielder should retain the authored shallow territory"
+	)
+	fielder.free()
+
+static func _test_roster_handedness_mix(check: Callable) -> void:
+	var match_state: MatchState = MatchLabSupport.create_match(
+		&"player.debug_pitcher", "PLAYER", "RIVAL"
+	)
+	var left_handed_count: int = 0
+	var teams: Array[TeamMatchState] = [match_state.away_team, match_state.home_team]
+	for team in teams:
+		for player in team.roster:
+			if player.definition.bats == PlayerDefinition.Handedness.LEFT:
+				left_handed_count += 1
+	check.call(
+		left_handed_count == 2,
+		"prototype rosters should make left-handed batters uncommon rather than even"
+	)
+
+static func _test_batted_ball_variety_bridge(check: Callable) -> void:
+	var contact: ContactResult = ContactResult.new()
+	contact.exit_velocity = Vector3(3.0, 2.0, 12.0)
+	contact.backspin_rad_s = 42.0
+	contact.spray_degrees = 18.0
+	contact.horizontal_error_m = 0.14
+	var pitch_state: PitchState = PitchState.new()
+	pitch_state.orientation = Quaternion(Vector3.UP, 0.41)
+	var launch: BattedBallLaunch = BattedBallLaunch.from_contact(contact, pitch_state)
+	check.call(
+		launch.orientation == pitch_state.orientation
+		and not is_zero_approx(launch.angular_velocity.y)
+		and not is_zero_approx(launch.angular_velocity.z),
+		"contact should carry Pitch orientation and signed side/gyro spin into Jolt"
 	)
 
 static func _test_fastball_speed_challenge(check: Callable) -> void:

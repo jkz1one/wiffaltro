@@ -10,6 +10,8 @@ var target_position: Vector3 = Vector3.ZERO
 var active: bool = false
 var last_reaction_margin_seconds: float = 0.0
 var reaction_delay_seconds: float = 0.11
+var pitcher_lane_z: float = INF
+var territory_min_z: float = -INF
 var _play_elapsed_seconds: float = 0.0
 var _avatar: PlayerAvatar
 var _reach_marker: MeshInstance3D
@@ -19,9 +21,14 @@ func _ready() -> void:
 
 func set_anchor(new_anchor: Vector3) -> void:
 	anchor_position = new_anchor
+	_update_territory_boundary()
 	if not active:
 		global_position = new_anchor
 	target_position = new_anchor
+
+func set_pitcher_lane(pitcher_z: float) -> void:
+	pitcher_lane_z = pitcher_z
+	_update_territory_boundary()
 
 func begin_play() -> void:
 	active = true
@@ -83,7 +90,14 @@ func plan_for_ball(
 		reach_m
 	)
 	target_position = plan_result.intercept_position
+	if territory_min_z != -INF:
+		target_position.z = maxf(target_position.z, territory_min_z)
 	last_reaction_margin_seconds = plan_result.reaction_margin_seconds
+
+func _update_territory_boundary() -> void:
+	territory_min_z = -INF
+	if pitcher_lane_z != INF and anchor_position.z > pitcher_lane_z + 0.25:
+		territory_min_z = pitcher_lane_z + 0.72
 
 func horizontal_distance_to(point: Vector3) -> float:
 	return Vector2(

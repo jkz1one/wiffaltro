@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Live-foul/defense/HUD hardening complete statically; hands-on validation pending
+**Current phase:** Phase 3 — Presentation/defensive-variety hardening complete statically; hands-on validation pending
 
 ## Implemented in repository
 
@@ -467,6 +467,45 @@ Primary Fielder speed/reach remains symmetric for both teams and was not raised.
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on foul visibility/catches, ground outs, Pitcher chances, AI
       fastballs, boundary balance, submenus, HUD telemetry, and batting view
+
+
+## Phase 3 presentation and defensive-variety pass — runtime validation pending
+
+This pass answers the 2026-09-20 HUD, framing, field-balance, and defensive
+readability playtest without expanding into season/meta scope.
+
+- [x] reduced and tightened the scorebug, anchored it lower at bottom right,
+      and added selectable bottom-right, top-left, and top-right layouts
+- [x] added a tiny bottom-left display menu for HUD position and procedural
+      sky/gray-backdrop selection
+- [x] split small Ball/Strike/Foul and Pitch-speed calls beneath the scorebug
+      from centered major transition/result text with dark-blue outline/shadow
+- [x] removed normal-play WINDUP/DELIVERY/TRACK THE BALL and Field View helper
+      prose while retaining detailed F1 telemetry
+- [x] kept a compact selected-Pitch identifier visible during player defense
+- [x] moved the batting camera nearly to center with only a small handed offset
+      and reframed Field Setup to include home plate and the Batter
+- [x] added two broadcast angles and a deterministic one-long-take intro option
+      alongside the existing two-/three-shot packages and motion operations
+- [x] made left-handed prototype players uncommon rather than evenly split
+- [x] added deterministic AI Fielder repositioning between player Batters
+- [x] added swept-segment Pitcher defense so fast comebackers cannot tunnel
+      through the intentionally small mound envelope
+- [x] kept behind-mound Primary Fielders out of the Pitcher's immediate lane
+- [x] separated the Single and Deep Air boundaries, moved/lowered the wall
+      modestly, and added subtle foul-line presentation
+- [x] broadened deterministic weak/strong contact speed and physical flight
+      variation through nonlinear exit transfer plus inherited orientation and
+      signed side/gyro spin
+- [x] made opponent Batters swing slightly more while adding enough execution
+      spread to create additional swings-and-misses rather than a raw buff
+- [x] added static regressions for the revised safe-line geometry, swept
+      Pitcher reaction, defender territory, roster handedness mix, batted-ball
+      orientation/spin transfer, and one-shot presentation timing
+- [x] all GDScript passes `gdparse` and `gdlint` static checks on 2026-09-20
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on HUD anchors/menu, sky, camera framing, Pitcher/Fielder territory,
+      AI variation, batted-ball variety, and field-boundary validation
 
 
 ## Canonical post-fun-gate roadmap — not implemented

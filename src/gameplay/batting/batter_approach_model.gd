@@ -102,7 +102,7 @@ func decide(
 
 	var swing_chance: float
 	if in_zone:
-		swing_chance = 0.62 + center_score * 0.16 + outside_sweet_spot * 0.07
+		swing_chance = 0.66 + center_score * 0.16 + outside_sweet_spot * 0.07
 		swing_chance -= inside_penalty
 		swing_chance += awareness * 0.15
 	else:
@@ -117,6 +117,7 @@ func decide(
 
 	var contact_skill: float = clampf(float(batter.contact) / 10.0, 0.0, 1.0)
 	var aim_sigma: float = lerpf(0.245, 0.105, contact_skill)
+	aim_sigma += 0.012
 	aim_sigma += recognition_load * 0.050
 	aim_sigma += speed_challenge * pitch.timing_difficulty * 0.075
 	aim_sigma += chase_distance * 0.22

@@ -39,16 +39,19 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - full-simulation debug pause
 - handed Batter/Pitcher/Fielder avatars and independent visible bat swing
 - visible non-authoritative receiver for taken and missed Pitches
-- automatic two-to-three-shot game intro and win/loss outro
+- automatic one-to-three-shot game intro and win/loss outro
 - seeded still / zoom / pan / tilt motion per presentation shot
-- handed over-shoulder batting camera
+- nearly centered batting camera with a very small handed offset
 - Batter approach memory for Pitch/location repetition
 - varied delivery rhythm and distinct Pitch speed bands
 - hold/release mouse pitching through the shared execution meter
 - overhead 3×3 Field Setup view
 - preserved Mechanics Lab and debug telemetry
 - suspended-match return from Mechanics Lab at safe pre-Pitch boundaries
-- compact broadcast-style scorebug and centered transition/result card
+- compact movable broadcast-style scorebug, small beneath-scorebug calls, and
+  centered boxless transition/result text
+- tiny display menu for scorebug anchor and procedural sky/gray backdrop
+- persistent compact selected-Pitch identifier during player defense
 - visible player-controlled Pitcher windup during the release meter
 - late release sweet spot with bounded category-aware overdrive risk/reward
 
@@ -191,10 +194,11 @@ short front-shoulder finish instead of snapping or circling back to stance. The
 large receiver outline must remain hidden unless the explicit debug layer is
 enabled.
 
-Starting a new match should automatically play two or three readable camera
-views with `GAME START`, then settle into the correct batting camera and wait
-for the Batter-ready confirmation. Across restarts, both two-view and
-three-view packages should occur. Individual shots should visibly vary among
+Starting a new match should automatically play one, two, or three readable
+camera views with `GAME START`, then settle into the correct batting camera and
+wait for the Batter-ready confirmation. A one-view package should be one longer
+take; across restarts, one-, two-, and three-view packages should occur.
+Individual shots should visibly vary among
 still, slow zoom, pan, and tilt treatments without jerky movement. The lighter
 intro tint should preserve the field view. The sequence must be skippable. Taken
 Pitches, fouls, misses, walks, strikeouts, hits, outs, new batters, and inning
@@ -238,15 +242,23 @@ resume without replaying the intro or resetting the inning. `F2` during a live
 Pitch, ball-in-play, cadence, or presentation should refuse safely rather than
 discarding the play.
 
-With F1 off, the compact lower-right scorebug should be the only persistent baseball-state
+With F1 off, the compact scorebug should be the only persistent baseball-state
 readout: score, half/inning, count, outs, bases, Batter, Pitcher, Pitch count,
-and Stamina. Begin-at-bat prompts and play results should appear as boxless
-white text directly beneath it. Ball, Strike, and Foul calls should use the
-smaller treatment in both player roles; Ball/Strike reports should include
-Pitch speed, and hit results should include exit velocity. There should be no
-persistent numeric effort prose outside the F1 layer. With F1 on, diagnostic
-text may appear at left but must not overlap or redundantly replace the
-scorebug/result stack.
+and Stamina. Use the tiny bottom-left `...` menu to cycle bottom right, top left,
+and top right; bottom right should sit low while leaving a narrow call area
+beneath it. Ball, Strike, and Foul calls should use that small beneath-scorebug
+treatment in both player roles, and Ball/Strike reports should identify the
+Pitch and speed. Begin-at-bat prompts and major play results should instead use
+centered boxless white text with dark-blue outline/shadow. Hit results should
+include exit velocity. The selected Pitch should remain compactly visible while
+the player is pitching. There should be no persistent numeric effort prose or
+WINDUP/DELIVERY/TRACK THE BALL helper text outside the F1 layer. With F1 on,
+diagnostic text may appear at left but must not overlap or redundantly replace
+the scorebug/result stack.
+
+Use the same `...` menu to toggle the procedural sky back to the neutral gray
+background. Neither choice may change gameplay. Field Setup's overhead framing
+should include the plate and Batter rather than cropping the near field.
 
 With `F1` telemetry visible, try pressing a Pitch number, `-` / `=`, `Q` / `E`,
 `F`, and `C` after starting the release meter and again while the ball is in
@@ -277,20 +289,33 @@ deceive; a repeated or center-hanging Eephus should be dangerous to throw.
 AI Pitcher set/windup duration should vary readably rather than repeat one exact
 interval.
 
-The yellow line marks the ordinary Safe boundary and should now sit behind the
-mound. A clean play on a still-moving grounded ball before that line is an Out;
+The yellow line marks the ordinary Safe boundary and should sit just beyond the
+mound center with a visibly useful gap before the cyan Deep Air line. A clean
+play on a still-moving grounded ball before that line is an Out;
 a stopped ball or a ball that crossed the line is at least a Single. The cyan
 line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall
 strike on the fly is a Triple, and a fair airborne ball clearing the modestly
-lower wall top is a Home Run. The brown pole is a live object: it should
-physically redirect the ball without deciding the baseball result by itself.
+lower/closer wall top is a Home Run. Thin chalk foul lines remain as readable
+fair-territory guides because airborne fouls are now live catch opportunities;
+they are presentation, not the rules authority. The brown pole is a live object:
+it should physically redirect the ball without deciding the baseball result.
 
 The Primary Fielder should show a brief rating-scaled reaction delay, run at a
 believable speed, and only control balls the visible actor actually reaches.
 High or horizontally distant balls must pass as misses. Bobbles should remain
 near the defender. The Pitcher should react only to true
-comebackers inside the small mound envelope. A below-wall ball must resolve at
+comebackers inside the small mound envelope, including a fast ball whose swept
+frame segment crosses that envelope. A behind-mound Primary Fielder should not
+run through the Pitcher to steal that play. Across player offensive plate
+appearances, the AI should visibly choose different sensible grid anchors based
+on Batter handedness/Power with deterministic variation. A below-wall ball must resolve at
 the wall even if the physical contact callback misses a fast frame.
+
+Compare mishits, centered line drives, high-contact flies, and rolled-over
+grounders. The physical ball should now show a wider but deterministic range of
+carry, fade/drop, and true slow rollers instead of converging on one tame path.
+The AI offense should offer at a few more strikes but also swing through more
+often; this is intended as behavioral variety, not a blanket contact buff.
 
 Open Field View and verify the visible grid reads Deep Left/Center/Right on the
 top row, Middle on the second, and Shallow on the third. Left and Right should

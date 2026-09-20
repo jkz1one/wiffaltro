@@ -60,6 +60,9 @@ var _receiver_marker: Node3D
 var _camera: Camera3D
 var _camera_mode: int = 0
 var _camera_director: MatchCameraDirector
+var _hud_anchor_index: int = 0
+var _world_environment: WorldEnvironment
+var _sky_backdrop_enabled: bool = true
 var _match_presentation_director: MatchPresentationDirector
 var _status_label: Label
 var _live_label: Label
@@ -68,6 +71,11 @@ var _controls_label: Label
 var _scorebug: MatchScorebug
 var _event_panel: Panel
 var _action_label: Label
+var _display_menu_button: Button
+var _display_menu_panel: VBoxContainer
+var _hud_anchor_button: Button
+var _backdrop_button: Button
+var _display_menu_open: bool = false
 var _pitch_release_bar: ProgressBar
 var _pitch_release_ideal_marker: ColorRect
 var _presentation_backdrop: ColorRect
@@ -236,8 +244,16 @@ func _physics_process(delta: float) -> void:
 	):
 		return
 
+	var previous_ball_position: Vector3 = _previous_batted_position
 	var current_ball_position: Vector3 = _batted_ball.global_position
-	_ball_play_resolver.observe_segment(_previous_batted_position, current_ball_position)
+	# Resolve the restricted mound envelope before downstream rule planes from
+	# the same swept segment. A clean comebacker at z=13.7 must not be turned
+	# into a Single merely because that frame also crosses the z=13.8 line.
+	_try_pitcher_defense(previous_ball_position, current_ball_position)
+	if _ball_play_resolver.state.dead:
+		_previous_batted_position = current_ball_position
+		return
+	_ball_play_resolver.observe_segment(previous_ball_position, current_ball_position)
 	_previous_batted_position = current_ball_position
 	if _ball_play_resolver.state.dead:
 		return
@@ -250,7 +266,6 @@ func _physics_process(delta: float) -> void:
 		_batted_ball.linear_velocity,
 		_ball_play_resolver.state.has_grounded
 	)
-	_try_pitcher_defense()
 	_try_primary_fielder()
 
 	if _batted_ball.linear_velocity.length() <= SETTLED_SPEED_MPS:
@@ -480,11 +495,13 @@ func _on_batted_surface_contact(surface_id: StringName, contact_position: Vector
 			_ball_play_resolver.record_live_object_contact(&"starter_pole")
 
 
-func _try_pitcher_defense() -> void:
+func _try_pitcher_defense(previous_position: Vector3, current_position: Vector3) -> void:
 	if _pitcher_attempted or _fielding_cooldown_seconds > 0.0:
 		return
-	var ball_position: Vector3 = _batted_ball.global_position
-	if not PitcherDefense.can_attempt(ball_position, MOUND_ORIGIN):
+	var ball_position: Vector3 = PitcherDefense.attempt_position(
+		previous_position, current_position, MOUND_ORIGIN
+	)
+	if ball_position == Vector3.INF:
 		return
 
 	_pitcher_attempted = true
@@ -495,7 +512,7 @@ func _try_pitcher_defense() -> void:
 		_ball_play_resolver.state.has_grounded,
 		MatchLabSupport.pitcher_fielding_rating(self)
 	)
-	_apply_fielding_outcome(&"pitcher", MOUND_ORIGIN, outcome)
+	_apply_fielding_outcome(&"pitcher", MOUND_ORIGIN, outcome, ball_position)
 
 
 func _try_primary_fielder() -> void:
@@ -526,11 +543,17 @@ func _try_primary_fielder() -> void:
 
 
 func _apply_fielding_outcome(
-	defender_id: StringName, defender_position: Vector3, outcome: FieldingResolver.Outcome
+	defender_id: StringName,
+	defender_position: Vector3,
+	outcome: FieldingResolver.Outcome,
+	control_position: Vector3 = Vector3.INF
 ) -> void:
+	var resolved_position: Vector3 = (
+		_batted_ball.global_position if control_position == Vector3.INF else control_position
+	)
 	if defender_id == &"pitcher":
 		PitchBatLabPresentation.show_pitcher_fielding_attempt(
-			self, _batted_ball.global_position, outcome
+			self, resolved_position, outcome
 		)
 	_last_fielding_text = (
 		"%s: %s"
@@ -542,10 +565,11 @@ func _apply_fielding_outcome(
 	match outcome:
 		FieldingResolver.Outcome.CLEAN:
 			var ball_was_moving: bool = _batted_ball.linear_velocity.length() > SETTLED_SPEED_MPS
+			_batted_ball.global_position = resolved_position
 			_batted_ball.stop_and_freeze()
 			_ball_play_resolver.record_clean_control(
 				defender_id,
-				_batted_ball.global_position,
+				resolved_position,
 				not _ball_play_resolver.state.has_grounded,
 				ball_was_moving
 			)
@@ -674,10 +698,11 @@ func _on_plate_crossed(point: Vector3, speed_mps: float, elapsed_seconds: float)
 	)
 	if _match_mode:
 		_status_label.text = (
-			"%s%s\n%.0f MPH"
+			"%s%s\n%s  %.0f MPH"
 			% [
 				String(plate_call).replace("_", " ").to_upper(),
 				swing_feedback,
+				_selected_pitch().display_name,
 				speed_mps * 2.236936,
 			]
 		)
@@ -876,6 +901,7 @@ func _start_new_match() -> void:
 	if _batter_approach != null:
 		_batter_approach.reset(_match_state.plate_appearance_number)
 	_fielder_anchor_index = 4
+	MatchLabSupport.assign_ai_defense_for_half(self)
 	_trajectory_points.clear()
 	if _trajectory_draw != null:
 		_trajectory_draw.clear()
@@ -909,6 +935,7 @@ func _apply_defensive_assignment() -> void:
 	if fielder_state != null and _primary_fielder != null:
 		_primary_fielder.configure_player(fielder_state.definition)
 		_primary_fielder.set_anchor(_field_definition.fielder_anchor(_fielder_anchor_index))
+		_primary_fielder.set_pitcher_lane(MOUND_ORIGIN.z)
 	PitchBatLabPresentation.sync_players(self)
 
 
@@ -927,6 +954,19 @@ func _toggle_debug_overlay() -> void:
 
 func _cycle_camera() -> void:
 	PitchBatLabPresentation.cycle_camera(self)
+
+
+func _toggle_display_menu() -> void:
+	_display_menu_open = not _display_menu_open
+	PitchBatLabPresentation.refresh_display_menu(self)
+
+
+func _cycle_hud_anchor() -> void:
+	PitchBatLabPresentation.cycle_hud_anchor(self)
+
+
+func _toggle_sky_backdrop() -> void:
+	PitchBatLabPresentation.toggle_sky_backdrop(self)
 
 
 func _apply_role_camera() -> void:

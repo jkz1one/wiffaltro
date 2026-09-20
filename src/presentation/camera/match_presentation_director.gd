@@ -18,6 +18,7 @@ enum Event {
 }
 
 const SHOT_SECONDS: float = 1.70
+const LONG_SHOT_SECONDS: float = 2.90
 const SETTLE_SECONDS: float = 0.38
 
 var mode: Mode = Mode.IDLE
@@ -63,7 +64,10 @@ func current_motion() -> MatchCameraDirector.PresentationMotion:
 func shot_progress() -> float:
 	if mode == Mode.INTRO_SETTLE or mode == Mode.OUTRO_HOLD:
 		return 1.0
-	return clampf(elapsed_seconds / SHOT_SECONDS, 0.0, 1.0)
+	return clampf(elapsed_seconds / shot_duration_seconds(), 0.0, 1.0)
+
+func shot_duration_seconds() -> float:
+	return LONG_SHOT_SECONDS if shot_sequence.size() == 1 else SHOT_SECONDS
 
 func advance(delta_seconds: float) -> Event:
 	var next_event: Event = Event.NONE
@@ -76,7 +80,7 @@ func advance(delta_seconds: float) -> Event:
 			mode = Mode.IDLE
 			elapsed_seconds = 0.0
 			next_event = Event.INTRO_COMPLETE
-	elif elapsed_seconds >= SHOT_SECONDS:
+	elif elapsed_seconds >= shot_duration_seconds():
 		elapsed_seconds = 0.0
 		if shot_index + 1 < shot_sequence.size():
 			shot_index += 1
@@ -106,6 +110,8 @@ static func _select_shots(
 		MatchCameraDirector.Shot.ESTABLISHING,
 		MatchCameraDirector.Shot.SIDE,
 		MatchCameraDirector.Shot.PITCHING,
+		MatchCameraDirector.Shot.FOUL_SIDE,
+		MatchCameraDirector.Shot.OUTFIELD,
 	]
 	if include_batting:
 		pool.append(MatchCameraDirector.Shot.BATTING)
@@ -116,9 +122,10 @@ static func _select_shots(
 		var held: MatchCameraDirector.Shot = pool[index]
 		pool[index] = pool[swap_index]
 		pool[swap_index] = held
-	# Alternate deterministically so ordinary matches visibly use both the
-	# two-shot and three-shot packages rather than merely allowing either.
-	var shot_count: int = 2 + (absi(sequence_seed) % 2)
+	# One in four packages is a single longer take. The others deliberately
+	# alternate between two and three shots.
+	var package_variant: int = absi(sequence_seed) % 4
+	var shot_count: int = 1 if package_variant == 0 else (2 if package_variant <= 2 else 3)
 	var result: Array[MatchCameraDirector.Shot] = []
 	for index in range(mini(shot_count, pool.size())):
 		result.append(pool[index])

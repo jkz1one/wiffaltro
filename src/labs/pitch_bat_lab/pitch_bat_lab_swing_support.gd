@@ -108,7 +108,7 @@ static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
 				lab._last_exit_speed_mph,
 			]
 		)
-		lab._start_ball_in_play(BattedBallLaunch.from_contact(result))
+		lab._start_ball_in_play(BattedBallLaunch.from_contact(result, lab._pitch_actor.state))
 		return
 
 	lab._status_label.text = ""
@@ -137,4 +137,4 @@ static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
 		vector_end,
 	]
 	lab._contact_vector_draw.draw_polyline(launch_points)
-	lab._start_ball_in_play(BattedBallLaunch.from_contact(result))
+	lab._start_ball_in_play(BattedBallLaunch.from_contact(result, lab._pitch_actor.state))

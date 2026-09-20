@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.11
-**Status:** FROZEN BASELINE WITH LIVE-FOUL / GROUND-OUT AMENDMENT
+**Version:** v0.1.12
+**Status:** FROZEN BASELINE WITH MATCH-PRESENTATION / DEFENSIVE-VARIETY AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -945,6 +945,11 @@ Preserve the sign of this spin tendency when launching the physical ball.
 Clamping negative offset to zero spin erases a useful, readable distinction
 between undercut fly contact and rollover ground contact.
 
+The launch bridge also carries the Pitch ball's orientation and derives bounded
+side/gyro components from spray and horizontal contact error. This gives Jolt
+flight deterministic carry, fade, drop, and roller variety without choosing a
+hit result through hidden randomness.
+
 This produces understandable arcade outcomes while retaining a physical basis.
 
 ---
@@ -1278,6 +1283,12 @@ field rather than raw world-X naming.
 
 After contact, the fielder moves according to the planner.
 
+The opponent chooses a new anchor between batters from visible Batter
+handedness and Power plus a deterministic seed. It cannot read future contact.
+A fielder starting behind the mound is clamped out of the Pitcher's immediate
+comebacker lane so the two automated defenders do not visibly race through the
+same territory.
+
 ---
 
 # 45. Fielding Resolver
@@ -1343,6 +1354,10 @@ Pitcher may:
 Pitcher does not roam as the Primary Fielder. The attempt envelope remains
 small and must not be enlarged merely to manufacture more Pitcher plays; field
 geometry and the moving-ground-ball rule create the opportunity.
+
+Test that small envelope against the swept batted-ball segment each physics
+frame. This prevents high-speed tunneling without increasing the radius or
+granting control outside the visible reaction space.
 
 ---
 
@@ -1488,8 +1503,9 @@ states. They lock when the release meter begins and remain immutable through
 Pitch flight and ball-in-play.
 
 `MatchPresentationDirector` is a match-local presentation state machine. It
-selects two or three unique, seeded intro/outro shots from an authored pool,
-deliberately varies the package length between matches, uses readable holds,
+selects one, two, or three unique, seeded intro/outro shots from an authored
+pool, uses a longer duration for a one-shot take, deliberately varies the
+package length between matches, uses readable holds,
 blocks gameplay during the sequence, returns through the correct role camera,
 and exposes a skip path. Each shot also receives a seeded, bounded motion mode:
 still, zoom in/out, pan left/right, or tilt up/down. `MatchCameraDirector`
@@ -1499,9 +1515,13 @@ scores, results, or gameplay timing. High-stakes cinematic packages remain a
 future extension of this director, not a second match state machine.
 
 Match HUD ownership is split by purpose. `MatchScorebug` renders persistent
-baseball state from `MatchState`; a boxless outlined label directly beneath the
-lower-right scorebug renders transient prompts/results and compact Pitch/exit
-speed telemetry; F1-owned labels render detailed diagnostics. F2 may enter the
+baseball state from `MatchState` at a user-selectable bottom-right, top-left, or
+top-right anchor. A small boxless label beneath that anchor renders routine
+Ball/Strike/Foul and speed telemetry. Larger transition/result messages render
+at center with dark-blue outline/shadow, while the chosen Pitch retains a
+compact identifier during player defense. A tiny bottom-left display menu owns
+HUD-anchor and procedural-sky/gray choices. F1-owned labels render detailed
+diagnostics. F2 may enter the
 Mechanics Lab only at a safe stopped pre-Pitch boundary. The Lab keeps the
 existing `MatchState` suspended and restores its selection/aim/role-facing
 presentation state on return; it never creates a replacement match merely to

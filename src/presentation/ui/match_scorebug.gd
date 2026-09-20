@@ -1,7 +1,7 @@
 class_name MatchScorebug
 extends Control
 
-const PANEL_SIZE: Vector2 = Vector2(320.0, 108.0)
+const PANEL_SIZE: Vector2 = Vector2(300.0, 102.0)
 const EMPTY_BASE_COLOR: Color = Color(0.08, 0.12, 0.16, 0.92)
 const OCCUPIED_BASE_COLOR: Color = Color(0.98, 0.78, 0.16, 1.0)
 
@@ -78,42 +78,42 @@ func _build() -> void:
 
 	var away_band: ColorRect = _band(Color(0.10, 0.28, 0.48, 0.96), Vector2(7.0, 7.0))
 	background.add_child(away_band)
-	var home_band: ColorRect = _band(Color(0.62, 0.18, 0.14, 0.96), Vector2(7.0, 34.0))
+	var home_band: ColorRect = _band(Color(0.62, 0.18, 0.14, 0.96), Vector2(7.0, 32.0))
 	background.add_child(home_band)
 
-	_away_name = _label(background, Vector2(15.0, 7.0), Vector2(104.0, 27.0), 17)
+	_away_name = _label(background, Vector2(14.0, 7.0), Vector2(98.0, 25.0), 15)
 	_away_score = _label(
-		background, Vector2(119.0, 7.0), Vector2(38.0, 27.0), 19, HORIZONTAL_ALIGNMENT_CENTER
+		background, Vector2(111.0, 7.0), Vector2(38.0, 25.0), 17, HORIZONTAL_ALIGNMENT_CENTER
 	)
-	_home_name = _label(background, Vector2(15.0, 34.0), Vector2(104.0, 27.0), 17)
+	_home_name = _label(background, Vector2(14.0, 32.0), Vector2(98.0, 25.0), 15)
 	_home_score = _label(
-		background, Vector2(119.0, 34.0), Vector2(38.0, 27.0), 19, HORIZONTAL_ALIGNMENT_CENTER
+		background, Vector2(111.0, 32.0), Vector2(38.0, 25.0), 17, HORIZONTAL_ALIGNMENT_CENTER
 	)
 
 	var game_block: Panel = Panel.new()
-	game_block.position = Vector2(163.0, 7.0)
-	game_block.size = Vector2(150.0, 54.0)
+	game_block.position = Vector2(155.0, 7.0)
+	game_block.size = Vector2(138.0, 50.0)
 	game_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	game_block.add_theme_stylebox_override(
 		"panel", _panel_style(Color(0.015, 0.027, 0.04, 0.94), Color(0.22, 0.31, 0.38, 1.0), 1)
 	)
 	background.add_child(game_block)
-	_inning = _label(game_block, Vector2(8.0, 3.0), Vector2(47.0, 23.0), 15)
-	_count = _label(game_block, Vector2(8.0, 25.0), Vector2(58.0, 25.0), 18)
-	_outs = _label(game_block, Vector2(53.0, 4.0), Vector2(48.0, 20.0), 10)
+	_inning = _label(game_block, Vector2(8.0, 2.0), Vector2(43.0, 22.0), 14)
+	_count = _label(game_block, Vector2(8.0, 23.0), Vector2(55.0, 24.0), 17)
+	_outs = _label(game_block, Vector2(49.0, 3.0), Vector2(46.0, 19.0), 9)
 
-	_add_base_marker(game_block, Vector2(127.0, 33.0))
-	_add_base_marker(game_block, Vector2(114.0, 20.0))
-	_add_base_marker(game_block, Vector2(101.0, 33.0))
+	_add_base_marker(game_block, Vector2(117.0, 31.0))
+	_add_base_marker(game_block, Vector2(105.0, 19.0))
+	_add_base_marker(game_block, Vector2(93.0, 31.0))
 
 	var lower_band: ColorRect = ColorRect.new()
-	lower_band.position = Vector2(7.0, 66.0)
-	lower_band.size = Vector2(306.0, 35.0)
+	lower_band.position = Vector2(7.0, 62.0)
+	lower_band.size = Vector2(286.0, 33.0)
 	lower_band.color = Color(0.035, 0.075, 0.105, 0.96)
 	lower_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	background.add_child(lower_band)
-	_batter = _label(background, Vector2(14.0, 65.0), Vector2(292.0, 18.0), 12)
-	_pitcher = _label(background, Vector2(14.0, 82.0), Vector2(292.0, 18.0), 12)
+	_batter = _label(background, Vector2(13.0, 61.0), Vector2(280.0, 17.0), 11)
+	_pitcher = _label(background, Vector2(13.0, 78.0), Vector2(280.0, 17.0), 11)
 
 
 func _set_base(index: int, occupied: bool) -> void:
@@ -130,8 +130,8 @@ func _set_base(index: int, occupied: bool) -> void:
 func _add_base_marker(parent: Control, offset: Vector2) -> void:
 	var marker: Panel = Panel.new()
 	marker.position = offset
-	marker.size = Vector2(12.0, 12.0)
-	marker.pivot_offset = Vector2(6.0, 6.0)
+	marker.size = Vector2(11.0, 11.0)
+	marker.pivot_offset = Vector2(5.5, 5.5)
 	marker.rotation = deg_to_rad(45.0)
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(marker)
@@ -142,7 +142,7 @@ func _add_base_marker(parent: Control, offset: Vector2) -> void:
 static func _band(color: Color, offset: Vector2) -> ColorRect:
 	var band: ColorRect = ColorRect.new()
 	band.position = offset
-	band.size = Vector2(150.0, 27.0)
+	band.size = Vector2(142.0, 25.0)
 	band.color = color
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return band

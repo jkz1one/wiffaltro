@@ -1,3 +1,4 @@
+# gdlint: disable=max-file-lines
 extends Node
 
 var _failures: int = 0
@@ -757,9 +758,9 @@ func _test_match_presentation_sequence() -> void:
 		"broadcast intro camera motion should replay from its seed"
 	)
 	_check(
-		first.shot_sequence.size() >= 2
+		first.shot_sequence.size() >= 1
 		and first.shot_sequence.size() <= 3,
-		"a basic game intro should automatically select two or three shots"
+		"a basic game intro should automatically select one, two, or three shots"
 	)
 	var two_shot: MatchPresentationDirector = MatchPresentationDirector.new()
 	two_shot.begin_intro(218)
@@ -767,6 +768,13 @@ func _test_match_presentation_sequence() -> void:
 		two_shot.shot_sequence.size() == 2
 		and first.shot_sequence.size() == 3,
 		"ordinary match seeds should deliberately exercise two- and three-shot intros"
+	)
+	var long_take: MatchPresentationDirector = MatchPresentationDirector.new()
+	long_take.begin_intro(216)
+	_check(
+		long_take.shot_sequence.size() == 1
+		and long_take.shot_duration_seconds() == MatchPresentationDirector.LONG_SHOT_SECONDS,
+		"one-shot intros should use the longer authored hold"
 	)
 	var unique_shots: Dictionary = {}
 	for shot in first.shot_sequence:
@@ -781,7 +789,7 @@ func _test_match_presentation_sequence() -> void:
 	)
 	var intro_event: MatchPresentationDirector.Event
 	for index in range(first.shot_sequence.size()):
-		intro_event = first.advance(MatchPresentationDirector.SHOT_SECONDS)
+		intro_event = first.advance(first.shot_duration_seconds())
 		var expected_event: MatchPresentationDirector.Event = (
 			MatchPresentationDirector.Event.SHOT_CHANGED
 			if index + 1 < first.shot_sequence.size()
@@ -801,7 +809,7 @@ func _test_match_presentation_sequence() -> void:
 	first.begin_outro(220)
 	var outro_event: MatchPresentationDirector.Event
 	for _index in range(first.shot_sequence.size()):
-		outro_event = first.advance(MatchPresentationDirector.SHOT_SECONDS)
+		outro_event = first.advance(first.shot_duration_seconds())
 	_check(
 		outro_event == MatchPresentationDirector.Event.OUTRO_COMPLETE
 		and first.mode == MatchPresentationDirector.Mode.OUTRO_HOLD

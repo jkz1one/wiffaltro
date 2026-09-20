@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.14
-**Status:** FROZEN BASELINE WITH LIVE-FOUL / GROUND-OUT AMENDMENT
-**Supersedes:** v0.4.13 and all earlier planning notes
+**Version:** v0.4.15
+**Status:** FROZEN BASELINE WITH MATCH-PRESENTATION / DEFENSIVE-VARIETY AMENDMENT
+**Supersedes:** v0.4.14 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -184,9 +184,9 @@ choosing when to begin the next click-and-hold delivery. Pitch, aim, effort,
 Pitcher, and legal defensive choices remain available during the appropriate
 ready state.
 
-The batting camera uses a modest handed over-shoulder angle rather than a
-perfectly centered tunnel. This improves depth perception without changing the
-plate-local contact math. A visible handed Batter and bat must mirror the
+The batting camera stays nearly centered on the Pitch lane with only a very
+small handed offset. This preserves depth without letting the loaded bat
+obstruct the incoming ball or changing plate-local contact math. A visible handed Batter and bat must mirror the
 current roster player; the bat is presentation for the authored ContactResolver,
 not a second physics authority. The bat and Batter are independent presentation
 actors so equipment animation/lifecycle does not become character geometry.
@@ -514,6 +514,11 @@ The Primary Fielder can be positioned in a persistent 3×3 grid:
 
 Position persists until changed.
 
+Opponent defense also repositions between batters. Its authored baseline uses
+the visible Batter's handedness and Power to choose among shallow/middle/deep
+and pull/center/opposite anchors, with deterministic seeded variation rather
+than hidden knowledge of the coming contact.
+
 Position locks once the pitching motion begins.
 
 The positioning UI may enter a temporary overhead Field Setup view with nine
@@ -529,7 +534,9 @@ The Pitcher automatically participates on:
 - possible hard deflections
 
 The Pitcher does not roam as the Primary Fielder. Pitcher defense is limited to
-a small, visibly reactive comebacker envelope around the mound.
+a small, visibly reactive comebacker envelope around the mound. That envelope
+is tested against the ball's swept frame segment so a fast comebacker cannot
+tunnel through it merely because neither rendered endpoint was inside.
 
 ## Fielding outcomes
 
@@ -1288,10 +1295,11 @@ Audio should enter early:
 ## Match presentation
 
 A match begins with a short, skippable broadcast-style introduction. The game
-automatically selects two or three views from an authored camera pool and
+automatically selects one, two, or three views from an authored camera pool and
 displays a temporary game-start title before settling into the role camera.
-Ordinary intros must actually vary between two-shot and three-shot packages;
-shots hold long enough to read rather than cutting rapidly.
+The one-view variant is a deliberately longer take; multi-view intros vary
+between two- and three-shot packages. Shots hold long enough to read rather
+than cutting rapidly.
 Each view may independently be still or use a subtle slow zoom, horizontal pan,
 or vertical tilt selected from the authored presentation pool. Camera motion is
 presentation-only and cannot alter game time or baseball state.
@@ -1300,11 +1308,18 @@ treatment with a win/loss title and final score.
 
 During play, a compact broadcast-style scorebug owns the persistent essentials:
 team score, half/inning, count, outs, occupied bases, current Batter, Pitcher,
-Pitch count, and Pitcher Stamina. Temporary calls such as begin-at-bat,
-Strikeout, Out, hit result, and inning change use boxless outlined text directly
-beneath the lower-right scorebug. Routine Ball/Strike/Foul calls use a smaller
-treatment in the same location. Detailed simulation telemetry remains in the
-explicit debug layer and should not duplicate or obscure the scorebug.
+Pitch count, and Pitcher Stamina. A small display menu may move it among bottom
+right, top left, and top right. Routine Ball/Strike/Foul calls and compact Pitch
+speed reports use small boxless text directly beneath the selected anchor.
+Begin-at-bat, Strikeout, Out, hit result, and inning-change messages use larger
+centered white text with a dark-blue outline and shadow. A compact selected-Pitch
+identifier remains visible while the player is pitching. Detailed simulation
+telemetry remains in the explicit debug layer and should not duplicate or
+obscure the scorebug.
+
+The starter presentation may use a lightweight procedural sky, with a gray
+fallback available from the same small display menu. This is presentation only;
+it does not change lighting-dependent gameplay or field rules.
 
 Higher-stakes games may later use longer authored cinematic packages for
 clinch opportunities, elimination games, playoff-round finales, rivalries,

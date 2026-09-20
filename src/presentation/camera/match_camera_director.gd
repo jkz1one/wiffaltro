@@ -9,6 +9,8 @@ enum Shot {
 	FIELD_SETUP,
 	PITCHING_STAFF,
 	ESTABLISHING,
+	FOUL_SIDE,
+	OUTFIELD,
 }
 
 enum PresentationMotion {
@@ -87,10 +89,10 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 	var focus: Vector3
 	match shot:
 		Shot.BATTING:
-			# A modest handed over-shoulder angle exposes depth without changing
-			# the authored plate-local contact coordinates.
-			camera_position = Vector3(_batter_side * 0.96, 1.90, -3.28)
-			focus = Vector3(_batter_side * -0.03, 1.13, 7.0)
+			# Stay nearly centered on the Pitch lane. A small handed offset keeps
+			# depth readable without placing the loaded barrel across the view.
+			camera_position = Vector3(_batter_side * 0.34, 1.88, -3.38)
+			focus = Vector3(0.0, 1.14, 7.1)
 		Shot.PITCHING:
 			camera_position = Vector3(0.0, 2.45, 16.9)
 			focus = Vector3(0.0, 1.05, 0.0)
@@ -98,14 +100,20 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 			camera_position = Vector3(8.6, 2.65, 6.8)
 			focus = Vector3(0.0, 1.15, 6.8)
 		Shot.FIELD_SETUP:
-			camera_position = Vector3(0.0, 27.0, 9.8)
-			focus = Vector3(0.0, 0.0, 13.5)
+			camera_position = Vector3(0.0, 29.5, 7.0)
+			focus = Vector3(0.0, 0.0, 9.0)
 		Shot.PITCHING_STAFF:
 			camera_position = Vector3(-15.0, 8.4, 22.0)
 			focus = Vector3(0.0, 1.1, 9.8)
 		Shot.ESTABLISHING:
 			camera_position = Vector3(-16.5, 11.5, -7.0)
 			focus = Vector3(0.0, 1.1, 12.0)
+		Shot.FOUL_SIDE:
+			camera_position = Vector3(12.8, 5.8, -1.5)
+			focus = Vector3(0.0, 1.1, 10.5)
+		Shot.OUTFIELD:
+			camera_position = Vector3(0.0, 7.8, 25.5)
+			focus = Vector3(0.0, 1.2, 7.0)
 		_:
 			focus = _field_focus
 			var depth_pullback: float = clampf(ball_position.z * 0.16, 0.0, 7.0)
