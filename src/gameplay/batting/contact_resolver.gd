@@ -51,15 +51,15 @@ static func resolve_swept_segment(
 	)
 	var swing_start: float = overlap_start - intent.start_time_seconds
 	var swing_end: float = overlap_end - intent.start_time_seconds
-	var center_start: Vector3 = Vector3(
-		intent.aim_point.x,
-		intent.aim_point.y,
-		_swing_center_z(swing_start, profile)
+	var center_start: Vector3 = swing_center_position(
+		swing_start,
+		intent,
+		profile
 	)
-	var center_end: Vector3 = Vector3(
-		intent.aim_point.x,
-		intent.aim_point.y,
-		_swing_center_z(swing_end, profile)
+	var center_end: Vector3 = swing_center_position(
+		swing_end,
+		intent,
+		profile
 	)
 	# Depth establishes when the ball and moving barrel meet. X/Y error is
 	# evaluated at that encounter, so a badly aimed Swing becomes a spatial
@@ -90,9 +90,14 @@ static func resolve_swept_segment(
 		ball_end,
 		closest_alpha
 	)
+	var contact_center: Vector3 = center_start.lerp(
+		center_end,
+		closest_alpha
+	)
 	return _resolve_at_contact(
 		pitch_state,
 		contact_position,
+		contact_center,
 		intent,
 		profile,
 		contact_rating,
@@ -108,8 +113,16 @@ static func timing_miss(
 	var result: ContactResult = ContactResult.new()
 	result.contact_position = pitch_state.position
 	var contact_factor: float = _contact_factor(contact_rating)
-	result.horizontal_error_m = pitch_state.position.x - intent.aim_point.x
-	result.vertical_error_m = pitch_state.position.y - intent.aim_point.y
+	var swing_elapsed: float = (
+		pitch_state.elapsed_time - intent.start_time_seconds
+	)
+	var contact_center: Vector3 = swing_center_position(
+		swing_elapsed,
+		intent,
+		profile
+	)
+	result.horizontal_error_m = pitch_state.position.x - contact_center.x
+	result.vertical_error_m = pitch_state.position.y - contact_center.y
 	result.timing_error_m = pitch_state.position.z - CONTACT_PLANE_Z
 	var nx: float = result.horizontal_error_m / (
 		profile.contact_radius_x_m * contact_factor
@@ -132,6 +145,7 @@ static func timing_miss(
 static func _resolve_at_contact(
 	pitch_state: PitchState,
 	contact_position: Vector3,
+	contact_center: Vector3,
 	intent: SwingIntent,
 	profile: SwingProfileDefinition,
 	contact_rating: int,
@@ -147,10 +161,10 @@ static func _resolve_at_contact(
 	)
 
 	var horizontal_error: float = (
-		contact_position.x - intent.aim_point.x
+		contact_position.x - contact_center.x
 	)
 	var vertical_error: float = (
-		contact_position.y - intent.aim_point.y
+		contact_position.y - contact_center.y
 	)
 	var depth_error: float = contact_position.z - CONTACT_PLANE_Z
 	result.horizontal_error_m = horizontal_error
@@ -238,6 +252,20 @@ static func _resolve_at_contact(
 	# both sides of the oblique-impact result.
 	result.backspin_rad_s = vertical_ratio * 110.0 * quality
 	return result
+
+static func swing_center_position(
+	swing_elapsed_seconds: float,
+	intent: SwingIntent,
+	profile: SwingProfileDefinition
+) -> Vector3:
+	var center_z: float = _swing_center_z(swing_elapsed_seconds, profile)
+	var attack_radians: float = deg_to_rad(profile.attack_angle_degrees)
+	return Vector3(
+		intent.aim_point.x,
+		intent.aim_point.y
+			+ (center_z - CONTACT_PLANE_Z) * tan(attack_radians),
+		center_z
+	)
 
 static func _swing_center_z(
 	swing_elapsed_seconds: float,

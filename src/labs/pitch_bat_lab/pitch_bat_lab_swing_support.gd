@@ -85,6 +85,10 @@ static func ensure_miss(lab: PitchBatLab) -> ContactResult:
 static func reset(lab: PitchBatLab) -> void:
 	if lab._swing_tracker != null:
 		lab._swing_tracker.reset()
+	if lab._bat_actor != null:
+		lab._bat_actor.reset_swing()
+	if lab._batter_avatar != null:
+		lab._batter_avatar.reset_pose()
 	lab._pending_swing_miss = null
 
 static func _register_miss(

@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.9
-**Status:** FROZEN BASELINE WITH MATCH-INTERACTION HARDENING AMENDMENT
+**Version:** v0.1.10
+**Status:** FROZEN BASELINE WITH BAT-SWING SYNCHRONIZATION AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -746,7 +746,13 @@ Use a mathematical arcade contact model.
 The bat animation exists for presentation and synchronization. Its handed
 stance, swing direction, and visible swing-plane tilt should read from the same
 `SwingProfileDefinition` handedness and attack angle used by the resolver, but
-the mesh remains non-authoritative.
+the mesh remains non-authoritative. Its square-across-plate pose must occur at
+the profile's `sweet_spot_time`, not at the animation's arbitrary midpoint or
+finish. The ready stance is the loaded pose; after commitment, the barrel
+drives directly through that synchronized contact pose and then decelerates
+into a short front-shoulder finish. Do not use a full-circle recovery. The
+separate Batter presentation should animate its hands and body on the same
+timeline without merging character and equipment ownership.
 
 Do not determine whether a swing succeeds based on tiny collider overlap at engine physics frequency.
 
@@ -848,6 +854,13 @@ encounter within that segment rather than evaluating the ball only at the input
 frame. A committed swing may therefore begin before the Pitch reaches the
 contact plane.
 
+The virtual region's center travels in depth and height on the authored attack
+plane, crossing the player's aimed X/Y point at `sweet_spot_time`. This makes
+Pitch-descent/attack-angle alignment part of timing forgiveness and makes the
+vertical ball/barrel offset at the actual encounter authoritative for launch
+and spin. It does not move the player's aim point or create contact after the
+authored window closes.
+
 Evaluate:
 
 - spatial error
@@ -883,6 +896,15 @@ the primary launch-angle control, while useful attack-angle alignment preserves
 exit speed. See [Optimizing the Swing](https://baseball.physics.illinois.edu/OptimizingTheSwing.pdf),
 [Optimizing the Swing II](https://baseball.physics.illinois.edu/OptimizingTheSwingII.pdf),
 and [Modeling the Ball-Bat Collision](https://baseball.physics.illinois.edu/AJP-Oct2006.pdf).
+The presentation timing also follows the measured kinetic sequence summarized
+in [Welch et al. (1995)](https://pubmed.ncbi.nlm.nih.gov/8580946/): hips,
+shoulders, arms, and bat accelerate sequentially, with bat speed peaking just
+before impact. Current Statcast definitions provide useful validation ranges
+for [attack angle](https://www.mlb.com/glossary/statcast/attack-angle),
+[swing-path tilt](https://www.mlb.com/glossary/statcast/swing-path-tilt), and
+[swing length](https://www.mlb.com/glossary/statcast/swing-length); these are
+references for readable relationships, not a mandate to copy MLB scale into
+the plastic-ball game.
 
 ---
 

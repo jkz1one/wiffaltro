@@ -155,6 +155,20 @@ with hands and bat on the back/right shoulder; left-handed Batters must mirror
 the full setup. The widened depth should improve timing without making poor
 X/Y aim succeed.
 
+At swing commitment, the hands and bat should begin together at the back
+shoulder. At the moment the ball reaches the authored contact encounter, the
+barrel should be visually square across the plate; it should then finish once
+toward the front shoulder and hold briefly, never wrap around the Batter in a
+full circle. Repeat with both handednesses and verify that the complete motion,
+not just the Batter's box position, mirrors. The torso may turn modestly, but
+the independently owned hands and bat must remain visually connected.
+
+Try a descending Pitch with early, centered, and late versions of the same
+aimed Swing. The virtual barrel should move upward through the aimed contact
+point: aligned timing should be most forgiving, while early/late encounters
+should alter vertical offset and resulting launch/spin without moving the
+reticle or granting contact outside the authored window.
+
 Swing deliberately too early and too late. On a miss, the Pitch must keep
 moving, cross the plate, continue visually to the receiver catch point, and
 only then
@@ -165,8 +179,9 @@ encounter. Contact should feel quicker than the prior slow placeholder Swing,
 with Power remaining slightly longer and less forgiving. Fair contact must not
 produce a `PitchFlightActor` null-state error. The bat should begin behind the
 handed back shoulder, drive forward through contact, and continue through a
-short recovery instead of snapping back to stance. The large receiver outline
-must remain hidden unless the explicit debug layer is enabled.
+short front-shoulder finish instead of snapping or circling back to stance. The
+large receiver outline must remain hidden unless the explicit debug layer is
+enabled.
 
 Starting a new match should automatically play two or three readable camera
 views with `GAME START`, then settle into the correct batting camera and wait

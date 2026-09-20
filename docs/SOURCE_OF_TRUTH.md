@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.12
-**Status:** FROZEN BASELINE WITH MATCH-INTERACTION/PRESENTATION AMENDMENT
-**Supersedes:** v0.4.11 and all earlier planning notes
+**Version:** v0.4.13
+**Status:** FROZEN BASELINE WITH RESEARCHED BAT-SWING AMENDMENT
+**Supersedes:** v0.4.12 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -188,7 +188,18 @@ not a second physics authority. The bat and Batter are independent presentation
 actors so equipment animation/lifecycle does not become character geometry.
 Each bat must visibly load at the Batter's back shoulder, drive across the
 plate toward the front shoulder, and mirror that complete path for opposite
-handedness.
+handedness. The ready pose is already the load: committed motion begins with
+the forward drive, the barrel reaches its square-across-plate presentation at
+the profile's authored sweet-spot time, then finishes toward the front
+shoulder without wrapping through a full circular recovery. The independent
+Batter actor's hands and torso must move with that same profile timing so the
+bat does not appear detached from a static character.
+
+The virtual contact center moves through the aimed plate point on the Swing
+Profile's authored attack-angle plane. Matching the bat path to the descending
+Pitch therefore increases timing forgiveness naturally, while a mismatched
+path changes vertical offset, launch, and spin. The pointer still chooses the
+intended X/Y contact point; this attack-plane travel is not a hidden aim assist.
 
 Opponent Batters have readable approach memory. Repeating a recognized Pitch
 or visible location increases awareness and execution, while changing speed,

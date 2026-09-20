@@ -104,6 +104,8 @@ static func play_batter_swing(
 ) -> void:
 	if lab._bat_actor != null:
 		lab._bat_actor.play_swing(profile)
+	if lab._batter_avatar != null:
+		lab._batter_avatar.play_batting_swing(profile)
 
 static func show_pitcher_fielding_attempt(
 	lab: PitchBatLab,

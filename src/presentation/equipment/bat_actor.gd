@@ -2,7 +2,12 @@ class_name BatActor
 extends Node3D
 
 const DEFAULT_SWING_SECONDS: float = 0.26
-const FOLLOW_THROUGH_SECONDS: float = 0.12
+const FOLLOW_THROUGH_HOLD_SECONDS: float = 0.10
+const STANCE_YAW_DEGREES: float = 64.0
+const FINISH_YAW_DEGREES: float = -88.0
+const STANCE_AXIS_TILT_DEGREES: float = 58.0
+const CONTACT_AXIS_TILT_DEGREES: float = 84.0
+const FINISH_AXIS_TILT_DEGREES: float = 52.0
 
 var bats_left: bool = false
 var _pivot: Node3D
@@ -47,41 +52,37 @@ func _process(delta: float) -> void:
 	if not _swinging or _pivot == null:
 		return
 	_swing_elapsed += maxf(0.0, delta)
-	var progress: float = clampf(_swing_elapsed / _swing_duration, 0.0, 1.0)
+	_apply_swing_pose(minf(_swing_elapsed, _swing_duration))
+	if _swing_elapsed >= _swing_duration + FOLLOW_THROUGH_HOLD_SECONDS:
+		reset_swing()
+
+func _apply_swing_pose(elapsed_seconds: float) -> void:
 	var side: float = handed_side(bats_left)
-	var load_phase: float = smoothstep(0.0, 0.15, progress)
-	var drive: float = smoothstep(
-		0.12,
-		minf(0.72, _sweet_spot_progress + 0.18),
-		progress
+	_pivot.position = pivot_position_at_elapsed(
+		bats_left,
+		elapsed_seconds,
+		_sweet_spot_progress * _swing_duration,
+		_swing_duration
 	)
-	var finish: float = smoothstep(
-		minf(0.78, _sweet_spot_progress + 0.15),
-		1.0,
-		progress
+	_pivot.rotation = Vector3(
+		deg_to_rad(-_attack_angle_degrees),
+		deg_to_rad(
+			yaw_degrees_at_elapsed(
+				bats_left,
+				elapsed_seconds,
+				_sweet_spot_progress * _swing_duration,
+				_swing_duration
+			)
+		),
+		0.0
 	)
-	var yaw_degrees: float = lerpf(-64.0, -72.0, load_phase)
-	yaw_degrees = lerpf(yaw_degrees, 96.0, drive)
-	yaw_degrees = lerpf(yaw_degrees, 142.0, finish)
-	var tilt_degrees: float = (
-		lerpf(58.0, 78.0, drive) * (1.0 - finish * 0.16)
-	)
-	if _swing_elapsed > _swing_duration:
-		var recover: float = smoothstep(
-			0.0,
-			1.0,
-			(_swing_elapsed - _swing_duration) / FOLLOW_THROUGH_SECONDS
+	_bat_axis.rotation.z = deg_to_rad(
+		-side * axis_tilt_degrees_at_elapsed(
+			elapsed_seconds,
+			_sweet_spot_progress * _swing_duration,
+			_swing_duration
 		)
-		# Continue around the body to the equivalent stance angle instead of
-		# visibly reversing the bat back through the contact path.
-		yaw_degrees = lerpf(142.0, 296.0, recover)
-		tilt_degrees = lerpf(64.0, 58.0, recover)
-	_pivot.rotation.y = deg_to_rad(-side * yaw_degrees)
-	_pivot.rotation.x = deg_to_rad(-_attack_angle_degrees)
-	_bat_axis.rotation.z = deg_to_rad(-side * tilt_degrees)
-	if progress >= 1.0:
-		if _swing_elapsed >= _swing_duration + FOLLOW_THROUGH_SECONDS:
-			reset_swing()
+	)
 
 func _build_bat() -> void:
 	_pivot = Node3D.new()
@@ -123,16 +124,20 @@ func _build_bat() -> void:
 
 func _apply_stance() -> void:
 	var side: float = handed_side(bats_left)
-	# The bat shares the same handed X side as the avatar's hand cluster.
-	# Right-handed Batters load at +X and drive toward the front/left shoulder;
-	# left-handed Batters mirror the complete rig and rotation direction.
-	_pivot.position = Vector3(side * 0.24, 1.15, 0.02)
+	# The hands begin behind the back shoulder (-Z), drive to a square barrel
+	# at the authored sweet-spot time, then finish toward the front shoulder.
+	# Handedness mirrors X and yaw while preserving that back-to-front motion.
+	_pivot.position = stance_pivot_position(bats_left)
 	_pivot.rotation = Vector3(
 		deg_to_rad(-_attack_angle_degrees),
-		deg_to_rad(side * 64.0),
+		deg_to_rad(side * STANCE_YAW_DEGREES),
 		0.0
 	)
-	_bat_axis.rotation = Vector3(0.0, 0.0, deg_to_rad(-side * 58.0))
+	_bat_axis.rotation = Vector3(
+		0.0,
+		0.0,
+		deg_to_rad(-side * STANCE_AXIS_TILT_DEGREES)
+	)
 
 static func handed_side(is_left_handed: bool) -> float:
 	return -1.0 if is_left_handed else 1.0
@@ -141,10 +146,126 @@ static func stance_pivot_x(is_left_handed: bool) -> float:
 	return handed_side(is_left_handed) * 0.24
 
 static func stance_yaw_degrees(is_left_handed: bool) -> float:
-	return handed_side(is_left_handed) * 64.0
+	return handed_side(is_left_handed) * STANCE_YAW_DEGREES
 
-static func contact_yaw_degrees(is_left_handed: bool) -> float:
-	return handed_side(is_left_handed) * -96.0
+static func contact_yaw_degrees(_is_left_handed: bool) -> float:
+	return 0.0
+
+static func finish_yaw_degrees(is_left_handed: bool) -> float:
+	return handed_side(is_left_handed) * FINISH_YAW_DEGREES
+
+static func stance_pivot_position(is_left_handed: bool) -> Vector3:
+	return Vector3(stance_pivot_x(is_left_handed), 1.15, -0.14)
+
+static func contact_pivot_position(is_left_handed: bool) -> Vector3:
+	return Vector3(handed_side(is_left_handed) * 0.33, 0.97, 0.08)
+
+static func finish_pivot_position(is_left_handed: bool) -> Vector3:
+	return Vector3(handed_side(is_left_handed) * 0.12, 1.18, 0.22)
+
+static func pivot_position_at_elapsed(
+	is_left_handed: bool,
+	elapsed_seconds: float,
+	sweet_spot_seconds: float,
+	swing_duration_seconds: float
+) -> Vector3:
+	var phases: Vector2 = phase_progress_at_elapsed(
+		elapsed_seconds,
+		sweet_spot_seconds,
+		swing_duration_seconds
+	)
+	if phases.y <= 0.0:
+		return stance_pivot_position(is_left_handed).lerp(
+			contact_pivot_position(is_left_handed),
+			phases.x
+		)
+	return contact_pivot_position(is_left_handed).lerp(
+		finish_pivot_position(is_left_handed),
+		phases.y
+	)
+
+static func yaw_degrees_at_elapsed(
+	is_left_handed: bool,
+	elapsed_seconds: float,
+	sweet_spot_seconds: float,
+	swing_duration_seconds: float
+) -> float:
+	var phases: Vector2 = phase_progress_at_elapsed(
+		elapsed_seconds,
+		sweet_spot_seconds,
+		swing_duration_seconds
+	)
+	if phases.y <= 0.0:
+		return lerpf(
+			stance_yaw_degrees(is_left_handed),
+			contact_yaw_degrees(is_left_handed),
+			phases.x
+		)
+	return lerpf(
+		contact_yaw_degrees(is_left_handed),
+		finish_yaw_degrees(is_left_handed),
+		phases.y
+	)
+
+static func axis_tilt_degrees_at_elapsed(
+	elapsed_seconds: float,
+	sweet_spot_seconds: float,
+	swing_duration_seconds: float
+) -> float:
+	var phases: Vector2 = phase_progress_at_elapsed(
+		elapsed_seconds,
+		sweet_spot_seconds,
+		swing_duration_seconds
+	)
+	if phases.y <= 0.0:
+		return lerpf(
+			STANCE_AXIS_TILT_DEGREES,
+			CONTACT_AXIS_TILT_DEGREES,
+			phases.x
+		)
+	return lerpf(
+		CONTACT_AXIS_TILT_DEGREES,
+		FINISH_AXIS_TILT_DEGREES,
+		phases.y
+	)
+
+static func phase_progress_at_elapsed(
+	elapsed_seconds: float,
+	sweet_spot_seconds: float,
+	swing_duration_seconds: float
+) -> Vector2:
+	var safe_sweet_spot: float = maxf(0.001, sweet_spot_seconds)
+	var safe_duration: float = maxf(
+		safe_sweet_spot + 0.001,
+		swing_duration_seconds
+	)
+	if elapsed_seconds <= safe_sweet_spot:
+		var pre_contact: float = clampf(
+			elapsed_seconds / safe_sweet_spot,
+			0.0,
+			1.0
+		)
+		# Cubic Hermite drive: start at rest, peak shortly before contact, and
+		# retain nearly that velocity through the ball instead of easing to a
+		# stop at the authored sweet spot.
+		var drive: float = (
+			-0.6 * pre_contact * pre_contact * pre_contact
+			+ 1.6 * pre_contact * pre_contact
+		)
+		return Vector2(drive, 0.0)
+	var post_contact: float = clampf(
+		(elapsed_seconds - safe_sweet_spot)
+		/ (safe_duration - safe_sweet_spot),
+		0.0,
+		1.0
+	)
+	# Continue through contact without a speed discontinuity, then decelerate
+	# monotonically into a readable front-shoulder finish.
+	var follow_through: float = (
+		1.5 * post_contact
+		- 0.5 * post_contact * post_contact * post_contact
+	)
+	return Vector2(1.0, follow_through)
 
 static func _material(color: Color) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()

@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Interaction/presentation hardening complete statically; hands-on validation pending
+**Current phase:** Phase 3 — Swing/contact hardening complete statically; hands-on validation pending
 
 ## Implemented in repository
 
@@ -399,6 +399,33 @@ cleaner playable-match shell before the next human QC pass. Implemented:
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on bat direction, player windup, F2 resume, release overdrive,
       scorebug/event card, and moving intro validation
+
+
+## Researched bat-swing synchronization pass — runtime validation pending
+
+The pre-QC audit compared the supplied Alan Nathan collision/optimization
+papers, Welch et al.'s measured batting sequence, current Statcast swing
+definitions, the 2026-09-19 recordings, and the existing 240 Hz resolver. The
+authored Contact/Power speeds and attack angles remain reasonable; the concrete
+defect was disagreement between visible animation and mathematical contact.
+
+- [x] visible bat now reaches a square-across-plate pose exactly at each
+      profile's authored sweet-spot time
+- [x] loaded stance begins genuinely behind the back shoulder, then follows a
+      single drive/contact/front-shoulder-finish path with no circular recovery
+- [x] opposite handedness mirrors stance and finish while sharing the same
+      square contact orientation
+- [x] independent Batter hands and torso now follow the bat's profile timing
+      instead of remaining static during the equipment animation
+- [x] authoritative virtual swing center now travels on the profile's attack
+      plane and crosses the aimed X/Y point at the sweet spot
+- [x] timing/vertical offset therefore feed the existing launch and signed-spin
+      model without adding mesh collision or hidden aim assistance
+- [x] regression coverage added for back-shoulder depth, synchronized contact
+      pose, non-wrapping finish, Batter motion, and attack-plane travel
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on right-/left-handed stance, contact synchronization, swing feel,
+      miss continuation, and contact-crash validation
 
 
 ## Canonical post-fun-gate roadmap — not implemented

@@ -7,6 +7,7 @@ func _ready() -> void:
 	_test_pitch_release_quality()
 	_test_bat_handedness_mapping()
 	_test_swept_swing_timeline()
+	BatSwingRegressionTest.run(self, Callable(self, "_check"))
 	_test_signed_contact_spin()
 	_test_pitch_actor_contact_cancellation()
 	_test_fatigue_curve_and_capacity()
@@ -120,10 +121,17 @@ func _test_bat_handedness_mapping() -> void:
 	)
 	_check(
 		BatActor.stance_yaw_degrees(false) > 0.0
-		and BatActor.contact_yaw_degrees(false) < 0.0
+		and is_zero_approx(BatActor.contact_yaw_degrees(false))
 		and BatActor.stance_yaw_degrees(true) < 0.0
-		and BatActor.contact_yaw_degrees(true) > 0.0,
-		"each handed bat should drive from its back shoulder toward the front"
+		and is_zero_approx(BatActor.contact_yaw_degrees(true))
+		and BatActor.finish_yaw_degrees(false) < 0.0
+		and BatActor.finish_yaw_degrees(true) > 0.0,
+		"each handed bat should square at contact then finish toward the front"
+	)
+	_check(
+		BatActor.stance_pivot_position(false).z
+		< BatActor.contact_pivot_position(false).z,
+		"the bat should load behind the contact position"
 	)
 	var bat: BatActor = BatActor.new()
 	add_child(bat)
@@ -132,11 +140,26 @@ func _test_bat_handedness_mapping() -> void:
 		bat._pivot.position.x > 0.0 and bat._pivot.rotation.y > 0.0,
 		"a visible right-handed bat should begin on its back/right shoulder"
 	)
-	bat.play_swing(ContentDB.get_swing(&"swing.contact"))
-	bat._process(0.105)
+	var contact_profile: SwingProfileDefinition = ContentDB.get_swing(
+		&"swing.contact"
+	)
+	bat.play_swing(contact_profile)
+	bat._process(contact_profile.sweet_spot_seconds)
 	_check(
-		bat._pivot.rotation.y < 0.0,
-		"a visible right-handed swing should cross toward the front shoulder"
+		absf(bat._pivot.rotation.y) < 0.001
+		and bat._pivot.position.is_equal_approx(
+			BatActor.contact_pivot_position(false)
+		),
+		"the visible barrel should be square at the authored sweet spot"
+	)
+	bat._process(
+		contact_profile.swing_duration_seconds
+		- contact_profile.sweet_spot_seconds
+	)
+	_check(
+		bat._pivot.rotation.y < 0.0
+		and absf(bat._pivot.rotation.y) < PI,
+		"the right-handed bat should finish forward without wrapping around"
 	)
 	bat.configure(true, Vector3.ZERO)
 	_check(

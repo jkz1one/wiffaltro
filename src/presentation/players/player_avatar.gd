@@ -13,10 +13,27 @@ var throws_left: bool = false
 var _body_root: Node3D
 var _throw_hand: MeshInstance3D
 var _glove_hand: MeshInstance3D
+var _batting_swing_elapsed: float = 0.0
+var _batting_swing_duration: float = BatActor.DEFAULT_SWING_SECONDS
+var _batting_sweet_spot_seconds: float = 0.11
+var _batting_swinging: bool = false
 
 func _ready() -> void:
 	_build_avatar()
 	_apply_stance()
+
+func _process(delta: float) -> void:
+	if role != Role.BATTER or not _batting_swinging:
+		return
+	_batting_swing_elapsed += maxf(0.0, delta)
+	_apply_batting_swing_pose(
+		minf(_batting_swing_elapsed, _batting_swing_duration)
+	)
+	if (
+		_batting_swing_elapsed
+		>= _batting_swing_duration + BatActor.FOLLOW_THROUGH_HOLD_SECONDS
+	):
+		reset_pose()
 
 func configure(
 	new_role: Role,
@@ -27,6 +44,8 @@ func configure(
 	role = new_role
 	bats_left = new_bats_left
 	throws_left = new_throws_left
+	_batting_swinging = false
+	_batting_swing_elapsed = 0.0
 	if _body_root == null:
 		return
 	_set_body_color(body_color)
@@ -66,8 +85,7 @@ func _apply_stance() -> void:
 	var throw_side: float = -1.0 if throws_left else 1.0
 	_body_root.rotation = Vector3.ZERO
 	if role == Role.BATTER:
-		_throw_hand.position = Vector3(bat_side * 0.18, 1.15, 0.01)
-		_glove_hand.position = Vector3(bat_side * 0.29, 1.15, 0.03)
+		_set_batter_hands(BatActor.stance_pivot_position(bats_left))
 		_throw_hand.material_override = _material(Color(1.0, 0.76, 0.42))
 		_glove_hand.material_override = _material(Color(1.0, 0.76, 0.42))
 	else:
@@ -113,7 +131,57 @@ func set_pitch_delivery_progress(progress: float, sidearm: bool) -> void:
 		drive
 	)
 
+func play_batting_swing(profile: SwingProfileDefinition) -> void:
+	if role != Role.BATTER or profile == null or _body_root == null:
+		return
+	_batting_swing_duration = maxf(
+		0.001,
+		profile.swing_duration_seconds
+	)
+	_batting_sweet_spot_seconds = clampf(
+		profile.sweet_spot_seconds,
+		0.001,
+		_batting_swing_duration
+	)
+	_batting_swing_elapsed = 0.0
+	_batting_swinging = true
+	_apply_stance()
+
+func _apply_batting_swing_pose(elapsed_seconds: float) -> void:
+	var phases: Vector2 = BatActor.phase_progress_at_elapsed(
+		elapsed_seconds,
+		_batting_sweet_spot_seconds,
+		_batting_swing_duration
+	)
+	var side: float = BatActor.handed_side(bats_left)
+	if phases.y <= 0.0:
+		_body_root.rotation.y = side * lerpf(-0.10, 0.16, phases.x)
+	else:
+		_body_root.rotation.y = side * lerpf(0.16, 0.38, phases.y)
+	_set_batter_hands(
+		BatActor.pivot_position_at_elapsed(
+			bats_left,
+			elapsed_seconds,
+			_batting_sweet_spot_seconds,
+			_batting_swing_duration
+		)
+	)
+
+func _set_batter_hands(pivot_position: Vector3) -> void:
+	var side: float = BatActor.handed_side(bats_left)
+	# Counter-transform the target positions so the hands stay attached to the
+	# independently animated bat while the Batter's torso turns underneath.
+	var inverse_body: Transform3D = _body_root.transform.affine_inverse()
+	_throw_hand.position = inverse_body * (
+		pivot_position + Vector3(-side * 0.045, -0.015, -0.01)
+	)
+	_glove_hand.position = inverse_body * (
+		pivot_position + Vector3(side * 0.045, 0.015, 0.01)
+	)
+
 func reset_pose() -> void:
+	_batting_swinging = false
+	_batting_swing_elapsed = 0.0
 	_apply_stance()
 
 func _set_body_color(color: Color) -> void:
