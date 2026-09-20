@@ -559,6 +559,47 @@ static func note_swing(
 	lab._active_play_record.timing_error_m = result.timing_error_m
 	lab._active_play_record.horizontal_error_m = result.horizontal_error_m
 	lab._active_play_record.vertical_error_m = result.vertical_error_m
+	lab._active_play_record.exit_speed_mps = result.exit_velocity.length()
+	lab._active_play_record.launch_angle_degrees = result.launch_angle_degrees
+	lab._active_play_record.spray_degrees = result.spray_degrees
+
+
+static func note_first_ground(lab: PitchBatLab, position: Vector3) -> void:
+	if lab._active_play_record == null or lab._active_play_record.has_first_ground:
+		return
+	lab._active_play_record.has_first_ground = true
+	lab._active_play_record.first_ground_position = position
+
+
+static func note_ball_play_outcome(
+	lab: PitchBatLab,
+	outcome: BallPlayOutcome,
+	last_defender_touch: StringName,
+	result_floor: BallPlayState.ResultFloor
+) -> void:
+	if lab._active_play_record == null:
+		return
+	lab._active_play_record.resolution_reason = outcome.reason
+	lab._active_play_record.resolution_position = outcome.resolution_position
+	lab._active_play_record.last_defender_touch = last_defender_touch
+	lab._active_play_record.result_floor = int(result_floor)
+
+
+static func record_clean_fielding_control(
+	lab: PitchBatLab,
+	defender_id: StringName,
+	resolved_position: Vector3,
+	ball_was_moving: bool
+) -> void:
+	var is_airborne: bool = not lab._ball_play_resolver.state.has_grounded
+	if defender_id == &"pitcher":
+		lab._ball_play_resolver.record_pitcher_clean_control(
+			resolved_position, is_airborne, ball_was_moving
+		)
+	else:
+		lab._ball_play_resolver.record_clean_control(
+			defender_id, resolved_position, is_airborne, ball_was_moving
+		)
 
 
 static func finish_record(lab: PitchBatLab, result: StringName, runs_scored: int = 0) -> void:

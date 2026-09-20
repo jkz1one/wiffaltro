@@ -993,6 +993,11 @@ func _test_play_record_serialization() -> void:
 	record.pitch_id = &"pitch.test"
 	record.intended_target = Vector2(0.2, 1.1)
 	record.release_overdrive = 0.72
+	record.exit_speed_mps = 21.4
+	record.launch_angle_degrees = 12.5
+	record.has_first_ground = true
+	record.first_ground_position = Vector3(1.0, 0.04, 10.2)
+	record.resolution_reason = &"ball_settled"
 	record.result = &"single"
 	var encoded: Dictionary = record.to_dict()
 	_check(encoded["play_number"] == 7, "record should retain play number")
@@ -1004,6 +1009,14 @@ func _test_play_record_serialization() -> void:
 	_check(
 		is_equal_approx(float(encoded["release_overdrive"]), 0.72),
 		"record should retain release overdrive for deterministic tuning"
+	)
+	_check(
+		is_equal_approx(float(encoded["exit_speed_mps"]), 21.4)
+		and is_equal_approx(float(encoded["launch_angle_degrees"]), 12.5)
+		and bool(encoded["has_first_ground"])
+		and is_equal_approx(float(encoded["first_ground_position"][2]), 10.2)
+		and encoded["resolution_reason"] == "ball_settled",
+		"record should retain batted-ball geometry and resolution telemetry"
 	)
 
 func _make_team(team_name: String) -> TeamMatchState:

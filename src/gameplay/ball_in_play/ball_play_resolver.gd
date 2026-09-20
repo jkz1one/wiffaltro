@@ -93,6 +93,27 @@ func record_live_object_contact(object_id: StringName) -> void:
 func record_clean_control(
 	defender_id: StringName, position: Vector3, is_airborne: bool, ball_was_moving: bool = true
 ) -> void:
+	_record_clean_control(defender_id, position, is_airborne, ball_was_moving, false)
+
+
+func record_pitcher_clean_control(
+	position: Vector3, is_airborne: bool, ball_was_moving: bool = true
+) -> void:
+	# The starter Single plane intentionally sits in front of the mound. A
+	# verified control inside PitcherDefense's small reaction envelope remains
+	# an Out opportunity even though the ball already crossed ordinary safe
+	# territory. Keeping this as a dedicated entry point prevents any other
+	# defender or remote Pitcher control from bypassing the result floor.
+	_record_clean_control(&"pitcher", position, is_airborne, ball_was_moving, true)
+
+
+func _record_clean_control(
+	defender_id: StringName,
+	position: Vector3,
+	is_airborne: bool,
+	ball_was_moving: bool,
+	allow_pitcher_comebacker_out: bool
+) -> void:
 	if state == null or state.dead:
 		return
 	state.last_defender_touch = defender_id
@@ -104,7 +125,16 @@ func record_clean_control(
 		_resolve_out(BallPlayOutcome.Result.OUT, &"fly_catch", position, true)
 		return
 
-	if state.result_floor == BallPlayState.ResultFloor.NONE and ball_was_moving:
+	if (
+		ball_was_moving
+		and (
+			state.result_floor == BallPlayState.ResultFloor.NONE
+			or (
+				allow_pitcher_comebacker_out
+				and state.result_floor == BallPlayState.ResultFloor.SINGLE
+			)
+		)
+	):
 		_resolve_out(BallPlayOutcome.Result.OUT, &"ground_control", position)
 	else:
 		if state.result_floor == BallPlayState.ResultFloor.NONE:

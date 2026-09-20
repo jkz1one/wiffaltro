@@ -566,6 +566,35 @@ anchor against the pitching sightline.
       result-distribution sample
 
 
+## Simulated starter-field calibration — runtime validation pending
+
+A follow-up audit stopped treating the visible lines as generic hit-distance
+markers and evaluated them against their actual resolver semantics, the current
+Contact/Power launch equations, the 23.4 m wall, and the fixed mound envelope.
+A 100,000-fair-ball proxy plus low/base/high aerodynamic sensitivity cases
+supported a closer Single plane without changing contact or aero coefficients.
+
+- [x] moved the Single plane from 14.8 m to 10.5 m, 3.216 m in front of the
+      Pitcher and close to the classic half-field proportion without copying it
+- [x] moved Deep Air from 18.5 m to 17.0 m, leaving 6.5 m between scoring
+      planes and 6.4 m from Deep Air to the existing wall
+- [x] preserved Deep Air as an untouched-airborne Double floor rather than a
+      universal Double line; ground/bounce balls still need the wall
+- [x] added a dedicated clean-moving-comebacker Out exception inside the
+      existing 0.60 m Pitcher envelope so the closer Single plane does not
+      erase visible Pitcher defense
+- [x] kept stopped balls and Pitcher bobbles safe and prevented the exception
+      from erasing a Double-or-greater result floor
+- [x] added F3 calibration fields for exit speed, launch angle, spray, first
+      ground position, resolution position/reason, result floor, and defender
+      touch
+- [x] updated static regressions for the new geometry, crossed-Single Pitcher
+      control, and JSON-safe calibration records
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on result distribution, first-ground distribution, rolling-ball
+      crossings, and Pitcher clean/bobble/miss validation
+
+
 ## Canonical post-fun-gate roadmap — not implemented
 
 The ordered roadmap now lives in `SOURCE_OF_TRUTH.md` §35. Phase 3 and the

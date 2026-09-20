@@ -293,12 +293,14 @@ deceive; a repeated or center-hanging Eephus should be dangerous to throw.
 AI Pitcher set/windup duration should vary readably rather than repeat one exact
 interval.
 
-The yellow line marks the ordinary Safe boundary and now sits beyond the full
-Pitcher reaction envelope. The cyan Deep Air line should be visibly deeper, with
-a separate final band before the wall. A clean
-play on a still-moving grounded ball before the yellow line is an Out;
-a stopped ball or a ball that crossed the line is at least a Single. The cyan
-line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall
+The yellow line marks the ordinary Safe boundary at 10.5 m, visibly in front of
+the mound. The cyan Deep Air line sits at 17.0 m, leaving a 6.5 m ordinary-safe
+band and a separate 6.4 m final band before the 23.4 m wall. A clean Primary
+Fielder play on a still-moving grounded ball before the yellow line is an Out;
+a stopped ball or a ball that crossed the line is at least a Single. A clean
+moving-ground-ball control inside the Pitcher's fixed 0.60 m mound envelope is
+the narrow exception and remains an Out. The cyan line marks Deep Air. A
+bouncing ball reaching the back wall is a Double, a wall
 strike on the fly is a Triple, and a fair airborne ball clearing the modestly
 lower/closer wall top is a Home Run. Thin chalk foul lines remain as readable
 fair-territory guides because airborne fouls are now live catch opportunities;
@@ -311,9 +313,15 @@ plate appearances and compare Out/Single/Double/Triple/Home Run frequency
 before changing Contact/Power transfer or aerodynamic coefficients.
 
 Hit moving grounders and low liners through the 0.60 m mound envelope. The
-visible Pitcher must react, and a clean moving-ground-ball control before the
-yellow line must resolve as an Out. Balls outside the radius or above the
+visible Pitcher must react, and a clean moving-ground-ball control there must
+resolve as an Out even though the yellow line is in front of the mound. A
+bobble or stopped ball must remain safe. Balls outside the radius or above the
 authored reaction height must pass the Pitcher.
+
+After a meaningful normal-play sample, press `F3` and inspect the emitted play
+records. Calibration fields now include exit speed, launch angle, spray, first
+ground position, resolution position/reason, result floor, and final defender
+touch. Compare those distributions before moving a boundary or changing aero.
 
 While the player is pitching, put a fair ball in play and verify that the camera
 stays on the defensive/pitching side, pulls wider, and follows the ball. It must

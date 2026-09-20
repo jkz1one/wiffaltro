@@ -51,19 +51,45 @@ static func _test_moving_ground_out_rule(check: Callable) -> void:
 	)
 	resolver.start_play(field)
 	resolver.record_ground_contact(Vector3(0.0, 0.0, 6.0))
-	resolver.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.25), false, true)
+	resolver.observe_segment(
+		Vector3(0.0, 0.4, field.safe_hit_z_m - 0.2),
+		Vector3(0.0, 0.4, field.safe_hit_z_m + 0.2)
+	)
+	resolver.record_pitcher_clean_control(Vector3(0.0, 0.4, 13.25), false, true)
 	check.call(
 		field.safe_hit_z_m
-		> PitchBatLab.MOUND_ORIGIN.z + PitcherDefense.REACTION_RADIUS_M
-		and field.deep_air_z_m - field.safe_hit_z_m >= 3.5
-		and field.back_wall_z_m - field.deep_air_z_m >= 4.5
+		< PitchBatLab.MOUND_ORIGIN.z - PitcherDefense.REACTION_RADIUS_M
+		and is_equal_approx(field.safe_hit_z_m, 10.5)
+		and is_equal_approx(field.deep_air_z_m, 17.0)
+		and field.deep_air_z_m - field.safe_hit_z_m >= 6.0
+		and field.back_wall_z_m - field.deep_air_z_m >= 6.0
 		and PitcherDefense.can_attempt(
 			PitchBatLab.MOUND_ORIGIN + Vector3(0.0, 0.7, 0.55),
 			PitchBatLab.MOUND_ORIGIN
 		)
 		and outcomes.size() == 1
 		and outcomes[0].result == BallPlayOutcome.Result.OUT,
-		"the scoring planes should leave distinct Single/Deep zones and a Pitcher ground-Out window"
+		"the scoring planes should leave distinct zones and preserve the mound comebacker Out"
+	)
+
+	var primary_after_safe: BallPlayResolver = BallPlayResolver.new()
+	var primary_outcomes: Array[BallPlayOutcome] = []
+	primary_after_safe.play_resolved.connect(
+		func(outcome: BallPlayOutcome) -> void: primary_outcomes.append(outcome)
+	)
+	primary_after_safe.start_play(field)
+	primary_after_safe.record_ground_contact(Vector3(0.0, 0.0, 6.0))
+	primary_after_safe.observe_segment(
+		Vector3(0.0, 0.4, field.safe_hit_z_m - 0.2),
+		Vector3(0.0, 0.4, field.safe_hit_z_m + 0.2)
+	)
+	primary_after_safe.record_clean_control(
+		&"primary_fielder", Vector3(0.0, 0.4, 11.0), false, true
+	)
+	check.call(
+		primary_outcomes.size() == 1
+		and primary_outcomes[0].result == BallPlayOutcome.Result.SINGLE,
+		"ordinary defense must not erase a Single after the safe plane"
 	)
 
 	var stopped: BallPlayResolver = BallPlayResolver.new()
@@ -73,7 +99,7 @@ static func _test_moving_ground_out_rule(check: Callable) -> void:
 	)
 	stopped.start_play(field)
 	stopped.record_ground_contact(Vector3(0.0, 0.0, 6.0))
-	stopped.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.25), false, false)
+	stopped.record_pitcher_clean_control(Vector3(0.0, 0.4, 13.25), false, false)
 	check.call(
 		stopped_outcomes.size() == 1
 		and stopped_outcomes[0].result == BallPlayOutcome.Result.SINGLE,
@@ -132,7 +158,11 @@ static func _test_pitcher_swept_reaction(check: Callable) -> void:
 		8
 	)
 	if fielding_outcome == FieldingResolver.Outcome.CLEAN:
-		resolver.record_clean_control(&"pitcher", crossing, false, true)
+		resolver.observe_segment(
+			Vector3(0.0, 0.4, field.safe_hit_z_m - 0.2),
+			Vector3(0.0, 0.4, field.safe_hit_z_m + 0.2)
+		)
+		resolver.record_pitcher_clean_control(crossing, false, true)
 	check.call(
 		fielding_outcome == FieldingResolver.Outcome.CLEAN
 		and outcomes.size() == 1

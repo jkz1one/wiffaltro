@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.18
-**Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
-**Supersedes:** v0.4.17 and all earlier planning notes
+**Version:** v0.4.19
+**Status:** FROZEN BASELINE WITH SIMULATED STARTER-FIELD CALIBRATION
+**Supersedes:** v0.4.18 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -103,7 +103,9 @@ Handedness, natural delivery, repertoire, repertoire capacity, and similar ident
 - A caught foul is an Out; an uncaught foul remains a Strike under the count rule
 - A clean play on a still-moving fair ground ball before it crosses the authored
   Single line is a ground Out. Once the ball stops or crosses that line, the
-  defense may prevent further advancement but cannot erase the Single.
+  Primary Fielder may prevent further advancement but cannot erase the Single.
+  A clean moving-ground-ball control inside the Pitcher's fixed 0.60 m mound
+  envelope remains a narrow Out exception; a bobble or stopped ball is safe.
 - 10-run mercy rule after 3 completed innings
 - Extra innings begin with a ghost runner on second
 
@@ -591,11 +593,13 @@ Baseline starter-field rules:
 - HR boundary cleared on the fly → Home Run
 
 The Single and Deep Air planes must create distinct readable territories rather
-than sit as neighboring stripes. On the starter field, the Single plane sits
-behind the complete Pitcher reaction envelope, the Deep Air plane occupies the
-outer field, and a separate final band remains before the back wall. The Deep
-Air plane is not a universal “Double line”: only an untouched airborne ball
-earns its Double floor there. Grounders still require the wall for a Double.
+than sit as neighboring stripes. On the starter field, the Single plane sits at
+10.5 m, 3.216 m in front of the mound; the Deep Air plane sits at 17.0 m; and
+the back wall remains at 23.4 m. This creates a 6.5 m ordinary-safe band and a
+separate 6.4 m final band. The Pitcher's fixed 0.60 m mound envelope is an
+explicit comebacker exception to the ordinary Single floor. The Deep Air plane
+is not a universal “Double line”: only an untouched airborne ball earns its
+Double floor there. Grounders still require the wall for a Double.
 
 Individual parks and ground-rule objects may override baseline rules.
 

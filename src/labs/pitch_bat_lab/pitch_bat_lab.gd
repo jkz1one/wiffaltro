@@ -107,7 +107,6 @@ var _fielding_cooldown_seconds: float = 0.0
 var _settled_seconds: float = 0.0
 var _previous_batted_position: Vector3 = Vector3.ZERO
 var _last_fielding_text: String = "No defensive attempt"
-
 var _last_nominal_release_speed_mps: float = 0.0
 var _last_executed_release_speed_mps: float = 0.0
 var _last_expected_plate_speed_mps: float = 0.0
@@ -137,7 +136,6 @@ var _pitching_staff_active: bool = false
 var _debug_paused: bool = false
 var _status_before_pause: String = ""
 var _match_suspend_snapshot: Dictionary = {}
-
 @warning_ignore_restore("unused_private_class_variable")
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -492,6 +490,8 @@ func _on_batted_surface_contact(surface_id: StringName, contact_position: Vector
 		return
 	match surface_id:
 		&"ground":
+			if not _ball_play_resolver.state.has_grounded:
+				PitchBatLabFeelSupport.note_first_ground(self, contact_position)
 			_ball_play_resolver.record_ground_contact(contact_position)
 		&"back_wall":
 			_ball_play_resolver.record_back_wall_contact(contact_position)
@@ -571,11 +571,8 @@ func _apply_fielding_outcome(
 			var ball_was_moving: bool = _batted_ball.linear_velocity.length() > SETTLED_SPEED_MPS
 			_batted_ball.global_position = resolved_position
 			_batted_ball.stop_and_freeze()
-			_ball_play_resolver.record_clean_control(
-				defender_id,
-				resolved_position,
-				not _ball_play_resolver.state.has_grounded,
-				ball_was_moving
+			PitchBatLabFeelSupport.record_clean_fielding_control(
+				self, defender_id, resolved_position, ball_was_moving
 			)
 		FieldingResolver.Outcome.BOBBLE:
 			_ball_play_resolver.record_bobble(defender_id)
@@ -645,6 +642,12 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 		_live_label.text += "\nPLAY DEAD • next state automatic"
 	else:
 		_live_label.text += "\nPLAY DEAD • B diagnostic • SPACE next Pitch"
+	PitchBatLabFeelSupport.note_ball_play_outcome(
+		self,
+		outcome,
+		_ball_play_resolver.state.last_defender_touch,
+		_ball_play_resolver.state.result_floor
+	)
 	PitchBatLabFeelSupport.finish_record(
 		self, StringName(outcome.display_name().to_snake_case()), runs_scored
 	)

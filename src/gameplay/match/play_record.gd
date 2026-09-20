@@ -28,6 +28,15 @@ var contact_quality: float = 0.0
 var timing_error_m: float = 0.0
 var horizontal_error_m: float = 0.0
 var vertical_error_m: float = 0.0
+var exit_speed_mps: float = 0.0
+var launch_angle_degrees: float = 0.0
+var spray_degrees: float = 0.0
+var has_first_ground: bool = false
+var first_ground_position: Vector3 = Vector3.ZERO
+var resolution_reason: StringName = &""
+var resolution_position: Vector3 = Vector3.ZERO
+var last_defender_touch: StringName = &""
+var result_floor: int = 0
 var result: StringName = &"pending"
 var runs_scored: int = 0
 
@@ -57,6 +66,23 @@ func to_dict() -> Dictionary:
 		"timing_error_m": timing_error_m,
 		"horizontal_error_m": horizontal_error_m,
 		"vertical_error_m": vertical_error_m,
+		"exit_speed_mps": exit_speed_mps,
+		"launch_angle_degrees": launch_angle_degrees,
+		"spray_degrees": spray_degrees,
+		"has_first_ground": has_first_ground,
+		"first_ground_position": [
+			first_ground_position.x,
+			first_ground_position.y,
+			first_ground_position.z,
+		],
+		"resolution_reason": String(resolution_reason),
+		"resolution_position": [
+			resolution_position.x,
+			resolution_position.y,
+			resolution_position.z,
+		],
+		"last_defender_touch": String(last_defender_touch),
+		"result_floor": result_floor,
 		"result": String(result),
 		"runs_scored": runs_scored,
 	}

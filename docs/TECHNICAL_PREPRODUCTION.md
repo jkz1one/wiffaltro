@@ -1218,9 +1218,11 @@ Examples:
 ## Moving grounder before the Single line
 
 - ball has grounded but remains above the authored settled-speed threshold
-- clean Pitcher or Primary Fielder control before the safe boundary resolves an Out
+- clean Primary Fielder control before the safe boundary resolves an Out
 - a stopped ball or any ball that already crossed the safe boundary retains at
-  least a Single
+  least a Single from the Primary Fielder
+- a clean moving-ground-ball control inside the Pitcher's fixed mound envelope
+  remains an Out exception even after the ball crosses the Single line
 
 ---
 
@@ -1357,12 +1359,15 @@ Pitcher may:
 - catch comeback liners
 - field weak grounders
 - deflect hard contact
-- turn a still-moving fair grounder into an Out before the Single line
+- turn a still-moving fair grounder into an Out inside the fixed mound envelope
 
 Pitcher does not roam as the Primary Fielder. The starter field uses a 0.60 m
 horizontal attempt radius. The envelope remains small and must not be enlarged
 merely to manufacture more Pitcher plays; field geometry and the
-moving-ground-ball rule create the opportunity.
+moving-ground-ball rule create the opportunity. Because the starter Single
+plane sits in front of the mound, a verified clean Pitcher control is the only
+defensive action allowed to erase that ordinary Single floor. A stopped ball or
+Pitcher bobble remains safe, and a Deep Air/greater floor is never erased.
 
 Test that small envelope against the swept batted-ball segment each physics
 frame. This prevents high-speed tunneling without increasing the radius or
