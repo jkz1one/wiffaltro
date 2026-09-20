@@ -24,8 +24,6 @@ static func solve(
 		0.5 * GRAVITY_MPS2 * initial_flight_seconds * initial_flight_seconds,
 		MAX_GUIDE_OFFSET_M
 	)
-	var best_parameters: PitchLaunchParameters = null
-	var best_error_squared: float = INF
 
 	for _iteration in range(MAX_ITERATIONS):
 		var candidate: PitchLaunchParameters = PitchLaunchBuilder.build_nominal(
@@ -57,10 +55,6 @@ static func solve(
 		var error_y: float = target_position.y - crossing.point.y
 		var error_squared: float = error_x * error_x + error_y * error_y
 
-		if error_squared < best_error_squared:
-			best_error_squared = error_squared
-			best_parameters = candidate
-
 		if error_squared <= TARGET_TOLERANCE_M * TARGET_TOLERANCE_M:
 			return candidate
 
@@ -75,4 +69,7 @@ static func solve(
 			target_position.y + MAX_GUIDE_OFFSET_M
 		)
 
-	return best_parameters
+	# A crossing is not necessarily an aimed solution. In particular, an
+	# underpowered Eephus can reach the plate but cannot reach a high target.
+	# Let the caller's failed-flight recovery preserve counts and Stamina.
+	return null

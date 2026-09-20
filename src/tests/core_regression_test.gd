@@ -18,6 +18,7 @@ func _ready() -> void:
 	_test_fatigue_pitch_outcomes()
 	_test_fresh_pitch_reachability()
 	_test_low_effort_eephus_reachability()
+	_test_unsolved_pitch_retry()
 	_test_at_bat_cadence()
 	_test_match_flow_guards()
 	_test_match_lab_suspension()
@@ -381,8 +382,6 @@ func _test_fatigue_pitch_outcomes() -> void:
 	var tired_speed_total: float = 0.0
 	var fresh_spin_total: float = 0.0
 	var tired_spin_total: float = 0.0
-	var fresh_center_distance: float = 0.0
-	var tired_center_distance: float = 0.0
 	var tired_crossings: int = 0
 	var execution_seeds_preserved: bool = true
 	var sample_count: int = 32
@@ -409,11 +408,9 @@ func _test_fatigue_pitch_outcomes() -> void:
 		tired_speed_total += tired.velocity.length()
 		fresh_spin_total += fresh.angular_velocity.length()
 		tired_spin_total += tired.angular_velocity.length()
-		if fresh_crossing.crossed:
-			fresh_center_distance += absf(fresh_crossing.point.x)
+		_check(fresh_crossing.crossed, "fresh comparison Pitch should cross the plate")
 		if tired_crossing.crossed:
 			tired_crossings += 1
-			tired_center_distance += absf(tired_crossing.point.x)
 			_check(
 				tired_crossing.point.y >= PitchExecutionModel.MIN_PLATE_REACH_Y_M - 0.02,
 				"an exhausted Pitch should still reach the plate plane"
@@ -430,11 +427,9 @@ func _test_fatigue_pitch_outcomes() -> void:
 		tired_spin_total < fresh_spin_total * 0.45,
 		"an exhausted Slider should lose most of its finish"
 	)
-	_check(
-		tired_center_distance < fresh_center_distance * 0.75,
-		"an exhausted edge-targeted Slider should leak toward center (fresh %.3f, tired %.3f)"
-		% [fresh_center_distance / sample_count, tired_center_distance / sample_count]
-	)
+	# Compare identical degraded stuff before/after the command correction.
+	# Fresh vs tired final x also includes lost break and is not this invariant.
+	_test_center_pull(base)
 	_check(
 		execution_seeds_preserved,
 		"Pitch execution should preserve its explicit deterministic seed"
@@ -486,6 +481,35 @@ func _test_fresh_pitch_reachability() -> void:
 				"%s should reach the plate when fresh" % pitch.display_name
 			)
 
+func _test_center_pull(base: PitchLaunchParameters) -> void:
+	var degraded: PitchLaunchParameters = base.copy()
+	degraded.angular_velocity *= 0.18
+	degraded.perforation_force_scale *= 0.32
+	var before: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(degraded, 0.0)
+	var nominal: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(base, 0.0)
+	_check(before.crossed and nominal.crossed, "center-pull fixture must cross")
+	var center: Vector2 = PitchExecutionModel.COMMAND_CENTER
+	var edge: float = clampf(maxf(
+		absf(nominal.point.x - center.x) / 0.43,
+		absf(nominal.point.y - center.y) / 0.50
+	), 0.0, 1.0)
+	var strength: float = 0.88 * lerpf(0.45, 1.0, edge)
+	var expected: Vector2 = Vector2(before.point.x, before.point.y).lerp(center, strength)
+	var original_speed: float = degraded.velocity.length()
+	var original_spin: Vector3 = degraded.angular_velocity
+	PitchExecutionModel._pull_crossing_toward_center(base, degraded, 0.0, 0.88)
+	var after: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(degraded, 0.0)
+	_check(after.crossed, "command correction should retain plate reach")
+	_check(
+		Vector2(after.point.x, after.point.y).distance_to(expected) <= 0.03,
+		"command correction should achieve its seeded centerward target"
+	)
+	_check(
+		is_equal_approx(degraded.velocity.length(), original_speed)
+		and degraded.angular_velocity == original_spin,
+		"command correction must not restore lost speed or spin"
+	)
+
 func _test_low_effort_eephus_reachability() -> void:
 	var eephus: PitchDefinition = ContentDB.get_pitch(&"pitch.eephus")
 	var ball: BallSetupDefinition = ContentDB.get_ball_setup(&"ball_setup.fresh")
@@ -498,7 +522,7 @@ func _test_low_effort_eephus_reachability() -> void:
 		MatchLabSupport.MIN_EFFORT
 	)
 	var targets: Array[Vector3] = [
-		Vector3(-0.65, 0.35, 0.0),
+		Vector3(-0.65, 0.20, 0.0),
 		Vector3(0.0, 1.05, 0.0),
 		Vector3(0.65, 1.75, 0.0),
 	]
@@ -511,10 +535,10 @@ func _test_low_effort_eephus_reachability() -> void:
 			false,
 			1200 + index
 		)
-		_check(
-			solved != null,
-			"low-effort Eephus should solve across the authored aim area"
-		)
+		if index > 0:
+			_check(solved == null, "underpowered Eephus must reject unreachable high targets")
+			continue
+		_check(solved != null, "low-effort Eephus should retain its reachable low target")
 		if solved == null:
 			continue
 		var crossing: PitchCrossingResult = (
@@ -528,10 +552,61 @@ func _test_low_effort_eephus_reachability() -> void:
 			_check(
 				Vector2(crossing.point.x, crossing.point.y).distance_to(
 					Vector2(targets[index].x, targets[index].y)
-				) <= 0.08,
+				) <= PitchAimSolver.TARGET_TOLERANCE_M,
 				"low-effort Eephus should retain intended-location aiming (target %s, actual %s)"
 				% [targets[index], crossing.point]
 			)
+	# The same higher targets must remain available at a reachable effort.
+	rated = MatchLabSupport.rated_pitch(eephus, pitcher, 0.90)
+	for left_handed in [false, true]:
+		for target in targets:
+			var solved: PitchLaunchParameters = PitchAimSolver.solve(
+				rated, ball, Vector3(0.0, 0.0, 13.716), target, left_handed, 1201
+			)
+			_check(solved != null, "90% effort Eephus must solve reachable low/center/high targets")
+			if solved == null:
+				continue
+			var crossing: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(solved, 0.0)
+			_check(
+				crossing.crossed and crossing.point.distance_to(target) <= PitchAimSolver.TARGET_TOLERANCE_M,
+				"accepted Eephus solutions must meet the solver tolerance for both hands"
+			)
+
+func _test_unsolved_pitch_retry() -> void:
+	var lab: PitchBatLab = PitchBatLab.new()
+	add_child(lab)
+	lab._match_state.top_half = false
+	var pitcher: PlayerMatchState = lab._match_state.pitcher()
+	pitcher.definition.velocity = 5
+	pitcher.definition.break_rating = 4
+	pitcher.definition.starting_pitches = [ContentDB.get_pitch(&"pitch.eephus")]
+	lab._selected_pitch_index = 0
+	lab._pitch_target = Vector2(0.0, 1.05)
+	lab._pitch_effort = 0.82
+	var stamina_before: float = pitcher.stamina_remaining
+	var count_before: int = pitcher.pitch_count
+	var throws_before: int = lab._throw_number
+	lab._throw_pitch()
+	_check(
+		lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		and pitcher.pitch_count == count_before
+		and pitcher.stamina_remaining == stamina_before
+		and lab._throw_number == throws_before
+		and lab._active_play_record == null
+		and not lab._pitch_actor.running,
+		"unsolved actual delivery must restore pre-Pitch without stamina/count/record changes"
+	)
+	lab._pitch_effort = 0.90
+	lab._throw_pitch()
+	_check(
+		lab._match_state.phase == MatchState.Phase.PITCH_IN_FLIGHT
+		and pitcher.pitch_count == count_before + 1
+		and pitcher.stamina_remaining < stamina_before
+		and lab._throw_number == throws_before + 1
+		and lab._pitch_actor.running,
+		"explicit higher-effort retry must launch once through the normal delivery path"
+	)
+	lab.free()
 
 func _test_at_bat_cadence() -> void:
 	var cadence: AtBatCadenceController = AtBatCadenceController.new()

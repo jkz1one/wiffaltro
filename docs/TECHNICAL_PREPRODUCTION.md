@@ -647,6 +647,14 @@ Stamina, incrementing pitch count, or leaving the match soft-locked. An AI
 Pitcher failure schedules a known-good repertoire/center fallback through the
 normal visible delivery cadence; a player Pitcher remains in the ready state.
 
+An accepted solve must meet the existing 1.25 cm target tolerance. Merely
+crossing the plate is not success: the old best-candidate fallback could send
+an underpowered Eephus far below a high aim point. If no candidate converges,
+return failure and retain the safe retry behavior above. Do not silently add
+velocity to satisfy the target. Minimum-effort Eephus reach depends on the
+Pitcher's velocity and the requested height; the tested 90% effort fixture
+can reach low, center, and high targets for both hands.
+
 ---
 
 # 22. Execution Error and Hangers

@@ -1393,8 +1393,9 @@ See `TECHNICAL_PREPRODUCTION.md`.
 **Current repository position (2026-09-20):** Phase 3 is statically complete
 through the swing-presentation, role-aware defensive camera, and final
 starter-field scoring/Pitcher-lane pass. Godot 4.7.2 import and headless main-scene
-smoke now pass; three existing pitching regression assertions and focused
-hands-on QC remain unresolved, so the Production Gate has not been cleared.
+smoke, core regressions, and QC export checks now pass. Focused hands-on QC
+and meaningful result-distribution sampling remain, so the Production Gate
+has not been cleared.
 `IMPLEMENTATION_STATUS.md` is the canonical ledger for implemented and
 runtime-validated work.
 

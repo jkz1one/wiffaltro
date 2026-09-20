@@ -1,6 +1,25 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — runtime verification enabled; three pitching regression failures and hands-on validation pending
+**Current phase:** Phase 3 — automated verification passing; hands-on validation pending
+
+## Pitching regression follow-up — 2026-09-20
+
+- Full `python3 tools/verify.py` pass on Godot 4.7.2: parsing/lint, import,
+  core regressions, QC export persistence, and main-scene smoke.
+- Nominal aim now rejects candidates outside the existing 1.25 cm solver
+  tolerance. Previously, an underpowered Eephus could return a crossing far
+  below the chosen target as a successful solve.
+- An actual failed delivery is tested to preserve Stamina, Pitch count,
+  throw number, and records; an explicit higher-effort retry launches normally.
+- The exhausted Slider's centerward correction already achieved its intended
+  target. Replaced the confounded fresh-vs-tired lateral comparison with a
+  same-trajectory correction test, retaining velocity/spin-loss and reach checks.
+- Clearance still covers 180 launched flights. Eight minimum-effort Eephus
+  target cases now explicitly retry at normal effort in the test matrix.
+  The game does not silently boost the player's effort.
+- No velocity, fatigue, Contact/Power, aerodynamic, or scoring coefficients changed.
+
+This supersedes the three-failure status in the initial tooling report below.
 
 ## Verification tooling update — 2026-09-20
 
@@ -13,8 +32,8 @@
 - Completed plays automatically save session JSON; F3 displays its path.
 - No gameplay coefficients or boundaries changed; focused human QC remains pending.
 
-This update supersedes earlier statements below that the current engine run
-is unavailable or wholly pending. It does not mark the full core suite green.
+The initial tooling update supersedes earlier statements below that the engine run
+was unavailable or wholly pending. The follow-up above records the full passing suite.
 
 ## Implemented in repository
 

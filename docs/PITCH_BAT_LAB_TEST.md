@@ -367,7 +367,7 @@ Use `G` to put a runner on third, then produce or diagnose a fly catch at differ
 ### Focused field QC collection
 
 1. Run `python3 tools/verify.py` before playtesting (one-time setup and current
-   failures are documented in `VERIFICATION.md`). It imports a temporary project
+   results are documented in `VERIFICATION.md`). It imports a temporary project
    copy, checks core regressions and QC export, and launches a headless smoke.
 2. Check all seven anchors, then both role cameras with sidearm breaking
    Pitches and extreme aim/effort/fatigue. Neither defender may obscure the
@@ -390,6 +390,10 @@ Use `G` to put a runner on third, then produce or diagnose a fly catch at differ
    grounders reaching wall (Double), untouched airborne Deep Air crossings
    (Double unless caught), wall on fly (Triple), HR clears, and Pitcher
    clean/bobble/miss plays. Record seed/play number and video for mismatches.
+7. Try an Eephus at minimum effort with a high target. If it cannot solve,
+   verify the retry message, unchanged Stamina/count, and normal delivery after
+   explicitly raising effort. The game must not launch a knowingly mis-aimed
+   nominal pitch or silently raise the selected effort.
 
 No Contact/Power, aerodynamic, or scoring-boundary tuning should precede review
 of that sample. Physical bump-induced errors are not part of this pass.

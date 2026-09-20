@@ -57,11 +57,33 @@ sampling rules in `PITCH_BAT_LAB_TEST.md` before proposing tuning.
 ## First runtime findings (2026-09-20)
 
 Godot `4.7.2.stable.official.ed1daf0bf` now runs in the development environment.
-Import, QC export, and main-scene smoke pass. The core scene reports three
+The initial run passed import, QC export, and main-scene smoke but reported three
 pre-existing assertion failures: exhausted Slider center regression, and two
 low-effort Eephus aim targets. These also failed before the export/tooling edits.
-They remain blocking failures, not accepted baselines or relaxed tolerances.
 The invalid scene-tree setup in the match-suspension test was corrected.
+
+### Follow-up: full verification passing
+
+The Eephus solver returned its best crossing even when it badly missed the
+requested target. It now accepts only the existing 1.25 cm tolerance and
+otherwise uses the safe retry path. The tested velocity-5 Pitcher at minimum
+effort launches at 12.71 m/s: an angle scan confirms insufficient height for
+the center/high fixtures. Tests cover rejection, a lower mathematical probe,
+and accurate low/center/high targeting at 90% effort for both hands. An actual
+delivery/retry test verifies no stamina/count/record cost for an unsolved throw.
+
+The Slider assertion compared fresh and exhausted final lateral position,
+conflating command correction with substantial loss of break. Instrumentation
+showed the correction matching its intended weighted target (e.g. 4.226 m wide
+to 0.507 m wide at 88% pull). Its replacement checks the same degraded
+trajectory before/after correction, target accuracy, and unchanged speed/spin.
+Existing fatigue velocity/spin-loss and plate-reach checks remain intact.
+
+Full verification passes after this focused change. No physics coefficients
+or fatigue tuning changed. Eight clearance cases with unsolved minimum-effort
+Eephus targets retry at normal effort explicitly, preserving 180 launched
+flights and all seven-anchor/camera checks. This is test coverage, not a silent
+effort adjustment in the game.
 
 The new line-scoring, 180-flight pitch-clearance, and defender-separation
 assertions produced no failures. That is finite automated coverage, not proof

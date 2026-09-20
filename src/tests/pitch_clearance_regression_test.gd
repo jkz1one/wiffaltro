@@ -23,6 +23,7 @@ static func run(host: Node, check: Callable) -> void:
 			views.append(camera.global_position)
 	camera.queue_free()
 	var samples: int = 0
+	var retries: int = 0
 	for pitch_id in PitchBatLab.PITCH_IDS:
 		var pitch: PitchDefinition = ContentDB.get_pitch(pitch_id)
 		for left_handed in [false, true]:
@@ -34,7 +35,18 @@ static func run(host: Node, check: Callable) -> void:
 					var base: PitchLaunchParameters = PitchAimSolver.solve(
 						rated, ball, PitchBatLab.MOUND_ORIGIN, target, left_handed, 4001 + samples
 					)
-					check.call(base != null, "clearance sample must solve: %s" % pitch_id)
+					if base == null:
+						check.call(
+							pitch_id == &"pitch.eephus" and not stressed,
+							"only minimum-effort Eephus targets may require an effort retry"
+						)
+						retries += 1
+						# Match the player's explicit retry, not an automatic speed boost.
+						rated = MatchLabSupport.rated_pitch(pitch, player, 1.0)
+						base = PitchAimSolver.solve(
+							rated, ball, PitchBatLab.MOUND_ORIGIN, target, left_handed, 4001 + samples
+						)
+					check.call(base != null, "clearance sample must solve after retry: %s" % pitch_id)
 					if base == null:
 						continue
 					var executed: PitchLaunchParameters = PitchExecutionModel.apply(
@@ -47,8 +59,10 @@ static func run(host: Node, check: Callable) -> void:
 						"Pitch/role-camera sightline clearance failed: %s sample %d" % [pitch_id, samples]
 					)
 					samples += 1
+	check.call(samples == 180, "clearance matrix must retain all 180 launched flights")
 	print(
-		"Pitch clearance regression sampled %d flights (not an exhaustive bound)." % samples
+		"Pitch clearance regression sampled %d flights (%d effort retries; not exhaustive)."
+		% [samples, retries]
 	)
 
 
