@@ -5,6 +5,7 @@ var _contact_cancel_actor: PitchFlightActor
 
 func _ready() -> void:
 	_test_pitch_release_quality()
+	_test_bat_handedness_mapping()
 	_test_swept_swing_timeline()
 	_test_signed_contact_spin()
 	_test_pitch_actor_contact_cancellation()
@@ -14,10 +15,12 @@ func _ready() -> void:
 	_test_low_effort_eephus_reachability()
 	_test_at_bat_cadence()
 	_test_match_flow_guards()
+	_test_match_lab_suspension()
 	_test_match_presentation_sequence()
 	_test_pitch_identity_and_batter_awareness()
 	_test_ai_pitch_determinism_and_counts()
 	_test_match_count_rules()
+	_test_match_scorebug()
 	_test_defensive_separation()
 	_test_back_wall_segment_resolution()
 	_test_play_record_serialization()
@@ -36,12 +39,12 @@ func _test_pitch_release_quality() -> void:
 	)
 	var early: float = PitchReleaseController.quality_at(0.28, 5, 0.0)
 	var tired_low_control: float = PitchReleaseController.quality_at(
-		0.84,
+		0.53,
 		2,
 		1.0
 	)
 	var fresh_high_control: float = PitchReleaseController.quality_at(
-		0.84,
+		0.53,
 		9,
 		0.0
 	)
@@ -52,9 +55,111 @@ func _test_pitch_release_quality() -> void:
 		"Control and freshness should widen the release window"
 	)
 	_check(
-		PitchReleaseController.AUTO_RELEASE_SECONDS < 1.0,
-		"the player delivery meter should complete in under one second"
+		PitchReleaseController.AUTO_RELEASE_SECONDS < 0.65,
+		"the player delivery meter should complete quickly"
 	)
+	_check(
+		PitchReleaseController.new().ideal_progress() >= 0.82
+		and PitchReleaseController.new().ideal_progress() <= 0.88,
+		"the release sweet spot should sit near 85% of the meter"
+	)
+	_check(
+		PitchReleaseController.overdrive_at(
+			PitchReleaseController.IDEAL_RELEASE_SECONDS
+		) == 0.0
+		and PitchReleaseController.overdrive_at(
+			PitchReleaseController.AUTO_RELEASE_SECONDS
+		) > 0.99,
+		"only the short post-sweet-spot tail should add overdrive"
+	)
+	var pitcher: PlayerDefinition = ContentDB.get_player(&"player.debug_pitcher")
+	var fastball: PitchDefinition = ContentDB.get_pitch(
+		&"pitch.overhand_four_seam"
+	)
+	var slider: PitchDefinition = ContentDB.get_pitch(&"pitch.overhand_slider")
+	var normal_fastball: PitchDefinition = MatchLabSupport.rated_pitch(
+		fastball,
+		pitcher,
+		1.0,
+		0.0
+	)
+	var overdriven_fastball: PitchDefinition = MatchLabSupport.rated_pitch(
+		fastball,
+		pitcher,
+		1.0,
+		1.0
+	)
+	var normal_slider: PitchDefinition = MatchLabSupport.rated_pitch(
+		slider,
+		pitcher,
+		1.0,
+		0.0
+	)
+	var overdriven_slider: PitchDefinition = MatchLabSupport.rated_pitch(
+		slider,
+		pitcher,
+		1.0,
+		1.0
+	)
+	_check(
+		overdriven_fastball.nominal_velocity_mps
+		> normal_fastball.nominal_velocity_mps,
+		"overcooking a fastball should add bounded velocity"
+	)
+	_check(
+		overdriven_slider.nominal_spin_rpm > normal_slider.nominal_spin_rpm
+		and MatchLabSupport.release_overdrive_control_penalty(1.0) > 0.0,
+		"overcooking a breaker should add finish at an explicit command cost"
+	)
+
+func _test_bat_handedness_mapping() -> void:
+	_check(
+		BatActor.stance_pivot_x(false) > 0.0
+		and BatActor.stance_pivot_x(true) < 0.0,
+		"right- and left-handed bats should load on mirrored back shoulders"
+	)
+	_check(
+		BatActor.stance_yaw_degrees(false) > 0.0
+		and BatActor.contact_yaw_degrees(false) < 0.0
+		and BatActor.stance_yaw_degrees(true) < 0.0
+		and BatActor.contact_yaw_degrees(true) > 0.0,
+		"each handed bat should drive from its back shoulder toward the front"
+	)
+	var bat: BatActor = BatActor.new()
+	add_child(bat)
+	bat.configure(false, Vector3.ZERO)
+	_check(
+		bat._pivot.position.x > 0.0 and bat._pivot.rotation.y > 0.0,
+		"a visible right-handed bat should begin on its back/right shoulder"
+	)
+	bat.play_swing(ContentDB.get_swing(&"swing.contact"))
+	bat._process(0.105)
+	_check(
+		bat._pivot.rotation.y < 0.0,
+		"a visible right-handed swing should cross toward the front shoulder"
+	)
+	bat.configure(true, Vector3.ZERO)
+	_check(
+		bat._pivot.position.x < 0.0 and bat._pivot.rotation.y < 0.0,
+		"a visible left-handed stance should mirror the full bat rig"
+	)
+	bat.queue_free()
+
+	var pitcher_avatar: PlayerAvatar = PlayerAvatar.new()
+	add_child(pitcher_avatar)
+	pitcher_avatar.configure(
+		PlayerAvatar.Role.PITCHER,
+		false,
+		false,
+		Color.WHITE
+	)
+	var ready_hand_position: Vector3 = pitcher_avatar._throw_hand.position
+	pitcher_avatar.set_pitch_delivery_progress(0.68, false)
+	_check(
+		pitcher_avatar._throw_hand.position != ready_hand_position,
+		"the player Pitcher release meter should drive a visible delivery pose"
+	)
+	pitcher_avatar.queue_free()
 
 func _test_swept_swing_timeline() -> void:
 	var profile: SwingProfileDefinition = ContentDB.get_swing(&"swing.contact")
@@ -519,6 +624,95 @@ func _test_match_flow_guards() -> void:
 	pitching_lab._status_label.free()
 	pitching_lab.free()
 
+func _test_match_lab_suspension() -> void:
+	var lab: PitchBatLab = PitchBatLab.new()
+	lab._match_state = MatchLabSupport.create_match(
+		lab.DEBUG_PLAYER_ID,
+		lab.PLAYER_TEAM_NAME,
+		lab.RIVAL_TEAM_NAME
+	)
+	var original_match: MatchState = lab._match_state
+	original_match.balls = 2
+	original_match.strikes = 1
+	lab._field_definition = ContentDB.get_field(lab.FIELD_ID)
+	lab._at_bat_cadence = AtBatCadenceController.new()
+	lab._release_controller = PitchReleaseController.new()
+	lab._match_presentation_director = MatchPresentationDirector.new()
+	lab._primary_fielder = FielderController.new()
+	lab.add_child(lab._primary_fielder)
+	lab._trajectory_draw = TrajectoryDebugDraw.new()
+	lab.add_child(lab._trajectory_draw)
+	lab._contact_vector_draw = TrajectoryDebugDraw.new()
+	lab.add_child(lab._contact_vector_draw)
+	lab._status_label = Label.new()
+	lab.add_child(lab._status_label)
+	lab._live_label = Label.new()
+	lab.add_child(lab._live_label)
+	lab._selected_pitch_index = 1
+	lab._pitch_target = Vector2(0.31, 1.42)
+	lab._pitch_effort = 1.07
+	lab._fielder_anchor_index = 7
+	lab._status_label.text = "Resume marker"
+
+	PitchBatLabFeelSupport.toggle_match_mode(lab)
+	_check(
+		not lab._match_mode and lab._match_state == original_match,
+		"entering Mechanics Lab should suspend rather than replace the match"
+	)
+	lab._selected_pitch_index = 0
+	lab._pitch_target = Vector2.ZERO
+	lab._pitch_effort = 0.82
+	PitchBatLabFeelSupport.toggle_match_mode(lab)
+	_check(
+		lab._match_mode
+		and lab._match_state == original_match
+		and lab._match_state.balls == 2
+		and lab._match_state.strikes == 1
+		and lab._selected_pitch_index == 1
+		and lab._pitch_target == Vector2(0.31, 1.42)
+		and is_equal_approx(lab._pitch_effort, 1.07)
+		and lab._fielder_anchor_index == 7
+		and lab._status_label.text == "Resume marker",
+		"leaving Mechanics Lab should restore the same match and pre-Pitch plan"
+	)
+	original_match.begin_pitch()
+	PitchBatLabFeelSupport.toggle_match_mode(lab)
+	_check(
+		lab._match_mode
+		and lab._match_state == original_match
+		and lab._match_state.phase == MatchState.Phase.PITCH_IN_FLIGHT,
+		"a live Pitch should refuse Lab entry without discarding its match state"
+	)
+	lab.free()
+
+func _test_match_scorebug() -> void:
+	var match_state: MatchState = MatchState.create(
+		_make_team("Away"),
+		_make_team("Home")
+	)
+	match_state.away_team.runs = 3
+	match_state.home_team.runs = 2
+	match_state.balls = 2
+	match_state.strikes = 1
+	match_state.outs = 1
+	match_state.bases.first = &"runner.first"
+	var scorebug: MatchScorebug = MatchScorebug.new()
+	add_child(scorebug)
+	scorebug.refresh(match_state)
+	_check(
+		scorebug.visible
+		and scorebug._away_score.text == "3"
+		and scorebug._home_score.text == "2"
+		and scorebug._count.text == "2–1"
+		and scorebug._outs.text == "1 OUT",
+		"scorebug should render score, count, and outs from MatchState"
+	)
+	_check(
+		scorebug._base_markers.size() == 3,
+		"scorebug should expose three persistent base indicators"
+	)
+	scorebug.queue_free()
+
 func _test_match_presentation_sequence() -> void:
 	var camera_director: MatchCameraDirector = MatchCameraDirector.new()
 	camera_director.cycle_shot()
@@ -534,6 +728,10 @@ func _test_match_presentation_sequence() -> void:
 	_check(
 		first.shot_sequence == replay.shot_sequence,
 		"broadcast intro shot selection should replay from its seed"
+	)
+	_check(
+		first.motion_sequence == replay.motion_sequence,
+		"broadcast intro camera motion should replay from its seed"
 	)
 	_check(
 		first.shot_sequence.size() >= 2
@@ -553,6 +751,10 @@ func _test_match_presentation_sequence() -> void:
 	_check(
 		unique_shots.size() == first.shot_sequence.size(),
 		"a short intro should not repeat the same camera"
+	)
+	_check(
+		first.motion_sequence.size() == first.shot_sequence.size(),
+		"each presentation shot should receive one slow camera motion"
 	)
 	var intro_event: MatchPresentationDirector.Event
 	for index in range(first.shot_sequence.size()):
@@ -736,6 +938,7 @@ func _test_play_record_serialization() -> void:
 	record.play_number = 7
 	record.pitch_id = &"pitch.test"
 	record.intended_target = Vector2(0.2, 1.1)
+	record.release_overdrive = 0.72
 	record.result = &"single"
 	var encoded: Dictionary = record.to_dict()
 	_check(encoded["play_number"] == 7, "record should retain play number")
@@ -743,6 +946,10 @@ func _test_play_record_serialization() -> void:
 		is_equal_approx(float(encoded["intended_target"][0]), 0.2)
 		and is_equal_approx(float(encoded["intended_target"][1]), 1.1),
 		"record vectors should be JSON-safe arrays"
+	)
+	_check(
+		is_equal_approx(float(encoded["release_overdrive"]), 0.72),
+		"record should retain release overdrive for deterministic tuning"
 	)
 
 func _make_team(team_name: String) -> TeamMatchState:

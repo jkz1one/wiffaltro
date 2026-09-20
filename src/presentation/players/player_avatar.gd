@@ -76,6 +76,46 @@ func _apply_stance() -> void:
 		_throw_hand.material_override = _material(Color(1.0, 0.76, 0.42))
 		_glove_hand.material_override = _material(Color(0.18, 0.12, 0.08))
 
+func set_pitch_delivery_progress(progress: float, sidearm: bool) -> void:
+	if role != Role.PITCHER or _body_root == null:
+		return
+	var bounded_progress: float = clampf(progress, 0.0, 1.0)
+	var throw_side: float = -1.0 if throws_left else 1.0
+	var load: float = smoothstep(0.08, 0.48, bounded_progress)
+	var drive: float = smoothstep(0.46, 0.94, bounded_progress)
+	var arm_height: float = 1.31 if sidearm else 1.62
+	var loaded_throw_hand: Vector3 = Vector3(
+		throw_side * 0.52,
+		arm_height,
+		0.14
+	)
+	var release_throw_hand: Vector3 = Vector3(
+		throw_side * (0.30 if sidearm else 0.12),
+		1.30 if sidearm else 1.48,
+		-0.46
+	)
+	_throw_hand.position = Vector3(
+		throw_side * 0.38,
+		1.12,
+		0.0
+	).lerp(loaded_throw_hand, load).lerp(release_throw_hand, drive)
+	_glove_hand.position = Vector3(
+		-throw_side * 0.38,
+		1.10,
+		0.02
+	).lerp(
+		Vector3(-throw_side * 0.16, 1.34, -0.16),
+		maxf(load * 0.72, drive)
+	)
+	_body_root.rotation.y = throw_side * lerpf(
+		-0.16 * load,
+		0.30,
+		drive
+	)
+
+func reset_pose() -> void:
+	_apply_stance()
+
 func _set_body_color(color: Color) -> void:
 	if _body_root.get_child_count() <= 0:
 		return

@@ -15,6 +15,7 @@ var effort: float = 1.0
 var fatigue: float = 0.0
 var execution_quality: float = 1.0
 var release_offset_seconds: float = 0.0
+var release_overdrive: float = 0.0
 @warning_ignore("shadowed_global_identifier")
 var seed: int = 0
 var crossed_plate: bool = false
@@ -44,6 +45,7 @@ func to_dict() -> Dictionary:
 		"fatigue": fatigue,
 		"execution_quality": execution_quality,
 		"release_offset_seconds": release_offset_seconds,
+		"release_overdrive": release_overdrive,
 		"seed": seed,
 		"crossed_plate": crossed_plate,
 		"crossing_point": [crossing_point.x, crossing_point.y],

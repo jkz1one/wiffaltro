@@ -36,6 +36,7 @@ static func begin_swing(
 		power_rating = batter_definition.power
 
 	lab._swing_consumed = true
+	lab._status_label.text = ""
 	lab._pending_swing_miss = null
 	lab._swing_tracker.begin(
 		intent,
@@ -98,10 +99,11 @@ static func _register_miss(
 		lab._swing_tracker.intent.aim_point,
 		result
 	)
-	lab._status_label.text = (
-		"%s — %s\nBall continuing to the receiver."
-		% [profile.display_name, result.miss_reason_name()]
-	)
+	lab._status_label.text = ""
+	lab._live_label.text = "%s • %s • ball continuing to receiver" % [
+		profile.display_name,
+		result.miss_reason_name(),
+	]
 
 static func _resolve_contact(
 	lab: PitchBatLab,
@@ -120,16 +122,17 @@ static func _resolve_contact(
 	if result.outcome == ContactResult.Outcome.FOUL:
 		if lab._match_mode:
 			lab._match_state.record_foul()
-		lab._status_label.text = (
-			"%s — FOUL\nquality %.0f%%   no fair ball-in-play"
-			% [profile.display_name, result.quality * 100.0]
-		)
+		lab._status_label.text = "FOUL\n%s • quality %.0f%%" % [
+			profile.display_name,
+			result.quality * 100.0,
+		]
 		PitchBatLabFeelSupport.finish_record(lab, &"foul")
 		lab._finish_non_contact_pitch()
 		return
 
 	var exit_speed_mph: float = result.exit_velocity.length() * 2.236936
-	lab._status_label.text = (
+	lab._status_label.text = ""
+	lab._live_label.text = (
 		"%s — %s   quality %.0f%%\n"
 		+ "timing %s   aim %s\n"
 		+ "EV %.1f mph   launch %+0.1f°   spray %+0.1f°\n"

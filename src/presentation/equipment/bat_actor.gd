@@ -48,7 +48,7 @@ func _process(delta: float) -> void:
 		return
 	_swing_elapsed += maxf(0.0, delta)
 	var progress: float = clampf(_swing_elapsed / _swing_duration, 0.0, 1.0)
-	var side: float = -1.0 if bats_left else 1.0
+	var side: float = handed_side(bats_left)
 	var load_phase: float = smoothstep(0.0, 0.15, progress)
 	var drive: float = smoothstep(
 		0.12,
@@ -76,9 +76,9 @@ func _process(delta: float) -> void:
 		# visibly reversing the bat back through the contact path.
 		yaw_degrees = lerpf(142.0, 296.0, recover)
 		tilt_degrees = lerpf(64.0, 58.0, recover)
-	_pivot.rotation.y = deg_to_rad(side * yaw_degrees)
+	_pivot.rotation.y = deg_to_rad(-side * yaw_degrees)
 	_pivot.rotation.x = deg_to_rad(-_attack_angle_degrees)
-	_bat_axis.rotation.z = deg_to_rad(side * tilt_degrees)
+	_bat_axis.rotation.z = deg_to_rad(-side * tilt_degrees)
 	if progress >= 1.0:
 		if _swing_elapsed >= _swing_duration + FOLLOW_THROUGH_SECONDS:
 			reset_swing()
@@ -122,16 +122,29 @@ func _build_bat() -> void:
 	_bat_axis.add_child(barrel)
 
 func _apply_stance() -> void:
-	var side: float = -1.0 if bats_left else 1.0
-	# From the behind-Batter camera, a right-handed Batter's back shoulder is
-	# -X; left-handed presentation mirrors the whole rig.
-	_pivot.position = Vector3(-side * 0.24, 1.15, 0.02)
+	var side: float = handed_side(bats_left)
+	# The bat shares the same handed X side as the avatar's hand cluster.
+	# Right-handed Batters load at +X and drive toward the front/left shoulder;
+	# left-handed Batters mirror the complete rig and rotation direction.
+	_pivot.position = Vector3(side * 0.24, 1.15, 0.02)
 	_pivot.rotation = Vector3(
 		deg_to_rad(-_attack_angle_degrees),
-		deg_to_rad(side * -64.0),
+		deg_to_rad(side * 64.0),
 		0.0
 	)
-	_bat_axis.rotation = Vector3(0.0, 0.0, deg_to_rad(side * 58.0))
+	_bat_axis.rotation = Vector3(0.0, 0.0, deg_to_rad(-side * 58.0))
+
+static func handed_side(is_left_handed: bool) -> float:
+	return -1.0 if is_left_handed else 1.0
+
+static func stance_pivot_x(is_left_handed: bool) -> float:
+	return handed_side(is_left_handed) * 0.24
+
+static func stance_yaw_degrees(is_left_handed: bool) -> float:
+	return handed_side(is_left_handed) * 64.0
+
+static func contact_yaw_degrees(is_left_handed: bool) -> float:
+	return handed_side(is_left_handed) * -96.0
 
 static func _material(color: Color) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()

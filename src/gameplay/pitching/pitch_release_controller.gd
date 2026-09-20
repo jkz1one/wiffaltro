@@ -1,10 +1,10 @@
 class_name PitchReleaseController
 extends RefCounted
 
-const IDEAL_RELEASE_SECONDS: float = 0.50
-const AUTO_RELEASE_SECONDS: float = 0.88
-const MIN_GOOD_WINDOW_SECONDS: float = 0.090
-const MAX_GOOD_WINDOW_SECONDS: float = 0.170
+const IDEAL_RELEASE_SECONDS: float = 0.46
+const AUTO_RELEASE_SECONDS: float = 0.54
+const MIN_GOOD_WINDOW_SECONDS: float = 0.060
+const MAX_GOOD_WINDOW_SECONDS: float = 0.110
 
 var active: bool = false
 var elapsed_seconds: float = 0.0
@@ -43,6 +43,20 @@ func meter_progress() -> float:
 
 func ideal_progress() -> float:
 	return IDEAL_RELEASE_SECONDS / AUTO_RELEASE_SECONDS
+
+func overdrive_amount() -> float:
+	return overdrive_at(elapsed_seconds)
+
+static func overdrive_at(release_seconds: float) -> float:
+	return clampf(
+		inverse_lerp(
+			IDEAL_RELEASE_SECONDS,
+			AUTO_RELEASE_SECONDS,
+			release_seconds
+		),
+		0.0,
+		1.0
+	)
 
 static func quality_at(
 	release_seconds: float,

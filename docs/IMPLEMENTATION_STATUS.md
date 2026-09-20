@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Pre-QC hardening complete statically; hands-on validation pending
+**Current phase:** Phase 3 — Interaction/presentation hardening complete statically; hands-on validation pending
 
 ## Implemented in repository
 
@@ -361,6 +361,44 @@ one deliberate confirmation for each new player-controlled Batter.
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on timed Swing, receiver, handed bat, cadence, release meter, and
       intro/outro validation
+
+
+## Phase 3 interaction and presentation hardening — runtime validation pending
+
+The 2026-09-20 follow-up found a concrete handedness inversion and asked for a
+cleaner playable-match shell before the next human QC pass. Implemented:
+
+- [x] corrected `BatActor` pivot to the same handed side as the Batter's hands
+      and reversed the mirrored yaw/tilt path so each bat loads at the back
+      shoulder and drives toward the front shoulder
+- [x] added handed stance/contact-direction regressions for both sides
+- [x] added a visible procedural player-Pitcher load/delivery pose driven by
+      the same release-meter progress used for execution
+- [x] shortened the player release meter, moved the gold sweet spot near 85%,
+      and added a small post-cue overdrive tail
+- [x] made overdrive category-aware: bounded Fastball velocity or breaking
+      finish in exchange for explicit command and Stamina penalties
+- [x] serialized release overdrive in deterministic play records and covered
+      its velocity/break/control relationships with regressions
+- [x] made F2 suspend and resume the existing match at safe stopped pre-Pitch
+      boundaries instead of constructing a new match
+- [x] added seeded still, zoom-in/out, pan-left/right, and tilt-up/down camera
+      motion to the two-/three-shot intro/outro director
+- [x] lengthened presentation shots and reduced the dark overlay opacity
+- [x] replaced the large text scoreboard with a compact broadcast-style
+      scorebug for score, inning, count, outs, bases, Batter, Pitcher, Pitch
+      count, and Stamina
+- [x] moved prompts/results into a centered event card and retained detailed
+      pitch/contact/fielding telemetry only in the F1 debug layer
+- [x] reduced persistent controls text and removed redundant match-state prose
+- [x] added regression coverage for actual bat transforms, Pitcher pose,
+      release tuning, scorebug state, presentation motion, F2 resume/refusal,
+      and play-record overdrive serialization
+- [x] all current GDScript passes `gdparse` and `gdlint` static checks on
+      2026-09-20
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on bat direction, player windup, F2 resume, release overdrive,
+      scorebug/event card, and moving intro validation
 
 
 ## Canonical post-fun-gate roadmap — not implemented

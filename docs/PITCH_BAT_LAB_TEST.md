@@ -40,17 +40,23 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - handed Batter/Pitcher/Fielder avatars and independent visible bat swing
 - visible non-authoritative receiver for taken and missed Pitches
 - automatic two-to-three-shot game intro and win/loss outro
+- seeded still / zoom / pan / tilt motion per presentation shot
 - handed over-shoulder batting camera
 - Batter approach memory for Pitch/location repetition
 - varied delivery rhythm and distinct Pitch speed bands
 - hold/release mouse pitching through the shared execution meter
 - overhead 3×3 Field Setup view
 - preserved Mechanics Lab and debug telemetry
+- suspended-match return from Mechanics Lab at safe pre-Pitch boundaries
+- compact broadcast-style scorebug and centered transition/result card
+- visible player-controlled Pitcher windup during the release meter
+- late release sweet spot with bounded category-aware overdrive risk/reward
 
 ## Shared controls
 
 - `F1`: toggle detailed telemetry and trajectory overlays
-- `F2`: switch between Match Mode and Mechanics Lab
+- `F2`: enter Mechanics Lab from a stopped pre-Pitch state, then resume the
+  same match state
 - `F3`: print completed deterministic play records to the Output panel
 - `P`: pause/resume the simulation for debug inspection
 - `V`: cycle camera manually
@@ -62,7 +68,7 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - When a new player-controlled Batter steps in: left click, `Space`, or
   controller A confirms that plate appearance once
 - `Space` while pitching: hold to start the delivery and release near the
-  meter's center mark
+  meter's late gold mark
 - Mouse movement: position batting coverage on the contact plane
 - Left click: aim at the pointer and commit a Contact Swing
 - Right click: aim at the pointer and commit a Power Swing
@@ -72,7 +78,7 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `1–9`: select from the active Pitcher's repertoire while pitching
 - Mouse movement while pitching: aim directly on the plate plane
 - Hold left click while pitching: lock the pointer target, fill the release
-  meter, and release near its center marker to throw
+  meter, and release near its late gold marker to throw
 - Arrow keys / right stick: continuously move the Pitch target
 - `- / =`: lower / raise Pitch effort from 82–112%
 - Click the pitching-staff panel: select any of the four Pitchers between batters
@@ -165,7 +171,9 @@ must remain hidden unless the explicit debug layer is enabled.
 Starting a new match should automatically play two or three readable camera
 views with `GAME START`, then settle into the correct batting camera and wait
 for the Batter-ready confirmation. Across restarts, both two-view and
-three-view packages should occur. The sequence must be skippable. Taken
+three-view packages should occur. Individual shots should visibly vary among
+still, slow zoom, pan, and tilt treatments without jerky movement. The lighter
+intro tint should preserve the field view. The sequence must be skippable. Taken
 Pitches, fouls, misses, walks, strikeouts, hits, outs, new batters, and inning
 changes should all flow after a readable automatic hold. A new
 player-controlled Batter waits for one confirmation; additional Pitches in
@@ -187,11 +195,28 @@ the Primary Fielder role to another player. Middle Center must visibly start
 clear of the mound rather than overlap the Pitcher.
 
 While pitching, hold left click, `Space`, or controller A and release near the
-center cue. Mouse and keyboard must show and use the same faster timing bar.
+late gold cue at roughly 85% of the short meter. Mouse and keyboard must show
+and use the same faster timing bar. The visible Pitcher should load and deliver
+during that hold. Releasing just beyond the cue may add a bounded amount of
+Fastball velocity or breaking-Pitch finish, but must visibly sacrifice command;
+it is not a free replacement for the separate effort setting.
 High-Control, fresh Pitchers should have a more forgiving useful window than
 tired, low-Control Pitchers. Early and late releases should reduce command
 without allowing any mid-flight steering. Holding beyond the window must
 auto-release rather than stall the match.
+
+At a stopped pre-Pitch state, note the inning, score, count, bases, current
+Batter/Pitcher, selected Pitch, aim, effort, and defensive anchor. Press `F2`,
+use the Mechanics Lab, then press `F2` again. The same match and selections must
+resume without replaying the intro or resetting the inning. `F2` during a live
+Pitch, ball-in-play, cadence, or presentation should refuse safely rather than
+discarding the play.
+
+With F1 off, the top-left scorebug should be the only persistent baseball-state
+readout: score, half/inning, count, outs, bases, Batter, Pitcher, Pitch count,
+and Stamina. Begin-at-bat prompts and play results should appear on the centered
+event card. With F1 on, diagnostic text may appear at left but must not overlap
+or redundantly replace the scorebug/event card.
 
 With `F1` telemetry visible, try pressing a Pitch number, `-` / `=`, `Q` / `E`,
 `F`, and `C` after starting the release meter and again while the ball is in

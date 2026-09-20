@@ -65,7 +65,8 @@ var _status_label: Label
 var _live_label: Label
 var _config_label: Label
 var _controls_label: Label
-var _scoreboard_label: Label
+var _scorebug: MatchScorebug
+var _event_panel: Panel
 var _action_label: Label
 var _pitch_release_bar: ProgressBar
 var _pitch_release_ideal_marker: ColorRect
@@ -108,8 +109,10 @@ var _ai_swing_decided: bool = false
 var _last_ai_pitch_index: int = -1
 var _release_controller: PitchReleaseController
 var _pending_release_quality: float = 1.0
+var _pending_release_overdrive: float = 0.0
 var _last_release_quality: float = 1.0
 var _last_release_offset_seconds: float = 0.0
+var _last_release_overdrive: float = 0.0
 var _active_play_record: PlayRecord
 var _play_records: Array[PlayRecord] = []
 var _at_bat_cadence: AtBatCadenceController
@@ -121,6 +124,7 @@ var _last_ai_read_text: String = "No read"
 var _field_setup_active: bool = false
 var _debug_paused: bool = false
 var _status_before_pause: String = ""
+var _match_suspend_snapshot: Dictionary = {}
 
 @warning_ignore_restore("unused_private_class_variable")
 
@@ -270,6 +274,8 @@ func _throw_pitch() -> void:
 	if _pitcher_marker != null:
 		_pitcher_marker.position = MOUND_ORIGIN
 		_pitcher_marker.rotation = Vector3.ZERO
+	if _pitcher_avatar != null:
+		_pitcher_avatar.reset_pose()
 	if _match_mode:
 		if _match_state == null or not _match_state.begin_pitch():
 			return
@@ -308,6 +314,7 @@ func _throw_pitch() -> void:
 	var is_left_handed: bool = false
 	var execution_quality: float = _execution_quality
 	var applied_fatigue: float = _fatigue
+	var release_overdrive: float = 0.0
 	var pitcher_state: PlayerMatchState
 	var pending_stamina_cost: float = 0.0
 	if _match_mode:
@@ -316,6 +323,10 @@ func _throw_pitch() -> void:
 			pitch,
 			_pitch_effort
 		)
+		release_overdrive = (
+			_pending_release_overdrive if _player_is_pitching() else 0.0
+		)
+		pending_stamina_cost *= lerpf(1.0, 1.08, release_overdrive)
 		var authored_quality: float = (
 			_pending_release_quality if _player_is_pitching() else 1.0
 		)
@@ -327,6 +338,9 @@ func _throw_pitch() -> void:
 			0.0,
 			execution_quality
 			- MatchLabSupport.execution_quality_penalty(_pitch_effort)
+			- MatchLabSupport.release_overdrive_control_penalty(
+				release_overdrive
+			)
 		)
 		is_left_handed = (
 			pitcher_state.definition.throws
@@ -335,7 +349,8 @@ func _throw_pitch() -> void:
 		launch_pitch = MatchLabSupport.rated_pitch(
 			pitch,
 			pitcher_state.definition,
-			_pitch_effort
+			_pitch_effort,
+			release_overdrive
 		)
 	else:
 		var debug_pitcher: PlayerDefinition = ContentDB.get_player(DEBUG_PLAYER_ID)
@@ -393,19 +408,23 @@ func _throw_pitch() -> void:
 	else:
 		_last_expected_plate_speed_mps = 0.0
 	_last_release_quality = execution_quality
+	_last_release_overdrive = release_overdrive
 	PitchBatLabFeelSupport.start_record(
 		self,
 		pitch,
 		applied_fatigue,
 		execution_quality,
-		executed_parameters.seed
+		executed_parameters.seed,
+		release_overdrive
 	)
 	_pending_release_quality = 1.0
+	_pending_release_overdrive = 0.0
 
-	_status_label.text = (
+	_status_label.text = ""
+	_live_label.text = (
 		"THROW %d — %s%s\n"
 		+ "release %.1f → %.1f mph   predicted plate %.1f mph\n"
-		+ "release %s   aero movement X %+0.1f cm   Y %+0.1f cm"
+		+ "release %s   overcook %.0f%%   movement X %+0.1f / Y %+0.1f cm"
 	) % [
 		_throw_number,
 		pitch.display_name,
@@ -414,6 +433,7 @@ func _throw_pitch() -> void:
 		_last_executed_release_speed_mps * 2.236936,
 		_last_expected_plate_speed_mps * 2.236936,
 		PitchReleaseController.grade_name(execution_quality),
+		release_overdrive * 100.0,
 		_last_movement_x_m * 100.0,
 		_last_movement_y_m * 100.0,
 	]
@@ -481,6 +501,7 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 	if _match_mode:
 		_camera_mode = 3
 		PitchBatLabPresentation.apply_camera_mode(self)
+		_refresh_config()
 
 func _on_batted_surface_contact(
 	surface_id: StringName,
@@ -623,19 +644,20 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 			)
 		advancement_text = "%d run(s) score" % runs_scored
 
-	_status_label.text = (
-		"%s — %s\n%s   %s\n%s"
-	) % [
+	_status_label.text = "%s\n%s" % [
+		outcome.display_name(),
+		advancement_text,
+	]
+	_live_label.text = "%s • %s\n%s\n%s" % [
 		outcome.display_name(),
 		String(outcome.reason).replace("_", " ").capitalize(),
 		_last_fielding_text,
-		advancement_text,
 		_base_state.display_string(),
 	]
 	if _match_mode:
-		_live_label.text = "PLAY DEAD   next state readying automatically"
+		_live_label.text += "\nPLAY DEAD • next state automatic"
 	else:
-		_live_label.text = "PLAY DEAD   B: next diagnostic launch   SPACE: next pitch"
+		_live_label.text += "\nPLAY DEAD • B diagnostic • SPACE next Pitch"
 	PitchBatLabFeelSupport.finish_record(
 		self,
 		StringName(outcome.display_name().to_snake_case()),
@@ -658,8 +680,8 @@ func _on_plate_crossed(
 	var target_error_y: float = point.y - _pitch_target.y
 	var call_text: String = ""
 	var swing_feedback: String = ""
+	var plate_call: StringName = &""
 	if _match_mode:
-		var plate_call: StringName
 		if _swing_consumed:
 			var miss: ContactResult = PitchBatLabSwingSupport.ensure_miss(self)
 			plate_call = _match_state.record_strike(true)
@@ -675,10 +697,10 @@ func _on_plate_crossed(
 			plate_call = _match_state.record_called_pitch(in_zone)
 		call_text = "   %s" % String(plate_call).replace("_", " ").to_upper()
 
-	_status_label.text = (
-		"PLATE — %s%s%s\n"
-		+ "cross x %.2f / y %.2f   miss X %+0.1f cm / Y %+0.1f cm\n"
-		+ "release %.1f → %.1f mph   plate %.1f mph   flight %.3f s"
+	_live_label.text = (
+		"PLATE • %s%s%s\n"
+		+ "cross %.2f / %.2f • error %+0.1f / %+0.1f cm\n"
+		+ "release %.1f → %.1f • plate %.1f mph • %.3f s"
 	) % [
 		_selected_pitch().display_name,
 		call_text,
@@ -693,8 +715,15 @@ func _on_plate_crossed(
 		elapsed_seconds,
 	]
 	if _match_mode:
+		_status_label.text = "%s%s" % [
+			String(plate_call).replace("_", " ").to_upper(),
+			swing_feedback,
+		]
+	else:
+		_status_label.text = "PLATE • %s" % _selected_pitch().display_name
+	if _match_mode:
 		PitchBatLabFeelSupport.notify_pitch_dead(self)
-		_live_label.text = "PLAY DEAD   next state readying automatically"
+		_live_label.text += "\nPLAY DEAD • next state automatic"
 		_refresh_config()
 	var record_result: StringName = &"plate_crossed"
 	if _swing_consumed:
@@ -728,8 +757,8 @@ func _on_flight_stopped(reason: StringName) -> void:
 	var continuation: String = "SPACE: continue"
 	if _match_mode:
 		continuation = "Next state automatic"
-	_status_label.text = "Pitch stopped: %s\n%s" % [
-		String(reason),
+	_status_label.text = "PITCH ENDED • %s\n%s" % [
+		String(reason).replace("_", " ").to_upper(),
 		continuation,
 	]
 
@@ -819,6 +848,8 @@ func _reset_lab() -> void:
 	_execution_quality = 1.0
 	_fatigue = 0.0
 	_pitch_effort = 1.0
+	_pending_release_overdrive = 0.0
+	_last_release_overdrive = 0.0
 	_swing_consumed = false
 	_fielder_anchor_index = 4
 	_base_preset_index = 0
@@ -860,6 +891,8 @@ func _start_new_match() -> void:
 	_fatigue = 0.0
 	_execution_quality = 1.0
 	_pitch_effort = 1.0
+	_pending_release_overdrive = 0.0
+	_last_release_overdrive = 0.0
 	_swing_consumed = false
 	_ai_swing_decided = false
 	_last_ai_pitch_index = -1
@@ -868,6 +901,7 @@ func _start_new_match() -> void:
 	_field_setup_active = false
 	_last_ai_awareness = 0.0
 	_last_ai_read_text = "No read"
+	_match_suspend_snapshot.clear()
 	if _batter_approach != null:
 		_batter_approach.reset(_match_state.plate_appearance_number)
 	_fielder_anchor_index = 4
@@ -905,18 +939,7 @@ func _apply_defensive_assignment() -> void:
 	PitchBatLabPresentation.sync_players(self)
 
 func _toggle_match_mode() -> void:
-	PitchBatLabFeelSupport.reset_debug_pause(self)
-	_field_setup_active = false
-	_match_mode = not _match_mode
-	if _match_mode:
-		_start_new_match()
-	else:
-		_debug_overlay_visible = true
-		_base_state = _debug_base_state
-		_reset_lab()
-	_apply_role_camera()
-	_refresh_markers()
-	_refresh_config()
+	PitchBatLabFeelSupport.toggle_match_mode(self)
 
 func _toggle_debug_overlay() -> void:
 	_debug_overlay_visible = not _debug_overlay_visible

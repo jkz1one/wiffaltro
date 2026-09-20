@@ -27,7 +27,8 @@ static func create_match(
 static func rated_pitch(
 	pitch: PitchDefinition,
 	pitcher: PlayerDefinition,
-	effort: float
+	effort: float,
+	release_overdrive: float = 0.0
 ) -> PitchDefinition:
 	var result: PitchDefinition = pitch.duplicate() as PitchDefinition
 	var bounded_effort: float = clampf(effort, MIN_EFFORT, MAX_EFFORT)
@@ -45,6 +46,20 @@ static func rated_pitch(
 	result.nominal_velocity_mps *= velocity_factor
 	result.nominal_spin_rpm *= break_factor
 	result.perforation_influence *= break_factor
+	var overdrive: float = clampf(release_overdrive, 0.0, 1.0)
+	match pitch.category:
+		PitchDefinition.Category.FASTBALL:
+			result.nominal_velocity_mps *= lerpf(1.0, 1.045, overdrive)
+		PitchDefinition.Category.BREAKING:
+			result.nominal_velocity_mps *= lerpf(1.0, 1.012, overdrive)
+			result.nominal_spin_rpm *= lerpf(1.0, 1.10, overdrive)
+			result.perforation_influence *= lerpf(1.0, 1.08, overdrive)
+		PitchDefinition.Category.OFF_SPEED:
+			result.nominal_velocity_mps *= lerpf(1.0, 1.020, overdrive)
+			result.nominal_spin_rpm *= lerpf(1.0, 1.04, overdrive)
+		_:
+			result.nominal_velocity_mps *= lerpf(1.0, 1.015, overdrive)
+			result.perforation_influence *= lerpf(1.0, 1.04, overdrive)
 	return result
 
 static func stamina_cost(pitch: PitchDefinition, effort: float) -> float:
@@ -66,6 +81,9 @@ static func stamina_cost(pitch: PitchDefinition, effort: float) -> float:
 
 static func execution_quality_penalty(effort: float) -> float:
 	return maxf(0.0, effort - 1.0) * 0.40
+
+static func release_overdrive_control_penalty(release_overdrive: float) -> float:
+	return clampf(release_overdrive, 0.0, 1.0) * 0.18
 
 static func can_edit_pitch_plan(lab: PitchBatLab) -> bool:
 	if (

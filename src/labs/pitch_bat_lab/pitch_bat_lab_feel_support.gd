@@ -53,23 +53,28 @@ static func initialize(lab: PitchBatLab) -> void:
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
 	if _update_match_presentation(lab, delta_seconds):
 		_update_camera(lab, delta_seconds)
+		PitchBatLabPresentation.refresh_event(lab)
 		return
 	_update_continuous_input(lab, delta_seconds)
 	_update_pitch_release(lab, delta_seconds)
 	_update_at_bat_cadence(lab, delta_seconds)
 	_update_pitcher_telegraph(lab)
 	_update_camera(lab, delta_seconds)
+	PitchBatLabPresentation.refresh_event(lab)
 
 static func begin_match_intro(lab: PitchBatLab) -> void:
 	if lab._match_presentation_director == null:
 		lab._match_presentation_director = MatchPresentationDirector.new()
 	lab._at_bat_cadence.stop()
+	lab._status_label.text = ""
+	PitchBatLabPresentation.refresh_event(lab)
 	lab._match_presentation_director.begin_intro(
 		int(Time.get_ticks_usec() & 0x7fffffff)
 	)
 	lab._camera_director.set_shot(
 		lab._match_presentation_director.current_shot()
 	)
+	_sync_presentation_camera(lab)
 	lab._camera_director.snap(lab._camera)
 	PitchBatLabPresentation.show_match_intro(lab)
 
@@ -85,12 +90,15 @@ static func begin_match_outro(lab: PitchBatLab) -> void:
 	):
 		return
 	lab._at_bat_cadence.stop()
+	lab._status_label.text = ""
+	PitchBatLabPresentation.refresh_event(lab)
 	lab._match_presentation_director.begin_outro(
 		int(Time.get_ticks_usec() & 0x7fffffff)
 	)
 	lab._camera_director.set_shot(
 		lab._match_presentation_director.current_shot()
 	)
+	_sync_presentation_camera(lab)
 	PitchBatLabPresentation.show_match_outro(
 		lab,
 		lab._match_state.winner_name == lab.PLAYER_TEAM_NAME
@@ -104,6 +112,8 @@ static func skip_match_presentation(lab: PitchBatLab) -> void:
 	)
 	if event == MatchPresentationDirector.Event.INTRO_COMPLETE:
 		_finish_intro(lab, true)
+	elif event == MatchPresentationDirector.Event.OUTRO_COMPLETE:
+		lab._camera_director.clear_presentation_motion()
 
 static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
 	var ball_live: bool = lab._ball_in_play_is_live()
@@ -137,14 +147,31 @@ static func _update_match_presentation(
 				lab._match_presentation_director.current_shot()
 			)
 		MatchPresentationDirector.Event.RETURN_TO_GAMEPLAY:
+			lab._camera_director.clear_presentation_motion()
 			lab._apply_role_camera()
 		MatchPresentationDirector.Event.INTRO_COMPLETE:
 			_finish_intro(lab, false)
+		MatchPresentationDirector.Event.OUTRO_COMPLETE:
+			lab._camera_director.clear_presentation_motion()
 		_:
 			pass
+	if (
+		lab._match_presentation_director.mode
+		== MatchPresentationDirector.Mode.INTRO
+		or lab._match_presentation_director.mode
+		== MatchPresentationDirector.Mode.OUTRO
+	):
+		_sync_presentation_camera(lab)
 	return true
 
+static func _sync_presentation_camera(lab: PitchBatLab) -> void:
+	lab._camera_director.set_presentation_motion(
+		lab._match_presentation_director.current_motion(),
+		lab._match_presentation_director.shot_progress()
+	)
+
 static func _finish_intro(lab: PitchBatLab, snap_camera: bool) -> void:
+	lab._camera_director.clear_presentation_motion()
 	lab._apply_role_camera()
 	if snap_camera:
 		lab._camera_director.snap(lab._camera)
@@ -158,7 +185,7 @@ static func _finish_intro(lab: PitchBatLab, snap_camera: bool) -> void:
 		lab._refresh_config()
 	else:
 		lab._awaiting_batter_confirm = false
-		lab._status_label.text = "Aim, then hold click or SPACE to deliver"
+		lab._status_label.text = "READY TO PITCH\nAim, then hold click or SPACE."
 		lab._refresh_config()
 
 static func confirm_batter_ready(lab: PitchBatLab) -> void:
@@ -198,10 +225,7 @@ static func _begin_ai_delivery_cadence(
 		+ lab._match_state.inning * 17
 		+ seed_offset
 	)
-	lab._status_label.text = (
-		"%s — %s\nMove the cursor, then click the ball to swing."
-		% [lab._match_state.batter().definition.display_name, "PITCHER SET"]
-	)
+	lab._status_label.text = ""
 	lab._refresh_config()
 
 static func handle_match_advance(lab: PitchBatLab) -> void:
@@ -298,6 +322,7 @@ static func recover_failed_pitch(
 		if lab._at_bat_cadence != null:
 			lab._at_bat_cadence.stop()
 	lab._pending_release_quality = 1.0
+	lab._pending_release_overdrive = 0.0
 	if (
 		lab._match_mode
 		and lab._player_is_batting()
@@ -385,6 +410,109 @@ static func reset_debug_pause(lab: PitchBatLab) -> void:
 	lab._debug_paused = false
 	lab.get_tree().paused = false
 
+static func toggle_match_mode(lab: PitchBatLab) -> void:
+	reset_debug_pause(lab)
+	if lab._match_mode:
+		if not _can_suspend_match_for_lab(lab):
+			lab._status_label.text = (
+				"MECHANICS LAB\nAvailable before a Pitch, while play is stopped."
+			)
+			lab._refresh_config()
+			return
+		_suspend_match_for_lab(lab)
+	else:
+		_resume_suspended_match(lab)
+	lab._apply_role_camera()
+	lab._refresh_markers()
+	lab._refresh_config()
+
+static func _can_suspend_match_for_lab(lab: PitchBatLab) -> bool:
+	return (
+		lab._match_state != null
+		and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		and not lab._field_setup_active
+		and (lab._pitch_actor == null or not lab._pitch_actor.running)
+		and not lab._ball_in_play_is_live()
+		and (lab._release_controller == null or not lab._release_controller.active)
+		and (
+			lab._at_bat_cadence == null
+			or lab._at_bat_cadence.state == AtBatCadenceController.State.IDLE
+		)
+		and (
+			lab._match_presentation_director == null
+			or not lab._match_presentation_director.blocks_gameplay()
+		)
+	)
+
+static func _suspend_match_for_lab(lab: PitchBatLab) -> void:
+	lab._match_suspend_snapshot = {
+		"selected_pitch_index": lab._selected_pitch_index,
+		"pitch_target": lab._pitch_target,
+		"batting_aim": lab._batting_aim,
+		"fatigue": lab._fatigue,
+		"pitch_effort": lab._pitch_effort,
+		"fielder_anchor_index": lab._fielder_anchor_index,
+		"awaiting_batter_confirm": lab._awaiting_batter_confirm,
+		"ai_pitch_preselected": lab._ai_pitch_preselected,
+		"last_ai_pitch_index": lab._last_ai_pitch_index,
+		"last_ai_awareness": lab._last_ai_awareness,
+		"last_ai_read_text": lab._last_ai_read_text,
+		"debug_overlay_visible": lab._debug_overlay_visible,
+		"status_text": lab._status_label.text,
+	}
+	lab._match_mode = false
+	lab._debug_overlay_visible = true
+	lab._base_state = lab._debug_base_state
+	lab._reset_lab()
+	lab._status_label.text = "MECHANICS LAB\nF2 resumes the suspended match."
+
+static func _resume_suspended_match(lab: PitchBatLab) -> void:
+	cancel_release(lab)
+	PitchBatLabSwingSupport.reset(lab)
+	if lab._pitch_actor != null:
+		lab._pitch_actor.reset_pitch()
+	lab._cleanup_batted_ball()
+	if lab._match_state == null or lab._match_suspend_snapshot.is_empty():
+		lab._match_mode = true
+		lab._start_new_match()
+		return
+	lab._match_mode = true
+	lab._base_state = lab._match_state.bases
+	lab._selected_pitch_index = int(
+		lab._match_suspend_snapshot["selected_pitch_index"]
+	)
+	lab._pitch_target = lab._match_suspend_snapshot["pitch_target"] as Vector2
+	lab._batting_aim = lab._match_suspend_snapshot["batting_aim"] as Vector2
+	lab._fatigue = float(lab._match_suspend_snapshot["fatigue"])
+	lab._pitch_effort = float(lab._match_suspend_snapshot["pitch_effort"])
+	lab._fielder_anchor_index = int(
+		lab._match_suspend_snapshot["fielder_anchor_index"]
+	)
+	lab._awaiting_batter_confirm = bool(
+		lab._match_suspend_snapshot["awaiting_batter_confirm"]
+	)
+	lab._ai_pitch_preselected = bool(
+		lab._match_suspend_snapshot["ai_pitch_preselected"]
+	)
+	lab._last_ai_pitch_index = int(
+		lab._match_suspend_snapshot["last_ai_pitch_index"]
+	)
+	lab._last_ai_awareness = float(
+		lab._match_suspend_snapshot["last_ai_awareness"]
+	)
+	lab._last_ai_read_text = String(
+		lab._match_suspend_snapshot["last_ai_read_text"]
+	)
+	lab._debug_overlay_visible = bool(
+		lab._match_suspend_snapshot["debug_overlay_visible"]
+	)
+	lab._status_label.text = String(
+		lab._match_suspend_snapshot["status_text"]
+	)
+	lab._match_suspend_snapshot.clear()
+	lab._field_setup_active = false
+	lab._apply_defensive_assignment()
+
 static func begin_pitch_release(lab: PitchBatLab) -> void:
 	if (
 		not lab._player_is_pitching()
@@ -395,7 +523,7 @@ static func begin_pitch_release(lab: PitchBatLab) -> void:
 	):
 		return
 	lab._release_controller.begin()
-	lab._status_label.text = "DELIVERY — release at the center mark"
+	lab._status_label.text = ""
 	lab._refresh_config()
 
 static func commit_pitch_release(lab: PitchBatLab) -> void:
@@ -406,6 +534,7 @@ static func commit_pitch_release(lab: PitchBatLab) -> void:
 		pitcher_state.fatigue_ratio(),
 		lab._fatigue
 	)
+	lab._pending_release_overdrive = lab._release_controller.overdrive_amount()
 	lab._pending_release_quality = lab._release_controller.release(
 		pitcher_state.definition.control,
 		fatigue
@@ -420,6 +549,7 @@ static func cancel_release(lab: PitchBatLab) -> void:
 	if lab._release_controller != null:
 		lab._release_controller.cancel()
 	lab._pending_release_quality = 1.0
+	lab._pending_release_overdrive = 0.0
 	lab._last_release_offset_seconds = 0.0
 	if lab._at_bat_cadence != null:
 		lab._at_bat_cadence.stop()
@@ -433,10 +563,15 @@ static func release_meter_text(lab: PitchBatLab) -> String:
 		progress - lab._release_controller.ideal_progress()
 	)
 	var cue: String = "●" if marker_distance <= 0.055 else "○"
-	return "HOLD / RELEASE %s %3.0f%%   ideal at %3.0f%%" % [
+	var risk_text: String = (
+		"OVERCOOKED: more stuff / less command"
+		if progress > lab._release_controller.ideal_progress()
+		else "release on the late gold mark"
+	)
+	return "HOLD / RELEASE %s %3.0f%%   %s" % [
 		cue,
 		progress * 100.0,
-		lab._release_controller.ideal_progress() * 100.0,
+		risk_text,
 	]
 
 static func start_record(
@@ -444,7 +579,8 @@ static func start_record(
 	pitch: PitchDefinition,
 	fatigue: float,
 	execution_quality: float,
-	play_seed: int
+	play_seed: int,
+	release_overdrive: float = 0.0
 ) -> void:
 	var record: PlayRecord = PlayRecord.new()
 	record.play_number = lab._throw_number
@@ -454,6 +590,7 @@ static func start_record(
 	record.fatigue = fatigue
 	record.execution_quality = execution_quality
 	record.release_offset_seconds = lab._last_release_offset_seconds
+	record.release_overdrive = release_overdrive
 	record.seed = play_seed
 	if lab._match_mode and lab._match_state != null:
 		record.inning = lab._match_state.inning
@@ -574,14 +711,29 @@ static func _update_at_bat_cadence(
 static func _update_pitcher_telegraph(lab: PitchBatLab) -> void:
 	if (
 		lab._pitcher_marker == null
-		or lab._at_bat_cadence == null
-		or lab._at_bat_cadence.state != AtBatCadenceController.State.DELIVERY
+		or lab._match_state == null
 	):
 		return
-	var progress: float = lab._at_bat_cadence.delivery_progress()
+	var progress: float = -1.0
+	var ai_delivery: bool = false
+	if (
+		lab._at_bat_cadence != null
+		and lab._at_bat_cadence.state == AtBatCadenceController.State.DELIVERY
+	):
+		progress = lab._at_bat_cadence.delivery_progress()
+		ai_delivery = true
+	elif (
+		lab._player_is_pitching()
+		and lab._release_controller != null
+		and lab._release_controller.active
+	):
+		progress = lab._release_controller.meter_progress()
+	if progress < 0.0:
+		return
 	var lift: float = sin(progress * PI)
 	var selected_pitch: PitchDefinition = lab._selected_pitch()
 	var slot_amount: float = 0.08
+	var sidearm: bool = false
 	if (
 		selected_pitch != null
 		and selected_pitch.delivery_profile != null
@@ -589,6 +741,7 @@ static func _update_pitcher_telegraph(lab: PitchBatLab) -> void:
 		>= DeliveryProfileDefinition.Delivery.SIDEARM
 	):
 		slot_amount = 0.22
+		sidearm = true
 	var handedness: float = -1.0 if (
 		lab._match_state.pitcher().definition.throws
 		== PlayerDefinition.Handedness.LEFT
@@ -599,19 +752,21 @@ static func _update_pitcher_telegraph(lab: PitchBatLab) -> void:
 		-0.18 * smoothstep(0.55, 1.0, progress)
 	)
 	lab._pitcher_marker.rotation.z = handedness * slot_amount * lift
-	lab._status_label.text = (
-		"%s — %s\nLeft click Contact • Right click Power"
-		% [
-			lab._match_state.batter().definition.display_name,
-			lab._at_bat_cadence.delivery_cue(),
-		]
-	)
+	if lab._pitcher_avatar != null:
+		lab._pitcher_avatar.set_pitch_delivery_progress(progress, sidearm)
+	if ai_delivery and lab._action_label != null:
+		lab._action_label.text = (
+			"%s\nLEFT CLICK CONTACT   •   RIGHT CLICK POWER"
+			% lab._at_bat_cadence.delivery_cue()
+		)
 
 static func _reset_pitcher_telegraph(lab: PitchBatLab) -> void:
 	if lab._pitcher_marker == null:
 		return
 	lab._pitcher_marker.position = lab.MOUND_ORIGIN
 	lab._pitcher_marker.rotation = Vector3.ZERO
+	if lab._pitcher_avatar != null:
+		lab._pitcher_avatar.reset_pose()
 
 static func _update_continuous_input(
 	lab: PitchBatLab,

@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.11
-**Status:** FROZEN BASELINE WITH MATCH-CADENCE/PRESENTATION AMENDMENT
-**Supersedes:** v0.4.10 and all earlier planning notes
+**Version:** v0.4.12
+**Status:** FROZEN BASELINE WITH MATCH-INTERACTION/PRESENTATION AMENDMENT
+**Supersedes:** v0.4.11 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -186,6 +186,9 @@ plate-local contact math. A visible handed Batter and bat must mirror the
 current roster player; the bat is presentation for the authored ContactResolver,
 not a second physics authority. The bat and Batter are independent presentation
 actors so equipment animation/lifecycle does not become character geometry.
+Each bat must visibly load at the Batter's back shoulder, drive across the
+plate toward the front shoulder, and mirror that complete path for opposite
+handedness.
 
 Opponent Batters have readable approach memory. Repeating a recognized Pitch
 or visible location increases awareness and execution, while changing speed,
@@ -241,6 +244,12 @@ left click begins the same execution meter as the keyboard/controller delivery;
 releasing commits the Pitch. Mouse and keyboard feed the same pre-flight aim,
 effort, and execution pipeline, with no instant-quality shortcut and no
 mid-flight steering.
+
+The prototype release meter places its command sweet spot late in the motion.
+The short tail beyond that spot is a bounded overdrive choice: fast Pitches may
+gain a little velocity and breaking Pitches a little movement, but command and
+Stamina efficiency worsen. This is release execution layered on top of effort,
+not a replacement for effort and not a free power bonus.
 
 Effort applies to every Pitch rather than belonging only to fastballs. A harder
 Eephus, Slider, Drop, or other off-speed Pitch is still that Pitch, but travels
@@ -1268,8 +1277,18 @@ automatically selects two or three views from an authored camera pool and
 displays a temporary game-start title before settling into the role camera.
 Ordinary intros must actually vary between two-shot and three-shot packages;
 shots hold long enough to read rather than cutting rapidly.
+Each view may independently be still or use a subtle slow zoom, horizontal pan,
+or vertical tilt selected from the authored presentation pool. Camera motion is
+presentation-only and cannot alter game time or baseball state.
 The player does not select these views. Game completion receives the same basic
 treatment with a win/loss title and final score.
+
+During play, a compact broadcast-style scorebug owns the persistent essentials:
+team score, half/inning, count, outs, occupied bases, current Batter, Pitcher,
+Pitch count, and Pitcher Stamina. Temporary calls such as begin-at-bat,
+Strikeout, Out, hit result, and inning change use a centered event card.
+Detailed simulation telemetry remains in the explicit debug layer and should
+not duplicate or obscure the scorebug.
 
 Higher-stakes games may later use longer authored cinematic packages for
 clinch opportunities, elimination games, playoff-round finales, rivalries,

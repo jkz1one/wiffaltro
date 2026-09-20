@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.8
-**Status:** FROZEN BASELINE WITH PRE-QC HARDENING AMENDMENT
+**Version:** v0.1.9
+**Status:** FROZEN BASELINE WITH MATCH-INTERACTION HARDENING AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -414,6 +414,14 @@ Prototype effort is a bounded per-pitch input. It scales launch velocity and
 modestly changes movement authority before nominal aim solving. Higher effort
 also raises Stamina cost and introduces a small execution penalty. The initial
 lab range is 82–112%; exact limits and curves remain tuning values.
+
+Prototype player release uses a fast meter with a late command sweet spot near
+85% progress. The small post-sweet-spot tail reports a normalized release
+overdrive value. `MatchLabSupport` applies bounded category-aware stuff (more
+velocity for Fastballs; more spin/perforation authority for breaking Pitches)
+before nominal aim solving, then applies an explicit execution-quality and
+Stamina penalty. This preserves one aim/flight pipeline and prevents the meter
+from becoming a second unbounded effort control.
 
 ---
 
@@ -1437,9 +1445,20 @@ Pitch flight and ball-in-play.
 selects two or three unique, seeded intro/outro shots from an authored pool,
 deliberately varies the package length between matches, uses readable holds,
 blocks gameplay during the sequence, returns through the correct role camera,
-and exposes a skip path. It observes `MatchState`; it does not own innings,
+and exposes a skip path. Each shot also receives a seeded, bounded motion mode:
+still, zoom in/out, pan left/right, or tilt up/down. `MatchCameraDirector`
+applies that motion to the authored shot transform without changing game time.
+The presentation director observes `MatchState`; it does not own innings,
 scores, results, or gameplay timing. High-stakes cinematic packages remain a
 future extension of this director, not a second match state machine.
+
+Match HUD ownership is split by purpose. `MatchScorebug` renders persistent
+baseball state from `MatchState`; the centered event card renders transient
+prompts/results; F1-owned labels render detailed diagnostics. F2 may enter the
+Mechanics Lab only at a safe stopped pre-Pitch boundary. The Lab keeps the
+existing `MatchState` suspended and restores its selection/aim/role-facing
+presentation state on return; it never creates a replacement match merely to
+leave debug mode.
 
 ---
 
@@ -1653,6 +1672,11 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 44. automatic two-to-three-shot game intro and win/loss outro
 45. state-safe presentation skipping and role-camera settlement
 46. future high-stakes broadcast package seam without baseball-state ownership
+47. seeded per-shot still / zoom / pan / tilt presentation motion
+48. compact `MatchScorebug` plus separate centered event-card ownership
+49. safe-boundary Mechanics Lab suspension that preserves the live `MatchState`
+50. late release sweet spot and bounded category-aware overdrive tradeoff
+51. release-driven visible player-Pitcher delivery pose
 
 ### Phase 3 acceptance
 

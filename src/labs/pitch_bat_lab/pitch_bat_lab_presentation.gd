@@ -164,19 +164,26 @@ static func build_ui(lab: PitchBatLab) -> void:
 	canvas.name = "DebugUI"
 	lab.add_child(canvas)
 
-	lab._scoreboard_label = _add_label(canvas, Vector2(20.0, 16.0), 19)
+	lab._scorebug = MatchScorebug.new()
+	lab._scorebug.position = Vector2(18.0, 16.0)
+	canvas.add_child(lab._scorebug)
 	_build_pitch_release_meter(lab, canvas)
-	lab._action_label = _add_label(canvas, Vector2(20.0, 130.0), 18)
-	lab._config_label = _add_label(canvas, Vector2(20.0, 175.0), 15)
-	lab._status_label = _add_label(canvas, Vector2(20.0, 290.0), 18)
+	lab._action_label = _add_label(canvas, Vector2(392.0, 14.0), 17)
+	lab._action_label.size = Vector2(530.0, 62.0)
+	lab._action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab._action_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lab._config_label = _add_label(canvas, Vector2(20.0, 154.0), 13)
+	lab._config_label.size = Vector2(350.0, 150.0)
+	lab._config_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_build_event_panel(lab, canvas)
 	lab._status_label.text = "Loading Pitch Lab..."
-	lab._live_label = _add_label(canvas, Vector2(20.0, 405.0), 16)
-	lab._controls_label = _add_label(canvas, Vector2(20.0, 550.0), 14)
+	lab._live_label = _add_label(canvas, Vector2(20.0, 315.0), 13)
+	lab._live_label.size = Vector2(350.0, 130.0)
+	lab._live_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lab._controls_label = _add_label(canvas, Vector2(20.0, 646.0), 13)
+	lab._controls_label.size = Vector2(930.0, 58.0)
 	_build_pitching_staff(lab, canvas)
 	_build_field_setup(lab, canvas)
-
-	var footer: Label = _add_label(canvas, Vector2(20.0, 680.0), 13)
-	footer.text = "Phase 3 match simulator + shared mechanics lab. F1 overlay, F2 mode."
 	_build_match_presentation(lab, canvas)
 	refresh_controls(lab)
 
@@ -189,6 +196,7 @@ static func show_match_intro(lab: PitchBatLab) -> void:
 		lab.PLAYER_TEAM_NAME,
 		lab.RIVAL_TEAM_NAME,
 	]
+	_set_gameplay_hud_visible(lab, false)
 
 static func show_match_outro(lab: PitchBatLab, player_won: bool) -> void:
 	if lab._presentation_backdrop == null or lab._match_state == null:
@@ -198,10 +206,46 @@ static func show_match_outro(lab: PitchBatLab, player_won: bool) -> void:
 	lab._presentation_subtitle.text = "%s\nR: NEW MATCH" % (
 		lab._match_state.score_label()
 	)
+	_set_gameplay_hud_visible(lab, false)
 
 static func hide_match_presentation(lab: PitchBatLab) -> void:
 	if lab._presentation_backdrop != null:
 		lab._presentation_backdrop.visible = false
+
+static func _set_gameplay_hud_visible(lab: PitchBatLab, visible: bool) -> void:
+	if lab._scorebug != null:
+		lab._scorebug.visible = visible and lab._match_mode
+	if lab._action_label != null:
+		lab._action_label.visible = visible and lab._match_mode
+	if lab._controls_label != null:
+		lab._controls_label.visible = visible
+	if lab._config_label != null:
+		lab._config_label.visible = false
+	if lab._live_label != null:
+		lab._live_label.visible = false
+	if lab._event_panel != null:
+		lab._event_panel.visible = false
+	if lab._pitching_staff_panel != null:
+		lab._pitching_staff_panel.visible = false
+	if lab._field_setup_toggle_button != null:
+		lab._field_setup_toggle_button.visible = false
+	if lab._field_setup_panel != null:
+		lab._field_setup_panel.visible = false
+	if lab._pitch_release_bar != null:
+		lab._pitch_release_bar.visible = false
+	if lab._pitch_release_ideal_marker != null:
+		lab._pitch_release_ideal_marker.visible = false
+	if lab._trajectory_draw != null:
+		lab._trajectory_draw.visible = false
+	if lab._contact_vector_draw != null:
+		lab._contact_vector_draw.visible = false
+	if lab._receiver_marker != null:
+		lab._receiver_marker.visible = false
+
+static func refresh_event(lab: PitchBatLab) -> void:
+	if lab._event_panel == null or lab._status_label == null:
+		return
+	lab._event_panel.visible = not lab._status_label.text.strip_edges().is_empty()
 
 static func cycle_camera(lab: PitchBatLab) -> void:
 	if lab._field_setup_active:
@@ -237,7 +281,7 @@ static func apply_role_camera(lab: PitchBatLab) -> void:
 static func refresh(lab: PitchBatLab) -> void:
 	if (
 		lab._config_label == null
-		or lab._scoreboard_label == null
+		or lab._scorebug == null
 		or lab._action_label == null
 	):
 		return
@@ -250,12 +294,14 @@ static func refresh(lab: PitchBatLab) -> void:
 	_refresh_field_setup(lab)
 	_refresh_pitch_release_meter(lab)
 	lab._action_label.visible = lab._match_mode
+	lab._controls_label.visible = true
 	lab._config_label.visible = lab._debug_overlay_visible
 	lab._live_label.visible = lab._debug_overlay_visible
 	lab._trajectory_draw.visible = lab._debug_overlay_visible
 	lab._contact_vector_draw.visible = lab._debug_overlay_visible
 	if lab._receiver_marker != null:
 		lab._receiver_marker.visible = lab._debug_overlay_visible
+	refresh_event(lab)
 	refresh_controls(lab)
 
 static func refresh_markers(lab: PitchBatLab) -> void:
@@ -295,18 +341,14 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 		return
 	if lab._match_mode:
 		lab._controls_label.text = (
-			"F1 debug   F2 Lab   F3 records   P pause   V camera   R new match\n"
-			+ "BATTING: click once for each new Batter; then click Contact / Power\n"
-			+ "Mouse tracks aim   left click Contact   right click Power\n"
-			+ "WASD/left stick aim   Z/A Contact   X/X Power\n"
-			+ "PITCHING: hold left click or SPACE, release on cue   1–9 Pitch   -/= effort\n"
-			+ "Dead balls advance automatically   FIELD VIEW positions   F changes Fielder"
+			"F1 DEBUG   F2 LAB   F3 RECORDS   P PAUSE   V CAMERA   R NEW MATCH\n"
+			+ "BAT: pointer + click Contact/Power   •   "
+			+ "PITCH: aim + hold/release   •   FIELD VIEW before Pitch"
 		)
 	else:
 		lab._controls_label.text = (
-			"F1 overlay   F2 Match   F3 records   P pause   1–9 Pitch   SPACE throw\n"
-			+ "arrows target   mouse/WASD bat aim   click or Z/X swing   V camera\n"
-			+ ",/. execution   [/] fatigue   C fielder   G bases   B BIP diagnostic   R reset"
+			"F1 OVERLAY   F2 RESUME MATCH   F3 RECORDS   P PAUSE   V CAMERA   R RESET\n"
+			+ "1–9 Pitch   arrows target   pointer/WASD bat   ,/. execution   [/] fatigue   B BIP"
 		)
 
 static func contact_outcome_name(outcome: ContactResult.Outcome) -> String:
@@ -335,32 +377,10 @@ static func result_floor_name(result_floor: BallPlayState.ResultFloor) -> String
 
 static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 	var match_state: MatchState = lab._match_state
-	var batter_state: PlayerMatchState = match_state.batter()
 	var on_deck_state: PlayerMatchState = match_state.on_deck_batter()
 	var pitcher_state: PlayerMatchState = match_state.pitcher()
 	var fielder_state: PlayerMatchState = match_state.fielder()
-	lab._scoreboard_label.visible = true
-	lab._scoreboard_label.text = (
-		"%s     %s\n"
-		+ "BALLS %d   STRIKES %d   OUTS %d     %s\n"
-		+ "BAT %s (%s)   ON DECK %s\n"
-		+ "PIT %s (%s)   PITCHES %d   STAMINA %.0f%%   %s"
-	) % [
-		match_state.half_label(),
-		match_state.score_label(),
-		match_state.balls,
-		match_state.strikes,
-		match_state.outs,
-		lab._base_state.display_string(),
-		batter_state.definition.display_name,
-		"L" if batter_state.definition.bats == PlayerDefinition.Handedness.LEFT else "R",
-		on_deck_state.definition.display_name,
-		pitcher_state.definition.display_name,
-		"L" if pitcher_state.definition.throws == PlayerDefinition.Handedness.LEFT else "R",
-		pitcher_state.pitch_count,
-		pitcher_state.stamina_percent() * 100.0,
-		PitchExecutionModel.fatigue_stage_name(pitcher_state.fatigue_ratio()),
-	]
+	lab._scorebug.refresh(match_state)
 	var options: Array[PitchDefinition] = lab._current_pitch_options()
 	if lab._debug_paused:
 		lab._action_label.text = "DEBUG PAUSED     P: resume"
@@ -368,50 +388,57 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		lab._action_label.text = (
 			"FIELD SETUP     choose an anchor     RETURN TO PITCH when ready"
 		)
+	elif (
+		match_state.phase == MatchState.Phase.PLAY_DEAD
+		or match_state.phase == MatchState.Phase.INNING_TRANSITION
+		or match_state.phase == MatchState.Phase.BALL_IN_PLAY
+		or match_state.phase == MatchState.Phase.GAME_END
+	):
+		lab._action_label.text = ""
 	elif lab._player_is_batting():
-		var cadence_text: String = (
-			"CLICK TO BEGIN AT-BAT"
-			if lab._awaiting_batter_confirm
-			else "PITCHER READYING"
-		)
-		if (
-			lab._at_bat_cadence != null
-			and lab._at_bat_cadence.state
-			== AtBatCadenceController.State.DELIVERY
-		):
-			cadence_text = lab._at_bat_cadence.delivery_cue()
-		elif lab._pitch_actor != null and lab._pitch_actor.running:
-			cadence_text = "TRACK THE BALL"
-		lab._action_label.text = (
-			"%s     LEFT CLICK CONTACT     RIGHT CLICK POWER     %s Contact %d"
-		) % [
-			cadence_text,
-			batter_state.definition.display_name,
-			batter_state.definition.contact,
-		]
+		if lab._awaiting_batter_confirm:
+			lab._action_label.text = ""
+		else:
+			var cadence_text: String = "PITCHER READYING"
+			if (
+				lab._at_bat_cadence != null
+				and lab._at_bat_cadence.state
+				== AtBatCadenceController.State.DELIVERY
+			):
+				cadence_text = lab._at_bat_cadence.delivery_cue()
+			elif lab._pitch_actor != null and lab._pitch_actor.running:
+				cadence_text = "TRACK THE BALL"
+			lab._action_label.text = (
+				"%s\nLEFT CLICK CONTACT   •   RIGHT CLICK POWER"
+				% cadence_text
+			)
 	else:
-		var release_text: String = PitchBatLabFeelSupport.release_meter_text(lab)
-		lab._action_label.text = (
-			release_text
-			if not release_text.is_empty()
-			else "%d: %s   EFFORT %.0f%%   TARGET %.2f / %.2f   HOLD CLICK/SPACE • release on cue" % [
-				lab._selected_pitch_index + 1,
-				pitch.display_name if pitch != null else "None",
-				lab._pitch_effort * 100.0,
-				lab._pitch_target.x,
-				lab._pitch_target.y,
-			]
-		)
+		if match_state.phase != MatchState.Phase.PRE_PITCH:
+			lab._action_label.text = ""
+		else:
+			var release_text: String = (
+				PitchBatLabFeelSupport.release_meter_text(lab)
+			)
+			lab._action_label.text = (
+				release_text
+				if not release_text.is_empty()
+				else "%d: %s   •   EFFORT %.0f%%\nAIM, THEN HOLD CLICK/SPACE" % [
+					lab._selected_pitch_index + 1,
+					pitch.display_name if pitch != null else "None",
+					lab._pitch_effort * 100.0,
+				]
+			)
 	var applied_fatigue: float = maxf(
 		pitcher_state.fatigue_ratio(),
 		lab._fatigue
 	)
 	lab._config_label.text = (
-		"DEBUG   %s   match %.1f s\n"
-		+ "pitch %d/%d %s   effort %.0f%%   target %.2f / %.2f\n"
-		+ "bat aim %.2f / %.2f   fatigue %.0f%% → effect %.0f%% %s\n"
-		+ "fielder %s: %s (%s)   anchor %s   records %d\n"
-		+ "AI batter awareness %.0f%%   %s"
+		"DEBUG • %s • %.1f s\n"
+		+ "Pitch %d/%d %s • effort %.0f%%\n"
+		+ "target %.2f / %.2f • bat %.2f / %.2f\n"
+		+ "fatigue %.0f%% → %.0f%% %s • overcook %.0f%%\n"
+		+ "fielder %s %s • %s • records %d\n"
+		+ "AI read %.0f%% • %s • on deck %s"
 	) % [
 		"PLAYER BATTING" if lab._player_is_batting() else "PLAYER PITCHING",
 		match_state.elapsed_seconds,
@@ -426,17 +453,18 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 		applied_fatigue * 100.0,
 		PitchExecutionModel.fatigue_pressure(applied_fatigue) * 100.0,
 		PitchExecutionModel.fatigue_stage_name(applied_fatigue),
+		lab._last_release_overdrive * 100.0,
 		fielder_state.definition.display_name,
-		str(fielder_state.definition.fielding),
 		"L" if fielder_state.definition.throws == PlayerDefinition.Handedness.LEFT else "R",
 		lab._field_definition.fielder_anchor_name(lab._fielder_anchor_index),
 		lab._play_records.size(),
 		lab._last_ai_awareness * 100.0,
 		lab._last_ai_read_text,
+		on_deck_state.definition.display_name,
 	]
 
 static func _refresh_lab(lab: PitchBatLab, pitch: PitchDefinition) -> void:
-	lab._scoreboard_label.visible = false
+	lab._scorebug.visible = false
 	lab._config_label.text = (
 		"MECHANICS LAB   PITCH %d/%d  %s   effort %.0f%%\n"
 		+ "target x %.2f / y %.2f   execution %.0f%%   fatigue %.0f%% → effect %.0f%%\n"
@@ -483,8 +511,8 @@ static func _build_pitch_release_meter(
 	canvas: CanvasLayer
 ) -> void:
 	lab._pitch_release_bar = ProgressBar.new()
-	lab._pitch_release_bar.position = Vector2(20.0, 108.0)
-	lab._pitch_release_bar.size = Vector2(420.0, 14.0)
+	lab._pitch_release_bar.position = Vector2(507.0, 72.0)
+	lab._pitch_release_bar.size = Vector2(300.0, 12.0)
 	lab._pitch_release_bar.min_value = 0.0
 	lab._pitch_release_bar.max_value = 100.0
 	lab._pitch_release_bar.show_percentage = false
@@ -495,8 +523,8 @@ static func _build_pitch_release_meter(
 	lab._pitch_release_ideal_marker.color = Color(0.95, 0.82, 0.18)
 	lab._pitch_release_ideal_marker.size = Vector2(4.0, 18.0)
 	lab._pitch_release_ideal_marker.position = Vector2(
-		20.0 + 420.0 * PitchReleaseController.new().ideal_progress() - 2.0,
-		106.0
+		507.0 + 300.0 * PitchReleaseController.new().ideal_progress() - 2.0,
+		69.0
 	)
 	lab._pitch_release_ideal_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(lab._pitch_release_ideal_marker)
@@ -508,7 +536,7 @@ static func _build_match_presentation(
 	lab._presentation_backdrop = ColorRect.new()
 	lab._presentation_backdrop.position = Vector2.ZERO
 	lab._presentation_backdrop.size = Vector2(1280.0, 720.0)
-	lab._presentation_backdrop.color = Color(0.0, 0.0, 0.0, 0.42)
+	lab._presentation_backdrop.color = Color(0.015, 0.025, 0.04, 0.18)
 	lab._presentation_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(lab._presentation_backdrop)
 
@@ -517,6 +545,8 @@ static func _build_match_presentation(
 	lab._presentation_title.size = Vector2(1280.0, 78.0)
 	lab._presentation_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lab._presentation_title.add_theme_font_size_override("font_size", 52)
+	lab._presentation_title.add_theme_constant_override("outline_size", 8)
+	lab._presentation_title.add_theme_color_override("font_outline_color", Color.BLACK)
 	lab._presentation_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lab._presentation_backdrop.add_child(lab._presentation_title)
 
@@ -525,9 +555,57 @@ static func _build_match_presentation(
 	lab._presentation_subtitle.size = Vector2(1280.0, 90.0)
 	lab._presentation_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lab._presentation_subtitle.add_theme_font_size_override("font_size", 22)
+	lab._presentation_subtitle.add_theme_constant_override("outline_size", 5)
+	lab._presentation_subtitle.add_theme_color_override(
+		"font_outline_color",
+		Color.BLACK
+	)
 	lab._presentation_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lab._presentation_backdrop.add_child(lab._presentation_subtitle)
 	lab._presentation_backdrop.visible = false
+
+static func _build_event_panel(
+	lab: PitchBatLab,
+	canvas: CanvasLayer
+) -> void:
+	lab._event_panel = Panel.new()
+	lab._event_panel.position = Vector2(390.0, 252.0)
+	lab._event_panel.size = Vector2(500.0, 88.0)
+	lab._event_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab._event_panel.add_theme_stylebox_override(
+		"panel",
+		_make_panel_style(
+			Color(0.025, 0.055, 0.085, 0.90),
+			Color(0.82, 0.68, 0.24, 0.95)
+		)
+	)
+	canvas.add_child(lab._event_panel)
+	lab._status_label = Label.new()
+	lab._status_label.position = Vector2(14.0, 8.0)
+	lab._status_label.size = Vector2(472.0, 72.0)
+	lab._status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab._status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lab._status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lab._status_label.add_theme_font_size_override("font_size", 21)
+	lab._status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab._event_panel.add_child(lab._status_label)
+
+static func _make_panel_style(
+	background_color: Color,
+	border_color: Color
+) -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = background_color
+	style.border_color = border_color
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 5
+	style.corner_radius_top_right = 5
+	style.corner_radius_bottom_left = 5
+	style.corner_radius_bottom_right = 5
+	return style
 
 static func _refresh_pitch_release_meter(lab: PitchBatLab) -> void:
 	if lab._pitch_release_bar == null or lab._pitch_release_ideal_marker == null:
