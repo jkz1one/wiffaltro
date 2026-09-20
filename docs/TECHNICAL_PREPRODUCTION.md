@@ -1935,3 +1935,17 @@ Pitch/Bat Lab
 ```
 
 Any deviation should be driven by an observed implementation problem, not hypothetical architecture anxiety.
+
+
+## Development verification and QC persistence
+
+`tools/setup_verify.py` provisions pinned Godot 4.7.2 and gdtoolkit 4.3.4.
+`tools/verify.py` checks an isolated current-source copy, preserves logs, and
+fails on engine errors even with a zero process exit. See `VERIFICATION.md`
+for commands, supported setup platforms, and current runtime findings.
+
+`PlayRecordExport` saves completed-play snapshots under `user://qc/`. F3
+retains console output and reports the saved path; resetting rotates the file
+without removing earlier sessions. Records retain match/lab provenance and
+snapshots retain loaded geometry, engine version, and available Git metadata.
+This is development telemetry, not a gameplay save system.

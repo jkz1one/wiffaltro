@@ -2,6 +2,7 @@ class_name PlayRecord
 extends RefCounted
 
 var play_number: int = 0
+var mode: String = "unknown"
 var inning: int = 0
 var top_half: bool = true
 var balls_before: int = 0
@@ -42,6 +43,7 @@ var runs_scored: int = 0
 
 func to_dict() -> Dictionary:
 	return {
+		"mode": mode,
 		"play_number": play_number,
 		"inning": inning,
 		"top_half": top_half,

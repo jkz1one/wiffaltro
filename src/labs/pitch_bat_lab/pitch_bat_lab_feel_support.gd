@@ -519,6 +519,7 @@ static func start_record(
 	release_overdrive: float = 0.0
 ) -> void:
 	var record: PlayRecord = PlayRecord.new()
+	record.mode = "match" if lab._match_mode else "mechanics_lab"
 	record.play_number = lab._throw_number
 	record.pitch_id = pitch.id
 	record.intended_target = lab._pitch_target
@@ -609,31 +610,38 @@ static func finish_record(lab: PitchBatLab, result: StringName, runs_scored: int
 	lab._active_play_record.runs_scored = runs_scored
 	lab._play_records.append(lab._active_play_record)
 	lab._active_play_record = null
+	_save_records(lab)
 
 
 static func clear_records(lab: PitchBatLab) -> void:
 	lab._active_play_record = null
 	lab._play_records.clear()
+	lab._record_export = PlayRecordExport.new()
 
 
 static func dump_records(lab: PitchBatLab) -> void:
-	print("WIFFALTRO_FIELD_QC ", JSON.stringify({
-		"field_id": String(lab._field_definition.id),
-		"single_m": lab._field_definition.safe_hit_z_m,
-		"deep_air_m": lab._field_definition.deep_air_z_m,
-		"wall_m": lab._field_definition.back_wall_z_m,
-		"hr_height_m": lab._field_definition.home_run_height_m,
-		"shallow_anchor_m": lab._field_definition.shallow_anchor_z_m,
-		"side_anchor_x_m": lab._field_definition.side_anchor_x_m,
-	}))
+	print("WIFFALTRO_FIELD_QC ", JSON.stringify(
+		PlayRecordExport.field_metadata(lab._field_definition)
+	))
 	var serialized: Array[Dictionary] = []
 	for record in lab._play_records:
 		serialized.append(record.to_dict())
 	print("WIFFALTRO_PLAY_RECORDS ", JSON.stringify(serialized))
+	var saved: bool = _save_records(lab)
 	if lab._status_label != null:
 		lab._status_label.text = (
-			"Printed %d deterministic play record(s) to Output." % serialized.size()
+			"Saved %d records to %s" % [serialized.size(),
+			ProjectSettings.globalize_path(lab._record_export.path)]
+			if saved else "QC save failed. Records remain in Output."
 		)
+
+
+static func _save_records(lab: PitchBatLab) -> bool:
+	var error: Error = lab._record_export.save(lab._play_records, lab._field_definition)
+	if error != OK:
+		push_warning("QC export failed: %s" % error_string(error))
+		return false
+	return true
 
 
 static func measure_nominal_pitch(

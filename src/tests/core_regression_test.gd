@@ -432,7 +432,8 @@ func _test_fatigue_pitch_outcomes() -> void:
 	)
 	_check(
 		tired_center_distance < fresh_center_distance * 0.75,
-		"an exhausted edge-targeted Slider should leak toward center"
+		"an exhausted edge-targeted Slider should leak toward center (fresh %.3f, tired %.3f)"
+		% [fresh_center_distance / sample_count, tired_center_distance / sample_count]
 	)
 	_check(
 		execution_seeds_preserved,
@@ -528,7 +529,8 @@ func _test_low_effort_eephus_reachability() -> void:
 				Vector2(crossing.point.x, crossing.point.y).distance_to(
 					Vector2(targets[index].x, targets[index].y)
 				) <= 0.08,
-				"low-effort Eephus should retain intended-location aiming"
+				"low-effort Eephus should retain intended-location aiming (target %s, actual %s)"
+				% [targets[index], crossing.point]
 			)
 
 func _test_at_bat_cadence() -> void:
@@ -666,7 +668,7 @@ func _test_match_lab_suspension() -> void:
 	lab._release_controller = PitchReleaseController.new()
 	lab._match_presentation_director = MatchPresentationDirector.new()
 	lab._primary_fielder = FielderController.new()
-	lab.add_child(lab._primary_fielder)
+	add_child(lab._primary_fielder)
 	lab._trajectory_draw = TrajectoryDebugDraw.new()
 	lab.add_child(lab._trajectory_draw)
 	lab._contact_vector_draw = TrajectoryDebugDraw.new()
@@ -716,6 +718,7 @@ func _test_match_lab_suspension() -> void:
 		and lab._match_state.phase == MatchState.Phase.PITCH_IN_FLIGHT,
 		"a live Pitch should refuse Lab entry without discarding its match state"
 	)
+	lab._primary_fielder.free()
 	lab.free()
 
 func _test_match_scorebug() -> void:

@@ -1,6 +1,20 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Field-scoring/Pitcher-lane hardening complete statically; hands-on validation pending
+**Current phase:** Phase 3 — runtime verification enabled; three pitching regression failures and hands-on validation pending
+
+## Verification tooling update — 2026-09-20
+
+- Godot 4.7.2 is available in this development environment.
+- One-command verification and reproducible tool setup: `docs/VERIFICATION.md`.
+- Import, automatic QC export tests, and headless main-scene smoke pass.
+- Core regressions run but fail three pre-existing pitching assertions:
+  exhausted Slider center tendency and two low-effort Eephus aiming cases.
+- Corrected an off-tree fielder fixture in the match-suspension test.
+- Completed plays automatically save session JSON; F3 displays its path.
+- No gameplay coefficients or boundaries changed; focused human QC remains pending.
+
+This update supersedes earlier statements below that the current engine run
+is unavailable or wholly pending. It does not mark the full core suite green.
 
 ## Implemented in repository
 

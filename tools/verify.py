@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Verify a disposable source copy, preserving user files and engine caches."""
+import argparse
+import datetime
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+VERSION = "4.7.2"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--godot", default=os.environ.get("GODOT_BIN"))
+    parser.add_argument("--timeout", type=int, default=180)
+    args = parser.parse_args()
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    output = ROOT / "builds" / "verification" / stamp
+    output.mkdir(parents=True)
+    summary = {"status": "failed", "steps": [], "logs": str(output)}
+
+    def run(name, command, cwd=ROOT, marker=None):
+        print(f"Checking {name}...", flush=True)
+        with (output / f"{name}.log").open("w") as log:
+            try:
+                result = subprocess.run(command, cwd=cwd, stdout=log,
+                                        stderr=subprocess.STDOUT, timeout=args.timeout)
+            except subprocess.TimeoutExpired:
+                summary["steps"].append({"name": name, "passed": False, "timeout": True})
+                raise RuntimeError(f"{name}: timed out after {args.timeout}s") from None
+        text = (output / f"{name}.log").read_text(errors="replace")
+        bad = re.search(r"(?m)^\s*(?:SCRIPT ERROR:|ERROR:|Parse Error:)", text)
+        passed = result.returncode == 0 and not bad and (marker is None or marker in text)
+        summary["steps"].append({"name": name, "passed": passed,
+                                 "exit_code": result.returncode})
+        if not passed:
+            print(text[-6000:])
+            raise RuntimeError(f"{name} failed; see {output / (name + '.log')}")
+        return text.strip()
+
+    try:
+        summary["commit"] = run("revision", ["git", "rev-parse", "HEAD"])
+        summary["working_tree"] = run("working-tree", ["git", "status", "--short"])
+        run("diff-check", ["git", "diff", "--check"])
+        gd_files = sorted(str(p) for p in (ROOT / "src").rglob("*.gd"))
+        for tool in ("gdparse", "gdlint"):
+            installed = ROOT / "builds" / "tooling" / "python" / "bin" / tool
+            executable = str(installed) if installed.is_file() else shutil.which(tool)
+            if not executable:
+                raise RuntimeError("Install gdtoolkit==4.3.4 in your Python environment")
+            run(tool, [executable, *gd_files])
+        godot = args.godot
+        configured = ROOT / "builds" / "tooling" / "godot-path.txt"
+        if not godot and configured.is_file():
+            godot = configured.read_text().strip()
+        godot = godot or shutil.which("godot") or shutil.which("godot4")
+        mac = Path("/Applications/Godot.app/Contents/MacOS/Godot")
+        if not godot and mac.is_file():
+            godot = str(mac)
+        if not godot:
+            raise RuntimeError("Godot missing. Set GODOT_BIN or pass --godot /path/to/Godot")
+        version = run("engine-version", [godot, "--version"])
+        if not version.startswith(VERSION + ".stable."):
+            raise RuntimeError(f"Expected Godot {VERSION} stable, got {version}")
+        summary["engine"] = version
+        with tempfile.TemporaryDirectory(prefix="wiffaltro-verify-") as temp:
+            stage = Path(temp)
+            shutil.copy2(ROOT / "project.godot", stage)
+            for folder in ("src", "assets"):
+                if (ROOT / folder).exists():
+                    shutil.copytree(ROOT / folder, stage / folder)
+            base = [godot, "--headless", "--path", str(stage)]
+            run("import", [*base, "--editor", "--quit"])
+            failures = []
+            checks = [
+                ("regressions", [*base, "res://src/tests/core_regression_test.tscn"],
+                 "Wiffaltro core regression checks passed."),
+                ("qc-export", [*base, "res://src/tests/qc_export_test.tscn"],
+                 "Wiffaltro QC export checks passed."),
+                ("main-scene", [*base, "--quit-after", "120"], None),
+            ]
+            for name, command, marker in checks:
+                try:
+                    run(name, command, marker=marker)
+                except RuntimeError as error:
+                    failures.append(str(error))
+            if failures:
+                raise RuntimeError("; ".join(failures))
+        summary["status"] = "passed"
+        print("Verification passed.")
+    except (RuntimeError, OSError) as error:
+        summary["error"] = str(error)
+        print(f"Verification failed: {error}", file=sys.stderr)
+    finally:
+        (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        print(f"Logs: {output}")
+    return 0 if summary["status"] == "passed" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

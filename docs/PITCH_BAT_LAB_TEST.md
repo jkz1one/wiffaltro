@@ -60,7 +60,7 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `F1`: toggle detailed telemetry and trajectory overlays
 - `F2`: enter Mechanics Lab from a stopped pre-Pitch state, then resume the
   same match state
-- `F3`: print completed deterministic play records to the Output panel
+- `F3`: print completed records and show their automatically saved JSON file path
 - `P`: pause/resume the simulation for debug inspection
 - `V`: cycle camera manually
 
@@ -366,9 +366,9 @@ Use `G` to put a runner on third, then produce or diagnose a fly catch at differ
 
 ### Focused field QC collection
 
-1. Run Godot 4.7.2 import and the core regression scene before playtesting:
-   `godot --headless --editor --path . --quit`, then
-   `godot --headless --path . res://src/tests/core_regression_test.tscn`.
+1. Run `python3 tools/verify.py` before playtesting (one-time setup and current
+   failures are documented in `VERIFICATION.md`). It imports a temporary project
+   copy, checks core regressions and QC export, and launches a headless smoke.
 2. Check all seven anchors, then both role cameras with sidearm breaking
    Pitches and extreme aim/effort/fatigue. Neither defender may obscure the
    pitch lane. Check left- and right-handed delivery where available.
@@ -378,8 +378,9 @@ Use `G` to put a runner on third, then produce or diagnose a fly catch at differ
 4. Collect an initial target of 100 fair balls in normal Match Mode across
    multiple matches, both offensive sides, and both swing types. This is a
    diagnostic sample, not a statistically conclusive balance target. Keep
-   Mechanics Lab/direct-launch results separate. Save F3 output before `R`
-   restarts the match and clears its records. Repeated F3 dumps are cumulative,
+   Mechanics Lab/direct-launch results separate. Completed records automatically
+   save to `user://qc/`; F3 shows the absolute path. `R` starts a new session
+   without deleting earlier saved files. Repeated F3 dumps are cumulative,
    not additional samples.
 5. Keep `WIFFALTRO_FIELD_QC` metadata with each `WIFFALTRO_PLAY_RECORDS` dump.
    Compare fair-ball results and first-ground depth by swing type and player/AI

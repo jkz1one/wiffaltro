@@ -125,6 +125,7 @@ var _last_release_overdrive: float = 0.0
 var _last_exit_speed_mph: float = 0.0
 var _active_play_record: PlayRecord
 var _play_records: Array[PlayRecord] = []
+var _record_export: PlayRecordExport = PlayRecordExport.new()
 var _at_bat_cadence: AtBatCadenceController
 var _batter_approach: BatterApproachModel
 var _ai_pitch_preselected: bool = false
@@ -167,7 +168,6 @@ func _ready() -> void:
 			]
 		)
 	)
-
 
 func _exit_tree() -> void:
 	if _debug_paused:
