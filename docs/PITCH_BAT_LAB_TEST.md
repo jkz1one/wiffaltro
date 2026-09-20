@@ -368,7 +368,8 @@ Use `G` to put a runner on third, then produce or diagnose a fly catch at differ
 
 1. Run `python3 tools/verify.py` before playtesting (one-time setup and current
    results are documented in `VERIFICATION.md`). It imports a temporary project
-   copy, checks core regressions and QC export, and launches a headless smoke.
+   copy, checks core regressions/QC export, runs match and Jolt tests, and
+   launches a headless smoke. Scripted test records are not human QC samples.
 2. Check all seven anchors, then both role cameras with sidearm breaking
    Pitches and extreme aim/effort/fatigue. Neither defender may obscure the
    pitch lane. Check left- and right-handed delivery where available.

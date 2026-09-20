@@ -79,6 +79,12 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("live-match", [*base, "--fixed-fps", "60", "res://src/tests/live_match_test.tscn"],
+                 "Wiffaltro live match checks passed:"),
+                ("match-soak", [*base, "res://src/tests/match_soak_test.tscn"],
+                 "Wiffaltro match soak passed:"),
+                ("physical-ball", [*base, "--fixed-fps", "60", "res://src/tests/physical_ball_test.tscn"],
+                 "Wiffaltro physical ball checks passed."),
                 ("regressions", [*base, "res://src/tests/core_regression_test.tscn"],
                  "Wiffaltro core regression checks passed."),
                 ("qc-export", [*base, "res://src/tests/qc_export_test.tscn"],

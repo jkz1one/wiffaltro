@@ -1957,3 +1957,11 @@ retains console output and reports the saved path; resetting rotates the file
 without removing earlier sessions. Records retain match/lab provenance and
 snapshots retain loaded geometry, engine version, and available Git metadata.
 This is development telemetry, not a gameplay save system.
+
+The verification runner also executes seeded full-match state transitions,
+two scripted-player live-scene matches, and isolated Jolt ball fixtures. These
+test reliability and collision-to-rule integration, not a representative result
+distribution. PitcherDefense must allow a grounded ball center down to world
+height zero; a 5 cm lower gate excludes the authored 3.65 cm-radius rolling ball.
+Negative-height positions remain ineligible. No mound radius or control
+threshold changes accompany this correction.

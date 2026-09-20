@@ -6,8 +6,9 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 The **Phase 3 vanilla-match simulator** has passed multiple hands-on match
 smokes. The current timed-contact, automatic-cadence, and broadcast-flow
-revision passes Godot 4.7.2 import, core regressions, QC export checks, and
-headless main-scene smoke. Hands-on QC and result-distribution sampling are pending.
+revision passes Godot 4.7.2 import, core regressions, seeded match/live-scene
+tests, Jolt ball fixtures, QC export checks, and headless main-scene smoke.
+Rendered/hands-on QC and result-distribution sampling are pending.
 
 For the one-command development check and automatic playtest records, see
 [Verification](docs/VERIFICATION.md). After one-time setup, run

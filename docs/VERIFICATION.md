@@ -19,8 +19,9 @@ python3 tools/verify.py
 
 An existing engine can also be selected with `--godot /path/to/Godot` or
 `GODOT_BIN`. Version mismatches fail explicitly. The runner checks whitespace,
-GDScript parsing/lint, engine import, core regressions, QC file export, and a
-120-frame main-scene smoke. Engine errors fail even when Godot exits with zero;
+GDScript parsing/lint, engine import, core regressions, seeded match soak,
+two live matches, physical-ball fixtures, QC file export, and a 120-frame
+main-scene smoke. Engine errors fail even when Godot exits with zero;
 regression scenes must also print their completion marker. Every engine step
 has a timeout (default 180 seconds, adjustable with `--timeout`).
 
@@ -84,6 +85,47 @@ or fatigue tuning changed. Eight clearance cases with unsolved minimum-effort
 Eephus targets retry at normal effort explicitly, preserving 180 launched
 flights and all seven-anchor/camera checks. This is test coverage, not a silent
 effort adjustment in the game.
+
+## Extended runtime coverage — 2026-09-20
+
+- `match_soak_test.tscn`: 100 seeded complete state-machine matches and their
+  exact replays. Uses scripted outcome inputs, not pitch physics. Checks count
+  bounds, foul caps, score monotonicity, hit/run accounting, duplicate-start
+  protection, completion budgets, and finished-state guards. A separate
+  scoreless-regulation fixture verifies both extra-inning runners and a walkoff.
+- `live_match_test.tscn`: two complete live-scene matches with automatic
+  between-pitch cadence, timed player release, AI pitching/batting, actual
+  contact and Jolt ball-in-play. The scripted player takes every pitch when
+  batting and uses center targets at normal effort when pitching. Neither
+  scores nor results are injected. A 20-second simulated progress watchdog
+  and overall frame/process budgets catch stalls. Synthetic records stay in
+  dedicated test files, outside `user://qc`, and are removed after the run.
+- `physical_ball_test.tscn`: nine isolated actual Jolt launches through the
+  production field, ball body, contact signals, and lab physics loop. Checks
+  short settling, grounded crossings of both internal lines, ground/fly wall
+  contacts, HR clearance, untouched Deep Air, and pitcher clean/bobble/miss.
+  Primary defense is disabled only in these fixtures to isolate each rule.
+  Ground and wall cases require actual collision-contact evidence.
+
+Physics scenes use `--fixed-fps 60` for accelerated fixed-step execution,
+without changing the configured 60 Hz Jolt rate or the 240 Hz Pitch solver.
+This is not a claim of cross-platform bit-exact Jolt determinism.
+
+The physical test exposed a production bug: PitcherDefense rejected ball
+centers below 0.05 m, excluding a rolling ball with a 0.0365 m radius. The
+cutoff now rejects only below-world positions. The fixed mound radius is still
+0.60 m, and the moving/stopped, bobble, and result-floor rules are unchanged.
+The clean fixture crosses Single before the mound attempt; bobble remains safe
+and miss can continue to the wall. This is a collision-envelope fix, not tuning.
+
+The two scripted live matches completed with 131/90 records and 37 ball-in-play
+events each in the initial successful run. Their passive batting policy is
+deliberately unrepresentative. Do not use these records or nine hand-picked
+launches as the meaningful human F3 distribution sample.
+
+Rendered camera review remains pending: this environment has no configured
+display server or Vulkan ICD. Headless checks do not render camera screenshots
+and cannot approve line spacing, visual occlusion, or Mobile-renderer appearance.
 
 The new line-scoring, 180-flight pitch-clearance, and defender-separation
 assertions produced no failures. That is finite automated coverage, not proof

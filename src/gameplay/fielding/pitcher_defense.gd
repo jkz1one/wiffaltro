@@ -32,7 +32,9 @@ static func attempt_position(
 	).length()
 	if (
 		horizontal_distance > REACTION_RADIUS_M
-		or closest.y < 0.05
+		# A rolling ball's center is below 5 cm (radius is 3.65 cm).
+		# Reject below-world segments, not legitimate grounded comebackers.
+		or closest.y < 0.0
 		or closest.y > MAX_REACTION_HEIGHT_M
 	):
 		return Vector3.INF

@@ -2,6 +2,17 @@
 
 **Current phase:** Phase 3 — automated verification passing; hands-on validation pending
 
+## Live match and Jolt follow-up — 2026-09-20
+
+- Added 100 seeded state-machine matches with deterministic replays and an
+  explicit extra-inning/walkoff scenario.
+- Added two full live-scene scripted-player matches with stall watchdogs.
+- Added nine actual Jolt ball fixtures covering rolling lines, wall/HR/Deep Air,
+  and Pitcher clean/bobble/miss results. See `VERIFICATION.md` for isolation limits.
+- Fixed the Pitcher minimum-height gate that excluded physical rolling balls.
+  Mound radius, scoring floors, Contact/Power, and aero coefficients are unchanged.
+- Rendered camera QC and representative human F3 distribution sampling remain pending.
+
 ## Pitching regression follow-up — 2026-09-20
 
 - Full `python3 tools/verify.py` pass on Godot 4.7.2: parsing/lint, import,
