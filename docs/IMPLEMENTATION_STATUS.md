@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Swing/camera/readability hardening complete statically; hands-on validation pending
+**Current phase:** Phase 3 — Field-scoring/Pitcher-lane hardening complete statically; hands-on validation pending
 
 ## Implemented in repository
 
@@ -167,7 +167,7 @@ Implemented in repository:
 - [x] mathematical Safe, Deep Air, and Home Run segment crossings
 - [x] BallPlayState, BallPlayResolver, and BallPlayOutcome
 - [x] Out / Single / Double / Triple / Home Run resolution
-- [x] nine persistent Primary Fielder anchors
+- [x] persistent 3×3 Primary Fielder layout with field-authored legal cells
 - [x] simple trajectory prediction and automatic fielder movement
 - [x] deterministic clean / bobble / miss thresholds
 - [x] physical bobble deflections and limited recovery attempts
@@ -226,7 +226,7 @@ Implemented in repository:
 - [x] pointer-projected batting aim with left-click Contact and right-click Power
 - [x] full-simulation `P` debug pause
 - [x] visible clickable four-player pitching-staff selector between batters
-- [x] authored Middle Center anchor clearance from the Pitcher
+- [x] initial authored Middle Center depth clearance from the Pitcher
 - [x] fatigue/stamina/cadence/defensive-separation regression coverage
 - [x] Godot script UID sidecars committed for stable cross-clone references
 - [x] all current GDScript passes `gdparse` and `gdlint` static checks on 2026-09-19
@@ -266,7 +266,8 @@ the next feel bottlenecks. Implemented in response:
 - [x] overhead Field Setup camera with direct 3×3 anchor selection
 - [x] rating-scaled Fielder speed, explicit reaction delay, and fewer bobbles
 - [x] shorter physical bobble deflections
-- [x] visibly reactive automatic Pitcher defense in a 0.95 m mound envelope
+- [x] initially added visibly reactive automatic Pitcher defense in a 0.95 m
+      mound envelope; later hardening reduced the final radius to 0.60 m
 - [x] mathematical back-wall crossing fallback and wall-position freeze
 - [x] regression coverage for pitch bands, awareness, chase geometry, cadence,
       Pitcher radius, and back-wall resolution
@@ -441,9 +442,10 @@ Primary Fielder speed/reach remains symmetric for both teams and was not raised.
       Out; first ground/out-of-play contact resolves the Foul count
 - [x] clean control of a still-moving fair grounder before the Single line is
       an Out, while stopped or boundary-crossed balls retain at least a Single
-- [x] placed the starter Single line inside the front of the small mound
-      reaction envelope, preserved Double/Triple rules, and modestly lowered
-      the Home Run wall
+- [x] initially placed the starter Single line inside the front of the small
+      mound reaction envelope; the final field-balance pass below supersedes
+      that provisional plane while preserving Double/Triple rules and the
+      modestly lowered Home Run wall
 - [x] kept Pitcher defense inside a 0.60 m reaction envelope and removed the
       former edge-trigger mismatch that spent its only attempt outside actual
       control reach
@@ -524,8 +526,9 @@ This pass incorporates the supplied real-swing phase/arc references and the
       and physical launch authority
 - [x] made the starter back wall a lighter slate-blue surface and changed the
       strike-zone frame to thicker unshaded warm-white bars for contrast
-- [x] moved the Single and Deep Air boundaries closer while increasing their
-      separation; the Single line still intersects the 0.60 m Pitcher envelope
+- [x] first moved the Single and Deep Air boundaries closer while increasing
+      their separation; the final field-balance pass below supersedes those
+      provisional plane positions
 - [x] added role-aware ball-in-play perspective so player defense pulls wider
       and tracks from the pitching side instead of flipping behind the Batter
 - [x] added static regressions for staged/mirrored swing transforms, retained
@@ -535,6 +538,32 @@ This pass incorporates the supplied real-swing phase/arc references and the
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on swing arc/hand attachment, wall/zone contrast, boundary balance,
       and player-defense ball tracking
+
+
+## Starter-field scoring and Pitcher-lane pass — runtime validation pending
+
+The final pre-handoff audit measured the scoring planes against the full field,
+sampled the current Contact/Power launch model, and reviewed every defensive
+anchor against the pitching sightline.
+
+- [x] kept the 23.4 m wall because the starter field is already large enough
+      for a compact plastic-ball game
+- [x] moved the Single plane to 14.8 m, beyond the full 0.60 m Pitcher envelope
+- [x] moved the Deep Air plane to 18.5 m, creating distinct 3.7 m Single/Deep
+      and 4.9 m Deep/wall territories instead of a 1.6 m stripe pair
+- [x] retained the rule distinction that Deep Air is only a Double floor for
+      untouched airborne balls; grounders still require the wall
+- [x] left Contact/Power transfer and aerodynamics unchanged until normal-play
+      F3 records establish an actual result distribution after the geometry fix
+- [x] disabled Shallow Center and Middle Center as reserved Pitcher-lane cells
+      while preserving Deep Center and all six side anchors
+- [x] made direct selection, cycling, defaults, and AI positioning honor the
+      same legal-anchor set
+- [x] strengthened regression coverage from swept Pitcher-radius detection
+      through a clean moving-comebacker Out result
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on plane spacing, legal anchor UI/AI, Pitcher reaction, and F3
+      result-distribution sample
 
 
 ## Canonical post-fun-gate roadmap — not implemented

@@ -13,6 +13,8 @@ extends DefinitionBase
 @export var middle_center_anchor_z_m: float = 17.0
 @export var deep_anchor_z_m: float = 19.5
 @export var side_anchor_x_m: float = 5.5
+@export var shallow_center_available: bool = true
+@export var middle_center_available: bool = true
 
 
 func is_fair_point(point: Vector3) -> bool:
@@ -55,3 +57,12 @@ func fielder_anchor_name(index: int) -> String:
 		"Deep Left",
 	]
 	return names[clampi(index, 0, 8)]
+
+
+func is_fielder_anchor_available(index: int) -> bool:
+	var safe_index: int = clampi(index, 0, 8)
+	if safe_index == 1:
+		return shallow_center_available
+	if safe_index == 4:
+		return middle_center_available
+	return true

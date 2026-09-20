@@ -699,6 +699,12 @@ func _test_match_lab_suspension() -> void:
 		and lab._status_label.text == "Resume marker",
 		"leaving Mechanics Lab should restore the same match and pre-Pitch plan"
 	)
+	lab._fielder_anchor_index = 4
+	lab._apply_defensive_assignment()
+	_check(
+		lab._fielder_anchor_index == PitchBatLab.DEFAULT_FIELDER_ANCHOR_INDEX,
+		"restoring an obsolete center-lane assignment should fall back to a legal anchor"
+	)
 	original_match.begin_pitch()
 	PitchBatLabFeelSupport.toggle_match_mode(lab)
 	_check(
@@ -933,11 +939,13 @@ func _test_match_count_rules() -> void:
 	_check(match_state.bases.first != &"", "walk should place the batter on first")
 
 func _test_defensive_separation() -> void:
-	var field: FieldDefinition = FieldDefinition.new()
+	var field: FieldDefinition = ContentDB.get_field(&"field.starter_backyard")
 	var mound: Vector3 = Vector3(0.0, 0.0, 13.716)
 	_check(
-		field.fielder_anchor(4).distance_to(mound) >= 2.5,
-		"Middle Center must not overlap the Pitcher at the mound"
+		not field.is_fielder_anchor_available(1)
+		and not field.is_fielder_anchor_available(4)
+		and field.fielder_anchor(3).distance_to(mound) >= 5.0,
+		"shallow/middle center must be unavailable and the default side anchor must clear the Pitcher"
 	)
 	var team: TeamMatchState = _make_team("Defense")
 	team.fielder_index = 2

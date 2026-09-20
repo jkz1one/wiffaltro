@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.17
-**Status:** FROZEN BASELINE WITH SWING-PRESENTATION / DEFENSIVE-CAMERA AMENDMENT
-**Supersedes:** v0.4.16 and all earlier planning notes
+**Version:** v0.4.18
+**Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
+**Supersedes:** v0.4.17 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -507,25 +507,29 @@ If the current fielder becomes the Pitcher, another player must be selected as t
 
 ## Before each pitch
 
-The Primary Fielder can be positioned in a persistent 3×3 grid:
+The Primary Fielder can be positioned at seven legal anchors arranged in a
+persistent 3×3 tactical grid:
 
 | Depth | Left | Center | Right |
 |---|---|---|---|
 | Deep | Deep Left | Deep Center | Deep Right |
-| Middle | Middle Left | Middle Center | Middle Right |
-| Shallow | Shallow Left | Shallow Center | Shallow Right |
+| Middle | Middle Left | Pitcher lane — unavailable | Middle Right |
+| Shallow | Shallow Left | Pitcher lane — unavailable | Shallow Right |
 
-Position persists until changed.
+The starter field reserves the shallow- and middle-center cells for the
+Pitcher's delivery sightline and comebacker responsibility. Deep Center remains
+available for true center-field coverage. Position persists until changed.
 
-Opponent defense also repositions between batters. Its authored baseline uses
-the visible Batter's handedness and Power to choose among shallow/middle/deep
-and pull/center/opposite anchors, with deterministic seeded variation rather
-than hidden knowledge of the coming contact.
+Opponent defense also repositions between batters among the same legal anchors.
+Its authored baseline uses the visible Batter's handedness and Power to choose
+among shallow/middle/deep and pull/center/opposite anchors, with deterministic
+seeded variation rather than hidden knowledge of the coming contact.
 
 Position locks once the pitching motion begins.
 
-The positioning UI may enter a temporary overhead Field Setup view with nine
-direct anchor choices, then return to the normal pitching camera before play.
+The positioning UI may enter a temporary overhead Field Setup view with seven
+legal anchor choices and two visibly disabled Pitcher-lane cells, then return
+to the normal pitching camera before play.
 
 ## Pitcher defense
 
@@ -537,9 +541,10 @@ The Pitcher automatically participates on:
 - possible hard deflections
 
 The Pitcher does not roam as the Primary Fielder. Pitcher defense is limited to
-a small, visibly reactive comebacker envelope around the mound. That envelope
-is tested against the ball's swept frame segment so a fast comebacker cannot
-tunnel through it merely because neither rendered endpoint was inside.
+a small, visibly reactive comebacker envelope around the mound; the starter
+field uses a 0.60 m horizontal radius. That envelope is tested against the
+ball's swept frame segment so a fast comebacker cannot tunnel through it merely
+because neither rendered endpoint was inside.
 
 ## Fielding outcomes
 
@@ -584,6 +589,13 @@ Baseline starter-field rules:
 - ground/bouncing ball reaching back wall/fence → Double
 - back wall/fence struck on the fly → Triple
 - HR boundary cleared on the fly → Home Run
+
+The Single and Deep Air planes must create distinct readable territories rather
+than sit as neighboring stripes. On the starter field, the Single plane sits
+behind the complete Pitcher reaction envelope, the Deep Air plane occupies the
+outer field, and a separate final band remains before the back wall. The Deep
+Air plane is not a universal “Double line”: only an untouched airborne ball
+earns its Double floor there. Grounders still require the wall for a Double.
 
 Individual parks and ground-rule objects may override baseline rules.
 
@@ -1366,10 +1378,11 @@ See `TECHNICAL_PREPRODUCTION.md`.
 # 35. Development Roadmap
 
 **Current repository position (2026-09-20):** Phase 3 is statically complete
-through the swing-presentation, field-readability, and role-aware defensive
-camera pass. Godot 4.7.2 import/headless checks and focused hands-on QC remain
-pending, so the Production Gate has not been cleared. `IMPLEMENTATION_STATUS.md`
-is the canonical ledger for implemented and runtime-validated work.
+through the swing-presentation, role-aware defensive camera, and final
+starter-field scoring/Pitcher-lane pass. Godot 4.7.2 import/headless checks and
+focused hands-on QC remain pending, so the Production Gate has not been cleared.
+`IMPLEMENTATION_STATUS.md` is the canonical ledger for implemented and
+runtime-validated work.
 
 ## Phase 0 — Foundation
 

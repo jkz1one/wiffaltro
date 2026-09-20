@@ -53,15 +53,17 @@ static func _test_moving_ground_out_rule(check: Callable) -> void:
 	resolver.record_ground_contact(Vector3(0.0, 0.0, 6.0))
 	resolver.record_clean_control(&"pitcher", Vector3(0.0, 0.4, 13.25), false, true)
 	check.call(
-		field.safe_hit_z_m > PitchBatLab.MOUND_ORIGIN.z - PitcherDefense.REACTION_RADIUS_M
-		and field.safe_hit_z_m < PitchBatLab.MOUND_ORIGIN.z
-		and field.deep_air_z_m - field.safe_hit_z_m >= 1.5
+		field.safe_hit_z_m
+		> PitchBatLab.MOUND_ORIGIN.z + PitcherDefense.REACTION_RADIUS_M
+		and field.deep_air_z_m - field.safe_hit_z_m >= 3.5
+		and field.back_wall_z_m - field.deep_air_z_m >= 4.5
 		and PitcherDefense.can_attempt(
-			Vector3(0.0, 0.7, field.safe_hit_z_m - 0.05), PitchBatLab.MOUND_ORIGIN
+			PitchBatLab.MOUND_ORIGIN + Vector3(0.0, 0.7, 0.55),
+			PitchBatLab.MOUND_ORIGIN
 		)
 		and outcomes.size() == 1
 		and outcomes[0].result == BallPlayOutcome.Result.OUT,
-		"the closer singles line should preserve a small Pitcher ground-Out window"
+		"the scoring planes should leave distinct Single/Deep zones and a Pitcher ground-Out window"
 	)
 
 	var stopped: BallPlayResolver = BallPlayResolver.new()
@@ -86,6 +88,13 @@ static func _test_field_layout(check: Callable) -> void:
 		and field.fielder_anchor(8).x > field.fielder_anchor(6).x,
 		"field labels should match the player-facing left/right view"
 	)
+	var starter_field: FieldDefinition = ContentDB.get_field(&"field.starter_backyard")
+	check.call(
+		not starter_field.is_fielder_anchor_available(1)
+		and not starter_field.is_fielder_anchor_available(4)
+		and starter_field.is_fielder_anchor_available(7),
+		"the starter field should reserve the shallow/middle center Pitcher sightline"
+	)
 	check.call(
 		PitcherDefense.REACTION_RADIUS_M <= 0.65,
 		"Pitcher defense should remain a deliberately small reaction envelope"
@@ -106,6 +115,29 @@ static func _test_pitcher_swept_reaction(check: Callable) -> void:
 	check.call(
 		crossing != Vector3.INF and miss == Vector3.INF,
 		"Pitcher defense should catch swept comebackers without expanding its radius"
+	)
+	var field: FieldDefinition = ContentDB.get_field(&"field.starter_backyard")
+	var resolver: BallPlayResolver = BallPlayResolver.new()
+	var outcomes: Array[BallPlayOutcome] = []
+	resolver.play_resolved.connect(
+		func(outcome: BallPlayOutcome) -> void: outcomes.append(outcome)
+	)
+	resolver.start_play(field)
+	resolver.record_ground_contact(mound + Vector3(0.0, 0.0, -1.0))
+	var fielding_outcome: FieldingResolver.Outcome = PitcherDefense.resolve(
+		crossing,
+		Vector3(0.0, 0.0, 12.0),
+		mound,
+		true,
+		8
+	)
+	if fielding_outcome == FieldingResolver.Outcome.CLEAN:
+		resolver.record_clean_control(&"pitcher", crossing, false, true)
+	check.call(
+		fielding_outcome == FieldingResolver.Outcome.CLEAN
+		and outcomes.size() == 1
+		and outcomes[0].result == BallPlayOutcome.Result.OUT,
+		"a fieldable moving comebacker should resolve through Pitcher defense as an Out"
 	)
 
 static func _test_defender_territory(check: Callable) -> void:

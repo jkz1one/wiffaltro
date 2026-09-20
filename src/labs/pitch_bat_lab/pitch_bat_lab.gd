@@ -39,6 +39,7 @@ const AIM_STEP_M: float = 0.05
 const BATTED_BALL_TIMEOUT_SECONDS: float = 9.0
 const SETTLED_SPEED_MPS: float = 0.55
 const SETTLED_HOLD_SECONDS: float = 0.65
+const DEFAULT_FIELDER_ANCHOR_INDEX: int = 3
 var _pitch_actor: PitchFlightActor
 var _batted_ball: BattedBallBody
 var _ball_play_resolver: BallPlayResolver
@@ -97,7 +98,7 @@ var _throw_number: int = 0
 var _swing_consumed: bool = false
 var _swing_tracker: SwingContactTracker
 var _pending_swing_miss: ContactResult
-var _fielder_anchor_index: int = 4
+var _fielder_anchor_index: int = DEFAULT_FIELDER_ANCHOR_INDEX
 var _base_preset_index: int = 0
 var _debug_launch_index: int = 0
 var _primary_attempts: int = 0
@@ -792,7 +793,12 @@ func _current_pitch_options() -> Array[PitchDefinition]:
 
 
 func _cycle_fielder_anchor() -> void:
-	MatchLabSupport.select_fielder_anchor(self, (_fielder_anchor_index + 1) % 9)
+	var candidate: int = _fielder_anchor_index
+	for _step in range(9):
+		candidate = (candidate + 1) % 9
+		if _field_definition.is_fielder_anchor_available(candidate):
+			MatchLabSupport.select_fielder_anchor(self, candidate)
+			return
 
 
 func _toggle_field_setup() -> void:
@@ -853,7 +859,7 @@ func _reset_lab() -> void:
 	_swing_consumed = false
 	_field_setup_active = false
 	_pitching_staff_active = false
-	_fielder_anchor_index = 4
+	_fielder_anchor_index = DEFAULT_FIELDER_ANCHOR_INDEX
 	_base_preset_index = 0
 	_base_state.clear()
 	_primary_fielder.set_anchor(_field_definition.fielder_anchor(_fielder_anchor_index))
@@ -903,7 +909,7 @@ func _start_new_match() -> void:
 	_match_suspend_snapshot.clear()
 	if _batter_approach != null:
 		_batter_approach.reset(_match_state.plate_appearance_number)
-	_fielder_anchor_index = 4
+	_fielder_anchor_index = DEFAULT_FIELDER_ANCHOR_INDEX
 	MatchLabSupport.assign_ai_defense_for_half(self)
 	_trajectory_points.clear()
 	if _trajectory_draw != null:
@@ -934,6 +940,8 @@ func _select_pitcher(roster_index: int) -> void:
 func _apply_defensive_assignment() -> void:
 	if not _match_mode or _match_state == null:
 		return
+	if not _field_definition.is_fielder_anchor_available(_fielder_anchor_index):
+		_fielder_anchor_index = DEFAULT_FIELDER_ANCHOR_INDEX
 	var fielder_state: PlayerMatchState = _match_state.fielder()
 	if fielder_state != null and _primary_fielder != null:
 		_primary_fielder.configure_player(fielder_state.definition)

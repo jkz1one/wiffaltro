@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.13
-**Status:** FROZEN BASELINE WITH SWING-PRESENTATION / DEFENSIVE-CAMERA AMENDMENT
+**Version:** v0.1.14
+**Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -1264,13 +1264,12 @@ Do not build a perfect general future-physics solver before the prototype needs 
 
 # 44. Fielder Positioning
 
-`FieldDefinition` exposes nine initial anchors:
+`FieldDefinition` exposes a 3×3 tactical layout with seven legal starter-field
+anchors:
 
 - Shallow Left
-- Shallow Center
 - Shallow Right
 - Middle Left
-- Middle Center
 - Middle Right
 - Deep Left
 - Deep Center
@@ -1278,16 +1277,17 @@ Do not build a perfect general future-physics solver before the prototype needs 
 
 The user's pre-pitch strategic choice selects one anchor.
 
-Authored anchors must respect a Pitcher exclusion radius. The center lane may
-use a field-specific depth offset so Middle Center remains selectable without
-overlapping the mound.
+Authored anchors must respect both the Pitcher exclusion radius and the delivery
+sightline. The starter field disables Shallow Center and Middle Center as
+`PITCHER LANE`; Deep Center remains legal. Direct selection, cycling, defaults,
+and AI placement must all honor the same availability rule.
 
 The Match UI may expose these anchors in an overhead Field Setup camera. The
 view is pre-pitch only and must return to the normal Pitching shot before a
-Pitch can begin. Its player-facing grid is displayed from deep to shallow:
-Deep Left/Center/Right, Middle Left/Center/Right, then Shallow
-Left/Center/Right. Left/right labels follow the view from home plate toward the
-field rather than raw world-X naming.
+Pitch can begin. Its player-facing grid is displayed from deep to shallow, with
+disabled Pitcher-lane cells retained so the spatial layout stays legible.
+Left/right labels follow the view from home plate toward the field rather than
+raw world-X naming.
 
 After contact, the fielder moves according to the planner.
 
@@ -1359,9 +1359,10 @@ Pitcher may:
 - deflect hard contact
 - turn a still-moving fair grounder into an Out before the Single line
 
-Pitcher does not roam as the Primary Fielder. The attempt envelope remains
-small and must not be enlarged merely to manufacture more Pitcher plays; field
-geometry and the moving-ground-ball rule create the opportunity.
+Pitcher does not roam as the Primary Fielder. The starter field uses a 0.60 m
+horizontal attempt radius. The envelope remains small and must not be enlarged
+merely to manufacture more Pitcher plays; field geometry and the
+moving-ground-ball rule create the opportunity.
 
 Test that small envelope against the swept batted-ball segment each physics
 frame. This prevents high-speed tunneling without increasing the radius or
@@ -1380,7 +1381,7 @@ The Pitcher cannot simultaneously be the Primary Fielder.
 
 Before each pitch:
 
-- optionally reposition Primary Fielder among the nine anchors
+- optionally reposition Primary Fielder among the field's legal tactical cells
 
 Selections persist until changed.
 
@@ -1686,7 +1687,7 @@ A Pitch can be fully authored as data and resolved through ContentDB without cha
 14. bounce-to-wall Double
 15. wall-on-fly Triple
 16. Home Run
-17. nine fielder anchors
+17. 3×3 tactical grid with field-authored legal anchors
 18. trajectory predictor
 19. FielderPlanner
 20. FielderController

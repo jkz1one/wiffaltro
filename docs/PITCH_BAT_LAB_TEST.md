@@ -224,8 +224,9 @@ fatigue state without clipping. Selection is enabled only between batters;
 returning closes the submenu and restores the pitching camera. Choosing the
 active Primary Fielder as Pitcher must automatically move the Primary Fielder
 role to another player. Exactly one Player-team prototype should expose six
-selectable Pitches. Middle Center must visibly start clear of the mound rather
-than overlap the Pitcher.
+selectable Pitches. Shallow Center and Middle Center must appear as disabled
+`PITCHER LANE` cells; neither cycling nor AI setup may place the Primary Fielder
+there. Deep Center remains selectable.
 
 While pitching, hold left click, `Space`, or controller A and release near the
 late gold cue at roughly 85% of the short meter. Mouse and keyboard must show
@@ -292,10 +293,9 @@ deceive; a repeated or center-hanging Eephus should be dangerous to throw.
 AI Pitcher set/windup duration should vary readably rather than repeat one exact
 interval.
 
-The yellow line marks the ordinary Safe boundary and now sits inside the front
-edge of the Pitcher's deliberately small mound reaction envelope. This brings
-Singles closer while retaining a narrow, visible comebacker ground-Out window.
-It should have a clearly larger gap before the closer cyan Deep Air line. A clean
+The yellow line marks the ordinary Safe boundary and now sits beyond the full
+Pitcher reaction envelope. The cyan Deep Air line should be visibly deeper, with
+a separate final band before the wall. A clean
 play on a still-moving grounded ball before the yellow line is an Out;
 a stopped ball or a ball that crossed the line is at least a Single. The cyan
 line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall
@@ -304,6 +304,16 @@ lower/closer wall top is a Home Run. Thin chalk foul lines remain as readable
 fair-territory guides because airborne fouls are now live catch opportunities;
 they are presentation, not the rules authority. The brown pole is a live object:
 it should physically redirect the ball without deciding the baseball result.
+
+The cyan line is not a general Double line: only an untouched airborne ball
+crossing it establishes a Double. Use `F3` after a meaningful sample of normal
+plate appearances and compare Out/Single/Double/Triple/Home Run frequency
+before changing Contact/Power transfer or aerodynamic coefficients.
+
+Hit moving grounders and low liners through the 0.60 m mound envelope. The
+visible Pitcher must react, and a clean moving-ground-ball control before the
+yellow line must resolve as an Out. Balls outside the radius or above the
+authored reaction height must pass the Pitcher.
 
 While the player is pitching, put a fair ball in play and verify that the camera
 stays on the defensive/pitching side, pulls wider, and follows the ball. It must

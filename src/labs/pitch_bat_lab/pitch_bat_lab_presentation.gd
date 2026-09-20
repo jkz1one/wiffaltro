@@ -788,7 +788,11 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 		var anchor_button: Button = Button.new()
 		anchor_button.custom_minimum_size = Vector2(112.0, 38.0)
 		anchor_button.focus_mode = Control.FOCUS_NONE
-		anchor_button.text = lab._field_definition.fielder_anchor_name(anchor_index)
+		anchor_button.text = (
+			lab._field_definition.fielder_anchor_name(anchor_index)
+			if lab._field_definition.is_fielder_anchor_available(anchor_index)
+			else "PITCHER LANE"
+		)
 		anchor_button.set_meta(&"anchor_index", anchor_index)
 		anchor_button.pressed.connect(lab._select_fielder_anchor.bind(anchor_index))
 		grid.add_child(anchor_button)
@@ -825,6 +829,7 @@ static func _refresh_field_setup(lab: PitchBatLab) -> void:
 		var anchor_index: int = int(button.get_meta(&"anchor_index", -1))
 		button.disabled = (
 			not MatchLabSupport.can_edit_pitch_plan(lab)
+			or not lab._field_definition.is_fielder_anchor_available(anchor_index)
 			or anchor_index == lab._fielder_anchor_index
 		)
 

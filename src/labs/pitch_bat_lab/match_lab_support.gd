@@ -178,7 +178,11 @@ static func select_fielder_anchor(lab: PitchBatLab, anchor_index: int) -> void:
 	if (lab._pitch_actor != null and lab._pitch_actor.running) or lab._ball_in_play_is_live():
 		lab._status_label.text = "Fielder position is locked during the play."
 		return
-	lab._fielder_anchor_index = clampi(anchor_index, 0, 8)
+	var requested_index: int = clampi(anchor_index, 0, 8)
+	if not lab._field_definition.is_fielder_anchor_available(requested_index):
+		lab._status_label.text = "That center lane is reserved for the Pitcher."
+		return
+	lab._fielder_anchor_index = requested_index
 	if lab._primary_fielder != null:
 		lab._primary_fielder.set_anchor(
 			lab._field_definition.fielder_anchor(lab._fielder_anchor_index)
@@ -235,7 +239,12 @@ static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:
 		column = pull_column
 	elif column_roll >= 0.84:
 		column = 2 - pull_column
-	lab._fielder_anchor_index = depth_row * 3 + column
+	var anchor_index: int = depth_row * 3 + column
+	if not lab._field_definition.is_fielder_anchor_available(anchor_index):
+		# Preserve the chosen depth but move toward the Batter's pull side so
+		# opponent defense never stacks directly in the Pitcher's sightline.
+		anchor_index = depth_row * 3 + pull_column
+	lab._fielder_anchor_index = anchor_index
 
 
 static func ai_pitch_choice(
