@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.16
+**Version:** v0.4.17
 **Status:** FROZEN BASELINE WITH SWING-PRESENTATION / DEFENSIVE-CAMERA AMENDMENT
-**Supersedes:** v0.4.15 and all earlier planning notes
+**Supersedes:** v0.4.16 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -511,9 +511,9 @@ The Primary Fielder can be positioned in a persistent 3×3 grid:
 
 | Depth | Left | Center | Right |
 |---|---|---|---|
-| Shallow | Shallow Left | Shallow Center | Shallow Right |
-| Middle | Middle Left | Middle Center | Middle Right |
 | Deep | Deep Left | Deep Center | Deep Right |
+| Middle | Middle Left | Middle Center | Middle Right |
+| Shallow | Shallow Left | Shallow Center | Shallow Right |
 
 Position persists until changed.
 
@@ -1365,6 +1365,12 @@ See `TECHNICAL_PREPRODUCTION.md`.
 
 # 35. Development Roadmap
 
+**Current repository position (2026-09-20):** Phase 3 is statically complete
+through the swing-presentation, field-readability, and role-aware defensive
+camera pass. Godot 4.7.2 import/headless checks and focused hands-on QC remain
+pending, so the Production Gate has not been cleared. `IMPLEMENTATION_STATUS.md`
+is the canonical ledger for implemented and runtime-validated work.
+
 ## Phase 0 — Foundation
 
 Project structure, definitions, runtime state, content manifest, math conventions, debug scaffolding.
@@ -1475,7 +1481,7 @@ These are to be tuned through simulation and playtesting rather than debated abs
 
 # 37. Change-Control Rule
 
-This document is the pre-repo gameplay source of truth.
+This document is the canonical gameplay and progression source of truth.
 
 When implementation reveals a conflict:
 
