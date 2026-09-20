@@ -177,16 +177,26 @@ static func begin_ai_delivery(lab: PitchBatLab) -> void:
 		not lab._player_is_batting()
 		or lab._match_state == null
 		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
-		or lab._pitch_actor.running
+		or (lab._pitch_actor != null and lab._pitch_actor.running)
+		or lab._at_bat_cadence == null
 		or lab._at_bat_cadence.state == AtBatCadenceController.State.DELIVERY
 	):
 		return
 	MatchLabSupport.apply_ai_pitch_choice(lab)
 	lab._ai_pitch_preselected = true
+	_begin_ai_delivery_cadence(lab)
+
+static func _begin_ai_delivery_cadence(
+	lab: PitchBatLab,
+	seed_offset: int = 0
+) -> void:
+	if lab._at_bat_cadence == null or lab._match_state == null:
+		return
 	lab._at_bat_cadence.begin_delivery(
 		lab._throw_number * 811
 		+ lab._match_state.plate_appearance_number * 131
 		+ lab._match_state.inning * 17
+		+ seed_offset
 	)
 	lab._status_label.text = (
 		"%s — %s\nMove the cursor, then click the ball to swing."
@@ -283,10 +293,31 @@ static func recover_failed_pitch(
 	lab: PitchBatLab,
 	pitch: PitchDefinition
 ) -> void:
-	if lab._match_mode:
+	if lab._match_mode and lab._match_state != null:
 		lab._match_state.cancel_pitch()
-		lab._at_bat_cadence.stop()
+		if lab._at_bat_cadence != null:
+			lab._at_bat_cadence.stop()
 	lab._pending_release_quality = 1.0
+	if (
+		lab._match_mode
+		and lab._player_is_batting()
+		and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		and not lab._current_pitch_options().is_empty()
+	):
+		lab._selected_pitch_index = 0
+		lab._pitch_target = lab.DEFAULT_TARGET
+		lab._pitch_effort = 1.0
+		lab._last_ai_pitch_index = 0
+		lab._ai_pitch_preselected = true
+		lab._awaiting_batter_confirm = false
+		_begin_ai_delivery_cadence(lab, 7919)
+		lab._status_label.text = (
+			"%s flight reset safely. Pitcher preparing a center fallback."
+			% pitch.display_name
+		)
+		lab._refresh_markers()
+		lab._refresh_config()
+		return
 	lab._status_label.text = (
 		"%s could not produce a valid flight. Adjust effort/target and retry."
 		% pitch.display_name

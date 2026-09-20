@@ -309,7 +309,7 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 			+ ",/. execution   [/] fatigue   C fielder   G bases   B BIP diagnostic   R reset"
 		)
 
-static func contact_outcome_name(outcome: int) -> String:
+static func contact_outcome_name(outcome: ContactResult.Outcome) -> String:
 	match outcome:
 		ContactResult.Outcome.FOUL:
 			return "FOUL"
@@ -605,7 +605,8 @@ static func _refresh_field_setup(lab: PitchBatLab) -> void:
 	)
 	for index in range(lab._field_anchor_buttons.size()):
 		lab._field_anchor_buttons[index].disabled = (
-			index == lab._fielder_anchor_index
+			not MatchLabSupport.can_edit_pitch_plan(lab)
+			or index == lab._fielder_anchor_index
 		)
 
 static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
@@ -621,7 +622,9 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 		return
 	var team: TeamMatchState = lab._match_state.defensive_team()
 	var can_change: bool = (
-		lab._match_state.can_change_defense() and not lab._debug_paused
+		lab._match_state.can_change_defense()
+		and MatchLabSupport.can_edit_pitch_plan(lab)
+		and not lab._debug_paused
 	)
 	for index in range(mini(lab._pitcher_buttons.size(), team.roster.size())):
 		var player: PlayerMatchState = team.roster[index]

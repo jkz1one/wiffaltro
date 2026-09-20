@@ -1,7 +1,7 @@
 class_name BattedBallBody
 extends RigidBody3D
 
-signal surface_contact(surface_id: StringName, position: Vector3)
+signal surface_contact(surface_id: StringName, contact_position: Vector3)
 
 @export var aero_drag_coefficient: float = 0.22
 @export var aero_magnus_scale: float = 1.0

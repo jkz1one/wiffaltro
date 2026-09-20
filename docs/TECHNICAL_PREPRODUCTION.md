@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.7
-**Status:** FROZEN BASELINE WITH TIMED-CONTACT/BROADCAST-FLOW AMENDMENT
+**Version:** v0.1.8
+**Status:** FROZEN BASELINE WITH PRE-QC HARDENING AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -635,7 +635,9 @@ Because this is one ball and a tiny search problem, runtime cost is negligible.
 Very slow/high-arc Pitches should seed the search with a gravity-compensated
 guide height and retain enough bounded iterations to find a crossing across the
 authored aim area. A failed solve must restore `PRE_PITCH` without spending
-Stamina, incrementing pitch count, or leaving the match soft-locked.
+Stamina, incrementing pitch count, or leaving the match soft-locked. An AI
+Pitcher failure schedules a known-good repertoire/center fallback through the
+normal visible delivery cadence; a player Pitcher remains in the ready state.
 
 ---
 
@@ -1426,6 +1428,11 @@ the player to `PRE_PITCH`; the player controls tempo by choosing when to begin
 the next delivery. On offense, the opponent delivery director begins its own
 bounded set/windup cadence.
 
+For player pitching, Pitch selection, target, effort, Pitcher/Primary Fielder
+roles, and the Primary Fielder anchor are mutable only in their legal ready
+states. They lock when the release meter begins and remain immutable through
+Pitch flight and ball-in-play.
+
 `MatchPresentationDirector` is a match-local presentation state machine. It
 selects two or three unique, seeded intro/outro shots from an authored pool,
 deliberately varies the package length between matches, uses readable holds,
@@ -1627,7 +1634,8 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 26. smooth role and ball-in-play camera direction
 27. deterministic per-play records for reproduction and tuning
 28. headless core regression scene
-29. zero-acceptance automatic dead-ball cadence with Pitcher telegraph
+29. one-confirmation-per-Batter flow, automatic within-at-bat dead-ball cadence,
+    and Pitcher telegraph
 30. pointer-projected Contact/Power Swing input
 31. pausable debug inspection
 32. visible four-player pitching-staff selection between batters

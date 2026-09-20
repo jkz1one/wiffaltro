@@ -13,6 +13,7 @@ func _ready() -> void:
 	_test_fresh_pitch_reachability()
 	_test_low_effort_eephus_reachability()
 	_test_at_bat_cadence()
+	_test_match_flow_guards()
 	_test_match_presentation_sequence()
 	_test_pitch_identity_and_batter_awareness()
 	_test_ai_pitch_determinism_and_counts()
@@ -251,6 +252,7 @@ func _test_fatigue_pitch_outcomes() -> void:
 	var fresh_center_distance: float = 0.0
 	var tired_center_distance: float = 0.0
 	var tired_crossings: int = 0
+	var execution_seeds_preserved: bool = true
 	var sample_count: int = 32
 	for sample in range(sample_count):
 		var sample_seed: int = 1000 + sample
@@ -259,6 +261,11 @@ func _test_fatigue_pitch_outcomes() -> void:
 		)
 		var tired: PitchLaunchParameters = PitchExecutionModel.apply(
 			base, 1.0, 1.0, 1.0, 1.05, pitch.category, sample_seed
+		)
+		execution_seeds_preserved = (
+			execution_seeds_preserved
+			and fresh.seed == sample_seed
+			and tired.seed == sample_seed
 		)
 		var fresh_crossing: PitchCrossingResult = (
 			PitchTrajectorySimulator.simulate_to_plane(fresh, 0.0)
@@ -294,6 +301,10 @@ func _test_fatigue_pitch_outcomes() -> void:
 	_check(
 		tired_center_distance < fresh_center_distance * 0.75,
 		"an exhausted edge-targeted Slider should leak toward center"
+	)
+	_check(
+		execution_seeds_preserved,
+		"Pitch execution should preserve its explicit deterministic seed"
 	)
 
 func _test_fresh_pitch_reachability() -> void:
@@ -433,6 +444,80 @@ func _test_at_bat_cadence() -> void:
 		),
 		"Pitch rhythm variation should replay from its seed"
 	)
+
+func _test_match_flow_guards() -> void:
+	var batting_lab: PitchBatLab = PitchBatLab.new()
+	batting_lab._match_state = MatchLabSupport.create_match(
+		batting_lab.DEBUG_PLAYER_ID,
+		batting_lab.PLAYER_TEAM_NAME,
+		batting_lab.RIVAL_TEAM_NAME
+	)
+	batting_lab._status_label = Label.new()
+	batting_lab._at_bat_cadence = AtBatCadenceController.new()
+	batting_lab._selected_pitch_index = 1
+	batting_lab._pitch_target = Vector2(0.62, 0.42)
+	_check(
+		batting_lab._match_state.begin_pitch(),
+		"AI failure regression should begin from a live Pitch"
+	)
+	PitchBatLabFeelSupport.recover_failed_pitch(
+		batting_lab,
+		ContentDB.get_pitch(&"pitch.eephus")
+	)
+	_check(
+		batting_lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		and batting_lab._at_bat_cadence.state
+		== AtBatCadenceController.State.DELIVERY
+		and batting_lab._selected_pitch_index == 0
+		and batting_lab._pitch_target == batting_lab.DEFAULT_TARGET
+		and batting_lab._ai_pitch_preselected
+		and not batting_lab._awaiting_batter_confirm,
+		"a failed AI aim solve should recover into an automatic safe retry"
+	)
+	batting_lab._status_label.free()
+	batting_lab.free()
+
+	var pitching_lab: PitchBatLab = PitchBatLab.new()
+	pitching_lab._match_state = MatchLabSupport.create_match(
+		pitching_lab.DEBUG_PLAYER_ID,
+		pitching_lab.PLAYER_TEAM_NAME,
+		pitching_lab.RIVAL_TEAM_NAME
+	)
+	pitching_lab._match_state.top_half = false
+	pitching_lab._release_controller = PitchReleaseController.new()
+	pitching_lab._status_label = Label.new()
+	_check(
+		MatchLabSupport.can_edit_pitch_plan(pitching_lab),
+		"Pitch setup should remain editable before the delivery begins"
+	)
+	pitching_lab._release_controller.begin()
+	var original_pitcher_index: int = (
+		pitching_lab._match_state.defensive_team().pitcher_index
+	)
+	var original_fielder_index: int = (
+		pitching_lab._match_state.defensive_team().fielder_index
+	)
+	MatchLabSupport.cycle_pitcher(pitching_lab, 1)
+	MatchLabSupport.cycle_primary_fielder(pitching_lab)
+	_check(
+		not MatchLabSupport.can_edit_pitch_plan(pitching_lab),
+		"Pitch setup should lock while the release meter is active"
+	)
+	_check(
+		pitching_lab._match_state.defensive_team().pitcher_index
+		== original_pitcher_index
+		and pitching_lab._match_state.defensive_team().fielder_index
+		== original_fielder_index,
+		"Pitcher and Primary Fielder roles should lock once delivery begins"
+	)
+	pitching_lab._release_controller.cancel()
+	pitching_lab._match_state.begin_pitch()
+	_check(
+		not MatchLabSupport.can_edit_pitch_plan(pitching_lab),
+		"Pitch setup should stay locked after the ball is committed"
+	)
+	pitching_lab._status_label.free()
+	pitching_lab.free()
 
 func _test_match_presentation_sequence() -> void:
 	var camera_director: MatchCameraDirector = MatchCameraDirector.new()

@@ -21,7 +21,7 @@ const SHOT_SECONDS: float = 1.25
 const SETTLE_SECONDS: float = 0.38
 
 var mode: Mode = Mode.IDLE
-var shot_sequence: Array[int] = []
+var shot_sequence: Array[MatchCameraDirector.Shot] = []
 var shot_index: int = 0
 var elapsed_seconds: float = 0.0
 
@@ -46,7 +46,7 @@ func reset() -> void:
 func blocks_gameplay() -> bool:
 	return mode != Mode.IDLE
 
-func current_shot() -> int:
+func current_shot() -> MatchCameraDirector.Shot:
 	if shot_sequence.is_empty():
 		return MatchCameraDirector.Shot.ESTABLISHING
 	return shot_sequence[clampi(shot_index, 0, shot_sequence.size() - 1)]
@@ -87,8 +87,8 @@ func skip() -> Event:
 static func _select_shots(
 	sequence_seed: int,
 	include_batting: bool
-) -> Array[int]:
-	var pool: Array[int] = [
+) -> Array[MatchCameraDirector.Shot]:
+	var pool: Array[MatchCameraDirector.Shot] = [
 		MatchCameraDirector.Shot.ESTABLISHING,
 		MatchCameraDirector.Shot.SIDE,
 		MatchCameraDirector.Shot.PITCHING,
@@ -99,13 +99,13 @@ static func _select_shots(
 	rng.seed = sequence_seed
 	for index in range(pool.size() - 1, 0, -1):
 		var swap_index: int = rng.randi_range(0, index)
-		var held: int = pool[index]
+		var held: MatchCameraDirector.Shot = pool[index]
 		pool[index] = pool[swap_index]
 		pool[swap_index] = held
 	# Alternate deterministically so ordinary matches visibly use both the
 	# two-shot and three-shot packages rather than merely allowing either.
 	var shot_count: int = 2 + (absi(sequence_seed) % 2)
-	var result: Array[int] = []
+	var result: Array[MatchCameraDirector.Shot] = []
 	for index in range(mini(shot_count, pool.size())):
 		result.append(pool[index])
 	return result

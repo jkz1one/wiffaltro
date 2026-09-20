@@ -204,7 +204,7 @@ static func _handle_debug_key(lab: PitchBatLab, keycode: Key) -> bool:
 
 static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 	if keycode >= KEY_1 and keycode <= KEY_9:
-		if lab._player_is_pitching():
+		if MatchLabSupport.can_edit_pitch_plan(lab):
 			var requested_index: int = int(keycode - KEY_1)
 			var options: Array[PitchDefinition] = lab._current_pitch_options()
 			if requested_index < options.size():
@@ -226,10 +226,10 @@ static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 		KEY_F:
 			MatchLabSupport.cycle_primary_fielder(lab)
 		KEY_MINUS:
-			if lab._player_is_pitching():
+			if MatchLabSupport.can_edit_pitch_plan(lab):
 				lab._adjust_pitch_effort(-0.05)
 		KEY_EQUAL:
-			if lab._player_is_pitching():
+			if MatchLabSupport.can_edit_pitch_plan(lab):
 				lab._adjust_pitch_effort(0.05)
 		KEY_BRACKETLEFT:
 			lab._fatigue = clampf(lab._fatigue - 0.10, 0.0, 1.0)

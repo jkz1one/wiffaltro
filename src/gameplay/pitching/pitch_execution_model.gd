@@ -57,7 +57,7 @@ static func apply(
 	fatigue: float,
 	control_difficulty: float,
 	execution_difficulty: float,
-	pitch_category: int,
+	pitch_category: PitchDefinition.Category,
 	execution_seed: int,
 	plate_z: float = 0.0
 ) -> PitchLaunchParameters:
@@ -238,7 +238,7 @@ static func apply(
 	# plate. Preserve ugly dirt misses, but prevent fatigue from burying the ball
 	# below the world before it reaches the hitting plane.
 	_guarantee_plate_reach(result, plate_z)
-	result.seed = seed
+	result.seed = execution_seed
 	return result
 
 static func _compensate_vertical_reach(

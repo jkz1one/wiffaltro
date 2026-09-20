@@ -67,13 +67,36 @@ static func stamina_cost(pitch: PitchDefinition, effort: float) -> float:
 static func execution_quality_penalty(effort: float) -> float:
 	return maxf(0.0, effort - 1.0) * 0.40
 
+static func can_edit_pitch_plan(lab: PitchBatLab) -> bool:
+	if (
+		not lab._match_mode
+		or lab._match_state == null
+		or not lab._player_is_pitching()
+		or lab._debug_paused
+	):
+		return false
+	if (
+		lab._match_state.phase != MatchState.Phase.PRE_PITCH
+		and lab._match_state.phase != MatchState.Phase.PLAY_DEAD
+	):
+		return false
+	if (
+		(lab._release_controller != null and lab._release_controller.active)
+		or (lab._pitch_actor != null and lab._pitch_actor.running)
+	):
+		return false
+	return not lab._ball_in_play_is_live()
+
 static func pitcher_fielding_rating(lab: PitchBatLab) -> int:
 	if lab._match_mode and lab._match_state != null:
 		return lab._match_state.pitcher().definition.fielding
 	return 5
 
 static func select_pitcher(lab: PitchBatLab, roster_index: int) -> void:
-	if not lab._player_is_pitching() or not lab._match_state.can_change_defense():
+	if (
+		not can_edit_pitch_plan(lab)
+		or not lab._match_state.can_change_defense()
+	):
 		lab._status_label.text = (
 			"Pitching changes are allowed only between batters."
 		)
@@ -98,7 +121,10 @@ static func cycle_pitcher(lab: PitchBatLab, direction: int) -> void:
 	)
 
 static func cycle_primary_fielder(lab: PitchBatLab) -> void:
-	if not lab._player_is_pitching() or not lab._match_state.can_change_defense():
+	if (
+		not can_edit_pitch_plan(lab)
+		or not lab._match_state.can_change_defense()
+	):
 		lab._status_label.text = (
 			"Fielder changes are allowed only between batters."
 		)
@@ -131,6 +157,9 @@ static func toggle_field_setup(lab: PitchBatLab) -> void:
 	lab._refresh_config()
 
 static func select_fielder_anchor(lab: PitchBatLab, anchor_index: int) -> void:
+	if lab._match_mode and not can_edit_pitch_plan(lab):
+		lab._status_label.text = "Fielder position is locked during delivery."
+		return
 	if (
 		(lab._pitch_actor != null and lab._pitch_actor.running)
 		or lab._ball_in_play_is_live()

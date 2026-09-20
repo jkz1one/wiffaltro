@@ -32,7 +32,8 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - early/late and directional swing feedback
 - count-aware deterministic opponent decisions
 - deterministic per-play diagnostic records
-- zero-acceptance automatic dead-ball cadence and Pitcher windup telegraph
+- one confirmation per new Batter, automatic within-at-bat dead-ball cadence,
+  and Pitcher windup telegraph
 - pointer-projected mouse batting
 - clickable four-player pitching-staff panel
 - full-simulation debug pause
@@ -191,6 +192,12 @@ High-Control, fresh Pitchers should have a more forgiving useful window than
 tired, low-Control Pitchers. Early and late releases should reduce command
 without allowing any mid-flight steering. Holding beyond the window must
 auto-release rather than stall the match.
+
+With `F1` telemetry visible, try pressing a Pitch number, `-` / `=`, `Q` / `E`,
+`F`, and `C` after starting the release meter and again while the ball is in
+flight. Pitch choice, effort, Pitcher/Primary Fielder roles, and Fielder anchor
+must remain locked until the play returns to a legal ready state. Before
+delivery begins, the controls legal for that point in the at-bat must work.
 
 At game completion, a short automatic camera sequence must show `WIN` or
 `LOSS`, the final score, and the new-match control. It must not alter the final

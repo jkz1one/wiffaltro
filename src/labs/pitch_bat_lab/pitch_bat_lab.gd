@@ -172,7 +172,11 @@ func _process(delta: float) -> void:
 			_match_state.elapsed_seconds += delta
 		MatchLabSupport.try_ai_swing(self)
 
-	if _batted_ball != null and _ball_play_resolver != null:
+	if (
+		_batted_ball != null
+		and _ball_play_resolver != null
+		and _ball_play_resolver.state != null
+	):
 		if not _ball_play_resolver.state.dead:
 			_live_label.text = (
 				"BALL IN PLAY  t %.2f s   speed %.1f mph\n"
@@ -789,6 +793,10 @@ func _ball_in_play_is_live() -> bool:
 
 func _cleanup_batted_ball() -> void:
 	if _batted_ball != null:
+		if _batted_ball.surface_contact.is_connected(
+			_on_batted_surface_contact
+		):
+			_batted_ball.surface_contact.disconnect(_on_batted_surface_contact)
 		_batted_ball.queue_free()
 		_batted_ball = null
 	if _primary_fielder != null:

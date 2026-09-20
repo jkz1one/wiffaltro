@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Timed contact and broadcast-flow hardening; hands-on validation pending
+**Current phase:** Phase 3 — Pre-QC hardening complete statically; hands-on validation pending
 
 ## Implemented in repository
 
@@ -220,8 +220,8 @@ Implemented in repository:
 - [x] deterministic count-aware opponent pitch/swing choices
 - [x] JSON-safe deterministic per-play records with F3 output
 - [x] headless regression scene for release, AI, count rules, and records
-- [x] one acceptance per at-bat with automatic between-Pitch cadence
-      (superseded by the zero-acceptance revision below)
+- [x] one confirmation per new player-controlled Batter with automatic
+      between-Pitch cadence inside the plate appearance
 - [x] readable Pitcher set / windup / delivery telegraph
 - [x] pointer-projected batting aim with left-click Contact and right-click Power
 - [x] full-simulation `P` debug pause
@@ -286,7 +286,7 @@ the next feel bottlenecks. Implemented in response:
 - [x] mapped mouse pitching to the same hold/release execution meter as Space
 - [x] added a visible release bar and ideal-release marker
 - [x] made left click advance dead balls/plate appearances without requiring Space
-      (superseded by the zero-acceptance revision below)
+      (superseded by automatic dead-ball continuation below)
 - [x] added roughly one second to the readable dead-ball hold and automatic
       continuation within an unfinished plate appearance on offense and defense
 - [x] reduced Primary Fielder movement speed, horizontal/vertical reach, and
@@ -298,7 +298,8 @@ the next feel bottlenecks. Implemented in response:
 
 ## Phase 3 timed-contact and broadcast-flow revision — runtime validation pending
 
-This revision supersedes the earlier one-acceptance and click-through flow.
+This revision supersedes manual click-through between Pitches while retaining
+one deliberate confirmation for each new player-controlled Batter.
 
 - [x] Swing input now starts an authored-duration Swing instead of immediately
       resolving contact on the click frame
@@ -340,8 +341,23 @@ This revision supersedes the earlier one-acceptance and click-through flow.
       continuation, automatic terminal cadence, and camera-shot selection
 - [x] camera cycling explicitly casts its wrapped index back to the typed `Shot`
       enum, preventing the Godot 4.7.2 script-reload failure found in playtest
+- [x] broadcast shot sequences now retain the typed `Shot` enum through their
+      arrays and return values, removing the adjacent function-boundary warning
+- [x] Pitch execution now preserves the explicit deterministic execution seed;
+      a stale built-in identifier from the warning-cleanup rename was removed
+- [x] an AI aim-solver failure now rolls back the unspent Pitch and schedules a
+      known-good center fallback instead of leaving the offense soft-locked
+- [x] Pitch choice, effort, Pitcher/Primary Fielder roles, and Fielder anchor
+      lock when delivery begins so live play cannot observe a different plan
+      than the release
+- [x] queued batted balls disconnect their collision callback before replacement,
+      and live telemetry guards a missing resolver state
+- [x] targeted regressions cover execution-seed preservation, failed AI Pitch
+      recovery, pre-delivery editing, and delivery-time setup locking
+- [x] supplied 2026-09-19 recordings re-audited against the current contact,
+      Swing, receiver, and camera paths; observed crash paths have explicit guards
 - [x] all current GDScript passes `gdparse` and `gdlint` static checks on
-      2026-09-19
+      2026-09-20
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on timed Swing, receiver, handed bat, cadence, release meter, and
       intro/outro validation
