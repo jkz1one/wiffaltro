@@ -1,7 +1,7 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.10
-**Status:** FROZEN BASELINE WITH BAT-SWING SYNCHRONIZATION AMENDMENT
+**Version:** v0.1.11
+**Status:** FROZEN BASELINE WITH LIVE-FOUL / GROUND-OUT AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
@@ -882,8 +882,11 @@ Exact thresholds remain tuning data.
 If the moving Pitch never encounters the virtual region before the authored
 window closes, record an early/late or spatial miss but do not stop Pitch
 flight. The authoritative Pitch continues to its plate-crossing call and its
-non-interactive receiver presentation. Fair contact and fouls end Pitch flight
-at the resolved encounter.
+non-interactive receiver presentation. Fair contact and fouls end custom Pitch
+flight at the resolved encounter. Both then transition to a physical Jolt ball:
+fair contact enters normal BallPlayResolver rules, while a foul remains live
+only for a clean airborne catch and otherwise resolves on first ground or
+out-of-play contact.
 
 ### Research basis
 
@@ -1138,6 +1141,7 @@ Track the minimum state needed to resolve the play, such as:
 
 ```text
 is_fair
+is_foul_play
 has_grounded
 first_ground_position
 result_floor
@@ -1190,6 +1194,20 @@ Examples:
 
 - result = HOME_RUN
 - play becomes dead
+
+## Live foul
+
+- `is_foul_play = true`
+- safe/deep/HR advancement boundaries are ignored
+- a clean airborne defensive control resolves an Out
+- first ground or out-of-play contact resolves a Foul and applies the count rule
+
+## Moving grounder before the Single line
+
+- ball has grounded but remains above the authored settled-speed threshold
+- clean Pitcher or Primary Fielder control before the safe boundary resolves an Out
+- a stopped ball or any ball that already crossed the safe boundary retains at
+  least a Single
 
 ---
 
@@ -1253,7 +1271,10 @@ overlapping the mound.
 
 The Match UI may expose these anchors in an overhead Field Setup camera. The
 view is pre-pitch only and must return to the normal Pitching shot before a
-Pitch can begin.
+Pitch can begin. Its player-facing grid is displayed from deep to shallow:
+Deep Left/Center/Right, Middle Left/Center/Right, then Shallow
+Left/Center/Right. Left/right labels follow the view from home plate toward the
+field rather than raw world-X naming.
 
 After contact, the fielder moves according to the planner.
 
@@ -1317,8 +1338,11 @@ Pitcher may:
 - catch comeback liners
 - field weak grounders
 - deflect hard contact
+- turn a still-moving fair grounder into an Out before the Single line
 
-Pitcher does not roam as the Primary Fielder.
+Pitcher does not roam as the Primary Fielder. The attempt envelope remains
+small and must not be enlarged merely to manufacture more Pitcher plays; field
+geometry and the moving-ground-ball rule create the opportunity.
 
 ---
 
@@ -1475,8 +1499,9 @@ scores, results, or gameplay timing. High-stakes cinematic packages remain a
 future extension of this director, not a second match state machine.
 
 Match HUD ownership is split by purpose. `MatchScorebug` renders persistent
-baseball state from `MatchState`; the centered event card renders transient
-prompts/results; F1-owned labels render detailed diagnostics. F2 may enter the
+baseball state from `MatchState`; a boxless outlined label directly beneath the
+lower-right scorebug renders transient prompts/results and compact Pitch/exit
+speed telemetry; F1-owned labels render detailed diagnostics. F2 may enter the
 Mechanics Lab only at a safe stopped pre-Pitch boundary. The Lab keeps the
 existing `MatchState` suspended and restores its selection/aim/role-facing
 presentation state on return; it never creates a replacement match merely to
@@ -1695,7 +1720,7 @@ A single hit can travel through physical 3D space and resolve coherently as Out/
 45. state-safe presentation skipping and role-camera settlement
 46. future high-stakes broadcast package seam without baseball-state ownership
 47. seeded per-shot still / zoom / pan / tilt presentation motion
-48. compact `MatchScorebug` plus separate centered event-card ownership
+48. compact lower-right `MatchScorebug` plus boxless beneath-scorebug event ownership
 49. safe-boundary Mechanics Lab suspension that preserves the live `MatchState`
 50. late release sweet spot and bounded category-aware overdrive tradeoff
 51. release-driven visible player-Pitcher delivery pose

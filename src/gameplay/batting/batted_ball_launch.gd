@@ -6,15 +6,14 @@ var velocity: Vector3 = Vector3.ZERO
 var angular_velocity: Vector3 = Vector3.ZERO
 var orientation: Quaternion = Quaternion.IDENTITY
 var contact_quality: float = 0.0
+var is_foul: bool = false
+
 
 static func from_contact(result: ContactResult) -> BattedBallLaunch:
 	var launch: BattedBallLaunch = BattedBallLaunch.new()
 	launch.position = result.contact_position
 	launch.velocity = result.exit_velocity
-	launch.angular_velocity = Vector3(
-		-result.backspin_rad_s,
-		0.0,
-		0.0
-	)
+	launch.angular_velocity = Vector3(-result.backspin_rad_s, 0.0, 0.0)
 	launch.contact_quality = result.quality
+	launch.is_foul = result.outcome == ContactResult.Outcome.FOUL
 	return launch

@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.13
-**Status:** FROZEN BASELINE WITH RESEARCHED BAT-SWING AMENDMENT
-**Supersedes:** v0.4.12 and all earlier planning notes
+**Version:** v0.4.14
+**Status:** FROZEN BASELINE WITH LIVE-FOUL / GROUND-OUT AMENDMENT
+**Supersedes:** v0.4.13 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -100,6 +100,10 @@ Handedness, natural delivery, repertoire, repertoire capacity, and similar ident
 - 4 balls
 - 3 strikes
 - Two-strike fouls remain at two strikes
+- A caught foul is an Out; an uncaught foul remains a Strike under the count rule
+- A clean play on a still-moving fair ground ball before it crosses the authored
+  Single line is a ground Out. Once the ball stops or crosses that line, the
+  defense may prevent further advancement but cannot erase the Single.
 - 10-run mercy rule after 3 completed innings
 - Extra innings begin with a ghost runner on second
 
@@ -1297,9 +1301,10 @@ treatment with a win/loss title and final score.
 During play, a compact broadcast-style scorebug owns the persistent essentials:
 team score, half/inning, count, outs, occupied bases, current Batter, Pitcher,
 Pitch count, and Pitcher Stamina. Temporary calls such as begin-at-bat,
-Strikeout, Out, hit result, and inning change use a centered event card.
-Detailed simulation telemetry remains in the explicit debug layer and should
-not duplicate or obscure the scorebug.
+Strikeout, Out, hit result, and inning change use boxless outlined text directly
+beneath the lower-right scorebug. Routine Ball/Strike/Foul calls use a smaller
+treatment in the same location. Detailed simulation telemetry remains in the
+explicit debug layer and should not duplicate or obscure the scorebug.
 
 Higher-stakes games may later use longer authored cinematic packages for
 clinch opportunities, elimination games, playoff-round finales, rivalries,

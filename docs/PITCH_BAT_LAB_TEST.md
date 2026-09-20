@@ -155,6 +155,12 @@ with hands and bat on the back/right shoulder; left-handed Batters must mirror
 the full setup. The widened depth should improve timing without making poor
 X/Y aim succeed.
 
+The batting camera should sit far enough toward the handed shoulder that the
+loaded barrel does not cover the incoming Pitch lane. Move the aim marker from
+low to high and left to right before the Pitch: the hands/bat may load slightly
+higher/lower and change tilt, but the motion must stay subtle, bounded, and
+must not move the authoritative contact target.
+
 At swing commitment, the hands and bat should begin together at the back
 shoulder. At the moment the ball reaches the authored contact encounter, the
 barrel should be visually square across the plate; it should then finish once
@@ -174,8 +180,10 @@ moving, cross the plate, continue visually to the receiver catch point, and
 only then
 enter the dead-ball flow. A miss may be identified when the authored Swing
 window closes, but that identification must not stop authoritative Pitch
-flight. Fair contact and fouls should still end the Pitch at the resolved
-encounter. Contact should feel quicker than the prior slow placeholder Swing,
+flight. Fair contact and fouls should still end custom Pitch flight at the
+resolved encounter. A foul should immediately become a visible physical ball,
+remain live for an airborne defensive catch, and otherwise resolve when it
+grounds or leaves play. Contact should feel quicker than the prior slow placeholder Swing,
 with Power remaining slightly longer and less forgiving. Fair contact must not
 produce a `PitchFlightActor` null-state error. The bat should begin behind the
 handed back shoulder, drive forward through contact, and continue through a
@@ -203,11 +211,14 @@ Pitch, aim, effort, or legal defensive assignments, then set the tempo by
 starting the next hold/release delivery. No extra advance click should be
 required before that delivery input.
 
-During the player's defensive half, the pitching-staff panel should list all
-four players, Stamina, and fatigue state. Selection is enabled only between
-batters. Choosing the active Primary Fielder as Pitcher must automatically move
-the Primary Fielder role to another player. Middle Center must visibly start
-clear of the mound rather than overlap the Pitcher.
+During the player's defensive half, open the Pitching Staff submenu. Its wide
+angled camera and four full-width rows should show every player, Stamina, and
+fatigue state without clipping. Selection is enabled only between batters;
+returning closes the submenu and restores the pitching camera. Choosing the
+active Primary Fielder as Pitcher must automatically move the Primary Fielder
+role to another player. Exactly one Player-team prototype should expose six
+selectable Pitches. Middle Center must visibly start clear of the mound rather
+than overlap the Pitcher.
 
 While pitching, hold left click, `Space`, or controller A and release near the
 late gold cue at roughly 85% of the short meter. Mouse and keyboard must show
@@ -227,11 +238,15 @@ resume without replaying the intro or resetting the inning. `F2` during a live
 Pitch, ball-in-play, cadence, or presentation should refuse safely rather than
 discarding the play.
 
-With F1 off, the top-left scorebug should be the only persistent baseball-state
+With F1 off, the compact lower-right scorebug should be the only persistent baseball-state
 readout: score, half/inning, count, outs, bases, Batter, Pitcher, Pitch count,
-and Stamina. Begin-at-bat prompts and play results should appear on the centered
-event card. With F1 on, diagnostic text may appear at left but must not overlap
-or redundantly replace the scorebug/event card.
+and Stamina. Begin-at-bat prompts and play results should appear as boxless
+white text directly beneath it. Ball, Strike, and Foul calls should use the
+smaller treatment in both player roles; Ball/Strike reports should include
+Pitch speed, and hit results should include exit velocity. There should be no
+persistent numeric effort prose outside the F1 layer. With F1 on, diagnostic
+text may appear at left but must not overlap or redundantly replace the
+scorebug/result stack.
 
 With `F1` telemetry visible, try pressing a Pitch number, `-` / `=`, `Q` / `E`,
 `F`, and `C` after starting the release meter and again while the ball is in
@@ -249,7 +264,9 @@ three-ball counts, and avoid feeling like a purely uniform random chooser.
 Repeatedly using the same Pitch and visible location should raise debug
 awareness and make good contact more likely. Mixing Pitch, speed, and location
 should suppress that advantage. Far chase Pitches should remain difficult to
-hit; the outer half should be more approachable than the inner edge.
+hit; the outer half should be more approachable than the inner edge. Even when
+fresh in the awareness model, a high-speed Four-Seam should create visibly more
+timing/aim pressure than a slower Pitch rather than being automatically squared.
 
 Effort changes the speed of every Pitch, including off-speed Pitches. Higher effort should be faster and costlier without making an Eephus, Slider, or Drop feel identical to a Four-Seam.
 
@@ -260,7 +277,13 @@ deceive; a repeated or center-hanging Eephus should be dangerous to throw.
 AI Pitcher set/windup duration should vary readably rather than repeat one exact
 interval.
 
-The yellow line marks the ordinary Safe boundary. The cyan line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall strike on the fly is a Triple, and a fair airborne ball clearing the wall top is a Home Run. The brown pole is a live object: it should physically redirect the ball without deciding the baseball result by itself.
+The yellow line marks the ordinary Safe boundary and should now sit behind the
+mound. A clean play on a still-moving grounded ball before that line is an Out;
+a stopped ball or a ball that crossed the line is at least a Single. The cyan
+line marks Deep Air. A bouncing ball reaching the back wall is a Double, a wall
+strike on the fly is a Triple, and a fair airborne ball clearing the modestly
+lower wall top is a Home Run. The brown pole is a live object: it should
+physically redirect the ball without deciding the baseball result by itself.
 
 The Primary Fielder should show a brief rating-scaled reaction delay, run at a
 believable speed, and only control balls the visible actor actually reaches.
@@ -268,6 +291,12 @@ High or horizontally distant balls must pass as misses. Bobbles should remain
 near the defender. The Pitcher should react only to true
 comebackers inside the small mound envelope. A below-wall ball must resolve at
 the wall even if the physical contact callback misses a fast frame.
+
+Open Field View and verify the visible grid reads Deep Left/Center/Right on the
+top row, Middle on the second, and Shallow on the third. Left and Right should
+match the view from home plate. Foul flies toward a positioned defender should
+be catchable; grounded fouls should not become fair hits. The same Primary
+Fielder speed/reach thresholds apply in both halves.
 
 `B` cycles Grounder, Deep Air, Wall On Fly, and Home Run Arc diagnostics. These bypass Pitch/contact only so field physics and rulings can be inspected deliberately; normal swings still exercise the full contact-to-ball pipeline.
 

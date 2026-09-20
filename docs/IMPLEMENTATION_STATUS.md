@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — Swing/contact hardening complete statically; hands-on validation pending
+**Current phase:** Phase 3 — Live-foul/defense/HUD hardening complete statically; hands-on validation pending
 
 ## Implemented in repository
 
@@ -388,8 +388,9 @@ cleaner playable-match shell before the next human QC pass. Implemented:
 - [x] replaced the large text scoreboard with a compact broadcast-style
       scorebug for score, inning, count, outs, bases, Batter, Pitcher, Pitch
       count, and Stamina
-- [x] moved prompts/results into a centered event card and retained detailed
-      pitch/contact/fielding telemetry only in the F1 debug layer
+- [x] first moved prompts/results into a dedicated event layer and retained
+      pitch/contact/fielding telemetry only in the F1 debug layer; the later
+      HUD pass relocated that layer beneath the scorebug and removed its box
 - [x] reduced persistent controls text and removed redundant match-state prose
 - [x] added regression coverage for actual bat transforms, Pitcher pose,
       release tuning, scorebug state, presentation motion, F2 resume/refusal,
@@ -398,7 +399,7 @@ cleaner playable-match shell before the next human QC pass. Implemented:
       2026-09-20
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on bat direction, player windup, F2 resume, release overdrive,
-      scorebug/event card, and moving intro validation
+      scorebug/result stack, and moving intro validation
 
 
 ## Researched bat-swing synchronization pass — runtime validation pending
@@ -426,6 +427,46 @@ defect was disagreement between visible animation and mathematical contact.
 - [ ] Godot 4.7.2 import/headless regression validation
 - [ ] hands-on right-/left-handed stance, contact synchronization, swing feel,
       miss continuation, and contact-crash validation
+
+
+## Live-foul, defensive-rule, and broadcast-HUD pass — runtime validation pending
+
+The next pre-QC audit reconciled Wiffle ground-ball/foul rules with the existing
+BallPlayResolver and separated objective asymmetries from small-sample feel.
+Primary Fielder speed/reach remains symmetric for both teams and was not raised.
+
+- [x] foul contact now launches a visible physical Jolt ball instead of ending
+      invisibly at contact
+- [x] live foul balls can be caught by the Pitcher or Primary Fielder for an
+      Out; first ground/out-of-play contact resolves the Foul count
+- [x] clean control of a still-moving fair grounder before the Single line is
+      an Out, while stopped or boundary-crossed balls retain at least a Single
+- [x] moved the starter Single line behind the mound, preserved Double/Triple
+      boundaries, and modestly lowered the Home Run wall
+- [x] kept Pitcher defense inside a 0.60 m reaction envelope and removed the
+      former edge-trigger mismatch that spent its only attempt outside actual
+      control reach
+- [x] increased deterministic AI timing and aim error as physical plate speed
+      rises, while preserving Pitch/location awareness as earned compensation
+- [x] moved and narrowed the broadcast scorebug to the lower-right and placed
+      boxless Ball/Strike/Foul/result, pitch-speed, and exit-velocity reports
+      directly beneath it for both player roles
+- [x] removed redundant normal-play effort/instruction prose while retaining
+      the release bar and detailed F1 diagnostics
+- [x] moved the batting camera off the loaded-barrel sightline and added a
+      subtle bounded bat/hand load response to batting aim
+- [x] corrected player-facing field Left/Right labels and ordered the setup
+      grid Deep, Middle, Shallow from top to bottom
+- [x] converted Pitching Staff to a pre-Pitch submenu with a dedicated wide
+      camera and uncropped four-player list
+- [x] gave exactly one player-team prototype a six-Pitch repertoire
+- [x] added static regression coverage for live fouls, moving ground outs,
+      field labels, Pitcher envelope, speed challenge, repertoire count, and
+      aim-reactive bat limits
+- [x] all GDScript passes `gdparse` and `gdlint` static checks on 2026-09-20
+- [ ] Godot 4.7.2 import/headless regression validation
+- [ ] hands-on foul visibility/catches, ground outs, Pitcher chances, AI
+      fastballs, boundary balance, submenus, HUD telemetry, and batting view
 
 
 ## Canonical post-fun-gate roadmap — not implemented

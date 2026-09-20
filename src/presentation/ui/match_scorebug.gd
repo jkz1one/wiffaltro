@@ -1,7 +1,7 @@
 class_name MatchScorebug
 extends Control
 
-const PANEL_SIZE: Vector2 = Vector2(372.0, 122.0)
+const PANEL_SIZE: Vector2 = Vector2(320.0, 108.0)
 const EMPTY_BASE_COLOR: Color = Color(0.08, 0.12, 0.16, 0.92)
 const OCCUPIED_BASE_COLOR: Color = Color(0.98, 0.78, 0.16, 1.0)
 
@@ -17,11 +17,13 @@ var _batter: Label
 var _base_markers: Array[Panel] = []
 var _built: bool = false
 
+
 func _ready() -> void:
 	custom_minimum_size = PANEL_SIZE
 	size = PANEL_SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ensure_built()
+
 
 func refresh(match_state: MatchState) -> void:
 	_ensure_built()
@@ -35,21 +37,28 @@ func refresh(match_state: MatchState) -> void:
 	_home_score.text = str(match_state.home_team.runs)
 	_inning.text = "%s %d" % ["▲" if match_state.top_half else "▼", match_state.inning]
 	_count.text = "%d–%d" % [match_state.balls, match_state.strikes]
-	_outs.text = "%d OUT%s" % [
-		match_state.outs,
-		"" if match_state.outs == 1 else "S",
-	]
+	_outs.text = (
+		"%d OUT%s"
+		% [
+			match_state.outs,
+			"" if match_state.outs == 1 else "S",
+		]
+	)
 	var pitcher_state: PlayerMatchState = match_state.pitcher()
 	var batter_state: PlayerMatchState = match_state.batter()
-	_pitcher.text = "PIT  %s   P:%d   STA %.0f%%" % [
-		pitcher_state.definition.display_name,
-		pitcher_state.pitch_count,
-		pitcher_state.stamina_percent() * 100.0,
-	]
+	_pitcher.text = (
+		"PIT  %s   P:%d   STA %.0f%%"
+		% [
+			pitcher_state.definition.display_name,
+			pitcher_state.pitch_count,
+			pitcher_state.stamina_percent() * 100.0,
+		]
+	)
 	_batter.text = "BAT  %s" % batter_state.definition.display_name
 	_set_base(0, not match_state.bases.first.is_empty())
 	_set_base(1, not match_state.bases.second.is_empty())
 	_set_base(2, not match_state.bases.third.is_empty())
+
 
 func _ensure_built() -> void:
 	if _built:
@@ -57,63 +66,55 @@ func _ensure_built() -> void:
 	_built = true
 	_build()
 
+
 func _build() -> void:
 	var background: Panel = Panel.new()
 	background.size = PANEL_SIZE
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	background.add_theme_stylebox_override(
-		"panel",
-		_panel_style(Color(0.025, 0.055, 0.085, 0.96), Color(0.78, 0.84, 0.88, 0.9), 2)
+		"panel", _panel_style(Color(0.025, 0.055, 0.085, 0.96), Color(0.78, 0.84, 0.88, 0.9), 2)
 	)
 	add_child(background)
 
 	var away_band: ColorRect = _band(Color(0.10, 0.28, 0.48, 0.96), Vector2(7.0, 7.0))
 	background.add_child(away_band)
-	var home_band: ColorRect = _band(Color(0.62, 0.18, 0.14, 0.96), Vector2(7.0, 38.0))
+	var home_band: ColorRect = _band(Color(0.62, 0.18, 0.14, 0.96), Vector2(7.0, 34.0))
 	background.add_child(home_band)
 
-	_away_name = _label(background, Vector2(17.0, 7.0), Vector2(136.0, 31.0), 20)
+	_away_name = _label(background, Vector2(15.0, 7.0), Vector2(104.0, 27.0), 17)
 	_away_score = _label(
-		background,
-		Vector2(153.0, 7.0),
-		Vector2(42.0, 31.0),
-		22,
-		HORIZONTAL_ALIGNMENT_CENTER
+		background, Vector2(119.0, 7.0), Vector2(38.0, 27.0), 19, HORIZONTAL_ALIGNMENT_CENTER
 	)
-	_home_name = _label(background, Vector2(17.0, 38.0), Vector2(136.0, 31.0), 20)
+	_home_name = _label(background, Vector2(15.0, 34.0), Vector2(104.0, 27.0), 17)
 	_home_score = _label(
-		background,
-		Vector2(153.0, 38.0),
-		Vector2(42.0, 31.0),
-		22,
-		HORIZONTAL_ALIGNMENT_CENTER
+		background, Vector2(119.0, 34.0), Vector2(38.0, 27.0), 19, HORIZONTAL_ALIGNMENT_CENTER
 	)
 
 	var game_block: Panel = Panel.new()
-	game_block.position = Vector2(201.0, 7.0)
-	game_block.size = Vector2(164.0, 62.0)
+	game_block.position = Vector2(163.0, 7.0)
+	game_block.size = Vector2(150.0, 54.0)
 	game_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	game_block.add_theme_stylebox_override(
-		"panel",
-		_panel_style(Color(0.015, 0.027, 0.04, 0.94), Color(0.22, 0.31, 0.38, 1.0), 1)
+		"panel", _panel_style(Color(0.015, 0.027, 0.04, 0.94), Color(0.22, 0.31, 0.38, 1.0), 1)
 	)
 	background.add_child(game_block)
-	_inning = _label(game_block, Vector2(8.0, 5.0), Vector2(50.0, 25.0), 16)
-	_count = _label(game_block, Vector2(8.0, 29.0), Vector2(62.0, 27.0), 20)
-	_outs = _label(game_block, Vector2(57.0, 6.0), Vector2(48.0, 22.0), 11)
+	_inning = _label(game_block, Vector2(8.0, 3.0), Vector2(47.0, 23.0), 15)
+	_count = _label(game_block, Vector2(8.0, 25.0), Vector2(58.0, 25.0), 18)
+	_outs = _label(game_block, Vector2(53.0, 4.0), Vector2(48.0, 20.0), 10)
 
-	_add_base_marker(game_block, Vector2(139.0, 36.0))
-	_add_base_marker(game_block, Vector2(125.0, 22.0))
-	_add_base_marker(game_block, Vector2(111.0, 36.0))
+	_add_base_marker(game_block, Vector2(127.0, 33.0))
+	_add_base_marker(game_block, Vector2(114.0, 20.0))
+	_add_base_marker(game_block, Vector2(101.0, 33.0))
 
 	var lower_band: ColorRect = ColorRect.new()
-	lower_band.position = Vector2(7.0, 75.0)
-	lower_band.size = Vector2(358.0, 40.0)
+	lower_band.position = Vector2(7.0, 66.0)
+	lower_band.size = Vector2(306.0, 35.0)
 	lower_band.color = Color(0.035, 0.075, 0.105, 0.96)
 	lower_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	background.add_child(lower_band)
-	_batter = _label(background, Vector2(15.0, 75.0), Vector2(170.0, 20.0), 13)
-	_pitcher = _label(background, Vector2(15.0, 94.0), Vector2(340.0, 20.0), 13)
+	_batter = _label(background, Vector2(14.0, 65.0), Vector2(292.0, 18.0), 12)
+	_pitcher = _label(background, Vector2(14.0, 82.0), Vector2(292.0, 18.0), 12)
+
 
 func _set_base(index: int, occupied: bool) -> void:
 	if index < 0 or index >= _base_markers.size():
@@ -121,11 +122,10 @@ func _set_base(index: int, occupied: bool) -> void:
 	_base_markers[index].add_theme_stylebox_override(
 		"panel",
 		_panel_style(
-			OCCUPIED_BASE_COLOR if occupied else EMPTY_BASE_COLOR,
-			Color(0.82, 0.87, 0.90, 1.0),
-			1
+			OCCUPIED_BASE_COLOR if occupied else EMPTY_BASE_COLOR, Color(0.82, 0.87, 0.90, 1.0), 1
 		)
 	)
+
 
 func _add_base_marker(parent: Control, offset: Vector2) -> void:
 	var marker: Panel = Panel.new()
@@ -138,13 +138,15 @@ func _add_base_marker(parent: Control, offset: Vector2) -> void:
 	_base_markers.append(marker)
 	_set_base(_base_markers.size() - 1, false)
 
+
 static func _band(color: Color, offset: Vector2) -> ColorRect:
 	var band: ColorRect = ColorRect.new()
 	band.position = offset
-	band.size = Vector2(188.0, 31.0)
+	band.size = Vector2(150.0, 27.0)
 	band.color = color
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return band
+
 
 static func _label(
 	parent: Control,
@@ -164,10 +166,9 @@ static func _label(
 	parent.add_child(label)
 	return label
 
+
 static func _panel_style(
-	background_color: Color,
-	border_color: Color,
-	border_width: int
+	background_color: Color, border_color: Color, border_width: int
 ) -> StyleBoxFlat:
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = background_color

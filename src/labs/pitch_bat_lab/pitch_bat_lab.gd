@@ -1,8 +1,7 @@
 class_name PitchBatLab
 extends Node3D
 
-@warning_ignore_start("unused_private_class_variable")
-const PITCH_IDS: Array[StringName] = [
+@warning_ignore_start("unused_private_class_variable") const PITCH_IDS: Array[StringName] = [
 	&"pitch.overhand_four_seam",
 	&"pitch.overhand_sinker",
 	&"pitch.sidearm_sinker",
@@ -73,6 +72,7 @@ var _pitch_release_ideal_marker: ColorRect
 var _presentation_backdrop: ColorRect
 var _presentation_title: Label
 var _presentation_subtitle: Label
+var _pitching_staff_toggle_button: Button
 var _pitching_staff_panel: VBoxContainer
 var _pitcher_buttons: Array[Button] = []
 var _field_setup_toggle_button: Button
@@ -113,6 +113,7 @@ var _pending_release_overdrive: float = 0.0
 var _last_release_quality: float = 1.0
 var _last_release_offset_seconds: float = 0.0
 var _last_release_overdrive: float = 0.0
+var _last_exit_speed_mph: float = 0.0
 var _active_play_record: PlayRecord
 var _play_records: Array[PlayRecord] = []
 var _at_bat_cadence: AtBatCadenceController
@@ -122,12 +123,12 @@ var _awaiting_batter_confirm: bool = true
 var _last_ai_awareness: float = 0.0
 var _last_ai_read_text: String = "No read"
 var _field_setup_active: bool = false
+var _pitching_staff_active: bool = false
 var _debug_paused: bool = false
 var _status_before_pause: String = ""
 var _match_suspend_snapshot: Dictionary = {}
 
 @warning_ignore_restore("unused_private_class_variable")
-
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if not ContentDB.validate_or_error():
@@ -150,16 +151,20 @@ func _ready() -> void:
 	_refresh_config()
 
 	print(
-		"Pitch/Bat Lab ready: %d pitch(es), %d swing profile(s)."
-		% [
-			ContentDB.pitch_by_id.size(),
-			ContentDB.swing_by_id.size(),
-		]
+		(
+			"Pitch/Bat Lab ready: %d pitch(es), %d swing profile(s)."
+			% [
+				ContentDB.pitch_by_id.size(),
+				ContentDB.swing_by_id.size(),
+			]
+		)
 	)
+
 
 func _exit_tree() -> void:
 	if _debug_paused:
 		get_tree().paused = false
+
 
 func _process(delta: float) -> void:
 	if _debug_paused:
@@ -176,27 +181,26 @@ func _process(delta: float) -> void:
 			_match_state.elapsed_seconds += delta
 		MatchLabSupport.try_ai_swing(self)
 
-	if (
-		_batted_ball != null
-		and _ball_play_resolver != null
-		and _ball_play_resolver.state != null
-	):
+	if _batted_ball != null and _ball_play_resolver != null and _ball_play_resolver.state != null:
 		if not _ball_play_resolver.state.dead:
 			_live_label.text = (
-				"BALL IN PLAY  t %.2f s   speed %.1f mph\n"
-				+ "ball x %.1f / y %.1f / z %.1f   floor %s\n"
-				+ "%s"
-			) % [
-				_ball_play_resolver.state.elapsed_seconds,
-				_batted_ball.linear_velocity.length() * 2.236936,
-				_batted_ball.global_position.x,
-				_batted_ball.global_position.y,
-				_batted_ball.global_position.z,
-				PitchBatLabPresentation.result_floor_name(
-					_ball_play_resolver.state.result_floor
-				),
-				_last_fielding_text,
-			]
+				(
+					"BALL IN PLAY  t %.2f s   speed %.1f mph\n"
+					+ "ball x %.1f / y %.1f / z %.1f   floor %s\n"
+					+ "%s"
+				)
+				% [
+					_ball_play_resolver.state.elapsed_seconds,
+					_batted_ball.linear_velocity.length() * 2.236936,
+					_batted_ball.global_position.x,
+					_batted_ball.global_position.y,
+					_batted_ball.global_position.z,
+					PitchBatLabPresentation.result_floor_name(
+						_ball_play_resolver.state.result_floor
+					),
+					_last_fielding_text,
+				]
+			)
 		return
 
 	if (
@@ -209,15 +213,16 @@ func _process(delta: float) -> void:
 
 	var state: PitchState = _pitch_actor.state
 	_live_label.text = (
-		"FLIGHT  t %.3f s   speed %.1f mph\n"
-		+ "ball  x %.2f m   y %.2f m   z %.2f m"
-	) % [
-		state.elapsed_time,
-		state.velocity.length() * 2.236936,
-		state.position.x,
-		state.position.y,
-		state.position.z,
-	]
+		("FLIGHT  t %.3f s   speed %.1f mph\n" + "ball  x %.2f m   y %.2f m   z %.2f m")
+		% [
+			state.elapsed_time,
+			state.velocity.length() * 2.236936,
+			state.position.x,
+			state.position.y,
+			state.position.z,
+		]
+	)
+
 
 func _physics_process(delta: float) -> void:
 	if _debug_paused:
@@ -231,19 +236,13 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var current_ball_position: Vector3 = _batted_ball.global_position
-	_ball_play_resolver.observe_segment(
-		_previous_batted_position,
-		current_ball_position
-	)
+	_ball_play_resolver.observe_segment(_previous_batted_position, current_ball_position)
 	_previous_batted_position = current_ball_position
 	if _ball_play_resolver.state.dead:
 		return
 
 	_ball_play_resolver.advance_time(delta)
-	_fielding_cooldown_seconds = maxf(
-		0.0,
-		_fielding_cooldown_seconds - delta
-	)
+	_fielding_cooldown_seconds = maxf(0.0, _fielding_cooldown_seconds - delta)
 
 	_primary_fielder.plan_for_ball(
 		_batted_ball.global_position,
@@ -260,16 +259,17 @@ func _physics_process(delta: float) -> void:
 
 	if (
 		_settled_seconds >= SETTLED_HOLD_SECONDS
-		or _ball_play_resolver.state.elapsed_seconds
-		>= BATTED_BALL_TIMEOUT_SECONDS
+		or _ball_play_resolver.state.elapsed_seconds >= BATTED_BALL_TIMEOUT_SECONDS
 	):
 		_ball_play_resolver.resolve_settled(_batted_ball.global_position)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	PitchBatLabInput.handle(self, event)
 
+
 func _throw_pitch() -> void:
-	if _field_setup_active:
+	if _field_setup_active or _pitching_staff_active:
 		return
 	if _pitcher_marker != null:
 		_pitcher_marker.position = MOUND_ORIGIN
@@ -296,6 +296,7 @@ func _throw_pitch() -> void:
 		return
 
 	_cleanup_batted_ball()
+	_last_exit_speed_mph = 0.0
 	var candidate_throw_number: int = _throw_number + 1
 	_swing_consumed = false
 	PitchBatLabSwingSupport.reset(self)
@@ -304,11 +305,7 @@ func _throw_pitch() -> void:
 	_trajectory_draw.clear()
 	_contact_vector_draw.clear()
 
-	var target_position: Vector3 = Vector3(
-		_pitch_target.x,
-		_pitch_target.y,
-		0.0
-	)
+	var target_position: Vector3 = Vector3(_pitch_target.x, _pitch_target.y, 0.0)
 
 	var launch_pitch: PitchDefinition = pitch
 	var is_left_handed: bool = false
@@ -319,46 +316,28 @@ func _throw_pitch() -> void:
 	var pending_stamina_cost: float = 0.0
 	if _match_mode:
 		pitcher_state = _match_state.pitcher()
-		pending_stamina_cost = MatchLabSupport.stamina_cost(
-			pitch,
-			_pitch_effort
-		)
-		release_overdrive = (
-			_pending_release_overdrive if _player_is_pitching() else 0.0
-		)
+		pending_stamina_cost = MatchLabSupport.stamina_cost(pitch, _pitch_effort)
+		release_overdrive = (_pending_release_overdrive if _player_is_pitching() else 0.0)
 		pending_stamina_cost *= lerpf(1.0, 1.08, release_overdrive)
-		var authored_quality: float = (
-			_pending_release_quality if _player_is_pitching() else 1.0
-		)
+		var authored_quality: float = _pending_release_quality if _player_is_pitching() else 1.0
 		execution_quality = minf(
-			authored_quality,
-			0.86 + float(pitcher_state.definition.control) * 0.014
+			authored_quality, 0.86 + float(pitcher_state.definition.control) * 0.014
 		)
 		execution_quality = maxf(
 			0.0,
-			execution_quality
-			- MatchLabSupport.execution_quality_penalty(_pitch_effort)
-			- MatchLabSupport.release_overdrive_control_penalty(
-				release_overdrive
+			(
+				execution_quality
+				- MatchLabSupport.execution_quality_penalty(_pitch_effort)
+				- MatchLabSupport.release_overdrive_control_penalty(release_overdrive)
 			)
 		)
-		is_left_handed = (
-			pitcher_state.definition.throws
-			== PlayerDefinition.Handedness.LEFT
-		)
+		is_left_handed = (pitcher_state.definition.throws == PlayerDefinition.Handedness.LEFT)
 		launch_pitch = MatchLabSupport.rated_pitch(
-			pitch,
-			pitcher_state.definition,
-			_pitch_effort,
-			release_overdrive
+			pitch, pitcher_state.definition, _pitch_effort, release_overdrive
 		)
 	else:
 		var debug_pitcher: PlayerDefinition = ContentDB.get_player(DEBUG_PLAYER_ID)
-		launch_pitch = MatchLabSupport.rated_pitch(
-			pitch,
-			debug_pitcher,
-			_pitch_effort
-		)
+		launch_pitch = MatchLabSupport.rated_pitch(pitch, debug_pitcher, _pitch_effort)
 
 	var base_parameters: PitchLaunchParameters = PitchAimSolver.solve(
 		launch_pitch,
@@ -376,16 +355,9 @@ func _throw_pitch() -> void:
 	_throw_number = candidate_throw_number
 	if pitcher_state != null:
 		pitcher_state.spend_stamina(pending_stamina_cost)
-		applied_fatigue = maxf(
-			pitcher_state.fatigue_ratio(),
-			_fatigue
-		)
+		applied_fatigue = maxf(pitcher_state.fatigue_ratio(), _fatigue)
 
-	PitchBatLabFeelSupport.measure_nominal_pitch(
-		self,
-		base_parameters,
-		target_position
-	)
+	PitchBatLabFeelSupport.measure_nominal_pitch(self, base_parameters, target_position)
 
 	var executed_parameters: PitchLaunchParameters = PitchExecutionModel.apply(
 		base_parameters,
@@ -397,11 +369,8 @@ func _throw_pitch() -> void:
 		_throw_number * 1009 + _selected_pitch_index
 	)
 	_last_executed_release_speed_mps = executed_parameters.velocity.length()
-	var executed_crossing: PitchCrossingResult = (
-		PitchTrajectorySimulator.simulate_to_plane(
-			executed_parameters,
-			target_position.z
-		)
+	var executed_crossing: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(
+		executed_parameters, target_position.z
 	)
 	if executed_crossing.crossed:
 		_last_expected_plate_speed_mps = executed_crossing.velocity.length()
@@ -410,75 +379,69 @@ func _throw_pitch() -> void:
 	_last_release_quality = execution_quality
 	_last_release_overdrive = release_overdrive
 	PitchBatLabFeelSupport.start_record(
-		self,
-		pitch,
-		applied_fatigue,
-		execution_quality,
-		executed_parameters.seed,
-		release_overdrive
+		self, pitch, applied_fatigue, execution_quality, executed_parameters.seed, release_overdrive
 	)
 	_pending_release_quality = 1.0
 	_pending_release_overdrive = 0.0
 
 	_status_label.text = ""
 	_live_label.text = (
-		"THROW %d — %s%s\n"
-		+ "release %.1f → %.1f mph   predicted plate %.1f mph\n"
-		+ "release %s   overcook %.0f%%   movement X %+0.1f / Y %+0.1f cm"
-	) % [
-		_throw_number,
-		pitch.display_name,
-		("   fatigue %.0f%%" % (applied_fatigue * 100.0)) if _match_mode else "",
-		_last_nominal_release_speed_mps * 2.236936,
-		_last_executed_release_speed_mps * 2.236936,
-		_last_expected_plate_speed_mps * 2.236936,
-		PitchReleaseController.grade_name(execution_quality),
-		release_overdrive * 100.0,
-		_last_movement_x_m * 100.0,
-		_last_movement_y_m * 100.0,
-	]
+		(
+			"THROW %d — %s%s\n"
+			+ "release %.1f → %.1f mph   predicted plate %.1f mph\n"
+			+ "release %s   overcook %.0f%%   movement X %+0.1f / Y %+0.1f cm"
+		)
+		% [
+			_throw_number,
+			pitch.display_name,
+			("   fatigue %.0f%%" % (applied_fatigue * 100.0)) if _match_mode else "",
+			_last_nominal_release_speed_mps * 2.236936,
+			_last_executed_release_speed_mps * 2.236936,
+			_last_expected_plate_speed_mps * 2.236936,
+			PitchReleaseController.grade_name(execution_quality),
+			release_overdrive * 100.0,
+			_last_movement_x_m * 100.0,
+			_last_movement_y_m * 100.0,
+		]
+	)
 
 	_pitch_actor.start_pitch(executed_parameters)
 	if _player_is_batting() and _at_bat_cadence != null:
 		_at_bat_cadence.mark_pitch_live()
 	_refresh_config()
 
+
 func _handle_match_advance() -> void:
 	PitchBatLabFeelSupport.handle_match_advance(self)
+
 
 func _attempt_swing(profile_id: StringName) -> void:
 	_resolve_swing(profile_id, _batting_aim)
 
-func _resolve_swing(
-	profile_id: StringName,
-	aim_point: Vector2
-) -> void:
+
+func _resolve_swing(profile_id: StringName, aim_point: Vector2) -> void:
 	PitchBatLabSwingSupport.begin_swing(self, profile_id, aim_point)
 
+
 func _on_pitch_segment_advanced(
-	previous_position: Vector3,
-	previous_elapsed_seconds: float
+	previous_position: Vector3, previous_elapsed_seconds: float
 ) -> void:
-	PitchBatLabSwingSupport.advance_swing(
-		self,
-		previous_position,
-		previous_elapsed_seconds
-	)
+	PitchBatLabSwingSupport.advance_swing(self, previous_position, previous_elapsed_seconds)
+
 
 func _finish_non_contact_pitch() -> void:
 	if not _match_mode:
 		return
 	PitchBatLabFeelSupport.notify_pitch_dead(self)
-	_live_label.text = (
-		"PLAY DEAD   next Pitch readying automatically"
-	)
+	_live_label.text = ("PLAY DEAD   next Pitch readying automatically")
 	_refresh_config()
+
 
 func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 	_cleanup_batted_ball()
 	_pitch_actor.reset_pitch()
 
-	_ball_play_resolver.start_play(_field_definition)
+	_ball_play_resolver.start_play(_field_definition, launch_data.is_foul)
 	_primary_attempts = 0
 	_pitcher_attempted = false
 	_fielding_cooldown_seconds = 0.0
@@ -503,10 +466,8 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 		PitchBatLabPresentation.apply_camera_mode(self)
 		_refresh_config()
 
-func _on_batted_surface_contact(
-	surface_id: StringName,
-	contact_position: Vector3
-) -> void:
+
+func _on_batted_surface_contact(surface_id: StringName, contact_position: Vector3) -> void:
 	if _ball_play_resolver == null:
 		return
 	match surface_id:
@@ -516,6 +477,7 @@ func _on_batted_surface_contact(
 			_ball_play_resolver.record_back_wall_contact(contact_position)
 		&"live_object":
 			_ball_play_resolver.record_live_object_contact(&"starter_pole")
+
 
 func _try_pitcher_defense() -> void:
 	if _pitcher_attempted or _fielding_cooldown_seconds > 0.0:
@@ -534,11 +496,9 @@ func _try_pitcher_defense() -> void:
 	)
 	_apply_fielding_outcome(&"pitcher", MOUND_ORIGIN, outcome)
 
+
 func _try_primary_fielder() -> void:
-	if (
-		_primary_attempts >= 2
-		or _fielding_cooldown_seconds > 0.0
-	):
+	if _primary_attempts >= 2 or _fielding_cooldown_seconds > 0.0:
 		return
 	var ball_position: Vector3 = _batted_ball.global_position
 	var allowed_height: float = (
@@ -561,51 +521,46 @@ func _try_primary_fielder() -> void:
 		_primary_fielder.last_reaction_margin_seconds
 	)
 	_primary_attempts += 1
-	_apply_fielding_outcome(
-		&"primary_fielder",
-		_primary_fielder.global_position,
-		outcome
-	)
+	_apply_fielding_outcome(&"primary_fielder", _primary_fielder.global_position, outcome)
+
 
 func _apply_fielding_outcome(
-	defender_id: StringName,
-	defender_position: Vector3,
-	outcome: FieldingResolver.Outcome
+	defender_id: StringName, defender_position: Vector3, outcome: FieldingResolver.Outcome
 ) -> void:
 	if defender_id == &"pitcher":
 		PitchBatLabPresentation.show_pitcher_fielding_attempt(
-			self,
-			_batted_ball.global_position,
-			outcome
+			self, _batted_ball.global_position, outcome
 		)
-	_last_fielding_text = "%s: %s" % [
-		String(defender_id).replace("_", " ").capitalize(),
-		FieldingResolver.outcome_name(outcome),
-	]
+	_last_fielding_text = (
+		"%s: %s"
+		% [
+			String(defender_id).replace("_", " ").capitalize(),
+			FieldingResolver.outcome_name(outcome),
+		]
+	)
 	match outcome:
 		FieldingResolver.Outcome.CLEAN:
+			var ball_was_moving: bool = _batted_ball.linear_velocity.length() > SETTLED_SPEED_MPS
 			_batted_ball.stop_and_freeze()
 			_ball_play_resolver.record_clean_control(
 				defender_id,
 				_batted_ball.global_position,
-				not _ball_play_resolver.state.has_grounded
+				not _ball_play_resolver.state.has_grounded,
+				ball_was_moving
 			)
 		FieldingResolver.Outcome.BOBBLE:
 			_ball_play_resolver.record_bobble(defender_id)
 			_batted_ball.deflect(
 				DeflectionModel.velocity_after_bobble(
-					_batted_ball.linear_velocity,
-					defender_position,
-					_batted_ball.global_position
+					_batted_ball.linear_velocity, defender_position, _batted_ball.global_position
 				),
-				DeflectionModel.spin_after_bobble(
-					_batted_ball.angular_velocity
-				)
+				DeflectionModel.spin_after_bobble(_batted_ball.angular_velocity)
 			)
 			_fielding_cooldown_seconds = 0.55
 		FieldingResolver.Outcome.MISS:
 			_ball_play_resolver.record_miss(defender_id)
 			_fielding_cooldown_seconds = 0.35
+
 
 func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 	if _batted_ball != null:
@@ -615,7 +570,11 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 
 	var runs_scored: int = 0
 	var advancement_text: String = "Runners hold"
-	if outcome.result == BallPlayOutcome.Result.OUT:
+	if outcome.result == BallPlayOutcome.Result.FOUL:
+		if _match_mode:
+			_match_state.record_foul()
+		advancement_text = "Ball remains live only for the catch"
+	elif outcome.result == BallPlayOutcome.Result.OUT:
 		if outcome.caught and (not _match_mode or _match_state.outs < 2):
 			var defender_rating: int = (
 				MatchLabSupport.pitcher_fielding_rating(self)
@@ -623,58 +582,53 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 				else _primary_fielder.fielding_rating
 			)
 			var tag_result: TagAdvanceResult = TagAdvanceResolver.resolve(
-				_base_state,
-				outcome.resolution_position,
-				defender_rating
+				_base_state, outcome.resolution_position, defender_rating
 			)
 			runs_scored = tag_result.runs_scored
 			advancement_text = tag_result.description
 		if _match_mode:
-			_match_state.record_ball_in_play_out(
-				runs_scored,
-				outcome.display_name()
-			)
+			_match_state.record_ball_in_play_out(runs_scored, outcome.display_name())
 	else:
 		if _match_mode:
 			runs_scored = _match_state.record_hit(outcome.result)
 		else:
 			runs_scored = _base_state.advance_for_hit(
-				outcome.result,
-				StringName("batter.%d" % _throw_number)
+				outcome.result, StringName("batter.%d" % _throw_number)
 			)
 		advancement_text = "%d run(s) score" % runs_scored
 
-	_status_label.text = "%s\n%s" % [
-		outcome.display_name(),
-		advancement_text,
-	]
-	_live_label.text = "%s • %s\n%s\n%s" % [
-		outcome.display_name(),
-		String(outcome.reason).replace("_", " ").capitalize(),
-		_last_fielding_text,
-		_base_state.display_string(),
-	]
+	var compact_result: String = outcome.display_name()
+	if _last_exit_speed_mph > 0.0:
+		compact_result += "\nEV %.0f MPH" % _last_exit_speed_mph
+	if outcome.result != BallPlayOutcome.Result.FOUL and not advancement_text.is_empty():
+		compact_result += "\n%s" % advancement_text
+	_status_label.text = compact_result
+	_live_label.text = (
+		"%s • %s\n%s\n%s"
+		% [
+			outcome.display_name(),
+			String(outcome.reason).replace("_", " ").capitalize(),
+			_last_fielding_text,
+			_base_state.display_string(),
+		]
+	)
 	if _match_mode:
 		_live_label.text += "\nPLAY DEAD • next state automatic"
 	else:
 		_live_label.text += "\nPLAY DEAD • B diagnostic • SPACE next Pitch"
 	PitchBatLabFeelSupport.finish_record(
-		self,
-		StringName(outcome.display_name().to_snake_case()),
-		runs_scored
+		self, StringName(outcome.display_name().to_snake_case()), runs_scored
 	)
 	PitchBatLabFeelSupport.notify_pitch_dead(self)
 	_refresh_config()
+
 
 func _on_trace_sampled(point: Vector3) -> void:
 	_trajectory_points.append(point)
 	_trajectory_draw.draw_polyline(_trajectory_points)
 
-func _on_plate_crossed(
-	point: Vector3,
-	speed_mps: float,
-	elapsed_seconds: float
-) -> void:
+
+func _on_plate_crossed(point: Vector3, speed_mps: float, elapsed_seconds: float) -> void:
 	PitchBatLabFeelSupport.note_crossing(self, point, speed_mps)
 	var target_error_x: float = point.x - _pitch_target.x
 	var target_error_y: float = point.y - _pitch_target.y
@@ -698,27 +652,34 @@ func _on_plate_crossed(
 		call_text = "   %s" % String(plate_call).replace("_", " ").to_upper()
 
 	_live_label.text = (
-		"PLATE • %s%s%s\n"
-		+ "cross %.2f / %.2f • error %+0.1f / %+0.1f cm\n"
-		+ "release %.1f → %.1f • plate %.1f mph • %.3f s"
-	) % [
-		_selected_pitch().display_name,
-		call_text,
-		swing_feedback,
-		point.x,
-		point.y,
-		target_error_x * 100.0,
-		target_error_y * 100.0,
-		_last_nominal_release_speed_mps * 2.236936,
-		_last_executed_release_speed_mps * 2.236936,
-		speed_mps * 2.236936,
-		elapsed_seconds,
-	]
-	if _match_mode:
-		_status_label.text = "%s%s" % [
-			String(plate_call).replace("_", " ").to_upper(),
+		(
+			"PLATE • %s%s%s\n"
+			+ "cross %.2f / %.2f • error %+0.1f / %+0.1f cm\n"
+			+ "release %.1f → %.1f • plate %.1f mph • %.3f s"
+		)
+		% [
+			_selected_pitch().display_name,
+			call_text,
 			swing_feedback,
+			point.x,
+			point.y,
+			target_error_x * 100.0,
+			target_error_y * 100.0,
+			_last_nominal_release_speed_mps * 2.236936,
+			_last_executed_release_speed_mps * 2.236936,
+			speed_mps * 2.236936,
+			elapsed_seconds,
 		]
+	)
+	if _match_mode:
+		_status_label.text = (
+			"%s%s\n%.0f MPH"
+			% [
+				String(plate_call).replace("_", " ").to_upper(),
+				swing_feedback,
+				speed_mps * 2.236936,
+			]
+		)
 	else:
 		_status_label.text = "PLATE • %s" % _selected_pitch().display_name
 	if _match_mode:
@@ -729,10 +690,9 @@ func _on_plate_crossed(
 	if _swing_consumed:
 		record_result = &"swinging_strike"
 	elif not call_text.is_empty():
-		record_result = StringName(
-			call_text.strip_edges().to_lower().replace(" ", "_")
-		)
+		record_result = StringName(call_text.strip_edges().to_lower().replace(" ", "_"))
 	PitchBatLabFeelSupport.finish_record(self, record_result)
+
 
 func _on_flight_stopped(reason: StringName) -> void:
 	if reason == &"plate_crossed" or reason == &"contact":
@@ -757,32 +717,36 @@ func _on_flight_stopped(reason: StringName) -> void:
 	var continuation: String = "SPACE: continue"
 	if _match_mode:
 		continuation = "Next state automatic"
-	_status_label.text = "PITCH ENDED • %s\n%s" % [
-		String(reason).replace("_", " ").to_upper(),
-		continuation,
-	]
+	_status_label.text = (
+		"PITCH ENDED • %s\n%s"
+		% [
+			String(reason).replace("_", " ").to_upper(),
+			continuation,
+		]
+	)
+
 
 func _adjust_pitch_target(delta_xy: Vector2) -> void:
 	PitchBatLabFeelSupport.adjust_pitch_target(self, delta_xy)
 
+
 func _adjust_pitch_effort(delta: float) -> void:
 	PitchBatLabFeelSupport.adjust_pitch_effort(self, delta)
 
+
 func _adjust_batting_aim(delta_xy: Vector2) -> void:
 	PitchBatLabFeelSupport.adjust_batting_aim(self, delta_xy)
+
 
 func _selected_pitch() -> PitchDefinition:
 	if _match_mode:
 		var options: Array[PitchDefinition] = _current_pitch_options()
 		if options.is_empty():
 			return null
-		_selected_pitch_index = clampi(
-			_selected_pitch_index,
-			0,
-			options.size() - 1
-		)
+		_selected_pitch_index = clampi(_selected_pitch_index, 0, options.size() - 1)
 		return options[_selected_pitch_index]
 	return ContentDB.get_pitch(PITCH_IDS[_selected_pitch_index])
+
 
 func _current_pitch_options() -> Array[PitchDefinition]:
 	var result: Array[PitchDefinition] = []
@@ -797,20 +761,26 @@ func _current_pitch_options() -> Array[PitchDefinition]:
 			result.append(fallback)
 	return result
 
+
 func _cycle_fielder_anchor() -> void:
-	MatchLabSupport.select_fielder_anchor(
-		self,
-		(_fielder_anchor_index + 1) % 9
-	)
+	MatchLabSupport.select_fielder_anchor(self, (_fielder_anchor_index + 1) % 9)
+
 
 func _toggle_field_setup() -> void:
 	MatchLabSupport.toggle_field_setup(self)
 
+
+func _toggle_pitching_staff() -> void:
+	MatchLabSupport.toggle_pitching_staff(self)
+
+
 func _select_fielder_anchor(anchor_index: int) -> void:
 	MatchLabSupport.select_fielder_anchor(self, anchor_index)
 
+
 func _cycle_base_preset() -> void:
 	MatchLabSupport.cycle_base_preset(self)
+
 
 func _ball_in_play_is_live() -> bool:
 	return (
@@ -820,17 +790,17 @@ func _ball_in_play_is_live() -> bool:
 		and not _ball_play_resolver.state.dead
 	)
 
+
 func _cleanup_batted_ball() -> void:
 	if _batted_ball != null:
-		if _batted_ball.surface_contact.is_connected(
-			_on_batted_surface_contact
-		):
+		if _batted_ball.surface_contact.is_connected(_on_batted_surface_contact):
 			_batted_ball.surface_contact.disconnect(_on_batted_surface_contact)
 		_batted_ball.queue_free()
 		_batted_ball = null
 	if _primary_fielder != null:
 		_primary_fielder.end_play()
 	_settled_seconds = 0.0
+
 
 func _reset_lab() -> void:
 	PitchBatLabFeelSupport.reset_debug_pause(self)
@@ -850,13 +820,14 @@ func _reset_lab() -> void:
 	_pitch_effort = 1.0
 	_pending_release_overdrive = 0.0
 	_last_release_overdrive = 0.0
+	_last_exit_speed_mph = 0.0
 	_swing_consumed = false
+	_field_setup_active = false
+	_pitching_staff_active = false
 	_fielder_anchor_index = 4
 	_base_preset_index = 0
 	_base_state.clear()
-	_primary_fielder.set_anchor(
-		_field_definition.fielder_anchor(_fielder_anchor_index)
-	)
+	_primary_fielder.set_anchor(_field_definition.fielder_anchor(_fielder_anchor_index))
 
 	_trajectory_points.clear()
 	_trajectory_draw.clear()
@@ -866,6 +837,7 @@ func _reset_lab() -> void:
 	_live_label.text = ""
 	_refresh_markers()
 	_refresh_config()
+
 
 func _start_new_match() -> void:
 	PitchBatLabFeelSupport.reset_debug_pause(self)
@@ -878,11 +850,7 @@ func _start_new_match() -> void:
 	if _pitch_actor != null:
 		_pitch_actor.reset_pitch()
 	_cleanup_batted_ball()
-	_match_state = MatchLabSupport.create_match(
-		DEBUG_PLAYER_ID,
-		PLAYER_TEAM_NAME,
-		RIVAL_TEAM_NAME
-	)
+	_match_state = MatchLabSupport.create_match(DEBUG_PLAYER_ID, PLAYER_TEAM_NAME, RIVAL_TEAM_NAME)
 	_base_state = _match_state.bases
 	_throw_number = 0
 	_selected_pitch_index = 0
@@ -893,12 +861,14 @@ func _start_new_match() -> void:
 	_pitch_effort = 1.0
 	_pending_release_overdrive = 0.0
 	_last_release_overdrive = 0.0
+	_last_exit_speed_mph = 0.0
 	_swing_consumed = false
 	_ai_swing_decided = false
 	_last_ai_pitch_index = -1
 	_ai_pitch_preselected = false
 	_awaiting_batter_confirm = true
 	_field_setup_active = false
+	_pitching_staff_active = false
 	_last_ai_awareness = 0.0
 	_last_ai_read_text = "No read"
 	_match_suspend_snapshot.clear()
@@ -918,14 +888,18 @@ func _start_new_match() -> void:
 	_refresh_config()
 	PitchBatLabFeelSupport.begin_match_intro(self)
 
+
 func _player_is_batting() -> bool:
 	return _match_mode and _match_state != null and _match_state.top_half
+
 
 func _player_is_pitching() -> bool:
 	return _match_mode and _match_state != null and not _match_state.top_half
 
+
 func _select_pitcher(roster_index: int) -> void:
 	MatchLabSupport.select_pitcher(self, roster_index)
+
 
 func _apply_defensive_assignment() -> void:
 	if not _match_mode or _match_state == null:
@@ -933,13 +907,13 @@ func _apply_defensive_assignment() -> void:
 	var fielder_state: PlayerMatchState = _match_state.fielder()
 	if fielder_state != null and _primary_fielder != null:
 		_primary_fielder.configure_player(fielder_state.definition)
-		_primary_fielder.set_anchor(
-			_field_definition.fielder_anchor(_fielder_anchor_index)
-		)
+		_primary_fielder.set_anchor(_field_definition.fielder_anchor(_fielder_anchor_index))
 	PitchBatLabPresentation.sync_players(self)
+
 
 func _toggle_match_mode() -> void:
 	PitchBatLabFeelSupport.toggle_match_mode(self)
+
 
 func _toggle_debug_overlay() -> void:
 	_debug_overlay_visible = not _debug_overlay_visible
@@ -949,16 +923,22 @@ func _toggle_debug_overlay() -> void:
 	_contact_vector_draw.visible = _debug_overlay_visible
 	_refresh_config()
 
+
 func _cycle_camera() -> void:
 	PitchBatLabPresentation.cycle_camera(self)
+
 
 func _apply_role_camera() -> void:
 	PitchBatLabPresentation.apply_role_camera(self)
 
+
 func _refresh_config() -> void:
 	PitchBatLabPresentation.refresh(self)
+
+
 func _refresh_markers() -> void:
 	PitchBatLabPresentation.refresh_markers(self)
+
 
 func _build_ball_play_resolver() -> void:
 	_ball_play_resolver = BallPlayResolver.new()

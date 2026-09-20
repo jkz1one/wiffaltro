@@ -14,14 +14,13 @@ extends DefinitionBase
 @export var deep_anchor_z_m: float = 19.5
 @export var side_anchor_x_m: float = 5.5
 
+
 func is_fair_point(point: Vector3) -> bool:
 	if point.z < -0.5:
 		return false
-	var half_width: float = (
-		maxf(0.0, point.z) * tan(deg_to_rad(fair_half_angle_degrees))
-		+ 0.45
-	)
+	var half_width: float = maxf(0.0, point.z) * tan(deg_to_rad(fair_half_angle_degrees)) + 0.45
 	return absf(point.x) <= half_width
+
 
 func fielder_anchor(index: int) -> Vector3:
 	var safe_index: int = clampi(index, 0, 8)
@@ -42,16 +41,17 @@ func fielder_anchor(index: int) -> Vector3:
 		anchor_z = middle_center_anchor_z_m
 	return Vector3(x_positions[column], 0.0, anchor_z)
 
+
 func fielder_anchor_name(index: int) -> String:
 	var names: Array[String] = [
-		"Shallow Left",
-		"Shallow Center",
 		"Shallow Right",
-		"Middle Left",
-		"Middle Center",
+		"Shallow Center",
+		"Shallow Left",
 		"Middle Right",
-		"Deep Left",
-		"Deep Center",
+		"Middle Center",
+		"Middle Left",
 		"Deep Right",
+		"Deep Center",
+		"Deep Left",
 	]
 	return names[clampi(index, 0, 8)]

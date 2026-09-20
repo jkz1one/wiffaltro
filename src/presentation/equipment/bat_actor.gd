@@ -17,10 +17,13 @@ var _swing_duration: float = DEFAULT_SWING_SECONDS
 var _sweet_spot_progress: float = 0.44
 var _attack_angle_degrees: float = 7.0
 var _swinging: bool = false
+var _aim_pose: Vector2 = Vector2.ZERO
+
 
 func _ready() -> void:
 	_build_bat()
 	_apply_stance()
+
 
 func configure(new_bats_left: bool, batter_position: Vector3) -> void:
 	bats_left = new_bats_left
@@ -28,25 +31,32 @@ func configure(new_bats_left: bool, batter_position: Vector3) -> void:
 	if _pivot != null:
 		reset_swing()
 
+
 func play_swing(profile: SwingProfileDefinition) -> void:
 	if profile == null:
 		return
 	_swing_duration = profile.swing_duration_seconds
 	_sweet_spot_progress = clampf(
-		profile.sweet_spot_seconds / maxf(0.001, _swing_duration),
-		0.25,
-		0.72
+		profile.sweet_spot_seconds / maxf(0.001, _swing_duration), 0.25, 0.72
 	)
 	_attack_angle_degrees = profile.attack_angle_degrees
 	_swing_elapsed = 0.0
 	_swinging = true
 	_apply_stance()
 
+
+func set_aim_pose(normalized_aim: Vector2) -> void:
+	_aim_pose = Vector2(clampf(normalized_aim.x, -1.0, 1.0), clampf(normalized_aim.y, -1.0, 1.0))
+	if not _swinging and _pivot != null:
+		_apply_stance()
+
+
 func reset_swing() -> void:
 	_swinging = false
 	_swing_elapsed = 0.0
 	if _pivot != null:
 		_apply_stance()
+
 
 func _process(delta: float) -> void:
 	if not _swinging or _pivot == null:
@@ -56,33 +66,46 @@ func _process(delta: float) -> void:
 	if _swing_elapsed >= _swing_duration + FOLLOW_THROUGH_HOLD_SECONDS:
 		reset_swing()
 
+
 func _apply_swing_pose(elapsed_seconds: float) -> void:
 	var side: float = handed_side(bats_left)
-	_pivot.position = pivot_position_at_elapsed(
-		bats_left,
-		elapsed_seconds,
-		_sweet_spot_progress * _swing_duration,
-		_swing_duration
+	var phases: Vector2 = phase_progress_at_elapsed(
+		elapsed_seconds, _sweet_spot_progress * _swing_duration, _swing_duration
+	)
+	var load_influence: float = 0.0 if phases.y > 0.0 else 1.0 - phases.x
+	_pivot.position = (
+		pivot_position_at_elapsed(
+			bats_left, elapsed_seconds, _sweet_spot_progress * _swing_duration, _swing_duration
+		)
+		+ aim_pose_position_offset(_aim_pose) * load_influence
 	)
 	_pivot.rotation = Vector3(
 		deg_to_rad(-_attack_angle_degrees),
 		deg_to_rad(
-			yaw_degrees_at_elapsed(
-				bats_left,
-				elapsed_seconds,
-				_sweet_spot_progress * _swing_duration,
-				_swing_duration
+			(
+				yaw_degrees_at_elapsed(
+					bats_left,
+					elapsed_seconds,
+					_sweet_spot_progress * _swing_duration,
+					_swing_duration
+				)
+				+ aim_pose_yaw_offset_degrees(_aim_pose) * load_influence
 			)
 		),
 		0.0
 	)
 	_bat_axis.rotation.z = deg_to_rad(
-		-side * axis_tilt_degrees_at_elapsed(
-			elapsed_seconds,
-			_sweet_spot_progress * _swing_duration,
-			_swing_duration
+		(
+			-side
+			* (
+				axis_tilt_degrees_at_elapsed(
+					elapsed_seconds, _sweet_spot_progress * _swing_duration, _swing_duration
+				)
+				+ aim_pose_axis_tilt_degrees(_aim_pose) * load_influence
+			)
 		)
 	)
+
 
 func _build_bat() -> void:
 	_pivot = Node3D.new()
@@ -122,46 +145,68 @@ func _build_bat() -> void:
 	barrel.material_override = _material(Color(0.82, 0.68, 0.36))
 	_bat_axis.add_child(barrel)
 
+
 func _apply_stance() -> void:
 	var side: float = handed_side(bats_left)
 	# The hands begin behind the back shoulder (-Z), drive to a square barrel
 	# at the authored sweet-spot time, then finish toward the front shoulder.
 	# Handedness mirrors X and yaw while preserving that back-to-front motion.
-	_pivot.position = stance_pivot_position(bats_left)
+	_pivot.position = (stance_pivot_position(bats_left) + aim_pose_position_offset(_aim_pose))
 	_pivot.rotation = Vector3(
 		deg_to_rad(-_attack_angle_degrees),
-		deg_to_rad(side * STANCE_YAW_DEGREES),
+		deg_to_rad(side * STANCE_YAW_DEGREES + aim_pose_yaw_offset_degrees(_aim_pose)),
 		0.0
 	)
 	_bat_axis.rotation = Vector3(
 		0.0,
 		0.0,
-		deg_to_rad(-side * STANCE_AXIS_TILT_DEGREES)
+		deg_to_rad(-side * (STANCE_AXIS_TILT_DEGREES + aim_pose_axis_tilt_degrees(_aim_pose)))
 	)
+
+
+static func aim_pose_position_offset(normalized_aim: Vector2) -> Vector3:
+	return Vector3(0.0, clampf(normalized_aim.y, -1.0, 1.0) * 0.075, 0.0)
+
+
+static func aim_pose_yaw_offset_degrees(normalized_aim: Vector2) -> float:
+	return clampf(normalized_aim.x, -1.0, 1.0) * 4.0
+
+
+static func aim_pose_axis_tilt_degrees(normalized_aim: Vector2) -> float:
+	return clampf(normalized_aim.y, -1.0, 1.0) * 4.0 + clampf(normalized_aim.x, -1.0, 1.0) * 2.0
+
 
 static func handed_side(is_left_handed: bool) -> float:
 	return -1.0 if is_left_handed else 1.0
 
+
 static func stance_pivot_x(is_left_handed: bool) -> float:
 	return handed_side(is_left_handed) * 0.24
+
 
 static func stance_yaw_degrees(is_left_handed: bool) -> float:
 	return handed_side(is_left_handed) * STANCE_YAW_DEGREES
 
+
 static func contact_yaw_degrees(_is_left_handed: bool) -> float:
 	return 0.0
+
 
 static func finish_yaw_degrees(is_left_handed: bool) -> float:
 	return handed_side(is_left_handed) * FINISH_YAW_DEGREES
 
+
 static func stance_pivot_position(is_left_handed: bool) -> Vector3:
 	return Vector3(stance_pivot_x(is_left_handed), 1.15, -0.14)
+
 
 static func contact_pivot_position(is_left_handed: bool) -> Vector3:
 	return Vector3(handed_side(is_left_handed) * 0.33, 0.97, 0.08)
 
+
 static func finish_pivot_position(is_left_handed: bool) -> Vector3:
 	return Vector3(handed_side(is_left_handed) * 0.12, 1.18, 0.22)
+
 
 static func pivot_position_at_elapsed(
 	is_left_handed: bool,
@@ -170,19 +215,16 @@ static func pivot_position_at_elapsed(
 	swing_duration_seconds: float
 ) -> Vector3:
 	var phases: Vector2 = phase_progress_at_elapsed(
-		elapsed_seconds,
-		sweet_spot_seconds,
-		swing_duration_seconds
+		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
 	)
 	if phases.y <= 0.0:
 		return stance_pivot_position(is_left_handed).lerp(
-			contact_pivot_position(is_left_handed),
-			phases.x
+			contact_pivot_position(is_left_handed), phases.x
 		)
 	return contact_pivot_position(is_left_handed).lerp(
-		finish_pivot_position(is_left_handed),
-		phases.y
+		finish_pivot_position(is_left_handed), phases.y
 	)
+
 
 static func yaw_degrees_at_elapsed(
 	is_left_handed: bool,
@@ -191,81 +233,50 @@ static func yaw_degrees_at_elapsed(
 	swing_duration_seconds: float
 ) -> float:
 	var phases: Vector2 = phase_progress_at_elapsed(
-		elapsed_seconds,
-		sweet_spot_seconds,
-		swing_duration_seconds
+		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
 	)
 	if phases.y <= 0.0:
 		return lerpf(
-			stance_yaw_degrees(is_left_handed),
-			contact_yaw_degrees(is_left_handed),
-			phases.x
+			stance_yaw_degrees(is_left_handed), contact_yaw_degrees(is_left_handed), phases.x
 		)
-	return lerpf(
-		contact_yaw_degrees(is_left_handed),
-		finish_yaw_degrees(is_left_handed),
-		phases.y
-	)
+	return lerpf(contact_yaw_degrees(is_left_handed), finish_yaw_degrees(is_left_handed), phases.y)
+
 
 static func axis_tilt_degrees_at_elapsed(
-	elapsed_seconds: float,
-	sweet_spot_seconds: float,
-	swing_duration_seconds: float
+	elapsed_seconds: float, sweet_spot_seconds: float, swing_duration_seconds: float
 ) -> float:
 	var phases: Vector2 = phase_progress_at_elapsed(
-		elapsed_seconds,
-		sweet_spot_seconds,
-		swing_duration_seconds
+		elapsed_seconds, sweet_spot_seconds, swing_duration_seconds
 	)
 	if phases.y <= 0.0:
-		return lerpf(
-			STANCE_AXIS_TILT_DEGREES,
-			CONTACT_AXIS_TILT_DEGREES,
-			phases.x
-		)
-	return lerpf(
-		CONTACT_AXIS_TILT_DEGREES,
-		FINISH_AXIS_TILT_DEGREES,
-		phases.y
-	)
+		return lerpf(STANCE_AXIS_TILT_DEGREES, CONTACT_AXIS_TILT_DEGREES, phases.x)
+	return lerpf(CONTACT_AXIS_TILT_DEGREES, FINISH_AXIS_TILT_DEGREES, phases.y)
+
 
 static func phase_progress_at_elapsed(
-	elapsed_seconds: float,
-	sweet_spot_seconds: float,
-	swing_duration_seconds: float
+	elapsed_seconds: float, sweet_spot_seconds: float, swing_duration_seconds: float
 ) -> Vector2:
 	var safe_sweet_spot: float = maxf(0.001, sweet_spot_seconds)
-	var safe_duration: float = maxf(
-		safe_sweet_spot + 0.001,
-		swing_duration_seconds
-	)
+	var safe_duration: float = maxf(safe_sweet_spot + 0.001, swing_duration_seconds)
 	if elapsed_seconds <= safe_sweet_spot:
-		var pre_contact: float = clampf(
-			elapsed_seconds / safe_sweet_spot,
-			0.0,
-			1.0
-		)
+		var pre_contact: float = clampf(elapsed_seconds / safe_sweet_spot, 0.0, 1.0)
 		# Cubic Hermite drive: start at rest, peak shortly before contact, and
 		# retain nearly that velocity through the ball instead of easing to a
 		# stop at the authored sweet spot.
 		var drive: float = (
-			-0.6 * pre_contact * pre_contact * pre_contact
-			+ 1.6 * pre_contact * pre_contact
+			-0.6 * pre_contact * pre_contact * pre_contact + 1.6 * pre_contact * pre_contact
 		)
 		return Vector2(drive, 0.0)
 	var post_contact: float = clampf(
-		(elapsed_seconds - safe_sweet_spot)
-		/ (safe_duration - safe_sweet_spot),
-		0.0,
-		1.0
+		(elapsed_seconds - safe_sweet_spot) / (safe_duration - safe_sweet_spot), 0.0, 1.0
 	)
 	# Continue through contact without a speed discontinuity, then decelerate
 	# monotonically into a readable front-shoulder finish.
 	var follow_through: float = (
-		1.5 * post_contact
-		- 0.5 * post_contact * post_contact * post_contact
+		1.5 * post_contact - 0.5 * post_contact * post_contact * post_contact
 	)
 	return Vector2(1.0, follow_through)
+
 
 static func _material(color: Color) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()

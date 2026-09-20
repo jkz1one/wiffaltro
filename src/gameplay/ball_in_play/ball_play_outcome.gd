@@ -3,6 +3,7 @@ extends RefCounted
 
 enum Result {
 	OUT,
+	FOUL,
 	SINGLE,
 	DOUBLE,
 	TRIPLE,
@@ -14,17 +15,20 @@ var reason: StringName = &""
 var caught: bool = false
 var resolution_position: Vector3 = Vector3.ZERO
 
+
 func display_name() -> String:
+	var label: String = "UNKNOWN"
 	match result:
 		Result.OUT:
-			return "OUT"
+			label = "OUT"
+		Result.FOUL:
+			label = "FOUL"
 		Result.SINGLE:
-			return "SINGLE"
+			label = "SINGLE"
 		Result.DOUBLE:
-			return "DOUBLE"
+			label = "DOUBLE"
 		Result.TRIPLE:
-			return "TRIPLE"
+			label = "TRIPLE"
 		Result.HOME_RUN:
-			return "HOME RUN"
-		_:
-			return "UNKNOWN"
+			label = "HOME RUN"
+	return label
