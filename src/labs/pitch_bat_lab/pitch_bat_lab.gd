@@ -1,7 +1,8 @@
 class_name PitchBatLab
 extends Node3D
 
-@warning_ignore_start("unused_private_class_variable") const PITCH_IDS: Array[StringName] = [
+@warning_ignore_start("unused_private_class_variable")
+const PITCH_IDS: Array[StringName] = [
 	&"pitch.overhand_four_seam",
 	&"pitch.overhand_sinker",
 	&"pitch.sidearm_sinker",
