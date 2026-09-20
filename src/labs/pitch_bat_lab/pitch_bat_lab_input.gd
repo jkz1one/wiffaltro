@@ -12,6 +12,7 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 			lab.get_viewport().set_input_as_handled()
 			return
 	if lab._debug_paused:
+		_cancel_paused_release(lab, event)
 		lab.get_viewport().set_input_as_handled()
 		return
 	if (
@@ -59,12 +60,39 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 	if not key_event.pressed or key_event.echo:
 		return
 	var handled: bool
-	if lab._match_mode:
+	if key_event.keycode == KEY_ESCAPE:
+		handled = _close_menu(lab)
+	elif lab._match_mode:
 		handled = _handle_match_key(lab, key_event.keycode)
 	else:
 		handled = _handle_lab_key(lab, key_event.keycode)
 	if handled:
 		lab.get_viewport().set_input_as_handled()
+
+static func _cancel_paused_release(lab: PitchBatLab, event: InputEvent) -> void:
+	if lab._release_controller == null or not lab._release_controller.active:
+		return
+	var released: bool = event.is_action_released(&"pitch_release", true)
+	if event is InputEventMouseButton:
+		var click: InputEventMouseButton = event as InputEventMouseButton
+		released = released or (click.button_index == MOUSE_BUTTON_LEFT and not click.pressed)
+	if released:
+		# A release during pause abandons the uncommitted delivery. It must not
+		# become an automatic throw when simulation resumes.
+		PitchBatLabFeelSupport.cancel_release(lab)
+		lab._status_before_pause = "Delivery canceled. Hold to begin a new Pitch."
+		lab._refresh_config()
+
+static func _close_menu(lab: PitchBatLab) -> bool:
+	if lab._display_menu_open:
+		lab._toggle_display_menu()
+	elif lab._pitching_staff_active:
+		lab._toggle_pitching_staff()
+	elif lab._field_setup_active:
+		lab._toggle_field_setup()
+	else:
+		return false
+	return true
 
 static func _handle_pointer_event(
 	lab: PitchBatLab,
@@ -83,7 +111,7 @@ static func _handle_pointer_event(
 		):
 			return true
 	if lab._match_mode and lab._player_is_pitching():
-		if lab._field_setup_active:
+		if lab._field_setup_active or lab._pitching_staff_active:
 			return false
 		if (
 			lab._match_state == null

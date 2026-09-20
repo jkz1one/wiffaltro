@@ -20,8 +20,8 @@ python3 tools/verify.py
 An existing engine can also be selected with `--godot /path/to/Godot` or
 `GODOT_BIN`. Version mismatches fail explicitly. The runner checks whitespace,
 GDScript parsing/lint, engine import, core regressions, seeded match soak,
-two live matches, physical-ball fixtures, QC file export, and a 120-frame
-main-scene smoke. Engine errors fail even when Godot exits with zero;
+player-input flow, two live matches, physical-ball fixtures, QC file export,
+and a 120-frame main-scene smoke. Engine errors fail even when Godot exits with zero;
 regression scenes must also print their completion marker. Every engine step
 has a timeout (default 180 seconds, adjustable with `--timeout`).
 
@@ -88,6 +88,17 @@ effort adjustment in the game.
 
 ## Extended runtime coverage — 2026-09-20
 
+- `player_flow_test.tscn`: real lab scenes and the input dispatcher exercise
+  keyboard, mouse, and controller release during pause, a fresh delivery after
+  cancellation, refused/safe Match-Lab transitions, setup input isolation, and
+  Escape navigation. Timed Contact and Power input produces real Jolt balls;
+  checks cover duplicate swings, ball pause, resolution, unskippable result
+  holds, next-Batter readiness, an early miss followed by automatic delivery,
+  and restart during ball-in-play without stale callbacks. A center-Pitch
+  fixture and test-only full-trajectory knowledge isolate batting input;
+  they are not a human skill model or balance sample. Test exports stay outside
+  `user://qc` and are removed. Headless dispatcher tests do not validate OS
+  focus changes, rendered UI hit areas, or actual controller hardware.
 - `match_soak_test.tscn`: 100 seeded complete state-machine matches and their
   exact replays. Uses scripted outcome inputs, not pitch physics. Checks count
   bounds, foul caps, score monotonicity, hit/run accounting, duplicate-start

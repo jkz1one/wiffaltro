@@ -595,7 +595,7 @@ static func _build_pitching_staff(lab: PitchBatLab, canvas: CanvasLayer) -> void
 		lab._pitching_staff_panel.add_child(button)
 		lab._pitcher_buttons.append(button)
 	var return_button: Button = Button.new()
-	return_button.text = "RETURN TO PITCH"
+	return_button.text = "RETURN TO PITCH (ESC)"
 	return_button.custom_minimum_size = Vector2(400.0, 38.0)
 	return_button.focus_mode = Control.FOCUS_NONE
 	return_button.pressed.connect(lab._toggle_pitching_staff)
@@ -798,7 +798,7 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 		grid.add_child(anchor_button)
 		lab._field_anchor_buttons.append(anchor_button)
 	var exit_button: Button = Button.new()
-	exit_button.text = "RETURN TO PITCH"
+	exit_button.text = "RETURN TO PITCH (ESC)"
 	exit_button.custom_minimum_size = Vector2(336.0, 38.0)
 	exit_button.focus_mode = Control.FOCUS_NONE
 	exit_button.pressed.connect(lab._toggle_field_setup)

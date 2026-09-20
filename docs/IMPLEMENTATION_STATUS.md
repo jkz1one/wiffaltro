@@ -2,6 +2,23 @@
 
 **Current phase:** Phase 3 — automated verification passing; hands-on validation pending
 
+## Player-flow hardening — 2026-09-20
+
+- Releasing Space, left mouse, or controller A while debug-paused cancels the
+  uncommitted delivery. Resuming cannot auto-throw it or spend Stamina; a fresh
+  hold/release still launches normally.
+- Refused Mechanics Lab entry preserves pause. Safe Match/Lab round trips
+  restore the original ready message instead of a stale pause cue.
+- Pitching Staff and Field Setup preserve the Pitch target against incidental
+  mouse, arrow-key, and stick movement. Escape closes display options first,
+  then returns from defensive setup to the pitching camera.
+- Added live player-input coverage for Contact/Power hits, an early miss,
+  duplicate swings, readable result holds, next-Batter readiness, pause of
+  physical balls, and restarting during ball-in-play.
+- Smooth, readable play remains the priority. Delivery timing, result holds,
+  camera interpolation, scoring geometry, and physics coefficients are unchanged.
+- Headless input/physics checks do not replace rendered camera and human feel QC.
+
 ## Live match and Jolt follow-up — 2026-09-20
 
 - Added 100 seeded state-machine matches with deterministic replays and an

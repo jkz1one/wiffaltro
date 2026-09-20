@@ -1531,10 +1531,21 @@ the player to `PRE_PITCH`; the player controls tempo by choosing when to begin
 the next delivery. On offense, the opponent delivery director begins its own
 bounded set/windup cadence.
 
+Hardening prioritizes smooth, readable transitions over shortening this loop.
+Extra acceptance input cannot skip a result hold. Debug pause freezes the
+release meter, live actors, and cadence. A Pitch-button release during pause
+cancels only an active uncommitted player delivery, with no throw or Stamina
+cost. A rejected Mechanics Lab transition must preserve the paused state.
+Safe transitions restore the pre-pause status before suspending the match.
+
 For player pitching, Pitch selection, target, effort, Pitcher/Primary Fielder
 roles, and the Primary Fielder anchor are mutable only in their legal ready
 states. They lock when the release meter begins and remain immutable through
 Pitch flight and ball-in-play.
+
+Pitching Staff and Field Setup shield the Pitch target from pointer and
+continuous aiming input. Escape closes display options before returning from
+defensive setup through the normal role-camera path.
 
 `MatchPresentationDirector` is a match-local presentation state machine. It
 selects one, two, or three unique, seeded intro/outro shots from an authored
@@ -1959,8 +1970,9 @@ snapshots retain loaded geometry, engine version, and available Git metadata.
 This is development telemetry, not a gameplay save system.
 
 The verification runner also executes seeded full-match state transitions,
-two scripted-player live-scene matches, and isolated Jolt ball fixtures. These
-test reliability and collision-to-rule integration, not a representative result
+two scripted-player live-scene matches, live player-input flow checks, and
+isolated Jolt ball fixtures. These test reliability and collision-to-rule
+integration, not a representative result
 distribution. PitcherDefense must allow a grounded ball center down to world
 height zero; a 5 cm lower gate excludes the authored 3.65 cm-radius rolling ball.
 Negative-height positions remain ineligible. No mound radius or control

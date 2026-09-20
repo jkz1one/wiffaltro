@@ -79,6 +79,8 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("player-flow", [*base, "--fixed-fps", "60", "res://src/tests/player_flow_test.tscn"],
+                 "Wiffaltro player flow checks passed."),
                 ("live-match", [*base, "--fixed-fps", "60", "res://src/tests/live_match_test.tscn"],
                  "Wiffaltro live match checks passed:"),
                 ("match-soak", [*base, "res://src/tests/match_soak_test.tscn"],

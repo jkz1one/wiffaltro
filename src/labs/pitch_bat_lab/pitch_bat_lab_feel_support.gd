@@ -366,15 +366,18 @@ static func reset_debug_pause(lab: PitchBatLab) -> void:
 		return
 	lab._debug_paused = false
 	lab.get_tree().paused = false
+	lab._status_label.text = lab._status_before_pause
 
 
 static func toggle_match_mode(lab: PitchBatLab) -> void:
+	if lab._match_mode and not _can_suspend_match_for_lab(lab):
+		lab._status_label.text = "MECHANICS LAB\nAvailable before a Pitch, while play is stopped."
+		if lab._debug_paused:
+			lab._status_label.text += "\nDEBUG PAUSED — P to resume"
+		lab._refresh_config()
+		return
 	reset_debug_pause(lab)
 	if lab._match_mode:
-		if not _can_suspend_match_for_lab(lab):
-			lab._status_label.text = ("MECHANICS LAB\nAvailable before a Pitch, while play is stopped.")
-			lab._refresh_config()
-			return
 		_suspend_match_for_lab(lab)
 	else:
 		_resume_suspended_match(lab)
@@ -753,6 +756,8 @@ static func _update_continuous_input(lab: PitchBatLab, delta_seconds: float) -> 
 			lab._player_is_pitching()
 			and lab._match_state.phase == MatchState.Phase.PRE_PITCH
 			and not lab._release_controller.active
+			and not lab._field_setup_active
+			and not lab._pitching_staff_active
 		):
 			_apply_pitch_aim(lab, amount)
 		elif lab._player_is_batting() and not lab._swing_consumed:

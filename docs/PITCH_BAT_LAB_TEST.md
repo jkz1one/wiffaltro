@@ -62,6 +62,7 @@ This is a functional match simulator and shared debug lab, not a polished game s
   same match state
 - `F3`: print completed records and show their automatically saved JSON file path
 - `P`: pause/resume the simulation for debug inspection
+- `Escape`: close display options or return from Field Setup / Pitching Staff
 - `V`: cycle camera manually
 
 ## Match Mode controls
@@ -228,6 +229,12 @@ selectable Pitches. Shallow Center and Middle Center must appear as disabled
 `PITCHER LANE` cells; neither cycling nor AI setup may place the Primary Fielder
 there. Deep Center remains selectable.
 
+In Pitching Staff and Field Setup, move the pointer and use the aiming
+arrows/stick: the Pitch target must stay unchanged. Neither clicking around
+the scene nor pressing the delivery button may throw from these screens.
+`Escape` returns to the pitching camera; if display options are open, the
+first press closes those options and the next closes defensive setup.
+
 Shallow side anchors may stand in front of the mound at X +/-5.5 m, Z 8.5 m.
 They must not obscure the Batter, Pitcher, or curved Pitch flight in either
 gameplay camera. Fielders stay at their anchors until contact. After contact,
@@ -245,12 +252,25 @@ tired, low-Control Pitchers. Early and late releases should reduce command
 without allowing any mid-flight steering. Holding beyond the window must
 auto-release rather than stall the match.
 
+During a held delivery, press `P`, release the Pitch button while paused,
+then resume. The abandoned delivery must not throw, spend Stamina, or change
+the count. A fresh hold/release must still work. Repeat with Space, left mouse,
+and controller A. Pause a live Pitch or batted ball and press `F2`: refused Lab
+entry must leave the simulation paused until `P` resumes it.
+
 At a stopped pre-Pitch state, note the inning, score, count, bases, current
 Batter/Pitcher, selected Pitch, aim, effort, and defensive anchor. Press `F2`,
 use the Mechanics Lab, then press `F2` again. The same match and selections must
 resume without replaying the intro or resetting the inning. `F2` during a live
 Pitch, ball-in-play, cadence, or presentation should refuse safely rather than
 discarding the play.
+
+Prioritize smooth, readable play over a shorter loop. Extra clicks during a
+result hold must not skip it. Contact and Power hits should switch to the live
+ball camera, resolve once, then give the next Batter time to confirm readiness.
+An early miss should show its call and deliver the next Pitch automatically to
+the same Batter. Restarting during ball-in-play must remove the old ball and
+its pending callbacks without changing the new match's score or count.
 
 With F1 off, the compact scorebug should be the only persistent baseball-state
 readout: score, half/inning, count, outs, bases, Batter, Pitcher, Pitch count,
