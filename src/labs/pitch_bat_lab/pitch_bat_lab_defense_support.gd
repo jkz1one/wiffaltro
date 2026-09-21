@@ -7,20 +7,20 @@ const CHARGE_REACTION_SECONDS: float = 0.20
 
 static func advance_pitcher(lab: PitchBatLab, delta: float) -> void:
 	var state: BallPlayState = lab._ball_play_resolver.state
-	if lab._pitcher_attempted or not state.has_grounded or state.defender_touched:
+	if lab._pitcher_attempted or state.defender_touched:
 		return
 	if state.elapsed_seconds < CHARGE_REACTION_SECONDS:
 		return
 	var ball: Vector3 = lab._batted_ball.global_position
-	# Pursue nearby grounders before Single, never a Pitch or an airborne ball.
-	if ball.z >= lab._field_definition.safe_hit_z_m or ball.y > 1.05:
-		return
-	var target: Vector3 = Vector3(ball.x, 0.0, ball.z)
-	if target.distance_to(lab.MOUND_ORIGIN) > CHARGE_RADIUS_M:
-		return
 	if lab._batted_ball.linear_velocity.length() <= lab.SETTLED_SPEED_MPS:
 		return
-	var speed: float = lerpf(3.8, 5.2, float(MatchLabSupport.pitcher_fielding_rating(lab)) / 10.0)
+	var speed: float = lerpf(3.6, 4.6, float(MatchLabSupport.pitcher_fielding_rating(lab)) / 10.0)
+	var plan: FielderPlan = FielderPlanner.plan(ball, lab._batted_ball.linear_velocity,
+		state.has_grounded, lab._pitcher_marker.global_position, speed, PitcherDefense.REACTION_RADIUS_M)
+	var target: Vector3 = Vector3(plan.intercept_position.x, 0.0, plan.intercept_position.z)
+	# Limited local pursuit of grounders and catchable air balls, never a Pitch.
+	if not plan.reachable or target.distance_to(lab.MOUND_ORIGIN) > CHARGE_RADIUS_M:
+		return
 	lab._pitcher_marker.global_position = DefenderSpacing.step_around_mound(
 		lab._pitcher_marker.global_position, target,
 		lab._primary_fielder.global_position, speed * maxf(0.0, delta)

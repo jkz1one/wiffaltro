@@ -8,6 +8,7 @@ var definition: PlayerDefinition
 var stamina_max: float = 0.0
 var stamina_remaining: float = 0.0
 var pitch_count: int = 0
+var pitching_finished: bool = false
 
 static func create(player_definition: PlayerDefinition) -> PlayerMatchState:
 	var result: PlayerMatchState = PlayerMatchState.new()
@@ -15,7 +16,7 @@ static func create(player_definition: PlayerDefinition) -> PlayerMatchState:
 	result.stamina_max = (
 		BASE_STAMINA
 		+ float(player_definition.stamina) * STAMINA_PER_RATING
-	)
+	) * 1.08
 	result.stamina_remaining = result.stamina_max
 	return result
 

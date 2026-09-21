@@ -28,6 +28,7 @@ var strikes: int = 0
 var plate_appearance_number: int = 1
 var elapsed_seconds: float = 0.0
 var between_batters: bool = true
+var batter_timeout_used: bool = false
 var last_event: String = "Game ready"
 var winner_name: String = ""
 var _between_batters_before_pitch: bool = true
@@ -174,6 +175,7 @@ func _complete_plate_appearance(description: String) -> void:
 	last_event = description
 	batting_team().advance_batter()
 	plate_appearance_number += 1
+	batter_timeout_used = false
 	balls = 0
 	strikes = 0
 	between_batters = true

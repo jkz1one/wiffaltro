@@ -102,9 +102,9 @@ func update(
 		var follow_weight: float = 1.0 - exp(-FIELD_FOLLOW_SPEED * delta_seconds)
 		_field_focus = _field_focus.lerp(
 			Vector3(
-				ball_position.x * 0.48,
-				clampf(ball_position.y * 0.30 + 1.2, 1.2, 5.5),
-				lerpf(5.0, ball_position.z, 0.58)
+				ball_position.x * 0.78,
+				clampf(ball_position.y * 0.65 + 1.2, 1.2, 12.0),
+				lerpf(5.0, ball_position.z, 0.82)
 			),
 			follow_weight
 		)
@@ -120,8 +120,8 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 		Shot.BATTING:
 			# Stay nearly centered on the Pitch lane. A small handed offset keeps
 			# depth readable without placing the loaded barrel across the view.
-			camera_position = Vector3(_batter_side * 0.34, 1.88, -3.38)
-			focus = Vector3(0.0, 1.14, 7.1)
+			camera_position = Vector3(_batter_side * 0.34, 2.10, -3.38)
+			focus = Vector3(0.0, 1.10, 7.1)
 		Shot.PITCHING:
 			camera_position = Vector3(0.0, 2.45, 16.9)
 			focus = Vector3(0.0, 1.05, 0.0)
@@ -147,7 +147,7 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 			focus = _field_focus
 			var depth_pullback: float = clampf(ball_position.z * 0.16, 0.0, 7.0)
 			if _defense_ball_view:
-				var defense_height: float = 8.5 + clampf(ball_position.y * 0.30, 0.0, 4.0)
+				var defense_height: float = 9.5 + clampf(ball_position.y * 0.40, 0.0, 6.0)
 				camera_position = focus + Vector3(
 					0.0, defense_height, 15.5 + depth_pullback * 0.55
 				)

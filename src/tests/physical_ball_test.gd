@@ -22,7 +22,11 @@ func _ready() -> void:
 		BallPlayOutcome.Result.DOUBLE, true)
 	await _launch_case("pitcher charges before Single", Vector3(0, 0.04, 9), Vector3(0, 0, 1),
 		BallPlayOutcome.Result.OUT, true, "CLEAN")
-	await _launch_case("pitcher clean grounder", Vector3(0, 0.04, 9.8), Vector3(0, 0, 6),
+	await _launch_case("pitcher charges after Single", Vector3(0, 0.04, 9.8), Vector3(0, 0, 6),
+		BallPlayOutcome.Result.SINGLE, true, "CLEAN")
+	await _launch_case("pitcher nearby air catch", Vector3(2, 2.5, 12.5), Vector3(-0.7, -0.2, 1),
+		BallPlayOutcome.Result.OUT, false, "CLEAN")
+	await _launch_case("pitcher clean grounder", Vector3(0, 0.04, 12.95), Vector3(0, 0, 6),
 		BallPlayOutcome.Result.OUT, true, "CLEAN")
 	await _launch_case("pitcher bobble", Vector3(0.45, 0.04, 9.8), Vector3(0, 0, 16),
 		BallPlayOutcome.Result.SINGLE, true, "BOBBLE")
@@ -54,6 +58,10 @@ func _launch_case(
 	launch.position = position
 	launch.velocity = velocity
 	lab._start_ball_in_play(launch)
+	if label == "pitcher clean grounder":
+		# This isolated comebacker enters just before the fixed mound envelope,
+		# having already earned Single on its earlier travel from home.
+		lab._ball_play_resolver.state.raise_result_floor(BallPlayState.ResultFloor.SINGLE)
 	lab._primary_attempts = 2
 	lab._pitcher_attempted = pitcher_outcome.is_empty()
 	lab._batted_ball.surface_contact.connect(func(surface: StringName, _point: Vector3) -> void:
@@ -99,6 +107,9 @@ func _launch_case(
 			"charging pitcher must physically control this grounder before Single")
 		_check(lab._pitcher_marker.position.z < lab._field_definition.safe_hit_z_m,
 			"pitcher must reach the grounder rather than extending the mound envelope")
+	if label == "pitcher nearby air catch" and _result != null:
+		_check(_result.caught and lab._pitcher_marker.position.x > 0.5,
+			"pitcher must move to catch the nearby air ball without waiting for ground contact")
 	if label == "pitcher clean grounder":
 		_check(
 			lab._ball_play_resolver.state.result_floor == BallPlayState.ResultFloor.SINGLE,

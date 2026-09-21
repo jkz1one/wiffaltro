@@ -2,6 +2,44 @@
 
 **Current phase:** Phase 3 — first human feedback implemented; follow-up human QC pending
 
+## Home-run, pitcher and at-bat follow-up — 2026-09-21
+
+- Source of truth v0.4.22 supersedes the prior pitching re-entry rule. Once an
+  arm has thrown and is removed, it cannot pitch again that game; batting and
+  fielding remain available. Bullpen rows mark removed arms USED. AI changes
+  pitchers between Batters at 17% Stamina or less when a fresher arm is available,
+  replacing the former inning-index rotation.
+- Home Runs carry physically beyond the wall for 1.25 s, then use a wider
+  celebration camera with 4.4 s total call time. Scoring remains final at wall
+  clearance. Walk-offs finish that hold before the outro. Pause/reset are covered.
+- Pitcher pursuit includes nearby air balls and grounders at 3.6–4.6 m/s, with
+  the existing 0.20 s delay, 5 m local intercept limit and actual-body reach.
+  Ground control outside the original mound preserves earned result floors.
+- Single moves from 10.5 to 11.25 m at the user's request, a provisional human-QC
+  adjustment. The prior proxy's 10.5 m percentages do not validate this revision.
+  Deep Air, wall, HR height, Contact/Power and aerodynamic coefficients are unchanged.
+- Pitch selector is narrower with one-line rows and collapses during delivery.
+  Field/Bullpen buttons shrink; bottom text clears Pause; Esc is the sole pause
+  shortcut. The batting camera is raised 0.22 m and tilted slightly down.
+- T grants one tactical timeout during the pre-windup set per plate appearance,
+  preserving the selected AI Pitch and count. Normal pause remains unlimited.
+- Borderline chase offers and two-strike protection increase; in-zone AI contact
+  ability is unchanged. Seeded choice fixtures produced 155/600 borderline offers,
+  245/600 with two strikes, and 11/600 offers at a far waste location.
+- Fatigue diagnosis reproduced 0/12 broadly hittable Slider samples and 1/12 Drop
+  samples at 20% Stamina. Compensating after all stuff degradation, before command
+  error, corrects those misses. The same revised samples are 12/12 hittable for
+  both Slider variants and Drop. These are trajectory fixtures, not human hit rates.
+  Match capacity grows 8%; the steep ramp begins below 17% remaining, with a
+  positive plate-height floor. Weak stuff and command variance remain penalties.
+- Targeted coverage includes 324 pitch-quality trajectories, 12 actual Jolt
+  fixtures, home-run/walk-off presentation, timeout boundaries, bullpen eligibility,
+  keyboard pause and HUD bounds. Full Godot 4.7.2 verification passed, including
+  two live matches, 100 seeded match replays, core regressions and import/smoke.
+  Final local log: `builds/verification/20260921T043958550883Z`.
+- Next gate remains hands-on camera/HUD/fatigue review and a meaningful F3 sample.
+  Season/meta work remains deferred.
+
 ## Human playtest feedback — 2026-09-21
 
 - Source of truth advanced to v0.4.21 for bounded Pitcher grounder pursuit and

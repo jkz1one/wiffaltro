@@ -75,7 +75,8 @@ func _check_outro_and_restart(lab: PitchBatLab) -> void:
 	var final_score: String = lab._match_state.score_label()
 	var record_count: int = lab._play_records.size()
 	var export_path: String = lab._record_export.path
-	for frame in range(420):
+	# A game-ending HR gets its full celebration before the outro begins.
+	for frame in range(780):
 		await get_tree().physics_frame
 		if lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD:
 			break

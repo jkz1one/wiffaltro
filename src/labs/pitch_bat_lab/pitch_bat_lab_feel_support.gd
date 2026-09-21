@@ -55,6 +55,7 @@ static func update(lab: PitchBatLab, delta_seconds: float) -> void:
 		return
 	_update_continuous_input(lab, delta_seconds)
 	_update_pitch_release(lab, delta_seconds)
+	lab._home_run.advance(lab, delta_seconds)
 	_update_at_bat_cadence(lab, delta_seconds)
 	_update_pitcher_telegraph(lab)
 	_update_camera(lab, delta_seconds)
@@ -105,7 +106,7 @@ static func skip_match_presentation(lab: PitchBatLab) -> void:
 
 
 static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
-	var ball_live: bool = lab._ball_in_play_is_live()
+	var ball_live: bool = lab._ball_in_play_is_live() or lab._home_run.active
 	var ball_position: Vector3 = (
 		lab._batted_ball.global_position if lab._batted_ball != null else Vector3.ZERO
 	)
@@ -179,6 +180,26 @@ static func confirm_batter_ready(lab: PitchBatLab) -> void:
 	begin_ai_delivery(lab)
 
 
+static func request_batter_timeout(lab: PitchBatLab) -> bool:
+	if not lab._player_is_batting() or lab._debug_paused or lab._awaiting_batter_confirm:
+		return false
+	if lab._match_state.phase != MatchState.Phase.PRE_PITCH or lab._match_state.batter_timeout_used:
+		return false
+	var cadence: AtBatCadenceController = lab._at_bat_cadence
+	if (
+		cadence.state != AtBatCadenceController.State.DELIVERY
+		or cadence.elapsed_seconds >= cadence.active_set_seconds
+	):
+		return false
+	lab._match_state.batter_timeout_used = true
+	cadence.stop()
+	_reset_pitcher_telegraph(lab)
+	lab._awaiting_batter_confirm = true
+	lab._status_label.text = "TIME\nClick or Space when ready"
+	lab._refresh_config()
+	return true
+
+
 static func begin_ai_delivery(lab: PitchBatLab) -> void:
 	if (
 		not lab._player_is_batting()
@@ -189,7 +210,8 @@ static func begin_ai_delivery(lab: PitchBatLab) -> void:
 		or lab._at_bat_cadence.state == AtBatCadenceController.State.DELIVERY
 	):
 		return
-	MatchLabSupport.apply_ai_pitch_choice(lab)
+	if not lab._ai_pitch_preselected:
+		MatchLabSupport.apply_ai_pitch_choice(lab)
 	lab._ai_pitch_preselected = true
 	_begin_ai_delivery_cadence(lab)
 
@@ -236,6 +258,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 				lab._pitch_effort = 1.0
 				MatchLabSupport.assign_ai_defense_for_half(lab)
 			elif completed_plate_appearance and lab._player_is_batting():
+				MatchLabSupport.consider_ai_pitching_change(lab)
 				MatchLabSupport.assign_ai_fielder_anchor(lab)
 			lab._awaiting_batter_confirm = (
 				lab._player_is_batting() and (completed_plate_appearance or changed_half)
@@ -261,6 +284,13 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 
 
 static func notify_pitch_dead(lab: PitchBatLab) -> void:
+	if lab._home_run.active:
+		if lab._match_mode:
+			lab._at_bat_cadence.hold_dead_ball()
+			lab._at_bat_cadence.active_hold_seconds = PitchBatLabHomeRun.HOLD_SECONDS
+		else:
+			lab._at_bat_cadence.stop()
+		return
 	# Preserve the actual fielding position through the readable result hold.
 	if lab._batted_ball == null:
 		_reset_pitcher_telegraph(lab)
@@ -360,7 +390,7 @@ static func toggle_debug_pause(lab: PitchBatLab) -> void:
 	lab.get_tree().paused = lab._debug_paused
 	if lab._debug_paused:
 		lab._status_before_pause = lab._status_label.text
-		lab._status_label.text = "DEBUG PAUSED • V: camera • P: resume"
+		lab._status_label.text = "PAUSED • V: camera • Esc: resume"
 	else:
 		lab._display_menu_open = false
 		lab._status_label.text = lab._status_before_pause
@@ -382,7 +412,7 @@ static func toggle_match_mode(lab: PitchBatLab) -> void:
 	if lab._match_mode and not _can_suspend_match_for_lab(lab):
 		lab._status_label.text = "MECHANICS LAB\nAvailable before a Pitch, while play is stopped."
 		if lab._debug_paused:
-			lab._status_label.text += "\nDEBUG PAUSED • V: camera • P: resume"
+			lab._status_label.text += "\nPAUSED • V: camera • Esc: resume"
 		lab._refresh_config()
 		return
 	reset_debug_pause(lab)

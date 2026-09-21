@@ -45,7 +45,8 @@ static func _exercise(resolver: BallPlayResolver, scenario: String) -> void:
 		"primary_before_single":
 			resolver.record_clean_control(&"primary_fielder", Vector3(0.0, 0.2, 8.0), false)
 		"air_past_single":
-			resolver.observe_segment(Vector3(0.0, 1.0, 10.0), Vector3(0.0, 1.0, 11.0))
+			resolver.observe_segment(Vector3(0.0, 1.0, resolver.field.safe_hit_z_m - 0.1),
+				Vector3(0.0, 1.0, resolver.field.safe_hit_z_m + 0.1))
 			resolver.record_ground_contact(Vector3(0.0, 0.04, 12.0))
 			resolver.resolve_settled(Vector3(0.0, 0.04, 12.5))
 		"roller_past_deep", "air_past_deep", "touched_past_deep", "caught_past_deep":

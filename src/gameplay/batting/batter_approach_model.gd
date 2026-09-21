@@ -106,9 +106,11 @@ func decide(
 		swing_chance -= inside_penalty
 		swing_chance += awareness * 0.15
 	else:
-		swing_chance = 0.15 * exp(-chase_distance * 7.5)
+		# Borderline balls invite a real chase; obvious waste pitches remain
+		# easy takes. Recognition and two-strike protection increase temptation.
+		swing_chance = (0.34 + recognition_load * 0.045) * exp(-chase_distance * 5.5)
 		if strikes >= 2:
-			swing_chance += 0.12 * exp(-chase_distance * 4.0)
+			swing_chance += 0.18 * exp(-chase_distance * 4.0)
 	if balls >= 3 and strikes < 2:
 		swing_chance *= 0.58
 	if strikes >= 2 and in_zone:

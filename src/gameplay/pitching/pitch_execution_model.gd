@@ -17,7 +17,7 @@ const REACH_COMPENSATION_ITERATIONS: int = 5
 const REACH_TOLERANCE_M: float = 0.015
 const MAX_REACH_ADJUSTMENT_RADIANS: float = 0.075
 const MAX_CENTER_PULL: float = 0.88
-const MIN_PLATE_REACH_Y_M: float = -0.20
+const MIN_PLATE_REACH_Y_M: float = 0.12
 const COMMAND_CENTER: Vector2 = Vector2(0.0, 1.05)
 
 static func fatigue_pressure(fatigue: float) -> float:
@@ -27,23 +27,23 @@ static func fatigue_pressure(fatigue: float) -> float:
 	if amount <= 0.50:
 		var early: float = inverse_lerp(0.35, 0.50, amount)
 		return 0.025 * early * early
-	if amount <= 0.92:
-		var working: float = inverse_lerp(0.50, 0.92, amount)
-		return lerpf(0.025, 0.60, pow(working, 1.75))
-	var danger: float = inverse_lerp(0.92, 1.0, amount)
-	return lerpf(0.60, 1.0, pow(danger, 0.85))
+	if amount <= 0.83:
+		var working: float = inverse_lerp(0.50, 0.83, amount)
+		return lerpf(0.025, 0.25, pow(working, 1.75))
+	var danger: float = inverse_lerp(0.83, 1.0, amount)
+	return lerpf(0.25, 1.0, pow(danger, 1.20))
 
 static func crisis_pressure(fatigue: float) -> float:
 	var amount: float = clampf(fatigue, 0.0, 1.0)
-	if amount <= 0.75:
+	if amount <= 0.83:
 		return 0.0
-	return pow(inverse_lerp(0.75, 1.0, amount), 1.70)
+	return pow(inverse_lerp(0.83, 1.0, amount), 1.30)
 
 static func fatigue_stage_name(fatigue: float) -> String:
 	var amount: float = clampf(fatigue, 0.0, 1.0)
 	if amount < 0.50:
 		return "FRESH"
-	if amount < 0.75:
+	if amount < 0.83:
 		return "WORKING"
 	if amount < 0.92:
 		return "TIRED"
@@ -135,10 +135,6 @@ static func apply(
 		1.0 + delivery_speed_variance - velocity_loss
 	)
 
-	# Preserve vertical reach after the velocity loss, without correcting the
-	# movement loss or command error that makes a tired Pitch hittable.
-	_compensate_vertical_reach(base_parameters, result, plate_z)
-
 	var spin_loss_ceiling: float = 0.82 if is_breaking else 0.58
 	var spin_loss: float = clampf(
 		spin_pressure * spin_loss_ceiling + (1.0 - quality) * 0.08,
@@ -158,6 +154,9 @@ static func apply(
 		0.72
 	)
 	result.instability_strength *= 1.0 - instability_loss
+	# Re-aim the weakened stuff before adding command errors. Compensating
+	# before spin loss made breaking pitches miss by meters as they got tired.
+	_compensate_stuff_change(base_parameters, result, plate_z)
 
 	var control_scale: float = 0.75 + control_amount * 0.35
 	var release_sigma_m: float = (
@@ -241,7 +240,7 @@ static func apply(
 	result.seed = execution_seed
 	return result
 
-static func _compensate_vertical_reach(
+static func _compensate_stuff_change(
 	base_parameters: PitchLaunchParameters,
 	degraded_parameters: PitchLaunchParameters,
 	plate_z: float
@@ -255,7 +254,7 @@ static func _compensate_vertical_reach(
 		degraded_parameters,
 		Vector2(nominal_crossing.point.x, nominal_crossing.point.y),
 		plate_z,
-		false
+		true
 	)
 
 static func _pull_crossing_toward_center(

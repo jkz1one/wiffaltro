@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.16
+**Version:** v0.1.17
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -681,8 +681,12 @@ The initial match bands are:
 
 - 0–35% fatigue: no mechanical penalty
 - 35–50%: trace variance, reaching only 2.5% effect at 50%
-- 50–92%: progressive nonlinear degradation
-- 92–100%: steep danger band
+- 50–83%: gentle nonlinear degradation, reaching 25% pressure at 17% Stamina
+- 83–100%: pressure rises from 25% to 100%; crisis/lapse rolls begin here
+
+Match capacity is `(105 + 18 * Stamina rating) * 1.08`. These are distinct
+quantities: the HUD shows Stamina remaining, while diagnostic fatigue is spent
+capacity. Twenty percent remaining means 80% fatigue, not 20% fatigue.
 
 Velocity, movement authority, release position, and launch direction receive
 separate seeded rolls. Faster Pitches have more velocity to lose; breaking
@@ -696,6 +700,13 @@ corner targets. This supplements degraded stuff and variable execution; it
 does not replace every target with the zone center.
 
 That naturally creates a hanger.
+
+Re-aim weakened velocity/spin/perforation/instability together before adding
+release/direction/orientation errors. The previous vertical compensation ran
+before movement loss, causing breaking pitches to miss by large distances at
+ordinary targets. Command errors and seeded center pull remain separate, so this
+does not restore lost movement or guarantee a Strike. The final reach floor is
+0.12 m at the plate, keeping the ball visible above the ground.
 
 A final reach guard prevents velocity loss and error from sending exhausted
 Pitches below the simulation world before the plate plane. It does not force a
@@ -1381,10 +1392,11 @@ Pitcher may:
 - deflect hard contact
 - turn a still-moving fair grounder into an Out inside the fixed mound envelope
 
-`PitchBatLabDefenseSupport` permits bounded grounder pursuit after contact:
-0.20 s reaction delay, moving grounded ball before Single and no higher than
-1.05 m, target within 5.0 m of the original mound, Fielding-scaled speed of
-3.8–5.2 m/s. Both defenders route around the other's actual body position.
+`PitchBatLabDefenseSupport` permits bounded pursuit after contact:
+0.20 s reaction delay, a moving ball, a reachable `FielderPlanner` intercept
+within 5.0 m of the original mound, and Fielding-scaled speed of 3.6–4.6 m/s.
+Grounders and nearby air balls qualify; the Pitcher is slower than the Primary
+Fielder. Both defenders route around the other's actual body position.
 The attempt radius remains 0.60 m around the visible Pitcher, without remote
 control or pre-contact pursuit. The fielding pose persists through the result hold.
 
@@ -1401,6 +1413,13 @@ granting control outside the visible reaction space.
 ---
 
 # 48. Defensive Assignment Logic
+
+`PlayerMatchState.pitching_finished` is set when an arm with at least one thrown
+Pitch is replaced. `TeamMatchState.select_pitcher()` rejects returning arms;
+cycling skips them. Batting and fielding eligibility are unchanged. A pre-Pitch
+lineup preview does not burn an unused arm. The AI checks only between Batters,
+keeps the current arm above 17% Stamina, and otherwise selects the freshest
+eligible replacement. It keeps the current arm if no fresher replacement exists.
 
 Between batters:
 
@@ -1553,6 +1572,12 @@ shot through normal smoothing; a setup screen closed during inspection instead
 restores its gameplay shot. Bat and Batter actors are explicitly pausable even
 though the lab root must always process debug input and camera inspection.
 
+Esc is the sole keyboard pause shortcut; it backs out of nested settings/setup
+where applicable. Intro skip uses click/Space. `T` requests one Batter timeout
+per plate appearance during the AI's quiet set only. It stops cadence, preserves
+the preselected Pitch/target, and requires readiness confirmation to restart.
+It cannot cancel an active windup or flight. Normal pause remains unlimited.
+
 For player pitching, Pitch selection, target, effort, Pitcher/Primary Fielder
 roles, and the Primary Fielder anchor are mutable only in their legal ready
 states. They lock when the release meter begins and remain immutable through
@@ -1584,13 +1609,24 @@ to the Batter's side. Player offense retains the behind-the-Batter follow.
 Camera interpolation changes presentation only and cannot affect ball physics
 or fielding resolution.
 
+`PitchBatLabHomeRun` handles scored-ball presentation separately from resolution:
+the real body carries beyond the wall for 1.25 s, with scoring callbacks
+disconnected, then freezes as the camera smoothly switches to Establishing.
+The Home Run call lasts 4.4 s total; even a walk-off waits before the outro.
+Pause freezes the carry and timer. Reset/cleanup cancels the sequence. Live-ball
+tracking follows more of the ball's horizontal/depth travel and gains vertical
+range; batting camera height is 2.10 m with a slightly lower target.
+
 Match HUD ownership is split by purpose. `MatchScorebug` renders persistent
 baseball state from `MatchState` at a user-selectable bottom-right, top-left, or
 top-right anchor. A small boxless label beneath that anchor renders routine
 Ball/Strike/Foul and speed telemetry. Larger transition/result messages render
 above center at 26 px with dark-blue outline/shadow. `PitchPicker` renders the
 current repertoire as numbered buttons and owns Pitch count, Stamina and fatigue
-stage on player defense; selection locks with the release meter. The scorebug
+stage on player defense. The 252 px panel uses one-line numbered rows, preserves
+readable text and selected state, and collapses to the selected Pitch when
+delivery locks selection. It hides during Home Run presentation. Field/Bullpen
+toggle buttons are 132 px wide; footer text ends above the Pause button. The scorebug
 retains opponent condition during player batting. `PitchBatLabPauseMenu` nests
 HUD-anchor and blue-sky/green choices inside Pause. `PitchBatLabSettings` saves
 them in `user://display-settings.cfg`. Batting zone opacity is 0.35 and aim
@@ -1601,6 +1637,17 @@ Mechanics Lab only at a safe stopped pre-Pitch boundary. The Lab keeps the
 existing `MatchState` suspended and restores its selection/aim/role-facing
 presentation state on return; it never creates a replacement match merely to
 leave debug mode.
+
+HUD research references: Microsoft's [text-display guidance](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/101)
+emphasizes readable size, spacing and player context; its [contrast guidance](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/102)
+addresses information against changing backgrounds. The compact redesign removes
+repeated delivery labels and unused rows before reducing text size. These are
+design references, not a claim that headless layout checks establish visual
+accessibility compliance. Rendered review is still required.
+
+AI chase behavior uses a gradual outside-zone probability falloff: borderline
+balls invite offers, two strikes add protection, and far waste pitches remain
+mostly takes. In-zone swing, contact-aim and timing formulas are unchanged.
 
 ---
 

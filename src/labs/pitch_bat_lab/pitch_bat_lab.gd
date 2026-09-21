@@ -79,6 +79,7 @@ var _backdrop_button: Button
 var _display_menu_open: bool = false
 var _pause_menu: PitchBatLabPauseMenu
 var _pitch_picker: PitchPicker
+var _home_run: PitchBatLabHomeRun = PitchBatLabHomeRun.new()
 var _pitch_release_bar: ProgressBar
 var _pitch_release_ideal_marker: ColorRect
 var _presentation_backdrop: ColorRect
@@ -580,9 +581,7 @@ func _apply_fielding_outcome(
 
 
 func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
-	if _batted_ball != null:
-		_batted_ball.global_position = outcome.resolution_position
-		_batted_ball.stop_and_freeze()
+	_home_run.resolve_ball(self, outcome)
 	_primary_fielder.end_play()
 
 	var runs_scored: int = 0
@@ -821,6 +820,7 @@ func _ball_in_play_is_live() -> bool:
 
 
 func _cleanup_batted_ball() -> void:
+	_home_run.active = false
 	if _pitcher_marker != null:
 		_pitcher_marker.position = MOUND_ORIGIN
 		_pitcher_marker.rotation = Vector3.ZERO

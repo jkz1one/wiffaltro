@@ -20,7 +20,7 @@ python3 tools/verify.py
 An existing engine can also be selected with `--godot /path/to/Godot` or
 `GODOT_BIN`. Version mismatches fail explicitly. The runner checks whitespace,
 GDScript parsing/lint, engine import, core regressions, seeded match soak,
-player-input flow, playtest-feedback UI/cadence checks, two live matches,
+player-input flow, playtest-feedback UI/cadence and follow-up checks, pitch quality, two live matches,
 physical-ball fixtures, QC file export,
 and a 120-frame main-scene smoke. Engine errors fail even when Godot exits with zero;
 regression scenes must also print their completion marker. Every engine step
@@ -121,11 +121,20 @@ effort adjustment in the game.
   panel bounds at every scorebox anchor, batting zone opacity, 100 seeded quiet
   sets, and remote Pitcher control at a same-frame Single crossing. Checks that
   stopped balls and Double floors stay safe and ineligible pursuit stays still.
-- `physical_ball_test.tscn`: ten isolated actual Jolt launches through the
+- `pitch_quality_test.tscn`: 324 seeded trajectories across all nine families at
+  fresh, 20% remaining and empty Stamina. Checks above-ground plate arrival,
+  broadly hittable ordinary-target locations, gentler working-band speed loss,
+  and weaker stuff/command at empty Stamina. This is not a human batting model.
+- `playtest_followup_test.tscn`: actual HR carry and walk-off timing, pause during
+  carry, single scoring, wider celebration shot, tactical timeout limits and
+  pitch-choice preservation, fatigue-based AI substitutions, no mound re-entry,
+  retained batting/fielding eligibility, chase-choice samples and Esc-only pause.
+- `physical_ball_test.tscn`: twelve isolated actual Jolt launches through the
   production field, ball body, contact signals, and lab physics loop. Checks
   short settling, grounded crossings of both internal lines, ground/fly wall
   contacts, HR clearance, untouched Deep Air, pitcher clean/bobble/miss, and
-  actual Pitcher movement to cleanly field a slow grounder before Single.
+  actual Pitcher movement to cleanly field a slow grounder before Single,
+  safe charging control after Single, and a nearby airborne catch.
   Primary defense is disabled only in these fixtures to isolate each rule.
   Ground and wall cases require actual collision-contact evidence.
 

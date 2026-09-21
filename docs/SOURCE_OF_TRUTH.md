@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.21
-**Status:** FROZEN BASELINE WITH SIMULATED STARTER-FIELD CALIBRATION
-**Supersedes:** v0.4.20 and all earlier planning notes
+**Version:** v0.4.22
+**Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
+**Supersedes:** v0.4.21 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -186,6 +186,11 @@ the automatic hold returns to a ready state and the player sets the tempo by
 choosing when to begin the next click-and-hold delivery. Pitch, aim, effort,
 Pitcher, and legal defensive choices remain available during the appropriate
 ready state.
+
+The Batter may request one tactical timeout per plate appearance during the
+opponent's quiet set, before windup begins. This returns to the ready prompt
+without changing count, Stamina, or the already selected Pitch. It cannot cancel
+a windup or live Pitch. Normal pause is unlimited and separate from this rule.
 
 The batting camera stays nearly centered on the Pitch lane with only a very
 small handed offset. This preserves depth without letting the loaded bat
@@ -462,9 +467,15 @@ Low/zero Stamina creates increasing risk through:
 - hangers
 
 Fatigue is deliberately back-loaded. It is virtually unnoticeable through 50%,
-ramps progressively from 50–92%, becomes overtly dangerous at 92%+, and turns
-0 Stamina into batting-practice quality without preventing the Pitch from
-reaching the plate.
+ramps gently through 83% fatigue, then steepens below 17% Stamina remaining.
+At zero Stamina, Pitches approach batting-practice quality while
+still reaching the plate.
+
+The human-QC baseline increases match Stamina capacity by 8%. At 20% remaining,
+Pitches should still be usable. Flight compensation happens after weakening the
+stuff and before adding command error, so lost movement does not routinely make
+the ball unreachable. Slower, flatter, less accurately located Pitches are the
+penalty; underground deliveries are not the intended fatigue mechanic.
 
 A hanger should emerge from reduced velocity, lost movement, execution error,
 and a seeded tendency for tired edge targets to leak toward the heart. Fatigue
@@ -474,9 +485,15 @@ target with one deterministic center-cut result.
 Pitching changes:
 
 - only between batters
-- removed pitchers may re-enter later
+- once a player has thrown a Pitch and is removed, they cannot pitch again that game
+- removed pitchers remain eligible to bat and serve as Primary Fielder
+- pre-Pitch lineup previews do not consume a pitching appearance
 - Stamina remains where it was
 - no default passive regeneration
+
+The starter AI checks at legal between-Batter boundaries and replaces a Pitcher
+at 17% Stamina or less if an eligible fresher arm exists. It does not rotate by
+inning or reuse removed pitchers. If no replacement exists, the current arm stays.
 
 ---
 
@@ -553,11 +570,12 @@ The Pitcher automatically participates on:
 - possible hard deflections
 
 The Pitcher retains a 0.60 m control radius around the visible actor. After
-contact and a 0.20 s reaction delay, they may charge moving grounders before
-Single within 5.0 m of the original mound, at Fielding-scaled movement speed.
+contact and a 0.20 s reaction delay, they may pursue nearby moving grounders and
+air balls with a reachable predicted intercept within 5.0 m of the original mound.
+Fielding-scaled speed is 3.6–4.6 m/s, below Primary Fielder pursuit speed.
 They must physically reach the ball and respect the Primary Fielder's body
 clearance. This does not permit movement into a live Pitch or distant pursuit.
-Airborne comebackers still require the existing small reaction envelope.
+Air catches still require actual horizontal and vertical reach, with no remote control.
 
 Charging ground-ball control follows the ordinary Single rule. Only clean
 moving control inside the original fixed mound envelope can erase a Single
@@ -611,12 +629,16 @@ Baseline starter-field rules:
 
 The Single and Deep Air planes must create distinct readable territories rather
 than sit as neighboring stripes. On the starter field, the Single plane sits at
-10.5 m, 3.216 m in front of the mound; the Deep Air plane sits at 17.0 m; and
-the back wall remains at 23.4 m. This creates a 6.5 m ordinary-safe band and a
+11.25 m, 2.466 m in front of the mound; the Deep Air plane sits at 17.0 m; and
+the back wall remains at 23.4 m. This creates a 5.75 m ordinary-safe band and a
 separate 6.4 m final band. The Pitcher's fixed 0.60 m mound envelope is an
 explicit comebacker exception to the ordinary Single floor. The Deep Air plane
 is not a universal “Double line”: only an untouched airborne ball earns its
 Double floor there. Grounders still require the wall for a Double.
+
+The 0.75 m Single adjustment follows explicit human playtest feedback. The prior
+100,000-ball proxy evaluated 10.5 m, not 11.25 m; its result percentages must not
+be presented as validation of this revision. A new normal-play F3 sample is required.
 
 Individual parks and ground-rule objects may override baseline rules.
 
@@ -1348,6 +1370,12 @@ the defense rather than flipping through 180 degrees to the Batter's view.
 Player-offense ball-in-play tracking may retain its behind-the-Batter field
 orientation.
 
+Home Runs get a dedicated 4.4 s presentation hold. The scored ball continues
+visibly beyond the wall for 1.25 s with camera tracking, then a wider celebration
+view holds the Home Run call. A game-ending Home Run completes this sequence
+before the outro. Scoring is final at clearance and cannot repeat during the carry.
+The batting camera is modestly raised and tilted down to improve the plate view.
+
 During play, a compact broadcast-style scorebug owns the persistent essentials:
 team score, half/inning, count, outs, occupied bases, current Batter and Pitcher.
 On player defense, a clickable Pitch panel owns repertoire selection, Pitch
@@ -1361,6 +1389,12 @@ strike-zone and aim guides use reduced opacity; pitching guides remain unchanged
 Detailed simulation
 telemetry remains in the explicit debug layer and should not duplicate or
 obscure the scorebug.
+
+The Pitch panel uses a compact numbered list with full names on hover and a
+clear selected state; it collapses to the selected Pitch during delivery and
+clears for Home Run presentation. Defensive controls are labeled Field and
+Bullpen. Esc is the sole keyboard pause/resume shortcut, also backing out of
+nested menus. Footer text must clear the Pause button. Intro skip uses click or Space.
 
 The starter presentation may use a lightweight blue procedural sky, with a green
 backdrop available from Pause > Settings and remembered between launches.

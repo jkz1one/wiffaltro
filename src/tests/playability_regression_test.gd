@@ -59,9 +59,9 @@ static func _test_moving_ground_out_rule(check: Callable) -> void:
 	check.call(
 		field.safe_hit_z_m
 		< PitchBatLab.MOUND_ORIGIN.z - PitcherDefense.REACTION_RADIUS_M
-		and is_equal_approx(field.safe_hit_z_m, 10.5)
+		and is_equal_approx(field.safe_hit_z_m, 11.25)
 		and is_equal_approx(field.deep_air_z_m, 17.0)
-		and field.deep_air_z_m - field.safe_hit_z_m >= 6.0
+		and field.deep_air_z_m - field.safe_hit_z_m >= 5.5
 		and field.back_wall_z_m - field.deep_air_z_m >= 6.0
 		and PitcherDefense.can_attempt(
 			PitchBatLab.MOUND_ORIGIN + Vector3(0.0, 0.7, 0.55),

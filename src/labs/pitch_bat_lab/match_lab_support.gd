@@ -113,7 +113,7 @@ static func cycle_pitcher(lab: PitchBatLab, direction: int) -> void:
 	if lab._match_state == null:
 		return
 	var team: TeamMatchState = lab._match_state.defensive_team()
-	select_pitcher(lab, posmod(team.pitcher_index + direction, team.roster.size()))
+	select_pitcher(lab, team.next_available_pitcher(direction))
 
 
 static func cycle_primary_fielder(lab: PitchBatLab) -> void:
@@ -208,10 +208,26 @@ static func cycle_base_preset(lab: PitchBatLab) -> void:
 static func assign_ai_defense_for_half(lab: PitchBatLab) -> void:
 	if not lab._player_is_batting():
 		return
-	var team: TeamMatchState = lab._match_state.defensive_team()
-	team.pitcher_index = posmod(lab._match_state.inning - 1, team.roster.size())
-	team.fielder_index = (team.pitcher_index + 1) % team.roster.size()
+	consider_ai_pitching_change(lab)
 	assign_ai_fielder_anchor(lab)
+
+
+static func consider_ai_pitching_change(lab: PitchBatLab) -> void:
+	if not lab._player_is_batting() or not lab._match_state.can_change_defense():
+		return
+	var team: TeamMatchState = lab._match_state.defensive_team()
+	if team.current_pitcher().stamina_percent() > 0.17:
+		return
+	var best: int = team.pitcher_index
+	var best_stamina: float = team.current_pitcher().stamina_percent()
+	for index in range(team.roster.size()):
+		var candidate: PlayerMatchState = team.roster[index]
+		if not candidate.pitching_finished and candidate.stamina_percent() > best_stamina:
+			best = index
+			best_stamina = candidate.stamina_percent()
+	if best != team.pitcher_index and team.select_pitcher(best):
+		lab._selected_pitch_index = 0
+		lab._ai_pitch_preselected = false
 
 
 static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:

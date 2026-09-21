@@ -229,8 +229,13 @@ static func _handle_debug_key(lab: PitchBatLab, keycode: Key) -> bool:
 			lab._toggle_match_mode()
 		KEY_F3:
 			PitchBatLabFeelSupport.dump_records(lab)
-		KEY_P:
-			PitchBatLabFeelSupport.toggle_debug_pause(lab)
+		KEY_ESCAPE:
+			if lab._debug_paused and lab._display_menu_open:
+				lab._toggle_display_menu()
+			elif not lab._debug_paused and (lab._pitching_staff_active or lab._field_setup_active):
+				_close_menu(lab)
+			else:
+				PitchBatLabFeelSupport.toggle_debug_pause(lab)
 		KEY_V:
 			if not lab._debug_paused:
 				return false
@@ -252,6 +257,8 @@ static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 	match keycode:
 		KEY_R:
 			lab._start_new_match()
+		KEY_T:
+			PitchBatLabFeelSupport.request_batter_timeout(lab)
 		KEY_V:
 			lab._cycle_camera()
 		KEY_C:

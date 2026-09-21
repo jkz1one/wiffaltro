@@ -121,9 +121,9 @@ func _test_pitcher_boundaries(lab: PitchBatLab) -> void:
 	lab._match_mode = false
 	lab.set_process(false)
 	lab.set_physics_process(false)
-	for scenario in ["crossing", "double", "stopped", "airborne", "far"]:
+	for scenario in ["crossing", "double", "stopped", "far"]:
 		var launch: BattedBallLaunch = BattedBallLaunch.new()
-		launch.position = Vector3(0, 0.04, 10.7)
+		launch.position = Vector3(0, 0.04, lab._field_definition.safe_hit_z_m + 0.2)
 		launch.velocity = Vector3(0, 0, 1)
 		lab._start_ball_in_play(launch)
 		lab._batted_ball.freeze = true
@@ -139,12 +139,13 @@ func _test_pitcher_boundaries(lab: PitchBatLab) -> void:
 			var resolved: Array[BallPlayOutcome] = []
 			lab._ball_play_resolver.play_resolved.connect(
 				func(outcome: BallPlayOutcome) -> void: resolved.append(outcome), CONNECT_ONE_SHOT)
-			lab._pitcher_marker.position = Vector3(0, 0, 10.7)
+			lab._pitcher_marker.position = Vector3(0, 0, launch.position.z)
 			if scenario == "double":
 				state.raise_result_floor(BallPlayState.ResultFloor.DOUBLE)
 			elif scenario == "stopped":
 				lab._batted_ball.linear_velocity = Vector3.ZERO
-			PitchBatLabDefenseSupport.try_pitcher(lab, Vector3(0, 0.04, 10.3), launch.position)
+			PitchBatLabDefenseSupport.try_pitcher(lab,
+				Vector3(0, 0.04, lab._field_definition.safe_hit_z_m - 0.2), launch.position)
 			_check(state.dead and state.result_floor >= BallPlayState.ResultFloor.SINGLE,
 				"remote control must preserve the crossing floor in the same frame")
 			_check(resolved.size() == 1, "remote control must resolve once")

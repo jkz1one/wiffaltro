@@ -79,6 +79,11 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("pitch-quality", [*base, "res://src/tests/pitch_quality_test.tscn"],
+                 "Wiffaltro pitch quality checks passed."),
+                ("playtest-followup", [*base, "--fixed-fps", "60",
+                                       "res://src/tests/playtest_followup_test.tscn"],
+                 "Wiffaltro playtest followup checks passed."),
                 ("playtest-feedback", [*base, "--fixed-fps", "60",
                                        "res://src/tests/playtest_feedback_test.tscn"],
                  "Wiffaltro playtest feedback checks passed."),

@@ -62,15 +62,15 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `F2`: enter Mechanics Lab from a stopped pre-Pitch state, then resume the
   same match state
 - `F3`: print completed records and show their automatically saved JSON file path
-- `P`: open Pause / resume the simulation
-- `Escape`: back out of Settings, resume Pause, close Field Setup / Pitching
-  Staff, or open Pause during ordinary gameplay
+- `Esc`: back out of Settings or defensive submenus; otherwise pause/resume
 - `V`: cycle camera manually, including during pause; resuming restores the
   view from before paused inspection
 
 ## Match Mode controls
 
-- During the intro: left click, `Space`, or `Escape` skips to gameplay
+- `T` while batting: one timeout per plate appearance during the quiet set,
+  before windup. Click/Space resumes readiness; no timeout can cancel a live Pitch.
+- During the intro: left click or `Space` skips to gameplay
 - During automatic dead-ball holds: no acceptance input is required
 - When a new player-controlled Batter steps in: left click, `Space`, or
   controller A confirms that plate appearance once
@@ -140,14 +140,20 @@ solver failure or leave the game unable to continue.
 
 Fatigue should be virtually invisible from 0–50%. Debug telemetry reports both
 raw fatigue and effective pressure: 50% raw fatigue is only 2.5% effect. From
-50–92%, velocity, movement, and command should worsen progressively. At 92%+
-the Pitcher is in the danger band. At 100%, faster Pitches should be clearly
+50–83%, velocity, movement, and command should worsen gently. Below 17%
+Stamina remaining, degradation should ramp more steeply. At 100%, faster Pitches should be clearly
 slower, breaking Pitches should lose most of their finish, and edge targets
 should frequently leak toward hittable center territory. Location still varies,
 but exhausted Pitches must generally reach the plate rather than disappearing
 into the dirt.
 
 The Knuckleball is intentionally less repeatable because its seeded orientation instability is part of the Pitch identity.
+
+Compare 20%, 17%, 8% and 0% Stamina remaining using several Pitch types and
+edge targets. Fatigue should reduce speed/finish and control while retaining
+hittable mistakes, rather than hiding breaking balls below the field or far
+outside reach. The first revision's 324 trajectory checks use an ordinary target
+and fixed seeds; human mixing, aiming and timing are still the decisive feel test.
 
 For batting, move the pointer over the approaching ball and click early enough
 for the bat to reach it near the plate. Left click uses Contact; right click
@@ -222,7 +228,7 @@ Pitch, aim, effort, or legal defensive assignments, then set the tempo by
 starting the next hold/release delivery. No extra advance click should be
 required before that delivery input.
 
-During the player's defensive half, open the Pitching Staff submenu. Its wide
+During the player's defensive half, open the Bullpen submenu. Its wide
 angled camera and four full-width rows should show every player, Stamina, and
 fatigue state without clipping. Selection is enabled only between batters;
 returning closes the submenu and restores the pitching camera. Choosing the
@@ -255,16 +261,16 @@ tired, low-Control Pitchers. Early and late releases should reduce command
 without allowing any mid-flight steering. Holding beyond the window must
 auto-release rather than stall the match.
 
-During a held delivery, press `P`, release the Pitch button while paused,
+During a held delivery, press `Esc`, release the Pitch button while paused,
 then resume. The abandoned delivery must not throw, spend Stamina, or change
 the count. A fresh hold/release must still work. Repeat with Space, left mouse,
 and controller A. Pause a live Pitch or batted ball and press `F2`: refused Lab
-entry must leave the simulation paused until `P` resumes it.
+entry must leave the simulation paused until `Esc` resumes it.
 
 While paused, press `V` to inspect the frozen play from each of the nine camera
 angles. The camera should move smoothly; the ball, bat, Batter, defenders,
 release meter, count, and result hold must remain frozen. Try this mid-Swing,
-during ball-in-play, and in Field Setup. Resume with `P`: the previous camera
+during ball-in-play, and in Field Setup. Resume with `Esc`: the previous camera
 view should return smoothly and play should continue from that same instant.
 
 At a stopped pre-Pitch state, note the inning, score, count, bases, current
@@ -332,8 +338,8 @@ deceive; a repeated or center-hanging Eephus should be dangerous to throw.
 AI Pitcher set/windup duration should vary readably rather than repeat one exact
 interval.
 
-The yellow line marks the ordinary Safe boundary at 10.5 m, visibly in front of
-the mound. The cyan Deep Air line sits at 17.0 m, leaving a 6.5 m ordinary-safe
+The yellow line marks the ordinary Safe boundary at 11.25 m, visibly in front of
+the mound. The cyan Deep Air line sits at 17.0 m, leaving a 5.75 m ordinary-safe
 band and a separate 6.4 m final band before the 23.4 m wall. A clean Primary
 Fielder play on a still-moving grounded ball before the yellow line is an Out;
 a stopped ball or a ball that crossed the line is at least a Single. A clean
@@ -359,7 +365,7 @@ authored reaction height must pass the Pitcher unless the visible actor moves
 into reach. Also hit slow grounders before Single near center: the Pitcher should
 charge after contact, route around the other defender, and control only balls
 actually reached. Control beyond Single away from the original mound must stay
-safe. They must not charge airborne balls, distant rollers or live Pitches.
+safe. They may pursue nearby air balls, but must not chase distant intercepts or live Pitches.
 
 After a meaningful normal-play sample, press `F3` and inspect the emitted play
 records. Calibration fields now include exit speed, launch angle, spray, first
@@ -393,6 +399,23 @@ appearances, the AI should visibly choose different sensible grid anchors based
 on Batter handedness/Power with deterministic variation. A below-wall ball must resolve at
 the wall even if the physical contact callback misses a fast frame.
 
+Hit or allow a Home Run: watch the actual ball clear the wall, then transition
+smoothly to a wider view. HOME RUN should remain for about 4.4 seconds total.
+Try pausing during carry and during the wide hold. Neither ball nor timer may
+advance while paused, and the score must update only once. Repeat with a
+walk-off: the outro must wait for the full Home Run sequence.
+
+Use Bullpen after an arm has thrown. Once replaced, that arm must show USED and
+cannot return via click or Q/E cycling, but can still bat or field. Watch the
+opponent reach 17% Stamina: it should choose a fresher eligible arm between
+Batters and preserve the current arm mid-at-bat. With no eligible replacement,
+the last arm stays. Merely previewing unused arms before a Pitch does not use them.
+
+Press T during a quiet AI set, confirm readiness, then try T again in the same
+at-bat. Only the first should work. T after windup starts or during flight must
+do nothing; count, opponent pitch choice and Stamina must stay intact. Esc is
+unlimited pause and is the only pause hotkey. Intro skip uses click/Space.
+
 Compare mishits, centered line drives, high-contact flies, and rolled-over
 grounders. The physical ball should now show a wider but deterministic range of
 carry, fade/drop, and true slow rollers instead of converging on one tame path.
@@ -420,7 +443,7 @@ Use `G` to put a runner on third, then produce or diagnose a fly catch at differ
 2. Check all seven anchors, then both role cameras with sidearm breaking
    Pitches and extreme aim/effort/fatigue. Neither defender may obscure the
    pitch lane. Check left- and right-handed delivery where available.
-3. Verify Field Setup shows Single 10.5 m, Deep Air 17.0 m, wall 23.4 m and
+3. Verify Field Setup shows Single 11.25 m, Deep Air 17.0 m, wall 23.4 m and
    returns to perspective normally. Capture a current-build screenshot if the
    lines still look crowded; do not infer loaded geometry from an older image.
 4. Collect an initial target of 100 fair balls in normal Match Mode across

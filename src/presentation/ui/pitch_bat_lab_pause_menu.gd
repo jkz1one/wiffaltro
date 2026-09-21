@@ -28,7 +28,7 @@ func build(lab: PitchBatLab) -> void:
 	_main = VBoxContainer.new()
 	_main.add_theme_constant_override("separation", 8)
 	layout.add_child(_main)
-	_button(_main, "RESUME  •  P / Esc", _resume)
+	_button(_main, "RESUME  •  Esc", _resume)
 	_button(_main, "SETTINGS", lab._toggle_display_menu)
 	_button(_main, "CHANGE CAMERA  •  V", lab._cycle_camera)
 	lab._display_menu_panel = VBoxContainer.new()
@@ -54,7 +54,7 @@ func refresh() -> void:
 	_lab._backdrop_button.text = "Backdrop: " + (
 		"Blue sky" if _lab._sky_backdrop_enabled else "Green"
 	)
-	_lab._display_menu_button.text = "RESUME  P" if visible else "PAUSE  P / Esc"
+	_lab._display_menu_button.text = "RESUME  Esc" if visible else "PAUSE  Esc"
 	size.y = get_combined_minimum_size().y
 
 

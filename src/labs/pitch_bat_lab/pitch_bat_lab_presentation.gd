@@ -172,8 +172,8 @@ static func build_ui(lab: PitchBatLab) -> void:
 	lab._live_label = _add_label(canvas, Vector2(20.0, 315.0), 13)
 	lab._live_label.size = Vector2(350.0, 130.0)
 	lab._live_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lab._controls_label = _add_label(canvas, Vector2(20.0, 646.0), 13)
-	lab._controls_label.size = Vector2(930.0, 58.0)
+	lab._controls_label = _add_label(canvas, Vector2(20.0, 624.0), 13)
+	lab._controls_label.size = Vector2(930.0, 44.0)
 	_build_pitching_staff(lab, canvas)
 	_build_field_setup(lab, canvas)
 	_build_display_menu(lab, canvas)
@@ -484,13 +484,13 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 		return
 	if lab._match_mode:
 		lab._controls_label.text = (
-			"F1 DEBUG   F2 LAB   F3 RECORDS   P PAUSE   V CAMERA   R NEW MATCH\n"
-			+ "BAT: pointer + click Contact/Power   •   "
+			"F1 DEBUG   F2 LAB   F3 RECORDS   Esc PAUSE   V CAMERA   R NEW MATCH\n"
+			+ "BAT: pointer + click Contact/Power • T timeout before windup   •   "
 			+ "PITCH: aim + hold/release"
 		)
 	else:
 		lab._controls_label.text = (
-			"F1 OVERLAY   F2 RESUME MATCH   F3 RECORDS   P PAUSE   V CAMERA   R RESET\n"
+			"F1 OVERLAY   F2 RESUME MATCH   F3 RECORDS   Esc PAUSE   V CAMERA   R RESET\n"
 			+ "1–9 Pitch   arrows target   pointer/WASD bat   ,/. execution   [/] fatigue   B BIP"
 		)
 
@@ -602,8 +602,8 @@ static func _refresh_lab(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 
 static func _build_pitching_staff(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._pitching_staff_toggle_button = Button.new()
-	lab._pitching_staff_toggle_button.position = Vector2(960.0, 16.0)
-	lab._pitching_staff_toggle_button.custom_minimum_size = Vector2(295.0, 38.0)
+	lab._pitching_staff_toggle_button.position = Vector2(1123.0, 16.0)
+	lab._pitching_staff_toggle_button.custom_minimum_size = Vector2(132.0, 34.0)
 	lab._pitching_staff_toggle_button.focus_mode = Control.FOCUS_NONE
 	lab._pitching_staff_toggle_button.pressed.connect(lab._toggle_pitching_staff)
 	canvas.add_child(lab._pitching_staff_toggle_button)
@@ -613,7 +613,7 @@ static func _build_pitching_staff(lab: PitchBatLab, canvas: CanvasLayer) -> void
 	lab._pitching_staff_panel.custom_minimum_size = Vector2(400.0, 0.0)
 	canvas.add_child(lab._pitching_staff_panel)
 	var title: Label = Label.new()
-	title.text = "PITCHING STAFF"
+	title.text = "BULLPEN"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 15)
 	lab._pitching_staff_panel.add_child(title)
@@ -654,7 +654,7 @@ static func _build_pitch_release_meter(lab: PitchBatLab, canvas: CanvasLayer) ->
 
 static func _build_display_menu(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._display_menu_button = Button.new()
-	lab._display_menu_button.text = "PAUSE  P / Esc"
+	lab._display_menu_button.text = "PAUSE  Esc"
 	lab._display_menu_button.position = Vector2(10.0, 684.0)
 	lab._display_menu_button.size = Vector2(132.0, 26.0)
 	lab._display_menu_button.focus_mode = Control.FOCUS_NONE
@@ -773,8 +773,8 @@ static func _refresh_pitch_release_meter(lab: PitchBatLab) -> void:
 
 static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._field_setup_toggle_button = Button.new()
-	lab._field_setup_toggle_button.position = Vector2(960.0, 62.0)
-	lab._field_setup_toggle_button.custom_minimum_size = Vector2(295.0, 38.0)
+	lab._field_setup_toggle_button.position = Vector2(1123.0, 62.0)
+	lab._field_setup_toggle_button.custom_minimum_size = Vector2(132.0, 34.0)
 	lab._field_setup_toggle_button.focus_mode = Control.FOCUS_NONE
 	lab._field_setup_toggle_button.pressed.connect(lab._toggle_field_setup)
 	canvas.add_child(lab._field_setup_toggle_button)
@@ -783,7 +783,7 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._field_setup_panel.position = Vector2(910.0, 128.0)
 	canvas.add_child(lab._field_setup_panel)
 	var title: Label = Label.new()
-	title.text = "PRIMARY FIELDER POSITION"
+	title.text = "FIELD"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lab._field_setup_panel.add_child(title)
 	var grid: GridContainer = GridContainer.new()
@@ -822,7 +822,7 @@ static func _refresh_field_setup(lab: PitchBatLab) -> void:
 	if not on_defense:
 		return
 	lab._field_setup_toggle_button.text = (
-		"RETURN TO PITCH" if lab._field_setup_active else "FIELD VIEW / POSITION"
+		"BACK" if lab._field_setup_active else "FIELD"
 	)
 	lab._field_setup_toggle_button.disabled = (
 		lab._debug_paused
@@ -851,7 +851,7 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 	if not on_defense:
 		return
 	lab._pitching_staff_toggle_button.text = (
-		"RETURN TO PITCH" if lab._pitching_staff_active else "PITCHING STAFF"
+		"BACK" if lab._pitching_staff_active else "BULLPEN"
 	)
 	lab._pitching_staff_toggle_button.disabled = (
 		lab._debug_paused
@@ -870,6 +870,8 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 		var player: PlayerMatchState = team.roster[index]
 		var button: Button = lab._pitcher_buttons[index]
 		var role: String = "PITCHER" if index == team.pitcher_index else "READY"
+		if player.pitching_finished:
+			role = "USED"
 		button.text = (
 			"%s   %s   %.0f%% stamina   %s"
 			% [
@@ -879,7 +881,10 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 				PitchExecutionModel.fatigue_stage_name(player.fatigue_ratio()),
 			]
 		)
-		button.disabled = not can_change or index == team.pitcher_index
+		button.disabled = not can_change or index == team.pitcher_index or player.pitching_finished
+		button.tooltip_text = (
+			"Removed pitchers cannot pitch again; batting and fielding remain available."
+		)
 
 
 static func _add_label(canvas: CanvasLayer, position: Vector2, font_size: int) -> Label:

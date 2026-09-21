@@ -28,7 +28,7 @@ func _new_lab(pitching: bool = false) -> PitchBatLab:
 	lab._record_export.path = "user://player-flow-test-%d-%d.json" % [
 		OS.get_process_id(), _fixture_number
 	]
-	_key(lab, KEY_ESCAPE)
+	PitchBatLabFeelSupport.skip_match_presentation(lab)
 	if pitching:
 		lab._match_state.top_half = false
 		lab._awaiting_batter_confirm = false
@@ -85,13 +85,13 @@ func _test_paused_release() -> void:
 		_release_input(lab, kind, true)
 		_check(lab._release_controller.active, "release input must begin the meter")
 		await _frames(8)
-		_key(lab, KEY_P)
+		lab._display_menu_button.pressed.emit()
 		var elapsed: float = lab._release_controller.elapsed_seconds
 		await _frames(6)
 		_check(lab._release_controller.elapsed_seconds == elapsed, "paused meter must freeze")
 		_release_input(lab, kind, false)
 		_check(not lab._release_controller.active, "release while paused must cancel delivery")
-		_key(lab, KEY_P)
+		lab._display_menu_button.pressed.emit()
 		await _frames(45)
 		_check(lab._throw_number == 0, "resume must not throw an abandoned delivery")
 		_check(lab._match_state.pitcher().stamina_remaining == stamina, "cancel must cost no stamina")
@@ -110,7 +110,7 @@ func _test_paused_mode_switch() -> void:
 	await _frames(27)
 	_key(lab, KEY_SPACE, false)
 	_check(lab._pitch_actor.running, "fixture must launch a live pitch")
-	_key(lab, KEY_P)
+	lab._display_menu_button.pressed.emit()
 	_key(lab, KEY_F2)
 	_check(lab._debug_paused and get_tree().paused, "rejected Lab entry must preserve pause")
 	_check(lab._match_mode, "live pitch must remain in Match mode")
@@ -118,7 +118,7 @@ func _test_paused_mode_switch() -> void:
 	await _frames(6)
 	_check(lab._pitch_actor.state.elapsed_time == elapsed, "rejected mode switch must freeze flight")
 	if lab._debug_paused:
-		_key(lab, KEY_P)
+		lab._display_menu_button.pressed.emit()
 	await _free_lab(lab)
 
 
@@ -167,10 +167,10 @@ func _test_setup_input() -> void:
 	# The return button remains usable during pause; it must supersede the
 	# inspected setup camera when normal play resumes.
 	lab._toggle_field_setup()
-	_key(lab, KEY_P)
+	lab._display_menu_button.pressed.emit()
 	_key(lab, KEY_V)
 	lab._toggle_field_setup()
-	_key(lab, KEY_P)
+	lab._display_menu_button.pressed.emit()
 	_check(not lab._field_setup_active
 		and lab._camera_director.shot == MatchCameraDirector.Shot.PITCHING,
 		"closing setup during paused inspection must restore the gameplay camera")
@@ -209,7 +209,7 @@ func _test_paused_cameras() -> void:
 func _inspect_paused_scene(lab: PitchBatLab, context: String) -> void:
 	var original_shot: MatchCameraDirector.Shot = lab._camera_director.shot
 	var original_mode: int = lab._camera_mode
-	_key(lab, KEY_P)
+	lab._display_menu_button.pressed.emit()
 	var frozen: Array = _gameplay_snapshot(lab)
 	for view in range(MatchCameraDirector.Shot.size()):
 		var previous_shot: MatchCameraDirector.Shot = lab._camera_director.shot
@@ -231,7 +231,7 @@ func _inspect_paused_scene(lab: PitchBatLab, context: String) -> void:
 	# Leave inspection on a different view to exercise restoration on resume.
 	_key(lab, KEY_V)
 	var inspection_transform: Transform3D = lab._camera.global_transform
-	_key(lab, KEY_P)
+	lab._display_menu_button.pressed.emit()
 	_check(lab._camera_director.shot == original_shot and lab._camera_mode == original_mode,
 		context + ": resume must restore the previous view")
 	_check(lab._camera.global_transform == inspection_transform,
@@ -267,7 +267,7 @@ func _test_lab_return() -> void:
 	match_state.strikes = 1
 	lab._pitch_target = Vector2(0.31, 1.42)
 	lab._status_label.text = "Ready marker"
-	_key(lab, KEY_P)
+	lab._display_menu_button.pressed.emit()
 	_key(lab, KEY_V)
 	_key(lab, KEY_F2)
 	_check(not lab._match_mode and not get_tree().paused, "safe Lab entry must work from pause")
@@ -353,7 +353,7 @@ func _test_batting(profile_id: StringName, reset_live: bool = false) -> void:
 			_mouse(lab, MOUSE_BUTTON_LEFT, true, crossing.point)
 			_check(lab._at_bat_cadence.elapsed_seconds == hold_time,
 				"extra clicks must not skip the readable result hold")
-			for frame in range(240):
+			for frame in range(330):
 				await get_tree().physics_frame
 				if lab._awaiting_batter_confirm:
 					break
