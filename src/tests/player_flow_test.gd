@@ -8,6 +8,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	await _test_paused_release()
 	await _test_paused_mode_switch()
+	await _test_paused_cameras()
 	await _test_setup_input()
 	await _test_lab_return()
 	await _test_batting(&"swing.contact")
@@ -159,7 +160,96 @@ func _test_setup_input() -> void:
 		lab._pitching_staff_active = false
 		lab._field_setup_active = false
 		lab._apply_role_camera()
+	# The return button remains usable during pause; it must supersede the
+	# inspected setup camera when normal play resumes.
+	lab._toggle_field_setup()
+	_key(lab, KEY_P)
+	_key(lab, KEY_V)
+	lab._toggle_field_setup()
+	_key(lab, KEY_P)
+	_check(not lab._field_setup_active
+		and lab._camera_director.shot == MatchCameraDirector.Shot.PITCHING,
+		"closing setup during paused inspection must restore the gameplay camera")
 	await _free_lab(lab)
+
+
+func _test_paused_cameras() -> void:
+	for context in ["ready", "delivery", "pitch", "swing", "staff", "field", "intro", "lab"]:
+		var lab: PitchBatLab = _new_lab(context != "swing" and context != "lab")
+		match context:
+			"delivery", "pitch":
+				_key(lab, KEY_SPACE)
+				await _frames(8 if context == "delivery" else 27)
+				if context == "pitch":
+					_key(lab, KEY_SPACE, false)
+			"swing":
+				await _start_batting_pitch(lab)
+				_key(lab, KEY_Z)
+				await _frames(2)
+				_check(lab._bat_actor._swinging, "pause fixture must have an active swing")
+			"staff":
+				lab._toggle_pitching_staff()
+				await _frames(12)
+			"field":
+				lab._toggle_field_setup()
+				await _frames(12)
+			"intro":
+				PitchBatLabFeelSupport.begin_match_intro(lab)
+			"lab":
+				_key(lab, KEY_F2)
+				_key(lab, KEY_SPACE)
+		await _inspect_paused_scene(lab, context)
+		await _free_lab(lab)
+
+
+func _inspect_paused_scene(lab: PitchBatLab, context: String) -> void:
+	var original_shot: MatchCameraDirector.Shot = lab._camera_director.shot
+	var original_mode: int = lab._camera_mode
+	_key(lab, KEY_P)
+	var frozen: Array = _gameplay_snapshot(lab)
+	for view in range(4):
+		var previous_shot: MatchCameraDirector.Shot = lab._camera_director.shot
+		var previous_transform: Transform3D = lab._camera.global_transform
+		_key(lab, KEY_V)
+		_check(lab._camera_director.shot != previous_shot,
+			context + ": V must select another view while paused")
+		await _frames(8)
+		_check(not lab._camera.global_transform.is_equal_approx(previous_transform),
+			context + ": paused camera must actually move")
+		_check(lab._debug_paused and get_tree().paused,
+			context + ": camera inspection must preserve pause")
+		_check(_gameplay_snapshot(lab) == frozen,
+			context + ": camera inspection must freeze simulation, poses, and timers")
+	# Leave inspection on a different view to exercise restoration on resume.
+	_key(lab, KEY_V)
+	var inspection_transform: Transform3D = lab._camera.global_transform
+	_key(lab, KEY_P)
+	_check(lab._camera_director.shot == original_shot and lab._camera_mode == original_mode,
+		context + ": resume must restore the previous view")
+	_check(lab._camera.global_transform == inspection_transform,
+		context + ": resume must interpolate back rather than snap")
+
+
+func _gameplay_snapshot(lab: PitchBatLab) -> Array:
+	var pitch: PitchState = lab._pitch_actor.state
+	var play: BallPlayState = lab._ball_play_resolver.state
+	return [
+		lab._match_state.phase, lab._match_state.elapsed_seconds,
+		lab._match_state.score_label(), lab._match_state.plate_appearance_number,
+		lab._match_state.balls, lab._match_state.strikes, lab._match_state.outs,
+		lab._throw_number, lab._play_records.size(), lab._pitch_target, lab._batting_aim,
+		lab._match_state.pitcher().stamina_remaining,
+		lab._release_controller.elapsed_seconds, lab._at_bat_cadence.elapsed_seconds,
+		lab._match_presentation_director.elapsed_seconds,
+		lab._match_presentation_director.shot_index,
+		pitch.elapsed_time if pitch != null else 0.0,
+		pitch.position if pitch != null else Vector3.ZERO,
+		play.elapsed_seconds if play != null else 0.0,
+		lab._batted_ball.global_position if lab._batted_ball != null else Vector3.ZERO,
+		lab._primary_fielder.global_position, lab._pitcher_marker.transform,
+		lab._bat_actor._swing_elapsed, lab._bat_actor._pivot.transform,
+		lab._batter_avatar._batting_swing_elapsed, lab._batter_avatar._body_root.transform,
+	]
 
 
 func _test_lab_return() -> void:
@@ -170,6 +260,7 @@ func _test_lab_return() -> void:
 	lab._pitch_target = Vector2(0.31, 1.42)
 	lab._status_label.text = "Ready marker"
 	_key(lab, KEY_P)
+	_key(lab, KEY_V)
 	_key(lab, KEY_F2)
 	_check(not lab._match_mode and not get_tree().paused, "safe Lab entry must work from pause")
 	_key(lab, KEY_SPACE)
@@ -234,12 +325,7 @@ func _test_batting(profile_id: StringName, reset_live: bool = false) -> void:
 				"player contact must enter actual ball-in-play")
 			_check(lab._camera_director.shot == MatchCameraDirector.Shot.BALL_IN_PLAY,
 				"player contact must select the live-ball camera")
-			_key(lab, KEY_P)
-			var position_before_pause: Vector3 = lab._batted_ball.global_position
-			await _frames(6)
-			_check(lab._batted_ball.global_position == position_before_pause,
-				"pause must freeze the physical batted ball")
-			_key(lab, KEY_P)
+			await _inspect_paused_scene(lab, "ball in play")
 			if reset_live:
 				await _check_live_reset(lab)
 				break
@@ -253,6 +339,7 @@ func _test_batting(profile_id: StringName, reset_live: bool = false) -> void:
 			_check(record.swing_profile_id == profile_id and record.exit_speed_mps > 0.0,
 				"completed record must retain player swing and actual exit speed")
 			_check(record.result != &"pending", "player hit must resolve")
+			await _inspect_paused_scene(lab, "result hold")
 			var hold_time: float = lab._at_bat_cadence.elapsed_seconds
 			_key(lab, KEY_SPACE)
 			_mouse(lab, MOUSE_BUTTON_LEFT, true, crossing.point)

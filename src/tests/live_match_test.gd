@@ -57,9 +57,36 @@ func _run_match(run_seed: int) -> void:
 	print("LIVE_MATCH seed=", run_seed, " score=", lab._match_state.score_label(),
 		" inning=", lab._match_state.inning, " records=", lab._play_records.size(),
 		" balls_in_play=", live_balls)
+	await _check_outro_and_restart(lab)
 	lab.queue_free()
 	await get_tree().process_frame
 	DirAccess.remove_absolute(export_path)
+
+
+func _check_outro_and_restart(lab: PitchBatLab) -> void:
+	var final_score: String = lab._match_state.score_label()
+	var record_count: int = lab._play_records.size()
+	var export_path: String = lab._record_export.path
+	for frame in range(420):
+		await get_tree().physics_frame
+		if lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD:
+			break
+	_check(lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD,
+		"finished match must settle on its outro")
+	_check(lab._match_state.score_label() == final_score and lab._play_records.size() == record_count,
+		"outro must preserve the final score and completed records")
+	var restart: InputEventKey = InputEventKey.new()
+	restart.keycode = KEY_R
+	restart.pressed = true
+	PitchBatLabInput.handle(lab, restart)
+	_check(lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		and lab._match_state.inning == 1 and lab._match_state.top_half
+		and lab._match_state.away_team.runs == 0 and lab._match_state.home_team.runs == 0,
+		"R after the outro must start a fresh game")
+	_check(lab._match_presentation_director.mode == MatchPresentationDirector.Mode.INTRO
+		and lab._play_records.is_empty() and not lab._pitch_actor.running
+		and lab._batted_ball == null, "restart must clear old actors and begin the new intro")
+	_check(FileAccess.file_exists(export_path), "restart must retain the finished match's QC file")
 
 
 func _check(condition: bool, message: String) -> void:

@@ -175,9 +175,9 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	PitchBatLabFeelSupport.update(self, delta)
 	if _debug_paused:
 		return
-	PitchBatLabFeelSupport.update(self, delta)
 	if _match_mode and _match_state != null:
 		if (
 			_match_state.phase != MatchState.Phase.GAME_END

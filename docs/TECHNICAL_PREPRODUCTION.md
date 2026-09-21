@@ -1538,6 +1538,13 @@ cancels only an active uncommitted player delivery, with no throw or Stamina
 cost. A rejected Mechanics Lab transition must preserve the paused state.
 Safe transitions restore the pre-pause status before suspending the match.
 
+Paused inspection accepts `V` and updates only camera interpolation/follow.
+It cycles the four debug views without advancing physics, Swing presentation,
+match time, delivery cadence, or intro/outro time. Resuming restores the prior
+shot through normal smoothing; a setup screen closed during inspection instead
+restores its gameplay shot. Bat and Batter actors are explicitly pausable even
+though the lab root must always process debug input and camera inspection.
+
 For player pitching, Pitch selection, target, effort, Pitcher/Primary Fielder
 roles, and the Primary Fielder anchor are mutable only in their legal ready
 states. They lock when the release meter begins and remain immutable through

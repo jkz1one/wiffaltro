@@ -52,11 +52,13 @@ static func build_defenders(lab: PitchBatLab) -> void:
 
 	lab._batter_avatar = PlayerAvatar.new()
 	lab._batter_avatar.name = "BatterAvatar"
+	lab._batter_avatar.process_mode = Node.PROCESS_MODE_PAUSABLE
 	lab.add_child(lab._batter_avatar)
 	lab._batter_avatar.configure(PlayerAvatar.Role.BATTER, false, false, Color(0.94, 0.78, 0.18))
 
 	lab._bat_actor = BatActor.new()
 	lab._bat_actor.name = "BatActor"
+	lab._bat_actor.process_mode = Node.PROCESS_MODE_PAUSABLE
 	lab.add_child(lab._bat_actor)
 
 
@@ -362,6 +364,9 @@ static func _event_is_routine(event_text: String) -> bool:
 
 
 static func cycle_camera(lab: PitchBatLab) -> void:
+	if lab._debug_paused:
+		lab._camera_director.cycle_paused_view()
+		return
 	if lab._field_setup_active:
 		return
 	lab._camera_mode = (lab._camera_mode + 1) % 4

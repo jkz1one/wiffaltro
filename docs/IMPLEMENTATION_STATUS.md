@@ -2,6 +2,24 @@
 
 **Current phase:** Phase 3 — automated verification passing; hands-on validation pending
 
+## Final pre-playtest pass — 2026-09-21
+
+- `P` pauses play; `V` cycles the four inspection views while the camera keeps
+  its smooth interpolation. `P` resumes and restores the previous gameplay,
+  setup, or presentation view. Closing a setup panel during inspection returns
+  to the appropriate gameplay view instead.
+- Fixed bat and Batter animations inheriting always-process mode from the lab:
+  their swing poses now freeze with the ball instead of continuing during pause.
+- Pause coverage checks actual camera movement plus frozen actors, swing poses,
+  match/release/result/presentation timers, and state across ready, windup,
+  Pitch flight, Swing, ball-in-play, result hold, setup, intro, and Mechanics Lab.
+- Complete live-match checks now continue through the settled final-score outro
+  and `R` into a fresh match, retaining the completed match's QC export.
+- This is the handoff for human playtesting, not clearance of the fun gate.
+  The post-approval roadmap remains `SOURCE_OF_TRUTH.md` §35: Phase 4 Season
+  Shell first, followed by build systems, opponents/fields, persistence, and
+  production/content scale. No season or meta systems were implemented here.
+
 ## Player-flow hardening — 2026-09-20
 
 - Releasing Space, left mouse, or controller A while debug-paused cancels the

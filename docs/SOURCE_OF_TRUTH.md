@@ -1390,12 +1390,13 @@ See `TECHNICAL_PREPRODUCTION.md`.
 
 # 35. Development Roadmap
 
-**Current repository position (2026-09-20):** Phase 3 is statically complete
-through the swing-presentation, role-aware defensive camera, and final
-starter-field scoring/Pitcher-lane pass. Godot 4.7.2 import and headless main-scene
-smoke, core regressions, and QC export checks now pass. Focused hands-on QC
-and meaningful result-distribution sampling remain, so the Production Gate
-has not been cleared.
+**Current repository position (2026-09-21):** Phase 3 is implemented through
+starter-field scoring/Pitcher-lane fixes and player-flow hardening. Godot 4.7.2
+verification covers import/smoke, core rules, seeded matches, live full matches,
+player-input flow, actual Jolt ball fixtures, and QC exports. Paused inspection
+and final-score/restart flow are included in the pre-playtest handoff. Focused
+hands-on QC and meaningful result-distribution sampling remain, so the
+Production Gate has not been cleared.
 `IMPLEMENTATION_STATUS.md` is the canonical ledger for implemented and
 runtime-validated work.
 

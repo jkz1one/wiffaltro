@@ -32,10 +32,27 @@ var _batter_side: float = 1.0
 var _presentation_motion: PresentationMotion = PresentationMotion.STILL
 var _presentation_progress: float = 0.0
 var _defense_ball_view: bool = false
+var _shot_before_inspection: int = -1
 
 
 func set_shot(next_shot: Shot) -> void:
 	shot = next_shot
+	if _shot_before_inspection >= 0:
+		# Closing a setup panel during inspection changes the view to restore.
+		_shot_before_inspection = int(next_shot)
+
+
+func cycle_paused_view() -> void:
+	if _shot_before_inspection < 0:
+		_shot_before_inspection = int(shot)
+	shot = ((int(shot) + 1) % 4) as Shot
+
+
+func restore_after_pause() -> void:
+	if _shot_before_inspection < 0:
+		return
+	shot = _shot_before_inspection as Shot
+	_shot_before_inspection = -1
 
 
 func set_batter_handedness(is_left_handed: bool) -> void:

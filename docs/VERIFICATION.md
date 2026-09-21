@@ -94,7 +94,9 @@ effort adjustment in the game.
   Escape navigation. Timed Contact and Power input produces real Jolt balls;
   checks cover duplicate swings, ball pause, resolution, unskippable result
   holds, next-Batter readiness, an early miss followed by automatic delivery,
-  and restart during ball-in-play without stale callbacks. A center-Pitch
+  and restart during ball-in-play without stale callbacks. Paused camera tests
+  check actual transform changes, frozen actor/Swing/timer state, and smooth
+  restoration in gameplay, setup, intro, and Mechanics Lab. A center-Pitch
   fixture and test-only full-trajectory knowledge isolate batting input;
   they are not a human skill model or balance sample. Test exports stay outside
   `user://qc` and are removed. Headless dispatcher tests do not validate OS
@@ -109,7 +111,9 @@ effort adjustment in the game.
   contact and Jolt ball-in-play. The scripted player takes every pitch when
   batting and uses center targets at normal effort when pitching. Neither
   scores nor results are injected. A 20-second simulated progress watchdog
-  and overall frame/process budgets catch stalls. Synthetic records stay in
+  and overall frame/process budgets catch stalls. Each match continues through
+  its settled outro and a fresh-game restart while preserving its saved QC file.
+  Synthetic records stay in
   dedicated test files, outside `user://qc`, and are removed after the run.
 - `physical_ball_test.tscn`: nine isolated actual Jolt launches through the
   production field, ball body, contact signals, and lab physics loop. Checks

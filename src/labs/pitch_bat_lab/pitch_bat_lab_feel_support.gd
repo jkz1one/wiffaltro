@@ -46,6 +46,9 @@ static func initialize(lab: PitchBatLab) -> void:
 
 
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
+	if lab._debug_paused:
+		_update_camera(lab, delta_seconds)
+		return
 	if _update_match_presentation(lab, delta_seconds):
 		_update_camera(lab, delta_seconds)
 		PitchBatLabPresentation.refresh_event(lab)
@@ -355,9 +358,10 @@ static func toggle_debug_pause(lab: PitchBatLab) -> void:
 	lab.get_tree().paused = lab._debug_paused
 	if lab._debug_paused:
 		lab._status_before_pause = lab._status_label.text
-		lab._status_label.text = "DEBUG PAUSED — P to resume"
+		lab._status_label.text = "DEBUG PAUSED • V: camera • P: resume"
 	else:
 		lab._status_label.text = lab._status_before_pause
+		lab._camera_director.restore_after_pause()
 	lab._refresh_config()
 
 
@@ -367,13 +371,14 @@ static func reset_debug_pause(lab: PitchBatLab) -> void:
 	lab._debug_paused = false
 	lab.get_tree().paused = false
 	lab._status_label.text = lab._status_before_pause
+	lab._camera_director.restore_after_pause()
 
 
 static func toggle_match_mode(lab: PitchBatLab) -> void:
 	if lab._match_mode and not _can_suspend_match_for_lab(lab):
 		lab._status_label.text = "MECHANICS LAB\nAvailable before a Pitch, while play is stopped."
 		if lab._debug_paused:
-			lab._status_label.text += "\nDEBUG PAUSED — P to resume"
+			lab._status_label.text += "\nDEBUG PAUSED • V: camera • P: resume"
 		lab._refresh_config()
 		return
 	reset_debug_pause(lab)

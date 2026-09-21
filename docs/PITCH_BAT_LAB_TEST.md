@@ -63,7 +63,8 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `F3`: print completed records and show their automatically saved JSON file path
 - `P`: pause/resume the simulation for debug inspection
 - `Escape`: close display options or return from Field Setup / Pitching Staff
-- `V`: cycle camera manually
+- `V`: cycle camera manually, including during pause; resuming restores the
+  view from before paused inspection
 
 ## Match Mode controls
 
@@ -258,6 +259,12 @@ the count. A fresh hold/release must still work. Repeat with Space, left mouse,
 and controller A. Pause a live Pitch or batted ball and press `F2`: refused Lab
 entry must leave the simulation paused until `P` resumes it.
 
+While paused, press `V` to inspect the frozen play from each of the four camera
+angles. The camera should move smoothly; the ball, bat, Batter, defenders,
+release meter, count, and result hold must remain frozen. Try this mid-Swing,
+during ball-in-play, and in Field Setup. Resume with `P`: the previous camera
+view should return smoothly and play should continue from that same instant.
+
 At a stopped pre-Pitch state, note the inning, score, count, bases, current
 Batter/Pitcher, selected Pitch, aim, effort, and defensive anchor. Press `F2`,
 use the Mechanics Lab, then press `F2` again. The same match and selections must
@@ -415,8 +422,24 @@ Use `G` to put a runner on third, then produce or diagnose a fly catch at differ
    verify the retry message, unchanged Stamina/count, and normal delivery after
    explicitly raising effort. The game must not launch a knowingly mis-aimed
    nominal pitch or silently raise the selected effort.
+8. Finish a match, let the final-score outro settle, and press `R`. Verify a
+   fresh intro, zero scores/counts, and no old ball; the prior match's saved QC
+   file must remain available.
 
 No Contact/Power, aerodynamic, or scoring-boundary tuning should precede review
 of that sample. Physical bump-induced errors are not part of this pass.
+
+### Human approval gate
+
+Complete repeated ordinary matches and review the sample above. Confirm readable
+Pitches and camera transitions, useful Contact/Power and defensive-position
+choices, understandable results/bobbles, acceptable fatigue and five-inning
+length, and the desire to play another game. Smooth pacing takes priority over
+shorter holds. Address specific failures before approving the sport loop.
+
+After explicit human approval, follow `SOURCE_OF_TRUTH.md` §35. The next build is
+the Season Shell: preseason roster/loadouts, six teams, 10 regular-season games,
+standings/AI simulation, and four-team playoffs. Shops, build economy, persistent
+unlocks, and production content follow in the documented dependency order.
 
 All coefficients, field dimensions, fielding thresholds, Pitch identities, swing windows, camera framing, UI, and visual geometry remain tuning/debug content.

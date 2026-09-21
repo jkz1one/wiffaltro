@@ -226,6 +226,10 @@ static func _handle_debug_key(lab: PitchBatLab, keycode: Key) -> bool:
 			PitchBatLabFeelSupport.dump_records(lab)
 		KEY_P:
 			PitchBatLabFeelSupport.toggle_debug_pause(lab)
+		KEY_V:
+			if not lab._debug_paused:
+				return false
+			lab._cycle_camera()
 		_:
 			return false
 	return true
