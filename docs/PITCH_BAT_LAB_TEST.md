@@ -1,6 +1,44 @@
-# Vanilla Match + Mechanics Lab — Phase 3 Milestone Test
+# Season Shell + Vanilla Match + Mechanics Lab — Playtest Guide
 
-This is a functional match simulator and shared debug lab, not a polished game screen.
+The project starts at the main menu. Choose Exhibition for a quick sport check
+or New Season for the first complete season-flow prototype. These are functional
+menus with placeholder art and a shared Mechanics Lab, not final presentation.
+
+## Season flow QC
+
+1. New Season → Start Tryouts → choose one of three players four times. Close
+   and reopen after a pick: Continue Season should restore the remaining offers.
+2. In Lineup, reorder hitters and select a starting Pitcher and a different
+   Primary Fielder. Play Game should use those players and that batting order.
+3. Check both home and away games: home pitches first; away bats first. Pause
+   > Leave Game requires confirmation, returns to the hub and leaves this fixture
+   unfinished. Returning restarts the game; it does not erase the season.
+4. Finish a game. Let the existing result and outro breathe, then click Continue
+   or press Space. Confirm the final score, other league results, standings and
+   next fixture. A completed result saves even before dismissing the outro.
+5. Over the season, expect ten games (five home, five away), top-four playoffs,
+   higher-seed semifinals and a neutral final on the placeholder starter field.
+   After elimination, remaining AI games resolve and a champion appears.
+6. At season end, verify the result screen and New Season replacement prompt.
+   Exhibition must not change the season save. Mute and display preferences
+   should survive leaving a game and relaunching.
+
+The shell starts each game with fresh Pitcher Stamina and vanilla equipment.
+There are no shops, cash rewards, unlocks or career records yet. Save failures
+appear on menus; retry via the next checkpoint before closing. `R` cannot reset
+a menu-managed match. The standalone lab scene retains its debug restart.
+
+## Batting-camera focus
+
+Check both handednesses on fastballs and curves, aiming high/low and inside/outside.
+The default view is 2.10 m high, 3.38 m back, offset 0.18 m to the Batter's side,
+looking about 5.5 degrees downward. It keeps the Batter/bat in view while clearing
+the sampled loaded-bat obstruction found at the previous 0.34 m offset.
+Confirm that release, approach and plate arrival stay readable, and that aiming
+still feels like batting. Compare using paused V inspection; do not assume that
+a higher overview is better just because it exposes more field. Note hand, aim,
+Pitch and camera in any screenshot/video report. Headless checks cannot choose
+the optimal subjective angle.
 
 ## What this milestone now contains
 
@@ -92,11 +130,11 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `Q / E`: previous / next Pitcher between batters
 - `F`: cycle Primary Fielder between batters
 - `C`: cycle Primary Fielder position through the 3×3 grid
-- Click `FIELD VIEW / POSITION`: enter the overhead view, select an anchor, and
+- Click `FIELD`: enter the overhead view, select an anchor, and
   click `RETURN TO PITCH`
 - `[ / ]`: set a minimum fatigue level for focused testing
-- `R`: restart the match
-- After the outro: `R` starts a new match
+- `R`: restart only when running the standalone lab scene directly
+- After a menu-managed outro: click Continue or press `Space` to reach postgame
 
 ## Mechanics Lab controls
 

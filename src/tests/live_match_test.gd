@@ -14,6 +14,14 @@ func _ready() -> void:
 
 func _run_match(run_seed: int) -> void:
 	var lab: PitchBatLab = PitchBatLab.new()
+	if run_seed == 29:
+		var season: SeasonState = SeasonState.create(run_seed)
+		for pick in range(4):
+			season.choose_player(season.offers()[0])
+		season.round_index = 1
+		lab._configured_match = season.make_match()
+		lab._player_home = season.pending_fixture()["home"] == 0
+		_check(lab._player_home, "second live fixture must play home with a drafted roster")
 	add_child(lab)
 	lab._throw_number = run_seed * 1000
 	PitchBatLabFeelSupport.skip_match_presentation(lab)

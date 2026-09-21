@@ -83,7 +83,7 @@ func decide(
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = decision_seed
 	var awareness: float = awareness_for(pitch, target)
-	var body_side: float = -1.0 if batter.bats == PlayerDefinition.Handedness.LEFT else 1.0
+	var body_side: float = 1.0 if batter.bats == PlayerDefinition.Handedness.LEFT else -1.0
 	var inside_amount: float = ball_xy.x * body_side
 	var outside_distance: float = maxf(0.0, absf(ball_xy.x) - ZONE_HALF_WIDTH_M)
 	var vertical_distance: float = maxf(0.0, absf(ball_xy.y - ZONE_CENTER_Y_M) - ZONE_HALF_HEIGHT_M)

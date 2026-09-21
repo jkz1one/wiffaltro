@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.18
+**Version:** v0.1.19
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
-**Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
+**Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
 
 ---
@@ -2107,3 +2107,62 @@ These sources inform implementation and accessibility choices. They do not
 validate the chosen trail length, volume, result timing, or fun. Headless tests
 cannot establish visual comfort, sound quality, or accessibility conformance;
 rendered play and human listening remain required.
+
+## Final sport audit and Season Shell — 2026-09-21
+
+The initial full Godot 4.7.2 baseline passed at `5c22c22`. The new camera audit
+then reproduced loaded-bat AABB intersections with three sampled incoming rays
+per hand at the former 0.34 m camera-side offset. Reducing it to 0.18 m clears
+all 90 sampled rays per actor across the two hands. This is a conservative mesh
+bounding-box test at the loaded, centered-aim pose, not rendered pixel occlusion
+or exhaustive aim/swing coverage. Height 2.10 m, depth -3.38 m, focus
+`(0, 1.10, 7.1)` and 75-degree FOV remain; projected one-meter zone height is
+about 132 px in the 1280×720 viewport. The camera stays stable during a Pitch;
+the contact-plane pointer mapping round-trips at `ContactResolver.CONTACT_PLANE_Z`.
+No broad camera or sport tuning was introduced.
+
+`BatterApproachModel` and `PitchFeedback` now use the same global body-side sign
+as the actual Batter scene (+X left, -X right). `BatActor.handed_side` serves a
+different local bat-offset convention and is intentionally unchanged.
+
+### Season boundaries
+
+- `SeasonState` owns draft choices, the six-team circle schedule, league results,
+  standings and playoff transitions. It creates `MatchState` from immutable
+  authored `PlayerDefinition` resources; live play continues through the existing
+  match/contact/physics pipeline. The 24 new starter players are manifest entries.
+- `SeasonApp` owns main/menu/match scene lifetime. `SeasonMenu` supplies simple
+  scrollable body pages with persistent footer navigation. Menus have no Pitch
+  input handler; an active lab receives only unhandled gameplay input.
+- `_player_home` drives role checks and the correct win/loss presentation.
+  The configured match is consumed once. Menu-managed games reject `R` restart;
+  standalone lab regression/debug behavior remains available.
+- Result recording is guarded by the current fixture ID and a one-shot app
+  flag. Final scores save during GAME_END; the existing presentation completes
+  before Continue opens postgame. Pause > Leave confirms abandonment of an
+  unfinished fixture. Finished games use the result handoff instead.
+- New `SeasonSave` uses `user://season-v1.json`, a temporary write/flush/rename,
+  versioned JSON primitives and stable player IDs. Only seed, draft picks,
+  player-game scores and lineup selections are stored. Loading validates bounds,
+  IDs, legal pick/result order, unique lineup and distinct defense roles, then
+  reconstructs derived standings and AI scores. Corrupt/incompatible files are
+  reported and left untouched. No midgame or career persistence is implied.
+- Reconstruction assumes this version's content pool and simulation rules.
+  Content-pool/algorithm changes require an explicit save-version migration or
+  invalidation policy; silently reinterpreting an old season is unacceptable.
+- AI-only games use seeded Poisson scores based on the average of the authored
+  seven player ratings, with a seeded tie resolution. They do not run physical
+  Pitches, use player standing for rubber-banding, or supply calibration evidence.
+- Wins, run differential, runs scored and a seeded preseason draw are provisional
+  tiebreaks. Every match starts with fresh player states. The neutral final has
+  nominal home/away roles for inning rules and the starter field as placeholder.
+
+### Implementation sources
+
+[Godot saving games](https://docs.godotengine.org/en/stable/tutorials/io/saving_games.html)
+documents JSON serialization and the `user://` path.
+[Godot DirAccess](https://docs.godotengine.org/en/stable/classes/class_diraccess.html)
+documents file replacement through `rename_absolute`. These support the save
+mechanism; the schema validation, replay design and season policies are project
+decisions. The single-file checkpoint is not a cloud save or power-loss durability
+guarantee. Save errors remain visible and the live session stays available.

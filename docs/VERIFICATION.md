@@ -21,6 +21,7 @@ An existing engine can also be selected with `--godot /path/to/Godot` or
 `GODOT_BIN`. Version mismatches fail explicitly. The runner checks whitespace,
 GDScript parsing/lint, engine import, core regressions, seeded match soak,
 player-input flow, playtest-feedback UI/cadence and follow-up checks, pitch quality, two live matches,
+season progression/save/menu handoffs, camera geometry,
 physical-ball fixtures, QC file export,
 and a 120-frame main-scene smoke. Engine errors fail even when Godot exits with zero;
 regression scenes must also print their completion marker. Every engine step
@@ -182,3 +183,34 @@ Sound and rendered comfort still require the human checks in `PITCH_BAT_LAB_TEST
 Final verification: `builds/verification/20260921T051512553496Z` passed all stages
 on Godot 4.7.2 with no errors or warnings. Audio fixtures allow two mixer/update
 cycles at teardown before exiting the accelerated headless run.
+
+## Final sport audit and Season Shell coverage
+
+`camera_audit_test.tscn` checks both hands, plate/mound/aim projection bounds,
+pointer round-trip on the actual contact plane, stable Pitch framing, useful
+zone size and 90 sampled corridor rays per actor against the loaded bat and
+Batter mesh bounds. The original 0.34 m side offset failed six bat-ray cases;
+0.18 m passes with the prior height/depth/FOV intact. This is geometric evidence,
+not a rendered camera optimum or all-pose visibility guarantee. Feedback also
+checks inside against the visible Batter's actual side.
+
+`season_shell_test.tscn` runs 60 seasons across missed playoffs, semifinal
+elimination and championship paths. It checks each directed matchup exactly
+once, one game per club per round, playoff seeds/venues, unique rosters, duplicate
+result guards, complete standings/brackets, draft and midseason save replacement,
+deterministic restore, corrupt-file preservation, menu bounds and actual lab
+handoffs. Final scores are injected in the menu fixture to isolate navigation;
+the separate live test uses real gameplay. Finishing saves before the outro is
+dismissed; closing an unfinished game preserves the pending fixture.
+
+The second complete `live_match_test.tscn` match now uses a drafted four-player
+roster with the human-controlled team at home. Both home and away live matches
+complete through the production AI/contact/Jolt rules and restart cleanly. The
+scripted player still takes every Pitch, so their scores are not balance evidence.
+
+Full verification passed at `builds/verification/20260921T054111248304Z`, including
+the new season/camera checks and main-menu smoke, with no errors or warnings.
+The main scene now tests menu startup; the dedicated scenes still test gameplay.
+The final pause-menu change also passed a targeted import, lint and season test:
+Leave Game is disabled after completion, with a hint to resume to the result.
+Follow `PITCH_BAT_LAB_TEST.md` for the remaining rendered sport and season-flow QC.

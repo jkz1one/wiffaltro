@@ -67,10 +67,10 @@ func _test_feedback(lab: PitchBatLab) -> void:
 	var original: PlayerDefinition = team.current_batter().definition
 	team.current_batter().definition = original.duplicate()
 	team.current_batter().definition.bats = PlayerDefinition.Handedness.RIGHT
-	_check(PitchFeedback.plate_message(lab, Vector3(0.6, 1.0, 0)) == "TOOK INSIDE",
+	_check(PitchFeedback.plate_message(lab, Vector3(-0.6, 1.0, 0)) == "TOOK INSIDE",
 		"inside/outside must match actual right-handed stance")
 	team.current_batter().definition.bats = PlayerDefinition.Handedness.LEFT
-	_check(PitchFeedback.plate_message(lab, Vector3(0.6, 1.0, 0)) == "TOOK OUTSIDE",
+	_check(PitchFeedback.plate_message(lab, Vector3(-0.6, 1.0, 0)) == "TOOK OUTSIDE",
 		"inside/outside must mirror for left-handed stance")
 	team.current_batter().definition = original
 	lab._swing_consumed = true

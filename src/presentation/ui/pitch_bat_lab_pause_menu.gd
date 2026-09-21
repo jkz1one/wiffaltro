@@ -5,6 +5,7 @@ var _lab: PitchBatLab
 var _main: VBoxContainer
 var _title: Label
 var _mute_button: Button
+var _leave_button: Button
 
 
 func build(lab: PitchBatLab) -> void:
@@ -32,6 +33,8 @@ func build(lab: PitchBatLab) -> void:
 	_button(_main, "RESUME  •  Esc", _resume)
 	_button(_main, "SETTINGS", lab._toggle_display_menu)
 	_button(_main, "CHANGE CAMERA  •  V", lab._cycle_camera)
+	if lab._managed_match:
+		_leave_button = _button(_main, "LEAVE GAME", lab.menu_exit_requested.emit)
 	lab._display_menu_panel = VBoxContainer.new()
 	lab._display_menu_panel.add_theme_constant_override("separation", 8)
 	layout.add_child(lab._display_menu_panel)
@@ -52,6 +55,11 @@ func refresh() -> void:
 	_lab._display_menu_panel.visible = _lab._display_menu_open and visible
 	_mute_button.text = "Mute sounds: " + ("On" if _lab._sounds_muted else "Off")
 	_title.text = "SETTINGS" if _lab._display_menu_open else "PAUSED"
+	if _leave_button != null:
+		_leave_button.disabled = (
+			_lab._match_state != null and _lab._match_state.phase == MatchState.Phase.GAME_END
+		)
+		_leave_button.tooltip_text = "Resume to view the final result." if _leave_button.disabled else ""
 	var anchors: Array[String] = ["Bottom right", "Top left", "Top right"]
 	_lab._hud_anchor_button.text = "Score box: " + anchors[_lab._hud_anchor_index]
 	_lab._backdrop_button.text = "Backdrop: " + (

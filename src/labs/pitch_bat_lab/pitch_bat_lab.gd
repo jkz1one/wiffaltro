@@ -1,6 +1,10 @@
 class_name PitchBatLab
 extends Node3D
 
+signal match_return_requested
+signal menu_exit_requested
+
+
 @warning_ignore_start("unused_private_class_variable")
 const PITCH_IDS: Array[StringName] = [
 	&"pitch.overhand_four_seam",
@@ -40,6 +44,9 @@ const BATTED_BALL_TIMEOUT_SECONDS: float = 9.0
 const SETTLED_SPEED_MPS: float = 0.55
 const SETTLED_HOLD_SECONDS: float = 0.65
 const DEFAULT_FIELDER_ANCHOR_INDEX: int = 3
+var _configured_match: MatchState
+var _managed_match: bool = false
+var _player_home: bool = false
 var _pitch_actor: PitchFlightActor
 var _batted_ball: BattedBallBody
 var _ball_play_resolver: BallPlayResolver
@@ -828,6 +835,8 @@ func _reset_lab() -> void:
 
 
 func _start_new_match() -> void:
+	if _managed_match and _match_state != null:
+		return
 	PitchBatLabFeelSupport.reset_debug_pause(self)
 	PitchBatLabFeelSupport.cancel_release(self)
 	PitchBatLabSwingSupport.reset(self)
@@ -838,7 +847,12 @@ func _start_new_match() -> void:
 	if _pitch_actor != null:
 		_pitch_actor.reset_pitch()
 	_cleanup_batted_ball()
-	_match_state = MatchLabSupport.create_match(DEBUG_PLAYER_ID, PLAYER_TEAM_NAME, RIVAL_TEAM_NAME)
+	if _configured_match == null:
+		_player_home = false
+	_match_state = _configured_match if _configured_match != null else (
+		MatchLabSupport.create_match(DEBUG_PLAYER_ID, PLAYER_TEAM_NAME, RIVAL_TEAM_NAME)
+	)
+	_configured_match = null
 	_base_state = _match_state.bases
 	_throw_number = 0
 	_selected_pitch_index = 0
@@ -871,7 +885,9 @@ func _start_new_match() -> void:
 		_contact_vector_draw.clear()
 	_apply_defensive_assignment()
 	_apply_role_camera()
-	_status_label.text = "TOP 1 — Player batting\nGame presentation starting"
+	_status_label.text = "TOP 1 • %s\nGame presentation starting" % (
+		"Player batting" if _player_is_batting() else "Player pitching"
+	)
 	_live_label.text = ""
 	_refresh_markers()
 	_refresh_config()
@@ -879,11 +895,11 @@ func _start_new_match() -> void:
 
 
 func _player_is_batting() -> bool:
-	return _match_mode and _match_state != null and _match_state.top_half
+	return _match_mode and _match_state != null and _match_state.top_half != _player_home
 
 
 func _player_is_pitching() -> bool:
-	return _match_mode and _match_state != null and not _match_state.top_half
+	return _match_mode and _match_state != null and _match_state.top_half == _player_home
 
 
 func _select_pitcher(roster_index: int) -> void:

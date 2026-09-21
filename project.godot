@@ -5,7 +5,7 @@ config_version=5
 [application]
 
 config/name="Wiffaltro"
-run/main_scene="res://src/labs/pitch_bat_lab/pitch_bat_lab.tscn"
+run/main_scene="res://src/presentation/season/season_app.tscn"
 
 [autoload]
 

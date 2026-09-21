@@ -79,6 +79,11 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("season-shell", [*base, "--fixed-fps", "60",
+                                  "res://src/tests/season_shell_test.tscn"],
+                 "Wiffaltro season shell checks passed:"),
+                ("camera-audit", [*base, "res://src/tests/camera_audit_test.tscn"],
+                 "Wiffaltro camera audit passed."),
                 ("presentation-polish", [*base, "--fixed-fps", "60",
                                          "res://src/tests/presentation_polish_test.tscn"],
                  "Wiffaltro presentation polish checks passed."),

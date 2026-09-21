@@ -271,8 +271,8 @@ static func show_match_intro(lab: PitchBatLab) -> void:
 	lab._presentation_subtitle.text = (
 		"%s at %s"
 		% [
-			lab.PLAYER_TEAM_NAME,
-			lab.RIVAL_TEAM_NAME,
+			lab._match_state.away_team.display_name,
+			lab._match_state.home_team.display_name,
 		]
 	)
 	_set_gameplay_hud_visible(lab, false)
@@ -283,7 +283,8 @@ static func show_match_outro(lab: PitchBatLab, player_won: bool) -> void:
 		return
 	lab._presentation_backdrop.visible = true
 	lab._presentation_title.text = "WIN" if player_won else "LOSS"
-	lab._presentation_subtitle.text = "%s\nR: NEW MATCH" % (lab._match_state.score_label())
+	lab._presentation_subtitle.text = "%s\n%s" % [lab._match_state.score_label(),
+		"CLICK / SPACE: CONTINUE" if lab._managed_match else "R: NEW MATCH"]
 	_set_gameplay_hud_visible(lab, false)
 
 
@@ -486,7 +487,7 @@ static func refresh_controls(lab: PitchBatLab) -> void:
 		return
 	if lab._match_mode:
 		lab._controls_label.text = (
-			"F1 DEBUG   F2 LAB   F3 RECORDS   Esc PAUSE   V CAMERA   R NEW MATCH\n"
+			"F1 DEBUG   F2 LAB   F3 RECORDS   Esc PAUSE   V CAMERA\n"
 			+ "BAT: pointer + click Contact/Power • T timeout before windup   •   "
 			+ "PITCH: aim + hold/release"
 		)

@@ -120,7 +120,7 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 		Shot.BATTING:
 			# Stay nearly centered on the Pitch lane. A small handed offset keeps
 			# depth readable without placing the loaded barrel across the view.
-			camera_position = Vector3(_batter_side * 0.34, 2.10, -3.38)
+			camera_position = Vector3(_batter_side * 0.18, 2.10, -3.38)
 			focus = Vector3(0.0, 1.10, 7.1)
 		Shot.PITCHING:
 			camera_position = Vector3(0.0, 2.45, 16.9)

@@ -24,6 +24,16 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 		lab._match_presentation_director != null
 		and lab._match_presentation_director.blocks_gameplay()
 	):
+		if lab._managed_match and lab._match_presentation_director.mode == (
+			MatchPresentationDirector.Mode.OUTRO_HOLD
+		):
+			lab.get_viewport().set_input_as_handled()
+			if (event.is_action_pressed(&"match_advance")
+				or event.is_action_pressed(&"swing_contact")
+				or (event is InputEventMouseButton and event.pressed
+					and event.button_index == MOUSE_BUTTON_LEFT)):
+				lab.match_return_requested.emit()
+			return
 		if event is InputEventKey:
 			var presentation_key: InputEventKey = event as InputEventKey
 			if (

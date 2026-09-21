@@ -1,6 +1,43 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — first human feedback implemented; follow-up human QC pending
+**Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
+
+## Final sport audit and first Season Shell — 2026-09-21
+
+- Reconciled against main `5c22c220387648f386820c2bfe36d805866c89db` and source
+  v0.4.23 before editing; the historical v0.4.19 HEAD is superseded. The current
+  source is v0.4.24, including the explicitly authorized first season shell.
+- Audited camera geometry, handedness, pause/input boundaries, presentation,
+  scoring/defense, fatigue, live-match completion and persistence. Baseline full
+  verification passed before changes. Headless checks do not certify optimal feel.
+- Fixed measured loaded-bat occlusion by reducing the handed batting-camera
+  offset from 0.34 to 0.18 m. Height, depth, focus, FOV, aim/contact mapping and
+  smooth transitions are preserved. Both handednesses pass sampled corridor rays.
+- Corrected inside/outside feedback and AI body-side interpretation to match the
+  actual scene: left-handed Batters occupy +X; right-handed Batters occupy -X.
+  No batting probability coefficients changed.
+- No scoring boundaries, Contact/Power transfer, aerodynamic coefficients or
+  fatigue settings changed. Single remains 11.25 m; Deep Air 17 m; wall 23.4 m;
+  HR height 3.25 m. New meaningful human F3 samples remain required for tuning.
+- Main menu, preseason, four-round tryouts, lineup, schedule, standings,
+  postgame and season-results pages now connect real games. Twenty-four named
+  authored players populate six distinct four-player teams.
+- Ten regular games, home/away roles, seeded AI scores, top-four semifinals,
+  neutral placeholder final, elimination and champion paths are implemented.
+- One validated local season checkpoint persists picks, lineup and finished
+  results. Finished scores save during the outro; unfinished games restart.
+  Duplicate results and debug restarts cannot advance or replace a managed game.
+- New checks cover 60 season paths, save/corrupt-file handling, menu bounds,
+  pause/exit and actual match handoffs. The second complete live-physics match
+  now uses a drafted roster with the player at home.
+- Fresh intergame Stamina, vanilla equipment, provisional tiebreaks and the
+  starter field at every venue are explicit shell defaults. Phase 5 economy,
+  Phase 6 development/parks and Phase 7 career remain unimplemented.
+- Human QC should now cover New Season through the first home and away game,
+  relaunch/Continue, readable batting views in both hands and a meaningful F3
+  sample. See `PITCH_BAT_LAB_TEST.md`; runtime evidence is in `VERIFICATION.md`.
+
+Earlier entries below are historical and may describe gates since superseded.
 
 ## Presentation polish and sound — 2026-09-21
 
@@ -795,12 +832,12 @@ playability suite was unreachable was incorrect: it was called by the bat
 suite. The earlier attribution of the reported line-spacing problem to camera
 perspective was not established by a current-build runtime observation.
 
-## Canonical post-fun-gate roadmap — not implemented
+## Canonical roadmap — current progress
 
-The ordered roadmap now lives in `SOURCE_OF_TRUTH.md` §35. Phase 3 and the
-sport fun gate remain the current priority.
+The ordered roadmap lives in `SOURCE_OF_TRUTH.md` §35. The user authorized the
+first Phase 4 shell after the sport audit; human sport/season-flow QC is next.
 
-- [ ] Phase 4 — Season Shell
+- [x] Phase 4 — first Season Shell (human QC pending)
 - [ ] Phase 5 — Seasonal Build Systems
 - [ ] Phase 6 — Opponents, Fields, Leagues, and Difficulty
 - [ ] Phase 7 — Persistent Club Layer, including earned post-season player-card

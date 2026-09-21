@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentManifest" load_steps=19 format=3]
+[gd_resource type="Resource" script_class="ContentManifest" load_steps=43 format=3]
 
 [ext_resource type="Script" path="res://src/content/manifest/content_manifest.gd" id="1_manifest"]
 [ext_resource type="Resource" path="res://src/content/pitches/overhand_four_seam.tres" id="2_four_seam"]
@@ -19,6 +19,31 @@
 [ext_resource type="Resource" path="res://src/content/swings/power_swing.tres" id="17_power_swing"]
 [ext_resource type="Resource" path="res://src/content/fields/starter_field.tres" id="18_starter_field"]
 
+[ext_resource type="Resource" path="res://src/content/players/ash_cole.tres" id="season_0"]
+[ext_resource type="Resource" path="res://src/content/players/nico_vega.tres" id="season_1"]
+[ext_resource type="Resource" path="res://src/content/players/sam_park.tres" id="season_2"]
+[ext_resource type="Resource" path="res://src/content/players/ren_ellis.tres" id="season_3"]
+[ext_resource type="Resource" path="res://src/content/players/kit_rowan.tres" id="season_4"]
+[ext_resource type="Resource" path="res://src/content/players/jules_moss.tres" id="season_5"]
+[ext_resource type="Resource" path="res://src/content/players/dev_lin.tres" id="season_6"]
+[ext_resource type="Resource" path="res://src/content/players/mika_reed.tres" id="season_7"]
+[ext_resource type="Resource" path="res://src/content/players/alex_finch.tres" id="season_8"]
+[ext_resource type="Resource" path="res://src/content/players/jo_lane.tres" id="season_9"]
+[ext_resource type="Resource" path="res://src/content/players/remy_cruz.tres" id="season_10"]
+[ext_resource type="Resource" path="res://src/content/players/lee_stone.tres" id="season_11"]
+[ext_resource type="Resource" path="res://src/content/players/tess_vale.tres" id="season_12"]
+[ext_resource type="Resource" path="res://src/content/players/ari_banks.tres" id="season_13"]
+[ext_resource type="Resource" path="res://src/content/players/cal_mercer.tres" id="season_14"]
+[ext_resource type="Resource" path="res://src/content/players/drew_sato.tres" id="season_15"]
+[ext_resource type="Resource" path="res://src/content/players/eli_frost.tres" id="season_16"]
+[ext_resource type="Resource" path="res://src/content/players/frankie_bell.tres" id="season_17"]
+[ext_resource type="Resource" path="res://src/content/players/gray_west.tres" id="season_18"]
+[ext_resource type="Resource" path="res://src/content/players/harper_fox.tres" id="season_19"]
+[ext_resource type="Resource" path="res://src/content/players/indy_shaw.tres" id="season_20"]
+[ext_resource type="Resource" path="res://src/content/players/kai_soto.tres" id="season_21"]
+[ext_resource type="Resource" path="res://src/content/players/morgan_pike.tres" id="season_22"]
+[ext_resource type="Resource" path="res://src/content/players/noel_hart.tres" id="season_23"]
+
 [resource]
 script = ExtResource("1_manifest")
 pitches = [
@@ -32,7 +57,7 @@ pitches = [
 	ExtResource("9_riser"),
 	ExtResource("10_drop")
 ]
-players = [ExtResource("11_player")]
+players = [ExtResource("11_player"), ExtResource("season_0"), ExtResource("season_1"), ExtResource("season_2"), ExtResource("season_3"), ExtResource("season_4"), ExtResource("season_5"), ExtResource("season_6"), ExtResource("season_7"), ExtResource("season_8"), ExtResource("season_9"), ExtResource("season_10"), ExtResource("season_11"), ExtResource("season_12"), ExtResource("season_13"), ExtResource("season_14"), ExtResource("season_15"), ExtResource("season_16"), ExtResource("season_17"), ExtResource("season_18"), ExtResource("season_19"), ExtResource("season_20"), ExtResource("season_21"), ExtResource("season_22"), ExtResource("season_23")]
 deliveries = [ExtResource("12_overhand"), ExtResource("13_sidearm")]
 ball_aero_profiles = [ExtResource("14_aero")]
 ball_setups = [ExtResource("15_setup")]

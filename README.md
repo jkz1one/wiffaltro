@@ -4,11 +4,13 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 ## Status
 
-The **Phase 3 vanilla-match simulator** has passed multiple hands-on match
-smokes. The current timed-contact, automatic-cadence, and broadcast-flow
-revision passes Godot 4.7.2 import, core regressions, seeded match/live-scene
-tests, Jolt ball fixtures, QC export checks, and headless main-scene smoke.
-Rendered/hands-on QC and result-distribution sampling are pending.
+The **first Phase 4 Season Shell** now surrounds the vanilla match: main menu,
+four-round tryout draft, lineup, ten-game schedule, standings, playoffs and
+between-game saves. Run the project, choose **New Season**, and follow the
+draft into the season hub; **Exhibition** goes straight into a standalone game.
+The shared Mechanics Lab remains available through F2 at safe match boundaries.
+Godot 4.7.2 regression coverage includes season progression and camera geometry.
+Rendered/hands-on camera, season-flow QC and result-distribution sampling remain open.
 
 For the one-command development check and automatic playtest records, see
 [Verification](docs/VERIFICATION.md). After one-time setup, run
@@ -17,7 +19,7 @@ For the one-command development check and automatic playtest records, see
 Canonical docs:
 
 - `docs/SOURCE_OF_TRUTH.md` — gameplay/design baseline
-- `docs/TECHNICAL_PREPRODUCTION.md` — architecture and Phase 0–3 engineering baseline
+- `docs/TECHNICAL_PREPRODUCTION.md` — architecture and Phase 0–4 engineering baseline
 
 ## Technical baseline
 
@@ -36,6 +38,9 @@ Core rule: **Godot owns presentation, collision, and environment physics. Our co
 
 The repository now contains:
 
+- main, preseason, draft, lineup, schedule, postgame and season-results menus
+- 24 authored two-way players across six clubs, ten games and four-team playoffs
+- deterministic AI league scores, standings and validated local season checkpoints
 - stable content IDs
 - immutable Resource definition types
 - explicit ContentManifest + ContentDB
@@ -73,7 +78,7 @@ The repository now contains:
 ## Milestone order
 
 Phase 0 Foundation → Pitch/Bat Lab → Ball-in-Play Lab → complete vanilla match
-→ sport fun gate → Season Shell → Seasonal Build Systems → Opponents/Fields/
+→ first Season Shell with ongoing human QC → Seasonal Build Systems → Opponents/Fields/
 Leagues/Difficulty → Persistent Club Layer → Production and Content Scale.
 
 **Wiffaltro is a working title.**

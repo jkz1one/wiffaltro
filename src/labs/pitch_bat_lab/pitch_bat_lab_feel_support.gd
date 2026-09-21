@@ -100,7 +100,10 @@ static func begin_match_outro(lab: PitchBatLab) -> void:
 	lab._camera_director.set_shot(lab._match_presentation_director.current_shot())
 	_sync_presentation_camera(lab)
 	PitchBatLabPresentation.show_match_outro(
-		lab, lab._match_state.winner_name == lab.PLAYER_TEAM_NAME
+		lab, lab._match_state.winner_name == (
+		lab._match_state.home_team.display_name if lab._player_home
+		else lab._match_state.away_team.display_name
+	)
 	)
 
 

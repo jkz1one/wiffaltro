@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.23
+**Version:** v0.4.24
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.22 and all earlier planning notes
+**Supersedes:** v0.4.23 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -716,7 +716,35 @@ Top 4 qualify.
 - Semifinal: single elimination, higher seed hosts
 - Championship: single elimination, special neutral field
 
-Exact tiebreaker details remain deferred.
+The first playable shell ranks by wins, run differential, runs scored, then a
+seeded preseason draw. This is a provisional tiebreak policy for testing.
+
+### First Season Shell — 2026-09-21
+
+The user authorized this bounded shell after the final sport audit. That is
+permission to test season flow, not a declaration that camera feel or the sport
+fun gate has passed. The starter implementation contains:
+
+- Main menu: Continue Season, New Season, Exhibition, Quit.
+- One provisional Backyard League / Standard preset and the existing starter
+  field at every venue. The neutral championship uses that same field as a placeholder.
+- Four tryout rounds, three distinct authored player cards per round, one choice
+  each. The 24-player starter pool supplies six unique four-player clubs.
+- A season hub with standings, schedule, batting-order changes, starting Pitcher
+  and Primary Fielder selection. Equipment stays at the vanilla defaults.
+- Ten player games, five home and five away; home/away correctly determines the
+  opening batting/pitching role. All match rules remain authoritative.
+- Lightweight seeded AI results for the two other games each round; top-four
+  semifinals pair 1–4 and 2–3, then a neutral final. Eliminated seasons still
+  resolve the remaining bracket and display a champion.
+- Postgame scores and standings, followed by the next-game hub or season results.
+- Local checkpoints after draft/lineup changes and as soon as a match is final.
+  An interrupted unfinished game restarts from its beginning. There is one save
+  slot, with confirmation before replacing it, and no midgame resume.
+
+Pitchers start each game fresh in this first shell; in-game fatigue and no
+pitching re-entry remain unchanged. Intergame recovery, specialized venues,
+opponent development, economy and persistent career rewards are later systems.
 
 ---
 
@@ -1375,6 +1403,11 @@ visibly beyond the wall for 1.25 s with camera tracking, then a wider celebratio
 view holds the Home Run call. A game-ending Home Run completes this sequence
 before the outro. Scoring is final at clearance and cannot repeat during the carry.
 The batting camera is modestly raised and tilted down to improve the plate view.
+Its audited baseline is 2.10 m high, 3.38 m behind the plate, with a 0.18 m handed
+offset and approximately 5.5 degrees of downward tilt. The smaller side offset
+clears measured loaded-bat obstruction without changing height, FOV, aim mapping
+or timing. The Batter and bat remain visible for the batting perspective.
+Automated projection checks support readability, not a claim of optimal feel.
 
 During play, a compact broadcast-style scorebug owns the persistent essentials:
 team score, half/inning, count, outs, occupied bases, current Batter and Pitcher.
@@ -1492,6 +1525,10 @@ Four-player rosters, batting order, counts, Stamina, pitching changes, five inni
 
 The core sport must be fun before building the roguelite shell.
 
+On 2026-09-21 the user authorized the initial Phase 4 Season Shell after the
+final technical audit, with hands-on camera/feel QC still open. This narrow
+amendment allows season-flow testing without treating automated checks as fun-gate approval.
+
 ## Phase 4 — Season Shell
 
 Build the complete season structure around the validated vanilla game:
@@ -1551,8 +1588,9 @@ Bring the validated game to production quality:
 - real-device mobile testing
 
 Phase numbers describe dependency order, not a requirement to finish every
-piece of one phase before starting safe preparatory work in the next. The sport
-fun gate still blocks full investment in Phases 4–8.
+piece of one phase before starting safe preparatory work in the next. The first
+Phase 4 shell is now authorized; human sport and season-flow validation still
+precede full investment in Phases 5–8.
 
 ---
 
