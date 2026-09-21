@@ -15,6 +15,8 @@ enum Rarity {
 	EXOTIC,
 }
 
+@export_multiline var tactical_description: String = ""
+
 @export var category: Category = Category.FASTBALL
 @export var rarity: Rarity = Rarity.COMMON
 @export var delivery_profile: DeliveryProfileDefinition

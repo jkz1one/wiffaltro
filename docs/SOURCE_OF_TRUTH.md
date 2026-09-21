@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.22
+**Version:** v0.4.23
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.21 and all earlier planning notes
+**Supersedes:** v0.4.22 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -1390,11 +1390,36 @@ Detailed simulation
 telemetry remains in the explicit debug layer and should not duplicate or
 obscure the scorebug.
 
-The Pitch panel uses a compact numbered list with full names on hover and a
-clear selected state; it collapses to the selected Pitch during delivery and
+The Pitch panel uses a compact numbered list with full names and short tactical
+descriptions only on hover, and a clear selected state; it collapses to the selected Pitch during delivery and
 clears for Home Run presentation. Defensive controls are labeled Field and
 Bullpen. Esc is the sole keyboard pause/resume shortcut, also backing out of
 nested menus. Footer text must clear the Pause button. Intro skip uses click or Space.
+
+Presentation feedback uses distinct, short sounds for bat contact, clean fielding,
+bobbles, wall impacts and Home Runs. Pause > Settings includes a saved Mute sounds
+option. Muting stops active cues and discards new ones; unmuting never replays them.
+The prototype uses original procedural sounds, with final mix/character awaiting
+human listening QC. No gameplay information may depend on sound alone.
+
+After contact, a subtle ground shadow and short historical trail help locate the
+physical ball. The trail is restricted to fast batted balls, at most 0.065 s / 0.9 m
+of past travel. Neither aid forecasts Pitch movement or a landing point. Pause
+freezes the aids; cleanup removes them. No new camera shake or motion blur.
+
+A brief strip beside the scorebug reports actual timing/aim, taken locations or
+chased locations after contact/plate crossing. Inside/outside follows the Batter's
+handedness. Bobbles show that the ball remains live and update when resolved.
+Feedback expires after 3 s, freezes during pause, and clears for the next Pitch.
+The existing Stamina bar turns red at 17% remaining or less; no additional
+warning text is added. Existing percentage/condition text remains. This color
+change does not add a fatigue penalty.
+Pitch descriptions do not occupy permanent HUD space or require a hold gesture.
+
+Catches and strikeouts receive at least 2.25 s of result time. Existing longer
+inning transitions and the 4.4 s Home Run hold remain. Non-HR game-ending results
+receive 2.5 s before the outro. A bobble never freezes a live ball for presentation.
+These timings are authored QC defaults, not research-proven optimums.
 
 The starter presentation may use a lightweight blue procedural sky, with a green
 backdrop available from Pause > Settings and remembered between launches.

@@ -6,6 +6,7 @@ var _failures: int = 0
 func _ready() -> void:
 	for run_seed in [11, 29]:
 		await _run_match(run_seed)
+	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro live match checks passed: 2 scripted-player matches.")
 	get_tree().quit(0 if _failures == 0 else 1)

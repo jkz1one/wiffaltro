@@ -164,3 +164,21 @@ of every wild curve, actual match result distribution, or camera sightline.
 Headless checks do not validate Mobile rendering or whether gameplay feels fun.
 Human QC and the initial meaningful F3 sample remain necessary. No scoring,
 Contact/Power transfer, fatigue tuning, or aerodynamic coefficients changed.
+
+
+## Presentation polish regression coverage
+
+`presentation_polish_test.tscn` checks five distinct bounded PCM waveforms,
+audio-player routing, pause-time mute and saved reload, discarded muted events,
+feedback handedness/misses/lifetime, HUD bounds at all anchors, all nine tooltip
+entries and Stamina bar color thresholds, physical-ball trail/shadow lifecycle, bobble
+and clean-control cues, wall cues, strikeout holds and delayed terminal outro.
+Actual player-contact and physical-HR fixtures also check their cue hooks.
+
+This checks events, data, timing and layout bounds. It does not listen to the
+mix, render the shadow/trail, assess hover readability, or certify accessibility.
+Sound and rendered comfort still require the human checks in `PITCH_BAT_LAB_TEST.md`.
+
+Final verification: `builds/verification/20260921T051512553496Z` passed all stages
+on Godot 4.7.2 with no errors or warnings. Audio fixtures allow two mixer/update
+cycles at teardown before exiting the accelerated headless run.

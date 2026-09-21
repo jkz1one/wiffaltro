@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.17
+**Version:** v0.1.18
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -1628,7 +1628,7 @@ readable text and selected state, and collapses to the selected Pitch when
 delivery locks selection. It hides during Home Run presentation. Field/Bullpen
 toggle buttons are 132 px wide; footer text ends above the Pause button. The scorebug
 retains opponent condition during player batting. `PitchBatLabPauseMenu` nests
-HUD-anchor and blue-sky/green choices inside Pause. `PitchBatLabSettings` saves
+HUD-anchor, blue-sky/green and Mute sounds choices inside Pause. `PitchBatLabSettings` saves
 them in `user://display-settings.cfg`. Batting zone opacity is 0.35 and aim
 outline opacity is 45% of its original value; pitching materials are unchanged.
 F1-owned labels render detailed
@@ -2047,3 +2047,63 @@ distribution. PitcherDefense must allow a grounded ball center down to world
 height zero; a 5 cm lower gate excludes the authored 3.65 cm-radius rolling ball.
 Negative-height positions remain ineligible. No mound radius or control
 threshold changes accompany this correction.
+
+
+## Presentation feedback follow-up — 2026-09-21
+
+`PlaySounds` caches five original mono PCM cues in `AudioStreamWAV` resources,
+played by pausable `AudioStreamPlayer` children at -12 dB. Contact, clean control,
+bobble, wall and HR hooks observe authoritative events; audio never resolves play.
+There are no third-party sound files, downloads, attribution obligations from
+new assets, or runtime synthesis on the contact frame. `audio/muted` shares the
+existing settings file, defaulting false for older files. Muting immediately stops
+all cues, including paused playback, and new muted cues are discarded.
+Accelerated headless fixtures allow two real mixer/update cycles at teardown,
+so engine shutdown does not race queued audio cleanup. There is no gameplay wait.
+
+`BallVisibility` owns a soft ground-reference shadow and a tapered transparent
+ribbon made from recent actual batted-ball positions. It has no collision shape,
+resolver calls, predictive trajectory, or Pitch-flight attachment. The ribbon
+requires speed >=12 m/s and is bounded to 65 ms and 0.9 m. It clears on slow/frozen
+balls and on cleanup; the shadow is hidden beyond the back wall and near ground.
+The lab's paused update gate freezes history while allowing camera inspection.
+
+`PitchFeedback` renders one 14 px, three-second note beside the scorebug, with a
+short fade, no mouse interception, and no overlap with the routine call slot.
+Top-left Pitch panel and top-right defensive buttons move down to make room.
+Pitch calls live in `PitchBatLabPitchCall` to keep the main lab below its lint
+size limit. Handedness/feedback are captured before the count resolver advances
+the Batter, and miss feedback is taken from `ContactResult`. Repertoire tooltips
+read `PitchDefinition.tactical_description`; descriptions reflect the authored
+starter content rather than promising a real-world trajectory or guaranteed result.
+
+The existing cadence still owns progression. Catch/strikeout holds have a 2.25 s
+minimum, longer inning holds retain priority, and non-HR immediate game endings
+hold for 2.5 s before outro. HR remains 4.4 s. Bobble feedback never pauses physics.
+No field boundaries, transfer functions, aerodynamic coefficients, fatigue model,
+AI odds, or windup durations changed in this pass.
+
+### Sources and design interpretation
+
+- [Godot AudioStreamWAV](https://docs.godotengine.org/en/stable/classes/class_audiostreamwav.html)
+  documents generated PCM storage; [AudioStreamPlayer](https://docs.godotengine.org/en/stable/classes/class_audiostreamplayer.html)
+  documents nonpositional playback and stop/pause control. These support the small
+  cached cue implementation. The waveforms themselves are project-original code.
+- [Godot Control](https://docs.godotengine.org/en/stable/classes/class_control.html)
+  documents `tooltip_text`; the existing hover interaction provides optional
+  descriptions without introducing a hold action or changing Pitch inputs.
+- [Xbox XAG 103: Additional channels for visual and audio cues](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/103)
+  supports retaining text/visual equivalents for audio and not relying on color
+  alone. The existing Stamina percentage/condition remains beside a bar that turns red
+  at 17% remaining; the user requested no added warning text. Live bobbles retain
+  a text label alongside their sound.
+- [Xbox XAG 105: Audio accessibility](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/105)
+  supports player control over sound. This prototype has one effects category and
+  one saved mute toggle; separate category levels can follow if music/voice arrives.
+- [Xbox XAG 117: Visual distractions and motion](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/117)
+  informs the restrained approach: no flashing warning, shake, or motion blur.
+
+These sources inform implementation and accessibility choices. They do not
+validate the chosen trail length, volume, result timing, or fun. Headless tests
+cannot establish visual comfort, sound quality, or accessibility conformance;
+rendered play and human listening remain required.

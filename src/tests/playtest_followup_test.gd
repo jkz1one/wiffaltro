@@ -9,6 +9,7 @@ func _ready() -> void:
 	await _test_bullpen_and_timeout()
 	await _test_home_run(false)
 	await _test_home_run(true)
+	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro playtest followup checks passed.")
 	get_tree().quit(0 if _failures == 0 else 1)
@@ -98,6 +99,7 @@ func _test_home_run(walkoff: bool) -> void:
 		await get_tree().physics_frame
 		if lab._home_run.active:
 			break
+	_check(lab._sounds.last_cue == &"home_run", "actual HR must play celebration cue")
 	_check(lab._home_run.active, "physical wall clearance must begin HR presentation")
 	_check(lab._play_records.size() == 1, "HR must score and record exactly once")
 	var score: int = lab._match_state.home_team.runs

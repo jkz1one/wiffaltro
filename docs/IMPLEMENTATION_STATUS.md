@@ -2,6 +2,33 @@
 
 **Current phase:** Phase 3 — first human feedback implemented; follow-up human QC pending
 
+## Presentation polish and sound — 2026-09-21
+
+- Source of truth v0.4.23 adds original procedural contact, clean-fielding,
+  bobble, wall and HR sounds. Pause > Settings saves Mute sounds, immediately
+  stops active cues and discards muted events. Explicit teardown releases audio.
+- Batted balls gain a soft ground shadow and a bounded historical trail. Pitch
+  flight, collision, Contact/Power, scoring geometry and aerodynamics are unchanged.
+- Brief scorebox-adjacent feedback reports actual timing/aim, taken or chased
+  locations with correct handedness. Bobble text updates after resolution.
+  Feedback freezes in pause, expires, and clears with the next Pitch/reset.
+- Per user correction, fatigue adds no warning text: the existing Stamina bar
+  turns red at 17% remaining. Existing percentage and condition remain.
+- All nine Pitch definitions have short tactical descriptions available only
+  on hover, with no added hold input or permanent description panel.
+- Catches/strikeouts get at least 2.25 s; longer inning holds and 4.4 s HR holds
+  remain. Immediate non-HR game endings wait 2.5 s before outro. Bobbles stay live.
+- New presentation tests cover waveform validity/routing, mute persistence,
+  UI bounds, handedness, bar color, physical-ball aid lifecycle and result timing.
+  Existing player-hit and physical-HR tests now also assert their sound hooks.
+- Final `python3 tools/verify.py` passed on Godot 4.7.2 with no errors or warnings:
+  parse/lint/import, presentation checks, 324 pitch-quality cases, actual player
+  input, two live matches, 100 seeded match replays, 12 Jolt fixtures, core rules,
+  QC export and main-scene smoke. Logs: `builds/verification/20260921T051512553496Z`.
+- Godot and Microsoft primary documentation informs the implementation; sources
+  and the original sound provenance are recorded in `TECHNICAL_PREPRODUCTION.md`.
+  These choices remain subject to listening/rendered human QC, not a fun-gate approval.
+
 ## Home-run, pitcher and at-bat follow-up — 2026-09-21
 
 - Source of truth v0.4.22 supersedes the prior pitching re-entry rule. Once an

@@ -486,3 +486,33 @@ standings/AI simulation, and four-team playoffs. Shops, build economy, persisten
 unlocks, and production content follow in the documented dependency order.
 
 All coefficients, field dimensions, fielding thresholds, Pitch identities, swing windows, camera framing, UI, and visual geometry remain tuning/debug content.
+
+
+## Sound, visibility and feedback QC — v0.4.23
+
+1. Hear actual contact, clean catches/ground control, bobbles, a wall hit and a
+   Home Run. Each should be recognizable without being harsh or dominating play.
+   These are original synthesized prototype sounds; flag tonal/volume problems.
+2. Pause during a sound, open Settings, turn Mute sounds on, then resume. All game
+   effects should remain silent, including the next HR. Restart the app to confirm
+   persistence; turn mute off and confirm only new events sound. Settings must not
+   throw a Pitch, spend Stamina, or change score/count.
+3. Track a high fly against both backdrops. The ground reference should help judge
+   height, and the short trail should help follow fast batted balls without masking
+   the ball. Pitched balls must have no new trail, forecast path or landing marker.
+   Inspect during pause; resume/reset and check that no old trail lingers.
+4. Try early/late swings, low/high chases, and taken inside/outside pitches with
+   both handednesses. Feedback must describe the completed action. Check each
+   scorebox position, especially top left with the full Pitch list. Hover descriptions should be optional and leave the view when the
+   pointer leaves; holding a Pitch button adds no new behavior.
+5. At 20%, 17%, 8% and zero Stamina, inspect the bar: normal at 20%, red at
+   17% and below. No new warning text should appear. The existing percentage and
+   condition stay readable, and pitching-change eligibility remains unchanged.
+6. Watch a strikeout, air catch, live bobble, inning-ending out and game-ending
+   non-HR hit. Calls need time to read; bobbles must keep moving and update their
+   text after resolution. HR should retain its longer carry/celebration. Pause
+   must preserve both result holds and feedback time.
+
+Play a complete game and capture F3 before proposing any more balance changes.
+Record annoying/repetitive cues, lost-ball moments, misleading feedback and holds
+that drag. The 11.25 m Single / 17 m Deep Air / 23.4 m wall geometry is unchanged.

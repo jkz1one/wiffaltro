@@ -34,6 +34,11 @@ static func adjust_batting_aim(lab: PitchBatLab, delta_xy: Vector2) -> void:
 
 
 static func initialize(lab: PitchBatLab) -> void:
+	lab._sounds = PlaySounds.new()
+	lab.add_child(lab._sounds)
+	lab._sounds.set_muted(lab._sounds_muted)
+	lab._ball_visibility = BallVisibility.new()
+	lab.add_child(lab._ball_visibility)
 	lab._release_controller = PitchReleaseController.new()
 	lab._at_bat_cadence = AtBatCadenceController.new()
 	lab._batter_approach = BatterApproachModel.new()
@@ -46,6 +51,7 @@ static func initialize(lab: PitchBatLab) -> void:
 
 
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
+	lab._pitch_feedback.advance(lab, delta_seconds)
 	if lab._debug_paused:
 		_update_camera(lab, delta_seconds)
 		return
@@ -53,6 +59,9 @@ static func update(lab: PitchBatLab, delta_seconds: float) -> void:
 		_update_camera(lab, delta_seconds)
 		PitchBatLabPresentation.refresh_event(lab)
 		return
+	lab._ball_visibility.update_ball(
+		lab._batted_ball, lab._camera, delta_seconds, lab._field_definition.back_wall_z_m
+	)
 	_update_continuous_input(lab, delta_seconds)
 	_update_pitch_release(lab, delta_seconds)
 	lab._home_run.advance(lab, delta_seconds)
@@ -295,8 +304,8 @@ static func notify_pitch_dead(lab: PitchBatLab) -> void:
 	if lab._batted_ball == null:
 		_reset_pitcher_telegraph(lab)
 	if lab._match_state != null and lab._match_state.phase == MatchState.Phase.GAME_END:
-		lab._at_bat_cadence.stop()
-		begin_match_outro(lab)
+		lab._at_bat_cadence.hold_dead_ball()
+		lab._at_bat_cadence.active_hold_seconds = 2.5
 		return
 	if (
 		lab._match_state != null

@@ -7,6 +7,7 @@
 script = ExtResource("1_pitch")
 id = &"pitch.sidearm_sinker"
 display_name = "Sidearm Sinker"
+tactical_description = "Lower release with arm-side run and sink. Change the approach angle."
 category = 0
 rarity = 1
 delivery_profile = ExtResource("2_delivery")

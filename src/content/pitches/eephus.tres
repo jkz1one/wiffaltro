@@ -7,6 +7,7 @@
 script = ExtResource("1_pitch")
 id = &"pitch.eephus"
 display_name = "Eephus"
+tactical_description = "Very slow, high arc. Disrupt timing; a well-read mistake is easy to punish."
 category = 3
 rarity = 1
 delivery_profile = ExtResource("2_delivery")

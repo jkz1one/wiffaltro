@@ -158,6 +158,8 @@ static func build_ui(lab: PitchBatLab) -> void:
 
 	lab._scorebug = MatchScorebug.new()
 	canvas.add_child(lab._scorebug)
+	lab._pitch_feedback = PitchFeedback.new()
+	canvas.add_child(lab._pitch_feedback)
 	_build_pitch_release_meter(lab, canvas)
 	lab._action_label = _add_label(canvas, Vector2(460.0, 14.0), 14)
 	lab._action_label.size = Vector2(360.0, 30.0)
@@ -249,7 +251,7 @@ static func apply_hud_anchor(lab: PitchBatLab) -> void:
 				- HUD_MARGIN
 			)
 	if lab._pitching_staff_toggle_button != null:
-		var menu_y: float = 168.0 if lab._hud_anchor_index == HUD_ANCHOR_TOP_RIGHT else 16.0
+		var menu_y: float = 204.0 if lab._hud_anchor_index == HUD_ANCHOR_TOP_RIGHT else 16.0
 		lab._pitching_staff_toggle_button.position.y = menu_y
 		lab._field_setup_toggle_button.position.y = menu_y + 46.0
 		lab._pitching_staff_panel.position.y = menu_y + 112.0

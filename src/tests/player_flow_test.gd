@@ -15,6 +15,7 @@ func _ready() -> void:
 	await _test_batting(&"swing.power")
 	await _test_batting(&"swing.contact", true)
 	await _test_early_swing()
+	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro player flow checks passed.")
 	get_tree().quit(0 if _failures == 0 else 1)
@@ -329,6 +330,8 @@ func _test_batting(profile_id: StringName, reset_live: bool = false) -> void:
 		await get_tree().physics_frame
 		if lab._ball_in_play_is_live() and not saw_live_ball:
 			saw_live_ball = true
+			_check(lab._sounds.last_cue == &"contact", "real player contact must sound once")
+			_check(not lab._pitch_feedback.text.is_empty(), "real contact needs timing feedback")
 			_check(lab._match_state.phase == MatchState.Phase.BALL_IN_PLAY,
 				"player contact must enter actual ball-in-play")
 			_check(lab._camera_director.shot == MatchCameraDirector.Shot.BALL_IN_PLAY,

@@ -32,6 +32,7 @@ func _ready() -> void:
 		BallPlayOutcome.Result.SINGLE, true, "BOBBLE")
 	await _launch_case("pitcher miss", Vector3(0.45, 0.04, 9.8), Vector3(0, 0, 30),
 		BallPlayOutcome.Result.SINGLE, true, "MISS")
+	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro physical ball checks passed.")
 	get_tree().quit(0 if _failures == 0 else 1)

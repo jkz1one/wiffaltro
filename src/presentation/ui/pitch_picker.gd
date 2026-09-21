@@ -5,6 +5,7 @@ var _lab: PitchBatLab
 var _title: Label
 var _condition: Label
 var _stamina: ProgressBar
+var _stamina_fill: StyleBoxFlat
 var _grid: GridContainer
 var _selected: Label
 var _buttons: Array[Button] = []
@@ -34,6 +35,9 @@ func build(lab: PitchBatLab) -> void:
 	_stamina.custom_minimum_size = Vector2(0.0, 7.0)
 	_stamina.show_percentage = false
 	layout.add_child(_stamina)
+	_stamina_fill = StyleBoxFlat.new()
+	_stamina_fill.bg_color = Color(0.25, 0.75, 0.55)
+	_stamina.add_theme_stylebox_override("fill", _stamina_fill)
 	_selected = Label.new()
 	_selected.add_theme_font_size_override("font_size", 14)
 	layout.add_child(_selected)
@@ -62,7 +66,7 @@ func refresh() -> void:
 	)
 	if not visible:
 		return
-	position = Vector2(18.0, 164.0 if _lab._hud_anchor_index == 1 else 18.0)
+	position = Vector2(18.0, 198.0 if _lab._hud_anchor_index == 1 else 18.0)
 	var pitcher: PlayerMatchState = _lab._match_state.pitcher()
 	_title.text = pitcher.definition.display_name
 	var fatigue: float = maxf(pitcher.fatigue_ratio(), _lab._fatigue)
@@ -71,6 +75,9 @@ func refresh() -> void:
 		PitchExecutionModel.fatigue_stage_name(fatigue).capitalize().replace("Batting practice", "Empty")
 	]
 	_stamina.value = pitcher.stamina_percent() * 100.0
+	_stamina_fill.bg_color = (
+		Color(0.88, 0.20, 0.15) if fatigue >= 0.83 else Color(0.25, 0.75, 0.55)
+	)
 	var options: Array[PitchDefinition] = _lab._current_pitch_options()
 	_grid.visible = MatchLabSupport.can_edit_pitch_plan(_lab)
 	_selected.visible = not _grid.visible
@@ -84,7 +91,7 @@ func refresh() -> void:
 		var delivery: String = "Sidearm" if pitch.display_name.begins_with("Sidearm") else "Overhand"
 		var pitch_name: String = pitch.display_name.trim_prefix(delivery + " ")
 		button.text = "%d  %s%s" % [index + 1, pitch_name, " (SA)" if delivery == "Sidearm" else ""]
-		button.tooltip_text = pitch.display_name
+		button.tooltip_text = pitch.display_name + "\n" + pitch.tactical_description
 		button.button_pressed = index == _lab._selected_pitch_index
 		button.disabled = not MatchLabSupport.can_edit_pitch_plan(_lab)
 	size.y = get_combined_minimum_size().y

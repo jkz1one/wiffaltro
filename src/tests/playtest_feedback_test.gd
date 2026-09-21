@@ -23,6 +23,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	DirAccess.remove_absolute(path)
 	DirAccess.remove_absolute(PitchBatLabSettings.path)
+	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro playtest feedback checks passed.")
 	get_tree().quit(0 if _failures == 0 else 1)

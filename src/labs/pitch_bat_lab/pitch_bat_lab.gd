@@ -79,6 +79,10 @@ var _backdrop_button: Button
 var _display_menu_open: bool = false
 var _pause_menu: PitchBatLabPauseMenu
 var _pitch_picker: PitchPicker
+var _sounds_muted: bool = false
+var _sounds: PlaySounds
+var _ball_visibility: BallVisibility
+var _pitch_feedback: PitchFeedback
 var _home_run: PitchBatLabHomeRun = PitchBatLabHomeRun.new()
 var _pitch_release_bar: ProgressBar
 var _pitch_release_ideal_marker: ColorRect
@@ -319,6 +323,7 @@ func _throw_pitch() -> void:
 		return
 
 	_cleanup_batted_ball()
+	_pitch_feedback.clear()
 	_last_exit_speed_mph = 0.0
 	var candidate_throw_number: int = _throw_number + 1
 	_swing_consumed = false
@@ -494,7 +499,9 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 
 
 func _on_batted_surface_contact(surface_id: StringName, contact_position: Vector3) -> void:
-	if _ball_play_resolver == null:
+	if _ball_play_resolver == null or _ball_play_resolver.state == null:
+		return
+	if _ball_play_resolver.state.dead:
 		return
 	match surface_id:
 		&"ground":
@@ -502,6 +509,7 @@ func _on_batted_surface_contact(surface_id: StringName, contact_position: Vector
 				PitchBatLabFeelSupport.note_first_ground(self, contact_position)
 			_ball_play_resolver.record_ground_contact(contact_position)
 		&"back_wall":
+			_sounds.play(&"wall")
 			_ball_play_resolver.record_back_wall_contact(contact_position)
 		&"live_object":
 			_ball_play_resolver.record_live_object_contact(&"starter_pole")
@@ -560,6 +568,7 @@ func _apply_fielding_outcome(
 	)
 	match outcome:
 		FieldingResolver.Outcome.CLEAN:
+			_sounds.play(&"catch")
 			var ball_was_moving: bool = _batted_ball.linear_velocity.length() > SETTLED_SPEED_MPS
 			_batted_ball.global_position = resolved_position
 			_batted_ball.stop_and_freeze()
@@ -567,6 +576,8 @@ func _apply_fielding_outcome(
 				self, defender_id, resolved_position, ball_was_moving
 			)
 		FieldingResolver.Outcome.BOBBLE:
+			_sounds.play(&"bobble")
+			_pitch_feedback.show_note("BOBBLE • Ball still live")
 			_ball_play_resolver.record_bobble(defender_id)
 			_batted_ball.deflect(
 				DeflectionModel.velocity_after_bobble(
@@ -582,7 +593,11 @@ func _apply_fielding_outcome(
 
 func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 	_home_run.resolve_ball(self, outcome)
+	if outcome.result == BallPlayOutcome.Result.HOME_RUN:
+		_sounds.play(&"home_run")
 	_primary_fielder.end_play()
+	if _pitch_feedback.text.begins_with("BOBBLE"):
+		_pitch_feedback.show_note("BOBBLED • " + outcome.display_name())
 
 	var runs_scored: int = 0
 	var advancement_text: String = "Runners hold"
@@ -642,6 +657,8 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 		self, StringName(outcome.display_name().to_snake_case()), runs_scored
 	)
 	PitchBatLabFeelSupport.notify_pitch_dead(self)
+	if outcome.caught:
+		_at_bat_cadence.active_hold_seconds = maxf(_at_bat_cadence.active_hold_seconds, 2.25)
 	_refresh_config()
 
 
@@ -651,70 +668,7 @@ func _on_trace_sampled(point: Vector3) -> void:
 
 
 func _on_plate_crossed(point: Vector3, speed_mps: float, elapsed_seconds: float) -> void:
-	PitchBatLabFeelSupport.note_crossing(self, point, speed_mps)
-	var target_error_x: float = point.x - _pitch_target.x
-	var target_error_y: float = point.y - _pitch_target.y
-	var call_text: String = ""
-	var swing_feedback: String = ""
-	var plate_call: StringName = &""
-	if _match_mode:
-		if _swing_consumed:
-			var miss: ContactResult = PitchBatLabSwingSupport.ensure_miss(self)
-			plate_call = _match_state.record_strike(true)
-			if miss != null:
-				swing_feedback = "   %s" % miss.miss_reason_name()
-		else:
-			var in_zone: bool = (
-				point.x >= ZONE_MIN_X
-				and point.x <= ZONE_MAX_X
-				and point.y >= ZONE_MIN_Y
-				and point.y <= ZONE_MAX_Y
-			)
-			plate_call = _match_state.record_called_pitch(in_zone)
-		call_text = "   %s" % String(plate_call).replace("_", " ").to_upper()
-
-	_live_label.text = (
-		(
-			"PLATE • %s%s%s\n"
-			+ "cross %.2f / %.2f • error %+0.1f / %+0.1f cm\n"
-			+ "release %.1f → %.1f • plate %.1f mph • %.3f s"
-		)
-		% [
-			_selected_pitch().display_name,
-			call_text,
-			swing_feedback,
-			point.x,
-			point.y,
-			target_error_x * 100.0,
-			target_error_y * 100.0,
-			_last_nominal_release_speed_mps * 2.236936,
-			_last_executed_release_speed_mps * 2.236936,
-			speed_mps * 2.236936,
-			elapsed_seconds,
-		]
-	)
-	if _match_mode:
-		_status_label.text = (
-			"%s%s\n%s  %.0f MPH"
-			% [
-				String(plate_call).replace("_", " ").to_upper(),
-				swing_feedback,
-				_selected_pitch().display_name,
-				speed_mps * 2.236936,
-			]
-		)
-	else:
-		_status_label.text = "PLATE • %s" % _selected_pitch().display_name
-	if _match_mode:
-		PitchBatLabFeelSupport.notify_pitch_dead(self)
-		_live_label.text += "\nPLAY DEAD • next state automatic"
-		_refresh_config()
-	var record_result: StringName = &"plate_crossed"
-	if _swing_consumed:
-		record_result = &"swinging_strike"
-	elif not call_text.is_empty():
-		record_result = StringName(call_text.strip_edges().to_lower().replace(" ", "_"))
-	PitchBatLabFeelSupport.finish_record(self, record_result)
+	PitchBatLabPitchCall.resolve(self, point, speed_mps, elapsed_seconds)
 
 
 func _on_flight_stopped(reason: StringName) -> void:
@@ -820,6 +774,8 @@ func _ball_in_play_is_live() -> bool:
 
 
 func _cleanup_batted_ball() -> void:
+	if _ball_visibility != null:
+		_ball_visibility.clear()
 	_home_run.active = false
 	if _pitcher_marker != null:
 		_pitcher_marker.position = MOUND_ORIGIN

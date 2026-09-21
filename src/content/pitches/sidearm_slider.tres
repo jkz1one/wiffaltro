@@ -7,6 +7,7 @@
 script = ExtResource("1_pitch")
 id = &"pitch.sidearm_slider"
 display_name = "Sidearm Slider"
+tactical_description = "Sidearm glove-side sweep. Move across the zone from a lower release."
 category = 1
 rarity = 1
 delivery_profile = ExtResource("2_delivery")

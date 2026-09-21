@@ -7,6 +7,7 @@
 script = ExtResource("1_pitch")
 id = &"pitch.riser"
 display_name = "Sidearm Riser"
+tactical_description = "Sidearm upward break. Change eye level; costs more stamina."
 category = 3
 rarity = 1
 delivery_profile = ExtResource("2_delivery")

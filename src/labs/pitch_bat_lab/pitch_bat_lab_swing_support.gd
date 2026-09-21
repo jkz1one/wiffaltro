@@ -68,6 +68,10 @@ static func ensure_miss(lab: PitchBatLab) -> ContactResult:
 
 
 static func reset(lab: PitchBatLab) -> void:
+	if lab._pitch_feedback != null:
+		lab._pitch_feedback.clear()
+	if lab._sounds != null:
+		lab._sounds.stop_all()
 	if lab._swing_tracker != null:
 		lab._swing_tracker.reset()
 	if lab._bat_actor != null:
@@ -95,6 +99,8 @@ static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
 	var profile: SwingProfileDefinition = lab._swing_tracker.profile
 	var aim_point: Vector2 = lab._swing_tracker.intent.aim_point
 	PitchBatLabFeelSupport.note_swing(lab, profile.id, aim_point, result)
+	lab._sounds.play(&"contact")
+	lab._pitch_feedback.show_note(result.timing_name() + " • " + result.aim_name())
 	lab._pitch_actor.stop_pitch(&"contact")
 	lab._last_exit_speed_mph = result.exit_velocity.length() * 2.236936
 

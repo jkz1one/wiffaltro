@@ -7,6 +7,7 @@
 script = ExtResource("1_pitch")
 id = &"pitch.drop"
 display_name = "Drop"
+tactical_description = "Downward break. Change eye level with a ball that dives toward the plate."
 category = 3
 rarity = 1
 delivery_profile = ExtResource("2_delivery")

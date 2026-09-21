@@ -7,6 +7,7 @@
 script = ExtResource("1_pitch")
 id = &"pitch.overhand_sinker"
 display_name = "Overhand Sinker"
+tactical_description = "Fast with arm-side sink. Work low to change the contact height."
 category = 0
 rarity = 0
 delivery_profile = ExtResource("2_delivery")

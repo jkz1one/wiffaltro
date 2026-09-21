@@ -7,6 +7,7 @@
 script = ExtResource("1_pitch")
 id = &"pitch.knuckleball"
 display_name = "Knuckleball"
+tactical_description = "Low spin and unstable movement. Hard to read, harder to command."
 category = 3
 rarity = 2
 delivery_profile = ExtResource("2_delivery")

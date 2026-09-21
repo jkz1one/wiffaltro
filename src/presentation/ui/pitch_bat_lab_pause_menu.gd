@@ -4,6 +4,7 @@ extends PanelContainer
 var _lab: PitchBatLab
 var _main: VBoxContainer
 var _title: Label
+var _mute_button: Button
 
 
 func build(lab: PitchBatLab) -> void:
@@ -36,6 +37,7 @@ func build(lab: PitchBatLab) -> void:
 	layout.add_child(lab._display_menu_panel)
 	lab._hud_anchor_button = _button(lab._display_menu_panel, "", lab._cycle_hud_anchor)
 	lab._backdrop_button = _button(lab._display_menu_panel, "", lab._toggle_sky_backdrop)
+	_mute_button = _button(lab._display_menu_panel, "", _toggle_mute)
 	_button(lab._display_menu_panel, "BACK", lab._toggle_display_menu)
 	var hint: Label = Label.new()
 	hint.text = "Play stays frozen while you inspect."
@@ -48,6 +50,7 @@ func refresh() -> void:
 	visible = _lab._debug_paused
 	_main.visible = not _lab._display_menu_open
 	_lab._display_menu_panel.visible = _lab._display_menu_open and visible
+	_mute_button.text = "Mute sounds: " + ("On" if _lab._sounds_muted else "Off")
 	_title.text = "SETTINGS" if _lab._display_menu_open else "PAUSED"
 	var anchors: Array[String] = ["Bottom right", "Top left", "Top right"]
 	_lab._hud_anchor_button.text = "Score box: " + anchors[_lab._hud_anchor_index]
@@ -56,6 +59,13 @@ func refresh() -> void:
 	)
 	_lab._display_menu_button.text = "RESUME  Esc" if visible else "PAUSE  Esc"
 	size.y = get_combined_minimum_size().y
+
+
+func _toggle_mute() -> void:
+	_lab._sounds_muted = not _lab._sounds_muted
+	_lab._sounds.set_muted(_lab._sounds_muted)
+	PitchBatLabSettings.save(_lab)
+	refresh()
 
 
 func _resume() -> void:
