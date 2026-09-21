@@ -19,6 +19,7 @@ const MERCY_RUNS: int = 10
 var away_team: TeamMatchState
 var home_team: TeamMatchState
 var bases: BaseState = BaseState.new()
+var performance: MatchPerformance = MatchPerformance.new()
 var phase: Phase = Phase.PRE_PITCH
 var inning: int = 1
 var top_half: bool = true
@@ -88,6 +89,7 @@ func record_ball() -> StringName:
 	if balls >= BALLS_FOR_WALK:
 		var batter_id: StringName = batter().definition.id
 		var runs_scored: int = bases.advance_for_walk(batter_id)
+		performance.complete(batter_id, pitcher().definition.id, "walk", runs_scored)
 		_add_runs(runs_scored)
 		_complete_plate_appearance("Walk")
 		return &"walk"
@@ -98,6 +100,7 @@ func record_ball() -> StringName:
 func record_strike(swinging: bool = true) -> StringName:
 	strikes += 1
 	if strikes >= STRIKES_FOR_OUT:
+		performance.complete(batter().definition.id, pitcher().definition.id, "strikeout", 0)
 		outs += 1
 		_complete_plate_appearance(
 			"Strikeout swinging" if swinging else "Called strikeout"
@@ -118,6 +121,7 @@ func record_ball_in_play_out(
 	runs_scored: int = 0,
 	description: String = "Out"
 ) -> void:
+	performance.complete(batter().definition.id, pitcher().definition.id, "out", runs_scored)
 	_add_runs(runs_scored)
 	outs += 1
 	_complete_plate_appearance(description)
@@ -125,6 +129,10 @@ func record_ball_in_play_out(
 func record_hit(result: BallPlayOutcome.Result) -> int:
 	var batter_id: StringName = batter().definition.id
 	var runs_scored: int = bases.advance_for_hit(result, batter_id)
+	var outcome: String = (
+		"hr" if result == BallPlayOutcome.Result.HOME_RUN else _hit_name(result).to_lower()
+	)
+	performance.complete(batter_id, pitcher().definition.id, outcome, runs_scored)
 	_add_runs(runs_scored)
 	_complete_plate_appearance(_hit_name(result))
 	return runs_scored

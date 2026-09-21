@@ -12,20 +12,31 @@ seven ratings are visible on the Lineup page without hovering; B/T uses R, L,
 or S for switch hitting. Forty-eight possible players supply the 24 active club
 slots, with at most one four-/five-Pitch specialist among twelve new offers.
 
+Season-flow follow-up: after the first pick, choose a roster member in Compare
+With Your Player. The seven signed differences on every offer must match the
+reference player's ratings. This selection must not draft anyone. The roster
+coverage hint describes the lowest of your current best ratings.
+
 1. New Season → Start Tryouts → choose one of three players four times. Close
    and reopen after a pick: Continue Season should restore the remaining offers.
-2. In Lineup, reorder hitters and select a starting Pitcher and a different
-   Primary Fielder. Play Game should use those players and that batting order.
+2. Hub → Prepare Next Game: check your record/rank, home/away opening role and
+   the opposing starter's actual arsenal. Reorder hitters and select a starting
+   Pitcher and a different Primary Fielder. Edits should preserve scroll position.
+   Play Game should use those players and that batting order.
 3. Check both home and away games: home pitches first; away bats first. Pause
    > Leave Game requires confirmation, returns to the hub and leaves this fixture
    unfinished. Returning restarts the game; it does not erase the season.
 4. Finish a game. Let the existing result and outro breathe, then click Continue
    or press Space. Confirm the final score, other league results, standings and
    next fixture. A completed result saves even before dismissing the outro.
+   Check your batting/pitching table and highlights. Prepare Next Game goes
+   directly to pregame; Last Game on the hub reopens this recap without advancing.
 5. Over the season, expect ten games (five home, five away), top-four playoffs,
    higher-seed semifinals and a neutral final on the placeholder starter field.
    After elimination, remaining AI games resolve and a champion appears.
 6. At season end, verify the result screen and New Season replacement prompt.
+   Expect a distinct missed-playoffs, semifinal-loss, runner-up or champion recap,
+   final bracket and regular-season table. Team Stats remains available.
    Exhibition must not change the season save. Mute and display preferences
    should survive leaving a game and relaunching.
 
@@ -47,6 +58,11 @@ slots, with at most one four-/five-Pitch specialist among twelve new offers.
 Existing schema-1 saves should keep their original picks/teams/results after
 update. Later saves have a prior-checkpoint `.bak`; recovery displays a notice
 and may lose the last checkpoint. Do not test corruption on your only real save.
+Schema 3 adds player statistics; older games display missing coverage. On a new
+season, compare one hitter's hits/walks/Ks and one Pitcher's outs/hits allowed
+before and after reload. Change batting order and Pitchers: their numbers must
+stay attached to names. Leave an unfinished game: its performance must not enter
+Team Stats. AI-only games have simulated final scores, without player box scores.
 
 The shell starts each game with fresh Pitcher Stamina and vanilla equipment.
 There are no shops, cash rewards, unlocks or career records yet. Save failures

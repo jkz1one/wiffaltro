@@ -71,6 +71,24 @@ func _run_match(run_seed: int) -> void:
 			_check(exported.ai_swing_chance >= 0.0 and exported.ai_swing_chance <= 1.0
 				and exported.ai_aim_sigma > 0.0, "F3 must retain valid AI read evidence")
 	_check(ai_records > 0, "live AI decisions must reach completed F3 records")
+	if run_seed == 29:
+		var state: MatchState = lab._match_state
+		var roster_ids: Array = []
+		for team in [state.away_team, state.home_team]:
+			for player: PlayerMatchState in team.roster:
+				roster_ids.append(String(player.definition.id))
+		var snapshot: Dictionary = state.performance.snapshot(state)
+		_check(SeasonPerformance.valid(snapshot, roster_ids),
+			"actual AI/contact/Jolt match must produce balanced season statistics")
+		var appearances: int = 0
+		var driven_runs: int = 0
+		for line: Dictionary in snapshot.values():
+			appearances += int(line["pa"])
+			driven_runs += int(line["rbi"])
+		_check(appearances == state.plate_appearance_number - 1,
+			"live statistics must count every completed appearance once")
+		_check(driven_runs == state.away_team.runs + state.home_team.runs,
+			"live scoring events must account for all driven runs")
 	print("LIVE_MATCH seed=", run_seed, " score=", lab._match_state.score_label(),
 		" inning=", lab._match_state.inning, " records=", lab._play_records.size(),
 		" balls_in_play=", live_balls)

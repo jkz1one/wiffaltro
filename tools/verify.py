@@ -79,6 +79,9 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("season-flow", [*base, "--fixed-fps", "60",
+                                 "res://src/tests/season_flow_test.tscn"],
+                 "Wiffaltro season flow checks passed:"),
                 ("season-enrichment", [*base, "--fixed-fps", "60",
                                        "res://src/tests/season_enrichment_test.tscn"],
                  "Wiffaltro season enrichment checks passed."),

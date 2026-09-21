@@ -245,11 +245,15 @@ func _test_menus_and_match_handoff() -> void:
 		await _frames(2)
 		DirAccess.remove_absolute(export_path)
 	app.play_season_game()
+	var saved_totals: Dictionary = SeasonPerformance.totals(app.season)
+	app.lab._match_state.record_hit(BallPlayOutcome.Result.HOME_RUN)
 	app.leave_game()
 	_check(
 		app.season.round_index == 2 and not get_tree().paused,
 		"abandoning a game must preserve season and unpause menus"
 	)
+	_check(SeasonPerformance.totals(app.season) == saved_totals,
+		"abandoned game performance must not enter season totals")
 	app.queue_free()
 	await _frames(2)
 

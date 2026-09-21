@@ -7,7 +7,7 @@ static var last_error: String = ""
 
 static func save(season: SeasonState) -> bool:
 	var data: Dictionary = {
-		"version": 2,
+		"version": 3,
 		"seed": season.season_seed,
 		"picks": season.picks,
 		"results": season.player_results,
@@ -68,20 +68,20 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 2) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 3) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	if not data.get("picks") is Array or data["picks"].size() > 4:
 		return null
 	if not data.get("results") is Array or data["results"].size() > 12:
 		return null
 	var season: SeasonState = SeasonState.create(int(data["seed"]), data["version"] == 1)
-	if data["version"] == 2:
+	if data["version"] >= 2:
 		if not _restore_pool(season, data):
 			return null
 	for id: Variant in data["picks"]:
 		if not id is String or not season.choose_player(id):
 			return null
-	if data["version"] == 2:
+	if data["version"] >= 2:
 		for index in range(6):
 			var strength: Variant = data["strengths"][index]
 			if not strength is float and not strength is int:
@@ -98,8 +98,11 @@ static func _decode(value: Variant) -> SeasonState:
 		for key in ["id", "away_runs", "home_runs"]:
 			if not _integer(result.get(key), 0, 9999):
 				return null
+		var performance: Variant = result.get("performance", {}) if data["version"] >= 3 else {}
+		if not performance is Dictionary or (result.has("performance") and performance.is_empty()):
+			return null
 		if not season.record_player_result(
-			int(result["id"]), int(result["away_runs"]), int(result["home_runs"])
+			int(result["id"]), int(result["away_runs"]), int(result["home_runs"]), performance
 		):
 			return null
 	var lineup: Variant = data.get("lineup")

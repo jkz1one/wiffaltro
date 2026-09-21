@@ -2,6 +2,30 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Season flow and performance — 2026-09-21
+
+- Reconciled main `6511a82`; full Godot 4.7.2 baseline passed before editing.
+  Source advances to v0.4.26 and technical baseline to v0.1.21.
+- Hub emphasizes record/rank, next opponent and defenders. Prepare Next Game
+  opens the lineup with opponent starter/arsenal and opening role. Postgame
+  offers direct next-game preparation, plus a revisitable final-game recap.
+- Draft cards compare every rating against an existing roster member, with
+  handedness/arsenal context and a transparent roster-coverage hint.
+- Batting and pitching observations now persist with completed game results.
+  Stats follow player IDs, include playoffs and exclude abandoned games.
+  Postgame reports real performances and league-position movement; Team Stats
+  shows accumulated observations without inventing AI-only player box scores.
+- Dedicated ending distinguishes missed playoffs, semifinal loss, runner-up
+  and champion, with leaders, final bracket and final regular-season standings.
+- Schema 3 migrates earlier score histories with explicit missing-stat coverage.
+  Existing pool/difficulty/replay inputs, backup recovery and single-commit final
+  result behavior remain. No midgame/career persistence is implied.
+- Lineup edits preserve scroll position; scrollable menus follow keyboard focus
+  while primary navigation remains in a fixed footer.
+- No scoring geometry, Contact/Power, aero, AI strategy or fatigue changes.
+  Captain retention stays in the future-enrichment notes. Phase 5+ remains later.
+- Verification evidence and human-QC limits are recorded in `VERIFICATION.md`.
+
 ## Ten-point season enrichment — 2026-09-21
 
 - Reconciled clean main `937ce2f`; source advances to v0.4.25. Detailed research,

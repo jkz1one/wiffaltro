@@ -143,15 +143,22 @@ func make_match() -> MatchState:
 	return match_state
 
 
-func record_player_result(fixture_id: int, away_runs: int, home_runs: int) -> bool:
+func record_player_result(
+	fixture_id: int, away_runs: int, home_runs: int, performance: Dictionary = {}
+) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
 		return false
 	if mini(away_runs, home_runs) < 0 or maxi(away_runs, home_runs) > 9999:
 		return false
+	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
+	if not performance.is_empty() and not SeasonPerformance.valid(performance, roster):
+		return false
 	var result: Dictionary = fixture.duplicate(true)
 	result["away_runs"] = away_runs
 	result["home_runs"] = home_runs
+	if not performance.is_empty():
+		result["performance"] = performance.duplicate(true)
 	results.append(result)
 	player_results.append(result.duplicate(true))
 	if phase == Phase.REGULAR:

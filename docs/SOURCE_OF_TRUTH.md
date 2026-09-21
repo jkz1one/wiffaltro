@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.25
+**Version:** v0.4.26
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.24 and all earlier planning notes
+**Supersedes:** v0.4.25 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -762,12 +762,31 @@ fun gate has passed. The starter implementation contains:
   semifinals pair 1–4 and 2–3, then a neutral final. Eliminated seasons still
   resolve the remaining bracket and display a champion.
 - Postgame scores and standings, followed by the next-game hub or season results.
+- The hub foregrounds the club record, league position, next opponent and
+  opening defenders. Prepare Next Game opens the editable pregame lineup with
+  the actual opponent starter/arsenal and home/away opening role. Postgame can
+  proceed directly to that next pregame screen. Lineup edits preserve scroll.
+- Draft comparisons use a selected existing player as the reference, with
+  signed differences for all seven ratings and visible handedness/arsenal.
+  The weakest of the roster's best ratings is a coverage hint, not an optimal
+  pick recommendation or a new gameplay rating.
+- Completed player games retain individual PA, hits, doubles, triples, homers,
+  walks, strikeouts and RBI; Pitchers retain outs, hits/walks allowed,
+  strikeouts and actual Pitches thrown. Postgame and Team Stats show these
+  observations. Stats follow player IDs through lineup/defense changes and
+  include playoffs. AI-only simulated scores do not fabricate player stats.
+- Distinct season recaps identify missed playoffs, semifinal elimination,
+  championship runner-up or champion, with recorded hitting/pitching leaders,
+  final bracket and regular-season standings. The finished season remains
+  inspectable until a new season is confirmed; no career archive is implied.
 - Local checkpoints after draft/lineup changes and as soon as a match is final.
   An interrupted unfinished game restarts from its beginning. There is one save
   slot, with confirmation before replacing it, and no midgame resume.
   The prior valid checkpoint is backed up locally. Version-1 saves migrate using
   their original 24-player pool; saved version-2 offers and AI strength snapshots
   do not reshuffle when the catalog grows. Recovery is reported on the menu.
+  Schema 3 adds completed-game performance snapshots. Schema 1/2 scores remain
+  valid; their absent statistics are explicitly reported, never backfilled.
 
 Pitchers start each game fresh in this first shell; in-game fatigue and no
 pitching re-entry remain unchanged. Intergame recovery, specialized venues,

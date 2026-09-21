@@ -4,6 +4,7 @@ extends PanelContainer
 var app: SeasonApp
 var page: String = "home"
 var draft_selection: String = ""
+var draft_reference: int = 0
 var _layout: VBoxContainer
 var _body: VBoxContainer
 var _footer: HBoxContainer
@@ -49,6 +50,7 @@ func _screen(key: String, title: String, subtitle: String) -> void:
 		var warning: Label = _label(_layout, app.notice, 16)
 		warning.modulate = Color(1, 0.75, 0.45)
 	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.follow_focus = true
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_layout.add_child(scroll)
@@ -71,10 +73,10 @@ func show_home() -> void:
 	_label(club, "SEASON", 28)
 	_label(club, "Draft four players. Build a team. Chase the title.", 20)
 	if app.season != null:
-		var progress: String = "Tryout %d of 4" % (app.season.picks.size() + 1)
-		if app.season.phase != SeasonState.Phase.DRAFT:
-			progress = "%d of 10 regular games completed" % app.season.round_index
+		var progress: String = SeasonPages.stage(app.season)
 		_label(club, progress, 18)
+		if app.season.phase != SeasonState.Phase.DRAFT:
+			_label(club, SeasonPages.club_record(app.season), 18)
 		_button(club, "CONTINUE SEASON", app.show_season)
 	_button(club, "NEW SEASON", app.ask_new_season)
 	var quick: VBoxContainer = SeasonPlayerCard.panel(row)
@@ -136,6 +138,7 @@ func show_draft() -> void:
 	for id in app.season.picks:
 		names.append(ContentDB.get_player(StringName(id)).display_name)
 	_label(_body, "YOUR CLUB  " + (", ".join(names) if not names.is_empty() else "First pick"), 18)
+	var reference: PlayerDefinition = _draft_comparison()
 	var cards: HBoxContainer = HBoxContainer.new()
 	cards.add_theme_constant_override("separation", 16)
 	_body.add_child(cards)
@@ -144,7 +147,8 @@ func show_draft() -> void:
 			cards,
 			ContentDB.get_player(StringName(id)),
 			id == draft_selection,
-			_select_draft.bind(id)
+			_select_draft.bind(id),
+			reference
 		)
 	var label: String = "SELECT A PLAYER"
 	if not draft_selection.is_empty():
@@ -161,48 +165,28 @@ func _select_draft(id: String) -> void:
 
 
 func show_hub() -> void:
-	var season: SeasonState = app.season
-	var title: String = "GAME %d OF 10" % (season.round_index + 1)
-	if season.phase == SeasonState.Phase.SEMIFINAL:
-		title = "SEMIFINAL"
-	elif season.phase == SeasonState.Phase.FINAL:
-		title = "CHAMPIONSHIP"
-	elif season.phase == SeasonState.Phase.COMPLETE:
-		title = "CHAMPIONS" if season.champion == 0 else "SEASON COMPLETE"
-	_screen("hub", title, "Backyard League • Yard Club")
-	var fixture: Dictionary = season.pending_fixture()
-	if not fixture.is_empty():
-		_label(_body, _matchup(fixture), 26)
-		_label(
-			_body,
-			(
-				"Neutral final • Starter field"
-				if fixture.get("neutral", false)
-				else ("Home game" if fixture["home"] == 0 else "Away game")
-			),
-			16
-		)
-	else:
-		_label(_body, "%s win the championship." % season.teams[season.champion]["name"], 26)
-	_standings()
-	_label(_body, "Ties: wins, run difference, runs scored, then preseason draw.", 14)
-	if season.round_index >= 10:
-		_label(_body, _playoffs(), 18)
-	if not fixture.is_empty():
-		_button(_footer, "PLAY GAME", app.play_season_game)
-		_button(_footer, "LINEUP", show_lineup)
-	else:
-		_button(_footer, "NEW SEASON", app.ask_new_season)
-	_button(_footer, "SCHEDULE", show_schedule)
-	_button(_footer, "MAIN MENU", show_home)
+	SeasonPages.hub(self)
+
+
+func show_stats() -> void:
+	SeasonPages.stats(self)
+
+
+func show_summary() -> void:
+	SeasonPages.summary(self)
+
+
+func show_last_game() -> void:
+	SeasonPages.postgame(self)
 
 
 func show_lineup() -> void:
 	_screen(
 		"lineup",
-		"LINEUP & DEFENSE",
+		"PREGAME • LINEUP & DEFENSE",
 		"Edit freely before each game. Batting order locks when the game starts."
 	)
+	SeasonPages.pregame(self)
 	var roster: Array = app.season.teams[0]["roster"]
 	var grid: GridContainer = GridContainer.new()
 	grid.columns = 11
@@ -231,10 +215,12 @@ func show_lineup() -> void:
 		for rating in SeasonPlayerCard.values(player):
 			_label(grid, str(rating), 22)
 		var up: Button = _button(grid, "↑", app.swap_lineup.bind(index, index - 1))
+		up.set_meta("lineup_focus", String(player.id) + ":up")
 		up.custom_minimum_size = Vector2(40, 38)
 		up.disabled = index == 0
 		up.tooltip_text = "Move earlier in the batting order"
 		var down: Button = _button(grid, "↓", app.swap_lineup.bind(index, index + 1))
+		down.set_meta("lineup_focus", String(player.id) + ":down")
 		down.custom_minimum_size = Vector2(40, 38)
 		down.disabled = index == 3
 		down.tooltip_text = "Move later in the batting order"
@@ -245,6 +231,7 @@ func show_lineup() -> void:
 		var label: Label = _label(row, "Pitcher" if pitcher else "Primary Fielder", 20)
 		label.custom_minimum_size.x = 175
 		var choice: OptionButton = OptionButton.new()
+		choice.set_meta("lineup_focus", "pitcher" if pitcher else "fielder")
 		choice.custom_minimum_size = Vector2(360, 40)
 		for id: String in roster:
 			var player: PlayerDefinition = ContentDB.get_player(StringName(id))
@@ -267,7 +254,31 @@ func show_lineup() -> void:
 		"B / T = bats / throws. S = switch hitter. Fresh Stamina each game; vanilla equipment.",
 		18
 	)
-	_button(_footer, "DONE", show_hub)
+	_button(_footer, "PLAY GAME", app.play_season_game)
+	_button(_footer, "SEASON HUB", show_hub)
+
+
+func refresh_lineup() -> void:
+	var scroll: ScrollContainer = _body.get_parent() as ScrollContainer
+	var offset: int = scroll.scroll_vertical if page == "lineup" else 0
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	var key: String = String(focused.get_meta("lineup_focus", "")) if focused != null else ""
+	show_lineup()
+	_restore_lineup_view.call_deferred(offset, key)
+
+
+func _restore_lineup_view(offset: int, key: String) -> void:
+	if page != "lineup":
+		return
+	for node in _body.find_children("*", "BaseButton", true, false):
+		var button: BaseButton = node as BaseButton
+		if (
+			not key.is_empty()
+			and button.get_meta("lineup_focus", "") == key
+			and not button.disabled
+		):
+			button.grab_focus()
+	(_body.get_parent() as ScrollContainer).set_deferred("scroll_vertical", offset)
 
 
 func show_schedule() -> void:
@@ -280,26 +291,74 @@ func show_schedule() -> void:
 					if result["id"] == fixture["id"]:
 						line += "   %d–%d" % [result["away_runs"], result["home_runs"]]
 				_label(_body, line, 20)
+	if app.season.round_index >= 10:
+		SeasonPages.wrapped(_body, _playoffs())
 	_button(_footer, "BACK", show_hub)
 
 
 func show_postgame(score: String, season_game: bool) -> void:
-	_screen("postgame", "FINAL SCORE", score)
 	if season_game:
-		_standings()
-		_label(_body, "Around the league", 22)
-		var latest_round: int = app.season.player_results.back()["round"]
-		for result in app.season.results:
-			if result["round"] == latest_round and result["away"] != 0 and result["home"] != 0:
-				_label(
-					_body,
-					"%s   %d–%d" % [_matchup(result), result["away_runs"], result["home_runs"]],
-					18
-				)
-		_button(_footer, "CONTINUE", app.show_season)
-	else:
-		_button(_footer, "PLAY AGAIN", app.play_exhibition)
+		SeasonPages.postgame(self)
+		return
+	_screen("postgame", "FINAL SCORE", score)
+	_button(_footer, "PLAY AGAIN", app.play_exhibition)
 	_button(_footer, "MAIN MENU", show_home)
+
+
+func _draft_comparison() -> PlayerDefinition:
+	if app.season.picks.is_empty():
+		_label(
+			_body,
+			"Build around hitting, defense or an arm. Every player fills all three roles.",
+			18
+		)
+		return null
+	draft_reference = clampi(draft_reference, 0, app.season.picks.size() - 1)
+	var row: HBoxContainer = HBoxContainer.new()
+	_body.add_child(row)
+	_label(row, "COMPARE WITH YOUR PLAYER", 18)
+	var choice: OptionButton = OptionButton.new()
+	choice.custom_minimum_size = Vector2(260, 38)
+	for id in app.season.picks:
+		choice.add_item(ContentDB.get_player(StringName(id)).display_name)
+	choice.select(draft_reference)
+	choice.item_selected.connect(_compare_draft)
+	row.add_child(choice)
+	_label(row, "+ / − = rating difference", 18)
+	var reference: PlayerDefinition = ContentDB.get_player(
+		StringName(app.season.picks[draft_reference])
+	)
+	SeasonPages.wrapped(
+		_body,
+		(
+			"%s • B/T %s • %s"
+			% [
+				reference.display_name,
+				SeasonPlayerCard.hands(reference),
+				_pitches(reference).replace("\n", " • ")
+			]
+		)
+	)
+	var best: Array[int] = [0, 0, 0, 0, 0, 0, 0]
+	for id in app.season.picks:
+		var ratings: Array[int] = SeasonPlayerCard.values(ContentDB.get_player(StringName(id)))
+		for index in range(7):
+			best[index] = maxi(best[index], ratings[index])
+	var weakest: int = best.find(best.min())
+	_label(
+		_body,
+		(
+			"Roster coverage: strongest %s rating is %d. Compare this area as you draft."
+			% [SeasonPlayerCard.RATING_NAMES[weakest], best[weakest]]
+		),
+		18
+	)
+	return reference
+
+
+func _compare_draft(index: int) -> void:
+	draft_reference = index
+	show_draft()
 
 
 func _standings() -> void:

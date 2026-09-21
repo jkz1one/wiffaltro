@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.20
+**Version:** v0.1.21
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2219,3 +2219,40 @@ decisions, measured evidence and scope boundaries.
 Persistence remains local and between-game. Midgame suspension requires explicit
 serialization of count, batting cursor, used Pitchers, Stamina, tactical state
 and physics/presentation boundaries; it is not implemented as a quick scene dump.
+
+## Season flow and performance follow-up — 2026-09-21
+
+`SeasonPages` owns hub/pregame/recap/statistics presentation. `SeasonMenu` keeps
+the shared frame, persistent footer, draft and editable roster. The main route
+is hub → pregame → match → postgame → next pregame, with a separate season-ending
+recap. Current opponent starter information reads the same roster index used by
+`SeasonState.make_match`. Standings movement compares complete league rounds;
+the preseason tiebreak draw is not presented as movement after the first game.
+
+`MatchPerformance` observes completed plate appearances at the existing
+`MatchState` scoring methods, before batter advancement and game-end handling.
+It never resolves a play. Hits, walks, strikeouts and sacrifice scoring therefore
+use authoritative results. Pitch counts come from each `PlayerMatchState` at
+snapshot time. Match/Lab suspension retains the same MatchState, so clearing
+development telemetry cannot erase gameplay statistics. No ERA or individual
+runs are inferred from ghost runners or inherited runners.
+
+`SeasonApp` submits a deep performance snapshot with the fixture's final score.
+`SeasonState.record_player_result` validates it before mutation and retains it
+in the same single-commit result. Unfinished games never enter season totals.
+`SeasonPerformance` validates roster IDs, integer bounds, hit-type bounds and
+balanced batting/pitching totals, aggregates player IDs and finds tied leaders.
+
+Save schema 3 keeps schema 2's replay inputs and embeds optional statistics in
+completed player results. Version 1/2 histories remain score-only, with visible
+coverage. Mixed older/newly recorded seasons remain valid. The existing valid
+backup and temp/flush/rename mechanism is retained. There is no midgame resume,
+career history or simulated AI box score. Full-season statistics are a sum of
+saved completed-game observations, including playoffs.
+
+The new flow test covers real scoring-method attribution, substitution,
+walk-off, a twelve-game scored season, save/reload and malformed stats, older
+save migration, page bounds and scroll preservation. The live drafted-match
+test additionally checks that actual AI/contact/Jolt events yield balanced
+statistics and one observation per completed appearance. Human visual/feel QC
+remains necessary; headless layout checks do not establish aesthetics.

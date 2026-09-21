@@ -229,7 +229,7 @@ func _test_migration() -> void:
 	)
 	if migrated == null:
 		return
-	_check(SeasonSave.save(migrated), "migrated save can checkpoint to v2")
+	_check(SeasonSave.save(migrated), "migrated save can checkpoint to current schema")
 	var restored: SeasonState = SeasonSave.restore()
 	_check(
 		restored != null and restored.draft_pool == legacy.draft_pool,

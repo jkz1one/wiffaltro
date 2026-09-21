@@ -52,7 +52,11 @@ static func panel(parent: Node, selected: bool = false) -> VBoxContainer:
 
 
 static func draft_card(
-	parent: Node, player: PlayerDefinition, selected: bool, action: Callable
+	parent: Node,
+	player: PlayerDefinition,
+	selected: bool,
+	action: Callable,
+	reference: PlayerDefinition = null
 ) -> void:
 	var box: VBoxContainer = panel(parent, selected)
 	var name_button: Button = Button.new()
@@ -78,6 +82,8 @@ static func draft_card(
 		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(bar)
 		line(row, "%2d" % ratings[index], 18)
+		if reference != null:
+			line(row, "(%+d)" % (ratings[index] - values(reference)[index]), 16)
 	line(
 		box,
 		(

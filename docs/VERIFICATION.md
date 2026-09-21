@@ -35,6 +35,40 @@ this runner. Logs and a machine-readable `summary.json` remain under
 Independent runtime checks continue after a regression failure, but the overall
 command still exits nonzero. No hosted CI is triggered.
 
+## Season flow / performance verification — 2026-09-21
+
+Baseline main `6511a82` passed the full pinned-engine suite at
+`builds/verification/20260921T172439177685Z` before gameplay hooks were edited.
+The implementation passed all 22 verification steps at
+`builds/verification/20260921T173411007379Z`, with no engine errors or warnings.
+This includes the new `season-flow` scene plus all existing season, camera,
+presentation, input, live-match, physics, core, export and smoke checks.
+
+New coverage verifies:
+
+- Correct player attribution before batting-cursor advancement, loaded walks,
+  hit types, strikeouts, sacrifice RBI, substitution and walk-off handling.
+- A twelve-game season through the actual match scoring methods, with stats
+  saved/reloaded after every game and duplicate result commits rejected.
+- Schema-2 score-history migration, malformed-stat rejection and stable player
+  identity across lineup changes. The existing schema-1 migration also passes.
+- Draft comparison context, hub → pregame → recap → next pregame navigation,
+  visible fixed footers, horizontal bounds at 1280×720 and preserved lineup scroll.
+- Balanced statistics from the existing drafted live match, which exercises
+  actual AI, contact and Jolt; completed appearances and runs reconcile to the
+  match state. The scripted human takes every Pitch, so this is not balance data.
+
+After the full run, a final regular-season-standings label and targeted assertions
+for mixed old/new stat history and abandoned-game exclusion were added. Both
+affected scenes passed again; logs are `builds/season-flow-test.log` and
+`builds/season-flow-shell.log`, with import in `builds/season-flow-import.log`.
+Final parser/lint and staged whitespace checks also passed.
+
+There is no rendered screenshot or human-feel approval from this environment.
+Playtest the compactness, scrolling, keyboard focus, opponent context, result
+recap, old-save coverage and reload behavior using `PITCH_BAT_LAB_TEST.md`.
+No sport tuning or claim of passing the human fun gate accompanies this work.
+
 ## Automatic playtest records
 
 Each completed play saves the current session to `user://qc/plays-*.json`.

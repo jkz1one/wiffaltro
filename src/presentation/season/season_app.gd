@@ -139,7 +139,9 @@ func _commit_result() -> bool:
 	if not _season_game or _result_recorded:
 		return true
 	var state: MatchState = lab._match_state
-	if not season.record_player_result(_fixture_id, state.away_team.runs, state.home_team.runs):
+	if not season.record_player_result(
+		_fixture_id, state.away_team.runs, state.home_team.runs, state.performance.snapshot(state)
+	):
 		return false
 	_result_recorded = true
 	# Persist as soon as the score is final, even if the player exits during the outro.
@@ -183,7 +185,7 @@ func swap_lineup(first: int, second: int) -> void:
 		return
 	season.swap_batters(first, second)
 	_checkpoint()
-	menu.show_lineup()
+	menu.refresh_lineup()
 
 
 func select_starter(index: int) -> void:
@@ -191,7 +193,7 @@ func select_starter(index: int) -> void:
 		return
 	season.select_starter(index)
 	_checkpoint()
-	menu.show_lineup()
+	menu.refresh_lineup()
 
 
 func select_fielder(index: int) -> void:
@@ -200,7 +202,7 @@ func select_fielder(index: int) -> void:
 	if index != season.starter_index and index >= 0 and index < 4:
 		season.fielder_index = index
 		_checkpoint()
-		menu.show_lineup()
+		menu.refresh_lineup()
 
 
 func _checkpoint() -> bool:

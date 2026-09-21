@@ -41,6 +41,8 @@ The repository now contains:
 - main, preseason, draft, lineup, schedule, postgame and season-results menus
 - 48 possible authored two-way players, 24 active across six clubs, ten games and playoffs
 - visible draft/lineup stats, rare switch hitters and four-/five-Pitch arsenals
+- draft rating comparisons, pregame opponent scouting and direct next-game preparation
+- saved batting/pitching performance, postgame highlights and distinct season-ending recaps
 - count/personality-aware pitching, strategy difficulty presets and visible-motion batting reads
 - deterministic AI league scores, standings and validated local season checkpoints
 - stable content IDs
