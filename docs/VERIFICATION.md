@@ -20,7 +20,8 @@ python3 tools/verify.py
 An existing engine can also be selected with `--godot /path/to/Godot` or
 `GODOT_BIN`. Version mismatches fail explicitly. The runner checks whitespace,
 GDScript parsing/lint, engine import, core regressions, seeded match soak,
-player-input flow, two live matches, physical-ball fixtures, QC file export,
+player-input flow, playtest-feedback UI/cadence checks, two live matches,
+physical-ball fixtures, QC file export,
 and a 120-frame main-scene smoke. Engine errors fail even when Godot exits with zero;
 regression scenes must also print their completion marker. Every engine step
 has a timeout (default 180 seconds, adjustable with `--timeout`).
@@ -115,10 +116,16 @@ effort adjustment in the game.
   its settled outro and a fresh-game restart while preserving its saved QC file.
   Synthetic records stay in
   dedicated test files, outside `user://qc`, and are removed after the run.
-- `physical_ball_test.tscn`: nine isolated actual Jolt launches through the
+- `playtest_feedback_test.tscn`: nested pause/settings, saved display preferences,
+  GUI-consumed release cancellation, repertoire selection and delivery locks,
+  panel bounds at every scorebox anchor, batting zone opacity, 100 seeded quiet
+  sets, and remote Pitcher control at a same-frame Single crossing. Checks that
+  stopped balls and Double floors stay safe and ineligible pursuit stays still.
+- `physical_ball_test.tscn`: ten isolated actual Jolt launches through the
   production field, ball body, contact signals, and lab physics loop. Checks
   short settling, grounded crossings of both internal lines, ground/fly wall
-  contacts, HR clearance, untouched Deep Air, and pitcher clean/bobble/miss.
+  contacts, HR clearance, untouched Deep Air, pitcher clean/bobble/miss, and
+  actual Pitcher movement to cleanly field a slow grounder before Single.
   Primary defense is disabled only in these fixtures to isolate each rule.
   Ground and wall cases require actual collision-contact evidence.
 
@@ -135,7 +142,7 @@ and miss can continue to the wall. This is a collision-envelope fix, not tuning.
 
 The two scripted live matches completed with 131/90 records and 37 ball-in-play
 events each in the initial successful run. Their passive batting policy is
-deliberately unrepresentative. Do not use these records or nine hand-picked
+deliberately unrepresentative. Do not use these records or the hand-picked
 launches as the meaningful human F3 distribution sample.
 
 Rendered camera review remains pending: this environment has no configured

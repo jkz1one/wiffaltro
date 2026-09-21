@@ -19,6 +19,8 @@ const DEAD_BALL_HOLD_SECONDS: float = 1.80
 const MIN_DELIVERY_SECONDS: float = 1.12
 const MAX_DELIVERY_SECONDS: float = 1.78
 const LONG_SET_CHANCE: float = 0.18
+const MIN_SET_SECONDS: float = 0.22
+const MAX_SET_SECONDS: float = 1.05
 const MIN_DEAD_BALL_HOLD_SECONDS: float = 1.55
 const MAX_DEAD_BALL_HOLD_SECONDS: float = 2.05
 const MIN_BETWEEN_BATTERS_SECONDS: float = 1.95
@@ -30,16 +32,20 @@ var state: State = State.IDLE
 var elapsed_seconds: float = 0.0
 var active_delivery_seconds: float = DELIVERY_SECONDS
 var active_hold_seconds: float = DEAD_BALL_HOLD_SECONDS
+var active_set_seconds: float = 0.0
+var active_windup_seconds: float = DELIVERY_SECONDS
 
 func begin_delivery(cadence_seed: int = 0) -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = cadence_seed
-	active_delivery_seconds = rng.randf_range(
+	active_windup_seconds = rng.randf_range(
 		MIN_DELIVERY_SECONDS,
 		MAX_DELIVERY_SECONDS
 	)
+	active_set_seconds = rng.randf_range(MIN_SET_SECONDS, MAX_SET_SECONDS)
 	if rng.randf() < LONG_SET_CHANCE:
-		active_delivery_seconds += rng.randf_range(0.28, 0.62)
+		active_set_seconds += rng.randf_range(0.35, 0.70)
+	active_delivery_seconds = active_set_seconds + active_windup_seconds
 	state = State.DELIVERY
 	elapsed_seconds = 0.0
 
@@ -94,11 +100,11 @@ func advance(delta_seconds: float) -> Event:
 func delivery_progress() -> float:
 	if state != State.DELIVERY:
 		return 0.0
-	return clampf(elapsed_seconds / active_delivery_seconds, 0.0, 1.0)
+	return clampf((elapsed_seconds - active_set_seconds) / active_windup_seconds, 0.0, 1.0)
 
 func delivery_cue() -> String:
 	var progress: float = delivery_progress()
-	if progress < 0.28:
+	if elapsed_seconds < active_set_seconds:
 		return "PITCHER SET"
 	if progress < 0.82:
 		return "WINDUP"

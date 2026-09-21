@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.15
+**Version:** v0.1.16
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -1312,7 +1312,7 @@ The opponent chooses a new anchor between batters from visible Batter
 handedness and Power plus a deterministic seed. It cannot read future contact.
 The Fielder remains inactive at its anchor until ball-in-play begins. After
 contact it may cross in front of the mound. `DefenderSpacing` checks full
-movement segments against a 1.55 m mound-centered body-clearance disc and picks
+movement segments against a 1.55 m body-clearance disc at the actual Pitcher position and picks
 a deterministic clear heading toward the intercept. The clearance includes
 both avatars and the Pitcher's existing visual reaction step. It is not a
 ball-control radius or a whole-field depth clamp. FieldingResolver still owns
@@ -1381,13 +1381,18 @@ Pitcher may:
 - deflect hard contact
 - turn a still-moving fair grounder into an Out inside the fixed mound envelope
 
-Pitcher does not roam as the Primary Fielder. The starter field uses a 0.60 m
-horizontal attempt radius. The envelope remains small and must not be enlarged
-merely to manufacture more Pitcher plays; field geometry and the
-moving-ground-ball rule create the opportunity. Because the starter Single
-plane sits in front of the mound, a verified clean Pitcher control is the only
-defensive action allowed to erase that ordinary Single floor. A stopped ball or
-Pitcher bobble remains safe, and a Deep Air/greater floor is never erased.
+`PitchBatLabDefenseSupport` permits bounded grounder pursuit after contact:
+0.20 s reaction delay, moving grounded ball before Single and no higher than
+1.05 m, target within 5.0 m of the original mound, Fielding-scaled speed of
+3.8–5.2 m/s. Both defenders route around the other's actual body position.
+The attempt radius remains 0.60 m around the visible Pitcher, without remote
+control or pre-contact pursuit. The fielding pose persists through the result hold.
+
+Scoring floors are observed through the swept control position before applying
+the outcome. Outside the original fixed mound envelope, charging control follows
+the ordinary Single rule. Only verified clean moving control inside the original
+mound envelope can erase Single. Stopped balls, bobbles and Double-or-higher
+floors remain safe; pursuit does not move that exceptional scoring region.
 
 Test that small envelope against the swept batted-ball segment each physics
 frame. This prevents high-speed tunneling without increasing the radius or
@@ -1529,7 +1534,10 @@ This is the future pre-at-bat consumable/tactical boundary. On defense,
 completion of the hold returns
 the player to `PRE_PITCH`; the player controls tempo by choosing when to begin
 the next delivery. On offense, the opponent delivery director begins its own
-bounded set/windup cadence.
+bounded set/windup cadence. `AtBatCadenceController` separates a quiet setup
+hold (0.22–1.05 s, with an 18% chance of another 0.35–0.70 s) from the existing
+1.12–1.78 s windup. The pose stays at progress zero during setup, then advances
+smoothly through the windup. Both draws are seeded; dead-ball holds are unchanged.
 
 Hardening prioritizes smooth, readable transitions over shortening this loop.
 Extra acceptance input cannot skip a result hold. Debug pause freezes the
@@ -1539,7 +1547,7 @@ cost. A rejected Mechanics Lab transition must preserve the paused state.
 Safe transitions restore the pre-pause status before suspending the match.
 
 Paused inspection accepts `V` and updates only camera interpolation/follow.
-It cycles the four debug views without advancing physics, Swing presentation,
+It cycles all nine authored views without advancing physics, Swing presentation,
 match time, delivery cadence, or intro/outro time. Resuming restores the prior
 shot through normal smoothing; a setup screen closed during inspection instead
 restores its gameplay shot. Bat and Batter actors are explicitly pausable even
@@ -1551,8 +1559,11 @@ states. They lock when the release meter begins and remain immutable through
 Pitch flight and ball-in-play.
 
 Pitching Staff and Field Setup shield the Pitch target from pointer and
-continuous aiming input. Escape closes display options before returning from
-defensive setup through the normal role-camera path.
+continuous aiming input. Escape backs out of Settings, then resumes Pause,
+then returns from defensive setup through the normal role-camera path.
+At a normal gameplay boundary Escape opens Pause. `_input` also handles paused
+Pitch-button releases before GUI consumption, preventing a menu click from
+leaving an abandoned delivery armed.
 
 `MatchPresentationDirector` is a match-local presentation state machine. It
 selects one, two, or three unique, seeded intro/outro shots from an authored
@@ -1577,9 +1588,14 @@ Match HUD ownership is split by purpose. `MatchScorebug` renders persistent
 baseball state from `MatchState` at a user-selectable bottom-right, top-left, or
 top-right anchor. A small boxless label beneath that anchor renders routine
 Ball/Strike/Foul and speed telemetry. Larger transition/result messages render
-at center with dark-blue outline/shadow, while the chosen Pitch retains a
-compact identifier during player defense. A tiny bottom-left display menu owns
-HUD-anchor and procedural-sky/gray choices. F1-owned labels render detailed
+above center at 26 px with dark-blue outline/shadow. `PitchPicker` renders the
+current repertoire as numbered buttons and owns Pitch count, Stamina and fatigue
+stage on player defense; selection locks with the release meter. The scorebug
+retains opponent condition during player batting. `PitchBatLabPauseMenu` nests
+HUD-anchor and blue-sky/green choices inside Pause. `PitchBatLabSettings` saves
+them in `user://display-settings.cfg`. Batting zone opacity is 0.35 and aim
+outline opacity is 45% of its original value; pitching materials are unchanged.
+F1-owned labels render detailed
 diagnostics. F2 may enter the
 Mechanics Lab only at a safe stopped pre-Pitch boundary. The Lab keeps the
 existing `MatchState` suspended and restores its selection/aim/role-facing

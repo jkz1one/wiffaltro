@@ -5,6 +5,21 @@ var pitch_target_marker: MeshInstance3D
 var batting_aim_marker: Node3D
 var receiver_marker: Node3D
 
+func set_batting_view(batting: bool) -> void:
+	for part in ["ZoneLeft", "ZoneRight", "ZoneBottom", "ZoneTop"]:
+		var mesh: MeshInstance3D = get_node(part)
+		var material: StandardMaterial3D = mesh.material_override
+		material.albedo_color.a = 0.35 if batting else 1.0
+		material.transparency = (
+			BaseMaterial3D.TRANSPARENCY_ALPHA if batting else BaseMaterial3D.TRANSPARENCY_DISABLED
+		)
+	for outline in batting_aim_marker.get_children():
+		for bar in outline.get_children():
+			if bar is MeshInstance3D:
+				var material: StandardMaterial3D = bar.material_override
+				var base_alpha: float = 0.82 if outline.name == "ContactCoverage" else 0.92
+				material.albedo_color.a = base_alpha * (0.45 if batting else 1.0)
+
 func build(
 	field: FieldDefinition,
 	mound_origin: Vector3,

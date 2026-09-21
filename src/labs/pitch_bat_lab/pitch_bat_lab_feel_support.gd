@@ -261,7 +261,9 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 
 
 static func notify_pitch_dead(lab: PitchBatLab) -> void:
-	_reset_pitcher_telegraph(lab)
+	# Preserve the actual fielding position through the readable result hold.
+	if lab._batted_ball == null:
+		_reset_pitcher_telegraph(lab)
 	if lab._match_state != null and lab._match_state.phase == MatchState.Phase.GAME_END:
 		lab._at_bat_cadence.stop()
 		begin_match_outro(lab)
@@ -360,6 +362,7 @@ static func toggle_debug_pause(lab: PitchBatLab) -> void:
 		lab._status_before_pause = lab._status_label.text
 		lab._status_label.text = "DEBUG PAUSED • V: camera • P: resume"
 	else:
+		lab._display_menu_open = false
 		lab._status_label.text = lab._status_before_pause
 		lab._camera_director.restore_after_pause()
 	lab._refresh_config()
@@ -369,6 +372,7 @@ static func reset_debug_pause(lab: PitchBatLab) -> void:
 	if not lab._debug_paused:
 		return
 	lab._debug_paused = false
+	lab._display_menu_open = false
 	lab.get_tree().paused = false
 	lab._status_label.text = lab._status_before_pause
 	lab._camera_director.restore_after_pause()
@@ -601,7 +605,7 @@ static func record_clean_fielding_control(
 	ball_was_moving: bool
 ) -> void:
 	var is_airborne: bool = not lab._ball_play_resolver.state.has_grounded
-	if defender_id == &"pitcher":
+	if defender_id == &"pitcher" and PitcherDefense.can_attempt(resolved_position, lab.MOUND_ORIGIN):
 		lab._ball_play_resolver.record_pitcher_clean_control(
 			resolved_position, is_airborne, ball_was_moving
 		)

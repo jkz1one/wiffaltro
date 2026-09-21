@@ -45,7 +45,7 @@ func set_shot(next_shot: Shot) -> void:
 func cycle_paused_view() -> void:
 	if _shot_before_inspection < 0:
 		_shot_before_inspection = int(shot)
-	shot = ((int(shot) + 1) % 4) as Shot
+	shot = ((int(shot) + 1) % Shot.size()) as Shot
 
 
 func restore_after_pause() -> void:

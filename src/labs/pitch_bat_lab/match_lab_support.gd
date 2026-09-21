@@ -348,6 +348,13 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		decision_seed
 	)
 	lab._last_ai_awareness = float(decision["awareness"])
+	if lab._active_play_record != null:
+		var record: PlayRecord = lab._active_play_record
+		record.ai_decision_recorded = true
+		record.ai_swung = bool(decision["swing"])
+		record.ai_awareness = float(decision["awareness"])
+		record.ai_swing_chance = float(decision["swing_chance"])
+		record.ai_aim_sigma = float(decision["aim_sigma"])
 	lab._last_ai_read_text = (
 		"%s • swing %.0f%% • aim σ %.0f cm"
 		% [

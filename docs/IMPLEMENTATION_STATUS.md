@@ -1,6 +1,35 @@
 # Implementation Status
 
-**Current phase:** Phase 3 — automated verification passing; hands-on validation pending
+**Current phase:** Phase 3 — first human feedback implemented; follow-up human QC pending
+
+## Human playtest feedback — 2026-09-21
+
+- Source of truth advanced to v0.4.21 for bounded Pitcher grounder pursuit and
+  presentation changes. Geometry, Contact/Power transfer, aerodynamic coefficients
+  and AI batting probabilities remain unchanged.
+- Pitcher charges nearby moving grounders before Single, using actual movement
+  and defender clearance. The original fixed mound remains the only exception
+  to ordinary safe ground control. Same-frame Single crossings preserve their
+  floor before contact; fielding poses persist through the result hold.
+- Pause now contains Settings with saved scorebox position and blue-sky/green
+  backdrop, Resume and camera inspection. All nine authored angles are available
+  while paused; normal live framing stays stable.
+- Major result text is larger and higher; batting zone/aim guides are more
+  transparent. Pitching guides are unchanged. A clickable repertoire panel owns
+  player-Pitcher count, Stamina and fatigue stage.
+- AI varies the quiet setup before windup independently of the smooth delivery.
+  F3 records now include AI swing/read/error values to investigate fastball
+  contact with a representative sample rather than an unsupported hitting nerf.
+- Automated feedback coverage checks menu/input boundaries, saved settings,
+  HUD bounds, Pitch selection locking, cadence and remote Pitcher control floors.
+  Physical coverage includes a tenth actual Jolt launch for charging before Single.
+- Full `python3 tools/verify.py` passed on Godot 4.7.2 after the final audit:
+  parse/lint/import, feedback and player-flow scenes, two complete live matches,
+  100 seeded match replays, ten Jolt fixtures, core regressions, QC export and
+  main-scene smoke. Local logs: `builds/verification/20260921T034453354987Z`.
+- Human feedback supports the current spacing and Pitch movement baseline.
+  Follow-up rendered UI/camera review and meaningful F3 distributions remain
+  required; the vanilla fun gate is not yet greenlit. Season/meta work stays deferred.
 
 ## Final pre-playtest pass — 2026-09-21
 

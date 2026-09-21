@@ -11,6 +11,7 @@ var active: bool = false
 var last_reaction_margin_seconds: float = 0.0
 var reaction_delay_seconds: float = 0.11
 var pitcher_lane_z: float = INF
+var pitcher_defender: Node3D
 var _play_elapsed_seconds: float = 0.0
 var _avatar: PlayerAvatar
 var _reach_marker: MeshInstance3D
@@ -112,8 +113,12 @@ func _physics_process(delta: float) -> void:
 		previous + displacement, move_speed_mps * maxf(0.0, delta)
 	)
 	if pitcher_lane_z != INF:
+		var obstacle: Vector3 = (
+			pitcher_defender.global_position if is_instance_valid(pitcher_defender)
+			else Vector3(0.0, 0.0, pitcher_lane_z)
+		)
 		next_position = DefenderSpacing.step_around_mound(
-			previous, target_position, Vector3(0.0, 0.0, pitcher_lane_z), move_speed_mps * delta
+			previous, target_position, obstacle, move_speed_mps * delta
 		)
 	# No physical ball collider: FieldingResolver remains the control authority.
 	global_position = next_position

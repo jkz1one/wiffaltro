@@ -23,6 +23,11 @@ var crossed_plate: bool = false
 var crossing_point: Vector2 = Vector2.ZERO
 var plate_speed_mps: float = 0.0
 var swing_profile_id: StringName = &""
+var ai_decision_recorded: bool = false
+var ai_swung: bool = false
+var ai_awareness: float = 0.0
+var ai_swing_chance: float = 0.0
+var ai_aim_sigma: float = 0.0
 var swing_aim: Vector2 = Vector2.ZERO
 var contact_outcome: int = -1
 var contact_quality: float = 0.0
@@ -62,6 +67,11 @@ func to_dict() -> Dictionary:
 		"crossing_point": [crossing_point.x, crossing_point.y],
 		"plate_speed_mps": plate_speed_mps,
 		"swing_profile_id": String(swing_profile_id),
+		"ai_decision_recorded": ai_decision_recorded,
+		"ai_swung": ai_swung,
+		"ai_awareness": ai_awareness,
+		"ai_swing_chance": ai_swing_chance,
+		"ai_aim_sigma": ai_aim_sigma,
 		"swing_aim": [swing_aim.x, swing_aim.y],
 		"contact_outcome": contact_outcome,
 		"contact_quality": contact_quality,

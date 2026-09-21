@@ -44,6 +44,7 @@ static func build_defenders(lab: PitchBatLab) -> void:
 	lab._pitcher_marker.name = "PitcherDefender"
 	lab._pitcher_marker.position = lab.MOUND_ORIGIN
 	lab.add_child(lab._pitcher_marker)
+	lab._primary_fielder.pitcher_defender = lab._pitcher_marker
 
 	lab._pitcher_avatar = PlayerAvatar.new()
 	lab._pitcher_avatar.name = "PitcherAvatar"
@@ -105,11 +106,14 @@ static func show_pitcher_fielding_attempt(
 ) -> void:
 	if lab._pitcher_marker == null:
 		return
-	var offset: Vector3 = ball_position - lab.MOUND_ORIGIN
+	var offset: Vector3 = ball_position - lab._pitcher_marker.global_position
 	offset.y = 0.0
 	if offset.length_squared() > 0.0001:
 		offset = offset.normalized() * minf(0.72, offset.length())
-	lab._pitcher_marker.position = lab.MOUND_ORIGIN + offset
+	lab._pitcher_marker.global_position = DefenderSpacing.step_around_mound(
+		lab._pitcher_marker.global_position, lab._pitcher_marker.global_position + offset,
+		lab._primary_fielder.global_position, offset.length()
+	)
 	lab._pitcher_marker.rotation.z = (
 		(0.18 if outcome == FieldingResolver.Outcome.CLEAN else 0.10)
 		* signf(offset.x if absf(offset.x) > 0.01 else 1.0)
@@ -173,6 +177,9 @@ static func build_ui(lab: PitchBatLab) -> void:
 	_build_pitching_staff(lab, canvas)
 	_build_field_setup(lab, canvas)
 	_build_display_menu(lab, canvas)
+	lab._pitch_picker = PitchPicker.new()
+	canvas.add_child(lab._pitch_picker)
+	lab._pitch_picker.build(lab)
 	apply_hud_anchor(lab)
 	_build_match_presentation(lab, canvas)
 	refresh_controls(lab)
@@ -183,8 +190,10 @@ static func _build_world_environment(lab: PitchBatLab) -> void:
 	lab._world_environment = WorldEnvironment.new()
 	lab._world_environment.name = "LabWorldEnvironment"
 	var environment: Environment = Environment.new()
-	environment.background_mode = Environment.BG_SKY
-	environment.background_color = Color(0.29, 0.29, 0.29)
+	environment.background_mode = (
+		Environment.BG_SKY if lab._sky_backdrop_enabled else Environment.BG_COLOR
+	)
+	environment.background_color = Color(0.12, 0.20, 0.15)
 	var sky: Sky = Sky.new()
 	var sky_material: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.17, 0.43, 0.68)
@@ -208,6 +217,7 @@ static func toggle_sky_backdrop(lab: PitchBatLab) -> void:
 		lab._world_environment.environment.background_mode = Environment.BG_SKY
 	else:
 		lab._world_environment.environment.background_mode = Environment.BG_COLOR
+	PitchBatLabSettings.save(lab)
 	refresh_display_menu(lab)
 
 
@@ -215,6 +225,7 @@ static func cycle_hud_anchor(lab: PitchBatLab) -> void:
 	lab._hud_anchor_index = (lab._hud_anchor_index + 1) % HUD_ANCHOR_COUNT
 	apply_hud_anchor(lab)
 	refresh_event(lab)
+	PitchBatLabSettings.save(lab)
 	refresh_display_menu(lab)
 
 
@@ -284,6 +295,8 @@ static func _set_gameplay_hud_visible(lab: PitchBatLab, visible: bool) -> void:
 		lab._scorebug.visible = visible and lab._match_mode
 	if lab._action_label != null:
 		lab._action_label.visible = visible and lab._match_mode
+	if lab._pitch_picker != null and not visible:
+		lab._pitch_picker.visible = false
 	if lab._controls_label != null:
 		lab._controls_label.visible = visible
 	if lab._config_label != null:
@@ -333,11 +346,11 @@ static func refresh_event(lab: PitchBatLab) -> void:
 		lab._status_label.position = Vector2.ZERO
 		lab._status_label.size = lab._event_panel.size
 	else:
-		lab._event_panel.position = Vector2(320.0, 270.0)
+		lab._event_panel.position = Vector2(320.0, 210.0)
 		lab._event_panel.size = Vector2(640.0, 142.0)
 		lab._status_label.position = Vector2(8.0, 4.0)
 		lab._status_label.size = Vector2(624.0, 134.0)
-	lab._status_label.add_theme_font_size_override("font_size", 12 if routine else 22)
+	lab._status_label.add_theme_font_size_override("font_size", 12 if routine else 26)
 	lab._status_label.add_theme_constant_override("outline_size", 3 if routine else 5)
 	lab._status_label.add_theme_color_override(
 		"font_outline_color", Color(0.025, 0.055, 0.085, 1.0)
@@ -429,9 +442,21 @@ static func refresh(lab: PitchBatLab) -> void:
 		lab._receiver_marker.visible = lab._debug_overlay_visible
 	refresh_event(lab)
 	refresh_controls(lab)
+	if lab._pitch_picker != null:
+		lab._pitch_picker.refresh()
+		if lab._pitch_picker.visible:
+			lab._action_label.visible = false
+	if lab._match_presentation_director.blocks_gameplay():
+		_set_gameplay_hud_visible(lab, false)
+	refresh_display_menu(lab)
+	if lab._debug_paused:
+		lab._event_panel.visible = false
 
 
 static func refresh_markers(lab: PitchBatLab) -> void:
+	var geometry: StarterFieldLabGeometry = lab.get_node_or_null("StarterFieldGeometry")
+	if geometry != null:
+		geometry.set_batting_view(not lab._match_mode or lab._player_is_batting())
 	if lab._pitch_target_marker != null:
 		lab._pitch_target_marker.position = Vector3(lab._pitch_target.x, lab._pitch_target.y, 0.015)
 		lab._pitch_target_marker.visible = (not lab._match_mode or lab._player_is_pitching())
@@ -501,7 +526,7 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 	var on_deck_state: PlayerMatchState = match_state.on_deck_batter()
 	var pitcher_state: PlayerMatchState = match_state.pitcher()
 	var fielder_state: PlayerMatchState = match_state.fielder()
-	lab._scorebug.refresh(match_state)
+	lab._scorebug.refresh(match_state, not lab._player_is_pitching())
 	var options: Array[PitchDefinition] = lab._current_pitch_options()
 	lab._action_label.text = (
 		"%d  %s"
@@ -629,53 +654,29 @@ static func _build_pitch_release_meter(lab: PitchBatLab, canvas: CanvasLayer) ->
 
 static func _build_display_menu(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._display_menu_button = Button.new()
-	lab._display_menu_button.text = "..."
+	lab._display_menu_button.text = "PAUSE  P / Esc"
 	lab._display_menu_button.position = Vector2(10.0, 684.0)
-	lab._display_menu_button.size = Vector2(30.0, 26.0)
+	lab._display_menu_button.size = Vector2(132.0, 26.0)
 	lab._display_menu_button.focus_mode = Control.FOCUS_NONE
-	lab._display_menu_button.add_theme_font_size_override("font_size", 10)
-	lab._display_menu_button.pressed.connect(lab._toggle_display_menu)
+	lab._display_menu_button.add_theme_font_size_override("font_size", 12)
+	lab._display_menu_button.pressed.connect(
+		func() -> void: PitchBatLabFeelSupport.toggle_debug_pause(lab)
+	)
 	canvas.add_child(lab._display_menu_button)
-
-	lab._display_menu_panel = VBoxContainer.new()
-	lab._display_menu_panel.position = Vector2(10.0, 620.0)
-	lab._display_menu_panel.custom_minimum_size = Vector2(164.0, 0.0)
-	canvas.add_child(lab._display_menu_panel)
-	lab._hud_anchor_button = Button.new()
-	lab._hud_anchor_button.custom_minimum_size = Vector2(164.0, 27.0)
-	lab._hud_anchor_button.focus_mode = Control.FOCUS_NONE
-	lab._hud_anchor_button.add_theme_font_size_override("font_size", 10)
-	lab._hud_anchor_button.pressed.connect(lab._cycle_hud_anchor)
-	lab._display_menu_panel.add_child(lab._hud_anchor_button)
-	lab._backdrop_button = Button.new()
-	lab._backdrop_button.custom_minimum_size = Vector2(164.0, 27.0)
-	lab._backdrop_button.focus_mode = Control.FOCUS_NONE
-	lab._backdrop_button.add_theme_font_size_override("font_size", 10)
-	lab._backdrop_button.pressed.connect(lab._toggle_sky_backdrop)
-	lab._display_menu_panel.add_child(lab._backdrop_button)
+	lab._pause_menu = PitchBatLabPauseMenu.new()
+	canvas.add_child(lab._pause_menu)
+	lab._pause_menu.build(lab)
 
 
 static func refresh_display_menu(lab: PitchBatLab) -> void:
-	if lab._display_menu_panel == null:
+	if lab._pause_menu == null:
 		return
 	var presentation_active: bool = (
 		lab._match_presentation_director != null
 		and lab._match_presentation_director.blocks_gameplay()
 	)
-	lab._display_menu_button.visible = not presentation_active
-	lab._display_menu_panel.visible = lab._display_menu_open and not presentation_active
-	var anchor_name: String
-	match lab._hud_anchor_index:
-		HUD_ANCHOR_TOP_LEFT:
-			anchor_name = "TOP LEFT"
-		HUD_ANCHOR_TOP_RIGHT:
-			anchor_name = "TOP RIGHT"
-		_:
-			anchor_name = "BOTTOM RIGHT"
-	lab._hud_anchor_button.text = "HUD  %s" % anchor_name
-	lab._backdrop_button.text = "BACKDROP  %s" % (
-		"SKY" if lab._sky_backdrop_enabled else "GRAY"
-	)
+	lab._display_menu_button.visible = not presentation_active or lab._debug_paused
+	lab._pause_menu.refresh()
 
 
 static func _build_match_presentation(lab: PitchBatLab, canvas: CanvasLayer) -> void:

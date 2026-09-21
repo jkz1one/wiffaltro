@@ -12,7 +12,12 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 			lab.get_viewport().set_input_as_handled()
 			return
 	if lab._debug_paused:
-		_cancel_paused_release(lab, event)
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+			if lab._display_menu_open:
+				lab._toggle_display_menu()
+			else:
+				PitchBatLabFeelSupport.toggle_debug_pause(lab)
+		cancel_paused_release(lab, event)
 		lab.get_viewport().set_input_as_handled()
 		return
 	if (
@@ -69,7 +74,7 @@ static func handle(lab: PitchBatLab, event: InputEvent) -> void:
 	if handled:
 		lab.get_viewport().set_input_as_handled()
 
-static func _cancel_paused_release(lab: PitchBatLab, event: InputEvent) -> void:
+static func cancel_paused_release(lab: PitchBatLab, event: InputEvent) -> void:
 	if lab._release_controller == null or not lab._release_controller.active:
 		return
 	var released: bool = event.is_action_released(&"pitch_release", true)
@@ -91,7 +96,7 @@ static func _close_menu(lab: PitchBatLab) -> bool:
 	elif lab._field_setup_active:
 		lab._toggle_field_setup()
 	else:
-		return false
+		PitchBatLabFeelSupport.toggle_debug_pause(lab)
 	return true
 
 static func _handle_pointer_event(

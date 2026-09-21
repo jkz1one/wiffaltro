@@ -77,6 +77,8 @@ var _display_menu_panel: VBoxContainer
 var _hud_anchor_button: Button
 var _backdrop_button: Button
 var _display_menu_open: bool = false
+var _pause_menu: PitchBatLabPauseMenu
+var _pitch_picker: PitchPicker
 var _pitch_release_bar: ProgressBar
 var _pitch_release_ideal_marker: ColorRect
 var _presentation_backdrop: ColorRect
@@ -149,6 +151,7 @@ func _ready() -> void:
 		push_error("Pitch/Bat Lab: starter field definition is missing.")
 		return
 
+	PitchBatLabSettings.restore(self)
 	PitchBatLabPresentation.build_environment(self)
 	PitchBatLabPresentation.build_pitch_actor(self)
 	PitchBatLabPresentation.build_defenders(self)
@@ -245,9 +248,9 @@ func _physics_process(delta: float) -> void:
 
 	var previous_ball_position: Vector3 = _previous_batted_position
 	var current_ball_position: Vector3 = _batted_ball.global_position
-	# Resolve the restricted mound envelope before downstream rule planes from
-	# the same swept segment. A clean comebacker at z=13.7 must not be turned
-	# into a Single merely because that frame also crosses the authored line.
+	PitchBatLabDefenseSupport.advance_pitcher(self, delta)
+	# Resolve contact at its swept position before observing the remaining
+	# segment; the pitcher helper preserves floors reached before contact.
 	_try_pitcher_defense(previous_ball_position, current_ball_position)
 	if _ball_play_resolver.state.dead:
 		_previous_batted_position = current_ball_position
@@ -281,6 +284,10 @@ func _physics_process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	PitchBatLabInput.handle(self, event)
+
+func _input(event: InputEvent) -> void:
+	if _debug_paused:
+		PitchBatLabInput.cancel_paused_release(self, event)
 
 
 func _throw_pitch() -> void:
@@ -500,23 +507,7 @@ func _on_batted_surface_contact(surface_id: StringName, contact_position: Vector
 
 
 func _try_pitcher_defense(previous_position: Vector3, current_position: Vector3) -> void:
-	if _pitcher_attempted or _fielding_cooldown_seconds > 0.0:
-		return
-	var ball_position: Vector3 = PitcherDefense.attempt_position(
-		previous_position, current_position, MOUND_ORIGIN
-	)
-	if ball_position == Vector3.INF:
-		return
-
-	_pitcher_attempted = true
-	var outcome: FieldingResolver.Outcome = PitcherDefense.resolve(
-		ball_position,
-		_batted_ball.linear_velocity,
-		MOUND_ORIGIN,
-		_ball_play_resolver.state.has_grounded,
-		MatchLabSupport.pitcher_fielding_rating(self)
-	)
-	_apply_fielding_outcome(&"pitcher", MOUND_ORIGIN, outcome, ball_position)
+	PitchBatLabDefenseSupport.try_pitcher(self, previous_position, current_position)
 
 
 func _try_primary_fielder() -> void:
@@ -830,6 +821,9 @@ func _ball_in_play_is_live() -> bool:
 
 
 func _cleanup_batted_ball() -> void:
+	if _pitcher_marker != null:
+		_pitcher_marker.position = MOUND_ORIGIN
+		_pitcher_marker.rotation = Vector3.ZERO
 	if _batted_ball != null:
 		if _batted_ball.surface_contact.is_connected(_on_batted_surface_contact):
 			_batted_ball.surface_contact.disconnect(_on_batted_surface_contact)
@@ -971,6 +965,8 @@ func _cycle_camera() -> void:
 
 
 func _toggle_display_menu() -> void:
+	if not _debug_paused:
+		PitchBatLabFeelSupport.toggle_debug_pause(self)
 	_display_menu_open = not _display_menu_open
 	PitchBatLabPresentation.refresh_display_menu(self)
 

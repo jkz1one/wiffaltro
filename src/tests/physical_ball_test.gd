@@ -20,6 +20,8 @@ func _ready() -> void:
 		BallPlayOutcome.Result.HOME_RUN, false)
 	await _launch_case("untouched Deep Air", Vector3(3, 1.5, 16), Vector3(0, 0, 3),
 		BallPlayOutcome.Result.DOUBLE, true)
+	await _launch_case("pitcher charges before Single", Vector3(0, 0.04, 9), Vector3(0, 0, 1),
+		BallPlayOutcome.Result.OUT, true, "CLEAN")
 	await _launch_case("pitcher clean grounder", Vector3(0, 0.04, 9.8), Vector3(0, 0, 6),
 		BallPlayOutcome.Result.OUT, true, "CLEAN")
 	await _launch_case("pitcher bobble", Vector3(0.45, 0.04, 9.8), Vector3(0, 0, 16),
@@ -92,7 +94,12 @@ func _launch_case(
 	if not pitcher_outcome.is_empty():
 		_check(lab._pitcher_attempted, "moving grounder must trigger mound-envelope attempt")
 		_check(pitcher_outcome in lab._last_fielding_text, "%s defense outcome mismatch" % label)
-	if pitcher_outcome == "CLEAN":
+	if label == "pitcher charges before Single" and _result != null:
+		_check(_result.resolution_position.z < lab._field_definition.safe_hit_z_m,
+			"charging pitcher must physically control this grounder before Single")
+		_check(lab._pitcher_marker.position.z < lab._field_definition.safe_hit_z_m,
+			"pitcher must reach the grounder rather than extending the mound envelope")
+	if label == "pitcher clean grounder":
 		_check(
 			lab._ball_play_resolver.state.result_floor == BallPlayState.ResultFloor.SINGLE,
 			"pitcher clean exception must be exercised after crossing Single"

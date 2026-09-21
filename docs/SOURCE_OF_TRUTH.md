@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.20
+**Version:** v0.4.21
 **Status:** FROZEN BASELINE WITH SIMULATED STARTER-FIELD CALIBRATION
-**Supersedes:** v0.4.19 and all earlier planning notes
+**Supersedes:** v0.4.20 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -179,8 +179,9 @@ ready state. The player confirms once after the current Batter steps in, which
 preserves a future pre-at-bat window for consumables and tactical choices.
 Pitches within that same plate appearance continue automatically after a
 readable dead-ball hold; there is no extra acceptance click between Pitches.
-Opponent Pitcher set and windup cadence varies within a bounded readable range
-so delivery timing does not become metronomic. When the player is pitching,
+Opponent Pitcher set and windup cadence varies within a bounded readable range,
+including a separate quiet pause before the windup starts. This adds variation
+without rushing the delivery animation. When the player is pitching,
 the automatic hold returns to a ready state and the player sets the tempo by
 choosing when to begin the next click-and-hold delivery. Pitch, aim, effort,
 Pitcher, and legal defensive choices remain available during the appropriate
@@ -534,7 +535,7 @@ Position locks once the pitching motion begins.
 
 The Primary Fielder stays at the selected anchor through delivery and Pitch
 flight, then may charge forward after contact. It must move around the Pitcher,
-not through them. A local mound body-clearance area replaces any blanket
+not through them. Local body clearance follows the actual Pitcher position and replaces any blanket
 behind-mound movement restriction. This does not enlarge the Pitcher's 0.60 m
 ball-control radius. Collision-induced stumbles/errors remain deferred.
 
@@ -551,11 +552,18 @@ The Pitcher automatically participates on:
 - close mound-area plays
 - possible hard deflections
 
-The Pitcher does not roam as the Primary Fielder. Pitcher defense is limited to
-a small, visibly reactive comebacker envelope around the mound; the starter
-field uses a 0.60 m horizontal radius. That envelope is tested against the
-ball's swept frame segment so a fast comebacker cannot tunnel through it merely
-because neither rendered endpoint was inside.
+The Pitcher retains a 0.60 m control radius around the visible actor. After
+contact and a 0.20 s reaction delay, they may charge moving grounders before
+Single within 5.0 m of the original mound, at Fielding-scaled movement speed.
+They must physically reach the ball and respect the Primary Fielder's body
+clearance. This does not permit movement into a live Pitch or distant pursuit.
+Airborne comebackers still require the existing small reaction envelope.
+
+Charging ground-ball control follows the ordinary Single rule. Only clean
+moving control inside the original fixed mound envelope can erase a Single
+floor; stopped balls, bobbles, and Double-or-higher floors remain safe. The
+ball's swept frame segment establishes any scoring floor reached before control
+and prevents fast comebackers from tunneling through the reaction envelope.
 
 ## Fielding outcomes
 
@@ -1341,18 +1349,23 @@ Player-offense ball-in-play tracking may retain its behind-the-Batter field
 orientation.
 
 During play, a compact broadcast-style scorebug owns the persistent essentials:
-team score, half/inning, count, outs, occupied bases, current Batter, Pitcher,
-Pitch count, and Pitcher Stamina. A small display menu may move it among bottom
-right, top left, and top right. Routine Ball/Strike/Foul calls and compact Pitch
+team score, half/inning, count, outs, occupied bases, current Batter and Pitcher.
+On player defense, a clickable Pitch panel owns repertoire selection, Pitch
+count, Stamina and fatigue stage. Opponent condition remains in the scorebug
+while batting. Pause > Settings moves the scorebug among bottom right, top left,
+and top right and remembers the choice between launches. Routine Ball/Strike/Foul calls and compact Pitch
 speed reports use small boxless text directly beneath the selected anchor.
 Begin-at-bat, Strikeout, Out, hit result, and inning-change messages use larger
-centered white text with a dark-blue outline and shadow. A compact selected-Pitch
-identifier remains visible while the player is pitching. Detailed simulation
+white text above screen center with a dark-blue outline and shadow. Batting
+strike-zone and aim guides use reduced opacity; pitching guides remain unchanged.
+Detailed simulation
 telemetry remains in the explicit debug layer and should not duplicate or
 obscure the scorebug.
 
-The starter presentation may use a lightweight procedural sky, with a gray
-fallback available from the same small display menu. This is presentation only;
+The starter presentation may use a lightweight blue procedural sky, with a green
+backdrop available from Pause > Settings and remembered between launches.
+Paused camera inspection exposes all nine authored views, with smooth movement
+and restoration of the prior gameplay view on resume. This is presentation only;
 it does not change lighting-dependent gameplay or field rules.
 
 Higher-stakes games may later use longer authored cinematic packages for

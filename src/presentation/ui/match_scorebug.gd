@@ -25,7 +25,7 @@ func _ready() -> void:
 	_ensure_built()
 
 
-func refresh(match_state: MatchState) -> void:
+func refresh(match_state: MatchState, show_pitcher_condition: bool = true) -> void:
 	_ensure_built()
 	if match_state == null:
 		visible = false
@@ -55,6 +55,8 @@ func refresh(match_state: MatchState) -> void:
 		]
 	)
 	_batter.text = "BAT  %s" % batter_state.definition.display_name
+	if not show_pitcher_condition:
+		_pitcher.text = "PIT  %s" % pitcher_state.definition.display_name
 	_set_base(0, not match_state.bases.first.is_empty())
 	_set_base(1, not match_state.bases.second.is_empty())
 	_set_base(2, not match_state.bases.third.is_empty())

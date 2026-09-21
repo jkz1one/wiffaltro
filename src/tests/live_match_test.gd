@@ -54,6 +54,14 @@ func _run_match(run_seed: int) -> void:
 	_check(lab._match_state.phase == MatchState.Phase.GAME_END, "live match must finish")
 	_check(live_balls > 0, "live match must exercise AI contact and ball-in-play")
 	_check(lab._play_records.size() > 0, "live match must produce completed play records")
+	var ai_records: int = 0
+	for record in lab._play_records:
+		if record.ai_decision_recorded:
+			ai_records += 1
+			var exported: Dictionary = record.to_dict()
+			_check(exported.ai_swing_chance >= 0.0 and exported.ai_swing_chance <= 1.0
+				and exported.ai_aim_sigma > 0.0, "F3 must retain valid AI read evidence")
+	_check(ai_records > 0, "live AI decisions must reach completed F3 records")
 	print("LIVE_MATCH seed=", run_seed, " score=", lab._match_state.score_label(),
 		" inning=", lab._match_state.inning, " records=", lab._play_records.size(),
 		" balls_in_play=", live_balls)

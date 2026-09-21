@@ -151,6 +151,10 @@ func _test_setup_input() -> void:
 		_check(lab._pitching_staff_active or lab._field_setup_active,
 			"closing display options must preserve the setup screen underneath")
 		_key(lab, KEY_ESCAPE)
+		_check(not lab._debug_paused, "Escape must resume after leaving settings")
+		_check(lab._pitching_staff_active or lab._field_setup_active,
+			"resuming must preserve defensive setup")
+		_key(lab, KEY_ESCAPE)
 		_check(not lab._pitching_staff_active and not lab._field_setup_active,
 			"Escape must return from defensive setup")
 		_check(lab._camera_director.shot == MatchCameraDirector.Shot.PITCHING,
@@ -207,7 +211,7 @@ func _inspect_paused_scene(lab: PitchBatLab, context: String) -> void:
 	var original_mode: int = lab._camera_mode
 	_key(lab, KEY_P)
 	var frozen: Array = _gameplay_snapshot(lab)
-	for view in range(4):
+	for view in range(MatchCameraDirector.Shot.size()):
 		var previous_shot: MatchCameraDirector.Shot = lab._camera_director.shot
 		var previous_transform: Transform3D = lab._camera.global_transform
 		_key(lab, KEY_V)
@@ -220,6 +224,10 @@ func _inspect_paused_scene(lab: PitchBatLab, context: String) -> void:
 			context + ": camera inspection must preserve pause")
 		_check(_gameplay_snapshot(lab) == frozen,
 			context + ": camera inspection must freeze simulation, poses, and timers")
+		if context == "intro":
+			_check(not lab._scorebug.visible and not lab._pitch_picker.visible,
+				"paused intro must not reveal the gameplay HUD")
+		_check(lab._pause_menu.visible, "inspection must keep pause controls visible")
 	# Leave inspection on a different view to exercise restoration on resume.
 	_key(lab, KEY_V)
 	var inspection_transform: Transform3D = lab._camera.global_transform

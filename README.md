@@ -55,7 +55,8 @@ The repository now contains:
   within-at-bat Pitch cadence and a visible Pitcher telegraph
 - nonlinear late-game fatigue with plate-reach protection
 - clickable four-player pitching-staff management
-- full-simulation debug pause
+- full-simulation pause with saved display settings and nine inspection views
+- clickable Pitch repertoire with Pitch count, Stamina and fatigue stage
 - handed player avatars, independent visible bat actor, and angled batting camera
 - deterministic Batter awareness for repeated Pitches and visible locations
 - shared hold/release mouse pitching and overhead 3×3 Field Setup

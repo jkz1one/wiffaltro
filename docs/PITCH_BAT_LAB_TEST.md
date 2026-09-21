@@ -20,7 +20,7 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - automated Primary Fielder and Pitcher defense
 - deterministic clean, bobble, deflection, miss, and recovery handling
 - ghost-base hit advancement and sacrifice-fly/tag advancement
-- four debug camera views
+- four live camera views and nine paused inspection views
 - full five-inning Match Mode with provisional four-player rosters
 - batting order, current/on-deck batter, counts, walks, outs, runs, and innings
 - Stamina, pitch counts, pitching changes, mercy, extra innings, and game over
@@ -50,7 +50,8 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - suspended-match return from Mechanics Lab at safe pre-Pitch boundaries
 - compact movable broadcast-style scorebug, small beneath-scorebug calls, and
   centered boxless transition/result text
-- tiny display menu for scorebug anchor and procedural sky/gray backdrop
+- Pause > Settings for saved scorebug position and blue-sky/green backdrop
+- clickable Pitch repertoire panel with Stamina, fatigue stage and Pitch count
 - persistent compact selected-Pitch identifier during player defense
 - visible player-controlled Pitcher windup during the release meter
 - late release sweet spot with bounded category-aware overdrive risk/reward
@@ -61,8 +62,9 @@ This is a functional match simulator and shared debug lab, not a polished game s
 - `F2`: enter Mechanics Lab from a stopped pre-Pitch state, then resume the
   same match state
 - `F3`: print completed records and show their automatically saved JSON file path
-- `P`: pause/resume the simulation for debug inspection
-- `Escape`: close display options or return from Field Setup / Pitching Staff
+- `P`: open Pause / resume the simulation
+- `Escape`: back out of Settings, resume Pause, close Field Setup / Pitching
+  Staff, or open Pause during ordinary gameplay
 - `V`: cycle camera manually, including during pause; resuming restores the
   view from before paused inspection
 
@@ -259,7 +261,7 @@ the count. A fresh hold/release must still work. Repeat with Space, left mouse,
 and controller A. Pause a live Pitch or batted ball and press `F2`: refused Lab
 entry must leave the simulation paused until `P` resumes it.
 
-While paused, press `V` to inspect the frozen play from each of the four camera
+While paused, press `V` to inspect the frozen play from each of the nine camera
 angles. The camera should move smoothly; the ball, bat, Batter, defenders,
 release meter, count, and result hold must remain frozen. Try this mid-Swing,
 during ball-in-play, and in Field Setup. Resume with `P`: the previous camera
@@ -279,22 +281,26 @@ An early miss should show its call and deliver the next Pitch automatically to
 the same Batter. Restarting during ball-in-play must remove the old ball and
 its pending callbacks without changing the new match's score or count.
 
-With F1 off, the compact scorebug should be the only persistent baseball-state
-readout: score, half/inning, count, outs, bases, Batter, Pitcher, Pitch count,
-and Stamina. Use the tiny bottom-left `...` menu to cycle bottom right, top left,
+With F1 off, the compact scorebug owns score, half/inning, count, outs, bases,
+Batter and Pitcher. On defense, the Pitch panel owns Pitch count, Stamina and
+fatigue stage; while batting the scorebug retains opponent condition. Click each
+available Pitch and verify it matches the numbered shortcut. Selection must lock
+when delivery starts. Use Pause > Settings to cycle bottom right, top left,
 and top right; bottom right should sit low while leaving a narrow call area
 beneath it. Ball, Strike, and Foul calls should use that small beneath-scorebug
 treatment in both player roles, and Ball/Strike reports should identify the
 Pitch and speed. Begin-at-bat prompts and major play results should instead use
-centered boxless white text with dark-blue outline/shadow. Hit results should
-include exit velocity. The selected Pitch should remain compactly visible while
-the player is pitching. There should be no persistent numeric effort prose or
+larger boxless white text above center with dark-blue outline/shadow. Hit results
+should include exit velocity. Batting strike-zone and aim guides should be more
+transparent while pitching guides remain unchanged. There should be no persistent numeric effort prose or
 WINDUP/DELIVERY/TRACK THE BALL helper text outside the F1 layer. With F1 on,
 diagnostic text may appear at left but must not overlap or redundantly replace
 the scorebug/result stack.
 
-Use the same `...` menu to toggle the procedural sky back to the neutral gray
-background. Neither choice may change gameplay. Field Setup's overhead framing
+Use Pause > Settings to toggle blue procedural sky and green background. Both
+display choices should survive closing and reopening the game. Neither choice
+may change gameplay. Inspect the frozen field with the pause camera button, then
+resume; aiming or clicking settings must not release a Pitch. Field Setup's overhead framing
 should include the plate and Batter rather than cropping the near field.
 
 With `F1` telemetry visible, try pressing a Pitch number, `-` / `=`, `Q` / `E`,
@@ -349,12 +355,26 @@ Hit moving grounders and low liners through the 0.60 m mound envelope. The
 visible Pitcher must react, and a clean moving-ground-ball control there must
 resolve as an Out even though the yellow line is in front of the mound. A
 bobble or stopped ball must remain safe. Balls outside the radius or above the
-authored reaction height must pass the Pitcher.
+authored reaction height must pass the Pitcher unless the visible actor moves
+into reach. Also hit slow grounders before Single near center: the Pitcher should
+charge after contact, route around the other defender, and control only balls
+actually reached. Control beyond Single away from the original mound must stay
+safe. They must not charge airborne balls, distant rollers or live Pitches.
 
 After a meaningful normal-play sample, press `F3` and inspect the emitted play
 records. Calibration fields now include exit speed, launch angle, spray, first
 ground position, resolution position/reason, result floor, and final defender
-touch. Compare those distributions before moving a boundary or changing aero.
+touch. AI decisions also include `ai_decision_recorded`, `ai_swung`,
+`ai_awareness`, `ai_swing_chance` and `ai_aim_sigma`. Collect roughly 100 fair
+balls plus the surrounding pitches before balance changes. For the fastball
+concern, compare fastball swings/contact with location, release quality,
+repeat-pitch awareness and other pitch families. A repeated center-fastball
+script is not a representative human sample. Compare those distributions before
+moving a boundary, changing aero, or weakening AI hitting.
+
+Watch several AI deliveries: the quiet time before windup should vary, with
+occasional longer sets, while the windup itself stays smooth and readable.
+Pitch movement and the Contact/Power baseline are unchanged in this feedback pass.
 
 While the player is pitching, put a fair ball in play and verify that the camera
 stays on the defensive/pitching side, pulls wider, and follows the ball. It must
@@ -364,9 +384,9 @@ contact should retain the ordinary behind-the-Batter follow orientation.
 The Primary Fielder should show a brief rating-scaled reaction delay, run at a
 believable speed, and only control balls the visible actor actually reaches.
 High or horizontally distant balls must pass as misses. Bobbles should remain
-near the defender. The Pitcher should react only to true
-comebackers inside the small mound envelope, including a fast ball whose swept
-frame segment crosses that envelope. A behind-mound Primary Fielder should not
+near the defender. The Pitcher should charge eligible nearby grounders and react
+to comebackers inside the actual small control envelope, including a fast ball
+whose swept frame segment crosses it. A behind-mound Primary Fielder should not
 run through the Pitcher to steal that play, but may route around the Pitcher
 and charge into the near field after contact. Across player offensive plate
 appearances, the AI should visibly choose different sensible grid anchors based
