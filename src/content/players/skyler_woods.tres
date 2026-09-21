@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PlayerDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/player_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://src/content/deliveries/overhand.tres" id="2"]
+[ext_resource type="Resource" path="res://src/content/pitches/overhand_four_seam.tres" id="p0"]
+[ext_resource type="Resource" path="res://src/content/pitches/riser.tres" id="p1"]
+[ext_resource type="Resource" path="res://src/content/pitches/drop.tres" id="p2"]
+
+[resource]
+script = ExtResource("1")
+id = &"player.skyler_woods"
+display_name = "Skyler Woods"
+bats = 1
+throws = 1
+switch_hitter = false
+pitching_style = 1
+signature_pitch_index = 0
+contact = 8
+power = 6
+fielding = 7
+velocity = 6
+break_rating = 6
+control = 8
+stamina = 7
+natural_delivery = ExtResource("2")
+pitch_capacity = 3
+starting_pitches = [ExtResource("p0"), ExtResource("p1"), ExtResource("p2")]

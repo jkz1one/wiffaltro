@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PlayerDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/player_definition.gd" id="1"]
+[ext_resource type="Resource" path="res://src/content/deliveries/sidearm.tres" id="2"]
+[ext_resource type="Resource" path="res://src/content/pitches/sidearm_sinker.tres" id="p0"]
+[ext_resource type="Resource" path="res://src/content/pitches/sidearm_slider.tres" id="p1"]
+[ext_resource type="Resource" path="res://src/content/pitches/knuckleball.tres" id="p2"]
+
+[resource]
+script = ExtResource("1")
+id = &"player.kendall_reed"
+display_name = "Kendall Reed"
+bats = 0
+throws = 0
+switch_hitter = false
+pitching_style = 0
+signature_pitch_index = 0
+contact = 7
+power = 4
+fielding = 9
+velocity = 5
+break_rating = 8
+control = 6
+stamina = 6
+natural_delivery = ExtResource("2")
+pitch_capacity = 3
+starting_pitches = [ExtResource("p0"), ExtResource("p1"), ExtResource("p2")]

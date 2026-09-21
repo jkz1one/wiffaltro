@@ -10,8 +10,11 @@
 script = ExtResource("1")
 id = &"player.mika_reed"
 display_name = "Mika Reed"
-bats = 1
+bats = 0
 throws = 0
+switch_hitter = false
+pitching_style = 0
+signature_pitch_index = 0
 contact = 7
 power = 7
 fielding = 5

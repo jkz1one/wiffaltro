@@ -2,6 +2,41 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Ten-point season enrichment — 2026-09-21
+
+- Reconciled clean main `937ce2f`; source advances to v0.4.25. Detailed research,
+  all ten decisions and measured findings are in `SEASON_ENRICHMENT_AUDIT.md`.
+- Reworked main/preseason/draft presentation, with consistent cards, keyboard
+  focus, explicit pick confirmation and persistent navigation. Lineup now shows
+  all seven ratings directly, handedness, repertoires and named defense choices.
+- Batting order remains freely editable before each game and fixed during play;
+  roster defense selection stays between Batters. The Field picker controls the
+  actual roster-backed defender and displays Fielding.
+- Corrected a real handedness presentation error missed by the prior audit:
+  right-handed Batters now stand screen-left from the catcher's view (+X), with
+  mirrored bat/camera/feedback. Previously consistent signs were consistently
+  reversed. Contact's existing pull/opposite-field convention remains unchanged.
+- Expanded to 48 authored players; 10 left throwers, 46 matching default hands,
+  two switch hitters, two four-Pitch and one five-Pitch specialist. New twelve-card
+  drafts contain at most one specialist. Switch side before confirming the
+  plate appearance; throwing hand stays fixed.
+- Replaced pre-plate-position classification with a short visible-motion arrival
+  estimate. Sampled center-slider offers rise from 17/80 to 63/80 while existing
+  chase probabilities/contact ability remain. Added F3 read/hand metadata.
+- Seeded tactical pitching now considers owned arsenal, signature/style, count
+  and prior-Pitch speed. Three difficulty presets and bounded calendar progression
+  change tactics, not stats or physics. Retained the existing fatigue substitutions.
+- Schema-2 local saves preserve ordered pool, difficulty and AI replay inputs,
+  migrate the original 24-player saves, back up valid checkpoints and report
+  recovery. Unfinished games still restart; no cloud/career persistence claim.
+- The captain-retention proposal is recorded in `ENRICHMENT_NOTES.md` as a
+  Phase 7 candidate, not implemented or promoted to a frozen carryover rule.
+- Full Godot 4.7.2 checks passed at `builds/verification/20260921T145620873351Z`,
+  including final UI bounds and 60 completed-season save/reload checks.
+  See `VERIFICATION.md` for scope and the last targeted content check.
+
+Historical audit notes below are superseded where this entry explicitly corrects them.
+
 ## Final sport audit and first Season Shell — 2026-09-21
 
 - Reconciled against main `5c22c220387648f386820c2bfe36d805866c89db` and source

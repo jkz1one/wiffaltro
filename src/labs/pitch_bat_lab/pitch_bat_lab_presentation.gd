@@ -69,9 +69,9 @@ static func sync_players(lab: PitchBatLab) -> void:
 	var batter: PlayerDefinition = lab._match_state.batter().definition
 	var pitcher: PlayerDefinition = lab._match_state.pitcher().definition
 	var fielder: PlayerDefinition = lab._match_state.fielder().definition
-	var batter_left: bool = batter.bats == PlayerDefinition.Handedness.LEFT
+	var batter_left: bool = lab._match_state.batter().bats_left()
 	if lab._batter_avatar != null:
-		var batter_position: Vector3 = Vector3(0.82 if batter_left else -0.82, 0.0, 0.34)
+		var batter_position: Vector3 = Vector3(-0.82 if batter_left else 0.82, 0.0, 0.34)
 		lab._batter_avatar.configure(
 			PlayerAvatar.Role.BATTER,
 			batter_left,
@@ -812,6 +812,10 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	exit_button.focus_mode = Control.FOCUS_NONE
 	exit_button.pressed.connect(lab._toggle_field_setup)
 	lab._field_setup_panel.add_child(exit_button)
+	var roster_controls: MatchRosterControls = MatchRosterControls.new()
+	roster_controls.name = "RosterControls"
+	roster_controls.build(lab, canvas)
+	canvas.add_child(roster_controls)
 
 
 static func _refresh_field_setup(lab: PitchBatLab) -> void:

@@ -5,6 +5,7 @@ var season: SeasonState
 var menu: SeasonMenu
 var lab: PitchBatLab
 var notice: String = ""
+var difficulty_choice: int = 1
 var _season_game: bool = false
 var _fixture_id: int = -1
 var _dialog: ConfirmationDialog
@@ -58,12 +59,15 @@ func ask_new_season() -> void:
 func begin_season(seed_value: int = -1) -> void:
 	var selected_seed: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
 	season = SeasonState.create(selected_seed if seed_value < 0 else seed_value)
+	season.difficulty = difficulty_choice
+	menu.draft_selection = ""
 	_checkpoint()
 	menu.show_draft()
 
 
 func choose_player(id: String) -> void:
 	if season.choose_player(id):
+		menu.draft_selection = ""
 		_checkpoint()
 		show_season()
 
@@ -175,18 +179,24 @@ func _close_match() -> void:
 
 
 func swap_lineup(first: int, second: int) -> void:
+	if lab != null or season == null or season.pending_fixture().is_empty():
+		return
 	season.swap_batters(first, second)
 	_checkpoint()
 	menu.show_lineup()
 
 
 func select_starter(index: int) -> void:
+	if lab != null or season == null or season.pending_fixture().is_empty():
+		return
 	season.select_starter(index)
 	_checkpoint()
 	menu.show_lineup()
 
 
 func select_fielder(index: int) -> void:
+	if lab != null or season == null or season.pending_fixture().is_empty():
+		return
 	if index != season.starter_index and index >= 0 and index < 4:
 		season.fielder_index = index
 		_checkpoint()

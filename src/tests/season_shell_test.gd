@@ -11,6 +11,7 @@ func _ready() -> void:
 	_test_saves()
 	await _test_menus_and_match_handoff()
 	DirAccess.remove_absolute(SeasonSave.path)
+	DirAccess.remove_absolute(SeasonSave.path + ".bak")
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro season shell checks passed: 60 seasons, saves and menu handoffs.")
@@ -89,6 +90,12 @@ func _test_schedules_and_playoffs() -> void:
 		paths[count] = true
 		if seed_value % 3 == 0:
 			_check(season.champion == 0, "winning every game must make player champion")
+		_check(SeasonSave.save(season), "completed season must checkpoint")
+		var restored: SeasonState = SeasonSave.restore()
+		_check(
+			restored != null and restored.results == season.results,
+			"all completed seasons must restore identical league and playoff results"
+		)
 	_check(
 		paths.has(10) and paths.has(11) and paths.has(12),
 		"cover missing playoffs, semifinal elimination and championship paths"
@@ -129,12 +136,14 @@ func _test_saves() -> void:
 	file.store_string("{broken")
 	file.close()
 	_check(
-		SeasonSave.restore() == null and not SeasonSave.last_error.is_empty(),
-		"corrupt save must be reported without crashing"
+		SeasonSave.restore() != null and SeasonSave.last_error.begins_with("Recovered"),
+		"corrupt save must recover the prior valid checkpoint"
 	)
 	_check(
 		FileAccess.get_file_as_string(SeasonSave.path) == "{broken", "invalid save stays untouched"
 	)
+	DirAccess.remove_absolute(SeasonSave.path + ".bak")
+	_check(SeasonSave.restore() == null, "invalid save without backup must not start a fake season")
 	DirAccess.remove_absolute(SeasonSave.path)
 
 
@@ -143,17 +152,29 @@ func _test_menus_and_match_handoff() -> void:
 	add_child(app)
 	await _frames(2)
 	_check(app.menu.page == "home" and app.lab == null, "boot must show menu without starting play")
+	await _menu_bounds(app)
 	app.menu.show_preseason()
 	await _menu_bounds(app)
+	app.difficulty_choice = 2
 	app.begin_season(91)
+	_check(app.season.difficulty == 2, "preseason difficulty must reach saved season")
 	for pick in range(4):
 		await _menu_bounds(app)
-		app.choose_player(app.season.offers()[0])
+		var chosen: String = app.season.offers()[0]
+		app.menu._select_draft(chosen)
+		await _frames(2)
+		_check(app.season.picks.size() == pick, "selecting a card must not draft it yet")
+		(app.menu._footer.get_child(0) as Button).pressed.emit()
 	_check(app.menu.page == "hub", "four picks must lead to season hub")
 	app.menu.show_lineup()
 	app.swap_lineup(0, 2)
 	app.select_starter(1)
 	await _menu_bounds(app)
+	var displayed_stats: int = 0
+	for node in app.menu._body.find_children("*", "Label", true, false):
+		if (node as Label).text in SeasonPlayerCard.RATING_NAMES:
+			displayed_stats += 1
+	_check(displayed_stats == 7, "all seven stats must be visible on lineup without hovering")
 	app.menu.show_schedule()
 	await _menu_bounds(app)
 	for game in range(2):
@@ -175,6 +196,11 @@ func _test_menus_and_match_handoff() -> void:
 			"configured starter must reach actual match"
 		)
 		var original: MatchState = lab._match_state
+		var saved_order: Array = app.season.teams[0]["roster"].duplicate()
+		app.swap_lineup(0, 3)
+		_check(
+			app.season.teams[0]["roster"] == saved_order, "lineup must lock during an active game"
+		)
 		lab._start_new_match()
 		_check(lab._match_state == original, "R must not replace a managed season game")
 		app.finish_game()
@@ -201,7 +227,9 @@ func _test_menus_and_match_handoff() -> void:
 			"final score must save before the player dismisses the outro"
 		)
 		PitchBatLabFeelSupport.toggle_debug_pause(lab)
-		_check(lab._pause_menu._leave_button.disabled, "completed games must use the result handoff")
+		_check(
+			lab._pause_menu._leave_button.disabled, "completed games must use the result handoff"
+		)
 		PitchBatLabFeelSupport.toggle_debug_pause(lab)
 		PitchBatLabFeelSupport.skip_match_presentation(lab)
 		lab.match_return_requested.emit()
@@ -236,6 +264,15 @@ func _menu_bounds(app: SeasonApp) -> void:
 		app.menu.get_global_rect().encloses(app.menu._footer.get_global_rect()),
 		"navigation must stay visible without scrolling"
 	)
+	for node in app.menu._body.find_children("*", "Control", true, false):
+		var control: Control = node as Control
+		if not control.is_visible_in_tree() or control.get_viewport() != app.menu.get_viewport():
+			continue
+		var bounds: Rect2 = control.get_global_rect()
+		_check(
+			bounds.position.x >= 43 and bounds.end.x <= 1237,
+			"menu content must not clip horizontally: " + str(control.name)
+		)
 
 
 func _frames(count: int) -> void:

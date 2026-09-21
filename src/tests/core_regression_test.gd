@@ -120,17 +120,17 @@ func _test_pitch_release_quality() -> void:
 
 func _test_bat_handedness_mapping() -> void:
 	_check(
-		BatActor.stance_pivot_x(false) > 0.0
-		and BatActor.stance_pivot_x(true) < 0.0,
+		BatActor.stance_pivot_x(false) < 0.0
+		and BatActor.stance_pivot_x(true) > 0.0,
 		"right- and left-handed bats should load on mirrored back shoulders"
 	)
 	_check(
-		BatActor.stance_yaw_degrees(false) > 0.0
+		BatActor.stance_yaw_degrees(false) < 0.0
 		and is_zero_approx(BatActor.contact_yaw_degrees(false))
-		and BatActor.stance_yaw_degrees(true) < 0.0
+		and BatActor.stance_yaw_degrees(true) > 0.0
 		and is_zero_approx(BatActor.contact_yaw_degrees(true))
-		and BatActor.finish_yaw_degrees(false) < 0.0
-		and BatActor.finish_yaw_degrees(true) > 0.0,
+		and BatActor.finish_yaw_degrees(false) > 0.0
+		and BatActor.finish_yaw_degrees(true) < 0.0,
 		"each handed bat should square at contact then finish toward the front"
 	)
 	_check(
@@ -142,7 +142,7 @@ func _test_bat_handedness_mapping() -> void:
 	add_child(bat)
 	bat.configure(false, Vector3.ZERO)
 	_check(
-		bat._pivot.position.x > 0.0 and bat._pivot.rotation.y > 0.0,
+		bat._pivot.position.x < 0.0 and bat._pivot.rotation.y < 0.0,
 		"a visible right-handed bat should begin on its back/right shoulder"
 	)
 	var contact_profile: SwingProfileDefinition = ContentDB.get_swing(
@@ -162,13 +162,13 @@ func _test_bat_handedness_mapping() -> void:
 		- contact_profile.sweet_spot_seconds
 	)
 	_check(
-		bat._pivot.rotation.y < 0.0
+		bat._pivot.rotation.y > 0.0
 		and absf(bat._pivot.rotation.y) < PI,
 		"the right-handed bat should finish forward without wrapping around"
 	)
 	bat.configure(true, Vector3.ZERO)
 	_check(
-		bat._pivot.position.x < 0.0 and bat._pivot.rotation.y < 0.0,
+		bat._pivot.position.x > 0.0 and bat._pivot.rotation.y > 0.0,
 		"a visible left-handed stance should mirror the full bat rig"
 	)
 	bat.queue_free()

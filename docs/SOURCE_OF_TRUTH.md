@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.24
+**Version:** v0.4.25
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.23 and all earlier planning notes
+**Supersedes:** v0.4.24 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -93,6 +93,15 @@ No Speed, Arm, or Discipline stat in v1 unless prototype evidence creates a clea
 
 Handedness, natural delivery, repertoire, repertoire capacity, and similar identity elements are properties rather than stats.
 
+The initial 48-character pool has 10 left-handed throwers; 46 players have the
+same default batting and throwing hand. Two are switch hitters (one in 24).
+Throwing hand is fixed. Switch hitters may choose their batting side before
+confirming a new plate appearance, never after the delivery plan starts.
+AI switch hitters choose the opposite side from the opposing Pitcher's hand.
+From the catcher-facing camera, right-handed Batters stand screen-left of the
+plate (world +X), left-handed Batters screen-right (world -X). Avatar, independent
+bat, camera offset, contact handedness and inside/outside feedback must agree.
+
 ## Game length
 
 - 5 innings
@@ -114,6 +123,11 @@ Five innings and the mercy threshold remain subject to real match-length testing
 ## Batting order
 
 Fixed before the game and cycles normally.
+The player may edit freely between games, including immediately before Play
+Game. There is no once-per-game batting-order reshuffle: it risks duplicating or
+skipping turns in a four-player roster. Pitcher and Primary Fielder changes
+remain separate, available between Batters. Future League exceptions must state
+their rule explicitly instead of silently changing this baseline.
 
 ---
 
@@ -221,6 +235,10 @@ or visible location increases awareness and execution, while changing speed,
 shape, and location reduces predictability. They may consider visible flight,
 count, handed inside/outside geometry, and player ratings, but never the
 pitcher's hidden intended target or unreleased input.
+The location read projects current visible position and velocity a short distance
+toward the contact plane, with gravity. It does not treat the ball's X/Y several
+meters in front of the plate as its final location. It is an imperfect estimate,
+not access to the future solver trajectory; late break, chase, takes and misses remain.
 
 ## Contact Swing
 
@@ -726,11 +744,17 @@ permission to test season flow, not a declaration that camera feel or the sport
 fun gate has passed. The starter implementation contains:
 
 - Main menu: Continue Season, New Season, Exhibition, Quit.
-- One provisional Backyard League / Standard preset and the existing starter
+- One provisional Backyard League with Relaxed / Standard / Tactical pitching
+  strategy presets, and the existing starter
   field at every venue. The neutral championship uses that same field as a placeholder.
 - Four tryout rounds, three distinct authored player cards per round, one choice
-  each. The 24-player starter pool supplies six unique four-player clubs.
-- A season hub with standings, schedule, batting-order changes, starting Pitcher
+  each. The 48-player authored pool supplies six unique four-player clubs, so
+  only 24 characters are active in a given season. A new draft exposes at most
+  one four- or five-pitch specialist among its twelve offers; none is guaranteed.
+  Most players start with two or three Pitches. The full pool is unlocked for
+  this prototype; achievement-based collection access is not implemented yet.
+- A season hub with standings, schedule, directly visible seven-stat lineup,
+  batting-order changes, starting Pitcher
   and Primary Fielder selection. Equipment stays at the vanilla defaults.
 - Ten player games, five home and five away; home/away correctly determines the
   opening batting/pitching role. All match rules remain authoritative.
@@ -741,6 +765,9 @@ fun gate has passed. The starter implementation contains:
 - Local checkpoints after draft/lineup changes and as soon as a match is final.
   An interrupted unfinished game restarts from its beginning. There is one save
   slot, with confirmation before replacing it, and no midgame resume.
+  The prior valid checkpoint is backed up locally. Version-1 saves migrate using
+  their original 24-player pool; saved version-2 offers and AI strength snapshots
+  do not reshuffle when the catalog grows. Recovery is reported on the menu.
 
 Pitchers start each game fresh in this first shell; in-game fatigue and no
 pitching re-entry remain unchanged. Intergame recovery, specialized venues,
@@ -766,6 +793,15 @@ Rematches should feel like evolved versions of the same opponent.
 Difficulty escalation follows calendar/opponent development rather than rubber-banding against the player's record.
 
 AI must not read hidden player input.
+
+The first tactical model weights owned Pitches by signature preference, Power /
+Breaking / Corners / Balanced identity, count and previous-Pitch speed contrast.
+Breaking specialists may repeat their favorite heavily; repertoire size does
+not imply equal use. Three-ball counts favor strikes, two-strike counts allow
+bounded expansion. Difficulty increases edge targeting and sequencing, not
+invisible stat inflation, command accuracy or ball physics. Tactical quality
+also rises modestly with schedule position, never with the player's win/loss record.
+These are authored gameplay heuristics, not an MLB-optimal strategy claim.
 
 ---
 
@@ -1576,6 +1612,12 @@ Connect seasons into a career without adding permanent universal stat power:
 - Club Funds
 - stadium development
 - visual club identity
+
+Captain-retention enrichment idea: a mid/late-game achievement might unlock
+optional season-to-season retention of one captain, with a choice to release
+them and a reset toward their authored draft-level stats. This is recorded in
+`ENRICHMENT_NOTES.md`, not an implemented unlock or permission to keep seasonal
+stat power. Exact unlock, draft-slot treatment and reset/decay policy remain open.
 
 ## Phase 8 — Production and Content Scale
 

@@ -184,7 +184,7 @@ static func aim_pose_axis_tilt_degrees(normalized_aim: Vector2) -> float:
 
 
 static func handed_side(is_left_handed: bool) -> float:
-	return -1.0 if is_left_handed else 1.0
+	return 1.0 if is_left_handed else -1.0
 
 
 static func stance_pivot_x(is_left_handed: bool) -> float:

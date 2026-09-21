@@ -10,8 +10,11 @@
 script = ExtResource("1")
 id = &"player.kit_rowan"
 display_name = "Kit Rowan"
-bats = 1
+bats = 0
 throws = 0
+switch_hitter = false
+pitching_style = 2
+signature_pitch_index = 1
 contact = 8
 power = 4
 fielding = 6

@@ -3,6 +3,32 @@ extends RefCounted
 
 enum Phase { DRAFT, REGULAR, SEMIFINAL, FINAL, COMPLETE }
 const TEAM_NAMES: Array[String] = ["Yard Club", "Rivets", "Kites", "Lanterns", "Comets", "Switches"]
+const LEGACY_IDS: Array[String] = [
+	"player.alex_finch",
+	"player.ari_banks",
+	"player.ash_cole",
+	"player.cal_mercer",
+	"player.dev_lin",
+	"player.drew_sato",
+	"player.eli_frost",
+	"player.frankie_bell",
+	"player.gray_west",
+	"player.harper_fox",
+	"player.indy_shaw",
+	"player.jo_lane",
+	"player.jules_moss",
+	"player.kai_soto",
+	"player.kit_rowan",
+	"player.lee_stone",
+	"player.mika_reed",
+	"player.morgan_pike",
+	"player.nico_vega",
+	"player.noel_hart",
+	"player.remy_cruz",
+	"player.ren_ellis",
+	"player.sam_park",
+	"player.tess_vale"
+]
 var season_seed: int = 0
 var phase: Phase = Phase.DRAFT
 var round_index: int = 0
@@ -18,13 +44,14 @@ var final_fixture: Dictionary = {}
 var champion: int = -1
 var starter_index: int = 0
 var fielder_index: int = 1
+var difficulty: int = 1
 
 
-static func create(seed_value: int) -> SeasonState:
+static func create(seed_value: int, legacy: bool = false) -> SeasonState:
 	var season: SeasonState = SeasonState.new()
 	season.season_seed = seed_value
 	for id: StringName in ContentDB.player_by_id:
-		if id != PitchBatLab.DEBUG_PLAYER_ID:
+		if id != PitchBatLab.DEBUG_PLAYER_ID and (not legacy or String(id) in LEGACY_IDS):
 			season.draft_pool.append(String(id))
 	season.draft_pool.sort()
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -34,10 +61,28 @@ static func create(seed_value: int) -> SeasonState:
 		var held: String = season.draft_pool[index]
 		season.draft_pool[index] = season.draft_pool[other]
 		season.draft_pool[other] = held
+	if not legacy:
+		season._limit_specialist_offers()
 	for index in range(6):
 		season.teams.append({"name": TEAM_NAMES[index], "roster": [], "draw": rng.randf()})
 	season._build_schedule()
 	return season
+
+
+func _limit_specialist_offers() -> void:
+	var special_seen: bool = false
+	for index in range(12):
+		if ContentDB.get_player(StringName(draft_pool[index])).starting_pitches.size() < 4:
+			continue
+		if not special_seen:
+			special_seen = true
+			continue
+		for other in range(12, draft_pool.size()):
+			if ContentDB.get_player(StringName(draft_pool[other])).starting_pitches.size() < 4:
+				var held: String = draft_pool[index]
+				draft_pool[index] = draft_pool[other]
+				draft_pool[other] = held
+				break
 
 
 func offers() -> Array[String]:
@@ -60,6 +105,8 @@ func choose_player(id: String) -> bool:
 				remaining.append(candidate)
 		for team in range(1, 6):
 			teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
+		for team in range(6):
+			teams[team]["strength"] = _strength(team)
 		phase = Phase.REGULAR
 	return true
 
@@ -84,6 +131,9 @@ func make_match() -> MatchState:
 		return null
 	var match_state: MatchState = MatchState.create(
 		_make_team(fixture["away"]), _make_team(fixture["home"])
+	)
+	match_state.ai_tactical_quality = clampf(
+		0.15 + difficulty * 0.25 + minf(round_index, 9) * 0.025, 0.0, 1.0
 	)
 	var player: TeamMatchState = (
 		match_state.home_team if fixture["home"] == 0 else match_state.away_team
@@ -255,6 +305,8 @@ func _simulate(fixture: Dictionary) -> Dictionary:
 
 
 func _strength(team: int) -> float:
+	if teams[team].has("strength"):
+		return float(teams[team]["strength"])
 	var total: float = 0.0
 	for id: String in teams[team]["roster"]:
 		var player: PlayerDefinition = ContentDB.get_player(StringName(id))

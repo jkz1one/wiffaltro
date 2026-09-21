@@ -6,6 +6,12 @@ menus with placeholder art and a shared Mechanics Lab, not final presentation.
 
 ## Season flow QC
 
+Current follow-up: setup offers Relaxed/Standard/Tactical pitching strategies.
+Draft cards require selecting a name/card then confirming in the footer. All
+seven ratings are visible on the Lineup page without hovering; B/T uses R, L,
+or S for switch hitting. Forty-eight possible players supply the 24 active club
+slots, with at most one four-/five-Pitch specialist among twelve new offers.
+
 1. New Season → Start Tryouts → choose one of three players four times. Close
    and reopen after a pick: Continue Season should restore the remaining offers.
 2. In Lineup, reorder hitters and select a starting Pitcher and a different
@@ -23,6 +29,25 @@ menus with placeholder art and a shared Mechanics Lab, not final presentation.
    Exhibition must not change the season save. Mute and display preferences
    should survive leaving a game and relaunching.
 
+7. On defense, open Field and choose a different named Primary Fielder between
+   Batters. The current Pitcher must be unavailable. Compare the selected name
+   and Fielding rating; the character uses that roster player's defense values.
+8. Find a switch hitter (S). Before confirming the at-bat, switch side. Verify
+   body, bat and scorebug Bats R/L agree; after readiness, the side is locked,
+   including after a tactical timeout. Pitching hand must never change.
+9. Repeat some hittable sliders and mix a few tempting borderline pitches.
+   Distinguish a take on a strike from a chase on a ball. F3 now records the AI's
+   estimated plate location and both hands alongside the actual crossing.
+   Expect offers and misses, not automatic contact or forced swings at every strike.
+10. Compare early Relaxed with Tactical: more approachable locations versus
+    more edges/sequencing. Watch favorite-pitch tendencies across counts. Stats
+    and physics should not change with the preset. Report unfair or repetitive
+    patterns with records instead of only final scores.
+
+Existing schema-1 saves should keep their original picks/teams/results after
+update. Later saves have a prior-checkpoint `.bak`; recovery displays a notice
+and may lose the last checkpoint. Do not test corruption on your only real save.
+
 The shell starts each game with fresh Pitcher Stamina and vanilla equipment.
 There are no shops, cash rewards, unlocks or career records yet. Save failures
 appear on menus; retry via the next checkpoint before closing. `R` cannot reset
@@ -31,6 +56,9 @@ a menu-managed match. The standalone lab scene retains its debug restart.
 ## Batting-camera focus
 
 Check both handednesses on fastballs and curves, aiming high/low and inside/outside.
+From this catcher-facing camera, right-handed Batters must stand on screen-left
+of the plate and left-handed Batters on screen-right. The prior build reversed
+that presentation even though the player definitions contained both hands.
 The default view is 2.10 m high, 3.38 m back, offset 0.18 m to the Batter's side,
 looking about 5.5 degrees downward. It keeps the Batter/bat in view while clearing
 the sampled loaded-bat obstruction found at the previous 0.34 m offset.

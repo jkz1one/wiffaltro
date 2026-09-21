@@ -28,6 +28,9 @@ var ai_swung: bool = false
 var ai_awareness: float = 0.0
 var ai_swing_chance: float = 0.0
 var ai_aim_sigma: float = 0.0
+var ai_plate_read: Vector2 = Vector2.ZERO
+var batter_hand: int = 0
+var pitcher_hand: int = 0
 var swing_aim: Vector2 = Vector2.ZERO
 var contact_outcome: int = -1
 var contact_quality: float = 0.0
@@ -72,6 +75,9 @@ func to_dict() -> Dictionary:
 		"ai_awareness": ai_awareness,
 		"ai_swing_chance": ai_swing_chance,
 		"ai_aim_sigma": ai_aim_sigma,
+		"ai_plate_read": [ai_plate_read.x, ai_plate_read.y],
+		"batter_hand": batter_hand,
+		"pitcher_hand": pitcher_hand,
 		"swing_aim": [swing_aim.x, swing_aim.y],
 		"contact_outcome": contact_outcome,
 		"contact_quality": contact_quality,

@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_class="PlayerDefinition" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="PlayerDefinition" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://src/content/definitions/player_definition.gd" id="1"]
 [ext_resource type="Resource" path="res://src/content/deliveries/overhand.tres" id="2"]
+
 [ext_resource type="Resource" path="res://src/content/pitches/overhand_four_seam.tres" id="p0"]
 [ext_resource type="Resource" path="res://src/content/pitches/overhand_slider.tres" id="p1"]
 [ext_resource type="Resource" path="res://src/content/pitches/overhand_sinker.tres" id="p2"]
+[ext_resource type="Resource" path="res://src/content/pitches/eephus.tres" id="p3"]
 
 [resource]
 script = ExtResource("1")
@@ -12,6 +14,9 @@ id = &"player.alex_finch"
 display_name = "Alex Finch"
 bats = 0
 throws = 0
+switch_hitter = false
+pitching_style = 0
+signature_pitch_index = 0
 contact = 6
 power = 5
 fielding = 6
@@ -20,5 +25,5 @@ break_rating = 7
 control = 7
 stamina = 8
 natural_delivery = ExtResource("2")
-pitch_capacity = 3
-starting_pitches = [ExtResource("p0"), ExtResource("p1"), ExtResource("p2")]
+pitch_capacity = 4
+starting_pitches = [ExtResource("p0"), ExtResource("p1"), ExtResource("p2"), ExtResource("p3")]

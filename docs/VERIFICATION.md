@@ -214,3 +214,36 @@ The main scene now tests menu startup; the dedicated scenes still test gameplay.
 The final pause-menu change also passed a targeted import, lint and season test:
 Leave Game is disabled after completion, with a hint to resume to the result.
 Follow `PITCH_BAT_LAB_TEST.md` for the remaining rendered sport and season-flow QC.
+
+## Ten-point season enrichment verification
+
+Full Godot 4.7.2 verification passed at
+`builds/verification/20260921T145620873351Z`, with no engine errors or warnings.
+Static parse/lint, import, all earlier physics/input/quality suites, camera
+geometry, two complete live matches and main-scene startup remain covered.
+
+- `season_enrichment_test.tscn`: 48-player handedness and arsenal distribution,
+  300 draft seeds with unique offers and at most one rare arsenal, 1,200 sets of
+  count/personality/difficulty decisions, 240 physical Pitch read fixtures across
+  both hands, schema-1 migration to schema 2, saved-pool continuity, duplicate-ID
+  rejection, switch-hitting locks and actual roster-to-Fielder identity/rating.
+- `season_shell_test.tscn`: 60 completed seasons now each save and restore the
+  complete league/playoff results identically. Covers primary corruption with
+  valid backup recovery and no-backup refusal, visible seven-stat headings,
+  selection versus confirmation, difficulty handoff, midgame edit rejection,
+  footer visibility and horizontal bounds of visible main-viewport menu controls.
+  Popup windows have their own coordinates and are not mistaken for clipped body UI.
+- `camera_audit_test.tscn`: in addition to corridor/aim checks, right-handed
+  Batters must project screen-left of the plate, and left-handed Batters screen-right.
+  Existing signed bat-path assertions now match that baseball convention.
+- The final two authored style corrections (Nico Vega and Rowan Chase) received
+  a targeted enrichment rerun; Breaking specialists must own and favor a breaking
+  Pitch. Neither those definitions' ratings nor their arsenals changed in that correction.
+
+The original cached Godot executable was found truncated before testing; it was
+re-extracted from the intact cached archive and returned the exact pinned version.
+That tooling repair did not change project source or the engine baseline.
+
+The finite perception sample and strategy counts are documented in
+`SEASON_ENRICHMENT_AUDIT.md`. They are not a human result-distribution sample,
+nor proof of menu aesthetics, controller hardware or optimal batting feel.

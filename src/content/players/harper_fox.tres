@@ -10,8 +10,11 @@
 script = ExtResource("1")
 id = &"player.harper_fox"
 display_name = "Harper Fox"
-bats = 1
+bats = 0
 throws = 0
+switch_hitter = false
+pitching_style = 1
+signature_pitch_index = 0
 contact = 8
 power = 6
 fielding = 7

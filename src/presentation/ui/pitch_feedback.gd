@@ -48,10 +48,8 @@ static func plate_message(lab: PitchBatLab, point: Vector3) -> String:
 	elif point.y > lab.ZONE_MAX_Y:
 		location = "HIGH"
 	elif point.x < lab.ZONE_MIN_X or point.x > lab.ZONE_MAX_X:
-		var left_handed: bool = (
-			lab._match_state.batter().definition.bats == PlayerDefinition.Handedness.LEFT
-		)
-		var inside: bool = point.x > 0.0 if left_handed else point.x < 0.0
+		var left_handed: bool = lab._match_state.batter().bats_left()
+		var inside: bool = point.x < 0.0 if left_handed else point.x > 0.0
 		location = "INSIDE" if inside else "OUTSIDE"
 	if not lab._swing_consumed:
 		return "TOOK " + ("STRIKE" if location.is_empty() else location)

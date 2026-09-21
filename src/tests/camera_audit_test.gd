@@ -19,6 +19,12 @@ func _ready() -> void:
 		lab._camera_director.set_shot(MatchCameraDirector.Shot.BATTING)
 		lab._camera_director.snap(lab._camera)
 		var original: Transform3D = lab._camera.global_transform
+		var body_screen: float = lab._camera.unproject_position(lab._batter_avatar.position).x
+		var plate_screen: float = lab._camera.unproject_position(Vector3.ZERO).x
+		_check(
+			(body_screen > plate_screen) == left,
+			"catcher view must show right-handed batters left of plate and left-handers right"
+		)
 		for point in [
 			Vector3(-0.75, 0.30, 0),
 			Vector3(0.75, 1.85, 0),

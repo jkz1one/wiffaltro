@@ -57,8 +57,8 @@ func restore_after_pause() -> void:
 
 func set_batter_handedness(is_left_handed: bool) -> void:
 	# Match the camera to the batter's box/shoulder side: left-handed Batters
-	# occupy +X, while right-handed Batters occupy -X.
-	_batter_side = 1.0 if is_left_handed else -1.0
+	# occupy -X (screen right), while right-handed Batters occupy +X (screen left).
+	_batter_side = -1.0 if is_left_handed else 1.0
 
 
 func prepare_ball_in_play(defense_view: bool, ball_position: Vector3) -> void:

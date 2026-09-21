@@ -9,8 +9,11 @@
 script = ExtResource("1")
 id = &"player.jo_lane"
 display_name = "Jo Lane"
-bats = 0
-throws = 0
+bats = 1
+throws = 1
+switch_hitter = false
+pitching_style = 3
+signature_pitch_index = 0
 contact = 5
 power = 9
 fielding = 4

@@ -227,6 +227,7 @@ static func consider_ai_pitching_change(lab: PitchBatLab) -> void:
 			best_stamina = candidate.stamina_percent()
 	if best != team.pitcher_index and team.select_pitcher(best):
 		lab._selected_pitch_index = 0
+		lab._last_ai_pitch_index = -1
 		lab._ai_pitch_preselected = false
 
 
@@ -271,50 +272,29 @@ static func ai_pitch_choice(
 	strikes: int = 0,
 	previous_pitch_index: int = -1
 ) -> Dictionary:
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = ((throw_number + 1) * 7919 + inning * 101 + balls * 43 + strikes * 67)
-	var pitch_index: int = rng.randi_range(0, maxi(0, option_count - 1))
-	if option_count > 1 and pitch_index == previous_pitch_index and rng.randf() < 0.58:
-		pitch_index = (pitch_index + rng.randi_range(1, option_count - 1)) % option_count
-	var strike_probability: float = 0.70
-	if balls >= 3 and strikes >= 2:
-		strike_probability = 0.82
-	elif balls >= 3:
-		strike_probability = 0.90
-	elif strikes >= 2:
-		strike_probability = 0.50
-	var result: Dictionary = {
-		"pitch_index": pitch_index,
-		"target": Vector2.ZERO,
-		"effort": rng.randf_range(0.90, 1.04) if balls >= 3 else rng.randf_range(0.88, 1.10),
-	}
-	if rng.randf() < strike_probability:
-		result.target = Vector2(rng.randf_range(-0.37, 0.37), rng.randf_range(0.62, 1.48))
-		return result
-
-	match rng.randi_range(0, 3):
-		0:
-			result.target = Vector2(rng.randf_range(-0.68, -0.46), rng.randf_range(0.55, 1.55))
-		1:
-			result.target = Vector2(rng.randf_range(0.46, 0.68), rng.randf_range(0.55, 1.55))
-		2:
-			result.target = Vector2(rng.randf_range(-0.38, 0.38), rng.randf_range(0.34, 0.52))
-		_:
-			result.target = Vector2(rng.randf_range(-0.38, 0.38), rng.randf_range(1.58, 1.80))
-	return result
+	var options: Array[PitchDefinition] = []
+	for index in range(mini(option_count, PitchBatLab.PITCH_IDS.size())):
+		options.append(ContentDB.get_pitch(PitchBatLab.PITCH_IDS[index]))
+	if options.is_empty():
+		return {"pitch_index": 0, "target": Vector2(0, 1.05), "effort": 1.0}
+	return PitchingStrategy.choose(options, ContentDB.get_player(PitchBatLab.DEBUG_PLAYER_ID),
+		balls, strikes, previous_pitch_index, (throw_number + 1) * 7919 + inning * 101,
+		0.45, false)
 
 
 static func apply_ai_pitch_choice(lab: PitchBatLab) -> void:
 	var options: Array[PitchDefinition] = lab._current_pitch_options()
 	if options.is_empty():
 		return
-	var choice: Dictionary = ai_pitch_choice(
-		options.size(),
-		lab._throw_number,
-		lab._match_state.inning,
+	var choice: Dictionary = PitchingStrategy.choose(
+		options,
+		lab._match_state.pitcher().definition,
 		lab._match_state.balls,
 		lab._match_state.strikes,
-		lab._last_ai_pitch_index
+		lab._last_ai_pitch_index,
+		(lab._throw_number + 1) * 7919 + lab._match_state.inning * 101,
+		lab._match_state.ai_tactical_quality,
+		lab._match_state.batter().bats_left()
 	)
 	lab._selected_pitch_index = int(choice["pitch_index"])
 	lab._last_ai_pitch_index = lab._selected_pitch_index
@@ -339,8 +319,8 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		return
 	if lab._batter_approach.plate_appearance_number != lab._match_state.plate_appearance_number:
 		lab._batter_approach.reset(lab._match_state.plate_appearance_number)
-	var ball_xy: Vector2 = Vector2(
-		lab._pitch_actor.state.position.x, lab._pitch_actor.state.position.y
+	var ball_xy: Vector2 = BatterApproachModel.read_plate_location(
+		lab._pitch_actor.state.position, lab._pitch_actor.state.velocity
 	)
 	var plate_speed_mps: float = lab._pitch_actor.state.velocity.length()
 	var batter_state: PlayerMatchState = lab._match_state.batter()
@@ -361,7 +341,8 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		lab._match_state.balls,
 		lab._match_state.strikes,
 		plate_speed_mps,
-		decision_seed
+		decision_seed,
+		batter_state.batting_hand()
 	)
 	lab._last_ai_awareness = float(decision["awareness"])
 	if lab._active_play_record != null:
@@ -371,6 +352,7 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		record.ai_awareness = float(decision["awareness"])
 		record.ai_swing_chance = float(decision["swing_chance"])
 		record.ai_aim_sigma = float(decision["aim_sigma"])
+		record.ai_plate_read = ball_xy
 	lab._last_ai_read_text = (
 		"%s • swing %.0f%% • aim σ %.0f cm"
 		% [

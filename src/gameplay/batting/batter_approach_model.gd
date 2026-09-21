@@ -78,12 +78,14 @@ func decide(
 	balls: int,
 	strikes: int,
 	plate_speed_mps: float,
-	decision_seed: int
+	decision_seed: int,
+	batting_hand: int = -1
 ) -> Dictionary:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = decision_seed
 	var awareness: float = awareness_for(pitch, target)
-	var body_side: float = 1.0 if batter.bats == PlayerDefinition.Handedness.LEFT else -1.0
+	var hand: int = batter.bats if batting_hand < 0 else batting_hand
+	var body_side: float = -1.0 if hand == PlayerDefinition.Handedness.LEFT else 1.0
 	var inside_amount: float = ball_xy.x * body_side
 	var outside_distance: float = maxf(0.0, absf(ball_xy.x) - ZONE_HALF_WIDTH_M)
 	var vertical_distance: float = maxf(0.0, absf(ball_xy.y - ZONE_CENTER_Y_M) - ZONE_HALF_HEIGHT_M)
@@ -163,6 +165,16 @@ func observe(pitch: PitchDefinition, target: Vector2) -> void:
 	previous_pitch_id = pitch.id
 	previous_target = target
 	previous_location_bucket = bucket
+
+
+static func read_plate_location(position: Vector3, velocity: Vector3) -> Vector2:
+	# A short visual extrapolation, never the hidden aim target or future solver state.
+	var remaining: float = clampf(
+		(position.z - ContactResolver.CONTACT_PLANE_Z) / maxf(1.0, -velocity.z), 0.0, 0.24
+	)
+	var estimate: Vector3 = position + velocity * remaining
+	estimate.y -= 4.905 * remaining * remaining
+	return Vector2(estimate.x, estimate.y)
 
 
 static func _location_bucket(target: Vector2) -> int:

@@ -21,7 +21,7 @@ static func _test_batter_motion(host: Node, check: Callable) -> void:
 	batter._process(profile.sweet_spot_seconds)
 	check.call(
 		batter._throw_hand.position.z > ready_hand_z
-		and batter._body_root.rotation.y > 0.0,
+		and batter._body_root.rotation.y < 0.0,
 		"Batter hands and torso should drive with the independent bat actor"
 	)
 	batter.queue_free()

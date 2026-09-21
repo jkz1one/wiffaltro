@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.19
+**Version:** v0.1.20
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2121,9 +2121,9 @@ about 132 px in the 1280×720 viewport. The camera stays stable during a Pitch;
 the contact-plane pointer mapping round-trips at `ContactResolver.CONTACT_PLANE_Z`.
 No broad camera or sport tuning was introduced.
 
-`BatterApproachModel` and `PitchFeedback` now use the same global body-side sign
-as the actual Batter scene (+X left, -X right). `BatActor.handed_side` serves a
-different local bat-offset convention and is intentionally unchanged.
+That audit aligned `BatterApproachModel` and `PitchFeedback` with the old scene,
+but did not verify baseball handedness from the camera. The follow-up below
+supersedes that mapping: the old scene itself had its batter boxes reversed.
 
 ### Season boundaries
 
@@ -2166,3 +2166,56 @@ documents file replacement through `rename_absolute`. These support the save
 mechanism; the schema validation, replay design and season policies are project
 decisions. The single-file checkpoint is not a cloud save or power-loss durability
 guarantee. Save errors remain visible and the live session stays available.
+
+## Season enrichment follow-up — 2026-09-21
+
+See `SEASON_ENRICHMENT_AUDIT.md` for the ten-point audit, primary research,
+decisions, measured evidence and scope boundaries.
+
+- `SeasonPlayerCard` presents identical seven-stat rows on draft cards;
+  `SeasonMenu` provides explicit selection then confirmation, a persistent
+  chosen-roster strip, a visible lineup grid and focusable navigation. Ratings
+  do not rely on hover, color or a single overall score.
+- `PlayerDefinition` adds `switch_hitter`, `pitching_style` and
+  `signature_pitch_index`. Pitcher handedness remains the existing R/L enum.
+  `PlayerMatchState.batting_hand_override` is mutable match state, never a
+  mutation of the shared Resource. Contact, bat, avatar and feedback read it.
+- With home at Z=0 and field at +Z, the catcher's camera's screen-right basis
+  points toward world -X. Right-handed Batters must therefore stand at +0.82 X,
+  left-handed Batters at -0.82 X. Bat rig signs and the small camera offset mirror
+  with that correction. The previous audit only tested mutual consistency and
+  missed the reversed baseball convention. New camera tests assert screen side.
+- `MatchRosterControls` exposes the real Primary Fielder and rating in Field
+  setup, applying the same between-Batter guards as F. Its switch-hitter control
+  is available only before initial readiness. Once the AI pitch plan is selected,
+  even a timeout cannot unlock a side change for that plate appearance.
+- `BatterApproachModel.read_plate_location` projects observed position/velocity
+  to contact, bounded to 0.24 s, with gravity. It does not call the aim solver,
+  future integration or hidden target. Recognition/timing/aim errors remain;
+  F3 gains `ai_plate_read`, effective `batter_hand` and fixed `pitcher_hand`.
+- `PitchingStrategy` is a seeded weighted-choice model using only owned Pitches,
+  authored style/signature, count, previous-Pitch nominal speed and batting hand.
+  Difficulty affects edge/expansion/sequencing weights, not ratings or command.
+  Match tactical quality is `clamp(0.15 + difficulty*0.25 + min(round,9)*0.025)`.
+  Difficulty 0/1/2 corresponds to Relaxed/Standard/Tactical. Effort is 0.94–1.04.
+  Pitcher substitution clears the previous-Pitch index rather than interpreting
+  an old arsenal index as a different player's Pitch.
+- Forty-eight explicit manifest players supply a randomized season pool.
+  A deterministic swap keeps at most one >=4-Pitch player in the first twelve
+  draft offers, without duplicating/removing anyone. Twenty-four players occupy
+  the six active clubs; the rest are absent that season.
+- Save schema 2 freezes ordered pool IDs, tiebreak draws, difficulty and the
+  six AI simulation strength values alongside picks, lineup and player results.
+  Full-precision JSON avoids rounding the replay inputs. Schema 1 recreates its
+  original sorted 24-ID pool before replay. Future score-algorithm changes still
+  require explicit migration. Player definition balance itself is not snapshotted.
+- Before replacement, a valid primary save is copied to `.bak`. A corrupt or
+  absent primary may restore that backup with a visible recovery notice; it is
+  not silently called current progress. Invalid primary data stays untouched
+  until a later deliberate checkpoint. Both invalid files produce an error,
+  not a fabricated new season. File name remains `season-v1.json` for continuity;
+  the JSON version, not the filename, identifies the schema.
+
+Persistence remains local and between-game. Midgame suspension requires explicit
+serialization of count, batting cursor, used Pitchers, Stamina, tactical state
+and physics/presentation boundaries; it is not implemented as a quick scene dump.

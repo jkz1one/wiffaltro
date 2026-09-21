@@ -10,8 +10,11 @@
 script = ExtResource("1")
 id = &"player.dev_lin"
 display_name = "Dev Lin"
-bats = 0
-throws = 1
+bats = 1
+throws = 0
+switch_hitter = false
+pitching_style = 0
+signature_pitch_index = 0
 contact = 5
 power = 6
 fielding = 8

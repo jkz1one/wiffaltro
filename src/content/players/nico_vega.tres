@@ -9,8 +9,11 @@
 script = ExtResource("1")
 id = &"player.nico_vega"
 display_name = "Nico Vega"
-bats = 1
+bats = 0
 throws = 0
+switch_hitter = false
+pitching_style = 0
+signature_pitch_index = 1
 contact = 5
 power = 9
 fielding = 4

@@ -54,7 +54,8 @@ func refresh(match_state: MatchState, show_pitcher_condition: bool = true) -> vo
 			pitcher_state.stamina_percent() * 100.0,
 		]
 	)
-	_batter.text = "BAT  %s" % batter_state.definition.display_name
+	_batter.text = "BAT %s  %s" % ["L" if batter_state.bats_left() else "R",
+		batter_state.definition.display_name]
 	if not show_pitcher_condition:
 		_pitcher.text = "PIT  %s" % pitcher_state.definition.display_name
 	_set_base(0, not match_state.bases.first.is_empty())

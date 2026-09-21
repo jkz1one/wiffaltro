@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentManifest" load_steps=43 format=3]
+[gd_resource type="Resource" script_class="ContentManifest" load_steps=67 format=3]
 
 [ext_resource type="Script" path="res://src/content/manifest/content_manifest.gd" id="1_manifest"]
 [ext_resource type="Resource" path="res://src/content/pitches/overhand_four_seam.tres" id="2_four_seam"]
@@ -44,6 +44,31 @@
 [ext_resource type="Resource" path="res://src/content/players/morgan_pike.tres" id="season_22"]
 [ext_resource type="Resource" path="res://src/content/players/noel_hart.tres" id="season_23"]
 
+[ext_resource type="Resource" path="res://src/content/players/bailey_quinn.tres" id="season_24"]
+[ext_resource type="Resource" path="res://src/content/players/casey_rivers.tres" id="season_25"]
+[ext_resource type="Resource" path="res://src/content/players/dakota_wells.tres" id="season_26"]
+[ext_resource type="Resource" path="res://src/content/players/emery_lane.tres" id="season_27"]
+[ext_resource type="Resource" path="res://src/content/players/finley_brooks.tres" id="season_28"]
+[ext_resource type="Resource" path="res://src/content/players/hayden_cole.tres" id="season_29"]
+[ext_resource type="Resource" path="res://src/content/players/jamie_nash.tres" id="season_30"]
+[ext_resource type="Resource" path="res://src/content/players/jordan_lake.tres" id="season_31"]
+[ext_resource type="Resource" path="res://src/content/players/kendall_reed.tres" id="season_32"]
+[ext_resource type="Resource" path="res://src/content/players/logan_ames.tres" id="season_33"]
+[ext_resource type="Resource" path="res://src/content/players/marley_quinn.tres" id="season_34"]
+[ext_resource type="Resource" path="res://src/content/players/oakley_james.tres" id="season_35"]
+[ext_resource type="Resource" path="res://src/content/players/parker_hayes.tres" id="season_36"]
+[ext_resource type="Resource" path="res://src/content/players/quinn_riley.tres" id="season_37"]
+[ext_resource type="Resource" path="res://src/content/players/reese_hart.tres" id="season_38"]
+[ext_resource type="Resource" path="res://src/content/players/riley_grant.tres" id="season_39"]
+[ext_resource type="Resource" path="res://src/content/players/river_blake.tres" id="season_40"]
+[ext_resource type="Resource" path="res://src/content/players/robin_sage.tres" id="season_41"]
+[ext_resource type="Resource" path="res://src/content/players/rowan_chase.tres" id="season_42"]
+[ext_resource type="Resource" path="res://src/content/players/sage_avery.tres" id="season_43"]
+[ext_resource type="Resource" path="res://src/content/players/shiloh_dean.tres" id="season_44"]
+[ext_resource type="Resource" path="res://src/content/players/skyler_woods.tres" id="season_45"]
+[ext_resource type="Resource" path="res://src/content/players/taylor_wren.tres" id="season_46"]
+[ext_resource type="Resource" path="res://src/content/players/val_morgan.tres" id="season_47"]
+
 [resource]
 script = ExtResource("1_manifest")
 pitches = [
@@ -57,7 +82,7 @@ pitches = [
 	ExtResource("9_riser"),
 	ExtResource("10_drop")
 ]
-players = [ExtResource("11_player"), ExtResource("season_0"), ExtResource("season_1"), ExtResource("season_2"), ExtResource("season_3"), ExtResource("season_4"), ExtResource("season_5"), ExtResource("season_6"), ExtResource("season_7"), ExtResource("season_8"), ExtResource("season_9"), ExtResource("season_10"), ExtResource("season_11"), ExtResource("season_12"), ExtResource("season_13"), ExtResource("season_14"), ExtResource("season_15"), ExtResource("season_16"), ExtResource("season_17"), ExtResource("season_18"), ExtResource("season_19"), ExtResource("season_20"), ExtResource("season_21"), ExtResource("season_22"), ExtResource("season_23")]
+players = [ExtResource("11_player"), ExtResource("season_0"), ExtResource("season_1"), ExtResource("season_2"), ExtResource("season_3"), ExtResource("season_4"), ExtResource("season_5"), ExtResource("season_6"), ExtResource("season_7"), ExtResource("season_8"), ExtResource("season_9"), ExtResource("season_10"), ExtResource("season_11"), ExtResource("season_12"), ExtResource("season_13"), ExtResource("season_14"), ExtResource("season_15"), ExtResource("season_16"), ExtResource("season_17"), ExtResource("season_18"), ExtResource("season_19"), ExtResource("season_20"), ExtResource("season_21"), ExtResource("season_22"), ExtResource("season_23"), ExtResource("season_24"), ExtResource("season_25"), ExtResource("season_26"), ExtResource("season_27"), ExtResource("season_28"), ExtResource("season_29"), ExtResource("season_30"), ExtResource("season_31"), ExtResource("season_32"), ExtResource("season_33"), ExtResource("season_34"), ExtResource("season_35"), ExtResource("season_36"), ExtResource("season_37"), ExtResource("season_38"), ExtResource("season_39"), ExtResource("season_40"), ExtResource("season_41"), ExtResource("season_42"), ExtResource("season_43"), ExtResource("season_44"), ExtResource("season_45"), ExtResource("season_46"), ExtResource("season_47")]
 deliveries = [ExtResource("12_overhand"), ExtResource("13_sidearm")]
 ball_aero_profiles = [ExtResource("14_aero")]
 ball_setups = [ExtResource("15_setup")]

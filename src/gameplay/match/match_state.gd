@@ -27,6 +27,7 @@ var balls: int = 0
 var strikes: int = 0
 var plate_appearance_number: int = 1
 var elapsed_seconds: float = 0.0
+var ai_tactical_quality: float = 0.45
 var between_batters: bool = true
 var batter_timeout_used: bool = false
 var last_event: String = "Game ready"

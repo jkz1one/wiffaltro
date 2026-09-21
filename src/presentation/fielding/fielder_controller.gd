@@ -45,6 +45,7 @@ func configure_player(player: PlayerDefinition) -> void:
 	if player == null:
 		return
 	fielding_rating = player.fielding
+	set_meta(&"player_id", player.id)
 	move_speed_mps = lerpf(
 		3.80,
 		5.20,

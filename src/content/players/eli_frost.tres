@@ -10,8 +10,11 @@
 script = ExtResource("1")
 id = &"player.eli_frost"
 display_name = "Eli Frost"
-bats = 1
+bats = 0
 throws = 0
+switch_hitter = false
+pitching_style = 2
+signature_pitch_index = 1
 contact = 6
 power = 5
 fielding = 6

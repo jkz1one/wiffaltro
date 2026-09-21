@@ -24,7 +24,7 @@ static func begin_swing(lab: PitchBatLab, profile_id: StringName, aim_point: Vec
 	var power_rating: int = 5
 	if lab._match_mode:
 		var batter_definition: PlayerDefinition = lab._match_state.batter().definition
-		intent.handedness_left = (batter_definition.bats == PlayerDefinition.Handedness.LEFT)
+		intent.handedness_left = lab._match_state.batter().bats_left()
 		contact_rating = batter_definition.contact
 		power_rating = batter_definition.power
 

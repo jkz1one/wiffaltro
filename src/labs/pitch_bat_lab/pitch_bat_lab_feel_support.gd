@@ -591,6 +591,8 @@ static func start_record(
 		record.outs_before = lab._match_state.outs
 		record.batter_id = lab._match_state.batter().definition.id
 		record.pitcher_id = lab._match_state.pitcher().definition.id
+		record.batter_hand = lab._match_state.batter().batting_hand()
+		record.pitcher_hand = lab._match_state.pitcher().definition.throws
 	lab._active_play_record = record
 
 

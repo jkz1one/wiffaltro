@@ -39,7 +39,9 @@ Core rule: **Godot owns presentation, collision, and environment physics. Our co
 The repository now contains:
 
 - main, preseason, draft, lineup, schedule, postgame and season-results menus
-- 24 authored two-way players across six clubs, ten games and four-team playoffs
+- 48 possible authored two-way players, 24 active across six clubs, ten games and playoffs
+- visible draft/lineup stats, rare switch hitters and four-/five-Pitch arsenals
+- count/personality-aware pitching, strategy difficulty presets and visible-motion batting reads
 - deterministic AI league scores, standings and validated local season checkpoints
 - stable content IDs
 - immutable Resource definition types
