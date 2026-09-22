@@ -51,6 +51,7 @@ var _pitch_actor: PitchFlightActor
 var _batted_ball: BattedBallBody
 var _ball_play_resolver: BallPlayResolver
 var _field_definition: FieldDefinition
+var _field_id: StringName = FIELD_ID
 var _primary_fielder: FielderController
 var _pitcher_marker: Node3D
 var _pitcher_avatar: PlayerAvatar
@@ -158,9 +159,9 @@ func _ready() -> void:
 		push_error("Pitch/Bat Lab loaded with invalid content.")
 		return
 
-	_field_definition = ContentDB.get_field(FIELD_ID)
+	_field_definition = ContentDB.get_field(_field_id)
 	if _field_definition == null:
-		push_error("Pitch/Bat Lab: starter field definition is missing.")
+		push_error("Pitch/Bat Lab: configured field definition is missing.")
 		return
 
 	PitchBatLabSettings.restore(self)

@@ -79,6 +79,15 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("switch-hitter", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/switch_hitter_test.tscn"],
+                 "Wiffaltro switch hitter checks passed."),
+                ("pitch-handedness", [*base, "--fixed-fps", "60",
+                                      "res://src/tests/pitch_handedness_test.tscn"],
+                 "Wiffaltro pitch handedness checks passed:"),
+                ("venue-stats", [*base, "--fixed-fps", "60",
+                                 "res://src/tests/venue_stats_test.tscn"],
+                 "Wiffaltro venue and pause stats checks passed."),
                 ("pitch-routing", [*base, "--fixed-fps", "60",
                                    "res://src/tests/pitch_routing_test.tscn"],
                  "Wiffaltro pitch routing checks passed:"),

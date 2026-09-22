@@ -23,7 +23,8 @@ coverage hint describes the lowest of your current best ratings.
    the opposing starter's actual arsenal. Reorder hitters and select a starting
    Pitcher and a different Primary Fielder. Edits should preserve scroll position.
    Play Game should use those players and that batting order.
-3. Check both home and away games: home pitches first; away bats first. Pause
+3. Check both home and away games: Yard Club Field is the original home field;
+   Commons Park is the distinct away field. Home pitches first; away bats first. Pause
    > Leave Game requires confirmation, returns to the hub and leaves this fixture
    unfinished. Returning restarts the game; it does not erase the season.
 4. Finish a game. Let the existing result and outro breathe, then click Continue
@@ -32,7 +33,8 @@ coverage hint describes the lowest of your current best ratings.
    Check your batting/pitching table and highlights. Prepare Next Game goes
    directly to pregame; Last Game on the hub reopens this recap without advancing.
 5. Over the season, expect ten games (five home, five away), top-four playoffs,
-   higher-seed semifinals and a neutral final on the placeholder starter field.
+   higher-seed semifinals and a neutral final at Commons Park. The final's opening
+   role follows nominal home/away assignment, even though its venue is neutral.
    After elimination, remaining AI games resolve and a champion appears.
 6. At season end, verify the result screen and New Season replacement prompt.
    Expect a distinct missed-playoffs, semifinal-loss, runner-up or champion recap,
@@ -43,7 +45,10 @@ coverage hint describes the lowest of your current best ratings.
 7. On defense, open Field and choose a different named Primary Fielder between
    Batters. The current Pitcher must be unavailable. Compare the selected name
    and Fielding rating; the character uses that roster player's defense values.
-8. Find a switch hitter (S). Before confirming the at-bat, switch side. Verify
+8. Find a switch hitter (S), Tess Vale or Val Morgan. Before confirming the at-bat,
+   use the button beside the prompt or press B. Its small cue shows the current
+   side; the button names the destination side. Switching must not begin a pitch.
+   Verify
    body, bat and scorebug Bats R/L agree; after readiness, the side is locked,
    including after a tactical timeout. Pitching hand must never change.
 9. Repeat some hittable sliders and mix a few tempting borderline pitches.
@@ -54,6 +59,17 @@ coverage hint describes the lowest of your current best ratings.
     more edges/sequencing. Watch favorite-pitch tendencies across counts. Stats
     and physics should not change with the preset. Report unfair or repetitive
     patterns with records instead of only final scores.
+11. Pause > Player Stats during a pitch. Inspect Your Team and Opponent on
+    Ratings & repertoire and This game. Names, seven ratings, full pitch names,
+    Stamina and defensive roles should be readable. Compare a completed hit/walk/K
+    and pitch count with the game. Scrolling must leave Back visible. First Esc
+    returns to Pause; second Esc resumes from the same ball position.
+12. With left-handed Casey Rivers, choose Overhand Four-Seam and then Drop using
+    their visible names. Drop must dive; Four-Seam must retain backspin lift.
+    This corrects a real left-handed spin inversion, not a pitch-ID swap. Compare
+    a right-handed pitcher too; changing hands should mirror lateral movement,
+    not exchange vertical pitch identities. Share meaningful F3 records if the
+    resulting flight still disagrees with the named pitch.
 
 Existing schema-1 saves should keep their original picks/teams/results after
 update. Later saves have a prior-checkpoint `.bak`; recovery displays a notice

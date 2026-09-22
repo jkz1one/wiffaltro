@@ -12,6 +12,17 @@ const FIELD_CENTER := Vector3.BACK
 # Pitcher at the mound faces home plate (-Z).
 const TOWARD_PLATE := Vector3.FORWARD
 
+static func mirror_spin(vector: Vector3) -> Vector3:
+	# Spin is an axial vector: reflecting X preserves X spin and reverses Y/Z.
+	# Reflecting spin like position would turn backspin into topspin.
+	return Vector3(vector.x, -vector.y, -vector.z)
+
+
+static func pitcher_spin_vector(source: Vector3, is_left_handed: bool) -> Vector3:
+	var right_hand: Vector3 = pitcher_frame_vector(source.x, source.y, source.z, false)
+	return mirror_spin(right_hand) if is_left_handed else right_hand
+
+
 static func arm_side(is_left_handed: bool) -> Vector3:
 	return Vector3.LEFT if is_left_handed else Vector3.RIGHT
 

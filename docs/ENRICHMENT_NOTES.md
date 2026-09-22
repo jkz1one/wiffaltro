@@ -28,6 +28,10 @@ full opponent development remains Phase 6. Do not infer balance from one homer,
 inject rubber-banding, or lower all base stats without representative human QC.
 No difficulty or rating changes are implemented by this note.
 
+The follow-up recording revealed a left-handed spin inversion, now corrected
+separately. Reassess the corrected pitches during human QC before using the
+reported Four-Seam/Drop behavior as evidence for a difficulty or stat change.
+
 ## Captain retention, Phase 7 candidate
 
 User idea, 2026-09-21: a mid/late-game achievement unlocks the option to keep a

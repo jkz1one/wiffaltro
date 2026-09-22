@@ -4,8 +4,9 @@
 
 [resource]
 script = ExtResource("1_field")
-id = &"field.starter_backyard"
-display_name = "Yard Club Field"
+id = &"field.commons_park"
+display_name = "Commons Park"
+environment_style = 1
 fair_half_angle_degrees = 42.0
 safe_hit_z_m = 11.25
 deep_air_z_m = 17.0

@@ -98,8 +98,11 @@ func _launch(lab: PitchBatLab, expected: PitchDefinition) -> void:
 		"physical flight must use selected identity")
 	_check(lab._active_play_record.pitch_id == expected.id,
 		"QC record must use launched identity")
-	_check(parameters.hole_axis_ball_local.is_equal_approx(
-		expected.nominal_hole_axis_ball_local.normalized()), "flight must use selected aero recipe")
+	var holes: Vector3 = expected.nominal_hole_axis_ball_local.normalized()
+	if lab._match_state.pitcher().definition.throws == PlayerDefinition.Handedness.LEFT:
+		holes.x *= -1.0
+	_check(parameters.hole_axis_ball_local.is_equal_approx(holes),
+		"flight must use selected aero recipe mirrored for the throwing hand")
 	_check(lab._pitch_picker._selected.text == expected.display_name,
 		"collapsed delivery label must agree with launch")
 	var other: int = (lab._selected_pitch_index + 1) % lab._current_pitch_options().size()

@@ -136,6 +136,8 @@ static func build_environment(lab: PitchBatLab) -> void:
 		Vector2(contact_profile.contact_radius_x_m * 2.0, contact_profile.contact_radius_y_m * 2.0),
 		Vector2(power_profile.contact_radius_x_m * 2.0, power_profile.contact_radius_y_m * 2.0)
 	)
+	if lab._field_definition.environment_style == 1:
+		CommonsParkScenery.build(geometry, lab._field_definition)
 	lab._pitch_target_marker = geometry.pitch_target_marker
 	lab._batting_aim_marker = geometry.batting_aim_marker
 	lab._receiver_marker = geometry.receiver_marker
@@ -269,10 +271,11 @@ static func show_match_intro(lab: PitchBatLab) -> void:
 	lab._presentation_backdrop.visible = true
 	lab._presentation_title.text = "GAME START"
 	lab._presentation_subtitle.text = (
-		"%s at %s"
+		"%s at %s\n%s"
 		% [
 			lab._match_state.away_team.display_name,
 			lab._match_state.home_team.display_name,
+			lab._field_definition.display_name,
 		]
 	)
 	_set_gameplay_hud_visible(lab, false)

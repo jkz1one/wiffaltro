@@ -23,6 +23,7 @@ static func build_nominal(
 
 	var parameters: PitchLaunchParameters = PitchLaunchParameters.new()
 	parameters.pitch_id = pitch.id
+	parameters.is_left_handed = is_left_handed
 	parameters.seed = flight_seed
 
 	var release_offset: Vector3 = pitch.delivery_profile.release_offset_pitcher_frame_m
@@ -37,17 +38,16 @@ static func build_nominal(
 	parameters.velocity = launch_direction * pitch.nominal_velocity_mps
 
 	var spin_axis_source: Vector3 = pitch.nominal_spin_axis_pitcher_frame
-	var spin_axis_world: Vector3 = CoordinateFrame.pitcher_frame_vector(
-		spin_axis_source.x,
-		spin_axis_source.y,
-		spin_axis_source.z,
-		is_left_handed
+	var spin_axis_world: Vector3 = CoordinateFrame.pitcher_spin_vector(
+		spin_axis_source, is_left_handed
 	).normalized()
 	var spin_radians_per_second: float = pitch.nominal_spin_rpm * TAU / 60.0
 	parameters.angular_velocity = spin_axis_world * spin_radians_per_second
 
 	parameters.orientation = Quaternion.IDENTITY
 	parameters.hole_axis_ball_local = pitch.nominal_hole_axis_ball_local.normalized()
+	if is_left_handed:
+		parameters.hole_axis_ball_local.x *= -1.0
 
 	var aero: BallAeroProfileDefinition = ball_setup.aero_profile
 	parameters.mass_kg = aero.mass_kg

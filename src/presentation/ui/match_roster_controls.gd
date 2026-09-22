@@ -4,6 +4,7 @@ extends Node
 var _lab: PitchBatLab
 var _fielder: OptionButton
 var _switch: Button
+var _switch_hint: Label
 var _roster_key: String = ""
 
 
@@ -18,16 +19,30 @@ func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._field_setup_panel.move_child(_fielder, 1)
 	_switch = Button.new()
 	_switch.name = "SwitchBattingSide"
-	_switch.position = Vector2(1010, 110)
-	_switch.custom_minimum_size = Vector2(245, 38)
+	_switch.position = Vector2(450, 366)
+	_switch.custom_minimum_size = Vector2(380, 40)
+	_switch.add_theme_font_size_override("font_size", 18)
 	_switch.focus_mode = Control.FOCUS_NONE
 	_switch.pressed.connect(_switch_side)
 	canvas.add_child(_switch)
+	_switch_hint = Label.new()
+	_switch_hint.name = "SwitchBattingSideHint"
+	_switch_hint.position = Vector2(420, 412)
+	_switch_hint.size = Vector2(440, 42)
+	_switch_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_switch_hint.add_theme_font_size_override("font_size", 16)
+	_switch_hint.add_theme_constant_override("outline_size", 4)
+	_switch_hint.add_theme_color_override("font_outline_color", Color("102332"))
+	_switch_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(_switch_hint)
+	_switch.hide()
+	_switch_hint.hide()
 
 
 func _process(_delta: float) -> void:
 	if _lab._match_state == null or not _lab._match_mode:
 		_switch.hide()
+		_switch_hint.hide()
 		return
 	var state: MatchState = _lab._match_state
 	var batter: PlayerMatchState = state.batter()
@@ -36,14 +51,12 @@ func _process(_delta: float) -> void:
 		if batter.batting_hand_override != desired:
 			batter.batting_hand_override = desired
 			PitchBatLabPresentation.sync_players(_lab)
-	_switch.visible = (
-		_lab._player_is_batting()
-		and batter.definition.switch_hitter
-		and _lab._awaiting_batter_confirm
-		and not _lab._debug_paused
-		and not _lab._match_presentation_director.blocks_gameplay()
-	)
-	_switch.text = "BATS %s  •  SWITCH SIDE" % ("L" if batter.bats_left() else "R")
+	_switch.visible = can_switch(_lab)
+	_switch_hint.visible = _switch.visible
+	_switch.text = "SWITCH TO %s-HANDED  •  B" % ("RIGHT" if batter.bats_left() else "LEFT")
+	_switch_hint.text = ("Switch hitter • Batting %s-handed\n"
+		+ "Choose your side before starting this at-bat.") % (
+			"left" if batter.bats_left() else "right")
 	_switch.disabled = not can_switch(_lab)
 	_switch.tooltip_text = "Choose a side before confirming the at-bat. Locked for this at-bat."
 	if not _lab._field_setup_active:
@@ -75,6 +88,7 @@ static func can_switch(lab: PitchBatLab) -> bool:
 		and not lab._ai_pitch_preselected
 		and lab._match_state.phase == MatchState.Phase.PRE_PITCH
 		and not lab._debug_paused
+		and not lab._match_presentation_director.blocks_gameplay()
 	)
 
 
@@ -86,6 +100,7 @@ func _switch_side() -> void:
 	PitchBatLabPresentation.sync_players(_lab)
 	_lab._apply_role_camera()
 	_lab._refresh_config()
+	_process(0.0)
 
 
 func _select_fielder(index: int) -> void:

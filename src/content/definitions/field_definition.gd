@@ -1,6 +1,8 @@
 class_name FieldDefinition
 extends DefinitionBase
 
+@export_enum("Backyard", "Municipal park") var environment_style: int = 0
+
 @export_range(10.0, 60.0, 0.5) var fair_half_angle_degrees: float = 42.0
 @export_range(1.0, 30.0, 0.1) var safe_hit_z_m: float = 8.0
 @export_range(2.0, 40.0, 0.1) var deep_air_z_m: float = 15.0

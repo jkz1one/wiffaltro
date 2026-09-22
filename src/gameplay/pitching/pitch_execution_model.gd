@@ -171,6 +171,8 @@ static func apply(
 	)
 	if release_error.length() > MAX_RELEASE_ERROR_M:
 		release_error = release_error.normalized() * MAX_RELEASE_ERROR_M
+	if result.is_left_handed:
+		release_error.x *= -1.0
 	result.position += release_error
 
 	var direction_sigma: float = (
@@ -189,6 +191,8 @@ static func apply(
 		MAX_DIRECTION_ERROR_RADIANS
 	)
 	var direction: Vector3 = result.velocity.normalized()
+	if result.is_left_handed:
+		yaw_error *= -1.0
 	direction = direction.rotated(Vector3.UP, yaw_error)
 	var right_axis: Vector3 = direction.cross(Vector3.UP).normalized()
 	if right_axis.length_squared() > 0.000001:
@@ -201,6 +205,8 @@ static func apply(
 		rng.randf_range(-1.0, 1.0)
 	)
 	if orientation_axis.length_squared() > 0.000001:
+		if result.is_left_handed:
+			orientation_axis = CoordinateFrame.mirror_spin(orientation_axis)
 		orientation_axis = orientation_axis.normalized()
 		var orientation_strength: float = clampf(
 			(1.0 - quality) + pressure + lapse_strength,

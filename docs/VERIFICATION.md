@@ -37,6 +37,9 @@ command still exits nonzero. No hosted CI is triggered.
 
 ## Pitch identity and labels audit — 2026-09-22
 
+The physical correction and expanded checks below supersede this first pass's
+unresolved diagnosis. Resource identity alone did not establish correct flight.
+
 Reconciled local/GitHub main `61999fa`. Final full `python3 tools/verify.py`
 passed all 23 steps on Godot 4.7.2 and gdtoolkit 4.3.4 at
 `builds/verification/20260922T034413264888Z`. The earlier audit run also passed
@@ -61,6 +64,72 @@ slots, not universal pitch-family keys. Half-inning/new-Pitcher resets remain
 slot 1; all authored season pitchers owning Drop start with Four-Seam in that slot.
 These facts do not establish the cause of the user's exact incident without a
 record or reproduction. Headless checks do not approve rendered feel or balance.
+
+## Human QC follow-up: physical pitches, switch hitters, stats and venues
+
+On 2026-09-22, the human recording showed left-handed Casey Rivers. A targeted
+physical reproduction failed before the correction (`builds/pitch-handedness-red.log`):
+left-handed Four-Seam produced downward lift and Drop upward lift. Spin had been
+mirrored like a position instead of an axial vector. The fix preserves vertical
+identity and mirrors lateral flight, hole direction and seeded perturbations.
+No pitch recipe, rating, aerodynamic coefficient or fatigue curve was retuned.
+
+Final full `python3 tools/verify.py` passed **26 steps**, without engine warnings
+or errors, on Godot **4.7.2** and gdtoolkit **4.3.4**:
+`builds/verification/20260922T040843826880Z`. This includes the earlier 25-step
+pass plus the new switch-hitter input/stance/contact checks. A subsequent
+neutral-final opening-role text correction passed disposable import and the
+affected venue/stats scene again (`builds/final-role-import.log` and
+`builds/final-role-venue.log`).
+
+- **Physical pitch identity:** 320 paired trajectories across all nine families,
+  three effort levels and mirrored targets, with nominal and seeded execution
+  at fatigue 0, 0.8 and 1. Sampled position and velocity at three depths agree
+  under lateral reflection within 0.002 m / m/s. Drop, Four-Seam and Riser have
+  explicit vertical-sign assertions for both throwing hands.
+- **Measured induced movement:** against the same launch with lift/asymmetry
+  disabled, Four-Seam is +2.294 m for both hands (left was -2.316 m), Drop is
+  -3.504 m for both hands (left was +3.353 m), and Riser is +4.127 m for both
+  hands (left was -4.316 m). These are diagnostic deltas, not literal rise above
+  release, target tuning values or human balance samples.
+- **Reach limits:** one nominal low-effort Eephus target is unsolved in both
+  hands. Three executed Eephus pairs do not cross the plate in either hand.
+  The test asserts equal reach and compares movement where crossing occurs;
+  it does not claim every fatigued/low-effort launch is hittable. Existing
+  failed-pitch recovery checks remain in the suite; no broad retuning followed.
+- **Selection pathways:** existing 48-player/142-slot keyboard/button coverage,
+  actual resource/recipe/F3 identity, transition fixtures and reordered save
+  restores pass alongside the new physical assertions. Full names remain visible.
+- **Switch hitters:** both Tess Vale and Val Morgan, starting on either side.
+  Viewport-dispatched button clicks change sides exactly once without starting
+  delivery. B, visible cue, scorebug, avatar, bat and actual swing intent agree;
+  early contact pulls to the corresponding field. Intro/pause/delivery/timeout
+  locks, ordinary hitters, next-batter availability and all HUD anchors are checked.
+- **Pause statistics:** both teams and tabs show roster identities, seven ratings,
+  full pitch names and actual completed-hit attribution. Inspecting during a live
+  pitch leaves its position, match clock and performance snapshot unchanged;
+  bounds, scrolling/footer and Esc → Pause → resume pass.
+- **Venues:** twelve-game progression and save/reload, five regular home/five
+  away fixtures, hosted semifinals and neutral final; actual loaded field, intro,
+  pregame name, legal anchors and identical collision signatures. Away decoration
+  adds no colliders. Neutral-final opening text matches either nominal role.
+- **Regression coverage:** real AI/contact/Jolt matches complete at both parks;
+  scoring, saves/backup/migrations, mixed old/new stats, abandoned-game exclusion,
+  camera geometry, pitch execution, input/pause, HR presentation, menu bounds,
+  season progression and QC export pass. Live-match scores are scripted-player
+  outcomes, not evidence of human difficulty balance.
+
+The AI-read regression's previous fastball relative-improvement assertion depended
+on the inverted left-handed flight. It now bounds mean error for every sampled
+family and retains relative improvement for sliders. Current measurements and
+this limitation are explicit in `SEASON_ENRICHMENT_AUDIT.md`; production AI batting
+logic was not altered to satisfy the check.
+
+All engine imports used disposable source copies. Protected directories were
+excluded. These checks do not prove absence of every bug or replace human QC.
+Rendered away-field appearance, switch cue readability, pause comfort and the
+corrected pitches' subjective feel remain on the human route in `PITCH_BAT_LAB_TEST.md`.
+No display/Vulkan renderer was available here; no rendered approval is claimed.
 
 ## Season flow / performance verification — 2026-09-21
 

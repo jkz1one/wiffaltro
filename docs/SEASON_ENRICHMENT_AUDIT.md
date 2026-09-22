@@ -3,6 +3,30 @@
 2026-09-21. Baseline: main `937ce2f5b2dcd5925dbc66241907f95f3d30791f`.
 Implements the user's ten-point list; the captain idea stays in `ENRICHMENT_NOTES.md`.
 
+## Physical handedness correction — 2026-09-22
+
+The human Casey Rivers recording exposed an axial-spin reflection bug in
+left-handed pitches. The earlier enrichment audit checked visible batting hands
+and pitch IDs but did not verify vertical pitch identity. Correcting that physical
+bug changes the trajectory inputs used by the AI-read comparison below; its
+historical measurements must not be used as current results.
+
+The same 80-fixture-per-family comparison after correction gives:
+
+| Pitch | Mean arrival error, old → current read | Two-strike offers, old → current read |
+| --- | --- | --- |
+| Four-Seam | 0.055 → 0.089 m | 74 → 74 / 80 |
+| Overhand Slider | 0.753 → 0.100 m | 8 → 67 / 80 |
+| Sidearm Slider | 0.685 → 0.086 m | 8 → 68 / 80 |
+
+The visible-motion estimate still improves these breaking-ball fixtures, but it
+is not superior to the old instantaneous-position heuristic for this straight
+fastball fixture. The regression now bounds all three mean errors below 0.12 m
+and retains the relative-improvement check for sliders. Production AI batting
+logic and difficulty weights are unchanged. These are perception checks, not
+hit-rate calibration or proof of a fair difficulty curve. See `VERIFICATION.md`
+for paired physical tests and human-QC limits.
+
 ## Research informing the pass
 
 - Microsoft's [text-display guidance](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/101)

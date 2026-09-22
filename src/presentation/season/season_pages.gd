@@ -66,9 +66,12 @@ static func hub(menu: SeasonMenu) -> void:
 
 
 static func venue(fixture: Dictionary) -> String:
+	var field_name: String = SeasonState.field_for_fixture(fixture).display_name
+	var opening: String = "You pitch first" if fixture["home"] == 0 else "You bat first"
 	if fixture.get("neutral", false):
-		return "Neutral final • Starter field • You pitch first"
-	return "Home • You pitch first" if fixture["home"] == 0 else "Away • You bat first"
+		return "Neutral final • %s • %s" % [field_name, opening]
+	return ("Home • %s • You pitch first" if fixture["home"] == 0 else (
+		"Away • %s • You bat first")) % field_name
 
 
 static func defense(season: SeasonState) -> String:

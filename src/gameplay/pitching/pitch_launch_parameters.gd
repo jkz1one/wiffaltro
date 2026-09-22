@@ -2,6 +2,7 @@ class_name PitchLaunchParameters
 extends RefCounted
 
 var pitch_id: StringName
+var is_left_handed: bool = false
 var position: Vector3 = Vector3.ZERO
 var velocity: Vector3 = Vector3.ZERO
 var orientation: Quaternion = Quaternion.IDENTITY
@@ -23,6 +24,7 @@ var seed: int = 0
 func copy() -> PitchLaunchParameters:
 	var result := PitchLaunchParameters.new()
 	result.pitch_id = pitch_id
+	result.is_left_handed = is_left_handed
 	result.position = position
 	result.velocity = velocity
 	result.orientation = orientation

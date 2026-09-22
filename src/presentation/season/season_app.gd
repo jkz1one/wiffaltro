@@ -90,7 +90,8 @@ func play_season_game() -> void:
 		return
 	var fixture: Dictionary = season.pending_fixture()
 	_fixture_id = fixture["id"]
-	_open_match(season.make_match(), fixture["home"] == 0, true)
+	_open_match(season.make_match(), fixture["home"] == 0, true,
+		SeasonState.field_for_fixture(fixture).id)
 
 
 func play_exhibition() -> void:
@@ -105,7 +106,10 @@ func play_exhibition() -> void:
 	)
 
 
-func _open_match(state: MatchState, player_home: bool, season_game: bool) -> void:
+func _open_match(
+	state: MatchState, player_home: bool, season_game: bool,
+	field_id: StringName = PitchBatLab.FIELD_ID
+) -> void:
 	_season_game = season_game
 	_busy = false
 	_result_recorded = false
@@ -113,6 +117,7 @@ func _open_match(state: MatchState, player_home: bool, season_game: bool) -> voi
 	lab = PitchBatLab.new()
 	lab.name = "ActiveMatch"
 	lab._configured_match = state
+	lab._field_id = field_id
 	lab._player_home = player_home
 	lab._managed_match = true
 	lab.match_return_requested.connect(finish_game)

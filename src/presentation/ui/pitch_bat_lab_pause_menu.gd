@@ -1,11 +1,13 @@
 class_name PitchBatLabPauseMenu
 extends PanelContainer
 
+var stats: MatchStatsPanel
 var _lab: PitchBatLab
 var _main: VBoxContainer
 var _title: Label
 var _mute_button: Button
 var _leave_button: Button
+var _stats_button: Button
 
 
 func build(lab: PitchBatLab) -> void:
@@ -31,6 +33,8 @@ func build(lab: PitchBatLab) -> void:
 	_main.add_theme_constant_override("separation", 8)
 	layout.add_child(_main)
 	_button(_main, "RESUME  •  Esc", _resume)
+	_stats_button = _button(_main, "PLAYER STATS", open_stats)
+	_stats_button.focus_mode = Control.FOCUS_ALL
 	_button(_main, "SETTINGS", lab._toggle_display_menu)
 	_button(_main, "CHANGE CAMERA  •  V", lab._cycle_camera)
 	if lab._managed_match:
@@ -46,11 +50,18 @@ func build(lab: PitchBatLab) -> void:
 	hint.text = "Play stays frozen while you inspect."
 	hint.add_theme_font_size_override("font_size", 12)
 	layout.add_child(hint)
+	stats = MatchStatsPanel.new()
+	get_parent().add_child(stats)
+	stats.build(lab)
+	stats.back_requested.connect(close_stats)
 	refresh()
 
 
 func refresh() -> void:
-	visible = _lab._debug_paused
+	if not _lab._debug_paused:
+		stats.hide()
+	visible = _lab._debug_paused and not stats.visible
+	_stats_button.disabled = not _lab._match_mode or _lab._match_state == null
 	_main.visible = not _lab._display_menu_open
 	_lab._display_menu_panel.visible = _lab._display_menu_open and visible
 	_mute_button.text = "Mute sounds: " + ("On" if _lab._sounds_muted else "Off")
@@ -65,7 +76,7 @@ func refresh() -> void:
 	_lab._backdrop_button.text = "Backdrop: " + (
 		"Blue sky" if _lab._sky_backdrop_enabled else "Green"
 	)
-	_lab._display_menu_button.text = "RESUME  Esc" if visible else "PAUSE  Esc"
+	_lab._display_menu_button.text = "RESUME  Esc" if _lab._debug_paused else "PAUSE  Esc"
 	size.y = get_combined_minimum_size().y
 
 
@@ -78,6 +89,19 @@ func _toggle_mute() -> void:
 
 func _resume() -> void:
 	PitchBatLabFeelSupport.toggle_debug_pause(_lab)
+
+
+func open_stats() -> void:
+	if not _lab._debug_paused or not _lab._match_mode or _lab._match_state == null:
+		return
+	stats.open()
+	refresh()
+
+
+func close_stats() -> void:
+	stats.hide()
+	refresh()
+	_stats_button.grab_focus()
 
 
 static func _button(parent: Control, text: String, action: Callable) -> Button:

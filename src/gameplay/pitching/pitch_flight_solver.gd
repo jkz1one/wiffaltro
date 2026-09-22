@@ -57,8 +57,9 @@ static func _instability_angular_velocity(
 	var omega: float = TAU * parameters.instability_frequency_hz
 	var t: float = state.elapsed_time
 
-	return Vector3(
+	var wobble: Vector3 = Vector3(
 		sin(omega * t + phase),
 		cos(omega * 0.73 * t + phase * 1.71),
 		sin(omega * 1.19 * t + phase * 0.61)
 	) * parameters.instability_strength
+	return CoordinateFrame.mirror_spin(wobble) if parameters.is_left_handed else wobble

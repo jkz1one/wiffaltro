@@ -3,6 +3,7 @@ extends RefCounted
 
 enum Phase { DRAFT, REGULAR, SEMIFINAL, FINAL, COMPLETE }
 const TEAM_NAMES: Array[String] = ["Yard Club", "Rivets", "Kites", "Lanterns", "Comets", "Switches"]
+const AWAY_FIELD_ID: StringName = &"field.commons_park"
 const LEGACY_IDS: Array[String] = [
 	"player.alex_finch",
 	"player.ari_banks",
@@ -45,6 +46,11 @@ var champion: int = -1
 var starter_index: int = 0
 var fielder_index: int = 1
 var difficulty: int = 1
+
+
+static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
+	var home: bool = fixture.get("home", -1) == 0 and not fixture.get("neutral", false)
+	return ContentDB.get_field(PitchBatLab.FIELD_ID if home else AWAY_FIELD_ID)
 
 
 static func create(seed_value: int, legacy: bool = false) -> SeasonState:

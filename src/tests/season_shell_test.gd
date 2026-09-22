@@ -181,6 +181,8 @@ func _test_menus_and_match_handoff() -> void:
 		var fixture: Dictionary = app.season.pending_fixture().duplicate()
 		app.play_season_game()
 		var lab: PitchBatLab = app.lab
+		_check(lab._field_definition == SeasonState.field_for_fixture(fixture),
+			"season app must load the fixture's actual home or away venue")
 		var export_path: String = "user://season-flow-%d-%d.json" % [OS.get_process_id(), game]
 		lab._record_export.path = export_path
 		PitchBatLabFeelSupport.skip_match_presentation(lab)

@@ -14,6 +14,8 @@ func _ready() -> void:
 
 func _run_match(run_seed: int) -> void:
 	var lab: PitchBatLab = PitchBatLab.new()
+	if run_seed == 11:
+		lab._field_id = SeasonState.AWAY_FIELD_ID
 	if run_seed == 29:
 		var season: SeasonState = SeasonState.create(run_seed)
 		for pick in range(4):

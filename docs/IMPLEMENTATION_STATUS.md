@@ -2,7 +2,34 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Human QC corrections, pause stats and venues — 2026-09-22
+
+- Source advances to v0.4.27; technical baseline to v0.1.22. No Phase 5 systems.
+- The human recording identifies Casey Rivers, a left-handed Pitcher. A physical
+  trajectory audit reproduced the reported reversal: left-handed Four-Seam had
+  downward lift while Drop had upward lift. The earlier resource-ID audit below
+  was insufficient to detect it. Corrected axial spin reflection, hole direction
+  and seeded perturbations; right-handed recipes and tuning coefficients stay
+  unchanged. All nine families now have paired physical trajectory coverage.
+- Pause > Player Stats shows both teams' ratings, full repertoires, hands,
+  defensive roles, current Stamina and live batting/pitching observations.
+  Inspection freezes play; Escape returns to Pause before resuming.
+- Yard Club Field retains the existing home environment. Commons Park adds
+  distinct away scenery with identical scoring dimensions, defender anchors and
+  physical collisions. Regular fixtures use five of each; playoff hosting and
+  neutral finals select the matching venue. Continue derives it from the saved
+  fixture. Corrected neutral-final opening-role text to respect actual seeding.
+- Switch hitters now get a button next to the at-bat prompt, a small current-side
+  cue and B shortcut. Selection locks when the at-bat starts, including timeouts.
+  Actual GUI-click checks cover both authored switch hitters in both directions,
+  without accidentally confirming readiness or changing throwing handedness.
+- Full and targeted verification evidence is in `VERIFICATION.md`. Human rendered
+  appearance and gameplay-feel QC remain pending. Difficulty progression is
+  recorded for design follow-up; it has not been retuned from this incident.
+
 ## Pitch routing audit and full names — 2026-09-22
+
+Historical first pass; the physical diagnosis above supersedes its unresolved cause.
 
 - Reconciled clean local/GitHub main `61999fa` after human feedback about
   Fastball/Drop selection. No crossed pitch resource was reproduced. Repertoire

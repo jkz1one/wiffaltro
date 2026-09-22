@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.26
+**Version:** v0.4.27
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.25 and all earlier planning notes
+**Supersedes:** v0.4.26 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -432,6 +432,12 @@ Higher spin does not automatically mean “more Break.” Effective spin, spin a
 
 Plastic-ball behavior may deliberately exaggerate familiar baseball pitch shapes.
 
+Throwing handedness mirrors lateral flight, not vertical pitch identity. Drop
+must still dive for a left-handed Pitcher; Four-Seam backspin and Riser lift
+must not become topspin. The 2026-09-22 human recording exposed an incorrect
+spin reflection. Spin, hole orientation and seeded perturbations now mirror
+consistently while preserving the right-handed recipes and existing coefficients.
+
 ## Knuckleball
 
 Not implemented as arbitrary random zig-zagging.
@@ -745,8 +751,11 @@ fun gate has passed. The starter implementation contains:
 
 - Main menu: Continue Season, New Season, Exhibition, Quit.
 - One provisional Backyard League with Relaxed / Standard / Tactical pitching
-  strategy presets, and the existing starter
-  field at every venue. The neutral championship uses that same field as a placeholder.
+  strategy presets. The existing environment is Yard Club Field for home games;
+  Commons Park is the shared away venue for the five opposing clubs. Five regular
+  games use each venue. Semifinals follow the higher-seed host; the neutral final
+  uses Commons Park regardless of nominal home/away inning roles. These are two
+  distinct environments with the same current scoring geometry and collisions.
 - Four tryout rounds, three distinct authored player cards per round, one choice
   each. The 48-player authored pool supplies six unique four-player clubs, so
   only 24 characters are active in a given season. A new draft exposes at most
@@ -779,6 +788,12 @@ fun gate has passed. The starter implementation contains:
   championship runner-up or champion, with recorded hitting/pitching leaders,
   final bracket and regular-season standings. The finished season remains
   inspectable until a new season is confirmed; no career archive is implied.
+- Pause > Player Stats inspects either team's seven ratings, full repertoire,
+  batting/throwing hands, defensive assignments, remaining Stamina and used arms.
+  This Game shows current batting/pitching observations, with pitch counts up to
+  the current delivery and batting outcomes after completed plate appearances.
+  Inspection is read-only and freezes play; Back/Esc returns to Pause before
+  resuming. This is not an in-game batting-order or equipment editing window.
 - Local checkpoints after draft/lineup changes and as soon as a match is final.
   An interrupted unfinished game restarts from its beginning. There is one save
   slot, with confirmation before replacing it, and no midgame resume.
@@ -789,7 +804,7 @@ fun gate has passed. The starter implementation contains:
   valid; their absent statistics are explicitly reported, never backfilled.
 
 Pitchers start each game fresh in this first shell; in-game fatigue and no
-pitching re-entry remain unchanged. Intergame recovery, specialized venues,
+pitching re-entry remain unchanged. Intergame recovery, mechanically unusual venues,
 opponent development, economy and persistent career rewards are later systems.
 
 ---
@@ -1478,6 +1493,16 @@ Detailed simulation
 telemetry remains in the explicit debug layer and should not duplicate or
 obscure the scorebug.
 
+Full names include authored delivery words such as Overhand and Sidearm in the
+visible list, not only in tooltips. Number keys select the current Pitcher's
+repertoire slots. The lab's nine-Pitch catalog is not a universal match shortcut map.
+
+For switch hitters, a button beside the at-bat prompt names the opposite batting
+side, with a small current-side cue and B shortcut. It is offered before readiness
+and disappears when the at-bat begins. The side stays locked through tactical
+timeouts; stance, bat, scorebug, camera and contact use the same effective hand.
+Throwing handedness remains fixed. Ordinary hitters do not receive this control.
+
 The Pitch panel uses a compact numbered list with full names and short tactical
 descriptions only on hover, and a clear selected state; it collapses to the selected Pitch during delivery and
 clears for Home Run presentation. Defensive controls are labeled Field and
@@ -1597,6 +1622,10 @@ Build the complete season structure around the validated vanilla game:
 
 The first Season Shell should work with mostly vanilla player power so its
 schedule, pacing, standings, and reset loop can be evaluated independently.
+
+The 2026-09-22 user request also authorizes read-only pause statistics and a
+second, visually distinct away venue using unchanged field rules. This bounded
+venue addition does not authorize unusual field mechanics or Phase 5 systems.
 
 ## Phase 5 — Seasonal Build Systems
 

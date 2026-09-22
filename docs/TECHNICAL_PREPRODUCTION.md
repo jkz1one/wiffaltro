@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.21
+**Version:** v0.1.22
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -298,6 +298,16 @@ toward_plate
 ```
 
 Handedness maps the semantic frame to world space.
+
+Spin is an axial vector. Across a world-X reflection, ordinary positions and
+directions map to `(-x, y, z)`, but spin maps to `(x, -y, -z)`. Applying the
+ordinary vector mapping to angular velocity inverted left-handed vertical break.
+`pitcher_spin_vector` preserves right-handed authored mapping and applies the
+axial reflection for lefties. Hole axes reflect as ordinary directions; seeded
+angular wobble/orientation errors use axial reflection. Release-position and
+yaw errors mirror laterally. `PitchLaunchParameters.is_left_handed` survives
+copies so the execution model and solver share that convention. No aerodynamic
+coefficient, rating multiplier or fatigue curve changes with this correction.
 
 Do not author Pitch movement using hardcoded world-left/world-right when “arm side” or “glove side” is the real meaning.
 
@@ -2256,3 +2266,36 @@ save migration, page bounds and scroll preservation. The live drafted-match
 test additionally checks that actual AI/contact/Jolt events yield balanced
 statistics and one observation per completed appearance. Human visual/feel QC
 remains necessary; headless layout checks do not establish aesthetics.
+
+## Pause inspection and home/away venues — 2026-09-22
+
+`MatchStatsPanel` is a pause-only read view owned by the existing HUD canvas.
+It reads immutable player definitions and a deep `MatchPerformance.snapshot`,
+without changing roles, results, saves or gameplay state. Its scrollable body
+switches teams and rating/box-score pages; the Back footer stays fixed. Escape
+first closes inspection, then the existing pause control resumes play. Remaining
+Stamina and used-arm flags are current match state, separate from Stamina rating.
+
+`SeasonState.field_for_fixture` selects the existing `field.starter_backyard`
+(now displayed as Yard Club Field) when the player hosts, otherwise
+`field.commons_park`. A neutral final always uses Commons Park. `SeasonApp`
+passes that ID before `PitchBatLab._ready` builds geometry. The actual loaded
+FieldDefinition reaches defenders, ball resolution, intro and F3 metadata;
+pregame uses the same selector. Exhibition/standalone Lab retain the original
+field by default. Venue derives from the saved fixture, so schema 3 is unchanged
+and older saves continue with deterministic venue selection.
+
+Both definitions keep identical scoring dimensions, legal anchors and collision
+shapes. `CommonsParkScenery` adds a distinct turf/wall palette, stripes,
+bleachers, dugouts, a clubhouse and park sign as noncolliding presentation.
+Scenery is outside the central pitch corridor; no new obstacles, bounces,
+physics settings or field-rule modifiers are introduced. Rendered comfort still
+requires human QC; the development environment has no display/Vulkan renderer.
+
+`MatchRosterControls` places the switch-hitter button/cue beside readiness and
+handles B in match mode (the Mechanics Lab keeps its existing B debug action).
+The shared legality check rejects intro/outro, pause, delivery and timeout
+reselection. Viewport-dispatched mouse input verifies that clicking this GUI
+control consumes the event instead of confirming the at-bat underneath it.
+`PlayerMatchState.batting_hand_override` remains the one effective batting-side
+source; it never changes the definition's throwing hand.
