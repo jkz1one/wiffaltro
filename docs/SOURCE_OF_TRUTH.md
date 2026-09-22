@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.31
+**Version:** v0.4.32
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.30 and all earlier planning notes
+**Supersedes:** v0.4.31 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -1328,8 +1328,9 @@ Each player card can occupy three distinct progression states:
 3. **Draftable** — the card has been permanently obtained and the player can
    appear in future preseason tryout drafts.
 
-At season end, earned player-card packs offer cards from the currently eligible
-pool. Obtaining a card permanently moves that player into the draftable pool.
+Player-card packs can be purchased with persistent Club Bucks and offer cards
+from the currently eligible pool. Whether separate free season-end packs are
+also awarded remains open. Obtaining a card permanently moves that player into the draftable pool.
 The reward pool may contain:
 
 - baseline players available from the beginning
@@ -1341,7 +1342,7 @@ Some achievements may award a specific player card directly instead of merely
 adding that player to the pack pool. The reward presentation must distinguish
 clearly between **made pack-eligible** and **card obtained**.
 
-Post-season packs are earned progression rewards, not real-money loot boxes.
+Player-card packs use earned in-game Club Bucks, not real money.
 They expand roster-building options without granting permanent universal stat
 power. Packs should prioritize unobtained eligible players; exact pack size,
 choice format, and duplicate protection remain tuning decisions.
@@ -1362,11 +1363,19 @@ choice format, and duplicate protection remain tuning decisions.
 
 ---
 
-# 30. Club Funds
+# 30. Club Bucks (previously Club Funds)
 
-Persistent currency.
+Persistent currency. References to Club Funds elsewhere mean this same resource.
 
-Primarily awarded at season end.
+Primarily awarded at season end. A completed losing season still awards some
+Club Bucks. Missing the playoffs, reaching the playoffs, and winning the
+championship must have significantly different payouts, increasing with success.
+Exact amounts, runner-up versus semifinal-loss differences, and record-based
+adjustments remain open. Abandoned-season rewards are not decided.
+
+Approved 2026-09-22, blueprint BP-002: Club Bucks can purchase stadium ownership
+and player-card packs. This amends the earlier earned-packs-only direction;
+buying a pack does not bypass its players' eligibility requirements.
 
 Potential payout factors:
 
@@ -1381,6 +1390,7 @@ Potential payout factors:
 
 Club Funds buy persistent club/stadium ownership such as:
 
+- player-card packs
 - stadium parts
 - venue infrastructure
 - uniforms
@@ -1398,8 +1408,8 @@ Progression unlocks a permanent item into the available catalog.
 
 Club Funds purchase ownership.
 
-Player cards are a direct earned-unlock track and do not require an additional
-Club Funds purchase after the card is obtained.
+Player cards obtained from purchased packs or direct achievement rewards become
+permanently draftable without an additional purchase after obtaining the card.
 
 Once owned, remodeling among owned pieces is generally free between seasons.
 

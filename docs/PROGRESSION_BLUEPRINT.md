@@ -82,6 +82,8 @@ unlock infrastructure before the authored rules require it.
 | --- | --- | --- | --- | --- |
 | BP-001 | 2026-09-22 | Shift the immediate workflow to a connected Phase 5–7 blueprint, developed and recorded piece by piece | Approved: explicit user instruction | Start design now; no new progression coding. Human QC remains open independently. |
 
+| BP-002 | 2026-09-22 | Completed losing seasons award Club Bucks; missed-playoff, playoff and championship finishes have significantly different payouts. Club Bucks buy stadium ownership and player-card packs. | Approved: explicit user instruction | Reconciled into Source v0.4.32 sections 29/30. Replaces earned-packs-only direction; amounts and detailed reward rules remain open. |
+
 ## Piece 01: season and career structure
 
 First reconcile the existing run/reset/career rules into a compact flow:
@@ -104,18 +106,27 @@ These are design commitments; the career layer is not implemented.
 | Records and access | Earn accomplishments, discover players and meet unlock prerequisites | History, trophies, League × Difficulty clears and unlocked pools persist |
 | Player collection | Encountered, pack-eligible and draftable are distinct states | Obtained player cards remain draftable; seasonal stat gains do not carry over |
 
-### First open decision: progress after an unsuccessful season
+### Approved: season completion rewards and purchases (BP-002)
 
-**Proposed, not approved:** completing a season without winning the championship
-should still advance the club through modest Club Funds and eligible collection
-rewards. Championships and specific achievements should gate prestige and selected
-access unlocks, with the exact gates decided in Pieces 02/08. An unsuccessful
-completed season should not require repeating an identical starting position.
+A completed losing season awards some Club Bucks. Missing the playoffs, reaching
+playoffs and winning the championship must produce significantly different
+payouts, increasing with success. Club Bucks buy stadium ownership and player-card
+packs. Obtained cards remain permanently draftable without another purchase.
+This explicitly amends the earlier earned-packs-only direction in Source sections
+29/30. Club Bucks is the user's current name for persistent Club Funds, distinct
+from temporary Season Cash.
 
-This extends the existing season-end reward direction; it does not promise a pack
-for every finish or define payout amounts. Abandoned seasons, reward eligibility,
-repeat rewards and duplicate handling remain open. Permanent rewards should widen
-choices and express club history rather than accumulate universal rating bonuses.
+**Open:** amounts, semifinal-loss versus runner-up rewards, record adjustments,
+abandoned-season handling, free reward packs alongside purchased packs, pack
+prices/contents and duplicate protection. Winning-gated unlock conditions are
+still proposals for Pieces 02/08, not approved by this payout decision.
+
+**Current implementation verified from source:** six clubs, ten regular games,
+top four qualify; fifth and sixth miss the playoffs. Wins, run differential,
+runs scored, then seeded draw break standings ties. The shell already resolves
+non-qualifying seasons and its existing tests cover that outcome. A losing record
+and a missed-playoff finish are not synonymous; qualification uses standings.
+The Club Bucks economy is not implemented by this documentation decision.
 
 ### N-001: starting ratings and seasonal growth budgets
 
