@@ -3,13 +3,14 @@
 These notes preserve future options without authorizing implementation. The
 current rules remain in `SOURCE_OF_TRUTH.md`.
 
-## Next design priority: League and overall difficulty progression
+## Current design workspace
 
-After the current human-QC presentation fixes, review
-[`LEAGUE_DIFFICULTY_ENRICHMENT.md`](LEAGUE_DIFFICULTY_ENRICHMENT.md). It separates
-accepted direction from proposed launch counts/unlocks, the authoring order and
-the minimum future checkpoint contract. This prepares the next enrichment
-decisions; it does not approve new gameplay systems or freeze the proposed numbers.
+The user has shifted the immediate workflow to a connected Phase 5–7 blueprint.
+Use [`PROGRESSION_BLUEPRINT.md`](PROGRESSION_BLUEPRINT.md) as the central decision
+record and discussion order. Design proceeds now while human QC remains open;
+new progression implementation waits. These notes and
+`LEAGUE_DIFFICULTY_ENRICHMENT.md` supply existing material to reconcile piece by
+piece. Their proposals and numbers are not automatically approved decisions.
 
 ## Field size, proportions and stadium progression
 

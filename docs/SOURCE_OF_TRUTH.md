@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.30
+**Version:** v0.4.31
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.29 and all earlier planning notes
+**Supersedes:** v0.4.30 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -1695,6 +1695,20 @@ schedule, pacing, standings, and reset loop can be evaluated independently.
 The 2026-09-22 user request also authorizes read-only pause statistics and a
 second, visually distinct away venue using unchanged field rules. This bounded
 venue addition does not authorize unusual field mechanics or Phase 5 systems.
+
+## Blueprint-first planning amendment — 2026-09-22
+
+The user directs the immediate work to connected design of Phases 5–7, piece by
+piece with a maintained decision record. Planning starts now; it does not wait
+for menu QC to finish. Human QC and concrete fixes remain separate from approval
+to implement progression. Phase numbers continue to organize the eventual build,
+not separate the design into isolated implementation/testing sprints.
+
+`PROGRESSION_BLUEPRINT.md` is the central working blueprint and decision log.
+It distinguishes approved rules, proposals, open questions and deferred work.
+Reconcile approved decisions here before coding. Derive the implementation
+framework and slices from the authored effects and cross-system rules; do not
+begin a generic progression engine while these decisions are still being made.
 
 ## Phase 5 — Seasonal Build Systems
 

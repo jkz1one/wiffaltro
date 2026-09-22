@@ -2,6 +2,17 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Blueprint-first workflow — 2026-09-22
+
+- Source advances to v0.4.31 for the user's planning amendment; no runtime changes.
+- Immediate priority is a connected Phase 5–7 blueprint, developed and recorded
+  piece by piece. Planning can proceed while human menu/sport QC stays open.
+- `PROGRESSION_BLUEPRINT.md` is the central workspace, with an ordered decision
+  map and approved/proposed/open/deferred states. Earlier packets are supporting
+  material. Proposed League counts/tiers/unlocks have not been approved.
+- Implementation architecture follows approved authored rules; no new progression
+  engine, catalog mechanics, career systems or automated balance claims are added.
+
 ## Clubhouse menu pass — 2026-09-22
 
 - Source v0.4.30 / Technical v0.1.25. Reconciled clean GitHub/local `2ac4d51`.

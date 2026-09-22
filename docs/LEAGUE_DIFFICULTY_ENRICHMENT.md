@@ -1,7 +1,7 @@
 # League, difficulty and progression: next decision pass
 
 2026-09-22. Design preparation after the human-QC camera/menu corrections.
-Source v0.4.29 remains authoritative. This packet does not implement unlocks,
+The current `SOURCE_OF_TRUTH.md` remains authoritative. This packet does not implement unlocks,
 authorize Phase 5 gameplay, or treat automated verification as human approval.
 
 ## Accepted direction
@@ -39,7 +39,10 @@ These counts and unlock milestones are new design proposals, not tested balance
 or claims about another game's optimal design. Human approval should choose the
 rules before any progression implementation starts.
 
-## Authoring order
+## Earlier proposed authoring order
+
+The connected discussion order in `PROGRESSION_BLUEPRINT.md` now takes precedence.
+This narrower packet remains supporting material, not a separate master plan.
 
 1. Define the identities of the initially available Leagues. Each needs a clear
    rule summary, what it teaches, several viable build directions and explicit
