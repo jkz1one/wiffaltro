@@ -58,7 +58,7 @@ static func hub(menu: SeasonMenu) -> void:
 		menu._body, "Standings: regular games only. Ties use run difference, runs, then draw.", 16
 	)
 	menu._button(menu._footer, "PREPARE NEXT GAME", menu.show_lineup)
-	menu._button(menu._footer, "PLAYERS", menu.show_players)
+	menu._button(menu._footer, "PLAYER RATINGS", menu.show_players)
 	menu._button(menu._footer, "TEAM STATS", menu.show_stats)
 	if not season.player_results.is_empty():
 		menu._button(menu._footer, "LAST GAME", menu.show_last_game)
@@ -218,8 +218,8 @@ static func stat_tables(menu: SeasonMenu, stats_data: Dictionary) -> void:
 		)
 		var grid: GridContainer = GridContainer.new()
 		grid.columns = keys.size() + 1
-		grid.add_theme_constant_override("h_separation", 24)
-		grid.add_theme_constant_override("v_separation", 8)
+		grid.add_theme_constant_override("h_separation", 0)
+		grid.add_theme_constant_override("v_separation", 2)
 		menu._body.add_child(grid)
 		menu._label(grid, "PLAYER", 16)
 		for heading: String in headings:
@@ -256,7 +256,7 @@ static func summary(menu: SeasonMenu) -> void:
 	menu._standings()
 	menu._label(menu._body, "This season stays available until you confirm a new season.", 18)
 	menu._button(menu._footer, "NEW SEASON", menu.app.ask_new_season)
-	menu._button(menu._footer, "PLAYERS", menu.show_players)
+	menu._button(menu._footer, "PLAYER RATINGS", menu.show_players)
 	menu._button(menu._footer, "TEAM STATS", menu.show_stats)
 	menu._button(menu._footer, "LAST GAME", menu.show_last_game)
 	menu._button(menu._footer, "SCHEDULE", menu.show_schedule)

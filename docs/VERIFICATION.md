@@ -35,6 +35,33 @@ this runner. Logs and a machine-readable `summary.json` remain under
 Independent runtime checks continue after a regression failure, but the overall
 command still exits nonzero. No hosted CI is triggered.
 
+## Clubhouse menu verification — 2026-09-22
+
+Full 27-step pinned Godot 4.7.2 verification passed at
+`builds/verification/20260922T051646771102Z`, with no engine errors or warnings.
+The final tooltip/result-text styling received passing targeted import, lint,
+season-menu, pause-inspection and presentation checks. Logs:
+`builds/menu-final-{import,season,pause,presentation}.log`.
+
+- Existing season tests cover all pages, horizontal bounds, visible fixed
+  navigation, draft comparisons, reordered lineup/scroll preservation and saves.
+- Pause inspection now opens with actual viewport-dispatched Enter, verifying
+  focusable actions and frozen game state. Resume receives focus when pausing.
+  All three HUD anchors still pass bullpen bounds/full-text and hand checks.
+- Full-name Pitch selection, locked live controls, switch-hitter clicks, game
+  handoff, camera/HR presentation and live AI/contact/Jolt matches remain covered.
+- Palette calculations give approximately 13.1:1 cream on panel, 6.4:1 muted text
+  on raised panel, and 10.8:1 dark text on amber action backgrounds. These are
+  color-pair checks, not an accessibility or rendered-UI certification.
+- An initial layout pass failed the existing 44-pixel content-margin checks;
+  margins were restored and both full and final targeted checks passed.
+- Native rendered inspection remains blocked. A portable Xvfb preview attempt
+  could not create display sockets (`Operation not permitted`); no screenshot or
+  aesthetic approval is claimed. No system package/engine version change was
+  needed or made. Tools/preview files stay in ignored builds; root was not imported.
+
+Human menu QC remains the immediate gate before enrichment implementation.
+
 ## Infinite win/loss camera verification — 2026-09-22
 
 Full 27-step Godot 4.7.2 verification passed without engine errors or warnings at

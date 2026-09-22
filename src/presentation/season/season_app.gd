@@ -26,10 +26,13 @@ func _ready() -> void:
 	menu.build(self)
 	_dialog = ConfirmationDialog.new()
 	_dialog.title = "Wiffaltro"
+	_dialog.theme = ClubhouseTheme.create()
 	_dialog.confirmed.connect(func() -> void: _confirmed_action.call())
 	canvas.add_child(_dialog)
 	_continue = Button.new()
 	_continue.text = "CONTINUE"
+	_continue.theme = ClubhouseTheme.create()
+	ClubhouseTheme.primary(_continue)
 	_continue.position = Vector2(500, 535)
 	_continue.size = Vector2(280, 48)
 	_continue.pressed.connect(finish_game)

@@ -187,6 +187,11 @@ static func build_ui(lab: PitchBatLab) -> void:
 	lab._pitch_picker.build(lab)
 	apply_hud_anchor(lab)
 	_build_match_presentation(lab, canvas)
+	var controls_theme: Theme = ClubhouseTheme.create()
+	controls_theme.default_font_size = 16
+	for child in canvas.get_children():
+		if child is BaseButton:
+			child.theme = controls_theme
 	refresh_controls(lab)
 	refresh_display_menu(lab)
 
@@ -615,7 +620,7 @@ static func _build_pitching_staff(lab: PitchBatLab, canvas: CanvasLayer) -> void
 	lab._pitching_staff_toggle_button.pressed.connect(lab._toggle_pitching_staff)
 	canvas.add_child(lab._pitching_staff_toggle_button)
 
-	lab._pitching_staff_panel = VBoxContainer.new()
+	lab._pitching_staff_panel = ClubhouseMenuStack.new()
 	lab._pitching_staff_panel.position = Vector2(855.0, 128.0)
 	lab._pitching_staff_panel.custom_minimum_size = Vector2(400.0, 0.0)
 	canvas.add_child(lab._pitching_staff_panel)
@@ -688,6 +693,7 @@ static func refresh_display_menu(lab: PitchBatLab) -> void:
 
 static func _build_match_presentation(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._presentation_backdrop = ColorRect.new()
+	lab._presentation_backdrop.theme = ClubhouseTheme.create()
 	lab._presentation_backdrop.position = Vector2.ZERO
 	lab._presentation_backdrop.size = Vector2(1280.0, 720.0)
 	lab._presentation_backdrop.color = Color(0.015, 0.025, 0.04, 0.18)
@@ -786,7 +792,7 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._field_setup_toggle_button.pressed.connect(lab._toggle_field_setup)
 	canvas.add_child(lab._field_setup_toggle_button)
 
-	lab._field_setup_panel = VBoxContainer.new()
+	lab._field_setup_panel = ClubhouseMenuStack.new()
 	lab._field_setup_panel.position = Vector2(910.0, 128.0)
 	canvas.add_child(lab._field_setup_panel)
 	var title: Label = Label.new()
@@ -800,6 +806,7 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	for anchor_index in visual_order:
 		var anchor_button: Button = Button.new()
 		anchor_button.custom_minimum_size = Vector2(112.0, 38.0)
+		anchor_button.add_theme_font_size_override("font_size", 12)
 		anchor_button.focus_mode = Control.FOCUS_NONE
 		anchor_button.text = (
 			lab._field_definition.fielder_anchor_name(anchor_index)

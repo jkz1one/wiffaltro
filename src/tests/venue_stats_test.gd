@@ -151,7 +151,21 @@ func _test_stats() -> void:
 	lab._throw_pitch()
 	_check(lab._pitch_actor.running, "pause fixture must have a live pitch")
 	PitchBatLabFeelSupport.toggle_debug_pause(lab)
-	lab._pause_menu.open_stats()
+	_check(lab._pause_menu._main.get_child(0).has_focus(),
+		"pause must put keyboard focus on Resume")
+	for button in lab._pause_menu._main.get_children():
+		_check(button.focus_mode == Control.FOCUS_ALL, "pause actions must support keyboard focus")
+	_check(Rect2(Vector2.ZERO, Vector2(1280, 720)).encloses(
+		lab._pause_menu.get_global_rect()), "restyled pause menu must stay within the viewport")
+	lab._pause_menu._stats_button.grab_focus()
+	var enter: InputEventKey = InputEventKey.new()
+	enter.keycode = KEY_ENTER
+	enter.pressed = true
+	get_viewport().push_input(enter, true)
+	enter = enter.duplicate()
+	enter.pressed = false
+	get_viewport().push_input(enter, true)
+	await _frames(2)
 	var panel: MatchStatsPanel = lab._pause_menu.stats
 	_check(panel.visible and not lab._pause_menu.visible and get_tree().paused,
 		"stats open inside pause with play frozen")

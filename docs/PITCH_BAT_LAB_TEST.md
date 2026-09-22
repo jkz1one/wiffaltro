@@ -20,7 +20,7 @@ coverage hint describes the lowest of your current best ratings.
 
 1. New Season → Start Tryouts → choose one of three players four times. Close
    and reopen after a pick: Continue Season should restore the remaining offers.
-2. Hub → Players: inspect all seven attributes, hands, roles and full Pitches
+2. Hub → Player Ratings: inspect all seven attributes, hands, roles and full Pitches
    for each player without entering lineup editing. Team Stats → Player Ratings
    opens the same page. Return to the hub, then Prepare Next Game: check your record/rank, home/away opening role and
    the opposing starter's actual arsenal. Reorder hitters and select a starting
@@ -657,3 +657,20 @@ cycles must record the game only once. Pause/resume should preserve the shot
 clock. Also recheck intro, HR celebration and normal live camera speed after a
 new match. Judge pacing and comfort yourself; automated motion/state checks do
 not approve the rendered presentation.
+
+
+## Clubhouse menu QC before enrichment
+
+Follow New Season → draft → hub → lineup → game → Pause/Settings/Player Ratings
+& Stats → postgame → Team Stats → Player Ratings → Schedule → Continue Season.
+Check the warm cream/green/amber palette, text hierarchy and highlighted next
+action on your actual display. Long Pitch names and all seven ratings must remain
+readable; signed comparisons must remain understandable without color alone.
+
+Check selected, hovered, keyboard-focused and disabled controls. Pause should
+focus Resume; Tab/arrows/Enter should reach settings and player inspection while
+play stays frozen. Escape must return through the existing nested menus. Inspect
+Bullpen/Field at all three score-box anchors for overlap or clipping. Check the
+schedule's next-game highlight and completed win/loss scores against postgame.
+Footer navigation must remain visible while scrolling dense pages. This is a
+presentation pass awaiting your judgment, not approval to advance Phase 5.

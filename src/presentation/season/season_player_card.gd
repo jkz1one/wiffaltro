@@ -34,15 +34,7 @@ static func hands(player: PlayerDefinition) -> String:
 static func panel(parent: Node, selected: bool = false) -> VBoxContainer:
 	var panel_node: PanelContainer = PanelContainer.new()
 	panel_node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color("172b3b") if selected else Color("102332")
-	style.border_color = Color("f2c66d") if selected else Color("395166")
-	style.set_border_width_all(2 if selected else 1)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 18
-	style.content_margin_right = 18
-	style.content_margin_top = 14
-	style.content_margin_bottom = 14
+	var style: StyleBoxFlat = ClubhouseTheme.surface(selected, 16)
 	panel_node.add_theme_stylebox_override("panel", style)
 	parent.add_child(panel_node)
 	var box: VBoxContainer = VBoxContainer.new()
@@ -63,6 +55,8 @@ static func draft_card(
 	name_button.text = ("✓ " if selected else "") + player.display_name
 	name_button.custom_minimum_size = Vector2(300, 42)
 	name_button.add_theme_font_size_override("font_size", 23)
+	if selected:
+		ClubhouseTheme.primary(name_button)
 	name_button.pressed.connect(action)
 	box.add_child(name_button)
 	line(box, "Bats / Throws: " + hands(player), 18)
@@ -83,7 +77,10 @@ static func draft_card(
 		row.add_child(bar)
 		line(row, "%2d" % ratings[index], 18)
 		if reference != null:
-			line(row, "(%+d)" % (ratings[index] - values(reference)[index]), 16)
+			var difference: int = ratings[index] - values(reference)[index]
+			var delta: Label = line(row, "(%+d)" % difference, 16)
+			delta.add_theme_color_override("font_color", ClubhouseTheme.GREEN if difference > 0
+				else (ClubhouseTheme.RED if difference < 0 else ClubhouseTheme.MUTED))
 	line(
 		box,
 		(
@@ -110,6 +107,8 @@ static func line(parent: Node, text: String, font_size: int = 18) -> Label:
 	label.text = text
 	label.add_theme_font_size_override("font_size", font_size)
 	parent.add_child(label)
+	if font_size <= 17:
+		ClubhouseTheme.section(label)
 	return label
 
 
@@ -126,7 +125,8 @@ static func ratings_card(
 	for rating in RATING_NAMES:
 		line(grid, rating, 17)
 	for value in values(player):
-		line(grid, str(value), 20)
+		var rating: Label = line(grid, str(value), 24)
+		rating.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
 	var pitches: PackedStringArray = []
 	for pitch in player.starting_pitches:
 		pitches.append(pitch.display_name)

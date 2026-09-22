@@ -2,6 +2,24 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Clubhouse menu pass — 2026-09-22
+
+- Source v0.4.30 / Technical v0.1.25. Reconciled clean GitHub/local `2ac4d51`.
+- User prioritizes clearer, cooler menus before enrichment. Added shared green,
+  cream and amber styling across season pages, draft/ratings cards, stats,
+  schedule, pause/settings, inspection, Pitch picker and defensive menus.
+- Added quieter helper text, prominent next actions, selected-card styling,
+  signed/color-coded draft comparisons, alternating table rows and explicit
+  Player Ratings navigation. Schedule cards expose result/upcoming and venue.
+- Added background surfaces for Bullpen/Field, consistent dropdowns/tooltips and
+  confirmation/Continue styling. Full Pitch names and existing control guards stay.
+- Pause/settings now support keyboard focus, with Resume focused when paused;
+  Enter into player inspection is tested through actual viewport input.
+- Full 27-step verification and final targeted UI checks passed; see `VERIFICATION.md`.
+- Saves, rules, pitching, field geometry and enrichment systems are unchanged.
+  Menu visual QC is still open: the environment blocks display sockets, so no
+  rendered screenshots or final aesthetic approval are claimed.
+
 ## Rolling win/loss presentation — 2026-09-22
 
 - Source v0.4.29 / Technical v0.1.24. Builds on verified main `adda641`.

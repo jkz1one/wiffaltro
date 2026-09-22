@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.29
+**Version:** v0.4.30
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.28 and all earlier planning notes
+**Supersedes:** v0.4.29 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -791,7 +791,7 @@ fun gate has passed. The starter implementation contains:
   championship runner-up or champion, with recorded hitting/pitching leaders,
   final bracket and regular-season standings. The finished season remains
   inspectable until a new season is confirmed; no career archive is implied.
-- Hub/season recap > Players and Team Stats > Player Ratings expose a separate
+- Hub/season recap > Player Ratings and Team Stats > Player Ratings expose a separate
   read-only roster attribute page between games, including all seven ratings,
   full Pitches, hands and defensive assignments.
 - Pause > Player Ratings & Stats inspects either team's seven ratings, full repertoire,
@@ -1484,6 +1484,27 @@ Audio should enter early:
 - ball whoosh
 - strike target impact
 - fence/wall/material impacts
+
+## Menu clarity and style — human QC amendment, 2026-09-22
+
+Menu quality is the immediate priority before enrichment implementation. Use a
+consistent clubhouse/scorecard presentation: deep green surfaces, warm cream
+text, amber primary actions/selection, restrained field-line decoration and
+clear heading/body/helper hierarchy. Keep full Pitch names, seven named player
+attributes and distinct throwing/batting hands. Color supplements text and
+selection marks; it never replaces the numerical rating differences.
+
+Season pages, draft/player cards, statistics, schedule, Pause, Settings, player
+inspection, Pitch picker, Bullpen, Field setup and confirmation/continue controls
+share this visual language. Keep the main next action prominent, secondary
+navigation quieter, and navigation visible below scrolling content. Schedule
+cards identify game, result/upcoming status and venue. Player Ratings names
+attribute inspection explicitly; Team Stats remains recorded performance.
+
+Pause/settings actions support keyboard focus and activation while game state
+stays frozen. Do not add animation, camera movement or decorative UI over the
+live pitching corridor as part of this menu pass. Human visual review remains
+required before treating the menus as finished or proceeding with enrichment.
 
 ## Match presentation
 

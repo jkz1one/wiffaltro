@@ -15,12 +15,10 @@ func build(lab: PitchBatLab) -> void:
 	_lab = lab
 	name = "PitchPicker"
 	custom_minimum_size = Vector2(252.0, 0.0)
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.055, 0.085, 0.92)
+	theme = ClubhouseTheme.create()
+	var style: StyleBoxFlat = ClubhouseTheme.surface(false, 10)
 	style.content_margin_left = 12.0
 	style.content_margin_right = 12.0
-	style.content_margin_top = 10.0
-	style.content_margin_bottom = 10.0
 	add_theme_stylebox_override("panel", style)
 	var layout: VBoxContainer = VBoxContainer.new()
 	layout.add_theme_constant_override("separation", 7)

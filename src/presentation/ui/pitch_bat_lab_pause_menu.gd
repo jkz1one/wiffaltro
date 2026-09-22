@@ -8,24 +8,26 @@ var _title: Label
 var _mute_button: Button
 var _leave_button: Button
 var _stats_button: Button
+var _showing_settings: bool = false
 
 
 func build(lab: PitchBatLab) -> void:
 	_lab = lab
 	name = "PauseMenu"
-	position = Vector2(18.0, 190.0)
-	custom_minimum_size = Vector2(286.0, 0.0)
+	position = Vector2(32.0, 178.0)
+	custom_minimum_size = Vector2(336.0, 0.0)
 	z_index = 20
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.055, 0.085, 0.97)
-	style.content_margin_left = 16.0
-	style.content_margin_right = 16.0
-	style.content_margin_top = 14.0
-	style.content_margin_bottom = 14.0
+	theme = ClubhouseTheme.create()
+	var style: StyleBoxFlat = ClubhouseTheme.surface(false, 18)
 	add_theme_stylebox_override("panel", style)
 	var layout: VBoxContainer = VBoxContainer.new()
 	layout.add_theme_constant_override("separation", 10)
 	add_child(layout)
+	var brand: Label = Label.new()
+	brand.text = "WIFFALTRO   /   MATCH MENU"
+	brand.add_theme_font_size_override("font_size", 13)
+	brand.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
+	layout.add_child(brand)
 	_title = Label.new()
 	_title.add_theme_font_size_override("font_size", 24)
 	layout.add_child(_title)
@@ -58,6 +60,9 @@ func build(lab: PitchBatLab) -> void:
 
 
 func refresh() -> void:
+	var was_visible: bool = visible
+	var settings_changed: bool = _showing_settings != _lab._display_menu_open
+	_showing_settings = _lab._display_menu_open
 	if not _lab._debug_paused:
 		stats.hide()
 	visible = _lab._debug_paused and not stats.visible
@@ -66,6 +71,9 @@ func refresh() -> void:
 	_lab._display_menu_panel.visible = _lab._display_menu_open and visible
 	_mute_button.text = "Mute sounds: " + ("On" if _lab._sounds_muted else "Off")
 	_title.text = "SETTINGS" if _lab._display_menu_open else "PAUSED"
+	if visible and (not was_visible or settings_changed):
+		var active: VBoxContainer = _lab._display_menu_panel if _showing_settings else _main
+		(active.get_child(0) as Button).grab_focus()
 	if _leave_button != null:
 		_leave_button.disabled = (
 			_lab._match_state != null and _lab._match_state.phase == MatchState.Phase.GAME_END
@@ -107,8 +115,10 @@ func close_stats() -> void:
 static func _button(parent: Control, text: String, action: Callable) -> Button:
 	var button: Button = Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(254.0, 38.0)
-	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(300.0, 42.0)
+	button.focus_mode = Control.FOCUS_ALL
 	button.pressed.connect(action)
 	parent.add_child(button)
+	if text.begins_with("RESUME"):
+		ClubhouseTheme.primary(button)
 	return button

@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.24
+**Version:** v0.1.25
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2343,3 +2343,25 @@ watch a complete cycle. Entering or skipping to the ready state preserves the
 current motion clock. `SHOT_CHANGED` remains active in the hold state, while
 `SeasonApp` keeps Continue available and its existing once-only save guard.
 No match rules, pitching, ties or season reward/progression mechanics change.
+
+
+## Shared clubhouse menu presentation — 2026-09-22
+
+`ClubhouseTheme` owns the menu palette, surfaces, control states, primary action
+styles, table cells and typography colors. `ClubhouseBackdrop` draws lightweight
+field-line decoration behind the season layout and ignores pointer input.
+`ClubhouseMenuStack` supplies an opaque background around existing Bullpen and
+Field containers without changing their node ownership or callbacks. Gameplay
+controls retain compact type sizes and their original legal-action guards.
+
+Season and pause player cards use the same ratings renderer. Season/per-game
+stat tables use alternating rows; values and save data are unchanged. Schedule
+cards read existing fixture/results and display venue and status. Confirmation
+and Continue controls use the shared theme. Pause focuses Resume when opened;
+Settings focuses its first option and all pause actions support normal GUI
+keyboard activation. Escape retains the existing panel/pause/resume order.
+
+Pinned Godot and toolkit versions are unchanged. Automated layout and input
+checks are evidence of geometry/behavior, not rendered visual approval. This
+environment cannot establish a display socket, so an attempted portable visual
+preview could not render screenshots. Human desktop QC remains required.

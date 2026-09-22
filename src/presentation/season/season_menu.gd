@@ -13,28 +13,18 @@ var _footer: HBoxContainer
 func build(owner_app: SeasonApp) -> void:
 	app = owner_app
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color("091722")
+	theme = ClubhouseTheme.create()
+	var style: StyleBoxFlat = ClubhouseTheme.surface(false, 32)
 	style.content_margin_left = 44
 	style.content_margin_right = 44
-	style.content_margin_top = 30
-	style.content_margin_bottom = 30
+	style.bg_color = ClubhouseTheme.INK
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(0)
 	add_theme_stylebox_override("panel", style)
-	add_theme_font_size_override("font_size", 18)
-	theme = Theme.new()
-	theme.set_color("font_color", "Label", Color("eef3f7"))
-	theme.set_color("font_color", "Button", Color("eef3f7"))
-	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
-		var button_style: StyleBoxFlat = StyleBoxFlat.new()
-		button_style.bg_color = Color("29475b") if state == "hover" else Color("193448")
-		button_style.border_color = Color("f2c66d") if state == "focus" else Color("59788d")
-		button_style.set_border_width_all(2 if state == "focus" else 1)
-		button_style.set_corner_radius_all(5)
-		button_style.content_margin_left = 14
-		button_style.content_margin_right = 14
-		theme.set_stylebox(state, "Button", button_style)
+	var backdrop: ClubhouseBackdrop = ClubhouseBackdrop.new()
+	add_child(backdrop)
 	_layout = VBoxContainer.new()
-	_layout.add_theme_constant_override("separation", 18)
+	_layout.add_theme_constant_override("separation", 12)
 	add_child(_layout)
 
 
@@ -44,8 +34,12 @@ func _screen(key: String, title: String, subtitle: String) -> void:
 	for child in _layout.get_children():
 		_layout.remove_child(child)
 		child.queue_free()
-	_label(_layout, title, 34)
-	_label(_layout, subtitle, 18)
+	var kicker: Label = _label(_layout, "WIFFALTRO   /   CLUBHOUSE", 14)
+	kicker.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
+	_label(_layout, title, 60 if key == "home" else 36)
+	var description: Label = _label(_layout, subtitle, 18)
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ClubhouseTheme.section(description)
 	if not app.notice.is_empty():
 		var warning: Label = _label(_layout, app.notice, 16)
 		warning.modulate = Color(1, 0.75, 0.45)
@@ -70,8 +64,8 @@ func show_home() -> void:
 	row.add_theme_constant_override("separation", 24)
 	_body.add_child(row)
 	var club: VBoxContainer = SeasonPlayerCard.panel(row, true)
-	_label(club, "SEASON", 28)
-	_label(club, "Draft four players. Build a team. Chase the title.", 20)
+	_label(club, "THE SEASON", 28)
+	_label(club, "Four players. Ten games. One title.", 20)
 	if app.season != null:
 		var progress: String = SeasonPages.stage(app.season)
 		_label(club, progress, 18)
@@ -105,7 +99,6 @@ func show_preseason() -> void:
 	_label(box, "Home: Yard Club Field • Away and neutral final: Commons Park", 18)
 	_label(_body, "DIFFICULTY • BASE", 22)
 	_label(_body, "Backyard League is the first playable league. Base difficulty is available.", 18)
-	_label(_body, "Additional leagues and difficulty unlocks will arrive in later updates.", 18)
 	_label(
 		_body, "Draft 4 from 12 offers. Compare all seven ratings and the actual pitch arsenal.", 20
 	)
@@ -182,7 +175,7 @@ func show_lineup() -> void:
 	var roster: Array = app.season.teams[0]["roster"]
 	var grid: GridContainer = GridContainer.new()
 	grid.columns = 11
-	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 12)
 	_body.add_child(grid)
 	for heading in [
@@ -278,11 +271,18 @@ func show_schedule() -> void:
 	for round_number in range(10):
 		for fixture in app.season.schedule:
 			if fixture["round"] == round_number and (fixture["home"] == 0 or fixture["away"] == 0):
-				var line: String = "Game %d   %s" % [round_number + 1, _matchup(fixture)]
+				var line: String = _matchup(fixture)
+				var status: String = "UPCOMING"
 				for result in app.season.results:
 					if result["id"] == fixture["id"]:
 						line += "   %d–%d" % [result["away_runs"], result["home_runs"]]
-				_label(_body, line, 20)
+						status = "WIN" if SeasonState._winner(result) == 0 else "LOSS"
+				var card: VBoxContainer = SeasonPlayerCard.panel(_body,
+					round_number == app.season.round_index)
+				var heading: Label = _label(card, "GAME %02d   /   %s" % [round_number + 1, status], 14)
+				heading.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
+				_label(card, line, 20)
+				ClubhouseTheme.section(_label(card, SeasonPages.venue(fixture), 16))
 	if app.season.round_index >= 10:
 		SeasonPages.wrapped(_body, _playoffs())
 	_button(_footer, "BACK", show_hub)
@@ -356,8 +356,8 @@ func _compare_draft(index: int) -> void:
 func _standings() -> void:
 	var grid: GridContainer = GridContainer.new()
 	grid.columns = 6
-	grid.add_theme_constant_override("h_separation", 32)
-	grid.add_theme_constant_override("v_separation", 8)
+	grid.add_theme_constant_override("h_separation", 0)
+	grid.add_theme_constant_override("v_separation", 2)
 	_body.add_child(grid)
 	for heading in ["#", "CLUB", "W", "L", "RUNS", "+/−"]:
 		_label(grid, heading, 16)
@@ -373,7 +373,7 @@ func _standings() -> void:
 		]:
 			var label: Label = _label(grid, value, 20)
 			if row["team"] == 0:
-				label.modulate = Color(1, 0.82, 0.40)
+				label.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
 		rank += 1
 
 
@@ -406,6 +406,17 @@ static func _label(parent: Node, text: String, font_size: int = 18) -> Label:
 	label.text = text
 	label.add_theme_font_size_override("font_size", font_size)
 	parent.add_child(label)
+	if parent is GridContainer:
+		var index: int = parent.get_child_count() - 1
+		var row: int = floori(float(index) / parent.columns)
+		if row == 0:
+			ClubhouseTheme.section(label)
+		else:
+			ClubhouseTheme.table_cell(label, row)
+		if index % parent.columns > 0:
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	elif font_size <= 16:
+		ClubhouseTheme.section(label)
 	return label
 
 
@@ -416,6 +427,11 @@ static func _button(parent: Node, text: String, action: Callable) -> Button:
 	button.add_theme_font_size_override("font_size", 18)
 	button.pressed.connect(action)
 	parent.add_child(button)
+	if text.begins_with("CONTINUE") or text.begins_with("PREPARE") or text.begins_with("DRAFT ") \
+		or text in ["START TRYOUTS", "PLAY GAME", "PLAY AGAIN", "RESUME"]:
+		ClubhouseTheme.primary(button)
+	elif text == "NEW SEASON" and parent is VBoxContainer and parent.get_child_count() <= 4:
+		ClubhouseTheme.primary(button)
 	return button
 
 

@@ -17,15 +17,13 @@ func build(lab: PitchBatLab) -> void:
 	position = Vector2(100, 42)
 	size = Vector2(1080, 630)
 	z_index = 30
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color("102332")
-	style.set_content_margin_all(20)
-	style.set_corner_radius_all(8)
+	theme = ClubhouseTheme.create()
+	var style: StyleBoxFlat = ClubhouseTheme.surface(false, 20)
 	add_theme_stylebox_override("panel", style)
 	var layout: VBoxContainer = VBoxContainer.new()
 	layout.add_theme_constant_override("separation", 12)
 	add_child(layout)
-	SeasonPlayerCard.line(layout, "PLAYER STATS", 26)
+	SeasonPlayerCard.line(layout, "PLAYER RATINGS & STATS", 28)
 	_team = OptionButton.new()
 	_team.custom_minimum_size.y = 36
 	_team.add_theme_font_size_override("font_size", 20)
@@ -114,17 +112,21 @@ func _box_score() -> void:
 			["PA", "H", "2B", "3B", "HR", "BB", "K", "RBI"])
 		var grid: GridContainer = GridContainer.new()
 		grid.columns = keys.size() + 1
-		grid.add_theme_constant_override("h_separation", 22)
-		grid.add_theme_constant_override("v_separation", 10)
+		grid.add_theme_constant_override("h_separation", 0)
+		grid.add_theme_constant_override("v_separation", 2)
 		_body.add_child(grid)
 		SeasonPlayerCard.line(grid, "PLAYER", 17)
 		for heading: String in headings:
 			SeasonPlayerCard.line(grid, heading, 17)
 		for player in selected_team().roster:
-			SeasonPlayerCard.line(grid, player.definition.display_name, 20)
+			var row: int = floori(float(grid.get_child_count()) / grid.columns)
+			ClubhouseTheme.table_cell(
+				SeasonPlayerCard.line(grid, player.definition.display_name, 20), row)
 			var line: Dictionary = data[String(player.definition.id)]
 			for key: String in keys:
-				SeasonPlayerCard.line(grid, str(line[key]), 20)
+				var cell: Label = SeasonPlayerCard.line(grid, str(line[key]), 20)
+				cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				ClubhouseTheme.table_cell(cell, row)
 	_wrapped(_body, "PA: plate appearances • H: hits • BB: walks • K: strikeouts "
 		+ "• RBI: runs batted in")
 	_wrapped(_body, "Pitching H / BB are allowed. OUTS includes strikeouts. Play remains paused.")

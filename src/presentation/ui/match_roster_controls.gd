@@ -18,6 +18,7 @@ func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._field_setup_panel.add_child(_fielder)
 	lab._field_setup_panel.move_child(_fielder, 1)
 	_switch = Button.new()
+	_switch.theme = ClubhouseTheme.create()
 	_switch.name = "SwitchBattingSide"
 	_switch.position = Vector2(450, 366)
 	_switch.custom_minimum_size = Vector2(380, 40)
