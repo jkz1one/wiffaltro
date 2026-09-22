@@ -4,6 +4,7 @@ extends RefCounted
 
 static func run(check: Callable) -> void:
 	var field: FieldDefinition = ContentDB.get_field(PitchBatLab.FIELD_ID)
+	_test_short_bobbles(check)
 	var expected: Dictionary = {
 		"settled_short": BallPlayOutcome.Result.SINGLE,
 		"primary_before_single": BallPlayOutcome.Result.OUT,
@@ -38,7 +39,7 @@ static func _exercise(resolver: BallPlayResolver, scenario: String) -> void:
 	if scenario in ["primary_before_single", "roller_past_deep", "bounce_wall"]:
 		resolver.record_ground_contact(Vector3(0.0, 0.04, 5.0))
 	if scenario in ["touched_past_deep", "pitcher_bobble"]:
-		resolver.record_bobble(&"pitcher")
+		resolver.record_bobble(&"pitcher", Vector3(0.0, 0.4, field.safe_hit_z_m + 0.5))
 	match scenario:
 		"settled_short", "pitcher_bobble":
 			resolver.resolve_settled(Vector3(0.0, 0.04, 7.0))
@@ -76,3 +77,34 @@ static func _cross_deep(resolver: BallPlayResolver) -> void:
 		Vector3(0.0, 1.0, resolver.field.safe_hit_z_m - 0.1),
 		Vector3(0.0, 1.0, resolver.field.deep_air_z_m + 0.1)
 	)
+
+
+static func _test_short_bobbles(check: Callable) -> void:
+	for field_id in [PitchBatLab.FIELD_ID, SeasonState.AWAY_FIELD_ID]:
+		var field: FieldDefinition = ContentDB.get_field(field_id)
+		for defender in [&"pitcher", &"primary_fielder"]:
+			for grounded in [false, true]:
+				for offset in [-0.01, 0.0, 0.01]:
+					var resolver: BallPlayResolver = BallPlayResolver.new()
+					var outcomes: Array[BallPlayOutcome] = []
+					resolver.play_resolved.connect(
+						func(outcome: BallPlayOutcome) -> void: outcomes.append(outcome))
+					resolver.start_play(field)
+					var point: Vector3 = Vector3(0, 0.4, field.safe_hit_z_m + offset)
+					if grounded:
+						resolver.record_ground_contact(Vector3(0, 0.04, 3))
+					resolver.record_bobble(defender, point)
+					if offset < 0.0:
+						check.call(resolver.state.dead and outcomes.size() == 1
+							and outcomes[0].result == BallPlayOutcome.Result.FOUL
+							and not outcomes[0].caught, "short bobble is immediately a dead foul")
+						resolver.record_clean_control(defender, point, not grounded)
+						resolver.record_back_wall_contact(Vector3(0, 1, field.back_wall_z_m))
+						check.call(outcomes.size() == 1, "dead bobble cannot become an Out or extra bases")
+					else:
+						check.call(not resolver.state.dead and outcomes.is_empty(),
+							"bobble at or beyond Single remains live")
+						resolver.resolve_settled(point)
+						check.call(outcomes.size() == 1
+							and outcomes[0].result == BallPlayOutcome.Result.SINGLE,
+							"bobble grants no automatic extra base beyond Single")

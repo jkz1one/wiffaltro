@@ -142,11 +142,16 @@ func _record_clean_control(
 		_resolve_floor(&"controlled_after_safe", position)
 
 
-func record_bobble(defender_id: StringName) -> void:
+func record_bobble(defender_id: StringName, position: Vector3) -> void:
 	if state == null or state.dead:
 		return
 	state.last_defender_touch = defender_id
 	state.defender_touched = true
+	# A bobble on the plate side of Single is immediately dead, even in the
+	# air. It cannot deflect across a scoring line or become a recovery Out.
+	if position.z < field.safe_hit_z_m:
+		_resolve_foul(&"bobble_before_single", position)
+		return
 	state.raise_result_floor(BallPlayState.ResultFloor.SINGLE)
 
 

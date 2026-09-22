@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.32
+**Version:** v0.4.33
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.31 and all earlier planning notes
+**Supersedes:** v0.4.32 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -114,7 +114,8 @@ bat, camera offset, contact handedness and inside/outside feedback must agree.
   Single line is a ground Out. Once the ball stops or crosses that line, the
   Primary Fielder may prevent further advancement but cannot erase the Single.
   A clean moving-ground-ball control inside the Pitcher's fixed 0.60 m mound
-  envelope remains a narrow Out exception; a bobble or stopped ball is safe.
+  envelope remains a narrow Out exception; a stopped ball is safe. A bobble
+  on the plate side of the Single line is an immediate dead-ball foul.
 - 10-run mercy rule after 3 completed innings
 - Extra innings begin with a ghost runner on second
 
@@ -668,9 +669,16 @@ Individual parks and ground-rule objects may override baseline rules.
 
 ## Bobbles
 
-Bobbles/deflections keep the play live.
+Human rule clarification, 2026-09-22: a bobble on the plate side of the authored
+Single line is an immediate dead-ball foul, whether airborne or grounded and
+whether touched by the Pitcher or Primary Fielder. It awards no bases or Out;
+normal foul-count rules apply, and runners hold. A later deflection, recovery
+or boundary crossing cannot change that dead result.
 
-A bobbled fair ball normally establishes at least a Single, while recovery may prevent further advancement.
+At or beyond the Single line, the existing live-bobble rule remains: a fair
+bobble establishes at least a Single, while recovery may prevent further
+advancement. Bobbling does not itself add another base. A subsequent wall
+contact can still produce a Double. An airborne recovery can still be a catch.
 
 ---
 
@@ -1610,7 +1618,8 @@ Pitch descriptions do not occupy permanent HUD space or require a hold gesture.
 
 Catches and strikeouts receive at least 2.25 s of result time. Existing longer
 inning transitions and the 4.4 s Home Run hold remain. Non-HR game-ending results
-receive 2.5 s before the outro. A bobble never freezes a live ball for presentation.
+receive 2.5 s before the outro. Live bobbles never freeze for presentation;
+short bobbles freeze because their dead-ball foul result is final.
 These timings are authored QC defaults, not research-proven optimums.
 
 The starter presentation may use a lightweight blue procedural sky, with a green

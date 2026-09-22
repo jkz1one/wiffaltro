@@ -79,6 +79,9 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("bobble-rules", [*base, "--fixed-fps", "60",
+                                  "res://src/tests/bobble_rules_test.tscn"],
+                 "Wiffaltro bobble and tag rules checks passed."),
                 ("ai-chase", [*base, "--fixed-fps", "60",
                               "res://src/tests/ai_chase_test.tscn"],
                  "Wiffaltro live chase checks passed:"),

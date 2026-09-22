@@ -159,6 +159,9 @@ func _test_visibility_and_fielding(lab: PitchBatLab) -> void:
 	_check(aids._shadow.position == shadow_position and aids._history == history,
 		"ball aids must freeze during camera inspection")
 	PitchBatLabFeelSupport.toggle_debug_pause(lab)
+	# This cue check exercises a live bobble beyond Single; short bobbles are
+	# dead fouls and are covered separately by the scoring/integration checks.
+	lab._batted_ball.global_position.z = lab._field_definition.safe_hit_z_m + 0.5
 	lab._apply_fielding_outcome(&"pitcher", lab.MOUND_ORIGIN, FieldingResolver.Outcome.BOBBLE)
 	_check(lab._sounds.last_cue == &"bobble" and lab._pitch_feedback.text.contains("BOBBLE"),
 		"bobble must pair sound with text without ending live play")

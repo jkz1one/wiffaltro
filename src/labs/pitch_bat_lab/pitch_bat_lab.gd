@@ -585,8 +585,11 @@ func _apply_fielding_outcome(
 			)
 		FieldingResolver.Outcome.BOBBLE:
 			_sounds.play(&"bobble")
+			_pitch_feedback.show_note("BOBBLE")
+			_ball_play_resolver.record_bobble(defender_id, resolved_position)
+			if _ball_play_resolver.state.dead:
+				return
 			_pitch_feedback.show_note("BOBBLE • Ball still live")
-			_ball_play_resolver.record_bobble(defender_id)
 			_batted_ball.deflect(
 				DeflectionModel.velocity_after_bobble(
 					_batted_ball.linear_velocity, defender_position, _batted_ball.global_position
