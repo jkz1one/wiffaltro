@@ -20,6 +20,8 @@ enum Event {
 const SHOT_SECONDS: float = 1.70
 const LONG_SHOT_SECONDS: float = 2.90
 const SETTLE_SECONDS: float = 0.38
+const RESULT_SHOT_SECONDS: float = 10.0
+const RESULT_READY_SECONDS: float = 1.70
 
 var mode: Mode = Mode.IDLE
 var shot_sequence: Array[MatchCameraDirector.Shot] = []
@@ -36,7 +38,7 @@ func begin_intro(sequence_seed: int) -> void:
 
 func begin_outro(sequence_seed: int) -> void:
 	shot_sequence = _select_shots(sequence_seed, false)
-	motion_sequence = _select_motions(sequence_seed + 130363, shot_sequence.size())
+	motion_sequence = _select_motions(sequence_seed + 130363, shot_sequence.size(), false)
 	shot_index = 0
 	elapsed_seconds = 0.0
 	mode = Mode.OUTRO
@@ -62,19 +64,32 @@ func current_motion() -> MatchCameraDirector.PresentationMotion:
 	return motion_sequence[clampi(shot_index, 0, motion_sequence.size() - 1)]
 
 func shot_progress() -> float:
-	if mode == Mode.INTRO_SETTLE or mode == Mode.OUTRO_HOLD:
+	if mode == Mode.INTRO_SETTLE:
 		return 1.0
 	return clampf(elapsed_seconds / shot_duration_seconds(), 0.0, 1.0)
 
 func shot_duration_seconds() -> float:
+	if mode == Mode.OUTRO or mode == Mode.OUTRO_HOLD:
+		return RESULT_SHOT_SECONDS
 	return LONG_SHOT_SECONDS if shot_sequence.size() == 1 else SHOT_SECONDS
 
 func advance(delta_seconds: float) -> Event:
 	var next_event: Event = Event.NONE
-	if mode == Mode.IDLE or mode == Mode.OUTRO_HOLD:
+	if mode == Mode.IDLE:
 		return next_event
 
 	elapsed_seconds += maxf(0.0, delta_seconds)
+	if mode == Mode.OUTRO and elapsed_seconds >= RESULT_READY_SECONDS:
+		# Continue becomes available without waiting for the rolling camera cycle.
+		# Keep this shot's clock and motion continuous as the result becomes ready.
+		mode = Mode.OUTRO_HOLD
+		return Event.OUTRO_COMPLETE
+	if mode == Mode.OUTRO_HOLD:
+		if elapsed_seconds >= RESULT_SHOT_SECONDS:
+			elapsed_seconds = fmod(elapsed_seconds, RESULT_SHOT_SECONDS)
+			shot_index = (shot_index + 1) % shot_sequence.size()
+			return Event.SHOT_CHANGED
+		return Event.NONE
 	if mode == Mode.INTRO_SETTLE:
 		if elapsed_seconds >= SETTLE_SECONDS:
 			mode = Mode.IDLE
@@ -115,6 +130,8 @@ static func _select_shots(
 	]
 	if include_batting:
 		pool.append(MatchCameraDirector.Shot.BATTING)
+	else:
+		pool.erase(MatchCameraDirector.Shot.PITCHING)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = sequence_seed
 	for index in range(pool.size() - 1, 0, -1):
@@ -126,6 +143,8 @@ static func _select_shots(
 	# alternate between two and three shots.
 	var package_variant: int = absi(sequence_seed) % 4
 	var shot_count: int = 1 if package_variant == 0 else (2 if package_variant <= 2 else 3)
+	if not include_batting:
+		shot_count = pool.size()
 	var result: Array[MatchCameraDirector.Shot] = []
 	for index in range(mini(shot_count, pool.size())):
 		result.append(pool[index])
@@ -133,7 +152,8 @@ static func _select_shots(
 
 static func _select_motions(
 	sequence_seed: int,
-	shot_count: int
+	shot_count: int,
+	include_still: bool = true
 ) -> Array[MatchCameraDirector.PresentationMotion]:
 	var pool: Array[MatchCameraDirector.PresentationMotion] = [
 		MatchCameraDirector.PresentationMotion.STILL,
@@ -144,6 +164,8 @@ static func _select_motions(
 		MatchCameraDirector.PresentationMotion.TILT_UP,
 		MatchCameraDirector.PresentationMotion.TILT_DOWN,
 	]
+	if not include_still:
+		pool.erase(MatchCameraDirector.PresentationMotion.STILL)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = sequence_seed
 	var result: Array[MatchCameraDirector.PresentationMotion] = []
@@ -152,6 +174,6 @@ static func _select_motions(
 			rng.randi_range(0, pool.size() - 1)
 		]
 		if index > 0 and motion == result[index - 1]:
-			motion = pool[(int(motion) + 1) % pool.size()]
+			motion = pool[(pool.find(motion) + 1) % pool.size()]
 		result.append(motion)
 	return result

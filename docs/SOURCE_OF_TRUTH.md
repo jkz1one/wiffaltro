@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.28
+**Version:** v0.4.29
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.27 and all earlier planning notes
+**Supersedes:** v0.4.28 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -1496,8 +1496,14 @@ than cutting rapidly.
 Each view may independently be still or use a subtle slow zoom, horizontal pan,
 or vertical tilt selected from the authored presentation pool. Camera motion is
 presentation-only and cannot alter game time or baseball state.
-The player does not select these views. Game completion receives the same basic
-treatment with a win/loss title and final score.
+The player does not select these views. Game completion keeps the win/loss title
+and final score over an infinite rolling loop of scenic camera angles. Each
+result view lasts about 10 seconds and uses a slow zoom, pan or tilt; transitions
+between angles are also slow. Continue becomes available after the initial
+1.7-second settlement and stays available throughout the loop. Skipping that
+settlement also keeps the camera rolling. Camera loops never advance game time,
+score, records or save progression; Pause freezes the shot clock. These durations
+are presentation tuning, subject to human motion-comfort QC.
 
 When the player is defending, contact must preserve the pitching/defensive side
 of the field. The camera pulls wider and tracks the physical ball from behind

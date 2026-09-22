@@ -3,6 +3,14 @@
 These notes preserve future options without authorizing implementation. The
 current rules remain in `SOURCE_OF_TRUTH.md`.
 
+## Next design priority: League and overall difficulty progression
+
+After the current human-QC presentation fixes, review
+[`LEAGUE_DIFFICULTY_ENRICHMENT.md`](LEAGUE_DIFFICULTY_ENRICHMENT.md). It separates
+accepted direction from proposed launch counts/unlocks, the authoring order and
+the minimum future checkpoint contract. This prepares the next enrichment
+decisions; it does not approve new gameplay systems or freeze the proposed numbers.
+
 ## Field size, proportions and stadium progression
 
 User exploration, 2026-09-22: consider roughly 1.3× field/hitting scale, more

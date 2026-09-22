@@ -249,6 +249,11 @@ func _test_menus_and_match_handoff() -> void:
 		)
 		PitchBatLabFeelSupport.toggle_debug_pause(lab)
 		PitchBatLabFeelSupport.skip_match_presentation(lab)
+		for angle in range(8):
+			PitchBatLabFeelSupport.update(lab, MatchPresentationDirector.RESULT_SHOT_SECONDS)
+			app._process(0.0)
+			_check(app._continue.visible and app.season.round_index == game + 1,
+				"rolling result cameras must keep Continue visible and never commit twice")
 		lab.match_return_requested.emit()
 		app.finish_game()
 		_check(

@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.23
+**Version:** v0.1.24
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -1601,13 +1601,14 @@ Pitch-button releases before GUI consumption, preventing a menu click from
 leaving an abandoned delivery armed.
 
 `MatchPresentationDirector` is a match-local presentation state machine. It
-selects one, two, or three unique, seeded intro/outro shots from an authored
+selects one, two, or three unique, seeded intro shots from an authored
 pool, uses a longer duration for a one-shot take, deliberately varies the
 package length between matches, uses readable holds,
 blocks gameplay during the sequence, returns through the correct role camera,
 and exposes a skip path. Each shot also receives a seeded, bounded motion mode:
 still, zoom in/out, pan left/right, or tilt up/down. `MatchCameraDirector`
 applies that motion to the authored shot transform without changing game time.
+The win/loss result uses a separate infinite scenic loop, described below.
 The presentation director observes `MatchState`; it does not own innings,
 scores, results, or gameplay timing. High-stakes cinematic packages remain a
 future extension of this director, not a second match state machine.
@@ -2328,3 +2329,17 @@ and saved AI snapshots. Overall per-League progression, a small initial League
 set and later League/tier unlocks are accepted design requirements for Phase 6,
 not implemented persistence or gameplay. Field grandeur/progression is likewise
 an accepted roadmap goal; no new dimensions or adaptive scaling are introduced.
+
+
+## Infinite result camera loop — 2026-09-22
+
+`MatchPresentationDirector.OUTRO_HOLD` now means a continue-ready result with
+rolling cameras, not a static view. Four seeded scenic angles repeat indefinitely
+with non-still zoom/pan/tilt motions and 10-second shot clocks. Result transitions
+use a slower camera interpolation rate (0.8 versus the normal 7.5); intro and
+live-play transition rates are restored through the existing motion reset/sync.
+The 1.7-second readiness gate preserves a short settlement without making players
+watch a complete cycle. Entering or skipping to the ready state preserves the
+current motion clock. `SHOT_CHANGED` remains active in the hold state, while
+`SeasonApp` keeps Continue available and its existing once-only save guard.
+No match rules, pitching, ties or season reward/progression mechanics change.

@@ -35,6 +35,26 @@ this runner. Logs and a machine-readable `summary.json` remain under
 Independent runtime checks continue after a regression failure, but the overall
 command still exits nonzero. No hosted CI is triggered.
 
+## Infinite win/loss camera verification — 2026-09-22
+
+Full 27-step Godot 4.7.2 verification passed without engine errors or warnings at
+`builds/verification/20260922T050216647933Z`, based on published main `adda641`.
+
+- Core presentation checks run three complete repeating cycles, with non-still
+  motion and Continue readiness preserved across shot changes.
+- The actual presentation/camera update runs 80 simulated seconds, visits all
+  four scenic angles, and preserves final score, game clock and play records.
+  Maximum per-frame camera displacement in that fixture is 0.479 m at 60 Hz;
+  it uses interpolation rather than positional cuts. Pause freezes the shot clock.
+- Season-menu checks leave each completed result rolling across eight angle
+  changes, verifying that Continue remains visible and the game commits once.
+- Existing full live matches cover ending, HR-before-outro ordering and restart.
+  Existing match-soak coverage confirms tied regulation enters inning six, both
+  halves receive the extra runner and a home lead walks off. Tie rules did not change.
+- The same suite retains all recent handedness/routing, wall-visibility, chase,
+  ratings, bullpen, save/migration and statistics checks. Rendered smoothness and
+  subjective pacing still require human QC.
+
 ## Attribute access, tracking and chase audit — 2026-09-22
 
 Baseline: clean local/GitHub main `3228af1`. Godot 4.7.2 / gdtoolkit 4.3.4.

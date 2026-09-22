@@ -140,7 +140,7 @@ the optimal subjective angle.
 - full-simulation debug pause
 - handed Batter/Pitcher/Fielder avatars and independent visible bat swing
 - visible non-authoritative receiver for taken and missed Pitches
-- automatic one-to-three-shot game intro and win/loss outro
+- automatic one-to-three-shot game intro and infinitely rolling win/loss views
 - seeded still / zoom / pan / tilt motion per presentation shot
 - nearly centered batting camera with a very small handed offset
 - Batter approach memory for Pitch/location repetition
@@ -644,3 +644,16 @@ that drag. The 11.25 m Single / 17 m Deep Air / 23.4 m wall geometry is unchange
   `ai_plate_read`, `ai_swing_chance`, `ai_decision_recorded` and `ai_swung`.
   A 720-launch controlled audit produces real chases but does not reproduce or
   dismiss the reported 15 consecutive takes. No chase-probability tuning was made.
+
+
+## Rolling win/loss camera QC
+
+Remain on a WIN or LOSS screen for at least 45 seconds. Expect four scenic angles
+in a repeating loop, roughly ten seconds each, with slow zooms/pans/tilts and
+smooth travel between angles. Continue should become available after the short
+initial settlement and stay available across every transition. Skip must not
+freeze the scene. Final score/text must remain fixed, and leaving after multiple
+cycles must record the game only once. Pause/resume should preserve the shot
+clock. Also recheck intro, HR celebration and normal live camera speed after a
+new match. Judge pacing and comfort yourself; automated motion/state checks do
+not approve the rendered presentation.

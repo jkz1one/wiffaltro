@@ -32,6 +32,7 @@ var _field_focus: Vector3 = Vector3(0.0, 2.2, 10.0)
 var _batter_side: float = 1.0
 var _presentation_motion: PresentationMotion = PresentationMotion.STILL
 var _presentation_progress: float = 0.0
+var _presentation_transition_speed: float = TRANSITION_SPEED
 var _defense_ball_view: bool = false
 var _shot_before_inspection: int = -1
 
@@ -71,14 +72,18 @@ func prepare_ball_in_play(defense_view: bool, ball_position: Vector3) -> void:
 	)
 
 
-func set_presentation_motion(motion: PresentationMotion, progress: float) -> void:
+func set_presentation_motion(
+	motion: PresentationMotion, progress: float, transition_speed: float = TRANSITION_SPEED
+) -> void:
 	_presentation_motion = motion
 	_presentation_progress = clampf(progress, 0.0, 1.0)
+	_presentation_transition_speed = transition_speed
 
 
 func clear_presentation_motion() -> void:
 	_presentation_motion = PresentationMotion.STILL
 	_presentation_progress = 0.0
+	_presentation_transition_speed = TRANSITION_SPEED
 
 
 func cycle_shot() -> void:
@@ -110,7 +115,7 @@ func update(
 			follow_weight
 		)
 	var desired: Transform3D = _desired_transform(ball_position, delta_seconds)
-	var transition_weight: float = 1.0 - exp(-TRANSITION_SPEED * delta_seconds)
+	var transition_weight: float = 1.0 - exp(-_presentation_transition_speed * delta_seconds)
 	camera.global_transform = camera.global_transform.interpolate_with(desired, transition_weight)
 	if ball_live and shot == Shot.BALL_IN_PLAY:
 		# Test the interpolated view too: a safe destination alone does not stop

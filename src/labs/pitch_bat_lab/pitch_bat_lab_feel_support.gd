@@ -114,7 +114,7 @@ static func skip_match_presentation(lab: PitchBatLab) -> void:
 	if event == MatchPresentationDirector.Event.INTRO_COMPLETE:
 		_finish_intro(lab, true)
 	elif event == MatchPresentationDirector.Event.OUTRO_COMPLETE:
-		lab._camera_director.clear_presentation_motion()
+		_sync_presentation_camera(lab)
 
 
 static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
@@ -143,21 +143,25 @@ static func _update_match_presentation(lab: PitchBatLab, delta_seconds: float) -
 		MatchPresentationDirector.Event.INTRO_COMPLETE:
 			_finish_intro(lab, false)
 		MatchPresentationDirector.Event.OUTRO_COMPLETE:
-			lab._camera_director.clear_presentation_motion()
+			_sync_presentation_camera(lab)
 		_:
 			pass
 	if (
 		lab._match_presentation_director.mode == MatchPresentationDirector.Mode.INTRO
 		or lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO
+		or lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD
 	):
 		_sync_presentation_camera(lab)
 	return true
 
 
 static func _sync_presentation_camera(lab: PitchBatLab) -> void:
+	var result_view: bool = lab._match_presentation_director.mode in [
+		MatchPresentationDirector.Mode.OUTRO, MatchPresentationDirector.Mode.OUTRO_HOLD]
 	lab._camera_director.set_presentation_motion(
 		lab._match_presentation_director.current_motion(),
-		lab._match_presentation_director.shot_progress()
+		lab._match_presentation_director.shot_progress(),
+		0.8 if result_view else MatchCameraDirector.TRANSITION_SPEED
 	)
 
 

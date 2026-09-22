@@ -918,15 +918,22 @@ func _test_match_presentation_sequence() -> void:
 	)
 
 	first.begin_outro(220)
-	var outro_event: MatchPresentationDirector.Event
-	for _index in range(first.shot_sequence.size()):
-		outro_event = first.advance(first.shot_duration_seconds())
 	_check(
-		outro_event == MatchPresentationDirector.Event.OUTRO_COMPLETE
+		first.advance(MatchPresentationDirector.RESULT_READY_SECONDS)
+		== MatchPresentationDirector.Event.OUTRO_COMPLETE
 		and first.mode == MatchPresentationDirector.Mode.OUTRO_HOLD
-		and first.blocks_gameplay(),
-		"outro completion should hold the final result until restart"
+		and first.blocks_gameplay() and first.shot_progress() < 1.0,
+		"result must allow Continue before the first slow camera shot finishes"
 	)
+	for cycle in range(3):
+		for _index in range(first.shot_sequence.size()):
+			var previous: MatchCameraDirector.Shot = first.current_shot()
+			_check(first.advance(first.shot_duration_seconds())
+				== MatchPresentationDirector.Event.SHOT_CHANGED
+				and first.current_shot() != previous
+				and first.current_motion() != MatchCameraDirector.PresentationMotion.STILL
+				and first.mode == MatchPresentationDirector.Mode.OUTRO_HOLD,
+				"result must keep rolling through slow views without disabling Continue")
 
 	replay.begin_intro(221)
 	_check(

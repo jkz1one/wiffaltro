@@ -2,6 +2,25 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Rolling win/loss presentation — 2026-09-22
+
+- Source v0.4.29 / Technical v0.1.24. Builds on verified main `adda641`.
+- Win/loss screens now roll indefinitely through four scenic angles with slow
+  zooms, pans/tilts and gradual transitions. Continue becomes ready after a short
+  settlement and stays available; no need to watch the entire camera cycle.
+- Full 27-step verification passed; repeated-loop evidence is in `VERIFICATION.md`.
+- Scores, game clock, records and saved results stay fixed while the view rolls.
+  Skip preserves rolling motion; Pause freezes the shot clock; restarting restores
+  normal intro/gameplay handling. Rendered motion comfort still needs human QC.
+- Tie handling verified in existing rules/tests: five tied innings lead to extras;
+  each extra half starts with a ghost runner on second, with home walk-offs and
+  play continuing until a winner. Standings ties remain run difference, runs
+  scored, then seeded draw. No tie-rule change was needed.
+- Prepared the next design decision packet in `LEAGUE_DIFFICULTY_ENRICHMENT.md`.
+  It separates accepted direction from recommended counts/unlocks and the minimal
+  future integration contract. No new League, difficulty tier or unlock system
+  is implemented by this presentation change.
+
 ## Human QC: attributes, tracking and progression contract — 2026-09-22
 
 - Source v0.4.28 / Technical v0.1.23. Reconciled clean local/GitHub main `3228af1`.

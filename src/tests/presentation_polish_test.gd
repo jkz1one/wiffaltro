@@ -14,6 +14,7 @@ func _ready() -> void:
 	await _test_feedback(lab)
 	await _test_visibility_and_fielding(lab)
 	await _test_result_holds(lab)
+	_test_rolling_result(lab)
 	var record_path: String = lab._record_export.path
 	lab.queue_free()
 	await get_tree().process_frame
@@ -195,6 +196,41 @@ func _test_result_holds(lab: PitchBatLab) -> void:
 	_check(not lab._match_presentation_director.blocks_gameplay(), "final result must marinate")
 	await _frames(70)
 	_check(lab._match_presentation_director.blocks_gameplay(), "outro must follow final result")
+
+
+func _test_rolling_result(lab: PitchBatLab) -> void:
+	var director: MatchPresentationDirector = lab._match_presentation_director
+	director.begin_outro(220)
+	PitchBatLabFeelSupport.skip_match_presentation(lab)
+	lab._camera_director.set_shot(director.current_shot())
+	var score: String = lab._match_state.score_label()
+	var clock: float = lab._match_state.elapsed_seconds
+	var records: int = lab._play_records.size()
+	var previous: Transform3D = lab._camera.global_transform
+	var seen: Dictionary = {}
+	var largest_step: float = 0.0
+	# Two complete 40-second loops through the real presentation/camera update.
+	for frame in range(4801):
+		PitchBatLabFeelSupport.update(lab, 1.0 / 60.0)
+		seen[director.current_shot()] = true
+		largest_step = maxf(largest_step,
+			previous.origin.distance_to(lab._camera.global_position))
+		previous = lab._camera.global_transform
+		_check(director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD,
+			"rolling cameras must retain the continue-ready result state")
+	_check(seen.size() == 4, "result loop must visit four scenic angles")
+	_check(largest_step > 0.01 and largest_step < 0.8,
+		"result camera must move gradually between views without positional cuts")
+	_check(lab._match_state.score_label() == score and lab._match_state.elapsed_seconds == clock
+		and lab._play_records.size() == records,
+		"indefinite camera loops must not change final score, game time or records")
+	lab._debug_paused = true
+	var paused_time: float = director.elapsed_seconds
+	PitchBatLabFeelSupport.update(lab, 2.0)
+	_check(director.elapsed_seconds == paused_time, "pause must freeze the rolling shot clock")
+	lab._debug_paused = false
+	print("ROLLING RESULT scenic_angles=", seen.size(), " simulated_seconds=80 max_step_m=",
+		snappedf(largest_step, 0.001))
 
 
 func _frames(count: int) -> void:
