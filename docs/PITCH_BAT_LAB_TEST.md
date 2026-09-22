@@ -202,6 +202,15 @@ role and contact camera direction.
 
 ## Pitch keys
 
+The list below is the **Mechanics Lab** catalog order. In Season/Exhibition,
+keys 1–9 select the numbered rows in the current Pitcher's own repertoire.
+Always show the full authored name, including Overhand/Sidearm; delivery must
+not be removed or shortened to an abbreviation in the picker.
+Current season players who own Drop have it in slot 3, except Bailey Quinn
+(slot 5). Their slot 1 is Overhand Four-Seam. Selection currently resets to
+slot 1 after a half-inning or Pitcher change, and at a new game. F2 returning
+from the Mechanics Lab restores the suspended match selection.
+
 1. Overhand Four-Seam
 2. Overhand Sinker
 3. Sidearm Sinker

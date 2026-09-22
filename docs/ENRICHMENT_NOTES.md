@@ -3,6 +3,31 @@
 These notes preserve future options without authorizing implementation. The
 current rules remain in `SOURCE_OF_TRUTH.md`.
 
+## Season difficulty pacing, human QC follow-up
+
+User feedback, 2026-09-22: pitching feels too good at the start, and the season
+needs a more deliberate difficulty progression with games feeling increasingly
+consequential approaching playoffs. Clarify whether the starting-power concern
+means the player's pitching, opponent pitching, or both before selecting a lever.
+
+Current code has a modest calendar ramp in AI pitch selection only:
+`0.15 + difficulty * 0.25 + min(round_index, 9) * 0.025`. Standard goes from
+0.40 in Game 1 to 0.625 in Game 10; playoffs use that same capped value.
+This is an internal tactical weight, not a win probability or percent difficulty.
+It influences locations and sequencing, not opponent batting execution, player
+ratings, pitch physics or repertoire growth. Everyone starts with their authored
+ratings/repertoire, and every game restores Stamina. There is no complete
+opponent-development or playoff-difficulty system yet.
+
+Proposal for the later design pass: distinct opening, midseason, stretch-run and
+playoff stages, with recognizable opponent development and standings stakes.
+Early pitching should leave useful room for seasonal builds; later opposition
+should challenge execution and sequencing without unreadable trajectories or
+automatic contact. Align opponent growth with the approved Phase 5 catalog;
+full opponent development remains Phase 6. Do not infer balance from one homer,
+inject rubber-banding, or lower all base stats without representative human QC.
+No difficulty or rating changes are implemented by this note.
+
 ## Captain retention, Phase 7 candidate
 
 User idea, 2026-09-21: a mid/late-game achievement unlocks the option to keep a

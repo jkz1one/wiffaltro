@@ -35,6 +35,33 @@ this runner. Logs and a machine-readable `summary.json` remain under
 Independent runtime checks continue after a regression failure, but the overall
 command still exits nonzero. No hosted CI is triggered.
 
+## Pitch identity and labels audit — 2026-09-22
+
+Reconciled local/GitHub main `61999fa`. Final full `python3 tools/verify.py`
+passed all 23 steps on Godot 4.7.2 and gdtoolkit 4.3.4 at
+`builds/verification/20260922T034413264888Z`. The earlier audit run also passed
+before restoring full picker labels; the final run includes that correction.
+
+`pitch_routing_test.tscn` covers all 142 authored repertoire entries across
+48 players, each via number-key dispatch and button signals (284 launches).
+Three additional player launches use deliberately reversed Drop/Four-Seam
+orders through Mechanics Lab return, replacement and inning transitions. An
+AI delivery separately checks its preselected resource identity. Assertions
+compare visible names, selected resources, flight parameters/state and F3 IDs;
+verify the selected aerodynamic recipe and content immutability; and reject
+key/button changes during flight. Twenty season save/restores check that lineup
+reordering preserves player, Pitcher and Fielder identities and their definitions.
+Nine full authored Pitch names fit without clipping at all three HUD anchors.
+
+No crossed Drop/Four-Seam identity was reproduced. Both recipes and all other
+pitch resources/solver files are unchanged since the first Season Shell
+(`937ce2f`); the new pitching strategy selects among those recipes. The picker
+did abbreviate delivery names, now corrected. Number keys remain repertoire
+slots, not universal pitch-family keys. Half-inning/new-Pitcher resets remain
+slot 1; all authored season pitchers owning Drop start with Four-Seam in that slot.
+These facts do not establish the cause of the user's exact incident without a
+record or reproduction. Headless checks do not approve rendered feel or balance.
+
 ## Season flow / performance verification — 2026-09-21
 
 Baseline main `6511a82` passed the full pinned-engine suite at

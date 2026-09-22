@@ -2,6 +2,26 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Pitch routing audit and full names — 2026-09-22
+
+- Reconciled clean local/GitHub main `61999fa` after human feedback about
+  Fastball/Drop selection. No crossed pitch resource was reproduced. Repertoire
+  slot order differs from the Mechanics Lab catalog, and selection resets to
+  slot 1 after a half-inning or Pitcher change. The user's exact incident still
+  needs a record or reproduction; those behaviors are explanations to check.
+- Restored the full authored name in every visible Pitch picker row. The old
+  compact renderer removed Overhand and replaced Sidearm with `(SA)`; full
+  names were retained in tooltips and the collapsed selected-Pitch label.
+- Added `pitch_routing_test`: all 48 authored player repertoires through keys
+  and button signals, real launch identities/recipes/records, delivery locks,
+  reversed-order transition fixtures and 20 reordered season save/restores.
+  Full names fit all nine rows at all three HUD anchors in headless layout checks.
+- The final full Godot 4.7.2 verification passed, including actual live matches
+  and existing scoring/stats/save coverage. See `VERIFICATION.md` for evidence.
+- Preserved the report about starting pitching power and season difficulty in
+  `ENRICHMENT_NOTES.md`. No physics, stat, selection-order, difficulty or Phase 5
+  changes. Source v0.4.26 and technical v0.1.21 remain the gameplay baseline.
+
 ## Season flow and performance — 2026-09-21
 
 - Reconciled main `6511a82`; full Godot 4.7.2 baseline passed before editing.

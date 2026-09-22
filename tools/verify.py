@@ -79,6 +79,9 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("pitch-routing", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/pitch_routing_test.tscn"],
+                 "Wiffaltro pitch routing checks passed:"),
                 ("season-flow", [*base, "--fixed-fps", "60",
                                  "res://src/tests/season_flow_test.tscn"],
                  "Wiffaltro season flow checks passed:"),

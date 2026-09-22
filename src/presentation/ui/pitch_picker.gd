@@ -88,9 +88,7 @@ func refresh() -> void:
 		if not button.visible:
 			continue
 		var pitch: PitchDefinition = options[index]
-		var delivery: String = "Sidearm" if pitch.display_name.begins_with("Sidearm") else "Overhand"
-		var pitch_name: String = pitch.display_name.trim_prefix(delivery + " ")
-		button.text = "%d  %s%s" % [index + 1, pitch_name, " (SA)" if delivery == "Sidearm" else ""]
+		button.text = "%d  %s" % [index + 1, pitch.display_name]
 		button.tooltip_text = pitch.display_name + "\n" + pitch.tactical_description
 		button.button_pressed = index == _lab._selected_pitch_index
 		button.disabled = not MatchLabSupport.can_edit_pitch_plan(_lab)
