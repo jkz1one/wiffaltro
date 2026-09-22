@@ -41,7 +41,7 @@ at once.
 
 | Piece | Decisions to settle | Completion record | State |
 | --- | --- | --- | --- |
-| 01. Season and career structure | What a season accomplishes; what resets, persists and unlocks; why the next run differs; how the three phases connect | One connected season-to-season flow and reset/persistence table | Open; next discussion |
+| 01. Season and career structure | What a season accomplishes; what resets, persists and unlocks; why the next run differs; how the three phases connect | One connected season-to-season flow and reset/persistence table | In discussion; open decisions below |
 | 02. Leagues and difficulty | League identities and initial access; overall tier pressures; unlock conditions; calendar difficulty versus selected tier | League/tier rules, availability and clear conditions | Open; existing direction approved |
 | 03. Builds and category rules | Build directions; roles of Consumables, Bats, Ball Setups, Endorsements, Abilities, Pitches and temporary development; capacities and interactions | Category contracts, build goals and interaction limits | Open |
 | 04. Economy and acquisition | Cash/Hype purposes and rewards; shop cadence/mix, prices, rerolls, sales; Free Agents and roster changes; consumable acquisition | Reward → acquisition → use loop and opportunity costs | Open; several baseline rules already approved |
@@ -82,7 +82,7 @@ unlock infrastructure before the authored rules require it.
 | --- | --- | --- | --- | --- |
 | BP-001 | 2026-09-22 | Shift the immediate workflow to a connected Phase 5–7 blueprint, developed and recorded piece by piece | Approved: explicit user instruction | Start design now; no new progression coding. Human QC remains open independently. |
 
-## Piece 01: next discussion brief
+## Piece 01: season and career structure
 
 First reconcile the existing run/reset/career rules into a compact flow:
 **choose a season → draft/build/compete → season result → permanent progress → next season**.
@@ -90,6 +90,57 @@ Identify only the unresolved boundaries: what makes repeat seasons different,
 what success and failure each carry forward, and how League access, difficulty
 clears, collection and home-club development relate. Do not invent reward numbers
 or reopen already-approved reset rules merely to fill the table.
+
+### Existing approved boundaries
+
+Reconciled against `SOURCE_OF_TRUTH.md` sections 26–31 on 2026-09-22.
+These are design commitments; the career layer is not implemented.
+
+| Layer | During a season | At season end |
+| --- | --- | --- |
+| Roster and build | Draft four players; acquire temporary development, learned Pitches/Abilities, Gear and Endorsements | Roster composition and temporary power reset |
+| Run economy | Season Cash pays for run purchases; Hype contributes to payouts | Cash and shop state reset |
+| Club | Club identity, owned cosmetics and home-stadium ownership | Persist; Club Funds are persistent currency, primarily awarded at season end |
+| Records and access | Earn accomplishments, discover players and meet unlock prerequisites | History, trophies, League × Difficulty clears and unlocked pools persist |
+| Player collection | Encountered, pack-eligible and draftable are distinct states | Obtained player cards remain draftable; seasonal stat gains do not carry over |
+
+### First open decision: progress after an unsuccessful season
+
+**Proposed, not approved:** completing a season without winning the championship
+should still advance the club through modest Club Funds and eligible collection
+rewards. Championships and specific achievements should gate prestige and selected
+access unlocks, with the exact gates decided in Pieces 02/08. An unsuccessful
+completed season should not require repeating an identical starting position.
+
+This extends the existing season-end reward direction; it does not promise a pack
+for every finish or define payout amounts. Abandoned seasons, reward eligibility,
+repeat rewards and duplicate handling remain open. Permanent rewards should widen
+choices and express club history rather than accumulate universal rating bonuses.
+
+### N-001: starting ratings and seasonal growth budgets
+
+**Proposed user note, 2026-09-22; no mechanics or numbers approved.** Players should
+have room to develop during a season. Consider starting rating ranges, a cap on
+total attribute points, and development for both the player's roster and AI
+teams. Decide the contribution of shops and other progression opportunities later.
+Existing seasonal stat-reset rules remain in force.
+
+Questions reserved for Pieces 03/04/06:
+
+- Does a total-point limit apply per player, across the team, or only to earned
+  development? How does it relate to individual attribute ceilings?
+- Are starting ranges authored player profiles, randomized within profiles, or
+  draft-level budgets? Preserve recognizable strengths and weaknesses.
+- Do equipment and conditional effects count against a rating budget, or have
+  separate limits? Avoid prematurely constraining the authored catalog.
+- How do development breaks, shops and other rewards divide growth opportunities?
+- How do AI clubs develop on a readable schedule without rubber-banding against
+  the user's record?
+
+**Recommendation awaiting discussion:** preserve specialist headroom and budget
+seasonal growth before choosing one equal total-point ceiling for every player.
+Different attributes need not have equal gameplay value. Neither this note nor a
+future budget decision authorizes changing current pitching or hitting tuning.
 
 Each subsequent approved decision receives an ID, the user's chosen rule, its
 reason, affected pieces, outstanding numbers and source-of-truth references.
