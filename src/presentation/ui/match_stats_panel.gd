@@ -91,28 +91,15 @@ func _ratings() -> void:
 	for index in range(team.roster.size()):
 		var player: PlayerMatchState = team.roster[index]
 		var definition: PlayerDefinition = player.definition
-		var box: VBoxContainer = SeasonPlayerCard.panel(_body)
 		var role: String = ""
 		if index == team.pitcher_index:
 			role = " • Pitcher"
 		elif index == team.fielder_index:
 			role = " • Primary Fielder"
-		SeasonPlayerCard.line(box, "%d. %s%s" % [index + 1, definition.display_name, role], 21)
-		SeasonPlayerCard.line(box, "Bats / Throws: %s • Stamina remaining: %.0f%%%s" % [
-			SeasonPlayerCard.hands(definition), player.stamina_percent() * 100.0,
-			" • Used arm" if player.pitching_finished else ""], 17)
-		var grid: GridContainer = GridContainer.new()
-		grid.columns = 7
-		grid.add_theme_constant_override("h_separation", 25)
-		box.add_child(grid)
-		for label in SeasonPlayerCard.RATING_NAMES:
-			SeasonPlayerCard.line(grid, label, 17)
-		for value in SeasonPlayerCard.values(definition):
-			SeasonPlayerCard.line(grid, str(value), 20)
-		var pitches: PackedStringArray = []
-		for pitch in definition.starting_pitches:
-			pitches.append(pitch.display_name)
-		_wrapped(box, "Pitches: " + " • ".join(pitches))
+		SeasonPlayerCard.ratings_card(_body, definition,
+			"%d. %s%s" % [index + 1, definition.display_name, role],
+			" • Stamina remaining: %.0f%%%s" % [player.stamina_percent() * 100.0,
+				" • Used arm" if player.pitching_finished else ""])
 
 
 func _box_score() -> void:

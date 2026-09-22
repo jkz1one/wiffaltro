@@ -79,6 +79,9 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("ai-chase", [*base, "--fixed-fps", "60",
+                              "res://src/tests/ai_chase_test.tscn"],
+                 "Wiffaltro live chase checks passed:"),
                 ("switch-hitter", [*base, "--fixed-fps", "60",
                                    "res://src/tests/switch_hitter_test.tscn"],
                  "Wiffaltro switch hitter checks passed."),

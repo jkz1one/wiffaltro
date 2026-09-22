@@ -35,6 +35,52 @@ this runner. Logs and a machine-readable `summary.json` remain under
 Independent runtime checks continue after a regression failure, but the overall
 command still exits nonzero. No hosted CI is triggered.
 
+## Attribute access, tracking and chase audit — 2026-09-22
+
+Baseline: clean local/GitHub main `3228af1`. Godot 4.7.2 / gdtoolkit 4.3.4.
+Full 27-step verification passed with no engine errors or warnings at
+`builds/verification/20260922T045643447476Z`, including both real live matches,
+all prior routing/handedness/save/statistics/physical-ball checks, and the new
+chase/visibility/UI coverage. Human rendered/feel QC remains open.
+
+Targeted checks used only a staged copy of `project.godot` and `src` under
+ignored builds; no root import or protected-directory scan.
+
+- The expanded camera audit failed before the fix: 874 obstruction hits across
+  5,760 sampled frames. The same paths then passed with zero obstruction hits
+  and zero off-screen balls. Fixtures include both venues/player roles, low wall
+  approaches on three lateral paths, the live pole, lateral scenery and high
+  carry. Existing handed batting sightline/aim/stable-pitch checks still pass.
+  These are static-mesh bounds tests, not rendered or motion-comfort approval.
+  Before/after logs: `builds/qc-camera-red.log`, `builds/qc-camera-green.log`.
+- Ratings pages fit the headless viewport and remain read-only; pause inspection
+  still freezes a real pitch. Season tests cover new Base behavior and every
+  legacy saved preset. Bullpen checks compare throwing labels to player data
+  and check all HUD anchors and multiline text widths.
+- `ai_chase_test.tscn` runs 720 real Four-Seam launches through the production
+  flight actor, current-motion perception, count/awareness decision and swing
+  initiation. Controlled counts and refreshed arms isolate the path; four-pitch
+  observation groups repeat it. This is not a complete game or human distribution.
+  Every recorded chase starts an actual swing; every take leaves it unstarted.
+  The scene is included in `python3 tools/verify.py`.
+
+Selected chase results (right/left batting hand; 40 launches per case):
+
+| Aim X magnitude | Count | Actual swings R / L | Mean modeled chance R / L |
+| --- | --- | --- | --- |
+| 0.50 m | 0–0 | 13 / 12 | 25.9% / 25.7% |
+| 0.65 m | 0–0 | 8 / 6 | 11.5% / 11.7% |
+| 0.95 m | 0–0 | 3 / 4 | 2.3% / 2.2% |
+| 0.50 m | 0–2 | 19 / 19 | 40.3% / 40.1% |
+| 0.50 m | 3–0 | 10 / 10 | 15.0% / 14.9% |
+
+Zone half-width is 0.43 m; aim is not the actual plate crossing or visual read.
+The audit's mean visual-read X magnitudes for the first three rows were about
+0.487 / 0.632 / 0.931 m. Finite seed counts need not equal modeled probabilities.
+No universal no-chase defect reproduced; this does not resolve the reported
+15 consecutive takes. Keep that human issue open for F3 evidence. No AI,
+trajectory, fatigue, field-boundary or contact-transfer tuning was made.
+
 ## Field-scale research, no gameplay changes — 2026-09-22
 
 Baseline local/GitHub `aa02b7e` was clean. The full 26-step pinned-engine suite

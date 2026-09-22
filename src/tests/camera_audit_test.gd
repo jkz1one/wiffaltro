@@ -84,10 +84,56 @@ func _ready() -> void:
 		" corridor_rays=90 per actor"
 	)
 	lab.queue_free()
+	await get_tree().process_frame
+	await _test_ball_tracking()
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro camera audit passed.")
 	get_tree().quit(0 if _failures == 0 else 1)
+
+
+func _test_ball_tracking() -> void:
+	var blocked: int = 0
+	var outside: int = 0
+	var samples: int = 0
+	for field_id in [PitchBatLab.FIELD_ID, SeasonState.AWAY_FIELD_ID]:
+		var lab: PitchBatLab = PitchBatLab.new()
+		lab._field_id = field_id
+		add_child(lab)
+		lab.set_process(false)
+		lab.set_physics_process(false)
+		var geometry: Node = lab.get_node("StarterFieldGeometry")
+		for defense in [false, true]:
+			for endpoint in [Vector3(0, 0.08, 23.30), Vector3(-17, 0.08, 23.30),
+				Vector3(17, 0.08, 23.30), Vector3(7, 0.08, 11.75),
+				Vector3(-25, 1.8, 18), Vector3(0, 7, 28)]:
+				var director: MatchCameraDirector = lab._camera_director
+				director.clear_presentation_motion()
+				director.set_shot(MatchCameraDirector.Shot.PITCHING if defense
+					else MatchCameraDirector.Shot.BATTING)
+				director.snap(lab._camera)
+				director.prepare_ball_in_play(defense, Vector3(0, 1, 0))
+				director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
+				for frame in range(240):
+					var ball: Vector3 = Vector3(0, 1, 0).lerp(endpoint,
+						minf(1.0, float(frame) / 150.0))
+					director.update(lab._camera, 1.0 / 60.0, true, ball)
+					blocked += int(_occluded(geometry.get_node("BackWall"),
+						lab._camera.global_position, ball))
+					blocked += int(_occluded(geometry.get_node("LiveObjectPole"),
+						lab._camera.global_position, ball))
+					var scenery: Node = geometry.get_node_or_null("CommonsParkScenery")
+					if scenery != null:
+						blocked += int(_occluded(scenery, lab._camera.global_position, ball))
+					var bounds: Rect2 = Rect2(Vector2(24, 24), Vector2(1232, 672))
+					outside += int(lab._camera.is_position_behind(ball) or not
+						bounds.has_point(lab._camera.unproject_position(ball)))
+					samples += 1
+		lab.queue_free()
+		await get_tree().process_frame
+	print("BALL TRACKING samples=", samples, " blocked=", blocked, " outside=", outside)
+	_check(blocked == 0, "moving/settled ball tracking must clear walls, poles and away scenery")
+	_check(outside == 0, "physical ball must stay visible through the tracking transition")
 
 
 func _occluded(node: Node, from: Vector3, to: Vector3) -> bool:

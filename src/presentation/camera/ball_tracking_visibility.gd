@@ -1,0 +1,49 @@
+class_name BallTrackingVisibility
+extends RefCounted
+
+# Presentation-only bounds include scenery without gameplay collision shapes.
+var _obstacles: Array[AABB] = []
+
+
+func configure(geometry: Node) -> void:
+	_obstacles.clear()
+	for node_name in ["BackWall", "LiveObjectPole", "CommonsParkScenery"]:
+		var node: Node = geometry.get_node_or_null(node_name)
+		if node != null:
+			_collect(node)
+
+
+func clear_position(desired: Vector3, ball: Vector3) -> Vector3:
+	if not _blocked(desired, ball):
+		return desired
+	# Pull toward an overhead view on the same side of play. This continuously
+	# shortens the horizontal offset instead of cutting to the opposite end.
+	var overhead: Vector3 = ball + Vector3(0, maxf(6.0, desired.y - ball.y), 0)
+	var clear_fraction: float = 0.0
+	var blocked_fraction: float = 1.0
+	for step in range(10):
+		var fraction: float = (clear_fraction + blocked_fraction) * 0.5
+		if _blocked(overhead.lerp(desired, fraction), ball):
+			blocked_fraction = fraction
+		else:
+			clear_fraction = fraction
+	return overhead.lerp(desired, clear_fraction)
+
+
+func _blocked(camera: Vector3, ball: Vector3) -> bool:
+	for bounds in _obstacles:
+		# A small margin starts the adjustment before the ball clips the wall.
+		# Don't engulf a ball that is itself immediately next to that wall.
+		var padded: AABB = bounds.grow(0.12)
+		if padded.has_point(ball):
+			padded = bounds
+		if padded.intersects_segment(camera, ball) != null:
+			return true
+	return false
+
+
+func _collect(node: Node) -> void:
+	if node is MeshInstance3D and node.mesh != null and node.visible:
+		_obstacles.append(node.global_transform * node.get_aabb())
+	for child in node.get_children():
+		_collect(child)

@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.27
+**Version:** v0.4.28
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.26 and all earlier planning notes
+**Supersedes:** v0.4.27 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -750,8 +750,11 @@ permission to test season flow, not a declaration that camera feel or the sport
 fun gate has passed. The starter implementation contains:
 
 - Main menu: Continue Season, New Season, Exhibition, Quit.
-- One provisional Backyard League with Relaxed / Standard / Tactical pitching
-  strategy presets. The existing environment is Yard Club Field for home games;
+- One provisional Backyard League with Base difficulty for new seasons. The old
+  Relaxed / Standard / Tactical selector described pitching strategy only and
+  has been removed; saved presets retain their original behavior. Base retains
+  the previous Standard tactical baseline without retuning the sport.
+  The existing environment is Yard Club Field for home games;
   Commons Park is the shared away venue for the five opposing clubs. Five regular
   games use each venue. Semifinals follow the higher-seed host; the neutral final
   uses Commons Park regardless of nominal home/away inning roles. These are two
@@ -788,10 +791,14 @@ fun gate has passed. The starter implementation contains:
   championship runner-up or champion, with recorded hitting/pitching leaders,
   final bracket and regular-season standings. The finished season remains
   inspectable until a new season is confirmed; no career archive is implied.
-- Pause > Player Stats inspects either team's seven ratings, full repertoire,
+- Hub/season recap > Players and Team Stats > Player Ratings expose a separate
+  read-only roster attribute page between games, including all seven ratings,
+  full Pitches, hands and defensive assignments.
+- Pause > Player Ratings & Stats inspects either team's seven ratings, full repertoire,
   batting/throwing hands, defensive assignments, remaining Stamina and used arms.
   This Game shows current batting/pitching observations, with pitch counts up to
   the current delivery and batting outcomes after completed plate appearances.
+  The Bullpen labels every player's throwing hand directly beside Stamina/status.
   Inspection is read-only and freezes play; Back/Esc returns to Pause before
   resuming. This is not an in-game batting-order or equipment editing window.
 - Local checkpoints after draft/lineup changes and as soon as a match is final.
@@ -832,9 +839,10 @@ The first tactical model weights owned Pitches by signature preference, Power /
 Breaking / Corners / Balanced identity, count and previous-Pitch speed contrast.
 Breaking specialists may repeat their favorite heavily; repertoire size does
 not imply equal use. Three-ball counts favor strikes, two-strike counts allow
-bounded expansion. Difficulty increases edge targeting and sequencing, not
-invisible stat inflation, command accuracy or ball physics. Tactical quality
-also rises modestly with schedule position, never with the player's win/loss record.
+bounded expansion. The current internal tactical preset increases edge targeting
+and sequencing, not invisible stat inflation, command accuracy or ball physics.
+It is one possible component of overall Difficulty, not the Difficulty system.
+Tactical quality also rises modestly with schedule position, never with the player's win/loss record.
 These are authored gameplay heuristics, not an MLB-optimal strategy claim.
 
 ---
@@ -846,6 +854,11 @@ These are authored gameplay heuristics, not an MLB-optimal strategy claim.
 League is the **Balatro Deck analogue**.
 
 Chosen before the season.
+
+Only a small starter set of Leagues is initially unlocked in the future launch
+catalog; additional Leagues are earned. Exact count, identities and unlock
+conditions remain to be authored. The current shell implements Backyard League
+only; it must not display unfinished Leagues as playable.
 
 Its structural rule persists for the run.
 
@@ -866,9 +879,13 @@ That is **not** the base game.
 
 ## Difficulty
 
-Difficulty is separate from League.
+Difficulty is the **Balatro Stake analogue**, separate from League. It governs
+overall season pressure, not just AI pitching or a single stat multiplier.
 
-Progression is tracked independently for each League.
+Progression is tracked independently for each League. Only Base is initially
+unlocked for each available League; higher tiers must be earned within that
+League. Unlock milestones, tier names and pressure combinations remain undecided.
+The current shell offers Base only and does not implement progression unlocks.
 
 Higher Difficulty may increase:
 
@@ -881,6 +898,26 @@ Higher Difficulty may increase:
 - special conditions
 
 Avoid relying on invisible stat inflation as the primary difficulty mechanism.
+
+## Stadium and field progression goal — human amendment, 2026-09-22
+
+Venue progression is a Phase 6 goal: later-season/playoff destinations and more
+advanced Leagues can feel larger and more prestigious. Grow stands, lighting,
+architecture, atmosphere and presentation independently from playing dimensions.
+Selected advanced away/neutral parks may also have larger or otherwise distinct
+playing areas once authored builds and human playtesting support them. Field
+size is one visible strategic pressure, not the sole Difficulty scale.
+
+Keep the present field/hitting baseline and pitching geometry/feel. No blanket
+1.3× scaling, automatic fence movement after upgrades, or per-game stretching
+of the home field is approved. Home structural development remains Phase 7,
+between seasons with the Opening Day layout lock. Communicate any future park
+rules/dimensions before the game; they must agree with physical geometry, scoring,
+defense, cameras and saved fixtures. Exact dimensions, venue sequence and tier
+assignments need bounded prototypes and human QC after the build catalog.
+
+See `FIELD_SCALE_AND_PROGRESSION_AUDIT.md` for the research and sensitivity study.
+This accepts the progression goal without introducing those mechanics now.
 
 ---
 
@@ -1466,7 +1503,12 @@ When the player is defending, contact must preserve the pitching/defensive side
 of the field. The camera pulls wider and tracks the physical ball from behind
 the defense rather than flipping through 180 degrees to the Batter's view.
 Player-offense ball-in-play tracking may retain its behind-the-Batter field
-orientation.
+orientation. Ball visibility takes priority over a rigid camera location:
+tracking may pan, rotate, change elevation or viewing distance smoothly while
+preserving readable orientation. Static walls, poles and away scenery must not
+hide the tracked ball. The current correction pulls toward overhead when blocked,
+checks the interpolated view and eases back out when clear. Live Pitch views stay
+stable; all tracking changes remain presentation-only.
 
 Home Runs get a dedicated 4.4 s presentation hold. The scored ball continues
 visibly beyond the wall for 1.25 s with camera tracking, then a wider celebration
@@ -1647,8 +1689,9 @@ Make repeat seasons strategically distinct:
 - authored opponent identities
 - opponent development across rematches
 - unusual physical parks and field objects
-- League rules
-- Difficulty progression tracked per League
+- increasingly grand venues and selected larger advanced parks, with fixed pitching geometry
+- League rules, a small initially unlocked set, and later League unlocks
+- overall Difficulty progression tracked per League, starting with Base only
 
 ## Phase 7 — Persistent Club Layer
 

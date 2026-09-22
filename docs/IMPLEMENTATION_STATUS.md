@@ -2,6 +2,34 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Human QC: attributes, tracking and progression contract — 2026-09-22
+
+- Source v0.4.28 / Technical v0.1.23. Reconciled clean local/GitHub main `3228af1`.
+- Accepted stadium/field progression into Phase 6 goals. Later venues can become
+  grander, with selected larger advanced parks subject to build design and QC.
+  Current field/hitting scale, pitching geometry and home Opening Day lock stay.
+- Clarified League = Deck; overall Difficulty = Stake. A small starter League
+  set is planned, with only Base initially unlocked per League. Higher tiers
+  are earned within that League; exact content/unlock criteria remain undecided.
+  Current shell implements Backyard/Base only. Removed the misleading tactical
+  preset selector for new runs, keeping the previous Standard behavior and all
+  saved legacy values. No unlock engine or Phase 5 systems were introduced.
+- Added Hub/season recap > Players and Team Stats > Player Ratings. Shared cards
+  expose seven attributes, full repertoire, hands and roles without lineup edits.
+  Pause's existing access is now explicitly labelled Player Ratings & Stats.
+- Bullpen rows show Throws LEFT/RIGHT alongside name, status and current Stamina.
+- Reproduced static wall/scenery obstruction in ball tracking. The bounded
+  camera correction changes viewing distance/elevation/orientation toward an
+  overhead view when blocked, checks the actual interpolated position and ball
+  framing, and eases back to normal. Pitch views and sport physics are unchanged.
+- Audited 720 production launches through the actual AI read/decision/swing path.
+  Both batting hands chase borderline pitches; distant pitches and three-ball
+  counts produce many takes. No universal no-chase routing bug reproduced.
+  The human 15-take report remains open for an F3 sequence; no AI retuning made.
+- Full 27-step pinned-engine verification passed; evidence is in `VERIFICATION.md`.
+  Rendered tracking comfort,
+  menu readability and game feel still require human approval.
+
 ## Field scale and progression research — 2026-09-22
 
 - Reconciled clean GitHub/local main `aa02b7e`. Audited dimensions, avatar bounds,

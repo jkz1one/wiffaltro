@@ -102,22 +102,10 @@ func show_preseason() -> void:
 	_label(box, "BACKYARD LEAGUE", 28)
 	_label(box, "6 clubs • 10 games • Top 4 playoffs • 5-inning games", 22)
 	_label(box, "Four two-way players. One Pitcher and one Primary Fielder on defense.", 20)
-	_label(box, "One starter field for now, including the neutral championship.", 18)
-	_label(_body, "PITCHING STRATEGY DIFFICULTY", 20)
-	var choice: OptionButton = OptionButton.new()
-	choice.custom_minimum_size = Vector2(400, 42)
-	for text in [
-		"Relaxed • more pitches to attack",
-		"Standard • count-aware variety",
-		"Tactical • more edges and sequencing"
-	]:
-		choice.add_item(text)
-	choice.select(app.difficulty_choice)
-	choice.item_selected.connect(func(index: int) -> void: app.difficulty_choice = index)
-	_body.add_child(choice)
-	_label(
-		_body, "Same player ratings and physics. Tactics develop gradually over the schedule.", 18
-	)
+	_label(box, "Home: Yard Club Field • Away and neutral final: Commons Park", 18)
+	_label(_body, "DIFFICULTY • BASE", 22)
+	_label(_body, "Backyard League is the first playable league. Base difficulty is available.", 18)
+	_label(_body, "Additional leagues and difficulty unlocks will arrive in later updates.", 18)
 	_label(
 		_body, "Draft 4 from 12 offers. Compare all seven ratings and the actual pitch arsenal.", 20
 	)
@@ -170,6 +158,10 @@ func show_hub() -> void:
 
 func show_stats() -> void:
 	SeasonPages.stats(self)
+
+
+func show_players() -> void:
+	SeasonPages.players(self)
 
 
 func show_summary() -> void:

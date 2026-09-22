@@ -6,7 +6,8 @@ menus with placeholder art and a shared Mechanics Lab, not final presentation.
 
 ## Season flow QC
 
-Current follow-up: setup offers Relaxed/Standard/Tactical pitching strategies.
+Current follow-up: new seasons show Base difficulty in Backyard League. The old
+pitching-only presets are no longer offered as overall difficulty tiers.
 Draft cards require selecting a name/card then confirming in the footer. All
 seven ratings are visible on the Lineup page without hovering; B/T uses R, L,
 or S for switch hitting. Forty-eight possible players supply the 24 active club
@@ -19,7 +20,9 @@ coverage hint describes the lowest of your current best ratings.
 
 1. New Season → Start Tryouts → choose one of three players four times. Close
    and reopen after a pick: Continue Season should restore the remaining offers.
-2. Hub → Prepare Next Game: check your record/rank, home/away opening role and
+2. Hub → Players: inspect all seven attributes, hands, roles and full Pitches
+   for each player without entering lineup editing. Team Stats → Player Ratings
+   opens the same page. Return to the hub, then Prepare Next Game: check your record/rank, home/away opening role and
    the opposing starter's actual arsenal. Reorder hitters and select a starting
    Pitcher and a different Primary Fielder. Edits should preserve scroll position.
    Play Game should use those players and that batting order.
@@ -55,11 +58,11 @@ coverage hint describes the lowest of your current best ratings.
    Distinguish a take on a strike from a chase on a ball. F3 now records the AI's
    estimated plate location and both hands alongside the actual crossing.
    Expect offers and misses, not automatic contact or forced swings at every strike.
-10. Compare early Relaxed with Tactical: more approachable locations versus
-    more edges/sequencing. Watch favorite-pitch tendencies across counts. Stats
-    and physics should not change with the preset. Report unfair or repetitive
-    patterns with records instead of only final scores.
-11. Pause > Player Stats during a pitch. Inspect Your Team and Opponent on
+10. New seasons offer Base only. Watch favorite-pitch tendencies across counts
+    and the modest calendar-based strategy change. Existing saved tactical presets
+    must continue with their prior behavior. Report unfair or repetitive patterns
+    with records instead of only final scores; overall difficulty unlocks are later work.
+11. Pause > Player Ratings & Stats during a pitch. Inspect Your Team and Opponent on
     Ratings & repertoire and This game. Names, seven ratings, full pitch names,
     Stamina and defensive roles should be readable. Compare a completed hit/walk/K
     and pitch count with the game. Scrolling must leave Back visible. First Esc
@@ -623,3 +626,21 @@ All coefficients, field dimensions, fielding thresholds, Pitch identities, swing
 Play a complete game and capture F3 before proposing any more balance changes.
 Record annoying/repetitive cues, lost-ball moments, misleading feedback and holds
 that drag. The 11.25 m Single / 17 m Deep Air / 23.4 m wall geometry is unchanged.
+
+
+## Current ball-tracking and chase QC
+
+- In each venue, follow low balls along the wall, lateral/foul balls, pole-adjacent
+  grounders and high/HR carries while batting and defending. Tracking should pan,
+  close distance and rise as necessary without losing the ball behind scenery.
+  Judge motion comfort and field context; headless ray checks cannot approve feel.
+  Check pause/resume and the transition into the existing HR celebration too.
+- Bullpen must show Throws LEFT/RIGHT for every arm at each HUD anchor. Compare
+  with Pause > Player Ratings & Stats and the actual delivery; switch hitting
+  must not change the throwing label.
+- If AI takes feel implausible, export F3 after the sequence. Include which
+  Pitcher/Pitch, approximate aim and count, whether pitches were barely outside
+  or obvious waste pitches, and the final outcome. The record includes observed
+  `ai_plate_read`, `ai_swing_chance`, `ai_decision_recorded` and `ai_swung`.
+  A 720-launch controlled audit produces real chases but does not reproduce or
+  dismiss the reported 15 consecutive takes. No chase-probability tuning was made.

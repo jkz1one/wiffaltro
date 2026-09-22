@@ -109,6 +109,12 @@ func _test_saves() -> void:
 	var resumed: SeasonState = SeasonSave.restore()
 	_check(resumed != null and resumed.offers() == draft.offers(), "resume same draft offers")
 	var season: SeasonState = _draft(71)
+	for legacy_difficulty in range(3):
+		season.difficulty = legacy_difficulty
+		_check(SeasonSave.save(season), "legacy tactical preset must still save")
+		resumed = SeasonSave.restore()
+		_check(resumed != null and resumed.difficulty == legacy_difficulty,
+			"Base-only new-season UI must not rewrite the difficulty of existing saves")
 	season.swap_batters(0, 3)
 	season.select_starter(2)
 	for game in range(5):
@@ -155,9 +161,8 @@ func _test_menus_and_match_handoff() -> void:
 	await _menu_bounds(app)
 	app.menu.show_preseason()
 	await _menu_bounds(app)
-	app.difficulty_choice = 2
 	app.begin_season(91)
-	_check(app.season.difficulty == 2, "preseason difficulty must reach saved season")
+	_check(app.season.difficulty == 1, "new seasons use Base, not an unlocked tactical ladder")
 	for pick in range(4):
 		await _menu_bounds(app)
 		var chosen: String = app.season.offers()[0]
@@ -166,6 +171,16 @@ func _test_menus_and_match_handoff() -> void:
 		_check(app.season.picks.size() == pick, "selecting a card must not draft it yet")
 		(app.menu._footer.get_child(0) as Button).pressed.emit()
 	_check(app.menu.page == "hub", "four picks must lead to season hub")
+	var before: String = JSON.stringify(app.season.teams)
+	(app.menu._footer.get_child(1) as Button).pressed.emit()
+	_check(app.menu.page == "players", "hub Players button must open the ratings page")
+	await _menu_bounds(app)
+	var rating_labels: int = 0
+	for node in app.menu._body.find_children("*", "Label", true, false):
+		if node.text in SeasonPlayerCard.RATING_NAMES:
+			rating_labels += 1
+	_check(rating_labels == 28 and JSON.stringify(app.season.teams) == before,
+		"read-only Players page must show all seven ratings for all four players")
 	app.menu.show_lineup()
 	app.swap_lineup(0, 2)
 	app.select_starter(1)

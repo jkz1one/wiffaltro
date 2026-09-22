@@ -58,6 +58,7 @@ static func hub(menu: SeasonMenu) -> void:
 		menu._body, "Standings: regular games only. Ties use run difference, runs, then draw.", 16
 	)
 	menu._button(menu._footer, "PREPARE NEXT GAME", menu.show_lineup)
+	menu._button(menu._footer, "PLAYERS", menu.show_players)
 	menu._button(menu._footer, "TEAM STATS", menu.show_stats)
 	if not season.player_results.is_empty():
 		menu._button(menu._footer, "LAST GAME", menu.show_last_game)
@@ -180,7 +181,26 @@ static func stats(menu: SeasonMenu) -> void:
 	):
 		wrapped(menu._body, "Older games retain their scores but have no player statistics.")
 	stat_tables(menu, SeasonPerformance.totals(season))
+	menu._button(menu._footer, "PLAYER RATINGS", menu.show_players)
 	menu._button(menu._footer, "BACK", menu.show_hub)
+
+
+static func players(menu: SeasonMenu) -> void:
+	var season: SeasonState = menu.app.season
+	menu._screen("players", "PLAYER RATINGS", "Yard Club • Current attributes and repertoires")
+	menu._label(menu._body,
+		"Ratings are 0–10. Higher is stronger. Season results are in Team Stats.", 18)
+	for index in range(season.teams[0]["roster"].size()):
+		var player: PlayerDefinition = ContentDB.get_player(
+			StringName(season.teams[0]["roster"][index]))
+		var role: String = ""
+		if index == season.starter_index:
+			role = " • Starting Pitcher"
+		elif index == season.fielder_index:
+			role = " • Primary Fielder"
+		SeasonPlayerCard.ratings_card(menu._body, player, player.display_name + role)
+	menu._button(menu._footer, "TEAM STATS", menu.show_stats)
+	menu._button(menu._footer, "BACK TO SEASON", menu.show_hub)
 
 
 static func stat_tables(menu: SeasonMenu, stats_data: Dictionary) -> void:
@@ -236,6 +256,7 @@ static func summary(menu: SeasonMenu) -> void:
 	menu._standings()
 	menu._label(menu._body, "This season stays available until you confirm a new season.", 18)
 	menu._button(menu._footer, "NEW SEASON", menu.app.ask_new_season)
+	menu._button(menu._footer, "PLAYERS", menu.show_players)
 	menu._button(menu._footer, "TEAM STATS", menu.show_stats)
 	menu._button(menu._footer, "LAST GAME", menu.show_last_game)
 	menu._button(menu._footer, "SCHEDULE", menu.show_schedule)

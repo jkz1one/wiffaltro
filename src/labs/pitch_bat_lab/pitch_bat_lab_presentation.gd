@@ -149,6 +149,7 @@ static func build_environment(lab: PitchBatLab) -> void:
 	lab._camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	lab.add_child(lab._camera)
 	lab._camera_director = MatchCameraDirector.new()
+	lab._camera_director.tracking_visibility.configure(geometry)
 	apply_camera_mode(lab)
 	lab._camera_director.snap(lab._camera)
 
@@ -625,7 +626,7 @@ static func _build_pitching_staff(lab: PitchBatLab, canvas: CanvasLayer) -> void
 	lab._pitching_staff_panel.add_child(title)
 	for index in range(TeamMatchState.ROSTER_SIZE):
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(400.0, 40.0)
+		button.custom_minimum_size = Vector2(400.0, 62.0)
 		button.focus_mode = Control.FOCUS_NONE
 		button.pressed.connect(lab._select_pitcher.bind(index))
 		lab._pitching_staff_panel.add_child(button)
@@ -883,10 +884,11 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 		if player.pitching_finished:
 			role = "USED"
 		button.text = (
-			"%s   %s   %.0f%% stamina   %s"
+			"%s • %s\nThrows %s • %.0f%% stamina • %s"
 			% [
-				role,
 				player.definition.display_name,
+				role,
+				"LEFT" if player.definition.throws == PlayerDefinition.Handedness.LEFT else "RIGHT",
 				player.stamina_percent() * 100.0,
 				PitchExecutionModel.fatigue_stage_name(player.fatigue_ratio()),
 			]

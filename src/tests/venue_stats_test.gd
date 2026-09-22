@@ -9,6 +9,7 @@ func _ready() -> void:
 	PitchBatLabSettings.path = "user://venue-stats-settings-%d.cfg" % OS.get_process_id()
 	_test_schedule_and_save()
 	await _test_venues()
+	await _test_bullpen()
 	await _test_stats()
 	for suffix in ["", ".bak", ".tmp"]:
 		DirAccess.remove_absolute(SeasonSave.path + suffix)
@@ -99,6 +100,37 @@ func _test_venues() -> void:
 		lab.queue_free()
 		await get_tree().process_frame
 	_check(collisions[0] == collisions[1], "home and away physical collision shapes must match")
+
+
+func _test_bullpen() -> void:
+	var lab: PitchBatLab = PitchBatLab.new()
+	add_child(lab)
+	PitchBatLabFeelSupport.skip_match_presentation(lab)
+	lab.set_process(false)
+	lab.set_physics_process(false)
+	lab._player_home = true
+	lab._pitching_staff_active = true
+	for anchor in range(3):
+		lab._hud_anchor_index = anchor
+		PitchBatLabPresentation.apply_hud_anchor(lab)
+		lab._refresh_config()
+		await _frames(2)
+		_check(lab._pitching_staff_panel.visible, "bullpen fixture must be visible")
+		_check(Rect2(Vector2.ZERO, Vector2(1280, 720)).encloses(
+			lab._pitching_staff_panel.get_global_rect()), "expanded bullpen must fit each HUD anchor")
+		var team: TeamMatchState = lab._match_state.defensive_team()
+		for index in range(4):
+			var button: Button = lab._pitcher_buttons[index]
+			var hand: String = "LEFT" if team.roster[index].definition.throws == (
+				PlayerDefinition.Handedness.LEFT) else "RIGHT"
+			_check(button.text.contains("Throws " + hand), "bullpen hand must match actual pitcher")
+			for line in button.text.split("\n"):
+				var width: float = button.get_theme_font("font").get_string_size(line,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size("font_size")).x
+				_check(width + button.get_theme_stylebox("normal").get_minimum_size().x
+					<= button.size.x, "bullpen name, hand, status and stamina must fit")
+	lab.queue_free()
+	await get_tree().process_frame
 
 
 func _test_stats() -> void:

@@ -33,7 +33,7 @@ func build(lab: PitchBatLab) -> void:
 	_main.add_theme_constant_override("separation", 8)
 	layout.add_child(_main)
 	_button(_main, "RESUME  •  Esc", _resume)
-	_stats_button = _button(_main, "PLAYER STATS", open_stats)
+	_stats_button = _button(_main, "PLAYER RATINGS & STATS", open_stats)
 	_stats_button.focus_mode = Control.FOCUS_ALL
 	_button(_main, "SETTINGS", lab._toggle_display_menu)
 	_button(_main, "CHANGE CAMERA  •  V", lab._cycle_camera)

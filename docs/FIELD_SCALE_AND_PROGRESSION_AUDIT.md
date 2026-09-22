@@ -4,7 +4,11 @@
 `aa02b7e0b441c73cb822ed0f1037d7400655c8ff` with a clean checkout.
 Authoritative gameplay remains Source v0.4.27 / Technical v0.1.22.
 
-**Status: researched recommendation, not approval to change gameplay.**
+**Status: research snapshot; progression goal subsequently accepted.**
+Human follow-up adopted stadium/field progression into Source v0.4.28 §16 and
+Phase 6, with League/overall Difficulty and their independent unlocks clarified.
+This does not approve 1.3× scaling, exact future dimensions or progression
+implementation. The evidence below describes the original audited baseline.
 The user reports that pitching now feels excellent and asks whether proportions,
 field/hitting scale and later stadium progression should change. This pass adds
 documentation and an isolated research tool. It changes no game resources,

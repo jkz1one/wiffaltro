@@ -27,6 +27,7 @@ const TRANSITION_SPEED: float = 7.5
 const FIELD_FOLLOW_SPEED: float = 4.5
 
 var shot: Shot = Shot.BATTING
+var tracking_visibility: BallTrackingVisibility = BallTrackingVisibility.new()
 var _field_focus: Vector3 = Vector3(0.0, 2.2, 10.0)
 var _batter_side: float = 1.0
 var _presentation_motion: PresentationMotion = PresentationMotion.STILL
@@ -111,6 +112,15 @@ func update(
 	var desired: Transform3D = _desired_transform(ball_position, delta_seconds)
 	var transition_weight: float = 1.0 - exp(-TRANSITION_SPEED * delta_seconds)
 	camera.global_transform = camera.global_transform.interpolate_with(desired, transition_weight)
+	if ball_live and shot == Shot.BALL_IN_PLAY:
+		# Test the interpolated view too: a safe destination alone does not stop
+		# the transition passing behind a wall. Recover normal distance smoothly.
+		var safe: Vector3 = tracking_visibility.clear_position(camera.global_position, ball_position)
+		var screen: Vector2 = camera.unproject_position(ball_position)
+		var frame: Rect2 = camera.get_viewport().get_visible_rect().grow(-32.0)
+		if (not safe.is_equal_approx(camera.global_position)
+			or camera.is_position_behind(ball_position) or not frame.has_point(screen)):
+			camera.global_transform = _tracking_transform(safe, ball_position)
 
 
 func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transform3D:
@@ -144,7 +154,7 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 			camera_position = Vector3(0.0, 7.8, 25.5)
 			focus = Vector3(0.0, 1.2, 7.0)
 		Shot.BALL_IN_PLAY:
-			focus = _field_focus
+			focus = _field_focus.lerp(ball_position, 0.65)
 			var depth_pullback: float = clampf(ball_position.z * 0.16, 0.0, 7.0)
 			if _defense_ball_view:
 				var defense_height: float = 9.5 + clampf(ball_position.y * 0.40, 0.0, 6.0)
@@ -156,6 +166,7 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 				camera_position = focus + Vector3(
 					0.0, offense_height, -14.0 - depth_pullback
 				)
+			camera_position = tracking_visibility.clear_position(camera_position, ball_position)
 		_:
 			camera_position = Vector3(0.0, 5.0, -10.0)
 			focus = Vector3(0.0, 1.0, 6.0)
@@ -177,11 +188,19 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 			focus.y -= 0.62 * motion_amount
 		_:
 			pass
+	if shot == Shot.BALL_IN_PLAY:
+		return _tracking_transform(camera_position, focus)
 	var direction: Vector3 = (focus - camera_position).normalized()
 	var up_direction: Vector3 = (
 		Vector3.BACK if shot == Shot.FIELD_SETUP else Vector3.UP
 	)
 	return Transform3D(Basis.looking_at(direction, up_direction), camera_position)
+
+
+func _tracking_transform(position: Vector3, focus: Vector3) -> Transform3D:
+	# A field-aligned up axis stays well defined even directly above the ball.
+	var up: Vector3 = Vector3.FORWARD if _defense_ball_view else Vector3.BACK
+	return Transform3D(Basis.looking_at((focus - position).normalized(), up), position)
 
 
 func _apply_projection(camera: Camera3D) -> void:

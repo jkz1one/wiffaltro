@@ -111,3 +111,24 @@ static func line(parent: Node, text: String, font_size: int = 18) -> Label:
 	label.add_theme_font_size_override("font_size", font_size)
 	parent.add_child(label)
 	return label
+
+
+static func ratings_card(
+	parent: Node, player: PlayerDefinition, heading: String, detail: String = ""
+) -> void:
+	var box: VBoxContainer = panel(parent)
+	line(box, heading, 21)
+	line(box, "Bats / Throws: " + hands(player) + detail, 17)
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = 7
+	grid.add_theme_constant_override("h_separation", 25)
+	box.add_child(grid)
+	for rating in RATING_NAMES:
+		line(grid, rating, 17)
+	for value in values(player):
+		line(grid, str(value), 20)
+	var pitches: PackedStringArray = []
+	for pitch in player.starting_pitches:
+		pitches.append(pitch.display_name)
+	var arsenal: Label = line(box, "Pitches: " + " • ".join(pitches), 17)
+	arsenal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

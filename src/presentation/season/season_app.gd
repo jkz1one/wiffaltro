@@ -5,7 +5,6 @@ var season: SeasonState
 var menu: SeasonMenu
 var lab: PitchBatLab
 var notice: String = ""
-var difficulty_choice: int = 1
 var _season_game: bool = false
 var _fixture_id: int = -1
 var _dialog: ConfirmationDialog
@@ -59,7 +58,9 @@ func ask_new_season() -> void:
 func begin_season(seed_value: int = -1) -> void:
 	var selected_seed: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
 	season = SeasonState.create(selected_seed if seed_value < 0 else seed_value)
-	season.difficulty = difficulty_choice
+	# Legacy saves retain their tactical preset. New runs use the base shell;
+	# the future per-League difficulty ladder is not a pitching-only selector.
+	season.difficulty = 1
 	menu.draft_selection = ""
 	_checkpoint()
 	menu.show_draft()

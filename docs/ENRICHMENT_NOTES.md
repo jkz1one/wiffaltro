@@ -18,8 +18,14 @@ strategic variation, not automatic scaling every game or in response to purchase
 Keep League rules, Difficulty pressure and venue identity separate. Preserve
 between-season home remodeling and the Opening Day structural lock.
 
-This is a researched proposal, not approval to implement new stadium mechanics,
-models or progression. Source v0.4.27 remains the current gameplay baseline.
+Human follow-up accepts field/stadium progression as a roadmap goal, now in
+Source v0.4.28 §16/Phase 6. Larger/grander later destinations are part of the
+direction; exact sizes, cadence and mechanical implementation remain unapproved.
+The 1.3× experiment and avatar dimensions remain proposals, not adopted tuning.
+League = Deck and overall Difficulty = Stake are explicit: start with a small
+available League set and only Base unlocked per League. Higher tiers are earned
+separately within each League. No exact unlock conditions or extra playable
+Leagues have been invented; Backyard/Base is the current shell.
 
 ## Season difficulty pacing, human QC follow-up
 
@@ -30,7 +36,8 @@ means the player's pitching, opponent pitching, or both before selecting a lever
 
 Current code has a modest calendar ramp in AI pitch selection only:
 `0.15 + difficulty * 0.25 + min(round_index, 9) * 0.025`. Standard goes from
-0.40 in Game 1 to 0.625 in Game 10; playoffs use that same capped value.
+0.40 in Game 1 to 0.625 in Game 10 (now presented as Base for new runs);
+playoffs use that same capped value.
 This is an internal tactical weight, not a win probability or percent difficulty.
 It influences locations and sequencing, not opponent batting execution, player
 ratings, pitch physics or repertoire growth. Everyone starts with their authored

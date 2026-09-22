@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.22
+**Version:** v0.1.23
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2207,7 +2207,9 @@ decisions, measured evidence and scope boundaries.
   authored style/signature, count, previous-Pitch nominal speed and batting hand.
   Difficulty affects edge/expansion/sequencing weights, not ratings or command.
   Match tactical quality is `clamp(0.15 + difficulty*0.25 + min(round,9)*0.025)`.
-  Difficulty 0/1/2 corresponds to Relaxed/Standard/Tactical. Effort is 0.94–1.04.
+  Legacy save values 0/1/2 retain Relaxed/Standard/Tactical semantics. New seasons
+  now use 1 (the unchanged Standard baseline), presented as Base. This historical
+  field is not a future per-League tier/unlock system. Effort is 0.94–1.04.
   Pitcher substitution clears the previous-Pitch index rather than interpreting
   an old arsenal index as a different player's Pitch.
 - Forty-eight explicit manifest players supply a randomized season pool.
@@ -2299,3 +2301,30 @@ reselection. Viewport-dispatched mouse input verifies that clicking this GUI
 control consumes the event instead of confirming the at-bat underneath it.
 `PlayerMatchState.batting_hand_override` remains the one effective batting-side
 source; it never changes the definition's throwing hand.
+
+
+## Ratings access and ball-tracking visibility — 2026-09-22
+
+`SeasonPages.players` exposes all four player definitions read-only from the hub,
+season recap and performance page. `SeasonPlayerCard.ratings_card` is shared with
+pause inspection so rating order, hands and full repertoire labels agree. Bullpen
+rows show the actual throwing hand, not the effective switch-hitting stance.
+
+`BallTrackingVisibility` caches world bounds of the current wall, live pole and
+Commons Park decorative meshes after environment construction. This deliberately
+includes noncolliding scenery; it is a bounded static-venue presentation helper,
+not a new physics collision or generic dynamic-occluder framework. If the camera
+ray is blocked, it reduces horizontal distance toward an elevated ball-relative
+position, with a small clearance margin. Both desired and interpolated tracking
+positions are checked. A field-aligned up axis supports overhead views without
+flipping to the other team's perspective; an on-screen guard keeps the physical
+ball framed. The normal interpolation restores distance when clear. Only live
+ball tracking changes; pitching/aiming views, sport geometry and dynamics do not.
+Future structural/scenery changes must refresh the cached bounds and extend the
+visibility fixtures. Rendered smoothness and comfort still require human QC.
+
+New seasons expose only Base while retaining schema-3 legacy difficulty values
+and saved AI snapshots. Overall per-League progression, a small initial League
+set and later League/tier unlocks are accepted design requirements for Phase 6,
+not implemented persistence or gameplay. Field grandeur/progression is likewise
+an accepted roadmap goal; no new dimensions or adaptive scaling are introduced.
