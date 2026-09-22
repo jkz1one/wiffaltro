@@ -3,6 +3,24 @@
 These notes preserve future options without authorizing implementation. The
 current rules remain in `SOURCE_OF_TRUTH.md`.
 
+## Field size, proportions and stadium progression
+
+User exploration, 2026-09-22: consider roughly 1.3× field/hitting scale, more
+adult player proportions, and larger/grander later stadiums while preserving
+the current pitching feel. The completed research recommendation is in
+[`FIELD_SCALE_AND_PROGRESSION_AUDIT.md`](FIELD_SCALE_AND_PROGRESSION_AUDIT.md),
+including 432 isolated Jolt trajectories and primary-source references.
+
+Recommendation: retain current sport dimensions and hitting; change proportions
+in a later graybox comparison rather than uniformly enlarging avatars. Let venue
+prestige grow independently of field dimensions. Use selected larger parks as
+strategic variation, not automatic scaling every game or in response to purchases.
+Keep League rules, Difficulty pressure and venue identity separate. Preserve
+between-season home remodeling and the Opening Day structural lock.
+
+This is a researched proposal, not approval to implement new stadium mechanics,
+models or progression. Source v0.4.27 remains the current gameplay baseline.
+
 ## Season difficulty pacing, human QC follow-up
 
 User feedback, 2026-09-22: pitching feels too good at the start, and the season

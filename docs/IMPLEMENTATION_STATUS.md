@@ -2,6 +2,21 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Field scale and progression research — 2026-09-22
+
+- Reconciled clean GitHub/local main `aa02b7e`. Audited dimensions, avatar bounds,
+  contact transfer, defense, scoring, camera and geometry dependencies.
+- Added `FIELD_SCALE_AND_PROGRESSION_AUDIT.md`: primary research, existing frozen
+  decisions, recommended direction, provisional comparisons and acceptance gates
+  are separated. Recommends retaining current scale and improving proportions
+  separately; grandeur and geometry must remain independent progression choices.
+- An opt-in disposable-copy tool, `python3 tools/audit_field_scale.py`, exercises
+  432 actual Jolt contact trajectories. It is a sensitivity study without defenders
+  or human execution, not game-balance approval or normal F3 data.
+- No changes to `src/`, assets, game configuration, saves, pitching, art or Phase 5.
+  Source v0.4.27 / Technical v0.1.22 remain authoritative. Future implementation
+  awaits human QC and agreement on the proposed direction.
+
 ## Human QC corrections, pause stats and venues — 2026-09-22
 
 - Source advances to v0.4.27; technical baseline to v0.1.22. No Phase 5 systems.

@@ -35,6 +35,25 @@ this runner. Logs and a machine-readable `summary.json` remain under
 Independent runtime checks continue after a regression failure, but the overall
 command still exits nonzero. No hosted CI is triggered.
 
+## Field-scale research, no gameplay changes — 2026-09-22
+
+Baseline local/GitHub `aa02b7e` was clean. The full 26-step pinned-engine suite
+passed at `builds/verification/20260922T042906959168Z`. No `src/`, game resource,
+model, camera, physics or save changes accompany this research.
+
+Opt-in `python3 tools/audit_field_scale.py` passed a disposable-copy import and
+432 Jolt trajectory comparisons at `builds/field-scale-audit/20260922T042840Z/`,
+without engine errors/warnings. Its GDScript parser/lint and Python compilation
+checks also pass. It is outside the normal gameplay regression suite because
+these are sensitivity measurements, not desired hit-rate assertions.
+
+The report `FIELD_SCALE_AND_PROGRESSION_AUDIT.md` records contact construction,
+omitted defenders/obstacles/AI, current versus hypothetical scoring layouts,
+measured avatar bounds, a separate Single-floor control example, primary sources,
+recommendations and human-QC gates. JSON/logs stay in ignored builds; the tool
+reproduces them. These synthetic contacts must not enter the human F3 dataset
+or be described as match balance, aesthetic approval or permission to retune.
+
 ## Pitch identity and labels audit — 2026-09-22
 
 The physical correction and expanded checks below supersede this first pass's
