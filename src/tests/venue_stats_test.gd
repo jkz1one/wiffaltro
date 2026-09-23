@@ -89,17 +89,25 @@ func _test_venues() -> void:
 		for child in geometry.get_children():
 			if child is StaticBody3D:
 				var shape: CollisionShape3D = child.get_child(0)
-				signature.append([String(child.name), child.position, shape.shape.size,
+				signature.append([String(child.name), child.position, shape.shape.get_class(),
 					child.collision_layer, child.collision_mask])
 		collisions.append(signature)
 		var scenery: Node = geometry.get_node_or_null("CommonsParkScenery")
 		_check((scenery != null) == (field == away), "away scenery only belongs to away park")
 		if scenery != null:
+			_check(geometry.get_node_or_null("LiveObjectPole") == null,
+				"Commons must have no pole collision")
+			_check(scenery.get_node_or_null("SmallTree") != null,
+				"Commons must have its small tree")
+			var wall_shape: CollisionShape3D = geometry.get_node("BackWall").get_child(0)
+			_check(wall_shape.shape is ConvexPolygonShape3D,
+				"tapered wall collision follows the mesh")
 			_check(scenery.get_child_count() > 20, "away venue must have distinct authored scenery")
 			_check(_collision_count(scenery) == 0, "decorations must not add gameplay collisions")
 		lab.queue_free()
 		await get_tree().process_frame
-	_check(collisions[0] == collisions[1], "home and away physical collision shapes must match")
+	_check(collisions[0].size() == collisions[1].size() + 1,
+		"Commons removes the live pole while keeping the ground and wall")
 
 
 func _test_bullpen() -> void:

@@ -90,6 +90,7 @@ var _pitch_picker: PitchPicker
 var _sounds_muted: bool = false
 var _sounds: PlaySounds
 var _ball_visibility: BallVisibility
+var _contact_pitch_summary: String = ""
 var _pitch_feedback: PitchFeedback
 var _home_run: PitchBatLabHomeRun = PitchBatLabHomeRun.new()
 var _pitch_release_bar: ProgressBar
@@ -477,7 +478,7 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 	_cleanup_batted_ball()
 	_pitch_actor.reset_pitch()
 	_camera_director.prepare_ball_in_play(
-		_match_mode and _player_is_pitching(), launch_data.position
+		_match_mode and _player_is_pitching(), launch_data.position, launch_data.velocity
 	)
 
 	_ball_play_resolver.start_play(_field_definition, launch_data.is_foul)
@@ -640,6 +641,8 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 		advancement_text = "%d run(s) score" % runs_scored
 
 	var compact_result: String = outcome.display_name()
+	if not _contact_pitch_summary.is_empty():
+		compact_result += "\n" + _contact_pitch_summary
 	if _last_exit_speed_mph > 0.0:
 		compact_result += "\nEV %.0f MPH" % _last_exit_speed_mph
 	if outcome.result != BallPlayOutcome.Result.FOUL and not advancement_text.is_empty():

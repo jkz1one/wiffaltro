@@ -61,13 +61,14 @@ func build(
 		Vector3(29.0, 0.028, 0.08),
 		Color(0.25, 0.84, 0.95)
 	)
-	_add_static_box(
-		"LiveObjectPole",
-		Vector3(7.0, 1.2, 12.0),
-		Vector3(0.35, 2.4, 0.35),
-		Color(0.76, 0.53, 0.20),
-		&"live_object"
-	)
+	if field.environment_style != 1:
+		_add_static_box(
+			"LiveObjectPole",
+			Vector3(7.0, 1.2, 12.0),
+			Vector3(0.35, 2.4, 0.35),
+			Color(0.76, 0.53, 0.20),
+			&"live_object"
+		)
 	_add_box(
 		"Plate",
 		Vector3(0.0, 0.025, 0.0),

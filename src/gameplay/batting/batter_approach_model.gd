@@ -13,6 +13,7 @@ var previous_location_bucket: int = -1
 var same_pitch_streak: int = 0
 var same_location_streak: int = 0
 var pitch_seen_counts: Dictionary = {}
+var recent_locations: Array[int] = []
 
 
 func reset(next_plate_appearance_number: int) -> void:
@@ -23,6 +24,15 @@ func reset(next_plate_appearance_number: int) -> void:
 	same_pitch_streak = 0
 	same_location_streak = 0
 	pitch_seen_counts.clear()
+	recent_locations.clear()
+
+
+func begin_plate_appearance(next_number: int) -> void:
+	# The lineup can notice a repeated location; individual timing familiarity
+	# still resets. Only the last eight visible deliveries inform this read.
+	var scouting: Array[int] = recent_locations.duplicate()
+	reset(next_number)
+	recent_locations = scouting
 
 
 func awareness_for(pitch: PitchDefinition, target: Vector2) -> float:
@@ -38,6 +48,7 @@ func awareness_for(pitch: PitchDefinition, target: Vector2) -> float:
 		awareness += 0.10 + minf(0.12, float(same_location_streak) * 0.04)
 	if previous_location_bucket >= 0 and target.distance_to(previous_target) <= 0.20:
 		awareness += 0.16
+	awareness += minf(0.24, float(recent_locations.count(bucket)) * 0.03)
 	return clampf(awareness, 0.0, MAX_AWARENESS)
 
 
@@ -94,18 +105,13 @@ func decide(
 	var center_score: float = clampf(
 		1.0 - Vector2(ball_xy.x / 0.52, (ball_xy.y - ZONE_CENTER_Y_M) / 0.58).length(), 0.0, 1.0
 	)
-	var outside_sweet_spot: float = clampf(1.0 - absf(inside_amount + 0.14) / 0.38, 0.0, 1.0)
-	var inside_penalty: float = (
-		clampf(inverse_lerp(0.05, ZONE_HALF_WIDTH_M, inside_amount), 0.0, 1.0) * 0.14
-	)
 	var recognition_load: float = maxf(0.0, pitch.recognition_difficulty - awareness * 0.90)
 	var speed_load: float = clampf(inverse_lerp(14.0, 31.0, plate_speed_mps), 0.0, 1.0)
 	var speed_challenge: float = pow(speed_load, 1.45)
 
 	var swing_chance: float
 	if in_zone:
-		swing_chance = 0.66 + center_score * 0.16 + outside_sweet_spot * 0.07
-		swing_chance -= inside_penalty
+		swing_chance = 0.70 + center_score * 0.16
 		swing_chance += awareness * 0.15
 	else:
 		# Borderline balls invite a real chase; obvious waste pitches remain
@@ -125,7 +131,6 @@ func decide(
 	aim_sigma += recognition_load * 0.050
 	aim_sigma += speed_challenge * pitch.timing_difficulty * 0.075
 	aim_sigma += chase_distance * 0.22
-	aim_sigma += inside_penalty * 0.22
 	aim_sigma -= awareness * 0.070
 	aim_sigma -= center_score * pitch.mistake_punish * 0.035
 	aim_sigma = clampf(aim_sigma, 0.055, 0.32)
@@ -153,6 +158,9 @@ func observe(pitch: PitchDefinition, target: Vector2) -> void:
 	if pitch == null:
 		return
 	var bucket: int = _location_bucket(target)
+	recent_locations.append(bucket)
+	if recent_locations.size() > 8:
+		recent_locations.pop_front()
 	if pitch.id == previous_pitch_id:
 		same_pitch_streak += 1
 	else:

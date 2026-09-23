@@ -318,7 +318,7 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 	if pitch == null or lab._batter_approach == null:
 		return
 	if lab._batter_approach.plate_appearance_number != lab._match_state.plate_appearance_number:
-		lab._batter_approach.reset(lab._match_state.plate_appearance_number)
+		lab._batter_approach.begin_plate_appearance(lab._match_state.plate_appearance_number)
 	var ball_xy: Vector2 = BatterApproachModel.read_plate_location(
 		lab._pitch_actor.state.position, lab._pitch_actor.state.velocity
 	)

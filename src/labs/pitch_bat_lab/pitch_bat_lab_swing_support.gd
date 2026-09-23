@@ -68,6 +68,7 @@ static func ensure_miss(lab: PitchBatLab) -> ContactResult:
 
 
 static func reset(lab: PitchBatLab) -> void:
+	lab._contact_pitch_summary = ""
 	if lab._pitch_feedback != null:
 		lab._pitch_feedback.clear()
 	if lab._sounds != null:
@@ -101,6 +102,9 @@ static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
 	PitchBatLabFeelSupport.note_swing(lab, profile.id, aim_point, result)
 	lab._sounds.play(&"contact")
 	lab._pitch_feedback.show_note(result.timing_name() + " • " + result.aim_name())
+	lab._contact_pitch_summary = "%s  %.0f MPH" % [
+		lab._selected_pitch().display_name, lab._pitch_actor.state.velocity.length() * 2.236936
+	]
 	lab._pitch_actor.stop_pitch(&"contact")
 	lab._last_exit_speed_mph = result.exit_velocity.length() * 2.236936
 

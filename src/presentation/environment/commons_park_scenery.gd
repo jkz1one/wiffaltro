@@ -8,7 +8,8 @@ static func build(geometry: StarterFieldLabGeometry, field: FieldDefinition) -> 
 	root.name = "CommonsParkScenery"
 	geometry.add_child(root)
 	_recolor(geometry.get_node("Ground"), Color("24483b"))
-	_recolor(geometry.get_node("BackWall"), Color("193a49"))
+	_shape_wall(geometry.get_node("BackWall"), field)
+	_tree(root, Vector3(24.0, 0.0, 21.0))
 	for strip in range(6):
 		_box(root, "TurfStripe%d" % strip, Vector3(0, 0.003, 2.0 + strip * 4.0),
 			Vector3(44, 0.004, 2), Color("284d3f"))
@@ -66,3 +67,51 @@ static func _box(
 	material.roughness = 0.95
 	instance.material_override = material
 	parent.add_child(instance)
+
+
+static func _shape_wall(wall: StaticBody3D, field: FieldDefinition) -> void:
+	# Front elevation is an isosceles trapezoid. Keep the scoring plane and
+	# level HR height; only the far ends taper, outside the central wall face.
+	var points: PackedVector3Array = PackedVector3Array()
+	var half_height: float = field.home_run_height_m * 0.5
+	for z in [-0.25, 0.25]:
+		points.append(Vector3(-19.0, -half_height, z))
+		points.append(Vector3(19.0, -half_height, z))
+		points.append(Vector3(17.8, half_height, z))
+		points.append(Vector3(-17.8, half_height, z))
+	var shape: ConvexPolygonShape3D = ConvexPolygonShape3D.new()
+	shape.points = points
+	var collision: CollisionShape3D = wall.get_child(0)
+	collision.shape = shape
+	var surface: SurfaceTool = SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for face in [[0, 1, 2, 3], [7, 6, 5, 4], [4, 5, 1, 0],
+		[3, 2, 6, 7], [4, 0, 3, 7], [1, 5, 6, 2]]:
+		for index in [0, 1, 2, 0, 2, 3]:
+			surface.add_vertex(points[face[index]])
+	surface.generate_normals()
+	var mesh: MeshInstance3D = wall.get_child(1)
+	mesh.mesh = surface.commit()
+	_recolor(wall, Color("193a49"))
+
+
+static func _tree(parent: Node3D, at: Vector3) -> void:
+	var tree: Node3D = Node3D.new()
+	tree.name = "SmallTree"
+	tree.position = at
+	parent.add_child(tree)
+	_box(tree, "Trunk", Vector3(0, 1.0, 0), Vector3(0.32, 2.0, 0.32), Color("71523a"))
+	for offset in [Vector3(0, 2.7, 0), Vector3(-0.7, 2.25, 0.15), Vector3(0.7, 2.4, 0)]:
+		var canopy: MeshInstance3D = MeshInstance3D.new()
+		var mesh: SphereMesh = SphereMesh.new()
+		mesh.radius = 1.05
+		mesh.height = 1.9
+		mesh.radial_segments = 8
+		mesh.rings = 4
+		canopy.mesh = mesh
+		canopy.position = offset
+		var material: StandardMaterial3D = StandardMaterial3D.new()
+		material.albedo_color = Color("46754b")
+		material.roughness = 1.0
+		canopy.material_override = material
+		tree.add_child(canopy)

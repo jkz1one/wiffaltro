@@ -35,7 +35,7 @@ func _blocked(camera: Vector3, ball: Vector3) -> bool:
 		# A small margin starts the adjustment before the ball clips the wall.
 		# Don't engulf a ball that is itself immediately next to that wall.
 		var padded: AABB = bounds.grow(0.12)
-		if padded.has_point(ball):
+		if bounds.grow(0.5).has_point(ball):
 			padded = bounds
 		if padded.intersects_segment(camera, ball) != null:
 			return true
@@ -44,6 +44,10 @@ func _blocked(camera: Vector3, ball: Vector3) -> bool:
 
 func _collect(node: Node) -> void:
 	if node is MeshInstance3D and node.mesh != null and node.visible:
-		_obstacles.append(node.global_transform * node.get_aabb())
+		var bounds: AABB = node.global_transform * node.get_aabb()
+		# Turf stripes are surface decals, not occluders. Inflating their
+		# millimeter thickness made rolling balls trigger huge false recoveries.
+		if bounds.size.y > 0.025:
+			_obstacles.append(bounds)
 	for child in node.get_children():
 		_collect(child)

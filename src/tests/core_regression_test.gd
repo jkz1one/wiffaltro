@@ -845,14 +845,13 @@ func _test_match_presentation_sequence() -> void:
 	camera_director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
 	camera_director.prepare_ball_in_play(true, live_ball_position)
 	camera_director.snap(camera, live_ball_position)
-	var defense_camera_z: float = camera.global_position.z
+	var defense_view: Transform3D = camera.global_transform
 	camera_director.prepare_ball_in_play(false, live_ball_position)
 	camera_director.snap(camera, live_ball_position)
 	_check(
-		defense_camera_z > live_ball_position.z
-		and camera.global_position.z < live_ball_position.z
+		defense_view.is_equal_approx(camera.global_transform)
 		and camera.projection == Camera3D.PROJECTION_PERSPECTIVE,
-		"ball-in-play tracking should preserve defense or batting field orientation"
+		"coverage follows the same flight regardless of player role"
 	)
 	camera.queue_free()
 
@@ -975,7 +974,7 @@ func _test_pitch_identity_and_batter_awareness() -> void:
 		fastball, Vector2(0.88, 1.05), target, batter, 0, 0, 24.0, 51
 	)
 	var outside: Dictionary = model.decide(
-		fastball, Vector2(-0.18, 1.05), target, batter, 0, 0, 24.0, 51
+		fastball, Vector2(-0.36, 1.05), target, batter, 0, 0, 24.0, 51
 	)
 	var inside: Dictionary = model.decide(
 		fastball, Vector2(0.36, 1.05), target, batter, 0, 0, 24.0, 51
@@ -985,8 +984,9 @@ func _test_pitch_identity_and_batter_awareness() -> void:
 		"far chase Pitches should be much harder to offer at than center mistakes"
 	)
 	_check(
-		float(outside["aim_sigma"]) < float(inside["aim_sigma"]),
-		"the reachable outer half should be easier than the inner edge"
+		is_equal_approx(float(outside["aim_sigma"]), float(inside["aim_sigma"]))
+		and is_equal_approx(float(outside["swing_chance"]), float(inside["swing_chance"])),
+		"equally located inner and outer strikes must not carry an arbitrary side penalty"
 	)
 
 func _test_ai_pitch_determinism_and_counts() -> void:

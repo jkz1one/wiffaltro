@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.33
+**Version:** v0.4.34
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.32 and all earlier planning notes
+**Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -236,6 +236,10 @@ or visible location increases awareness and execution, while changing speed,
 shape, and location reduces predictability. They may consider visible flight,
 count, handed inside/outside geometry, and player ratings, but never the
 pitcher's hidden intended target or unreleased input.
+Equally placed inside/outside strikes carry no universal side penalty. Individual
+pitch familiarity resets between batters, while the lineup retains a small,
+bounded location read from the last eight visible deliveries (at most 0.24
+awareness). New matches clear both. Contact skill still affects aim and timing.
 The location read projects current visible position and velocity a short distance
 toward the contact plane, with gravity. It does not treat the ball's X/Y several
 meters in front of the plate as its final location. It is an imperfect estimate,
@@ -766,7 +770,10 @@ fun gate has passed. The starter implementation contains:
   Commons Park is the shared away venue for the five opposing clubs. Five regular
   games use each venue. Semifinals follow the higher-seed host; the neutral final
   uses Commons Park regardless of nominal home/away inning roles. These are two
-  distinct environments with the same current scoring geometry and collisions.
+  distinct environments with the same current scoring planes and defender anchors.
+  Commons Park omits the live pole, adds a small decorative tree outside play,
+  and has a subtly tapered trapezoidal wall silhouette with matching collision.
+  The wall face remains at the existing scoring depth and HR height.
 - Four tryout rounds, three distinct authored player cards per round, one choice
   each. The 48-player authored pool supplies six unique four-player clubs, so
   only 24 characters are active in a given season. A new draft exposes at most
@@ -1544,16 +1551,18 @@ settlement also keeps the camera rolling. Camera loops never advance game time,
 score, records or save progression; Pause freezes the shot clock. These durations
 are presentation tuning, subject to human motion-comfort QC.
 
-When the player is defending, contact must preserve the pitching/defensive side
-of the field. The camera pulls wider and tracks the physical ball from behind
-the defense rather than flipping through 180 degrees to the Batter's view.
-Player-offense ball-in-play tracking may retain its behind-the-Batter field
-orientation. Ball visibility takes priority over a rigid camera location:
-tracking may pan, rotate, change elevation or viewing distance smoothly while
-preserving readable orientation. Static walls, poles and away scenery must not
-hide the tracked ball. The current correction pulls toward overhead when blocked,
-checks the interpolated view and eases back out when clear. Live Pitch views stay
-stable; all tracking changes remain presentation-only.
+After release, camera position and viewing side are unrestricted. Coverage may
+pan, tilt, zoom, track or cut when that improves readability. No defensive-side
+lock or mandatory home-side destination applies. Camera movement must preserve
+world-space batting intent, visible pitch/ball action and understandable cuts.
+The current live pass uses a restrained pitching-view pan, followed by an elevated
+contact cut selected from the batted direction: central flights use high home
+coverage and wide lateral flights use baseline coverage. The camera pans from
+that established rig, rises for high flies and holds height during descent.
+It no longer rides behind the ball toward the back wall. Thin turf markings do
+not count as camera obstructions. Dead-ball coverage holds the resolved frame.
+These are initial coverage choices, not frozen camera rules. The richer cinematic
+broadcast director remains future work and requires hands-on motion/feel QC.
 
 Home Runs get a dedicated 4.4 s presentation hold. The scored ball continues
 visibly beyond the wall for 1.25 s with camera tracking, then a wider celebration
@@ -1611,6 +1620,8 @@ A brief strip beside the scorebug reports actual timing/aim, taken locations or
 chased locations after contact/plate crossing. Inside/outside follows the Batter's
 handedness. Bobbles show that the ball remains live and update when resolved.
 Feedback expires after 3 s, freezes during pause, and clears for the next Pitch.
+Contact results, including fouls, retain the thrown Pitch name and measured incoming
+speed captured before the flight actor resets. Exit velocity is labeled separately.
 The existing Stamina bar turns red at 17% remaining or less; no additional
 warning text is added. Existing percentage/condition text remains. This color
 change does not add a fatigue penalty.

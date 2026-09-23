@@ -79,6 +79,8 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("season-qc", [*base, "res://src/tests/season_qc_test.tscn"],
+                 "Wiffaltro season QC checks passed."),
                 ("bobble-rules", [*base, "--fixed-fps", "60",
                                   "res://src/tests/bobble_rules_test.tscn"],
                  "Wiffaltro bobble and tag rules checks passed."),

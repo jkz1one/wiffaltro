@@ -122,6 +122,9 @@ static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
 	var ball_position: Vector3 = (
 		lab._batted_ball.global_position if lab._batted_ball != null else Vector3.ZERO
 	)
+	var pitch_live: bool = lab._pitch_actor != null and lab._pitch_actor.running
+	lab._camera_director.track_released_pitch(pitch_live,
+		lab._pitch_actor.state.position if pitch_live else Vector3.ZERO)
 	lab._camera_director.update(lab._camera, delta_seconds, ball_live, ball_position)
 
 
@@ -264,7 +267,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			lab._match_state.continue_after_dead_ball()
 			lab._base_state = lab._match_state.bases
 			if completed_plate_appearance and lab._batter_approach != null:
-				lab._batter_approach.reset(lab._match_state.plate_appearance_number)
+				lab._batter_approach.begin_plate_appearance(lab._match_state.plate_appearance_number)
 				lab._last_ai_awareness = 0.0
 				lab._last_ai_read_text = "New batter"
 			if changed_half:
