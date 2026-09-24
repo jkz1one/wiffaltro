@@ -2,11 +2,15 @@ class_name BallTrackingVisibility
 extends RefCounted
 
 # Presentation-only bounds include scenery without gameplay collision shapes.
+var field_wall_z: float = 23.4
 var _obstacles: Array[AABB] = []
 
 
 func configure(geometry: Node) -> void:
 	_obstacles.clear()
+	var wall: Node3D = geometry.get_node_or_null("BackWall")
+	if wall != null:
+		field_wall_z = wall.global_position.z - 0.25
 	for node_name in ["BackWall", "LiveObjectPole", "CommonsParkScenery"]:
 		var node: Node = geometry.get_node_or_null(node_name)
 		if node != null:
@@ -27,16 +31,29 @@ func clear_position(desired: Vector3, ball: Vector3) -> Vector3:
 			blocked_fraction = fraction
 		else:
 			clear_fraction = fraction
-	return overhead.lerp(desired, clear_fraction)
+	return overhead.lerp(desired, maxf(0.0, clear_fraction - 0.05))
+
+
+func lateral_clearance(ball: Vector3) -> float:
+	# A nearby narrow upright needs a side route before the ball reaches its
+	# silhouette. Keep walls out of this rule; they use the field-side limit.
+	for bounds in _obstacles:
+		if bounds.size.x < 1.5 and bounds.size.z < 1.5 and bounds.size.y > 0.5:
+			if bounds.get_center().distance_to(ball) < 6.75:
+				return 14.0
+	return 0.0
 
 
 func _blocked(camera: Vector3, ball: Vector3) -> bool:
 	for bounds in _obstacles:
 		# A small margin starts the adjustment before the ball clips the wall.
 		# Don't engulf a ball that is itself immediately next to that wall.
-		var padded: AABB = bounds.grow(0.12)
-		if bounds.grow(0.5).has_point(ball):
-			padded = bounds
+		var nearest: Vector3 = Vector3(
+			clampf(ball.x, bounds.position.x, bounds.end.x),
+			clampf(ball.y, bounds.position.y, bounds.end.y),
+			clampf(ball.z, bounds.position.z, bounds.end.z)
+		)
+		var padded: AABB = bounds.grow(minf(0.4, ball.distance_to(nearest) * 0.5))
 		if padded.intersects_segment(camera, ball) != null:
 			return true
 	return false

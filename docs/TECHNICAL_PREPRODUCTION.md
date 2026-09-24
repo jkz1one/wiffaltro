@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.25
+**Version:** v0.1.26
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2200,9 +2200,11 @@ decisions, measured evidence and scope boundaries.
   setup, applying the same between-Batter guards as F. Its switch-hitter control
   is available only before initial readiness. Once the AI pitch plan is selected,
   even a timeout cannot unlock a side change for that plate appearance.
-- `BatterApproachModel.read_plate_location` projects observed position/velocity
-  to contact, bounded to 0.24 s, with gravity. It does not call the aim solver,
-  future integration or hidden target. Recognition/timing/aim errors remain;
+- `BatterApproachModel.track_pitch` samples visible velocity changes to estimate
+  acceleration, builds an early timing plan, then applies bounded aim correction
+  from a 65 ms delayed read. Extrapolation is capped at 0.32 s. It does not call
+  the aim solver, future integration or hidden target. Decisions run on flight
+  substeps, and all swings share `SwingIntent` aim bounds. Execution errors remain;
   F3 gains `ai_plate_read`, effective `batter_hand` and fixed `pitcher_hand`.
 - `PitchingStrategy` is a seeded weighted-choice model using only owned Pitches,
   authored style/signature, count, previous-Pitch nominal speed and batting hand.

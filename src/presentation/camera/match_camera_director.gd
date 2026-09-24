@@ -24,7 +24,6 @@ enum PresentationMotion {
 }
 
 const TRANSITION_SPEED: float = 7.5
-const FIELD_FOLLOW_SPEED: float = 4.5
 
 var shot: Shot = Shot.BATTING
 var tracking_visibility: BallTrackingVisibility = BallTrackingVisibility.new()
@@ -33,9 +32,9 @@ var _batter_side: float = 1.0
 var _presentation_motion: PresentationMotion = PresentationMotion.STILL
 var _presentation_progress: float = 0.0
 var _presentation_transition_speed: float = TRANSITION_SPEED
-var _coverage_side: float = 0.0
 var _pitch_focus: Vector3 = Vector3(0, 1.05, 0)
-var _contact_cut_pending: bool = false
+var _live_coverage: BallInPlayCamera = BallInPlayCamera.new()
+var _standard_fov: float = 0.0
 var _tracking_height: float = 18.0
 var _shot_before_inspection: int = -1
 
@@ -69,17 +68,9 @@ func set_batter_handedness(is_left_handed: bool) -> void:
 func prepare_ball_in_play(
 	_defense_view: bool, ball_position: Vector3, launch_velocity: Vector3 = Vector3.ZERO
 ) -> void:
-	# Coverage follows the batted flight, never a mandatory player-role side.
-	# Wide lateral contact gets a baseline angle; central contact gets the high home view.
-	_coverage_side = (signf(launch_velocity.x)
-		if absf(launch_velocity.x) > maxf(1.0, absf(launch_velocity.z) * 0.85) else 0.0)
-	_contact_cut_pending = true
+	_live_coverage.prepare(_defense_view, ball_position, launch_velocity)
+	_field_focus = ball_position
 	_tracking_height = 18.0
-	_field_focus = Vector3(
-		ball_position.x * 0.40,
-		clampf(ball_position.y * 0.25 + 1.2, 1.2, 4.0),
-		lerpf(1.0, ball_position.z, 0.55)
-	)
 
 
 func track_released_pitch(active: bool, position: Vector3) -> void:
@@ -111,6 +102,7 @@ func snap(camera: Camera3D, ball_position: Vector3 = Vector3.ZERO) -> void:
 	if camera == null:
 		return
 	_apply_projection(camera)
+	camera.fov = _standard_fov
 	var desired: Transform3D = _desired_transform(ball_position, 1.0)
 	camera.global_transform = desired
 
@@ -124,32 +116,13 @@ func update(
 	if shot == Shot.BALL_IN_PLAY and not ball_live and _shot_before_inspection < 0:
 		return
 	if ball_live and shot == Shot.BALL_IN_PLAY:
-		# Rise for a high fly, then hold the established height through descent.
-		_tracking_height = maxf(_tracking_height, ball_position.y + 10.0)
-		var follow_weight: float = 1.0 - exp(-FIELD_FOLLOW_SPEED * delta_seconds)
-		_field_focus = _field_focus.lerp(
-			Vector3(
-				ball_position.x * 0.78,
-				clampf(ball_position.y * 0.65 + 1.2, 1.2, 12.0),
-				lerpf(5.0, ball_position.z, 0.82)
-			),
-			follow_weight
-		)
+		_live_coverage.update(camera, delta_seconds, ball_position, tracking_visibility)
+		return
 	var desired: Transform3D = _desired_transform(ball_position, delta_seconds)
-	if shot == Shot.BALL_IN_PLAY and _contact_cut_pending:
-		camera.global_transform = desired
-		_contact_cut_pending = false
 	var transition_weight: float = 1.0 - exp(-_presentation_transition_speed * delta_seconds)
 	camera.global_transform = camera.global_transform.interpolate_with(desired, transition_weight)
-	if ball_live and shot == Shot.BALL_IN_PLAY:
-		# Test the interpolated view too: a safe destination alone does not stop
-		# the transition passing behind a wall. Recover normal distance smoothly.
-		var safe: Vector3 = tracking_visibility.clear_position(camera.global_position, ball_position)
-		var screen: Vector2 = camera.unproject_position(ball_position)
-		var frame: Rect2 = camera.get_viewport().get_visible_rect().grow(-32.0)
-		if (not safe.is_equal_approx(camera.global_position)
-			or camera.is_position_behind(ball_position) or not frame.has_point(screen)):
-			camera.global_transform = _tracking_transform(safe, ball_position)
+	if _standard_fov > 0.0:
+		camera.fov = lerpf(camera.fov, _standard_fov, transition_weight)
 
 
 func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transform3D:
@@ -184,10 +157,8 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 			focus = Vector3(0.0, 1.2, 7.0)
 		Shot.BALL_IN_PLAY:
 			focus = _field_focus.lerp(ball_position, 0.65)
-			# Hold an established broadcast rig while panning, rather than riding
-			# behind the ball into walls. Side coverage is chosen from launch direction.
-			camera_position = Vector3(_coverage_side * 16.0 + _field_focus.x * 0.18,
-				_tracking_height, -8.0 if is_zero_approx(_coverage_side) else 2.0)
+			# Static inspection view. Live coverage goes through BallInPlayCamera.
+			camera_position = Vector3(_field_focus.x * 0.18, _tracking_height, -8.0)
 			camera_position = tracking_visibility.clear_position(camera_position, ball_position)
 		_:
 			camera_position = Vector3(0.0, 5.0, -10.0)
@@ -228,6 +199,8 @@ func _tracking_transform(position: Vector3, focus: Vector3) -> Transform3D:
 
 
 func _apply_projection(camera: Camera3D) -> void:
+	if _standard_fov <= 0.0:
+		_standard_fov = camera.fov
 	if shot == Shot.FIELD_SETUP:
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		camera.size = 29.0

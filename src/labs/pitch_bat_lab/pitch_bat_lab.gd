@@ -35,10 +35,10 @@ const PITCH_AIM_MIN_X: float = -0.75
 const PITCH_AIM_MAX_X: float = 0.75
 const PITCH_AIM_MIN_Y: float = 0.30
 const PITCH_AIM_MAX_Y: float = 1.85
-const BATTING_AIM_MIN_X: float = -0.75
-const BATTING_AIM_MAX_X: float = 0.75
-const BATTING_AIM_MIN_Y: float = 0.30
-const BATTING_AIM_MAX_Y: float = 1.85
+const BATTING_AIM_MIN_X: float = SwingIntent.AIM_MIN_X
+const BATTING_AIM_MAX_X: float = SwingIntent.AIM_MAX_X
+const BATTING_AIM_MIN_Y: float = SwingIntent.AIM_MIN_Y
+const BATTING_AIM_MAX_Y: float = SwingIntent.AIM_MAX_Y
 const AIM_STEP_M: float = 0.05
 const BATTED_BALL_TIMEOUT_SECONDS: float = 9.0
 const SETTLED_SPEED_MPS: float = 0.55
@@ -204,7 +204,6 @@ func _process(delta: float) -> void:
 			)
 		):
 			_match_state.elapsed_seconds += delta
-		MatchLabSupport.try_ai_swing(self)
 
 	if _batted_ball != null and _ball_play_resolver != null and _ball_play_resolver.state != null:
 		if not _ball_play_resolver.state.dead:
@@ -338,6 +337,8 @@ func _throw_pitch() -> void:
 	_swing_consumed = false
 	PitchBatLabSwingSupport.reset(self)
 	_ai_swing_decided = false
+	if _batter_approach != null:
+		_batter_approach.reset_pitch()
 	_trajectory_points.clear()
 	_trajectory_draw.clear()
 	_contact_vector_draw.clear()
@@ -464,6 +465,7 @@ func _on_pitch_segment_advanced(
 	previous_position: Vector3, previous_elapsed_seconds: float
 ) -> void:
 	PitchBatLabSwingSupport.advance_swing(self, previous_position, previous_elapsed_seconds)
+	MatchLabSupport.try_ai_swing(self)
 
 
 func _finish_non_contact_pitch() -> void:
@@ -873,6 +875,8 @@ func _start_new_match() -> void:
 	_last_exit_speed_mph = 0.0
 	_swing_consumed = false
 	_ai_swing_decided = false
+	if _batter_approach != null:
+		_batter_approach.reset_pitch()
 	_last_ai_pitch_index = -1
 	_ai_pitch_preselected = false
 	_awaiting_batter_confirm = true

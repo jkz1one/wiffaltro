@@ -319,31 +319,18 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		return
 	if lab._batter_approach.plate_appearance_number != lab._match_state.plate_appearance_number:
 		lab._batter_approach.begin_plate_appearance(lab._match_state.plate_appearance_number)
-	var ball_xy: Vector2 = BatterApproachModel.read_plate_location(
-		lab._pitch_actor.state.position, lab._pitch_actor.state.velocity
-	)
-	var plate_speed_mps: float = lab._pitch_actor.state.velocity.length()
 	var batter_state: PlayerMatchState = lab._match_state.batter()
-	var decision_seed: int = (
-		lab._throw_number * 3571 + lab._match_state.plate_appearance_number * 97
+	var decision: Dictionary = lab._batter_approach.track_pitch(
+		pitch, lab._pitch_actor.state, batter_state.definition,
+		lab._match_state.balls, lab._match_state.strikes,
+		lab._throw_number * 3571 + lab._match_state.plate_appearance_number * 97,
+		batter_state.batting_hand(), ContentDB.get_swing(lab.CONTACT_SWING_ID),
+		ContentDB.get_swing(lab.POWER_SWING_ID)
 	)
-	var trigger_z: float = lab._batter_approach.trigger_z(
-		pitch, plate_speed_mps, ball_xy, batter_state.definition.contact, decision_seed
-	)
-	if lab._pitch_actor.state.position.z > trigger_z:
+	if decision.is_empty():
 		return
 	lab._ai_swing_decided = true
-	var decision: Dictionary = lab._batter_approach.decide(
-		pitch,
-		ball_xy,
-		ball_xy,
-		batter_state.definition,
-		lab._match_state.balls,
-		lab._match_state.strikes,
-		plate_speed_mps,
-		decision_seed,
-		batter_state.batting_hand()
-	)
+	var ball_xy: Vector2 = decision.plate_read
 	lab._last_ai_awareness = float(decision["awareness"])
 	if lab._active_play_record != null:
 		var record: PlayRecord = lab._active_play_record
@@ -361,7 +348,6 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 			float(decision["aim_sigma"]) * 100.0,
 		]
 	)
-	lab._batter_approach.observe(pitch, ball_xy)
 	if not bool(decision["swing"]):
 		return
 	var ai_aim: Vector2 = decision["aim"]

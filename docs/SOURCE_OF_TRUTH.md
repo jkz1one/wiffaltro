@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.34
+**Version:** v0.4.35
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
@@ -238,12 +238,16 @@ count, handed inside/outside geometry, and player ratings, but never the
 pitcher's hidden intended target or unreleased input.
 Equally placed inside/outside strikes carry no universal side penalty. Individual
 pitch familiarity resets between batters, while the lineup retains a small,
-bounded location read from the last eight visible deliveries (at most 0.24
+bounded location read from the last eight visible deliveries (at most 0.12
 awareness). New matches clear both. Contact skill still affects aim and timing.
-The location read projects current visible position and velocity a short distance
-toward the contact plane, with gravity. It does not treat the ball's X/Y several
-meters in front of the plate as its final location. It is an imperfect estimate,
-not access to the future solver trajectory; late break, chase, takes and misses remain.
+The location read estimates position, velocity and smoothed acceleration from
+observed flight samples. Timing is planned before the bat starts, followed by
+limited aim correction from a delayed visual read. Timing, aim and approach use
+separate seeded random streams. Total awareness is capped at 0.50; repetition
+cannot erase execution error. Swing aims share the player's reachable bounds.
+Decisions run on deterministic flight substeps, independent of rendering rate.
+The model never accesses the future solver trajectory or hidden pitching target.
+See `SEASON_CAMERA_AI_REVISION.md` for audit scope and tuning limitations.
 
 ## Contact Swing
 
@@ -1555,14 +1559,16 @@ After release, camera position and viewing side are unrestricted. Coverage may
 pan, tilt, zoom, track or cut when that improves readability. No defensive-side
 lock or mandatory home-side destination applies. Camera movement must preserve
 world-space batting intent, visible pitch/ball action and understandable cuts.
-The current live pass uses a restrained pitching-view pan, followed by an elevated
-contact cut selected from the batted direction: central flights use high home
-coverage and wide lateral flights use baseline coverage. The camera pans from
-that established rig, rises for high flies and holds height during descent.
-It no longer rides behind the ball toward the back wall. Thin turf markings do
-not count as camera obstructions. Dead-ball coverage holds the resolved frame.
-These are initial coverage choices, not frozen camera rules. The richer cinematic
+The live pass uses a restrained pitching-view pan. Contact starts a continuous
+coverage transition from the current view. Soft contact gets a small pullback;
+hard grounders widen and move toward a side while retaining orientation toward
+home. Estimated airborne carry earns a larger elevated side move. Crossing a
+scoring line alone never triggers a reversal. Position speed/acceleration and
+angular speed changes are bounded; obstacle clearance adjusts the destination
+without teleporting the live camera. Dead-ball coverage holds the resolved frame.
+These are tuning choices, not immutable camera rules. The richer cinematic
 broadcast director remains future work and requires hands-on motion/feel QC.
+See `SEASON_CAMERA_RESEARCH.md` for reference sources and their limits.
 
 Home Runs get a dedicated 4.4 s presentation hold. The scored ball continues
 visibly beyond the wall for 1.25 s with camera tracking, then a wider celebration

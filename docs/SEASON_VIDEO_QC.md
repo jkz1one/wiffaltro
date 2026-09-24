@@ -1,7 +1,9 @@
 # Season video QC: September 23, 2026
 
 Implementation branch: `season-qc-camera-batting`, based on `665b46e`.
-These edits are local and uncommitted. The separate progression blueprint is untouched.
+This records the first published pass. Its automatic contact cut and batting
+balance were rejected in follow-up playtesting. See `SEASON_CAMERA_AI_REVISION.md`
+for the replacement behavior and new evidence. The progression blueprint is untouched.
 
 ## Recording findings
 

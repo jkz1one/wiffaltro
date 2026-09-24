@@ -166,14 +166,24 @@ func _test_reads() -> void:
 				state.angular_velocity = parameters.angular_velocity
 				state.seed = parameters.seed
 				var read: Vector2
+				model.reset(1)
 				while state.elapsed_time < 3.0:
 					PitchFlightSolver.step(state, parameters)
-					read = BatterApproachModel.read_plate_location(state.position, state.velocity)
-					if (
-						state.position.z
-						<= model.trigger_z(pitch, state.velocity.length(), read, 5, sample)
-					):
+					var decision: Dictionary = model.track_pitch(
+						pitch,
+						state,
+						batter,
+						0,
+						2,
+						sample,
+						batter.bats,
+						ContentDB.get_swing(PitchBatLab.CONTACT_SWING_ID),
+						ContentDB.get_swing(PitchBatLab.POWER_SWING_ID)
+					)
+					if not decision.is_empty():
+						read = decision.plate_read
 						break
+
 				var crossing: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(
 					parameters, ContactResolver.CONTACT_PLANE_Z
 				)
@@ -188,12 +198,16 @@ func _test_reads() -> void:
 				new_offers += int(
 					model.decide(pitch, read, read, batter, 0, 2, 24, sample)["swing"]
 				)
-		_check(new_error / 80.0 < 0.12, "sampled visible-motion read must stay within 12 cm mean error")
+		_check(
+			new_error / 80.0 < 0.12, "sampled visible-motion read must stay within 12 cm mean error"
+		)
 		# The old comparison pooled inverted left-handed fastballs with right-hand
 		# fastballs. Correct vertical spin removes that artificial improvement.
 		if pitch.category == PitchDefinition.Category.BREAKING:
-			_check(new_error < old_error * 0.6,
-				"visible-motion read must improve the sampled breaking-pitch estimate")
+			_check(
+				new_error < old_error * 0.6,
+				"visible-motion read must improve the sampled breaking-pitch estimate"
+			)
 		_check(new_offers > 55, "center pitches should draw offers with two strikes")
 		print(
 			"READ ",

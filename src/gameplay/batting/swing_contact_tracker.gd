@@ -15,6 +15,8 @@ func begin(
 	new_power_rating: int
 ) -> void:
 	intent = new_intent
+	if intent != null:
+		intent.aim_point = SwingIntent.reachable_aim(intent.aim_point)
 	profile = new_profile
 	contact_rating = new_contact_rating
 	power_rating = new_power_rating

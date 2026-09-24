@@ -5,6 +5,7 @@ var _failures: int = 0
 
 func _ready() -> void:
 	_test_scouting()
+	_test_unreachable_chase()
 	_test_physical_batting()
 	await _test_foul_feedback()
 	await TestAudioDrain.finish(get_tree())
@@ -21,7 +22,7 @@ func _test_scouting() -> void:
 		model.observe(pitch, target)
 	model.begin_plate_appearance(2)
 	_check(
-		is_equal_approx(model.awareness_for(pitch, target), 0.24),
+		is_equal_approx(model.awareness_for(pitch, target), 0.12),
 		"lineup notices repeated location across batters without retaining full individual familiarity"
 	)
 	for i in range(8):
@@ -30,6 +31,24 @@ func _test_scouting() -> void:
 	_check(is_zero_approx(model.awareness_for(pitch, target)), "old scouting must age out")
 	model.reset(0)
 	_check(model.recent_locations.is_empty(), "new match clears scouting")
+
+
+func _test_unreachable_chase() -> void:
+	# A bot requesting an aim far outside player reach must not move its bat there.
+	for x in [-3.0, 3.0]:
+		var intent: SwingIntent = SwingIntent.new()
+		intent.aim_point = Vector2(x, 1.05)
+		var tracker: SwingContactTracker = SwingContactTracker.new()
+		tracker.begin(intent, ContentDB.get_swing(PitchBatLab.CONTACT_SWING_ID), 8, 5)
+		var state: PitchState = PitchState.new()
+		state.position = Vector3(x, 1.05, 0.18)
+		state.velocity = Vector3(0, 0, -20)
+		state.elapsed_time = 0.11
+		var result: ContactResult = tracker.sample_segment(Vector3(x, 1.05, 0.38), 0.10, state)
+		_check(
+			result != null and result.outcome == ContactResult.Outcome.MISS,
+			"a far chase cannot teleport the physical bat outside shared player reach"
+		)
 
 
 func _test_physical_batting() -> void:
@@ -88,7 +107,7 @@ func _test_physical_batting() -> void:
 							var tracker: SwingContactTracker = SwingContactTracker.new()
 							var decided: bool = false
 							var contacted: bool = false
-							while state.elapsed_time < 3.0 and state.position.z > -0.8:
+							while state.elapsed_time < 3.0 and state.position.z > 0.0:
 								var previous: Vector3 = state.position
 								var previous_time: float = state.elapsed_time
 								PitchFlightSolver.step(state, parameters)
@@ -99,34 +118,21 @@ func _test_physical_batting() -> void:
 									if result != null:
 										contacted = result.outcome != ContactResult.Outcome.MISS
 										break
-								var read: Vector2 = BatterApproachModel.read_plate_location(
-									state.position, state.velocity
-								)
-								if (
-									not decided
-									and (
-										state.position.z
-										<= model.trigger_z(
-											pitch,
-											state.velocity.length(),
-											read,
-											batter.contact,
-											sample
-										)
-									)
-								):
-									decided = true
-									var decision: Dictionary = model.decide(
+								if not decided:
+									var decision: Dictionary = model.track_pitch(
 										pitch,
-										read,
-										read,
+										state,
 										batter,
 										0,
 										1,
-										state.velocity.length(),
 										sample,
-										batter.bats
+										batter.bats,
+										ContentDB.get_swing(PitchBatLab.CONTACT_SWING_ID),
+										ContentDB.get_swing(PitchBatLab.POWER_SWING_ID)
 									)
+									if decision.is_empty():
+										continue
+									decided = true
 									if not decision.swing:
 										break
 									side_swings[side] += 1

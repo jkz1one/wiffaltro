@@ -2,6 +2,17 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Season camera and AI revision — 2026-09-23
+
+- Source v0.4.35 / Technical v0.1.26. Replaces the first season QC contact cut.
+- Situational continuous contact coverage, restrained for weak contact and wider
+  for hard/deep flights. Shared aim bounds and earlier AI timing plans with
+  delayed visual correction replace the late all-at-once batting decision.
+- Research, measured baselines, validation and remaining limitations are in
+  `SEASON_CAMERA_RESEARCH.md` and `SEASON_CAMERA_AI_REVISION.md`.
+- Human camera comfort and full-season balance remain open. Progression blueprint
+  content and catalog work are unchanged.
+
 ## Blueprint-first workflow — 2026-09-22
 
 - Source advances to v0.4.31 for the user's planning amendment; no runtime changes.
