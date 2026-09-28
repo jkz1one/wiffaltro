@@ -14,7 +14,11 @@ start of this research was `f1dc209`.
 
 ## Decision
 
-Preserve the batting experience across the entire pitch and contact sequence.
+Use the earlier batting experience as a comparison baseline across the entire
+pitch and contact sequence. Jay clarified that research-led improvements to
+batting are welcome too; the old transforms and timing are not frozen. Preserve
+pitch readability, reliable aiming, and spatial clarity while improving framing
+and transitions wherever playback demonstrates a benefit.
 Build defensive coverage around the space a play needs and how soon it needs it.
 Short contact should require little adjustment; deep flight should earn a clearly
 wider composition. These need distinct shot policies, with shared framing tools.
@@ -225,10 +229,14 @@ immediate attention.
 
 ## Implementation sequence and acceptance
 
-1. **Establish batting preservation.** Compare the full offensive sequence
+1. **Establish the batting comparison baseline.** Compare the full offensive sequence
    against `665b46e`: pitch, swing, contact follow, foul, result, next pitch, both
    handednesses. Isolate its policy from defense. Preserve aiming coordinates and
    input behavior. Do not blind-revert visibility fixes or unrelated season work.
+   Then apply the framing research to offense as well: restrained short-contact
+   coverage, timely expansion for deep flight, and readable result transitions.
+   Evaluate intentional changes against the baseline rather than treating exact
+   historical camera poses as permanent acceptance criteria.
 2. **Create deterministic camera replays.** Reuse identical recorded/simulated
    ball trajectories and fielding events for baseline and candidate. Include
    early resolution, repeated bounces, lateral hits, popups, liners, deep flight,

@@ -3,6 +3,13 @@
 Date: 2026-09-24. Follows [CAMERA_REDESIGN_RESEARCH.md](CAMERA_REDESIGN_RESEARCH.md).
 Local implementation; native visual acceptance remains open.
 
+**Scope clarification:** The restored batting camera is a comparison baseline.
+Research-led improvements to batting are authorized alongside defense. Preserve
+pitch readability and input accuracy, and judge framing/motion by actual playback.
+The historical snapshots verify this restoration; future intentional improvements
+may replace those expectations with reviewed behavior checks. They are not a ban
+on changing offensive camera poses or timing.
+
 ## Behavior
 
 Batting contact now uses an isolated `BattingContactCamera` with the follow

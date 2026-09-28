@@ -1564,7 +1564,10 @@ pan, tilt, zoom, track or cut when that improves readability. No defensive-side
 lock or mandatory home-side destination applies. Camera movement must preserve
 world-space batting intent, visible pitch/ball action and understandable cuts.
 The live pass uses a restrained pitching-view pan. Offensive contact coverage is
-isolated and restored to the pre-season follow behavior. Defensive coverage
+isolated and restored to the pre-season follow behavior as a comparison baseline.
+Research-led improvements to batting remain welcome: preserve pitch readability
+and aiming accuracy, and evaluate intentional framing/transition changes in playback.
+Historical transforms are not frozen requirements. Defensive coverage
 frames the ball, its ground reference, a short flight forecast, and the nearby
 relevant defender. Soft contact stays in a screen-space dead zone; approaching
 grounders gain room without a turnaround. Deep flight uses an elevated side view;
