@@ -1,6 +1,10 @@
 # Camera redesign: preserve batting, make defensive coverage purposeful
 
-Research date: 2026-09-24. **Design proposal; no new runtime implementation in this pass.**
+Research date: 2026-09-24. Original research and design proposal.
+
+**Implementation follow-up:** [ADAPTIVE_CAMERA_IMPLEMENTATION.md](ADAPTIVE_CAMERA_IMPLEMENTATION.md)
+records the subsequent runtime changes, dynamic-stadium contract, and verification.
+The historical measurements below still describe the versions originally examined.
 
 This document supersedes the camera direction in `SEASON_CAMERA_RESEARCH.md` and
 `SEASON_STABLE_COVERAGE.md`. Their historical measurements and AI findings remain

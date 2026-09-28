@@ -1,24 +1,24 @@
 class_name BallTrackingVisibility
 extends RefCounted
 
-# Presentation-only bounds include scenery without gameplay collision shapes.
-var field_wall_z: float = 23.4
-var _obstacles: Array[AABB] = []
+# Opt-in geometry contract, independent of stadium names or wall layout.
+var _geometry: Node
 var _occluder_meshes: Array[MeshInstance3D] = []
 var _faded: Dictionary = {}
+var _refresh_age: float = 0.0
 
 
 func configure(geometry: Node) -> void:
 	restore_occluders()
-	_obstacles.clear()
+	_geometry = geometry
+	refresh()
+
+
+func refresh() -> void:
 	_occluder_meshes.clear()
-	var wall: Node3D = geometry.get_node_or_null("BackWall")
-	if wall != null:
-		field_wall_z = wall.global_position.z - 0.25
-	for node_name in ["BackWall", "LiveObjectPole", "CommonsParkScenery"]:
-		var node: Node = geometry.get_node_or_null(node_name)
-		if node != null:
-			_collect(node)
+	_refresh_age = 0.0
+	if is_instance_valid(_geometry):
+		_collect(_geometry, false)
 
 
 func clear_position(desired: Vector3, ball: Vector3) -> Vector3:
@@ -41,7 +41,18 @@ func clear_position(desired: Vector3, ball: Vector3) -> Vector3:
 func update_occluders(camera: Vector3, ball: Vector3, delta: float) -> void:
 	# Preserve the rig when a live obstacle covers the ball. Material alpha also
 	# works in Mobile, unlike GeometryInstance3D.transparency. Collision is intact.
+	_refresh_age += delta
+	if _refresh_age >= 0.25:
+		refresh()
+	for faded_mesh in _faded.keys():
+		if not is_instance_valid(faded_mesh):
+			_faded.erase(faded_mesh)
+		elif faded_mesh not in _occluder_meshes or not faded_mesh.is_visible_in_tree():
+			faded_mesh.material_override = _faded[faded_mesh]
+			_faded.erase(faded_mesh)
 	for mesh in _occluder_meshes:
+		if not is_instance_valid(mesh) or not mesh.is_visible_in_tree():
+			continue
 		var bounds: AABB = mesh.global_transform * mesh.get_aabb()
 		var blocked: bool = bounds.grow(0.08).intersects_segment(camera, ball) != null
 		if blocked and not _faded.has(mesh):
@@ -71,7 +82,10 @@ func restore_occluders() -> void:
 
 
 func _blocked(camera: Vector3, ball: Vector3) -> bool:
-	for bounds in _obstacles:
+	for mesh in _occluder_meshes:
+		if not is_instance_valid(mesh) or not mesh.is_visible_in_tree():
+			continue
+		var bounds: AABB = mesh.global_transform * mesh.get_aabb()
 		# A small margin starts the adjustment before the ball clips the wall.
 		# Don't engulf a ball that is itself immediately next to that wall.
 		var nearest: Vector3 = Vector3(
@@ -85,13 +99,13 @@ func _blocked(camera: Vector3, ball: Vector3) -> bool:
 	return false
 
 
-func _collect(node: Node) -> void:
-	if node is MeshInstance3D and node.mesh != null and node.visible:
+func _collect(node: Node, inherited: bool) -> void:
+	var enabled: bool = bool(node.get_meta(&"camera_occluder", inherited))
+	if enabled and node is MeshInstance3D and node.mesh != null and node.visible:
 		var bounds: AABB = node.global_transform * node.get_aabb()
 		# Turf stripes are surface decals, not occluders. Inflating their
 		# millimeter thickness made rolling balls trigger huge false recoveries.
 		if bounds.size.y > 0.025:
-			_obstacles.append(bounds)
 			_occluder_meshes.append(node)
 	for child in node.get_children():
-		_collect(child)
+		_collect(child, enabled)

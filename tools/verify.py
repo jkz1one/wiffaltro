@@ -110,6 +110,8 @@ def main():
                 ("season-shell", [*base, "--fixed-fps", "60",
                                   "res://src/tests/season_shell_test.tscn"],
                  "Wiffaltro season shell checks passed:"),
+                ("adaptive-camera", [*base, "res://src/tests/adaptive_camera_test.tscn"],
+                 "Wiffaltro adaptive camera checks passed."),
                 ("camera-audit", [*base, "res://src/tests/camera_audit_test.tscn"],
                  "Wiffaltro camera audit passed."),
                 ("presentation-polish", [*base, "--fixed-fps", "60",

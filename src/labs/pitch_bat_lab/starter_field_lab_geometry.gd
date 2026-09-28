@@ -317,6 +317,7 @@ func _add_static_box(
 	body.name = node_name
 	body.position = world_position
 	body.set_meta(&"ball_surface", surface_id)
+	body.set_meta(&"camera_occluder", surface_id != &"ground")
 	body.collision_layer = 1
 	body.collision_mask = 2
 

@@ -1,32 +1,59 @@
 class_name BallInPlayCamera
 extends RefCounted
 
-# One coverage rig per player side. Open the field, then pan within that view.
-# No launch-selected orbit, lateral obstacle detour, or simultaneous lens zoom.
-const MAX_SPEED: float = 24.0
-const MAX_TURN_SPEED: float = 1.35
-
-var _defense: bool = false
+# Defensive shot selection is separate from the perspective group fit and motion.
+# No camera position depends on a venue ID, scoring line, or named scenery node.
+var context: FieldCameraContext = FieldCameraContext.new()
+var shot_name: String = "local"
+var debug_subjects: PackedVector3Array = PackedVector3Array()
+var defenders: PackedVector3Array = PackedVector3Array()
+var grounded: bool = false
 var _pending: bool = true
-var _coverage: float = 0.0
-var _age: float = 0.0
-var _entry: Vector3
-var _focus: Vector3
 var _previous_ball: Vector3
-var _height: float = 0.0
-var _depth: float = 0.0
-var _entry_fov: float = 70.0
+var _velocity: Vector3
+var _motion: Vector3 = Vector3.ZERO
+var _entry: Transform3D
+var _focus: Vector3
+var _entry_distance: float
+var _entry_fov: float
+var _lens: float
+var _opening: float = 0.0
+var _side: float = -1.0
+var _deep: bool = false
+var _popup: bool = false
 
 
-func prepare(defense: bool, ball: Vector3, launch: Vector3) -> void:
-	_defense = defense
+func prepare(ball: Vector3, launch: Vector3) -> void:
 	_pending = true
-	# Hard contact needs reaction space; soft contact can remain close.
-	_coverage = smoothstep(8.0, 27.0, Vector2(launch.x, launch.z).length())
-	_age = 0.0
 	_previous_ball = ball
-	_height = ball.y
-	_depth = ball.z
+	_velocity = launch
+	_motion = Vector3.ZERO
+	_opening = 0.0
+	grounded = false
+	defenders.clear()
+	shot_name = "local"
+	var local: Vector3 = context.frame().basis.inverse() * launch
+	_side = -signf(local.x) if absf(local.x) > 1.0 else -1.0
+	var air_time: float = (
+		(
+			local.y
+			+ sqrt(
+				(
+					local.y * local.y
+					+ 19.62 * maxf(0, (ball - context.ground_point(ball)).dot(context.up()))
+				)
+			)
+		)
+		/ 9.81
+	)
+	var horizontal: float = Vector2(local.x, local.z).length()
+	# Conservative carry estimate for shot choice only, not scoring or AI knowledge.
+	_deep = (
+		local.y > 4.0
+		and horizontal > absf(local.y) * 0.5
+		and horizontal * air_time * 0.55 > context.depth_m() * 0.6
+	)
+	_popup = not _deep and local.y > horizontal * 0.9 and local.y > 4.0
 
 
 func update(
@@ -35,52 +62,90 @@ func update(
 	if delta <= 0.0:
 		return
 	if _pending:
-		_entry = camera.global_position
+		_entry = camera.global_transform
+		_entry_distance = _entry.origin.distance_to(_previous_ball)
+		_focus = _entry.origin - _entry.basis.z * _entry_distance
 		_entry_fov = camera.fov
-		_focus = _entry - camera.global_basis.z * _entry.distance_to(ball)
+		_lens = camera.fov
 		_pending = false
+	var observed: Vector3 = (ball - _previous_ball) / delta
+	_velocity = _velocity.lerp(observed, 1.0 - exp(-12.0 * delta))
 	var steps: int = maxi(1, int(ceil(delta * 120.0)))
-	var dt: float = delta / steps
 	for step in range(steps):
-		var at: Vector3 = _previous_ball.lerp(ball, float(step + 1) / steps)
-		_advance(camera, dt, at, visibility)
+		_advance(camera, delta / steps, _previous_ball.lerp(ball, float(step + 1) / steps))
 	_previous_ball = ball
 	visibility.update_occluders(camera.global_position, ball, delta)
 
 
-func _advance(
-	camera: Camera3D, dt: float, ball: Vector3, visibility: BallTrackingVisibility
-) -> void:
-	_age += dt
-	# Coverage can open further, but never pumps back inward on the bounce/descent.
-	_height = maxf(_height, ball.y)
-	_depth = maxf(_depth, ball.z)
-	var position: Vector3
-	if _defense:
-		position = Vector3(
-			-4.0 * _coverage,
-			maxf(lerpf(5.0, 16.0, _coverage), _height + lerpf(3.5, 8.0, _coverage)),
-			maxf(
-				lerpf(19.0, visibility.field_wall_z - 0.1, _coverage),
-				minf(visibility.field_wall_z - 0.1, _depth + 0.5)
-			)
-		)
-	else:
-		position = Vector3(0, maxf(lerpf(6.0, 13.0, _coverage), _height + 7.0), -9.0)
-	var open_weight: float = smoothstep(0.0, 0.85, _age)
-	position = _entry.lerp(position, open_weight)
-	var step: Vector3 = (position - camera.global_position) * (1.0 - exp(-7.0 * dt))
-	camera.global_position += step.limit_length(MAX_SPEED * dt)
-	# Keep ground reference in the composition. Only pan as play leaves the
-	# central field; do not attach the lens directly to every bounce of the ball.
-	var anchor: Vector3 = Vector3(0, ball.y * 0.45, lerpf(6.0, 13.0, _coverage))
-	var focus: Vector3 = anchor.lerp(ball, 0.65)
-	_focus = _focus.lerp(focus, 1.0 - exp(-5.0 * dt))
-	var direction: Vector3 = (_focus - camera.global_position).normalized()
-	var target: Quaternion = Basis.looking_at(direction, Vector3.UP).get_rotation_quaternion()
-	var current: Quaternion = camera.global_basis.get_rotation_quaternion()
-	var angle: float = current.angle_to(target)
-	if angle > 0.0001:
-		var weight: float = minf(1.0 - exp(-7.0 * dt), MAX_TURN_SPEED * dt / angle)
-		camera.global_basis = Basis(current.slerp(target, weight))
-	camera.fov = _entry_fov
+func _advance(camera: Camera3D, dt: float, ball: Vector3) -> void:
+	var up: Vector3 = context.up()
+	var height: float = maxf(0.0, (ball - context.ground_point(ball)).dot(up))
+	var horizon: float = 0.45 if _deep else 0.28
+	var forecast: Vector3 = ball + _velocity * horizon - up * 4.905 * horizon * horizon
+	var floor_point: Vector3 = context.ground_point(forecast)
+	if grounded or (forecast - floor_point).dot(up) < 0.0:
+		forecast = floor_point + up * 0.08
+	debug_subjects = _subjects(ball, forecast)
+	var inverse: Transform3D = context.frame().affine_inverse()
+	var entry_z: float = (inverse * _entry.origin).z
+	var future_z: float = (inverse * forecast).z
+	var need: float = smoothstep(entry_z * 0.3, entry_z * 0.9, future_z)
+	need = maxf(need, smoothstep(1.5, 6.0, height))
+	if _deep or _popup:
+		need = 1.0
+	# A settled frame has a dead zone. Soft contact does not schedule a flyby.
+	if _opening < 0.02 and need < 0.02 and CameraGroupFraming.fits(camera, debug_subjects, 0.72):
+		return
+	_opening = lerpf(_opening, maxf(_opening, need), 1.0 - exp(-5.0 * dt))
+	shot_name = "flight" if _deep else ("popup" if _popup else "ground")
+	var bounds: AABB = AABB(debug_subjects[0], Vector3.ZERO)
+	for point in debug_subjects:
+		bounds = bounds.expand(point)
+	var center: Vector3 = bounds.get_center()
+	_focus = _focus.lerp(center, 1.0 - exp(-6.0 * dt))
+	var offset: Vector3 = (
+		Vector3(_side * 0.70 if _deep else 0.0, 1.05 if _deep or _popup else 0.65, 1.0).normalized()
+	)
+	var desired_basis: Basis = Basis.looking_at(-(context.frame().basis * offset), up)
+	var entry_q: Quaternion = _entry.basis.get_rotation_quaternion()
+	var target_q: Quaternion = entry_q.slerp(desired_basis.get_rotation_quaternion(), _opening)
+	var current_q: Quaternion = camera.global_basis.get_rotation_quaternion()
+	var angle: float = current_q.angle_to(target_q)
+	var basis: Basis = Basis(current_q.slerp(target_q, minf(1.0, 1.05 * dt / maxf(angle, 0.00001))))
+	var distance: float = maxf(
+		_entry_distance * lerpf(1.0, 0.55, _opening),
+		CameraGroupFraming.fit_distance(camera, basis, _focus, debug_subjects, _entry_fov)
+	)
+	var position: Vector3 = _focus + basis.z * distance
+	# Terrain clearance uses the provider at the proposed camera point, not world y=0.
+	var ground: Vector3 = context.ground_point(position)
+	position += up * maxf(0.0, 1.5 - (position - ground).dot(up))
+	var speed: float = maxf(24.0, context.depth_m() * 1.2)
+	var desired_motion: Vector3 = ((position - camera.global_position) * 8.0).limit_length(speed)
+	_motion = _motion.move_toward(desired_motion, speed * 3.0 * dt)
+	camera.global_position += _motion * dt
+	camera.global_basis = basis
+	# Lens widening is a bounded secondary correction, retained through descent.
+	_lens = maxf(
+		_lens, minf(_entry_fov + 12.0, CameraGroupFraming.required_fov(camera, debug_subjects))
+	)
+	camera.fov = move_toward(camera.fov, _lens, 18.0 * dt)
+
+
+func _subjects(ball: Vector3, forecast: Vector3) -> PackedVector3Array:
+	var up: Vector3 = context.up()
+	var points: PackedVector3Array = PackedVector3Array(
+		[ball + up * 0.18, ball - up * 0.18, context.ground_point(ball), forecast]
+	)
+	var nearest: Vector3 = Vector3.ZERO
+	var distance: float = INF
+	for defender in defenders:
+		var candidate: float = defender.distance_to(context.ground_point(forecast))
+		if candidate < distance:
+			distance = candidate
+			nearest = defender
+	# Exclude a remote, irrelevant defender; include the whole nearby actor.
+	if distance < maxf(4.0, _velocity.length() * 0.45):
+		points.append(nearest)
+		points.append(nearest + up * 1.7)
+	return points

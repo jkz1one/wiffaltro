@@ -6,6 +6,7 @@ extends RefCounted
 static func build(geometry: StarterFieldLabGeometry, field: FieldDefinition) -> void:
 	var root: Node3D = Node3D.new()
 	root.name = "CommonsParkScenery"
+	root.set_meta(&"camera_occluder", true)
 	geometry.add_child(root)
 	_recolor(geometry.get_node("Ground"), Color("24483b"))
 	_shape_wall(geometry.get_node("BackWall"), field)

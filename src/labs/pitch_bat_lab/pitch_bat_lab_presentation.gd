@@ -149,7 +149,7 @@ static func build_environment(lab: PitchBatLab) -> void:
 	lab._camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	lab.add_child(lab._camera)
 	lab._camera_director = MatchCameraDirector.new()
-	lab._camera_director.tracking_visibility.configure(geometry)
+	lab._camera_director.configure_field(lab._field_definition, geometry, lab.MOUND_ORIGIN)
 	apply_camera_mode(lab)
 	lab._camera_director.snap(lab._camera)
 

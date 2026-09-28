@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.27
+**Version:** v0.1.28
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2371,8 +2371,7 @@ preview could not render screenshots. Human desktop QC remains required.
 
 ## Stable live coverage and AI timing correction — 2026-09-24
 
-This supersedes the live-camera destination/obstacle behavior described in earlier
-entries. `BallInPlayCamera` uses one consistent rig per player side, a fixed lens,
+Historical camera prototype, superseded by the adaptive coverage entry below. `BallInPlayCamera` uses one consistent rig per player side, a fixed lens,
 a maximum four-metre lateral opening, ground-referenced framing, and bounded
 24 m/s movement / 1.35 rad/s turn speed. It has no carry-selected orbit, dynamic
 side selection, or 14 m obstacle detour. Coverage opens over 0.85 seconds and
@@ -2388,3 +2387,28 @@ geometry, aim scatter, count-based approach, and power selection are unchanged.
 `ai_zone_test` drives 1,944 production deliveries with fixed fixture batting order
 and inning, classifies actual zone crossings, and checks timing misses and contact
 by skill. No future forecast is provided to the AI. See `SEASON_STABLE_COVERAGE.md`.
+
+
+## Adaptive coverage and batting preservation — 2026-09-24
+
+`BattingContactCamera` restores the offensive follow from `665b46e`, independently
+of defensive changes. A captured historical fixture checks both handednesses.
+`BallInPlayCamera` selects local ground, popup, or deep-flight coverage;
+`CameraGroupFraming` fits the subject group to the viewport. Translation uses
+bounded acceleration; rotation and secondary FOV expansion are bounded. Short
+contact can stay in the existing composition. Resolved play stops live movement.
+The full cinematic shot/cut director is not implemented by this change.
+
+`FieldCameraContext` reads the active definition and optional field-local
+`camera_play_bounds()` / `camera_ground_height(point)` methods. Configure it when
+a venue is replaced. Bounds/terrain queries remain live. Pitch framing follows
+the supplied mound; field setup and scenic views use the active bounds. Gameplay
+continues to own ball physics, fielding, and scoring.
+
+Geometry opts into visibility treatment with inherited `camera_occluder` metadata;
+false excludes terrain/decals. Registered meshes use current world bounds each
+update. Collection refreshes at contact and every 0.25 seconds during coverage.
+See `ADAPTIVE_CAMERA_IMPLEMENTATION.md` for the material contract and limitations.
+`adaptive_camera_test` covers historical batting poses, multiple viewport sizes,
+18/32/55 m fields, transformed terrain, and dynamic obstacle lifecycle. A separate
+camera replay scene supports native normal-speed visual review.

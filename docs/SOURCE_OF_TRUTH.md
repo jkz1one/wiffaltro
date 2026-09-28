@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.36
+**Version:** v0.4.37
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.35 and all earlier planning notes
+**Supersedes:** v0.4.36 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -1563,19 +1563,23 @@ After release, camera position and viewing side are unrestricted. Coverage may
 pan, tilt, zoom, track or cut when that improves readability. No defensive-side
 lock or mandatory home-side destination applies. Camera movement must preserve
 world-space batting intent, visible pitch/ball action and understandable cuts.
-The live pass uses a restrained pitching-view pan. Contact opens a consistent
-coverage rig from the current view. Soft contact gets a smaller pullback; hard
-contact gains height and field coverage. Both retain the established viewing
-side. There is no launch-selected orbit or simultaneous lens zoom. The live
-lens stays fixed; lateral travel is at most four metres, with bounded position
-and turn speeds. The framing includes a ground reference, and the rig does not
-collapse back inward when the ball descends or bounces. Obstructing venue meshes
-use temporary material transparency instead of sending the camera on a detour;
-collision remains intact and original materials return outside live coverage.
-Dead-ball coverage holds the resolved frame.
+The live pass uses a restrained pitching-view pan. Offensive contact coverage is
+isolated and restored to the pre-season follow behavior. Defensive coverage
+frames the ball, its ground reference, a short flight forecast, and the nearby
+relevant defender. Soft contact stays in a screen-space dead zone; approaching
+grounders gain room without a turnaround. Deep flight uses an elevated side view;
+short popups gain vertical room. Dolly distance follows the projected subject
+group, with bounded lens expansion when needed. Dead-ball coverage holds the
+resolved frame. There is no universal fixed lens, four-metre lane, or contact
+opening duration.
+Field bounds and terrain come from the active stadium context, with optional
+geometry-provider queries for generated layouts. Obstruction registration uses
+metadata rather than venue names; moving bounds are read live. Supported props
+use temporary material transparency without changing collision.
 These are tuning choices, not immutable camera rules. The richer cinematic
 broadcast director remains future work and requires hands-on motion/feel QC.
-See `SEASON_CAMERA_RESEARCH.md` for reference sources and their limits.
+See `CAMERA_REDESIGN_RESEARCH.md` and `ADAPTIVE_CAMERA_IMPLEMENTATION.md` for
+sources, the stadium contract, replay instructions, and verification limits.
 
 Home Runs get a dedicated 4.4 s presentation hold. The scored ball continues
 visibly beyond the wall for 1.25 s with camera tracking, then a wider celebration

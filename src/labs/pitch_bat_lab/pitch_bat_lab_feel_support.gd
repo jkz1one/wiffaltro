@@ -125,6 +125,13 @@ static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
 	var pitch_live: bool = lab._pitch_actor != null and lab._pitch_actor.running
 	lab._camera_director.track_released_pitch(pitch_live,
 		lab._pitch_actor.state.position if pitch_live else Vector3.ZERO)
+	var defenders: PackedVector3Array = PackedVector3Array()
+	if is_instance_valid(lab._primary_fielder):
+		defenders.append(lab._primary_fielder.global_position)
+	if is_instance_valid(lab._pitcher_marker):
+		defenders.append(lab._pitcher_marker.global_position)
+	lab._camera_director.set_fielding_subjects(defenders,
+		(lab._ball_play_resolver.state != null and lab._ball_play_resolver.state.has_grounded))
 	lab._camera_director.update(lab._camera, delta_seconds, ball_live, ball_position)
 
 

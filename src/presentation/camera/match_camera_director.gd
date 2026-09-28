@@ -25,6 +25,7 @@ enum PresentationMotion {
 
 const TRANSITION_SPEED: float = 7.5
 
+var field_context: FieldCameraContext = FieldCameraContext.new()
 var shot: Shot = Shot.BATTING
 var tracking_visibility: BallTrackingVisibility = BallTrackingVisibility.new()
 var _field_focus: Vector3 = Vector3(0.0, 2.2, 10.0)
@@ -34,6 +35,8 @@ var _presentation_progress: float = 0.0
 var _presentation_transition_speed: float = TRANSITION_SPEED
 var _pitch_focus: Vector3 = Vector3(0, 1.05, 0)
 var _live_coverage: BallInPlayCamera = BallInPlayCamera.new()
+var _batting_coverage: BattingContactCamera = BattingContactCamera.new()
+var _defense_ball_view: bool = false
 var _standard_fov: float = 0.0
 var _tracking_height: float = 18.0
 var _shot_before_inspection: int = -1
@@ -67,10 +70,26 @@ func set_batter_handedness(is_left_handed: bool) -> void:
 	_batter_side = -1.0 if is_left_handed else 1.0
 
 
+func configure_field(field: FieldDefinition, geometry: Node3D, mound: Vector3) -> void:
+	field_context.configure(field, geometry, mound)
+	_live_coverage.context = field_context
+	tracking_visibility.configure(geometry)
+
+
+func set_fielding_subjects(positions: PackedVector3Array, has_grounded: bool) -> void:
+	_live_coverage.defenders = positions
+	_live_coverage.grounded = has_grounded
+
+
 func prepare_ball_in_play(
-	_defense_view: bool, ball_position: Vector3, launch_velocity: Vector3 = Vector3.ZERO
+	defense_view: bool, ball_position: Vector3, launch_velocity: Vector3 = Vector3.ZERO
 ) -> void:
-	_live_coverage.prepare(_defense_view, ball_position, launch_velocity)
+	_defense_ball_view = defense_view
+	if defense_view:
+		_live_coverage.prepare(ball_position, launch_velocity)
+	else:
+		_batting_coverage.prepare(ball_position)
+	tracking_visibility.refresh()
 	_field_focus = ball_position
 	_tracking_height = 18.0
 
@@ -78,8 +97,12 @@ func prepare_ball_in_play(
 func track_released_pitch(active: bool, position: Vector3) -> void:
 	# A restrained pan follows visible flight after release. Batting coverage
 	# currently favors its readable strike corridor, but has no motion lock.
-	_pitch_focus = (Vector3(position.x * 0.10, 1.05 + (position.y - 1.05) * 0.05,
-		maxf(0.0, position.z) * 0.03) if active else Vector3(0, 1.05, 0))
+	position = field_context.frame().affine_inverse() * position
+	_pitch_focus = (
+		Vector3(position.x * 0.10, 1.05 + (position.y - 1.05) * 0.05, maxf(0.0, position.z) * 0.03)
+		if active
+		else Vector3(0, 1.05, 0)
+	)
 
 
 func set_presentation_motion(
@@ -119,7 +142,11 @@ func update(
 	if shot == Shot.BALL_IN_PLAY and not ball_live and _shot_before_inspection < 0:
 		return
 	if ball_live and shot == Shot.BALL_IN_PLAY:
-		_live_coverage.update(camera, delta_seconds, ball_position, tracking_visibility)
+		if _defense_ball_view:
+			_live_coverage.update(camera, delta_seconds, ball_position, tracking_visibility)
+		else:
+			camera.fov = _standard_fov
+			_batting_coverage.update(camera, delta_seconds, ball_position, tracking_visibility)
 		return
 	tracking_visibility.restore_occluders()
 	var desired: Transform3D = _desired_transform(ball_position, delta_seconds)
@@ -139,26 +166,31 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 			camera_position = Vector3(_batter_side * 0.18, 2.10, -3.38)
 			focus = Vector3(0.0, 1.10, 7.1)
 		Shot.PITCHING:
-			camera_position = Vector3(0.0, 2.45, 16.9)
-			focus = _pitch_focus
+			camera_position = (
+				field_context.ground_point(
+					field_context.frame() * (field_context.mound + Vector3(0, 0, 3.184))
+				)
+				+ field_context.up() * 2.45
+			)
+			focus = field_context.frame() * _pitch_focus
 		Shot.SIDE:
 			camera_position = Vector3(8.6, 2.65, 6.8)
 			focus = Vector3(0.0, 1.15, 6.8)
 		Shot.FIELD_SETUP:
-			camera_position = Vector3(0.0, 32.0, 11.7)
-			focus = Vector3(0.0, 0.0, 11.7)
+			focus = field_context.frame() * field_context.play_bounds().get_center()
+			camera_position = focus + field_context.up() * field_context.depth_m() * 1.4
 		Shot.PITCHING_STAFF:
-			camera_position = Vector3(-15.0, 8.4, 22.0)
-			focus = Vector3(0.0, 1.1, 9.8)
+			camera_position = _venue_point(Vector3(-0.72, 0.36, 0.94))
+			focus = _venue_point(Vector3(0, 0.047, 0.42))
 		Shot.ESTABLISHING:
-			camera_position = Vector3(-16.5, 11.5, -7.0)
-			focus = Vector3(0.0, 1.1, 12.0)
+			camera_position = _venue_point(Vector3(-0.79, 0.49, -0.30))
+			focus = _venue_point(Vector3(0, 0.047, 0.51))
 		Shot.FOUL_SIDE:
-			camera_position = Vector3(12.8, 5.8, -1.5)
-			focus = Vector3(0.0, 1.1, 10.5)
+			camera_position = _venue_point(Vector3(0.61, 0.25, -0.064))
+			focus = _venue_point(Vector3(0, 0.047, 0.45))
 		Shot.OUTFIELD:
-			camera_position = Vector3(0.0, 7.8, 25.5)
-			focus = Vector3(0.0, 1.2, 7.0)
+			camera_position = _venue_point(Vector3(0, 0.33, 1.09))
+			focus = _venue_point(Vector3(0, 0.051, 0.30))
 		Shot.BALL_IN_PLAY:
 			focus = _field_focus.lerp(ball_position, 0.65)
 			# Static inspection view. Live coverage goes through BallInPlayCamera.
@@ -189,9 +221,20 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 		return _tracking_transform(camera_position, focus)
 	var direction: Vector3 = (focus - camera_position).normalized()
 	var up_direction: Vector3 = (
-		Vector3.BACK if shot == Shot.FIELD_SETUP else Vector3.UP
+		field_context.frame().basis.z.normalized() if shot == Shot.FIELD_SETUP else Vector3.UP
 	)
 	return Transform3D(Basis.looking_at(direction, up_direction), camera_position)
+
+
+func _venue_point(ratio: Vector3) -> Vector3:
+	var bounds: AABB = field_context.play_bounds()
+	var local: Vector3 = Vector3(
+		bounds.get_center().x + ratio.x * bounds.size.x * 0.5,
+		0,
+		bounds.position.z + ratio.z * bounds.size.z
+	)
+	var ground: Vector3 = field_context.ground_point(field_context.frame() * local)
+	return ground + field_context.up() * ratio.y * field_context.depth_m()
 
 
 func _tracking_transform(position: Vector3, focus: Vector3) -> Transform3D:
@@ -207,6 +250,8 @@ func _apply_projection(camera: Camera3D) -> void:
 		_standard_fov = camera.fov
 	if shot == Shot.FIELD_SETUP:
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-		camera.size = 29.0
+		var bounds: AABB = field_context.play_bounds()
+		var viewport: Vector2 = camera.get_viewport().get_visible_rect().size
+		camera.size = maxf(bounds.size.z, bounds.size.x / (viewport.x / maxf(1, viewport.y))) * 1.12
 	else:
 		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
