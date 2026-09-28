@@ -1,0 +1,85 @@
+extends Node
+
+const BASE = preload("res://src/tests/final_sponsors_test.gd")
+var _failures: int = 0
+
+
+func _ready() -> void:
+	var season: SeasonState = BASE._season(27)
+	season.schedule = SeasonDoubleheader.schedule(season.schedule)
+	var fixture: Dictionary = season.pending_fixture()
+	var state: MatchState = season.make_match()
+	var lab: AutonomousMatchLab = AutonomousMatchLab.new()
+	lab._configured_match = state
+	add_child(lab)
+	lab._throw_number = 27000
+	var started: int = Time.get_ticks_msec()
+	for frame in range(90000):
+		await get_tree().physics_frame
+		if state.phase == MatchState.Phase.GAME_END:
+			break
+	_check(state.phase == MatchState.Phase.GAME_END, "physical AI match finishes within budget")
+	var pitches: int = 0
+	var used: float = 0
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		var team_pitches: int = 0
+		for player: PlayerMatchState in team.roster:
+			team_pitches += player.pitch_count
+			used += player.seasonal_pitching.used_workload
+		_check(team_pitches > 0, "both clubs throw actual pitches")
+		pitches += team_pitches
+	_check(used > 0 and pitches == lab._throw_number - 27000, "released pitches incur workload")
+	var ledger: SeasonDoubleheader = SeasonDoubleheader.new()
+	_check(ledger.capture(fixture, state), "completed physical match supplies carry evidence")
+	var roster: Array = []
+	var workload: Dictionary = {}
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		for player: PlayerMatchState in team.roster:
+			roster.append(String(player.definition.id))
+			workload[player.definition.id] = player.seasonal_pitching.used_workload
+	_check(SeasonPerformance.valid(state.performance.snapshot(state), roster),
+		"physical events produce balanced batter and pitcher statistics")
+	var ai_records: int = 0
+	for record: PlayRecord in lab._play_records:
+		if record.ai_decision_recorded:
+			ai_records += 1
+	_check(ai_records > 0, "visible-ball decisions reach completed records")
+	var second_fixture: Dictionary = season.schedule[int(fixture.id) + 3]
+	var second: MatchState = MatchState.create(
+		season._make_team(second_fixture.away), season._make_team(second_fixture.home))
+	_check(ledger.apply(second_fixture, second), "actual match evidence carries to return leg")
+	for team: TeamMatchState in [second.away_team, second.home_team]:
+		for player: PlayerMatchState in team.roster:
+			_check(is_equal_approx(player.seasonal_pitching.used_workload,
+				workload[player.definition.id]), "exact player workload carries")
+	print("AUTONOMOUS score=%d-%d pitches=%d workload=%.2f records=%d" % [
+		state.away_team.runs, state.home_team.runs, pitches, used, lab._play_records.size()])
+	print("AUTONOMOUS runtime_ms=", Time.get_ticks_msec() - started)
+	_substitutions(lab, second)
+	lab.queue_free()
+	await TestAudioDrain.finish(get_tree())
+	if _failures == 0:
+		print("Wiffaltro autonomous match checks passed: physical workload evidence.")
+	get_tree().quit(0 if _failures == 0 else 1)
+
+
+func _check(condition: bool, message: String) -> void:
+	if not condition:
+		_failures += 1
+		push_error(message)
+
+
+func _substitutions(lab: AutonomousMatchLab, state: MatchState) -> void:
+	# Isolated policy fixture after the physical game's evidence has been checked.
+	lab._match_state = state
+	var team: TeamMatchState = state.defensive_team()
+	var original: int = team.pitcher_index
+	team.current_pitcher().spend_stamina(team.current_pitcher().stamina_max)
+	state.between_batters = false
+	MatchLabSupport.consider_ai_pitching_change(lab, true)
+	_check(team.pitcher_index == original, "no mid-appearance substitution")
+	state.between_batters = true
+	MatchLabSupport.consider_ai_pitching_change(lab, true)
+	_check(team.pitcher_index != original, "exhausted pitcher replaced at legal boundary")
+	_check(team.roster[original].pitching_finished, "used departing pitcher is retired")
+	_check(not team.select_pitcher(original), "retired pitcher cannot reenter")

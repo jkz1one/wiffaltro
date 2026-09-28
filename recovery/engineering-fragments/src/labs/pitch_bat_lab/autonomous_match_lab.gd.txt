@@ -1,0 +1,42 @@
+class_name AutonomousMatchLab
+extends PitchBatLab
+## Experimental physical match driver. No season result is settled by this node.
+
+var _approaches: Array[BatterApproachModel] = [BatterApproachModel.new(), BatterApproachModel.new()]
+var _prepared_pa: int = -1
+var _pitch_choices: Dictionary = {}
+
+
+func _ready() -> void:
+	super._ready()
+	set_process_unhandled_input(false)
+	set_process_input(false)
+	_sounds.set_muted(true)
+	_record_export.path = "user://autonomous-match-%d.json" % OS.get_process_id()
+	PitchBatLabFeelSupport.skip_match_presentation(self)
+
+
+func _process(delta: float) -> void:
+	super._process(delta)
+	if _match_state == null or _match_state.phase != MatchState.Phase.PRE_PITCH:
+		return
+	var batting_side: int = 0 if _match_state.top_half else 1
+	_batter_approach = _approaches[batting_side]
+	if _prepared_pa != _match_state.plate_appearance_number:
+		MatchLabSupport.consider_ai_pitching_change(self, true)
+		MatchLabSupport.assign_ai_fielder_anchor(self, true)
+		_apply_defensive_assignment()
+		_prepared_pa = _match_state.plate_appearance_number
+	var pitcher_id: StringName = _match_state.pitcher().definition.id
+	_last_ai_pitch_index = int(_pitch_choices.get(pitcher_id, -1))
+	MatchLabSupport.apply_ai_pitch_choice(self)
+	_pitch_choices[pitcher_id] = _last_ai_pitch_index
+	_throw_pitch()
+
+
+func _player_is_batting() -> bool:
+	return false
+
+
+func _player_is_pitching() -> bool:
+	return false
