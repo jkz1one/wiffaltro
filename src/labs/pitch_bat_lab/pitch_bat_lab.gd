@@ -88,6 +88,7 @@ var _display_menu_open: bool = false
 var _pause_menu: PitchBatLabPauseMenu
 var _pitch_picker: PitchPicker
 var _sounds_muted: bool = false
+var _sound_volume: float = 1.0
 var _sounds: PlaySounds
 var _ball_visibility: BallVisibility
 var _contact_pitch_summary: String = ""
@@ -185,6 +186,21 @@ func _ready() -> void:
 			]
 		)
 	)
+
+func _notification(what: int) -> void:
+	if what not in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED]:
+		return
+	if not is_node_ready() or _pause_menu == null or process_mode == Node.PROCESS_MODE_DISABLED:
+		return
+	if _release_controller != null and _release_controller.active:
+		PitchBatLabFeelSupport.cancel_release(self)
+		if _debug_paused:
+			_status_before_pause = "Delivery canceled. Hold to begin a new Pitch."
+		else:
+			_status_label.text = "Delivery canceled. Hold to begin a new Pitch."
+	if not _debug_paused:
+		PitchBatLabFeelSupport.toggle_debug_pause(self)
+
 
 func _exit_tree() -> void:
 	if _debug_paused:

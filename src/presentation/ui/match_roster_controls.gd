@@ -98,6 +98,8 @@ func _switch_side() -> void:
 		return
 	var batter: PlayerMatchState = _lab._match_state.batter()
 	batter.batting_hand_override = 0 if batter.bats_left() else 1
+	MatchLabSupport.assign_ai_fielder_anchor(_lab)
+	_lab._apply_defensive_assignment()
 	PitchBatLabPresentation.sync_players(_lab)
 	_lab._apply_role_camera()
 	_lab._refresh_config()

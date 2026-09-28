@@ -2,6 +2,14 @@ class_name PitchBatLabInput
 extends RefCounted
 
 static func handle(lab: PitchBatLab, event: InputEvent) -> void:
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START:
+		PitchBatLabFeelSupport.toggle_debug_pause(lab)
+		lab.get_viewport().set_input_as_handled()
+		return
+	if lab._debug_paused and event.is_action_pressed(&"ui_cancel"):
+		_handle_debug_key(lab, KEY_ESCAPE)
+		lab.get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey:
 		var debug_key: InputEventKey = event as InputEventKey
 		if (
@@ -240,7 +248,9 @@ static func _handle_debug_key(lab: PitchBatLab, keycode: Key) -> bool:
 		KEY_F3:
 			PitchBatLabFeelSupport.dump_records(lab)
 		KEY_ESCAPE:
-			if lab._debug_paused and lab._pause_menu.stats.visible:
+			if lab._debug_paused and lab._pause_menu._controls.visible:
+				lab._pause_menu.close_controls()
+			elif lab._debug_paused and lab._pause_menu.stats.visible:
 				lab._pause_menu.close_stats()
 			elif lab._debug_paused and lab._display_menu_open:
 				lab._toggle_display_menu()

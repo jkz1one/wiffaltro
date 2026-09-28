@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.38
+**Version:** v0.4.39
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.37 and all earlier planning notes
+**Supersedes:** v0.4.38 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -830,6 +830,9 @@ fun gate has passed. The starter implementation contains:
   The prior valid checkpoint is backed up locally. Version-1 saves migrate using
   their original 24-player pool; saved version-2 offers and AI strength snapshots
   do not reshuffle when the catalog grows. Recovery is reported on the menu.
+  Failed checkpoints keep the current session and expose Retry Saving Season on
+  the menu. A final score records once even if its write fails; retry persists
+  that same result. The Quit button asks before discarding unsaved season changes.
   Schema 3 adds completed-game performance snapshots. Schema 1/2 scores remain
   valid; their absent statistics are explicitly reported, never backfilled.
 
@@ -1534,8 +1537,12 @@ navigation quieter, and navigation visible below scrolling content. Schedule
 cards identify game, result/upcoming status and venue. Player Ratings names
 attribute inspection explicitly; Team Stats remains recorded performance.
 
-Pause/settings actions support keyboard focus and activation while game state
-stays frozen. Do not add animation, camera movement or decorative UI over the
+Settings and Controls are available from the clubhouse and Pause. They share
+one settings panel and controls guide; sound volume, mute, scorebox placement
+and backdrop persist across launches. Failed settings writes show a retry action.
+Season footer actions wrap when needed, wide body content can scroll horizontally,
+and Escape/controller B returns from a page. Pause/settings actions support
+keyboard focus and activation while game state stays frozen. Do not add animation, camera movement or decorative UI over the
 live pitching corridor as part of this menu pass. Human visual review remains
 required before treating the menus as finished or proceeding with enrichment.
 
@@ -1574,7 +1581,9 @@ relevant defender. Soft contact stays in a screen-space dead zone; approaching
 grounders gain room without a turnaround. Deep flight uses an elevated side view;
 short popups gain vertical room. Dolly distance follows the projected subject
 group, with bounded lens expansion when needed. Dead-ball coverage holds the
-resolved frame. There is no universal fixed lens, four-metre lane, or contact
+resolved frame. Paused inspection does not advance the live coverage filters or
+home-run blend. Resuming from an inspected resolved play eases back to its saved
+frame and lens over 0.6 seconds. There is no universal fixed lens, four-metre lane, or contact
 opening duration.
 Field bounds and terrain come from the active stadium context, with optional
 geometry-provider queries for generated layouts. Obstruction registration uses
@@ -1620,16 +1629,22 @@ side, with a small current-side cue and B shortcut. It is offered before readine
 and disappears when the at-bat begins. The side stays locked through tactical
 timeouts; stance, bat, scorebug, camera and contact use the same effective hand.
 Throwing handedness remains fixed. Ordinary hitters do not receive this control.
+Opponent pull-side fielding uses the effective batting hand and updates the actual
+fielder anchor when the player switches before readiness.
 
 The Pitch panel uses a compact numbered list with full names and short tactical
 descriptions only on hover, and a clear selected state; it collapses to the selected Pitch during delivery and
 clears for Home Run presentation. Defensive controls are labeled Field and
 Bullpen. Esc is the sole keyboard pause/resume shortcut, also backing out of
-nested menus. Footer text must clear the Pause button. Intro skip uses click or Space.
+nested menus. Controller Start pauses/resumes. Losing application focus pauses;
+returning focus waits for explicit resume. An uncommitted held delivery is canceled
+on focus loss, including when already paused. Footer text must clear the Pause
+button. Intro skip uses click or Space.
 
 Presentation feedback uses distinct, short sounds for bat contact, clean fielding,
-bobbles, wall impacts and Home Runs. Pause > Settings includes a saved Mute sounds
-option. Muting stops active cues and discards new ones; unmuting never replays them.
+bobbles, wall impacts and Home Runs. Clubhouse and Pause Settings include saved
+Mute sounds and 0–100% volume options. Muting preserves the chosen level, stops
+active cues and discards new ones; unmuting never replays them. Zero volume is silent.
 The prototype uses original procedural sounds, with final mix/character awaiting
 human listening QC. No gameplay information may depend on sound alone.
 

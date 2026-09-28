@@ -223,12 +223,17 @@ static func toggle_sky_backdrop(lab: PitchBatLab) -> void:
 	if lab._world_environment == null or lab._world_environment.environment == null:
 		return
 	lab._sky_backdrop_enabled = not lab._sky_backdrop_enabled
-	if lab._sky_backdrop_enabled:
-		lab._world_environment.environment.background_mode = Environment.BG_SKY
-	else:
-		lab._world_environment.environment.background_mode = Environment.BG_COLOR
+	apply_sky_backdrop(lab)
 	PitchBatLabSettings.save(lab)
 	refresh_display_menu(lab)
+
+
+static func apply_sky_backdrop(lab: PitchBatLab) -> void:
+	if lab._world_environment == null or lab._world_environment.environment == null:
+		return
+	lab._world_environment.environment.background_mode = (
+		Environment.BG_SKY if lab._sky_backdrop_enabled else Environment.BG_COLOR
+	)
 
 
 static func cycle_hud_anchor(lab: PitchBatLab) -> void:
@@ -390,7 +395,7 @@ static func _event_is_routine(event_text: String) -> bool:
 
 static func cycle_camera(lab: PitchBatLab) -> void:
 	if lab._debug_paused:
-		lab._camera_director.cycle_paused_view()
+		lab._camera_director.cycle_paused_view(lab._camera)
 		return
 	if lab._field_setup_active:
 		return

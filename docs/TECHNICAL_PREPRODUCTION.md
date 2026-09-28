@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.29
+**Version:** v0.1.30
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2421,3 +2421,42 @@ projection, and the home-run result handoff. That handoff eases from the live po
 over 0.9–2.8 seconds; other match cadence remains unchanged. A separate camera
 replay scene supports native normal-speed visual review, including a C-key old/new
 batting comparison. Headless success does not establish motion comfort.
+
+
+## Season shell polish — 2026-09-25
+
+`GameSettingsPanel` is shared by clubhouse and pause menus. `PitchBatLabSettings`
+reads validated values, defaults missing volume to 1.0, and writes via a temporary
+file before replacement. `PlaySounds.set_volume` scales the existing cue mix;
+mute and zero volume stop current cues. The panel presents write failures and
+explicit retry. The local save schema and paths remain compatible.
+
+`SeasonApp.save_pending` distinguishes a failed checkpoint from a completed
+in-memory result. Menus expose Retry Saving Season; retries refresh the current
+page. Result recording retains its existing once-only guard. The Quit button
+confirms when season changes are unsaved; this is not a guarantee against OS
+termination or storage failure. No midgame checkpointing is introduced.
+
+Season navigation uses a wrapping footer and optional horizontal body scrolling.
+Escape/controller B returns from pages. `ControlsGuide` supplies the same guidance
+to the clubhouse and a scrollable pause page. Controller Start toggles pause.
+Application focus loss pauses play and cancels a held, uncommitted release; focus
+return never automatically resumes. Focus notifications are ignored by the disabled
+lab inside the developer camera replay.
+
+Paused camera inspection captures the previous pose/lens and uses authored preview
+views without updating live motion filters or result-blend time. A resolved play
+returns to that saved frame over 0.6 seconds, then holds. New shots cancel that
+return. This does not revise normal live-flight motion or introduce a release lock.
+
+AI defensive anchor selection uses `PlayerMatchState.bats_left()` instead of the
+player definition's default hand. The player-side switch control refreshes the
+actual fielder assignment before readiness. Swing decisions, contact parameters,
+pitch sequencing and physics are unchanged by this pass.
+
+`season_polish_test` covers settings persistence/failure/retry, new-match application,
+zero volume, malformed setting values, failed final-score saves without duplication,
+page navigation, 1280×720/1024×768 footers, focus-loss cancellation, controller pause,
+controls-page bounds, effective-hand AI positioning and resolved-camera restoration.
+It also checks pointer release over the HUD through viewport event dispatch.
+See `SEASON_SHELL_POLISH.md` for evidence and native review limits.

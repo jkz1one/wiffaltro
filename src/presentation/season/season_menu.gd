@@ -7,7 +7,7 @@ var draft_selection: String = ""
 var draft_reference: int = 0
 var _layout: VBoxContainer
 var _body: VBoxContainer
-var _footer: HBoxContainer
+var _footer: HFlowContainer
 
 
 func build(owner_app: SeasonApp) -> void:
@@ -43,17 +43,21 @@ func _screen(key: String, title: String, subtitle: String) -> void:
 	if not app.notice.is_empty():
 		var warning: Label = _label(_layout, app.notice, 16)
 		warning.modulate = Color(1, 0.75, 0.45)
+		warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if app.save_pending:
+			_button(_layout, "RETRY SAVING SEASON", app.retry_save)
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.follow_focus = true
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_layout.add_child(scroll)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body.add_theme_constant_override("separation", 14)
 	scroll.add_child(_body)
-	_footer = HBoxContainer.new()
-	_footer.add_theme_constant_override("separation", 12)
+	_footer = HFlowContainer.new()
+	_footer.add_theme_constant_override("h_separation", 12)
+	_footer.add_theme_constant_override("v_separation", 8)
 	_layout.add_child(_footer)
 	_focus_first.call_deferred()
 
@@ -83,7 +87,53 @@ func show_home() -> void:
 		"Esc: pause, settings and leave game. Progress saves automatically between games.",
 		18
 	)
-	_button(_footer, "QUIT", get_tree().quit)
+	_button(_footer, "SETTINGS", show_settings)
+	_button(_footer, "CONTROLS", show_controls)
+	_button(_footer, "QUIT", app.ask_quit)
+
+
+func show_settings() -> void:
+	_screen("settings", "SETTINGS",
+		"Applies to exhibition and season games. Changes save automatically.")
+	var panel: GameSettingsPanel = GameSettingsPanel.new()
+	_body.add_child(panel)
+	panel.build()
+	_button(_footer, "BACK", show_home)
+
+
+func show_controls() -> void:
+	_screen("controls", "HOW TO PLAY", "Aim, time your swing, and mix your pitches.")
+	ControlsGuide.populate(_body)
+	_button(_footer, "BACK", show_home)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or not event.is_action_pressed(&"ui_cancel"):
+		return
+	match page:
+		"home":
+			return
+		"preseason", "draft", "hub", "summary", "settings", "controls", "exhibition_result":
+			show_home()
+		_:
+			app.show_season()
+	get_viewport().set_input_as_handled()
+
+
+func refresh_page() -> void:
+	match page:
+		"home": show_home()
+		"preseason": show_preseason()
+		"draft": show_draft()
+		"lineup": show_lineup()
+		"stats": show_stats()
+		"players": show_players()
+		"summary": show_summary()
+		"postgame": show_last_game()
+		"schedule": show_schedule()
+		"settings": show_settings()
+		"controls": show_controls()
+		_: app.show_season()
 
 
 func show_preseason() -> void:

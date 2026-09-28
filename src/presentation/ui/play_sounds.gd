@@ -5,6 +5,7 @@ extends Node
 const SAMPLE_RATE: int = 22050
 const CUES: Array[StringName] = [&"contact", &"catch", &"bobble", &"wall", &"home_run"]
 var muted: bool = false
+var volume: float = 1.0
 var last_cue: StringName = &""
 var _players: Dictionary = {}
 
@@ -32,6 +33,14 @@ func set_muted(value: bool) -> void:
 		stop_all()
 
 
+func set_volume(value: float) -> void:
+	volume = clampf(value, 0.0, 1.0)
+	for player: AudioStreamPlayer in _players.values():
+		player.volume_db = -12.0 + linear_to_db(maxf(volume, 0.0001))
+	if is_zero_approx(volume):
+		stop_all()
+
+
 func stop_all() -> void:
 	for player: AudioStreamPlayer in _players.values():
 		player.stop()
@@ -39,7 +48,7 @@ func stop_all() -> void:
 
 
 func play(cue: StringName) -> void:
-	if muted or get_tree().paused or not _players.has(cue):
+	if muted or is_zero_approx(volume) or get_tree().paused or not _players.has(cue):
 		return
 	last_cue = cue
 	_players[cue].play()

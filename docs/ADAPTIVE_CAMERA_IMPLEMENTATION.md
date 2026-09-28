@@ -174,3 +174,12 @@ Unity's [Position Composer documentation](https://docs.unity3d.com/Packages/com.
 describes screen-space dead zones, damping, and the noise/lag tradeoff of lookahead.
 This pass adapts those principles with a short forecast and separate bounded
 rotation. The exact thresholds and transition times are game-specific tuning.
+
+
+## Pause integration polish — 2026-09-25
+
+Inspection now uses authored previews without sending the frozen ball through live
+coverage filters or advancing a home-run transition. Pause without inspection holds
+the current view. Resuming after inspection of a resolved play eases back to its
+saved pose/FOV over 0.6 seconds, then holds until the next shot. The normal small-hit
+and deep-flight policies remain unchanged. `season_polish_test` covers both roles.

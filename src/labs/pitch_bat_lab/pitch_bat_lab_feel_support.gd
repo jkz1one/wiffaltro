@@ -37,6 +37,7 @@ static func initialize(lab: PitchBatLab) -> void:
 	lab._sounds = PlaySounds.new()
 	lab.add_child(lab._sounds)
 	lab._sounds.set_muted(lab._sounds_muted)
+	lab._sounds.set_volume(lab._sound_volume)
 	lab._ball_visibility = BallVisibility.new()
 	lab.add_child(lab._ball_visibility)
 	lab._release_controller = PitchReleaseController.new()
@@ -132,7 +133,9 @@ static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
 		defenders.append(lab._pitcher_marker.global_position)
 	lab._camera_director.set_fielding_subjects(defenders,
 		(lab._ball_play_resolver.state != null and lab._ball_play_resolver.state.has_grounded))
-	lab._camera_director.update(lab._camera, delta_seconds, ball_live, ball_position)
+	lab._camera_director.update(
+		lab._camera, delta_seconds, ball_live, ball_position, lab._debug_paused
+	)
 
 
 static func _update_match_presentation(lab: PitchBatLab, delta_seconds: float) -> bool:

@@ -45,10 +45,18 @@ var _result_blend_age: float = 0.0
 var _result_blend_duration: float = 0.0
 var _result_start: Transform3D
 var _result_start_fov: float = 0.0
+var _inspection_pose: Transform3D
+var _inspection_fov: float = 0.0
+var _inspection_shot: int = -1
+var _return_to_dead_frame: bool = false
+var _return_age: float = 0.0
+var _return_start: Transform3D
+var _return_fov: float = 0.0
 
 
 func set_shot(next_shot: Shot) -> void:
 	if next_shot != shot:
+		_return_to_dead_frame = false
 		_result_blend_pending = shot == Shot.BALL_IN_PLAY and next_shot == Shot.ESTABLISHING
 		_result_blend_duration = 0.0
 	if next_shot != Shot.BALL_IN_PLAY:
@@ -59,9 +67,12 @@ func set_shot(next_shot: Shot) -> void:
 		_shot_before_inspection = int(next_shot)
 
 
-func cycle_paused_view() -> void:
+func cycle_paused_view(camera: Camera3D) -> void:
 	if _shot_before_inspection < 0:
 		_shot_before_inspection = int(shot)
+		_inspection_shot = int(shot)
+		_inspection_pose = camera.global_transform
+		_inspection_fov = camera.fov
 	shot = ((int(shot) + 1) % Shot.size()) as Shot
 
 
@@ -69,6 +80,8 @@ func restore_after_pause() -> void:
 	if _shot_before_inspection < 0:
 		return
 	shot = _shot_before_inspection as Shot
+	_return_to_dead_frame = shot == Shot.BALL_IN_PLAY and _inspection_shot == int(shot)
+	_return_age = 0.0
 	_shot_before_inspection = -1
 
 
@@ -140,6 +153,7 @@ func snap(camera: Camera3D, ball_position: Vector3 = Vector3.ZERO) -> void:
 	_apply_projection(camera)
 	_result_blend_pending = false
 	_result_blend_duration = 0.0
+	_return_to_dead_frame = false
 	tracking_visibility.restore_occluders()
 	camera.fov = _standard_fov
 	var desired: Transform3D = _desired_transform(ball_position, 1.0)
@@ -147,11 +161,28 @@ func snap(camera: Camera3D, ball_position: Vector3 = Vector3.ZERO) -> void:
 
 
 func update(
-	camera: Camera3D, delta_seconds: float, ball_live: bool, ball_position: Vector3
+	camera: Camera3D, delta_seconds: float, ball_live: bool, ball_position: Vector3,
+	paused: bool = false
 ) -> void:
-	if camera == null:
+	if camera == null or (paused and _shot_before_inspection < 0):
 		return
 	_apply_projection(camera)
+	if _shot_before_inspection >= 0:
+		# Preview an authored view without feeding frozen motion into live filters
+		# or advancing a half-finished home-run transition.
+		tracking_visibility.restore_occluders()
+		var weight: float = 1.0 - exp(-TRANSITION_SPEED * delta_seconds)
+		camera.global_transform = camera.global_transform.interpolate_with(
+			_desired_transform(ball_position, delta_seconds), weight
+		)
+		camera.fov = lerpf(camera.fov, _standard_fov, weight)
+		return
+	if _return_to_dead_frame:
+		if ball_live:
+			_return_to_dead_frame = false
+		else:
+			_return_dead_frame(camera, delta_seconds)
+			return
 	if shot == Shot.BALL_IN_PLAY and not ball_live and _shot_before_inspection < 0:
 		return
 	if ball_live and shot == Shot.BALL_IN_PLAY:
@@ -169,6 +200,18 @@ func update(
 	camera.global_transform = camera.global_transform.interpolate_with(desired, transition_weight)
 	if _standard_fov > 0.0:
 		camera.fov = lerpf(camera.fov, _standard_fov, transition_weight)
+
+
+func _return_dead_frame(camera: Camera3D, delta: float) -> void:
+	if _return_age == 0.0:
+		_return_start = camera.global_transform
+		_return_fov = camera.fov
+	_return_age += maxf(0.0, delta)
+	var weight: float = smoothstep(0.0, 0.6, _return_age)
+	camera.global_transform = _return_start.interpolate_with(_inspection_pose, weight)
+	camera.fov = lerpf(_return_fov, _inspection_fov, weight)
+	if _return_age >= 0.6:
+		_return_to_dead_frame = false
 
 
 func _update_result_blend(camera: Camera3D, desired: Transform3D, delta: float) -> void:

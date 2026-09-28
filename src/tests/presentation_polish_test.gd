@@ -58,7 +58,7 @@ func _test_audio_and_settings(lab: PitchBatLab) -> void:
 	PitchBatLabFeelSupport.toggle_debug_pause(lab)
 	lab._sounds.play(&"contact")
 	_check(lab._sounds.last_cue == &"", "muted events must not queue for later playback")
-	lab._pause_menu._toggle_mute()
+	lab._pause_menu.settings.mute_button.pressed.emit()
 	_check(lab._sounds.last_cue == &"", "unmute must not replay discarded cues")
 
 

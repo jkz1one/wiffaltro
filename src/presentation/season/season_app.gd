@@ -5,6 +5,7 @@ var season: SeasonState
 var menu: SeasonMenu
 var lab: PitchBatLab
 var notice: String = ""
+var save_pending: bool = false
 var _season_game: bool = false
 var _fixture_id: int = -1
 var _dialog: ConfirmationDialog
@@ -217,7 +218,22 @@ func select_fielder(index: int) -> void:
 func _checkpoint() -> bool:
 	var saved: bool = SeasonSave.save(season)
 	notice = SeasonSave.last_error
+	save_pending = not saved
 	return saved
+
+
+func retry_save() -> void:
+	if season == null:
+		return
+	_checkpoint()
+	menu.refresh_page()
+
+
+func ask_quit() -> void:
+	if save_pending:
+		_confirm("Season changes have not been saved. Quit and lose those changes?", get_tree().quit)
+	else:
+		get_tree().quit()
 
 
 func _confirm(message: String, action: Callable) -> void:

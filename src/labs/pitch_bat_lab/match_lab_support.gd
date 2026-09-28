@@ -248,7 +248,7 @@ static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:
 	elif batter.power <= 5:
 		depth_row = 0 if rng.randf() < 0.58 else 1
 	var pull_column: int = (
-		0 if batter.bats == PlayerDefinition.Handedness.LEFT else 2
+		0 if lab._match_state.batter().bats_left() else 2
 	)
 	var column_roll: float = rng.randf()
 	var column: int = 1
