@@ -7,7 +7,8 @@ static var last_error: String = ""
 
 static func save(season: SeasonState) -> bool:
 	var data: Dictionary = {
-		"version": 3,
+		"version": 4,
+		"ownership": season.ownership.to_data(),
 		"seed": season.season_seed,
 		"picks": season.picks,
 		"results": season.player_results,
@@ -20,6 +21,9 @@ static func save(season: SeasonState) -> bool:
 		"strengths":
 		season.teams.map(func(team: Dictionary) -> float: return team.get("strength", -1.0)),
 	}
+	if _decode(data) == null:
+		last_error = "Season data failed validation. The previous save was preserved."
+		return false
 	var file: FileAccess = FileAccess.open(path + ".tmp", FileAccess.WRITE)
 	if file == null:
 		last_error = "Could not save season. Your current session is still available."
@@ -68,7 +72,15 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 3) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 4) or not _integer(data.get("seed"), 0, 2147483647):
+		return null
+	# Unknown ownership/storage fields require an explicit migration, never deletion.
+	var allowed: Array[String] = ["version", "seed", "picks", "results", "lineup", "starter",
+		"fielder", "pool", "difficulty", "draws", "strengths", "ownership"]
+	for key: Variant in data:
+		if not key is String or not allowed.has(key):
+			return null
+	if data["version"] < 4 and data.has("ownership"):
 		return null
 	if not data.get("picks") is Array or data["picks"].size() > 4:
 		return null
@@ -125,6 +137,13 @@ static func _decode(value: Variant) -> SeasonState:
 	season.fielder_index = int(data["fielder"])
 	if season.starter_index == season.fielder_index:
 		return null
+	if data["version"] == 4:
+		var owned: SeasonOwnership = SeasonOwnership.from_data(data.get("ownership"))
+		# Production currently has result income only. Require the exact derived journal;
+		# fixture items or invented rewards cannot enter a real season save.
+		if owned == null or owned.to_data() != season.ownership.to_data():
+			return null
+		season.ownership = owned
 	return season
 
 

@@ -46,6 +46,7 @@ var champion: int = -1
 var starter_index: int = 0
 var fielder_index: int = 1
 var difficulty: int = 1
+var ownership: SeasonOwnership = SeasonOwnership.new()
 
 
 static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
@@ -159,6 +160,12 @@ func record_player_result(
 		return false
 	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
 	if not performance.is_empty() and not SeasonPerformance.valid(performance, roster):
+		return false
+	var reward: Dictionary = ownership.commit({
+		"id": "game:%d" % fixture_id, "rev": ownership.revision(), "op": "reward",
+		"game": fixture_id, "win": (home_runs > away_runs) == (fixture["home"] == 0)
+	})
+	if not reward.ok:
 		return false
 	var result: Dictionary = fixture.duplicate(true)
 	result["away_runs"] = away_runs

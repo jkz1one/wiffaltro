@@ -2,6 +2,18 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Season ownership integration, 2026-09-28
+
+Schema4 now persists Working base18/12 Season Cash exactly once per completed fixture and
+validates the reward journal against retained results. Legacy schemas1–3 migrate in memory;
+unknown ownership fields fail closed. Failed disk writes offer RETRY SAVE without duplicating
+results or income. The hub displays Season Cash. No production purchases are enabled yet.
+
+Home > Ownership Test Lab exercises synthetic purchases, explicit receipt-based replacement,
+confirmation/cancellation, capacity limits, disposal and isolated save/reload. Test items have
+no gameplay effects and do not enter the real season. Next dependency: four-stat development
+and exact personal pitch mastery before production shop effects can be offered honestly.
+
 ## Ownership reconstruction, 2026-09-28
 
 The lost September26–28 implementation is being rebuilt on `rebuild/season-engineering`.

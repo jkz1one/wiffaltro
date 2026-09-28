@@ -1,11 +1,31 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.35
+**Version:** v0.4.36
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Seasonal ownership reconstruction, 2026-09-28
+
+Later explicit ownership decisions in Equipment/Sponsors v18 govern this new foundation:
+one owned/equipped team Bat, Ball and Misc; active sponsors only; default two shared held
+slots; no spare equipment or overflow. Gear sale returns floor(actual paid / 2), and explicit
+replacement settles sale, purchase and receipt together or makes no change. Stadium purchases,
+reserve-player rules and permanent discoveries are separate and are not migrated by this slice.
+
+Five active sponsors,18-Cash wins/12-Cash losses, zero starting Cash and ordinary sponsor
+half-price resale are Working testing defaults. Sponsor exceptions remain explicit. Current
+real seasons receive only base income from validated completed fixtures; no production item
+shop/effects have been rebuilt. The separate Ownership Test Lab uses synthetic fixtures and
+cannot change a season. It previews exact acquired/removed items, confirms or cancels, and
+supports an isolated save/reload test. This is infrastructure verification, not balance approval.
+
+Schema4 stores the ownership journal with the season. Legacy schemas1–3 reconstruct base
+income from retained results, without writing during load. Unknown ownership data/catalog
+contracts fail closed; old files are preserved rather than dropping items. Result recording
+and successful persistence are distinct, so failed saves can retry without duplicate payouts.
 
 ## 1. Executive Summary
 

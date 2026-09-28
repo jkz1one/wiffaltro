@@ -77,6 +77,7 @@ func show_home() -> void:
 	_label(quick, "EXHIBITION", 28)
 	_label(quick, "One game. No season progress changed.", 20)
 	_button(quick, "PLAY EXHIBITION", app.play_exhibition)
+	_button(quick, "OWNERSHIP TEST LAB", _open_ownership_lab)
 	_label(_body, "Mouse: aim • Left click: contact / pitch • Right click: power", 18)
 	_label(
 		_body,
@@ -467,3 +468,9 @@ func _focus_first() -> void:
 		if not button.disabled and button.is_visible_in_tree():
 			button.grab_focus()
 			return
+
+
+func _open_ownership_lab() -> void:
+	var lab: OwnershipLab = OwnershipLab.new()
+	add_child(lab)
+	lab.popup_centered()

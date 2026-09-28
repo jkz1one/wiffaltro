@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.26
+**Version:** v0.1.27
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2367,3 +2367,28 @@ Pinned Godot and toolkit versions are unchanged. Automated layout and input
 checks are evidence of geometry/behavior, not rendered visual approval. This
 environment cannot establish a display socket, so an attempted portable visual
 preview could not render screenshots. Human desktop QC remains required.
+
+
+## Reconstructed ownership and result persistence, 2026-09-28
+
+SeasonOwnership evaluates commands against a deep candidate snapshot before publication.
+Revision-bound, unique request identities distinguish an idempotent retry from conflicting
+reuse. Completed reward identities cannot pay twice. Purchase receipts derive full actual
+price from immutable presented stock, explicit replacement may fund itself with sale proceeds,
+and final held/sponsor capacities are validated after explicit discards and removals. No
+intermediate owned spare is published. Queries return detached copies. Journal replay rejects
+unknown fields/events, duplicate saved commands, fractional/invalid values and catalog changes.
+Catalog fingerprint migration is deliberately gated rather than silently repricing receipts.
+
+SeasonState pays Working base18/12 Cash once per validated fixture. Schema4 adds ownership;
+production currently accepts only the exact reward journal derived from player_results, since
+real shop generation/effect contracts remain missing. Schema1–3 histories migrate in memory.
+Save validation runs before touching the previous checkpoint. SeasonApp tracks recorded versus
+saved results independently; Continue offers RETRY SAVE after a write failure and does not
+record or pay again. Unfinished matches cannot settle through the app's result boundary.
+
+OwnershipLab is a separate synthetic transaction UI with exact added/removed receipt previews,
+confirm/cancel, capacity failure, explicit disposal and isolated test snapshots. Its fixtures
+are not production item definitions. SeasonOwnershipStore validates/replays those snapshots,
+uses temporary-file replacement and last-valid backup, and leaves corrupt primary bytes intact
+on read. None of this restores the lost four-stat, sponsor-effect, career or offscreen modules.

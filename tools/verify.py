@@ -82,6 +82,9 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("ownership-integration", [*base, "--fixed-fps", "60",
+                                           "res://src/tests/ownership_integration_test.tscn"],
+                 "Wiffaltro ownership integration checks passed:"),
                 ("season-ownership", [*base, "--fixed-fps", "60",
                                       "res://src/tests/season_ownership_test.tscn"],
                  "Wiffaltro ownership checks passed:"),

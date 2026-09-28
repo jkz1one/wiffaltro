@@ -1,8 +1,27 @@
 # Fast verification and playtest records
 
+## Reconstruction: ownership integration, 2026-09-28
+
+Gate `20260928T184921051343Z` passed 14/14 steps, including ownership-integration,
+season-ownership, season-qc, season-flow, season-enrichment, season-shell and
+main-scene. After the final confirmation text change, gate
+`20260928T185116663089Z` passed all 10 focused steps (ownership-integration,
+season-ownership, season-shell and the seven shared source/import checks).
+
+Coverage exercises actual result payouts and duplicate protection, schema-4 reload,
+legacy migration without rewriting source files, invalid-save preservation,
+failed-write retry without replaying results, isolated journal backup recovery, and
+the test window's preview/cancel/confirm/save/reload controls. The earlier corruption
+fixture exposed an engine error from `JSON.parse_string`; recovery now uses the
+error-returning parser and the normal engine-error gate remains enabled.
+
+The ownership window uses synthetic catalog entries and a separate test save.
+Production Gear/sponsor stock and effects are still absent. These headless checks
+do not establish rendered UI quality, gameplay balance or human approval.
+
 ## Reconstruction: ownership core, 2026-09-28
 
-Gate `20260928T184305090685Z` passed8/8 steps: revision, working-tree, diff-check,
+Gate `20260928T184305090685Z` passed 8/8 steps: revision, working-tree, diff-check,
 gdparse, gdlint, pinned engine version, import and season-ownership. Covered receipt-based
 replacement funded by an explicit sale, cancellation, insufficient funds, wrong-slot/stale
 requests, duplicate operations, free Gear, zero/blocked sponsor sale rules, held/sponsor

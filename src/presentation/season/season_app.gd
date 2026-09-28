@@ -12,6 +12,7 @@ var _confirmed_action: Callable
 var _continue: Button
 var _busy: bool = false
 var _result_recorded: bool = false
+var _result_saved: bool = false
 
 
 func _ready() -> void:
@@ -43,7 +44,8 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if lab != null and lab._match_state.phase == MatchState.Phase.GAME_END:
-		_commit_result()
+		if not _result_recorded:
+			_commit_result()
 	_continue.visible = (
 		lab != null
 		and not lab._debug_paused
@@ -117,6 +119,9 @@ func _open_match(
 	_season_game = season_game
 	_busy = false
 	_result_recorded = false
+	_result_saved = false
+	_continue.text = "CONTINUE"
+	_continue.tooltip_text = ""
 	menu.hide()
 	lab = PitchBatLab.new()
 	lab.name = "ActiveMatch"
@@ -145,17 +150,22 @@ func finish_game() -> void:
 
 
 func _commit_result() -> bool:
-	if not _season_game or _result_recorded:
+	if not _season_game or _result_saved:
 		return true
-	var state: MatchState = lab._match_state
-	if not season.record_player_result(
-		_fixture_id, state.away_team.runs, state.home_team.runs, state.performance.snapshot(state)
-	):
+	if lab == null or lab._match_state.phase != MatchState.Phase.GAME_END:
 		return false
-	_result_recorded = true
-	# Persist as soon as the score is final, even if the player exits during the outro.
-	_checkpoint()
-	return true
+	if not _result_recorded:
+		var state: MatchState = lab._match_state
+		if not season.record_player_result(
+			_fixture_id, state.away_team.runs, state.home_team.runs, state.performance.snapshot(state)
+		):
+			return false
+		_result_recorded = true
+	# Retry persistence without replaying the result or paying twice.
+	_result_saved = _checkpoint()
+	_continue.text = "CONTINUE" if _result_saved else "RETRY SAVE"
+	_continue.tooltip_text = "" if _result_saved else SeasonSave.last_error
+	return _result_saved
 
 
 func ask_leave_game() -> void:

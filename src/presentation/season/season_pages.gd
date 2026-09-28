@@ -41,6 +41,7 @@ static func hub(menu: SeasonMenu) -> void:
 		return
 	menu._screen("hub", "YARD CLUB", stage(season) + " • Backyard League")
 	menu._label(menu._body, club_record(season), 24)
+	menu._label(menu._body, "SEASON CASH  •  %d" % season.ownership.cash(), 18)
 	var card: VBoxContainer = SeasonPlayerCard.panel(menu._body, true)
 	menu._label(card, "NEXT UP  •  " + menu._matchup(season.pending_fixture()), 26)
 	menu._label(card, venue(season.pending_fixture()), 18)
