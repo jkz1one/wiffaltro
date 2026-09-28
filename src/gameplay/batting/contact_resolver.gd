@@ -158,6 +158,9 @@ static func _resolve_at_contact(
 	# carry. The curve broadens outcomes without adding hidden result RNG.
 	var exit_speed: float = ideal_exit_speed * lerpf(0.20, 1.0, pow(quality, 0.82))
 
+	if result.outcome != ContactResult.Outcome.FOUL:
+		exit_speed *= profile.gear_fair_exit_scale
+
 	var launch_angle_radians: float = deg_to_rad(result.launch_angle_degrees)
 	var spray_radians: float = deg_to_rad(result.spray_degrees)
 	var horizontal_speed: float = cos(launch_angle_radians) * exit_speed

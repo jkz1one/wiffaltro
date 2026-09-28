@@ -47,7 +47,7 @@ static func rated_pitch(
 		_:
 			result.nominal_velocity_mps *= lerpf(1.0, 1.015, overdrive)
 			result.perforation_influence *= lerpf(1.0, 1.04, overdrive)
-	return result
+	return SeasonGearCatalog.pitch(result, pitcher)
 
 
 static func stamina_cost(pitch: PitchDefinition, effort: float) -> float:

@@ -26,3 +26,5 @@ enum Handedness {
 
 # Explicit isolated-playtest marker, retained when a match resource is duplicated.
 @export_storage var progression_test: bool = false
+
+@export_storage var season_gear: Dictionary = {}

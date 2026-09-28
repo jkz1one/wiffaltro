@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.30
+**Version:** v0.1.31
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,36 @@
 ---
 
 # 1. Technical Objective
+
+## Gear purchase and resolver integration, 2026-09-28
+
+`SeasonGearCatalog` isolates six supported Equipment v18 Working contracts, trusted ownership
+prices/sale rules, eligible mixed stock and detached runtime adapters. `SeasonBuild` version3
+adds `equip` and `sell_gear` commands. Both operate through a forked ownership bank and the
+existing candidate/save boundary; failed quotes, explicit-replacement mismatches, insufficient
+cash and write failures cannot leave partially sold Gear or consumed stock. Only current owned
+roster definitions receive the bank's equipped identities; opponent/former definitions do not.
+
+Schema7 is paired with build3. Build1/2 signatures and original generation remain available
+for strict replay. Migration preserves all existing journal effects and records `gear_from`
+at the following visit; a second save/load uses the same boundary. Recruitment activation
+retains its independent earlier boundary. The bank's expanded trusted catalogue is not loaded
+as client prices. Future enabled Gear/content-generation changes need explicit versioning;
+do not alter the build3 fingerprint and silently invalidate paid saves.
+
+Swing adapters clone both profiles, scale only X/Y radii and carry a neutral-default fair-exit
+field into `ContactResolver`. The rated-pitch adapter follows mastery/effort and scales nominal
+speed and existing movement force, with separate command-error scale propagated through launch
+copies. Execution applies that scale only to existing release/direction dispersion. Rosin's
+workload multiplier is applied at the successful real-release debit, so canceled/failed windups
+do not consume stamina. Shared actor/solver paths serve both teams without modifying authored
+resources or displayed ratings. Ball setup used by batted-ball physics is never replaced.
+
+`SeasonGearShopUI` renders equipped receipts, legal offer previews and sales within the existing
+scrolling/focus-safe shop. `season-gear` checks viewport clicks, normal/minimum bounds, cancel,
+write failure, replacement, reload, migration and actual next-match actors. The full live-match
+gate retains three prior games and adds a fourth equipped game. Native screenshots remain a
+separate required human-review gate; no headless capture is presented as visual approval.
 
 ## Recruitment and roster-history replay, 2026-09-28
 

@@ -51,3 +51,4 @@ enum Rarity {
 @export_storage var mastery_late_bias: float = 0.0
 @export_storage var mastery_noise_scale: float = 1.0
 @export_storage var command_only_quality: bool = false
+@export_storage var gear_command_scale: float = 1.0

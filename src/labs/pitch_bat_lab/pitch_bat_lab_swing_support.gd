@@ -27,6 +27,7 @@ static func begin_swing(lab: PitchBatLab, profile_id: StringName, aim_point: Vec
 		intent.handedness_left = lab._match_state.batter().bats_left()
 		contact_rating = batter_definition.contact
 		power_rating = batter_definition.power
+		profile = SeasonGearCatalog.swing(profile, batter_definition)
 
 	lab._swing_consumed = true
 	lab._status_label.text = ""

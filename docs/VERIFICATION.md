@@ -1,5 +1,52 @@
 # Fast verification and playtest records
 
+## Reconstruction: paid Gear and shared physical effects, 2026-09-28
+
+Full pinned Godot4.7.2 gate `20260928T205008883850Z` passed37/37 steps, including the new
+Gear scene, all existing shop/recruitment/ownership/save/development/gameplay/camera/AI gates,
+four complete live games, soak, physical-ball checks and main-scene smoke. Focused gate
+`20260928T204819273765Z` passed9/9 shared/Gear/paid-development steps before the final
+force/trajectory and complete equipped-game additions. Fresh main remained
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420`; no preserved gameplay commits were replaced.
+
+Gear coverage includes bounded mixed offers, at least two categories, owned-identity exclusion,
+no locked-tier grants, exact prices/receipts, explicit replacement using sale proceeds, duplicate
+confirmation, rejection of stale/replaced receipts, insufficient funds and client price overrides,
+full journal reload and neutral restoration on sale. The previous development-only seeded
+fixtures explicitly retain build2; new mixed-pool domain and UI fixtures exercise build3.
+
+Resolver checks cover both swing profiles/hands at multiple actual contact qualities, unchanged
+timing geometry, fair-only exit scaling and untouched authored resources. All nine mastered
+recipes, both hands and three enabled Balls pass through rated parameters, real aim solving,
+plate flight and force comparisons. Gravity/drag, natural wobble and mastery timing are preserved.
+Seeded release dispersion verifies the Rosin/hybrid product separately from speed/orientation
+noise. The real lab launches with both human and AI control, debits Rosin workload once and
+hands Bat modifiers to the actual swing tracker. Opponents cannot inherit the player's equipment.
+
+Actual viewport clicks cover normal and700×400 layouts, 44px actions, fixed navigation, focus on
+Cancel, exact replacement/sale descriptions and Cash, cancellation, injected write failure,
+unchanged prior save bytes, purchase, replacement, sale, reload and next-match handoff. Schema5/6
+migration preserves old stock without rewriting on load, activates Gear next visit and survives
+schema7 replay. Existing recruiting tests continue to protect held cards and unresolved packs.
+
+The live gate retains the two legacy and one maximum-development games, then adds a fourth
+maximum-development game with both teams equipped. All four finish and retain normal outro/
+restart behavior. The equipped fixture is a controlled stress case, not paid AI shopping or a
+balance sample. Initial checks caught an omitted trusted resale policy and an opponent scope
+mistake; both were corrected before this full passing gate. Completion markers never override
+engine errors.
+
+Rendered inspection is still open under the native-display failure documented below. The Gear
+scene supports the same desktop screenshot route; no screenshots or visual approval are claimed:
+
+```sh
+python3 tools/verify.py --only season-gear --rendered-ui
+```
+
+Remaining acceptance includes human play/feel, balance, remaining Misc mappings, Alley IDs and
+trajectory contracts, earned tiers, permanent unlocks, sponsor combinations and paid AI purchases.
+
+
 ## Reconstruction: recruiting, returns and historical rosters, 2026-09-28
 
 Full pinned-engine gate `20260928T202321643180Z` passed36/36 steps, including recruitment,

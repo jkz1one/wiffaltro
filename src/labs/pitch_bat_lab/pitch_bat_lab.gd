@@ -357,6 +357,7 @@ func _throw_pitch() -> void:
 		pending_stamina_cost = MatchLabSupport.stamina_cost(pitch, _pitch_effort)
 		release_overdrive = (_pending_release_overdrive if _player_is_pitching() else 0.0)
 		pending_stamina_cost *= lerpf(1.0, 1.08, release_overdrive)
+		pending_stamina_cost *= SeasonGearCatalog.factor(pitcher_state.definition, "workload")
 		var authored_quality: float = _pending_release_quality if _player_is_pitching() else 1.0
 		execution_quality = minf(
 			authored_quality, 0.86 + float(pitcher_state.definition.control) * 0.014

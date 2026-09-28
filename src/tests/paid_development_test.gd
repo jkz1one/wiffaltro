@@ -24,6 +24,8 @@ func _ready() -> void:
 
 func _funded(seed_value: int = 5, rewards: int = 4) -> SeasonBuild:
 	var build: SeasonBuild = SeasonBuild.new(seed_value, ROSTER)
+	# Preserve schema6 deterministic development-only fixtures; Gear has mixed-pool tests.
+	build._format = 2
 	for game in range(rewards):
 		_ok(build.commit(_request(build, "reward", {"game": game, "win": true})), "earned income")
 	_ok(build.commit(_request(build, "open")), "postgame shop")

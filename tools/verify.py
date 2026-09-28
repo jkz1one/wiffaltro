@@ -89,6 +89,9 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-gear", [*ui_base, "--fixed-fps", "60",
+                                 "res://src/tests/season_gear_test.tscn", *ui_extra],
+                 "Wiffaltro Gear checks passed:"),
                 ("recruitment", [*ui_base, "--fixed-fps", "60",
                                  "res://src/tests/recruitment_test.tscn", *ui_extra],
                  "Wiffaltro recruitment checks passed:"),

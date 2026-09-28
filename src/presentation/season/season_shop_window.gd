@@ -11,7 +11,7 @@ var _notice: String = ""
 
 
 func _ready() -> void:
-	title = "Working development shop"
+	title = "Working season shop"
 	size = Vector2i(1000, 650)
 	min_size = Vector2i(700, 400)
 	transient = true
@@ -55,14 +55,16 @@ func _refresh() -> void:
 	_clear()
 	var view: Dictionary = app.season.build.view()
 	var shop: Dictionary = view.shop
-	_label("WORKING DEVELOPMENT SHOP • VISIT %d" % shop.number)
+	_label("WORKING SEASON SHOP • VISIT %d" % shop.number)
 	_label(
 		(
 			"Cash %d • Held cards %d / %d"
 			% [view.wallet.cash, view.wallet.held.size(), view.wallet.capacity.held]
 		)
 	)
-	_label("Development, lessons and eligible recruits. Gear and sponsors are still pending.")
+	_label(
+		"Working: development, lessons, recruits and six Gear items. Other Gear and sponsors pending."
+	)
 	_label(_notice)
 	if shop.pack_status == "open":
 		_label("Choose one revealed card, then its recipient. The pack's 8 Cash is already paid.")
@@ -74,8 +76,12 @@ func _refresh() -> void:
 		)
 	else:
 		_recruit(shop)
+		SeasonGearShopUI.equipped(self, view.wallet.gear)
 		for offer: String in shop.offers:
 			var item_id: String = shop.offers[offer]
+			if SeasonGearCatalog.ITEMS.has(item_id):
+				SeasonGearShopUI.offer(self, offer, item_id, view.wallet.gear)
+				continue
 			var item: Dictionary = DevelopmentShopCatalog.item(item_id)
 			_label("%s • %d Cash" % [item.name, item.price])
 			var command: Dictionary = _request("buy", {"offer": offer, "mode": "use"})

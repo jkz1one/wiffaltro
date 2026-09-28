@@ -1,11 +1,46 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.39
+**Version:** v0.4.40
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Paid Gear in the Working season, 2026-09-28
+
+Equipment/Sponsors v18 lines55–98,103–119,135–169 and Economy v24 lines230–250 support
+this bounded six-item implementation: Wide Barrel Bat, Taped Bat, Scraped Ball, Slick Ball,
+Hot Ball and Rosin Bag. Equipped-only team ownership, explicit same-slot replacement and
+floor(actual paid Cash/2) resale are **Approved**. The listed numerical effects,10/12-Cash
+prices and shop weights are **Working testing defaults**, not human-approved balance.
+
+Offers sample implemented categories at development25:lesson12:Gear20, redistributing absent
+pools. Gear uses equal eligible Bat/Ball/Misc subweights and equal enabled families within a
+slot; enabled families currently have only tier1. Owned exact identities are excluded from
+fresh stock; previously quoted duplicates become unavailable while equipped. Affordability
+does not filter offers. At least two categories appear when feasible. Packs and recruiting
+keep their independent fixed streams. Unsupported identities and locked tiers are absent.
+
+Purchases equip immediately. Replacement previews identify the outgoing receipt, sale credit,
+removed effect, incoming effect and final Cash. The new receipt records the full purchase price,
+not the net replacement debit. Selling restores standard Bat/Ball or empty Misc, with no spare
+or buyback guarantee. Confirmation and save succeed together; failure/cancel changes nothing.
+
+Bat contact-radius tradeoffs apply to both swing types without changing timing geometry;
+exit-speed multipliers apply once to fair contact, preserving the resolver's measured quality.
+Balls multiply developed release velocity and authored lift/perforation force once. Gravity,
+late-break timing, natural Knuckle wobble and batted-ball restitution/carry are unchanged;
+Eephus can lack a modifiable lift component. Rosin multiplies existing release/direction command
+error by0.85 and actual release workload by1.10, retaining the Hot Ball penalty (1.10×0.85=0.935).
+It does not correct the player's chosen target or change velocity/orientation noise. Shared
+human/AI paths consume detached runtime resources; opponents cannot inherit the player's Gear.
+
+Schema7/build3 preserves old stock and paid state, enabling Gear at the next visit after a
+schema5/6 migration. No load-only file rewrite occurs. All six effects have automated contract,
+UI input and physical-path checks; rendered visual review and human balance approval remain open.
+Remaining Misc, Alley IDs/geometry, persistent earned tiers, sponsor combinations and actual AI
+shopping remain dependencies. This does not complete the25-item catalogue or CLOSE-03.
 
 ## Recruitment in the Working season, 2026-09-28
 

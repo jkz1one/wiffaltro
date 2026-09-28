@@ -4,11 +4,12 @@ var _failures: int = 0
 
 
 func _ready() -> void:
-	for run_seed in [11, 29, 47]:
+	for run_seed in [11, 29, 47, 67]:
 		await _run_match(run_seed)
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
-		print("Wiffaltro live match checks passed: 2 legacy and 1 progression scripted-player matches.")
+		print("Wiffaltro live match checks passed: "
+			+ "2 legacy, 1 progression and 1 equipped progression match.")
 	get_tree().quit(0 if _failures == 0 else 1)
 
 
@@ -24,8 +25,10 @@ func _run_match(run_seed: int) -> void:
 		lab._configured_match = season.make_match()
 		lab._player_home = season.pending_fixture()["home"] == 0
 		_check(lab._player_home, "second live fixture must play home with a drafted roster")
-	if run_seed == 47:
+	if run_seed in [47, 67]:
 		lab._configured_match = _progression_fixture()
+		if run_seed == 67:
+			_equip_fixture(lab._configured_match)
 		lab._player_home = true
 	add_child(lab)
 	lab._throw_number = run_seed * 1000
@@ -116,6 +119,15 @@ func _progression_fixture() -> MatchState:
 				_check(book.commit({"id": "pitch:%d" % book.revision(), "rev": book.revision(),
 					"player": id, "op": "mastery", "target": recipe}).ok, "fixture mastery grant")
 	return ProgressionMatchAdapter.exhibition(book, "player.alex_finch")
+
+
+func _equip_fixture(state: MatchState) -> void:
+	for team: TeamMatchState in [state.home_team, state.away_team]:
+		for player: PlayerMatchState in team.roster:
+			player.definition = SeasonGearCatalog.equip(player.definition, {
+				"bat": {"item": "BAT-CON-01" if team == state.home_team else "BAT-POW-01"},
+				"ball": {"item": "BALL-HYB-01"}, "misc": {"item": "MISC-PIT-03"}
+			})
 
 
 func _check_outro_and_restart(lab: PitchBatLab) -> void:

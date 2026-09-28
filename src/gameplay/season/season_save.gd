@@ -22,7 +22,7 @@ static func save(season: SeasonState) -> bool:
 		season.teams.map(func(team: Dictionary) -> float: return team.get("strength", -1.0)),
 	}
 	if season.build != null:
-		data.version = 6
+		data.version = 4 + season.build.to_data().version
 		data.erase("ownership")
 		data["build"] = season.build.to_data()
 	if _decode(data) == null:
@@ -76,7 +76,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 6) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 7) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -187,6 +187,7 @@ static func _decode(value: Variant) -> SeasonState:
 		if not _build_history_valid(season, restored):
 			return null
 		restored.migrate_recruitment()
+		restored.migrate_gear()
 		season.build = restored
 	return season
 

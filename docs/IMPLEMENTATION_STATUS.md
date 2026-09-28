@@ -1,5 +1,22 @@
 # Implementation Status
 
+## Paid Gear and live effects — 2026-09-28
+
+The Working shop now sells Wide Barrel Bat, Taped Bat, Scraped Ball, Slick Ball, Hot Ball
+and Rosin Bag. One item occupies each team slot. Previewed purchase, explicit replacement,
+full actual-paid receipts and floor-half resale settle atomically with the season save. Selling
+restores the neutral slot. Failed writes preserve cash, equipment, offers and prior save bytes.
+
+Shared match resolvers apply spatial Bat tradeoffs, fair-only exit speed, authored Ball velocity/
+movement and Rosin command/workload modifiers to the owning team for human and AI control.
+Gear never changes displayed ratings, opponents, gravity, natural Knuckle wobble or batted-ball
+aerodynamics. Schema7/build3 keeps old visit stock unchanged and activates Gear next visit.
+
+Six of13 initial Gear identities are enabled; this is not the full25-item Gear system. Remaining
+Misc, Alley identity migration/trajectory details, earned tiers, permanent unlocks, sponsor stacks
+and paid AI purchasing are still open. All numeric effects/prices remain Working; the separate
+mastery calibration remains an unapproved Proposal. Native visual/feel acceptance remains open.
+
 ## Paid recruitment and returning-player history — 2026-09-28
 
 The Working season now offers all144 authored stage profiles through fixed, independently
@@ -33,8 +50,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 45% implemented**, after the verified recruitment checkpoint (40% after
-paid development;35% before that). This is an estimate against the current full planned scope, not a
+**Approximately 47% implemented**, after the first paid Gear checkpoint (45% after
+recruitment;40% after paid development;35% before that). This is an estimate against the current full planned scope, not a
 test-pass percentage or a promise about remaining hours. Every finished response should
 report this same whole-project basis. Working content and Proposal tuning do not count as
 human-approved or release-ready merely because their code runs.
@@ -46,14 +63,14 @@ human-approved or release-ready merely because their code runs.
 | Ownership and economy | 8 | 6 |
 | Player development and mastery | 10 | 8 |
 | Shop, packs and recruitment | 12 | 6 |
-| Gear, tactical cards and abilities | 10 | 0 |
+| Gear, tactical cards and abilities | 10 | 2 |
 | Sponsors | 10 | 0 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **45** |
+| **Total** | **100** | **47** |
 
-Next unmet dependencies are Gear/Misc effects and supported sponsor/tactical contracts;
+Next unmet dependencies are the remaining Gear/Misc effects and supported sponsor/tactical contracts;
 reserve capacity remains open. Partial shops redistribute missing category weights; they do not
 pretend those systems are implemented. Human visual/feel checks remain a release gate.
 The following entries are historical checkpoints; this entry supersedes their missing-shop notes.

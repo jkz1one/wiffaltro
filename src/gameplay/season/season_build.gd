@@ -4,10 +4,20 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 2
+const VERSION: int = 3
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
-	"open", "buy", "use", "discard", "reroll", "pack_open", "pack_pick", "pack_skip", "sign"
+	"open",
+	"buy",
+	"use",
+	"discard",
+	"reroll",
+	"pack_open",
+	"pack_pick",
+	"pack_skip",
+	"sign",
+	"equip",
+	"sell_gear"
 ]
 
 var last_error: String = ""
@@ -22,6 +32,7 @@ var _game_rosters: Dictionary = {}
 var _appeared: bool = false
 var _format: int = VERSION
 var _recruit_from: int = 1
+var _gear_from: int = 1
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
 var _visit: Dictionary = {"number": 0, "open": false}
@@ -44,7 +55,7 @@ func _init(
 	_blocked.sort()
 	for id: String in roster:
 		_contracts[id] = RecruitCatalog.contract(id).prices[0]
-	_bank = SeasonOwnership.new(DevelopmentShopCatalog.ownership_catalog())
+	_bank = SeasonOwnership.new(SeasonGearCatalog.ownership_catalog())
 	_book = SeasonDevelopment.new("season:%d" % _seed)
 
 
@@ -66,7 +77,7 @@ func roster_for_game(game: int) -> Array:
 
 func migrate_recruitment() -> void:
 	if _format == 1:
-		_format = VERSION
+		_format = 2
 		# Never create an extra offer or reroll an already saved legacy visit.
 		_recruit_from = int(_visit.number) + 1
 
@@ -76,7 +87,10 @@ func player(player_id: String) -> Dictionary:
 
 
 func definition(player_id: String) -> PlayerDefinition:
-	return ProgressionMatchAdapter.player(_book, player_id)
+	var result: PlayerDefinition = ProgressionMatchAdapter.player(_book, player_id)
+	if result != null and _roster.has(player_id):
+		return SeasonGearCatalog.equip(result, _bank.view().gear)
+	return result
 
 
 func targets(item_id: String) -> Array[Dictionary]:
@@ -103,7 +117,7 @@ func to_data() -> Dictionary:
 		"catalog": _signature(_format),
 		"events": _events.duplicate(true)
 	}
-	if _format == VERSION:
+	if _format >= 2:
 		data.merge(
 			{
 				"pool": _pool.duplicate(),
@@ -112,6 +126,8 @@ func to_data() -> Dictionary:
 				"recruits": _recruits.duplicate(true)
 			}
 		)
+	if _format >= 3:
+		data["gear_from"] = _gear_from
 	return data
 
 
@@ -125,8 +141,10 @@ static func from_data(
 	if not value is Dictionary or not SeasonOwnership._whole(value.get("version"), 1, VERSION):
 		return null
 	var keys: Array = ["version", "seed", "roster", "catalog", "events"]
-	if value.version == VERSION:
+	if value.version >= 2:
 		keys.append_array(["pool", "blocked", "recruit_from", "recruits"])
+	if value.version >= 3:
+		keys.append("gear_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -139,7 +157,7 @@ static func from_data(
 		return null
 	var result: SeasonBuild = SeasonBuild.new(seed_value, roster, pool, blocked)
 	result._format = int(value.version)
-	if value.version == VERSION:
+	if value.version >= 2:
 		if (
 			value.pool != result._pool
 			or value.blocked != result._blocked
@@ -148,13 +166,17 @@ static func from_data(
 		):
 			return null
 		result._recruit_from = int(value.recruit_from)
+	if value.version >= 3:
+		if not SeasonOwnership._whole(value.gear_from, 1, 13):
+			return null
+		result._gear_from = int(value.gear_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
 		var applied: Dictionary = result.commit(event)
 		if not applied.ok or applied.replayed:
 			return null
-	if value.version == VERSION:
+	if value.version >= 2:
 		# Godot JSON reads every number as float; normalize both quote snapshots
 		# before deep comparison without accepting a different value or field.
 		var expected: Variant = JSON.parse_string(JSON.stringify(result._recruits))
@@ -233,6 +255,7 @@ func _fork() -> SeasonBuild:
 	result._appeared = _appeared
 	result._format = _format
 	result._recruit_from = _recruit_from
+	result._gear_from = _gear_from
 	result._bank = _bank.fork()
 	result._book = _book.fork()
 	result._visit = _visit.duplicate(true)
@@ -273,12 +296,14 @@ func _apply(command: Dictionary) -> String:
 			"cards": DevelopmentShopCatalog.pack(_book, _roster, _rng(-1)),
 			"pack_status": "sealed"
 		}
-		if _format == VERSION and _visit.number >= _recruit_from:
+		if _format >= 2 and _visit.number >= _recruit_from:
 			_visit["recruit"] = _recruit_offer()
 		return ""
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"equip", "sell_gear":
+			return _gear_transaction(command)
 		"sign":
 			return _sign(command)
 		"buy":
@@ -438,6 +463,14 @@ func _charge(amount: int) -> String:
 
 
 func _offers(rerolls: int) -> Dictionary:
+	if _format >= 3 and _visit.number >= _gear_from:
+		return SeasonGearCatalog.offers(
+			_book,
+			_roster,
+			_bank.view().gear,
+			_rng(rerolls),
+			"visit:%d:roll:%d" % [_visit.number, rerolls]
+		)
 	return DevelopmentShopCatalog.offers(
 		_book, _roster, _rng(rerolls), "visit:%d:roll:%d" % [_visit.number, rerolls]
 	)
@@ -463,7 +496,11 @@ static func _keys(command: Dictionary, extra: Array) -> bool:
 
 static func _signature(format_version: int = VERSION) -> String:
 	var base: String = SeasonPlayerCatalog.signature() + ":" + DevelopmentShopCatalog.signature()
-	return base if format_version == 1 else base + ":" + RecruitCatalog.signature()
+	if format_version >= 2:
+		base += ":" + RecruitCatalog.signature()
+	if format_version >= 3:
+		base += ":" + SeasonGearCatalog.signature()
+	return base
 
 
 func _recruit_offer() -> Dictionary:
@@ -498,7 +535,7 @@ func _recruit_offer() -> Dictionary:
 func _sign(command: Dictionary) -> String:
 	var offer: Dictionary = _visit.get("recruit", {})
 	if (
-		_format != VERSION
+		_format < 2
 		or not _keys(command, ["offer", "replace"])
 		or not command.offer is String
 		or not command.replace is String
@@ -533,4 +570,63 @@ func _sign(command: Dictionary) -> String:
 		_contracts[offer.player] = offer.price
 	_roster[_roster.find(command.replace)] = offer.player
 	_visit.recruit.signed = true
+	return ""
+
+
+func migrate_gear() -> void:
+	if _format < 3:
+		_format = 3
+		_gear_from = int(_visit.number) + 1
+
+
+func _gear_transaction(command: Dictionary) -> String:
+	if _format < 3 or _visit.number < _gear_from:
+		return "Gear starts at your next shop visit."
+	if command.op == "sell_gear":
+		if not _keys(command, ["receipt"]) or not command.receipt is String:
+			return "Choose an equipped item to sell."
+		var owned: Dictionary = SeasonOwnership._owned(_bank.view(), command.receipt)
+		if owned.is_empty() or owned.kind != "gear":
+			return "Only equipped paid Gear can be sold here."
+		var sale: Dictionary = _bank.commit(
+			{
+				"id": "sale:%d" % revision(),
+				"rev": _bank.revision(),
+				"op": "sell",
+				"receipt": command.receipt,
+				"discard": []
+			}
+		)
+		return "" if sale.ok else sale.error
+	if (
+		not _keys(command, ["offer", "replace"])
+		or not command.offer is String
+		or not command.replace is String
+	):
+		return "Review an exact Gear offer and replacement receipt."
+	var item_id: String = _visit.offers.get(command.offer, "")
+	var item: Dictionary = SeasonGearCatalog.item(item_id)
+	if item.is_empty():
+		return "This Gear offer is no longer available."
+	if _bank.view().gear[item.slot].get("item", "") == item_id:
+		return "That exact Gear is already equipped."
+	var quote: String = "gear:%d" % revision()
+	var stocked: Dictionary = _bank.commit(
+		{"id": quote, "rev": _bank.revision(), "op": "stock", "offers": {quote: item_id}}
+	)
+	if not stocked.ok:
+		return stocked.error
+	var bought: Dictionary = _bank.commit(
+		{
+			"id": "purchase:%d" % revision(),
+			"rev": _bank.revision(),
+			"op": "buy",
+			"offer": quote,
+			"replace": command.replace,
+			"discard": []
+		}
+	)
+	if not bought.ok:
+		return bought.error
+	_visit.offers.erase(command.offer)
 	return ""

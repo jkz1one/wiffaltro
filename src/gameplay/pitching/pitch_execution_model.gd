@@ -167,7 +167,7 @@ static func apply(
 		(1.0 - quality) * EXECUTION_RELEASE_SIGMA_M
 		+ pressure * FATIGUE_RELEASE_SIGMA_M * control_scale
 		+ lapse_strength * LAPSE_RELEASE_SIGMA_M
-	) * recipe_spread
+	) * recipe_spread * base_parameters.gear_command_scale
 	var release_error: Vector3 = Vector3(
 		rng.randfn(0.0, release_sigma_m),
 		rng.randfn(0.0, release_sigma_m),
@@ -183,7 +183,7 @@ static func apply(
 		(1.0 - quality) * EXECUTION_DIRECTION_SIGMA_RADIANS
 		+ pressure * FATIGUE_DIRECTION_SIGMA_RADIANS * control_scale
 		+ lapse_strength * LAPSE_DIRECTION_SIGMA_RADIANS
-	) * recipe_spread
+	) * recipe_spread * base_parameters.gear_command_scale
 	var yaw_error: float = clampf(
 		rng.randfn(0.0, direction_sigma),
 		-MAX_DIRECTION_ERROR_RADIANS,
