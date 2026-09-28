@@ -1,8 +1,10 @@
 # Season camera research and revised direction
 
-**Superseded implementation:** The 2026-09-24 playtest correction is documented in
-[SEASON_STABLE_COVERAGE.md](SEASON_STABLE_COVERAGE.md). Earlier measurements below
-describe the previous version, not the current camera or timing balance.
+**Superseded camera direction:** See
+[CAMERA_REDESIGN_RESEARCH.md](CAMERA_REDESIGN_RESEARCH.md) for the latest research,
+batting preservation requirement, and proposed defensive shot design. The local
+implementation in [SEASON_STABLE_COVERAGE.md](SEASON_STABLE_COVERAGE.md) is an
+unpublished prototype. Earlier measurements below describe historical versions.
 
 
 Research date: 2026-09-23. Status: implemented design basis; see `SEASON_CAMERA_AI_REVISION.md` for validation. Rendered comfort review remains open.

@@ -1,5 +1,12 @@
 # Stable field coverage and strike-zone timing
 
+**Camera status:** Unpublished prototype, not a visually accepted solution. The
+latest user clarification requires preserving offensive camera behavior and
+better differentiation of small contact from deep flight. See
+[CAMERA_REDESIGN_RESEARCH.md](CAMERA_REDESIGN_RESEARCH.md), which supersedes the
+camera direction below. Fixed lens and same-side coverage are not requirements
+for the next design. The AI audit remains a separate record.
+
 Date: 2026-09-24. Base: published main `f1dc209`. Branch: `season-stable-field-camera`.
 
 The user reported that camera comfort had regressed again and AI hitters still
