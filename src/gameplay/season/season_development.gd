@@ -114,6 +114,13 @@ static func _apply(after: Dictionary, command: Dictionary) -> String:
 		return "Unexpected development fields."
 	var target: String = command.target
 	match command.get("op"):
+		"recruit":
+			if after != SeasonPlayerCatalog.profile(after.id):
+				return "Only a fresh season instance can receive recruit development."
+			var fresh: Dictionary = RecruitCatalog.fresh(after.id, target)
+			if fresh.is_empty():
+				return "Unknown recruit stage."
+			after.merge(fresh, true)
 		"stat":
 			if not SeasonPlayerCatalog.STATS.has(target):
 				return "Only the four visible stats can grow."

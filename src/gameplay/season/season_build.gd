@@ -4,15 +4,24 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 1
+const VERSION: int = 2
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
-	"open", "buy", "use", "discard", "reroll", "pack_open", "pack_pick", "pack_skip"
+	"open", "buy", "use", "discard", "reroll", "pack_open", "pack_pick", "pack_skip", "sign"
 ]
 
 var last_error: String = ""
 var _seed: int
 var _roster: Array[String] = []
+var _initial_roster: Array[String] = []
+var _pool: Array[String] = []
+var _blocked: Array[String] = []
+var _contracts: Dictionary = {}
+var _recruits: Array[Dictionary] = []
+var _game_rosters: Dictionary = {}
+var _appeared: bool = false
+var _format: int = VERSION
+var _recruit_from: int = 1
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
 var _visit: Dictionary = {"number": 0, "open": false}
@@ -20,9 +29,21 @@ var _events: Array[Dictionary] = []
 var _requests: Dictionary = {}
 
 
-func _init(seed_value: int = 0, roster: Array[String] = []) -> void:
+func _init(
+	seed_value: int = 0,
+	roster: Array[String] = [],
+	pool: Array[String] = [],
+	blocked: Array[String] = []
+) -> void:
 	_seed = seed_value
 	_roster = roster.duplicate()
+	_initial_roster = roster.duplicate()
+	_pool = SeasonPlayerCatalog.ids() if pool.is_empty() else pool.duplicate()
+	_pool.sort()
+	_blocked = blocked.duplicate()
+	_blocked.sort()
+	for id: String in roster:
+		_contracts[id] = RecruitCatalog.contract(id).prices[0]
 	_bank = SeasonOwnership.new(DevelopmentShopCatalog.ownership_catalog())
 	_book = SeasonDevelopment.new("season:%d" % _seed)
 
@@ -33,6 +54,21 @@ func revision() -> int:
 
 func cash() -> int:
 	return _bank.cash()
+
+
+func roster() -> Array[String]:
+	return _roster.duplicate()
+
+
+func roster_for_game(game: int) -> Array:
+	return _game_rosters.get(game, []).duplicate()
+
+
+func migrate_recruitment() -> void:
+	if _format == 1:
+		_format = VERSION
+		# Never create an extra offer or reroll an already saved legacy visit.
+		_recruit_from = int(_visit.number) + 1
 
 
 func player(player_id: String) -> Dictionary:
@@ -56,39 +92,74 @@ func view() -> Dictionary:
 	if visit.get("pack_status") == "sealed":
 		visit["choice_count"] = _pack_choices().size()
 		visit.erase("cards")
-	return {"revision": revision(), "wallet": _bank.view(), "shop": visit}
+	return {"revision": revision(), "wallet": _bank.view(), "shop": visit, "roster": roster()}
 
 
 func to_data() -> Dictionary:
-	return {
-		"version": VERSION,
+	var data: Dictionary = {
+		"version": _format,
 		"seed": _seed,
-		"roster": _roster.duplicate(),
-		"catalog": _signature(),
+		"roster": _initial_roster.duplicate(),
+		"catalog": _signature(_format),
 		"events": _events.duplicate(true)
 	}
+	if _format == VERSION:
+		data.merge(
+			{
+				"pool": _pool.duplicate(),
+				"blocked": _blocked.duplicate(),
+				"recruit_from": _recruit_from,
+				"recruits": _recruits.duplicate(true)
+			}
+		)
+	return data
 
 
-static func from_data(value: Variant, seed_value: int, roster: Array[String]) -> SeasonBuild:
-	if (
-		not value is Dictionary
-		or not SeasonOwnership._keys(value, ["version", "seed", "roster", "catalog", "events"])
-	):
+static func from_data(
+	value: Variant,
+	seed_value: int,
+	roster: Array[String],
+	pool: Array[String] = [],
+	blocked: Array[String] = []
+) -> SeasonBuild:
+	if not value is Dictionary or not SeasonOwnership._whole(value.get("version"), 1, VERSION):
 		return null
-	if value.version != VERSION or value.seed != seed_value or value.roster != roster:
+	var keys: Array = ["version", "seed", "roster", "catalog", "events"]
+	if value.version == VERSION:
+		keys.append_array(["pool", "blocked", "recruit_from", "recruits"])
+	if not SeasonOwnership._keys(value, keys):
+		return null
+	if value.seed != seed_value or value.roster != roster:
 		return null
 	if (
-		value.catalog != _signature()
+		value.catalog != _signature(int(value.version))
 		or not value.events is Array
 		or value.events.size() > MAX_EVENTS
 	):
 		return null
-	var result: SeasonBuild = SeasonBuild.new(seed_value, roster)
+	var result: SeasonBuild = SeasonBuild.new(seed_value, roster, pool, blocked)
+	result._format = int(value.version)
+	if value.version == VERSION:
+		if (
+			value.pool != result._pool
+			or value.blocked != result._blocked
+			or not SeasonOwnership._whole(value.recruit_from, 1, 13)
+			or not value.recruits is Array
+		):
+			return null
+		result._recruit_from = int(value.recruit_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
 		var applied: Dictionary = result.commit(event)
 		if not applied.ok or applied.replayed:
+			return null
+	if value.version == VERSION:
+		# Godot JSON reads every number as float; normalize both quote snapshots
+		# before deep comparison without accepting a different value or field.
+		var expected: Variant = JSON.parse_string(JSON.stringify(result._recruits))
+		var saved: Variant = JSON.parse_string(JSON.stringify(value.recruits))
+		if expected != saved:
 			return null
 	return result
 
@@ -115,6 +186,11 @@ func commit(command: Dictionary) -> Dictionary:
 	_visit = next._visit
 	_events = next._events
 	_requests = next._requests
+	_roster = next._roster
+	_contracts = next._contracts
+	_recruits = next._recruits
+	_game_rosters = next._game_rosters
+	_appeared = next._appeared
 	return {"ok": true, "replayed": replayed}
 
 
@@ -149,7 +225,14 @@ func candidate(command: Dictionary) -> SeasonBuild:
 
 
 func _fork() -> SeasonBuild:
-	var result: SeasonBuild = SeasonBuild.new(_seed, _roster)
+	var result: SeasonBuild = SeasonBuild.new(_seed, _initial_roster, _pool, _blocked)
+	result._roster = _roster.duplicate()
+	result._contracts = _contracts.duplicate(true)
+	result._recruits = _recruits.duplicate(true)
+	result._game_rosters = _game_rosters.duplicate(true)
+	result._appeared = _appeared
+	result._format = _format
+	result._recruit_from = _recruit_from
 	result._bank = _bank.fork()
 	result._book = _book.fork()
 	result._visit = _visit.duplicate(true)
@@ -176,6 +259,7 @@ func _apply(command: Dictionary) -> String:
 		)
 		if not result.ok or result.replayed:
 			return "This fixture cannot pay again."
+		_game_rosters[int(command.game)] = roster()
 		_visit = {"number": _visit.number + 1, "open": false}
 		return ""
 	if op == "open":
@@ -189,10 +273,14 @@ func _apply(command: Dictionary) -> String:
 			"cards": DevelopmentShopCatalog.pack(_book, _roster, _rng(-1)),
 			"pack_status": "sealed"
 		}
+		if _format == VERSION and _visit.number >= _recruit_from:
+			_visit["recruit"] = _recruit_offer()
 		return ""
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"sign":
+			return _sign(command)
 		"buy":
 			return _buy(command)
 		"use":
@@ -373,5 +461,76 @@ static func _keys(command: Dictionary, extra: Array) -> bool:
 	return SeasonOwnership._keys(command, ["id", "rev", "op"] + extra)
 
 
-static func _signature() -> String:
-	return SeasonPlayerCatalog.signature() + ":" + DevelopmentShopCatalog.signature()
+static func _signature(format_version: int = VERSION) -> String:
+	var base: String = SeasonPlayerCatalog.signature() + ":" + DevelopmentShopCatalog.signature()
+	return base if format_version == 1 else base + ":" + RecruitCatalog.signature()
+
+
+func _recruit_offer() -> Dictionary:
+	var chance: float = RecruitCatalog.appearance_chance(_visit.number, _appeared)
+	var offer: Dictionary = {}
+	var rng: RandomNumberGenerator = _rng(1000)
+	var eligible: Array[String] = []
+	for id: String in _pool:
+		if not _roster.has(id) and not _blocked.has(id):
+			eligible.append(id)
+	if rng.randf() < chance and not eligible.is_empty():
+		var id: String = eligible[rng.randi_range(0, eligible.size() - 1)]
+		var stage: String = RecruitCatalog.stage_for_visit(_visit.number)
+		var returning: bool = _contracts.has(id)
+		var profile: Dictionary = player(id) if returning else RecruitCatalog.fresh(id, stage)
+		var price: int = _contracts[id] if returning else profile.catchup.price
+		offer = {
+			"id": "recruit:%d" % _visit.number,
+			"player": id,
+			"stage": stage,
+			"price": price,
+			"returning": returning,
+			"profile": profile,
+			"signed": false
+		}
+		_appeared = true
+	# Exact immutable offer snapshots accompany the replayable commands.
+	_recruits.append({"visit": _visit.number, "chance": chance, "offer": offer.duplicate(true)})
+	return offer
+
+
+func _sign(command: Dictionary) -> String:
+	var offer: Dictionary = _visit.get("recruit", {})
+	if (
+		_format != VERSION
+		or not _keys(command, ["offer", "replace"])
+		or not command.offer is String
+		or not command.replace is String
+	):
+		return "Choose a quoted recruit and the player they replace."
+	if (
+		offer.is_empty()
+		or offer.signed
+		or command.offer != offer.id
+		or _visit.number > 6
+		or _roster.size() != 4
+		or not _roster.has(command.replace)
+		or _roster.has(offer.player)
+		or _blocked.has(offer.player)
+	):
+		return "This offer or roster replacement is no longer legal."
+	var error: String = _charge(offer.price)
+	if not error.is_empty():
+		return error
+	if not offer.returning:
+		var result: Dictionary = _book.commit(
+			{
+				"id": "recruit:%d" % revision(),
+				"rev": _book.revision(),
+				"op": "recruit",
+				"player": offer.player,
+				"target": offer.stage
+			}
+		)
+		if not result.ok:
+			return result.error
+		_contracts[offer.player] = offer.price
+	_roster[_roster.find(command.replace)] = offer.player
+	_visit.recruit.signed = true
+	return ""

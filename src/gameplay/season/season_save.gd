@@ -22,7 +22,7 @@ static func save(season: SeasonState) -> bool:
 		season.teams.map(func(team: Dictionary) -> float: return team.get("strength", -1.0)),
 	}
 	if season.build != null:
-		data.version = 5
+		data.version = 6
 		data.erase("ownership")
 		data["build"] = season.build.to_data()
 	if _decode(data) == null:
@@ -76,7 +76,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 5) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 6) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -99,14 +99,14 @@ static func _decode(value: Variant) -> SeasonState:
 			return null
 	if data["version"] < 4 and data.has("ownership"):
 		return null
-	if (data.version < 5 and data.has("build")) or (data.version == 5 and data.has("ownership")):
+	if (data.version < 5 and data.has("build")) or (data.version >= 5 and data.has("ownership")):
 		return null
 	if not data.get("picks") is Array or data["picks"].size() > 4:
 		return null
 	if not data.get("results") is Array or data["results"].size() > 12:
 		return null
 	var season: SeasonState = SeasonState.create(
-		int(data["seed"]), data["version"] == 1, data["version"] == 5
+		int(data["seed"]), data["version"] == 1, data["version"] >= 5
 	)
 	if data["version"] >= 2:
 		if not _restore_pool(season, data):
@@ -125,6 +125,18 @@ static func _decode(value: Variant) -> SeasonState:
 				return null
 			if season.phase != SeasonState.Phase.DRAFT:
 				season.teams[index]["strength"] = float(strength)
+	var restored: SeasonBuild
+	if data.version >= 5:
+		if not data.get("build") is Dictionary or data.build.get("version") != data.version - 4:
+			return null
+		var roster: Array[String] = []
+		if season.picks.size() == 4:
+			roster.assign(season.picks)
+		restored = SeasonBuild.from_data(
+			data.build, season.season_seed, roster, season.draft_pool, season.recruit_blocked()
+		)
+		if restored == null:
+			return null
 	for result: Variant in data["results"]:
 		if not result is Dictionary:
 			return null
@@ -134,6 +146,11 @@ static func _decode(value: Variant) -> SeasonState:
 		var performance: Variant = result.get("performance", {}) if data["version"] >= 3 else {}
 		if not performance is Dictionary or (result.has("performance") and performance.is_empty()):
 			return null
+		if restored != null:
+			var actual_roster: Array = restored.roster_for_game(int(result.id))
+			if actual_roster.size() != 4:
+				return null
+			season.teams[0].roster = actual_roster
 		if not season.record_player_result(
 			int(result["id"]), int(result["away_runs"]), int(result["home_runs"]), performance
 		):
@@ -145,8 +162,9 @@ static func _decode(value: Variant) -> SeasonState:
 		if lineup.size() != 4:
 			return null
 		var unique: Array = []
+		var active: Array = season.picks if restored == null else restored.roster()
 		for id: Variant in lineup:
-			if not id is String or not season.picks.has(id) or unique.has(id):
+			if not id is String or not active.has(id) or unique.has(id):
 				return null
 			unique.append(id)
 		season.teams[0]["roster"] = unique
@@ -165,15 +183,10 @@ static func _decode(value: Variant) -> SeasonState:
 		if owned == null or owned.to_data() != season.ownership.to_data():
 			return null
 		season.ownership = owned
-	if data.version == 5:
-		var roster: Array[String] = []
-		if season.picks.size() == 4:
-			roster.assign(season.picks)
-		var restored: SeasonBuild = SeasonBuild.from_data(
-			data.get("build"), season.season_seed, roster
-		)
-		if restored == null or not _build_history_valid(season, restored):
+	if restored != null:
+		if not _build_history_valid(season, restored):
 			return null
+		restored.migrate_recruitment()
 		season.build = restored
 	return season
 

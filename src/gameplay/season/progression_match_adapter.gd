@@ -4,8 +4,11 @@ extends RefCounted
 
 
 static func player(book: SeasonDevelopment, player_id: String) -> PlayerDefinition:
-	var profile: Dictionary = book.player(player_id)
-	var source: PlayerDefinition = ContentDB.get_player(StringName(player_id))
+	return from_profile(book.player(player_id))
+
+
+static func from_profile(profile: Dictionary) -> PlayerDefinition:
+	var source: PlayerDefinition = ContentDB.get_player(StringName(profile.get("id", "")))
 	if profile.is_empty() or source == null:
 		return null
 	var result: PlayerDefinition = source.duplicate() as PlayerDefinition

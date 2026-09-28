@@ -62,9 +62,7 @@ func _refresh() -> void:
 			% [view.wallet.cash, view.wallet.held.size(), view.wallet.capacity.held]
 		)
 	)
-	_label(
-		"Development and ordinary lessons are available. Gear, sponsors and recruits are still pending."
-	)
+	_label("Development, lessons and eligible recruits. Gear and sponsors are still pending.")
 	_label(_notice)
 	if shop.pack_status == "open":
 		_label("Choose one revealed card, then its recipient. The pack's 8 Cash is already paid.")
@@ -75,6 +73,7 @@ func _refresh() -> void:
 			"Skip this paid pack", _preview.bind(_request("pack_skip"), "Skip without a refund")
 		)
 	else:
+		_recruit(shop)
 		for offer: String in shop.offers:
 			var item_id: String = shop.offers[offer]
 			var item: Dictionary = DevelopmentShopCatalog.item(item_id)
@@ -121,6 +120,82 @@ func _held(receipts: Array) -> void:
 				_request("discard", {"receipt": receipt.id}), "Discard without growth or refund"
 			)
 		)
+
+
+func _recruit(shop: Dictionary) -> void:
+	_label("FREE AGENCY • Closes after Game 6")
+	if not shop.has("recruit"):
+		_label("Recruiting starts at your next visit. This saved visit remains unchanged.")
+		return
+	var offer: Dictionary = shop.recruit
+	if offer.is_empty():
+		_label(
+			(
+				"Recruiting is closed."
+				if shop.number > 6
+				else "No recruit this visit. Ordinary rerolls do not change recruiting."
+			)
+		)
+		return
+	var player: PlayerDefinition = ProgressionMatchAdapter.from_profile(offer.profile)
+	if offer.signed:
+		_label("SIGNED • " + player.display_name)
+		return
+	SeasonPlayerCard.ratings_card(
+		_body, player, "%s • %d Cash" % [player.display_name, offer.price]
+	)
+	_label(
+		(
+			"RETURNING PLAYER • Actual retained development; original signing-price reference."
+			if offer.returning
+			else "FRESH RECRUIT • Working %s-stage profile." % offer.stage
+		)
+	)
+	_button("REVIEW RECRUIT REPLACEMENT", _choose_recruit)
+
+
+func _choose_recruit() -> void:
+	var offer: Dictionary = app.season.build.view().shop.get("recruit", {})
+	if offer.is_empty() or offer.signed:
+		_refresh()
+		return
+	_clear()
+	var incoming: PlayerDefinition = ProgressionMatchAdapter.from_profile(offer.profile)
+	_label("SIGN %s • %d Cash" % [incoming.display_name, offer.price])
+	SeasonPlayerCard.ratings_card(_body, incoming, "INCOMING • " + incoming.display_name)
+	_label(
+		(
+			"Choose one current player to release for 0 Cash. Team Gear and held cards stay. "
+			+ "Player development stays with its owner; a later return is not guaranteed."
+		)
+	)
+	for id: String in app.season.teams[0].roster:
+		var outgoing: PlayerDefinition = app.season.player_definition(id)
+		SeasonPlayerCard.ratings_card(_body, outgoing, "CURRENT • " + outgoing.display_name)
+		var changes: PackedStringArray = []
+		var old: Array[int] = SeasonPlayerCard.values(outgoing)
+		var next: Array[int] = SeasonPlayerCard.values(incoming)
+		for index in range(old.size()):
+			changes.append(
+				(
+					"%s %+d"
+					% [SeasonPlayerCard.rating_names(incoming)[index], next[index] - old[index]]
+				)
+			)
+		_label("Incoming difference: " + " • ".join(changes))
+		var description: String = (
+			"Sign %s\nRelease %s for 0 Cash\nNo development transfers between players."
+			% [incoming.display_name, outgoing.display_name]
+		)
+		(
+			_button(
+				"REPLACE " + outgoing.display_name,
+				_preview.bind(_request("sign", {"offer": offer.id, "replace": id}), description)
+			)
+			. set_meta("recruit_replace", id)
+		)
+	_button("CANCEL TARGETING", _refresh)
+	_focus_first.call_deferred()
 
 
 func _choose(item_id: String, command: Dictionary) -> void:

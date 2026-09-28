@@ -125,7 +125,7 @@ static func postgame(menu: SeasonMenu) -> void:
 	menu._label(menu._body, movement(season, game), 22)
 	var recorded: Dictionary = game.get("performance", {})
 	var highlights: Array[String] = SeasonPerformance.highlights(
-		recorded, season.teams[0]["roster"]
+		recorded, game.get("club_roster", season.teams[0]["roster"])
 	)
 	for line in highlights:
 		wrapped(menu._body, line)
@@ -228,8 +228,9 @@ static func stat_tables(menu: SeasonMenu, stats_data: Dictionary) -> void:
 		menu._label(grid, "PLAYER", 16)
 		for heading: String in headings:
 			menu._label(grid, heading, 16)
-		for id: String in menu.app.season.teams[0]["roster"]:
-			menu._label(grid, ContentDB.get_player(StringName(id)).display_name, 20)
+		for id: String in SeasonPerformance.club_history(menu.app.season):
+			var former: String = " (former)" if not menu.app.season.teams[0].roster.has(id) else ""
+			menu._label(grid, ContentDB.get_player(StringName(id)).display_name + former, 20)
 			for key: String in keys:
 				menu._label(grid, str(stats_data[id][key]) if stats_data.has(id) else "—", 20)
 	wrapped(
@@ -252,7 +253,7 @@ static func summary(menu: SeasonMenu) -> void:
 		18
 	)
 	for line in SeasonPerformance.highlights(
-		SeasonPerformance.totals(season), season.teams[0]["roster"]
+		SeasonPerformance.totals(season), SeasonPerformance.club_history(season)
 	):
 		wrapped(card, line)
 	wrapped(menu._body, menu._playoffs())

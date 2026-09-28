@@ -38,12 +38,18 @@ static func totals(season: SeasonState) -> Dictionary:
 		result[id] = MatchPerformance.empty_line()
 	for game in season.player_results:
 		var snapshot: Dictionary = game.get("performance", {})
-		for id: String in result:
+		for id: String in game.get("club_roster", season.teams[0].roster):
+			if not result.has(id):
+				result[id] = MatchPerformance.empty_line()
 			if not snapshot.has(id):
 				continue
 			for key in MatchPerformance.KEYS:
 				result[id][key] += int(snapshot[id][key])
 	return result
+
+
+static func club_history(season: SeasonState) -> Array:
+	return totals(season).keys()
 
 
 static func coverage(season: SeasonState) -> String:

@@ -110,8 +110,6 @@ func choose_player(id: String) -> bool:
 		return false
 	picks.append(id)
 	if picks.size() == 4:
-		if build != null:
-			build = SeasonBuild.new(season_seed, picks)
 		teams[0]["roster"] = picks.duplicate()
 		var remaining: Array[String] = []
 		for candidate in draft_pool:
@@ -119,6 +117,8 @@ func choose_player(id: String) -> bool:
 				remaining.append(candidate)
 		for team in range(1, 6):
 			teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
+		if build != null:
+			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
 		for team in range(6):
 			teams[team]["strength"] = _strength(team)
 		phase = Phase.REGULAR
@@ -179,6 +179,9 @@ func record_player_result(
 	var result: Dictionary = fixture.duplicate(true)
 	result["away_runs"] = away_runs
 	result["home_runs"] = home_runs
+	if build != null:
+		result["club_roster"] = teams[0]["roster"].duplicate()
+		result.club_roster.sort()
 	if not performance.is_empty():
 		result["performance"] = performance.duplicate(true)
 	results.append(result)
@@ -283,6 +286,26 @@ func cash() -> int:
 
 func shop_available() -> bool:
 	return build != null and not player_results.is_empty() and not pending_fixture().is_empty()
+
+
+func recruit_blocked() -> Array[String]:
+	var blocked: Array[String] = []
+	for index in range(1, teams.size()):
+		blocked.append_array(teams[index].roster)
+	return blocked
+
+
+func adopt_build(next: SeasonBuild) -> void:
+	var incoming: Array[String] = next.roster()
+	var current: Array = teams[0].roster
+	for id: String in current:
+		incoming.erase(id)
+	var ordered: Array = current.duplicate()
+	for index in range(ordered.size()):
+		if not next.roster().has(ordered[index]):
+			ordered[index] = incoming.pop_front()
+	teams[0].roster = ordered
+	build = next
 
 
 func _rank_before(a: Dictionary, b: Dictionary) -> bool:

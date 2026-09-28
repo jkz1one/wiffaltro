@@ -249,13 +249,15 @@ func commit_shop(command: Dictionary) -> bool:
 	if command.get("op") not in SeasonBuild.SHOP_OPS:
 		return false
 	var previous: SeasonBuild = season.build
+	var previous_roster: Array = season.teams[0].roster.duplicate()
 	var next: SeasonBuild = previous.candidate(command)
 	if next == null:
 		notice = previous.last_error
 		return false
-	season.build = next
+	season.adopt_build(next)
 	if not _checkpoint():
 		season.build = previous
+		season.teams[0].roster = previous_roster
 		return false
 	return true
 

@@ -1,5 +1,47 @@
 # Fast verification and playtest records
 
+## Reconstruction: recruiting, returns and historical rosters, 2026-09-28
+
+Full pinned-engine gate `20260928T202321643180Z` passed36/36 steps, including recruitment,
+paid-shop UI, all existing ownership/development/save/season checks, preserved gameplay,
+camera and AI regressions, three complete live-match fixtures and main-scene smoke. Final
+recruitment gate `20260928T202515533329Z` passed8/8 after adding explicit unbought-appearance
+history and team-held-card preservation checks. Earlier focused gates
+`20260928T201848137648Z` and `20260928T202144151410Z` each passed11/11.
+
+The new catalogue gate covers48 unique identities and144 authored fresh profiles, exact
+Gray/Morgan examples, Alex's split mastery exception, stage additions/prices, unchanged
+repertoire/capacity and fresh pitch cap3. Domain fixtures check current/opponent exclusions,
+fixed offers across rerolls/reload, no offer after Game6, missing targets, insufficient Cash,
+price override rejection, immutable full fees, zero release income and duplicate confirmation.
+Seeded round trips use genuinely purchased stock: returning originals retain earned development,
+returning signed recruits keep their first fee and get no second catch-up, and earned Eephus4
+survives return and JSON replay rather than being downgraded to the fresh cap3.
+
+Actual viewport clicks cover700×400 recruit inspection/comparison, the exact outgoing player,
+cancel, confirm, rejected disk writes, rollback of both build and reordered lineup, preserved
+defensive slot assignments, a paid team-held receipt and actual next-match definitions. Old and
+new roster performance histories restore together; replacing an old participant with a future
+recruit is rejected. Former-player totals stay visible and within menu bounds. The migration
+fixture includes an actually paid held card and an unresolved paid pack, preserving both and
+starting recruiting only on the next visit. No load-only rewrite is performed.
+
+Initial JSON reload checks caught deep-comparison differences between authored integers and
+Godot's parsed floats. Quote validation now normalizes both representations, while still
+rejecting changed fields/values. The engine-error gate and completion markers remain strict.
+
+No rendered visual or balance approval is claimed. The native-display limitation recorded in
+the preceding checkpoint remains open. The new scene also supports the desktop capture route:
+
+```sh
+python3 tools/verify.py --only recruitment --rendered-ui
+```
+
+The scene's performance records are controlled state/save fixtures, not human play or measured
+economy. Its live launch verifies roster/profile handoff; the full suite separately completes
+three live games. This does not validate paid AI recruiting, permanent eligibility, extra reserves,
+Doubleheader workload, learned abilities or whole-season economic balance.
+
 ## Reconstruction: paid development and real UI input, 2026-09-28
 
 Full pinned-engine gate `20260928T195505241012Z` passed35/35 steps, including the new

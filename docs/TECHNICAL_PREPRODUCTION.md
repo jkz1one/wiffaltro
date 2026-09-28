@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.29
+**Version:** v0.1.30
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,35 @@
 ---
 
 # 1. Technical Objective
+
+## Recruitment and roster-history replay, 2026-09-28
+
+`RecruitCatalog` encodes all48 named tracks/prices and generates three authored stage profiles
+from each original baseline. Alex's Eephus/OF exception is explicit. The physical adapter can
+render a detached quoted profile without mutating ownership or authored player resources.
+
+`SeasonBuild` version2 binds the initial roster, eligible pool and excluded opponent identities.
+It uses a separate deterministic recruitment stream, records exact quote snapshots, preserves
+appearance history and tracks an immutable first-contract fee for each acquired instance. The
+`sign` command requires an exact live offer and outgoing member, debits the authoritative fee,
+applies fresh catch-up only once and replaces membership atomically. Released profiles remain
+in the development journal but cannot receive owned-player actions. They are not reserve items.
+
+Schema6 loads/replays the build before validating retained results. Each reward records that
+game's roster, allowing performance validation against historical membership instead of the
+final lineup. Final saved batting order must match current build membership. The app preserves
+batting and defensive positions while substituting the explicitly released player; failed saves
+restore both the previous build and actual lineup. Former-player totals use derived game rosters.
+
+Version1 build/schema5 migration retains all old commands and current stock. Its recruitment
+activation starts at the next postgame visit, so it cannot generate a bonus quote or reroll a
+paid pack during load. Schema1–4 behavior is preserved. Quote validation normalizes both sides
+through JSON before deep comparison because Godot parses integer JSON values as floats; every
+field/value still must match replay. Invalid edited quotes, pools and historical rosters fail closed.
+
+Only the normal four-player season is wired here. No extra reserve limit, persistent player-card
+grant, learned-ability carry, intra-Doubleheader workload or paid AI recruiting is implied. Those
+need their own complete state contracts. Gear/sponsor effect integration remains the next slice.
 
 ## Atomic paid-season aggregate, 2026-09-28
 
@@ -30,7 +59,7 @@ otherwise eligible stock. Unsupported categories are absent rather than represen
 
 The Working season uses `ProgressionMatchAdapter` for actual rosters and paid next-match state.
 The default season remains on the original resources. Offscreen opponent strengths currently
-use their drafted baseline; paid AI growth and recruitment are later integrations. The new shop
+use their drafted baseline; paid AI growth and AI recruiting are later integrations. The new shop
 has scrollable targets, fixed navigation, wrapped actions and a bounded confirmation dialog.
 Headless UI input/layout checks and optional native screenshot checks are separate evidence.
 
@@ -71,7 +100,7 @@ Home > Player Growth Test Lab exposes four ratings, exact pitch levels, next-eff
 previews, explicit lesson replacement, inactive remembered mastery, isolated save/reload
 and a managed test exhibition. A successful test save is required before launch. Match
 inspection and pitch controls show the test's four ratings/levels. Paid development now has
-an opt-in seasonal path; recruitment/rehire, gear stacks, abilities and balance remain pending.
+an opt-in seasonal path; gear stacks, abilities and balance remain pending.
 
 Build the core sport so that:
 

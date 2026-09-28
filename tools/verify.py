@@ -22,7 +22,7 @@ def main():
     parser.add_argument("--only", action="append", default=[],
                         help="Run one named scene check; repeat for a focused scope")
     parser.add_argument("--rendered-ui", action="store_true",
-                        help="Run paid-shop-ui on a native display and capture each screen")
+                        help="Run shop/recruitment UI scenes on a native display and capture screens")
     args = parser.parse_args()
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     output = ROOT / "builds" / "verification" / stamp
@@ -89,6 +89,9 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("recruitment", [*ui_base, "--fixed-fps", "60",
+                                 "res://src/tests/recruitment_test.tscn", *ui_extra],
+                 "Wiffaltro recruitment checks passed:"),
                 ("paid-shop-ui", [*ui_base, "--fixed-fps", "60",
                                   "res://src/tests/paid_shop_ui_test.tscn", *ui_extra],
                  "Wiffaltro paid shop UI checks passed:"),

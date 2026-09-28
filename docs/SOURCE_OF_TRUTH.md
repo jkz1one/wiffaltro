@@ -1,11 +1,45 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.38
+**Version:** v0.4.39
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Recruitment in the Working season, 2026-09-28
+
+The opt-in Working shop now offers recruiting through postgame visit6. Players v17's
+48 named contracts expand into144 exact fresh profiles. Economy v24's25% appearance,
+conditional50% at visits5/6 while no candidate has appeared, equal eligible-identity draw,
+stage prices and fixed first-contract rehire fees remain **Working testing defaults**.
+The Approved goal is meaningful roster tradeoffs; these prices and physical calibration
+Proposals have not become approved balance through implementation.
+
+Recruiting uses the existing Working draft pool, excluding every current human/opponent
+roster identity. This introduces no permanent player-card unlock. A visit's chosen identity,
+stage, full profile and price are persisted, remain unchanged by ordinary rerolls and expire
+when the next result advances the visit. No affordability or desired-role filter alters offers.
+
+Signing requires explicit replacement within the current four-player match roster. Cash,
+incoming development, outgoing membership, lineup position and save settle together. Release
+pays0; team-held cards stay. The incoming player inherits that batting/defensive slot, not the
+departing player's growth. No reserve capacity is inferred: permitted future reserves still
+need an explicit roster-capacity/substitution contract before that extension is enabled.
+
+Fresh catch-up is tagged separately from earned development and applies once on first signing.
+Released players retain actual stats, learned repertoire and remembered mastery. A legal later
+encounter uses their first full signing fee; drafted originals use their authored early fee
+without an early catch-up grant. Earned returning mastery4/5 is not subject to fresh cap3.
+There is no recall guarantee, player-sale income or new offer after Game6. The current regular
+season resets workload at normal game boundaries; Doubleheader carry and learned abilities
+remain unimplemented and are not claimed by this player-history slice.
+
+Schema6 preserves roster membership per earned result, so historical performance stays with
+the players who actually participated. Former players remain in season totals. Schema5 migrates
+in memory without changing its saved offers, held cards or unresolved paid pack; recruiting
+starts on the next visit. No files are rewritten merely by loading. Native rendered review,
+human feel and economy balance remain open; gameplay Gear/sponsors are the next dependency.
 
 ## Paid development in an opt-in Working season, 2026-09-28
 
@@ -26,10 +60,10 @@ skip after payment. Reduced choice counts are shown before charging; zero eligib
 purchase. Ordinary rerolls restock individual positions without refreshing the fixed pack.
 An unresolved paid pack must be resolved before the next game. Final income creates no shop.
 
-Only development and ordinary lessons currently have supported stock. Missing category weights
+Only development and ordinary lessons enter the four ordinary positions. Missing category weights
 are redistributed25:12; a bounded last-position repair supplies both categories when possible.
 This sampling implementation is a Working test choice, not a completed production catalogue.
-Gear effects, sponsors, abilities, tactical/transformation cards, recruits/reserves, AI growth,
+Gear effects, sponsors, abilities, tactical/transformation cards, reserves, AI growth,
 career/League unlocks and stadium progression remain outside this slice. No balance, rendered
 readability or human playtest approval is implied by automated verification.
 

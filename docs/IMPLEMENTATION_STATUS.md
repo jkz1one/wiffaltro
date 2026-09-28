@@ -1,5 +1,22 @@
 # Implementation Status
 
+## Paid recruitment and returning-player history — 2026-09-28
+
+The Working season now offers all144 authored stage profiles through fixed, independently
+rolled recruitment opportunities in visits1–6. Signing explicitly replaces one current player,
+keeps team-held items and lineup roles, charges the full quote and persists atomically. Fresh
+catch-up applies once; released players retain actual growth/mastery and fixed first-contract
+rehire fees. Current/opponent duplicates are excluded. There is no guaranteed recall or late offer.
+
+Schema6 restores historical roster membership before validating game statistics. Former-player
+totals remain visible. Schema5 migration preserves current stock, held cards and paid packs,
+enabling recruiting only from the next visit. UI checks include actual clicks,700×400 comparisons,
+cancel/confirm, save failure, replacement of reordered lineup positions and actual match launch.
+
+All numerical recruiting contracts remain Working; physical calibration remains an unapproved
+Proposal. Reserve capacity, permanent player eligibility, Doubleheader workload, learned abilities
+and AI purchases remain open integrations. Native visual/feel approval remains pending.
+
 ## Paid development and UI reconstruction — 2026-09-28
 
 New Working Season now uses earned Cash for six development cards, ordinary lessons,
@@ -16,8 +33,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 40% implemented**, after this verified paid-development checkpoint (35%
-before it). This is an engineering estimate against the current full planned scope, not a
+**Approximately 45% implemented**, after the verified recruitment checkpoint (40% after
+paid development;35% before that). This is an estimate against the current full planned scope, not a
 test-pass percentage or a promise about remaining hours. Every finished response should
 report this same whole-project basis. Working content and Proposal tuning do not count as
 human-approved or release-ready merely because their code runs.
@@ -25,19 +42,19 @@ human-approved or release-ready merely because their code runs.
 | Scope | Weight / 100 | Estimated implemented points |
 | --- | ---: | ---: |
 | Core sport, AI and match presentation | 20 | 17 |
-| Season flow and persistence | 8 | 6 |
+| Season flow and persistence | 8 | 7 |
 | Ownership and economy | 8 | 6 |
-| Player development and mastery | 10 | 7 |
-| Shop, packs and recruitment | 12 | 3 |
+| Player development and mastery | 10 | 8 |
+| Shop, packs and recruitment | 12 | 6 |
 | Gear, tactical cards and abilities | 10 | 0 |
 | Sponsors | 10 | 0 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **40** |
+| **Total** | **100** | **45** |
 
-Next unmet dependencies include recruitment/reserve lifecycle and the remaining gameplay
-item/sponsor catalogues. Partial shops redistribute missing category weights; they do not
+Next unmet dependencies are Gear/Misc effects and supported sponsor/tactical contracts;
+reserve capacity remains open. Partial shops redistribute missing category weights; they do not
 pretend those systems are implemented. Human visual/feel checks remain a release gate.
 The following entries are historical checkpoints; this entry supersedes their missing-shop notes.
 
