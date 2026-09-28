@@ -1,5 +1,16 @@
 # Implementation Status
 
+## Rebuilt player-development foundation — 2026-09-28
+
+`SeasonPlayerCatalog` preserves all 48 exact v17 Working rows separately from live
+seven-rating resources. `SeasonDevelopment` journals four-stat growth, exact personal
+mastery, Round Out targeting and explicit repertoire replacement. Caps 10/5 and no
+combined growth budgets follow Approved direction; named starting values/capacities
+remain Working. Removed recipes retain personal mastery and new season instances reset.
+The isolated checkpoint validates replay and catalog identity and recovers a valid backup.
+This foundation does not yet enable production purchases, recruitment/rehire, physical
+mastery curves or player-facing upgrades. Those integrations are the next chunk.
+
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
 ## Season ownership integration, 2026-09-28

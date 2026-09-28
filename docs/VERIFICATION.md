@@ -1,5 +1,15 @@
 # Fast verification and playtest records
 
+## Reconstruction: player-development foundation, 2026-09-28
+
+Gate `20260928T190147002897Z` passed all 8 focused steps, including the new
+season-development scene. Checks cover 48 exact identities, 6/39/2/1 starting-repertoire
+distribution, three Eephus holders and Alex's sole initial level-2 exception, individual
+caps without combined growth budgets, lowest-active-pitch targeting, explicit replacement,
+remembered mastery, isolated season instances, idempotent journal replay, invalid-save
+preservation and real-file backup recovery. Live resources and physical behavior are
+unchanged by this foundation; no physics or purchase integration is claimed here.
+
 ## Reconstruction: ownership integration, 2026-09-28
 
 Gate `20260928T184921051343Z` passed 14/14 steps, including ownership-integration,
