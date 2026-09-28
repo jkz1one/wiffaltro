@@ -40,9 +40,17 @@ var _defense_ball_view: bool = false
 var _standard_fov: float = 0.0
 var _tracking_height: float = 18.0
 var _shot_before_inspection: int = -1
+var _result_blend_pending: bool = false
+var _result_blend_age: float = 0.0
+var _result_blend_duration: float = 0.0
+var _result_start: Transform3D
+var _result_start_fov: float = 0.0
 
 
 func set_shot(next_shot: Shot) -> void:
+	if next_shot != shot:
+		_result_blend_pending = shot == Shot.BALL_IN_PLAY and next_shot == Shot.ESTABLISHING
+		_result_blend_duration = 0.0
 	if next_shot != Shot.BALL_IN_PLAY:
 		tracking_visibility.restore_occluders()
 	shot = next_shot
@@ -73,12 +81,15 @@ func set_batter_handedness(is_left_handed: bool) -> void:
 func configure_field(field: FieldDefinition, geometry: Node3D, mound: Vector3) -> void:
 	field_context.configure(field, geometry, mound)
 	_live_coverage.context = field_context
+	_batting_coverage.context = field_context
 	tracking_visibility.configure(geometry)
 
 
 func set_fielding_subjects(positions: PackedVector3Array, has_grounded: bool) -> void:
 	_live_coverage.defenders = positions
 	_live_coverage.grounded = has_grounded
+	_batting_coverage.defenders = positions
+	_batting_coverage.grounded = has_grounded
 
 
 func prepare_ball_in_play(
@@ -88,7 +99,7 @@ func prepare_ball_in_play(
 	if defense_view:
 		_live_coverage.prepare(ball_position, launch_velocity)
 	else:
-		_batting_coverage.prepare(ball_position)
+		_batting_coverage.prepare(ball_position, launch_velocity)
 	tracking_visibility.refresh()
 	_field_focus = ball_position
 	_tracking_height = 18.0
@@ -127,6 +138,8 @@ func snap(camera: Camera3D, ball_position: Vector3 = Vector3.ZERO) -> void:
 	if camera == null:
 		return
 	_apply_projection(camera)
+	_result_blend_pending = false
+	_result_blend_duration = 0.0
 	tracking_visibility.restore_occluders()
 	camera.fov = _standard_fov
 	var desired: Transform3D = _desired_transform(ball_position, 1.0)
@@ -145,15 +158,38 @@ func update(
 		if _defense_ball_view:
 			_live_coverage.update(camera, delta_seconds, ball_position, tracking_visibility)
 		else:
-			camera.fov = _standard_fov
 			_batting_coverage.update(camera, delta_seconds, ball_position, tracking_visibility)
 		return
 	tracking_visibility.restore_occluders()
 	var desired: Transform3D = _desired_transform(ball_position, delta_seconds)
+	if _result_blend_pending or _result_blend_duration > 0.0:
+		_update_result_blend(camera, desired, delta_seconds)
+		return
 	var transition_weight: float = 1.0 - exp(-_presentation_transition_speed * delta_seconds)
 	camera.global_transform = camera.global_transform.interpolate_with(desired, transition_weight)
 	if _standard_fov > 0.0:
 		camera.fov = lerpf(camera.fov, _standard_fov, transition_weight)
+
+
+func _update_result_blend(camera: Camera3D, desired: Transform3D, delta: float) -> void:
+	if _result_blend_pending:
+		_result_blend_pending = false
+		_result_start = camera.global_transform
+		_result_start_fov = camera.fov
+		_result_blend_age = 0.0
+		var angle: float = _result_start.basis.get_rotation_quaternion().angle_to(
+			desired.basis.get_rotation_quaternion()
+		)
+		var travel: float = _result_start.origin.distance_to(desired.origin)
+		_result_blend_duration = clampf(
+			maxf(angle * 1.5, travel * 1.5 / maxf(24.0, field_context.depth_m())), 0.9, 2.8
+		)
+	_result_blend_age += maxf(0.0, delta)
+	var weight: float = smoothstep(0.0, _result_blend_duration, _result_blend_age)
+	camera.global_transform = _result_start.interpolate_with(desired, weight)
+	camera.fov = lerpf(_result_start_fov, _standard_fov, weight)
+	if _result_blend_age >= _result_blend_duration:
+		_result_blend_duration = 0.0
 
 
 func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transform3D:
@@ -163,8 +199,8 @@ func _desired_transform(ball_position: Vector3, _delta_seconds: float) -> Transf
 		Shot.BATTING:
 			# Stay nearly centered on the Pitch lane. A small handed offset keeps
 			# depth readable without placing the loaded barrel across the view.
-			camera_position = Vector3(_batter_side * 0.18, 2.10, -3.38)
-			focus = Vector3(0.0, 1.10, 7.1)
+			camera_position = field_context.frame() * Vector3(_batter_side * 0.18, 2.10, -3.38)
+			focus = field_context.frame() * Vector3(0.0, 1.10, 7.1)
 		Shot.PITCHING:
 			camera_position = (
 				field_context.ground_point(

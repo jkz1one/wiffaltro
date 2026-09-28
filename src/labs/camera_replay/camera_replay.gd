@@ -24,6 +24,8 @@ var _time: float = 0.0
 var _accumulator: float = 0.0
 var _grounded: bool = false
 var _paused: bool = false
+var _reference: bool = false
+var _reference_camera: ReferenceBattingCamera = ReferenceBattingCamera.new()
 
 
 func _ready() -> void:
@@ -75,6 +77,7 @@ func _restart() -> void:
 	)
 	director.snap(_lab._camera)
 	director.prepare_ball_in_play(_defense, _ball, _velocity)
+	_reference_camera.prepare(_ball)
 	_ball_mesh.position = _ball
 
 
@@ -88,6 +91,7 @@ func _process(delta: float) -> void:
 		(
 			"Camera replay | %s | %s | %s | %.2f s\n"
 			+ "Left/Right: play   R: restart   B: batting/defense   V: venue   Space: pause\n"
+			+ "C: compare old/new batting follow\n"
 			+ "Shot: %s   FOV: %.1f   Yellow ball enlarged for review"
 		)
 		% [
@@ -98,7 +102,11 @@ func _process(delta: float) -> void:
 			(
 				_lab._camera_director._live_coverage.shot_name
 				if _defense
-				else "original batting follow"
+				else (
+					"REFERENCE batting"
+					if _reference
+					else _lab._camera_director._batting_coverage.shot_name
+				)
 			),
 			_lab._camera.fov
 		]
@@ -146,7 +154,10 @@ func _step() -> void:
 		PackedVector3Array([fielder.global_position, _lab._pitcher_marker.global_position]),
 		_grounded
 	)
-	director.update(_lab._camera, 1.0 / 120.0, true, _ball)
+	if _reference and not _defense:
+		_reference_camera.update(_lab._camera, 1.0 / 120.0, _ball, director.tracking_visibility)
+	else:
+		director.update(_lab._camera, 1.0 / 120.0, true, _ball)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -167,5 +178,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_V:
 			_away = not _away
 			_build_venue()
+		KEY_C:
+			_reference = not _reference
+			_defense = false
+			_restart()
 		KEY_SPACE:
 			_paused = not _paused

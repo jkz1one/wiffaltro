@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.28
+**Version:** v0.1.29
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2391,8 +2391,13 @@ by skill. No future forecast is provided to the AI. See `SEASON_STABLE_COVERAGE.
 
 ## Adaptive coverage and batting preservation — 2026-09-24
 
-`BattingContactCamera` restores the offensive follow from `665b46e`, independently
-of defensive changes. A captured historical fixture checks both handednesses.
+The first `BattingContactCamera` pass restored the offensive follow from `665b46e`
+as an independent comparison baseline. The subsequent audit found excessive
+small-contact travel. Offensive coverage now uses a framed dead zone, field-relative
+depth/height demand, bounded motion and a plate-side composition. Shared subject
+selection and projection fitting include the ball, ground, forecast and nearby
+defender; role-specific movement remains independent. Historical fixtures compare
+initial movement rather than freezing the old transform.
 `BallInPlayCamera` selects local ground, popup, or deep-flight coverage;
 `CameraGroupFraming` fits the subject group to the viewport. Translation uses
 bounded acceleration; rotation and secondary FOV expansion are bounded. Short
@@ -2409,6 +2414,10 @@ Geometry opts into visibility treatment with inherited `camera_occluder` metadat
 false excludes terrain/decals. Registered meshes use current world bounds each
 update. Collection refreshes at contact and every 0.25 seconds during coverage.
 See `ADAPTIVE_CAMERA_IMPLEMENTATION.md` for the material contract and limitations.
-`adaptive_camera_test` covers historical batting poses, multiple viewport sizes,
-18/32/55 m fields, transformed terrain, and dynamic obstacle lifecycle. A separate
-camera replay scene supports native normal-speed visual review.
+`adaptive_camera_test` covers 120 trajectories across both roles, multiple viewport
+sizes, 18/32/55 m fields, transformed terrain, and dynamic obstacle lifecycle.
+It also checks offensive contact response, both FOV conventions against engine
+projection, and the home-run result handoff. That handoff eases from the live pose
+over 0.9–2.8 seconds; other match cadence remains unchanged. A separate camera
+replay scene supports native normal-speed visual review, including a C-key old/new
+batting comparison. Headless success does not establish motion comfort.

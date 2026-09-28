@@ -85,7 +85,9 @@ func _advance(camera: Camera3D, dt: float, ball: Vector3) -> void:
 	var floor_point: Vector3 = context.ground_point(forecast)
 	if grounded or (forecast - floor_point).dot(up) < 0.0:
 		forecast = floor_point + up * 0.08
-	debug_subjects = _subjects(ball, forecast)
+	debug_subjects = CameraGroupFraming.play_subjects(
+		context, ball, forecast, defenders, _velocity.length()
+	)
 	var inverse: Transform3D = context.frame().affine_inverse()
 	var entry_z: float = (inverse * _entry.origin).z
 	var future_z: float = (inverse * forecast).z
@@ -130,22 +132,3 @@ func _advance(camera: Camera3D, dt: float, ball: Vector3) -> void:
 		_lens, minf(_entry_fov + 12.0, CameraGroupFraming.required_fov(camera, debug_subjects))
 	)
 	camera.fov = move_toward(camera.fov, _lens, 18.0 * dt)
-
-
-func _subjects(ball: Vector3, forecast: Vector3) -> PackedVector3Array:
-	var up: Vector3 = context.up()
-	var points: PackedVector3Array = PackedVector3Array(
-		[ball + up * 0.18, ball - up * 0.18, context.ground_point(ball), forecast]
-	)
-	var nearest: Vector3 = Vector3.ZERO
-	var distance: float = INF
-	for defender in defenders:
-		var candidate: float = defender.distance_to(context.ground_point(forecast))
-		if candidate < distance:
-			distance = candidate
-			nearest = defender
-	# Exclude a remote, irrelevant defender; include the whole nearby actor.
-	if distance < maxf(4.0, _velocity.length() * 0.45):
-		points.append(nearest)
-		points.append(nearest + up * 1.7)
-	return points

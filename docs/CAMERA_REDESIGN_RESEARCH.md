@@ -264,3 +264,22 @@ published revision. A new implementation needs matching native captures.
 
 No AI tuning changed in this research pass. Keep the existing AI timing audit
 separate so camera revisions cannot obscure whether batting balance improved.
+
+
+## Follow-through audit — 2026-09-24
+
+Rechecking the restored batting baseline exposed a fixed high crane destination
+on every contact and an abrupt visibility-recovery transform. The targeted
+implementation now uses demand-based offensive coverage and a smooth live-to-wide
+home-run handoff. Both roles are exercised against dynamic stadium providers.
+See [ADAPTIVE_CAMERA_IMPLEMENTATION.md](ADAPTIVE_CAMERA_IMPLEMENTATION.md) for the
+matched measurements, replay comparison and remaining native review.
+
+Unity's primary [Position Composer documentation](https://docs.unity3d.com/Packages/com.unity.cinemachine@3.1/manual/CinemachinePositionComposer.html)
+separates position control from rotation, provides screen/depth dead zones and
+per-axis damping, and describes lookahead's noise and smoothing tradeoff. Together
+with its [Group Framing documentation](https://docs.unity3d.com/Packages/com.unity.cinemachine@3.1/manual/CinemachineGroupFraming.html),
+this supports our use of a framed hold, short forecast and bounded dolly/zoom.
+Applying those ideas to offensive baseball coverage is our design inference;
+the specific motion limits are tuning, not values validated by those sources.
+No additional gameplay footage was inspected during this follow-through audit.

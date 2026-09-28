@@ -199,12 +199,7 @@ func _test_ball_tracking() -> void:
 						)
 					)
 					max_step = maxf(
-						max_step,
-						(
-							last_transform.origin.distance_to(lab._camera.global_position)
-							if defense
-							else 0.0
-						)
+						max_step, last_transform.origin.distance_to(lab._camera.global_position)
 					)
 					max_turn = maxf(
 						max_turn,
@@ -352,7 +347,7 @@ func _test_contact_flights() -> void:
 					if defense and launch.y <= 2.0:
 						_check(reverse == 0, "ground plays do not reverse the defensive view")
 					_check(
-						not defense or (max_turn < 1.7 / fps and max_step < 32.1 / fps),
+						max_turn < 1.7 / fps and max_step < 32.1 / fps,
 						"contact transition respects motion limits from its first frame"
 					)
 		lab.queue_free()

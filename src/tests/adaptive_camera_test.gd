@@ -17,7 +17,9 @@ var _failures: int = 0
 
 
 func _ready() -> void:
-	_test_batting_history()
+	_test_batting_contact_response()
+	_test_projection_fit()
+	_test_result_transition()
 	_test_dynamic_obstacles()
 	await _test_stadiums()
 	await TestAudioDrain.finish(get_tree())
@@ -26,7 +28,7 @@ func _ready() -> void:
 	get_tree().quit(0 if _failures == 0 else 1)
 
 
-func _test_batting_history() -> void:
+func _test_batting_contact_response() -> void:
 	var fixture: Dictionary = JSON.parse_string(
 		FileAccess.get_file_as_string("res://src/tests/fixtures/batting_camera_665b46e.json")
 	)
@@ -39,33 +41,96 @@ func _test_batting_history() -> void:
 			var director: MatchCameraDirector = MatchCameraDirector.new()
 			director.set_batter_handedness(left)
 			director.snap(camera)
+			var entry: Transform3D = camera.global_transform
 			director.prepare_ball_in_play(false, Vector3(0, 1, 0.28), launch)
 			director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
+			var path: float = 0.0
 			for frame in range(60):
 				var t: float = (frame + 1) / 60.0
 				var ball: Vector3 = Vector3(0, 1, 0.28) + launch * t + Vector3(0, -4.905 * t * t, 0)
 				ball.y = maxf(0.08, ball.y)
+				var before: Transform3D = camera.global_transform
 				director.update(camera, 1.0 / 60.0, true, ball)
-				if frame + 1 in [1, 15, 30, 60]:
-					var expected: Dictionary = fixture.rows[index]
-					var p: Array = expected.position
-					var q: Array = expected.rotation
+				path += before.origin.distance_to(camera.position)
+				_check(_visible(camera, ball), "offensive contact remains framed")
+				if frame == 0:
+					var p: Array = fixture.rows[index].position
+					var old_step: float = entry.origin.distance_to(Vector3(p[0], p[1], p[2]))
 					_check(
-						camera.position.distance_to(Vector3(p[0], p[1], p[2])) < 0.0001,
-						"offensive follow matches historical position " + str(index)
+						path < old_step * 0.25, "contact avoids the historical immediate crane move"
 					)
-					_check(
-						(
-							camera.basis.get_rotation_quaternion().angle_to(
-								Quaternion(q[0], q[1], q[2], q[3])
-							)
-							< 0.001
-						),
-						"offensive follow matches historical orientation " + str(index)
-					)
-					index += 1
+				if frame == 29 and launch.z == 8:
+					_check(path < 0.7, "soft batting contact earns minimal movement")
+			index += 4
 			camera.free()
-	_check(index == 24, "both batting sides cover all historical snapshots")
+
+
+func _test_projection_fit() -> void:
+	for size in [Vector2i(1280, 720), Vector2i(720, 1280)]:
+		var viewport: SubViewport = SubViewport.new()
+		viewport.size = size
+		add_child(viewport)
+		for mode in [Camera3D.KEEP_HEIGHT, Camera3D.KEEP_WIDTH]:
+			var camera: Camera3D = Camera3D.new()
+			camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+			camera.keep_aspect = mode
+			viewport.add_child(camera)
+			var points: PackedVector3Array = PackedVector3Array(
+				[Vector3(-10, 5, 4), Vector3(12, -2, 3), Vector3(0, 18, -1)]
+			)
+			var basis: Basis = Basis.looking_at(Vector3(0, -0.3, -1).normalized(), Vector3.UP)
+			var focus: Vector3 = Vector3(0, 5, 0)
+			var distance: float = CameraGroupFraming.fit_distance(
+				camera, basis, focus, points, 75.0
+			)
+			camera.global_transform = Transform3D(basis, focus + basis.z * distance)
+			for point in points:
+				_check(
+					_visible(camera, point),
+					"group fit agrees with engine projection for each aspect mode"
+				)
+			camera.free()
+		viewport.free()
+
+
+func _test_result_transition() -> void:
+	var camera: Camera3D = Camera3D.new()
+	camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	add_child(camera)
+	var director: MatchCameraDirector = MatchCameraDirector.new()
+	director.set_shot(MatchCameraDirector.Shot.BATTING)
+	director.snap(camera)
+	director.prepare_ball_in_play(false, Vector3(0, 1, 0.28), Vector3(0, 18, 26))
+	director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
+	for frame in range(90):
+		var t: float = (frame + 1) / 60.0
+		director.update(camera, 1.0 / 60.0, true, Vector3(0, 1 + 18 * t - 4.905 * t * t, 26 * t))
+	var before: Transform3D = camera.global_transform
+	director.set_shot(MatchCameraDirector.Shot.ESTABLISHING)
+	var target: Transform3D = director._desired_transform(Vector3.ZERO, 1.0 / 60.0)
+	director.update(camera, 1.0 / 60.0, false, Vector3.ZERO)
+	_check(
+		(
+			before.origin.distance_to(camera.position)
+			< before.origin.distance_to(target.origin) * 0.02
+		),
+		"home-run wide shot eases in instead of an immediate fast interpolation step"
+	)
+	for frame in range(180):
+		director.update(camera, 1.0 / 60.0, false, Vector3.ZERO)
+	_check(
+		camera.global_transform.is_equal_approx(target), "result blend reaches its composed view"
+	)
+	_check(
+		is_equal_approx(camera.fov, director._standard_fov), "result blend restores the normal lens"
+	)
+	director.set_shot(MatchCameraDirector.Shot.BATTING)
+	director.snap(camera)
+	_check(
+		camera.position.distance_to(Vector3(0.18, 2.1, -3.38)) < 0.001,
+		"next batting view has no residual live or result framing"
+	)
+	camera.free()
 
 
 func _test_dynamic_obstacles() -> void:
@@ -132,7 +197,8 @@ func _test_stadiums() -> void:
 					Vector3(0, 18, 26),
 					Vector3(0, 22, 5)
 				]:
-					rows.append(_flight(director, camera, geometry, launch, fps))
+					for defense in [false, true]:
+						rows.append(_flight(director, camera, geometry, launch, fps, defense))
 			viewport.queue_free()
 			await get_tree().process_frame
 	print("ADAPTIVE_CAMERA_JSON=", JSON.stringify(rows))
@@ -143,15 +209,18 @@ func _flight(
 	camera: Camera3D,
 	geometry: TerrainProvider,
 	launch: Vector3,
-	fps: int
+	fps: int,
+	defense: bool
 ) -> Dictionary:
-	director.set_shot(MatchCameraDirector.Shot.PITCHING)
+	director.set_shot(
+		MatchCameraDirector.Shot.PITCHING if defense else MatchCameraDirector.Shot.BATTING
+	)
 	director.snap(camera)
 	var ball: Vector3 = Vector3(0, 1, 0.28)
 	var velocity: Vector3 = launch
 	var defender: Vector3 = Vector3(4, 0, geometry.bounds.size.z * 0.65)
 	var transform: Transform3D = geometry.global_transform
-	director.prepare_ball_in_play(true, transform * ball, transform.basis * launch)
+	director.prepare_ball_in_play(defense, transform * ball, transform.basis * launch)
 	director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
 	var outside: int = 0
 	var actor_outside: int = 0
@@ -208,6 +277,7 @@ func _flight(
 		if ball.z > geometry.bounds.end.z or (launch.z == 8.0 and frame + 1 >= fps / 2):
 			break
 	var row: Dictionary = {
+		"defense": defense,
 		"depth": geometry.bounds.size.z,
 		"viewport": str(camera.get_viewport().size),
 		"fps": fps,
@@ -216,7 +286,8 @@ func _flight(
 		"actor_outside": actor_outside,
 		"path": distance,
 		"rotation": rad_to_deg(rotation),
-		"shot": director._live_coverage.shot_name
+		"shot":
+		director._live_coverage.shot_name if defense else director._batting_coverage.shot_name
 	}
 	_check(outside == 0 and actor_outside == 0, "live subjects framed: " + str(row))
 	_check(actor_min_px >= 10.0, "nearby defender retains readable height")

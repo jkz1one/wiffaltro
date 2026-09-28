@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.37
+**Version:** v0.4.38
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.36 and all earlier planning notes
+**Supersedes:** v0.4.37 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -1564,10 +1564,11 @@ pan, tilt, zoom, track or cut when that improves readability. No defensive-side
 lock or mandatory home-side destination applies. Camera movement must preserve
 world-space batting intent, visible pitch/ball action and understandable cuts.
 The live pass uses a restrained pitching-view pan. Offensive contact coverage is
-isolated and restored to the pre-season follow behavior as a comparison baseline.
-Research-led improvements to batting remain welcome: preserve pitch readability
-and aiming accuracy, and evaluate intentional framing/transition changes in playback.
-Historical transforms are not frozen requirements. Defensive coverage
+isolated and compared with the pre-season follow behavior. It now holds small
+contact when framed and opens progressively with height and field-relative depth,
+using bounded motion and a plate-side composition. Pre-pitch readability and aiming
+accuracy remain intact. Historical transforms are not frozen requirements;
+intentional improvements require playback review. Defensive coverage
 frames the ball, its ground reference, a short flight forecast, and the nearby
 relevant defender. Soft contact stays in a screen-space dead zone; approaching
 grounders gain room without a turnaround. Deep flight uses an elevated side view;
@@ -1586,7 +1587,8 @@ sources, the stadium contract, replay instructions, and verification limits.
 
 Home Runs get a dedicated 4.4 s presentation hold. The scored ball continues
 visibly beyond the wall for 1.25 s with camera tracking, then a wider celebration
-view holds the Home Run call. A game-ending Home Run completes this sequence
+view holds the Home Run call. The handoff eases from the actual live pose over
+0.9–2.8 s according to travel and angle. A game-ending Home Run completes this sequence
 before the outro. Scoring is final at clearance and cannot repeat during the carry.
 The batting camera is modestly raised and tilted down to improve the plate view.
 Its audited baseline is 2.10 m high, 3.38 m behind the plate, with a 0.18 m handed
