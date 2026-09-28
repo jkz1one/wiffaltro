@@ -357,7 +357,7 @@ func _throw_pitch() -> void:
 		pending_stamina_cost = MatchLabSupport.stamina_cost(pitch, _pitch_effort)
 		release_overdrive = (_pending_release_overdrive if _player_is_pitching() else 0.0)
 		pending_stamina_cost *= lerpf(1.0, 1.08, release_overdrive)
-		pending_stamina_cost *= SeasonGearCatalog.factor(pitcher_state.definition, "workload")
+		pending_stamina_cost *= SeasonGearCatalog.workload(pitcher_state)
 		var authored_quality: float = _pending_release_quality if _player_is_pitching() else 1.0
 		execution_quality = minf(
 			authored_quality, 0.86 + float(pitcher_state.definition.control) * 0.014
@@ -394,6 +394,7 @@ func _throw_pitch() -> void:
 	_throw_number = candidate_throw_number
 	if pitcher_state != null:
 		pitcher_state.spend_stamina(pending_stamina_cost)
+		_match_state.note_pitch_released()
 		applied_fatigue = maxf(pitcher_state.fatigue_ratio(), _fatigue)
 
 	PitchBatLabFeelSupport.measure_nominal_pitch(self, base_parameters, target_position)

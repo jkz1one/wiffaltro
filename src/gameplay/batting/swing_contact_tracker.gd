@@ -53,7 +53,7 @@ func sample_segment(
 	var swing_elapsed: float = (
 		pitch_state.elapsed_time - intent.start_time_seconds
 	)
-	if swing_elapsed >= profile.contact_window_end_seconds:
+	if swing_elapsed >= profile.contact_end():
 		result = ContactResolver.timing_miss(
 			pitch_state,
 			intent,

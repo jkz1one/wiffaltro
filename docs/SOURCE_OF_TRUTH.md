@@ -1,11 +1,48 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.40
+**Version:** v0.4.41
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## First-batter, timing and reaction Misc, 2026-09-28
+
+Equipment/Sponsors v18 lines131–202 supplies three additional **Working testing defaults**:
+Bullpen Kit (retained D02 identity,10 Cash), Batting Gloves (MISC-BAT-01,10 Cash) and Sports
+Goggles (MISC-FLD-03,12 Cash). These join Rosin in the single Approved team Misc slot. The
+pool now has nine of13 initial eligible Gear identities; ownership/resale rules are unchanged.
+
+Kit multiplies workload by0.85 through each pitcher's first completed opposing plate appearance,
+then1.10 afterward. Only successful actual releases register participation. Every participating
+pitcher consumes that window on completion, including one not currently using Kit. Balls/fouls
+do not finish the window; a long first batter retains the benefit. Canceled windups do not count,
+innings do not reset it, equip does not refund fatigue and no new substitution/re-entry right
+is granted. New match state resets participation normally; no cross-game Doubleheader contract
+is implied. D02 supersedes its old Ball-Setup classification rather than creating another item.
+
+Gloves multiply the existing contact time-window width by1.08 around its authored sweet spot,
+and fair exit speed by0.96 for both swings. Spatial radii/depth, barrel path, start timestamp,
+animation duration and measured quality/timing error stay unchanged. The live swing tracker
+expires at the extended endpoint. Edge contact retains its actual weak quality; no auto-swing,
+retiming or target correction is introduced. Compatible Bat penalties multiply once.
+
+Goggles multiply existing active-fielder planning/movement reaction and pitcher-pursuit delay
+by0.85. An engineering floor of0.001s stays positive and does not bind current authored delays.
+Movement speed, reach, handling checks and the existing immediate comebacker-control contract
+are unchanged. The same existing current-ball observation/planner is used; no extra future path
+information is supplied. Sky Reader's hypothetical stack remains a separate sponsor dependency.
+
+These numerical values and mappings are implemented testing candidates, not approved balance.
+The remaining Bands/Shoes mappings are concrete dependencies: current pitch effort is82–112%,
+not the contract's normalized0–100%; current handling is a deterministic difficulty-margin
+resolver with no separate error-scale term. No conversion is invented and those items stay
+out of offers. Alley identity/trajectory details and earned tiers also remain unfinished.
+
+Schema8/build4 preserves every older quote and paid receipt on migration, and enables the new
+Misc pool at the following visit. No load-only rewrite or free stock reroll occurs. The hub and
+postgame button now read Season Shop. Native visual/feel approval remains open.
 
 ## Paid Gear in the Working season, 2026-09-28
 

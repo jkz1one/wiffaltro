@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.31
+**Version:** v0.1.32
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,38 @@
 ---
 
 # 1. Technical Objective
+
+## Misc temporal/participation/reaction integration, 2026-09-28
+
+`SeasonGearCatalog` keeps the original six-item dictionary intact for catalogue1/build3
+fingerprints and adds a separate three-item Misc dictionary for catalogue2/build4. Schema8
+replays all prior versions before adding `misc_from` at the next visit; generation before
+that boundary uses catalogue1 exactly. The trusted bank supports all known contracts, but
+player commands cannot create stock or prices. Existing atomic buy/replace/sell paths remain
+shared. UI lookup resolves both catalogue generations and the route is now labelled Season Shop.
+
+`PlayerMatchState.first_batter_completed` is independent of equipment. `MatchState` collects
+unique pitcher-state references only when the live launch path reports a successful release.
+Every completed PA marks those participants and clears the set before advancing the batter,
+including walk-off/end-game completion. The workload selector reads this state before the
+actual stamina debit. Windups, canceled attempts and menu equips do not grant participation
+or refunds. Normal pause/resume retains the match object; a new match constructs fresh state.
+
+`SwingProfileDefinition.contact_start/end` provides a separate temporal gate, with exact neutral
+returns for legacy profiles. Gloves scale the two half-widths around the original sweet spot;
+the original fields still drive barrel motion and animation. Both swept-segment overlap and
+tracker expiry use the effective gate. Contact quality/error and spatial dimensions are not
+rewritten. The existing fair-only exit modifier composes with the Bat penalty/benefit once.
+
+Fielder configuration applies Goggles after deriving the baseline reaction from Fielding.
+Pitcher pursuit uses the same helper on its existing0.20s gate. The positive1ms engineering
+floor has no effect at current normal ratings. Immediate reach/handling checks, speed, obstacle
+avoidance and current-ball planning remain unchanged. Sponsor reaction stacks are not implemented.
+
+`season-misc` verifies temporal boundaries, first-PA ownership-independent participation,
+reaction behavior, real UI input and old paid-state migration. `season-misc-live` reuses the
+full-match harness with Kit and Gloves teams, keeping all four earlier complete-game fixtures.
+Remaining Bands/Shoes mappings are documented instead of inventing new effort/error semantics.
 
 ## Gear purchase and resolver integration, 2026-09-28
 

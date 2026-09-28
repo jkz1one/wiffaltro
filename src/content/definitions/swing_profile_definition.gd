@@ -16,6 +16,7 @@ extends DefinitionBase
 @export_range(0.0, 1.0, 0.01) var minimum_contact_quality: float = 0.18
 
 @export_storage var gear_fair_exit_scale: float = 1.0
+@export_storage var gear_timing_scale: float = 1.0
 
 func is_valid_definition() -> bool:
 	return (
@@ -24,3 +25,15 @@ func is_valid_definition() -> bool:
 		and sweet_spot_seconds < contact_window_end_seconds
 		and contact_window_end_seconds <= swing_duration_seconds
 	)
+
+
+func contact_start() -> float:
+	if gear_timing_scale == 1.0:
+		return contact_window_start_seconds
+	return sweet_spot_seconds - (sweet_spot_seconds - contact_window_start_seconds) * gear_timing_scale
+
+
+func contact_end() -> float:
+	if gear_timing_scale == 1.0:
+		return contact_window_end_seconds
+	return sweet_spot_seconds + (contact_window_end_seconds - sweet_spot_seconds) * gear_timing_scale

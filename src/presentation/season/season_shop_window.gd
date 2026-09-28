@@ -63,7 +63,7 @@ func _refresh() -> void:
 		)
 	)
 	_label(
-		"Working: development, lessons, recruits and six Gear items. Other Gear and sponsors pending."
+		"Working: development, lessons, recruits and nine Gear items. Other Gear and sponsors pending."
 	)
 	_label(_notice)
 	if shop.pack_status == "open":
@@ -79,7 +79,7 @@ func _refresh() -> void:
 		SeasonGearShopUI.equipped(self, view.wallet.gear)
 		for offer: String in shop.offers:
 			var item_id: String = shop.offers[offer]
-			if SeasonGearCatalog.ITEMS.has(item_id):
+			if not SeasonGearCatalog.item(item_id).is_empty():
 				SeasonGearShopUI.offer(self, offer, item_id, view.wallet.gear)
 				continue
 			var item: Dictionary = DevelopmentShopCatalog.item(item_id)

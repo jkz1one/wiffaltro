@@ -8,6 +8,7 @@ var definition: PlayerDefinition
 var stamina_max: float = 0.0
 var stamina_remaining: float = 0.0
 var pitch_count: int = 0
+var first_batter_completed: bool = false
 var pitching_finished: bool = false
 var batting_hand_override: int = -1
 

@@ -9,7 +9,7 @@ static func advance_pitcher(lab: PitchBatLab, delta: float) -> void:
 	var state: BallPlayState = lab._ball_play_resolver.state
 	if lab._pitcher_attempted or state.defender_touched:
 		return
-	if state.elapsed_seconds < CHARGE_REACTION_SECONDS:
+	if state.elapsed_seconds < reaction_delay(lab):
 		return
 	var ball: Vector3 = lab._batted_ball.global_position
 	if lab._batted_ball.linear_velocity.length() <= lab.SETTLED_SPEED_MPS:
@@ -45,3 +45,10 @@ static func try_pitcher(lab: PitchBatLab, previous: Vector3, current: Vector3) -
 		lab._ball_play_resolver.state.has_grounded, MatchLabSupport.pitcher_fielding_rating(lab)
 	)
 	lab._apply_fielding_outcome(&"pitcher", position, outcome, ball)
+
+
+static func reaction_delay(lab: PitchBatLab) -> float:
+	if lab._match_mode and lab._match_state != null:
+		return SeasonGearCatalog.reaction_delay(CHARGE_REACTION_SECONDS,
+			lab._match_state.pitcher().definition)
+	return CHARGE_REACTION_SECONDS

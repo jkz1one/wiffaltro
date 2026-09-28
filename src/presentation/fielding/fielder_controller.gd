@@ -61,6 +61,7 @@ func configure_player(player: PlayerDefinition) -> void:
 		0.09,
 		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
 	)
+	reaction_delay_seconds = SeasonGearCatalog.reaction_delay(reaction_delay_seconds, player)
 	if _reach_marker != null:
 		_reach_marker.scale = Vector3(reach_m, 1.0, reach_m)
 	if _avatar != null:

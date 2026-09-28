@@ -34,6 +34,7 @@ var batter_timeout_used: bool = false
 var last_event: String = "Game ready"
 var winner_name: String = ""
 var _between_batters_before_pitch: bool = true
+var _pa_pitchers: Array[PlayerMatchState] = []
 
 static func create(
 	away: TeamMatchState,
@@ -181,6 +182,9 @@ func _add_runs(amount: int) -> void:
 		_finish_game("Mercy rule")
 
 func _complete_plate_appearance(description: String) -> void:
+	for participant: PlayerMatchState in _pa_pitchers:
+		participant.first_batter_completed = true
+	_pa_pitchers.clear()
 	last_event = description
 	batting_team().advance_batter()
 	plate_appearance_number += 1
@@ -263,3 +267,8 @@ func _hit_name(result: BallPlayOutcome.Result) -> String:
 			return "Home Run"
 		_:
 			return "Ball in play"
+
+
+func note_pitch_released() -> void:
+	if phase == Phase.PITCH_IN_FLIGHT and not _pa_pitchers.has(pitcher()):
+		_pa_pitchers.append(pitcher())

@@ -61,28 +61,68 @@ const ITEMS: Dictionary = {
 	}
 }
 
+# Keep ITEMS byte-for-byte stable for paid build3 journals.
+const MISC_ITEMS: Dictionary = {
+	"D02":
+	{
+		"name": "Bullpen Kit",
+		"slot": "misc",
+		"price": 10,
+		"effect":
+		"Pitch workload −15% through each pitcher's first completed batter; +10% afterward."
+	},
+	"MISC-BAT-01":
+	{
+		"name": "Batting Gloves",
+		"slot": "misc",
+		"price": 10,
+		"timing": 1.08,
+		"exit": 0.96,
+		"effect":
+		"Timing window +8%; fair exit speed −4%. Both swing types; swing motion stays fixed."
+	},
+	"MISC-FLD-03":
+	{
+		"name": "Sports Goggles",
+		"slot": "misc",
+		"price": 12,
+		"reaction": 0.85,
+		"effect": "Fielder and pitcher reaction delay −15%. No movement-speed or handling bonus."
+	}
+}
+const MIN_REACTION_SECONDS: float = 0.001
+
+
+static func catalog(catalog_version: int = 2) -> Dictionary:
+	var result: Dictionary = ITEMS.duplicate(true)
+	if catalog_version >= 2:
+		result.merge(MISC_ITEMS, true)
+	return result
+
 
 static func item(id: String) -> Dictionary:
-	return ITEMS.get(id, {}).duplicate(true)
+	return ITEMS.get(id, MISC_ITEMS.get(id, {})).duplicate(true)
 
 
-static func signature() -> String:
-	return JSON.stringify(ITEMS).sha256_text()
+static func signature(catalog_version: int = 2) -> String:
+	return JSON.stringify(catalog(catalog_version)).sha256_text()
 
 
 static func ownership_catalog() -> Dictionary:
 	var result: Dictionary = DevelopmentShopCatalog.ownership_catalog()
-	for id: String in ITEMS:
+	var all_items: Dictionary = catalog()
+	for id: String in all_items:
 		result[id] = {
-			"kind": "gear", "slot": ITEMS[id].slot, "price": ITEMS[id].price, "sale": "half"
+			"kind": "gear", "slot": all_items[id].slot, "price": all_items[id].price, "sale": "half"
 		}
 	return result
 
 
-static func eligible(gear: Dictionary) -> Dictionary:
+static func eligible(gear: Dictionary, catalog_version: int = 2) -> Dictionary:
 	var result: Dictionary = {}
-	for id: String in ITEMS:
-		var slot: String = ITEMS[id].slot
+	var all_items: Dictionary = catalog(catalog_version)
+	for id: String in all_items:
+		var slot: String = all_items[id].slot
 		if gear.get(slot, {}).get("item", "") == id:
 			continue
 		if not result.has(slot):
@@ -97,7 +137,7 @@ static func equip(player: PlayerDefinition, gear: Dictionary) -> PlayerDefinitio
 	result.season_gear = {}
 	for slot: String in SeasonOwnership.GEAR_SLOTS:
 		var id: String = gear.get(slot, {}).get("item", "")
-		if ITEMS.has(id) and ITEMS[id].slot == slot:
+		if item(id).get("slot", "") == slot:
 			result.season_gear[slot] = id
 	return result
 
@@ -105,7 +145,7 @@ static func equip(player: PlayerDefinition, gear: Dictionary) -> PlayerDefinitio
 static func factor(player: PlayerDefinition, key: String) -> float:
 	var result: float = 1.0
 	for id: String in player.season_gear.values():
-		result *= float(ITEMS.get(id, {}).get(key, 1.0))
+		result *= float(item(id).get(key, 1.0))
 	return result
 
 
@@ -116,6 +156,7 @@ static func swing(
 	result.contact_radius_x_m *= factor(player, "radius")
 	result.contact_radius_y_m *= factor(player, "radius")
 	result.gear_fair_exit_scale = factor(player, "exit")
+	result.gear_timing_scale = factor(player, "timing")
 	return result
 
 
@@ -133,14 +174,15 @@ static func offers(
 	roster: Array[String],
 	gear: Dictionary,
 	rng: RandomNumberGenerator,
-	prefix: String
+	prefix: String,
+	catalog_version: int = 2
 ) -> Dictionary:
 	var development: Dictionary = DevelopmentShopCatalog.families(book, roster)
 	var lessons: Array[String] = []
 	for recipe: String in DevelopmentShopCatalog.LESSON_PRICES:
 		if not DevelopmentShopCatalog.targets(book, roster, "lesson." + recipe).is_empty():
 			lessons.append("lesson." + recipe)
-	var equipment: Dictionary = eligible(gear)
+	var equipment: Dictionary = eligible(gear, catalog_version)
 	var weights: Dictionary = {}
 	if not development.is_empty():
 		weights["development"] = 25.0
@@ -186,3 +228,14 @@ static func _weighted(weights: Dictionary, rng: RandomNumberGenerator) -> String
 		if roll < 0.0:
 			return kind
 	return weights.keys().back()
+
+
+static func workload(player: PlayerMatchState) -> float:
+	if player.definition.season_gear.get("misc", "") == "D02":
+		return 1.10 if player.first_batter_completed else 0.85
+	return factor(player.definition, "workload")
+
+
+static func reaction_delay(seconds: float, player: PlayerDefinition) -> float:
+	var scale: float = factor(player, "reaction")
+	return seconds if scale == 1.0 else maxf(MIN_REACTION_SECONDS, seconds * scale)

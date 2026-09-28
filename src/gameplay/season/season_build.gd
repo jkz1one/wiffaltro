@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 3
+const VERSION: int = 4
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -33,6 +33,7 @@ var _appeared: bool = false
 var _format: int = VERSION
 var _recruit_from: int = 1
 var _gear_from: int = 1
+var _misc_from: int = 1
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
 var _visit: Dictionary = {"number": 0, "open": false}
@@ -128,6 +129,8 @@ func to_data() -> Dictionary:
 		)
 	if _format >= 3:
 		data["gear_from"] = _gear_from
+	if _format >= 4:
+		data["misc_from"] = _misc_from
 	return data
 
 
@@ -145,6 +148,8 @@ static func from_data(
 		keys.append_array(["pool", "blocked", "recruit_from", "recruits"])
 	if value.version >= 3:
 		keys.append("gear_from")
+	if value.version >= 4:
+		keys.append("misc_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -170,6 +175,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.gear_from, 1, 13):
 			return null
 		result._gear_from = int(value.gear_from)
+	if value.version >= 4:
+		if not SeasonOwnership._whole(value.misc_from, 1, 13):
+			return null
+		result._misc_from = int(value.misc_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -256,6 +265,7 @@ func _fork() -> SeasonBuild:
 	result._format = _format
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
+	result._misc_from = _misc_from
 	result._bank = _bank.fork()
 	result._book = _book.fork()
 	result._visit = _visit.duplicate(true)
@@ -469,7 +479,8 @@ func _offers(rerolls: int) -> Dictionary:
 			_roster,
 			_bank.view().gear,
 			_rng(rerolls),
-			"visit:%d:roll:%d" % [_visit.number, rerolls]
+			"visit:%d:roll:%d" % [_visit.number, rerolls],
+			2 if _format >= 4 and _visit.number >= _misc_from else 1
 		)
 	return DevelopmentShopCatalog.offers(
 		_book, _roster, _rng(rerolls), "visit:%d:roll:%d" % [_visit.number, rerolls]
@@ -499,7 +510,7 @@ static func _signature(format_version: int = VERSION) -> String:
 	if format_version >= 2:
 		base += ":" + RecruitCatalog.signature()
 	if format_version >= 3:
-		base += ":" + SeasonGearCatalog.signature()
+		base += ":" + SeasonGearCatalog.signature(2 if format_version >= 4 else 1)
 	return base
 
 
@@ -630,3 +641,9 @@ func _gear_transaction(command: Dictionary) -> String:
 		return bought.error
 	_visit.offers.erase(command.offer)
 	return ""
+
+
+func migrate_misc() -> void:
+	if _format < 4:
+		_format = 4
+		_misc_from = int(_visit.number) + 1

@@ -51,7 +51,7 @@ func _exercise() -> void:
 	_check(app._checkpoint(), "save earned result before shopping")
 	app.show_season()
 	await _frames()
-	await _click(_button(app.menu, "DEVELOPMENT SHOP"))
+	await _click(_button(app.menu, "SEASON SHOP"))
 	var window: SeasonShopWindow = _shop(app)
 	_check(window != null, "hub button opens the real shop")
 	if window == null:

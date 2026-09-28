@@ -49,7 +49,7 @@ static func hub(menu: SeasonMenu) -> void:
 	menu._label(card, venue(season.pending_fixture()), 18)
 	menu._label(card, defense(season), 18)
 	if season.shop_available():
-		menu._button(card, "DEVELOPMENT SHOP", menu.app.open_shop)
+		menu._button(card, "SEASON SHOP", menu.app.open_shop)
 	if season.phase == SeasonState.Phase.REGULAR:
 		menu._label(
 			card, "Top 4 qualify • %d regular games remaining" % (10 - season.round_index), 18
@@ -150,7 +150,7 @@ static func postgame(menu: SeasonMenu) -> void:
 	)
 	menu._button(menu._footer, "SEASON HUB", menu.show_hub)
 	if season.shop_available():
-		menu._button(menu._footer, "DEVELOPMENT SHOP", menu.app.open_shop)
+		menu._button(menu._footer, "SEASON SHOP", menu.app.open_shop)
 	menu._button(menu._footer, "MAIN MENU", menu.show_home)
 
 

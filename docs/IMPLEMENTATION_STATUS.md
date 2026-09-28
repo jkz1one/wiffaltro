@@ -1,5 +1,25 @@
 # Implementation Status
 
+## Bullpen Kit, Batting Gloves and Sports Goggles — 2026-09-28
+
+The Working season now has nine enabled Gear items, including four of seven Misc. Bullpen
+Kit uses actual per-pitcher release participation through a whole completed plate appearance;
+Gloves widen an independent temporal contact gate while retaining swing motion/actual quality;
+Goggles shorten the existing active-fielder and pitcher-pursuit reaction delays. Both teams use
+the same paths. Displayed ratings, substitution rights and handling rules stay intact.
+
+Schema8/build4 preserves genuinely paid schema7 Gear, stock and receipts and adds the new Misc
+pool only at the next visit. Existing build1–3 generation/signatures remain replayable. The hub
+and postgame route now say Season Shop. All effects/prices remain Working testing defaults;
+mastery calibration remains an unapproved Proposal. Headless input/layout and real physical
+paths are verified separately from still-pending native visual/feel acceptance.
+
+Concrete remaining mappings: Bands specify normalized0–100% effort but current controls expose
+82–112% effort; Shoes specify handling-error multipliers but the current resolver uses
+deterministic difficulty margins, not a separate error scale. Neither mapping is silently
+invented or enabled. Alley identity/trajectory details, earned tiers, sponsor combinations,
+permanent unlocks and AI purchasing remain open.
+
 ## Paid Gear and live effects — 2026-09-28
 
 The Working shop now sells Wide Barrel Bat, Taped Bat, Scraped Ball, Slick Ball, Hot Ball
@@ -50,8 +70,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 47% implemented**, after the first paid Gear checkpoint (45% after
-recruitment;40% after paid development;35% before that). This is an estimate against the current full planned scope, not a
+**Approximately 48% implemented**, after the three additional Misc items (47% after
+first Gear;45% after recruitment;40% after paid development;35% before that). This is an estimate against the current full planned scope, not a
 test-pass percentage or a promise about remaining hours. Every finished response should
 report this same whole-project basis. Working content and Proposal tuning do not count as
 human-approved or release-ready merely because their code runs.
@@ -63,12 +83,12 @@ human-approved or release-ready merely because their code runs.
 | Ownership and economy | 8 | 6 |
 | Player development and mastery | 10 | 8 |
 | Shop, packs and recruitment | 12 | 6 |
-| Gear, tactical cards and abilities | 10 | 2 |
+| Gear, tactical cards and abilities | 10 | 3 |
 | Sponsors | 10 | 0 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **47** |
+| **Total** | **100** | **48** |
 
 Next unmet dependencies are the remaining Gear/Misc effects and supported sponsor/tactical contracts;
 reserve capacity remains open. Partial shops redistribute missing category weights; they do not

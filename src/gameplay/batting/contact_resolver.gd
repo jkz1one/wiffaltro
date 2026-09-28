@@ -19,8 +19,8 @@ static func resolve_swept_segment(
 	power_rating: int = 5
 ) -> ContactResult:
 	var current_pitch_time: float = pitch_state.elapsed_time
-	var window_start: float = intent.start_time_seconds + profile.contact_window_start_seconds
-	var window_end: float = intent.start_time_seconds + profile.contact_window_end_seconds
+	var window_start: float = intent.start_time_seconds + profile.contact_start()
+	var window_end: float = intent.start_time_seconds + profile.contact_end()
 	var overlap_start: float = maxf(previous_pitch_time, window_start)
 	var overlap_end: float = minf(current_pitch_time, window_end)
 	if overlap_end < overlap_start:

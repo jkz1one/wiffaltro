@@ -1,5 +1,54 @@
 # Fast verification and playtest records
 
+## Reconstruction: first-batter, timing and reaction Misc, 2026-09-28
+
+Pinned Godot4.7.2 gate `20260928T211802693954Z` passed39/39 steps, retaining all prior
+ownership/save/roster/development/shop/gameplay/camera/AI checks and four complete live games,
+then adding focused Misc coverage and a fifth complete Kit/Gloves game. The latter completed
+its outro/restart and verified actual participating pitchers consumed their first-batter window.
+Final UI gate `20260928T212242225821Z` passed8/8 after renaming the hub/postgame routes to
+Season Shop. Earlier focused Misc gate `20260928T211615657511Z` passed8/8; the existing
+Gear/recruitment/shop gate `20260928T211234667436Z` passed10/10. Engine errors remain failures
+regardless of completion markers. Main remains `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`.
+
+Kit checks cover eight-foul battles, balls, walks, Ks, hits and outs, duplicate release notices,
+canceled windups, each reliever's own window, inning persistence, fresh-game reset, multiple
+release participants and tracking before item ownership. Equip does not recover stamina and
+Kit does not grant illegal pitcher re-entry. The real launch path debits the correct first/later
+workload multiplier for human and AI control; PA completion advances the same state.
+
+Gloves checks cover Contact/Power, both batting hands, neutral/contact/power Bats, exact1.08
+window widths, swept contact inside the added early/late bands and misses beyond them. Barrel
+positions, swing start/duration, spatial radii/depth, actual quality and timing error remain
+unchanged. Weak edge contact stays weak; fair exit speed receives the0.96 penalty once while
+fouls retain their normal velocity. Tracker expiry honors the new endpoint. Actual human/AI
+swing trackers receive both modifiers, and the fifth live game exercises equipped AI contact.
+
+Goggles checks compare baseline/equipped reaction, unchanged movement/reach/Fielding, no planning
+before the reduced gate, planning within the newly gained interval, neutral behavior and a
+positive floor. Real human/AI lab assignments receive the same fielder and pitcher-pursuit delays.
+The existing immediate comebacker-control rule is preserved rather than inventing a catch delay.
+
+Each new Misc item is acquired through actual700×400 viewport clicks: exact effect/price review,
+Cancel, confirmed purchase, immutable receipt, save/reload, paid next-match handoff and resale.
+Existing Gear coverage continues to verify replacement, write-failure rollback and old save bytes.
+A genuinely purchased schema7 Rosin receipt migrates with unchanged cash/stock; the three new
+Misc become eligible only next visit. Schema8 replay is stable both before and after that visit.
+
+All39 full checks ran against the completed physics/domain/UI implementation. The subsequent
+changes were shop-route wording and its existing input fixture; the final focused UI gate covers
+that exact wording. Native screenshots/visual feel and human balance approval remain open under
+the display limitation recorded below. Desktop capture remains available:
+
+```sh
+python3 tools/verify.py --only season-misc --rendered-ui
+```
+
+Bands need a0–100% contract-to-82–112% engine effort mapping; Shoes need handling-error semantics
+for the deterministic resolver. These and Alley/tier/sponsor/AI-purchasing dependencies remain
+explicitly unfinished. No new effect is claimed approved merely because its automated checks pass.
+
+
 ## Reconstruction: paid Gear and shared physical effects, 2026-09-28
 
 Full pinned Godot4.7.2 gate `20260928T205008883850Z` passed37/37 steps, including the new

@@ -239,7 +239,7 @@ func _checkpoint() -> bool:
 func ask_progression_season() -> void:
 	_confirm(
 		"Start a Working progression test season? This replaces the saved season. "
-		+ "It uses the Working roster, proposed mastery physics and a partial development shop.",
+		+ "It uses the Working roster, proposed mastery physics and a partial season shop.",
 		begin_season.bind(-1, true))
 
 

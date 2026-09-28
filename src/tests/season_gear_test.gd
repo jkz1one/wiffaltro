@@ -29,7 +29,7 @@ func _catalog() -> void:
 	var seen: Dictionary = {}
 	for seed_value in range(150):
 		rng.seed = seed_value
-		var offers: Dictionary = SeasonGearCatalog.offers(book, ROSTER, owned, rng, "test")
+		var offers: Dictionary = SeasonGearCatalog.offers(book, ROSTER, owned, rng, "test", 1)
 		var kinds: Dictionary = {}
 		for id: String in offers.values():
 			var kind: String = "development"
