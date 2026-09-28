@@ -1,0 +1,270 @@
+class_name SeasonShopWindow
+extends Window
+
+var app: SeasonApp
+var _body: VBoxContainer
+var _scroll: ScrollContainer
+var _back: Button
+var _confirm: ConfirmationDialog
+var _pending: Dictionary = {}
+var _notice: String = ""
+
+
+func _ready() -> void:
+	title = "Working development shop"
+	size = Vector2i(1000, 650)
+	min_size = Vector2i(700, 400)
+	transient = true
+	exclusive = true
+	theme = ClubhouseTheme.create()
+	close_requested.connect(_close)
+	var panel: PanelContainer = PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(panel)
+	var margin: MarginContainer = MarginContainer.new()
+	for edge: String in ["left", "top", "right", "bottom"]:
+		margin.add_theme_constant_override("margin_" + edge, 16)
+	panel.add_child(margin)
+	var layout: VBoxContainer = VBoxContainer.new()
+	margin.add_child(layout)
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(_scroll)
+	_body = VBoxContainer.new()
+	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.add_theme_constant_override("separation", 10)
+	_scroll.add_child(_body)
+	_back = Button.new()
+	_back.text = "BACK TO SEASON"
+	_back.custom_minimum_size.y = 44
+	_back.pressed.connect(_close)
+	layout.add_child(_back)
+	_confirm = ConfirmationDialog.new()
+	_confirm.title = "Confirm purchase or use"
+	_confirm.dialog_autowrap = true
+	_confirm.transient = true
+	_confirm.exclusive = true
+	_confirm.confirmed.connect(_commit)
+	_confirm.canceled.connect(func() -> void: _pending.clear())
+	add_child(_confirm)
+	_refresh()
+
+
+func _refresh() -> void:
+	_clear()
+	var view: Dictionary = app.season.build.view()
+	var shop: Dictionary = view.shop
+	_label("WORKING DEVELOPMENT SHOP • VISIT %d" % shop.number)
+	_label(
+		(
+			"Cash %d • Held cards %d / %d"
+			% [view.wallet.cash, view.wallet.held.size(), view.wallet.capacity.held]
+		)
+	)
+	_label(
+		"Development and ordinary lessons are available. Gear, sponsors and recruits are still pending."
+	)
+	_label(_notice)
+	if shop.pack_status == "open":
+		_label("Choose one revealed card, then its recipient. The pack's 8 Cash is already paid.")
+		for item_id: String in shop.cards:
+			var command: Dictionary = _request("pack_pick", {"item": item_id})
+			_button(DevelopmentShopCatalog.item(item_id).name, _choose.bind(item_id, command))
+		_button(
+			"Skip this paid pack", _preview.bind(_request("pack_skip"), "Skip without a refund")
+		)
+	else:
+		for offer: String in shop.offers:
+			var item_id: String = shop.offers[offer]
+			var item: Dictionary = DevelopmentShopCatalog.item(item_id)
+			_label("%s • %d Cash" % [item.name, item.price])
+			var command: Dictionary = _request("buy", {"offer": offer, "mode": "use"})
+			_button("BUY AND USE", _choose.bind(item_id, command)).set_meta("offer", offer)
+			if DevelopmentShopCatalog.CARDS.has(item_id):
+				var hold: Dictionary = _request(
+					"buy",
+					{"offer": offer, "mode": "hold", "player": "", "pitch": "", "replace": ""}
+				)
+				_button("BUY AND HOLD", _preview.bind(hold, "Hold " + item.name))
+		_button(
+			"Reroll individual offers • %d Cash" % (4 + 2 * shop.rerolls),
+			_preview.bind(_request("reroll"), "Reroll four offers; pack stays fixed")
+		)
+		if shop.pack_status == "sealed":
+			var pack_button: Button = _button(
+				"Open fixed development pack • 8 Cash • %d choices" % shop.choice_count,
+				_preview.bind(
+					_request("pack_open"), "Pay 8 to reveal %d fixed choices" % shop.choice_count
+				)
+			)
+			pack_button.disabled = shop.choice_count == 0
+			if pack_button.disabled:
+				pack_button.tooltip_text = "No eligible development remains; no Cash can be charged."
+		else:
+			_label("Development pack: " + str(shop.pack_status).capitalize())
+		_held(view.wallet.held)
+	_focus_first.call_deferred()
+
+
+func _held(receipts: Array) -> void:
+	_label("HELD DEVELOPMENT")
+	for receipt: Dictionary in receipts:
+		var item: Dictionary = DevelopmentShopCatalog.item(receipt.item)
+		_label("%s • paid %d" % [item.name, receipt.paid])
+		_button(
+			"USE " + item.name, _choose.bind(receipt.item, _request("use", {"receipt": receipt.id}))
+		)
+		_button(
+			"DISCARD " + item.name,
+			_preview.bind(
+				_request("discard", {"receipt": receipt.id}), "Discard without growth or refund"
+			)
+		)
+
+
+func _choose(item_id: String, command: Dictionary) -> void:
+	_clear()
+	var item: Dictionary = DevelopmentShopCatalog.item(item_id)
+	_label("CHOOSE RECIPIENT • " + item.name)
+	_label("Inspection and target selection spend nothing. Confirm the exact change next.")
+	var targets: Array[Dictionary] = app.season.build.targets(item_id)
+	var previous_player: String = ""
+	for target: Dictionary in targets:
+		var player: PlayerDefinition = app.season.player_definition(target.player)
+		if target.player != previous_player:
+			SeasonPlayerCard.ratings_card(_body, player, player.display_name)
+			previous_player = target.player
+		var selected: Dictionary = command.duplicate(true)
+		selected.merge(target)
+		var text: String = _target_text(item, target)
+		_button(text, _preview.bind(selected, item.name + "\n" + text)).set_meta("target", target)
+	if targets.is_empty():
+		_label("No legal target remains. Nothing was charged or consumed.")
+	_button("CANCEL TARGETING", _refresh)
+	_focus_first.call_deferred()
+
+
+func _target_text(item: Dictionary, target: Dictionary) -> String:
+	var profile: Dictionary = app.season.build.player(target.player)
+	var name_text: String = app.season.player_definition(target.player).display_name
+	if item.op == "stat":
+		return (
+			"%s • %s %d → %d"
+			% [
+				name_text,
+				item.family.capitalize(),
+				profile.stats[item.family],
+				profile.stats[item.family] + 1
+			]
+		)
+	if item.op == "learn":
+		var replaced: String = (
+			"free capacity slot"
+			if target.replace.is_empty()
+			else ("replace " + ContentDB.get_pitch(StringName(target.replace)).display_name)
+		)
+		return (
+			"%s • %s • learned level %d"
+			% [name_text, replaced, profile.mastery.get(item.recipe, 1)]
+		)
+	return (
+		"%s • %s %d → %d"
+		% [
+			name_text,
+			ContentDB.get_pitch(StringName(target.pitch)).display_name,
+			profile.mastery[target.pitch],
+			profile.mastery[target.pitch] + 1
+		]
+	)
+
+
+func _preview(command: Dictionary, description: String) -> void:
+	var result: Dictionary = app.season.build.preview(command)
+	if not result.ok:
+		_notice = result.error
+		_refresh()
+		return
+	_pending = command.duplicate(true)
+	var effect: String = ""
+	if command.get("player", "") != "":
+		var before: Dictionary = app.season.build.player(command.player)
+		for stat: String in SeasonPlayerCatalog.STATS:
+			if before.stats[stat] != result.player.stats[stat]:
+				effect = DevelopmentLab.STAT_EFFECTS[stat]
+		if command.get("pitch", "") != "":
+			for pitch: PitchDefinition in (
+				app.season.player_definition(command.player).starting_pitches
+			):
+				if String(pitch.id) == command.pitch:
+					effect = PitchMastery.next_effect(pitch)
+	_confirm.dialog_text = (
+		"%s\nCash: %d → %d\nHeld: %d → %d\n%s\nConfirm and save?"
+		% [
+			description,
+			result.before_cash,
+			result.after.wallet.cash,
+			app.season.build.view().wallet.held.size(),
+			result.after.wallet.held.size(),
+			effect
+		]
+	)
+	_confirm.popup_centered(Vector2i(mini(760, size.x - 32), 280))
+	_focus_cancel.call_deferred()
+
+
+func _commit() -> void:
+	var ok: bool = app.commit_shop(_pending)
+	_pending.clear()
+	_notice = "Saved. Your build is ready for the next game." if ok else app.notice
+	_refresh()
+
+
+func _request(op: String, fields: Dictionary = {}) -> Dictionary:
+	var rev: int = app.season.build.revision()
+	var result: Dictionary = {"id": "shop:%d" % rev, "rev": rev, "op": op}
+	result.merge(fields)
+	return result
+
+
+func _close() -> void:
+	app.show_season()
+	queue_free()
+
+
+func _clear() -> void:
+	_scroll.scroll_vertical = 0
+	for child in _body.get_children():
+		_body.remove_child(child)
+		child.queue_free()
+
+
+func _label(text: String) -> void:
+	var label: Label = SeasonPlayerCard.line(_body, text)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _button(text: String, action: Callable) -> Button:
+	var button: Button = Button.new()
+	button.text = text
+	button.tooltip_text = text
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.custom_minimum_size.y = 44
+	button.pressed.connect(action)
+	_body.add_child(button)
+	return button
+
+
+func _focus_first() -> void:
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	for child in _body.get_children():
+		if child is Button and not child.disabled:
+			child.grab_focus()
+			return
+	_back.grab_focus()
+
+
+func _focus_cancel() -> void:
+	if is_inside_tree() and not is_queued_for_deletion() and _confirm.visible:
+		_confirm.get_cancel_button().grab_focus()

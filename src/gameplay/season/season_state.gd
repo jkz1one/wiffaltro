@@ -47,6 +47,7 @@ var starter_index: int = 0
 var fielder_index: int = 1
 var difficulty: int = 1
 var ownership: SeasonOwnership = SeasonOwnership.new()
+var build: SeasonBuild
 
 
 static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
@@ -54,9 +55,13 @@ static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
 	return ContentDB.get_field(PitchBatLab.FIELD_ID if home else AWAY_FIELD_ID)
 
 
-static func create(seed_value: int, legacy: bool = false) -> SeasonState:
+static func create(
+	seed_value: int, legacy: bool = false, working_progression: bool = false
+) -> SeasonState:
 	var season: SeasonState = SeasonState.new()
 	season.season_seed = seed_value
+	if working_progression:
+		season.build = SeasonBuild.new(seed_value)
 	for id: StringName in ContentDB.player_by_id:
 		if id != PitchBatLab.DEBUG_PLAYER_ID and (not legacy or String(id) in LEGACY_IDS):
 			season.draft_pool.append(String(id))
@@ -105,6 +110,8 @@ func choose_player(id: String) -> bool:
 		return false
 	picks.append(id)
 	if picks.size() == 4:
+		if build != null:
+			build = SeasonBuild.new(season_seed, picks)
 		teams[0]["roster"] = picks.duplicate()
 		var remaining: Array[String] = []
 		for candidate in draft_pool:
@@ -161,10 +168,12 @@ func record_player_result(
 	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
 	if not performance.is_empty() and not SeasonPerformance.valid(performance, roster):
 		return false
-	var reward: Dictionary = ownership.commit({
-		"id": "game:%d" % fixture_id, "rev": ownership.revision(), "op": "reward",
+	var command: Dictionary = {
+		"id": "game:%d" % fixture_id,
+		"rev": ownership.revision() if build == null else build.revision(), "op": "reward",
 		"game": fixture_id, "win": (home_runs > away_runs) == (fixture["home"] == 0)
-	})
+	}
+	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
 	if not reward.ok:
 		return false
 	var result: Dictionary = fixture.duplicate(true)
@@ -260,8 +269,20 @@ func _build_schedule() -> void:
 func _make_team(index: int) -> TeamMatchState:
 	var roster: Array[PlayerDefinition] = []
 	for id: String in teams[index]["roster"]:
-		roster.append(ContentDB.get_player(StringName(id)))
+		roster.append(player_definition(id))
 	return TeamMatchState.create(teams[index]["name"], roster)
+
+
+func player_definition(id: String) -> PlayerDefinition:
+	return ContentDB.get_player(StringName(id)) if build == null else build.definition(id)
+
+
+func cash() -> int:
+	return ownership.cash() if build == null else build.cash()
+
+
+func shop_available() -> bool:
+	return build != null and not player_results.is_empty() and not pending_fixture().is_empty()
 
 
 func _rank_before(a: Dictionary, b: Dictionary) -> bool:
@@ -329,7 +350,10 @@ func _strength(team: int) -> float:
 		return float(teams[team]["strength"])
 	var total: float = 0.0
 	for id: String in teams[team]["roster"]:
-		var player: PlayerDefinition = ContentDB.get_player(StringName(id))
+		var player: PlayerDefinition = player_definition(id)
+		if build != null:
+			total += (player.contact + player.power + player.fielding + player.control) / 4.0
+			continue
 		total += (
 			(
 				player.contact

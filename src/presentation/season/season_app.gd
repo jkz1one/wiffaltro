@@ -28,6 +28,7 @@ func _ready() -> void:
 	_dialog = ConfirmationDialog.new()
 	_dialog.title = "Wiffaltro"
 	_dialog.theme = ClubhouseTheme.create()
+	_dialog.dialog_autowrap = true
 	_dialog.confirmed.connect(func() -> void: _confirmed_action.call())
 	canvas.add_child(_dialog)
 	_continue = Button.new()
@@ -60,9 +61,10 @@ func ask_new_season() -> void:
 		menu.show_preseason()
 
 
-func begin_season(seed_value: int = -1) -> void:
+func begin_season(seed_value: int = -1, working_progression: bool = false) -> void:
 	var selected_seed: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
-	season = SeasonState.create(selected_seed if seed_value < 0 else seed_value)
+	season = SeasonState.create(
+		selected_seed if seed_value < 0 else seed_value, false, working_progression)
 	# Legacy saves retain their tactical preset. New runs use the base shell;
 	# the future per-League difficulty ladder is not a pitching-only selector.
 	season.difficulty = 1
@@ -89,6 +91,10 @@ func show_season() -> void:
 
 func play_season_game() -> void:
 	if lab != null or season == null or season.pending_fixture().is_empty():
+		return
+	if season.build != null and season.build.pack_pending():
+		notice = "Choose or skip your open development pack before the next game."
+		open_shop()
 		return
 	# Commit lineup before starting; interruption restarts this fixture, not the season.
 	if not _checkpoint():
@@ -228,6 +234,48 @@ func _checkpoint() -> bool:
 	var saved: bool = SeasonSave.save(season)
 	notice = SeasonSave.last_error
 	return saved
+
+
+func ask_progression_season() -> void:
+	_confirm(
+		"Start a Working progression test season? This replaces the saved season. "
+		+ "It uses the Working roster, proposed mastery physics and a partial development shop.",
+		begin_season.bind(-1, true))
+
+
+func commit_shop(command: Dictionary) -> bool:
+	if lab != null or season == null or not season.shop_available():
+		return false
+	if command.get("op") not in SeasonBuild.SHOP_OPS:
+		return false
+	var previous: SeasonBuild = season.build
+	var next: SeasonBuild = previous.candidate(command)
+	if next == null:
+		notice = previous.last_error
+		return false
+	season.build = next
+	if not _checkpoint():
+		season.build = previous
+		return false
+	return true
+
+
+func open_shop() -> void:
+	if lab != null or season == null or not season.shop_available():
+		return
+	if not season.build.view().shop.open:
+		var rev: int = season.build.revision()
+		if not commit_shop({"id": "shop:%d" % rev, "rev": rev, "op": "open"}):
+			menu.show_hub()
+			return
+	for child in menu.get_children():
+		if child is SeasonShopWindow:
+			child.popup_centered()
+			return
+	var window: SeasonShopWindow = SeasonShopWindow.new()
+	window.app = self
+	menu.add_child(window)
+	window.popup_centered()
 
 
 func _confirm(message: String, action: Callable) -> void:

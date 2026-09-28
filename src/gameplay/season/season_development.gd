@@ -26,6 +26,14 @@ func revision() -> int:
 	return _events.size()
 
 
+func fork() -> SeasonDevelopment:
+	var result: SeasonDevelopment = SeasonDevelopment.new(_season_key)
+	result._players = _players.duplicate(true)
+	result._events = _events.duplicate(true)
+	result._requests = _requests.duplicate(true)
+	return result
+
+
 func player(player_id: String) -> Dictionary:
 	return _players.get(player_id, {}).duplicate(true)
 

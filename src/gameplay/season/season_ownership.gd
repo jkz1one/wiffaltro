@@ -34,6 +34,14 @@ func cash() -> int:
 	return int(_state.cash)
 
 
+func fork() -> SeasonOwnership:
+	var result: SeasonOwnership = SeasonOwnership.new(_catalog)
+	result._state = _state.duplicate(true)
+	result._events = _events.duplicate(true)
+	result._requests = _requests.duplicate(true)
+	return result
+
+
 func view() -> Dictionary:
 	var result: Dictionary = _state.duplicate(true)
 	result["revision"] = revision()
@@ -116,6 +124,14 @@ func _prepare(command: Dictionary) -> Dictionary:
 
 func _apply(next: Dictionary, command: Dictionary) -> String:
 	match command.get("op"):
+		"charge":
+			# Internal service debit. The owning shop derives the amount from its
+			# fixed contract; player-facing commands never accept a price override.
+			if not _keys(command, ["id", "rev", "op", "amount"]):
+				return "Invalid service debit."
+			if not _whole(command.amount, 0, 1000000):
+				return "Invalid service debit."
+			next.cash -= int(command.amount)
 		"reward":
 			if not _keys(command, ["id", "rev", "op", "game", "win"]):
 				return "Invalid game reward."

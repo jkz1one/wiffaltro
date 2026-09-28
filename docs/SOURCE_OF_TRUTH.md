@@ -1,11 +1,37 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.37
+**Version:** v0.4.38
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Paid development in an opt-in Working season, 2026-09-28
+
+Home > New Working Season connects the four-stat roster to earned Season Cash, a bounded
+development shop and subsequent real matches. Starting it requires an explicit save-replacement
+confirmation. The default season and legacy saves retain their preserved gameplay baseline.
+
+**Approved:** exact seasonal ownership, two shared held slots, card-first targeting, immediate
+lessons, explicit recipe replacement, remembered personal mastery, individual caps10/5 and
+atomic payment/use. **Working:** the named roster,18/12 income, six development cards at6/8,
+ordinary lessons at10/12/14, four individual offers, pack8 and rerolls4/6/8… per visit.
+Mastery physics magnitudes remain **unapproved calibration Proposals** in this opt-in mode.
+
+Loose development supports Buy and Hold or Buy and Use. Held use consumes the exact receipt;
+lessons never become spare inventory. A fixed development pack samples up to three distinct
+eligible families, at most one pitch-level card, and requires immediate use of one choice or
+skip after payment. Reduced choice counts are shown before charging; zero eligibility disables
+purchase. Ordinary rerolls restock individual positions without refreshing the fixed pack.
+An unresolved paid pack must be resolved before the next game. Final income creates no shop.
+
+Only development and ordinary lessons currently have supported stock. Missing category weights
+are redistributed25:12; a bounded last-position repair supplies both categories when possible.
+This sampling implementation is a Working test choice, not a completed production catalogue.
+Gear effects, sponsors, abilities, tactical/transformation cards, recruits/reserves, AI growth,
+career/League unlocks and stadium progression remain outside this slice. No balance, rendered
+readability or human playtest approval is implied by automated verification.
 
 ## Seasonal ownership reconstruction, 2026-09-28
 
@@ -17,8 +43,8 @@ reserve-player rules and permanent discoveries are separate and are not migrated
 
 Five active sponsors,18-Cash wins/12-Cash losses, zero starting Cash and ordinary sponsor
 half-price resale are Working testing defaults. Sponsor exceptions remain explicit. Current
-real seasons receive only base income from validated completed fixtures; no production item
-shop/effects have been rebuilt. The separate Ownership Test Lab uses synthetic fixtures and
+default seasons receive only base income from validated completed fixtures. The opt-in Working
+shop above adds paid development. The separate Ownership Test Lab uses synthetic fixtures and
 cannot change a season. It previews exact acquired/removed items, confirms or cancels, and
 supports an isolated save/reload test. This is infrastructure verification, not balance approval.
 
@@ -35,11 +61,11 @@ survives explicit recipe replacement and relearning in the same season. Ordinary
 start1; the authored Eephus specialist starts2. Learned capacity is separate from count.
 
 The 48 named rows/capacities from Players/Pitches v17 remain **Working**. They are encoded
-in `SeasonPlayerCatalog` and available only through Home > Player Growth Test Lab.
+in `SeasonPlayerCatalog` and available through Player Growth Test Lab and New Working Season.
 Synthetic grants can preview/cancel/confirm growth or lessons and save/reload a separate
 test journal. The player can launch an exhibition using those actual developed profiles.
-Ordinary seasons keep their current resources and saves. No development purchase,
-recruitment quote or earned entitlement is implied by a test grant.
+Ordinary seasons keep their current resources and saves. Synthetic test grants imply no
+purchase, recruitment quote or earned entitlement in a Working season.
 
 The physical magnitudes in `PitchMastery` are **new unapproved calibration Proposals**.
 They implement the documented ladder directions for review: Four-Seam/Riser movement

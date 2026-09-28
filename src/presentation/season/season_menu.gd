@@ -73,6 +73,7 @@ func show_home() -> void:
 			_label(club, SeasonPages.club_record(app.season), 18)
 		_button(club, "CONTINUE SEASON", app.show_season)
 	_button(club, "NEW SEASON", app.ask_new_season)
+	_button(club, "NEW WORKING SEASON", app.ask_progression_season)
 	var quick: VBoxContainer = SeasonPlayerCard.panel(row)
 	_label(quick, "EXHIBITION", 28)
 	_label(quick, "One game. No season progress changed.", 20)
@@ -115,11 +116,13 @@ func show_draft() -> void:
 	_screen(
 		"draft",
 		"TRYOUT %d OF 4" % (app.season.picks.size() + 1),
+		"Working four-stat roster • Mastery physics are calibration candidates."
+		if app.season.build != null else
 		"Select a card to compare, then confirm your pick. Ratings are 0–10; higher is stronger."
 	)
 	var names: PackedStringArray = []
 	for id in app.season.picks:
-		names.append(ContentDB.get_player(StringName(id)).display_name)
+		names.append(app.season.player_definition(id).display_name)
 	_label(_body, "YOUR CLUB  " + (", ".join(names) if not names.is_empty() else "First pick"), 18)
 	var reference: PlayerDefinition = _draft_comparison()
 	var cards: HBoxContainer = HBoxContainer.new()
@@ -128,14 +131,14 @@ func show_draft() -> void:
 	for id in app.season.offers():
 		SeasonPlayerCard.draft_card(
 			cards,
-			ContentDB.get_player(StringName(id)),
+			app.season.player_definition(id),
 			id == draft_selection,
 			_select_draft.bind(id),
 			reference
 		)
 	var label: String = "SELECT A PLAYER"
 	if not draft_selection.is_empty():
-		label = "DRAFT " + ContentDB.get_player(StringName(draft_selection)).display_name.to_upper()
+		label = "DRAFT " + app.season.player_definition(draft_selection).display_name.to_upper()
 	var confirm: Button = _button(_footer, label, app.choose_player.bind(draft_selection))
 	confirm.disabled = draft_selection.is_empty()
 	_button(_footer, "MAIN MENU", show_home)
@@ -176,26 +179,17 @@ func show_lineup() -> void:
 	SeasonPages.pregame(self)
 	var roster: Array = app.season.teams[0]["roster"]
 	var grid: GridContainer = GridContainer.new()
-	grid.columns = 11
+	var headings: Array = ["BATTING ORDER", "B / T"]
+	headings.append_array(SeasonPlayerCard.rating_names(app.season.player_definition(roster[0])))
+	headings.append_array(["", ""])
+	grid.columns = headings.size()
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 12)
 	_body.add_child(grid)
-	for heading in [
-		"BATTING ORDER",
-		"B / T",
-		"Contact",
-		"Power",
-		"Fielding",
-		"Velocity",
-		"Break",
-		"Control",
-		"Stamina",
-		"",
-		""
-	]:
+	for heading in headings:
 		_label(grid, heading, 18)
 	for index in range(4):
-		var player: PlayerDefinition = ContentDB.get_player(StringName(roster[index]))
+		var player: PlayerDefinition = app.season.player_definition(roster[index])
 		var name_label: Label = _label(grid, "%d. %s" % [index + 1, player.display_name], 20)
 		name_label.custom_minimum_size.x = 190
 		_label(grid, SeasonPlayerCard.hands(player), 18)
@@ -221,7 +215,7 @@ func show_lineup() -> void:
 		choice.set_meta("lineup_focus", "pitcher" if pitcher else "fielder")
 		choice.custom_minimum_size = Vector2(360, 40)
 		for id: String in roster:
-			var player: PlayerDefinition = ContentDB.get_player(StringName(id))
+			var player: PlayerDefinition = app.season.player_definition(id)
 			choice.add_item(
 				player.display_name + (" • Fielding %d" % player.fielding if not pitcher else "")
 			)
@@ -234,7 +228,7 @@ func show_lineup() -> void:
 		_body, "Field/Bullpen in game: change defenders between batters. Everyone still bats.", 18
 	)
 	for id: String in roster:
-		var player: PlayerDefinition = ContentDB.get_player(StringName(id))
+		var player: PlayerDefinition = app.season.player_definition(id)
 		_label(_body, "%s: %s" % [player.display_name, _pitches(player).replace("\n", " • ")], 18)
 	_label(
 		_body,
@@ -314,14 +308,12 @@ func _draft_comparison() -> PlayerDefinition:
 	var choice: OptionButton = OptionButton.new()
 	choice.custom_minimum_size = Vector2(260, 38)
 	for id in app.season.picks:
-		choice.add_item(ContentDB.get_player(StringName(id)).display_name)
+		choice.add_item(app.season.player_definition(id).display_name)
 	choice.select(draft_reference)
 	choice.item_selected.connect(_compare_draft)
 	row.add_child(choice)
 	_label(row, "+ / − = rating difference", 18)
-	var reference: PlayerDefinition = ContentDB.get_player(
-		StringName(app.season.picks[draft_reference])
-	)
+	var reference: PlayerDefinition = app.season.player_definition(app.season.picks[draft_reference])
 	SeasonPages.wrapped(
 		_body,
 		(
@@ -333,17 +325,19 @@ func _draft_comparison() -> PlayerDefinition:
 			]
 		)
 	)
-	var best: Array[int] = [0, 0, 0, 0, 0, 0, 0]
+	var best: Array[int] = []
+	best.resize(SeasonPlayerCard.values(reference).size())
+	best.fill(0)
 	for id in app.season.picks:
-		var ratings: Array[int] = SeasonPlayerCard.values(ContentDB.get_player(StringName(id)))
-		for index in range(7):
+		var ratings: Array[int] = SeasonPlayerCard.values(app.season.player_definition(id))
+		for index in range(best.size()):
 			best[index] = maxi(best[index], ratings[index])
 	var weakest: int = best.find(best.min())
 	_label(
 		_body,
 		(
 			"Roster coverage: strongest %s rating is %d. Compare this area as you draft."
-			% [SeasonPlayerCard.RATING_NAMES[weakest], best[weakest]]
+			% [SeasonPlayerCard.rating_names(reference)[weakest], best[weakest]]
 		),
 		18
 	)
@@ -438,6 +432,9 @@ static func _button(parent: Node, text: String, action: Callable) -> Button:
 
 
 static func _ratings(player: PlayerDefinition) -> String:
+	if player.progression_test:
+		return "Contact %d    Power %d\nFielding %d    Pitching %d" % [
+			player.contact, player.power, player.fielding, player.control]
 	return (
 		"Contact %d    Power %d\nFielding %d    Velocity %d\nBreak %d    Control %d    Stamina %d"
 		% [
@@ -455,7 +452,7 @@ static func _ratings(player: PlayerDefinition) -> String:
 static func _pitches(player: PlayerDefinition) -> String:
 	var names: PackedStringArray = []
 	for pitch in player.starting_pitches:
-		names.append(pitch.display_name)
+		names.append(SeasonPlayerCard.pitch_name(player, pitch))
 	return "\n".join(names)
 
 

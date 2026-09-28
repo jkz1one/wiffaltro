@@ -41,11 +41,15 @@ static func hub(menu: SeasonMenu) -> void:
 		return
 	menu._screen("hub", "YARD CLUB", stage(season) + " • Backyard League")
 	menu._label(menu._body, club_record(season), 24)
-	menu._label(menu._body, "SEASON CASH  •  %d" % season.ownership.cash(), 18)
+	menu._label(menu._body, "SEASON CASH  •  %d" % season.cash(), 18)
+	if season.build != null:
+		wrapped(menu._body, "WORKING PROGRESSION • Test roster and candidate mastery physics")
 	var card: VBoxContainer = SeasonPlayerCard.panel(menu._body, true)
 	menu._label(card, "NEXT UP  •  " + menu._matchup(season.pending_fixture()), 26)
 	menu._label(card, venue(season.pending_fixture()), 18)
 	menu._label(card, defense(season), 18)
+	if season.shop_available():
+		menu._button(card, "DEVELOPMENT SHOP", menu.app.open_shop)
 	if season.phase == SeasonState.Phase.REGULAR:
 		menu._label(
 			card, "Top 4 qualify • %d regular games remaining" % (10 - season.round_index), 18
@@ -96,9 +100,7 @@ static func pregame(menu: SeasonMenu) -> void:
 	menu._label(card, menu._matchup(fixture), 24)
 	menu._label(card, venue(fixture) + " • Fresh Stamina • 5 innings", 18)
 	var opponent: int = fixture["away"] if fixture["home"] == 0 else fixture["home"]
-	var starter: PlayerDefinition = ContentDB.get_player(
-		StringName(season.teams[opponent]["roster"][0])
-	)
+	var starter: PlayerDefinition = season.player_definition(season.teams[opponent]["roster"][0])
 	menu._label(
 		card,
 		(
@@ -147,6 +149,8 @@ static func postgame(menu: SeasonMenu) -> void:
 		menu.show_lineup if not next.is_empty() else menu.show_summary
 	)
 	menu._button(menu._footer, "SEASON HUB", menu.show_hub)
+	if season.shop_available():
+		menu._button(menu._footer, "DEVELOPMENT SHOP", menu.app.open_shop)
 	menu._button(menu._footer, "MAIN MENU", menu.show_home)
 
 
@@ -192,8 +196,7 @@ static func players(menu: SeasonMenu) -> void:
 	menu._label(menu._body,
 		"Ratings are 0–10. Higher is stronger. Season results are in Team Stats.", 18)
 	for index in range(season.teams[0]["roster"].size()):
-		var player: PlayerDefinition = ContentDB.get_player(
-			StringName(season.teams[0]["roster"][index]))
+		var player: PlayerDefinition = season.player_definition(season.teams[0]["roster"][index])
 		var role: String = ""
 		if index == season.starter_index:
 			role = " • Starting Pitcher"

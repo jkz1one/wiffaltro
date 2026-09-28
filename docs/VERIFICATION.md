@@ -1,5 +1,48 @@
 # Fast verification and playtest records
 
+## Reconstruction: paid development and real UI input, 2026-09-28
+
+Full pinned-engine gate `20260928T195505241012Z` passed35/35 steps, including the new
+paid-domain/UI scenes, all ownership/save/season regressions, preserved gameplay/AI/camera
+checks, three complete live-match fixtures and main-scene smoke. Focused gate
+`20260928T195354889110Z` also passed9/9 shared and scene steps for `paid-development` and
+`paid-shop-ui`. These checks use actual code and disposable saves, including uncommitted source.
+
+Paid-domain coverage includes cancelled previews, exact authoritative prices, two held slots,
+immediate use while full, exact receipt consumption, duplicate requests across reload, stale
+quotes, insufficient funds, foreign/capped targets, explicit paid lesson replacement with
+remembered mastery, fixed pack identity, zero/reduced eligible families, pending paid choices,
+escalating/reset rerolls and no refund on skip. Whole-season win/loss fixtures retain terminal
+income, allow intermediate playoff shops and reject shopping after completion.
+
+Schema5 checks restore wallet, growth, offers and held receipts from one replayable aggregate.
+Injected write failure preserves both the prior save bytes and live build. Forged payouts and
+version downgrades fail closed. The first import/runtime attempt exposed an incorrectly typed
+empty draft roster; that defect was fixed. Completion markers never override engine errors.
+
+The UI scene dispatches actual mouse motion/press/release through Godot's viewport, including
+the correct embedder for nested modal windows. It checks Working-season warning cancellation,
+draft/hub/lineup/ratings bounds,1000×650 and700×400 shop layouts,44-pixel actions, always-visible
+Back, focus, exact recipient confirmation, targeting/cancel/confirm, sold stock removal, pack
+reload, a blocked next-game launch while unresolved and a real paid-build match launch after
+resolution. Deferred focus now resolves current controls rather than detached old rows.
+
+**Rendered inspection is still open.** A fresh native-display attempt with the recovered
+portable Xvfb exited1: `Cannot establish any listening sockets`, after both local and Unix
+listeners failed. No rendered screenshots, aesthetic approval or human game-feel approval are
+claimed. Local diagnostic: `builds/verification/native-ui-display-20260928.log`.
+
+On a desktop with a usable display, the same scene can capture each screen for visual review:
+
+```sh
+python3 tools/verify.py --only paid-shop-ui --rendered-ui
+```
+
+Captures go to the verification run's `ui-captures/` directory. This optional UI run uses the
+compatibility renderer and rejects headless capture; it does not validate Mobile-renderer
+materials, physical-device input, motion comfort or whole-game balance. Inspect readability,
+clipping, dialog placement and the actual rendered match separately before visual sign-off.
+
 ## Reconstruction: playable four-stat/mastery calibration, 2026-09-28
 
 Gate `20260928T191242881476Z` passed 14/14 steps: development-playtest,

@@ -21,6 +21,8 @@ def main():
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--only", action="append", default=[],
                         help="Run one named scene check; repeat for a focused scope")
+    parser.add_argument("--rendered-ui", action="store_true",
+                        help="Run paid-shop-ui on a native display and capture each screen")
     args = parser.parse_args()
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     output = ROOT / "builds" / "verification" / stamp
@@ -81,7 +83,18 @@ def main():
             base = [godot, "--headless", "--path", str(stage)]
             run("import", [*base, "--editor", "--quit"])
             failures = []
+            ui_base = base
+            ui_extra = []
+            if args.rendered_ui:
+                ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
+                ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("paid-shop-ui", [*ui_base, "--fixed-fps", "60",
+                                  "res://src/tests/paid_shop_ui_test.tscn", *ui_extra],
+                 "Wiffaltro paid shop UI checks passed:"),
+                ("paid-development", [*base, "--fixed-fps", "60",
+                                      "res://src/tests/paid_development_test.tscn"],
+                 "Wiffaltro paid development checks passed:"),
                 ("development-playtest", [*base, "--fixed-fps", "60",
                                          "res://src/tests/development_playtest_test.tscn"],
                  "Wiffaltro development playtest checks passed:"),

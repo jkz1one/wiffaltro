@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.28
+**Version:** v0.1.29
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,16 +9,41 @@
 
 # 1. Technical Objective
 
+## Atomic paid-season aggregate, 2026-09-28
+
+`SeasonBuild` owns the Working-season wallet, held receipts, development journal and visit
+stock. A candidate forks all components, revalidates the exact target and authoritative price,
+then publishes all changes together. UI commands cannot supply arbitrary credits/debits.
+Revision/request identities reject stale choices and make repeated confirmations replay safely.
+
+`SeasonApp.commit_shop` validates a candidate, saves the aggregate, and restores the previous
+in-memory aggregate if persistence fails. Schema5 stores the seed, roster, catalogue fingerprint
+and replayable commands, not separately editable balances or ratings. Loading also matches every
+reward to retained fixture outcomes and rejects shopping after completion. Schema4/default and
+legacy1–3 behavior is preserved. Draft saves use an explicitly typed empty aggregate roster.
+
+`DevelopmentShopCatalog` supplies Working card/lesson definitions and exact legal targets.
+Fixed pack identities are generated once per visit; ordinary rerolls use independent seeded
+streams and cannot refresh that pack. Pack opening rechecks eligibility before charging, and
+pending paid choices persist across reload. No held-capacity or affordability filter removes
+otherwise eligible stock. Unsupported categories are absent rather than represented by grants.
+
+The Working season uses `ProgressionMatchAdapter` for actual rosters and paid next-match state.
+The default season remains on the original resources. Offscreen opponent strengths currently
+use their drafted baseline; paid AI growth and recruitment are later integrations. The new shop
+has scrollable targets, fixed navigation, wrapped actions and a bounded confirmation dialog.
+Headless UI input/layout checks and optional native screenshot checks are separate evidence.
+
 ## Reconstructed progression playtest boundary, 2026-09-28
 
 `SeasonDevelopment` stores a replayable journal keyed to one season instance and the
 exact Working catalog fingerprint. Four broad stats and active/remembered exact-recipe
 mastery are detached query snapshots, not editable authoritative save blobs. New recipes
 start1, remembered levels restore, and active capacity replacements are explicit. Unsupported
-Exotics and retired stat grants fail before publishing a candidate. Acquisition/payment
-must be integrated atomically by a later shop contract; this ledger alone grants no purchase.
+Exotics and retired stat grants fail before publishing a candidate. Acquisition/payment is
+integrated by `SeasonBuild` above; this development ledger alone grants no purchase.
 
-`ProgressionMatchAdapter` duplicates player/recipe resources for a separate exhibition.
+`ProgressionMatchAdapter` duplicates player/recipe resources for exhibitions and Working seasons.
 Four-stat ratings feed the existing contact, fielding, release and stamina consumers.
 The internal Control/Stamina fields both receive Pitching. Velocity/Break factors are
 bypassed only for explicitly marked test instances; ordinary resources remain neutral.
@@ -45,8 +70,8 @@ leave ordinary match parameters unchanged. The existing aim compensation is reta
 Home > Player Growth Test Lab exposes four ratings, exact pitch levels, next-effect
 previews, explicit lesson replacement, inactive remembered mastery, isolated save/reload
 and a managed test exhibition. A successful test save is required before launch. Match
-inspection and pitch controls show the test's four ratings/levels. Production seasonal
-purchases, recruitment/rehire lifecycle, gear stacks, abilities and balance remain pending.
+inspection and pitch controls show the test's four ratings/levels. Paid development now has
+an opt-in seasonal path; recruitment/rehire, gear stacks, abilities and balance remain pending.
 
 Build the core sport so that:
 

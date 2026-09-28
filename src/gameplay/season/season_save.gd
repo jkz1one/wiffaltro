@@ -21,6 +21,10 @@ static func save(season: SeasonState) -> bool:
 		"strengths":
 		season.teams.map(func(team: Dictionary) -> float: return team.get("strength", -1.0)),
 	}
+	if season.build != null:
+		data.version = 5
+		data.erase("ownership")
+		data["build"] = season.build.to_data()
 	if _decode(data) == null:
 		last_error = "Season data failed validation. The previous save was preserved."
 		return false
@@ -60,7 +64,7 @@ static func _read(file_path: String) -> SeasonState:
 	if not FileAccess.file_exists(file_path):
 		return null
 	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	if file == null or file.get_length() > 100000:
+	if file == null or file.get_length() > 500000:
 		return null
 	var json: JSON = JSON.new()
 	var parse_error: Error = json.parse(file.get_as_text())
@@ -72,21 +76,38 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 4) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 5) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
-	var allowed: Array[String] = ["version", "seed", "picks", "results", "lineup", "starter",
-		"fielder", "pool", "difficulty", "draws", "strengths", "ownership"]
+	var allowed: Array[String] = [
+		"version",
+		"seed",
+		"picks",
+		"results",
+		"lineup",
+		"starter",
+		"fielder",
+		"pool",
+		"difficulty",
+		"draws",
+		"strengths",
+		"ownership",
+		"build"
+	]
 	for key: Variant in data:
 		if not key is String or not allowed.has(key):
 			return null
 	if data["version"] < 4 and data.has("ownership"):
 		return null
+	if (data.version < 5 and data.has("build")) or (data.version == 5 and data.has("ownership")):
+		return null
 	if not data.get("picks") is Array or data["picks"].size() > 4:
 		return null
 	if not data.get("results") is Array or data["results"].size() > 12:
 		return null
-	var season: SeasonState = SeasonState.create(int(data["seed"]), data["version"] == 1)
+	var season: SeasonState = SeasonState.create(
+		int(data["seed"]), data["version"] == 1, data["version"] == 5
+	)
 	if data["version"] >= 2:
 		if not _restore_pool(season, data):
 			return null
@@ -144,7 +165,33 @@ static func _decode(value: Variant) -> SeasonState:
 		if owned == null or owned.to_data() != season.ownership.to_data():
 			return null
 		season.ownership = owned
+	if data.version == 5:
+		var roster: Array[String] = []
+		if season.picks.size() == 4:
+			roster.assign(season.picks)
+		var restored: SeasonBuild = SeasonBuild.from_data(
+			data.get("build"), season.season_seed, roster
+		)
+		if restored == null or not _build_history_valid(season, restored):
+			return null
+		season.build = restored
 	return season
+
+
+static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> bool:
+	var cursor: int = 0
+	for event: Dictionary in build.to_data().events:
+		if event.op == "reward":
+			if cursor >= season.player_results.size():
+				return false
+			var result: Dictionary = season.player_results[cursor]
+			if event.game != result.id or event.win != (SeasonState._winner(result) == 0):
+				return false
+			cursor += 1
+		elif cursor == season.player_results.size() and season.phase == SeasonState.Phase.COMPLETE:
+			# Final income is retained, but creates no new purchasing window.
+			return false
+	return cursor == season.player_results.size()
 
 
 static func _restore_pool(season: SeasonState, data: Dictionary) -> bool:

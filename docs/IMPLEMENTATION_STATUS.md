@@ -1,5 +1,46 @@
 # Implementation Status
 
+## Paid development and UI reconstruction — 2026-09-28
+
+New Working Season now uses earned Cash for six development cards, ordinary lessons,
+held use/discard, fixed development packs and escalating ordinary rerolls. Each purchase
+settles cash, offer/receipt consumption, growth and persistence together. Actual subsequent
+matches receive those paid profiles. Schema5 replays the complete build and checks payouts
+against fixtures; default seasons and legacy saves retain their baseline.
+
+The new UI gate dispatches mouse input through the real viewport, checks minimum and normal
+shop sizes, fixed navigation, targeting/cancel/confirm, focus, pack reload and match launch.
+Native captures have a distinct opt-in verification command; this environment's Xvfb cannot
+establish display sockets. Rendered UI, motion comfort, balance and human approval remain open.
+Verification evidence and exact passing scope are maintained in `VERIFICATION.md`.
+
+### Whole-project completion estimate
+
+**Approximately 40% implemented**, after this verified paid-development checkpoint (35%
+before it). This is an engineering estimate against the current full planned scope, not a
+test-pass percentage or a promise about remaining hours. Every finished response should
+report this same whole-project basis. Working content and Proposal tuning do not count as
+human-approved or release-ready merely because their code runs.
+
+| Scope | Weight / 100 | Estimated implemented points |
+| --- | ---: | ---: |
+| Core sport, AI and match presentation | 20 | 17 |
+| Season flow and persistence | 8 | 6 |
+| Ownership and economy | 8 | 6 |
+| Player development and mastery | 10 | 7 |
+| Shop, packs and recruitment | 12 | 3 |
+| Gear, tactical cards and abilities | 10 | 0 |
+| Sponsors | 10 | 0 |
+| Leagues and persistent career | 10 | 0 |
+| Stadium progression | 10 | 1 |
+| Final cross-system integration and acceptance | 2 | 0 |
+| **Total** | **100** | **40** |
+
+Next unmet dependencies include recruitment/reserve lifecycle and the remaining gameplay
+item/sponsor catalogues. Partial shops redistribute missing category weights; they do not
+pretend those systems are implemented. Human visual/feel checks remain a release gate.
+The following entries are historical checkpoints; this entry supersedes their missing-shop notes.
+
 ## Playable development reconstruction — 2026-09-28
 
 Home > Player Growth Test Lab now previews/commits synthetic development, saves/reloads
