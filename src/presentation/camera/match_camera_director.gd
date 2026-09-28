@@ -40,6 +40,8 @@ var _shot_before_inspection: int = -1
 
 
 func set_shot(next_shot: Shot) -> void:
+	if next_shot != Shot.BALL_IN_PLAY:
+		tracking_visibility.restore_occluders()
 	shot = next_shot
 	if _shot_before_inspection >= 0:
 		# Closing a setup panel during inspection changes the view to restore.
@@ -102,6 +104,7 @@ func snap(camera: Camera3D, ball_position: Vector3 = Vector3.ZERO) -> void:
 	if camera == null:
 		return
 	_apply_projection(camera)
+	tracking_visibility.restore_occluders()
 	camera.fov = _standard_fov
 	var desired: Transform3D = _desired_transform(ball_position, 1.0)
 	camera.global_transform = desired
@@ -118,6 +121,7 @@ func update(
 	if ball_live and shot == Shot.BALL_IN_PLAY:
 		_live_coverage.update(camera, delta_seconds, ball_position, tracking_visibility)
 		return
+	tracking_visibility.restore_occluders()
 	var desired: Transform3D = _desired_transform(ball_position, delta_seconds)
 	var transition_weight: float = 1.0 - exp(-_presentation_transition_speed * delta_seconds)
 	camera.global_transform = camera.global_transform.interpolate_with(desired, transition_weight)

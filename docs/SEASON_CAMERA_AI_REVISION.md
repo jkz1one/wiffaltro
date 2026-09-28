@@ -1,5 +1,10 @@
 # Season camera and AI revision
 
+**Superseded implementation:** The 2026-09-24 playtest correction is documented in
+[SEASON_STABLE_COVERAGE.md](SEASON_STABLE_COVERAGE.md). Earlier measurements below
+describe the previous version, not the current camera or timing balance.
+
+
 Date: 2026-09-23. Branch: `season-qc-camera-batting`. Replaces the automatic
 contact-cut implementation in the first season video QC pass.
 

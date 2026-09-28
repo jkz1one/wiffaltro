@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.26
+**Version:** v0.1.27
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -2202,7 +2202,7 @@ decisions, measured evidence and scope boundaries.
   even a timeout cannot unlock a side change for that plate appearance.
 - `BatterApproachModel.track_pitch` samples visible velocity changes to estimate
   acceleration, builds an early timing plan, then applies bounded aim correction
-  from a 65 ms delayed read. Extrapolation is capped at 0.32 s. It does not call
+  from a 65 ms delayed read. Extrapolation is capped at 0.45 s for the earlier timing plan. It does not call
   the aim solver, future integration or hidden target. Decisions run on flight
   substeps, and all swings share `SwingIntent` aim bounds. Execution errors remain;
   F3 gains `ai_plate_read`, effective `batter_hand` and fixed `pitcher_hand`.
@@ -2367,3 +2367,24 @@ Pinned Godot and toolkit versions are unchanged. Automated layout and input
 checks are evidence of geometry/behavior, not rendered visual approval. This
 environment cannot establish a display socket, so an attempted portable visual
 preview could not render screenshots. Human desktop QC remains required.
+
+
+## Stable live coverage and AI timing correction — 2026-09-24
+
+This supersedes the live-camera destination/obstacle behavior described in earlier
+entries. `BallInPlayCamera` uses one consistent rig per player side, a fixed lens,
+a maximum four-metre lateral opening, ground-referenced framing, and bounded
+24 m/s movement / 1.35 rad/s turn speed. It has no carry-selected orbit, dynamic
+side selection, or 14 m obstacle detour. Coverage opens over 0.85 seconds and
+retains attained height through descent. A blocked venue mesh gets a private
+alpha material; the original material returns after clearing or leaving coverage.
+This uses material alpha because instance transparency is unsupported in Mobile.
+
+AI timing variation is now large enough to interact with the shared active bat
+window. Earlier plans allow early errors to occur, and late plans start before
+the receiver handoff so a late attempted swing still enters physical resolution.
+Pitch-speed changes have a stronger signed rhythm effect. Shared player contact
+geometry, aim scatter, count-based approach, and power selection are unchanged.
+`ai_zone_test` drives 1,944 production deliveries with fixed fixture batting order
+and inning, classifies actual zone crossings, and checks timing misses and contact
+by skill. No future forecast is provided to the AI. See `SEASON_STABLE_COVERAGE.md`.

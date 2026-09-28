@@ -35,6 +35,18 @@ this runner. Logs and a machine-readable `summary.json` remain under
 Independent runtime checks continue after a regression failure, but the overall
 command still exits nonzero. No hosted CI is triggered.
 
+## Stable live coverage and AI timing — 2026-09-24
+
+All 30 pinned-engine steps passed at `builds/verification/20260924T025943002941Z`.
+The new `ai-zone` scene uses 1,944 actual match deliveries across nine strike-zone
+locations and three hitter ratings; it retains batter/inning identity between
+samples. Its timing regression fails against published baseline `f1dc209`.
+Camera coverage includes fixed lens, bounded lateral travel, same-side defensive
+orientation and reversible prop transparency with unchanged collision. Additional
+ground-reference framing assertions passed in `builds/stable-camera-ground.log`
+after the full suite, with no runtime changes. Results and limitations are in
+`SEASON_STABLE_COVERAGE.md`. Native rendering remains unavailable.
+
 ## Clubhouse menu verification — 2026-09-22
 
 Full 27-step pinned Godot 4.7.2 verification passed at

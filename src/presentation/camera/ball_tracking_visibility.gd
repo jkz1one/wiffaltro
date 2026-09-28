@@ -4,10 +4,14 @@ extends RefCounted
 # Presentation-only bounds include scenery without gameplay collision shapes.
 var field_wall_z: float = 23.4
 var _obstacles: Array[AABB] = []
+var _occluder_meshes: Array[MeshInstance3D] = []
+var _faded: Dictionary = {}
 
 
 func configure(geometry: Node) -> void:
+	restore_occluders()
 	_obstacles.clear()
+	_occluder_meshes.clear()
 	var wall: Node3D = geometry.get_node_or_null("BackWall")
 	if wall != null:
 		field_wall_z = wall.global_position.z - 0.25
@@ -34,14 +38,36 @@ func clear_position(desired: Vector3, ball: Vector3) -> Vector3:
 	return overhead.lerp(desired, maxf(0.0, clear_fraction - 0.05))
 
 
-func lateral_clearance(ball: Vector3) -> float:
-	# A nearby narrow upright needs a side route before the ball reaches its
-	# silhouette. Keep walls out of this rule; they use the field-side limit.
-	for bounds in _obstacles:
-		if bounds.size.x < 1.5 and bounds.size.z < 1.5 and bounds.size.y > 0.5:
-			if bounds.get_center().distance_to(ball) < 6.75:
-				return 14.0
-	return 0.0
+func update_occluders(camera: Vector3, ball: Vector3, delta: float) -> void:
+	# Preserve the rig when a live obstacle covers the ball. Material alpha also
+	# works in Mobile, unlike GeometryInstance3D.transparency. Collision is intact.
+	for mesh in _occluder_meshes:
+		var bounds: AABB = mesh.global_transform * mesh.get_aabb()
+		var blocked: bool = bounds.grow(0.08).intersects_segment(camera, ball) != null
+		if blocked and not _faded.has(mesh):
+			var original: Material = mesh.material_override
+			if not original is StandardMaterial3D:
+				continue
+			var faded: StandardMaterial3D = original.duplicate()
+			faded.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mesh.material_override = faded
+			_faded[mesh] = original
+		if not _faded.has(mesh):
+			continue
+		var material: StandardMaterial3D = mesh.material_override
+		var color: Color = material.albedo_color
+		color.a = 0.18 if blocked else move_toward(color.a, 1.0, delta * 3.0)
+		material.albedo_color = color
+		if color.a >= 1.0:
+			mesh.material_override = _faded[mesh]
+			_faded.erase(mesh)
+
+
+func restore_occluders() -> void:
+	for mesh in _faded:
+		if is_instance_valid(mesh):
+			mesh.material_override = _faded[mesh]
+	_faded.clear()
 
 
 func _blocked(camera: Vector3, ball: Vector3) -> bool:
@@ -66,5 +92,6 @@ func _collect(node: Node) -> void:
 		# millimeter thickness made rolling balls trigger huge false recoveries.
 		if bounds.size.y > 0.025:
 			_obstacles.append(bounds)
+			_occluder_meshes.append(node)
 	for child in node.get_children():
 		_collect(child)

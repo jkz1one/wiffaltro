@@ -106,12 +106,36 @@ func _ready() -> void:
 	)
 	lab.queue_free()
 	await get_tree().process_frame
+	await _test_occluder_restoration()
 	await _test_ball_tracking()
 	await _test_contact_flights()
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro camera audit passed.")
 	get_tree().quit(0 if _failures == 0 else 1)
+
+
+func _test_occluder_restoration() -> void:
+	var lab: PitchBatLab = PitchBatLab.new()
+	add_child(lab)
+	lab.set_process(false)
+	lab.set_physics_process(false)
+	var pole: StaticBody3D = lab.get_node("StarterFieldGeometry/LiveObjectPole")
+	var mesh: MeshInstance3D = pole.get_child(1) as MeshInstance3D
+	var material: Material = mesh.material_override
+	var collision_layer: int = pole.collision_layer
+	var visibility: BallTrackingVisibility = lab._camera_director.tracking_visibility
+	visibility.update_occluders(Vector3(7, 2, 20), Vector3(7, 0.1, 11.7), 1.0 / 60.0)
+	_check(mesh.material_override != material, "occlusion uses a private material")
+	_check(
+		(mesh.material_override as StandardMaterial3D).albedo_color.a < 0.2,
+		"obstructing prop becomes translucent instead of forcing a camera detour"
+	)
+	_check(pole.collision_layer == collision_layer, "camera fade cannot alter live collision")
+	lab._camera_director.set_shot(MatchCameraDirector.Shot.PITCHING)
+	_check(mesh.material_override == material, "leaving live coverage restores original material")
+	lab.queue_free()
+	await get_tree().process_frame
 
 
 func _test_ball_tracking() -> void:
@@ -233,10 +257,12 @@ func _test_contact_flights() -> void:
 					director.prepare_ball_in_play(defense, ball, velocity)
 					director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
 					var outside: int = 0
+					var ground_outside: int = 0
 					var blocked: int = 0
 					var max_turn: float = 0.0
 					var max_step: float = 0.0
 					var reverse: int = 0
+					var entry_fov: float = lab._camera.fov
 					for frame in range(fps * 3):
 						var before: Transform3D = lab._camera.global_transform
 						# Same aerodynamic acceleration as the physical batted ball, with
@@ -264,6 +290,10 @@ func _test_contact_flights() -> void:
 								ball.y = 0.08
 								velocity.y = absf(velocity.y) * 0.52
 						director.update(lab._camera, 1.0 / fps, true, ball)
+						_check(is_equal_approx(lab._camera.fov, entry_fov), "live lens stays fixed")
+						_check(
+							absf(lab._camera.position.x) <= 4.01, "coverage stays in its fixed lane"
+						)
 						max_step = maxf(
 							max_step, before.origin.distance_to(lab._camera.global_position)
 						)
@@ -281,10 +311,17 @@ func _test_contact_flights() -> void:
 								)
 							)
 						)
-						blocked += int(
-							_environment_occluded(lab, ball)
+						var ground: Vector3 = Vector3(ball.x, 0.08, ball.z)
+						ground_outside += int(
+							(
+								lab._camera.is_position_behind(ground)
+								or not Rect2(24, 24, 1232, 672).has_point(
+									lab._camera.unproject_position(ground)
+								)
+							)
 						)
-						if defense and launch.y < 0:
+						blocked += int(_environment_occluded(lab, ball))
+						if defense:
 							reverse += int((-lab._camera.global_basis.z).z > 0)
 						if ball.z > 23.0 or (launch.z == 8 and frame > fps / 2):
 							break
@@ -295,6 +332,7 @@ func _test_contact_flights() -> void:
 							"fps": fps,
 							"launch": str(launch),
 							"outside": outside,
+							"ground_outside": ground_outside,
 							"blocked": blocked,
 							"reverse": reverse,
 							"max_turn": rad_to_deg(max_turn),
@@ -302,8 +340,11 @@ func _test_contact_flights() -> void:
 						}
 					)
 					_check(outside == 0, "real flight remains framed: " + str(rows.back()))
+					_check(
+						ground_outside == 0, "ground reference stays framed: " + str(rows.back())
+					)
 					_check(blocked == 0, "real flight remains unobscured: " + str(rows.back()))
-					_check(reverse == 0, "ground contact must not reverse the defensive view")
+					_check(reverse == 0, "live contact must not reverse the defensive view")
 					_check(
 						max_turn < 1.7 / fps and max_step < 32.1 / fps,
 						"contact transition respects motion limits from its first frame"
@@ -324,6 +365,9 @@ func _environment_occluded(lab: PitchBatLab, ball: Vector3) -> bool:
 
 func _occluded(node: Node, from: Vector3, to: Vector3) -> bool:
 	if node is MeshInstance3D and node.visible and node.mesh != null:
+		var material: StandardMaterial3D = node.material_override as StandardMaterial3D
+		if material != null and material.albedo_color.a <= 0.2:
+			return false
 		var inverse: Transform3D = node.global_transform.affine_inverse()
 		if node.get_aabb().intersects_segment(inverse * from, inverse * to) != null:
 			return true

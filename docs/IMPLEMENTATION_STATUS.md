@@ -2,6 +2,15 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Stable coverage and strike-zone AI correction — 2026-09-24
+
+- User playtesting rejected the previous continuous camera pass. It is superseded
+  by consistent field coverage with a fixed lens and no orbit or obstacle detour.
+- AI timing is calibrated against the real bat window; strike-zone validation now
+  includes the production match path and all nine zone locations.
+- Source v0.4.36 / Technical v0.1.27. Details: `SEASON_STABLE_COVERAGE.md`.
+- Rendered comfort and season balance remain open for human playtesting.
+
 ## Season camera and AI revision — 2026-09-23
 
 - Source v0.4.35 / Technical v0.1.26. Replaces the first season QC contact cut.

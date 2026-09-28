@@ -1,8 +1,8 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.35
+**Version:** v0.4.36
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
-**Supersedes:** v0.4.33 and all earlier planning notes
+**Supersedes:** v0.4.35 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
@@ -247,7 +247,11 @@ separate seeded random streams. Total awareness is capped at 0.50; repetition
 cannot erase execution error. Swing aims share the player's reachable bounds.
 Decisions run on deterministic flight substeps, independent of rendering rate.
 The model never accesses the future solver trajectory or hidden pitching target.
-See `SEASON_CAMERA_AI_REVISION.md` for audit scope and tuning limitations.
+Timing plans now begin roughly 0.30–0.36 seconds before contact. Execution
+variation is calibrated against the shared 130–155 ms bat window, with speed
+changes disrupting the previous pitch rhythm. The new strike-zone regression
+uses real match launches, all nine zone locations, both hands and three ratings.
+See `SEASON_STABLE_COVERAGE.md` for audit scope and tuning limitations.
 
 ## Contact Swing
 
@@ -1559,13 +1563,16 @@ After release, camera position and viewing side are unrestricted. Coverage may
 pan, tilt, zoom, track or cut when that improves readability. No defensive-side
 lock or mandatory home-side destination applies. Camera movement must preserve
 world-space batting intent, visible pitch/ball action and understandable cuts.
-The live pass uses a restrained pitching-view pan. Contact starts a continuous
-coverage transition from the current view. Soft contact gets a small pullback;
-hard grounders widen and move toward a side while retaining orientation toward
-home. Estimated airborne carry earns a larger elevated side move. Crossing a
-scoring line alone never triggers a reversal. Position speed/acceleration and
-angular speed changes are bounded; obstacle clearance adjusts the destination
-without teleporting the live camera. Dead-ball coverage holds the resolved frame.
+The live pass uses a restrained pitching-view pan. Contact opens a consistent
+coverage rig from the current view. Soft contact gets a smaller pullback; hard
+contact gains height and field coverage. Both retain the established viewing
+side. There is no launch-selected orbit or simultaneous lens zoom. The live
+lens stays fixed; lateral travel is at most four metres, with bounded position
+and turn speeds. The framing includes a ground reference, and the rig does not
+collapse back inward when the ball descends or bounces. Obstructing venue meshes
+use temporary material transparency instead of sending the camera on a detour;
+collision remains intact and original materials return outside live coverage.
+Dead-ball coverage holds the resolved frame.
 These are tuning choices, not immutable camera rules. The richer cinematic
 broadcast director remains future work and requires hands-on motion/feel QC.
 See `SEASON_CAMERA_RESEARCH.md` for reference sources and their limits.

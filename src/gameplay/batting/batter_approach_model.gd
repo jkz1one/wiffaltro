@@ -81,7 +81,7 @@ func trigger_z(
 	_decision_seed: int = 0
 ) -> float:
 	# Begin a timing plan before starting the bat. Better hitters can read longer.
-	var lead: float = lerpf(0.27, 0.22, clampf(contact_rating / 10.0, 0.0, 1.0))
+	var lead: float = lerpf(0.36, 0.30, clampf(contact_rating / 10.0, 0.0, 1.0))
 	return ContactResolver.CONTACT_PLANE_Z + plate_speed_mps * lead
 
 
@@ -127,7 +127,14 @@ func track_pitch(
 			state.elapsed_time
 		)
 		var profile: SwingProfileDefinition = power_profile if _plan.use_power else contact_profile
-		_plan.start_time = _plan.contact_time - profile.sweet_spot_seconds
+		# The late tail still initiates a bat before the pitch actor hands off to
+		# the receiver. There is then too little windup left for physical contact.
+		var last_start: float = (
+			state.elapsed_time
+			+ _time_to_plate(state.position, state.velocity, _read_acceleration)
+			- 0.025
+		)
+		_plan.start_time = minf(_plan.contact_time - profile.sweet_spot_seconds, last_start)
 	if _plan.swing and state.elapsed_time < _plan.start_time:
 		var correction: Vector2 = (_read_history[0].read - _plan.plate_read).limit_length(0.09)
 		_plan.aim = _plan.initial_aim + correction * lerpf(0.35, 0.75, batter.contact / 10.0)
@@ -158,14 +165,17 @@ func plan_swing(
 	var skill: float = clampf(batter.contact / 10.0, 0.0, 1.0)
 	var speed: float = maxf(1.0, -velocity.z)
 	var remaining: float = _time_to_plate(position, velocity, _read_acceleration)
-	var sigma: float = lerpf(0.024, 0.012, skill)
-	sigma += maxf(0.0, pitch.timing_difficulty - 1.0) * 0.008
-	sigma += smoothstep(18.0, 32.0, speed) * 0.008
+	# The shared bat has a 130–155 ms active window. The previous 12–24 ms noise
+	# inside that window never challenged timing, even on unfamiliar strikes.
+	# Commit early enough that both early and late mistakes can play out.
+	var sigma: float = lerpf(0.070, 0.055, skill)
+	sigma += maxf(0.0, pitch.timing_difficulty - 1.0) * 0.018
+	sigma += smoothstep(18.0, 32.0, speed) * 0.018
 	sigma *= 1.0 - float(decision.awareness) * 0.25
 	# A speed change disrupts the previous delivery's rhythm without dictating an outcome.
 	var rhythm_error: float = 0.0
 	if previous_speed > 0.0:
-		rhythm_error = clampf((speed - previous_speed) / previous_speed, -0.5, 0.5) * 0.045
+		rhythm_error = clampf((speed - previous_speed) / previous_speed, -0.5, 0.5) * 0.14
 	decision.contact_time = elapsed + remaining + rng.randfn(0.0, sigma) + rhythm_error
 	decision.read_speed = speed
 	decision.plate_read = read
@@ -287,7 +297,7 @@ static func read_plate_location(
 static func _time_to_plate(position: Vector3, velocity: Vector3, acceleration: Vector3) -> float:
 	var speed: float = maxf(1.0, -velocity.z)
 	var remaining: float = maxf(0.0, (position.z - ContactResolver.CONTACT_PLANE_Z) / speed)
-	return clampf(remaining + 0.5 * acceleration.z * remaining * remaining / speed, 0.0, 0.32)
+	return clampf(remaining + 0.5 * acceleration.z * remaining * remaining / speed, 0.0, 0.45)
 
 
 static func _location_bucket(target: Vector2) -> int:
