@@ -1,5 +1,18 @@
 # Fast verification and playtest records
 
+## Reconstruction: ownership core, 2026-09-28
+
+Gate `20260928T184305090685Z` passed8/8 steps: revision, working-tree, diff-check,
+gdparse, gdlint, pinned engine version, import and season-ownership. Covered receipt-based
+replacement funded by an explicit sale, cancellation, insufficient funds, wrong-slot/stale
+requests, duplicate operations, free Gear, zero/blocked sponsor sale rules, held/sponsor
+capacity, explicit discard on capacity reduction, JSON replay and malformed journal rejection.
+Changed catalog contracts fail closed instead of silently repricing history. Fixtures have no
+actual gameplay effects; human review and production shop integration remain outstanding.
+An earlier gate stopped on validator return-count style lint; the validator now explicitly
+allows early-return guards. No engine-error or completion-marker checks were relaxed.
+
+
 One-time setup (Python 3.9+, Linux x86-64 or macOS):
 
 ```sh

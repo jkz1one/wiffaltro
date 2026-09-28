@@ -19,11 +19,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--godot", default=os.environ.get("GODOT_BIN"))
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--only", action="append", default=[],
+                        help="Run one named scene check; repeat for a focused scope")
     args = parser.parse_args()
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     output = ROOT / "builds" / "verification" / stamp
     output.mkdir(parents=True)
-    summary = {"status": "failed", "steps": [], "logs": str(output)}
+    summary = {"status": "failed", "steps": [], "logs": str(output),
+               "scope": args.only or ["all"]}
 
     def run(name, command, cwd=ROOT, marker=None):
         print(f"Checking {name}...", flush=True)
@@ -79,6 +82,9 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("season-ownership", [*base, "--fixed-fps", "60",
+                                      "res://src/tests/season_ownership_test.tscn"],
+                 "Wiffaltro ownership checks passed:"),
                 ("season-qc", [*base, "res://src/tests/season_qc_test.tscn"],
                  "Wiffaltro season QC checks passed."),
                 ("bobble-rules", [*base, "--fixed-fps", "60",
@@ -135,7 +141,12 @@ def main():
                  "Wiffaltro QC export checks passed."),
                 ("main-scene", [*base, "--quit-after", "120"], None),
             ]
+            unknown = set(args.only) - {row[0] for row in checks}
+            if unknown:
+                raise RuntimeError("Unknown check(s): " + ", ".join(sorted(unknown)))
             for name, command, marker in checks:
+                if args.only and name not in args.only:
+                    continue
                 try:
                     run(name, command, marker=marker)
                 except RuntimeError as error:

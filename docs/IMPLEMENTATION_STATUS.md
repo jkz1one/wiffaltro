@@ -2,6 +2,25 @@
 
 **Current phase:** Phase 4 — first Season Shell implemented by user authorization; human camera/feel and season-flow QC pending
 
+## Ownership reconstruction, 2026-09-28
+
+The lost September26–28 implementation is being rebuilt on `rebuild/season-engineering`.
+Only verified reconstructed modules count as current implementation. Surviving recovery
+fragments remain inactive reference text; older gameplay work is preserved separately.
+
+`SeasonOwnership` now supplies atomic preview/commit, explicit same-slot Gear replacement,
+immutable actual-paid receipts, floor-half Gear resale, no spare Gear/sponsor inventory,
+shared held capacity, explicit discard/capacity resolution and replay-safe request identities.
+Its journal fails closed for unsupported items, malformed operations, duplicate saved events
+and changed catalog contracts. Neutral Gear is represented by an empty owned slot and cannot
+be sold. Tests use synthetic fixtures; this is not a production shop or gameplay-effect catalog.
+
+Approved ownership rules come from `WIFFALTRO_EQUIPMENT_SPONSORS.md` v18 and the completed
+engineering handoff. Five sponsor/two held defaults and18/12 result income remain Working.
+Ordinary sponsor half-price resale is Working; zero-sale exceptions and unsupported-sale
+contracts remain explicit. Stadium ownership and reserve-player rules are outside this module.
+
+
 ## Season camera and AI revision — 2026-09-23
 
 - Source v0.4.35 / Technical v0.1.26. Replaces the first season QC contact cut.
