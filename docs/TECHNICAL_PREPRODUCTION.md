@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.27
+**Version:** v0.1.28
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,45 @@
 ---
 
 # 1. Technical Objective
+
+## Reconstructed progression playtest boundary, 2026-09-28
+
+`SeasonDevelopment` stores a replayable journal keyed to one season instance and the
+exact Working catalog fingerprint. Four broad stats and active/remembered exact-recipe
+mastery are detached query snapshots, not editable authoritative save blobs. New recipes
+start1, remembered levels restore, and active capacity replacements are explicit. Unsupported
+Exotics and retired stat grants fail before publishing a candidate. Acquisition/payment
+must be integrated atomically by a later shop contract; this ledger alone grants no purchase.
+
+`ProgressionMatchAdapter` duplicates player/recipe resources for a separate exhibition.
+Four-stat ratings feed the existing contact, fielding, release and stamina consumers.
+The internal Control/Stamina fields both receive Pitching. Velocity/Break factors are
+bypassed only for explicitly marked test instances; ordinary resources remain neutral.
+`command_only_quality` separates command from quality-driven velocity/spin scaling in this
+path. Ordinary fatigue and effort still apply for both human and AI pitchers.
+
+New **unapproved calibration Proposals**, isolated to `PitchMastery` test recipes:
+
+| Ladder | Candidate physical mapping |
+| --- | --- |
+| Four-Seam / Riser levels2,4 | +0.06 per step to an aerodynamic movement scale, after the existing lift coefficient clamp |
+| Four-Seam / Riser levels3,5 | +0.025 per step times authored recipe velocity; cumulative, never compounded on an already mastered copy |
+| Slider / Sinker / Drop levels2,4 | +0.18 per step to a continuous early-to-late force bias; no discontinuous path turn |
+| Slider / Sinker / Drop levels3,5 | +0.08 per step to aerodynamic movement scale |
+| Eephus / Knuckleball each level | Execution velocity spread, release/direction sigma and orientation error ×0.92; nominal speed and natural seeded wobble remain |
+
+Late bias uses normalized current Z progress from release to plate: weight
+`1 + bias * (2 * progress - 1)`. It redistributes aerodynamic forces while retaining the
+recipe's axis/sign. It does not inspect target error or a future path. The 240Hz shared
+solver and aim simulator apply the same envelope, including the integration midpoint.
+New launch parameters survive copies into execution and the live actor. Neutral defaults
+leave ordinary match parameters unchanged. The existing aim compensation is retained.
+
+Home > Player Growth Test Lab exposes four ratings, exact pitch levels, next-effect
+previews, explicit lesson replacement, inactive remembered mastery, isolated save/reload
+and a managed test exhibition. A successful test save is required before launch. Match
+inspection and pitch controls show the test's four ratings/levels. Production seasonal
+purchases, recruitment/rehire lifecycle, gear stacks, abilities and balance remain pending.
 
 Build the core sport so that:
 

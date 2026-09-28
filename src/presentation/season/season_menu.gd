@@ -78,6 +78,7 @@ func show_home() -> void:
 	_label(quick, "One game. No season progress changed.", 20)
 	_button(quick, "PLAY EXHIBITION", app.play_exhibition)
 	_button(quick, "OWNERSHIP TEST LAB", _open_ownership_lab)
+	_button(quick, "PLAYER GROWTH TEST LAB", _open_development_lab)
 	_label(_body, "Mouse: aim • Left click: contact / pitch • Right click: power", 18)
 	_label(
 		_body,
@@ -472,5 +473,13 @@ func _focus_first() -> void:
 
 func _open_ownership_lab() -> void:
 	var lab: OwnershipLab = OwnershipLab.new()
+	add_child(lab)
+	lab.popup_centered()
+
+
+func _open_development_lab() -> void:
+	var lab: DevelopmentLab = DevelopmentLab.new()
+	lab.exhibition_requested.connect(func(state: MatchState) -> void:
+		app._open_match(state, true, false))
 	add_child(lab)
 	lab.popup_centered()

@@ -17,7 +17,8 @@ static func step(
 		state.velocity,
 		state.orientation,
 		state.angular_velocity,
-		parameters
+		parameters,
+		movement_weight(state.position.z, parameters)
 	)
 
 	var midpoint_velocity: Vector3 = (
@@ -34,7 +35,8 @@ static func step(
 		midpoint_velocity,
 		midpoint_orientation,
 		state.angular_velocity,
-		parameters
+		parameters,
+		movement_weight(state.position.z + state.velocity.z * delta_seconds * 0.5, parameters)
 	)
 
 	state.position += midpoint_velocity * delta_seconds
@@ -45,6 +47,14 @@ static func step(
 		delta_seconds
 	)
 	state.elapsed_time += delta_seconds
+
+
+static func movement_weight(position_z: float, parameters: PitchLaunchParameters) -> float:
+	# The continuous current-position envelope redistributes force, not the
+	# final outcome. It uses no target error or future trajectory correction.
+	var distance: float = maxf(0.001, parameters.release_z - parameters.target_z)
+	var progress: float = clampf((parameters.release_z - position_z) / distance, 0.0, 1.0)
+	return 1.0 + parameters.mastery_late_bias * (2.0 * progress - 1.0)
 
 static func _instability_angular_velocity(
 	state: PitchState,

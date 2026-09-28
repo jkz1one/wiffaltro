@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.36
+**Version:** v0.4.37
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
@@ -26,6 +26,32 @@ Schema4 stores the ownership journal with the season. Legacy schemas1–3 recons
 income from retained results, without writing during load. Unknown ownership data/catalog
 contracts fail closed; old files are preserved rather than dropping items. Result recording
 and successful persistence are distinct, so failed saves can retry without duplicate payouts.
+
+## Player-development playtest reconstruction, 2026-09-28
+
+Approved direction: Contact, Power, Fielding and Pitching; individual stat cap10 and
+exact pitch cap5; no combined player/team growth budget; personal remembered mastery
+survives explicit recipe replacement and relearning in the same season. Ordinary recipes
+start1; the authored Eephus specialist starts2. Learned capacity is separate from count.
+
+The 48 named rows/capacities from Players/Pitches v17 remain **Working**. They are encoded
+in `SeasonPlayerCatalog` and available only through Home > Player Growth Test Lab.
+Synthetic grants can preview/cancel/confirm growth or lessons and save/reload a separate
+test journal. The player can launch an exhibition using those actual developed profiles.
+Ordinary seasons keep their current resources and saves. No development purchase,
+recruitment quote or earned entitlement is implied by a test grant.
+
+The physical magnitudes in `PitchMastery` are **new unapproved calibration Proposals**.
+They implement the documented ladder directions for review: Four-Seam/Riser movement
+and velocity; Slider/Sinker/Drop later movement and amplitude; Eephus/Knuckleball recipe
+reliability. They must not become production tuning merely because automated checks pass.
+The test adapter uses shared human/AI physical paths and neutralizes retired Velocity/Break
+multipliers. Pitching drives command/endurance; it adds no hidden speed/spin quality bonus.
+Natural identity, hands, deliveries and seeded knuckle variation remain intact.
+
+Existing continuous Contact/Power/Fielding and command/endurance mappings provide an
+initial broad-stat physical test surface. Whole-game balance, natural-profile calibration,
+earned economy, gear/sponsor stacks and human feel/readability review remain open.
 
 ## 1. Executive Summary
 

@@ -17,6 +17,13 @@ var orientation_stability: float = 1.0
 var instability_strength: float = 0.0
 var instability_frequency_hz: float = 3.0
 
+var mastery_movement_scale: float = 1.0
+var mastery_late_bias: float = 0.0
+var mastery_noise_scale: float = 1.0
+var command_only_quality: bool = false
+var release_z: float = 0.0
+var target_z: float = 0.0
+
 var hole_axis_ball_local: Vector3 = Vector3.RIGHT
 @warning_ignore("shadowed_global_identifier")
 var seed: int = 0
@@ -37,6 +44,12 @@ func copy() -> PitchLaunchParameters:
 	result.orientation_stability = orientation_stability
 	result.instability_strength = instability_strength
 	result.instability_frequency_hz = instability_frequency_hz
+	result.mastery_movement_scale = mastery_movement_scale
+	result.mastery_late_bias = mastery_late_bias
+	result.mastery_noise_scale = mastery_noise_scale
+	result.command_only_quality = command_only_quality
+	result.release_z = release_z
+	result.target_z = target_z
 	result.hole_axis_ball_local = hole_axis_ball_local
 	result.seed = seed
 	return result

@@ -26,6 +26,10 @@ static func rated_pitch(
 		0.92, 1.06, inverse_lerp(MIN_EFFORT, MAX_EFFORT, bounded_effort)
 	)
 	var break_factor: float = (0.85 + float(pitcher.break_rating) * 0.03) * effort_break_factor
+	if pitcher.progression_test:
+		# Mastered recipes own their physical stuff. No retired stat multiplier.
+		velocity_factor = bounded_effort
+		break_factor = effort_break_factor
 	result.nominal_velocity_mps *= velocity_factor
 	result.nominal_spin_rpm *= break_factor
 	result.perforation_influence *= break_factor

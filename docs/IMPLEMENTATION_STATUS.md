@@ -1,5 +1,16 @@
 # Implementation Status
 
+## Playable development reconstruction — 2026-09-28
+
+Home > Player Growth Test Lab now previews/commits synthetic development, saves/reloads
+an isolated journal and starts an actual exhibition with all 48 Working profiles available.
+The shared match paths use four ratings and exact recipe mastery; inspection/pitch controls
+show those values. Ordinary season resources remain on their preserved gameplay baseline.
+Nine mastery ladders have measurable physical calibration candidates, explicitly unapproved
+Proposals, separate from Approved caps/ownership and Working named rows. No production
+development shop or recruit lifecycle exists yet. The next dependency is atomic paid
+development/lesson acquisition using the verified ownership and development models.
+
 ## Rebuilt player-development foundation — 2026-09-28
 
 `SeasonPlayerCatalog` preserves all 48 exact v17 Working rows separately from live

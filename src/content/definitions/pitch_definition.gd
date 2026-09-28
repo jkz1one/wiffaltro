@@ -44,3 +44,10 @@ enum Rarity {
 @export_range(0.0, 2.0, 0.01) var mistake_punish: float = 1.0
 
 @export var tags: Array[StringName] = []
+
+# Runtime calibration fields. Authored recipes keep neutral defaults.
+@export_storage var mastery_level: int = 1
+@export_storage var mastery_movement_scale: float = 1.0
+@export_storage var mastery_late_bias: float = 0.0
+@export_storage var mastery_noise_scale: float = 1.0
+@export_storage var command_only_quality: bool = false

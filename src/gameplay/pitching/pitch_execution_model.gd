@@ -68,6 +68,10 @@ static func apply(
 	var crisis: float = crisis_pressure(fatigue_amount)
 	var control_amount: float = clampf(control_difficulty, 0.0, 2.0)
 	var execution_amount: float = clampf(execution_difficulty, 0.0, 2.0)
+	var recipe_spread: float = base_parameters.mastery_noise_scale
+	# In the four-stat playtest, Pitching affects command/endurance. It must not
+	# also act as an undisclosed Velocity/Break rating through execution quality.
+	var stuff_quality: float = 1.0 if base_parameters.command_only_quality else quality
 	var is_breaking: bool = pitch_category == PitchDefinition.Category.BREAKING
 
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -115,18 +119,18 @@ static func apply(
 	var velocity_loss_ceiling: float = lerpf(0.10, 0.28, speed_factor)
 	var velocity_loss: float = clampf(
 		velocity_pressure * velocity_loss_ceiling
-		+ (1.0 - quality) * 0.025,
+		+ (1.0 - stuff_quality) * 0.025,
 		0.0,
 		0.34
 	)
-	var delivery_speed_sigma: float = lerpf(0.012, 0.030, 1.0 - quality)
+	var delivery_speed_sigma: float = lerpf(0.012, 0.030, 1.0 - stuff_quality)
 	if (
 		pitch_category == PitchDefinition.Category.OFF_SPEED
 		or pitch_category == PitchDefinition.Category.UNCONVENTIONAL
 	):
 		delivery_speed_sigma *= 1.35
 	var delivery_speed_variance: float = clampf(
-		rng.randfn(0.0, delivery_speed_sigma),
+		rng.randfn(0.0, delivery_speed_sigma) * recipe_spread,
 		-0.065,
 		0.050
 	)
@@ -137,7 +141,7 @@ static func apply(
 
 	var spin_loss_ceiling: float = 0.82 if is_breaking else 0.58
 	var spin_loss: float = clampf(
-		spin_pressure * spin_loss_ceiling + (1.0 - quality) * 0.08,
+		spin_pressure * spin_loss_ceiling + (1.0 - stuff_quality) * 0.08,
 		0.0,
 		0.90
 	)
@@ -163,7 +167,7 @@ static func apply(
 		(1.0 - quality) * EXECUTION_RELEASE_SIGMA_M
 		+ pressure * FATIGUE_RELEASE_SIGMA_M * control_scale
 		+ lapse_strength * LAPSE_RELEASE_SIGMA_M
-	)
+	) * recipe_spread
 	var release_error: Vector3 = Vector3(
 		rng.randfn(0.0, release_sigma_m),
 		rng.randfn(0.0, release_sigma_m),
@@ -179,7 +183,7 @@ static func apply(
 		(1.0 - quality) * EXECUTION_DIRECTION_SIGMA_RADIANS
 		+ pressure * FATIGUE_DIRECTION_SIGMA_RADIANS * control_scale
 		+ lapse_strength * LAPSE_DIRECTION_SIGMA_RADIANS
-	)
+	) * recipe_spread
 	var yaw_error: float = clampf(
 		rng.randfn(0.0, direction_sigma),
 		-MAX_DIRECTION_ERROR_RADIANS,
@@ -217,6 +221,7 @@ static func apply(
 			rng.randf_range(-1.0, 1.0)
 			* MAX_ORIENTATION_ERROR_RADIANS
 			* orientation_strength
+			* recipe_spread
 		)
 		result.orientation = (
 			Quaternion(orientation_axis, orientation_angle)

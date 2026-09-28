@@ -65,5 +65,11 @@ static func build_nominal(
 	)
 	parameters.instability_strength = pitch.instability_strength
 	parameters.instability_frequency_hz = pitch.instability_frequency_hz
+	parameters.mastery_movement_scale = pitch.mastery_movement_scale
+	parameters.mastery_late_bias = pitch.mastery_late_bias
+	parameters.mastery_noise_scale = pitch.mastery_noise_scale
+	parameters.command_only_quality = pitch.command_only_quality
+	parameters.release_z = parameters.position.z
+	parameters.target_z = target_position.z
 
 	return parameters

@@ -82,6 +82,9 @@ def main():
             run("import", [*base, "--editor", "--quit"])
             failures = []
             checks = [
+                ("development-playtest", [*base, "--fixed-fps", "60",
+                                         "res://src/tests/development_playtest_test.tscn"],
+                 "Wiffaltro development playtest checks passed:"),
                 ("season-development", [*base, "--fixed-fps", "60",
                                         "res://src/tests/season_development_test.tscn"],
                  "Wiffaltro development checks passed:"),

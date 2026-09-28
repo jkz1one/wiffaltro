@@ -23,3 +23,6 @@ enum Handedness {
 @export var natural_delivery: DeliveryProfileDefinition
 @export_range(1, 8, 1) var pitch_capacity: int = 3
 @export var starting_pitches: Array[PitchDefinition] = []
+
+# Explicit isolated-playtest marker, retained when a match resource is duplicated.
+@export_storage var progression_test: bool = false

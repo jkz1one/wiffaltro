@@ -1,5 +1,26 @@
 # Fast verification and playtest records
 
+## Reconstruction: playable four-stat/mastery calibration, 2026-09-28
+
+Gate `20260928T191242881476Z` passed 14/14 steps: development-playtest,
+season-development, pitch-handedness, pitch-routing, season-shell, pitch-quality,
+core regressions and the seven shared checks. Gate `20260928T191455946223Z` passed
+11/11: ownership-integration, venue-stats, season-flow, live-match and shared checks.
+
+The new scene proves a measured physical improvement at every broad-stat level1–10,
+all 90 ordinary recipe/level/hand combinations reach the aimed plate, each movement
+or speed step changes actual flight, and reliable recipes reduce sampled execution
+spread without removing their natural identity. It also checks neutral legacy resources,
+noncompounding mastery, no hidden Velocity/Break scaling, command/speed separation,
+confirmation/cancellation, isolated save/reload, and the real menu-to-exhibition path.
+Human and AI launches pass the restored mastery into the live pitch actor.
+
+The live-match gate now completes two preserved legacy fixtures and one deliberately
+max-level progression fixture, with real AI contact/Jolt balls in play, balanced statistics,
+outro and restart checks. The passive scripted player and synthetic maximum-level grants
+are state-flow stress cases, not player-skill, acquisition or balance evidence. No rendered
+UI, human feel/readability approval or production shop readiness is claimed.
+
 ## Reconstruction: player-development foundation, 2026-09-28
 
 Gate `20260928T190147002897Z` passed all 8 focused steps, including the new
