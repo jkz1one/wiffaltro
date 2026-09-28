@@ -79,7 +79,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
-			+ "Earned tiers and sponsors pending."
+			+ "Three Working income sponsors; earned tiers and other sponsors pending."
 		)
 	)
 	_label(_notice)
@@ -94,8 +94,12 @@ func _refresh() -> void:
 	else:
 		_recruit(shop)
 		SeasonGearShopUI.equipped(self, view.wallet.gear)
+		SeasonSponsorShopUI.active(self, view.wallet)
 		for offer: String in shop.offers:
 			var item_id: String = shop.offers[offer]
+			if SeasonSponsorCatalog.ITEMS.has(item_id):
+				SeasonSponsorShopUI.offer(self, offer, item_id, view.wallet)
+				continue
 			if not SeasonGearCatalog.item(item_id).is_empty():
 				SeasonGearShopUI.offer(self, offer, item_id, view.wallet.gear)
 				continue

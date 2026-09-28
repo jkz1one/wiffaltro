@@ -239,7 +239,8 @@ static func offers(
 	gear: Dictionary,
 	rng: RandomNumberGenerator,
 	prefix: String,
-	catalog_version: int = 3
+	catalog_version: int = 3,
+	sponsor_pool: Dictionary = {}
 ) -> Dictionary:
 	var development: Dictionary = DevelopmentShopCatalog.families(book, roster)
 	var lessons: Array[String] = []
@@ -247,6 +248,7 @@ static func offers(
 		if not DevelopmentShopCatalog.targets(book, roster, "lesson." + recipe).is_empty():
 			lessons.append("lesson." + recipe)
 	var equipment: Dictionary = eligible(gear, catalog_version)
+	var sponsors: Dictionary = sponsor_pool.duplicate()
 	var weights: Dictionary = {}
 	if not development.is_empty():
 		weights["development"] = 25.0
@@ -254,6 +256,8 @@ static func offers(
 		weights["lesson"] = 12.0
 	if not equipment.is_empty():
 		weights["gear"] = 20.0
+	if not sponsors.is_empty():
+		weights["sponsor"] = 20.0
 	var result: Dictionary = {}
 	var seen: Array[String] = []
 	for index in range(4):
@@ -273,6 +277,11 @@ static func offers(
 			id = variants[rng.randi_range(0, variants.size() - 1)]
 		elif kind == "lesson":
 			id = lessons[rng.randi_range(0, lessons.size() - 1)]
+		elif kind == "sponsor":
+			id = _weighted(sponsors, rng)
+			sponsors.erase(id)
+			if sponsors.is_empty():
+				weights.erase("sponsor")
 		else:
 			# Equal eligible Bat/Ball/Misc subweights. Each enabled family has tier 1 only.
 			var slot: String = equipment.keys()[rng.randi_range(0, equipment.size() - 1)]

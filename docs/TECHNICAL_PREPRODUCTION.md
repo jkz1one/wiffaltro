@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.33
+**Version:** v0.1.34
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,38 @@
 ---
 
 # 1. Technical Objective
+
+## Paid sponsor settlement, 2026-09-28
+
+Build6 adds a versioned sponsor catalogue fingerprint and next-visit migration boundary,
+while preserving all previous Gear signatures and generators. The mixed-offer generator's
+optional sponsor pool defaults empty, retaining exact old draws. Enabled sponsor entries
+use source rarity weights, exclude active identities, and cannot repeat within a visit.
+
+Sponsor purchases/sales delegate to the existing active-only ownership journal through the
+aggregate candidate fork. Explicit replacement validates the full resulting wallet/loadout
+before checkpointing. No new reserve storage or midgame sale path is introduced. Three
+supported identities cannot yet fill all five slots; capacity-changing sponsors remain later
+work rather than synthetic production items.
+
+For new-format results, SeasonState passes the actual completed game's performance snapshot
+into the reward command. SeasonSponsorCatalog derives bounded earnings for current roster IDs
+from bb, p_k and distinct credited extra-base types. Valid nonempty statistics are required
+to earn money; absent evidence returns zero. Base reward and derived income settle within one
+candidate commit. Derived per-game breakdowns survive forks/replay without an independently
+editable saved balance. SeasonSave validates journal performance against the corresponding
+fixture result after reconstructing historical roster membership. Old rewards retain their
+original shape, and loading alone never rewrites a file.
+
+SeasonApp's existing completed-result gate and recorded/saved flags protect unfinished games
+and persistence retries. Shop mutations remain blocked during a live match. Postgame reads
+the historical payout breakdown, not the current loadout, so later resale cannot erase income
+history or imply a refund. UI confirmation retains exact prices, lost effect and sale proceeds;
+scrollable review and visible controls use the established small-window contract.
+
+Only three passive income contracts are supported. The score-only opponent resolver cannot
+supply their attribution and is not granted income or sponsor purchases. All source numeric
+contracts remain Working; existing Proposal physics mappings remain explicitly unapproved.
 
 ## Proposed initial Gear mappings, 2026-09-28
 

@@ -76,7 +76,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 9) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 10) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -190,6 +190,7 @@ static func _decode(value: Variant) -> SeasonState:
 		restored.migrate_gear()
 		restored.migrate_misc()
 		restored.migrate_mapped_gear()
+		restored.migrate_sponsors()
 		season.build = restored
 	return season
 
@@ -203,6 +204,11 @@ static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> boo
 			var result: Dictionary = season.player_results[cursor]
 			if event.game != result.id or event.win != (SeasonState._winner(result) == 0):
 				return false
+			if event.has("performance"):
+				var saved: Variant = JSON.parse_string(JSON.stringify(event.performance))
+				var actual: Variant = JSON.parse_string(JSON.stringify(result.get("performance", {})))
+				if saved != actual:
+					return false
 			cursor += 1
 		elif cursor == season.player_results.size() and season.phase == SeasonState.Phase.COMPLETE:
 			# Final income is retained, but creates no new purchasing window.

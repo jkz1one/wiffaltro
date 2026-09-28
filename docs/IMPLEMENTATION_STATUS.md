@@ -1,5 +1,19 @@
 # Implementation Status
 
+## Paid income sponsors, 2026-09-28
+
+Take Your Base, Shift Crew and Highlight Reel are implemented through ordinary paid offers,
+active-only ownership, explicit replacement/resale and atomic saves. Completed-game statistics
+supply actual capped income; retries, reloads, unfinished matches and later purchases cannot
+fabricate or repeat payouts. The UI shows ownership, exact tradeoffs and settled postgame income.
+Schema10/build6 retains old Gear/stock and activates sponsor offers next visit after migration.
+
+Three of35 sponsor candidates are supported. The remaining effects, combinations, earned access
+and actual AI purchasing/offscreen attribution are still open. Numeric sponsor contracts and
+resale remain Working; existing mastery/Gear Proposals remain unapproved. Native visual review
+and economy/feel acceptance remain open. This entry supersedes older “sponsors pending” notes.
+
+
 ## Bands, Shoes and Alley test mappings, 2026-09-28
 
 The opt-in Working season now implements all13 initial Gear candidates. A04 Warm-Up Bands,
@@ -113,9 +127,9 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 50% implemented**, after four explicitly proposed Gear mappings (48% after
-Kit/Gloves/Goggles;47% after
-first Gear;45% after recruitment;40% after paid development;35% before that). This is an estimate against the current full planned scope, not a
+**Approximately 53% implemented**, after paid income sponsors (50% after initial Gear
+mappings;48% after Kit/Gloves/Goggles;47% after first Gear;45% after recruitment;40% after
+paid development;35% before that). This is an estimate against the current full planned scope, not a
 test-pass percentage or a promise about remaining hours. Every finished response should
 report this same whole-project basis. Working content and Proposal tuning do not count as
 human-approved or release-ready merely because their code runs.
@@ -126,13 +140,13 @@ human-approved or release-ready merely because their code runs.
 | Season flow and persistence | 8 | 7 |
 | Ownership and economy | 8 | 6 |
 | Player development and mastery | 10 | 8 |
-| Shop, packs and recruitment | 12 | 6 |
+| Shop, packs and recruitment | 12 | 7 |
 | Gear, tactical cards and abilities | 10 | 5 |
-| Sponsors | 10 | 0 |
+| Sponsors | 10 | 2 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **50** |
+| **Total** | **100** | **53** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 reserve capacity remains open. Partial shops redistribute missing category weights; they do not

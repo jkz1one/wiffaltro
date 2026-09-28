@@ -1,5 +1,46 @@
 # Fast verification and playtest records
 
+## Paid income sponsors, 2026-09-28
+
+Full Godot4.7.2 gate `20260928T225022827419Z` passed43/43, including every existing gameplay,
+camera, AI, ownership, growth, Gear, shop and save check. Seven complete live games passed:
+two legacy, one maximum-development, one Gear, one Kit/Gloves, one Shoes/Alley and one genuine
+paid-sponsor season game. Each retained its applicable outro/restart coverage. The sponsor game
+produced129 records and22 balls in play, settled actual attributed statistics, rejected a
+second result payment and saved/restored the exact cash total. Earlier focused sponsor/current
+Gear/recruitment/shop gate `20260928T224829125993Z` passed12/12. The full gate includes the final
+postgame-display, terminal-season and next-visit migration assertions added after that run.
+
+Contract coverage includes all three caps, repeated Ks by one pitcher, distinct pitcher IDs,
+repeated extra-base types, sparse/zero results, opponent exclusion, absent statistics, actual
+called-ball versus completed-walk attribution and no unowned income. Purchases use real earned
+cash and full immutable receipts, exclude active unique sponsors, and replay idempotently.
+A completed game pays base income plus exactly the active sponsors' derived amounts. Altered
+journal evidence or missing/mismatched result statistics are rejected. Later sponsor sale
+retains prior money, removes future earning ability and cannot refund a sold receipt twice.
+A whole season including playoffs replays, and final-game income opens no extra shop.
+
+Real viewport UI checks cover all three identities at1000×650 and700×400: effect/price/status
+review, initial Cancel focus, bounded scrollable confirmation, cancel, purchase, failed-write
+rollback, immutable old save bytes, reload, active ownership, next-match launch and explicit
+resale. A D01-to-A08 replacement spends10+4−12=2 remaining Cash, records full12 paid and retains
+no old copy. Cancellation and failed replacement preserve both sides of the transaction.
+Midgame sales are blocked; leaving an unfinished game pays nothing. The completed-result retry
+fixture records base18+earned8 once, retains28 Cash on retry, and displays “Shift Crew: +8 Cash” once
+on postgame. This fixture tests state flow; the separate full physical game supplies live evidence.
+
+A genuinely paid schema9 Gloves save migrates with identical cash, Gear and offers and no
+load-only rewrite. Rerolls of the current visit retain the old generator. Sponsor eligibility
+starts next visit; saves/replay pass on both sides of that boundary. All previous Gear catalogue
+definitions remain unchanged, as does the preserved repository PROGRESSION_BLUEPRINT.md.
+Fresh main remains `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, an ancestor of the rebuild branch.
+
+Only three of35 sponsor candidates are enabled. These checks do not approve Working prices,
+rarities, acquisition pace or economy balance, and do not grant AI purchases/offscreen effects.
+Native rendered visual and human feel acceptance remain open under the documented display
+socket limitation. Actual headless input/layout checks are not presented as screenshots.
+
+
 ## Proposed Bands, Shoes and Alley mappings, 2026-09-28
 
 Godot4.7.2 focused gate `20260928T214319750293Z` passed9/9, including the four new mappings

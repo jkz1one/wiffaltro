@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 5
+const VERSION: int = 6
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -17,7 +17,9 @@ const SHOP_OPS: Array[String] = [
 	"pack_skip",
 	"sign",
 	"equip",
-	"sell_gear"
+	"sell_gear",
+	"sponsor_buy",
+	"sponsor_sell"
 ]
 
 var last_error: String = ""
@@ -35,6 +37,8 @@ var _recruit_from: int = 1
 var _gear_from: int = 1
 var _misc_from: int = 1
 var _mapped_gear_from: int = 1
+var _sponsor_from: int = 1
+var _income_by_game: Dictionary = {}
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
 var _visit: Dictionary = {"number": 0, "open": false}
@@ -57,7 +61,7 @@ func _init(
 	_blocked.sort()
 	for id: String in roster:
 		_contracts[id] = RecruitCatalog.contract(id).prices[0]
-	_bank = SeasonOwnership.new(SeasonGearCatalog.ownership_catalog())
+	_bank = SeasonOwnership.new(SeasonSponsorCatalog.ownership_catalog())
 	_book = SeasonDevelopment.new("season:%d" % _seed)
 
 
@@ -134,6 +138,8 @@ func to_data() -> Dictionary:
 		data["misc_from"] = _misc_from
 	if _format >= 5:
 		data["mapped_gear_from"] = _mapped_gear_from
+	if _format >= 6:
+		data["sponsor_from"] = _sponsor_from
 	return data
 
 
@@ -155,6 +161,8 @@ static func from_data(
 		keys.append("misc_from")
 	if value.version >= 5:
 		keys.append("mapped_gear_from")
+	if value.version >= 6:
+		keys.append("sponsor_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -188,6 +196,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.mapped_gear_from, 1, 13):
 			return null
 		result._mapped_gear_from = int(value.mapped_gear_from)
+	if value.version >= 6:
+		if not SeasonOwnership._whole(value.sponsor_from, 1, 13):
+			return null
+		result._sponsor_from = int(value.sponsor_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -230,6 +242,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_contracts = next._contracts
 	_recruits = next._recruits
 	_game_rosters = next._game_rosters
+	_income_by_game = next._income_by_game
 	_appeared = next._appeared
 	return {"ok": true, "replayed": replayed}
 
@@ -276,6 +289,8 @@ func _fork() -> SeasonBuild:
 	result._gear_from = _gear_from
 	result._misc_from = _misc_from
 	result._mapped_gear_from = _mapped_gear_from
+	result._sponsor_from = _sponsor_from
+	result._income_by_game = _income_by_game.duplicate(true)
 	result._bank = _bank.fork()
 	result._book = _book.fork()
 	result._visit = _visit.duplicate(true)
@@ -289,7 +304,10 @@ func _apply(command: Dictionary) -> String:
 	if pack_pending() and op not in ["pack_pick", "pack_skip"]:
 		return "Choose or skip the open pack before leaving or doing other shopping."
 	if op == "reward":
-		if not _keys(command, ["game", "win"]) or _roster.size() != 4:
+		var fields: Array = ["game", "win"]
+		if _format >= 6 and command.has("performance"):
+			fields.append("performance")
+		if not _keys(command, fields) or _roster.size() != 4:
 			return "Invalid season reward."
 		var result: Dictionary = _bank.commit(
 			{
@@ -302,6 +320,9 @@ func _apply(command: Dictionary) -> String:
 		)
 		if not result.ok or result.replayed:
 			return "This fixture cannot pay again."
+		var error: String = _settle_sponsors(command)
+		if not error.is_empty():
+			return error
 		_game_rosters[int(command.game)] = roster()
 		_visit = {"number": _visit.number + 1, "open": false}
 		return ""
@@ -322,6 +343,8 @@ func _apply(command: Dictionary) -> String:
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"sponsor_buy", "sponsor_sell":
+			return _sponsor_transaction(command)
 		"equip", "sell_gear":
 			return _gear_transaction(command)
 		"sign":
@@ -494,6 +517,11 @@ func _offers(rerolls: int) -> Dictionary:
 				3
 				if _format >= 5 and _visit.number >= _mapped_gear_from
 				else (2 if _format >= 4 and _visit.number >= _misc_from else 1)
+			),
+			(
+				SeasonSponsorCatalog.eligible(_bank.view().sponsors)
+				if _format >= 6 and _visit.number >= _sponsor_from
+				else {}
 			)
 		)
 	return DevelopmentShopCatalog.offers(
@@ -530,6 +558,8 @@ static func _signature(format_version: int = VERSION) -> String:
 				3 if format_version >= 5 else (2 if format_version >= 4 else 1)
 			)
 		)
+	if format_version >= 6:
+		base += ":" + SeasonSponsorCatalog.signature()
 	return base
 
 
@@ -672,3 +702,95 @@ func migrate_mapped_gear() -> void:
 	if _format < 5:
 		_format = 5
 		_mapped_gear_from = int(_visit.number) + 1
+
+
+func migrate_sponsors() -> void:
+	if _format < 6:
+		_format = 6
+		_sponsor_from = int(_visit.number) + 1
+
+
+func income_for_game(game: int) -> Dictionary:
+	return _income_by_game.get(game, {}).duplicate(true)
+
+
+func _settle_sponsors(command: Dictionary) -> String:
+	var active: Array = _bank.view().sponsors
+	if not active.is_empty() and not command.has("performance"):
+		return "Sponsor income requires the completed game's statistics."
+	var performance: Variant = command.get("performance", {})
+	if not performance is Dictionary:
+		return "Invalid sponsor performance."
+	if not performance.is_empty():
+		if not SeasonPerformance.valid(performance, performance.keys()):
+			return "Invalid sponsor performance."
+		for id: String in _roster:
+			if not active.is_empty() and not performance.has(id):
+				return "Missing current player statistics."
+	var income: Dictionary = SeasonSponsorCatalog.earnings(active, _roster, performance)
+	var amount: int = 0
+	for value: int in income.values():
+		amount += value
+	if amount > 0:
+		var paid: Dictionary = _bank.commit(
+			{
+				"id": "sponsor-income:%d" % int(command.game),
+				"rev": _bank.revision(),
+				"op": "sponsor_income",
+				"amount": amount
+			}
+		)
+		if not paid.ok:
+			return paid.error
+	if not income.is_empty():
+		_income_by_game[int(command.game)] = income
+	return ""
+
+
+func _sponsor_transaction(command: Dictionary) -> String:
+	if _format < 6 or _visit.number < _sponsor_from:
+		return "Sponsors are not available at this visit."
+	if command.op == "sponsor_sell":
+		if not _keys(command, ["receipt"]) or not command.receipt is String:
+			return "Choose an active sponsor."
+		var owned: Dictionary = SeasonOwnership._owned(_bank.view(), command.receipt)
+		if owned.get("kind") != "sponsor":
+			return "Choose an active sponsor."
+		var sold: Dictionary = _bank.commit(
+			{
+				"id": "sponsor-sale:%d" % revision(),
+				"rev": _bank.revision(),
+				"op": "sell",
+				"receipt": command.receipt,
+				"discard": []
+			}
+		)
+		return "" if sold.ok else sold.error
+	if not _keys(command, ["offer", "replace"]) or not command.offer is String:
+		return "Review an exact sponsor offer."
+	var item_id: String = _visit.offers.get(command.offer, "")
+	if not SeasonSponsorCatalog.ITEMS.has(item_id):
+		return "This sponsor offer is no longer available."
+	# Reject same-identity replacement before sale can temporarily remove it.
+	if not SeasonSponsorCatalog.eligible(_bank.view().sponsors).has(item_id):
+		return "That sponsor is already active."
+	var quote: String = "sponsor:%d" % revision()
+	var stock: Dictionary = _bank.commit(
+		{"id": quote, "rev": _bank.revision(), "op": "stock", "offers": {quote: item_id}}
+	)
+	if not stock.ok:
+		return stock.error
+	var bought: Dictionary = _bank.commit(
+		{
+			"id": "sponsor-purchase:%d" % revision(),
+			"rev": _bank.revision(),
+			"op": "buy",
+			"offer": quote,
+			"replace": command.replace,
+			"discard": []
+		}
+	)
+	if not bought.ok:
+		return bought.error
+	_visit.offers.erase(command.offer)
+	return ""

@@ -44,6 +44,12 @@ static func hub(menu: SeasonMenu) -> void:
 	menu._label(menu._body, "SEASON CASH  •  %d" % season.cash(), 18)
 	if season.build != null:
 		wrapped(menu._body, "WORKING PROGRESSION • Test roster and candidate mastery physics")
+		var names: PackedStringArray = []
+		for receipt: Dictionary in season.build.view().wallet.sponsors:
+			names.append(SeasonSponsorCatalog.ITEMS[receipt.item].name)
+		wrapped(
+			menu._body, "Active sponsors: " + (", ".join(names) if not names.is_empty() else "None")
+		)
 	var card: VBoxContainer = SeasonPlayerCard.panel(menu._body, true)
 	menu._label(card, "NEXT UP  •  " + menu._matchup(season.pending_fixture()), 26)
 	menu._label(card, venue(season.pending_fixture()), 18)
@@ -76,8 +82,10 @@ static func venue(fixture: Dictionary) -> String:
 	var opening: String = "You pitch first" if fixture["home"] == 0 else "You bat first"
 	if fixture.get("neutral", false):
 		return "Neutral final • %s • %s" % [field_name, opening]
-	return ("Home • %s • You pitch first" if fixture["home"] == 0 else (
-		"Away • %s • You bat first")) % field_name
+	return (
+		("Home • %s • You pitch first" if fixture["home"] == 0 else ("Away • %s • You bat first"))
+		% field_name
+	)
 
 
 static func defense(season: SeasonState) -> String:
@@ -123,6 +131,16 @@ static func postgame(menu: SeasonMenu) -> void:
 		"postgame", "WIN" if SeasonState._winner(game) == 0 else "LOSS", result_label(menu, game)
 	)
 	menu._label(menu._body, movement(season, game), 22)
+	menu._label(
+		menu._body, "Game income: %d Cash" % (18 if SeasonState._winner(game) == 0 else 12), 18
+	)
+	if season.build != null:
+		var income: Dictionary = season.build.income_for_game(int(game.id))
+		for id: String in income:
+			wrapped(
+				menu._body,
+				"%s: +%d Cash • Settled" % [SeasonSponsorCatalog.ITEMS[id].name, income[id]]
+			)
 	var recorded: Dictionary = game.get("performance", {})
 	var highlights: Array[String] = SeasonPerformance.highlights(
 		recorded, game.get("club_roster", season.teams[0]["roster"])
@@ -193,8 +211,9 @@ static func stats(menu: SeasonMenu) -> void:
 static func players(menu: SeasonMenu) -> void:
 	var season: SeasonState = menu.app.season
 	menu._screen("players", "PLAYER RATINGS", "Yard Club • Current attributes and repertoires")
-	menu._label(menu._body,
-		"Ratings are 0–10. Higher is stronger. Season results are in Team Stats.", 18)
+	menu._label(
+		menu._body, "Ratings are 0–10. Higher is stronger. Season results are in Team Stats.", 18
+	)
 	for index in range(season.teams[0]["roster"].size()):
 		var player: PlayerDefinition = season.player_definition(season.teams[0]["roster"][index])
 		var role: String = ""

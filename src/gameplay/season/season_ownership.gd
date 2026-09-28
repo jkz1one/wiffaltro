@@ -132,6 +132,13 @@ func _apply(next: Dictionary, command: Dictionary) -> String:
 			if not _whole(command.amount, 0, 1000000):
 				return "Invalid service debit."
 			next.cash -= int(command.amount)
+		"sponsor_income":
+			# Internal aggregate credit, derived from completed-game evidence.
+			if not _keys(command, ["id", "rev", "op", "amount"]):
+				return "Invalid sponsor income."
+			if not _whole(command.amount, 1, 21):
+				return "Invalid sponsor income."
+			next.cash += int(command.amount)
 		"reward":
 			if not _keys(command, ["id", "rev", "op", "game", "win"]):
 				return "Invalid game reward."

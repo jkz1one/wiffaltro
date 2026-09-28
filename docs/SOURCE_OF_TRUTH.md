@@ -1,11 +1,52 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.42
+**Version:** v0.4.43
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## First paid income sponsors, 2026-09-28
+
+The Working season now offers D01 Take Your Base (Common,8 Cash), A08 Shift Crew
+(Uncommon,12) and A09 Highlight Reel (Uncommon,14). Their original complete contracts
+are preserved in Blueprint v114 lines1130–1158 and3497–3520; Equipment/Sponsors v18
+lines259–375 supplies current initial access, rarity weighting, active-only ownership
+and resale overrides. These are three of35 current candidates, not the complete sponsor
+system. Prices, five-slot baseline, effects, rarity weights and floor-half resale are
+**Working testing defaults**. Active-only ownership and no reserve inventory remain
+**Approved**. Existing equipment/mastery Proposals are not promoted by this change.
+
+Take Your Base pays2 for each of the first two credited offensive walks, max4/game.
+Shift Crew pays2 per distinct own pitcher with a credited K, max8/game. Highlight Reel
+pays3 per distinct credited Double/Triple/HR type, max9/game. Repeated Ks by the same
+pitcher, repeated hit types, opponents' accomplishments, called balls and score-only
+results do not generate extra income. Actual completed-game statistics supply these
+bounded conditions across all innings, including extras. Nothing changes runs, RBI,
+ratings, hit classification or AI decisions to manufacture qualifying results.
+
+Purchases apply to future games only, into active slots. Explicit sale-and-replacement
+may use the old sponsor's floor(actual paid/2) proceeds, retains a full-price receipt
+for the new sponsor, and commits with the season save. Failed/canceled transactions
+retain old ownership, stock and cash. Sale removes future earning ability while keeping
+already settled income; replay or sale/rebuy cannot repay a completed fixture. Unfinished
+matches pay nothing, and a failed result save retries without repeating the reward.
+Postgame shows base income and each active sponsor's settled amount, including zero.
+
+Offers use the current sponsor parent weight20 and per-entry Common2/Uncommon1 weighting,
+renormalized across implemented categories (development25, lessons12, Gear20, sponsors20).
+Active unique sponsors and repeated sponsor identities within a visit are excluded;
+affordability does not filter stock. Fixed packs/recruits retain their independent paths.
+The other32 candidates, earned access, sponsor effect combinations and enemy purchase/use
+policies remain unsupported. No automatic offscreen sponsor income is fabricated.
+
+Schema10/build6 preserves earlier catalog fingerprints, current offers, paid Gear and
+rerolls. Sponsors become eligible only next visit on migration. The build journal's
+income evidence must match that completed fixture's saved performance; aggregate replay
+derives earnings from the sponsors active at that point. Final-game income is retained
+without opening another shop or converting cash to Club Bucks. Native visual and human
+balance/feel acceptance remain pending; headless input/layout checks are separate evidence.
 
 ## Bands, Shoes and Alley test mappings, 2026-09-28
 

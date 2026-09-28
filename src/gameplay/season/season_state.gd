@@ -173,6 +173,8 @@ func record_player_result(
 		"rev": ownership.revision() if build == null else build.revision(), "op": "reward",
 		"game": fixture_id, "win": (home_runs > away_runs) == (fixture["home"] == 0)
 	}
+	if build != null and build.to_data().version >= 6:
+		command["performance"] = performance.duplicate(true)
 	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
 	if not reward.ok:
 		return false
