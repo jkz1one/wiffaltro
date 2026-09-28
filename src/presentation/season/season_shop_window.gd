@@ -6,6 +6,8 @@ var _body: VBoxContainer
 var _scroll: ScrollContainer
 var _back: Button
 var _confirm: ConfirmationDialog
+var _review_scroll: ScrollContainer
+var _review_text: Label
 var _pending: Dictionary = {}
 var _notice: String = ""
 
@@ -48,6 +50,18 @@ func _ready() -> void:
 	_confirm.confirmed.connect(_commit)
 	_confirm.canceled.connect(func() -> void: _pending.clear())
 	add_child(_confirm)
+	# Long replacement effects must not force the modal beyond a small shop window.
+	_confirm.get_ok_button().custom_minimum_size.y = 44
+	_confirm.get_cancel_button().custom_minimum_size.y = 44
+	_review_scroll = ScrollContainer.new()
+	_review_scroll.focus_mode = Control.FOCUS_ALL
+	_review_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_review_scroll.custom_minimum_size.y = 170
+	_confirm.add_child(_review_scroll)
+	_review_text = Label.new()
+	_review_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_review_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_review_scroll.add_child(_review_text)
 	_refresh()
 
 
@@ -63,7 +77,10 @@ func _refresh() -> void:
 		)
 	)
 	_label(
-		"Working: development, lessons, recruits and nine Gear items. Other Gear and sponsors pending."
+		(
+			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
+			+ "Earned tiers and sponsors pending."
+		)
 	)
 	_label(_notice)
 	if shop.pack_status == "open":
@@ -279,7 +296,7 @@ func _preview(command: Dictionary, description: String) -> void:
 			):
 				if String(pitch.id) == command.pitch:
 					effect = PitchMastery.next_effect(pitch)
-	_confirm.dialog_text = (
+	_review_text.text = (
 		"%s\nCash: %d → %d\nHeld: %d → %d\n%s\nConfirm and save?"
 		% [
 			description,
@@ -290,7 +307,9 @@ func _preview(command: Dictionary, description: String) -> void:
 			effect
 		]
 	)
-	_confirm.popup_centered(Vector2i(mini(760, size.x - 32), 280))
+	_confirm.get_label().hide()
+	_review_scroll.scroll_vertical = 0
+	_confirm.popup_centered(Vector2i(mini(760, size.x - 32), mini(440, size.y - 48)))
 	_focus_cancel.call_deferred()
 
 

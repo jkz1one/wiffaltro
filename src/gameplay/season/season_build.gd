@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 4
+const VERSION: int = 5
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -34,6 +34,7 @@ var _format: int = VERSION
 var _recruit_from: int = 1
 var _gear_from: int = 1
 var _misc_from: int = 1
+var _mapped_gear_from: int = 1
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
 var _visit: Dictionary = {"number": 0, "open": false}
@@ -131,6 +132,8 @@ func to_data() -> Dictionary:
 		data["gear_from"] = _gear_from
 	if _format >= 4:
 		data["misc_from"] = _misc_from
+	if _format >= 5:
+		data["mapped_gear_from"] = _mapped_gear_from
 	return data
 
 
@@ -150,6 +153,8 @@ static func from_data(
 		keys.append("gear_from")
 	if value.version >= 4:
 		keys.append("misc_from")
+	if value.version >= 5:
+		keys.append("mapped_gear_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -179,6 +184,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.misc_from, 1, 13):
 			return null
 		result._misc_from = int(value.misc_from)
+	if value.version >= 5:
+		if not SeasonOwnership._whole(value.mapped_gear_from, 1, 13):
+			return null
+		result._mapped_gear_from = int(value.mapped_gear_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -266,6 +275,7 @@ func _fork() -> SeasonBuild:
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
 	result._misc_from = _misc_from
+	result._mapped_gear_from = _mapped_gear_from
 	result._bank = _bank.fork()
 	result._book = _book.fork()
 	result._visit = _visit.duplicate(true)
@@ -480,7 +490,11 @@ func _offers(rerolls: int) -> Dictionary:
 			_bank.view().gear,
 			_rng(rerolls),
 			"visit:%d:roll:%d" % [_visit.number, rerolls],
-			2 if _format >= 4 and _visit.number >= _misc_from else 1
+			(
+				3
+				if _format >= 5 and _visit.number >= _mapped_gear_from
+				else (2 if _format >= 4 and _visit.number >= _misc_from else 1)
+			)
 		)
 	return DevelopmentShopCatalog.offers(
 		_book, _roster, _rng(rerolls), "visit:%d:roll:%d" % [_visit.number, rerolls]
@@ -510,7 +524,12 @@ static func _signature(format_version: int = VERSION) -> String:
 	if format_version >= 2:
 		base += ":" + RecruitCatalog.signature()
 	if format_version >= 3:
-		base += ":" + SeasonGearCatalog.signature(2 if format_version >= 4 else 1)
+		base += (
+			":"
+			+ SeasonGearCatalog.signature(
+				3 if format_version >= 5 else (2 if format_version >= 4 else 1)
+			)
+		)
 	return base
 
 
@@ -647,3 +666,9 @@ func migrate_misc() -> void:
 	if _format < 4:
 		_format = 4
 		_misc_from = int(_visit.number) + 1
+
+
+func migrate_mapped_gear() -> void:
+	if _format < 5:
+		_format = 5
+		_mapped_gear_from = int(_visit.number) + 1

@@ -327,7 +327,7 @@ func _offer(build: SeasonBuild, id: String) -> String:
 	return ""
 
 
-func _seed_for(id: String, format_version: int = 4) -> int:
+func _seed_for(id: String, format_version: int = SeasonBuild.VERSION) -> int:
 	for seed_value in range(300):
 		var build: SeasonBuild = SeasonBuild.new(seed_value, ROSTER)
 		build._format = format_version
@@ -372,8 +372,9 @@ func _migration() -> void:
 		DirAccess.remove_absolute(path + suffix)
 
 
-func _misc_ui() -> void:
-	for id: String in SeasonGearCatalog.MISC_ITEMS:
+func _misc_ui(items: Dictionary = SeasonGearCatalog.MISC_ITEMS) -> void:
+	for id: String in items:
+		var slot: String = SeasonGearCatalog.item(id).slot
 		var prefix: String = "user://misc-ui-%s-%d" % [id, OS.get_process_id()]
 		SeasonSave.path = prefix + ".json"
 		PitchBatLabSettings.path = prefix + ".cfg"
@@ -388,28 +389,67 @@ func _misc_ui() -> void:
 		app.open_shop()
 		await _frames()
 		var window: SeasonShopWindow = _shop(app)
+		await _shop_bounds(window, "gear-normal-" + id)
 		window.size = Vector2i(700, 400)
 		await _shop_bounds(window, "misc-shop-" + id)
 		var offer: String = _offer(app.season.build, id)
 		var before: Dictionary = app.season.build.to_data()
+		_check(_gear_status_visible(window, id), "offer displays item's correct status")
 		await _click(_gear_button(window, "gear_offer", offer))
 		_check(
 			(
 				window._confirm.visible
-				and window._confirm.dialog_text.contains(SeasonGearCatalog.item(id).effect)
+				and window._review_text.text.contains(SeasonGearCatalog.item(id).effect)
 			),
 			"review names exact Misc tradeoff"
 		)
+		_check(
+			window._confirm.gui_get_focus_owner() == window._confirm.get_cancel_button(),
+			"Gear confirmation defaults to Cancel"
+		)
+		_check(window._confirm.size.x <= window.size.x, "Gear review fits narrow window")
+		_check(window._confirm.size.y <= window.size.y, "Gear review fits narrow window height")
+		var review_bounds: Rect2 = Rect2(Vector2.ZERO, Vector2(window._confirm.size))
+		_check(
+			(
+				review_bounds.encloses(window._confirm.get_ok_button().get_global_rect())
+				and review_bounds.encloses(window._confirm.get_cancel_button().get_global_rect())
+			),
+			"both confirmation controls remain visible"
+		)
+		_check(
+			(
+				window._review_text.text.ends_with("Confirm and save?")
+				and window._review_text.text.contains("Cash: ")
+			),
+			"scrollable review retains every effect and transaction detail"
+		)
+		window._review_scroll.scroll_vertical = 10000
+		await _frames()
+		_check(
+			(
+				window._review_text.get_global_rect().end.y
+				<= window._review_scroll.get_global_rect().end.y + 1
+			),
+			"scrolling reaches the final confirmation details"
+		)
+		if items == SeasonGearCatalog.PROPOSAL_ITEMS:
+			_check(
+				window._review_text.text.contains("Proposal — unapproved"),
+				"paid review explicitly discloses unapproved mapping"
+			)
 		await _capture(window._confirm, "misc-review-" + id)
 		await _click(window._confirm.get_cancel_button())
 		_check(app.season.build.to_data() == before, "Misc cancellation spends nothing")
 		await _click(_gear_button(window, "gear_offer", offer))
 		await _click(window._confirm.get_ok_button())
-		var receipt: Dictionary = app.season.build.view().wallet.gear.misc
+		var receipt: Dictionary = app.season.build.view().wallet.gear[slot]
 		_check(
 			receipt.item == id and receipt.paid == SeasonGearCatalog.item(id).price,
 			"Misc purchase records full exact price"
 		)
+		_check(_gear_status_visible(window, id), "equipped receipt displays item's correct status")
+		await _shop_bounds(window, "gear-equipped-" + id)
 		var restored: SeasonState = SeasonSave.restore()
 		_check(
 			restored != null and restored.build.view() == app.season.build.view(),
@@ -428,7 +468,9 @@ func _misc_ui() -> void:
 		window = _shop(app)
 		await _click(_gear_button(window, "gear_sell", receipt.id))
 		await _click(window._confirm.get_ok_button())
-		_check(app.season.build.view().wallet.gear.misc.is_empty(), "Misc sale restores empty slot")
+		_check(
+			app.season.build.view().wallet.gear[slot].is_empty(), "Misc sale restores empty slot"
+		)
 		app.queue_free()
 		await _frames()
 		for file: String in [prefix + ".json", prefix + ".cfg"]:
@@ -510,3 +552,12 @@ func _gear_button(window: SeasonShopWindow, meta: String, value: String) -> Butt
 		if child is Button and child.get_meta(meta, "") == value:
 			return child
 	return null
+
+
+func _gear_status_visible(window: SeasonShopWindow, id: String) -> bool:
+	var item: Dictionary = SeasonGearCatalog.item(id)
+	for child in window._body.get_children():
+		if child is Label and child.text.contains(item.name):
+			if child.text.contains(item.get("status", "Working")):
+				return true
+	return false

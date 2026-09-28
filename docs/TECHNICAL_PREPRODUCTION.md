@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.32
+**Version:** v0.1.33
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,35 @@
 ---
 
 # 1. Technical Objective
+
+## Proposed initial Gear mappings, 2026-09-28
+
+Catalogue3 adds a separate frozen `PROPOSAL_ITEMS` dictionary, preserving catalogue1/2 hashes
+for build3/4 replay. Build5 stores and validates `mapped_gear_from`, copies it through atomic
+forks, and gates both initial quotes and rerolls on that visit. Schema9 migrates only after
+full old-journal replay and season validation; prior schema1–8 paths remain supported.
+
+Bands receives the actual effort argument at successful pitch launch. Workload composes once
+with normal effort cost/overdrive and never changes the rated pitch. Shoe speed is applied once
+when configuring the active fielder and when planning pitcher pursuit. Both real control entry
+points pass the owning defender's handling factor to the existing resolver. After original
+reach/height rejection, difficulty changes by `max(0, difficulty) * (scale - 1)`; neutral
+defaults remain exact, and negative reaction credit stays intact.
+
+A runtime swing copy carries `gear_line_drive_strength` only for A02 Contact; Power receives
+the fair exit multiplier instead. ContactResolver transforms the eligible angle before
+constructing velocity, preserving magnitude, spray, spin and quality. Continuous proposed
+shoulders retain the documented18–40°/0.65 eligibility. Current authored7° Contact geometry
+only reaches18.2° at qualifying quality: this is an explicit calibration limitation, not a
+reason to silently alter other chats' swing/gameplay fixes. UI calls out the negligible benefit.
+
+The UI shows per-item Working/Proposal status in offers, equipped receipts and confirmation;
+Cancel remains the default focus and all purchases still checkpoint before match handoff.
+Confirmation review now uses a bounded, keyboard-focusable scroll container and fixed visible
+44px confirmation controls. Long effect/replacement text cannot force the modal taller than
+the700×400 minimum shop; the full cash/effect text remains accessible by scrolling.
+These mappings remain unapproved Proposals; source numerical prices/effects remain Working.
+No earned tier, permanent unlock or sponsor stack is implicitly introduced.
 
 ## Misc temporal/participation/reaction integration, 2026-09-28
 

@@ -9,6 +9,7 @@ var anchor_position: Vector3 = Vector3.ZERO
 var target_position: Vector3 = Vector3.ZERO
 var active: bool = false
 var last_reaction_margin_seconds: float = 0.0
+var handling_scale: float = 1.0
 var reaction_delay_seconds: float = 0.11
 var pitcher_lane_z: float = INF
 var pitcher_defender: Node3D
@@ -51,6 +52,8 @@ func configure_player(player: PlayerDefinition) -> void:
 		5.20,
 		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
 	)
+	move_speed_mps *= SeasonGearCatalog.factor(player, "speed")
+	handling_scale = SeasonGearCatalog.factor(player, "handling")
 	reach_m = lerpf(
 		0.52,
 		0.76,

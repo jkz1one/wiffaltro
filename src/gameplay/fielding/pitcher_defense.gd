@@ -10,26 +10,21 @@ static func can_attempt(ball_position: Vector3, pitcher_position: Vector3) -> bo
 
 
 static func attempt_position(
-	previous_position: Vector3,
-	current_position: Vector3,
-	pitcher_position: Vector3
+	previous_position: Vector3, current_position: Vector3, pitcher_position: Vector3
 ) -> Vector3:
 	var segment_xz: Vector2 = Vector2(
-		current_position.x - previous_position.x,
-		current_position.z - previous_position.z
+		current_position.x - previous_position.x, current_position.z - previous_position.z
 	)
 	var to_pitcher_xz: Vector2 = Vector2(
-		pitcher_position.x - previous_position.x,
-		pitcher_position.z - previous_position.z
+		pitcher_position.x - previous_position.x, pitcher_position.z - previous_position.z
 	)
 	var alpha: float = 0.0
 	if segment_xz.length_squared() > 0.000001:
 		alpha = clampf(to_pitcher_xz.dot(segment_xz) / segment_xz.length_squared(), 0.0, 1.0)
 	var closest: Vector3 = previous_position.lerp(current_position, alpha)
-	var horizontal_distance: float = Vector2(
-		closest.x - pitcher_position.x,
-		closest.z - pitcher_position.z
-	).length()
+	var horizontal_distance: float = (
+		Vector2(closest.x - pitcher_position.x, closest.z - pitcher_position.z).length()
+	)
 	if (
 		horizontal_distance > REACTION_RADIUS_M
 		# A rolling ball's center is below 5 cm (radius is 3.65 cm).
@@ -46,11 +41,18 @@ static func resolve(
 	ball_velocity: Vector3,
 	pitcher_position: Vector3,
 	has_grounded: bool,
-	fielding_rating: int
+	fielding_rating: int,
+	handling_scale: float = 1.0
 ) -> FieldingResolver.Outcome:
 	var distance: float = (
 		Vector2(ball_position.x - pitcher_position.x, ball_position.z - pitcher_position.z).length()
 	)
 	return FieldingResolver.resolve(
-		distance, ball_velocity.length(), ball_position.y, has_grounded, fielding_rating, 0.0
+		distance,
+		ball_velocity.length(),
+		ball_position.y,
+		has_grounded,
+		fielding_rating,
+		0.0,
+		handling_scale
 	)

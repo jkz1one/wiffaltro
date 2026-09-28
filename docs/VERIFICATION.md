@@ -1,5 +1,53 @@
 # Fast verification and playtest records
 
+## Proposed Bands, Shoes and Alley mappings, 2026-09-28
+
+Godot4.7.2 focused gate `20260928T214319750293Z` passed9/9, including the four new mappings
+and a complete Shoes/Alley game (87 records,32 balls in play), outro and restart. Full gate
+`20260928T214443841019Z` passed40/41: all source/import, ownership, save, UI, roster, progression,
+physics, camera, AI, soak and both new/Misc whole-game checks passed. The older four-game
+live scene exited0 after two matches without its success marker; the runner correctly failed
+it. This is not recorded as a clean full-suite pass. Isolated rerun
+`20260928T215029881372Z` passed8/8 with all four complete legacy/progression/equipped games,
+outros and restarts, so all41 check types have passing evidence across the full and focused
+runs. The initial early exit remains recorded; it was not reproduced in the isolated rerun.
+
+Final UI gate `20260928T214750450379Z` passed12/12 across mapped Gear, prior Misc, prior Gear,
+recruitment and paid-development shop inputs, plus seven shared checks. Expanded narrow-window
+coverage exposed confirmation height overflow, including older Misc reviews. The fix replaces
+the unbounded built-in text with a focusable scrollable review while retaining visible44px
+Confirm/Cancel controls. Tests cover1000×650 and700×400 shops, no horizontal clipping, bounded
+review height, visible controls, initial Cancel focus, scrolling to the final transaction
+text, full effect/status disclosure, cancellation, purchase, save/reload, real next-match
+handoff and resale. Existing replacement and write-failure rollback checks remain enabled.
+
+Bands checks cover actual control82/94/95.5/97/98.5/100/112%, both ramp boundaries and exact
+workload values, unchanged velocity/movement/command, no first-batter dependency, neutral sale,
+and successful real human/AI release debits at low/mid/high effort. Shoe checks show actual
+CLEAN↔BOBBLE changes, unchanged reach/height/reaction eligibility, no stale assignment factors,
+and actual primary-fielder and pitcher control entry points for both human/AI ownership.
+The complete Shoe match additionally exercises ordinary planner/Jolt/AI integration.
+
+Alley checks retain both hands, Contact/Power, fair-only Power cost, unchanged speed magnitude
+for Contact, quality, spray, spin and classification. Eligibility rejects weak contact,
+grounders and high popups; proposed quality/angular shoulders are continuous. Real authored
+Contact has only a very narrow qualifying band; its proposed benefit is negligible and the
+purchase review explicitly says so. This remains a design/calibration limitation, not balance
+acceptance. No change to core Contact attack angle was made to conceal it.
+
+A genuinely purchased schema8 Gloves receipt migrates to schema9 without changes to paid Gear,
+cash, current stock, or save bytes on load. Same-visit rerolls retain the old generation;
+new-catalogue eligibility starts next visit. Save/replay succeeds before and after that boundary.
+Every candidate has live UI acquisition/reload/sale coverage. Catalogue1/2 fingerprints remain
+frozen. Fresh main remains `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` and is an ancestor of the
+rebuild branch; preserved gameplay/camera/AI changes were not replaced.
+
+Native pixel/visual and human feel acceptance remain open under the documented display socket
+limitation (`builds/verification/native-ui-display-20260928.log`). These are real headless
+viewport input/layout checks and live physical simulations, not native screenshots. Proposal
+mappings remain unapproved; source values remain Working and ownership rules remain Approved.
+
+
 ## Reconstruction: first-batter, timing and reaction Misc, 2026-09-28
 
 Pinned Godot4.7.2 gate `20260928T211802693954Z` passed39/39 steps, retaining all prior

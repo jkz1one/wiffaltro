@@ -1,7 +1,7 @@
 class_name SeasonGearCatalog
 extends RefCounted
 ## Supported Working candidates from Equipment/Sponsors v18. No earned tiers granted.
-## Remaining Misc and Alley identity/physics dependencies stay outside this pool.
+## Unapproved engine mappings are isolated and labeled in PROPOSAL_ITEMS.
 
 const ITEMS: Dictionary = {
 	"BAT-CON-01":
@@ -90,21 +90,80 @@ const MISC_ITEMS: Dictionary = {
 		"effect": "Fielder and pitcher reaction delay −15%. No movement-speed or handling bonus."
 	}
 }
+# Freeze both older dictionaries: their hashes authenticate paid historical journals.
+# Source percentages/prices are Working; these resolver mappings are unapproved Proposals.
+const PROPOSAL_ITEMS: Dictionary = {
+	"A04":
+	{
+		"name": "Warm-Up Bands",
+		"slot": "misc",
+		"price": 10,
+		"status": "Proposal — unapproved engine mapping",
+		"effect":
+		(
+			"Workload −15% at 82–94% effort; ramps to +15% at 100%; +15% through 112%. "
+			+ "Proposed control-range mapping."
+		)
+	},
+	"MISC-FLD-01":
+	{
+		"name": "Track Shoes",
+		"slot": "misc",
+		"price": 10,
+		"speed": 1.08,
+		"handling": 1.12,
+		"status": "Proposal — unapproved engine mapping",
+		"effect":
+		(
+			"Active fielder/pitcher speed +8%; positive handling difficulty +12%. "
+			+ "Proposed deterministic error mapping; no extra random roll."
+		)
+	},
+	"MISC-FLD-02":
+	{
+		"name": "Turf Shoes",
+		"slot": "misc",
+		"price": 10,
+		"speed": 0.95,
+		"handling": 0.85,
+		"status": "Proposal — unapproved engine mapping",
+		"effect":
+		(
+			"Active fielder/pitcher speed −5%; positive handling difficulty −15%. "
+			+ "Proposed deterministic error mapping; reach/height limits still apply."
+		)
+	},
+	"A02":
+	{
+		"name": "Alley Bat",
+		"slot": "bat",
+		"price": 12,
+		"status": "Proposal — unapproved engine mapping",
+		"effect":
+		(
+			"Fair Contact at quality ≥65%, launch 18–40°: 25% toward 16°. Proposed "
+			+ "smooth ramps: quality 65–70%, angle 18–20°/38–40°. Fair Power exit −8%."
+			+ " Current Contact benefit is negligible; calibration pending."
+		)
+	}
+}
 const MIN_REACTION_SECONDS: float = 0.001
 
 
-static func catalog(catalog_version: int = 2) -> Dictionary:
+static func catalog(catalog_version: int = 3) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if catalog_version >= 2:
 		result.merge(MISC_ITEMS, true)
+	if catalog_version >= 3:
+		result.merge(PROPOSAL_ITEMS, true)
 	return result
 
 
 static func item(id: String) -> Dictionary:
-	return ITEMS.get(id, MISC_ITEMS.get(id, {})).duplicate(true)
+	return ITEMS.get(id, MISC_ITEMS.get(id, PROPOSAL_ITEMS.get(id, {}))).duplicate(true)
 
 
-static func signature(catalog_version: int = 2) -> String:
+static func signature(catalog_version: int = 3) -> String:
 	return JSON.stringify(catalog(catalog_version)).sha256_text()
 
 
@@ -118,7 +177,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(gear: Dictionary, catalog_version: int = 2) -> Dictionary:
+static func eligible(gear: Dictionary, catalog_version: int = 3) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(catalog_version)
 	for id: String in all_items:
@@ -157,6 +216,11 @@ static func swing(
 	result.contact_radius_y_m *= factor(player, "radius")
 	result.gear_fair_exit_scale = factor(player, "exit")
 	result.gear_timing_scale = factor(player, "timing")
+	if player.season_gear.get("bat", "") == "A02":
+		if source.id == &"swing.contact":
+			result.gear_line_drive_strength = 0.25
+		elif source.id == &"swing.power":
+			result.gear_fair_exit_scale *= 0.92
 	return result
 
 
@@ -175,7 +239,7 @@ static func offers(
 	gear: Dictionary,
 	rng: RandomNumberGenerator,
 	prefix: String,
-	catalog_version: int = 2
+	catalog_version: int = 3
 ) -> Dictionary:
 	var development: Dictionary = DevelopmentShopCatalog.families(book, roster)
 	var lessons: Array[String] = []
@@ -230,7 +294,13 @@ static func _weighted(weights: Dictionary, rng: RandomNumberGenerator) -> String
 	return weights.keys().back()
 
 
-static func workload(player: PlayerMatchState) -> float:
+static func workload(player: PlayerMatchState, effort: float = 1.0) -> float:
+	if player.definition.season_gear.get("misc", "") == "A04":
+		# Proposal: normalize the existing control range, never ratings or velocity.
+		var normalized: float = clampf(
+			inverse_lerp(MatchLabSupport.MIN_EFFORT, MatchLabSupport.MAX_EFFORT, effort), 0.0, 1.0
+		)
+		return lerpf(0.85, 1.15, clampf((normalized - 0.4) / 0.2, 0.0, 1.0))
 	if player.definition.season_gear.get("misc", "") == "D02":
 		return 1.10 if player.first_batter_completed else 0.85
 	return factor(player.definition, "workload")

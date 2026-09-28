@@ -1,11 +1,52 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.41
+**Version:** v0.4.42
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Bands, Shoes and Alley test mappings, 2026-09-28
+
+The opt-in Working season now implements all13 initial Gear candidates. A04 Warm-Up Bands,
+MISC-FLD-01 Track Shoes, MISC-FLD-02 Turf Shoes and the original A02 Alley Bat use explicitly
+**unapproved Proposal engine mappings**. Offers, equipped rows and purchase review distinguish
+these from the nine prior Working candidates. Ownership, explicit paid replacement and
+floor-half resale remain **Approved**; source percentages/prices remain **Working**. Passing
+automated checks does not promote either status to approved balance.
+
+Bands normalizes the existing82–112% effort control position into0–1. The source workload
+curve gives0.85 through normalized40%, ramps continuously to1.15 at60%, then stays1.15.
+Consequently actual82–94% effort gets0.85,94–100% ramps, and100–112% gets1.15. That conversion
+is a Proposal, not a claim the source approved this control range. It never alters pitch
+velocity, movement, command, ratings or the engine's effort bounds.
+
+Track/Turf scale the owning active fielder and pitcher's pursuit speed by1.08/0.95 and existing
+positive deterministic handling difficulty by1.12/0.85. Negative reaction credit, reaction
+delays, reach/height gates, obstacle avoidance, pursuit envelope and immediate comebacker
+rules remain intact. No new error RNG or guaranteed catch is introduced. Applying the source's
+handling-error percentage to positive resolver difficulty is a Proposal pending feel review.
+
+The preserved Blueprint v114 lines1027–1046 identifies A02 as the original12-Cash Alley Bat;
+there are no existing repo A02 save/assets to rename. Current Equipment/Sponsors v18 supersedes
+the historical flat−6° rule with tier-one25% toward16°, fair Contact only, quality≥0.65 and
+initial angle18–40°. Proposed smoothstep shoulders use quality0.65–0.70 and angle18–20°/38–40°.
+Speed magnitude, spray, measured quality and spin are retained; fair Power exit speed pays8%.
+No higher-tier identity, homing or outcome guarantee is created.
+
+**Concrete unresolved Alley calibration:** authored Contact attack angle is7°; at quality≥0.65,
+its vertical-error launch model reaches at most18.2°. Thus only a tiny edge of the stated
+eligibility overlaps actual contact, and the proposed shoulders make the benefit negligible.
+The purchase review discloses this. Do not call Alley balanced or widen its eligibility/alter
+core swing tuning without a separately reviewed design decision.
+
+Schema9/build5 freezes catalogue1/2 and old build fingerprints, preserves paid Gear/current
+stock/cash, and activates catalogue3 only at the next shop visit. Even rerolls of the migrated
+current visit keep the old generator. A load alone never rewrites a save. Earned tiers,
+permanent unlocks, sponsor combinations and AI purchasing remain unfinished. Native visual
+and human feel/balance acceptance remain open. This entry supersedes the older missing-mapping
+notes below while preserving their historical checkpoint context.
 
 ## First-batter, timing and reaction Misc, 2026-09-28
 

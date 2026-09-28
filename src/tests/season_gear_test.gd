@@ -364,7 +364,7 @@ func _gear_ui() -> void:
 	var before: Dictionary = app.season.build.to_data()
 	await _click(_gear_button(window, "gear_offer", offer))
 	_check(
-		window._confirm.visible and window._confirm.dialog_text.contains("Cash: 18 → 8"),
+		window._confirm.visible and window._review_text.text.contains("Cash: 18 → 8"),
 		"Gear review shows exact cost"
 	)
 	_check(
@@ -393,8 +393,8 @@ func _gear_ui() -> void:
 		await _click(_gear_button(window, "gear_offer", second))
 		_check(
 			(
-				window._confirm.dialog_text.contains("Sell ")
-				and window._confirm.dialog_text.contains("Cash: 8 → 3")
+				window._review_text.text.contains("Sell ")
+				and window._review_text.text.contains("Cash: 8 → 3")
 			),
 			"review includes sale proceeds"
 		)

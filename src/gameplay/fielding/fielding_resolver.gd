@@ -10,18 +10,19 @@ enum Outcome {
 const MAX_AIR_CONTROL_HEIGHT_M: float = 2.05
 const MAX_GROUND_CONTROL_HEIGHT_M: float = 1.05
 
+
 static func resolve(
 	distance_m: float,
 	ball_speed_mps: float,
 	ball_height_m: float,
 	has_grounded: bool,
 	fielding_rating: int,
-	reaction_margin_seconds: float = 0.0
+	reaction_margin_seconds: float = 0.0,
+	handling_scale: float = 1.0
 ) -> Outcome:
 	var rating: float = clampf(float(fielding_rating), 0.0, 10.0)
 	var allowed_height: float = (
-		MAX_GROUND_CONTROL_HEIGHT_M if has_grounded
-		else MAX_AIR_CONTROL_HEIGHT_M
+		MAX_GROUND_CONTROL_HEIGHT_M if has_grounded else MAX_AIR_CONTROL_HEIGHT_M
 	)
 	if ball_height_m < 0.0 or ball_height_m > allowed_height:
 		return Outcome.MISS
@@ -33,6 +34,9 @@ static func resolve(
 	var difficulty: float = ball_speed_mps * (0.028 if has_grounded else 0.030)
 	difficulty += distance_m * 0.88
 	difficulty -= reaction_margin_seconds * 0.50
+	# Proposal: scale only positive existing difficulty after physical eligibility.
+	# Negative reaction credit is preserved; no new roll or automatic control.
+	difficulty += maxf(0.0, difficulty) * (handling_scale - 1.0)
 	var skill: float = 0.50 + rating * 0.095
 	var control_margin: float = skill - difficulty
 
@@ -41,6 +45,7 @@ static func resolve(
 	if control_margin >= -0.12:
 		return Outcome.BOBBLE
 	return Outcome.MISS
+
 
 static func outcome_name(outcome: Outcome) -> String:
 	match outcome:

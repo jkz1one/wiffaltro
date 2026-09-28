@@ -13,8 +13,15 @@ static func equipped(window: SeasonShopWindow, gear: Dictionary) -> void:
 		var refund: int = floori(float(receipt.paid) / 2.0)
 		window._label(
 			(
-				"%s: %s • Paid %d • Sell %d\n%s"
-				% [slot.capitalize(), item.name, receipt.paid, refund, item.effect]
+				"%s: %s • Paid %d • Sell %d • %s\n%s"
+				% [
+					slot.capitalize(),
+					item.name,
+					receipt.paid,
+					refund,
+					item.get("status", "Working"),
+					item.effect
+				]
 			)
 		)
 		var button: Button = window._button(
@@ -38,7 +45,12 @@ static func equipped(window: SeasonShopWindow, gear: Dictionary) -> void:
 static func offer(window: SeasonShopWindow, offer_id: String, id: String, gear: Dictionary) -> void:
 	var item: Dictionary = SeasonGearCatalog.item(id)
 	var old: Dictionary = gear[item.slot]
-	window._label("%s • %d Cash • Working\n%s" % [item.name, item.price, item.effect])
+	window._label(
+		(
+			"%s • %d Cash • %s\n%s"
+			% [item.name, item.price, item.get("status", "Working"), item.effect]
+		)
+	)
 	if item.slot == "ball":
 		window._label(
 			(
@@ -46,7 +58,10 @@ static func offer(window: SeasonShopWindow, offer_id: String, id: String, gear: 
 				+ "Eephus gravity arc and natural Knuckle wobble stay unchanged."
 			)
 		)
-	var description: String = "Equip %s for %d Cash.\n%s" % [item.name, item.price, item.effect]
+	var description: String = (
+		"Equip %s for %d Cash.\n%s\n%s"
+		% [item.name, item.price, item.get("status", "Working"), item.effect]
+	)
 	var replace_id: String = ""
 	if not old.is_empty():
 		replace_id = old.id

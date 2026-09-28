@@ -17,6 +17,8 @@ extends DefinitionBase
 
 @export_storage var gear_fair_exit_scale: float = 1.0
 @export_storage var gear_timing_scale: float = 1.0
+@export_storage var gear_line_drive_strength: float = 0.0
+
 
 func is_valid_definition() -> bool:
 	return (
@@ -30,10 +32,14 @@ func is_valid_definition() -> bool:
 func contact_start() -> float:
 	if gear_timing_scale == 1.0:
 		return contact_window_start_seconds
-	return sweet_spot_seconds - (sweet_spot_seconds - contact_window_start_seconds) * gear_timing_scale
+	return (
+		sweet_spot_seconds - (sweet_spot_seconds - contact_window_start_seconds) * gear_timing_scale
+	)
 
 
 func contact_end() -> float:
 	if gear_timing_scale == 1.0:
 		return contact_window_end_seconds
-	return sweet_spot_seconds + (contact_window_end_seconds - sweet_spot_seconds) * gear_timing_scale
+	return (
+		sweet_spot_seconds + (contact_window_end_seconds - sweet_spot_seconds) * gear_timing_scale
+	)

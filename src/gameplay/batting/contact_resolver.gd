@@ -160,6 +160,9 @@ static func _resolve_at_contact(
 
 	if result.outcome != ContactResult.Outcome.FOUL:
 		exit_speed *= profile.gear_fair_exit_scale
+		result.launch_angle_degrees = line_drive_angle(
+			result.launch_angle_degrees, quality, profile.gear_line_drive_strength
+		)
 
 	var launch_angle_radians: float = deg_to_rad(result.launch_angle_degrees)
 	var spray_radians: float = deg_to_rad(result.spray_degrees)
@@ -234,3 +237,12 @@ static func _primary_miss_reason(
 			ContactResult.MissReason.RIGHT if normalized_x > 0.0 else ContactResult.MissReason.LEFT
 		)
 	return ContactResult.MissReason.ABOVE if normalized_y > 0.0 else ContactResult.MissReason.BELOW
+
+
+static func line_drive_angle(angle: float, quality: float, strength: float) -> float:
+	# Working eligibility/target; smooth edge widths are an unapproved Proposal.
+	if strength == 0.0 or quality < 0.65 or angle < 18.0 or angle > 40.0:
+		return angle
+	var weight: float = smoothstep(0.65, 0.70, quality)
+	weight *= smoothstep(18.0, 20.0, angle) * (1.0 - smoothstep(38.0, 40.0, angle))
+	return lerpf(angle, 16.0, strength * weight)
