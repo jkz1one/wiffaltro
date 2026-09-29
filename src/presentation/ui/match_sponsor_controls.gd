@@ -1,9 +1,10 @@
 class_name MatchSponsorControls
 extends Node
-## Working Optics choice; no pitch information enters the selection.
+## Working pre-PA choices; no future pitch/contact information enters selection.
 
 var _lab: PitchBatLab
 var _choice: Button
+var _anchor_choice: Button
 
 
 func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
@@ -18,6 +19,20 @@ func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	_choice.tooltip_text = "Choose before confirming this at-bat. Contact only; Power unchanged."
 	canvas.add_child(_choice)
 	_choice.hide()
+	_anchor_choice = Button.new()
+	_anchor_choice.name = "CornerstoneChoice"
+	_anchor_choice.custom_minimum_size = Vector2(336, 70)
+	_anchor_choice.add_theme_font_size_override("font_size", 13)
+	_anchor_choice.focus_mode = Control.FOCUS_ALL
+	_anchor_choice.pressed.connect(_choose_anchor)
+	_anchor_choice.tooltip_text = (
+		"Working: choose before the first pitch. On fair contact, Primary stays at this spot. "
+		+ "+0.12 control only after normal reaction and within ordinary reach/height. "
+		+ "Pitcher and foul-ball pursuit unchanged. Resets next batter."
+	)
+	lab._field_setup_panel.add_child(_anchor_choice)
+	lab._field_setup_panel.move_child(_anchor_choice, 2)
+	_anchor_choice.hide()
 	_build_ellipse()
 
 
@@ -44,7 +59,44 @@ func _process(_delta: float) -> void:
 			"OPTICS: %s • click to cycle\nContact shape • locked after start"
 			% (_lab._match_state.optics_mode.to_upper())
 		)
+	_anchor_choice.visible = (
+		_lab._match_mode
+		and _lab._match_state != null
+		and _lab._player_is_pitching()
+		and _lab._match_state.fielder().definition.season_sponsors.get("F01", false)
+	)
+	_anchor_choice.disabled = not can_choose_anchor(_lab)
+	if _anchor_choice.visible:
+		_anchor_choice.text = (
+			"CORNERSTONE: %s\nAnchor: no travel; +0.12 eligible control\n%s"
+			% [
+				"ANCHORED" if _lab._match_state.cornerstone_anchored else "NORMAL",
+				(
+					"Click to choose • Working"
+					if not _anchor_choice.disabled
+					else "Locked until next batter"
+				)
+			]
+		)
 	refresh_ellipse(_lab)
+
+
+static func can_choose_anchor(lab: PitchBatLab) -> bool:
+	return (
+		MatchLabSupport.can_edit_pitch_plan(lab)
+		and lab._match_state.can_change_defense()
+		and lab._match_state.phase == MatchState.Phase.PRE_PITCH
+		and lab._match_state.fielder().definition.season_sponsors.get("F01", false)
+		and not lab._match_presentation_director.blocks_gameplay()
+	)
+
+
+func _choose_anchor() -> void:
+	if not can_choose_anchor(_lab):
+		return
+	SeasonCornerstone.choose(_lab._match_state, not _lab._match_state.cornerstone_anchored)
+	_lab._refresh_config()
+	_process(0.0)
 
 
 func _choose() -> void:

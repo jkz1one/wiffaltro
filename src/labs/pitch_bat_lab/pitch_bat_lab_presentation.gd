@@ -846,7 +846,9 @@ static func _refresh_field_setup(lab: PitchBatLab) -> void:
 	if not on_defense:
 		return
 	lab._field_setup_toggle_button.text = (
-		"BACK" if lab._field_setup_active else "FIELD"
+		"BACK" if lab._field_setup_active else (
+			"FIELD: ANCHOR" if SeasonCornerstone.active(lab._match_state) else "FIELD"
+		)
 	)
 	lab._field_setup_toggle_button.disabled = (
 		lab._debug_paused
@@ -859,6 +861,7 @@ static func _refresh_field_setup(lab: PitchBatLab) -> void:
 		var anchor_index: int = int(button.get_meta(&"anchor_index", -1))
 		button.disabled = (
 			not MatchLabSupport.can_edit_pitch_plan(lab)
+			or SeasonCornerstone.position_locked(lab._match_state)
 			or not lab._field_definition.is_fielder_anchor_available(anchor_index)
 			or anchor_index == lab._fielder_anchor_index
 		)

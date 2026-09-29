@@ -1,5 +1,60 @@
 # Fast verification and playtest records
 
+## Cornerstone committed defense, 2026-09-29
+
+Full Godot4.7.2 run `20260929T203246815721Z` passed53/55 checks. The school UI failure
+is described below; the older income live-game process exited0 after only its engine
+header, without a completion marker. The runner correctly rejected both. Income-game
+retry `20260929T203559879129Z` passed8/8, and corrected school/Cornerstone checks passed
+as detailed below. All55 check types have passing evidence across runs, including thirteen
+complete physical games. This is not a single clean full-suite pass.
+
+Focused `20260929T203138256910Z` passed8/8: seven shared gates and a complete genuinely
+paid Cornerstone game. Five innings produced151 records and28 balls in play. The explicit
+pre-PA test policy chose anchoring27 times;2051 active anchored frames preserved exact
+position and zero velocity. Actual final scores/statistics settled and reloaded, and the
+ordinary outro/restart cleared the previous commitment. This is physical runtime evidence,
+not human balance acceptance or an AI acquisition policy.
+
+Contract/UI `20260929T203206649422Z` passed8/8. Final active-menu cue and presentation checks
+passed9/9 in `20260929T203322683466Z`. Final Cornerstone plus corrected Open Book contracts/UI
+passed9/9 in `20260929T203531206967Z`. Final school-fixture failure-guard check
+`20260929T203742804707Z` passed8/8. Tests cover default normal, pre-PA selection, canceled
+first delivery, foul/PA/pitcher boundaries, unowned refusal, legal shallow-side selection,
+reserved pitcher-lane rejection, fixed planner reach, stationary controller and stale targets.
+Actual ground and air encounters exercise the initial reaction gate, nonnegative-margin
+requirement,0.08→0.20 threshold and Courier's once-only grounded penalty. Foul pursuit
+remains ordinary. Real viewport mouse and keyboard selection, stale callbacks, locked-state
+disclosure and panel bounds at all three HUD positions are verified.
+
+Paid sponsor UI uses the shared actual generated offers, full price, cancellation, failed
+save rollback, successful reload and ordinary resale checks at700×400 and1000×650. A paid
+schema15 Open Book save retains ownership/current offers, leaves file bytes unchanged on
+load and keeps its same-visit reroll generator. Catalogue7 begins next visit and replays.
+
+The expanded pool exposed a real Open Book UI edge: an offered lesson could have only one
+eligible player while still showing TEACH TWO. The new `has_pair_targets` check suppresses
+that impossible paired action, preserving ordinary single purchases. The actual paid fixture
+now requires two distinct eligible learners. The failing full-run school scene attempted its
+missing second-recipient button and then continued into an invalid dialog sequence, ending
+in a Godot signal11 crash. The fixture now stops safely if its second recipient is absent
+instead of driving an absent confirmation dialog. The corrected focused run passes purchase, cancellation,
+rollback and reload assertions; the specific engine-level crash mechanism is not established.
+
+Initial new-source checks `20260929T202801080863Z` and `20260929T203020258354Z` failed the
+1000-line lab limit before engine execution. Moving the Primary resolution body to the
+existing defense helper resolved that limit without disabling it. The next focused run
+`20260929T203041451248Z` passed old field-sponsor/core regressions but exposed a test-only
+UI fixture using the batting role. Configuring the defensive role before initialization
+fixed the fixture; no production input gate or assertion was relaxed.
+
+Native visual and human feel/economy acceptance remain pending under the recorded display
+limitation. The intermittent Godot header-only early-exit cause remains unresolved. All
+numeric Cornerstone contracts remain Working; existing Proposals remain unapproved. No
+merge, deployment, AI purchase policy or offscreen control attribution is included.
+
+
+
 ## Open Book, Union Hall and Summer School, 2026-09-29
 
 Full Godot4.7.2 run `20260929T200659870520Z` passed50/53 checks. Its three failures were

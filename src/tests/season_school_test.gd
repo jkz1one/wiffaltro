@@ -69,6 +69,12 @@ func _pair_contracts() -> void:
 	var id: String = "lesson.pitch.knuckleball"
 	var targets: Array[Dictionary] = build.targets(id)
 	var first: Dictionary = targets[0]
+	var lone: SeasonBuild = build._fork()
+	lone._roster.assign([first.player])
+	_check(
+		not lone.targets(id).is_empty() and not SeasonSchoolSponsors.pair_available(lone, id),
+		"single eligible learner retains single purchase without a dead-end pair action"
+	)
 	var second: Dictionary = {}
 	for target: Dictionary in targets:
 		if target.player != first.player:
@@ -417,7 +423,10 @@ func _actual_season(id: String, require_lesson: bool = false) -> SeasonState:
 		if require_lesson:
 			var found: bool = false
 			for item: String in build.view().shop.offers.values():
-				if DevelopmentShopCatalog.item(item).get("op") == "learn":
+				if (
+					DevelopmentShopCatalog.item(item).get("op") == "learn"
+					and SeasonSchoolSponsors.has_pair_targets(build, item)
+				):
 					found = true
 			if not found:
 				continue
@@ -452,7 +461,14 @@ func _actual_ui(id: String) -> void:
 	if id == "F04":
 		await _click(_metadata_button(window, "pair_offer"))
 		await _click(_metadata_button(window, "pair_first"))
-		await _click(_metadata_button(window, "pair_second"))
+		var second: Button = _metadata_button(window, "pair_second")
+		_check(second != null, "paid pair fixture has a second distinct recipient")
+		if second == null:
+			# Do not drive an absent confirmation dialog after a fixture failure.
+			app.queue_free()
+			await _frames()
+			return
+		await _click(second)
 		_check(
 			window._review_text.text.contains("learned level"),
 			"both resulting mastery levels disclosed"

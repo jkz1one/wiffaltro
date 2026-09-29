@@ -105,6 +105,15 @@ static func pair_price(price: int) -> int:
 	return price + ceili(float(price) / 2.0)
 
 
+static func has_pair_targets(build: SeasonBuild, id: String) -> bool:
+	var first: String = ""
+	for target: Dictionary in build.targets(id):
+		if not first.is_empty() and target.player != first:
+			return true
+		first = target.player
+	return false
+
+
 static func pair_available(build: SeasonBuild, id: String) -> bool:
 	var item: Dictionary = DevelopmentShopCatalog.item(id)
 	return (
@@ -113,6 +122,7 @@ static func pair_available(build: SeasonBuild, id: String) -> bool:
 		and not build._visit.get("pair_used", false)
 		and item.get("op") == "learn"
 		and ContentDB.get_pitch(StringName(item.recipe)).rarity != PitchDefinition.Rarity.EXOTIC
+		and has_pair_targets(build, id)
 	)
 
 

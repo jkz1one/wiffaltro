@@ -176,6 +176,9 @@ static func toggle_pitching_staff(lab: PitchBatLab) -> void:
 
 
 static func select_fielder_anchor(lab: PitchBatLab, anchor_index: int) -> void:
+	if lab._match_mode and SeasonCornerstone.position_locked(lab._match_state):
+		lab._status_label.text = "Cornerstone position is locked through this plate appearance."
+		return
 	if lab._match_mode and not can_edit_pitch_plan(lab):
 		lab._status_label.text = "Fielder position is locked during delivery."
 		return
@@ -237,6 +240,8 @@ static func consider_ai_pitching_change(lab: PitchBatLab) -> void:
 
 static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:
 	if not lab._player_is_batting() or lab._match_state == null:
+		return
+	if SeasonCornerstone.position_locked(lab._match_state):
 		return
 	var batter: PlayerDefinition = lab._match_state.batter().definition
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()

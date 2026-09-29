@@ -505,7 +505,9 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 	add_child(_batted_ball)
 	_batted_ball.launch(launch_data)
 	_previous_batted_position = launch_data.position
-	_primary_fielder.begin_play()
+	_primary_fielder.begin_play(
+		_match_mode and not launch_data.is_foul and SeasonCornerstone.active(_match_state)
+	)
 
 	if _match_mode:
 		_camera_mode = 3
@@ -535,38 +537,7 @@ func _try_pitcher_defense(previous_position: Vector3, current_position: Vector3)
 
 
 func _try_primary_fielder() -> void:
-	if _primary_attempts >= 2 or _fielding_cooldown_seconds > 0.0:
-		return
-	var ball_position: Vector3 = _batted_ball.global_position
-	var allowed_height: float = (
-		FieldingResolver.MAX_GROUND_CONTROL_HEIGHT_M
-		if _ball_play_resolver.state.has_grounded
-		else FieldingResolver.MAX_AIR_CONTROL_HEIGHT_M
-	)
-	if ball_position.y < 0.0 or ball_position.y > allowed_height:
-		return
-	var distance: float = _primary_fielder.horizontal_distance_to(ball_position)
-	if distance > _primary_fielder.reach_m:
-		return
-
-	var outcome: FieldingResolver.Outcome = FieldingResolver.resolve(
-		distance,
-		_batted_ball.linear_velocity.length(),
-		ball_position.y,
-		_ball_play_resolver.state.has_grounded,
-		_primary_fielder.fielding_rating,
-		_primary_fielder.last_reaction_margin_seconds,
-		_primary_fielder.handling_scale,
-		(
-			SeasonSponsorEffects.ground_margin(
-				_match_state.fielder().definition, _ball_play_resolver.state.has_grounded
-			)
-			if _match_mode else 0.0
-		)
-	)
-	_primary_attempts += 1
-	_apply_fielding_outcome(&"primary_fielder", _primary_fielder.global_position, outcome)
-
+	PitchBatLabDefenseSupport.try_primary(self)
 
 func _apply_fielding_outcome(
 	defender_id: StringName,

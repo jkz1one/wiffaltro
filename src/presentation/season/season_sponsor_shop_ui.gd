@@ -96,6 +96,8 @@ static func _purchase(
 
 
 static func _timing(id: String) -> String:
+	if id == "F01":
+		return "Working match choice in FIELD setup. Normal by default; no guaranteed catch or out."
 	if id in ["E06", "F04", "J10"]:
 		return (
 			"No guaranteed stock or Cash payout. Review exact recipients, prices "

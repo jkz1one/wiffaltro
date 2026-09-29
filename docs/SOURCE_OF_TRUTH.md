@@ -1,11 +1,43 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.48
+**Version:** v0.4.49
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Cornerstone Concrete and committed defense, 2026-09-29
+
+F01 Cornerstone Concrete (Common10) is now the fourteenth supported sponsor. Its
+retained Blueprint v114 lines4216–4236 contract is **Working**, including numeric tuning;
+Approved ownership and existing unapproved Proposals remain distinct. It is initially
+eligible, not free or guaranteed. No earned sponsor or AI purchasing is enabled by this.
+
+Before an opposing PA, FIELD setup offers normal (default) or anchored Primary Fielder.
+The legal starting position remains editable before the first delivery. Delivery locks
+editing; cancellation before the first pitch restores the choice. Once the PA has begun,
+the selected mode and position remain locked through balls, strikes, fouls and the resulting
+play. A completed PA resets to normal. Pitcher identity changes cannot renew the choice.
+The field menu supports mouse/keyboard selection, explains the tradeoff and shows its locked
+state; FIELD: ANCHOR remains visible when the setup menu is closed.
+
+On fair contact, the anchored Primary does not travel. Planner and controller both honor
+that restriction. After the ordinary initial reaction delay, otherwise eligible encounters
+with nonnegative reaction margin gain0.12 clean-control margin. Reach, height, handling
+penalties, physical ball movement and outcome/scoring rules remain intact. Courier's
+negative ground margin still applies once; air control gets no Courier penalty. Pitcher
+defense is unchanged. Foul contact retains ordinary pursuit without Cornerstone's bonus,
+while the selected mode/position remain locked for the next pitch of that same PA.
+
+Schema16/build12 preserves old paid ownership, current offers and same-visit rerolls;
+catalogue7 begins next visit for migrated saves. Unfinished games retain the existing
+pregame-restart contract, not midgame continuation. Human/AI runtime paths share the effect,
+but AI policy remains normal/default and no offscreen event fabrication is introduced.
+Native visual, human feel and balance approval remain open. Open Book paired actions now
+require two distinct eligible learners before being offered; single-player lessons remain
+available when pairing is impossible.
+
 
 ## Open Book, Union Hall and Summer School, 2026-09-29
 

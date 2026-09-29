@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.39
+**Version:** v0.1.40
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,36 @@
 ---
 
 # 1. Technical Objective
+
+## Cornerstone commitment and stationary resolution, 2026-09-29
+
+`SeasonCornerstone` validates the owned pre-PA selection and qualifies its0.12 margin.
+`MatchState.cornerstone_anchored` defaults false and resets on completed appearances.
+The existing first-pitch cancellation boundary is retained. Human anchor selection and
+AI anchor assignment refuse position changes while the chosen PA is locked. Release-meter
+and presentation gates additionally prevent stale UI actions from changing the selection.
+
+`FielderController.begin_play` receives an optional stationary flag only for owned anchored
+fair contact. Stationary physics advances the normal reaction timer but never moves toward
+an intercept or stale target. `FielderPlanner.plan` has a default-false stationary parameter;
+its reach prediction cannot assume travel when true. Controller targets remain the legal
+anchor. The bonus requires the normal reaction timer and nonnegative reaction margin;
+actual attempts retain ordinary reach/height and resolver difficulty checks. End play clears
+the controller flag, and new matches clear both runtime and PA state.
+
+Primary resolution moved into `PitchBatLabDefenseSupport.try_primary`, retaining the lab's
+call interface and ordinary outcome path. The stationary initial-reaction gate and post-
+eligibility bonus are its only new behavior. Courier remains an independent grounded margin;
+PitcherDefense receives no Cornerstone term. Foul launches pass stationary=false and no bonus.
+The main lab is not globally reformatted, preserving its Godot warning-annotation syntax.
+
+MatchSponsorControls adds a focusable FIELD-panel button, lock disclosure and active menu cue.
+Paid sponsor previews use the shared purchase/replacement/resale and atomic checkpoint paths.
+Build12/schema16 adds `anchor_sponsor_from`; sponsor catalogues1–6 and old fingerprints stay
+frozen. No persisted independent choice blob, earned access, AI shopping or new rating is added.
+`SeasonSchoolSponsors.has_pair_targets` also checks distinct eligible players before offering
+an Open Book pair, preventing a one-learner UI dead end while preserving single purchase.
+
 
 ## Development sponsors and atomic concessions, 2026-09-29
 

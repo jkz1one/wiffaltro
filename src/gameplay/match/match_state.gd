@@ -36,6 +36,7 @@ var last_event: String = "Game ready"
 var winner_name: String = ""
 var gear_usage: MatchGearUsage = MatchGearUsage.new()
 var optics_mode: String = "normal"
+var cornerstone_anchored: bool = false
 var _between_batters_before_pitch: bool = true
 var _pa_pitchers: Array[PlayerMatchState] = []
 var _deli_next_batter: bool = false
@@ -193,6 +194,7 @@ func _complete_plate_appearance(description: String, single: bool = false) -> vo
 	_pa_pitchers.clear()
 	pitch_ledger.clear()
 	optics_mode = "normal"
+	cornerstone_anchored = false
 	last_event = description
 	batting_team().advance_batter()
 	plate_appearance_number += 1

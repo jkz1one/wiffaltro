@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 11
+const VERSION: int = 12
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -45,6 +45,7 @@ var _sequence_sponsor_from: int = 1
 var _field_sponsor_from: int = 1
 var _shop_sponsor_from: int = 1
 var _school_sponsor_from: int = 1
+var _anchor_sponsor_from: int = 1
 var _scholarships: Dictionary = {}
 var _used_gear: Dictionary = {}
 var _income_by_game: Dictionary = {}
@@ -162,6 +163,8 @@ func to_data() -> Dictionary:
 		data["shop_sponsor_from"] = _shop_sponsor_from
 	if _format >= 11:
 		data["school_sponsor_from"] = _school_sponsor_from
+	if _format >= 12:
+		data["anchor_sponsor_from"] = _anchor_sponsor_from
 	return data
 
 
@@ -195,6 +198,8 @@ static func from_data(
 		keys.append("shop_sponsor_from")
 	if value.version >= 11:
 		keys.append("school_sponsor_from")
+	if value.version >= 12:
+		keys.append("anchor_sponsor_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -252,6 +257,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.school_sponsor_from, 1, 13):
 			return null
 		result._school_sponsor_from = int(value.school_sponsor_from)
+	if value.version >= 12:
+		if not SeasonOwnership._whole(value.anchor_sponsor_from, 1, 13):
+			return null
+		result._anchor_sponsor_from = int(value.anchor_sponsor_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -349,6 +358,7 @@ func _fork() -> SeasonBuild:
 	result._field_sponsor_from = _field_sponsor_from
 	result._shop_sponsor_from = _shop_sponsor_from
 	result._school_sponsor_from = _school_sponsor_from
+	result._anchor_sponsor_from = _anchor_sponsor_from
 	result._scholarships = _scholarships.duplicate(true)
 	result._used_gear = _used_gear.duplicate()
 	result._income_by_game = _income_by_game.duplicate(true)
@@ -608,7 +618,7 @@ static func _signature(format_version: int = VERSION) -> String:
 			":"
 			+ SeasonSponsorCatalog.signature(
 				(
-					(6 if format_version >= 11 else 5)
+					((7 if format_version >= 12 else 6) if format_version >= 11 else 5)
 					if format_version >= 10
 					else (
 						4
@@ -851,6 +861,8 @@ func _sponsor_transaction(command: Dictionary) -> String:
 
 
 func _sponsor_catalog_version() -> int:
+	if _format >= 12 and _visit.number >= _anchor_sponsor_from:
+		return 7
 	if _format >= 11 and _visit.number >= _school_sponsor_from:
 		return 6
 	if _format >= 10 and _visit.number >= _shop_sponsor_from:
@@ -886,4 +898,6 @@ func migrate() -> void:
 		_shop_sponsor_from = next_visit
 	if _format < 11:
 		_school_sponsor_from = next_visit
+	if _format < 12:
+		_anchor_sponsor_from = next_visit
 	_format = VERSION

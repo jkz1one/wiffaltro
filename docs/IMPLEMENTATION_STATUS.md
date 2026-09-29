@@ -1,5 +1,14 @@
 # Implementation Status
 
+## Cornerstone committed defense, 2026-09-29
+
+Cornerstone Concrete now includes paid ownership, pre-PA mouse/keyboard choice, locked legal
+position, stationary fair-ball pursuit and qualified control margin. Fourteen of35 sponsors
+are supported. Planner/controller, actual resolver/scoring, migration and complete physical
+game paths are verified separately from native visual and human feel/balance acceptance.
+Schema16/build12 introduces catalogue7 next visit while preserving old paid shops and rerolls.
+The contract remains Working; existing Proposals remain unapproved.
+
 ## Three connected development sponsors, 2026-09-29
 
 Open Book Tutors, Union Hall and Summer School now include paid ownership, exact targeting,
@@ -180,7 +189,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 59% implemented**, after the three development sponsors (57% after
+**Approximately 60% implemented** (weighted estimate59.5), after Cornerstone committed
+defense (59% after the three development sponsors;57% after
 Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
 Strikecraft sequence recovery;54% after
@@ -199,11 +209,11 @@ human-approved or release-ready merely because their code runs.
 | Player development and mastery | 10 | 8.5 |
 | Shop, packs and recruitment | 12 | 7.5 |
 | Gear, tactical cards and abilities | 10 | 5 |
-| Sponsors | 10 | 6.5 |
+| Sponsors | 10 | 7 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **59** |
+| **Total** | **100** | **59.5** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

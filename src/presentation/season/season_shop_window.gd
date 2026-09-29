@@ -79,7 +79,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
-			+ "Thirteen supported sponsors; earned tiers and other sponsors pending."
+			+ "Fourteen supported sponsors; earned tiers and other sponsors pending."
 		)
 	)
 	if SeasonReclamation.credit(shop) > 0:

@@ -5,6 +5,47 @@ const CHARGE_RADIUS_M: float = 5.0
 const CHARGE_REACTION_SECONDS: float = 0.20
 
 
+static func try_primary(lab: PitchBatLab) -> void:
+	if lab._primary_attempts >= 2 or lab._fielding_cooldown_seconds > 0.0:
+		return
+	if lab._primary_fielder.stationary and not lab._primary_fielder.reaction_ready():
+		return
+	var ball_position: Vector3 = lab._batted_ball.global_position
+	var allowed_height: float = (
+		FieldingResolver.MAX_GROUND_CONTROL_HEIGHT_M
+		if lab._ball_play_resolver.state.has_grounded
+		else FieldingResolver.MAX_AIR_CONTROL_HEIGHT_M
+	)
+	if ball_position.y < 0.0 or ball_position.y > allowed_height:
+		return
+	var distance: float = lab._primary_fielder.horizontal_distance_to(ball_position)
+	if distance > lab._primary_fielder.reach_m:
+		return
+
+	var outcome: FieldingResolver.Outcome = FieldingResolver.resolve(
+		distance,
+		lab._batted_ball.linear_velocity.length(),
+		ball_position.y,
+		lab._ball_play_resolver.state.has_grounded,
+		lab._primary_fielder.fielding_rating,
+		lab._primary_fielder.last_reaction_margin_seconds,
+		lab._primary_fielder.handling_scale,
+		(
+			(
+				SeasonSponsorEffects.ground_margin(
+					lab._match_state.fielder().definition,
+					lab._ball_play_resolver.state.has_grounded
+				)
+				+ SeasonCornerstone.margin(lab._match_state, lab._primary_fielder)
+			)
+			if lab._match_mode
+			else 0.0
+		)
+	)
+	lab._primary_attempts += 1
+	lab._apply_fielding_outcome(&"primary_fielder", lab._primary_fielder.global_position, outcome)
+
+
 static func advance_pitcher(lab: PitchBatLab, delta: float) -> void:
 	var state: BallPlayState = lab._ball_play_resolver.state
 	if lab._pitcher_attempted or state.defender_touched:

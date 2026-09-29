@@ -11,7 +11,8 @@ static func plan(
 	has_grounded: bool,
 	fielder_position: Vector3,
 	move_speed_mps: float,
-	reach_m: float
+	reach_m: float,
+	stationary: bool = false
 ) -> FielderPlan:
 	var plan_result: FielderPlan = FielderPlan.new()
 	var fallback_position: Vector3 = ball_position
@@ -45,6 +46,8 @@ static func plan(
 			0.0,
 			(travel_distance - reach_m) / maxf(0.1, move_speed_mps)
 		)
+		if stationary:
+			travel_seconds = 0.0 if travel_distance <= reach_m else INF
 		if travel_seconds <= sample_time:
 			plan_result.intercept_position = predicted
 			plan_result.intercept_seconds = sample_time

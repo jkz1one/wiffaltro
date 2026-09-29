@@ -183,8 +183,26 @@ const SCHOOL_ITEMS: Dictionary = {
 	}
 }
 
+const ANCHOR_ITEMS: Dictionary = {
+	"F01":
+	{
+		"name": "Cornerstone Concrete",
+		"price": 10,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Before an opposing plate appearance, choose normal or anchor the Primary Fielder. "
+			+ "On fair contact, anchored Primary cannot travel and gains +0.12 control margin "
+			+ "only after normal reaction, within ordinary reach/height and with nonnegative "
+			+ "reaction margin. Position locks through that PA; resets next batter. "
+			+ "Pitcher and foul pursuit unchanged."
+		)
+	}
+}
 
-static func catalog(version: int = 6) -> Dictionary:
+
+static func catalog(version: int = 7) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
@@ -196,6 +214,8 @@ static func catalog(version: int = 6) -> Dictionary:
 		result.merge(SHOP_ITEMS.duplicate(true))
 	if version >= 6:
 		result.merge(SCHOOL_ITEMS.duplicate(true))
+	if version >= 7:
+		result.merge(ANCHOR_ITEMS.duplicate(true))
 	return result
 
 
@@ -203,7 +223,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 6) -> String:
+static func signature(version: int = 7) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -216,7 +236,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 6) -> Dictionary:
+static func eligible(active: Array, version: int = 7) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:
