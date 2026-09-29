@@ -205,7 +205,13 @@ func _buy(next: Dictionary, command: Dictionary) -> String:
 	if not _whole(discount, 0, mini(3, item.price)) or (discount > 0 and item.kind != "held"):
 		return "Invalid held-card acquisition credit."
 	if command.has("wholesale_discount"):
-		if command.has("discount") or item.kind not in ["gear", "sponsor"]:
+		if (
+			command.has("discount")
+			or (
+				item.kind not in ["gear", "sponsor"]
+				and not SeasonTacticalCatalog.ITEMS.has(item_id)
+			)
+		):
 			return "Wholesale cannot stack or discount held development."
 		discount = command.wholesale_discount
 		if not _whole(discount, 0, mini(4, int(item.price / 4))):

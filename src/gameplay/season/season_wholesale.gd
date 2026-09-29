@@ -17,6 +17,8 @@ static func category(id: String) -> String:
 		return "gear"
 	if not SeasonSponsorCatalog.item(id).is_empty():
 		return "sponsor"
+	if SeasonTacticalCatalog.ITEMS.has(id):
+		return "tactical"
 	if DevelopmentShopCatalog.item(id).get("op") == "learn":
 		return "lesson"
 	return ""
@@ -30,6 +32,8 @@ static func item(id: String) -> Dictionary:
 			return SeasonSponsorCatalog.item(id)
 		"lesson":
 			return DevelopmentShopCatalog.item(id)
+		"tactical":
+			return SeasonTacticalCatalog.item(id)
 	return {}
 
 
@@ -38,6 +42,9 @@ static func targets(build: SeasonBuild, offer: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var wallet: Dictionary = build._bank.view()
 	match category(id):
+		"tactical":
+			if build._format >= 14 and build._visit.number >= build._tactical_from:
+				result.append({"offer": offer, "replace": ""})
 		"gear":
 			var old: Dictionary = wallet.gear[item(id).slot]
 			if old.get("item") != id:
@@ -83,7 +90,11 @@ static func purchase(build: SeasonBuild, command: Dictionary) -> String:
 			return "Both offers require valid current destinations and exact replacement choices."
 		ids.append(build._visit.offers[choice.offer])
 	var kind: String = category(ids[0])
-	if ids[0] == ids[1] or kind != category(ids[1]):
+	if (
+		command.first.offer == command.second.offer
+		or (ids[0] == ids[1] and kind != "tactical")
+		or kind != category(ids[1])
+	):
 		return "Choose two different offers in the same supported category."
 	if kind == "gear" and item(ids[0]).slot == item(ids[1]).slot:
 		return "Paired Gear must occupy two different equipped slots."

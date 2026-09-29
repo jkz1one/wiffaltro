@@ -360,9 +360,13 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 	if not bool(decision["swing"]):
 		return
 	var ai_aim: Vector2 = decision["aim"]
-	lab._resolve_swing(
-		lab.POWER_SWING_ID if bool(decision["use_power"]) else lab.CONTACT_SWING_ID, ai_aim
+	var chosen: StringName = (
+		lab.POWER_SWING_ID if bool(decision["use_power"]) else lab.CONTACT_SWING_ID
 	)
+	var locked: StringName = (
+		lab._match_state.batting_team().tactics.locked_swing(lab._match_state)
+	)
+	lab._resolve_swing(locked if locked != &"" else chosen, ai_aim)
 
 
 static func launch_debug_batted_ball(lab: PitchBatLab) -> void:

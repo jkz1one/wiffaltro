@@ -1,11 +1,62 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.50
+**Version:** v0.4.51
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Core tactical supplies, 2026-09-29
+
+A10 Grip Tape, C02 Recovery Pack and C03 Swing Plan now have paid individual offers,
+shared inventory, legal match-readiness use and completed-result consumption. Prices3/4/3,
+effects and the one-activation-per-club-per-PA rule remain **Working**. The shared two-slot
+consumable bag is **Approved**; duplicate copies remain Working. No existing Proposal is
+promoted by this implementation. Contracts follow retained Blueprint v114 lines1159–1177,
+2259–2322, current Players/Pitches v17, Economy v24 and Equipment/Sponsors v18 composition.
+
+Buy and Hold uses one shared development/tactical slot per exact copy. Full capacity requires
+explicit prior discard; no hidden replacement, resale or refund exists. Unused supplies carry
+through games and playoffs. The mixed tactical category has base weight10, normalized with
+implemented eligible categories; these three core identities have equal subweights. Fixed
+Development packs remain unchanged. Extra Heat and Take a Base remain unimplemented review
+candidates, despite retained selected testing contracts; neither appears in stock yet.
+
+Only the owning club can activate a held copy, before the first pitch of a PA at legal
+readiness. Both clubs have separate allowances. Grip Tape expands both Contact and Power
+spatial radii by8% and multiplies fair exit speed by0.95, once after current Gear/sponsors.
+Swing Plan commits Contact or Power for the entire PA; every input/runtime swing path honors
+the lock. Fair contact at quality>=0.65 multiplies exit speed by1.06. Lower quality and foul
+exit receive no Plan bonus; it changes neither angle nor timing. Balls, fouls, canceled
+first deliveries and opposing pitcher substitutions cannot refund or extend either effect.
+Completed PAs and game end clear temporary effects, including walks and strikeouts.
+
+Recovery Pack restores10% of the active pitcher's game-start maximum stamina, capped at
+maximum, once per pitcher per game. Full or removed pitchers, wrong roles and late activation
+consume nothing. Separate legal pitchers have independent use limits. Recovery changes no
+pitch counts, first-batter flags, permanent ratings, removed-pitcher rules or workload costs.
+
+Readiness supplies show exact owned choices, role/limit availability, player, effect and
+Plan lock or actual recovery amount before one confirmation. The bounded dialog scrolls;
+opening/canceling it consumes nothing. Stale PA/pitcher selections are rejected. Active
+batting effect/lock remains visible, and Tape uses the actual expanded Contact outline.
+
+The pregame-restart contract is explicit: an unfinished game restores the entire saved
+pregame snapshot, including supplies and resources, without retaining any tactical benefit.
+Completed results atomically settle exact receipt/player/PA/swing evidence with rewards and
+statistics. Failed writes retain the last pregame bytes; a retry saves the already-settled
+result without paying or consuming twice. Replay validates ownership, player participation,
+chronological per-club use, Recovery limits and exact result/journal agreement. This is not
+full physical replay from box-score evidence.
+
+Wholesale also supports two distinct tactical offers, including duplicate identities, with
+two shared slots and per-copy paid amounts. Two Recovery copies cost7, with3/4 receipts and
+zero resale. Capacity failure rolls back both purchases and the once-visit allowance. Schema18/
+build14 freezes old current-visit stock/rerolls and introduces tactical stock next visit.
+No AI buying, earned tactical sponsors, automatic grants, Heat/base-advance runtime, balance
+approval or native visual acceptance is implied. Those dependencies remain open.
+
 
 ## Wholesale Club coordinated purchases, 2026-09-29
 
@@ -18,7 +69,8 @@ Choose two different currently offered items in the same supported mixed categor
 Sponsors or Pitch Lessons. Discount the cheaper item by25%, rounded down, at most4 Cash;
 when prices match, explicitly choose the discounted item. No development, fixed packs,
 recruits, transformations, Open Book pairs or other price concessions enter this transaction.
-Tactical supplies and learned abilities remain unavailable until their own systems exist.
+This initial checkpoint excluded tactical supplies and learned abilities; the later core
+tactical-supplies amendment above adds its three supported supplies. Abilities remain open.
 
 Gear must occupy different Bat/Ball/Misc slots. Every occupied destination requires an
 explicit old receipt for replacement. Both authorized old sales can fund the combined

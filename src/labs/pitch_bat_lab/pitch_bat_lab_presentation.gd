@@ -833,6 +833,10 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	sponsors.name = "SponsorControls"
 	sponsors.build(lab, canvas)
 	canvas.add_child(sponsors)
+	var tactics: MatchTacticalControls = MatchTacticalControls.new()
+	tactics.name = "TacticalControls"
+	lab.add_child(tactics)
+	tactics.build(lab, canvas)
 
 
 static func _refresh_field_setup(lab: PitchBatLab) -> void:

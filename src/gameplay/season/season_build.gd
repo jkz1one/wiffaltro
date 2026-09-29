@@ -4,13 +4,14 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 13
+const VERSION: int = 14
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
 	"leave_shop",
 	"lesson_pair",
 	"wholesale",
+	"tactical_buy",
 	"buy",
 	"use",
 	"discard",
@@ -48,6 +49,7 @@ var _shop_sponsor_from: int = 1
 var _school_sponsor_from: int = 1
 var _anchor_sponsor_from: int = 1
 var _wholesale_from: int = 1
+var _tactical_from: int = 1
 var _scholarships: Dictionary = {}
 var _used_gear: Dictionary = {}
 var _income_by_game: Dictionary = {}
@@ -169,6 +171,8 @@ func to_data() -> Dictionary:
 		data["anchor_sponsor_from"] = _anchor_sponsor_from
 	if _format >= 13:
 		data["wholesale_from"] = _wholesale_from
+	if _format >= 14:
+		data["tactical_from"] = _tactical_from
 	return data
 
 
@@ -206,6 +210,8 @@ static func from_data(
 		keys.append("anchor_sponsor_from")
 	if value.version >= 13:
 		keys.append("wholesale_from")
+	if value.version >= 14:
+		keys.append("tactical_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -271,6 +277,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.wholesale_from, 1, 13):
 			return null
 		result._wholesale_from = int(value.wholesale_from)
+	if value.version >= 14:
+		if not SeasonOwnership._whole(value.tactical_from, 1, 13):
+			return null
+		result._tactical_from = int(value.tactical_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -370,6 +380,7 @@ func _fork() -> SeasonBuild:
 	result._school_sponsor_from = _school_sponsor_from
 	result._anchor_sponsor_from = _anchor_sponsor_from
 	result._wholesale_from = _wholesale_from
+	result._tactical_from = _tactical_from
 	result._scholarships = _scholarships.duplicate(true)
 	result._used_gear = _used_gear.duplicate()
 	result._income_by_game = _income_by_game.duplicate(true)
@@ -391,6 +402,8 @@ func _apply(command: Dictionary) -> String:
 			fields.append("performance")
 		if _format >= 10 and command.has("used_gear"):
 			fields.append("used_gear")
+		if _format >= 14 and command.has("tactics"):
+			fields.append("tactics")
 		if not _keys(command, fields) or _roster.size() != 4:
 			return "Invalid season reward."
 		var result: Dictionary = _bank.commit(
@@ -410,6 +423,12 @@ func _apply(command: Dictionary) -> String:
 		if _format >= 10:
 			error = SeasonReclamation.settle(
 				self, command.get("used_gear", []), command.get("performance", {})
+			)
+			if not error.is_empty():
+				return error
+		if _format >= 14:
+			error = SeasonTacticalPurchase.settle(
+				self, command.get("tactics", []), command.get("performance", {})
 			)
 			if not error.is_empty():
 				return error
@@ -441,6 +460,8 @@ func _apply(command: Dictionary) -> String:
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"tactical_buy":
+			return SeasonTacticalPurchase.buy(self, command)
 		"wholesale":
 			return SeasonWholesale.purchase(self, command)
 		"lesson_pair":
@@ -590,6 +611,11 @@ func _offers(rerolls: int) -> Dictionary:
 				SeasonSponsorCatalog.eligible(_bank.view().sponsors, _sponsor_catalog_version())
 				if _format >= 6 and _visit.number >= _sponsor_from
 				else {}
+			),
+			(
+				SeasonTacticalCatalog.weights()
+				if _format >= 14 and _visit.number >= _tactical_from
+				else {}
 			)
 		)
 	return DevelopmentShopCatalog.offers(
@@ -645,6 +671,8 @@ static func _signature(format_version: int = VERSION) -> String:
 				)
 			)
 		)
+	if format_version >= 14:
+		base += ":" + SeasonTacticalCatalog.signature()
 	return base
 
 
@@ -921,4 +949,6 @@ func migrate() -> void:
 		_anchor_sponsor_from = next_visit
 	if _format < 13:
 		_wholesale_from = next_visit
+	if _format < 14:
+		_tactical_from = next_visit
 	_format = VERSION

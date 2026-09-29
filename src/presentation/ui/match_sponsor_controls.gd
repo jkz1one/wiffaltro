@@ -137,7 +137,10 @@ static func refresh_ellipse(lab: PitchBatLab) -> void:
 	var owned: bool = (
 		lab._match_mode
 		and lab._match_state != null
-		and lab._match_state.batter().definition.season_sponsors.get("F03", false)
+		and (
+			lab._match_state.batter().definition.season_sponsors.get("F03", false)
+			or lab._match_state.batting_team().tactics.active(lab._match_state) == "A10"
+		)
 	)
 	outline.visible = owned
 	lab._batting_aim_marker.get_node("ContactCoverage").visible = not owned

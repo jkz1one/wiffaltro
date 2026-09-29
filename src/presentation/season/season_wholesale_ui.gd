@@ -69,6 +69,8 @@ static func describe(window: SeasonShopWindow, target: Dictionary) -> String:
 	var item: Dictionary = SeasonWholesale.item(id)
 	if SeasonWholesale.category(id) == "lesson":
 		return item.name + "\n" + window._target_text(item, target)
+	if SeasonWholesale.category(id) == "tactical":
+		return "Hold " + item.name + " • shared consumable slot; no resale or refund"
 	var text: String = "Equip " if SeasonWholesale.category(id) == "gear" else "Activate "
 	text += item.name
 	if target.has("student"):
@@ -97,7 +99,7 @@ static func discounts(window: SeasonShopWindow, first: Dictionary, second: Dicti
 		return
 	window._clear()
 	window._label("EQUAL PRICES • choose the discounted receipt")
-	window._label("Each item's actual paid price determines later resale.")
+	window._label("Paid price stays with each copy. Tactical supplies have no resale.")
 	for choice: Dictionary in [first, second]:
 		(
 			window

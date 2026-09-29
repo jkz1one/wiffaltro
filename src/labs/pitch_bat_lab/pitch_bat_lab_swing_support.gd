@@ -11,6 +11,12 @@ static func begin_swing(lab: PitchBatLab, profile_id: StringName, aim_point: Vec
 		or lab._swing_tracker == null
 	):
 		return
+	if lab._match_mode:
+		var locked: StringName = (
+			lab._match_state.batting_team().tactics.locked_swing(lab._match_state)
+		)
+		if locked != &"" and locked != profile_id:
+			return
 	var profile: SwingProfileDefinition = ContentDB.get_swing(profile_id)
 	if profile == null:
 		push_error("Pitch/Bat Lab: swing profile missing: %s" % String(profile_id))

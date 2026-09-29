@@ -156,12 +156,17 @@ func make_match() -> MatchState:
 	player.fielder_index = fielder_index
 	if build != null:
 		match_state.gear_usage.equipped = SeasonReclamation.receipts(build.view().wallet)
+		player.tactics.held = SeasonTacticalCatalog.held(build.view().wallet)
 	return match_state
 
 
 func record_player_result(
-	fixture_id: int, away_runs: int, home_runs: int, performance: Dictionary = {},
-	used_gear: Array = []
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = []
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
@@ -173,13 +178,19 @@ func record_player_result(
 		return false
 	var command: Dictionary = {
 		"id": "game:%d" % fixture_id,
-		"rev": ownership.revision() if build == null else build.revision(), "op": "reward",
-		"game": fixture_id, "win": (home_runs > away_runs) == (fixture["home"] == 0)
+		"rev": ownership.revision() if build == null else build.revision(),
+		"op": "reward",
+		"game": fixture_id,
+		"win": (home_runs > away_runs) == (fixture["home"] == 0)
 	}
 	if build != null and build.to_data().version >= 6:
 		command["performance"] = performance.duplicate(true)
 	if build != null and build.to_data().version >= 10 and not used_gear.is_empty():
 		command["used_gear"] = used_gear.duplicate()
+	if not tactics.is_empty():
+		if build == null or build.to_data().version < 14:
+			return false
+		command["tactics"] = tactics.duplicate(true)
 	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
 	if not reward.ok:
 		return false
@@ -193,6 +204,8 @@ func record_player_result(
 		result["performance"] = performance.duplicate(true)
 	if command.has("used_gear"):
 		result["used_gear"] = used_gear.duplicate()
+	if command.has("tactics"):
+		result["tactics"] = tactics.duplicate(true)
 	results.append(result)
 	player_results.append(result.duplicate(true))
 	if phase == Phase.REGULAR:

@@ -160,6 +160,8 @@ static func _resolve_at_contact(
 
 	if result.outcome != ContactResult.Outcome.FOUL:
 		exit_speed *= profile.gear_fair_exit_scale
+		if quality >= 0.65:
+			exit_speed *= profile.tactical_quality_exit_scale
 		result.launch_angle_degrees = line_drive_angle(
 			result.launch_angle_degrees, quality, profile.gear_line_drive_strength
 		)

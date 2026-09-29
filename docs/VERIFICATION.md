@@ -1,5 +1,51 @@
 # Fast verification and playtest records
 
+## Core tactical supplies, 2026-09-29
+
+Final full run `20260929T224035553217Z` passed59/59 checks on Godot4.7.2, including
+all16 complete physical games, the strengthened tactical ledger/expiry/ownership checks,
+automated input/layout, migrations, sponsors, Gear, development, original gameplay,
+match soak, physical-ball regressions, QC export and main-scene startup. Fresh main
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor. The historical repository
+PROGRESSION_BLUEPRINT.md is unchanged from main. There are no remaining automated failures
+in this checkpoint; native visual and human acceptance gates remain open as described below.
+
+Focused `20260929T223913772174Z` passed8/8 checks, including actual tactical shop and
+match-readiness mouse input. Earlier `20260929T223651663629Z` passed the new physical-game
+check but failed the tactical UI check; it is not a clean combined pass. The two genuinely
+paid tactical games completed at mercy: Tape/Recovery had90 play records and27 balls in
+play over3 innings; Plan/Recovery had127 records and25 balls in play over4 innings.
+AI-controlled batting used the paid home club through a synthetic explicit-activation driver,
+not an implemented AI economy policy. Real swing profiles, ordinary scoring, outro/restart,
+completed statistics, exact consumption, failed-write retry and reload were checked.
+
+Paid stock/UI covers Tape and Plan acquisition, explicit review/cancel, failed-save rollback
+with previous bytes intact, actual shared inventory, carry/reload and minimum700×400/normal
+1000×650 shop layout. Wholesale has a real generated tactical pair with target/review,
+per-copy pricing, cancellation, persistence failure and once-visit reload. Controlled
+contracts additionally cover duplicate supplies, two Recovery offers costing7 with3/4 paid
+receipts, mixed development/tactical capacity, full-pair rollback, no shop growth conversion,
+exact discard and zero refund. Schema17 current stock and same-visit rerolls remain exact;
+schema18's tactical pool starts on the next visit and the migrated journal replays.
+
+Match checks cover both swing types, Gear composition, actual fair/foul and quality-gated
+ContactResolver output, unchanged launch angle/authored resources, PA expiry, canceled
+first delivery, foul continuation, opposing pitcher change, walks/strikeouts/outs/game-end,
+separate club allowances and foreign-owner rejection. Recovery checks40→50%,95→100%, full
+stamina rejection, per-pitcher limits, legal replacement pitchers and unchanged pitch counters.
+Readiness UI tests open/select/cancel/confirm through actual viewport events, verify bounded
+scroll content and visible Plan lock, exercise actual released swings, reject Power while
+Contact is locked, reject a reviewed Recovery target after substitution and show the actual
+restored stamina amount. Receipt/player/PA/swing evidence is checked against the result and
+journal; this validates ledger integrity, not reconstruction of every historical pitch.
+
+Initial `20260929T223428626325Z` exposed a missing contact helper in the new test harness.
+The next UI run exposed a Godot typed conditional-array assignment, and
+`20260929T223834168468Z` exposed unbounded dialog autowrap. The array construction was fixed
+and the dialog put inside a bounded scroll container; the subsequent input/layout run passed.
+These failed attempts remain recorded. The existing native-display limitation is unchanged:
+headless input/layout success does not constitute rendered visual or human balance acceptance.
+
 ## Wholesale coordinated purchases, 2026-09-29
 
 Full run `20260929T214115419439Z` passed54/57 checks. Two fixture failures are described

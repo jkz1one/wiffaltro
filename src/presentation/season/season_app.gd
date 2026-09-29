@@ -168,7 +168,8 @@ func _commit_result() -> bool:
 		var state: MatchState = lab._match_state
 		if not season.record_player_result(
 			_fixture_id, state.away_team.runs, state.home_team.runs, state.performance.snapshot(state),
-			state.gear_usage.first_pitch
+			state.gear_usage.first_pitch,
+			(state.home_team if lab._player_home else state.away_team).tactics.consumed
 		):
 			return false
 		_result_recorded = true

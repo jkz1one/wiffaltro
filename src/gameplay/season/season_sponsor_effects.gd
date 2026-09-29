@@ -33,7 +33,7 @@ static func swing(source: SwingProfileDefinition, state: MatchState) -> SwingPro
 		var axes: Vector2 = optics_axes(state.optics_mode)
 		result.contact_radius_x_m *= axes.x
 		result.contact_radius_y_m *= axes.y
-	return result
+	return MatchTactics.swing(result, state)
 
 
 static func deli_active(state: MatchState) -> bool:

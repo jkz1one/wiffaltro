@@ -15,6 +15,7 @@ extends DefinitionBase
 @export_range(0.1, 3.0, 0.01) var exit_velocity_multiplier: float = 1.0
 @export_range(0.0, 1.0, 0.01) var minimum_contact_quality: float = 0.18
 
+@export_storage var tactical_quality_exit_scale: float = 1.0
 @export_storage var gear_fair_exit_scale: float = 1.0
 @export_storage var gear_timing_scale: float = 1.0
 @export_storage var gear_line_drive_strength: float = 0.0

@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.41
+**Version:** v0.1.42
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,51 @@
 ---
 
 # 1. Technical Objective
+
+## Tactical inventory, match use and result settlement, 2026-09-29
+
+`SeasonTacticalCatalog` defines three Working held items with no resale. `SeasonBuild` format14
+adds exact `tactical_buy` commands, a catalog signature and `tactical_from` next-visit gate.
+`SeasonGearCatalog.offers` accepts an optional tactical pool; historical callers default to
+empty, preserving prior random draws and frozen shop/reroll histories. Existing fixed packs
+and development targets remain unchanged. `SeasonTacticalPurchase` uses ordinary bank receipt
+and capacity authority, never client-provided price or effect values.
+
+`SeasonState.make_match` copies only the owned tactical receipts into the season player's
+`TeamMatchState.tactics`. `MatchTactics` validates club identity, pre-first-pitch phase, role,
+receipt, once-club/PA use and once-pitcher/game recovery. Activation removes one detached copy
+and records receipt/player/global PA/swing atomically with its temporary effect/resource
+change. PA-number scoping and GAME_END guards clear benefits without erasing consumed history.
+Stamina maximum is initialized at match creation and remains unchanged during the game.
+
+`SeasonSponsorEffects.swing` composes Tape after existing Gear/Optics/Deli; the returned
+resource copy preserves authored assets. `ContactResolver` applies Plan's quality-gated
+multiplier only inside the fair-contact branch. `PitchBatLabSwingSupport.begin_swing` rejects
+the unchosen swing before consuming a swing attempt. The AI execution path selects the locked
+profile while keeping its existing pitch-reading decision. No autonomous tactical purchasing
+or activation policy is enabled; full-game test drivers make explicit synthetic choices.
+
+`MatchTacticalControls` adds a readiness entry and bounded, scrolling confirmation dialog.
+It checks the existing readiness/presentation/release guards, exact PA and reviewed player;
+parent match input is blocked while the dialog is open. No separate gameplay pause state is
+introduced. The active effect/lock persists on the entry and Tape uses the modified outline.
+Shop acquisition and discard use the existing preview/candidate/save boundary. Wholesale
+permits duplicate tactical identities only on distinct offers; trusted discounted held
+purchases are restricted to this catalog and cannot stack with development concessions.
+
+`SeasonApp._commit_result` forwards the paid club's consumed ledger. Format14 reward replay
+validates exact owned tactical receipts, chronological PA bounds, completed participation,
+chosen swing and per-pitcher recovery limits, then discards those receipts within the same
+candidate as income and statistics. Schema18 stores the evidence in both the reward journal
+and matching fixture result, requiring exact agreement. Box-score validation does not prove
+historical pitch-by-pitch timing; live runtime guards enforce that timing. Unfinished restart
+restores the pregame snapshot with no effects retained; failed completed-result writes retry
+the already-settled in-memory result once, or reload the intact pregame checkpoint.
+
+Tests cover real paid stock, shared/duplicate capacity, Wholesale, old migration, actual
+viewport clicks, bounded dialogs, stale target rejection, resolver quality/fair gates and
+whole physical games. Native rendering and human acceptance remain separate open gates.
+
 
 ## Atomic Wholesale transaction and receipt provenance, 2026-09-29
 
