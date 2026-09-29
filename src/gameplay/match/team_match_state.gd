@@ -63,6 +63,8 @@ func next_available_pitcher(direction: int = 1) -> int:
 func select_pitcher(index: int) -> bool:
 	if index < 0 or index >= roster.size() or roster[index].pitching_finished:
 		return false
+	if index != pitcher_index:
+		tactics.pitcher_changed()
 	if index != pitcher_index and current_pitcher().pitch_count > 0:
 		current_pitcher().pitching_finished = true
 	pitcher_index = index

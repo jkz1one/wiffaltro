@@ -115,7 +115,7 @@ func _refresh() -> void:
 			if not SeasonGearCatalog.item(item_id).is_empty():
 				SeasonGearShopUI.offer(self, offer, item_id, view.wallet.gear)
 				continue
-			if SeasonTacticalCatalog.ITEMS.has(item_id):
+			if SeasonTacticalCatalog.catalog().has(item_id):
 				SeasonTacticalShopUI.offer(self, offer, item_id)
 				continue
 			var item: Dictionary = DevelopmentShopCatalog.item(item_id)
@@ -179,7 +179,7 @@ func _refresh() -> void:
 func _held(receipts: Array) -> void:
 	_label("HELD SUPPLIES • shared development and tactical slots")
 	for receipt: Dictionary in receipts:
-		if SeasonTacticalCatalog.ITEMS.has(receipt.item):
+		if SeasonTacticalCatalog.catalog().has(receipt.item):
 			SeasonTacticalShopUI.held(self, receipt)
 			continue
 		var item: Dictionary = DevelopmentShopCatalog.item(receipt.item)

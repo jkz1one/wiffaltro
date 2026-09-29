@@ -1,5 +1,55 @@
 # Fast verification and playtest records
 
+## Extra Heat and Take a Base, 2026-09-29
+
+Final full run `20260929T234640725016Z` passed61/61 checks, including all18 complete
+physical games, automated UI/input/layout, all prior sponsors and tactical cards, paid
+ownership/development/recruitment, migrations, original gameplay, physics, match soak,
+QC export and main-scene startup. No remaining automated failure was observed in this run.
+Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor; the historical
+repository PROGRESSION_BLUEPRINT.md remains identical to main. Native/human gates remain open.
+
+Focused run `20260929T234544430103Z` passed9/9 checks on Godot4.7.2, including the new
+contract/input/layout suite and two complete paid physical games. Heat alone completed five
+innings with129 play records and22 balls in play; Heat/Base completed at third-inning mercy
+with97 records and26 balls in play. They exercised one and four heated physical deliveries,
+respectively. Base moved a naturally occupied runner in the second game; neither physical
+game produced a consumable run. Explicit test-driver activation is not an AI economy policy.
+Actual score/RBI separation, completed consumption, outro/restart and saved reload passed.
+
+The separate controlled real-UI fixture buys Base from generated stock, creates a third-base
+runner with the normal match-state Triple rule, and clicks review/cancel/confirm. It rejects
+a changed reviewed runner and then immediately walks off without a pitch, phantom PA or RBI.
+Fault injection occurs before confirmation so the real `SeasonApp._process` save attempt fails.
+Previous pregame bytes remain intact; retry saves score and exact copy consumption once, and
+reload agrees. This isolates UI/settlement and is not claimed as a physically batted walk-off.
+
+Contract checks cover all eight occupancy patterns, blocked lowest runners, no alternative or
+force chain, exact advance evidence, no stat credit and unchanged other runners. Heat covers
+fouls, canceled delivery, PA expiry, substitution, zero-pitch return without banking or refund,
+ordinary workload and actual launch telemetry. The physical grid has108 samples: nine recipe
+families, mastery1/5, neutral/Rocket/Hybrid Ball and both hands at the existing maximum effort
+and overdrive inputs. Every flight reached the plate above0.12m; measured crossing speeds
+ranged13.1281–25.4078m/s. Those values describe this grid, not a guaranteed5% plate-speed gain.
+No extra stamina/command/movement adjustment is introduced, and exhaustion still reduces speed.
+
+Stock checks sample2,000 four-offer visits: Heat206, Plan218, Recovery227, Tape216 and Base45.
+The exact conditional weight contract is Base5%, each other card23.75%; finite sample counts
+are separate evidence. Fixed Development packs exclude all five. Actual paid shop clicks,
+minimum700×400 bounds, cancel/full-price/reload, Wholesale two-Heat cost9, old paid schema18
+inventory and same-visit rerolls, and schema19's next-visit expanded pool are covered.
+
+Initial focused `20260929T233950201112Z` passed the new physical grid/shop/Heat UI and old
+core tactics but failed two walk-off fault-injection assertions. The test injected failure
+after the real app had already saved; injection now precedes confirmation. The subsequent
+`20260929T234151617486Z` stopped at a long line in the new live test. The line was wrapped;
+the next focused run passed. These attempts are retained rather than reported as clean passes.
+
+Replay checks structural ownership/roster/box-score evidence and exact result/journal agreement,
+not historical pitch/base-state reconstruction. Native display remains unavailable as recorded
+in `native-ui-display-20260928.log`; headless input/layout checks do not substitute for rendered
+visual, hardware input or human feel/balance acceptance. Working/Proposal status is unchanged.
+
 ## Core tactical supplies, 2026-09-29
 
 Final full run `20260929T224035553217Z` passed59/59 checks on Godot4.7.2, including

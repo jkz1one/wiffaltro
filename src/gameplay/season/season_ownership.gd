@@ -209,7 +209,7 @@ func _buy(next: Dictionary, command: Dictionary) -> String:
 			command.has("discount")
 			or (
 				item.kind not in ["gear", "sponsor"]
-				and not SeasonTacticalCatalog.ITEMS.has(item_id)
+				and not SeasonTacticalCatalog.catalog().has(item_id)
 			)
 		):
 			return "Wholesale cannot stack or discount held development."

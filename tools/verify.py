@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-expanded-tactical-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_expanded_tactical_live_test.tscn"],
+                 "Wiffaltro live expanded tactical checks passed:"),
+                ("season-expanded-tactical", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_expanded_tactical_test.tscn", *ui_extra],
+                 "Wiffaltro expanded tactical checks passed:"),
                 ("season-tactical-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_tactical_live_test.tscn"],
                  "Wiffaltro live tactical checks passed:"),

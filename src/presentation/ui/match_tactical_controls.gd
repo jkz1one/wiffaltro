@@ -12,6 +12,7 @@ var _receipt: String = ""
 var _swing: StringName = &""
 var _pa: int = 0
 var _player: StringName = &""
+var _advance: Dictionary = {}
 
 
 func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
@@ -89,7 +90,11 @@ func _process(_delta: float) -> void:
 			+ (
 				"Recovered stamina"
 				if active == "C02"
-				else SeasonTacticalCatalog.item(active).name + " • this PA"
+				else (
+					"Runner advanced"
+					if active == SeasonTacticalCatalog.BASE
+					else SeasonTacticalCatalog.item(active).name + " • this PA"
+				)
 			)
 		)
 		if active == "C03":
@@ -106,6 +111,7 @@ func _open() -> void:
 	if not can_open():
 		return
 	_receipt = ""
+	_advance = {}
 	_pa = _lab._match_state.plate_appearance_number
 	_dialog.get_ok_button().disabled = true
 	for child: Node in _choices.get_children():
@@ -148,7 +154,9 @@ func _select(receipt: String, swing: StringName) -> void:
 	_swing = swing
 	var id: String = team().tactics._item(receipt)
 	var player: PlayerMatchState = (
-		_lab._match_state.pitcher() if id == "C02" else _lab._match_state.batter()
+		_lab._match_state.pitcher()
+		if id in ["C02", SeasonTacticalCatalog.HEAT]
+		else _lab._match_state.batter()
 	)
 	_player = player.definition.id
 	_detail.text = (
@@ -167,6 +175,9 @@ func _select(receipt: String, swing: StringName) -> void:
 				minf(player.stamina_max, player.stamina_remaining + player.stamina_max * 0.10)
 			]
 		)
+	elif id == SeasonTacticalCatalog.BASE:
+		_advance = TacticalBaseAdvance.target(_lab._match_state.bases)
+		_detail.text += "\n" + TacticalBaseAdvance.describe(_lab._match_state, _advance)
 	elif id == "C03":
 		_detail.text += "\nLocked swing: " + String(swing).trim_prefix("swing.").capitalize()
 	_dialog.get_ok_button().disabled = false
@@ -177,12 +188,23 @@ func _commit() -> void:
 		return
 	var id: String = team().tactics._item(_receipt)
 	var player: PlayerMatchState = (
-		_lab._match_state.pitcher() if id == "C02" else _lab._match_state.batter()
+		_lab._match_state.pitcher()
+		if id in ["C02", SeasonTacticalCatalog.HEAT]
+		else _lab._match_state.batter()
 	)
+	if (
+		id == SeasonTacticalCatalog.BASE
+		and _advance != TacticalBaseAdvance.target(_lab._match_state.bases)
+	):
+		return
 	if player.definition.id != _player:
 		return
 	if team().tactics.activate(_lab._match_state, team(), _receipt, _swing):
 		_lab._refresh_config()
 		_lab._refresh_markers()
+		if id == SeasonTacticalCatalog.BASE:
+			_lab._status_label.text = _lab._match_state.last_event
+			if _lab._match_state.phase == MatchState.Phase.GAME_END:
+				PitchBatLabFeelSupport.begin_match_outro(_lab)
 	_receipt = ""
 	_process(0.0)

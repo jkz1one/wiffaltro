@@ -1,5 +1,15 @@
 # Implementation Status
 
+## Five tactical supplies, 2026-09-29
+
+Extra Heat and Take a Base complete the initial five-card tactical pool. Paid stock, shared
+capacity, Wholesale, reviewed readiness UI, temporary Heat, isolated runner advances and
+immediate walk-off persistence are implemented. Schema19/build15 preserves old paid inventory
+and current stock/rerolls, introducing the expanded pool next visit. Numeric contracts remain
+Working; Approved ownership/capacity and unapproved Proposals retain their separate status.
+All five initial tactics and fifteen of35 sponsors are supported. Dependent sponsors, AI
+acquisition/activation policy, earned access and native visual/human acceptance remain open.
+
 ## Core tactical supplies, 2026-09-29
 
 Grip Tape, Recovery Pack and Swing Plan now include actual paid stock, the Approved shared
@@ -207,8 +217,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 62% implemented** (weighted estimate62), after core tactical supplies
-(61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
+**Approximately 63% implemented** (weighted estimate63), after all five initial tactical cards
+(62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
 59% after the three development sponsors;57% after Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
 Strikecraft sequence recovery;54% after
@@ -226,12 +236,12 @@ human-approved or release-ready merely because their code runs.
 | Ownership and economy | 8 | 6.5 |
 | Player development and mastery | 10 | 8.5 |
 | Shop, packs and recruitment | 12 | 8 |
-| Gear, tactical cards and abilities | 10 | 6.5 |
+| Gear, tactical cards and abilities | 10 | 7.5 |
 | Sponsors | 10 | 7.5 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **62** |
+| **Total** | **100** | **63** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

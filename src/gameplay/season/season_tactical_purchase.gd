@@ -10,7 +10,7 @@ static func buy(build: SeasonBuild, command: Dictionary) -> String:
 	if not build._keys(command, ["offer"]) or not command.offer is String:
 		return "Choose an exact tactical offer."
 	var id: String = build._visit.offers.get(command.offer, "")
-	if SeasonTacticalCatalog.item(id).is_empty():
+	if not SeasonTacticalCatalog.catalog(build._tactical_catalog_version()).has(id):
 		return "This tactical offer is no longer available."
 	var receipt: String = "tactical-purchase:%d" % build.revision()
 	var stocked: Dictionary = (
@@ -57,25 +57,39 @@ static func settle(build: SeasonBuild, value: Variant, performance: Dictionary) 
 	var recovered: Array[String] = []
 	var previous_pa: int = 0
 	for action: Variant in value:
-		if (
-			not action is Dictionary
-			or not SeasonOwnership._keys(action, ["receipt", "player", "pa", "swing"])
-		):
+		if not action is Dictionary or not action.get("receipt") is String:
 			return "Invalid tactical activation."
 		if not action.receipt is String or receipts.has(action.receipt):
 			return "A tactical copy can be consumed only once."
 		var owned: Dictionary = SeasonOwnership._owned(build._bank.view(), action.receipt)
-		if owned.is_empty() or not SeasonTacticalCatalog.ITEMS.has(owned.item):
+		if owned.is_empty() or not SeasonTacticalCatalog.catalog().has(owned.item):
 			return "Consume only a tactical copy held before this game."
+		var fields: Array = ["receipt", "player", "pa", "swing"]
+		var terminal_pa: bool = build._format >= 15 and owned.item == "C02"
+		if owned.item in [SeasonTacticalCatalog.BASE, SeasonTacticalCatalog.HEAT]:
+			if build._format < 15:
+				return "Expanded supplies require the current result format."
+			terminal_pa = true
+		if owned.item == SeasonTacticalCatalog.BASE:
+			fields.append("advance")
+			if not TacticalBaseAdvance.valid(action.get("advance"), build.roster(), performance):
+				return "Invalid consumable-caused runner advance."
+		if not SeasonOwnership._keys(action, fields):
+			return "Invalid tactical activation fields."
 		if (
 			not action.player is String
 			or not build.roster().has(action.player)
 			or not performance.has(action.player)
-			or not SeasonOwnership._whole(action.pa, previous_pa + 1, appearances)
+			or not SeasonOwnership._whole(
+				action.pa, previous_pa + 1, appearances + (1 if terminal_pa else 0)
+			)
 		):
 			return "Choose a current player and one activation per club per PA."
 		var evidence: String = "pitches" if owned.item == "C02" else "pa"
-		if int(performance[action.player][evidence]) < 1:
+		if (
+			owned.item not in [SeasonTacticalCatalog.BASE, SeasonTacticalCatalog.HEAT]
+			and int(performance[action.player][evidence]) < 1
+		):
 			return "Tactical use requires actual completed-game participation."
 		if owned.item == "C03":
 			if action.swing not in ["swing.contact", "swing.power"]:

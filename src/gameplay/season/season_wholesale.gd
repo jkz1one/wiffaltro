@@ -17,7 +17,7 @@ static func category(id: String) -> String:
 		return "gear"
 	if not SeasonSponsorCatalog.item(id).is_empty():
 		return "sponsor"
-	if SeasonTacticalCatalog.ITEMS.has(id):
+	if SeasonTacticalCatalog.catalog().has(id):
 		return "tactical"
 	if DevelopmentShopCatalog.item(id).get("op") == "learn":
 		return "lesson"
@@ -43,7 +43,11 @@ static func targets(build: SeasonBuild, offer: String) -> Array[Dictionary]:
 	var wallet: Dictionary = build._bank.view()
 	match category(id):
 		"tactical":
-			if build._format >= 14 and build._visit.number >= build._tactical_from:
+			if (
+				build._format >= 14
+				and build._visit.number >= build._tactical_from
+				and SeasonTacticalCatalog.catalog(build._tactical_catalog_version()).has(id)
+			):
 				result.append({"offer": offer, "replace": ""})
 		"gear":
 			var old: Dictionary = wallet.gear[item(id).slot]

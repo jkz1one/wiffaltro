@@ -375,6 +375,7 @@ func _throw_pitch() -> void:
 		launch_pitch = MatchLabSupport.rated_pitch(
 			pitch, pitcher_state.definition, _pitch_effort, release_overdrive
 		)
+		launch_pitch = MatchTactics.pitch(launch_pitch, _match_state)
 	else:
 		var debug_pitcher: PlayerDefinition = ContentDB.get_player(DEBUG_PLAYER_ID)
 		launch_pitch = MatchLabSupport.rated_pitch(pitch, debug_pitcher, _pitch_effort)

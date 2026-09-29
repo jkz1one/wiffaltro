@@ -1,11 +1,54 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.51
+**Version:** v0.4.52
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Extra Heat and Take a Base, 2026-09-29
+
+All five initial tactical cards now have paid ownership, shared inventory, match use and
+completed-result consumption. Extra Heat costs5 and Take a Base costs8. These are selected
+**Working testing defaults**, following current Players/Pitches v17 lines352–428 and Economy
+v24 lines201–250. The shared two-slot bag remains **Approved**; existing unapproved Proposals,
+including dependent sponsor mappings, remain unapproved. The two new internal identifiers
+are implementation keys, not claims of authored card IDs.
+
+Extra Heat applies to the active pitcher for one opposing plate appearance. It multiplies
+the mastered, effort/Gear-adjusted velocity parameter by1.05 once, before the physical solver
+and normal fatigue/execution constraints. It is not an additive5mph or a guaranteed5% increase
+in measured plate speed. Every recipe family remains eligible. Workload, command and movement
+parameters receive no extra adjustment. Balls, fouls and a canceled delivery retain the paid
+effect. A completed PA or legal pitcher substitution ends it; even a returning zero-pitch
+starter cannot bank it, and substitution does not refund the copy or club's PA allowance.
+
+Take a Base advances only the lowest occupied runner: first, then second, then third. The
+next base must be free; a blocked lowest runner prevents activation without selecting another
+runner or creating a force chain. A third-base runner scores through ordinary run/walk-off
+rules. The reviewed runner and destination must still match at confirmation. Its event is
+recorded as a consumable advance, without a hit, walk, steal, tag-up, RBI or phantom completed
+PA. An immediate walk-off starts the normal outro and atomic result-save path without a pitch.
+
+The tactical category retains base weight10. Conditional subweights are1:1:1:1:4/19 for Tape,
+Recovery, Plan, Heat and Base: Base5%, each other card23.75%. Missing categories are still
+normalized; no exact overall offer percentage is promised. Existing fixed Development packs
+exclude all tactics. Full bags and current base occupancy do not alter stock eligibility.
+Wholesale supports both new paid copies under its existing contract, with no tactical resale.
+
+Schema19/build15 preserves already-paid cards, current offers and same-visit rerolls. The
+expanded pool starts next visit for migrated saves. Result evidence retains exact receipts;
+Base adds runner/from/to. The final readiness PA may end without being completed when Base
+walks off. Structural/box-score replay checks are not full reconstruction of historical base
+occupancy or pitch timing; runtime enforces those rules. Unfinished restart and failed-write
+retry retain the existing pregame snapshot contract.
+
+Automated input/layout, physical solver samples and completed games are checked separately
+from native visual and human feel/balance acceptance. AI acquisition/activation policy, earned
+tactical sponsors and those acceptance gates remain open. This entry supersedes the earlier
+three-card checkpoint's missing Heat/Base notes below.
+
 
 ## Core tactical supplies, 2026-09-29
 

@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.42
+**Version:** v0.1.43
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,41 @@
 ---
 
 # 1. Technical Objective
+
+## Expanded tactical pool and consumable scoring, 2026-09-29
+
+`SeasonTacticalCatalog` keeps the three-card v1 catalog/signature immutable and adds a v2
+pool with Heat/Base. Build15 records `expanded_tactical_from`; schema19 restores prior shops
+and rerolls exactly and activates the expanded generator next visit. Buy and Wholesale both
+check the versioned eligible catalog. Ownership uses all supported identities while retaining
+exact-copy provenance, shared capacity and no resale. Old build14 fingerprints remain valid.
+
+`MatchTactics.pitch` duplicates only a heated pitch recipe, multiplying its already-rated
+velocity parameter before `PitchAimSolver` and ordinary execution/fatigue. It binds the actual
+active `PlayerMatchState`. `TeamMatchState.select_pitcher` clears Heat on a real index change,
+so a zero-pitch starter's legal return cannot revive it. Existing PA scope and consumption
+history remain authoritative. Both human and AI deliveries use the same launch hook.
+
+`TacticalBaseAdvance` selects the first occupied base and rejects an occupied destination.
+It moves exactly that identity or calls `MatchState._add_runs(1)` from third. It does not call
+PA/stat completion. The consumed ledger adds exact `advance = {runner, from, to}` evidence.
+Settlement validates that shape, current roster and actual runner hit/walk participation;
+Heat/Base allow activation on the final uncompleted readiness PA. Format15 also allows that
+PA bound for Recovery, which may precede an opponent's Base walk-off. Previous formats keep
+their old bounds. This is structural/box-score integrity, not historical base-state replay.
+
+`MatchTacticalControls` reviews Heat's pitcher or Base's exact runner/destination and rejects
+stale confirmation. It refreshes markers/status after movement and directly begins the
+idempotent normal outro on a pre-pitch walk-off. `SeasonApp` still automatically records the
+ended game; fault tests must inject write failure before activation, not after its process
+loop has already saved. Retry persists the settled result without consuming twice.
+
+The new contract/UI suite covers all eight occupancy patterns, paid stock, schema18 migration,
+substitution lifetime and108 physical pitch combinations. Two additional whole games cover
+paid Heat/Base use, actual launch telemetry and exact consumption replay. Headless viewport
+input/layout is not rendered visual approval; no AI shopping/activation policy is inferred
+from explicit test-driver choices.
+
 
 ## Tactical inventory, match use and result settlement, 2026-09-29
 

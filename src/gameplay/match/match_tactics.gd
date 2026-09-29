@@ -10,6 +10,7 @@ var _used_pa: int = 0
 var _active_pa: int = 0
 var _active: String = ""
 var _swing: StringName = &""
+var _heat_pitcher: PlayerMatchState
 
 
 func reason(
@@ -24,16 +25,21 @@ func reason(
 	var id: String = _item(receipt)
 	if id.is_empty():
 		return "That tactical copy is no longer held."
-	if id == "C02":
+	if id in ["C02", SeasonTacticalCatalog.HEAT]:
 		if team != state.defensive_team():
-			return "Recovery Pack is used by the defending club."
+			return "Recovery Pack and Extra Heat are used by the defending club."
+		if state.pitcher().pitching_finished:
+			return "This pitcher has been removed."
+	elif team != state.batting_team():
+		return "This supply is used by the batting club."
+	if id == "C02":
 		var pitcher: PlayerMatchState = state.pitcher()
 		if pitcher.pitching_finished or _recovered.has(String(pitcher.definition.id)):
 			return "This pitcher cannot use another Recovery Pack this game."
 		if pitcher.stamina_remaining >= pitcher.stamina_max:
 			return "The active pitcher already has full stamina."
-	elif team != state.batting_team():
-		return "Grip Tape and Swing Plan are used by the batting club."
+	if id == SeasonTacticalCatalog.BASE and TacticalBaseAdvance.target(state.bases).is_empty():
+		return TacticalBaseAdvance.describe(state, {})
 	if id == "C03" and swing not in [&"swing.contact", &"swing.power"]:
 		return "Choose Contact or Power for this entire plate appearance."
 	if id != "C03" and swing != &"":
@@ -47,12 +53,16 @@ func activate(
 	if not reason(state, team, receipt, swing).is_empty():
 		return false
 	var id: String = _item(receipt)
-	var player: PlayerMatchState = state.pitcher() if id == "C02" else state.batter()
+	var player: PlayerMatchState = (
+		state.pitcher() if id in ["C02", SeasonTacticalCatalog.HEAT] else state.batter()
+	)
 	if id == "C02":
 		player.stamina_remaining = minf(
 			player.stamina_max, player.stamina_remaining + 0.10 * player.stamina_max
 		)
 		_recovered.append(String(player.definition.id))
+	if id == SeasonTacticalCatalog.HEAT:
+		_heat_pitcher = player
 	_active = id
 	_active_pa = state.plate_appearance_number
 	_used_pa = _active_pa
@@ -65,6 +75,8 @@ func activate(
 			"swing": String(swing)
 		}
 	)
+	if id == SeasonTacticalCatalog.BASE:
+		consumed[-1]["advance"] = TacticalBaseAdvance.apply(state)
 	for index in range(held.size()):
 		if held[index].id == receipt:
 			held.remove_at(index)
@@ -73,6 +85,8 @@ func activate(
 
 
 func active(state: MatchState) -> String:
+	if _active == SeasonTacticalCatalog.HEAT and state.pitcher() != _heat_pitcher:
+		pitcher_changed()
 	return (
 		_active
 		if _active_pa == state.plate_appearance_number and state.phase != MatchState.Phase.GAME_END
@@ -86,7 +100,7 @@ func locked_swing(state: MatchState) -> StringName:
 
 func _item(receipt: String) -> String:
 	for copy: Dictionary in held:
-		if copy.id == receipt and SeasonTacticalCatalog.ITEMS.has(copy.item):
+		if copy.id == receipt and SeasonTacticalCatalog.catalog().has(copy.item):
 			return copy.item
 	return ""
 
@@ -100,3 +114,17 @@ static func swing(profile: SwingProfileDefinition, state: MatchState) -> SwingPr
 	elif effect == "C03" and profile.id == state.batting_team().tactics.locked_swing(state):
 		profile.tactical_quality_exit_scale = 1.06
 	return profile
+
+
+func pitcher_changed() -> void:
+	if _active == SeasonTacticalCatalog.HEAT:
+		_active = ""
+		_heat_pitcher = null
+
+
+static func pitch(source: PitchDefinition, state: MatchState) -> PitchDefinition:
+	if state.defensive_team().tactics.active(state) != SeasonTacticalCatalog.HEAT:
+		return source
+	var result: PitchDefinition = source.duplicate() as PitchDefinition
+	result.nominal_velocity_mps *= 1.05
+	return result
