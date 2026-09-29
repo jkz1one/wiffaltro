@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.38
+**Version:** v0.1.39
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,36 @@
 ---
 
 # 1. Technical Objective
+
+## Development sponsors and atomic concessions, 2026-09-29
+
+`SeasonSchoolSponsors` derives E06 triggers from actual completed-game `h` statistics,
+F04 visit use from the build journal, and J10 fixed-student/use state from exact sponsor
+purchase receipts. No independent editable allowance blob is saved. Pending Union earnings
+become spendable only when the existing eligible shop route opens. `leave_shop` clears
+both Union and Reclamation credits; saved visit allowances stay consumed. Final/eliminated
+season histories cannot accept later shopping operations.
+
+`SeasonDevelopmentPurchase` retains old purchase request IDs and pre-build11 bank journal
+shape. New held purchases pass a trusted bounded acquisition discount into SeasonOwnership,
+which records the actual paid price. Callers cannot submit their own discount amount through
+the build API. Immediate purchases, growth, offer consumption and chosen allowance settle
+on one fork. A failed candidate or disk write publishes none of them. Fixed-pack acquisition
+uses Union credit once; later selection/skip and held use never enter the discount path.
+
+F04 has two separate exact development targets and journal IDs within one transaction.
+It validates both and charges the combined price before publishing. J10 records the purchased
+receipt's student and three uses; the third successful subsidized purchase or actual student
+replacement retires that same receipt at zero resale. Manual sale/replacement clears its
+progress. Student nomination and overlapping concessions have explicit UI screens, while
+review shows actual Cash, remaining uses, exact lesson recipients and personal mastery.
+
+Build11/schema15 adds `school_sponsor_from` and catalogue6 while preserving catalogues1–5.
+Old paid saves replay before migration, retain current stock/rerolls and activate the new
+pool only next visit. Derived scholarships are copied with candidate forks and rebuilt from
+events on restore. E06 acquisition mapping and J10 zero-nonbaseline eligibility remain
+explicitly unapproved Proposals. No AI acquisition or offscreen hit attribution is added.
+
 
 ## Used Gear and transactional reroll credit, 2026-09-29
 

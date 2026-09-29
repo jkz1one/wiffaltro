@@ -1,11 +1,46 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.47
+**Version:** v0.4.48
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Open Book, Union Hall and Summer School, 2026-09-29
+
+Thirteen of35 sponsors now run through the Working paid season. F04 Open Book Tutors
+(Common10) teaches one offered non-Exotic lesson to two distinct eligible roster players
+once per visit for base price plus rounded-up half. Both exact replacements and each
+player's own remembered mastery are reviewed before payment; new recipes start at1.
+One offer is consumed atomically. Cancellation, invalid second targets or insufficient
+Cash cannot partially teach. Rerolls and selling/rebuying the sponsor do not renew the use.
+
+E06 Union Hall (Common10) requires three distinct current-club players with actual credited
+hits in a completed game. It grants3 non-Cash credit when the next eligible shop opens,
+including playoff shops. The next loose Development acquisition (held or immediate,
+including mastery) or fixed Development pack consumes it once, floored at zero. Held use
+and pack selection cannot redeem it again; paid pack skipping still consumes it. Rerolls
+and sponsor sale retain granted credit; departure expires it. No shop means no usable credit.
+This acquisition mapping is an **unapproved Proposal**, not an approved economy change.
+
+J10 Summer School Scholarships (Common6) nominates one fixed current player. Three immediate
+broad-stat Buy and Use purchases for that student get4 off, floored at zero. The sponsor
+retires after the third use or student departure and always has zero resale. No subsidy
+applies to held acquisitions/use, mastery, lessons or packs. Later growth does not invalidate
+the fixed student. When both concessions qualify, the player explicitly chooses one;
+allowances never stack. The eligibility rule—no earned stat/mastery growth or generated
+recruit catch-up, with authored baseline mastery allowed—is an **unapproved Proposal**.
+
+These contracts follow retained Blueprint v114 F04 lines4282–4305, E06 lines3838 onward,
+J10 lines5399–5431 and EE reconciliation lines18087–18125, carried into current
+Equipment/Sponsors v18. Prices/effects remain **Working**; Approved seasonal ownership
+and safe replacement stay distinct. Existing unapproved Proposals remain unapproved.
+Schema15/build11 introduces catalogue6 only next visit for migrated saves; paid receipts,
+current stock and same-visit rerolls remain exact. Actual viewport tests cover targeting,
+choice, review, cancellation, failed saves and reload. Native visual, feel and balance
+acceptance, AI shopping and remaining content remain open.
+
 
 ## Reclamation Station and receipt-specific use, 2026-09-29
 

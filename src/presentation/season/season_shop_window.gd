@@ -79,7 +79,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
-			+ "Ten supported sponsors; earned tiers and other sponsors pending."
+			+ "Thirteen supported sponsors; earned tiers and other sponsors pending."
 		)
 	)
 	if SeasonReclamation.credit(shop) > 0:
@@ -92,9 +92,10 @@ func _refresh() -> void:
 				+ "No further award this visit, even if the sponsor is sold or bought again."
 			)
 		)
+	SeasonSchoolShopUI.status(self)
 	_label(_notice)
 	if shop.pack_status == "open":
-		_label("Choose one revealed card, then its recipient. The pack's 8 Cash is already paid.")
+		_label("Choose one card, then its recipient. This pack is already paid; no extra charge.")
 		for item_id: String in shop.cards:
 			var command: Dictionary = _request("pack_pick", {"item": item_id})
 			_button(DevelopmentShopCatalog.item(item_id).name, _choose.bind(item_id, command))
@@ -117,6 +118,14 @@ func _refresh() -> void:
 			_label("%s • %d Cash" % [item.name, item.price])
 			var command: Dictionary = _request("buy", {"offer": offer, "mode": "use"})
 			_button("BUY AND USE", _choose.bind(item_id, command)).set_meta("offer", offer)
+			if SeasonSchoolSponsors.pair_available(app.season.build, item_id):
+				(
+					_button(
+						"OPEN BOOK • TEACH TWO",
+						SeasonSchoolShopUI.paired.bind(self, offer, item_id)
+					)
+					. set_meta("pair_offer", offer)
+				)
 			if DevelopmentShopCatalog.CARDS.has(item_id):
 				var hold: Dictionary = _request(
 					"buy",
@@ -138,9 +147,20 @@ func _refresh() -> void:
 		)
 		if shop.pack_status == "sealed":
 			var pack_button: Button = _button(
-				"Open fixed development pack • 8 Cash • %d choices" % shop.choice_count,
+				(
+					"Open fixed development pack • %d Cash • %d choices"
+					% [8 - int(shop.get("union_credit", 0)), shop.choice_count]
+				),
 				_preview.bind(
-					_request("pack_open"), "Pay 8 to reveal %d fixed choices" % shop.choice_count
+					_request("pack_open"),
+					(
+						"Pay %d to reveal %d fixed choices (base 8; Union credit %d)"
+						% [
+							8 - int(shop.get("union_credit", 0)),
+							shop.choice_count,
+							shop.get("union_credit", 0)
+						]
+					)
 				)
 			)
 			pack_button.disabled = shop.choice_count == 0
@@ -301,6 +321,8 @@ func _target_text(item: Dictionary, target: Dictionary) -> String:
 
 
 func _preview(command: Dictionary, description: String) -> void:
+	if SeasonSchoolShopUI.choose_concession(self, command, description):
+		return
 	var result: Dictionary = app.season.build.preview(command)
 	if not result.ok:
 		_notice = result.error
@@ -319,6 +341,7 @@ func _preview(command: Dictionary, description: String) -> void:
 			):
 				if String(pitch.id) == command.pitch:
 					effect = PitchMastery.next_effect(pitch)
+	description += SeasonSchoolSponsors.review(app.season.build.view(), result.after)
 	description += SeasonReclamation.review(app.season.build.view().shop, result.after.shop)
 	_review_text.text = (
 		"%s\nCash: %d → %d\nHeld: %d → %d\n%s\nConfirm and save?"
@@ -352,7 +375,7 @@ func _request(op: String, fields: Dictionary = {}) -> Dictionary:
 
 
 func _close() -> void:
-	if SeasonReclamation.credit(app.season.build.view().shop) > 0:
+	if SeasonSchoolSponsors.has_credit(app.season.build.view().shop):
 		if not app.commit_shop(_request("leave_shop")):
 			_notice = app.notice
 			_refresh()

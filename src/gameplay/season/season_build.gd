@@ -4,11 +4,12 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 10
+const VERSION: int = 11
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
 	"leave_shop",
+	"lesson_pair",
 	"buy",
 	"use",
 	"discard",
@@ -43,6 +44,8 @@ var _gameplay_sponsor_from: int = 1
 var _sequence_sponsor_from: int = 1
 var _field_sponsor_from: int = 1
 var _shop_sponsor_from: int = 1
+var _school_sponsor_from: int = 1
+var _scholarships: Dictionary = {}
 var _used_gear: Dictionary = {}
 var _income_by_game: Dictionary = {}
 var _bank: SeasonOwnership
@@ -119,7 +122,8 @@ func view() -> Dictionary:
 		"wallet": _bank.view(),
 		"shop": visit,
 		"roster": roster(),
-		"used_gear": _used_gear.keys()
+		"used_gear": _used_gear.keys(),
+		"scholarships": _scholarships.duplicate(true)
 	}
 
 
@@ -156,6 +160,8 @@ func to_data() -> Dictionary:
 		data["field_sponsor_from"] = _field_sponsor_from
 	if _format >= 10:
 		data["shop_sponsor_from"] = _shop_sponsor_from
+	if _format >= 11:
+		data["school_sponsor_from"] = _school_sponsor_from
 	return data
 
 
@@ -187,6 +193,8 @@ static func from_data(
 		keys.append("field_sponsor_from")
 	if value.version >= 10:
 		keys.append("shop_sponsor_from")
+	if value.version >= 11:
+		keys.append("school_sponsor_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -240,6 +248,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.shop_sponsor_from, 1, 13):
 			return null
 		result._shop_sponsor_from = int(value.shop_sponsor_from)
+	if value.version >= 11:
+		if not SeasonOwnership._whole(value.school_sponsor_from, 1, 13):
+			return null
+		result._school_sponsor_from = int(value.school_sponsor_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -282,6 +294,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_contracts = next._contracts
 	_recruits = next._recruits
 	_game_rosters = next._game_rosters
+	_scholarships = next._scholarships
 	_used_gear = next._used_gear
 	_income_by_game = next._income_by_game
 	_appeared = next._appeared
@@ -335,6 +348,8 @@ func _fork() -> SeasonBuild:
 	result._sequence_sponsor_from = _sequence_sponsor_from
 	result._field_sponsor_from = _field_sponsor_from
 	result._shop_sponsor_from = _shop_sponsor_from
+	result._school_sponsor_from = _school_sponsor_from
+	result._scholarships = _scholarships.duplicate(true)
 	result._used_gear = _used_gear.duplicate()
 	result._income_by_game = _income_by_game.duplicate(true)
 	result._bank = _bank.fork()
@@ -379,10 +394,16 @@ func _apply(command: Dictionary) -> String:
 				return error
 		_game_rosters[int(command.game)] = roster()
 		_visit = {"number": _visit.number + 1, "open": false}
+		if (
+			_format >= 11
+			and SeasonSchoolSponsors.qualifies_union(self, command.get("performance", {}))
+		):
+			_visit["union_earned"] = true
 		return ""
 	if op == "open":
 		if not _keys(command, []) or _visit.open or _visit.number < 1:
 			return "No new postgame shop is available."
+		var union_earned: bool = _visit.get("union_earned", false)
 		_visit = {
 			"number": _visit.number,
 			"open": true,
@@ -391,16 +412,22 @@ func _apply(command: Dictionary) -> String:
 			"cards": DevelopmentShopCatalog.pack(_book, _roster, _rng(-1)),
 			"pack_status": "sealed"
 		}
+		if union_earned:
+			_visit["union_credit"] = 3
 		if _format >= 2 and _visit.number >= _recruit_from:
 			_visit["recruit"] = _recruit_offer()
 		return ""
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"lesson_pair":
+			return SeasonSchoolSponsors.pair(self, command)
 		"leave_shop":
 			if _format < 10 or not _keys(command, []):
 				return "Invalid shop departure."
 			_visit["reroll_credit"] = 0
+			if _format >= 11:
+				_visit["union_credit"] = 0
 		"sponsor_buy", "sponsor_sell":
 			return _sponsor_transaction(command)
 		"equip", "sell_gear":
@@ -408,7 +435,7 @@ func _apply(command: Dictionary) -> String:
 		"sign":
 			return _sign(command)
 		"buy":
-			return _buy(command)
+			return SeasonDevelopmentPurchase.buy(self, command)
 		"use":
 			return _use(command)
 		"discard":
@@ -440,9 +467,13 @@ func _apply(command: Dictionary) -> String:
 				or _pack_choices().is_empty()
 			):
 				return "No eligible unopened pack."
-			var error: String = _charge(DevelopmentShopCatalog.PACK_PRICE)
+			var error: String = _charge(
+				maxi(0, DevelopmentShopCatalog.PACK_PRICE - int(_visit.get("union_credit", 0)))
+			)
 			if not error.is_empty():
 				return error
+			if _format >= 11:
+				_visit["union_credit"] = 0
 			_visit.pack_status = "open"
 			_visit.cards = _pack_choices()
 		"pack_pick":
@@ -460,52 +491,6 @@ func _apply(command: Dictionary) -> String:
 			_visit.pack_status = "skipped"
 		_:
 			return "Unsupported shop operation."
-	return ""
-
-
-func _buy(command: Dictionary) -> String:
-	if not _keys(command, ["offer", "mode", "player", "pitch", "replace"]):
-		return "Invalid purchase fields."
-	if not command.offer is String or not _visit.offers.has(command.offer):
-		return "This exact offer is no longer available."
-	var item_id: String = _visit.offers[command.offer]
-	var item: Dictionary = DevelopmentShopCatalog.item(item_id)
-	if command.mode == "hold":
-		if (
-			not DevelopmentShopCatalog.CARDS.has(item_id)
-			or command.player != ""
-			or (command.pitch != "" or command.replace != "")
-		):
-			return "Only loose development cards can be held, without a preassigned target."
-		if targets(item_id).is_empty():
-			return "This card has no eligible current roster target."
-		var quote: String = "quote:%d" % revision()
-		var stock: Dictionary = _bank.commit(
-			{"id": quote, "rev": _bank.revision(), "op": "stock", "offers": {quote: item_id}}
-		)
-		if not stock.ok:
-			return stock.error
-		var purchase: Dictionary = _bank.commit(
-			{
-				"id": "purchase:%d" % revision(),
-				"rev": _bank.revision(),
-				"op": "buy",
-				"offer": quote,
-				"replace": "",
-				"discard": []
-			}
-		)
-		if not purchase.ok:
-			return purchase.error
-	elif command.mode == "use":
-		var error: String = _develop(item_id, command)
-		if error.is_empty():
-			error = _charge(item.price)
-		if not error.is_empty():
-			return error
-	else:
-		return "Choose Buy and Hold or Buy and Use."
-	_visit.offers.erase(command.offer)
 	return ""
 
 
@@ -532,7 +517,7 @@ func _use(command: Dictionary) -> String:
 	return "" if result.ok else result.error
 
 
-func _develop(item_id: String, command: Dictionary) -> String:
+func _develop(item_id: String, command: Dictionary, suffix: String = "") -> String:
 	for key: String in ["player", "pitch", "replace"]:
 		if not command.get(key) is String:
 			return "Choose an exact legal player and recipe."
@@ -543,7 +528,7 @@ func _develop(item_id: String, command: Dictionary) -> String:
 		return "That player/recipe is no longer an eligible target."
 	var item: Dictionary = DevelopmentShopCatalog.item(item_id)
 	var request: Dictionary = {
-		"id": "growth:%d" % revision(),
+		"id": "growth:%d%s" % [revision(), suffix],
 		"rev": _book.revision(),
 		"player": command.player,
 		"op": item.op,
@@ -623,7 +608,7 @@ static func _signature(format_version: int = VERSION) -> String:
 			":"
 			+ SeasonSponsorCatalog.signature(
 				(
-					5
+					(6 if format_version >= 11 else 5)
 					if format_version >= 10
 					else (
 						4
@@ -703,7 +688,7 @@ func _sign(command: Dictionary) -> String:
 		_contracts[offer.player] = offer.price
 	_roster[_roster.find(command.replace)] = offer.player
 	_visit.recruit.signed = true
-	return ""
+	return SeasonSchoolSponsors.departure(self, command.replace)
 
 
 func _gear_transaction(command: Dictionary) -> String:
@@ -819,12 +804,24 @@ func _sponsor_transaction(command: Dictionary) -> String:
 				"discard": []
 			}
 		)
+		if sold.ok:
+			_scholarships.erase(command.receipt)
 		return "" if sold.ok else sold.error
-	if not _keys(command, ["offer", "replace"]) or not command.offer is String:
+	if not command.get("offer") is String:
 		return "Review an exact sponsor offer."
 	var item_id: String = _visit.offers.get(command.offer, "")
 	if not SeasonSponsorCatalog.catalog(_sponsor_catalog_version()).has(item_id):
 		return "This sponsor offer is no longer available."
+	var fields: Array = ["offer", "replace"]
+	if item_id == "J10":
+		fields.append("student")
+		if (
+			not command.get("student") is String
+			or not SeasonSchoolSponsors.eligible_student(self, command.student)
+		):
+			return "Choose an eligible undeveloped student (unapproved Proposal)."
+	if not _keys(command, fields):
+		return "Review the exact sponsor and nomination."
 	# Reject same-identity replacement before sale can temporarily remove it.
 	if not SeasonSponsorCatalog.eligible(_bank.view().sponsors).has(item_id):
 		return "That sponsor is already active."
@@ -846,11 +843,16 @@ func _sponsor_transaction(command: Dictionary) -> String:
 	)
 	if not bought.ok:
 		return bought.error
+	_scholarships.erase(command.replace)
+	if item_id == "J10":
+		_scholarships["sponsor-purchase:%d" % revision()] = {"player": command.student, "uses": 3}
 	_visit.offers.erase(command.offer)
 	return ""
 
 
 func _sponsor_catalog_version() -> int:
+	if _format >= 11 and _visit.number >= _school_sponsor_from:
+		return 6
 	if _format >= 10 and _visit.number >= _shop_sponsor_from:
 		return 5
 	if _format >= 9 and _visit.number >= _field_sponsor_from:
@@ -882,4 +884,6 @@ func migrate() -> void:
 		_field_sponsor_from = next_visit
 	if _format < 10:
 		_shop_sponsor_from = next_visit
+	if _format < 11:
+		_school_sponsor_from = next_visit
 	_format = VERSION

@@ -1,5 +1,14 @@
 # Implementation Status
 
+## Three connected development sponsors, 2026-09-29
+
+Open Book Tutors, Union Hall and Summer School now include paid ownership, exact targeting,
+nonstacking concessions, remaining-use/credit review, retirement and atomic persistence.
+Thirteen of35 sponsors are implemented. Schema15/build11 preserves existing paid saves and
+current-visit generation. Working contracts and explicit unapproved acquisition/eligibility
+Proposals remain distinct from Approved ownership. Native visual and human feel/economy
+acceptance remain open; automated UI and physical-game evidence is in VERIFICATION.md.
+
 ## Reclamation and exact-copy use, 2026-09-29
 
 Reclamation Station now includes actual first-release receipt capture, completed-game use,
@@ -171,7 +180,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 57% implemented**, after Reclamation and exact-copy use (56% after
+**Approximately 59% implemented**, after the three development sponsors (57% after
+Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
 Strikecraft sequence recovery;54% after
 Deli/College;53% after income
@@ -186,14 +196,14 @@ human-approved or release-ready merely because their code runs.
 | Core sport, AI and match presentation | 20 | 17 |
 | Season flow and persistence | 8 | 7 |
 | Ownership and economy | 8 | 6.5 |
-| Player development and mastery | 10 | 8 |
-| Shop, packs and recruitment | 12 | 7 |
+| Player development and mastery | 10 | 8.5 |
+| Shop, packs and recruitment | 12 | 7.5 |
 | Gear, tactical cards and abilities | 10 | 5 |
-| Sponsors | 10 | 5.5 |
+| Sponsors | 10 | 6.5 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **57** |
+| **Total** | **100** | **59** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

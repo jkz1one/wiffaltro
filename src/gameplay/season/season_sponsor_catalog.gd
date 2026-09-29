@@ -138,8 +138,53 @@ const SHOP_ITEMS: Dictionary = {
 	}
 }
 
+const SCHOOL_ITEMS: Dictionary = {
+	"E06":
+	{
+		"name": "Union Hall",
+		"price": 10,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Three distinct club hitters in a completed game earn one 3-credit discount next eligible shop. "
+			+ "Unapproved Proposal: one loose development card (held or used), including mastery, "
+			+ "or fixed pack. "
+			+ "Consumed at purchase, not later use. Not Cash; expires on leaving; "
+			+ "no stacking with Summer School."
+		)
+	},
+	"F04":
+	{
+		"name": "Open Book Tutors",
+		"price": 10,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Once per visit, teach one offered non-Exotic lesson to two distinct eligible players. "
+			+ "Pay its price plus half rounded up. Preview both replacements; each retains "
+			+ "their own remembered mastery."
+		)
+	},
+	"J10":
+	{
+		"name": "Summer School Scholarships",
+		"price": 6,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Fix one student at purchase. Their next three immediate broad-stat purchases cost 4 less; "
+			+ "then retire, or retire on departure. Always 0 resale. No packs, holds, mastery or lessons. "
+			+ "Unapproved Proposal: no earned stats/mastery or generated catch-up at nomination. "
+			+ "Never stacks with Union."
+		)
+	}
+}
 
-static func catalog(version: int = 5) -> Dictionary:
+
+static func catalog(version: int = 6) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
@@ -149,6 +194,8 @@ static func catalog(version: int = 5) -> Dictionary:
 		result.merge(FIELD_ITEMS.duplicate(true))
 	if version >= 5:
 		result.merge(SHOP_ITEMS.duplicate(true))
+	if version >= 6:
+		result.merge(SCHOOL_ITEMS.duplicate(true))
 	return result
 
 
@@ -156,18 +203,20 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 5) -> String:
+static func signature(version: int = 6) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
 static func ownership_catalog() -> Dictionary:
 	var result: Dictionary = SeasonGearCatalog.ownership_catalog()
 	for id: String in catalog():
-		result[id] = {"kind": "sponsor", "price": item(id).price, "sale": "half"}
+		result[id] = {
+			"kind": "sponsor", "price": item(id).price, "sale": "zero" if id == "J10" else "half"
+		}
 	return result
 
 
-static func eligible(active: Array, version: int = 5) -> Dictionary:
+static func eligible(active: Array, version: int = 6) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:
@@ -197,3 +246,7 @@ static func earnings(active: Array, roster: Array, performance: Dictionary) -> D
 		if ITEMS.has(receipt.item):
 			result[receipt.item] = amounts[receipt.item]
 	return result
+
+
+static func resale(receipt: Dictionary) -> int:
+	return 0 if receipt.item == "J10" else floori(float(receipt.paid) / 2.0)

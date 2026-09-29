@@ -165,7 +165,10 @@ func _apply(next: Dictionary, command: Dictionary) -> String:
 				next.seen_offers.append(offer)
 			next.stock = command.offers.duplicate(true)
 		"buy":
-			if not _keys(command, ["id", "rev", "op", "offer", "replace", "discard"]):
+			var fields: Array = ["id", "rev", "op", "offer", "replace", "discard"]
+			if command.has("discount"):
+				fields.append("discount")
+			if not _keys(command, fields):
 				return "Invalid purchase."
 			var error: String = _discard(next, command.discard)
 			if not error.is_empty():
@@ -196,6 +199,9 @@ func _buy(next: Dictionary, command: Dictionary) -> String:
 		return "Offer unavailable or invalid replacement."
 	var item_id: String = next.stock[command.offer]
 	var item: Dictionary = _catalog[item_id]
+	var discount: Variant = command.get("discount", 0)
+	if not _whole(discount, 0, mini(3, item.price)) or (discount > 0 and item.kind != "held"):
+		return "Invalid held-card acquisition credit."
 	if not command.replace.is_empty():
 		var old: Dictionary = _owned(next, command.replace)
 		if old.is_empty() or old.kind != item.kind or item.kind == "held":
@@ -206,7 +212,10 @@ func _buy(next: Dictionary, command: Dictionary) -> String:
 		if not error.is_empty():
 			return error
 	var receipt: Dictionary = {
-		"id": command.id, "item": item_id, "kind": item.kind, "paid": int(item.price)
+		"id": command.id,
+		"item": item_id,
+		"kind": item.kind,
+		"paid": int(item.price) - int(discount)
 	}
 	if item.kind == "gear":
 		if not next.gear[item.slot].is_empty():

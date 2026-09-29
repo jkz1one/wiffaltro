@@ -1,5 +1,71 @@
 # Fast verification and playtest records
 
+## Open Book, Union Hall and Summer School, 2026-09-29
+
+Full Godot4.7.2 run `20260929T200659870520Z` passed50/53 checks. Its three failures were
+the new live-test setup and two income fixtures described below. Corrected focused runs
+supply passing evidence for all53 check types, including twelve complete physical games.
+This is combined evidence, not a single clean full-suite run. Fresh main remained
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420` and an ancestor of the rebuild branch;
+`docs/PROGRESSION_BLUEPRINT.md` remains identical to main.
+
+Focused Godot4.7.2 run `20260929T200753902085Z` passed9/9 checks: the two new
+school-sponsor scenes plus seven shared static/import gates. A genuinely paid Union Hall /
+Summer School club completed a physical game with127 play records,31 balls in play and
+four distinct credited hitters. Real completion awarded one next-shop credit; student state,
+credit and result replayed exactly. The fixture selects AI control for the paid home club
+before match initialization and drives the visitor as a passive hitter; it does not fabricate
+hits, represent human balance, or implement AI purchasing. Outro/restart checks also passed.
+
+The first new live-test attempt (`20260929T200545106322Z`) and the snapshot already taken by
+full run `20260929T200659870520Z` changed control sides after initialization. That test-only
+setup stalled before the first pitch, then accessed an absent credit key after the failed
+settlement and timed out. The fixture now selects its control side before initialization
+through a default-preserving shared test hook and reads failed-state credit defensively.
+No gameplay behavior or pass assertions were relaxed. Passing corrected evidence is above.
+
+The expanded pool also exhausted the old3,000-seed search for the income tests' three
+exact simultaneous sponsors, causing the full run's income contract/live fixtures to fail.
+The search now samples the unchanged real offer generator over up to30,000 seeds without
+rebuilding unrelated reward journals for each probe. Both tests still create actual seasons,
+earn funds, open the generated shop and buy all three at full price; no offers are injected
+into those saved fixtures and no income assertions were removed. Final focused run
+`20260929T201506976898Z` passed11/11: income contracts/UI, whole income game, school
+contracts/UI, paid development and seven shared gates. The corrected income game produced
+78 records and26 balls in play. The paid-pack selection
+label now says the pack is already paid rather than falsely claiming8 Cash after a discount.
+
+Final contract/UI run `20260929T201200574878Z` passed8/8, including the strengthened
+combined-price rollback and playoff/final-shop assertions. The preceding season-end run
+`20260929T201047776257Z` also passed8/8. Semifinal credit is usable in the playoff shop;
+after the final, no usable credit or shopping route exists, and injected post-final shop
+events fail history validation. Repeated qualifying games grant3 without banking/stacking.
+
+Contract and actual viewport tests cover two distinct lesson recipients, personal remembered
+mastery2/3, new mastery1, rounded half surcharge, one-offer consumption, invalid second-target
+rollback, cancellation, insufficient funds, retry, reroll and sell/rebuy allowance retention.
+Union uses three distinct current players' credited hits, not walks or one hitter's hit total;
+credit is spent at held/immediate/pack acquisition, not held use or pack choice/skip. Actual
+paid receipts record the discount. Sponsor sale and reroll retain granted credit; leaving
+expires it. Scholarship checks cover fixed nomination, catch-up exclusion, later growth,
+three discounted purchases, retirement, full-price fourth purchase and zero manual resale.
+
+Actual700×400 viewport clicks exercise nomination, paired target/replacement/mastery review,
+explicit Union-versus-Summer choice, exact Cash and remaining-use disclosure, canceled reviews,
+failed-save rollback with old bytes intact, successful reload and credit expiry on Back.
+The source-schema14 paid migration preserves old stock/receipts/current rerolls and activates
+catalogue6 next visit. Earlier focused runs `20260929T041122498773Z` (10/10) and
+`20260929T041324168644Z` (8/8) independently covered shared paid-shop/Reclamation behavior,
+actual combination UI and migration. The earlier line-length lint failures, including the final pack-label edit, were fixed.
+
+Native rendered visual approval remains pending under the recorded display-socket limitation;
+automated viewport/layout tests are not a substitute for human visual/feel/economy acceptance.
+Working prices/effects and explicit unapproved Union acquisition / Summer eligibility
+Proposals remain distinct from Approved ownership. Fresh main and historical Blueprint
+remain preserved. The prior intermittent engine-header-only exit cause remains unresolved.
+
+
+
 ## Reclamation Station and exact-copy use, 2026-09-29
 
 Full Godot4.7.2 run `20260929T035303413232Z` passed50/51 checks. The existing

@@ -29,7 +29,7 @@ func _run_match(run_seed: int) -> void:
 		lab._configured_match = _progression_fixture()
 		if run_seed == 67:
 			_equip_fixture(lab._configured_match)
-		lab._player_home = true
+		lab._player_home = _player_home_for_fixture()
 	add_child(lab)
 	lab._throw_number = run_seed * 1000
 	PitchBatLabFeelSupport.skip_match_presentation(lab)
@@ -166,3 +166,7 @@ func _check(condition: bool, message: String) -> void:
 
 func _observe_live_frame(_lab: PitchBatLab) -> void:
 	pass
+
+
+func _player_home_for_fixture() -> bool:
+	return true

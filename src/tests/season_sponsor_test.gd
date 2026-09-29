@@ -72,11 +72,13 @@ func _contracts() -> void:
 
 
 func _sponsor_seed(id: String, visit: int = 1, required: Array = []) -> int:
-	for seed_value in range(3000):
-		var build: SeasonBuild = SeasonBuild.new(seed_value, ROSTER)
-		for game in range(visit):
-			build.commit(_command(build, "reward", {"game": game, "win": true}))
-		build.commit(_command(build, "open"))
+	# Search only the real generator; callers still earn, open and pay through
+	# complete season journals. Expanded pools need more seeds for three exact offers.
+	var build: SeasonBuild = SeasonBuild.new(0, ROSTER)
+	build._visit.number = visit
+	for seed_value in range(30000):
+		build._seed = seed_value
+		build._visit["offers"] = build._offers(0)
 		if not required.is_empty():
 			var found: int = 0
 			for item_id: String in required:

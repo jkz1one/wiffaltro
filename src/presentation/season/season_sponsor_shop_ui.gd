@@ -18,7 +18,7 @@ static func active(window: SeasonShopWindow, wallet: Dictionary) -> void:
 					item.name,
 					item.rarity,
 					receipt.paid,
-					floori(float(receipt.paid) / 2),
+					SeasonSponsorCatalog.resale(receipt),
 					item.effect
 				]
 			)
@@ -36,7 +36,7 @@ static func active(window: SeasonShopWindow, wallet: Dictionary) -> void:
 						window._request("sponsor_sell", {"receipt": receipt.id}),
 						(
 							"Sell %s for %d Cash. Remove its future effect. Already settled income stays.\n%s"
-							% [item.name, floori(float(receipt.paid) / 2), item.effect]
+							% [item.name, SeasonSponsorCatalog.resale(receipt), item.effect]
 						)
 					)
 				)
@@ -75,8 +75,15 @@ static func _purchase(
 		label = "REPLACE " + previous.name
 		review += (
 			"\nSell %s for %d Cash. Remove: %s\nNo reserve retained."
-			% [previous.name, floori(float(old.paid) / 2), previous.effect]
+			% [previous.name, SeasonSponsorCatalog.resale(old), previous.effect]
 		)
+	if id == "J10":
+		var nominate: Button = window._button(
+			label + " • CHOOSE STUDENT", SeasonSchoolShopUI.students.bind(window, offer_id, old)
+		)
+		nominate.set_meta("sponsor_offer", offer_id)
+		nominate.set_meta("sponsor_replace", old.get("id", ""))
+		return
 	var button: Button = window._button(
 		label,
 		window._preview.bind(
@@ -89,6 +96,11 @@ static func _purchase(
 
 
 static func _timing(id: String) -> String:
+	if id in ["E06", "F04", "J10"]:
+		return (
+			"No guaranteed stock or Cash payout. Review exact recipients, prices "
+			+ "and remaining allowances before committing."
+		)
 	if id == "F05":
 		return (
 			"Accepted sale-trigger direction; price and transaction details remain Working. "

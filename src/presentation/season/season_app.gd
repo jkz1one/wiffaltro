@@ -96,7 +96,7 @@ func play_season_game() -> void:
 		notice = "Choose or skip your open development pack before the next game."
 		open_shop()
 		return
-	if season.build != null and SeasonReclamation.credit(season.build.view().shop) > 0:
+	if season.build != null and SeasonSchoolSponsors.has_credit(season.build.view().shop):
 		var rev: int = season.build.revision()
 		if not commit_shop({"id": "leave:%d" % rev, "rev": rev, "op": "leave_shop"}):
 			return
