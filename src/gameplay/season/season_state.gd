@@ -154,11 +154,14 @@ func make_match() -> MatchState:
 	)
 	player.pitcher_index = starter_index
 	player.fielder_index = fielder_index
+	if build != null:
+		match_state.gear_usage.equipped = SeasonReclamation.receipts(build.view().wallet)
 	return match_state
 
 
 func record_player_result(
-	fixture_id: int, away_runs: int, home_runs: int, performance: Dictionary = {}
+	fixture_id: int, away_runs: int, home_runs: int, performance: Dictionary = {},
+	used_gear: Array = []
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
@@ -175,6 +178,8 @@ func record_player_result(
 	}
 	if build != null and build.to_data().version >= 6:
 		command["performance"] = performance.duplicate(true)
+	if build != null and build.to_data().version >= 10 and not used_gear.is_empty():
+		command["used_gear"] = used_gear.duplicate()
 	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
 	if not reward.ok:
 		return false
@@ -186,6 +191,8 @@ func record_player_result(
 		result.club_roster.sort()
 	if not performance.is_empty():
 		result["performance"] = performance.duplicate(true)
+	if command.has("used_gear"):
+		result["used_gear"] = used_gear.duplicate()
 	results.append(result)
 	player_results.append(result.duplicate(true))
 	if phase == Phase.REGULAR:

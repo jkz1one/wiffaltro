@@ -34,6 +34,7 @@ var between_batters: bool = true
 var batter_timeout_used: bool = false
 var last_event: String = "Game ready"
 var winner_name: String = ""
+var gear_usage: MatchGearUsage = MatchGearUsage.new()
 var optics_mode: String = "normal"
 var _between_batters_before_pitch: bool = true
 var _pa_pitchers: Array[PlayerMatchState] = []
@@ -283,3 +284,5 @@ func note_pitch_released(recipe: StringName = &"", actual_paid: float = 0.0) -> 
 	if not _pa_pitchers.has(pitcher()):
 		_pa_pitchers.append(pitcher())
 	pitch_ledger.record(pitcher(), recipe, actual_paid)
+	if recipe != &"":
+		gear_usage.released()

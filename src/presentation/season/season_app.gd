@@ -96,6 +96,10 @@ func play_season_game() -> void:
 		notice = "Choose or skip your open development pack before the next game."
 		open_shop()
 		return
+	if season.build != null and SeasonReclamation.credit(season.build.view().shop) > 0:
+		var rev: int = season.build.revision()
+		if not commit_shop({"id": "leave:%d" % rev, "rev": rev, "op": "leave_shop"}):
+			return
 	# Commit lineup before starting; interruption restarts this fixture, not the season.
 	if not _checkpoint():
 		menu.show_hub()
@@ -163,7 +167,8 @@ func _commit_result() -> bool:
 	if not _result_recorded:
 		var state: MatchState = lab._match_state
 		if not season.record_player_result(
-			_fixture_id, state.away_team.runs, state.home_team.runs, state.performance.snapshot(state)
+			_fixture_id, state.away_team.runs, state.home_team.runs, state.performance.snapshot(state),
+			state.gear_usage.first_pitch
 		):
 			return false
 		_result_recorded = true

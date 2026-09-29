@@ -4,10 +4,11 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 9
+const VERSION: int = 10
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
+	"leave_shop",
 	"buy",
 	"use",
 	"discard",
@@ -41,6 +42,8 @@ var _sponsor_from: int = 1
 var _gameplay_sponsor_from: int = 1
 var _sequence_sponsor_from: int = 1
 var _field_sponsor_from: int = 1
+var _shop_sponsor_from: int = 1
+var _used_gear: Dictionary = {}
 var _income_by_game: Dictionary = {}
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
@@ -111,7 +114,13 @@ func view() -> Dictionary:
 	if visit.get("pack_status") == "sealed":
 		visit["choice_count"] = _pack_choices().size()
 		visit.erase("cards")
-	return {"revision": revision(), "wallet": _bank.view(), "shop": visit, "roster": roster()}
+	return {
+		"revision": revision(),
+		"wallet": _bank.view(),
+		"shop": visit,
+		"roster": roster(),
+		"used_gear": _used_gear.keys()
+	}
 
 
 func to_data() -> Dictionary:
@@ -145,6 +154,8 @@ func to_data() -> Dictionary:
 		data["sequence_sponsor_from"] = _sequence_sponsor_from
 	if _format >= 9:
 		data["field_sponsor_from"] = _field_sponsor_from
+	if _format >= 10:
+		data["shop_sponsor_from"] = _shop_sponsor_from
 	return data
 
 
@@ -174,6 +185,8 @@ static func from_data(
 		keys.append("sequence_sponsor_from")
 	if value.version >= 9:
 		keys.append("field_sponsor_from")
+	if value.version >= 10:
+		keys.append("shop_sponsor_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -223,6 +236,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.field_sponsor_from, 1, 13):
 			return null
 		result._field_sponsor_from = int(value.field_sponsor_from)
+	if value.version >= 10:
+		if not SeasonOwnership._whole(value.shop_sponsor_from, 1, 13):
+			return null
+		result._shop_sponsor_from = int(value.shop_sponsor_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -265,6 +282,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_contracts = next._contracts
 	_recruits = next._recruits
 	_game_rosters = next._game_rosters
+	_used_gear = next._used_gear
 	_income_by_game = next._income_by_game
 	_appeared = next._appeared
 	return {"ok": true, "replayed": replayed}
@@ -316,6 +334,8 @@ func _fork() -> SeasonBuild:
 	result._gameplay_sponsor_from = _gameplay_sponsor_from
 	result._sequence_sponsor_from = _sequence_sponsor_from
 	result._field_sponsor_from = _field_sponsor_from
+	result._shop_sponsor_from = _shop_sponsor_from
+	result._used_gear = _used_gear.duplicate()
 	result._income_by_game = _income_by_game.duplicate(true)
 	result._bank = _bank.fork()
 	result._book = _book.fork()
@@ -327,12 +347,14 @@ func _fork() -> SeasonBuild:
 
 func _apply(command: Dictionary) -> String:
 	var op: String = str(command.get("op", ""))
-	if pack_pending() and op not in ["pack_pick", "pack_skip"]:
+	if pack_pending() and op not in ["pack_pick", "pack_skip", "leave_shop"]:
 		return "Choose or skip the open pack before leaving or doing other shopping."
 	if op == "reward":
 		var fields: Array = ["game", "win"]
 		if _format >= 6 and command.has("performance"):
 			fields.append("performance")
+		if _format >= 10 and command.has("used_gear"):
+			fields.append("used_gear")
 		if not _keys(command, fields) or _roster.size() != 4:
 			return "Invalid season reward."
 		var result: Dictionary = _bank.commit(
@@ -349,6 +371,12 @@ func _apply(command: Dictionary) -> String:
 		var error: String = _settle_sponsors(command)
 		if not error.is_empty():
 			return error
+		if _format >= 10:
+			error = SeasonReclamation.settle(
+				self, command.get("used_gear", []), command.get("performance", {})
+			)
+			if not error.is_empty():
+				return error
 		_game_rosters[int(command.game)] = roster()
 		_visit = {"number": _visit.number + 1, "open": false}
 		return ""
@@ -369,6 +397,10 @@ func _apply(command: Dictionary) -> String:
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"leave_shop":
+			if _format < 10 or not _keys(command, []):
+				return "Invalid shop departure."
+			_visit["reroll_credit"] = 0
 		"sponsor_buy", "sponsor_sell":
 			return _sponsor_transaction(command)
 		"equip", "sell_gear":
@@ -394,9 +426,11 @@ func _apply(command: Dictionary) -> String:
 		"reroll":
 			if not _keys(command, []):
 				return "Invalid reroll."
-			var error: String = _charge(4 + 2 * int(_visit.rerolls))
+			var error: String = _charge(SeasonReclamation.price(_visit))
 			if not error.is_empty():
 				return error
+			if _format >= 10:
+				_visit["reroll_credit"] = 0
 			_visit.rerolls += 1
 			_visit.offers = _offers(_visit.rerolls)
 		"pack_open":
@@ -589,9 +623,13 @@ static func _signature(format_version: int = VERSION) -> String:
 			":"
 			+ SeasonSponsorCatalog.signature(
 				(
-					4
-					if format_version >= 9
-					else (3 if format_version >= 8 else (2 if format_version >= 7 else 1))
+					5
+					if format_version >= 10
+					else (
+						4
+						if format_version >= 9
+						else (3 if format_version >= 8 else (2 if format_version >= 7 else 1))
+					)
 				)
 			)
 		)
@@ -686,6 +724,8 @@ func _gear_transaction(command: Dictionary) -> String:
 				"discard": []
 			}
 		)
+		if sale.ok and _format >= 10:
+			SeasonReclamation.sold(self, owned)
 		return "" if sale.ok else sale.error
 	if (
 		not _keys(command, ["offer", "replace"])
@@ -705,6 +745,7 @@ func _gear_transaction(command: Dictionary) -> String:
 	)
 	if not stocked.ok:
 		return stocked.error
+	var replaced: Dictionary = SeasonOwnership._owned(_bank.view(), command.replace)
 	var bought: Dictionary = _bank.commit(
 		{
 			"id": "purchase:%d" % revision(),
@@ -717,6 +758,8 @@ func _gear_transaction(command: Dictionary) -> String:
 	)
 	if not bought.ok:
 		return bought.error
+	if _format >= 10:
+		SeasonReclamation.sold(self, replaced)
 	_visit.offers.erase(command.offer)
 	return ""
 
@@ -808,6 +851,8 @@ func _sponsor_transaction(command: Dictionary) -> String:
 
 
 func _sponsor_catalog_version() -> int:
+	if _format >= 10 and _visit.number >= _shop_sponsor_from:
+		return 5
 	if _format >= 9 and _visit.number >= _field_sponsor_from:
 		return 4
 	if _format >= 8 and _visit.number >= _sequence_sponsor_from:
@@ -835,4 +880,6 @@ func migrate() -> void:
 		_sequence_sponsor_from = next_visit
 	if _format < 9:
 		_field_sponsor_from = next_visit
+	if _format < 10:
+		_shop_sponsor_from = next_visit
 	_format = VERSION

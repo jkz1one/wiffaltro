@@ -1,11 +1,42 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.46
+**Version:** v0.4.47
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Reclamation Station and receipt-specific use, 2026-09-29
+
+F05 Reclamation Station is now supported as an initially eligible Common at6 Cash.
+Ten of35 current sponsors are implemented. The controlling contract is Equipment/Sponsors
+v18 lines402–440: the used paid Gear sale/replacement direction is **Approved** by CLOSE-01;
+price and transaction details remain **Working**. Previous Proposals remain unapproved.
+
+The first qualifying sale or confirmed replacement of an equipped paid Bat, Ball or Misc
+in a shop visit awards ordinary half-paid-price resale plus2 toward the next individual
+offer reroll. The exact item instance must have been equipped at the first actual released
+pitch of a subsequently completed game. Qualification follows its paid receipt, persists
+until that copy is sold, and does not transfer to a newly purchased copy of the same item.
+Canceled windups, recipe-less legacy notifications, unfinished games and score-only results
+cannot establish use. Use can be earned before buying the sponsor; it must be active at sale.
+
+The2 credit is separate from Cash and cannot finance a replacement, development purchase,
+pack or recruiting action. The next ordinary paid reroll consumes it once and pays any
+remaining price; underlying4/6/8... escalation and fixed pack/recruit stock are unchanged.
+No stacking or second award that visit. Selling/rebuying the sponsor does not reset the
+allowance; selling it after award preserves the credit. Leaving the shop expires unused
+credit, with failure to save keeping the shop and previous state open for retry. Reloading
+a saved shop preserves its credit/used flags and never renews the allowance.
+
+Sale/replacement review separates proceeds from credit, equipped rows show copy-specific
+use qualification, and reroll review shows base price and credit separately. A later declined
+reroll does not undo the prior Gear sale. Old saves retain stock, receipts and current-visit
+rerolls; schema14/build10 enables catalogue5 next visit. Old game results cannot retroactively
+invent first-pitch receipt evidence. This does not add AI shopping or offscreen Gear usage.
+Native rendered visual, human feel and economy acceptance remain open.
+
 
 ## Courier, Optics and Trainers, 2026-09-29
 

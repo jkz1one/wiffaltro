@@ -79,9 +79,19 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
-			+ "Nine Working sponsors; earned tiers and other sponsors pending."
+			+ "Ten supported sponsors; earned tiers and other sponsors pending."
 		)
 	)
+	if SeasonReclamation.credit(shop) > 0:
+		_label(
+			(
+				(
+					"Reclamation: %d reroll credit, separate from Cash. Expires on leaving. "
+					% SeasonReclamation.credit(shop)
+				)
+				+ "No further award this visit, even if the sponsor is sold or bought again."
+			)
+		)
 	_label(_notice)
 	if shop.pack_status == "open":
 		_label("Choose one revealed card, then its recipient. The pack's 8 Cash is already paid.")
@@ -114,8 +124,17 @@ func _refresh() -> void:
 				)
 				_button("BUY AND HOLD", _preview.bind(hold, "Hold " + item.name))
 		_button(
-			"Reroll individual offers • %d Cash" % (4 + 2 * shop.rerolls),
-			_preview.bind(_request("reroll"), "Reroll four offers; pack stays fixed")
+			"Reroll individual offers • %d Cash" % SeasonReclamation.price(shop),
+			_preview.bind(
+				_request("reroll"),
+				(
+					(
+						"Reroll four offers; pack stays fixed. Base price %d; credit %d. "
+						% [4 + 2 * shop.rerolls, SeasonReclamation.credit(shop)]
+					)
+					+ "Consumes the credit; future base prices still escalate normally."
+				)
+			)
 		)
 		if shop.pack_status == "sealed":
 			var pack_button: Button = _button(
@@ -300,6 +319,7 @@ func _preview(command: Dictionary, description: String) -> void:
 			):
 				if String(pitch.id) == command.pitch:
 					effect = PitchMastery.next_effect(pitch)
+	description += SeasonReclamation.review(app.season.build.view().shop, result.after.shop)
 	_review_text.text = (
 		"%s\nCash: %d → %d\nHeld: %d → %d\n%s\nConfirm and save?"
 		% [
@@ -332,6 +352,11 @@ func _request(op: String, fields: Dictionary = {}) -> Dictionary:
 
 
 func _close() -> void:
+	if SeasonReclamation.credit(app.season.build.view().shop) > 0:
+		if not app.commit_shop(_request("leave_shop")):
+			_notice = app.notice
+			_refresh()
+			return
 	app.show_season()
 	queue_free()
 

@@ -89,12 +89,23 @@ static func _purchase(
 
 
 static func _timing(id: String) -> String:
+	if id == "F05":
+		return (
+			"Accepted sale-trigger direction; price and transaction details remain Working. "
+			+ "Active at sale, not necessarily during play. Exact paid Bat/Ball/Misc copy must "
+			+ "have been equipped at first pitch of a completed game. No abandoned-game credit. "
+			+ "Buying another copy never inherits use. No value unless you reroll before leaving."
+		)
 	if id == "F03":
-		return ("Match effect, no Cash payout. Choose before confirming each at-bat. "
-			+ "Defaults to normal. Gear applies first; ordinary contact quality uses the new ellipse.")
+		return (
+			"Match effect, no Cash payout. Choose before confirming each at-bat. "
+			+ "Defaults to normal. Gear applies first; ordinary contact quality uses the new ellipse."
+		)
 	if id in ["F02", "G04"]:
-		return ("Match effect, no Cash payout. Only existing legal tag races change. "
-			+ "Courier and opposing Trackside modify different parts of the same timing comparison.")
+		return (
+			"Match effect, no Cash payout. Only existing legal tag races change. "
+			+ "Courier and opposing Trackside modify different parts of the same timing comparison."
+		)
 	if id == "B03":
 		return (
 			"Match effect, no Cash payout. Repeated pitches and later distinct recipes "

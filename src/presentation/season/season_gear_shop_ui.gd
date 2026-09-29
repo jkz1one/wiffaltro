@@ -24,6 +24,13 @@ static func equipped(window: SeasonShopWindow, gear: Dictionary) -> void:
 				]
 			)
 		)
+		window._label(
+			(
+				"Used through a completed game: eligible for Reclamation while active."
+				if window.app.season.build.view().used_gear.has(receipt.id)
+				else "This copy has no completed-game use yet; Reclamation gives no credit on sale."
+			)
+		)
 		var button: Button = window._button(
 			"SELL " + item.name,
 			window._preview.bind(

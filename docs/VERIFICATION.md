@@ -1,5 +1,56 @@
 # Fast verification and playtest records
 
+## Reclamation Station and exact-copy use, 2026-09-29
+
+Full Godot4.7.2 run `20260929T035303413232Z` passed50/51 checks. The existing
+season-field-sponsor-live process exited0 after its engine header without a completion
+marker or script error. The runner rejected it. Focused `20260929T035519308754Z` passed9/9,
+including that complete physical game, Reclamation and seven shared gates. All51 check
+types therefore have passing evidence across runs, including eleven complete physical
+games. This is not described as a single clean full-suite run. The prior intermittent
+Godot early-exit cause remains unresolved; no automatic retry hides it.
+
+Final-source focused `20260929T035732208881Z` passed8/8, including coherent restored season/
+player result evidence and tamper rejection. Managed result retry and paid-shop UI also
+passed9/9 in `20260929T035422731259Z`. The initial new fixture run
+`20260929T035032752368Z` timed out after a wrong test-helper name prevented its script from
+loading; `_button_text` was corrected to the inherited `_button`, and all subsequent new
+contract/UI runs completed. Earlier combined new-contract/live run
+`20260929T035121592278Z` passed9/9. No production behavior was relaxed to make the test pass.
+
+Receipt checks cover pregame/non-release/canceled/legacy notifications, first actual release,
+immutable first-pitch snapshot, unfinished/abandoned games, and fresh restart. Completed
+reward validation rejects foreign, duplicate, wrong-current-copy and score-only evidence
+atomically. Both saved history/result views retain the same evidence, and result/journal
+mismatches are rejected. A full actual paid-season physical match produced142 records and
+32 balls in play over five innings; real first-release IDs settled at completion, sold into
+one credit, survived reload, and did not survive match restart as live evidence.
+
+Economy checks cover ordinary unused Gear resale without credit; qualifying sale; once-only
+retries; separate resale Cash; credit retention after sponsor sale; departure expiry without
+renewing allowance; reload of awarded/consumed flags; a discounted4→2 first reroll followed
+by an undiscounted6 second reroll; fixed pack/recruit stock; second qualified sale refusal;
+and next-visit reset. Actual paid replacement stock verifies full-price receipts and no
+use inheritance. An isolated low-Cash primitive confirms prospective credit cannot finance
+a replacement. Unit boundaries cover all three Gear slots, positive1-Cash purchases with
+rounded-zero resale, free/default exclusions and new instance IDs. These synthetic boundary
+fixtures are not saved as fabricated production transactions.
+
+Actual viewport UI tests exercise6-Cash sponsor purchase, ordinary rollback/reload/resale,
+700×400 and1000×650 shop bounds, separate credit disclosure, sale cancellation, failed sale
+save with old bytes intact, declined reroll retaining credit, and failed/successful Back
+expiry. A managed-game release test refuses unfinished settlement, then exercises the
+completed-result recorded/saved retry flow: one result, one receipt qualification, durable
+reload. A genuine paid schema13 Optics save retains stock/cash/current rerolls, introduces
+catalogue5 next visit, and never invents historical first-pitch use.
+
+Fresh main remains `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, preserved as an ancestor.
+Historical PROGRESSION_BLUEPRINT.md is unchanged. Reclamation's sale-trigger direction is
+Approved; price/transaction details are Working and previous Proposals remain unapproved.
+Native rendered visual, human feel and economy acceptance remain pending under the recorded
+display-socket limitation. No AI shopping/offscreen usage or profitability claim is made.
+
+
 ## Courier, Optics and Trainers, 2026-09-29
 
 Full Godot4.7.2 run `20260929T032545517840Z` passed48/49 checks. The sole failure was an

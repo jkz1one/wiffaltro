@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.37
+**Version:** v0.1.38
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,36 @@
 ---
 
 # 1. Technical Objective
+
+## Used Gear and transactional reroll credit, 2026-09-29
+
+`MatchGearUsage` captures detached paid receipt IDs on the first actual recipe-bearing
+release through MatchState's existing launch notification. SeasonState configures the
+player club's equipped receipts, independent of which team pitches first; midgame shopping
+remains prohibited. Abandon/restart produces a new empty usage record. Only completed
+SeasonApp settlement passes the first-pitch evidence into the reward journal/result.
+The existing recorded-versus-saved retry flags prevent duplicate completion on save retry.
+
+`SeasonReclamation` validates at most three distinct receipt IDs against the current paid
+loadout and nonempty validated completed-game performance. SeasonBuild derives `_used_gear`
+by replay, never from a standalone editable used flag. Sale removes that receipt's use
+state. Successful sale/replacement alone can award a visit credit; failed candidates never
+publish their wallet, use or credit mutation. Sponsor ownership is checked at sale time.
+
+Visit fields `reclamation_used` and `reroll_credit` are derived from journal events and
+retained through forks/replay. Ordinary reroll charges base minus credit, then clears it
+while preserving the escalating counter. `leave_shop` clears only the unused credit, not
+the visit allowance or offers. Back/window close and direct game-start paths checkpoint
+expiry before departure; a failed write retains the shop and credit. Open packs keep their
+existing resolution requirements. Credit is excluded from every purchase budget.
+
+Build10/schema14 adds sponsor catalogue5 and `shop_sponsor_from`. Prior catalogue hashes
+and current-visit generation remain frozen. Saved result receipt evidence must exactly
+match its reward event, whose replay checks actual ownership; foreign/duplicate evidence
+is rejected. Reconstructed history cannot grant usage merely from a final score. Existing
+older games preserve their old state rather than retroactively qualifying Gear. No AI
+acquisition, offscreen release fabrication or permanent item inventory is introduced.
+
 
 ## Field sponsors and Contact shape selection, 2026-09-29
 

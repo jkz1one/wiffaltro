@@ -122,8 +122,24 @@ const FIELD_ITEMS: Dictionary = {
 	}
 }
 
+const SHOP_ITEMS: Dictionary = {
+	"F05":
+	{
+		"name": "Reclamation Station",
+		"price": 6,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"First sale or replacement of paid Gear used from first pitch through a completed game "
+			+ "earns 2 reroll credit per visit, plus ordinary resale. Credit is not Cash, "
+			+ "cannot fund purchases, and expires on leaving. Selling this sponsor does not renew the limit."
+		)
+	}
+}
 
-static func catalog(version: int = 4) -> Dictionary:
+
+static func catalog(version: int = 5) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
@@ -131,6 +147,8 @@ static func catalog(version: int = 4) -> Dictionary:
 		result.merge(SEQUENCE_ITEMS.duplicate(true))
 	if version >= 4:
 		result.merge(FIELD_ITEMS.duplicate(true))
+	if version >= 5:
+		result.merge(SHOP_ITEMS.duplicate(true))
 	return result
 
 
@@ -138,7 +156,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 4) -> String:
+static func signature(version: int = 5) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -149,7 +167,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 4) -> Dictionary:
+static func eligible(active: Array, version: int = 5) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:
