@@ -362,7 +362,8 @@ static func refresh_event(lab: PitchBatLab) -> void:
 		lab._event_panel.size = Vector2(640.0, 142.0)
 		lab._status_label.position = Vector2(8.0, 4.0)
 		lab._status_label.size = Vector2(624.0, 134.0)
-	lab._status_label.add_theme_font_size_override("font_size", 12 if routine else 26)
+	var event_font_size: int = 18 if event_text.contains("Tag + margin / return") else 26
+	lab._status_label.add_theme_font_size_override("font_size", 12 if routine else event_font_size)
 	lab._status_label.add_theme_constant_override("outline_size", 3 if routine else 5)
 	lab._status_label.add_theme_color_override(
 		"font_outline_color", Color(0.025, 0.055, 0.085, 1.0)
@@ -481,6 +482,7 @@ static func refresh_markers(lab: PitchBatLab) -> void:
 				0.82, 1.18, float(lab._match_state.batter().definition.contact) / 10.0
 			)
 		lab._batting_aim_marker.scale = Vector3(contact_factor, contact_factor, 1.0)
+		MatchSponsorControls.refresh_ellipse(lab)
 	var normalized_batting_aim: Vector2 = Vector2(
 		inverse_lerp(lab.BATTING_AIM_MIN_X, lab.BATTING_AIM_MAX_X, lab._batting_aim.x) * 2.0 - 1.0,
 		inverse_lerp(lab.BATTING_AIM_MIN_Y, lab.BATTING_AIM_MAX_Y, lab._batting_aim.y) * 2.0 - 1.0
@@ -827,6 +829,10 @@ static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	roster_controls.name = "RosterControls"
 	roster_controls.build(lab, canvas)
 	canvas.add_child(roster_controls)
+	var sponsors: MatchSponsorControls = MatchSponsorControls.new()
+	sponsors.name = "SponsorControls"
+	sponsors.build(lab, canvas)
+	canvas.add_child(sponsors)
 
 
 static func _refresh_field_setup(lab: PitchBatLab) -> void:

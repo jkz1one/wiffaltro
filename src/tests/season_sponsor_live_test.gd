@@ -8,7 +8,9 @@ var _played_state: MatchState
 
 func _ready() -> void:
 	var fixture: Node = SponsorFixtures.new()
-	_season = fixture._funded_season(fixture._sponsor_seed("", 3, true), 3)
+	_season = fixture._funded_season(
+		fixture._sponsor_seed("", 3, SeasonSponsorCatalog.ITEMS.keys()), 3
+	)
 	for id: String in SeasonSponsorCatalog.ITEMS:
 		_check(
 			(

@@ -556,7 +556,13 @@ func _try_primary_fielder() -> void:
 		_ball_play_resolver.state.has_grounded,
 		_primary_fielder.fielding_rating,
 		_primary_fielder.last_reaction_margin_seconds,
-		_primary_fielder.handling_scale
+		_primary_fielder.handling_scale,
+		(
+			SeasonSponsorEffects.ground_margin(
+				_match_state.fielder().definition, _ball_play_resolver.state.has_grounded
+			)
+			if _match_mode else 0.0
+		)
 	)
 	_primary_attempts += 1
 	_apply_fielding_outcome(&"primary_fielder", _primary_fielder.global_position, outcome)
@@ -631,8 +637,16 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 				if _ball_play_resolver.state.last_defender_touch == &"pitcher"
 				else _primary_fielder.fielding_rating
 			)
+			var gather_scale: float = 1.0
+			var travel_scale: float = 1.0
+			if _match_mode:
+				var catcher: PlayerDefinition = _match_state.fielder().definition
+				if _ball_play_resolver.state.last_defender_touch == &"pitcher":
+					catcher = _match_state.pitcher().definition
+				gather_scale = SeasonSponsorEffects.gather_scale(catcher)
+				travel_scale = SeasonSponsorEffects.tag_scale(_match_state.batter().definition)
 			var tag_result: TagAdvanceResult = TagAdvanceResolver.resolve(
-				_base_state, outcome.resolution_position, defender_rating
+				_base_state, outcome.resolution_position, defender_rating, gather_scale, travel_scale
 			)
 			runs_scored = tag_result.runs_scored
 			advancement_text = tag_result.description

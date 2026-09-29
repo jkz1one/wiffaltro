@@ -71,18 +71,18 @@ func _contracts() -> void:
 	_check(state.performance.snapshot(state)[batter].bb == 1, "actual fourth ball credits one walk")
 
 
-func _sponsor_seed(id: String, visit: int = 1, all_items: bool = false) -> int:
+func _sponsor_seed(id: String, visit: int = 1, required: Array = []) -> int:
 	for seed_value in range(3000):
 		var build: SeasonBuild = SeasonBuild.new(seed_value, ROSTER)
 		for game in range(visit):
 			build.commit(_command(build, "reward", {"game": game, "win": true}))
 		build.commit(_command(build, "open"))
-		if all_items:
+		if not required.is_empty():
 			var found: int = 0
-			for item_id: String in SeasonSponsorCatalog.ITEMS:
+			for item_id: String in required:
 				if not _offer(build, item_id).is_empty():
 					found += 1
-			if found == 3:
+			if found == required.size():
 				return seed_value
 		elif not _offer(build, id).is_empty():
 			return seed_value
@@ -103,7 +103,9 @@ func _funded_season(seed_value: int, count: int = 1) -> SeasonState:
 func _transactions_and_migration() -> void:
 	var path: String = "user://sponsor-contract-%d.json" % OS.get_process_id()
 	SeasonSave.path = path
-	var season: SeasonState = _funded_season(_sponsor_seed("", 3, true), 3)
+	var season: SeasonState = _funded_season(
+		_sponsor_seed("", 3, SeasonSponsorCatalog.ITEMS.keys()), 3
+	)
 	var build: SeasonBuild = season.build
 	for id: String in SeasonSponsorCatalog.ITEMS:
 		var purchase: Dictionary = _command(
@@ -341,7 +343,7 @@ func _replacement_and_retry_ui() -> void:
 	var app: SeasonApp = SeasonApp.new()
 	add_child(app)
 	await _frames()
-	app.season = _funded_season(_sponsor_seed("", 1, true))
+	app.season = _funded_season(_sponsor_seed("", 1, ["D01", "A08"]))
 	_check(app._checkpoint(), "checkpoint before replacement")
 	app.open_shop()
 	await _frames()

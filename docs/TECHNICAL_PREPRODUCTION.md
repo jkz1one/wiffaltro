@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.36
+**Version:** v0.1.37
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,38 @@
 ---
 
 # 1. Technical Objective
+
+## Field sponsors and Contact shape selection, 2026-09-29
+
+SeasonSponsorCatalog generation4 adds F02/F03/G04 without altering generations1–3.
+SeasonBuild9 journals `field_sponsor_from`; schema13 validates/replays old builds and
+migrates only missing eligibility gates. Paid active ownership still produces detached
+player-definition match snapshots. No independent sponsor state is accepted from a save.
+
+MatchState stores the current `optics_mode`, resetting it on every completed PA.
+SeasonSponsorEffects validates the existing between-batters boundary and ownership;
+MatchSponsorControls further gates the human control by readiness, PRE_PITCH, presentation,
+pause and uncommitted AI selection. A focusable button cycles neutral/wide/tall. Its cyan
+unit-circle mesh is scaled by the exact Gear-then-Optics Contact radii; the existing marker
+parent applies the ordinary Contact rating factor. Only owned Optics replaces the old
+Contact rectangle. Power and unowned baseline presentation remain unchanged. Actual human
+and AI swings already share the modified profile path; no future-pitch data informs choices.
+
+FieldingResolver accepts an optional final control-margin adjustment after physical gates
+and existing positive handling-difficulty scaling. Only the Primary Fielder grounded hook
+passes Courier's−0.08; PitcherDefense remains a neutral caller. TagAdvanceResolver receives
+separate gather/travel scales through the existing caught-air/non-third-out hook, identifies
+the actual catcher, and uses the batting club's Trainers. Its result exposes effective times
+for contract tests and on-screen explanation. The extended tag result uses18-point event
+text to retain all lines inside the existing panel; ordinary event sizing stays unchanged.
+
+Tests cover real viewport mouse/keyboard selection, shape locking/reset/ownership, ellipse
+scale, paid UI/rollback/reload/resale, old paid schema12 migration and frozen rerolls,
+marginal live tag outcomes for both catcher roles, ground/third-out exclusions, actual
+empty-base Primary control and neutral Pitcher ground control. A tenth complete physical
+game combines these three sponsors with existing Gear; its synthetic opposing ownership
+and explicit pre-PA choices are test fixtures, not implemented AI purchase/choice policies.
+
 
 ## Actual pitch-cost ledger and Strikecraft, 2026-09-28
 

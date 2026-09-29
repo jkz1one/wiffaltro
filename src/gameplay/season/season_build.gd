@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 8
+const VERSION: int = 9
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -40,6 +40,7 @@ var _mapped_gear_from: int = 1
 var _sponsor_from: int = 1
 var _gameplay_sponsor_from: int = 1
 var _sequence_sponsor_from: int = 1
+var _field_sponsor_from: int = 1
 var _income_by_game: Dictionary = {}
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
@@ -142,6 +143,8 @@ func to_data() -> Dictionary:
 		data["gameplay_sponsor_from"] = _gameplay_sponsor_from
 	if _format >= 8:
 		data["sequence_sponsor_from"] = _sequence_sponsor_from
+	if _format >= 9:
+		data["field_sponsor_from"] = _field_sponsor_from
 	return data
 
 
@@ -169,6 +172,8 @@ static func from_data(
 		keys.append("gameplay_sponsor_from")
 	if value.version >= 8:
 		keys.append("sequence_sponsor_from")
+	if value.version >= 9:
+		keys.append("field_sponsor_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -214,6 +219,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.sequence_sponsor_from, 1, 13):
 			return null
 		result._sequence_sponsor_from = int(value.sequence_sponsor_from)
+	if value.version >= 9:
+		if not SeasonOwnership._whole(value.field_sponsor_from, 1, 13):
+			return null
+		result._field_sponsor_from = int(value.field_sponsor_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -306,6 +315,7 @@ func _fork() -> SeasonBuild:
 	result._sponsor_from = _sponsor_from
 	result._gameplay_sponsor_from = _gameplay_sponsor_from
 	result._sequence_sponsor_from = _sequence_sponsor_from
+	result._field_sponsor_from = _field_sponsor_from
 	result._income_by_game = _income_by_game.duplicate(true)
 	result._bank = _bank.fork()
 	result._book = _book.fork()
@@ -578,7 +588,11 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += (
 			":"
 			+ SeasonSponsorCatalog.signature(
-				3 if format_version >= 8 else (2 if format_version >= 7 else 1)
+				(
+					4
+					if format_version >= 9
+					else (3 if format_version >= 8 else (2 if format_version >= 7 else 1))
+				)
 			)
 		)
 	return base
@@ -794,6 +808,8 @@ func _sponsor_transaction(command: Dictionary) -> String:
 
 
 func _sponsor_catalog_version() -> int:
+	if _format >= 9 and _visit.number >= _field_sponsor_from:
+		return 4
 	if _format >= 8 and _visit.number >= _sequence_sponsor_from:
 		return 3
 	return 2 if _format >= 7 and _visit.number >= _gameplay_sponsor_from else 1
@@ -817,4 +833,6 @@ func migrate() -> void:
 		_gameplay_sponsor_from = next_visit
 	if _format < 8:
 		_sequence_sponsor_from = next_visit
+	if _format < 9:
+		_field_sponsor_from = next_visit
 	_format = VERSION

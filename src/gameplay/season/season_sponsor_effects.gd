@@ -6,7 +6,7 @@ extends RefCounted
 static func snapshot(active: Array, book: SeasonDevelopment, roster: Array) -> Dictionary:
 	var result: Dictionary = {}
 	for receipt: Dictionary in active:
-		if receipt.item in ["A07", "B03"]:
+		if receipt.item in ["A07", "B03", "F02", "F03", "G04"]:
 			result[receipt.item] = true
 		elif receipt.item == "B02":
 			result.B02 = mini(4, book.earned_players(roster).size())
@@ -29,6 +29,10 @@ static func swing(source: SwingProfileDefinition, state: MatchState) -> SwingPro
 		# once-only multiplicative penalty, including when the Bat penalty is offset.
 		var misc: Dictionary = SeasonGearCatalog.item(player.season_gear.get("misc", ""))
 		result.gear_fair_exit_scale += 0.04 * float(misc.get("exit", 1.0))
+	if source.id == &"swing.contact" and player.season_sponsors.get("F03", false):
+		var axes: Vector2 = optics_axes(state.optics_mode)
+		result.contact_radius_x_m *= axes.x
+		result.contact_radius_y_m *= axes.y
 	return result
 
 
@@ -52,3 +56,32 @@ static func strikeout(state: MatchState) -> void:
 	pitcher.stamina_remaining = minf(pitcher.stamina_max, before + amount)
 	team.strikecraft_uses += 1
 	team.strikecraft_refunded += pitcher.stamina_remaining - before
+
+
+static func optics_axes(mode: String) -> Vector2:
+	if mode == "wide":
+		return Vector2(1.10, 0.90)
+	if mode == "tall":
+		return Vector2(0.90, 1.10)
+	return Vector2.ONE
+
+
+static func choose_optics(state: MatchState, mode: String) -> bool:
+	if mode not in ["normal", "wide", "tall"] or not state.can_change_defense():
+		return false
+	if not state.batter().definition.season_sponsors.get("F03", false):
+		return false
+	state.optics_mode = mode
+	return true
+
+
+static func ground_margin(player: PlayerDefinition, grounded: bool) -> float:
+	return -0.08 if grounded and player.season_sponsors.get("F02", false) else 0.0
+
+
+static func gather_scale(player: PlayerDefinition) -> float:
+	return 0.75 if player.season_sponsors.get("F02", false) else 1.0
+
+
+static func tag_scale(player: PlayerDefinition) -> float:
+	return 0.88 if player.season_sponsors.get("G04", false) else 1.0

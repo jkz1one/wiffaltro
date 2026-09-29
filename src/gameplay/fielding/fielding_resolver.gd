@@ -18,7 +18,8 @@ static func resolve(
 	has_grounded: bool,
 	fielding_rating: int,
 	reaction_margin_seconds: float = 0.0,
-	handling_scale: float = 1.0
+	handling_scale: float = 1.0,
+	control_bonus: float = 0.0
 ) -> Outcome:
 	var rating: float = clampf(float(fielding_rating), 0.0, 10.0)
 	var allowed_height: float = (
@@ -38,7 +39,7 @@ static func resolve(
 	# Negative reaction credit is preserved; no new roll or automatic control.
 	difficulty += maxf(0.0, difficulty) * (handling_scale - 1.0)
 	var skill: float = 0.50 + rating * 0.095
-	var control_margin: float = skill - difficulty
+	var control_margin: float = skill - difficulty + control_bonus
 
 	if control_margin >= 0.16:
 		return Outcome.CLEAN

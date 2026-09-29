@@ -1,5 +1,15 @@
 # Implementation Status
 
+## Courier, Optics and Trainers, 2026-09-29
+
+Three initial Common sponsors now include paid purchase/replacement/resale, shared match
+effects and schema13/build9 persistence. Optics has a pre-at-bat mouse/keyboard choice and
+actual Contact ellipse. Courier changes gather and Primary ground control; Trainers changes
+only the two legal tag travel times. Their opposition uses actual marginal race comparisons.
+Nine of35 sponsor candidates are implemented. Approved ownership, Working contracts and
+existing unapproved Proposals remain distinct. Native visual and human feel/balance
+acceptance, remaining sponsors/tactics, earned access and AI purchasing remain open.
+
 ## Strikecraft and actual-cost recovery, 2026-09-28
 
 The sixth supported sponsor, Strikecraft, uses actual released recipe IDs, paid stamina
@@ -152,7 +162,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 55% implemented**, after Strikecraft sequence recovery (54% after
+**Approximately 56% implemented**, after Courier/Optics/Trainers (55% after
+Strikecraft sequence recovery;54% after
 Deli/College;53% after income
 sponsors;50% after initial Gear mappings;48% after Kit/Gloves/Goggles;47% after first Gear;45% after recruitment;40% after
 paid development;35% before that). This is an estimate against the current full planned scope, not a
@@ -168,11 +179,11 @@ human-approved or release-ready merely because their code runs.
 | Player development and mastery | 10 | 8 |
 | Shop, packs and recruitment | 12 | 7 |
 | Gear, tactical cards and abilities | 10 | 5 |
-| Sponsors | 10 | 4 |
+| Sponsors | 10 | 5 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **55** |
+| **Total** | **100** | **56** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

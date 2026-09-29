@@ -79,13 +79,58 @@ const SEQUENCE_ITEMS: Dictionary = {
 	}
 }
 
+const FIELD_ITEMS: Dictionary = {
+	"F02":
+	{
+		"name": "Express Courier",
+		"price": 8,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Clean airborne catches reduce tag-return gather time by 25%. "
+			+ "Your Primary Fielder loses 0.08 ground-control margin, even with bases empty. "
+			+ "Pitcher ground control, throw speed and tag eligibility stay unchanged."
+		)
+	},
+	"F03":
+	{
+		"name": "Split Decision Optics",
+		"price": 10,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Before each at-bat choose normal, wide or tall Contact coverage. "
+			+ "Wide multiplies width by 1.10 and height by 0.90; tall reverses them. "
+			+ "Locked through the at-bat. Power and timing stay unchanged; ordinary Contact "
+			+ "quality still determines exit speed."
+		)
+	},
+	"G04":
+	{
+		"name": "Trackside Trainers",
+		"price": 8,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Your runners take 12% less time on legal second-to-third and third-to-home "
+			+ "tags after airborne catches. No first-to-second tags, groundout advancement "
+			+ "or hit/walk bonus. Ordinary safety margin and third-out rules still apply."
+		)
+	}
+}
 
-static func catalog(version: int = 3) -> Dictionary:
+
+static func catalog(version: int = 4) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
 	if version >= 3:
 		result.merge(SEQUENCE_ITEMS.duplicate(true))
+	if version >= 4:
+		result.merge(FIELD_ITEMS.duplicate(true))
 	return result
 
 
@@ -93,7 +138,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 3) -> String:
+static func signature(version: int = 4) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -104,7 +149,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 3) -> Dictionary:
+static func eligible(active: Array, version: int = 4) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:

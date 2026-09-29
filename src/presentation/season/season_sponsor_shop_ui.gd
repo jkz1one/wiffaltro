@@ -89,6 +89,12 @@ static func _purchase(
 
 
 static func _timing(id: String) -> String:
+	if id == "F03":
+		return ("Match effect, no Cash payout. Choose before confirming each at-bat. "
+			+ "Defaults to normal. Gear applies first; ordinary contact quality uses the new ellipse.")
+	if id in ["F02", "G04"]:
+		return ("Match effect, no Cash payout. Only existing legal tag races change. "
+			+ "Courier and opposing Trackside modify different parts of the same timing comparison.")
 	if id == "B03":
 		return (
 			"Match effect, no Cash payout. Repeated pitches and later distinct recipes "

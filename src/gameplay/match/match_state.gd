@@ -34,6 +34,7 @@ var between_batters: bool = true
 var batter_timeout_used: bool = false
 var last_event: String = "Game ready"
 var winner_name: String = ""
+var optics_mode: String = "normal"
 var _between_batters_before_pitch: bool = true
 var _pa_pitchers: Array[PlayerMatchState] = []
 var _deli_next_batter: bool = false
@@ -190,6 +191,7 @@ func _complete_plate_appearance(description: String, single: bool = false) -> vo
 		participant.first_batter_completed = true
 	_pa_pitchers.clear()
 	pitch_ledger.clear()
+	optics_mode = "normal"
 	last_event = description
 	batting_team().advance_batter()
 	plate_appearance_number += 1

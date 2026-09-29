@@ -1,5 +1,53 @@
 # Fast verification and playtest records
 
+## Courier, Optics and Trainers, 2026-09-29
+
+Full Godot4.7.2 run `20260929T032545517840Z` passed48/49 checks. The sole failure was an
+older replacement-UI fixture requiring all three income sponsors in the first shop within
+3000 seed attempts. Expanded catalogue4 made that unnecessary three-item prerequisite
+unreachable in the search; the resulting fixture failed its assertions. The replacement
+only requires D01 and A08, so the helper now accepts an explicit required set. It still
+uses actual generated paid stock, preserves every replacement/cash/rollback/retry assertion,
+and the three-income transaction and physical-game fixtures still require all three.
+
+Final focused run `20260929T032853129392Z` passed10/10: new field-sponsor contracts/UI,
+corrected income-sponsor contracts/UI, presentation-polish and seven shared static/import
+gates. It includes the final18-point tag explanation and panel-fit assertion, keyboard
+selection and clearer no-direct-exit-modifier disclosure. The adjusted three-income live
+fixture passed8/8 in `20260929T032938052978Z`. All49 check types have passing evidence across
+these runs, including ten complete physical games. This is not one clean full-suite run.
+The prior intermittent early-exit issue did not occur in these runs; its cause is still open.
+
+New contract checks cover normal/wide/tall, Gear-first multiplication, Power exclusion,
+invalid/unowned choices, canceled windup, foul/PA/pitcher boundaries and neutral reset.
+A real viewport click chooses wide; keyboard Enter chooses tall without starting the PA.
+The actual visible ellipse matches the resulting radii, the stale rectangle is hidden,
+Power stays visible, and committed AI selection hides/refuses further changes. No future
+pitch information enters selection. Purchase/review/cancel/failed-save rollback/reload/
+next-game launch/resale paths run for all three sponsors at1000×650 and700×400 shop sizes.
+A genuine paid schema12 Strikecraft save migrates with exact current stock, cash, receipts
+and same-visit rerolls, then activates catalogue4 next visit and successfully replays.
+
+Courier/Trainers tests compare all four ownership combinations in marginal tag races.
+Controlled actual catch hooks exercise both Pitcher and Primary Fielder attribution;
+ground outs and third outs never tag. The two legal travel times, gather-only reduction,
+unchanged safety margin and no first-to-second movement are explicit. An actual empty-base
+Primary encounter changes from clean to bobble with Courier while Pitcher ground control
+stays clean. Reach/height eligibility remains. Effective timing explanation fits the panel.
+
+The new complete physical fixture produced104 records,48 balls in play,51 pre-PA choices
+and23 Contact-swing PAs, finishing with a valid outro/restart. Both synthetic clubs combine
+these sponsors with equipped Gear. This exercises common runtime paths, not implemented
+AI shopping or a tactical Optics choice policy, and it is not a balance sample. Production
+AI keeps default normal. Paid acquisition is verified separately through actual shop UI.
+
+Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor, and the historical
+repository PROGRESSION_BLUEPRINT.md is unchanged. All new contracts remain Working; prior
+Proposals remain unapproved. Native rendered visual and human feel/balance acceptance are
+still pending under the recorded display-socket limitation. Automated input/layout and
+physical simulation checks are not substituted for visual approval.
+
+
 ## Strikecraft actual-cost recovery, 2026-09-28
 
 Final-source full Godot4.7.2 run `20260929T020206901266Z` passed46/47. The existing

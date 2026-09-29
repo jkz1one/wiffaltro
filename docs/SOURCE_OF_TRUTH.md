@@ -1,11 +1,47 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.45
+**Version:** v0.4.46
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Courier, Optics and Trainers, 2026-09-29
+
+Three more initially eligible Common sponsors now use the paid shop and actual match paths:
+F02 Express Courier (8 Cash), F03 Split Decision Optics (10 Cash), and G04 Trackside Trainers
+(8 Cash). Nine of35 sponsor candidates are supported. These prices/effects remain **Working**,
+including the explicit Optics testing default in Equipment/Sponsors v18 lines709–728.
+Approved seasonal ownership/replacement remains separate; prior Proposals remain unapproved.
+The retained Blueprint v114 contracts are F02 lines4238–4260, F03 lines4261–4281 and G04
+lines4647 onward; the v18 multiplicative Optics correction controls over older additive text.
+
+Courier reduces only the actual airborne catcher's tag-return gather time by25%. The
+owner's Primary Fielder also loses0.08 clean-control margin on every grounded encounter,
+including empty bases. Ordinary eligibility, reach, height, reaction and Shoe difficulty
+remain intact. Pitcher ground control, air-control margins and throw speed are unchanged.
+
+Optics offers normal (default), wide (Contact X1.10/Y0.90), or tall (X0.90/Y1.10) before
+confirming each at-bat and before the opponent commits a pitch. Choice locks through the PA,
+including fouls/pitcher changes, then resets to normal. A canceled first windup retains the
+existing between-batters boundary. Gear scales first, Optics multiplies once; Wide Barrel
+plus wide therefore gives X1.166/Y0.954. The actual Contact ellipse is visible and follows
+ordinary batter rating/Gear/choice. Contact quality comes from that ellipse; there is no
+extra quality, timing/depth, launch or exit-speed modifier. Power is unaffected by Optics.
+AI selection policy remains neutral/default; synthetic tests explicitly select shapes.
+
+Trainers multiplies only existing second-to-third and third-to-home ghost-runner tag travel
+by0.88. The existing0.18-second safety margin, catch eligibility and fewer-than-two-outs
+gate remain. No first-to-second, groundout, hit/walk, steal or Speed-stat change is introduced.
+Courier/Trainers opposition compares actual gather/throw/travel times; neither grants an
+automatic outcome. The result text shows the effective travel-plus-margin and return times.
+
+Schema13/build9 preserves prior sponsor definitions, stock, paid receipts and same-visit
+rerolls; catalogue4 begins at the next shop visit after migration. These sponsors create no
+Cash payout or new AI/offscreen acquisition. Native visual/feel/balance acceptance remains
+open, separately from automated viewport input/layout and physical-game verification.
+
 
 ## Strikecraft sequence recovery, 2026-09-28
 
