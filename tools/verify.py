@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-strikecraft-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_strikecraft_live_test.tscn"],
+                 "Wiffaltro live Strikecraft checks passed:"),
+                ("season-strikecraft", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_strikecraft_test.tscn", *ui_extra],
+                 "Wiffaltro Strikecraft checks passed:"),
                 ("season-gameplay-sponsor-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_gameplay_sponsor_live_test.tscn"],
                  "Wiffaltro live gameplay sponsor checks passed:"),

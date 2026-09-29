@@ -9,6 +9,8 @@ var batting_index: int = 0
 var pitcher_index: int = 0
 var fielder_index: int = 1
 var runs: int = 0
+var strikecraft_uses: int = 0
+var strikecraft_refunded: float = 0.0
 
 static func create(
 	team_name: String,

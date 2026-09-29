@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 7
+const VERSION: int = 8
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -39,6 +39,7 @@ var _misc_from: int = 1
 var _mapped_gear_from: int = 1
 var _sponsor_from: int = 1
 var _gameplay_sponsor_from: int = 1
+var _sequence_sponsor_from: int = 1
 var _income_by_game: Dictionary = {}
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
@@ -80,13 +81,6 @@ func roster() -> Array[String]:
 
 func roster_for_game(game: int) -> Array:
 	return _game_rosters.get(game, []).duplicate()
-
-
-func migrate_recruitment() -> void:
-	if _format == 1:
-		_format = 2
-		# Never create an extra offer or reroll an already saved legacy visit.
-		_recruit_from = int(_visit.number) + 1
 
 
 func player(player_id: String) -> Dictionary:
@@ -146,6 +140,8 @@ func to_data() -> Dictionary:
 		data["sponsor_from"] = _sponsor_from
 	if _format >= 7:
 		data["gameplay_sponsor_from"] = _gameplay_sponsor_from
+	if _format >= 8:
+		data["sequence_sponsor_from"] = _sequence_sponsor_from
 	return data
 
 
@@ -171,6 +167,8 @@ static func from_data(
 		keys.append("sponsor_from")
 	if value.version >= 7:
 		keys.append("gameplay_sponsor_from")
+	if value.version >= 8:
+		keys.append("sequence_sponsor_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -212,6 +210,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.gameplay_sponsor_from, 1, 13):
 			return null
 		result._gameplay_sponsor_from = int(value.gameplay_sponsor_from)
+	if value.version >= 8:
+		if not SeasonOwnership._whole(value.sequence_sponsor_from, 1, 13):
+			return null
+		result._sequence_sponsor_from = int(value.sequence_sponsor_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -303,6 +305,7 @@ func _fork() -> SeasonBuild:
 	result._mapped_gear_from = _mapped_gear_from
 	result._sponsor_from = _sponsor_from
 	result._gameplay_sponsor_from = _gameplay_sponsor_from
+	result._sequence_sponsor_from = _sequence_sponsor_from
 	result._income_by_game = _income_by_game.duplicate(true)
 	result._bank = _bank.fork()
 	result._book = _book.fork()
@@ -572,7 +575,12 @@ static func _signature(format_version: int = VERSION) -> String:
 			)
 		)
 	if format_version >= 6:
-		base += ":" + SeasonSponsorCatalog.signature(2 if format_version >= 7 else 1)
+		base += (
+			":"
+			+ SeasonSponsorCatalog.signature(
+				3 if format_version >= 8 else (2 if format_version >= 7 else 1)
+			)
+		)
 	return base
 
 
@@ -646,12 +654,6 @@ func _sign(command: Dictionary) -> String:
 	return ""
 
 
-func migrate_gear() -> void:
-	if _format < 3:
-		_format = 3
-		_gear_from = int(_visit.number) + 1
-
-
 func _gear_transaction(command: Dictionary) -> String:
 	if _format < 3 or _visit.number < _gear_from:
 		return "Gear starts at your next shop visit."
@@ -703,24 +705,6 @@ func _gear_transaction(command: Dictionary) -> String:
 		return bought.error
 	_visit.offers.erase(command.offer)
 	return ""
-
-
-func migrate_misc() -> void:
-	if _format < 4:
-		_format = 4
-		_misc_from = int(_visit.number) + 1
-
-
-func migrate_mapped_gear() -> void:
-	if _format < 5:
-		_format = 5
-		_mapped_gear_from = int(_visit.number) + 1
-
-
-func migrate_sponsors() -> void:
-	if _format < 6:
-		_format = 6
-		_sponsor_from = int(_visit.number) + 1
 
 
 func income_for_game(game: int) -> Dictionary:
@@ -809,11 +793,28 @@ func _sponsor_transaction(command: Dictionary) -> String:
 	return ""
 
 
-func migrate_gameplay_sponsors() -> void:
-	if _format < 7:
-		_format = 7
-		_gameplay_sponsor_from = int(_visit.number) + 1
-
-
 func _sponsor_catalog_version() -> int:
+	if _format >= 8 and _visit.number >= _sequence_sponsor_from:
+		return 3
 	return 2 if _format >= 7 and _visit.number >= _gameplay_sponsor_from else 1
+
+
+func migrate() -> void:
+	# Activate each newly supported pool at the next visit, preserving every
+	# already enabled boundary and the exact generator of the saved current visit.
+	var next_visit: int = int(_visit.number) + 1
+	if _format < 2:
+		_recruit_from = next_visit
+	if _format < 3:
+		_gear_from = next_visit
+	if _format < 4:
+		_misc_from = next_visit
+	if _format < 5:
+		_mapped_gear_from = next_visit
+	if _format < 6:
+		_sponsor_from = next_visit
+	if _format < 7:
+		_gameplay_sponsor_from = next_visit
+	if _format < 8:
+		_sequence_sponsor_from = next_visit
+	_format = VERSION

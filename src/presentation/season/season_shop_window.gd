@@ -79,7 +79,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
-			+ "Five Working sponsors; earned tiers and other sponsors pending."
+			+ "Six Working sponsors; earned tiers and other sponsors pending."
 		)
 	)
 	_label(_notice)

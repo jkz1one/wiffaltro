@@ -1,11 +1,46 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.44
+**Version:** v0.4.45
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Strikecraft sequence recovery, 2026-09-28
+
+B03 Strikecraft joins the Working shop as an initially eligible Uncommon at12 Cash.
+Its full retained contract is Blueprint v114 lines1994–2014, with the controlling
+G correction at4718–4733 and Equipment/Sponsors v18 lines450,520–521 and671. Six of35
+current sponsors are now supported. The old14-Cash/half-final-pitch version is superseded.
+All numeric values remain **Working testing defaults**; ownership remains Approved and
+previous mastery/Gear Proposals remain unapproved.
+
+A called or swinging strikeout qualifies only after its credited pitcher actually
+released at least three distinct exact recipe IDs in that plate appearance. Restore25%
+of the actual costs paid for the first occurrence of each of the first three distinct
+recipes, capped at6 stamina per trigger and two qualifying triggers per team per game,
+including extras. Delivery variants count as distinct recipes. Repeated recipes and
+fourth/fifth distinct recipes cannot enlarge the refund. Only the credited pitcher's
+own releases count if pitchers differ within an appearance. No refund on walks, hits
+or other outs, and no fabricated pitches or Ks.
+
+Actual cost means the stamina removed after effort, release overdrive, Gear and College
+modifiers, bounded by the stamina the pitcher actually had. Three costs6/6/6 restore4.5;
+8/8/8 or10/10/10 restore6. Exhausted zero-cost releases cannot mint nominal-cost recovery.
+The ordinary game-start stamina maximum still caps restoration. Game counters survive
+pitcher changes and inning transitions; a new game resets them. Recovery does not reset
+Bullpen Kit participation, change pitch count/capacity, retune fatigue, alter flight or
+grant a removed pitcher re-entry. Purchasing Strikecraft does not expand any repertoire.
+
+Paid acquisition, explicit replacement/resale, failed-write rollback and no midgame shop
+follow the existing ownership path. UI discloses the full sequence, actual-cost basis,
+cap and no-Cash-payout contract. Schema12/build8 preserves old sponsor stock, receipts,
+wallet and same-visit rerolls, introducing the new pool next visit after migration.
+Human and AI control share the same runtime hook when the club owns the sponsor; this
+does not create AI buying policy or unsupported offscreen sequence evidence. Remaining
+sponsors, consumables, abilities, career/unlocks and native human acceptance remain open.
+
 
 ## Singles-chain and earned-growth sponsors, 2026-09-28
 

@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.35
+**Version:** v0.1.36
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,34 @@
 ---
 
 # 1. Technical Objective
+
+## Actual pitch-cost ledger and Strikecraft, 2026-09-28
+
+`MatchPitchLedger` stores only the first three distinct recipe IDs/costs per pitcher in
+the current PA. Stable player ID partitions attribution; successful-release pitch count
+rejects duplicate notifications. Empty legacy notifications, canceled releases
+and nonfinite/negative costs do not contribute. Cost/recipe arrays returned to callers
+are detached. Every completed PA clears the ledger; its memory is bounded by the roster
+and three stored recipe occurrences per participant.
+
+The physical launch path records stamina before/after the existing spend only after a
+valid launch is built. `MatchState.note_pitch_released` preserves Bullpen Kit participation
+and supplies exact recipe plus actual removed stamina to the ledger. Old no-argument
+callers preserve participation without inventing recipe/cost evidence. On a credited K,
+SeasonSponsorEffects evaluates B03 before PA cleanup and restores at most6/25% of eligible
+costs. TeamMatchState owns per-game usage and actual-refund totals, so another pitcher or
+inning cannot renew the shared allowance. A zero-cost qualifying K still uses one of the
+two qualifying trigger slots. No new pitch or statistic event is emitted by recovery.
+
+Build8 uses sponsor catalogue3 and `sequence_sponsor_from`, leaving catalogue1/2 immutable.
+The restore pipeline now calls one idempotent `SeasonBuild.migrate()` that retains every
+already enabled gate and initializes only missing pools to the next visit. This replaces
+seven scattered public migration entry points without changing old journals/generators.
+Schema12 validates all historical format boundaries and preserves paid-copy receipts. No
+live PA/recovery state is stored independently in a season save: leaving/restarting a match
+returns to its pregame build, as before. Actual game completion still settles only supported
+income sponsors. The UI and runtime distinguish recovery from settlement Cash.
+
 
 ## Match sponsor effects and provenance, 2026-09-28
 

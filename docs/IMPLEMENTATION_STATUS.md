@@ -1,5 +1,17 @@
 # Implementation Status
 
+## Strikecraft and actual-cost recovery, 2026-09-28
+
+The sixth supported sponsor, Strikecraft, uses actual released recipe IDs, paid stamina
+and credited strikeouts. First-occurrence accounting, pitcher attribution, two team uses,
+max6 per trigger, normal stamina bounds and unchanged Kit/substitution rules are implemented.
+Paid offers, safe replacement/resale, UI review and schema12/build8 migration retain old
+stock and journals. Shared runtime support does not imply AI acquisition or offscreen support.
+
+Six of35 sponsor candidates are implemented. Numeric contracts remain Working; existing
+Proposals remain unapproved. Remaining content and native visual/feel/balance acceptance
+are still open. Verification evidence is recorded in VERIFICATION.md.
+
 ## Deli and College match sponsors, 2026-09-28
 
 Neighborhood Deli and Community College now run through paid offers, current ownership,
@@ -140,7 +152,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 54% implemented**, after Deli/College match sponsors (53% after income
+**Approximately 55% implemented**, after Strikecraft sequence recovery (54% after
+Deli/College;53% after income
 sponsors;50% after initial Gear mappings;48% after Kit/Gloves/Goggles;47% after first Gear;45% after recruitment;40% after
 paid development;35% before that). This is an estimate against the current full planned scope, not a
 test-pass percentage or a promise about remaining hours. Every finished response should
@@ -155,11 +168,11 @@ human-approved or release-ready merely because their code runs.
 | Player development and mastery | 10 | 8 |
 | Shop, packs and recruitment | 12 | 7 |
 | Gear, tactical cards and abilities | 10 | 5 |
-| Sponsors | 10 | 3 |
+| Sponsors | 10 | 4 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **54** |
+| **Total** | **100** | **55** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

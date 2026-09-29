@@ -1,5 +1,45 @@
 # Fast verification and playtest records
 
+## Strikecraft actual-cost recovery, 2026-09-28
+
+Final-source full Godot4.7.2 run `20260929T020206901266Z` passed46/47. The existing
+season-sponsor-live process exited0 after its engine header without a success marker or
+script error. The runner correctly rejected it. Focused rerun `20260929T020557194842Z`
+passed8/8, including that complete paid-income sponsor game and all seven shared gates.
+All47 check types therefore have passing evidence across these runs, including nine
+complete games and every existing UI, save, physics, camera and AI regression. This is
+not described as a single clean full-suite run. The early exit did not reproduce in the
+focused run; its cause remains unresolved. Earlier new-Strikecraft focused run
+`20260929T020044442393Z` passed9/9 before the final independent-team/extra-inning assertions.
+Those additional assertions passed in the final-source full run.
+
+Contract checks exercise called/swinging Ks;6/6/6,8/8/8,10/10/10 costs; exact first-three
+occurrences; repeated recipes; fourth/fifth recipes; duplicate release notifications;
+zero/exhausted spending; normal stamina ceiling; two team uses; pitcher attribution and
+pitcher changes; independent opposing-team counters; extra innings; PA/new-game resets;
+unowned, two-recipe, canceled-delivery and non-K exclusions. No duplicate pitch/K/stat
+is emitted. Runtime human/AI release tests include Kit0.85, College0.88 and actual overdrive,
+then compare recovery against the stamina physically removed, preserving Kit completion.
+
+The complete Strikecraft physical game generated83 records and38 balls in play, used both
+qualifying refunds and restored9.039679 stamina total. Its synthetic owning clubs retain
+Deli/College and equipped Gear. The test asserts caps, actual positive recovery, completed
+game, outro and fresh restart counters/ledger. It does not prove sponsor profitability or
+implement AI purchasing. The actual paid-copy path is covered separately through shop UI.
+
+Viewport input/layout tests exercise12-Cash purchase, Working effect/price disclosure,
+1000×650 and700×400 bounds, Cancel focus, scrollable review, cancellation, failed-write
+rollback, unchanged old bytes, reload, active copy, next-match launch, midgame-sale refusal
+and resale. A genuinely paid schema11 Deli save migrates without changing cash, stock,
+receipt or same-visit rerolls. New pool eligibility begins next visit and both sides replay.
+The unified migration entry point also passed all previous ownership/recruitment/Gear/
+income/gameplay-sponsor migration tests. Catalogue1/2 and the historical Blueprint stay frozen.
+
+Native rendered visual and human feel/balance acceptance remain pending under the previously
+recorded display-socket limitation. Numeric sponsor contracts remain Working and previous
+mastery/Gear Proposals remain unapproved. Automated layout/input evidence is not visual approval.
+
+
 ## Deli and College match sponsors, 2026-09-28
 
 Final full Godot4.7.2 gate `20260929T003648787951Z` passed45/45 on the final runtime/UI/test

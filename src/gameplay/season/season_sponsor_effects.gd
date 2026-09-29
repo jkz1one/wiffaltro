@@ -6,8 +6,8 @@ extends RefCounted
 static func snapshot(active: Array, book: SeasonDevelopment, roster: Array) -> Dictionary:
 	var result: Dictionary = {}
 	for receipt: Dictionary in active:
-		if receipt.item == "A07":
-			result.A07 = true
+		if receipt.item in ["A07", "B03"]:
+			result[receipt.item] = true
 		elif receipt.item == "B02":
 			result.B02 = mini(4, book.earned_players(roster).size())
 	return result
@@ -37,3 +37,18 @@ static func deli_active(state: MatchState) -> bool:
 		state._deli_next_batter
 		and bool(state.batter().definition.season_sponsors.get("A07", false))
 	)
+
+
+static func strikeout(state: MatchState) -> void:
+	var pitcher: PlayerMatchState = state.pitcher()
+	var team: TeamMatchState = state.defensive_team()
+	if not pitcher.definition.season_sponsors.get("B03", false) or team.strikecraft_uses >= 2:
+		return
+	var costs: Array = state.pitch_ledger.first_costs(pitcher.definition.id)
+	if costs.size() != 3:
+		return
+	var amount: float = minf(6.0, 0.25 * (costs[0] + costs[1] + costs[2]))
+	var before: float = pitcher.stamina_remaining
+	pitcher.stamina_remaining = minf(pitcher.stamina_max, before + amount)
+	team.strikecraft_uses += 1
+	team.strikecraft_refunded += pitcher.stamina_remaining - before

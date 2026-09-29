@@ -20,6 +20,7 @@ var away_team: TeamMatchState
 var home_team: TeamMatchState
 var bases: BaseState = BaseState.new()
 var performance: MatchPerformance = MatchPerformance.new()
+var pitch_ledger: MatchPitchLedger = MatchPitchLedger.new()
 var phase: Phase = Phase.PRE_PITCH
 var inning: int = 1
 var top_half: bool = true
@@ -103,6 +104,7 @@ func record_strike(swinging: bool = true) -> StringName:
 	strikes += 1
 	if strikes >= STRIKES_FOR_OUT:
 		performance.complete(batter().definition.id, pitcher().definition.id, "strikeout", 0)
+		SeasonSponsorEffects.strikeout(self)
 		outs += 1
 		_complete_plate_appearance(
 			"Strikeout swinging" if swinging else "Called strikeout"
@@ -187,6 +189,7 @@ func _complete_plate_appearance(description: String, single: bool = false) -> vo
 	for participant: PlayerMatchState in _pa_pitchers:
 		participant.first_batter_completed = true
 	_pa_pitchers.clear()
+	pitch_ledger.clear()
 	last_event = description
 	batting_team().advance_batter()
 	plate_appearance_number += 1
@@ -272,6 +275,9 @@ func _hit_name(result: BallPlayOutcome.Result) -> String:
 			return "Ball in play"
 
 
-func note_pitch_released() -> void:
-	if phase == Phase.PITCH_IN_FLIGHT and not _pa_pitchers.has(pitcher()):
+func note_pitch_released(recipe: StringName = &"", actual_paid: float = 0.0) -> void:
+	if phase != Phase.PITCH_IN_FLIGHT:
+		return
+	if not _pa_pitchers.has(pitcher()):
 		_pa_pitchers.append(pitcher())
+	pitch_ledger.record(pitcher(), recipe, actual_paid)

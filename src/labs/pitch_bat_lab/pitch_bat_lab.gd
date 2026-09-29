@@ -394,8 +394,9 @@ func _throw_pitch() -> void:
 
 	_throw_number = candidate_throw_number
 	if pitcher_state != null:
+		var stamina_before: float = pitcher_state.stamina_remaining
 		pitcher_state.spend_stamina(pending_stamina_cost)
-		_match_state.note_pitch_released()
+		_match_state.note_pitch_released(pitch.id, stamina_before - pitcher_state.stamina_remaining)
 		applied_fatigue = maxf(pitcher_state.fatigue_ratio(), _fatigue)
 
 	PitchBatLabFeelSupport.measure_nominal_pitch(self, base_parameters, target_position)

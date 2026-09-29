@@ -89,6 +89,12 @@ static func _purchase(
 
 
 static func _timing(id: String) -> String:
+	if id == "B03":
+		return (
+			"Match effect, no Cash payout. Repeated pitches and later distinct recipes "
+			+ "add nothing. Delivery variants count separately; only the credited pitcher's "
+			+ "own releases count. No refund without the K, and no extra substitution rights."
+		)
 	if id == "A07":
 		return (
 			"Match effect, no Cash payout. A new game starts with no chain. Bonus adds "

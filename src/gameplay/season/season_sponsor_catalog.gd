@@ -62,11 +62,30 @@ const GAMEPLAY_ITEMS: Dictionary = {
 	}
 }
 
+# Frozen third generation; build8 adds ordered-sequence recovery.
+const SEQUENCE_ITEMS: Dictionary = {
+	"B03":
+	{
+		"name": "Strikecraft",
+		"price": 12,
+		"rarity": "Uncommon",
+		"weight": 1.0,
+		"effect":
+		(
+			"A strikeout after three distinct pitches by its credited pitcher refunds 25% "
+			+ "of the actual costs of their first three distinct pitches in that plate "
+			+ "appearance, max 6 stamina. Twice per team per game, including extras."
+		)
+	}
+}
 
-static func catalog(version: int = 2) -> Dictionary:
+
+static func catalog(version: int = 3) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
+	if version >= 3:
+		result.merge(SEQUENCE_ITEMS.duplicate(true))
 	return result
 
 
@@ -74,7 +93,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 2) -> String:
+static func signature(version: int = 3) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -85,7 +104,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 2) -> Dictionary:
+static func eligible(active: Array, version: int = 3) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:
