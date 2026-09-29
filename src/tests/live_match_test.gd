@@ -43,6 +43,7 @@ func _run_match(run_seed: int) -> void:
 	for frame in range(90000):
 		await get_tree().physics_frame
 		var state: MatchState = lab._match_state
+		_observe_live_frame(lab)
 		if state.phase == MatchState.Phase.GAME_END:
 			break
 		var progress: String = "%d:%d:%d" % [
@@ -161,3 +162,7 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error(message)
+
+
+func _observe_live_frame(_lab: PitchBatLab) -> void:
+	pass

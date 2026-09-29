@@ -178,3 +178,13 @@ static func _keys(value: Dictionary, fields: Array[String]) -> bool:
 		if not value.has(field):
 			return false
 	return true
+
+
+func earned_players(roster: Array) -> Array[String]:
+	# Provenance, not a comparison against base stats: recruit catch-up is not earned.
+	var result: Array[String] = []
+	for event: Dictionary in _events:
+		if event.op in ["stat", "mastery", "round_out"]:
+			if roster.has(event.player) and not result.has(event.player):
+				result.append(event.player)
+	return result

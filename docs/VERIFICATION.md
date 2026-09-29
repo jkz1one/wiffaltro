@@ -1,5 +1,51 @@
 # Fast verification and playtest records
 
+## Deli and College match sponsors, 2026-09-28
+
+Final full Godot4.7.2 gate `20260929T003648787951Z` passed45/45 on the final runtime/UI/test
+source. All eight complete games passed, including the four legacy/progression/Gear cases,
+Kit/Gloves, Shoes/Alley, paid income sponsors and the new Deli/College physical fixture.
+Fresh main remains `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, preserved as an ancestor.
+The repository's historical PROGRESSION_BLUEPRINT.md is unchanged.
+
+Focused gate `20260928T232726030426Z` passed10/10, including the new contract/UI scene,
+a complete sponsored physical game and existing income-sponsor checks. The stronger final
+held-card/prior-growth and paid-old-save migration cases passed the focused rerun
+`20260929T003614291084Z` (9/9, including pitch-routing and the seven shared static/import gates).
+The earlier full gate `20260928T232916256008Z` recorded44/45: pitch-routing exited0 without
+its success marker and was correctly rejected. That incomplete check is not counted as a
+full-suite pass. It passed the focused rerun; no cause for the early exit has been established.
+
+Contract checks cover Single→Single refresh without stacking; walk/K/out/Double/Triple/HR
+expiry; foul and canceled-pitch preservation; legal pitching-change continuity; half-inning,
+restart and unowned exclusion. Actual contact resolution checks both handednesses and
+Contact/Power profiles across Bat/Gloves combinations, fair/foul outcomes, quality and angle.
+College provenance checks broad stats, mastery, Round Out, repeated upgrades on one player,
+generated recruitment, lessons, current/absent/returning roster membership and save replay.
+Real paid held purchases do not qualify until use. Growth before sponsor acquisition counts;
+a later paid pack on another player increases the count. Exact natural-delivery matching,
+12% maximum and no invented income are verified. Runtime release and swing checks exercise
+human and AI control; College and Rosin compose once in actual stamina spending.
+
+Viewport input/layout checks exercise both new sponsors at1000×650 and700×400, exact Working
+contract review, visible College count, Cancel focus, bounded confirmation, cancellation,
+failed-write rollback/unchanged old bytes, paid activation, reload, match launch, midgame-sale
+refusal and resale. Existing three-income-sponsor replacement/retry tests remain enabled.
+A genuinely paid schema10 sponsor save retains cash, receipts, stock and same-visit rerolls;
+new candidates start next visit, and both sides of the boundary replay without load-only writes.
+
+The added full-game fixture deliberately equips developed clubs on both sides, independently
+of paid AI acquisition. Its83 records/38 balls in play include6 Deli next-batter windows,
+3 qualifying Contact swings and83 natural-delivery releases. It finishes, runs the outro,
+and restarts without retaining the chain. These are runtime/event observations, not evidence
+of balanced prices, profitability, difficulty or AI purchase policy. Paid provenance is checked
+separately through the real season shop/save path.
+
+Native rendered visual and human feel acceptance remain open under the previously recorded
+display-socket limitation. Headless input/layout checks are not native screenshots or visual
+approval. All five numeric sponsor contracts remain Working; no existing Proposal is promoted.
+
+
 ## Paid income sponsors, 2026-09-28
 
 Full Godot4.7.2 gate `20260928T225022827419Z` passed43/43, including every existing gameplay,

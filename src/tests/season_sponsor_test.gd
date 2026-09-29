@@ -234,8 +234,8 @@ func _old_sponsor_migration(path: String) -> void:
 		)
 
 
-func _sponsor_ui() -> void:
-	for id: String in SeasonSponsorCatalog.ITEMS:
+func _sponsor_ui(items: Dictionary = SeasonSponsorCatalog.ITEMS) -> void:
+	for id: String in items:
 		var prefix: String = "user://sponsor-ui-%s-%d" % [id, OS.get_process_id()]
 		SeasonSave.path = prefix + ".json"
 		PitchBatLabSettings.path = prefix + ".cfg"
@@ -250,12 +250,18 @@ func _sponsor_ui() -> void:
 		await _shop_bounds(window, "sponsor-normal-" + id)
 		window.size = Vector2i(700, 400)
 		await _shop_bounds(window, "sponsor-small-" + id)
+		if id == "B02":
+			var found: bool = false
+			for child: Node in window._body.get_children():
+				if child is Label and child.text.contains("College eligibility now: 0 / 4"):
+					found = true
+			_check(found, "College offer discloses actual current qualification")
 		var offer: String = _offer(app.season.build, id)
 		var before: Dictionary = app.season.build.to_data()
 		await _click(_sponsor_button(window, offer))
 		_check(
 			(
-				window._review_text.text.contains(SeasonSponsorCatalog.ITEMS[id].effect)
+				window._review_text.text.contains(items[id].effect)
 				and window._review_text.text.contains("Working")
 			),
 			"review states exact candidate income"
@@ -281,7 +287,7 @@ func _sponsor_ui() -> void:
 		await _click(window._confirm.get_ok_button())
 		var receipt: Dictionary = app.season.build.view().wallet.sponsors[0]
 		_check(
-			receipt.item == id and receipt.paid == SeasonSponsorCatalog.ITEMS[id].price,
+			receipt.item == id and receipt.paid == items[id].price,
 			"UI activation records full immutable paid receipt"
 		)
 		var restored: SeasonState = SeasonSave.restore()

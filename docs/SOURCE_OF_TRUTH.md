@@ -1,11 +1,50 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.43
+**Version:** v0.4.44
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Singles-chain and earned-growth sponsors, 2026-09-28
+
+The Working season adds A07 Neighborhood Deli (Uncommon,14 Cash) and B02 Community
+College (Uncommon,12), bringing supported sponsors to five of35. Source: preserved
+Blueprint v114 lines1110–1128 (Deli) and18078–18145 (EE growth remap), with controlling
+Equipment/Sponsors v18 lines445–450 and599–606. Prices, effects and the expanded
+mastery qualification remain **Working testing contracts**, not Approved balance.
+Active-only ownership remains Approved; existing Gear/mastery Proposals remain unapproved.
+
+Deli grants the next batter +4% fair Contact exit speed after a credited Single in the
+same offensive half. Another Single refreshes without stacking. Walks, outs and
+extra-base hits consume the opportunity; fouls and pitching changes do not. No chain
+crosses a half-inning or game boundary. Power, foul exit speed, contact quality, timing,
+launch angle and hit classification remain unchanged. The bonus adds to the Bat exit
+modifier as in the retained contract; the independent Gloves multiplier still applies
+once. Wide Barrel plus Deli yields neutral fair Contact speed before Gloves, not1.04×0.96.
+
+College counts each current player with an actual club-earned stat or mastery event
+once, including Round Out. Draft baseline, generated recruit catch-up, learning alone,
+held purchases and equipment do not qualify. Prior earned growth counts when College
+is bought later. Departures remove contributions; the same returning instance retains
+its history. Natural-delivery identity is matched against the actual selected recipe's
+delivery. Its actual workload is multiplied by1−0.03×qualifiers, bounded at0.88, alongside
+existing effort, overdrive and Gear factors once each. Non-natural deliveries are unchanged.
+This reduces spending on successful releases; it does not refill stamina or change capacity,
+pitch movement, velocity, command, recipe mastery or displayed ratings.
+
+Both effects derive from paid ownership and current roster history when making a match.
+They create no settlement Cash. The shop distinguishes match effects from income and
+shows College's current count/reduction before purchase and while active. Ordinary explicit
+replacement, resale, cancellation and failed-save rollback apply. Schema11/build7 freezes
+build6's three-sponsor catalogue and preserves old cash, stock, receipts and rerolls. New
+candidates become eligible at the next visit after migration; loading alone does not rewrite.
+
+Shared human/AI runtime paths are supported when a team owns the effects. Authored AI
+purchase policy, offscreen event support, remaining30 sponsors, permanent unlocks and
+human visual/feel/balance acceptance remain unfinished. Verification is recorded separately.
+
 
 ## First paid income sponsors, 2026-09-28
 

@@ -46,7 +46,7 @@ static func hub(menu: SeasonMenu) -> void:
 		wrapped(menu._body, "WORKING PROGRESSION • Test roster and candidate mastery physics")
 		var names: PackedStringArray = []
 		for receipt: Dictionary in season.build.view().wallet.sponsors:
-			names.append(SeasonSponsorCatalog.ITEMS[receipt.item].name)
+			names.append(SeasonSponsorCatalog.item(receipt.item).name)
 		wrapped(
 			menu._body, "Active sponsors: " + (", ".join(names) if not names.is_empty() else "None")
 		)
@@ -139,7 +139,7 @@ static func postgame(menu: SeasonMenu) -> void:
 		for id: String in income:
 			wrapped(
 				menu._body,
-				"%s: +%d Cash • Settled" % [SeasonSponsorCatalog.ITEMS[id].name, income[id]]
+				"%s: +%d Cash • Settled" % [SeasonSponsorCatalog.item(id).name, income[id]]
 			)
 	var recorded: Dictionary = game.get("performance", {})
 	var highlights: Array[String] = SeasonPerformance.highlights(

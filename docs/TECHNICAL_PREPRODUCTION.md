@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.34
+**Version:** v0.1.35
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,36 @@
 ---
 
 # 1. Technical Objective
+
+## Match sponsor effects and provenance, 2026-09-28
+
+Build7/schema11 adds a second sponsor catalogue generation without altering the frozen
+build6 income definitions/hash. `gameplay_sponsor_from` freezes existing visits, including
+rerolls, until the next shop boundary. Catalogue access in ownership, offers and UI now
+supports both generations; income settlement still uses only the explicit three-income
+allowlist. No independently editable sponsor-state blob is added to a save.
+
+`SeasonDevelopment.earned_players` derives distinct qualifying current IDs from validated
+stat/mastery/round_out journal events. Recruit and learn events are excluded. SeasonBuild
+attaches runtime-only sponsor metadata to current own-player clones, after Gear; former
+players and opponents receive none. College's count is recomputed on each definition build,
+so committed growth, roster changes, sale and returning-instance history cannot leave a
+stale count. Authored resources and existing player/save fingerprints stay unchanged.
+
+MatchState tracks a pending next-batter Single flag from the finalized hit enum, independently
+of the display description. Every completed PA replaces it, and half transitions clear it.
+SeasonSponsorEffects combines that flag with paid A07 metadata and the actual Contact profile.
+It adds0.04 to the Bat exit factor while retaining the separate Misc exit multiplier. The
+existing contact resolver applies that final scalar only after quality/outcome resolution
+and only to fair contact; no duplicate contact path or result override is introduced.
+
+College compares stable delivery IDs, then multiplies the pending successful-release cost
+by1−0.03×min(4,earned players). The established launch-validity gate still controls spending.
+Gear, effort and release overdrive retain their existing once-only composition. Match metadata
+is derived from the season journal and discarded with the match. Both control paths share
+these hooks; synthetic AI-equipped tests do not enable production AI shopping or offscreen
+benefits. See VERIFICATION.md for contract, UI, migration and whole-game evidence.
+
 
 ## Paid sponsor settlement, 2026-09-28
 

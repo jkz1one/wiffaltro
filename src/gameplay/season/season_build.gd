@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 6
+const VERSION: int = 7
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -38,6 +38,7 @@ var _gear_from: int = 1
 var _misc_from: int = 1
 var _mapped_gear_from: int = 1
 var _sponsor_from: int = 1
+var _gameplay_sponsor_from: int = 1
 var _income_by_game: Dictionary = {}
 var _bank: SeasonOwnership
 var _book: SeasonDevelopment
@@ -95,7 +96,10 @@ func player(player_id: String) -> Dictionary:
 func definition(player_id: String) -> PlayerDefinition:
 	var result: PlayerDefinition = ProgressionMatchAdapter.player(_book, player_id)
 	if result != null and _roster.has(player_id):
-		return SeasonGearCatalog.equip(result, _bank.view().gear)
+		result = SeasonGearCatalog.equip(result, _bank.view().gear)
+		result.season_sponsors = SeasonSponsorEffects.snapshot(
+			_bank.view().sponsors, _book, _roster
+		)
 	return result
 
 
@@ -140,6 +144,8 @@ func to_data() -> Dictionary:
 		data["mapped_gear_from"] = _mapped_gear_from
 	if _format >= 6:
 		data["sponsor_from"] = _sponsor_from
+	if _format >= 7:
+		data["gameplay_sponsor_from"] = _gameplay_sponsor_from
 	return data
 
 
@@ -163,6 +169,8 @@ static func from_data(
 		keys.append("mapped_gear_from")
 	if value.version >= 6:
 		keys.append("sponsor_from")
+	if value.version >= 7:
+		keys.append("gameplay_sponsor_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -200,6 +208,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.sponsor_from, 1, 13):
 			return null
 		result._sponsor_from = int(value.sponsor_from)
+	if value.version >= 7:
+		if not SeasonOwnership._whole(value.gameplay_sponsor_from, 1, 13):
+			return null
+		result._gameplay_sponsor_from = int(value.gameplay_sponsor_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -290,6 +302,7 @@ func _fork() -> SeasonBuild:
 	result._misc_from = _misc_from
 	result._mapped_gear_from = _mapped_gear_from
 	result._sponsor_from = _sponsor_from
+	result._gameplay_sponsor_from = _gameplay_sponsor_from
 	result._income_by_game = _income_by_game.duplicate(true)
 	result._bank = _bank.fork()
 	result._book = _book.fork()
@@ -519,7 +532,7 @@ func _offers(rerolls: int) -> Dictionary:
 				else (2 if _format >= 4 and _visit.number >= _misc_from else 1)
 			),
 			(
-				SeasonSponsorCatalog.eligible(_bank.view().sponsors)
+				SeasonSponsorCatalog.eligible(_bank.view().sponsors, _sponsor_catalog_version())
 				if _format >= 6 and _visit.number >= _sponsor_from
 				else {}
 			)
@@ -559,7 +572,7 @@ static func _signature(format_version: int = VERSION) -> String:
 			)
 		)
 	if format_version >= 6:
-		base += ":" + SeasonSponsorCatalog.signature()
+		base += ":" + SeasonSponsorCatalog.signature(2 if format_version >= 7 else 1)
 	return base
 
 
@@ -769,7 +782,7 @@ func _sponsor_transaction(command: Dictionary) -> String:
 	if not _keys(command, ["offer", "replace"]) or not command.offer is String:
 		return "Review an exact sponsor offer."
 	var item_id: String = _visit.offers.get(command.offer, "")
-	if not SeasonSponsorCatalog.ITEMS.has(item_id):
+	if not SeasonSponsorCatalog.catalog(_sponsor_catalog_version()).has(item_id):
 		return "This sponsor offer is no longer available."
 	# Reject same-identity replacement before sale can temporarily remove it.
 	if not SeasonSponsorCatalog.eligible(_bank.view().sponsors).has(item_id):
@@ -794,3 +807,13 @@ func _sponsor_transaction(command: Dictionary) -> String:
 		return bought.error
 	_visit.offers.erase(command.offer)
 	return ""
+
+
+func migrate_gameplay_sponsors() -> void:
+	if _format < 7:
+		_format = 7
+		_gameplay_sponsor_from = int(_visit.number) + 1
+
+
+func _sponsor_catalog_version() -> int:
+	return 2 if _format >= 7 and _visit.number >= _gameplay_sponsor_from else 1

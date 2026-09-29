@@ -1,5 +1,18 @@
 # Implementation Status
 
+## Deli and College match sponsors, 2026-09-28
+
+Neighborhood Deli and Community College now run through paid offers, current ownership,
+shared human/AI match hooks and schema11/build7 persistence. Deli follows finalized Singles
+and the next batter; College derives current-player eligibility from actual earned growth,
+including preserved returning-instance history. The shop discloses both contracts and
+College's current qualification. Old sponsor stock, receipts and same-visit rerolls remain exact.
+
+Five of35 sponsor candidates are implemented. Remaining effects/combinations, AI buying,
+offscreen attribution and unlocks remain open. Working prices/effects and existing unapproved
+Proposal mappings are not promoted to Approved status. Native visual and human feel/balance
+acceptance remain open; headless input/layout checks and physical runtime checks are separate.
+
 ## Paid income sponsors, 2026-09-28
 
 Take Your Base, Shift Crew and Highlight Reel are implemented through ordinary paid offers,
@@ -127,8 +140,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 53% implemented**, after paid income sponsors (50% after initial Gear
-mappings;48% after Kit/Gloves/Goggles;47% after first Gear;45% after recruitment;40% after
+**Approximately 54% implemented**, after Deli/College match sponsors (53% after income
+sponsors;50% after initial Gear mappings;48% after Kit/Gloves/Goggles;47% after first Gear;45% after recruitment;40% after
 paid development;35% before that). This is an estimate against the current full planned scope, not a
 test-pass percentage or a promise about remaining hours. Every finished response should
 report this same whole-project basis. Working content and Proposal tuning do not count as
@@ -142,15 +155,15 @@ human-approved or release-ready merely because their code runs.
 | Player development and mastery | 10 | 8 |
 | Shop, packs and recruitment | 12 | 7 |
 | Gear, tactical cards and abilities | 10 | 5 |
-| Sponsors | 10 | 2 |
+| Sponsors | 10 | 3 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **53** |
+| **Total** | **100** | **54** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
-reserve capacity remains open. Partial shops redistribute missing category weights; they do not
-pretend those systems are implemented. Human visual/feel checks remain a release gate.
+shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops
+redistribute missing category weights; they do not pretend those systems are implemented. Human visual/feel checks remain a release gate.
 The following entries are historical checkpoints; this entry supersedes their missing-shop notes.
 
 ## Playable development reconstruction — 2026-09-28

@@ -1,6 +1,6 @@
 class_name SeasonSponsorCatalog
 extends RefCounted
-## First three supported initial sponsors. All prices/effects/rarities are Working.
+## Versioned initial sponsors. All prices/effects/rarities are Working.
 ## Active-only ownership is Approved; no AI purchasing or offscreen event fabrication.
 
 const ITEMS: Dictionary = {
@@ -32,22 +32,64 @@ const ITEMS: Dictionary = {
 	}
 }
 
+# Keep ITEMS frozen for build6 journals; this pool starts with build7.
+const GAMEPLAY_ITEMS: Dictionary = {
+	"A07":
+	{
+		"name": "Neighborhood Deli",
+		"price": 14,
+		"rarity": "Uncommon",
+		"weight": 1.0,
+		"effect":
+		(
+			"A credited Single gives the next batter +4% fair Contact exit speed in the "
+			+ "same half-inning. Singles refresh; walks, outs and extra-base hits end the "
+			+ "chain. No Power bonus."
+		)
+	},
+	"B02":
+	{
+		"name": "Community College",
+		"price": 12,
+		"rarity": "Uncommon",
+		"weight": 1.0,
+		"effect":
+		(
+			"Each current player with actual club-earned stat growth or mastery reduces "
+			+ "natural-delivery pitch workload by 3%, max 12%. Baseline, catch-up, held "
+			+ "cards and learning alone do not count."
+		)
+	}
+}
 
-static func signature() -> String:
-	return JSON.stringify(ITEMS).sha256_text()
+
+static func catalog(version: int = 2) -> Dictionary:
+	var result: Dictionary = ITEMS.duplicate(true)
+	if version >= 2:
+		result.merge(GAMEPLAY_ITEMS.duplicate(true))
+	return result
+
+
+static func item(id: String) -> Dictionary:
+	return catalog().get(id, {})
+
+
+static func signature(version: int = 2) -> String:
+	return JSON.stringify(catalog(version)).sha256_text()
 
 
 static func ownership_catalog() -> Dictionary:
 	var result: Dictionary = SeasonGearCatalog.ownership_catalog()
-	for id: String in ITEMS:
-		result[id] = {"kind": "sponsor", "price": ITEMS[id].price, "sale": "half"}
+	for id: String in catalog():
+		result[id] = {"kind": "sponsor", "price": item(id).price, "sale": "half"}
 	return result
 
 
-static func eligible(active: Array) -> Dictionary:
+static func eligible(active: Array, version: int = 2) -> Dictionary:
 	var result: Dictionary = {}
-	for id: String in ITEMS:
-		result[id] = ITEMS[id].weight
+	var all_items: Dictionary = catalog(version)
+	for id: String in all_items:
+		result[id] = all_items[id].weight
 	for receipt: Dictionary in active:
 		result.erase(receipt.item)
 	return result

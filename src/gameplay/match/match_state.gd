@@ -35,6 +35,7 @@ var last_event: String = "Game ready"
 var winner_name: String = ""
 var _between_batters_before_pitch: bool = true
 var _pa_pitchers: Array[PlayerMatchState] = []
+var _deli_next_batter: bool = false
 
 static func create(
 	away: TeamMatchState,
@@ -135,7 +136,7 @@ func record_hit(result: BallPlayOutcome.Result) -> int:
 	)
 	performance.complete(batter_id, pitcher().definition.id, outcome, runs_scored)
 	_add_runs(runs_scored)
-	_complete_plate_appearance(_hit_name(result))
+	_complete_plate_appearance(_hit_name(result), result == BallPlayOutcome.Result.SINGLE)
 	return runs_scored
 
 func continue_after_dead_ball() -> void:
@@ -181,7 +182,8 @@ func _add_runs(amount: int) -> void:
 	):
 		_finish_game("Mercy rule")
 
-func _complete_plate_appearance(description: String) -> void:
+func _complete_plate_appearance(description: String, single: bool = false) -> void:
+	_deli_next_batter = single and outs < OUTS_PER_HALF and phase != Phase.GAME_END
 	for participant: PlayerMatchState in _pa_pitchers:
 		participant.first_batter_completed = true
 	_pa_pitchers.clear()
@@ -200,6 +202,7 @@ func _complete_plate_appearance(description: String) -> void:
 		phase = Phase.PLAY_DEAD
 
 func _advance_half_inning() -> void:
+	_deli_next_batter = false
 	if top_half:
 		if (
 			_mercy_available()
