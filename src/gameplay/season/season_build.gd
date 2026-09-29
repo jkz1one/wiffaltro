@@ -4,12 +4,13 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 12
+const VERSION: int = 13
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
 	"leave_shop",
 	"lesson_pair",
+	"wholesale",
 	"buy",
 	"use",
 	"discard",
@@ -46,6 +47,7 @@ var _field_sponsor_from: int = 1
 var _shop_sponsor_from: int = 1
 var _school_sponsor_from: int = 1
 var _anchor_sponsor_from: int = 1
+var _wholesale_from: int = 1
 var _scholarships: Dictionary = {}
 var _used_gear: Dictionary = {}
 var _income_by_game: Dictionary = {}
@@ -165,6 +167,8 @@ func to_data() -> Dictionary:
 		data["school_sponsor_from"] = _school_sponsor_from
 	if _format >= 12:
 		data["anchor_sponsor_from"] = _anchor_sponsor_from
+	if _format >= 13:
+		data["wholesale_from"] = _wholesale_from
 	return data
 
 
@@ -200,6 +204,8 @@ static func from_data(
 		keys.append("school_sponsor_from")
 	if value.version >= 12:
 		keys.append("anchor_sponsor_from")
+	if value.version >= 13:
+		keys.append("wholesale_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -261,6 +267,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.anchor_sponsor_from, 1, 13):
 			return null
 		result._anchor_sponsor_from = int(value.anchor_sponsor_from)
+	if value.version >= 13:
+		if not SeasonOwnership._whole(value.wholesale_from, 1, 13):
+			return null
+		result._wholesale_from = int(value.wholesale_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -359,6 +369,7 @@ func _fork() -> SeasonBuild:
 	result._shop_sponsor_from = _shop_sponsor_from
 	result._school_sponsor_from = _school_sponsor_from
 	result._anchor_sponsor_from = _anchor_sponsor_from
+	result._wholesale_from = _wholesale_from
 	result._scholarships = _scholarships.duplicate(true)
 	result._used_gear = _used_gear.duplicate()
 	result._income_by_game = _income_by_game.duplicate(true)
@@ -430,6 +441,8 @@ func _apply(command: Dictionary) -> String:
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"wholesale":
+			return SeasonWholesale.purchase(self, command)
 		"lesson_pair":
 			return SeasonSchoolSponsors.pair(self, command)
 		"leave_shop":
@@ -618,7 +631,11 @@ static func _signature(format_version: int = VERSION) -> String:
 			":"
 			+ SeasonSponsorCatalog.signature(
 				(
-					((7 if format_version >= 12 else 6) if format_version >= 11 else 5)
+					(
+						((8 if format_version >= 13 else 7) if format_version >= 12 else 6)
+						if format_version >= 11
+						else 5
+					)
 					if format_version >= 10
 					else (
 						4
@@ -861,6 +878,8 @@ func _sponsor_transaction(command: Dictionary) -> String:
 
 
 func _sponsor_catalog_version() -> int:
+	if _format >= 13 and _visit.number >= _wholesale_from:
+		return 8
 	if _format >= 12 and _visit.number >= _anchor_sponsor_from:
 		return 7
 	if _format >= 11 and _visit.number >= _school_sponsor_from:
@@ -900,4 +919,6 @@ func migrate() -> void:
 		_school_sponsor_from = next_visit
 	if _format < 12:
 		_anchor_sponsor_from = next_visit
+	if _format < 13:
+		_wholesale_from = next_visit
 	_format = VERSION

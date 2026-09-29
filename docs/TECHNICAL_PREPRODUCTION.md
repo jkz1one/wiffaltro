@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.40
+**Version:** v0.1.41
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,31 @@
 ---
 
 # 1. Technical Objective
+
+## Atomic Wholesale transaction and receipt provenance, 2026-09-29
+
+`SeasonWholesale` derives exact supported destinations from current offers and ownership.
+The client submits two target dictionaries and the discounted offer identity, never prices.
+The helper rejects mixed categories, same identity/slot, duplicate replacement receipt,
+invalid targets and discounts assigned to a dearer item. All operations occur on the existing
+SeasonBuild candidate, whose enclosing checkpoint publishes only after successful saving.
+
+Both explicitly selected OLD receipts sell before either acquisition, allowing their proceeds
+to finance the total. Gear sales retain Reclamation's exact-copy hook; sponsor removal clears
+its scholarship instance. New Gear/sponsor purchases receive distinct transaction IDs and a
+trusted `wholesale_discount` bounded by min(4,floor(base/4)); it cannot coexist with the held
+Development credit. SeasonOwnership records actual payment. No temporary owned spare exists.
+Lessons use separate growth IDs but one combined charge, preserving exact personal mastery
+and final repertoire validation. The once-visit flag is journal-derived and survives rerolls.
+
+`SeasonWholesaleUI` provides offer selection, exact destinations, equal-price receipt choice
+and final combined review. Existing scroll bounds, cancellation and failed-save rollback apply.
+The fixed student and both lesson replacements appear before confirmation. Supported categories
+are deliberately limited to implemented normal single-item routes; no tactical/ability stock
+is fabricated. Build13/schema17 adds `wholesale_from` and catalogue8 while freezing earlier
+catalogues and preserving the old paid shop's generation through same-visit rerolls.
+
+
 
 ## Cornerstone commitment and stationary resolution, 2026-09-29
 

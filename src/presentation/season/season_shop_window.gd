@@ -79,7 +79,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
-			+ "Fourteen supported sponsors; earned tiers and other sponsors pending."
+			+ "Fifteen supported sponsors; earned tiers and other sponsors pending."
 		)
 	)
 	if SeasonReclamation.credit(shop) > 0:
@@ -103,6 +103,7 @@ func _refresh() -> void:
 			"Skip this paid pack", _preview.bind(_request("pack_skip"), "Skip without a refund")
 		)
 	else:
+		SeasonWholesaleUI.entry(self)
 		_recruit(shop)
 		SeasonGearShopUI.equipped(self, view.wallet.gear)
 		SeasonSponsorShopUI.active(self, view.wallet)

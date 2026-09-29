@@ -1,5 +1,14 @@
 # Implementation Status
 
+## Wholesale Club coordinated purchases, 2026-09-29
+
+Wholesale now handles paired Gear, sponsor and lesson acquisition with explicit destinations,
+combined replacement funding, per-item discounted receipts, final capacity/learning validation,
+once-visit accounting and atomic saves. Fifteen of35 sponsors are supported. Schema17/build13
+keeps old paid stock/rerolls exact and activates catalogue8 next visit. Actual UI, migration
+and a full physical paired-Gear game are verified separately from native visual/human approval.
+The contract remains Working; existing Proposals remain unapproved.
+
 ## Cornerstone committed defense, 2026-09-29
 
 Cornerstone Concrete now includes paid ownership, pre-PA mouse/keyboard choice, locked legal
@@ -189,8 +198,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 60% implemented** (weighted estimate59.5), after Cornerstone committed
-defense (59% after the three development sponsors;57% after
+**Approximately 61% implemented** (weighted estimate60.5), after Wholesale coordinated
+purchases (60% after Cornerstone committed defense;59% after the three development sponsors;57% after
 Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
 Strikecraft sequence recovery;54% after
@@ -207,13 +216,13 @@ human-approved or release-ready merely because their code runs.
 | Season flow and persistence | 8 | 7 |
 | Ownership and economy | 8 | 6.5 |
 | Player development and mastery | 10 | 8.5 |
-| Shop, packs and recruitment | 12 | 7.5 |
+| Shop, packs and recruitment | 12 | 8 |
 | Gear, tactical cards and abilities | 10 | 5 |
-| Sponsors | 10 | 7 |
+| Sponsors | 10 | 7.5 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **59.5** |
+| **Total** | **100** | **60.5** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

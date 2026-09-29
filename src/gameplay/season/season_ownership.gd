@@ -168,6 +168,8 @@ func _apply(next: Dictionary, command: Dictionary) -> String:
 			var fields: Array = ["id", "rev", "op", "offer", "replace", "discard"]
 			if command.has("discount"):
 				fields.append("discount")
+			if command.has("wholesale_discount"):
+				fields.append("wholesale_discount")
 			if not _keys(command, fields):
 				return "Invalid purchase."
 			var error: String = _discard(next, command.discard)
@@ -202,6 +204,13 @@ func _buy(next: Dictionary, command: Dictionary) -> String:
 	var discount: Variant = command.get("discount", 0)
 	if not _whole(discount, 0, mini(3, item.price)) or (discount > 0 and item.kind != "held"):
 		return "Invalid held-card acquisition credit."
+	if command.has("wholesale_discount"):
+		if command.has("discount") or item.kind not in ["gear", "sponsor"]:
+			return "Wholesale cannot stack or discount held development."
+		discount = command.wholesale_discount
+		if not _whole(discount, 0, mini(4, int(item.price / 4))):
+			return "Invalid wholesale receipt discount."
+
 	if not command.replace.is_empty():
 		var old: Dictionary = _owned(next, command.replace)
 		if old.is_empty() or old.kind != item.kind or item.kind == "held":

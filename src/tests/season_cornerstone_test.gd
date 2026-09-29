@@ -304,7 +304,10 @@ func _migration() -> void:
 	_check(SeasonSave.save(restored) and SeasonSave.restore() != null, "migrated visit replays")
 	_record(restored)
 	restored.build.commit(_command(restored.build, "open"))
-	_check(restored.build._sponsor_catalog_version() == 7, "next visit enables Cornerstone")
+	_check(
+		SeasonSponsorCatalog.catalog(restored.build._sponsor_catalog_version()).has("F01"),
+		"next visit enables Cornerstone"
+	)
 	_check(SeasonSave.save(restored) and SeasonSave.restore() != null, "new visit replays")
 	for suffix: String in ["", ".bak", ".tmp"]:
 		DirAccess.remove_absolute(SeasonSave.path + suffix)

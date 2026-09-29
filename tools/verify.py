@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-wholesale-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_wholesale_live_test.tscn"],
+                 "Wiffaltro live wholesale checks passed:"),
+                ("season-wholesale", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_wholesale_test.tscn", *ui_extra],
+                 "Wiffaltro wholesale checks passed:"),
                 ("season-cornerstone-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_cornerstone_live_test.tscn"],
                  "Wiffaltro live Cornerstone checks passed:"),

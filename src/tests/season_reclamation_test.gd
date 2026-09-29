@@ -46,7 +46,8 @@ func _reclamation_season() -> SeasonState:
 			),
 			"buy real Reclamation"
 		)
-		for id: String in gear.values():
+		# This fixture promises exactly two paid copies, even if all three slots appear.
+		for id: String in gear.values().slice(0, 2):
 			_check(
 				(
 					build

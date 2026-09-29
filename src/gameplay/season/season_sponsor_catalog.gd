@@ -201,8 +201,25 @@ const ANCHOR_ITEMS: Dictionary = {
 	}
 }
 
+const WHOLESALE_ITEMS: Dictionary = {
+	"J02":
+	{
+		"name": "Wholesale Club",
+		"price": 8,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Once per visit, buy two same-category offers together. Cheaper item gets "
+			+ "25% off rounded down, max 4; choose discounted item on ties. Gear uses distinct "
+			+ "slots with explicit replacements; lessons need legal learners. No development, "
+			+ "packs, recruits, other concessions or reserves. Actual paid receipts set resale."
+		)
+	}
+}
 
-static func catalog(version: int = 7) -> Dictionary:
+
+static func catalog(version: int = 8) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
@@ -216,6 +233,8 @@ static func catalog(version: int = 7) -> Dictionary:
 		result.merge(SCHOOL_ITEMS.duplicate(true))
 	if version >= 7:
 		result.merge(ANCHOR_ITEMS.duplicate(true))
+	if version >= 8:
+		result.merge(WHOLESALE_ITEMS.duplicate(true))
 	return result
 
 
@@ -223,7 +242,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 7) -> String:
+static func signature(version: int = 8) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -236,7 +255,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 7) -> Dictionary:
+static func eligible(active: Array, version: int = 8) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:

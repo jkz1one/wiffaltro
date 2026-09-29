@@ -1,5 +1,61 @@
 # Fast verification and playtest records
 
+## Wholesale coordinated purchases, 2026-09-29
+
+Full run `20260929T214115419439Z` passed54/57 checks. Two fixture failures are described
+below. The original four-game `live-match` process exited0 after only its engine header,
+without its completion marker; the runner correctly rejected it. This repeats the recorded
+intermittent startup/early-exit symptom, whose cause remains unresolved. No automatic retry
+hides that failed run, and this is not represented as a clean full-suite pass.
+Focused `20260929T214655502264Z` passed8/8, including all four original physical games.
+All57 check types now have passing evidence across these runs, including fourteen complete
+physical games. Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor;
+the historical PROGRESSION_BLUEPRINT.md remains identical to main.
+
+Focused Godot4.7.2 contracts/UI `20260929T214007048834Z` passed8/8. The actual generated
+paid Gear game `20260929T214052990357Z` passed8/8: five innings,139 play records and32
+balls in play. Both paired Gear receipts were captured at first release, qualified only
+on completed settlement and replayed with their actual paid amounts. Ordinary outro and
+restart checks passed. This is physical runtime evidence, not a human balance sample.
+
+Boundaries cover10+12 costing20 with8/12 paid receipts, later4-Cash resale of the discounted
+Bat, a player-selected equal-price discounted receipt, floor-quarter rounding and max4.
+Two old5-Cash sales can finance an18-Cash pair from wallet8; wallet7 fails without losing
+old Gear, stock, use provenance or Reclamation allowance. Two used replacements give one
+separate reroll credit and no inherited use on either new receipt. Same-slot Gear, a dearer
+discount target and an invalid second receipt are rejected. Retry, reroll and sale/rebuy
+cannot renew a used deal. Two sponsor additions respect final capacity; explicit old
+replacement resolves it. Discounted Summer School retains its fixed student and zero resale.
+Union/Summer allowances remain unspent. Two exact lessons use separate learner operations
+and one combined charge. Development purchases do not enter Wholesale's target list.
+
+Final strengthened UI run `20260929T214452207855Z` passed8/8, including actual paid
+Gear replacements with disclosed old-sale proceeds, cancellation, save failure and reload.
+Actual viewport clicks cover Gear, sponsor and lesson pairs, equal-price selection when
+applicable, exact target/replacement review, cancellation, failed-save rollback with previous
+bytes intact, successful reload and the saved use flag at700×400 and1000×650. Ordinary paid
+J02 purchase/replacement/resale uses the shared sponsor UI checks. A genuinely paid schema16
+Cornerstone save retains stock/cash and same-visit rerolls, is not rewritten merely by loading,
+and activates catalogue8 only next visit. Focused `20260929T214257231374Z` passed10/10,
+including Wholesale, corrected Cornerstone migration and ownership with seven shared gates.
+
+The initial new test `20260929T213938460318Z` failed because its controlled two-offer helper
+reused one quote ID without a revision change, and its optional metadata lookup treated null
+as a missing-key error. Distinct fixture quote IDs and `has_meta` checks resolved both;
+production transaction behavior was not weakened. Full-run regression also exposed an old
+Cornerstone migration assertion requiring catalogue7 exactly rather than the retained F01
+capability, and a Reclamation fixture buying three offered Gear pieces despite asserting
+exactly two. The assertions still require Cornerstone eligibility and exactly two paid copies;
+the fixtures now check capability and buy their promised two pieces. Corrected Reclamation
+contract/live `20260929T214346873965Z` passed9/9. No gameplay rule or receipt assertion was removed.
+
+Prices and pair rules remain Working testing contracts, ownership remains Approved, and
+existing Proposals remain unapproved. Native rendered visual, human feel/economy acceptance,
+AI purchasing, tactical/ability categories and earned access remain open. The prior intermittent
+engine-header-only exit cause remains unresolved. Fresh main and preserved Blueprint are unchanged.
+
+
+
 ## Cornerstone committed defense, 2026-09-29
 
 Full Godot4.7.2 run `20260929T203246815721Z` passed53/55 checks. The school UI failure

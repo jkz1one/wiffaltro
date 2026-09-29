@@ -1,11 +1,46 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.49
+**Version:** v0.4.50
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Wholesale Club coordinated purchases, 2026-09-29
+
+J02 Wholesale Club (Common8) is the fifteenth supported sponsor. Its initially eligible,
+once-per-visit contract follows retained Blueprint v114 lines5191–5215 and current
+Equipment/Sponsors v18's transaction review. This remains a **Working testing contract**;
+Approved one-equipped-item/no-reserve ownership and existing unapproved Proposals stay distinct.
+
+Choose two different currently offered items in the same supported mixed category: Gear,
+Sponsors or Pitch Lessons. Discount the cheaper item by25%, rounded down, at most4 Cash;
+when prices match, explicitly choose the discounted item. No development, fixed packs,
+recruits, transformations, Open Book pairs or other price concessions enter this transaction.
+Tactical supplies and learned abilities remain unavailable until their own systems exist.
+
+Gear must occupy different Bat/Ball/Misc slots. Every occupied destination requires an
+explicit old receipt for replacement. Both authorized old sales can fund the combined
+purchase. Sponsors require legal final active capacity and distinct replacement receipts;
+Summer School still requires its fixed legal student and retains zero resale. Two lessons
+require exact independent learners/replacement choices, retain personal remembered mastery
+and cannot create repertoire overflow. No intermediate purchase, reserve or refund coupon
+is exposed. All sales, purchases, growth, offers, allowances and persistence settle together.
+
+Discounts belong to individual actual-paid receipts. Bat10 + Ball12 costs20, receipts8/12,
+and later ordinary resale4/6. Replacing used Gear can still earn the separate once-visit
+Reclamation reroll credit, which never funds the pair. Union and Summer purchase concessions
+are neither stacked nor consumed. Invalid/canceled/failed-save pairs preserve both offers,
+Cash, old ownership, growth and use flags. Rerolls, reloads and sponsor sale/rebuy cannot
+renew the Wholesale use; normal purchases remain available after it is spent.
+
+The UI selects both offers/destinations, resolves equal-price choice and reviews each base
+price, discount, actual paid amount, effect/status and replacement proceeds before confirming.
+Schema17/build13 preserves old paid shops and same-visit rerolls; catalogue8 begins next visit.
+No AI purchasing or balance approval is implied. Native rendered visual and human acceptance
+remain pending alongside the remaining sponsor/tactical/earned-access dependencies.
+
 
 ## Cornerstone Concrete and committed defense, 2026-09-29
 
