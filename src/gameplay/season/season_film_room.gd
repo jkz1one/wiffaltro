@@ -22,8 +22,7 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 
 
 static func choices(season: SeasonState, fixture: Dictionary) -> Array[String]:
-	var opponent: int = fixture.away if fixture.home == 0 else fixture.home
-	var starter: PlayerDefinition = season.player_definition(season.teams[opponent].roster[0])
+	var starter: PlayerDefinition = season.player_definition(season.opposing_starter(fixture))
 	var result: Array[String] = []
 	for recipe: PitchDefinition in starter.starting_pitches:
 		result.append(String(recipe.id))

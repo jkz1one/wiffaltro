@@ -107,8 +107,7 @@ static func pregame(menu: SeasonMenu) -> void:
 	var card: VBoxContainer = SeasonPlayerCard.panel(menu._body, true)
 	menu._label(card, menu._matchup(fixture), 24)
 	menu._label(card, venue(fixture) + " • Fresh Stamina • 5 innings", 18)
-	var opponent: int = fixture["away"] if fixture["home"] == 0 else fixture["home"]
-	var starter: PlayerDefinition = season.player_definition(season.teams[opponent]["roster"][0])
+	var starter: PlayerDefinition = season.player_definition(season.opposing_starter(fixture))
 	menu._label(
 		card,
 		(
@@ -122,6 +121,7 @@ static func pregame(menu: SeasonMenu) -> void:
 		20
 	)
 	wrapped(card, "Arsenal: " + menu._pitches(starter).replace("\n", " • "))
+	SeasonOpponentUI.preview(menu, card, fixture)
 	SeasonFilmChoice.add(menu, card, fixture)
 	if season.build != null:
 		var budget: String = SeasonBudgetBites.describe(season.build, int(fixture.id))

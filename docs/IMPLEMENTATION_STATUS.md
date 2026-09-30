@@ -1,5 +1,17 @@
 # Implementation Status
 
+## Paid opponent development foundation, 2026-09-30
+
+New Working seasons now have five independent paid AI builds with own-result income,
+source-named stat objectives, real shared shop transactions, round/playoff ordering and
+exact schema23/build19 replay. Actual purchased ratings feed live matches and the existing
+bounded offscreen score mapping. Pregame shows committed wallet, growth and reasons;
+announced starters and scouting agree with match roles. Legacy saves keep their prior model.
+This implements broad-stat AI acquisition only. Mastery, Gear, sponsors, tactics, recruiting,
+abilities, stronger roster selection and full difficulty/league policy remain open. Working
+contracts, Approved ownership and unapproved Proposals retain their separate status.
+
+
 ## Film Room and all initially eligible sponsors, 2026-09-29
 
 All19 initially eligible sponsor candidates now have paid acquisition and their supported
@@ -249,8 +261,9 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 66% implemented** (weighted estimate65.5), after Film Room and all19 initial sponsors
-(65% after Budget Bites and pregame commitment;64% after tactical combination/exchange sponsors;63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
+**Approximately 68% implemented** (weighted estimate67.5), after paid opponent stat development
+(66% after Film Room and all19 initial sponsors;
+65% after Budget Bites and pregame commitment;64% after tactical combination/exchange sponsors;63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
 59% after the three development sponsors;57% after Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
 Strikecraft sequence recovery;54% after
@@ -263,20 +276,21 @@ human-approved or release-ready merely because their code runs.
 
 | Scope | Weight / 100 | Estimated implemented points |
 | --- | ---: | ---: |
-| Core sport, AI and match presentation | 20 | 17 |
-| Season flow and persistence | 8 | 7 |
-| Ownership and economy | 8 | 7.5 |
+| Core sport, AI and match presentation | 20 | 17.5 |
+| Season flow and persistence | 8 | 7.5 |
+| Ownership and economy | 8 | 8 |
 | Player development and mastery | 10 | 8.5 |
-| Shop, packs and recruitment | 12 | 8 |
+| Shop, packs and recruitment | 12 | 8.5 |
 | Gear, tactical cards and abilities | 10 | 7.5 |
 | Sponsors | 10 | 9 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **65.5** |
+| **Total** | **100** | **67.5** |
 
-Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
-shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops
+Next unmet dependencies include offscreen support for further AI purchase categories, earned
+access/career foundations, Alley/mapping calibration and earned Gear/sponsors. Shared consumable
+capacity modifiers remain open (sponsor reserves are prohibited). Partial shops
 redistribute missing category weights; they do not pretend those systems are implemented. Human visual/feel checks remain a release gate.
 The following entries are historical checkpoints; this entry supersedes their missing-shop notes.
 

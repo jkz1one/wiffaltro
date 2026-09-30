@@ -48,6 +48,7 @@ var fielder_index: int = 1
 var difficulty: int = 1
 var ownership: SeasonOwnership = SeasonOwnership.new()
 var build: SeasonBuild
+var opponents: SeasonOpponents
 
 
 static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
@@ -56,12 +57,17 @@ static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
 
 
 static func create(
-	seed_value: int, legacy: bool = false, working_progression: bool = false
+	seed_value: int,
+	legacy: bool = false,
+	working_progression: bool = false,
+	paid_opponents: bool = false
 ) -> SeasonState:
 	var season: SeasonState = SeasonState.new()
 	season.season_seed = seed_value
 	if working_progression:
 		season.build = SeasonBuild.new(seed_value)
+		if paid_opponents:
+			season.opponents = SeasonOpponents.new()
 	for id: StringName in ContentDB.player_by_id:
 		if id != PitchBatLab.DEBUG_PLAYER_ID and (not legacy or String(id) in LEGACY_IDS):
 			season.draft_pool.append(String(id))
@@ -119,6 +125,8 @@ func choose_player(id: String) -> bool:
 			teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
 		if build != null:
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
+		if opponents != null:
+			opponents.initialize(self)
 		for team in range(6):
 			teams[team]["strength"] = _strength(team)
 		phase = Phase.REGULAR
@@ -213,6 +221,16 @@ func record_player_result(
 		for game in schedule:
 			if game["round"] == round_index and game["id"] != fixture_id:
 				results.append(_simulate(game))
+		if opponents != null:
+			var played: Array = results.filter(
+				func(row: Dictionary) -> bool: return row["round"] == round_index
+			)
+			var survivors: Array = [1, 2, 3, 4, 5]
+			if round_index == 9:
+				survivors = standings().slice(0, 4).map(
+					func(row: Dictionary) -> int: return row.team
+				)
+			opponents.settle(played, survivors)
 		round_index += 1
 		if round_index == 10:
 			_begin_playoffs()
@@ -220,8 +238,11 @@ func record_player_result(
 		for game in semifinals:
 			if game["id"] != fixture_id:
 				results.append(_simulate(game))
+		_settle_semifinals()
 		_prepare_final()
 	else:
+		if opponents != null:
+			opponents.settle([result], [])
 		champion = _winner(result)
 		phase = Phase.COMPLETE
 	return true
@@ -296,10 +317,26 @@ func _make_team(index: int) -> TeamMatchState:
 	var roster: Array[PlayerDefinition] = []
 	for id: String in teams[index]["roster"]:
 		roster.append(player_definition(id))
-	return TeamMatchState.create(teams[index]["name"], roster)
+	var team: TeamMatchState = TeamMatchState.create(teams[index]["name"], roster)
+	if opponents != null and index > 0:
+		var role: Dictionary = opponents.clubs[str(index)].roles
+		team.pitcher_index = teams[index].roster.find(role.pitcher)
+		team.fielder_index = teams[index].roster.find(role.fielder)
+	return team
+
+
+func opposing_starter(fixture: Dictionary) -> String:
+	var index: int = fixture.away if fixture.home == 0 else fixture.home
+	if opponents != null:
+		return opponents.clubs[str(index)].roles.pitcher
+	return teams[index].roster[0]
 
 
 func player_definition(id: String) -> PlayerDefinition:
+	if opponents != null:
+		var opponent: PlayerDefinition = opponents.definition(id)
+		if opponent != null:
+			return opponent
 	return ContentDB.get_player(StringName(id)) if build == null else build.definition(id)
 
 
@@ -357,6 +394,7 @@ func _begin_playoffs() -> void:
 	if not playoff_seeds.has(0):
 		for game in semifinals:
 			results.append(_simulate(game))
+		_settle_semifinals()
 		_prepare_final()
 
 
@@ -373,6 +411,8 @@ func _prepare_final() -> void:
 	if not winners.has(0):
 		var final_result: Dictionary = _simulate(final_fixture)
 		results.append(final_result)
+		if opponents != null:
+			opponents.settle([final_result], [])
 		champion = _winner(final_result)
 		phase = Phase.COMPLETE
 
@@ -392,7 +432,7 @@ func _simulate(fixture: Dictionary) -> Dictionary:
 
 
 func _strength(team: int) -> float:
-	if teams[team].has("strength"):
+	if opponents == null and teams[team].has("strength"):
 		return float(teams[team]["strength"])
 	var total: float = 0.0
 	for id: String in teams[team]["roster"]:
@@ -426,3 +466,11 @@ static func _poisson(rng: RandomNumberGenerator, mean: float) -> int:
 
 static func _winner(result: Dictionary) -> int:
 	return result["away"] if result["away_runs"] > result["home_runs"] else result["home"]
+
+
+func _settle_semifinals() -> void:
+	if opponents == null:
+		return
+	var played: Array = results.filter(func(row: Dictionary) -> bool: return row.id in [30, 31])
+	var survivors: Array = played.map(func(row: Dictionary) -> int: return _winner(row))
+	opponents.settle(played, survivors)

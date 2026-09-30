@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.46
+**Version:** v0.1.47
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,42 @@
 ---
 
 # 1. Technical Objective
+
+## Paid opponent ledgers and deterministic round settlement, 2026-09-30
+
+`SeasonOpponents` owns five `SeasonBuild` aggregates, each seeded independently from the
+season and initialized with its actual four-player roster, zero Cash and market1. Market0
+retains human stock. `SeasonOpponentMarket` supplies only broad-stat loose offers and a
+three-distinct-family fixed pack; all charges, caps, consumption and revisions still go
+through `SeasonBuild.commit`. Build19 persists the market; human save validation requires0.
+The existing build migration body moved unchanged into `SeasonBuildMigration` to retain
+historical pool boundaries within the aggregate's lint limit.
+
+`SeasonOpponentPolicy` fixes source-named profiles and roles. Highest Power chooses the hitter
+(Contact tie-break), highest Pitching chooses the primary (summed active mastery tie-break),
+Fielding chooses a distinct primary fielder, and Pitching chooses a distinct secondary;
+remaining ties use ascending stable IDs. Distributed rotation uses lowest eligible stat then
+ascending ID. Its objective/rotation cursor and paid-decision reasons are persisted. Policy1
+omits unsupported mastery objectives and all non-stat market categories. It buys through
+ordinary loose/pack/reroll operations, with no human-build argument or future-stock query.
+
+`SeasonState.record_player_result` resolves all current-round scores before settlement.
+Every participating AI receives its own base reward, then only survivors shop. Round10 uses
+actual top-four standings; semifinal winners shop once before the final; elimination/final
+pays without shopping. Auto-resolved AI-only playoffs call these same boundaries. Definitions
+resolve through the owning AI build; `_make_team` uses its fixed primary pitcher/fielder.
+`opposing_starter` is shared by lineup review and Film Room choices. Offscreen `_strength`
+reads the current16 paid ratings instead of the frozen starting cache only for this cohort;
+the existing score generator is unchanged. Old seasons retain frozen behavior.
+
+New UI-created Working seasons opt in explicitly. `SeasonSave` schema23 includes the complete
+opponent policy1 state. Restore reconstructs the draft and ordered results, deterministically
+replays all five journals, then compares normalized JSON structures, including roles/cursor/
+reasons. Both native in-memory save validation and parsed-file restore use the same numeric
+normalization. There is no independently trusted mutable wallet/growth blob. The existing
+atomic season file contains the human result and all AI transactions together; retry cannot
+reward/shop again. No midgame save, offscreen event ledger, learned AI policy or league-tier
+model is implied. The opponent UI reads this committed state without mutating it.
 
 ## Saved scouting and explicit pitch disclosure, 2026-09-29
 

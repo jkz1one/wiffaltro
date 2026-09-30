@@ -1,5 +1,63 @@
 # Fast verification and playtest records
 
+## Paid opponent stat development, 2026-09-30
+
+Full run `20260930T033744703813Z` passed69/69 checks and all25 complete physical games
+on Godot4.7.2. This includes new opponent scenes, prior sponsor/tactical/Gear suites,
+shop/recruitment/development/ownership, migrations, automated UI, season/AI/camera/sport
+regressions, physical-ball checks, match soak, QC export and main-scene startup. No automated
+failure remains. Source code was unchanged after this run; only its final verification note
+was updated. Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor and
+the historical repository PROGRESSION_BLUEPRINT.md is identical to main.
+
+Focused contract/UI run `20260930T033659562448Z` passed8/8.
+The preceding `20260930T033417212707Z` passed the new live match but correctly failed its
+coverage assertion: the sampled complete seasons exercised38 paid rerolls and no pack
+purchases. A separate legitimate four-player, zero-start,18-Cash-win fixture at stock seed8
+now executes an8-Cash fixed pack purchase, distinct family reveal, objective selection,
+wallet reconciliation and exact shared-journal replay. The final fixture pins that seed;
+production policy does not search seeds or inspect future stock.
+
+The new physical game uses a real season after three completed rounds of paid opponent
+shopping. Kites' actual purchased definitions feed the live controllers; the game completes
+at third-inning mercy18–0 with105 play records and35 balls in play. The test observes17,992
+opponent batting frames with the committed Contact/Power ratings. Actual completed-result
+statistics, failed-write preservation, retry, repeated Continue, exact restored opponent
+journals and normal outro/restart are checked. This demonstrates the paid build reaches the
+physical game, not that the new opponent economy is balanced or human-approved.
+
+Contract coverage reconciles each club's own18/12 result income against every6-Cash card,
+8-Cash pack and4-Cash reroll; checks one reward per fixture, at most one reroll per visit,
+cap10, every growth step's paid decision, unchanged unsupported mastery, no invented sponsor
+income/held supplies, and exact standalone shared-build replay. The offscreen strength input
+matches the actual16 ratings. Human-win and human-loss full-season paths cover all regular
+rounds, qualifying/eliminated clubs, AI-only playoffs, semifinal winner shops and no shop
+after elimination/final. Duplicate results and human shop actions cannot repeat AI purchases.
+Tampered policy, role, cursor, market or event journals are rejected. Failed whole-round
+writes retain prior bytes and all five prior builds; retry saves one coherent new round.
+An actual schema22/build18 legacy fixture migrates without enabling retroactive AI growth.
+
+Actual UI input checks create a new Working season, inspect the committed opponent summary
+and ratings, check wrapping/navigation bounds, enter/leave the human shop, launch Play Game,
+leave and reload an unfinished match. The AI ledger remains unchanged throughout. Every
+club's announced starter and Film Room repertoire match the live team's committed pitcher.
+The shop's stale supported-sponsor count is corrected to19 initial candidates. These are
+headless input/layout/runtime checks, not native rendered visual approval.
+
+Initial `20260930T032459218833Z` stopped at lint on an unused settlement argument; the argument
+was removed. `20260930T032832069307Z` exposed native-int versus parsed-JSON-float dictionary
+comparison in save validation. That save failure caused follow-on null accesses and a live
+scene timeout; no passing save/runtime claim is made for it. Both sides are now normalized
+before equality, and the new fixtures stop immediately if their initial checkpoint fails.
+Corrected `20260930T033251051172Z` passed8/8. Subsequent live and complete-season saves pass.
+
+Native display remains unavailable as recorded in `native-ui-display-20260928.log`; the
+prerequisites have not changed. Rendered readability and human feel/balance acceptance remain
+open. The AI capability mask is broad stats only: no Gear, sponsor, mastery, lesson, tactic,
+recruit or ability acquisition; no synthetic offscreen event stream, stronger roster selector,
+career unlocks, stadium progression or full league/difficulty model is claimed.
+
+
 ## Film Room saved scouting and release information, 2026-09-29
 
 Full run `20260930T024110508788Z` passed67/67 checks, including all24 complete physical

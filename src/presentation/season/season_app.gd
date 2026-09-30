@@ -66,7 +66,7 @@ func ask_new_season() -> void:
 func begin_season(seed_value: int = -1, working_progression: bool = false) -> void:
 	var selected_seed: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
 	season = SeasonState.create(
-		selected_seed if seed_value < 0 else seed_value, false, working_progression)
+		selected_seed if seed_value < 0 else seed_value, false, working_progression, working_progression)
 	# Legacy saves retain their tactical preset. New runs use the base shell;
 	# the future per-League difficulty ladder is not a pitching-only selector.
 	season.difficulty = 1

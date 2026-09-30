@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 18
+const VERSION: int = 19
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -38,6 +38,7 @@ var _recruits: Array[Dictionary] = []
 var _game_rosters: Dictionary = {}
 var _appeared: bool = false
 var _format: int = VERSION
+var _market: int = 0
 var _recruit_from: int = 1
 var _gear_from: int = 1
 var _misc_from: int = 1
@@ -190,6 +191,8 @@ func to_data() -> Dictionary:
 		data["budget_from"] = _budget_from
 	if _format >= 18:
 		data["film_from"] = _film_from
+	if _format >= 19:
+		data["market"] = _market
 	return data
 
 
@@ -237,6 +240,8 @@ static func from_data(
 		keys.append("budget_from")
 	if value.version >= 18:
 		keys.append("film_from")
+	if value.version >= 19:
+		keys.append("market")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -322,6 +327,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.film_from, 1, 13):
 			return null
 		result._film_from = int(value.film_from)
+	if value.version >= 19:
+		if not SeasonOwnership._whole(value.market, 0, 1):
+			return null
+		result._market = int(value.market)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -411,6 +420,7 @@ func _fork() -> SeasonBuild:
 	result._game_rosters = _game_rosters.duplicate(true)
 	result._appeared = _appeared
 	result._format = _format
+	result._market = _market
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
 	result._misc_from = _misc_from
@@ -502,12 +512,17 @@ func _apply(command: Dictionary) -> String:
 			"open": true,
 			"rerolls": 0,
 			"offers": _offers(0),
-			"cards": DevelopmentShopCatalog.pack(_book, _roster, _rng(-1)),
+			"cards":
+			(
+				SeasonOpponentMarket.pack(self)
+				if _market == 1
+				else DevelopmentShopCatalog.pack(_book, _roster, _rng(-1))
+			),
 			"pack_status": "sealed"
 		}
 		if union_earned:
 			_visit["union_credit"] = 3
-		if _format >= 2 and _visit.number >= _recruit_from:
+		if _market == 0 and _format >= 2 and _visit.number >= _recruit_from:
 			_visit["recruit"] = _recruit_offer()
 		return ""
 	if not _visit.open:
@@ -650,6 +665,8 @@ func _charge(amount: int) -> String:
 
 
 func _offers(rerolls: int) -> Dictionary:
+	if _market == 1:
+		return SeasonOpponentMarket.offers(self, rerolls)
 	if _format >= 3 and _visit.number >= _gear_from:
 		return SeasonGearCatalog.offers(
 			_book,
@@ -952,41 +969,4 @@ func _tactical_catalog_version() -> int:
 
 
 func migrate() -> void:
-	# Activate each newly supported pool at the next visit, preserving every
-	# already enabled boundary and the exact generator of the saved current visit.
-	var next_visit: int = int(_visit.number) + 1
-	if _format < 2:
-		_recruit_from = next_visit
-	if _format < 3:
-		_gear_from = next_visit
-	if _format < 4:
-		_misc_from = next_visit
-	if _format < 5:
-		_mapped_gear_from = next_visit
-	if _format < 6:
-		_sponsor_from = next_visit
-	if _format < 7:
-		_gameplay_sponsor_from = next_visit
-	if _format < 8:
-		_sequence_sponsor_from = next_visit
-	if _format < 9:
-		_field_sponsor_from = next_visit
-	if _format < 10:
-		_shop_sponsor_from = next_visit
-	if _format < 11:
-		_school_sponsor_from = next_visit
-	if _format < 12:
-		_anchor_sponsor_from = next_visit
-	if _format < 13:
-		_wholesale_from = next_visit
-	if _format < 14:
-		_tactical_from = next_visit
-	if _format < 15:
-		_expanded_tactical_from = next_visit
-	if _format < 16:
-		_tactical_sponsor_from = next_visit
-	if _format < 17:
-		_budget_from = next_visit
-	if _format < 18:
-		_film_from = next_visit
-	_format = VERSION
+	SeasonBuildMigration.apply(self)

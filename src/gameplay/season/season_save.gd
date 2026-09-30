@@ -25,6 +25,8 @@ static func save(season: SeasonState) -> bool:
 		data.version = 4 + season.build.to_data().version
 		data.erase("ownership")
 		data["build"] = season.build.to_data()
+	if season.opponents != null:
+		data["opponents"] = season.opponents.to_data()
 	if _decode(data) == null:
 		last_error = "Season data failed validation. The previous save was preserved."
 		return false
@@ -76,7 +78,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 22) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 23) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -92,8 +94,11 @@ static func _decode(value: Variant) -> SeasonState:
 		"draws",
 		"strengths",
 		"ownership",
-		"build"
+		"build",
+		"opponents"
 	]
+	if data.has("opponents") and (data.version < 23 or not data.opponents is Dictionary):
+		return null
 	for key: Variant in data:
 		if not key is String or not allowed.has(key):
 			return null
@@ -106,7 +111,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not data.get("results") is Array or data["results"].size() > 12:
 		return null
 	var season: SeasonState = SeasonState.create(
-		int(data["seed"]), data["version"] == 1, data["version"] >= 5
+		int(data["seed"]), data["version"] == 1, data["version"] >= 5, data.has("opponents")
 	)
 	if data["version"] >= 2:
 		if not _restore_pool(season, data):
@@ -135,7 +140,7 @@ static func _decode(value: Variant) -> SeasonState:
 		restored = SeasonBuild.from_data(
 			data.build, season.season_seed, roster, season.draft_pool, season.recruit_blocked()
 		)
-		if restored == null:
+		if restored == null or restored._market != 0:
 			return null
 	for result: Variant in data["results"]:
 		if not result is Dictionary:
@@ -202,6 +207,10 @@ static func _decode(value: Variant) -> SeasonState:
 			return null
 		restored.migrate()
 		season.build = restored
+	if data.has("opponents"):
+		var expected: Variant = JSON.parse_string(JSON.stringify(season.opponents.to_data()))
+		if JSON.parse_string(JSON.stringify(data.opponents)) != expected:
+			return null
 	return season
 
 

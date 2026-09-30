@@ -1,11 +1,64 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.55
+**Version:** v0.4.56
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Paid opponent broad-stat development, 2026-09-30
+
+New Working seasons now give each of the five AI clubs its own zero-start Season Cash
+wallet and replayable paid build. This is the bounded **Working** opponent policy from
+Economy v24 lines603–700 and its offscreen capability gate, not completion or approval of
+Phase6. Approved ownership/caps and existing unapproved Proposals retain their status.
+Rivets/Comets use Distributed objectives, Kites a Featured hitter, and Lanterns/Switches
+Pitching/defense. Roles are selected once from the actual starting roster and remain stable.
+The current random roster allocation and existing difficulty controller are preserved;
+authored roster selection and broader difficulty/league progression remain open.
+
+Each actual result pays that club's own18-Cash win or12-Cash loss once. After every complete
+round, surviving clubs finish their purchases before the human shop or next match opens.
+Regular-season elimination, semifinal elimination and the final still pay earned base
+income but create no invalid shopping window. Human purchases, record, reload and unfinished
+restarts do not trigger responsive growth, free grants or extra purchases. Opponent-only
+playoffs use the same ordering. No synthetic player statistics or sponsor event income is
+invented from offscreen scores.
+
+Policy1's published capability mask supports only Contact, Power, Fielding and Pitching.
+Four loose offers use eligible broad-stat cards with equal weight, ordinary6-Cash purchase,
+cap10 and shared transaction validation. The fixed8-Cash pack draws three distinct eligible
+stat families; the AI may purchase it only when at least three families advance its current
+objectives, before inspecting its revealed cards. It selects the earliest matching objective.
+At most one ordinary4-Cash reroll is allowed per visit, only after useful affordable stock
+is exhausted and the remaining wallet can fund a useful card. There is no next-stock peek.
+Gear, sponsors, mastery, lessons, tactics, recruiting and abilities remain outside AI stock
+until their offscreen consequences and ownership policies are implemented.
+
+Distributed first targets the hitter's Contact3/Power3, primary Pitching3 and fielder Fielding3;
+then rotates Contact/Power/Pitching/Fielding onto the lowest eligible rating, stable-ID ties.
+Featured hitter targets Contact4/Power6, then rotates Power/Power/Contact. Pitching/defense
+targets primary Pitching4, fielder Fielding4 and secondary Pitching3, then rotates those roles.
+The full source profile's mastery objective/rotation slot is deliberately gated with the
+unsupported mastery category. Cap-blocked targets are skipped. This is a bounded stat-only
+policy, not full category parity with human shopping or the complete source AI model.
+
+Actual paid ratings reach live match definitions and the existing offscreen strength model:
+the mean of all16 roster ratings, with run means3.2 plus/minus0.45 times the strength difference,
+clamped1–6. The existing seeded Poisson/tie resolver remains. Prices, unspent Cash and purchase
+counts are not strength inputs. This Working mapping is a score proxy, not physical offscreen
+simulation or evidence of balanced rematches. Pregame exposes the committed profile, wallet,
+purchased-step count, all four players' ratings and recent purchase reasons. Its announced
+starter and Film Room repertoire use the same committed defensive role as match construction.
+
+Schema23/build19 saves opponent policy, roles, rotation cursor, decisions and each shared
+transaction journal. Restore derives all opponent results and purchases from the season,
+then requires exact normalized equality; altered roles, market, policy, cursor or events are
+rejected. The whole round checkpoints together, retaining the previous valid save on failure.
+Existing saves keep their previous opponent model after migration; no retroactive spending
+is introduced. Human stock/rerolls and historical build migration remain unchanged. Native
+rendered review, human balance acceptance and the remaining AI categories remain open.
 
 ## Film Room exact-recipe disclosure, 2026-09-29
 
