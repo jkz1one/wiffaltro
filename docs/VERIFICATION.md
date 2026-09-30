@@ -1,5 +1,44 @@
 # Fast verification and playtest records
 
+## Recovered Second Chance checkpoint, 2026-09-30
+
+Recovered the existing `rebuild/season-engineering` checkout at `1eb4bd2`, including the
+uncommitted Second Chance implementation and tests left by the full conversation. No gameplay
+source was rewritten during recovery. Remote branch HEAD matched this base, and remote main
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420` was already an ancestor. The preserved
+`docs/PROGRESSION_BLUEPRINT.md` remains byte-identical to that main revision.
+
+Fresh affected-path run `20260930T202412003691Z` passed **25/25 checks** under Godot
+4.7.2: seven common revision/parse/lint/import gates and 18 selected scene checks. Coverage
+includes Second Chance menu/live behavior, live/menu sales, Equipped UI, Transfer, Raincheck,
+Special Order, earned sponsors, Gear progress, club career, opponent development, Budget Bites,
+tactical combinations, expanded/ordinary tactical supplies and ownership. Four physical games
+completed across Second Chance, live sales and two tactical-sponsor scenarios. No engine
+warnings or errors were reported. All 457 snapshotted source/test/asset/project/runner files
+remained byte-identical during the run; subsequent edits only document the checkpoint.
+
+The recovered Second Chance scene exercises earned access from three paid consumptions,
+abandonment inheritance, exact-copy selection and skip, exclusions, locked restart, all four
+eligible runtime supplies, combo attribution, sponsor retirement, capacity forfeiture and old
+career/build migration. Real UI input covers pregame choice, failed-save rollback, game launch,
+restart, postgame outcome and career-progress geometry. The live scene consumes actual paid
+supplies, sells insurance during the active Swing Plan, retains the current play's effect,
+retires it at the next batter, and settles exactly one fresh replacement. Failed result-save
+retry, repeated Continue and save replay cannot mint another replacement or restore the sponsor.
+Double Booking also retains current-attempt settlement proof after a live sale and loses that
+proof when starting a new attempt.
+
+Initial recovery run `20260930T202303784417Z` also passed 9/9, including the complete new
+live game. The earlier interrupted run `20260930T183453709191Z` is not green evidence:
+its live scene timed out after a script indentation parse error. The recovered current file
+passed both fresh runs. This does not resolve the separate historical full-suite early-exit
+limitation. The complete suite was not rerun during this recovery.
+
+These are automated interaction, layout and physical-runtime checks. Native rendered review,
+hardware-controller feel, human balance acceptance and the required final premium UI pass
+remain open. `CONTINUATION.md` records the resume point and user constraints. Overall estimate
+remains approximately 72%; 25/35 sponsors and 23/25 Gear candidates are supported.
+
 ## Transfer Station provenance, personal mastery and paid UI, 2026-09-30
 
 Final affected-path regression `20260930T175935000985Z` passed23/23 checks: seven common

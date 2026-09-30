@@ -66,7 +66,14 @@ static func pages(app: SeasonApp) -> Dictionary:
 		result.supplies.append(_supply(receipt, live))
 	if live:
 		for receipt: Dictionary in team.tactics.held:
-			result.supplies.append(_supply(receipt, true))
+			var row: Dictionary = _supply(receipt, true)
+			if receipt.id == team.tactics.insured_receipt:
+				row.label += (
+					" • Insured this game"
+					if team.roster[0].definition.season_sponsors.get("E04", false)
+					else " • Insurance ended"
+				)
+			result.supplies.append(row)
 		for use: Dictionary in team.tactics.consumed:
 			for receipt: Dictionary in wallet.held:
 				if receipt.id == use.receipt:
@@ -77,6 +84,8 @@ static func pages(app: SeasonApp) -> Dictionary:
 						and _active(team.tactics, state, receipt.item)
 					):
 						row.label = "Active this plate appearance"
+					if use.get("insured", false):
+						row.label += " • Replacement after completion, if space"
 					result.used.append(row)
 	if live:
 		for row: Dictionary in result.gear + result.sponsors:

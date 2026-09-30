@@ -1,5 +1,19 @@
 # Implementation Status
 
+For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
+
+## Second Chance Supply, live claims and tactical-sale settlement, 2026-09-30
+
+Second Chance adds permanent three-consumption career access, a paid seasonal sponsor, explicit
+pregame exact-copy insurance and one postgame replacement after valid completed use if space.
+Selection/skip, restart locking, sale timing, failed-save retry, migration and equipped/postgame
+status are implemented. Double Booking now retains current-attempt proof when sold after use.
+This supports 25/35 sponsors, leaving 10 earned contracts. Gear remains 23/25; AI acquisition,
+other content systems and final premium UI/native visual/controller/human acceptance remain open.
+Whole-project estimate remains approximately 72%; this completes another sponsor inside an
+already partially implemented category rather than closing a major system. Source effects and
+styling remain Working, user-authorized sales remain Approved, and Proposals are not promoted.
+
 ## Transfer Station and learned-recipe provenance, 2026-09-30
 
 Transfer Station adds paid two-player lesson access, a purchased seasonal copy, an atomic once-shop

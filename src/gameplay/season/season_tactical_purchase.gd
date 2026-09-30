@@ -47,10 +47,12 @@ static func buy(build: SeasonBuild, command: Dictionary) -> String:
 	return ""
 
 
-static func settle(build: SeasonBuild, value: Variant, performance: Dictionary) -> String:
+static func settle(
+	build: SeasonBuild, value: Variant, performance: Dictionary, game: int = -1
+) -> String:
 	if not value is Array or value.size() > build._bank.view().capacity.held:
 		return "Invalid tactical consumption ledger."
-	if not SeasonTacticalCombo.valid(build, value):
+	if not SeasonTacticalCombo.valid(build, value, game):
 		return "Invalid Double Booking pair or sponsor ownership."
 	var appearances: int = 0
 	for line: Dictionary in performance.values():
@@ -67,6 +69,10 @@ static func settle(build: SeasonBuild, value: Variant, performance: Dictionary) 
 		if owned.is_empty() or not SeasonTacticalCatalog.catalog().has(owned.item):
 			return "Consume only a tactical copy held before this game."
 		var fields: Array = ["receipt", "player", "pa", "swing"]
+		if action.has("insured"):
+			fields.append("insured")
+			if not SeasonSecondChance.valid_claim(build, game, action):
+				return "Invalid insurance consumption claim."
 		if action.has("combo"):
 			fields.append("combo")
 		var same_pair: bool = action.get("combo", false) and owned.item == "C03"

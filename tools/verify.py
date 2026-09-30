@@ -89,6 +89,11 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-second-chance-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_second_chance_live_test.tscn"],
+                 "Wiffaltro live Second Chance checks passed:"),
+                ("season-second-chance", [*ui_base, "res://src/tests/season_second_chance_test.tscn", *ui_extra],
+                 "Wiffaltro Second Chance checks passed:"),
                 ("season-transfer", [*ui_base, "res://src/tests/season_transfer_test.tscn", *ui_extra],
                  "Wiffaltro Transfer Station checks passed: provenance, personal mastery, replay and UI."),
                 ("season-raincheck", [*ui_base, "res://src/tests/season_raincheck_test.tscn", *ui_extra],

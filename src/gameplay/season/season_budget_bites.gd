@@ -29,6 +29,9 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 		and not build._scouts.has(game)
 	):
 		return "Choose Film Room's exact recipe before committing this game."
+	if build._format >= 26 and not SeasonSchoolSponsors.active(build, "E04").is_empty():
+		if not build._insurance.has(game):
+			return "Choose or skip Second Chance insurance before committing this game."
 	var result: String = outcome(build)
 	if result == "granted":
 		var granted: Dictionary = build._bank.commit(

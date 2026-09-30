@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 25
+const VERSION: int = 26
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -52,6 +52,9 @@ var _rain_start: Variant = null
 var _rain_earned: bool = false
 var _transfer_start: Variant = null
 var _transfer_earned: bool = false
+var _supply_start: Variant = null
+var _supply_used: int = 0
+var _insurance: Dictionary = {}
 var _reservation: Dictionary = {}
 var _recruit_from: int = 1
 var _gear_from: int = 1
@@ -148,6 +151,7 @@ func view() -> Dictionary:
 	return {
 		"pregames": _pregames.duplicate(true),
 		"scouts": _scouts.duplicate(true),
+		"insurance": _insurance.duplicate(true),
 		"revision": revision(),
 		"wallet": _bank.view(),
 		"shop": visit,
@@ -221,6 +225,8 @@ func to_data() -> Dictionary:
 		data["rain_start"] = _rain_start
 	if _format >= 25:
 		data["transfer_start"] = _transfer_start
+	if _format >= 26:
+		data["supply_start"] = _supply_start
 	return data
 
 
@@ -271,6 +277,9 @@ func commit(command: Dictionary) -> Dictionary:
 	_rain_earned = next._rain_earned
 	_transfer_start = next._transfer_start
 	_transfer_earned = next._transfer_earned
+	_supply_start = next._supply_start
+	_supply_used = next._supply_used
+	_insurance = next._insurance
 	_reservation = next._reservation
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
@@ -334,6 +343,9 @@ func _fork() -> SeasonBuild:
 	result._rain_earned = _rain_earned
 	result._transfer_start = _transfer_start
 	result._transfer_earned = _transfer_earned
+	result._supply_start = _supply_start
+	result._supply_used = _supply_used
+	result._insurance = _insurance.duplicate(true)
 	result._reservation = _reservation.duplicate(true)
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
@@ -372,6 +384,8 @@ func _apply(command: Dictionary) -> String:
 		return "Choose or skip the open pack before leaving or doing other shopping."
 	if op in ["match_inventory", "match_sell"]:
 		return SeasonMatchInventory.commit(self, command)
+	if op == "insure":
+		return SeasonSecondChance.commit(self, command)
 	if op == "scout":
 		return SeasonFilmRoom.commit(self, command)
 	if op == "pregame":
@@ -410,10 +424,15 @@ func _apply(command: Dictionary) -> String:
 				return error
 		if _format >= 14:
 			error = SeasonTacticalPurchase.settle(
-				self, command.get("tactics", []), command.get("performance", {})
+				self, command.get("tactics", []), command.get("performance", {}), int(command.game)
 			)
 			if not error.is_empty():
 				return error
+		if _supply_start != null:
+			_supply_used += command.get("tactics", []).size()
+		var insured: String = SeasonSecondChance.settle(self, command)
+		if not insured.is_empty():
+			return insured
 		_gear_progress.settle(self, command)
 		_match_inventory.clear()
 		_sponsor_progress.settle(self, command)
@@ -673,6 +692,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonRaincheck.ITEMS).sha256_text()
 	if format_version >= 25:
 		base += ":" + JSON.stringify(SeasonTransfer.ITEMS).sha256_text()
+	if format_version >= 26:
+		base += ":" + JSON.stringify(SeasonSecondChance.ITEMS).sha256_text()
 	return base
 
 

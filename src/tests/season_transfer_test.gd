@@ -253,11 +253,14 @@ func _transfer_contract(season: SeasonState) -> void:
 	var legacy: SeasonState = _new_club(8931)
 	legacy.build._format = 24
 	legacy.build._transfer_start = null
+	legacy.build._supply_start = null
 	legacy.career.runs[-1].transfer_earned = null
+	legacy.career.runs[-1].supplies_used = null
 	_check(SeasonSave.save(legacy), "legacy build24 saves")
 	data = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 5
 	data.career.runs[-1].erase("transfer_earned")
+	data.career.runs[-1].erase("supplies_used")
 	var migrated: SeasonState = SeasonSave._decode(data)
 	_check(
 		migrated != null and migrated.build._transfer_start == null,

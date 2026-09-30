@@ -124,6 +124,7 @@ static func pregame(menu: SeasonMenu) -> void:
 	wrapped(card, "Arsenal: " + menu._pitches(starter).replace("\n", " • "))
 	SeasonOpponentUI.preview(menu, card, fixture)
 	SeasonFilmChoice.add(menu, card, fixture)
+	SeasonSecondChanceUI.add(menu, card, fixture)
 	if season.build != null:
 		var budget: String = SeasonBudgetBites.describe(season.build, int(fixture.id))
 		if not budget.is_empty():
@@ -147,6 +148,8 @@ static func postgame(menu: SeasonMenu) -> void:
 				menu._body,
 				"%s: +%d Cash • Settled" % [SeasonSponsorCatalog.item(id).name, income[id]]
 			)
+	if season.build != null:
+		SeasonSecondChanceUI.result(menu, int(game.id))
 	var recorded: Dictionary = game.get("performance", {})
 	var highlights: Array[String] = SeasonPerformance.highlights(
 		recorded, game.get("club_roster", season.teams[0]["roster"])

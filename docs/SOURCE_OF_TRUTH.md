@@ -1,11 +1,43 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.63
+**Version:** v0.4.64
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Second Chance Supply and completed-copy insurance, 2026-09-30
+
+E04 Second Chance Supply is the25th supported **Working** sponsor candidate. Equipment/Sponsors
+v18 (access line281; compatibility lines607–632) and archived Blueprint v114 E04 lines3784–3811
+control the slice. Three actual tactical copies consumed in completed games earn permanent paid
+shop access across seasons. Unfinished games, replay and inherited effects without consumption
+add no uses. Paid ownership remains seasonal: Uncommon14 Cash, no free sponsor on unlocking.
+Older active saves start this new tracking next Working season without inventing historical uses.
+
+Before Play Game commits the pregame snapshot, explicitly choose one exact owned Tape, Recovery
+Pack, Swing Plan or Extra Heat copy, or skip. Take a Base and loose development are excluded.
+The choice binds this game and exact sponsor receipt; restart cannot retarget it. A copy granted
+later by Budget Bites cannot be selected retroactively. Only consuming the marked copy while the
+sponsor remains active records a claim. A completed game restores one fresh paid0 copy if bag
+space remains, never an extra slot, same-game reuse, temporary effect, inherited mark or queue.
+An unused mark expires; full capacity forfeits the restoration without discarding another item.
+The four eligible effects and the ordinary bag/activation limits stay unchanged.
+
+Approved in-game sales remain available. A sponsor sold after insured use does not erase that
+completed-use claim; runtime retirement still occurs at the safe next-batter boundary. Sale before
+later activation removes entitlement, and an unfinished restart after sale cannot borrow the old
+sponsor. The same live-sale rule now lets an already used Double Booking pair settle using the
+current saved match attempt's sponsor ownership, even after that sponsor is sold. A new attempt
+replaces this evidence; another game cannot reuse it.
+
+Prepare Next Game exposes the exact-copy choice, locked selection and explicit skip. EQUIPPED
+shows current insurance on held supplies and pending replacement on used supplies; postgame
+explains restoration, unused/skipped selection or full-inventory forfeiture. Club Record shows
+prospective career progress. These are Working UI/implementation candidates, not the final
+premium UI acceptance. Approved ownership/sale direction and unapproved Proposals retain their
+existing status. Ten earned sponsor contracts, AI acquisition extensions and later systems remain.
 
 ## Transfer Station and personal recipe history, 2026-09-30
 

@@ -84,7 +84,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 initial Gear items plus 10 earnable tiers. "
-			+ "19 initial sponsors plus five earned sponsor contracts. "
+			+ "19 initial sponsors plus six earned sponsor contracts. "
 			+ "Existing unapproved Gear mappings remain Proposals."
 		)
 	)

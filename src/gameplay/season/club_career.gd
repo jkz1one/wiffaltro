@@ -27,6 +27,7 @@ func start(season: SeasonState) -> bool:
 	season.build._order_start = order_access()
 	season.build._rain_start = rain_access()
 	season.build._transfer_start = transfer_access()
+	season.build._supply_start = supply_count()
 	current = runs.size() + 1
 	runs.append(
 		{
@@ -41,7 +42,8 @@ func start(season: SeasonState) -> bool:
 			"sponsors": [],
 			"order_rerolls": 0,
 			"rain_earned": false,
-			"transfer_earned": false
+			"transfer_earned": false,
+			"supplies_used": 0
 		}
 	)
 	return true
@@ -59,6 +61,7 @@ func sync(season: SeasonState) -> bool:
 		or not order_matches(season, false)
 		or not rain_matches(season, false)
 		or not transfer_matches(season, false)
+		or not supply_matches(season, false)
 	):
 		return false
 	var gear: Variant = (
@@ -70,6 +73,7 @@ func sync(season: SeasonState) -> bool:
 	var orders: Variant = season.build._paid_rerolls if run.order_rerolls != null else null
 	var rain: Variant = season.build._rain_earned if run.rain_earned != null else null
 	var transfer: Variant = season.build._transfer_earned if run.transfer_earned != null else null
+	var supplies: Variant = season.build._supply_used if run.supplies_used != null else null
 	var proof: Dictionary = ClubSeasonRecord.capture(season)
 	if run.status == "completed":
 		return (
@@ -80,6 +84,7 @@ func sync(season: SeasonState) -> bool:
 			and run.order_rerolls == orders
 			and run.rain_earned == rain
 			and run.transfer_earned == transfer
+			and run.supplies_used == supplies
 		)
 	if run.status != "active":
 		return false
@@ -95,6 +100,7 @@ func sync(season: SeasonState) -> bool:
 	run.order_rerolls = orders
 	run.rain_earned = rain
 	run.transfer_earned = transfer
+	run.supplies_used = supplies
 	return true
 
 
@@ -122,7 +128,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 6, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 7, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -136,7 +142,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 6)
+		not SeasonOwnership._whole(value.version, 1, 7)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -159,6 +165,7 @@ static func from_data(value: Variant) -> ClubCareer:
 					+ (["order_rerolls"] if value.version >= 4 else [])
 					+ (["rain_earned"] if value.version >= 5 else [])
 					+ (["transfer_earned"] if value.version >= 6 else [])
+					+ (["supplies_used"] if value.version >= 7 else [])
 				)
 			)
 		):
@@ -218,6 +225,11 @@ static func from_data(value: Variant) -> ClubCareer:
 			migrated["transfer_earned"] = null
 		if migrated.transfer_earned != null and not migrated.transfer_earned is bool:
 			return null
+		if value.version < 7:
+			migrated["supplies_used"] = null
+		if migrated.supplies_used != null:
+			if not SeasonOwnership._whole(migrated.supplies_used, 0, SeasonBuild.MAX_EVENTS):
+				return null
 		result.runs.append(migrated)
 	return result
 
@@ -237,6 +249,7 @@ func matches(season: SeasonState) -> bool:
 		and order_matches(season, true)
 		and rain_matches(season, true)
 		and transfer_matches(season, true)
+		and supply_matches(season, true)
 	)
 
 
@@ -360,5 +373,29 @@ func transfer_matches(season: SeasonState, exact: bool) -> bool:
 		or (
 			build._transfer_start == transfer_access(true)
 			and (not exact or run.transfer_earned == build._transfer_earned)
+		)
+	)
+
+
+func supply_count(before_current: bool = false) -> int:
+	var count: int = 0
+	for run: Dictionary in runs:
+		if before_current and run.id == current:
+			break
+		if run.supplies_used != null:
+			count = mini(3, count + int(run.supplies_used))
+	return count
+
+
+func supply_matches(season: SeasonState, exact: bool) -> bool:
+	var build: SeasonBuild = season.build
+	var run: Dictionary = runs[-1]
+	if (run.supplies_used != null) != (build._supply_start != null):
+		return false
+	return (
+		build._supply_start == null
+		or (
+			build._supply_start == supply_count(true)
+			and (not exact or run.supplies_used == build._supply_used)
 		)
 	)

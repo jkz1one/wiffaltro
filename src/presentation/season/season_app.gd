@@ -9,6 +9,8 @@ var lab: PitchBatLab
 var notice: String = ""
 var film_game: int = -1
 var film_recipe: String = ""
+var insurance_game: int = -1
+var insurance_receipt: String = ""
 var _season_game: bool = false
 var _fixture_id: int = -1
 var _dialog: ConfirmationDialog
@@ -104,6 +106,8 @@ func begin_season(seed_value: int = -1, working_progression: bool = false) -> vo
 	menu.draft_selection = ""
 	film_game = -1
 	film_recipe = ""
+	insurance_game = -1
+	insurance_receipt = ""
 	menu.show_draft()
 
 

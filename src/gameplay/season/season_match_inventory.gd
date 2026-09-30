@@ -22,6 +22,8 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 			"gear": build._bank.view().gear.duplicate(true),
 			"first_pitch": null
 		}
+		if build._format >= 26:
+			build._match_inventory["sponsors"] = build._bank.view().sponsors.duplicate(true)
 		return ""
 	var attempt: Dictionary = build._match_inventory
 	if attempt.is_empty() or attempt.game != command.game or not command.receipt is String:

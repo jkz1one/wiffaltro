@@ -130,12 +130,14 @@ func choose_player(id: String) -> bool:
 			var order_start: Variant = build._order_start
 			var rain_start: Variant = build._rain_start
 			var transfer_start: Variant = build._transfer_start
+			var supply_start: Variant = build._supply_start
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
 			build._gear_progress = progress
 			build._sponsor_progress = sponsor_progress
 			build._order_start = order_start
 			build._rain_start = rain_start
 			build._transfer_start = transfer_start
+			build._supply_start = supply_start
 		if opponents != null:
 			opponents.initialize(self)
 		for team in range(6):
@@ -177,6 +179,7 @@ func make_match() -> MatchState:
 		match_state.gear_usage.equipped = SeasonReclamation.receipts(build.view().wallet)
 		player.scouted_recipe = SeasonFilmRoom.target(self)
 		player.tactics.held = SeasonTacticalCatalog.held(build.view().wallet)
+		player.tactics.insured_receipt = SeasonSecondChance.target(build, int(fixture.id))
 	return match_state
 
 

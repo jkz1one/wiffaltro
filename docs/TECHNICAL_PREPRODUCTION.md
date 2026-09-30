@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.54
+**Version:** v0.1.55
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,31 @@
 ---
 
 # 1. Technical Objective
+
+## Exact-copy insurance and completed-use evidence, 2026-09-30
+
+Build26/schema30 adds nullable `supply_start`, derives current `_supply_used` from validated
+completed tactical ledgers and replays per-game insurance selection/outcomes. Career7 adds
+nullable `supplies_used`; active history must match journal replay and inherited access must
+match prior runs. Older histories migrate to null tracking; build1–25 fingerprints remain intact.
+`SeasonSecondChance` validates exact held eligibility, sponsor receipt and selection lock, then
+settles only after tactical validation/discard in the atomic reward candidate. Internal grants
+use fresh game-derived IDs and paid0 receipts, with the ordinary capacity validator retained.
+A repeated reward cannot consume, count or grant again. Full-bag settlement has no overflow queue.
+
+`MatchTactics` snapshots the selected receipt and records `insured: true` only at actual eligible
+activation with an active E04 effect, including the second Plan in Double Booking. Claims survive
+later sponsor retirement. `SeasonState.make_match` binds selection only if the exact sponsor
+receipt still exists. `SeasonSave` also binds `insure` events to the actual scheduled fixture.
+Pregame selection, departure, Budget Bites and inventory-attempt recording share one staged save;
+failed persistence restores the prior build. A completed-result save failure retains one retryable
+in-memory settlement and the earlier on-disk attempt; retries do not grant again.
+
+Build26 inventory attempts additionally snapshot sponsor receipts. Double Booking result validation
+may use the current game's saved attempt when the sponsor has since sold; restart refreshes this
+snapshot. Legacy result behavior remains version-gated. This is replay/consistency evidence under
+the existing trusted local match ledger, not an anti-cheat claim. `SeasonSecondChanceUI`, earned
+progress and `SeasonLoadoutData` expose choice, lock, live entitlement and completed outcome.
 
 ## Atomic recipe exchange and provenance, 2026-09-30
 

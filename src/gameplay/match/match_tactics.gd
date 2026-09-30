@@ -7,6 +7,7 @@ const COMBO: String = "A10+C03"
 
 var held: Array[Dictionary] = []
 var consumed: Array[Dictionary] = []
+var insured_receipt: String = ""
 var _combo_used: bool = false
 var _recovered: Array[String] = []
 var _used_pa: int = 0
@@ -78,6 +79,7 @@ func activate(
 			"swing": String(swing)
 		}
 	)
+	_insure(team, receipt)
 	if id == SeasonTacticalCatalog.BASE:
 		consumed[-1]["advance"] = TacticalBaseAdvance.apply(state)
 	for index in range(held.size()):
@@ -172,6 +174,7 @@ func activate_combo(
 			"combo": true
 		}
 	)
+	_insure(team, pair[1])
 	for index in range(held.size()):
 		if held[index].id == pair[1]:
 			held.remove_at(index)
@@ -180,3 +183,11 @@ func activate_combo(
 	_swing = swing
 	_combo_used = true
 	return true
+
+
+func _insure(team: TeamMatchState, receipt: String) -> void:
+	if (
+		receipt == insured_receipt
+		and team.current_batter().definition.season_sponsors.get("E04", false)
+	):
+		consumed[-1]["insured"] = true

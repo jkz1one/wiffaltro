@@ -41,6 +41,11 @@ static func save(app: SeasonApp) -> bool:
 		if not selected.ok:
 			app.notice = selected.error
 			return false
+	if next._format >= 26 and not next._pregames.has(str(fixture_id)):
+		var insured: String = SeasonSecondChance.choose(app, next, fixture_id)
+		if not insured.is_empty():
+			app.notice = insured
+			return false
 	if next._format >= 17 and not next._pregames.has(str(fixture_id)):
 		var result: Dictionary = next.commit(
 			{
