@@ -9,7 +9,7 @@ static func show(menu: SeasonMenu) -> void:
 	menu._screen(
 		"sponsor_progress",
 		"EARNED SPONSORS",
-		"Completed-game achievements survive season replacement"
+		"Earned access survives season replacement"
 	)
 	var progress: SeasonSponsorProgress = SeasonSponsorProgress.new()
 	progress.enabled = true
@@ -21,6 +21,7 @@ static func show(menu: SeasonMenu) -> void:
 			+ "never a free or guaranteed copy. Unfinished games give no progress."
 		)
 	)
+	SeasonSpecialOrderUI.progress(menu)
 	for id: String in SeasonEarnedSponsors.ITEMS:
 		var card: VBoxContainer = SeasonPlayerCard.panel(menu._body)
 		var item: Dictionary = SeasonSponsorCatalog.item(id)

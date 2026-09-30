@@ -84,7 +84,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 initial Gear items plus 10 earnable tiers. "
-			+ "19 initial sponsors plus Local Legends and Encore unlocks. "
+			+ "19 initial sponsors plus Local Legends, Encore and Special Order unlocks. "
 			+ "Existing unapproved Gear mappings remain Proposals."
 		)
 	)
@@ -109,6 +109,7 @@ func _refresh() -> void:
 			"Skip this paid pack", _preview.bind(_request("pack_skip"), "Skip without a refund")
 		)
 	else:
+		SeasonSpecialOrderUI.entry(self)
 		SeasonWholesaleUI.entry(self)
 		_recruit(shop)
 		SeasonGearShopUI.equipped(self, view.wallet.gear)

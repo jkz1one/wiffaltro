@@ -1,11 +1,39 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.60
+**Version:** v0.4.61
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Special Order Supply and permanent shop-earned access, 2026-09-30
+
+J01 Special Order Supply is the next bounded **Working** sponsor contract, following current
+Equipment/Sponsors v18 lines293 and729–744. It earns access after three ordinary individual
+rerolls in one season, each spending at least1 actual Cash. Valid saved transactions commit the
+progress; cancel, preview, zero-Cash credit and exact replay cannot count again. Earned access
+survives abandonment and replacement with a new season. It grants eligibility, never a free copy,
+guaranteed offer or rewritten displayed stock. This adds the22nd of35 supported candidates.
+
+The paid Uncommon12-Cash copy enables one category-focused reroll per visit. It spends the
+current ordinary escalating price, consumes applicable Reclamation credit and advances the same
+reroll counter. Gear, Sponsors, Pitch Lessons and Tactical Supplies are supported category pools.
+All four individual positions, including sold positions, refresh from the selected eligible pool
+without duplicate identities. Gear retains equal eligible slot weights, Sponsors retain rarity
+weights and other categories retain their ordinary item weights. Focus alone waives category
+diversity. Small pools fill only their available distinct identities; remaining positions are
+explicitly unavailable. Empty/unsupported categories cannot be selected or charged. Fixed pack
+and recruiting never refresh. Ordinary rerolls remain usable afterward. Sale/rebuy and unfinished
+match restart cannot reset the once-visit use. Raincheck's protected-position integration remains
+with its not-yet-enabled contract; it is not silently approximated by spare inventory.
+
+The category screen reviews maximum fillable positions and exact Cash before payment without
+revealing future stock. Earned Sponsors shows progress and retained access. New Working career
+seasons track this prospectively; older active saves preserve existing stock and begin tracking
+with their next Working season. Approved ownership, Working acquisition/effects and existing
+unapproved mappings retain their separate status. The final high-end UI/native acceptance gate
+remains unchanged.
 
 ## Shared equipped view, live sales and required final UI polish, 2026-09-30
 

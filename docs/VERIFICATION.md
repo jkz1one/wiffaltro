@@ -1,5 +1,44 @@
 # Fast verification and playtest records
 
+## Special Order focused rerolls and persistent shop access, 2026-09-30
+
+Final coverage includes all79 checks across full run `20260930T165240244518Z` and focused
+rerun `20260930T170536067243Z`. The full run passed78/79 and completed29 physical games;
+season-gameplay-sponsor-live exited0 after only the engine header, without its required completion
+marker. It was correctly counted as failed. The unchanged-source focused rerun passed8/8 and
+completed the remaining physical game, bringing combined coverage to30 complete games. No engine
+warnings or script errors were reported. The unexplained first-run early exit remains a test-runtime
+limitation; this is combined coverage, not a claim that the full invocation was green.
+All449 snapshotted source/test/asset/tool files remained byte-identical across both runs.
+Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor and the preserved
+PROGRESSION_BLUEPRINT.md is byte-identical to main. No merge or deployment is included.
+
+Focused Special Order run `20260930T165156621147Z` passed8/8. The generated paid fixture is seed9:
+three completed wins fund54 Cash, four ordinary rerolls spend28, the12-Cash sponsor leaves14,
+and the focused reroll spends12 and leaves2. The feature is acquired through ordinary generated
+stock and shared transaction validation. Tests cover every supported category, exact unique
+fillable counts, ordinary prices, no pack/recruit refresh, second-use rejection, exact replay,
+unsupported targets, zero-Cash rerolls, loss of authority after sale and future-stock-only access.
+A controlled three-card tactical pool verifies an unavailable fourth position without duplicate
+or unrelated filler; it is not a claim that current fresh human stock uses that smaller pool.
+
+Saved progress is tested through abandonment and a new season with no free ownership. Changed
+inherited access, current-career count and fractional proof are rejected. Career3/build22 migration
+keeps old active tracking disabled and resaves under the new schema. Existing earned-sponsor,
+Gear-progression and career scenes passed after the draft transition fix in focused run
+`20260930T165025366857Z`; its earlier Special Order UI/test errors were then corrected in the
+passing dedicated run above. The initial new fixture search was too expensive and
+hit its timeout because draft reconstruction dropped the new flag. Both issues were corrected;
+these failed development runs are not claimed as final verification.
+
+Actual clicks in a700×400 shop cover category selection, exact Cash review, Cancel, failed-write
+rollback with original bytes intact, retry, focused stock, paid match launch and reload without
+resetting use. Geometry/hit-area and keyboard-focus checks cover selection and results. The full
+run also exercises the retained Earned Sponsors page after switching to a legacy season without
+a paid build. Native display access remains blocked as previously documented; no native capture,
+physical-controller or human visual/feel acceptance is claimed. The user-required final premium
+UI pass remains the last implementation/acceptance slice. Overall estimate remains approximately72%.
+
 ## Shared equipped lightbox, live sales and safe effect retirement, 2026-09-30
 
 Final verification covers all78 checks across full run `20260930T150344996548Z` and focused

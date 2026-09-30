@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.51
+**Version:** v0.1.52
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,30 @@
 ---
 
 # 1. Technical Objective
+
+## Shop-earned access and focused rerolls, 2026-09-30
+
+Build23/schema27 adds nullable `order_start`, keeping build1–22 catalog fingerprints unchanged.
+Its bool is inherited Special Order access; null disables prospective tracking for an older active
+run. The paid-reroll count derives solely from successful ordinary `reroll` journal events whose
+candidate actually spent Cash. It is copied through candidate/fork/commit and preserved through
+draft build reconstruction. Third-reroll eligibility updates only after that stock is generated,
+so subsequent new offers can include J01 without rewriting displayed stock.
+
+Career4 stores nullable per-season `order_rerolls` evidence. It preserves preexisting version1–3
+history with null evidence, validates bounds and binds the active run's inherited access and count
+to exact season journal replay. Historical compact evidence is consistency data, not anti-cheat
+proof. Abandonment preserves earned access; a new season starts a fresh count and no sponsor copy.
+The same atomic save covers ownership, stock, Cash, career evidence and once-visit state.
+
+`SeasonSpecialOrder` supplies eligible weighted pools and one `focused_reroll` transaction. It
+reuses the ordinary RNG, price escalation, credit and payment authority, sampling without replacement.
+The paid copy and unused-visit flag gate execution. Four stock positions are replaced, absent pool
+positions are counted explicitly, and pack/recruit data remains untouched. Ordinary rerolls clear
+exhausted-position display state but do not restore the focused allowance. Unsupported abilities,
+transformations and offscreen AI buying remain gated. `SeasonSpecialOrderUI` exposes category
+counts, exact transaction review, retained access and unavailable positions through existing shop
+and Club Record controls. It also supports a legacy season with retained career but no paid build.
 
 ## Shared loadout lightbox and atomic live sales, 2026-09-30
 

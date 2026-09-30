@@ -1,5 +1,16 @@
 # Implementation Status
 
+## Special Order Supply and saved shop achievements, 2026-09-30
+
+Special Order now earns persistent access from three paid ordinary rerolls in one season and
+supports one purchased, category-focused reroll per visit. Exact paid costs, unique eligible stock,
+small-pool exhaustion, fixed pack/recruiting, sale/rebuy limits and save rollback use the existing
+transaction model. Category selection and Club Record expose the feature. Career4/build23/schema27
+preserves old history and starts this new evidence prospectively. This supports22/35 sponsors;
+13 earned contracts remain. Raincheck, other unsupported categories and AI purchase extensions
+remain open. The whole-project estimate stays approximately72% because this extends the existing
+sponsor/shop category rather than completing a new major system. Final UI acceptance remains0/2.
+
 ## Shared equipped lightbox, live sales and final UI commitment, 2026-09-30
 
 The user explicitly requested one clear equipped view, reachable from the same place in and

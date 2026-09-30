@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 22
+const VERSION: int = 23
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -17,6 +17,7 @@ const SHOP_OPS: Array[String] = [
 	"use",
 	"discard",
 	"reroll",
+	"focused_reroll",
 	"pack_open",
 	"pack_pick",
 	"pack_skip",
@@ -42,6 +43,8 @@ var _market: int = 0
 var _gear_progress: SeasonGearProgress = SeasonGearProgress.new()
 var _sponsor_progress: SeasonSponsorProgress = SeasonSponsorProgress.new()
 var _legends: Dictionary = {}
+var _order_start: Variant = null
+var _paid_rerolls: int = 0
 var _recruit_from: int = 1
 var _gear_from: int = 1
 var _misc_from: int = 1
@@ -203,6 +206,8 @@ func to_data() -> Dictionary:
 		data["sponsor_start"] = (
 			_sponsor_progress.start.duplicate(true) if _sponsor_progress.enabled else null
 		)
+	if _format >= 23:
+		data["order_start"] = _order_start
 	return data
 
 
@@ -247,6 +252,8 @@ func commit(command: Dictionary) -> Dictionary:
 	_gear_progress = next._gear_progress
 	_sponsor_progress = next._sponsor_progress
 	_legends = next._legends
+	_order_start = next._order_start
+	_paid_rerolls = next._paid_rerolls
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
 	_match_inventory = next._match_inventory
@@ -280,6 +287,8 @@ func candidate(command: Dictionary) -> SeasonBuild:
 	last_error = next._apply(normalized)
 	if not last_error.is_empty():
 		return null
+	if _order_start != null and normalized.op == "reroll" and next.cash() < cash():
+		next._paid_rerolls += 1
 	SeasonLegends.prune(next)
 	next._events.append(normalized)
 	next._requests[normalized.id] = serialized
@@ -298,6 +307,8 @@ func _fork() -> SeasonBuild:
 	result._gear_progress = _gear_progress.fork()
 	result._sponsor_progress = _sponsor_progress.fork()
 	result._legends = _legends.duplicate(true)
+	result._order_start = _order_start
+	result._paid_rerolls = _paid_rerolls
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
 	result._misc_from = _misc_from
@@ -414,6 +425,8 @@ func _apply(command: Dictionary) -> String:
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"focused_reroll":
+			return SeasonSpecialOrder.commit(self, command)
 		"tactical_exchange":
 			return SeasonTacticalExchange.exchange(self, command)
 		"tactical_buy":
@@ -460,6 +473,8 @@ func _apply(command: Dictionary) -> String:
 				_visit["reroll_credit"] = 0
 			_visit.rerolls += 1
 			_visit.offers = _offers(_visit.rerolls)
+			_visit.erase("unavailable_slots")
+			_visit.erase("focused_category")
 		"pack_open":
 			if (
 				not _keys(command, [])
@@ -619,6 +634,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonEarnedGear.ITEMS).sha256_text()
 	if format_version >= 21:
 		base += ":" + JSON.stringify(SeasonEarnedSponsors.ITEMS).sha256_text()
+	if format_version >= 23:
+		base += ":" + JSON.stringify(SeasonSpecialOrder.ITEMS).sha256_text()
 	return base
 
 
