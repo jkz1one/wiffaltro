@@ -49,6 +49,10 @@ static func pages(app: SeasonApp) -> Dictionary:
 				"%d / 4 stamps • +%d%% Contact exit %s"
 				% [stamps, stamps, "this game" if live else "next game"]
 			)
+		elif receipt.item == "G03" and live:
+			status = "Transfer used this game" if team.tactics.checkout.used else "1 transfer remaining"
+			if not team.tactics.checkout.options(state, team).is_empty():
+				status = "Choose or decline at the supply prompt"
 		elif receipt.item == "G05" and live:
 			status = "Return used this game" if team.encore_used else "1 pitcher return remaining"
 		result.sponsors.append(
@@ -84,6 +88,12 @@ static func pages(app: SeasonApp) -> Dictionary:
 						and _active(team.tactics, state, receipt.item)
 					):
 						row.label = "Active this plate appearance"
+					if (
+						team.tactics.checkout.inherited_pa == state.plate_appearance_number
+						and use.receipt == team.tactics.checkout.inherited_receipt
+						and _active(team.tactics, state, receipt.item)
+					):
+						row.label = "Inherited this PA • no extra copy consumed"
 					if use.get("insured", false):
 						row.label += " • Replacement after completion, if space"
 					result.used.append(row)

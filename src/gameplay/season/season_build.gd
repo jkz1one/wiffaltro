@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 26
+const VERSION: int = 27
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -52,6 +52,8 @@ var _rain_start: Variant = null
 var _rain_earned: bool = false
 var _transfer_start: Variant = null
 var _transfer_earned: bool = false
+var _checkout_start: Variant = null
+var _checkout_earned: bool = false
 var _supply_start: Variant = null
 var _supply_used: int = 0
 var _insurance: Dictionary = {}
@@ -227,6 +229,8 @@ func to_data() -> Dictionary:
 		data["transfer_start"] = _transfer_start
 	if _format >= 26:
 		data["supply_start"] = _supply_start
+	if _format >= 27:
+		data["checkout_start"] = _checkout_start
 	return data
 
 
@@ -277,6 +281,8 @@ func commit(command: Dictionary) -> Dictionary:
 	_rain_earned = next._rain_earned
 	_transfer_start = next._transfer_start
 	_transfer_earned = next._transfer_earned
+	_checkout_start = next._checkout_start
+	_checkout_earned = next._checkout_earned
 	_supply_start = next._supply_start
 	_supply_used = next._supply_used
 	_insurance = next._insurance
@@ -343,6 +349,8 @@ func _fork() -> SeasonBuild:
 	result._rain_earned = _rain_earned
 	result._transfer_start = _transfer_start
 	result._transfer_earned = _transfer_earned
+	result._checkout_start = _checkout_start
+	result._checkout_earned = _checkout_earned
 	result._supply_start = _supply_start
 	result._supply_used = _supply_used
 	result._insurance = _insurance.duplicate(true)
@@ -428,6 +436,9 @@ func _apply(command: Dictionary) -> String:
 			)
 			if not error.is_empty():
 				return error
+		if _checkout_start != null:
+			for action: Dictionary in command.get("tactics", []):
+				_checkout_earned = _checkout_earned or action.get("walked", false)
 		if _supply_start != null:
 			_supply_used += command.get("tactics", []).size()
 		var insured: String = SeasonSecondChance.settle(self, command)
@@ -694,6 +705,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonTransfer.ITEMS).sha256_text()
 	if format_version >= 26:
 		base += ":" + JSON.stringify(SeasonSecondChance.ITEMS).sha256_text()
+	if format_version >= 27:
+		base += ":" + JSON.stringify(SeasonLateCheckout.ITEMS).sha256_text()
 	return base
 
 

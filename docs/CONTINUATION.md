@@ -7,14 +7,33 @@ Updated 2026-09-30 after recovering the interrupted engineering conversation.
 - Repository: `jkz1one/wiffaltro`.
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
-  completes the recovered Second Chance Supply slice. Use `git log -5 --oneline` for exact SHAs.
+  completes Second Chance Supply and the subsequent Late Checkout Motel slice. Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
   `IMPLEMENTATION_STATUS.md` and `VERIFICATION.md` before choosing the next bounded slice.
 - `PROGRESSION_BLUEPRINT.md` remains the preserved planning baseline. Newer source amendments
   and explicit Approved/Working/Proposal distinctions still apply.
 
-## Recovered slice
+Current planning source references, read again on 2026-09-30; resolve current versions before
+implementing another contract. These IDs identify files, not permission to restore old versions.
+
+| Source | Persistent file ID | Last read version |
+| --- | --- | --- |
+| WIFFALTRO_CURRENT_DECISIONS.md | `libfile_875a5513d66481919b39bbdf0002f202` | 31 |
+| WIFFALTRO_EQUIPMENT_SPONSORS.md | `libfile_f4b3af37c2d88191bd4ceb24815411a8` | 18 |
+| PROGRESSION_BLUEPRINT.md, retained contract annexes | `libfile_24485121f37081918000116b39146009` | 114 |
+
+## Latest slice
+
+Late Checkout Motel adds paid earned access from a completed supplied walk and one optional
+next-batter Tape/Plan effect transfer. Exact swing and source identity, no extra consumption,
+no chains, sale/expiry boundaries, UI choices and old-save compatibility are implemented.
+
+GitHub push remains pending: automatic approval review rejected both the initial request and
+the user's general "continue". Ask for explicit approval to push repository code to
+`jkz1one/wiffaltro`, branch `rebuild/season-engineering`; do not retry by another route.
+
+## Recovered prior slice
 
 Second Chance Supply earns permanent paid-shop eligibility after three tactical consumptions
 in completed games. Its purchased seasonal copy insures one explicitly selected eligible copy
@@ -42,8 +61,8 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 25 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
-tactical supplies. Ten earned sponsor contracts, further AI acquisition, player-card contracts,
+There are 26 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+tactical supplies. Nine earned sponsor contracts, further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the
 counts alone are not a specification. Do not infer completion from older historical checklist entries.

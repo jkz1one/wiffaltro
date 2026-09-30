@@ -1,5 +1,54 @@
 # Fast verification and playtest records
 
+## Late Checkout paid access, inherited effects and live sale, 2026-09-30
+
+Final affected-path run `20260930T205829728356Z` passed **25/25 checks** under Godot 4.7.2:
+seven common revision/parse/lint/import gates plus 18 scenes. The scenes cover Late Checkout
+menu/live paths, Second Chance menu/live paths, Transfer, Raincheck, Special Order, sales UI,
+Equipped UI, earned sponsors, Gear progression, career persistence, paid opponents, Budget Bites,
+tactical-sponsor menu/live paths, ordinary tactical supplies and core regressions. Four complete
+game runs finished across Late Checkout, Second Chance and the two tactical-sponsor scenarios.
+All 464 snapshotted source/test/asset/project/runner files remained unchanged during the run;
+only documentation changed afterward. No engine warnings or errors were reported. This is
+targeted final-tree coverage, not a complete-suite invocation or native visual acceptance.
+
+Access uses the real called-walk transition after consuming generated paid Tape. The controlled
+completed-result fixture proves no unfinished-game credit, strict supplied-walk evidence,
+permanent access through abandonment, active-career/journal agreement and inherited-access
+validation. Seed 48 then acquires generated Plan stock and offers the earned 12-Cash sponsor
+through ordinary transactions; it leaves 39 Cash after both paid purchases. No sponsor or
+unlock is granted free. Build26/career7 migration retains null prospective tracking, and
+the existing earlier migration scenes pass with their appropriately absent newer fields.
+
+Runtime tests cover both choices from a Double Booking source, exact Power Plan inheritance,
+source receipt identity, shared activation lock, one-use limit, no extra held/consumed copy,
+no inherited-walk chain, decline followed by a later qualifying walk, pitch/half/game expiry,
+sale before acceptance, sale after acceptance, no hit trigger and an actual walk-off transition.
+Second Chance's original claim is retained without manufacturing another insured consumption.
+
+Actual 700x400 shop input checks exact payment, cancel, failed-write rollback with unchanged
+save bytes, retry, reload, paid match launch and earned-access layout. The real tactical dialog
+is reachable at zero held copies. Mouse and keyboard input exercise source review, cancel and
+accept, with exact swing disclosure, bounded dialog content and minimum 44-pixel choice targets.
+The HUD reflects the inherited swing; Equipped identifies the exact original consumed receipt.
+
+The new live scene deliberately seeds one controlled called walk before the physical game;
+it is not an organically earned four-pitch walk or balance sample. The following inherited
+Contact Plan reaches the actual AI swing tracker with the existing 1.06 quality-exit multiplier.
+A real sale during that swing preserves the active PA, retires the sponsor at the next batter,
+and saves its refund. The full game finishes with one original consumption. Failed postgame
+save, retry, repeated Continue and restored journal preserve that result without recreating
+the sponsor, duplicating consumption or granting a supply.
+
+Development runs caught a missing catalog item lookup, a test using the wrong swing-profile
+property, and an older invalid-version assertion that had become a valid version number.
+These were corrected; the invalid-version test now derives the next unsupported version.
+Failed runs are not counted as passing evidence. Focused final-feature run
+`20260930T205629511508Z` passed 9/9 before the final keyboard/layout assertions were added;
+the complete targeted run above includes those assertions. The prior unrelated full-suite
+early exit and native-display limitation remain open. No human/controller feel approval,
+autonomous AI acquisition, merge, deployment or successful GitHub push is claimed.
+
 ## Recovered Second Chance checkpoint, 2026-09-30
 
 Recovered the existing `rebuild/season-engineering` checkout at `1eb4bd2`, including the

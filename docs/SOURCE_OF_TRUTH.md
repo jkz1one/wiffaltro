@@ -1,11 +1,44 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.64
+**Version:** v0.4.65
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Late Checkout Motel and one-batter effect inheritance, 2026-09-30
+
+G03 Late Checkout Motel is the 26th supported **Working** sponsor candidate. Current
+Equipment/Sponsors v18 (access line 291; interactions 754–759) and retained Blueprint v114
+G03 (4618–4644) control this slice. A credited walk with an original consumed Grip Tape or
+Swing Plan active earns permanent paid-shop access when the game completes. No win is
+required. An unfinished attempt, inherited effect or ordinary walk without a supply does
+not earn access. New eligible stock uses the retained Uncommon / 12-Cash candidate; access
+never grants a copy or rewrites displayed offers. Older active careers track prospectively
+from their next new Working season.
+
+While owned, a qualifying supplied walk offers one effect to the immediate next batter in
+the same offensive half. Accept or decline at the existing pre-pitch supply prompt. A
+Double Booking source offers Tape or Plan, never both. Plan keeps its exact Contact/Power
+choice. Accept spends the once-game transfer and that PA's tactical allowance; no extra
+copy can be added, including through Double Booking. It creates no held item or new
+consumption, so Second Chance and supply-use unlocks count only the original copy.
+
+Decline loses this opportunity while retaining the unused once-game allowance. Beginning
+the next pitch, changing halves or ending the game clears an unaccepted offer. The accepted
+effect expires after that one batter on every result, including another walk; it cannot
+chain. A walk-off has no recipient. Selling before acceptance removes entitlement, while
+an already accepted effect survives through its active PA under the approved live-sale
+boundary. Restart clears runtime transfers under the existing saved-pregame rollback.
+
+The tactical prompt remains available with an empty bag when a transfer is pending. Its
+review shows the batter, exact effect/swing and allowance cost, with explicit confirmation,
+decline and cancel. Equipped shows remaining/used transfer status and the exact consumed
+source whose effect is inherited. Career progress, paid acquisition and source migration
+are included. AI may use the shared runtime only when explicitly supplied; autonomous
+sponsor acquisition/transfer policy is not added. Working contracts and unapproved Proposals
+retain their status; final premium UI and native/human acceptance remain open.
 
 ## Second Chance Supply and completed-copy insurance, 2026-09-30
 

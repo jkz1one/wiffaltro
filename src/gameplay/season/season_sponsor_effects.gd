@@ -8,7 +8,10 @@ static func snapshot(
 ) -> Dictionary:
 	var result: Dictionary = {}
 	for receipt: Dictionary in active:
-		if receipt.item in ["A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08", "G05", "E04"]:
+		if (
+			receipt.item
+			in ["A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08", "G05", "E04", "G03"]
+		):
 			result[receipt.item] = true
 		elif receipt.item == "E05":
 			result.E05 = mini(4, stamps.get(receipt.id, []).size())

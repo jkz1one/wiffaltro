@@ -69,6 +69,10 @@ static func settle(
 		if owned.is_empty() or not SeasonTacticalCatalog.catalog().has(owned.item):
 			return "Consume only a tactical copy held before this game."
 		var fields: Array = ["receipt", "player", "pa", "swing"]
+		if action.has("walked"):
+			fields.append("walked")
+			if not SeasonLateCheckout.valid_walk(build, action, owned, performance):
+				return "Invalid supplied-walk evidence."
 		if action.has("insured"):
 			fields.append("insured")
 			if not SeasonSecondChance.valid_claim(build, game, action):

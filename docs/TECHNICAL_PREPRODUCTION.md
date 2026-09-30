@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.55
+**Version:** v0.1.56
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,31 @@
 ---
 
 # 1. Technical Objective
+
+## Supplied-walk provenance and next-batter transfer, 2026-09-30
+
+Build27/schema31 adds nullable `checkout_start` and journal-derived `_checkout_earned`.
+Career8 adds nullable `checkout_earned` evidence; current-run agreement and inherited access
+are validated separately. Build1–26 fingerprints and old displayed offers remain unchanged.
+New careers enable tracking; older runs migrate with null evidence rather than retroactive
+credit. `SeasonLateCheckout` contains access validation and UI progress outside ClubCareer.
+
+The actual called-walk transition annotates the original PA's consumed Tape/Plan ledger with
+strict `walked: true` only when tracking is enabled. Settlement requires an owned eligible
+receipt and a credited walk for that player, alongside ordinary consumption validation.
+Only a completed atomic reward earns access; inheritance adds no ledger entry. This extends
+the existing trusted local match-result evidence, not server-authoritative anti-cheat proof.
+
+`MatchLateCheckout` retains source receipts, exact Plan swing, next PA and offensive-half
+identity. Its read-only option projection gates ownership, readiness and the shared tactical
+allowance. Confirmation binds exactly one effect to the next PA without modifying held or
+consumed copies. Original-consumption provenance prevents chains. Pitch start, half transition
+and game end expire pending choices. Live sale blocks later acceptance; already accepted
+PA effects retain ordinary tactical expiry. Match restart creates fresh runtime state.
+
+`MatchCheckoutControls` adds explicit review/accept/decline to the existing supply dialog;
+`MatchTacticalControls` enables the prompt even at zero held copies. `SeasonLoadoutData`
+projects remaining use and receipt-specific inherited status without mutating gameplay.
 
 ## Exact-copy insurance and completed-use evidence, 2026-09-30
 

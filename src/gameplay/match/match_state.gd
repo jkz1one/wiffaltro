@@ -76,6 +76,7 @@ func begin_pitch() -> bool:
 		return false
 	if between_batters:
 		inventory_boundary.emit()
+	batting_team().tactics.checkout.clear()
 	pitch_disclosure.clear()
 	_between_batters_before_pitch = between_batters
 	phase = Phase.PITCH_IN_FLIGHT
@@ -102,6 +103,7 @@ func record_ball() -> StringName:
 		var batter_id: StringName = batter().definition.id
 		var runs_scored: int = bases.advance_for_walk(batter_id)
 		performance.complete(batter_id, pitcher().definition.id, "walk", runs_scored)
+		batting_team().tactics.checkout.walk(self, batting_team())
 		_add_runs(runs_scored)
 		_complete_plate_appearance("Walk")
 		return &"walk"
@@ -216,6 +218,8 @@ func _complete_plate_appearance(description: String, single: bool = false) -> vo
 		phase = Phase.PLAY_DEAD
 
 func _advance_half_inning() -> void:
+	away_team.tactics.checkout.clear()
+	home_team.tactics.checkout.clear()
 	_deli_next_batter = false
 	if top_half:
 		if (
@@ -264,6 +268,8 @@ func _run_difference() -> int:
 	return absi(away_team.runs - home_team.runs)
 
 func _finish_game(reason: String) -> void:
+	away_team.tactics.checkout.clear()
+	home_team.tactics.checkout.clear()
 	phase = Phase.GAME_END
 	winner_name = (
 		away_team.display_name

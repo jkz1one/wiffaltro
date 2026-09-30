@@ -28,6 +28,7 @@ func start(season: SeasonState) -> bool:
 	season.build._rain_start = rain_access()
 	season.build._transfer_start = transfer_access()
 	season.build._supply_start = supply_count()
+	season.build._checkout_start = SeasonLateCheckout.access(self)
 	current = runs.size() + 1
 	runs.append(
 		{
@@ -43,6 +44,7 @@ func start(season: SeasonState) -> bool:
 			"order_rerolls": 0,
 			"rain_earned": false,
 			"transfer_earned": false,
+			"checkout_earned": false,
 			"supplies_used": 0
 		}
 	)
@@ -62,6 +64,7 @@ func sync(season: SeasonState) -> bool:
 		or not rain_matches(season, false)
 		or not transfer_matches(season, false)
 		or not supply_matches(season, false)
+		or not SeasonLateCheckout.matches(self, season, false)
 	):
 		return false
 	var gear: Variant = (
@@ -74,6 +77,7 @@ func sync(season: SeasonState) -> bool:
 	var rain: Variant = season.build._rain_earned if run.rain_earned != null else null
 	var transfer: Variant = season.build._transfer_earned if run.transfer_earned != null else null
 	var supplies: Variant = season.build._supply_used if run.supplies_used != null else null
+	var checkout: Variant = season.build._checkout_earned if run.checkout_earned != null else null
 	var proof: Dictionary = ClubSeasonRecord.capture(season)
 	if run.status == "completed":
 		return (
@@ -85,6 +89,7 @@ func sync(season: SeasonState) -> bool:
 			and run.rain_earned == rain
 			and run.transfer_earned == transfer
 			and run.supplies_used == supplies
+			and run.checkout_earned == checkout
 		)
 	if run.status != "active":
 		return false
@@ -101,6 +106,7 @@ func sync(season: SeasonState) -> bool:
 	run.rain_earned = rain
 	run.transfer_earned = transfer
 	run.supplies_used = supplies
+	run.checkout_earned = checkout
 	return true
 
 
@@ -128,7 +134,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 7, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 8, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -142,7 +148,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 7)
+		not SeasonOwnership._whole(value.version, 1, 8)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -166,6 +172,7 @@ static func from_data(value: Variant) -> ClubCareer:
 					+ (["rain_earned"] if value.version >= 5 else [])
 					+ (["transfer_earned"] if value.version >= 6 else [])
 					+ (["supplies_used"] if value.version >= 7 else [])
+					+ (["checkout_earned"] if value.version >= 8 else [])
 				)
 			)
 		):
@@ -230,6 +237,10 @@ static func from_data(value: Variant) -> ClubCareer:
 		if migrated.supplies_used != null:
 			if not SeasonOwnership._whole(migrated.supplies_used, 0, SeasonBuild.MAX_EVENTS):
 				return null
+		if value.version < 8:
+			migrated["checkout_earned"] = null
+		if migrated.checkout_earned != null and not migrated.checkout_earned is bool:
+			return null
 		result.runs.append(migrated)
 	return result
 
@@ -250,6 +261,7 @@ func matches(season: SeasonState) -> bool:
 		and rain_matches(season, true)
 		and transfer_matches(season, true)
 		and supply_matches(season, true)
+		and SeasonLateCheckout.matches(self, season, true)
 	)
 
 

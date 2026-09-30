@@ -14,6 +14,7 @@ var _pa: int = 0
 var _player: StringName = &""
 var _advance: Dictionary = {}
 var _pair: Array[String] = []
+var _checkout: String = ""
 
 
 func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
@@ -78,13 +79,16 @@ func _process(_delta: float) -> void:
 		return
 	var tactics: MatchTactics = team().tactics
 	var active: String = tactics.active(_lab._match_state)
+	var transfer: bool = not tactics.checkout.options(_lab._match_state, team()).is_empty()
 	_entry.position = Vector2(420, 526) if _lab._player_is_batting() else Vector2(420, 96)
 	_entry.visible = (
-		(not tactics.held.is_empty() or not active.is_empty())
+		(not tactics.held.is_empty() or not active.is_empty() or transfer)
 		and not _lab._match_presentation_director.blocks_gameplay()
 	)
-	_entry.disabled = not can_open() or tactics.held.is_empty()
+	_entry.disabled = not can_open() or (tactics.held.is_empty() and not transfer)
 	_entry.text = "SUPPLIES • %d held" % tactics.held.size()
+	if transfer:
+		_entry.text += "\nLATE CHECKOUT AVAILABLE"
 	if not active.is_empty():
 		_entry.text += (
 			"\n"
@@ -121,6 +125,7 @@ func _open() -> void:
 	_receipt = ""
 	_advance = {}
 	_pair.clear()
+	_checkout = ""
 	_dialog.get_ok_button().text = "USE SELECTED COPY"
 	_pa = _lab._match_state.plate_appearance_number
 	_dialog.get_ok_button().disabled = true
@@ -143,6 +148,7 @@ func _open() -> void:
 			button.pressed.connect(_select.bind(copy.id, swing))
 			_choices.add_child(button)
 	_add_combo_choices()
+	MatchCheckoutControls.add(self)
 	_detail.text = (
 		"Choose a supply to review. One activation per club per PA.\n"
 		+ "Disabled cards are unavailable for this role, pitcher or PA. "
@@ -162,6 +168,7 @@ func _select(receipt: String, swing: StringName) -> void:
 		_dialog.get_ok_button().disabled = true
 		return
 	_pair.clear()
+	_checkout = ""
 	_dialog.get_ok_button().text = "USE SELECTED COPY"
 	_receipt = receipt
 	_swing = swing
@@ -198,6 +205,9 @@ func _select(receipt: String, swing: StringName) -> void:
 
 func _commit() -> void:
 	if not can_open() or _pa != _lab._match_state.plate_appearance_number:
+		return
+	if not _checkout.is_empty():
+		MatchCheckoutControls.commit(self)
 		return
 	if not _pair.is_empty():
 		_commit_combo()
@@ -249,6 +259,7 @@ func _select_combo(pair: Array[String], swing: StringName) -> void:
 		or not team().tactics.combo_reason(_lab._match_state, team(), pair, swing).is_empty()
 	):
 		return
+	_checkout = ""
 	_pair = pair.duplicate()
 	_swing = swing
 	_player = _lab._match_state.batter().definition.id

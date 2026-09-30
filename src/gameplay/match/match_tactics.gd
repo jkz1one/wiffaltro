@@ -8,6 +8,8 @@ const COMBO: String = "A10+C03"
 var held: Array[Dictionary] = []
 var consumed: Array[Dictionary] = []
 var insured_receipt: String = ""
+var track_walks: bool = false
+var checkout: MatchLateCheckout = MatchLateCheckout.new()
 var _combo_used: bool = false
 var _recovered: Array[String] = []
 var _used_pa: int = 0
@@ -56,6 +58,7 @@ func activate(
 ) -> bool:
 	if not reason(state, team, receipt, swing).is_empty():
 		return false
+	checkout.clear()
 	var id: String = _item(receipt)
 	var player: PlayerMatchState = (
 		state.pitcher() if id in ["C02", SeasonTacticalCatalog.HEAT] else state.batter()

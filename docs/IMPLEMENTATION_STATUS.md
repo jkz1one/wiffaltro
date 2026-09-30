@@ -2,6 +2,18 @@
 
 For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
 
+## Late Checkout Motel and supplied-walk progression, 2026-09-30
+
+Late Checkout adds permanent supplied-walk access, paid seasonal ownership, one optional
+next-batter Tape/Plan inheritance and exact swing/receipt provenance. The readiness prompt,
+Equipped status, career access, sale boundaries, restart and prospective old-save migration
+are implemented. Supported sponsors are now 26/35, with nine earned contracts remaining;
+Gear remains 23/25. AI acquisition, other content systems and final premium UI/native visual/
+controller/human acceptance remain open. Overall estimate stays approximately 72%; this is
+another completed contract within the existing sponsor category. Verification scope is
+recorded in VERIFICATION.md. Remote publication is pending explicit push authorization after
+automatic approval review rejected the prior continuation wording.
+
 ## Second Chance Supply, live claims and tactical-sale settlement, 2026-09-30
 
 Second Chance adds permanent three-consumption career access, a paid seasonal sponsor, explicit
