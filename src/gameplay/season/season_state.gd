@@ -126,8 +126,10 @@ func choose_player(id: String) -> bool:
 			teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
 		if build != null:
 			var progress: SeasonGearProgress = build._gear_progress.fork()
+			var sponsor_progress: SeasonSponsorProgress = build._sponsor_progress.fork()
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
 			build._gear_progress = progress
+			build._sponsor_progress = sponsor_progress
 		if opponents != null:
 			opponents.initialize(self)
 		for team in range(6):

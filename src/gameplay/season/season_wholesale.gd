@@ -54,7 +54,7 @@ static func targets(build: SeasonBuild, offer: String) -> Array[Dictionary]:
 			if old.get("item") != id:
 				result.append({"offer": offer, "replace": old.get("id", "")})
 		"sponsor":
-			if not SeasonSponsorCatalog.eligible(wallet.sponsors).has(id):
+			if not SeasonEarnedSponsors.eligible(build).has(id):
 				return result
 			var destinations: Array[String] = []
 			if wallet.sponsors.size() < wallet.capacity.sponsors:

@@ -11,6 +11,7 @@ var fielder_index: int = 1
 var runs: int = 0
 var scouted_recipe: StringName = &""
 var tactics: MatchTactics = MatchTactics.new()
+var encore_used: bool = false
 var strikecraft_uses: int = 0
 var strikecraft_refunded: float = 0.0
 

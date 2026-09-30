@@ -3,11 +3,15 @@ extends RefCounted
 ## Working match contracts. Derived from the paid build, never an editable save blob.
 
 
-static func snapshot(active: Array, book: SeasonDevelopment, roster: Array) -> Dictionary:
+static func snapshot(
+	active: Array, book: SeasonDevelopment, roster: Array, stamps: Dictionary = {}
+) -> Dictionary:
 	var result: Dictionary = {}
 	for receipt: Dictionary in active:
-		if receipt.item in ["A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08"]:
+		if receipt.item in ["A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08", "G05"]:
 			result[receipt.item] = true
+		elif receipt.item == "E05":
+			result.E05 = mini(4, stamps.get(receipt.id, []).size())
 		elif receipt.item == "B02":
 			result.B02 = mini(4, book.earned_players(roster).size())
 	return result
@@ -24,11 +28,15 @@ static func workload(player: PlayerDefinition, pitch: PitchDefinition) -> float:
 static func swing(source: SwingProfileDefinition, state: MatchState) -> SwingProfileDefinition:
 	var player: PlayerDefinition = state.batter().definition
 	var result: SwingProfileDefinition = SeasonGearCatalog.swing(source, player)
-	if source.id == &"swing.contact" and deli_active(state):
+	if source.id == &"swing.contact":
 		# Deli is additive with the Bat's exit modifier. Gloves retain their separate
 		# once-only multiplicative penalty, including when the Bat penalty is offset.
 		var misc: Dictionary = SeasonGearCatalog.item(player.season_gear.get("misc", ""))
-		result.gear_fair_exit_scale += 0.04 * float(misc.get("exit", 1.0))
+		var bonus: float = (
+			(0.04 if deli_active(state) else 0.0)
+			+ 0.01 * clampi(int(player.season_sponsors.get("E05", 0)), 0, 4)
+		)
+		result.gear_fair_exit_scale += bonus * float(misc.get("exit", 1.0))
 	if source.id == &"swing.contact" and player.season_sponsors.get("F03", false):
 		var axes: Vector2 = optics_axes(state.optics_mode)
 		result.contact_radius_x_m *= axes.x

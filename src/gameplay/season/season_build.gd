@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 20
+const VERSION: int = 21
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -40,6 +40,8 @@ var _appeared: bool = false
 var _format: int = VERSION
 var _market: int = 0
 var _gear_progress: SeasonGearProgress = SeasonGearProgress.new()
+var _sponsor_progress: SeasonSponsorProgress = SeasonSponsorProgress.new()
+var _legends: Dictionary = {}
 var _recruit_from: int = 1
 var _gear_from: int = 1
 var _misc_from: int = 1
@@ -113,7 +115,7 @@ func definition(player_id: String) -> PlayerDefinition:
 	if result != null and _roster.has(player_id):
 		result = SeasonGearCatalog.equip(result, _bank.view().gear)
 		result.season_sponsors = SeasonSponsorEffects.snapshot(
-			_bank.view().sponsors, _book, _roster
+			_bank.view().sponsors, _book, _roster, _legends
 		)
 	return result
 
@@ -196,6 +198,10 @@ func to_data() -> Dictionary:
 		data["market"] = _market
 	if _format >= 20:
 		data["gear_start"] = _gear_progress.start.duplicate() if _gear_progress.enabled else null
+	if _format >= 21:
+		data["sponsor_start"] = (
+			_sponsor_progress.start.duplicate(true) if _sponsor_progress.enabled else null
+		)
 	return data
 
 
@@ -238,6 +244,8 @@ func commit(command: Dictionary) -> Dictionary:
 	_scholarships = next._scholarships
 	_used_gear = next._used_gear
 	_gear_progress = next._gear_progress
+	_sponsor_progress = next._sponsor_progress
+	_legends = next._legends
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
 	_scouts = next._scouts
@@ -270,6 +278,7 @@ func candidate(command: Dictionary) -> SeasonBuild:
 	last_error = next._apply(normalized)
 	if not last_error.is_empty():
 		return null
+	SeasonLegends.prune(next)
 	next._events.append(normalized)
 	next._requests[normalized.id] = serialized
 	return next
@@ -285,6 +294,8 @@ func _fork() -> SeasonBuild:
 	result._format = _format
 	result._market = _market
 	result._gear_progress = _gear_progress.fork()
+	result._sponsor_progress = _sponsor_progress.fork()
+	result._legends = _legends.duplicate(true)
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
 	result._misc_from = _misc_from
@@ -360,6 +371,8 @@ func _apply(command: Dictionary) -> String:
 			if not error.is_empty():
 				return error
 		_gear_progress.settle(self, command)
+		_sponsor_progress.settle(self, command)
+		SeasonLegends.settle(self, command.get("performance", {}))
 		_game_rosters[int(command.game)] = roster()
 		_visit = {"number": _visit.number + 1, "open": false}
 		if (
@@ -545,7 +558,7 @@ func _offers(rerolls: int) -> Dictionary:
 				else (2 if _format >= 4 and _visit.number >= _misc_from else 1)
 			),
 			(
-				SeasonSponsorCatalog.eligible(_bank.view().sponsors, _sponsor_catalog_version())
+				SeasonEarnedSponsors.eligible(self)
 				if _format >= 6 and _visit.number >= _sponsor_from
 				else {}
 			),
@@ -596,6 +609,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + SeasonTacticalCatalog.signature(2 if format_version >= 15 else 1)
 	if format_version >= 20:
 		base += ":" + JSON.stringify(SeasonEarnedGear.ITEMS).sha256_text()
+	if format_version >= 21:
+		base += ":" + JSON.stringify(SeasonEarnedSponsors.ITEMS).sha256_text()
 	return base
 
 
@@ -788,7 +803,7 @@ func _sponsor_transaction(command: Dictionary) -> String:
 	if not command.get("offer") is String:
 		return "Review an exact sponsor offer."
 	var item_id: String = _visit.offers.get(command.offer, "")
-	if not SeasonSponsorCatalog.catalog(_sponsor_catalog_version()).has(item_id):
+	if not SeasonEarnedSponsors.eligible(self).has(item_id):
 		return "This sponsor offer is no longer available."
 	var fields: Array = ["offer", "replace"]
 	if item_id == "J10":
@@ -801,7 +816,7 @@ func _sponsor_transaction(command: Dictionary) -> String:
 	if not _keys(command, fields):
 		return "Review the exact sponsor and nomination."
 	# Reject same-identity replacement before sale can temporarily remove it.
-	if not SeasonSponsorCatalog.eligible(_bank.view().sponsors).has(item_id):
+	if not SeasonEarnedSponsors.eligible(self).has(item_id):
 		return "That sponsor is already active."
 	var quote: String = "sponsor:%d" % revision()
 	var stock: Dictionary = _bank.commit(

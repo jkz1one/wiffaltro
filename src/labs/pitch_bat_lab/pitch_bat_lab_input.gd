@@ -2,6 +2,8 @@ class_name PitchBatLabInput
 extends RefCounted
 
 static func handle(lab: PitchBatLab, event: InputEvent) -> void:
+	if SeasonEncoreUI.reviewing(lab):
+		return
 	var tactics: MatchTacticalControls = lab.get_node_or_null("TacticalControls")
 	if tactics != null and tactics._dialog.visible:
 		return

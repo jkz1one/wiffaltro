@@ -23,6 +23,14 @@ static func active(window: SeasonShopWindow, wallet: Dictionary) -> void:
 				]
 			)
 		)
+		if receipt.item == "E05":
+			var stamps: Array = window.app.season.build._legends.get(receipt.id, [])
+			window._label(
+				(
+					"This copy: %d / 4 stamps • +%d%% fair Contact exit speed next game. %s"
+					% [stamps.size(), stamps.size(), ", ".join(stamps)]
+				)
+			)
 		if receipt.item == "B02":
 			_college_status(window)
 		var button: Button = (
@@ -96,6 +104,10 @@ static func _purchase(
 
 
 static func _timing(id: String) -> String:
+	if id == "G05":
+		return "Choose a removed arm in BULLPEN and confirm. Cancel preserves your return."
+	if id == "E05":
+		return "Starts with zero stamps. Only later completed games grow this purchased copy."
 	if id == "F01":
 		return "Working match choice in FIELD setup. Normal by default; no guaranteed catch or out."
 	if id in ["E06", "F04", "J10"]:

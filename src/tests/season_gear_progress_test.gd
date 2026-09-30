@@ -250,6 +250,8 @@ func _migration_progress() -> void:
 	if season == null:
 		return
 	season.build._format = 19
+	season.build._sponsor_progress = SeasonSponsorProgress.new()
+	season.career.runs[-1].sponsors = null
 	season.build._gear_progress = SeasonGearProgress.new()
 	season.career.runs[-1].gear = null
 	_check(SeasonSave.save(season), "old build saves without tracking")
@@ -257,6 +259,7 @@ func _migration_progress() -> void:
 	old.career.version = 1
 	for run: Dictionary in old.career.runs:
 		run.erase("gear")
+		run.erase("sponsors")
 	var restored: SeasonState = SeasonSave._decode(old)
 	_check(restored != null, "version-one career migrates")
 	if restored != null:

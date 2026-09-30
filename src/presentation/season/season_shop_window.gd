@@ -78,8 +78,9 @@ func _refresh() -> void:
 	)
 	_label(
 		(
-			"Working season: 13 Gear candidates; four use unapproved Proposal mappings. "
-			+ "19 initial sponsors; earned tiers and other sponsors pending."
+			"Working season: 13 initial Gear items plus 10 earnable tiers. "
+			+ "19 initial sponsors plus Local Legends and Encore unlocks. "
+			+ "Existing unapproved Gear mappings remain Proposals."
 		)
 	)
 	if SeasonReclamation.credit(shop) > 0:

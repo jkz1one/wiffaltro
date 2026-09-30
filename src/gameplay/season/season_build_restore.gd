@@ -54,6 +54,8 @@ static func restore(
 		keys.append("market")
 	if value.version >= 20:
 		keys.append("gear_start")
+	if value.version >= 21:
+		keys.append("sponsor_start")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -148,6 +150,11 @@ static func restore(
 			return null
 		result._gear_progress.enabled = true
 		result._gear_progress.start = value.gear_start.duplicate()
+	if value.version >= 21 and value.sponsor_start != null:
+		if not SeasonSponsorProgress.valid_state(value.sponsor_start) or result._market != 0:
+			return null
+		result._sponsor_progress.enabled = true
+		result._sponsor_progress.start = value.sponsor_start.duplicate(true)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null

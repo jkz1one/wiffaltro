@@ -1,5 +1,56 @@
 # Fast verification and playtest records
 
+## Earned sponsors, copy stamps and confirmed pitcher return, 2026-09-30
+
+Full run `20260930T063542798649Z` passed75/75 checks and all29 complete physical games on
+Godot4.7.2, with no engine errors or warnings. The running disposable source matched all426
+local source/asset files byte-for-byte; the source remained unchanged throughout the run.
+Only documentation was finalized afterward. Coverage includes every prior career, Gear,
+opponent, sponsor, tactical, paid-shop, ownership, development, recruitment, season, AI,
+camera, sport, physical-ball, soak, QC export and main-startup check. Fresh main
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor and the preserved repository
+PROGRESSION_BLUEPRINT.md is unchanged. No merge or deployment is included.
+
+Focused contract/UI run `20260930T062814842240Z` passed8/8 checks; physical run
+`20260930T063353058477Z` passed8/8. Persistent feat cases cover three distinct career
+hit types across abandoned seasons, no-win-required Local Legends, winning two-pitcher-K
+Encore, no loss unlock, future-offer-only access, repeated saves, failure/retry, paid copies,
+new-season zero ownership and legacy career2/build20 migration without invented old feats.
+Tampered current starting state, hit evidence, win, fixture, missing row, boolean type and
+unsupported career version are rejected. Existing Gear access remains enabled on migration.
+
+Paid Local Legends checks cover no retroactive stamps, post-completion growth, unchanged
+existing match snapshots, four-type cap, exact receipt replay, sale clearing only copy power
+and retained earned access. Both handednesses and Contact/Power run through the actual contact
+resolver: four stamps change only Contact exit by1.04, not quality. Bat/Deli/Gloves composition
+is checked separately. Encore tests preserve the exact PlayerMatchState, spent stamina,
+pitch count, first-batter completion, Recovery records and Strikecraft counters; reject absent
+ownership, mid-PA and second returns; and retain ordinary legal fielder reassignment.
+
+The two physical games use production AI/contact/Jolt and completed-result settlement.
+Without an owned sponsor, Yard Club beats Comets3–0 in five innings (133 records,27 balls in
+play), credits two distinct pitchers with strikeouts and earns Encore only after settlement.
+A generated, fully paid E05/G05 pair (seed3090) then runs a separate stamped fixture: Yard Club
+beats Switches8–0 in five innings (119 records,23 balls in play), makes a legal one-time return
+and applies1.04 Contact fair-exit scaling. Pitcher state is checked at the return boundary.
+Both deliberately fail the first postgame file write, verify unchanged pregame bytes/reload,
+then retry and repeat Continue without duplicating feats or stamps. Restart clears runtime
+return use and restores pregame stamina. These scripted games are not human balance evidence.
+
+Actual control clicks cover Club Record > Earned Sponsors > Back, a700×400 paid shop, Cancel,
+failed-save rollback, full12-Cash purchase and stamp display. The real bullpen opens an
+exclusive Encore confirmation, focuses Cancel, pauses lab updates/input, preserves state on
+cancel and returns the same spent pitcher on confirmation. Automated wrapping/bounds/navigation
+checks pass. Native rendered screenshots and human visual/feel acceptance remain pending under
+the previously recorded display-socket limitation; no new native approval is claimed.
+
+Development runs caught a nonexistent test-only lab property and an untyped empty-array call
+in the new physical fixture. Corrected focused runs passed before the full regression run;
+failed/interrupted iterations are not counted as final-tree passes. Historical compact career
+evidence validates save consistency, not anti-cheat provenance. AI sponsor buying/activation,
+14 remaining earned sponsors, other progression systems and human acceptance remain open.
+The weighted implementation estimate is72%, not a test-pass percentage or release readiness.
+
 ## Earned Gear progression and paid higher tiers, 2026-09-30
 
 Full run `20260930T043730562099Z` passed73/73 checks and all27 complete physical games on

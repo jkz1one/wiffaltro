@@ -100,6 +100,9 @@ static func select_pitcher(lab: PitchBatLab, roster_index: int) -> void:
 		lab._status_label.text = ("Pitching changes are allowed only between batters.")
 		return
 	var team: TeamMatchState = lab._match_state.defensive_team()
+	if SeasonEncore.available(team, roster_index):
+		SeasonEncoreUI.request(lab, roster_index)
+		return
 	if not team.select_pitcher(roster_index):
 		return
 	lab._selected_pitch_index = 0

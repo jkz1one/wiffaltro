@@ -1,11 +1,47 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.58
+**Version:** v0.4.59
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Earned Local Legends and Encore Energy, 2026-09-30
+
+Two of the16 earned sponsor candidates now join the19 initially eligible sponsors. Their
+access requirements remain **Working**, following Equipment/Sponsors v18 lines259–321:
+Local Legends (E05) requires three distinct credited Single/Double/Triple/HR types across
+completed career games, with no win requirement. Encore Energy (G05) requires a completed
+win with two different club pitchers each credited a strikeout. Evidence commits with the
+completed result, survives abandonment and season replacement, and unlocks only future shop
+eligibility. It grants no copy or guaranteed offer and never rewrites already displayed stock.
+
+E05's current **Working** candidate is Uncommon/12 Cash/+1% fair Contact exit per distinct
+stamp, capped at4% (Equipment/Sponsors v18 line446; preserved Blueprint v114 line4822).
+This supersedes the historical2%/8%/16-Cash candidate. The retained lifecycle contract at
+Blueprint lines3811–3835 binds stamps to one purchased seasonal copy. Only completed games
+played while owning it add stamps; benefits begin in subsequent matches. No pre-purchase
+history, midgame growth, Power benefit or new-season carry applies. Sale/replacement removes
+that copy's stamps; rebuy starts at zero. Contact exit bonuses compose additively with the
+existing Bat/Deli adapter; the Gloves penalty remains a separate once-only multiplier.
+
+G05's **Working** Rare/20-Cash contract follows Blueprint lines4672–4708. Once per team per
+game, the human player can explicitly confirm a removed pitcher's return at a legal between-
+batters defense-change boundary. Cancel spends nothing. The same player instance returns
+with its current stamina, pitch count, first-batter state, Recovery flags and other counters.
+The outgoing pitcher leaves through the ordinary removal/field-assignment path. There is no
+second return, extra player, mid-PA change or recovery. Restarting an unfinished match restores
+the pregame checkpoint; it does not preserve a partially played game's allowance.
+
+Seasonal ownership/replacement remains **Approved**. These access requirements, prices and
+numeric effects remain **Working**; existing mapping/eligibility **Proposals** are unchanged.
+New Working runs track prospects through build21/schema25/career3. Prior active saves retain
+stock and replay fingerprints and begin sponsor tracking with their next new Working season.
+AI policy1 remains the paid-stat-only policy; this slice adds no sponsor buying/return policy.
+Club Record exposes requirements and earned status, the shop shows copy-specific stamps, and
+the bullpen opens an explicit Encore confirmation. There are now21 of35 supported sponsors;
+14 earned candidates, other progression systems and native visual/human acceptance remain open.
 
 ## Persistent earned Gear access, 2026-09-30
 

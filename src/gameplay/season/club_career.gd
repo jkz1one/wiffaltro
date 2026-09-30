@@ -22,6 +22,8 @@ func start(season: SeasonState) -> bool:
 		return false
 	season.build._gear_progress.enabled = true
 	season.build._gear_progress.start = gear_counts()
+	season.build._sponsor_progress.enabled = true
+	season.build._sponsor_progress.start = sponsor_state()
 	current = runs.size() + 1
 	runs.append(
 		{
@@ -32,7 +34,8 @@ func start(season: SeasonState) -> bool:
 			"status": "active",
 			"proof": ClubSeasonRecord.capture(season),
 			"receipt": {},
-			"gear": []
+			"gear": [],
+			"sponsors": []
 		}
 	)
 	return true
@@ -44,10 +47,13 @@ func sync(season: SeasonState) -> bool:
 	if current != runs.size() or season.season_seed != runs[-1].seed:
 		return false
 	var run: Dictionary = runs[-1]
-	if not gear_matches(season, false):
+	if not gear_matches(season, false) or not sponsor_matches(season, false):
 		return false
 	var gear: Variant = (
 		season.build._gear_progress.games.duplicate(true) if run.gear != null else null
+	)
+	var sponsors: Variant = (
+		season.build._sponsor_progress.games.duplicate(true) if run.sponsors != null else null
 	)
 	var proof: Dictionary = ClubSeasonRecord.capture(season)
 	if run.status == "completed":
@@ -55,6 +61,7 @@ func sync(season: SeasonState) -> bool:
 			season.phase == SeasonState.Phase.COMPLETE
 			and same(run.proof, proof)
 			and same(run.gear, gear)
+			and same(run.sponsors, sponsors)
 		)
 	if run.status != "active":
 		return false
@@ -66,6 +73,7 @@ func sync(season: SeasonState) -> bool:
 		run.status = "completed"
 	run.proof = proof
 	run.gear = gear
+	run.sponsors = sponsors
 	return true
 
 
@@ -93,7 +101,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 2, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 3, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -107,7 +115,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 2)
+		not SeasonOwnership._whole(value.version, 1, 3)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -126,6 +134,7 @@ static func from_data(value: Variant) -> ClubCareer:
 				(
 					["id", "seed", "league", "tier", "status", "proof", "receipt"]
 					+ (["gear"] if value.version >= 2 else [])
+					+ (["sponsors"] if value.version >= 3 else [])
 				)
 			)
 		):
@@ -163,6 +172,13 @@ static func from_data(value: Variant) -> ClubCareer:
 			)
 		):
 			return null
+		if value.version < 3:
+			migrated["sponsors"] = null
+		if (
+			migrated.sponsors != null
+			and not SeasonSponsorProgress.valid_games(migrated.sponsors, row.proof.scores)
+		):
+			return null
 		result.runs.append(migrated)
 	return result
 
@@ -178,6 +194,7 @@ func matches(season: SeasonState) -> bool:
 		and (run.status == "completed") == (season.phase == SeasonState.Phase.COMPLETE)
 		and same(run.proof, ClubSeasonRecord.capture(season))
 		and gear_matches(season, true)
+		and sponsor_matches(season, true)
 	)
 
 
@@ -206,4 +223,32 @@ func gear_matches(season: SeasonState, exact: bool) -> bool:
 			progress.games, ClubSeasonRecord.capture(season).scores, progress.start
 		)
 		and (not exact or same(run.gear, progress.games))
+	)
+
+
+func sponsor_state(before_current: bool = false) -> Dictionary:
+	var result: Dictionary = {"hits": [], "encore": false}
+	for run: Dictionary in runs:
+		if before_current and run.id == current:
+			break
+		if run.sponsors != null:
+			result = SeasonSponsorProgress.add(result, run.sponsors)
+	return result
+
+
+func sponsor_matches(season: SeasonState, exact: bool) -> bool:
+	if season.build == null:
+		return false
+	var run: Dictionary = runs[-1]
+	var progress: SeasonSponsorProgress = season.build._sponsor_progress
+	if (run.sponsors != null) != progress.enabled:
+		return false
+	if not progress.enabled:
+		return true
+	return (
+		same(progress.start, sponsor_state(true))
+		and SeasonSponsorProgress.valid_games(
+			progress.games, ClubSeasonRecord.capture(season).scores
+		)
+		and (not exact or same(run.sponsors, progress.games))
 	)

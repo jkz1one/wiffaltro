@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.49
+**Version:** v0.1.50
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,39 @@
 ---
 
 # 1. Technical Objective
+
+## Prospective sponsor evidence, copy stamps and safe return, 2026-09-30
+
+`SeasonSponsorProgress` freezes a validated starting `{hits, encore}` state and derives one
+compact `{game, hits, win, multi_k}` row from each validated completed reward. Hit types use
+credited batting lines for the club's current roster; two positive pitching-K lines satisfy
+multi-pitcher evidence only when that game is won. Career3 stores nullable per-run evidence,
+validates legal ordered club fixtures and score-consistent wins, and binds the active run to
+exact journal replay. Historical compact evidence is save consistency, not anti-cheat proof.
+Fork/commit/save retains the aggregate atomically. Failed saves cannot publish a career unlock.
+
+Build21/schema25 adds `sponsor_start` and an earned-catalog fingerprint without changing any
+prior signature or initial catalog. Null means no tracking for that active legacy run; a new
+Working career run inherits prior access and starts prospective evidence. Old career1/2 rows
+migrate with null sponsor evidence; no retrospective feat is inferred. AI market policy1 stays
+at build19 with independent paid-stat acquisition. Eligibility filters only subsequent offer
+generation, ordinary purchase and Wholesale; it never rerolls stored offers.
+
+`SeasonLegends` derives stamp arrays from validated reward events and immutable purchase
+receipts. No independent stamp blob is saved. Candidate pruning removes sold/replaced IDs,
+including coordinated Wholesale changes; later purchases have new IDs and zero stamps.
+Match definitions snapshot the count, preventing midgame growth. The shared swing adapter
+adds one percent per stamp only to Contact fair-exit scaling, with the existing Bat/Deli and
+Misc composition. `SeasonEncore` makes one narrow exception to ordinary no-return pitching:
+validate the legal boundary and owned effect, temporarily clear the removed flag, call the
+ordinary selection path, then consume the team allowance. Every other PlayerMatchState field
+and tactical recovery record is retained. The default AI selection path is unchanged.
+
+`SeasonEncoreUI` suspends lab updates/input while the explicit confirmation is open, starts
+focus on Cancel, rechecks match/pitcher identity on acceptance and restores normal input on
+close. Club Record and the owned-sponsor review expose prospective requirements, earned access
+and exact-copy stamps. Automated UI/physics/save evidence is listed in VERIFICATION.md;
+native visual review and human acceptance are separate outstanding gates.
 
 ## Receipt-derived Gear progression and catalog20, 2026-09-30
 

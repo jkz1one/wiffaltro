@@ -902,8 +902,9 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 		var player: PlayerMatchState = team.roster[index]
 		var button: Button = lab._pitcher_buttons[index]
 		var role: String = "PITCHER" if index == team.pitcher_index else "READY"
+		var encore: bool = SeasonEncore.available(team, index)
 		if player.pitching_finished:
-			role = "USED"
+			role = "ENCORE RETURN" if encore else "USED"
 		button.text = (
 			"%s • %s\nThrows %s • %.0f%% stamina • %s"
 			% [
@@ -914,9 +915,13 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 				PitchExecutionModel.fatigue_stage_name(player.fatigue_ratio()),
 			]
 		)
-		button.disabled = not can_change or index == team.pitcher_index or player.pitching_finished
+		button.disabled = (
+			not can_change or index == team.pitcher_index
+			or (player.pitching_finished and not encore)
+		)
 		button.tooltip_text = (
-			"Removed pitchers cannot pitch again; batting and fielding remain available."
+			"Review your one Encore return. Spent stamina and used effects stay unchanged."
+			if encore else "Removed pitchers cannot pitch again; batting and fielding remain available."
 		)
 
 

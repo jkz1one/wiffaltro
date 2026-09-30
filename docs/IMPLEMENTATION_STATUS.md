@@ -1,5 +1,17 @@
 # Implementation Status
 
+## First earned sponsors and persistent feat access, 2026-09-30
+
+Local Legends and Encore Energy now include prospective career/game unlocks, ordinary paid
+shop and Wholesale eligibility, retained access across seasons, exact-copy seasonal stamps,
+and one confirmed legal pitcher return with spent state preserved. Club Record, shop review
+and bullpen controls expose the actual state. Build21/schema25/career3 preserves old stock,
+replay and Gear progress; old active runs begin sponsor tracking with the next Working season.
+This supports21 of35 sponsors, leaving14 earned candidates. Source-defined unlocks and effect
+numbers remain Working; Approved ownership and unapproved Proposals retain their distinctions.
+AI sponsor acquisition/activation, other progression and native visual/human acceptance remain
+open. Verification scope and remaining limitations are recorded in VERIFICATION.md.
+
 ## Earned Gear chains and paid higher tiers, 2026-09-30
 
 Five Bat/Ball chains now retain completed-use progress across seasons and abandonment, earn
@@ -290,8 +302,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 71% implemented** (weighted estimate71.0), after supported earned Gear chains
-(70% after persistent club rewards/history;68% after paid opponent stat development;66% after Film Room and all19 initial sponsors;
+**Approximately 72% implemented** (weighted estimate72.0), after the first earned sponsors and persistent feat access
+(71% after supported earned Gear chains;70% after persistent club rewards/history;68% after paid opponent stat development;66% after Film Room and all19 initial sponsors;
 65% after Budget Bites and pregame commitment;64% after tactical combination/exchange sponsors;63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
 59% after the three development sponsors;57% after Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
@@ -311,11 +323,11 @@ human-approved or release-ready merely because their code runs.
 | Player development and mastery | 10 | 8.5 |
 | Shop, packs and recruitment | 12 | 8.5 |
 | Gear, tactical cards and abilities | 10 | 8.25 |
-| Sponsors | 10 | 9 |
-| Leagues and persistent career | 10 | 2.75 |
+| Sponsors | 10 | 9.25 |
+| Leagues and persistent career | 10 | 3.5 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **71.0** |
+| **Total** | **100** | **72.0** |
 
 Next unmet dependencies include offscreen support for further AI purchase categories, earned
 access/player-card contracts, League/tier implementations, Alley/mapping calibration and other earned sponsors. Shared consumable
