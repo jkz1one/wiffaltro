@@ -49,6 +49,7 @@ var difficulty: int = 1
 var ownership: SeasonOwnership = SeasonOwnership.new()
 var build: SeasonBuild
 var opponents: SeasonOpponents
+var career: ClubCareer
 
 
 static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:

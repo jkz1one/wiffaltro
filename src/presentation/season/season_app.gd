@@ -58,22 +58,46 @@ func _process(_delta: float) -> void:
 
 func ask_new_season() -> void:
 	if season != null or FileAccess.file_exists(SeasonSave.path):
-		_confirm("Start a new season? This replaces the saved season.", menu.show_preseason)
+		_confirm("Start a new season? An unfinished season is abandoned without Club Bucks. "
+			+ "Saved club history and earned rewards remain.", menu.show_preseason)
 	else:
 		menu.show_preseason()
 
 
 func begin_season(seed_value: int = -1, working_progression: bool = false) -> void:
 	var selected_seed: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
-	season = SeasonState.create(
+	var previous: SeasonState = season
+	if previous == null and (
+		FileAccess.file_exists(SeasonSave.path) or FileAccess.file_exists(SeasonSave.path + ".bak")
+	):
+		notice = ("The saved season could not be read. It was left untouched. "
+			+ "Restore it before starting another season.")
+		menu.show_home()
+		return
+	var candidate: SeasonState = SeasonState.create(
 		selected_seed if seed_value < 0 else seed_value, false, working_progression, working_progression)
-	# Legacy saves retain their tactical preset. New runs use the base shell;
-	# the future per-League difficulty ladder is not a pitching-only selector.
-	season.difficulty = 1
+	candidate.difficulty = 1
+	if working_progression or (previous != null and previous.career != null):
+		var club: ClubCareer = ClubCareer.new()
+		if previous != null and previous.career != null:
+			club = previous.career.fork()
+			if not club.close(previous):
+				notice = "Could not preserve the current club record. Your season is unchanged."
+				menu.show_home()
+				return
+		if working_progression and not club.start(candidate):
+			notice = "Could not start another career season. Your season and club history are unchanged."
+			menu.show_home()
+			return
+		candidate.career = club
+	season = candidate
+	if not _checkpoint():
+		season = previous
+		menu.show_home()
+		return
 	menu.draft_selection = ""
 	film_game = -1
 	film_recipe = ""
-	_checkpoint()
 	menu.show_draft()
 
 
@@ -244,8 +268,9 @@ func _checkpoint() -> bool:
 
 func ask_progression_season() -> void:
 	_confirm(
-		"Start a Working progression test season? This replaces the saved season. "
-		+ "It uses the Working roster, proposed mastery/equipment physics and a partial season shop.",
+		"Start a Working progression test season? An unfinished season is abandoned with no payout. "
+		+ "Club Bucks and history remain. New Working seasons earn Working Club Bucks rewards. "
+		+ "Roster, mastery/equipment physics and the partial shop remain test candidates.",
 		begin_season.bind(-1, true))
 
 

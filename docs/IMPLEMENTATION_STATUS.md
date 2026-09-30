@@ -1,5 +1,18 @@
 # Implementation Status
 
+## Persistent club ledger and safe season replacement, 2026-09-30
+
+New Working seasons now retain stable IDs, score/bracket history, first-title clear and
+Club Bucks across season replacement. Working finish/record/first-clear payouts settle once
+in the same atomic file as completed results and opponent purchases. Failed saves, duplicate
+Continue, cancellation, abandonment, seed reuse, backup recovery and legacy-mode transitions
+preserve the correct record. Club Record and completed-season UI expose actual receipts and
+separate earned tier status from playable content. No retroactive legacy rewards are invented.
+This advances the persistence dependency for League progression. Higher tiers/Leagues,
+player-card ownership/packs, other earned unlocks, stadium ownership/editor and native visual/
+human economy acceptance remain open. Approved/Working/Proposal status remains unchanged.
+
+
 ## Paid opponent development foundation, 2026-09-30
 
 New Working seasons now have five independent paid AI builds with own-result income,
@@ -261,8 +274,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 68% implemented** (weighted estimate67.5), after paid opponent stat development
-(66% after Film Room and all19 initial sponsors;
+**Approximately 70% implemented** (weighted estimate70.0), after persistent club rewards/history
+(68% after paid opponent stat development;66% after Film Room and all19 initial sponsors;
 65% after Budget Bites and pregame commitment;64% after tactical combination/exchange sponsors;63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
 59% after the three development sponsors;57% after Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
@@ -283,13 +296,13 @@ human-approved or release-ready merely because their code runs.
 | Shop, packs and recruitment | 12 | 8.5 |
 | Gear, tactical cards and abilities | 10 | 7.5 |
 | Sponsors | 10 | 9 |
-| Leagues and persistent career | 10 | 0 |
+| Leagues and persistent career | 10 | 2.5 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **67.5** |
+| **Total** | **100** | **70.0** |
 
 Next unmet dependencies include offscreen support for further AI purchase categories, earned
-access/career foundations, Alley/mapping calibration and earned Gear/sponsors. Shared consumable
+access/player-card contracts, League/tier implementations, Alley/mapping calibration and earned Gear/sponsors. Shared consumable
 capacity modifiers remain open (sponsor reserves are prohibited). Partial shops
 redistribute missing category weights; they do not pretend those systems are implemented. Human visual/feel checks remain a release gate.
 The following entries are historical checkpoints; this entry supersedes their missing-shop notes.

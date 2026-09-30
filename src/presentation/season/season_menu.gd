@@ -72,6 +72,7 @@ func show_home() -> void:
 		if app.season.phase != SeasonState.Phase.DRAFT:
 			_label(club, SeasonPages.club_record(app.season), 18)
 		_button(club, "CONTINUE SEASON", app.show_season)
+	ClubCareerUI.badge(self, club)
 	_button(club, "NEW SEASON", app.ask_new_season)
 	_button(club, "NEW WORKING SEASON", app.ask_progression_season)
 	var quick: VBoxContainer = SeasonPlayerCard.panel(row)

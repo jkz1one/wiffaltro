@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.47
+**Version:** v0.1.48
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,44 @@
 ---
 
 # 1. Technical Objective
+
+## Atomic career extension and compact score history, 2026-09-30
+
+`ClubCareer` is a version1 aggregate attached optionally to `SeasonState`. Its `runs` have
+sequential club-local IDs, seed, explicit Standard/Base identity, status, compact score proof
+and versioned receipt. `current` identifies the attached Working run, or0 when carrying the
+ledger through a legacy season. Only a fresh, undrafted Working season with paid opponents
+can start a tracked run. IDs never derive from seed. Maximum1024 retained rows rejects another
+start without deleting history. Balance and Standard/Base clear are derived from receipts;
+there is no separately saved mutable currency balance or manufactured permanent player set.
+
+`ClubSeasonRecord` stores the six stable tiebreak draws and actual score tuples sorted by
+fixture ID. Validation requires complete ordinary rounds and legal partial/full playoff
+boundaries, distinct integer scores, the real regular schedule, standings-seeded semifinal
+pairings and winner-seeded final. Completed histories require all33 league fixtures, including
+already-supported offscreen results. Receipt version1 derives the actual finish and regular
+wins; first-title25 is checked against preceding completed rows. It does not simulate a
+historical game anew, depend on current player catalogs, infer player statistics or award
+additional money for postseason wins. Active and abandoned runs require unfinished evidence
+and empty receipts. Unknown fields, invalid current IDs and inconsistent rewards are rejected.
+
+`SeasonSave.save` forks the career and stages synchronization/settlement before existing
+whole-season validation. The career is added to the same JSON and published back to the live
+season only after successful atomic replacement. Restore validates the ledger and requires
+the current record's seed, status and exact full-precision normalized score proof to match the independently
+restored current season. Existing build19/schema23 remain; optional `career.version=1` is a
+separate extension. Older readers reject unknown fields. The bounded file limit becomes8MiB
+to accommodate history. Backup recovery remains read-only until a successful later checkpoint.
+
+`SeasonApp.begin_season` stages a candidate and a forked club. It closes the old run, settling
+an already-complete run if needed, or recording an unfinished run as abandoned without pay.
+It then starts the new Working ID or retains the ledger with current0 for legacy mode. On
+save failure it restores the previous `SeasonState` reference and displays the error. It
+refuses to overwrite unreadable existing primary/backup files when no prior state was restored.
+Other ordinary checkpoints cannot mark abandonment. Exhibition and lab play never settle a
+career. `ClubCareerUI` reads the committed ledger, pages20 records at a time, shows receipt
+components and score details, and distinguishes earned Tier1 from currently playable Base.
+No difficulty-controller, paid-pack, stadium editor or spending interface is added.
 
 ## Paid opponent ledgers and deterministic round settlement, 2026-09-30
 

@@ -1,11 +1,64 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.56
+**Version:** v0.4.57
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Persistent club rewards and season history, 2026-09-30
+
+New UI-created Working seasons now establish a persistent club record with zero starting
+Club Bucks, monotonic season IDs, completed/abandoned history and one-time settlement.
+The currency split, retained unlocks, no abandonment payout and per-League first-title
+structure are **Approved**. Reward values remain **Working**, from Economy v24 lines440–451
+and preserved Blueprint v114 CO1 lines14590–14618: missed playoffs35, semifinal65,
+runner-up95, champion180; plus floor(15 × regular wins /10) and25 for the first
+Standard/Base championship. Perfect first/repeat Base titles therefore pay220/195.
+Postseason wins, Season Cash, Hype, sponsors and remaining purchases add no Club Bucks.
+No existing Proposal becomes approved through this implementation.
+
+This establishes the career dependency before further League/tier integration: higher-tier
+controller/roster definitions and additional offscreen purchase contracts remain gated, while
+League access needs durable clear history. The existing Working standard-rules season is
+recorded as Standard/Base. Its current schedule, venues, baseline controller and gameplay
+are unchanged; this does not claim the authored Standard final venue or complete League slate.
+A first title records the earned next-tier condition, but higher-tier gameplay remains
+unavailable. Card-pack price/contents/initial ownership and stadium purchasing are not enabled.
+No permanent player cards or stadium construction copies are inferred from this ledger.
+
+A run ID belongs to the club ledger, not the random seed. Reusing a seed starts a distinct
+season; saving/quitting/restarting an unfinished fixture retains the same run. Completion
+records all actual regular/playoff scores and a versioned finish/reward receipt. Historical
+score evidence reconstructs the standings, top-four bracket, finalist seeds and champion;
+it remains independent of future player/shop catalog changes. Awards derive from that
+record and first-clear history, not an independently editable wallet. Repeat Continue,
+reload or duplicate checkpoint cannot pay again. Cleared Standard/Base history survives
+abandonment and remains separate from current seasonal ownership/power.
+
+The career extension has its own version1 and is embedded in the existing season file.
+The completed human result, AI purchases, finish receipt, balance and first clear commit
+in one atomic file replacement. Failed persistence leaves the previous bytes and published
+career unchanged; the already-completed session can retry. Starting another season stages
+closure of the prior run, zero-CB abandonment if unfinished, the new ID and fresh seasonal
+build together. A failed replacement restores the previous in-memory season as well as
+retaining its saved file. Canceling a dialog or reviewing history changes nothing.
+Switching to the legacy season mode retains the club ledger, but that legacy run earns no
+Club Bucks. Unreadable saves without a valid backup cannot be silently replaced by New Season.
+
+Existing saves do not gain invented past history, income or clear flags. They remain playable;
+starting a new Working run establishes the record prospectively. Human build19/schema23 and
+opponent policy1 are unchanged. Old readers reject the unknown career field rather than
+silently discarding it. The ledger supports1024 retained runs with explicit refusal at capacity,
+and the save reader allows8MiB. There is no automatic history pruning or currency reset.
+
+Home, season hub and completed-season summary link to Club Record. It separates Club Bucks
+from Season Cash, shows the exact finish/regular/first-title breakdown, earned versus playable
+tier status, paginated run history and read-only player-club score details. Native rendered
+review and human reward pacing remain open. Permanent player ownership/packs, gameplay-feat
+unlocks, stadium starter entitlements/construction, other League rules and difficulty presets
+remain separate work; the currency ledger does not claim those systems are implemented.
 
 ## Paid opponent broad-stat development, 2026-09-30
 

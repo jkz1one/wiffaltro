@@ -27,6 +27,13 @@ static func save(season: SeasonState) -> bool:
 		data["build"] = season.build.to_data()
 	if season.opponents != null:
 		data["opponents"] = season.opponents.to_data()
+	var career: ClubCareer
+	if season.career != null:
+		career = season.career.fork()
+		if not career.sync(season):
+			last_error = "Club history does not match this season. The previous save was preserved."
+			return false
+		data["career"] = career.to_data()
 	if _decode(data) == null:
 		last_error = "Season data failed validation. The previous save was preserved."
 		return false
@@ -46,6 +53,7 @@ static func save(season: SeasonState) -> bool:
 	if error != OK or DirAccess.rename_absolute(path + ".tmp", path) != OK:
 		last_error = "Could not replace the season save. Retry before closing."
 		return false
+	season.career = career
 	last_error = ""
 	return true
 
@@ -66,7 +74,7 @@ static func _read(file_path: String) -> SeasonState:
 	if not FileAccess.file_exists(file_path):
 		return null
 	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	if file == null or file.get_length() > 500000:
+	if file == null or file.get_length() > 8 * 1024 * 1024:
 		return null
 	var json: JSON = JSON.new()
 	var parse_error: Error = json.parse(file.get_as_text())
@@ -95,9 +103,12 @@ static func _decode(value: Variant) -> SeasonState:
 		"strengths",
 		"ownership",
 		"build",
-		"opponents"
+		"opponents",
+		"career"
 	]
 	if data.has("opponents") and (data.version < 23 or not data.opponents is Dictionary):
+		return null
+	if data.has("career") and data.version < 4:
 		return null
 	for key: Variant in data:
 		if not key is String or not allowed.has(key):
@@ -210,6 +221,10 @@ static func _decode(value: Variant) -> SeasonState:
 	if data.has("opponents"):
 		var expected: Variant = JSON.parse_string(JSON.stringify(season.opponents.to_data()))
 		if JSON.parse_string(JSON.stringify(data.opponents)) != expected:
+			return null
+	if data.has("career"):
+		season.career = ClubCareer.from_data(data.career)
+		if season.career == null or not season.career.matches(season):
 			return null
 	return season
 

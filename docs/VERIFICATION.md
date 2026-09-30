@@ -1,5 +1,67 @@
 # Fast verification and playtest records
 
+## Persistent club rewards, history and replacement, 2026-09-30
+
+Full run `20260930T040631742957Z` passed71/71 checks and all26 complete physical games on
+Godot4.7.2. This includes the new career scenes and all previous opponent/sponsor/tactical/
+Gear/shop/recruitment/development/ownership, migration, season/UI/AI/camera/sport regressions,
+match soak, physical-ball, QC export and main-scene startup gates. Fresh main
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor; the historical repository
+PROGRESSION_BLUEPRINT.md is unchanged.
+
+The full run used the source snapshot before the final precision tightening: career equality
+now normalizes with full-precision JSON, preserving every standings-tiebreak digit. A new
+contract rejects a1e-12 change to the current proof's draw value. Final focused run
+`20260930T041624179822Z` passed11/11 on the final code: common gates, the actual physical
+championship and career contracts/UI, plus opponent and paid-shop UI. The full run alone
+is not represented as testing this later change. No source change followed the focused run;
+only final verification documentation was updated.
+
+Focused run `20260930T040516388802Z` passed8/8 on Godot4.7.2, including
+the new career contracts and actual UI. Earlier compatibility run `20260930T040211209547Z`
+passed9/9 with paid-shop and opponent UI after the initial career integration. The first
+new-scene attempt `20260930T040457098352Z` stopped at lint on two long error-handling lines;
+those were wrapped before the clean focused run. No runtime pass is claimed for that attempt.
+
+The new physical championship fixture reaches the actual final through11 scheduled wins,
+with the paid-opponent model active and zero published Club Bucks before the final. Its
+shared-controller physical match ends Yard Club10–Rivets0 at third-inning mercy, with86 play
+records and27 balls in play. Actual completed-game statistics settle through production
+result handling; failed-write preservation, retry, duplicate Continue, reload and normal
+outro/restart pass. The resulting first perfect Base title pays220 once. The test driver lets
+the human-owned home club bat through the shared AI path; this is runtime/persistence evidence,
+not human difficulty, reward pacing or win-rate validation.
+
+Controlled completed seasons cover missed playoffs35, perfect-record semifinal80,
+runner-up110, first champion220 and repeat champion195. The tests derive actual standings,
+semifinal participants, finalists and finish from all33 fixture scores, not a supplied finish
+label. Repeated saves/reloads do not repay. Reusing the seed produces a different run ID;
+failed final writes publish no career change and retain the entire pre-final file. Retry
+awards exactly once. Ordinary saves leave the run active. Explicit abandonment records no
+payout while preserving earlier balances/clear history; the next seasonal build starts with
+zero Cash and no previous development. Legacy Working saves gain no fabricated history or
+retroactive reward. Corrupt primary data recovers from a valid unchanged backup.
+
+Tamper checks reject changed receipts, duplicate/incorrect fixture IDs, altered tiebreak
+draws, mismatched current seed/ID, unavailable tier, abandoned completed proof and unknown wallet fields. The club
+balance is derived from validated versioned receipts. The current run is bound to the exact
+restored season's scores; older history does not rerun a different current player catalog.
+
+Actual viewport input covers completed-season reward review, Club Record, score detail,
+Back/Main Menu, opening/canceling a new Working run, and confirming replacement. Bounds and
+wrapping are checked on the new screens. Browsing/canceling leaves file bytes unchanged.
+A failed replacement keeps the exact previous in-memory season and saved bytes. A successful
+replacement keeps money/history; switching to legacy mode retains the ledger while giving
+that legacy run no reward eligibility. Unreadable primary data without a usable backup is
+left untouched when New Season is attempted. No history is silently overwritten.
+
+Native display remains unavailable as recorded in `native-ui-display-20260928.log`; no
+rendered visual acceptance is claimed. Rewards remain Working. Higher-tier gameplay, other
+League rules/venues, earned item/player-card access, pack decisions, stadium starter grants/
+construction/purchases and human economy acceptance remain open. This advances the persistent
+record dependency without silently choosing those unresolved product contracts.
+
+
 ## Paid opponent stat development, 2026-09-30
 
 Full run `20260930T033744703813Z` passed69/69 checks and all25 complete physical games

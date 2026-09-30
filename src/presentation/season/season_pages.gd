@@ -42,6 +42,7 @@ static func hub(menu: SeasonMenu) -> void:
 	menu._screen("hub", "YARD CLUB", stage(season) + " • Backyard League")
 	menu._label(menu._body, club_record(season), 24)
 	menu._label(menu._body, "SEASON CASH  •  %d" % season.cash(), 18)
+	ClubCareerUI.badge(menu, menu._body)
 	if season.build != null:
 		wrapped(menu._body, "WORKING PROGRESSION • Test roster and candidate mastery physics")
 		var names: PackedStringArray = []
@@ -280,6 +281,7 @@ static func summary(menu: SeasonMenu) -> void:
 		SeasonPerformance.totals(season), SeasonPerformance.club_history(season)
 	):
 		wrapped(card, line)
+	ClubCareerUI.settlement(menu)
 	wrapped(menu._body, menu._playoffs())
 	menu._label(menu._body, "FINAL REGULAR-SEASON STANDINGS", 22)
 	menu._standings()
