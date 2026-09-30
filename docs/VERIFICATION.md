@@ -1,5 +1,33 @@
 # Fast verification and playtest records
 
+## Atomic sponsor-set foundation, 2026-09-30
+
+Final focused run `20260930T212339189362Z` passed **16/16 checks** under Godot 4.7.2:
+seven revision/parse/lint/import gates and nine scenes: sponsor-set, ordinary ownership,
+ownership integration, Wholesale menu/live, match-sales UI, Late Checkout UI, Second Chance
+UI and core regressions. Wholesale's physical game completed (seed 67, 85 pitch records,
+30 balls in play). All 467 snapshotted source/test/asset/project/runner files stayed unchanged
+during verification; only documentation changed afterward. Logs contain no warnings or errors.
+This is targeted coverage, not the full suite or native rendered/human visual acceptance.
+
+Synthetic sponsor fixtures prove seven-to-five capacity removal with exact selected sales,
+replacement capacity validated on the final loadout, both purchase/sale orders, combined
+funding and one-Cash-short rollback. Tests cover Common-peer restrictions on grouped and
+ordinary operations, zero-sale exceptions, discounted receipts/resale, held-capacity overflow,
+blocked/foreign/duplicate/wrong-category selections, duplicate sponsor identity, stale review,
+malformed discounts/fields, native/JSON retries and generated-receipt identity collisions before
+and after resale/reload. No actual J05 item, career access or group-selection UI is enabled.
+
+Development verification found nested integer discounts returning from JSON as floats,
+causing retry-identity mismatch. They now normalize before comparison, and tests exercise both
+native-to-JSON retry directions. Synthetic multi-offer fixture keys are sorted so the legacy
+order-insensitive stock registry's insertion order does not confound state comparison. An
+initial runner invocation used the nonexistent selector `core`; the final invocation uses
+`regressions`. Failed development runs are retained and are not counted as passing coverage.
+
+The prior Second Chance and Late Checkout source trees were published on the authorized
+engineering branch and compared exactly with their verified local trees. No merge or deployment.
+
 ## Late Checkout paid access, inherited effects and live sale, 2026-09-30
 
 Final affected-path run `20260930T205829728356Z` passed **25/25 checks** under Godot 4.7.2:

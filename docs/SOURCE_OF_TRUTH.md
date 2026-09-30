@@ -1,11 +1,20 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.65
+**Version:** v0.4.66
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Atomic sponsor ownership foundation, 2026-09-30
+
+Neighborhood Association remains an unimplemented **Working** candidate. Current Equipment/
+Sponsors v18 and retained Blueprint v114 J05 require explicit final-loadout resolution when
+its extra capacity is removed. The ownership engine now supports exact grouped sponsor sales
+and purchases with final capacity, money and peer-rarity validation. This is infrastructure,
+not a new available item or a promotion of any Working value/Proposal to Approved. The current
+five-slot catalog, earned access and UI remain unchanged; supported sponsor count stays 26/35.
 
 ## Late Checkout Motel and one-batter effect inheritance, 2026-09-30
 

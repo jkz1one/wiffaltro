@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.56
+**Version:** v0.1.57
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,27 @@
 ---
 
 # 1. Technical Objective
+
+## Complete sponsor-set transactions, 2026-09-30
+
+`SeasonSponsorSet` adds an internal `sponsor_set` ownership event containing exact `sales`
+receipt IDs and up to two `purchases` with offer IDs and validated receipt discounts. Trusted
+season adapters must derive those discounts and enforce purchase eligibility/concession use;
+the primitive is not a player-facing discount authority. All reviewed old sales precede new
+purchases on one detached candidate. Sponsor/held capacity, optional `peer_rarity` restrictions
+and cash are validated only on the complete result. Failure publishes no state, stock change,
+refund or event. Ordinary buy/sell paths share final peer validation as well.
+
+Purchase IDs derive deterministically from the parent transaction ID and purchase index.
+They are reserved in the replay-built request map even after sale, preventing future request
+reuse. Nested whole discount values normalize before identity comparison so native and JSON
+retries agree. Exact paid amounts still determine resale, including zero-sale exceptions.
+
+Synthetic tests use two-slot capacity and Common-peer fixtures; no J05 catalog definition,
+career feat, UI command or live effect has been enabled. Existing versioned season journals,
+Wholesale commands and production catalog fingerprints remain unchanged. Integration must
+preserve older receipt references and add explicit final-loadout UI choices before enabling
+Neighborhood Association.
 
 ## Supplied-walk provenance and next-batter transfer, 2026-09-30
 

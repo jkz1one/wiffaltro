@@ -89,6 +89,9 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-sponsor-set", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_sponsor_set_test.tscn"],
+                 "Wiffaltro sponsor set checks passed:"),
                 ("season-late-checkout-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_late_checkout_live_test.tscn"],
                  "Wiffaltro live Late Checkout checks passed:"),

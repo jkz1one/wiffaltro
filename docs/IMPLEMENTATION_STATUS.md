@@ -2,6 +2,16 @@
 
 For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
 
+## Sponsor transaction foundation and recovered-work publication, 2026-09-30
+
+Second Chance and Late Checkout are published to `rebuild/season-engineering`; remote trees
+match the verified source. An internal sponsor-set transaction now validates all selected
+sales and purchases together, preserving exact refunds, final capacity, rarity restrictions,
+receipt identities and replay. Synthetic tests exercise Neighborhood Association's required
+capacity transitions. Its catalog access, career feat, shop/live selection UI and runtime
+integration remain open, so supported content stays 26/35 sponsors and 23/25 Gear. Build27,
+schema31 and career8 are unchanged. Whole-project estimate remains approximately 72%.
+
 ## Late Checkout Motel and supplied-walk progression, 2026-09-30
 
 Late Checkout adds permanent supplied-walk access, paid seasonal ownership, one optional
@@ -11,8 +21,7 @@ are implemented. Supported sponsors are now 26/35, with nine earned contracts re
 Gear remains 23/25. AI acquisition, other content systems and final premium UI/native visual/
 controller/human acceptance remain open. Overall estimate stays approximately 72%; this is
 another completed contract within the existing sponsor category. Verification scope is
-recorded in VERIFICATION.md. Remote publication is pending explicit push authorization after
-automatic approval review rejected the prior continuation wording.
+recorded in VERIFICATION.md. Publication completed on 2026-09-30 following explicit authorization.
 
 ## Second Chance Supply, live claims and tactical-sale settlement, 2026-09-30
 

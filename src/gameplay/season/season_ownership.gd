@@ -94,6 +94,11 @@ func commit(command: Dictionary) -> Dictionary:
 	var normalized: Dictionary = prepared.command
 	_events.append(normalized.duplicate(true))
 	_requests[normalized.id] = normalized.duplicate(true)
+	# Reserve every generated receipt identity, including after it is sold. A later
+	# ordinary request must not recreate an identity owned by this grouped event.
+	if normalized.op == "sponsor_set":
+		for index in range(normalized.purchases.size()):
+			_requests[SeasonSponsorSet.receipt_id(normalized.id, index)] = {"set": normalized.id}
 	return {"ok": true, "replayed": false}
 
 
@@ -104,6 +109,8 @@ func _prepare(command: Dictionary) -> Dictionary:
 	normalized.rev = int(normalized.rev)
 	if normalized.has("game") and _whole(normalized.game, 0, 32):
 		normalized.game = int(normalized.game)
+	if normalized.get("op") == "sponsor_set":
+		SeasonSponsorSet.normalize(normalized)
 	if _requests.has(normalized.id):
 		if JSON.stringify(_requests[normalized.id]) != JSON.stringify(normalized):
 			return _failure("Transaction identity was already used for another action.")
@@ -117,6 +124,9 @@ func _prepare(command: Dictionary) -> Dictionary:
 	var capacity: Dictionary = _capacity(next)
 	if next.held.size() > capacity.held or next.sponsors.size() > capacity.sponsors:
 		return _failure("Resolve all capacity changes explicitly before confirming.")
+	var sponsor_error: String = SeasonSponsorSet.validate_peers(next, _catalog)
+	if not sponsor_error.is_empty():
+		return _failure(sponsor_error)
 	if next.cash < 0 or next.cash > 1000000:
 		return _failure("Insufficient Season Cash or invalid balance.")
 	return {"ok": true, "replayed": false, "after": next, "command": normalized}
@@ -124,6 +134,8 @@ func _prepare(command: Dictionary) -> Dictionary:
 
 func _apply(next: Dictionary, command: Dictionary) -> String:
 	match command.get("op"):
+		"sponsor_set":
+			return SeasonSponsorSet.apply(self, next, command)
 		"insurance_grant":
 			return SeasonSecondChance.grant(next, command)
 		"budget_grant":
@@ -318,6 +330,10 @@ func _valid_item(id: Variant) -> bool:
 		return item.get("slot") in GEAR_SLOTS and item.sale == "half"
 	if item.kind == "held":
 		return item.sale == "zero"
+	if item.get("rarity", "") not in ["", "Common", "Uncommon", "Rare"]:
+		return false
+	if item.get("peer_rarity", "") not in ["", "Common", "Uncommon", "Rare"]:
+		return false
 	return (
 		_whole(item.get("held_delta", 0), -2, 10) and _whole(item.get("sponsor_delta", 0), -5, 10)
 	)
