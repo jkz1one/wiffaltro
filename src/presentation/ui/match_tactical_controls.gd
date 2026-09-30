@@ -13,6 +13,7 @@ var _swing: StringName = &""
 var _pa: int = 0
 var _player: StringName = &""
 var _advance: Dictionary = {}
+var _pair: Array[String] = []
 
 
 func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
@@ -93,11 +94,18 @@ func _process(_delta: float) -> void:
 				else (
 					"Runner advanced"
 					if active == SeasonTacticalCatalog.BASE
-					else SeasonTacticalCatalog.item(active).name + " • this PA"
+					else (
+						(
+							"Tape + Plan"
+							if active == MatchTactics.COMBO
+							else SeasonTacticalCatalog.item(active).name
+						)
+						+ " • this PA"
+					)
 				)
 			)
 		)
-		if active == "C03":
+		if active in ["C03", MatchTactics.COMBO]:
 			_entry.text += (
 				" • "
 				+ String(tactics.locked_swing(_lab._match_state)).trim_prefix("swing.").to_upper()
@@ -112,6 +120,8 @@ func _open() -> void:
 		return
 	_receipt = ""
 	_advance = {}
+	_pair.clear()
+	_dialog.get_ok_button().text = "USE SELECTED COPY"
 	_pa = _lab._match_state.plate_appearance_number
 	_dialog.get_ok_button().disabled = true
 	for child: Node in _choices.get_children():
@@ -132,6 +142,7 @@ func _open() -> void:
 			button.disabled = not button.tooltip_text.is_empty()
 			button.pressed.connect(_select.bind(copy.id, swing))
 			_choices.add_child(button)
+	_add_combo_choices()
 	_detail.text = (
 		"Choose a supply to review. One activation per club per PA.\n"
 		+ "Disabled cards are unavailable for this role, pitcher or PA. "
@@ -150,6 +161,8 @@ func _select(receipt: String, swing: StringName) -> void:
 		_detail.text = error
 		_dialog.get_ok_button().disabled = true
 		return
+	_pair.clear()
+	_dialog.get_ok_button().text = "USE SELECTED COPY"
 	_receipt = receipt
 	_swing = swing
 	var id: String = team().tactics._item(receipt)
@@ -186,6 +199,9 @@ func _select(receipt: String, swing: StringName) -> void:
 func _commit() -> void:
 	if not can_open() or _pa != _lab._match_state.plate_appearance_number:
 		return
+	if not _pair.is_empty():
+		_commit_combo()
+		return
 	var id: String = team().tactics._item(_receipt)
 	var player: PlayerMatchState = (
 		_lab._match_state.pitcher()
@@ -207,4 +223,54 @@ func _commit() -> void:
 			if _lab._match_state.phase == MatchState.Phase.GAME_END:
 				PitchBatLabFeelSupport.begin_match_outro(_lab)
 	_receipt = ""
+	_process(0.0)
+
+
+func _add_combo_choices() -> void:
+	if not team().current_batter().definition.season_sponsors.get("E07", false):
+		return
+	for swing: StringName in [&"swing.contact", &"swing.power"]:
+		var pair: Array[String] = team().tactics.combo_copies()
+		var button: Button = Button.new()
+		button.text = (
+			"DOUBLE BOOKING • Tape + Plan • " + String(swing).trim_prefix("swing.").capitalize()
+		)
+		button.custom_minimum_size.y = 44
+		button.set_meta("tactical_combo", swing)
+		button.tooltip_text = team().tactics.combo_reason(_lab._match_state, team(), pair, swing)
+		button.disabled = not button.tooltip_text.is_empty()
+		button.pressed.connect(_select_combo.bind(pair, swing))
+		_choices.add_child(button)
+
+
+func _select_combo(pair: Array[String], swing: StringName) -> void:
+	if (
+		not can_open()
+		or not team().tactics.combo_reason(_lab._match_state, team(), pair, swing).is_empty()
+	):
+		return
+	_pair = pair.duplicate()
+	_swing = swing
+	_player = _lab._match_state.batter().definition.id
+	_detail.text = (
+		(
+			"Double Booking • %s\nConsumes this Tape and Plan together, once/game. "
+			+ "Locks %s for this PA. Spatial radii ×1.08; fair exit ×0.95. "
+			+ "At quality ≥0.65, Plan adds ×1.06 (combined ×1.007), after Gear. "
+			+ "Both end on PA completion, including walks/Ks. No refund. "
+			+ "Working contract; compatibility is a testing Proposal."
+		)
+		% [_lab._match_state.batter().definition.display_name, String(swing).trim_prefix("swing.")]
+	)
+	_dialog.get_ok_button().text = "USE BOTH COPIES"
+	_dialog.get_ok_button().disabled = false
+
+
+func _commit_combo() -> void:
+	if _player != _lab._match_state.batter().definition.id:
+		return
+	if team().tactics.activate_combo(_lab._match_state, team(), _pair, _swing):
+		_lab._refresh_config()
+		_lab._refresh_markers()
+	_pair.clear()
 	_process(0.0)

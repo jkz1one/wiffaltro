@@ -1,5 +1,15 @@
 # Implementation Status
 
+## Tactical combination and exchange sponsors, 2026-09-29
+
+Double Booking and Pick & Mix Market now include paid ownership, exact-copy UI review,
+atomic Tape/Plan activation, one-for-one tactical exchange, per-game/per-visit limits and
+schema20/build16 persistence. Seventeen of35 sponsors are supported; all five initial tactics
+remain implemented. Old paid stock, rerolls and gameplay fixes are preserved. Working prices
+and effects and the explicitly unapproved compatibility Proposals retain their status.
+Budget Bites, the remaining sponsors, earned access, AI acquisition/activation, career/stadium
+progression and native visual/human acceptance remain open.
+
 ## Five tactical supplies, 2026-09-29
 
 Extra Heat and Take a Base complete the initial five-card tactical pool. Paid stock, shared
@@ -217,8 +227,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 63% implemented** (weighted estimate63), after all five initial tactical cards
-(62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
+**Approximately 64% implemented** (weighted estimate64), after tactical combination/exchange sponsors
+(63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
 59% after the three development sponsors;57% after Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
 Strikecraft sequence recovery;54% after
@@ -233,15 +243,15 @@ human-approved or release-ready merely because their code runs.
 | --- | ---: | ---: |
 | Core sport, AI and match presentation | 20 | 17 |
 | Season flow and persistence | 8 | 7 |
-| Ownership and economy | 8 | 6.5 |
+| Ownership and economy | 8 | 7 |
 | Player development and mastery | 10 | 8.5 |
 | Shop, packs and recruitment | 12 | 8 |
 | Gear, tactical cards and abilities | 10 | 7.5 |
-| Sponsors | 10 | 7.5 |
+| Sponsors | 10 | 8 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **63** |
+| **Total** | **100** | **64** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

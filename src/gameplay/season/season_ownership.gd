@@ -124,6 +124,8 @@ func _prepare(command: Dictionary) -> Dictionary:
 
 func _apply(next: Dictionary, command: Dictionary) -> String:
 	match command.get("op"):
+		"tactical_exchange":
+			return SeasonTacticalExchange.apply(next, command)
 		"charge":
 			# Internal service debit. The owning shop derives the amount from its
 			# fixed contract; player-facing commands never accept a price override.

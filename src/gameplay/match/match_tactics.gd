@@ -3,8 +3,11 @@ extends RefCounted
 # gdlint: disable=max-returns
 ## Detached pregame copies. Only completed results settle their use into the season.
 
+const COMBO: String = "A10+C03"
+
 var held: Array[Dictionary] = []
 var consumed: Array[Dictionary] = []
+var _combo_used: bool = false
 var _recovered: Array[String] = []
 var _used_pa: int = 0
 var _active_pa: int = 0
@@ -95,7 +98,7 @@ func active(state: MatchState) -> String:
 
 
 func locked_swing(state: MatchState) -> StringName:
-	return _swing if active(state) == "C03" else &""
+	return _swing if active(state) in ["C03", COMBO] else &""
 
 
 func _item(receipt: String) -> String:
@@ -107,11 +110,11 @@ func _item(receipt: String) -> String:
 
 static func swing(profile: SwingProfileDefinition, state: MatchState) -> SwingProfileDefinition:
 	var effect: String = state.batting_team().tactics.active(state)
-	if effect == "A10":
+	if effect in ["A10", COMBO]:
 		profile.contact_radius_x_m *= 1.08
 		profile.contact_radius_y_m *= 1.08
 		profile.gear_fair_exit_scale *= 0.95
-	elif effect == "C03" and profile.id == state.batting_team().tactics.locked_swing(state):
+	if effect in ["C03", COMBO] and profile.id == state.batting_team().tactics.locked_swing(state):
 		profile.tactical_quality_exit_scale = 1.06
 	return profile
 
@@ -128,3 +131,52 @@ static func pitch(source: PitchDefinition, state: MatchState) -> PitchDefinition
 	var result: PitchDefinition = source.duplicate() as PitchDefinition
 	result.nominal_velocity_mps *= 1.05
 	return result
+
+
+func combo_copies() -> Array[String]:
+	var pair: Array[String] = []
+	for id: String in ["A10", "C03"]:
+		for copy: Dictionary in held:
+			if copy.item == id:
+				pair.append(copy.id)
+				break
+	return pair
+
+
+func combo_reason(
+	state: MatchState, team: TeamMatchState, pair: Array[String], swing: StringName
+) -> String:
+	if pair.size() != 2 or _item(pair[0]) != "A10" or _item(pair[1]) != "C03":
+		return "Double Booking needs one owned Tape and one owned Plan."
+	if not team.current_batter().definition.season_sponsors.get("E07", false):
+		return "Double Booking must be active."
+	if _combo_used:
+		return "Double Booking was already used this game."
+	var error: String = reason(state, team, pair[0])
+	return error if not error.is_empty() else reason(state, team, pair[1], swing)
+
+
+func activate_combo(
+	state: MatchState, team: TeamMatchState, pair: Array[String], swing: StringName
+) -> bool:
+	if not combo_reason(state, team, pair, swing).is_empty():
+		return false
+	activate(state, team, pair[0])
+	consumed[-1]["combo"] = true
+	consumed.append(
+		{
+			"receipt": pair[1],
+			"player": String(state.batter().definition.id),
+			"pa": _active_pa,
+			"swing": String(swing),
+			"combo": true
+		}
+	)
+	for index in range(held.size()):
+		if held[index].id == pair[1]:
+			held.remove_at(index)
+			break
+	_active = COMBO
+	_swing = swing
+	_combo_used = true
+	return true

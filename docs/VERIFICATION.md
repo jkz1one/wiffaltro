@@ -1,5 +1,61 @@
 # Fast verification and playtest records
 
+## Tactical combination and exchange sponsors, 2026-09-29
+
+Final full run `20260930T005659334555Z` passed63/63 checks on Godot4.7.2, including all20
+complete physical games, new sponsor contracts/UI, every prior tactical/Gear/sponsor suite,
+paid shop/development/recruitment, old migrations, original gameplay/physics, match soak,
+QC export and main-scene startup. No remaining automated failures were observed. Fresh main
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor and the historical repository
+PROGRESSION_BLUEPRINT.md remains identical to main. Native/human acceptance gates remain open.
+
+Focused `20260930T005540275885Z` passed8/8 checks after fixing the test isolation issue below.
+The preceding `20260930T005319320311Z` passed the new complete-game scene but failed two
+contract assertions; it is not a clean combined pass. Both genuinely paid Double Booking
+games ran five innings with149 play records and28 balls in play, exercising Contact and
+Power commitments separately through the shared AI execution path. Each observed five frames
+of actual paired swings. These are deterministic runtime fixtures, not a balance sample or
+an autonomous AI acquisition/activation policy. Both completed through normal outro/restart.
+
+The paid physical fixtures buy E07 and both exact supplies from real generated stock. They
+verify unfinished restart restores both copies and resets match-local effects/use, malformed
+or unmarked same-PA ledger rejection, absent-sponsor rejection, failed completed-result writes
+preserving the entire pregame snapshot, and idempotent save retry/reload. A same-PA pair is
+accepted only as one marked Tape/Plan combination with actual ownership and batter evidence.
+This does not reconstruct all historical pitch timing from a box score.
+
+Contract checks cover every one of the sixteen four-type exchange pairs, including same-type
+refusal; full two-slot inventory, unchanged other-copy identity, ordinary list-price difference,
+actual incremental output debit, no downward refund, zero-Cash equal-price exchange, inadequate
+funds and excluded Base/development/unknown inputs or targets. Retries, rerolls and sponsor
+sell/rebuy do not renew use; genuine later visits do. Real generated paid J07/Tape shop UI
+clicks verify a2-Cash Heat exchange, reviewed price/cancel, minimum700×400 layout, failed-write
+rollback, intact prior bytes and saved once-visit flags. Separate actual sponsor UI checks
+cover both new sponsors' full-price acquisition, review, persistence failure and match launch.
+
+Controlled match contracts cover both swing types, both hands, Gear composition, spatial
+radii×1.08, actual ContactResolver fair/foul and quality gates, unchanged launch angle, canceled
+delivery, foul continuation, opposing pitcher change, walk expiry, missing/duplicate-copy
+refusal, once-game use and later ordinary card use. Input checks open/select/cancel/confirm
+the real bounded readiness dialog, reject a stale exact copy, retain both-copy/counter state
+on cancel, display the active pair/lock, and match the Contact ellipse geometry to
+the actual profile. A real pitch then rejects Power under Contact commitment and accepts the
+chosen swing. Geometry and input checks are distinct from native pixel/rendered visual review.
+
+The initial controlled contract loop wrote a sponsor flag into a shared Dictionary inherited
+by shallow-copied test resources. That leaked E07 into the next iteration, failing its
+no-sponsor assertion and then its fresh-activation assertion. The fixture now assigns a new
+Dictionary; production already derives a new sponsor snapshot. Both whole-game checks and
+the shop/readiness UI checks passed in that attempt. The corrected focused suite additionally
+checks the combined coverage outline and dialog bounds. Early preflight lint also caught one
+long catalog string and private/public member ordering; both were fixed before engine testing.
+
+Schema19→20 checks preserve old current stock/rerolls and activate catalog9 only next visit;
+the migrated journal saves/replays. All numeric contracts remain Working and compatibility
+Proposals remain explicitly unapproved. The native-display limitation recorded in
+`native-ui-display-20260928.log` is unchanged; human visual, hardware and balance acceptance
+remain open.
+
 ## Extra Heat and Take a Base, 2026-09-29
 
 Final full run `20260929T234640725016Z` passed61/61 checks, including all18 complete

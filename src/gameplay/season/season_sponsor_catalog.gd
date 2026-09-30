@@ -218,8 +218,38 @@ const WHOLESALE_ITEMS: Dictionary = {
 	}
 }
 
+const TACTICAL_ITEMS: Dictionary = {
+	"E07":
+	{
+		"name": "Double Booking",
+		"price": 18,
+		"rarity": "Rare",
+		"weight": 0.25,
+		"effect":
+		(
+			"Once per game, combine one owned Grip Tape and Swing Plan before an offensive PA. "
+			+ "Consumes both copies together. Lock Contact or Power; retain both tradeoffs. "
+			+ "No other pair. Working contract; compatibility remains a testing Proposal."
+		)
+	},
+	"J07":
+	{
+		"name": "Pick & Mix Market",
+		"price": 8,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Once per shop, exchange one held Tape, Plan, Recovery or Heat for a different one. "
+			+ "Pay only an upward list-price difference; no refund trading down. "
+			+ "Same slot; no Take a Base or development. "
+			+ "Working contract; compatibility is a testing Proposal."
+		)
+	}
+}
 
-static func catalog(version: int = 8) -> Dictionary:
+
+static func catalog(version: int = 9) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
@@ -235,6 +265,8 @@ static func catalog(version: int = 8) -> Dictionary:
 		result.merge(ANCHOR_ITEMS.duplicate(true))
 	if version >= 8:
 		result.merge(WHOLESALE_ITEMS.duplicate(true))
+	if version >= 9:
+		result.merge(TACTICAL_ITEMS.duplicate(true))
 	return result
 
 
@@ -242,7 +274,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 8) -> String:
+static func signature(version: int = 9) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -255,7 +287,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 8) -> Dictionary:
+static func eligible(active: Array, version: int = 9) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:
@@ -289,3 +321,10 @@ static func earnings(active: Array, roster: Array, performance: Dictionary) -> D
 
 static func resale(receipt: Dictionary) -> int:
 	return 0 if receipt.item == "J10" else floori(float(receipt.paid) / 2.0)
+
+
+static func for_build(version: int) -> int:
+	for minimum: int in {16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}:
+		if version >= minimum:
+			return {16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}[minimum]
+	return 1

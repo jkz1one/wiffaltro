@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.43
+**Version:** v0.1.44
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,46 @@
 ---
 
 # 1. Technical Objective
+
+## Tactical sponsor exchange and paired activation, 2026-09-29
+
+Sponsor catalog9 adds E07/J07. Build16 stores `tactical_sponsor_from`; schema20 validates it,
+preserves catalog1–8 fingerprints and enables the new pool next visit. The catalog's explicit
+build-version mapping replaces the prior nested signature expression without changing old
+version results. The existing paid sponsor/Wholesale routes handle acquisition and replacement.
+`SeasonSponsorEffects.snapshot` copies E07 eligibility only for the owning roster.
+
+`SeasonTacticalExchange` owns the explicit four-type allowlist, current type eligibility,
+active J07 requirement, exact source receipt, derived list-price difference and `mix_used`
+visit flag. The aggregate command accepts receipt and target identity, never a client price.
+An internal ownership exchange removes/adds one held copy and debits the difference inside
+its candidate state; final capacity and Cash validation still apply. The source's historical
+paid amount never creates a refund. Output `paid` is the exchange's actual incremental debit.
+Rerolls and sponsor replacement preserve the visit flag; opening a genuinely new shop resets
+it. The ordinary shop preview/candidate/save boundary commits both inventory and the flag.
+
+`MatchTactics.activate_combo` first validates both exact copies and the shared readiness/role
+rules. It then records Tape and Plan on the same PA with `combo: true`, consumes both, locks
+the swing and spends `_combo_used`. No intermediate event-loop yield exposes a partial pair.
+The `A10+C03` runtime marker selects both existing multipliers and Plan's lock. It is an effect
+marker, not an owned item. The Contact ellipse now recognizes both ordinary Tape and the pair.
+`MatchTacticalControls` provides dedicated Contact/Power pair choices, bounded scrolling review,
+exact-copy/stale-player rejection, cancellation and a visible active pair/lock.
+
+`SeasonTacticalCombo.valid` restricts completed consumption to one ordered Tape/Plan pair,
+active E07 ownership and the same player/PA. Existing settlement validates all exact fields,
+receipts, participation, swing and PA bounds; only the proven second paired record can share
+the previous PA number. Old formats reject pair evidence. Completed-game result/journal
+agreement and atomic consumption use the existing persistence path, not a new save blob.
+No box-score evidence is claimed to reconstruct every historical readiness event.
+
+Contract/UI tests exercise all sixteen exchange type combinations, full capacity, insufficient
+Cash, invalid inputs/outputs, repeat-use protections, old migration and actual saved clicks.
+Both swing choices run through actual contact resolution and whole paid physical games with
+shared AI execution, corrupt-ledger rejection, unfinished restart and failed-save retry.
+The test driver makes explicit choices; autonomous AI shopping/activation remains absent.
+Native visual and human balance acceptance remain separate open gates.
+
 
 ## Expanded tactical pool and consumable scoring, 2026-09-29
 

@@ -6,7 +6,7 @@ extends RefCounted
 static func snapshot(active: Array, book: SeasonDevelopment, roster: Array) -> Dictionary:
 	var result: Dictionary = {}
 	for receipt: Dictionary in active:
-		if receipt.item in ["A07", "B03", "F01", "F02", "F03", "G04"]:
+		if receipt.item in ["A07", "B03", "E07", "F01", "F02", "F03", "G04"]:
 			result[receipt.item] = true
 		elif receipt.item == "B02":
 			result.B02 = mini(4, book.earned_players(roster).size())

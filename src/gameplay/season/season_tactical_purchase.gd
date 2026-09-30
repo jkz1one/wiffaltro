@@ -50,6 +50,8 @@ static func buy(build: SeasonBuild, command: Dictionary) -> String:
 static func settle(build: SeasonBuild, value: Variant, performance: Dictionary) -> String:
 	if not value is Array or value.size() > build._bank.view().capacity.held:
 		return "Invalid tactical consumption ledger."
+	if not SeasonTacticalCombo.valid(build, value):
+		return "Invalid Double Booking pair or sponsor ownership."
 	var appearances: int = 0
 	for line: Dictionary in performance.values():
 		appearances += int(line.pa)
@@ -65,6 +67,9 @@ static func settle(build: SeasonBuild, value: Variant, performance: Dictionary) 
 		if owned.is_empty() or not SeasonTacticalCatalog.catalog().has(owned.item):
 			return "Consume only a tactical copy held before this game."
 		var fields: Array = ["receipt", "player", "pa", "swing"]
+		if action.has("combo"):
+			fields.append("combo")
+		var same_pair: bool = action.get("combo", false) and owned.item == "C03"
 		var terminal_pa: bool = build._format >= 15 and owned.item == "C02"
 		if owned.item in [SeasonTacticalCatalog.BASE, SeasonTacticalCatalog.HEAT]:
 			if build._format < 15:
@@ -81,7 +86,9 @@ static func settle(build: SeasonBuild, value: Variant, performance: Dictionary) 
 			or not build.roster().has(action.player)
 			or not performance.has(action.player)
 			or not SeasonOwnership._whole(
-				action.pa, previous_pa + 1, appearances + (1 if terminal_pa else 0)
+				action.pa,
+				previous_pa + (0 if same_pair else 1),
+				appearances + (1 if terminal_pa else 0)
 			)
 		):
 			return "Choose a current player and one activation per club per PA."

@@ -1,11 +1,52 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.52
+**Version:** v0.4.53
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Double Booking and Pick & Mix Market, 2026-09-29
+
+Two initially eligible sponsors now extend the five-card tactical system. E07 Double Booking
+is Rare18; J07 Pick & Mix Market is Common8. Prices, effects, rarity and access are **Working**.
+The compatibility allowlists remain explicitly identified as **testing Proposals** in the shop
+and confirmation UI; implementation does not promote them to Approved. Contracts follow
+retained Blueprint v114 lines3864–3889 and5322–5342, with the current Equipment/Sponsors v18
+lines607–648 overrides. Approved active-only ownership and shared consumable capacity remain.
+
+Double Booking permits exactly one owned Grip Tape plus one owned Swing Plan on the same
+batter before the first pitch of one offensive PA, once per game. Confirmation reviews both
+copies and the Contact/Power commitment, then consumes both atomically. An ordinary activation
+cannot be upgraded afterward. It cannot pair arbitrary cards, include Heat/Base/Recovery,
+refund poor outcomes or activate twice in one game. Ordinary single-card use remains legal
+on later PAs. Both benefits expire at PA completion, including walks/Ks; canceled deliveries,
+fouls and an opposing pitcher change preserve only that PA's effect and chosen swing.
+
+Current multiplication replaces the archive's obsolete additive examples. Tape applies both
+spatial radii×1.08 and fair exit×0.95; qualifying Plan adds×1.06, yielding×1.007 relative to the
+same Gear-adjusted fair contact. Lower-quality fair contact retains Tape's penalty without
+Plan's bonus; fouls receive neither fair-exit factor. Actual human/AI swing entry uses the lock,
+and the displayed Contact ellipse includes the combined coverage. No outcome guarantee,
+hidden launch-angle adjustment, automatic quality improvement or balance approval is implied.
+
+Pick & Mix exchanges one exact held Tape, Plan, Recovery or Heat for a different eligible type,
+once per shop. Charge max(0, target list price minus source list price), regardless of what the
+input cost. No trade-down Cash, resale, extra item or inventory slot is created. Full inventory
+can exchange one-for-one. Both input/output Take a Base, development and unknown types are
+excluded. The new receipt records only the actual exchange debit and retains zero resale.
+The input is destroyed only with the saved output. Cancel or failed save preserves both Cash
+and the source copy. Rerolling, selling/rebuying the sponsor and reload do not renew the visit's
+allowance. A later actual shop does; no in-game exchange or unlock bypass is introduced.
+
+Schema20/build16 keeps old catalog signatures, paid ownership and current shop/reroll generation.
+The two new sponsor offers begin next visit after migration. Double Booking's completed-result
+ledger contains two exact same-player/same-PA receipts marked as the named pair; ordinary
+same-PA double use still fails validation. Save/retry and unfinished restart retain the pregame
+snapshot contract. Seventeen of35 sponsors are supported. Budget Bites, earned sponsors,
+AI acquisition/activation policy and native visual/human balance acceptance remain open.
+
 
 ## Extra Heat and Take a Base, 2026-09-29
 
