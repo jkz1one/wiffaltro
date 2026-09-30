@@ -207,6 +207,7 @@ func show_lineup() -> void:
 		down.custom_minimum_size = Vector2(40, 38)
 		down.disabled = index == 3
 		down.tooltip_text = "Move later in the batting order"
+	SeasonLeftRight.lineup(self)
 	_label(_body, "OPENING DEFENSE", 22)
 	for pitcher in [true, false]:
 		var row: HBoxContainer = HBoxContainer.new()

@@ -1,11 +1,38 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.68
+**Version:** v0.4.69
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Left Right Moving Co. and committed batting sides, 2026-09-30
+
+F06 is the 29th supported **Working** sponsor candidate. Current Equipment/Sponsors v18
+(access285, numeric correction447 and hook685) controls the retained Blueprint v114 F06
+annex4330–4352: the current tradeoff is +4% fair Contact exit speed and −4% fair Power exit
+speed, not the old +6% Contact example. The Uncommon seasonal copy costs12, weight1.0.
+
+Three opposite-side transitions between consecutive club PAs within offensive halves of
+one completed game earn permanent future paid-shop eligibility. Walks are completed PAs
+and set the reference. First batters of halves have no reference; changes across halves
+never count, though valid transitions from different halves add within the same game.
+No win, paid sponsor, extra switch hitter or guaranteed shop offer is required.
+
+Actual committed left/right stance controls the modifier. Throwing hand and pitching changes
+do not change the prior-side reference. Legal pre-PA switch choices remain ordinary free
+controls. First-pitch entry captures the stance; a canceled first pitch releases that
+capture, while later pitches retain it. Every completed PA becomes the next reference.
+The relevant exit term adds to existing eligible Bat/sponsor terms before separate misc
+scaling; no extra timing, coverage, contact, score or chain event is introduced.
+
+Pregame lineup shows cyclic side previews and explicitly treats switch sides as choices.
+Readiness and Equipped show the current qualification/tradeoff. The first batter of each
+half is always excluded regardless of cyclic lineup. Live sales save the six-Cash paid-copy
+refund immediately and retire the modifier at the safe next-batter boundary. Stance history
+continues independently of ownership. Older runs begin tracking prospectively next season.
+Working tuning, further AI acquisition and final native/human visual acceptance remain open.
 
 ## Frankie's Freezers and individual Cold streaks, 2026-09-30
 

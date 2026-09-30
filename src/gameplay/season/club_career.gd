@@ -31,6 +31,7 @@ func start(season: SeasonState) -> bool:
 	season.build._checkout_start = SeasonLateCheckout.access(self)
 	season.build._association_start = SeasonAssociation.access(self)
 	season.build._freezer_start = SeasonFreezers.access(self)
+	season.build._sides_start = SeasonLeftRight.access(self)
 	current = runs.size() + 1
 	runs.append(
 		{
@@ -49,6 +50,7 @@ func start(season: SeasonState) -> bool:
 			"checkout_earned": false,
 			"association_earned": false,
 			"freezer_earned": false,
+			"sides_earned": false,
 			"supplies_used": 0
 		}
 	)
@@ -71,6 +73,7 @@ func sync(season: SeasonState) -> bool:
 		or not SeasonLateCheckout.matches(self, season, false)
 		or not SeasonAssociation.matches(self, season, false)
 		or not SeasonFreezers.matches(self, season, false)
+		or not SeasonLeftRight.matches(self, season, false)
 	):
 		return false
 	var gear: Variant = (
@@ -88,6 +91,7 @@ func sync(season: SeasonState) -> bool:
 		season.build._association_earned if run.association_earned != null else null
 	)
 	var freezer: Variant = season.build._freezer_earned if run.freezer_earned != null else null
+	var sides: Variant = season.build._sides_earned if run.sides_earned != null else null
 	var proof: Dictionary = ClubSeasonRecord.capture(season)
 	if run.status == "completed":
 		return (
@@ -102,6 +106,7 @@ func sync(season: SeasonState) -> bool:
 			and run.checkout_earned == checkout
 			and run.association_earned == association
 			and run.freezer_earned == freezer
+			and run.sides_earned == sides
 		)
 	if run.status != "active":
 		return false
@@ -121,6 +126,7 @@ func sync(season: SeasonState) -> bool:
 	run.checkout_earned = checkout
 	run.association_earned = association
 	run.freezer_earned = freezer
+	run.sides_earned = sides
 	return true
 
 
@@ -148,7 +154,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 10, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 11, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -162,7 +168,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 10)
+		not SeasonOwnership._whole(value.version, 1, 11)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -189,6 +195,7 @@ static func from_data(value: Variant) -> ClubCareer:
 					+ (["checkout_earned"] if value.version >= 8 else [])
 					+ (["association_earned"] if value.version >= 9 else [])
 					+ (["freezer_earned"] if value.version >= 10 else [])
+					+ (["sides_earned"] if value.version >= 11 else [])
 				)
 			)
 		):
@@ -265,6 +272,10 @@ static func from_data(value: Variant) -> ClubCareer:
 			migrated["freezer_earned"] = null
 		if migrated.freezer_earned != null and not migrated.freezer_earned is bool:
 			return null
+		if value.version < 11:
+			migrated["sides_earned"] = null
+		if migrated.sides_earned != null and not migrated.sides_earned is bool:
+			return null
 		result.runs.append(migrated)
 	return result
 
@@ -288,6 +299,7 @@ func matches(season: SeasonState) -> bool:
 		and SeasonLateCheckout.matches(self, season, true)
 		and SeasonAssociation.matches(self, season, true)
 		and SeasonFreezers.matches(self, season, true)
+		and SeasonLeftRight.matches(self, season, true)
 	)
 
 

@@ -2,6 +2,16 @@
 
 For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
 
+## Left Right Moving Co., 2026-09-30
+
+Left Right Moving now includes completed-game alternating-side access, a paid seasonal copy,
+committed stance history, Contact/Power tradeoffs, lineup/readiness/Equipped previews, live
+sale boundaries, save retry and prospective migration. Supported content is29/35 sponsors,
+23/25 Gear and all five initial tactical supplies. Six earned sponsors, further AI acquisition,
+player-card systems, higher Leagues/tiers, stadium progression and the final premium UI/native/
+human acceptance remain open. Whole-project estimate stays approximately72%; this closes a
+contract within the existing sponsor category. See VERIFICATION.md for final-source coverage.
+
 ## Frankie's Freezers, 2026-09-30
 
 Freezers now has permanent completed-breakout access, paid 12-Cash seasonal ownership,

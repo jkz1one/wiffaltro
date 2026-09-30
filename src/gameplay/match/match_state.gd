@@ -22,6 +22,7 @@ var away_team: TeamMatchState
 var home_team: TeamMatchState
 var bases: BaseState = BaseState.new()
 var performance: MatchPerformance = MatchPerformance.new()
+var sides: MatchBattingSides = MatchBattingSides.new()
 var cold: MatchColdStreak = MatchColdStreak.new()
 var pitch_ledger: MatchPitchLedger = MatchPitchLedger.new()
 var phase: Phase = Phase.PRE_PITCH
@@ -77,6 +78,7 @@ func begin_pitch() -> bool:
 		return false
 	if between_batters:
 		inventory_boundary.emit()
+	sides.lock(self)
 	batting_team().tactics.checkout.clear()
 	pitch_disclosure.clear()
 	_between_batters_before_pitch = between_batters
@@ -89,6 +91,7 @@ func cancel_pitch() -> void:
 		return
 	phase = Phase.PRE_PITCH
 	between_batters = _between_batters_before_pitch
+	sides.cancel(self)
 
 func begin_ball_in_play() -> void:
 	phase = Phase.BALL_IN_PLAY
@@ -201,6 +204,7 @@ func _add_runs(amount: int) -> void:
 		_finish_game("Mercy rule")
 
 func _complete_plate_appearance(description: String, single: bool = false) -> void:
+	sides.complete(self)
 	_deli_next_batter = single and outs < OUTS_PER_HALF and phase != Phase.GAME_END
 	for participant: PlayerMatchState in _pa_pitchers:
 		participant.first_batter_completed = true

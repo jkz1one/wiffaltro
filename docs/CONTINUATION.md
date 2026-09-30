@@ -1,13 +1,13 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-09-30 after Frankie's Freezers integration and affected-path verification.
+Updated 2026-09-30 after Left Right Moving integration and affected-path verification.
 
 ## Resume here
 
 - Repository: `jkz1one/wiffaltro`.
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
-  completes Second Chance Supply, Late Checkout Motel, Neighborhood Association and Freezers.
+  completes Second Chance Supply, Late Checkout Motel, Neighborhood Association, Freezers and Left Right Moving.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -47,7 +47,30 @@ Freezers completes Build29/schema33/Career10. Final run `20260930T223145180123Z`
 or errors, and 480 unchanged source files. Native/human visual acceptance remains open.
 Publication uses the authorized engineering branch only; use `git log -1` for its exact SHA.
 
-## Freezers continuation details
+Left Right Moving completes Build30/schema34/Career11. Final run `20260930T225516585555Z`
+passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine warnings
+or errors, and486 unchanged source files. Publication is on the authorized engineering
+branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
+
+## Left Right Moving continuation details
+
+Build30/schema34/Career11 adds prospective `sides_start` and derived `_sides_earned`.
+`MatchBattingSides` records actual first-pitch-committed PA/half/player/left rows; completed
+walks count, first batters/new halves have no reference, and only within-half transitions
+count toward the three/game feat. `SeasonLeftRight` reconciles rows with authored sides,
+PA totals and scheduled club parity. SeasonApp submits real managed-club histories; optional
+omission in older/synthetic APIs earns nothing. No ownership is needed to earn access.
+
+Current source: Equipment/Sponsors v18 access285, correction447 (+4% Contact/−4% Power,
+price12), hook685; Blueprint v114 F06 annex4330–4352. Paid runtime terms are additive with
+eligible Gear/Deli/Legends/Cold quantities before misc penalties. Switch hitters remain
+ordinary authored players with existing legal controls. Lineup, readiness and Equipped
+preview the actual rule; live sales retire effects at the safe boundary. The sponsor adds no PAs, hits, free switches or ownership.
+
+Build now994 lines: extract coherent helper responsibilities before adding more saved
+fields. Do not globally rewrite old receipt IDs or catalog signatures to make room.
+
+## Previous Freezers continuation details
 
 Freezers adds Build29/schema33/Career10 and `SeasonFreezers`/`MatchColdStreak`. Current source
 is Equipment/Sponsors v18, access 294–311 and line448 balance (+3% Power / −4% Contact per
@@ -66,8 +89,8 @@ apply. Readiness, coverage ellipse and Equipped expose the actual effect. Sales 
 existing safe boundary and preserve completed evidence. New tests cover paid generated stock,
 box-score validation, UI, physical games, live retirement and retry.
 
-Seven remaining earned sponsors: B01 Field Supply, E09 Carbon Copy, F06 Left Right Moving,
-F08 Sure Shot, F09 Double Major, G02 Small Batch and J04 Jumpstart. Read full current contracts
+Six remaining earned sponsors: B01 Field Supply, E09 Carbon Copy, F08 Sure Shot,
+F09 Double Major, G02 Small Batch and J04 Jumpstart. Read full current contracts
 before choosing. F08 requires a real execution-direction decomposition and shared timed
 human/AI recipe disclosures; do not fabricate either term or hidden AI knowledge. Final UI
 polish with actual rendered and human acceptance remains the last implementation slice.
@@ -127,8 +150,8 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 28 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
-tactical supplies. Seven earned sponsor contracts, further AI acquisition, player-card contracts,
+There are 29 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+tactical supplies. Six earned sponsor contracts, further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the
 counts alone are not a specification. Do not infer completion from older historical checklist entries.

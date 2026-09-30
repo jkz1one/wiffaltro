@@ -358,13 +358,16 @@ func _migrate_association() -> void:
 	season.build._format = 27
 	season.build._association_start = null
 	season.build._freezer_start = null
+	season.build._sides_start = null
 	season.career.runs[-1].association_earned = null
 	season.career.runs[-1].freezer_earned = null
+	season.career.runs[-1].sides_earned = null
 	_check(SeasonSave.save(season), "previous build27 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 8
 	data.career.runs[-1].erase("association_earned")
 	data.career.runs[-1].erase("freezer_earned")
+	data.career.runs[-1].erase("sides_earned")
 	var loaded: SeasonState = SeasonSave._decode(data)
 	_check(loaded != null and loaded.build._association_start == null, "old run starts prospective")
 	_check(
@@ -531,9 +534,11 @@ func _migrate_paid_association() -> void:
 	season.build._format = 27
 	season.build._association_start = null
 	season.build._freezer_start = null
+	season.build._sides_start = null
 	season.build._association_earned = false
 	season.career.runs[-1].association_earned = null
 	season.career.runs[-1].freezer_earned = null
+	season.career.runs[-1].sides_earned = null
 	var copy: Dictionary = season.build.view().wallet.sponsors[0]
 	_check(
 		copy.id.begins_with("sponsor-purchase:"),
@@ -548,6 +553,7 @@ func _migrate_paid_association() -> void:
 	data.career.version = 8
 	data.career.runs[-1].erase("association_earned")
 	data.career.runs[-1].erase("freezer_earned")
+	data.career.runs[-1].erase("sides_earned")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(
 		restored != null and restored.build._format == SeasonBuild.VERSION,

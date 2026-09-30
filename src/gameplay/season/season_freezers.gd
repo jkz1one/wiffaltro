@@ -111,7 +111,7 @@ static func progress(menu: SeasonMenu) -> void:
 			(
 				"Game: one hitter records a hit after two consecutive hitless at-bats. Walks "
 				+ "are neutral. Complete the game; no win required. 12 Season Cash • Uncommon • "
-				+ "Working."
+				+ "Working. "
 			)
 			+ ITEMS.E10.effect
 		)

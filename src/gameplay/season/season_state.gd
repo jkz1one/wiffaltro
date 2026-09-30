@@ -133,6 +133,7 @@ func choose_player(id: String) -> bool:
 			var checkout_start: Variant = build._checkout_start
 			var association_start: Variant = build._association_start
 			var freezer_start: Variant = build._freezer_start
+			var sides_start: Variant = build._sides_start
 			var supply_start: Variant = build._supply_start
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
 			build._gear_progress = progress
@@ -144,6 +145,7 @@ func choose_player(id: String) -> bool:
 			build._checkout_start = checkout_start
 			build._association_start = association_start
 			build._freezer_start = freezer_start
+			build._sides_start = sides_start
 		if opponents != null:
 			opponents.initialize(self)
 		for team in range(6):
@@ -197,12 +199,17 @@ func record_player_result(
 	performance: Dictionary = {},
 	used_gear: Array = [],
 	tactics: Array = [],
-	batting: Dictionary = {}
+	batting: Dictionary = {},
+	stances: Array = []
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
 		return false
-	if mini(away_runs, home_runs) < 0 or maxi(away_runs, home_runs) > 9999:
+	if (
+		mini(away_runs, home_runs) < 0
+		or maxi(away_runs, home_runs) > 9999
+		or not SeasonLeftRight.own_halves(stances, fixture.home == 0)
+	):
 		return false
 	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
 	if not performance.is_empty() and not SeasonPerformance.valid(performance, roster):
@@ -224,6 +231,8 @@ func record_player_result(
 		command["tactics"] = tactics.duplicate(true)
 	if not batting.is_empty():
 		command["batting"] = batting.duplicate(true)
+	if not stances.is_empty():
+		command["stances"] = stances.duplicate(true)
 	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
 	if not reward.ok:
 		return false
@@ -241,6 +250,8 @@ func record_player_result(
 		result["tactics"] = tactics.duplicate(true)
 	if command.has("batting"):
 		result["batting"] = batting.duplicate(true)
+	if command.has("stances"):
+		result["stances"] = stances.duplicate(true)
 	results.append(result)
 	player_results.append(result.duplicate(true))
 	if phase == Phase.REGULAR:

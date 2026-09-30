@@ -28,6 +28,7 @@ static func show(menu: SeasonMenu) -> void:
 	SeasonLateCheckout.progress(menu)
 	SeasonAssociation.progress(menu)
 	SeasonFreezers.progress(menu)
+	SeasonLeftRight.progress(menu)
 	for id: String in SeasonEarnedSponsors.ITEMS:
 		var card: VBoxContainer = SeasonPlayerCard.panel(menu._body)
 		var item: Dictionary = SeasonSponsorCatalog.item(id)

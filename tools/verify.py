@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-left-right-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_left_right_live_test.tscn"],
+                 "Wiffaltro live Left Right checks passed:"),
+                ("season-left-right", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_left_right_test.tscn", *ui_extra],
+                 "Wiffaltro Left Right checks passed:"),
                 ("season-freezers-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_freezers_live_test.tscn"],
                  "Wiffaltro live Freezers checks passed:"),

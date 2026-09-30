@@ -6,6 +6,7 @@ var _lab: PitchBatLab
 var _choice: Button
 var _anchor_choice: Button
 var _cold: Label
+var _sides: Label
 
 
 func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
@@ -45,6 +46,17 @@ func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	_cold.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(_cold)
 	_cold.hide()
+	_sides = Label.new()
+	_sides.name = "BattingSides"
+	_sides.position = Vector2(420, 578)
+	_sides.size = Vector2(440, 48)
+	_sides.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sides.add_theme_font_size_override("font_size", 16)
+	_sides.add_theme_constant_override("outline_size", 4)
+	_sides.add_theme_color_override("font_outline_color", Color("102332"))
+	_sides.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(_sides)
+	_sides.hide()
 	_build_ellipse()
 
 
@@ -104,6 +116,16 @@ func _process(_delta: float) -> void:
 			"COLD %d/2 • Frankie's Freezers\nPower +%d%% speed • Contact −%d%% coverage"
 			% [count, count * 3, count * 4]
 		)
+	_sides.visible = (
+		_lab._match_mode
+		and _lab._match_state != null
+		and _lab._player_is_batting()
+		and _lab._awaiting_batter_confirm
+		and _lab._match_state.batter().definition.season_sponsors.get("F06", false)
+		and not _lab._match_presentation_director.blocks_gameplay()
+	)
+	if _sides.visible:
+		_sides.text = "LEFT RIGHT MOVING\n" + _lab._match_state.sides.label(_lab._match_state)
 	refresh_ellipse(_lab)
 
 

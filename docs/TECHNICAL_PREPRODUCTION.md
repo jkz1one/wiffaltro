@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.59
+**Version:** v0.1.60
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,36 @@
 ---
 
 # 1. Technical Objective
+
+## Committed-side evidence and alternating swing terms, 2026-09-30
+
+Build30/schema34/Career11 adds nullable `sides_start`, replay-derived `_sides_earned` and
+nullable per-run `sides_earned`. New catalog signatures append only at format30. Old rewards
+without stance evidence remain legal but cannot retrospectively qualify. Existing paid
+receipts, displayed offers, Freezers evidence and other career flags remain unchanged.
+`SeasonBuild` is now994 lines; extract coherent responsibilities before the next extension
+rather than exceeding the existing file-size gate.
+
+`MatchBattingSides` snapshots PA/half/player/actual side at `MatchState.begin_pitch` and
+records one row at ordinary PA completion before batting-order advancement. A canceled
+first pitch clears its provisional lock; cancellation after the PA has started cannot
+change it. The previous completed row plus half identity supplies current qualification.
+The same recorded history works without ownership and remains after live sponsor retirement.
+`SeasonLeftRight` validates exact row fields, integral ordered PA/half IDs, same-club half
+parity, consecutive same-half PAs, authored non-switch batting sides, roster membership and
+per-player completed PA totals. SeasonState/save decode also bind the half parity to the
+actual scheduled home/away club. Result and reward journals must agree exactly.
+
+Base box-score validation runs before typed evidence helpers, so malformed statistics are
+rejected atomically instead of reaching typed arguments. Current/career access and ownership
+continue to publish together through the existing checkpoint/retry path. Ordered numeric
+history comparisons in live tests use the existing JSON-normalized career comparator.
+
+`SeasonSponsorEffects.swing` applies the side-specific term after Cold and before Optics/
+tactics, additive with eligible same-quantity modifiers and before the misc exit multiplier.
+The normal fair-contact resolver, not a score override, consumes the final profile. Lineup,
+readiness and Equipped reuse the actual stance rule. No paid switch-hitter baseline or
+additional mid-PA switching route is introduced.
 
 ## Freezers, ordered batting evidence and Cold resolution, 2026-09-30
 

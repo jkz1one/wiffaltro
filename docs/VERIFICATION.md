@@ -1,5 +1,53 @@
 # Fast verification and playtest records
 
+## Left Right Moving: committed stances, paid access and live retirement, 2026-09-30
+
+Final affected-path run `20260930T225516585555Z` passed **31/31 checks** under Godot4.7.2:
+seven common gates plus24 scenes, including seven complete physical games. All486 snapshotted
+source/test/asset/project/runner files stayed unchanged; only documentation changed afterward.
+No engine warnings or errors appeared. Scope: Left Right menu/live, Freezers menu/live,
+Association, Late Checkout, Second Chance, Transfer, Raincheck, Special Order, match-sales UI,
+Equipped, earned sponsors, Gear progression, career, opponents, tacticals, gameplay sponsors
+menu/live, misc Gear, ownership integration/ownership, switch-hitter and core regressions.
+This is targeted final-source coverage, not the complete suite or native visual acceptance.
+
+Contract fixtures cover first-batter exclusion, L-walk to R qualification, same-side exclusion,
+foul/incomplete-pitch neutrality, committed side across repeated pitches, throwing-hand
+independence, canceled first-pitch preview recovery and new-half reset. Real fair-contact
+resolver comparisons for both hands verify +4% Contact/−4% Power with unchanged coverage and
+timing, additive Bat terms before Gloves, Deli+Legends+alternating Contact and Cold+alternating
+Power. Three completed transitions qualify even in a loss; two within-half transitions across
+two halves count as two, while cross-half changes count zero.
+
+Saved evidence rejects missing/extra fields, malformed statistics, wrong totals, duplicate
+PA order, wrong half parity, changed result history and forged inherited/current-run access.
+Invalid rewards roll back entirely. Old Build29/Career10 migration keeps earned Freezers and
+leaves new side tracking null; earlier feature migration scenarios and second-save replay
+also pass. Abandonment retains the earned feat without granting a paid copy next season.
+
+Seed98 supplies the real generated12-Cash offer after three controlled result fixtures.
+This setup is not an organic balance sample. Actual700x400 shop input covers Cancel,
+failed-write rollback, retry and paid receipt persistence. Pregame lineup and earned-progress
+pages pass bounds checks. The authored Tess Vale switch-hitter fixture changes side through
+the actual switch button: readiness preview changes immediately without starting a pitch.
+Equipped opens through its normal entry/tab and shows the same current modifier. Restart
+clears unfinished stance evidence. Existing switch-hitter controls/handedness checks pass.
+
+Three new physical games at match seed67 complete with119 pitch records each and21,22,21
+balls in play respectively. Each records eight actual within-half transitions. The prospective
+game earns access solely from completed history. The paid game observes eight modified
+swings; the live-sale game observes one before its six-Cash refund and safe PA retirement.
+Failed writes preserve ownership/effect; repeat confirmations cannot refund twice, and saved
+restart cannot resurrect the copy. Actual PA/side histories reconcile with the box score and
+survive result-save failure, reload and retry. Three physical Freezers regressions and one
+prior gameplay-sponsor game also pass. Synthetic drivers validate integration, not balance.
+
+Development found a raw nested numeric-array comparison in a test that differed after JSON
+reload; using the existing canonical comparator verifies the exact history without treating
+JSON floats as changed integer values. Base performance validation now precedes typed
+evidence helpers, so malformed input rejects atomically. Failed development runs are kept
+separately. The prior full-suite early exit and native-display limitation remain open.
+
 ## Frankie's Freezers: ordered outcomes, Cold and paid access, 2026-09-30
 
 Final affected-path run `20260930T223145180123Z` passed **29/29 checks** under Godot4.7.2:
