@@ -265,8 +265,24 @@ const BUDGET_ITEMS: Dictionary = {
 	}
 }
 
+const FILM_ITEMS: Dictionary = {
+	"J08":
+	{
+		"name": "Film Room Video",
+		"price": 8,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"Choose one exact opposing starter recipe before Play Game. At actual release, "
+			+ "identify that recipe, including from relievers. Locked for the game; no location, "
+			+ "trajectory or accuracy bonus. Working information contract."
+		)
+	}
+}
 
-static func catalog(version: int = 10) -> Dictionary:
+
+static func catalog(version: int = 11) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
@@ -286,6 +302,8 @@ static func catalog(version: int = 10) -> Dictionary:
 		result.merge(TACTICAL_ITEMS.duplicate(true))
 	if version >= 10:
 		result.merge(BUDGET_ITEMS.duplicate(true))
+	if version >= 11:
+		result.merge(FILM_ITEMS.duplicate(true))
 	return result
 
 
@@ -293,7 +311,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 10) -> String:
+static func signature(version: int = 11) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -306,7 +324,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 10) -> Dictionary:
+static func eligible(active: Array, version: int = 11) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:
@@ -343,7 +361,26 @@ static func resale(receipt: Dictionary) -> int:
 
 
 static func for_build(version: int) -> int:
-	for minimum: int in {17: 10, 16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}:
+	for minimum: int in {18: 11, 17: 10, 16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}:
 		if version >= minimum:
-			return {17: 10, 16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}[minimum]
+			return {18: 11, 17: 10, 16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}[minimum]
+	return 1
+
+
+static func for_visit(build: SeasonBuild) -> int:
+	var gates: Array = [
+		[18, 11, build._film_from],
+		[17, 10, build._budget_from],
+		[16, 9, build._tactical_sponsor_from],
+		[13, 8, build._wholesale_from],
+		[12, 7, build._anchor_sponsor_from],
+		[11, 6, build._school_sponsor_from],
+		[10, 5, build._shop_sponsor_from],
+		[9, 4, build._field_sponsor_from],
+		[8, 3, build._sequence_sponsor_from],
+		[7, 2, build._gameplay_sponsor_from]
+	]
+	for gate: Array in gates:
+		if build._format >= gate[0] and build._visit.number >= gate[2]:
+			return gate[1]
 	return 1

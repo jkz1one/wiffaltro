@@ -156,6 +156,7 @@ func make_match() -> MatchState:
 	player.fielder_index = fielder_index
 	if build != null:
 		match_state.gear_usage.equipped = SeasonReclamation.receipts(build.view().wallet)
+		player.scouted_recipe = SeasonFilmRoom.target(self)
 		player.tactics.held = SeasonTacticalCatalog.held(build.view().wallet)
 	return match_state
 

@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 17
+const VERSION: int = 18
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -54,6 +54,8 @@ var _tactical_from: int = 1
 var _expanded_tactical_from: int = 1
 var _tactical_sponsor_from: int = 1
 var _budget_from: int = 1
+var _film_from: int = 1
+var _scouts: Dictionary = {}
 var _pregames: Dictionary = {}
 var _scholarships: Dictionary = {}
 var _used_gear: Dictionary = {}
@@ -129,6 +131,7 @@ func view() -> Dictionary:
 		visit.erase("cards")
 	return {
 		"pregames": _pregames.duplicate(true),
+		"scouts": _scouts.duplicate(true),
 		"revision": revision(),
 		"wallet": _bank.view(),
 		"shop": visit,
@@ -185,6 +188,8 @@ func to_data() -> Dictionary:
 		data["tactical_sponsor_from"] = _tactical_sponsor_from
 	if _format >= 17:
 		data["budget_from"] = _budget_from
+	if _format >= 18:
+		data["film_from"] = _film_from
 	return data
 
 
@@ -230,6 +235,8 @@ static func from_data(
 		keys.append("tactical_sponsor_from")
 	if value.version >= 17:
 		keys.append("budget_from")
+	if value.version >= 18:
+		keys.append("film_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -311,6 +318,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.budget_from, 1, 13):
 			return null
 		result._budget_from = int(value.budget_from)
+	if value.version >= 18:
+		if not SeasonOwnership._whole(value.film_from, 1, 13):
+			return null
+		result._film_from = int(value.film_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -357,6 +368,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_used_gear = next._used_gear
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
+	_scouts = next._scouts
 	_appeared = next._appeared
 	return {"ok": true, "replayed": replayed}
 
@@ -415,6 +427,8 @@ func _fork() -> SeasonBuild:
 	result._expanded_tactical_from = _expanded_tactical_from
 	result._tactical_sponsor_from = _tactical_sponsor_from
 	result._budget_from = _budget_from
+	result._film_from = _film_from
+	result._scouts = _scouts.duplicate(true)
 	result._pregames = _pregames.duplicate(true)
 	result._scholarships = _scholarships.duplicate(true)
 	result._used_gear = _used_gear.duplicate()
@@ -431,6 +445,8 @@ func _apply(command: Dictionary) -> String:
 	var op: String = str(command.get("op", ""))
 	if pack_pending() and op not in ["pack_pick", "pack_skip", "leave_shop"]:
 		return "Choose or skip the open pack before leaving or doing other shopping."
+	if op == "scout":
+		return SeasonFilmRoom.commit(self, command)
 	if op == "pregame":
 		return SeasonBudgetBites.commit(self, command)
 	if op == "reward":
@@ -928,23 +944,7 @@ func _sponsor_transaction(command: Dictionary) -> String:
 
 
 func _sponsor_catalog_version() -> int:
-	if _format >= 17 and _visit.number >= _budget_from:
-		return 10
-	if _format >= 16 and _visit.number >= _tactical_sponsor_from:
-		return 9
-	if _format >= 13 and _visit.number >= _wholesale_from:
-		return 8
-	if _format >= 12 and _visit.number >= _anchor_sponsor_from:
-		return 7
-	if _format >= 11 and _visit.number >= _school_sponsor_from:
-		return 6
-	if _format >= 10 and _visit.number >= _shop_sponsor_from:
-		return 5
-	if _format >= 9 and _visit.number >= _field_sponsor_from:
-		return 4
-	if _format >= 8 and _visit.number >= _sequence_sponsor_from:
-		return 3
-	return 2 if _format >= 7 and _visit.number >= _gameplay_sponsor_from else 1
+	return SeasonSponsorCatalog.for_visit(self)
 
 
 func _tactical_catalog_version() -> int:
@@ -987,4 +987,6 @@ func migrate() -> void:
 		_tactical_sponsor_from = next_visit
 	if _format < 17:
 		_budget_from = next_visit
+	if _format < 18:
+		_film_from = next_visit
 	_format = VERSION

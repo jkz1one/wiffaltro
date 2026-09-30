@@ -449,6 +449,7 @@ func _throw_pitch() -> void:
 	)
 
 	_pitch_actor.start_pitch(executed_parameters)
+	MatchPitchDisclosure.present(self)
 	if _player_is_batting() and _at_bat_cadence != null:
 		_at_bat_cadence.mark_pitch_live()
 	_refresh_config()

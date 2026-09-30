@@ -1,5 +1,17 @@
 # Implementation Status
 
+## Film Room and all initially eligible sponsors, 2026-09-29
+
+All19 initially eligible sponsor candidates now have paid acquisition and their supported
+Working runtime/UI paths, including Film Room's exact saved recipe choice and release cue.
+This is19 of35 total candidates, not completion of earned sponsors or AI ownership policies.
+Film selection survives restart and failed writes; schema22/build18 migration preserves prior
+paid stock and pregame history. Its identity-only event reaches human HUD, AI recognition
+state and diagnostic replay without altering physics or adding accuracy. AI behavioral use,
+acquisition, native visual review and human information-value acceptance remain open.
+Approved ownership, Working contracts and unapproved Proposals retain their status.
+
+
 ## Budget Bites and pregame commitment, 2026-09-29
 
 Budget Bites now generates an ordinary Plan only at the first successful scheduled-game
@@ -237,8 +249,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 65% implemented** (weighted estimate65), after Budget Bites and pregame commitment
-(64% after tactical combination/exchange sponsors;63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
+**Approximately 66% implemented** (weighted estimate65.5), after Film Room and all19 initial sponsors
+(65% after Budget Bites and pregame commitment;64% after tactical combination/exchange sponsors;63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
 59% after the three development sponsors;57% after Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
 Strikecraft sequence recovery;54% after
@@ -257,11 +269,11 @@ human-approved or release-ready merely because their code runs.
 | Player development and mastery | 10 | 8.5 |
 | Shop, packs and recruitment | 12 | 8 |
 | Gear, tactical cards and abilities | 10 | 7.5 |
-| Sponsors | 10 | 8.5 |
+| Sponsors | 10 | 9 |
 | Leagues and persistent career | 10 | 0 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **65** |
+| **Total** | **100** | **65.5** |
 
 Next unmet dependencies are Alley/mapping calibration, earned Gear tiers and supported sponsor/tactical contracts;
 shared consumable capacity modifiers remain open (sponsor reserves are prohibited). Partial shops

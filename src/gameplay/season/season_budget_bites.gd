@@ -23,6 +23,12 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var game: String = str(int(command.game))
 	if build._pregames.has(game) or build._bank.view().rewards.has(game):
 		return "This game was already committed or completed."
+	if (
+		build._format >= 18
+		and not SeasonSchoolSponsors.active(build, "J08").is_empty()
+		and not build._scouts.has(game)
+	):
+		return "Choose Film Room's exact recipe before committing this game."
 	var result: String = outcome(build)
 	if result == "granted":
 		var granted: Dictionary = build._bank.commit(

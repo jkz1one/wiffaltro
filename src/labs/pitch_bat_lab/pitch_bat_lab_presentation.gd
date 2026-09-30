@@ -380,7 +380,8 @@ static func _event_is_routine(event_text: String) -> bool:
 	return (
 		not headline.contains("OUT")
 		and (
-			headline.begins_with("BALL")
+			headline.begins_with("FILM ROOM")
+			or headline.begins_with("BALL")
 			or headline.begins_with("CALLED STRIKE")
 			or headline.begins_with("SWINGING STRIKE")
 			or headline.begins_with("STRIKE")

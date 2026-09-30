@@ -1,5 +1,58 @@
 # Fast verification and playtest records
 
+## Film Room saved scouting and release information, 2026-09-29
+
+Full run `20260930T024110508788Z` passed67/67 checks, including all24 complete physical
+games, new Film/Budget scenes, every prior sponsor/Gear/tactical suite, shop/development/
+recruitment, migrations, legacy gameplay/AI/camera regressions, match soak, QC export and
+main-scene startup. No automated failure remained in that run. Fresh main
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor and the historical repository
+PROGRESSION_BLUEPRINT.md remains identical to main.
+
+Final focused run `20260930T024947371053Z` passed8/8 after removing an internal AI-development
+note from the shop description and having the new fixture inherit directly from its needed
+tactical-sponsor helper rather than through Budget Bites. No runtime rule changed after the
+full run; final paid UI, choice, migration, release and save checks passed on the final tree.
+
+Focused run `20260930T024019446255Z` passed9/9 checks on Godot4.7.2, including both
+new scenes. The earlier `20260930T023950491548Z` stopped at import because the new repertoire
+helper iterated resource definitions as IDs; it now reads each PitchDefinition's exact ID.
+No runtime pass is claimed for that initial attempt.
+
+The genuinely paid comparison fixture earns54 Cash, buys Film for8 from generated stock,
+selects the announced starter's exact recipe, and checkpoints through production pregame
+logic. The control disables only runtime disclosure; both variants retain the same paid
+build, roster, seed and input driver. Both complete at third-inning mercy with86 play records
+and20 balls in play. Film-on records48 identity disclosures; the control records none.
+Every exported record matches across the two runs after removing only the disclosure field.
+The owning club bats through the existing shared AI path. This proves simulation neutrality
+and delivery of the information event, not autonomous AI scouting or a behavioral advantage.
+The enabled game also verifies failed completed-result writes, intact pregame bytes,
+retry/duplicate-Continue idempotence, exact reload and normal outro/restart.
+
+Controlled checks cover inactive ownership, invalid/past-game requests, supplied extra fields,
+pure previews, exact-request replay, immutable selection, required pregame choice, exact
+Overhand-versus-Sidearm variants, windup/canceled-pitch silence, reliever qualification and
+new-delivery clearing. Schema21 migration begins from genuinely purchased Budget Bites with
+a committed pregame record. Paid stock, receipts and same-visit rerolls remain exact; Film
+enters next visit and the migrated save replays. A globally valid but unannounced recipe is
+rejected by fixture/repertoire save validation while preserving previous bytes.
+
+Actual UI checks include normal/small paid-shop review/cancel/write failure, exact full-price
+receipt, launch and explicit sale. Pregame uses actual keyboard open/cancel/select input,
+back/reopen, menu bounds, no silent default, failed-write rollback, successful Play/reload and
+restart with a stale draft. The locked recipe has no editable control. A real controlled
+release compares all launch parameters and spent stamina on/off, confirms the ordinary HUD
+has no baseline release name, preserves debug access, and checks the compact Film cue plus
+identical human/AI/diagnostic event timestamps. These are input/layout/runtime checks, not
+native rendered visual acceptance.
+
+Native display is still unavailable as recorded in `native-ui-display-20260928.log`. Human
+readability, information value and balance remain open. AI acquisition/selection and any
+future predictive policy remain gated; the current predictor, correction delay and decisions
+are unchanged. All19 initial candidates having code does not complete the16 earned sponsors,
+career unlocks, difficulty/opponent economy, stadiums or final acceptance.
+
 ## Budget Bites and committed pregame inventory, 2026-09-29
 
 Full run `20260930T014016882304Z` passed61/65 checks. The four failures were the old

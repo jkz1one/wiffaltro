@@ -35,6 +35,7 @@ var batter_timeout_used: bool = false
 var last_event: String = "Game ready"
 var winner_name: String = ""
 var gear_usage: MatchGearUsage = MatchGearUsage.new()
+var pitch_disclosure: Dictionary = {}
 var optics_mode: String = "normal"
 var cornerstone_anchored: bool = false
 var _between_batters_before_pitch: bool = true
@@ -71,6 +72,7 @@ func fielder() -> PlayerMatchState:
 func begin_pitch() -> bool:
 	if phase != Phase.PRE_PITCH:
 		return false
+	pitch_disclosure.clear()
 	_between_batters_before_pitch = between_batters
 	phase = Phase.PITCH_IN_FLIGHT
 	between_batters = false

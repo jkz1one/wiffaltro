@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.45
+**Version:** v0.1.46
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,38 @@
 ---
 
 # 1. Technical Objective
+
+## Saved scouting and explicit pitch disclosure, 2026-09-29
+
+Build18 derives `_scouts` from exact `scout` journal events (`game`, `recipe` and the normal
+request/revision envelope). The operation is not in player-facing `SHOP_OPS`. It requires
+active J08, a valid recipe, and an uncommitted/uncompleted fixture. Duplicate commands replay;
+a new request cannot replace an existing selection. The existing pregame operation requires
+a selection when Film is active. `SeasonSave` binds both event types to the appropriate
+completed or pending fixture, and validates scout recipes against the announced opposing
+starter. This is independent of the client's transient dropdown state.
+
+`SeasonPregameCommit` stages scouting on the same fork as departure-credit expiry and Budget
+Bites. Only a successful checkpoint exposes that candidate to match construction. The menu
+stores a draft choice per pending game; a new season clears it. Committed games display the
+locked recipe, not an editable dropdown. Pure `SeasonState.make_match` copies a saved active
+Film target onto the owning `TeamMatchState` without mutation or automatic choice.
+
+`MatchPitchDisclosure.present` runs immediately after `PitchFlightActor.start_pitch`, after
+successful launch solving and execution. Its pure release filter requires the batting club's
+active J08 snapshot and exact selected recipe. The event contains only source/recipe/throw/time;
+no launch parameters enter the information channel. Human cue, `BatterApproachModel` recognition
+state and `PlayRecord` export receive detached copies. `MatchState.begin_pitch` clears the
+previous event; the existing approach reset clears recognition before the next delivery.
+AI tracking accepts the disclosure as a separate optional argument. Existing prediction,
+observation correction delay, RNG and swing decisions are unchanged. This establishes the
+recognition channel, not a new AI purchase/choice or prediction policy.
+
+Catalog11 adds only J08. The `film_from` gate activates next visit for older journals.
+Catalog-version selection moved into `SeasonSponsorCatalog.for_visit` with the same ordered
+historical boundaries, keeping the build aggregate within its existing lint limit. Save
+schema22 retains historical catalog signatures and earlier Budget events without rewriting
+their shape. Neither replay nor loading invents a scouting choice for an old committed game.
 
 ## Pregame checkpoint and once-fixture supply grant, 2026-09-29
 

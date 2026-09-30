@@ -1,11 +1,50 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.54
+**Version:** v0.4.55
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Film Room exact-recipe disclosure, 2026-09-29
+
+J08 Film Room Video (Common8) completes the19 initially eligible sponsor candidates.
+Its **Working** information contract follows Equipment/Sponsors v18 lines882–923 and
+retained Blueprint v114 lines5344–5368. Approved active-only ownership remains unchanged;
+this implementation does not promote Working numbers or other compatibility Proposals.
+Sixteen earned sponsors, earned access itself and AI acquisition/use policies remain open.
+
+The current ordinary batting HUD names pitches after plate crossing; release identity is
+otherwise confined to the existing debug overlay. Film Room therefore supplies earlier
+ordinary information without removing baseline labels or restricting debugging. In Prepare
+Next Game, the owner explicitly selects one exact recipe from the announced opposing
+starter's repertoire. Opening, canceling or leaving that screen creates no journal event.
+Play Game atomically saves the selection, Budget check/grant and departure-credit expiry
+before launching the match. A failed write restores the entire previous build and bytes.
+The saved choice is locked at commitment and survives unfinished restarts; there is no
+free retarget after learning a pitch. New games require a new explicit selection. Buying
+Film after that game's existing commitment cannot add a late selection.
+
+At actual successful release of the selected recipe, including from a relief pitcher,
+the owning batting club receives its full name in the compact routine-event HUD. Another
+variant, another recipe, preselection, windup or canceled pitch does not disclose it.
+The timestamped event carries only source, exact recipe, throw number and match time.
+The same event feeds AI recognition state and the diagnostic play record. Opposing humans
+do not receive the owner's private cue. Each new delivery clears the preceding disclosure.
+
+This is an information benefit, not an aim, timing, movement, command, contact-window or
+stamina modifier. The visible-motion predictor and its65ms correction delay are unchanged;
+no hidden target, rated profile, flight seed or future trajectory is added to the event.
+The current AI receives the identity state but has no newly authored acquisition, scouting
+choice or behavioral policy; acquisition remains gated. No AI win-rate benefit is claimed.
+Paired physical games deliberately verify unchanged simulation/output apart from disclosure.
+
+Schema22/build18 and catalog11 preserve old purchases, stock, rerolls and pregame records.
+New Film offers begin next visit for migrated seasons. Selection journals are validated
+against actual scheduled fixture order and the announced starter's exact repertoire, not
+merely a globally valid pitch ID. Native rendered readability and human information value
+remain acceptance work; automated UI and actual runtime evidence are tracked separately.
 
 ## Budget Bites and committed pregame supplies, 2026-09-29
 

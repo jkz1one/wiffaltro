@@ -334,6 +334,9 @@ func _sponsor_ui(items: Dictionary = SeasonSponsorCatalog.ITEMS) -> void:
 		await _shop_bounds(window, "sponsor-active-" + id)
 		await _click(window._back)
 		app.season = restored
+		if id == "J08":
+			app.film_game = int(restored.pending_fixture().id)
+			app.film_recipe = SeasonFilmRoom.choices(restored, restored.pending_fixture())[0]
 		app.play_season_game()
 		await _frames(5)
 		_check(app.lab != null, "sponsored team enters real game")

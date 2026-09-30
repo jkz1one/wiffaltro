@@ -76,7 +76,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 21) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 22) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -208,7 +208,7 @@ static func _decode(value: Variant) -> SeasonState:
 static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> bool:
 	var cursor: int = 0
 	for event: Dictionary in build.to_data().events:
-		if event.op == "pregame":
+		if event.op in ["pregame", "scout"]:
 			var expected: int = (
 				int(season.player_results[cursor].id)
 				if cursor < season.player_results.size()
@@ -216,6 +216,14 @@ static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> boo
 			)
 			if event.game != expected:
 				return false
+			if event.op == "scout":
+				var fixture: Dictionary = (
+					season.player_results[cursor]
+					if cursor < season.player_results.size()
+					else season.pending_fixture()
+				)
+				if not SeasonFilmRoom.choices(season, fixture).has(event.recipe):
+					return false
 		elif event.op == "reward":
 			if cursor >= season.player_results.size():
 				return false

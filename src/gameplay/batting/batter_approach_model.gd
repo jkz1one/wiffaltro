@@ -15,6 +15,7 @@ var same_location_streak: int = 0
 var pitch_seen_counts: Dictionary = {}
 var recent_locations: Array[int] = []
 var previous_speed: float = 0.0
+var recognized_recipe: Dictionary = {}
 var _plan: Dictionary = {}
 var _read_history: Array[Dictionary] = []
 var _delivery_seed: int = -1
@@ -65,6 +66,7 @@ func awareness_for(pitch: PitchDefinition, target: Vector2) -> float:
 
 
 func reset_pitch() -> void:
+	recognized_recipe.clear()
 	_plan.clear()
 	_read_history.clear()
 	_delivery_seed = -1
@@ -94,11 +96,15 @@ func track_pitch(
 	decision_seed: int,
 	batting_hand: int,
 	contact_profile: SwingProfileDefinition,
-	power_profile: SwingProfileDefinition
+	power_profile: SwingProfileDefinition,
+	disclosed: Dictionary = {}
 ) -> Dictionary:
 	if _delivery_seed != decision_seed:
 		reset_pitch()
 		_delivery_seed = decision_seed
+	# Both audiences receive the same release event. This exposes identity only;
+	# visible-motion prediction, its delay and committed swing remain unchanged.
+	recognized_recipe = disclosed.duplicate(true)
 	if _delivered:
 		return {}
 	if _last_sample_time >= 0.0 and state.elapsed_time > _last_sample_time:

@@ -5,6 +5,8 @@ var season: SeasonState
 var menu: SeasonMenu
 var lab: PitchBatLab
 var notice: String = ""
+var film_game: int = -1
+var film_recipe: String = ""
 var _season_game: bool = false
 var _fixture_id: int = -1
 var _dialog: ConfirmationDialog
@@ -69,6 +71,8 @@ func begin_season(seed_value: int = -1, working_progression: bool = false) -> vo
 	# the future per-League difficulty ladder is not a pitching-only selector.
 	season.difficulty = 1
 	menu.draft_selection = ""
+	film_game = -1
+	film_recipe = ""
 	_checkpoint()
 	menu.show_draft()
 

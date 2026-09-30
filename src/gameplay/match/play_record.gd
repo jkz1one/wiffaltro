@@ -23,6 +23,7 @@ var crossed_plate: bool = false
 var crossing_point: Vector2 = Vector2.ZERO
 var plate_speed_mps: float = 0.0
 var swing_profile_id: StringName = &""
+var pitch_disclosure: Dictionary = {}
 var ai_decision_recorded: bool = false
 var ai_swung: bool = false
 var ai_awareness: float = 0.0
@@ -70,6 +71,7 @@ func to_dict() -> Dictionary:
 		"crossing_point": [crossing_point.x, crossing_point.y],
 		"plate_speed_mps": plate_speed_mps,
 		"swing_profile_id": String(swing_profile_id),
+		"pitch_disclosure": pitch_disclosure.duplicate(true),
 		"ai_decision_recorded": ai_decision_recorded,
 		"ai_swung": ai_swung,
 		"ai_awareness": ai_awareness,

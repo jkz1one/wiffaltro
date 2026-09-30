@@ -334,7 +334,7 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 		lab._match_state.balls, lab._match_state.strikes,
 		lab._throw_number * 3571 + lab._match_state.plate_appearance_number * 97,
 		batter_state.batting_hand(), ContentDB.get_swing(lab.CONTACT_SWING_ID),
-		ContentDB.get_swing(lab.POWER_SWING_ID)
+		ContentDB.get_swing(lab.POWER_SWING_ID), lab._match_state.pitch_disclosure
 	)
 	if decision.is_empty():
 		return
