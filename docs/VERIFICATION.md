@@ -1,5 +1,56 @@
 # Fast verification and playtest records
 
+## Earned Gear progression and paid higher tiers, 2026-09-30
+
+Full run `20260930T043730562099Z` passed73/73 checks and all27 complete physical games on
+Godot4.7.2. The tested source was compared byte-for-byte with the running disposable copy;
+no code changed after this run began. Only implementation/verification documentation changed.
+The full scope includes both new progression scenes, extended all-tier Gear physics tests,
+career/opponent/sponsor/tactical/shop/recruitment/development/ownership migrations and UI,
+season flow, AI, camera, sport regressions, soak, physical-ball, QC export and main startup.
+Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor; the preserved
+repository PROGRESSION_BLUEPRINT.md is unchanged. No merge or deployment is included.
+
+The paid-chain fixture buys generated Contact Bat/Movement Ball pairs with actual scheduled
+income, earns10 base uses in its first season, then19 tier-two uses across two more seasons.
+Final controlled loss advances both identities to20. Independent threshold cases cover all five
+families at9/10 and19/20. Tests reject unknown identities, fractional or premature counters,
+duplicate slots/games, opponent-only fixtures, altered starting baselines, inconsistent current
+proof, removed tracking and changed catalog identity. Menu purchases do not count. An unfinished
+released pitch restores19; a failed final write preserves old file bytes and the old career;
+retry and repeat saves settle20 once. Partial progress survives abandonment. Higher tiers can
+be purchased in another season without owning a same-season predecessor, and each copy still
+records its full price. Career1/build19 migration preserves stock/money/ownership and invents
+no use; the old active run remains untracked through subsequent saves.
+
+The actual physical final follows the same three-season paid chain. Yard Club beats Rivets10–0
+at third-inning mercy with97 play records and27 balls in play. Live actor observations confirm
+Jumbo's0.93 fair-exit scale and Cut Ball's1.15 authored-movement factor, once each. The observed
+287 swing frames and2099 pitch frames are frame samples, not counts of individual swings/pitches.
+Production result settlement handles a deliberately failed file write, reload of the pregame
+snapshot, retry and duplicate Continue; both persistent tier-two counters finish at20 and tier3
+becomes eligible. This shared-controller fixture is runtime evidence, not human balance approval.
+
+All supported higher Bat tiers are tested in Contact/Power, both handednesses and several quality
+positions through the real contact resolver. All higher Balls run through mastered recipes,
+aim/flight, gravity/drag isolation, command dispersion and Rosin composition. Exact numeric
+candidates remain Working; neither these tests nor the physical final calibrate human difficulty.
+
+Actual viewport clicks cover Club Record > Gear Progression > Back, read-only persistence, and a
+700×400 earned-tier replacement shop. The review shows26→11 Cash when selling a10-paid base Bat
+for5 and buying Paddle for20. Cancel and failed-save confirmation preserve stock, the old receipt,
+Cash, access and file bytes. Successful confirmation equips only Paddle, records paid20, and
+replays after reload. Wrapping, bounds and navigation checks pass. Native rendered/human visual
+acceptance remains pending under the previously recorded display-socket limitation; no new
+native screenshots or human approval are claimed.
+
+Development iterations caught an extracted constant reference, typed-empty-array/JSON-version
+compatibility issues and test-fixture funding/actor-method mistakes. These were corrected before
+the final full run. Earlier partial or failed runs are not represented as final-tree passes.
+Alley's two higher tiers, other earned sponsors, player-card ownership/packs, higher Leagues/tiers,
+stadium systems and human acceptance remain open. Approved, Working and Proposal labels remain
+separate. The weighted whole-project implementation estimate is71%, not73/73 or release readiness.
+
 ## Persistent club rewards, history and replacement, 2026-09-30
 
 Full run `20260930T040631742957Z` passed71/71 checks and all26 complete physical games on

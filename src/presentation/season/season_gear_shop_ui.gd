@@ -4,6 +4,8 @@ extends RefCounted
 
 static func equipped(window: SeasonShopWindow, gear: Dictionary) -> void:
 	window._label("TEAM GEAR • One equipped item per slot; no spares")
+	if window.app.season.build._gear_progress.enabled:
+		window._label("Earned Gear access persists; each copy still costs Season Cash.")
 	for slot: String in SeasonOwnership.GEAR_SLOTS:
 		var receipt: Dictionary = gear[slot]
 		if receipt.is_empty():
@@ -31,6 +33,22 @@ static func equipped(window: SeasonShopWindow, gear: Dictionary) -> void:
 				else "This copy has no completed-game use yet; Reclamation gives no credit on sale."
 			)
 		)
+		if (
+			window.app.season.build._gear_progress.enabled
+			and SeasonGearProgress.tracked(receipt.item)
+		):
+			var count: int = window.app.season.build._gear_progress.counts().get(receipt.item, 0)
+			var goal: int = 10 if receipt.item.ends_with("-01") else 20
+			window._label(
+				(
+					"Completed use: %d / %d • %s"
+					% [
+						mini(count, goal),
+						goal,
+						"Next tier eligible" if count >= goal else "Earn the next tier"
+					]
+				)
+			)
 		var button: Button = window._button(
 			"SELL " + item.name,
 			window._preview.bind(

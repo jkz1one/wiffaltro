@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 19
+const VERSION: int = 20
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -39,6 +39,7 @@ var _game_rosters: Dictionary = {}
 var _appeared: bool = false
 var _format: int = VERSION
 var _market: int = 0
+var _gear_progress: SeasonGearProgress = SeasonGearProgress.new()
 var _recruit_from: int = 1
 var _gear_from: int = 1
 var _misc_from: int = 1
@@ -193,6 +194,8 @@ func to_data() -> Dictionary:
 		data["film_from"] = _film_from
 	if _format >= 19:
 		data["market"] = _market
+	if _format >= 20:
+		data["gear_start"] = _gear_progress.start.duplicate() if _gear_progress.enabled else null
 	return data
 
 
@@ -203,148 +206,7 @@ static func from_data(
 	pool: Array[String] = [],
 	blocked: Array[String] = []
 ) -> SeasonBuild:
-	if not value is Dictionary or not SeasonOwnership._whole(value.get("version"), 1, VERSION):
-		return null
-	var keys: Array = ["version", "seed", "roster", "catalog", "events"]
-	if value.version >= 2:
-		keys.append_array(["pool", "blocked", "recruit_from", "recruits"])
-	if value.version >= 3:
-		keys.append("gear_from")
-	if value.version >= 4:
-		keys.append("misc_from")
-	if value.version >= 5:
-		keys.append("mapped_gear_from")
-	if value.version >= 6:
-		keys.append("sponsor_from")
-	if value.version >= 7:
-		keys.append("gameplay_sponsor_from")
-	if value.version >= 8:
-		keys.append("sequence_sponsor_from")
-	if value.version >= 9:
-		keys.append("field_sponsor_from")
-	if value.version >= 10:
-		keys.append("shop_sponsor_from")
-	if value.version >= 11:
-		keys.append("school_sponsor_from")
-	if value.version >= 12:
-		keys.append("anchor_sponsor_from")
-	if value.version >= 13:
-		keys.append("wholesale_from")
-	if value.version >= 14:
-		keys.append("tactical_from")
-	if value.version >= 15:
-		keys.append("expanded_tactical_from")
-	if value.version >= 16:
-		keys.append("tactical_sponsor_from")
-	if value.version >= 17:
-		keys.append("budget_from")
-	if value.version >= 18:
-		keys.append("film_from")
-	if value.version >= 19:
-		keys.append("market")
-	if not SeasonOwnership._keys(value, keys):
-		return null
-	if value.seed != seed_value or value.roster != roster:
-		return null
-	if (
-		value.catalog != _signature(int(value.version))
-		or not value.events is Array
-		or value.events.size() > MAX_EVENTS
-	):
-		return null
-	var result: SeasonBuild = SeasonBuild.new(seed_value, roster, pool, blocked)
-	result._format = int(value.version)
-	if value.version >= 2:
-		if (
-			value.pool != result._pool
-			or value.blocked != result._blocked
-			or not SeasonOwnership._whole(value.recruit_from, 1, 13)
-			or not value.recruits is Array
-		):
-			return null
-		result._recruit_from = int(value.recruit_from)
-	if value.version >= 3:
-		if not SeasonOwnership._whole(value.gear_from, 1, 13):
-			return null
-		result._gear_from = int(value.gear_from)
-	if value.version >= 4:
-		if not SeasonOwnership._whole(value.misc_from, 1, 13):
-			return null
-		result._misc_from = int(value.misc_from)
-	if value.version >= 5:
-		if not SeasonOwnership._whole(value.mapped_gear_from, 1, 13):
-			return null
-		result._mapped_gear_from = int(value.mapped_gear_from)
-	if value.version >= 6:
-		if not SeasonOwnership._whole(value.sponsor_from, 1, 13):
-			return null
-		result._sponsor_from = int(value.sponsor_from)
-	if value.version >= 7:
-		if not SeasonOwnership._whole(value.gameplay_sponsor_from, 1, 13):
-			return null
-		result._gameplay_sponsor_from = int(value.gameplay_sponsor_from)
-	if value.version >= 8:
-		if not SeasonOwnership._whole(value.sequence_sponsor_from, 1, 13):
-			return null
-		result._sequence_sponsor_from = int(value.sequence_sponsor_from)
-	if value.version >= 9:
-		if not SeasonOwnership._whole(value.field_sponsor_from, 1, 13):
-			return null
-		result._field_sponsor_from = int(value.field_sponsor_from)
-	if value.version >= 10:
-		if not SeasonOwnership._whole(value.shop_sponsor_from, 1, 13):
-			return null
-		result._shop_sponsor_from = int(value.shop_sponsor_from)
-	if value.version >= 11:
-		if not SeasonOwnership._whole(value.school_sponsor_from, 1, 13):
-			return null
-		result._school_sponsor_from = int(value.school_sponsor_from)
-	if value.version >= 12:
-		if not SeasonOwnership._whole(value.anchor_sponsor_from, 1, 13):
-			return null
-		result._anchor_sponsor_from = int(value.anchor_sponsor_from)
-	if value.version >= 13:
-		if not SeasonOwnership._whole(value.wholesale_from, 1, 13):
-			return null
-		result._wholesale_from = int(value.wholesale_from)
-	if value.version >= 14:
-		if not SeasonOwnership._whole(value.tactical_from, 1, 13):
-			return null
-		result._tactical_from = int(value.tactical_from)
-	if value.version >= 15:
-		if not SeasonOwnership._whole(value.expanded_tactical_from, 1, 13):
-			return null
-		result._expanded_tactical_from = int(value.expanded_tactical_from)
-	if value.version >= 16:
-		if not SeasonOwnership._whole(value.tactical_sponsor_from, 1, 13):
-			return null
-		result._tactical_sponsor_from = int(value.tactical_sponsor_from)
-	if value.version >= 17:
-		if not SeasonOwnership._whole(value.budget_from, 1, 13):
-			return null
-		result._budget_from = int(value.budget_from)
-	if value.version >= 18:
-		if not SeasonOwnership._whole(value.film_from, 1, 13):
-			return null
-		result._film_from = int(value.film_from)
-	if value.version >= 19:
-		if not SeasonOwnership._whole(value.market, 0, 1):
-			return null
-		result._market = int(value.market)
-	for event: Variant in value.events:
-		if not event is Dictionary:
-			return null
-		var applied: Dictionary = result.commit(event)
-		if not applied.ok or applied.replayed:
-			return null
-	if value.version >= 2:
-		# Godot JSON reads every number as float; normalize both quote snapshots
-		# before deep comparison without accepting a different value or field.
-		var expected: Variant = JSON.parse_string(JSON.stringify(result._recruits))
-		var saved: Variant = JSON.parse_string(JSON.stringify(value.recruits))
-		if expected != saved:
-			return null
-	return result
+	return SeasonBuildRestore.restore(value, seed_value, roster, pool, blocked)
 
 
 func preview(command: Dictionary) -> Dictionary:
@@ -375,6 +237,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_game_rosters = next._game_rosters
 	_scholarships = next._scholarships
 	_used_gear = next._used_gear
+	_gear_progress = next._gear_progress
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
 	_scouts = next._scouts
@@ -421,6 +284,7 @@ func _fork() -> SeasonBuild:
 	result._appeared = _appeared
 	result._format = _format
 	result._market = _market
+	result._gear_progress = _gear_progress.fork()
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
 	result._misc_from = _misc_from
@@ -495,6 +359,7 @@ func _apply(command: Dictionary) -> String:
 			)
 			if not error.is_empty():
 				return error
+		_gear_progress.settle(self, command)
 		_game_rosters[int(command.game)] = roster()
 		_visit = {"number": _visit.number + 1, "open": false}
 		if (
@@ -688,7 +553,8 @@ func _offers(rerolls: int) -> Dictionary:
 				SeasonTacticalCatalog.weights(_tactical_catalog_version())
 				if _format >= 14 and _visit.number >= _tactical_from
 				else {}
-			)
+			),
+			_gear_progress.eligible()
 		)
 	return DevelopmentShopCatalog.offers(
 		_book, _roster, _rng(rerolls), "visit:%d:roll:%d" % [_visit.number, rerolls]
@@ -728,6 +594,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + SeasonSponsorCatalog.signature(SeasonSponsorCatalog.for_build(format_version))
 	if format_version >= 14:
 		base += ":" + SeasonTacticalCatalog.signature(2 if format_version >= 15 else 1)
+	if format_version >= 20:
+		base += ":" + JSON.stringify(SeasonEarnedGear.ITEMS).sha256_text()
 	return base
 
 

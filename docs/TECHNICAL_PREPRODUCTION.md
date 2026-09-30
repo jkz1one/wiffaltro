@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.48
+**Version:** v0.1.49
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,37 @@
 ---
 
 # 1. Technical Objective
+
+## Receipt-derived Gear progression and catalog20, 2026-09-30
+
+`SeasonGearProgress` binds a frozen per-season starting count map to completed-use records derived
+from replayed reward commands. `gear_start:null` disables tracking; `{}` begins a new eligible
+career at zero. The current build journal remains the authoritative purchase/use history, including
+immutable copy receipts. No independent editable live counter is saved. Qualified Bat/Ball receipt
+IDs are resolved to item identities after the existing Reclamation/performance validation; duplicate
+rewards already fail before progression settlement. Fork/commit copies this aggregate atomically.
+
+Build20/schema24 appends a separate earned catalog fingerprint while preserving build1–19 hashes
+and their base Gear catalogs. `SeasonEarnedGear` holds only ten exact Working higher-tier candidates.
+The shared slot/effect adapters handle them, and normal eligible Gear generation accepts only the
+access list derived from the build's start counts plus its replayed local results. AI policy1 remains
+pinned to build19 and its paid-stat-only market. `SeasonBuildRestore` extracts the existing decoder
+and adds the version20 field check, keeping the main aggregate within the script-size gate.
+
+Career extension2 adds nullable per-run compact `gear` evidence: ascending fixture IDs and up to
+one Bat/one Ball identity each. Retained history validates legal player-club completed fixtures,
+unique slots/games, known tracked identities and chronological tier prerequisites. The current
+run's evidence must equal journal-derived use and its starting counts must equal prior retained
+runs. Copies and prices remain in the current build journal; prior history keeps compact validated
+use, not an entire archived shop journal or server-authoritative anti-cheat proof. Unknown fields,
+unsupported IDs, fractional counts, mismatched baselines and altered current evidence fail closed.
+
+Version1 career rows migrate to `gear:null`; older active builds stay untracked. New tracked runs
+freeze prior retained counts before draft; final draft construction preserves this context. Whole
+season save stages the career fork and publishes only after file replacement, keeping counters,
+results, payouts and opponent purchases together. Failed result/replacement writes and retries
+retain the existing transaction contract. Season abandonment closes the current proof while
+retaining completed uses. The existing1024-run /8MiB guards remain in force.
 
 ## Atomic career extension and compact score history, 2026-09-30
 

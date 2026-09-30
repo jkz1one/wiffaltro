@@ -1,11 +1,43 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.57
+**Version:** v0.4.58
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Persistent earned Gear access, 2026-09-30
+
+Five source-identified Bat/Ball families now earn tier2 after10 completed uses of tier1,
+and tier3 after20 completed uses of tier2: Contact, Power, Movement, Velocity and Hybrid.
+These thresholds, parallel Bat/Ball progress, retained access and seasonal paid copies are
+**Approved** (Equipment/Sponsors v18 lines55–74; Current Decisions v31 line36). The ten
+higher-tier effects and prices are the exact **Working** candidates in Equipment/Sponsors
+v18 lines77–119. They replace the slot's previous effect; they do not stack with a predecessor.
+Contact/Power affect both swing types; Balls scale developed recipes once and preserve gravity,
+natural wobble and the Eephus exception. Existing unapproved engine mappings remain Proposals.
+
+The prospective **Working implementation of qualifying use** reuses receipt-specific evidence:
+the paid copy was equipped at the first actual released pitch and the game subsequently
+completed with validated performance. This matches the existing Reclamation evidence boundary;
+it is not a newly Approved definition of every future use case. A loss counts, an interrupted
+match does not, and each supported identity advances at most once per fixture. Progress survives
+selling/replacing the copy, changing seasons and abandonment. Newly earned access affects the
+next legal generated shop stock, including within the current season. Access adds eligibility;
+no free copy or guaranteed offer is granted, and no same-season predecessor purchase is required.
+
+New Working career seasons track prospectively. Older active saves preserve their exact stock,
+receipts, money and previous gameplay; their next new Working season enables tracking. No past
+use is inferred from menus, old wins or accumulated income. Club Record > Gear Progression shows
+all five chains, requirements, earned access and Working effects/prices. Equipped-shop rows show
+current progress. Safe paid replacement retains exact sale proceeds and actual-paid receipts.
+
+Alley's two later tiers remain gated by the source's explicit stable-ID audit and trajectory
+calibration dependency. Its existing A02 Proposal is not renamed, duplicated or silently approved.
+The supported catalog is now23 of25 Gear candidates, with13 initial and10 earnable identities.
+Other earned sponsors, player-card ownership/packs, higher Leagues/tiers and stadium systems remain
+unimplemented dependencies; this chunk completes the supported Gear portion of persistent unlocks.
 
 ## Persistent club rewards and season history, 2026-09-30
 

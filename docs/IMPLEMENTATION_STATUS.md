@@ -1,5 +1,21 @@
 # Implementation Status
 
+## Earned Gear chains and paid higher tiers, 2026-09-30
+
+Five Bat/Ball chains now retain completed-use progress across seasons and abandonment, earn
+higher-tier shop eligibility at10/20 uses, and offer ten supported Working higher-tier items
+through the existing atomic paid ownership flow. The counter is bound to completed-game first-
+release receipt evidence; menus, unfinished games and save retries cannot grant extra progress.
+The Gear Progression screen exposes requirements, prices and earned status. Older saves retain
+current stock and begin tracking with their next new Working season. Schema24/build20/career2
+keeps the preceding catalog fingerprints and AI policy intact.
+
+Alley IDs/calibration still gate its two later tiers, leaving23 of25 Gear candidates supported.
+Other earned sponsors, player-card contracts, higher League/tier gameplay, stadium ownership/
+editor and native visual/human economy acceptance remain open. Threshold/ownership direction
+stays Approved; prices/effects and the precise use boundary remain Working; existing mapping
+Proposals are not promoted. Exact verification evidence is recorded in VERIFICATION.md.
+
 ## Persistent club ledger and safe season replacement, 2026-09-30
 
 New Working seasons now retain stable IDs, score/bracket history, first-title clear and
@@ -274,8 +290,8 @@ Verification evidence and exact passing scope are maintained in `VERIFICATION.md
 
 ### Whole-project completion estimate
 
-**Approximately 70% implemented** (weighted estimate70.0), after persistent club rewards/history
-(68% after paid opponent stat development;66% after Film Room and all19 initial sponsors;
+**Approximately 71% implemented** (weighted estimate71.0), after supported earned Gear chains
+(70% after persistent club rewards/history;68% after paid opponent stat development;66% after Film Room and all19 initial sponsors;
 65% after Budget Bites and pregame commitment;64% after tactical combination/exchange sponsors;63% after all five initial tactical cards;62% after core tactical supplies;61% after Wholesale coordinated purchases;60% after Cornerstone committed defense;
 59% after the three development sponsors;57% after Reclamation and exact-copy use;56% after
 Courier/Optics/Trainers;55% after
@@ -294,15 +310,15 @@ human-approved or release-ready merely because their code runs.
 | Ownership and economy | 8 | 8 |
 | Player development and mastery | 10 | 8.5 |
 | Shop, packs and recruitment | 12 | 8.5 |
-| Gear, tactical cards and abilities | 10 | 7.5 |
+| Gear, tactical cards and abilities | 10 | 8.25 |
 | Sponsors | 10 | 9 |
-| Leagues and persistent career | 10 | 2.5 |
+| Leagues and persistent career | 10 | 2.75 |
 | Stadium progression | 10 | 1 |
 | Final cross-system integration and acceptance | 2 | 0 |
-| **Total** | **100** | **70.0** |
+| **Total** | **100** | **71.0** |
 
 Next unmet dependencies include offscreen support for further AI purchase categories, earned
-access/player-card contracts, League/tier implementations, Alley/mapping calibration and earned Gear/sponsors. Shared consumable
+access/player-card contracts, League/tier implementations, Alley/mapping calibration and other earned sponsors. Shared consumable
 capacity modifiers remain open (sponsor reserves are prohibited). Partial shops
 redistribute missing category weights; they do not pretend those systems are implemented. Human visual/feel checks remain a release gate.
 The following entries are historical checkpoints; this entry supersedes their missing-shop notes.

@@ -52,7 +52,9 @@ func _batting() -> void:
 	for swing_id: StringName in [&"swing.contact", &"swing.power"]:
 		var source: SwingProfileDefinition = ContentDB.get_swing(swing_id)
 		for left: bool in [false, true]:
-			for id: String in ["BAT-CON-01", "BAT-POW-01"]:
+			for id: String in [
+				"BAT-CON-01", "BAT-POW-01", "BAT-CON-02", "BAT-CON-03", "BAT-POW-02", "BAT-POW-03"
+			]:
 				var player: PlayerDefinition = SeasonGearCatalog.equip(base, {"bat": {"item": id}})
 				var modified: SwingProfileDefinition = SeasonGearCatalog.swing(source, player)
 				var item: Dictionary = SeasonGearCatalog.item(id)
@@ -127,7 +129,17 @@ func _pitching() -> void:
 			ContentDB.get_pitch(StringName(recipe_id)), 3
 		)
 		for left: bool in [false, true]:
-			for ball: String in ["BALL-MOV-01", "BALL-VEL-01", "BALL-HYB-01"]:
+			for ball: String in [
+				"BALL-MOV-01",
+				"BALL-VEL-01",
+				"BALL-HYB-01",
+				"BALL-MOV-02",
+				"BALL-MOV-03",
+				"BALL-VEL-02",
+				"BALL-VEL-03",
+				"BALL-HYB-02",
+				"BALL-HYB-03"
+			]:
 				var player: PlayerDefinition = SeasonGearCatalog.equip(
 					base, {"ball": {"item": ball}, "misc": {"item": "MISC-PIT-03"}}
 				)

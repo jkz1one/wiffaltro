@@ -1,6 +1,6 @@
 class_name SeasonGearCatalog
 extends RefCounted
-## Supported Working candidates from Equipment/Sponsors v18. No earned tiers granted.
+## Working candidates from Equipment/Sponsors v18. Earned tiers require persistent access.
 ## Unapproved engine mappings are isolated and labeled in PROPOSAL_ITEMS.
 
 const ITEMS: Dictionary = {
@@ -160,7 +160,11 @@ static func catalog(catalog_version: int = 3) -> Dictionary:
 
 
 static func item(id: String) -> Dictionary:
-	return ITEMS.get(id, MISC_ITEMS.get(id, PROPOSAL_ITEMS.get(id, {}))).duplicate(true)
+	return (
+		ITEMS
+		. get(id, MISC_ITEMS.get(id, PROPOSAL_ITEMS.get(id, SeasonEarnedGear.ITEMS.get(id, {}))))
+		. duplicate(true)
+	)
 
 
 static func signature(catalog_version: int = 3) -> String:
@@ -171,6 +175,7 @@ static func ownership_catalog() -> Dictionary:
 	var result: Dictionary = DevelopmentShopCatalog.ownership_catalog()
 	result.merge(SeasonTacticalCatalog.ownership_catalog())
 	var all_items: Dictionary = catalog()
+	all_items.merge(SeasonEarnedGear.ITEMS)
 	for id: String in all_items:
 		result[id] = {
 			"kind": "gear", "slot": all_items[id].slot, "price": all_items[id].price, "sale": "half"
@@ -178,9 +183,14 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(gear: Dictionary, catalog_version: int = 3) -> Dictionary:
+static func eligible(
+	gear: Dictionary, catalog_version: int = 3, earned: Array[String] = []
+) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(catalog_version)
+	for id: String in earned:
+		if SeasonEarnedGear.ITEMS.has(id):
+			all_items[id] = SeasonEarnedGear.ITEMS[id]
 	for id: String in all_items:
 		var slot: String = all_items[id].slot
 		if gear.get(slot, {}).get("item", "") == id:
@@ -242,14 +252,15 @@ static func offers(
 	prefix: String,
 	catalog_version: int = 3,
 	sponsor_pool: Dictionary = {},
-	tactical_pool: Dictionary = {}
+	tactical_pool: Dictionary = {},
+	earned: Array[String] = []
 ) -> Dictionary:
 	var development: Dictionary = DevelopmentShopCatalog.families(book, roster)
 	var lessons: Array[String] = []
 	for recipe: String in DevelopmentShopCatalog.LESSON_PRICES:
 		if not DevelopmentShopCatalog.targets(book, roster, "lesson." + recipe).is_empty():
 			lessons.append("lesson." + recipe)
-	var equipment: Dictionary = eligible(gear, catalog_version)
+	var equipment: Dictionary = eligible(gear, catalog_version, earned)
 	var sponsors: Dictionary = sponsor_pool.duplicate()
 	var weights: Dictionary = {}
 	if not development.is_empty():
@@ -289,7 +300,7 @@ static func offers(
 			if sponsors.is_empty():
 				weights.erase("sponsor")
 		else:
-			# Equal eligible Bat/Ball/Misc subweights. Each enabled family has tier 1 only.
+			# Equal eligible Bat/Ball/Misc subweights, then eligible item within the slot.
 			var slot: String = equipment.keys()[rng.randi_range(0, equipment.size() - 1)]
 			var variants: Array = equipment[slot]
 			id = variants[rng.randi_range(0, variants.size() - 1)]
