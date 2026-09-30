@@ -7,6 +7,8 @@ extends RefCounted
 static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var starting: bool = command.op == "match_inventory"
 	var fields: Array = ["game"] if starting else ["game", "receipt", "first_pitch"]
+	if not starting and build._format >= 28 and command.has("sales"):
+		fields.append("sales")
 	if (
 		build._format < 22
 		or build._market != 0
@@ -37,15 +39,26 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 			return "First-release Gear evidence changed."
 	elif attempt.first_pitch != null:
 		return "This match already recorded its first release."
-	var sold: Dictionary = build._bank.commit(
-		{
-			"id": "match-sale:%d" % build.revision(),
-			"rev": build._bank.revision(),
-			"op": "sell",
-			"receipt": command.receipt,
-			"discard": []
-		}
-	)
+	var sales: Array = []
+	var sold: Dictionary
+	if build._format >= 28 and owned.kind == "sponsor" and command.has("sales"):
+		sales = SeasonAssociationShop.selected(build, command, [command.receipt])
+		if sales.has(null):
+			return "Choose distinct active sponsor receipts for every sale."
+		var error: String = SeasonAssociationShop.apply(build, sales, [])
+		sold = {"ok": error.is_empty(), "error": error}
+	else:
+		if command.has("sales"):
+			return "Extra sponsor sales cannot accompany a Gear sale."
+		sold = build._bank.commit(
+			{
+				"id": "match-sale:%d" % build.revision(),
+				"rev": build._bank.revision(),
+				"op": "sell",
+				"receipt": command.receipt,
+				"discard": []
+			}
+		)
 	if not sold.ok:
 		return sold.error
 	attempt.first_pitch = first.duplicate() if first is Array else null

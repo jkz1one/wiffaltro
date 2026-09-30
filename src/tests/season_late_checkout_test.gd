@@ -350,11 +350,14 @@ func _migrate_checkout() -> void:
 	var season: SeasonState = _new_club(543)
 	season.build._format = 26
 	season.build._checkout_start = null
+	season.build._association_start = null
 	season.career.runs[-1].checkout_earned = null
+	season.career.runs[-1].association_earned = null
 	_check(SeasonSave.save(season), "prior build26 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 7
 	data.career.runs[-1].erase("checkout_earned")
+	data.career.runs[-1].erase("association_earned")
 	var loaded: SeasonState = SeasonSave._decode(data)
 	_check(
 		loaded != null and loaded.build._checkout_start == null,

@@ -76,7 +76,11 @@ static func describe(window: SeasonShopWindow, target: Dictionary) -> String:
 	if target.has("student"):
 		text += " • Student: " + build.definition(target.student).display_name
 	if target.replace.is_empty():
-		text += " • use empty slot"
+		text += (
+			" • add to final loadout; resolve capacity before confirming"
+			if build._format >= 28 and SeasonWholesale.category(id) == "sponsor"
+			else " • use empty slot"
+		)
 	else:
 		var old: Dictionary = SeasonOwnership._owned(build.view().wallet, target.replace)
 		if not old.is_empty():

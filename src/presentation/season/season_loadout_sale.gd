@@ -4,6 +4,7 @@ extends ConfirmationDialog
 
 var ui: SeasonLoadoutUI
 var request: Dictionary = {}
+var _review: Label
 
 
 func _ready() -> void:
@@ -13,19 +14,42 @@ func _ready() -> void:
 	get_ok_button().text = "SELL"
 	confirmed.connect(_commit)
 	canceled.connect(_return_focus)
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size.y = 200
+	add_child(scroll)
+	_review = Label.new()
+	_review.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_review.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	scroll.add_child(_review)
 
 
 func review(receipt_id: String, item_name: String) -> void:
 	var app: SeasonApp = ui.app
 	if not SeasonMatchSales.available(app):
 		return
-	request = SeasonMatchSales.command(app, receipt_id)
+	_quote(SeasonMatchSales.command(app, receipt_id), item_name)
+
+
+func _quote(chosen: Dictionary, item_name: String) -> void:
+	var app: SeasonApp = ui.app
+	request = chosen
 	var quote: Dictionary = app.season.build.preview(request)
 	if not quote.ok:
+		if SeasonSponsorResolution.needed(app.season.build, request, quote.error):
+			SeasonSponsorResolution.open(
+				get_parent(),
+				app.season.build,
+				request,
+				func(selected: Dictionary) -> void: _quote(selected, item_name)
+			)
+			return
 		ui.context.text = quote.error
 		return
 	var refund: int = quote.after.wallet.cash - quote.before_cash
-	dialog_text = (
+	if not request.get("sales", []).is_empty():
+		item_name = "%d selected sponsors" % (request.sales.size() + 1)
+	var description: String = (
 		(
 			"Sell %s for %d Cash?\nCash: %d → %d\n\n"
 			+ "The sale is saved immediately and remains sold if you leave or restart. "
@@ -35,7 +59,11 @@ func review(receipt_id: String, item_name: String) -> void:
 		)
 		% [item_name, refund, quote.before_cash, quote.after.wallet.cash]
 	)
-	popup_centered(Vector2i(560, 260))
+	description += SeasonAssociationShop.review(app.season.build.view().wallet, quote.after.wallet)
+	_review.text = description
+	dialog_text = ""
+	get_label().hide()
+	popup_centered(Vector2i(560, 310))
 	get_cancel_button().grab_focus()
 
 

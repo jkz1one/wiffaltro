@@ -30,6 +30,11 @@ static func after(before: SeasonBuild, next: SeasonBuild, command: Dictionary) -
 			var receipt: Dictionary = SeasonOwnership._owned(
 				next._bank.view(), prefix + str(before.revision())
 			)
+			if command.op == "sponsor_buy" and command.has("sales") and next._format >= 28:
+				receipt = SeasonOwnership._owned(
+					next._bank.view(),
+					SeasonSponsorSet.receipt_id("sponsor-group:%d" % before.revision(), 0)
+				)
 			paid = int(receipt.get("paid", 0))
 		if paid >= 16:
 			next._rain_earned = true

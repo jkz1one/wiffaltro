@@ -1,5 +1,52 @@
 # Fast verification and playtest records
 
+## Neighborhood Association: paid access, grouped sales and migration, 2026-09-30
+
+Final affected-path run `20260930T215810354609Z` passed **28/28 checks** under Godot 4.7.2:
+seven common revision/parse/lint/import gates and 21 scenes, including three complete games.
+All 474 snapshotted source/test/asset/project/runner files remained unchanged throughout the
+run; only documentation changed afterward. No warnings or errors appeared. This is targeted
+final-source coverage, not the complete suite or native visual acceptance. Scope: Association
+menu/live, sponsor-set, ordinary ownership/integration, Wholesale menu/live, match-sales
+menu/live, Equipped, earned sponsors, Gear progression, career, opponents, school sponsors,
+Late Checkout, Second Chance, Transfer, Raincheck, Special Order and core regressions.
+
+Seed 0 reaches a seven-sponsor paid loadout by the tenth completed-result fixture, with 72 Cash
+remaining. All stock, purchases and rerolls use the actual generator and ordinary paid commands;
+the funding game results are controlled evidence, not organically played unlock/balance samples.
+The fifth-Common checkpoint and later J05 offer are captured before purchase for UI tests.
+Cancel and failed-write attempts cannot publish the feat or alter previous save bytes. A saved
+fifth Common earns access without regenerating displayed stock; buying J05 from a full five
+pays exactly 14 and produces capacity seven. Abandonment and a new season preserve eligibility
+without free ownership. Forged inherited/current-run access is rejected.
+
+Contract fixtures cover seven-to-five removal, Uncommon replacement restrictions, every
+explicit additional sale, exact combined refunds, no orphan Summer School nomination, zero
+Summer refund and Wholesale Common-first/Association-second capacity. Two incoming Uncommons
+require the complete four-sale resolution when departing a full seven-slot Association loadout.
+Raincheck still credits an actual paid 18-Cash sponsor even when reviewed refunds make the
+net debit only 2 Cash. Ordinary receipt IDs and earlier-format paid sale references survive
+migration and a second save/reload; null legacy tracking remains prospective.
+
+Actual scene input covers a 700x400 shop, bounded selector and scrolling final review, Cancel
+focus, mouse choices, keyboard selection of Wholesale's second extra sale, disabled unresolved
+Review, failed-save rollback, retry and reload. Live Equipped uses the same explicit selector,
+names both removed copies, retains pending SOLD status and cannot resurrect them on restart.
+These are automated geometry/input checks, not native rendered or human visual acceptance.
+
+The physical Association game (seed 67) completes with 91 pitch records and 29 balls in play.
+Association and Optics sell together during an actual swing. A failed write retains ownership,
+Cash and an empty retirement queue; retry saves both refunds immediately while Optics remains
+through the PA. The natural next-batter boundary retires both pending copies and updates the
+capacity snapshot. Duplicate confirmation cannot repay; postgame save/reload retains five
+sponsors and the earned feat. Existing physical Gear-sale and Wholesale scenarios also run.
+
+Development checks caught an off-screen long sale review, an initial selector-width measurement
+before wrapped labels settled, and receipt routing that would invalidate migrated paid history
+or Raincheck's price lookup. Bounded scroll reviews, preconfigured wrapping, preserved ordinary
+receipt routes and grouped paid-receipt lookup resolve these cases. Failed development logs are
+retained separately and do not count as passing final coverage.
+
 ## Atomic sponsor-set foundation, 2026-09-30
 
 Final focused run `20260930T212339189362Z` passed **16/16 checks** under Godot 4.7.2:

@@ -45,7 +45,9 @@ func sell(app: SeasonApp, request: Dictionary) -> bool:
 	if not app._checkpoint():
 		app.season.build = previous
 		return false
-	pending[receipt.id] = receipt.duplicate(true)
+	for old: Dictionary in previous.view().wallet.sponsors + previous.view().wallet.gear.values():
+		if not old.is_empty() and SeasonOwnership._owned(next.view().wallet, old.id).is_empty():
+			pending[old.id] = old.duplicate(true)
 	apply_pending(app)
 	return true
 

@@ -57,7 +57,7 @@ static func targets(build: SeasonBuild, offer: String) -> Array[Dictionary]:
 			if not SeasonEarnedSponsors.eligible(build).has(id):
 				return result
 			var destinations: Array[String] = []
-			if wallet.sponsors.size() < wallet.capacity.sponsors:
+			if build._format >= 28 or wallet.sponsors.size() < wallet.capacity.sponsors:
 				destinations.append("")
 			for old: Dictionary in wallet.sponsors:
 				destinations.append(old.id)
@@ -83,7 +83,10 @@ static func reduction(price: int) -> int:
 
 
 static func purchase(build: SeasonBuild, command: Dictionary) -> String:
-	if not available(build) or not build._keys(command, ["first", "second", "discounted"]):
+	var fields: Array = ["first", "second", "discounted"]
+	if build._format >= 28 and command.has("sales"):
+		fields.append("sales")
+	if not available(build) or not build._keys(command, fields):
 		return "No unused Wholesale deal at this visit."
 	if not command.first is Dictionary or not command.second is Dictionary:
 		return "Review both exact offers and destinations."
@@ -110,6 +113,18 @@ static func purchase(build: SeasonBuild, command: Dictionary) -> String:
 			discounted = index
 	if discounted < 0 or item(ids[discounted]).price > item(ids[1 - discounted]).price:
 		return "Discount the cheaper item; on equal prices choose either."
+	if (
+		build._format >= 28
+		and kind == "sponsor"
+		and (
+			command.has("sales")
+			or ids.has("J05")
+			or not SeasonSchoolSponsors.active(build, "J05").is_empty()
+		)
+	):
+		return SeasonAssociationShop.wholesale(build, command, ids, discounted)
+	if command.has("sales"):
+		return "Extra sponsor sales require a sponsor pair."
 	# Sell all explicitly selected OLD receipts first, so both proceeds can finance
 	# the pair. The enclosing candidate rolls everything back if any later step fails.
 	var replaced: Array[String] = []

@@ -1,11 +1,41 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.66
+**Version:** v0.4.67
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Neighborhood Association and explicit sponsor-group resolution, 2026-09-30
+
+J05 Neighborhood Association is the 27th supported **Working** sponsor candidate. Current
+Equipment/Sponsors v18 (access 294–311 and capacity 469–508) overrides the retained Blueprint
+v114 J05 annex (5268–5292): there are no reserves. Confirming five distinct Common sponsors
+active together in a legal saved loadout earns permanent eligibility for subsequent generated
+shop offers. No win or ownership of Association is required. Displayed stock is not regenerated,
+access grants no copy, and abandonment retains the earned feat. The seasonal copy costs
+14 Cash and is Uncommon; these remain Working values.
+
+Its two additional active slots include Association itself: current base five becomes seven,
+with every other active sponsor Common. Common replacement by an Uncommon/Rare is invalid
+while Association remains. Whole-loadout capacity, rarity, funds and exact paid refunds must
+validate together. Selling/replacing Association can open an explicit extra-sale selector;
+no item is automatically sold, disabled, hidden or stored. Wholesale applies the same final
+loadout rule to both incoming offers and the complete selected sale set. Summer School keeps
+zero resale and loses its nomination when sold.
+
+During play, a valid grouped sale saves every ownership removal and refund immediately.
+Current PA effects retire together at the safe next-batter boundary; a restart uses the saved
+legal loadout. Equipped retains clear sold/pending status until effects retire. The selector
+and final review identify exact copies, refunds, removed effects, remaining capacity and cash;
+cancel or failed save retains the complete prior state. Acquisition and loadout UI remain
+Working presentation; final premium UI and native/human acceptance are still open.
+
+Older active saves begin tracking prospectively in their next new Working season. Their old
+receipt references, ordinary purchases, Wholesale history and displayed offers remain valid.
+Future Sponsorship League base-six capacity, Small Batch and Double Major are not implemented
+or newly claimed by this slice. Working/Proposal tuning retains its status.
 
 ## Atomic sponsor ownership foundation, 2026-09-30
 

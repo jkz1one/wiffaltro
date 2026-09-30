@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.57
+**Version:** v0.1.58
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,35 @@
 ---
 
 # 1. Technical Objective
+
+## Association progression and grouped sale integration, 2026-09-30
+
+Build28/schema32 adds nullable `association_start` and replay-derived `_association_earned`.
+Career9 stores nullable per-run `association_earned`, validating inherited eligibility and
+current-run agreement separately. `SeasonAssociation` counts distinct active Common identities
+only after successful legal shop transactions. The enclosing saved candidate publishes both
+ownership and career progress atomically. Null migration keeps older runs prospective; versioned
+signatures through Build27 and initial catalog generations remain frozen.
+
+The paid J05 ownership definition supplies `sponsor_delta: 2` and `peer_rarity: Common`.
+Every sponsor ownership entry carries its actual catalog rarity. Existing bank final-state
+validation enforces the restriction on grouped and ordinary purchases alike. J05 enters
+weighted generated stock only through earned access and normal owned-identity exclusion.
+
+`SeasonAssociationShop` derives grouped offers, discounts and deterministic purchase IDs for
+explicit `sales` commands and Association-related Wholesale pairs. It clears every sold
+scholarship and attaches incoming Summer School nomination to the new exact receipt. Ordinary
+single purchases/sales and Wholesale pairs unrelated to Association retain their previous
+internal receipt IDs and replay route, including after migration. Raincheck reads the new paid
+receipt for grouped ordinary purchases, so sale proceeds cannot reduce the credited price.
+
+`SeasonSponsorResolution` is a shared bounded scrolling selector. Already selected replacements
+are visibly fixed; extra sponsor sales are opt-in. Live preview controls the Review button, then
+the ordinary final confirmation/save flow revalidates. Shop, Wholesale and live Equipped share
+that path. Live review also scrolls long removed-effect descriptions. Keyboard/mouse selection
+and controller cancel are supported. `SeasonMatchSales` queues every removed copy only after a
+successful checkpoint; one natural inventory boundary retires their effects and refreshes the
+loadout snapshot. No new gameplay effect is required for a capacity-only sponsor.
 
 ## Complete sponsor-set transactions, 2026-09-30
 

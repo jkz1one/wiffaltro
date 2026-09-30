@@ -86,7 +86,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 31) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 32) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -236,6 +236,7 @@ static func _decode(value: Variant) -> SeasonState:
 			or season.build._transfer_start != null
 			or season.build._supply_start != null
 			or season.build._checkout_start != null
+			or season.build._association_start != null
 		)
 	):
 		return null

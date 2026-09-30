@@ -63,7 +63,7 @@ static func offer(
 	window._label(_timing(id))
 	if id == "B02":
 		_college_status(window)
-	if wallet.sponsors.size() < wallet.capacity.sponsors:
+	if id == "J05" or wallet.sponsors.size() < wallet.capacity.sponsors:
 		_purchase(window, offer_id, id, {})
 	for receipt: Dictionary in wallet.sponsors:
 		_purchase(window, offer_id, id, receipt)

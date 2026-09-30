@@ -376,13 +376,16 @@ func _migrate_insurance() -> void:
 	season.build._format = 25
 	season.build._supply_start = null
 	season.build._checkout_start = null
+	season.build._association_start = null
 	season.career.runs[-1].supplies_used = null
 	season.career.runs[-1].checkout_earned = null
+	season.career.runs[-1].association_earned = null
 	_check(SeasonSave.save(season), "build25 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 6
 	data.career.runs[-1].erase("supplies_used")
 	data.career.runs[-1].erase("checkout_earned")
+	data.career.runs[-1].erase("association_earned")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(
 		(

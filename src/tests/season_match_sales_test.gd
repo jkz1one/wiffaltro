@@ -68,7 +68,7 @@ func _gear_sales(released: bool) -> void:
 		"sale review starts focused on Cancel"
 	)
 	_check(
-		sale.dialog_text.contains("Cash:") and sale.dialog_text.contains("next batter"),
+		sale._review.text.contains("Cash:") and sale._review.text.contains("next batter"),
 		"review discloses exact refund and deferred effect"
 	)
 	await _click(sale.get_cancel_button())

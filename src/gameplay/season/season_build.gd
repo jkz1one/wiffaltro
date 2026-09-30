@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 27
+const VERSION: int = 28
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -54,6 +54,8 @@ var _transfer_start: Variant = null
 var _transfer_earned: bool = false
 var _checkout_start: Variant = null
 var _checkout_earned: bool = false
+var _association_start: Variant = null
+var _association_earned: bool = false
 var _supply_start: Variant = null
 var _supply_used: int = 0
 var _insurance: Dictionary = {}
@@ -231,6 +233,8 @@ func to_data() -> Dictionary:
 		data["supply_start"] = _supply_start
 	if _format >= 27:
 		data["checkout_start"] = _checkout_start
+	if _format >= 28:
+		data["association_start"] = _association_start
 	return data
 
 
@@ -283,6 +287,8 @@ func commit(command: Dictionary) -> Dictionary:
 	_transfer_earned = next._transfer_earned
 	_checkout_start = next._checkout_start
 	_checkout_earned = next._checkout_earned
+	_association_start = next._association_start
+	_association_earned = next._association_earned
 	_supply_start = next._supply_start
 	_supply_used = next._supply_used
 	_insurance = next._insurance
@@ -325,6 +331,7 @@ func candidate(command: Dictionary) -> SeasonBuild:
 	SeasonRaincheck.after(self, next, normalized)
 	if next._transfer_start != null and SeasonTransfer.learners(next) >= 2:
 		next._transfer_earned = true
+	SeasonAssociation.earn(next, normalized)
 	SeasonLegends.prune(next)
 	next._events.append(normalized)
 	next._requests[normalized.id] = serialized
@@ -351,6 +358,8 @@ func _fork() -> SeasonBuild:
 	result._transfer_earned = _transfer_earned
 	result._checkout_start = _checkout_start
 	result._checkout_earned = _checkout_earned
+	result._association_start = _association_start
+	result._association_earned = _association_earned
 	result._supply_start = _supply_start
 	result._supply_used = _supply_used
 	result._insurance = _insurance.duplicate(true)
@@ -707,6 +716,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonSecondChance.ITEMS).sha256_text()
 	if format_version >= 27:
 		base += ":" + JSON.stringify(SeasonLateCheckout.ITEMS).sha256_text()
+	if format_version >= 28:
+		base += ":" + JSON.stringify(SeasonAssociation.ITEMS).sha256_text()
 	return base
 
 
@@ -876,6 +887,8 @@ func _settle_sponsors(command: Dictionary) -> String:
 
 
 func _sponsor_transaction(command: Dictionary) -> String:
+	if _format >= 28 and command.has("sales"):
+		return SeasonAssociationShop.commit(self, command)
 	if _format < 6 or _visit.number < _sponsor_from:
 		return "Sponsors are not available at this visit."
 	if command.op == "sponsor_sell":

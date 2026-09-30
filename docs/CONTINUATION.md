@@ -1,13 +1,13 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-09-30 after publishing the recovered work and adding sponsor transaction foundations.
+Updated 2026-09-30 after Neighborhood Association integration and affected-path verification.
 
 ## Resume here
 
 - Repository: `jkz1one/wiffaltro`.
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
-  completes Second Chance Supply, Late Checkout Motel and a tested atomic sponsor-set primitive.
+  completes Second Chance Supply, Late Checkout Motel and Neighborhood Association.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -33,32 +33,37 @@ original local `6c3ecd0` and `f5a1b31`. Local checkpoint branch
 `checkpoint/continuation-before-api-publish` preserves those originals. No merge or deployment.
 This authorization covers continued engineering-branch pushes; do not ask again.
 
-`SeasonSponsorSet` now supports an internal atomic group of explicit sponsor sales and up to
-two purchases. Final sponsor/held capacity, optional peer-rarity restrictions, money, exact
-paid refunds and receipt identity are validated before publishing. Synthetic tests cover the
-capacity transitions needed by Neighborhood Association. This is an engine foundation:
-J05 is NOT in the catalog, has no unlock/UI/live-sale integration and is NOT counted complete.
-Build27/schema31/career8 and all existing shop/Wholesale behavior remain unchanged.
+Neighborhood Association is now implemented on top of the tested sponsor-set primitive.
+Build28/schema32/career9 adds prospective five-Common access and its paid 14-Cash seasonal
+copy. Current base five becomes seven including Association, with every other sponsor Common.
+Explicit extra-sale choices resolve removal/replacement in shop, Wholesale and live Equipped.
+Failed writes roll back the whole group; effects retire together at the safe PA boundary.
+Ordinary historical purchase/Wholesale receipt identities remain unchanged on migration.
+Final run `20260930T215810354609Z` passed 28/28 checks with three complete games and 474
+unchanged source files. Native rendered/human visual acceptance remains outstanding.
 
-## Next slice: Neighborhood Association (J05)
+## Latest slice details and next work
 
-The current source was reread this turn: Equipment/Sponsors v18 access lines 291–314 and
-capacity lines 469–508, and retained Blueprint v114 J05 lines 5268–5292. Keep this Working
-contract and Approved active-only ownership distinct:
+Current source: Equipment/Sponsors v18 access 294–311 and capacity 469–508; retained Blueprint
+v114 J05 5268–5292. Working values and Approved active-only ownership remain distinct.
 
-- Uncommon, 14 Cash; earn permanent paid-shop access by confirming five distinct Common
-  sponsors simultaneously active in a legal saved loadout. No win or ownership of J05 needed.
-- Add two sponsor slots including J05 itself: current base five becomes seven total, with
-  every other active sponsor Common. No free copies or rarity reclassification.
-- Selling/replacing J05 must explicitly select any extra sales needed to make the entire
-  final loadout legal. Never silently discard, reserve or disable excess sponsors.
-- The new bank primitive must be connected through season transactions with derived prices
-  and discounts. Add explicit selection/review UI for shop, Wholesale and live sales.
-  Whole candidate/save rollback and next-batter effect retirement must apply to every sale.
-- Add prospective career/save migration and paid generated-offer, UI interaction, reload,
-  failed-save and live-game verification. Keep old displayed stock intact.
-- Future League base-six capacity would become eight; do not claim that unimplemented
-  League behavior. Small Batch and Double Major also remain unimplemented.
+- `SeasonAssociation` owns paid eligibility, five-distinct-Common progression, career validation
+  and progress UI. A completed valid saved shop transaction earns access; no win/free copy.
+- `SeasonAssociationShop` derives prices/discounts and explicit sale sets. Only commands using
+  the new `sales` field and Association-related Wholesale pairs use grouped receipt IDs.
+  Preserve this distinction: replay migration must not rename old owned receipt references.
+- `SeasonSponsorResolution` supplies scrollable exact-copy choices and the normal final review.
+  `SeasonMatchSales` queues all removed copies only after successful save. Long live reviews
+  now scroll rather than allowing the dialog to grow off screen.
+- Raincheck reads grouped ordinary purchases' actual paid receipt, not net Cash after refunds.
+  Summer School retains zero refund and every sold nomination is cleared.
+- Older active careers keep null prospective tracking; five-Common access persists through
+  abandonment and later seasons. Current displayed offers remain unchanged.
+
+Continue with a remaining earned contract after reading its current authoritative source.
+Small Batch's hard-three cap/held-capacity interactions and Double Major's learned-ability
+removal rules are not implemented by the generic sponsor primitive. Future League base-six
+capacity also remains unimplemented. Do not infer those features from J05 arithmetic tests.
 
 Late Checkout remains complete: paid earned access from a completed supplied walk and one
 optional next-batter Tape/Plan inheritance, with exact receipt/swing provenance, no extra
@@ -92,8 +97,8 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 26 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
-tactical supplies. Nine earned sponsor contracts, further AI acquisition, player-card contracts,
+There are 27 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+tactical supplies. Eight earned sponsor contracts, further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the
 counts alone are not a specification. Do not infer completion from older historical checklist entries.

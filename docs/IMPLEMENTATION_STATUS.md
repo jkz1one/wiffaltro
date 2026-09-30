@@ -2,6 +2,17 @@
 
 For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
 
+## Neighborhood Association, 2026-09-30
+
+Association now has a saved five-Common feat, permanent paid-shop eligibility, 14-Cash seasonal
+ownership and seven-slot Common-only loadouts. Explicit grouped sales/replacements work in the
+shop, Wholesale and live Equipped, with final-loadout preview, failed-save rollback and deferred
+PA effects. Career/save migration preserves old receipts and prospective tracking. Supported
+sponsors are 27/35; eight earned contracts and two Gear candidates remain. AI acquisition,
+player-card systems, higher Leagues/tiers, stadium progression and final polished/native/human
+acceptance remain open. Whole-project estimate stays approximately 72%. See VERIFICATION.md
+for the actual final test scope; this does not claim the complete suite or visual acceptance.
+
 ## Sponsor transaction foundation and recovered-work publication, 2026-09-30
 
 Second Chance and Late Checkout are published to `rebuild/season-engineering`; remote trees

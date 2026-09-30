@@ -66,6 +66,8 @@ static func restore(
 		keys.append("supply_start")
 	if value.version >= 27:
 		keys.append("checkout_start")
+	if value.version >= 28:
+		keys.append("association_start")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -190,6 +192,11 @@ static func restore(
 			if not value.checkout_start is bool or result._market != 0:
 				return null
 		result._checkout_start = value.checkout_start
+	if value.version >= 28:
+		if value.association_start != null:
+			if not value.association_start is bool or result._market != 0:
+				return null
+		result._association_start = value.association_start
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
