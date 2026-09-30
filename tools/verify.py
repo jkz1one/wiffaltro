@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-budget-bites-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_budget_bites_live_test.tscn"],
+                 "Wiffaltro live Budget Bites checks passed:"),
+                ("season-budget-bites", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_budget_bites_test.tscn", *ui_extra],
+                 "Wiffaltro Budget Bites checks passed:"),
                 ("season-tactical-sponsors-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_tactical_sponsors_live_test.tscn"],
                  "Wiffaltro live tactical sponsor checks passed:"),

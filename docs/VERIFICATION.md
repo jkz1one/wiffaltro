@@ -1,5 +1,71 @@
 # Fast verification and playtest records
 
+## Budget Bites and committed pregame inventory, 2026-09-29
+
+Full run `20260930T014016882304Z` passed61/65 checks. The four failures were the old
+paid tactical/income fixture assumptions described below. Corrected focused run
+`20260930T014931966249Z` passed12/12: seven common gates, Budget Bites UI/contracts,
+tactical sponsor UI/contracts and live games, and income sponsor UI/contracts and live game.
+All65 check types now have passing evidence across those two runs; this is not a claim of
+one clean65/65 full run. Production code was unchanged between them; only test fixtures
+changed. The full run's19 valid complete-game scenarios plus the corrected three cover all22.
+The failed income scene's one physical game is excluded from that count.
+
+The corrected Contact/Power combo games each completed five innings with109 play records,
+22 balls in play and four observed paired-swing frames. The corrected paid income game
+completed at third-inning mercy with101 records and35 balls in play, settling actual
+statistics and replaying its save. Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`
+remains an ancestor; the historical repository PROGRESSION_BLUEPRINT.md matches main.
+
+Focused `20260930T013720628931Z` passed the new Budget UI/contract scene, both physical games
+and the school-credit scene, but failed the Reclamation save-byte assertion described below.
+It passed10/11 checks and is not a clean combined pass. Corrected focused
+`20260930T013916974526Z` passed9/9, including Budget Bites and Reclamation. The strengthened
+old-save fixture purchases J07 under actual build16 generation before migrating to build17.
+
+The two paid Budget games each completed at third-inning mercy with86 play records and20
+balls in play. Both start from real earned54 Cash, a10-Cash Budget purchase and five ordinary
+rerolls costing40 total, leaving4. The production pregame checkpoint creates exactly one
+paid0 Plan. One game explicitly uses it through the shared AI swing path (four observed swing
+frames); the other carries the exact unused receipt. Actual result statistics, normal outro/
+restart, consumed-versus-carried inventory, failed result-save retry and exact reload pass.
+The driver chooses activation; no autonomous AI economy or activation policy is implied.
+
+Controlled contracts test Cash0/4/5 against0/1/2 occupied shared development slots, unchanged
+Cash, exact receipt/item/paid amount, preview and retry, no delayed grant after discard or
+spending down, inactive-sponsor checks and late sponsor acquisition, past/invalid fixture IDs,
+client amount/item override rejection, ordinary generated-Plan exchange and a new game's
+independent capacity check beside a carried supply. New pregame progress records no grant as
+well as success; they are not inferred from current inventory on restart.
+
+Actual UI checks review the grant before Play Game, navigate away/reopen without mutation,
+verify menu bounds, inject pregame write failure and preserve previous bytes/build, then start
+the match only after saving the grant. Restart/reload, exact-copy ordinary discard, another
+restart and exhibition/pure model construction cannot regenerate it. Actual paid sponsor UI
+also checks review/cancel, full-price purchase, persistence failure and match launch. A foreign
+future-fixture commitment is rejected by season save validation with the prior bytes intact.
+These are automated viewport-input/layout checks, not native rendered visual acceptance.
+
+Reclamation previously captured its expected pregame bytes before Play Game. That call now
+legitimately saves a once-fixture check even with no Budget sponsor. Its test now captures the
+committed pregame snapshot immediately after successful launch, retaining the exact-byte
+assertion on failed result settlement. Production did not lose or corrupt that save. Early
+preflight lint also caught two long Budget status strings; they were wrapped before runtime.
+
+The initial full run exposed older fixture assumptions: catalog version9 was treated as the
+only valid post-migration pool, and bounded seed searches required three exact offers to
+coincide in one initial four-offer shop. This affected both the rare E07/Tape/Plan fixture and
+the D01/A08/A09 income fixture. Migration now checks the required pool remains available;
+the fixtures buy actual generated stock and seek remaining items through ordinary paid
+rerolls. Income assertions account for those reroll debits and select D01's exact receipt
+for the later sale regardless of acquisition order. No production odds, prices, inventory,
+roster or grants were changed to satisfy the fixtures. All four failed scenes passed in the
+corrected focused run.
+
+Native display remains unavailable as recorded in `native-ui-display-20260928.log`. Human
+visual/feel/economy acceptance, earned access and autonomous AI policy remain open. Working
+contracts, Approved ownership/capacity and unapproved compatibility Proposals stay distinct.
+
 ## Tactical combination and exchange sponsors, 2026-09-29
 
 Final full run `20260930T005659334555Z` passed63/63 checks on Godot4.7.2, including all20

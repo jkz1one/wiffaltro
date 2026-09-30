@@ -241,7 +241,7 @@ func _sponsor_migration() -> void:
 	restored.build.commit(_command(restored.build, "open"))
 	_check(
 		(
-			restored.build._sponsor_catalog_version() == 9
+			restored.build._sponsor_catalog_version() >= 9
 			and SeasonSave.save(restored)
 			and SeasonSave.restore() != null
 		),
@@ -252,37 +252,64 @@ func _sponsor_migration() -> void:
 
 
 func _paid_combo() -> SeasonState:
-	var season: SeasonState = _paid_tactics(["E07", "A10", "C03"])
-	if season == null:
-		return null
-	_check(
-		(
-			season
-			. build
-			. commit(
-				_command(
-					season.build,
-					"sponsor_buy",
-					{"offer": _offer(season.build, "E07"), "replace": ""}
-				)
-			)
-			. ok
-		),
-		"pay for actual Double Booking"
-	)
-	for id: String in ["A10", "C03"]:
+	# Acquire the rare sponsor plus Tape, then seek Plan through real paid rerolls.
+	# All three need not coincide in one finite initial-stock sample.
+	var probe: SeasonBuild = _unit_build([])
+	probe._visit.number = 3
+	for seed_value in range(30000):
+		probe._seed = seed_value
+		var stock: Array = probe._offers(0).values()
+		if not stock.has("E07") or not stock.has("A10"):
+			continue
+		var season: SeasonState = _funded_season(seed_value, 3)
+		if _offer(season.build, "E07").is_empty() or _offer(season.build, "A10").is_empty():
+			continue
 		_check(
 			(
 				season
 				. build
 				. commit(
-					_command(season.build, "tactical_buy", {"offer": _offer(season.build, id)})
+					_command(
+						season.build,
+						"sponsor_buy",
+						{"offer": _offer(season.build, "E07"), "replace": ""}
+					)
 				)
 				. ok
 			),
-			"buy actual combo card"
+			"actual paid Double Booking"
 		)
-	return season
+		_check(
+			(
+				season
+				. build
+				. commit(
+					_command(season.build, "tactical_buy", {"offer": _offer(season.build, "A10")})
+				)
+				. ok
+			),
+			"actual paid Tape"
+		)
+		for attempt in range(4):
+			var offer: String = _offer(season.build, "C03")
+			if not offer.is_empty():
+				_check(
+					(
+						season
+						. build
+						. commit(_command(season.build, "tactical_buy", {"offer": offer}))
+						. ok
+					),
+					"actual paid Plan"
+				)
+				return season
+			if attempt < 3:
+				_check(
+					season.build.commit(_command(season.build, "reroll")).ok,
+					"actual paid combo search"
+				)
+	_check(false, "paid combo reachable within bounded search")
+	return null
 
 
 func _exchange_ui() -> void:

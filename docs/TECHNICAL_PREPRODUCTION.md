@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.44
+**Version:** v0.1.45
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,44 @@
 ---
 
 # 1. Technical Objective
+
+## Pregame checkpoint and once-fixture supply grant, 2026-09-29
+
+Sponsor catalog10 adds Budget Bites. Build17 stores the next-visit `budget_from` migration
+gate, while `_pregames` is derived solely by replaying `pregame` journal events. The command
+contains only fixture identity and the normal request/revision envelope. It is deliberately
+absent from player-facing `SHOP_OPS`. `SeasonBudgetBites` derives active ownership, actual Cash
+and shared capacity, records one outcome (`inactive`, `cash`, `full`, `granted`) and snapshots
+the committed Cash. The internal fixed Plan grant uses `budget:<fixture>` with paid0 and no
+wallet credit. Existing ownership candidate validation still enforces final held capacity.
+
+Every current Working-season Play Game commitment records the check, including absent sponsors
+and failed eligibility. This prevents buying the sponsor, spending down or freeing space after
+a first unfinished start from retroactively creating a grant. Existing exact-request replay
+is idempotent; another request for that fixture is rejected. Completed reward identity also
+blocks past-game commitment. Pure `SeasonState.make_match` remains a side-effect-free bridge.
+
+`SeasonPregameCommit.save` forks the build, applies any existing departure-credit expiry,
+records the once-fixture check if needed, and saves the season before exposing the candidate
+or launching the lab. It temporarily assigns the candidate for the existing save validator,
+restoring the prior build if persistence fails. This combines steps that previously saved
+credit expiry and pregame separately. Legacy/non-Working paths retain their normal checkpoint.
+Existing pack/readiness guards remain. The lineup page reads derived eligibility/history;
+viewing, leaving or editing that page performs no grant.
+
+Schema21's history validation walks pregame and reward events in order. A pregame ID must match
+the next corresponding completed player result or the actual current pending fixture. Unknown
+future-game grants cannot be made valid by presenting a structurally well-formed build journal.
+No separate editable inventory or grant-flag save blob is introduced. The ordinary tactical
+ledger handles activation/consumption; exact paid0 copies can carry, discard or exchange under
+existing rules. This does not serialize or retain unfinished in-match effects.
+
+New tests cover Cash0/4/5, mixed development capacity, retry/no-queue rules, late sponsor buying,
+old paid J07 migration, actual grant-review/Play Game input, failed checkpoint rollback, restart,
+discard, exhibition exclusion and fixture-order tampering. Two physical games separately use
+and carry a generated Plan through ordinary AI swing and completed-result/reload paths. AI
+buying/activation policy, native visual and human balance acceptance are still open.
+
 
 ## Tactical sponsor exchange and paired activation, 2026-09-29
 

@@ -96,12 +96,8 @@ func play_season_game() -> void:
 		notice = "Choose or skip your open development pack before the next game."
 		open_shop()
 		return
-	if season.build != null and SeasonSchoolSponsors.has_credit(season.build.view().shop):
-		var rev: int = season.build.revision()
-		if not commit_shop({"id": "leave:%d" % rev, "rev": rev, "op": "leave_shop"}):
-			return
-	# Commit lineup before starting; interruption restarts this fixture, not the season.
-	if not _checkpoint():
+	# Grant and departure credits commit together with the pregame checkpoint.
+	if not SeasonPregameCommit.save(self):
 		menu.show_hub()
 		return
 	var fixture: Dictionary = season.pending_fixture()

@@ -1,11 +1,46 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.53
+**Version:** v0.4.54
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Budget Bites and committed pregame supplies, 2026-09-29
+
+E08 Budget Bites (Common10) is the eighteenth supported sponsor. Its **Working** contract
+follows retained Blueprint v114 lines3891–3913 and Equipment/Sponsors v18's named-card
+compatibility list. The latter remains an explicitly labeled testing **Proposal**. Approved
+active-only ownership and shared consumable capacity retain their status.
+
+At the first successful Play Game commitment for a scheduled fixture, an active Budget Bites
+with at most4 Season Cash grants one ordinary Swing Plan if the shared bag has space. Cash is
+read after actual shop purchases, not from Club Bucks or a client-supplied amount. The Plan
+costs0, uses one shared development/tactical slot and receives an exact fixture-bound receipt.
+It is not Cash, a second inventory or a special stackable item. If unused it carries normally;
+ordinary activation, completed-result consumption, discard and eligible Pick & Mix exchange
+apply. The sponsor never generates Heat, Take a Base, development or a replacement reward.
+
+The check is recorded once even when the sponsor is absent, Cash is too high or the bag is
+full. Spending down, buying the sponsor later, discarding a card or restarting that unfinished
+fixture cannot create a late grant. Full capacity forfeits that game's grant without a queue,
+automatic discard or refund. A different scheduled game can check again. Opening/canceling
+pregame, lineup edits, Continue, exhibitions and pure match construction grant nothing.
+
+The lineup page shows the current grant/no-grant condition before Play Game and the recorded
+outcome on restart. The grant, check flag, lineup checkpoint and expiring shop credits are saved
+before match launch. Failed persistence preserves the previous build, Cash, inventory, credits
+and grant eligibility; no match starts. The committed copy is part of the ordinary pregame
+snapshot. Unfinished effects remain detached; completed use and save retry cannot spend twice.
+
+Schema21/build17 preserves historical catalog signatures, paid inventory and current shop
+stock/rerolls. Budget offers start next visit after migration. Pregame events are replayed
+against the actual ordered player fixtures, rejecting invented future or unrelated game grants.
+There is no retroactive grant on load. Eighteen of35 sponsor candidates are supported; Film Room,
+earned sponsors/access, autonomous AI acquisition/activation and native visual/human acceptance
+remain open. Passing code checks does not approve economy or balance values.
+
 
 ## Double Booking and Pick & Mix Market, 2026-09-29
 

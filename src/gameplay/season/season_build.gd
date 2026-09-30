@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 16
+const VERSION: int = 17
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -53,6 +53,8 @@ var _wholesale_from: int = 1
 var _tactical_from: int = 1
 var _expanded_tactical_from: int = 1
 var _tactical_sponsor_from: int = 1
+var _budget_from: int = 1
+var _pregames: Dictionary = {}
 var _scholarships: Dictionary = {}
 var _used_gear: Dictionary = {}
 var _income_by_game: Dictionary = {}
@@ -126,6 +128,7 @@ func view() -> Dictionary:
 		visit["choice_count"] = _pack_choices().size()
 		visit.erase("cards")
 	return {
+		"pregames": _pregames.duplicate(true),
 		"revision": revision(),
 		"wallet": _bank.view(),
 		"shop": visit,
@@ -180,6 +183,8 @@ func to_data() -> Dictionary:
 		data["expanded_tactical_from"] = _expanded_tactical_from
 	if _format >= 16:
 		data["tactical_sponsor_from"] = _tactical_sponsor_from
+	if _format >= 17:
+		data["budget_from"] = _budget_from
 	return data
 
 
@@ -223,6 +228,8 @@ static func from_data(
 		keys.append("expanded_tactical_from")
 	if value.version >= 16:
 		keys.append("tactical_sponsor_from")
+	if value.version >= 17:
+		keys.append("budget_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -300,6 +307,10 @@ static func from_data(
 		if not SeasonOwnership._whole(value.tactical_sponsor_from, 1, 13):
 			return null
 		result._tactical_sponsor_from = int(value.tactical_sponsor_from)
+	if value.version >= 17:
+		if not SeasonOwnership._whole(value.budget_from, 1, 13):
+			return null
+		result._budget_from = int(value.budget_from)
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
@@ -345,6 +356,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_scholarships = next._scholarships
 	_used_gear = next._used_gear
 	_income_by_game = next._income_by_game
+	_pregames = next._pregames
 	_appeared = next._appeared
 	return {"ok": true, "replayed": replayed}
 
@@ -402,6 +414,8 @@ func _fork() -> SeasonBuild:
 	result._tactical_from = _tactical_from
 	result._expanded_tactical_from = _expanded_tactical_from
 	result._tactical_sponsor_from = _tactical_sponsor_from
+	result._budget_from = _budget_from
+	result._pregames = _pregames.duplicate(true)
 	result._scholarships = _scholarships.duplicate(true)
 	result._used_gear = _used_gear.duplicate()
 	result._income_by_game = _income_by_game.duplicate(true)
@@ -417,6 +431,8 @@ func _apply(command: Dictionary) -> String:
 	var op: String = str(command.get("op", ""))
 	if pack_pending() and op not in ["pack_pick", "pack_skip", "leave_shop"]:
 		return "Choose or skip the open pack before leaving or doing other shopping."
+	if op == "pregame":
+		return SeasonBudgetBites.commit(self, command)
 	if op == "reward":
 		var fields: Array = ["game", "win"]
 		if _format >= 6 and command.has("performance"):
@@ -912,6 +928,8 @@ func _sponsor_transaction(command: Dictionary) -> String:
 
 
 func _sponsor_catalog_version() -> int:
+	if _format >= 17 and _visit.number >= _budget_from:
+		return 10
 	if _format >= 16 and _visit.number >= _tactical_sponsor_from:
 		return 9
 	if _format >= 13 and _visit.number >= _wholesale_from:
@@ -967,4 +985,6 @@ func migrate() -> void:
 		_expanded_tactical_from = next_visit
 	if _format < 16:
 		_tactical_sponsor_from = next_visit
+	if _format < 17:
+		_budget_from = next_visit
 	_format = VERSION

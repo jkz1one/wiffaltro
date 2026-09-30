@@ -124,6 +124,8 @@ func _prepare(command: Dictionary) -> Dictionary:
 
 func _apply(next: Dictionary, command: Dictionary) -> String:
 	match command.get("op"):
+		"budget_grant":
+			return SeasonBudgetBites.grant(next, command)
 		"tactical_exchange":
 			return SeasonTacticalExchange.apply(next, command)
 		"charge":

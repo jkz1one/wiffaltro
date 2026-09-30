@@ -248,8 +248,25 @@ const TACTICAL_ITEMS: Dictionary = {
 	}
 }
 
+const BUDGET_ITEMS: Dictionary = {
+	"E08":
+	{
+		"name": "Budget Bites",
+		"price": 10,
+		"rarity": "Common",
+		"weight": 2.0,
+		"effect":
+		(
+			"At your first successful Play Game commitment, Cash of 4 or less grants one "
+			+ "Swing Plan if the shared bag has room. Once per scheduled game, including a failed "
+			+ "capacity check. Unused Plan carries; no overflow, delayed grant or restart farming. "
+			+ "Working contract; named-card compatibility remains a testing Proposal."
+		)
+	}
+}
 
-static func catalog(version: int = 9) -> Dictionary:
+
+static func catalog(version: int = 10) -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	if version >= 2:
 		result.merge(GAMEPLAY_ITEMS.duplicate(true))
@@ -267,6 +284,8 @@ static func catalog(version: int = 9) -> Dictionary:
 		result.merge(WHOLESALE_ITEMS.duplicate(true))
 	if version >= 9:
 		result.merge(TACTICAL_ITEMS.duplicate(true))
+	if version >= 10:
+		result.merge(BUDGET_ITEMS.duplicate(true))
 	return result
 
 
@@ -274,7 +293,7 @@ static func item(id: String) -> Dictionary:
 	return catalog().get(id, {})
 
 
-static func signature(version: int = 9) -> String:
+static func signature(version: int = 10) -> String:
 	return JSON.stringify(catalog(version)).sha256_text()
 
 
@@ -287,7 +306,7 @@ static func ownership_catalog() -> Dictionary:
 	return result
 
 
-static func eligible(active: Array, version: int = 9) -> Dictionary:
+static func eligible(active: Array, version: int = 10) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(version)
 	for id: String in all_items:
@@ -324,7 +343,7 @@ static func resale(receipt: Dictionary) -> int:
 
 
 static func for_build(version: int) -> int:
-	for minimum: int in {16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}:
+	for minimum: int in {17: 10, 16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}:
 		if version >= minimum:
-			return {16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}[minimum]
+			return {17: 10, 16: 9, 13: 8, 12: 7, 11: 6, 10: 5, 9: 4, 8: 3, 7: 2}[minimum]
 	return 1

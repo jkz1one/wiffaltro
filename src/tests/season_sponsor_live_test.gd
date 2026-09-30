@@ -8,27 +8,12 @@ var _played_state: MatchState
 
 func _ready() -> void:
 	var fixture: Node = SponsorFixtures.new()
-	_season = fixture._funded_season(
-		fixture._sponsor_seed("", 3, SeasonSponsorCatalog.ITEMS.keys()), 3
-	)
-	for id: String in SeasonSponsorCatalog.ITEMS:
-		_check(
-			(
-				_season
-				. build
-				. commit(
-					fixture._command(
-						_season.build,
-						"sponsor_buy",
-						{"offer": fixture._offer(_season.build, id), "replace": ""}
-					)
-				)
-				. ok
-			),
-			"purchase full-price sponsor before real game"
-		)
-	_check(fixture._failures == 0, "valid funded season fixture")
+	_season = fixture._paid_income()
+	_check(fixture._failures == 0 and _season != null, "valid genuinely paid season fixture")
 	fixture.free()
+	if _season == null:
+		get_tree().quit(1)
+		return
 	var game: Dictionary = _season.pending_fixture()
 	_check(game.home == 0, "live scripted player owns home sponsor club")
 	var before: int = _season.cash()

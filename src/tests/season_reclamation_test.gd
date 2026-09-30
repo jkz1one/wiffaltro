@@ -442,10 +442,11 @@ func _migration() -> void:
 
 func _complete_through_app(app: SeasonApp) -> void:
 	_check(app._checkpoint(), "save paid pregame copies")
-	var saved: String = FileAccess.get_file_as_string(SeasonSave.path)
 	var path: String = SeasonSave.path
 	var ids: Array[String] = SeasonReclamation.receipts(app.season.build.view().wallet)
 	app.play_season_game()
+	_check(app.lab != null, "pregame commitment opens managed game")
+	var saved: String = FileAccess.get_file_as_string(SeasonSave.path)
 	await _frames(4)
 	var lab: PitchBatLab = app.lab
 	PitchBatLabFeelSupport.skip_match_presentation(lab)

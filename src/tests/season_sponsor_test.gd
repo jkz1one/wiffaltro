@@ -102,24 +102,56 @@ func _funded_season(seed_value: int, count: int = 1) -> SeasonState:
 	return season
 
 
+func _paid_income() -> SeasonState:
+	# Buy generated stock and pay for rerolls instead of requiring three exact
+	# sponsors to coincide in one initial shop as the catalog grows.
+	var probe: SeasonBuild = SeasonBuild.new(0, ROSTER)
+	probe._visit.number = 3
+	for seed_value in range(30000):
+		probe._seed = seed_value
+		var stock: Array = probe._offers(0).values()
+		var found: int = 0
+		for id: String in SeasonSponsorCatalog.ITEMS:
+			found += 1 if stock.has(id) else 0
+		if found < 2:
+			continue
+		var season: SeasonState = _funded_season(seed_value, 3)
+		var bought: Array[String] = []
+		for attempt in range(4):
+			for id: String in SeasonSponsorCatalog.ITEMS:
+				var offer: String = _offer(season.build, id)
+				if bought.has(id) or offer.is_empty():
+					continue
+				var purchase: Dictionary = _command(
+					season.build, "sponsor_buy", {"offer": offer, "replace": ""}
+				)
+				_check(
+					season.build.commit(purchase).ok and season.build.commit(purchase).replayed,
+					"real paid sponsor purchase is idempotent"
+				)
+				bought.append(id)
+			if bought.size() == 3:
+				return season
+			if attempt < 3:
+				_check(
+					season.build.commit(_command(season.build, "reroll")).ok,
+					"actual paid income sponsor search"
+				)
+	_check(false, "paid income sponsors reachable within bounded search")
+	return null
+
+
 func _transactions_and_migration() -> void:
 	var path: String = "user://sponsor-contract-%d.json" % OS.get_process_id()
 	SeasonSave.path = path
-	var season: SeasonState = _funded_season(
-		_sponsor_seed("", 3, SeasonSponsorCatalog.ITEMS.keys()), 3
-	)
+	var season: SeasonState = _paid_income()
+	if season == null:
+		return
 	var build: SeasonBuild = season.build
-	for id: String in SeasonSponsorCatalog.ITEMS:
-		var purchase: Dictionary = _command(
-			build, "sponsor_buy", {"offer": _offer(build, id), "replace": ""}
-		)
-		_check(
-			build.commit(purchase).ok and build.commit(purchase).replayed,
-			"real paid sponsor purchase is idempotent"
-		)
+	var rerolls: int = build.view().shop.rerolls
 	_check(
-		build.cash() == 20 and build.view().wallet.sponsors.size() == 3,
-		"full prices debit earned cash and occupy active slots"
+		build.cash() == 20 - rerolls * (rerolls + 3) and build.view().wallet.sponsors.size() == 3,
+		"full prices and ordinary rerolls debit earned cash and occupy active slots"
 	)
 	var own: Array = season.teams[0].roster
 	var next: Dictionary = season.pending_fixture()
@@ -160,7 +192,7 @@ func _transactions_and_migration() -> void:
 			not SeasonSponsorCatalog.eligible(active).has(receipt.item),
 			"active unique identities excluded from offers"
 		)
-	var receipt: Dictionary = active[0]
+	var receipt: Dictionary = SeasonSchoolSponsors.active(build, "D01")
 	var amount: int = build.cash()
 	_check(
 		build.commit(_command(build, "sponsor_sell", {"receipt": receipt.id})).ok,
