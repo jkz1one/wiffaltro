@@ -77,6 +77,8 @@ func commit(command: Dictionary) -> Dictionary:
 	var normalized: Dictionary = command.duplicate(true)
 	normalized.rev = int(normalized.rev)
 	_players[normalized.player] = prepared.after.duplicate(true)
+	if normalized.get("op") == "exchange":
+		_players[normalized.other] = prepared.other_after.duplicate(true)
 	_events.append(normalized)
 	_requests[normalized.id] = JSON.stringify(normalized)
 	return prepared.duplicate(true)
@@ -99,6 +101,8 @@ func _prepare(command: Dictionary) -> Dictionary:
 		return {"ok": true, "replayed": true, "after": player(command.player)}
 	if command.rev != revision() or revision() >= MAX_EVENTS:
 		return _error("Development changed. Preview this action again.")
+	if command.get("op") == "exchange":
+		return SeasonPitchExchange.prepare(self, command)
 	var after: Dictionary = player(command.player)
 	var error: String = _apply(after, command)
 	if not error.is_empty():

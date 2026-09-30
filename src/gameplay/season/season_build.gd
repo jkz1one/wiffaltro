@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 24
+const VERSION: int = 25
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -18,6 +18,7 @@ const SHOP_OPS: Array[String] = [
 	"discard",
 	"reroll",
 	"focused_reroll",
+	"transfer_pitch",
 	"reserve_offer",
 	"release_reservation",
 	"pack_open",
@@ -49,6 +50,8 @@ var _order_start: Variant = null
 var _paid_rerolls: int = 0
 var _rain_start: Variant = null
 var _rain_earned: bool = false
+var _transfer_start: Variant = null
+var _transfer_earned: bool = false
 var _reservation: Dictionary = {}
 var _recruit_from: int = 1
 var _gear_from: int = 1
@@ -216,6 +219,8 @@ func to_data() -> Dictionary:
 		data["order_start"] = _order_start
 	if _format >= 24:
 		data["rain_start"] = _rain_start
+	if _format >= 25:
+		data["transfer_start"] = _transfer_start
 	return data
 
 
@@ -264,6 +269,8 @@ func commit(command: Dictionary) -> Dictionary:
 	_paid_rerolls = next._paid_rerolls
 	_rain_start = next._rain_start
 	_rain_earned = next._rain_earned
+	_transfer_start = next._transfer_start
+	_transfer_earned = next._transfer_earned
 	_reservation = next._reservation
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
@@ -301,6 +308,8 @@ func candidate(command: Dictionary) -> SeasonBuild:
 	if _order_start != null and normalized.op == "reroll" and next.cash() < cash():
 		next._paid_rerolls += 1
 	SeasonRaincheck.after(self, next, normalized)
+	if next._transfer_start != null and SeasonTransfer.learners(next) >= 2:
+		next._transfer_earned = true
 	SeasonLegends.prune(next)
 	next._events.append(normalized)
 	next._requests[normalized.id] = serialized
@@ -323,6 +332,8 @@ func _fork() -> SeasonBuild:
 	result._paid_rerolls = _paid_rerolls
 	result._rain_start = _rain_start
 	result._rain_earned = _rain_earned
+	result._transfer_start = _transfer_start
+	result._transfer_earned = _transfer_earned
 	result._reservation = _reservation.duplicate(true)
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
@@ -441,6 +452,8 @@ func _apply(command: Dictionary) -> String:
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"transfer_pitch":
+			return SeasonTransfer.commit(self, command)
 		"reserve_offer", "release_reservation":
 			return SeasonRaincheck.commit(self, command)
 		"focused_reroll":
@@ -658,6 +671,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonSpecialOrder.ITEMS).sha256_text()
 	if format_version >= 24:
 		base += ":" + JSON.stringify(SeasonRaincheck.ITEMS).sha256_text()
+	if format_version >= 25:
+		base += ":" + JSON.stringify(SeasonTransfer.ITEMS).sha256_text()
 	return base
 
 

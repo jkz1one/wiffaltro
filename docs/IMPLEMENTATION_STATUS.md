@@ -1,5 +1,13 @@
 # Implementation Status
 
+## Transfer Station and learned-recipe provenance, 2026-09-30
+
+Transfer Station adds paid two-player lesson access, a purchased seasonal copy, an atomic once-shop
+exchange, personal mastery retention and provenance replay. Both-player review, save rollback,
+career inheritance and actual match roster binding are implemented. This supports24/35 sponsors,
+leaving11 earned contracts. AI purchase extensions, other content systems and final premium UI/
+native visual and human acceptance remain open. Whole-project estimate remains approximately72%.
+
 ## Raincheck and protected reroll integration, 2026-09-30
 
 Raincheck adds permanent access from a16-Cash ordinary individual purchase, a paid seasonal copy,

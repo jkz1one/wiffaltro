@@ -1,5 +1,46 @@
 # Fast verification and playtest records
 
+## Transfer Station provenance, personal mastery and paid UI, 2026-09-30
+
+Final affected-path regression `20260930T175935000985Z` passed23/23 checks: seven common
+parse/lint/import gates plus Transfer, Raincheck, Special Order, paired lessons, Wholesale, paid
+and standalone season development, recruitment, earned sponsors, Gear progression, club career,
+opponent market, live/menu sales, loadout UI and live gameplay sponsors. The live gameplay-sponsor
+scene completed its full physical game and effect/restart assertions. No engine errors or warnings
+were reported. All458 snapshotted source/test/asset/tool files remained unchanged throughout.
+This is targeted final-tree coverage; the complete81-check suite was not rerun for this shop/
+development-only slice. The previously recorded full-suite early-exit limitation is not claimed fixed.
+Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains included and the preserved
+PROGRESSION_BLUEPRINT.md is byte-identical to main. No merge or deployment is included.
+
+Focused run `20260930T175820572988Z` passed8/8. Seed70 completes controlled scheduled results,
+purchases two generated lesson offers on different players, earns future sponsor eligibility and
+purchases generated12-Cash Transfer Station, leaving30 Cash. The sponsor and lessons are not
+free grants. Build replay verifies the actual two-player exchange. A separately labeled controlled
+Open Book stock fixture uses real paid sponsor/pair transactions and proves a same-recipe pair
+can earn access without creating an illegal same-recipe exchange option.
+
+A controlled standalone development fixture exchanges Drop4 and Riser2: the new recipients get
+Level1, original mastery stays personal, and exchanging back restores4/2. Original acquisition IDs
+follow recipes without new learn events. Both profiles round-trip through the development journal.
+Authored, same-player and invalid recipe requests leave both profiles unchanged. Paid build checks
+cover pure previews, unchanged Cash/repertoire sizes, duplicate request replay, once-visit rejection,
+sponsor sale without reversal/use reset, current-career evidence binding, abandonment inheritance,
+no free copy and career5/build24 migration with prospective null tracking.
+
+Actual700×400 shop clicks cover both-player level review, Cancel, failed-save rollback of both
+profiles/use flag with original file bytes intact, retry, exact JSON-normalized save replay,
+post-exchange UI geometry/focus, earned-access page, actual match launch and unfinished-game
+restart retaining the visit flag. The production match adapter binds the exchanged recipe IDs.
+The broad regression scope below covers existing paid development, paired lessons, recruitment,
+career migration, shop features and live inventory behavior. No native render/hardware-controller
+or human aesthetic acceptance is claimed; the previously documented display limitation remains.
+
+Initial development caught an edit-pattern/formatting error before engine testing and a test
+assertion comparing unnormalized JSON numbers. The latter was corrected using the existing
+semantic JSON comparison without dropping any fields. Failed run `20260930T175634012857Z` is
+not final verification. The final premium UI pass remains open, and overall estimate remains72%.
+
 ## Raincheck earned access, protected offers and next-shop UI, 2026-09-30
 
 Final coverage includes all80 checks across full run `20260930T172244411240Z` and focused

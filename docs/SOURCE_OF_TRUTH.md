@@ -1,11 +1,39 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.62
+**Version:** v0.4.63
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Transfer Station and personal recipe history, 2026-09-30
+
+F07 Transfer Station is the24th supported **Working** sponsor candidate. Equipment/Sponsors v18
+lines286 and851–867 and archived F07 (lines4353–4378) control this slice. Two different current
+players each knowing a purchased season-learned pitch earns permanent shop access. Open Book's
+paid two-player lesson qualifies even when both learn the same recipe; useful exchange options
+are a separate question. Access survives abandonment and never grants a free sponsor copy.
+Older active saves begin prospective tracking next Working season, preserving displayed stock.
+
+The Uncommon12-Cash copy allows one no-extra-fee exchange per shop. Both players must remain on
+the roster, each outgoing recipe must have season-learning provenance, and the recipes must
+be different. Authored starting pitches and already-known incoming recipes are excluded. Both
+repertoire sizes stay unchanged. Existing supported recipe/delivery handling applies; no exotic
+or unsupported recipe is invented. There is no independent learned-pitch inventory.
+
+Each incoming recipe uses the recipient's own exact-recipe mastery history, or Level1 if never
+known. Outgoing mastery remains personal and inactive; it is never copied from the other player.
+Original acquisition provenance follows the exchanged recipe, while the exchange itself is not
+another lesson purchase, discovery, broad-stat increase or Community College growth event.
+A later eligible swap back restores the original player's remembered level. The two-player
+review shows outgoing and incoming names/levels, including reductions, before confirmation.
+
+One candidate/save commits both profiles and the visit-use flag. Cancel, stale/invalid requests,
+failed saves and exact retries cannot duplicate recipes or consume an extra use. Selling the
+sponsor retains the completed exchange and does not refresh its allowance; new exchanges still
+require an active copy. Leaving/restarting an unfinished game does not reset the shop flag.
+Approved seasonal ownership, Working sponsor contracts and unapproved Proposals remain distinct.
 
 ## Raincheck Reservations and protected shop stock, 2026-09-30
 

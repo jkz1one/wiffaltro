@@ -257,11 +257,14 @@ func _rain_persistence(season: SeasonState) -> void:
 	var legacy: SeasonState = _new_club(931)
 	legacy.build._format = 23
 	legacy.build._rain_start = null
+	legacy.build._transfer_start = null
 	legacy.career.runs[-1].rain_earned = null
+	legacy.career.runs[-1].transfer_earned = null
 	_check(SeasonSave.save(legacy), "legacy build23 save")
 	var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	old.career.version = 4
 	old.career.runs[-1].erase("rain_earned")
+	old.career.runs[-1].erase("transfer_earned")
 	var migrated: SeasonState = SeasonSave._decode(old)
 	_check(
 		migrated != null and migrated.build._rain_start == null,

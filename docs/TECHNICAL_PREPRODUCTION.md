@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.53
+**Version:** v0.1.54
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,24 @@
 ---
 
 # 1. Technical Objective
+
+## Atomic recipe exchange and provenance, 2026-09-30
+
+Build25/schema29 adds nullable `transfer_start` and derives current earned access from successful
+paid development history on two current players. Career6 adds nullable `transfer_earned`, validates
+active-run journal agreement and inherits access across runs. Older histories migrate to null
+tracking and all build1–24 catalog fingerprints remain unchanged. Draft reconstruction preserves
+the new inherited-access flag. Human access does not enable AI sponsor acquisition.
+
+`SeasonPitchExchange` replays acquisition ownership through learn, recruit and exchange events.
+Original learning IDs follow recipes; remembered mastery stays in each player's profile.
+`SeasonDevelopment` prepares both changes before publishing either, records one exchange event,
+and replays both profiles. It reuses supported learn/replacement validation and personal mastery
+restoration, without emitting new learn events. Authored starting recipes cannot be outgoing
+transfer stock. `SeasonTransfer` adds legal pair enumeration, the paid-sponsor gate, once-visit
+state and the exact build transaction. `SeasonTransferUI` reviews both profiles through the shared
+atomic shop save path and exposes career access. Existing match adapters consume the changed
+active repertoire through normal recipe/mastery binding.
 
 ## Raincheck transactions and prospective acquisition proof, 2026-09-30
 

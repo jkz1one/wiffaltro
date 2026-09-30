@@ -23,6 +23,7 @@ static func show(menu: SeasonMenu) -> void:
 	)
 	SeasonSpecialOrderUI.progress(menu)
 	SeasonRaincheckUI.progress(menu)
+	SeasonTransferUI.progress(menu)
 	for id: String in SeasonEarnedSponsors.ITEMS:
 		var card: VBoxContainer = SeasonPlayerCard.panel(menu._body)
 		var item: Dictionary = SeasonSponsorCatalog.item(id)

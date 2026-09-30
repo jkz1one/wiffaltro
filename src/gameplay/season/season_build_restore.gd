@@ -60,6 +60,8 @@ static func restore(
 		keys.append("order_start")
 	if value.version >= 24:
 		keys.append("rain_start")
+	if value.version >= 25:
+		keys.append("transfer_start")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -169,6 +171,11 @@ static func restore(
 		if value.rain_start != null and (not value.rain_start is bool or result._market != 0):
 			return null
 		result._rain_start = value.rain_start
+	if value.version >= 25:
+		if value.transfer_start != null:
+			if not value.transfer_start is bool or result._market != 0:
+				return null
+		result._transfer_start = value.transfer_start
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null

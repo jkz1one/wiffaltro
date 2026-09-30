@@ -49,6 +49,9 @@ static func eligible(build: SeasonBuild) -> Dictionary:
 	if build._format >= 24 and build._rain_start != null:
 		if build._rain_start or build._rain_earned:
 			earned.append("G01")
+	if build._format >= 25 and build._transfer_start != null:
+		if build._transfer_start or build._transfer_earned:
+			earned.append("F07")
 	return SeasonSponsorCatalog.eligible(
 		build._bank.view().sponsors,
 		build._sponsor_catalog_version(),
