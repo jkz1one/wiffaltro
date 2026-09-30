@@ -1,5 +1,25 @@
 # Implementation Status
 
+## Shared equipped lightbox, live sales and final UI commitment, 2026-09-30
+
+The user explicitly requested one clear equipped view, reachable from the same place in and
+between games, and a final high-end UI pass based on world-class references. The shared
+EQUIPPED utility now covers menus, shop and managed games. Its Gear/Sponsors/Supplies lightbox
+shows actual owned items and current game availability, freezes play for inspection and keeps
+purchases and activation in their established flows. User-approved in-game Gear and sponsor
+sales now save refunds immediately and retain active effects until the next batter. Failed saves
+roll back, restarts preserve sales, and completed first-release Gear use remains provable after
+a sale. Build22/schema26 replays the attempt and sale history. Verification is recorded in
+VERIFICATION.md.
+
+The whole-project estimate remains approximately72%. This UI foundation is not the required
+final polish slice or native visual/human approval. The final integration/acceptance category
+remains0/2 until its product-wide reference, visual-system, rendered review and interaction
+acceptance work is actually completed. Functional content gaps remain unchanged:21/35 sponsors,
+23/25 Gear candidates, additional AI acquisition, player-card contracts, higher League/tier and
+stadium systems. Approved UI direction, Working styling/effects and unapproved Proposals retain
+separate status.
+
 ## First earned sponsors and persistent feat access, 2026-09-30
 
 Local Legends and Encore Energy now include prospective career/game unlocks, ordinary paid

@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 21
+const VERSION: int = 22
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -61,6 +61,7 @@ var _budget_from: int = 1
 var _film_from: int = 1
 var _scouts: Dictionary = {}
 var _pregames: Dictionary = {}
+var _match_inventory: Dictionary = {}
 var _scholarships: Dictionary = {}
 var _used_gear: Dictionary = {}
 var _income_by_game: Dictionary = {}
@@ -248,6 +249,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_legends = next._legends
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
+	_match_inventory = next._match_inventory
 	_scouts = next._scouts
 	_appeared = next._appeared
 	return {"ok": true, "replayed": replayed}
@@ -315,6 +317,7 @@ func _fork() -> SeasonBuild:
 	result._film_from = _film_from
 	result._scouts = _scouts.duplicate(true)
 	result._pregames = _pregames.duplicate(true)
+	result._match_inventory = _match_inventory.duplicate(true)
 	result._scholarships = _scholarships.duplicate(true)
 	result._used_gear = _used_gear.duplicate()
 	result._income_by_game = _income_by_game.duplicate(true)
@@ -330,11 +333,15 @@ func _apply(command: Dictionary) -> String:
 	var op: String = str(command.get("op", ""))
 	if pack_pending() and op not in ["pack_pick", "pack_skip", "leave_shop"]:
 		return "Choose or skip the open pack before leaving or doing other shopping."
+	if op in ["match_inventory", "match_sell"]:
+		return SeasonMatchInventory.commit(self, command)
 	if op == "scout":
 		return SeasonFilmRoom.commit(self, command)
 	if op == "pregame":
 		return SeasonBudgetBites.commit(self, command)
 	if op == "reward":
+		if not _match_inventory.is_empty() and command.get("game") != _match_inventory.game:
+			return "Complete the current inventory attempt first."
 		var fields: Array = ["game", "win"]
 		if _format >= 6 and command.has("performance"):
 			fields.append("performance")
@@ -371,6 +378,7 @@ func _apply(command: Dictionary) -> String:
 			if not error.is_empty():
 				return error
 		_gear_progress.settle(self, command)
+		_match_inventory.clear()
 		_sponsor_progress.settle(self, command)
 		SeasonLegends.settle(self, command.get("performance", {}))
 		_game_rosters[int(command.game)] = roster()

@@ -26,6 +26,7 @@ func _ready() -> void:
 	var margin: MarginContainer = MarginContainer.new()
 	for edge: String in ["left", "top", "right", "bottom"]:
 		margin.add_theme_constant_override("margin_" + edge, 16)
+	margin.add_theme_constant_override("margin_bottom", 76)
 	panel.add_child(margin)
 	var layout: VBoxContainer = VBoxContainer.new()
 	margin.add_child(layout)
@@ -63,6 +64,10 @@ func _ready() -> void:
 	_review_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_review_scroll.add_child(_review_text)
 	_refresh()
+	var loadout: SeasonLoadoutUI = SeasonLoadoutUI.new()
+	loadout.app = app
+	loadout.shop = self
+	add_child(loadout)
 
 
 func _refresh() -> void:

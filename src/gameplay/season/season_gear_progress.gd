@@ -67,7 +67,7 @@ func settle(build: SeasonBuild, command: Dictionary) -> void:
 		return
 	# Called only after receipt-specific first-release/performance validation succeeds.
 	var items: Array[String] = []
-	for receipt: Dictionary in build._bank.view().gear.values():
+	for receipt: Dictionary in SeasonMatchInventory.gear(build).values():
 		if not receipt.is_empty() and command.get("used_gear", []).has(receipt.id):
 			if tracked(receipt.item):
 				items.append(receipt.item)

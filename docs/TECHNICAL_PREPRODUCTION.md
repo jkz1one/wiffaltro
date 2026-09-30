@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.50
+**Version:** v0.1.51
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,44 @@
 ---
 
 # 1. Technical Objective
+
+## Shared loadout lightbox and atomic live sales, 2026-09-30
+
+`SeasonLoadoutUI` is a shared CanvasLayer component mounted by SeasonApp and by the shop's
+Window. Its bottom-center entry reserves a44-pixel target and menu/footer space. Gear, Sponsors
+and Supplies tabs share a bounded scroll body; Close stays outside the scroll. Modal focus stays
+inside, Escape/outside clicks dismiss without forwarding an action, and closing a running match
+releases GUI focus so Space returns to pitching rather than reopening the utility.
+
+`SeasonLoadoutData` derives display rows from the existing ownership/catalog data without
+writing a save. SeasonApp captures the detached paid wallet after pregame commitment and before
+launching the match. Live supply rows merge held non-tactical cards with actual remaining match
+copies, and report consumed copies separately. Local Legends uses the match-definition stamp
+snapshot; Encore reads its live allowance. The projection deliberately avoids effect helpers
+that can mutate runtime state. Exhibitions receive an empty seasonal snapshot.
+
+During live inspection, the component preserves prior debug/tree pause flags, freezes actors,
+lab updates and camera input, and blocks lab shortcuts. It cancels an uncommitted release before
+opening. Closure and teardown restore the correct state. The final product-wide UI pass is
+now an explicit user-required final slice; scope and native/human acceptance gates are recorded
+in SOURCE_OF_TRUTH.md. This component is a functional candidate, not final art-direction approval.
+
+Build22/schema26 adds replayed `match_inventory` and `match_sell` events. Pregame save records a
+fresh attempt snapshot after the once-fixture grant. Sales validate exact owned receipts, fixture,
+revision and first-release evidence, derive the existing refund from the paid copy and publish the
+candidate only after a successful atomic save. A failed write rolls back the candidate and leaves
+runtime effects unchanged. Existing restore migration preserves prior stock/catalog boundaries;
+AI policy1 remains build19. No independent editable balance or attempt blob is saved.
+
+`SeasonMatchSales` queues sold runtime copies until `can_change_defense()`. SeasonApp checks the
+boundary and MatchState emits an inventory hook before the next batter's first pitch, preventing
+a same-frame release from using stale modifiers. Only definitions change: player instances,
+stamina, pitch counts, spent Encore and other resources remain intact. Paid ownership disappears
+immediately, but the lightbox labels pending effects until retirement. A restarted attempt reads
+only current ownership. Gear evidence keeps the exact first-release copies through settlement,
+so sold Gear can earn completed-use progress without regaining ownership or Reclamation credit.
+Current ownership determines subsequent sponsor income and stamps. Confirmation defaults to
+Cancel, displays exact Cash before/after and reports failed persistence in the underlying modal.
 
 ## Prospective sponsor evidence, copy stamps and safe return, 2026-09-30
 

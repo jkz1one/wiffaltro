@@ -51,6 +51,8 @@ static func initialize(lab: PitchBatLab) -> void:
 
 
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
+	if lab.has_meta("loadout_open"):
+		return
 	lab._pitch_feedback.advance(lab, delta_seconds)
 	if lab._debug_paused:
 		_update_camera(lab, delta_seconds)

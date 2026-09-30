@@ -1,6 +1,8 @@
 class_name MatchState
 extends RefCounted
 
+signal inventory_boundary
+
 enum Phase {
 	PRE_PITCH,
 	PITCH_IN_FLIGHT,
@@ -72,6 +74,8 @@ func fielder() -> PlayerMatchState:
 func begin_pitch() -> bool:
 	if phase != Phase.PRE_PITCH:
 		return false
+	if between_batters:
+		inventory_boundary.emit()
 	pitch_disclosure.clear()
 	_between_batters_before_pitch = between_batters
 	phase = Phase.PITCH_IN_FLIGHT

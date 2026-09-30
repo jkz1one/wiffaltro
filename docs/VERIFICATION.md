@@ -1,5 +1,81 @@
 # Fast verification and playtest records
 
+## Shared equipped lightbox, live sales and safe effect retirement, 2026-09-30
+
+Final verification covers all78 checks across full run `20260930T150344996548Z` and focused
+rerun `20260930T151653896392Z`. The full run passed76/78 and all30 complete physical games;
+its only failures were the two outdated restart-revision assertions described below. After
+updating those assertions, the focused rerun passed9/9 (seven common gates plus both affected
+scenes). Production code, assets and the runner remained byte-identical across the full and
+focused runs; only those two test files changed. There were no engine warnings in the full run.
+This is combined final-tree coverage, not a claim that the earlier full invocation was green.
+Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains an ancestor and the preserved
+PROGRESSION_BLUEPRINT.md is byte-identical to main. No merge or deployment is included.
+
+Focused run `20260930T141910193041Z` passed8/8 checks. The new scene uses actual viewport
+clicks, keys and a synthetic controller-cancel event, with generated paid E05/G05, tactical
+supplies and Gear acquired through the existing transaction paths. It verifies the same176×44
+EQUIPPED entry at(552,668) across five season menu pages and managed games in the1280×720
+viewport, separate from the reserved season footer. The shop uses the same component in its
+own viewport, with only that window's entry enabled while it is open.
+
+The centered panel measures900×552 at1280×720 and1000×650, and668×368 at700×400. Close and
+scroll body remain inside the panel; card content has no horizontal clipping. Actual tabs,
+empty slot defaults, two-stamp Local Legends, current-game Encore use, held and spent supplies
+and a newly purchased/reloaded Bat are inspected. Ten Tab traversals and repeated directional
+navigation stay inside the modal. Controller B, Escape, Close and an outside click dismiss it.
+Focus returns to the entry in menus; running-game closure releases GUI focus so Space remains
+a gameplay input. Existing pause state is preserved when inspecting from a paused match.
+
+While the lightbox is open, match elapsed time, plate appearance, camera transform and restart
+shortcuts stay frozen. A real released pitch retains its exact flight elapsed time across15
+physics frames and advances after closing. Opening during a charge cancels the uncommitted
+release. Paid Recovery consumption appears only in the spent list; the remaining Tape stays
+held. Leaving an unfinished match with the modal open restores normal tree state and retains
+the original paid bag in the save. Exhibitions show no borrowed seasonal sponsors. Menu/live
+inspection preserves build data and file bytes; purchase changes appear after reload and in
+an actual match. These are automated interaction/geometry/physics observations, not aesthetics.
+
+The earlier lightbox-only full run `20260930T141945780067Z` passed75/76 checks, including all
+physical games, but exposed a UI-test timing failure in club-career after a failed-save page
+rebuild. The shared click helper now lets wrapping/deferred focus settle before scrolling and
+asserts that the target lies inside every containing scroll viewport. Follow-up
+`20260930T145841057809Z` passed9/9 including club-career and the lightbox. Development runs also
+caught sizing/teardown, controller focus and typed-fixture mistakes. Failed or partial runs are
+not counted as final-tree verification. Approved/Working/Proposal labels remain unchanged.
+
+The live-sale full regression also exposed two older restart assertions in Film Room and Budget
+Bites that compared the complete build revision. A restart now legitimately appends an inventory
+attempt. Both checks now require exactly one new same-fixture `match_inventory` event and compare
+all remaining view fields unchanged, preserving their no-retarget/no-extra-grant guarantees.
+Production source remained fixed during this run; only these two test assertions were updated.
+
+Focused sales run `20260930T150209074737Z` passed9/9. Actual menu clicks verify exact refund
+review, Cancel focus, cancellation without writes, failed-save rollback, retry, duplicate
+confirmation rejection and reload before queued effects retire. A real released pitch retains
+its paid Gear through the active PA; another pitch in the same PA cannot retire it. The next
+batter's begin-pitch hook removes the effect before release, preserving stamina. A sale before
+the first release removes the Gear from use evidence. Generated paid two-stamp E05 and G05
+copies sell during active play, retain their current effects until the boundary, then retire
+without resetting spent Encore. Both refunds survive unfinished-game exit/reload, and a
+wrong-fixture sale is rejected during journal replay.
+
+The new physical sales game uses generated, paid BAT-CON-01/BALL-MOV-01 (seed54) in a tracked
+career season. One copy sells during real pitch flight and the other during a real swing. No
+actor resets, both effects retire at natural PA boundaries, and the game finishes Yard Club0–11
+Lanterns in three innings with120 records and30 balls in play. The complete result accepts the
+saved first-release receipts and grants exactly one career use per sold copy. Save/reload keeps
+both copies sold and cannot resurrect Reclamation qualification. This is scripted physical
+integration evidence, not human gameplay or balance approval.
+
+A fresh native-display preflight again failed because Xvfb could not establish local/Unix
+listening sockets (`builds/verification/loadout-native-display.log`). No native screenshots,
+visual approval or physical controller-hardware test is claimed. The new scene supports
+`--rendered-ui` captures when a working display is available. The user-required final high-end
+UI pass, including attributed world-class references, a coherent visual system, rendered flow
+review and human acceptance, remains an explicit final slice in SOURCE_OF_TRUTH.md.
+The whole-project estimate remains approximately72%; final UI acceptance remains unfinished.
+
 ## Earned sponsors, copy stamps and confirmed pitcher return, 2026-09-30
 
 Full run `20260930T063542798649Z` passed75/75 checks and all29 complete physical games on

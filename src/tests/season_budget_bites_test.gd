@@ -283,7 +283,15 @@ func _budget_ui() -> void:
 	await _frames()
 	_check(_budget_label(app).text.contains("No new grant on restart"), "restart status visible")
 	await _click(_button(app.menu, "PLAY GAME"))
-	_check(app.season.build.view() == after, "unfinished restart cannot accumulate")
+	var restarted: Dictionary = app.season.build.view()
+	_check(restarted.revision == after.revision + 1, "restart records exactly one attempt")
+	restarted.revision = after.revision
+	_check(restarted == after, "unfinished restart cannot accumulate")
+	var attempt: Dictionary = app.season.build.to_data().events[-1]
+	_check(
+		attempt.op == "match_inventory" and attempt.game == game,
+		"the only new event is the same fixture's fresh inventory attempt"
+	)
 	app.leave_game()
 	await _frames()
 	app.season = restored

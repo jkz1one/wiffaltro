@@ -227,7 +227,15 @@ func _film_ui() -> void:
 	await _frames()
 	_check(app.menu.find_child("FilmRecipe", true, false) == null, "locked choice has no editor")
 	await _click(_button(app.menu, "PLAY GAME"))
-	_check(app.season.build.view() == committed, "stale draft and restart cannot retarget")
+	var restarted: Dictionary = app.season.build.view()
+	_check(restarted.revision == committed.revision + 1, "restart records exactly one attempt")
+	restarted.revision = committed.revision
+	_check(restarted == committed, "stale draft and restart cannot retarget")
+	var attempt: Dictionary = app.season.build.to_data().events[-1]
+	_check(
+		attempt.op == "match_inventory" and attempt.game == game,
+		"the only new event is the same fixture's fresh inventory attempt"
+	)
 	app.leave_game()
 	await _frames()
 	var foreign: SeasonState = _paid_film()

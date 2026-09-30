@@ -3,6 +3,8 @@ extends Node
 
 var season: SeasonState
 var menu: SeasonMenu
+var sales: SeasonMatchSales = SeasonMatchSales.new()
+var loadout: SeasonLoadoutUI
 var lab: PitchBatLab
 var notice: String = ""
 var film_game: int = -1
@@ -42,10 +44,14 @@ func _ready() -> void:
 	_continue.pressed.connect(finish_game)
 	_continue.hide()
 	canvas.add_child(_continue)
+	loadout = SeasonLoadoutUI.new()
+	loadout.app = self
+	add_child(loadout)
 	menu.show_home()
 
 
 func _process(_delta: float) -> void:
+	sales.apply_pending(self)
 	if lab != null and lab._match_state.phase == MatchState.Phase.GAME_END:
 		if not _result_recorded:
 			_commit_result()
@@ -150,12 +156,16 @@ func _open_match(
 	state: MatchState, player_home: bool, season_game: bool,
 	field_id: StringName = PitchBatLab.FIELD_ID
 ) -> void:
+	sales.pending.clear()
+	state.inventory_boundary.connect(sales.apply_pending.bind(self))
 	_season_game = season_game
 	_busy = false
 	_result_recorded = false
 	_result_saved = false
 	_continue.text = "CONTINUE"
 	_continue.tooltip_text = ""
+	loadout.close()
+	loadout.match_snapshot = SeasonLoadoutData.capture(season if season_game else null)
 	menu.hide()
 	lab = PitchBatLab.new()
 	lab.name = "ActiveMatch"
@@ -225,6 +235,7 @@ func leave_game() -> void:
 
 
 func _close_match() -> void:
+	loadout.close()
 	_continue.hide()
 	if lab != null:
 		PitchBatLabFeelSupport.reset_debug_pause(lab)

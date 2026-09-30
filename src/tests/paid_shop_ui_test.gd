@@ -168,15 +168,23 @@ func _click(button: Button) -> void:
 	_check(button != null, "requested button exists")
 	if button == null:
 		return
+	# Newly rebuilt pages settle wrapping and deferred focus before scrolling to the target.
+	await _frames()
+	var clips: Array[ScrollContainer] = []
 	var parent: Node = button.get_parent()
 	while parent != null and not parent is Window:
 		if parent is ScrollContainer:
 			parent.ensure_control_visible(button)
+			clips.append(parent)
 		parent = parent.get_parent()
 	await _frames()
 	var viewport: Viewport = button.get_viewport()
 	var point: Vector2 = button.get_global_rect().get_center()
 	_check(viewport.get_visible_rect().has_point(point), "clicked button is actually in view")
+	for clip: ScrollContainer in clips:
+		_check(
+			clip.get_global_rect().has_point(point), "clicked button is inside its scroll viewport"
+		)
 	# Embedded windows receive OS-style mouse input through their containing viewport.
 	while viewport is Window and viewport.is_embedded():
 		point += Vector2(viewport.position)

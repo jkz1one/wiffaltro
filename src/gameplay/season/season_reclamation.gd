@@ -15,9 +15,12 @@ static func receipts(wallet: Dictionary) -> Array[String]:
 static func settle(build: SeasonBuild, evidence: Variant, performance: Dictionary) -> String:
 	if not evidence is Array or evidence.size() > 3:
 		return "Invalid first-pitch Gear evidence."
+	var first: Variant = build._match_inventory.get("first_pitch")
+	if first != null and evidence != first:
+		return "Completed Gear evidence differs from the saved first release."
 	if evidence.is_empty():
 		return ""
-	var actual: Array[String] = receipts(build._bank.view())
+	var actual: Array[String] = receipts({"gear": SeasonMatchInventory.gear(build)})
 	var submitted: Array[String] = []
 	for id: Variant in evidence:
 		if not id is String or submitted.has(id):
@@ -27,7 +30,8 @@ static func settle(build: SeasonBuild, evidence: Variant, performance: Dictionar
 	if submitted != actual or performance.is_empty():
 		return "Used Gear must match the completed game's equipped paid copies."
 	for id: String in submitted:
-		build._used_gear[id] = true
+		if not SeasonOwnership._owned(build._bank.view(), id).is_empty():
+			build._used_gear[id] = true
 	return ""
 
 

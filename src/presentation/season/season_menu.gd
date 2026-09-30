@@ -17,6 +17,7 @@ func build(owner_app: SeasonApp) -> void:
 	var style: StyleBoxFlat = ClubhouseTheme.surface(false, 32)
 	style.content_margin_left = 44
 	style.content_margin_right = 44
+	style.content_margin_bottom = 76
 	style.bg_color = ClubhouseTheme.INK
 	style.set_border_width_all(0)
 	style.set_corner_radius_all(0)

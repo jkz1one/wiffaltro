@@ -53,6 +53,18 @@ static func save(app: SeasonApp) -> bool:
 		if not result.ok:
 			app.notice = result.error
 			return false
+	if next._format >= 22:
+		var recorded: Dictionary = next.commit(
+			{
+				"id": "attempt:%d" % next.revision(),
+				"rev": next.revision(),
+				"op": "match_inventory",
+				"game": fixture_id
+			}
+		)
+		if not recorded.ok:
+			app.notice = recorded.error
+			return false
 	app.season.build = next
 	if app._checkpoint():
 		return true

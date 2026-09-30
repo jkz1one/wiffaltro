@@ -1,11 +1,63 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.59
+**Version:** v0.4.60
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Shared equipped view, live sales and required final UI polish, 2026-09-30
+
+**Approved by the user in this engineering thread:** equipped items must be clear, attractive
+and easily accessible both during and between games. One centralized button should occupy the
+same position and open a concise lightbox. The final planned implementation slice must be a
+high-end UI polish pass informed by world-class interface references. This requirement does
+not promote existing gameplay/economy Working candidates or unapproved Proposals.
+
+**Also Approved by the user:** Gear and sponsors can be sold during a game, including during
+a pitch or swing. An already active play keeps its effect until the next appropriate boundary.
+The current Working implementation uses the next between-batters boundary, retaining effects
+through the entire active plate appearance. Sale/refund saves immediately; leaving or restarting
+does not undo ownership removal. Cancel or a failed save changes neither ownership nor effects.
+
+The first implementation uses a bottom-center **EQUIPPED** utility across season menus and
+managed games, with the same component inside the shop window. A dimmed, centered lightbox
+separates Gear, Sponsors and Supplies. It shows slot defaults, owned effects, copy-specific
+stamps, live Encore availability, held versus spent supplies and between-game-only cards.
+The same lightbox offers explicit in-game sale review for owned Gear and sponsors, with the
+exact Cash refund and effect timing. Pending copies are marked SOLD and cannot be sold again.
+Purchasing and supply activation retain their established flows. Match data uses a detached
+ownership snapshot updated only as sold effects retire, plus current runtime consumption.
+Sold sponsors receive no future postgame income or copy stamps; completed prior payouts remain.
+Live Gear sales grant only the existing Cash refund, not shop-only Reclamation reroll credit.
+First-release Gear evidence survives a later sale for completed-game progression, while an
+unfinished restart begins a fresh attempt using only the remaining owned Gear. Opening freezes simulation and camera updates;
+closing restores the previous pause state. An uncommitted pitch charge is canceled safely.
+Season navigation reserves room for the utility; the modal scrolls within smaller windows.
+Exact styling and this bottom-center placement remain an implementation candidate pending
+native visual and human acceptance of the Approved interaction direction.
+
+### Final UI slice is a required acceptance gate
+
+After the source-supported functional systems are implemented, perform a cohesive product-wide
+UI pass covering title/clubhouse, draft and roster, pregame, gameplay HUD and pause, equipped
+lightbox, shop and transaction reviews, postgame, progression, career and stadium flows that
+exist by then. Do not substitute isolated menu recolors or an unimplemented mockup for this slice.
+
+At that phase, inspect and attribute primary visual references from top-tier game inventories,
+shops, progression menus and sports HUDs. Select a coherent Wiffaltro art direction from that
+research. Apply consistent typography, spacing, component hierarchy, iconography, contrast,
+focus/hover/disabled states, feedback and restrained motion. The exact reference set and visual
+system are not yet selected or approved. Retain concise player-facing copy and explicit
+transaction costs, replacements, conditions and unavailable-action explanations.
+
+Verify the actual running UI at supported resolutions with mouse and keyboard/controller
+navigation where supported; inspect dense/full inventory, empty states, long names, failed
+writes, modal stacking, canceled actions and return-to-game behavior. Produce native rendered
+captures of the complete flow and perform a human visual/feel review. Automated geometry/input
+passes alone cannot close this gate. Native display access is currently blocked in this runtime;
+that limitation must remain visible rather than being counted as completed visual acceptance.
 
 ## Earned Local Legends and Encore Energy, 2026-09-30
 
