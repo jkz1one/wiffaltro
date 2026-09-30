@@ -22,6 +22,7 @@ var away_team: TeamMatchState
 var home_team: TeamMatchState
 var bases: BaseState = BaseState.new()
 var performance: MatchPerformance = MatchPerformance.new()
+var cold: MatchColdStreak = MatchColdStreak.new()
 var pitch_ledger: MatchPitchLedger = MatchPitchLedger.new()
 var phase: Phase = Phase.PRE_PITCH
 var inning: int = 1
@@ -103,6 +104,7 @@ func record_ball() -> StringName:
 		var batter_id: StringName = batter().definition.id
 		var runs_scored: int = bases.advance_for_walk(batter_id)
 		performance.complete(batter_id, pitcher().definition.id, "walk", runs_scored)
+		cold.complete(self, "walk")
 		batting_team().tactics.checkout.walk(self, batting_team())
 		_add_runs(runs_scored)
 		_complete_plate_appearance("Walk")
@@ -115,6 +117,7 @@ func record_strike(swinging: bool = true) -> StringName:
 	strikes += 1
 	if strikes >= STRIKES_FOR_OUT:
 		performance.complete(batter().definition.id, pitcher().definition.id, "strikeout", 0)
+		cold.complete(self, "strikeout")
 		SeasonSponsorEffects.strikeout(self)
 		outs += 1
 		_complete_plate_appearance(
@@ -137,6 +140,7 @@ func record_ball_in_play_out(
 	description: String = "Out"
 ) -> void:
 	performance.complete(batter().definition.id, pitcher().definition.id, "out", runs_scored)
+	cold.complete(self, "out")
 	_add_runs(runs_scored)
 	outs += 1
 	_complete_plate_appearance(description)
@@ -148,6 +152,7 @@ func record_hit(result: BallPlayOutcome.Result) -> int:
 		"hr" if result == BallPlayOutcome.Result.HOME_RUN else _hit_name(result).to_lower()
 	)
 	performance.complete(batter_id, pitcher().definition.id, outcome, runs_scored)
+	cold.complete(self, outcome)
 	_add_runs(runs_scored)
 	_complete_plate_appearance(_hit_name(result), result == BallPlayOutcome.Result.SINGLE)
 	return runs_scored

@@ -1,5 +1,48 @@
 # Fast verification and playtest records
 
+## Frankie's Freezers: ordered outcomes, Cold and paid access, 2026-09-30
+
+Final affected-path run `20260930T223145180123Z` passed **29/29 checks** under Godot4.7.2:
+seven common revision/parse/lint/import gates plus 22 scenes, including six complete physical
+games. All 480 snapshotted source/test/asset/project/runner files stayed unchanged throughout;
+only documentation changed afterward. No engine warnings or errors appeared. Scope: Freezers
+menu/live, Association, Late Checkout, Second Chance, Transfer, Raincheck, Special Order,
+match-sales UI, Equipped, earned sponsors menu/live, Gear progression, career, opponents,
+tacticals, gameplay sponsors menu/live, misc Gear, ownership integration/ownership and core
+regressions. This is targeted coverage, not the complete suite or native visual approval.
+
+New contract checks cover independent hitters, out/walk/out, the two-stack cap, neutral
+uncompleted pitches, post-contact hit clearing, per-game reset, separate game streaks,
+intervening hits, loss-qualified access and inheritance without a free copy. Bat and Gloves
+fixtures compare the real contact resolver for both hands and swing types, additive Power
+scaling, Contact-only radius cost and unchanged timing. Ordered histories reconcile with
+box-score PA/hits/types/walks/strikeouts; malformed result evidence rolls back the whole
+reward. Mismatched saved sequences, counts, foreign IDs and inherited/current career flags
+are rejected. Build28/Career9 and earlier migration scenarios preserve old paid history.
+
+Seed48 supplies a real generated E10 offer after three controlled completed-result fixtures;
+normal purchase pays12 and resale pays6. Funding/unlock setup is controlled evidence, not an
+organic balance sample. Actual shop input covers Cancel, failed-write rollback, retry and
+saved ownership at700x400. Match readiness displays Cold2/2 and both modifiers; the coverage
+ellipse uses the shared profile. Equipped opens through its normal entry/tab and exposes
+all four hitters. Abandonment restarts with clean pregame Cold. These are headless geometry
+and interaction checks, not native/human visual acceptance.
+
+The three new physical games use match seed67: prospective access (119 pitch records,
+30 balls in play), paid Freezers (124/28), and a mid-swing sale (120/28). Actual ordered PA
+history is reconciled and saved; the prospective game's access is derived solely from its
+completed history. Real swings receive the authored coefficients. Failed sale writes retain
+the paid copy and Cold; successful retry saves the six-Cash refund while retaining the effect
+through that PA. The natural boundary retires E10 from the owning club, and restart cannot
+resurrect it. Completed-result save failure, reload, retry and repeated confirmation preserve
+one reward/history. Two prior earned-sponsor games and one prior gameplay-sponsor game pass.
+These synthetic drivers validate flow and integration, not balance or human play quality.
+
+Development iterations corrected new-field career matching, legacy fixture version handling,
+and a test-driver club assignment so the live-sale check retires the actual owning club's
+effect. Failed lint/selector-name development runs remain separate from this final scope.
+The previously recorded full-suite early exit and native-display limitation remain open.
+
 ## Neighborhood Association: paid access, grouped sales and migration, 2026-09-30
 
 Final affected-path run `20260930T215810354609Z` passed **28/28 checks** under Godot 4.7.2:

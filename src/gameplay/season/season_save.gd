@@ -86,7 +86,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 32) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 33) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -185,6 +185,13 @@ static func _decode(value: Variant) -> SeasonState:
 			for played: Dictionary in season.results:
 				if played.id == result.id:
 					played["tactics"] = result.tactics.duplicate(true)
+		if result.has("batting"):
+			if data.version < 33 or not result.batting is Dictionary:
+				return null
+			season.player_results[-1]["batting"] = result.batting.duplicate(true)
+			for played: Dictionary in season.results:
+				if played.id == result.id:
+					played["batting"] = result.batting.duplicate(true)
 	var lineup: Variant = data.get("lineup")
 	if not lineup is Array:
 		return null
@@ -237,6 +244,7 @@ static func _decode(value: Variant) -> SeasonState:
 			or season.build._supply_start != null
 			or season.build._checkout_start != null
 			or season.build._association_start != null
+			or season.build._freezer_start != null
 		)
 	):
 		return null
@@ -271,6 +279,8 @@ static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> boo
 			if event.get("used_gear", []) != result.get("used_gear", []):
 				return false
 			if event.get("tactics", []) != result.get("tactics", []):
+				return false
+			if event.get("batting", {}) != result.get("batting", {}):
 				return false
 			if event.has("performance"):
 				var saved: Variant = JSON.parse_string(JSON.stringify(event.performance))

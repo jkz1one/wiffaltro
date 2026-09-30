@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.58
+**Version:** v0.1.59
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,31 @@
 ---
 
 # 1. Technical Objective
+
+## Freezers, ordered batting evidence and Cold resolution, 2026-09-30
+
+Build29/schema33 adds nullable `freezer_start`; Career10 adds nullable per-run
+`freezer_earned`. Replay derives current-run access from optional `batting` evidence on
+completed rewards. The new catalog contribution is appended only to version29 signatures;
+old initial pools, paid receipts and displayed stock are unchanged on migration.
+
+`MatchColdStreak` records finalized per-player PA outcomes at MatchState's ordinary walk,
+strikeout, fielded-out and hit attribution hooks, before advancing the hitter. A PA guard
+prevents a repeated hook from adding another history entry. Independent runtime Cold only
+accumulates while E10 is active; histories record ordinary results without ownership.
+`SeasonFreezers` reconciles every club hitter's ordered outcomes against PA, hit types,
+walks and strikeouts in the validated completed box score. It derives breakout access from
+those sequences. Reward, evidence and career publication share the existing atomic save;
+failed writes can retry without recording another result. Save decode also requires exact
+agreement between result evidence and the build's reward journal. Old evidence-free results
+remain legal and cannot retrospectively earn this feat.
+
+`SeasonSponsorEffects.swing` applies Cold after Gear/Deli/Legends and before Optics/tactics.
+Power adds its term before the separate misc exit penalty; Contact subtracts from the
+Bat-adjusted radii before separate misc scaling. Existing fair-only contact resolution
+consumes the derived profile. Readiness and the existing coverage ellipse use the actual
+runtime count; Equipped exposes all roster counts. The ordinary live-sale retirement path
+removes E10 at the safe PA boundary, while completed-outcome evidence remains independent.
 
 ## Association progression and grouped sale integration, 2026-09-30
 

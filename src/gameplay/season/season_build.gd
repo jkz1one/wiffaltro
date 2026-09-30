@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 28
+const VERSION: int = 29
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -55,7 +55,9 @@ var _transfer_earned: bool = false
 var _checkout_start: Variant = null
 var _checkout_earned: bool = false
 var _association_start: Variant = null
+var _freezer_start: Variant = null
 var _association_earned: bool = false
+var _freezer_earned: bool = false
 var _supply_start: Variant = null
 var _supply_used: int = 0
 var _insurance: Dictionary = {}
@@ -235,6 +237,8 @@ func to_data() -> Dictionary:
 		data["checkout_start"] = _checkout_start
 	if _format >= 28:
 		data["association_start"] = _association_start
+	if _format >= 29:
+		data["freezer_start"] = _freezer_start
 	return data
 
 
@@ -288,7 +292,9 @@ func commit(command: Dictionary) -> Dictionary:
 	_checkout_start = next._checkout_start
 	_checkout_earned = next._checkout_earned
 	_association_start = next._association_start
+	_freezer_start = next._freezer_start
 	_association_earned = next._association_earned
+	_freezer_earned = next._freezer_earned
 	_supply_start = next._supply_start
 	_supply_used = next._supply_used
 	_insurance = next._insurance
@@ -359,7 +365,9 @@ func _fork() -> SeasonBuild:
 	result._checkout_start = _checkout_start
 	result._checkout_earned = _checkout_earned
 	result._association_start = _association_start
+	result._freezer_start = _freezer_start
 	result._association_earned = _association_earned
+	result._freezer_earned = _freezer_earned
 	result._supply_start = _supply_start
 	result._supply_used = _supply_used
 	result._insurance = _insurance.duplicate(true)
@@ -411,6 +419,8 @@ func _apply(command: Dictionary) -> String:
 		if not _match_inventory.is_empty() and command.get("game") != _match_inventory.game:
 			return "Complete the current inventory attempt first."
 		var fields: Array = ["game", "win"]
+		if _format >= 29 and command.has("batting"):
+			fields.append("batting")
 		if _format >= 6 and command.has("performance"):
 			fields.append("performance")
 		if _format >= 10 and command.has("used_gear"):
@@ -430,7 +440,10 @@ func _apply(command: Dictionary) -> String:
 		)
 		if not result.ok or result.replayed:
 			return "This fixture cannot pay again."
-		var error: String = _settle_sponsors(command)
+		var error: String = SeasonFreezers.settle(self, command)
+		if not error.is_empty():
+			return error
+		error = _settle_sponsors(command)
 		if not error.is_empty():
 			return error
 		if _format >= 10:
@@ -718,6 +731,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonLateCheckout.ITEMS).sha256_text()
 	if format_version >= 28:
 		base += ":" + JSON.stringify(SeasonAssociation.ITEMS).sha256_text()
+	if format_version >= 29:
+		base += ":" + JSON.stringify(SeasonFreezers.ITEMS).sha256_text()
 	return base
 
 

@@ -438,12 +438,14 @@ func _migrate_earned() -> void:
 	season.build._supply_start = null
 	season.build._checkout_start = null
 	season.build._association_start = null
+	season.build._freezer_start = null
 	season.career.runs[-1].order_rerolls = null
 	season.career.runs[-1].rain_earned = null
 	season.career.runs[-1].transfer_earned = null
 	season.career.runs[-1].supplies_used = null
 	season.career.runs[-1].checkout_earned = null
 	season.career.runs[-1].association_earned = null
+	season.career.runs[-1].freezer_earned = null
 	season.build._sponsor_progress = SeasonSponsorProgress.new()
 	season.career.runs[-1].sponsors = null
 	_result(season, ["single", "double", "triple"], 2)
@@ -458,6 +460,7 @@ func _migrate_earned() -> void:
 		run.erase("supplies_used")
 		run.erase("checkout_earned")
 		run.erase("association_earned")
+		run.erase("freezer_earned")
 	var old: SeasonState = SeasonSave._decode(data)
 	_check(old != null, "career2 restores")
 	if old != null:

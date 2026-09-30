@@ -1,13 +1,13 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-09-30 after Neighborhood Association integration and affected-path verification.
+Updated 2026-09-30 after Frankie's Freezers integration and affected-path verification.
 
 ## Resume here
 
 - Repository: `jkz1one/wiffaltro`.
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
-  completes Second Chance Supply, Late Checkout Motel and Neighborhood Association.
+  completes Second Chance Supply, Late Checkout Motel, Neighborhood Association and Freezers.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -42,7 +42,37 @@ Ordinary historical purchase/Wholesale receipt identities remain unchanged on mi
 Final run `20260930T215810354609Z` passed 28/28 checks with three complete games and 474
 unchanged source files. Native rendered/human visual acceptance remains outstanding.
 
-## Latest slice details and next work
+Freezers completes Build29/schema33/Career10. Final run `20260930T223145180123Z` passed
+29/29 checks (22 scenes plus seven gates), six complete physical games, no engine warnings
+or errors, and 480 unchanged source files. Native/human visual acceptance remains open.
+Publication uses the authorized engineering branch only; use `git log -1` for its exact SHA.
+
+## Freezers continuation details
+
+Freezers adds Build29/schema33/Career10 and `SeasonFreezers`/`MatchColdStreak`. Current source
+is Equipment/Sponsors v18, access 294–311 and line448 balance (+3% Power / −4% Contact per
+Cold); Blueprint v114 current E10 annex4067–4114 supplies lifecycle details. The older shop
+reservation E10 proposal is superseded by Raincheck and must not be revived.
+
+`freezer_start` is nullable and prospective; current `_freezer_earned` is replay-derived from
+completed `batting` sequences. Every saved per-player sequence must reconcile to box-score
+PA, hits/types, walks and strikeouts. SeasonApp passes the actual managed team's evidence;
+synthetic historical APIs may omit it and earn nothing. Result records and reward journals
+must agree. No streak carries across games or old saves, and no paid power is needed to earn.
+
+Runtime Cold is per hitter, capped two, walk-neutral, hit-cleared after contact. Swing
+modifiers add to the relevant Gear quantity before misc scaling, then existing Optics/tactics
+apply. Readiness, coverage ellipse and Equipped expose the actual effect. Sales use the
+existing safe boundary and preserve completed evidence. New tests cover paid generated stock,
+box-score validation, UI, physical games, live retirement and retry.
+
+Seven remaining earned sponsors: B01 Field Supply, E09 Carbon Copy, F06 Left Right Moving,
+F08 Sure Shot, F09 Double Major, G02 Small Batch and J04 Jumpstart. Read full current contracts
+before choosing. F08 requires a real execution-direction decomposition and shared timed
+human/AI recipe disclosures; do not fabricate either term or hidden AI knowledge. Final UI
+polish with actual rendered and human acceptance remains the last implementation slice.
+
+## Previous Association slice details
 
 Current source: Equipment/Sponsors v18 access 294–311 and capacity 469–508; retained Blueprint
 v114 J05 5268–5292. Working values and Approved active-only ownership remain distinct.
@@ -97,8 +127,8 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 27 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
-tactical supplies. Eight earned sponsor contracts, further AI acquisition, player-card contracts,
+There are 28 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+tactical supplies. Seven earned sponsor contracts, further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the
 counts alone are not a specification. Do not infer completion from older historical checklist entries.

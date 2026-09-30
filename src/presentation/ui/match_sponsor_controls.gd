@@ -5,6 +5,7 @@ extends Node
 var _lab: PitchBatLab
 var _choice: Button
 var _anchor_choice: Button
+var _cold: Label
 
 
 func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
@@ -33,6 +34,17 @@ func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	lab._field_setup_panel.add_child(_anchor_choice)
 	lab._field_setup_panel.move_child(_anchor_choice, 2)
 	_anchor_choice.hide()
+	_cold = Label.new()
+	_cold.name = "ColdStreak"
+	_cold.position = Vector2(420, 524)
+	_cold.size = Vector2(440, 48)
+	_cold.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cold.add_theme_font_size_override("font_size", 16)
+	_cold.add_theme_constant_override("outline_size", 4)
+	_cold.add_theme_color_override("font_outline_color", Color("102332"))
+	_cold.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(_cold)
+	_cold.hide()
 	_build_ellipse()
 
 
@@ -77,6 +89,20 @@ func _process(_delta: float) -> void:
 					else "Locked until next batter"
 				)
 			]
+		)
+	_cold.visible = (
+		_lab._match_mode
+		and _lab._match_state != null
+		and _lab._player_is_batting()
+		and _lab._awaiting_batter_confirm
+		and _lab._match_state.batter().definition.season_sponsors.get("E10", false)
+		and not _lab._match_presentation_director.blocks_gameplay()
+	)
+	if _cold.visible:
+		var count: int = _lab._match_state.cold.stacks(_lab._match_state.batter())
+		_cold.text = (
+			"COLD %d/2 • Frankie's Freezers\nPower +%d%% speed • Contact −%d%% coverage"
+			% [count, count * 3, count * 4]
 		)
 	refresh_ellipse(_lab)
 
@@ -139,6 +165,7 @@ static func refresh_ellipse(lab: PitchBatLab) -> void:
 		and lab._match_state != null
 		and (
 			lab._match_state.batter().definition.season_sponsors.get("F03", false)
+			or lab._match_state.batter().definition.season_sponsors.get("E10", false)
 			or (
 				lab._match_state.batting_team().tactics.active(lab._match_state)
 				in ["A10", MatchTactics.COMBO]

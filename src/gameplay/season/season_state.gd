@@ -132,6 +132,7 @@ func choose_player(id: String) -> bool:
 			var transfer_start: Variant = build._transfer_start
 			var checkout_start: Variant = build._checkout_start
 			var association_start: Variant = build._association_start
+			var freezer_start: Variant = build._freezer_start
 			var supply_start: Variant = build._supply_start
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
 			build._gear_progress = progress
@@ -142,6 +143,7 @@ func choose_player(id: String) -> bool:
 			build._supply_start = supply_start
 			build._checkout_start = checkout_start
 			build._association_start = association_start
+			build._freezer_start = freezer_start
 		if opponents != null:
 			opponents.initialize(self)
 		for team in range(6):
@@ -194,7 +196,8 @@ func record_player_result(
 	home_runs: int,
 	performance: Dictionary = {},
 	used_gear: Array = [],
-	tactics: Array = []
+	tactics: Array = [],
+	batting: Dictionary = {}
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
@@ -219,6 +222,8 @@ func record_player_result(
 		if build == null or build.to_data().version < 14:
 			return false
 		command["tactics"] = tactics.duplicate(true)
+	if not batting.is_empty():
+		command["batting"] = batting.duplicate(true)
 	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
 	if not reward.ok:
 		return false
@@ -234,6 +239,8 @@ func record_player_result(
 		result["used_gear"] = used_gear.duplicate()
 	if command.has("tactics"):
 		result["tactics"] = tactics.duplicate(true)
+	if command.has("batting"):
+		result["batting"] = batting.duplicate(true)
 	results.append(result)
 	player_results.append(result.duplicate(true))
 	if phase == Phase.REGULAR:

@@ -10,7 +10,7 @@ static func snapshot(
 	for receipt: Dictionary in active:
 		if (
 			receipt.item
-			in ["A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08", "G05", "E04", "G03"]
+			in ["A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08", "G05", "E04", "G03", "E10"]
 		):
 			result[receipt.item] = true
 		elif receipt.item == "E05":
@@ -40,6 +40,7 @@ static func swing(source: SwingProfileDefinition, state: MatchState) -> SwingPro
 			+ 0.01 * clampi(int(player.season_sponsors.get("E05", 0)), 0, 4)
 		)
 		result.gear_fair_exit_scale += bonus * float(misc.get("exit", 1.0))
+	state.cold.swing(result, source, state.batter())
 	if source.id == &"swing.contact" and player.season_sponsors.get("F03", false):
 		var axes: Vector2 = optics_axes(state.optics_mode)
 		result.contact_radius_x_m *= axes.x

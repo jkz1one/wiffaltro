@@ -66,8 +66,13 @@ func _process(_delta: float) -> void:
 
 func ask_new_season() -> void:
 	if season != null or FileAccess.file_exists(SeasonSave.path):
-		_confirm("Start a new season? An unfinished season is abandoned without Club Bucks. "
-			+ "Saved club history and earned rewards remain.", menu.show_preseason)
+		_confirm(
+			(
+				"Start a new season? An unfinished season is abandoned without Club Bucks. "
+				+ "Saved club history and earned rewards remain."
+			),
+			menu.show_preseason
+		)
 	else:
 		menu.show_preseason()
 
@@ -75,15 +80,25 @@ func ask_new_season() -> void:
 func begin_season(seed_value: int = -1, working_progression: bool = false) -> void:
 	var selected_seed: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
 	var previous: SeasonState = season
-	if previous == null and (
-		FileAccess.file_exists(SeasonSave.path) or FileAccess.file_exists(SeasonSave.path + ".bak")
+	if (
+		previous == null
+		and (
+			FileAccess.file_exists(SeasonSave.path)
+			or FileAccess.file_exists(SeasonSave.path + ".bak")
+		)
 	):
-		notice = ("The saved season could not be read. It was left untouched. "
-			+ "Restore it before starting another season.")
+		notice = (
+			"The saved season could not be read. It was left untouched. "
+			+ "Restore it before starting another season."
+		)
 		menu.show_home()
 		return
 	var candidate: SeasonState = SeasonState.create(
-		selected_seed if seed_value < 0 else seed_value, false, working_progression, working_progression)
+		selected_seed if seed_value < 0 else seed_value,
+		false,
+		working_progression,
+		working_progression
+	)
 	candidate.difficulty = 1
 	if working_progression or (previous != null and previous.career != null):
 		var club: ClubCareer = ClubCareer.new()
@@ -140,8 +155,9 @@ func play_season_game() -> void:
 		return
 	var fixture: Dictionary = season.pending_fixture()
 	_fixture_id = fixture["id"]
-	_open_match(season.make_match(), fixture["home"] == 0, true,
-		SeasonState.field_for_fixture(fixture).id)
+	_open_match(
+		season.make_match(), fixture["home"] == 0, true, SeasonState.field_for_fixture(fixture).id
+	)
 
 
 func play_exhibition() -> void:
@@ -157,7 +173,9 @@ func play_exhibition() -> void:
 
 
 func _open_match(
-	state: MatchState, player_home: bool, season_game: bool,
+	state: MatchState,
+	player_home: bool,
+	season_game: bool,
 	field_id: StringName = PitchBatLab.FIELD_ID
 ) -> void:
 	sales.pending.clear()
@@ -205,9 +223,17 @@ func _commit_result() -> bool:
 	if not _result_recorded:
 		var state: MatchState = lab._match_state
 		if not season.record_player_result(
-			_fixture_id, state.away_team.runs, state.home_team.runs, state.performance.snapshot(state),
+			_fixture_id,
+			state.away_team.runs,
+			state.home_team.runs,
+			state.performance.snapshot(state),
 			state.gear_usage.first_pitch,
-			(state.home_team if lab._player_home else state.away_team).tactics.consumed
+			(state.home_team if lab._player_home else state.away_team).tactics.consumed,
+			(
+				state.cold.evidence(state.home_team if lab._player_home else state.away_team)
+				if season.build != null and season.build._freezer_start != null
+				else {}
+			)
 		):
 			return false
 		_result_recorded = true
@@ -283,10 +309,13 @@ func _checkpoint() -> bool:
 
 func ask_progression_season() -> void:
 	_confirm(
-		"Start a Working progression test season? An unfinished season is abandoned with no payout. "
-		+ "Club Bucks and history remain. New Working seasons earn Working Club Bucks rewards. "
-		+ "Roster, mastery/equipment physics and the partial shop remain test candidates.",
-		begin_season.bind(-1, true))
+		(
+			"Start a Working progression test season? An unfinished season is abandoned with no payout. "
+			+ "Club Bucks and history remain. New Working seasons earn Working Club Bucks rewards. "
+			+ "Roster, mastery/equipment physics and the partial shop remain test candidates."
+		),
+		begin_season.bind(-1, true)
+	)
 
 
 func commit_shop(command: Dictionary) -> bool:

@@ -308,6 +308,8 @@ static func catalog(version: int = 11) -> Dictionary:
 
 
 static func item(id: String) -> Dictionary:
+	if SeasonFreezers.ITEMS.has(id):
+		return SeasonFreezers.ITEMS[id].duplicate(true)
 	if SeasonAssociation.ITEMS.has(id):
 		return SeasonAssociation.ITEMS[id].duplicate(true)
 	if SeasonLateCheckout.ITEMS.has(id):
@@ -344,6 +346,7 @@ static func ownership_catalog() -> Dictionary:
 	all_items.merge(SeasonSecondChance.ITEMS)
 	all_items.merge(SeasonLateCheckout.ITEMS)
 	all_items.merge(SeasonAssociation.ITEMS)
+	all_items.merge(SeasonFreezers.ITEMS)
 	for id: String in all_items:
 		result[id] = {
 			"kind": "sponsor",
@@ -369,6 +372,8 @@ static func eligible(active: Array, version: int = 11, earned: Array[String] = [
 			all_items[id] = SeasonTransfer.ITEMS[id]
 		elif SeasonSecondChance.ITEMS.has(id):
 			all_items[id] = SeasonSecondChance.ITEMS[id]
+		elif SeasonFreezers.ITEMS.has(id):
+			all_items[id] = SeasonFreezers.ITEMS[id]
 		elif SeasonAssociation.ITEMS.has(id):
 			all_items[id] = SeasonAssociation.ITEMS[id]
 		elif SeasonLateCheckout.ITEMS.has(id):

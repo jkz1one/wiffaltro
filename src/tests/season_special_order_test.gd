@@ -180,12 +180,14 @@ func _persistence_order() -> void:
 	legacy.build._supply_start = null
 	legacy.build._checkout_start = null
 	legacy.build._association_start = null
+	legacy.build._freezer_start = null
 	legacy.career.runs[-1].order_rerolls = null
 	legacy.career.runs[-1].rain_earned = null
 	legacy.career.runs[-1].transfer_earned = null
 	legacy.career.runs[-1].supplies_used = null
 	legacy.career.runs[-1].checkout_earned = null
 	legacy.career.runs[-1].association_earned = null
+	legacy.career.runs[-1].freezer_earned = null
 	_check(SeasonSave.save(legacy), "legacy tracked career fixture saves")
 	var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	old.career.version = 3
@@ -196,6 +198,7 @@ func _persistence_order() -> void:
 		run.erase("supplies_used")
 		run.erase("checkout_earned")
 		run.erase("association_earned")
+		run.erase("freezer_earned")
 	var migrated: SeasonState = SeasonSave._decode(old)
 	_check(
 		migrated != null and migrated.build._order_start == null,

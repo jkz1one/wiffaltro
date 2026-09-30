@@ -49,6 +49,12 @@ static func pages(app: SeasonApp) -> Dictionary:
 				"%d / 4 stamps • +%d%% Contact exit %s"
 				% [stamps, stamps, "this game" if live else "next game"]
 			)
+		elif receipt.item == "E10" and live:
+			var lines: Array[String] = []
+			for player: PlayerMatchState in team.roster:
+				lines.append(player.definition.display_name + " • " + state.cold.label(player))
+			item.effect += "\n" + "\n".join(lines)
+			status = "Cold resets next game; each hitter keeps their own streak"
 		elif receipt.item == "G03" and live:
 			status = "Transfer used this game" if team.tactics.checkout.used else "1 transfer remaining"
 			if not team.tactics.checkout.options(state, team).is_empty():

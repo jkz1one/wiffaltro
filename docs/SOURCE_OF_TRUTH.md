@@ -1,11 +1,34 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.67
+**Version:** v0.4.68
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Frankie's Freezers and individual Cold streaks, 2026-09-30
+
+E10 is the 28th supported **Working** sponsor candidate. Equipment/Sponsors v18 access
+294–311 and balance line 448 override the old numeric draft in Blueprint v114's current
+E10 annex, 4067–4114. A hitter's credited hit after two consecutive hitless at-bats in a
+completed game earns permanent future paid-shop eligibility. Walks/non-at-bats are neutral;
+streaks do not cross games or combine players. No win, free copy or guaranteed offer is
+required. The Uncommon seasonal copy costs 12 Cash at weight 1.0.
+
+Each hitter independently gains one Cold after a finalized hitless at-bat, capped at two.
+Each stack adds 3% fair Power exit speed and subtracts 4% Contact X/Y coverage. A hit uses
+the pre-contact stack count, then clears that hitter's Cold; a walk leaves it unchanged.
+Cold persists across innings and resets next game or abandoned restart. Existing Bat terms
+combine additively with Cold before the separate misc multiplier; Optics and tactical hooks
+retain their normal conditions and order. No timing, Power coverage, scoring or free-contact
+change is introduced. Working strength and intentional-out farming still need balance review.
+
+Readiness shows the active hitter's stacks and both modifiers. Equipped shows all four
+hitters and retains pending-sale status. Selling saves ownership/refund immediately and
+retires effects at the established next-batter boundary. The completed-result PA evidence
+remains available whether or not the sponsor is owned, and older active saves begin tracking
+with their next new Working season. Native/human visual acceptance remains open.
 
 ## Neighborhood Association and explicit sponsor-group resolution, 2026-09-30
 
