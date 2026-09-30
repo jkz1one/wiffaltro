@@ -251,7 +251,9 @@ func _migration_progress() -> void:
 		return
 	season.build._format = 19
 	season.build._order_start = null
+	season.build._rain_start = null
 	season.career.runs[-1].order_rerolls = null
+	season.career.runs[-1].rain_earned = null
 	season.build._sponsor_progress = SeasonSponsorProgress.new()
 	season.career.runs[-1].sponsors = null
 	season.build._gear_progress = SeasonGearProgress.new()
@@ -263,6 +265,7 @@ func _migration_progress() -> void:
 		run.erase("gear")
 		run.erase("sponsors")
 		run.erase("order_rerolls")
+		run.erase("rain_earned")
 	var restored: SeasonState = SeasonSave._decode(old)
 	_check(restored != null, "version-one career migrates")
 	if restored != null:

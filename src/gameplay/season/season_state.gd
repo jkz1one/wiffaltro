@@ -128,10 +128,12 @@ func choose_player(id: String) -> bool:
 			var progress: SeasonGearProgress = build._gear_progress.fork()
 			var sponsor_progress: SeasonSponsorProgress = build._sponsor_progress.fork()
 			var order_start: Variant = build._order_start
+			var rain_start: Variant = build._rain_start
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
 			build._gear_progress = progress
 			build._sponsor_progress = sponsor_progress
 			build._order_start = order_start
+			build._rain_start = rain_start
 		if opponents != null:
 			opponents.initialize(self)
 		for team in range(6):

@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 23
+const VERSION: int = 24
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -18,6 +18,8 @@ const SHOP_OPS: Array[String] = [
 	"discard",
 	"reroll",
 	"focused_reroll",
+	"reserve_offer",
+	"release_reservation",
 	"pack_open",
 	"pack_pick",
 	"pack_skip",
@@ -45,6 +47,9 @@ var _sponsor_progress: SeasonSponsorProgress = SeasonSponsorProgress.new()
 var _legends: Dictionary = {}
 var _order_start: Variant = null
 var _paid_rerolls: int = 0
+var _rain_start: Variant = null
+var _rain_earned: bool = false
+var _reservation: Dictionary = {}
 var _recruit_from: int = 1
 var _gear_from: int = 1
 var _misc_from: int = 1
@@ -145,6 +150,7 @@ func view() -> Dictionary:
 		"shop": visit,
 		"roster": roster(),
 		"used_gear": _used_gear.keys(),
+		"reservation": _reservation.duplicate(true),
 		"scholarships": _scholarships.duplicate(true)
 	}
 
@@ -208,6 +214,8 @@ func to_data() -> Dictionary:
 		)
 	if _format >= 23:
 		data["order_start"] = _order_start
+	if _format >= 24:
+		data["rain_start"] = _rain_start
 	return data
 
 
@@ -254,6 +262,9 @@ func commit(command: Dictionary) -> Dictionary:
 	_legends = next._legends
 	_order_start = next._order_start
 	_paid_rerolls = next._paid_rerolls
+	_rain_start = next._rain_start
+	_rain_earned = next._rain_earned
+	_reservation = next._reservation
 	_income_by_game = next._income_by_game
 	_pregames = next._pregames
 	_match_inventory = next._match_inventory
@@ -289,6 +300,7 @@ func candidate(command: Dictionary) -> SeasonBuild:
 		return null
 	if _order_start != null and normalized.op == "reroll" and next.cash() < cash():
 		next._paid_rerolls += 1
+	SeasonRaincheck.after(self, next, normalized)
 	SeasonLegends.prune(next)
 	next._events.append(normalized)
 	next._requests[normalized.id] = serialized
@@ -309,6 +321,9 @@ func _fork() -> SeasonBuild:
 	result._legends = _legends.duplicate(true)
 	result._order_start = _order_start
 	result._paid_rerolls = _paid_rerolls
+	result._rain_start = _rain_start
+	result._rain_earned = _rain_earned
+	result._reservation = _reservation.duplicate(true)
 	result._recruit_from = _recruit_from
 	result._gear_from = _gear_from
 	result._misc_from = _misc_from
@@ -417,6 +432,7 @@ func _apply(command: Dictionary) -> String:
 			),
 			"pack_status": "sealed"
 		}
+		SeasonRaincheck.deliver(self)
 		if union_earned:
 			_visit["union_credit"] = 3
 		if _market == 0 and _format >= 2 and _visit.number >= _recruit_from:
@@ -425,6 +441,8 @@ func _apply(command: Dictionary) -> String:
 	if not _visit.open:
 		return "Open the current postgame shop first."
 	match op:
+		"reserve_offer", "release_reservation":
+			return SeasonRaincheck.commit(self, command)
 		"focused_reroll":
 			return SeasonSpecialOrder.commit(self, command)
 		"tactical_exchange":
@@ -472,7 +490,9 @@ func _apply(command: Dictionary) -> String:
 			if _format >= 10:
 				_visit["reroll_credit"] = 0
 			_visit.rerolls += 1
+			var protected: Dictionary = SeasonRaincheck.protected_offer(self)
 			_visit.offers = _offers(_visit.rerolls)
+			SeasonRaincheck.preserve(self, protected)
 			_visit.erase("unavailable_slots")
 			_visit.erase("focused_category")
 		"pack_open":
@@ -636,6 +656,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonEarnedSponsors.ITEMS).sha256_text()
 	if format_version >= 23:
 		base += ":" + JSON.stringify(SeasonSpecialOrder.ITEMS).sha256_text()
+	if format_version >= 24:
+		base += ":" + JSON.stringify(SeasonRaincheck.ITEMS).sha256_text()
 	return base
 
 

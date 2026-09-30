@@ -310,7 +310,12 @@ static func catalog(version: int = 11) -> Dictionary:
 static func item(id: String) -> Dictionary:
 	return (
 		catalog()
-		. get(id, SeasonEarnedSponsors.ITEMS.get(id, SeasonSpecialOrder.ITEMS.get(id, {})))
+		. get(
+			id,
+			SeasonEarnedSponsors.ITEMS.get(
+				id, SeasonSpecialOrder.ITEMS.get(id, SeasonRaincheck.ITEMS.get(id, {}))
+			)
+		)
 		. duplicate(true)
 	)
 
@@ -324,6 +329,7 @@ static func ownership_catalog() -> Dictionary:
 	var all_items: Dictionary = catalog()
 	all_items.merge(SeasonEarnedSponsors.ITEMS)
 	all_items.merge(SeasonSpecialOrder.ITEMS)
+	all_items.merge(SeasonRaincheck.ITEMS)
 	for id: String in all_items:
 		result[id] = {
 			"kind": "sponsor", "price": item(id).price, "sale": "zero" if id == "J10" else "half"
@@ -339,6 +345,8 @@ static func eligible(active: Array, version: int = 11, earned: Array[String] = [
 			all_items[id] = SeasonEarnedSponsors.ITEMS[id]
 		elif SeasonSpecialOrder.ITEMS.has(id):
 			all_items[id] = SeasonSpecialOrder.ITEMS[id]
+		elif SeasonRaincheck.ITEMS.has(id):
+			all_items[id] = SeasonRaincheck.ITEMS[id]
 	for id: String in all_items:
 		result[id] = all_items[id].weight
 	for receipt: Dictionary in active:

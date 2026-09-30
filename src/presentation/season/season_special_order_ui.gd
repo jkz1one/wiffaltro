@@ -24,21 +24,26 @@ static func choose(window: SeasonShopWindow) -> void:
 		window
 		. _label(
 			(
-				"Choose a category before paying. Pack and recruiting stay fixed. "
+				"Choose a category before paying. Pack, recruiting and an unbought Raincheck stay fixed. "
 				+ "No duplicate identities; smaller pools leave unavailable positions. Working contract."
 			)
 		)
 	)
 	var build: SeasonBuild = window.app.season.build
 	for category: String in SeasonSpecialOrder.CATEGORIES:
-		var count: int = mini(4, SeasonSpecialOrder.pool(build, category).size())
+		var pool: Dictionary = SeasonSpecialOrder.pool(build, category)
+		var protected: Dictionary = SeasonRaincheck.protected_offer(build)
+		for id: String in protected.values():
+			pool.erase(id)
+		var slots: int = 4 - protected.size()
+		var count: int = mini(slots, pool.size())
 		var label: String = SeasonSpecialOrder.CATEGORIES[category]
 		var button: Button = (
 			window
 			. _button(
 				(
-					"%s • %d / 4 positions • %d Cash"
-					% [label, count, SeasonReclamation.price(build.view().shop)]
+					"%s • %d / %d refreshed positions • %d Cash"
+					% [label, count, slots, SeasonReclamation.price(build.view().shop)]
 				),
 				(
 					window

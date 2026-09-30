@@ -25,6 +25,7 @@ func start(season: SeasonState) -> bool:
 	season.build._sponsor_progress.enabled = true
 	season.build._sponsor_progress.start = sponsor_state()
 	season.build._order_start = order_access()
+	season.build._rain_start = rain_access()
 	current = runs.size() + 1
 	runs.append(
 		{
@@ -37,7 +38,8 @@ func start(season: SeasonState) -> bool:
 			"receipt": {},
 			"gear": [],
 			"sponsors": [],
-			"order_rerolls": 0
+			"order_rerolls": 0,
+			"rain_earned": false
 		}
 	)
 	return true
@@ -53,6 +55,7 @@ func sync(season: SeasonState) -> bool:
 		not gear_matches(season, false)
 		or not sponsor_matches(season, false)
 		or not order_matches(season, false)
+		or not rain_matches(season, false)
 	):
 		return false
 	var gear: Variant = (
@@ -62,6 +65,7 @@ func sync(season: SeasonState) -> bool:
 		season.build._sponsor_progress.games.duplicate(true) if run.sponsors != null else null
 	)
 	var orders: Variant = season.build._paid_rerolls if run.order_rerolls != null else null
+	var rain: Variant = season.build._rain_earned if run.rain_earned != null else null
 	var proof: Dictionary = ClubSeasonRecord.capture(season)
 	if run.status == "completed":
 		return (
@@ -70,6 +74,7 @@ func sync(season: SeasonState) -> bool:
 			and same(run.gear, gear)
 			and same(run.sponsors, sponsors)
 			and run.order_rerolls == orders
+			and run.rain_earned == rain
 		)
 	if run.status != "active":
 		return false
@@ -83,6 +88,7 @@ func sync(season: SeasonState) -> bool:
 	run.gear = gear
 	run.sponsors = sponsors
 	run.order_rerolls = orders
+	run.rain_earned = rain
 	return true
 
 
@@ -110,7 +116,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 4, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 5, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -124,7 +130,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 4)
+		not SeasonOwnership._whole(value.version, 1, 5)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -145,6 +151,7 @@ static func from_data(value: Variant) -> ClubCareer:
 					+ (["gear"] if value.version >= 2 else [])
 					+ (["sponsors"] if value.version >= 3 else [])
 					+ (["order_rerolls"] if value.version >= 4 else [])
+					+ (["rain_earned"] if value.version >= 5 else [])
 				)
 			)
 		):
@@ -196,6 +203,10 @@ static func from_data(value: Variant) -> ClubCareer:
 			and not SeasonOwnership._whole(migrated.order_rerolls, 0, SeasonBuild.MAX_EVENTS)
 		):
 			return null
+		if value.version < 5:
+			migrated["rain_earned"] = null
+		if migrated.rain_earned != null and not migrated.rain_earned is bool:
+			return null
 		result.runs.append(migrated)
 	return result
 
@@ -213,6 +224,7 @@ func matches(season: SeasonState) -> bool:
 		and gear_matches(season, true)
 		and sponsor_matches(season, true)
 		and order_matches(season, true)
+		and rain_matches(season, true)
 	)
 
 
@@ -291,4 +303,27 @@ func order_matches(season: SeasonState, exact: bool) -> bool:
 	return (
 		build._order_start == order_access(true)
 		and (not exact or run.order_rerolls == build._paid_rerolls)
+	)
+
+
+func rain_access(before_current: bool = false) -> bool:
+	for run: Dictionary in runs:
+		if before_current and run.id == current:
+			break
+		if run.rain_earned == true:
+			return true
+	return false
+
+
+func rain_matches(season: SeasonState, exact: bool) -> bool:
+	var build: SeasonBuild = season.build
+	var run: Dictionary = runs[-1]
+	if (run.rain_earned != null) != (build._rain_start != null):
+		return false
+	return (
+		build._rain_start == null
+		or (
+			build._rain_start == rain_access(true)
+			and (not exact or run.rain_earned == build._rain_earned)
+		)
 	)

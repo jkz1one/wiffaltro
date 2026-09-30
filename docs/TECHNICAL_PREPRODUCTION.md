@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.52
+**Version:** v0.1.53
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,27 @@
 ---
 
 # 1. Technical Objective
+
+## Raincheck transactions and prospective acquisition proof, 2026-09-30
+
+Build24/schema28 adds nullable `rain_start`; career5 adds nullable per-run `rain_earned`.
+Build1–23 signatures are unchanged. Older career versions migrate with null evidence, and
+older active builds do not invent historical purchase progress. Draft reconstruction, forks,
+commit and strict restore preserve inherited access. Successful ordinary individual transactions
+derive current-run evidence after payment; exact request replay returns before evidence mutation.
+The active career record must agree with journal-derived evidence and prior-run access.
+
+`SeasonRaincheck` owns eligible fixed-price quotes, reserve/release commands, pending source and
+destination identity, generation revalidation and the protected-offer mask. Pending state and
+carried price/identity derive from journal replay rather than independently editable save fields.
+It preserves a single slot in ordinary and focused rerolls. A bought or explicitly released
+carried offer stops protecting its position. The separate catalog constant preserves historical
+stock fingerprints. AI acquisition remains gated. The static catalog fingerprint binds the
+saved base price; a mismatched destination quote falls back to its normal generated slot.
+
+`SeasonRaincheckUI` exposes reserve-and-return, exact no-purchase review, pending/protected status,
+explicit release and Club Record access. Shared candidate/save rollback handles all mutations.
+Headless interaction/geometry checks are separate from final native visual/human acceptance.
 
 ## Shop-earned access and focused rerolls, 2026-09-30
 

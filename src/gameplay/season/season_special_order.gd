@@ -63,6 +63,9 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	if not available(build):
 		return "Special Order requires an active copy and an unused focused reroll this visit."
 	var candidates: Dictionary = pool(build, command.category)
+	var protected: Dictionary = SeasonRaincheck.protected_offer(build)
+	for id: String in protected.values():
+		candidates.erase(id)
 	if candidates.is_empty():
 		return "This category has no eligible items."
 	var price: int = SeasonReclamation.price(build._visit)
@@ -74,8 +77,8 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	build._visit["focused_used"] = true
 	build._visit["focused_category"] = command.category
 	var rng: RandomNumberGenerator = build._rng(build._visit.rerolls)
-	var offers: Dictionary = {}
-	for index in range(mini(4, candidates.size())):
+	var offers: Dictionary = protected.duplicate()
+	for index in range(mini(4 - protected.size(), candidates.size())):
 		# Gear preserves equal slot weighting after each identity is removed.
 		if command.category == "gear":
 			var counts: Dictionary = {}

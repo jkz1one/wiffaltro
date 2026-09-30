@@ -1,11 +1,43 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.61
+**Version:** v0.4.62
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Raincheck Reservations and protected shop stock, 2026-09-30
+
+G01 Raincheck Reservations is the23rd supported **Working** sponsor candidate, following
+Equipment/Sponsors v18 lines289 and558–577 and preserved archive-s031 (lines4562–4588).
+A valid ordinary individual purchase spending at least16 actual Cash earns permanent access.
+Preview, cancellation, failed save, replay, packs, Wholesale and multiple-recipient deals give
+no credit. Replacement uses the new item's actual paid receipt, without subtracting the separate
+sale refund. Earned access survives abandonment; it never grants ownership or rewrites stock.
+
+The Uncommon12-Cash copy lets the player reserve one unbought fixed-price Gear, sponsor,
+tactical supply or eligible pitch lesson when returning from a regular-season shop. It uses one
+of the next shop's four individual positions, preserving the quoted base price. Capacity,
+recipient legality and eventual discounts remain purchase-time checks. It is not owned inventory,
+discovery, a fifth slot, a recruit or pack reservation. Loose development reservation remains the
+explicit unapproved Proposal from v18 and stays gated in this implementation.
+
+Destination generation revalidates eligibility. An invalid carry leaves exactly one normal draw
+in its position; it cannot grant a bonus draw. A valid unbought carry survives ordinary and
+Special Order rerolls. Focus fills at most the other three positions, excludes duplicate identity
+against the protected offer, and previews that reduced maximum. Buying the carry frees its sold
+position for later paid rerolls and cannot regenerate its old reservation. It cannot be carried
+a second time. Release never grants a free replacement. Leaving the destination for the next game
+expires the offer. Selling G01 before generation cancels the pending carry; selling afterward
+preserves the already-generated offer. All state is replayed and saved atomically.
+
+The reserve action saves and returns to the season. Reopening the source shop is allowed;
+buying/rerolling away the selected source offer cancels that pending carry. The source gate is
+visits1–9, before the final regular-season result. If that result ends the season, no destination
+shop or reward is invented. Postseason shops cannot originate new reservations. Older active
+saves retain their exact stock and start this prospective access tracking next Working season.
+Approved ownership and Working prices/effects remain distinct from unapproved extensions.
 
 ## Special Order Supply and permanent shop-earned access, 2026-09-30
 
@@ -25,8 +57,8 @@ weights and other categories retain their ordinary item weights. Focus alone wai
 diversity. Small pools fill only their available distinct identities; remaining positions are
 explicitly unavailable. Empty/unsupported categories cannot be selected or charged. Fixed pack
 and recruiting never refresh. Ordinary rerolls remain usable afterward. Sale/rebuy and unfinished
-match restart cannot reset the once-visit use. Raincheck's protected-position integration remains
-with its not-yet-enabled contract; it is not silently approximated by spare inventory.
+match restart cannot reset the once-visit use. The later Raincheck amendment above protects an
+unbought carried offer and reduces the focused refresh mask accordingly.
 
 The category screen reviews maximum fillable positions and exact Cash before payment without
 revealing future stock. Earned Sponsors shows progress and retained access. New Working career

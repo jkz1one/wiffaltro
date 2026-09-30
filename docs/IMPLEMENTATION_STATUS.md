@@ -1,5 +1,15 @@
 # Implementation Status
 
+## Raincheck and protected reroll integration, 2026-09-30
+
+Raincheck adds permanent access from a16-Cash ordinary individual purchase, a paid seasonal copy,
+one saved unbought reservation, destination revalidation and protected ordinary/focused rerolls.
+Source cancellation, post-generation sale, release without a free draw, expiry, purchase and
+replay retain normal ownership/capacity authority. Selection, status, review and career access
+are exposed in the UI. This supports23/35 sponsors, leaving12 earned contracts. Loose development
+reservation remains an unapproved Proposal; AI acquisition remains open. Whole-project estimate
+remains approximately72%; final premium UI and native visual/human acceptance remain0/2.
+
 ## Special Order Supply and saved shop achievements, 2026-09-30
 
 Special Order now earns persistent access from three paid ordinary rerolls in one season and

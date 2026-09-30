@@ -1,5 +1,48 @@
 # Fast verification and playtest records
 
+## Raincheck earned access, protected offers and next-shop UI, 2026-09-30
+
+Final coverage includes all80 checks across full run `20260930T172244411240Z` and focused
+rerun `20260930T173615705573Z`. The full run passed79/80 and completed29 physical games.
+The existing season-gameplay-sponsor-live scene exited0 after only the engine header, without
+its required completion marker; the runner correctly failed it. The unchanged-source rerun
+included its preceding Strikecraft check and passed9/9, including the remaining physical game.
+Combined coverage therefore includes30 complete games. No engine errors or warnings appeared.
+The early exit has occurred in consecutive full runs and remains unexplained; this is combined
+coverage, not a claim of a green full invocation or a fix to that runtime limitation.
+All453 snapshotted source/test/asset/tool files remained byte-identical between these runs.
+Fresh main `f1dc209b6de11e45aedbd1568fa1b2d841dd2420` remains included and the preserved
+PROGRESSION_BLUEPRINT.md is byte-identical to main. No merge or deployment is included.
+
+Focused run `20260930T172202133185Z` passed8/8 with the final Raincheck test source. Its
+seed256 fixture completes four controlled scheduled wins, purchases generated18-Cash Double
+Booking to earn access, then purchases generated12-Cash Raincheck, leaving32 Cash. It does not
+grant the tested sponsor or unlock for free. Preview/replay, future career access, save mismatch
+rejection, abandonment and career4/build23 migration are covered. Controlled acquisition-classifier
+checks ensure packs, Wholesale, paired lessons, rerolls and recruitment cannot earn the feat.
+
+Transaction checks cover one pending offer, exact identity/base price in one of four destination
+positions, ordinary reroll protection, unchanged pack, source-reroll cancellation, releases without
+free draws, sale before and after generation, exact paid purchase/retry, purchased-position restock,
+expiry, invalid quote fallback and the regular-season source gate. A separately labeled controlled
+paid J01 fixture verifies focused protection and duplicate exclusion; it does not claim generated
+co-acquisition of both sponsors. The original paid Raincheck fixture and its ordinary/carry events
+replay from the build journal. Loose development-card reservation remains gated as a Proposal.
+
+Actual700×400 shop clicks exercise selection, keyboard focus/geometry, Cancel, missing-path save
+failure with original bytes intact, retry, save-and-return, reopen, pending release, a real scheduled
+next-game result, destination generation, exact destination reload, and destination release leaving
+three offers. Club Record progress is inspected. This is automated interaction/geometry evidence,
+not a claim of native rendered aesthetics or human/controller feel acceptance.
+
+Development runs found formatting issues and a missing performance field in the new standalone
+reward fixture; those were corrected before the passing focused run. The earlier multi-scene run
+`20260930T171844154772Z` passed the existing Special Order, earned-sponsor, Gear-progression and
+club-career checks but failed that new fixture. Failed runs are not counted as final green coverage.
+Native display access remains blocked as recorded in `loadout-native-display.log`; it was not
+retested solely to repeat the same environment failure. The final premium UI/native visual and
+human acceptance gates remain open. Overall estimate remains approximately72%.
+
 ## Special Order focused rerolls and persistent shop access, 2026-09-30
 
 Final coverage includes all79 checks across full run `20260930T165240244518Z` and focused

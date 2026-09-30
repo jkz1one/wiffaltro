@@ -160,7 +160,7 @@ func _progress_contracts() -> void:
 			"type":
 				bad.career.runs[-1].sponsors[-1].multi_k = 1
 			"version":
-				bad.career.version = 5
+				bad.career.version = 6
 		_check(SeasonSave._decode(bad) == null, "reject mismatched sponsor " + field)
 	club = season.career.fork()
 	_check(club.close(season), "earned access retained on later abandonment")
@@ -433,7 +433,9 @@ func _migrate_earned() -> void:
 	var season: SeasonState = _new_club(51)
 	season.build._format = 20
 	season.build._order_start = null
+	season.build._rain_start = null
 	season.career.runs[-1].order_rerolls = null
+	season.career.runs[-1].rain_earned = null
 	season.build._sponsor_progress = SeasonSponsorProgress.new()
 	season.career.runs[-1].sponsors = null
 	_result(season, ["single", "double", "triple"], 2)
@@ -443,6 +445,7 @@ func _migrate_earned() -> void:
 	for run: Dictionary in data.career.runs:
 		run.erase("sponsors")
 		run.erase("order_rerolls")
+		run.erase("rain_earned")
 	var old: SeasonState = SeasonSave._decode(data)
 	_check(old != null, "career2 restores")
 	if old != null:

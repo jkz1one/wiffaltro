@@ -84,7 +84,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 initial Gear items plus 10 earnable tiers. "
-			+ "19 initial sponsors plus Local Legends, Encore and Special Order unlocks. "
+			+ "19 initial sponsors plus Local Legends, Encore, Special Order and Raincheck unlocks. "
 			+ "Existing unapproved Gear mappings remain Proposals."
 		)
 	)
@@ -109,6 +109,7 @@ func _refresh() -> void:
 			"Skip this paid pack", _preview.bind(_request("pack_skip"), "Skip without a refund")
 		)
 	else:
+		SeasonRaincheckUI.entry(self)
 		SeasonSpecialOrderUI.entry(self)
 		SeasonWholesaleUI.entry(self)
 		_recruit(shop)
@@ -149,7 +150,7 @@ func _refresh() -> void:
 				_request("reroll"),
 				(
 					(
-						"Reroll four offers; pack stays fixed. Base price %d; credit %d. "
+						"Reroll unprotected offers; pack stays fixed. Base price %d; credit %d. "
 						% [4 + 2 * shop.rerolls, SeasonReclamation.credit(shop)]
 					)
 					+ "Consumes the credit; future base prices still escalate normally."
@@ -375,8 +376,12 @@ func _preview(command: Dictionary, description: String) -> void:
 
 
 func _commit() -> void:
+	var departing: bool = _pending.get("op") == "reserve_offer"
 	var ok: bool = app.commit_shop(_pending)
 	_pending.clear()
+	if ok and departing:
+		_close()
+		return
 	_notice = "Saved. Your build is ready for the next game." if ok else app.notice
 	_refresh()
 
