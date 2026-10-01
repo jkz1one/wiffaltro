@@ -238,6 +238,11 @@ func _commit_result() -> bool:
 				state.sides.evidence(state.home_team if lab._player_home else state.away_team)
 				if season.build != null and season.build._sides_start != null
 				else []
+			),
+			(
+				state.clean_outs.evidence(state.home_team if lab._player_home else state.away_team)
+				if season.build != null and season.build._jump_start != null
+				else []
 			)
 		):
 			return false

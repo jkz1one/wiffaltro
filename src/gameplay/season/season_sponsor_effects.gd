@@ -10,7 +10,10 @@ static func snapshot(
 	for receipt: Dictionary in active:
 		if (
 			receipt.item
-			in ["A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08", "G05", "E04", "G03", "E10", "F06"]
+			in [
+				"A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08",
+				"G05", "E04", "G03", "E10", "F06", "J04"
+			]
 		):
 			result[receipt.item] = true
 		elif receipt.item == "E05":

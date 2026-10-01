@@ -2,6 +2,19 @@
 
 For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
 
+## Jumpstart Auto, 2026-10-01
+
+Jumpstart adds completed-game clean-Primary-out access, paid 12-Cash seasonal ownership,
+pre-PA direction controls, constrained normal-speed first steps, Cornerstone conflict
+handling, Equipped status, immediate saved live-sale refunds with deferred retirement,
+result evidence, migration and save retry. Supported content is 30/35 sponsors, 23/25
+Gear and all five initial tactical supplies. The remaining earned sponsors are Field
+Supply, Carbon Copy, Sure Shot, Double Major and Small Batch. AI acquisition, player
+cards, higher Leagues/tiers, stadium progression, integration and final premium/native/
+human UI acceptance remain open. Overall project estimate stays approximately 72%; this
+closes a contract within the existing sponsor category, not a major remaining system.
+See VERIFICATION.md for final-source coverage; Working tuning remains Working.
+
 ## Left Right Moving Co., 2026-09-30
 
 Left Right Moving now includes completed-game alternating-side access, a paid seasonal copy,

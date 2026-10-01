@@ -9,6 +9,7 @@ var anchor_position: Vector3 = Vector3.ZERO
 var target_position: Vector3 = Vector3.ZERO
 var active: bool = false
 var stationary: bool = false
+var first_step: Vector3 = Vector3.ZERO
 var last_reaction_margin_seconds: float = 0.0
 var handling_scale: float = 1.0
 var reaction_delay_seconds: float = 0.11
@@ -30,9 +31,12 @@ func set_anchor(new_anchor: Vector3) -> void:
 func set_pitcher_lane(pitcher_z: float) -> void:
 	pitcher_lane_z = pitcher_z
 
-func begin_play(anchored: bool = false) -> void:
+func begin_play(anchored: bool = false, step: Vector3 = Vector3.ZERO) -> void:
 	active = true
 	stationary = anchored
+	first_step = Vector3.ZERO if anchored else step
+	if not first_step.is_zero_approx():
+		last_reaction_margin_seconds = 0.0
 	if stationary:
 		last_reaction_margin_seconds = 0.0
 	_play_elapsed_seconds = 0.0
@@ -42,6 +46,7 @@ func begin_play(anchored: bool = false) -> void:
 func end_play() -> void:
 	active = false
 	stationary = false
+	first_step = Vector3.ZERO
 	velocity = Vector3.ZERO
 	global_position = anchor_position
 	target_position = anchor_position
@@ -87,7 +92,7 @@ func plan_for_ball(
 ) -> void:
 	if not active:
 		return
-	if _play_elapsed_seconds < reaction_delay_seconds:
+	if not pursuit_ready():
 		return
 	var plan_result: FielderPlan = FielderPlanner.plan(
 		ball_position,
@@ -104,6 +109,11 @@ func plan_for_ball(
 func reaction_ready() -> bool:
 	return _play_elapsed_seconds >= reaction_delay_seconds
 
+func pursuit_ready() -> bool:
+	return reaction_ready() and (
+		first_step.is_zero_approx() or _play_elapsed_seconds + 0.000001 >= SeasonJumpstart.STEP_SECONDS
+	)
+
 func horizontal_distance_to(point: Vector3) -> float:
 	return Vector2(
 		point.x - global_position.x,
@@ -113,7 +123,16 @@ func horizontal_distance_to(point: Vector3) -> float:
 func _physics_process(delta: float) -> void:
 	if not active:
 		return
+	var before: float = _play_elapsed_seconds
 	_play_elapsed_seconds += maxf(0.0, delta)
+	if not first_step.is_zero_approx() and before + 0.000001 < SeasonJumpstart.STEP_SECONDS:
+		FielderFirstStep.advance(
+			self, first_step, minf(maxf(0.0, delta), SeasonJumpstart.STEP_SECONDS - before)
+		)
+		return
+	if not first_step.is_zero_approx() and before < reaction_delay_seconds:
+		velocity = Vector3.ZERO
+		return
 	if stationary:
 		velocity = Vector3.ZERO
 		return

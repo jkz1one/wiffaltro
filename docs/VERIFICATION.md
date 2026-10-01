@@ -1,5 +1,61 @@
 # Fast verification and playtest records
 
+## Jumpstart Auto: constrained first steps, clean outs and live retirement, 2026-10-01
+
+Final affected-path run `20261001T035334360050Z` passed **35/35 checks** under Godot 4.7.2:
+seven common gates plus 28 scenes, including 11 complete physical games. All 495 snapshotted
+source/test/asset/project/runner files remained unchanged; only documentation changed after
+the snapshot. No engine warnings or errors appeared. Scope: Jumpstart menu/live, Left Right
+menu/live, Freezers menu/live, Association, Late Checkout, Second Chance, Transfer, Raincheck,
+Special Order, match-sales UI, Equipped, earned sponsors, Gear progression, career, opponents,
+tacticals, Cornerstone menu/live, field sponsors menu/live, gameplay sponsors, misc Gear,
+ownership integration/ownership and core regressions. This is targeted coverage, not the
+complete suite or native rendered/human acceptance.
+
+Contract checks cover four pre-PA directions, default Normal, whole-PA persistence, canceled
+first-windup recovery, invalid/unowned choices, Cornerstone mutual exclusion, no movement
+before contact, fair versus foul launch routing, and reset after completion/restart. At 4m/s,
+twelve 60Hz frames travel exactly 0.8m regardless of a ball in the opposite direction. Reaction
+0.10s cannot shorten the 0.20s step; reaction 0.30s delays pursuit until its threshold. Large
+frame deltas cannot extend forced travel. Physical wall sweeps and Pitcher separation clip
+motion without steering the guess or refunding time; a physical wall blocks control through it.
+
+Clean-out fixtures use the real BallPlayResolver to distinguish ordinary catches, recovered
+bobbles, foul catches and Pitcher-role outs, including duplicate-callback rejection. Three
+clean outs by different Primary Fielders do not combine. A qualifying completed loss earns
+access; malformed counts, role/player IDs, field types, PA ordering, half parity, result
+history, inherited/current career flags and invalid reward statistics reject atomically.
+Build 30/Career 11 migration preserves earlier earned feats and leaves Jumpstart prospective;
+older migration scenarios and second-save replay also pass. Abandonment retains access, with
+no free ownership next season. The extracted reward path preserves historical receipt IDs.
+
+Seed 48 supplies a real generated 12-Cash offer after three controlled completed-result
+fixtures. This is acquisition integration evidence, not an organic balance sample. Actual
+700x400 shop input covers Cancel, failed-write rollback, retry and paid receipt persistence.
+Lineup and earned-progress pages pass bounds checks. Field direction controls support actual
+mouse and keyboard input, disclose the locked PA choice and fit all three HUD anchors. Both
+Jumpstart and Cornerstone controls fit together and explain the conflict. Equipped opens
+through the unchanged centralized entry and shows the current direction. No headless geometry
+or interaction result is claimed as visual approval.
+
+Three new physical games at match seed 67 complete with 144/127/127 pitch records and 32/31/31
+balls in play. They record 3/9/9 actual fielded-out rows, reconciled to completed pitching
+outs minus Ks. The prospective game derives access solely from real completed evidence. The
+paid game observes 240 committed-step frames; the live-sale game observes 12 before retirement.
+Failed sale writes preserve ownership and an empty retirement queue; retry saves the six-Cash
+refund immediately while the current PA commitment remains. Natural PA retirement removes
+J04 from the correct club. Duplicate sale cannot repay; reload cannot resurrect the copy.
+Completed-result save failure, reload and retry preserve one reward and exact clean-out history.
+Three Left Right, three Freezers, one Cornerstone and one prior field-sponsor physical game
+also pass. Synthetic drivers validate integration, not balance or human gameplay quality.
+
+Development checks caught a bad field fixture ID, a test callback reference cycle and a
+floating-point comparison at the exact twelve-frame step boundary. Correct field lookup,
+noncyclic outcome capture and a small duration-comparison tolerance resolve them; the passing
+final logs contain no warnings/errors. Native preflight still has no DISPLAY or installed
+Xvfb, so actual native/human acceptance remains open. The earlier unexplained full-suite early
+exit was not retested or declared resolved by this targeted run.
+
 ## Left Right Moving: committed stances, paid access and live retirement, 2026-09-30
 
 Final affected-path run `20260930T225516585555Z` passed **31/31 checks** under Godot4.7.2:

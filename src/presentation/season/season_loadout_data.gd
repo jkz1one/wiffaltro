@@ -49,6 +49,11 @@ static func pages(app: SeasonApp) -> Dictionary:
 				"%d / 4 stamps • +%d%% Contact exit %s"
 				% [stamps, stamps, "this game" if live else "next game"]
 			)
+		elif receipt.item == "J04" and live:
+			status = (
+				"First step: " + state.jumpstart_mode.to_upper()
+				if state.defensive_team() == team else "Choose in FIELD before an opposing PA"
+			)
 		elif receipt.item == "F06" and live:
 			status = (
 				state.sides.label(state)

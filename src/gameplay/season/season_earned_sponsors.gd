@@ -67,6 +67,9 @@ static func eligible(build: SeasonBuild) -> Dictionary:
 	if build._format >= 30 and build._sides_start != null:
 		if build._sides_start or build._sides_earned:
 			earned.append("F06")
+	if build._format >= 31 and build._jump_start != null:
+		if build._jump_start or build._jump_earned:
+			earned.append("J04")
 	return SeasonSponsorCatalog.eligible(
 		build._bank.view().sponsors, build._sponsor_catalog_version(), earned
 	)

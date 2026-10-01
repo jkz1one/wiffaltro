@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-jumpstart-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_jumpstart_live_test.tscn"],
+                 "Wiffaltro live Jumpstart checks passed:"),
+                ("season-jumpstart", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_jumpstart_test.tscn", *ui_extra],
+                 "Wiffaltro Jumpstart checks passed:"),
                 ("season-left-right-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_left_right_live_test.tscn"],
                  "Wiffaltro live Left Right checks passed:"),

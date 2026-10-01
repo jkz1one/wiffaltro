@@ -72,6 +72,8 @@ static func restore(
 		keys.append("freezer_start")
 	if value.version >= 30:
 		keys.append("sides_start")
+	if value.version >= 31:
+		keys.append("jump_start")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -211,6 +213,11 @@ static func restore(
 			if not value.sides_start is bool or result._market != 0:
 				return null
 		result._sides_start = value.sides_start
+	if value.version >= 31:
+		if value.jump_start != null:
+			if not value.jump_start is bool or result._market != 0:
+				return null
+		result._jump_start = value.jump_start
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null

@@ -5,7 +5,8 @@ extends RefCounted
 
 static func choose(state: MatchState, anchored: bool) -> bool:
 	if (
-		not state.can_change_defense()
+		(anchored and state.jumpstart_mode != "normal")
+		or not state.can_change_defense()
 		or not state.fielder().definition.season_sponsors.get("F01", false)
 	):
 		return false

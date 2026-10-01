@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.60
+**Version:** v0.1.61
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,43 @@
 ---
 
 # 1. Technical Objective
+
+## Clean-out evidence and constrained first steps, 2026-10-01
+
+Build 31/schema 35/Career 12 adds nullable `jump_start`, derived `_jump_earned` and
+nullable per-run `jump_earned`. Only format 31 catalog signatures append J04. Earlier
+signatures, purchase receipts, result journals, current shop stock and prospective
+feature boundaries remain frozen. `SeasonBuildReward` extracts the existing completed-
+game settlement in the same order and with identical historical bank receipt IDs;
+`SeasonBuild` is 938 lines after the addition.
+
+`MatchCleanOuts` records one row per completed fielded-out PA before the ordinary
+result advances the hitter. Each row names PA, half, credited defender, pitcher,
+Primary-role flag, air/ground and clean status. `BallPlayState.bobbled` persists through
+a recovery; foul catches are recorded for reconciliation but cannot qualify. Recording
+is independent of sponsor ownership. `SeasonJumpstart` validates exact fields/types,
+roster/role consistency, ordered PA/half IDs, completed-PA bounds, same-club parity,
+maximum three fielded outs per half and exact per-pitcher outs-minus-K totals. Save/
+SeasonState also bind the defensive parity to the scheduled home/away club. Reward,
+result and career evidence must agree. Old/synthetic callers may omit evidence and
+earn nothing retrospectively.
+
+`SeasonJumpstart.choose` enforces ownership, legal pre-PA state and Cornerstone
+exclusion. MatchState clears the choice at PA completion; its existing first-pitch
+lock and canceled-windup boundary govern editing. The fair-contact launch passes a
+fixed direction into `FielderController`. `FielderFirstStep` sweeps a small body sphere
+against the field's physical collision layer and clips straight motion at the existing
+Pitcher-separation radius. Neither helper reads a future ball trajectory. Blocked time
+is spent. The ordinary planner remains gated until max(0.20s, reaction delay); its next
+plan uses actual displaced position. A tiny time-comparison tolerance handles 12 fixed
+60Hz frames without extending the step by a frame. Existing ball-control reach/height
+and resolver authority remain; Jumpstart control cannot reach through a physical wall.
+
+`MatchJumpstartControls` supplies mouse/keyboard direction cycling in FIELD and explicit
+anchor conflict status. Equipped uses the existing live snapshot and pending-sale
+label; the common sales mechanism saves now and retires effects at the safe boundary.
+No saved in-flight movement is introduced: abandoned games restart from saved pregame
+ownership and fresh match state.
 
 ## Committed-side evidence and alternating swing terms, 2026-09-30
 

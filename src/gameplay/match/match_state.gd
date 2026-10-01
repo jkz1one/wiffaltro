@@ -23,6 +23,8 @@ var home_team: TeamMatchState
 var bases: BaseState = BaseState.new()
 var performance: MatchPerformance = MatchPerformance.new()
 var sides: MatchBattingSides = MatchBattingSides.new()
+var clean_outs: MatchCleanOuts = MatchCleanOuts.new()
+var jumpstart_mode: String = "normal"
 var cold: MatchColdStreak = MatchColdStreak.new()
 var pitch_ledger: MatchPitchLedger = MatchPitchLedger.new()
 var phase: Phase = Phase.PRE_PITCH
@@ -212,6 +214,7 @@ func _complete_plate_appearance(description: String, single: bool = false) -> vo
 	pitch_ledger.clear()
 	optics_mode = "normal"
 	cornerstone_anchored = false
+	jumpstart_mode = "normal"
 	last_event = description
 	batting_team().advance_batter()
 	plate_appearance_number += 1

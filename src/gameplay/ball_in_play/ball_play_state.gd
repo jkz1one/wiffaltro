@@ -17,6 +17,7 @@ var result_floor: ResultFloor = ResultFloor.NONE
 var last_defender_touch: StringName = &""
 var last_obstacle_contact: StringName = &""
 var defender_touched: bool = false
+var bobbled: bool = false
 var caught: bool = false
 var dead: bool = false
 var catch_position: Vector3 = Vector3.ZERO

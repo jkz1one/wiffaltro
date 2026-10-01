@@ -852,7 +852,10 @@ static func _refresh_field_setup(lab: PitchBatLab) -> void:
 		return
 	lab._field_setup_toggle_button.text = (
 		"BACK" if lab._field_setup_active else (
-			"FIELD: ANCHOR" if SeasonCornerstone.active(lab._match_state) else "FIELD"
+			"FIELD: ANCHOR" if SeasonCornerstone.active(lab._match_state) else (
+				"FIELD: " + lab._match_state.jumpstart_mode.to_upper()
+				if not SeasonJumpstart.direction(lab._match_state).is_zero_approx() else "FIELD"
+			)
 		)
 	)
 	lab._field_setup_toggle_button.disabled = (

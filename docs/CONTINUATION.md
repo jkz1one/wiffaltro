@@ -1,13 +1,13 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-09-30 after Left Right Moving integration and affected-path verification.
+Updated 2026-10-01 after Jumpstart Auto integration and affected-path verification.
 
 ## Resume here
 
 - Repository: `jkz1one/wiffaltro`.
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
-  completes Second Chance Supply, Late Checkout Motel, Neighborhood Association, Freezers and Left Right Moving.
+  completes Second Chance, Late Checkout, Association, Freezers, Left Right Moving and Jumpstart.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -52,6 +52,47 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
+## Jumpstart continuation details (latest)
+
+Build 31/schema 35/Career 12; Source of Truth v0.4.70 and Technical Preproduction v0.1.61.
+Final run `20261001T035334360050Z` passed **35/35 checks**, seven common gates and 28 scenes,
+including 11 complete physical games, with no engine warnings/errors and 495 unchanged source
+files. This is targeted coverage. Native/human acceptance and the prior unexplained full-suite
+early exit remain open. Publication is authorized to the engineering branch only; use
+`git log -1` for the exact pushed SHA and commit metadata. No merge or deployment.
+
+Current sources were re-read: Decisions v31, Equipment/Sponsors v18 (access 294, hook 696,
+field interaction 761–764), Blueprint v114 retained J04 annex 5242–5266. Jumpstart's 12-Cash
+Uncommon copy and 0.20s first-step values remain Working. One Primary Fielder making three
+clean fielded outs in a completed game earns future paid-shop eligibility; no win required.
+
+`MatchCleanOuts` records finalized fielded-out PA/half/defender/pitcher/role/air/clean rows,
+independent of ownership. Bobbles remain marked through recovery and foul catches never
+qualify. Rows reconcile exactly to each club pitcher's outs minus Ks; current result and
+reward evidence must agree, and defensive half parity is bound to the scheduled club.
+Older active runs keep null `jump_start` and begin tracking with their next new season.
+
+`SeasonJumpstart` owns paid eligibility and pre-PA direction validation. Normal is baseline;
+Left/Right follow existing field anchor labels, In is toward home and Out toward the wall.
+Choice persists through the PA and conflicts explicitly with Cornerstone anchor. A fair
+launch starts the step; `FielderFirstStep` clips straight normal-speed movement against
+physical walls/objects and Pitcher spacing without reading or steering toward future contact.
+The normal planner resumes only after both the step and reaction delay. No extra reach,
+control, speed or Pitcher effect is granted. FIELD and Equipped expose the current choice.
+Live sales use the unchanged save-now/retire-at-next-batter mechanism and six-Cash refund.
+
+`SeasonBuildReward` extracts completed-game settlement while preserving historical receipt
+IDs and relative ordering. SeasonBuild is now 938 lines, below the existing 1,000-line limit.
+Source snapshots and old signature generations remain frozen. The repository progression
+blueprint remains byte-identical to main and must not be replaced with the planning archive.
+
+Supported content is now 30/35 sponsors, 23/25 Gear and five tactical supplies. Five earned
+sponsors remain: B01 Field Supply, E09 Carbon Copy, F08 Sure Shot, F09 Double Major and
+G02 Small Batch. No next contract has been selected. Clean-out evidence may support the
+remaining defensive contracts, but it does not implement Field Supply's runtime grant or
+Double Major's ability-removal rules. Read each complete current contract before proceeding.
+Whole-project estimate remains approximately 72%, not release readiness.
+
 ## Left Right Moving continuation details
 
 Build30/schema34/Career11 adds prospective `sides_start` and derived `_sides_earned`.
@@ -67,8 +108,8 @@ eligible Gear/Deli/Legends/Cold quantities before misc penalties. Switch hitters
 ordinary authored players with existing legal controls. Lineup, readiness and Equipped
 preview the actual rule; live sales retire effects at the safe boundary. The sponsor adds no PAs, hits, free switches or ownership.
 
-Build now994 lines: extract coherent helper responsibilities before adding more saved
-fields. Do not globally rewrite old receipt IDs or catalog signatures to make room.
+At this historical checkpoint Build was994 lines; Jumpstart later extracted reward settlement.
+Continue extracting coherent responsibilities before adding more saved fields. Do not globally rewrite old receipt IDs or catalog signatures to make room.
 
 ## Previous Freezers continuation details
 
@@ -150,8 +191,8 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 29 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
-tactical supplies. Six earned sponsor contracts, further AI acquisition, player-card contracts,
+There are 30 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+tactical supplies. Five earned sponsor contracts, further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the
 counts alone are not a specification. Do not infer completion from older historical checklist entries.

@@ -145,6 +145,7 @@ func _record_clean_control(
 func record_bobble(defender_id: StringName, position: Vector3) -> void:
 	if state == null or state.dead:
 		return
+	state.bobbled = true
 	state.last_defender_touch = defender_id
 	state.defender_touched = true
 	# A bobble on the plate side of Single is immediately dead, even in the

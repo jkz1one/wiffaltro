@@ -1,11 +1,40 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.69
+**Version:** v0.4.70
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Jumpstart Auto and committed first steps, 2026-10-01
+
+J04 is the 30th supported **Working** sponsor candidate. Equipment/Sponsors v18
+(access 294, hook 696 and field interaction 761–764) controls the retained Blueprint
+v114 J04 annex 5242–5266. One Primary Fielder recording three clean fielded outs in
+one completed game earns permanent future paid-shop eligibility. Strikeouts, foul
+catches, prior-bobble recoveries and Pitcher-role outs do not qualify. No win or
+paid sponsor is required. The Uncommon seasonal copy costs 12 Cash, weight 1.0.
+
+Before an opposing PA, choose Normal or field Left/Right/In/Out. The direction stays
+committed through every pitch of that PA; canceling the first windup restores the
+choice. No movement occurs before contact. Fair contact starts a 0.20-second step
+at ordinary rating/Gear-derived speed, with no extra reach or control. Foul contact
+keeps baseline pursuit. A wrong direction costs position. The planner resumes from
+the actual position only after both the step and ordinary reaction delay. Sky Reader
+cannot shorten the mandatory step. Pitcher behavior and normal/no-guess mode are unchanged.
+
+The forced step clips against authored physical walls/objects and Pitcher separation;
+it never steers around them or refunds blocked time. Jumpstart cannot coexist with
+Cornerstone's anchored choice in the same PA. The field menu exposes the conflict,
+retains the selected direction outside the menu, and Equipped shows the live choice.
+The centralized Equipped entry remains in its established position.
+
+Live sale saves the six-Cash refund and ownership removal immediately; the current
+PA's commitment remains until the safe next-batter boundary. Restart honors saved
+ownership and clears unfinished choices/evidence. Older active careers start clean-out
+tracking prospectively next season. Source and tuning stay Working; no AI acquisition
+policy, balance validation or native/human visual approval is newly claimed.
 
 ## Left Right Moving Co. and committed batting sides, 2026-09-30
 

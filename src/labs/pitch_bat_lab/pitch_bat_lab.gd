@@ -508,7 +508,11 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 	_batted_ball.launch(launch_data)
 	_previous_batted_position = launch_data.position
 	_primary_fielder.begin_play(
-		_match_mode and not launch_data.is_foul and SeasonCornerstone.active(_match_state)
+		_match_mode and not launch_data.is_foul and SeasonCornerstone.active(_match_state),
+		(
+			SeasonJumpstart.direction(_match_state)
+			if _match_mode and not launch_data.is_foul else Vector3.ZERO
+		)
 	)
 
 	if _match_mode:
@@ -624,6 +628,7 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 			runs_scored = tag_result.runs_scored
 			advancement_text = tag_result.description
 		if _match_mode:
+			_match_state.clean_outs.record(_match_state, _ball_play_resolver.state, outcome)
 			_match_state.record_ball_in_play_out(runs_scored, outcome.display_name())
 	else:
 		if _match_mode:

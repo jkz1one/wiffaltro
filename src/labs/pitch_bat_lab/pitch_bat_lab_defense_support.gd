@@ -11,6 +11,11 @@ static func try_primary(lab: PitchBatLab) -> void:
 	if lab._primary_fielder.stationary and not lab._primary_fielder.reaction_ready():
 		return
 	var ball_position: Vector3 = lab._batted_ball.global_position
+	if not lab._primary_fielder.first_step.is_zero_approx():
+		if not lab._primary_fielder.reaction_ready():
+			return
+		if not FielderFirstStep.unobstructed(lab._primary_fielder, ball_position):
+			return
 	var allowed_height: float = (
 		FieldingResolver.MAX_GROUND_CONTROL_HEIGHT_M
 		if lab._ball_play_resolver.state.has_grounded

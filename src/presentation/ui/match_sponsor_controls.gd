@@ -57,6 +57,10 @@ func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	_sides.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(_sides)
 	_sides.hide()
+	var jump: MatchJumpstartControls = MatchJumpstartControls.new()
+	jump.name = "JumpstartControls"
+	jump.build(lab)
+	add_child(jump)
 	_build_ellipse()
 
 
@@ -135,6 +139,7 @@ static func can_choose_anchor(lab: PitchBatLab) -> bool:
 		and lab._match_state.can_change_defense()
 		and lab._match_state.phase == MatchState.Phase.PRE_PITCH
 		and lab._match_state.fielder().definition.season_sponsors.get("F01", false)
+		and lab._match_state.jumpstart_mode == "normal"
 		and not lab._match_presentation_director.blocks_gameplay()
 	)
 

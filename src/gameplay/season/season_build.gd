@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 30
+const VERSION: int = 31
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -57,9 +57,11 @@ var _checkout_earned: bool = false
 var _association_start: Variant = null
 var _freezer_start: Variant = null
 var _sides_start: Variant = null
+var _jump_start: Variant = null
 var _association_earned: bool = false
 var _freezer_earned: bool = false
 var _sides_earned: bool = false
+var _jump_earned: bool = false
 var _supply_start: Variant = null
 var _supply_used: int = 0
 var _insurance: Dictionary = {}
@@ -243,6 +245,8 @@ func to_data() -> Dictionary:
 		data["freezer_start"] = _freezer_start
 	if _format >= 30:
 		data["sides_start"] = _sides_start
+	if _format >= 31:
+		data["jump_start"] = _jump_start
 	return data
 
 
@@ -298,9 +302,11 @@ func commit(command: Dictionary) -> Dictionary:
 	_association_start = next._association_start
 	_freezer_start = next._freezer_start
 	_sides_start = next._sides_start
+	_jump_start = next._jump_start
 	_association_earned = next._association_earned
 	_freezer_earned = next._freezer_earned
 	_sides_earned = next._sides_earned
+	_jump_earned = next._jump_earned
 	_supply_start = next._supply_start
 	_supply_used = next._supply_used
 	_insurance = next._insurance
@@ -373,9 +379,11 @@ func _fork() -> SeasonBuild:
 	result._association_start = _association_start
 	result._freezer_start = _freezer_start
 	result._sides_start = _sides_start
+	result._jump_start = _jump_start
 	result._association_earned = _association_earned
 	result._freezer_earned = _freezer_earned
 	result._sides_earned = _sides_earned
+	result._jump_earned = _jump_earned
 	result._supply_start = _supply_start
 	result._supply_used = _supply_used
 	result._insurance = _insurance.duplicate(true)
@@ -424,73 +432,7 @@ func _apply(command: Dictionary) -> String:
 	if op == "pregame":
 		return SeasonBudgetBites.commit(self, command)
 	if op == "reward":
-		if not _match_inventory.is_empty() and command.get("game") != _match_inventory.game:
-			return "Complete the current inventory attempt first."
-		var fields: Array = ["game", "win"]
-		if _format >= 30 and command.has("stances"):
-			fields.append("stances")
-		if _format >= 29 and command.has("batting"):
-			fields.append("batting")
-		if _format >= 6 and command.has("performance"):
-			fields.append("performance")
-		if _format >= 10 and command.has("used_gear"):
-			fields.append("used_gear")
-		if _format >= 14 and command.has("tactics"):
-			fields.append("tactics")
-		if not _keys(command, fields) or _roster.size() != 4:
-			return "Invalid season reward."
-		var result: Dictionary = _bank.commit(
-			{
-				"id": "game:%s" % str(command.game),
-				"rev": _bank.revision(),
-				"op": "reward",
-				"game": command.game,
-				"win": command.win
-			}
-		)
-		if not result.ok or result.replayed:
-			return "This fixture cannot pay again."
-		var error: String = _settle_sponsors(command)
-		if not error.is_empty():
-			return error
-		error = SeasonLeftRight.settle(self, command)
-		if not error.is_empty():
-			return error
-		error = SeasonFreezers.settle(self, command)
-		if not error.is_empty():
-			return error
-		if _format >= 10:
-			error = SeasonReclamation.settle(
-				self, command.get("used_gear", []), command.get("performance", {})
-			)
-			if not error.is_empty():
-				return error
-		if _format >= 14:
-			error = SeasonTacticalPurchase.settle(
-				self, command.get("tactics", []), command.get("performance", {}), int(command.game)
-			)
-			if not error.is_empty():
-				return error
-		if _checkout_start != null:
-			for action: Dictionary in command.get("tactics", []):
-				_checkout_earned = _checkout_earned or action.get("walked", false)
-		if _supply_start != null:
-			_supply_used += command.get("tactics", []).size()
-		var insured: String = SeasonSecondChance.settle(self, command)
-		if not insured.is_empty():
-			return insured
-		_gear_progress.settle(self, command)
-		_match_inventory.clear()
-		_sponsor_progress.settle(self, command)
-		SeasonLegends.settle(self, command.get("performance", {}))
-		_game_rosters[int(command.game)] = roster()
-		_visit = {"number": _visit.number + 1, "open": false}
-		if (
-			_format >= 11
-			and SeasonSchoolSponsors.qualifies_union(self, command.get("performance", {}))
-		):
-			_visit["union_earned"] = true
-		return ""
+		return SeasonBuildReward.settle(self, command)
 	if op == "open":
 		if not _keys(command, []) or _visit.open or _visit.number < 1:
 			return "No new postgame shop is available."
@@ -748,6 +690,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonFreezers.ITEMS).sha256_text()
 	if format_version >= 30:
 		base += ":" + JSON.stringify(SeasonLeftRight.ITEMS).sha256_text()
+	if format_version >= 31:
+		base += ":" + JSON.stringify(SeasonJumpstart.ITEMS).sha256_text()
 	return base
 
 

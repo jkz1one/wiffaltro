@@ -247,14 +247,17 @@ func _migration() -> void:
 	season.build._format = 28
 	season.build._freezer_start = null
 	season.build._sides_start = null
+	season.build._jump_start = null
 	season.career.runs[-1].freezer_earned = null
 	season.career.runs[-1].sides_earned = null
+	season.career.runs[-1].jump_earned = null
 	_result(season, ["single"])
 	_check(SeasonSave.save(season), "prior format paid result")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 9
 	data.career.runs[-1].erase("freezer_earned")
 	data.career.runs[-1].erase("sides_earned")
+	data.career.runs[-1].erase("jump_earned")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(
 		restored != null and restored.build._freezer_start == null,
