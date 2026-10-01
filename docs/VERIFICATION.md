@@ -1,5 +1,56 @@
 # Fast verification and playtest records
 
+## Carbon Copy Printing: shared events and exact sources, 2026-10-01
+
+Broad affected-path run `20261001T161441862088Z` passed **38/38 checks** under
+Godot4.7.2: seven common gates and31 scenes, including five complete physical games.
+Production code did not change after that run. A subsequent test-only isolation fix
+sets the live fixture's dedicated save path before constructing its paid loadout and
+asserts that the default save remains unchanged. Its generated temporary default-path
+fixture was removed; the final run uses only isolated test saves.
+
+Final focused run `20261001T162402834760Z` passed **9/9 checks**: seven gates plus
+`season-carbon-copy` and `season-carbon-copy-live`, with four more physical games.
+Both runs have no engine warnings/errors. All530 source/test/asset/project/runner
+files remained unchanged from the final snapshot through verification and publication.
+This is targeted coverage, not the full suite or native/human visual and feel approval.
+The previously recorded native-display limitation and unexplained full-suite early
+exit remain open.
+
+Exact broad scene scope:
+
+`season-carbon-copy`, `season-carbon-copy-live`, `season-gameplay-sponsor`,
+`season-match-sales`, `season-match-sales-live`, `season-loadout-ui`,
+`season-association`, `season-sponsor-set`, `season-small-batch`, `season-field-supply`,
+`season-sure-shot`, `season-jumpstart`, `season-left-right`, `season-freezers`,
+`season-late-checkout`, `season-second-chance`, `season-transfer`, `season-raincheck`,
+`season-special-order`, `season-earned-sponsors`, `season-gear-progress`, `club-career`,
+`season-opponents`, `season-tactical`, `season-tactical-sponsors`,
+`season-expanded-tactical`, `season-budget-bites`, `season-wholesale`,
+`ownership-integration`, `season-ownership`, `regressions`.
+
+The new fixture reaches four distinct paid active sponsors and then purchases E09
+from actual generated stock (seed12, six completed controlled fixtures). UI checks
+cover the20-Cash purchase, cancel, failed-write rollback, keyboard source selection,
+source-picker cancel, pregame atomic rollback, restart locking, central Equipped
+status, usable targets and bounded shop/menu layouts. Career tests cover inherited
+access without free copies, forged history, journal rebuild and Build34/Career15
+prospective migration. All older migration fixtures explicitly omit future Copy tracking.
+
+Model cases reject incompatible/recursive sources, duplicate selections and source
+replacement inheritance; a source-less Copy is legal but inert. Deli tests combine
+both swings, four Bats, misc penalties and Legends, with fair/foul contact at multiple
+qualities and both batting sides. Only the paired Deli contribution compounds; no
+extra PA/Single, quality rescue or Power effect is introduced. Cash cases cap three
+walks at8 combined, preserve once-only replay, and settle the legitimate25-Cash total
+with all three ordinary income sponsors without relaxing their old21-Cash bank event.
+
+Four physical cases exercise Deli copying, a positive D01/E09 payout (4+4), source
+sale and Copy sale. The pair retains its effect within the committed PA and retires
+at the actual next-batter boundary. Refunds save immediately, failed writes roll back,
+restart honors exact remaining ownership, completed results rebuild, and save retry
+cannot duplicate income. Existing match-sales contributes the fifth broad physical game.
+
 ## Field Supply Co.: earned Tape and safe inventory boundaries, 2026-10-01
 
 Broad affected-path run `20261001T153315480652Z` passed **40/41 checks** under

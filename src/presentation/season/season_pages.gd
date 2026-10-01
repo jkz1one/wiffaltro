@@ -124,6 +124,7 @@ static func pregame(menu: SeasonMenu) -> void:
 	wrapped(card, "Arsenal: " + menu._pitches(starter).replace("\n", " • "))
 	SeasonOpponentUI.preview(menu, card, fixture)
 	SeasonFilmChoice.add(menu, card, fixture)
+	SeasonCarbonCopyUI.add(menu, card, fixture)
 	SeasonSecondChanceUI.add(menu, card, fixture)
 	if season.build != null:
 		var budget: String = SeasonBudgetBites.describe(season.build, int(fixture.id))

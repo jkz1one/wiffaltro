@@ -41,6 +41,11 @@ static func save(app: SeasonApp) -> bool:
 		if not selected.ok:
 			app.notice = selected.error
 			return false
+	if next._format >= 35 and not next._pregames.has(str(fixture_id)):
+		var copied: String = SeasonCarbonCopy.choose(app, next, fixture_id)
+		if not copied.is_empty():
+			app.notice = copied
+			return false
 	if next._format >= 26 and not next._pregames.has(str(fixture_id)):
 		var insured: String = SeasonSecondChance.choose(app, next, fixture_id)
 		if not insured.is_empty():

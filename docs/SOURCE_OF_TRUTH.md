@@ -1,12 +1,49 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.73
+**Version:** v0.4.74
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Carbon Copy Printing: one locked source, shared events, 2026-10-01
+
+E09 earns future paid-shop eligibility after four distinct sponsor identities are
+simultaneously active in one legal saved loadout during a season. Preview, canceled
+purchase and failed save earn nothing. The Working 20-Cash Rare seasonal copy still
+requires purchase; no current stock regeneration or free ownership follows access.
+Older active saves begin prospective tracking next Working season.
+
+Before Play Game, choose exactly one active Neighborhood Deli A07 or Take Your Base
+D01. Selection binds both exact paid receipts for the whole fixture, including
+restart. Each occupies its own slot. With neither compatible source, Copy remains
+legally owned but inert. Buying a source or a replacement Copy after this fixture's
+pregame lock cannot retarget it. No recursive Copy, generators, vouchers, reserves,
+other sponsor effects or generic duplicate ownership are introduced.
+
+Deli and Copy share the original qualifying Single and next-batter chain. The pair's
+Working contribution is 1.04 × 1.04 − 1 = 0.0816, or +8.16% fair Contact exit speed.
+This paired contribution replaces ordinary Deli's +0.04 in the existing additive
+Bat/other sponsor calculation; existing misc and tactical penalties apply normally.
+Other sponsor contributions do not compound. No extra Single, PA, chain refresh,
+contact-quality rescue, Power effect or cross-half chain is created.
+
+A copied Take Your Base adds 2 Cash on each of the first two actually credited walks,
+maximum 4 extra and 8 combined per completed game. Take a Base supply advances are
+not walks. Existing completed statistics and unlocks count the original event once.
+Separate source/copy income contributions settle atomically and cannot pay on retry.
+Existing settlement requires the original exact source and Copy still owned; selling
+either forfeits copied postgame income. Deli sales save ownership/refunds immediately
+and retire live effects at the safe next-batter boundary. Equipped stays centralized.
+
+Current sources: Decisions v31; Equipment/Sponsors v18 access283, Copy535–558 and
+Working carry-forward769–774; Blueprint v114 E09 annex3915–3937. The later v18
+carry-forward explicitly makes the prior Copy proposal a Working testing default,
+resolving the preceding checkpoint's overly broad blocking note. Nothing is promoted
+to Approved. Build35/save39/Career16 preserves historical IDs and frozen signatures.
+See VERIFICATION.md for actual scope; native/human UI and feel acceptance remains open.
 
 ## Field Supply Co.: clean outs and generated Grip Tape, 2026-10-01
 

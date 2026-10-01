@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.64
+**Version:** v0.1.65
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,40 @@
 
 # 1. Technical Objective
 
+
+## Carbon Copy source identity and settlement, 2026-10-01
+
+Build35/schema39/Career16 adds `SeasonCarbonCopy` and `SeasonCarbonCopyUI`.
+SeasonBuild holds one `_copy` helper (978 total lines). Its nullable `start` records
+inherited eligibility; `earned` and `selections` derive from successful journal
+commands and fork deeply. Only format35 appends the new catalog signature. Older
+formats restore null access; migration does not retrospectively earn it. Career's
+nullable `copy_earned` must agree with the current journal and prior-run inheritance.
+
+`copy_select` accepts only the pending fixture's legal pregame source receipt, or
+an empty source when neither compatible sponsor is active. The journal derives both
+source item and exact Copy receipt; there is no editable saved selection blob. SeasonSave
+binds selection commands to the fixture cursor. `SeasonPregameCommit` stages the
+choice, ordinary pregame grants and inventory snapshot together; failed writes roll
+back all of them. A saved selection is reused on retry and restart, never replaced.
+
+`TeamMatchState.copy_source` derives from current exact ownership. Deli uses that
+source identity plus the existing live A07/E09 flags and original chain state. The
+pair contributes0.0816 in the existing additive exit calculation, with unchanged
+other sponsor and Gear contributions; misc/tactical multipliers retain their order.
+No new contact event, random draw or chain state is added. Ordinary safe-boundary
+sale retirement removes those flags. Restart rebuilds from saved ownership.
+
+Completed D01 income reads the existing validated source earnings and adds a separate
+`carbon-income:<fixture>` bank event, with E09 in the income breakdown. The original
+`sponsor-income:<fixture>` ID and its21-Cash maximum remain frozen. Together with
+all three existing income sponsors the two transactions can legitimately pay25;
+Copy cannot retrigger their Ks or hit types. Atomic result replay prevents duplicates.
+Human/AI offscreen restrictions are unchanged; no AI acquisition policy is added.
+
+Prepare Next Game exposes keyboard-operable exact source selection and locked/inactive
+status. Central Equipped shows the source, Deli chain status or lost postgame payout.
+Purchase/sale confirmation and save rollback use the existing shared transaction UI.
 
 ## Field Supply inventory and replay boundaries, 2026-10-01
 

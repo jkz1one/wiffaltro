@@ -267,6 +267,7 @@ func _rain_persistence(season: SeasonState) -> void:
 	legacy.build._batch_start = null
 	legacy.build._sure_start = null
 	legacy.build._field_start = null
+	legacy.build._copy.start = null
 	legacy.career.runs[-1].rain_earned = null
 	legacy.career.runs[-1].transfer_earned = null
 	legacy.career.runs[-1].supplies_used = null
@@ -278,6 +279,7 @@ func _rain_persistence(season: SeasonState) -> void:
 	legacy.career.runs[-1].batch_used = null
 	legacy.career.runs[-1].sure_earned = null
 	legacy.career.runs[-1].field_outs = null
+	legacy.career.runs[-1].copy_earned = null
 	_check(SeasonSave.save(legacy), "legacy build23 save")
 	var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	old.career.version = 4
@@ -292,6 +294,7 @@ func _rain_persistence(season: SeasonState) -> void:
 	old.career.runs[-1].erase("batch_used")
 	old.career.runs[-1].erase("sure_earned")
 	old.career.runs[-1].erase("field_outs")
+	old.career.runs[-1].erase("copy_earned")
 	var migrated: SeasonState = SeasonSave._decode(old)
 	_check(
 		migrated != null and migrated.build._rain_start == null,

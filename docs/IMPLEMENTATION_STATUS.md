@@ -1,5 +1,20 @@
 # Implementation Status
 
+## Carbon Copy Printing, 2026-10-01
+
+Carbon Copy completes prospective four-active-sponsor access, paid 20-Cash Rare
+ownership, exact pregame Deli/Take Your Base selection, shared-event effects,
+bounded copied income, live sales, UI and save/career replay. Build35/schema39/
+Career16 supports34/35 sponsors,23/25 Gear and all five initial tactical supplies.
+The later Equipment/Sponsors v18 amendment carries Copy forward as Working; the
+previous blocking note below is superseded, without promoting anything to Approved.
+
+Double Major remains dependent on learned player abilities. AI acquisition, player
+cards, higher Leagues/tiers, stadium progression, integration and the final cohesive
+UI polish with primary-reference research, actual native rendered review and human
+visual/feel acceptance remain open. Whole-project completion stays approximately72%,
+not release readiness. See VERIFICATION.md for exact fresh scope and limitations.
+
 ## Field Supply Co., 2026-10-01
 
 Field Supply adds six-clean-outs-in-one-season access, a paid Working 14-Cash

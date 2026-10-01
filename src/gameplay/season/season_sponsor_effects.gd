@@ -11,8 +11,23 @@ static func snapshot(
 		if (
 			receipt.item
 			in [
-				"A07", "B03", "E07", "F01", "F02", "F03", "G04", "J08",
-				"G05", "E04", "G03", "E10", "F06", "J04", "F08", "B01"
+				"A07",
+				"B03",
+				"E07",
+				"F01",
+				"F02",
+				"F03",
+				"G04",
+				"J08",
+				"G05",
+				"E04",
+				"G03",
+				"E10",
+				"F06",
+				"J04",
+				"F08",
+				"B01",
+				"E09"
 			]
 		):
 			result[receipt.item] = true
@@ -39,7 +54,7 @@ static func swing(source: SwingProfileDefinition, state: MatchState) -> SwingPro
 		# once-only multiplicative penalty, including when the Bat penalty is offset.
 		var misc: Dictionary = SeasonGearCatalog.item(player.season_gear.get("misc", ""))
 		var bonus: float = (
-			(0.04 if deli_active(state) else 0.0)
+			SeasonCarbonCopy.deli_bonus(state)
 			+ 0.01 * clampi(int(player.season_sponsors.get("E05", 0)), 0, 4)
 		)
 		result.gear_fair_exit_scale += bonus * float(misc.get("exit", 1.0))

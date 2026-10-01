@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-01 after Field Supply Co. integration and affected-path verification.
+Updated 2026-10-01 after Carbon Copy Printing integration and affected-path verification.
 
 ## Resume here
 
@@ -8,7 +8,7 @@ Updated 2026-10-01 after Field Supply Co. integration and affected-path verifica
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
   completes Second Chance, Late Checkout, Association, Freezers, Left Right Moving, Jumpstart
-  and Small Batch, followed by Sure Shot Signworks and Field Supply Co.
+  and Small Batch, followed by Sure Shot Signworks, Field Supply Co. and Carbon Copy Printing.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -53,7 +53,50 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Field Supply continuation details (latest)
+## Carbon Copy continuation details (latest)
+
+Build35/schema39/Career16; Source of Truth v0.4.74, Technical Preproduction v0.1.65.
+Carbon Copy E09 is implemented. Publication is authorized only to the engineering
+branch; use `git log -1` for the pushed SHA. Never merge/deploy. Main was rechecked
+against `f1dc209b`; the repository progression blueprint remains byte-identical.
+Broad run `20261001T161441862088Z` passed38/38 checks (31 scenes, five physical
+games). After a test-only save-isolation fix, final run `20261001T162402834760Z`
+passed9/9 checks with four more physical games. Production code was unchanged;
+530 final source files stayed unchanged through verification/publication. Both runs
+have no engine warnings/errors. See VERIFICATION.md for exact scope; neither run
+constitutes full-suite or native/human acceptance.
+
+Current contracts: Decisions v31, Equipment/Sponsors v18 (access283, Copy535–558,
+Working carry-forward769–774), Blueprint v114 E09 annex3915–3937. The later Working
+amendment resolves the earlier checkpoint's blocking note. Twenty Cash, Rare and
+Copy tuning remain Working, never Approved. Four distinct simultaneously active
+identities in a legal saved seasonal loadout earn permanent paid-shop eligibility.
+
+`SeasonCarbonCopy` owns nullable inherited `start`, derived `earned`, exact receipt
+selection, income and Deli contribution. Its single SeasonBuild `_copy` field keeps
+Build at978 lines. New `copy_select` journal entries lock both source and Copy receipt
+before play; SeasonSave binds them to the fixture cursor. Save failure rolls back
+selection, pregame grants and inventory together. Source-less Copy is inert. Restart,
+selling/rebuying and buying a compatible source after lock cannot retarget the fixture.
+
+Only A07 or D01 may be copied. Deli shares the existing chain and substitutes0.0816
+for its ordinary0.04 contribution in the existing additive exit calculation. Other
+sponsors do not compound; misc/tactical penalties stay in order. No duplicate Single,
+PA, quality rescue, Power effect or cross-half refresh. D01 reads the same validated
+walks and pays at most4 extra Cash, as separate `carbon-income:<fixture>` with E09
+in the breakdown. Existing income IDs and21-Cash aggregate ceiling remain frozen.
+Source and Copy must remain owned for postgame income. Live Deli effects retire at
+the safe next-batter boundary; ownership/refunds save immediately. Equipped is central.
+
+Supported content is34/35 sponsors,23/25 Gear and five supplies. Only Double Major
+remains among the initial sponsors; its learned-ability dependency is unimplemented.
+Other remaining work: AI acquisition, player-card systems, higher Leagues/tiers,
+stadium progression, integration and final UI/native/human acceptance. No next slice
+selected. Whole-project estimate stays approximately72%, not release readiness.
+Native-display limitations and the older unexplained full-suite early exit remain
+open; targeted headless UI checks are not human approval.
+
+## Field Supply continuation details
 
 Build34/schema38/Career15; Source of Truth v0.4.73, Technical Preproduction v0.1.64.
 Field Supply B01 is implemented. Broad run `20261001T153315480652Z` passed
@@ -312,8 +355,8 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 30 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
-tactical supplies. Five earned sponsor contracts, further AI acquisition, player-card contracts,
+There are 34 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+tactical supplies. Double Major, further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the
 counts alone are not a specification. Do not infer completion from older historical checklist entries.

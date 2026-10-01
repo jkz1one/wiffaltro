@@ -136,6 +136,7 @@ func choose_player(id: String) -> bool:
 			var association_start: Variant = build._association_start
 			var freezer_start: Variant = build._freezer_start
 			var sides_start: Variant = build._sides_start
+			var copy_start: Variant = build._copy.start
 			var field_start: Variant = build._field_start
 			var sure_start: Variant = build._sure_start
 			var jump_start: Variant = build._jump_start
@@ -152,6 +153,7 @@ func choose_player(id: String) -> bool:
 			build._association_start = association_start
 			build._freezer_start = freezer_start
 			build._sides_start = sides_start
+			build._copy.start = copy_start
 			build._field_start = field_start
 			build._sure_start = sure_start
 			build._jump_start = jump_start
@@ -198,6 +200,7 @@ func make_match() -> MatchState:
 		player.scouted_recipe = SeasonFilmRoom.target(self)
 		player.tactics.held = SeasonTacticalCatalog.held(build.view().wallet)
 		player.tactics.track_walks = build._format >= 27 and build._checkout_start != null
+		player.copy_source = SeasonCarbonCopy.target(build, int(fixture.id))
 		player.tactics.insured_receipt = SeasonSecondChance.target(build, int(fixture.id))
 		player.field_supply.receipt = "field-supply:%d" % int(fixture.id)
 		MatchFieldSupply.sync_capacity(player, build.view().wallet)

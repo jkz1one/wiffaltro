@@ -49,6 +49,27 @@ static func pages(app: SeasonApp) -> Dictionary:
 				"%d / 4 stamps • +%d%% Contact exit %s"
 				% [stamps, stamps, "this game" if live else "next game"]
 			)
+		elif receipt.item == "E09":
+			var game: int = int(app.season.pending_fixture().get("id", -1))
+			var source: String = (
+				team.copy_source if live else SeasonCarbonCopy.target(app.season.build, game)
+			)
+			status = "Copying " + SeasonSponsorCatalog.item(source).get("name", "")
+			if source == "":
+				status = (
+					"No copied effect this game" if live else "Choose source in Prepare Next Game"
+				)
+			if live and source == "A07":
+				if not team.roster[0].definition.season_sponsors.get("A07", false):
+					status = "Deli source inactive • no copied effect"
+				elif state.batting_team() == team:
+					status += (
+						" • shared chain ready"
+						if SeasonSponsorEffects.deli_active(state)
+						else " • waiting for a Single"
+					)
+			if live and source == "D01" and SeasonCarbonCopy.target(app.season.build, game) == "":
+				status = "Pair sold • no copied postgame income"
 		elif receipt.item == "B01" and live:
 			status = team.field_supply.label()
 		elif receipt.item == "F08" and live:

@@ -40,6 +40,9 @@ static func settle(build: SeasonBuild, command: Dictionary) -> String:
 	var error: String = build._settle_sponsors(command)
 	if not error.is_empty():
 		return error
+	error = SeasonCarbonCopy.settle(build, command)
+	if not error.is_empty():
+		return error
 	error = SeasonSureShot.settle(build, command)
 	if not error.is_empty():
 		return error

@@ -1,8 +1,10 @@
 class_name TeamMatchState
 extends RefCounted
 
+
 const ROSTER_SIZE: int = 4
 
+var copy_source: String = ""
 var display_name: String = "Team"
 var roster: Array[PlayerMatchState] = []
 var batting_index: int = 0
