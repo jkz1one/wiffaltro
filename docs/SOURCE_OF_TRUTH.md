@@ -1,12 +1,61 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.74
+**Version:** v0.4.75
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Learned abilities and shared Equipped inspection, 2026-10-01
+
+A05 Work the Count, A06 Soft Hands and C01 Sky Reader now have paid seasonal learning.
+Each player has one Hitting and one Fielding slot. Buying a different ability into
+an occupied slot requires the exact current receipt and explicit forgetting; pay
+the full new price, with no refund. No unassigned inventory, resale or self-stacking.
+Learning stays with its player on release/rehire within the season, never transfers
+to a replacement, and resets for a new season. Double Major is still unimplemented.
+
+Working prices/rarities: Work the Count 12/Uncommon, Soft Hands 10/Common and Sky
+Reader 12/Uncommon. Initial shops can offer the first two. Sky Reader requires three
+clean airborne Primary Fielder outs across completed career games; pitcher catches,
+prior bobbles, foul catches and unfinished games do not count. The ability need not
+be owned. Earned access creates future eligibility, never a free copy or regenerated
+current stock. Older active careers start new tracking next Working season.
+
+Work the Count counts actual released, taken called balls in the current PA. At two,
+both swing profiles gain 6% of their base spatial X/Y radii for the rest of that PA.
+Synthetic starting counts and fouls do not grant progress; changing pitchers retains
+it. No timing, exit-speed or automatic-contact grant. The spatial contribution is
+additive with Bat coverage; the existing later Grip Tape multiplication remains last,
+as required by the later implemented Tape contract. Existing Cold/Optics order remains.
+
+Soft Hands adds 0.10 grounded clean-control margin after normal height/reach checks,
+only once initial reaction is ready and reaction margin is nonnegative. It applies
+to the Primary Fielder or defending pitcher. No air, speed, reach or height bonus.
+Sky Reader classifies the actual initial post-contact launch once. On fair launches
+at least 25°, only the Primary Fielder's initial reaction delay is multiplied by 0.60.
+Sports Goggles ×0.85 composes multiplicatively for 0.51 of normal delay, with the
+existing positive engine floor. No predicted landing, catch/outcome knowledge, speed,
+reach or later reclassification. Jumpstart's mandatory 0.20s step still completes.
+
+The user reaffirmed a shared Equipped button/lightbox in shop and game, using
+Balatro as a reference for inspection and sale clarity. The centered bottom entry
+is unchanged. Four tabs show Gear, Sponsors, Supplies and player-owned Abilities.
+Ability cards identify owner, slot, effect, seasonal duration and no resale; the
+current hitter can inspect Work the Count progress. Shop-lightbox Gear/sponsor sales
+now use the ordinary atomic shop sale path, including capacity resolution. In-game
+sales retain immediate saved ownership/refunds and safe next-batter effect retirement.
+Cards show their actual refund reference, including Summer School's zero resale.
+
+Sources: Players/Pitches v17 current A05/A06/C01 table; Economy v24 immediate learning,
+replacement/return retention and parent shop weights; Blueprint v114 retained A05,
+A06, C01 and earned-access annexes; Equipment/Sponsors v18 Goggles/Jumpstart rules.
+Ability parent weight 10 joins the existing proportional eligible categories. Common 2
+and Uncommon 1 internal weights are an implementation testing default, not Approved
+balance. Packs, Raincheck, Special Order and offscreen AI acquisition are not expanded.
+Build 36/save 40/Career 17 preserves old signatures, receipts and existing visit generators.
 
 ## Carbon Copy Printing: one locked source, shared events, 2026-10-01
 

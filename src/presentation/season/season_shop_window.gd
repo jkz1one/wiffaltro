@@ -84,7 +84,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 initial Gear items plus 10 earnable tiers. "
-			+ "19 initial sponsors plus eight earned sponsor contracts. "
+			+ "19 initial sponsors plus 15 earned sponsor contracts. "
 			+ "Existing unapproved Gear mappings remain Proposals."
 		)
 	)
@@ -123,6 +123,9 @@ func _refresh() -> void:
 				continue
 			if not SeasonGearCatalog.item(item_id).is_empty():
 				SeasonGearShopUI.offer(self, offer, item_id, view.wallet.gear)
+				continue
+			if SeasonAbilities.ITEMS.has(item_id):
+				SeasonAbilityUI.offer(self, offer, item_id)
 				continue
 			if SeasonTacticalCatalog.catalog().has(item_id):
 				SeasonTacticalShopUI.offer(self, offer, item_id)
@@ -220,6 +223,7 @@ func _recruit(shop: Dictionary) -> void:
 		)
 		return
 	var player: PlayerDefinition = ProgressionMatchAdapter.from_profile(offer.profile)
+	player.season_abilities = app.season.build._abilities.ids(offer.player)
 	if offer.signed:
 		_label("SIGNED • " + player.display_name)
 		return
@@ -243,6 +247,7 @@ func _choose_recruit() -> void:
 		return
 	_clear()
 	var incoming: PlayerDefinition = ProgressionMatchAdapter.from_profile(offer.profile)
+	incoming.season_abilities = app.season.build._abilities.ids(offer.player)
 	_label("SIGN %s • %d Cash" % [incoming.display_name, offer.price])
 	SeasonPlayerCard.ratings_card(_body, incoming, "INCOMING • " + incoming.display_name)
 	_label(

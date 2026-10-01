@@ -15,6 +15,8 @@ var handling_scale: float = 1.0
 var reaction_delay_seconds: float = 0.11
 var pitcher_lane_z: float = INF
 var pitcher_defender: Node3D
+var _base_reaction_delay: float = 0.11
+var _sky_reader: bool = false
 var _play_elapsed_seconds: float = 0.0
 var _avatar: PlayerAvatar
 var _reach_marker: MeshInstance3D
@@ -31,7 +33,10 @@ func set_anchor(new_anchor: Vector3) -> void:
 func set_pitcher_lane(pitcher_z: float) -> void:
 	pitcher_lane_z = pitcher_z
 
-func begin_play(anchored: bool = false, step: Vector3 = Vector3.ZERO) -> void:
+func begin_play(anchored: bool = false, step: Vector3 = Vector3.ZERO,
+	launch: BattedBallLaunch = null) -> void:
+	if _sky_reader:
+		reaction_delay_seconds = MatchAbilities.sky_delay(_base_reaction_delay, launch)
 	active = true
 	stationary = anchored
 	first_step = Vector3.ZERO if anchored else step
@@ -75,6 +80,8 @@ func configure_player(player: PlayerDefinition) -> void:
 		clampf(float(fielding_rating) / 10.0, 0.0, 1.0)
 	)
 	reaction_delay_seconds = SeasonGearCatalog.reaction_delay(reaction_delay_seconds, player)
+	_base_reaction_delay = reaction_delay_seconds
+	_sky_reader = player.season_abilities.has(SeasonAbilities.SKY)
 	if _reach_marker != null:
 		_reach_marker.scale = Vector3(reach_m, 1.0, reach_m)
 	if _avatar != null:

@@ -26,6 +26,7 @@ var sides: MatchBattingSides = MatchBattingSides.new()
 var sure_shot: MatchSureShot = MatchSureShot.new()
 var clean_outs: MatchCleanOuts = MatchCleanOuts.new()
 var jumpstart_mode: String = "normal"
+var abilities: MatchAbilities = MatchAbilities.new()
 var cold: MatchColdStreak = MatchColdStreak.new()
 var pitch_ledger: MatchPitchLedger = MatchPitchLedger.new()
 var phase: Phase = Phase.PRE_PITCH
@@ -83,6 +84,7 @@ func begin_pitch() -> bool:
 		return false
 	if between_batters:
 		inventory_boundary.emit()
+	abilities.released = false
 	sides.lock(self)
 	batting_team().tactics.checkout.clear()
 	pitch_disclosure = sure_shot.cue(self)
@@ -96,12 +98,14 @@ func cancel_pitch() -> void:
 		return
 	phase = Phase.PRE_PITCH
 	between_batters = _between_batters_before_pitch
+	abilities.released = false
 	sides.cancel(self)
 
 func begin_ball_in_play() -> void:
 	phase = Phase.BALL_IN_PLAY
 
 func record_called_pitch(is_strike: bool) -> StringName:
+	abilities.called(self, is_strike)
 	if is_strike:
 		return record_strike(false)
 	return record_ball()
@@ -210,6 +214,7 @@ func _add_runs(amount: int) -> void:
 		_finish_game("Mercy rule")
 
 func _complete_plate_appearance(description: String, single: bool = false) -> void:
+	abilities.reset()
 	defensive_team().sure_shot_locked = false
 	pitch_disclosure.clear()
 	sides.complete(self)
@@ -236,6 +241,7 @@ func _complete_plate_appearance(description: String, single: bool = false) -> vo
 	away_team.field_supply.deliver(self, away_team)
 
 func _advance_half_inning() -> void:
+	abilities.reset()
 	away_team.tactics.checkout.clear()
 	home_team.tactics.checkout.clear()
 	_deli_next_batter = false
@@ -313,6 +319,7 @@ func _hit_name(result: BallPlayOutcome.Result) -> String:
 func note_pitch_released(recipe: StringName = &"", actual_paid: float = 0.0) -> void:
 	if phase != Phase.PITCH_IN_FLIGHT:
 		return
+	abilities.released = true
 	if not _pa_pitchers.has(pitcher()):
 		_pa_pitchers.append(pitcher())
 	pitch_ledger.record(pitcher(), recipe, actual_paid)

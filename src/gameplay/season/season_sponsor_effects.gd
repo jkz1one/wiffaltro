@@ -58,6 +58,7 @@ static func swing(source: SwingProfileDefinition, state: MatchState) -> SwingPro
 			+ 0.01 * clampi(int(player.season_sponsors.get("E05", 0)), 0, 4)
 		)
 		result.gear_fair_exit_scale += bonus * float(misc.get("exit", 1.0))
+	state.abilities.swing(result, source, player)
 	state.cold.swing(result, source, state.batter())
 	state.sides.swing(result, state)
 	if source.id == &"swing.contact" and player.season_sponsors.get("F03", false):

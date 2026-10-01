@@ -49,6 +49,9 @@ static func settle(build: SeasonBuild, command: Dictionary) -> String:
 	error = SeasonJumpstart.settle(build, command)
 	if not error.is_empty():
 		return error
+	error = build._abilities.settle(build, command)
+	if not error.is_empty():
+		return error
 	error = SeasonFieldSupply.settle(build, command)
 	if not error.is_empty():
 		return error

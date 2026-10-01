@@ -42,7 +42,8 @@ static func resolve(
 	pitcher_position: Vector3,
 	has_grounded: bool,
 	fielding_rating: int,
-	handling_scale: float = 1.0
+	handling_scale: float = 1.0,
+	control_bonus: float = 0.0
 ) -> FieldingResolver.Outcome:
 	var distance: float = (
 		Vector2(ball_position.x - pitcher_position.x, ball_position.z - pitcher_position.z).length()
@@ -54,5 +55,6 @@ static func resolve(
 		has_grounded,
 		fielding_rating,
 		0.0,
-		handling_scale
+		handling_scale,
+		control_bonus
 	)

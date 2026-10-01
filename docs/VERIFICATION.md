@@ -1,5 +1,75 @@
 # Fast verification and playtest records
 
+## Learned abilities and the shared Equipped lightbox, 2026-10-01
+
+Broad run `20261001T195912292601Z` passed **43/47 checks** under Godot 4.7.2:
+seven common gates and 36 of 40 scenes. Three failures were outdated test fixtures:
+Carbon Copy's paid shop fixture now requires an explicit sponsor replacement, its
+walk-income game must take actual pitches rather than rely on a changed AI seed,
+and Association migration must generate its paid history with the old shop format.
+Only those three test files changed after the broad run; production stayed frozen.
+The fourth failure was live match sales exiting zero before its pass marker, without
+an engine error. Its cause remains unresolved; a successful rerun is not a diagnosis.
+
+Final focused run `20261001T230925199210Z` passed **11/11 checks**: seven gates plus
+`season-carbon-copy`, `season-carbon-copy-live`, `season-association` and
+`season-match-sales-live`. It contains no engine warnings/errors. Combined passing
+coverage includes all 40 targeted scenes and seven complete physical games: two
+learned-ability games, four Carbon Copy games and one live-sales game. This is
+coverage across the broad run and focused rerun, not a clean full-suite result.
+All 539 final source/test/asset/project/runner files match the frozen snapshot;
+the focused runner's 530 copied project/source/asset files were checked against it.
+
+Exact broad scene scope:
+
+`season-abilities`, `season-abilities-live`, `season-carbon-copy`,
+`season-carbon-copy-live`, `season-field-supply`, `season-sure-shot`,
+`season-small-batch`, `season-jumpstart`, `season-left-right`, `season-freezers`,
+`season-association`, `season-sponsor-set`, `season-late-checkout`,
+`season-second-chance`, `season-transfer`, `season-raincheck`, `season-special-order`,
+`season-match-sales`, `season-match-sales-live`, `season-loadout-ui`,
+`season-earned-sponsors`, `season-gear-progress`, `club-career`, `season-opponents`,
+`season-budget-bites`, `season-tactical-sponsors`, `season-expanded-tactical`,
+`season-tactical`, `season-wholesale`, `season-cornerstone`, `season-school`,
+`season-gameplay-sponsor`, `season-mapped-gear`, `season-misc`, `season-gear`,
+`recruitment`, `paid-shop-ui`, `ownership-integration`, `season-ownership`, `regressions`.
+
+The learned-ability games completed with human-side and AI-side ownership, scores
+0–15 and 14–0, respectively. They observed 237/186 Work the Count ready frames and
+three actual Sky Reader launches in the first game. The final Carbon Copy walk case
+paid 2 Cash each from D01 and E09. Live sales completed three innings with 120 pitch
+records and 30 balls in play.
+
+Meaningful new coverage includes actual generated offers (seed 457, six controlled
+completed fixtures), full-price paid learning, exact Fielding replacement with no
+refund, independent Hitting slots, receipt replay/idempotency/deep forks, forged
+career/inherited/replacement data rejection, retained released-instance learning,
+new-season resets, old Build35 current-stock/reroll preservation and next-visit
+activation. UI checks exercise owner/effect cards, explicit forgetting, failed-save
+rollback, shop-lightbox sale review/refund, four-tab keyboard containment, shared
+entry geometry and small-window scroll bounds. Controlled physical resolver tests
+exercise Soft Hands on Primary and pitcher, including pre-reaction exclusion.
+
+Runtime coverage tests actual released called balls, synthetic-count exclusion,
+foul/pitcher-change retention, PA reset, Contact/Power spatial coverage, unchanged
+Tape ordering, 25° versus 24.9° launch classification, Goggles, foul exclusion and
+Jumpstart's mandatory interval. Live games use the paid roster with both human-side
+and AI-side batting, real contact/flight/fielding, completed result/career replay and
+next-game reset. Exact final scope and metrics are recorded above.
+
+Primary UI reference reviewed on 2026-10-01: [official Balatro press kit](https://www.playbalatro.com/press-kit/),
+particularly [full-deck overlay](https://www.playbalatro.com/press-kit/Screenshots/Balatro_ui_3840x2160_1.png)
+and [shop](https://www.playbalatro.com/press-kit/Screenshots/Balatro_ui_3840x2160_2.png).
+The source images were inspected directly. Relevant observations are the clear
+foreground inspection panel, visible owned-card context and separate price/action
+hierarchy. Wiffaltro keeps its own existing visual system and consistent Equipped
+entry, with clear card effects and refund actions. No Balatro art is added to the repo.
+
+The current workspace has no configured native display. Prior native-display and
+full-suite early-exit limitations remain unresolved. Headless geometry/interaction
+checks are not native rendered review, human visual acceptance or feel approval.
+The final cohesive polish/acceptance slice remains mandatory before release.
+
 ## Carbon Copy Printing: shared events and exact sources, 2026-10-01
 
 Broad affected-path run `20261001T161441862088Z` passed **38/38 checks** under

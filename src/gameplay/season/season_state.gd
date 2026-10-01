@@ -136,6 +136,7 @@ func choose_player(id: String) -> bool:
 			var association_start: Variant = build._association_start
 			var freezer_start: Variant = build._freezer_start
 			var sides_start: Variant = build._sides_start
+			var ability_start: Variant = build._abilities.start
 			var copy_start: Variant = build._copy.start
 			var field_start: Variant = build._field_start
 			var sure_start: Variant = build._sure_start
@@ -153,6 +154,7 @@ func choose_player(id: String) -> bool:
 			build._association_start = association_start
 			build._freezer_start = freezer_start
 			build._sides_start = sides_start
+			build._abilities.start = ability_start
 			build._copy.start = copy_start
 			build._field_start = field_start
 			build._sure_start = sure_start

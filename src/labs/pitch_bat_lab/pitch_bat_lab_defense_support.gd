@@ -42,6 +42,15 @@ static func try_primary(lab: PitchBatLab) -> void:
 					lab._ball_play_resolver.state.has_grounded
 				)
 				+ SeasonCornerstone.margin(lab._match_state, lab._primary_fielder)
+				+ MatchAbilities.ground_margin(
+					lab._match_state.fielder().definition,
+					lab._ball_play_resolver.state.has_grounded,
+					(
+						lab._primary_fielder.last_reaction_margin_seconds
+						if lab._primary_fielder.reaction_ready()
+						else -1.0
+					)
+				)
 			)
 			if lab._match_mode
 			else 0.0
@@ -101,7 +110,16 @@ static func try_pitcher(lab: PitchBatLab, previous: Vector3, current: Vector3) -
 		position,
 		lab._ball_play_resolver.state.has_grounded,
 		MatchLabSupport.pitcher_fielding_rating(lab),
-		gear_factor(lab, "handling")
+		gear_factor(lab, "handling"),
+		(
+			MatchAbilities.ground_margin(
+				lab._match_state.pitcher().definition,
+				lab._ball_play_resolver.state.has_grounded,
+				lab._ball_play_resolver.state.elapsed_seconds - reaction_delay(lab)
+			)
+			if lab._match_mode
+			else 0.0
+		)
 	)
 	lab._apply_fielding_outcome(&"pitcher", position, outcome, ball)
 

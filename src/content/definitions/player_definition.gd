@@ -29,4 +29,6 @@ enum Handedness {
 
 @export_storage var season_gear: Dictionary = {}
 
+@export_storage var season_abilities: Array[String] = []
+
 @export_storage var season_sponsors: Dictionary = {}

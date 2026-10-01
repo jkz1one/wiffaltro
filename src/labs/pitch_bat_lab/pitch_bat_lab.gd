@@ -517,7 +517,8 @@ func _start_ball_in_play(launch_data: BattedBallLaunch) -> void:
 		(
 			SeasonJumpstart.direction(_match_state)
 			if _match_mode and not launch_data.is_foul else Vector3.ZERO
-		)
+		),
+		launch_data
 	)
 
 	if _match_mode:
@@ -703,7 +704,7 @@ func _on_flight_stopped(reason: StringName) -> void:
 			_match_state.record_strike(true)
 			record_result = &"swinging_strike"
 		else:
-			_match_state.record_ball()
+			_match_state.record_called_pitch(false)
 		PitchBatLabFeelSupport.finish_record(self, record_result)
 		PitchBatLabFeelSupport.notify_pitch_dead(self)
 		_live_label.text = "PLAY DEAD   next state readying automatically"

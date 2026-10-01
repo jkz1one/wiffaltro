@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-01 after Carbon Copy Printing integration and affected-path verification.
+Updated 2026-10-01 after learned abilities and shared Equipped shop/game integration.
 
 ## Resume here
 
@@ -21,6 +21,8 @@ implementing another contract. These IDs identify files, not permission to resto
 
 | Source | Persistent file ID | Last read version |
 | --- | --- | --- |
+| WIFFALTRO_PLAYERS_PITCHES.md | `libfile_4a9f2a8808908191aaa6d3fd004d71fa` | 17 |
+| WIFFALTRO_PROGRESSION_ECONOMY.md | `libfile_bb7b9f8837d08191b1f8b9483f672797` | 24 |
 | WIFFALTRO_CURRENT_DECISIONS.md | `libfile_875a5513d66481919b39bbdf0002f202` | 31 |
 | WIFFALTRO_EQUIPMENT_SPONSORS.md | `libfile_f4b3af37c2d88191bd4ceb24815411a8` | 18 |
 | PROGRESSION_BLUEPRINT.md, retained contract annexes | `libfile_24485121f37081918000116b39146009` | 114 |
@@ -53,7 +55,52 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Carbon Copy continuation details (latest)
+## Learned abilities continuation details (latest)
+
+Build 36/save 40/Career 17; Source of Truth v0.4.75, Technical Preproduction v0.1.66.
+A05 Work the Count, A06 Soft Hands and C01 Sky Reader are implemented as Working
+paid player learning. See the newest SOT/TECH/STATUS/VERIFICATION sections first.
+Broad run `20261001T195912292601Z` passed 43/47 checks (seven gates plus 36/40
+scenes). Three legacy fixture assumptions were repaired without changing production;
+the fourth failure was an unexplained exit-zero before the live-sales pass marker.
+Focused run `20261001T230925199210Z` then passed 11/11 checks, covering all four.
+Combined successful coverage includes all 40 targeted scenes and seven complete
+physical games. All 539 final source/test/asset/project/runner files are frozen for
+publication. See VERIFICATION.md for exact scope and remaining limitations.
+Main rechecked at `f1dc209b`; the repository progression blueprint is byte-identical.
+Publication is authorized on this engineering branch only; use `git log -1` for SHA.
+
+`SeasonAbilities` owns the saved next-visit boundary and nullable inherited Sky
+count; learned slots and current clean-air-out count derive from the Build journal.
+`ability_buy` requires exact offer/player/replacement. Receipts survive release and
+same-instance rehire, reset next season, never transfer to incoming players, and
+cannot be held/sold. IDs are namespaced to avoid old source-ID collisions.
+`SeasonBuildShop` extracts generation, leaving SeasonBuild 961 lines. Keep old
+signatures and receipt IDs frozen. Old current visits/rerolls stay unchanged; the
+initial ability category activates next visit. Sky tracking is prospective next season.
+
+Runtime: Work the Count requires two actual released called balls (+6% base spatial
+X/Y coverage both swings), Soft Hands adds 0.10 eligible grounded margin, Sky Reader
+classifies actual fair initial launches at least 25° and multiplies Primary reaction
+by 0.60. Goggles then Sky yield 0.51 of normal, with the existing positive floor.
+Jumpstart's 0.20s committed step remains. Preserve existing final Tape multiplication.
+
+User reaffirmed consistent shop/game Equipped lightbox and Balatro reference during
+this slice. Central entry position is unchanged. Four tabs now include owner-specific
+learned abilities; shop-lightbox sales were added using the existing atomic shop path.
+Live Gear/sponsor effects still retire at the safe next-batter boundary. No ability
+resale. Primary official Balatro screenshots were inspected; native/human review is
+still open, and headless UI checks are not visual approval.
+
+Next bounded contract can be Double Major Academy, the remaining sponsor, after
+reading its current full nomination/extra-slot/capacity/removal contract again.
+Do not silently permit two Fielding abilities without that paid sponsor. Other major
+remaining work: AI acquisition, player-card systems, higher League/tier gameplay,
+stadium progression, integration and final cohesive polish/native/human acceptance.
+Current counts 34/35 sponsors, 23/25 Gear, five tactical supplies and three learned
+abilities. Whole-project estimate approximately 73%, not release readiness.
+
+## Carbon Copy continuation details (previous)
 
 Build35/schema39/Career16; Source of Truth v0.4.74, Technical Preproduction v0.1.65.
 Carbon Copy E09 is implemented. Publication is authorized only to the engineering
@@ -341,7 +388,7 @@ during the current game. Starting a new attempt replaces that evidence.
 ## User requirements to carry forward
 
 - Continue in substantial, verified chunks and report the whole-project completion estimate
-  at the end of each response. The recorded estimate is approximately **72%**, not release readiness.
+  at the end of each response. The recorded estimate is approximately **73%**, not release readiness.
 - Preserve work with commits and pushes on the engineering branch. Do not merge or deploy.
 - Preserve earlier gameplay/camera fixes and saved-run compatibility.
 - Keep one clear Equipped lightbox accessible from the same button position during and between

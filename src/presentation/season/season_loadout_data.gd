@@ -21,7 +21,7 @@ static func pages(app: SeasonApp) -> Dictionary:
 	if live:
 		state = app.lab._match_state
 		team = state.home_team if app.lab._player_home else state.away_team
-	var result: Dictionary = {"gear": [], "sponsors": [], "supplies": [], "used": []}
+	var result: Dictionary = {"gear": [], "sponsors": [], "supplies": [], "used": [], "abilities": []}
 	for slot: String in SeasonOwnership.GEAR_SLOTS:
 		var receipt: Dictionary = wallet.gear.get(slot, {})
 		var item: Dictionary = SeasonGearCatalog.item(receipt.get("item", ""))
@@ -154,6 +154,7 @@ static func pages(app: SeasonApp) -> Dictionary:
 		for row: Dictionary in result.gear + result.sponsors:
 			if app.sales.pending.has(row.get("receipt", "")):
 				row.status = "SOLD • Effect ends after this plate appearance"
+	result.abilities = SeasonAbilityLoadout.rows(app, team, state)
 	result["capacity"] = wallet.capacity
 	return result
 

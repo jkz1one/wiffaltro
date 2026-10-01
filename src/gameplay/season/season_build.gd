@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 35
+const VERSION: int = 36
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -12,6 +12,7 @@ const SHOP_OPS: Array[String] = [
 	"lesson_pair",
 	"wholesale",
 	"tactical_buy",
+	"ability_buy",
 	"tactical_exchange",
 	"buy",
 	"use",
@@ -57,6 +58,7 @@ var _checkout_earned: bool = false
 var _association_start: Variant = null
 var _freezer_start: Variant = null
 var _sides_start: Variant = null
+var _abilities: SeasonAbilities = SeasonAbilities.new()
 var _copy: SeasonCarbonCopy = SeasonCarbonCopy.new()
 var _field_start: Variant = null
 var _field_outs: int = 0
@@ -145,6 +147,7 @@ func player(player_id: String) -> Dictionary:
 func definition(player_id: String) -> PlayerDefinition:
 	var result: PlayerDefinition = ProgressionMatchAdapter.player(_book, player_id)
 	if result != null and _roster.has(player_id):
+		result.season_abilities = _abilities.ids(player_id)
 		result = SeasonGearCatalog.equip(result, _bank.view().gear)
 		result.season_sponsors = SeasonSponsorEffects.snapshot(
 			_bank.view().sponsors, _book, _roster, _legends
@@ -252,6 +255,9 @@ func to_data() -> Dictionary:
 		data["freezer_start"] = _freezer_start
 	if _format >= 30:
 		data["sides_start"] = _sides_start
+	if _format >= 36:
+		data["ability_from"] = _abilities.from_visit
+		data["ability_start"] = _abilities.start
 	if _format >= 35:
 		data["copy_start"] = _copy.start
 	if _format >= 34:
@@ -317,6 +323,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_association_start = next._association_start
 	_freezer_start = next._freezer_start
 	_sides_start = next._sides_start
+	_abilities = next._abilities
 	_copy = next._copy
 	_field_start = next._field_start
 	_field_outs = next._field_outs
@@ -402,6 +409,7 @@ func _fork() -> SeasonBuild:
 	result._association_start = _association_start
 	result._freezer_start = _freezer_start
 	result._sides_start = _sides_start
+	result._abilities = _abilities.fork()
 	result._copy = _copy.fork()
 	result._field_start = _field_start
 	result._field_outs = _field_outs
@@ -499,6 +507,8 @@ func _apply(command: Dictionary) -> String:
 			return SeasonSpecialOrder.commit(self, command)
 		"tactical_exchange":
 			return SeasonTacticalExchange.exchange(self, command)
+		"ability_buy":
+			return _abilities.buy(self, command)
 		"tactical_buy":
 			return SeasonTacticalPurchase.buy(self, command)
 		"wholesale":
@@ -638,36 +648,7 @@ func _charge(amount: int) -> String:
 
 
 func _offers(rerolls: int) -> Dictionary:
-	if _market == 1:
-		return SeasonOpponentMarket.offers(self, rerolls)
-	if _format >= 3 and _visit.number >= _gear_from:
-		return SeasonGearCatalog.offers(
-			_book,
-			_roster,
-			_bank.view().gear,
-			_rng(rerolls),
-			"visit:%d:roll:%d" % [_visit.number, rerolls],
-			(
-				3
-				if _format >= 5 and _visit.number >= _mapped_gear_from
-				else (2 if _format >= 4 and _visit.number >= _misc_from else 1)
-			),
-			(
-				SeasonEarnedSponsors.eligible(self)
-				if _format >= 6 and _visit.number >= _sponsor_from
-				else {}
-			),
-			(
-				SeasonTacticalCatalog.weights(_tactical_catalog_version())
-				if _format >= 14 and _visit.number >= _tactical_from
-				else {}
-			),
-			_gear_progress.eligible()
-		)
-	return DevelopmentShopCatalog.offers(
-		_book, _roster, _rng(rerolls), "visit:%d:roll:%d" % [_visit.number, rerolls]
-	)
-
+	return SeasonBuildShop.offers(self, rerolls)
 
 func _pack_choices() -> Array:
 	var result: Array = []
@@ -732,6 +713,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonFieldSupply.ITEMS).sha256_text()
 	if format_version >= 35:
 		base += ":" + JSON.stringify(SeasonCarbonCopy.ITEMS).sha256_text()
+	if format_version >= 36:
+		base += ":" + JSON.stringify(SeasonAbilities.ITEMS).sha256_text()
 	return base
 
 

@@ -108,6 +108,7 @@ static func draft_card(
 	var label: Label = line(box, " • ".join(pitches), 18)
 	label.custom_minimum_size.x = 280
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_abilities(box, player)
 	if player.switch_hitter:
 		line(box, "SWITCH HITTER • Pick your batting side", 16)
 
@@ -142,3 +143,10 @@ static func ratings_card(
 		pitches.append(pitch_name(player, pitch))
 	var arsenal: Label = line(box, "Pitches: " + " • ".join(pitches), 17)
 	arsenal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_abilities(box, player)
+
+
+static func _abilities(box: VBoxContainer, player: PlayerDefinition) -> void:
+	var text: String = SeasonAbilities.description(player)
+	if not text.is_empty():
+		SeasonPages.wrapped(box, "LEARNED THIS SEASON\n" + text)

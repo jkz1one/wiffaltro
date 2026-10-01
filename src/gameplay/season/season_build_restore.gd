@@ -82,6 +82,8 @@ static func restore(
 		keys.append("field_start")
 	if value.version >= 35:
 		keys.append("copy_start")
+	if value.version >= 36:
+		keys.append_array(["ability_from", "ability_start"])
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -246,6 +248,14 @@ static func restore(
 			if not SeasonSmallBatch.valid(value.batch_start) or result._market != 0:
 				return null
 		result._batch_start = value.batch_start.duplicate() if value.batch_start != null else null
+	if value.version >= 36:
+		if not SeasonOwnership._whole(value.ability_from, 1, 13):
+			return null
+		if value.ability_start != null:
+			if not SeasonOwnership._whole(value.ability_start, 0, 3) or result._market != 0:
+				return null
+		result._abilities.from_visit = int(value.ability_from)
+		result._abilities.start = value.ability_start
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null

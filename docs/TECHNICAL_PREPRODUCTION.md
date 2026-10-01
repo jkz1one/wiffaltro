@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.65
+**Version:** v0.1.66
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,48 @@
 
 # 1. Technical Objective
 
+
+## Learned-slot journals and launch-local abilities, 2026-10-01
+
+Build 36/schema 40/Career 17 introduces `SeasonAbilities`, `MatchAbilities`,
+`SeasonAbilityUI` and `SeasonAbilityLoadout`. `SeasonBuildShop` extracts offer
+construction without changing historical branches, leaving SeasonBuild at 961 lines.
+Only 36 adds the ability catalog signature. Item IDs are namespaced `ability.A05`,
+`ability.A06`, `ability.C01` because the source annex IDs overlap existing categories.
+`ability_buy` binds offer/player/exact replacement, charges atomically, consumes the
+offer and derives `ability:<revision>` receipts. One slot per family; no held copy.
+Learned maps fork deeply and reconstruct only from commands, never independent blobs.
+Released IDs retain their receipts; recruit previews and returned match definitions
+recover the owner-local list. New season helpers begin empty.
+
+Saved `ability_from` preserves the next-visit activation boundary on migration; an
+older visit and its rerolls retain the exact previous generator. Nullable inherited
+`ability_start` and derived capped `earned` use already-validated completed fielding
+evidence; Career 17 `sky_outs` sums completed clean primary airborne outs across runs,
+capped 3. Old runs migrate to null. Save validation binds inherited totals, exact
+current derived counts, fielding results and journal evidence; no retrospective scan.
+Unlocks never regenerate stock. `SeasonGearCatalog.offers` accepts an optional final
+ability pool, leaving empty-pool historical RNG consumption unchanged. AI market1
+still follows its existing acquisition policy. No ability packs or reservations.
+
+`MatchAbilities` tracks released actual called balls per PA, consuming each released
+flag once, retaining count across foul/pitcher changes and resetting on PA/half end.
+The fallback taken-pitch termination now routes through the same called-pitch method.
+`SeasonSponsorEffects.swing` applies learned spatial additions before existing Cold,
+Optics and final Tape. PlayerDefinition stores match-local learned IDs and Gear
+resource duplication preserves them. Soft Hands is passed as a control contribution
+through real Primary/Pitcher resolver hooks, with physical eligibility and reaction
+checks. `FielderController.begin_play` accepts optional actual launch data and applies
+Sky once from the configured baseline; later bounce/path frames never reclassify.
+Goggles multiply before Sky; Jumpstart's independent first-step gate stays unchanged.
+
+Equipped keeps its existing normalized bottom-center position. `SeasonAbilityLoadout`
+projects read-only owner/slot/effect cards from season definitions or the live team's
+actual definitions. The fourth tab uses dynamic focus-ring lengths. Shop-lightbox
+sales use `SeasonApp.commit_shop`; live sales still use `SeasonMatchSales`. Both
+share exact confirmation, capacity resolution and saved rollback. Ability cards have
+no sale receipt/action. Summer School's zero refund is sourced from the catalog.
+See VERIFICATION.md for scope; no headless check constitutes native visual approval.
 
 ## Carbon Copy source identity and settlement, 2026-10-01
 

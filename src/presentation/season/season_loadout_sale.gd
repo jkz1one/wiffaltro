@@ -26,9 +26,17 @@ func _ready() -> void:
 
 func review(receipt_id: String, item_name: String) -> void:
 	var app: SeasonApp = ui.app
-	if not SeasonMatchSales.available(app):
+	if not ui.can_sell():
 		return
-	_quote(SeasonMatchSales.command(app, receipt_id), item_name)
+	var command: Dictionary
+	if ui.shop != null:
+		var owned: Dictionary = SeasonOwnership._owned(app.season.build.view().wallet, receipt_id)
+		command = ui.shop._request(
+			"sell_gear" if owned.get("kind") == "gear" else "sponsor_sell", {"receipt": receipt_id}
+		)
+	else:
+		command = SeasonMatchSales.command(app, receipt_id)
+	_quote(command, item_name)
 
 
 func _quote(chosen: Dictionary, item_name: String) -> void:
@@ -42,7 +50,7 @@ func _quote(chosen: Dictionary, item_name: String) -> void:
 				app.season.build,
 				request,
 				func(selected: Dictionary) -> void: _quote(selected, item_name),
-				app
+				app if ui.shop == null else null
 			)
 			return
 		ui.context.text = quote.error
@@ -60,6 +68,14 @@ func _quote(chosen: Dictionary, item_name: String) -> void:
 		)
 		% [item_name, refund, quote.before_cash, quote.after.wallet.cash]
 	)
+	if ui.shop != null:
+		description = (
+			"Sell %s for %d Cash?\nCash: %d → %d\n\n"
+			% [item_name, refund, quote.before_cash, quote.after.wallet.cash]
+		)
+		description += "The sale saves immediately and ends the effect. "
+		description += "Your remaining shop offers stay fixed."
+		description += SeasonReclamation.review(app.season.build.view().shop, quote.after.shop)
 	description += SeasonAssociationShop.review(app.season.build.view().wallet, quote.after.wallet)
 	for id: String in request.get("discard", []):
 		if id == SeasonFieldGrant.receipt(app._fixture_id):
@@ -73,10 +89,13 @@ func _quote(chosen: Dictionary, item_name: String) -> void:
 
 func _commit() -> void:
 	var app: SeasonApp = ui.app
-	if app.sales.sell(app, request):
+	var saved: bool = app.commit_shop(request) if ui.shop != null else app.sales.sell(app, request)
+	if saved:
 		ui.context.text = "SALE SAVED • %d Cash" % app.season.build.cash()
 	else:
 		ui.context.text = "SALE NOT SAVED • " + app.notice
+	if saved and ui.shop != null:
+		ui.shop._refresh()
 	ui._rows = SeasonLoadoutData.pages(app)
 	ui._select(ui._tab)
 	_return_focus()

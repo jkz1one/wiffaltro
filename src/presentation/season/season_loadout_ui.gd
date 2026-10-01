@@ -35,7 +35,7 @@ func _ready() -> void:
 	entry = Button.new()
 	entry.name = "EquippedEntry"
 	entry.text = "EQUIPPED"
-	entry.tooltip_text = "Gear, sponsors and held supplies"
+	entry.tooltip_text = "Gear, sponsors, supplies and learned abilities"
 	entry.custom_minimum_size = Vector2(176, 44)
 	entry.pressed.connect(open)
 	root.add_child(entry)
@@ -67,7 +67,7 @@ func _ready() -> void:
 	tabs = HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 8)
 	layout.add_child(tabs)
-	for key: String in ["gear", "sponsors", "supplies"]:
+	for key: String in ["gear", "sponsors", "supplies", "abilities"]:
 		var button: Button = Button.new()
 		button.custom_minimum_size.y = 44
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -87,8 +87,12 @@ func _ready() -> void:
 	focus_controls.append(scroll)
 	for index in range(focus_controls.size()):
 		var control: Control = focus_controls[index]
-		var previous: NodePath = control.get_path_to(focus_controls[posmod(index - 1, 5)])
-		var following: NodePath = control.get_path_to(focus_controls[(index + 1) % 5])
+		var previous: NodePath = control.get_path_to(
+			focus_controls[posmod(index - 1, focus_controls.size())]
+		)
+		var following: NodePath = control.get_path_to(
+			focus_controls[(index + 1) % focus_controls.size()]
+		)
 		control.focus_neighbor_top = previous
 		control.focus_neighbor_left = previous
 		control.focus_neighbor_bottom = following
@@ -149,7 +153,7 @@ func open() -> void:
 	context.text = (
 		"GAME PAUSED • Your club's current equipment and remaining supplies"
 		if _paused_lab != null
-		else "YOUR CLUB • Equipped gear, active sponsors and held supplies"
+		else "YOUR CLUB • Equipment, supplies and player abilities"
 	)
 	shade.show()
 	_select(_tab)
@@ -251,6 +255,8 @@ func _select(key: String) -> void:
 		button.set_pressed_no_signal(id == key)
 	if key == "supplies":
 		_label(body, "%d / %d held slots" % [_rows.supplies.size(), _rows.capacity.held], 16)
+	elif key == "abilities":
+		_label(body, "One Hitting + one Fielding slot per player • Season only • Not sellable", 16)
 	elif key == "sponsors":
 		_label(
 			body, "%d / %d active sponsors" % [_rows.sponsors.size(), _rows.capacity.sponsors], 16
@@ -258,7 +264,12 @@ func _select(key: String) -> void:
 	for row: Dictionary in _rows[key]:
 		_card(row)
 	if _rows[key].is_empty():
-		_label(body, "No active sponsors yet." if key == "sponsors" else "No supplies held.", 22)
+		var empty: Dictionary = {
+			"sponsors": "No active sponsors yet.",
+			"supplies": "No supplies held.",
+			"abilities": "No learned abilities yet."
+		}
+		_label(body, empty.get(key, "No items equipped."), 22)
 		_label(body, "Available items appear in the Season Shop.", 16)
 	if key == "supplies" and not _rows.used.is_empty():
 		_label(body, "USED THIS GAME • Already spent", 16)
@@ -279,20 +290,37 @@ func _card(row: Dictionary) -> void:
 	_label(stack, row.name, 22)
 	_label(stack, row.effect, 17)
 	var receipt: String = row.get("receipt", "")
-	if (
-		SeasonMatchSales.available(app)
-		and not receipt.is_empty()
-		and not app.sales.pending.has(receipt)
-	):
+	if can_sell() and not receipt.is_empty() and not app.sales.pending.has(receipt):
 		var owned: Dictionary = SeasonOwnership._owned(app.season.build.view().wallet, receipt)
 		if owned.is_empty():
 			return
 		var button: Button = Button.new()
-		button.text = "SELL • Review refund"
+		button.text = (
+			"SELL • %d Cash • Review"
+			% (
+				SeasonSponsorCatalog.resale(owned)
+				if owned.kind == "sponsor"
+				else int(owned.paid / 2)
+			)
+		)
 		button.custom_minimum_size.y = 44
 		button.pressed.connect(sale.review.bind(receipt, row.name))
 		stack.add_child(button)
 		_sale_buttons.append(button)
+
+
+func can_sell() -> bool:
+	return (
+		SeasonMatchSales.available(app)
+		or (
+			shop != null
+			and app.lab == null
+			and app.season != null
+			and app.season.shop_available()
+			and app.season.build._visit.open
+			and not app.season.build.pack_pending()
+		)
+	)
 
 
 static func _label(parent: Node, text: String, font_size: int) -> Label:

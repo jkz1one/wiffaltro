@@ -38,6 +38,7 @@ static func show(menu: SeasonMenu, page: int = 0) -> void:
 	menu._screen("career", "CLUB RECORD", "History and Club Bucks survive new seasons")
 	menu._label(menu._body, "CLUB BUCKS  •  %d" % club.balance(), 28)
 	menu._button(menu._body, "GEAR PROGRESSION", ClubGearProgressUI.show.bind(menu))
+	menu._button(menu._body, "LEARNED ABILITIES", SeasonAbilityUI.show.bind(menu))
 	menu._button(menu._body, "EARNED SPONSORS", ClubSponsorProgressUI.show.bind(menu))
 	SeasonPages.wrapped(
 		menu._body,

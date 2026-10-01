@@ -1,5 +1,22 @@
 # Implementation Status
 
+## Three learned abilities and Equipped completion, 2026-10-01
+
+Work the Count, Soft Hands and earned Sky Reader now support actual paid shop offers,
+player-local slots, explicit replacement, retained release/rehire learning, match
+runtime, player/recruit cards, career progression, replay/migration and the shared
+Equipped lightbox. Shop and in-game lightboxes both expose saved Gear/sponsor sales;
+the central button remains in the same relative position. Learned abilities are
+inspectable there, with owner/effect details, and are not sellable.
+
+Build 36/schema 40/Career 17; three learned abilities, 34/35 sponsors, 23/25 Gear and all
+five initial tactical supplies. Double Major now has the learned-slot foundation,
+but its nominated two-Fielding exception and capacity/sale choices remain a separate
+contract. AI acquisition, player-card systems, higher Leagues/tiers, stadium
+progression, integration and final UI/native/human acceptance remain. Whole-project
+completion is approximately 73%, not release readiness. Working values and testing
+Proposals are not promoted. See VERIFICATION.md for exact verification scope.
+
 ## Carbon Copy Printing, 2026-10-01
 
 Carbon Copy completes prospective four-active-sponsor access, paid 20-Cash Rare

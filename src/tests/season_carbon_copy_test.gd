@@ -1,5 +1,7 @@
 extends "res://src/tests/season_association_test.gd"
 
+var _copy_replace: String = ""
+
 
 func _ready() -> void:
 	SeasonSave.path = "user://carbon-copy-%d.json" % OS.get_process_id()
@@ -184,7 +186,7 @@ func _copy_deli() -> void:
 
 func _paid_copy() -> SeasonState:
 	# Discover actual generated stock; never inject offers in persisted fixtures.
-	for seed_value in [12]:
+	for seed_value in [29]:
 		var season: SeasonState = _new_club(seed_value)
 		for game in range(11):
 			_result(season, [])
@@ -211,6 +213,7 @@ func _paid_copy() -> SeasonState:
 							_check(SeasonSave.save(season), "capture real earned Copy offer")
 							_purchase_fixture = SeasonSave.restore()
 							_association_offer = offer
+							_copy_replace = replace
 						_check(build.commit(request).ok, "purchase actual stock " + id)
 				if (
 					not _active_id(build, "E09").is_empty()
@@ -323,11 +326,14 @@ func _copy_migration() -> void:
 	var season: SeasonState = _new_club(191)
 	season.build._format = 34
 	season.build._copy.start = null
+	season.build._abilities.start = null
 	season.career.runs[-1].copy_earned = null
+	season.career.runs[-1].sky_outs = null
 	_check(SeasonSave.save(season), "previous Build34 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 15
 	data.career.runs[-1].erase("copy_earned")
+	data.career.runs[-1].erase("sky_outs")
 	var loaded: SeasonState = SeasonSave._decode(data)
 	_check(loaded != null and loaded.build._copy.start == null, "older runs remain prospective")
 	_check(
@@ -351,26 +357,28 @@ func _copy_purchase_ui() -> void:
 	window.size = Vector2i(700, 400)
 	var before: Dictionary = app.season.build.to_data()
 	var cash: int = app.season.cash()
-	await _click(_sponsor_button(window, _association_offer))
+	var replaced: Dictionary = SeasonOwnership._owned(app.season.build.view().wallet, _copy_replace)
+	var refund: int = 0 if replaced.is_empty() else SeasonSponsorCatalog.resale(replaced)
+	await _click(_sponsor_button(window, _association_offer, _copy_replace))
 	await _click(window._confirm.get_cancel_button())
 	_check(app.season.build.to_data() == before, "Copy purchase cancel")
 	var path: String = SeasonSave.path
 	var bytes: String = FileAccess.get_file_as_string(path)
 	SeasonSave.path = path + "/missing/save.json"
-	await _click(_sponsor_button(window, _association_offer))
+	await _click(_sponsor_button(window, _association_offer, _copy_replace))
 	await _click(window._confirm.get_ok_button())
 	SeasonSave.path = path
 	_check(
 		app.season.build.to_data() == before and FileAccess.get_file_as_string(path) == bytes,
 		"Copy purchase write failure rollback"
 	)
-	await _click(_sponsor_button(window, _association_offer))
+	await _click(_sponsor_button(window, _association_offer, _copy_replace))
 	await _shop_bounds(window, "carbon-copy-purchase")
 	await _click(window._confirm.get_ok_button())
 	_check(
 		(
 			SeasonSchoolSponsors.active(app.season.build, "E09").paid == 20
-			and app.season.cash() == cash - 20
+			and app.season.cash() == cash - 20 + refund
 		),
 		"actual Copy purchase UI pays twenty"
 	)

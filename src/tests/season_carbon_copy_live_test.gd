@@ -105,8 +105,9 @@ func _equip_fixture(state: MatchState) -> void:
 
 
 func _player_home_for_fixture() -> bool:
-	# The owned team uses ordinary AI batting, allowing actual fair-hit chains.
-	return _season.pending_fixture().home != 0
+	# A passive owned hitter takes actual pitches in the walk case. Other cases
+	# use ordinary AI batting to exercise real fair-hit chains.
+	return (_season.pending_fixture().home == 0) == (_mode == "walk")
 
 
 func _observe_live_frame(lab: PitchBatLab) -> void:

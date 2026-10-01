@@ -264,9 +264,11 @@ func _sure_migration() -> void:
 	season.build._sure_start = null
 	season.build._field_start = null
 	season.build._copy.start = null
+	season.build._abilities.start = null
 	season.career.runs[-1].sure_earned = null
 	season.career.runs[-1].field_outs = null
 	season.career.runs[-1].copy_earned = null
+	season.career.runs[-1].sky_outs = null
 	_completed(season, ["out", "out", "single"])
 	_check(SeasonSave.save(season), "Build32 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
@@ -274,6 +276,7 @@ func _sure_migration() -> void:
 	data.career.runs[-1].erase("sure_earned")
 	data.career.runs[-1].erase("field_outs")
 	data.career.runs[-1].erase("copy_earned")
+	data.career.runs[-1].erase("sky_outs")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(restored != null and restored.build._sure_start == null, "old run remains prospective")
 	_check(restored != null and SeasonSave.save(restored), "migrated save remains valid")

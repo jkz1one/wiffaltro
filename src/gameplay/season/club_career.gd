@@ -34,6 +34,7 @@ func start(season: SeasonState) -> bool:
 	season.build._sides_start = SeasonLeftRight.access(self)
 	season.build._jump_start = SeasonJumpstart.access(self)
 	season.build._sure_start = SeasonSureShot.access(self)
+	season.build._abilities.start = SeasonAbilities.access(self)
 	season.build._copy.start = SeasonCarbonCopy.access(self)
 	season.build._field_start = SeasonFieldSupply.access(self)
 	season.build._batch_start = SeasonSmallBatch.access(self)
@@ -58,6 +59,7 @@ func start(season: SeasonState) -> bool:
 			"sides_earned": false,
 			"jump_earned": false,
 			"sure_earned": false,
+			"sky_outs": 0,
 			"copy_earned": false,
 			"field_outs": 0,
 			"batch_used": [],
@@ -88,6 +90,7 @@ func sync(season: SeasonState) -> bool:
 		or not SeasonSureShot.matches(self, season, false)
 		or not SeasonCarbonCopy.matches(self, season, false)
 		or not SeasonFieldSupply.matches(self, season, false)
+		or not SeasonAbilities.matches(self, season, false)
 		or not SeasonSmallBatch.matches(self, season, false)
 	):
 		return false
@@ -109,6 +112,7 @@ func sync(season: SeasonState) -> bool:
 	var sides: Variant = season.build._sides_earned if run.sides_earned != null else null
 	var jump: Variant = season.build._jump_earned if run.jump_earned != null else null
 	var sure: Variant = season.build._sure_earned if run.sure_earned != null else null
+	var sky: Variant = season.build._abilities.earned if run.sky_outs != null else null
 	var copy: Variant = season.build._copy.earned if run.copy_earned != null else null
 	var field: Variant = season.build._field_outs if run.field_outs != null else null
 	var batch: Variant = season.build._batch_used.duplicate() if run.batch_used != null else null
@@ -129,6 +133,7 @@ func sync(season: SeasonState) -> bool:
 			and run.sides_earned == sides
 			and run.jump_earned == jump
 			and run.sure_earned == sure
+			and run.sky_outs == sky
 			and run.copy_earned == copy
 			and run.field_outs == field
 			and same(run.batch_used, batch)
@@ -154,6 +159,7 @@ func sync(season: SeasonState) -> bool:
 	run.sides_earned = sides
 	run.jump_earned = jump
 	run.sure_earned = sure
+	run.sky_outs = sky
 	run.copy_earned = copy
 	run.field_outs = field
 	run.batch_used = batch
@@ -184,7 +190,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 16, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 17, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -198,7 +204,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 16)
+		not SeasonOwnership._whole(value.version, 1, 17)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -230,6 +236,7 @@ static func from_data(value: Variant) -> ClubCareer:
 					+ (["batch_used"] if value.version >= 13 else [])
 					+ (["sure_earned"] if value.version >= 14 else [])
 					+ (["copy_earned"] if value.version >= 16 else [])
+					+ (["sky_outs"] if value.version >= 17 else [])
 					+ (["field_outs"] if value.version >= 15 else [])
 				)
 			)
@@ -315,6 +322,10 @@ static func from_data(value: Variant) -> ClubCareer:
 			migrated["jump_earned"] = null
 		if migrated.jump_earned != null and not migrated.jump_earned is bool:
 			return null
+		if value.version < 17:
+			migrated["sky_outs"] = null
+		if migrated.sky_outs != null and not SeasonOwnership._whole(migrated.sky_outs, 0, 3):
+			return null
 		if value.version < 16:
 			migrated["copy_earned"] = null
 		if migrated.copy_earned != null and not migrated.copy_earned is bool:
@@ -362,6 +373,7 @@ func matches(season: SeasonState) -> bool:
 		and SeasonSureShot.matches(self, season, true)
 		and SeasonCarbonCopy.matches(self, season, true)
 		and SeasonFieldSupply.matches(self, season, true)
+		and SeasonAbilities.matches(self, season, true)
 		and SeasonSmallBatch.matches(self, season, true)
 	)
 
