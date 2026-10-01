@@ -1,11 +1,45 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.71
+**Version:** v0.4.72
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+
+## Sure Shot Signworks: public recipe commitments, 2026-10-01
+
+Sure Shot F08 adds an optional defensive readiness announcement before an opposing PA.
+The active pitcher commits to one known exact recipe until that PA ends. Each club has
+at most two announcements per game, shared across pitchers. Confirmation is final:
+canceled windups do not refund a use. Other recipes and pitcher changes are unavailable;
+location, effort and the existing release controls remain available. The shared human/AI
+cue exposes only recipe identity and the original announcement timestamp. Film Room
+retains its separate released-throw behavior; Sure Shot persists for the committed PA.
+No new AI acquisition policy, hidden pitch information or batting bonus is introduced.
+
+The pitch model scales its existing ordinary execution-quality direction sigma term
+by 0.8, then adds the existing fatigue/lapse direction terms and applies the existing
+recipe and Gear command multipliers. Release-position/orientation error, stamina,
+velocity, movement and RNG draw order are unchanged. Zero execution contribution
+means zero Sure Shot benefit. Rosin continues to scale its defined combined dispersion.
+
+A credited strikeout after its pitcher actually throws at least three pitches, all
+one exact recipe in that PA, earns future paid-shop eligibility in a completed game.
+Count-start strikes are not fabricated releases. No win is required. Build 33/schema 37/
+Career 14 records actual releases, announcements and strikeouts, validates box-score
+and journal/result agreement, and leaves old active saves prospectively untracked.
+Stock is not regenerated on unlock; receipt identities and older signatures remain frozen.
+
+Working contract sources: Decisions v31; Equipment/Sponsors v18 (unlock 287 and
+F08 execution/cue contract 884–923); Blueprint v114 retained F08 annex 4380–4406.
+The 12-Cash Uncommon copy, two uses and 20% component reduction remain Working.
+Ownership and refunds save immediately during play; effect retirement waits until
+the next batter, including a sale after announcement but before the first release.
+FIELD shows the commitment, the public cue stays visible through the PA, and Equipped
+shows uses remaining in its unchanged centralized lightbox. See VERIFICATION.md for
+scope. Native rendered/human visual and feel acceptance remains outstanding.
 
 ## Small Batch Supply and explicit shared-inventory resolution, 2026-10-01
 

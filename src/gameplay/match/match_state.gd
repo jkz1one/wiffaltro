@@ -23,6 +23,7 @@ var home_team: TeamMatchState
 var bases: BaseState = BaseState.new()
 var performance: MatchPerformance = MatchPerformance.new()
 var sides: MatchBattingSides = MatchBattingSides.new()
+var sure_shot: MatchSureShot = MatchSureShot.new()
 var clean_outs: MatchCleanOuts = MatchCleanOuts.new()
 var jumpstart_mode: String = "normal"
 var cold: MatchColdStreak = MatchColdStreak.new()
@@ -82,7 +83,7 @@ func begin_pitch() -> bool:
 		inventory_boundary.emit()
 	sides.lock(self)
 	batting_team().tactics.checkout.clear()
-	pitch_disclosure.clear()
+	pitch_disclosure = sure_shot.cue(self)
 	_between_batters_before_pitch = between_batters
 	phase = Phase.PITCH_IN_FLIGHT
 	between_batters = false
@@ -123,6 +124,7 @@ func record_strike(swinging: bool = true) -> StringName:
 	if strikes >= STRIKES_FOR_OUT:
 		performance.complete(batter().definition.id, pitcher().definition.id, "strikeout", 0)
 		cold.complete(self, "strikeout")
+		sure_shot.strikeout(self)
 		SeasonSponsorEffects.strikeout(self)
 		outs += 1
 		_complete_plate_appearance(
@@ -206,6 +208,8 @@ func _add_runs(amount: int) -> void:
 		_finish_game("Mercy rule")
 
 func _complete_plate_appearance(description: String, single: bool = false) -> void:
+	defensive_team().sure_shot_locked = false
+	pitch_disclosure.clear()
 	sides.complete(self)
 	_deli_next_batter = single and outs < OUTS_PER_HALF and phase != Phase.GAME_END
 	for participant: PlayerMatchState in _pa_pitchers:
@@ -310,5 +314,6 @@ func note_pitch_released(recipe: StringName = &"", actual_paid: float = 0.0) -> 
 	if not _pa_pitchers.has(pitcher()):
 		_pa_pitchers.append(pitcher())
 	pitch_ledger.record(pitcher(), recipe, actual_paid)
+	sure_shot.release(self, recipe)
 	if recipe != &"":
 		gear_usage.released()

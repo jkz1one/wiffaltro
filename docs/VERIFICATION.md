@@ -1,5 +1,55 @@
 # Fast verification and playtest records
 
+## Sure Shot Signworks: recipe commitments and earned access, 2026-10-01
+
+Broader affected-path run `20261001T143659786539Z` passed **45/45 checks** under
+Godot 4.7.2: seven common gates and 38 scenes, including 22 complete physical games.
+The only subsequent source change strengthened the Sure Shot model test with an
+isolated yaw measurement of the exact 20% execution-component reduction, both with
+and without the existing Rosin command multiplier. Production code did not change.
+Final focused run `20261001T145325529426Z` passed **8/8 checks**: seven gates and the
+Sure Shot contract/model/progression/save/UI scene. All 516 snapshotted source/test/
+asset/project/runner files remained unchanged from this final run through publication.
+Neither run had engine warnings/errors. This is targeted coverage, not the full suite
+or native rendered/human visual and feel acceptance.
+
+Broader scope: Sure Shot menu/live; Small Batch menu/live; Jumpstart menu/live;
+Left Right menu/live; Freezers menu/live; Association; sponsor-set primitive;
+Late Checkout; Second Chance; Transfer; Raincheck; Special Order; match-sales UI/live;
+Equipped; earned sponsors; Gear progression; career; opponents; Film Room menu/live;
+tacticals menu/live; tactical sponsors menu/live; expanded tacticals; Budget Bites;
+Wholesale; ownership integration/ownership; pitch routing/quality; core regressions.
+
+Sure Shot tests cover exact known recipe commitment before a PA, original timestamp,
+identity-only shared human/AI/replay disclosure, cancellation without use refund,
+two uses across pitchers, pitcher/Encore and recipe locks, number-key and direct
+throw rejection without stamina or pitch cost, and shared AI legal recipe choice.
+Fresh output yaw measures 0.8 of the ordinary execution error. Additional seeded
+quality/fatigue/Gear cases preserve release-position and orientation errors, velocity,
+spin and movement; quality 1.0 has no execution-component benefit, even at high fatigue.
+No new random draws are introduced. Existing Film Room and pitching suites pass.
+
+Generated stock at seed 48 supplies a real paid 12-Cash F08 copy after the actual
+recipe evidence unlocks it. Two actual pitches plus a count-start strike cannot earn
+access; a qualifying completed loss can. Mixed recipes do not qualify. Invalid
+counts, players, recipes, PAs/halves, timestamps, repeated calls, unpaid announcements,
+inherited/current progress and journal/result disagreement reject. Invalid reward,
+failed purchase and failed sale writes roll back. Build 32/Career 13 and older fixtures
+remain prospectively untracked; future seasons inherit access without a free copy.
+
+Four new complete physical games cover unowned prospective tracking, paid two-use
+commitments, an in-flight sale and a sale immediately after announcement before the
+first release. Actual release/K evidence reconciles with the box score. Both sales
+save the six-Cash refund immediately and retain the committed PA effect; next-batter
+retirement prevents another announcement. Restart cannot restore sold ownership.
+Completed-game save retry does not duplicate rewards or progress.
+
+Headless UI checks use actual mouse purchase/confirmation, failed-save retry, FIELD
+announcement, centralized Equipped remaining-use status and combined FIELD controls
+under all three HUD anchors. These do not constitute native visual approval. Native
+display limitations, human acceptance and the prior unexplained full-suite early exit
+remain open. The repository progression blueprint is byte-identical to main.
+
 ## Small Batch Supply: shared capacity, explicit discards and career access, 2026-10-01
 
 Broad affected-path run `20261001T042758446996Z` passed **42/42 checks** under

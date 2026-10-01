@@ -226,14 +226,17 @@ func _jump_migration() -> void:
 	season.build._format = 30
 	season.build._jump_start = null
 	season.build._batch_start = null
+	season.build._sure_start = null
 	season.career.runs[-1].jump_earned = null
 	season.career.runs[-1].batch_used = null
+	season.career.runs[-1].sure_earned = null
 	_completed(season, ["out", "out", "single"])
 	_check(SeasonSave.save(season), "prior build saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 11
 	data.career.runs[-1].erase("jump_earned")
 	data.career.runs[-1].erase("batch_used")
+	data.career.runs[-1].erase("sure_earned")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(
 		restored != null and restored.build._jump_start == null and restored.build._freezer_earned,

@@ -5,7 +5,7 @@ extends RefCounted
 
 static func available(team: TeamMatchState, index: int) -> bool:
 	return (
-		not team.encore_used
+		not team.encore_used and not team.sure_shot_locked
 		and index >= 0
 		and index < team.roster.size()
 		and index != team.pitcher_index

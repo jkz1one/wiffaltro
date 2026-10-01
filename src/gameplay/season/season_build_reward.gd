@@ -8,6 +8,8 @@ static func settle(build: SeasonBuild, command: Dictionary) -> String:
 	if not build._match_inventory.is_empty() and command.get("game") != build._match_inventory.game:
 		return "Complete the current inventory attempt first."
 	var fields: Array = ["game", "win"]
+	if build._format >= 33 and command.has("pitching"):
+		fields.append("pitching")
 	if build._format >= 31 and command.has("fielding"):
 		fields.append("fielding")
 	if build._format >= 30 and command.has("stances"):
@@ -34,6 +36,9 @@ static func settle(build: SeasonBuild, command: Dictionary) -> String:
 	if not result.ok or result.replayed:
 		return "This fixture cannot pay again."
 	var error: String = build._settle_sponsors(command)
+	if not error.is_empty():
+		return error
+	error = SeasonSureShot.settle(build, command)
 	if not error.is_empty():
 		return error
 	error = SeasonJumpstart.settle(build, command)

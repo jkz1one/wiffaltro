@@ -266,7 +266,10 @@ static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 		if MatchLabSupport.can_edit_pitch_plan(lab):
 			var requested_index: int = int(keycode - KEY_1)
 			var options: Array[PitchDefinition] = lab._current_pitch_options()
-			if requested_index < options.size():
+			if (
+				requested_index < options.size()
+				and lab._match_state.sure_shot.allows(lab._match_state, options[requested_index].id)
+			):
 				lab._selected_pitch_index = requested_index
 				lab._refresh_config()
 		return true

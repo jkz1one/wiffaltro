@@ -11,6 +11,7 @@ var fielder_index: int = 1
 var runs: int = 0
 var scouted_recipe: StringName = &""
 var tactics: MatchTactics = MatchTactics.new()
+var sure_shot_locked: bool = false
 var encore_used: bool = false
 var strikecraft_uses: int = 0
 var strikecraft_refunded: float = 0.0
@@ -63,6 +64,8 @@ func next_available_pitcher(direction: int = 1) -> int:
 	return pitcher_index
 
 func select_pitcher(index: int) -> bool:
+	if sure_shot_locked and index != pitcher_index:
+		return false
 	if index < 0 or index >= roster.size() or roster[index].pitching_finished:
 		return false
 	if index != pitcher_index:

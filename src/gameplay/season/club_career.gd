@@ -33,6 +33,7 @@ func start(season: SeasonState) -> bool:
 	season.build._freezer_start = SeasonFreezers.access(self)
 	season.build._sides_start = SeasonLeftRight.access(self)
 	season.build._jump_start = SeasonJumpstart.access(self)
+	season.build._sure_start = SeasonSureShot.access(self)
 	season.build._batch_start = SeasonSmallBatch.access(self)
 	current = runs.size() + 1
 	runs.append(
@@ -54,6 +55,7 @@ func start(season: SeasonState) -> bool:
 			"freezer_earned": false,
 			"sides_earned": false,
 			"jump_earned": false,
+			"sure_earned": false,
 			"batch_used": [],
 			"supplies_used": 0
 		}
@@ -79,6 +81,7 @@ func sync(season: SeasonState) -> bool:
 		or not SeasonFreezers.matches(self, season, false)
 		or not SeasonLeftRight.matches(self, season, false)
 		or not SeasonJumpstart.matches(self, season, false)
+		or not SeasonSureShot.matches(self, season, false)
 		or not SeasonSmallBatch.matches(self, season, false)
 	):
 		return false
@@ -99,6 +102,7 @@ func sync(season: SeasonState) -> bool:
 	var freezer: Variant = season.build._freezer_earned if run.freezer_earned != null else null
 	var sides: Variant = season.build._sides_earned if run.sides_earned != null else null
 	var jump: Variant = season.build._jump_earned if run.jump_earned != null else null
+	var sure: Variant = season.build._sure_earned if run.sure_earned != null else null
 	var batch: Variant = season.build._batch_used.duplicate() if run.batch_used != null else null
 	var proof: Dictionary = ClubSeasonRecord.capture(season)
 	if run.status == "completed":
@@ -116,6 +120,7 @@ func sync(season: SeasonState) -> bool:
 			and run.freezer_earned == freezer
 			and run.sides_earned == sides
 			and run.jump_earned == jump
+			and run.sure_earned == sure
 			and same(run.batch_used, batch)
 		)
 	if run.status != "active":
@@ -138,6 +143,7 @@ func sync(season: SeasonState) -> bool:
 	run.freezer_earned = freezer
 	run.sides_earned = sides
 	run.jump_earned = jump
+	run.sure_earned = sure
 	run.batch_used = batch
 	return true
 
@@ -166,7 +172,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 13, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 14, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -180,7 +186,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 13)
+		not SeasonOwnership._whole(value.version, 1, 14)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -210,6 +216,7 @@ static func from_data(value: Variant) -> ClubCareer:
 					+ (["sides_earned"] if value.version >= 11 else [])
 					+ (["jump_earned"] if value.version >= 12 else [])
 					+ (["batch_used"] if value.version >= 13 else [])
+					+ (["sure_earned"] if value.version >= 14 else [])
 				)
 			)
 		):
@@ -294,6 +301,10 @@ static func from_data(value: Variant) -> ClubCareer:
 			migrated["jump_earned"] = null
 		if migrated.jump_earned != null and not migrated.jump_earned is bool:
 			return null
+		if value.version < 14:
+			migrated["sure_earned"] = null
+		if migrated.sure_earned != null and not migrated.sure_earned is bool:
+			return null
 		if value.version < 13:
 			migrated["batch_used"] = null
 		if migrated.batch_used != null and not SeasonSmallBatch.valid(migrated.batch_used):
@@ -323,6 +334,7 @@ func matches(season: SeasonState) -> bool:
 		and SeasonFreezers.matches(self, season, true)
 		and SeasonLeftRight.matches(self, season, true)
 		and SeasonJumpstart.matches(self, season, true)
+		and SeasonSureShot.matches(self, season, true)
 		and SeasonSmallBatch.matches(self, season, true)
 	)
 

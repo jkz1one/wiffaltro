@@ -260,6 +260,7 @@ func _transfer_contract(season: SeasonState) -> void:
 	legacy.build._sides_start = null
 	legacy.build._jump_start = null
 	legacy.build._batch_start = null
+	legacy.build._sure_start = null
 	legacy.career.runs[-1].transfer_earned = null
 	legacy.career.runs[-1].supplies_used = null
 	legacy.career.runs[-1].checkout_earned = null
@@ -268,6 +269,7 @@ func _transfer_contract(season: SeasonState) -> void:
 	legacy.career.runs[-1].sides_earned = null
 	legacy.career.runs[-1].jump_earned = null
 	legacy.career.runs[-1].batch_used = null
+	legacy.career.runs[-1].sure_earned = null
 	_check(SeasonSave.save(legacy), "legacy build24 saves")
 	data = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 5
@@ -279,6 +281,7 @@ func _transfer_contract(season: SeasonState) -> void:
 	data.career.runs[-1].erase("sides_earned")
 	data.career.runs[-1].erase("jump_earned")
 	data.career.runs[-1].erase("batch_used")
+	data.career.runs[-1].erase("sure_earned")
 	var migrated: SeasonState = SeasonSave._decode(data)
 	_check(
 		migrated != null and migrated.build._transfer_start == null,

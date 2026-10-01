@@ -919,7 +919,7 @@ static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
 			]
 		)
 		button.disabled = (
-			not can_change or index == team.pitcher_index
+			not can_change or team.sure_shot_locked or index == team.pitcher_index
 			or (player.pitching_finished and not encore)
 		)
 		button.tooltip_text = (

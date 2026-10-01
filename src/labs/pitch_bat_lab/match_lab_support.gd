@@ -100,6 +100,9 @@ static func select_pitcher(lab: PitchBatLab, roster_index: int) -> void:
 		lab._status_label.text = ("Pitching changes are allowed only between batters.")
 		return
 	var team: TeamMatchState = lab._match_state.defensive_team()
+	if team.sure_shot_locked:
+		lab._status_label.text = "Sure Shot locks this pitcher until the next batter."
+		return
 	if SeasonEncore.available(team, roster_index):
 		SeasonEncoreUI.request(lab, roster_index)
 		return
@@ -298,8 +301,14 @@ static func apply_ai_pitch_choice(lab: PitchBatLab) -> void:
 	var options: Array[PitchDefinition] = lab._current_pitch_options()
 	if options.is_empty():
 		return
+	var legal: Array[PitchDefinition] = options.filter(
+		func(pitch: PitchDefinition) -> bool:
+			return lab._match_state.sure_shot.allows(lab._match_state, pitch.id)
+	)
+	if legal.is_empty():
+		return
 	var choice: Dictionary = PitchingStrategy.choose(
-		options,
+		legal,
 		lab._match_state.pitcher().definition,
 		lab._match_state.balls,
 		lab._match_state.strikes,
@@ -308,7 +317,7 @@ static func apply_ai_pitch_choice(lab: PitchBatLab) -> void:
 		lab._match_state.ai_tactical_quality,
 		lab._match_state.batter().bats_left()
 	)
-	lab._selected_pitch_index = int(choice["pitch_index"])
+	lab._selected_pitch_index = options.find(legal[int(choice["pitch_index"])])
 	lab._last_ai_pitch_index = lab._selected_pitch_index
 	lab._pitch_target = choice["target"]
 	lab._pitch_effort = float(choice["effort"])

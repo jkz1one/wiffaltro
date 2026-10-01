@@ -69,7 +69,7 @@ func apply_pending(app: SeasonApp) -> void:
 	if app.lab == null or pending.is_empty():
 		return
 	var state: MatchState = app.lab._match_state
-	if not state.can_change_defense():
+	if not state.can_change_defense() or not state.sure_shot.current(state).is_empty():
 		return
 	var own: TeamMatchState = state.home_team if app.lab._player_home else state.away_team
 	var wallet: Dictionary = app.season.build.view().wallet

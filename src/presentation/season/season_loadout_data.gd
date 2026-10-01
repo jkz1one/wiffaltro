@@ -49,6 +49,13 @@ static func pages(app: SeasonApp) -> Dictionary:
 				"%d / 4 stamps • +%d%% Contact exit %s"
 				% [stamps, stamps, "this game" if live else "next game"]
 			)
+		elif receipt.item == "F08" and live:
+			status = "%d / 2 announcements left" % state.sure_shot.remaining(team)
+			var call: Dictionary = state.sure_shot.current(state)
+			if state.defensive_team() == team and not call.is_empty():
+				status += " • " + ContentDB.get_pitch(StringName(call.recipe)).display_name
+			else:
+				status += " • Choose in FIELD before an opposing PA"
 		elif receipt.item == "J04" and live:
 			status = (
 				"First step: " + state.jumpstart_mode.to_upper()

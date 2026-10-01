@@ -61,6 +61,10 @@ func build(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 	jump.name = "JumpstartControls"
 	jump.build(lab)
 	add_child(jump)
+	var sure: MatchSureShotControls = MatchSureShotControls.new()
+	sure.name = "SureShotControls"
+	sure.build(lab, canvas)
+	add_child(sure)
 	_build_ellipse()
 
 

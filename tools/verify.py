@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-sure-shot-live", [*base, "--fixed-fps", "60",
+                                   "res://src/tests/season_sure_shot_live_test.tscn"],
+                 "Wiffaltro live Sure Shot checks passed:"),
+                ("season-sure-shot", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_sure_shot_test.tscn", *ui_extra],
+                 "Wiffaltro Sure Shot checks passed:"),
                 ("season-small-batch-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_small_batch_live_test.tscn"],
                  "Wiffaltro live Small Batch checks passed:"),

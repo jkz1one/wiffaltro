@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.62
+**Version:** v0.1.63
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,39 @@
 ---
 
 # 1. Technical Objective
+
+
+## Sure Shot execution, evidence and compatibility, 2026-10-01
+
+Build 33/save 37/Career 14 adds `MatchSureShot` for explicit pre-PA recipe calls, a shared
+two-use team budget, actual successful-release records and credited strikeouts.
+`TeamMatchState.sure_shot_locked` blocks ordinary and Encore pitching changes until
+PA completion. UI buttons, number keys, shared AI pitch choice and the final throw
+path enforce the recipe; invalid input spends no pitch, stamina or additional use.
+Canceled windups retain the announced identity and timestamp. No midgame attempt
+is resumed from invented state: restarting begins a fresh match from saved ownership.
+
+`PitchLaunchParameters.execution_direction_scale` is copied with launch parameters.
+Only the ordinary direction sigma component in `PitchExecutionModel` consumes it.
+The default is 1.0 and committed Sure Shot uses 0.8; fatigue/lapse terms and existing
+Gear command composition retain their original order. There are no new RNG draws.
+The public cue is shared by the label, batting observation and PlayRecord. It carries
+no target, speed, break, level, seed or future-flight data. Visible-sample delay and
+committed-swing behavior are unchanged; Film Room keeps its released-throw semantics.
+
+`SeasonSureShot` owns eligibility, completed-game settlement and evidence validation.
+Result `pitching` contains ordered `releases`, `calls` and `strikeouts`. Evidence
+reconciles roster, known recipe, PA/half order, per-player pitch/K totals, call limits,
+finite timestamps and called-recipe consistency. Announced results require paid F08
+ownership in the attempt snapshot, including sold copies. Reward failure is atomic.
+Nullable `_sure_start` preserves prospective old-save behavior; `_sure_earned` rebuilds
+from the journal. Career `sure_earned` must agree exactly. Only format 33 appends the
+new catalog signature. SeasonBuild remains 958 lines; new logic stays in helpers.
+
+Live sale snapshots and the central Equipped entry retain their established behavior.
+Pending effects cannot retire inside an already announced PA even before its first
+release. The next-batter boundary retires them normally. See VERIFICATION.md for
+physical-game, migration, UI and affected-path coverage and outstanding limitations.
 
 ## Small Batch capacity and discarded-activation evidence, 2026-10-01
 

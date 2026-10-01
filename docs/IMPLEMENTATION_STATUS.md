@@ -1,5 +1,18 @@
 # Implementation Status
 
+## Sure Shot Signworks, 2026-10-01
+
+Sure Shot adds prospective same-recipe strikeout access, a paid 12-Cash Uncommon copy,
+two explicit pre-PA announcements per team per game, shared identity-only human/AI
+cues, recipe/pitcher locks and the specified execution-direction component modifier.
+Build 33/schema 37/Career 14 includes result evidence, migration, career rebuild,
+purchase rollback, Equipped status and immediate saved live sales with next-batter
+effect retirement. Supported content is 32/35 sponsors, 23/25 Gear and all five supplies.
+Field Supply, Carbon Copy and Double Major remain. AI acquisition, player cards,
+higher Leagues/tiers, stadium progression, integration and final native/human UI
+acceptance remain open. Whole-project estimate stays approximately 72%, not release
+readiness. Working values remain Working; see VERIFICATION.md for exact scope.
+
 For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
 
 ## Small Batch Supply, 2026-10-01
@@ -35,7 +48,7 @@ committed stance history, Contact/Power tradeoffs, lineup/readiness/Equipped pre
 sale boundaries, save retry and prospective migration. Supported content is29/35 sponsors,
 23/25 Gear and all five initial tactical supplies. Six earned sponsors, further AI acquisition,
 player-card systems, higher Leagues/tiers, stadium progression and the final premium UI/native/
-human acceptance remain open. Whole-project estimate stays approximately72%; this closes a
+human acceptance remain open. Whole-project estimate stays approximately 72%; this closes a
 contract within the existing sponsor category. See VERIFICATION.md for final-source coverage.
 
 ## Frankie's Freezers, 2026-09-30
@@ -99,7 +112,7 @@ Transfer Station adds paid two-player lesson access, a purchased seasonal copy, 
 exchange, personal mastery retention and provenance replay. Both-player review, save rollback,
 career inheritance and actual match roster binding are implemented. This supports24/35 sponsors,
 leaving11 earned contracts. AI purchase extensions, other content systems and final premium UI/
-native visual and human acceptance remain open. Whole-project estimate remains approximately72%.
+native visual and human acceptance remain open. Whole-project estimate remains approximately 72%.
 
 ## Raincheck and protected reroll integration, 2026-09-30
 
@@ -109,7 +122,7 @@ Source cancellation, post-generation sale, release without a free draw, expiry, 
 replay retain normal ownership/capacity authority. Selection, status, review and career access
 are exposed in the UI. This supports23/35 sponsors, leaving12 earned contracts. Loose development
 reservation remains an unapproved Proposal; AI acquisition remains open. Whole-project estimate
-remains approximately72%; final premium UI and native visual/human acceptance remain0/2.
+remains approximately 72%; final premium UI and native visual/human acceptance remain0/2.
 
 ## Special Order Supply and saved shop achievements, 2026-09-30
 
@@ -119,7 +132,7 @@ small-pool exhaustion, fixed pack/recruiting, sale/rebuy limits and save rollbac
 transaction model. Category selection and Club Record expose the feature. Career4/build23/schema27
 preserves old history and starts this new evidence prospectively. This supports22/35 sponsors;
 13 earned contracts remain. Raincheck, other unsupported categories and AI purchase extensions
-remain open. The whole-project estimate stays approximately72% because this extends the existing
+remain open. The whole-project estimate stays approximately 72% because this extends the existing
 sponsor/shop category rather than completing a new major system. Final UI acceptance remains0/2.
 
 ## Shared equipped lightbox, live sales and final UI commitment, 2026-09-30
@@ -134,7 +147,7 @@ roll back, restarts preserve sales, and completed first-release Gear use remains
 a sale. Build22/schema26 replays the attempt and sale history. Verification is recorded in
 VERIFICATION.md.
 
-The whole-project estimate remains approximately72%. This UI foundation is not the required
+The whole-project estimate remains approximately 72%. This UI foundation is not the required
 final polish slice or native visual/human approval. The final integration/acceptance category
 remains0/2 until its product-wide reference, visual-system, rendered review and interaction
 acceptance work is actually completed. Functional content gaps remain unchanged:21/35 sponsors,

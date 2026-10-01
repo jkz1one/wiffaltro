@@ -322,6 +322,9 @@ func _throw_pitch() -> void:
 			_last_release_offset_seconds = 0.0
 
 	var pitch: PitchDefinition = _selected_pitch()
+	if _match_mode and pitch != null and not _match_state.sure_shot.allows(_match_state, pitch.id):
+		_match_state.cancel_pitch()
+		return
 	var ball_setup: BallSetupDefinition = ContentDB.get_ball_setup(BALL_SETUP_ID)
 
 	if pitch == null or ball_setup == null:
@@ -393,6 +396,8 @@ func _throw_pitch() -> void:
 		PitchBatLabFeelSupport.recover_failed_pitch(self, pitch)
 		return
 
+	if _match_mode and not _match_state.sure_shot.current(_match_state).is_empty():
+		base_parameters.execution_direction_scale = 0.8
 	_throw_number = candidate_throw_number
 	if pitcher_state != null:
 		var stamina_before: float = pitcher_state.stamina_remaining

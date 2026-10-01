@@ -181,6 +181,7 @@ static func apply(
 
 	var direction_sigma: float = (
 		(1.0 - quality) * EXECUTION_DIRECTION_SIGMA_RADIANS
+		* base_parameters.execution_direction_scale
 		+ pressure * FATIGUE_DIRECTION_SIGMA_RADIANS * control_scale
 		+ lapse_strength * LAPSE_DIRECTION_SIGMA_RADIANS
 	) * recipe_spread * base_parameters.gear_command_scale

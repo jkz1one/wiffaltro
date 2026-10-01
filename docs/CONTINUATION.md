@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-01 after Small Batch Supply integration and affected-path verification.
+Updated 2026-10-01 after Sure Shot Signworks integration and affected-path verification.
 
 ## Resume here
 
@@ -8,7 +8,7 @@ Updated 2026-10-01 after Small Batch Supply integration and affected-path verifi
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
   completes Second Chance, Late Checkout, Association, Freezers, Left Right Moving, Jumpstart
-  and Small Batch.
+  and Small Batch, followed by Sure Shot Signworks.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -53,7 +53,45 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Small Batch continuation details (latest)
+## Sure Shot continuation details (latest)
+
+Build 33/schema 37/Career 14; Source of Truth v0.4.72, Technical Preproduction v0.1.63.
+Sure Shot Signworks F08 is implemented. Broad run `20261001T143659786539Z` passed
+45/45 checks (38 scenes, 22 physical games). After a test-only positive yaw
+assertion, final run `20261001T145325529426Z` passed 8/8 checks, with 516 unchanged
+source files through publication. Production code was unchanged between runs. Neither
+run had engine warnings/errors; see VERIFICATION.md for exact scope. Publication is authorized only to
+`rebuild/season-engineering`; use `git log -1` for the pushed SHA. Never merge/deploy.
+The last recovered main remains `f1dc209b`; recheck main before the next implementation.
+
+Contract sources were current Decisions v31, Equipment/Sponsors v18 (287,884–923),
+Blueprint v114 F08 annex 4380–4406. Twelve Cash/Uncommon, two team uses per game and
+20% smaller ordinary execution direction sigma remain Working. Do not promote them.
+
+`MatchSureShot` owns calls, actual releases and K evidence; `SeasonSureShot` validates
+completed-game progress. A same-exact-recipe K requires at least three actual releases
+by the credited pitcher. Each optional pre-PA call locks recipe and pitcher through
+the PA and retains its use after canceled windups. Human/AI/replay receive the same
+identity-only cue with original timestamp; no extra AI information/bonus or acquisition
+policy is added. Only ordinary execution direction error is scaled, before fatigue/
+lapse addition and existing Gear command scale. No RNG draws or release controls change.
+
+`_sure_start`/`_sure_earned` and career `sure_earned` preserve prospective tracking.
+Result `pitching` records releases/calls/strikeouts and reconciles box-score totals,
+known recipes, ordered PAs/halves, announcement limits and journal/result agreement.
+Paid announcement evidence uses the match-inventory sponsor snapshot across live sales.
+Ownership/refunds save immediately; announced effects survive even a sale before the
+first release and retire at the safe next-batter boundary. Equipped stays centralized.
+
+SeasonBuild is 958 lines. Keep significant new state/logic in coherent helpers.
+Supported content: 32/35 sponsors, 23/25 Gear, five initial supplies. Remaining earned
+sponsors: B01 Field Supply, E09 Carbon Copy, F09 Double Major. No next contract selected.
+Overall project estimate remains approximately 72%, not release readiness. Native
+rendered/human visual and feel acceptance, the prior unexplained full-suite early exit,
+and the larger unfinished systems remain open. Repository PROGRESSION_BLUEPRINT remains
+byte-identical to main; never replace it with the planning archive.
+
+## Small Batch continuation details
 
 Build 32/schema 36/Career 13; Source of Truth v0.4.71, Technical Preproduction v0.1.62.
 Small Batch Supply G02 is implemented. Broad run `20261001T042758446996Z` passed
@@ -87,9 +125,9 @@ The paid fixture uses actual generated stock (seed1510 after inherited unlock) a
 later paid supply for a three-copy bag. New live cases cover both used and unused
 explicit discards during a pitch, failed save rollback, restart and completed replay.
 SeasonBuild is 948 lines. Extract another coherent helper before significant growth.
-Supported content:31/35 sponsors,23/25 Gear, five supplies. Remaining earned sponsors:
+Supported content:31/35 sponsors, 23/25 Gear, five supplies. Remaining earned sponsors:
 B01 Field Supply, E09 Carbon Copy, F08 Sure Shot and F09 Double Major. No next contract
-selected. Whole-project estimate stays approximately72%, not release readiness.
+selected. Whole-project estimate stays approximately 72%, not release readiness.
 Native/human acceptance and the prior full-suite early exit remain open. The repository
 PROGRESSION_BLUEPRINT remains byte-identical to main; do not replace it with the archive.
 

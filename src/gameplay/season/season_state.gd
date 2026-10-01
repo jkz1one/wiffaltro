@@ -134,6 +134,7 @@ func choose_player(id: String) -> bool:
 			var association_start: Variant = build._association_start
 			var freezer_start: Variant = build._freezer_start
 			var sides_start: Variant = build._sides_start
+			var sure_start: Variant = build._sure_start
 			var jump_start: Variant = build._jump_start
 			var batch_start: Variant = build._batch_start
 			var supply_start: Variant = build._supply_start
@@ -148,6 +149,7 @@ func choose_player(id: String) -> bool:
 			build._association_start = association_start
 			build._freezer_start = freezer_start
 			build._sides_start = sides_start
+			build._sure_start = sure_start
 			build._jump_start = jump_start
 			build._batch_start = batch_start
 		if opponents != null:
@@ -205,7 +207,8 @@ func record_player_result(
 	tactics: Array = [],
 	batting: Dictionary = {},
 	stances: Array = [],
-	fielding: Array = []
+	fielding: Array = [],
+	pitching: Dictionary = {}
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
@@ -215,6 +218,7 @@ func record_player_result(
 		or maxi(away_runs, home_runs) > 9999
 		or not SeasonLeftRight.own_halves(stances, fixture.home == 0)
 		or not SeasonLeftRight.own_halves(fielding, fixture.home != 0)
+		or (not pitching.is_empty() and not SeasonSureShot.own_halves(pitching, fixture.home != 0))
 	):
 		return false
 	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
@@ -239,6 +243,8 @@ func record_player_result(
 		command["batting"] = batting.duplicate(true)
 	if not stances.is_empty():
 		command["stances"] = stances.duplicate(true)
+	if not pitching.is_empty():
+		command["pitching"] = pitching.duplicate(true)
 	if not fielding.is_empty():
 		command["fielding"] = fielding.duplicate(true)
 	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
@@ -260,6 +266,8 @@ func record_player_result(
 		result["batting"] = batting.duplicate(true)
 	if command.has("stances"):
 		result["stances"] = stances.duplicate(true)
+	if command.has("pitching"):
+		result["pitching"] = pitching.duplicate(true)
 	if command.has("fielding"):
 		result["fielding"] = fielding.duplicate(true)
 	results.append(result)

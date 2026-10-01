@@ -4,7 +4,9 @@ extends RefCounted
 
 
 static func release(state: MatchState, recipe: StringName, throw_number: int) -> Dictionary:
-	state.pitch_disclosure.clear()
+	state.pitch_disclosure = state.sure_shot.cue(state)
+	if not state.pitch_disclosure.is_empty():
+		return state.pitch_disclosure.duplicate(true)
 	if (
 		state.phase != MatchState.Phase.PITCH_IN_FLIGHT
 		or recipe == &""
@@ -33,5 +35,6 @@ static func present(lab: PitchBatLab) -> void:
 		lab._batter_approach.recognized_recipe = event.duplicate(true)
 	if lab._player_is_batting():
 		lab._status_label.text = (
-			"FILM ROOM • " + ContentDB.get_pitch(StringName(event.recipe)).display_name
+			("SURE SHOT • " if event.source == "F08" else "FILM ROOM • ")
+			+ ContentDB.get_pitch(StringName(event.recipe)).display_name
 		)

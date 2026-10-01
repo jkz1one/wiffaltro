@@ -89,7 +89,10 @@ func refresh() -> void:
 		button.text = "%d  %s" % [index + 1, SeasonPlayerCard.pitch_name(pitcher.definition, pitch)]
 		button.tooltip_text = pitch.display_name + "\n" + pitch.tactical_description
 		button.button_pressed = index == _lab._selected_pitch_index
-		button.disabled = not MatchLabSupport.can_edit_pitch_plan(_lab)
+		button.disabled = (
+			not MatchLabSupport.can_edit_pitch_plan(_lab)
+			or not _lab._match_state.sure_shot.allows(_lab._match_state, pitch.id)
+		)
 	size.y = get_combined_minimum_size().y
 
 
@@ -97,6 +100,10 @@ func _select(index: int) -> void:
 	if not MatchLabSupport.can_edit_pitch_plan(_lab):
 		return
 	if index >= _lab._current_pitch_options().size():
+		return
+	if not _lab._match_state.sure_shot.allows(
+		_lab._match_state, _lab._current_pitch_options()[index].id
+	):
 		return
 	_lab._selected_pitch_index = index
 	_lab._refresh_config()
