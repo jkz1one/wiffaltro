@@ -110,7 +110,8 @@ func _gear_sales(released: bool) -> void:
 		state.between_batters = false
 		_app.sales.apply_pending(_app)
 		_check(not _app.sales.pending.is_empty(), "another pitch in same PA retains effect")
-		state.between_batters = true
+		state.record_hit(BallPlayOutcome.Result.SINGLE)
+		state.continue_after_dead_ball()
 		_check(state.begin_pitch(), "next batter starts a pitch")
 		_check(_app.sales.pending.is_empty(), "boundary hook retires before next release")
 	else:
@@ -189,8 +190,7 @@ func _sponsor_sales() -> void:
 		"pending sold copies cannot be offered for sale again"
 	)
 	own.encore_used = true
-	state.phase = MatchState.Phase.PLAY_DEAD
-	state.between_batters = true
+	state.record_hit(BallPlayOutcome.Result.SINGLE)
 	_app.sales.apply_pending(_app)
 	_check(
 		own.roster[0].definition.season_sponsors.is_empty() and own.encore_used,

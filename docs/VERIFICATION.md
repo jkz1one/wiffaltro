@@ -1,5 +1,65 @@
 # Fast verification and playtest records
 
+## Field Supply Co.: earned Tape and safe inventory boundaries, 2026-10-01
+
+Broad affected-path run `20261001T153315480652Z` passed **40/41 checks** under
+Godot 4.7.2: seven common gates and 33 of 34 scenes, including 18 complete
+physical games. The sole failure was the older match-sales UI fixture: it simulated
+a next batter by toggling `between_batters` without advancing the PA. The new guard
+correctly retained the sold effect within that same PA. The fixture now completes
+a real plate appearance. No production code changed after the broad run.
+
+Final focused run `20261001T154805216446Z` passed **8/8 checks**: seven common
+gates and the corrected match-sales UI scene. Thus all 34 affected scenes passed
+across the broad run and focused rerun. All 524 source/test/asset/project/tool files
+remained unchanged from the final run through publication. Passing scene logs and
+the final rerun contain no engine warnings/errors; the broad run's only errors were
+the three assertions in that obsolete fixture. This is targeted coverage, not the
+full suite or native rendered/human visual and feel acceptance.
+
+Exact scene scope:
+
+`season-field-supply`, `season-field-supply-live`, `season-small-batch`, `season-small-batch-
+live`, `season-sure-shot`, `season-sure-shot-live`, `season-jumpstart`, `season-jumpstart-
+live`, `season-left-right`, `season-freezers`, `season-association`, `season-sponsor-set`,
+`season-late-checkout`, `season-second-chance`, `season-transfer`, `season-raincheck`, `season-
+special-order`, `season-match-sales`, `season-match-sales-live`, `season-loadout-ui`, `season-
+earned-sponsors`, `season-gear-progress`, `club-career`, `season-opponents`, `season-tactical`,
+`season-tactical-live`, `season-tactical-sponsors`, `season-tactical-sponsors-live`, `season-
+expanded-tactical`, `season-budget-bites`, `season-wholesale`, `ownership-integration`,
+`season-ownership`, `regressions`.
+
+Field Supply checks use earned generated shop stock and the real 14-Cash purchase UI,
+cancel, failed-save rollback and retry. Six clean outs combine different defenders and
+completed games within one season; separate seasons do not combine. Future seasons
+inherit access without a free copy. Build33/Career14 migration remains prospective,
+and malformed inherited progress, career totals and completed clean-out evidence reject.
+
+Runtime cases cover pitcher catches, duplicate callbacks, foul catches, prior bobbles,
+two/three/six outs, development-card occupancy, full-bag forfeiture and no later queue.
+Generated receipts settle used or unused, do not grant progress merely for creation,
+and cannot be fabricated, consumed before delivery or generated again by retry.
+Controlled paid-capacity transactions require an explicit choice between discarding
+ordinary inventory and generated Tape. Sales before delivery affect its bag check;
+sales after delivery cannot retroactively forfeit it. Save replay and forked candidate
+rollback preserve the original receipt and reward accounting.
+
+Four complete physical games cover holding earned Tape, actually activating it,
+selling B01 with two clean outs, and an away club finishing with only two qualifying
+outs. The third case earns no later copy after retirement; the away case correctly
+never reaches its threshold. Actual result evidence rebuilds career/save state. Failed
+completed-game writes retain old save bytes and retry once without duplicate rewards.
+A separate third-PA sale/canceled-windup regression earns its pending Tape before
+retirement, saves the exact seven-Cash refund and resets the generated copy on restart.
+The real SeasonApp leave/relaunch path also resets the remembered retirement PA.
+
+Readiness/Equipped show progress, delivery and full-bag forfeiture. The centered
+Equipped entry is unchanged. Headless mouse purchase, confirmation, menu bounds and
+live loadout checks are not human visual approval. Native-display limitations, human
+visual/feel acceptance and the prior unexplained full-suite early exit remain open.
+The repository progression blueprint remains byte-identical to main. Working contract
+values were not promoted to Approved; overall project completion remains about72%.
+
 ## Sure Shot Signworks: recipe commitments and earned access, 2026-10-01
 
 Broader affected-path run `20261001T143659786539Z` passed **45/45 checks** under

@@ -71,6 +71,9 @@ static func eligible(build: SeasonBuild) -> Dictionary:
 	if build._format >= 32 and build._batch_start != null:
 		if SeasonSmallBatch.combine(build._batch_start, build._batch_used).size() == 3:
 			earned.append("G02")
+	if build._format >= 34 and build._field_start != null:
+		if build._field_start or build._field_outs >= 6:
+			earned.append("B01")
 	if build._format >= 33 and build._sure_start != null:
 		if build._sure_start or build._sure_earned:
 			earned.append("F08")

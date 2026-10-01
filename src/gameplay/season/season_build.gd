@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 33
+const VERSION: int = 34
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -57,6 +57,8 @@ var _checkout_earned: bool = false
 var _association_start: Variant = null
 var _freezer_start: Variant = null
 var _sides_start: Variant = null
+var _field_start: Variant = null
+var _field_outs: int = 0
 var _sure_start: Variant = null
 var _sure_earned: bool = false
 var _jump_start: Variant = null
@@ -249,6 +251,8 @@ func to_data() -> Dictionary:
 		data["freezer_start"] = _freezer_start
 	if _format >= 30:
 		data["sides_start"] = _sides_start
+	if _format >= 34:
+		data["field_start"] = _field_start
 	if _format >= 33:
 		data["sure_start"] = _sure_start
 	if _format >= 31:
@@ -310,6 +314,8 @@ func commit(command: Dictionary) -> Dictionary:
 	_association_start = next._association_start
 	_freezer_start = next._freezer_start
 	_sides_start = next._sides_start
+	_field_start = next._field_start
+	_field_outs = next._field_outs
 	_sure_start = next._sure_start
 	_sure_earned = next._sure_earned
 	_jump_start = next._jump_start
@@ -391,6 +397,8 @@ func _fork() -> SeasonBuild:
 	result._association_start = _association_start
 	result._freezer_start = _freezer_start
 	result._sides_start = _sides_start
+	result._field_start = _field_start
+	result._field_outs = _field_outs
 	result._sure_start = _sure_start
 	result._sure_earned = _sure_earned
 	result._jump_start = _jump_start
@@ -712,6 +720,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonSmallBatch.ITEMS).sha256_text()
 	if format_version >= 33:
 		base += ":" + JSON.stringify(SeasonSureShot.ITEMS).sha256_text()
+	if format_version >= 34:
+		base += ":" + JSON.stringify(SeasonFieldSupply.ITEMS).sha256_text()
 	return base
 
 

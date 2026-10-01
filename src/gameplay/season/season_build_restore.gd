@@ -78,6 +78,8 @@ static func restore(
 		keys.append("batch_start")
 	if value.version >= 33:
 		keys.append("sure_start")
+	if value.version >= 34:
+		keys.append("field_start")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -227,6 +229,11 @@ static func restore(
 			if not value.sure_start is bool or result._market != 0:
 				return null
 		result._sure_start = value.sure_start
+	if value.version >= 34:
+		if value.field_start != null:
+			if not value.field_start is bool or result._market != 0:
+				return null
+		result._field_start = value.field_start
 	if value.version >= 32:
 		if value.batch_start != null:
 			if not SeasonSmallBatch.valid(value.batch_start) or result._market != 0:

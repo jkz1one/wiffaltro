@@ -56,6 +56,8 @@ static func create(
 	var result: MatchState = MatchState.new()
 	result.away_team = away
 	result.home_team = home
+	away.field_supply.receipt = "field-supply:away"
+	home.field_supply.receipt = "field-supply:home"
 	return result
 
 func batting_team() -> TeamMatchState:
@@ -226,12 +228,12 @@ func _complete_plate_appearance(description: String, single: bool = false) -> vo
 	balls = 0
 	strikes = 0
 	between_batters = true
-	if phase == Phase.GAME_END:
-		return
-	if outs >= OUTS_PER_HALF:
-		phase = Phase.INNING_TRANSITION
-	else:
-		phase = Phase.PLAY_DEAD
+	if phase != Phase.GAME_END:
+		phase = Phase.INNING_TRANSITION if outs >= OUTS_PER_HALF else Phase.PLAY_DEAD
+	# Retire saved sales first, so delivery sees the capacity at this legal boundary.
+	inventory_boundary.emit()
+	home_team.field_supply.deliver(self, home_team)
+	away_team.field_supply.deliver(self, away_team)
 
 func _advance_half_inning() -> void:
 	away_team.tactics.checkout.clear()

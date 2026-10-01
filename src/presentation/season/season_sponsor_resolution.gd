@@ -94,12 +94,14 @@ func _ready() -> void:
 		choice.toggled.connect(_toggle.bind(receipt.id))
 		_choices.add_child(choice)
 	if build._format >= 32:
-		for receipt: Dictionary in build._bank.view().held:
+		for receipt: Dictionary in _held_choices():
 			var choice: CheckBox = CheckBox.new()
 			choice.text = (
 				"Discard %s • no refund • saved copy removed"
 				% SeasonAssociationShop.held_name(receipt.item)
 			)
+			if receipt.id.begins_with("field-supply:"):
+				choice.text = "Discard generated Grip Tape • no refund"
 			choice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			choice.custom_minimum_size.y = 44
 			if live_app != null and live_app.lab != null:
@@ -193,3 +195,14 @@ func _toggle_discard(value: bool, id: String) -> void:
 	else:
 		_discard.erase(id)
 	_refresh()
+
+
+func _held_choices() -> Array:
+	var held: Array = build._bank.view().held.duplicate(true)
+	if live_app != null and live_app.lab != null:
+		var state: MatchState = live_app.lab._match_state
+		var own: TeamMatchState = state.home_team if live_app.lab._player_home else state.away_team
+		for receipt: Dictionary in own.tactics.held:
+			if SeasonOwnership._owned(build._bank.view(), receipt.id).is_empty():
+				held.append(receipt.duplicate(true))
+	return held

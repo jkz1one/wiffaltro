@@ -25,6 +25,8 @@ func record(state: MatchState, play: BallPlayState, outcome: BallPlayOutcome) ->
 		}
 	)
 
+	state.defensive_team().field_supply.record(state, rows[-1])
+
 
 func evidence(team: TeamMatchState) -> Array:
 	var ids: Array[String] = []

@@ -10,6 +10,7 @@ var pitcher_index: int = 0
 var fielder_index: int = 1
 var runs: int = 0
 var scouted_recipe: StringName = &""
+var field_supply: MatchFieldSupply = MatchFieldSupply.new()
 var tactics: MatchTactics = MatchTactics.new()
 var sure_shot_locked: bool = false
 var encore_used: bool = false

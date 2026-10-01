@@ -1,12 +1,42 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.72
+**Version:** v0.4.73
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Field Supply Co.: clean outs and generated Grip Tape, 2026-10-01
+
+B01 earns future paid-shop eligibility after six clean fielded outs across completed
+games within one season. Different defenders and pitchers combine; separate seasons
+do not. Strikeouts, foul catches, safe controls and outs following a bobble do not count.
+Old active saves begin prospective tracking next Working season. Unlocking never
+regenerates current stock or supplies a free sponsor.
+
+The Working 14-Cash Uncommon seasonal copy generates one ordinary A10 Grip Tape after
+its owner's third clean fielded out. The next legal batter/half boundary checks the
+shared bag, including development cards. Full means forfeited for this game, with a
+visible reason and no queue. Six outs, extra innings or changing pitchers cannot
+produce another copy. Generation itself grants no Cash, training or use progress.
+Tape use follows the existing activation limits and A10 effects.
+
+Generated Tape is attempt-only until the completed-game transaction: unused Tape
+persists as an exact zero-paid receipt, used Tape settles as an ordinary consumption,
+and an explicit live discard cannot return. Abandoning/restarting resets both counter
+and generated copy. Saved purchases, sales, refunds and explicit discards remain saved.
+Live sales retire effects at the safe next-batter boundary, including a canceled
+windup after an in-flight sale. An already-earned pending Tape still delivers after
+B01 retires; a capacity sponsor retiring at that boundary affects the bag check.
+Later sales cannot retroactively alter an earlier delivery. Equipped remains centered.
+
+Current sources: Decisions v31, Equipment/Sponsors v18 (unlock280; B01 clauses615/669),
+Blueprint v114 retained B01 contract2185–2208. Prices, rarity and generation tuning
+remain Working. Build34/save38/Career15 preserves frozen older signatures, historical
+receipt identities and prospective access. See VERIFICATION.md for tested scope;
+this slice is not final native rendered/human visual and feel acceptance.
 
 ## Sure Shot Signworks: public recipe commitments, 2026-10-01
 

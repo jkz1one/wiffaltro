@@ -7,6 +7,8 @@ extends RefCounted
 static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var starting: bool = command.op == "match_inventory"
 	var fields: Array = ["game"] if starting else ["game", "receipt", "first_pitch"]
+	if not starting and build._format >= 34 and command.has("field_state"):
+		fields.append("field_state")
 	if not starting and build._format >= 28 and command.has("sales"):
 		fields.append("sales")
 	if not starting and build._format >= 32:
@@ -32,6 +34,9 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 			build._match_inventory["sponsors"] = build._bank.view().sponsors.duplicate(true)
 		if build._format >= 32:
 			build._match_inventory["held_capacity"] = build._bank.view().capacity.held
+		if build._format >= 34:
+			build._match_inventory["field_held"] = build._bank.view().held.duplicate(true)
+			build._match_inventory["field_sales"] = []
 		return ""
 	var attempt: Dictionary = build._match_inventory
 	if attempt.is_empty() or attempt.game != command.game or not command.receipt is String:
@@ -45,9 +50,13 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 			return "First-release Gear evidence changed."
 	elif attempt.first_pitch != null:
 		return "This match already recorded its first release."
+	var before: Dictionary = build._bank.view()
+	var request: Dictionary = SeasonFieldSales.begin(build, command)
+	if request.is_empty():
+		return "Invalid generated-supply sale evidence."
 	var sales: Array = []
 	if build._format >= 32:
-		var error: String = SeasonTacticalDiscard.record(build, command)
+		var error: String = SeasonTacticalDiscard.record(build, request)
 		if not error.is_empty():
 			return error
 	var sold: Dictionary
@@ -60,7 +69,7 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 		if sales.has(null):
 			return "Choose distinct active sponsor receipts for every sale."
 		var error: String = SeasonAssociationShop.apply(
-			build, sales, [], command.get("discard", [])
+			build, sales, [], request.get("discard", [])
 		)
 		sold = {"ok": error.is_empty(), "error": error}
 	else:
@@ -77,6 +86,9 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 		)
 	if not sold.ok:
 		return sold.error
+	var capacity_error: String = SeasonFieldSales.finish(build, command, before)
+	if not capacity_error.is_empty():
+		return capacity_error
 	attempt.first_pitch = first.duplicate() if first is Array else null
 	if first == null and owned.kind == "gear":
 		attempt.gear[SeasonGearCatalog.item(owned.item).slot] = {}

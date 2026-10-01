@@ -3,6 +3,7 @@ extends RefCounted
 ## Ownership saves immediately; the runtime copy retires only at a safe PA boundary.
 
 var pending: Dictionary = {}
+var _through_pa: int = 0
 
 
 static func available(app: SeasonApp) -> bool:
@@ -18,7 +19,7 @@ static func available(app: SeasonApp) -> bool:
 static func command(app: SeasonApp, receipt: String) -> Dictionary:
 	var build: SeasonBuild = app.season.build
 	var usage: MatchGearUsage = app.lab._match_state.gear_usage
-	return {
+	var result: Dictionary = {
 		"id": "live-sale:%d" % build.revision(),
 		"rev": build.revision(),
 		"op": "match_sell",
@@ -26,6 +27,12 @@ static func command(app: SeasonApp, receipt: String) -> Dictionary:
 		"receipt": receipt,
 		"first_pitch": usage.first_pitch.duplicate() if usage.started else null
 	}
+	if build._format >= 34:
+		var state: MatchState = app.lab._match_state
+		var own: TeamMatchState = state.home_team if app.lab._player_home else state.away_team
+		result["field_state"] = SeasonFieldSales.capture(state, own)
+		result.field_state.boundary = maxi(result.field_state.boundary, app.sales._through_pa)
+	return result
 
 
 func sell(app: SeasonApp, request: Dictionary) -> bool:
@@ -48,6 +55,8 @@ func sell(app: SeasonApp, request: Dictionary) -> bool:
 	for old: Dictionary in previous.view().wallet.sponsors + previous.view().wallet.gear.values():
 		if not old.is_empty() and SeasonOwnership._owned(next.view().wallet, old.id).is_empty():
 			pending[old.id] = old.duplicate(true)
+	if request.has("field_state"):
+		_through_pa = maxi(_through_pa, int(request.field_state.boundary))
 	# Remove explicitly discarded unused copies immediately; active effects survive.
 	var state: MatchState = app.lab._match_state
 	var own: TeamMatchState = state.home_team if app.lab._player_home else state.away_team
@@ -65,11 +74,21 @@ func sell(app: SeasonApp, request: Dictionary) -> bool:
 	return true
 
 
+func reset() -> void:
+	pending.clear()
+	_through_pa = 0
+
+
 func apply_pending(app: SeasonApp) -> void:
 	if app.lab == null or pending.is_empty():
 		return
 	var state: MatchState = app.lab._match_state
-	if not state.can_change_defense() or not state.sure_shot.current(state).is_empty():
+	if (
+		state.plate_appearance_number <= _through_pa
+		or not state.between_batters
+		or state.phase in [MatchState.Phase.PITCH_IN_FLIGHT, MatchState.Phase.BALL_IN_PLAY]
+		or not state.sure_shot.current(state).is_empty()
+	):
 		return
 	var own: TeamMatchState = state.home_team if app.lab._player_home else state.away_team
 	var wallet: Dictionary = app.season.build.view().wallet
@@ -81,6 +100,7 @@ func apply_pending(app: SeasonApp) -> void:
 	app.loadout.match_snapshot.gear = wallet.gear.duplicate(true)
 	app.loadout.match_snapshot.sponsors = wallet.sponsors.duplicate(true)
 	app.loadout.match_snapshot.capacity = wallet.capacity.duplicate(true)
+	MatchFieldSupply.sync_capacity(own, wallet)
 	if not state.gear_usage.started:
 		state.gear_usage.equipped = SeasonReclamation.receipts(wallet)
-	pending.clear()
+	reset()

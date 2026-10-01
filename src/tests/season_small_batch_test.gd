@@ -213,14 +213,17 @@ func _batch_migration() -> void:
 	var season: SeasonState = _new_club(81)
 	season.build._batch_start = null
 	season.build._sure_start = null
+	season.build._field_start = null
 	season.build._format = 31
 	season.career.runs[-1].batch_used = null
 	season.career.runs[-1].sure_earned = null
+	season.career.runs[-1].field_outs = null
 	_check(SeasonSave.save(season), "old build serializes")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 12
 	data.career.runs[-1].erase("batch_used")
 	data.career.runs[-1].erase("sure_earned")
+	data.career.runs[-1].erase("field_outs")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(restored != null and restored.build._batch_start == null, "old run prospective only")
 

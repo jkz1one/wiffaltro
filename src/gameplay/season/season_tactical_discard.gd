@@ -31,6 +31,12 @@ static func copy_for(build: SeasonBuild, receipt: String, game: int) -> Dictiona
 		return owned
 	if build._format < 32 or build._match_inventory.get("game", -2) != game:
 		return {}
+	if (
+		build._format >= 34
+		and receipt == SeasonFieldGrant.receipt(game)
+		and build._match_inventory.get("field_grant", {}).get("outcome") == "granted"
+	):
+		return SeasonFieldGrant.copy(game)
 	return build._match_inventory.get("discarded", {}).get(receipt, {}).get("copy", {})
 
 

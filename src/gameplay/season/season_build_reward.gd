@@ -8,6 +8,8 @@ static func settle(build: SeasonBuild, command: Dictionary) -> String:
 	if not build._match_inventory.is_empty() and command.get("game") != build._match_inventory.game:
 		return "Complete the current inventory attempt first."
 	var fields: Array = ["game", "win"]
+	if build._format >= 34 and command.has("field_supply"):
+		fields.append("field_supply")
 	if build._format >= 33 and command.has("pitching"):
 		fields.append("pitching")
 	if build._format >= 31 and command.has("fielding"):
@@ -44,6 +46,12 @@ static func settle(build: SeasonBuild, command: Dictionary) -> String:
 	error = SeasonJumpstart.settle(build, command)
 	if not error.is_empty():
 		return error
+	error = SeasonFieldSupply.settle(build, command)
+	if not error.is_empty():
+		return error
+	error = SeasonFieldGrant.prepare(build, command)
+	if not error.is_empty():
+		return error
 	error = SeasonLeftRight.settle(build, command)
 	if not error.is_empty():
 		return error
@@ -67,6 +75,9 @@ static func settle(build: SeasonBuild, command: Dictionary) -> String:
 			build._checkout_earned = build._checkout_earned or action.get("walked", false)
 	if build._supply_start != null:
 		build._supply_used += command.get("tactics", []).size()
+	error = SeasonFieldGrant.finish(build, command)
+	if not error.is_empty():
+		return error
 	var insured: String = SeasonSecondChance.settle(build, command)
 	if not insured.is_empty():
 		return insured

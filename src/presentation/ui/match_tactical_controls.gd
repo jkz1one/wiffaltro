@@ -79,14 +79,30 @@ func _process(_delta: float) -> void:
 		return
 	var tactics: MatchTactics = team().tactics
 	var active: String = tactics.active(_lab._match_state)
+	var grant: Dictionary = team().field_supply.evidence()
 	var transfer: bool = not tactics.checkout.options(_lab._match_state, team()).is_empty()
 	_entry.position = Vector2(420, 526) if _lab._player_is_batting() else Vector2(420, 96)
 	_entry.visible = (
-		(not tactics.held.is_empty() or not active.is_empty() or transfer)
+		(
+			not tactics.held.is_empty()
+			or not active.is_empty()
+			or transfer
+			or (not grant.is_empty() and can_open())
+		)
 		and not _lab._match_presentation_director.blocks_gameplay()
 	)
 	_entry.disabled = not can_open() or (tactics.held.is_empty() and not transfer)
 	_entry.text = "SUPPLIES • %d held" % tactics.held.size()
+	_entry.tooltip_text = team().field_supply.label() if not grant.is_empty() else ""
+	if can_open() and not grant.is_empty():
+		_entry.text += (
+			"\n"
+			+ (
+				"Field Supply: bag full; Tape forfeited"
+				if grant.outcome == "full"
+				else "Field Supply: Grip Tape delivered"
+			)
+		)
 	if transfer:
 		_entry.text += "\nLATE CHECKOUT AVAILABLE"
 	if not active.is_empty():

@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.63
+**Version:** v0.1.64
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,42 @@
 
 # 1. Technical Objective
 
+
+## Field Supply inventory and replay boundaries, 2026-10-01
+
+Build34/schema38/Career15 adds `MatchFieldSupply`, `SeasonFieldSupply`,
+`SeasonFieldGrant` and `SeasonFieldSales`. SeasonBuild remains968 lines; counters,
+grant reconciliation and live-sale evidence stay in coherent helpers. Nullable
+`_field_start` preserves prospective migration, `_field_outs` rebuilds completed
+season totals, and nullable career `field_outs` must agree exactly with the journal.
+Only format34 appends the new sponsor signature.
+
+Existing `MatchCleanOuts` supplies deduplicated resolver evidence for any credited
+clean defender. At PA completion, pending sold effects retire before the delivery
+capacity check, including inning/game boundaries. Match-only Tape enters the real
+MatchTactics bag with receipt `field-supply:<fixture>`, zero paid price and ordinary
+A10 behavior. Development cards reserve the other shared slots. Readiness and Equipped
+show the counter, delivery or full-bag forfeiture without a live-play popup.
+
+The attempt snapshot preserves original held copies and capacity. Format34 live sales
+carry PA/boundary, completed clean-out rows, actual activations and delivery evidence;
+exact selected discards and resulting capacity form a replayable timeline. Completion
+reconstructs the third qualifying out, active ownership, capacity and actual occupancy
+at delivery. Fielding, partial live evidence, activations, journal/result and career
+must agree. Virtual Tape may be explicitly discarded in capacity resolution without
+inventing a saved pregame copy or refund. Paid and runtime bags must both fit.
+
+`SeasonTacticalDiscard.copy_for` recognizes only a validated generated receipt during
+settlement. Consumption limits allow the one earned extra copy over the original bag.
+The existing combo, walk, insurance and progress paths receive ordinary A10 evidence;
+unused Tape is granted only after real consumption settles, then Second Chance checks
+remaining space. Restarting begins a fresh attempt and cannot keep a free copy while
+resetting its generator. Failed purchase/sale/result writes remain atomic or retryable.
+
+Pending sale retirement remembers its committed PA even if a windup is canceled.
+Grouped follow-up sales share the same safe boundary. No stock is regenerated, no
+ordinary receipt IDs are rewritten and no additional match RNG draws or physics modifiers
+are introduced. See VERIFICATION.md for exact coverage and remaining limitations.
 
 ## Sure Shot execution, evidence and compatibility, 2026-10-01
 

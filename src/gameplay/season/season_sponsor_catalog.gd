@@ -310,6 +310,8 @@ static func catalog(version: int = 11) -> Dictionary:
 static func item(id: String) -> Dictionary:
 	if SeasonSmallBatch.ITEMS.has(id):
 		return SeasonSmallBatch.ITEMS[id].duplicate(true)
+	if SeasonFieldSupply.ITEMS.has(id):
+		return SeasonFieldSupply.ITEMS[id].duplicate(true)
 	if SeasonSureShot.ITEMS.has(id):
 		return SeasonSureShot.ITEMS[id].duplicate(true)
 	if SeasonJumpstart.ITEMS.has(id):
@@ -356,6 +358,7 @@ static func ownership_catalog() -> Dictionary:
 	all_items.merge(SeasonAssociation.ITEMS)
 	all_items.merge(SeasonFreezers.ITEMS)
 	all_items.merge(SeasonLeftRight.ITEMS)
+	all_items.merge(SeasonFieldSupply.ITEMS)
 	all_items.merge(SeasonSureShot.ITEMS)
 	all_items.merge(SeasonJumpstart.ITEMS)
 	all_items.merge(SeasonSmallBatch.ITEMS)
@@ -385,6 +388,8 @@ static func eligible(active: Array, version: int = 11, earned: Array[String] = [
 			all_items[id] = SeasonTransfer.ITEMS[id]
 		elif SeasonSecondChance.ITEMS.has(id):
 			all_items[id] = SeasonSecondChance.ITEMS[id]
+		elif SeasonFieldSupply.ITEMS.has(id):
+			all_items[id] = SeasonFieldSupply.ITEMS[id]
 		elif SeasonSureShot.ITEMS.has(id):
 			all_items[id] = SeasonSureShot.ITEMS[id]
 		elif SeasonJumpstart.ITEMS.has(id):

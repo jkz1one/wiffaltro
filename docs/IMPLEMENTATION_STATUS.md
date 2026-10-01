@@ -1,5 +1,20 @@
 # Implementation Status
 
+## Field Supply Co., 2026-10-01
+
+Field Supply adds six-clean-outs-in-one-season access, a paid Working 14-Cash
+Uncommon copy, one safe-boundary Grip Tape grant per game, shared bag forfeiture,
+exact generated receipts and restart-safe inventory accounting. Live capacity sales
+explicitly resolve both saved and match-only supplies. Build34/schema38/Career15
+includes prospective migration, career rebuild, readiness/Equipped status and save
+retry. Supported content is33/35 sponsors,23/25 Gear and all five initial supplies.
+Carbon Copy and Double Major remain; Double Major depends on learned abilities and
+Carbon Copy still needs its current stacking contract resolved before selection.
+AI acquisition, player cards, higher Leagues/tiers, stadium progression, integration
+and final primary-reference/native-rendered/human UI acceptance remain open. Overall
+project completion remains approximately72%, not release readiness. Working values
+remain Working; see VERIFICATION.md for exact verified scope.
+
 ## Sure Shot Signworks, 2026-10-01
 
 Sure Shot adds prospective same-recipe strikeout access, a paid 12-Cash Uncommon copy,

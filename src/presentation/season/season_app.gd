@@ -178,7 +178,7 @@ func _open_match(
 	season_game: bool,
 	field_id: StringName = PitchBatLab.FIELD_ID
 ) -> void:
-	sales.pending.clear()
+	sales.reset()
 	state.inventory_boundary.connect(sales.apply_pending.bind(self))
 	_season_game = season_game
 	_busy = false
@@ -248,7 +248,8 @@ func _commit_result() -> bool:
 				state.sure_shot.evidence(state.home_team if lab._player_home else state.away_team)
 				if season.build != null and season.build._sure_start != null
 				else {}
-			)
+			),
+			(state.home_team if lab._player_home else state.away_team).field_supply.evidence()
 		):
 			return false
 		_result_recorded = true

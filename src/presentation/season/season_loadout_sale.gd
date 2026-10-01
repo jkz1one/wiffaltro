@@ -61,6 +61,9 @@ func _quote(chosen: Dictionary, item_name: String) -> void:
 		% [item_name, refund, quote.before_cash, quote.after.wallet.cash]
 	)
 	description += SeasonAssociationShop.review(app.season.build.view().wallet, quote.after.wallet)
+	for id: String in request.get("discard", []):
+		if id == SeasonFieldGrant.receipt(app._fixture_id):
+			description += "\nDiscard generated Grip Tape • no refund."
 	_review.text = description
 	dialog_text = ""
 	get_label().hide()

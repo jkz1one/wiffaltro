@@ -136,6 +136,8 @@ func _apply(next: Dictionary, command: Dictionary) -> String:
 	match command.get("op"):
 		"sponsor_set":
 			return SeasonSponsorSet.apply(self, next, command)
+		"field_grant":
+			return SeasonFieldGrant.grant(next, command)
 		"insurance_grant":
 			return SeasonSecondChance.grant(next, command)
 		"budget_grant":

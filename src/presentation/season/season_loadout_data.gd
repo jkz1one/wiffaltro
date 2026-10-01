@@ -49,6 +49,8 @@ static func pages(app: SeasonApp) -> Dictionary:
 				"%d / 4 stamps • +%d%% Contact exit %s"
 				% [stamps, stamps, "this game" if live else "next game"]
 			)
+		elif receipt.item == "B01" and live:
+			status = team.field_supply.label()
 		elif receipt.item == "F08" and live:
 			status = "%d / 2 announcements left" % state.sure_shot.remaining(team)
 			var call: Dictionary = state.sure_shot.current(state)
@@ -59,7 +61,8 @@ static func pages(app: SeasonApp) -> Dictionary:
 		elif receipt.item == "J04" and live:
 			status = (
 				"First step: " + state.jumpstart_mode.to_upper()
-				if state.defensive_team() == team else "Choose in FIELD before an opposing PA"
+				if state.defensive_team() == team
+				else "Choose in FIELD before an opposing PA"
 			)
 		elif receipt.item == "F06" and live:
 			status = (
@@ -104,8 +107,11 @@ static func pages(app: SeasonApp) -> Dictionary:
 					else " • Insurance ended"
 				)
 			result.supplies.append(row)
+		var used_copies: Array = wallet.held.duplicate(true)
+		if team.field_supply.evidence().get("outcome") == "granted":
+			used_copies.append({"id": team.field_supply.receipt, "item": "A10", "paid": 0})
 		for use: Dictionary in team.tactics.consumed:
-			for receipt: Dictionary in wallet.held:
+			for receipt: Dictionary in used_copies:
 				if receipt.id == use.receipt:
 					var row: Dictionary = _supply(receipt, true)
 					row.label = "Used this game"

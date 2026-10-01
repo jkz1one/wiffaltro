@@ -1,5 +1,7 @@
 class_name SeasonState
 extends RefCounted
+# gdlint: disable=function-arguments-number
+# Preserve positional result evidence for historical callers.
 
 enum Phase { DRAFT, REGULAR, SEMIFINAL, FINAL, COMPLETE }
 const TEAM_NAMES: Array[String] = ["Yard Club", "Rivets", "Kites", "Lanterns", "Comets", "Switches"]
@@ -134,6 +136,7 @@ func choose_player(id: String) -> bool:
 			var association_start: Variant = build._association_start
 			var freezer_start: Variant = build._freezer_start
 			var sides_start: Variant = build._sides_start
+			var field_start: Variant = build._field_start
 			var sure_start: Variant = build._sure_start
 			var jump_start: Variant = build._jump_start
 			var batch_start: Variant = build._batch_start
@@ -149,6 +152,7 @@ func choose_player(id: String) -> bool:
 			build._association_start = association_start
 			build._freezer_start = freezer_start
 			build._sides_start = sides_start
+			build._field_start = field_start
 			build._sure_start = sure_start
 			build._jump_start = jump_start
 			build._batch_start = batch_start
@@ -195,6 +199,8 @@ func make_match() -> MatchState:
 		player.tactics.held = SeasonTacticalCatalog.held(build.view().wallet)
 		player.tactics.track_walks = build._format >= 27 and build._checkout_start != null
 		player.tactics.insured_receipt = SeasonSecondChance.target(build, int(fixture.id))
+		player.field_supply.receipt = "field-supply:%d" % int(fixture.id)
+		MatchFieldSupply.sync_capacity(player, build.view().wallet)
 	return match_state
 
 
@@ -208,7 +214,8 @@ func record_player_result(
 	batting: Dictionary = {},
 	stances: Array = [],
 	fielding: Array = [],
-	pitching: Dictionary = {}
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {}
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
@@ -243,6 +250,8 @@ func record_player_result(
 		command["batting"] = batting.duplicate(true)
 	if not stances.is_empty():
 		command["stances"] = stances.duplicate(true)
+	if not field_supply.is_empty():
+		command["field_supply"] = field_supply.duplicate(true)
 	if not pitching.is_empty():
 		command["pitching"] = pitching.duplicate(true)
 	if not fielding.is_empty():
@@ -266,6 +275,8 @@ func record_player_result(
 		result["batting"] = batting.duplicate(true)
 	if command.has("stances"):
 		result["stances"] = stances.duplicate(true)
+	if command.has("field_supply"):
+		result["field_supply"] = field_supply.duplicate(true)
 	if command.has("pitching"):
 		result["pitching"] = pitching.duplicate(true)
 	if command.has("fielding"):

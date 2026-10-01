@@ -53,6 +53,8 @@ static func settle(
 	var limit: int = build._bank.view().capacity.held
 	if build._format >= 32:
 		limit = maxi(limit, int(build._match_inventory.get("held_capacity", limit)))
+	if build._match_inventory.get("field_grant", {}).get("outcome") == "granted":
+		limit += 1
 	if not value is Array or value.size() > limit:
 		return "Invalid tactical consumption ledger."
 	if not SeasonTacticalDiscard.valid(build, value, game):

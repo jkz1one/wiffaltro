@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-01 after Sure Shot Signworks integration and affected-path verification.
+Updated 2026-10-01 after Field Supply Co. integration and affected-path verification.
 
 ## Resume here
 
@@ -8,7 +8,7 @@ Updated 2026-10-01 after Sure Shot Signworks integration and affected-path verif
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
   completes Second Chance, Late Checkout, Association, Freezers, Left Right Moving, Jumpstart
-  and Small Batch, followed by Sure Shot Signworks.
+  and Small Batch, followed by Sure Shot Signworks and Field Supply Co.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -53,7 +53,48 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Sure Shot continuation details (latest)
+## Field Supply continuation details (latest)
+
+Build34/schema38/Career15; Source of Truth v0.4.73, Technical Preproduction v0.1.64.
+Field Supply B01 is implemented. Broad run `20261001T153315480652Z` passed
+40/41 checks; its sole failure was an obsolete UI fixture that toggled a boundary flag
+without advancing the PA. After a test-only correction, final run `20261001T154805216446Z`
+passed8/8 checks. All34 affected scenes passed across both runs, with 18 physical games,
+no warnings/errors in passing scene logs, and 524 unchanged final source files through
+publication. Production code did not change between runs. See VERIFICATION.md for scope;
+this is not full-suite or native/human acceptance. Publish only to `rebuild/season-engineering`; `git log -1`
+identifies the pushed SHA. No merge/deploy. Main was rechecked against `f1dc209b`.
+The repository progression blueprint remains byte-identical to main.
+
+Contracts were read from Decisions v31, Equipment/Sponsors v18 and Blueprint v114,
+B01 annex2185–2208. Six clean outs in one completed season earn paid access. The
+Working14-Cash Uncommon copy generates one A10 after the third clean out of a game.
+Delivery at the next batter/half boundary checks the shared bag after pending sale
+retirement; full forfeits the opportunity with no queue. Any credited clean defender
+counts, including pitchers. No strikeout, foul catch, prior bobble or duplicate credit.
+
+New helpers: `MatchFieldSupply`, `SeasonFieldSupply`, `SeasonFieldGrant`,
+`SeasonFieldSales`. `_field_start` is nullable inherited access; `_field_outs` and
+career `field_outs` derive from completed fielding evidence. Results optionally carry
+`field_supply` delivery evidence. Match-inventory snapshots retain the original bag
+and live sale timeline, reconciling exact activations, discards and capacity at delivery.
+Generated Tape stays runtime-only until completion: used copies consume normally,
+unused copies receive a zero-paid exact receipt, discarded copies never return.
+Restart resets both generator and free copy while retaining saved sales/refunds/discards.
+A sale after delivery cannot retroactively turn a grant into forfeiture. A canceled
+windup cannot prematurely retire an already sold PA effect. Equipped stays centralized.
+
+SeasonBuild is968 lines; keep substantial new state/logic in helpers. Supported
+content is33/35 sponsors,23/25 Gear and all five supplies. Remaining earned sponsors
+are E09 Carbon Copy and F09 Double Major. No next slice selected. Double Major's
+learned-ability dependency is not implemented; do not invent it inside a sponsor patch.
+Carbon Copy's Deli stacking proposal must not be promoted to Approved. Other work
+includes AI acquisition, player-card systems, higher Leagues/tiers, stadium progression,
+integration and final UI acceptance. Whole-project estimate stays approximately72%.
+Native-display limitations, human visual/feel acceptance and the earlier unexplained
+full-suite early exit remain open. Headless UI checks do not constitute human approval.
+
+## Sure Shot continuation details
 
 Build 33/schema 37/Career 14; Source of Truth v0.4.72, Technical Preproduction v0.1.63.
 Sure Shot Signworks F08 is implemented. Broad run `20261001T143659786539Z` passed
