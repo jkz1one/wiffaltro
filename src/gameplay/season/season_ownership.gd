@@ -313,6 +313,8 @@ func _capacity(state: Dictionary) -> Dictionary:
 		var item: Dictionary = _catalog[active.item]
 		held += int(item.get("held_delta", 0))
 		sponsors += int(item.get("sponsor_delta", 0))
+	for active: Dictionary in state.sponsors:
+		sponsors = mini(sponsors, int(_catalog[active.item].get("sponsor_cap", sponsors)))
 	return {"held": maxi(0, held), "sponsors": maxi(0, sponsors)}
 
 
@@ -335,7 +337,9 @@ func _valid_item(id: Variant) -> bool:
 	if item.get("peer_rarity", "") not in ["", "Common", "Uncommon", "Rare"]:
 		return false
 	return (
-		_whole(item.get("held_delta", 0), -2, 10) and _whole(item.get("sponsor_delta", 0), -5, 10)
+		_whole(item.get("held_delta", 0), -2, 10)
+		and _whole(item.get("sponsor_delta", 0), -5, 10)
+		and _whole(item.get("sponsor_cap", 32), 0, 32)
 	)
 
 

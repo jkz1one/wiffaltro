@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 31
+const VERSION: int = 32
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -58,6 +58,8 @@ var _association_start: Variant = null
 var _freezer_start: Variant = null
 var _sides_start: Variant = null
 var _jump_start: Variant = null
+var _batch_start: Variant = null
+var _batch_used: Array = []
 var _association_earned: bool = false
 var _freezer_earned: bool = false
 var _sides_earned: bool = false
@@ -247,6 +249,8 @@ func to_data() -> Dictionary:
 		data["sides_start"] = _sides_start
 	if _format >= 31:
 		data["jump_start"] = _jump_start
+	if _format >= 32:
+		data["batch_start"] = _batch_start.duplicate() if _batch_start != null else null
 	return data
 
 
@@ -303,6 +307,8 @@ func commit(command: Dictionary) -> Dictionary:
 	_freezer_start = next._freezer_start
 	_sides_start = next._sides_start
 	_jump_start = next._jump_start
+	_batch_start = next._batch_start
+	_batch_used = next._batch_used.duplicate()
 	_association_earned = next._association_earned
 	_freezer_earned = next._freezer_earned
 	_sides_earned = next._sides_earned
@@ -380,6 +386,8 @@ func _fork() -> SeasonBuild:
 	result._freezer_start = _freezer_start
 	result._sides_start = _sides_start
 	result._jump_start = _jump_start
+	result._batch_start = _batch_start.duplicate() if _batch_start != null else null
+	result._batch_used = _batch_used.duplicate()
 	result._association_earned = _association_earned
 	result._freezer_earned = _freezer_earned
 	result._sides_earned = _sides_earned
@@ -692,6 +700,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonLeftRight.ITEMS).sha256_text()
 	if format_version >= 31:
 		base += ":" + JSON.stringify(SeasonJumpstart.ITEMS).sha256_text()
+	if format_version >= 32:
+		base += ":" + JSON.stringify(SeasonSmallBatch.ITEMS).sha256_text()
 	return base
 
 
@@ -861,7 +871,7 @@ func _settle_sponsors(command: Dictionary) -> String:
 
 
 func _sponsor_transaction(command: Dictionary) -> String:
-	if _format >= 28 and command.has("sales"):
+	if (_format >= 28 and command.has("sales")) or (_format >= 32 and command.has("discard")):
 		return SeasonAssociationShop.commit(self, command)
 	if _format < 6 or _visit.number < _sponsor_from:
 		return "Sponsors are not available at this visit."

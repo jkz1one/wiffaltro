@@ -2,6 +2,19 @@
 
 For a new conversation, start with `CONTINUATION.md` and the newest verification entry.
 
+## Small Batch Supply, 2026-10-01
+
+Small Batch adds prospective three-original-supply career access, a paid 12-Cash
+Uncommon copy, a hard three-sponsor cap and one extra shared held slot. Exact
+sale/discard resolution covers shop, Wholesale and live Equipped with save rollback,
+used-copy evidence, restart handling and safe effect retirement. Build32/schema36/
+Career13 includes migration and replay coverage. Content is now 31/35 sponsors,
+23/25 Gear and all five tactical supplies. Field Supply, Carbon Copy, Sure Shot and
+Double Major remain. AI acquisition, player cards, higher Leagues/tiers, stadium
+progression, integration and final native/human UI acceptance remain open. Overall
+estimate remains approximately 72%; another sponsor contract is complete, while the
+major remaining systems still determine readiness. Working values remain Working.
+
 ## Jumpstart Auto, 2026-10-01
 
 Jumpstart adds completed-game clean-Primary-out access, paid 12-Cash seasonal ownership,

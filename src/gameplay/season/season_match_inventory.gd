@@ -9,6 +9,10 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var fields: Array = ["game"] if starting else ["game", "receipt", "first_pitch"]
 	if not starting and build._format >= 28 and command.has("sales"):
 		fields.append("sales")
+	if not starting and build._format >= 32:
+		for key: String in ["discard", "discarded_use"]:
+			if command.has(key):
+				fields.append(key)
 	if (
 		build._format < 22
 		or build._market != 0
@@ -26,6 +30,8 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 		}
 		if build._format >= 26:
 			build._match_inventory["sponsors"] = build._bank.view().sponsors.duplicate(true)
+		if build._format >= 32:
+			build._match_inventory["held_capacity"] = build._bank.view().capacity.held
 		return ""
 	var attempt: Dictionary = build._match_inventory
 	if attempt.is_empty() or attempt.game != command.game or not command.receipt is String:
@@ -40,15 +46,25 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	elif attempt.first_pitch != null:
 		return "This match already recorded its first release."
 	var sales: Array = []
+	if build._format >= 32:
+		var error: String = SeasonTacticalDiscard.record(build, command)
+		if not error.is_empty():
+			return error
 	var sold: Dictionary
-	if build._format >= 28 and owned.kind == "sponsor" and command.has("sales"):
+	if (
+		build._format >= 28
+		and owned.kind == "sponsor"
+		and (command.has("sales") or command.has("discard"))
+	):
 		sales = SeasonAssociationShop.selected(build, command, [command.receipt])
 		if sales.has(null):
 			return "Choose distinct active sponsor receipts for every sale."
-		var error: String = SeasonAssociationShop.apply(build, sales, [])
+		var error: String = SeasonAssociationShop.apply(
+			build, sales, [], command.get("discard", [])
+		)
 		sold = {"ok": error.is_empty(), "error": error}
 	else:
-		if command.has("sales"):
+		if command.has("sales") or command.has("discard") or command.has("discarded_use"):
 			return "Extra sponsor sales cannot accompany a Gear sale."
 		sold = build._bank.commit(
 			{

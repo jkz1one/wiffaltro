@@ -50,8 +50,13 @@ static func buy(build: SeasonBuild, command: Dictionary) -> String:
 static func settle(
 	build: SeasonBuild, value: Variant, performance: Dictionary, game: int = -1
 ) -> String:
-	if not value is Array or value.size() > build._bank.view().capacity.held:
+	var limit: int = build._bank.view().capacity.held
+	if build._format >= 32:
+		limit = maxi(limit, int(build._match_inventory.get("held_capacity", limit)))
+	if not value is Array or value.size() > limit:
 		return "Invalid tactical consumption ledger."
+	if not SeasonTacticalDiscard.valid(build, value, game):
+		return "Discarded activation evidence changed."
 	if not SeasonTacticalCombo.valid(build, value, game):
 		return "Invalid Double Booking pair or sponsor ownership."
 	var appearances: int = 0
@@ -59,13 +64,15 @@ static func settle(
 		appearances += int(line.pa)
 	var receipts: Array[String] = []
 	var recovered: Array[String] = []
+	var tracked: Array = []
+	var held_receipts: Array = []
 	var previous_pa: int = 0
 	for action: Variant in value:
 		if not action is Dictionary or not action.get("receipt") is String:
 			return "Invalid tactical activation."
 		if not action.receipt is String or receipts.has(action.receipt):
 			return "A tactical copy can be consumed only once."
-		var owned: Dictionary = SeasonOwnership._owned(build._bank.view(), action.receipt)
+		var owned: Dictionary = SeasonTacticalDiscard.copy_for(build, action.receipt, game)
 		if owned.is_empty() or not SeasonTacticalCatalog.catalog().has(owned.item):
 			return "Consume only a tactical copy held before this game."
 		var fields: Array = ["receipt", "player", "pa", "swing"]
@@ -118,8 +125,13 @@ static func settle(
 				return "Recovery Pack is limited to once per pitcher per game."
 			recovered.append(action.player)
 		receipts.append(action.receipt)
+		tracked.append(owned.item)
+		if not SeasonOwnership._owned(build._bank.view(), action.receipt).is_empty():
+			held_receipts.append(action.receipt)
 		previous_pa = int(action.pa)
-	if receipts.is_empty():
+	if build._batch_start != null:
+		build._batch_used = SeasonSmallBatch.combine(build._batch_used, tracked)
+	if held_receipts.is_empty():
 		return ""
 	var consumed: Dictionary = (
 		build
@@ -129,7 +141,7 @@ static func settle(
 				"id": "tactical-use:%d" % build.revision(),
 				"rev": build._bank.revision(),
 				"op": "discard",
-				"receipts": receipts,
+				"receipts": held_receipts,
 			}
 		)
 	)

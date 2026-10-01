@@ -1,11 +1,41 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.70
+**Version:** v0.4.71
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
+
+## Small Batch Supply and explicit shared-inventory resolution, 2026-10-01
+
+G02 is the 31st supported **Working** sponsor candidate. Equipment/Sponsors v18
+(access 275–313, shared-inventory rules 469–508) controls retained Blueprint v114
+G02 annex 4590–4616. Consume Grip Tape, Recovery Pack and Swing Plan at least once
+each in completed games across the career to earn future paid-shop access. Heat,
+Take a Base, unfinished attempts and merely discarding copies do not substitute.
+Partial progress survives season abandonment. Unlocking never regenerates current stock.
+
+The 12-Cash Uncommon copy limits active sponsors to three INCLUDING itself, and
+adds one shared held slot (base two becomes three). It grants no free supply or
+extra activation. The sponsor limit is a hard cap, not a negative slot delta;
+held modifiers add. Association's Common-only rule rejects this Uncommon peer.
+Tests of a synthetic higher base or a held-slot loss establish arithmetic only:
+higher-League acquisition and Double Major gameplay remain unimplemented.
+
+Shop, Wholesale and live Equipped removal/replacement must explicitly resolve the
+complete final loadout. Review names each extra sponsor sale and each held copy to
+discard, with no auto-selection, reserves or silent destruction. Discards have no
+refund and persist on restart; ordinary Small Batch resale is six Cash. A used
+copy may be explicitly removed from saved inventory while its current runtime
+effect and exact completed-game evidence remain intact. This does not spend a
+second copy or award progress before the game ends. Unused discarded supplies
+leave the runtime bag only after a successful save. Sponsor effects/capacity display
+retire at the existing safe next-batter boundary; the Equipped entry stays centralized.
+
+Build 32/schema 36/Career 13 keeps old runs prospective. No Approved/Working/Proposal
+status has changed. AI acquisition, final native visual/feel acceptance and broader
+remaining systems remain open; whole-project estimate is approximately 72%.
 
 ## Jumpstart Auto and committed first steps, 2026-10-01
 

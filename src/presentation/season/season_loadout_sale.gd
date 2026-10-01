@@ -41,7 +41,8 @@ func _quote(chosen: Dictionary, item_name: String) -> void:
 				get_parent(),
 				app.season.build,
 				request,
-				func(selected: Dictionary) -> void: _quote(selected, item_name)
+				func(selected: Dictionary) -> void: _quote(selected, item_name),
+				app
 			)
 			return
 		ui.context.text = quote.error

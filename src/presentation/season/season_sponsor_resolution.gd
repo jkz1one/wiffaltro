@@ -3,11 +3,13 @@ extends ConfirmationDialog
 ## Explicit extra sales, followed by the existing final confirmation/save flow.
 
 var build: SeasonBuild
+var live_app: SeasonApp
 var command: Dictionary
 var accepted: Callable
 var _choices: VBoxContainer
 var _summary: Label
 var _extra: Array[String] = []
+var _discard: Array[String] = []
 
 
 static func needed(source: SeasonBuild, request: Dictionary, error: String) -> bool:
@@ -29,10 +31,15 @@ static func needed(source: SeasonBuild, request: Dictionary, error: String) -> b
 
 
 static func open(
-	parent: Node, source: SeasonBuild, request: Dictionary, callback: Callable
+	parent: Node,
+	source: SeasonBuild,
+	request: Dictionary,
+	callback: Callable,
+	app: SeasonApp = null
 ) -> SeasonSponsorResolution:
 	var dialog: SeasonSponsorResolution = SeasonSponsorResolution.new()
 	dialog.build = source
+	dialog.live_app = app
 	dialog.command = request.duplicate(true)
 	dialog.accepted = callback
 	parent.add_child(dialog)
@@ -42,7 +49,7 @@ static func open(
 
 
 func _ready() -> void:
-	title = "Choose sponsor sales"
+	title = "Resolve your loadout"
 	theme = ClubhouseTheme.create()
 	transient = true
 	exclusive = true
@@ -59,7 +66,8 @@ func _ready() -> void:
 	var intro: Label = Label.new()
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	intro.text = (
-		"Select extra sponsors to sell. " + "Nothing changes until the final confirmation is saved."
+		"Select sponsors to sell and any excess supplies to discard. "
+		+ "Nothing changes until the final confirmation is saved."
 	)
 	_choices.add_child(intro)
 	var required: Array = []
@@ -85,6 +93,26 @@ func _ready() -> void:
 		choice.disabled = choice.button_pressed
 		choice.toggled.connect(_toggle.bind(receipt.id))
 		_choices.add_child(choice)
+	if build._format >= 32:
+		for receipt: Dictionary in build._bank.view().held:
+			var choice: CheckBox = CheckBox.new()
+			choice.text = (
+				"Discard %s • no refund • saved copy removed"
+				% SeasonAssociationShop.held_name(receipt.item)
+			)
+			choice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			choice.custom_minimum_size.y = 44
+			if live_app != null and live_app.lab != null:
+				var state: MatchState = live_app.lab._match_state
+				var own: TeamMatchState = (
+					state.home_team if live_app.lab._player_home else state.away_team
+				)
+				for action: Dictionary in own.tactics.consumed:
+					if action.receipt == receipt.id:
+						choice.text += " • used this game; current effect stays"
+			choice.set_meta("supply_discard", receipt.id)
+			choice.toggled.connect(_toggle_discard.bind(receipt.id))
+			_choices.add_child(choice)
 	_summary = SeasonPlayerCard.line(_choices, "")
 	_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	confirmed.connect(_accept)
@@ -103,6 +131,19 @@ func _toggle(value: bool, id: String) -> void:
 func _request() -> Dictionary:
 	var result: Dictionary = command.duplicate(true)
 	result["sales"] = _extra.duplicate()
+	if build._format >= 32:
+		result["discard"] = _discard.duplicate()
+		if command.op == "match_sell":
+			result["discarded_use"] = []
+			var app: SeasonApp = live_app
+			if app != null and app.lab != null:
+				var state: MatchState = app.lab._match_state
+				var own: TeamMatchState = (
+					state.home_team if app.lab._player_home else state.away_team
+				)
+				for action: Dictionary in own.tactics.consumed:
+					if _discard.has(action.receipt):
+						result.discarded_use.append(action.duplicate(true))
 	return result
 
 
@@ -113,12 +154,17 @@ func _refresh() -> void:
 		quote.error
 		if not quote.ok
 		else (
-			"Cash: %d → %d\nActive sponsors: %d / %d\nReview these exact changes next."
+			(
+				"Cash: %d → %d\nActive sponsors: %d / %d\n"
+				+ "Held supplies: %d / %d\nReview these exact changes next."
+			)
 			% [
 				quote.before_cash,
 				quote.after.wallet.cash,
 				quote.after.wallet.sponsors.size(),
-				quote.after.wallet.capacity.sponsors
+				quote.after.wallet.capacity.sponsors,
+				quote.after.wallet.held.size(),
+				quote.after.wallet.capacity.held
 			]
 		)
 	)
@@ -139,3 +185,11 @@ func _input(event: InputEvent) -> void:
 		hide()
 		canceled.emit()
 		get_viewport().set_input_as_handled()
+
+
+func _toggle_discard(value: bool, id: String) -> void:
+	if value:
+		_discard.append(id)
+	else:
+		_discard.erase(id)
+	_refresh()

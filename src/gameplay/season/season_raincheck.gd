@@ -30,7 +30,11 @@ static func after(before: SeasonBuild, next: SeasonBuild, command: Dictionary) -
 			var receipt: Dictionary = SeasonOwnership._owned(
 				next._bank.view(), prefix + str(before.revision())
 			)
-			if command.op == "sponsor_buy" and command.has("sales") and next._format >= 28:
+			if (
+				command.op == "sponsor_buy"
+				and next._format >= 28
+				and (command.has("sales") or (next._format >= 32 and command.has("discard")))
+			):
 				receipt = SeasonOwnership._owned(
 					next._bank.view(),
 					SeasonSponsorSet.receipt_id("sponsor-group:%d" % before.revision(), 0)

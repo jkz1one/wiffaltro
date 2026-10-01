@@ -26,6 +26,8 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var fields: Array = ["receipt"] if command.op == "sponsor_sell" else ["offer", "replace"]
 	if command.has("sales"):
 		fields.append("sales")
+	if build._format >= 32 and command.has("discard"):
+		fields.append("discard")
 	var required: Array = []
 	var purchases: Array = []
 	if command.op == "sponsor_sell":
@@ -53,13 +55,15 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var sales: Array = selected(build, command, required)
 	if sales.has(null):
 		return "Choose distinct active sponsor receipts for every sale."
-	var error: String = apply(build, sales, purchases)
+	var error: String = apply(build, sales, purchases, command.get("discard", []))
 	if error.is_empty() and command.op == "sponsor_buy":
 		build._visit.offers.erase(command.offer)
 	return error
 
 
-static func apply(build: SeasonBuild, sales: Array, purchases: Array) -> String:
+static func apply(
+	build: SeasonBuild, sales: Array, purchases: Array, discard: Variant = []
+) -> String:
 	var identity: String = "sponsor-group:%d" % build.revision()
 	var offers: Dictionary = {}
 	var choices: Array = []
@@ -78,15 +82,16 @@ static func apply(build: SeasonBuild, sales: Array, purchases: Array) -> String:
 		)
 		if not stock.ok:
 			return stock.error
-	var result: Dictionary = build._bank.commit(
-		{
-			"id": identity,
-			"rev": build._bank.revision(),
-			"op": "sponsor_set",
-			"sales": sales,
-			"purchases": choices
-		}
-	)
+	var transaction: Dictionary = {
+		"id": identity,
+		"rev": build._bank.revision(),
+		"op": "sponsor_set",
+		"sales": sales,
+		"purchases": choices
+	}
+	if build._format >= 32:
+		transaction["discard"] = discard
+	var result: Dictionary = build._bank.commit(transaction)
 	if not result.ok:
 		return result.error
 	for id: String in sales:
@@ -124,7 +129,7 @@ static func wholesale(
 	var sales: Array = selected(build, command, required)
 	if sales.has(null):
 		return "Each old sponsor can be sold only once."
-	var error: String = apply(build, sales, purchases)
+	var error: String = apply(build, sales, purchases, command.get("discard", []))
 	if not error.is_empty():
 		return error
 	for choice: Dictionary in selections:
@@ -135,6 +140,14 @@ static func wholesale(
 
 static func review(before: Dictionary, after: Dictionary) -> String:
 	var lines: PackedStringArray = []
+	for receipt: Dictionary in before.held:
+		if SeasonOwnership._owned(after, receipt.id).is_empty():
+			lines.append(
+				(
+					"Discard %s • no refund; removed from saved inventory, including on restart."
+					% held_name(receipt.item)
+				)
+			)
 	for receipt: Dictionary in before.sponsors:
 		if SeasonOwnership._owned(after, receipt.id).is_empty():
 			var item: Dictionary = SeasonSponsorCatalog.item(receipt.item)
@@ -154,7 +167,19 @@ static func review(before: Dictionary, after: Dictionary) -> String:
 		"\n"
 		+ "\n".join(lines)
 		+ (
-			"\nActive sponsors: %d / %d. No reserves."
-			% [after.sponsors.size(), after.capacity.sponsors]
+			"\nActive sponsors: %d / %d. No reserves. Held supplies: %d / %d."
+			% [
+				after.sponsors.size(),
+				after.capacity.sponsors,
+				after.held.size(),
+				after.capacity.held
+			]
 		)
 	)
+
+
+static func held_name(id: String) -> String:
+	var item: Dictionary = SeasonTacticalCatalog.item(id)
+	if item.is_empty():
+		item = DevelopmentShopCatalog.item(id)
+	return item.get("name", id)

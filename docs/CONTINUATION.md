@@ -1,13 +1,14 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-01 after Jumpstart Auto integration and affected-path verification.
+Updated 2026-10-01 after Small Batch Supply integration and affected-path verification.
 
 ## Resume here
 
 - Repository: `jkz1one/wiffaltro`.
 - Active branch: `rebuild/season-engineering`. Continue this branch; do not restart from main.
 - This checkpoint follows committed Special Order, Raincheck and Transfer Station work and
-  completes Second Chance, Late Checkout, Association, Freezers, Left Right Moving and Jumpstart.
+  completes Second Chance, Late Checkout, Association, Freezers, Left Right Moving, Jumpstart
+  and Small Batch.
   Use `git log -5 --oneline` for exact SHAs.
 - Latest verified main at recovery: `f1dc209b6de11e45aedbd1568fa1b2d841dd2420`, already an ancestor.
 - Read the newest entries in `SOURCE_OF_TRUTH.md`, `TECHNICAL_PREPRODUCTION.md`,
@@ -15,7 +16,7 @@ Updated 2026-10-01 after Jumpstart Auto integration and affected-path verificati
 - `PROGRESSION_BLUEPRINT.md` remains the preserved planning baseline. Newer source amendments
   and explicit Approved/Working/Proposal distinctions still apply.
 
-Current planning source references, read again on 2026-09-30; resolve current versions before
+Current planning source references, read again on 2026-10-01; resolve current versions before
 implementing another contract. These IDs identify files, not permission to restore old versions.
 
 | Source | Persistent file ID | Last read version |
@@ -52,7 +53,48 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Jumpstart continuation details (latest)
+## Small Batch continuation details (latest)
+
+Build 32/schema 36/Career 13; Source of Truth v0.4.71, Technical Preproduction v0.1.62.
+Small Batch Supply G02 is implemented. Broad run `20261001T042758446996Z` passed
+42/42 checks (35 scenes,19 physical games). After a defensive array-copy fix, final
+run `20261001T043907608397Z` passed13/13 checks (six save-sensitive scenes,two more
+physical games), with509 unchanged source files through verification/publication and
+no warnings/errors. See VERIFICATION.md for exact scope.
+Publication remains authorized to the engineering branch only; `git log -1` gives the
+exact pushed SHA. Never merge/deploy. Main remains checked against `f1dc209b`.
+
+Current contracts: Decisions v31, Equipment/Sponsors v18 (275–313 and 469–508),
+Blueprint v114 retained G02 annex4590–4616. Twelve Cash/Uncommon and capacity values
+remain Working. Original Tape, Recovery and Plan completed-game usage earns paid
+eligibility across career runs; other supplies do not substitute. `SeasonSmallBatch`
+owns canonical type union and prospective matching. No stock regeneration on unlock.
+
+`SeasonOwnership.sponsor_cap` is absolute after additive modifiers. G02 hard-caps
+sponsors at three including itself and adds one shared held slot. No supplied items
+or extra activation. Association remains incompatible; synthetic arithmetic tests
+for a higher base or held-slot loss do not implement higher Leagues or Double Major.
+
+Explicit loadout resolution previews sponsor refunds and exact named supply discards
+in shop, Wholesale and live Equipped. No auto-removal. Saved discards persist through
+restart. `SeasonTacticalDiscard` preserves exact already-used copy/action evidence for
+this attempt without recreating inventory; result validation and progression remain
+completed-game-only. Later walk annotation is validated normally. Fresh attempts reset
+that proof. Live unused copies disappear only after successful save; active effects
+survive and sponsor capacity display retires at the safe next-batter boundary.
+
+The paid fixture uses actual generated stock (seed1510 after inherited unlock) and a
+later paid supply for a three-copy bag. New live cases cover both used and unused
+explicit discards during a pitch, failed save rollback, restart and completed replay.
+SeasonBuild is 948 lines. Extract another coherent helper before significant growth.
+Supported content:31/35 sponsors,23/25 Gear, five supplies. Remaining earned sponsors:
+B01 Field Supply, E09 Carbon Copy, F08 Sure Shot and F09 Double Major. No next contract
+selected. Whole-project estimate stays approximately72%, not release readiness.
+Native/human acceptance and the prior full-suite early exit remain open. The repository
+PROGRESSION_BLUEPRINT remains byte-identical to main; do not replace it with the archive.
+
+## Jumpstart continuation details
+
 
 Build 31/schema 35/Career 12; Source of Truth v0.4.70 and Technical Preproduction v0.1.61.
 Final run `20261001T035334360050Z` passed **35/35 checks**, seven common gates and 28 scenes,

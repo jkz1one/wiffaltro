@@ -1,5 +1,56 @@
 # Fast verification and playtest records
 
+## Small Batch Supply: shared capacity, explicit discards and career access, 2026-10-01
+
+Broad affected-path run `20261001T042758446996Z` passed **42/42 checks** under
+Godot 4.7.2: seven common gates and 35 scenes, including 19 complete physical games.
+Review then found shared-array ownership at the new serialization boundary. Build
+export and restore now duplicate the progress array; explicit export/fork/decode
+isolation regressions were added. Final focused run `20261001T043907608397Z` passed **13/13
+checks**: seven gates plus Small Batch menu/live, Jumpstart, earned sponsors, career
+and core regressions, including two more complete physical games. All 509 snapshotted
+source/test/asset/project/runner files remained unchanged through that final rerun
+and publication. Neither run had engine warnings/errors. These are targeted checks,
+not the full suite or native/human approval.
+
+Scope: Small Batch menu/live; Jumpstart menu/live; Left Right menu/live; Freezers
+menu/live; Association menu/live; sponsor-set primitive; Late Checkout menu/live;
+Second Chance menu/live; Transfer; Raincheck; Special Order; match-sales UI/live;
+Equipped; earned sponsors; Gear progression; career; opponents; tacticals menu/live;
+tactical sponsors menu/live; expanded tacticals; Budget Bites; Wholesale;
+ownership integration/ownership; core regressions.
+
+Contract checks cover the hard three-sponsor limit including G02, three shared held
+slots, fourth-sponsor rejection, synthetic higher-base/additive-held arithmetic,
+Association rarity conflict, exact sale/discard preview, duplicate discard rejection,
+atomic refund rollback, ordinary six-Cash resale and idempotent retry. Wholesale
+replacement with excess held copies requires an explicit discard and retains the
+ordinary discounted purchase receipt. These arithmetic fixtures do not claim higher
+League or Double Major gameplay support.
+
+Actual generated supplies at seeds118 and4 establish partial and complete original-
+type progress across abandoned seasons. Seed1510 then supplies a real paid Small Batch
+offer with Tape and Plan; a later ordinary shop supplies a third paid copy. No free
+copies or fabricated unlock state enter this persistence fixture. Saved career and
+build progress must agree; invented inherited/current sets reject. Heat/Take a Base
+cannot substitute; duplicate types do not advance the union. Build31/Career12 and
+older migration fixtures leave future tracking null until the next new season.
+
+Two complete new physical games sell G02 during a pitch, resolving overflow by
+explicitly discarding either an already-used copy or an unused copy. Failed writes
+retain wallet, runtime inventory and pending effects. Successful ownership/refunds
+save immediately; capacity display retires at the safe boundary. Restart has only
+the retained copies and no phantom activation. The used-copy case settles all three
+activations despite the final two-slot capacity; the unused-copy case consumes only
+the remaining two. Invalid result evidence rolls back the whole reward. Result/save
+replay retains exact consumption without refunding or granting progress twice.
+
+Headless UI exercises the new explicit held-copy choices, disabled invalid review,
+nonmutating valid preview and exact final request. Existing sale/shop/Wholesale and
+Equipped checks cover shared UI paths. This is not native rendered visual/feel
+acceptance. Native display limitations and the prior unexplained full-suite early
+exit remain open. The repository progression blueprint is unchanged from main.
+
 ## Jumpstart Auto: constrained first steps, clean outs and live retirement, 2026-10-01
 
 Final affected-path run `20261001T035334360050Z` passed **35/35 checks** under Godot 4.7.2:

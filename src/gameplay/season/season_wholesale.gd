@@ -86,6 +86,8 @@ static func purchase(build: SeasonBuild, command: Dictionary) -> String:
 	var fields: Array = ["first", "second", "discounted"]
 	if build._format >= 28 and command.has("sales"):
 		fields.append("sales")
+	if build._format >= 32 and command.has("discard"):
+		fields.append("discard")
 	if not available(build) or not build._keys(command, fields):
 		return "No unused Wholesale deal at this visit."
 	if not command.first is Dictionary or not command.second is Dictionary:
@@ -118,12 +120,13 @@ static func purchase(build: SeasonBuild, command: Dictionary) -> String:
 		and kind == "sponsor"
 		and (
 			command.has("sales")
+			or command.has("discard")
 			or ids.has("J05")
 			or not SeasonSchoolSponsors.active(build, "J05").is_empty()
 		)
 	):
 		return SeasonAssociationShop.wholesale(build, command, ids, discounted)
-	if command.has("sales"):
+	if command.has("sales") or command.has("discard"):
 		return "Extra sponsor sales require a sponsor pair."
 	# Sell all explicitly selected OLD receipts first, so both proceeds can finance
 	# the pair. The enclosing candidate rolls everything back if any later step fails.

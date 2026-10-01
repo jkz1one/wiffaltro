@@ -273,14 +273,17 @@ func _sides_migration() -> void:
 	season.build._format = 29
 	season.build._sides_start = null
 	season.build._jump_start = null
+	season.build._batch_start = null
 	season.career.runs[-1].sides_earned = null
 	season.career.runs[-1].jump_earned = null
+	season.career.runs[-1].batch_used = null
 	_completed(season, ["out", "out", "single"])
 	_check(SeasonSave.save(season), "prior Freezers build")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 10
 	data.career.runs[-1].erase("sides_earned")
 	data.career.runs[-1].erase("jump_earned")
+	data.career.runs[-1].erase("batch_used")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(
 		restored != null and restored.build._sides_start == null and restored.build._freezer_earned,

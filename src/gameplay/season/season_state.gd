@@ -135,6 +135,7 @@ func choose_player(id: String) -> bool:
 			var freezer_start: Variant = build._freezer_start
 			var sides_start: Variant = build._sides_start
 			var jump_start: Variant = build._jump_start
+			var batch_start: Variant = build._batch_start
 			var supply_start: Variant = build._supply_start
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
 			build._gear_progress = progress
@@ -148,6 +149,7 @@ func choose_player(id: String) -> bool:
 			build._freezer_start = freezer_start
 			build._sides_start = sides_start
 			build._jump_start = jump_start
+			build._batch_start = batch_start
 		if opponents != null:
 			opponents.initialize(self)
 		for team in range(6):

@@ -20,7 +20,7 @@ static func valid(build: SeasonBuild, actions: Array, game: int = -1) -> bool:
 	for action: Dictionary in pair:
 		if not action.get("receipt") is String:
 			return false
-		var copy: Dictionary = SeasonOwnership._owned(build._bank.view(), action.receipt)
+		var copy: Dictionary = SeasonTacticalDiscard.copy_for(build, action.receipt, game)
 		if copy.is_empty():
 			return false
 		types.append(copy.item)

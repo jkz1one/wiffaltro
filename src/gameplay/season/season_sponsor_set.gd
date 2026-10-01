@@ -20,7 +20,10 @@ static func normalize(command: Dictionary) -> void:
 
 
 static func apply(bank: SeasonOwnership, next: Dictionary, command: Dictionary) -> String:
-	if not SeasonOwnership._keys(command, ["id", "rev", "op", "sales", "purchases"]):
+	var fields: Array = ["id", "rev", "op", "sales", "purchases"]
+	if command.has("discard"):
+		fields.append("discard")
+	if not SeasonOwnership._keys(command, fields):
 		return "Review the complete sponsor transaction."
 	if (
 		not command.sales is Array
@@ -31,6 +34,9 @@ static func apply(bank: SeasonOwnership, next: Dictionary, command: Dictionary) 
 	):
 		return "Choose exact sponsor sales and at most two purchases."
 	var selected: Array[String] = []
+	var discarded: String = bank._discard(next, command.get("discard", []))
+	if not discarded.is_empty():
+		return discarded
 	for receipt: Variant in command.sales:
 		if not SeasonOwnership._text(receipt) or selected.has(receipt):
 			return "Each sponsor sale must name a different owned receipt."

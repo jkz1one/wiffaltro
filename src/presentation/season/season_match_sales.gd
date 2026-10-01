@@ -48,6 +48,19 @@ func sell(app: SeasonApp, request: Dictionary) -> bool:
 	for old: Dictionary in previous.view().wallet.sponsors + previous.view().wallet.gear.values():
 		if not old.is_empty() and SeasonOwnership._owned(next.view().wallet, old.id).is_empty():
 			pending[old.id] = old.duplicate(true)
+	# Remove explicitly discarded unused copies immediately; active effects survive.
+	var state: MatchState = app.lab._match_state
+	var own: TeamMatchState = state.home_team if app.lab._player_home else state.away_team
+	for index in range(own.tactics.held.size() - 1, -1, -1):
+		if request.get("discard", []).has(own.tactics.held[index].id):
+			own.tactics.held.remove_at(index)
+	var consumed: Array = own.tactics.consumed.map(
+		func(action: Dictionary) -> String: return action.receipt
+	)
+	var held: Array = app.loadout.match_snapshot.get("held", [])
+	for index in range(held.size() - 1, -1, -1):
+		if request.get("discard", []).has(held[index].id) and not consumed.has(held[index].id):
+			held.remove_at(index)
 	apply_pending(app)
 	return true
 

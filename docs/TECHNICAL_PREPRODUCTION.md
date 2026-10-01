@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.61
+**Version:** v0.1.62
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -8,6 +8,33 @@
 ---
 
 # 1. Technical Objective
+
+## Small Batch capacity and discarded-activation evidence, 2026-10-01
+
+Build 32/schema 36/Career 13 adds nullable `batch_start` and canonical derived
+`_batch_used` type sets. Settlement collects only validated original supply IDs;
+career unions completed-game evidence across runs. Exported/restored progress arrays
+are detached from callers. Serialization, forks, draft
+rebuild, career matching and old-save migration agree. Historical catalog signatures
+and ordinary receipt identities remain frozen. SeasonBuild remains below 1,000 lines.
+
+`SeasonOwnership` applies additive capacities first, then an optional absolute
+`sponsor_cap`. `SeasonSponsorSet` supports exact optional held-copy discards inside
+its detached candidate. Shop/Wholesale/live adapters gate the extension to Build32;
+final capacity and peer-rarity validation remains atomic. Resolution UI previews
+names, refunds and both capacities before the existing final save confirmation.
+
+`SeasonTacticalDiscard` binds a selected already-used receipt and its action to the
+current match attempt. The copied evidence is never inventory. Result settlement
+requires the same action (allowing the later validated walk annotation), validates
+normal player/PA/swing/combo/insurance rules, and consumes only copies still owned.
+Attempt capacity bounds the consumption ledger even after a live sale reduces the
+current bag. Restart starts a new attempt, clears old activation evidence and keeps
+explicit saved discards removed. Failed writes change neither runtime bag nor effects.
+This supports capacity removal; it is not Field Supply's future runtime generation.
+
+See VERIFICATION.md for final-source coverage. Native rendered/human acceptance and
+the historical unexplained full-suite early exit remain open.
 
 ## Clean-out evidence and constrained first steps, 2026-10-01
 
