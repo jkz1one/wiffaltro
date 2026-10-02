@@ -9,7 +9,7 @@ var _review: Label
 
 func _ready() -> void:
 	title = "Sell equipped item"
-	theme = ClubhouseTheme.create()
+	ClubhouseTheme.confirmation(self)
 	dialog_autowrap = true
 	get_ok_button().text = "SELL"
 	confirmed.connect(_commit)

@@ -4,17 +4,25 @@ Plastic-ball baseball roguelite where **one run equals one season**.
 
 ## Status
 
-The **first Phase 4 Season Shell** now surrounds the vanilla match: main menu,
-four-round tryout draft, lineup, ten-game schedule, standings, playoffs and
-between-game saves. Run the project, choose **New Season**, and follow the
-draft into the season hub; **Exhibition** goes straight into a standalone game.
-The shared Mechanics Lab remains available through F2 at safe match boundaries.
-Godot 4.7.2 regression coverage includes season progression and camera geometry.
-Rendered/hands-on camera, season-flow QC and result-distribution sampling remain open.
+The engineering branch includes the Working progression shop: **25 Gear,
+35 sponsors, five tactical supplies, three learned abilities and one transformation**.
+Draft four players, play the ten-game season and playoffs, and build your club
+between games. Choose **NEW WORKING SEASON** to test progression or **NEW SEASON**
+for the vanilla season; **PLAY EXHIBITION** starts a standalone game.
+
+Equipped opens from the same centered entry during shop and play. Gear and sponsors
+can be sold during games: refunds save immediately, and active effects retire at
+the next batter. Targeted native layout/interaction checks are complete; human
+visual/feel acceptance and the final whole-game UI pass remain open. Whole-project
+completion is approximately **75%**, not release readiness. Working calibration
+values remain testing candidates.
 
 For the one-command development check and automatic playtest records, see
 [Verification](docs/VERIFICATION.md). After one-time setup, run
 `python3 tools/verify.py`.
+
+For the isolated shop/Equipped hands-on walkthrough, see
+[Shop acceptance](docs/SHOP_ACCEPTANCE.md). Human visual/feel review is pending.
 
 Canonical docs:
 

@@ -1,5 +1,17 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: shop/Equipped ready for hands-on review, 2026-10-02
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; this slice follows pushed parent6d6f7dabc8c64a10481fac45f67345a190032597. Use git log -1 for the published SHA. Build41/save45/Career21/opponent policy2 and all25 Gear/35 sponsors remain unchanged. Overall **~75%**, not release readiness.
+
+Purchase/sale confirmations share clubhouse styling and measured44-pixel actions through AcceptDialog's theme API. Shop Equipped now has direct pointer coverage for Cancel, blocked background dismissal, failed-save rollback/feedback, exact retry/refund/reload and fixed stock. Centered Equipped, saved live refunds, next-batter effect retirement, receipt IDs and frozen signatures remain intact. No schema, tuning or gameplay changes.
+
+`tools/prepare_shop_review.py` creates a new ordinary playable copy with a UUID save/settings profile; it refuses existing/source destinations, copies runtime bytes exactly and changes only copied title/profile settings. Actual import/profile/main boot were verified. `docs/SHOP_ACCEPTANCE.md` is the concrete hands-on walkthrough; human visual/feel acceptance remains pending. Four unedited inspected screenshots are committed under docs/reviews/20261002-shop-acceptance. Do not treat test screenshots or a continue instruction as visual/feel approval.
+
+Broad native `20261002T182836026823Z`: **19/20**,62 captures and five complete physical games. Only shop-quotes exited0 before renderer/completion marker; unchanged-source native rerun `20261002T183419721332Z` passes **8/8**,4 captures. Final headless `20261002T183512836752Z`: **9/9**, loadout/paid-shop plus seven gates. Final591 source files stay frozen through publication. No engine errors in final native runs; unsupported V-Sync/software-display limits and historical intermittent exits remain open. Read VERIFICATION for exact initial failures and scope. This is targeted coverage, not full-suite repair.
+
+Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420 and blueprint stays byte-identical. SOTv0.4.90/Technicalv0.1.81. Shop/items implementation and this integration review are ready for hands-on feedback before larger systems. Next: collect hands-on shop/Equipped feedback when available and fix concrete issues. Shop/item implementation can proceed to AI acquisition/player cards/higher tiers/stadium/integration as supported by current contracts; pending human review does not revoke routine implementation authorization. Final cohesive whole-game UI/hardware/feel acceptance remains open. Routine engineering-branch commits/pushes stay authorized; no merge/deploy.
+
 ## Current checkpoint: shop quoted choices stay together, 2026-10-02
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; this slice follows pushed parent8d7c3a02d764c34b0c5c1907e45d6a88a80efeba. Use git log -1 for the published SHA. Build41/save45/Career21/opponent policy2 and all25 Gear/35 sponsors remain unchanged. Overall **~75%**, not release readiness.

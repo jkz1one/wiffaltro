@@ -120,3 +120,28 @@ Actual pointer motion/wheel input additionally checks that browsing can scroll a
 ![Gear effect, receipt refund and resulting Cash are readable together](reviews/20261002-shop-choice-groups/gear-replacement-quote.png)
 
 At700×400, the Wide Barrel effect,10-Cash list price,5-Cash Taped Bat receipt refund,5-Cash net cost and resulting0 Cash are visible with the replacement action. This controlled boundary render retains Working status. Four final screenshots were reviewed/copied verbatim; all sixteen scene scopes passed, including the actual wheel test. No human visual/feel approval is implied.
+
+
+## Consolidated confirmation and acceptance preparation
+
+The final shop integration audit found that individual button minimum sizes did not survive Godot's AcceptDialog layout. The primary AcceptDialog theme API supplies the actual button-height setting. Purchase and Equipped sale confirmation content now uses the clubhouse surface/paper palette, with both bottom actions measuring44 pixels in the native viewport. Existing default exclusive/transient behavior is preserved; the new pointer test checks blocked background dismissal rather than claiming a newly added modal behavior.
+
+These unedited captures come from20261002T182836026823Z. They are controlled regression fixtures rendered by Godot, not a human playthrough.
+
+![Purchase confirmation in the clubhouse palette](reviews/20261002-shop-acceptance/purchase-review.png)
+
+The actual paid copy/effect and Cash18→8 are visible together; Cancel begins focused. Both actions have the measured44-pixel hit area.
+
+![Sale review from the700×400 shop](reviews/20261002-shop-acceptance/sale-review.png)
+
+The quote shows refund5 and Cash8→13, explains immediate effect removal in the shop and fixed remaining offers, and starts on Cancel.
+
+![Failed sale retains the copy and Cash](reviews/20261002-shop-acceptance/sale-failed.png)
+
+A rejected save leaves8 Cash and Taped Bat's sale action available, with visible feedback. Cancel preserves saved bytes; retry saves the exact refund/removal and agrees with reload.
+
+![Live sale persists while the effect remains active](reviews/20261002-shop-acceptance/live-sale.png)
+
+Cash13 is saved, Taped Bat has no resale action, and its current-PA effect is explicitly retained until the next batter. Existing-pause restoration and complete-game natural-boundary checks accompany this render.
+
+[SHOP_ACCEPTANCE](SHOP_ACCEPTANCE.md) contains the hands-on walkthrough and isolated review-copy launcher. No unlock grants, price changes or regular-save copies are involved. Human visual/feel acceptance remains pending. See VERIFICATION for the final targeted scope and software-display limits.

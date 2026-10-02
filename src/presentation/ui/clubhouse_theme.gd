@@ -89,6 +89,12 @@ static func primary(button: Button) -> void:
 		button.add_theme_color_override(state, INK)
 
 
+static func confirmation(dialog: AcceptDialog) -> void:
+	dialog.theme = create()
+	dialog.add_theme_stylebox_override("panel", surface(false, 16))
+	dialog.add_theme_constant_override("buttons_min_height", 44)
+
+
 static func table_cell(label: Label, row: int, highlight: bool = false) -> void:
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = SURFACE if row % 2 == 0 else RAISED

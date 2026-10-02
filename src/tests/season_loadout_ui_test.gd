@@ -20,6 +20,7 @@ func _ready() -> void:
 	await _sponsors_in_match()
 	await _supplies_in_match()
 	await _gear_purchase_refresh()
+	await _shop_sale_review()
 	_app.queue_free()
 	await _frames()
 	_check(not get_tree().paused, "teardown never leaves the tree paused")
@@ -319,6 +320,113 @@ func _gear_purchase_refresh() -> void:
 	_check(fixture._failures == 0 and gear._failures == 0, "valid Gear fixture")
 	fixture.free()
 	gear.free()
+
+
+func _shop_sale_review() -> void:
+	var fixture: Node = EarnedFixture.new()
+	var gear: Node = GearFixture.new()
+	_app.season = fixture._funded_season(gear._two_bats(true).to_data().seed)
+	_app.show_season()
+	_app.open_shop()
+	await _frames()
+	var window: SeasonShopWindow = _shop(_app)
+	await _click(
+		gear._gear_button(window, "gear_offer", gear._gear_offer(_app.season.build, "bat"))
+	)
+	await _sale_bounds(window._confirm, window.size, "shop-purchase-review")
+	await _click(window._confirm.get_ok_button())
+	var ui: SeasonLoadoutUI
+	for child: Node in window.get_children():
+		if child is SeasonLoadoutUI:
+			ui = child
+	await _click(ui.entry)
+	await _click(ui._tab_buttons[0])
+	var before: Dictionary = _app.season.build.to_data()
+	var stock: Dictionary = _app.season.build.view().shop.offers.duplicate()
+	var cash: int = _app.season.cash()
+	var copy: Dictionary = _app.season.build.view().wallet.gear.bat
+	var path: String = SeasonSave.path
+	var bytes: String = FileAccess.get_file_as_string(path)
+	await _click(ui._sale_buttons[0])
+	await _sale_bounds(ui.sale, window.size, "equipped-shop-sale-review")
+	# The review's exclusive window blocks a real click outside it on the lightbox Close.
+	await _click(ui.close_button, false)
+	_check(ui.shade.visible and ui.sale.visible, "sale confirmation blocks background dismissal")
+	await _click(ui.sale.get_cancel_button())
+	_check(_app.season.build.to_data() == before, "shop lightbox Cancel preserves the paid copy")
+	_check(FileAccess.get_file_as_string(path) == bytes, "shop sale inspection keeps saved bytes")
+	window.size = Vector2i(700, 400)
+	await _frames()
+	await _click(ui._sale_buttons[0])
+	await _sale_bounds(ui.sale, window.size, "equipped-shop-sale-review-small")
+	SeasonSave.path = path + "/missing/save.json"
+	await _click(ui.sale.get_ok_button())
+	SeasonSave.path = path
+	_check(_app.season.build.to_data() == before, "shop lightbox failed save rolls back sale")
+	_check(
+		FileAccess.get_file_as_string(path) == bytes, "shop failed sale preserves original bytes"
+	)
+	_check(
+		(
+			ui.context.visible
+			and ui.context.text.begins_with("SALE NOT SAVED")
+			and ui.cash_badge.text == "%d Cash" % cash
+		),
+		"shop lightbox displays failure with original balance"
+	)
+	await _bounds(ui, "equipped-shop-sale-failed-small")
+	await _click(ui._sale_buttons[0])
+	await _click(ui.sale.get_ok_button())
+	_check(
+		(
+			_app.season.build.view().wallet.gear.bat.is_empty()
+			and _app.season.cash() == cash + int(copy.paid / 2)
+		),
+		"shop lightbox retry saves exact refund and ownership removal"
+	)
+	_check(_app.season.build.view().shop.offers == stock, "shop lightbox sale leaves offers fixed")
+	_check(
+		(
+			ui.context.visible
+			and ui.context.text.begins_with("SALE SAVED")
+			and ui._sale_buttons.is_empty()
+		),
+		"successful sale displays feedback and removes resale action"
+	)
+	_check(
+		SeasonSave.restore().build.to_data() == _app.season.build.to_data(),
+		"shop sale reload agrees exactly"
+	)
+	await _bounds(ui, "equipped-shop-sale-saved-small")
+	await _click(ui.close_button)
+	await _shop_bounds(window, "shop-after-equipped-sale-small")
+	await _click(window._back)
+	_check(fixture._failures == 0 and gear._failures == 0, "paid shop sale fixture valid")
+	fixture.free()
+	gear.free()
+
+
+func _sale_bounds(sale: ConfirmationDialog, parent_size: Vector2i, stage: String) -> void:
+	await _frames()
+	_check(
+		sale.visible and sale.size.x <= parent_size.x and sale.size.y <= parent_size.y,
+		"sale review fits: " + stage
+	)
+	for button: Button in [sale.get_ok_button(), sale.get_cancel_button()]:
+		print(
+			"SALE_LAYOUT ",
+			stage,
+			" viewport=",
+			sale.get_visible_rect(),
+			" button=",
+			button.get_global_rect()
+		)
+		_check(
+			button.size.y >= 44 and sale.get_visible_rect().encloses(button.get_global_rect()),
+			"sale action fits with usable hit area: " + stage
+		)
+	_check(sale.gui_get_focus_owner() == sale.get_cancel_button(), "sale review starts on Cancel")
+	await _capture(sale, stage)
 
 
 func _bounds(ui: SeasonLoadoutUI, stage: String) -> void:

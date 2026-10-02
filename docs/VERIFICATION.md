@@ -1,5 +1,21 @@
 # Fast verification and playtest records
 
+## Consolidated shop/Equipped review verification, 2026-10-02
+
+Final broad native `20261002T182836026823Z`: **19/20 checks**, seven common gates plus13 scenes. Passed: club-collection-ui, season-shop-categories-live, season-abilities, season-match-sales-live, season-match-sales, season-loadout-ui, club-career-live, club-career, season-wholesale-live, season-wholesale, paid-shop-ui and regressions. Only season-shop-quotes exited0 before renderer initialization/completion marker, with no reported engine error. Unchanged-source native rerun `20261002T183419721332Z`: **8/8**, seven gates plus season-shop-quotes, with4 captures. The early exit remains unexplained; required markers were not weakened.
+
+Final focused headless `20261002T183512836752Z`: **9/9**, seven gates plus season-loadout-ui and paid-shop-ui, after the final theme helper. No engine errors.
+
+The broad run produced **62 actual native PNG captures**. Four inspected purchase/sale/failure/live-sale captures are copied byte-identically into docs/reviews/20261002-shop-acceptance. Godot4.7.2/X11/OpenGL4.5 Compatibility/Mesa25.2.8 llvmpipe and Dummy audio. No engine errors in either final native run; unsupported native V-Sync and nonfatal isolated-display warnings remain.
+
+**Five complete physical games**: acquired focused ability133 records/23 balls in play; carried reserved ability119/22; actual pitch/swing live sales124/27; career final110/22 with durable220-Club-Bucks championship payout; Wholesale paired Gear85/30. These test ordinary existing acquisition, paid identities, saved settlement/retry and safe effect retirement, not new AI acquisition.
+
+New actual-input coverage buys a real generated Bat, inspects purchase button bounds, opens the shop's Equipped lightbox, cancels sale without changing saved bytes, clicks the blocked background Close, rejects a failed save, verifies visible unchanged Cash/copy, retries the exact refund, checks fixed offers and exact reload. Actual confirmation actions measure44 pixels; sale review fits normal and700×400 shop clients. Existing live pause/focus/next-batter tests remain intact.
+
+Earlier headless `20261002T182029018685Z` exposed36-pixel dialog actions after child minimum-size assignment. Diagnostic `20261002T182349265762Z` stopped at one overlong print line; formatted `20261002T182505488139Z` confirmed the actual36-pixel geometry. The AcceptDialog buttons_min_height theme setting fixes the measured issue. Preliminary native `20261002T182603960341Z` passed8/8 before the final cohesive purchase/sale panel theme. Final591 source/test/asset/project/runner files are frozen from the broad native run through publication.
+
+The review launcher refuses an existing destination and a destination inside sources before mutation. It copies580 runtime files byte-identically and modifies only copied application title/profile settings. Actual engine import, exact OS.get_user_data_dir probe and ordinary main-scene boot verify the fresh profile; production project hash is unchanged. No saves/items/unlocks are copied or granted. SHOP_ACCEPTANCE keeps human visual/feel approval explicitly pending. Targeted coverage does not repair historical early exits or satisfy final whole-game UI/hardware acceptance. Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420; the repository blueprint remains byte-identical.
+
 ## Shop choice grouping verification, 2026-10-02
 
 Final native `20261002T172540421436Z`: **23/23 checks**, seven common gates plus sixteen scenes: season-shop-categories, season-retraining, season-abilities, season-transfer, season-raincheck, season-special-order, season-loadout-ui, season-tactical-sponsors, season-wholesale, season-school, season-sponsor, season-gear, recruitment, season-shop-quotes, paid-shop-ui and regressions. **103 actual rendered PNG captures** under Godot4.7.2/X11/OpenGL4.5 Compatibility/Mesa25.2.8 llvmpipe, Dummy audio. No engine errors or premature exits. Native V-Sync remains unsupported; nonfatal isolated-display warnings persist. No new complete physical games; existing physics, save/replay and UI match handoff checks run in this scope.

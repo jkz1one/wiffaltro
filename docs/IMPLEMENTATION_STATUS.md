@@ -1,5 +1,13 @@
 # Implementation Status
 
+## Consolidated shop/Equipped acceptance preparation, 2026-10-02
+
+Purchase/sale confirmations now use the clubhouse surface and actual44-pixel actions. Real shop lightbox checks cover Cancel, exclusive background blocking, failed-save rollback, visible feedback, retry, exact reload/refund and fixed offers. A reproducible isolated playable review copy and SHOP_ACCEPTANCE walkthrough enable hands-on review without regular-save changes or artificial unlock grants.
+
+Final targeted broad native19/20 plus unchanged quote rerun8/8 and headless9/9; five complete physical games,66 native captures in the final runs, four inspected screenshots preserved. The quote startup early exit remains unexplained.
+
+All25 Gear/35 sponsors remain implemented with five supplies, three abilities and one transformation; Build41/save45/Career21. Shop UI/integration is ready for human review, which remains pending. Larger systems have not started in this slice. Whole-project estimate remains **~75%**, not release readiness. Historical suite early exits and final whole-game UI/hardware/feel review remain open.
+
 ## Shop quoted choices stay together, 2026-10-02
 
 Cash status and action now form one focus target when they fit the scroll viewport. Recruitment keeps the incoming player visible beside each outgoing choice, retraining repeats the player/removed points, and pitch exchange keeps both players/recipes visible. Full descriptions remain scrollable and final review/save semantics are unchanged. Actual pointer-wheel coverage guards against snapping back to keyboard focus while browsing.

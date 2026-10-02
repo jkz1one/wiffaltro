@@ -1,5 +1,11 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Confirmation theme and isolated review project, 2026-10-02
+
+ClubhouseTheme.confirmation applies the existing surface/paper palette and AcceptDialog.buttons_min_height44 to shop purchase and Equipped sale dialogs. Godot's dialog layout overwrites individual child custom_minimum_size; actual button rects now verify the dialog theme setting. Default exclusive/transient behavior is retained and tested by an actual background click during sale review.
+
+prepare_shop_review.py creates a new runtime-only project and UUID custom user-data namespace. Existing destinations and locations inside runtime sources/repository metadata are refused. Runtime hashes, original/copied project hashes, commit and dirty-state evidence are recorded in its manifest. The production project/main scene/rules and save files are unchanged. No schema/version change. Human acceptance is a separate pending walkthrough.
+
 ## Quoted choice focus bounds, 2026-10-02
 
 SeasonShopQuote groups optional compact context, status and the existing Button in a VBoxContainer at their original position, preserving command callbacks, tooltips and button metadata. SeasonShopWindow uses that group's bounds for the coalesced focus correction when it fits the viewport height; otherwise it ensures the action itself remains visible. Ordinary unquoted buttons retain their existing focus bounds. Manual scroll events do not schedule a correction.
@@ -40,7 +46,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.80
+**Version:** v0.1.81
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

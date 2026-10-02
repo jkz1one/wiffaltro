@@ -80,8 +80,7 @@ func _ready() -> void:
 	_confirm.canceled.connect(func() -> void: _pending.clear())
 	add_child(_confirm)
 	# Long replacement effects must not force the modal beyond a small shop window.
-	_confirm.get_ok_button().custom_minimum_size.y = 44
-	_confirm.get_cancel_button().custom_minimum_size.y = 44
+	ClubhouseTheme.confirmation(_confirm)
 	_review_scroll = ScrollContainer.new()
 	_review_scroll.focus_mode = Control.FOCUS_ALL
 	_review_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
