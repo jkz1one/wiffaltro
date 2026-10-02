@@ -26,14 +26,17 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 			+ "on Contact, Power, Fielding and Pitching."
 		)
 	)
+	if season.opponents._format >= 2:
+		SeasonPages.wrapped(card, "Two pitching options • Starting roles shown below")
 	for id: String in season.teams[index].roster:
 		var player: PlayerDefinition = season.player_definition(id)
 		SeasonPages.wrapped(
 			card,
 			(
-				"%s • Contact %d / Power %d / Fielding %d / Pitching %d"
+				"%s • %s\nContact %d / Power %d / Fielding %d / Pitching %d"
 				% [
 					player.display_name,
+					role_names(data.roles, id),
 					player.contact,
 					player.power,
 					player.fielding,
@@ -54,3 +57,18 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 				]
 			)
 		)
+
+
+static func role_names(roles: Dictionary, id: String) -> String:
+	var labels: Array[String] = []
+	for role: String in ["pitcher", "fielder", "secondary", "hitter"]:
+		if roles[role] == id:
+			labels.append(
+				{
+					"pitcher": "Starting pitcher",
+					"fielder": "Primary fielder",
+					"secondary": "Reserve pitcher",
+					"hitter": "Featured hitter"
+				}[role]
+			)
+	return " / ".join(labels) if not labels.is_empty() else "Hitter"

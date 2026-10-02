@@ -22,8 +22,9 @@ func _ready() -> void:
 	get_tree().quit(0 if _failures == 0 else 1)
 
 
-func _opponent_season(seed_value: int = 42, games: int = 0) -> SeasonState:
+func _opponent_season(seed_value: int = 42, games: int = 0, format_version: int = 2) -> SeasonState:
 	var season: SeasonState = SeasonState.create(seed_value, false, true, true)
+	season.opponents._format = format_version
 	for pick in range(4):
 		season.choose_player(season.offers()[0])
 	for game in range(games):
@@ -160,7 +161,7 @@ func _ledger_contracts() -> void:
 			"event":
 				bad.opponents.clubs["1"].build.events.pop_back()
 			"policy":
-				bad.opponents.policy = 2
+				bad.opponents.policy = 3
 		_check(SeasonSave._decode(bad) == null, "reject changed opponent " + target)
 	var path: String = SeasonSave.path
 	var bytes: String = FileAccess.get_file_as_string(path)

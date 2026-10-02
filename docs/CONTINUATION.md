@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after Double Major Academy and explicit specialist capacity.
+Updated 2026-10-02 after versioned authored Base opponent allocation.
 
 ## Resume here
 
@@ -16,7 +16,7 @@ Updated 2026-10-02 after Double Major Academy and explicit specialist capacity.
 - `PROGRESSION_BLUEPRINT.md` remains the preserved planning baseline. Newer source amendments
   and explicit Approved/Working/Proposal distinctions still apply.
 
-Current planning source references, read again on 2026-10-01; resolve current versions before
+Current planning source references, read again on 2026-10-02; resolve current versions before
 implementing another contract. These IDs identify files, not permission to restore old versions.
 
 | Source | Persistent file ID | Last read version |
@@ -55,7 +55,48 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Double Major continuation details (latest)
+## Seeded Base opponent continuation details (latest)
+
+Build 37/save 41/Career 18 remain current; opponent policy 2 is new. Source of Truth
+v0.4.77 and Technical Preproduction v0.1.68 record the bounded Working implementation.
+Progression/Economy v24 (725–770), Players/Pitches v17 and Decisions v31 supply the
+named-roster contract. Standard/Base now uses a seeded alternating four-round allocation
+with two Pitching >= 2 candidates and twenty distinct non-human identities. Actual
+playing/shopping roles still derive from the resulting authored players. No free growth,
+starting items, higher-tier selection or broader AI shop categories are enabled.
+
+`SeasonOpponentDraft` owns sorted candidate selection and a separate RNG; human offers
+and schedule draws are unchanged. `SeasonOpponents` persists the initial club order under
+policy 2. `SeasonSave` selects policy before replaying the human picks. Policy 1 retains
+its exact old representation and contiguous allocation, including incomplete drafts;
+new seasons of an existing career use policy 2. Whole opponent reconstruction still
+validates rosters, roles, purchases and results. Preserve both allocator versions and the
+policy-2 seed/candidate ordering on future changes. Build remains 906 lines.
+
+Pregame now shows actual starting pitcher, primary fielder, reserve pitcher and featured
+hitter roles alongside the four ratings. The shared centered Equipped entry and live-sale
+semantics are unchanged. Main was rechecked at `f1dc209b`; the repository progression
+blueprint remains byte-identical. Use `git log -1` for the pushed SHA. Continue only the
+authorized engineering branch; never merge, deploy or force-push.
+
+Broad run `20261002T020402362891Z` passed 39/40 checks; final test-only Sure Shot
+correction passed 8/8 in `20261002T021248490349Z`. All 33 selected scenes and four physical
+games passed across the runs, with unchanged production code and 549 frozen final files.
+Exact scope and the one fixture correction are in the newest VERIFICATION.md entry. Headless layout
+and interaction checks do not constitute native review or human acceptance. The earlier
+unexplained full-suite exit before its marker remains open.
+
+Current content: 35/35 human sponsors, 23/25 Gear, five supplies, three learned abilities.
+Whole-project estimate approximately 74%, not release readiness. Remaining work includes
+AI event-capable offscreen resolution and supported acquisition, persistent player-card
+contracts, higher Leagues/tiers, stadium progression, remaining Gear calibration and final
+integration. Economy v24 explicitly leaves persistent pack prices/contents/duplicates/
+starting ownership unspecified. Do not invent them. Full AI item expansion needs exact
+visible/offscreen effects and authored choice policies; score-only results cannot supply
+missing events or workload. Final cohesive UI polish still requires primary-reference
+research, actual native rendered review and human visual/feel acceptance.
+
+## Double Major continuation details (previous)
 
 Build 37/save 41/Career 18; SOT v0.4.76 and TECH v0.1.67. F09 is implemented using
 Equipment/Sponsors v18 and Blueprint v114, rechecked 2026-10-02. Main remains
@@ -420,7 +461,7 @@ during the current game. Starting a new attempt replaces that evidence.
 ## User requirements to carry forward
 
 - Continue in substantial, verified chunks and report the whole-project completion estimate
-  at the end of each response. The recorded estimate is approximately **73%**, not release readiness.
+  at the end of each response. The recorded estimate is approximately **74%**, not release readiness.
 - Preserve work with commits and pushes on the engineering branch. Do not merge or deploy.
 - Preserve earlier gameplay/camera fixes and saved-run compatibility.
 - Keep one clear Equipped lightbox accessible from the same button position during and between
@@ -434,8 +475,8 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 34 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
-tactical supplies. Double Major, further AI acquisition, player-card contracts,
+There are 35 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+tactical supplies. Further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the
 counts alone are not a specification. Do not infer completion from older historical checklist entries.

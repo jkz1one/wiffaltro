@@ -1,8 +1,10 @@
 class_name SeasonOpponents
 extends RefCounted
-## Policy1: isolated zero-start wallets and source-supported paid broad-stat development.
+## Policy2 adds Base roster allocation; policy1's paid broad-stat market stays frozen.
 
+var draft_order: Array[int] = []
 var clubs: Dictionary = {}
+var _format: int = 2
 
 
 func initialize(season: SeasonState) -> void:
@@ -60,7 +62,10 @@ func to_data() -> Dictionary:
 			"cursor": club.cursor,
 			"decisions": club.decisions.duplicate(true)
 		}
-	return {"policy": 1, "clubs": rows}
+	var data: Dictionary = {"policy": _format, "clubs": rows}
+	if _format >= 2:
+		data["draft_order"] = draft_order.duplicate()
+	return data
 
 
 func summary(index: int) -> Dictionary:

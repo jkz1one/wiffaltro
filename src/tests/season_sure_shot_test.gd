@@ -63,6 +63,8 @@ func _sure_result(season: SeasonState, qualify: bool = true, win: bool = true) -
 
 func _sure_contract() -> void:
 	var state: MatchState = _new_club(67).make_match()
+	var replacement: int = state.defensive_team().next_available_pitcher(1)
+	_check(replacement != state.defensive_team().pitcher_index, "fixture has a different pitcher")
 	state.pitcher().definition.season_sponsors["F08"] = true
 	var recipe: StringName = state.pitcher().definition.starting_pitches[0].id
 	_check(not state.sure_shot.choose(state, &"pitch.foreign"), "unknown recipe costs no use")
@@ -70,7 +72,10 @@ func _sure_contract() -> void:
 	_check(state.sure_shot.choose(state, recipe), "announce exact known recipe before PA")
 	var cue: Dictionary = state.pitch_disclosure.duplicate(true)
 	_check(cue == {"source": "F08", "recipe": String(recipe), "time": 3.25}, "public identity only")
-	_check(not state.defensive_team().select_pitcher(2), "no pitcher switch after announcement")
+	_check(
+		not state.defensive_team().select_pitcher(replacement),
+		"no pitcher switch after announcement"
+	)
 	_check(not state.sure_shot.choose(state, recipe), "duplicate confirmation costs no extra use")
 	state.begin_pitch()
 	_check(state.pitch_disclosure == cue, "windup keeps public cue")
@@ -91,7 +96,7 @@ func _sure_contract() -> void:
 		SeasonSureShot.qualifies(state.sure_shot.evidence(state.defensive_team())),
 		"actual K qualifies"
 	)
-	_check(state.defensive_team().select_pitcher(2), "normal next-batter pitcher change")
+	_check(state.defensive_team().select_pitcher(replacement), "normal next-batter pitcher change")
 	state.pitcher().definition.season_sponsors["F08"] = true
 	recipe = state.pitcher().definition.starting_pitches[0].id
 	_check(state.sure_shot.choose(state, recipe), "second use shared across pitchers")

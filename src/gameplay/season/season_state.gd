@@ -119,13 +119,22 @@ func choose_player(id: String) -> bool:
 		return false
 	picks.append(id)
 	if picks.size() == 4:
-		teams[0]["roster"] = picks.duplicate()
 		var remaining: Array[String] = []
 		for candidate in draft_pool:
 			if not picks.has(candidate):
 				remaining.append(candidate)
-		for team in range(1, 6):
-			teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
+		if opponents != null and opponents._format >= 2:
+			var allocation: Dictionary = SeasonOpponentDraft.allocate(season_seed, remaining)
+			if allocation.is_empty():
+				picks.pop_back()
+				return false
+			opponents.draft_order.assign(allocation.order)
+			for team in range(1, 6):
+				teams[team]["roster"] = allocation.rosters[team]
+		else:
+			for team in range(1, 6):
+				teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
+		teams[0]["roster"] = picks.duplicate()
 		if build != null:
 			var progress: SeasonGearProgress = build._gear_progress.fork()
 			var sponsor_progress: SeasonSponsorProgress = build._sponsor_progress.fork()

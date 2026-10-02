@@ -1,5 +1,62 @@
 # Fast verification and playtest records
 
+## Seeded Base opponent allocation, 2026-10-02
+
+Broad run `20261002T020402362891Z` passed **39/40 checks** under Godot 4.7.2:
+seven common gates and 32/33 targeted scenes. Its sole failure was an obsolete Sure Shot
+fixture that selected fixed roster index 2, now the already-active pitcher. The corrected
+fixture chooses a different available pitcher and checks both the announcement lock and
+normal next-batter release. Final run `20261002T021248490349Z` passed **8/8 checks**:
+seven common gates plus the corrected `season-sure-shot` scene. Production code did not
+change between these runs. All 33 selected scenes passed across the two runs, with four
+complete physical games and no engine warnings/errors in passing logs. This is targeted
+coverage, not the full suite or native/human acceptance.
+
+The broad run checked:
+
+`season-opponent-draft`, `season-opponents`, `season-opponents-live`, `club-career`,
+`club-career-live`, `season-gear-progress`, `season-earned-sponsors`, `season-double-major`,
+`season-abilities`, `season-carbon-copy`, `season-field-supply`, `season-sure-shot`,
+`season-small-batch`, `season-jumpstart`, `season-left-right`, `season-freezers`,
+`season-association`, `season-late-checkout`, `season-second-chance`, `season-transfer`,
+`season-raincheck`, `season-special-order`, `season-film-room`, `season-match-sales`,
+`season-match-sales-live`, `season-loadout-ui`, `recruitment`, `paid-shop-ui`, `season-flow`,
+`season-shell`, `season-enrichment`, `season-development`, `regressions`.
+
+The new allocation test sweeps 128 seeds and varied human picks, observing 78 distinct
+club orders and all 48 identities across the sampled opponents. Every allocation has
+five four-player rosters, twenty distinct non-human IDs and two Pitching >= 2 selections
+per club. The catalog structural check guarantees enough arms even after any four human
+picks. Exact-size, duplicate/unknown candidates and infeasible final-pick rollback are
+covered. Input ordering/mutation, unchanged human offers and standings draws, authored
+ratings, zero free growth, actual starting/reserve roles and pregame bounds are checked.
+
+Both policy versions save/reload partial drafts and every round through completion,
+reconstruct exact paid journals and offscreen scores/brackets, retain playoff instances,
+and match career proof. Forged policies, unknown fields, missing/duplicate/reversed club
+orders and foreign role IDs reject. An old completed career starts a new policy-2 season
+without altering its earlier proof. JSON standings draws use a 1e-15 comparison only in
+the new test; production serialization/validation is unchanged. An initial UI fixture
+was also corrected to set its season after the app's normal save-loading initialization.
+
+Physical games include both paid opponent cohorts, a career championship and live sales.
+The legacy opponent game completed three innings with 105 pitch records and 35 balls in
+play (18–0); the new roster game used 128 records and 43 balls in play (30–0). The career
+final completed five innings with 110 records and 22 balls in play (0–4), then saved its
+one-time 220 Club Bucks payout. The live-sale game completed four innings, 124 records
+and 27 balls in play (0–10). These use the passive stress driver and are integration
+checks, not balance or human-feel samples. Save-failure retry and durable replay passed.
+
+All 549 final source/test/asset/project/runner files are frozen through publication;
+all 540 files copied into each verification runner were checked against the corresponding
+snapshot. The only difference between broad and final snapshots is the corrected Sure Shot
+test. Main remains `f1dc209b`, and the repository progression blueprint is byte-identical.
+
+No native display is configured. Actual native rendered review and human visual/feel
+acceptance remain outstanding, as does the earlier unexplained full-suite exit before
+its pass marker. Final cohesive UI polish with primary-reference research and native/human
+acceptance remains mandatory. Whole-project estimate stays approximately 74%.
+
 ## Double Major Academy: explicit specialist capacity, 2026-10-02
 
 Final run `20261002T002625026497Z` passed **49/49 checks** under Godot 4.7.2:

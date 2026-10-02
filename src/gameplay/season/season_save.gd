@@ -124,6 +124,11 @@ static func _decode(value: Variant) -> SeasonState:
 	var season: SeasonState = SeasonState.create(
 		int(data["seed"]), data["version"] == 1, data["version"] >= 5, data.has("opponents")
 	)
+	if data.has("opponents"):
+		if not _integer(data.opponents.get("policy"), 1, 2):
+			return null
+		# Choose the historical allocator before replaying even a partially completed draft.
+		season.opponents._format = int(data.opponents.policy)
 	if data["version"] >= 2:
 		if not _restore_pool(season, data):
 			return null
@@ -296,7 +301,10 @@ static func _decode(value: Variant) -> SeasonState:
 static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> bool:
 	var cursor: int = 0
 	for event: Dictionary in build.to_data().events:
-		if event.op in ["pregame", "scout", "insure", "copy_select", "match_inventory", "match_sell"]:
+		if (
+			event.op
+			in ["pregame", "scout", "insure", "copy_select", "match_inventory", "match_sell"]
+		):
 			var expected: int = (
 				int(season.player_results[cursor].id)
 				if cursor < season.player_results.size()

@@ -1,5 +1,21 @@
 # Implementation Status
 
+## Authored Base opponent allocation, 2026-10-02
+
+New Working seasons now allocate five seeded, distinct named rosters through four alternating
+selection rounds, guaranteeing two usable arms per club. Actual starting roles appear in
+pregame alongside paid ratings. A versioned opponent record preserves old rosters, partial
+drafts, paid purchases, offscreen results, playoffs and career history. The buying policy
+remains limited to its four supported stat families; higher-tier selection stays gated.
+
+Build 37/save 41/Career 18, opponent policy 2. Content remains 35/35 human sponsors,
+23/25 Gear, five supplies and three learned abilities. Whole-project estimate stays
+approximately 74%, not release readiness. AI event-capable offscreen resolution/acquisition,
+persistent player-card contracts, higher Leagues/tiers, stadium progression, remaining
+Gear calibration and final integration/UI/native/human acceptance remain. Persistent
+player packs still lack current prices, contents, duplicate treatment and starting ownership;
+do not invent them. Working planning defaults retain their status.
+
 ## Double Major Academy and the complete sponsor pool, 2026-10-02
 
 Double Major now supports its completed-game unlock, paid nomination, two different

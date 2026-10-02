@@ -89,6 +89,9 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-draft", [*ui_base, "--fixed-fps", "60",
+                                   "res://src/tests/season_opponent_draft_test.tscn", *ui_extra],
+                 "Wiffaltro opponent draft checks passed:"),
                 ("season-double-major-live", [*base, "--fixed-fps", "60",
                                    "res://src/tests/season_double_major_live_test.tscn"],
                  "Wiffaltro live Double Major checks passed"),

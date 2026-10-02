@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.67
+**Version:** v0.1.68
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,33 @@
 
 # 1. Technical Objective
 
+
+## Versioned opponent roster allocation, 2026-10-02
+
+`SeasonOpponentDraft.allocate` implements Working Standard/Base selection using a separate
+RNG seeded with `(season_seed + 15485863) & 0x7fffffff`. Candidates sort by stable ID;
+Fisher–Yates shuffles club indices 1–5 once, with alternate rounds reversing that order.
+Each selection is uniform among remaining eligible identities. The first ten require
+Pitching >= 2, the last ten are unrestricted. A preflight requires twenty distinct known
+candidates and ten usable arms, which suffices for every subsequent selection under these
+nested eligibility sets. Failed feasibility rolls back the final human pick before any
+team, build or opponent mutation. Higher-tier draw-two selection remains gated.
+
+`SeasonOpponents._format = 2` is the new-season default. Its serialized `policy: 2` adds
+`draft_order`, empty until the human draft completes; policy 1 emits its exact old shape.
+`SeasonSave` validates and installs the policy before replaying picks, so old incomplete
+drafts also finish with the old allocator. Full reconstructed opponent data must match,
+including order, club builds, roles, cursors and purchases. Unknown/missing fields, altered
+orders and inconsistent policy switches reject. Build 37/save 41/Career 18 do not change;
+no new player journal fields or catalog/receipt signatures are needed. Preserve the
+allocator's RNG, ordering and eligibility rules for policy 2 in future migrations.
+
+The human draft/schedule RNG and paid market policy 1 are untouched. `SeasonOpponentPolicy`
+still derives stable playing/shopping roles from each resulting roster; live teams and
+scouting read those same instances, and offscreen development uses their ordinary ratings.
+`SeasonOpponentUI` displays the actual roles alongside each player's ratings. Recruit
+blocking derives from all five new rosters through the existing path. No runtime effect,
+Gear/sponsor sale boundary, camera or physics code changes.
 
 ## Double Major transaction integration, 2026-10-02
 

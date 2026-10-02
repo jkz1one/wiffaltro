@@ -1,12 +1,40 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.76
+**Version:** v0.4.77
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Seeded Base opponent rosters, 2026-10-02
+
+New Working seasons use the named-player selection procedure from Progression/Economy
+v24 (725–770), rechecked against Players/Pitches v17 and Decisions v31. This remains a
+Working testing default, not Approved difficulty or a balance result. The five existing
+clubs keep their existing buying profiles. After the human's fourth pick, one seed-shuffled
+club order alternates forward/reverse through four selection rounds: pitching, separate
+fielding/second arm, Power, then Contact. Base takes one uniformly seeded eligible player.
+The first two selections require Pitching at least 2; all twenty IDs are distinct and
+exclude the human's four. Roles are then resolved from the actual roster under the existing
+rating/tie rules. Selection position is not a permanent role restriction.
+
+Only Standard/Base is playable. Higher-tier draw-two selection is not enabled here.
+Human offers, standings draws, authored player rows, ordinary pitch capacities and the
+zero-Cash/neutral starting loadout are unchanged. No purchased items, free levels, stronger
+player copies, human-build counterpicks or boosted playoff replacement rosters are added.
+Pregame shows each player's actual starting roles and current paid ratings. The shared
+Equipped lightbox and central entry remain unchanged, including immediate saved sales
+and safe next-batter retirement.
+
+Opponent save policy 2 records the seeded club order and reconstructs the exact roster
+and paid journals. Policy 1 saves, including partial drafts, retain contiguous historical
+allocation, their original market, results and career proof. Build 37/save 41/Career 18
+remain unchanged: the opponent record has its own version, and old readers reject the
+new policy through their existing exact-record validation. AI purchases remain the four
+supported paid stat families. Offscreen games still use the documented score proxy;
+this slice adds no inferred events, workload or unsupported item effects.
 
 ## Double Major Academy: paid specialist and explicit forgetting, 2026-10-02
 
