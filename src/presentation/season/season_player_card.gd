@@ -34,7 +34,10 @@ static func hands(player: PlayerDefinition) -> String:
 
 
 static func rating_names(player: PlayerDefinition) -> Array[String]:
-	return ["Contact", "Power", "Fielding", "Pitching"] if player.progression_test else RATING_NAMES
+	if player.progression_test:
+		var names: Array[String] = ["Contact", "Power", "Fielding", "Pitching"]
+		return names
+	return RATING_NAMES
 
 
 static func pitch_name(player: PlayerDefinition, pitch: PitchDefinition) -> String:
@@ -111,6 +114,7 @@ static func draft_card(
 	_abilities(box, player)
 	if player.switch_hitter:
 		line(box, "SWITCH HITTER • Pick your batting side", 16)
+	inspection_button(box, player)
 
 
 static func line(parent: Node, text: String, font_size: int = 18) -> Label:
@@ -144,6 +148,20 @@ static func ratings_card(
 	var arsenal: Label = line(box, "Pitches: " + " • ".join(pitches), 17)
 	arsenal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_abilities(box, player)
+	inspection_button(box, player)
+
+
+static func inspection_button(
+	parent: Node, player: PlayerDefinition, text: String = "INSPECT PLAYER"
+) -> Button:
+	var button: Button = Button.new()
+	button.text = text
+	button.custom_minimum_size.y = 44
+	button.set_meta("inspect_player", String(player.id))
+	button.tooltip_text = "Current ratings, repertoire, learned abilities and next mastery effects"
+	button.pressed.connect(func() -> void: SeasonPlayerInspector.open_from(parent, player))
+	parent.add_child(button)
+	return button
 
 
 static func _abilities(box: VBoxContainer, player: PlayerDefinition) -> void:

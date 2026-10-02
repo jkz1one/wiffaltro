@@ -1,5 +1,13 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Shared current-definition inspector, 2026-10-02
+
+SeasonPlayerInspector is a small read-only AcceptDialog with wrapped content, compact ratings, a reserved twelve-pixel scrollbar and a persistent44-pixel Back action. Labels receive wrapping before entering the tree so transient unwrapped minimum widths cannot inflate the dialog. Popup rectangles use the containing viewport's extent and its embedded-window origin, with space for title decoration; ordinary screen centering would offset a small shop's child dialog outside that shop.
+
+SeasonPlayerCard supplies metadata-marked inspection buttons to shared draft/ratings renderers. Shop initial focus skips these utility buttons to retain the original purchase/target action. Lineup and opponent scouting reuse the same helper. Equipped resolves current managed-team definitions during play and build definitions between games, including players without learned abilities; its focus cycle includes these controls. Directional input uses that same modal order, and controller A activates an enabled focused loadout button once. Bullpen keeps original pitcher callbacks and adds a separate Details action.
+
+The inspector captures weak focus and previous tree/match pause state. Direct lab ancestry adds player_inspection_open and freezes the lab's Always processing through its existing debug pause gate; the input handler blocks play/debug shortcuts. Nested Equipped keeps its own loadout pause guard. Back, Escape, controller B and parent teardown restore the captured state once. PitchMastery.next_effect remains the authoritative preview. No saved fields, catalog signatures, schema changes or new balance approvals.
+
 ## Confirmation theme and isolated review project, 2026-10-02
 
 ClubhouseTheme.confirmation applies the existing surface/paper palette and AcceptDialog.buttons_min_height44 to shop purchase and Equipped sale dialogs. Godot's dialog layout overwrites individual child custom_minimum_size; actual button rects now verify the dialog theme setting. Default exclusive/transient behavior is retained and tested by an actual background click during sale review.
@@ -46,7 +54,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.81
+**Version:** v0.1.82
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

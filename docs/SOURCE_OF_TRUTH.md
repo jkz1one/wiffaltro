@@ -1,5 +1,11 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Shared player inspection amendment, 2026-10-02
+
+Player details now open from draft cards, roster and recipient cards, lineup names, committed opponent scouting, Equipped's Abilities page, paused match statistics and legal Bullpen details. Current definitions supply ratings, hands/style, repertoire and learned effects. Working recipes show their actual level and the shared next-level effect or level-five cap; vanilla players retain seven ratings without a Working mastery claim.
+
+Inspection is read-only and returns to the existing choice without drafting, selecting a pitcher, reordering, purchasing or writing a save. Match physics and play remain paused while details are open; an existing pause or Equipped modal stays paused on dismissal. Build41/save45/Career21, all Working/Proposal classifications, shop stock, receipt IDs and live-sale boundaries remain unchanged. This implements the Playersv17 inspection contract, not permanent player ownership, packs, broader AI acquisition or human visual/feel acceptance.
+
 ## Shop confirmation and human review amendment, 2026-10-02
 
 Purchase and Equipped sale confirmations share the existing clubhouse palette and actual44-pixel bottom actions. Sale review still starts on Cancel, blocks background dismissal, and revalidates the original command. Shop cancellation, failed-save rollback, retry, exact refund/reload and unchanged stock now have direct pointer-input coverage at normal and700×400 sizes.
@@ -44,7 +50,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.90
+**Version:** v0.4.91
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

@@ -44,6 +44,7 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 				]
 			)
 		)
+		SeasonPlayerCard.inspection_button(card, player, "INSPECT " + player.display_name)
 	for row: Dictionary in data.decisions.slice(maxi(0, data.decisions.size() - 3)):
 		SeasonPages.wrapped(
 			card,

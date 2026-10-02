@@ -633,18 +633,34 @@ static func _build_pitching_staff(lab: PitchBatLab, canvas: CanvasLayer) -> void
 	title.add_theme_font_size_override("font_size", 15)
 	lab._pitching_staff_panel.add_child(title)
 	for index in range(TeamMatchState.ROSTER_SIZE):
+		var row: HBoxContainer = HBoxContainer.new()
+		lab._pitching_staff_panel.add_child(row)
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(400.0, 62.0)
+		button.custom_minimum_size = Vector2(308.0, 62.0)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.focus_mode = Control.FOCUS_NONE
 		button.pressed.connect(lab._select_pitcher.bind(index))
-		lab._pitching_staff_panel.add_child(button)
+		row.add_child(button)
 		lab._pitcher_buttons.append(button)
+		var inspect_button: Button = Button.new()
+		inspect_button.text = "DETAILS"
+		inspect_button.custom_minimum_size = Vector2(84, 44)
+		inspect_button.set_meta("inspect_staff", index)
+		inspect_button.pressed.connect(_inspect_pitcher.bind(lab, index, inspect_button))
+		row.add_child(inspect_button)
 	var return_button: Button = Button.new()
 	return_button.text = "RETURN TO PITCH (ESC)"
 	return_button.custom_minimum_size = Vector2(400.0, 38.0)
 	return_button.focus_mode = Control.FOCUS_NONE
 	return_button.pressed.connect(lab._toggle_pitching_staff)
 	lab._pitching_staff_panel.add_child(return_button)
+
+
+static func _inspect_pitcher(lab: PitchBatLab, index: int, button: Button) -> void:
+	if lab._match_state == null or not lab._pitching_staff_active:
+		return
+	var team: TeamMatchState = lab._match_state.defensive_team()
+	SeasonPlayerInspector.open_from(button, team.roster[index].definition)
 
 
 static func _build_pitch_release_meter(lab: PitchBatLab, canvas: CanvasLayer) -> void:

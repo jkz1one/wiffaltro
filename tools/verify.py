@@ -98,6 +98,9 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-player-inspector", [*ui_base, "--fixed-fps", "60",
+                                      "res://src/tests/season_player_inspector_test.tscn", *ui_extra],
+                 "Wiffaltro player inspection checks passed:"),
                 ("club-collection-ui", [*ui_base, "--fixed-fps", "60",
                                       "res://src/tests/club_collection_ui_test.tscn", *ui_extra],
                  "Wiffaltro focused collection UI checks passed:"),

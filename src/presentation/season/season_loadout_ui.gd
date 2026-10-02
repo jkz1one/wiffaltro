@@ -16,6 +16,7 @@ var sale: SeasonLoadoutSale
 var context: Label
 var cash_badge: Label
 var _sale_buttons: Array[Button] = []
+var _player_buttons: Array[Button] = []
 var _tab: String = "gear"
 var _rows: Dictionary = {}
 var _tab_buttons: Array[Button] = []
@@ -215,6 +216,20 @@ func _input(event: InputEvent) -> void:
 		close()
 		get_viewport().set_input_as_handled()
 		return
+	if event.is_action_pressed(&"ui_down") or event.is_action_pressed(&"ui_right"):
+		_cycle_focus(false)
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed(&"ui_up") or event.is_action_pressed(&"ui_left"):
+		_cycle_focus(true)
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A:
+		var target: Button = get_viewport().gui_get_focus_owner() as Button
+		if target != null and not target.disabled and panel.is_ancestor_of(target):
+			get_viewport().set_input_as_handled()
+			target.pressed.emit()
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_TAB:
 			_cycle_focus(event.shift_pressed)
@@ -230,6 +245,7 @@ func _cycle_focus(backward: bool) -> void:
 	controls.append_array(_tab_buttons)
 	controls.append(scroll)
 	controls.append_array(_sale_buttons)
+	controls.append_array(_player_buttons)
 	var current: int = controls.find(get_viewport().gui_get_focus_owner())
 	controls[posmod(current + (-1 if backward else 1), controls.size())].grab_focus()
 
@@ -253,6 +269,7 @@ func _resize() -> void:
 func _select(key: String) -> void:
 	_refresh_balance()
 	_sale_buttons.clear()
+	_player_buttons.clear()
 	_tab = key
 	for child: Node in body.get_children():
 		body.remove_child(child)
@@ -266,6 +283,14 @@ func _select(key: String) -> void:
 		_label(body, "%d / %d held slots" % [_rows.supplies.size(), _rows.capacity.held], 16)
 	elif key == "abilities":
 		_label(body, "One Hitting + one Fielding slot per player • Season only • Not sellable", 16)
+		var team: TeamMatchState
+		if app.lab != null and app.lab._match_state != null:
+			var state: MatchState = app.lab._match_state
+			team = state.home_team if app.lab._player_home else state.away_team
+		for player: PlayerDefinition in SeasonAbilityLoadout.players(app, team):
+			_player_buttons.append(
+				SeasonPlayerCard.inspection_button(body, player, "INSPECT " + player.display_name)
+			)
 	elif key == "sponsors":
 		_label(
 			body, "%d / %d active sponsors" % [_rows.sponsors.size(), _rows.capacity.sponsors], 16

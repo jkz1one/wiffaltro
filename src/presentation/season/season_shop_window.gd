@@ -558,7 +558,7 @@ func _focus_first() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
 	for child in _body.find_children("*", "Button", true, false):
-		if child is Button and not child.disabled:
+		if child is Button and not child.disabled and not child.has_meta("inspect_player"):
 			child.grab_focus()
 			_ensure_focus_visible()
 			return

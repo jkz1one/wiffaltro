@@ -1,5 +1,13 @@
 # Implementation Status
 
+## Shared player inspection, 2026-10-02
+
+One read-only inspector now serves draft, roster/recipient cards, lineup, opponent scouting, Equipped's Abilities page, paused match stats and legal Bullpen details. It shows actual ratings, hands/style, pitch levels, authoritative next-level effects/caps and learned abilities. Vanilla compatibility retains seven ratings. Inspection preserves the pending action, saved bytes, focus and prior match/pause state; it does not substitute a pitcher. Directional/controller activation reaches every Equipped player.
+
+Broad21/21 with two complete physical games and84 native captures; final headless10/10 and native12/12 with54 captures after the last input refinement. Three final inspected screens and the hands-on walkthrough are in PLAYER_INSPECTION_REVIEW. All594 final source files remain frozen through publication.
+
+Build41/save45/Career21,25/25 Gear,35/35 sponsors, five supplies, three abilities and one transformation remain unchanged. Whole-project estimate remains **~75%**, not release readiness. Permanent player ownership/packs, broader AI acquisition/offscreen event support, higher League/tier gameplay, stadium progression and final integration remain. Human visual/feel/hardware acceptance and historical suite early exits remain open.
+
 ## Consolidated shop/Equipped acceptance preparation, 2026-10-02
 
 Purchase/sale confirmations now use the clubhouse surface and actual44-pixel actions. Real shop lightbox checks cover Cancel, exclusive background blocking, failed-save rollback, visible feedback, retry, exact reload/refund and fixed offers. A reproducible isolated playable review copy and SHOP_ACCEPTANCE walkthrough enable hands-on review without regular-save changes or artificial unlock grants.

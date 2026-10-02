@@ -192,8 +192,10 @@ func show_lineup() -> void:
 		_label(grid, heading, 18)
 	for index in range(4):
 		var player: PlayerDefinition = app.season.player_definition(roster[index])
-		var name_label: Label = _label(grid, "%d. %s" % [index + 1, player.display_name], 20)
-		name_label.custom_minimum_size.x = 190
+		var name_button: Button = SeasonPlayerCard.inspection_button(
+			grid, player, "%d. %s" % [index + 1, player.display_name]
+		)
+		name_button.custom_minimum_size.x = 190
 		_label(grid, SeasonPlayerCard.hands(player), 18)
 		for rating in SeasonPlayerCard.values(player):
 			_label(grid, str(rating), 22)

@@ -4,15 +4,8 @@ extends RefCounted
 
 
 static func rows(app: SeasonApp, team: TeamMatchState, state: MatchState) -> Array:
-	var players: Array[PlayerDefinition] = []
-	if team != null:
-		for player: PlayerMatchState in team.roster:
-			players.append(player.definition)
-	elif app.season != null and app.season.build != null:
-		for id: String in app.season.build.roster():
-			players.append(app.season.build.definition(id))
 	var result: Array = []
-	for player: PlayerDefinition in players:
+	for player: PlayerDefinition in players(app, team):
 		for id: String in player.season_abilities:
 			if not SeasonAbilities.ITEMS.has(id):
 				continue
@@ -33,3 +26,14 @@ static func rows(app: SeasonApp, team: TeamMatchState, state: MatchState) -> Arr
 				}
 			)
 	return result
+
+
+static func players(app: SeasonApp, team: TeamMatchState) -> Array[PlayerDefinition]:
+	var players: Array[PlayerDefinition] = []
+	if team != null:
+		for player: PlayerMatchState in team.roster:
+			players.append(player.definition)
+	elif app.season != null and app.season.build != null:
+		for id: String in app.season.build.roster():
+			players.append(app.season.build.definition(id))
+	return players

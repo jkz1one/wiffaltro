@@ -1,5 +1,17 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: shared player inspection, 2026-10-02
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; this slice follows pushed parent b370a325d4bc8d4f76415a0bb20c0eda5b3a89a9. Use git log -1 for the published SHA. Build41/save45/Career21/opponent policy2;25/25 Gear,35/35 sponsors, five supplies, three learned abilities and one transformation. Overall **~75%**, not release readiness.
+
+SeasonPlayerInspector is shared across draft, roster and recipient cards, lineup, committed opponent scouting, Equipped's Abilities page, paused match stats and legal Bullpen Details. Read-only current definitions disclose ratings, hands/style, repertoire levels, actual PitchMastery.next_effect/cap and learned effects. Vanilla players retain seven ratings. Back/Escape/B preserve the pending choice, saved bytes, prior focus and pause. Bullpen inspection does not substitute. Equipped directionals reach every player; A activates only an enabled focused modal button. The centered Equipped entry, immediate saved live refunds and next-batter retirement remain intact. No schema, receipt, signature, stock or tuning change.
+
+Broad rendered-UI20261002T200230183453Z passes21/21 with84 captures and two complete physical games. Final headless201105738104Z passes10/10; final rendered-UI201213302920Z passes12/12 with54 captures after the last controller refinement. Three inspected final screenshots and a human walkthrough are in PLAYER_INSPECTION_REVIEW. All594 final source files stay frozen through publication. Read VERIFICATION for exact earlier failures, scope and source delta. Human visual/feel acceptance remains pending; no early-exit or full-suite repair is claimed.
+
+Re-read planning Decisionsv31, Equipmentv18, planning blueprintv114, Economyv24 and Playersv17. Playersv17 supports this inspection contract. Economyv24 keeps broader AI acquisition gated on complete shared offscreen event support; score-only outcomes cannot fabricate hits, walks, workload or mastery. Permanent player ownership/80-Club-Bucks packs remain separate, unimplemented work; consult their full current contracts before selecting a slice. Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420 and the repository blueprint remains byte-identical. SOTv0.4.91/Technicalv0.1.82.
+
+Next: continue the next supported major-system foundation (shared offscreen events for AI acquisition, or permanent player ownership/card packs after complete contract review), then higher League/tier gameplay, stadium progression and integration. Collect shop/player-inspection hands-on feedback when available and fix concrete issues; pending review does not revoke routine implementation authorization. Final cohesive whole-game UI/hardware/feel acceptance remains open. Routine engineering-branch commits/pushes stay authorized; no merge/deploy.
+
 ## Current checkpoint: shop/Equipped ready for hands-on review, 2026-10-02
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; this slice follows pushed parent6d6f7dabc8c64a10481fac45f67345a190032597. Use git log -1 for the published SHA. Build41/save45/Career21/opponent policy2 and all25 Gear/35 sponsors remain unchanged. Overall **~75%**, not release readiness.
