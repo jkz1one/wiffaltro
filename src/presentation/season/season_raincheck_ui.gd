@@ -105,7 +105,7 @@ static func progress(menu: SeasonMenu) -> void:
 			"Career: buy one ordinary individual offer for at least 16 actual Cash. "
 			+ "Packs, Wholesale and multiple-recipient deals do not count. "
 			+ "12 Season Cash • Uncommon • Working. "
-			+ SeasonRaincheck.ITEMS.G01.effect
+			+ ClubCollectionUI.effect(menu, "G01")
 		)
 	)
 	if menu.app.season.build == null or menu.app.season.build._rain_start == null:

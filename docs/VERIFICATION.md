@@ -1,5 +1,87 @@
 # Fast verification and playtest records
 
+## Persistent equipment collection, 2026-10-02
+
+Broad run `20261002T053458565295Z` passed **40/41 checks** under Godot 4.7.2:
+seven common gates and 33/34 selected scenes. The sole failure was `season-match-sales`,
+which exited 0 after two lab-start messages without its required pass marker. No pass is
+claimed for that execution. Follow-up `20261002T054339138142Z` passed **9/10 checks**: the unchanged
+sales UI and earned-sponsor scenes passed, but collection exited0 before its marker.
+Final normal run `20261002T055020359206Z` passed **8/8 checks**, including `club-collection`.
+All **34 selected scenes** passed across these runs, with two complete physical games.
+Passing logs contain no engine warnings/errors. This is targeted coverage, not the full
+suite, native rendering, visual approval or human feel/balance acceptance.
+
+Scope:
+
+`club-collection`, `club-career`, `club-career-live`, `season-gear-progress`,
+`season-earned-sponsors`, `season-special-order`, `season-raincheck`, `season-transfer`,
+`season-second-chance`, `season-late-checkout`, `season-association`, `season-freezers`,
+`season-left-right`, `season-jumpstart`, `season-small-batch`, `season-sure-shot`,
+`season-field-supply`, `season-carbon-copy`, `season-abilities`, `season-double-major`,
+`season-wholesale`, `season-sponsor-set`, `season-loadout-ui`, `season-match-sales`,
+`season-match-sales-live`, `season-shop-categories`, `paid-shop-ui`, `paid-development`,
+`season-retraining`, `season-opponents`, `season-flow`, `season-shell`, `season-enrichment`,
+`regressions`.
+
+New collection checks cover 58 implemented Gear/sponsor identities, access without
+acquisition, display/preview/rejected-purchase exclusion, independent candidates/forks,
+actual generated paid Gear and Special Order acquisition, grouped/discounted Wholesale
+and Association purchases, duplicate identities, sales and abandonment. Current purchase
+journals reconstruct discoveries exactly; malformed/missing/forged current lists reject.
+Old Career18 current saves recover sold acquisitions from their actual journals and keep
+identical build/stock data; old archived records remain null/unknown. New-season ownership
+stays empty while distinct discovery persists. Failed writes retain previous save bytes
+and do not publish the candidate career list. Existing transaction scenes verify complete
+app-level rollback and ordinary live-sale behavior against Career19.
+
+Actual UI clicks enter collection, paginate all 58 entries, check effect concealment and
+sold-item disclosure, preserve the central Equipped position and open its lightbox.
+All Gear/sponsor progression effect paths use the same acquired check. Existing shop,
+recipient, replacement, retry and loadout scenes still pass. Archived equipment summaries
+have structural validation; closed full shop journals are not retained, so edited
+historical summaries are not cryptographically authenticated evidence.
+
+| Physical scenario | Innings | Pitch records | Balls in play | Score |
+| --- | ---: | ---: | ---: | --- |
+| Paid Gear sold during pitch/swing | 4 | 124 | 27 | Yard Club 0–10 Lanterns |
+| Career final and one-time reward | 5 | 110 | 22 | Kites 0–4 Yard Club |
+
+The sold Gear remained discovered after natural next-batter effect retirement and replay;
+each still earned exactly one qualifying use. The physical final awarded 220 Club Bucks
+once with the existing failed-write/retry coverage. Scripted stress games are integration
+evidence, not balance or human-feel measurements.
+
+All **563** final source/test/asset/project/runner files are frozen through publication;
+all **554** files in the observed broad/follow-up runner copies matched their respective
+snapshots. Between broad and final runs, one sponsor-page footer sentence changed to
+player-facing access wording, and the new collection test added stage markers and replaced
+its inherited Special Order seed search with the already verified seed27. It still plays
+three controlled results, pays for four ordinary rerolls and requires the real generated
+J01 offer before purchasing; no stock injection or assertion removal. The final collection
+run covers this fixture and footer. Gameplay and save code stayed unchanged. Existing legacy
+fixtures explicitly omit the new `collection` field
+when constructing historical Career versions; old production fields/signatures stay frozen.
+
+Earlier focused career/Special Order run `20261002T052846378257Z` passed9/9. The initial
+new collection fixture `20261002T053101997418Z` had a missing `_text` helper, causing a
+parse-error stall and timeout; the helper and lightbox property were corrected before
+focused pass8/8 `20261002T053217981150Z` and the broad frozen run. This fixture error is
+separate from the unexplained exit-zero symptom, which recurred in both sales UI and
+collection. Normal follow-up `20261002T054545455139Z` and stage-marker follow-up
+`20261002T054741913946Z` each passed7/8, stopping during the inherited Special Order
+fixture before collection purchase checks. The explicit-seed fixture then passed all
+stages in the final run. This is not proof of the earlier exit cause or a claim it is fixed.
+Diagnostic `20261002T054510477335Z` was blocked by denied ptrace, and measurement-wrapper
+attempt `20261002T054907474982Z` could not launch because `/usr/bin/time` is unavailable.
+Neither is gameplay evidence. Final verification uses the normal unmodified engine.
+
+Build39/save43/Career19/opponent policy2. Main remains `f1dc209b`; repository progression
+blueprint is byte-identical. Whole-project estimate remains approximately **74%**. Final
+primary-reference UI polish, actual native rendered review and human visual/feel acceptance
+remain open; no native display is configured in this environment.
+
+
 ## Complete current shop categories, 2026-10-02
 
 Final run `20261002T051435232246Z` passed **10/10 checks** under Godot 4.7.2: seven

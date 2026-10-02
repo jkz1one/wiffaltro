@@ -183,7 +183,7 @@ static func progress(menu: SeasonMenu) -> void:
 			(
 				"Game: earn a strikeout after that pitcher actually throws at least three pitches, "
 				+ "all the same exact recipe in that PA. No win required. 12 Cash • Uncommon • Working. "
-				+ ITEMS.F08.effect
+				+ ClubCollectionUI.effect(menu, "F08")
 			)
 		)
 	)

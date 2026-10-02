@@ -167,7 +167,7 @@ static func progress(menu: SeasonMenu) -> void:
 				+ "airborne catch out in one completed game. No pitcher catches, prior "
 				+ "bobbles or win requirement. 18 Cash • Rare • Working."
 			)
-			+ ITEMS.F09.effect
+			+ ClubCollectionUI.effect(menu, "F09")
 		)
 	)
 	if menu.app.season.build == null or menu.app.season.build._major.start == null:

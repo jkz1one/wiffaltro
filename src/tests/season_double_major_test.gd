@@ -386,6 +386,8 @@ func _major_migration() -> void:
 	_check(SeasonSave.save(old), "save actual Build36 journal")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 17
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("major_earned")
 	var loaded: SeasonState = SeasonSave._decode(data)
 	_check(loaded != null, "Build36 migration")

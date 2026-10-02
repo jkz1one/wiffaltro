@@ -267,6 +267,8 @@ func _migration() -> void:
 	_check(SeasonSave.save(season), "prior format paid result")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 9
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("freezer_earned")
 	data.career.runs[-1].erase("sides_earned")
 	data.career.runs[-1].erase("jump_earned")

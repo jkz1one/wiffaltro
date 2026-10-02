@@ -287,6 +287,8 @@ func _migration_progress() -> void:
 	_check(SeasonSave.save(season), "old build saves without tracking")
 	var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	old.career.version = 1
+	for historical: Dictionary in old.career.runs:
+		historical.erase("collection")
 	for run: Dictionary in old.career.runs:
 		run.erase("gear")
 		run.erase("sponsors")

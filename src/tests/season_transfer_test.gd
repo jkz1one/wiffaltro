@@ -281,6 +281,8 @@ func _transfer_contract(season: SeasonState) -> void:
 	_check(SeasonSave.save(legacy), "legacy build24 saves")
 	data = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 5
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("transfer_earned")
 	data.career.runs[-1].erase("supplies_used")
 	data.career.runs[-1].erase("checkout_earned")

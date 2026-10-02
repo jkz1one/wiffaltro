@@ -43,7 +43,7 @@ static func show(menu: SeasonMenu) -> void:
 						goal,
 						SeasonGearCatalog.item(prior).name,
 						item.price,
-						item.effect
+						ClubCollectionUI.effect(menu, id)
 					]
 				)
 			)

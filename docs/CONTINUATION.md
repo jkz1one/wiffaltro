@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after completing current focused/reserved shop categories.
+Updated 2026-10-02 after implementing persistent Gear/sponsor collection.
 
 ## Resume here
 
@@ -55,7 +55,50 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Shop-category continuation details (latest)
+## Equipment collection continuation details (latest)
+
+Current: **Build 39/save 43/Career 19**, opponent policy 2; SOT v0.4.80 / Technical v0.1.71.
+Club Record now opens a paginated collection of 23 implemented Gear and all 35 sponsors.
+Acquisition, earned access and current seasonal ownership are distinct. Successful normal,
+replacement, discounted and grouped purchases reveal effects permanently in collection.
+Sold/abandoned copies stay discovered; duplicates count once and no item carries over.
+Existing Gear/sponsor progression pages now conceal effects until acquisition. Shop and
+Equipped details stay complete, with the same centered entry and deferred live-sale effects.
+
+`ClubCollection` derives acquisition from validated bank stock/buy/sponsor-set history.
+Career 19 stores a sorted per-run `collection`; current records must match actual replay.
+Old current saves recover only real purchases (including sold copies); old archived runs
+remain null/unknown because compact score history cannot recover purchases. Historical
+summaries have structural validation, not full archived-shop replay. No new SeasonBuild
+field, catalog signature, receipt scheme, shop RNG or gameplay modifier is introduced.
+SeasonBuild remains 915 lines. Build/save/opponent versions are unchanged.
+
+Sources reread: Economy v24 Approved access/collection behavior (43–59), Equipment v18
+ownership/discovery (16–74), Decisions v31. This does not implement player-card ownership,
+packs, the other seasonal categories' collection or discovery-based League thresholds.
+Do not infer owned player cards from draft/recruit encounters. Working effects/prices and
+unapproved Proposals retain their prior status. Repository blueprint stays byte-identical
+to main. See VERIFICATION.md for this slice's exact evidence; `git log -1` gives pushed SHA.
+Whole-project estimate stays approximately **74%**, not release readiness.
+
+Remaining work still includes event-aware offscreen AI/acquisition, persistent player-card
+contracts, higher League/tier gameplay, stadium progression, Alley Gear calibration and
+final integration. Final UI polish must include primary references, actual native rendered
+review and human visual/feel acceptance. No native display is configured here; automated
+headless interaction/layout tests do not meet that gate. The earlier intermittent exit-zero
+before pass-marker issue remains unresolved. No merge, deployment or force-push authorized.
+
+Collection verification: broad `20261002T053458565295Z` passed40/41; follow-up `20261002T054339138142Z`
+passed9/10; final normal run `20261002T055020359206Z` passed8/8. All34 selected scenes passed
+across runs, including two physical games. Sales UI and collection each had an exit0
+before its marker. Sales passed unchanged; collection passed with the explicit seed fixture.
+Process tracing was blocked by the environment;
+the intermittent cause remains open. Final changes after the broad snapshot were a
+sponsor-footer wording correction and collection-test markers/explicit seed27 fixture.
+No gameplay/save changes. All563 final files stayed frozen;554 copied files in the observed
+broad/follow-up runners matched their snapshots. See VERIFICATION.md for full scope and the initial fixture correction.
+
+## Shop-category continuation details (previous)
 
 Current: **Build 39/save 43/Career 18**, opponent policy 2; SOT v0.4.79 / Technical v0.1.70.
 Special Order now includes Learned Abilities with normal rarity/access/recipient rules,

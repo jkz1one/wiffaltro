@@ -336,6 +336,8 @@ func _ability_migration() -> void:
 	_check(SeasonSave.save(season), "old build snapshot")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 16
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("sky_outs")
 	data.career.runs[-1].erase("major_earned")
 	var loaded: SeasonState = SeasonSave._decode(data)

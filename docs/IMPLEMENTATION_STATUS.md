@@ -1,5 +1,22 @@
 # Implementation Status
 
+## Persistent equipment collection, 2026-10-02
+
+Club Record now exposes a paginated collection of 23 Gear and 35 sponsors, distinguishing
+access, acquisition and current ownership. Successful purchases reveal collection effects;
+sales, abandonment and new seasons retain distinct discoveries. Existing progression pages
+respect the same concealment. Shop/Equipped details remain available before purchase and
+during play. Old current saves recover actual purchase evidence without changing stock;
+archived history lacking journals stays explicitly unknown.
+
+Build 39/save 43/Career 19, opponent policy 2. Counts remain 35/35 human sponsors,
+23/25 Gear, five supplies, three learned abilities and one transformation. Whole-project
+estimate stays approximately **74%**, not release readiness. This is not player-card packs,
+other-category collection or discovery-based League access. Remaining major systems,
+Alley calibration/gap geometry and final UI/native/human acceptance remain open. Exact
+verification scope and limitations are in the newest VERIFICATION.md entry.
+
+
 ## Complete current shop-category integration, 2026-10-02
 
 Special Order now supports all six current non-development categories, including

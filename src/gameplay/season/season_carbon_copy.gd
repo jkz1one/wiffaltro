@@ -192,7 +192,7 @@ static func progress(menu: SeasonMenu) -> void:
 		(
 			"Season: confirm four distinct sponsors active together in a saved legal "
 			+ "loadout. 20 Season Cash • Rare • Working. "
-			+ ITEMS.E09.effect
+			+ ClubCollectionUI.effect(menu, "E09")
 		)
 	)
 	var build: SeasonBuild = menu.app.season.build

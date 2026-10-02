@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.70
+**Version:** v0.1.71
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,30 @@
 
 # 1. Technical Objective
 
+
+## Journal-derived equipment discovery, 2026-10-02
+
+`ClubCollection` projects successful `buy` and `sponsor_set` bank transactions through
+the stock identities in their validated journal. It includes only implemented Gear and
+sponsors, deduplicates/sorts identities, and excludes opponent markets. No mutable
+counter, new SeasonBuild field, offer draw, catalog signature or receipt ID is added.
+Ordinary build replay, candidate forks and failed transaction rollback remain the source
+of truth. Sale/removal events cannot erase earlier acquisition evidence.
+
+Career 19 adds `collection` per run. Active/current lists must exactly match replayed
+purchase evidence when loading; sync permits only growth from committed purchases.
+Completed records remain exact. Each list validates known IDs, strict sorting and
+uniqueness. Old records migrate to null (unknown), then SeasonSave reconstructs only
+the current run after its full build and career validation. Older archived null records
+stay unknown; their score-only proof cannot reconstruct purchases. Like existing compact
+career history, closed collection summaries have structural validation, not retained
+full-shop replay proof. Do not claim cryptographic provenance for edited archived saves.
+
+`ClubCollectionUI` provides category tabs and eight-item pages; existing progression
+pages use the same discovery check for effect concealment. Shop/Equipped effects stay
+fully disclosed. Read-only inspection does not save or mutate stock. No scene runtime,
+camera, sale timing or learned-ability rule changes. Build 39/save 43/opponent policy 2
+remain unchanged; SeasonBuild stays 915 lines. Native/human approval remains separate.
 
 ## Versioned focused and reserved shop categories, 2026-10-02
 

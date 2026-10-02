@@ -91,4 +91,4 @@ static func progress(menu: SeasonMenu) -> void:
 		SeasonPages.wrapped(
 			card, "This older active save begins this tracking next Working season."
 		)
-	SeasonPages.wrapped(card, SeasonSpecialOrder.ITEMS.J01.effect)
+	SeasonPages.wrapped(card, ClubCollectionUI.effect(menu, "J01"))

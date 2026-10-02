@@ -89,7 +89,7 @@ static func progress(menu: SeasonMenu) -> void:
 			"Season: two different current players each know a purchased "
 			+ "season-learned pitch. An Open Book pair qualifies. Access survives abandonment; "
 			+ "no free copy. 12 Season Cash • Uncommon • Working. "
-			+ SeasonTransfer.ITEMS.F07.effect
+			+ ClubCollectionUI.effect(menu, "F07")
 		)
 	)
 	var build: SeasonBuild = menu.app.season.build

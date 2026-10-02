@@ -401,6 +401,8 @@ func _migrate_insurance() -> void:
 	_check(SeasonSave.save(season), "build25 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 6
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("supplies_used")
 	data.career.runs[-1].erase("checkout_earned")
 	data.career.runs[-1].erase("association_earned")

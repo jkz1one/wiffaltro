@@ -71,7 +71,7 @@ static func progress(menu: SeasonMenu) -> void:
 					"games. %d / 3 types. Heat and Take a Base do not count. 12 Cash • Uncommon • Working. "
 					% used.size()
 				)
-				+ ITEMS.G02.effect
+				+ ClubCollectionUI.effect(menu, "G02")
 			)
 		)
 	)

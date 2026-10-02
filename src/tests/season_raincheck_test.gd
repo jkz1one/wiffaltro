@@ -287,6 +287,8 @@ func _rain_persistence(season: SeasonState) -> void:
 	_check(SeasonSave.save(legacy), "legacy build23 save")
 	var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	old.career.version = 4
+	for historical: Dictionary in old.career.runs:
+		historical.erase("collection")
 	old.career.runs[-1].erase("rain_earned")
 	old.career.runs[-1].erase("transfer_earned")
 	old.career.runs[-1].erase("supplies_used")

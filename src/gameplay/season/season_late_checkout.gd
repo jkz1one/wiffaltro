@@ -43,7 +43,7 @@ static func progress(menu: SeasonMenu) -> void:
 			"Game: earn a credited walk while an original Tape or Plan is active. "
 			+ "Complete the game to retain access. Inherited effects do not count. "
 			+ "12 Season Cash • Uncommon • Working. "
-			+ ITEMS.G03.effect
+			+ ClubCollectionUI.effect(menu, "G03")
 		)
 	)
 	var build: SeasonBuild = menu.app.season.build

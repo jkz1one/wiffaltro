@@ -468,6 +468,8 @@ func _migrate_earned() -> void:
 	_check(SeasonSave.save(season), "old build with prior feat saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 2
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	for run: Dictionary in data.career.runs:
 		run.erase("sponsors")
 		run.erase("order_rerolls")

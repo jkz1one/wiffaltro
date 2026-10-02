@@ -272,6 +272,9 @@ static func _decode(value: Variant) -> SeasonState:
 		season.career = ClubCareer.from_data(data.career)
 		if season.career == null or not season.career.matches(season):
 			return null
+		# Recover only the current run from its validated, replayed purchase journal.
+		if season.career.current > 0 and season.career.runs[-1].collection == null:
+			season.career.runs[-1].collection = ClubCollection.acquired(season.build)
 	elif (
 		season.build != null
 		and (

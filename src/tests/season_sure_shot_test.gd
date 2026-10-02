@@ -280,6 +280,8 @@ func _sure_migration() -> void:
 	_check(SeasonSave.save(season), "Build32 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 13
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("sure_earned")
 	data.career.runs[-1].erase("field_outs")
 	data.career.runs[-1].erase("copy_earned")

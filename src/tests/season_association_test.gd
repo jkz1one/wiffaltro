@@ -379,6 +379,8 @@ func _migrate_association() -> void:
 	_check(SeasonSave.save(season), "previous build27 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 8
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("association_earned")
 	data.career.runs[-1].erase("freezer_earned")
 	data.career.runs[-1].erase("sides_earned")
@@ -603,6 +605,8 @@ func _migrate_paid_association() -> void:
 	_check(SeasonSave.save(season), "save prior paid history")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 8
+	for historical: Dictionary in data.career.runs:
+		historical.erase("collection")
 	data.career.runs[-1].erase("association_earned")
 	data.career.runs[-1].erase("freezer_earned")
 	data.career.runs[-1].erase("sides_earned")

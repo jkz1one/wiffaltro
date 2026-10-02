@@ -65,6 +65,7 @@ func start(season: SeasonState) -> bool:
 			"copy_earned": false,
 			"field_outs": 0,
 			"batch_used": [],
+			"collection": [],
 			"supplies_used": 0
 		}
 	)
@@ -78,7 +79,8 @@ func sync(season: SeasonState) -> bool:
 		return false
 	var run: Dictionary = runs[-1]
 	if (
-		not gear_matches(season, false)
+		not ClubCollection.matches(self, season, false)
+		or not gear_matches(season, false)
 		or not sponsor_matches(season, false)
 		or not order_matches(season, false)
 		or not rain_matches(season, false)
@@ -124,6 +126,7 @@ func sync(season: SeasonState) -> bool:
 	if run.status == "completed":
 		return (
 			season.phase == SeasonState.Phase.COMPLETE
+			and ClubCollection.matches(self, season, true)
 			and same(run.proof, proof)
 			and same(run.gear, gear)
 			and same(run.sponsors, sponsors)
@@ -151,6 +154,7 @@ func sync(season: SeasonState) -> bool:
 			return false
 		run.receipt = award
 		run.status = "completed"
+	run.collection = ClubCollection.acquired(season.build)
 	run.proof = proof
 	run.gear = gear
 	run.sponsors = sponsors
@@ -196,7 +200,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 18, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 19, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -210,7 +214,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 18)
+		not SeasonOwnership._whole(value.version, 1, 19)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -228,6 +232,7 @@ static func from_data(value: Variant) -> ClubCareer:
 				row,
 				(
 					["id", "seed", "league", "tier", "status", "proof", "receipt"]
+					+ (["collection"] if value.version >= 19 else [])
 					+ (["gear"] if value.version >= 2 else [])
 					+ (["sponsors"] if value.version >= 3 else [])
 					+ (["order_rerolls"] if value.version >= 4 else [])
@@ -273,6 +278,12 @@ static func from_data(value: Variant) -> ClubCareer:
 		if row.status == "abandoned" and row.id == result.current:
 			return null
 		var migrated: Dictionary = row.duplicate(true)
+		if value.version < 19:
+			migrated["collection"] = null
+		if value.version >= 19 and row.id == result.current and migrated.collection == null:
+			return null
+		if migrated.collection != null and not ClubCollection.valid(migrated.collection):
+			return null
 		if value.version == 1:
 			migrated["gear"] = null
 		if (
@@ -370,6 +381,7 @@ func matches(season: SeasonState) -> bool:
 		run.seed == season.season_seed
 		and (run.status == "completed") == (season.phase == SeasonState.Phase.COMPLETE)
 		and same(run.proof, ClubSeasonRecord.capture(season))
+		and ClubCollection.matches(self, season, true)
 		and gear_matches(season, true)
 		and sponsor_matches(season, true)
 		and order_matches(season, true)

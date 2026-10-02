@@ -113,7 +113,7 @@ static func progress(menu: SeasonMenu) -> void:
 				+ "are neutral. Complete the game; no win required. 12 Season Cash • Uncommon • "
 				+ "Working. "
 			)
-			+ ITEMS.E10.effect
+			+ ClubCollectionUI.effect(menu, "E10")
 		)
 	)
 	var build: SeasonBuild = menu.app.season.build

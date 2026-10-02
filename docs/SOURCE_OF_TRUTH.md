@@ -1,12 +1,40 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.79
+**Version:** v0.4.80
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Persistent Gear and sponsor collection, 2026-10-02
+
+Club Record now opens a collection covering all 23 implemented Gear and 35 sponsors.
+Acquisition, earned shop access and current seasonal ownership are shown separately.
+Ordinary, discounted, replacement and grouped purchases reveal an item's effect in
+collection; duplicates count once. Selling, abandonment and starting another season
+retain discovery, never a usable spare copy. Neutral defaults, displayed offers,
+reservations, previews, failed purchases and AI purchases do not create discoveries.
+
+Source: Progression/Economy v24, Approved access/collection behavior (43–59), and
+Equipment/Sponsors v18, ownership/discovery and neutral defaults (16–74), reread
+2026-10-02 with Decisions v31. Effects remain concealed before acquisition on both
+collection and Gear/sponsor progression pages. Names, price and ordinary unlock
+requirements remain visible. Shop offers and Equipped disclose full effects as before.
+Working effects/prices and unapproved Proposals retain their existing status.
+
+Career 19 saves sorted acquisition identities for each run. The current season's list
+is derived from validated successful purchase journals, including already sold copies.
+Old active/completed-current seasons recover only that actual journal evidence; older
+archived seasons explicitly retain unknown acquisition history. No score, item access
+or mere encounter is reinterpreted as purchase. Build 39/save 43 and opponent policy 2
+stay unchanged. No catalog signatures, receipts, shop draws or game modifiers change.
+
+This slice is equipment discovery, not player-card ownership/packs or a new League
+unlock rule. Other item categories remain outside this collection. The centralized
+Equipped button, immediate saved sales and safe next-batter effect retirement remain.
+Final native rendering and human visual/feel acceptance remain required.
 
 ## Complete current shop-category support, 2026-10-02
 

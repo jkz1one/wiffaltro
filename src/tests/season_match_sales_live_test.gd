@@ -45,7 +45,10 @@ func _ready() -> void:
 	if restored != null:
 		for id: String in Fixtures.BASE_PAIR:
 			_check(
-				restored.career.gear_counts().get(id, 0) == 1,
+				(
+					restored.career.gear_counts().get(id, 0) == 1
+					and ClubCollection.discoveries(restored.career).has(id)
+				),
 				"sold paid copy earns exactly one completed use"
 			)
 		_check(

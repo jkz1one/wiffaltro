@@ -219,6 +219,8 @@ func _persistence_order() -> void:
 	_check(SeasonSave.save(legacy), "legacy tracked career fixture saves")
 	var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	old.career.version = 3
+	for historical: Dictionary in old.career.runs:
+		historical.erase("collection")
 	for run: Dictionary in old.career.runs:
 		run.erase("order_rerolls")
 		run.erase("rain_earned")

@@ -65,7 +65,7 @@ static func progress(menu: SeasonMenu) -> void:
 		(
 			"Season: six clean fielded outs across completed games. Any credited defender. "
 			+ "No Ks, foul catches or prior bobbles. 14 Cash • Uncommon • Working. "
-			+ ITEMS.B01.effect
+			+ ClubCollectionUI.effect(menu, "B01")
 		)
 	)
 	if menu.app.season.build != null and menu.app.season.build._field_start != null:

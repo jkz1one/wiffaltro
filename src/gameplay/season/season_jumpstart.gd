@@ -162,7 +162,7 @@ static func progress(menu: SeasonMenu) -> void:
 			(
 				"Game: one Primary Fielder records three clean fielded outs in a completed game. "
 				+ "No Ks, foul catches or prior bobbles. No win required. 12 Cash • Uncommon • Working. "
-				+ ITEMS.J04.effect
+				+ ClubCollectionUI.effect(menu, "J04")
 			)
 		)
 	)

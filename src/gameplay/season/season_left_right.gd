@@ -130,7 +130,7 @@ static func progress(menu: SeasonMenu) -> void:
 		(
 			"Game: complete three opposite-side transitions between consecutive club PAs "
 			+ "within offensive halves. No win required. 12 Season Cash • Uncommon • Working. "
-			+ ITEMS.F06.effect
+			+ ClubCollectionUI.effect(menu, "F06")
 		)
 	)
 	var build: SeasonBuild = menu.app.season.build

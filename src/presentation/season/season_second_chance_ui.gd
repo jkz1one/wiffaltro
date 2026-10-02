@@ -84,7 +84,7 @@ static func progress(menu: SeasonMenu) -> void:
 			"Career: consume three tactical copies in completed games. "
 			+ "Inherited effects, unfinished games and replay do not count. %d / 3. " % count
 			+ "14 Season Cash • Uncommon • Working. "
-			+ SeasonSecondChance.ITEMS.E04.effect
+			+ ClubCollectionUI.effect(menu, "E04")
 		)
 	)
 	var build: SeasonBuild = menu.app.season.build
