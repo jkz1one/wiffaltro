@@ -162,9 +162,14 @@ static func _resolve_at_contact(
 		exit_speed *= profile.gear_fair_exit_scale
 		if quality >= 0.65:
 			exit_speed *= profile.tactical_quality_exit_scale
-		result.launch_angle_degrees = line_drive_angle(
-			result.launch_angle_degrees, quality, profile.gear_line_drive_strength
-		)
+		if profile.gear_line_drive_calibrated:
+			result.launch_angle_degrees = SeasonAlleyGear.angle(
+				result.launch_angle_degrees, quality, profile.gear_line_drive_strength
+			)
+		else:
+			result.launch_angle_degrees = line_drive_angle(
+				result.launch_angle_degrees, quality, profile.gear_line_drive_strength
+			)
 
 	var launch_angle_radians: float = deg_to_rad(result.launch_angle_degrees)
 	var spray_radians: float = deg_to_rad(result.spray_degrees)

@@ -160,6 +160,8 @@ static func catalog(catalog_version: int = 3) -> Dictionary:
 
 
 static func item(id: String) -> Dictionary:
+	if SeasonAlleyGear.ITEMS.has(id):
+		return SeasonAlleyGear.ITEMS[id].duplicate(true)
 	return (
 		ITEMS
 		. get(id, MISC_ITEMS.get(id, PROPOSAL_ITEMS.get(id, SeasonEarnedGear.ITEMS.get(id, {}))))
@@ -175,7 +177,7 @@ static func ownership_catalog() -> Dictionary:
 	var result: Dictionary = DevelopmentShopCatalog.ownership_catalog()
 	result.merge(SeasonTacticalCatalog.ownership_catalog())
 	var all_items: Dictionary = catalog()
-	all_items.merge(SeasonEarnedGear.ITEMS)
+	all_items.merge(SeasonEarnedGear.catalog())
 	for id: String in all_items:
 		result[id] = {
 			"kind": "gear", "slot": all_items[id].slot, "price": all_items[id].price, "sale": "half"
@@ -188,9 +190,10 @@ static func eligible(
 ) -> Dictionary:
 	var result: Dictionary = {}
 	var all_items: Dictionary = catalog(catalog_version)
+	var later: Dictionary = SeasonEarnedGear.catalog()
 	for id: String in earned:
-		if SeasonEarnedGear.ITEMS.has(id):
-			all_items[id] = SeasonEarnedGear.ITEMS[id]
+		if later.has(id):
+			all_items[id] = later[id]
 	for id: String in all_items:
 		var slot: String = all_items[id].slot
 		if gear.get(slot, {}).get("item", "") == id:
@@ -201,10 +204,13 @@ static func eligible(
 	return result
 
 
-static func equip(player: PlayerDefinition, gear: Dictionary) -> PlayerDefinition:
+static func equip(
+	player: PlayerDefinition, gear: Dictionary, alley_calibrated: bool = true
+) -> PlayerDefinition:
 	# Runtime copy only. Ratings, authored resources and developed recipes stay pristine.
 	var result: PlayerDefinition = player.duplicate() as PlayerDefinition
 	result.season_gear = {}
+	result.season_alley_calibrated = alley_calibrated
 	for slot: String in SeasonOwnership.GEAR_SLOTS:
 		var id: String = gear.get(slot, {}).get("item", "")
 		if item(id).get("slot", "") == slot:
@@ -227,11 +233,7 @@ static func swing(
 	result.contact_radius_y_m *= factor(player, "radius")
 	result.gear_fair_exit_scale = factor(player, "exit")
 	result.gear_timing_scale = factor(player, "timing")
-	if player.season_gear.get("bat", "") == "A02":
-		if source.id == &"swing.contact":
-			result.gear_line_drive_strength = 0.25
-		elif source.id == &"swing.power":
-			result.gear_fair_exit_scale *= 0.92
+	SeasonAlleyGear.configure(result, player)
 	return result
 
 

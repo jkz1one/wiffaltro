@@ -1,5 +1,86 @@
 # Fast verification and playtest records
 
+## Calibrated Alley and earned Gap Driver, 2026-10-02
+
+Broad run `20261002T065013901568Z` passed **30/31 checks** under Godot 4.7.2: seven common gates and
+23/24 selected scenes. `season-special-order` exited zero after its contracts stage,
+before the required pass marker. No pass is claimed for that execution. Live follow-up
+`20261002T065709817923Z` passed **8/9 checks**: the final Gap Driver live test passed two
+complete games, but unchanged Special Order repeated the same early exit. Final run
+`20261002T065946025821Z` passed **8/8 checks**, including Special Order with the explicit verified
+seed27 fixture. All **24 selected scenes** passed across the recorded runs; seven
+complete physical games ran in the broad/live-follow-up scope. This is targeted coverage,
+not a full-suite pass. Production code stayed unchanged through these runs.
+
+Scope: `season-gap-driver`, `season-gap-driver-live`, `alley-calibration`, `season-mapped-gear`, `season-mapped-gear-live`, `season-gear-progress`, `season-gear-progress-live`, `season-match-sales`, `season-match-sales-live`, `club-collection`, `club-career`, `season-special-order`, `season-raincheck`, `season-wholesale`, `season-loadout-ui`, `season-opponents`, `season-retraining`, `season-abilities`, `season-left-right`, `season-freezers`, `season-carbon-copy`, `season-flow`, `season-shell`, `regressions`.
+
+New paid coverage earns ten actual controlled completed Alley uses through real generated
+purchases, includes a tenth loss, crosses seasons without copying ownership, buys Gap Driver
+for 16 Cash, and checks current collection and progression UI. Exact cancel/save-failure
+rollback preserves money and prior bytes. Paid A02 replacement refunds six toward the new
+16-Cash receipt, duplicate confirmation is idempotent, ordinary sale refunds eight, and
+forged receipts reject. Focused/reserved quote eligibility uses the same earned pool.
+Existing Special Order, Raincheck and Wholesale scenes cover their paid transaction flows.
+
+`src/tests/fixtures/alley_v39.json` was captured from parent production before modification:
+Build39/save43/Career19, real paid A02/Ball and two completed owned uses. Migration preserves
+wallet, stock and receipt IDs, does not award those old Alley uses, counts only the next
+completed game, and survives repeated replay. Invalid/missing/backdated boundaries and
+pre20 career Alley evidence reject. Independently captured Build3/5/20/39 signatures
+still match. Tests reject two Bat identities in one game even when one is historical A02.
+
+Shared resolver checks cover both stances, fair Contact/Power, weak/foul/miss exclusion,
+speed/spray/spin/quality preservation, meaningful 25%/50% shaping, and multiplicative
+Gloves/tactical-speed composition. The retained calibration sweep reproduces the old
+near-zero envelope and the selected candidate, with 300,003 fine samples, 29,478 grid
+samples and 108 swept-contact encounters. Artificial error grids are not gameplay odds.
+
+| Run / physical scenario | Innings | Pitch records | Balls in play | Score |
+| --- | ---: | ---: | ---: | --- |
+| Broad: paid Gap Driver | 4 | 143 | 34 | Yard Club 0–10 Lanterns |
+| Broad: Gap active-swing sale | 4 | 137 | 37 | Kites 12–0 Yard Club |
+| Broad: prior paid Gear live sale | 4 | 124 | 27 | Yard Club 0–10 Lanterns |
+| Broad: earned Gear twentieth use | 3 | 79 | 26 | Switches 0–11 Yard Club |
+| Broad: calibrated Alley / Shoes | 4 | 87 | 32 | Working Rival Lab 10–0 Working Player Lab |
+| Follow-up: Gap with aimed Contact | 5 | 144 | 26 | Yard Club 0–8 Lanterns |
+| Follow-up: Gap active-swing sale | 4 | 137 | 37 | Kites 12–0 Yard Club |
+
+The original passive Gap games observed 803 AI-profile frames and 130 contact records,
+but **zero qualifying flattened hits**. They establish flow/sale coverage, not the trigger.
+The final test adds one test-driver-predicted legal human Contact swing, with no production
+AI lookahead, forced contact result or altered ball flight. Its two games observed 759
+AI-profile frames,123 contact records and **two qualifying flattened contacts with real
+physics bodies**. Sold Gap ownership/refund save immediately; failed writes roll back;
+the active swing retains its profile and effects retire at the natural PA boundary.
+Each completed game grants one use, including the sold copy; replay retains discovery
+without resurrecting ownership. Controlled opponent equipment exercises the shared AI
+resolver, not AI acquisition, which remains outside this slice.
+
+All **572** final source/test/asset/project/runner files are frozen through publication.
+The observed broad copied runner matched **563** snapshot files. Between
+broad and final evidence only two test files changed: the explicit physical-contact
+stimulus in `season_gap_driver_live_test.gd`, and Special Order's fixture in
+`season_special_order_test.gd`. The intermediate live and final Special Order runners were not independently hashed
+before cleanup; final source hashes and their ordinary runner logs are preserved. No
+production, catalog, gameplay or save code changed after the broad snapshot.
+
+Special Order now uses the previously verified seed27, still plays three controlled
+results, pays four ordinary rerolls, asserts the generated J01 offer and pays its normal
+price. No stock injection, removed assertions or weakened completion marker. Its final
+pass does **not** explain or resolve the historical exit-zero symptom. The failed broad
+and follow-up executions remain recorded. Passing logs contain no warnings/errors.
+Earlier focused `20261002T064755669558Z` passed10/10, including the two passive Gap games.
+Initial lint attempts `20261002T064255633811Z` and `20261002T064727167650Z` stopped on two
+long test lines. Intermediate `20261002T064341841032Z` passed12/14: a new fixture assumed
+shop offers persisted after normal result settlement, and an old UI assertion still
+expected Alley to say unapproved Proposal instead of selected Working calibration. Those
+test assumptions were corrected; no production change was needed.
+
+Build40/save44/Career20/opponent policy2. Content24/25 Gear and35/35 sponsors; whole-project
+estimate approximately **74%**, not release readiness. Main and the repository blueprint
+remain unchanged. Frozen Rope's gap-scoring/geometry contract, native rendered review,
+human visual/feel acceptance and balance remain open. No merge or deployment.
+
 ## Alley calibration experiment, 2026-10-02
 
 Run `20261002T062747379436Z` passed **10/10 checks** under Godot4.7.2: seven common

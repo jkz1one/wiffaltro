@@ -1,6 +1,6 @@
 class_name SeasonEarnedGear
 extends RefCounted
-## Equipment/Sponsors v18 numeric candidates remain Working. Alley tiers remain gated.
+## Frozen original earned catalog. New identities extend catalog(), never these bytes.
 
 const ITEMS: Dictionary = {
 	"BAT-CON-02":
@@ -96,3 +96,9 @@ const ITEMS: Dictionary = {
 		"effect": "Pitch velocity +6%; authored movement +14%; command dispersion +35%."
 	}
 }
+
+
+static func catalog() -> Dictionary:
+	var result: Dictionary = ITEMS.duplicate(true)
+	result[SeasonAlleyGear.GAP] = SeasonAlleyGear.ITEMS[SeasonAlleyGear.GAP].duplicate(true)
+	return result

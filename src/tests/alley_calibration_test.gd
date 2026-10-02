@@ -21,7 +21,7 @@ func _ready() -> void:
 	_boundaries()
 	_swept(source)
 	_check(source.gear_line_drive_strength == 0.0, "authored profile stays neutral")
-	_check(SeasonEarnedGear.ITEMS.size() == 10, "experiment adds no purchasable Gear")
+	_check(SeasonEarnedGear.ITEMS.size() == 10, "historical ten-item catalog remains frozen")
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--calibration-report="):
 			var file: FileAccess = FileAccess.open(
@@ -246,7 +246,12 @@ func _candidate_angle(angle: float, quality: float, strength: float) -> float:
 		return angle
 	var weight: float = smoothstep(0.65, 0.70, quality)
 	weight *= smoothstep(12.0, 14.0, angle) * (1.0 - smoothstep(38.0, 40.0, angle))
-	return lerpf(angle, 10.0, strength * weight)
+	var expected: float = lerpf(angle, 10.0, strength * weight)
+	_check(
+		is_equal_approx(SeasonAlleyGear.angle(angle, quality, strength), expected),
+		"selected production calibration matches measured candidate"
+	)
+	return expected
 
 
 func _candidate_velocity(result: ContactResult, angle: float) -> Vector3:

@@ -20,40 +20,29 @@ func _ready() -> void:
 
 
 func _order_fixture(buy: bool = true) -> SeasonState:
-	var probe: SeasonBuild = SeasonBuild.new(0, ROSTER)
-	probe._order_start = false
-	probe._paid_rerolls = 3
-	probe._visit.number = 3
-	for seed_value in range(2000):
-		probe._seed = seed_value
-		if not probe._offers(4).values().has("J01"):
-			continue
-		var season: SeasonState = _new_club(seed_value)
-		for game in range(3):
-			_result(season, [])
-		var build: SeasonBuild = season.build
-		build.commit(_command(build, "open"))
-		for roll in range(4):
-			_check(build.commit(_command(build, "reroll")).ok, "ordinary paid reroll")
-		if _offer(build, "J01").is_empty():
-			continue
-		if buy:
-			_check(
-				(
-					build
-					. commit(
-						_command(
-							build, "sponsor_buy", {"offer": _offer(build, "J01"), "replace": ""}
-						)
-					)
-					. ok
-				),
-				"pay real sponsor price"
-			)
-		print("SPECIAL_ORDER_FIXTURE seed=", seed_value)
-		return season
-	_check(false, "earned sponsor reachable through generated stock")
-	return null
+	# Fixed, previously verified generated-stock fixture. Keep ordinary results,
+	# paid rerolls and the exact offer assertion; no injected stock or free access.
+	var season: SeasonState = _new_club(27)
+	for game in range(3):
+		_result(season, [])
+	var build: SeasonBuild = season.build
+	_check(build.commit(_command(build, "open")).ok, "open real earned visit")
+	for roll in range(4):
+		_check(build.commit(_command(build, "reroll")).ok, "ordinary paid reroll")
+	_check(not _offer(build, "J01").is_empty(), "seed27 generates earned Special Order offer")
+	if buy:
+		_check(
+			(
+				build
+				. commit(
+					_command(build, "sponsor_buy", {"offer": _offer(build, "J01"), "replace": ""})
+				)
+				. ok
+			),
+			"pay real sponsor price"
+		)
+	print("SPECIAL_ORDER_FIXTURE seed=27")
+	return season
 
 
 func _contracts() -> void:

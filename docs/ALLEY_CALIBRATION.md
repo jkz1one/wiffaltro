@@ -1,6 +1,12 @@
 # Alley family calibration decision
 
-Measured 2026-10-02 using Godot 4.7.2. **Experiment only; no playable tuning change.**
+Measured 2026-10-02 using Godot 4.7.2. Original experiment retained below.
+
+**Selection update:** the user replied “continue” to the concrete recommendation on
+2026-10-02. The 10° target / 12–14° onset is now selected for **Working tests**, including
+Gap Driver. This does not approve balance or Frozen Rope's still-unspecified gap scoring.
+Build 40 implements the selected mapping; the statements below about an inactive candidate
+record the earlier measurement checkpoint, not the current implementation status.
 User priority is to finish the shop and its items before another larger system.
 
 ## Current contract and blocker

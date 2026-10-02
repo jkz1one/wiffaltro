@@ -42,4 +42,6 @@ static func apply(build: SeasonBuild) -> void:
 		build._film_from = next_visit
 	if build._format < 36:
 		build._abilities.from_visit = next_visit
+	if build._format < 40:
+		build._gear_progress.alley_from = build.revision()
 	build._format = SeasonBuild.VERSION

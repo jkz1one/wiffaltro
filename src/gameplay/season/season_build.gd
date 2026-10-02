@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 39
+const VERSION: int = 40
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -152,7 +152,7 @@ func definition(player_id: String) -> PlayerDefinition:
 	var result: PlayerDefinition = ProgressionMatchAdapter.player(_book, player_id)
 	if result != null and _roster.has(player_id):
 		result.season_abilities = _abilities.ids(player_id)
-		result = SeasonGearCatalog.equip(result, _bank.view().gear)
+		result = SeasonGearCatalog.equip(result, _bank.view().gear, _format >= 40)
 		result.season_sponsors = SeasonSponsorEffects.snapshot(
 			_bank.view().sponsors, _book, _roster, _legends
 		)
@@ -266,6 +266,8 @@ func to_data() -> Dictionary:
 		data["major_start"] = _major.start
 	if _format >= 38:
 		data["retraining_enabled"] = _retraining_enabled
+	if _format >= 40:
+		data["alley_from"] = _gear_progress.alley_from
 	if _format >= 35:
 		data["copy_start"] = _copy.start
 	if _format >= 34:
@@ -735,6 +737,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonDoubleMajor.ITEMS).sha256_text()
 	if format_version >= 38:
 		base += ":" + JSON.stringify(SeasonRetraining.ITEM).sha256_text()
+	if format_version >= 40:
+		base += ":" + JSON.stringify(SeasonAlleyGear.ITEMS).sha256_text()
 	return base
 
 

@@ -88,6 +88,8 @@ static func restore(
 		keys.append("major_start")
 	if value.version >= 38:
 		keys.append("retraining_enabled")
+	if value.version >= 40:
+		keys.append("alley_from")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -100,6 +102,10 @@ static func restore(
 		return null
 	var result: SeasonBuild = SeasonBuild.new(seed_value, roster, pool, blocked)
 	result._format = int(value.version)
+	if value.version >= 40:
+		if not SeasonOwnership._whole(value.alley_from, 0, value.events.size()):
+			return null
+		result._gear_progress.alley_from = int(value.alley_from)
 	result._retraining_enabled = false
 	if value.version >= 38:
 		if not value.retraining_enabled is bool:
@@ -183,7 +189,10 @@ static func restore(
 			return null
 		result._market = int(value.market)
 	if value.version >= 20 and value.gear_start != null:
-		if not SeasonGearProgress.valid_counts(value.gear_start) or result._market != 0:
+		if (
+			not SeasonGearProgress.valid_counts(value.gear_start, value.version >= 40)
+			or result._market != 0
+		):
 			return null
 		result._gear_progress.enabled = true
 		result._gear_progress.start = value.gear_start.duplicate()

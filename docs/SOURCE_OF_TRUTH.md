@@ -1,12 +1,42 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.81
+**Version:** v0.4.82
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Calibrated Alley Bat and earned Gap Driver, 2026-10-02
+
+The user's “continue” after the explicit 10° target / 12–14° onset recommendation
+selects that candidate for **Working tests**. It does not approve balance. Both Alley
+Bat and Gap Driver now flatten qualifying fair Contact toward 10°, with smooth quality
+entry at 0.65–0.70, angular entry at 12–14° and falloff at 38–40°. Strengths are 0.25 and
+0.50; fair Power exit-speed penalties remain 8% and 12%. Ordinary Contact's 7° attack
+angle, contact quality, timing, spray, spin and exit-speed magnitude are preserved.
+Grounders, weak contact and fouls are not rescued. There is no horizontal steering.
+
+A02 remains the original Alley identity. Gap Driver is BAT-ALY-02, costs 16 Cash and
+becomes eligible after ten completed qualifying Alley games across the career. First
+released-pitch ownership, once-per-game use and loss credit follow the existing Working
+Gear rule. Access grants no free copy, regenerates no shop and survives abandonment.
+Ordinary offers, focused Gear, reservations, atomic replacement, half-paid resale,
+collection and the shared Equipped lightbox all use the same paid item. Gap use is
+recorded prospectively; Frozen Rope remains unavailable pending its gap-scoring contract.
+
+Build 40/save 44/Career 20 adds an Alley progression event boundary. Migration preserves
+old stock, receipts, paid ownership and historical use records; no old Alley games are
+backfilled. Older replay retains the original mapping; subsequent playable matches use
+the selected calibration. Frozen catalog constants and old signatures remain unchanged.
+Current ownership/refunds still save immediately during play and effects retire at the
+safe next-batter boundary. The centered Equipped entry remains fixed.
+
+Content is 24/25 Gear, 35/35 sponsors, five tactical supplies, three learned abilities
+and one transformation. Shop/items remain the user's priority. Whole-project completion
+stays approximately 74%, not release readiness. Native rendered review, human visual/feel
+acceptance and balance calibration remain open. See VERIFICATION for precise evidence.
 
 ## Alley calibration evidence and shop-first priority, 2026-10-02
 

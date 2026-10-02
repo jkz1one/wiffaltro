@@ -27,7 +27,7 @@ func _ready() -> void:
 
 
 func _thresholds() -> void:
-	_check(SeasonEarnedGear.ITEMS.size() == 10, "five supported chains; Alley remains gated")
+	_check(SeasonEarnedGear.ITEMS.size() == 10, "original five-chain catalog stays frozen")
 	for family: String in SeasonGearProgress.FAMILIES:
 		var counts: Dictionary = {family + "-01": 9}
 		_check(SeasonGearProgress.access(counts).is_empty(), "nine never unlocks")
@@ -44,7 +44,9 @@ func _thresholds() -> void:
 			eligible["bat" if family.begins_with("BAT") else "ball"].has(family + "-03"),
 			"eligible without owning predecessor"
 		)
-	for bad: Dictionary in [{"BAT-CON-03": 1}, {"BAT-CON-01": 9.5}, {"BAT-CON-02": 1}, {"A02": 10}]:
+	for bad: Dictionary in [
+		{"BAT-CON-03": 1}, {"BAT-CON-01": 9.5}, {"BAT-CON-02": 1}, {"BAT-ALY-01": 10}
+	]:
 		_check(not SeasonGearProgress.valid_counts(bad), "reject unsupported or impossible counts")
 	var scores: Array = [[0, 0, 1, 1, 0], [1, 2, 3, 1, 0]]
 	for bad: Array in [

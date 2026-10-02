@@ -19,6 +19,7 @@ extends DefinitionBase
 @export_storage var gear_fair_exit_scale: float = 1.0
 @export_storage var gear_timing_scale: float = 1.0
 @export_storage var gear_line_drive_strength: float = 0.0
+@export_storage var gear_line_drive_calibrated: bool = false
 
 
 func is_valid_definition() -> bool:

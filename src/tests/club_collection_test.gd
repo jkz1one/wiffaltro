@@ -54,7 +54,7 @@ func _paid_discovery() -> SeasonState:
 	var season: SeasonState = _collection_order(false)
 	print("COLLECTION_STAGE order fixture complete")
 	var build: SeasonBuild = season.build
-	_check(ClubCollection.catalog().size() == 58, "23 implemented Gear and 35 sponsors")
+	_check(ClubCollection.catalog().size() == 59, "24 implemented Gear and 35 sponsors")
 	_check(ClubCollection.acquired(build).is_empty(), "earn/display/reroll never acquires")
 	_check(SeasonSave.save(season), "save earned access before purchase")
 	_check(ClubCollection.access(season.career).has("J01"), "access distinct from discovery")
@@ -256,7 +256,7 @@ func _collection_ui(season: SeasonState) -> void:
 			var next: Button = _button(app.menu, "NEXT")
 			if next != null:
 				await _click(next)
-	_check(seen.size() == 58, "all implemented equipment reachable")
+	_check(seen.size() == 59, "all implemented equipment reachable")
 	ClubGearProgressUI.show(app.menu)
 	await _frames()
 	for id: String in SeasonEarnedGear.ITEMS:

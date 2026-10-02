@@ -80,6 +80,8 @@ static func show(menu: SeasonMenu, category: String = "Gear", page: int = 0) -> 
 
 
 static func requirement(id: String) -> String:
+	if id == SeasonAlleyGear.GAP:
+		return "Complete 10 qualifying games with Alley Bat equipped at the first pitch."
 	if SeasonEarnedGear.ITEMS.has(id):
 		var tier: int = int(id.right(2))
 		var prior: String = id.left(-2) + "%02d" % (tier - 1)

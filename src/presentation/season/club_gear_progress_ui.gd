@@ -47,12 +47,35 @@ static func show(menu: SeasonMenu) -> void:
 					]
 				)
 			)
+	var alley: VBoxContainer = SeasonPlayerCard.panel(menu._body)
+	menu._label(alley, "Alley Bat", 22)
+	var uses: int = int(counts.get(SeasonAlleyGear.BASE, 0))
 	SeasonPages.wrapped(
-		menu._body,
+		alley,
 		(
-			"Alley tiers await stable IDs and effect calibration. All seven Misc remain "
-			+ "initially eligible. Older saves begin Gear tracking with their next new "
-			+ "Working season; no past use is invented."
+			"Gap Driver • %s • %d/10 with Alley Bat\n16 Season Cash • Working: %s"
+			% [
+				"SHOP ELIGIBLE" if uses >= 10 else "LOCKED",
+				mini(uses, 10),
+				ClubCollectionUI.effect(menu, SeasonAlleyGear.GAP)
+			]
+		)
+	)
+	SeasonPages.wrapped(
+		alley,
+		(
+			"Gap Driver qualifying games: %d. Frozen Rope is not available yet."
+			% int(counts.get(SeasonAlleyGear.GAP, 0))
+		)
+	)
+	(
+		SeasonPages
+		. wrapped(
+			menu._body,
+			(
+				"All seven Misc are initially eligible. Alley progression counts future completed games; "
+				+ "older untracked games grant no retroactive credit."
+			)
 		)
 	)
 	menu._button(menu._footer, "BACK TO CLUB RECORD", ClubCareerUI.show.bind(menu, 0))

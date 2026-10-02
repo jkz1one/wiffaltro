@@ -5,6 +5,7 @@ extends RefCounted
 
 const FAMILIES: Array[String] = ["BAT-CON", "BAT-POW", "BALL-MOV", "BALL-VEL", "BALL-HYB"]
 var enabled: bool = false
+var alley_from: int = 0
 var start: Dictionary = {}
 var games: Array[Dictionary] = []
 
@@ -12,25 +13,35 @@ var games: Array[Dictionary] = []
 func fork() -> SeasonGearProgress:
 	var result: SeasonGearProgress = SeasonGearProgress.new()
 	result.enabled = enabled
+	result.alley_from = alley_from
 	result.start = start.duplicate()
 	result.games = games.duplicate(true)
 	return result
 
 
-static func valid_counts(value: Variant) -> bool:
+static func valid_counts(value: Variant, allow_alley: bool = true) -> bool:
 	if not value is Dictionary:
 		return false
 	for id: Variant in value:
-		if not id is String or not tracked(id) or not SeasonOwnership._whole(value[id], 1, 12288):
+		if (
+			not id is String
+			or not tracked(id, allow_alley)
+			or not SeasonOwnership._whole(value[id], 1, 12288)
+		):
 			return false
+	if value.get(SeasonAlleyGear.GAP, 0) > 0 and value.get(SeasonAlleyGear.BASE, 0) < 10:
+		return false
 	for family: String in FAMILIES:
 		if value.get(family + "-02", 0) > 0 and value.get(family + "-01", 0) < 10:
 			return false
 	return true
 
 
-static func tracked(id: String) -> bool:
-	return id.left(-3) in FAMILIES and id.right(3) in ["-01", "-02"]
+static func tracked(id: String, allow_alley: bool = true) -> bool:
+	return (
+		(allow_alley and id in [SeasonAlleyGear.BASE, SeasonAlleyGear.GAP])
+		or (id.left(-3) in FAMILIES and id.right(3) in ["-01", "-02"])
+	)
 
 
 static func access(counts: Dictionary) -> Array[String]:
@@ -40,6 +51,8 @@ static func access(counts: Dictionary) -> Array[String]:
 			result.append(family + "-02")
 		if counts.get(family + "-02", 0) >= 20:
 			result.append(family + "-03")
+	if counts.get(SeasonAlleyGear.BASE, 0) >= 10:
+		result.append(SeasonAlleyGear.GAP)
 	return result
 
 
@@ -69,14 +82,17 @@ func settle(build: SeasonBuild, command: Dictionary) -> void:
 	var items: Array[String] = []
 	for receipt: Dictionary in SeasonMatchInventory.gear(build).values():
 		if not receipt.is_empty() and command.get("used_gear", []).has(receipt.id):
-			if tracked(receipt.item):
+			var allow_alley: bool = build._format >= 40 and build.revision() >= alley_from
+			if tracked(receipt.item, allow_alley):
 				items.append(receipt.item)
 	items.sort()
 	if not items.is_empty():
 		games.append({"game": int(command.game), "items": items})
 
 
-static func valid_games(value: Variant, scores: Array, baseline: Dictionary) -> bool:
+static func valid_games(
+	value: Variant, scores: Array, baseline: Dictionary, allow_alley: bool = true
+) -> bool:
 	if not value is Array or value.size() > 12:
 		return false
 	var previous: int = -1
@@ -96,13 +112,16 @@ static func valid_games(value: Variant, scores: Array, baseline: Dictionary) -> 
 		var slots: Array[String] = []
 		var sorted: Array = row.items.duplicate()
 		for id: Variant in row.items:
-			if not id is String or not tracked(id) or slots.has(id.left(3)):
+			if not id is String or not tracked(id, allow_alley):
+				return false
+			var slot: String = SeasonGearCatalog.item(id).slot
+			if slots.has(slot):
 				return false
 			if id.ends_with("-02") and not access(counts).has(id):
 				return false
-			slots.append(id.left(3))
+			slots.append(slot)
 		sorted.sort()
 		if sorted != row.items:
 			return false
 		counts = add(counts, [row])
-	return valid_counts(counts)
+	return valid_counts(counts, allow_alley)

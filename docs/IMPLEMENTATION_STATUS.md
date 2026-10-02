@@ -1,5 +1,21 @@
 # Implementation Status
 
+## Calibrated Alley and Gap Driver, 2026-10-02
+
+Alley now has the user-selected Working 10° target / 12–14° onset. Gap Driver adds the
+50% flattening tier, 12% fair Power penalty, 16-Cash purchase and ten-game prospective
+Alley unlock. Ordinary/focused/reserved offers, atomic replacement, resale, persistent
+collection, progression UI and shared shop/live Equipped inspection are integrated.
+Migration retains old purchases and stock while starting Alley-use tracking prospectively.
+Live sales keep the current batter's effect until the safe next-batter boundary.
+
+Build 40/save 44/Career 20, opponent policy 2. **24/25 Gear**, **35/35 human sponsors**,
+five supplies, three learned abilities and one transformation. Frozen Rope is the final
+Gear identity still gated by its field-relative gap depth/scoring/candidate-spacing
+contract. Shop/items remain the next priority. Whole-project estimate approximately **74%**,
+not release readiness. Final native rendering, human visual/feel acceptance, balance and
+the historical intermittent early-exit investigation remain open. See latest verification.
+
 ## Remaining shop Gear calibration, 2026-10-02
 
 Shop/items remain the user's next priority. A new measurement-only resolver harness

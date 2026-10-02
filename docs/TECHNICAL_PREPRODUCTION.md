@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.72
+**Version:** v0.1.73
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,35 @@
 
 # 1. Technical Objective
 
+
+## Versioned Alley calibration and Gap progression, 2026-10-02
+
+`SeasonAlleyGear` owns the selected Working mapping and current A02/BAT-ALY-02 display
+metadata. Runtime-only player/profile flags choose calibrated shaping for Build 40;
+`ContactResolver.line_drive_angle` retains the old 16° mapping for legacy reconstruction.
+Both paths execute once after ordinary contact classification and before launch-vector
+construction. No base swing resource, AI input/read policy or camera behavior changes.
+
+`SeasonEarnedGear.ITEMS` and `SeasonGearCatalog.PROPOSAL_ITEMS` remain frozen for prior
+signatures. `SeasonEarnedGear.catalog()` adds the new paid identity; the current `item()`
+lookup discloses calibrated A02 details without rewriting old catalog bytes. Build 40
+appends a new signature component. Ownership prices/receipt IDs and ordinary transaction
+composition are unchanged. Shared Special Order/Raincheck pools inherit actual earned access.
+
+`SeasonGearProgress.alley_from` stores the earliest eligible command revision. New builds
+start at zero; old builds replay first, then migrate at their current journal length.
+Future rewards count A02/BAT-ALY-02 only at/after that boundary. The field is serialized,
+range-validated and forked in the existing helper; SeasonBuild remains 919 lines. Career
+20 admits the two new progress identities while older versions reject them. Validation
+uses actual Gear slots, so A02 cannot evade the one-Bat-per-game constraint. No historical
+counter repair or invented Frozen Rope eligibility is added.
+
+The original parent-commit Build 39/save 43/Career 19 fixture preserves real paid A02 and
+two untracked completed uses. Tests reconstruct it, preserve its wallet/stock/receipt IDs,
+count only a subsequent use, and reject missing/invalid/backdated boundaries. Frozen
+signatures for Builds 3/5/20/39 are captured independently before changing production.
+The prospective boundary and new mapping survive save, candidate forks and career rebuilds.
+Build 40/save 44/Career 20, opponent policy 2. Native/human acceptance remains separate.
 
 ## Isolated Alley resolver calibration, 2026-10-02
 

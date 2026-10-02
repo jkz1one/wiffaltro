@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after measuring the Alley-family tuning blocker.
+Updated 2026-10-02 after implementing calibrated Alley and earned Gap Driver.
 
 ## Resume here
 
@@ -55,7 +55,56 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Shop-first Alley calibration (latest)
+## Calibrated Alley and Gap Driver (latest)
+
+The user selected the proposed tuning by replying “continue” after the explicit question.
+It is now **Working**, not approved balance. `SeasonAlleyGear` applies 10° target,
+12–14° onset, 0.65–0.70 quality shoulder and 38–40° falloff. Alley strength 0.25 / Power
+exit penalty 8%; Gap Driver strength 0.50 / penalty 12%. No base Contact tuning, contact
+quality, timing, spray, spin or added speed. Frozen Rope still has no gap implementation.
+
+Current **Build 40/save 44/Career 20**, opponent policy 2; SOT v0.4.82 / Technical v0.1.73.
+A02's identity remains unchanged; Gap Driver is `BAT-ALY-02`, price 16, after ten qualifying
+completed Alley games across the career. Counts survive sales/abandonment; the new item
+is bought normally without a same-season predecessor. Gear collection now covers 24,
+sponsors remain 35. All five supplies, three learned abilities and one transformation.
+
+Preserve `SeasonGearProgress.alley_from`: old journals replay before migration sets it
+to the current event length. New runs use zero. This prevents retroactive Alley credit
+on repeated saves/replays. Career 20 accepts A02/Gap evidence; pre-20 rejects it. Legacy
+catalog constants/signatures remain frozen and runtime flags retain the original mapping
+for old Build reconstruction. `SeasonEarnedGear.catalog()` extends the frozen ten-item
+constant; never replace that constant with the current eleven-item catalog. SeasonBuild
+is 919 lines; the new field belongs to the existing helper. Shop/Equipped use current
+item text. Safe live-sale retirement and central entry placement stay intact.
+
+The real parent-commit fixture in `src/tests/fixtures/alley_v39.json` includes paid A02
+and two historical completed uses. Do not regenerate it from new code. Corresponding
+legacy signatures are captured in `alley_legacy_signatures.json`. They are migration
+regression evidence, not hand-edited current saves.
+
+Broad verification `20261002T065013901568Z` passed 30/31 (seven gates plus 23/24 scenes), five physical
+games. Special Order exited zero before its pass marker. Final `20261002T065946025821Z` covers the final
+Special Order fixture. Live follow-up `20261002T065709817923Z` passed its two-game
+scene but again failed the Special Order pass marker; see VERIFICATION for exact scope.
+The final live test adds one test-driver-predicted legal Contact swing to establish a real
+qualifying physics launch; it changes no production observation or hit result. Earlier
+passive games had zero eligible flattened contacts, so they alone were not trigger proof.
+All 572 final files are frozen; the observed broad runner copy matched 563 files.
+After two identical Special Order early exits, its repeated seed search was replaced with
+verified seed27, preserving all generated-offer/payment/assertion paths. A later pass is
+not proof of the early-exit cause or a claim it is fixed.
+
+Next: finish Frozen Rope's explicit authored field-relative lane depth, candidate spacing,
+clearance score and sector geometry contract before enabling the last Gear. No score was
+invented in this slice. Other shop polish/interaction closure stays ahead of the larger
+systems per user direction. Final polish still requires primary references, actual native
+rendering and human visual/feel acceptance. Historical intermittent exit-zero issue stays
+open; no full-suite pass or native/human acceptance is claimed. Whole-project estimate
+approximately 74%. Authorized engineering-branch push only; no merge/deploy/force-push.
+Use git log for exact published SHA. Main/blueprint remain separately verified.
+
+## Shop-first Alley calibration (previous)
 
 The user explicitly prefers completing the shop and its items before another larger
 system. **No playable item tuning changed in this slice.** Read `ALLEY_CALIBRATION.md`

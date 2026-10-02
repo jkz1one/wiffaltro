@@ -28,6 +28,7 @@ enum Handedness {
 @export_storage var progression_test: bool = false
 
 @export_storage var season_gear: Dictionary = {}
+@export_storage var season_alley_calibrated: bool = false
 
 @export_storage var season_abilities: Array[String] = []
 

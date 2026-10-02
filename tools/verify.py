@@ -89,6 +89,12 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-gap-driver-live", [*base, "--fixed-fps", "60",
+                                             "res://src/tests/season_gap_driver_live_test.tscn"],
+                 "Wiffaltro live Gap Driver checks passed:"),
+                ("season-gap-driver", [*ui_base, "--fixed-fps", "60",
+                                        "res://src/tests/season_gap_driver_test.tscn", *ui_extra],
+                 "Wiffaltro Gap Driver checks passed:"),
                 ("alley-calibration", [*base, "res://src/tests/alley_calibration_test.tscn",
                                        "--", f"--calibration-report={output / 'alley-calibration.json'}"],
                  "Wiffaltro Alley calibration checks passed:"),

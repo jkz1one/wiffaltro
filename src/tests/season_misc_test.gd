@@ -435,8 +435,10 @@ func _misc_ui(items: Dictionary = SeasonGearCatalog.MISC_ITEMS) -> void:
 		)
 		if items == SeasonGearCatalog.PROPOSAL_ITEMS:
 			_check(
-				window._review_text.text.contains("Proposal — unapproved"),
-				"paid review explicitly discloses unapproved mapping"
+				window._review_text.text.contains(
+					"Working calibration" if id == "A02" else "Proposal — unapproved"
+				),
+				"paid review discloses selected calibration or remaining unapproved mapping"
 			)
 		await _capture(window._confirm, "misc-review-" + id)
 		await _click(window._confirm.get_cancel_button())
