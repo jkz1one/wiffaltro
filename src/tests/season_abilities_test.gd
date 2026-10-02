@@ -327,7 +327,9 @@ func _ability_migration() -> void:
 	var season: SeasonState = _new_club(67)
 	season.build._format = 35
 	season.build._abilities.start = null
+	season.build._major.start = null
 	season.career.runs[-1].sky_outs = null
+	season.career.runs[-1].major_earned = null
 	_jump_result(season, false)
 	_check(season.build.commit(_command(season.build, "open")).ok, "legacy generated shop")
 	var old_shop: Dictionary = season.build.view().shop
@@ -335,6 +337,7 @@ func _ability_migration() -> void:
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 16
 	data.career.runs[-1].erase("sky_outs")
+	data.career.runs[-1].erase("major_earned")
 	var loaded: SeasonState = SeasonSave._decode(data)
 	_check(loaded != null, "Build35 migration")
 	if loaded == null:

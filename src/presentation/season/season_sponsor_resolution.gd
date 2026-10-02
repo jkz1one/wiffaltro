@@ -151,7 +151,9 @@ func _request() -> Dictionary:
 
 func _refresh() -> void:
 	var quote: Dictionary = build.preview(_request())
-	get_ok_button().disabled = not quote.ok
+	get_ok_button().disabled = (
+		not quote.ok and not SeasonMajorResolution.needed(_request(), quote.get("error", ""))
+	)
 	_summary.text = (
 		quote.error
 		if not quote.ok

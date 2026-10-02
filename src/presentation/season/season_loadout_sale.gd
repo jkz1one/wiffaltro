@@ -44,6 +44,14 @@ func _quote(chosen: Dictionary, item_name: String) -> void:
 	request = chosen
 	var quote: Dictionary = app.season.build.preview(request)
 	if not quote.ok:
+		if SeasonMajorResolution.needed(request, quote.error):
+			SeasonMajorResolution.open(
+				get_parent(),
+				app.season.build,
+				request,
+				func(selected: Dictionary) -> void: _quote(selected, item_name)
+			)
+			return
 		if SeasonSponsorResolution.needed(app.season.build, request, quote.error):
 			SeasonSponsorResolution.open(
 				get_parent(),
@@ -76,6 +84,7 @@ func _quote(chosen: Dictionary, item_name: String) -> void:
 		description += "The sale saves immediately and ends the effect. "
 		description += "Your remaining shop offers stay fixed."
 		description += SeasonReclamation.review(app.season.build.view().shop, quote.after.shop)
+	description += SeasonDoubleMajor.review(app.season.build, request)
 	description += SeasonAssociationShop.review(app.season.build.view().wallet, quote.after.wallet)
 	for id: String in request.get("discard", []):
 		if id == SeasonFieldGrant.receipt(app._fixture_id):

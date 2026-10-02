@@ -1,12 +1,49 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.75
+**Version:** v0.4.76
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Double Major Academy: paid specialist and explicit forgetting, 2026-10-02
+
+F09 completes the current 35 human sponsor contracts. Its retained Working price
+is 18 Cash / Rare. Earn future shop eligibility when the same Primary Fielder makes
+both a clean grounded out and a clean airborne catch out in one completed game.
+Pitcher plays, prior bobbles, foul catches, different players and different games
+cannot combine. A loss qualifies. No free copy, retroactive credit or stock refresh.
+Older active saves begin this tracking next Working season.
+
+At purchase nominate one current roster player. Only that player may learn two
+DIFFERENT paid Fielding abilities. No free learning, duplicate stacking, extra
+Hitting slot or ability transfer. Soft Hands and Sky Reader retain their separate
+role/grounded/launch/reaction conditions. Changing the beneficiary happens between
+games; if the old nominee has two Fielding abilities, explicitly choose one to
+forget permanently for that season. No refund, unassigned card or hidden storage.
+Departure likewise resolves excess learning and clears the nomination; the released
+instance retains the surviving ordinary ability for a possible same-season return.
+
+Double Major reduces shared held capacity by one, including development and tactical
+cards. Alone: one held slot; with Small Batch: two held slots and three sponsors
+including both. Neighborhood Association cannot coexist with Rare F09. Purchases,
+Wholesale pairs and removals validate the complete resulting loadout, with explicit
+sales/discards where needed. Cancel or failed writes preserve all old ownership,
+Cash, supplies, nomination and learning. Historical receipt formats remain frozen.
+
+The shop, recruitment and Equipped sale flows review nomination/forgetting before
+final confirmation. The shared centered Equipped entry is unchanged; its sponsor
+card identifies the beneficiary and Abilities shows both owner-specific effects.
+Live F09 sales save the refund and chosen forgetting immediately. Both runtime
+abilities survive the committed PA; only the forgotten effect retires at the safe
+next-batter boundary. Restart uses the saved remaining learning. No live retargeting.
+
+Sources rechecked: Equipment/Sponsors v18 access row and capacity/removal override;
+Blueprint v114 complete F09 annex. Values remain Working, not Approved balance.
+Build 37/save 41/Career 18. All 35 sponsors are implemented for the supported human
+season paths; offscreen AI acquisition and final native/human acceptance remain open.
 
 ## Learned abilities and shared Equipped inspection, 2026-10-01
 

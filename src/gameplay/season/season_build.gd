@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 36
+const VERSION: int = 37
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -13,6 +13,7 @@ const SHOP_OPS: Array[String] = [
 	"wholesale",
 	"tactical_buy",
 	"ability_buy",
+	"major_assign",
 	"tactical_exchange",
 	"buy",
 	"use",
@@ -58,6 +59,7 @@ var _checkout_earned: bool = false
 var _association_start: Variant = null
 var _freezer_start: Variant = null
 var _sides_start: Variant = null
+var _major: SeasonDoubleMajor = SeasonDoubleMajor.new()
 var _abilities: SeasonAbilities = SeasonAbilities.new()
 var _copy: SeasonCarbonCopy = SeasonCarbonCopy.new()
 var _field_start: Variant = null
@@ -258,6 +260,8 @@ func to_data() -> Dictionary:
 	if _format >= 36:
 		data["ability_from"] = _abilities.from_visit
 		data["ability_start"] = _abilities.start
+	if _format >= 37:
+		data["major_start"] = _major.start
 	if _format >= 35:
 		data["copy_start"] = _copy.start
 	if _format >= 34:
@@ -323,6 +327,7 @@ func commit(command: Dictionary) -> Dictionary:
 	_association_start = next._association_start
 	_freezer_start = next._freezer_start
 	_sides_start = next._sides_start
+	_major = next._major
 	_abilities = next._abilities
 	_copy = next._copy
 	_field_start = next._field_start
@@ -370,7 +375,7 @@ func candidate(command: Dictionary) -> SeasonBuild:
 		last_error = "The build changed. Review a fresh purchase."
 		return null
 	var next: SeasonBuild = _fork()
-	last_error = next._apply(normalized)
+	last_error = next._major.apply(next, normalized)
 	if not last_error.is_empty():
 		return null
 	if _order_start != null and normalized.op == "reroll" and next.cash() < cash():
@@ -409,6 +414,7 @@ func _fork() -> SeasonBuild:
 	result._association_start = _association_start
 	result._freezer_start = _freezer_start
 	result._sides_start = _sides_start
+	result._major = _major.fork()
 	result._abilities = _abilities.fork()
 	result._copy = _copy.fork()
 	result._field_start = _field_start
@@ -507,6 +513,8 @@ func _apply(command: Dictionary) -> String:
 			return SeasonSpecialOrder.commit(self, command)
 		"tactical_exchange":
 			return SeasonTacticalExchange.exchange(self, command)
+		"major_assign":
+			return "" if _format >= 37 and _keys(command, []) else "Invalid Double Major choice."
 		"ability_buy":
 			return _abilities.buy(self, command)
 		"tactical_buy":
@@ -522,7 +530,7 @@ func _apply(command: Dictionary) -> String:
 			if _format >= 11:
 				_visit["union_credit"] = 0
 		"sponsor_buy", "sponsor_sell":
-			return _sponsor_transaction(command)
+			return SeasonSponsorPurchase.commit(self, command)
 		"equip", "sell_gear":
 			return _gear_transaction(command)
 		"sign":
@@ -650,6 +658,7 @@ func _charge(amount: int) -> String:
 func _offers(rerolls: int) -> Dictionary:
 	return SeasonBuildShop.offers(self, rerolls)
 
+
 func _pack_choices() -> Array:
 	var result: Array = []
 	for item_id: String in _visit.get("cards", []):
@@ -715,6 +724,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonCarbonCopy.ITEMS).sha256_text()
 	if format_version >= 36:
 		base += ":" + JSON.stringify(SeasonAbilities.ITEMS).sha256_text()
+	if format_version >= 37:
+		base += ":" + JSON.stringify(SeasonDoubleMajor.ITEMS).sha256_text()
 	return base
 
 
@@ -880,72 +891,6 @@ func _settle_sponsors(command: Dictionary) -> String:
 			return paid.error
 	if not income.is_empty():
 		_income_by_game[int(command.game)] = income
-	return ""
-
-
-func _sponsor_transaction(command: Dictionary) -> String:
-	if (_format >= 28 and command.has("sales")) or (_format >= 32 and command.has("discard")):
-		return SeasonAssociationShop.commit(self, command)
-	if _format < 6 or _visit.number < _sponsor_from:
-		return "Sponsors are not available at this visit."
-	if command.op == "sponsor_sell":
-		if not _keys(command, ["receipt"]) or not command.receipt is String:
-			return "Choose an active sponsor."
-		var owned: Dictionary = SeasonOwnership._owned(_bank.view(), command.receipt)
-		if owned.get("kind") != "sponsor":
-			return "Choose an active sponsor."
-		var sold: Dictionary = _bank.commit(
-			{
-				"id": "sponsor-sale:%d" % revision(),
-				"rev": _bank.revision(),
-				"op": "sell",
-				"receipt": command.receipt,
-				"discard": []
-			}
-		)
-		if sold.ok:
-			_scholarships.erase(command.receipt)
-		return "" if sold.ok else sold.error
-	if not command.get("offer") is String:
-		return "Review an exact sponsor offer."
-	var item_id: String = _visit.offers.get(command.offer, "")
-	if not SeasonEarnedSponsors.eligible(self).has(item_id):
-		return "This sponsor offer is no longer available."
-	var fields: Array = ["offer", "replace"]
-	if item_id == "J10":
-		fields.append("student")
-		if (
-			not command.get("student") is String
-			or not SeasonSchoolSponsors.eligible_student(self, command.student)
-		):
-			return "Choose an eligible undeveloped student (unapproved Proposal)."
-	if not _keys(command, fields):
-		return "Review the exact sponsor and nomination."
-	# Reject same-identity replacement before sale can temporarily remove it.
-	if not SeasonEarnedSponsors.eligible(self).has(item_id):
-		return "That sponsor is already active."
-	var quote: String = "sponsor:%d" % revision()
-	var stock: Dictionary = _bank.commit(
-		{"id": quote, "rev": _bank.revision(), "op": "stock", "offers": {quote: item_id}}
-	)
-	if not stock.ok:
-		return stock.error
-	var bought: Dictionary = _bank.commit(
-		{
-			"id": "sponsor-purchase:%d" % revision(),
-			"rev": _bank.revision(),
-			"op": "buy",
-			"offer": quote,
-			"replace": command.replace,
-			"discard": []
-		}
-	)
-	if not bought.ok:
-		return bought.error
-	_scholarships.erase(command.replace)
-	if item_id == "J10":
-		_scholarships["sponsor-purchase:%d" % revision()] = {"player": command.student, "uses": 3}
-	_visit.offers.erase(command.offer)
 	return ""
 
 

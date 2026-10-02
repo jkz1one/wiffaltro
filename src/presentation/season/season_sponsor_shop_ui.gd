@@ -23,6 +23,29 @@ static func active(window: SeasonShopWindow, wallet: Dictionary) -> void:
 				]
 			)
 		)
+		if receipt.item == "F09":
+			var target: String = window.app.season.build._major.player
+			window._label(
+				(
+					"Beneficiary: "
+					+ (
+						"none"
+						if target == ""
+						else window.app.season.build.definition(target).display_name
+					)
+				)
+			)
+			(
+				window
+				. _button(
+					"CHANGE BENEFICIARY",
+					window._preview.bind(
+						window._request("major_assign"),
+						"Change Double Major beneficiary. No ability transfers."
+					)
+				)
+				. set_meta("major_assign", true)
+			)
 		if receipt.item == "E05":
 			var stamps: Array = window.app.season.build._legends.get(receipt.id, [])
 			window._label(

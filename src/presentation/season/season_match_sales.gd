@@ -94,6 +94,9 @@ func apply_pending(app: SeasonApp) -> void:
 	var wallet: Dictionary = app.season.build.view().wallet
 	for player: PlayerMatchState in own.roster:
 		player.definition = SeasonGearCatalog.equip(player.definition, wallet.gear)
+		player.definition.season_abilities = app.season.build._abilities.ids(
+			String(player.definition.id)
+		)
 		for receipt: Dictionary in pending.values():
 			if receipt.kind == "sponsor":
 				player.definition.season_sponsors.erase(receipt.item)

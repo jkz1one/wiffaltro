@@ -276,9 +276,11 @@ func _field_migration() -> void:
 	season.build._field_start = null
 	season.build._copy.start = null
 	season.build._abilities.start = null
+	season.build._major.start = null
 	season.career.runs[-1].field_outs = null
 	season.career.runs[-1].copy_earned = null
 	season.career.runs[-1].sky_outs = null
+	season.career.runs[-1].major_earned = null
 	_jump_result(season, false)
 	_check(SeasonSave.save(season), "previous build saved")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
@@ -286,6 +288,7 @@ func _field_migration() -> void:
 	data.career.runs[-1].erase("field_outs")
 	data.career.runs[-1].erase("copy_earned")
 	data.career.runs[-1].erase("sky_outs")
+	data.career.runs[-1].erase("major_earned")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(
 		(

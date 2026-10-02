@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-01 after learned abilities and shared Equipped shop/game integration.
+Updated 2026-10-02 after Double Major Academy and explicit specialist capacity.
 
 ## Resume here
 
@@ -55,7 +55,40 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Learned abilities continuation details (latest)
+## Double Major continuation details (latest)
+
+Build 37/save 41/Career 18; SOT v0.4.76 and TECH v0.1.67. F09 is implemented using
+Equipment/Sponsors v18 and Blueprint v114, rechecked 2026-10-02. Main remains
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420`; repository progression blueprint remains
+byte-identical. Continue the authorized engineering branch only; never merge/deploy.
+Use `git log -1` for the exact published SHA.
+
+Final run `20261002T002625026497Z` passed **49/49 checks** under Godot 4.7.2:
+seven common gates plus 42 targeted scenes, with ten complete physical games and
+no engine warnings/errors. All 546 source/test/asset/project/runner files match the
+frozen snapshot; all 537 files copied into the runner were checked against it.
+This is targeted coverage, not the full suite or native/human acceptance.
+
+`SeasonDoubleMajor` wraps complete candidate transactions and derives beneficiary
+and earned access from journal events. `major_start` is the sole new Build save
+field; older active saves track next Working season. `major: {player, forget}` binds
+explicit player and excess paid receipt choices; no hidden storage, transfer or
+refund. The sponsor costs 18 Cash and one shared held slot; Small Batch combination
+has two held slots and three sponsor slots. Association is incompatible with Rare F09.
+Live ownership/forgetting save immediately, runtime effect retires next safe batter.
+`SeasonSponsorPurchase` preserves historical individual IDs and leaves SeasonBuild
+at 906 lines. `SeasonMajorResolution` connects purchase, sale, nomination and departure
+to final atomic review, including the centralized Equipped lightbox.
+
+Current counts: 35/35 human sponsors, 23/25 Gear, five supplies, three learned abilities.
+Whole-project estimate approximately 74%, not release readiness. Choose the next
+bounded supported contract from current planning: AI acquisition, player-card systems,
+higher League/tier gameplay or stadium progression. Alley Gear tiers still require
+calibration. Do not broaden AI eligibility without its support contract. Final cohesive
+UI polish, primary-reference research, actual native rendered review and human
+visual/feel acceptance remain required. Headless checks are not visual approval.
+
+## Learned abilities continuation details (previous)
 
 Build 36/save 40/Career 17; Source of Truth v0.4.75, Technical Preproduction v0.1.66.
 A05 Work the Count, A06 Soft Hands and C01 Sky Reader are implemented as Working
@@ -92,9 +125,8 @@ Live Gear/sponsor effects still retire at the safe next-batter boundary. No abil
 resale. Primary official Balatro screenshots were inspected; native/human review is
 still open, and headless UI checks are not visual approval.
 
-Next bounded contract can be Double Major Academy, the remaining sponsor, after
-reading its current full nomination/extra-slot/capacity/removal contract again.
-Do not silently permit two Fielding abilities without that paid sponsor. Other major
+Double Major was the next bounded contract at this checkpoint; the newer section
+above records its completion. Do not permit extra Fielding slots without its paid copy. Other major
 remaining work: AI acquisition, player-card systems, higher League/tier gameplay,
 stadium progression, integration and final cohesive polish/native/human acceptance.
 Current counts 34/35 sponsors, 23/25 Gear, five tactical supplies and three learned

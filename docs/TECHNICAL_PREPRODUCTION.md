@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.66
+**Version:** v0.1.67
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,41 @@
 
 # 1. Technical Objective
 
+
+## Double Major transaction integration, 2026-10-02
+
+`SeasonDoubleMajor` owns nullable inherited `start`, derived `earned`, and the
+journal-derived beneficiary ID. Build 37 adds only `major_start` plus its new catalog
+signature; Career 18 adds nullable `major_earned`. Existing fielding evidence is
+validated through `SeasonJumpstart.valid`, then grouped by player within each single
+completed reward. Current career totals and inherited access must match replay.
+Old builds restore with null tracking; current offers and their rerolls stay fixed.
+No independently serialized nomination or learned map can disagree with the journal.
+
+The helper wraps candidate application. Optional exact `major: {player, forget}`
+choices accompany sponsor purchases/sales, Wholesale, departure or `major_assign`.
+It checks the completed roster and sponsor set before publishing, forgets only the
+chosen old paid receipt when the old nominee becomes over capacity, and rejects
+unresolved or foreign receipts. `major_assign` uses the existing between-game shop
+gate; `match_sell` permits removal only. All mutations stay on detached candidates.
+Deep forks and retry identities include the full choice. `SeasonAbilities.targets`
+permits the nominated second different Fielding ability while preserving ordinary
+Hitting and all other player slots.
+
+`SeasonSponsorPurchase` extracts the historical individual transaction unchanged,
+leaving SeasonBuild 906 lines. F09's ownership catalog adds held_delta −1; Wholesale
+pairs containing F09 use the existing complete sponsor-set adapter so transient
+intermediate capacity cannot reject a legal F09/Small Batch pair. Historical
+purchase/sale/Wholesale receipt IDs and old catalog signatures are unchanged.
+
+`SeasonMajorResolution` asks for exact nomination/forgetting before the existing
+final confirmation and save. Capacity resolution can hand off to it after extra
+sponsor sales are selected. Shop, recruitment and shared Equipped sales use the
+same review; cancellation and failed saves preserve all layers. Live sales refresh
+runtime learned IDs together with Gear/sponsor retirement only at the existing
+committed-PA boundary. Fielder configuration then observes the surviving ability.
+The match snapshot carries the beneficiary for inspection through deferred retirement.
+No UI entry geometry, camera, sport tuning or AI acquisition is changed.
 
 ## Learned-slot journals and launch-local abilities, 2026-10-01
 

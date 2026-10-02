@@ -1,5 +1,68 @@
 # Fast verification and playtest records
 
+## Double Major Academy: explicit specialist capacity, 2026-10-02
+
+Final run `20261002T002625026497Z` passed **49/49 checks** under Godot 4.7.2:
+seven common gates plus 42 targeted scenes, with ten complete physical games and
+no engine warnings/errors. All 546 source/test/asset/project/runner files match the
+frozen snapshot; all 537 files copied into the runner were checked against it.
+This is targeted coverage, not the full suite or native/human acceptance.
+
+Exact scene scope:
+
+`season-double-major`, `season-double-major-live`, `season-abilities`,
+`season-abilities-live`, `season-carbon-copy`, `season-carbon-copy-live`,
+`season-field-supply`, `season-sure-shot`, `season-small-batch`, `season-jumpstart`,
+`season-left-right`, `season-freezers`, `season-association`, `season-sponsor-set`,
+`season-late-checkout`, `season-second-chance`, `season-transfer`, `season-raincheck`,
+`season-special-order`, `season-match-sales`, `season-match-sales-live`,
+`season-loadout-ui`, `season-earned-sponsors`, `season-gear-progress`, `club-career`,
+`season-opponents`, `season-budget-bites`, `season-tactical-sponsors`,
+`season-expanded-tactical`, `season-tactical`, `season-wholesale`, `season-cornerstone`,
+`season-school`, `season-gameplay-sponsor`, `season-mapped-gear`, `season-misc`,
+`season-gear`, `recruitment`, `paid-shop-ui`, `ownership-integration`, `season-ownership`,
+`regressions`.
+
+The ten games comprise three Double Major cases, two existing learned-ability
+cases, four Carbon Copy cases and one existing live-sales case. Each Double Major
+game completed three innings, 94 pitch records and 25 balls in play with score
+0–11. Keeping both abilities and forgetting Soft Hands each observed two qualifying
+Sky launches; forgetting Sky observed none after its natural retirement. These
+results preserve the distinction between conditional effects and guaranteed outs.
+
+Earlier focused run `20261002T002228485105Z` passed 12/12 checks. Its first UI
+iteration exposed overlapping exclusive confirmation windows; the nomination dialog
+now hides before handing off, and the UI test follows the normal close/confirm flow.
+The final broad run includes the corrected dialog, additional Wholesale/nomination
+rollback checks, and all final production changes.
+
+Generated paid fixture seed 3591 completes six controlled fixtures, earns access,
+then purchases F09 for 18 Cash, Soft Hands for 10 and Sky Reader for 12 from actual
+stock. No injected wallet/offer state is used for the paid/save/live fixture.
+Separate labelled ownership/Wholesale/recruitment adapter tests isolate capacity
+and departure combinations with controlled quotes and the actual paid receipts.
+
+Coverage includes same-player/both-style completed-game evidence, losses, excluded
+pitcher/bobble/single-style/different-player cases, prospective older-save tracking,
+career inheritance without free ownership, exact receipt forgetting, ordinary-slot
+retention on departure, no incoming transfer, idempotency, deep forks and rejection
+of forged inherited/career/nominee data. Full shared bags, explicit discard, the
+F09/Small Batch complete pair and Association rarity conflict are checked. UI tests
+exercise nomination, mandatory forgetting, cancel, final review, bounded layout and
+failed purchase/sale writes. Existing centered Equipped geometry is retained.
+
+Three physical games use the same paid dual specialist: keep both, sell F09 and
+forget Soft Hands, or sell F09 and forget Sky Reader during an actual pitch. They
+verify immediate saved ownership/refund, failed-write rollback, current-PA retention,
+natural boundary retirement, surviving learned effect, restart and completed-result
+career replay. Actual launch observations check Sky reaction and refreshed abilities.
+These controlled games are integration evidence, not economy or human-feel samples.
+
+Native rendered review and human visual/feel acceptance remain outstanding. This
+workspace still has no configured native display. The prior unexplained exit-zero
+before a pass marker remains unresolved; do not infer a diagnosis from passing reruns.
+The final cohesive UI/research/native/human acceptance slice remains mandatory.
+
 ## Learned abilities and the shared Equipped lightbox, 2026-10-01
 
 Broad run `20261001T195912292601Z` passed **43/47 checks** under Godot 4.7.2:

@@ -78,10 +78,17 @@ func targets(build: SeasonBuild, item: String) -> Array[Dictionary]:
 	if not ITEMS.has(item):
 		return result
 	for player: String in build.roster():
-		if not ids(player).has(item):
-			result.append(
-				{"player": player, "replace": occupied(player, ITEMS[item].slot).get("id", "")}
-			)
+		if ids(player).has(item):
+			continue
+		var receipts: Array = in_slot(player, ITEMS[item].slot)
+		var capacity: int = (
+			2 if ITEMS[item].slot == "Fielding" and build._major.player == player else 1
+		)
+		if receipts.size() < capacity:
+			result.append({"player": player, "replace": ""})
+		else:
+			for receipt: Dictionary in receipts:
+				result.append({"player": player, "replace": receipt.id})
 	return result
 
 
@@ -169,3 +176,9 @@ static func description(player: PlayerDefinition) -> String:
 		if ITEMS.has(item):
 			lines.append("%s • %s: %s" % [ITEMS[item].slot, ITEMS[item].name, ITEMS[item].effect])
 	return "\n".join(lines)
+
+
+func in_slot(player: String, slot: String) -> Array:
+	return learned.get(player, []).filter(
+		func(receipt: Dictionary) -> bool: return receipt.slot == slot
+	)

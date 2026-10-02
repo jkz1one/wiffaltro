@@ -121,6 +121,7 @@ static func purchase(build: SeasonBuild, command: Dictionary) -> String:
 		and (
 			command.has("sales")
 			or command.has("discard")
+			or (build._format >= 37 and ids.has("F09"))
 			or ids.has("J05")
 			or not SeasonSchoolSponsors.active(build, "J05").is_empty()
 		)

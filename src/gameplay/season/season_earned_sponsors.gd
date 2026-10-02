@@ -44,6 +44,9 @@ const REQUIREMENTS: Dictionary = {
 static func eligible(build: SeasonBuild) -> Dictionary:
 	# Unlock changes future rolls only; existing offers remain immutable.
 	var earned: Array[String] = build._sponsor_progress.eligible()
+	if build._format >= 37 and build._major.start != null:
+		if build._major.start or build._major.earned:
+			earned.append("F09")
 	if build._format >= 23 and build._order_start != null:
 		if build._order_start or build._paid_rerolls >= 3:
 			earned.append("J01")

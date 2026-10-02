@@ -30,6 +30,7 @@ static func show(menu: SeasonMenu) -> void:
 	SeasonFreezers.progress(menu)
 	SeasonLeftRight.progress(menu)
 	SeasonCarbonCopy.progress(menu)
+	SeasonDoubleMajor.progress(menu)
 	SeasonFieldSupply.progress(menu)
 	SeasonSureShot.progress(menu)
 	SeasonJumpstart.progress(menu)

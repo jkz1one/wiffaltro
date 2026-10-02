@@ -365,6 +365,7 @@ func _migrate_association() -> void:
 	season.build._field_start = null
 	season.build._copy.start = null
 	season.build._abilities.start = null
+	season.build._major.start = null
 	season.career.runs[-1].association_earned = null
 	season.career.runs[-1].freezer_earned = null
 	season.career.runs[-1].sides_earned = null
@@ -374,6 +375,7 @@ func _migrate_association() -> void:
 	season.career.runs[-1].field_outs = null
 	season.career.runs[-1].copy_earned = null
 	season.career.runs[-1].sky_outs = null
+	season.career.runs[-1].major_earned = null
 	_check(SeasonSave.save(season), "previous build27 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 8
@@ -386,6 +388,7 @@ func _migrate_association() -> void:
 	data.career.runs[-1].erase("field_outs")
 	data.career.runs[-1].erase("copy_earned")
 	data.career.runs[-1].erase("sky_outs")
+	data.career.runs[-1].erase("major_earned")
 	var loaded: SeasonState = SeasonSave._decode(data)
 	_check(loaded != null and loaded.build._association_start == null, "old run starts prospective")
 	_check(
@@ -558,6 +561,7 @@ func _migrate_paid_association() -> void:
 	season.build._field_start = null
 	season.build._copy.start = null
 	season.build._abilities.start = null
+	season.build._major.start = null
 	season.build._association_earned = false
 	season.career.runs[-1].association_earned = null
 	season.career.runs[-1].freezer_earned = null
@@ -568,6 +572,7 @@ func _migrate_paid_association() -> void:
 	season.career.runs[-1].field_outs = null
 	season.career.runs[-1].copy_earned = null
 	season.career.runs[-1].sky_outs = null
+	season.career.runs[-1].major_earned = null
 	for game in range(6):
 		_result(season, [])
 		season.build.commit(_command(season.build, "open"))
@@ -607,6 +612,7 @@ func _migrate_paid_association() -> void:
 	data.career.runs[-1].erase("field_outs")
 	data.career.runs[-1].erase("copy_earned")
 	data.career.runs[-1].erase("sky_outs")
+	data.career.runs[-1].erase("major_earned")
 	var restored: SeasonState = SeasonSave._decode(data)
 	_check(
 		restored != null and restored.build._format == SeasonBuild.VERSION,

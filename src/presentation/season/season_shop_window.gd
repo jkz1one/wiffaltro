@@ -84,7 +84,7 @@ func _refresh() -> void:
 	_label(
 		(
 			"Working season: 13 initial Gear items plus 10 earnable tiers. "
-			+ "19 initial sponsors plus 15 earned sponsor contracts. "
+			+ "19 initial sponsors plus 16 earned sponsor contracts. "
 			+ "Existing unapproved Gear mappings remain Proposals."
 		)
 	)
@@ -346,6 +346,14 @@ func _preview(command: Dictionary, description: String) -> void:
 		return
 	var result: Dictionary = app.season.build.preview(command)
 	if not result.ok:
+		if SeasonMajorResolution.needed(command, result.error):
+			SeasonMajorResolution.open(
+				self,
+				app.season.build,
+				command,
+				func(chosen: Dictionary) -> void: _preview(chosen, description)
+			)
+			return
 		if SeasonSponsorResolution.needed(app.season.build, command, result.error):
 			SeasonSponsorResolution.open(
 				self,
@@ -370,6 +378,7 @@ func _preview(command: Dictionary, description: String) -> void:
 			):
 				if String(pitch.id) == command.pitch:
 					effect = PitchMastery.next_effect(pitch)
+	description += SeasonDoubleMajor.review(app.season.build, command)
 	description += SeasonAssociationShop.review(app.season.build.view().wallet, result.after.wallet)
 	description += SeasonSchoolSponsors.review(app.season.build.view(), result.after)
 	description += SeasonReclamation.review(app.season.build.view().shop, result.after.shop)

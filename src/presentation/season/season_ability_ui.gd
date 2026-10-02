@@ -25,13 +25,19 @@ static func choose(window: SeasonShopWindow, quote: String, id: String) -> void:
 	window._label(item.effect)
 	window._label(
 		(
-			"One Hitting and one Fielding slot per player. Learning lasts this season. "
+			(
+				"One Hitting and one Fielding slot; Double Major grants its nominee a "
+				+ "second Fielding slot. Learning lasts this season."
+			)
 			+ "Choose a player below, then review before paying. No held copy, resale or refund."
 		)
 	)
 	for target: Dictionary in build._abilities.targets(build, id):
 		var player: PlayerDefinition = build.definition(target.player)
-		var old: Dictionary = build._abilities.occupied(target.player, item.slot)
+		var old: Dictionary = {}
+		for receipt: Dictionary in build._abilities.in_slot(target.player, item.slot):
+			if receipt.id == target.replace:
+				old = receipt
 		SeasonPlayerCard.ratings_card(window._body, player, player.display_name)
 		var replacement: String = (
 			"Fill the empty %s slot." % item.slot
@@ -72,7 +78,10 @@ static func show(menu: SeasonMenu) -> void:
 		. wrapped(
 			menu._body,
 			(
-				"Working contracts. One Hitting and one Fielding ability per player. "
+				(
+					"Working contracts. One Hitting and one Fielding ability; Double Major "
+					+ "grants its nominee a second Fielding slot."
+				)
 				+ "Buy from future shops and apply immediately; explicit replacement forgets "
 				+ "the old ability without a refund. "
 				+ "A released player keeps learning if they return in this season. New seasons reset learning."

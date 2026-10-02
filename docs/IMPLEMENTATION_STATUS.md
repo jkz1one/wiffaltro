@@ -1,5 +1,21 @@
 # Implementation Status
 
+## Double Major Academy and the complete sponsor pool, 2026-10-02
+
+Double Major now supports its completed-game unlock, paid nomination, two different
+Fielding abilities on one player, shared supply cost, explicit reassignment/departure
+forgetting, ordinary and Wholesale purchases, and safe live sales. Shop and Equipped
+review the owner, lost ability and refund before saving. Save/replay/migration and
+failed-write rollback are covered in the current verification record.
+
+Build 37/save 41/Career 18; 35/35 current human sponsors, 23/25 Gear, five tactical
+supplies and three learned abilities. Whole-project estimate approximately 74%, not
+release readiness. Remaining major work includes AI acquisition, player-card systems,
+higher League/tier gameplay, stadium progression, integration and final cohesive UI
+polish with actual native rendered review and human visual/feel acceptance. Two
+remaining Alley Gear tiers still require the retained calibration contract. Working
+values and unapproved Proposals retain their status.
+
 ## Three learned abilities and Equipped completion, 2026-10-01
 
 Work the Count, Soft Hands and earned Sky Reader now support actual paid shop offers,

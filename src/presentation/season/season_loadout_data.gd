@@ -8,6 +8,7 @@ static func capture(season: SeasonState) -> Dictionary:
 		return {"gear": {}, "sponsors": [], "held": [], "capacity": {"sponsors": 5, "held": 2}}
 	var wallet: Dictionary = season.build.view().wallet.duplicate(true)
 	wallet["stamps"] = season.build._legends.duplicate(true)
+	wallet["major_player"] = season.build._major.player
 	return wallet
 
 
@@ -21,7 +22,9 @@ static func pages(app: SeasonApp) -> Dictionary:
 	if live:
 		state = app.lab._match_state
 		team = state.home_team if app.lab._player_home else state.away_team
-	var result: Dictionary = {"gear": [], "sponsors": [], "supplies": [], "used": [], "abilities": []}
+	var result: Dictionary = {
+		"gear": [], "sponsors": [], "supplies": [], "used": [], "abilities": []
+	}
 	for slot: String in SeasonOwnership.GEAR_SLOTS:
 		var receipt: Dictionary = wallet.gear.get(slot, {})
 		var item: Dictionary = SeasonGearCatalog.item(receipt.get("item", ""))
@@ -41,7 +44,17 @@ static func pages(app: SeasonApp) -> Dictionary:
 	for receipt: Dictionary in wallet.sponsors:
 		var item: Dictionary = SeasonSponsorCatalog.item(receipt.item)
 		var status: String = "Owned this season"
-		if receipt.item == "E05":
+		if receipt.item == "F09":
+			var beneficiary: String = wallet.get("major_player", "")
+			status = (
+				"Beneficiary: "
+				+ (
+					"none"
+					if beneficiary == ""
+					else app.season.build.definition(beneficiary).display_name
+				)
+			)
+		elif receipt.item == "E05":
 			var stamps: int = wallet.get("stamps", {}).get(receipt.id, []).size()
 			if live:
 				stamps = int(team.roster[0].definition.season_sponsors.get("E05", 0))

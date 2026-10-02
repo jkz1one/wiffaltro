@@ -327,13 +327,16 @@ func _copy_migration() -> void:
 	season.build._format = 34
 	season.build._copy.start = null
 	season.build._abilities.start = null
+	season.build._major.start = null
 	season.career.runs[-1].copy_earned = null
 	season.career.runs[-1].sky_outs = null
+	season.career.runs[-1].major_earned = null
 	_check(SeasonSave.save(season), "previous Build34 saves")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))
 	data.career.version = 15
 	data.career.runs[-1].erase("copy_earned")
 	data.career.runs[-1].erase("sky_outs")
+	data.career.runs[-1].erase("major_earned")
 	var loaded: SeasonState = SeasonSave._decode(data)
 	_check(loaded != null and loaded.build._copy.start == null, "older runs remain prospective")
 	_check(
