@@ -254,7 +254,8 @@ static func offers(
 	sponsor_pool: Dictionary = {},
 	tactical_pool: Dictionary = {},
 	earned: Array[String] = [],
-	ability_pool: Dictionary = {}
+	ability_pool: Dictionary = {},
+	transformation_pool: Dictionary = {}
 ) -> Dictionary:
 	var development: Dictionary = DevelopmentShopCatalog.families(book, roster)
 	var lessons: Array[String] = []
@@ -276,6 +277,8 @@ static func offers(
 		weights["tactical"] = 10.0
 	if not ability_pool.is_empty():
 		weights["ability"] = 10.0
+	if not transformation_pool.is_empty():
+		weights["transformation"] = 3.0
 	var result: Dictionary = {}
 	var seen: Array[String] = []
 	for index in range(4):
@@ -297,6 +300,8 @@ static func offers(
 			id = lessons[rng.randi_range(0, lessons.size() - 1)]
 		elif kind == "ability":
 			id = _weighted(ability_pool, rng)
+		elif kind == "transformation":
+			id = _weighted(transformation_pool, rng)
 		elif kind == "tactical":
 			id = _weighted(tactical_pool, rng)
 		elif kind == "sponsor":

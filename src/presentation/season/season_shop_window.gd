@@ -99,6 +99,7 @@ func _refresh() -> void:
 			)
 		)
 	SeasonSchoolShopUI.status(self)
+	SeasonRetrainingUI.status(self)
 	_label(_notice)
 	if shop.pack_status == "open":
 		_label("Choose one card, then its recipient. This pack is already paid; no extra charge.")
@@ -118,6 +119,9 @@ func _refresh() -> void:
 		SeasonSponsorShopUI.active(self, view.wallet)
 		for offer: String in shop.offers:
 			var item_id: String = shop.offers[offer]
+			if item_id == SeasonRetraining.ID:
+				SeasonRetrainingUI.offer(self, offer)
+				continue
 			if not SeasonSponsorCatalog.item(item_id).is_empty():
 				SeasonSponsorShopUI.offer(self, offer, item_id, view.wallet)
 				continue
@@ -367,7 +371,7 @@ func _preview(command: Dictionary, description: String) -> void:
 		return
 	_pending = command.duplicate(true)
 	var effect: String = ""
-	if command.get("player", "") != "":
+	if command.get("player", "") != "" and command.op != "retrain_buy":
 		var before: Dictionary = app.season.build.player(command.player)
 		for stat: String in SeasonPlayerCatalog.STATS:
 			if before.stats[stat] != result.player.stats[stat]:

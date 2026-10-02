@@ -64,7 +64,7 @@ static func choose(window: SeasonShopWindow) -> void:
 		)
 		button.disabled = count == 0
 		button.set_meta("focus_category", category)
-	window._label("Learned Abilities and Transformations have no implemented eligible pool yet.")
+	window._label("Only categories with eligible offers can be selected.")
 	window._button("BACK TO SHOP", window._refresh)
 	window._focus_first.call_deferred()
 

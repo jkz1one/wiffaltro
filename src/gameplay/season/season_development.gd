@@ -103,6 +103,8 @@ func _prepare(command: Dictionary) -> Dictionary:
 		return _error("Development changed. Preview this action again.")
 	if command.get("op") == "exchange":
 		return SeasonPitchExchange.prepare(self, command)
+	if command.get("op") == "retrain":
+		return SeasonRetraining.prepare(self, command)
 	var after: Dictionary = player(command.player)
 	var error: String = _apply(after, command)
 	if not error.is_empty():

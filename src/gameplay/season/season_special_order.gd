@@ -21,7 +21,8 @@ const CATEGORIES: Dictionary = {
 	"gear": "Gear",
 	"sponsor": "Sponsors",
 	"lesson": "Pitch Lessons",
-	"tactical": "Tactical Supplies"
+	"tactical": "Tactical Supplies",
+	"transformation": "Transformations"
 }
 
 
@@ -44,6 +45,8 @@ static func pool(build: SeasonBuild, category: String) -> Dictionary:
 					result[id] = 1.0
 		"tactical":
 			result = SeasonTacticalCatalog.weights(build._tactical_catalog_version())
+		"transformation":
+			result = SeasonRetraining.pool(build)
 	return result
 
 

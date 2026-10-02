@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after versioned authored Base opponent allocation.
+Updated 2026-10-02 after paid immediate Retraining Camp.
 
 ## Resume here
 
@@ -55,9 +55,46 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Seeded Base opponent continuation details (latest)
+## Retraining Camp continuation details (latest)
 
-Build 37/save 41/Career 18 remain current; opponent policy 2 is new. Source of Truth
+Build **38/save 42/Career 18**, opponent policy 2; SOT v0.4.78 and Technical v0.1.69.
+Retraining Camp B05 is the first transformation. Its current Working price is 8 Cash /
+Uncommon. Immediate between-game purchase redirects exactly two trained points within
+one current player, with disjoint removal/addition stats, cap 10 and full before/after
+review. Four applied club broad-stat points earn prospective stock eligibility; displayed
+offers and development packs never refresh on unlock. Special Order and Raincheck work.
+
+Broad verification `20261002T043427682175Z` passed 35/37 checks; final test corrections
+passed 9/9 in `20261002T044327435150Z`. All 30 selected scenes and three physical games
+passed across the runs, with unchanged production code and 555 frozen final files.
+Two existing tests now handle earned category access and actual mixed-shop offer types;
+saved-state comparisons normalize JSON numeric types. Intermediate `20261002T044223158372Z`
+also reproduced exit 0 before the Special Order pass marker. Added stage markers completed
+in the final rerun, but the intermittent early-exit cause remains unresolved. See the
+newest VERIFICATION.md entry for exact scope; do not call this a full-suite pass.
+
+Read the complete source distinction before extending it: Players/Pitches v17 262–274;
+Economy v24 mixed-category weight 3; Blueprint v114 B05 2043–2070, access 5058, ED1 revision
+18044–18070. Earned-only provenance is explicitly still a testing **Proposal**. Baseline
+and recruit catch-up cannot move, mastery cannot transfer, and retraining creates no new
+growth or trained-player credit. The later shared-bag delivery recommendation is deferred.
+Do not promote either to Approved or silently enable AI acquisition.
+
+`SeasonRetraining` derives movable balances from the development journal and implements
+atomic `retrain_buy`; `SeasonRetrainingUI` owns selection and final review. Existing active
+saves restore `retraining_enabled=false`, preserve exact old stock/signatures and remain
+disabled until a new season. Carry this flag through draft completion and forks. The
+replay event is `retrain`; do not classify it as new training or regenerate old offers.
+SeasonBuild is 915 lines. Final verification details follow in VERIFICATION.md; use
+`git log -1` for publication SHA. The repository blueprint remains byte-identical to main.
+
+Content is 35/35 human sponsors, 23/25 Gear, five supplies, three learned abilities and
+one transformation. Whole-project estimate stays approximately **74%**, not release
+readiness. The remaining scope and native/human acceptance requirements below still apply.
+
+## Seeded Base opponent continuation details (previous)
+
+This prior slice used Build 37/save 41/Career 18; opponent policy 2 was new. Source of Truth
 v0.4.77 and Technical Preproduction v0.1.68 record the bounded Working implementation.
 Progression/Economy v24 (725–770), Players/Pitches v17 and Decisions v31 supply the
 named-roster contract. Standard/Base now uses a seeded alternating four-round allocation

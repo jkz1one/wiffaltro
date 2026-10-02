@@ -1,5 +1,23 @@
 # Implementation Status
 
+## Retraining Camp, 2026-10-02
+
+The first transformation now supports paid immediate use between games: four applied
+club training points unlock future offers; spend 8 Cash to redirect exactly two trained
+points within one current player, with complete before/after review. Ordinary stock,
+Special Order and Raincheck are integrated. Save failure, replay, old-run migration and
+physical match settlement are covered in the latest verification entry. No baseline,
+recruit catch-up, mastery or extra training rewards are created. Price/rarity remain
+Working; earned-only eligibility remains a labeled testing Proposal, and held delivery
+is deferred.
+
+Build 38/save 42/Career 18, opponent policy 2. Content is 35/35 human sponsors, 23/25 Gear,
+five supplies, three learned abilities and one transformation. Whole-project estimate
+remains approximately **74%**, not release readiness. Further AI acquisition/event-aware
+offscreen resolution, persistent player cards, higher tiers/Leagues, stadium progression,
+remaining Gear calibration and final integration remain. Final cohesive UI polish still
+requires primary-reference research, actual native rendering and human visual/feel acceptance.
+
 ## Authored Base opponent allocation, 2026-10-02
 
 New Working seasons now allocate five seeded, distinct named rosters through four alternating

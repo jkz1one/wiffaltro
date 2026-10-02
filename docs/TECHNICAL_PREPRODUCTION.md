@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.68
+**Version:** v0.1.69
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,38 @@
 
 # 1. Technical Objective
 
+
+## Retraining provenance and atomic purchase, 2026-10-02
+
+`SeasonRetraining` owns B05 eligibility, legal point pairs, the Working item and purchase.
+Its namespaced identity is `transformation.B05`; existing B05 identities and receipt IDs
+are unchanged. Movable balances replay original `stat` events plus signed `retrain`
+removals/additions. Recruit catch-up, pitch mastery and lessons cannot enter that balance.
+`SeasonDevelopment` validates exact fields, two valid removals/additions, disjoint sets,
+earned availability and destination cap before adopting a detached profile. Retraining
+events are excluded from `earned_players`, preserving Community College's provenance.
+
+`retrain_buy` is an ordinary between-game shop operation. Candidate forks apply the point
+move, charge exactly 8 Cash and remove the exact displayed offer; any error discards the
+whole candidate. Normal app save failure restores the prior build and roster. Request
+IDs are idempotent. UI chooses player, removals and additions, then uses the standard final
+review with all four before/after values. No held receipt, refund or special match effect
+is created. Future matches read the resulting normal profile; live shop commits reject.
+Existing Legends pruning reacts normally if a stat threshold is lost.
+
+Build 38/save 42 adds an exact boolean `retraining_enabled`, carried through forks and
+draft completion. Build <=37 restores false and retains it after migration/re-save, so
+old shop journals keep their original RNG pools for the rest of that season. Newly started
+seasons default true. Only format >=38 appends the new item signature; frozen old catalog
+signatures and receipt IDs are untouched. Opponent market 1 never offers transformations.
+Career 18 and opponent policy 2 remain unchanged. SeasonBuild is 915 lines; continue
+extracting coherent helpers before adding sizeable behavior or saved fields there.
+
+`SeasonGearCatalog.offers` accepts an optional transformation pool, adding weight 3 only
+when nonempty. Special Order exposes the supported eligible category without duplicates;
+Raincheck revalidates target legality at delivery, preserves its ordinary slot and removes
+the protected offer after purchase. Pack contents, discounts and Union credits are unchanged.
+Earned-only provenance remains a testing Proposal and shared-bag delivery remains deferred.
 
 ## Versioned opponent roster allocation, 2026-10-02
 

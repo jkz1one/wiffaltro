@@ -258,7 +258,21 @@ func _season_and_ui() -> void:
 		if child is SeasonShopWindow:
 			window = child
 	_check(window != null, "real season opens shop window")
-	var offer: String = app.season.build.view().shop.offers.keys()[0]
+	var offer: String = ""
+	for candidate: String in app.season.build.view().shop.offers:
+		var item: String = app.season.build.view().shop.offers[candidate]
+		var definition: Dictionary = DevelopmentShopCatalog.item(item)
+		if (
+			not definition.is_empty()
+			and definition.price <= app.season.cash()
+			and not app.season.build.targets(item).is_empty()
+		):
+			offer = candidate
+			break
+	_check(not offer.is_empty(), "actual affordable development offer has a legal target")
+	if offer.is_empty():
+		app.queue_free()
+		return
 	var command: Dictionary = _buy(app.season.build, offer, "use")
 	var before: Dictionary = _snapshot(app.season.build)
 	window._preview(command, "Purchase integration fixture")
@@ -280,7 +294,13 @@ func _season_and_ui() -> void:
 	_check(app.season.cash() < 18, "confirmed UI purchase spends earned cash")
 	var restored: SeasonState = SeasonSave.restore()
 	_check(
-		restored != null and _snapshot(restored.build) == _snapshot(app.season.build),
+		(
+			restored != null
+			and (
+				JSON.parse_string(JSON.stringify(_snapshot(restored.build)))
+				== JSON.parse_string(JSON.stringify(_snapshot(app.season.build)))
+			)
+		),
 		"schema5 restores stock, receipts, cash and development together"
 	)
 	_check(

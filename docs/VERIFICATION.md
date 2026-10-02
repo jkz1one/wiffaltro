@@ -1,5 +1,70 @@
 # Fast verification and playtest records
 
+## Retraining Camp: paid redistribution and exact provenance, 2026-10-02
+
+Broad run `20261002T043427682175Z` passed **35/37 checks** under Godot 4.7.2:
+seven common gates and 28/30 targeted scenes. Its two failures were existing test
+assumptions: Special Order treated every listed category as already unlocked, while
+the older paid-development UI fixture selected the first mixed-shop offer as if it
+were always a development card. The corrections test locked focus without spending
+and select an actual affordable offered development card with a legal target.
+
+Final run `20261002T044327435150Z` passed **9/9 checks**, seven gates plus those two
+corrected scenes. All 30 selected scenes passed across these runs, with three complete
+physical games. Production code is identical between runs; only those two test files
+changed. Passing logs contain no engine errors or warnings. This is targeted coverage,
+not the full suite, native visual review or human acceptance.
+
+The broad scope was:
+
+`season-retraining`, `season-retraining-live`, `season-development`, `paid-development`,
+`paid-shop-ui`, `recruitment`, `season-transfer`, `season-special-order`, `season-raincheck`,
+`season-school`, `season-gameplay-sponsor`, `season-earned-sponsors`, `season-abilities`,
+`season-double-major`, `season-wholesale`, `season-loadout-ui`, `season-match-sales`,
+`season-match-sales-live`, `season-opponent-draft`, `season-opponents`, `club-career`,
+`club-career-live`, `season-gear-progress`, `season-association`, `season-small-batch`,
+`season-film-room`, `season-flow`, `season-shell`, `season-enrichment`, `regressions`.
+
+New checks cover real generated paid training and B05 stock (seed 0, visit 4), four-point
+access without refreshing offers, exact 8-Cash payment, preview/cancel/idempotency,
+wrong offers/players, malformed point sets and tampered-save rejection. Unit provenance
+checks exclude authored baseline and generated catch-up; exercise split/consolidated
+moves, disjoint source/destination sets, cap 10, repeated redistribution, independent
+forks, exact event replay and unchanged mastery/trained-player credit. Paid current
+ratings reach all four match stats without changing a previously created pitcher's
+workload. No transformation enters a development pack or consumes Union credit.
+
+Isolated sponsor adapters build on the genuinely paid training fixture: Special Order
+fills one eligible transformation slot and marks three unavailable, while Raincheck
+reserves, carries into one ordinary slot, protects against reroll and consumes the offer
+once at full price. Build 37 stock and partial drafts preserve disabled prospective
+eligibility through migration and repeat saves. New seasons enable the new pool.
+UI tests click player, removal, destination, full before/after review and cancel, then
+exercise failed disk-write rollback and successful retry. Live shop commits reject.
+
+The transformed club's physical game completed five innings, 113 pitch records and
+23 balls in play (0–4). Live sales completed four innings, 124 records and 27 balls
+in play (0–10). The career championship completed five innings, 110 records and 22
+balls in play (0–4). Durable settlement/save retries passed. These use the passive
+stress driver and are integration checks, not human-feel or balance measurements.
+
+Intermediate run `20261002T044223158372Z` reproduced the earlier unexplained symptom:
+Special Order exited 0 before its pass marker with no engine diagnostic. It is a failure,
+not a pass. Added stage markers completed in the final rerun, but the cause remains open.
+The paid-development saved-state comparison also needed JSON numeric normalization,
+matching the new retraining replay test; production serialization was not relaxed.
+
+All **555** final source/test/asset/project/runner files remain frozen through publication.
+The broad runner's **546** copied files matched its snapshot. Only the two documented
+test corrections distinguish broad and final source snapshots. Main remains `f1dc209b`,
+and the repository progression blueprint remains byte-identical to main.
+
+Build 38/save 42/Career 18, opponent policy 2. Working price/rarity and the earned-only
+testing Proposal retain their status; shared-bag transformation delivery is deferred.
+No native display is configured. Final cohesive UI polish, primary-reference research,
+actual native rendered review and human visual/feel acceptance remain outstanding.
+Whole-project estimate remains approximately **74%**, not release readiness.
+
 ## Seeded Base opponent allocation, 2026-10-02
 
 Broad run `20261002T020402362891Z` passed **39/40 checks** under Godot 4.7.2:

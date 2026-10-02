@@ -86,6 +86,8 @@ static func restore(
 		keys.append_array(["ability_from", "ability_start"])
 	if value.version >= 37:
 		keys.append("major_start")
+	if value.version >= 38:
+		keys.append("retraining_enabled")
 	if not SeasonOwnership._keys(value, keys):
 		return null
 	if value.seed != seed_value or value.roster != roster:
@@ -98,6 +100,11 @@ static func restore(
 		return null
 	var result: SeasonBuild = SeasonBuild.new(seed_value, roster, pool, blocked)
 	result._format = int(value.version)
+	result._retraining_enabled = false
+	if value.version >= 38:
+		if not value.retraining_enabled is bool:
+			return null
+		result._retraining_enabled = value.retraining_enabled
 	if value.version >= 2:
 		if (
 			value.pool != result._pool

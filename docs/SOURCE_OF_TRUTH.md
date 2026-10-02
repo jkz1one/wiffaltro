@@ -1,12 +1,43 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.77
+**Version:** v0.4.78
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Retraining Camp: paid immediate redistribution, 2026-10-02
+
+B05 is implemented as the retained immediate between-game transformation: Uncommon,
+8 Cash, moving exactly two broad-stat points within one current player. Two removals and
+two additions may each use one or two different stats, but the source/destination sets
+must be disjoint and no destination may exceed 10. A final review names the player and
+shows all four before/after ratings before spending. It is season-only, grants no growth,
+mastery or extra trained-player credit, and has no free undo or held/resellable copy.
+
+Sources rechecked: Players/Pitches v17 (262–274), Economy v24 mixed-category weights,
+Decisions v31, Equipment/Sponsors v18, and planning Blueprint v114 retained B05 contract
+(2043–2070), access (5058) and ED1 revision (18044–18070). Price and rarity remain Working.
+The earned-only provenance restriction remains explicitly a testing Proposal: only applied
+club-earned stat points can move; authored baseline and generated recruit catch-up cannot.
+Returning season instances retain their provenance. The later shared-bag Buy Hold/Buy Use
+recommendation is deferred, not silently promoted over the immediate purchase contract.
+
+New Working seasons earn prospective shop eligibility after four applied broad-stat
+training points across the club, with at least one legal current target. Buying a held
+card, a lesson, mastery, catch-up or a transformation does not add applied stat points.
+Access never regenerates displayed stock. The supported transformation parent weight is
+3; B05 can appear in ordinary offers, eligible Special Order focus and Raincheck carry.
+Development packs remain unchanged. Summer School discounts and Union credit do not apply.
+AI acquisition remains gated. Existing active saves retain their old offer generator and
+do not gain B05 until the next newly started season, including saves inside the draft.
+
+Build 38/save 42/Career 18, opponent policy 2. New ratings feed the ordinary player cards,
+pregame and match definitions; no live transformation or workload refill is introduced.
+The shared centered Equipped button, inspections, sales and deferred retirement remain
+unchanged. This is a bounded implementation, not final visual/feel acceptance.
 
 ## Seeded Base opponent rosters, 2026-10-02
 

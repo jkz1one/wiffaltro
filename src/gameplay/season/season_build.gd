@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 37
+const VERSION: int = 38
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
@@ -13,6 +13,7 @@ const SHOP_OPS: Array[String] = [
 	"wholesale",
 	"tactical_buy",
 	"ability_buy",
+	"retrain_buy",
 	"major_assign",
 	"tactical_exchange",
 	"buy",
@@ -45,6 +46,7 @@ var _game_rosters: Dictionary = {}
 var _appeared: bool = false
 var _format: int = VERSION
 var _market: int = 0
+var _retraining_enabled: bool = true
 var _gear_progress: SeasonGearProgress = SeasonGearProgress.new()
 var _sponsor_progress: SeasonSponsorProgress = SeasonSponsorProgress.new()
 var _legends: Dictionary = {}
@@ -262,6 +264,8 @@ func to_data() -> Dictionary:
 		data["ability_start"] = _abilities.start
 	if _format >= 37:
 		data["major_start"] = _major.start
+	if _format >= 38:
+		data["retraining_enabled"] = _retraining_enabled
 	if _format >= 35:
 		data["copy_start"] = _copy.start
 	if _format >= 34:
@@ -400,6 +404,7 @@ func _fork() -> SeasonBuild:
 	result._appeared = _appeared
 	result._format = _format
 	result._market = _market
+	result._retraining_enabled = _retraining_enabled
 	result._gear_progress = _gear_progress.fork()
 	result._sponsor_progress = _sponsor_progress.fork()
 	result._legends = _legends.duplicate(true)
@@ -517,6 +522,8 @@ func _apply(command: Dictionary) -> String:
 			return "" if _format >= 37 and _keys(command, []) else "Invalid Double Major choice."
 		"ability_buy":
 			return _abilities.buy(self, command)
+		"retrain_buy":
+			return SeasonRetraining.buy(self, command)
 		"tactical_buy":
 			return SeasonTacticalPurchase.buy(self, command)
 		"wholesale":
@@ -726,6 +733,8 @@ static func _signature(format_version: int = VERSION) -> String:
 		base += ":" + JSON.stringify(SeasonAbilities.ITEMS).sha256_text()
 	if format_version >= 37:
 		base += ":" + JSON.stringify(SeasonDoubleMajor.ITEMS).sha256_text()
+	if format_version >= 38:
+		base += ":" + JSON.stringify(SeasonRetraining.ITEM).sha256_text()
 	return base
 
 

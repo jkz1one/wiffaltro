@@ -52,6 +52,8 @@ static func after(before: SeasonBuild, next: SeasonBuild, command: Dictionary) -
 
 
 static func quote(build: SeasonBuild, id: String) -> Dictionary:
+	if id == SeasonRetraining.ID and SeasonRetraining.pool(build).has(id):
+		return SeasonRetraining.ITEM.duplicate()
 	if not SeasonGearCatalog.item(id).is_empty():
 		var item: Dictionary = SeasonGearCatalog.item(id)
 		var pool: Dictionary = SeasonGearCatalog.eligible(
@@ -99,7 +101,7 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var id: String = build._visit.offers.get(command.offer, "")
 	var item: Dictionary = quote(build, id)
 	if item.is_empty():
-		return "Reserve Gear, sponsors, tactical supplies or an eligible fixed-price pitch lesson."
+		return "Reserve an eligible fixed-price Gear, sponsor, supply, lesson or transformation offer."
 	build._reservation = {
 		"source": build._visit.number,
 		"destination": build._visit.number + 1,

@@ -28,7 +28,8 @@ static func offers(build: SeasonBuild, rerolls: int) -> Dictionary:
 				else {}
 			),
 			build._gear_progress.eligible(),
-			build._abilities.pool(build)
+			build._abilities.pool(build),
+			SeasonRetraining.pool(build)
 		)
 	return DevelopmentShopCatalog.offers(
 		build._book,

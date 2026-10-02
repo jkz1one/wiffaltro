@@ -4,8 +4,11 @@ extends "res://src/tests/season_earned_sponsor_test.gd"
 func _ready() -> void:
 	SeasonSave.path = "user://special-order-%d.json" % OS.get_process_id()
 	_contracts()
+	print("SPECIAL_ORDER_STAGE contracts complete")
 	_persistence_order()
+	print("SPECIAL_ORDER_STAGE persistence complete")
 	await _order_ui()
+	print("SPECIAL_ORDER_STAGE UI complete")
 	for suffix: String in ["", ".bak", ".tmp"]:
 		DirAccess.remove_absolute(SeasonSave.path + suffix)
 	await TestAudioDrain.finish(get_tree())
@@ -58,11 +61,20 @@ func _contracts() -> void:
 	var original: SeasonBuild = season.build
 	_check(original._paid_rerolls == 4 and original.cash() == 14, "paid acquisition accounting")
 	for category: String in SeasonSpecialOrder.CATEGORIES:
+		print("SPECIAL_ORDER_CATEGORY ", category)
 		var build: SeasonBuild = original._fork()
 		var prior: Dictionary = build.view()
 		var pack: Array = build._visit.cards.duplicate()
 		var pool: Dictionary = SeasonSpecialOrder.pool(build, category)
 		var command: Dictionary = _command(build, "focused_reroll", {"category": category})
+		if pool.is_empty():
+			var locked: Dictionary = build.to_data()
+			_check(
+				not build.preview(command).ok and not build.commit(command).ok,
+				"locked category cannot focus before earned access"
+			)
+			_check(build.to_data() == locked, "locked focus preserves wallet and exact stock")
+			continue
 		_check(build.preview(command).ok and build.view() == prior, "preview never changes state")
 		_check(build.commit(command).ok, "supported category commits")
 		var after: Dictionary = build.view()

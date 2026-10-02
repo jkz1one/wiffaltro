@@ -136,6 +136,7 @@ func choose_player(id: String) -> bool:
 				teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
 		teams[0]["roster"] = picks.duplicate()
 		if build != null:
+			var retraining_enabled: bool = build._retraining_enabled
 			var progress: SeasonGearProgress = build._gear_progress.fork()
 			var sponsor_progress: SeasonSponsorProgress = build._sponsor_progress.fork()
 			var order_start: Variant = build._order_start
@@ -154,6 +155,7 @@ func choose_player(id: String) -> bool:
 			var batch_start: Variant = build._batch_start
 			var supply_start: Variant = build._supply_start
 			build = SeasonBuild.new(season_seed, picks, draft_pool, recruit_blocked())
+			build._retraining_enabled = retraining_enabled
 			build._gear_progress = progress
 			build._sponsor_progress = sponsor_progress
 			build._order_start = order_start
