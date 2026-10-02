@@ -1,5 +1,11 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Shop choice context and quote grouping, 2026-10-02
+
+Quoted actions group their Cash outcome or blocking reason with their action. Focus keeps the complete group visible when it fits the scroll viewport; unusually tall content retains a visible action and scrollable explanation. Exact recruitment choices repeat the incoming player's name and zero-Cash release; retraining repeats the player and removed points; Transfer Station repeats both players and outgoing recipes. Full contracts and final before/after review stay available.
+
+Presentation only: no new price, balance approval, stock generation, receipt, save or gameplay behavior. Centered Equipped and immediate saved live sale refunds/next-batter effect retirement remain unchanged. Build41/save45/Career21; human visual/feel acceptance remains open.
+
 ## Shop service quote amendment, 2026-10-02
 
 Signing replacements, exact Retraining Camp additions, Summer School nominees, completed Open Book recipient pairs, Special Order categories, Raincheck reservation/release, Transfer Station exchanges, Pick & Mix and equal-price Wholesale discount choices now show authoritative resulting Cash before confirmation. Hard Cash failures disable exact actions; free exchanges and reservations remain selectable at zero Cash. Raincheck's displayed base price remains a future purchase price, not an immediate charge. First-recipient and other incomplete choices remain selection steps.
@@ -32,7 +38,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.88
+**Version:** v0.4.89
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

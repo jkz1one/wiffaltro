@@ -4,7 +4,11 @@ extends RefCounted
 
 
 static func button(
-	window: SeasonShopWindow, text: String, command: Dictionary, description: String
+	window: SeasonShopWindow,
+	text: String,
+	command: Dictionary,
+	description: String,
+	context: String = ""
 ) -> Button:
 	var build: SeasonBuild = window.app.season.build
 	# Preview records diagnostic errors; isolate those as well as candidate state.
@@ -33,6 +37,9 @@ static func button(
 				message = "Not enough Season Cash for this action."
 			elif error.contains("capacity") and command.op in ["buy", "tactical_buy"]:
 				message = "Held supply bag is full. Use or discard a copy before buying."
+	var context_label: Label = window._label(context)
+	if context_label != null:
+		context_label.add_theme_font_size_override("font_size", 16)
 	var status: Label = window._label(message)
 	status.add_theme_font_size_override("font_size", 14)
 	status.add_theme_color_override(
@@ -44,4 +51,21 @@ static func button(
 	action.set_meta("shop_quote", quote)
 	action.set_meta("shop_command", command.duplicate(true))
 	action.set_meta("shop_quote_message", message)
+	_group(action, status, context_label)
 	return action
+
+
+static func _group(action: Button, status: Label, context: Label) -> void:
+	var parent: Node = status.get_parent()
+	var first: Control = status if context == null else context
+	var index: int = first.get_index()
+	var group: VBoxContainer = VBoxContainer.new()
+	group.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	group.add_theme_constant_override("separation", 6)
+	parent.add_child(group)
+	parent.move_child(group, index)
+	if context != null:
+		context.reparent(group)
+	status.reparent(group)
+	action.reparent(group)
+	action.set_meta("shop_quote_group", group)

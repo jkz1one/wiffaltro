@@ -62,7 +62,18 @@ static func choose(window: SeasonShopWindow) -> void:
 		(
 			window
 			. _purchase(
-				"REVIEW EXCHANGE", window._request("transfer_pitch", row), description(build, row)
+				"REVIEW EXCHANGE",
+				window._request("transfer_pitch", row),
+				description(build, row),
+				(
+					"%s gives %s; %s gives %s"
+					% [
+						build.definition(row.player).display_name,
+						ContentDB.get_pitch(StringName(row.first)).display_name,
+						build.definition(row.other).display_name,
+						ContentDB.get_pitch(StringName(row.second)).display_name
+					]
+				)
 			)
 			. set_meta("transfer_pair", row)
 		)

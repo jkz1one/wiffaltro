@@ -81,7 +81,10 @@ static func destinations(
 			{"offer": quote, "player": player, "remove": remove.duplicate(), "add": choice.add}
 		)
 		window._purchase(
-			"ADD " + _pair(choice.add), command, review(window.app.season.build, command)
+			"ADD " + _pair(choice.add),
+			command,
+			review(window.app.season.build, command),
+			window.app.season.build.definition(player).display_name + " • remove " + _pair(remove)
 		)
 	window._button("BACK TO REMOVALS", sources.bind(window, quote, player))
 	window._focus_first.call_deferred()

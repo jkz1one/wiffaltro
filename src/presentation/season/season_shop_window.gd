@@ -302,7 +302,8 @@ func _choose_recruit() -> void:
 			_purchase(
 				"REPLACE " + outgoing.display_name,
 				_request("sign", {"offer": offer.id, "replace": id}),
-				description
+				description,
+				"Sign " + incoming.display_name + " • 0 Cash for the released player"
 			)
 			. set_meta("recruit_replace", id)
 		)
@@ -528,8 +529,10 @@ func _button(text: String, action: Callable) -> Button:
 	return button
 
 
-func _purchase(text: String, command: Dictionary, description: String) -> Button:
-	return SeasonShopQuote.button(self, text, command, description)
+func _purchase(
+	text: String, command: Dictionary, description: String, context: String = ""
+) -> Button:
+	return SeasonShopQuote.button(self, text, command, description, context)
 
 
 func _ensure_focus_visible() -> void:
@@ -544,7 +547,12 @@ func _ensure_focus_visible() -> void:
 		return
 	var focused: Control = gui_get_focus_owner()
 	if focused != null and _body.is_ancestor_of(focused):
-		_scroll.ensure_control_visible(focused)
+		var target: Control = focused
+		if focused.has_meta("shop_quote_group"):
+			var group: Control = focused.get_meta("shop_quote_group")
+			if is_instance_valid(group) and group.size.y <= _scroll.size.y:
+				target = group
+		_scroll.ensure_control_visible(target)
 
 
 func _focus_first() -> void:

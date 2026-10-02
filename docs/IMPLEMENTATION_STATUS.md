@@ -1,5 +1,11 @@
 # Implementation Status
 
+## Shop quoted choices stay together, 2026-10-02
+
+Cash status and action now form one focus target when they fit the scroll viewport. Recruitment keeps the incoming player visible beside each outgoing choice, retraining repeats the player/removed points, and pitch exchange keeps both players/recipes visible. Full descriptions remain scrollable and final review/save semantics are unchanged. Actual pointer-wheel coverage guards against snapping back to keyboard focus while browsing.
+
+Final native23/23 checks,103 captures, no engine errors/early exits; four reviewed screenshots saved. Focused headless13/13 preceded the final wheel-test addition. All590 source files remain frozen. All25 Gear and35 sponsors remain integrated. Build41/save45/Career21 unchanged; overall **~75%**, not release readiness. This bounded shop clarity pass preserves the centered Equipped entry and safe live sales. Final cohesive whole-UI review, human visual/feel acceptance and historical intermittent suite exits remain open.
+
 ## Shop services and completed recipient quotes, 2026-10-02
 
 Exact signing, retraining, school nomination/pairs, focused rerolls, reservations/releases, free pitch exchanges, Pick & Mix and equal-price Wholesale discount choices now project resulting Cash or a visible blocked reason. Free service actions remain available at zero Cash; reservation base prices are explicitly future purchase prices. Retraining descriptions preserve live diagnostics. Layout events now coalesce before correcting focus, addressing an actual narrow recruitment clipping failure while preserving pointer scrolling.

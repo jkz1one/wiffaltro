@@ -1,5 +1,11 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Quoted choice focus bounds, 2026-10-02
+
+SeasonShopQuote groups optional compact context, status and the existing Button in a VBoxContainer at their original position, preserving command callbacks, tooltips and button metadata. SeasonShopWindow uses that group's bounds for the coalesced focus correction when it fits the viewport height; otherwise it ensures the action itself remains visible. Ordinary unquoted buttons retain their existing focus bounds. Manual scroll events do not schedule a correction.
+
+Recruitment, Retraining Camp and Transfer Station add exact participant/operation context without changing commands or saved data. Shared viewport tests now require fully visible focused quote groups, beyond the previous button-only bounds. The quote test also sends actual pointer motion/wheel input through the real embedded-window viewport, verifies scrolling past the selected quote, waits for pending frames and rejects snap-back, focus changes or build mutations.
+
 ## Shop services and settled focus layout, 2026-10-02
 
 Exact service and completed recipient commands reuse SeasonShopQuote; no domain or serialization change. Special Order combines quote-disabled state with empty-pool eligibility. Pick & Mix preserves quote descriptions unless a compatibility reason blocks it. Equal-price Wholesale choices disclose each receipt's base/discount/paid price and quote the complete atomic command; unequal-price pairs keep their existing direct final-review path. Retraining review uses an isolated fork so generating descriptions cannot overwrite live last_error.
@@ -34,7 +40,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.79
+**Version:** v0.1.80
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

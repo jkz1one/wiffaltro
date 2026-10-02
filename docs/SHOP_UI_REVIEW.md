@@ -94,3 +94,29 @@ At700×400, the exchange action stays fully visible with0 Cash. The outgoing mas
 At700×400,0-Cash reservation choices retain the item's future base price beside the action. Reserving spends no Cash now. The final review still controls reserve-and-leave; Cancel leaves stock and the current visit intact.
 
 Additional final recruitment and category captures were inspected for fully visible focused buttons after narrow resize. Existing effects and player ratings remain scrollable. Shared native environment limits above apply; no engine errors in the final scope, no new complete physical games. This bounded review is not human visual/feel acceptance or the final cohesive whole-game UI pass.
+
+
+## Quoted choice context follow-up
+
+The same [official Balatro shop asset](https://www.playbalatro.com/press-kit/Screenshots/Balatro_ui_3840x2160_2.png) informs keeping price information adjacent to actions. [Godot's primary ScrollContainer reference](https://docs.godotengine.org/en/stable/classes/class_scrollcontainer.html) confirms that focus scrolling supports indirect children and needs completed layout. Wiffaltro now scrolls the compact context/quote/action group as a unit when it fits the viewport, preserving a visible action for taller content. The existing coalesced layout correction remains; manual scrolling does not trigger it.
+
+These unedited captures are from native verification `20261002T172540421436Z`,23/23 checks with103 captures:
+
+![Exchange context and Cash stay with the focused action](reviews/20261002-shop-choice-groups/transfer-free-quote-exact.png)
+
+At700×400, Logan Ames/Overhand Slider and Shiloh Dean/Overhand Sinker remain visible with the0-Cash outcome and exchange action. Full mastery/repertoire consequences are still available above by scrolling and in final confirmation. Back to shop, Back to season and the centered Equipped entry remain visible.
+
+![Focused category retains its exact resulting Cash](reviews/20261002-shop-choice-groups/special-order-quote-exact.png)
+
+At700×400, the12-Cash Gear reroll and resulting0 Cash remain together. The earlier button-only focus target could scroll the preceding quote out of view. Focus geometry now checks the full group, retaining the existing44-pixel action and fixed saved balance.
+
+![Retraining keeps the selected player and removed points beside each addition](reviews/20261002-shop-choice-groups/retraining-quote-exact.png)
+
+At1000×650, each addition repeats Riley Grant and the Contact/Power removal with its0-Cash outcome. The selected addition remains keyboard-focused; Cancel preserves the original8 Cash and points. No operation or economy change is implied by these controlled boundary renders.
+
+Actual pointer motion/wheel input additionally checks that browsing can scroll away from the selected quote without snap-back, changing focus or purchasing. Native screenshots remain distinct from human visual/feel acceptance; the final cohesive whole-UI pass is still open. Existing software-display limitations apply.
+
+
+![Gear effect, receipt refund and resulting Cash are readable together](reviews/20261002-shop-choice-groups/gear-replacement-quote.png)
+
+At700×400, the Wide Barrel effect,10-Cash list price,5-Cash Taped Bat receipt refund,5-Cash net cost and resulting0 Cash are visible with the replacement action. This controlled boundary render retains Working status. Four final screenshots were reviewed/copied verbatim; all sixteen scene scopes passed, including the actual wheel test. No human visual/feel approval is implied.

@@ -69,7 +69,9 @@ func _quotes() -> void:
 		window._review_text.text.contains("Cash: 5 → 0"), "final review agrees with inline quote"
 	)
 	await _click(window._confirm.get_cancel_button())
+	window.size = Vector2i(700, 400)
 	await _shop_bounds(window, "quote-refund-affordable")
+	await _pointer_scroll(window)
 	build._bank._state.cash = 4
 	window._refresh()
 	replacement = _gear_button(window, "gear_offer", second)
@@ -176,3 +178,39 @@ func _concessions(window: SeasonShopWindow) -> void:
 		)
 		await _click(window._confirm.get_cancel_button())
 	_check(build.to_data() == before, "concession selection and cancellation consume no allowance")
+
+
+func _pointer_scroll(window: SeasonShopWindow) -> void:
+	await _frames()
+	var before: Dictionary = window.app.season.build.to_data()
+	var focus: Control = window.gui_get_focus_owner()
+	var old_scroll: int = window._scroll.scroll_vertical
+	var point: Vector2 = window._scroll.get_global_rect().get_center()
+	var viewport: Viewport = window
+	while viewport is Window and viewport.is_embedded():
+		point += Vector2(viewport.position)
+		var ancestor: Node = viewport.get_parent()
+		while ancestor != null and not (ancestor is Viewport and ancestor.gui_embed_subwindows):
+			ancestor = ancestor.get_parent()
+		_check(ancestor != null, "wheel has an actual input viewport")
+		if ancestor == null:
+			return
+		viewport = ancestor as Viewport
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = point
+	viewport.push_input(motion, true)
+	var wheel: InputEventMouseButton = InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	wheel.position = point
+	viewport.push_input(wheel, true)
+	await _frames()
+	var scrolled: int = window._scroll.scroll_vertical
+	_check(scrolled > old_scroll, "actual wheel scrolls past the focused quote")
+	await _frames()
+	_check(
+		window._scroll.scroll_vertical == scrolled,
+		"quote focus does not snap pointer scrolling back"
+	)
+	_check(window.gui_get_focus_owner() == focus, "wheel leaves keyboard selection unchanged")
+	_check(window.app.season.build.to_data() == before, "browsing quotes does not purchase")

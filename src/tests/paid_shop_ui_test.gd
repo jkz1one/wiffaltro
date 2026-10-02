@@ -356,6 +356,13 @@ func _shop_bounds(window: SeasonShopWindow, stage: String) -> void:
 				]
 			)
 		)
+	if focused is Button and focused.has_meta("shop_quote_group"):
+		var group: Control = focused.get_meta("shop_quote_group")
+		if group.size.y <= window._scroll.size.y:
+			_check(
+				window._scroll.get_global_rect().encloses(group.get_global_rect()),
+				"focused Cash quote and its action stay together: " + stage
+			)
 	await _capture(window, stage)
 
 
