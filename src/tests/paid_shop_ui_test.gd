@@ -141,14 +141,14 @@ func _shop(app: SeasonApp) -> SeasonShopWindow:
 
 
 func _offer_button(window: SeasonShopWindow, offer: String) -> Button:
-	for child in window._body.get_children():
+	for child in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.get_meta("offer", "") == offer:
 			return child
 	return null
 
 
 func _target_button(window: SeasonShopWindow) -> Button:
-	for child in window._body.get_children():
+	for child in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.has_meta("target"):
 			return child
 	return null
@@ -228,6 +228,11 @@ func _shop_bounds(window: SeasonShopWindow, stage: String) -> void:
 	var bounds: Rect2 = Rect2(Vector2.ZERO, Vector2(window.size))
 	_check(bounds.encloses(window._back.get_global_rect()), "Back remains visible: " + stage)
 	_check(bounds.encloses(window._scroll.get_global_rect()), "scroll panel fits: " + stage)
+	_check(bounds.encloses(window._balance.get_global_rect()), "Cash header stays in view")
+	_check(
+		window._balance.text == "%d Cash" % window.app.season.cash(),
+		"sticky balance agrees with the committed wallet"
+	)
 	for node in window._body.find_children("*", "Control", true, false):
 		var rect: Rect2 = node.get_global_rect()
 		_check(
@@ -237,6 +242,12 @@ func _shop_bounds(window: SeasonShopWindow, stage: String) -> void:
 		if node is Button:
 			_check(node.size.y >= 44, "shop action has a usable hit area")
 	_check(window.gui_get_focus_owner() != null, "shop has a keyboard focus target")
+	var focused: Control = window.gui_get_focus_owner()
+	if focused is Button and window._body.is_ancestor_of(focused):
+		_check(
+			window._scroll.get_global_rect().encloses(focused.get_global_rect()),
+			"focused purchase/target stays fully visible after resize: " + stage
+		)
 	await _capture(window, stage)
 
 

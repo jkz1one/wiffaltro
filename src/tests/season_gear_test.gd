@@ -542,7 +542,7 @@ func _record(season: SeasonState) -> void:
 
 
 func _gear_button(window: SeasonShopWindow, meta: String, value: String) -> Button:
-	for child in window._body.get_children():
+	for child in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.get_meta(meta, "") == value:
 			return child
 	return null

@@ -508,7 +508,7 @@ func _actual_ui(id: String) -> void:
 
 
 func _metadata_button(window: SeasonShopWindow, key: String) -> Button:
-	for child: Node in window._body.get_children():
+	for child: Node in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.has_meta(key):
 			return child
 	return null
@@ -620,7 +620,7 @@ func _discount_ui() -> void:
 	window.size = Vector2i(700, 400)
 	await _click(_offer_button(window, _offer(build, card)))
 	var target_button: Button
-	for child: Node in window._body.get_children():
+	for child: Node in window._body.find_children("*", "Control", true, false):
 		if (
 			child is Button
 			and child.has_meta("target")
@@ -635,7 +635,7 @@ func _discount_ui() -> void:
 	)
 	await _shop_bounds(window, "school-concession")
 	var chosen: Button
-	for child: Node in window._body.get_children():
+	for child: Node in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.get_meta("concession", "") == "scholarship":
 			chosen = child
 	await _click(chosen)

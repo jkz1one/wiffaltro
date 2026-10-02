@@ -30,12 +30,12 @@ def main():
     summary = {"status": "failed", "steps": [], "logs": str(output),
                "scope": args.only or ["all"]}
 
-    def run(name, command, cwd=ROOT, marker=None):
+    def run(name, command, cwd=ROOT, marker=None, env=None):
         print(f"Checking {name}...", flush=True)
         with (output / f"{name}.log").open("w") as log:
             try:
                 result = subprocess.run(command, cwd=cwd, stdout=log,
-                                        stderr=subprocess.STDOUT, timeout=args.timeout)
+                                        stderr=subprocess.STDOUT, timeout=args.timeout, env=env)
             except subprocess.TimeoutExpired:
                 summary["steps"].append({"name": name, "passed": False, "timeout": True})
                 raise RuntimeError(f"{name}: timed out after {args.timeout}s") from None
@@ -80,8 +80,16 @@ def main():
             for folder in ("src", "assets"):
                 if (ROOT / folder).exists():
                     shutil.copytree(ROOT / folder, stage / folder)
+            godot_env = dict(os.environ)
+            if sys.platform.startswith("linux"):
+                # Keep editor state and user:// saves inside the disposable run.
+                for kind in ("CONFIG", "DATA", "CACHE"):
+                    directory = stage / "user-state" / kind.lower()
+                    directory.mkdir(parents=True)
+                    godot_env[f"XDG_{kind}_HOME"] = str(directory)
+                summary["user_state"] = "isolated XDG directories"
             base = [godot, "--headless", "--path", str(stage)]
-            run("import", [*base, "--editor", "--quit"])
+            run("import", [*base, "--editor", "--quit"], env=godot_env)
             failures = []
             ui_base = base
             ui_extra = []
@@ -420,7 +428,7 @@ def main():
                 if args.only and name not in args.only:
                     continue
                 try:
-                    run(name, command, marker=marker)
+                    run(name, command, marker=marker, env=godot_env)
                 except RuntimeError as error:
                     failures.append(str(error))
             if failures:

@@ -550,7 +550,7 @@ func _live_misc(lab: PitchBatLab, id: String) -> void:
 
 
 func _gear_button(window: SeasonShopWindow, meta: String, value: String) -> Button:
-	for child in window._body.get_children():
+	for child in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.get_meta(meta, "") == value:
 			return child
 	return null
@@ -558,7 +558,7 @@ func _gear_button(window: SeasonShopWindow, meta: String, value: String) -> Butt
 
 func _gear_status_visible(window: SeasonShopWindow, id: String) -> bool:
 	var item: Dictionary = SeasonGearCatalog.item(id)
-	for child in window._body.get_children():
+	for child in window._body.find_children("*", "Control", true, false):
 		if child is Label and child.text.contains(item.name):
 			if child.text.contains(item.get("status", "Working")):
 				return true

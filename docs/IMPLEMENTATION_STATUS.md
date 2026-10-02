@@ -1,5 +1,11 @@
 # Implementation Status
 
+## Shop browsing cards and resize focus, 2026-10-02
+
+Ordinary offers now group category, effect, price and actions; Cash/held/sponsor capacity remain fixed above scrolling content. Development descriptions expose existing caps before recipient selection. Services and current inventory follow offers. A native-discovered focus scrolling bug after resizing/rebuilding wrapped content is corrected and covered by exact viewport bounds assertions.
+
+Final native broad17/18 checks plus unchanged-source school rerun8/8; three reviewed screenshots preserved. The broad school early exit remains unexplained, not silently counted as passed. No gameplay/save/catalog changes: Build41/save45/Career21,25/25 Gear,35/35 sponsors. Overall **~75%**. Human visual/feel approval, final cohesive UI and intermittent process-exit investigation remain open. Continue shop integration before larger systems.
+
 ## Equipped/shop presentation review, 2026-10-02
 
 Native Godot review completed for this bounded UI slice: saved Cash feedback, compact item/refund hierarchy, separate effect status, improved small-window spacing, affirmative Collection tab selection and removal of stale shop counts. Three reviewed screenshots are committed;32 native captures and14/14 final checks cover shop/Equipped/Collection, live sale failure/retry, career and regressions.

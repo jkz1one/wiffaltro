@@ -260,7 +260,7 @@ func _drive_pair(window: SeasonShopWindow, request: Dictionary) -> void:
 
 
 func _meta_exact(window: SeasonShopWindow, key: String, value: Variant) -> Button:
-	for child: Node in window._body.get_children():
+	for child: Node in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.has_meta(key) and child.get_meta(key) == value:
 			return child
 	return null

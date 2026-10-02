@@ -1,5 +1,11 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Shop cards and focus layout, 2026-10-02
+
+SeasonShopWindow projects offers into nested PanelContainers while maintaining the root body for service and recipient flows. Metadata-driven test lookups traverse descendants. Cash/capacity stay in a fixed header; effects reuse existing development operation/cap definitions without changing saved catalogs. Scroll follows focus, with a two-layout-pass correction after resize or rebuilt content so wrapped descriptions cannot strand the focused purchase action below the viewport.
+
+Linux verification puts Godot config/data/cache and user saves in the disposable staging directory through XDG variables. Completion markers remain mandatory, including for processes returning exit0. No gameplay/schema/version changes.
+
 ## Native Equipped review and UI projection, 2026-10-02
 
 SeasonLoadoutUI renders named effects/status as separate rows, with compact adjacent refund buttons and a current seasonal balance. It refreshes balance on page projection after both successful and rolled-back sales; exhibition visibility keys off app._season_game, not the retained last fixture ID. Existing ownership/sale commands are unchanged. Collection marks its active category explicitly instead of disabling/dimming it. Native verification uses Dummy audio to avoid dependence on a host audio device, while preserving actual X11/OpenGL rendering.
@@ -14,7 +20,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.76
+**Version:** v0.1.77
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

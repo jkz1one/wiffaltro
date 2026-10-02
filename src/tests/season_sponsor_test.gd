@@ -288,7 +288,7 @@ func _sponsor_ui(items: Dictionary = SeasonSponsorCatalog.ITEMS) -> void:
 		await _shop_bounds(window, "sponsor-small-" + id)
 		if id == "B02":
 			var found: bool = false
-			for child: Node in window._body.get_children():
+			for child: Node in window._body.find_children("*", "Control", true, false):
 				if child is Label and child.text.contains("College eligibility now: 0 / 4"):
 					found = true
 			_check(found, "College offer discloses actual current qualification")
@@ -366,7 +366,7 @@ func _sponsor_ui(items: Dictionary = SeasonSponsorCatalog.ITEMS) -> void:
 
 
 func _sponsor_button(window: SeasonShopWindow, offer: String, replace: String = "") -> Button:
-	for child in window._body.get_children():
+	for child in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.get_meta("sponsor_offer", "") == offer:
 			if child.get_meta("sponsor_replace", "") == replace:
 				return child

@@ -1,5 +1,15 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: shop offer cards, 2026-10-02
+
+Recovered writable checkout: `/workspace/scratch/c3619bd03563/wiffaltro`. Continue `rebuild/season-engineering`; prior pushed parent8651ea2. Build41/save45/Career21 remain unchanged; all25 Gear and35 sponsors are integrated. Overall estimate remains **~75%**, not release readiness.
+
+Shop now groups offers into cards with fixed Cash/capacity, explicit development effects and services below offers. The centered Equipped entry, immediate saved live refunds and next-batter retirement remain unchanged. Actual native review exposed and fixed focus scrolling after wrapped layout changes. Three reviewed screenshots are committed under docs/reviews/20261002-shop-cards.
+
+Final broad native run `20261002T151339495665Z`: **17/18 checks**,79 captures. Only school-shop exited0 before its marker. Unchanged-source focused rerun `20261002T151749989016Z`: **8/8**, including school-shop. No engine errors on these final runs; unsupported native V-Sync remains a software-display limitation. Intermittent process exits, including prior combined Collection, remain unexplained. Human visual/feel acceptance and final whole-UI polish remain open.
+
+Next: continue shop/Equipped integration and user-facing clarity before larger systems. All587 source/test/asset/project/runner files were frozen across final verification. Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420; repository blueprint is byte-identical. Historical checkpoints below retain earlier scope.
+
 ## Current checkpoint: Equipped native UI review, 2026-10-02
 
 Frozen Rope remains fully integrated: Build41/save45/Career21,25/25 Gear,35/35 sponsors. Overall estimate remains **~75%**. This slice improves Equipped card hierarchy, adjacent refund actions, actual saved Cash feedback, separate sold-effect status, compact small-window spacing, and Collection category selection. It removes the shop's stale implementation-count paragraph. No gameplay, catalog, save schema or receipt changes.

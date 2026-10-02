@@ -31,3 +31,24 @@ X11 display via isolated Xvfb21.1.12, OpenGL4.5 Compatibility, Mesa25.2.8 llvmpi
 32 native captures;14/14 final checks. No engine errors; native V-Sync control is unsupported and the display has nonfatal keyboard/getifaddrs warnings. No full physical games were added in this UI slice. See VERIFICATION for exact earlier failures and current scope.
 
 Human visual/feel acceptance is still pending. Screenshots do not establish response feel, camera comfort, hardware performance or complete whole-game UI quality. Continue shop/UI integration before larger systems. The intermittent combined Collection early exit remains open; focused Collection coverage does not fix that problem.
+
+
+## Offer browsing follow-up
+
+The same primary-reference observations now guide the shop itself: Cash and held/sponsor capacity remain above the scrolling list; ordinary offers group category, name/price, effect and actions in separate cards. Offers precede services and current inventory. Existing development operations now explain their effect/cap before target selection without changing catalogs or economy.
+
+These unedited Godot captures are from `20261002T151339495665Z`:
+
+![Development offer with fixed wallet and grouped actions](reviews/20261002-shop-cards/development-offer.png)
+
+At1000×650, the first development effect and both use/hold actions are readable together. The next card remains reachable by scrolling. Back and Equipped remain separate and visible.
+
+![Gear offer at700×400](reviews/20261002-shop-cards/shop-narrow.png)
+
+At700×400, Taped Bat's category, price, effect and44-pixel purchase action fit in the visible card. Cash and capacity stay fixed; Equipped remains centered at the same entry position.
+
+![Long sponsor description scrolled to focused action](reviews/20261002-shop-cards/sponsor-focused.png)
+
+Long descriptions scroll when focus moves to their purchase action. The corrected layout waits for wrapping to settle, keeping that focused action fully visible after resizing. The full description is available by scrolling upward; it is not truncated in the data. Native geometry checks cover focused actions as well as horizontal bounds.
+
+The broad run passed17/18 checks with79 native captures. Only school-shop exited0 before its completion marker; no engine error established the cause. The earlier synchronous scrolling implementation failed actual focus bounds and was corrected, not bypassed. See VERIFICATION for the focused rerun. Human visual/feel acceptance remains pending.

@@ -3,6 +3,10 @@ extends Window
 
 var app: SeasonApp
 var _body: VBoxContainer
+var _offer_body: VBoxContainer
+var _heading: Label
+var _balance: Label
+var _capacity: Label
 var _scroll: ScrollContainer
 var _back: Button
 var _confirm: ConfirmationDialog
@@ -20,18 +24,35 @@ func _ready() -> void:
 	exclusive = true
 	theme = ClubhouseTheme.create()
 	close_requested.connect(_close)
+	size_changed.connect(func() -> void: _ensure_focus_visible.call_deferred())
 	var panel: PanelContainer = PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
 	var margin: MarginContainer = MarginContainer.new()
 	for edge: String in ["left", "top", "right", "bottom"]:
 		margin.add_theme_constant_override("margin_" + edge, 16)
-	margin.add_theme_constant_override("margin_bottom", 76)
+	margin.add_theme_constant_override("margin_bottom", 60)
 	panel.add_child(margin)
 	var layout: VBoxContainer = VBoxContainer.new()
 	margin.add_child(layout)
+	layout.add_theme_constant_override("separation", 10)
+	var header: HBoxContainer = HBoxContainer.new()
+	header.add_theme_constant_override("separation", 16)
+	layout.add_child(header)
+	_heading = SeasonPlayerCard.line(header, "SEASON SHOP")
+	_heading.add_theme_font_size_override("font_size", 24)
+	_heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var wallet_box: VBoxContainer = VBoxContainer.new()
+	header.add_child(wallet_box)
+	_balance = SeasonPlayerCard.line(wallet_box, "")
+	_balance.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_capacity = SeasonPlayerCard.line(wallet_box, "", 14)
+	_capacity.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_balance.add_theme_color_override("font_color", ClubhouseTheme.GREEN)
+	_balance.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.follow_focus = true
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_scroll)
 	_body = VBoxContainer.new()
@@ -74,50 +95,31 @@ func _refresh() -> void:
 	_clear()
 	var view: Dictionary = app.season.build.view()
 	var shop: Dictionary = view.shop
-	_label("SEASON SHOP • VISIT %d" % shop.number)
-	_label(
-		(
-			"Cash %d • Held cards %d / %d"
-			% [view.wallet.cash, view.wallet.held.size(), view.wallet.capacity.held]
-		)
+	_heading.text = "SEASON SHOP • VISIT %d" % shop.number
+	_balance.text = "%d Cash" % view.wallet.cash
+	_capacity.text = (
+		"Held %d / %d • Sponsors %d / %d"
+		% [
+			view.wallet.held.size(),
+			view.wallet.capacity.held,
+			view.wallet.sponsors.size(),
+			view.wallet.capacity.sponsors
+		]
 	)
-	_label(
-		(
-			"Buy Gear, sponsors and supplies for this season. "
-			+ "Earned access carries forward; purchased copies last this season."
-		)
-	)
-	if SeasonReclamation.credit(shop) > 0:
-		_label(
-			(
-				(
-					"Reclamation: %d reroll credit, separate from Cash. Expires on leaving. "
-					% SeasonReclamation.credit(shop)
-				)
-				+ "No further award this visit, even if the sponsor is sold or bought again."
-			)
-		)
-	SeasonSchoolShopUI.status(self)
-	SeasonRetrainingUI.status(self)
 	_label(_notice)
 	if shop.pack_status == "open":
 		_label("Choose one card, then its recipient. This pack is already paid; no extra charge.")
 		for item_id: String in shop.cards:
+			_label(_development_effect(DevelopmentShopCatalog.item(item_id)))
 			var command: Dictionary = _request("pack_pick", {"item": item_id})
 			_button(DevelopmentShopCatalog.item(item_id).name, _choose.bind(item_id, command))
 		_button(
 			"Skip this paid pack", _preview.bind(_request("pack_skip"), "Skip without a refund")
 		)
 	else:
-		SeasonTransferUI.entry(self)
-		SeasonRaincheckUI.entry(self)
-		SeasonSpecialOrderUI.entry(self)
-		SeasonWholesaleUI.entry(self)
-		_recruit(shop)
-		SeasonGearShopUI.equipped(self, view.wallet.gear)
-		SeasonSponsorShopUI.active(self, view.wallet)
 		for offer: String in shop.offers:
 			var item_id: String = shop.offers[offer]
+			_offer_card(offer, item_id)
 			if item_id == SeasonRetraining.ID:
 				SeasonRetrainingUI.offer(self, offer)
 				continue
@@ -135,6 +137,7 @@ func _refresh() -> void:
 				continue
 			var item: Dictionary = DevelopmentShopCatalog.item(item_id)
 			_label("%s • %d Cash" % [item.name, item.price])
+			_label(_development_effect(item))
 			var command: Dictionary = _request("buy", {"offer": offer, "mode": "use"})
 			_button("BUY AND USE", _choose.bind(item_id, command)).set_meta("offer", offer)
 			if SeasonSchoolSponsors.pair_available(app.season.build, item_id):
@@ -151,6 +154,7 @@ func _refresh() -> void:
 					{"offer": offer, "mode": "hold", "player": "", "pitch": "", "replace": ""}
 				)
 				_button("BUY AND HOLD", _preview.bind(hold, "Hold " + item.name))
+		_offer_body = null
 		_button(
 			"Reroll individual offers • %d Cash" % SeasonReclamation.price(shop),
 			_preview.bind(
@@ -187,6 +191,19 @@ func _refresh() -> void:
 				pack_button.tooltip_text = "No eligible development remains; no Cash can be charged."
 		else:
 			_label("Development pack: " + str(shop.pack_status).capitalize())
+		_label("SHOP SERVICES")
+		if SeasonReclamation.credit(shop) > 0:
+			_label("Reclamation credit: %d • Expires on leaving" % SeasonReclamation.credit(shop))
+		SeasonTransferUI.entry(self)
+		SeasonRaincheckUI.entry(self)
+		SeasonSpecialOrderUI.entry(self)
+		SeasonWholesaleUI.entry(self)
+		SeasonSchoolShopUI.status(self)
+		SeasonRetrainingUI.status(self)
+		_recruit(shop)
+		_label("YOUR SEASON INVENTORY • Earned access carries forward; copies last this season")
+		SeasonGearShopUI.equipped(self, view.wallet.gear)
+		SeasonSponsorShopUI.active(self, view.wallet)
 		_held(view.wallet.held)
 	_focus_first.call_deferred()
 
@@ -199,6 +216,7 @@ func _held(receipts: Array) -> void:
 			continue
 		var item: Dictionary = DevelopmentShopCatalog.item(receipt.item)
 		_label("%s • paid %d" % [item.name, receipt.paid])
+		_label(_development_effect(item))
 		_button(
 			"USE " + item.name, _choose.bind(receipt.item, _request("use", {"receipt": receipt.id}))
 		)
@@ -292,6 +310,7 @@ func _choose(item_id: String, command: Dictionary) -> void:
 	_clear()
 	var item: Dictionary = DevelopmentShopCatalog.item(item_id)
 	_label("CHOOSE RECIPIENT • " + item.name)
+	_label(_development_effect(item))
 	_label("Inspection and target selection spend nothing. Confirm the exact change next.")
 	var targets: Array[Dictionary] = app.season.build.targets(item_id)
 	var previous_player: String = ""
@@ -308,6 +327,31 @@ func _choose(item_id: String, command: Dictionary) -> void:
 		_label("No legal target remains. Nothing was charged or consumed.")
 	_button("CANCEL TARGETING", _refresh)
 	_focus_first.call_deferred()
+
+
+func _development_effect(item: Dictionary) -> String:
+	match item.op:
+		"stat":
+			return (
+				"Raise one player's %s by 1 this season, up to %d."
+				% [item.family.capitalize(), SeasonDevelopment.STAT_CAP]
+			)
+		"mastery":
+			return (
+				"Raise one active pitch's mastery by 1 this season, up to %d."
+				% SeasonDevelopment.PITCH_CAP
+			)
+		"round_out":
+			return (
+				"Raise one of a player's lowest-mastery active pitches by 1, up to %d this season."
+				% SeasonDevelopment.PITCH_CAP
+			)
+		"learn":
+			return (
+				"Teach this exact pitch this season. Choose a free slot or review a replacement. "
+				+ "New pitches start at mastery 1; relearning preserves their previous mastery."
+			)
+	return ""
 
 
 func _target_text(item: Dictionary, target: Dictionary) -> String:
@@ -432,14 +476,39 @@ func _close() -> void:
 
 
 func _clear() -> void:
+	_offer_body = null
 	_scroll.scroll_vertical = 0
 	for child in _body.get_children():
 		_body.remove_child(child)
 		child.queue_free()
 
 
+func _offer_card(offer: String, id: String) -> void:
+	var card: PanelContainer = PanelContainer.new()
+	card.set_meta("shop_offer", offer)
+	card.add_theme_stylebox_override("panel", ClubhouseTheme.surface(false, 14))
+	_body.add_child(card)
+	_offer_body = VBoxContainer.new()
+	_offer_body.add_theme_constant_override("separation", 8)
+	card.add_child(_offer_body)
+	var category: String = "DEVELOPMENT"
+	if not SeasonGearCatalog.item(id).is_empty():
+		category = "GEAR • " + str(SeasonGearCatalog.item(id).slot).to_upper()
+	elif not SeasonSponsorCatalog.item(id).is_empty():
+		category = "SPONSOR"
+	elif SeasonAbilities.ITEMS.has(id):
+		category = "LEARNED ABILITY"
+	elif SeasonTacticalCatalog.catalog().has(id):
+		category = "TACTICAL SUPPLY"
+	var tag: Label = SeasonPlayerCard.line(_offer_body, category)
+	tag.add_theme_font_size_override("font_size", 14)
+	tag.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
+
+
 func _label(text: String) -> void:
-	var label: Label = SeasonPlayerCard.line(_body, text)
+	if text.is_empty():
+		return
+	var label: Label = SeasonPlayerCard.line(_body if _offer_body == null else _offer_body, text)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
@@ -450,16 +519,30 @@ func _button(text: String, action: Callable) -> Button:
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.custom_minimum_size.y = 44
 	button.pressed.connect(action)
-	_body.add_child(button)
+	(_body if _offer_body == null else _offer_body).add_child(button)
 	return button
+
+
+func _ensure_focus_visible() -> void:
+	if not is_inside_tree() or _scroll == null:
+		return
+	# Wrapped descriptions settle their container heights over two layout passes.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	var focused: Control = gui_get_focus_owner()
+	if focused != null and _body.is_ancestor_of(focused):
+		_scroll.ensure_control_visible(focused)
 
 
 func _focus_first() -> void:
 	if not is_inside_tree() or is_queued_for_deletion():
 		return
-	for child in _body.get_children():
+	for child in _body.find_children("*", "Button", true, false):
 		if child is Button and not child.disabled:
 			child.grab_focus()
+			_ensure_focus_visible()
 			return
 	_back.grab_focus()
 

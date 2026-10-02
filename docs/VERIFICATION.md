@@ -1,5 +1,13 @@
 # Fast verification and playtest records
 
+## Shop offer browsing verification, 2026-10-02
+
+Final source run `20261002T151339495665Z`: **17/18 checks**, seven common gates and ten of eleven scenes; **79 native captures**. Passed scenes: season-frozen-rope, season-shop-categories, season-loadout-ui, season-wholesale, season-sponsor, season-misc, season-gear, recruitment, paid-shop-ui, regressions. Only season-school returned0 before its completion marker and was correctly failed. Unchanged-source focused `20261002T151749989016Z`: **8/8**, seven common gates plus season-school, with the required marker.
+
+Godot4.7.2 actual X11/OpenGL Mesa llvmpipe rendering covers700×400 and1000×650 shop flows, fixed committed Cash,44-pixel actions, nested offer metadata, purchase/recipient/pack/service interactions, and focused-action visibility after resize and refresh. Three final broad-run captures were reviewed and copied verbatim into docs/reviews/20261002-shop-cards. All587 source/test/asset/project/runner files stayed frozen across both final runs. No complete physical games added. No engine errors in these final runs; unsupported V-Sync and nonfatal display warnings remain. No human or hardware/feel acceptance implied.
+
+Earlier attempts:145435952366Z failed import because Godot settings targeted a non-writable home; Linux XDG state is now isolated within each disposable stage.145604584259Z passed14/14 headless.145859513140Z passed16/17 native, with school exiting before marker.150332360937Z passed11/11 native including school.150609110332Z exposed real focused-action clipping in seven scene scopes; compact spacing plus a synchronous scroll call did not suffice. The final fix waits two layout passes after resize/focus to account for wrapped description heights; assertions were retained. Intermittent school/combined Collection early exits are not repaired or assigned an unproven common cause.
+
 ## Equipped native UI verification, 2026-10-02
 
 Final `20261002T142702852879Z`: **14/14** under Godot4.7.2, seven common gates plus club-collection-ui, season-frozen-rope, season-shop-categories, season-match-sales, season-loadout-ui, club-career and regressions. Native UI scenes used X11, OpenGL4.5 Compatibility and Mesa25.2.8 llvmpipe with Dummy audio. **32 PNG captures**; three reviewed examples are committed in docs/reviews/20261002-equipped. Coverage includes700×400/1000×650 shop windows,1280×720 menu/live overlays, actual seasonal Cash, failed-sale balance rollback, immediate successful refund feedback, sold-effect retirement, exhibition isolation, focus/pause safety and all60 Collection entries. No new complete physical games in this presentation slice.

@@ -571,7 +571,7 @@ func _record(season: SeasonState) -> void:
 
 
 func _replacement(window: SeasonShopWindow, id: String) -> Button:
-	for child in window._body.get_children():
+	for child in window._body.find_children("*", "Control", true, false):
 		if child is Button and child.get_meta("recruit_replace", "") == id:
 			return child
 	return null
