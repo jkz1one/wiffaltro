@@ -7,17 +7,15 @@ static func offer(window: SeasonShopWindow, quote: String, id: String) -> void:
 	window._label(
 		"%s • %d Cash • Working tactical supply\n%s" % [item.name, item.price, item.effect]
 	)
-	var button: Button = window._button(
+	var button: Button = window._purchase(
 		"BUY AND HOLD " + item.name,
-		window._preview.bind(
-			window._request("tactical_buy", {"offer": quote}),
+		window._request("tactical_buy", {"offer": quote}),
+		(
 			(
-				(
-					"Hold %s\n%s\nShared consumable slot. Use before the first pitch of a PA. "
-					+ "No resale or refund."
-				)
-				% [item.name, item.effect]
+				"Hold %s\n%s\nShared consumable slot. Use before the first pitch of a PA. "
+				+ "No resale or refund."
 			)
+			% [item.name, item.effect]
 		)
 	)
 	button.set_meta("tactical_offer", quote)

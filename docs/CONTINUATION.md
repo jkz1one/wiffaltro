@@ -1,5 +1,15 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: authoritative shop purchase quotes, 2026-10-02
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; prior pushed parent e491243. Build41/save45/Career21,25/25 Gear and35/35 sponsors remain unchanged. Overall **~75%**, not release readiness.
+
+Exact purchases now show resulting Cash, receipt-based replacement refunds/net costs and visible blocked reasons. Hard failures disable actions; sponsor sales/capacity resolution, Double Major choices and competing concessions stay reachable. Quotes use isolated forks, never change live state or diagnostics, and are revalidated by the original final review/save path. The centered Equipped entry and safe live sale boundaries stay intact. Scrollbar width is reserved to stabilize wrapping.
+
+Broad native `20261002T160119371299Z`:16/18,71 captures; ability exited before marker and the new quote test had a controlled-fixture collision. Production was unchanged after that run. Corrected tests and native physical-fixture cleanup pass9/9 in `20261002T160817557513Z` and9/9 in `20261002T161116108177Z`. Latest quote capture run `20261002T161351846929Z`:8/8,4 captures, after a capture-only test adjustment. Final590-file source snapshot stays frozen through publication. Three final reviewed screenshots are committed in docs/reviews/20261002-shop-quotes.
+
+Read VERIFICATION for exact failures and fixes; test markers/errors remain mandatory. Native V-Sync is unsupported. Intermittent early exits, human visual/feel acceptance and final cohesive whole-UI review remain open. Continue shop/service/recruitment clarity and integration before larger systems. Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420; repository blueprint remains byte-identical. Historical checkpoints below retain prior scope.
+
 ## Current checkpoint: shop offer cards, 2026-10-02
 
 Recovered writable checkout: `/workspace/scratch/c3619bd03563/wiffaltro`. Continue `rebuild/season-engineering`; prior pushed parent8651ea2. Build41/save45/Career21 remain unchanged; all25 Gear and35 sponsors are integrated. Overall estimate remains **~75%**, not release readiness.

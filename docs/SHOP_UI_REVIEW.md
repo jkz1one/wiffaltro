@@ -52,3 +52,24 @@ At700×400, Taped Bat's category, price, effect and44-pixel purchase action fit 
 Long descriptions scroll when focus moves to their purchase action. The corrected layout waits for wrapping to settle, keeping that focused action fully visible after resizing. The full description is available by scrolling upward; it is not truncated in the data. Native geometry checks cover focused actions as well as horizontal bounds.
 
 The broad run passed17/18 checks with79 native captures. Only school-shop exited0 before its completion marker; no engine error established the cause. The earlier synchronous scrolling implementation failed actual focus bounds and was corrected, not bypassed. See VERIFICATION for the focused rerun. Human visual/feel acceptance remains pending.
+
+
+## Authoritative purchase feedback
+
+The official Balatro shop reference continues to inform adjacent price/action information. This follow-up also consulted [Godot's primary ScrollContainer documentation](https://docs.godotengine.org/en/stable/classes/class_scrollcontainer.html): reserved scrollbar space stabilizes content width, and new controls require a later layout frame before ensure_control_visible. Wiffaltro uses reserved vertical width and one deferred correction; repeated corrections were rejected after they fought pointer scrolling.
+
+These unedited native Godot captures are from `20261002T161351846929Z`,8/8 checks:
+
+![Receipt refund makes a replacement affordable](reviews/20261002-shop-quotes/quote-refund-affordable.png)
+
+The controlled5-Cash wallet can cover a10-Cash Bat because the owned receipt returns5. Refund, net cost and resulting0 Cash are visible beside the existing review action. Inspection and cancellation leave the purchase uncommitted.
+
+![Full supply bag has a visible reason and disabled purchase](reviews/20261002-shop-quotes/quote-supply-full.png)
+
+At700×400, Held2/2 agrees with the blocked tactical purchase. The reason uses text plus gold color; the disabled action retains its effect/price above it. This capture scrolls to inspect the card with Back focused, rather than following focus to an enabled service below it.
+
+![Concession prices are quoted separately](reviews/20261002-shop-quotes/quote-concession-choice.png)
+
+At2 Cash, the3-Cash Union choice is disabled while the2-Cash Summer School choice remains available and projects0 Cash. The allowances cannot stack. Actual input reaches the exact final review; cancellation consumes neither allowance.
+
+The surrounding screenshots and common native environment limitations above still apply. Broad16/18 plus corrected focused9/9 twice and final quote8/8 are recorded in VERIFICATION. No copied reference artwork, new economy values, human visual approval or whole-project UI acceptance is implied.

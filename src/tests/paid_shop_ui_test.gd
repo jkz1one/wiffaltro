@@ -164,7 +164,7 @@ func _button(parent: Node, text: String, prefix: bool = false) -> Button:
 	return null
 
 
-func _click(button: Button) -> void:
+func _click(button: Button, expected_press: bool = true) -> void:
 	_check(button != null, "requested button exists")
 	if button == null:
 		return
@@ -209,7 +209,7 @@ func _click(button: Button) -> void:
 		event.pressed = pressed
 		event.position = point
 		viewport.push_input(event, true)
-	if presses[0] != 1:
+	if presses[0] != (1 if expected_press else 0):
 		var hovered: Control = viewport.gui_get_hovered_control()
 		_check(
 			false,

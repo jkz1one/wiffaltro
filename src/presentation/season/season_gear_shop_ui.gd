@@ -95,13 +95,20 @@ static func offer(window: SeasonShopWindow, offer_id: String, id: String, gear: 
 			"\nSell %s for %d Cash.\nRemove: %s\nNo spare retained."
 			% [previous.name, floori(float(old.paid) / 2.0), previous.effect]
 		)
-	var button: Button = window._button(
-		"BUY AND EQUIP" if old.is_empty() else "REVIEW REPLACEMENT",
-		window._preview.bind(
-			window._request("equip", {"offer": offer_id, "replace": replace_id}), description
+	if not old.is_empty():
+		var refund: int = floori(float(old.paid) / 2.0)
+		window._label(
+			(
+				"Replace %s • refund %d Cash • net cost %d Cash"
+				% [SeasonGearCatalog.item(old.item).name, refund, item.price - refund]
+			)
 		)
+	var button: Button = window._purchase(
+		"BUY AND EQUIP" if old.is_empty() else "REVIEW REPLACEMENT",
+		window._request("equip", {"offer": offer_id, "replace": replace_id}),
+		description
 	)
 	button.set_meta("gear_offer", offer_id)
-	button.disabled = old.get("item", "") == id
-	if button.disabled:
+	if old.get("item", "") == id:
+		button.disabled = true
 		button.text = "ALREADY EQUIPPED"

@@ -561,5 +561,8 @@ func _soft_physical() -> void:
 				lab._ball_play_resolver.state.bobbled == (not eligible),
 				"actual " + role + " control applies Soft Hands only after reaction"
 			)
+			# Native uploads must finish before this same-frame physical fixture is freed.
+			if DisplayServer.get_name() != "headless":
+				await RenderingServer.frame_post_draw
 			lab.queue_free()
 			await _frames(2)

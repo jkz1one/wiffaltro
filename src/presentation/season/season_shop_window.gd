@@ -52,6 +52,7 @@ func _ready() -> void:
 	_balance.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_RESERVE
 	_scroll.follow_focus = true
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_scroll)
@@ -153,41 +154,37 @@ func _refresh() -> void:
 					"buy",
 					{"offer": offer, "mode": "hold", "player": "", "pitch": "", "replace": ""}
 				)
-				_button("BUY AND HOLD", _preview.bind(hold, "Hold " + item.name))
+				_purchase("BUY AND HOLD", hold, "Hold " + item.name)
 		_offer_body = null
-		_button(
+		_purchase(
 			"Reroll individual offers • %d Cash" % SeasonReclamation.price(shop),
-			_preview.bind(
-				_request("reroll"),
+			_request("reroll"),
+			(
 				(
-					(
-						"Reroll unprotected offers; pack stays fixed. Base price %d; credit %d. "
-						% [4 + 2 * shop.rerolls, SeasonReclamation.credit(shop)]
-					)
-					+ "Consumes the credit; future base prices still escalate normally."
+					"Reroll unprotected offers; pack stays fixed. Base price %d; credit %d. "
+					% [4 + 2 * shop.rerolls, SeasonReclamation.credit(shop)]
 				)
+				+ "Consumes the credit; future base prices still escalate normally."
 			)
 		)
 		if shop.pack_status == "sealed":
-			var pack_button: Button = _button(
+			var pack_button: Button = _purchase(
 				(
 					"Open fixed development pack • %d Cash • %d choices"
 					% [8 - int(shop.get("union_credit", 0)), shop.choice_count]
 				),
-				_preview.bind(
-					_request("pack_open"),
-					(
-						"Pay %d to reveal %d fixed choices (base 8; Union credit %d)"
-						% [
-							8 - int(shop.get("union_credit", 0)),
-							shop.choice_count,
-							shop.get("union_credit", 0)
-						]
-					)
+				_request("pack_open"),
+				(
+					"Pay %d to reveal %d fixed choices (base 8; Union credit %d)"
+					% [
+						8 - int(shop.get("union_credit", 0)),
+						shop.choice_count,
+						shop.get("union_credit", 0)
+					]
 				)
 			)
-			pack_button.disabled = shop.choice_count == 0
-			if pack_button.disabled:
+			pack_button.disabled = pack_button.disabled or shop.choice_count == 0
+			if shop.choice_count == 0:
 				pack_button.tooltip_text = "No eligible development remains; no Cash can be charged."
 		else:
 			_label("Development pack: " + str(shop.pack_status).capitalize())
@@ -322,7 +319,7 @@ func _choose(item_id: String, command: Dictionary) -> void:
 		var selected: Dictionary = command.duplicate(true)
 		selected.merge(target)
 		var text: String = _target_text(item, target)
-		_button(text, _preview.bind(selected, item.name + "\n" + text)).set_meta("target", target)
+		_purchase(text, selected, item.name + "\n" + text).set_meta("target", target)
 	if targets.is_empty():
 		_label("No legal target remains. Nothing was charged or consumed.")
 	_button("CANCEL TARGETING", _refresh)
@@ -505,11 +502,12 @@ func _offer_card(offer: String, id: String) -> void:
 	tag.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
 
 
-func _label(text: String) -> void:
+func _label(text: String) -> Label:
 	if text.is_empty():
-		return
+		return null
 	var label: Label = SeasonPlayerCard.line(_body if _offer_body == null else _offer_body, text)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return label
 
 
 func _button(text: String, action: Callable) -> Button:
@@ -523,10 +521,14 @@ func _button(text: String, action: Callable) -> Button:
 	return button
 
 
+func _purchase(text: String, command: Dictionary, description: String) -> Button:
+	return SeasonShopQuote.button(self, text, command, description)
+
+
 func _ensure_focus_visible() -> void:
 	if not is_inside_tree() or _scroll == null:
 		return
-	# Wrapped descriptions settle their container heights over two layout passes.
+	# Reserved scrollbar width keeps wrapping stable while containers settle.
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if not is_inside_tree() or is_queued_for_deletion():

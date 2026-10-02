@@ -50,14 +50,12 @@ static func choose(window: SeasonShopWindow, quote: String, id: String) -> void:
 		var command: Dictionary = window._request(
 			"ability_buy", {"offer": quote, "player": target.player, "replace": target.replace}
 		)
-		var button: Button = window._button(
+		var button: Button = window._purchase(
 			"TEACH " + player.display_name,
-			window._preview.bind(
-				command,
-				(
-					"Teach %s to %s.\n%s\n%s\nSeason only; no resale."
-					% [item.name, player.display_name, replacement, item.effect]
-				)
+			command,
+			(
+				"Teach %s to %s.\n%s\n%s\nSeason only; no resale."
+				% [item.name, player.display_name, replacement, item.effect]
 			)
 		)
 		button.set_meta("ability_player", target.player)

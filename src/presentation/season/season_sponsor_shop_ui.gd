@@ -115,12 +115,17 @@ static func _purchase(
 		nominate.set_meta("sponsor_offer", offer_id)
 		nominate.set_meta("sponsor_replace", old.get("id", ""))
 		return
-	var button: Button = window._button(
-		label,
-		window._preview.bind(
-			window._request("sponsor_buy", {"offer": offer_id, "replace": old.get("id", "")}),
-			review
+	if not old.is_empty():
+		window._label(
+			(
+				"Refund %d Cash • net cost %d Cash"
+				% [SeasonSponsorCatalog.resale(old), item.price - SeasonSponsorCatalog.resale(old)]
+			)
 		)
+	var button: Button = window._purchase(
+		label,
+		window._request("sponsor_buy", {"offer": offer_id, "replace": old.get("id", "")}),
+		review
 	)
 	button.set_meta("sponsor_offer", offer_id)
 	button.set_meta("sponsor_replace", old.get("id", ""))

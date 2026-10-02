@@ -1,5 +1,11 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Authoritative shop quote projection, 2026-10-02
+
+SeasonShopQuote uses SeasonBuild._fork().preview for fully specified purchase commands. Both candidate state and diagnostic last_error remain isolated from the live build. It projects Cash and domain failures, retaining existing resolver entry points for sponsor sales/capacity, Double Major choices and mutually exclusive Union/Summer School concessions. Purchase commands are revalidated by the existing final review and commit/save path; the quote is never an authorization token or client price override.
+
+SeasonShopWindow reserves vertical-scrollbar width to prevent appearance/disappearance from rewrapping the list. The existing deferred focus correction runs once after container layout, avoiding repeated corrections that fight pointer scrolling. Quote status uses a smaller muted line for payable outcomes and explicit gold text for blocked/resolution states. No schema/gameplay changes.
+
 ## Shop cards and focus layout, 2026-10-02
 
 SeasonShopWindow projects offers into nested PanelContainers while maintaining the root body for service and recipient flows. Metadata-driven test lookups traverse descendants. Cash/capacity stay in a fixed header; effects reuse existing development operation/cap definitions without changing saved catalogs. Scroll follows focus, with a two-layout-pass correction after resize or rebuilt content so wrapped descriptions cannot strand the focused purchase action below the viewport.
@@ -20,7 +26,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.77
+**Version:** v0.1.78
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

@@ -132,9 +132,7 @@ static func choose_concession(
 				maxi(0, DevelopmentShopCatalog.item(id).price - options[kind])
 			]
 		)
-		window._button(label, window._preview.bind(selected, description + "\n" + label)).set_meta(
-			"concession", kind
-		)
+		window._purchase(label, selected, description + "\n" + label).set_meta("concession", kind)
 	window._button("CANCEL CONCESSION", window._refresh)
 	window._focus_first.call_deferred()
 	return true

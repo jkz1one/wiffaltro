@@ -1,5 +1,11 @@
 # Implementation Status
 
+## Shop price and availability feedback, 2026-10-02
+
+Ordinary Gear/sponsor replacement refunds and net costs are visible before review. Exact supply, held-card, development-recipient, learned-ability target, reroll and pack actions expose authoritative resulting Cash or a blocked reason. Unaffordable/full-bag actions are disabled, while explicit sponsor/Double Major/concession resolution remains accessible. Pure forked quotes preserve stock, wallet, allowances and diagnostic state; original final review and atomic saving stay authoritative.
+
+Native quote/ability9/9 twice, latest quote capture8/8; the remaining affected scenes and core passed the broad16/18 run. Three screenshots reviewed. Reserved scrollbar width stabilizes layout; native physical fixtures now wait for a rendered frame before deletion, eliminating observed texture-leak errors in the two focused reruns. No gameplay/schema/catalog changes. Build41/save45/Career21;25/25 Gear,35/35 sponsors; overall **~75%**. Early exits and human/final whole-UI acceptance remain open.
+
 ## Shop browsing cards and resize focus, 2026-10-02
 
 Ordinary offers now group category, effect, price and actions; Cash/held/sponsor capacity remain fixed above scrolling content. Development descriptions expose existing caps before recipient selection. Services and current inventory follow offers. A native-discovered focus scrolling bug after resizing/rebuilding wrapped content is corrected and covered by exact viewport bounds assertions.
