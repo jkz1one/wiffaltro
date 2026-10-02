@@ -1,5 +1,14 @@
 # Fast verification and playtest records
 
+## Equipped native UI verification, 2026-10-02
+
+Final `20261002T142702852879Z`: **14/14** under Godot4.7.2, seven common gates plus club-collection-ui, season-frozen-rope, season-shop-categories, season-match-sales, season-loadout-ui, club-career and regressions. Native UI scenes used X11, OpenGL4.5 Compatibility and Mesa25.2.8 llvmpipe with Dummy audio. **32 PNG captures**; three reviewed examples are committed in docs/reviews/20261002-equipped. Coverage includes700×400/1000×650 shop windows,1280×720 menu/live overlays, actual seasonal Cash, failed-sale balance rollback, immediate successful refund feedback, sold-effect retirement, exhibition isolation, focus/pause safety and all60 Collection entries. No new complete physical games in this presentation slice.
+
+No engine errors. Native scenes report unsupported V-Sync control; isolated Xvfb also reports nonfatal keyboard keysym/getifaddrs warnings. This is actual software-rendered native viewport review, not a host hardware/performance playtest or human acceptance. Final587-file source freeze matched the repository through publication. Three screenshots are copied verbatim from the final run.
+
+Prior attempts:140649812516Z reproduced combined Collection exit1;141247236129Z caught the stale-fixture-ID exhibition balance bug, corrected to app._season_game;141516209692Z passed13/14 with only combined Collection failing;142202788785Z first native run passed12/12 before visual cleanup;142545556025Z caught a formatter-induced long constant line, corrected before the final run. Standalone diagnostics also show exit0 before the Collection marker, and some complete runs. Cause remains unestablished. Yielding between sections did not resolve it and was reverted. Focused coverage passes; neither full-suite repair nor combined Collection reliability is claimed.
+
+
 ## Frozen Rope integration final verification, 2026-10-02
 
 Godot4.7.2 run `20261002T133543265176Z`: **31/32 checks**, seven common gates plus24/25 scenes. Passed: season-frozen-rope-live, season-frozen-rope, frozen-rope-candidate, alley-calibration, season-gap-driver, club-career, season-special-order, season-raincheck, season-wholesale, season-loadout-ui, season-match-sales, season-match-sales-live, season-gear-progress, season-gear-progress-live, season-mapped-gear, season-mapped-gear-live, season-shop-categories, season-opponents, season-freezers, season-left-right, season-carbon-copy, season-flow, season-shell, regressions. Only club-collection failed: exit1 before completion, no engine warning/error; cause not established.

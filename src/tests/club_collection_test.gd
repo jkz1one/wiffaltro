@@ -225,6 +225,12 @@ func _collection_ui(season: SeasonState) -> void:
 		)
 		for page in range(ceili(float(count) / ClubCollectionUI.PAGE_SIZE)):
 			await _menu_bounds(app, "collection-%s-%d" % [category, page])
+			for tab: Node in app.menu._body.find_children("*", "Button", true, false):
+				if tab.has_meta("collection_category"):
+					_check(
+						tab.button_pressed == (tab.get_meta("collection_category") == category),
+						"highlighted Collection tab agrees with the displayed category"
+					)
 			_check(app.loadout.entry.position == center, "Equipped remains in central position")
 			for node: Node in app.menu._body.find_children("*", "VBoxContainer", true, false):
 				if not node.has_meta("collection_item"):

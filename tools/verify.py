@@ -86,7 +86,8 @@ def main():
             ui_base = base
             ui_extra = []
             if args.rendered_ui:
-                ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
+                ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility",
+                           "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
                 ("club-collection-ui", [*ui_base, "--fixed-fps", "60",

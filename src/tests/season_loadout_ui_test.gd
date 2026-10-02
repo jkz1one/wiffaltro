@@ -66,6 +66,10 @@ func _menus_and_shop() -> void:
 		)
 	await _click(ui.entry)
 	_check(ui.shade.visible, "actual equipped click opens lightbox")
+	_check(
+		ui.cash_badge.visible and ui.cash_badge.text == "%d Cash" % _app.season.cash(),
+		"loadout shows the actual saved seasonal balance"
+	)
 	_check(ui.get_viewport().gui_get_focus_owner() == ui.close_button, "modal starts on Close")
 	await _bounds(ui, "loadout-gear-default")
 	_check(ui._rows.gear.size() == 3, "all three gear slots present even when standard")
@@ -179,6 +183,7 @@ func _sponsors_in_match() -> void:
 	await _frames()
 	await _click(ui.entry)
 	_check(ui._rows.sponsors.is_empty(), "exhibition never borrows saved season sponsors")
+	_check(not ui.cash_badge.visible, "exhibition hides unrelated seasonal Cash")
 	await _click(ui.close_button)
 	_app.leave_game()
 	await _frames()
@@ -325,6 +330,13 @@ func _bounds(ui: SeasonLoadoutUI, stage: String) -> void:
 	_check(
 		ui.panel.get_global_rect().encloses(ui.close_button.get_global_rect()),
 		"Close stays visible"
+	)
+	_check(
+		(
+			not ui.cash_badge.visible
+			or ui.panel.get_global_rect().encloses(ui.cash_badge.get_global_rect())
+		),
+		"Cash stays visible: " + stage
 	)
 	_check(
 		ui.panel.get_global_rect().encloses(ui.scroll.get_global_rect()),

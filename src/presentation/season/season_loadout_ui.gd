@@ -14,6 +14,7 @@ var body: VBoxContainer
 var close_button: Button
 var sale: SeasonLoadoutSale
 var context: Label
+var cash_badge: Label
 var _sale_buttons: Array[Button] = []
 var _tab: String = "gear"
 var _rows: Dictionary = {}
@@ -51,12 +52,17 @@ func _ready() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	shade.add_child(panel)
 	var layout: VBoxContainer = VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 14)
+	layout.add_theme_constant_override("separation", 10)
 	panel.add_child(layout)
 	var heading: HBoxContainer = HBoxContainer.new()
 	layout.add_child(heading)
 	var title: Label = _label(heading, "YOUR LOADOUT", 26)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cash_badge = _label(heading, "", 18)
+	cash_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+	cash_badge.add_theme_color_override("font_color", ClubhouseTheme.GREEN)
+	cash_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	heading.add_theme_constant_override("separation", 16)
 	close_button = Button.new()
 	close_button.text = "CLOSE  Esc"
 	close_button.custom_minimum_size = Vector2(132, 44)
@@ -115,6 +121,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Wrapped text resolves its minimum size after the container layout pass.
+	context.visible = not context.text.is_empty()
 	_resize()
 	entry.visible = shop != null or app.season != null or app.lab != null
 	entry.disabled = shade.visible or _blocked()
@@ -153,8 +160,9 @@ func open() -> void:
 	context.text = (
 		"GAME PAUSED • Your club's current equipment and remaining supplies"
 		if _paused_lab != null
-		else "YOUR CLUB • Equipment, supplies and player abilities"
+		else ""
 	)
+	context.visible = not context.text.is_empty()
 	shade.show()
 	_select(_tab)
 	_resize()
@@ -243,6 +251,7 @@ func _resize() -> void:
 
 
 func _select(key: String) -> void:
+	_refresh_balance()
 	_sale_buttons.clear()
 	_tab = key
 	for child: Node in body.get_children():
@@ -285,28 +294,50 @@ func _card(row: Dictionary) -> void:
 	var stack: VBoxContainer = VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 5)
 	card.add_child(stack)
-	var tag: Label = _label(stack, row.label + "  •  " + row.status, 14)
+	var tag: Label = _label(stack, row.label, 14)
 	tag.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
-	_label(stack, row.name, 22)
+	var heading: HBoxContainer = HBoxContainer.new()
+	heading.add_theme_constant_override("separation", 12)
+	stack.add_child(heading)
+	var title: Label = _label(heading, row.name, 22)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_sale_action(heading, row)
 	_label(stack, row.effect, 17)
+	var status: Label = _label(stack, row.status, 14)
+	status.add_theme_color_override(
+		"font_color", ClubhouseTheme.RED if row.status.begins_with("SOLD") else ClubhouseTheme.MUTED
+	)
+
+
+func _sale_action(parent: Node, row: Dictionary) -> void:
 	var receipt: String = row.get("receipt", "")
-	if can_sell() and not receipt.is_empty() and not app.sales.pending.has(receipt):
-		var owned: Dictionary = SeasonOwnership._owned(app.season.build.view().wallet, receipt)
-		if owned.is_empty():
-			return
-		var button: Button = Button.new()
-		button.text = (
-			"SELL • %d Cash • Review"
-			% (
-				SeasonSponsorCatalog.resale(owned)
-				if owned.kind == "sponsor"
-				else int(owned.paid / 2)
-			)
-		)
-		button.custom_minimum_size.y = 44
-		button.pressed.connect(sale.review.bind(receipt, row.name))
-		stack.add_child(button)
-		_sale_buttons.append(button)
+	if not can_sell() or receipt.is_empty() or app.sales.pending.has(receipt):
+		return
+	var owned: Dictionary = SeasonOwnership._owned(app.season.build.view().wallet, receipt)
+	if owned.is_empty():
+		return
+	var refund: int = (
+		SeasonSponsorCatalog.resale(owned) if owned.kind == "sponsor" else int(owned.paid / 2)
+	)
+	var button: Button = Button.new()
+	button.text = "SELL • %d Cash" % refund
+	button.tooltip_text = "Review this sale before confirming."
+	button.custom_minimum_size = Vector2(152, 44)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.add_theme_font_size_override("font_size", 16)
+	button.pressed.connect(sale.review.bind(receipt, row.name))
+	parent.add_child(button)
+	_sale_buttons.append(button)
+
+
+func _refresh_balance() -> void:
+	# An exhibition must not advertise the separate saved season's wallet.
+	cash_badge.visible = (
+		app.season != null and app.season.build != null and (app.lab == null or app._season_game)
+	)
+	if cash_badge.visible:
+		cash_badge.text = "%d Cash" % app.season.cash()
 
 
 func can_sell() -> bool:

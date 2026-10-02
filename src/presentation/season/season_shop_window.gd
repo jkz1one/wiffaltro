@@ -13,7 +13,7 @@ var _notice: String = ""
 
 
 func _ready() -> void:
-	title = "Working season shop"
+	title = "Season Shop"
 	size = Vector2i(1000, 650)
 	min_size = Vector2i(700, 400)
 	transient = true
@@ -74,7 +74,7 @@ func _refresh() -> void:
 	_clear()
 	var view: Dictionary = app.season.build.view()
 	var shop: Dictionary = view.shop
-	_label("WORKING SEASON SHOP • VISIT %d" % shop.number)
+	_label("SEASON SHOP • VISIT %d" % shop.number)
 	_label(
 		(
 			"Cash %d • Held cards %d / %d"
@@ -83,9 +83,8 @@ func _refresh() -> void:
 	)
 	_label(
 		(
-			"Working season: 13 initial Gear items plus 10 earnable tiers. "
-			+ "19 initial sponsors plus 16 earned sponsor contracts. "
-			+ "Existing unapproved Gear mappings remain Proposals."
+			"Buy Gear, sponsors and supplies for this season. "
+			+ "Earned access carries forward; purchased copies last this season."
 		)
 	)
 	if SeasonReclamation.credit(shop) > 0:

@@ -2,6 +2,9 @@ extends "res://src/tests/season_loadout_ui_test.gd"
 
 
 func _ready() -> void:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--ui-capture-dir="):
+			_capture_dir = argument.trim_prefix("--ui-capture-dir=")
 	SeasonSave.path = "user://match-sales-%d.json" % OS.get_process_id()
 	PitchBatLabSettings.path = "user://match-sales-%d.cfg" % OS.get_process_id()
 	_app = SeasonApp.new()
@@ -83,6 +86,11 @@ func _gear_sales(released: bool) -> void:
 		"failed save rolls back ownership, cash and queue"
 	)
 	_check(FileAccess.get_file_as_string(path) == bytes, "failed save preserves previous bytes")
+	_check(
+		_app.loadout.cash_badge.text == "%d Cash" % _app.season.cash(),
+		"failed sale keeps the original displayed balance"
+	)
+	await _bounds(_app.loadout, "loadout-sale-not-saved-%s" % str(released))
 	var old_cash: int = _app.season.cash()
 	var stamina: float = own.current_pitcher().stamina_remaining
 	await _click(_app.loadout._sale_buttons[0])
@@ -90,6 +98,11 @@ func _gear_sales(released: bool) -> void:
 	await _click(sale.get_ok_button())
 	_check(_app.season.build.view().wallet.gear.bat.is_empty(), "successful sale removes ownership")
 	_check(_app.season.cash() == old_cash + int(copy.paid / 2), "exact paid half refund")
+	_check(
+		_app.loadout.cash_badge.text == "%d Cash" % _app.season.cash(),
+		"saved refund immediately refreshes the Equipped balance"
+	)
+	await _bounds(_app.loadout, "loadout-sale-saved-%s" % str(released))
 	_check(not _app.sales.sell(_app, command), "duplicate runtime confirmation cannot repay")
 	var restored: SeasonState = SeasonSave.restore()
 	_check(

@@ -1,5 +1,12 @@
 # Implementation Status
 
+## Equipped/shop presentation review, 2026-10-02
+
+Native Godot review completed for this bounded UI slice: saved Cash feedback, compact item/refund hierarchy, separate effect status, improved small-window spacing, affirmative Collection tab selection and removal of stale shop counts. Three reviewed screenshots are committed;32 native captures and14/14 final checks cover shop/Equipped/Collection, live sale failure/retry, career and regressions.
+
+Content remains25/25 Gear and35/35 sponsors; Build41/save45/Career21. Human visual/feel acceptance and final cohesive whole-UI polish remain pending, along with the intermittent combined Collection exit. Continue shop/UI before larger systems. Whole-project estimate remains **~75%**, not release readiness.
+
+
 ## Frozen Rope complete integration, 2026-10-02
 
 **25/25 Gear,35/35 sponsors**, five tactical supplies, three learned abilities and one transformation. Build41/save45/Career21. Frozen Rope has paid earned access, stock/offer eligibility, Contact flattening and committed gap selection, Power penalty, progress/Collection/Equipped disclosure, atomic purchase/replacement/live sale, original-spin preservation, saved evidence and legacy migrations. Calibration remains Working.

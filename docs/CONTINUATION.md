@@ -1,5 +1,16 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: Equipped native UI review, 2026-10-02
+
+Frozen Rope remains fully integrated: Build41/save45/Career21,25/25 Gear,35/35 sponsors. Overall estimate remains **~75%**. This slice improves Equipped card hierarchy, adjacent refund actions, actual saved Cash feedback, separate sold-effect status, compact small-window spacing, and Collection category selection. It removes the shop's stale implementation-count paragraph. No gameplay, catalog, save schema or receipt changes.
+
+Final `20261002T142702852879Z`: **14/14 checks**, seven common gates plus seven scenes, with **32 actual native rendered captures** on X11/OpenGL Mesa llvmpipe. Three reviewed renders are committed under `docs/reviews/20261002-equipped`; read `SHOP_UI_REVIEW.md`. Native V-Sync warnings are a software-display limitation; no engine errors. Native review is now available for this scope, but human visual/feel acceptance and the cohesive final whole-UI pass remain open.
+
+Combined Collection exit remains intermittent: unmodified diagnostics can complete or terminate before their marker, sometimes with exit0. Staging/yielding did not resolve it and that workaround was removed. Focused Collection passes all60 entries. Keep the runner's required completion marker; do not treat exit0 alone as success. Do not claim the full suite is repaired.
+
+Continue shop/UI polish and integration before larger systems. Keep centered Equipped, atomic live sale saves and next-batter effect retirement. Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420; repository blueprint remains byte-identical to main. Final587 source/test/asset/project/runner files stayed unchanged through final verification and publication. Historical checkpoints below retain previous scope.
+
+
 ## Current checkpoint: Frozen Rope integrated, 2026-10-02
 
 Build41 / save45 / Career21 / opponent policy2. All **25/25 Gear and 35/35 sponsors** are integrated, alongside five supplies, three learned abilities and one transformation. Overall project estimate: **~75%**, not release readiness.

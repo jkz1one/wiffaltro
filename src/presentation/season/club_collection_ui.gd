@@ -40,7 +40,11 @@ static func show(menu: SeasonMenu, category: String = "Gear", page: int = 0) -> 
 	menu._body.add_child(tabs)
 	for tab: String in ["Gear", "Sponsors"]:
 		var button: Button = menu._button(tabs, tab.to_upper(), show.bind(menu, tab, 0))
-		button.disabled = tab == category
+		button.set_meta("collection_category", tab)
+		button.toggle_mode = true
+		button.set_pressed_no_signal(tab == category)
+		if tab == category:
+			ClubhouseTheme.primary(button)
 	menu._label(menu._body, "%s • %d / %d acquired" % [category, count, ids.size()], 24)
 	(
 		SeasonPages
