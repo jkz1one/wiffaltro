@@ -215,7 +215,7 @@ func _rain_contracts(season: SeasonState) -> void:
 		"unbought carry expires after destination"
 	)
 	var invalid: SeasonBuild = pending._fork()
-	invalid._reservation.item = "development.contact"
+	invalid._reservation.item = "development.unknown"
 	_next_shop(invalid)
 	_check(
 		invalid._visit.offers.size() == 4 and SeasonRaincheck.protected_offer(invalid).is_empty(),
@@ -228,8 +228,8 @@ func _rain_contracts(season: SeasonState) -> void:
 		"no postseason source reservation"
 	)
 	_check(
-		SeasonRaincheck.quote(original, "development.contact").is_empty(),
-		"unapproved extension remains gated"
+		SeasonRaincheck.quote(original, "development.contact").price == 6,
+		"Working loose-development extension uses its fixed base price"
 	)
 
 

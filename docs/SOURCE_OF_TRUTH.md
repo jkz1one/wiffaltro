@@ -1,12 +1,45 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.78
+**Version:** v0.4.79
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Complete current shop-category support, 2026-10-02
+
+Special Order can now focus **Learned Abilities**, completing its six supported
+non-development categories. It uses ordinary rarity weights, Sky Reader's earned
+access and current legal player targets. Known abilities cannot be learned twice on
+one player. No duplicates, no forced rare item and no filler: a two-item pool leaves
+two unavailable positions. Its once-per-visit action, ordinary escalating price,
+Reclamation credit, fixed pack/recruiting and protected Raincheck slot rules remain.
+
+Raincheck now accepts eligible fixed-price learned abilities and all six loose
+development cards. Reserving creates an unpurchased offer, never a spare learned card
+or a third consumable slot. The next shop revalidates recipients, caps and access;
+invalid carry leaves exactly the normal four slots. Purchase still needs full ordinary
+assignment/replacement or legal shared held capacity. Reserved development can be used
+immediately with a full bag; Buy Hold cannot bypass the bag limit.
+
+Source: Equipment/Sponsors v18, reread 2026-10-02, Raincheck 561–580 and Special Order
+729–744, with 769–773 carrying those interactions forward as **Working** testing
+defaults. Retained Blueprint v114 G01 4562–4587 and J01 5167–5188 apply subject to the
+current four-slot overrides. This closes the prior implementation deferral for loose
+development; it does not promote any mechanic or balance value to Approved.
+
+Only the fixed base quote is reserved. Union/Summer School are evaluated when buying,
+cannot stack and are not banked by the reservation. The purchase review separately
+shows reserved base, current discount and actual payment. All ordinary no-extra-growth,
+player-local learning, no-resale and season-duration rules remain in force.
+
+Build 39/save 43, Career 18/opponent policy 2. Old journals replay with their earlier
+category rules; migration preserves current stock and allows explicit future use of
+the expanded actions. No automatic reroll, access award, new content or AI market
+category is introduced. Equipped position, detail inspection and live-sale retirement
+remain unchanged.
 
 ## Retraining Camp: paid immediate redistribution, 2026-10-02
 

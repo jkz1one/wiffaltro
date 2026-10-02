@@ -86,6 +86,18 @@ func _player_home_for_fixture() -> bool:
 	return (_season.pending_fixture().home == 0) == _human
 
 
+func _pitch_target_for_fixture(lab: PitchBatLab) -> Vector2:
+	# Set up the AI's trigger through actual out-of-zone pitches, never synthetic balls.
+	# Once two balls are called, return to the ordinary strike target and observe its swing.
+	var state: MatchState = lab._match_state
+	if (
+		state.batter().definition.season_abilities.has(SeasonAbilities.COUNT)
+		and state.abilities.called_balls < 2
+	):
+		return Vector2(lab.PITCH_AIM_MAX_X, lab.DEFAULT_TARGET.y)
+	return super._pitch_target_for_fixture(lab)
+
+
 func _observe_live_frame(lab: PitchBatLab) -> void:
 	var state: MatchState = lab._match_state
 	var batter: PlayerDefinition = state.batter().definition

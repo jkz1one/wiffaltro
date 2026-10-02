@@ -64,7 +64,7 @@ func _run_match(run_seed: int) -> void:
 				PitchBatLabFeelSupport.confirm_batter_ready(lab)
 		elif state.phase == MatchState.Phase.PRE_PITCH:
 			if not lab._release_controller.active:
-				lab._pitch_target = lab.DEFAULT_TARGET
+				lab._pitch_target = _pitch_target_for_fixture(lab)
 				lab._pitch_effort = 1.0
 				PitchBatLabFeelSupport.begin_pitch_release(lab)
 			elif lab._release_controller.elapsed_seconds >= PitchReleaseController.IDEAL_RELEASE_SECONDS:
@@ -170,3 +170,7 @@ func _observe_live_frame(_lab: PitchBatLab) -> void:
 
 func _player_home_for_fixture() -> bool:
 	return true
+
+
+func _pitch_target_for_fixture(lab: PitchBatLab) -> Vector2:
+	return lab.DEFAULT_TARGET

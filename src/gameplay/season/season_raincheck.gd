@@ -1,7 +1,7 @@
 class_name SeasonRaincheck
 extends RefCounted
 # gdlint: disable=max-returns
-## Working G01. Loose development reservation remains an unapproved extension.
+## Working G01. Versioned learned/development offers use ordinary purchase rules.
 
 const ITEMS: Dictionary = {
 	"G01":
@@ -52,6 +52,11 @@ static func after(before: SeasonBuild, next: SeasonBuild, command: Dictionary) -
 
 
 static func quote(build: SeasonBuild, id: String) -> Dictionary:
+	if build._format >= 39:
+		if build._abilities.pool(build).has(id):
+			return SeasonAbilities.ITEMS[id].duplicate(true)
+		if DevelopmentShopCatalog.CARDS.has(id) and not build.targets(id).is_empty():
+			return DevelopmentShopCatalog.item(id)
 	if id == SeasonRetraining.ID and SeasonRetraining.pool(build).has(id):
 		return SeasonRetraining.ITEM.duplicate()
 	if not SeasonGearCatalog.item(id).is_empty():
@@ -101,7 +106,7 @@ static func commit(build: SeasonBuild, command: Dictionary) -> String:
 	var id: String = build._visit.offers.get(command.offer, "")
 	var item: Dictionary = quote(build, id)
 	if item.is_empty():
-		return "Reserve an eligible fixed-price Gear, sponsor, supply, lesson or transformation offer."
+		return "Reserve one eligible fixed-price individual offer with a legal destination."
 	build._reservation = {
 		"source": build._visit.number,
 		"destination": build._visit.number + 1,

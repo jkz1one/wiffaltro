@@ -79,7 +79,12 @@ static func choose(window: SeasonShopWindow) -> void:
 			)
 			. set_meta("rain_offer", offer)
 		)
-	window._label("Packs, recruits and loose development cards cannot be reserved in this slice.")
+	(
+		window
+		. _label(
+			"Packs and recruits cannot be reserved. Capacity and legal recipients are checked when buying."
+		)
+	)
 	window._button("BACK TO SHOP", window._refresh)
 	window._focus_first.call_deferred()
 
@@ -107,3 +112,11 @@ static func progress(menu: SeasonMenu) -> void:
 		SeasonPages.wrapped(
 			card, "This older active save begins this tracking next Working season."
 		)
+
+
+static func purchase_review(build: SeasonBuild, command: Dictionary, result: Dictionary) -> String:
+	if command.op != "buy" or not SeasonRaincheck.protected_offer(build).has(command.get("offer")):
+		return ""
+	var base: int = build._visit.rain_price
+	var paid: int = build.cash() - int(result.after.wallet.cash)
+	return "\nRaincheck base: %d Cash • discount now: %d • pay: %d." % [base, base - paid, paid]

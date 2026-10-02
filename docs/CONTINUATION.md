@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after paid immediate Retraining Camp.
+Updated 2026-10-02 after completing current focused/reserved shop categories.
 
 ## Resume here
 
@@ -55,7 +55,47 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Retraining Camp continuation details (latest)
+## Shop-category continuation details (latest)
+
+Current: **Build 39/save 43/Career 18**, opponent policy 2; SOT v0.4.79 / Technical v0.1.70.
+Special Order now includes Learned Abilities with normal rarity/access/recipient rules,
+completing all six supported categories. Raincheck now carries learned abilities and
+all six loose development cards. The reserved base quote never banks a discount or
+inventory slot; legal destination and current concessions are enforced at purchase.
+The final review separately shows base, discount and payment. Capacity, player-local
+learning, explicit replacement, save rollback and live Equipped behavior are unchanged.
+
+Both new integrations are gated at Build 39 for historical replay. No saved field,
+catalog signature or receipt ID changes. Old saved stock is unchanged on migration;
+future explicit focus/reservation actions may use the new support. No new AI category.
+Sources reread: Equipment/Sponsors v18 561–580, 729–744 and 769–773, plus retained
+Blueprint v114 G01 4562–4587 and J01 5167–5188. Loose-development reservation's earlier
+implementation deferral is now closed under the source's Working continuation; do not
+promote it or its numerical values to Approved.
+
+The new `season-shop-categories` and `season-shop-categories-live` scenes cover the paid
+paths and their integration. See VERIFICATION.md for final evidence and `git log -1`
+for the pushed SHA. Main and the repository blueprint are still checked separately.
+SeasonBuild remains 915 lines. Whole-project estimate stays approximately **74%**.
+
+Final verification `20261002T051435232246Z` passed 10/10 with five physical games.
+Combined with `20261002T050544183054Z` (16/17) and `20261002T050954284759Z` (18/19), all
+21 selected scenes passed; production code was unchanged. Final 559 files are frozen,
+with 550 copied runner files checked per snapshot. The live tests now distinguish an
+owned ability from an actually triggered one, and the AI ability fixture sets up its
+two-ball trigger through legal outside pitches before throwing strikes. No production
+AI/count manipulation. See VERIFICATION.md for exact evidence and test-only corrections.
+The unexplained exit-before-marker symptom also recurred in an intermediate Special
+Order run; later passes do not resolve its cause. Native/human acceptance remains open.
+
+Remaining Alley tiers were rechecked against Equipment v18 111–128 and Blueprint v114
+19407–19535. The launch/quality qualification overlap still needs calibration; Frozen
+Rope also has an explicit authored depth-band/candidate-spacing/clearance-score gate.
+Do not invent a stadium-specific gap score or call the full 25-Gear set implemented.
+AI event-capable offscreen resolution/acquisition, player cards, higher tiers/Leagues,
+stadiums and final integration/UI/native/human acceptance remain open.
+
+## Retraining Camp continuation details (previous)
 
 Build **38/save 42/Career 18**, opponent policy 2; SOT v0.4.78 and Technical v0.1.69.
 Retraining Camp B05 is the first transformation. Its current Working price is 8 Cash /

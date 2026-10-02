@@ -1,5 +1,88 @@
 # Fast verification and playtest records
 
+## Complete current shop categories, 2026-10-02
+
+Final run `20261002T051435232246Z` passed **10/10 checks** under Godot 4.7.2: seven
+common gates plus three live scenes, completing five physical games. Earlier targeted
+runs `20261002T050544183054Z` and `20261002T050954284759Z` passed **16/17** and **18/19**
+checks respectively. Their sole failures were physical-test assumptions described below.
+Across these runs all **21 selected scenes** passed. Production code stayed unchanged;
+only three test files changed after the first snapshot. Passing logs have no engine
+warnings/errors. This is targeted coverage, not the full suite or human acceptance.
+
+Combined scope:
+
+`season-shop-categories`, `season-shop-categories-live`, `season-raincheck`,
+`season-special-order`, `season-school`, `season-double-major`, `season-retraining`,
+`paid-shop-ui`, `paid-development`, `regressions`, `season-abilities`,
+`season-abilities-live`, `club-career`, `season-opponents`, `season-loadout-ui`,
+`season-match-sales`, `season-match-sales-live`, `recruitment`, `season-flow`,
+`season-shell`, `season-enrichment`.
+
+New paid fixtures acquire Special Order (seed 27) and Raincheck (seed 2972) through
+ordinary earned access, generated offers and actual Cash. Focus uses normal learned
+rarity/eligibility, excludes locked Sky Reader, fills two distinct offers and leaves two
+unavailable slots without changing pack/recruit stock. A focused ability is purchased,
+assigned, saved and reconstructed. Isolated adapters check earned Sky, no duplicate
+learning, the disabled AI market, and protected ability/development identities excluded
+from focused draws.
+
+Actual loose-development and learned-ability offers are reserved, saved, carried to
+the next scheduled shop, protected from rerolls, purchased once and replayed with the
+exact owner/growth and shop state. All six development base quotes are checked. Isolated
+capacity/concession adapters verify full-bag Buy Hold rejection, legal immediate use,
+no credit consumption on failure, current Union discount, explicit Scholarship-versus-
+Union choice without stacking, unchanged held copies, and capped-out destination
+revalidation leaving exactly four ordinary slots. Pack/recruit/unknown/locked offers
+remain excluded. Old Build 38 journals retain old category semantics; migration keeps
+stock and permits explicit future actions, while forged old-format new actions reject.
+
+UI checks click focus categories and recipients, both new reservation categories,
+cancel, failed save and retry. They check menu/scroll bounds, exact persisted assignment,
+unchanged save bytes on failure and distinct reserved base/current-discount/payment
+text. Ability replacement/capacity, career, live sales and shared Equipped behavior
+are also covered by the existing selected scenes.
+
+The first live category fixture wrongly required a Work the Count activation from a
+game that never gave its owner two called balls. The corrected assertion checks the
+actual profile on every owned batting frame, including zero bonus before the trigger;
+that game observed 3,935 such frames and zero trigger frames. The existing ability live
+test likewise relied on an AI hitter naturally reaching two balls while the stress
+driver targeted the strike zone. Its new test-only target hook uses the legal outside
+aim boundary until two balls are actually called, then returns to the usual strike
+target. It does not set counts, force takes, change AI decisions or alter production
+pitching. The original assertion requiring an actual AI swing with earned coverage
+remains and passes. All other live drivers retain the identical default target.
+
+Final physical evidence:
+
+| Scenario | Innings | Pitch records | Balls in play | Score |
+| --- | ---: | ---: | ---: | --- |
+| Focused paid ability | 5 | 133 | 23 | 5–0 |
+| Reserved paid ability | 5 | 119 | 22 | 2–0 |
+| Learned human-side integration | 3 | 92 | 29 | 0–13 |
+| Learned AI-side integration | 3 | 131 | 43 | 14–0 |
+| Live sale and deferred retirement | 4 | 124 | 27 | 0–10 |
+
+The ability scenarios observed 821 human and 1,770 AI trigger frames, plus three
+eligible human-side Sky Reader launches. Exact paid receipts, failed settlement-write
+retry and durable career replay pass. These passive/scripted stress drivers are
+integration evidence, not balance or human-feel measurements.
+
+All **559** final source/test/asset/project/runner files remain frozen through publication;
+all **550** runner-copied files matched each corresponding snapshot. The three changes
+between first and final snapshots are the new category live test and the two test-driver
+files named above. Main remains `f1dc209b`; repository blueprint is byte-identical.
+
+Intermediate `20261002T050140554135Z` again recorded Special Order exiting 0 without
+its pass marker, this time after its contracts-complete stage marker. Later runs of
+that scene passed, but the intermittent early-exit cause remains open. Initial new
+fixture errors (hidden pack fields and an invalid empty-roster setup) were corrected
+before the recorded broad scope. No native display is configured. Final cohesive UI
+polish, primary-reference research, native rendered review and human visual/feel
+acceptance remain outstanding. Build 39/save 43/Career 18/opponent policy 2; overall
+estimate remains approximately **74%**, not release readiness.
+
 ## Retraining Camp: paid redistribution and exact provenance, 2026-10-02
 
 Broad run `20261002T043427682175Z` passed **35/37 checks** under Godot 4.7.2:

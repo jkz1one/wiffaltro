@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.69
+**Version:** v0.1.70
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,30 @@
 
 # 1. Technical Objective
 
+
+## Versioned focused and reserved shop categories, 2026-10-02
+
+Build 39/save 43 gates two additions behind `_format >= 39`: Special Order's `ability`
+category delegates to `SeasonAbilities.pool`, and Raincheck quotes eligible learned
+abilities plus `DevelopmentShopCatalog.CARDS` with at least one legal current target.
+No new journal shape, saved field, item identity or receipt scheme is introduced.
+Catalog constants/signatures remain frozen. Old versions reject the new actions during
+replay; after normal migration, explicitly requested actions use the expanded support
+without drawing fresh stock. Career 18 and opponent policy 2 remain unchanged.
+
+Protected identities are removed from focused candidates before weighted sampling.
+The existing bounded fill, once-per-visit allowance and fixed pack/recruit masks apply.
+Raincheck delivery calls the same quote eligibility again, so a cap, learned duplicate
+or missing recipient cannot produce an invalid carried offer. The ordinary generated
+slot serves as the one replacement if revalidation fails. Reservations hold no player,
+discount, inventory space or future entitlement to bypass capacity.
+
+`SeasonRaincheckUI.purchase_review` discloses base/discount/payment from the successful
+ordinary development preview. `buy` and `ability_buy` remain the only purchase paths,
+retaining explicit recipients/replacements, shared capacity, concessions, request
+idempotency and whole-candidate save rollback. Full-bag immediate use and one selected
+Union/Scholarship concession remain normal behavior, not reservation exceptions.
+SeasonBuild stays 915 lines. No runtime or camera resolver is changed.
 
 ## Retraining provenance and atomic purchase, 2026-10-02
 

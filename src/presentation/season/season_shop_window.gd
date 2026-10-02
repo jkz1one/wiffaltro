@@ -370,6 +370,7 @@ func _preview(command: Dictionary, description: String) -> void:
 		_refresh()
 		return
 	_pending = command.duplicate(true)
+	description += SeasonRaincheckUI.purchase_review(app.season.build, command, result)
 	var effect: String = ""
 	if command.get("player", "") != "" and command.op != "retrain_buy":
 		var before: Dictionary = app.season.build.player(command.player)

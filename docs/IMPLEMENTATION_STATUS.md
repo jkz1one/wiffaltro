@@ -1,5 +1,20 @@
 # Implementation Status
 
+## Complete current shop-category integration, 2026-10-02
+
+Special Order now supports all six current non-development categories, including
+earned learned abilities. Raincheck now supports learned abilities and all six loose
+development cards with ordinary assignment, replacement, shared capacity and current
+discount rules. UI exposes the new choices and separates reserved base price from the
+actual purchase discount. Old saves replay prior rules without regenerating stock.
+These are current Working contracts, not new Approved balance decisions.
+
+Build 39/save 43/Career 18, opponent policy 2. Counts remain 35/35 human sponsors,
+23/25 Gear, five supplies, three learned abilities and one transformation. Whole-project
+estimate remains approximately **74%**, not release readiness. Remaining major systems,
+Alley-family calibration/gap-geometry contracts and final native/human acceptance remain
+open. The latest VERIFICATION.md entry records the exact targeted scope and limitations.
+
 ## Retraining Camp, 2026-10-02
 
 The first transformation now supports paid immediate use between games: four applied

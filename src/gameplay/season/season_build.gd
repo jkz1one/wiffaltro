@@ -4,7 +4,7 @@ extends RefCounted
 ## Only this journal is saved: independent wallet/growth blobs cannot disagree.
 # gdlint: disable=max-returns
 
-const VERSION: int = 38
+const VERSION: int = 39
 const MAX_EVENTS: int = 512
 const SHOP_OPS: Array[String] = [
 	"open",
