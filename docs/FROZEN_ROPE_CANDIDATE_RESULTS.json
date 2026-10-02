@@ -1,0 +1,168 @@
+{
+	"checks": 31999,
+	"examples": [
+		{
+			"after": 0.179468620907177,
+			"band": [
+				8.5,
+				19.5
+			],
+			"before": 0.0909090909090909,
+			"cap": 4.0,
+			"label": "single defender right of center",
+			"original": 0.0,
+			"reason": "improved",
+			"sector": "center",
+			"selected": -4.0,
+			"velocity": [
+				-1.73091292381287,
+				3.04673361778259,
+				24.753210067749
+			]
+		},
+		{
+			"after": 0.0,
+			"band": [
+				8.5,
+				19.5
+			],
+			"before": 0.0,
+			"cap": 4.0,
+			"label": "exact center symmetry",
+			"original": 0.0,
+			"reason": "symmetric_tie",
+			"sector": "center",
+			"selected": 0.0,
+			"velocity": [
+				0.0,
+				3.04673361778259,
+				24.8136539459229
+			]
+		},
+		{
+			"after": 0.0909090909090909,
+			"band": [
+				8.5,
+				19.5
+			],
+			"before": 0.0909090909090909,
+			"cap": 4.0,
+			"label": "already centered between two defenders",
+			"original": 0.0,
+			"reason": "no_improvement",
+			"sector": "center",
+			"selected": 0.0,
+			"velocity": [
+				0.0,
+				3.04673361778259,
+				24.8136539459229
+			]
+		},
+		{
+			"after": 0.14885786446658,
+			"band": [
+				8.5,
+				19.5
+			],
+			"before": 0.0639259869402105,
+			"cap": 4.0,
+			"label": "pitcher and deep-left fielder, 3 degree original",
+			"original": 3.0,
+			"reason": "improved",
+			"sector": "center",
+			"selected": 7.0,
+			"velocity": [
+				3.02402353286743,
+				3.04673361778259,
+				24.6286964416504
+			]
+		},
+		{
+			"after": 0.124194058504972,
+			"band": [
+				8.5,
+				19.5
+			],
+			"before": 0.0909090909090909,
+			"cap": 4.0,
+			"label": "preferred direction blocked by static footprint",
+			"original": 0.0,
+			"reason": "improved",
+			"sector": "center",
+			"selected": -1.5,
+			"velocity": [
+				-0.649545788764954,
+				3.04673361778259,
+				24.8051509857178
+			]
+		},
+		{
+			"after": 0.179468606180091,
+			"band": [
+				3.40000009536743,
+				7.80000019073486
+			],
+			"before": 0.0909090902933405,
+			"cap": 4.0,
+			"label": "uniform field scale 0.4",
+			"original": 0.0,
+			"reason": "improved",
+			"sector": "center",
+			"selected": -4.0,
+			"velocity": [
+				-1.73091292381287,
+				3.04673361778259,
+				24.753210067749
+			]
+		},
+		{
+			"after": 0.179468625629479,
+			"band": [
+				15.3000001907349,
+				35.0999984741211
+			],
+			"before": 0.0909090963824288,
+			"cap": 4.0,
+			"label": "uniform field scale 1.8",
+			"original": 0.0,
+			"reason": "improved",
+			"sector": "center",
+			"selected": -4.0,
+			"velocity": [
+				-1.73091292381287,
+				3.04673361778259,
+				24.753210067749
+			]
+		},
+		{
+			"after": 0.157932376861572,
+			"band": [
+				8.5,
+				21.0
+			],
+			"before": 0.08,
+			"cap": 4.0,
+			"label": "asymmetric extended center depth",
+			"original": 0.0,
+			"reason": "improved",
+			"sector": "center",
+			"selected": -4.0,
+			"velocity": [
+				-1.73091292381287,
+				3.04673361778259,
+				24.753210067749
+			]
+		}
+	],
+	"ordinary_contacts": {
+		"changed": 18,
+		"note": "Production resolver, isolated post-contact candidate; no physical games.",
+		"samples": 36
+	},
+	"status": "unapproved isolated Frozen Rope candidate",
+	"sweep": {
+		"improved": 2962,
+		"note": "Artificial geometry/quality grid, not hit frequency or success probability.",
+		"samples": 3618
+	}
+}

@@ -1,5 +1,21 @@
 # Implementation Status
 
+## Frozen Rope specification prototype, 2026-10-02
+
+The final Gear's gap-selection rule now has an explicit, measured candidate in
+`FROZEN_ROPE_CANDIDATE.md` and test-only code. It uses field-authored defensive depths,
+nearest-defender clearance, half-degree candidates, same-sector limits and conservative
+obstacle rejection. Exact symmetry/no improvement leaves the original launch unchanged.
+This candidate awaits selection for Working integration; it is not a completed Gear item.
+
+Final targeted verification passed10/10 checks: seven common gates plus the new geometry
+prototype, Gap Driver and core regressions. No new complete games or rendered review.
+Build40/save44/Career20,24/25 Gear,35/35 sponsors, five supplies, three learned abilities
+and one transformation remain unchanged. Shop/items remain the priority. Native rendering,
+human visual/feel acceptance and the historical intermittent early-exit limitation remain
+open. Whole-project completion approximately74%, not release readiness.
+
+
 ## Calibrated Alley and Gap Driver, 2026-10-02
 
 Alley now has the user-selected Working 10° target / 12–14° onset. Gap Driver adds the

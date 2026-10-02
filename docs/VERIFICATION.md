@@ -1,5 +1,36 @@
 # Fast verification and playtest records
 
+## Frozen Rope isolated gap candidate, 2026-10-02
+
+Final run `20261002T074749542616Z` passed **10/10 checks** under Godot4.7.2: seven common
+gates plus `frozen-rope-candidate`, `season-gap-driver` and `regressions`. No warnings or
+engine errors. The measured candidate remains unapproved and absent from playable stock.
+
+The new scene records31,999 assertions,3,618 synthetic geometry/quality combinations
+(2,962 improved),36 ordinary ContactResolver encounters (18 improved), and eight readable
+examples. It verifies cap/sector/fair limits, mirrored handedness, one/two defenders,
+no-gap/symmetry fallback, static obstacle rejection including before the comparison band,
+small/large/asymmetric geometry, deterministic copied snapshots, JSON choice round-trip,
+speed/vertical preservation and exclusion of weak/foul/missed/Power/lower-tier contact.
+These artificial counts are not hit rates. JSON choice serialization is not integrated
+match replay. See `FROZEN_ROPE_CANDIDATE_RESULTS.json` for exact measured output.
+
+Initial runs `20261002T074342337672Z` and `20261002T074501964199Z` failed only the new
+prototype scene: field-ID fixture, sector-bound float precision, typed-array return and
+exact-float assertions were corrected. Intermediate `20261002T074601591160Z` passed10/10,
+but report inspection exposed a same-side near-duplicate candidate being treated as
+opposite-side symmetry. Final code fixes that case and adds focused regression coverage;
+the ordinary changed-contact count rises from10 to18 for the36 controlled encounters.
+Existing Gap Driver/core scenes passed in each run. No production files changed.
+
+Final source/test/project/runner snapshot covers575 files and is checked through publication.
+The disposable runner copy was already removed before independent hash inspection; no
+separate runner-copy hash claim is made. No complete physical games, new native rendered
+review, human visual/feel acceptance or full-suite pass. Historical intermittent exit-zero
+before marker remains open; it did not recur in this scope. Main remainsf1dc209b and the
+repository blueprint stays byte-identical. Only the engineering branch is published.
+
+
 ## Calibrated Alley and earned Gap Driver, 2026-10-02
 
 Broad run `20261002T065013901568Z` passed **30/31 checks** under Godot 4.7.2: seven common gates and

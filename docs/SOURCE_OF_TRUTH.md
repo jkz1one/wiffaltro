@@ -1,12 +1,28 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.82
+**Version:** v0.4.83
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Frozen Rope gap-rule experiment, 2026-10-02
+
+The last Gear now has a concrete **unapproved candidate**, documented before coding in
+`FROZEN_ROPE_CANDIDATE.md`. It compares nearest-defender planar clearance across the
+active field's available defensive-anchor depth band, searches 0.5° offsets within the
+quality-scaled 4° cap, and retains the original sector. Static obstacle footprints reject
+blocked rays. Only improved clearance moves a launch; exact opposite symmetry keeps it
+unchanged. No future routes, catch prediction or live steering. These detailed choices
+remain proposals pending selection for Working tests, not Approved gameplay/balance.
+
+The isolated test helper is never imported by production. Current Build40/save44/Career20,
+24/25 Gear and 35/35 sponsors are unchanged. Frozen Rope is not purchasable; no new receipt
+identity, stock generation, unlock, saved field or live effect was added. Existing Gap
+Driver and core regressions pass alongside the prototype. See VERIFICATION for scope.
+Shop/items remain first; overall completion approximately74%, not release readiness.
 
 ## Calibrated Alley Bat and earned Gap Driver, 2026-10-02
 

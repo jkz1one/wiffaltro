@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.73
+**Version:** v0.1.74
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,24 @@
 
 # 1. Technical Objective
 
+
+## Isolated Frozen Rope geometry candidate, 2026-10-02
+
+`src/tests/frozen_rope_candidate.gd` holds a test-only pure snapshot/selection prototype.
+The accompanying candidate document specifies depth, clearance, spacing, geometry and
+tie rules explicitly before their implementation. Snapshot copies contain field scalars,
+planar defender positions and obstacle rectangles; no actor references or fielding stats.
+The actual band is8.5–19.5m, derived from available anchors, not stadium constants.
+
+Score is minimum defender-to-lane-segment distance divided by band length. Candidate
+angles are original, half-degree offsets and exact quality endpoints, clipped to the
+original sector. Inner boundaries belong to center; crossing candidates are rejected.
+Double-precision scalar bounds avoid Vector2 angle truncation. Same-side near-duplicate
+endpoints choose the smaller change; only opposite equal alternatives count as symmetry.
+The returned committed-choice dictionary round-trips through JSON but is not connected
+to production replay. A future integration must snapshot before defensive reassignment
+and validate committed evidence instead of resampling moved actors. Unknown geometry
+fails closed. All playable/save/catalog code remains byte-identical to the parent.
 
 ## Versioned Alley calibration and Gap progression, 2026-10-02
 

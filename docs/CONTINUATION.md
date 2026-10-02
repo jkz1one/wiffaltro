@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after implementing calibrated Alley and earned Gap Driver.
+Updated 2026-10-02 after measuring the isolated Frozen Rope gap candidate.
 
 ## Resume here
 
@@ -55,7 +55,38 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Calibrated Alley and Gap Driver (latest)
+## Frozen Rope candidate (latest)
+
+Read `FROZEN_ROPE_CANDIDATE.md` and its exact `_RESULTS.json` before implementing the
+last Gear. Equipment v18 and planning blueprint v114 EU/EV were reread; their gap-depth,
+score and spacing specification gates remain the reason for this isolated proposal.
+The candidate document was authored before code. Recommend selecting it for **Working**
+testing: available-anchor depth band, nearest-defender planar clearance,0.5° offsets,
+quality-scaled4° cap, equal-third fair sectors and conservative obstacle footprints.
+Only improve static clearance; no improvement or exact opposite symmetry retains original.
+It is not selected/Approved and Frozen Rope remains unavailable. Ask only the concrete
+remaining rule-selection question; routine coding/testing/commits/pushes are authorized.
+
+`FrozenRopeCandidate` lives under tests; production never references it. Do not mistake
+its synthetic serializable choice for integrated match evidence or its geometry tests for
+physical gameplay. Future snapshots must include the actual pitcher and primary fielder,
+before `_start_ball_in_play` reapplies defensive assignments. Native pole footprint/unknown
+geometry handling, contact evidence/replay, paid identity, unlock, UI and sales belong in
+the integrated item slice after selection. Preserve all historical signatures and receipts.
+A future user acceptance selects Working testing only, not balance or visual acceptance.
+
+Current Build40/save44/Career20/opponent policy2 unchanged; SOTv0.4.83/Technicalv0.1.74.
+24/25 Gear,35/35 sponsors, five supplies, three learned abilities and one transformation.
+SeasonBuild remains919 lines. Final run `20261002T074749542616Z` passed10/10 checks:
+seven gates plus candidate, Gap Driver and regressions. No warnings/errors or new complete
+games.575 final source files frozen through publication; no independent disposable-runner
+hash claim. See VERIFICATION for initial failures and corrected same-side tie edge.
+Native/human acceptance, balance and historical intermittent early exit remain open.
+Approximately74% overall, not release readiness. User priority stays shop/items before
+larger systems. Main/blueprint unchanged; engineering push only, no merge/deploy/force-push.
+Use git log for the exact published SHA and preserved local checkpoint branch.
+
+## Calibrated Alley and Gap Driver (previous)
 
 The user selected the proposed tuning by replying “continue” after the explicit question.
 It is now **Working**, not approved balance. `SeasonAlleyGear` applies 10° target,
