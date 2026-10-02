@@ -14,6 +14,7 @@ var _review_scroll: ScrollContainer
 var _review_text: Label
 var _pending: Dictionary = {}
 var _notice: String = ""
+var _focus_layout_revision: int = 0
 
 
 func _ready() -> void:
@@ -25,6 +26,9 @@ func _ready() -> void:
 	theme = ClubhouseTheme.create()
 	close_requested.connect(_close)
 	size_changed.connect(func() -> void: _ensure_focus_visible.call_deferred())
+	gui_focus_changed.connect(
+		func(_control: Control) -> void: _ensure_focus_visible.call_deferred()
+	)
 	var panel: PanelContainer = PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
@@ -54,12 +58,14 @@ func _ready() -> void:
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_RESERVE
 	_scroll.follow_focus = true
+	_scroll.resized.connect(func() -> void: _ensure_focus_visible.call_deferred())
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_scroll)
 	_body = VBoxContainer.new()
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body.add_theme_constant_override("separation", 10)
 	_scroll.add_child(_body)
+	_body.resized.connect(func() -> void: _ensure_focus_visible.call_deferred())
 	_back = Button.new()
 	_back.text = "BACK TO SEASON"
 	_back.custom_minimum_size.y = 44
@@ -293,9 +299,10 @@ func _choose_recruit() -> void:
 			% [incoming.display_name, outgoing.display_name]
 		)
 		(
-			_button(
+			_purchase(
 				"REPLACE " + outgoing.display_name,
-				_preview.bind(_request("sign", {"offer": offer.id, "replace": id}), description)
+				_request("sign", {"offer": offer.id, "replace": id}),
+				description
 			)
 			. set_meta("recruit_replace", id)
 		)
@@ -528,10 +535,12 @@ func _purchase(text: String, command: Dictionary, description: String) -> Button
 func _ensure_focus_visible() -> void:
 	if not is_inside_tree() or _scroll == null:
 		return
-	# Reserved scrollbar width keeps wrapping stable while containers settle.
+	# Only the last focus/layout event corrects scroll, after nested wrapping settles.
+	_focus_layout_revision += 1
+	var revision: int = _focus_layout_revision
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not is_inside_tree() or is_queued_for_deletion():
+	if not is_inside_tree() or is_queued_for_deletion() or revision != _focus_layout_revision:
 		return
 	var focused: Control = gui_get_focus_owner()
 	if focused != null and _body.is_ancestor_of(focused):

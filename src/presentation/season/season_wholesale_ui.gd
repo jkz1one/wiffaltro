@@ -105,11 +105,19 @@ static func discounts(window: SeasonShopWindow, first: Dictionary, second: Dicti
 	window._label("EQUAL PRICES • choose the discounted receipt")
 	window._label("Paid price stays with each copy. Tactical supplies have no resale.")
 	for choice: Dictionary in [first, second]:
+		var item: Dictionary = SeasonWholesale.item(stock[choice.offer])
+		var off: int = SeasonWholesale.reduction(item.price)
+		window._label(
+			"This copy: base %d − discount %d = paid %d Cash" % [item.price, off, item.price - off]
+		)
 		(
 			window
-			. _button(
-				"DISCOUNT " + SeasonWholesale.item(stock[choice.offer]).name,
-				review.bind(window, first, second, choice.offer)
+			. _purchase(
+				"DISCOUNT " + item.name,
+				window._request(
+					"wholesale", {"first": first, "second": second, "discounted": choice.offer}
+				),
+				description(window, first, second, choice.offer)
 			)
 			. set_meta("wholesale_discount", choice.offer)
 		)
@@ -120,13 +128,25 @@ static func discounts(window: SeasonShopWindow, first: Dictionary, second: Dicti
 static func review(
 	window: SeasonShopWindow, first: Dictionary, second: Dictionary, discounted: String
 ) -> void:
+	var text: String = description(window, first, second, discounted)
+	if text.is_empty():
+		window._refresh()
+		return
+	window._preview(
+		window._request("wholesale", {"first": first, "second": second, "discounted": discounted}),
+		text
+	)
+
+
+static func description(
+	window: SeasonShopWindow, first: Dictionary, second: Dictionary, discounted: String
+) -> String:
 	var stock: Dictionary = window.app.season.build.view().shop.offers
 	var text: String = "WHOLESALE • one atomic purchase, once this visit\n"
 	for choice: Dictionary in [first, second]:
 		var item: Dictionary = SeasonWholesale.item(stock.get(choice.offer, ""))
 		if item.is_empty():
-			window._refresh()
-			return
+			return ""
 		var off: int = SeasonWholesale.reduction(item.price) if choice.offer == discounted else 0
 		text += (
 			"%s\nBase %d − discount %d = paid %d.\n%s\n%s\n"
@@ -140,7 +160,4 @@ static func review(
 			]
 		)
 	text += "Both targets must remain legal. No development, packs or other price concessions."
-	window._preview(
-		window._request("wholesale", {"first": first, "second": second, "discounted": discounted}),
-		text
-	)
+	return text

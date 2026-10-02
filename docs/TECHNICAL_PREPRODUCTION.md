@@ -1,5 +1,13 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Shop services and settled focus layout, 2026-10-02
+
+Exact service and completed recipient commands reuse SeasonShopQuote; no domain or serialization change. Special Order combines quote-disabled state with empty-pool eligibility. Pick & Mix preserves quote descriptions unless a compatibility reason blocks it. Equal-price Wholesale choices disclose each receipt's base/discount/paid price and quote the complete atomic command; unequal-price pairs keep their existing direct final-review path. Retraining review uses an isolated fork so generating descriptions cannot overwrite live last_error.
+
+SeasonShopWindow responds to actual focus, scroll-container resize and body resize as well as window resize. A revision cancels older pending corrections; the newest event waits two process frames then ensures the current body focus is visible once. This fixes recruitment resize clipping and nested wrapping failures without repeating corrections on every frame or observing manual scroll changes.
+
+Shared actual-input boundary fixtures test one Cash short, exact Cash, zero-fee actions, quote/review agreement, cancellation and unchanged live diagnostics/state. Controlled forks set test wallet state directly instead of introducing conflicting bank transaction IDs; they never save. Existing actual earned fixtures still cover failed writes, rollback, retry and reload. Older reservation/exchange/category tests now accept native capture arguments.
+
 ## Authoritative shop quote projection, 2026-10-02
 
 SeasonShopQuote uses SeasonBuild._fork().preview for fully specified purchase commands. Both candidate state and diagnostic last_error remain isolated from the live build. It projects Cash and domain failures, retaining existing resolver entry points for sponsor sales/capacity, Double Major choices and mutually exclusive Union/Summer School concessions. Purchase commands are revalidated by the existing final review and commit/save path; the quote is never an authorization token or client price override.
@@ -26,7 +34,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.78
+**Version:** v0.1.79
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

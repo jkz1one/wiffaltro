@@ -1,5 +1,15 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: shop service quotes and settled focus layout, 2026-10-02
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; this slice follows pushed parent127980a96282ef39e370c0d20f497f9323029333. Build41/save45/Career21/opponent policy2,25/25 Gear and35/35 sponsors remain unchanged. Overall **~75%**, not release readiness. Use git log -1 for the published SHA.
+
+Signing, retraining, school nominations/completed pairs, focused rerolls, reservation/release, free pitch exchange, Pick & Mix and equal-price Wholesale choices now quote resulting Cash before confirmation. Hard Cash failures disable exact actions, while free services work at zero Cash. Retraining descriptions preserve live diagnostics. Native review caught narrow recruitment focus clipping; container layout/focus events now coalesce into one settled correction without tracking manual scrolling. Original final review, atomic saving, stock, receipt IDs, frozen signatures, Working/Proposal status and safe live-sale boundaries remain intact. No new saved fields.
+
+Final native `20261002T164729046408Z`: **19/19**, seven common gates plus twelve scenes;79 actual rendered captures, no engine errors. Focused headless `20261002T164631561072Z`:10/10. Earlier failed attempts and actual fixes are documented in VERIFICATION. Three inspected screenshots are committed under docs/reviews/20261002-shop-services. All590 source/test/asset/project/runner files remain frozen through final verification/publication.
+
+Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420; repository blueprint remains byte-identical. SOTv0.4.88/Technicalv0.1.79. Continue shop integration and cohesive UI review before larger systems. The same centered Equipped entry and immediate saved live refunds/next-batter retirement remain required. Unsupported native V-Sync, historical intermittent early exits, human visual/feel acceptance and final whole-UI polish stay open. This successful targeted run does not repair the full suite. Historical checkpoints below retain earlier scope.
+
 ## Current checkpoint: authoritative shop purchase quotes, 2026-10-02
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; prior pushed parent e491243. Build41/save45/Career21,25/25 Gear and35/35 sponsors remain unchanged. Overall **~75%**, not release readiness.

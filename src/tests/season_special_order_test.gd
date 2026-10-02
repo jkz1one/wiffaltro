@@ -2,6 +2,9 @@ extends "res://src/tests/season_earned_sponsor_test.gd"
 
 
 func _ready() -> void:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--ui-capture-dir="):
+			_capture_dir = argument.trim_prefix("--ui-capture-dir=")
 	SeasonSave.path = "user://special-order-%d.json" % OS.get_process_id()
 	_contracts()
 	print("SPECIAL_ORDER_STAGE contracts complete")
@@ -248,6 +251,13 @@ func _order_ui() -> void:
 	var before: Dictionary = app.season.build.to_data()
 	await _click(_button(window, "SPECIAL ORDER • CHOOSE CATEGORY"))
 	await _shop_bounds(window, "special-order-categories")
+	await _quote_boundary(
+		window,
+		SeasonReclamation.price(app.season.build.view().shop),
+		SeasonSpecialOrderUI.choose.bind(window),
+		func() -> Button: return _category_button(window, "gear"),
+		"special-order-quote"
+	)
 	await _click(_category_button(window, "gear"))
 	_check(window._review_text.text.contains("Cash: 14 → 2"), "exact review price")
 	await _click(window._confirm.get_cancel_button())

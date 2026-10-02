@@ -41,14 +41,12 @@ static func students(window: SeasonShopWindow, offer: String, old: Dictionary) -
 			)
 		(
 			window
-			. _button(
+			. _purchase(
 				"NOMINATE " + player.display_name,
-				window._preview.bind(
-					window._request(
-						"sponsor_buy", {"offer": offer, "replace": old.get("id", ""), "student": id}
-					),
-					description
-				)
+				window._request(
+					"sponsor_buy", {"offer": offer, "replace": old.get("id", ""), "student": id}
+				),
+				description
 			)
 			. set_meta("student", id)
 		)
@@ -94,14 +92,12 @@ static func paired(
 			)
 			(
 				window
-				. _button(
+				. _purchase(
 					label,
-					window._preview.bind(
-						window._request(
-							"lesson_pair", {"offer": offer, "first": first, "second": target}
-						),
-						description
-					)
+					window._request(
+						"lesson_pair", {"offer": offer, "first": first, "second": target}
+					),
+					description
 				)
 				. set_meta("pair_second", target)
 			)

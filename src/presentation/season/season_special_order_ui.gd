@@ -38,31 +38,22 @@ static func choose(window: SeasonShopWindow) -> void:
 		var slots: int = 4 - protected.size()
 		var count: int = mini(slots, pool.size())
 		var label: String = SeasonSpecialOrder.CATEGORIES[category]
-		var button: Button = (
-			window
-			. _button(
+		var button: Button = window._purchase(
+			(
+				"%s • %d / %d refreshed positions • %d Cash"
+				% [label, count, slots, SeasonReclamation.price(build.view().shop)]
+			),
+			window._request("focused_reroll", {"category": category}),
+			(
 				(
-					"%s • %d / %d refreshed positions • %d Cash"
-					% [label, count, slots, SeasonReclamation.price(build.view().shop)]
-				),
-				(
-					window
-					. _preview
-					. bind(
-						window._request("focused_reroll", {"category": category}),
-						(
-							(
-								"Focus %s: up to %d distinct offers. Remaining positions are unavailable. "
-								% [label, count]
-							)
-							+ "Uses this visit's one focused reroll and advances the ordinary reroll price. "
-							+ "Pack and recruiting do not change. Existing Reclamation credit is consumed."
-						)
-					)
+					"Focus %s: up to %d distinct offers. Remaining positions are unavailable. "
+					% [label, count]
 				)
+				+ "Uses this visit's one focused reroll and advances the ordinary reroll price. "
+				+ "Pack and recruiting do not change. Existing Reclamation credit is consumed."
 			)
 		)
-		button.disabled = count == 0
+		button.disabled = button.disabled or count == 0
 		button.set_meta("focus_category", category)
 	window._label("Only categories with eligible offers can be selected.")
 	window._button("BACK TO SHOP", window._refresh)

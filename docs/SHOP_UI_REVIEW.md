@@ -73,3 +73,24 @@ At700×400, Held2/2 agrees with the blocked tactical purchase. The reason uses t
 At2 Cash, the3-Cash Union choice is disabled while the2-Cash Summer School choice remains available and projects0 Cash. The allowances cannot stack. Actual input reaches the exact final review; cancellation consumes neither allowance.
 
 The surrounding screenshots and common native environment limitations above still apply. Broad16/18 plus corrected focused9/9 twice and final quote8/8 are recorded in VERIFICATION. No copied reference artwork, new economy values, human visual approval or whole-project UI acceptance is implied.
+
+
+## Service and completed-recipient follow-up
+
+Rechecked the same official Balatro press-kit shop asset: price/action proximity and stable wallet/inventory remain the primary visual observations. This bounded service slice extends Wiffaltro's existing quotes rather than changing economy values or copying reference art. Also checked [Godot's Viewport focus signal](https://docs.godotengine.org/en/stable/classes/class_viewport.html#signals) and [ScrollContainer behavior](https://docs.godotengine.org/en/stable/classes/class_scrollcontainer.html). Final focus correction responds to actual body/scroll geometry and cancels superseded layout events, addressing the measured recruitment clipping failure while retaining mouse-scroll freedom.
+
+These unedited native captures come from `20261002T164729046408Z`,19/19 checks,79 captures:
+
+![Retraining is visibly blocked one Cash short](reviews/20261002-shop-services/retraining-quote-blocked.png)
+
+At1000×650, the7-Cash header agrees with the disabled8-Cash transformation choices. Each reason remains readable; Back to removals, Back to season and the centered Equipped entry remain available. The same page at8 Cash enables each exact addition and quotes0 Cash. Inspection leaves live diagnostics, points and wallet unchanged.
+
+![Free pitch exchange is actionable at zero Cash](reviews/20261002-shop-services/transfer-free-quote-exact.png)
+
+At700×400, the exchange action stays fully visible with0 Cash. The outgoing mastery/repertoire consequences scroll above it, and the explicit no-fee description is visible. Actual input reaches the final review, whose Cash outcome agrees; cancellation leaves both players unchanged.
+
+![Raincheck reserves an offer without buying it](reviews/20261002-shop-services/raincheck-free-quote-exact.png)
+
+At700×400,0-Cash reservation choices retain the item's future base price beside the action. Reserving spends no Cash now. The final review still controls reserve-and-leave; Cancel leaves stock and the current visit intact.
+
+Additional final recruitment and category captures were inspected for fully visible focused buttons after narrow resize. Existing effects and player ratings remain scrollable. Shared native environment limits above apply; no engine errors in the final scope, no new complete physical games. This bounded review is not human visual/feel acceptance or the final cohesive whole-game UI pass.

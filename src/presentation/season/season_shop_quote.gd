@@ -29,8 +29,8 @@ static func button(
 			message = "Choose one concession to see the final Cash cost."
 		else:
 			message = error
-			if error.contains("Insufficient Season Cash"):
-				message = "Not enough Season Cash for this purchase."
+			if error.contains("Insufficient") and error.contains("Cash"):
+				message = "Not enough Season Cash for this action."
 			elif error.contains("capacity") and command.op in ["buy", "tactical_buy"]:
 				message = "Held supply bag is full. Use or discard a copy before buying."
 	var status: Label = window._label(message)

@@ -1,5 +1,11 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Shop service quote amendment, 2026-10-02
+
+Signing replacements, exact Retraining Camp additions, Summer School nominees, completed Open Book recipient pairs, Special Order categories, Raincheck reservation/release, Transfer Station exchanges, Pick & Mix and equal-price Wholesale discount choices now show authoritative resulting Cash before confirmation. Hard Cash failures disable exact actions; free exchanges and reservations remain selectable at zero Cash. Raincheck's displayed base price remains a future purchase price, not an immediate charge. First-recipient and other incomplete choices remain selection steps.
+
+Retraining description generation isolates candidate diagnostics as well as state. The final review and atomic save remain authoritative. Container-layout/focus events coalesce into one correction after wrapping settles; pointer scrolling does not itself schedule corrections. Build41/save45/Career21, stock, receipt IDs, signatures, Working values and live-sale boundaries remain unchanged. Human visual/feel acceptance is still open.
+
 ## Shop purchase quote amendment, 2026-10-02
 
 Exact Gear, sponsor, tactical-supply, held-development, recipient, ability-target, reroll and sealed-pack actions now project their committed Cash outcome before the final review. Ordinary Gear/sponsor replacements disclose the actual receipt refund and net cost. Hard Cash/capacity failures have visible reasons and disabled actions; sponsor-resolution, Double Major nomination/forgetting and competing concessions stay explicit selectable paths rather than being falsely blocked. Inspection spends nothing; final review and atomic save remain authoritative.
@@ -26,7 +32,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.87
+**Version:** v0.4.88
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

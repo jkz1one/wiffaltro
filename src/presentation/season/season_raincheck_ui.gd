@@ -33,12 +33,10 @@ static func entry(window: SeasonShopWindow) -> void:
 			)
 		)
 	if not pending.is_empty() or not protected.is_empty():
-		window._button(
+		window._purchase(
 			"RELEASE RESERVATION",
-			window._preview.bind(
-				window._request("release_reservation"),
-				"Release this reservation. No Cash, item or free replacement is granted."
-			)
+			window._request("release_reservation"),
+			"Release this reservation. No Cash, item or free replacement is granted."
 		)
 	if SeasonRaincheck.available(build) and pending.is_empty():
 		window._button("RAINCHECK • RESERVE & LEAVE", choose.bind(window))
@@ -67,14 +65,12 @@ static func choose(window: SeasonShopWindow) -> void:
 			continue
 		(
 			window
-			. _button(
+			. _purchase(
 				"RESERVE %s • base %d Cash" % [item.name, item.price],
-				window._preview.bind(
-					window._request("reserve_offer", {"offer": offer}),
-					(
-						"Reserve %s at base %d Cash and leave. No item or discount is banked."
-						% [item.name, item.price]
-					)
+				window._request("reserve_offer", {"offer": offer}),
+				(
+					"Reserve %s at base %d Cash and leave. No item or discount is banked."
+					% [item.name, item.price]
 				)
 			)
 			. set_meta("rain_offer", offer)

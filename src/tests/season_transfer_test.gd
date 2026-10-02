@@ -2,6 +2,9 @@ extends "res://src/tests/season_raincheck_test.gd"
 
 
 func _ready() -> void:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--ui-capture-dir="):
+			_capture_dir = argument.trim_prefix("--ui-capture-dir=")
 	SeasonSave.path = "user://transfer-%d.json" % OS.get_process_id()
 	_mastery_contract()
 	_pair_access()
@@ -318,6 +321,13 @@ func _transfer_ui(season: SeasonState) -> void:
 	window.size = Vector2i(700, 400)
 	await _click(_button(window, "TRANSFER STATION • EXCHANGE PITCHES"))
 	await _shop_bounds(window, "transfer-select")
+	await _quote_boundary(
+		window,
+		0,
+		SeasonTransferUI.choose.bind(window),
+		func() -> Button: return _button(window, "REVIEW EXCHANGE"),
+		"transfer-free-quote"
+	)
 	var before: Dictionary = app.season.build.to_data()
 	await _click(_button(window, "REVIEW EXCHANGE"))
 	_check(

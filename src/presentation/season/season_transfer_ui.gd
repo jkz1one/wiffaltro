@@ -61,11 +61,8 @@ static func choose(window: SeasonShopWindow) -> void:
 		window._label(description(build, row))
 		(
 			window
-			. _button(
-				"REVIEW EXCHANGE",
-				window._preview.bind(
-					window._request("transfer_pitch", row), description(build, row)
-				)
+			. _purchase(
+				"REVIEW EXCHANGE", window._request("transfer_pitch", row), description(build, row)
 			)
 			. set_meta("transfer_pair", row)
 		)

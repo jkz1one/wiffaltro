@@ -2,6 +2,9 @@ extends "res://src/tests/season_special_order_test.gd"
 
 
 func _ready() -> void:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--ui-capture-dir="):
+			_capture_dir = argument.trim_prefix("--ui-capture-dir=")
 	SeasonSave.path = "user://raincheck-%d.json" % OS.get_process_id()
 	var season: SeasonState = _rain_fixture()
 	if season != null:
@@ -326,6 +329,17 @@ func _rain_ui(season: SeasonState) -> void:
 	await _click(_button(window, "RAINCHECK • RESERVE & LEAVE"))
 	await _shop_bounds(window, "raincheck-select")
 	var offer: String = _reservable(app.season.build)
+	await _quote_boundary(
+		window,
+		0,
+		SeasonRaincheckUI.choose.bind(window),
+		func() -> Button:
+			for node: Node in window._body.find_children("*", "Button", true, false):
+				if node.get_meta("rain_offer", "") == offer:
+					return node
+			return null,
+		"raincheck-free-quote"
+	)
 	var choice: Button
 	for node: Node in window._body.find_children("*", "Button", true, false):
 		if node.get_meta("rain_offer", "") == offer:

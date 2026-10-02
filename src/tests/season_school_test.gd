@@ -450,6 +450,7 @@ func _actual_ui(id: String) -> void:
 	window.size = Vector2i(700, 400)
 	await _click(_sponsor_button(window, _offer(app.season.build, id)))
 	if id == "J10":
+		_quote_agreement(window, _metadata_button(window, "student"), "Summer School student")
 		await _click(_metadata_button(window, "student"))
 	_check(
 		window._review_text.text.contains(SeasonSponsorCatalog.item(id).effect),
@@ -468,6 +469,7 @@ func _actual_ui(id: String) -> void:
 			app.queue_free()
 			await _frames()
 			return
+		_quote_agreement(window, second, "Open Book completed pair")
 		await _click(second)
 		_check(
 			window._review_text.text.contains("learned level"),

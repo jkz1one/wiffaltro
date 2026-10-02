@@ -80,18 +80,18 @@ static func destinations(
 			"retrain_buy",
 			{"offer": quote, "player": player, "remove": remove.duplicate(), "add": choice.add}
 		)
-		window._button(
-			"ADD " + _pair(choice.add),
-			window._preview.bind(command, review(window.app.season.build, command))
+		window._purchase(
+			"ADD " + _pair(choice.add), command, review(window.app.season.build, command)
 		)
 	window._button("BACK TO REMOVALS", sources.bind(window, quote, player))
 	window._focus_first.call_deferred()
 
 
 static func review(build: SeasonBuild, command: Dictionary) -> String:
-	var next: SeasonBuild = build.candidate(command)
+	var inspected: SeasonBuild = build._fork()
+	var next: SeasonBuild = inspected.candidate(command)
 	if next == null:
-		return build.last_error
+		return inspected.last_error
 	var before: Dictionary = build.player(command.player).stats
 	var after: Dictionary = next.player(command.player).stats
 	var rows: PackedStringArray = []

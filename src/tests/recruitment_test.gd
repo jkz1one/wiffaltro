@@ -407,6 +407,13 @@ func _season_recruitment() -> void:
 	await _shop_bounds(window, "recruit-shop-narrow")
 	await _click(_button(window._body, "REVIEW RECRUIT REPLACEMENT"))
 	await _shop_bounds(window, "recruit-compare-narrow")
+	await _quote_boundary(
+		window,
+		offer.price,
+		window._choose_recruit,
+		func() -> Button: return _replacement(window, departing),
+		"recruit-quote"
+	)
 	await _click(_replacement(window, departing))
 	_check(window._pending.replace == departing, "exact clicked departure reaches confirmation")
 	await _capture(window._confirm, "recruit-confirmation")

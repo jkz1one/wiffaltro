@@ -399,6 +399,17 @@ func _retraining_ui() -> void:
 	var choice: Dictionary = SeasonRetraining.choices(app.season.build._book, player)[0]
 	await _click(_button(window, "REMOVE " + SeasonRetrainingUI._pair(choice.remove)))
 	await _shop_bounds(window, "retraining-destinations")
+	var quote: String = ""
+	for key: String in app.season.build.view().shop.offers:
+		if app.season.build.view().shop.offers[key] == SeasonRetraining.ID:
+			quote = key
+	await _quote_boundary(
+		window,
+		8,
+		SeasonRetrainingUI.destinations.bind(window, quote, player, choice.remove),
+		func() -> Button: return _button(window, "ADD " + SeasonRetrainingUI._pair(choice.add)),
+		"retraining-quote"
+	)
 	await _click(_button(window, "ADD " + SeasonRetrainingUI._pair(choice.add)))
 	_check(
 		window._confirm.visible and window._review_text.text.contains("zero gained"),

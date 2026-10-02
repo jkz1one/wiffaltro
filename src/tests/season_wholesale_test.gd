@@ -256,6 +256,8 @@ func _drive_pair(window: SeasonShopWindow, request: Dictionary) -> void:
 		await _click(_meta_exact(window, "wholesale_target", target))
 	var discount: Button = _meta_exact(window, "wholesale_discount", request.discounted)
 	if discount != null:
+		_quote_agreement(window, discount, "Wholesale equal-price discount")
+		await _shop_bounds(window, "wholesale-discount-choice")
 		await _click(discount)
 
 

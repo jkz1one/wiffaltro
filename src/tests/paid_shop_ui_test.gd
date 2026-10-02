@@ -133,6 +133,105 @@ func _exercise() -> void:
 			DirAccess.remove_absolute(path + suffix)
 
 
+func _quote_boundary(
+	window: SeasonShopWindow, price: int, project: Callable, find_action: Callable, stage: String
+) -> void:
+	var original: SeasonBuild = window.app.season.build
+	var original_data: Dictionary = original.to_data()
+	var original_view: Dictionary = original.view()
+	var original_error: String = original.last_error
+	var balances: Array[int] = [0]
+	if price > 0:
+		balances.assign([price - 1, price])
+	for amount: int in balances:
+		var probe: SeasonBuild = original._fork()
+		# Controlled wallet fixture: do not invent charge IDs in its transaction ledger.
+		probe._bank._state.cash = amount
+		probe.last_error = "boundary diagnostic"
+		window.app.season.build = probe
+		var data: Dictionary = probe.to_data()
+		var view: Dictionary = probe.view()
+		window._refresh()
+		await _frames()
+		project.call()
+		await _frames()
+		var action: Button = find_action.call()
+		_check(action != null and action.has_meta("shop_quote"), stage + " has an exact quote")
+		if action == null or not action.has_meta("shop_quote"):
+			continue
+		_check(
+			(
+				probe.to_data() == data
+				and probe.view() == view
+				and probe.last_error == "boundary diagnostic"
+			),
+			stage + " inspection preserves live state and diagnostics"
+		)
+		var quote: Dictionary = action.get_meta("shop_quote")
+		if amount < price:
+			_check(
+				action.disabled and action.get_meta("shop_quote_message").contains("Not enough"),
+				stage + " blocks one Cash short"
+			)
+			window._back.grab_focus()
+			await _click(action, false)
+			_check(
+				not window._confirm.visible and probe.to_data() == data,
+				stage + " blocked click costs nothing"
+			)
+			await _shop_bounds(window, stage + "-blocked")
+		else:
+			_check(
+				not action.disabled and quote.ok and quote.after.wallet.cash == 0,
+				stage + " accepts exact Cash"
+			)
+			await _shop_bounds(window, stage + "-exact")
+			await _click(action)
+			_check(
+				(
+					window._confirm.visible
+					and window._review_text.text.contains("Cash: %d → 0" % amount)
+				),
+				stage + " final review agrees with visible quote"
+			)
+			await _click(window._confirm.get_cancel_button())
+			_check(
+				probe.to_data() == data and probe.view() == view,
+				stage + " Cancel preserves both sides"
+			)
+	window.app.season.build = original
+	window._refresh()
+	await _frames()
+	project.call()
+	await _frames()
+	_check(
+		(
+			original.to_data() == original_data
+			and original.view() == original_view
+			and original.last_error == original_error
+		),
+		stage + " controlled quote fixtures leave the saved build untouched"
+	)
+
+
+func _quote_agreement(window: SeasonShopWindow, action: Button, stage: String) -> void:
+	_check(action != null and action.has_meta("shop_quote"), stage + " exposes an exact quote")
+	if action == null or not action.has_meta("shop_quote"):
+		return
+	var build: SeasonBuild = window.app.season.build
+	var data: Dictionary = build.to_data()
+	var view: Dictionary = build.view()
+	var error: String = build.last_error
+	var expected: Dictionary = build._fork().preview(action.get_meta("shop_command"))
+	_check(
+		action.get_meta("shop_quote") == expected, stage + " agrees with authoritative transaction"
+	)
+	_check(
+		build.to_data() == data and build.view() == view and build.last_error == error,
+		stage + " read-only comparison"
+	)
+
+
 func _shop(app: SeasonApp) -> SeasonShopWindow:
 	for child in app.menu.get_children():
 		if child is SeasonShopWindow:
@@ -246,7 +345,16 @@ func _shop_bounds(window: SeasonShopWindow, stage: String) -> void:
 	if focused is Button and window._body.is_ancestor_of(focused):
 		_check(
 			window._scroll.get_global_rect().encloses(focused.get_global_rect()),
-			"focused purchase/target stays fully visible after resize: " + stage
+			(
+				"focused purchase/target stays fully visible after resize: %s; %s at %s inside %s, scroll %d"
+				% [
+					stage,
+					focused.text,
+					focused.get_global_rect(),
+					window._scroll.get_global_rect(),
+					window._scroll.scroll_vertical
+				]
+			)
 		)
 	await _capture(window, stage)
 

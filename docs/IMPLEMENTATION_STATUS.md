@@ -1,5 +1,11 @@
 # Implementation Status
 
+## Shop services and completed recipient quotes, 2026-10-02
+
+Exact signing, retraining, school nomination/pairs, focused rerolls, reservations/releases, free pitch exchanges, Pick & Mix and equal-price Wholesale discount choices now project resulting Cash or a visible blocked reason. Free service actions remain available at zero Cash; reservation base prices are explicitly future purchase prices. Retraining descriptions preserve live diagnostics. Layout events now coalesce before correcting focus, addressing an actual narrow recruitment clipping failure while preserving pointer scrolling.
+
+All25 Gear and35 sponsors remain integrated. Build41/save45/Career21 and gameplay/save contracts are unchanged; overall **~75%**, not release readiness. Native verification and inspected screenshots are recorded in VERIFICATION and SHOP_UI_REVIEW. Shop integration remains the priority before larger systems; human visual/feel acceptance, final whole-UI polish and intermittent suite early exits remain open.
+
 ## Shop price and availability feedback, 2026-10-02
 
 Ordinary Gear/sponsor replacement refunds and net costs are visible before review. Exact supply, held-card, development-recipient, learned-ability target, reroll and pack actions expose authoritative resulting Cash or a blocked reason. Unaffordable/full-bag actions are disabled, while explicit sponsor/Double Major/concession resolution remains accessible. Pure forked quotes preserve stock, wallet, allowances and diagnostic state; original final review and atomic saving stay authoritative.
