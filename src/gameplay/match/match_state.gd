@@ -43,6 +43,7 @@ var batter_timeout_used: bool = false
 var last_event: String = "Game ready"
 var winner_name: String = ""
 var gear_usage: MatchGearUsage = MatchGearUsage.new()
+var frozen_contacts: Array[Dictionary] = []
 var pitch_disclosure: Dictionary = {}
 var optics_mode: String = "normal"
 var cornerstone_anchored: bool = false

@@ -101,4 +101,5 @@ const ITEMS: Dictionary = {
 static func catalog() -> Dictionary:
 	var result: Dictionary = ITEMS.duplicate(true)
 	result[SeasonAlleyGear.GAP] = SeasonAlleyGear.ITEMS[SeasonAlleyGear.GAP].duplicate(true)
+	result.merge(SeasonFrozenRope.ITEMS.duplicate(true))
 	return result

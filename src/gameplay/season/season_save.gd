@@ -86,7 +86,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 44) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 45) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -231,6 +231,15 @@ static func _decode(value: Variant) -> SeasonState:
 			for played: Dictionary in season.results:
 				if played.id == result.id:
 					played["field_supply"] = result.field_supply.duplicate(true)
+		if result.has("frozen"):
+			if data.version < 45 or not result.frozen is Array:
+				return null
+			if not SeasonLeftRight.own_halves(result.frozen, season.player_results[-1].home == 0):
+				return null
+			season.player_results[-1]["frozen"] = result.frozen.duplicate(true)
+			for played: Dictionary in season.results:
+				if played.id == result.id:
+					played["frozen"] = result.frozen.duplicate(true)
 	var lineup: Variant = data.get("lineup")
 	if not lineup is Array:
 		return null
@@ -342,6 +351,8 @@ static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> boo
 			if event.get("pitching", {}) != result.get("pitching", {}):
 				return false
 			if event.get("fielding", []) != result.get("fielding", []):
+				return false
+			if not SeasonGapCommit.same(event.get("frozen", []), result.get("frozen", [])):
 				return false
 			if event.has("performance"):
 				var saved: Variant = JSON.parse_string(JSON.stringify(event.performance))

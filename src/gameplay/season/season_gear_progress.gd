@@ -44,7 +44,7 @@ static func tracked(id: String, allow_alley: bool = true) -> bool:
 	)
 
 
-static func access(counts: Dictionary) -> Array[String]:
+static func access(counts: Dictionary, allow_frozen: bool = true) -> Array[String]:
 	var result: Array[String] = []
 	for family: String in FAMILIES:
 		if counts.get(family + "-01", 0) >= 10:
@@ -53,6 +53,8 @@ static func access(counts: Dictionary) -> Array[String]:
 			result.append(family + "-03")
 	if counts.get(SeasonAlleyGear.BASE, 0) >= 10:
 		result.append(SeasonAlleyGear.GAP)
+	if allow_frozen and counts.get(SeasonAlleyGear.GAP, 0) >= 20:
+		result.append(SeasonFrozenRope.ID)
 	return result
 
 
@@ -68,10 +70,10 @@ func counts() -> Dictionary:
 	return add(start, games)
 
 
-func eligible() -> Array[String]:
+func eligible(allow_frozen: bool = true) -> Array[String]:
 	var result: Array[String] = []
 	if enabled:
-		result = access(counts())
+		result = access(counts(), allow_frozen)
 	return result
 
 

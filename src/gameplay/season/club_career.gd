@@ -200,7 +200,7 @@ func cleared() -> bool:
 
 
 func to_data() -> Dictionary:
-	return {"version": 20, "current": current, "runs": runs.duplicate(true)}
+	return {"version": 21, "current": current, "runs": runs.duplicate(true)}
 
 
 static func same(a: Variant, b: Variant) -> bool:
@@ -214,7 +214,7 @@ static func from_data(value: Variant) -> ClubCareer:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "current", "runs"]):
 		return null
 	if (
-		not SeasonOwnership._whole(value.version, 1, 20)
+		not SeasonOwnership._whole(value.version, 1, 21)
 		or not value.runs is Array
 		or value.runs.size() > MAX_RUNS
 	):
@@ -282,7 +282,10 @@ static func from_data(value: Variant) -> ClubCareer:
 			migrated["collection"] = null
 		if value.version >= 19 and row.id == result.current and migrated.collection == null:
 			return null
-		if migrated.collection != null and not ClubCollection.valid(migrated.collection):
+		if (
+			migrated.collection != null
+			and not ClubCollection.valid(migrated.collection, value.version >= 21)
+		):
 			return null
 		if value.version == 1:
 			migrated["gear"] = null

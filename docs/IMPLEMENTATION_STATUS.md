@@ -1,5 +1,12 @@
 # Implementation Status
 
+## Frozen Rope complete integration, 2026-10-02
+
+**25/25 Gear,35/35 sponsors**, five tactical supplies, three learned abilities and one transformation. Build41/save45/Career21. Frozen Rope has paid earned access, stock/offer eligibility, Contact flattening and committed gap selection, Power penalty, progress/Collection/Equipped disclosure, atomic purchase/replacement/live sale, original-spin preservation, saved evidence and legacy migrations. Calibration remains Working.
+
+Final broad31/32 checks passed; focused Collection8/8 passed all60 entries. Five final complete physical games exercised human/AI launches and deferred live-sale retirement. Combined Collection exit1 remains unexplained. Native rendered/human visual acceptance remains open. Overall **~75%**; shop/UI polish stays next before larger systems. Historical prototype status below is superseded.
+
+
 ## Frozen Rope specification prototype, 2026-10-02
 
 The final Gear's gap-selection rule now has an explicit, measured candidate in

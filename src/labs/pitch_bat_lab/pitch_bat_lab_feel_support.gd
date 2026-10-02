@@ -628,6 +628,7 @@ static func note_swing(
 	lab._active_play_record.exit_speed_mps = result.exit_velocity.length()
 	lab._active_play_record.launch_angle_degrees = result.launch_angle_degrees
 	lab._active_play_record.spray_degrees = result.spray_degrees
+	lab._active_play_record.frozen_launch = result.frozen_launch.duplicate(true)
 
 
 static func note_first_ground(lab: PitchBatLab, position: Vector3) -> void:

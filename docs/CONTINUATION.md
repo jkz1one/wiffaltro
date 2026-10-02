@@ -1,6 +1,19 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after measuring the isolated Frozen Rope gap candidate.
+## Current checkpoint: Frozen Rope integrated, 2026-10-02
+
+Build41 / save45 / Career21 / opponent policy2. All **25/25 Gear and 35/35 sponsors** are integrated, alongside five supplies, three learned abilities and one transformation. Overall project estimate: **~75%**, not release readiness.
+
+The user's continuation selected the measured Frozen Rope rule for **Working testing**, not Approved balance. BAT-ALY-03 costs20 after20 tracked Gap Driver games; access grants no free copy and does not regenerate stock. Contact flatten strength0.75, fair Power speed0.84. Clean fair Contact above80% quality can turn up to4° toward improved defender clearance in the same sector. No speed gain, guaranteed hit or live homing.
+
+Production selection captures actual contact-time defender positions and conservative collider footprints before defensive reassignment. Committed launch proof preserves original spin, speed and vertical velocity; saved replay validates immutable snapshot inputs. Do not tune version1 selection in place without versioning saved validation. Human and AI share the resolver; AI acquisition remains future work.
+
+Final broad verification `20261002T133543265176Z`:31/32 checks, five complete physical games, no engine warnings/errors. Only combined `club-collection` exits1 before its pass marker, with no established cause. Focused `20261002T134345623605Z`:8/8 checks, including all60 collection entries across four Gear and five sponsor pages. Production was unchanged between runs; final587-file source snapshot is preserved through publication. See VERIFICATION for scope.
+
+Next: finish shop/Equipped UI polish and remaining integration checks before larger systems. Keep centralized Equipped entry and immediate saved live refunds with safe next-batter effect retirement. Actual native rendered review, primary-reference-informed final polish and human visual/feel acceptance remain open. Headless UI checks do not satisfy them. Historical entries below retain prior checkpoints.
+
+
+Updated 2026-10-02 after integrating earned Frozen Rope.
 
 ## Resume here
 
@@ -188,7 +201,7 @@ packs, the other seasonal categories' collection or discovery-based League thres
 Do not infer owned player cards from draft/recruit encounters. Working effects/prices and
 unapproved Proposals retain their prior status. Repository blueprint stays byte-identical
 to main. See VERIFICATION.md for this slice's exact evidence; `git log -1` gives pushed SHA.
-Whole-project estimate stays approximately **74%**, not release readiness.
+Whole-project estimate stays approximately **75%**, not release readiness.
 
 Remaining work still includes event-aware offscreen AI/acquisition, persistent player-card
 contracts, higher League/tier gameplay, stadium progression, Alley Gear calibration and
@@ -228,7 +241,7 @@ promote it or its numerical values to Approved.
 The new `season-shop-categories` and `season-shop-categories-live` scenes cover the paid
 paths and their integration. See VERIFICATION.md for final evidence and `git log -1`
 for the pushed SHA. Main and the repository blueprint are still checked separately.
-SeasonBuild remains 915 lines. Whole-project estimate stays approximately **74%**.
+SeasonBuild remains 915 lines. Whole-project estimate stays approximately **75%**.
 
 Final verification `20261002T051435232246Z` passed 10/10 with five physical games.
 Combined with `20261002T050544183054Z` (16/17) and `20261002T050954284759Z` (18/19), all
@@ -281,7 +294,7 @@ SeasonBuild is 915 lines. Final verification details follow in VERIFICATION.md; 
 `git log -1` for publication SHA. The repository blueprint remains byte-identical to main.
 
 Content is 35/35 human sponsors, 23/25 Gear, five supplies, three learned abilities and
-one transformation. Whole-project estimate stays approximately **74%**, not release
+one transformation. Whole-project estimate stays approximately **75%**, not release
 readiness. The remaining scope and native/human acceptance requirements below still apply.
 
 ## Seeded Base opponent continuation details (previous)
@@ -690,7 +703,7 @@ during the current game. Starting a new attempt replaces that evidence.
 ## User requirements to carry forward
 
 - Continue in substantial, verified chunks and report the whole-project completion estimate
-  at the end of each response. The recorded estimate is approximately **74%**, not release readiness.
+  at the end of each response. The recorded estimate is approximately **75%**, not release readiness.
 - Preserve work with commits and pushes on the engineering branch. Do not merge or deploy.
 - Preserve earlier gameplay/camera fixes and saved-run compatibility.
 - Keep one clear Equipped lightbox accessible from the same button position during and between
@@ -704,7 +717,7 @@ during the current game. Starting a new attempt replaces that evidence.
 
 ## Remaining scope
 
-There are 35 of 35 supported sponsor candidates, 23 of 25 Gear candidates and all five initial
+There are 35 of 35 supported sponsor candidates, 25 of 25 Gear candidates and all five initial
 tactical supplies. Further AI acquisition, player-card contracts,
 higher League/tier gameplay, stadium progression and final integration/acceptance remain open.
 Recover the relevant current source contract before implementing a remaining candidate; the

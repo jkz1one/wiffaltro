@@ -1,5 +1,10 @@
 # Frozen Rope: explicit gap-selection candidate
 
+## Selection amendment, 2026-10-02
+
+The user continued after this concrete measured rule was presented, selecting it for Working testing. It is now implemented as SeasonGapLane with committed contact snapshots and original-spin preservation. Numeric calibration remains Working, not Approved. The historical experiment and measurements below are retained unchanged for provenance; their pending-selection status is superseded.
+
+
 Status: **unapproved, isolated experiment**, authored 2026-10-02 before prototype code.
 This is a proposal for Working testing, not selected gameplay tuning or balance approval.
 Sources: Equipment/Sponsors v18, retained planning blueprint v114 EU/EV; current Alley

@@ -89,6 +89,15 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("club-collection-ui", [*ui_base, "--fixed-fps", "60",
+                                      "res://src/tests/club_collection_ui_test.tscn", *ui_extra],
+                 "Wiffaltro focused collection UI checks passed:"),
+                ("season-frozen-rope-live", [*base, "--fixed-fps", "60",
+                                             "res://src/tests/season_frozen_rope_live_test.tscn"],
+                 "Wiffaltro live Frozen Rope checks passed:"),
+                ("season-frozen-rope", [*ui_base, "--fixed-fps", "60",
+                                          "res://src/tests/season_frozen_rope_test.tscn", *ui_extra],
+                 "Wiffaltro Frozen Rope checks passed:"),
                 ("frozen-rope-candidate", [*base, "res://src/tests/frozen_rope_candidate_test.tscn",
                                          "--", f"--candidate-report={output / 'frozen-rope-candidate.json'}"],
                  "Wiffaltro Frozen Rope candidate checks passed:"),

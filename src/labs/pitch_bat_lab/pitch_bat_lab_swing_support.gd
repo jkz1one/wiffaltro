@@ -104,6 +104,7 @@ static func _register_miss(lab: PitchBatLab, result: ContactResult) -> void:
 
 
 static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
+	PitchBatLabGapSupport.resolve(lab, result)
 	var profile: SwingProfileDefinition = lab._swing_tracker.profile
 	var aim_point: Vector2 = lab._swing_tracker.intent.aim_point
 	PitchBatLabFeelSupport.note_swing(lab, profile.id, aim_point, result)

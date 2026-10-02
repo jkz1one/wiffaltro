@@ -1,6 +1,13 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.74
+## Frozen Rope production architecture, 2026-10-02
+
+Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Alley/Earned/Proposal catalog constants and signatures stay frozen. SeasonGapLane implements selected Working geometry. PitchBatLabGapSupport captures actual markers and expanded box collider footprints before defensive reassignment; unknown geometry fails closed. SeasonGapCommit validates committed immutable snapshots, player/receipt/PA/half provenance, JSON round trips and saved launch application. ContactResult, PlayRecord and MatchState carry evidence; own-club completed evidence survives live sale through inventory receipts.
+
+BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
+
+
+**Version:** v0.1.75
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

@@ -1,9 +1,11 @@
 extends Node
-## Explicit proposal only. No playable Frozen Rope, new stock or save fields.
+## Retained geometry measurement now exercises the user-selected Working production rule.
 
 var _failures: int = 0
 var _checks: int = 0
-var _report: Dictionary = {"status": "unapproved isolated Frozen Rope candidate", "examples": []}
+var _report: Dictionary = {
+	"status": "selected Working Frozen Rope geometry measurement", "examples": []
+}
 
 
 func _ready() -> void:
@@ -12,7 +14,9 @@ func _ready() -> void:
 	_sweep()
 	_contacts()
 	_check(SeasonAlleyGear.ITEMS.size() == 2, "production Alley family still has only two tiers")
-	_check(SeasonEarnedGear.catalog().size() == 11, "prototype does not enable final Gear")
+	_check(
+		SeasonEarnedGear.catalog().size() == 12, "selected final Gear extends the frozen catalog"
+	)
 	_report.checks = _checks
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--candidate-report="):

@@ -1,5 +1,16 @@
 # Fast verification and playtest records
 
+## Frozen Rope integration final verification, 2026-10-02
+
+Godot4.7.2 run `20261002T133543265176Z`: **31/32 checks**, seven common gates plus24/25 scenes. Passed: season-frozen-rope-live, season-frozen-rope, frozen-rope-candidate, alley-calibration, season-gap-driver, club-career, season-special-order, season-raincheck, season-wholesale, season-loadout-ui, season-match-sales, season-match-sales-live, season-gear-progress, season-gear-progress-live, season-mapped-gear, season-mapped-gear-live, season-shop-categories, season-opponents, season-freezers, season-left-right, season-carbon-copy, season-flow, season-shell, regressions. Only club-collection failed: exit1 before completion, no engine warning/error; cause not established.
+
+Five complete physical games: Frozen own140 records/28 balls in play, Frozen live-sale127/45, prior match-sales124/27, Gear progression79/26, mapped Gear87/32. Frozen evidence:116 contacts, five biased launches including four AI, one saved own-club choice, original spin preserved. Controlled AI profiles test shared resolution, not AI acquisition. Save failures, refund10, natural boundary retirement, forged proof/half rejection, legacy fixtures/signatures and paid replacement were exercised.
+
+Focused run `20261002T134345623605Z`: **8/8**, seven common gates plus club-collection-ui. Covers60 entries, four Gear/five sponsor pages, saved discovery/migration, conditional disclosure, carry and centralized button. This does not resolve the combined Collection early exit.
+
+Broad585-source freeze matched576 observed copied runner files; final587-file snapshot adds focused UI scene/runner alias and a prototype comment, with no gameplay changes. Targeted scope, not full suite. Headless actual scene/collider instantiation and UI bounds are not native rendered review or human approval. Native-display limitation and historical unexplained full-suite exits remain open.
+
+
 ## Frozen Rope isolated gap candidate, 2026-10-02
 
 Final run `20261002T074749542616Z` passed **10/10 checks** under Godot4.7.2: seven common

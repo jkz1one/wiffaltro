@@ -30,6 +30,7 @@ var vertical_error_m: float = 0.0
 var timing_error_m: float = 0.0
 var spatial_quality: float = 0.0
 var timing_quality: float = 0.0
+var frozen_launch: Dictionary = {}
 var miss_reason: MissReason = MissReason.NONE
 
 func timing_name() -> String:

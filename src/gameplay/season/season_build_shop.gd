@@ -27,7 +27,7 @@ static func offers(build: SeasonBuild, rerolls: int) -> Dictionary:
 				if build._format >= 14 and build._visit.number >= build._tactical_from
 				else {}
 			),
-			build._gear_progress.eligible(),
+			build._gear_progress.eligible(build._format >= 41),
 			build._abilities.pool(build),
 			SeasonRetraining.pool(build)
 		)

@@ -41,7 +41,10 @@ func _contract() -> void:
 	_check(
 		SeasonGearProgress.access({"A02": 10}).has(GAP), "ten uses unlock prospective Gap Driver"
 	)
-	_check(SeasonGearProgress.access({"A02": 10, GAP: 20}) == [GAP], "Frozen Rope remains gated")
+	_check(
+		SeasonGearProgress.access({"A02": 10, GAP: 20}).has(SeasonFrozenRope.ID),
+		"twenty tracked Gap uses unlock selected Frozen Rope"
+	)
 	for bad: Dictionary in [{GAP: 1}, {"A02": 9, GAP: 1}, {"A02": 0.5}, {"BAT-ALY-01": 10}]:
 		_check(not SeasonGearProgress.valid_counts(bad), "reject impossible Alley count")
 	_check(

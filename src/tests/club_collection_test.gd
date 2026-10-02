@@ -31,22 +31,8 @@ func _ready() -> void:
 
 
 func _collection_order(buy: bool) -> SeasonState:
-	# Recorded generated fixture, not injected stock or a search for a passing outcome.
-	var season: SeasonState = _new_club(27)
-	for game in range(3):
-		_result(season, [])
-	var build: SeasonBuild = season.build
-	_check(build.commit(_command(build, "open")).ok, "earned order shop opens")
-	for roll in range(4):
-		_check(build.commit(_command(build, "reroll")).ok, "four paid ordinary rerolls")
-	var offer: String = _offer(build, "J01")
-	_check(not offer.is_empty(), "recorded seed generates actual Special Order offer")
-	if buy:
-		_check(
-			build.commit(_command(build, "sponsor_buy", {"offer": offer, "replace": ""})).ok,
-			"pay actual generated sponsor price"
-		)
-	return season
+	# Share the verified real generated fixture and paid-reroll assertions.
+	return super._order_fixture(buy)
 
 
 func _paid_discovery() -> SeasonState:
@@ -54,7 +40,7 @@ func _paid_discovery() -> SeasonState:
 	var season: SeasonState = _collection_order(false)
 	print("COLLECTION_STAGE order fixture complete")
 	var build: SeasonBuild = season.build
-	_check(ClubCollection.catalog().size() == 59, "24 implemented Gear and 35 sponsors")
+	_check(ClubCollection.catalog().size() == 60, "25 implemented Gear and 35 sponsors")
 	_check(ClubCollection.acquired(build).is_empty(), "earn/display/reroll never acquires")
 	_check(SeasonSave.save(season), "save earned access before purchase")
 	_check(ClubCollection.access(season.career).has("J01"), "access distinct from discovery")
@@ -230,7 +216,14 @@ func _collection_ui(season: SeasonState) -> void:
 	for category: String in ["Gear", "Sponsors"]:
 		ClubCollectionUI.show(app.menu, category)
 		await _frames()
-		for page in range(3 if category == "Gear" else 5):
+		var count: int = (
+			ClubCollection
+			. catalog()
+			. values()
+			. filter(func(item: Dictionary) -> bool: return item.category == category)
+			. size()
+		)
+		for page in range(ceili(float(count) / ClubCollectionUI.PAGE_SIZE)):
 			await _menu_bounds(app, "collection-%s-%d" % [category, page])
 			_check(app.loadout.entry.position == center, "Equipped remains in central position")
 			for node: Node in app.menu._body.find_children("*", "VBoxContainer", true, false):
@@ -256,7 +249,7 @@ func _collection_ui(season: SeasonState) -> void:
 			var next: Button = _button(app.menu, "NEXT")
 			if next != null:
 				await _click(next)
-	_check(seen.size() == 59, "all implemented equipment reachable")
+	_check(seen.size() == 60, "all implemented equipment reachable")
 	ClubGearProgressUI.show(app.menu)
 	await _frames()
 	for id: String in SeasonEarnedGear.ITEMS:

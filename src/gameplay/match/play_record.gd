@@ -41,6 +41,7 @@ var vertical_error_m: float = 0.0
 var exit_speed_mps: float = 0.0
 var launch_angle_degrees: float = 0.0
 var spray_degrees: float = 0.0
+var frozen_launch: Dictionary = {}
 var has_first_ground: bool = false
 var first_ground_position: Vector3 = Vector3.ZERO
 var resolution_reason: StringName = &""
@@ -51,7 +52,7 @@ var result: StringName = &"pending"
 var runs_scored: int = 0
 
 func to_dict() -> Dictionary:
-	return {
+	var data: Dictionary = {
 		"mode": mode,
 		"play_number": play_number,
 		"inning": inning,
@@ -106,3 +107,6 @@ func to_dict() -> Dictionary:
 		"result": String(result),
 		"runs_scored": runs_scored,
 	}
+	if not frozen_launch.is_empty():
+		data["frozen_launch"] = frozen_launch.duplicate(true)
+	return data

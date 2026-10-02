@@ -233,7 +233,8 @@ func record_player_result(
 	stances: Array = [],
 	fielding: Array = [],
 	pitching: Dictionary = {},
-	field_supply: Dictionary = {}
+	field_supply: Dictionary = {},
+	frozen: Array = []
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
@@ -242,6 +243,7 @@ func record_player_result(
 		mini(away_runs, home_runs) < 0
 		or maxi(away_runs, home_runs) > 9999
 		or not SeasonLeftRight.own_halves(stances, fixture.home == 0)
+		or not SeasonLeftRight.own_halves(frozen, fixture.home == 0)
 		or not SeasonLeftRight.own_halves(fielding, fixture.home != 0)
 		or (not pitching.is_empty() and not SeasonSureShot.own_halves(pitching, fixture.home != 0))
 	):
@@ -274,6 +276,8 @@ func record_player_result(
 		command["pitching"] = pitching.duplicate(true)
 	if not fielding.is_empty():
 		command["fielding"] = fielding.duplicate(true)
+	if not frozen.is_empty():
+		command["frozen"] = frozen.duplicate(true)
 	var reward: Dictionary = ownership.commit(command) if build == null else build.commit(command)
 	if not reward.ok:
 		return false
@@ -299,6 +303,8 @@ func record_player_result(
 		result["pitching"] = pitching.duplicate(true)
 	if command.has("fielding"):
 		result["fielding"] = fielding.duplicate(true)
+	if command.has("frozen"):
+		result["frozen"] = frozen.duplicate(true)
 	results.append(result)
 	player_results.append(result.duplicate(true))
 	if phase == Phase.REGULAR:

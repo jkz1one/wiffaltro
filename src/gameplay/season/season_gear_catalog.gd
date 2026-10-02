@@ -160,6 +160,8 @@ static func catalog(catalog_version: int = 3) -> Dictionary:
 
 
 static func item(id: String) -> Dictionary:
+	if SeasonFrozenRope.ITEMS.has(id):
+		return SeasonFrozenRope.ITEMS[id].duplicate(true)
 	if SeasonAlleyGear.ITEMS.has(id):
 		return SeasonAlleyGear.ITEMS[id].duplicate(true)
 	return (
@@ -234,6 +236,7 @@ static func swing(
 	result.gear_fair_exit_scale = factor(player, "exit")
 	result.gear_timing_scale = factor(player, "timing")
 	SeasonAlleyGear.configure(result, player)
+	SeasonFrozenRope.configure(result, player)
 	return result
 
 

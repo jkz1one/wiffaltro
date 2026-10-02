@@ -64,8 +64,12 @@ static func show(menu: SeasonMenu) -> void:
 	SeasonPages.wrapped(
 		alley,
 		(
-			"Gap Driver qualifying games: %d. Frozen Rope is not available yet."
-			% int(counts.get(SeasonAlleyGear.GAP, 0))
+			"Frozen Rope • %s • %d/20 with Gap Driver\n20 Season Cash • Working: %s"
+			% [
+				"SHOP ELIGIBLE" if counts.get(SeasonAlleyGear.GAP, 0) >= 20 else "LOCKED",
+				mini(int(counts.get(SeasonAlleyGear.GAP, 0)), 20),
+				ClubCollectionUI.effect(menu, SeasonFrozenRope.ID)
+			]
 		)
 	)
 	(

@@ -13,10 +13,9 @@ static func from_contact(result: ContactResult, pitch_state: PitchState = null) 
 	var launch: BattedBallLaunch = BattedBallLaunch.new()
 	launch.position = result.contact_position
 	launch.velocity = result.exit_velocity
+	var spin_spray: float = result.frozen_launch.get("original", result.spray_degrees)
 	launch.angular_velocity = Vector3(
-		-result.backspin_rad_s,
-		-result.spray_degrees * 0.62,
-		result.horizontal_error_m * 38.0
+		-result.backspin_rad_s, -spin_spray * 0.62, result.horizontal_error_m * 38.0
 	)
 	if pitch_state != null:
 		# Preserve the physical ball's hole orientation at contact so similarly

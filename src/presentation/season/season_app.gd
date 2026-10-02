@@ -253,7 +253,10 @@ func _commit_result() -> bool:
 				if season.build != null and season.build._sure_start != null
 				else {}
 			),
-			(state.home_team if lab._player_home else state.away_team).field_supply.evidence()
+			(state.home_team if lab._player_home else state.away_team).field_supply.evidence(),
+			state.frozen_contacts.filter(
+				func(row: Dictionary) -> bool: return season.teams[0].roster.has(row.player)
+			)
 		):
 			return false
 		_result_recorded = true

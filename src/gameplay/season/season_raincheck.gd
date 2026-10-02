@@ -62,7 +62,7 @@ static func quote(build: SeasonBuild, id: String) -> Dictionary:
 	if not SeasonGearCatalog.item(id).is_empty():
 		var item: Dictionary = SeasonGearCatalog.item(id)
 		var pool: Dictionary = SeasonGearCatalog.eligible(
-			build._bank.view().gear, 3, build._gear_progress.eligible()
+			build._bank.view().gear, 3, build._gear_progress.eligible(build._format >= 41)
 		)
 		return item if pool.get(item.slot, []).has(id) else {}
 	if not SeasonSponsorCatalog.item(id).is_empty():

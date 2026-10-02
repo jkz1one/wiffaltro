@@ -42,13 +42,15 @@ static func acquired(build: SeasonBuild) -> Array[String]:
 	return result
 
 
-static func valid(value: Variant) -> bool:
+static func valid(value: Variant, allow_frozen: bool = true) -> bool:
 	if not value is Array:
 		return false
 	var supported: Dictionary = catalog()
 	var previous: String = ""
 	for id: Variant in value:
 		if not id is String or not supported.has(id) or id <= previous:
+			return false
+		if not allow_frozen and id == SeasonFrozenRope.ID:
 			return false
 		previous = id
 	return true

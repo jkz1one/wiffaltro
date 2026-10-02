@@ -32,7 +32,7 @@ static func pool(build: SeasonBuild, category: String) -> Dictionary:
 	match category:
 		"gear":
 			var slots: Dictionary = SeasonGearCatalog.eligible(
-				build.view().wallet.gear, 3, build._gear_progress.eligible()
+				build.view().wallet.gear, 3, build._gear_progress.eligible(build._format >= 41)
 			)
 			for ids: Array in slots.values():
 				for id: String in ids:
