@@ -1,5 +1,26 @@
 # Fast verification and playtest records
 
+## Alley calibration experiment, 2026-10-02
+
+Run `20261002T062747379436Z` passed **10/10 checks** under Godot4.7.2: seven common
+gates plus `alley-calibration`, `season-mapped-gear` and `regressions`. Logs contain no
+warnings/errors. The new harness measures300,003 fine-sweep samples,29,478 grid samples
+and108 swept-contact encounters, preserving authored resources. Exact results and
+sampling limits are committed in `ALLEY_CALIBRATION.md` / `ALLEY_CALIBRATION_RESULTS.json`.
+
+Production Alley remains unchanged: its maximum sampled tier-one adjustment is
+0.000042763°. The candidate10° target/12–14° entry exists only in tests and has a maximum
+sampled1.658227° reduction. Neither higher-tier Gear nor Frozen Rope gap assistance is
+implemented. This resolves a measurement uncertainty, not the explicit tuning decision.
+The normal mapped-Gear and core scenes passed without changes. All preexisting production
+source/content files remain byte-identical to parent `b1932cb`; new test/runner files were
+unchanged between verification and publication. No new complete physical game, full suite,
+actual native rendered review or human visual/feel acceptance is claimed. Historical
+intermittent exit-zero-before-marker remains unresolved and did not occur here.
+
+Main stays `f1dc209b`; repository blueprint stays byte-identical. Build39/save43/Career19/
+opponent policy2 unchanged. Whole-project estimate approximately74%, not release readiness.
+
 ## Persistent equipment collection, 2026-10-02
 
 Broad run `20261002T053458565295Z` passed **40/41 checks** under Godot 4.7.2:

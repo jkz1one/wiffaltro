@@ -1,12 +1,31 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
-**Version:** v0.4.80
+**Version:** v0.4.81
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.
 
 ---
 
+
+## Alley calibration evidence and shop-first priority, 2026-10-02
+
+User explicitly prioritizes finishing the shop and its items before another larger
+system. A measurement-only calibration scene now quantifies the remaining Alley-family
+blocker. Current tier-one maximum sampled flattening is0.000042763°; multiplying the
+strength for higher tiers remains negligible. The actual7° Contact geometry and65%
+quality floor cap eligible launch at18.2°, barely overlapping the18–20° angular shoulder.
+
+`ALLEY_CALIBRATION.md` records a concrete **unapproved test candidate**: item-local10°
+target,12–14° entry, same quality floor/upper falloff, tier strengths and Power penalties.
+Measured maximum reductions are1.658227°/3.316455°/4.974682°. This is resolver evidence,
+not balance or feel approval. The candidate lives only in the test scene. The existing
+requirement for a separately reviewed design decision still blocks playable tuning.
+Frozen Rope's field-relative gap score/depth/candidate-spacing contract remains open.
+
+Build39/save43/Career19 and all catalog signatures, purchases, stock, progression,
+Equipped UI and live-sale behavior stay unchanged. No new Gear is available. See the
+calibration report and latest VERIFICATION entry for exact scope. Overall approximately74%.
 
 ## Persistent Gear and sponsor collection, 2026-10-02
 

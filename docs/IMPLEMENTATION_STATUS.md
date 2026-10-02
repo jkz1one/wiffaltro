@@ -1,5 +1,18 @@
 # Implementation Status
 
+## Remaining shop Gear calibration, 2026-10-02
+
+Shop/items remain the user's next priority. A new measurement-only resolver harness
+and committed comparison make the Alley decision concrete: the current maximum sampled
+tier-one benefit is0.000042763°, while an isolated lower-angle candidate reaches1.658227°.
+No new Gear or playable tuning is claimed. `ALLEY_CALIBRATION.md` contains the proposed
+Working candidate requiring review under the existing Source of Truth gate. Frozen
+Rope's gap-geometry/scoring contract remains open after that decision.
+
+Verification passed10/10 checks (seven common gates, calibration, mapped Gear and core
+regressions). No new full game/native/human acceptance. Build39/save43/Career19,23/25
+Gear and35/35 sponsors remain unchanged. Whole-project estimate approximately74%.
+
 ## Persistent equipment collection, 2026-10-02
 
 Club Record now exposes a paginated collection of 23 Gear and 35 sponsors, distinguishing

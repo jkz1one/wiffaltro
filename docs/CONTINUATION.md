@@ -1,6 +1,6 @@
 # Wiffaltro continuation checkpoint
 
-Updated 2026-10-02 after implementing persistent Gear/sponsor collection.
+Updated 2026-10-02 after measuring the Alley-family tuning blocker.
 
 ## Resume here
 
@@ -55,7 +55,36 @@ passed31/31 checks (24 scenes plus seven gates), seven physical games, no engine
 or errors, and486 unchanged source files. Publication is on the authorized engineering
 branch; use `git log -1` for the exact SHA. Native/human visual acceptance remains open.
 
-## Equipment collection continuation details (latest)
+## Shop-first Alley calibration (latest)
+
+The user explicitly prefers completing the shop and its items before another larger
+system. **No playable item tuning changed in this slice.** Read `ALLEY_CALIBRATION.md`
+and its exact measurement JSON before resuming. Source of Truth v0.4.81 / Technical
+v0.1.72; Build39/save43/Career19/opponent policy2 unchanged. Previous collection remains
+complete. Counts23/25 Gear,35/35 sponsors, five supplies, three abilities, one transformation.
+
+New `alley-calibration` scene quantifies the production eligibility conflict: the7°
+Contact base and quality>=0.65 cap launch at18.2°. Current onset18–20° gives only
+0.000042763° maximum sampled tier-one flattening. The test-only candidate changes the
+item-local target to10° and onset to12–14°, preserving the quality floor and upper falloff.
+Its measured tier maxima are1.658227°/3.316455°/4.974682°. Core Contact tuning stays7°.
+This candidate is **unapproved**, awaiting the concrete tuning decision required by the
+existing Source of Truth entry. Acceptance should select Working tuning, not claim balance.
+Do not silently enable it merely because the prototype passes.
+
+After that decision, implement versioned Alley calibration and Gap Driver through paid
+stock, prospective qualifying-game progression, UI, historical catalog/receipt preservation,
+migration and live sales. Preserve A02's original identity. Frozen Rope separately needs
+its authored field-relative depth band, candidate spacing and clearance score; none was
+invented here. Do not count old untracked Alley games or announce25/25 Gear prematurely.
+
+Verification `20261002T062747379436Z` passed10/10 (seven gates plus calibration, mapped
+Gear and regressions), no warnings/errors. No new full game/native/human acceptance.
+The intermittent early-exit issue remains open; it did not recur. Main unchangedf1dc209b,
+repository blueprint byte-identical. Publication remains authorized to engineering only.
+Whole-project estimate approximately74%, not release readiness. Use git log for exact SHA.
+
+## Equipment collection continuation details (previous)
 
 Current: **Build 39/save 43/Career 19**, opponent policy 2; SOT v0.4.80 / Technical v0.1.71.
 Club Record now opens a paginated collection of 23 implemented Gear and all 35 sponsors.

@@ -1,6 +1,6 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
-**Version:** v0.1.71
+**Version:** v0.1.72
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
@@ -9,6 +9,22 @@
 
 # 1. Technical Objective
 
+
+## Isolated Alley resolver calibration, 2026-10-02
+
+`alley_calibration_test.gd` runs the production contact resolver over300,003 fine
+vertical-envelope samples,29,478 normalized error-grid samples and108 swept encounters.
+A test-only10° target with12–14° onset is compared with the current16°/18–20° mapping.
+The current strength0.25 sampled maximum is0.000042763°; the isolated candidate reaches
+1.658227°. It preserves the65% clean-contact floor, speed magnitude and spray direction.
+No production caller references the candidate, and no profile, catalog, field geometry,
+receipt, save or gameplay implementation changes. Gap Driver/Frozen Rope remain gated.
+
+`tools/verify.py --only alley-calibration` writes machine-readable measurements into
+its verification directory. The committed result and `ALLEY_CALIBRATION.md` distinguish
+sampled envelope limits from play frequency/balance. Source of Truth requires review
+before changing this tuning; no Working/Proposal value is promoted. Build39/save43/
+Career19/opponent policy2 and SeasonBuild's915 lines stay unchanged.
 
 ## Journal-derived equipment discovery, 2026-10-02
 

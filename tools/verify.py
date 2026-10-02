@@ -89,6 +89,9 @@ def main():
                 ui_base = [godot, "--path", str(stage), "--rendering-method", "gl_compatibility"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("alley-calibration", [*base, "res://src/tests/alley_calibration_test.tscn",
+                                       "--", f"--calibration-report={output / 'alley-calibration.json'}"],
+                 "Wiffaltro Alley calibration checks passed:"),
                 ("club-collection", [*ui_base, "--fixed-fps", "60",
                                     "res://src/tests/club_collection_test.tscn", *ui_extra],
                  "Wiffaltro collection checks passed:"),

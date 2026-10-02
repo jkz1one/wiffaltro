@@ -1,0 +1,68 @@
+{
+  "candidate": {
+    "entry": [
+      12.0,
+      14.0
+    ],
+    "quality": [
+      0.65,
+      0.7
+    ],
+    "target": 10.0
+  },
+  "grid": {
+    "candidate_affected": 54,
+    "fair": 8514,
+    "note": "Uniform error grid; not gameplay frequency, hit rate or balance evidence.",
+    "samples": 29478
+  },
+  "rows": [
+    {
+      "candidate_at": {
+        "launch": 16.6665633352179,
+        "ny": 0.30208,
+        "quality": 0.69791989577444
+      },
+      "candidate_max_degrees": 1.65822730409764,
+      "current_at": {
+        "launch": 18.1014416343287,
+        "ny": 0.34692,
+        "quality": 0.653079948927227
+      },
+      "current_max_degrees": 4.27630698176529e-05,
+      "strength": 0.25
+    },
+    {
+      "candidate_at": {
+        "launch": 16.6665633352179,
+        "ny": 0.30208,
+        "quality": 0.69791989577444
+      },
+      "candidate_max_degrees": 3.31645460819528,
+      "current_at": {
+        "launch": 18.1014416343287,
+        "ny": 0.34692,
+        "quality": 0.653079948927227
+      },
+      "current_max_degrees": 8.55261396388585e-05,
+      "strength": 0.5
+    },
+    {
+      "candidate_at": {
+        "launch": 16.6665633352179,
+        "ny": 0.30208,
+        "quality": 0.69791989577444
+      },
+      "candidate_max_degrees": 4.97468191229292,
+      "current_at": {
+        "launch": 18.1014416343287,
+        "ny": 0.34692,
+        "quality": 0.653079948927227
+      },
+      "current_max_degrees": 0.000128289209456511,
+      "strength": 0.75
+    }
+  ],
+  "status": "unapproved calibration experiment",
+  "swept_encounters": 108
+}
