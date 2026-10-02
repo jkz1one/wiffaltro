@@ -44,6 +44,7 @@ const BATTED_BALL_TIMEOUT_SECONDS: float = 9.0
 const SETTLED_SPEED_MPS: float = 0.55
 const SETTLED_HOLD_SECONDS: float = 0.65
 const DEFAULT_FIELDER_ANCHOR_INDEX: int = 3
+var _automation: MatchAutomation
 var _configured_match: MatchState
 var _managed_match: bool = false
 var _player_home: bool = false
@@ -155,7 +156,8 @@ var _status_before_pause: String = ""
 var _match_suspend_snapshot: Dictionary = {}
 @warning_ignore_restore("unused_private_class_variable")
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_mode = (Node.PROCESS_MODE_PAUSABLE if _automation != null
+		else Node.PROCESS_MODE_ALWAYS)
 	if not ContentDB.validate_or_error():
 		push_error("Pitch/Bat Lab loaded with invalid content.")
 		return
@@ -165,7 +167,8 @@ func _ready() -> void:
 		push_error("Pitch/Bat Lab: configured field definition is missing.")
 		return
 
-	PitchBatLabSettings.restore(self)
+	if _automation == null:
+		PitchBatLabSettings.restore(self)
 	PitchBatLabPresentation.build_environment(self)
 	PitchBatLabPresentation.build_pitch_actor(self)
 	PitchBatLabPresentation.build_defenders(self)
@@ -314,7 +317,7 @@ func _throw_pitch() -> void:
 	if _match_mode:
 		if _match_state == null or not _match_state.begin_pitch():
 			return
-		if _player_is_batting():
+		if MatchAutomation.pitching(self):
 			if not _ai_pitch_preselected:
 				MatchLabSupport.apply_ai_pitch_choice(self)
 			_ai_pitch_preselected = false
@@ -403,6 +406,9 @@ func _throw_pitch() -> void:
 		var stamina_before: float = pitcher_state.stamina_remaining
 		pitcher_state.spend_stamina(pending_stamina_cost)
 		_match_state.note_pitch_released(pitch.id, stamina_before - pitcher_state.stamina_remaining)
+		if _automation != null:
+			_automation.note_release(_match_state, pitch.id,
+				stamina_before - pitcher_state.stamina_remaining)
 		applied_fatigue = maxf(pitcher_state.fatigue_ratio(), _fatigue)
 
 	PitchBatLabFeelSupport.measure_nominal_pitch(self, base_parameters, target_position)
@@ -735,27 +741,11 @@ func _adjust_batting_aim(delta_xy: Vector2) -> void:
 
 
 func _selected_pitch() -> PitchDefinition:
-	if _match_mode:
-		var options: Array[PitchDefinition] = _current_pitch_options()
-		if options.is_empty():
-			return null
-		_selected_pitch_index = clampi(_selected_pitch_index, 0, options.size() - 1)
-		return options[_selected_pitch_index]
-	return ContentDB.get_pitch(PITCH_IDS[_selected_pitch_index])
+	return MatchLabSupport.selected_pitch(self)
 
 
 func _current_pitch_options() -> Array[PitchDefinition]:
-	var result: Array[PitchDefinition] = []
-	if _match_state == null or _match_state.pitcher() == null:
-		return result
-	for pitch in _match_state.pitcher().definition.starting_pitches:
-		if pitch != null:
-			result.append(pitch)
-	if result.is_empty():
-		var fallback: PitchDefinition = ContentDB.get_pitch(PITCH_IDS[0])
-		if fallback != null:
-			result.append(fallback)
-	return result
+	return MatchLabSupport.pitch_options(self)
 
 
 func _cycle_fielder_anchor() -> void:
@@ -905,15 +895,18 @@ func _start_new_match() -> void:
 	_live_label.text = ""
 	_refresh_markers()
 	_refresh_config()
-	PitchBatLabFeelSupport.begin_match_intro(self)
+	if _automation != null:
+		_automation.begin(self)
+	else:
+		PitchBatLabFeelSupport.begin_match_intro(self)
 
 
 func _player_is_batting() -> bool:
-	return _match_mode and _match_state != null and _match_state.top_half != _player_home
+	return MatchAutomation.player_batting(self)
 
 
 func _player_is_pitching() -> bool:
-	return _match_mode and _match_state != null and _match_state.top_half == _player_home
+	return MatchAutomation.player_pitching(self)
 
 
 func _select_pitcher(roster_index: int) -> void:

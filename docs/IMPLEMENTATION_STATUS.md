@@ -1,5 +1,13 @@
 # Implementation Status
 
+## Detached physical AI match foundation, 2026-10-02
+
+Both clubs now pitch and bat through shared real gameplay in an isolated, cancellable job. Validated ordered batting/stance/recipe/fielding/statistic evidence and actual per-pitcher costs/remaining stamina replace no existing history and settle no wallet. Observation memory is private to each club. Detached presentation waits are omitted; physical integration and human controls remain unchanged.
+
+Broad headless18/18 with ten complete physical games; final native12/12 with two complete automated games and47 captures. All601 final source files remain frozen; two reviewed screenshots and PHYSICAL_MATCH_RUNNER document the foundation. Existing centered Equipped, live sales, player inspection, receipt IDs, catalog signatures, career saves and policy2 remain intact.
+
+Build41/save45/Career21;25/25 Gear,35/35 sponsors, five supplies, three abilities and one transformation. Whole-project estimate remains **~75%**, not release readiness. Next: versioned saved AI fixture integration, exact-once settlement and measured cost, then complete finite-pool AI buying/use contracts. Permanent ownership/packs still require selection; higher tiers/Leagues, stadiums, final integration and human visual/feel/hardware acceptance remain open. This is targeted coverage, not a full-suite reliability repair.
+
 ## Shared player inspection, 2026-10-02
 
 One read-only inspector now serves draft, roster/recipient cards, lineup, opponent scouting, Equipped's Abilities page, paused match stats and legal Bullpen details. It shows actual ratings, hands/style, pitch levels, authoritative next-level effects/caps and learned abilities. Vanilla compatibility retains seven ratings. Inspection preserves the pending action, saved bytes, focus and prior match/pause state; it does not substitute a pitcher. Directional/controller activation reaches every Equipped player.

@@ -87,6 +87,9 @@ static func begin_match_intro(lab: PitchBatLab) -> void:
 
 
 static func begin_match_outro(lab: PitchBatLab) -> void:
+	if lab._automation != null:
+		lab._at_bat_cadence.stop()
+		return
 	if (
 		lab._match_state == null
 		or lab._match_state.phase != MatchState.Phase.GAME_END
@@ -223,7 +226,7 @@ static func request_batter_timeout(lab: PitchBatLab) -> bool:
 
 static func begin_ai_delivery(lab: PitchBatLab) -> void:
 	if (
-		not lab._player_is_batting()
+		not MatchAutomation.pitching(lab)
 		or lab._match_state == null
 		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
 		or (lab._pitch_actor != null and lab._pitch_actor.running)
@@ -268,6 +271,8 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			lab._cleanup_batted_ball()
 			lab._match_state.continue_after_dead_ball()
 			lab._base_state = lab._match_state.bases
+			if lab._automation != null:
+				lab._automation.select_offense(lab)
 			if completed_plate_appearance and lab._batter_approach != null:
 				lab._batter_approach.begin_plate_appearance(lab._match_state.plate_appearance_number)
 				lab._last_ai_awareness = 0.0
@@ -278,11 +283,12 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 				lab._selected_pitch_index = 0
 				lab._pitch_effort = 1.0
 				MatchLabSupport.assign_ai_defense_for_half(lab)
-			elif completed_plate_appearance and lab._player_is_batting():
+			elif completed_plate_appearance and MatchAutomation.pitching(lab):
 				MatchLabSupport.consider_ai_pitching_change(lab)
 				MatchLabSupport.assign_ai_fielder_anchor(lab)
 			lab._awaiting_batter_confirm = (
-				lab._player_is_batting() and (completed_plate_appearance or changed_half)
+				lab._automation == null and lab._player_is_batting()
+				and (completed_plate_appearance or changed_half)
 			)
 			lab._apply_defensive_assignment()
 			lab._apply_role_camera()
@@ -295,7 +301,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			lab._refresh_markers()
 			lab._refresh_config()
 			if (
-				lab._player_is_batting()
+				MatchAutomation.pitching(lab)
 				and lab._match_state.phase == MatchState.Phase.PRE_PITCH
 				and not lab._awaiting_batter_confirm
 			):
@@ -344,7 +350,7 @@ static func recover_failed_pitch(lab: PitchBatLab, pitch: PitchDefinition) -> vo
 	lab._pending_release_overdrive = 0.0
 	if (
 		lab._match_mode
-		and lab._player_is_batting()
+		and MatchAutomation.pitching(lab)
 		and lab._match_state.phase == MatchState.Phase.PRE_PITCH
 		and not lab._current_pitch_options().is_empty()
 	):
@@ -703,6 +709,8 @@ static func dump_records(lab: PitchBatLab) -> void:
 
 
 static func _save_records(lab: PitchBatLab) -> bool:
+	if lab._automation != null:
+		return true
 	var error: Error = lab._record_export.save(lab._play_records, lab._field_definition)
 	if error != OK:
 		push_warning("QC export failed: %s" % error_string(error))
@@ -744,7 +752,12 @@ static func _update_pitch_release(lab: PitchBatLab, delta_seconds: float) -> voi
 static func _update_at_bat_cadence(lab: PitchBatLab, delta_seconds: float) -> void:
 	if lab._at_bat_cadence == null:
 		return
-	var event: AtBatCadenceController.Event = lab._at_bat_cadence.advance(delta_seconds)
+	var cadence_delta: float = delta_seconds
+	if lab._automation != null and not lab._home_run.active:
+		# Omit presentation-only set/windup/result waits, never flight or Jolt time.
+		cadence_delta = maxf(lab._at_bat_cadence.active_delivery_seconds,
+			lab._at_bat_cadence.active_hold_seconds) + delta_seconds
+	var event: AtBatCadenceController.Event = lab._at_bat_cadence.advance(cadence_delta)
 	match event:
 		AtBatCadenceController.Event.THROW_PITCH:
 			_reset_pitcher_telegraph(lab)
@@ -813,6 +826,8 @@ static func _reset_pitcher_telegraph(lab: PitchBatLab) -> void:
 
 
 static func _update_continuous_input(lab: PitchBatLab, delta_seconds: float) -> void:
+	if lab._automation != null:
+		return
 	var amount: float = AIM_SPEED_MPS * delta_seconds
 	if lab._match_mode:
 		if (

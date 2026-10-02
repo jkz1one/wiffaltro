@@ -1,5 +1,13 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Detached physical AI foundation amendment, 2026-10-02
+
+The Economyv24 shared-resolver recommendation now has an implemented foundation: fresh detached matches run both clubs through existing bounded pitching/batting controllers, real pitch/contact/Jolt/defense and MatchState rules. Each club retains its own observed pitch memory; actual events and paid per-pitcher stamina deductions produce validated standalone v1 reports. Intro/outro, detached presentation waits and offscreen sky/radiance allocation are omitted without changing global physics time or human flow.
+
+The runner does not write, reward or settle a season. Fresh copied definitions, carried stamina and paid/generated receipt identities leave the caller and saved club ledgers untouched. Cancellation/failure never supplies a score. Existing score-only season histories and opponent policy2 remain unchanged; no migration or balance approval is introduced.
+
+Broader AI buying stays gated on every included item's complete visible/offscreen use and settlement contract. This foundation does not approve pack proposals, invent sponsor income, enable tactical use policies or claim Doubleheader workload carry. Versioned saved fixture integration, exact-once settlement, runtime measurement and UI progress/failure handling remain next work. All25 Gear/35 sponsors, five supplies, three learned abilities and one transformation stay complete. Overall **~75%**, not release readiness. Human visual/feel/hardware acceptance and final cohesive whole-game UI remain pending.
+
 ## Shared player inspection amendment, 2026-10-02
 
 Player details now open from draft cards, roster and recipient cards, lineup names, committed opponent scouting, Equipped's Abilities page, paused match statistics and legal Bullpen details. Current definitions supply ratings, hands/style, repertoire and learned effects. Working recipes show their actual level and the shared next-level effect or level-five cap; vanilla players retain seven ratings without a Working mastery claim.
@@ -50,7 +58,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.91
+**Version:** v0.4.92
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

@@ -2,6 +2,8 @@ class_name PitchBatLabInput
 extends RefCounted
 
 static func handle(lab: PitchBatLab, event: InputEvent) -> void:
+	if lab._automation != null:
+		return
 	if (
 		lab.has_meta("loadout_open")
 		or lab.has_meta("player_inspection_open")

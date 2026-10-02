@@ -1,5 +1,17 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: detached physical AI matches, 2026-10-02
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; parent2f0fa97faef09b75ad89c85b692a59ba9ce98d13. Use git log -1 for the published SHA. Build41/save45/Career21/opponent policy2; all25 Gear/35 sponsors, five supplies, three abilities and one transformation. Overall **~75%**, not release readiness.
+
+Read PHYSICAL_MATCH_RUNNER. PhysicalMatchRunner accepts fresh copied MatchState jobs, uses an isolated World3D and shared bounded controllers/real pitch/contact/Jolt/defense for both clubs, and returns validated standalone physical-ai-v1 event/statistic/workload reports. Per-club observations and per-pitcher prior choices stay separate. Actual costs and remaining carried stamina are recorded. Presentation-only waits are omitted without global time/physics changes. Paid/generated receipt IDs remain exact. Cancellation/failure never fabricates a result; jobs do not write, reward or settle a season.
+
+Broad headless210935582833Z passes18/18 with ten physical games; final native212034573882Z passes12/12 with two automated games and47 native captures. All601 final source files are frozen. Two reviewed renders are under docs/reviews/20261002-physical-ai. Read VERIFICATION for the initial test corrections, full-cadence native timeout and exact source delta. Human visual/feel/hardware and final whole-UI acceptance remain pending; no full-suite or throughput repair is claimed.
+
+Next: implement versioned saved AI fixture integration and exact-once settlement with progress/cancel/failure UI and measured whole-round cost. Existing SeasonState._simulate and old score-only histories are deliberately unchanged. Broader AI buying remains gated on the finite Economyv24 pool's whole visible/offscreen controller and settlement contracts; no stipend, fabricated events or price-to-strength shortcut. Doubleheader requires tested real workload carry and legal substitutions. Standalone reports are not complete inventory/sponsor settlement and currently do not automate announcements/tactical use. Permanent player ownership/80-CB packs remain unselected Proposals/Working work, not approvals.
+
+Planning last reviewed: Decisionsv31, Equipmentv18, blueprintv114, Economyv24, Playersv17. Preserve repository blueprint byte-identical to main. Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420. SOTv0.4.92/Technicalv0.1.83. PitchBatLab975 lines; extract before growing. Centered Equipped, immediate saved live refunds, safe next-batter retirement and all gameplay/camera/save compatibility fixes remain required. Routine engineering commits/pushes authorized; no merge/deploy. No subagents unless requested.
+
 ## Current checkpoint: shared player inspection, 2026-10-02
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`; this slice follows pushed parent b370a325d4bc8d4f76415a0bb20c0eda5b3a89a9. Use git log -1 for the published SHA. Build41/save45/Career21/opponent policy2;25/25 Gear,35/35 sponsors, five supplies, three learned abilities and one transformation. Overall **~75%**, not release readiness.

@@ -204,6 +204,16 @@ static func _build_world_environment(lab: PitchBatLab) -> void:
 		Environment.BG_SKY if lab._sky_backdrop_enabled else Environment.BG_COLOR
 	)
 	environment.background_color = Color(0.12, 0.20, 0.15)
+	if lab._automation != null:
+		# Non-rendering jobs do not need sky/radiance textures or their deferred uploads.
+		environment.background_mode = Environment.BG_COLOR
+		environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		environment.ambient_light_color = Color(0.63, 0.79, 0.88)
+		environment.ambient_light_energy = 0.58
+		environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+		lab._world_environment.environment = environment
+		lab.add_child(lab._world_environment)
+		return
 	var sky: Sky = Sky.new()
 	var sky_material: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.17, 0.43, 0.68)

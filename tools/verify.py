@@ -98,6 +98,11 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("physical-match-runner", [*ui_base, "--fixed-fps", "60",
+                                         "res://src/tests/physical_match_runner_test.tscn",
+                                         "--", f"--physical-report-dir={output / 'physical-reports'}",
+                                         *ui_extra[1:]],
+                 "Wiffaltro physical AI runner checks passed:"),
                 ("season-player-inspector", [*ui_base, "--fixed-fps", "60",
                                       "res://src/tests/season_player_inspector_test.tscn", *ui_extra],
                  "Wiffaltro player inspection checks passed:"),

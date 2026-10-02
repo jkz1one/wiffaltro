@@ -1,5 +1,13 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Detached physical match jobs and report boundary, 2026-10-02
+
+PhysicalMatchRequest snapshots only fresh MatchState/team resources, retaining legal roles, exact recipes, stamina, held/scouting configuration and receipt IDs; duplicate identities and partial states are rejected. PhysicalMatchRunner owns a separate non-rendering SubViewport/World3D and pausable PitchBatLab. MatchAutomation routes both controllers without changing player ownership/camera predicates, keeps per-club BatterApproachModel instances and per-pitcher prior choices, and records actual successful release costs. Shared pitch-option selection moved into MatchLabSupport; PitchBatLab is975 lines.
+
+The job omits intro/outro and set/windup/ordinary dead-ball waits only. Actual flight and Jolt integration remain at the normal physics step; the home-run hold remains. No Engine.time_scale or global tick mutation. Input, settings restore and QC file writes are blocked for jobs. Existing human readiness/pause/camera/input/result routing is unchanged. Jobs stop before deferred deletion and signal one validated success or a bounded failure; cancellation emits no result and allows reuse.
+
+PhysicalMatchReport/PhysicalMatchEvidence validate standalone physical-ai-v1 reports: eight unique identities and stat lines; ordered own-half appearances/lineup; actual recipe releases, costs and plays; final-pitcher credits; fielded/K event correspondence; score/RBI balance and finite carried/remaining stamina. Use full-precision JSON. Reports are detached from SeasonSave; no saved schema or eligibility change. They are not complete sponsor/inventory settlement contracts or authenticated claims from arbitrary callers. Versioned persisted fixture integration must replay stored evidence rather than rerun physics and must preserve old score-only histories. Offscreen jobs skip sky/radiance construction after native cleanup review. The current lab still builds other presentation dependencies, so affordable whole-round throughput remains unverified.
+
 ## Shared current-definition inspector, 2026-10-02
 
 SeasonPlayerInspector is a small read-only AcceptDialog with wrapped content, compact ratings, a reserved twelve-pixel scrollbar and a persistent44-pixel Back action. Labels receive wrapping before entering the tree so transient unwrapped minimum widths cannot inflate the dialog. Popup rectangles use the containing viewport's extent and its embedded-window origin, with space for title decoration; ordinary screen centering would offset a small shop's child dialog outside that shop.
@@ -54,7 +62,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.82
+**Version:** v0.1.83
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

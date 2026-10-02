@@ -219,14 +219,14 @@ static func cycle_base_preset(lab: PitchBatLab) -> void:
 
 
 static func assign_ai_defense_for_half(lab: PitchBatLab) -> void:
-	if not lab._player_is_batting():
+	if not MatchAutomation.pitching(lab):
 		return
 	consider_ai_pitching_change(lab)
 	assign_ai_fielder_anchor(lab)
 
 
 static func consider_ai_pitching_change(lab: PitchBatLab) -> void:
-	if not lab._player_is_batting() or not lab._match_state.can_change_defense():
+	if not MatchAutomation.pitching(lab) or not lab._match_state.can_change_defense():
 		return
 	var team: TeamMatchState = lab._match_state.defensive_team()
 	if team.current_pitcher().stamina_percent() > 0.17:
@@ -245,7 +245,7 @@ static func consider_ai_pitching_change(lab: PitchBatLab) -> void:
 
 
 static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:
-	if not lab._player_is_batting() or lab._match_state == null:
+	if not MatchAutomation.pitching(lab) or lab._match_state == null:
 		return
 	if SeasonCornerstone.position_locked(lab._match_state):
 		return
@@ -312,13 +312,17 @@ static func apply_ai_pitch_choice(lab: PitchBatLab) -> void:
 		lab._match_state.pitcher().definition,
 		lab._match_state.balls,
 		lab._match_state.strikes,
-		lab._last_ai_pitch_index,
+		(lab._last_ai_pitch_index if lab._automation == null else
+			int(lab._automation.pitch_indices.get(lab._match_state.pitcher().definition.id, -1))),
 		(lab._throw_number + 1) * 7919 + lab._match_state.inning * 101,
 		lab._match_state.ai_tactical_quality,
 		lab._match_state.batter().bats_left()
 	)
 	lab._selected_pitch_index = options.find(legal[int(choice["pitch_index"])])
 	lab._last_ai_pitch_index = lab._selected_pitch_index
+	if lab._automation != null:
+		lab._automation.pitch_indices[lab._match_state.pitcher().definition.id] = (
+			lab._selected_pitch_index)
 	lab._pitch_target = choice["target"]
 	lab._pitch_effort = float(choice["effort"])
 	lab._refresh_markers()
@@ -328,7 +332,7 @@ static func try_ai_swing(lab: PitchBatLab) -> void:
 	if (
 		not lab._match_mode
 		or lab._match_state == null
-		or lab._player_is_batting()
+		or not MatchAutomation.batting(lab)
 		or lab._ai_swing_decided
 		or lab._pitch_actor == null
 		or not lab._pitch_actor.running
@@ -497,3 +501,27 @@ static func _set_stats(player: PlayerDefinition, stats: Array[int]) -> void:
 	player.break_rating = int(stats[4])
 	player.control = int(stats[5])
 	player.stamina = int(stats[6])
+
+
+static func selected_pitch(lab: PitchBatLab) -> PitchDefinition:
+	if lab._match_mode:
+		var options: Array[PitchDefinition] = pitch_options(lab)
+		if options.is_empty():
+			return null
+		lab._selected_pitch_index = clampi(lab._selected_pitch_index, 0, options.size() - 1)
+		return options[lab._selected_pitch_index]
+	return ContentDB.get_pitch(lab.PITCH_IDS[lab._selected_pitch_index])
+
+
+static func pitch_options(lab: PitchBatLab) -> Array[PitchDefinition]:
+	var result: Array[PitchDefinition] = []
+	if lab._match_state == null or lab._match_state.pitcher() == null:
+		return result
+	for pitch in lab._match_state.pitcher().definition.starting_pitches:
+		if pitch != null:
+			result.append(pitch)
+	if result.is_empty():
+		var fallback: PitchDefinition = ContentDB.get_pitch(lab.PITCH_IDS[0])
+		if fallback != null:
+			result.append(fallback)
+	return result
