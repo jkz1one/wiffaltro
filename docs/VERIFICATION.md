@@ -1,5 +1,57 @@
 # Fast verification and playtest records
 
+## Physical presentation-cost verification, 2026-10-03
+
+Initial headless `20261003T040325016573Z`: **11/11**, seven common gates plus
+physical equivalence, physical runner, club career and regressions. **Six real AI
+games**. Two exact full-report pairs cover home/away fields, paid Gear and legal
+replacement of exhausted starters:182 and167 releases. Presented/lean timings
+are13,202/11,477ms and12,556/11,762ms. All elapsed/event/recipe/statistic/workload
+fields agree through the existing exact JSON-normalized comparison. This run
+preceded test-only start-mode/global-time assertions and native selection; no
+production source changed afterwards.
+
+Final headless `20261003T040630380248Z`: **11/11**, seven gates plus physical
+visible, physical playoffs, camera audit and pitch quality. **26 complete real
+games**: an ordinary managed game119 pitches,0–12, two AI fixtures, and the entire
+23-AI-game eliminated-team season. Human scores in the long scheduling benchmark
+are explicit synthetic human losses; its AI games are physical. Whole-season
+elapsed365,647ms versus prior386,601ms, a **5.4% measured reduction**. Both runs
+retain3376 releases,4462.7666666677 simulated seconds and1,517,377 saved bytes.
+Every round reloads exact evidence, wallets/builds and own-fixture rewards; both
+semifinals and neutral final complete, and career payout remains35 once. Regular
+two-game visits19.30–31.95 seconds; final five-game wave77.00 versus85.31 seconds.
+This is a substantial remaining cost and one-environment comparison, not release
+latency/hardware acceptance. The benchmark retains its explicit480-second scope.
+
+Final native `20261003T041352488455Z`: **12/12**, seven gates plus paired physical
+equivalence, physical round, physical runner, loadout and regressions. **Eight
+complete actual AI games,24 captures**. Exact paired reports also pass on native
+OpenGL; presented/lean times50,458/48,729ms and48,632/46,813ms, about3.4–3.7%.
+Both standalone native diagnostic reports additionally equal the headless lean
+reports in every decoded field. Tests retain the diagnostic flag at start despite
+changing the runner setting afterwards, omit dynamic trace meshes in lean jobs,
+and preserve global time scale/tick rate. Existing pause/recovery/failed-save
+retry, reward atomicity, legal staff changes, input isolation, report corruption,
+Equipped sales and centered entry checks remain strict.
+
+Actual images reviewed: running and700×400 restored lightboxes, diagnostic field,
+and small shop sale review. The contained panels, dark focused gold action,
+centered dimmed Equipped entry and ordinary diagnostic field presentation remain
+intact. Two unedited captures are committed under docs/reviews/20261003-physical-cost.
+Primary Godot4.7 SubViewport/ImmediateMesh/Node references and scope are linked in
+PHYSICAL_PRESENTATION_COST. Native X11/OpenGL4.5 Compatibility/Mesa25.2.8 llvmpipe,
+Dummy audio; unsupported V-Sync remains nonfatal. No final engine errors or early exits.
+
+All **612 final source/test/asset/project/runner files** remain frozen through final
+headless/native verification and publication. No save, resolver, request identity,
+tuning, catalog, receipt or policy change: Build41/save46 (historic Build41/save45),
+Career21/opponent policy2. Broader AI acquisition/use/settlement, Doubleheader carry,
+full-suite reliability, final whole-game UI/hardware and human visual/feel acceptance
+remain open. Targeted scope only. Main remainsf1dc209b6de11e45aedbd1568fa1b2d841dd2420;
+repository blueprint is byte-identical. Overall **~76%**, not release readiness.
+
+
 ## Saved physical round integration verification, 2026-10-03
 
 Full headless `20261003T023132486019Z`: **9/9**, seven common gates plus physical-playoffs and physical-round. The complete eliminated-team season runs23 real AI games:20 regular fixtures, both semifinals and the neutral final;3376 releases,4462.77 simulated seconds,386.60 wall seconds,1,517,377 saved bytes. Every round reloads exact evidence/builds/reward maps; the derived missed-playoff career payout is35 once. Human losses in this scheduling benchmark are explicit score fixtures, not physically played human games. Final five-game wave85.31 seconds; regular two-game visits21.20–33.16 seconds. This is a costly headless baseline, not acceptable release latency or hardware/Doubleheader evidence. The benchmark is explicit-only and needs `--only season-physical-playoffs --timeout 480`; required markers/error checks are unchanged.

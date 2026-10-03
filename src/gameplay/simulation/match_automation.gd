@@ -3,10 +3,15 @@ extends RefCounted
 ## Both clubs use the ordinary bounded live controllers. No outcome shortcuts.
 
 var seed: int = 0
+var presentation_enabled: bool = false
 var releases: Array[Dictionary] = []
 var initial: Dictionary = {}
 var pitch_indices: Dictionary = {}
 var approaches: Array[BatterApproachModel] = []
+
+
+static func presented(lab: PitchBatLab) -> bool:
+	return lab._automation == null or lab._automation.presentation_enabled
 
 
 static func player_batting(lab: PitchBatLab) -> bool:

@@ -25,6 +25,7 @@ func _ready() -> void:
 	state.away_team.field_supply.receipt = "field-supply:fixture29:away"
 	state.gear_usage.equipped = ["historical:paid-gear"]
 	var runner: PhysicalMatchRunner = PhysicalMatchRunner.new()
+	runner.presentation_enabled = not _capture_dir.is_empty()
 	add_child(runner)
 	runner.finished.connect(_record_report)
 	runner.failed.connect(func(reason: String) -> void: _errors.append(reason))

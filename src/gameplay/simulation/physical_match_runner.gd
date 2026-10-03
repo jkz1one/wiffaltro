@@ -8,6 +8,9 @@ signal failed(reason: String)
 const MAX_SECONDS: float = 2400.0
 const STALL_SECONDS: float = 30.0
 
+## Diagnostic rendering only; copied at start, never part of match identity.
+var presentation_enabled: bool = false
+
 var _viewport: SubViewport
 var _lab: PitchBatLab
 var _elapsed: float = 0.0
@@ -41,6 +44,7 @@ func start(source: MatchState, seed: int, field: StringName = PitchBatLab.FIELD_
 	_lab._sky_backdrop_enabled = false
 	_lab._automation = MatchAutomation.new()
 	_lab._automation.seed = seed
+	_lab._automation.presentation_enabled = presentation_enabled
 	_viewport.add_child(_lab)
 	_elapsed = 0.0
 	_stalled = 0.0

@@ -352,6 +352,8 @@ static func _set_gameplay_hud_visible(lab: PitchBatLab, visible: bool) -> void:
 
 
 static func refresh_event(lab: PitchBatLab) -> void:
+	if not MatchAutomation.presented(lab):
+		return
 	if lab._event_panel == null or lab._status_label == null:
 		return
 	var event_text: String = lab._status_label.text.strip_edges()
@@ -441,6 +443,8 @@ static func apply_role_camera(lab: PitchBatLab) -> void:
 
 
 static func refresh(lab: PitchBatLab) -> void:
+	if not MatchAutomation.presented(lab):
+		return
 	if lab._config_label == null or lab._scorebug == null or lab._action_label == null:
 		return
 	var pitch: PitchDefinition = lab._selected_pitch()

@@ -1,5 +1,22 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Physical presentation hot path, 2026-10-03
+
+MatchAutomation.presented selects ordinary presentation for every human lab and an
+explicit runner diagnostic flag for offscreen jobs. The flag snapshots at start and
+is excluded from saved request/report identity. The lean update retains home-run
+carry/freeze/hold and ordinary cadence, then advances the same elapsed clock and
+fixed physics path. Invisible feedback, camera/telegraph, ball-visibility meshes,
+HUD refresh and flight/trace diagnostics are skipped; dependency nodes still allocate.
+
+The paired equivalence scene compares every JSON-normalized report field for two
+fields, including paid Gear and legal exhausted-starter replacement. It verifies no
+dynamic trace meshes, diagnostic traces, unchanged global time/ticks and untouched
+caller states. Native and whole-season checks remain mandatory evidence, not a speed
+threshold or human acceptance. See PHYSICAL_PRESENTATION_COST. No save/resolver/balance
+version change; Build41/save46/Career21/policy2 remain unchanged.
+
+
 ## Durable physical fixtures and atomic round publication, 2026-10-03
 
 SeasonPhysicalFixtures owns a version1 report archive, a replay cursor and pending human/evidence payload. Save46 explicitly maps to Build41 instead of altering historical build-to-save mappings. Older seasons never instantiate this resolver. SeasonSave.snapshot extracts serialization without writing; saved replay requires exact consumption of the committed archive and validates pending work through the same disposable projection.
@@ -73,7 +90,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.84
+**Version:** v0.1.85
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

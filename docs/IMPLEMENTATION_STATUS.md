@@ -1,5 +1,20 @@
 # Implementation Status
 
+## Offscreen visual hot-path reduction, 2026-10-03
+
+Saved physical AI jobs skip invisible recurring presentation work and dynamic trace
+meshes while retaining actual gameplay/physics/event/workload execution. Diagnostic
+presentation stays available before start and ordinary human flow remains intact.
+Two full-report equivalence pairs cover home/away fields, paid Gear and exhausted
+starters. Read PHYSICAL_PRESENTATION_COST and VERIFICATION for final measured scope.
+
+No new saved fields, resolver identity, item eligibility, AI purchasing or tuning
+approval. Build41/save46/Career21/policy2,25/25 Gear,35/35 sponsors and overall**~76%**
+remain unchanged. Full-round cost still needs further work; broader AI acquisition,
+player ownership/packs, tiers/Leagues, stadiums and integration remain open. Human
+visual/feel/hardware acceptance and final cohesive UI are pending.
+
+
 ## Saved physical fixtures and round settlement, 2026-10-03
 
 New Working seasons now replace abstract offscreen scores with sequential shared physical matches, durable completed-game reports and atomic round settlement. Actual human evidence saves while the existing outro remains visible; Continue resolves the other games. Progress, pause, restart recovery, failed writes and exact retry are integrated before any next shop. Historical seasons remain score-only and replay unchanged.

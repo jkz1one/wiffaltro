@@ -208,6 +208,9 @@ func _process(delta: float) -> void:
 		):
 			_match_state.elapsed_seconds += delta
 
+	if not MatchAutomation.presented(self):
+		return
+
 	if _batted_ball != null and _ball_play_resolver != null and _ball_play_resolver.state != null:
 		if not _ball_play_resolver.state.dead:
 			_live_label.text = (
@@ -688,6 +691,8 @@ func _on_ball_play_resolved(outcome: BallPlayOutcome) -> void:
 
 
 func _on_trace_sampled(point: Vector3) -> void:
+	if not MatchAutomation.presented(self):
+		return
 	_trajectory_points.append(point)
 	_trajectory_draw.draw_polyline(_trajectory_points)
 

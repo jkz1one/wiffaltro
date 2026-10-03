@@ -53,6 +53,12 @@ static func initialize(lab: PitchBatLab) -> void:
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
 	if lab.has_meta("loadout_open"):
 		return
+	if not MatchAutomation.presented(lab):
+		# Keep the exact gameplay cadence and home-run body/hold lifecycle.
+		if not lab._debug_paused:
+			lab._home_run.advance(lab, delta_seconds)
+			_update_at_bat_cadence(lab, delta_seconds)
+		return
 	lab._pitch_feedback.advance(lab, delta_seconds)
 	if lab._debug_paused:
 		_update_camera(lab, delta_seconds)

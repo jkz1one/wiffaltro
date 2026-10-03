@@ -1,5 +1,21 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Offscreen presentation cost amendment, 2026-10-03
+
+Physical AI jobs now omit invisible hot-path camera, ball trail/shadow, telegraph,
+feedback/event/HUD updates and pitch/contact trace meshes. Gameplay controllers,
+flight/contact/Jolt/defense, ordinary fixed-step time, cadence and home-run body/hold
+lifecycle remain unchanged. A before-start diagnostic flag retains the prior visual
+path for native captures; ordinary human matches always keep presentation.
+
+Complete paired reports must agree across both modes, including elapsed time,
+recipes, events, statistics and actual workload. No score substitute, global time
+change, sport tuning, schema, resolver identity, catalog or acquisition-policy change.
+Read PHYSICAL_PRESENTATION_COST and VERIFICATION for measured evidence and scope.
+Build41/save46/Career21/opponent policy2, all25 Gear/35 sponsors and **~76%** overall
+remain unchanged. Human visual/feel/hardware and final whole-game UI acceptance stay open.
+
+
 ## Saved physical round integration amendment, 2026-10-03
 
 New Working seasons use physical-ai-v1 for every required offscreen fixture. Historical score-only seasons retain their saved resolver and scores. Save46 adds a separate version1 physical archive and durable pending-round checkpoint; Build41/Career21/opponent policy2 and frozen receipt/catalog contracts stay unchanged.
@@ -67,7 +83,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.93
+**Version:** v0.4.94
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

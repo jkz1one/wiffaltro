@@ -98,6 +98,9 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("physical-match-equivalence", [*ui_base, "--fixed-fps", "60",
+                                               "res://src/tests/physical_match_equivalence_test.tscn"],
+                 "Wiffaltro physical equivalence checks passed:"),
                 ("season-physical-visible", [*base, "--fixed-fps", "60",
                                              "res://src/tests/season_physical_visible_test.tscn"],
                  "Wiffaltro physical visible checks passed:"),

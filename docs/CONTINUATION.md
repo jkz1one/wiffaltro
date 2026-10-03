@@ -1,5 +1,54 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: physical presentation cost, 2026-10-03
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,
+parentaa52d0f17298bf7860d5965d6e9b9ac93adbf3b3. Use git log -1 for the pushed SHA.
+Build41/save46 for physical Working seasons; historical Build41/save45 score-only
+seasons unchanged. Career21/policy2; all25 Gear/35 sponsors,five supplies,three
+abilities,one transformation. Overall**~76%**, not release readiness.
+SOTv0.4.94/Technicalv0.1.85.
+
+Read PHYSICAL_PRESENTATION_COST and SAVED_PHYSICAL_ROUNDS. Offscreen jobs omit
+invisible camera/telegraph, feedback/event/HUD, ball trail/shadow, flight labels
+and pitch/contact trace work. Dependency nodes still allocate. Actual controllers,
+fixed flight/Jolt/defense, elapsed clock, gameplay cadence and home-run body/hold
+lifecycle remain unchanged. PhysicalMatchRunner.presentation_enabled defaultsfalse;
+settrue beforestart only for diagnostic renders. Its value snapshots atstart and
+never changes persisted request/report identity. Human matches always present normally.
+
+Initial headless040325016573Z passes11/11 with six real AI games, two exact full-report
+pairs and career/core. Final headless040630380248Z passes11/11 with an ordinary
+human game plus two AI fixtures, full23-AI-game season, camera audit and pitch quality.
+Whole-season cost365.65 versus386.60 seconds,5.4% lower in this comparison;
+3376 releases,4462.77 simulated seconds and1,517,377 save bytes unchanged. Regular
+visits19.30–31.95 seconds; finalfive-fixture wave77.00 seconds. This remains costly,
+not acceptable release latency. Final native041352488455Z passes12/12 with eight
+real AI games and24 captures. Both native pairs have exact complete report equality;
+two native diagnostic reports additionally equal headless lean reports. Software
+renderer gains3.4–3.7%; no speed threshold, hardware or human acceptance claim.
+
+All612 final source files frozen. Two inspected screenshots under
+`docs/reviews/20261003-physical-cost`; read VERIFICATION for source delta/exactscope.
+No schema, resolver, receipt, stock, AI policy or numerical approval change. Centered
+Equipped, saved immediate refunds/safe next-batter retirement, durable pending prefix,
+failed-write retry, atomic round rewards and replay remain required. SeasonBuild921,
+PitchBatLab980, Presentation973 lines: extract before further growth.
+
+Next: continue measured round-cost work or select a complete supported finite-pool
+AI acquisition/use/settlement contract after reading current planning sources.
+AI buying remains paid four-stat policy2/base W/L only; archived physical reports
+still lack whole inventory/announcement/tactical/sponsor settlement. No fabricated
+income/events or price-strength shortcut. Doubleheader requires actual legal
+workload carry/substitutions. Permanent player ownership/80-CB packs remain unselected
+Working/Proposals. Higher tiers/Leagues, stadiums and integration also remain open.
+Planning last reviewed Decisions31/Equipment18/blueprint114/Economy24/Players17;
+consult current complete contracts for gameplay changes. Final cohesive UI and human
+visual/feel/hardware acceptance remain pending. Main unchangedf1dc209b6de11e45aedbd1568fa1b2d841dd2420;
+repository blueprint byte-identical. Routine commits/pushes authorized; no merge,
+deploy, force-push or subagents. Historical full-suite early exits remain unresolved.
+
+
 ## Current checkpoint: saved physical rounds, 2026-10-03
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`, parent6268aa16cc1f86a2a4c8da90b785245192da5254. Use git log -1 for the pushed SHA. Build41/save46 for new physical Working seasons; historical Build41 seasons remain save45 and score-only. Career21/opponent policy2. All25 Gear/35 sponsors, five supplies, three abilities and one transformation. Overall **~76%**, not release readiness. SOTv0.4.93/Technicalv0.1.84.
@@ -805,7 +854,7 @@ during the current game. Starting a new attempt replaces that evidence.
 ## User requirements to carry forward
 
 - Continue in substantial, verified chunks and report the whole-project completion estimate
-  at the end of each response. The recorded estimate is approximately **75%**, not release readiness.
+  at the end of each response. The recorded estimate is approximately **76%**, not release readiness.
 - Preserve work with commits and pushes on the engineering branch. Do not merge or deploy.
 - Preserve earlier gameplay/camera fixes and saved-run compatibility.
 - Keep one clear Equipped lightbox accessible from the same button position during and between

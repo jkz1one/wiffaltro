@@ -154,5 +154,6 @@ static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
 		result.contact_position,
 		vector_end,
 	]
-	lab._contact_vector_draw.draw_polyline(launch_points)
+	if MatchAutomation.presented(lab):
+		lab._contact_vector_draw.draw_polyline(launch_points)
 	lab._start_ball_in_play(BattedBallLaunch.from_contact(result, lab._pitch_actor.state))
