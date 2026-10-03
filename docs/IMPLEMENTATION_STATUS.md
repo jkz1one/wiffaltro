@@ -1,5 +1,23 @@
 # Implementation Status
 
+## Paid AI learned abilities, 2026-10-03
+
+AI policy6 adds Work the Count, Soft Hands and Sky Reader to finite market5.
+Named profiles learn on their committed hitter/fielder with actual12/10-Cash
+receipts and an empty legal slot, after development/qualified packs/preferred
+Gear. Sky is an alternative to Hands, never an extra slot. Prior lesson buying
+follows. One competing wallet, bounded reroll and exact saved replay remain.
+Shared physical gameplay applies actual called-ball coverage, eligible grounded
+control and high-launch reaction; pregame discloses roles/effects/paid history.
+
+Build41/save50/Career21/policy6/market5; all historical mappings stay frozen.
+Human content remains25/25 Gear,35/35 sponsors, five supplies, three abilities and
+one transformation. Overall **~80%**, not release readiness. AI sponsors/tactics/
+recruiting/Doubleheader, permanent players/packs, higher Leagues/tiers, stadiums,
+physical latency, final integration/full-suite reliability and final whole-game/
+human visual/feel/hardware acceptance remain open. See AI_LEARNED_ABILITIES and
+latest VERIFICATION for precise checked scope.
+
 ## Paid AI pitch lessons, 2026-10-03
 
 Policy5 adds five Common ordinary lessons to the finite shared AI shop. Distributed

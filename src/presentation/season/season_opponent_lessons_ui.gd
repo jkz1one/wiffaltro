@@ -3,10 +3,11 @@ extends RefCounted
 ## Read-only public repertoire and paid provenance from the committed opponent build.
 
 
-static func preview(card: VBoxContainer, club: Dictionary) -> void:
-	SeasonPages.wrapped(card, "Opponent stock includes stat training, Pitch Mastery, Round Out, "
-		+ "13 initial Gear and five Common pitch lessons. Sponsors, abilities and supplies remain gated."
-	).set_meta("opponent_lesson_pool", true)
+static func preview(card: VBoxContainer, club: Dictionary, show_pool: bool = true) -> void:
+	if show_pool:
+		SeasonPages.wrapped(card, "Opponent stock includes stat training, Pitch Mastery, Round Out, "
+			+ "13 initial Gear and five Common pitch lessons. Sponsors, abilities and supplies remain gated."
+		).set_meta("opponent_lesson_pool", true)
 	var box: VBoxContainer = SeasonPlayerCard.panel(card, false)
 	var player: String = club.roles.secondary
 	var definition: PlayerDefinition = club.build.definition(player)

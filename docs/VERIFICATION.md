@@ -1,5 +1,105 @@
 # Fast verification and playtest records
 
+## Paid opponent learned-ability verification, 2026-10-03
+
+Recovered branch clean at8cd1b3278ea5c0bdcaa0c2d3491d7387cb90035b. Fresh main
+remainsf1dc209b6de11e45aedbd1568fa1b2d841dd2420; the repository blueprint remains
+byte-identical. Current planning reread: Decisions31, Economy24, Players/Pitches17
+and Equipment/Sponsors18. Working values remain Working. No hosted CI, merge or
+shipping/human approval is claimed.
+
+Initial `20261003T172248599835Z` fails lint before gameplay: one overlong test line
+and a test constant below a variable. Both formatting issues are corrected; no
+assertion/marker/error gate is weakened.
+
+Focused `20261003T172318536364Z`: **11/11**, seven common gates plus new AI abilities,
+existing human abilities, career and core. Across96 seeds, all three abilities appear
+in ordinary legal stock and all three get real policy purchases across the three
+profile fixtures. Cash does not filter stock, fixed packs remain development-only
+with distinct families, paid10/12 learning reaches copied committed definitions,
+known/full/sold/foreign targets reject, learned forks isolate and exact journals
+replay. Published AI Sky access leaves human career discovery and all historical
+AI ability pools unchanged. Three saved rounds complete six actual AI games and
+acquire four paid abilities with exact stock/decision/request/wallet replay. Synthetic
+unit rewards isolate purchase behavior; they are not balance/earned-performance proof.
+
+Long `20261003T172631820293Z`: **18/18**, common gates plus new ability-visible/full-
+playoff scenes, historical lesson/mastery/Gear scenes, physical round retry/persistence,
+old opponents/draft, actual live abilities, career and core. It includes **44 complete
+physical games**:41 detached AI fixtures and three managed fixtures. The new managed
+scene has five games:two preparation AI fixtures, one actual human-owned game against
+a paid-ability opponent, then its two AI fixtures. The committed learned ID is in the
+actual managed roster, normal outro remains, settlement happens once and reload agrees.
+This managed fixture's read-only trigger probe records zero effect samples; its proof
+is paid roster integration and actual settlement, not a claim every effect triggered.
+
+The full23-game AI bracket passes:20 regular fixtures,both semifinals,neutral final;
+3369 releases,4490.15 simulated seconds,310692 wall milliseconds,1515144 saved bytes.
+Five paid abilities, all round request/report/stock/receipt/decision reloads, every
+club's competing reward wallet including8-Cash skipped packs, semifinal survivor
+shopping and exactly one career35 payout agree. Read-only sampling observes1204
+Work-the-Count-ready frames,48 active-swing frames with the exact earned radii and
+24366 grounded/reaction-eligible Soft Hands frames. These are frame samples, not48
+distinct swings or24366 control attempts/catches. Existing abilities tests separately
+verify actual grounded control, reach/height/reaction exclusions and Goggles/Sky order.
+This seed buys Hands in its Fielding slots, so no Sky reaction is exercised in this
+bracket. Synthetic human losses schedule the benchmark; all AI fixtures use actual
+controllers/flight/Jolt. The cost remains a latency limit, not release performance.
+
+Only the new ability contract test changes after that long run: add a whole detached
+physical game from an actual generated/paid Sky transaction, without modifying any
+production source, report gate or saved-season benchmark. First added fixture in
+`20261003T173829984040Z` completes122 pitches but has no qualifying Sky sample, so
+its unchanged required-trigger assertion fails (**10/11** overall). Its six saved
+AI games, old abilities, career and core otherwise pass. The diagnostic fixture now
+uses four explicitly authored hitting players and seed67; it explicitly checks the
+paid recipient starts as primary fielder. No forced launch, free learning, weakened
+trigger assertion or production tuning is added. Preserve this failure as coverage
+history, not a passed effect check.
+
+Final headless `20261003T174141810727Z`: **9/9**, common gates plus new ability
+contract and core. The extra paid-Sky physical game completes166 actual releases and
+two actual qualifying high-launch reactions at the correct0.60/minimum delay. Caller
+journal/paid learning is unchanged afterward. Three saved rounds add six actual AI
+games and four paid abilities with exact replay. Thus this final focused run has
+**seven complete AI games**. Invalid/unaffordable/sold learning rolls back; altered
+version/policy/market/journal/decision/recipient/request evidence is rejected. Human
+checkout never counter-shops. The new ordinary startup saves policy6/market5/save50
+before every partial draft. Existing first-pass/historical results remain valid;
+the sole delta since the long run is its previously unrun new contract test fixture.
+
+Final native `20261003T174347263248Z`: **19/19**, seven common gates plus new
+abilities, historical lessons, physical round, player inspector, existing abilities,
+live sales,loadout,career,shop quotes,paid shop,paid development and core. It captures
+**79 native images** and includes13 complete detached AI games:seven new ability
+fixtures,four historical lesson fixtures,two historical physical-round fixtures.
+The paid-Sky diagnostic reproduces the same two qualifying launch reactions. Exact
+saved AI builds/receipts and human Sky access, grounded control/reaction, shop and
+live-sale persistence/retirement, read-only inspection and career confirmation pass.
+X11/OpenGL Compatibility uses Mesa llvmpipe and Dummy audio; the unsupported-V-Sync
+warning remains. No script/engine errors. Software rendering is much slower than
+headless; these timings do not approve hardware performance or release latency.
+
+Five inspected unedited originals are in `docs/reviews/20261003-opponent-abilities`:
+`paid-ability.png` and `paid-ability-small.png` show the committed Kites fixture's paid
+Work the Count on Drew Sato,Hitting1/1,12 Cash and exact game7 history; `ability-role-small.png` shows the actual next opponent's role/effect/receipt at700x400. The extra
+committed-club component explicitly names its source club and is diagnostic display,
+not a substitute for the managed-opponent proof. `equipped-shop.png` and `equipped-game.png` show sponsor sale actions in both shared lightbox contexts. Long preparation
+content scrolls normally; navigation and the centered Equipped entry remain accessible.
+These screenshots are direct native renders, not human acceptance or a final whole-UI
+polish signoff. Focused round scores are explicit scheduling fixtures, not human playtests.
+
+All **645** final source/test/asset/project/runner files remain unchanged after that fixture
+correction through final headless/native verification and publication. Build41/save50/Career21/policy6/market5; SeasonBuild remains921 lines.
+Human content25/25 Gear,35/35 sponsors,five supplies,three abilities,one transformation
+is unchanged. Historical save/market/policy mappings, receipt IDs/catalog signatures,
+prospective unlocks and safe live-sale retirement remain intact. Primary Godot Resource/
+ScrollContainer references are in AI_LEARNED_ABILITIES. This is targeted scope, not the
+full suite. Overall **~80%**, not release readiness. AI sponsors/tactics/recruiting/
+Doubleheader, larger progression, costly latency, historical full-suite early exits,
+hardware and final cohesive whole-game/human visual/feel acceptance remain open.
+Automated native screenshots never supply human approval.
+
 ## Paid opponent pitch-lesson verification, 2026-10-03
 
 Current planning read: Decisions31, Economy24 (complete current file), Players/Pitches17

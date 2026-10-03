@@ -185,7 +185,7 @@ static func restore(
 			return null
 		result._film_from = int(value.film_from)
 	if value.version >= 19:
-		if not SeasonOwnership._whole(value.market, 0, 4 if value.version == 41 else 1):
+		if not SeasonOwnership._whole(value.market, 0, 5 if value.version == 41 else 1):
 			return null
 		result._market = int(value.market)
 	if value.version >= 20 and value.gear_start != null:

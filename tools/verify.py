@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-abilities-visible", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_abilities_visible_test.tscn"],
+                 "Wiffaltro opponent ability visible checks passed:"),
+                ("season-opponent-abilities-playoffs", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_abilities_playoffs_test.tscn"],
+                 "Wiffaltro physical playoff checks passed:"),
+                ("season-opponent-abilities", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_abilities_test.tscn", *ui_extra],
+                 "Wiffaltro opponent ability checks passed:"),
                 ("season-opponent-lessons-visible", [*base, "--fixed-fps", "60",
                     "res://src/tests/season_opponent_lessons_visible_test.tscn"],
                  "Wiffaltro opponent lesson visible checks passed:"),
@@ -477,7 +486,8 @@ def main():
             for name, command, marker in checks:
                 # The 23-game throughput benchmark is explicit, outside the default scene scope.
                 if name in ["season-physical-playoffs", "season-opponent-gear-playoffs",
-                            "season-opponent-mastery-playoffs", "season-opponent-lessons-playoffs"] and not args.only:
+                            "season-opponent-mastery-playoffs", "season-opponent-lessons-playoffs",
+                            "season-opponent-abilities-playoffs"] and not args.only:
                     continue
                 if args.only and name not in args.only:
                     continue

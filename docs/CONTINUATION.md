@@ -1,5 +1,71 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent learned abilities, 2026-10-03
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,
+parent8cd1b3278ea5c0bdcaa0c2d3491d7387cb90035b. Use git log -1 for pushed HEAD.
+Build41/new Working physical save50/Career21/opponent policy6/AI market5.
+Historical lesson5/4/save49, mastery4/3/save48, Gear3/2/save47, physical1/2/save46
+and Build41 score-only/save45 remain frozen. Human content remains25 Gear,35 sponsors,
+five supplies,three abilities,one transformation. Overall **~80%**, not release
+readiness. SOTv0.4.98/Technicalv0.1.89. Read AI_LEARNED_ABILITIES and latest VERIFICATION.
+Main remainsf1dc209b6de11e45aedbd1568fa1b2d841dd2420; check for later changes.
+Repository PROGRESSION_BLUEPRINT remains byte-identical to main; never replace it.
+
+Current planning reread Decisions31/Economy24/Players17/Equipment18. Market5 adds
+Work the Count12, Soft Hands10 and Sky Reader12 to six development cards/five
+families,13 initial Gear,five Common lessons. Ordinary supported parent weights
+25/12/20/10, shared ability weights2/1/1, equal Gear slots and category repair;
+legal shared targets only, no cash/profile stock filtering or forced offers. AI Sky
+uses published access independently of human discovery; it grants no human unlock.
+Fixed8 pack stays development-only and never refreshes through rerolls.
+
+Development/qualified packs then preferred empty-slot Gear, then learned abilities,
+then the prior matching secondary slider. Distributed buys Hands on primary fielder;
+featured buys Count on hitter; pitching/defense prefers Hands, otherwise available
+Sky on fielder. One Fielding slot: Sky is an alternative, never a second ability.
+No replacement/forgetting/unapplied inventory/free grant. Each purchase immediately
+pays shared10/12 and commits a player-local receipt. One own18/12 wallet and at most
+one affordable useful reroll. Include paid skipped pack8 when auditing wallets.
+AI shops before human checkout; human shopping never causes counter-shopping.
+
+Committed learned IDs reach managed/offscreen shared swing and fielding physics.
+Actual called balls earn Count; legal grounded control receives Hands; actual fair
+high launches change Sky's initial reaction with the existing minimum/Goggles order.
+No fabricated events, proxy strength or hidden observations. Existing request hashes
+bind full definitions; replay must agree with stock, receipts, decisions and wallets.
+Pregame exposes role, occupied slot, exact effect and complete paid history. Preserve
+centered Equipped and immediate saved live-sale ownership/refunds with next-batter
+retirement. SeasonBuild remains921 lines. Helpers: SeasonOpponentAbilities and UI.
+
+Focused headless172318536364Z passes11/11. Long172631820293Z passes18/18 with44
+complete physical games, including the new23-game AI bracket:3369 releases, five
+paid abilities, exact every-round replay,310692ms,career35 once. It samples48 actual
+Count swing frames and24366 ground/reaction frames, not distinct attempts/catches.
+This seed buys Hands rather than Sky. Only the previously unrun new contract test
+subsequently adds a paid-Sky detached game. Its first173829984040Z fixture completes
+but has zero qualifying samples, failing10/11 overall; no production changes. The
+corrected authored opposing lineup/seed67 retains that required-trigger assertion.
+Final headless174141810727Z passes9/9 with seven real AI games, including two actual
+paid-Sky reactions. Read VERIFICATION for full scope and preserved failures.
+All645 final source/assets/tests/project/runner files remain frozen after correction.
+Final native174347263248Z passes19/19 with79 captures and13 complete AI games.
+The paid-Sky fixture reproduces two high-launch reactions. Five inspected unedited
+images are in docs/reviews/20261003-opponent-abilities, including paid Count/slot/
+history at normal/narrow sizes and Equipped in shop/live contexts. All645 files stay
+unchanged through final headless/native verification and publication; native software
+rendering does not approve hardware performance or human visual/feel acceptance.
+Original local commit is preserved at checkpoint/opponent-abilities-before-api-publish.
+
+Next: another complete supported bounded AI shop/use contract before larger systems;
+no next contract selected. AI sponsors,tactical supplies,recruiting and Doubleheader
+remain gated. Passive Gear/mastery/learning never authorizes sponsor events/income,
+announcements or tactical activation. Permanent players/packs,higher Leagues/tiers,
+stadiums,physical latency,final integration/full-suite reliability and cohesive final
+whole-UI/human visual/feel/hardware acceptance remain open. Working stays Working.
+Routine engineering implementation/verification/commit/push is authorized; no merge,
+deploy,force-push or agents. Native automation does not supply human acceptance.
+
 ## Current checkpoint: paid opponent pitch lessons, 2026-10-03
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,

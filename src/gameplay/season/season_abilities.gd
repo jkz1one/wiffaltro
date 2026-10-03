@@ -94,10 +94,10 @@ func targets(build: SeasonBuild, item: String) -> Array[Dictionary]:
 
 func pool(build: SeasonBuild) -> Dictionary:
 	var result: Dictionary = {}
-	if build._format < 36 or build._market != 0 or build._visit.number < from_visit:
+	if build._format < 36 or build._market not in [0, 5] or build._visit.number < from_visit:
 		return result
 	for item: String in ITEMS:
-		if item == SKY and (start == null or int(start) + earned < 3):
+		if item == SKY and build._market == 0 and (start == null or int(start) + earned < 3):
 			continue
 		if not targets(build, item).is_empty():
 			result[item] = ITEMS[item].weight

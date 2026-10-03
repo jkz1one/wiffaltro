@@ -1,5 +1,25 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Paid AI learning policy and save50, 2026-10-03
+
+SeasonOpponentAbilities owns market5's shared three-ability stock and exact-role
+purchase contract, with category weights25/12/20/10, normal diversity repair and
+unchanged fixed development-only pack. SeasonAbilities.pool explicitly enables
+market5 with published Sky access independently of the human discovery counter;
+historical markets and human pool gates remain unchanged. ability_buy reuses
+ordinary paid player-local receipts/capacity and atomic rollback. No replacement
+policy or Double Major/sponsor support is introduced.
+
+Policy6 dispatches existing paid development/qualified packs/Gear, then role
+ability learning, then secondary sliders, with one own reward wallet and at most
+one actually affordable useful reroll. Copied definitions and existing physical
+request hashes include the exact learned IDs. Build41/physical save50 maps policy6
+before partial draft allocation; Career21 and all prior mappings stay frozen.
+Read-only SeasonOpponentAbilitiesUI uses shared themed wrapped containers and
+complete actual learning history. SeasonBuild remains921 lines. New probe tests
+observe real shared swing/reaction/ground behavior without modifying gameplay.
+Read AI_LEARNED_ABILITIES and VERIFICATION for limitations and actual evidence.
+
 ## AI lessons policy and save49, 2026-10-03
 
 SeasonOpponentLessons owns market4's five shared Common lesson identities, ordinary
@@ -147,7 +167,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.88
+**Version:** v0.1.89
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`
