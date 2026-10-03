@@ -1,5 +1,62 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent pitch lessons, 2026-10-03
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,
+parent4589cfad88c7ba2078808449321860dbaa8c3642. Use git log -1 for the pushed SHA.
+Build41/new Working physical save49/Career21/opponent policy5 (market4).
+Historical mastery policy4/market3/save48, Gear policy3/market2/save47, physical
+policy1/2/save46 and Build41 score-only/save45 remain frozen. Human content stays
+25 Gear/35 sponsors/five supplies/three abilities/one transformation. Overall **~79%**,
+not release readiness. SOTv0.4.97/Technicalv0.1.88. Read AI_PITCH_LESSONS and latest
+VERIFICATION first. Fresh main remainsf1dc209b6de11e45aedbd1568fa1b2d841dd2420;
+repository PROGRESSION_BLUEPRINT remains byte-identical. Do not replace it.
+
+Current sources read: Decisions31/Economy24/Players17/Equipment18. New market4 adds
+five Common ordinary lessons OF/ON/SN/OS/SS at10 to six development cards and13 initial
+Gear. Normal supported weights25/12/20, five development families, equal Gear slots,
+ordinary category repair and actual legal roster targets; no affordability/profile
+stock filtering or forced preferred lesson. Fixed8 pack stays development-only,
+family-distinct and unchanged by rerolls. Unsupported categories stay absent.
+
+Existing paid objectives/rotation/qualified pack then preferred empty-slot Gear;
+then Distributed/Pitching clubs may buy the natural-delivery matching missing slider
+for the committed secondary pitcher (OS overhand/SS sidearm). Featured profile skips
+lessons. Empty learned slot required; no replacement, unapplied lesson inventory,
+capacity expansion or mastery copying. Shared paid learning starts1/restores own
+exact-recipe memory. One own18/12 wallet and at most one affordable useful reroll.
+A paid pack skip still spends8: include it when auditing wallets, not only picked
+upgrades. Surviving clubs shop before human checkout, never react after it.
+
+Committed learned recipes reach visible/offscreen physical resources and exact
+request/report replay. Pregame has a read-only shared secondary repertoire/capacity,
+acquisition/skip rule and actual paid lesson history panel. Primary focus and paid
+Gear remain. Centered Equipped and save-now/refund-now/retire-next-batter live sales
+are unchanged. New helpers: SeasonOpponentLessons and SeasonOpponentLessonsUI;
+SeasonBuild remains921 lines. Catalog signatures/receipt IDs/human unlocks stay fixed.
+
+Focused headless151212711118Z passes10/10. Long151453674404Z is14/15: managed lessons
+passes11 physical games; historical Gear/mastery pass8 more. The full23-AI-game
+bracket completes but its new wallet assertion omitted paid skipped packs. Only the
+two new audit test files changed afterward; production is unchanged. Corrected final
+headless152507013491Z passes11/11 with27 actual AI games: complete23-game bracket
+plus four lesson contract games. Full bracket:3316 releases,42 learned-recipe throws,
+two paid lessons,301644 wall milliseconds, exact every-round replay and career35 once.
+Final native153428553110Z passes18/18 with76 captures and10 actual AI games.
+Automation never supplies human acceptance. Five inspected unedited screenshots are in
+docs/reviews/20261003-opponent-lessons. All636 final source/assets/tests/project/runner
+files remain frozen through verification/publication. Preserve earlier failures.
+Original local commit is preserved as checkpoint/opponent-lessons-before-api-publish.
+
+Next: another complete supported finite AI shop contract before larger systems;
+no next contract selected. AI sponsors, learned abilities, tactical supplies,
+recruiting and Doubleheader remain gated. Passive Gear/mastery/lesson support does
+not authorize event/income/announcement or tactical-use behavior. Permanent player
+ownership/packs, higher Leagues/tiers, stadium progression, physical round latency,
+final integration/full-suite reliability and cohesive final whole-UI/human visual/
+feel/hardware acceptance remain open. Working values stay Working. No merge/deploy/
+force-push or agents; routine implementation/commits/engineering pushes authorized.
+
 ## Current checkpoint: paid opponent pitch development, 2026-10-03
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,
@@ -954,7 +1011,7 @@ during the current game. Starting a new attempt replaces that evidence.
 ## User requirements to carry forward
 
 - Continue in substantial, verified chunks and report the whole-project completion estimate
-  at the end of each response. The recorded estimate is approximately **76%**, not release readiness.
+  at the end of each response. The latest recorded estimate is approximately **79%**, not release readiness.
 - Preserve work with commits and pushes on the engineering branch. Do not merge or deploy.
 - Preserve earlier gameplay/camera fixes and saved-run compatibility.
 - Keep one clear Equipped lightbox accessible from the same button position during and between

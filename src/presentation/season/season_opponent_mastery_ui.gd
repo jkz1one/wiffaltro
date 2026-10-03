@@ -3,10 +3,11 @@ extends RefCounted
 ## Public committed growth; no shopping or target changes from disclosure.
 
 
-static func preview(card: VBoxContainer, club: Dictionary) -> void:
-	SeasonPages.wrapped(card, "Opponent shops offer stat training, Pitch Mastery, Round Out "
-		+ "and 13 initial Gear items. Pitch upgrades share a cap of 5. "
-		+ "Lessons, sponsors and supplies remain unavailable.").set_meta("opponent_mastery_pool", true)
+static func preview(card: VBoxContainer, club: Dictionary, show_pool: bool = true) -> void:
+	if show_pool:
+		SeasonPages.wrapped(card, "Opponent shops offer stat training, Pitch Mastery, Round Out "
+			+ "and 13 initial Gear items. Pitch upgrades share a cap of 5. "
+			+ "Lessons, sponsors and supplies remain unavailable.").set_meta("opponent_mastery_pool", true)
 	if club.profile != "Pitching / defense":
 		return
 	var profile: Dictionary = club.build.player(club.roles.pitcher)

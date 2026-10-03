@@ -1,5 +1,24 @@
 # Implementation Status
 
+## Paid AI pitch lessons, 2026-10-03
+
+Policy5 adds five Common ordinary lessons to the finite shared AI shop. Distributed
+and Pitching/defense clubs buy a matching missing secondary slider for10 Cash only
+when a learned slot is free, after paid development/qualified packs/preferred Gear.
+Featured hitters skip lessons. Actual stock/targets, one competing reward wallet,
+bounded useful reroll, shared personal mastery and exact replay remain authoritative.
+No replacement, free growth or hidden counter-shopping. Purchased recipes reach both
+visible and offscreen physical controllers. Pregame shows secondary repertoire,
+capacity, acquisition/skip rule and paid history.
+
+Build41/physical save49/Career21/policy5/market4; historical mappings remain frozen.
+Human content stays25/25 Gear,35/35 sponsors, five supplies, three abilities and one
+transformation. Whole-project estimate **~79%**, not release readiness. AI sponsors,
+abilities, tactics, recruiting and Doubleheader, permanent player ownership/packs,
+higher Leagues/tiers, stadiums, physical latency, final integration/full-suite
+reliability and cohesive whole-UI/human visual/feel/hardware acceptance remain open.
+Read AI_PITCH_LESSONS and latest VERIFICATION for exact validated scope.
+
 ## Paid AI pitch development, 2026-10-03
 
 AI policy4 adds paid Pitch Mastery and Round Out with the selected five-family

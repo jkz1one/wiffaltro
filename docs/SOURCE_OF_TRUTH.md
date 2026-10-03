@@ -1,5 +1,26 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Paid opponent pitch-lesson amendment, 2026-10-03
+
+New Working seasons select policy5/market4 before drafting. Five Common ordinary
+lessons join six development cards and13 initial Gear, with ordinary supported
+weights25/12/20 and category diversity repair. Distributed and Pitching/defense
+clubs may buy the delivery-matching missing OS/SS for their committed secondary
+pitcher after development/qualified packs/preferred Gear, only with an empty learned
+slot. Featured hitters skip lessons. No replacement, free teaching, copied mastery,
+Exotic or separate wallet. Shared paid10-Cash learning restores personal history.
+
+Committed definitions/repertoires reach visible and offscreen physical controllers;
+request/report replay binds the exact paid build. Pregame exposes the secondary's
+actual repertoire/capacity, acquisition rule/skip and paid history. Build41/save49/
+Career21; historical policy4/save48,3/save47,1/2/save46 and score-only/save45 stay
+frozen. Human stock/unlocks, centered Equipped and immediate saved live-sale refunds
+with safe next-batter retirement remain intact. Working numbers remain Working.
+AI sponsors/abilities/tactical/recruit and Doubleheader remain gated; player ownership,
+higher Leagues/tiers, stadiums, latency, integration and final human whole-UI/feel/
+hardware acceptance remain open. Read AI_PITCH_LESSONS and latest VERIFICATION.
+Overall **~79%**, not release readiness.
+
 ## Paid opponent pitch-development amendment, 2026-10-03
 
 New Working seasons select policy4 before drafting. The supported AI market now
@@ -122,7 +143,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.96
+**Version:** v0.4.97
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

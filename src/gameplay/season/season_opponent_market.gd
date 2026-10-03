@@ -13,6 +13,8 @@ static func cards(build: SeasonBuild) -> Array[String]:
 
 
 static func offers(build: SeasonBuild, roll: int) -> Dictionary:
+	if build._market == 4:
+		return SeasonOpponentLessons.offers(build, roll)
 	if build._market == 3:
 		return SeasonOpponentMastery.offers(build, roll)
 	if build._market == 2:
@@ -30,7 +32,7 @@ static func offers(build: SeasonBuild, roll: int) -> Dictionary:
 
 
 static func pack(build: SeasonBuild) -> Array:
-	if build._market == 3:
+	if build._market in [3, 4]:
 		return DevelopmentShopCatalog.pack(build._book, build.roster(), build._rng(-1))
 	var pool: Array[String] = cards(build)
 	var result: Array = []

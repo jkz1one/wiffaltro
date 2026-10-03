@@ -1,5 +1,25 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## AI lessons policy and save49, 2026-10-03
+
+SeasonOpponentLessons owns market4's five shared Common lesson identities, ordinary
+supported25/12/20 stock draw, legal-target filtering and bounded secondary-slider
+purchase. It reuses policy4's paid objective/rotation/pack contract and policy3's
+empty-slot Gear preferences before10-Cash learning. The committed secondary's
+natural overhand/sidearm delivery selects OS/SS; each recipe keeps its own delivery.
+No replacement, expanded capacity, concealed-stock lookup or free development.
+
+Policy5 initializes Build41/market4, saving the existing primary fastball and stable
+roles before shopping. Save49 explicitly binds policy5/Build41 plus physical evidence
+before partial-draft replay; old policy4/3/1/2 mappings stay frozen. Shared paid
+transactions preserve personal exact-recipe history, atomic rollback and journals;
+existing physical requests include full learned/mastered resource definitions.
+Career21 and human receipt/catalog/unlock/sale contracts are unchanged. The read-only
+secondary repertoire/rule/history panel uses existing wrapped themed preparation.
+SeasonBuild remains921 lines. AI_PITCH_LESSONS records the current planning contract,
+primary references and remaining category/human acceptance gates; VERIFICATION records
+exact tests and native review. No Working value becomes Approved.
+
 ## AI mastery policy and save48, 2026-10-03
 
 SeasonOpponentMastery owns market3's five legal development families, shared fixed
@@ -127,7 +147,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.87
+**Version:** v0.1.88
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

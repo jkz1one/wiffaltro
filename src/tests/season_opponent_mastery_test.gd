@@ -150,8 +150,11 @@ func _mastery_rounds() -> void:
 	PitchBatLabSettings.path = "user://opponent-mastery-%d.cfg" % OS.get_process_id()
 	var app: SeasonApp = await _app()
 	app.begin_season(443, true)
+	# Frozen policy4 fixture; the lesson scene covers current Working startup.
+	app.season.opponents._format = 4
+	_check(SeasonSave.save(app.season), "historical mastery draft checkpoint saves")
 	_check(app.season.opponents._format == 4 and SeasonSave.restore() != null,
-		"ordinary Working UI saves policy4 before draft")
+		"historical mastery policy saves before draft")
 	for pick in range(4):
 		app.choose_player(app.season.offers()[0])
 		_check(SeasonSave.restore() != null, "every partial mastery draft restores")

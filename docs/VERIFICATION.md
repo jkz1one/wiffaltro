@@ -1,5 +1,102 @@
 # Fast verification and playtest records
 
+## Paid opponent pitch-lesson verification, 2026-10-03
+
+Current planning read: Decisions31, Economy24 (complete current file), Players/Pitches17
+and Equipment/Sponsors18. Source branches recovered clean at4589cfad; fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420, with the repository blueprint byte-identical.
+Pinned Godot4.7.2/gdtoolkit4.3.4 tooling was recovered with the existing setup helper.
+The initial missing-tool/lint runs145730338823Z,150531116045Z,150749924406Z and
+150836242310Z fail before gameplay; line length/whitespace issues were fixed.
+
+Initial contract run150920661655Z fails new fixture assumptions: tied actual pitching
+roles selected an already-known/full secondary, and Common OF had only a legal explicit
+replacement target in the unit roster. The isolated policy fixture now commits a legal
+missing-slider secondary, while catalog tests use actual shared legal targets, including
+replacement. Production AI still never replaces a recipe. That run nevertheless plays
+four actual AI games and buys two lessons; failed assertions are not counted as passed.
+
+Focused `20261003T151212711118Z`: **10/10**, seven common gates plus new lessons,
+career and core. Across96 seeded legal offer fixtures, all five Common lessons appear;
+three-profile policy fixtures make23 real paid lesson purchases. Every Common lesson
+gets an actual generated offer, shared10-Cash transaction, exact build replay and sold-
+stock rollback. Tests separate legal stock from buying preferences/cash, keep packs
+lesson-free, reject known/full/featured targets, check natural-resource isolation and
+use an explicitly synthetic sidearm forgotten-level fixture for personal restoration.
+Four saved physical AI games acquire two lessons and replay exact journals/reports.
+Each ordinary Working startup/partial draft saves policy5/market4/save49 before allocation;
+version/policy/market/journal/decision alteration is rejected. Human checkout causes no
+counter-shopping. Synthetic reward/history units are not season/balance evidence.
+
+Long `20261003T151453674404Z`: **14/15**. The managed lesson scene passes **11 actual
+physical games**: eight preparation fixtures, one actual human-owned match against a
+paid-lesson opponent, and its two required AI fixtures. The committed secondary recipe
+is present in the actual managed roster, original outro remains intact, all receipts
+settle once and full saved evidence replays. Historical policy4 mastery and policy3
+Gear scenes add four actual AI games each. Opponent draft/opponents, paid development
+and core also pass. The new full-bracket scene completes23 actual AI games,3316 releases,
+42 learned-slider throws and one career payout, but its new wallet assertion fails from
+round5 because it omitted8-Cash opened-and-skipped packs. A skipped reveal keeps the
+normal paid opening cost; no refund is due. Only the two new audit test files change
+subsequently to account for that real expense. No production policy, price, physics,
+marker or error gate is changed/weakened. The final rerun follows.
+
+Final headless `20261003T152507013491Z`: **11/11**, seven common gates plus lessons,
+lesson playoffs, career and core, using the final frozen source. **27 actual physical
+AI games**: four contract fixtures plus the complete23-game bracket (20 regular, both
+semifinals and neutral final). Full bracket:3316 releases,4394.95 simulated seconds,
+301644 wall milliseconds,1495167 saved bytes, two paid lessons and42 actual releases of
+learned recipes. Each round reloads exact requests/reports, stock, objectives, paid
+receipts, decisions and derived career35 once. One wallet now reconciles development,
+Gear, lessons, paid rerolls and paid skipped packs in every club through elimination.
+Synthetic human losses only schedule this benchmark. Its measured cost remains a
+latency limitation, not balance, hardware performance or release approval.
+
+First rendered attempt `20261003T153227050646Z`: **9/18**; seven common gates and the
+two headless development/core scenes pass. Nine native scenes fail before UI/gameplay
+because the recovered Xvfb keyboard-compiler path `/tmp/wkx/xkbcomp` is missing.
+Display startup then fails X11/Wayland with exit-time leak warnings. Restoring the
+scratch-only symlink to the existing extracted compiler repairs the display; no
+system packages, engine, repository source or test gates change. This failed attempt
+provides no native acceptance evidence.
+
+Final native `20261003T153428553110Z`: **18/18**, seven common gates plus lessons,
+historical mastery, old physical-round persistence/retry, player inspector, live sales,
+Equipped/loadout, career, shop quotes, paid shop, paid development and core. It captures
+**76 native images** and includes ten actual offscreen AI games (four lessons, four
+historical mastery, two old physical round). X11/OpenGL Compatibility uses Mesa llvmpipe
+and Dummy audio. All scenes have no engine/script errors; the unsupported-V-Sync driver
+warning remains. Display keyboard/getifaddrs warnings are nonfatal. This software path
+is substantially slower than headless and is not hardware-performance evidence.
+
+Five inspected unedited screenshots are retained in `docs/reviews/20261003-opponent-lessons`:
+
+- `paid-lesson.png`: shared production disclosure with the genuinely paid Rivets build,
+  Skyler Woods's learned OS Lv1,10-Cash history and resulting4/4 repertoire.
+- `paid-lesson-small.png`: the same paid component at700×400 with footer/Equipped visible.
+- `secondary-small.png`: actual next opponent's known secondary repertoire/capacity,
+  unchanged primary focus and lesson-skip explanation, at700×400.
+- `equipped-shop.png` and `equipped-game.png`: shared lightbox in shop/live contexts,
+  centered entry, saved Cash, active effects and live sale actions.
+
+The three lesson screenshots are read-only; the paid Rivets component is an explicitly
+rendered committed-club fixture, not a claim that Rivets is that screen's next opponent.
+The managed scene separately exercises the actual scheduled paid-lesson opponent.
+Normal scrolling handles preparation content; navigation stays outside the scroll body.
+Primary references are the current official Godot Resource and ScrollContainer docs,
+linked in AI_PITCH_LESSONS. Cached natural resources must remain isolated from copied
+committed definitions; native UI uses the existing themed wrapped containers.
+
+All **636** final source/test/asset/project/runner files remain unchanged through final
+headless/native verification and publication. The sole delta after the first long run
+is the two disclosed audit test files. Build41/save49/Career21/policy5/market4 and Working
+values remain unchanged. Historical mappings/receipt IDs/catalog signatures, prospective
+human unlocks and live-sale effect retirement stay frozen. This is targeted scope,
+not the full suite. Costly physical simulation, historical full-suite/physical-round
+early exits, hardware and final cohesive whole-game/human visual/feel acceptance remain
+open. AI sponsors/abilities/tacticals/recruiting/Doubleheader remain gated. Overall
+**~79%**, not release readiness. Automated screenshots never supply human approval.
+
 ## Paid opponent pitch development verification, 2026-10-03
 
 Initial focused `20261003T053300537845Z`: **10/10**, seven common gates plus mastery,
