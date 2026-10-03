@@ -52,6 +52,7 @@ var ownership: SeasonOwnership = SeasonOwnership.new()
 var build: SeasonBuild
 var opponents: SeasonOpponents
 var career: ClubCareer
+var physical: SeasonPhysicalFixtures
 
 
 static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
@@ -237,7 +238,8 @@ func record_player_result(
 	frozen: Array = []
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
-	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
+	if ((physical != null and not physical.projecting)
+		or fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs):
 		return false
 	if (
 		mini(away_runs, home_runs) < 0
@@ -307,10 +309,17 @@ func record_player_result(
 		result["frozen"] = frozen.duplicate(true)
 	results.append(result)
 	player_results.append(result.duplicate(true))
+	return _finish_round(fixture_id, result)
+
+
+func _finish_round(fixture_id: int, result: Dictionary) -> bool:
 	if phase == Phase.REGULAR:
 		for game in schedule:
 			if game["round"] == round_index and game["id"] != fixture_id:
-				results.append(_simulate(game))
+				var other: Dictionary = _simulate(game)
+				if other.is_empty():
+					return false
+				results.append(other)
 		if opponents != null:
 			var played: Array = results.filter(
 				func(row: Dictionary) -> bool: return row["round"] == round_index
@@ -323,13 +332,18 @@ func record_player_result(
 			opponents.settle(played, survivors)
 		round_index += 1
 		if round_index == 10:
-			_begin_playoffs()
+			if not _begin_playoffs():
+				return false
 	elif phase == Phase.SEMIFINAL:
 		for game in semifinals:
 			if game["id"] != fixture_id:
-				results.append(_simulate(game))
+				var other: Dictionary = _simulate(game)
+				if other.is_empty():
+					return false
+				results.append(other)
 		_settle_semifinals()
-		_prepare_final()
+		if not _prepare_final():
+			return false
 	else:
 		if opponents != null:
 			opponents.settle([result], [])
@@ -435,7 +449,8 @@ func cash() -> int:
 
 
 func shop_available() -> bool:
-	return build != null and not player_results.is_empty() and not pending_fixture().is_empty()
+	return (build != null and not player_results.is_empty() and not pending_fixture().is_empty()
+		and (physical == null or physical.pending.is_empty()))
 
 
 func recruit_blocked() -> Array[String]:
@@ -467,7 +482,7 @@ func _rank_before(a: Dictionary, b: Dictionary) -> bool:
 	return teams[a["team"]]["draw"] > teams[b["team"]]["draw"]
 
 
-func _begin_playoffs() -> void:
+func _begin_playoffs() -> bool:
 	var rows: Array[Dictionary] = standings()
 	for index in range(4):
 		playoff_seeds.append(rows[index]["team"])
@@ -483,12 +498,16 @@ func _begin_playoffs() -> void:
 	phase = Phase.SEMIFINAL
 	if not playoff_seeds.has(0):
 		for game in semifinals:
-			results.append(_simulate(game))
+			var other: Dictionary = _simulate(game)
+			if other.is_empty():
+				return false
+			results.append(other)
 		_settle_semifinals()
-		_prepare_final()
+		return _prepare_final()
+	return true
 
 
-func _prepare_final() -> void:
+func _prepare_final() -> bool:
 	var winners: Array[int] = []
 	for game in results:
 		if game["id"] in [30, 31]:
@@ -500,14 +519,19 @@ func _prepare_final() -> void:
 	phase = Phase.FINAL
 	if not winners.has(0):
 		var final_result: Dictionary = _simulate(final_fixture)
+		if final_result.is_empty():
+			return false
 		results.append(final_result)
 		if opponents != null:
 			opponents.settle([final_result], [])
 		champion = _winner(final_result)
 		phase = Phase.COMPLETE
+	return true
 
 
 func _simulate(fixture: Dictionary) -> Dictionary:
+	if physical != null:
+		return physical.resolve(self, fixture)
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = season_seed + int(fixture["id"]) * 104729
 	var result: Dictionary = fixture.duplicate(true)

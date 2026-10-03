@@ -173,6 +173,8 @@ func _career_ui() -> void:
 	add_child(app)
 	await _frames()
 	app.begin_season(51, true)
+	# Historical score-only fixture; physical rounds have separate integration coverage.
+	app.season.physical = null
 	for pick in range(4):
 		app.choose_player(app.season.offers()[0])
 	_finish(app.season, "champion")
@@ -199,6 +201,8 @@ func _career_ui() -> void:
 	var path: String = SeasonSave.path
 	SeasonSave.path = path + "/missing/save.json"
 	app.begin_season(51, true)
+	# Historical score-only fixture; physical rounds have separate integration coverage.
+	app.season.physical = null
 	_check(
 		app.season == previous and app.season.career.current == 1,
 		"failed replacement preserves exact prior season"

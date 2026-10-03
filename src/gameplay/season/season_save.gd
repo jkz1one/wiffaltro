@@ -5,7 +5,7 @@ static var path: String = "user://season-v1.json"
 static var last_error: String = ""
 
 
-static func save(season: SeasonState) -> bool:
+static func snapshot(season: SeasonState) -> Dictionary:
 	var data: Dictionary = {
 		"version": 4,
 		"ownership": season.ownership.to_data(),
@@ -27,13 +27,23 @@ static func save(season: SeasonState) -> bool:
 		data["build"] = season.build.to_data()
 	if season.opponents != null:
 		data["opponents"] = season.opponents.to_data()
+	if season.physical != null:
+		data.version = 46
+		data["physical"] = season.physical.to_data()
 	var career: ClubCareer
 	if season.career != null:
 		career = season.career.fork()
 		if not career.sync(season):
 			last_error = "Club history does not match this season. The previous save was preserved."
-			return false
+			return {}
 		data["career"] = career.to_data()
+	return data
+
+
+static func save(season: SeasonState) -> bool:
+	var data: Dictionary = snapshot(season)
+	if data.is_empty():
+		return false
 	if _decode(data) == null:
 		last_error = "Season data failed validation. The previous save was preserved."
 		return false
@@ -53,7 +63,8 @@ static func save(season: SeasonState) -> bool:
 	if error != OK or DirAccess.rename_absolute(path + ".tmp", path) != OK:
 		last_error = "Could not replace the season save. Retry before closing."
 		return false
-	season.career = career
+	if data.has("career"):
+		season.career = ClubCareer.from_data(data.career)
 	last_error = ""
 	return true
 
@@ -86,7 +97,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 45) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 46) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -104,8 +115,13 @@ static func _decode(value: Variant) -> SeasonState:
 		"ownership",
 		"build",
 		"opponents",
-		"career"
+		"career",
+		"physical"
 	]
+	if (data.version == 46) != data.has("physical"):
+		return null
+	if data.has("physical") and not data.has("opponents"):
+		return null
 	if data.has("opponents") and (data.version < 23 or not data.opponents is Dictionary):
 		return null
 	if data.has("career") and data.version < 4:
@@ -129,6 +145,10 @@ static func _decode(value: Variant) -> SeasonState:
 			return null
 		# Choose the historical allocator before replaying even a partially completed draft.
 		season.opponents._format = int(data.opponents.policy)
+	if data.has("physical"):
+		season.physical = SeasonPhysicalFixtures.from_data(data.physical)
+		if season.physical == null:
+			return null
 	if data["version"] >= 2:
 		if not _restore_pool(season, data):
 			return null
@@ -148,7 +168,8 @@ static func _decode(value: Variant) -> SeasonState:
 				season.teams[index]["strength"] = float(strength)
 	var restored: SeasonBuild
 	if data.version >= 5:
-		if not data.get("build") is Dictionary or data.build.get("version") != data.version - 4:
+		var build_version: int = 41 if data.version == 46 else int(data.version) - 4
+		if not data.get("build") is Dictionary or data.build.get("version") != build_version:
 			return null
 		var roster: Array[String] = []
 		if season.picks.size() == 4:
@@ -307,6 +328,12 @@ static func _decode(value: Variant) -> SeasonState:
 		)
 	):
 		return null
+	if season.physical != null:
+		if season.physical.cursor != season.physical.reports.size():
+			return null
+		if not season.physical.pending.is_empty() and not SeasonRoundSettlement.valid_pending(season):
+			return null
+		season.physical.projecting = false
 	return season
 
 

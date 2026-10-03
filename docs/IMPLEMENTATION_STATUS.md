@@ -1,5 +1,12 @@
 # Implementation Status
 
+## Saved physical fixtures and round settlement, 2026-10-03
+
+New Working seasons now replace abstract offscreen scores with sequential shared physical matches, durable completed-game reports and atomic round settlement. Actual human evidence saves while the existing outro remains visible; Continue resolves the other games. Progress, pause, restart recovery, failed writes and exact retry are integrated before any next shop. Historical seasons remain score-only and replay unchanged.
+
+Build41/save46 for physical seasons (save45 for historical Build41)/Career21/opponent policy2. All25 Gear/35 sponsors, five supplies, three abilities and one transformation stay complete. Overall **~76%**, not release readiness. Broader finite-pool AI acquisition/use, permanent player ownership/packs, higher tiers/Leagues, stadium progression, final integration and human visual/feel/hardware acceptance remain open. Physical evidence does not supply the missing inventory, announcement, tactical or Doubleheader contracts. Read SAVED_PHYSICAL_ROUNDS and VERIFICATION for scope, cost and limitations.
+
+
 ## Detached physical AI match foundation, 2026-10-02
 
 Both clubs now pitch and bat through shared real gameplay in an isolated, cancellable job. Validated ordered batting/stance/recipe/fielding/statistic evidence and actual per-pitcher costs/remaining stamina replace no existing history and settle no wallet. Observation memory is private to each club. Detached presentation waits are omitted; physical integration and human controls remain unchanged.

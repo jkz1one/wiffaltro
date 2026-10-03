@@ -243,6 +243,8 @@ func _opponent_ui() -> void:
 	add_child(app)
 	await _frames()
 	app.begin_season(42, true)
+	# Historical score-only fixture; physical rounds have separate integration coverage.
+	app.season.physical = null
 	for pick in range(4):
 		app.choose_player(app.season.offers()[0])
 	_check(app.season.opponents != null, "new Working UI enables paid opponents")

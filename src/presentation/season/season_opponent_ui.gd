@@ -26,6 +26,9 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 			+ "on Contact, Power, Fielding and Pitching."
 		)
 	)
+	if season.physical != null:
+		SeasonPages.wrapped(card, "Other clubs play physical matches between rounds. "
+			+ "AI shopping currently supports paid stat development; Gear and sponsors remain gated.")
 	if season.opponents._format >= 2:
 		SeasonPages.wrapped(card, "Two pitching options • Starting roles shown below")
 	for id: String in season.teams[index].roster:

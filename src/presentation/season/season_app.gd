@@ -13,6 +13,7 @@ var copy_game: int = -1
 var copy_receipt: String = "?"
 var insurance_game: int = -1
 var insurance_receipt: String = ""
+var round_ui: SeasonRoundUI
 var _season_game: bool = false
 var _fixture_id: int = -1
 var _dialog: ConfirmationDialog
@@ -51,7 +52,12 @@ func _ready() -> void:
 	loadout = SeasonLoadoutUI.new()
 	loadout.app = self
 	add_child(loadout)
+	round_ui = SeasonRoundUI.new()
+	round_ui.app = self
+	add_child(round_ui)
 	menu.show_home()
+	if season != null and season.physical != null and not season.physical.pending.is_empty():
+		round_ui.restore_pending()
 
 
 func _process(_delta: float) -> void:
@@ -61,6 +67,7 @@ func _process(_delta: float) -> void:
 			_commit_result()
 	_continue.visible = (
 		lab != null
+		and not round_ui.shade.visible
 		and not lab._debug_paused
 		and (lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD)
 	)
@@ -102,6 +109,8 @@ func begin_season(seed_value: int = -1, working_progression: bool = false) -> vo
 		working_progression
 	)
 	candidate.difficulty = 1
+	if working_progression:
+		candidate.physical = SeasonPhysicalFixtures.new()
 	if working_progression or (previous != null and previous.career != null):
 		var club: ClubCareer = ClubCareer.new()
 		if previous != null and previous.career != null:
@@ -147,7 +156,8 @@ func show_season() -> void:
 
 
 func play_season_game() -> void:
-	if lab != null or season == null or season.pending_fixture().is_empty():
+	if (lab != null or season == null or season.pending_fixture().is_empty()
+		or (season.physical != null and not season.physical.pending.is_empty())):
 		return
 	if season.build != null and season.build.pack_pending():
 		notice = "Choose or skip your open development pack before the next game."
@@ -224,9 +234,12 @@ func _commit_result() -> bool:
 		return true
 	if lab == null or lab._match_state.phase != MatchState.Phase.GAME_END:
 		return false
+	if season.physical != null and _result_recorded:
+		round_ui.resume()
+		return false
 	if not _result_recorded:
 		var state: MatchState = lab._match_state
-		if not season.record_player_result(
+		var human: Array = [
 			_fixture_id,
 			state.away_team.runs,
 			state.home_team.runs,
@@ -257,7 +270,14 @@ func _commit_result() -> bool:
 			state.frozen_contacts.filter(
 				func(row: Dictionary) -> bool: return season.teams[0].roster.has(row.player)
 			)
-		):
+		]
+		if season.physical != null:
+			_result_recorded = true
+			var saved: bool = round_ui.queue_human(human)
+			_continue.text = "CONTINUE" if saved else "RETRY SAVE"
+			_continue.tooltip_text = "" if saved else SeasonSave.last_error
+			return false
+		if not season.callv("record_player_result", human):
 			return false
 		_result_recorded = true
 	# Retry persistence without replaying the result or paying twice.
@@ -335,7 +355,8 @@ func ask_progression_season() -> void:
 		(
 			"Start a Working progression test season? An unfinished season is abandoned with no payout. "
 			+ "Club Bucks and history remain. New Working seasons earn Working Club Bucks rewards. "
-			+ "Roster, mastery/equipment physics and the partial shop remain test candidates."
+			+ "Roster, mastery/equipment physics and shop balance remain test candidates. "
+			+ "Other clubs play physical matches between rounds, with pause and saved retry."
 		),
 		begin_season.bind(-1, true)
 	)

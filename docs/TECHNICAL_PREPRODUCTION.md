@@ -1,5 +1,16 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Durable physical fixtures and atomic round publication, 2026-10-03
+
+SeasonPhysicalFixtures owns a version1 report archive, a replay cursor and pending human/evidence payload. Save46 explicitly maps to Build41 instead of altering historical build-to-save mappings. Older seasons never instantiate this resolver. SeasonSave.snapshot extracts serialization without writing; saved replay requires exact consumption of the committed archive and validates pending work through the same disposable projection.
+
+SeasonRoundSettlement rebuilds a candidate from the pre-round checkpoint, replays completed pending reports, commits the actual human evidence and discovers the next missing fixture. A failed/incomplete candidate is discarded. Discovery includes post-elimination semifinals and the neutral final, and binds final jobs to purchases committed after the semifinal results. All AI own-fixture W/L receipt maps must agree before publication. Existing stat-only policy2 shopping and base rewards remain the supported AI contract.
+
+Request hashes include the resolver, masked deterministic seed, field, fixture, quality, actual exported player/recipe/delivery resources, starting assignments and stamina. Report roster, recipe and starting workload bindings are independently checked. JSON parsing changed191.16000000000003 to191.16000000000005 in a real paid-upgrade fixture; workload binding therefore uses the existing exact JSON-normalized ClubCareer.same, rather than raw binary float equality or broad tolerances. Identity hashes and integer ledgers stay exact.
+
+SeasonRoundUI runs one isolated job at a time, displays actual clubs/score/inning, retains completed report checkpoints and exposes pause/failure/retry. A failed report write retains that completed report in memory for exact retry. A failed final write keeps the original season/ledgers and durable pending prefix; no partial next shop appears. Human outro holds remain: game end queues evidence, Continue begins round resolution. Restored pending rounds wait for explicit Resume. No mid-pitch suspension or global physics changes. Ordinary-season stamina resets remain; Doubleheader is unavailable until legal workload carry is separately integrated.
+
+
 ## Detached physical match jobs and report boundary, 2026-10-02
 
 PhysicalMatchRequest snapshots only fresh MatchState/team resources, retaining legal roles, exact recipes, stamina, held/scouting configuration and receipt IDs; duplicate identities and partial states are rejected. PhysicalMatchRunner owns a separate non-rendering SubViewport/World3D and pausable PitchBatLab. MatchAutomation routes both controllers without changing player ownership/camera predicates, keeps per-club BatterApproachModel instances and per-pitcher prior choices, and records actual successful release costs. Shared pitch-option selection moved into MatchLabSupport; PitchBatLab is975 lines.
@@ -62,7 +73,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.83
+**Version:** v0.1.84
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

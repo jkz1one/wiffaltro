@@ -1,5 +1,14 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Saved physical round integration amendment, 2026-10-03
+
+New Working seasons use physical-ai-v1 for every required offscreen fixture. Historical score-only seasons retain their saved resolver and scores. Save46 adds a separate version1 physical archive and durable pending-round checkpoint; Build41/Career21/opponent policy2 and frozen receipt/catalog contracts stay unchanged.
+
+The completed human game saves before leaving its normal ending sequence. Continue starts sequential real physical jobs. Completed reports save independently; pause/cancellation discards only the unfinished job. Recovery explicitly offers Resume/Retry. The human result, all required offscreen scores, own W/L wallets, surviving AI stat purchases and derived career settlement publish together from a disposable candidate after one validated atomic save. No shop is exposed midway and no second checkout follows human shopping.
+
+Reports bind scheduled fixture, seed, field, committed definitions, starting roles, recipes, AI quality and workload. Replay consumes saved evidence without running physics. Missing, duplicate, foreign or unused reports fail closed. Broader AI acquisition, event sponsorship, announcement/tactical policies and Doubleheader carry remain gated; storing physical evidence does not enable their whole contracts. No fabricated events or compensation income. All25 Gear/35 sponsors and five supplies remain implemented. Overall **~76%**, not release readiness; human visual/feel/hardware and final cohesive whole-game UI acceptance remain pending.
+
+
 ## Detached physical AI foundation amendment, 2026-10-02
 
 The Economyv24 shared-resolver recommendation now has an implemented foundation: fresh detached matches run both clubs through existing bounded pitching/batting controllers, real pitch/contact/Jolt/defense and MatchState rules. Each club retains its own observed pitch memory; actual events and paid per-pitcher stamina deductions produce validated standalone v1 reports. Intro/outro, detached presentation waits and offscreen sky/radiance allocation are omitted without changing global physics time or human flow.
@@ -58,7 +67,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.92
+**Version:** v0.4.93
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

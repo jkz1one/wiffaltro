@@ -358,6 +358,8 @@ func _gear_ui() -> void:
 	add_child(app)
 	await _frames()
 	app.begin_season(_two_bats(true).to_data().seed, true)
+	# Historical score-only fixture; physical rounds have separate integration coverage.
+	app.season.physical = null
 	for _pick in range(4):
 		app.choose_player(app.season.offers()[0])
 	_record(app.season)

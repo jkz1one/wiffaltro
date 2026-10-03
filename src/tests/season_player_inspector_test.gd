@@ -30,6 +30,8 @@ func _ready() -> void:
 
 func _draft_inspection() -> void:
 	_app.begin_season(61, true)
+	# Historical score-only fixture; physical rounds have separate integration coverage.
+	_app.season.physical = null
 	var id: String = _app.season.offers()[0]
 	_app.menu._select_draft(id)
 	await _frames()

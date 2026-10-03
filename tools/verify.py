@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--godot", default=os.environ.get("GODOT_BIN"))
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--only", action="append", default=[],
-                        help="Run one named scene check; repeat for a focused scope")
+                        help="Run named checks; physical playoff benchmark needs --only and --timeout 480")
     parser.add_argument("--rendered-ui", action="store_true",
                         help="Run shop/recruitment UI scenes on a native display and capture screens")
     args = parser.parse_args()
@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-physical-visible", [*base, "--fixed-fps", "60",
+                                             "res://src/tests/season_physical_visible_test.tscn"],
+                 "Wiffaltro physical visible checks passed:"),
+                ("season-physical-playoffs", [*base, "--fixed-fps", "60",
+                                              "res://src/tests/season_physical_playoffs_test.tscn"],
+                 "Wiffaltro physical playoff checks passed:"),
+                ("season-physical-round", [*ui_base, "--fixed-fps", "60",
+                                           "res://src/tests/season_physical_round_test.tscn", *ui_extra],
+                 "Wiffaltro physical round checks passed:"),
                 ("physical-match-runner", [*ui_base, "--fixed-fps", "60",
                                          "res://src/tests/physical_match_runner_test.tscn",
                                          "--", f"--physical-report-dir={output / 'physical-reports'}",
@@ -436,6 +445,9 @@ def main():
             if unknown:
                 raise RuntimeError("Unknown check(s): " + ", ".join(sorted(unknown)))
             for name, command, marker in checks:
+                # The 23-game throughput benchmark is explicit, outside the default scene scope.
+                if name == "season-physical-playoffs" and not args.only:
+                    continue
                 if args.only and name not in args.only:
                     continue
                 try:

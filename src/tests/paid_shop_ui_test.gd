@@ -33,6 +33,8 @@ func _exercise() -> void:
 	_check(not app._dialog.visible, "Cancel closes the new-season modal")
 	_check(app.season == null, "cancelling new-season warning preserves the current state")
 	app.begin_season(61, true)
+	# Historical score-only fixture; physical rounds have separate integration coverage.
+	app.season.physical = null
 	await _menu_bounds(app, "working-draft")
 	for _pick in range(4):
 		app.choose_player(app.season.offers()[0])

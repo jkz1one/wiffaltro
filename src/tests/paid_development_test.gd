@@ -240,6 +240,8 @@ func _season_and_ui() -> void:
 	var app: SeasonApp = SeasonApp.new()
 	add_child(app)
 	app.begin_season(61, true)
+	# Historical score-only fixture; physical rounds have separate integration coverage.
+	app.season.physical = null
 	for _pick in range(4):
 		app.choose_player(app.season.offers()[0])
 	_check(app.season.build != null and app.season.cash() == 0, "Working season starts at zero")

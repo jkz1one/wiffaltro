@@ -1,6 +1,6 @@
 # Detached physical AI match foundation
 
-This implements the shared event-producing resolver foundation recommended in Economy v24. It does **not** replace ordinary season results or enable broader AI acquisition. Build41/save45/Career21 and opponent policy2 remain intact. Whole-project estimate stays **~75%**, not release readiness.
+This describes the standalone shared event-producing resolver foundation recommended in Economy v24. The new Working-season consumer is now integrated in [SAVED_PHYSICAL_ROUNDS](SAVED_PHYSICAL_ROUNDS.md); the runner API itself still does not save, reward or settle. Broader AI acquisition remains gated. The original2026-10-02 checkpoint used Build41/save45/Career21; current physical seasons use save46. Overall is now**~76%**, not release readiness.
 
 `PhysicalMatchRunner` is a reusable Node. Add it to the tree, connect `finished(report)` and `failed(reason)`, then call `start(fresh_match, seed, field_id)`. A rejected start returns false without creating a job. An active job cannot be overwritten. `cancel()` frees its isolated world and emits no completed result. Removing the runner also removes its children. Consumers must never treat cancellation or failure as a scored fixture.
 
@@ -16,7 +16,7 @@ Validation checks exact field shapes, unique club identities, consecutive appear
 
 The foundation does not execute the proposed finite-pool sponsor announcement, tactical activation, recruitment or acquisition policies. Held copies are copied into the detached match without invented uses. The report is not a complete inventory/sponsor settlement contract. Broader AI eligibility stays gated until every included item's whole contract works in visible and offscreen matches. No flat income, price-to-strength mapping or fabricated box score fills the gap.
 
-Next integration must version saved AI fixture evidence and replay it without rerunning physics, schedule jobs with visible progress/cancellation/failure handling, settle each fixture exactly once into all club wallets and progression, preserve old score-only histories, and measure whole-round cost. Doubleheader additionally needs tested legal per-pitcher workload carry. Permanent player packs still require the unselected ownership/pack contract.
+The saved fixture consumer now versions/replays evidence without rerunning physics, schedules visible cancellable jobs and publishes one atomic round while preserving old score-only seasons. Read SAVED_PHYSICAL_ROUNDS for supported settlement scope and measured whole-round cost. Doubleheader additionally needs tested legal per-pitcher workload carry. Permanent player packs still require the unselected ownership/pack contract.
 
 Primary references consulted for implementation: Godot's [SubViewport](https://docs.godotengine.org/en/stable/classes/class_subviewport.html) and [Viewport](https://docs.godotengine.org/en/stable/classes/class_viewport.html) documentation for render targets, isolated World3D and GUI input. Engine4.7.2 execution tests verify the actual physics behavior rather than assuming render disabling stops or accelerates simulation.
 

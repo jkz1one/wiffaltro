@@ -131,7 +131,8 @@ func _process(_delta: float) -> void:
 func _blocked() -> bool:
 	if shop != null:
 		return shop._confirm.visible
-	if app._dialog.visible:
+	if (app._dialog.visible or (app.season != null and app.season.physical != null
+		and not app.season.physical.pending.is_empty())):
 		return true
 	for child: Node in app.menu.get_children():
 		if child is SeasonShopWindow and child.visible:
