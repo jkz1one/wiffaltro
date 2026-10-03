@@ -238,7 +238,7 @@ func record_player_result(
 	frozen: Array = []
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
-	if ((opponents != null and opponents._format == 3 and physical == null)
+	if ((opponents != null and opponents._format >= 3 and physical == null)
 		or (physical != null and not physical.projecting)
 		or fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs):
 		return false

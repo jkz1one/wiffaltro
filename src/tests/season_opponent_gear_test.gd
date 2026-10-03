@@ -126,9 +126,12 @@ func _saved_rounds() -> void:
 	SeasonSave.path = "user://opponent-gear-%d.json" % OS.get_process_id()
 	var app: SeasonApp = await _app()
 	app.begin_season(443, true)
+	# Historical Gear policy remains frozen; new Working UI is covered by mastery tests.
+	app.season.opponents._format = 3
+	_check(SeasonSave.save(app.season), "historical Gear draft checkpoint saves")
 	_check(SeasonSave.restore() != null, "empty draft Gear policy saves and restores")
 	_check(app.season.opponents._format == 3 and app.season.physical != null,
-		"ordinary Working UI selects Gear policy before draft")
+		"historical Gear policy selected before draft")
 	for pick in range(4):
 		app.choose_player(app.season.offers()[0])
 		_check(SeasonSave.restore() != null, "each Gear policy draft checkpoint restores")

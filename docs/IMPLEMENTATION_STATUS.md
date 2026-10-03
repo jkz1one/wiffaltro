@@ -1,5 +1,23 @@
 # Implementation Status
 
+## Paid AI pitch development, 2026-10-03
+
+AI policy4 adds paid Pitch Mastery and Round Out with the selected five-family
+ordinary stock/fixed pack. Pitching/defense clubs keep one saved fastball target,
+initial mastery goal3 and a legal later rotation, preferring6-Cash Round Out only
+for that exact lowest active target; otherwise8-Cash Mastery. Shared cap5, one wallet,
+ordinary seeded offers, qualified packs, bounded useful reroll and pre-human-shop
+ordering remain. Human checkout never retargets or grants growth. Pregame shows
+committed focus/level, Working goals and actual paid recipe history.
+
+Build41/new physical save48/Career21/policy4; historical Gear policy3 save47, physical
+policy1/2 save46 and Build41 score-only save45 remain compatible. Existing25/25 Gear,
+35/35 sponsors, five supplies, three abilities and one transformation remain complete.
+Overall**~78%**, not release readiness. AI lessons/sponsors/abilities/tactical/recruit
+and Doubleheader contracts, permanent player ownership/packs, higher Leagues/tiers,
+stadiums, latency, final integration and human visual/feel/hardware approval remain
+open. Read AI_PITCH_DEVELOPMENT and latest VERIFICATION.
+
 ## Paid opponent Gear market, 2026-10-03
 
 New Working AI clubs now acquire13 initial passive Gear through normal finite stock,

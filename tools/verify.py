@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-mastery", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_mastery_test.tscn", *ui_extra],
+                 "Wiffaltro opponent mastery checks passed:"),
+                ("season-opponent-mastery-visible", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_mastery_visible_test.tscn"],
+                 "Wiffaltro opponent mastery visible checks passed:"),
+                ("season-opponent-mastery-playoffs", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_mastery_playoffs_test.tscn"],
+                 "Wiffaltro physical playoff checks passed:"),
                 ("season-opponent-gear", [*ui_base, "--fixed-fps", "60",
                                           "res://src/tests/season_opponent_gear_test.tscn", *ui_extra],
                  "Wiffaltro opponent Gear checks passed:"),
@@ -458,7 +467,8 @@ def main():
                 raise RuntimeError("Unknown check(s): " + ", ".join(sorted(unknown)))
             for name, command, marker in checks:
                 # The 23-game throughput benchmark is explicit, outside the default scene scope.
-                if name in ["season-physical-playoffs", "season-opponent-gear-playoffs"] and not args.only:
+                if name in ["season-physical-playoffs", "season-opponent-gear-playoffs",
+                            "season-opponent-mastery-playoffs"] and not args.only:
                     continue
                 if args.only and name not in args.only:
                     continue

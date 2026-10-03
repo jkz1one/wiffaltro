@@ -111,7 +111,7 @@ func begin_season(seed_value: int = -1, working_progression: bool = false) -> vo
 	candidate.difficulty = 1
 	if working_progression:
 		candidate.physical = SeasonPhysicalFixtures.new()
-		candidate.opponents._format = 3
+		candidate.opponents._format = 4
 	if working_progression or (previous != null and previous.career != null):
 		var club: ClubCareer = ClubCareer.new()
 		if previous != null and previous.career != null:
@@ -354,11 +354,10 @@ func _checkpoint() -> bool:
 func ask_progression_season() -> void:
 	_confirm(
 		(
-			"Start a Working progression test season? An unfinished season is abandoned with no payout. "
-			+ "Club Bucks and history remain. New Working seasons earn Working Club Bucks rewards. "
-			+ "Roster, mastery/equipment physics and shop balance remain test candidates. "
-			+ "Other clubs play physical matches between rounds, with pause and saved retry. "
-			+ "They buy stat development and initial Gear with their own match rewards."
+			"Start a Working test season? An unfinished season is abandoned without payout. "
+			+ "Club Bucks and history remain; new rewards and balance are Working. "
+			+ "Other clubs play saved physical matches and buy stat/pitch development "
+			+ "and initial Gear with their own rewards."
 		),
 		begin_season.bind(-1, true)
 	)

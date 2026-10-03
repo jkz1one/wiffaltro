@@ -28,7 +28,8 @@ static func snapshot(season: SeasonState) -> Dictionary:
 	if season.opponents != null:
 		data["opponents"] = season.opponents.to_data()
 	if season.physical != null:
-		data.version = 47 if season.opponents != null and season.opponents._format == 3 else 46
+		var policy: int = season.opponents._format if season.opponents != null else 0
+		data.version = 44 + policy if policy >= 3 else 46
 		data["physical"] = season.physical.to_data()
 	var career: ClubCareer
 	if season.career != null:
@@ -97,7 +98,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 47) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 48) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -118,7 +119,7 @@ static func _decode(value: Variant) -> SeasonState:
 		"career",
 		"physical"
 	]
-	if ((data.version == 46 or data.version == 47)) != data.has("physical"):
+	if (data.version >= 46) != data.has("physical"):
 		return null
 	if data.has("physical") and not data.has("opponents"):
 		return null
@@ -141,9 +142,11 @@ static func _decode(value: Variant) -> SeasonState:
 		int(data["seed"]), data["version"] == 1, data["version"] >= 5, data.has("opponents")
 	)
 	if data.has("opponents"):
-		if not _integer(data.opponents.get("policy"), 1, 3):
+		if not _integer(data.opponents.get("policy"), 1, 4):
 			return null
-		if (data.version == 47) != (data.opponents.policy == 3):
+		if (data.version >= 47) != (data.opponents.policy >= 3):
+			return null
+		if data.version >= 47 and data.opponents.policy != data.version - 44:
 			return null
 		# Choose the historical allocator before replaying even a partially completed draft.
 		season.opponents._format = int(data.opponents.policy)
@@ -171,7 +174,7 @@ static func _decode(value: Variant) -> SeasonState:
 	var restored: SeasonBuild
 	if data.version >= 5:
 		var build_version: int = (
-			41 if (data.version == 46 or data.version == 47) else int(data.version) - 4)
+			41 if data.version >= 46 else int(data.version) - 4)
 		if not data.get("build") is Dictionary or data.build.get("version") != build_version:
 			return null
 		var roster: Array[String] = []

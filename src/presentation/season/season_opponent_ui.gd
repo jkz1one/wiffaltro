@@ -14,7 +14,7 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 			card,
 			(
 				("Opponent paid build • %s • Cash %d • %d purchases"
-				if season.opponents._format == 3
+				if season.opponents._format >= 3
 				else "Opponent paid development • %s • Cash %d • %d purchased steps")
 				% [data.profile, data.cash, data.purchases]
 			)
@@ -26,15 +26,17 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		(
 			"Purchases are committed before your shop. This opponent spends match rewards "
 			+ ("on stat development and initial Gear, using one wallet."
-				if season.opponents._format == 3 else "on Contact, Power, Fielding and Pitching.")
+				if season.opponents._format >= 3 else "on Contact, Power, Fielding and Pitching.")
 		)
 	)
-	if season.physical != null:
+	if season.opponents._format >= 4:
+		SeasonOpponentMasteryUI.preview(card, season.opponents.clubs[str(index)])
+	elif season.physical != null:
 		SeasonPages.wrapped(card, "Other clubs play physical matches between rounds. "
 			+ ("AI offers include 13 initial Gear and four stat cards. Sponsors and supplies remain gated."
-				if season.opponents._format == 3
+				if season.opponents._format >= 3
 				else "AI shopping supports paid stat development; Gear and sponsors remain gated."))
-	if season.opponents._format == 3:
+	if season.opponents._format >= 3:
 		SeasonOpponentGearUI.equipment(card, season.opponents.clubs[str(index)].build)
 	if season.opponents._format >= 2:
 		SeasonPages.wrapped(card, "Two pitching options • Starting roles shown below")
@@ -56,6 +58,9 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		)
 		SeasonPlayerCard.inspection_button(card, player, "INSPECT " + player.display_name)
 	for row: Dictionary in data.decisions.slice(maxi(0, data.decisions.size() - 3)):
+		if row.stat == "mastery":
+			SeasonOpponentMasteryUI.purchase(card, row)
+			continue
 		if row.stat == "gear":
 			SeasonPages.wrapped(card, "Bought %s • team %s • %d Cash • %s" % [
 				SeasonGearCatalog.item(row.item).name, SeasonGearCatalog.item(row.item).slot,

@@ -106,6 +106,9 @@ static func command(build: SeasonBuild, op: String, fields: Dictionary = {}) -> 
 
 
 static func checkout(build: SeasonBuild, club: Dictionary, game: int) -> void:
+	if build._market == 3:
+		SeasonOpponentMastery.checkout(build, club, game)
+		return
 	if build._market == 2:
 		SeasonOpponentGear.checkout(build, club, game)
 		return

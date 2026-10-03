@@ -13,8 +13,8 @@ func initialize(season: SeasonState) -> void:
 		roster.assign(season.teams[index].roster)
 		var seed_value: int = (season.season_seed + index * 92821) & 0x7fffffff
 		var build: SeasonBuild = SeasonBuild.new(seed_value, roster)
-		build._format = 41 if _format == 3 else 19
-		build._market = 2 if _format == 3 else 1
+		build._format = 41 if _format >= 3 else 19
+		build._market = _format - 1 if _format >= 3 else 1
 		clubs[str(index)] = {
 			"build": build,
 			"profile": SeasonOpponentPolicy.PROFILES[index],
@@ -22,6 +22,10 @@ func initialize(season: SeasonState) -> void:
 			"cursor": 0,
 			"decisions": []
 		}
+
+		if _format >= 4:
+			clubs[str(index)]["primary"] = SeasonOpponentMastery.primary(
+				build, clubs[str(index)].roles.pitcher)
 
 
 func settle(fixtures: Array, survivors: Array) -> void:
@@ -65,6 +69,9 @@ func to_data() -> Dictionary:
 	var data: Dictionary = {"policy": _format, "clubs": rows}
 	if _format >= 2:
 		data["draft_order"] = draft_order.duplicate()
+	if _format >= 4:
+		for key: String in clubs:
+			rows[key]["primary"] = clubs[key].primary
 	return data
 
 

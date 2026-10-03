@@ -1,5 +1,24 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## AI mastery policy and save48, 2026-10-03
+
+SeasonOpponentMastery owns market3's five legal development families, shared fixed
+pack and exact primary-fastball goals/rotation. Policy4 stores a derived initial
+primary recipe with club roles; replay validates the same recipe before/after paid
+growth. Existing mastery then stable ID selects OF/ON/SN; never generic Eephus.
+Round Out/Mastery targets are revalidated through shared transactions, actual6/8
+prices and cap5. One own-fixture wallet and conservative pack/reroll rules remain.
+
+SeasonOpponents selects Build41/market3 for policy4; historical policy3 remains
+Build41/market2 and1/2 retain Build19/market1. Save48 explicitly binds policy4/Build41
+plus physical evidence, selecting policy before partial-draft replay. Save47/46/45
+mappings and Career21 remain unchanged. Physical requests and actual controllers use
+shared committed mastery resources; natural assets stay isolated. New read-only
+focus/purchase disclosure uses the existing themed/wrapped preparation panels.
+SeasonBuild remains921 lines; no saved fields added there. AI_PITCH_DEVELOPMENT and
+VERIFICATION record the contract, primary references, exact review/test scope and
+remaining category/human acceptance gates.
+
 ## Versioned paid AI Gear market, 2026-10-03
 
 SeasonOpponentGear owns market2's13 fixed passive Gear identities, seeded ordinary
@@ -108,7 +127,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.86
+**Version:** v0.1.87
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

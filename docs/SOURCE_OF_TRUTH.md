@@ -1,5 +1,24 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Paid opponent pitch-development amendment, 2026-10-03
+
+New Working seasons select policy4 before drafting. The supported AI market now
+includes Pitch Mastery/Round Out alongside four stat cards and13 initial Gear.
+Development uses the selected five-family draw and fixed three-family pack, with
+pitch variants splitting one family. Pitching/defense clubs save a primary ordinary
+fastball before shopping; initial mastery goal3 and its later rotation use legal
+shared paid targets/cap5. Round Out6 is preferred only when it can raise that exact
+lowest active target; otherwise use available Mastery8. No free growth/teaching.
+
+Actual-price purchases, one competing reward wallet, qualified packs, bounded paid
+reroll and surviving-club shop ordering remain strict. Pregame exposes the committed
+pitcher/recipe/level, Working goals and actual paid history. Policy4/market3/save48
+explicitly maps Build41; Career21 and historical policies/markets/saves remain frozen.
+Human unlocks/stock, centered Equipped and safe live sales remain intact. All25 Gear/
+35 sponsors remain implemented. AI lessons and event/ability/tactical/recruit contracts
+remain gated. See AI_PITCH_DEVELOPMENT and VERIFICATION. Overall**~78%**, not release
+readiness. Human/final whole-UI/hardware/feel acceptance and latency remain open.
+
 ## Paid opponent Gear amendment, 2026-10-03
 
 New Working seasons select policy3 before drafting: the supported AI market adds
@@ -103,7 +122,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.95
+**Version:** v0.4.96
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

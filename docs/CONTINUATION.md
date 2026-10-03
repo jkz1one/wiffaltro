@@ -1,5 +1,60 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent pitch development, 2026-10-03
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,
+parent aec33c26ce93f70554ac145c7fe03f82c1e2ac8a. Use git log -1 for the pushed SHA.
+Build41/new Working physical save48/Career21/opponent policy4 (market3).
+Historical Gear policy3/save47, physical policy1/2/save46 and Build41 score-only
+save45 remain frozen. Human content remains25 Gear/35 sponsors/five supplies/three
+abilities/one transformation. Overall **~78%**, not release readiness.
+SOTv0.4.96/Technicalv0.1.87. Read AI_PITCH_DEVELOPMENT and latest VERIFICATION first.
+Main remains f1dc209b6de11e45aedbd1568fa1b2d841dd2420; recheck before future work.
+
+Read current planning Economy24, Players/Pitches17 and Current Decisions31.
+Policy4 adds Pitch Mastery and Round Out to four stat cards and13 initial Gear.
+Five equally weighted legal development families; pitch variants split one family;
+fixed8-Cash packs draw up to three distinct families and never both pitch variants.
+Keep normal25/20 development/Gear category weights, diversity repair and equal Gear
+slot subweights. No forced preferred stock, concealed pack/future reroll peeking.
+
+Pitching/defense clubs commit one actual primary fastball before shopping, selected
+from active OF/ON/SN by existing mastery then stable recipe ID. First goals: primary
+Pitching4, that recipe Lv3, primary-fielder Fielding4, secondary Pitching3; then the
+same four-way saved rotation. Earliest legal affordable objective first. Round Out6
+serves only the exact primary when among lowest active levels; otherwise available
+Mastery8. Both use shared paid targets/cap5 and actual committed match resources;
+no free growth, lessons or redirection. Qualified pack requires three distinct legal
+objective families; Gear follows development; one own18/12 W/L wallet and at most
+one genuinely affordable useful paid reroll. Surviving clubs shop before human.
+
+Pregame shows a read-only shared themed pitching-focus panel with actual player,
+recipe/level/cap, Working goals, card prices and exact paid mastery history. Natural
+pitch resources stay unchanged. Shortened Working confirmation keeps its buttons
+in the viewport. Native rendering is automated evidence, never human acceptance.
+New helpers: SeasonOpponentMastery, SeasonOpponentMasteryUI. SeasonBuild remains921
+lines. Preserve centered Equipped, immediate live-sale ownership/refunds and safe
+next-batter effect retirement. Preserve repository blueprint byte-identical to main.
+
+Native055008575890Z passes17/17 with70 captures and six complete AI games; final
+native060118043236Z passes10/10 with four games and8 captures. Five inspected
+unedited images are preserved under docs/reviews/20261003-opponent-mastery.
+Headless053603291919Z is13/14: its career dialog issue is fixed and passes native.
+Earlier focused053300537845Z is10/10. Full scope/failures remain in VERIFICATION. The
+full policy4 season passes23 actual AI games with6 paid mastery purchases, exact
+round replay and career35 paid once. Final source/assets/tests/project/runner count628
+is frozen through final verification/publication. Historical policy3 Gear and old
+physical-round fixtures remain separately tested. Original local commit is preserved
+as checkpoint/opponent-mastery-before-api-publish. Do not hide earlier failures.
+
+Next: another complete supported AI shop contract before a larger system, using
+current planning. AI lessons/sponsors/abilities/tactical/recruit and Doubleheader
+remain gated; mastery support does not authorize those event/announcement contracts.
+Permanent player-card ownership/packs, higher Leagues/tiers, stadiums, physical-round
+latency, final integration/full-suite reliability and cohesive whole-UI polish with
+actual human visual/feel/hardware acceptance remain open. No merge/deploy/force-push
+or agents; routine commits and engineering-branch pushes already authorized.
+
 ## Current checkpoint: paid opponent Gear, 2026-10-03
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,

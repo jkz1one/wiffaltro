@@ -1,5 +1,71 @@
 # Fast verification and playtest records
 
+## Paid opponent pitch development verification, 2026-10-03
+
+Initial focused `20261003T053300537845Z`: **10/10**, seven common gates plus mastery,
+paid-development and core regressions. Earlier lint checks caught two overlong test
+lines; both were corrected without changing the verification gates. Mastery units
+expose all six development identities and both paid pitch variants across96 seeds;
+all48 players have a legal ordinary primary fastball. They check family-distinct packs,
+exact lowest-active Round Out6 versus flexible Mastery8, actual useful-reroll prices,
+paid receipts/wallets, sold-stock rollback, cap filtering and exact build replay.
+Four real saved AI games acquire two mastery upgrades; all partial drafts restore
+save48/Build41/policy4, and human checkout never causes opponent counter-shopping.
+
+Long headless `20261003T053603291919Z`: **13/14** overall. New mastery-visible,
+mastery-playoffs, historical policy3 Gear, opponent draft/opponents and core scenes
+pass. The full policy4 season plays **23 actual AI games** (20 regular, both semis,
+neutral final):3291 releases,4367.55 simulated seconds,364,364 wall milliseconds,
+1,492,131 saved bytes and six paid mastery purchases. Every round reloads exact
+journals, requests, receipts and derived career35 once. Synthetic human losses only
+schedule that benchmark. The managed-visible fixture plays seven complete physical
+games, including one actual managed human game with paid AI mastery and exact
+settlement. Historical Gear adds four actual games: **34 complete physical games**
+across these three passing scenes. These are functional fixtures, not balance or
+hardware-latency evidence.
+
+That run catches an oversized Working confirmation dialog in career UI: the expanded
+shop description put its buttons below the viewport, causing click and downstream
+career assertions to fail. The description is now concise while retaining Working
+status, abandonment/no-payout, retained history/money, physical matches and paid
+AI shop disclosure. No click/error/required-marker gate was weakened. A first native
+command (`20261003T054941018173Z`) fails scope validation because it used the unknown
+name player-inspector; the corrected name is season-player-inspector. No scenes ran
+in that rejected scope. The subsequent final rendered run is recorded below.
+
+Rendered `20261003T055008575890Z`: **17/17**, seven common gates plus mastery,
+historical physical-round, player inspector, live sales, Equipped/loadout, career,
+shop quotes, paid shop, paid development and core. It plays six complete actual AI
+games and saves70 native captures. Career replacement/cancel/history/payout UI now
+passes. Native runs use X11/OpenGL Compatibility with Mesa llvmpipe and Dummy audio;
+the unsupported-V-Sync driver warning remains, with no engine/script errors.
+The first mastery captures correctly show the saved Lv2 fastball, but expose
+dense explanatory copy and capture only the top of the focus panel. Copy is now
+shorter and describes player-facing training, Gear availability, cap and target rules;
+follow-up captures scroll to the full focus panel and actual paid receipt. Acquisition,
+physics and save behavior are unchanged. The final affected-scene native rerun follows.
+
+Final native `20261003T060118043236Z`: **10/10**, seven common gates plus final
+mastery, career and core; four actual physical AI games, two paid mastery upgrades
+and8 captures. The revised full focus text and actual8-Cash mastery receipt were
+inspected at1280×720 and the focus at700×400. Five unedited images are preserved in
+`docs/reviews/20261003-opponent-mastery`, including the earlier inspected shop and
+in-game Equipped lightboxes. All628 final source/test/asset/project/runner files
+remain unchanged through this final run and publication. The earlier17/17 native
+suite covers the unchanged surrounding systems. Complete headless scenes show no
+engine warnings/errors; native has only the documented unsupported-V-Sync warning.
+Repository blueprint still matches main byte-for-byte; fetched main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420. Overall**~78%**, not release readiness.
+
+The final source also strengthens mastery caps/existing-level selection, ordinary
+primary tamper rejection, natural-resource isolation and actual focus/small-viewport
+checks, and labels Round Out at8 as a pack pick. Those test/leaf-UI additions follow
+the full benchmark; production acquisition/save/physics are unchanged. The only
+later production change shortens the career confirmation text. Targeted scope is
+not the full suite. Historical full-suite/physical-round early exits, costly physical
+simulation, hardware/native-performance and whole-game human visual/feel acceptance
+remain open. Working values have not been promoted to Approved.
+
 ## Paid opponent Gear verification, 2026-10-03
 
 Long headless `20261003T045033540905Z`: **11/13** overall. The new Gear market,
