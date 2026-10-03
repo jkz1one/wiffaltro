@@ -1,6 +1,6 @@
 class_name SeasonOpponentMarket
 extends RefCounted
-## Working v1 capability mask: only four broad-stat cards have an offscreen mapping.
+## Market1 remains frozen. Market2 adds the initial passive Gear contract.
 
 
 static func cards(build: SeasonBuild) -> Array[String]:
@@ -13,6 +13,8 @@ static func cards(build: SeasonBuild) -> Array[String]:
 
 
 static func offers(build: SeasonBuild, roll: int) -> Dictionary:
+	if build._market == 2:
+		return SeasonOpponentGear.offers(build, roll)
 	var pool: Array[String] = cards(build)
 	var result: Dictionary = {}
 	var rng: RandomNumberGenerator = build._rng(roll)

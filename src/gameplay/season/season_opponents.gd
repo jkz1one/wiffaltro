@@ -1,6 +1,6 @@
 class_name SeasonOpponents
 extends RefCounted
-## Policy2 adds Base roster allocation; policy1's paid broad-stat market stays frozen.
+## Policy3 adds paid passive Gear. Historical policies and markets stay frozen.
 
 var draft_order: Array[int] = []
 var clubs: Dictionary = {}
@@ -13,8 +13,8 @@ func initialize(season: SeasonState) -> void:
 		roster.assign(season.teams[index].roster)
 		var seed_value: int = (season.season_seed + index * 92821) & 0x7fffffff
 		var build: SeasonBuild = SeasonBuild.new(seed_value, roster)
-		build._format = 19
-		build._market = 1
+		build._format = 41 if _format == 3 else 19
+		build._market = 2 if _format == 3 else 1
 		clubs[str(index)] = {
 			"build": build,
 			"profile": SeasonOpponentPolicy.PROFILES[index],

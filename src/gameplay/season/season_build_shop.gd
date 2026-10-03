@@ -3,7 +3,7 @@ extends RefCounted
 
 
 static func offers(build: SeasonBuild, rerolls: int) -> Dictionary:
-	if build._market == 1:
+	if build._market != 0:
 		return SeasonOpponentMarket.offers(build, rerolls)
 	if build._format >= 3 and build._visit.number >= build._gear_from:
 		return SeasonGearCatalog.offers(

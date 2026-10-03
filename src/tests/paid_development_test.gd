@@ -242,6 +242,7 @@ func _season_and_ui() -> void:
 	app.begin_season(61, true)
 	# Historical score-only fixture; physical rounds have separate integration coverage.
 	app.season.physical = null
+	app.season.opponents._format = 2
 	for _pick in range(4):
 		app.choose_player(app.season.offers()[0])
 	_check(app.season.build != null and app.season.cash() == 0, "Working season starts at zero")

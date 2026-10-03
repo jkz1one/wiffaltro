@@ -361,6 +361,7 @@ func _insurance_ui(season: SeasonState) -> void:
 	app.begin_season(9124, true)
 	# Historical score-only fixture; physical rounds have separate integration coverage.
 	app.season.physical = null
+	app.season.opponents._format = 2
 	_check(
 		(
 			app.season.phase == SeasonState.Phase.DRAFT

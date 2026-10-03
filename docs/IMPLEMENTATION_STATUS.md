@@ -1,5 +1,22 @@
 # Implementation Status
 
+## Paid opponent Gear market, 2026-10-03
+
+New Working AI clubs now acquire13 initial passive Gear through normal finite stock,
+real paid transactions and authored slot preferences, using the same reward wallet
+as stat development. Policy3/market2 supports ordinary weighted draws, diversity
+repair, no forced stock/sidegrades, a bounded legal reroll, exact receipts and shared
+Gear effects in physical fixtures. Pregame discloses committed slots, paid costs,
+item status/effect and the supported pool before human checkout. Existing25/25 Gear,
+35/35 sponsors, five supplies, three abilities and one transformation remain complete.
+
+Build41/new physical save47/Career21; old physical policy1/2 saves46 and historical
+score-only saves45 unchanged. Overall**~77%**, not release readiness. AI sponsors,
+lessons, abilities, tactical/recruit/mastery and Doubleheader contracts remain gated;
+permanent player-card ownership/packs, higher Leagues/tiers, stadium progression,
+physical round latency, final integration and human visual/feel/hardware acceptance
+remain open. Read AI_GEAR_MARKET and the latest VERIFICATION entry.
+
 ## Offscreen visual hot-path reduction, 2026-10-03
 
 Saved physical AI jobs skip invisible recurring presentation work and dynamic trace

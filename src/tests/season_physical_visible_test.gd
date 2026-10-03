@@ -3,6 +3,7 @@ extends "res://src/tests/live_match_test.gd"
 
 const RoundFixtures = preload("res://src/tests/season_physical_round_test.gd")
 var _app: SeasonApp
+var _prior_results: int = 0
 
 
 func _ready() -> void:
@@ -87,7 +88,8 @@ func _check_outro_and_restart(lab: PitchBatLab) -> void:
 	_check(_app._result_recorded,
 		"game end automatically queues evidence without granting a partial round")
 	_check(_app.lab == lab and not _app.round_ui._working
-		and not _app.round_ui.shade.visible and _app.season.player_results.is_empty(),
+		and not _app.round_ui.shade.visible
+		and _app.season.player_results.size() == _prior_results,
 		"completed game stays on its original outro until Continue")
 	var restored: SeasonState = SeasonSave.restore()
 	_check(restored != null and restored.physical.pending.human[0] == _app._fixture_id,

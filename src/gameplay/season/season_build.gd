@@ -498,7 +498,7 @@ func _apply(command: Dictionary) -> String:
 			"cards":
 			(
 				SeasonOpponentMarket.pack(self)
-				if _market == 1
+				if _market != 0
 				else DevelopmentShopCatalog.pack(_book, _roster, _rng(-1))
 			),
 			"pack_status": "sealed"

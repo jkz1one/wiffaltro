@@ -1,5 +1,23 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Versioned paid AI Gear market, 2026-10-03
+
+SeasonOpponentGear owns market2's13 fixed passive Gear identities, seeded ordinary
+25/20 supported-category draw, equal slot subweights and category repair. Policy3
+routes shared paid development/pack transactions first, then authored empty-slot
+Gear preferences. Real equip receipts and decision journals share the own-fixture
+wallet; no replacement or free items. At most one reroll remains affordability
+bound without reading future stock or concealed cards.
+
+SeasonOpponents initializes policy3 clubs with Build41/market2; historical clubs
+retain Build19/market1. SeasonSave47 explicitly maps to Build41 and requires policy3
+plus physical evidence; save46 retains old physical policies. Numeric comparisons
+handle parsed JSON versions. All drafts, builds, receipts and physical round results
+replay through existing atomic projection and career rebuild. Read-only opponent
+Gear panels use the shared player-card/theme/effect presentation. Career21 and
+human sale/runtime boundary contracts remain unchanged. AI_GEAR_MARKET documents
+scope and primary references; VERIFICATION records rendered and full-season evidence.
+
 ## Physical presentation hot path, 2026-10-03
 
 MatchAutomation.presented selects ordinary presentation for every human lab and an
@@ -90,7 +108,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.85
+**Version:** v0.1.86
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

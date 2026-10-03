@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-gear", [*ui_base, "--fixed-fps", "60",
+                                          "res://src/tests/season_opponent_gear_test.tscn", *ui_extra],
+                 "Wiffaltro opponent Gear checks passed:"),
+                ("season-opponent-gear-visible", [*base, "--fixed-fps", "60",
+                                                 "res://src/tests/season_opponent_gear_visible_test.tscn"],
+                 "Wiffaltro opponent Gear visible checks passed:"),
+                ("season-opponent-gear-playoffs", [*base, "--fixed-fps", "60",
+                                                  "res://src/tests/season_opponent_gear_playoffs_test.tscn"],
+                 "Wiffaltro physical playoff checks passed:"),
                 ("physical-match-equivalence", [*ui_base, "--fixed-fps", "60",
                                                "res://src/tests/physical_match_equivalence_test.tscn"],
                  "Wiffaltro physical equivalence checks passed:"),
@@ -449,7 +458,7 @@ def main():
                 raise RuntimeError("Unknown check(s): " + ", ".join(sorted(unknown)))
             for name, command, marker in checks:
                 # The 23-game throughput benchmark is explicit, outside the default scene scope.
-                if name == "season-physical-playoffs" and not args.only:
+                if name in ["season-physical-playoffs", "season-opponent-gear-playoffs"] and not args.only:
                     continue
                 if args.only and name not in args.only:
                     continue

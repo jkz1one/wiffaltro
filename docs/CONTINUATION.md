@@ -1,5 +1,50 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent Gear, 2026-10-03
+
+Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,
+parentcf761dae9f207f9363d39cc61109097ab6a87d8b. Use git log -1 for the pushed SHA.
+Build41/new Working physical save47/Career21/opponent policy3 (market2).
+Historical physical policy1/2 saves46 and Build41 score-only saves45 remain intact.
+All25 Gear/35 sponsors,five supplies,three abilities and one transformation remain
+implemented. Overall**~77%**, not release readiness. SOTv0.4.95/Technicalv0.1.86.
+
+Read AI_GEAR_MARKET and latest VERIFICATION before making changes. Current planning
+read this slice: Economy24, Current Decisions31, Equipment/Sponsors18. AI stock
+contains13 fixed initial passive Gear, four legal stat families and the prior stat
+pack. Normal25/20 category weights/equal eligible slot subweights/category repair;
+no forced stock. Ranked development and qualifying pack precede named preferred
+Gear for empty intended slots. One own W/L wallet, real paid receipts, no sidegrades,
+at most one affordable useful reroll without hidden stock/pack peeking. Gear effects
+and committed definitions are shared across visible/offscreen physical fixtures.
+Pregame shows read-only slots, actual paid costs/status/effects before human shop.
+New policy is chosen before drafts; old policies/receipts/catalogs remain frozen.
+
+Final focused headless050030378987Z passes13/13 with12 complete physical games.
+Native050444825149Z passes20/20 with90 captures and six actual AI games. Long
+045033540905Z passes the full23-AI-game season (3114 releases,341.50 wall seconds,
+eight paid Gear purchases), career/core and market scene; its overall11/13 includes
+corrected managed-fixture assumptions and an old marker-less round exit. The old
+round passes the final native rerun. Preserve all failures in VERIFICATION. All620
+final source files stay frozen through publication; three inspected native images
+are saved. Original local commit is preserved as checkpoint/opponent-gear-before-api-publish.
+Final whole-suite/hardware/human acceptance is still pending.
+Source helpers: SeasonOpponentGear, SeasonOpponentGearUI. SeasonBuild remains921
+lines. Save47 explicitly maps Build41 and requires policy3 plus physical evidence;
+JSON numeric versions use numeric comparisons. New policy3 cannot use score-only
+settlement. Preserve centered Equipped and immediate live-sale refunds/ownership
+with next-batter effect retirement. Keep repository blueprint byte-identical to main.
+
+Next: choose another complete supported AI acquisition/use contract from current
+planning, preferably bounded shop work before permanent player-card systems. AI
+sponsors/lessons/abilities/tacticals/recruit/mastery and Doubleheader remain gated.
+Do not infer an inventory/event/announcement contract from passive Gear support.
+Physical round latency remains costly. Permanent ownership/packs, higher Leagues/
+tiers, stadiums, final integration, full-suite reliability and cohesive whole-UI
+polish plus actual human visual/feel/hardware acceptance remain open. Native
+rendered automation is not human acceptance. No merge/deploy/force-push/agents;
+routine commits and engineering-branch pushes are already authorized.
+
 ## Current checkpoint: physical presentation cost, 2026-10-03
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,

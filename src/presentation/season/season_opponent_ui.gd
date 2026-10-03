@@ -13,7 +13,9 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		. wrapped(
 			card,
 			(
-				"Opponent paid development • %s • Cash %d • %d purchased steps"
+				("Opponent paid build • %s • Cash %d • %d purchases"
+				if season.opponents._format == 3
+				else "Opponent paid development • %s • Cash %d • %d purchased steps")
 				% [data.profile, data.cash, data.purchases]
 			)
 		)
@@ -23,12 +25,17 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		card,
 		(
 			"Purchases are committed before your shop. This opponent spends match rewards "
-			+ "on Contact, Power, Fielding and Pitching."
+			+ ("on stat development and initial Gear, using one wallet."
+				if season.opponents._format == 3 else "on Contact, Power, Fielding and Pitching.")
 		)
 	)
 	if season.physical != null:
 		SeasonPages.wrapped(card, "Other clubs play physical matches between rounds. "
-			+ "AI shopping currently supports paid stat development; Gear and sponsors remain gated.")
+			+ ("AI offers include 13 initial Gear and four stat cards. Sponsors and supplies remain gated."
+				if season.opponents._format == 3
+				else "AI shopping supports paid stat development; Gear and sponsors remain gated."))
+	if season.opponents._format == 3:
+		SeasonOpponentGearUI.equipment(card, season.opponents.clubs[str(index)].build)
 	if season.opponents._format >= 2:
 		SeasonPages.wrapped(card, "Two pitching options • Starting roles shown below")
 	for id: String in season.teams[index].roster:
@@ -49,6 +56,11 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		)
 		SeasonPlayerCard.inspection_button(card, player, "INSPECT " + player.display_name)
 	for row: Dictionary in data.decisions.slice(maxi(0, data.decisions.size() - 3)):
+		if row.stat == "gear":
+			SeasonPages.wrapped(card, "Bought %s • team %s • %d Cash • %s" % [
+				SeasonGearCatalog.item(row.item).name, SeasonGearCatalog.item(row.item).slot,
+				row.paid, row.reason])
+			continue
 		SeasonPages.wrapped(
 			card,
 			(

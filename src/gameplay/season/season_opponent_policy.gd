@@ -106,6 +106,9 @@ static func command(build: SeasonBuild, op: String, fields: Dictionary = {}) -> 
 
 
 static func checkout(build: SeasonBuild, club: Dictionary, game: int) -> void:
+	if build._market == 2:
+		SeasonOpponentGear.checkout(build, club, game)
+		return
 	if not build.commit(command(build, "open")).ok:
 		return
 	for step in range(100):

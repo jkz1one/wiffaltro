@@ -35,6 +35,7 @@ func _exercise() -> void:
 	app.begin_season(61, true)
 	# Historical score-only fixture; physical rounds have separate integration coverage.
 	app.season.physical = null
+	app.season.opponents._format = 2
 	await _menu_bounds(app, "working-draft")
 	for _pick in range(4):
 		app.choose_player(app.season.offers()[0])

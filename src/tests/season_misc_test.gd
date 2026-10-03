@@ -384,6 +384,7 @@ func _misc_ui(items: Dictionary = SeasonGearCatalog.MISC_ITEMS) -> void:
 		app.begin_season(_seed_for(id), true)
 		# Historical score-only fixture; physical rounds have separate integration coverage.
 		app.season.physical = null
+		app.season.opponents._format = 2
 		for _pick in range(4):
 			app.choose_player(app.season.offers()[0])
 		_record(app.season)

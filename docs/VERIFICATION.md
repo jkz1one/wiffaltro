@@ -1,5 +1,81 @@
 # Fast verification and playtest records
 
+## Paid opponent Gear verification, 2026-10-03
+
+Long headless `20261003T045033540905Z`: **11/13** overall. The new Gear market,
+complete Gear playoff season, career and core scenes pass. The complete season
+runs **23 actual AI games** (20 regular, both semifinals and neutral final),3114
+releases,4079.53 simulated seconds,341,503 wall milliseconds and1,422,462 saved
+bytes. Eight paid Gear purchases reconcile against actual own W/L rewards and the
+same wallet as development/rerolls. Every round reloads exact journals, receipts,
+physical evidence and derived35 career payout once. Synthetic human losses only
+schedule this benchmark; AI games use actual physical controllers. The cost remains
+substantial and is not a hardware/release-latency or balance comparison.
+
+That run retains two failures: the first new Gear-visible fixture incorrectly
+assumed its next opponent owned Gear after exactly two rounds and reused an outro
+assertion that assumed no earlier results. The fixture now waits for a genuine paid
+Gear owner and binds the prior-result count. The older physical-round scene exits0
+without its required marker or engine error; it is not counted as passed. Its
+historical intermittent early-exit limitation remains recorded. Initial lint/parser
+and test-helper failures and a JSON float-versus-integer membership bug were fixed;
+explicit numeric save-version checks now preserve exact decoded mapping. No marker,
+error gate or ledger/request comparison was weakened.
+
+The market contract scene exposes all13 initial Gear and purchases all six distinct
+authored preferences across96 deterministic seeds/profiles. Every initial Gear gets
+an actual generated ordinary offer, paid receipt, committed team definition and
+exact journal replay. Sold stock/failed duplicate transactions leave state unchanged;
+occupied slots never get replaced. New Working UI selects policy3 before every draft
+checkpoint; four complete physical AI games acquire Gear and replay exact saves.
+Changing version, policy, market or receipt prefix is rejected. Human shop does not
+cause opponent counter-shopping. Native layout extensions and the visible-fixture
+correction follow the long benchmark; its production policy/physics are unchanged.
+
+Final headless `20261003T050030378987Z`: **13/13**, seven common gates plus Gear
+visible, old physical visible, live sales, live old-policy opponents, live Misc and
+core. **Twelve complete actual games**: new policy3's genuine paid-Gear opponent
+appears after one real two-AI-game preparation round, then its106-pitch managed game
+and two required AI fixtures complete (five games total). The old route completes
+three more actual games with its119-pitch original outro. Live sale and Misc scenes
+complete one each; policies1/2 complete one each. Prior result counts stay exact
+through managed outro/Continue, all evidence/reward receipts replay, deferred sales
+remain at natural boundaries, and legacy policy games retain their historical builds.
+No engine errors or marker failures. Passive managed batting is state-flow stress
+coverage, not human gameplay/feel/balance acceptance.
+
+Final native `20261003T050444825149Z`: **20/20**, seven gates plus13 scenes covering
+new Gear market, old physical round, player inspection, Second Chance, match sales,
+loadout, old opponents, Misc/Gear effects/migrations, quotes, paid shop/development
+and core. **90 rendered PNGs, six complete actual AI games** (four policy3 and two
+old-policy round fixtures). The new native two-game waves take139,357 and132,267ms,
+reinforcing the cost limitation. All draft checkpoints, exact saves, failed stock
+transactions and version/policy/market/receipt tampering checks remain strict.
+The old physical-round scene now passes its full saved-job/atomic settlement marker;
+its earlier marker-less exit remains documented above. No final engine errors or
+marker failures. X11/OpenGL4.5 Compatibility, Mesa25.2.8 llvmpipe and Dummy audio;
+unsupported V-Sync is the known nonfatal driver warning.
+
+Reviewed actual normal/small pregame, the genuinely paid Taped Bat component and
+small post-sale shop: wrapped effect text, actual10 Cash receipt/Working status,
+neutral/empty slots, contained dark panels and centered bottom Equipped remain
+readable and accessible in the existing scrolling layout. Three unedited new
+captures are committed in `docs/reviews/20261003-opponent-gear`; its README explicitly
+identifies the paid component's test-only placement using a real committed club.
+Primary Container/ScrollContainer references are linked in AI_GEAR_MARKET. This
+rendered review does not provide human visual/feel/hardware acceptance.
+
+All **620 final source/test/asset/project/runner files** remain frozen across final
+focused headless/native verification and publication. The long23-game benchmark
+precedes test-only capture coverage, the corrected managed-fixture/outro binding and
+start-confirmation disclosure; its production policy, acquisition, physical archive
+and gameplay controllers remain unchanged. Main stays
+`f1dc209b6de11e45aedbd1568fa1b2d841dd2420`; the repository blueprint is byte-identical. Build41/new
+physical save47/Career21/policy3; old physical saves46 and score-only saves45 remain
+compatible. Main and repository blueprint remain unchanged. Targeted coverage only;
+final whole-UI/hardware/human visual/feel acceptance, broader AI categories,
+Doubleheader and full-suite reliability remain open. Overall**~77%**, not readiness.
+
 ## Physical presentation-cost verification, 2026-10-03
 
 Initial headless `20261003T040325016573Z`: **11/11**, seven common gates plus
