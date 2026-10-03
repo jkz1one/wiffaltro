@@ -179,6 +179,8 @@ func _ability_rounds() -> void:
 	PitchBatLabSettings.path = "user://opponent-abilities-%d.cfg" % OS.get_process_id()
 	var app: SeasonApp = await _app()
 	app.begin_season(SEED, true)
+	app.season.opponents._format = 6
+	_check(SeasonSave.save(app.season), "historical policy6 startup saves explicitly")
 	_check(app.season.opponents._format == 6 and SeasonSave.restore() != null,
 		"ordinary Working UI saves policy6 before draft")
 	for pick in range(4):

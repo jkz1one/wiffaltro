@@ -25,7 +25,9 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		card,
 		(
 			"Purchases are committed before your shop. This opponent spends match rewards "
-			+ ("on development, Gear, lessons and learned abilities, using one wallet."
+			+ ("on development, Gear, learning and four supported sponsors, using one wallet."
+				if season.opponents._format >= 7
+				else "on development, Gear, lessons and learned abilities, using one wallet."
 				if season.opponents._format >= 6
 				else "on development, initial Gear and Common pitch lessons, using one wallet."
 				if season.opponents._format >= 5
@@ -38,7 +40,10 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		SeasonOpponentLessonsUI.preview(card, season.opponents.clubs[str(index)],
 			season.opponents._format < 6)
 		if season.opponents._format >= 6:
-			SeasonOpponentAbilitiesUI.preview(card, season.opponents.clubs[str(index)])
+			SeasonOpponentAbilitiesUI.preview(card, season.opponents.clubs[str(index)],
+				season.opponents._format < 7)
+		if season.opponents._format >= 7:
+			SeasonOpponentSponsorsUI.preview(card, season.opponents.clubs[str(index)])
 	elif season.opponents._format >= 4:
 		SeasonOpponentMasteryUI.preview(card, season.opponents.clubs[str(index)])
 	elif season.physical != null:
@@ -68,7 +73,7 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		)
 		SeasonPlayerCard.inspection_button(card, player, "INSPECT " + player.display_name)
 	for row: Dictionary in data.decisions.slice(maxi(0, data.decisions.size() - 3)):
-		if row.stat in ["lesson", "ability"]:
+		if row.stat in ["lesson", "ability", "sponsor"]:
 			continue # Complete learning history is grouped with its role panel above.
 		if row.stat == "mastery":
 			SeasonOpponentMasteryUI.purchase(card, row)

@@ -1,5 +1,79 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid automatic opponent sponsors, 2026-10-03
+
+Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,
+parent67237fcbb34ce0b523ae4f07f2fbb4c0468174a3. Use git log -1 for pushed HEAD.
+Build41/new Working physical save51/Career21/opponent policy7/AI market6.
+Historical learned6/5/save50, lessons5/4/save49, mastery4/3/save48, Gear3/2/save47,
+physical1/2/save46 and Build41 score-only/save45 remain frozen. Human content stays
+25 Gear/35 sponsors,five supplies,three abilities,one transformation. Overall
+**~81%**, not release readiness. SOTv0.4.99/Technicalv0.1.90. Read
+AI_AUTOMATIC_SPONSORS and latest VERIFICATION. Main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420; check for changes. Repository
+PROGRESSION_BLUEPRINT remains byte-identical to main; never replace it.
+
+Current planning read Decisions31, complete Economy24, Players/Pitches17 and
+Equipment/Sponsors18. Market6 adds four automatic sponsors to the previous pool:
+Take Your Base8, Neighborhood Deli14, Community College12 and Strikecraft12.
+Category weights25/12/20/10/20, D01 Common2/others Uncommon1; ordinary category
+repair,equal Gear slots,actual supported eligibility. Wallet,qualification and
+profile never force/filter stock. Fixed8 family-distinct pack stays development-only.
+
+Existing development/qualified packs then preferred empty-slot Gear, then qualified
+sponsors,then prior ability/secondary-slider learning. Distributed D01; featured
+Deli then D01; pitching/defense College,Strikecraft,D01. D01 needs an own walk in
+last two completed games and three regular games remaining; Deli needs two latest
+own Singles; College actual earned stats/mastery; Strikecraft three usable primary
+recipes. Shared paid sponsor_buy into empty active slot only; no replacement,reserve,
+free grant or proxy buff. One own18/12 wallet plus actual earned D01 income; at most
+one useful affordable reroll; skipped opened pack8 remains spent.
+
+New policy requires complete human-fixture statistics; missing/result-only data
+fails closed. Offscreen results/rewards use exact validated physical performance.
+Active D01 earns2/credited own walk,cap4/game,once; postgame purchases never pay
+retroactively. Shared copied definitions supply actual Deli Contact,College natural
+workload and Strikecraft distinct-recipe refunds in managed/offscreen matches.
+No fabricated events,forced sequence,hidden observations or changed resolver/report
+schema. Old policies keep their prior empty-stat AI reward/result shape. Exact saved
+replay binds stock,receipts,decisions,wallets and full committed definitions/requests.
+
+Pregame shows exact active sponsors,slots,qualifications,effects,paid history and
+actual game-by-game walk income; College shows qualifying-player count. Keep
+centered Equipped and save-now/refund-now/retire-next-batter live sales unchanged.
+SeasonBuild stays921 lines. Helpers: SeasonOpponentSponsors and UI.
+
+Broad headless184441914277Z passes19/19, including33 actual games (ten human-slot
+fixtures and23 archived AI fixtures through both semis/final),4707 releases,seven
+paid sponsors,6 Cash earned walk income,every-round replay and one39-CB career
+payout;430478wallms remains a latency limitation. Its managed route completes18
+actual games. Focused191109958998Z passes9/9 with four paid diagnostic games:
+709 releases,positive actual walk income,48 Deli swing-frame samples,89 College
+natural releases and two Strikecraft uses. Counts are samples,not distinct swings.
+Broad native191346349937Z finishes24/25 with99 captures; the managed game reaches
+its900-second software-rendering deadline. All other selected native checks pass.
+Final viewport-adjustment headless193602350188Z passes9/9 with the same18 complete
+games,123-pitch managed match,outro and exact settlement replay; all654 final
+source/test/asset/project/runner files remain frozen after this test-only delta.
+Final native194012132045Z passes8/8 with two captures and all18 complete games,
+including the fully rendered700x400 managed match,original outro and exact replay.
+Its1800-second bound is test coverage,not approved latency or a fix for the earlier
+1280x720 timeout. All654 files remain unchanged through final verification/publication.
+VERIFICATION preserves this timeout and the subsequent test-only narrow-window
+verification,earlier fixture/preflight failures and six inspected unedited native
+images in docs/reviews/20261003-opponent-sponsors. Automation never supplies human
+visual/feel/hardware acceptance. Original local commit is preserved at
+checkpoint/opponent-sponsors-before-api-publish; API publishing changes metadata only.
+
+Next: finish another complete supported bounded AI shop/use contract before larger
+systems. No next contract selected. Budget Bites grant/tactical use,Split Decision
+and Cornerstone choices,other AI sponsors,tactical supplies,recruiting and Doubleheader
+remain gated. Permanent players/packs,higher Leagues/tiers,stadiums,physical latency,
+final integration/full-suite reliability and final cohesive whole-UI/human visual/
+feel/hardware acceptance remain open. Working stays Working. Routine implementation,
+verification,commits and engineering pushes are authorized; no merge,deploy,force-push
+or agents. Do not infer human approval from native automation.
+
 ## Current checkpoint: paid opponent learned abilities, 2026-10-03
 
 Continue `/workspace/scratch/c3619bd03563/wiffaltro` on `rebuild/season-engineering`,

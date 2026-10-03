@@ -252,7 +252,8 @@ func record_player_result(
 	):
 		return false
 	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
-	if not performance.is_empty() and not SeasonPerformance.valid(performance, roster):
+	if ((opponents != null and opponents._format >= 7 and performance.is_empty())
+		or (not performance.is_empty() and not SeasonPerformance.valid(performance, roster))):
 		return false
 	var command: Dictionary = {
 		"id": "game:%d" % fixture_id,

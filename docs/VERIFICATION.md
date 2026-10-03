@@ -1,5 +1,123 @@
 # Fast verification and playtest records
 
+## Paid automatic opponent-sponsor verification, 2026-10-03
+
+Recovered clean at67237fcbb34ce0b523ae4f07f2fbb4c0468174a3. Fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420, with byte-identical repository blueprint.
+Read Decisions31, complete Economy24, Players/Pitches17 and Equipment/Sponsors18.
+Working stays Working; no hosted CI, merge, deployment or human approval is claimed.
+
+Early182822524409Z,182907074994Z and183108278250Z stop at lint for line length,
+formatting and an additional return. Formatting is corrected and the existing
+performance-validation predicate is combined without weakening rejection.
+First physical diagnostic183149390591Z fails8/9: its completed D01 game has zero
+walks, so the required positive-income assertion fails; its diagnostic UI also
+needs the actual club build. Next183432815226Z passes10/11: the18-game managed
+route, career and core pass, but the revised D01 opposing starter still earns zero
+walks. The paid diagnostic now uses authored starter Quinn and seed11, retaining
+the positive-income assertion. No forced walks, weakened trigger or production
+balance tuning is introduced. Focused184057174945Z then passes9/9. Preflight
+184305188070Z stops on two mistyped scene names; no gameplay is run or credited.
+
+Broad headless `20261003T184441914277Z`: **19/19**, seven common gates plus new
+full-playoff and managed-sponsor scenes, historical paid ability/lesson/mastery/Gear,
+physical round retry/persistence, existing sponsor/gameplay-sponsor/Strikecraft,
+career and core. The new benchmark completes **33 real physical games**: ten
+human-slot fixtures using both actual controllers,20 archived regular AI fixtures,
+both semifinals and neutral final. Human-slot preparation also uses real reports;
+there are no synthetic score/stat rewards in this benchmark. It records4707
+releases,seven paid sponsor purchases,6 Cash earned from actual owned D01 walks,
+1520576 saved bytes and430478 wall milliseconds. Every round's report/request,
+stock,receipts,decisions,earned income and competing wallet replay agree, including
+8-Cash skipped packs. Both semifinal survivors shop and exactly one39-CB career
+payout is saved/rebuilt. Read-only sampling records157 Deli swing frames,827
+College natural releases and20 Strikecraft uses across games; frames are not
+distinct swings and per-game refund caps remain checked. This remains costly
+physical simulation, not approved release latency or balance evidence.
+
+The managed-sponsor scene completes **18 real games**:15 preparation fixtures,
+one ordinary managed match with its original outro,then two detached round games.
+The actual next opponent has paid Strikecraft,Take Your Base and College. Committed
+definitions reach the managed roster; its complete credited performance settles
+once. All clubs' reward statistics equal actual fixture statistics. An independent
+event replay checks sponsor ownership before each game, exact walk income and all
+debits. Altered save/policy/market/journal/decision/request/stat evidence rejects;
+human shopping causes no counter-shop. Passive managed human inputs are state-flow
+fixtures, not human batting/feel acceptance. The historical scenes retain their
+frozen policy/market/save mappings and continue through real games.
+
+Native190220965190Z is manually interrupted during costly hidden preparation, before
+its first scene completes; no scene pass is claimed. Only the two new test files
+then omit drawing during hidden preparation/diagnostic matches through Godot's
+official RenderingServer render-loop switch. Full fixed-step logic, physics,
+controllers, events and report checks keep running. Drawing resumes for visible
+pregame, managed gameplay, outro and every capture. This is test-harness control,
+not a production performance fix. The long benchmark overrides this setup and is
+unchanged. No assertion, number of games, error gate or report schema is weakened.
+
+Final headless `20261003T191109958998Z`: **9/9**, common gates plus the new sponsor
+contract and core. Across128 seeds all four sponsors appear in ordinary generated
+stock and are bought by the three qualified profile fixtures. Synthetic unit
+rewards isolate checkout qualifications; they are not earned-performance evidence.
+The four generated/paid diagnostic games complete709 actual releases. D01 earns
+positive actual walk income and rejects duplicate reward; Deli samples48 actual
+swing frames, College89 natural releases and Strikecraft two actual refunds.
+Prices/receipts, active slots, foreign/sold/unaffordable rollback, exact journals,
+natural-resource isolation and save51 startup pass. Missing human statistics
+reject without mutation. All654 source/test/asset/project/runner files remain
+unchanged through this run and the initial native checks.
+
+Native191346349937Z's rendered managed scene reaches its900-second deadline after
+the15 preparation games and wide/narrow pregame captures, before the managed game
+completes. This is a failed timeout, not a completed native managed-match proof.
+Its other scenes continue independently. The sole later source delta is test-only:
+run that managed game's drawing at the already reviewed700x400 window size, then
+restore1280x720 afterward. Its actual gameplay,complete-game requirement,outro,
+statistics,wallet,replay and error gates are unchanged. Production remains frozen.
+The broad native run finishes **24/25** with **99 captures**: common gates,new
+paid-sponsor contract,physical round,player inspection,human abilities,sponsors,
+Strikecraft and their gameplay hooks,live sales,loadout,career,shop quotes,paid
+shop/development and core all pass. The sole failure is the managed timeout.
+Four paid diagnostic games reproduce709 releases,48 Deli swing-frame samples,
+89 College natural releases,two Strikecraft uses and the2-Cash actual walk payout.
+There are no script/engine errors in the completed scenes. The known unsupported
+V-Sync warning remains on Godot4.7.2/X11/OpenGL Compatibility/Mesa25.2.8 llvmpipe
+(LLVM20.1.2),Dummy audio. Software rendering does not approve hardware performance.
+
+Six inspected unedited originals are in `docs/reviews/20261003-opponent-sponsors`.
+`managed-pregame.png` and `managed-pregame-small.png` show the actual next club's
+three paid sponsors,effects,College qualifying count,history and zero-walk income.
+The long panel scrolls normally and navigation remains accessible. `paid-walk-income.png`
+and `paid-walk-income-small.png` explicitly label the separate paid diagnostic club
+and show its8-Cash receipt and actual2-Cash walk income. `equipped-shop.png` and
+`equipped-game.png` show centered shared lightbox entry and sponsor sale actions in
+shop and live contexts. Copies have exactly the source PNG bytes. These are native
+rendered review,not human visual/feel acceptance or final whole-game polish approval.
+This remains selected verification,not the full suite or release certification.
+
+Final viewport-adjustment headless `20261003T193602350188Z`: **9/9**, common gates
+plus new managed sponsors and core. All18 real games complete; the managed match
+again finishes Switches12/Yard Club0 with123 pitches and its original outro. Exact
+paid roster/statistics,one settlement,independent income/wallet auditing,save/replay,
+tamper rejection and no counter-shopping pass. Probe totals remain237 College
+natural releases and six Strikecraft uses across the preparation/managed/round
+games; this fixture does not exercise Deli. Production remains unchanged and all654
+final source/test/asset/project/runner hashes are frozen after the viewport delta.
+
+Final native managed rerun `20261003T194012132045Z`: **8/8**, common gates plus
+the sponsor-managed scene,with two native pregame captures. It completes all18
+games,including the fully rendered700x400 managed game,123 actual pitches,
+Switches12/Yard Club0,original outro and one durable settlement. It reproduces237
+College natural-release samples and six Strikecraft uses,exact paid definitions,
+independent actual-stat/income/wallet auditing,tamper rejection and no counter-shop.
+Drawing stays enabled throughout managed gameplay and outro; only hidden preparation
+and postgame detached jobs omit drawing. The same software driver and V-Sync warning
+remain,with no script/engine errors. The1800-second native bound is extended test
+coverage,not approved latency or a fix for the earlier1280x720 timeout. All654
+final source/test/asset/project/runner hashes remain unchanged through final headless,
+native verification and publication. Human visual/feel/hardware acceptance and the
+full suite remain open. Six review originals are preserved from the broad native run.
+
 ## Paid opponent learned-ability verification, 2026-10-03
 
 Recovered branch clean at8cd1b3278ea5c0bdcaa0c2d3491d7387cb90035b. Fresh main

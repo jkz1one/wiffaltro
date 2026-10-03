@@ -1,6 +1,6 @@
 class_name SeasonOpponentMarket
 extends RefCounted
-## Market1 remains frozen. Market2 adds the initial passive Gear contract.
+## Explicit version dispatch preserves historical stock and pack generation.
 
 
 static func cards(build: SeasonBuild) -> Array[String]:
@@ -13,6 +13,8 @@ static func cards(build: SeasonBuild) -> Array[String]:
 
 
 static func offers(build: SeasonBuild, roll: int) -> Dictionary:
+	if build._market == 6:
+		return SeasonOpponentSponsors.offers(build, roll)
 	if build._market == 5:
 		return SeasonOpponentAbilities.offers(build, roll)
 	if build._market == 4:
@@ -34,7 +36,7 @@ static func offers(build: SeasonBuild, roll: int) -> Dictionary:
 
 
 static func pack(build: SeasonBuild) -> Array:
-	if build._market in [3, 4, 5]:
+	if build._market in [3, 4, 5, 6]:
 		return DevelopmentShopCatalog.pack(build._book, build.roster(), build._rng(-1))
 	var pool: Array[String] = cards(build)
 	var result: Array = []

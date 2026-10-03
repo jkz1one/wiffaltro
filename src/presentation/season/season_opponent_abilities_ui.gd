@@ -3,10 +3,11 @@ extends RefCounted
 ## Read-only committed role, learned slot, exact effect and paid receipt disclosure.
 
 
-static func preview(card: VBoxContainer, club: Dictionary) -> void:
-	SeasonPages.wrapped(card, "Opponent stock: development, 13 initial Gear, five Common lessons "
-		+ "and Work the Count / Soft Hands / Sky Reader. Sponsors and supplies remain gated."
-	).set_meta("opponent_ability_pool", true)
+static func preview(card: VBoxContainer, club: Dictionary, show_pool: bool = true) -> void:
+	if show_pool:
+		SeasonPages.wrapped(card, "Opponent stock: development, 13 initial Gear, five Common lessons "
+			+ "and Work the Count / Soft Hands / Sky Reader. Sponsors and supplies remain gated."
+		).set_meta("opponent_ability_pool", true)
 	var box: VBoxContainer = SeasonPlayerCard.panel(card, false)
 	SeasonPages.wrapped(box, "LEARNED ABILITIES")
 	var player: String = club.roles.hitter if club.profile == "Featured hitter" else club.roles.fielder

@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-sponsors-playoffs", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_sponsors_playoffs_test.tscn"],
+                 "Wiffaltro opponent sponsor playoff checks passed:"),
+                ("season-opponent-sponsors-visible", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_sponsors_visible_test.tscn", *ui_extra],
+                 "Wiffaltro opponent sponsor visible checks passed:"),
+                ("season-opponent-sponsors", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_sponsors_test.tscn", *ui_extra],
+                 "Wiffaltro opponent sponsor checks passed:"),
                 ("season-opponent-abilities-visible", [*base, "--fixed-fps", "60",
                     "res://src/tests/season_opponent_abilities_visible_test.tscn"],
                  "Wiffaltro opponent ability visible checks passed:"),
@@ -485,9 +494,10 @@ def main():
                 raise RuntimeError("Unknown check(s): " + ", ".join(sorted(unknown)))
             for name, command, marker in checks:
                 # The 23-game throughput benchmark is explicit, outside the default scene scope.
-                if name in ["season-physical-playoffs", "season-opponent-gear-playoffs",
+                if (name in ["season-physical-playoffs", "season-opponent-gear-playoffs",
                             "season-opponent-mastery-playoffs", "season-opponent-lessons-playoffs",
-                            "season-opponent-abilities-playoffs"] and not args.only:
+                            "season-opponent-abilities-playoffs", "season-opponent-sponsors-playoffs"]
+                        and not args.only):
                     continue
                 if args.only and name not in args.only:
                     continue

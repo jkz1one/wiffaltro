@@ -1,5 +1,29 @@
 # Implementation Status
 
+## Paid automatic opponent sponsors, 2026-10-03
+
+New Working seasons use policy7/market6/save51. Four automatic sponsors join prior
+paid development,Gear,lessons and learned abilities: Take Your Base, Neighborhood
+Deli, Community College and Strikecraft. Stock follows ordinary supported weights;
+profile qualification uses each club's own credited history,actual earned development
+or committed repertoire. Shared prices,empty active slots,one competing wallet and
+one bounded useful reroll remain authoritative. No forced stock or free grants.
+
+Policy7 uses complete real fixture statistics in own rewards. D01 pays only credited
+walks while already active,once per completed game; Deli/College/Strikecraft use shared
+managed/offscreen physics. Result-only human evidence fails closed. Historical policies
+keep their saved event/reward/result shape. Read AI_AUTOMATIC_SPONSORS and VERIFICATION.
+Pregame shows exact paid sponsors,effects,qualifications and actual earned income.
+
+Build41/Career21 and frozen catalogs,receipt IDs,human discovery,centered Equipped,
+immediate saved live-sale refunds and next-batter effect retirement remain unchanged.
+SeasonBuild stays921 lines. Human content remains25/25 Gear,35/35 sponsors,five
+supplies,three abilities,one transformation. Overall **~81%**, not release readiness.
+Budget Bites,Split Decision,Cornerstone and other AI sponsors,tactics,recruiting and
+Doubleheader remain gated. Permanent players/packs,higher Leagues/tiers,stadiums,
+physical latency,full-suite/integration and final cohesive whole-UI/human visual/
+feel/hardware acceptance remain open. Working values remain Working.
+
 ## Paid AI learned abilities, 2026-10-03
 
 AI policy6 adds Work the Count, Soft Hands and Sky Reader to finite market5.

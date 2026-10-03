@@ -1,5 +1,29 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Paid automatic opponent sponsors, 2026-10-03
+
+New Working seasons use policy7/market6/save51. Four automatic sponsors join prior
+paid development,Gear,lessons and learned abilities: Take Your Base, Neighborhood
+Deli, Community College and Strikecraft. Stock follows ordinary supported weights;
+profile qualification uses each club's own credited history,actual earned development
+or committed repertoire. Shared prices,empty active slots,one competing wallet and
+one bounded useful reroll remain authoritative. No forced stock or free grants.
+
+Policy7 uses complete real fixture statistics in own rewards. D01 pays only credited
+walks while already active,once per completed game; Deli/College/Strikecraft use shared
+managed/offscreen physics. Result-only human evidence fails closed. Historical policies
+keep their saved event/reward/result shape. Read AI_AUTOMATIC_SPONSORS and VERIFICATION.
+Pregame shows exact paid sponsors,effects,qualifications and actual earned income.
+
+Build41/Career21 and frozen catalogs,receipt IDs,human discovery,centered Equipped,
+immediate saved live-sale refunds and next-batter effect retirement remain unchanged.
+SeasonBuild stays921 lines. Human content remains25/25 Gear,35/35 sponsors,five
+supplies,three abilities,one transformation. Overall **~81%**, not release readiness.
+Budget Bites,Split Decision,Cornerstone and other AI sponsors,tactics,recruiting and
+Doubleheader remain gated. Permanent players/packs,higher Leagues/tiers,stadiums,
+physical latency,full-suite/integration and final cohesive whole-UI/human visual/
+feel/hardware acceptance remain open. Working values remain Working.
+
 ## Paid opponent learned-ability amendment, 2026-10-03
 
 New Working seasons select policy6/market5 before drafts. Work the Count12,
@@ -166,7 +190,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.98
+**Version:** v0.4.99
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

@@ -97,6 +97,8 @@ func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
 	var result: Dictionary = fixture.duplicate(true)
 	result["away_runs"] = int(row.report.away_runs)
 	result["home_runs"] = int(row.report.home_runs)
+	if season.opponents != null and season.opponents._format >= 7:
+		result["performance"] = row.report.performance.duplicate(true)
 	return result
 
 

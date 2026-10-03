@@ -1,7 +1,7 @@
 class_name SeasonSponsorCatalog
 extends RefCounted
 ## Versioned initial sponsors. All prices/effects/rarities are Working.
-## Active-only ownership is Approved; no AI purchasing or offscreen event fabrication.
+## Active-only ownership is Approved; AI market6 enables only its four supported contracts.
 
 const ITEMS: Dictionary = {
 	"D01":

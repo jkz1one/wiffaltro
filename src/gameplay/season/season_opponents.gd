@@ -1,6 +1,6 @@
 class_name SeasonOpponents
 extends RefCounted
-## Policy3 adds paid passive Gear. Historical policies and markets stay frozen.
+## Policy7 adds paid automatic sponsors and credited events; older policies stay frozen.
 
 var draft_order: Array[int] = []
 var clubs: Dictionary = {}
@@ -40,7 +40,9 @@ func settle(fixtures: Array, survivors: Array) -> void:
 			var reward: Dictionary = SeasonOpponentPolicy.command(
 				build,
 				"reward",
-				{"game": result.id, "win": SeasonState._winner(result) == index, "performance": {}}
+				{"game": result.id, "win": SeasonState._winner(result) == index,
+				"performance": (result.get("performance", {}).duplicate(true)
+					if _format >= 7 else {})}
 			)
 			if not build.commit(reward).ok:
 				continue
