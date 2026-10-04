@@ -66,8 +66,12 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 		if not team.ai_tactical_hitter.is_empty():
 			row["batting_supplies"] = {"featured": team.ai_tactical_hitter,
 				"held": team.ai_tactical_initial.duplicate(true)}
+		if team.ai_heat:
+			row["heat_policy"] = 1
 		rows.append(row)
-	var resolver: String = PhysicalMatchReport.TACTICAL_RESOLVER if (
+	var resolver: String = PhysicalMatchReport.HEAT_RESOLVER if (
+		state.away_team.ai_heat or state.home_team.ai_heat
+	) else PhysicalMatchReport.TACTICAL_RESOLVER if (
 		not state.away_team.ai_tactical_hitter.is_empty()
 		or not state.home_team.ai_tactical_hitter.is_empty()
 	) else PhysicalMatchReport.CHOICE_RESOLVER if (

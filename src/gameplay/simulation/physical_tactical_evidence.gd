@@ -64,7 +64,11 @@ static func valid(row: Variant, roster: Array, performance: Dictionary, parity: 
 	return cursor == row.consumed.size() and ClubCareer.same(held, row.remaining)
 
 
-static func matches(row: Dictionary, team: TeamMatchState) -> bool:
+static func matches(
+	row: Dictionary, team: TeamMatchState, opposition: TeamMatchState = null
+) -> bool:
+	if team.ai_heat or row.get("version") == 2:
+		return team.ai_heat and PhysicalHeatEvidence.matches(row, team, opposition)
 	var player: PlayerDefinition = null
 	for candidate: PlayerMatchState in team.roster:
 		if String(candidate.definition.id) == team.ai_tactical_hitter:
@@ -95,6 +99,10 @@ static func report_valid(data: Dictionary) -> bool:
 
 
 static func report_matches(data: Dictionary, state: MatchState) -> bool:
+	if state.away_team.ai_heat or state.home_team.ai_heat:
+		return PhysicalHeatEvidence.report_matches(data, state)
+	if data.version == PhysicalMatchReport.HEAT_VERSION:
+		return false
 	var teams: Array[TeamMatchState] = [state.away_team, state.home_team]
 	var flags: Array = teams.map(func(team: TeamMatchState) -> bool:
 		return not team.ai_tactical_hitter.is_empty())
@@ -109,10 +117,17 @@ static func report_matches(data: Dictionary, state: MatchState) -> bool:
 
 
 static func human_matches(
-	season: SeasonState, fixture: Dictionary, row: Dictionary, performance: Dictionary
+	season: SeasonState, fixture: Dictionary, row: Dictionary, performance: Dictionary,
+	tactics: Array = []
 ) -> bool:
 	if season.opponents == null or season.opponents._format < 9:
 		return row.is_empty()
 	var index: int = fixture.away if fixture.home == 0 else fixture.home
+	if season.opponents._format >= 10:
+		return PhysicalHeatEvidence.valid(row, season.teams[index].roster, performance,
+			0 if fixture.away == index else 1) and PhysicalHeatTerminal.human(
+				row, tactics, fixture) and matches(
+				row, season._make_team(index), season._heat_replay_team
+				if season._heat_replay_team != null else season._make_team(0))
 	return valid(row, season.teams[index].roster, performance, 0 if fixture.away == index else 1) \
 		and matches(row, season._make_team(index))

@@ -8,6 +8,8 @@ const RESOLVER: String = "physical-ai-v1"
 const CHOICE_VERSION: int = 2
 const CHOICE_RESOLVER: String = "physical-ai-choices-v1"
 const TACTICAL_VERSION: int = 3
+const HEAT_VERSION: int = 4
+const HEAT_RESOLVER: String = "physical-ai-extra-heat-v1"
 const TACTICAL_RESOLVER: String = "physical-ai-batting-supplies-v1"
 
 
@@ -34,6 +36,10 @@ static func capture(lab: PitchBatLab) -> Dictionary:
 			not state.home_team.ai_tactical_hitter.is_empty()], "teams": [
 				SeasonOpponentTactics.evidence(state, state.away_team),
 				SeasonOpponentTactics.evidence(state, state.home_team)]}
+	if state.away_team.ai_heat or state.home_team.ai_heat:
+		result.version = HEAT_VERSION
+		result.resolver = HEAT_RESOLVER
+		result.tactics.version = 2
 	for team: TeamMatchState in [state.away_team, state.home_team]:
 		var row: Dictionary = {
 			"name": team.display_name, "roster": [], "recipes": {}, "workload": {},
@@ -73,15 +79,17 @@ static func valid(value: Variant) -> bool:
 	var keys: Array = [
 		"version", "resolver", "seed", "field", "elapsed", "inning", "top",
 		"away_runs", "home_runs", "performance", "teams", "releases", "plays"]
-	if value.get("version") == CHOICE_VERSION or value.get("version") == TACTICAL_VERSION:
+	if value.get("version") == CHOICE_VERSION or value.get("version") == TACTICAL_VERSION \
+		or value.get("version") == HEAT_VERSION:
 		keys.append("choices")
-	if value.get("version") == TACTICAL_VERSION:
+	if value.get("version") == TACTICAL_VERSION or value.get("version") == HEAT_VERSION:
 		keys.append("tactics")
 	if not SeasonOwnership._keys(value, keys):
 		return false
 	var data: Dictionary = value
-	if (not SeasonOwnership._whole(data.version, VERSION, TACTICAL_VERSION)
+	if (not SeasonOwnership._whole(data.version, VERSION, HEAT_VERSION)
 		or data.resolver != (
+			HEAT_RESOLVER if data.version == HEAT_VERSION else
 			TACTICAL_RESOLVER if data.version == TACTICAL_VERSION else
 			CHOICE_RESOLVER if data.version == CHOICE_VERSION else RESOLVER) or not data.field is String
 		or ContentDB.get_field(StringName(data.field)) == null
@@ -132,6 +140,8 @@ static func valid(value: Variant) -> bool:
 	if data.version >= CHOICE_VERSION and not PhysicalChoiceEvidence.valid(data, appearances):
 		return false
 	if data.version == TACTICAL_VERSION and not PhysicalTacticalEvidence.report_valid(data):
+		return false
+	if data.version == HEAT_VERSION and not PhysicalHeatEvidence.report_valid(data):
 		return false
 	var costs: Dictionary = {}
 	var counts: Dictionary = {}

@@ -5,17 +5,25 @@ extends RefCounted
 const ITEMS: Array[String] = ["A10", "C03"]
 
 
-static func pool() -> Dictionary:
+static func pool(market: int = 8) -> Dictionary:
 	var result: Dictionary = {}
-	for id: String in ITEMS:
+	for id: String in supported(market):
 		result[id] = SeasonTacticalCatalog.weights()[id]
 	return result
 
 
+static func supported(market: int) -> Array[String]:
+	var result: Array[String] = ITEMS.duplicate()
+	if market == 9:
+		result.append(SeasonTacticalCatalog.HEAT)
+	return result
+
+
 static func purchase(build: SeasonBuild, club: Dictionary, game: int) -> bool:
-	if build._market != 8 or build._bank.view().held.size() >= build._bank.view().capacity.held:
+	if build._market not in [8, 9] or build._bank.view().held.size() >= (
+		build._bank.view().capacity.held):
 		return false
-	for item: String in ITEMS:
+	for item: String in supported(build._market):
 		var price: int = SeasonTacticalCatalog.item(item).price
 		if build.cash() < price:
 			continue
@@ -25,14 +33,17 @@ static func purchase(build: SeasonBuild, club: Dictionary, game: int) -> bool:
 			var request: Dictionary = SeasonOpponentPolicy.command(build, "tactical_buy", {"offer": offer})
 			if not build.commit(request).ok:
 				return false
-			club.decisions.append({"game": game, "request": request.id, "player": club.roles.hitter,
-				"stat": "tactical", "item": item, "paid": price, "reason": "featured hitter supply"})
+			club.decisions.append({"game": game, "request": request.id, "player": (club.roles.pitcher
+				if item == SeasonTacticalCatalog.HEAT else club.roles.hitter),
+				"stat": "tactical", "item": item, "paid": price,
+				"reason": "highest-Power opponent" if item == SeasonTacticalCatalog.HEAT
+				else "featured hitter supply"})
 			return true
 	return false
 
 
 static func useful_price(build: SeasonBuild) -> int:
-	return 3 if build._market == 8 and build._bank.view().held.size() < (
+	return 3 if build._market in [8, 9] and build._bank.view().held.size() < (
 		build._bank.view().capacity.held) else 0
 
 
@@ -71,7 +82,8 @@ static func evidence(state: MatchState, team: TeamMatchState) -> Dictionary:
 	for candidate: PlayerMatchState in team.roster:
 		if String(candidate.definition.id) == team.ai_tactical_hitter:
 			player = candidate.definition
-	return {"version": 1, "featured": team.ai_tactical_hitter, "plan": plan(player),
+	var row: Dictionary = {"version": 1, "featured": team.ai_tactical_hitter, "plan": plan(player),
 		"initial": team.ai_tactical_initial.duplicate(true),
 		"consumed": team.tactics.consumed.duplicate(true),
 		"remaining": team.tactics.held.duplicate(true), "stances": state.sides.evidence(team)}
+	return SeasonOpponentHeat.evidence(state, team, row) if team.ai_heat else row

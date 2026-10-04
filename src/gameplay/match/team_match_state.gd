@@ -7,6 +7,7 @@ const ROSTER_SIZE: int = 4
 var copy_source: String = ""
 var display_name: String = "Team"
 var ai_sponsor_choices: bool = false
+var ai_heat: bool = false
 var ai_tactical_hitter: String = ""
 var ai_tactical_initial: Array[Dictionary] = []
 

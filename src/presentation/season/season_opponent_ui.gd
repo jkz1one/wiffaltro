@@ -25,7 +25,9 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		card,
 		(
 			"Purchases are committed before your shop. This opponent spends match rewards "
-			+ ("on development, Gear, learning, six sponsors and batting supplies, using one wallet."
+			+ ("on development, Gear, learning, six sponsors and match supplies, using one wallet."
+				if season.opponents._format >= 10
+				else "on development, Gear, learning, six sponsors and batting supplies, using one wallet."
 				if season.opponents._format >= 9
 				else "on development, Gear, learning and six supported sponsors, using one wallet."
 				if season.opponents._format >= 8
@@ -49,7 +51,8 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		if season.opponents._format >= 7:
 			SeasonOpponentSponsorsUI.preview(card, season.opponents.clubs[str(index)])
 		if season.opponents._format >= 9:
-			SeasonOpponentTacticsUI.preview(card, season.opponents.clubs[str(index)])
+			SeasonOpponentTacticsUI.preview(
+				card, season.opponents.clubs[str(index)], season._make_team(0))
 	elif season.opponents._format >= 4:
 		SeasonOpponentMasteryUI.preview(card, season.opponents.clubs[str(index)])
 	elif season.physical != null:

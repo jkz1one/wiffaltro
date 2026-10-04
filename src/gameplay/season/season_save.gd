@@ -98,7 +98,7 @@ static func _decode(value: Variant) -> SeasonState:
 	if not value is Dictionary:
 		return null
 	var data: Dictionary = value
-	if not _integer(data.get("version"), 1, 53) or not _integer(data.get("seed"), 0, 2147483647):
+	if not _integer(data.get("version"), 1, 54) or not _integer(data.get("seed"), 0, 2147483647):
 		return null
 	# Unknown ownership/storage fields require an explicit migration, never deletion.
 	var allowed: Array[String] = [
@@ -142,7 +142,7 @@ static func _decode(value: Variant) -> SeasonState:
 		int(data["seed"]), data["version"] == 1, data["version"] >= 5, data.has("opponents")
 	)
 	if data.has("opponents"):
-		if not _integer(data.opponents.get("policy"), 1, 9):
+		if not _integer(data.opponents.get("policy"), 1, 10):
 			return null
 		if (data.version >= 47) != (data.opponents.policy >= 3):
 			return null
@@ -211,11 +211,22 @@ static func _decode(value: Variant) -> SeasonState:
 			ai_tactics = result.ai_tactics[str(index)]
 		elif result.has("ai_tactics"):
 			return null
+		if data.version >= 54:
+			season._heat_replay_team = PhysicalHeatEvidence.replay_team(
+				restored, int(result.id), season.teams[0].roster)
+			if season._heat_replay_team == null:
+				return null
+		var replayed_tactics: Array = []
+		if data.version >= 54 and ai_tactics.has("terminal"):
+			if not result.get("tactics") is Array:
+				return null
+			replayed_tactics = result.tactics
 		if not season.record_player_result(
 			int(result["id"]), int(result["away_runs"]), int(result["home_runs"]), performance,
-			[], [], {}, [], [], {}, {}, [], ai_tactics
+			[], [], {}, [], [], {}, {}, [], ai_tactics, replayed_tactics
 		):
 			return null
+		season._heat_replay_team = null
 		if result.has("used_gear"):
 			if data.version < 14 or not result.used_gear is Array:
 				return null

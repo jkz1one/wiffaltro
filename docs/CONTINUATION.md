@@ -1,5 +1,81 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent Extra Heat, 2026-10-04 UTC
+
+Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,
+parent5c92c79de1e5694b81fff642692f2b398afb7ee5. Use git log -1 for pushed HEAD.
+Build41/new Working save54/Career21/opponent policy10/AI market9/report4,
+resolver physical-ai-extra-heat-v1. SOTv0.4.102/Technicalv0.1.93;
+SeasonBuild921 lines. Read AI_EXTRA_HEAT and latest VERIFICATION first.
+Human content remains25/25 Gear,35/35 sponsors,five supplies,three abilities,
+one transformation. Overall **~83%**, not release readiness. Fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420; check again next turn. Repository
+PROGRESSION_BLUEPRINT stays byte-identical to main; never replace it with planning.
+
+Complete current planning read Decisions31/Economy24/Players17/Equipment18.
+This bounded contract adds only paid Extra Heat,5 Cash, to Tape/Plan's ordinary
+category10, supported weights1:1:1 and shared held capacity2. Existing development,
+qualified fixed8-Cash packs,preferred Gear,qualified sponsors and learning precede
+supplies. All three profiles buy actual affordable Tape,then Plan,then Heat. One own
+earned wallet,at most one useful affordable ordinary reroll; no forced stock/free
+copy/extra wallet/reserve/replacement/disposal or human counter-shopping.
+
+Before the first pitch against the current opposing roster's actual highest-Power
+hitter (stable player ID ties), shared MatchTactics consumes exact Heat and binds the
+actual active pitcher. Rated/mastered/Ball-modified velocity parameter×1.05 once for
+this PA; normal workload/execution/fatigue/physical limits remain. Balls/fouls retain
+it; pitcher substitution retires it immediately without transfer/refund; next PA
+retires it. Human decisions stay explicit. Pregame shows actual target,bag,prices,
+effects,purchases/use history with actual player. Ordinary HUD names active Heat.
+Keep centered Equipped and immediate saved/refunded live Gear/sponsor sales with
+safe next-batter effect retirement unchanged.
+
+Report4 tactics proof2 adds actual opposing roster/target/completed stances and own
+pitching releases, binds exact paid initial/consumed/remaining bags and reconstructs
+merged offensive/defensive use. Pending jobs retain13 arguments; policy10 requires
+proof2 even for empty bags. Canonical pre-reward human journal prefixes preserve
+historical Heat targets across later paid Power upgrades. A narrow optional managed
+terminal proof preserves already-consumed Heat if human Take a Base ends the game
+before another pitch/credited PA. It requires exact Base ledger/third-to-home advance,
+legal next PA and real regulation walk-off/third-inning mercy score rules. Save replay
+passes an internal14th read-only ledger argument without reconsuming human copies.
+Detached report4 rejects terminal proofs because AI Base remains gated. JSON/forks/
+career rebuilds, exact own rewards and atomic rollback agree; no mid-match resume.
+
+Historical9/8/save53/report3,8/7/save52/report2,7/6/save51/report1,
+6/5/save50,5/4/save49,4/3/save48,3/2/save47,physical1/2/save46 and score-only
+save45 remain frozen with old stock/catalog signatures,receipt IDs and request hashes.
+Original local metadata commit is preserved at checkpoint/opponent-extra-heat-before-api-publish;
+API publication changes metadata only after exact local/remote tree verification.
+
+Broad053850773096Z passes27/27,including33 complete physical games,both semifinals
+and final:4677 releases,22 paid supplies/22 consumed,four Heat purchases,seven sponsors/
+four choices,each-round replay and one74-CB career payout.504202 wall milliseconds
+remains a latency limitation. Its701-file copy precedes the target-history/terminal
+boundary fixes. Focused060847677167Z passes11/11 after the corrected terminal unit,
+with two complete paid Heat games,human supplies,career/core. Final061058116016Z passes16/16 against all703 frozen files, repeating all33 games:
+4677 releases,same receipts/save bytes and one74-CB payout,516289 wall milliseconds.
+It also passes new managed/paid Heat,physical round,human expanded supplies unit/live,
+live Gear/sponsor sales,career/core. Native062413798122Z is12/13 with29 captures:
+Heat managed/paid,live-sale,career/core pass; existing loadout UI exits0 without its
+required marker and is not credited. Unchanged focused native062919085184Z passes9/9
+with15 captures/full loadout marker/core. Record that intermittent early-exit limit;
+no source/marker/error gate is weakened. Seven inspected unedited native images are
+in docs/reviews/20261004-opponent-extra-heat. Paid diagnostic display retains initial
+caller ownership; two complete physical clones prove actual paid use. Native game
+physics continue while hidden preparation/paid diagnostics/most managed frames omit
+drawing in tests; actual pregame/cue/UI frames render. Not a fully rendered whole
+match or human/hardware approval. All703 final source/test/asset/project/runner files
+stay frozen through review/publication. See VERIFICATION for precise failures/scope.
+
+Next: read another complete bounded supported AI/shop contract before larger systems;
+no next contract selected. Recovery Pack,Take a Base and Budget Bites,information
+sponsors,recruiting,Doubleheader,permanent player ownership/packs,higher Leagues/tiers,
+stadium progression,physical latency,integration/full-suite reliability and cohesive
+final UI/human visual/feel/hardware acceptance remain open. Working values remain
+Working. No merge/deploy/force push; routine engineering commits/pushes are authorized.
+
+
 ## Current checkpoint: paid opponent batting supplies, 2026-10-04 UTC
 
 Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,
@@ -1275,7 +1351,7 @@ during the current game. Starting a new attempt replaces that evidence.
 ## User requirements to carry forward
 
 - Continue in substantial, verified chunks and report the whole-project completion estimate
-  at the end of each response. The latest recorded estimate is approximately **79%**, not release readiness.
+  at the end of each response. The latest recorded estimate is approximately **83%**, not release readiness.
 - Preserve work with commits and pushes on the engineering branch. Do not merge or deploy.
 - Preserve earlier gameplay/camera fixes and saved-run compatibility.
 - Keep one clear Equipped lightbox accessible from the same button position during and between

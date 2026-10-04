@@ -8,7 +8,8 @@ static func restore(
 	seed_value: int,
 	roster: Array[String],
 	pool: Array[String] = [],
-	blocked: Array[String] = []
+	blocked: Array[String] = [],
+	before_game: int = -1
 ) -> SeasonBuild:
 	if (
 		not value is Dictionary
@@ -185,7 +186,7 @@ static func restore(
 			return null
 		result._film_from = int(value.film_from)
 	if value.version >= 19:
-		if not SeasonOwnership._whole(value.market, 0, 8 if value.version == 41 else 1):
+		if not SeasonOwnership._whole(value.market, 0, 9 if value.version == 41 else 1):
 			return null
 		result._market = int(value.market)
 	if value.version >= 20 and value.gear_start != null:
@@ -281,6 +282,8 @@ static func restore(
 	for event: Variant in value.events:
 		if not event is Dictionary:
 			return null
+		if before_game >= 0 and event.get("op") == "reward" and event.get("game") == before_game:
+			return result # Read-only prefix; caller first validates the complete original journal.
 		var applied: Dictionary = result.commit(event)
 		if not applied.ok or applied.replayed:
 			return null
@@ -291,4 +294,4 @@ static func restore(
 		var saved: Variant = JSON.parse_string(JSON.stringify(value.recruits))
 		if expected != saved:
 			return null
-	return result
+	return result if before_game < 0 else null

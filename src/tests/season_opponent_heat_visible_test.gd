@@ -1,8 +1,10 @@
 extends "res://src/tests/season_opponent_sponsors_visible_test.gd"
 ## Actual preparation matches, then a managed game against a genuinely paid supply club.
 
+var _heat_probe: OpponentHeatProbe = OpponentHeatProbe.new()
 var _tactical_probe: OpponentTacticalProbe = OpponentTacticalProbe.new()
 var _choice_captured: bool = false
+var _managed_heat_before: int = 0
 
 
 func _ready() -> void:
@@ -15,8 +17,7 @@ func _ready() -> void:
 	add_child(_app)
 	await get_tree().process_frame
 	_app.begin_season(443, true)
-	_app.season.opponents._format = 9
-	_check(_app.season.opponents._format == 9, "ordinary Working policy9")
+	_check(_app.season.opponents._format == 10, "ordinary Working policy10")
 	for pick in range(4):
 		_app.choose_player(_app.season.offers()[0])
 	# Only test preparation drawing is omitted; fixed-step gameplay keeps running.
@@ -51,7 +52,9 @@ func _ready() -> void:
 		_audit_season()
 		var next: Dictionary = _app.season.pending_fixture()
 		var opponent: int = next.away if next.home == 0 else next.home
-		upgraded = not _app.season.opponents.clubs[str(opponent)].build._bank.view().held.is_empty()
+		upgraded = _app.season.opponents.clubs[str(opponent)].build._bank.view().held.any(
+			func(copy: Dictionary) -> bool: return copy.item == SeasonTacticalCatalog.HEAT
+		)
 		if upgraded:
 			break
 	RenderingServer.set_render_loop_enabled(true)
@@ -59,7 +62,7 @@ func _ready() -> void:
 	if upgraded:
 		_prior_results = prepared
 		_app.menu.show_lineup()
-		await _review("opponent-tactical-managed-pregame")
+		await _review("opponent-heat-managed-pregame")
 		# Native review captures the actual choice cue; drawing then pauses for full physics.
 		get_window().size = Vector2i(700, 400)
 		await get_tree().process_frame
@@ -82,6 +85,7 @@ func _ready() -> void:
 			)
 		if DisplayServer.get_name() != "headless":
 			RenderingServer.set_render_loop_enabled(false)
+		_managed_heat_before = _heat_probe.releases
 		await _play_owned()  # Real managed inputs, full match and original outro state flow.
 		_check(
 			_choice_captured or DisplayServer.get_name() == "headless",
@@ -115,11 +119,11 @@ func _ready() -> void:
 			var bad: Dictionary = saved.duplicate(true)
 			match field:
 				"version":
-					bad.version = 52
+					bad.version = 53
 				"policy":
-					bad.opponents.policy = 8
+					bad.opponents.policy = 9
 				"market":
-					bad.opponents.clubs["1"].build.market = 7
+					bad.opponents.clubs["1"].build.market = 8
 				"journal":
 					bad.opponents.clubs["1"].build.events.pop_back()
 				"decision":
@@ -147,7 +151,15 @@ func _ready() -> void:
 			ClubCareer.same(committed, _app.season.opponents.to_data()),
 			"human checkout has no counter-shop"
 		)
-	print("NPC_TACTICAL_VISIBLE prepared=", prepared, " ", _tactical_probe.summary())
+	_check(_heat_probe.releases > 0, "actual managed or round Heat releases observed")
+	print(
+		"NPC_HEAT_VISIBLE prepared=",
+		prepared,
+		" ",
+		_heat_probe.summary(),
+		" ",
+		_tactical_probe.summary()
+	)
 	_app.queue_free()
 	await get_tree().process_frame
 	for suffix: String in ["", ".bak", ".tmp"]:
@@ -156,7 +168,7 @@ func _ready() -> void:
 	if _failures == 0:
 		print(
 			(
-				"Wiffaltro opponent tactical visible checks passed: "
+				"Wiffaltro opponent Heat visible checks passed: "
 				+ "actual credited history and managed use."
 			)
 		)
@@ -177,7 +189,7 @@ func _audit_season() -> void:
 		var earned: int = 0
 		var spent: int = 0
 		var replay: SeasonBuild = SeasonBuild.new(club.build._seed, club.build.roster())
-		replay._market = 8
+		replay._market = 9
 		for event: Dictionary in club.build.to_data().events:
 			var owns_walk: bool = replay._bank.view().sponsors.any(
 				func(receipt: Dictionary) -> bool: return receipt.item == "D01"
@@ -195,7 +207,8 @@ func _audit_season() -> void:
 				)
 				earned += income
 				var matches: Array = _app.season.results.filter(
-					func(row: Dictionary) -> bool: return row.id == event.game)
+					func(row: Dictionary) -> bool: return row.id == event.game
+				)
 				var fixture: Dictionary = matches[0]
 				_check(
 					ClubCareer.same(event.performance, fixture.performance),
@@ -221,16 +234,14 @@ func _process(_delta: float) -> void:
 	if lab == null and _app.round_ui != null:
 		lab = _app.round_ui.runner._lab
 	_tactical_probe.observe(lab, _check)
+	_heat_probe.observe(lab, _check)
 	if (
 		DisplayServer.get_name() != "headless"
 		and not _choice_captured
 		and lab == _app.lab
 		and lab != null
 		and lab._pitch_feedback.visible
-		and (
-			lab._pitch_feedback.text.begins_with("OPPONENT GRIP")
-			or lab._pitch_feedback.text.begins_with("OPPONENT SWING")
-		)
+		and (lab._pitch_feedback.text.begins_with("OPPONENT EXTRA HEAT"))
 	):
 		_choice_captured = true
 		_capture_live_choice(lab)
@@ -242,7 +253,7 @@ func _capture_live_choice(lab: PitchBatLab) -> void:
 		get_viewport().get_visible_rect().encloses(lab._pitch_feedback.get_global_rect()),
 		"choice cue fits native managed viewport"
 	)
-	await _capture("opponent-tactical-managed-cue")
+	await _capture("opponent-heat-managed-cue")
 	RenderingServer.set_render_loop_enabled(false)
 
 
@@ -251,7 +262,16 @@ func _check_outro_and_restart(lab: PitchBatLab) -> void:
 	var fixture: Dictionary = _app.season.pending_fixture()
 	var team: TeamMatchState = state.away_team if fixture.home == 0 else state.home_team
 	var proof: Dictionary = SeasonOpponentTactics.evidence(state, team)
-	_check(not proof.consumed.is_empty(), "actual managed paid supply was consumed")
+	var used: bool = false
+	for action: Dictionary in proof.consumed:
+		for copy: Dictionary in proof.initial:
+			if copy.id == action.receipt and copy.item == SeasonTacticalCatalog.HEAT:
+				used = true
+	_check(
+		used and _heat_probe.releases > _managed_heat_before,
+		"actual managed paid Heat consumption and physical release were observed"
+	)
+
 	_check(
 		PhysicalTacticalEvidence.human_matches(
 			_app.season, fixture, proof, state.performance.snapshot(state)

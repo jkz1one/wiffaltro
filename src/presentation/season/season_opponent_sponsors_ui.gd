@@ -4,7 +4,7 @@ extends RefCounted
 
 
 static func preview(card: VBoxContainer, club: Dictionary) -> void:
-	var choices: bool = club.build._market in [7, 8]
+	var choices: bool = club.build._market in [7, 8, 9]
 	SeasonPages.wrapped(card, "Opponent stock adds Take Your Base, Neighborhood Deli, "
 		+ "Community College and Strikecraft"
 		+ (", plus Cornerstone and Split Decision" if choices else "")

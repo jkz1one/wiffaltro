@@ -50,7 +50,8 @@ static func matches(data: Dictionary, state: MatchState) -> bool:
 	if not (flags[0] or flags[1]):
 		return data.version == PhysicalMatchReport.VERSION
 	if (data.version != PhysicalMatchReport.CHOICE_VERSION
-		and data.version != PhysicalMatchReport.TACTICAL_VERSION) or data.choices.clubs != flags:
+		and data.version != PhysicalMatchReport.TACTICAL_VERSION
+		and data.version != PhysicalMatchReport.HEAT_VERSION) or data.choices.clubs != flags:
 		return false
 	var fielders: Array[int] = [state.away_team.fielder_index, state.home_team.fielder_index]
 	var batters: Dictionary = {}

@@ -31,6 +31,7 @@ static func prepare(lab: PitchBatLab) -> void:
 			"spot": -1 if role == "bat" else lab._fielder_anchor_index})
 		state._ai_choice_prepared[key] = true
 	SeasonOpponentTactics.prepare(lab)
+	SeasonOpponentHeat.prepare(lab)
 	disclose(lab)
 
 
@@ -40,7 +41,10 @@ static func disclose(lab: PitchBatLab) -> void:
 	var state: MatchState = lab._match_state
 	var team: TeamMatchState = state.batting_team()
 	var active: String = team.tactics.active(state)
-	if not team.ai_tactical_hitter.is_empty() and active in SeasonOpponentTactics.ITEMS:
+	if state.defensive_team().ai_heat and state.defensive_team().tactics.active(state) == (
+		SeasonTacticalCatalog.HEAT):
+		lab._pitch_feedback.show_note("OPPONENT EXTRA HEAT • THIS BATTER")
+	elif not team.ai_tactical_hitter.is_empty() and active in SeasonOpponentTactics.ITEMS:
 		lab._pitch_feedback.show_note("OPPONENT " + SeasonTacticalCatalog.item(active).name.to_upper()
 			+ (" • " + String(team.tactics.locked_swing(state)).trim_prefix("swing.").to_upper()
 				if active == "C03" else ""))

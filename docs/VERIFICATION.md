@@ -1,5 +1,100 @@
 # Fast verification and playtest records
 
+## Paid opponent Extra Heat verification, 2026-10-04 UTC
+
+Recovered clean at5c92c79de1e5694b81fff642692f2b398afb7ee5; fresh main stays
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420 and the repository blueprint matches it.
+Current Decisions31/Economy24/Players17/Equipment18 retain the full bounded Heat
+contract. New Working policy10/market9/save54/report4 adds paid defensive Heat;
+9/8/save53/report3 and all earlier stock/receipt/resolver mappings remain frozen.
+Recovery, Take a Base and Budget Bites stay gated. Working is not promoted Approved.
+
+052615525712Z stops at lint (four long lines); baseline052711967280Z passes9/9
+with career/core. 052957392951Z stops at11 test-line lengths. Paid053049359113Z
+passes8/8, including two actual physical games with185/197 releases. The read-only
+probe verifies six actual Heat releases across fastball,slider and Eephus recipes,
+comparing the actor's released velocity against shared rating/mastery/Ball/Heat/
+execution/fatigue parameters. These are releases, not hits or guaranteed speed ratios.
+Readiness units cover all nine recipe identities, repeated preparation, ball/foul
+retention, canceled delivery and substitution/next-PA expiry. Synthetic reward budgets
+isolate buying; they are not earned-performance evidence.
+
+053204833620Z reaches native-engine scene parsing after preflight and finds a nested
+lambda indentation mismatch in the new managed test. It was stopped, the nested
+predicate replaced with ordinary loops, and no gameplay pass credited to that attempt.
+Focused053352697817Z passes12/12: new Heat managed/paid contracts, frozen policy9
+batting-supply managed/paid contracts and report1 runner. The new managed route plays
+six complete games: three actual preparation fixtures, Comets13/Yard0 over162 pitches,
+then two detached round fixtures. It consumes actual paid Heat and samples six Heat
+releases across the observed managed/round jobs plus21 Tape swing frames. Frames are
+not distinct swings. Original outro/Continue, exact reward/wallet/bag replay and
+version/policy/market/journal/request/report/held/human-proof tamper rejection pass.
+The ordinary next opponent acquired Heat from its own earned rewards, not a forced
+stock or free grant. The existing human controls remain explicit.
+
+After that focused copy, final additions cover generated mixed-supply capacity,
+all-nine Lv5/Rocket/Heat parameter stacking, an explicit managed-release assertion,
+actual used-player UI labels and prospective supply overview wording; six stable
+UIDs are added. These do not change physical outcomes, prices or acquisition policy.
+That broad copy contains701 source/test/asset/project/runner files.
+
+Broad053850773096Z passes **27/27**: seven gates plus20 scenes covering new full
+Heat playoffs/managed/paid contracts, frozen Tape/Plan and choice-sponsor paid/managed
+contracts, automatic sponsors, abilities, lessons, mastery, Gear, physical runner/
+equivalence/round, human tactical unit/live, live sales, career and core. Its full33
+physical games cover11 human-slot fixtures with ordinary controllers and22 archived
+AI games, both semifinals/final:4677 releases,22 paid supplies/22 consumed,four Heat
+purchases,seven sponsors/four choices,zero D01 income,one74-CB career payout,
+2143916 saved bytes and504202 wall milliseconds. Every-round statistics, receipts,
+wallets, requests/reports and replay agree. Observed archived jobs sample three actual
+Heat releases plus134 Tape/89 Plan frames. Sampling is not a count of every use.
+
+Subsequent review found two boundary issues: later human Power purchases could alter
+an earlier saved Heat target, and human Take a Base can end a game after Heat readiness
+without another pitch or credited PA. Read-only canonical pre-reward reconstruction
+fixes target history; narrowly scoped terminal evidence binds the actual Base ledger
+and real walk-off/mercy score rules. No stock/effect/controller tuning changes.
+060322183278Z completes three other scenes but fails the new terminal unit: it called
+a third-inning score a walk-off despite five-inning regulation, then accessed missing
+terminal evidence. Corrected to the legal third-inning10-run mercy boundary, it also
+checks regulation walk-off score eligibility. Focused060847677167Z passes **11/11**:
+new Heat units/two full paid games, human tactical unit, career and core. Prefix history
+uses an actual paid Power offer changing Dakota→Quinn; terminal fixtures are explicit
+synthetic boundary units, not full physical games or earned-performance evidence.
+Final source snapshot contains703 source/test/asset/project/runner files, including
+terminal validation and clearer gated-supply wording. Final run results follow.
+
+Final061058116016Z repeats the complete33-game physical season against all703 frozen
+files after both replay fixes. Outcome/receipts match the broad run:4677 releases,
+22 paid supplies/22 consumed,four Heat purchases,seven sponsors/four choices,zero
+D01 income and one74-CB payout,2143916 saved bytes.516289 wall milliseconds remains
+costly physical latency. All11 human-slot and22 archived games,both semifinals/final,
+each-round full save/replay and career once checks pass. Final061058116016Z passes **16/16**: seven common gates plus new Heat full playoffs,
+managed/paid scenes, physical round, live Gear/sponsor sales, human expanded-supply
+unit/live scenes, career and core. Managed route repeats six complete games;
+two paid diagnostics repeat382 releases/six sampled Heat releases. The terminal edge
+stays a synthetic shared-rule unit, not a claim that this physical benchmark happened
+to use human Base. The frozen703-file source also includes the final gate wording.
+
+Native062413798122Z is **12/13**,29 captures: new Heat managed/paid, live-sale,
+career/core scenes pass; existing loadout UI exits0 without its required completion
+marker and is not passed. Unchanged focused native062919085184Z passes **9/9**,
+15 captures, including the full loadout UI marker and core. No source, marker/error
+gate or test outcome is weakened to obtain that result. The intermittent loadout
+exit joins the recorded reliability limitations. New native Heat scenes complete
+six managed-route games and two paid diagnostic games; six sampled Heat releases
+per new scene, actual managed cue, price/target/bag disclosure and exact replay pass.
+Godot4.7.2/X11/OpenGL Compatibility/Mesa25.2.8 llvmpipe/LLVM20.1.2/Dummy audio;
+unsupported-V-Sync driver warning remains nonfatal. Seven inspected unedited images
+are copied byte-for-byte into docs/reviews/20261004-opponent-extra-heat. The paid bag
+capture shows original caller ownership, not settled use history; two physical clones
+prove actual paid consumption. Hidden preparation/paid games/most managed frames use
+test-only omitted drawing, retaining full fixed-step physics and original outro.
+This is not a fully rendered whole-match or human visual/feel/hardware acceptance.
+All703 frozen final source/test/asset/project/runner files match before publication;
+main and the repository progression blueprint remain unchanged. This is targeted
+verification, not the full suite. Overall **~83%**, not release readiness.
+
 ## Paid opponent batting-supply verification, 2026-10-04 UTC
 
 Recovered clean at18aef4555f4a775f7ac942c520999dfaea502869. Fresh main remains

@@ -1,5 +1,39 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Paid opponent Extra Heat, 2026-10-04 UTC
+
+New Working seasons use policy10/market9/save54/report4, resolver
+physical-ai-extra-heat-v1. Extra Heat joins paid Tape/Plan at5 Cash, same2-slot bag,
+category10, supported weights1:1:1 and one competing wallet/reroll. Existing
+development/packs/Gear/sponsors/learning precede supplies; actual affordable Tape,
+then Plan,then Heat. No forced stock/free grant/replacement/disposal/counter-shop.
+
+At legal pre-first-pitch defensive readiness, use Heat against the opposing roster's
+actual highest-Power hitter (stable ID ties). Shared MatchTactics multiplies the rated/
+mastered/Ball-modified velocity parameter by1.05 once for this PA, including balls/fouls.
+Normal fatigue/execution apply; pitcher substitution retires the effect immediately,
+without transfer or refund. Human activation stays explicit. No hidden pitch sensing,
+forced outcome or proxy strength. Unused copies remain held.
+
+Report4 tactical proof2 adds opposing roster/target/completed stances and actual pitcher
+releases, reconstructing exact merged offensive/defensive use and binding paid initial/
+consumed/remaining bags to committed definitions. Existing13th managed opponent-proof
+argument now requires version2 for policy10. Historical9/8/save53/report3 and all earlier
+mappings, signatures, receipts and request hashes remain frozen. Pregame shows target,
+effects/prices and paid purchase/use history; ordinary HUD shows the active Heat cue.
+Centered Equipped and saved/refunded live Gear/sponsor sales with next-batter retirement
+remain. Build41/Career21, human25 Gear/35 sponsors/five supplies/three abilities/one
+transformation and SeasonBuild921 lines stay unchanged. Read AI_EXTRA_HEAT and latest
+VERIFICATION. Overall **~83%**, not release readiness. Working stays Working. Recovery,
+Take a Base,Budget Bites,information sponsors,recruiting,Doubleheader,permanent players/
+packs,higher Leagues/tiers,stadiums,physical latency,integration/full-suite reliability
+and final cohesive UI/human visual/feel/hardware acceptance remain open.
+
+Managed human Base game endings retain legal already-consumed Heat through a narrow
+terminal proof and exact human Base ledger, with real walk-off/mercy score checks.
+Read-only pre-reward journal reconstruction preserves the actual Heat target across
+later human Power purchases. Detached AI Base remains gated. See AI_EXTRA_HEAT.
+
 ## Paid opponent batting supplies, 2026-10-04 UTC
 
 New Working seasons use policy9/market8/save53. Paid Grip Tape and Swing Plan join
@@ -248,7 +282,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.101
+**Version:** v0.4.102
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

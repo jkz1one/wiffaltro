@@ -1,5 +1,8 @@
 # Paid opponent batting supplies
 
+Policy9/market8/save53/report3 remains frozen. New policy10 adds paid Extra Heat
+under a prospective format; see [AI_EXTRA_HEAT](AI_EXTRA_HEAT.md).
+
 Working implementation, 2026-10-04 UTC. New Working seasons use Build41,
 save53, Career21, opponent policy9 and AI market8. Policy8/market7/save52
 keeps its choice sponsors, supply-free stock, report2 and request hashes.

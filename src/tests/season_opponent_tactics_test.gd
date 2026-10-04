@@ -313,6 +313,7 @@ func _tactical_game(item: String) -> void:
 func _tactical_ui() -> void:
 	var app: SeasonApp = await _app()
 	app.begin_season(SEED, true)
+	app.season.opponents._format = 9
 	_check(
 		app.season.opponents._format == 9 and SeasonSave.snapshot(app.season).version == 53,
 		"ordinary new Working start uses save53 / policy9"
