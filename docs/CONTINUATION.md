@@ -1,5 +1,109 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent Recovery Pack, 2026-10-04 UTC
+
+Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,
+parent972485c56e0ac38535b39cca35385ac3961adda4. Use git log -1 for pushed HEAD.
+Build41/new Working save55/Career21/opponent policy11/AI market10/report5,
+resolver physical-ai-recovery-v1; tactics proof3. SOTv0.4.103/Technicalv0.1.94.
+Read AI_RECOVERY and latest VERIFICATION. SeasonBuild remains921 lines; human
+content25/25 Gear,35/35 sponsors,five supplies,three abilities,one transformation.
+Overall **~83%**, not release readiness. Fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420; check again next turn. Repository
+PROGRESSION_BLUEPRINT remains byte-identical to main; never overwrite it with planning.
+
+Complete current Decisions31/Economy24/Players17/Equipment18 support paid Recovery4
+Cash in the ordinary category10 four-type Tape/Plan/Recovery/Heat pool. Supported
+weights1:1:1:1 normalize to25% before ordinary diversity repair; temporary readiness,
+wallet and held capacity do not filter stock. Development/qualified fixed8-Cash packs/
+preferred Gear/qualified sponsors/learning precede supplies. All profiles buy actual
+Tape, Plan, Recovery, Heat into the same2-slot bag, with one own earned reward wallet
+and at most one useful affordable ordinary reroll. No forced stock/free grants/reserve/
+replacement/disposal/counter-shop. Fixed packs remain development-family-only.
+
+At legal pre-first-pitch readiness, the saved planned primary must actually be active
+and have spent at least10% of game-start capacity. Shared MatchTactics consumes exact
+Recovery, restores10% of that maximum up to maximum, and limits it once/pitcher/game.
+Recovery outranks Heat. One normal activation per club/PA; balls/fouls/cancel/repeated
+preparation cannot duplicate it. Substitutes cannot inherit unused primary copies;
+unused copies remain held. Actual normal workload, execution and fatigue continue.
+Human activation stays explicit. Pregame discloses planned arm, thresholds, price,
+held copies and exact paid purchase/use history; ordinary HUD names restored stamina.
+Market10 keeps prior sponsor choice disclosure. Equipped stays centrally positioned;
+Gear/sponsor ownership/refunds save immediately, effects retire safe next batter.
+
+Report5/proof3 includes all actual game-start capacities/initial stamina, ordered
+readiness, paid releases, Strikecraft owners/credited Ks/refunds and final stamina.
+Replay reconstructs both clubs' merged chronology, exact bag selection and debits/
+credits, binds saved roles/ownership/repertoire, and cross-checks physical reports.
+New hashes bind recovery_policy; old hashes remain frozen. Managed jobs retain13
+arguments, requiring proof3 for policy11 even for empty bags. Save55 uses canonical
+pre-reward human prefixes; later Power purchases cannot retarget past Heat uses.
+Human Base endings bind exact next-PA defensive readiness and human Base ledger whether
+AI recovered, heated or had no eligible copy, without phantom release/PA. Existing
+walk-off/mercy checks and the read-only internal14th ledger argument remain. Detached
+report5 rejects terminal proofs because AI Base stays gated. Shared reward rollback,
+JSON/forks/career rebuilds and retries agree; no mid-match resume.
+
+Historical10/9/save54/report4/proof2,9/8/save53/report3/proof1,8/7/save52/report2,
+7/6/save51/report1,6/5/save50,5/4/save49,4/3/save48,3/2/save47,physical1/2/save46
+and score-only save45 remain frozen. Preserve receipt IDs, signatures, prospective
+unlocks, no stock regeneration, atomic rollback and deferred live-sale retirement.
+API publication uses exact-tree verification and force:false. Original local metadata
+is preserved at checkpoint/opponent-recovery-before-api-publish.
+
+Broad headless071208620271Z passes23/23 against its724 frozen source/test/asset/
+project/runner files. The explicit900-second playoff scene completes all33 physical
+games, both semifinals and final:11 human-slot fixtures,22 archived AI games,4759
+releases,22 paid supplies/22 consumed,4 Recovery purchases,6 sponsors/4 choices,
+0 D01 income, exact every-round restore and one74-CB career payout. The archive/save
+is2743461 bytes;548375 wall milliseconds remains a latency limitation, not a hardware
+performance approval. The read-only round probe observes3 Recovery uses and254
+subsequent releases; it does not observe the separate human-slot preparation runners.
+The same broad run repeats the12-game earned managed Recovery route and two paid
+Recovery diagnostics, frozen Heat managed/paid and batting-supply paid scenes, physical
+round/runner evidence, human expanded/tactical sponsor unit/live, live Gear/sponsor
+sale unit/live and career/core checks. This is targeted verification, not the full
+suite. All error and marker gates remain enabled.
+
+Native073119810652Z is12/13 with30 captures. The new managed Recovery scene catches
+its long cue clipping beyond the700-pixel viewport; other new paid, loadout/live-sale,
+career/core scenes pass. A two-line final delta shortens the runtime note to
+OPPONENT RECOVERY • STAMINA +10% and updates only its test detection prefix. The
+viewport-fit gate remains unchanged. No gameplay/workload/save rule changes. Thus the
+broad33-game copy precedes that presentation-only fix; it is not claimed as a full
+bracket rerun against the adjusted cue.
+
+Final native073737683880Z passes13/13 with30 captures after the cue correction.
+Both new scenes repeat14 complete games (12 earned-route/managed,2 paid diagnostics),
+with exact receipt/use/reward replay and actual released-parameter checks. Existing
+loadout/live-sale, career/core checks pass. The complete narrow cue now fits; no error,
+marker or geometry gate is weakened. Seven inspected, unedited originals are copied
+byte-for-byte to docs/reviews/20261004-opponent-recovery, including actually settled
+paid-copy use history and Equipped during/between games. All724 final source/test/
+asset/project/runner files stay unchanged through this final run/review/publication.
+The33-game broad benchmark is not repeated for the presentation-only cue/prefix delta.
+
+Native is Godot4.7.2/X11/OpenGL Compatibility/Mesa25.2.8 llvmpipe/LLVM20.1.2/256bits/
+Dummy audio; unsupported V-Sync remains. Hidden preparation/paid diagnostics and most
+managed frames omit drawing in tests while full physics runs; actual pregame/history/
+cue views render. Not a fully rendered whole match or human/hardware acceptance.
+Historical early exits, physical cost, integration/full-suite reliability and final
+cohesive UI/primary research/human visual/feel acceptance remain open. Overall **~83%**,
+not release readiness. Working stays Working; no merge/deploy/force push.
+
+Next: read another complete bounded supported AI/shop contract; no next contract is
+selected. AI Take a Base/Budget Bites, information sponsors, recruiting, Doubleheader
+and its urgent Recovery buy override remain gated. Permanent player ownership/packs,
+higher Leagues/tiers, stadiums, physical latency, integration/full-suite reliability,
+cohesive final UI/primary research/human visual/feel/hardware acceptance remain open.
+Working values remain Working; automated images are not human approval. Routine
+engineering commits/pushes remain authorized. No merge/deploy/force push/subagents.
+Run suites sequentially. Physical playoffs require explicit selection and an
+appropriate timeout (this slice uses900 seconds); core regressions and club-career
+remain mandatory. All source/test/asset/project/runner files are frozen before final
+verification and must remain unchanged through review/publication.
+
 ## Current checkpoint: paid opponent Extra Heat, 2026-10-04 UTC
 
 Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,

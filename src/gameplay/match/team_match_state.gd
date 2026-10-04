@@ -8,6 +8,7 @@ var copy_source: String = ""
 var display_name: String = "Team"
 var ai_sponsor_choices: bool = false
 var ai_heat: bool = false
+var ai_recovery_pitcher: String = ""
 var ai_tactical_hitter: String = ""
 var ai_tactical_initial: Array[Dictionary] = []
 
@@ -19,6 +20,7 @@ var runs: int = 0
 var scouted_recipe: StringName = &""
 var field_supply: MatchFieldSupply = MatchFieldSupply.new()
 var tactics: MatchTactics = MatchTactics.new()
+var recovery: MatchRecoveryFlow = MatchRecoveryFlow.new()
 var sure_shot_locked: bool = false
 var encore_used: bool = false
 var strikecraft_uses: int = 0

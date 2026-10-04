@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-recovery-playoffs", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_recovery_playoffs_test.tscn"],
+                 "Wiffaltro opponent Recovery playoff checks passed:"),
+                ("season-opponent-recovery-visible", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_recovery_visible_test.tscn", *ui_extra],
+                 "Wiffaltro opponent Recovery visible checks passed:"),
+                ("season-opponent-recovery", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_recovery_test.tscn", *ui_extra],
+                 "Wiffaltro opponent Recovery checks passed:"),
                 ("season-opponent-heat-playoffs", [*base, "--fixed-fps", "60",
                     "res://src/tests/season_opponent_heat_playoffs_test.tscn"],
                  "Wiffaltro opponent Heat playoff checks passed:"),
@@ -525,7 +534,7 @@ def main():
                             "season-opponent-mastery-playoffs", "season-opponent-lessons-playoffs",
                             "season-opponent-abilities-playoffs", "season-opponent-sponsors-playoffs",
                             "season-opponent-choices-playoffs", "season-opponent-tactics-playoffs",
-                            "season-opponent-heat-playoffs"]
+                            "season-opponent-heat-playoffs", "season-opponent-recovery-playoffs"]
                         and not args.only):
                     continue
                 if args.only and name not in args.only:

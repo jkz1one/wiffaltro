@@ -67,6 +67,9 @@ static func valid(row: Variant, roster: Array, performance: Dictionary, parity: 
 static func matches(
 	row: Dictionary, team: TeamMatchState, opposition: TeamMatchState = null
 ) -> bool:
+	if not team.ai_recovery_pitcher.is_empty() or row.get("version") == 3:
+		return not team.ai_recovery_pitcher.is_empty() \
+			and PhysicalRecoveryEvidence.matches(row, team, opposition)
 	if team.ai_heat or row.get("version") == 2:
 		return team.ai_heat and PhysicalHeatEvidence.matches(row, team, opposition)
 	var player: PlayerDefinition = null
@@ -99,6 +102,11 @@ static func report_valid(data: Dictionary) -> bool:
 
 
 static func report_matches(data: Dictionary, state: MatchState) -> bool:
+	if not state.away_team.ai_recovery_pitcher.is_empty() \
+		or not state.home_team.ai_recovery_pitcher.is_empty():
+		return PhysicalRecoveryEvidence.report_matches(data, state)
+	if data.version == PhysicalMatchReport.RECOVERY_VERSION:
+		return false
 	if state.away_team.ai_heat or state.home_team.ai_heat:
 		return PhysicalHeatEvidence.report_matches(data, state)
 	if data.version == PhysicalMatchReport.HEAT_VERSION:
@@ -123,6 +131,11 @@ static func human_matches(
 	if season.opponents == null or season.opponents._format < 9:
 		return row.is_empty()
 	var index: int = fixture.away if fixture.home == 0 else fixture.home
+	if season.opponents._format >= 11:
+		return PhysicalRecoveryEvidence.valid(row, season.teams[index].roster, performance,
+			0 if fixture.away == index else 1) and PhysicalHeatTerminal.human(row, tactics, fixture) \
+			and matches(row, season._make_team(index), season._heat_replay_team
+				if season._heat_replay_team != null else season._make_team(0))
 	if season.opponents._format >= 10:
 		return PhysicalHeatEvidence.valid(row, season.teams[index].roster, performance,
 			0 if fixture.away == index else 1) and PhysicalHeatTerminal.human(

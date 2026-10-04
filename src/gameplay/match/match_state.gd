@@ -326,6 +326,7 @@ func note_pitch_released(recipe: StringName = &"", actual_paid: float = 0.0) -> 
 	if not _pa_pitchers.has(pitcher()):
 		_pa_pitchers.append(pitcher())
 	pitch_ledger.record(pitcher(), recipe, actual_paid)
+	defensive_team().recovery.release(self, recipe, actual_paid)
 	sure_shot.release(self, recipe)
 	if recipe != &"":
 		gear_usage.released()

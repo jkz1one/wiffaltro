@@ -68,8 +68,13 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 				"held": team.ai_tactical_initial.duplicate(true)}
 		if team.ai_heat:
 			row["heat_policy"] = 1
+		if not team.ai_recovery_pitcher.is_empty():
+			row["recovery_policy"] = {"version": 1, "pitcher": team.ai_recovery_pitcher}
 		rows.append(row)
-	var resolver: String = PhysicalMatchReport.HEAT_RESOLVER if (
+	var resolver: String = PhysicalMatchReport.RECOVERY_RESOLVER if (
+		not state.away_team.ai_recovery_pitcher.is_empty()
+		or not state.home_team.ai_recovery_pitcher.is_empty()
+	) else PhysicalMatchReport.HEAT_RESOLVER if (
 		state.away_team.ai_heat or state.home_team.ai_heat
 	) else PhysicalMatchReport.TACTICAL_RESOLVER if (
 		not state.away_team.ai_tactical_hitter.is_empty()

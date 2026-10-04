@@ -1,5 +1,78 @@
 # Fast verification and playtest records
 
+## Paid opponent Recovery verification, 2026-10-04 UTC
+
+Continued clean pushed972485c56e0ac38535b39cca35385ac3961adda4. Fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420; repository blueprint is byte-identical.
+Complete current Decisions31/Economy24/Players17/Equipment18 support the bounded
+paid Recovery contract. New Working policy11/market10/save55/report5/proof3 adds
+actual stamina chronology; historical10/9/save54/report4/proof2 remains frozen.
+AI Base/Budget Bites/Doubleheader stay gated. Working is not promoted Approved.
+
+065144843296Z and065334771610Z stop at lint (two then one source-line lengths).
+Baseline065844985356Z passes9/9 with career/core. New-test070152306142Z stops at
+lint (probe member order and one line length). 070230586607Z passes preflight but
+fails two seeded readiness assertions: the unit had not restored PRE_PITCH/readiness
+after a ball/foul. Both complete paid physical games already pass report/replay with
+184/172 releases. The boundary fixture is corrected, with no runtime rule change.
+Focused070347728616Z passes9/9, repeating those two paid games and the earned managed
+route. Its latter route plays12 complete games: three rounds of preparation (three
+human-slot and six AI fixtures), then the actual managed Kites11/Yard0 game over151
+pitches and two detached round fixtures. Two observed Recovery uses and121 distinct
+subsequent releases use ordinary shared physics/fatigue; the observations include
+managed and detached round jobs, not all preparation runners. Tape/Plan frame counts
+are frames, not distinct swings. Own earned wallet, paid receipt consumption, exact
+season replay, original outro/Continue and tamper rejection pass.
+
+070758822078Z is interrupted after discovering an incorrect requested scene name;
+no gameplay pass is credited. 070809870946Z is stopped after new receipt-capture code
+hits a scene parser error (wrong inherited capture signature). The UI call is fixed.
+070908829676Z passes12/12: new Recovery paid games/boundaries, frozen Heat paid games,
+human expanded-supply units, career/core. Added seeded units reconcile the first-two
+shared Strikecraft credits and exact terminal human Base endings for empty/Recovery/
+Heat defensive readiness. These units seed workload/stock only for edge isolation;
+they are not earned-performance or full-physical-match claims.
+
+Broad headless071208620271Z passes23/23 against its724 frozen source/test/asset/
+project/runner files. The explicit900-second playoff scene completes all33 physical
+games, both semifinals and final:11 human-slot fixtures,22 archived AI games,4759
+releases,22 paid supplies/22 consumed,4 Recovery purchases,6 sponsors/4 choices,
+0 D01 income, exact every-round restore and one74-CB career payout. The archive/save
+is2743461 bytes;548375 wall milliseconds remains a latency limitation, not a hardware
+performance approval. The read-only round probe observes3 Recovery uses and254
+subsequent releases; it does not observe the separate human-slot preparation runners.
+The same broad run repeats the12-game earned managed Recovery route and two paid
+Recovery diagnostics, frozen Heat managed/paid and batting-supply paid scenes, physical
+round/runner evidence, human expanded/tactical sponsor unit/live, live Gear/sponsor
+sale unit/live and career/core checks. This is targeted verification, not the full
+suite. All error and marker gates remain enabled.
+
+Native073119810652Z is12/13 with30 captures. The new managed Recovery scene catches
+its long cue clipping beyond the700-pixel viewport; other new paid, loadout/live-sale,
+career/core scenes pass. A two-line final delta shortens the runtime note to
+OPPONENT RECOVERY • STAMINA +10% and updates only its test detection prefix. The
+viewport-fit gate remains unchanged. No gameplay/workload/save rule changes. Thus the
+broad33-game copy precedes that presentation-only fix; it is not claimed as a full
+bracket rerun against the adjusted cue.
+
+Final native073737683880Z passes13/13 with30 captures after the cue correction.
+Both new scenes repeat14 complete games (12 earned-route/managed,2 paid diagnostics),
+with exact receipt/use/reward replay and actual released-parameter checks. Existing
+loadout/live-sale, career/core checks pass. The complete narrow cue now fits; no error,
+marker or geometry gate is weakened. Seven inspected, unedited originals are copied
+byte-for-byte to docs/reviews/20261004-opponent-recovery, including actually settled
+paid-copy use history and Equipped during/between games. All724 final source/test/
+asset/project/runner files stay unchanged through this final run/review/publication.
+The33-game broad benchmark is not repeated for the presentation-only cue/prefix delta.
+
+Native is Godot4.7.2/X11/OpenGL Compatibility/Mesa25.2.8 llvmpipe/LLVM20.1.2/256bits/
+Dummy audio; unsupported V-Sync remains. Hidden preparation/paid diagnostics and most
+managed frames omit drawing in tests while full physics runs; actual pregame/history/
+cue views render. Not a fully rendered whole match or human/hardware acceptance.
+Historical early exits, physical cost, integration/full-suite reliability and final
+cohesive UI/primary research/human visual/feel acceptance remain open. Overall **~83%**,
+not release readiness. Working stays Working; no merge/deploy/force push.
+
 ## Paid opponent Extra Heat verification, 2026-10-04 UTC
 
 Recovered clean at5c92c79de1e5694b81fff642692f2b398afb7ee5; fresh main stays

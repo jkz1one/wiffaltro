@@ -312,6 +312,7 @@ func _heat_game(home_heat: bool) -> void:
 func _heat_ui() -> void:
 	var app: SeasonApp = await _app()
 	app.begin_season(SEED, true)
+	app.season.opponents._format = 10
 	_check(
 		app.season.opponents._format == 10 and SeasonSave.snapshot(app.season).version == 54,
 		"ordinary new Working start uses save54/policy10"

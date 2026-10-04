@@ -1,5 +1,53 @@
 # Implementation Status
 
+## Paid opponent Recovery Pack, 2026-10-04 UTC
+
+New Working seasons use policy11/market10/save55/report5, resolver
+physical-ai-recovery-v1. Recovery joins paid Tape/Plan/Heat at4 Cash, same2-slot bag,
+category10 and supported weights1:1:1:1. Existing development/qualified fixed packs/
+preferred Gear/qualified sponsors/learning precede supplies; all profiles buy actual
+Tape, Plan, Recovery, Heat from one own earned wallet, with at most one useful paid
+ordinary reroll. No forced stock, free copy, reserve, replacement, disposal or counter-shop.
+
+At legal pre-first-pitch defensive readiness, use Recovery on the saved planned primary
+pitcher only while actually active, after at least10% of game-start stamina is spent.
+Shared MatchTactics restores10% of that maximum, capped at maximum, once/pitcher/game.
+Recovery outranks Heat; one normal club activation per PA and ordinary actual workload,
+execution and fatigue remain. Repeated preparation/balls/fouls/cancel cannot recover
+again. Substitutes do not inherit unused planned-primary copies. Human use stays explicit.
+
+Report5 tactical proof3 records actual game-start stamina, defensive readiness, paid
+pitch costs, qualifying Strikecraft credits and final stamina. Replay reconstructs
+paid bag selection and each debit/credit, cross-checks actual reports, and binds saved
+roles/ownership/legal repertoire. Policy11 requires proof3 even for an empty bag; managed
+jobs retain13 arguments. Human Base endings also preserve empty/Recovery/Heat readiness
+through exact terminal Base ledger and walk-off/mercy checks, without phantom pitches.
+Canonical pre-reward human prefixes preserve historical Heat targets. Historical10/9/
+save54/report4 and all earlier catalog/receipt/stock/hash mappings remain frozen.
+
+Pregame shows planned arm, threshold, price, bag and exact paid purchase/use history;
+ordinary HUD discloses restored stamina. Market10 retains disclosure of paid sponsor
+choices. Centered Equipped and immediate saved/refunded live Gear/sponsor sales with
+safe next-batter effect retirement remain unchanged. Build41/Career21, SeasonBuild921
+lines and human25 Gear/35 sponsors/five supplies/three abilities/one transformation
+remain. Read AI_RECOVERY and latest VERIFICATION. Overall **~83%**, not release readiness.
+Working stays Working. AI Base/Budget Bites, information sponsors, recruiting and
+Doubleheader remain gated; permanent players/packs, higher Leagues/tiers, stadiums,
+physical latency, integration/full-suite reliability and final cohesive UI/primary
+research/human visual/feel/hardware acceptance remain open.
+
+Broad headless071208620271Z passes23/23 against its724 frozen files, including all33
+physical games/both semifinals/final,4759 releases,4 paid Recovery purchases and
+one74-CB career payout.548375 wall milliseconds remains a latency limit. See latest
+VERIFICATION for exact scope and native review; no human acceptance is claimed.
+
+Final native073737683880Z passes13/13 with30 captures and14 complete games in the
+new scenes. It fixes the initial12/13 run's narrow Recovery-cue clipping through
+only a two-line cue/test-prefix delta; no gameplay/save rule change. All724 final
+files stay frozen through final native review/publication. Seven unedited images
+in reviews/20261004-opponent-recovery show actual settled history and centered
+Equipped. Automated review is not human acceptance; see VERIFICATION for limits.
+
 ## Paid opponent Extra Heat, 2026-10-04 UTC
 
 New Working seasons use policy10/market9/save54/report4, resolver

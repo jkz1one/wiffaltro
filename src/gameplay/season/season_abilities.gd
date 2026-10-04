@@ -94,7 +94,7 @@ func targets(build: SeasonBuild, item: String) -> Array[Dictionary]:
 
 func pool(build: SeasonBuild) -> Dictionary:
 	var result: Dictionary = {}
-	if build._format < 36 or build._market not in [0, 5, 6, 7, 8, 9] \
+	if build._format < 36 or build._market not in [0, 5, 6, 7, 8, 9, 10] \
 		or build._visit.number < from_visit:
 		return result
 	for item: String in ITEMS:

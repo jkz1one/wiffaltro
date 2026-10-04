@@ -439,6 +439,7 @@ func _make_team(index: int) -> TeamMatchState:
 		team.ai_sponsor_choices = opponents._format >= 8
 		var role: Dictionary = opponents.clubs[str(index)].roles
 		team.pitcher_index = teams[index].roster.find(role.pitcher)
+		team.ai_recovery_pitcher = role.pitcher if opponents._format >= 11 else ""
 		team.fielder_index = teams[index].roster.find(role.fielder)
 		if opponents._format >= 9:
 			team.ai_heat = opponents._format >= 10

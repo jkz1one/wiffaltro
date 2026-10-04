@@ -10,6 +10,8 @@ const CHOICE_RESOLVER: String = "physical-ai-choices-v1"
 const TACTICAL_VERSION: int = 3
 const HEAT_VERSION: int = 4
 const HEAT_RESOLVER: String = "physical-ai-extra-heat-v1"
+const RECOVERY_VERSION: int = 5
+const RECOVERY_RESOLVER: String = "physical-ai-recovery-v1"
 const TACTICAL_RESOLVER: String = "physical-ai-batting-supplies-v1"
 
 
@@ -40,6 +42,11 @@ static func capture(lab: PitchBatLab) -> Dictionary:
 		result.version = HEAT_VERSION
 		result.resolver = HEAT_RESOLVER
 		result.tactics.version = 2
+	if not state.away_team.ai_recovery_pitcher.is_empty() \
+		or not state.home_team.ai_recovery_pitcher.is_empty():
+		result.version = RECOVERY_VERSION
+		result.resolver = RECOVERY_RESOLVER
+		result.tactics.version = 3
 	for team: TeamMatchState in [state.away_team, state.home_team]:
 		var row: Dictionary = {
 			"name": team.display_name, "roster": [], "recipes": {}, "workload": {},
@@ -61,6 +68,8 @@ static func capture(lab: PitchBatLab) -> Dictionary:
 				"remaining": player.stamina_remaining, "paid": paid,
 				"pitches": player.pitch_count, "retired": player.pitching_finished
 			}
+			if not team.ai_recovery_pitcher.is_empty():
+				row.workload[id].initial = team.recovery.initial[id].initial
 		result.teams.append(row)
 	for play: PlayRecord in lab._play_records:
 		result.plays.append({
@@ -80,15 +89,17 @@ static func valid(value: Variant) -> bool:
 		"version", "resolver", "seed", "field", "elapsed", "inning", "top",
 		"away_runs", "home_runs", "performance", "teams", "releases", "plays"]
 	if value.get("version") == CHOICE_VERSION or value.get("version") == TACTICAL_VERSION \
-		or value.get("version") == HEAT_VERSION:
+		or value.get("version") == HEAT_VERSION or value.get("version") == RECOVERY_VERSION:
 		keys.append("choices")
-	if value.get("version") == TACTICAL_VERSION or value.get("version") == HEAT_VERSION:
+	if value.get("version") == TACTICAL_VERSION or value.get("version") == HEAT_VERSION \
+		or value.get("version") == RECOVERY_VERSION:
 		keys.append("tactics")
 	if not SeasonOwnership._keys(value, keys):
 		return false
 	var data: Dictionary = value
-	if (not SeasonOwnership._whole(data.version, VERSION, HEAT_VERSION)
+	if (not SeasonOwnership._whole(data.version, VERSION, RECOVERY_VERSION)
 		or data.resolver != (
+			RECOVERY_RESOLVER if data.version == RECOVERY_VERSION else
 			HEAT_RESOLVER if data.version == HEAT_VERSION else
 			TACTICAL_RESOLVER if data.version == TACTICAL_VERSION else
 			CHOICE_RESOLVER if data.version == CHOICE_VERSION else RESOLVER) or not data.field is String
@@ -142,6 +153,8 @@ static func valid(value: Variant) -> bool:
 	if data.version == TACTICAL_VERSION and not PhysicalTacticalEvidence.report_valid(data):
 		return false
 	if data.version == HEAT_VERSION and not PhysicalHeatEvidence.report_valid(data):
+		return false
+	if data.version == RECOVERY_VERSION and not PhysicalRecoveryEvidence.report_valid(data):
 		return false
 	var costs: Dictionary = {}
 	var counts: Dictionary = {}

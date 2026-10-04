@@ -52,11 +52,17 @@ static func _team(source: TeamMatchState) -> TeamMatchState:
 		return null
 	if source.ai_heat and source.ai_tactical_hitter.is_empty():
 		return null
+	if not source.ai_recovery_pitcher.is_empty() and (not source.ai_heat \
+		or not source.recovery.ready.is_empty() or not source.recovery.costs.is_empty() \
+		or not source.recovery.refunds.is_empty()):
+		return null
 	if not source.ai_tactical_hitter.is_empty():
 		var roster: Array = source.roster.map(func(player: PlayerMatchState) -> String:
 			return String(player.definition.id))
 		if not source.ai_sponsor_choices or not roster.has(source.ai_tactical_hitter) \
 			or not ClubCareer.same(source.ai_tactical_initial, source.tactics.held):
+			return null
+		if not source.ai_recovery_pitcher.is_empty() and not roster.has(source.ai_recovery_pitcher):
 			return null
 	var definitions: Array[PlayerDefinition] = []
 	for player: PlayerMatchState in source.roster:
@@ -71,6 +77,7 @@ static func _team(source: TeamMatchState) -> TeamMatchState:
 	var result: TeamMatchState = TeamMatchState.create(source.display_name, definitions)
 	result.ai_sponsor_choices = source.ai_sponsor_choices
 	result.ai_heat = source.ai_heat
+	result.ai_recovery_pitcher = source.ai_recovery_pitcher
 	result.ai_tactical_hitter = source.ai_tactical_hitter
 	result.ai_tactical_initial.assign(source.ai_tactical_initial.duplicate(true))
 	result.pitcher_index = source.pitcher_index

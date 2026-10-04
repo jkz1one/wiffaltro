@@ -88,6 +88,7 @@ static func strikeout(state: MatchState) -> void:
 	pitcher.stamina_remaining = minf(pitcher.stamina_max, before + amount)
 	team.strikecraft_uses += 1
 	team.strikecraft_refunded += pitcher.stamina_remaining - before
+	team.recovery.refund(state, pitcher.stamina_remaining - before)
 
 
 static func optics_axes(mode: String) -> Vector2:

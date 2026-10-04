@@ -14,13 +14,15 @@ static func pool(market: int = 8) -> Dictionary:
 
 static func supported(market: int) -> Array[String]:
 	var result: Array[String] = ITEMS.duplicate()
-	if market == 9:
+	if market in [9, 10]:
 		result.append(SeasonTacticalCatalog.HEAT)
+	if market == 10:
+		result.insert(2, "C02")
 	return result
 
 
 static func purchase(build: SeasonBuild, club: Dictionary, game: int) -> bool:
-	if build._market not in [8, 9] or build._bank.view().held.size() >= (
+	if build._market not in [8, 9, 10] or build._bank.view().held.size() >= (
 		build._bank.view().capacity.held):
 		return false
 	for item: String in supported(build._market):
@@ -34,16 +36,17 @@ static func purchase(build: SeasonBuild, club: Dictionary, game: int) -> bool:
 			if not build.commit(request).ok:
 				return false
 			club.decisions.append({"game": game, "request": request.id, "player": (club.roles.pitcher
-				if item == SeasonTacticalCatalog.HEAT else club.roles.hitter),
+				if item in ["C02", SeasonTacticalCatalog.HEAT] else club.roles.hitter),
 				"stat": "tactical", "item": item, "paid": price,
-				"reason": "highest-Power opponent" if item == SeasonTacticalCatalog.HEAT
+				"reason": "planned pitcher recovery" if item == "C02" else
+				"highest-Power opponent" if item == SeasonTacticalCatalog.HEAT
 				else "featured hitter supply"})
 			return true
 	return false
 
 
 static func useful_price(build: SeasonBuild) -> int:
-	return 3 if build._market in [8, 9] and build._bank.view().held.size() < (
+	return 3 if build._market in [8, 9, 10] and build._bank.view().held.size() < (
 		build._bank.view().capacity.held) else 0
 
 
@@ -86,4 +89,7 @@ static func evidence(state: MatchState, team: TeamMatchState) -> Dictionary:
 		"initial": team.ai_tactical_initial.duplicate(true),
 		"consumed": team.tactics.consumed.duplicate(true),
 		"remaining": team.tactics.held.duplicate(true), "stances": state.sides.evidence(team)}
-	return SeasonOpponentHeat.evidence(state, team, row) if team.ai_heat else row
+	if team.ai_heat:
+		row = SeasonOpponentHeat.evidence(state, team, row)
+	return SeasonOpponentRecovery.evidence(state, team, row) \
+		if not team.ai_recovery_pitcher.is_empty() else row
