@@ -16,6 +16,7 @@ static func capture(source: MatchState) -> MatchState:
 		or not source.performance.players.is_empty() or not source.sides.rows.is_empty()
 		or not source.sure_shot.releases.is_empty() or not source.sure_shot.calls.is_empty()
 		or not source.cold.appearances.is_empty() or not source.clean_outs.rows.is_empty()
+		or not source.ai_choice_events.is_empty() or not source._ai_choice_prepared.is_empty()
 		or not source.frozen_contacts.is_empty() or source.bases.occupied_count() != 0
 		or source.gear_usage.started or not source.gear_usage.first_pitch.is_empty()):
 		return null
@@ -60,6 +61,7 @@ static func _team(source: TeamMatchState) -> TeamMatchState:
 			return null
 		definitions.append(player.definition.duplicate(true) as PlayerDefinition)
 	var result: TeamMatchState = TeamMatchState.create(source.display_name, definitions)
+	result.ai_sponsor_choices = source.ai_sponsor_choices
 	result.pitcher_index = source.pitcher_index
 	result.fielder_index = source.fielder_index
 	result.copy_source = source.copy_source

@@ -1,22 +1,21 @@
-extends "res://src/tests/season_physical_visible_test.gd"
+extends "res://src/tests/season_opponent_sponsors_visible_test.gd"
 ## Actual preparation matches, then a managed game against a genuinely paid sponsor club.
 
-var _probe: OpponentSponsorProbe = OpponentSponsorProbe.new()
-var _capture_dir: String = ""
+var _choice_probe: OpponentChoiceProbe = OpponentChoiceProbe.new()
+var _choice_captured: bool = false
 
 
 func _ready() -> void:
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--ui-capture-dir="):
 			_capture_dir = argument.trim_prefix("--ui-capture-dir=")
-	SeasonSave.path = "user://sponsor-visible-%d.json" % OS.get_process_id()
-	PitchBatLabSettings.path = "user://sponsor-visible-%d.cfg" % OS.get_process_id()
+	SeasonSave.path = "user://choice-visible-%d.json" % OS.get_process_id()
+	PitchBatLabSettings.path = "user://choice-visible-%d.cfg" % OS.get_process_id()
 	_app = SeasonApp.new()
 	add_child(_app)
 	await get_tree().process_frame
 	_app.begin_season(443, true)
-	_app.season.opponents._format = 7
-	_check(SeasonSave.save(_app.season), "historical policy7 explicitly saves")
+	_check(_app.season.opponents._format == 8, "ordinary Working policy8")
 	for pick in range(4):
 		_app.choose_player(_app.season.offers()[0])
 	# Only test preparation drawing is omitted; fixed-step gameplay keeps running.
@@ -36,7 +35,8 @@ func _ready() -> void:
 		_audit_season()
 		var next: Dictionary = _app.season.pending_fixture()
 		var opponent: int = next.away if next.home == 0 else next.home
-		upgraded = not _app.season.opponents.clubs[str(opponent)].build._bank.view().sponsors.is_empty()
+		upgraded = _app.season.opponents.clubs[str(opponent)].build._bank.view().sponsors.any(
+			func(row: Dictionary) -> bool: return row.item in ["F01", "F03"])
 		if upgraded:
 			break
 	RenderingServer.set_render_loop_enabled(true)
@@ -44,8 +44,8 @@ func _ready() -> void:
 	if upgraded:
 		_prior_results = prepared
 		_app.menu.show_lineup()
-		await _review("opponent-sponsors-managed-pregame")
-		# Review the whole native managed game at the already checked narrow window size.
+		await _review("opponent-choices-managed-pregame")
+		# Native review captures the actual choice cue; drawing then pauses for full physics.
 		get_window().size = Vector2i(700, 400)
 		await get_tree().process_frame
 		_app.play_season_game()
@@ -57,7 +57,11 @@ func _ready() -> void:
 		for player: PlayerMatchState in team.roster:
 			_check(player.definition.season_sponsors == club.build.definition(
 				String(player.definition.id)).season_sponsors, "exact paid sponsors reach managed roster")
-		await _play_owned() # Actual managed match and its original outro render normally.
+		if DisplayServer.get_name() != "headless":
+			RenderingServer.set_render_loop_enabled(false)
+		await _play_owned() # Real managed inputs, full match and original outro state flow.
+		_check(_choice_captured or DisplayServer.get_name() == "headless",
+			"actual native AI choice cue reviewed")
 		if DisplayServer.get_name() != "headless":
 			RenderingServer.set_render_loop_enabled(false)
 		await _wait_sponsor_round()
@@ -67,63 +71,34 @@ func _ready() -> void:
 			"actual managed sponsor game settles once after original outro")
 		_audit_season()
 		var saved: Dictionary = SeasonSave.snapshot(_app.season)
-		for field: String in ["version", "policy", "market", "journal", "decision", "request", "stats"]:
+		for field: String in ["version", "policy", "market", "journal", "decision",
+			"request", "stats", "choices", "resolver"]:
 			var bad: Dictionary = saved.duplicate(true)
 			match field:
-				"version": bad.version = 50
-				"policy": bad.opponents.policy = 6
-				"market": bad.opponents.clubs["1"].build.market = 5
+				"version": bad.version = 51
+				"policy": bad.opponents.policy = 7
+				"market": bad.opponents.clubs["1"].build.market = 6
 				"journal": bad.opponents.clubs["1"].build.events.pop_back()
 				"decision": bad.opponents.clubs["1"].decisions.append({"stat": "sponsor", "paid": 0})
 				"request": bad.physical.reports[0].request = "0".repeat(64)
 				"stats": bad.physical.reports[0].report.performance.values()[0].bb += 1
+				"choices": bad.physical.reports[0].report.choices.events.pop_back()
+				"resolver": bad.physical.reports[0].report.resolver = PhysicalMatchReport.RESOLVER
 			_check(SeasonSave._decode(bad) == null, "altered sponsor " + field + " rejected")
 		var committed: Dictionary = _app.season.opponents.to_data()
 		_app.open_shop()
 		_check(ClubCareer.same(committed, _app.season.opponents.to_data()),
 			"human checkout has no counter-shop")
-	print("NPC_SPONSOR_VISIBLE prepared=", prepared, " ", _probe.summary())
+	print("NPC_CHOICE_VISIBLE prepared=", prepared, " ", _choice_probe.summary())
 	_app.queue_free()
 	await get_tree().process_frame
 	for suffix: String in ["", ".bak", ".tmp"]:
 		DirAccess.remove_absolute(SeasonSave.path + suffix)
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
-		print("Wiffaltro opponent sponsor visible checks passed: "
+		print("Wiffaltro opponent choice visible checks passed: "
 			+ "actual credited history and managed use.")
 	get_tree().quit(0 if _failures == 0 else 1)
-
-
-func _human_report(season: SeasonState, fixture: Dictionary) -> Dictionary:
-	var runner: PhysicalMatchRunner = PhysicalMatchRunner.new()
-	add_child(runner)
-	var report: Dictionary = {}
-	var failures: Array[String] = []
-	runner.finished.connect(func(value: Dictionary) -> void: report.merge(value, true))
-	runner.failed.connect(func(reason: String) -> void: failures.append(reason))
-	_check(runner.start(SeasonPhysicalFixtures.match_for(season, fixture),
-		SeasonPhysicalFixtures.seed_for(season, fixture), SeasonState.field_for_fixture(fixture).id),
-		"real preparation fixture starts with committed definitions")
-	for frame in range(300000):
-		await get_tree().physics_frame
-		if not report.is_empty() or not failures.is_empty():
-			break
-	_check(failures.is_empty() and PhysicalMatchReport.valid(report),
-		"real preparation game completes")
-	runner.queue_free()
-	await get_tree().process_frame
-	return report
-
-
-func _wait_sponsor_round() -> void:
-	for frame in range(300000):
-		await get_tree().physics_frame
-		if _app.season.physical.pending.is_empty():
-			return
-		if not _app.round_ui._working:
-			_check(false, "sponsor round paused: " + _app.round_ui.detail.text)
-			return
-	_check(false, "sponsor round exceeded bounded frame budget")
 
 
 func _audit_season() -> void:
@@ -135,7 +110,7 @@ func _audit_season() -> void:
 		var earned: int = 0
 		var spent: int = 0
 		var replay: SeasonBuild = SeasonBuild.new(club.build._seed, club.build.roster())
-		replay._market = 6
+		replay._market = 7
 		for event: Dictionary in club.build.to_data().events:
 			var owns_walk: bool = replay._bank.view().sponsors.any(
 				func(receipt: Dictionary) -> bool: return receipt.item == "D01")
@@ -160,40 +135,39 @@ func _audit_season() -> void:
 			"actual base/earned sponsor income and all debits reconcile")
 
 
-func _review(label: String) -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-	for node: Node in _app.menu._body.find_children("*", "Label", true, false):
-		if node.has_meta("opponent_sponsor_owned"):
-			var scroll: ScrollContainer = _app.menu._body.get_parent()
-			scroll.ensure_control_visible(node.get_parent())
-			await get_tree().process_frame
-			await _capture(label)
-			get_window().size = Vector2i(700, 400)
-			await get_tree().process_frame
-			await get_tree().process_frame
-			scroll.ensure_control_visible(node)
-			await get_tree().process_frame
-			_check(get_viewport().get_visible_rect().encloses(_app.menu._footer.get_global_rect()),
-				"narrow sponsor disclosure preserves navigation")
-			await _capture(label + "-small")
-			get_window().size = Vector2i(1280, 720)
-			return
-	_check(false, "actual next opponent's paid sponsor is disclosed")
-
-
-func _capture(label: String) -> void:
-	if _capture_dir.is_empty() or DisplayServer.get_name() == "headless":
-		return
-	await RenderingServer.frame_post_draw
-	DirAccess.make_dir_recursive_absolute(_capture_dir)
-	_check(get_viewport().get_texture().get_image().save_png(
-		_capture_dir.path_join(label + ".png")) == OK, "native sponsor capture")
-
-
 func _process(_delta: float) -> void:
-	if is_instance_valid(_app):
-		var lab: PitchBatLab = _app.lab
-		if lab == null and _app.round_ui != null:
-			lab = _app.round_ui.runner._lab
-		_probe.observe(lab, _check)
+	if not is_instance_valid(_app):
+		return
+	var lab: PitchBatLab = _app.lab
+	if lab == null and _app.round_ui != null:
+		lab = _app.round_ui.runner._lab
+	_choice_probe.observe(lab, _check)
+	if DisplayServer.get_name() != "headless" and not _choice_captured and lab == _app.lab \
+		and lab != null and lab._pitch_feedback.visible \
+		and lab._pitch_feedback.text.begins_with("OPPONENT"):
+		_choice_captured = true
+		_capture_live_choice(lab)
+
+
+func _capture_live_choice(lab: PitchBatLab) -> void:
+	RenderingServer.set_render_loop_enabled(true)
+	_check(get_viewport().get_visible_rect().encloses(lab._pitch_feedback.get_global_rect()),
+		"choice cue fits native managed viewport")
+	await _capture("opponent-choice-managed-cue")
+	RenderingServer.set_render_loop_enabled(false)
+
+
+func _check_outro_and_restart(lab: PitchBatLab) -> void:
+	var state: MatchState = lab._match_state
+	var total: int = 0
+	for line: Dictionary in state.performance.snapshot(state).values():
+		total += int(line.pa)
+	_check(state.ai_choice_events.size() == total,
+		"managed AI prepares exactly one controlled role for every completed PA")
+	_check(state.ai_choice_events.any(func(row: Dictionary) -> bool:
+		return row.mode in ["wide", "anchor"]), "actual managed paid choice was committed")
+	for row: Dictionary in state.ai_choice_events:
+		var index: int = int(row.half) % 2 if row.role == "bat" else 1 - int(row.half) % 2
+		var team: TeamMatchState = state.away_team if index == 0 else state.home_team
+		_check(team.ai_sponsor_choices, "managed choices never replace human controls")
+	await super._check_outro_and_restart(lab)

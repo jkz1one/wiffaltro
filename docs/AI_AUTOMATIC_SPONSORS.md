@@ -1,5 +1,9 @@
 # Paid automatic opponent sponsors
 
+Policy7/market6 remains frozen. New policy8/market7 adds paid Split Decision
+and Cornerstone pre-PA choices; see [AI_CHOICE_SPONSORS](AI_CHOICE_SPONSORS.md).
+The historical automatic-only specification and verification below remain intact.
+
 ## Selected Working contract
 
 This slice selects the four automatic members of Economy24's seven-sponsor AI list:

@@ -111,7 +111,7 @@ func begin_season(seed_value: int = -1, working_progression: bool = false) -> vo
 	candidate.difficulty = 1
 	if working_progression:
 		candidate.physical = SeasonPhysicalFixtures.new()
-		candidate.opponents._format = 7
+		candidate.opponents._format = 8
 	if working_progression or (previous != null and previous.career != null):
 		var club: ClubCareer = ClubCareer.new()
 		if previous != null and previous.career != null:

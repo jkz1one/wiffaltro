@@ -197,6 +197,8 @@ static func _finish_intro(lab: PitchBatLab, snap_camera: bool) -> void:
 		lab._status_label.text = ""
 		lab._refresh_config()
 
+	SeasonOpponentChoices.disclose(lab)
+
 
 static func confirm_batter_ready(lab: PitchBatLab) -> void:
 	if (
@@ -231,6 +233,7 @@ static func request_batter_timeout(lab: PitchBatLab) -> bool:
 
 
 static func begin_ai_delivery(lab: PitchBatLab) -> void:
+	SeasonOpponentChoices.prepare(lab)
 	if (
 		not MatchAutomation.pitching(lab)
 		or lab._match_state == null
@@ -297,6 +300,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 				and (completed_plate_appearance or changed_half)
 			)
 			lab._apply_defensive_assignment()
+			SeasonOpponentChoices.prepare(lab)
 			lab._apply_role_camera()
 			if lab._match_state.phase == MatchState.Phase.GAME_END:
 				begin_match_outro(lab)

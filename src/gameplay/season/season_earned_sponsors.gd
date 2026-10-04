@@ -42,7 +42,7 @@ const REQUIREMENTS: Dictionary = {
 
 
 static func eligible(build: SeasonBuild) -> Dictionary:
-	if build._market == 6:
+	if build._market in [6, 7]:
 		return SeasonOpponentSponsors.pool(build)
 	# Unlock changes future rolls only; existing offers remain immutable.
 	var earned: Array[String] = build._sponsor_progress.eligible()

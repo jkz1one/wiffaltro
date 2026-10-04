@@ -1,5 +1,34 @@
 # Plastic-Ball Baseball Roguelite — Technical Preproduction
 
+## Paid opponent choice sponsors, 2026-10-04 UTC
+
+New Working seasons use policy8/market7/save52. Paid Common10 Split Decision
+and Cornerstone join the four automatic AI sponsors. Ordinary weighted actual
+stock, empty active slots, profile preference, one competing wallet and at most
+one useful affordable reroll remain authoritative. No forced stock or free grants.
+Distributed/Featured may buy Split Decision; Pitching/defense may buy Cornerstone
+after eligible College/Strikecraft. Read AI_CHOICE_SPONSORS for the complete contract.
+
+AI selects wide Contact before each own PA and anchors the current legal primary
+before each opposing PA. Shared human gameplay effects and ordinary controllers
+apply; no unreleased-pitch/contact observation, forced play or proxy strength.
+Report2/resolver physical-ai-choices-v1 records complete controlled-role choices;
+replay binds paid ownership and exact ordinary positioning. Historical policy7/
+market6/save51, report1 and request hashes remain frozen. New start is prospective.
+Managed games use the same choices and a brief ordinary feedback cue; pregame
+shows policy, tradeoffs, exact paid receipts/slots and history. Human controls remain.
+
+Build41/Career21, frozen catalog signatures/receipt IDs, discovery, centered Equipped
+and immediate saved live-sale refunds with next-batter retirement stay unchanged.
+SeasonBuild remains921 lines; human content stays25 Gear/35 sponsors/five supplies/
+three abilities/one transformation. Overall **~82%**, not release readiness.
+Verification and actual native rendered scope are recorded in VERIFICATION; automation
+never supplies human acceptance. Budget Bites/tactical grants, information-sponsor
+cues, other AI sponsors, supplies, recruiting and Doubleheader remain gated.
+Permanent players/packs, higher Leagues/tiers, stadiums, physical latency, integration/
+full-suite reliability and final cohesive UI/human visual/feel/hardware acceptance
+remain open. Working stays Working. No merge, deployment or force push.
+
 ## Paid automatic opponent sponsors, 2026-10-03
 
 New Working seasons use policy7/market6/save51. Four automatic sponsors join prior
@@ -191,7 +220,7 @@ Build41/save45/Career21. SeasonFrozenRope owns separate current metadata; old Al
 BattedBallLaunch preserves original spray-derived sidespin when selected direction changes. Human and AI use the same launch hook. No RNG, current-defense re-selection or future-route inspection. Version1 selection must remain stable for old proof validation; future tuning requires versioned rules. Legacy contacts omit proof fields, old Build40/save44/Career20 fixtures preserve receipt IDs, stock and prospective Gap credits. SeasonBuild remains921 lines.
 
 
-**Version:** v0.1.90
+**Version:** v0.1.91
 **Status:** FROZEN BASELINE WITH FIELD-SCORING / PITCHER-LANE AMENDMENT
 **Scope:** Project architecture, Pitch simulation, batting/contact, ball-in-play, vanilla match, first Season Shell
 **Companion doc:** `SOURCE_OF_TRUTH.md`

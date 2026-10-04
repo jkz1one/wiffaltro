@@ -266,6 +266,8 @@ func _paid_game(item: String) -> void:
 func _sponsor_ui() -> void:
 	var app: SeasonApp = await _app()
 	app.begin_season(SEED, true)
+	app.season.opponents._format = 7
+	_check(SeasonSave.save(app.season), "historical policy7 explicitly saves")
 	_check(app.season.opponents._format == 7 and SeasonSave.restore() != null,
 		"ordinary Working start saves policy7")
 	for pick in range(4):

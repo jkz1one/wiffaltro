@@ -1,6 +1,6 @@
 class_name SeasonOpponentSponsors
 extends RefCounted
-## Policy7 / market6: four automatic sponsors, actual credited history and shared effects.
+## Policy7/8: four automatic plus two explicit-choice sponsors, paid shared effects.
 
 const ITEMS: Array[String] = ["D01", "A07", "B02", "B03"]
 
@@ -60,7 +60,10 @@ static func offers(build: SeasonBuild, roll: int) -> Dictionary:
 
 static func pool(build: SeasonBuild) -> Dictionary:
 	var result: Dictionary = {}
-	for id: String in ITEMS:
+	var items: Array[String] = ITEMS.duplicate()
+	if build._market == 7:
+		items.append_array(["F01", "F03"])
+	for id: String in items:
 		result[id] = SeasonSponsorCatalog.item(id).weight
 	for receipt: Dictionary in build._bank.view().sponsors:
 		result.erase(receipt.item)
@@ -77,6 +80,8 @@ static func history(build: SeasonBuild) -> Array[Dictionary]:
 
 static func qualifies(build: SeasonBuild, club: Dictionary, item: String) -> bool:
 	var games: Array[Dictionary] = history(build)
+	if build._market == 7 and item in ["F01", "F03"]:
+		return true
 	if item == "B02":
 		return not build._book.earned_players(build.roster()).is_empty()
 	if item == "B03":
@@ -112,6 +117,13 @@ static func targets(build: SeasonBuild, club: Dictionary) -> Array[String]:
 		preferred.push_front("A07")
 	elif club.profile == "Pitching / defense":
 		preferred.assign(["B02", "B03", "D01"])
+	if build._market == 7:
+		if club.profile == "Featured hitter":
+			preferred.assign(["A07", "F03", "D01"])
+		elif club.profile == "Pitching / defense":
+			preferred.assign(["B02", "B03", "F01", "D01"])
+		else:
+			preferred.push_front("F03")
 	var result: Array[String] = []
 	for id: String in preferred:
 		if pool(build).has(id) and qualifies(build, club, id):

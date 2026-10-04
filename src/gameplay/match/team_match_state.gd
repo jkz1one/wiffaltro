@@ -6,6 +6,8 @@ const ROSTER_SIZE: int = 4
 
 var copy_source: String = ""
 var display_name: String = "Team"
+var ai_sponsor_choices: bool = false
+
 var roster: Array[PlayerMatchState] = []
 var batting_index: int = 0
 var pitcher_index: int = 0

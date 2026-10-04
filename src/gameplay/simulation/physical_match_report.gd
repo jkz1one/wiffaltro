@@ -1,10 +1,12 @@
 class_name PhysicalMatchReport
 extends RefCounted
-## Standalone v1 evidence, not a season save or authority to award anything.
+## Standalone versioned evidence, not a season save or authority to award anything.
 # gdlint: disable=max-returns
 
 const VERSION: int = 1
 const RESOLVER: String = "physical-ai-v1"
+const CHOICE_VERSION: int = 2
+const CHOICE_RESOLVER: String = "physical-ai-choices-v1"
 
 
 static func capture(lab: PitchBatLab) -> Dictionary:
@@ -17,6 +19,11 @@ static func capture(lab: PitchBatLab) -> Dictionary:
 		"performance": state.performance.snapshot(state), "teams": [],
 		"releases": lab._automation.releases.duplicate(true), "plays": []
 	}
+	if state.away_team.ai_sponsor_choices or state.home_team.ai_sponsor_choices:
+		result.version = CHOICE_VERSION
+		result.resolver = CHOICE_RESOLVER
+		result["choices"] = {"version": 1, "clubs": [state.away_team.ai_sponsor_choices,
+			state.home_team.ai_sponsor_choices], "events": state.ai_choice_events.duplicate(true)}
 	for team: TeamMatchState in [state.away_team, state.home_team]:
 		var row: Dictionary = {
 			"name": team.display_name, "roster": [], "recipes": {}, "workload": {},
@@ -51,13 +58,19 @@ static func capture(lab: PitchBatLab) -> Dictionary:
 
 
 static func valid(value: Variant) -> bool:
-	if not value is Dictionary or not SeasonOwnership._keys(value, [
+	if not value is Dictionary:
+		return false
+	var keys: Array = [
 		"version", "resolver", "seed", "field", "elapsed", "inning", "top",
-		"away_runs", "home_runs", "performance", "teams", "releases", "plays"]):
+		"away_runs", "home_runs", "performance", "teams", "releases", "plays"]
+	if value.get("version") == CHOICE_VERSION:
+		keys.append("choices")
+	if not SeasonOwnership._keys(value, keys):
 		return false
 	var data: Dictionary = value
-	if (not SeasonOwnership._whole(data.version, VERSION, VERSION)
-		or data.resolver != RESOLVER or not data.field is String
+	if (not SeasonOwnership._whole(data.version, VERSION, CHOICE_VERSION)
+		or data.resolver != (
+			CHOICE_RESOLVER if data.version == CHOICE_VERSION else RESOLVER) or not data.field is String
 		or ContentDB.get_field(StringName(data.field)) == null
 		or not SeasonOwnership._whole(data.seed, 0, 2147483647)
 		or not number(data.elapsed, 0.0, PhysicalMatchRunner.MAX_SECONDS + 1.0)
@@ -102,6 +115,8 @@ static func valid(value: Variant) -> bool:
 			return false
 	if (total == 0 or appearances[1].half != 0
 		or appearances[total].half != (int(data.inning) - 1) * 2 + (0 if data.top else 1)):
+		return false
+	if data.version == CHOICE_VERSION and not PhysicalChoiceEvidence.valid(data, appearances):
 		return false
 	var costs: Dictionary = {}
 	var counts: Dictionary = {}

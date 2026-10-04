@@ -425,6 +425,7 @@ func _make_team(index: int) -> TeamMatchState:
 		roster.append(player_definition(id))
 	var team: TeamMatchState = TeamMatchState.create(teams[index]["name"], roster)
 	if opponents != null and index > 0:
+		team.ai_sponsor_choices = opponents._format >= 8
 		var role: Dictionary = opponents.clubs[str(index)].roles
 		team.pitcher_index = teams[index].roster.find(role.pitcher)
 		team.fielder_index = teams[index].roster.find(role.fielder)

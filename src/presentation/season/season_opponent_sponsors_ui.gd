@@ -4,8 +4,11 @@ extends RefCounted
 
 
 static func preview(card: VBoxContainer, club: Dictionary) -> void:
+	var choices: bool = club.build._market == 7
 	SeasonPages.wrapped(card, "Opponent stock adds Take Your Base, Neighborhood Deli, "
-		+ "Community College and Strikecraft to development, 13 initial Gear and learning. "
+		+ "Community College and Strikecraft"
+		+ (", plus Cornerstone and Split Decision" if choices else "")
+		+ " to development, 13 initial Gear and learning. "
 		+ "Other sponsors, supplies and recruiting remain gated.")
 	var box: VBoxContainer = SeasonPlayerCard.panel(card, false)
 	SeasonPages.wrapped(box, "TEAM SPONSORS")
@@ -21,6 +24,17 @@ static func preview(card: VBoxContainer, club: Dictionary) -> void:
 	elif club.profile == "Pitching / defense":
 		rule = "College first: actual earned development; then Strikecraft: " \
 			+ "primary arm knows at least three recipes. " + rule
+	if choices:
+		if club.profile == "Pitching / defense":
+			rule = "College first: actual earned development; then Strikecraft: primary arm " \
+				+ "knows three recipes; then Cornerstone (10 Cash). " + ("Take Your Base: "
+				+ "credited walk in the last two games, at least three regular games left.")
+		elif club.profile == "Featured hitter":
+			rule = "Deli first: two team Singles last game; then Split Decision (10 Cash); " \
+				+ "then Take Your Base: recent walk, at least three regular games left."
+		else:
+			rule = "Split Decision first (10 Cash); then Take Your Base: a credited walk " \
+				+ "in the last two games, with at least three regular games left."
 	SeasonPages.wrapped(box, rule)
 	if build._bank.view().sponsors.is_empty():
 		SeasonPages.wrapped(box, "No paid sponsor yet.")
@@ -28,6 +42,13 @@ static func preview(card: VBoxContainer, club: Dictionary) -> void:
 		var item: Dictionary = SeasonSponsorCatalog.item(receipt.item)
 		SeasonPages.wrapped(box, "%s • paid %d Cash\n%s" % [item.name, receipt.paid, item.effect]
 		).set_meta("opponent_sponsor_owned", true)
+		if choices and receipt.item in ["F01", "F03"]:
+			SeasonPages.wrapped(box, ("AI chooses WIDE before every own plate appearance: "
+				+ "Contact X ×1.10 / Y ×0.90 after Gear. Power and timing unchanged."
+				if receipt.item == "F03" else "AI anchors the primary fielder at the current legal "
+				+ "spot before each opposing plate appearance. No fair-ball travel; +0.12 s "
+				+ "clean-control margin only after ordinary reach and reaction checks.")
+			).set_meta("opponent_sponsor_choice", true)
 		if receipt.item == "B02":
 			SeasonPages.wrapped(box, "Current qualifying developed players: %d / 4" % [
 				build._book.earned_players(build.roster()).size()])

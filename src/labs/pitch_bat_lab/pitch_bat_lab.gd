@@ -893,6 +893,7 @@ func _start_new_match() -> void:
 	if _contact_vector_draw != null:
 		_contact_vector_draw.clear()
 	_apply_defensive_assignment()
+	SeasonOpponentChoices.prepare(self)
 	_apply_role_camera()
 	_status_label.text = "TOP 1 • %s\nGame presentation starting" % (
 		"Player batting" if _player_is_batting() else "Player pitching"

@@ -249,11 +249,16 @@ static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:
 		return
 	if SeasonCornerstone.position_locked(lab._match_state):
 		return
-	var batter: PlayerDefinition = lab._match_state.batter().definition
+	lab._fielder_anchor_index = ai_fielder_anchor(lab._match_state.batter().definition,
+		lab._match_state.inning, lab._match_state.plate_appearance_number, lab._field_definition)
+
+
+static func ai_fielder_anchor(batter: PlayerDefinition, inning: int, pa: int,
+	field: FieldDefinition) -> int:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = (
-		lab._match_state.inning * 1009
-		+ lab._match_state.plate_appearance_number * 313
+		inning * 1009
+		+ pa * 313
 		+ batter.power * 43
 		+ batter.contact * 17
 	)
@@ -272,11 +277,11 @@ static func assign_ai_fielder_anchor(lab: PitchBatLab) -> void:
 	elif column_roll >= 0.84:
 		column = 2 - pull_column
 	var anchor_index: int = depth_row * 3 + column
-	if not lab._field_definition.is_fielder_anchor_available(anchor_index):
+	if not field.is_fielder_anchor_available(anchor_index):
 		# Preserve the chosen depth but move toward the Batter's pull side so
 		# opponent defense never stacks directly in the Pitcher's sightline.
 		anchor_index = depth_row * 3 + pull_column
-	lab._fielder_anchor_index = anchor_index
+	return anchor_index
 
 
 static func ai_pitch_choice(

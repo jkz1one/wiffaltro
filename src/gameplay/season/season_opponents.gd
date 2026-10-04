@@ -1,6 +1,6 @@
 class_name SeasonOpponents
 extends RefCounted
-## Policy7 adds paid automatic sponsors and credited events; older policies stay frozen.
+## Policy8 adds paid pre-PA choices; older automatic/stat/learning policies stay frozen.
 
 var draft_order: Array[int] = []
 var clubs: Dictionary = {}

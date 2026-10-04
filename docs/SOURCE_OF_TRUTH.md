@@ -1,5 +1,34 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Paid opponent choice sponsors, 2026-10-04 UTC
+
+New Working seasons use policy8/market7/save52. Paid Common10 Split Decision
+and Cornerstone join the four automatic AI sponsors. Ordinary weighted actual
+stock, empty active slots, profile preference, one competing wallet and at most
+one useful affordable reroll remain authoritative. No forced stock or free grants.
+Distributed/Featured may buy Split Decision; Pitching/defense may buy Cornerstone
+after eligible College/Strikecraft. Read AI_CHOICE_SPONSORS for the complete contract.
+
+AI selects wide Contact before each own PA and anchors the current legal primary
+before each opposing PA. Shared human gameplay effects and ordinary controllers
+apply; no unreleased-pitch/contact observation, forced play or proxy strength.
+Report2/resolver physical-ai-choices-v1 records complete controlled-role choices;
+replay binds paid ownership and exact ordinary positioning. Historical policy7/
+market6/save51, report1 and request hashes remain frozen. New start is prospective.
+Managed games use the same choices and a brief ordinary feedback cue; pregame
+shows policy, tradeoffs, exact paid receipts/slots and history. Human controls remain.
+
+Build41/Career21, frozen catalog signatures/receipt IDs, discovery, centered Equipped
+and immediate saved live-sale refunds with next-batter retirement stay unchanged.
+SeasonBuild remains921 lines; human content stays25 Gear/35 sponsors/five supplies/
+three abilities/one transformation. Overall **~82%**, not release readiness.
+Verification and actual native rendered scope are recorded in VERIFICATION; automation
+never supplies human acceptance. Budget Bites/tactical grants, information-sponsor
+cues, other AI sponsors, supplies, recruiting and Doubleheader remain gated.
+Permanent players/packs, higher Leagues/tiers, stadiums, physical latency, integration/
+full-suite reliability and final cohesive UI/human visual/feel/hardware acceptance
+remain open. Working stays Working. No merge, deployment or force push.
+
 ## Paid automatic opponent sponsors, 2026-10-03
 
 New Working seasons use policy7/market6/save51. Four automatic sponsors join prior
@@ -190,7 +219,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.99
+**Version:** v0.4.100
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

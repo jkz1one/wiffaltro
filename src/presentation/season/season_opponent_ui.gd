@@ -25,7 +25,9 @@ static func preview(menu: SeasonMenu, card: VBoxContainer, fixture: Dictionary) 
 		card,
 		(
 			"Purchases are committed before your shop. This opponent spends match rewards "
-			+ ("on development, Gear, learning and four supported sponsors, using one wallet."
+			+ ("on development, Gear, learning and six supported sponsors, using one wallet."
+				if season.opponents._format >= 8
+				else "on development, Gear, learning and four supported sponsors, using one wallet."
 				if season.opponents._format >= 7
 				else "on development, Gear, lessons and learned abilities, using one wallet."
 				if season.opponents._format >= 6

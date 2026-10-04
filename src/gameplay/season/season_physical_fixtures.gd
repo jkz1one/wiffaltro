@@ -59,9 +59,15 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 		for player: PlayerMatchState in team.roster:
 			players.append({"definition": _resource(player.definition),
 				"capacity": player.stamina_max, "initial": player.stamina_remaining})
-		rows.append({"name": team.display_name, "pitcher": team.pitcher_index,
-			"fielder": team.fielder_index, "players": players})
-	return JSON.stringify({"resolver": PhysicalMatchReport.RESOLVER,
+		var row: Dictionary = {"name": team.display_name, "pitcher": team.pitcher_index,
+			"fielder": team.fielder_index, "players": players}
+		if team.ai_sponsor_choices:
+			row["choice_policy"] = 1
+		rows.append(row)
+	var resolver: String = PhysicalMatchReport.CHOICE_RESOLVER if (
+		state.away_team.ai_sponsor_choices or state.home_team.ai_sponsor_choices
+	) else PhysicalMatchReport.RESOLVER
+	return JSON.stringify({"resolver": resolver,
 		"seed": seed_for(season, fixture), "field": String(SeasonState.field_for_fixture(fixture).id),
 		"quality": state.ai_tactical_quality, "fixture": fixture, "teams": rows}, "", true, true
 	).sha256_text()
@@ -79,6 +85,9 @@ func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
 		error = "Saved physical fixture does not match its scheduled clubs and committed build."
 		return {}
 	var state: MatchState = match_for(season, fixture)
+	if not PhysicalChoiceEvidence.matches(row.report, state):
+		error = "Saved physical choices do not match the committed sponsor policy."
+		return {}
 	for index in range(2):
 		var team: TeamMatchState = state.away_team if index == 0 else state.home_team
 		var evidence: Dictionary = row.report.teams[index]

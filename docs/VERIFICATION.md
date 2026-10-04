@@ -1,5 +1,89 @@
 # Fast verification and playtest records
 
+## Paid opponent choice-sponsor verification, 2026-10-04 UTC
+
+Recovered at44331ecc57bc3f1e39e054e223bbc524a552eb8b. Fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420; repository blueprint remains byte-identical.
+Read complete Decisions31/Economy24/Players17/Equipment18 plus Blueprint114 F01/F03
+lifecycle, retaining current Equipment's multiplicative Optics correction.
+Working stays Working; no hosted CI, merge, deployment or human approval is claimed.
+
+Early002640131401Z,002942690316Z,003037807489Z and003152957778Z stop at lint
+(order, line length and trailing whitespace). No gameplay pass is credited.
+Baseline002734784682Z passes9/9 with career/core. First new-physics003225765508Z
+passes9/10: both paid choice games complete and old sponsor/runner scenes pass,
+but the new checkout assertion incorrectly excludes legitimate College/Strikecraft
+purchases earlier in the same shop. The assertion now uses shared supported IDs/
+prices while still requiring both new sponsors actually bought. No gameplay or
+qualification tuning is used to manufacture a pass.
+
+Broad headless `20261004T003504282281Z`: **22/22**, seven common gates plus15
+scenes. Includes new full playoff, managed and paid choice contracts; historical
+automatic sponsors, learned abilities, lessons, mastery and Gear; report1 runner/
+exact presented-detached equivalence; existing Optics/Cornerstone, live-sale,
+career and core checks. The complete benchmark plays **33 actual games**:11
+human-slot fixtures using both ordinary controllers,20 archived regular AI games,
+one archived AI semifinal and the archived final; the other semifinal occupies
+the human slot. It records4962 releases,11 paid sponsors includingfive F01/F03,
+1717982 saved bytes and484342 wall milliseconds, exact every-round replay and
+one71-CB career payout. D01 income is zero in this seed; the historical paid D01
+diagnostic still proves positive actual earnings. Choice sampling observes4650
+Contact swing frames and47333 stationary fair-field frames, not distinct swings/
+catches. No synthetic statistics, forced outcomes or free sponsor effects supply
+this benchmark. The runtime remains a latency limitation.
+
+The new managed route plays six complete games:three preparation fixtures,one
+ordinary managed game against the actual paid Split Decision club,then two detached
+round fixtures. Its score is Comets7/Yard0 over144 pitches. Original outro/Continue,
+actual credited statistics, one settlement, full opponent journals/wallets and
+exact save replay pass; passive human inputs are state-flow evidence. Sampling
+observes193 wide Contact frames. Cornerstone is separately exercised by a complete
+paid detached game, not claimed as this managed opponent's sponsor.
+The two generated/paid diagnostics play346 releases and54 controlled-role events
+each; sample288 wide Contact frames and2483 stationary fair-field frames. Both
+leave caller state/receipts and natural assets unchanged. Stock affordability,
+exact10-Cash ownership, replay, old market6 exclusion and ordinary profile purchases
+pass. No human-owned choice is automated even with two diagnostic controllers.
+
+After the broad source copy began, final changes tighten choice scalar types and
+committed fielder-role rejection, improve pregame wording, and add new tamper/
+managed-journal assertions and stable script identities. No acquisition policy,
+shared effect, controller physics or old report1 behavior changes. Final headless `20261004T005159774197Z`: **15/15**, common gates plus the new
+full benchmark/managed/paid contracts, historical physical-round retry/persistence,
+live Cornerstone, live Optics, career and core. All669 final source/test/asset/
+project/runner files stay unchanged. The repeated33-game benchmark records the same
+4962 releases,11 sponsors/five choices,1717982 saved bytes and71-CB payout, with
+484789 wall milliseconds and exact per-round replay. The six-game managed route
+repeats Comets7/Yard0,144 pitches and193 sampled wide Contact frames; every completed
+PA has exactly one controlled AI-role decision and no human-owned choice is replaced.
+Two paid diagnostics again exercise288 wide Contact frames/2483 stationary fair
+frames over346 releases. Additional structurally legal altered ownership,field spot
+and fielder identity reject against the committed request. Saved choice-journal and
+resolver tampering reject. Actual live human Cornerstone also completes a123-pitch
+match with30 explicit choices and5547 fixed-field frames. These are independent
+shared-human regression checks, not a second managed AI Cornerstone opponent.
+
+Native `20261004T010441211809Z`: **13/13**, six selected scenes plus common gates,
+with31 captures. New paid diagnostics and the six-game managed route reproduce
+headless release/frame/score totals. Pregame at1280×720 and the700×400 narrow window,
+plus the actual managed wide-choice HUD cue, render natively. Hidden preparation,
+paid diagnostic games and most managed frames omit drawing using the test-only
+render-loop switch; complete fixed-step physics, original outro state flow and
+settlement still run. No fully rendered whole managed game is claimed in this slice.
+Existing loadout/live-sale, career and core checks pass. Seven inspected unedited
+images are copied byte-for-byte into docs/reviews/20261004-opponent-choices, including
+actual next-opponent wide policy/history, paid Cornerstone diagnostic disclosure,
+actual managed cue and Equipped in shop/game contexts. Navigation, scrolling, cue
+bounds and center placement remain clear; no source changes follow review.
+
+Environment is Godot4.7.2, X11/OpenGL Compatibility, Mesa25.2.8 llvmpipe/LLVM20.1.2,
+Dummy audio. The unsupported-V-Sync driver warning remains. All669 frozen final
+source/test/asset/project/runner files remain unchanged through final headless,
+native review and publication. Working remains Working. Human visual/feel acceptance,
+hardware performance, costly physical simulation, historical full-suite/physical-round
+early exits and final cohesive whole-UI polish remain open. This is targeted coverage,
+not a full-suite or release-readiness claim.
+
 ## Paid automatic opponent-sponsor verification, 2026-10-03
 
 Recovered clean at67237fcbb34ce0b523ae4f07f2fbb4c0468174a3. Fresh main remains

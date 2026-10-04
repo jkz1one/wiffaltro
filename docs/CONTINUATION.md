@@ -1,5 +1,61 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent choice sponsors, 2026-10-04 UTC
+
+Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,
+parent44331ecc57bc3f1e39e054e223bbc524a552eb8b. Use git log -1 for pushed HEAD.
+Build41/new Working save52/Career21/opponent policy8/AI market7. SOTv0.4.100 /
+Technicalv0.1.91; SeasonBuild921 lines. Read AI_CHOICE_SPONSORS and latest
+VERIFICATION first. Human content remains25/25 Gear,35/35 sponsors,five supplies,
+three abilities,one transformation. Overall **~82%**, not release readiness.
+Fresh main remainsf1dc209b6de11e45aedbd1568fa1b2d841dd2420; check again next turn.
+Repository PROGRESSION_BLUEPRINT remains byte-identical to main; never replace it.
+
+Current complete planning read Decisions31/Economy24/Players17/Equipment18, plus
+Blueprint114 F01/F03 lifecycle. New market7 adds paid Common10 Cornerstone and
+Split Decision to the four automatic sponsors; Budget Bites remains gated. Ordinary
+weighted actual stock, existing development/pack/Gear-before-sponsors checkout,
+profile eligibility, shared paid active slots and one competing wallet/reroll remain.
+Distributed prefers F03/D01; Featured A07/F03/D01; Pitching/defense B02/B03/F01/D01.
+No forced offers, free grants, reserve inventory or human counter-shopping.
+
+Policy8 AI selects wide before each own PA and the current legal primary anchor
+before each opposing PA. Shared Contact X×1.10/Y×0.90 after Gear and stationary
+fair-ball Cornerstone with ordinarily qualified +0.12 control apply. No future pitch,
+contact observation or forced outcome. Human choices remain explicit. Pregame shows
+paid policy/effects/history; a brief ordinary feedback cue shows the committed mode.
+Keep centered Equipped and save-now/refund-now/retire-next-batter live sales unchanged.
+
+Report2 / physical-ai-choices-v1 records complete controlled-role decisions and
+binds paid ownership/ordinary positioning on replay. Copied requests bind policy
+flags and full definitions. Managed play shares the helper but keeps existing
+human result evidence; there is no new mid-match human save. Historical policy7/
+market6/save51/report1 and prior6/5/save50,5/4/save49,4/3/save48,3/2/save47,
+physical1/2/save46,score-only save45 remain frozen. Do not rewrite old request hashes,
+receipt IDs or catalog signatures. All current verification scope/failures and actual
+native rendered review are retained in VERIFICATION. Automated review is not human
+acceptance. Original local commit is preserved at checkpoint/opponent-choices-before-api-publish;
+API publication changes metadata only after exact-tree verification.
+
+Final headless005159774197Z passes15/15, including the complete33-game season:
+4962 releases,11 paid sponsors/five choices,exact every-round replay,career71 once,
+484789 wall milliseconds. The managed route completes six real games and its
+144-pitch Comets7/Yard0 match/outro/settlement. Paid generated F03/F01 diagnostics
+complete346 releases and actual shared effects. Final native010441211809Z passes
+13/13 with31 captures/eight full physical games; only actual pregame/choice cue/UI
+frames render in this slice, not the entire managed game. Seven inspected unedited
+images are in docs/reviews/20261004-opponent-choices. All669 final source/test/asset/
+project/runner files remain frozen through final verification/publication. Earlier
+broad003504282281Z is22/22; initial lint/assertion failures remain in VERIFICATION.
+
+Next: another complete bounded supported AI/shop contract before larger systems;
+no next contract selected. Budget Bites needs grant/tactical-use implementation;
+information sponsors need their full cue/knowledge contracts. AI supplies,recruiting,
+Doubleheader, permanent players/packs,higher Leagues/tiers,stadiums,physical latency,
+integration/full-suite reliability and final cohesive UI/human visual/feel/hardware
+acceptance remain open. Working stays Working. Routine implementation,verification,
+commits and engineering pushes already authorized; no merge/deploy/force-push/agents.
+
 ## Current checkpoint: paid automatic opponent sponsors, 2026-10-03
 
 Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,

@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-choices-playoffs", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_choices_playoffs_test.tscn"],
+                 "Wiffaltro opponent choice playoff checks passed:"),
+                ("season-opponent-choices-visible", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_choices_visible_test.tscn", *ui_extra],
+                 "Wiffaltro opponent choice visible checks passed:"),
+                ("season-opponent-choices", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_choices_test.tscn", *ui_extra],
+                 "Wiffaltro opponent choice checks passed:"),
                 ("season-opponent-sponsors-playoffs", [*base, "--fixed-fps", "60",
                     "res://src/tests/season_opponent_sponsors_playoffs_test.tscn"],
                  "Wiffaltro opponent sponsor playoff checks passed:"),
@@ -496,7 +505,8 @@ def main():
                 # The 23-game throughput benchmark is explicit, outside the default scene scope.
                 if (name in ["season-physical-playoffs", "season-opponent-gear-playoffs",
                             "season-opponent-mastery-playoffs", "season-opponent-lessons-playoffs",
-                            "season-opponent-abilities-playoffs", "season-opponent-sponsors-playoffs"]
+                            "season-opponent-abilities-playoffs", "season-opponent-sponsors-playoffs",
+                            "season-opponent-choices-playoffs"]
                         and not args.only):
                     continue
                 if args.only and name not in args.only:
