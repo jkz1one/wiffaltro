@@ -198,6 +198,8 @@ func _choice_game(item: String) -> void:
 func _choice_ui() -> void:
 	var app: SeasonApp = await _app()
 	app.begin_season(SEED, true)
+	app.season.opponents._format = 8
+	_check(SeasonSave.save(app.season), "historical policy8 start saves")
 	_check(app.season.opponents._format == 8 and SeasonSave.snapshot(app.season).version == 52,
 		"ordinary new Working start uses save52 / policy8")
 	for pick in range(4):

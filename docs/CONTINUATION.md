@@ -1,5 +1,73 @@
 # Wiffaltro continuation checkpoint
 
+## Current checkpoint: paid opponent batting supplies, 2026-10-04 UTC
+
+Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,
+parent18aef4555f4a775f7ac942c520999dfaea502869. Use git log -1 for pushed HEAD.
+Build41/new Working save53/Career21/opponent policy9/AI market8/report3,
+resolver physical-ai-batting-supplies-v1. SOTv0.4.101/Technicalv0.1.92;
+SeasonBuild921 lines. Read AI_BATTING_SUPPLIES and latest VERIFICATION first.
+Human content remains25/25 Gear,35/35 sponsors,five supplies,three abilities,
+one transformation. Overall **~83%**, not release readiness. Fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420; check again next turn. Repository
+PROGRESSION_BLUEPRINT stays byte-identical to main; never replace it with planning.
+
+Complete current planning read Decisions31/Economy24/Players17/Equipment18.
+This bounded contract adds only paid Grip Tape/Swing Plan,3 Cash each, ordinary
+category10/weights1:1, shared held capacity2. Development/qualified packs,
+preferred Gear,qualified sponsors and learning precede supplies. All profiles
+use the saved featured hitter; actual legal stock,one own wallet and at most
+one useful affordable reroll apply. No forced stock,free grants,disposal,reserve,
+retargeting or human counter-shopping. Fixed8-Cash packs remain development-only.
+
+Before the first pitch of each featured-hitter PA, shared MatchTactics consumes
+Tape first,otherwise Plan; Plan chooses Power only when actual Power>Contact,
+otherwise Contact. One club activation per PA; repeat preparation/fouls/canceled
+delivery do not duplicate or extend it. Unused copies stay held. Actual physical
+controllers and common effects determine outcomes; no future-pitch observation.
+Human choices remain explicit. Pregame shows actual paid bag,target/mode,effects,
+purchases/use history; ordinary HUD names the activated supply. Keep centered
+Equipped and save-now/refund-now/retire-next-batter live sales unchanged.
+
+Report3 binds exact paid initial/consumed/remaining bags and earliest featured
+completed PAs. Requests bind copied supply ownership/target; each own reward
+consumes exact copies once before checkout. Prospective managed pending jobs gain
+13th opponent-supply evidence argument; old12-argument jobs remain frozen. Save53
+replays full opponent proof before reward/settlement,including empty bags, and
+rejects tampering. Historical policy8/market7/save52/report2,
+7/6/save51/report1,6/5/save50,5/4/save49,4/3/save48,3/2/save47,
+physical1/2/save46 and score-only save45 remain unchanged. Preserve old signatures,
+receipt IDs and request hashes; JSON numeric report dispatch uses explicit equality.
+Original local commit is preserved at checkpoint/opponent-batting-supplies-before-api-publish;
+API publication changes metadata only after exact-tree verification.
+
+Broad042409568409Z passes25/25,including33 complete physical games:11 human-slot
+fixtures using both ordinary controllers,22 archived AI games,both semifinals/final,
+4706 releases,30 paid supplies/30 consumed,six sponsors/four choices,exact every-round
+replay and one74-CB career payout. Cost504025 wall milliseconds remains a latency
+limit. Final044631618324Z passes14/14 against all686 frozen source/test/asset/project/
+runner files. Two late deltas from the broad copy add a malformed-save empty-fixture
+guard and explicit invalid-copy reward rollback assertion; no valid gameplay tuning.
+The full33-game benchmark was not rerun for those two deltas. Both new final scenes
+repeat six managed-route games and two paid diagnostics. All failures and detailed
+verification scope remain in VERIFICATION. Final native045248923299Z passes13/13,
+31 captures,eight complete games in the two new scenes. Actual pregame/activation
+cue/UI frames render; test-only drawing omission covers hidden preparation,paid
+complete diagnostics and most managed frames,not a fully rendered whole game.
+Seven inspected unedited images are in docs/reviews/20261004-opponent-batting-supplies.
+All686 final source/test/asset/project/runner files remain frozen through final
+verification/publication. Godot4.7.2/X11/OpenGL Compatibility/Mesa llvmpipe/Dummy
+Audio; unsupported V-Sync warning remains. Native review is not human acceptance.
+
+Next: another complete bounded supported AI/shop contract before larger systems;
+no next contract selected. Recovery/Extra Heat/Take a Base and Budget Bites remain
+gated on complete fatigue/scoring/grant contracts. Information sponsors,recruiting,
+Doubleheader,permanent players/packs,higher Leagues/tiers,stadiums,physical latency,
+integration/full-suite reliability and final cohesive UI/human visual/feel/hardware
+acceptance remain open. Working stays Working; automated screenshots are not human
+approval. Routine implementation,verification,commits and engineering pushes already
+authorized; no merge/deploy/force-push/agents.
+
 ## Current checkpoint: paid opponent choice sponsors, 2026-10-04 UTC
 
 Continue /workspace/scratch/c3619bd03563/wiffaltro on rebuild/season-engineering,

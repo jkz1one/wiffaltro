@@ -15,6 +15,8 @@ func _ready() -> void:
 	add_child(_app)
 	await get_tree().process_frame
 	_app.begin_season(443, true)
+	_app.season.opponents._format = 8
+	_check(SeasonSave.save(_app.season), "historical policy8 saves prospectively")
 	_check(_app.season.opponents._format == 8, "ordinary Working policy8")
 	for pick in range(4):
 		_app.choose_player(_app.season.offers()[0])

@@ -1,5 +1,9 @@
 # Paid opponent choice sponsors
 
+Policy8 remains historical and frozen. New policy9 adds paid Tape/Plan acquisition
+and use with report3; read [AI_BATTING_SUPPLIES](AI_BATTING_SUPPLIES.md). This
+choice contract still governs shared wide/anchor behavior; it does not enable grants.
+
 Working implementation, 2026-10-04 UTC. New Working seasons use Build41,
 save52, Career21, opponent policy8 and AI market7. Policy7/market6/save51
 keeps its four automatic sponsors and original physical report1. Earlier

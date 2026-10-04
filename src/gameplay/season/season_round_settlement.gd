@@ -5,7 +5,8 @@ extends RefCounted
 
 static func project(season: SeasonState) -> Dictionary:
 	var data: Dictionary = SeasonSave.snapshot(season)
-	if data.is_empty() or season.physical == null or not _shape(season.physical.pending):
+	if data.is_empty() or season.physical == null or not _shape(
+		season.physical.pending, season.opponents._format >= 9):
 		return {"error": "The pending round is invalid."}
 	var pending: Dictionary = data.physical.pending
 	data.physical.pending = {}
@@ -42,10 +43,11 @@ static func _receipts(season: SeasonState) -> bool:
 	return true
 
 
-static func _shape(value: Variant) -> bool:
+static func _shape(value: Variant, tactics: bool = false) -> bool:
 	if not value is Dictionary or not SeasonOwnership._keys(value, ["human", "reports"]):
 		return false
-	if not value.human is Array or value.human.size() != 12 or not value.reports is Array:
+	if not value.human is Array or value.human.size() != (13 if tactics else 12) \
+		or not value.reports is Array:
 		return false
 	if value.reports.size() > 5:
 		return false
@@ -58,6 +60,8 @@ static func _shape(value: Variant) -> bool:
 	for index in [4, 5, 7, 8, 11]:
 		if not value.human[index] is Array:
 			return false
+	if tactics and not value.human[12] is Dictionary:
+		return false
 	for row: Variant in value.reports:
 		if not SeasonPhysicalFixtures.envelope(row):
 			return false

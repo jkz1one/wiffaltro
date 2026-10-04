@@ -106,7 +106,7 @@ static func command(build: SeasonBuild, op: String, fields: Dictionary = {}) -> 
 
 
 static func checkout(build: SeasonBuild, club: Dictionary, game: int) -> void:
-	if build._market in [6, 7]:
+	if build._market in [6, 7, 8]:
 		SeasonOpponentSponsors.checkout(build, club, game)
 		return
 	if build._market == 5:

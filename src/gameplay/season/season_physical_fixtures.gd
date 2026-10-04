@@ -63,8 +63,14 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 			"fielder": team.fielder_index, "players": players}
 		if team.ai_sponsor_choices:
 			row["choice_policy"] = 1
+		if not team.ai_tactical_hitter.is_empty():
+			row["batting_supplies"] = {"featured": team.ai_tactical_hitter,
+				"held": team.ai_tactical_initial.duplicate(true)}
 		rows.append(row)
-	var resolver: String = PhysicalMatchReport.CHOICE_RESOLVER if (
+	var resolver: String = PhysicalMatchReport.TACTICAL_RESOLVER if (
+		not state.away_team.ai_tactical_hitter.is_empty()
+		or not state.home_team.ai_tactical_hitter.is_empty()
+	) else PhysicalMatchReport.CHOICE_RESOLVER if (
 		state.away_team.ai_sponsor_choices or state.home_team.ai_sponsor_choices
 	) else PhysicalMatchReport.RESOLVER
 	return JSON.stringify({"resolver": resolver,
@@ -85,7 +91,8 @@ func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
 		error = "Saved physical fixture does not match its scheduled clubs and committed build."
 		return {}
 	var state: MatchState = match_for(season, fixture)
-	if not PhysicalChoiceEvidence.matches(row.report, state):
+	if not PhysicalChoiceEvidence.matches(row.report, state) \
+		or not PhysicalTacticalEvidence.report_matches(row.report, state):
 		error = "Saved physical choices do not match the committed sponsor policy."
 		return {}
 	for index in range(2):
@@ -108,6 +115,11 @@ func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
 	result["home_runs"] = int(row.report.home_runs)
 	if season.opponents != null and season.opponents._format >= 7:
 		result["performance"] = row.report.performance.duplicate(true)
+	if season.opponents != null and season.opponents._format >= 9:
+		result["ai_tactics"] = {}
+		for index in range(2):
+			result.ai_tactics[str(int(fixture.away if index == 0 else fixture.home))] = (
+				row.report.tactics.teams[index].duplicate(true))
 	return result
 
 

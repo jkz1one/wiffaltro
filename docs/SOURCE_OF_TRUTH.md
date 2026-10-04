@@ -1,5 +1,34 @@
 # Plastic-Ball Baseball Roguelite — Source of Truth
 
+## Paid opponent batting supplies, 2026-10-04 UTC
+
+New Working seasons use policy9/market8/save53. Paid Grip Tape and Swing Plan join
+prior development,13 initial Gear,learning and six sponsors. Ordinary tactical
+category10, supported Tape/Plan weights1/1, actual3-Cash receipts, shared2-slot bag
+and one competing wallet/reroll apply. Development/qualified packs,preferred Gear,
+qualified sponsors and learning precede supplies. All profiles use the saved featured
+hitter. No forced stock,capacity overflow,disposal,free grant or human counter-shop.
+
+At legal pre-first-pitch readiness use Tape on the featured hitter,otherwise Plan.
+Plan chooses Power only when actual Power>Contact; ties choose Contact. Shared human
+MatchTactics and AI swing-lock execution apply; no hidden pitch observation or forced
+play. One exact copy per club/PA; unused supplies stay held. New report3/resolver
+physical-ai-batting-supplies-v1 binds paid initial/consumed/remaining bags,featured
+roles/modes and actual completed PAs. Managed pending evidence gains a prospective
+13th opponent-supply argument; old12-argument jobs and report1/2/request hashes remain
+frozen. Each own completed-game reward consumes exact copies once before shopping.
+
+Pregame shows paid bag,effects,target,mode and complete purchase/use history; ordinary
+HUD feedback names the consumed supply. Build41/Career21,catalog signatures,receipt
+IDs,human unlocks,centered Equipped and immediate saved live-sale ownership/refunds
+with next-batter effect retirement remain. SeasonBuild remains921 lines. Human content
+stays25 Gear/35 sponsors/five supplies/three abilities/one transformation. Read
+AI_BATTING_SUPPLIES and latest VERIFICATION for the bounded scope. Overall **~83%**,
+not release readiness. Working values remain Working. Budget Bites,Recovery,Extra Heat,
+Take a Base,information-sponsor cues,recruiting and Doubleheader remain gated. Permanent
+players/packs,higher Leagues/tiers,stadiums,physical latency,integration/full-suite
+reliability and final cohesive UI/human visual/feel/hardware acceptance remain open.
+
 ## Paid opponent choice sponsors, 2026-10-04 UTC
 
 New Working seasons use policy8/market7/save52. Paid Common10 Split Decision
@@ -219,7 +248,7 @@ The user's “continue” after the measured rule was presented selects it for W
 Frozen Rope earns paid eligibility after20 tracked Gap Driver games, costs20, flattens clean elevated Contact with0.75 strength and applies0.84 fair Power exit speed. Clean fair Contact quality above0.8 uses a smooth quality-scaled4° cap, half-degree candidate search, unchanged fair sector, improved nearest-defender clearance across authored defensive depths, conservative obstacles, and unchanged launch on no improvement or opposite symmetry. Original speed, vertical velocity and spin remain intact. Snapshot at contact, commit once, no future routes or homing. Access does not regenerate stock; no free award. Final-tier uses remain excluded consistently with existing tier-three progression.
 
 
-**Version:** v0.4.100
+**Version:** v0.4.101
 **Status:** FROZEN BASELINE WITH HUMAN PLAYTEST AMENDMENTS
 **Supersedes:** v0.4.33 and all earlier planning notes
 **Change rule:** Do not reopen frozen decisions unless implementation, playtesting, research, or a clear design contradiction gives us a concrete reason.

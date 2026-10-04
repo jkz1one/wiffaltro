@@ -1,6 +1,6 @@
 class_name SeasonOpponents
 extends RefCounted
-## Policy8 adds paid pre-PA choices; older automatic/stat/learning policies stay frozen.
+## Policy9 adds paid batting supplies; older sponsor/stat/learning policies stay frozen.
 
 var draft_order: Array[int] = []
 var clubs: Dictionary = {}
@@ -44,6 +44,8 @@ func settle(fixtures: Array, survivors: Array) -> void:
 				"performance": (result.get("performance", {}).duplicate(true)
 					if _format >= 7 else {})}
 			)
+			if _format >= 9:
+				reward["tactics"] = result.get("ai_tactics", {}).get(str(index), {}).get("consumed", [])
 			if not build.commit(reward).ok:
 				continue
 			if survivors.has(index):

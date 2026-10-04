@@ -30,6 +30,7 @@ static func prepare(lab: PitchBatLab) -> void:
 			"role": role, "player": String(player.id), "mode": mode,
 			"spot": -1 if role == "bat" else lab._fielder_anchor_index})
 		state._ai_choice_prepared[key] = true
+	SeasonOpponentTactics.prepare(lab)
 	disclose(lab)
 
 
@@ -37,7 +38,13 @@ static func disclose(lab: PitchBatLab) -> void:
 	if lab._pitch_feedback == null or not MatchAutomation.presented(lab):
 		return
 	var state: MatchState = lab._match_state
-	if state.batting_team().ai_sponsor_choices and state.optics_mode == "wide":
+	var team: TeamMatchState = state.batting_team()
+	var active: String = team.tactics.active(state)
+	if not team.ai_tactical_hitter.is_empty() and active in SeasonOpponentTactics.ITEMS:
+		lab._pitch_feedback.show_note("OPPONENT " + SeasonTacticalCatalog.item(active).name.to_upper()
+			+ (" • " + String(team.tactics.locked_swing(state)).trim_prefix("swing.").to_upper()
+				if active == "C03" else ""))
+	elif state.batting_team().ai_sponsor_choices and state.optics_mode == "wide":
 		lab._pitch_feedback.show_note("OPPONENT OPTICS: WIDE")
 	elif state.defensive_team().ai_sponsor_choices and SeasonCornerstone.active(state):
 		lab._pitch_feedback.show_note("OPPONENT PRIMARY: ANCHORED")

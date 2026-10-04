@@ -98,6 +98,15 @@ def main():
                            "--audio-driver", "Dummy"]
                 ui_extra = ["--", f"--ui-capture-dir={output / 'ui-captures'}"]
             checks = [
+                ("season-opponent-tactics-playoffs", [*base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_tactics_playoffs_test.tscn"],
+                 "Wiffaltro opponent tactical playoff checks passed:"),
+                ("season-opponent-tactics-visible", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_tactics_visible_test.tscn", *ui_extra],
+                 "Wiffaltro opponent tactical visible checks passed:"),
+                ("season-opponent-tactics", [*ui_base, "--fixed-fps", "60",
+                    "res://src/tests/season_opponent_tactics_test.tscn", *ui_extra],
+                 "Wiffaltro opponent tactical checks passed:"),
                 ("season-opponent-choices-playoffs", [*base, "--fixed-fps", "60",
                     "res://src/tests/season_opponent_choices_playoffs_test.tscn"],
                  "Wiffaltro opponent choice playoff checks passed:"),
@@ -506,7 +515,7 @@ def main():
                 if (name in ["season-physical-playoffs", "season-opponent-gear-playoffs",
                             "season-opponent-mastery-playoffs", "season-opponent-lessons-playoffs",
                             "season-opponent-abilities-playoffs", "season-opponent-sponsors-playoffs",
-                            "season-opponent-choices-playoffs"]
+                            "season-opponent-choices-playoffs", "season-opponent-tactics-playoffs"]
                         and not args.only):
                     continue
                 if args.only and name not in args.only:

@@ -4,12 +4,13 @@ extends RefCounted
 
 
 static func preview(card: VBoxContainer, club: Dictionary) -> void:
-	var choices: bool = club.build._market == 7
+	var choices: bool = club.build._market in [7, 8]
 	SeasonPages.wrapped(card, "Opponent stock adds Take Your Base, Neighborhood Deli, "
 		+ "Community College and Strikecraft"
 		+ (", plus Cornerstone and Split Decision" if choices else "")
 		+ " to development, 13 initial Gear and learning. "
-		+ "Other sponsors, supplies and recruiting remain gated.")
+		+ ("Other sponsors, supplies and recruiting remain gated." if club.build._market != 8
+			else "Paid Grip Tape and Swing Plan are also supported; other supplies remain gated."))
 	var box: VBoxContainer = SeasonPlayerCard.panel(card, false)
 	SeasonPages.wrapped(box, "TEAM SPONSORS")
 	var build: SeasonBuild = club.build

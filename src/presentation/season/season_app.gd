@@ -111,7 +111,7 @@ func begin_season(seed_value: int = -1, working_progression: bool = false) -> vo
 	candidate.difficulty = 1
 	if working_progression:
 		candidate.physical = SeasonPhysicalFixtures.new()
-		candidate.opponents._format = 8
+		candidate.opponents._format = 9
 	if working_progression or (previous != null and previous.career != null):
 		var club: ClubCareer = ClubCareer.new()
 		if previous != null and previous.career != null:
@@ -272,6 +272,9 @@ func _commit_result() -> bool:
 				func(row: Dictionary) -> bool: return season.teams[0].roster.has(row.player)
 			)
 		]
+		if season.opponents != null and season.opponents._format >= 9:
+			human.append(SeasonOpponentTactics.evidence(state,
+				state.away_team if lab._player_home else state.home_team))
 		if season.physical != null:
 			_result_recorded = true
 			var saved: bool = round_ui.queue_human(human)

@@ -10,6 +10,7 @@ static func offers(build: SeasonBuild, roll: int) -> Dictionary:
 	var lessons: Array[String] = SeasonOpponentLessons.pool(build)
 	var abilities: Dictionary = build._abilities.pool(build)
 	var sponsors: Dictionary = pool(build)
+	var tactics: Dictionary = SeasonOpponentTactics.pool() if build._market == 8 else {}
 	var gear: Dictionary = {}
 	var owned: Dictionary = build._bank.view().gear
 	for id: String in SeasonOpponentGear.INITIAL:
@@ -30,6 +31,8 @@ static func offers(build: SeasonBuild, roll: int) -> Dictionary:
 		weights["ability"] = 10.0
 	if not sponsors.is_empty():
 		weights["sponsor"] = 20.0
+	if not tactics.is_empty():
+		weights["tactical"] = 10.0
 	var result: Dictionary = {}
 	var seen: Array[String] = []
 	var rng: RandomNumberGenerator = build._rng(roll)
@@ -45,6 +48,8 @@ static func offers(build: SeasonBuild, roll: int) -> Dictionary:
 		var id: String
 		if category == "sponsor":
 			id = SeasonGearCatalog._weighted(sponsors, rng)
+		elif category == "tactical":
+			id = SeasonGearCatalog._weighted(tactics, rng)
 		elif category == "ability":
 			id = SeasonGearCatalog._weighted(abilities, rng)
 		elif category == "lesson":
@@ -61,7 +66,7 @@ static func offers(build: SeasonBuild, roll: int) -> Dictionary:
 static func pool(build: SeasonBuild) -> Dictionary:
 	var result: Dictionary = {}
 	var items: Array[String] = ITEMS.duplicate()
-	if build._market == 7:
+	if build._market in [7, 8]:
 		items.append_array(["F01", "F03"])
 	for id: String in items:
 		result[id] = SeasonSponsorCatalog.item(id).weight
@@ -80,7 +85,7 @@ static func history(build: SeasonBuild) -> Array[Dictionary]:
 
 static func qualifies(build: SeasonBuild, club: Dictionary, item: String) -> bool:
 	var games: Array[Dictionary] = history(build)
-	if build._market == 7 and item in ["F01", "F03"]:
+	if build._market in [7, 8] and item in ["F01", "F03"]:
 		return true
 	if item == "B02":
 		return not build._book.earned_players(build.roster()).is_empty()
@@ -117,7 +122,7 @@ static func targets(build: SeasonBuild, club: Dictionary) -> Array[String]:
 		preferred.push_front("A07")
 	elif club.profile == "Pitching / defense":
 		preferred.assign(["B02", "B03", "D01"])
-	if build._market == 7:
+	if build._market in [7, 8]:
 		if club.profile == "Featured hitter":
 			preferred.assign(["A07", "F03", "D01"])
 		elif club.profile == "Pitching / defense":
@@ -157,12 +162,16 @@ static func checkout(build: SeasonBuild, club: Dictionary, game: int) -> void:
 		if (SeasonOpponentMastery._develop(build, club, game, goals)
 			or SeasonOpponentGear._equip(build, club, game) or purchase(build, club, game)
 			or SeasonOpponentAbilities.purchase(build, club, game)
-			or SeasonOpponentLessons.purchase(build, club, game)):
+			or SeasonOpponentLessons.purchase(build, club, game)
+			or SeasonOpponentTactics.purchase(build, club, game)):
 			continue
 		var price: int = SeasonOpponentAbilities.useful_price(build, club, goals)
 		for item: String in targets(build, club):
 			var sponsor_price: int = SeasonSponsorCatalog.item(item).price
 			price = sponsor_price if price == 0 else mini(price, sponsor_price)
+		var tactical_price: int = SeasonOpponentTactics.useful_price(build)
+		if tactical_price > 0:
+			price = tactical_price if price == 0 else mini(price, tactical_price)
 		if (build._visit.rerolls == 0 and price > 0
 			and build.cash() >= SeasonReclamation.price(build._visit) + price):
 			if build.commit(SeasonOpponentPolicy.command(build, "reroll")).ok:

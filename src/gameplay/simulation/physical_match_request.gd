@@ -50,6 +50,12 @@ static func _team(source: TeamMatchState) -> TeamMatchState:
 		or source.field_supply.clean != 0 or source.sure_shot_locked or source.encore_used
 		or source.strikecraft_uses != 0 or source.strikecraft_refunded != 0.0):
 		return null
+	if not source.ai_tactical_hitter.is_empty():
+		var roster: Array = source.roster.map(func(player: PlayerMatchState) -> String:
+			return String(player.definition.id))
+		if not source.ai_sponsor_choices or not roster.has(source.ai_tactical_hitter) \
+			or not ClubCareer.same(source.ai_tactical_initial, source.tactics.held):
+			return null
 	var definitions: Array[PlayerDefinition] = []
 	for player: PlayerMatchState in source.roster:
 		if (player == null or player.definition == null or player.definition.id.is_empty()
@@ -62,6 +68,8 @@ static func _team(source: TeamMatchState) -> TeamMatchState:
 		definitions.append(player.definition.duplicate(true) as PlayerDefinition)
 	var result: TeamMatchState = TeamMatchState.create(source.display_name, definitions)
 	result.ai_sponsor_choices = source.ai_sponsor_choices
+	result.ai_tactical_hitter = source.ai_tactical_hitter
+	result.ai_tactical_initial.assign(source.ai_tactical_initial.duplicate(true))
 	result.pitcher_index = source.pitcher_index
 	result.fielder_index = source.fielder_index
 	result.copy_source = source.copy_source

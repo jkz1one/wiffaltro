@@ -1,5 +1,34 @@
 # Implementation Status
 
+## Paid opponent batting supplies, 2026-10-04 UTC
+
+New Working seasons use policy9/market8/save53. Paid Grip Tape and Swing Plan join
+prior development,13 initial Gear,learning and six sponsors. Ordinary tactical
+category10, supported Tape/Plan weights1/1, actual3-Cash receipts, shared2-slot bag
+and one competing wallet/reroll apply. Development/qualified packs,preferred Gear,
+qualified sponsors and learning precede supplies. All profiles use the saved featured
+hitter. No forced stock,capacity overflow,disposal,free grant or human counter-shop.
+
+At legal pre-first-pitch readiness use Tape on the featured hitter,otherwise Plan.
+Plan chooses Power only when actual Power>Contact; ties choose Contact. Shared human
+MatchTactics and AI swing-lock execution apply; no hidden pitch observation or forced
+play. One exact copy per club/PA; unused supplies stay held. New report3/resolver
+physical-ai-batting-supplies-v1 binds paid initial/consumed/remaining bags,featured
+roles/modes and actual completed PAs. Managed pending evidence gains a prospective
+13th opponent-supply argument; old12-argument jobs and report1/2/request hashes remain
+frozen. Each own completed-game reward consumes exact copies once before shopping.
+
+Pregame shows paid bag,effects,target,mode and complete purchase/use history; ordinary
+HUD feedback names the consumed supply. Build41/Career21,catalog signatures,receipt
+IDs,human unlocks,centered Equipped and immediate saved live-sale ownership/refunds
+with next-batter effect retirement remain. SeasonBuild remains921 lines. Human content
+stays25 Gear/35 sponsors/five supplies/three abilities/one transformation. Read
+AI_BATTING_SUPPLIES and latest VERIFICATION for the bounded scope. Overall **~83%**,
+not release readiness. Working values remain Working. Budget Bites,Recovery,Extra Heat,
+Take a Base,information-sponsor cues,recruiting and Doubleheader remain gated. Permanent
+players/packs,higher Leagues/tiers,stadiums,physical latency,integration/full-suite
+reliability and final cohesive UI/human visual/feel/hardware acceptance remain open.
+
 ## Paid opponent choice sponsors, 2026-10-04 UTC
 
 New Working seasons use policy8/market7/save52. Paid Common10 Split Decision

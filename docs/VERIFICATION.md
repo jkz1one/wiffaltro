@@ -1,5 +1,82 @@
 # Fast verification and playtest records
 
+## Paid opponent batting-supply verification, 2026-10-04 UTC
+
+Recovered clean at18aef4555f4a775f7ac942c520999dfaea502869. Fresh main remains
+f1dc209b6de11e45aedbd1568fa1b2d841dd2420; repository blueprint stays byte-identical.
+Read complete Decisions31/Economy24/Players17/Equipment18. This bounded slice adds
+paid Tape/Plan only, under policy9/market8/save53/report3. Other supplies and Budget
+Bites stay gated; no Working value, human acceptance or release claim is promoted.
+
+Preflight040732834949Z,040825949171Z,041254289520Z,041329737167Z,
+041416702169Z and041457773192Z fail lint/parser (line length, return count or copied
+fixture indentation), before gameplay. Baseline040858714680Z passes9/9 with career/
+core. First new041524936195Z is8/9: both actual paid diagnostic games pass, and the
+managed game completes Comets13/Yard0,162 pitches,with36 Tape/28 Plan swing frames,
+but serialized season/report validation rejects and restores an older checkpoint.
+Debug041813355056Z is7/8 and confirms that failure; diagnostic prints are removed.
+Godot Array membership uses stricter numeric types than equality at this JSON
+boundary. Report-version dispatch now uses explicit equality, preserving whole-number
+and resolver validation. No stock,controller,effect or outcome tuning changes.
+
+Focused042008787114Z passes11/11: new paid/managed contracts,frozen policy8 choices
+and report1 runner. It repeats the six-game managed route (three actual preparation
+fixtures,one ordinary managed game,two detached round games),Comets13/Yard0,162
+pitches,36 Tape/28 Plan sampled swing frames. Original outro checkpoint/Continue,
+exact saved initial/consumed/remaining bags,each own reward/wallet and tamper rejection
+pass. Two paid generated-stock diagnostics complete332 releases,one exact paid copy
+consumed each,14 Tape/15 Plan sampled swing frames,shared3-Cash purchases and exact
+JSON report round trips. Frames are samples,not distinct swings or rewarded hits.
+Synthetic unit rewards isolate acquisition; they are not earned-performance evidence.
+
+Broad042409568409Z's complete33-game benchmark passes:11 human-slot games using both
+ordinary controllers and22 archived AI games,including the other semifinal and final.
+4706 actual releases,30 paid supplies/30 consumed,six sponsors/four choice sponsors,
+zero D01 income in this seed,one74-CB career payout,1780903 saved bytes and504025
+wall milliseconds. Every round's complete statistics,stock,receipts,held copies,
+requests,reports,choices,decisions and competing wallet replay agree. Both semifinal
+survivors shop; no fabricated statistics or free grants supply this benchmark. It
+samples221 Tape/131 Plan swing frames in observed archived jobs; samples are not
+unique swings. Cost remains a latency limitation. Broad042409568409Z passes **25/25**: seven
+common gates plus18 scenes covering new full playoffs/managed/paid supplies,
+historical choices, automatic sponsors, abilities, lessons, mastery and Gear,
+report1 runner/presented-detached equivalence, physical-round persistence, human
+supplies/live supplies, live sales, career and core. This is targeted verification,
+not the entire historical suite.
+
+The final source delta after that broad copy is limited to an empty-pending-fixture
+malformed-save guard and an explicit invalid-copy reward rollback assertion. No valid
+match,acquisition,effect,report schema or historical mapping changes. Final source
+snapshot contains686 source/test/asset/project/runner files. Final
+headless044631618324Z passes **14/14**: seven gates plus new paid/managed supply
+contracts, physical-round persistence, human live supplies, live sales, career and
+core. It repeats six complete managed-route games plus two paid diagnostics against
+the final source, including the added invalid-copy reward rollback assertion. The
+full33-game benchmark was not rerun for those two guard/assertion deltas.
+
+Final native045248923299Z passes **13/13**, seven gates plus new managed/paid supply
+contracts, Equipped/loadout UI, live ownership/sales, career and core. There are31
+captures and eight complete physical games in the two new scenes. The earned
+managed opponent owns Tape and Plan; its actual162-pitch Comets13/Yard0 game samples
+36 Tape/28 Plan swing frames. Both ordinary activation and shared effects are
+exercised, with exact consumption/reward/JSON replay. Paid diagnostics repeat332
+releases and14 Tape/15 Plan swing samples. All686 final source/test/asset/project/
+runner files remain unchanged through these final checks and exact-tree publication.
+
+Native Godot4.7.2 uses X11/OpenGL Compatibility, Mesa25.2.8 llvmpipe/LLVM20.1.2
+(256 bits), Dummy audio. The unsupported V-Sync driver warning remains. Pregame,
+actual live cue and UI frames render; hidden preparation, paid diagnostic games
+and most managed frames omit drawing via test-only RenderingServer control while
+full physics and original outro/settlement complete. A fully rendered whole managed
+game is not claimed. Seven inspected, unedited images are preserved byte-for-byte
+in docs/reviews/20261004-opponent-batting-supplies: actual paid bag/policy/effects,
+1280 and700-window use history, live Tape cue, Equipped in shop and game. No blocked
+navigation, clipped fixed footer or overlapping cue was found; scrolled content
+clips within its normal viewport. This is automated native review, not human visual/
+feel approval. Hardware performance, physical simulation cost, full-suite reliability,
+integration and final cohesive UI/human acceptance remain open. Working stays Working;
+whole-project estimate **~83%**, not release readiness. No merge or deployment.
+
 ## Paid opponent choice-sponsor verification, 2026-10-04 UTC
 
 Recovered at44331ecc57bc3f1e39e054e223bbc524a552eb8b. Fresh main remains

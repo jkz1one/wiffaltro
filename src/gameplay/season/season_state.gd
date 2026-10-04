@@ -235,7 +235,8 @@ func record_player_result(
 	fielding: Array = [],
 	pitching: Dictionary = {},
 	field_supply: Dictionary = {},
-	frozen: Array = []
+	frozen: Array = [],
+	ai_tactics: Dictionary = {}
 ) -> bool:
 	var fixture: Dictionary = pending_fixture()
 	if ((opponents != null and opponents._format >= 3 and physical == null)
@@ -253,7 +254,8 @@ func record_player_result(
 		return false
 	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
 	if ((opponents != null and opponents._format >= 7 and performance.is_empty())
-		or (not performance.is_empty() and not SeasonPerformance.valid(performance, roster))):
+		or (not performance.is_empty() and not SeasonPerformance.valid(performance, roster))
+		or not PhysicalTacticalEvidence.human_matches(self, fixture, ai_tactics, performance)):
 		return false
 	var command: Dictionary = {
 		"id": "game:%d" % fixture_id,
@@ -309,6 +311,9 @@ func record_player_result(
 		result["fielding"] = fielding.duplicate(true)
 	if command.has("frozen"):
 		result["frozen"] = frozen.duplicate(true)
+	if opponents != null and opponents._format >= 9:
+		var index: int = fixture.away if fixture.home == 0 else fixture.home
+		result["ai_tactics"] = {str(index): ai_tactics.duplicate(true)}
 	results.append(result)
 	player_results.append(result.duplicate(true))
 	return _finish_round(fixture_id, result)
@@ -429,6 +434,10 @@ func _make_team(index: int) -> TeamMatchState:
 		var role: Dictionary = opponents.clubs[str(index)].roles
 		team.pitcher_index = teams[index].roster.find(role.pitcher)
 		team.fielder_index = teams[index].roster.find(role.fielder)
+		if opponents._format >= 9:
+			team.ai_tactical_hitter = role.hitter
+			team.tactics.held = SeasonTacticalCatalog.held(opponents.clubs[str(index)].build._bank.view())
+			team.ai_tactical_initial.assign(team.tactics.held.duplicate(true))
 	return team
 
 
