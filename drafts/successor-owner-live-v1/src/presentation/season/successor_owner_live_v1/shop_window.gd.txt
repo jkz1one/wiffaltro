@@ -1,0 +1,395 @@
+extends SeasonShopWindow
+## Preserve the original full shop and widgets; adapt only successor presentation.
+const V7Progression = preload("res://src/gameplay/season/successor_league_v1/progression.gd")
+const V7Match = preload("res://src/gameplay/season/successor_league_v1/match_adapter.gd")
+const V7School = preload("school_shop_ui.gd")
+const V7Transfer = preload("transfer_ui.gd")
+
+
+func _refresh() -> void:
+	_clear()
+	if app.get("retained") != null:
+		_label("Purchase not yet saved. Your original build is unchanged.")
+		_label(app.notice)
+		_button("RETRY EXACT SAVE", _retry_checkpoint)
+		_button("CLOSE WITHOUT DISCARDING", _close_retained)
+		return
+	var view: Dictionary = app.season.build.view()
+	var shop: Dictionary = view.shop
+	_heading.text = "SEASON SHOP • VISIT %d" % shop.number
+	_balance.text = "%d Cash" % view.wallet.cash
+	_capacity.text = (
+		"Held %d / %d • Sponsors %d / %d"
+		% [
+			view.wallet.held.size(),
+			view.wallet.capacity.held,
+			view.wallet.sponsors.size(),
+			view.wallet.capacity.sponsors
+		]
+	)
+	if LeagueRules.equipment(app.season.build._league_rules):
+		_capacity.text += " • Spare %d / 1" % (0 if view.wallet.get("spare", {}).is_empty() else 1)
+	_label(_notice)
+	if shop.pack_status == "open":
+		_label(
+			(
+				(
+					"Choose up to %d more distinct cards from this fixed reveal. Already paid; no extra charge."
+					% shop.picks_remaining
+				)
+				if shop.has("picks_remaining")
+				else "Choose one card, then its recipient. This pack is already paid; no extra charge."
+			)
+		)
+		for item_id: String in shop.cards:
+			_label(_development_effect(V7Progression.display_item(item_id)))
+			var command: Dictionary = _request("pack_pick", {"item": item_id})
+			var choice: Button = _button(
+				V7Progression.display_item(item_id).name, _choose.bind(item_id, command)
+			)
+			if shop.has("available_cards") and not shop.available_cards.has(item_id):
+				choice.disabled = true
+				choice.tooltip_text = \
+					"Already chosen or no eligible recipient remains. The reveal does not refresh."
+		_button(
+			"Skip this paid pack", _preview.bind(_request("pack_skip"), "Skip without a refund")
+		)
+	else:
+		for offer: String in shop.offers:
+			var item_id: String = shop.offers[offer]
+			_offer_card(offer, item_id)
+			if item_id == SeasonRetraining.ID:
+				SeasonRetrainingUI.offer(self, offer)
+				continue
+			if not SeasonSponsorCatalog.item(item_id).is_empty():
+				SeasonSponsorShopUI.offer(self, offer, item_id, view.wallet)
+				continue
+			if not SeasonGearCatalog.item(item_id).is_empty():
+				if LeagueRules.equipment(app.season.build._league_rules):
+					_equipment_offer(offer, item_id, view.wallet)
+				else:
+					SeasonGearShopUI.offer(self, offer, item_id, view.wallet.gear)
+				continue
+			if SeasonAbilities.ITEMS.has(item_id):
+				SeasonAbilityUI.offer(self, offer, item_id)
+				continue
+			if SeasonTacticalCatalog.catalog().has(item_id):
+				SeasonTacticalShopUI.offer(self, offer, item_id)
+				continue
+			var item: Dictionary = V7Progression.display_item(item_id)
+			_label("%s • %d Cash" % [item.name, item.price])
+			_label(_development_effect(item))
+			var command: Dictionary = _request("buy", {"offer": offer, "mode": "use"})
+			_button("BUY AND USE", _choose.bind(item_id, command)).set_meta("offer", offer)
+			if SeasonSchoolSponsors.pair_available(app.season.build, item_id):
+				(
+					_button(
+						"OPEN BOOK • TEACH TWO",
+						V7School.paired.bind(self, offer, item_id)
+					)
+					. set_meta("pair_offer", offer)
+				)
+			if DevelopmentShopCatalog.CARDS.has(item_id):
+				var hold: Dictionary = _request(
+					"buy",
+					{"offer": offer, "mode": "hold", "player": "", "pitch": "", "replace": ""}
+				)
+				_purchase("BUY AND HOLD", hold, "Hold " + item.name)
+		_offer_body = null
+		_purchase(
+			"Reroll individual offers • %d Cash" % app.season.build.reroll_price(),
+			_request("reroll"),
+			(
+				(
+					"Reroll unprotected offers; pack stays fixed. Base price %d; credit %d. "
+					% [4 + 2 * shop.rerolls, SeasonReclamation.credit(shop)]
+				)
+				+ "Consumes the credit; future base prices still escalate normally."
+				+ (
+					" Standard d1 adds 1 Cash only when the payable quote is positive (Working)."
+					if app.season.build.d1_pricing_valid()
+					else ""
+				)
+			)
+		)
+		if shop.pack_status == "sealed":
+			var base_price: int = int(shop.get("pack_base_price", 8))
+			var quote: int = int(shop.get("pack_quote", 8 - int(shop.get("union_credit", 0))))
+			if shop.has("pack_base_price"):
+				_label(
+					(
+						"Academy: no eligible development remains; this pack cannot charge Cash."
+						if shop.choice_count == 0
+						else (
+							(
+								"Academy: choose up to 2 distinct upgrades. %d eligible fixed choices; %d Cash "
+								+ "even if fewer than 2 remain. No refresh or refund."
+							)
+							% [shop.choice_count, quote]
+						)
+					)
+				)
+			var pack_button: Button = _purchase(
+				"Open fixed development pack • %d Cash • %d choices" % [quote, shop.choice_count],
+				_request("pack_open"),
+				(
+					"Pay %d to reveal %d fixed choices (base %d; Union credit %d)"
+					% [quote, shop.choice_count, base_price, shop.get("union_credit", 0)]
+				)
+			)
+			pack_button.disabled = pack_button.disabled or shop.choice_count == 0
+			if shop.choice_count == 0:
+				pack_button.tooltip_text = "No eligible development remains; no Cash can be charged."
+		else:
+			_label("Development pack: " + str(shop.pack_status).capitalize())
+		_label("SHOP SERVICES")
+		if SeasonReclamation.credit(shop) > 0:
+			_label("Reclamation credit: %d • Expires on leaving" % SeasonReclamation.credit(shop))
+		V7Transfer.entry(self)
+		SeasonRaincheckUI.entry(self)
+		SeasonSpecialOrderUI.entry(self)
+		SeasonWholesaleUI.entry(self)
+		SeasonSchoolShopUI.status(self)
+		SeasonRetrainingUI.status(self)
+		_recruit(shop)
+		_label("YOUR SEASON INVENTORY • Earned access carries forward; copies last this season")
+		if LeagueRules.equipment(app.season.build._league_rules):
+			_equipment_inventory(view.wallet)
+		else:
+			SeasonGearShopUI.equipped(self, view.wallet.gear)
+		SeasonSponsorShopUI.active(self, view.wallet)
+		_held(view.wallet.held)
+	_focus_first.call_deferred()
+
+
+func _held(receipts: Array) -> void:
+	_label("HELD SUPPLIES • shared development and tactical slots")
+	for receipt: Dictionary in receipts:
+		if SeasonTacticalCatalog.catalog().has(receipt.item):
+			SeasonTacticalShopUI.held(self, receipt)
+			continue
+		var item: Dictionary = V7Progression.display_item(receipt.item)
+		_label("%s • paid %d" % [item.name, receipt.paid])
+		_label(_development_effect(item))
+		_button(
+			"USE " + item.name, _choose.bind(receipt.item, _request("use", {"receipt": receipt.id}))
+		)
+		_button(
+			"DISCARD " + item.name,
+			_preview.bind(
+				_request("discard", {"receipt": receipt.id}), "Discard without growth or refund"
+			)
+		)
+
+
+func _recruit(shop: Dictionary) -> void:
+	_label("FREE AGENCY • Closes after Game 6")
+	if not shop.has("recruit"):
+		_label("Recruiting starts at your next visit. This saved visit remains unchanged.")
+		return
+	var offer: Dictionary = shop.recruit
+	if offer.is_empty():
+		_label(
+			(
+				"Recruiting is closed."
+				if shop.number > 6
+				else "No recruit this visit. Ordinary rerolls do not change recruiting."
+			)
+		)
+		return
+	var player: PlayerDefinition = V7Match.from_profile(offer.profile)
+	player.season_abilities = app.season.build._abilities.ids(offer.player)
+	if offer.signed:
+		_label("SIGNED • " + player.display_name)
+		return
+	SeasonPlayerCard.ratings_card(
+		_body, player, "%s • %d Cash" % [player.display_name, offer.price]
+	)
+	_label(
+		(
+			"RETURNING PLAYER • Actual retained development; original signing-price reference."
+			if offer.returning
+			else "FRESH RECRUIT • Working %s-stage profile." % offer.stage
+		)
+	)
+	_button("REVIEW RECRUIT REPLACEMENT", _choose_recruit)
+
+
+func _choose_recruit() -> void:
+	var offer: Dictionary = app.season.build.view().shop.get("recruit", {})
+	if offer.is_empty() or offer.signed:
+		_refresh()
+		return
+	_clear()
+	var incoming: PlayerDefinition = V7Match.from_profile(offer.profile)
+	incoming.season_abilities = app.season.build._abilities.ids(offer.player)
+	_label("SIGN %s • %d Cash" % [incoming.display_name, offer.price])
+	SeasonPlayerCard.ratings_card(_body, incoming, "INCOMING • " + incoming.display_name)
+	_label(
+		(
+			"Choose one current player to release for 0 Cash. Team Gear and held cards stay. "
+			+ "Player development stays with its owner; a later return is not guaranteed."
+		)
+	)
+	for id: String in app.season.teams[0].roster:
+		var outgoing: PlayerDefinition = app.season.player_definition(id)
+		SeasonPlayerCard.ratings_card(_body, outgoing, "CURRENT • " + outgoing.display_name)
+		var changes: PackedStringArray = []
+		var old: Array[int] = SeasonPlayerCard.values(outgoing)
+		var next: Array[int] = SeasonPlayerCard.values(incoming)
+		for index in range(old.size()):
+			changes.append(
+				(
+					"%s %+d"
+					% [SeasonPlayerCard.rating_names(incoming)[index], next[index] - old[index]]
+				)
+			)
+		_label("Incoming difference: " + " • ".join(changes))
+		var description: String = (
+			"Sign %s\nRelease %s for 0 Cash\nNo development transfers between players."
+			% [incoming.display_name, outgoing.display_name]
+		)
+		(
+			_purchase(
+				"REPLACE " + outgoing.display_name,
+				_request("sign", {"offer": offer.id, "replace": id}),
+				description,
+				"Sign " + incoming.display_name + " • 0 Cash for the released player"
+			)
+			. set_meta("recruit_replace", id)
+		)
+	_button("CANCEL TARGETING", _refresh)
+	_focus_first.call_deferred()
+
+
+func _choose(item_id: String, command: Dictionary) -> void:
+	_clear()
+	var item: Dictionary = V7Progression.display_item(item_id)
+	_label("CHOOSE RECIPIENT • " + item.name)
+	_label(_development_effect(item))
+	_label("Inspection and target selection spend nothing. Confirm the exact change next.")
+	var targets: Array[Dictionary] = app.season.build.targets(item_id)
+	var previous_player: String = ""
+	for target: Dictionary in targets:
+		var player: PlayerDefinition = app.season.player_definition(target.player)
+		if target.player != previous_player:
+			SeasonPlayerCard.ratings_card(_body, player, player.display_name)
+			previous_player = target.player
+		var selected: Dictionary = command.duplicate(true)
+		selected.merge(target)
+		var text: String = _target_text(item, target)
+		_purchase(text, selected, item.name + "\n" + text).set_meta("target", target)
+	if targets.is_empty():
+		_label("No legal target remains. Nothing was charged or consumed.")
+	_button("CANCEL TARGETING", _refresh)
+	_focus_first.call_deferred()
+
+
+func _target_text(item: Dictionary, target: Dictionary) -> String:
+	var profile: Dictionary = app.season.build.player(target.player)
+	var name_text: String = app.season.player_definition(target.player).display_name
+	if item.op == "stat":
+		return (
+			"%s • %s %d → %d"
+			% [
+				name_text,
+				item.family.capitalize(),
+				profile.stats[item.family],
+				profile.stats[item.family] + 1
+			]
+		)
+	if item.op == "learn":
+		var replaced: String = (
+			"free capacity slot"
+			if target.replace.is_empty()
+			else ("replace " + V7Progression.recipe(target.replace).display_name)
+		)
+		return (
+			"%s • %s • learned level %d"
+			% [name_text, replaced, profile.mastery.get(item.recipe, 1)]
+		)
+	return (
+		"%s • %s %d → %d"
+		% [
+			name_text,
+			V7Progression.recipe(target.pitch).display_name,
+			profile.mastery[target.pitch],
+			profile.mastery[target.pitch] + 1
+		]
+	)
+
+
+func _preview(command: Dictionary, description: String) -> void:
+	if V7School.choose_concession(self, command, description):
+		return
+	var result: Dictionary = app.season.build.preview(command)
+	if not result.ok:
+		if SeasonMajorResolution.needed(command, result.error):
+			SeasonMajorResolution.open(
+				self,
+				app.season.build,
+				command,
+				func(chosen: Dictionary) -> void: _preview(chosen, description)
+			)
+			return
+		if SeasonSponsorResolution.needed(app.season.build, command, result.error):
+			SeasonSponsorResolution.open(
+				self,
+				app.season.build,
+				command,
+				func(chosen: Dictionary) -> void: _preview(chosen, description)
+			)
+			return
+		_notice = result.error
+		_refresh()
+		return
+	_pending = command.duplicate(true)
+	description += SeasonRaincheckUI.purchase_review(app.season.build, command, result)
+	var effect: String = ""
+	if command.get("player", "") != "" and command.op != "retrain_buy":
+		var before: Dictionary = app.season.build.player(command.player)
+		for stat: String in SeasonPlayerCatalog.STATS:
+			if before.stats[stat] != result.player.stats[stat]:
+				effect = DevelopmentLab.STAT_EFFECTS[stat]
+		if command.get("pitch", "") != "":
+			for pitch: PitchDefinition in (
+				app.season.player_definition(command.player).starting_pitches
+			):
+				if String(pitch.id) == command.pitch:
+					effect = PitchMastery.next_effect(pitch)
+	description += SeasonDoubleMajor.review(app.season.build, command)
+	description += SeasonAssociationShop.review(app.season.build.view().wallet, result.after.wallet)
+	description += SeasonSchoolSponsors.review(app.season.build.view(), result.after)
+	description += SeasonReclamation.review(app.season.build.view().shop, result.after.shop)
+	_review_text.text = (
+		"%s\nCash: %d → %d\nHeld: %d → %d\n%s\nConfirm and save?"
+		% [
+			description,
+			result.before_cash,
+			result.after.wallet.cash,
+			app.season.build.view().wallet.held.size(),
+			result.after.wallet.held.size(),
+			effect
+		]
+	)
+	_confirm.get_label().hide()
+	_review_scroll.scroll_vertical = 0
+	_confirm.popup_centered(Vector2i(mini(760, size.x - 32), mini(440, size.y - 48)))
+	_focus_cancel.call_deferred()
+
+
+func _retry_checkpoint() -> void:
+	app.call("retry_save")
+	_notice = app.notice if app.get("retained") != null else "Saved. Your build is ready for the next game."
+	_refresh()
+
+func _close_retained() -> void:
+	# Closing inspection must not issue another transaction or discard a candidate.
+	app.show_season()
+	queue_free()
+
+func _close() -> void:
+	if app.get("retained") != null:
+		_close_retained()
+		return
+	super._close()

@@ -28,6 +28,7 @@ def main():
     mode.add_argument('--identity', action='store_true', help='Check local signature helper equivalence and scoped timings')
     mode.add_argument('--career-fixture', type=Path, help='Capture and cold-verify career evidence from an isolated actual settled checkpoint')
     mode.add_argument('--owner', action='store_true', help='Verify genuine fresh owner, all initial access and draft-only cold replay')
+    mode.add_argument('--owner-round', action='store_true', help='Run genuine owned human game, cold pending resume, actual AI settlement and earned shop')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -43,10 +44,12 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
+    if args.owner_round:
+        names += ['successor_owner_round.gd', 'successor_owner_round.tscn']
     if args.owner:
         names += ['successor_owner.gd', 'successor_owner.tscn']
     if args.career_fixture:
@@ -56,15 +59,18 @@ def main():
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner:
+    if args.career_fixture or args.owner or args.owner_round:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner:
+    if args.owner or args.owner_round:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
+    if args.owner_round:
+        live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
+        entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -94,6 +100,13 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
+    if args.owner_round:
+        scene = ['--fixed-fps', '60', 'res://tests/successor_owner_round.tscn', '--']
+        run('owned-human', scene + ['human-only'], timeout=1800)
+        run('owned-first-ai', scene + ['resume-round', 'first-ai-only'], timeout=1800)
+        run('owned-resume-round', scene + ['resume-round'], timeout=2400)
+        run('owned-round-cold', scene + ['reopen'], timeout=1200)
+        return
     if args.owner:
         run('fresh-owner', ['res://tests/successor_owner.tscn', '--'], timeout=1200)
         run('fresh-owner-cold', ['res://tests/successor_owner.tscn', '--', 'reopen'], timeout=900)

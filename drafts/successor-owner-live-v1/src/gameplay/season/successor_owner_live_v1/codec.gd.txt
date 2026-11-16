@@ -1,0 +1,81 @@
+extends RefCounted
+## Strict fresh-owner reconstruction: birth and owned access precede every pick.
+const Catalog = preload("catalog.gd")
+const GameCodec = preload("res://src/gameplay/season/successor_league_v1/codec.gd")
+const Runtime = preload("runtime.gd")
+const FIELDS: Array[String] = ["league_rules", "inventory_rules", "league_live", "season_seed", "phase", "round_index", "draft_pool", "player_access", "home_property", "owned_surface_night", "npc_venues", "final_venue", "picks", "teams", "schedule", "results", "player_results", "playoff_seeds", "semifinals", "final_fixture", "champion", "starter_index", "fielder_index", "difficulty", "league_career", "_dynasty_start", "_closed_access", "_dynasty_owner_binding", "_league_home_context", "_standard_live_context", "_standard_bound_grant", "_dynasty_career_session", "_npc_replay_run"]
+const OBJECTS: Array[String] = ["ownership", "build", "opponents", "career", "physical", "_heat_replay_team", "_doubleheader_replay_build", "_pool_replay_ledger"]
+
+static func scope(season: SeasonState) -> bool:
+	# Structural scope only: physical replay temporarily precedes active-row sync.
+	return season != null and season.get_script() == Runtime and season.league_context_consistent() \
+		and season.build != null and season.build.get_script() == Runtime.GameBuild \
+		and season.opponents != null and season.opponents.get_script() == Runtime.GameOpponents \
+		and season.physical != null and season.physical.get_script() == Runtime.GamePhysical \
+		and season.career != null and season.league_career \
+		and GameCodec._domain_builds_valid(season) \
+		and load("res://src/gameplay/season/successor_owner_live_v1/start.gd").base_matches(season)
+
+static func _operation_content_roots() -> Array[Resource]:
+	return GameCodec._operation_content_roots()
+
+static func capture(season: SeasonState) -> Dictionary:
+	var roots: Array[Resource] = GameCodec._operation_content_roots()
+	var result: Dictionary = _capture(season)
+	roots.clear()
+	return result
+
+static func _capture(season: SeasonState) -> Dictionary:
+	if not scope(season) or not season.career.matches(season) \
+		or season._heat_replay_team != null or season._doubleheader_replay_build != null \
+		or season._pool_replay_ledger != null or season._npc_replay_run != -1 \
+		or season.physical.cursor != season.physical.reports.size() \
+		or not load("res://src/gameplay/season/successor_league_v1/exotic_access.gd").current_matches(season):
+		return {}
+	for property: Dictionary in season.get_property_list():
+		if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			if not FIELDS.has(property.name) and not OBJECTS.has(property.name):
+				return {} # New runtime fields require an explicit serialization review.
+	var state: Dictionary = {}
+	for field: String in FIELDS:
+		var value: Variant = season.get(field)
+		state[field] = value.duplicate(true) if value is Array or value is Dictionary else value
+	state.ownership = season.ownership.to_data()
+	state.build = season.build.to_data()
+	state.development = season.build._book.to_data()
+	state.build_view = season.build.view()
+	state.opponents = season.opponents.to_data()
+	state.career = season.career.to_data()
+	state.physical = season.physical.to_data()
+	if state.build.is_empty() or state.development.is_empty() or state.career.is_empty():
+		return {}
+	var source: String = Catalog.signature()
+	var game: String = Catalog.game_signature()
+	if source.is_empty() or game.is_empty():
+		return {}
+	return {"version": Catalog.VERSION, "format": Catalog.FORMAT, "owner_source": source,
+		"pitch_catalog": game, "checkpoint": state}
+
+static func envelope_valid(value: Variant) -> bool:
+	return value is Dictionary \
+		and SeasonOwnership._keys(value, ["version", "format", "owner_source", "pitch_catalog", "checkpoint"]) \
+		and SeasonOwnership._whole(value.version, Catalog.VERSION, Catalog.VERSION) \
+		and value.format == Catalog.FORMAT and value.owner_source is String \
+		and not value.owner_source.is_empty() and value.owner_source == Catalog.signature() \
+		and value.pitch_catalog is String and not value.pitch_catalog.is_empty() \
+		and value.pitch_catalog == Catalog.game_signature() and value.checkpoint is Dictionary
+
+static func restore(value: Variant) -> SeasonState:
+	var roots: Array[Resource] = GameCodec._operation_content_roots()
+	var result: SeasonState = _restore(value)
+	roots.clear()
+	return result
+
+static func _restore(value: Variant) -> SeasonState:
+	if not envelope_valid(value):
+		return null
+	var season: SeasonState = load("res://src/gameplay/season/successor_owner_live_v1/decoder.gd").restore(value.checkpoint)
+	if season == null:
+		return null
+	var actual: Dictionary = _capture(season)
+	return season if not actual.is_empty() and ClubCareer.same(actual, value) else null

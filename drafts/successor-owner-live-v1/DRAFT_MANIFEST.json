@@ -1,0 +1,104 @@
+{
+  "format": "inactive-successor-fresh-owner-live-v1",
+  "source_checkpoint": "d24775ac36bb2ddee81bc4195205bbd1c0cbd4c8",
+  "files": [
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/career.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/career.gd",
+      "bytes": 7913,
+      "sha256": "a511eadaf5d4b001b84fa9b8d4e9cec0248fd19e31353db71d9b497f89f61e87"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/catalog.gd",
+      "bytes": 13936,
+      "sha256": "38683a9296053e9324b20fe8ae02023a0772c88074d0935bcc7fa8a98206a046"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/codec.gd",
+      "bytes": 4760,
+      "sha256": "d96db2b4855bf916ca907da3c5e7ee7f145a3efb9482e8abab77a411df823026"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/decoder.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/decoder.gd",
+      "bytes": 5922,
+      "sha256": "44f6428de4536d5bcb916d3b16b80dc2afc819cbb0f455b51ed6999e7a310499"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/pending.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/pending.gd",
+      "bytes": 5891,
+      "sha256": "6fa6e6719fb75a7759be4c272d9a45559df24aa7eb6b777fc4455091090768c2"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/physical_fixtures.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/physical_fixtures.gd",
+      "bytes": 20023,
+      "sha256": "c7a30712dcf152956957d18cc08bbee2619897a197ff0b29dce994d4bde0d543"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/runtime.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/runtime.gd",
+      "bytes": 4194,
+      "sha256": "ed230359e658e2600e757be190509870225d1b6ae5ae31a6595c8eab1c33894a"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/save.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/save.gd",
+      "bytes": 2901,
+      "sha256": "9e71d897685e967dcf9902ba325542e5aa6ac20b86c991ca89ca1c3986af4c9d"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/gameplay/season/successor_owner_live_v1/start.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_live_v1/start.gd",
+      "bytes": 10102,
+      "sha256": "4fe255ee91c94009ae723a400b3576587b6cc40445bf069a7d49583638601ca4"
+    }
+  ],
+  "additions": [
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/presentation/season/successor_owner_live_v1/app.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_live_v1/app.gd",
+      "bytes": 9773,
+      "sha256": "d7d14a2957c054b648d62c9c7c95a763dd4e187b540b0ea6596c8adb741b2749"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/presentation/season/successor_owner_live_v1/capture_human.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_live_v1/capture_human.gd",
+      "bytes": 3153,
+      "sha256": "07af699c6e7aa47ed32a2e2bfb89b4fda59a7667e474a9ee6cb994b5f465a64d"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/presentation/season/successor_owner_live_v1/entry.tscn.txt",
+      "restore_path": "src/presentation/season/successor_owner_live_v1/entry.tscn",
+      "bytes": 207,
+      "sha256": "4a0499f1df050ee9cd29e3461f7c6e0e9aa52e409cf1de1e7ee6d52e0c137842"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/presentation/season/successor_owner_live_v1/menu.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_live_v1/menu.gd",
+      "bytes": 1476,
+      "sha256": "54d03285914827878036b4bceb938f28f8524e4f6eff1321ab1722b77a15f58c"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/presentation/season/successor_owner_live_v1/school_shop_ui.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_live_v1/school_shop_ui.gd",
+      "bytes": 2608,
+      "sha256": "180a680ec9f21297b1dcbdfec8ea3299970f5f66abf9f90ec509006f4a11e002"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/presentation/season/successor_owner_live_v1/shop_window.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_live_v1/shop_window.gd",
+      "bytes": 14094,
+      "sha256": "87d7671f60b643f021e5f2fe371e02671c1b4e9b14694630234d277ec6432fc2"
+    },
+    {
+      "backup_path": "drafts/successor-owner-live-v1/src/presentation/season/successor_owner_live_v1/transfer_ui.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_live_v1/transfer_ui.gd",
+      "bytes": 2687,
+      "sha256": "1281f3295e7073c5824ed9f686106d38df15bfa548a1c91a1e40f20f3389a37d"
+    }
+  ]
+}

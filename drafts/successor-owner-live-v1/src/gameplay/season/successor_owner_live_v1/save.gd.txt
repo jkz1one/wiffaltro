@@ -1,0 +1,68 @@
+extends RefCounted
+## Separate slot, full JSON replay and exact readback. No historical slot changes.
+const Codec = preload("codec.gd")
+const PATH: String = "user://successor-fresh-owner-live-v1.json"
+const MAX_BYTES: int = 8 * 1024 * 1024
+static var saving: bool = false
+static var last_error: String = ""
+
+static func save(season: SeasonState) -> bool:
+	if saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
+		or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return false
+	saving = true
+	var ok: bool = _save(season)
+	saving = false
+	return ok
+
+static func _save(season: SeasonState) -> bool:
+	last_error = "The successor checkpoint could not be saved. The original slot remains available."
+	var data: Dictionary = Codec.capture(season)
+	if data.is_empty():
+		return false
+	var bytes: PackedByteArray = JSON.stringify(data, "", true, true).to_utf8_buffer()
+	if bytes.is_empty() or bytes.size() > MAX_BYTES:
+		return false
+	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	var decoded: SeasonState = Codec.restore(parsed)
+	if decoded == null or not ClubCareer.same(parsed, data) or not ClubCareer.same(Codec.capture(decoded), data):
+		return false
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if DirAccess.dir_exists_absolute(PATH + suffix):
+			return false
+	if FileAccess.file_exists(PATH + ".tmp"):
+		return false # Retained uncertain temporary file is not silently overwritten.
+	var old_exists: bool = FileAccess.file_exists(PATH)
+	var old: PackedByteArray = FileAccess.get_file_as_bytes(PATH) if old_exists else PackedByteArray()
+	if old_exists and (old.is_empty() or old.size() > MAX_BYTES):
+		return false
+	var old_valid: bool = old_exists and Codec.restore(JSON.parse_string(old.get_string_from_utf8())) != null
+	if not ClubCareer.same(Codec.capture(season), data):
+		return false
+	var file: FileAccess = FileAccess.open(PATH + ".tmp", FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_buffer(bytes)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	if error != OK or FileAccess.get_file_as_bytes(PATH + ".tmp") != bytes:
+		return false
+	if FileAccess.file_exists(PATH) != old_exists or (old_exists and FileAccess.get_file_as_bytes(PATH) != old):
+		return false
+	if old_valid and DirAccess.copy_absolute(PATH, PATH + ".bak") != OK:
+		return false
+	if DirAccess.rename_absolute(PATH + ".tmp", PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes:
+		return false
+	last_error = ""
+	return true
+
+static func restore() -> SeasonState:
+	var primary: SeasonState = _read(PATH)
+	return primary if primary != null else _read(PATH + ".bak")
+
+static func _read(path: String) -> SeasonState:
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null or file.get_length() > MAX_BYTES:
+		return null
+	return Codec.restore(JSON.parse_string(file.get_as_text()))
