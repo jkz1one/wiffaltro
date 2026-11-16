@@ -33,6 +33,11 @@ static func create_closed_league(seed_value: int, rules: Variant, live: bool = f
 	return load("res://src/gameplay/season/successor_league_v1/runtime_operations.gd")._source_public_create_closed_league(seed_value, rules, false, {})
 
 
+static func create_live_dugout(seed_value: int) -> SeasonState:
+	return load("res://src/gameplay/season/successor_league_v1/runtime_operations.gd")._source_public_create_closed_league(
+		seed_value, LeagueRules.capture("dugout"), true, {})
+
+
 func _limit_specialist_offers() -> void:
 	load("res://src/gameplay/season/successor_league_v1/runtime_operations.gd")._source_private_limit_specialist_offers(self)
 

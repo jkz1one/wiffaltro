@@ -1,7 +1,7 @@
 extends RefCounted
 ## Separate slot, full JSON replay and exact readback. No historical slot changes.
 const Codec = preload("codec.gd")
-const PATH: String = "user://successor-dugout-v7-r1.json"
+const PATH: String = "user://successor-dugout-live-v7-r1.json"
 const MAX_BYTES: int = 8 * 1024 * 1024
 static var saving: bool = false
 static var last_error: String = ""

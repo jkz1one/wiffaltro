@@ -1,14 +1,14 @@
 extends RefCounted
-## Report29 is admitted only with caller-supplied validated catalog authority.
+## Report30 is admitted only with caller-supplied validated catalog authority.
 ## Historical Report27/28 and standalone load("res://src/gameplay/season/successor_league_v1/physical_core.gd").valid are unchanged.
 # gdlint: disable=max-returns
 
-const VERSION: int = 29
-const RESOLVER: String = "physical-current-pitch-v1"
+const VERSION: int = 30
+const RESOLVER: String = "physical-successor-dugout-v7-r1"
 
 
 static func context_valid(state: MatchState) -> bool:
-	if state == null or not state.stadium.is_empty() or not state.league_rules.is_empty() or state.pitch_catalog.is_empty() or not load("res://src/gameplay/season/successor_league_v1/pitch_evidence.gd").context_valid(state.pitch_catalog) \
+	if state == null or not state.stadium.is_empty() or LeagueRules.normalized(state.league_rules) != LeagueRules.capture("dugout") or state.pitch_catalog.is_empty() or not load("res://src/gameplay/season/successor_league_v1/pitch_evidence.gd").context_valid(state.pitch_catalog) \
 		or not load("res://src/gameplay/season/successor_league_v1/physical_league.gd")._capture_context_valid(state, state.pitch_catalog) \
 		or (not state.stadium.is_empty() and not CurrentPhysicalStadiumEvidence.supported(state.stadium)):
 		return false
@@ -71,7 +71,7 @@ static func valid(value: Variant, pitch_catalog: String = "") -> bool:
 	for key: String in ["ownership", "dynasty_start", "pair", "workload", "uses"]:
 		if not value[key] is Array or value[key].size() != 2:
 			return false
-	if pitch_catalog != WorkingPitchCatalog.signature() and not value.league_rules.is_empty():
+	if LeagueRules.normalized(value.league_rules) != LeagueRules.capture("dugout"):
 		return false
 	var league: bool = not value.league_rules.is_empty()
 	if league and not ClubCareer.same(LeagueRules.normalized(value.league_rules), value.league_rules):

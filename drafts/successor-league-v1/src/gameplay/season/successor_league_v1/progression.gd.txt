@@ -3,9 +3,9 @@ const V7Catalog = preload("catalog_context.gd")
 const V7Access = preload("exotic_access.gd")
 const V7Eligibility = preload("exotic_eligibility.gd")
 
-const BUILD_VERSION: int = 108
-const DEVELOPMENT_VERSION: int = 8
-const FORMAT: String = "successor-dugout-v7-r1"
+const BUILD_VERSION: int = 109
+const DEVELOPMENT_VERSION: int = 9
+const FORMAT: String = "successor-dugout-live-v7-r1"
 
 static func recipe(id: String) -> PitchDefinition:
 	# Presentation/evidence identity only. Learning and ownership remain book-scoped.
@@ -26,7 +26,7 @@ static func display_item(id: String) -> Dictionary:
 		else DevelopmentShopCatalog.item(id)
 
 static func signature(base: String) -> String:
-	return ("successor-dugout-v7-r1:" + base + ":" + V7Catalog.signature()).sha256_text()
+	return ("successor-dugout-live-v7-r1:" + base + ":" + V7Catalog.signature()).sha256_text()
 
 static func wrap_build(data: Dictionary, exotic_start: Array = []) -> Dictionary:
 	var result: Dictionary = data.duplicate(true)

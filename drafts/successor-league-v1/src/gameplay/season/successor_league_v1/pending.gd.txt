@@ -161,6 +161,7 @@ static func _fork_replayed_expanded(season: SeasonState) -> SeasonState:
 static func _fork_replayed_league(season: SeasonState) -> SeasonState:
 	if (
 		season == null
+		or not load("res://src/gameplay/season/successor_league_v1/codec.gd").scope(season)
 		or season.league_rules.is_empty()
 		or season.career != null
 		or season.league_career

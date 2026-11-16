@@ -7,7 +7,8 @@ static func capture(source: MatchState) -> MatchState:
 	if (
 		source == null
 		or not source.stadium.is_empty()
-		or not source.league_rules.is_empty()
+		or LeagueRules.normalized(source.league_rules) != LeagueRules.capture("dugout")
+		or not load("res://src/gameplay/season/successor_league_v1/pitch_evidence.gd").context_valid(source.pitch_catalog)
 		or source.away_team == null
 		or source.home_team == null
 		or source.phase != MatchState.Phase.PRE_PITCH

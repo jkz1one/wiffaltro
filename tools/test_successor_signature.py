@@ -22,7 +22,9 @@ def main():
     mode.add_argument('--round', action='store_true', help='Run actual three-game round and earned pack purchase suite')
     mode.add_argument('--shop-fixture', type=Path, help='Read-only previously earned isolated round save; copied to a new isolated test directory')
     mode.add_argument('--recruit', action='store_true', help='Run controlled build-ledger recruitment and cold replay, not actual-game qualification')
-    mode.add_argument('--dugout', action='store_true', help='Run closed Dugout admission/draft/cold isolation suite, not gameplay')
+    mode.add_argument('--dugout', action='store_true', help='Run live Dugout admission/request/cold suite, not completed gameplay')
+    mode.add_argument('--dugout-round', action='store_true', help='Run actual live Dugout human game, cold pending resume, AI round and earned pack')
+    mode.add_argument('--dugout-pending-fixture', type=Path, help='Audit a read-only isolated actual human+one-AI pending checkpoint')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -38,16 +40,16 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout:
-        names += ['successor_dugout.gd', 'successor_dugout.tscn']
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture:
+        names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     for name in names:
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
-        entries += league_manifest['files']
+        entries += league_manifest['files'] + league_manifest.get('additions', [])
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -77,9 +79,25 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
+    if args.dugout_pending_fixture:
+        source = args.dugout_pending_fixture.resolve()
+        assert source.is_file() and source.name == 'successor-dugout-live-v7-r1.json'
+        assert any(part.startswith('wiffaltro-signature-') for part in source.parts)
+        destination = stage / 'data/godot/app_userdata/Wiffaltro' / source.name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        run('live-pending-integrity', ['res://tests/successor_dugout_integrity.tscn', '--'], timeout=1200)
+        run('live-pending-integrity-cold', ['res://tests/successor_dugout_integrity.tscn', '--', 'reopen'], timeout=900)
+        return
+    if args.dugout_round:
+        scene = ['--fixed-fps', '60', 'res://tests/successor_dugout_round.tscn', '--']
+        run('live-dugout-human', scene + ['human-only'], timeout=1200)
+        run('live-dugout-resume-round', scene + ['resume-round'], timeout=1800)
+        run('live-dugout-round-cold', scene + ['reopen'], timeout=900)
+        return
     if args.dugout:
-        run('closed-dugout', ['res://tests/successor_dugout.tscn', '--'], timeout=900)
-        run('closed-dugout-cold', ['res://tests/successor_dugout.tscn', '--', 'reopen'], timeout=600)
+        run('live-dugout', ['res://tests/successor_dugout_live.tscn', '--'], timeout=900)
+        run('live-dugout-cold', ['res://tests/successor_dugout_live.tscn', '--', 'reopen'], timeout=600)
         return
     if args.recruit:
         run('controlled-recruit', ['res://tests/successor_recruit.tscn', '--'], timeout=600)

@@ -1,10 +1,10 @@
 extends RefCounted
 ## Additive fresh-run context. Descriptor is identity, NEVER ownership/proof authority.
 const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
-const PURPOSE: String = "closed_dugout_season_v7_r1"
+const PURPOSE: String = "live_dugout_season_v7_r1"
 const VERSION: int = 7
 const RESERVED_EXOTICS: Dictionary = Provider.RESERVED_EXOTICS
-const SAVE_PATH: String = "user://successor-dugout-v7-r1.json"
+const SAVE_PATH: String = "user://successor-dugout-live-v7-r1.json"
 const FILES: Array[String] = [
 	"res://src/gameplay/season/successor_league_v1/build.gd",
 	"res://src/gameplay/season/successor_league_v1/build_restore.gd",

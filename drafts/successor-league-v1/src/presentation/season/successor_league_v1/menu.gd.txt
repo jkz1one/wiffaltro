@@ -1,0 +1,30 @@
+extends SeasonMenu
+func render() -> void:
+	_screen("successor", "Dugout League", "Live Dugout staging • separate save • legacy clubs unchanged")
+	if app.get("retained")!=null:
+		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
+		return
+	if app.season==null:
+		_button(_body,"NEW DUGOUT SEASON",Callable(app,"create_fresh"))
+		_button(_body,"CONTINUE DUGOUT SEASON",Callable(app,"reload_save"))
+		return
+	if app.season.phase==SeasonState.Phase.DRAFT:
+		for id: String in app.season.offers():
+			var definition: PlayerDefinition = ContentDB.get_player(StringName(id))
+			var profile: Dictionary = app.season.build.player(id)
+			_button(_body, "%s  %s" % [definition.display_name, str(profile.stats)], Callable(app,"draft").bind(id))
+		return
+	for id: String in app.season.teams[0].roster:
+		var definition: PlayerDefinition = app.season.build.definition(id)
+		var pitches: Array[String] = []
+		for pitch: PitchDefinition in definition.starting_pitches:
+			pitches.append(pitch.display_name)
+		_label(_body,"%s: %s" % [definition.display_name, ", ".join(pitches)],18)
+	if not app.season.physical.pending.is_empty():
+		_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
+	elif app.season.phase!=SeasonState.Phase.COMPLETE:
+		_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
+	else:
+		_label(_body,"Season complete. Earned results remain saved.",20)
+	if app.season.shop_available():
+		_button(_body,"SHOP",Callable(app,"open_pitch_shop"))

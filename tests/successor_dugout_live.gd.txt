@@ -1,0 +1,84 @@
+extends Node
+## Explicit live Dugout request admission; no result or reward fabrication.
+const Runtime = preload("res://src/gameplay/season/successor_league_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_league_v1/save.gd")
+const App = preload("res://src/presentation/season/successor_league_v1/app.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_league_v1/physical_fixtures.gd")
+const Request = preload("res://src/gameplay/season/successor_league_v1/physical_request.gd")
+const OldRuntime = preload("res://src/gameplay/season/successor_v7/runtime.gd")
+const OldCodec = preload("res://src/gameplay/season/successor_v7/codec.gd")
+const OldSave = preload("res://src/gameplay/season/successor_v7/save.gd")
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated live Dugout runner required"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		var restored: SeasonState = Save.restore()
+		if not check(restored != null and restored.league_live and restored.make_match() != null, "cold explicit live Dugout and next match"):
+			return
+		if not check(ClubCareer.same(Codec.capture(restored), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and OldSave.restore() != null, "cold exact live and unchanged standalone reopen"):
+			return
+		print("PASS: live Dugout admission cold reopen, not completed gameplay")
+		get_tree().quit()
+		return
+	var standalone: SeasonState = OldRuntime.create_fresh(1701)
+	if not check(OldSave.save(standalone) and OldSave.PATH != Save.PATH, "independent preserved standalone slot"):
+		return
+	var old_bytes: PackedByteArray = FileAccess.get_file_as_bytes(OldSave.PATH)
+	var closed: SeasonState = Runtime.create_closed_league(1703, LeagueRules.capture("dugout"))
+	if not check(closed == null or Codec.capture(closed).is_empty(), "closed creation is not live-save authority"):
+		return
+	var season: SeasonState = Runtime.create_live_dugout(1703)
+	if not check(season != null and season.league_live and Codec.scope(season), "explicit live Dugout creation"):
+		return
+	for index in range(4):
+		if not check(season.choose_player(season.offers()[0]), "live Dugout draft %d" % index):
+			return
+		season = Codec.restore(JSON.parse_string(JSON.stringify(Codec.capture(season))))
+		if not check(season != null, "live JSON draft resume %d" % index):
+			return
+	var state: MatchState = season.make_match()
+	if not check(state != null and ClubCareer.same(state.league_rules, LeagueRules.capture("dugout")), "live match retains Dugout rules"):
+		return
+	var fixture: Dictionary = season.pending_fixture()
+	var field: FieldDefinition = Runtime.field_for_fixture(fixture, season)
+	var packet: MatchState = Request.capture(state)
+	if not check(packet != null and packet != state and packet.away_team != state.away_team, "current pitch and League ownership request detached"):
+		return
+	var wrong_request: MatchState = Request.capture(state)
+	wrong_request.league_rules = LeagueRules.capture("academy")
+	if not check(Request.capture(wrong_request) == null, "wrong request League rejected"):
+		return
+	wrong_request = Request.capture(state)
+	wrong_request.pitch_catalog = "wrong"
+	if not check(Request.capture(wrong_request) == null, "wrong request catalog rejected"):
+		return
+	wrong_request = Request.capture(state)
+	wrong_request.away_team.league_ownership["capacity"] = {"held":99}
+	if not check(Request.capture(wrong_request) == null, "unreplayed request capacity rejected"):
+		return
+	var valid: Dictionary = Codec.capture(season)
+	var old_version: Dictionary = valid.duplicate(true)
+	old_version.version = 108
+	if not check(Codec.restore(old_version) == null and OldCodec.restore(valid) == null and Codec.restore(OldCodec.capture(standalone)) == null, "old closed and standalone envelopes cannot grant live authority"):
+		return
+	var wrong: Dictionary = valid.duplicate(true)
+	wrong.league_live = false
+	if not check(Codec.restore(wrong) == null, "live flag cannot be removed or downgraded"):
+		return
+	if not check(Save.save(season) and FileAccess.get_file_as_bytes(OldSave.PATH) == old_bytes, "live checkpoint durable without touching standalone"):
+		return
+	print("PASS: live Dugout draft, immutable physical request and separate save; no completed-game claim")
+	get_tree().quit()

@@ -1,0 +1,161 @@
+extends "res://tests/successor_dugout_live.gd"
+## Actual human-side automated gameplay plus two real AI games, no score fixtures.
+const Report = preload("res://src/gameplay/season/successor_league_v1/physical_report.gd")
+const Capture = preload("res://src/presentation/season/successor_league_v1/capture_human.gd")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated runner required"):
+		return
+	var app: SeasonApp = App.new()
+	add_child(app)
+	if OS.get_cmdline_user_args().has("reopen"):
+		app.reload_save()
+		if not check(app.season != null and app.season.results.size() == 3 and app.season.player_results.size() == 1, "cold settled round reopen"):
+			return
+		if not check(app.season.build._visit.pack_status == "used" and app.season.make_match() != null, "cold paid pack and next fixture"):
+			return
+		print("PASS: cold settled round, earned pack purchase and next match")
+		app.queue_free()
+		get_tree().quit()
+		return
+	var human: Array = []
+	if OS.get_cmdline_user_args().has("resume-round"):
+		app.reload_save()
+		if not check(app.season != null and app.season.league_live and not app.season.physical.pending.is_empty() and app.season.physical.pending.reports.is_empty(), "cold pending human report and explicit League owner"):
+			return
+		human = app.season.physical.pending.human.duplicate(true)
+	else:
+		app.create_fresh()
+		if not check(app.season != null and app.get("retained") == null, "fresh round UI creation"):
+			return
+		print("SEASON_SEED: ", app.season.season_seed)
+		for pick in range(4):
+			app.call("draft", app.season.offers()[0])
+			if not check(app.season.picks.size() == pick + 1, "round draft %d" % pick):
+				return
+		app.play_next()
+		if not check(is_instance_valid(app.lab) and app.lab._match_state != null, "actual App play route opens match"):
+			return
+		# Let the actual intro finish before installing the automated controller.
+		# Otherwise its later human-ready prompt can supersede automation startup.
+		for frame in range(600):
+			await get_tree().physics_frame
+			if not app.lab._match_presentation_director.blocks_gameplay():
+				break
+		if not check(not app.lab._match_presentation_director.blocks_gameplay(), "actual match intro completes"):
+			return
+		# Test driver uses the ordinary live controllers for both sides; no outcome edits.
+		app.lab._automation = MatchAutomation.new()
+		app.lab._automation.seed = Fixtures.seed_for(app.season, app.season.pending_fixture())
+		app.lab._automation.presentation_enabled = true
+		app.lab._automation.begin(app.lab)
+		var finished: bool = false
+		for frame in range(150000):
+			await get_tree().physics_frame
+			if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._automation != null and not app.lab._home_run.presentation_pending(app.lab):
+				# Automation intentionally omits the human outro. Stop only the test
+				# driver after the actual result, then use the normal presentation path.
+				app.lab._automation = null
+				PitchBatLabFeelSupport.begin_match_outro(app.lab)
+			if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD:
+				finished = true
+				break
+			if frame % 12000 == 0:
+				print("HUMAN_GAME_PROGRESS: ", frame, " pa=", app.lab._match_state.plate_appearance_number, " phase=", app.lab._match_state.phase)
+		if not check(finished, "real human-side game reaches completed outro"):
+			return
+		human = Capture.capture(app)
+		if not check(not human.is_empty(), "actual human evidence capture"):
+			return
+		var evidence: FileAccess = FileAccess.open("user://round-human-evidence.json", FileAccess.WRITE)
+		evidence.store_string(JSON.stringify(human, "", true, true))
+		evidence.close()
+		app.finish_game()
+		if not check(app.get("retained") == null and not is_instance_valid(app.lab) and not app.season.physical.pending.is_empty(), "completed human game durable before AI jobs"):
+			return
+		if not check(app.season.results.is_empty() and app.season.build.cash() == 0, "pending round gives no premature reward"):
+			return
+		if OS.get_cmdline_user_args().has("human-only"):
+			print("PASS: actual live Dugout human game durably pending; no premature reward")
+			app.queue_free()
+			get_tree().quit()
+			return
+	# Each real report is durably adopted before explicitly requesting the next job.
+	for expected in [1, 2]:
+		app.call("resume_round")
+		var arrived: bool = false
+		for frame in range(150000):
+			await get_tree().physics_frame
+			if not app._busy:
+				arrived = true
+				break
+			if frame % 12000 == 0:
+				print("AI_GAME_PROGRESS: ", expected, ":", frame)
+		if not check(arrived and app.get("retained") == null and app.season.physical.pending.get("reports", []).size() == expected, "actual AI report checkpoint %d: %s" % [expected, app.notice]):
+			return
+		if not check(app.season.physical.pending.reports[-1].report.version == 30, "explicit successor League physical report30"):
+			return
+		var historical: Dictionary = app.season.physical.pending.reports[-1].report.duplicate(true)
+		historical.version = 27
+		if not check(not Report.valid(historical, app.season.build.pitch_catalog_signature()), "historical report family cannot replace current League proof"):
+			return
+	app.call("resume_round")
+	if not check(app.get("retained") == null and app.season.results.size() == 3 and app.season.player_results.size() == 1 and app.season.physical.pending.is_empty(), "three-game live Dugout round settlement"):
+		return
+	var human_results: Array = app.season.results.filter(func(row: Dictionary) -> bool: return row.id == human[0])
+	if not check(human_results.size() == 1, "exact actual human result"):
+		return
+	var earned: int = 18 if SeasonState._winner(human_results[0]) == 0 else 12
+	if not check(app.season.build._bank.view().rewards.size() == 1 and app.season.build.cash() == earned, "one score-matched earned human reward"):
+		return
+	if not check(app.season.opponents.clubs.size() == 5, "all five AI clubs retained"):
+		return
+	for club: Dictionary in app.season.opponents.clubs.values():
+		if not check(club.build._bank.view().rewards.size() == 1, "one reward per AI club"):
+			return
+	var settled: Dictionary = Codec.capture(app.season)
+	app.call("resume_round")
+	if not check(not settled.is_empty() and ClubCareer.same(Codec.capture(app.season), settled), "duplicate round resume is inert"):
+		return
+	var build: SeasonBuild = app.season.build
+	app.call("shop_command", {"id":"open:%d"%build.revision(),"rev":build.revision(),"op":"open"})
+	build = app.season.build
+	if not check(build._visit.open and not build._visit.cards.is_empty(), "generated earned shop opens"):
+		return
+	var cash_before: int = build.cash()
+	var price: int = build.pack_price()
+	var open_command: Dictionary = {"id":"pack:%d"%build.revision(),"rev":build.revision(),"op":"pack_open"}
+	app.call("shop_command", open_command)
+	if not check(app.get("retained") == null and app.season.build.pack_pending() and app.season.build.cash() == cash_before - price, "real earned pack payment"):
+		return
+	build = app.season.build
+	var selected: Dictionary = {}
+	for item: String in build._visit.cards:
+		var targets: Array[Dictionary] = build.targets(item)
+		if not targets.is_empty():
+			selected = {"id":"pick:%d"%build.revision(),"rev":build.revision(),"op":"pack_pick","item":item,"player":targets[0].player,"pitch":targets[0].pitch,"replace":targets[0].replace}
+			break
+	if not check(not selected.is_empty(), "generated legal pack target"):
+		return
+	var before_profile: Dictionary = build.player(selected.player).duplicate(true)
+	var book_revision: int = build._book.revision()
+	app.call("shop_command", selected)
+	var after_profile: Dictionary = app.season.build.player(selected.player)
+	var stats_delta: int = 0
+	var mastery_delta: int = 0
+	for stat: String in before_profile.stats:
+		stats_delta += int(after_profile.stats[stat]) - int(before_profile.stats[stat])
+	for pitch: String in after_profile.mastery:
+		mastery_delta += int(after_profile.mastery[pitch]) - int(before_profile.mastery.get(pitch, 0))
+	if not check(stats_delta >= 0 and mastery_delta >= 0 and stats_delta + mastery_delta == 1 and app.season.build._book.revision() == book_revision + 1, "exactly one earned development level applied"):
+		return
+	var purchased: Dictionary = Codec.capture(app.season)
+	if not check(not purchased.is_empty() and app.get("retained") == null and app.season.build._visit.pack_status == "used", "paid pack selection durably applied"):
+		return
+	app.call("shop_command", selected)
+	if not check(ClubCareer.same(Codec.capture(app.season), purchased), "repeated purchase command grants nothing twice"):
+		return
+	print("PASS: three actual live Dugout games settled once, earned pack paid/applied once, durable checkpoint")
+	app.queue_free()
+	await get_tree().process_frame
+	get_tree().quit()

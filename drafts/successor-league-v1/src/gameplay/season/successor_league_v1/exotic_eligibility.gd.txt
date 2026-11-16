@@ -7,7 +7,7 @@ extends RefCounted
 const VERSION: int = 7
 const DROP_IDS: Array[String] = ["pitch.drop", "pitch.three_quarter_drop"]
 const Catalog = preload("catalog_context.gd")
-const CONTEXT: String = "successor-dugout-v7-r1"
+const CONTEXT: String = "successor-dugout-live-v7-r1"
 const PRICES: Dictionary = {"switchback": 18, "corkscrew": 20, "trapdoor": 18,
 	"super curve": 20, "gypsy drop": 18, "knuckle-drop": 20, "forkball": 18}
 const OFFERINGS: Dictionary = {"pitch.switchback": "switchback", "pitch.corkscrew": "corkscrew",

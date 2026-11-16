@@ -1,7 +1,7 @@
 extends RefCounted
 const Catalog = preload("catalog_context.gd")
 const Called = preload("called_proof.gd")
-const FORMAT: String = "successor-dugout-v7-r1"
+const FORMAT: String = "successor-dugout-live-v7-r1"
 # gdlint: disable=max-returns
 ## One atomic completed-game settlement, replayed inside the candidate build.
 

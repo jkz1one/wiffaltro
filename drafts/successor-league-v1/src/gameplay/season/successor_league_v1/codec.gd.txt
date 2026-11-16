@@ -1,7 +1,7 @@
 extends RefCounted
-## Closed Dugout tier0 admission/draft only. No gameplay, career or migration authority.
-const FORMAT: String = "successor-dugout-v7-r1"
-const ADMISSION: int = 108
+## Explicit live Dugout tier0 boundary. No career, owner or migration authority.
+const FORMAT: String = "successor-dugout-live-v7-r1"
+const ADMISSION: int = 109
 const Catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
 const Progression = preload("res://src/gameplay/season/successor_league_v1/progression.gd")
 
@@ -10,12 +10,9 @@ static func scope(season: SeasonState) -> bool:
 		and season.build != null and season.build.get_script() == load("res://src/gameplay/season/successor_league_v1/build.gd") \
 		and season.build.call("pitch_catalog_successor") and season.build._format == 45 \
 		and season.build._market == 0 and season.career == null \
-		and not season.league_live and not season.league_career \
+		and season.league_live and not season.league_career \
 		and season.league_rules == LeagueRules.capture("dugout") and season.inventory_rules.is_empty() \
 		and season.build.league_context_valid() and season.build._league_rules == season.league_rules \
-		and season.results.is_empty() and season.player_results.is_empty() \
-		and season.phase in [SeasonState.Phase.DRAFT, SeasonState.Phase.REGULAR] \
-		and season.round_index == 0 \
 		and season._dynasty_start.is_empty() and season._closed_access.is_empty() \
 		and season._dynasty_owner_binding.is_empty() and season._dynasty_career_session.is_empty() \
 		and season._standard_live_context.is_empty() and season._standard_bound_grant.is_empty() \
@@ -24,13 +21,12 @@ static func scope(season: SeasonState) -> bool:
 		and season.final_venue.is_empty() and season.player_access.is_empty() \
 		and season.opponents != null and season.opponents.get_script() == load("res://src/gameplay/season/successor_league_v1/opponents.gd") \
 		and season.opponents._format == 13 and season.physical != null \
-		and season.physical.pending.is_empty() and season.physical.reports.is_empty() and season.physical.cursor == 0 \
 		and season.physical.get_script() == load("res://src/gameplay/season/successor_league_v1/physical_fixtures.gd") \
-		and season._league_inventory_context_consistent() and _draft_builds_valid(season)
+		and season._league_inventory_context_consistent() and _domain_builds_valid(season)
 
-static func _draft_builds_valid(season: SeasonState) -> bool:
+static func _domain_builds_valid(season: SeasonState) -> bool:
 	if season.build._book.get_script() != load("res://src/gameplay/season/successor_league_v1/development.gd") \
-		or not season.build._events.is_empty() or not season.build._book._exotic_start.is_empty():
+		or not season.build._book._exotic_start.is_empty():
 		return false
 	if season.phase == SeasonState.Phase.DRAFT:
 		return season.picks.size() < 4 and season.opponents.clubs.is_empty()
@@ -39,9 +35,9 @@ static func _draft_builds_valid(season: SeasonState) -> bool:
 	for club: Dictionary in season.opponents.clubs.values():
 		var build: SeasonBuild = club.get("build")
 		if build == null or build.get_script() != load("res://src/gameplay/season/successor_league_v1/build.gd") \
-			or not build.call("pitch_catalog_successor") or not build._events.is_empty() \
+			or not build.call("pitch_catalog_successor") \
 			or build._book.get_script() != load("res://src/gameplay/season/successor_league_v1/development.gd") \
-			or not build._book._exotic_start.is_empty() or club.get("cursor", -1) != 0:
+			or not build._book._exotic_start.is_empty():
 			return false
 	return true
 
@@ -53,12 +49,13 @@ static func leaf_valid(value: Variant, pitch_catalog: String) -> bool:
 	for key: String in ["career", "home_property", "owned_surface_night", "npc_venues", "final_venue", "player_access", "league_rules", "inventory_rules"]:
 		if value.has(key):
 			return false
-	return value.get("results") is Array and value.results.is_empty() \
+	return value.get("results") is Array \
 		and not Progression.unwrap_build(value.build).is_empty() and value.build.get("exotic_start") == []
 
 static func envelope_valid(value: Variant) -> bool:
-	return value is Dictionary and SeasonOwnership._keys(value, ["version", "format", "pitch_catalog", "league_rules", "checkpoint"]) \
+	return value is Dictionary and SeasonOwnership._keys(value, ["version", "format", "pitch_catalog", "league_rules", "league_live", "checkpoint"]) \
 		and SeasonOwnership._whole(value.version, ADMISSION, ADMISSION) \
+		and value.league_live is bool and value.league_live \
 		and LeagueRules.normalized(value.league_rules) == LeagueRules.capture("dugout") \
 		and value.format is String and value.format == FORMAT and value.pitch_catalog is String \
 		and leaf_valid(value.checkpoint, value.pitch_catalog)
@@ -82,12 +79,12 @@ static func _capture(season: SeasonState) -> Dictionary:
 		return {}
 	var historical_shell: Dictionary = SeasonSave._ac02_passive_15_snapshot(season)
 	if not SeasonOwnership._keys(historical_shell, ["version", "league_rules", "checkpoint"]) \
-		or not SeasonOwnership._whole(historical_shell.get("version"), 75, 75) \
+		or not SeasonOwnership._whole(historical_shell.get("version"), 76, 76) \
 		or not ClubCareer.same(historical_shell.league_rules, season.league_rules):
 		return {}
 	# Reuse only the passive inner representation, never the historical decoder.
 	var payload: Dictionary = historical_shell.checkpoint
-	var result: Dictionary = {"version": ADMISSION, "format": FORMAT, "pitch_catalog": Catalog.signature(), "league_rules": season.league_rules.duplicate(true), "checkpoint": payload}
+	var result: Dictionary = {"version": ADMISSION, "format": FORMAT, "pitch_catalog": Catalog.signature(), "league_rules": season.league_rules.duplicate(true), "league_live": true, "checkpoint": payload}
 	return result if envelope_valid(result) else {}
 
 static func restore(value: Variant) -> SeasonState:
@@ -100,7 +97,7 @@ static func _restore(value: Variant) -> SeasonState:
 	if not envelope_valid(value):
 		return null
 	var season: SeasonState = load("res://src/gameplay/season/successor_league_v1/decoder.gd")._ac02_passive_15_private_decode_payload_terrain(
-		value.checkpoint, {}, false, LeagueRules.normalized(value.league_rules), false, {}, null, {}, null, [], {}, {}, null,
+		value.checkpoint, {}, false, LeagueRules.normalized(value.league_rules), true, {}, null, {}, null, [], {}, {}, null,
 		value.pitch_catalog, ADMISSION)
 	if not scope(season) or not load("res://src/gameplay/season/successor_league_v1/exotic_access.gd").current_matches(season):
 		return null

@@ -1,0 +1,35 @@
+extends "res://tests/successor_dugout_live.gd"
+## Reads only a copied, actually played pending-round checkpoint from isolated tests.
+const Pending = preload("res://src/gameplay/season/successor_league_v1/pending.gd")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated pending integrity runner required"):
+		return
+	var season: SeasonState = Save.restore()
+	if not check(season != null and season.physical.pending.reports.size() == 1, "actual human and one actual AI report restored"):
+		return
+	var before: Dictionary = Codec.capture(season)
+	var raw: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(ClubCareer.same(before, JSON.parse_string(raw.get_string_from_utf8())), "exact pending capture equals durable slot"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		print("PASS: separate cold actual pending checkpoint exactly restored")
+		get_tree().quit()
+		return
+	var projected: Dictionary = Pending.project(season)
+	if not check(not projected.has("error") and projected.has("fixture"), "validated pending projection reaches remaining real fixture"):
+		return
+	if not check(ClubCareer.same(Codec.capture(season), before) and FileAccess.get_file_as_bytes(Save.PATH) == raw, "speculative settlement leaves original season and slot unchanged"):
+		return
+	var tampered: Dictionary = before.duplicate(true)
+	tampered.checkpoint.physical.pending.reports[0].report.version = 27
+	if not check(Codec.restore(tampered) == null, "historical report substitution rejected through full pending decode"):
+		return
+	tampered = before.duplicate(true)
+	tampered.checkpoint.physical.pending.reports[0].report.ownership[0].version = 999
+	if not check(Codec.restore(tampered) == null, "tampered ownership rejected through full pending decode"):
+		return
+	if not check(ClubCareer.same(Codec.capture(season), before) and FileAccess.get_file_as_bytes(Save.PATH) == raw, "invalid replay cannot contaminate original pending checkpoint"):
+		return
+	print("PASS: actual pending projection is detached; report and ownership tampering rejected")
+	get_tree().quit()
