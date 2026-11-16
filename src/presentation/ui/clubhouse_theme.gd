@@ -85,8 +85,16 @@ static func primary(button: Button) -> void:
 		style.content_margin_top = 5
 		style.content_margin_bottom = 5
 		button.add_theme_stylebox_override(state, style)
-	for state in ["font_color", "font_hover_color", "font_pressed_color"]:
+	# Main automatically focuses Continue. Godot uses the focus foreground even
+	# without pointer hover, so gold primary controls need the same dark ink.
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(state, INK)
+
+
+static func confirmation(dialog: AcceptDialog) -> void:
+	dialog.theme = create()
+	dialog.add_theme_stylebox_override("panel", surface(false, 16))
+	dialog.add_theme_constant_override("buttons_min_height", 44)
 
 
 static func table_cell(label: Label, row: int, highlight: bool = false) -> void:

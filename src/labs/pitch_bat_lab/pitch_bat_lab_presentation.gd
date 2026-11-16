@@ -9,6 +9,10 @@ const VIEWPORT_SIZE: Vector2 = Vector2(1280.0, 720.0)
 const HUD_MARGIN: float = 12.0
 const ROUTINE_EVENT_HEIGHT: float = 44.0
 
+const Operations1: GDScript = preload(
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_presentation_operations_1.gd"
+)
+
 
 static func build_pitch_actor(lab: PitchBatLab) -> void:
 	lab._pitch_actor = PitchFlightActor.new()
@@ -81,6 +85,7 @@ static func sync_players(lab: PitchBatLab) -> void:
 		lab._batter_avatar.position = batter_position
 		if lab._bat_actor != null:
 			lab._bat_actor.configure(batter_left, batter_position)
+			lab._bat_actor.set_cosmetic(String(batter.season_gear.get("bat", "")))
 	if lab._pitcher_avatar != null:
 		lab._pitcher_avatar.configure(
 			PlayerAvatar.Role.PITCHER,
@@ -96,6 +101,10 @@ static func sync_players(lab: PitchBatLab) -> void:
 
 static func play_batter_swing(lab: PitchBatLab, profile: SwingProfileDefinition) -> void:
 	if lab._bat_actor != null:
+		var cosmetic: String = ""
+		if lab._match_mode and lab._match_state != null:
+			cosmetic = String(lab._match_state.batter().definition.season_gear.get("bat", ""))
+		lab._bat_actor.set_cosmetic(cosmetic)
 		lab._bat_actor.play_swing(profile)
 	if lab._batter_avatar != null:
 		lab._batter_avatar.play_batting_swing(profile)
@@ -106,18 +115,48 @@ static func show_pitcher_fielding_attempt(
 ) -> void:
 	if lab._pitcher_marker == null:
 		return
+	if lab.hillside_pitcher_motion != null and not lab.hillside_pitcher_motion.guard_pitcher(lab):
+		return
 	var offset: Vector3 = ball_position - lab._pitcher_marker.global_position
 	offset.y = 0.0
 	if offset.length_squared() > 0.0001:
 		offset = offset.normalized() * minf(0.72, offset.length())
-	lab._pitcher_marker.global_position = DefenderSpacing.step_around_mound(
-		lab._pitcher_marker.global_position, lab._pitcher_marker.global_position + offset,
-		lab._primary_fielder.global_position, offset.length()
-	)
-	lab._pitcher_marker.rotation.z = (
-		(0.18 if outcome == FieldingResolver.Outcome.CLEAN else 0.10)
-		* signf(offset.x if absf(offset.x) > 0.01 else 1.0)
-	)
+	var next: Vector3
+	if lab.hillside_pitcher_motion != null:
+		var target: Vector3 = StadiumHillsideTerrain.point(
+			lab._pitcher_marker.global_position.x + offset.x,
+			lab._pitcher_marker.global_position.z + offset.z,
+			lab.hillside_pitcher_motion.profile
+		)
+		next = StadiumPropertyRuntime.pitcher_step(
+			lab, target, offset.length(), lab._pitcher_marker.global_position
+		)
+	else:
+		next = DefenderSpacing.step_around_mound(
+			lab._pitcher_marker.global_position,
+			lab._pitcher_marker.global_position + offset,
+			lab._primary_fielder.global_position,
+			offset.length()
+		)
+		# The presentation lunge must respect the same Pool/fence swept clearance.
+		if StadiumPoolOwnedExtension.current(lab) != null:
+			next = StadiumPropertyRuntime.pitcher_step(
+				lab, lab._pitcher_marker.global_position + offset, offset.length(), next
+			)
+	lab._pitcher_marker.global_position = next
+	if lab.hillside_pitcher_motion != null:
+		if not lab.hillside_pitcher_motion.blocked:
+			lab.hillside_pitcher_motion.set_pitcher_rotation(
+				(
+					(0.18 if outcome == FieldingResolver.Outcome.CLEAN else 0.10)
+					* signf(offset.x if absf(offset.x) > 0.01 else 1.0)
+				)
+			)
+	else:
+		lab._pitcher_marker.rotation.z = (
+			(0.18 if outcome == FieldingResolver.Outcome.CLEAN else 0.10)
+			* signf(offset.x if absf(offset.x) > 0.01 else 1.0)
+		)
 
 
 static func build_environment(lab: PitchBatLab) -> void:
@@ -204,6 +243,16 @@ static func _build_world_environment(lab: PitchBatLab) -> void:
 		Environment.BG_SKY if lab._sky_backdrop_enabled else Environment.BG_COLOR
 	)
 	environment.background_color = Color(0.12, 0.20, 0.15)
+	if lab._automation != null:
+		# Non-rendering jobs do not need sky/radiance textures or their deferred uploads.
+		environment.background_mode = Environment.BG_COLOR
+		environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		environment.ambient_light_color = Color(0.63, 0.79, 0.88)
+		environment.ambient_light_energy = 0.58
+		environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+		lab._world_environment.environment = environment
+		lab.add_child(lab._world_environment)
+		return
 	var sky: Sky = Sky.new()
 	var sky_material: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.17, 0.43, 0.68)
@@ -247,16 +296,12 @@ static func apply_hud_anchor(lab: PitchBatLab) -> void:
 			lab._scorebug.position = Vector2(HUD_MARGIN, HUD_MARGIN)
 		HUD_ANCHOR_TOP_RIGHT:
 			lab._scorebug.position = Vector2(
-				VIEWPORT_SIZE.x - MatchScorebug.PANEL_SIZE.x - HUD_MARGIN,
-				HUD_MARGIN
+				VIEWPORT_SIZE.x - MatchScorebug.PANEL_SIZE.x - HUD_MARGIN, HUD_MARGIN
 			)
 		_:
 			lab._scorebug.position = Vector2(
 				VIEWPORT_SIZE.x - MatchScorebug.PANEL_SIZE.x - HUD_MARGIN,
-				VIEWPORT_SIZE.y
-				- MatchScorebug.PANEL_SIZE.y
-				- ROUTINE_EVENT_HEIGHT
-				- HUD_MARGIN
+				VIEWPORT_SIZE.y - MatchScorebug.PANEL_SIZE.y - ROUTINE_EVENT_HEIGHT - HUD_MARGIN
 			)
 	if lab._pitching_staff_toggle_button != null:
 		var menu_y: float = 204.0 if lab._hud_anchor_index == HUD_ANCHOR_TOP_RIGHT else 16.0
@@ -292,8 +337,13 @@ static func show_match_outro(lab: PitchBatLab, player_won: bool) -> void:
 		return
 	lab._presentation_backdrop.visible = true
 	lab._presentation_title.text = "WIN" if player_won else "LOSS"
-	lab._presentation_subtitle.text = "%s\n%s" % [lab._match_state.score_label(),
-		"CLICK / SPACE: CONTINUE" if lab._managed_match else "R: NEW MATCH"]
+	lab._presentation_subtitle.text = (
+		"%s\n%s"
+		% [
+			lab._match_state.score_label(),
+			"CLICK / SPACE: CONTINUE" if lab._managed_match else "R: NEW MATCH"
+		]
+	)
 	_set_gameplay_hud_visible(lab, false)
 
 
@@ -317,6 +367,8 @@ static func _set_gameplay_hud_visible(lab: PitchBatLab, visible: bool) -> void:
 		lab._live_label.visible = false
 	if lab._event_panel != null:
 		lab._event_panel.visible = false
+	if lab._hr_celebration_label != null:
+		lab._hr_celebration_label.visible = false
 	if lab._pitching_staff_panel != null:
 		lab._pitching_staff_panel.visible = false
 	if lab._pitching_staff_toggle_button != null:
@@ -342,17 +394,48 @@ static func _set_gameplay_hud_visible(lab: PitchBatLab, visible: bool) -> void:
 
 
 static func refresh_event(lab: PitchBatLab) -> void:
+	# Clear first, including hidden UI, empty status and changed-play early returns.
+	if lab._hr_celebration_label != null:
+		lab._hr_celebration_label.visible = false
+		lab._hr_celebration_label.text = ""
+	if not MatchAutomation.presented(lab):
+		return
 	if lab._event_panel == null or lab._status_label == null:
 		return
 	var event_text: String = lab._status_label.text.strip_edges()
 	lab._event_panel.visible = not event_text.is_empty()
 	if event_text.is_empty():
 		return
+	# Keep the compact scored HR status while a brief headline celebrates the result.
+	# Keep the complete status payload; only its presentation has a short lifetime.
+	lab._event_panel.modulate.a = 1.0
+	lab._status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab._status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var hr_notice: bool = lab._home_run.compact_notice(lab, event_text)
+	_refresh_hr_celebration(lab, hr_notice)
 	var routine: bool = _event_is_routine(event_text)
-	if routine:
+	if hr_notice:
+		var extent: Vector2 = lab.get_viewport().get_visible_rect().size
+		var notice_size: Vector2 = Vector2(clampf(extent.x - HUD_MARGIN * 2.0, 1.0, 300.0), 88.0)
+		var right_side: bool = lab._hud_anchor_index == HUD_ANCHOR_TOP_LEFT
 		lab._event_panel.position = Vector2(
-			lab._scorebug.position.x,
-			lab._scorebug.position.y + MatchScorebug.PANEL_SIZE.y + 2.0
+			extent.x - notice_size.x - HUD_MARGIN if right_side else HUD_MARGIN, HUD_MARGIN
+		)
+		lab._event_panel.size = notice_size
+		lab._status_label.position = Vector2.ZERO
+		lab._status_label.size = notice_size
+		lab._event_panel.visible = lab._home_run.elapsed < PitchBatLabHomeRun.NOTICE_SECONDS
+		lab._event_panel.modulate.a = minf(
+			smoothstep(0.0, PitchBatLabHomeRun.NOTICE_FADE_IN_SECONDS, lab._home_run.elapsed),
+			smoothstep(
+				0.0,
+				PitchBatLabHomeRun.NOTICE_FADE_OUT_SECONDS,
+				PitchBatLabHomeRun.NOTICE_SECONDS - lab._home_run.elapsed
+			)
+		)
+	elif routine:
+		lab._event_panel.position = Vector2(
+			lab._scorebug.position.x, lab._scorebug.position.y + MatchScorebug.PANEL_SIZE.y + 2.0
 		)
 		lab._event_panel.size = Vector2(MatchScorebug.PANEL_SIZE.x, ROUTINE_EVENT_HEIGHT)
 		lab._status_label.position = Vector2.ZERO
@@ -362,16 +445,57 @@ static func refresh_event(lab: PitchBatLab) -> void:
 		lab._event_panel.size = Vector2(640.0, 142.0)
 		lab._status_label.position = Vector2(8.0, 4.0)
 		lab._status_label.size = Vector2(624.0, 134.0)
-	lab._status_label.add_theme_font_size_override("font_size", 12 if routine else 26)
-	lab._status_label.add_theme_constant_override("outline_size", 3 if routine else 5)
+	var event_font_size: int = 18 if event_text.contains("Tag + margin / return") else 26
+	lab._status_label.add_theme_font_size_override(
+		"font_size", 14 if hr_notice else (12 if routine else event_font_size)
+	)
+	lab._status_label.add_theme_constant_override("outline_size", 3 if routine or hr_notice else 5)
 	lab._status_label.add_theme_color_override(
 		"font_outline_color", Color(0.025, 0.055, 0.085, 1.0)
 	)
-	lab._status_label.add_theme_constant_override("shadow_offset_x", 0 if routine else 4)
-	lab._status_label.add_theme_constant_override("shadow_offset_y", 0 if routine else 4)
-	lab._status_label.add_theme_color_override(
-		"font_shadow_color", Color(0.025, 0.055, 0.085, 0.0 if routine else 0.85)
+	lab._status_label.add_theme_constant_override(
+		"shadow_offset_x", 0 if routine or hr_notice else 4
 	)
+	lab._status_label.add_theme_constant_override(
+		"shadow_offset_y", 0 if routine or hr_notice else 4
+	)
+	lab._status_label.add_theme_color_override(
+		"font_shadow_color", Color(0.025, 0.055, 0.085, 0.0 if routine or hr_notice else 0.85)
+	)
+
+
+static func _refresh_hr_celebration(lab: PitchBatLab, hr_notice: bool) -> void:
+	var headline: Label = lab._hr_celebration_label
+	var hr: PitchBatLabHomeRun = lab._home_run
+	if (
+		headline == null
+		or not hr_notice
+		or not hr.presentation_pending(lab)
+		or hr.celebration_text.is_empty()
+		or hr.elapsed >= PitchBatLabHomeRun.CELEBRATION_SECONDS
+	):
+		return
+	var extent: Vector2 = lab.get_viewport().get_visible_rect().size
+	headline.add_theme_font_size_override(
+		"font_size", int(clampf(extent.x / 1280.0 * 88.0, 24.0, 88.0))
+	)
+	headline.text = hr.celebration_text
+	# Keep the existing type and fade, but leave the central flight corridor clear.
+	var minimum: Vector2 = headline.get_combined_minimum_size()
+	headline.size = Vector2(maxf(extent.x, minimum.x), maxf(112.0, minimum.y))
+	headline.position = Vector2(
+		(extent.x - headline.size.x) * 0.5,
+		clampf(extent.y * 0.125, 0.0, maxf(0.0, extent.y - headline.size.y))
+	)
+	headline.modulate.a = minf(
+		smoothstep(0.0, PitchBatLabHomeRun.CELEBRATION_FADE_IN_SECONDS, hr.elapsed),
+		smoothstep(
+			0.0,
+			PitchBatLabHomeRun.CELEBRATION_FADE_OUT_SECONDS,
+			PitchBatLabHomeRun.CELEBRATION_SECONDS - hr.elapsed
+		)
+	)
+	headline.visible = true
 
 
 static func _event_is_routine(event_text: String) -> bool:
@@ -379,7 +503,8 @@ static func _event_is_routine(event_text: String) -> bool:
 	return (
 		not headline.contains("OUT")
 		and (
-			headline.begins_with("BALL")
+			headline.begins_with("FILM ROOM")
+			or headline.begins_with("BALL")
 			or headline.begins_with("CALLED STRIKE")
 			or headline.begins_with("SWINGING STRIKE")
 			or headline.begins_with("STRIKE")
@@ -410,6 +535,7 @@ static func apply_camera_mode(lab: PitchBatLab) -> void:
 			lab._camera_director.set_shot(MatchCameraDirector.Shot.SIDE)
 		3:
 			lab._camera_director.set_shot(MatchCameraDirector.Shot.BALL_IN_PLAY)
+	StadiumPropertyRuntime.refresh_receiver_visibility(lab)
 
 
 static func apply_role_camera(lab: PitchBatLab) -> void:
@@ -429,6 +555,8 @@ static func apply_role_camera(lab: PitchBatLab) -> void:
 
 
 static func refresh(lab: PitchBatLab) -> void:
+	if not MatchAutomation.presented(lab):
+		return
 	if lab._config_label == null or lab._scorebug == null or lab._action_label == null:
 		return
 	var pitch: PitchDefinition = lab._selected_pitch()
@@ -466,9 +594,55 @@ static func refresh(lab: PitchBatLab) -> void:
 
 
 static func refresh_markers(lab: PitchBatLab) -> void:
+	if not _refresh_markers_prefix(lab):
+		return
+	StadiumPropertyRuntime.refresh_receiver_visibility(lab)
+	_refresh_markers_suffix(lab)
+
+
+static func refresh_ac02_setup_markers(lab: PitchBatLab) -> Dictionary:
+	if not _refresh_markers_prefix(lab):
+		return {"admitted": false, "reason": "marker-prefix-incomplete"}
+	var result: Dictionary = StadiumNpcAc02SetupAdmission.refresh_receiver(lab)
+	_refresh_markers_suffix(lab)
+	return result
+
+
+static func _refresh_markers_prefix(lab: PitchBatLab) -> bool:
 	var geometry: StarterFieldLabGeometry = lab.get_node_or_null("StarterFieldGeometry")
 	if geometry != null:
 		geometry.set_batting_view(not lab._match_mode or lab._player_is_batting())
+	# AC02's issued guide guard checks the actual target pose. Ordinary aim writers update
+	# _pitch_target first, so publish that pose to the captured genuine marker before callback.
+	var public: StadiumNpcPublicProperty = StadiumNpcPublicRuntime._property(lab)
+	if public != null and public.venue_id == "AC-02" and geometry != null:
+		var guides: StadiumNpcAc02PublicGuides = public._ac02_guides_pin
+		if (
+			is_instance_valid(guides)
+			and guides == public.ac02_guides
+			and guides.get_script() == StadiumNpcAc02PublicGuides
+			and guides._guides.size() == 5
+		):
+			var row: Dictionary = guides._guides[4]
+			var marker: MeshInstance3D = (
+				row.node.get_ref() as MeshInstance3D if row.get("node") is WeakRef else null
+			)
+			if (
+				is_instance_valid(marker)
+				and not row.get("bar", true)
+				and marker == lab._pitch_target_marker
+				and marker == geometry.pitch_target_marker
+				and geometry.get_node_or_null("PitchTarget") == marker
+				and marker.get_parent() == geometry
+				and marker.mesh == row.get("mesh")
+				and marker.material_override == row.get("material")
+			):
+				marker.position = Vector3(lab._pitch_target.x, lab._pitch_target.y, 0.015)
+
+	return true
+
+
+static func _refresh_markers_suffix(lab: PitchBatLab) -> void:
 	if lab._pitch_target_marker != null:
 		lab._pitch_target_marker.position = Vector3(lab._pitch_target.x, lab._pitch_target.y, 0.015)
 		lab._pitch_target_marker.visible = (not lab._match_mode or lab._player_is_pitching())
@@ -481,6 +655,7 @@ static func refresh_markers(lab: PitchBatLab) -> void:
 				0.82, 1.18, float(lab._match_state.batter().definition.contact) / 10.0
 			)
 		lab._batting_aim_marker.scale = Vector3(contact_factor, contact_factor, 1.0)
+		MatchSponsorControls.refresh_ellipse(lab)
 	var normalized_batting_aim: Vector2 = Vector2(
 		inverse_lerp(lab.BATTING_AIM_MIN_X, lab.BATTING_AIM_MAX_X, lab._batting_aim.x) * 2.0 - 1.0,
 		inverse_lerp(lab.BATTING_AIM_MIN_Y, lab.BATTING_AIM_MAX_Y, lab._batting_aim.y) * 2.0 - 1.0
@@ -541,11 +716,13 @@ static func _refresh_match(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 	lab._scorebug.refresh(match_state, not lab._player_is_pitching())
 	var options: Array[PitchDefinition] = lab._current_pitch_options()
 	lab._action_label.text = (
-		"%d  %s"
-		% [
-			lab._selected_pitch_index + 1,
-			pitch.display_name if pitch != null else "None",
-		]
+		(
+			"%d  %s"
+			% [
+				lab._selected_pitch_index + 1,
+				pitch.display_name if pitch != null else "None",
+			]
+		)
 		if lab._player_is_pitching()
 		else ""
 	)
@@ -613,55 +790,15 @@ static func _refresh_lab(lab: PitchBatLab, pitch: PitchDefinition) -> void:
 
 
 static func _build_pitching_staff(lab: PitchBatLab, canvas: CanvasLayer) -> void:
-	lab._pitching_staff_toggle_button = Button.new()
-	lab._pitching_staff_toggle_button.position = Vector2(1123.0, 16.0)
-	lab._pitching_staff_toggle_button.custom_minimum_size = Vector2(132.0, 34.0)
-	lab._pitching_staff_toggle_button.focus_mode = Control.FOCUS_NONE
-	lab._pitching_staff_toggle_button.pressed.connect(lab._toggle_pitching_staff)
-	canvas.add_child(lab._pitching_staff_toggle_button)
+	Operations1._build_pitching_staff(lab, canvas)
 
-	lab._pitching_staff_panel = ClubhouseMenuStack.new()
-	lab._pitching_staff_panel.position = Vector2(855.0, 128.0)
-	lab._pitching_staff_panel.custom_minimum_size = Vector2(400.0, 0.0)
-	canvas.add_child(lab._pitching_staff_panel)
-	var title: Label = Label.new()
-	title.text = "BULLPEN"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 15)
-	lab._pitching_staff_panel.add_child(title)
-	for index in range(TeamMatchState.ROSTER_SIZE):
-		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(400.0, 62.0)
-		button.focus_mode = Control.FOCUS_NONE
-		button.pressed.connect(lab._select_pitcher.bind(index))
-		lab._pitching_staff_panel.add_child(button)
-		lab._pitcher_buttons.append(button)
-	var return_button: Button = Button.new()
-	return_button.text = "RETURN TO PITCH (ESC)"
-	return_button.custom_minimum_size = Vector2(400.0, 38.0)
-	return_button.focus_mode = Control.FOCUS_NONE
-	return_button.pressed.connect(lab._toggle_pitching_staff)
-	lab._pitching_staff_panel.add_child(return_button)
+
+static func _inspect_pitcher(lab: PitchBatLab, index: int, button: Button) -> void:
+	Operations1._inspect_pitcher(lab, index, button)
 
 
 static func _build_pitch_release_meter(lab: PitchBatLab, canvas: CanvasLayer) -> void:
-	lab._pitch_release_bar = ProgressBar.new()
-	lab._pitch_release_bar.position = Vector2(507.0, 72.0)
-	lab._pitch_release_bar.size = Vector2(300.0, 12.0)
-	lab._pitch_release_bar.min_value = 0.0
-	lab._pitch_release_bar.max_value = 100.0
-	lab._pitch_release_bar.show_percentage = false
-	lab._pitch_release_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(lab._pitch_release_bar)
-
-	lab._pitch_release_ideal_marker = ColorRect.new()
-	lab._pitch_release_ideal_marker.color = Color(0.95, 0.82, 0.18)
-	lab._pitch_release_ideal_marker.size = Vector2(4.0, 18.0)
-	lab._pitch_release_ideal_marker.position = Vector2(
-		507.0 + 300.0 * PitchReleaseController.new().ideal_progress() - 2.0, 69.0
-	)
-	lab._pitch_release_ideal_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(lab._pitch_release_ideal_marker)
+	Operations1._build_pitch_release_meter(lab, canvas)
 
 
 static func _build_display_menu(lab: PitchBatLab, canvas: CanvasLayer) -> void:
@@ -681,241 +818,40 @@ static func _build_display_menu(lab: PitchBatLab, canvas: CanvasLayer) -> void:
 
 
 static func refresh_display_menu(lab: PitchBatLab) -> void:
-	if lab._pause_menu == null:
-		return
-	var presentation_active: bool = (
-		lab._match_presentation_director != null
-		and lab._match_presentation_director.blocks_gameplay()
-	)
-	lab._display_menu_button.visible = not presentation_active or lab._debug_paused
-	lab._pause_menu.refresh()
+	Operations1._public_refresh_display_menu(lab)
 
 
 static func _build_match_presentation(lab: PitchBatLab, canvas: CanvasLayer) -> void:
-	lab._presentation_backdrop = ColorRect.new()
-	lab._presentation_backdrop.theme = ClubhouseTheme.create()
-	lab._presentation_backdrop.position = Vector2.ZERO
-	lab._presentation_backdrop.size = Vector2(1280.0, 720.0)
-	lab._presentation_backdrop.color = Color(0.015, 0.025, 0.04, 0.18)
-	lab._presentation_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(lab._presentation_backdrop)
-
-	lab._presentation_title = Label.new()
-	lab._presentation_title.position = Vector2(0.0, 270.0)
-	lab._presentation_title.size = Vector2(1280.0, 78.0)
-	lab._presentation_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lab._presentation_title.add_theme_font_size_override("font_size", 52)
-	lab._presentation_title.add_theme_constant_override("outline_size", 6)
-	lab._presentation_title.add_theme_color_override(
-		"font_outline_color", Color(0.025, 0.055, 0.085, 1.0)
-	)
-	lab._presentation_title.add_theme_constant_override("shadow_offset_x", 5)
-	lab._presentation_title.add_theme_constant_override("shadow_offset_y", 5)
-	lab._presentation_title.add_theme_color_override(
-		"font_shadow_color", Color(0.025, 0.055, 0.085, 0.82)
-	)
-	lab._presentation_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lab._presentation_backdrop.add_child(lab._presentation_title)
-
-	lab._presentation_subtitle = Label.new()
-	lab._presentation_subtitle.position = Vector2(0.0, 350.0)
-	lab._presentation_subtitle.size = Vector2(1280.0, 90.0)
-	lab._presentation_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lab._presentation_subtitle.add_theme_font_size_override("font_size", 22)
-	lab._presentation_subtitle.add_theme_constant_override("outline_size", 4)
-	lab._presentation_subtitle.add_theme_color_override(
-		"font_outline_color", Color(0.025, 0.055, 0.085, 1.0)
-	)
-	lab._presentation_subtitle.add_theme_constant_override("shadow_offset_x", 3)
-	lab._presentation_subtitle.add_theme_constant_override("shadow_offset_y", 3)
-	lab._presentation_subtitle.add_theme_color_override(
-		"font_shadow_color", Color(0.025, 0.055, 0.085, 0.78)
-	)
-	lab._presentation_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lab._presentation_backdrop.add_child(lab._presentation_subtitle)
-	lab._presentation_backdrop.visible = false
+	Operations1._build_match_presentation(lab, canvas)
 
 
 static func _build_event_panel(lab: PitchBatLab, canvas: CanvasLayer) -> void:
-	lab._event_panel = Panel.new()
-	lab._event_panel.position = Vector2(320.0, 270.0)
-	lab._event_panel.size = Vector2(640.0, 142.0)
-	lab._event_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lab._event_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	canvas.add_child(lab._event_panel)
-	lab._status_label = Label.new()
-	lab._status_label.position = Vector2(8.0, 4.0)
-	lab._status_label.size = Vector2(624.0, 134.0)
-	lab._status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lab._status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lab._status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lab._status_label.add_theme_font_size_override("font_size", 22)
-	lab._status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lab._event_panel.add_child(lab._status_label)
+	Operations1._build_event_panel(lab, canvas)
 
 
 static func _make_panel_style(background_color: Color, border_color: Color) -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = background_color
-	style.border_color = border_color
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_left = 5
-	style.corner_radius_bottom_right = 5
-	return style
+	return Operations1._make_panel_style(background_color, border_color)
 
 
 static func _refresh_pitch_release_meter(lab: PitchBatLab) -> void:
-	if lab._pitch_release_bar == null or lab._pitch_release_ideal_marker == null:
-		return
-	var visible: bool = (
-		lab._match_mode
-		and lab._player_is_pitching()
-		and lab._release_controller != null
-		and lab._release_controller.active
-	)
-	lab._pitch_release_bar.visible = visible
-	lab._pitch_release_ideal_marker.visible = visible
-	if visible:
-		lab._pitch_release_bar.value = (lab._release_controller.meter_progress() * 100.0)
+	Operations1._refresh_pitch_release_meter(lab)
 
 
 static func _build_field_setup(lab: PitchBatLab, canvas: CanvasLayer) -> void:
-	lab._field_setup_toggle_button = Button.new()
-	lab._field_setup_toggle_button.position = Vector2(1123.0, 62.0)
-	lab._field_setup_toggle_button.custom_minimum_size = Vector2(132.0, 34.0)
-	lab._field_setup_toggle_button.focus_mode = Control.FOCUS_NONE
-	lab._field_setup_toggle_button.pressed.connect(lab._toggle_field_setup)
-	canvas.add_child(lab._field_setup_toggle_button)
-
-	lab._field_setup_panel = ClubhouseMenuStack.new()
-	lab._field_setup_panel.position = Vector2(910.0, 128.0)
-	canvas.add_child(lab._field_setup_panel)
-	var title: Label = Label.new()
-	title.text = "FIELD"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lab._field_setup_panel.add_child(title)
-	var grid: GridContainer = GridContainer.new()
-	grid.columns = 3
-	lab._field_setup_panel.add_child(grid)
-	var visual_order: Array[int] = [8, 7, 6, 5, 4, 3, 2, 1, 0]
-	for anchor_index in visual_order:
-		var anchor_button: Button = Button.new()
-		anchor_button.custom_minimum_size = Vector2(112.0, 38.0)
-		anchor_button.add_theme_font_size_override("font_size", 12)
-		anchor_button.focus_mode = Control.FOCUS_NONE
-		anchor_button.text = (
-			lab._field_definition.fielder_anchor_name(anchor_index)
-			if lab._field_definition.is_fielder_anchor_available(anchor_index)
-			else "PITCHER LANE"
-		)
-		anchor_button.set_meta(&"anchor_index", anchor_index)
-		anchor_button.pressed.connect(lab._select_fielder_anchor.bind(anchor_index))
-		grid.add_child(anchor_button)
-		lab._field_anchor_buttons.append(anchor_button)
-	var exit_button: Button = Button.new()
-	exit_button.text = "RETURN TO PITCH (ESC)"
-	exit_button.custom_minimum_size = Vector2(336.0, 38.0)
-	exit_button.focus_mode = Control.FOCUS_NONE
-	exit_button.pressed.connect(lab._toggle_field_setup)
-	lab._field_setup_panel.add_child(exit_button)
-	var roster_controls: MatchRosterControls = MatchRosterControls.new()
-	roster_controls.name = "RosterControls"
-	roster_controls.build(lab, canvas)
-	canvas.add_child(roster_controls)
+	Operations1._build_field_setup(lab, canvas)
 
 
 static func _refresh_field_setup(lab: PitchBatLab) -> void:
-	if lab._field_setup_toggle_button == null or lab._field_setup_panel == null:
-		return
-	var on_defense: bool = (
-		lab._match_mode and lab._match_state != null and lab._player_is_pitching()
-	)
-	lab._field_setup_toggle_button.visible = (on_defense and not lab._pitching_staff_active)
-	lab._field_setup_panel.visible = on_defense and lab._field_setup_active
-	if not on_defense:
-		return
-	lab._field_setup_toggle_button.text = (
-		"BACK" if lab._field_setup_active else "FIELD"
-	)
-	lab._field_setup_toggle_button.disabled = (
-		lab._debug_paused
-		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
-		or lab._release_controller.active
-		or lab._ball_in_play_is_live()
-		or (lab._pitch_actor != null and lab._pitch_actor.running)
-	)
-	for button in lab._field_anchor_buttons:
-		var anchor_index: int = int(button.get_meta(&"anchor_index", -1))
-		button.disabled = (
-			not MatchLabSupport.can_edit_pitch_plan(lab)
-			or not lab._field_definition.is_fielder_anchor_available(anchor_index)
-			or anchor_index == lab._fielder_anchor_index
-		)
+	Operations1._refresh_field_setup(lab)
 
 
 static func _refresh_pitching_staff(lab: PitchBatLab) -> void:
-	if lab._pitching_staff_panel == null or lab._pitching_staff_toggle_button == null:
-		return
-	var on_defense: bool = (
-		lab._match_mode and lab._match_state != null and lab._player_is_pitching()
-	)
-	lab._pitching_staff_toggle_button.visible = (on_defense and not lab._field_setup_active)
-	lab._pitching_staff_panel.visible = (on_defense and lab._pitching_staff_active)
-	if not on_defense:
-		return
-	lab._pitching_staff_toggle_button.text = (
-		"BACK" if lab._pitching_staff_active else "BULLPEN"
-	)
-	lab._pitching_staff_toggle_button.disabled = (
-		lab._debug_paused
-		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
-		or lab._release_controller.active
-		or lab._ball_in_play_is_live()
-		or (lab._pitch_actor != null and lab._pitch_actor.running)
-	)
-	var team: TeamMatchState = lab._match_state.defensive_team()
-	var can_change: bool = (
-		lab._match_state.can_change_defense()
-		and MatchLabSupport.can_edit_pitch_plan(lab)
-		and not lab._debug_paused
-	)
-	for index in range(mini(lab._pitcher_buttons.size(), team.roster.size())):
-		var player: PlayerMatchState = team.roster[index]
-		var button: Button = lab._pitcher_buttons[index]
-		var role: String = "PITCHER" if index == team.pitcher_index else "READY"
-		if player.pitching_finished:
-			role = "USED"
-		button.text = (
-			"%s • %s\nThrows %s • %.0f%% stamina • %s"
-			% [
-				player.definition.display_name,
-				role,
-				"LEFT" if player.definition.throws == PlayerDefinition.Handedness.LEFT else "RIGHT",
-				player.stamina_percent() * 100.0,
-				PitchExecutionModel.fatigue_stage_name(player.fatigue_ratio()),
-			]
-		)
-		button.disabled = not can_change or index == team.pitcher_index or player.pitching_finished
-		button.tooltip_text = (
-			"Removed pitchers cannot pitch again; batting and fielding remain available."
-		)
+	Operations1._refresh_pitching_staff(lab)
 
 
 static func _add_label(canvas: CanvasLayer, position: Vector2, font_size: int) -> Label:
-	var label: Label = Label.new()
-	label.position = position
-	label.add_theme_font_size_override("font_size", font_size)
-	canvas.add_child(label)
-	return label
+	return Operations1._add_label(canvas, position, font_size)
 
 
 static func _make_unshaded_material(color: Color) -> StandardMaterial3D:
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = color
-	return material
+	return Operations1._make_unshaded_material(color)

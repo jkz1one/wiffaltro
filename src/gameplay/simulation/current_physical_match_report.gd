@@ -1,0 +1,256 @@
+class_name CurrentPhysicalMatchReport
+extends RefCounted
+## Report29 is admitted only with caller-supplied validated catalog authority.
+## Historical Report27/28 and standalone PhysicalMatchReport.valid are unchanged.
+# gdlint: disable=max-returns
+
+const VERSION: int = 29
+const RESOLVER: String = "physical-current-pitch-v1"
+
+
+static func context_valid(state: MatchState) -> bool:
+	if state == null or state.pitch_catalog.is_empty() or not PhysicalPitchEvidence.context_valid(state.pitch_catalog) \
+		or not PhysicalLeagueReport._capture_context_valid(state, state.pitch_catalog) \
+		or (not state.stadium.is_empty() and not CurrentPhysicalStadiumEvidence.supported(state.stadium)):
+		return false
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		if team.pitch_catalog != state.pitch_catalog or not team.inventory_actions.is_empty():
+			return false # Live sale proofs belong to the managed inventory evidence route.
+	return true
+
+
+static func capture(lab: PitchBatLab) -> Dictionary:
+	if not is_instance_valid(lab) or not context_valid(lab._match_state) \
+		or lab._automation == null or lab._match_state.phase != MatchState.Phase.GAME_END \
+		or lab.get_meta("stadium_candidate_only", false) \
+		or lab.get_meta("stadium_npc_retained_lab_only", false):
+		return {}
+	if not lab._match_state.stadium.is_empty():
+		var venue: Dictionary = CurrentPhysicalStadiumEvidence.capture(lab)
+		if venue.is_empty():
+			return {}
+		return CurrentPhysicalMatchReport.wrap(CurrentPhysicalStadiumEvidence.core(venue,
+			CurrentPhysicalStadiumEvidence.for_state(lab._match_state)), lab._match_state, venue)
+	return CurrentPhysicalMatchReport.wrap(PhysicalMatchReport._capture_core(lab), lab._match_state)
+
+
+static func wrap(body: Dictionary, state: MatchState, venue: Dictionary = {}) -> Dictionary:
+	if not context_valid(state):
+		return {}
+	var result: Dictionary = {"version": VERSION, "resolver": RESOLVER,
+		"pitch_catalog": state.pitch_catalog, "league_rules": state.league_rules.duplicate(true),
+		"ownership": [], "dynasty_start": [], "pair": [], "workload": [], "uses": [],
+		"physical": body.duplicate(true)}
+	if not state.stadium.is_empty():
+		if venue.is_empty():
+			return {}
+		result["venue"] = venue.duplicate(true)
+	elif not venue.is_empty():
+		return {}
+	result.physical["current_pitch_bound"] = state.pitch_catalog
+	if not state.league_rules.is_empty():
+		result.physical["league_bound"] = true
+	if LeagueRules.doubleheader(state.league_rules):
+		result.physical["doubleheader_bound"] = true
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		result.ownership.append(team.league_ownership.duplicate(true))
+		result.dynasty_start.append(team.dynasty_start.duplicate(true))
+		result.pair.append(team.league_pair.duplicate(true))
+		result.workload.append(PhysicalWorkloadEvidence.capture(state, team)
+			if LeagueRules.doubleheader(state.league_rules) else {})
+		result.uses.append(team.tactics.consumed.duplicate(true))
+	return result if valid(result, state.pitch_catalog) else {}
+
+
+static func valid(value: Variant, pitch_catalog: String = "") -> bool:
+	if pitch_catalog.is_empty() or not PhysicalPitchEvidence.context_valid(pitch_catalog) \
+		or not value is Dictionary or not _keys(value) \
+		or not SeasonOwnership._whole(value.version, VERSION, VERSION) \
+		or value.resolver != RESOLVER or value.pitch_catalog != pitch_catalog \
+		or not value.league_rules is Dictionary or not value.physical is Dictionary:
+		return false
+	for key: String in ["ownership", "dynasty_start", "pair", "workload", "uses"]:
+		if not value[key] is Array or value[key].size() != 2:
+			return false
+	if pitch_catalog != WorkingPitchCatalog.signature() and not value.league_rules.is_empty():
+		return false
+	var league: bool = not value.league_rules.is_empty()
+	if league and not ClubCareer.same(LeagueRules.normalized(value.league_rules), value.league_rules):
+		return false
+	if not PhysicalMatchReport._valid_core(value.physical, value.league_rules,
+		value.ownership if league else [], LeagueRules.doubleheader(value.league_rules), pitch_catalog):
+		return false
+	if value.has("venue"):
+		if not value.venue is Dictionary:
+			return false
+		var context: Dictionary = CurrentPhysicalStadiumEvidence.for_report(value, pitch_catalog)
+		if not CurrentPhysicalStadiumEvidence.valid(value.venue, context) \
+			or not ClubCareer.same(value.physical, CurrentPhysicalStadiumEvidence.core(value.venue, context)):
+			return false
+	var carried: int = 0
+	for index in range(2):
+		if not value.ownership[index] is Dictionary or not value.dynasty_start[index] is Dictionary \
+			or not value.pair[index] is Dictionary or not value.workload[index] is Dictionary \
+			or not value.uses[index] is Array or value.uses[index].size() > 64:
+			return false
+		if league:
+			if PhysicalLeagueReport.wallet(value.league_rules, value.ownership[index]).is_empty():
+				return false
+		elif not value.ownership[index].is_empty():
+			return false
+		if LeagueRules.dynasty(value.league_rules):
+			if not PhysicalLeagueReport._dynasty_entry_valid(value.dynasty_start[index],
+				value.physical.teams[index].roster, value.physical.tactics.clubs[index]):
+				return false
+		elif not value.dynasty_start[index].is_empty():
+			return false
+		carried += int(not value.dynasty_start[index].is_empty())
+		if not LeagueRules.doubleheader(value.league_rules) \
+			and (not value.pair[index].is_empty() or not value.workload[index].is_empty()):
+			return false
+		if value.physical.get("tactics", {}).get("clubs", [false, false])[index]:
+			if not ClubCareer.same(value.uses[index], value.physical.tactics.teams[index].consumed):
+				return false
+		elif not value.uses[index].is_empty():
+			return false
+	return carried <= 1 and (not LeagueRules.doubleheader(value.league_rules)
+		or _doubleheader_valid(value, pitch_catalog))
+
+
+static func _doubleheader_valid(value: Dictionary, pitch_catalog: String) -> bool:
+	var wallets: Array = []
+	for index in range(2):
+		var wallet: Dictionary = PhysicalLeagueReport.wallet(value.league_rules, value.ownership[index])
+		if wallet.is_empty() or not PhysicalWorkloadEvidence.pair_valid(value.pair[index]) \
+			or not value.uses[index] is Array or value.uses[index].size() > 64:
+			return false
+		wallets.append(wallet)
+	if value.pair[0].game != value.pair[1].game:
+		return false
+	var body: Dictionary = value.physical
+	for index in range(2):
+		var team: Dictionary = body.teams[index]
+		var proof: Variant = value.workload[index]
+		if not PhysicalWorkloadEvidence.valid(proof, team.roster, body.performance,
+			team.pitching, value.uses[index], wallets[index], value.pair[index], 99999, pitch_catalog):
+			return false
+		if body.tactics.clubs[index] and not ClubCareer.same(
+			value.uses[index], body.tactics.teams[index].consumed):
+			return false
+		var releases: Array = []
+		for event: Dictionary in proof.events:
+			if int(event.half) % 2 != 1 - index:
+				return false
+			if event.kind == "release":
+				releases.append({"pa": event.pa, "half": event.half, "player": event.player,
+					"recipe": event.recipe, "paid": event.paid})
+		var expected: Array = body.releases.filter(func(row: Dictionary) -> bool:
+			return team.roster.has(row.player))
+		if not ClubCareer.same(releases, expected):
+			return false
+		for id: String in team.roster:
+			var workload: Dictionary = team.workload[id]
+			if not PhysicalRecoveryFlow.near(proof.initial[id].capacity, workload.capacity) \
+				or not PhysicalRecoveryFlow.near(proof.initial[id].initial, workload.initial) \
+				or not PhysicalRecoveryFlow.near(proof.remaining[id], workload.remaining):
+				return false
+	return true
+
+
+static func core(value: Dictionary, pitch_catalog: String = "") -> Dictionary:
+	return value.physical.duplicate(true) if valid(value, pitch_catalog) else {}
+
+
+static func matches(value: Dictionary, state: MatchState) -> bool:
+	if not context_valid(state) or not valid(value, state.pitch_catalog) \
+		or not ClubCareer.same(value.league_rules, state.league_rules):
+		return false
+	if state.stadium.is_empty():
+		if value.has("venue"):
+			return false
+	elif not value.has("venue") or not CurrentPhysicalStadiumEvidence.matches(value.venue,
+		state.stadium, CurrentPhysicalStadiumEvidence.for_state(state)):
+		return false
+	if not state.league_rules.is_empty() and not PhysicalLeagueReport._matches_bound(value, state):
+		return false
+	if state.league_rules.is_empty() and (not PhysicalChoiceEvidence._matches_core(value.physical, state)
+		or not PhysicalTacticalEvidence._report_matches_core(value.physical, state)):
+		return false
+	var teams: Array[TeamMatchState] = [state.away_team, state.home_team]
+	for index in range(2):
+		var team: TeamMatchState = teams[index]
+		if value.physical.teams[index].name != team.display_name \
+			or not ClubCareer.same(value.pair[index], team.league_pair):
+			return false
+		if LeagueRules.doubleheader(state.league_rules) and not PhysicalWorkloadEvidence.valid_for_team(
+			value.workload[index], team, value.physical.performance,
+			value.physical.teams[index].pitching, value.uses[index], 99999, [], state.pitch_catalog):
+			return false
+		for slot in range(team.roster.size()):
+			var player: PlayerMatchState = team.roster[slot]
+			var id: String = String(player.definition.id)
+			var row: Dictionary = value.physical.teams[index]
+			if row.roster[slot] != id or not ClubCareer.same(row.recipes[id],
+				player.definition.starting_pitches.map(func(pitch: PitchDefinition) -> String:
+					return String(pitch.id))) \
+				or not PhysicalRecoveryFlow.near(row.workload[id].capacity, player.stamina_max) \
+				or not PhysicalRecoveryFlow.near(row.workload[id].initial, player.stamina_remaining):
+				return false
+	return true
+
+
+# Internal same-resolve-call seam only. The caller must own a detached report
+# wrapper and have just passed core()/valid() for its exact catalog. This checks
+# all state correspondence, never establishes standalone report validity.
+static func _matches_validated_current(value: Dictionary, state: MatchState) -> bool:
+	if not context_valid(state) or value.pitch_catalog != state.pitch_catalog \
+		or not ClubCareer.same(value.league_rules, state.league_rules):
+		return false
+	if state.stadium.is_empty():
+		if value.has("venue"):
+			return false
+	elif not value.has("venue") or not CurrentPhysicalStadiumEvidence.matches(value.venue,
+		state.stadium, CurrentPhysicalStadiumEvidence.for_state(state)):
+		return false
+	if not state.league_rules.is_empty() and not PhysicalLeagueReport._matches_bound(value, state):
+		return false
+	if state.league_rules.is_empty() and (not PhysicalChoiceEvidence._matches_core(value.physical, state)
+		or not PhysicalTacticalEvidence._report_matches_core(value.physical, state)):
+		return false
+	var teams: Array[TeamMatchState] = [state.away_team, state.home_team]
+	for index in range(2):
+		var team: TeamMatchState = teams[index]
+		if value.physical.teams[index].name != team.display_name \
+			or not ClubCareer.same(value.pair[index], team.league_pair):
+			return false
+		if LeagueRules.doubleheader(state.league_rules) and not PhysicalWorkloadEvidence.valid_for_team(
+			value.workload[index], team, value.physical.performance,
+			value.physical.teams[index].pitching, value.uses[index], 99999, [], state.pitch_catalog):
+			return false
+		for slot in range(team.roster.size()):
+			var player: PlayerMatchState = team.roster[slot]
+			var id: String = String(player.definition.id)
+			var row: Dictionary = value.physical.teams[index]
+			if row.roster[slot] != id or not ClubCareer.same(row.recipes[id],
+				player.definition.starting_pitches.map(func(pitch: PitchDefinition) -> String:
+					return String(pitch.id))) \
+				or not PhysicalRecoveryFlow.near(row.workload[id].capacity, player.stamina_max) \
+				or not PhysicalRecoveryFlow.near(row.workload[id].initial, player.stamina_remaining):
+				return false
+	return true
+
+
+static func human(value: Dictionary, index: int, pitch_catalog: String = "") -> Dictionary:
+	if index not in [0, 1] or not valid(value, pitch_catalog) \
+		or not LeagueRules.doubleheader(value.league_rules):
+		return {}
+	return {"version": PhysicalWorkloadEvidence.VERSION, "pair": value.pair[index].duplicate(true),
+		"proof": value.workload[index].duplicate(true)}
+
+
+static func _keys(value: Dictionary) -> bool:
+	var fields: Array = ["version", "resolver", "pitch_catalog", "league_rules", "ownership",
+		"dynasty_start", "pair", "workload", "uses", "physical"]
+	if value.has("venue"):
+		fields.append("venue")
+	return SeasonOwnership._keys(value, fields)

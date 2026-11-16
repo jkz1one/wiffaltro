@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/tests/stadium_mogul_one_lock_diagnostic_test.gd" id="1"]
+
+[node name="StadiumMogulOneLockDiagnosticTest" type="Node3D"]
+script = ExtResource("1")

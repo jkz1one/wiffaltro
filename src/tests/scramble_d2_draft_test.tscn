@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/tests/scramble_d2_draft_test.gd" id="1"]
+
+[node name="ScrambleD2DraftTest" type="Node"]
+script = ExtResource("1")

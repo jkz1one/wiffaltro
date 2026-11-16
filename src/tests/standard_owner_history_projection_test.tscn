@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/tests/standard_owner_history_projection_test.gd" id="1"]
+[node name="StandardOwnerHistoryProjection" type="Node"]
+script = ExtResource("1")

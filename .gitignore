@@ -1,9 +1,7 @@
 .godot/
-builds/
-export/
-.DS_Store
-Thumbs.db
-*.tmp
 *.log
-.vscode/
-.idea/
+*.zip
+user-data/
+saves/
+.env
+.env.*

@@ -5,6 +5,7 @@ signal play_resolved(outcome: BallPlayOutcome)
 
 var field: FieldDefinition
 var state: BallPlayState
+var segment_observer: Callable
 
 
 func start_play(field_definition: FieldDefinition, is_foul_play: bool = false) -> void:
@@ -21,6 +22,9 @@ func advance_time(delta_seconds: float) -> void:
 
 func observe_segment(previous: Vector3, current: Vector3) -> void:
 	if state == null or state.dead or field == null:
+		return
+	if segment_observer.is_valid():
+		segment_observer.call(self, previous, current)
 		return
 	if state.is_foul_play:
 		if current.z >= field.dead_ball_z_m or current.y < -2.0:
@@ -145,6 +149,7 @@ func _record_clean_control(
 func record_bobble(defender_id: StringName, position: Vector3) -> void:
 	if state == null or state.dead:
 		return
+	state.bobbled = true
 	state.last_defender_touch = defender_id
 	state.defender_touched = true
 	# A bobble on the plate side of Single is immediately dead, even in the
@@ -210,3 +215,44 @@ func _forward_plane_crossing(previous: Vector3, current: Vector3, plane_z: float
 		return Vector3.INF
 	var fraction: float = clampf((plane_z - previous.z) / denominator, 0.0, 1.0)
 	return previous.lerp(current, fraction)
+
+
+func resolve_pool_water(expected_state: BallPlayState, position: Vector3, foul: bool) -> bool:
+	# Caller owns the geometric/chronological admission. This latch owns result semantics.
+	if state == null or state != expected_state or state.dead or not position.is_finite():
+		return false
+	if state.is_foul_play != foul or state.result_floor > BallPlayState.ResultFloor.DOUBLE:
+		return false
+	if foul:
+		_resolve_foul(&"private_pool_controller_water_foul", position)
+	else:
+		state.raise_result_floor(BallPlayState.ResultFloor.DOUBLE)
+		_resolve_out(BallPlayOutcome.Result.DOUBLE, &"private_pool_controller_water_double", position)
+	return true
+
+
+func resolve_owned_pool_water(expected_state: BallPlayState, position: Vector3, foul: bool) -> bool:
+	# Caller owns the geometric/chronological admission. This latch owns result semantics.
+	if state == null or state != expected_state or state.dead or not position.is_finite():
+		return false
+	if state.is_foul_play != foul or state.result_floor > BallPlayState.ResultFloor.DOUBLE:
+		return false
+	if foul:
+		_resolve_foul(&"owned_pool_controller_water_foul", position)
+	else:
+		state.raise_result_floor(BallPlayState.ResultFloor.DOUBLE)
+		_resolve_out(BallPlayOutcome.Result.DOUBLE, &"owned_pool_controller_water_double", position)
+	return true
+
+func resolve_pool_party_water(expected_state: BallPlayState, position: Vector3, foul: bool) -> bool:
+	# Caller owns the geometric/chronological admission. This latch owns result semantics.
+	if state == null or state != expected_state or state.dead or not position.is_finite():
+		return false
+	if state.is_foul_play != foul or state.result_floor > BallPlayState.ResultFloor.DOUBLE:
+		return false
+	if foul:
+		_resolve_foul(&"pool_party_controller_water_foul", position)
+	else:
+		state.raise_result_floor(BallPlayState.ResultFloor.DOUBLE)
+		_resolve_out(BallPlayOutcome.Result.DOUBLE, &"pool_party_controller_water_double", position)
+	return true

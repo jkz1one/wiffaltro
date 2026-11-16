@@ -5,11 +5,17 @@ extends RefCounted
 static func valid(snapshot: Variant, roster: Array) -> bool:
 	if not snapshot is Dictionary or snapshot.size() != roster.size():
 		return false
+	var detailed: Variant = null
 	for id: Variant in snapshot:
 		if not id is String or not roster.has(id) or not snapshot[id] is Dictionary:
 			return false
 		var line: Dictionary = snapshot[id]
-		if line.size() != MatchPerformance.KEYS.size():
+		var has_detail: bool = line.has("fielding_v1")
+		if detailed != null and detailed != has_detail:
+			return false
+		detailed = has_detail
+		if line.size() != MatchPerformance.KEYS.size() + (1 if has_detail else 0) \
+			or (has_detail and not line.fielding_v1 is bool):
 			return false
 		for key in MatchPerformance.KEYS:
 			if not SeasonSave._integer(line.get(key), 0, 1000000):
@@ -38,12 +44,18 @@ static func totals(season: SeasonState) -> Dictionary:
 		result[id] = MatchPerformance.empty_line()
 	for game in season.player_results:
 		var snapshot: Dictionary = game.get("performance", {})
-		for id: String in result:
+		for id: String in game.get("club_roster", season.teams[0].roster):
+			if not result.has(id):
+				result[id] = MatchPerformance.empty_line()
 			if not snapshot.has(id):
 				continue
 			for key in MatchPerformance.KEYS:
 				result[id][key] += int(snapshot[id][key])
 	return result
+
+
+static func club_history(season: SeasonState) -> Array:
+	return totals(season).keys()
 
 
 static func coverage(season: SeasonState) -> String:

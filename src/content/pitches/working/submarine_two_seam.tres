@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/submarine.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.submarine_two_seam"
+display_name = "Submarine Two-Seam"
+tactical_description = "Working design: Run-heavy fastball using the actual low Submarine release. Family parameters are a provisional baseline, not measured Submarine flight. Intended game distinction remains run-heavy Two-Seam versus sink-heavy Sinker. Native and visual tuning pending."
+category = 0
+rarity = 0
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 25.40
+nominal_spin_rpm = 1100.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.06559999999999999, -0.997, 0)
+nominal_hole_axis_ball_local = Vector3(0.3, 0.5, 0.8)
+perforation_influence = 0.15
+instability_strength = 0.0
+instability_frequency_hz = 3.0
+control_difficulty = 1.00
+execution_difficulty = 1.04
+stamina_cost = 5.40
+recognition_difficulty = 1.1
+timing_difficulty = 1.25
+mistake_punish = 1.2
+tags = [&"working_design", &"two_seam", &"submarine", &"arm_side"]
+offering_id = &"offering.two_seam"
+design_status = "Working design"
+source_urls = Array[String](["https://www.mlb.com/glossary/pitch-types/two-seam-fastball", "https://www.mlb.com/glossary/pitch-types/sinker"])
+movement_start = Vector2(0, 0)
+movement_end = Vector2(1, 1)
+movement_initial_scale = Vector2(1, 1)

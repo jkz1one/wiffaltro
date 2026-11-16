@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/tests/shared_stadium_modern_origin_controls_test.gd" id="1"]
+[node name="SharedModernOriginControls" type="Node"]
+script = ExtResource("1")

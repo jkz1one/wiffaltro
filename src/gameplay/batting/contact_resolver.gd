@@ -19,8 +19,8 @@ static func resolve_swept_segment(
 	power_rating: int = 5
 ) -> ContactResult:
 	var current_pitch_time: float = pitch_state.elapsed_time
-	var window_start: float = intent.start_time_seconds + profile.contact_window_start_seconds
-	var window_end: float = intent.start_time_seconds + profile.contact_window_end_seconds
+	var window_start: float = intent.start_time_seconds + profile.contact_start()
+	var window_end: float = intent.start_time_seconds + profile.contact_end()
 	var overlap_start: float = maxf(previous_pitch_time, window_start)
 	var overlap_end: float = minf(current_pitch_time, window_end)
 	if overlap_end < overlap_start:
@@ -158,6 +158,19 @@ static func _resolve_at_contact(
 	# carry. The curve broadens outcomes without adding hidden result RNG.
 	var exit_speed: float = ideal_exit_speed * lerpf(0.20, 1.0, pow(quality, 0.82))
 
+	if result.outcome != ContactResult.Outcome.FOUL:
+		exit_speed *= profile.gear_fair_exit_scale
+		if quality >= 0.65:
+			exit_speed *= profile.tactical_quality_exit_scale
+		if profile.gear_line_drive_calibrated:
+			result.launch_angle_degrees = SeasonAlleyGear.angle(
+				result.launch_angle_degrees, quality, profile.gear_line_drive_strength
+			)
+		else:
+			result.launch_angle_degrees = line_drive_angle(
+				result.launch_angle_degrees, quality, profile.gear_line_drive_strength
+			)
+
 	var launch_angle_radians: float = deg_to_rad(result.launch_angle_degrees)
 	var spray_radians: float = deg_to_rad(result.spray_degrees)
 	var horizontal_speed: float = cos(launch_angle_radians) * exit_speed
@@ -231,3 +244,12 @@ static func _primary_miss_reason(
 			ContactResult.MissReason.RIGHT if normalized_x > 0.0 else ContactResult.MissReason.LEFT
 		)
 	return ContactResult.MissReason.ABOVE if normalized_y > 0.0 else ContactResult.MissReason.BELOW
+
+
+static func line_drive_angle(angle: float, quality: float, strength: float) -> float:
+	# Working eligibility/target; smooth edge widths are an unapproved Proposal.
+	if strength == 0.0 or quality < 0.65 or angle < 18.0 or angle > 40.0:
+		return angle
+	var weight: float = smoothstep(0.65, 0.70, quality)
+	weight *= smoothstep(18.0, 20.0, angle) * (1.0 - smoothstep(38.0, 40.0, angle))
+	return lerpf(angle, 16.0, strength * weight)

@@ -102,11 +102,18 @@ bat_aim_down={
 
 [physics]
 
+2d/run_on_separate_thread=false
+3d/run_on_separate_thread=false
 3d/physics_engine="Jolt Physics"
 common/physics_ticks_per_second=60
 common/physics_interpolation=true
 
 [rendering]
 
+driver/threads/thread_model=1
 renderer/rendering_method="mobile"
 renderer/rendering_method.mobile="mobile"
+
+[threading]
+
+worker_pool/max_threads=1

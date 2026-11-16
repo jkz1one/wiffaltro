@@ -23,6 +23,7 @@ var crossed_plate: bool = false
 var crossing_point: Vector2 = Vector2.ZERO
 var plate_speed_mps: float = 0.0
 var swing_profile_id: StringName = &""
+var pitch_disclosure: Dictionary = {}
 var ai_decision_recorded: bool = false
 var ai_swung: bool = false
 var ai_awareness: float = 0.0
@@ -40,8 +41,10 @@ var vertical_error_m: float = 0.0
 var exit_speed_mps: float = 0.0
 var launch_angle_degrees: float = 0.0
 var spray_degrees: float = 0.0
+var frozen_launch: Dictionary = {}
 var has_first_ground: bool = false
 var first_ground_position: Vector3 = Vector3.ZERO
+var stadium_contacts: Array[Dictionary] = []
 var resolution_reason: StringName = &""
 var resolution_position: Vector3 = Vector3.ZERO
 var last_defender_touch: StringName = &""
@@ -50,7 +53,7 @@ var result: StringName = &"pending"
 var runs_scored: int = 0
 
 func to_dict() -> Dictionary:
-	return {
+	var data: Dictionary = {
 		"mode": mode,
 		"play_number": play_number,
 		"inning": inning,
@@ -70,6 +73,7 @@ func to_dict() -> Dictionary:
 		"crossing_point": [crossing_point.x, crossing_point.y],
 		"plate_speed_mps": plate_speed_mps,
 		"swing_profile_id": String(swing_profile_id),
+		"pitch_disclosure": pitch_disclosure.duplicate(true),
 		"ai_decision_recorded": ai_decision_recorded,
 		"ai_swung": ai_swung,
 		"ai_awareness": ai_awareness,
@@ -104,3 +108,8 @@ func to_dict() -> Dictionary:
 		"result": String(result),
 		"runs_scored": runs_scored,
 	}
+	if not frozen_launch.is_empty():
+		data["frozen_launch"] = frozen_launch.duplicate(true)
+	if not stadium_contacts.is_empty():
+		data["stadium_contacts"] = stadium_contacts.duplicate(true)
+	return data

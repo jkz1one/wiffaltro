@@ -15,10 +15,34 @@ extends DefinitionBase
 @export_range(0.1, 3.0, 0.01) var exit_velocity_multiplier: float = 1.0
 @export_range(0.0, 1.0, 0.01) var minimum_contact_quality: float = 0.18
 
+@export_storage var tactical_quality_exit_scale: float = 1.0
+@export_storage var gear_fair_exit_scale: float = 1.0
+@export_storage var gear_timing_scale: float = 1.0
+@export_storage var gear_line_drive_strength: float = 0.0
+@export_storage var gear_line_drive_calibrated: bool = false
+@export_storage var gear_gap_bias: bool = false
+
+
 func is_valid_definition() -> bool:
 	return (
 		super.is_valid_definition()
 		and contact_window_start_seconds < sweet_spot_seconds
 		and sweet_spot_seconds < contact_window_end_seconds
 		and contact_window_end_seconds <= swing_duration_seconds
+	)
+
+
+func contact_start() -> float:
+	if gear_timing_scale == 1.0:
+		return contact_window_start_seconds
+	return (
+		sweet_spot_seconds - (sweet_spot_seconds - contact_window_start_seconds) * gear_timing_scale
+	)
+
+
+func contact_end() -> float:
+	if gear_timing_scale == 1.0:
+		return contact_window_end_seconds
+	return (
+		sweet_spot_seconds + (contact_window_end_seconds - sweet_spot_seconds) * gear_timing_scale
 	)

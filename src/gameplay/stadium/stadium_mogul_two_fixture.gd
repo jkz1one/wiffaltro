@@ -1,0 +1,107 @@
+class_name StadiumMogulTwoFixture
+extends RefCounted
+## Exact installed-source candidate identity. Checksum is never production venue authority.
+
+const KIND: String = "UNQUALIFIED_AM02_LEFT_LOFT_AUTHORING_FIXTURE"
+const MAX_BYTES: int = 1048576
+
+
+static func capture(record: Variant) -> Dictionary:
+	var canonical: Dictionary = StadiumMogulTwoStudy.canonical()
+	if not record is Dictionary or not ClubCareer.same(record, canonical):
+		return {}
+	for hash_value: String in canonical.qualification_sources.files.values():
+		if hash_value.length() != 64:
+			return {}
+	if canonical.qualification_sources.files.is_empty():
+		return {}
+	var fixture: Dictionary = {
+		"kind": KIND,
+		"version": 1,
+		"venue": canonical,
+		"sha256": JSON.stringify(canonical, "", true, true).sha256_text()
+	}
+	if JSON.stringify(fixture, "", true, true).to_utf8_buffer().size() > MAX_BYTES:
+		return {}
+	return fixture
+
+
+static func valid(value: Variant) -> bool:
+	if (
+		not value is Dictionary
+		or not SeasonOwnership._keys(value, ["kind", "version", "venue", "sha256"])
+		or not value.get("kind") is String
+		or not value.get("sha256") is String
+		or value.get("kind") != KIND
+		or not SeasonOwnership._whole(value.get("version"), 1, 1)
+	):
+		return false
+	var expected: Dictionary = capture(value.get("venue"))
+	return not expected.is_empty() and value.get("sha256") == expected.sha256
+
+
+static func encode(value: Variant) -> String:
+	return JSON.stringify(capture(value.venue), "", true, true) if valid(value) else ""
+
+
+static func decode(text: String) -> Dictionary:
+	if text.to_utf8_buffer().size() > MAX_BYTES:
+		return {}
+	var parser: JSON = JSON.new()
+	if parser.parse(text) != OK or not valid(parser.data):
+		return {}
+	return capture(parser.data.venue)
+
+
+static func save(path: String, value: Dictionary) -> bool:
+	var text: String = encode(value)
+	if (
+		text.is_empty()
+		or not path.begins_with("user://")
+		or path.contains("..")
+		or not path.ends_with(".json")
+	):
+		return false
+	var temporary: String = path + ".tmp"
+	var file: FileAccess = FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(text)
+	file.close()
+	if not valid(decode(FileAccess.get_file_as_string(temporary))):
+		DirAccess.remove_absolute(temporary)
+		return false
+	return DirAccess.rename_absolute(temporary, path) == OK
+
+
+static func load_file(path: String) -> Dictionary:
+	if not path.begins_with("user://") or path.contains("..") or not path.ends_with(".json"):
+		return {}
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null or file.get_length() > MAX_BYTES:
+		return {}
+	return decode(file.get_as_text())
+
+
+static func capture_diagnostic(record: Variant) -> Dictionary:
+	# Failure-only visibility. Never relax capture equality or print the entire payload.
+	var canonical: Dictionary = StadiumMogulTwoStudy.canonical()
+	var malformed: Array[String] = []
+	for path: String in canonical.qualification_sources.files:
+		if canonical.qualification_sources.files[path].length() != 64:
+			malformed.append(path)
+	var different: Array[String] = []
+	if record is Dictionary:
+		for key: String in canonical:
+			if not record.has(key) or not ClubCareer.same(record[key], canonical[key]):
+				different.append(key)
+	return {
+		"record_is_dictionary": record is Dictionary,
+		"canonical_equal": record is Dictionary and ClubCareer.same(record, canonical),
+		"different_sections": different,
+		"unreadable_source_paths": malformed,
+		"source_files": canonical.qualification_sources.files.size(),
+		"record_json_bytes": JSON.stringify(record, "", true, true).to_utf8_buffer().size(),
+		"canonical_json_bytes": JSON.stringify(canonical, "", true, true).to_utf8_buffer().size(),
+		"decode_limit_bytes": MAX_BYTES
+	}

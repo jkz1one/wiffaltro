@@ -15,6 +15,8 @@ var same_location_streak: int = 0
 var pitch_seen_counts: Dictionary = {}
 var recent_locations: Array[int] = []
 var previous_speed: float = 0.0
+var recognized_recipe: Dictionary = {}
+var locked_swing: StringName = &""
 var _plan: Dictionary = {}
 var _read_history: Array[Dictionary] = []
 var _delivery_seed: int = -1
@@ -34,6 +36,7 @@ func reset(next_plate_appearance_number: int) -> void:
 	pitch_seen_counts.clear()
 	recent_locations.clear()
 	previous_speed = 0.0
+	locked_swing = &""
 	reset_pitch()
 
 
@@ -65,6 +68,7 @@ func awareness_for(pitch: PitchDefinition, target: Vector2) -> float:
 
 
 func reset_pitch() -> void:
+	recognized_recipe.clear()
 	_plan.clear()
 	_read_history.clear()
 	_delivery_seed = -1
@@ -94,11 +98,15 @@ func track_pitch(
 	decision_seed: int,
 	batting_hand: int,
 	contact_profile: SwingProfileDefinition,
-	power_profile: SwingProfileDefinition
+	power_profile: SwingProfileDefinition,
+	disclosed: Dictionary = {}
 ) -> Dictionary:
 	if _delivery_seed != decision_seed:
 		reset_pitch()
 		_delivery_seed = decision_seed
+	# Both audiences receive the same release event. This exposes identity only;
+	# visible-motion prediction, its delay and committed swing remain unchanged.
+	recognized_recipe = disclosed.duplicate(true)
 	if _delivered:
 		return {}
 	if _last_sample_time >= 0.0 and state.elapsed_time > _last_sample_time:
@@ -126,6 +134,12 @@ func track_pitch(
 			batting_hand,
 			state.elapsed_time
 		)
+		# A paid lock selects the actual swing before scheduling its sweet spot.
+		# Keep the ordinary decision draw, noise and contact-time estimate unchanged.
+		if locked_swing == power_profile.id:
+			_plan.use_power = true
+		elif locked_swing == contact_profile.id:
+			_plan.use_power = false
 		var profile: SwingProfileDefinition = power_profile if _plan.use_power else contact_profile
 		_plan.start_time = _plan.contact_time - profile.sweet_spot_seconds
 	if _plan.swing and state.elapsed_time < _plan.start_time:

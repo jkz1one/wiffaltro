@@ -79,17 +79,20 @@ func refresh() -> void:
 	var options: Array[PitchDefinition] = _lab._current_pitch_options()
 	_grid.visible = MatchLabSupport.can_edit_pitch_plan(_lab)
 	_selected.visible = not _grid.visible
-	_selected.text = _lab._selected_pitch().display_name
+	_selected.text = SeasonPlayerCard.pitch_name(pitcher.definition, _lab._selected_pitch())
 	for index in range(_buttons.size()):
 		var button: Button = _buttons[index]
 		button.visible = index < options.size()
 		if not button.visible:
 			continue
 		var pitch: PitchDefinition = options[index]
-		button.text = "%d  %s" % [index + 1, pitch.display_name]
+		button.text = "%d  %s" % [index + 1, SeasonPlayerCard.pitch_name(pitcher.definition, pitch)]
 		button.tooltip_text = pitch.display_name + "\n" + pitch.tactical_description
 		button.button_pressed = index == _lab._selected_pitch_index
-		button.disabled = not MatchLabSupport.can_edit_pitch_plan(_lab)
+		button.disabled = (
+			not MatchLabSupport.can_edit_pitch_plan(_lab)
+			or not _lab._match_state.sure_shot.allows(_lab._match_state, pitch.id)
+		)
 	size.y = get_combined_minimum_size().y
 
 
@@ -97,6 +100,10 @@ func _select(index: int) -> void:
 	if not MatchLabSupport.can_edit_pitch_plan(_lab):
 		return
 	if index >= _lab._current_pitch_options().size():
+		return
+	if not _lab._match_state.sure_shot.allows(
+		_lab._match_state, _lab._current_pitch_options()[index].id
+	):
 		return
 	_lab._selected_pitch_index = index
 	_lab._refresh_config()

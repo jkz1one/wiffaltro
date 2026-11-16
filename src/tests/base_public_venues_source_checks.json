@@ -1,0 +1,348 @@
+{
+  "status": "SOURCE_ONLY_NATIVE_DATA_AND_RUNTIME_UNRUN",
+  "engine_launched": false,
+  "new_game_evidence": false,
+  "checks": [
+    {
+      "name": "memory_parser:base_public_venues_data_test.gd",
+      "passed": true
+    },
+    {
+      "name": "lint:base_public_venues_data_test.gd",
+      "passed": true
+    },
+    {
+      "name": "scene_reference:base_public_venues_data_test.gd",
+      "passed": true
+    },
+    {
+      "name": "resource_exists:src/tests/fixtures/ay03_control_ay02_save61.json",
+      "passed": true
+    },
+    {
+      "name": "resource_exists:src/tests/fixtures/base_control_ay03_save61_v2.json",
+      "passed": true
+    },
+    {
+      "name": "resource_exists:src/tests/fixtures/ay03_control_ay02_report15.json",
+      "passed": true
+    },
+    {
+      "name": "memory_parser:base_public_venues_runtime_test.gd",
+      "passed": true
+    },
+    {
+      "name": "lint:base_public_venues_runtime_test.gd",
+      "passed": true
+    },
+    {
+      "name": "scene_reference:base_public_venues_runtime_test.gd",
+      "passed": true
+    },
+    {
+      "name": "resource_exists:src/presentation/stadium/stadium_npc_public_runtime.gd",
+      "passed": true
+    },
+    {
+      "name": "resource_exists:src/tests/stadium_npc_bound_forged_body.gd",
+      "passed": true
+    },
+    {
+      "name": "actual_fixture_pin:src/tests/fixtures/ay03_control_ay02_save61.json",
+      "passed": true
+    },
+    {
+      "name": "actual_fixture_pin:src/tests/fixtures/base_control_ay03_save61_v2.json",
+      "passed": true
+    },
+    {
+      "name": "actual_fixture_pin:src/tests/fixtures/ay03_control_ay02_report15.json",
+      "passed": true
+    },
+    {
+      "name": "accepted_v2_fixture_byte_copy",
+      "passed": true
+    },
+    {
+      "name": "actual_assignment1_save61",
+      "passed": true
+    },
+    {
+      "name": "actual_assignment1_completed_fixture0",
+      "passed": true
+    },
+    {
+      "name": "actual_assignment1_legacy_binding_shape",
+      "passed": true
+    },
+    {
+      "name": "actual_assignment2_save61",
+      "passed": true
+    },
+    {
+      "name": "actual_assignment2_completed_fixture0",
+      "passed": true
+    },
+    {
+      "name": "actual_assignment2_legacy_binding_shape",
+      "passed": true
+    },
+    {
+      "name": "accepted_full_precision_settled_helper",
+      "passed": true
+    },
+    {
+      "name": "synthetic_schema_lift_has_only_matching_yard_graph",
+      "passed": true
+    },
+    {
+      "name": "independent_map_golden:0",
+      "passed": true
+    },
+    {
+      "name": "native_map_golden_present:0",
+      "passed": true
+    },
+    {
+      "name": "independent_environment_match_seeds_distinct:0",
+      "passed": true
+    },
+    {
+      "name": "independent_map_golden:1",
+      "passed": true
+    },
+    {
+      "name": "native_map_golden_present:1",
+      "passed": true
+    },
+    {
+      "name": "independent_environment_match_seeds_distinct:1",
+      "passed": true
+    },
+    {
+      "name": "independent_map_golden:10",
+      "passed": true
+    },
+    {
+      "name": "native_map_golden_present:10",
+      "passed": true
+    },
+    {
+      "name": "independent_environment_match_seeds_distinct:10",
+      "passed": true
+    },
+    {
+      "name": "independent_map_golden:47",
+      "passed": true
+    },
+    {
+      "name": "native_map_golden_present:47",
+      "passed": true
+    },
+    {
+      "name": "independent_environment_match_seeds_distinct:47",
+      "passed": true
+    },
+    {
+      "name": "independent_map_golden:443",
+      "passed": true
+    },
+    {
+      "name": "native_map_golden_present:443",
+      "passed": true
+    },
+    {
+      "name": "independent_environment_match_seeds_distinct:443",
+      "passed": true
+    },
+    {
+      "name": "independent_map_golden:2147483647",
+      "passed": true
+    },
+    {
+      "name": "native_map_golden_present:2147483647",
+      "passed": true
+    },
+    {
+      "name": "independent_environment_match_seeds_distinct:2147483647",
+      "passed": true
+    },
+    {
+      "name": "environment_draw_golden",
+      "passed": true
+    },
+    {
+      "name": "no_pitch_or_full_game_calls_in_focused_runtime",
+      "passed": true
+    },
+    {
+      "name": "schema_lift_explicitly_not_game_evidence",
+      "passed": true
+    },
+    {
+      "name": "actual_lifecycle_gate_precedes_negative_probes",
+      "passed": true
+    },
+    {
+      "name": "runtime_starts_after_root_ready",
+      "passed": true
+    },
+    {
+      "name": "separate_coverage_markers",
+      "passed": true
+    }
+  ],
+  "failures": 0,
+  "base_manifest_sha256": "c1bea4e162ee6ab72206557905bd234239afcd740e3f8b093610f3fa747c5f59",
+  "independent_source_predictions": [
+    {
+      "seed": 0,
+      "career_run": 1,
+      "venue_ordinal": 0,
+      "owners_1_to_5": [
+        "AY-03",
+        "AE-01",
+        "AC-01",
+        "AE-01",
+        "AY-01"
+      ],
+      "environment_first3": [
+        1656897286,
+        546503837,
+        1762425327
+      ]
+    },
+    {
+      "seed": 1,
+      "career_run": 1,
+      "venue_ordinal": 0,
+      "owners_1_to_5": [
+        "AC-01",
+        "AE-01",
+        "AY-02",
+        "AE-01",
+        "AY-03"
+      ],
+      "environment_first3": [
+        1916674516,
+        1397392199,
+        529070485
+      ]
+    },
+    {
+      "seed": 10,
+      "career_run": 1,
+      "venue_ordinal": 0,
+      "owners_1_to_5": [
+        "AE-01",
+        "AE-01",
+        "AC-01",
+        "AY-03",
+        "AY-01"
+      ],
+      "environment_first3": [
+        977547744,
+        307339074,
+        1032377229
+      ]
+    },
+    {
+      "seed": 47,
+      "career_run": 1,
+      "venue_ordinal": 0,
+      "owners_1_to_5": [
+        "AC-01",
+        "AE-01",
+        "AY-03",
+        "AY-02",
+        "AE-01"
+      ],
+      "environment_first3": [
+        1651619354,
+        1129807960,
+        1036355328
+      ]
+    },
+    {
+      "seed": 443,
+      "career_run": 1,
+      "venue_ordinal": 0,
+      "owners_1_to_5": [
+        "AE-01",
+        "AE-01",
+        "AY-01",
+        "AC-01",
+        "AY-02"
+      ],
+      "environment_first3": [
+        2386655,
+        1737811887,
+        1397012882
+      ]
+    },
+    {
+      "seed": 2147483647,
+      "career_run": 1,
+      "venue_ordinal": 0,
+      "owners_1_to_5": [
+        "AY-02",
+        "AE-01",
+        "AC-01",
+        "AE-01",
+        "AY-03"
+      ],
+      "environment_first3": [
+        1694901804,
+        1091176692,
+        1795220904
+      ]
+    }
+  ],
+  "actual_historical_fixtures": {
+    "src/tests/fixtures/ay03_control_ay02_save61.json": {
+      "source": "recovery-20261013/ay03/public-day-source-20261015T0408Z/src/tests/fixtures/ay03_control_ay02_save61.json",
+      "sha256": "aabce07259d737e7dbbeb8f00139a7963cbeb457b948c23af49336b956106067",
+      "bytes": 395124
+    },
+    "src/tests/fixtures/base_control_ay03_save61_v2.json": {
+      "source": "recovery-20261013/ordinary-venues/base-public-source-20261015T0503Z/src/tests/fixtures/base_control_ay03_save61_v2.json",
+      "sha256": "86cbcd4827d265647b2f9eba6f58079d0347edb19d9658e80cb6fe345c96ae1d",
+      "bytes": 389690
+    },
+    "src/tests/fixtures/ay03_control_ay02_report15.json": {
+      "source": "recovery-20261013/ay03/public-day-source-20261015T0408Z/src/tests/fixtures/ay03_control_ay02_report15.json",
+      "sha256": "20bbc936bbb2a60775cfd0bc73233f746b6648e8b7b5b2a5667c1f7873377564",
+      "bytes": 100752
+    }
+  },
+  "v2_original_source": "recovery-20261013/ay03/public-day-managed-smoke-20261015T0447Z/root-first/match/ay03-public-final-save.json",
+  "owned_files": {
+    "base_public_venues_data_test.gd": {
+      "sha256": "a0b18608dac5bef07721b102f67b647ffb4a7ade8b750397f6e9290cfcdea863",
+      "bytes": 22900
+    },
+    "base_public_venues_runtime_test.gd": {
+      "sha256": "fb35bf53679427d4eb5f0f2d206c9c7cfbb18cd7fb2bea8abec5ed458207c88a",
+      "bytes": 16582
+    },
+    "base_public_venues_data_test.tscn": {
+      "sha256": "3853785b42f08cb849b338e58325dcb910d8f8b1965cb27068e66f632d429170",
+      "bytes": 213
+    },
+    "base_public_venues_runtime_test.tscn": {
+      "sha256": "fc585183e6b76992fe5609a61a686e47287614e13044a0bd8d11c943b7d49049",
+      "bytes": 221
+    },
+    "fixtures/base_control_ay03_save61_v2.json": {
+      "sha256": "86cbcd4827d265647b2f9eba6f58079d0347edb19d9658e80cb6fe345c96ae1d",
+      "bytes": 389690
+    }
+  },
+  "prospective_native_coverage": {
+    "golden_maps": 6,
+    "routed_hosts": 5,
+    "installed_families": 3
+  },
+  "native_total_check_counts": "Unrun; do not infer native pass counts from source checks.",
+  "report17_schema": "In-memory accepted AY02 core/boundary lift to AY01 binding only; never persisted, settled or represented as actual AY01/AE01/AC01 gameplay."
+}

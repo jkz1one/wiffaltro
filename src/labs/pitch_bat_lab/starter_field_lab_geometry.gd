@@ -6,6 +6,10 @@ var batting_aim_marker: Node3D
 var receiver_marker: Node3D
 
 func set_batting_view(batting: bool) -> void:
+	var property: StadiumPropertyGeometry = get_node_or_null("HomeProperty")
+	if property != null:
+		for model: Node3D in property.objects.values():
+			StadiumStarterModels.pitch_view(model, batting)
 	for part in ["ZoneLeft", "ZoneRight", "ZoneBottom", "ZoneTop"]:
 		var mesh: MeshInstance3D = get_node(part)
 		var material: StandardMaterial3D = mesh.material_override

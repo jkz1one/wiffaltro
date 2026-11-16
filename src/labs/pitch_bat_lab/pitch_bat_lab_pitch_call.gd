@@ -5,6 +5,9 @@ extends RefCounted
 static func resolve(
 	lab: PitchBatLab, point: Vector3, speed_mps: float, elapsed_seconds: float
 ) -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
 	PitchBatLabFeelSupport.note_crossing(lab, point, speed_mps)
 	var target_error_x: float = point.x - lab._pitch_target.x
 	var target_error_y: float = point.y - lab._pitch_target.y
@@ -17,6 +20,9 @@ static func resolve(
 			var miss: ContactResult = PitchBatLabSwingSupport.ensure_miss(lab)
 			feedback = PitchFeedback.plate_message(lab, point)
 			plate_call = lab._match_state.record_strike(true)
+			if (not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state) \
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)):
+				return
 			if miss != null:
 				swing_feedback = "   %s" % miss.miss_reason_name()
 		else:
@@ -28,6 +34,9 @@ static func resolve(
 			)
 			feedback = PitchFeedback.plate_message(lab, point)
 			plate_call = lab._match_state.record_called_pitch(in_zone)
+			if (not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state) \
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)):
+				return
 		call_text = "   %s" % String(plate_call).replace("_", " ").to_upper()
 		lab._pitch_feedback.show_note(feedback)
 

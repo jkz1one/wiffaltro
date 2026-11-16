@@ -1,0 +1,855 @@
+class_name PhysicalMatchReport
+extends RefCounted
+
+const AC02_PASSIVE_10 = preload("res://src/diagnostics/ac02_passive_attribution.gd")
+## Standalone versioned evidence, not a season save or authority to award anything.
+# gdlint: disable=max-returns
+
+const VERSION: int = 1
+const RESOLVER: String = "physical-ai-v1"
+const CHOICE_VERSION: int = 2
+const CHOICE_RESOLVER: String = "physical-ai-choices-v1"
+const TACTICAL_VERSION: int = 3
+const HEAT_VERSION: int = 4
+const HEAT_RESOLVER: String = "physical-ai-extra-heat-v1"
+const BASE_VERSION: int = 7
+const BASE_RESOLVER: String = "physical-ai-take-base-v1"
+const BUDGET_VERSION: int = 6
+const BUDGET_RESOLVER: String = "physical-ai-budget-bites-v1"
+const RECOVERY_VERSION: int = 5
+const RECOVERY_RESOLVER: String = "physical-ai-recovery-v1"
+const TACTICAL_RESOLVER: String = "physical-ai-batting-supplies-v1"
+
+
+static func capture(lab: PitchBatLab) -> Dictionary:
+	if is_instance_valid(lab) and lab._match_state != null:
+		var state: MatchState = lab._match_state
+		for team: TeamMatchState in [state.away_team, state.home_team]:
+			if team == null or team.pitch_catalog != state.pitch_catalog:
+				return {}
+	if is_instance_valid(lab) and lab._match_state != null \
+		and not lab._match_state.pitch_catalog.is_empty():
+		return CurrentPhysicalMatchReport.capture(lab)
+	var ac02_token: int = AC02_PASSIVE_10.enter("physical_match_report.capture")
+	var ac02_result: Dictionary = _ac02_passive_10_capture(lab)
+	AC02_PASSIVE_10.leave(ac02_token)
+	return ac02_result
+
+
+static func _ac02_passive_10_capture(lab: PitchBatLab, context: Dictionary = {}) -> Dictionary:
+	if (
+		is_instance_valid(lab)
+		and lab._match_state != null
+		and not PhysicalLeagueReport._capture_context_valid(lab._match_state, context.get("pitch_catalog", ""))
+	):
+		return {}
+	# This local result never survives this synchronous capture or enters public validators.
+	var animation_admitted: bool = false
+	if (
+		is_instance_valid(lab)
+		and (
+			StadiumWaterfallAnimationInstall.requested(lab)
+			or lab.has_meta(StadiumWaterfallAnimationInstall.BOUND)
+			or (
+				StadiumWaterfallAnimationRuntime.property_claim(lab)
+				is StadiumWaterfallAnimationProperty
+			)
+			or (
+				lab._ball_play_resolver != null
+				and lab._ball_play_resolver.segment_observer.is_valid()
+				and (
+					(
+						lab._ball_play_resolver.segment_observer.get_object()
+						is StadiumWaterfallAnimationBoundary
+					)
+					or (
+						lab._ball_play_resolver.segment_observer.get_object()
+						is StadiumWaterfallAnimationLowBoundary
+					)
+				)
+			)
+		)
+	):
+		if (
+			lab._match_state == null
+			or not StadiumWaterfallAnimationInstall.installed_bound(lab, lab._match_state.stadium)
+		):
+			return {}
+		animation_admitted = true
+	elif (
+		is_instance_valid(lab)
+		and (
+			lab.has_meta(StadiumLowWallRuntime.BOUND)
+			or (
+				lab.has_meta("stadium_property")
+				and lab.get_meta("stadium_property") is StadiumLowWallProperty
+			)
+			or (
+				lab._ball_play_resolver != null
+				and lab._ball_play_resolver.segment_observer.is_valid()
+				and (
+					lab._ball_play_resolver.segment_observer.get_object()
+					is StadiumLowWallBoundaryRuntime
+				)
+			)
+		)
+	):
+		if (
+			lab._match_state == null
+			or not StadiumLowWallRuntime.installed_bound(lab, lab._match_state.stadium)
+		):
+			return {}
+	if (
+		is_instance_valid(lab)
+		and (
+			lab.has_meta(StadiumSurfaceTerrainRuntime.BOUND)
+			or (
+				lab._match_state != null
+				and StadiumLayoutSnapshot.is_terrain(lab._match_state.stadium)
+			)
+		)
+	):
+		return PhysicalStadiumReport._terrain_capture_context(lab, context)
+	if (
+		is_instance_valid(lab)
+		and (
+			lab.has_meta(StadiumSurfaceNightRuntime.BOUND)
+			or (
+				lab._match_state != null
+				and StadiumSurfaceNightSnapshot.is_family(lab._match_state.stadium)
+			)
+		)
+	):
+		return StadiumSurfaceNightReport._capture_context(lab, context)
+	if (
+		lab == null
+		or lab._match_state == null
+		or lab._automation == null
+		or lab.get_meta("stadium_candidate_only", false)
+		or lab.get_meta("stadium_npc_retained_lab_only", false)
+		or lab.has_meta(StadiumNpcYardThreeRuntimeV1.OPT_IN)
+		or lab.has_meta("stadium_npc_runtime_interrupted")
+		or lab.has_meta("stadium_npc_runtime_restoring")
+	):
+		return {}
+	# Public installation history prevents fallback after removal or failed binding.
+	if lab.has_meta(StadiumNpcPublicRuntime.PUBLIC_BOUND):
+		if not StadiumNpcPublicRuntime.installed_bound(lab, lab._match_state.stadium):
+			return {}
+		if (
+			lab._match_state.stadium.get("version")
+			== StadiumNpcSnapshot.HILLSIDE_FINAL_FIXTURE_VERSION
+		):
+			return StadiumHillsidePublicReport._capture_context(lab, context)
+		if (
+			lab._match_state.stadium.get("version")
+			== StadiumNpcSnapshot.POOL_PARTY_FINAL_FIXTURE_VERSION
+		):
+			return StadiumPoolPartyPublicReport._capture_context(lab, context)
+		if (
+			lab._match_state.stadium.get("version")
+			== StadiumNpcSnapshot.GRAND_III_FINAL_FIXTURE_VERSION
+		):
+			return StadiumGrandIIIPublicReport._capture_context(lab, context)
+		if (
+			lab._match_state.stadium.get("version")
+			== StadiumNpcSnapshot.GRAND_II_FINAL_FIXTURE_VERSION
+		):
+			return StadiumGrandIIPublicReport._capture_context(lab, context)
+		if (
+			lab._match_state.stadium.get("version")
+			== StadiumNpcSnapshot.GRAND_FINAL_FIXTURE_VERSION
+		):
+			return StadiumGrandIPublicReport._capture_context(lab, context)
+		return (
+			StadiumLongYardPublicReport._capture_context(lab, context)
+			if lab._match_state.stadium.get("version") == StadiumNpcSnapshot.FINAL_FIXTURE_VERSION
+			else (StadiumNpcPublicReport.capture(lab) if context.is_empty()
+			else StadiumNpcPublicReport._capture_context(lab, context))
+		)
+	# A removed or failed AY03 public install must never fall back to ordinary baseball.
+	if lab.has_meta(StadiumNpcYardThreeRuntimeV1.PUBLIC_BOUND):
+		if not StadiumNpcYardThreeRuntimeV1.installed_bound(lab, lab._match_state.stadium):
+			return {}
+		return StadiumNpcYardThreeReport.capture(lab)
+	if StadiumNpcSnapshot.is_public(lab._match_state.stadium):
+		var resolver: String = PhysicalStadiumReport.npc_resolver(lab._match_state.stadium)
+		if resolver == StadiumHillsidePublicReport.RESOLVER:
+			return StadiumHillsidePublicReport._capture_context(lab, context)
+		if resolver == StadiumPoolPartyPublicReport.RESOLVER:
+			return StadiumPoolPartyPublicReport._capture_context(lab, context)
+		if resolver == StadiumGrandIIIPublicReport.RESOLVER:
+			return StadiumGrandIIIPublicReport._capture_context(lab, context)
+		if resolver == StadiumGrandIIPublicReport.RESOLVER:
+			return StadiumGrandIIPublicReport._capture_context(lab, context)
+		if resolver == StadiumGrandIPublicReport.RESOLVER:
+			return StadiumGrandIPublicReport._capture_context(lab, context)
+		if resolver == StadiumLongYardPublicReport.RESOLVER:
+			return StadiumLongYardPublicReport._capture_context(lab, context)
+		if resolver == StadiumNpcPublicReport.RESOLVER:
+			return (StadiumNpcPublicReport.capture(lab) if context.is_empty()
+			else StadiumNpcPublicReport._capture_context(lab, context))
+		if resolver == StadiumNpcYardTwoReport.RESOLVER:
+			return StadiumNpcYardTwoReport.capture(lab)
+		if resolver == StadiumNpcYardThreeReport.RESOLVER:
+			return StadiumNpcYardThreeReport.capture(lab)
+		return {}
+	if (
+		lab._match_state != null
+		and lab._match_state.stadium.get("version") == StadiumPoolOwnedSnapshot.FIXTURE_VERSION
+	):
+		return StadiumPoolOwnedReport._capture_context(lab, context)
+	var state: MatchState = lab._match_state
+	if context.is_empty() and not state.league_rules.is_empty():
+		# Closed report27 does not inherit any stadium/public admission.
+		if LeagueRules.doubleheader(state.league_rules):
+			return PhysicalDoubleheaderReport.wrap(_capture_core(lab), state)
+		return (
+			PhysicalLeagueReport.wrap(_capture_core(lab), state) if state.stadium.is_empty() else {}
+		)
+	animation_admitted = animation_admitted and _animation_capture_is_closed(lab)
+	var result: Dictionary = CurrentPhysicalStadiumEvidence.capture_base(lab, context)
+	if not state.stadium.is_empty():
+		var installed: Variant = lab.get_meta("stadium_snapshot", null)
+		if (
+			not installed is Dictionary
+			or StadiumLayoutSnapshot.key(installed) != StadiumLayoutSnapshot.key(state.stadium)
+		):
+			return {}
+		# Only the closed synchronous NEW47 evidence path can reuse its admission.
+		# Unknown collaborators/data retain the original final deep ownership proof.
+		if (
+			state.stadium.has("boundary")
+			and not animation_admitted
+			and not StadiumBoundaryRuntime.installed(lab, state.stadium)
+		):
+			return {}
+		return PhysicalStadiumReport._wrap_context(
+			result,
+			state.stadium,
+			(
+				PhysicalStadiumContacts.capture(lab._play_records)
+				if state.stadium.has("boundary")
+				else []
+			), context
+		)
+	return result
+
+
+# Reuse is an optimization, never a new admission API. Every ineligible caller keeps
+# the original late installed_bound proof through StadiumBoundaryRuntime.installed.
+# Exact scripts and JSON-only containers exclude overridable evidence callbacks,
+# object conversion and dynamic payload methods between the two admission sites.
+static func _animation_capture_is_closed(lab: PitchBatLab) -> bool:
+	if (
+		lab.get_script() != PitchBatLab
+		or lab._match_state == null
+		or lab._match_state.get_script() != MatchState
+		or lab._automation == null
+		or lab._automation.get_script() != MatchAutomation
+		or lab._play_records.size() > 9999
+	):
+		return false
+	var state: MatchState = lab._match_state
+	for pair: Array in [
+		[state.performance, MatchPerformance],
+		[state.cold, MatchColdStreak],
+		[state.sides, MatchBattingSides],
+		[state.sure_shot, MatchSureShot],
+		[state.clean_outs, MatchCleanOuts],
+		[state.base_flow, MatchBaseFlow],
+		[state.bases, BaseState]
+	]:
+		if not is_instance_valid(pair[0]) or pair[0].get_script() != pair[1]:
+			return false
+	var values: Array = [
+		lab._automation.releases,
+		lab._automation.initial,
+		state.ai_choice_events,
+		state.performance.players,
+		state.performance.fielding_players,
+		state.cold.appearances,
+		state.sides.rows,
+		state.sure_shot.releases,
+		state.sure_shot.calls,
+		state.sure_shot.strikeouts,
+		state.clean_outs.rows,
+		state.base_flow.ready,
+		state.base_flow.results,
+		state.base_flow.tags,
+		state.base_flow.advances
+	]
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		if (
+			not is_instance_valid(team)
+			or team.get_script() != TeamMatchState
+			or team.roster.size() != 4
+			or not is_instance_valid(team.tactics)
+			or team.tactics.get_script() != MatchTactics
+			or not is_instance_valid(team.recovery)
+			or team.recovery.get_script() != MatchRecoveryFlow
+		):
+			return false
+		values.append_array(
+			[
+				team.ai_budget,
+				team.ai_tactical_initial,
+				team.tactics.held,
+				team.tactics.consumed,
+				team.recovery.initial,
+				team.recovery.ready,
+				team.recovery.costs,
+				team.recovery.refunds,
+				team.recovery.refunders
+			]
+		)
+		for player: PlayerMatchState in team.roster:
+			if (
+				not is_instance_valid(player)
+				or player.get_script() != PlayerMatchState
+				or not is_instance_valid(player.definition)
+				or player.definition.get_script() != PlayerDefinition
+				or player.definition.starting_pitches.size() > 8
+			):
+				return false
+			for pitch: PitchDefinition in player.definition.starting_pitches:
+				if not is_instance_valid(pitch) or pitch.get_script() != PitchDefinition:
+					return false
+	for play: PlayRecord in lab._play_records:
+		if not is_instance_valid(play) or play.get_script() != PlayRecord:
+			return false
+	return _animation_capture_data_closed(values)
+
+
+# Eligibility work is capped, including cyclic/deep/oversized malformed payloads.
+# Reaching either limit falls back to the original final proof; it never denies capture.
+static func _animation_capture_data_closed(value: Variant) -> bool:
+	var pending: Array = [[value, 0]]
+	var remaining: int = 65536
+	while not pending.is_empty():
+		var row: Array = pending.pop_back()
+		remaining -= 1
+		if remaining < 0 or row[1] > 16:
+			return false
+		var current: Variant = row[0]
+		if current is Dictionary or current is Array:
+			if current.size() > remaining - pending.size():
+				return false
+			if current is Dictionary:
+				for key: Variant in current:
+					if not key is String:
+						return false
+					pending.append([current[key], row[1] + 1])
+			else:
+				for child: Variant in current:
+					pending.append([child, row[1] + 1])
+		elif not (
+			current is String
+			or current is bool
+			or current is int
+			or (current is float and is_finite(current))
+		):
+			return false
+	return true
+
+
+# Shared formation only. Public capture still validates/wraps its original venue contract.
+static func _capture_core(lab: PitchBatLab) -> Dictionary:
+	var state: MatchState = lab._match_state
+	var result: Dictionary = {
+		"version": VERSION,
+		"resolver": RESOLVER,
+		"seed": lab._automation.seed,
+		"field": String(lab._field_id),
+		"elapsed": state.elapsed_seconds,
+		"inning": state.inning,
+		"top": state.top_half,
+		"away_runs": state.away_team.runs,
+		"home_runs": state.home_team.runs,
+		"performance": state.performance.snapshot(state),
+		"teams": [],
+		"releases": lab._automation.releases.duplicate(true),
+		"plays": []
+	}
+	if state.away_team.ai_sponsor_choices or state.home_team.ai_sponsor_choices:
+		result.version = CHOICE_VERSION
+		result.resolver = CHOICE_RESOLVER
+		result["choices"] = {
+			"version": 1,
+			"clubs": [state.away_team.ai_sponsor_choices, state.home_team.ai_sponsor_choices],
+			"events": state.ai_choice_events.duplicate(true)
+		}
+	if (
+		not state.away_team.ai_tactical_hitter.is_empty()
+		or not state.home_team.ai_tactical_hitter.is_empty()
+	):
+		result.version = TACTICAL_VERSION
+		result.resolver = TACTICAL_RESOLVER
+		result["tactics"] = {
+			"version": 1,
+			"clubs":
+			[
+				not state.away_team.ai_tactical_hitter.is_empty(),
+				not state.home_team.ai_tactical_hitter.is_empty()
+			],
+			"teams":
+			[
+				SeasonOpponentTactics.evidence(state, state.away_team, false),
+				SeasonOpponentTactics.evidence(state, state.home_team, false)
+			]
+		}
+	if state.away_team.ai_heat or state.home_team.ai_heat:
+		result.version = HEAT_VERSION
+		result.resolver = HEAT_RESOLVER
+		result.tactics.version = 2
+	if (
+		not state.away_team.ai_recovery_pitcher.is_empty()
+		or not state.home_team.ai_recovery_pitcher.is_empty()
+	):
+		result.version = RECOVERY_VERSION
+		result.resolver = RECOVERY_RESOLVER
+		result.tactics.version = 3
+	if not state.away_team.ai_budget.is_empty() or not state.home_team.ai_budget.is_empty():
+		result.version = BUDGET_VERSION
+		result.resolver = BUDGET_RESOLVER
+		result.tactics.version = 4
+	if state.away_team.ai_base or state.home_team.ai_base:
+		result.version = BASE_VERSION
+		result.resolver = BASE_RESOLVER
+		result.tactics.version = 5
+		result.tactics.clubs = [state.away_team.ai_base, state.home_team.ai_base]
+		result.tactics["base"] = state.base_flow.evidence(state)
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		var row: Dictionary = {
+			"name": team.display_name,
+			"roster": [],
+			"recipes": {},
+			"workload": {},
+			"batting": state.cold.evidence(team),
+			"stances": state.sides.evidence(team),
+			"pitching": state.sure_shot.evidence(team),
+			"fielding": state.clean_outs.evidence(team)
+		}
+		for player: PlayerMatchState in team.roster:
+			var id: String = String(player.definition.id)
+			row.roster.append(id)
+			row.recipes[id] = player.definition.starting_pitches.map(
+				func(pitch: PitchDefinition) -> String: return String(pitch.id)
+			)
+			var paid: float = 0.0
+			for release: Dictionary in result.releases:
+				if release.player == id:
+					paid += float(release.paid)
+			row.workload[id] = {
+				"capacity": player.stamina_max,
+				"initial": lab._automation.initial[id],
+				"remaining": player.stamina_remaining,
+				"paid": paid,
+				"pitches": player.pitch_count,
+				"retired": player.pitching_finished
+			}
+			if not team.ai_recovery_pitcher.is_empty():
+				row.workload[id].initial = team.recovery.initial[id].initial
+		result.teams.append(row)
+	for play: PlayRecord in lab._play_records:
+		result.plays.append(
+			{
+				"half": (play.inning - 1) * 2 + (0 if play.top_half else 1),
+				"batter": String(play.batter_id),
+				"pitcher": String(play.pitcher_id),
+				"recipe": String(play.pitch_id),
+				"read": play.ai_decision_recorded,
+				"swung": play.ai_swung,
+				"contact": play.contact_outcome,
+				"exit_speed": play.exit_speed_mps,
+				"result": String(play.result)
+			}
+		)
+	return result
+
+
+static func valid(value: Variant) -> bool:
+	if (
+		value is Dictionary
+		and SeasonOwnership._whole(
+			value.get("version"),
+			PhysicalDoubleheaderReport.VERSION,
+			PhysicalDoubleheaderReport.VERSION
+		)
+	):
+		return PhysicalDoubleheaderReport.valid(value)
+	if (
+		value is Dictionary
+		and SeasonOwnership._whole(
+			value.get("version"), PhysicalLeagueReport.VERSION, PhysicalLeagueReport.VERSION
+		)
+	):
+		return PhysicalLeagueReport.valid(value)
+	if (
+		value is Dictionary
+		and SeasonOwnership._whole(
+			value.get("version"),
+			PhysicalStadiumReport.TERRAIN_VERSION,
+			PhysicalStadiumReport.TERRAIN_VERSION
+		)
+	):
+		return PhysicalStadiumReport.terrain_valid(value)
+	if (
+		value is Dictionary
+		and SeasonOwnership._whole(
+			value.get("version"),
+			StadiumSurfaceNightReport.TIME_VERSION,
+			StadiumSurfaceNightReport.TIME_VERSION
+		)
+	):
+		return StadiumSurfaceNightReport.valid(value)
+	if (
+		value is Dictionary
+		and SeasonOwnership._whole(
+			value.get("version"),
+			StadiumSurfaceNightReport.VERSION,
+			StadiumSurfaceNightReport.VERSION
+		)
+	):
+		return StadiumSurfaceNightReport.valid(value)
+	if not value is Dictionary:
+		return false
+	if SeasonOwnership._whole(
+		value.get("version"),
+		PhysicalStadiumReport.HILLSIDE_FINAL_VERSION,
+		PhysicalStadiumReport.HILLSIDE_FINAL_VERSION
+	):
+		return StadiumHillsidePublicReport.valid(value)
+	if SeasonOwnership._whole(
+		value.get("version"),
+		PhysicalStadiumReport.POOL_PARTY_FINAL_VERSION,
+		PhysicalStadiumReport.POOL_PARTY_FINAL_VERSION
+	):
+		return StadiumPoolPartyPublicReport.valid(value)
+	if SeasonOwnership._whole(
+		value.get("version"),
+		PhysicalStadiumReport.GRAND_III_FINAL_VERSION,
+		PhysicalStadiumReport.GRAND_III_FINAL_VERSION
+	):
+		return StadiumGrandIIIPublicReport.valid(value)
+	if SeasonOwnership._whole(
+		value.get("version"),
+		PhysicalStadiumReport.GRAND_II_FINAL_VERSION,
+		PhysicalStadiumReport.GRAND_II_FINAL_VERSION
+	):
+		return StadiumGrandIIPublicReport.valid(value)
+	if SeasonOwnership._whole(
+		value.get("version"),
+		PhysicalStadiumReport.GRAND_FINAL_VERSION,
+		PhysicalStadiumReport.GRAND_FINAL_VERSION
+	):
+		return StadiumGrandIPublicReport.valid(value)
+	if SeasonOwnership._whole(
+		value.get("version"),
+		PhysicalStadiumReport.NEUTRAL_FINAL_VERSION,
+		PhysicalStadiumReport.NEUTRAL_FINAL_VERSION
+	):
+		return StadiumLongYardPublicReport.valid(value)
+	if not SeasonOwnership._whole(
+		value.get("version"), VERSION, PhysicalStadiumReport.NPC_PUBLIC_VERSION
+	):
+		return false
+	if value.get("version") >= PhysicalStadiumReport.LEGACY_VERSION:
+		return PhysicalStadiumReport.valid(value)
+	return _valid_core(value)
+
+
+# Called with reconstructed league context only by report27; public legacy stays strict.
+static func _valid_core(
+	value: Dictionary, rules: Dictionary = {}, ownership: Array = [], doubleheader: bool = false,
+	pitch_catalog: String = ""
+) -> bool:
+	if not PhysicalPitchEvidence.context_valid(pitch_catalog):
+		return false
+	# Validate before any discriminator comparison, including nested wrapper cores.
+	if not SeasonOwnership._whole(value.get("version"), VERSION, BASE_VERSION):
+		return false
+	var keys: Array = [
+		"version",
+		"resolver",
+		"seed",
+		"field",
+		"elapsed",
+		"inning",
+		"top",
+		"away_runs",
+		"home_runs",
+		"performance",
+		"teams",
+		"releases",
+		"plays"
+	]
+	if (
+		value.get("version") == CHOICE_VERSION
+		or value.get("version") == TACTICAL_VERSION
+		or value.get("version") == HEAT_VERSION
+		or value.get("version") == RECOVERY_VERSION
+		or value.get("version") == BUDGET_VERSION
+		or value.get("version") == BASE_VERSION
+	):
+		keys.append("choices")
+	if (
+		value.get("version") == TACTICAL_VERSION
+		or value.get("version") == HEAT_VERSION
+		or value.get("version") == RECOVERY_VERSION
+		or value.get("version") == BUDGET_VERSION
+		or value.get("version") == BASE_VERSION
+	):
+		keys.append("tactics")
+	if not pitch_catalog.is_empty():
+		if value.get("current_pitch_bound") != pitch_catalog:
+			return false
+		keys.append("current_pitch_bound")
+	if not ownership.is_empty():
+		if value.get("version") != BASE_VERSION or value.get("league_bound") != true:
+			return false
+		keys.append("league_bound")
+	if doubleheader:
+		if not LeagueRules.doubleheader(rules) or value.get("doubleheader_bound") != true:
+			return false
+		keys.append("doubleheader_bound")
+	elif LeagueRules.doubleheader(rules):
+		return false
+	if not SeasonOwnership._keys(value, keys):
+		return false
+	var data: Dictionary = value
+	if (
+		not SeasonOwnership._whole(data.version, VERSION, BASE_VERSION)
+		or (
+			data.resolver
+			!= (
+				BASE_RESOLVER
+				if data.version == BASE_VERSION
+				else (
+					BUDGET_RESOLVER
+					if data.version == BUDGET_VERSION
+					else (
+						RECOVERY_RESOLVER
+						if data.version == RECOVERY_VERSION
+						else (
+							HEAT_RESOLVER
+							if data.version == HEAT_VERSION
+							else (
+								TACTICAL_RESOLVER
+								if data.version == TACTICAL_VERSION
+								else CHOICE_RESOLVER if data.version == CHOICE_VERSION else RESOLVER
+							)
+						)
+					)
+				)
+			)
+		)
+		or not data.field is String
+		or data.field == StadiumNpcSnapshot.FIELD
+		or ContentDB.get_field(StringName(data.field)) == null
+		or not SeasonOwnership._whole(data.seed, 0, 2147483647)
+		or not number(data.elapsed, 0.0, PhysicalMatchRunner.MAX_SECONDS + 1.0)
+		or not SeasonOwnership._whole(data.inning, 1, 9999)
+		or not data.top is bool
+		or not SeasonOwnership._whole(data.away_runs, 0, 9999)
+		or not SeasonOwnership._whole(data.home_runs, 0, 9999)
+		or data.away_runs == data.home_runs
+		or not data.teams is Array
+		or data.teams.size() != 2
+		or not data.releases is Array
+		or not data.plays is Array
+		or data.releases.size() > 9999
+		or data.releases.is_empty()
+		or data.plays.size() != data.releases.size()
+	):
+		return false
+	for release: Variant in data.releases:
+		if (
+			not release is Dictionary
+			or not SeasonOwnership._keys(release, ["pa", "half", "player", "recipe", "paid"])
+		):
+			return false
+		if not release.player is String:
+			return false
+	var recipe_exists: Dictionary = {}
+	var ids: Array = []
+	for team: Variant in data.teams:
+		if not _team_shape(team):
+			return false
+		if not pitch_catalog.is_empty():
+			for recipes: Variant in team.recipes.values():
+				if not recipes is Array:
+					return false
+				for recipe: Variant in recipes:
+					if not recipe is String:
+						return false
+					if not recipe_exists.has(recipe):
+						recipe_exists[recipe] = PhysicalPitchEvidence._recipe(recipe, pitch_catalog) != null
+					if not recipe_exists[recipe]:
+						return false
+		for id: Variant in team.roster:
+			if not id is String or id.is_empty() or ids.has(id):
+				return false
+			ids.append(id)
+	if not SeasonPerformance.valid(data.performance, ids):
+		return false
+	if data.version == BASE_VERSION and not PhysicalBaseReport.flow_valid(data):
+		return false
+	var appearances: Dictionary = {}
+	for index in range(2):
+		if not PhysicalMatchEvidence.team(data, index, appearances):
+			return false
+	var total: int = 0
+	for line: Dictionary in data.performance.values():
+		total += int(line.pa)
+	if appearances.size() != total:
+		return false
+	for pa in range(1, total + 1):
+		if not appearances.has(pa):
+			return false
+		if (
+			pa > 1
+			and (
+				appearances[pa].half < appearances[pa - 1].half
+				or appearances[pa].half > appearances[pa - 1].half + 1
+			)
+		):
+			return false
+	if (
+		total == 0
+		or appearances[1].half != 0
+		or appearances[total].half != (int(data.inning) - 1) * 2 + (0 if data.top else 1)
+	):
+		return false
+	var choices: Dictionary = (
+		PhysicalBaseReport.appearances(data, appearances)
+		if data.version == BASE_VERSION
+		else appearances
+	)
+	if data.version >= CHOICE_VERSION and not PhysicalChoiceEvidence.valid(data, choices):
+		return false
+	if data.version == TACTICAL_VERSION and not PhysicalTacticalEvidence.report_valid(data):
+		return false
+	if data.version == HEAT_VERSION and not PhysicalHeatEvidence.report_valid(data):
+		return false
+	if data.version == RECOVERY_VERSION and not PhysicalRecoveryEvidence.report_valid(data):
+		return false
+	if data.version == BUDGET_VERSION and not PhysicalBudgetEvidence.report_valid(data):
+		return false
+	if data.version == BASE_VERSION:
+		var base_valid: bool = (
+			PhysicalBaseReport.valid(data)
+			if ownership.is_empty()
+			else PhysicalBaseReport.league_valid(data, rules, ownership)
+		)
+		if not base_valid:
+			return false
+	var costs: Dictionary = {}
+	var counts: Dictionary = {}
+	var previous_pa: int = 0
+	for index in range(data.releases.size()):
+		var row: Variant = data.releases[index]
+		if not _release(data, row, appearances) or row.pa < previous_pa:
+			return false
+		previous_pa = int(row.pa)
+		costs[row.player] = costs.get(row.player, 0.0) + float(row.paid)
+		counts[row.player] = counts.get(row.player, 0) + 1
+		if not _play(data.plays[index], row, appearances[int(row.pa)].player):
+			return false
+	for team: Dictionary in data.teams:
+		for id: String in team.roster:
+			if (
+				counts.get(id, 0) != data.performance[id].pitches
+				or not is_equal_approx(float(costs.get(id, 0.0)), float(team.workload[id].paid))
+			):
+				return false
+	return PhysicalMatchEvidence.credited(data, appearances)
+
+
+static func number(value: Variant, low: float, high: float) -> bool:
+	return (
+		(value is float or value is int)
+		and is_finite(float(value))
+		and (float(value) >= low and float(value) <= high)
+	)
+
+
+static func _team_shape(value: Variant) -> bool:
+	if (
+		not value is Dictionary
+		or not SeasonOwnership._keys(
+			value,
+			["name", "roster", "recipes", "workload", "batting", "stances", "pitching", "fielding"]
+		)
+	):
+		return false
+	return (
+		value.name is String
+		and value.roster is Array
+		and value.roster.size() == 4
+		and value.recipes is Dictionary
+		and value.workload is Dictionary
+		and value.batting is Dictionary
+		and value.stances is Array
+		and value.pitching is Dictionary
+		and value.fielding is Array
+	)
+
+
+static func _release(data: Dictionary, row: Variant, appearances: Dictionary) -> bool:
+	if (
+		not row is Dictionary
+		or not SeasonOwnership._keys(row, ["pa", "half", "player", "recipe", "paid"])
+	):
+		return false
+	if (
+		not SeasonOwnership._whole(row.pa, 1, appearances.size())
+		or not row.half is float and not row.half is int
+		or not row.player is String
+		or not row.recipe is String
+		or not number(row.paid, 0.0, 1000000.0)
+	):
+		return false
+	if not appearances.has(int(row.pa)) or row.half != appearances[int(row.pa)].half:
+		return false
+	var defense: Dictionary = data.teams[1 - int(row.half) % 2]
+	return defense.roster.has(row.player) and defense.recipes[row.player].has(row.recipe)
+
+
+static func _play(value: Variant, release: Dictionary, batter: String) -> bool:
+	if (
+		not value is Dictionary
+		or not SeasonOwnership._keys(
+			value,
+			[
+				"half",
+				"batter",
+				"pitcher",
+				"recipe",
+				"read",
+				"swung",
+				"contact",
+				"exit_speed",
+				"result"
+			]
+		)
+	):
+		return false
+	return (
+		value.half == release.half
+		and value.batter == batter
+		and value.pitcher == release.player
+		and value.recipe == release.recipe
+		and value.read is bool
+		and value.swung is bool
+		and SeasonOwnership._whole(value.contact, -1, 20)
+		and number(value.exit_speed, 0.0, 1000.0)
+		and value.result is String
+		and value.result not in ["", "pending"]
+	)
+
+
+static func accepted(value: Variant, pitch_catalog: String = "") -> bool:
+	if pitch_catalog.is_empty():
+		return valid(value)
+	return CurrentPhysicalMatchReport.valid(value, pitch_catalog)

@@ -11,7 +11,9 @@ static func acceleration(
 	velocity: Vector3,
 	orientation: Quaternion,
 	angular_velocity: Vector3,
-	parameters: PitchLaunchParameters
+	parameters: PitchLaunchParameters,
+	movement_weight: float = 1.0,
+	axis_weight: Vector2 = Vector2.ONE
 ) -> Vector3:
 	var acceleration_total: Vector3 = GRAVITY_MPS2
 	var speed: float = velocity.length()
@@ -52,6 +54,8 @@ static func acceleration(
 				lift_direction.normalized()
 				* dynamic_acceleration_scale
 				* lift_coefficient
+				* parameters.mastery_movement_scale * movement_weight
+				* Vector3(axis_weight.x, axis_weight.y, 1.0)
 			)
 
 	if parameters.perforation_force_scale > 0.0:
@@ -75,6 +79,8 @@ static func acceleration(
 				lateral_hole_axis.normalized()
 				* dynamic_acceleration_scale
 				* perforation_coefficient
+				* parameters.mastery_movement_scale * movement_weight
+				* Vector3(axis_weight.x, axis_weight.y, 1.0)
 			)
 
 	return acceleration_total

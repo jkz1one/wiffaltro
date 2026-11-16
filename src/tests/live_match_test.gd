@@ -4,11 +4,12 @@ var _failures: int = 0
 
 
 func _ready() -> void:
-	for run_seed in [11, 29]:
+	for run_seed in [11, 29, 47, 67]:
 		await _run_match(run_seed)
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
-		print("Wiffaltro live match checks passed: 2 scripted-player matches.")
+		print("Wiffaltro live match checks passed: "
+			+ "2 legacy, 1 progression and 1 equipped progression match.")
 	get_tree().quit(0 if _failures == 0 else 1)
 
 
@@ -24,6 +25,11 @@ func _run_match(run_seed: int) -> void:
 		lab._configured_match = season.make_match()
 		lab._player_home = season.pending_fixture()["home"] == 0
 		_check(lab._player_home, "second live fixture must play home with a drafted roster")
+	if run_seed in [47, 67]:
+		lab._configured_match = _progression_fixture()
+		if run_seed == 67:
+			_equip_fixture(lab._configured_match)
+		lab._player_home = _player_home_for_fixture()
 	add_child(lab)
 	lab._throw_number = run_seed * 1000
 	PitchBatLabFeelSupport.skip_match_presentation(lab)
@@ -37,6 +43,7 @@ func _run_match(run_seed: int) -> void:
 	for frame in range(90000):
 		await get_tree().physics_frame
 		var state: MatchState = lab._match_state
+		_observe_live_frame(lab)
 		if state.phase == MatchState.Phase.GAME_END:
 			break
 		var progress: String = "%d:%d:%d" % [
@@ -57,7 +64,7 @@ func _run_match(run_seed: int) -> void:
 				PitchBatLabFeelSupport.confirm_batter_ready(lab)
 		elif state.phase == MatchState.Phase.PRE_PITCH:
 			if not lab._release_controller.active:
-				lab._pitch_target = lab.DEFAULT_TARGET
+				lab._pitch_target = _pitch_target_for_fixture(lab)
 				lab._pitch_effort = 1.0
 				PitchBatLabFeelSupport.begin_pitch_release(lab)
 			elif lab._release_controller.elapsed_seconds >= PitchReleaseController.IDEAL_RELEASE_SECONDS:
@@ -73,7 +80,7 @@ func _run_match(run_seed: int) -> void:
 			_check(exported.ai_swing_chance >= 0.0 and exported.ai_swing_chance <= 1.0
 				and exported.ai_aim_sigma > 0.0, "F3 must retain valid AI read evidence")
 	_check(ai_records > 0, "live AI decisions must reach completed F3 records")
-	if run_seed == 29:
+	if run_seed in [29, 47]:
 		var state: MatchState = lab._match_state
 		var roster_ids: Array = []
 		for team in [state.away_team, state.home_team]:
@@ -98,6 +105,30 @@ func _run_match(run_seed: int) -> void:
 	lab.queue_free()
 	await get_tree().process_frame
 	DirAccess.remove_absolute(export_path)
+
+
+func _progression_fixture() -> MatchState:
+	# Deliberate maximum-level stress fixture, not an acquisition/balance sample.
+	var book: SeasonDevelopment = SeasonDevelopment.new("maximum-level-live-fixture")
+	for id: String in SeasonPlayerCatalog.ids().slice(0, 8):
+		for stat: String in SeasonPlayerCatalog.STATS:
+			while book.player(id).stats[stat] < 10:
+				_check(book.commit({"id": "stat:%d" % book.revision(), "rev": book.revision(),
+					"player": id, "op": "stat", "target": stat}).ok, "fixture stat grant")
+		for recipe: String in book.player(id).active:
+			while book.player(id).mastery[recipe] < 5:
+				_check(book.commit({"id": "pitch:%d" % book.revision(), "rev": book.revision(),
+					"player": id, "op": "mastery", "target": recipe}).ok, "fixture mastery grant")
+	return ProgressionMatchAdapter.exhibition(book, "player.alex_finch")
+
+
+func _equip_fixture(state: MatchState) -> void:
+	for team: TeamMatchState in [state.home_team, state.away_team]:
+		for player: PlayerMatchState in team.roster:
+			player.definition = SeasonGearCatalog.equip(player.definition, {
+				"bat": {"item": "BAT-CON-01" if team == state.home_team else "BAT-POW-01"},
+				"ball": {"item": "BALL-HYB-01"}, "misc": {"item": "MISC-PIT-03"}
+			})
 
 
 func _check_outro_and_restart(lab: PitchBatLab) -> void:
@@ -131,3 +162,15 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error(message)
+
+
+func _observe_live_frame(_lab: PitchBatLab) -> void:
+	pass
+
+
+func _player_home_for_fixture() -> bool:
+	return true
+
+
+func _pitch_target_for_fixture(lab: PitchBatLab) -> Vector2:
+	return lab.DEFAULT_TARGET

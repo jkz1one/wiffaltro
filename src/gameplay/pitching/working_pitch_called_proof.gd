@@ -1,0 +1,38 @@
+class_name WorkingPitchCalledProof
+extends RefCounted
+## Catalog-v5 prospective human evidence. No unlocks or historical inference.
+## This source is hashed into catalog identity, including its admission contract.
+
+const CATALOG_VERSION: int = 5
+const PROOF_VERSION: int = 2
+
+
+static func enabled(build: SeasonBuild) -> bool:
+	return build != null and WorkingPitchCatalog.VERSION == CATALOG_VERSION \
+		and build.pitch_catalog_current()
+
+
+static func accepts(build: SeasonBuild, value: Variant, legacy: Variant = null) -> bool:
+	if not enabled(build) or not value is Dictionary:
+		return false
+	return WorkingExoticEligibility.current_proof_valid(
+		value, value.get("pitching") if legacy == null else legacy)
+
+
+static func same_retained(reward: Dictionary, result: Dictionary) -> bool:
+	if reward.has("pitching_current") != result.has("pitching_current"):
+		return false
+	if not reward.has("pitching_current"):
+		return true  # Unknown remains unknown; never infer called versus swinging.
+	return reward.get("pitching") is Dictionary and result.get("pitching") is Dictionary \
+		and WorkingExoticEligibility.current_proof_valid(reward.pitching_current, reward.pitching) \
+		and WorkingExoticEligibility.current_proof_valid(result.pitching_current, result.pitching) \
+		and ClubCareer.same(reward.pitching_current, result.pitching_current)
+
+
+static func install_human(build: SeasonBuild, human: Array, value: Variant) -> bool:
+	# The stable public record_player_result positional contract: pitching is 9.
+	if human.size() < 12 or not human[9] is Dictionary or not accepts(build, value):
+		return false
+	human[9] = value.duplicate(true)
+	return true

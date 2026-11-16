@@ -5,25 +5,23 @@ const THIRD_TO_HOME_SECONDS: float = 2.35
 const SECOND_TO_THIRD_SECONDS: float = 2.85
 const SAFETY_MARGIN_SECONDS: float = 0.18
 
+
 static func resolve(
 	bases: BaseState,
 	catch_position: Vector3,
-	fielding_rating: int
+	fielding_rating: int,
+	gather_scale: float = 1.0,
+	travel_scale: float = 1.0
 ) -> TagAdvanceResult:
 	var result: TagAdvanceResult = TagAdvanceResult.new()
 	var throw_speed_mps: float = 8.4 + float(fielding_rating) * 0.28
-	var gather_seconds: float = 0.82 - float(fielding_rating) * 0.025
-	var home_distance: float = Vector2(
-		catch_position.x,
-		catch_position.z
-	).length()
-	var home_return_seconds: float = (
-		gather_seconds + home_distance / throw_speed_mps
-	)
+	var gather_seconds: float = (0.82 - float(fielding_rating) * 0.025) * gather_scale
+	var home_distance: float = Vector2(catch_position.x, catch_position.z).length()
+	var home_return_seconds: float = gather_seconds + home_distance / throw_speed_mps
 
 	if (
 		not bases.third.is_empty()
-		and THIRD_TO_HOME_SECONDS + SAFETY_MARGIN_SECONDS < home_return_seconds
+		and THIRD_TO_HOME_SECONDS * travel_scale + SAFETY_MARGIN_SECONDS < home_return_seconds
 	):
 		bases.third = &""
 		result.runs_scored = 1
@@ -37,8 +35,7 @@ static func resolve(
 	if (
 		not bases.second.is_empty()
 		and bases.third.is_empty()
-		and SECOND_TO_THIRD_SECONDS + SAFETY_MARGIN_SECONDS
-		< third_return_seconds
+		and SECOND_TO_THIRD_SECONDS * travel_scale + SAFETY_MARGIN_SECONDS < third_return_seconds
 	):
 		bases.third = bases.second
 		bases.second = &""
@@ -48,4 +45,19 @@ static func resolve(
 		else:
 			result.description = "Tag: runner reaches third"
 
+	result.gather_seconds = gather_seconds
+	result.home_return_seconds = home_return_seconds
+	result.third_return_seconds = third_return_seconds
+	result.home_travel_seconds = THIRD_TO_HOME_SECONDS * travel_scale
+	result.third_travel_seconds = SECOND_TO_THIRD_SECONDS * travel_scale
+	if gather_scale != 1.0 or travel_scale != 1.0:
+		result.description += (
+			"\nTag + margin / return: home %.2f/%.2fs; third %.2f/%.2fs"
+			% [
+				result.home_travel_seconds + SAFETY_MARGIN_SECONDS,
+				home_return_seconds,
+				result.third_travel_seconds + SAFETY_MARGIN_SECONDS,
+				third_return_seconds
+			]
+		)
 	return result

@@ -52,9 +52,27 @@ func update_ball(ball: BattedBallBody, camera: Camera3D, delta: float, wall_z: f
 	if ball == null:
 		clear()
 		return
+	var night_lab: PitchBatLab = get_parent() as PitchBatLab
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(night_lab)
+	var night_state: MatchState = night_lab._match_state if night_lab != null else null
+	var shadow: Variant = _shadow
+	var trail: Variant = _trail
+	var mesh: ImmediateMesh = _mesh
+	if not _night_update_context(
+		night_lab, night_owner, night_state, ball, camera, shadow, trail, mesh
+	):
+		return
 	visible = true
+	if not _night_update_context(
+		night_lab, night_owner, night_state, ball, camera, shadow, trail, mesh
+	):
+		return
 	var point: Vector3 = ball.global_position
 	_shadow.visible = point.y > 0.12 and point.z <= wall_z
+	if not _night_update_context(
+		night_lab, night_owner, night_state, ball, camera, shadow, trail, mesh
+	):
+		return
 	_shadow.position = Vector3(point.x, 0.018, point.z)
 	_shadow.scale = Vector3.ONE * clampf(1.0 + point.y * 0.025, 1.0, 1.5)
 	_mesh.clear_surfaces()
@@ -64,8 +82,9 @@ func update_ball(ball: BattedBallBody, camera: Camera3D, delta: float, wall_z: f
 		return
 	for index in range(_ages.size()):
 		_ages[index] += delta
-	while not _ages.is_empty() and (
-		_ages[0] > TRAIL_SECONDS or _history[0].distance_to(point) > TRAIL_LENGTH_M
+	while (
+		not _ages.is_empty()
+		and (_ages[0] > TRAIL_SECONDS or _history[0].distance_to(point) > TRAIL_LENGTH_M)
 	):
 		_ages.pop_front()
 		_history.pop_front()
@@ -81,7 +100,42 @@ func update_ball(ball: BattedBallBody, camera: Camera3D, delta: float, wall_z: f
 		var fade: float = 1.0 - _ages[index - 1] / TRAIL_SECONDS
 		var width: Vector3 = side * 0.035 * fade
 		_mesh.surface_set_color(Color(1.0, 0.96, 0.76, 0.22 * fade))
-		for vertex in [start - width, start + width, end + width,
-			start - width, end + width, end - width]:
+		for vertex in [
+			start - width, start + width, end + width, start - width, end + width, end - width
+		]:
 			_mesh.surface_add_vertex(vertex)
 	_mesh.surface_end()
+
+
+func _night_update_context(
+	lab: PitchBatLab,
+	owner: StadiumSurfaceNightRuntime,
+	state: MatchState,
+	ball: Variant,
+	camera: Camera3D,
+	shadow: Variant,
+	trail: Variant,
+	mesh: ImmediateMesh
+) -> bool:
+	if owner == null:
+		return true
+	if (
+		StadiumSurfaceNightRuntime.continue_action(lab, owner, state)
+		and is_instance_valid(self)
+		and get_parent() == lab
+		and lab._ball_visibility == self
+		and is_instance_valid(ball)
+		and ball == lab._batted_ball
+		and is_instance_valid(camera)
+		and camera == lab._camera
+		and is_instance_valid(shadow)
+		and shadow == _shadow
+		and shadow.get_parent() == self
+		and is_instance_valid(trail)
+		and trail == _trail
+		and trail.get_parent() == self
+		and mesh == _mesh
+	):
+		return true
+	StadiumSurfaceNightRuntime.retire_captured(lab, owner)
+	return false

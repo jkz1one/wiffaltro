@@ -6,6 +6,14 @@ const KEYS: Array[String] = [
 ]
 
 var players: Dictionary = {}
+# Opt-in only for new human-club career seasons. Old match/report schemas stay exact.
+var track_fielding: bool = false
+var fielding_players: Dictionary = {}
+
+
+func fielding_play(player_id: StringName) -> void:
+	if track_fielding and not player_id.is_empty():
+		fielding_players[String(player_id)] = true
 
 
 static func empty_line() -> Dictionary:
@@ -43,6 +51,8 @@ func snapshot(state: MatchState) -> Dictionary:
 			if not result.has(id):
 				result[id] = empty_line()
 			result[id]["pitches"] = player.pitch_count
+			if track_fielding:
+				result[id]["fielding_v1"] = fielding_players.has(id)
 	return result
 
 

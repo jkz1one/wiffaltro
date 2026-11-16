@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/tests/league_owned_home_player_route_test.gd" id="1"]
+[node name="OwnedHomePlayerRoute" type="Node"]
+script = ExtResource("1")

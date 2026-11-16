@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/three_quarter.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.three_quarter_four_seam"
+display_name = "Three-Quarter Four-Seam"
+tactical_description = "Working design: Firm direct pace from a lower, wider release. Slot pairing and numeric calibration are game design choices."
+category = 0
+rarity = 0
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 27.70
+nominal_spin_rpm = 1250.0
+nominal_spin_axis_pitcher_frame = Vector3(0.99, -0.08, 0)
+nominal_hole_axis_ball_local = Vector3(0.3, 0.5, 0.8)
+perforation_influence = 0.05
+instability_strength = 0.0
+instability_frequency_hz = 3.0
+control_difficulty = 0.86
+execution_difficulty = 0.86
+stamina_cost = 5.10
+recognition_difficulty = 1.1
+timing_difficulty = 1.25
+mistake_punish = 1.2
+tags = [&"working_design", &"four_seam", &"three_quarter"]
+offering_id = &"offering.four_seam"
+design_status = "Working design"
+source_urls = Array[String](["https://www.mlb.com/glossary/pitch-types/four-seam-fastball"])
+movement_start = Vector2(0, 0)
+movement_end = Vector2(1, 1)
+movement_initial_scale = Vector2(1, 1)

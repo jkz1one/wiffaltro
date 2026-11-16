@@ -5,12 +5,14 @@ var _failures: int = 0
 
 func _ready() -> void:
 	for defender in [&"pitcher", &"primary_fielder"]:
+		await _miss(defender)
 		for grounded in [false, true]:
 			for strikes in [0, 2]:
 				await _short_bobble(defender, grounded, strikes)
 	for grounded in [false, true]:
 		for outs in [0, 2]:
 			await _control(grounded, outs)
+	await _clean_hit()
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro bobble and tag rules checks passed.")
@@ -25,6 +27,7 @@ func _make_lab() -> PitchBatLab:
 	lab.set_physics_process(false)
 	lab._primary_fielder.set_physics_process(false)
 	lab._record_export.path = "user://bobble-rules-%d.json" % OS.get_process_id()
+	lab._match_state.performance.track_fielding = true
 	lab._match_state.bases.third = &"runner.third"
 	return lab
 
@@ -38,18 +41,53 @@ func _short_bobble(defender: StringName, grounded: bool, strikes: int) -> void:
 	lab._start_ball_in_play(launch)
 	if grounded:
 		lab._ball_play_resolver.record_ground_contact(Vector3(0, 0.04, 3))
+	var player: String = String(
+		(
+			(lab._match_state.pitcher() if defender == &"pitcher" else lab._match_state.fielder())
+			. definition
+			. id
+		)
+	)
 	lab._apply_fielding_outcome(defender, launch.position, FieldingResolver.Outcome.BOBBLE)
-	_check(lab._ball_play_resolver.state.dead and lab._batted_ball.linear_velocity == Vector3.ZERO,
-		"short bobble must end the play and stop the ball without a deflection")
+	_check(
+		lab._match_state.performance.fielding_players == {player: true},
+		"non-out bobble credits exactly the actual defender before synchronous foul resolution"
+	)
+	_check(
+		lab._ball_play_resolver.state.dead and lab._batted_ball.linear_velocity == Vector3.ZERO,
+		"short bobble must end the play and stop the ball without a deflection"
+	)
 	await get_tree().process_frame
 	_check(lab._batted_ball.freeze, "short bobble must apply the deferred physics freeze")
 	_check(lab._match_state.strikes == mini(strikes + 1, 2), "bobble foul uses normal foul count")
-	_check(lab._match_state.outs == 0 and lab._match_state.plate_appearance_number == 1,
-		"bobble foul cannot add an Out or finish the plate appearance")
-	_check(lab._match_state.bases.third == &"runner.third"
-		and lab._match_state.batting_team().runs == 0, "bobble foul cannot advance or score runners")
-	_check(lab._pitch_feedback.text.contains("FOUL")
-		and not lab._pitch_feedback.text.contains("still live"), "bobble feedback must say foul")
+	_check(
+		lab._match_state.outs == 0 and lab._match_state.plate_appearance_number == 1,
+		"bobble foul cannot add an Out or finish the plate appearance"
+	)
+	_check(
+		(
+			lab._match_state.bases.third == &"runner.third"
+			and lab._match_state.batting_team().runs == 0
+		),
+		"bobble foul cannot advance or score runners"
+	)
+	_check(
+		(
+			lab._pitch_feedback.text.contains("FOUL")
+			and not lab._pitch_feedback.text.contains("still live")
+		),
+		"bobble feedback must say foul"
+	)
+	var other: StringName = &"primary_fielder" if defender == &"pitcher" else &"pitcher"
+	lab._apply_fielding_outcome(other, launch.position, FieldingResolver.Outcome.BOBBLE)
+	_check(
+		lab._match_state.performance.fielding_players == {player: true},
+		"stale post-resolution callback cannot credit another defender"
+	)
+	_check(
+		lab._match_state.clean_outs.rows.is_empty(),
+		"bobble participation never fabricates a clean out"
+	)
 	await _dispose(lab)
 
 
@@ -65,10 +103,17 @@ func _control(grounded: bool, outs: int) -> void:
 	lab._start_ball_in_play(launch)
 	if grounded:
 		lab._ball_play_resolver.record_ground_contact(Vector3(0, 0.04, 3))
+	var player: String = String(lab._match_state.fielder().definition.id)
 	lab._apply_fielding_outcome(&"primary_fielder", launch.position, FieldingResolver.Outcome.CLEAN)
+	_check(
+		lab._match_state.performance.fielding_players == {player: true},
+		"clean control credits original fielder before third-out defensive transition"
+	)
 	var expected_runs: int = 1 if not grounded and outs < 2 else 0
-	_check(lab._match_state.away_team.runs == expected_runs,
-		"only caught air ball before the third Out may score a tag-up runner")
+	_check(
+		lab._match_state.away_team.runs == expected_runs,
+		"only caught air ball before the third Out may score a tag-up runner"
+	)
 	if grounded and outs == 0:
 		_check(lab._match_state.bases.third == &"runner.third", "ordinary ground Out holds runners")
 	await _dispose(lab)
@@ -85,3 +130,44 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error(message)
+
+
+func _miss(defender: StringName) -> void:
+	var lab: PitchBatLab = _make_lab()
+	var launch: BattedBallLaunch = BattedBallLaunch.new()
+	launch.position = Vector3(0, 0.4, 8)
+	launch.velocity = Vector3(0, 0, 8)
+	lab._start_ball_in_play(launch)
+	lab._apply_fielding_outcome(defender, launch.position, FieldingResolver.Outcome.MISS)
+	_check(
+		lab._match_state.performance.fielding_players.is_empty(),
+		"miss does not credit participation"
+	)
+	lab._match_state.performance.track_fielding = false
+	lab._apply_fielding_outcome(defender, launch.position, FieldingResolver.Outcome.BOBBLE)
+	_check(
+		lab._match_state.performance.fielding_players.is_empty(),
+		"disabled legacy/exhibition collector stays untouched"
+	)
+	await _dispose(lab)
+
+
+func _clean_hit() -> void:
+	var lab: PitchBatLab = _make_lab()
+	var player: String = String(lab._match_state.fielder().definition.id)
+	var launch: BattedBallLaunch = BattedBallLaunch.new()
+	launch.position = Vector3(0, 0.4, 22)
+	launch.velocity = Vector3(0, 0, 8)
+	lab._start_ball_in_play(launch)
+	lab._ball_play_resolver.record_ground_contact(Vector3(0, 0.04, 3))
+	lab._ball_play_resolver.observe_segment(Vector3(0, 0.4, 3), launch.position)
+	lab._apply_fielding_outcome(&"primary_fielder", launch.position, FieldingResolver.Outcome.CLEAN)
+	_check(
+		(
+			lab._match_state.outs == 0
+			and lab._match_state.clean_outs.rows.is_empty()
+			and lab._match_state.performance.fielding_players == {player: true}
+		),
+		"deep clean fielded hit earns participation, never a clean fielded out"
+	)
+	await _dispose(lab)

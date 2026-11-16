@@ -1,0 +1,105 @@
+class_name StadiumNpcYardThreeProvenance
+extends RefCounted
+## Admission-time evidence only. Never read by literal lookup or retained construction.
+
+const AUTHORING_SHA256: String = "ca55ef6f1683209e2a483e616b15b0a5e94e5882c48ff4d6463ca8ae6e8a4656"
+const SOURCES: Dictionary = {
+	"res://src/content/definitions/definition_base.gd":
+	"d03b3f1f855f51f1f2e3a99f1be99a626cfe523e39c76bd9576b16cb6af4876f",
+	"res://src/content/definitions/field_definition.gd":
+	"39cf09ce92b00c8c0d784f5e738623b810b512a12c3b3c9294a5133b33f413d2",
+	"res://src/content/fields/npc_venue_field.tres":
+	"a9df5523562f2a237d205e72b252729a6a248dc2bbfd789d51d6f1e4c587b598",
+	"res://src/content/fields/starter_field.tres":
+	"b4cb96881a07e3980ecf4aba157bd7137b82ec75cb3d21b155d5bd2f699e1416",
+	"res://src/gameplay/stadium/stadium_boundary_graph.gd":
+	"0d7c7c9d81a3b5817bf6a04e66b092af946721b75e344134a90b1e0c1f4dcbda",
+	"res://src/gameplay/stadium/stadium_catalog.gd":
+	"b52cf22b397a5369c7759f02dd6a9d8fa265c84a66ba6b5864985c428d9daaf2",
+	"res://src/gameplay/stadium/stadium_property.gd":
+	"594b08bf9420b7221c6e4dc741b3bb5e9720065c2e3ff5fdc88054e4688e3bd6",
+	"res://src/gameplay/stadium/stadium_yard_three_fixture.gd":
+	"4f6488faee6d8c37a093c89a276a2f2947afca94c244b8bad8a95ad2f8054a52",
+	"res://src/labs/pitch_bat_lab/starter_field_lab_geometry.gd":
+	"0be889d48a37c9e5d017fcd234b2289cc8928a386605352557a6c7631ceeb9e5",
+	"res://src/presentation/ball/pitch_flight_actor.gd":
+	"79a51e1fd14077d0ab1be26a61bed531124e9c4349806af9bc9a0321efb7464d",
+	"res://src/presentation/stadium/stadium_boundary_prototype.gd":
+	"5b7e8fe60a44b875e5e0e66ce2fe3d8a995e4482c8de79dedbaabcb9adc0d88a",
+	"res://src/presentation/stadium/stadium_property_geometry.gd":
+	"779ce82a8bc9ff872dc3e1cf5c50552f5cf7eaa5914e5857d9459904cbaf89af",
+	"res://src/presentation/stadium/stadium_seating_models.gd":
+	"56f1ed7ceb4576b6887a48ad785209bf964965e8eb9bbcd708345a8ee4aa03eb",
+	"res://src/presentation/stadium/stadium_starter_models.gd":
+	"c9e92051b1627a3043ebf6cb802940a24570851676cd8718ae1c475bda964138",
+	"res://src/presentation/stadium/stadium_yard_field_visibility.gd":
+	"b538a2095df380d4bcddb076505cfc8fac2f1afd7087973da0f1455edef83a04",
+	"res://src/presentation/stadium/stadium_yard_light_models.gd":
+	"28e58ea8f4dceac92466f4510a97fb28649b9694b1149f98ddf8503aa600d1b9",
+	"res://src/presentation/stadium/stadium_yard_three_lab.gd":
+	"16aedb171a95863cfe4a769faa0a57e1dea45270d8f4d044d65c8fbc7659c928",
+	"res://src/presentation/stadium/stadium_yard_three_study.gd":
+	"1a57427147101161489db06d582d81c77cca5db4443cf84b94bf9b4d8cf0bd85",
+	"res://src/presentation/stadium/stadium_yard_venue_study.gd":
+	"1cea7b608501022f95b7a3b537087c914d5f69f1f014c8801f15959375933a87"
+}
+const CONSTRUCTION_SOURCES: Dictionary = {
+	"res://src/gameplay/stadium/stadium_npc_yard_three_poses_v1.gd":
+	"94fe76c2312d61d4512a2531ba4e3a48d3b9c57cfb9af28f2cf2fb198c09cc37",
+	"res://src/presentation/stadium/npc_yard_three_v1/stadium_npc_yard_three_light_v1.gd":
+	"cad7e85f461fee6a535a46702c71d8ed506f71014308c050619a735f1f808fe1",
+	"res://src/presentation/stadium/npc_yard_three_v1/stadium_npc_yard_three_v1.gd":
+	"4c1b4f40fb71af316220f13ce52bfc4d86ca097854780be17f3aa022a0b75d67",
+	"res://src/presentation/stadium/npc_yard_v1/stadium_npc_yard_boundary_v1.gd":
+	"40adbae31d956f96373def06acfc3415991d2c0993df215f2363e3ed671f351c",
+	"res://src/presentation/stadium/npc_yard_v1/stadium_npc_yard_graph_v1.gd":
+	"c9472dd2fc773fe7dea49b701ebda52994c4d4d9874371835576d8599c6da3c7",
+	"res://src/presentation/stadium/npc_yard_v1/stadium_npc_yard_seating_v1.gd":
+	"d18cf66a3d37b2ea60c19f26602b12a4bee4f6aec8d5e184e7504cdb3903953d",
+	"res://src/presentation/stadium/npc_yard_v1/stadium_npc_yard_v1.gd":
+	"39261921875eedb0bf6058f6cb0829be36d11544400e9ff3a99e92f562d9fadd"
+}
+const PROTECTED_SOURCES: Dictionary = {
+	"res://src/gameplay/season/season_save.gd":
+	"82373aa0d5bb658ae66aea666b124b59f6cdc35219e7572579d658aaac8e3aed",
+	"res://src/gameplay/season/season_state.gd":
+	"42d61557026fc92642362498293afc46f96e97dc69abd12dff204510db4b8f6f",
+	"res://src/gameplay/simulation/physical_stadium_report.gd":
+	"29457286ccc3beac574818bc6b0d8570def7c3f8e6feebea2fc860fe0096b98d",
+	"res://src/gameplay/stadium/stadium_npc_availability.gd":
+	"656897d76532f7778393d111ed83f8b05d046f57e668f3a78ddcf70122aa8019",
+	"res://src/gameplay/stadium/stadium_npc_club_candidate_v2.gd":
+	"262389ffd2176784de95567481dfa7ba2e5894abfcfbad2fe92eeb4c8978dc21",
+	"res://src/gameplay/stadium/stadium_npc_club_definition_v1.gd":
+	"19e584594261a979137d294e7324b903174f55b6165e52ea13eb022c1bb36096",
+	"res://src/gameplay/stadium/stadium_npc_club_definition_v2.gd":
+	"9b0a42fecdbd246ebe25761fd9897dd0bd23a0c09a077bd5959142ce50d5efba",
+	"res://src/gameplay/stadium/stadium_npc_daylight_evidence_v2.gd":
+	"badb307414782d628c00e166437827a1a28e6ab7e05182eeca7d7d02b1383c80",
+	"res://src/gameplay/stadium/stadium_npc_expanded_candidate_v2.gd":
+	"222abb41fd51d922a42e4c08be8aa8b5157cfce322fb4bb9a1974d4edf84422c",
+	"res://src/gameplay/stadium/stadium_npc_expanded_definition_v1.gd":
+	"7964930ff32e29a5da64e7bf6146ded7a30e8aea072eb626f9f376f071d1575c",
+	"res://src/gameplay/stadium/stadium_npc_expanded_definition_v2.gd":
+	"72a4debefb90cc5de28e55377effe46295683b7e02bc91c3e32adc9f209a26f2",
+	"res://src/gameplay/stadium/stadium_npc_manifest.gd":
+	"49f57eab8a28bf2a56cfd23c063d7623c910ed28eed080660ec232a656c0038c",
+	"res://src/gameplay/stadium/stadium_npc_snapshot.gd":
+	"745024ac01569768d474c18d922d59dfed41f7031030c08ed13e752e6eb12090",
+	"res://src/gameplay/stadium/stadium_npc_venues.gd":
+	"9d0c064eb52e6004d7f3f23ae8387c0742271637755cd12991e4fe1f1f328f23",
+	"res://src/gameplay/stadium/stadium_npc_yard_candidate_v2.gd":
+	"de7fcc16cf58bebf17b2a07a9468d6c15c65e943cb7b7715a2d67bbb3b5a90de",
+	"res://src/gameplay/stadium/stadium_npc_yard_definition_v1.gd":
+	"cb3686cfe6820fda0e17f9f28b1eb77b8b575e1035f4bd9b2a586a4b952058a1",
+	"res://src/gameplay/stadium/stadium_npc_yard_definition_v2.gd":
+	"8e79f15031b336ef71599cc162bdf3123309ee6422c25d3b8ac2160d13bcdeca",
+	"res://src/presentation/season/season_menu.gd":
+	"03bba60be709e6905a84c3da58840766040cfd9aab736466afd128145f3977f4",
+	"res://src/presentation/stadium/stadium_npc_candidate_runtime_v2.gd":
+	"9f9d49929b9bfc32bfd4c671809fbb4cff38e57fefd573e81020735ad0308d6d",
+	"res://src/presentation/stadium/stadium_npc_retained_runtime.gd":
+	"bfda5ac45b6cd6ca5308eb5a31326de36107021dfa907903ff00a767071c829b",
+	"res://src/presentation/stadium/stadium_npc_runtime.gd":
+	"c071ca1c15e6c1d5b1a74b51990eb4e22aaf3d79034022319448e0ee275a2711"
+}

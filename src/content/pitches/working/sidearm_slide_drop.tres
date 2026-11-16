@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/sidearm.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.sidearm_slide_drop"
+display_name = "Sidearm Slide-Drop"
+tactical_description = "Working design: Lateral slide precedes a smooth late dip; unlike continuous diagonal Slurve. Slot pairing and numeric calibration are game design choices."
+category = 3
+rarity = 2
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 21.20
+nominal_spin_rpm = 2050.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.67, 0.74, 0)
+nominal_hole_axis_ball_local = Vector3(0.3, 0.5, 0.8)
+perforation_influence = 0.15
+instability_strength = 0.0
+instability_frequency_hz = 3.0
+control_difficulty = 1.28
+execution_difficulty = 1.30
+stamina_cost = 6.10
+recognition_difficulty = 1.3
+timing_difficulty = 1.2
+mistake_punish = 1.2
+tags = [&"working_design", &"slide_drop", &"sidearm", &"glove_side"]
+offering_id = &"offering.slide_drop"
+design_status = "Working design"
+source_urls = Array[String](["https://www.youtube.com/watch?v=l3neWQ3xpbA", "https://wiffle.com/play/learn-to-play"])
+movement_start = Vector2(0, 0.55)
+movement_end = Vector2(0.3, 0.9)
+movement_initial_scale = Vector2(0.86, 0.08)

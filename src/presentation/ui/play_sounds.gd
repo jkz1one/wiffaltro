@@ -3,7 +3,10 @@ extends Node
 
 # Original, deterministic procedural cues. No recordings or third-party assets.
 const SAMPLE_RATE: int = 22050
-const CUES: Array[StringName] = [&"contact", &"catch", &"bobble", &"wall", &"home_run"]
+const CUES: Array[StringName] = [&"contact", &"catch", &"bobble", &"wall", &"home_run",
+	&"chair_back", &"chair_seat", &"chair_arms", &"chair_legs",
+	&"target_panel", &"target_frame", &"target_base", &"target_legs",
+	&"net_cord", &"net_frame", &"net_base", &"net_support"]
 var muted: bool = false
 var last_cue: StringName = &""
 var _players: Dictionary = {}
@@ -46,8 +49,10 @@ func play(cue: StringName) -> void:
 
 
 static func _synthesize(index: int) -> AudioStreamWAV:
-	var durations: Array[float] = [0.11, 0.12, 0.26, 0.24, 0.85]
-	var frequencies: Array[float] = [920.0, 230.0, 410.0, 140.0, 523.25]
+	var durations: Array[float] = [0.11, 0.12, 0.26, 0.24, 0.85, 0.10, 0.12, 0.09, 0.10,
+		0.10, 0.09, 0.12, 0.10, 0.14, 0.09, 0.12, 0.10]
+	var frequencies: Array[float] = [920.0, 230.0, 410.0, 140.0, 523.25, 360.0, 190.0, 1100.0, 700.0,
+		180.0, 1300.0, 280.0, 650.0, 110.0, 1500.0, 320.0, 800.0]
 	var duration: float = durations[index]
 	var bytes: PackedByteArray = PackedByteArray()
 	bytes.resize(int(duration * SAMPLE_RATE) * 2)
@@ -59,6 +64,10 @@ static func _synthesize(index: int) -> AudioStreamWAV:
 		var envelope: float = exp(-local_time * (34.0 if index < 3 else 18.0))
 		var tone: float = sin(TAU * frequencies[index] * local_time)
 		var value: float = (tone * 0.55 + rng.randf_range(-1.0, 1.0) * 0.45) * envelope
+		if index >= 5:
+			value = (tone + 0.28 * sin(TAU * frequencies[index] * local_time * 2.3)) * 0.48
+			value += rng.randf_range(-1.0, 1.0) * 0.18
+			value *= exp(-local_time * (65.0 if index == 7 else 40.0))
 		if index == 4:
 			var note: int = mini(int(time / 0.20), 2)
 			var ratio: float = [1.0, 1.25, 1.5][note]

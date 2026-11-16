@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/tests/shared_stadium_route_guard_test.gd" id="1"]
+[node name="SharedStadiumRouteGuardTest" type="Node"]
+script = ExtResource("1")

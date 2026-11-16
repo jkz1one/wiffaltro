@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/tests/standard_d4_public_entry.gd" id="1"]
+
+[node name="StandardD4PublicEntry" type="Node"]
+script = ExtResource("1")

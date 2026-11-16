@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/tests/stadium_mogul_two_receipt_proof_test.gd" id="1"]
+
+[node name="StadiumMogulTwoReceiptProofTest" type="Node"]
+script = ExtResource("1")

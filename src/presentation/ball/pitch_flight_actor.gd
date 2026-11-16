@@ -18,6 +18,7 @@ const RECEIVER_HOLD_SECONDS: float = 0.18
 var state: PitchState
 var parameters: PitchLaunchParameters
 var running: bool = false
+var receiver_router: Callable
 
 var _accumulator_seconds: float = 0.0
 var _substep_count: int = 0
@@ -127,6 +128,8 @@ func _begin_plate_follow_through(
 	crossing_point: Vector3,
 	crossing_velocity: Vector3
 ) -> void:
+	if receiver_router.is_valid() and receiver_router.call(self, crossing_point, crossing_velocity):
+		return
 	var receiver_seconds: float = clampf(
 		(RECEIVER_PLANE_Z - crossing_point.z)
 		/ minf(-0.001, crossing_velocity.z),
@@ -159,17 +162,6 @@ func _cancel_plate_follow_through() -> void:
 	_plate_follow_tween = null
 
 func _build_debug_ball() -> void:
-	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
+	var mesh_instance: WiffleBallVisual = WiffleBallVisual.create(0.85)
 	mesh_instance.name = "DebugBall"
-
-	var sphere: SphereMesh = SphereMesh.new()
-	sphere.radius = 0.075
-	sphere.height = 0.15
-	mesh_instance.mesh = sphere
-
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = Color(0.95, 0.95, 0.90)
-	material.roughness = 0.85
-	mesh_instance.material_override = material
-
 	add_child(mesh_instance)

@@ -11,6 +11,12 @@ static func begin_swing(lab: PitchBatLab, profile_id: StringName, aim_point: Vec
 		or lab._swing_tracker == null
 	):
 		return
+	if lab._match_mode:
+		var locked: StringName = (
+			lab._match_state.batting_team().tactics.locked_swing(lab._match_state)
+		)
+		if locked != &"" and locked != profile_id:
+			return
 	var profile: SwingProfileDefinition = ContentDB.get_swing(profile_id)
 	if profile == null:
 		push_error("Pitch/Bat Lab: swing profile missing: %s" % String(profile_id))
@@ -27,6 +33,7 @@ static func begin_swing(lab: PitchBatLab, profile_id: StringName, aim_point: Vec
 		intent.handedness_left = lab._match_state.batter().bats_left()
 		contact_rating = batter_definition.contact
 		power_rating = batter_definition.power
+		profile = SeasonSponsorEffects.swing(profile, lab._match_state)
 
 	lab._swing_consumed = true
 	lab._status_label.text = ""
@@ -97,6 +104,10 @@ static func _register_miss(lab: PitchBatLab, result: ContactResult) -> void:
 
 
 static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
+	PitchBatLabGapSupport.resolve(lab, result)
 	var profile: SwingProfileDefinition = lab._swing_tracker.profile
 	var aim_point: Vector2 = lab._swing_tracker.intent.aim_point
 	PitchBatLabFeelSupport.note_swing(lab, profile.id, aim_point, result)
@@ -106,6 +117,9 @@ static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
 		lab._selected_pitch().display_name, lab._pitch_actor.state.velocity.length() * 2.236936
 	]
 	lab._pitch_actor.stop_pitch(&"contact")
+	if (not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state) \
+		or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)):
+		return
 	lab._last_exit_speed_mph = result.exit_velocity.length() * 2.236936
 
 	if result.outcome == ContactResult.Outcome.FOUL:
@@ -146,5 +160,6 @@ static func _resolve_contact(lab: PitchBatLab, result: ContactResult) -> void:
 		result.contact_position,
 		vector_end,
 	]
-	lab._contact_vector_draw.draw_polyline(launch_points)
+	if MatchAutomation.presented(lab):
+		lab._contact_vector_draw.draw_polyline(launch_points)
 	lab._start_ball_in_play(BattedBallLaunch.from_contact(result, lab._pitch_actor.state))

@@ -58,6 +58,12 @@ func _process(_delta: float) -> void:
 	_switch_hint.text = ("Switch hitter • Batting %s-handed\n"
 		+ "Choose your side before starting this at-bat.") % (
 			"left" if batter.bats_left() else "right")
+	var ability: String = state.abilities.label(batter.definition)
+	if not ability.is_empty() and _lab._player_is_batting() and _lab._awaiting_batter_confirm:
+		if not _lab._match_presentation_director.blocks_gameplay():
+			_switch_hint.visible = true
+			_switch_hint.text = ("Batting %s-handed\n" % ("left" if batter.bats_left() else "right")
+				if _switch.visible else "") + ability
 	_switch.disabled = not can_switch(_lab)
 	_switch.tooltip_text = "Choose a side before confirming the at-bat. Locked for this at-bat."
 	if not _lab._field_setup_active:
@@ -75,7 +81,8 @@ func _process(_delta: float) -> void:
 	_fielder.disabled = not (
 		MatchLabSupport.can_edit_pitch_plan(_lab) and state.can_change_defense()
 	)
-	_fielder.tooltip_text = "Choose a roster player between batters. Pitcher stays separate."
+	_fielder.tooltip_text = "Choose a roster player between batters. Pitcher stays separate.\n"
+	_fielder.tooltip_text += SeasonAbilities.description(state.fielder().definition)
 
 
 static func can_switch(lab: PitchBatLab) -> bool:

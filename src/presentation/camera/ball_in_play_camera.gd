@@ -7,6 +7,11 @@ const MAX_ACCELERATION: float = 95.0
 const MAX_TURN_SPEED: float = 1.65
 const MAX_TURN_ACCELERATION: float = 4.5
 
+# Optional candidate-only motion constraint, resolved before the bounded look-direction update.
+var position_filter: Callable
+var framing_lead_degrees: float = 0
+var home_run_follow: bool = false
+
 var _defense: bool = false
 var _pending: bool = true
 var _side: float = -1.0
@@ -25,6 +30,7 @@ var _clearance_offset: float = 0.0
 
 
 func prepare(defense: bool, ball: Vector3, launch: Vector3) -> void:
+	home_run_follow = false
 	_defense = defense
 	_pending = true
 	_side = signf(launch.x) if absf(launch.x) > 1.0 else -1.0
@@ -87,7 +93,7 @@ func _advance(
 		var ground: Vector3 = Vector3(
 			_side * ground_width + ball.x * 0.35,
 			ground_height,
-			minf(visibility.field_wall_z - 0.05, ground_depth)
+			visibility.defense_depth(_side * ground_width + ball.x * 0.35, ground_depth, ball)
 		)
 		var aerial: Vector3 = Vector3(
 			_side * 23.0 + ball.x * 0.25,
@@ -105,7 +111,15 @@ func _advance(
 		. limit_length(MAX_ACCELERATION)
 	)
 	_velocity = (_velocity + acceleration * dt).limit_length(MAX_SPEED)
-	camera.global_position += _velocity * dt
+	var previous_position: Vector3 = camera.global_position
+	var proposed: Vector3 = previous_position + _velocity * dt
+	if position_filter.is_valid():
+		var corrected: Vector3 = position_filter.call(camera, previous_position, proposed)
+		if not corrected.is_equal_approx(proposed):
+			_velocity = (corrected - previous_position) / dt
+		camera.global_position = corrected
+	else:
+		camera.global_position = proposed
 	var direction: Vector3 = (_focus - camera.global_position).normalized()
 	# Lateral coverage keeps the usual horizon meaningful, including high popups.
 	var up: Vector3 = Vector3.UP if absf(direction.y) < 0.995 else camera.global_basis.y
@@ -117,6 +131,21 @@ func _advance(
 	if angle > 0.0001:
 		camera.global_basis = Basis(current.slerp(target, minf(1.0, _turn_speed * dt / angle)))
 	var target_fov: float = (
-		_entry_fov + lerpf(2.0, 8.0, maxf(_ground_coverage, _air_coverage)) * entry_weight
+		_entry_fov + framing_lead_degrees
+		+ lerpf(2.0, 8.0, maxf(_ground_coverage, _air_coverage)) * entry_weight
+		- (6.0 if home_run_follow and _follow_framing_safe(camera, ball) else 0.0)
 	)
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-3.0 * dt))
+
+
+func _follow_framing_safe(camera: Camera3D, ball: Vector3) -> bool:
+	# Current-position context only, not a predicted landing or scoring forecast.
+	# Leave margin for the gentle zoom and for the existing bounded turn lag.
+	var rect: Rect2 = camera.get_viewport().get_visible_rect()
+	var safe: Rect2 = Rect2(rect.position + rect.size * 0.14, rect.size * 0.72)
+	var ground: Vector3 = Vector3(ball.x, 0.0, ball.z)
+	for point: Vector3 in [ball, ground + Vector3(2, 0, 0), ground - Vector3(2, 0, 0),
+		ground + Vector3(0, 0, 2), ground - Vector3(0, 0, 2)]:
+		if camera.is_position_behind(point) or not safe.has_point(camera.unproject_position(point)):
+			return false
+	return true

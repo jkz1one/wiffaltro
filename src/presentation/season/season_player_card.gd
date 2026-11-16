@@ -10,6 +10,8 @@ const STYLE_NAMES: Array[String] = [
 
 
 static func values(player: PlayerDefinition) -> Array[int]:
+	if player.progression_test:
+		return [player.contact, player.power, player.fielding, player.control]
 	return [
 		player.contact,
 		player.power,
@@ -29,6 +31,17 @@ static func hands(player: PlayerDefinition) -> String:
 			"L" if player.throws == 1 else "R"
 		]
 	)
+
+
+static func rating_names(player: PlayerDefinition) -> Array[String]:
+	if player.progression_test:
+		var names: Array[String] = ["Contact", "Power", "Fielding", "Pitching"]
+		return names
+	return RATING_NAMES
+
+
+static func pitch_name(player: PlayerDefinition, pitch: PitchDefinition) -> String:
+	return pitch.display_name + (" Lv%d" % pitch.mastery_level if player.progression_test else "")
 
 
 static func panel(parent: Node, selected: bool = false) -> VBoxContainer:
@@ -62,10 +75,10 @@ static func draft_card(
 	line(box, "Bats / Throws: " + hands(player), 18)
 	line(box, STYLE_NAMES[player.pitching_style], 18)
 	var ratings: Array[int] = values(player)
-	for index in range(7):
+	for index in range(ratings.size()):
 		var row: HBoxContainer = HBoxContainer.new()
 		box.add_child(row)
-		var label: Label = line(row, RATING_NAMES[index], 18)
+		var label: Label = line(row, rating_names(player)[index], 18)
 		label.custom_minimum_size.x = 94
 		var bar: ProgressBar = ProgressBar.new()
 		bar.max_value = 10
@@ -94,12 +107,14 @@ static func draft_card(
 	)
 	var pitches: PackedStringArray = []
 	for pitch in player.starting_pitches:
-		pitches.append(pitch.display_name)
+		pitches.append(pitch_name(player, pitch))
 	var label: Label = line(box, " • ".join(pitches), 18)
 	label.custom_minimum_size.x = 280
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_abilities(box, player)
 	if player.switch_hitter:
 		line(box, "SWITCH HITTER • Pick your batting side", 16)
+	inspection_button(box, player)
 
 
 static func line(parent: Node, text: String, font_size: int = 18) -> Label:
@@ -119,16 +134,37 @@ static func ratings_card(
 	line(box, heading, 21)
 	line(box, "Bats / Throws: " + hands(player) + detail, 17)
 	var grid: GridContainer = GridContainer.new()
-	grid.columns = 7
+	grid.columns = rating_names(player).size()
 	grid.add_theme_constant_override("h_separation", 25)
 	box.add_child(grid)
-	for rating in RATING_NAMES:
+	for rating in rating_names(player):
 		line(grid, rating, 17)
 	for value in values(player):
 		var rating: Label = line(grid, str(value), 24)
 		rating.add_theme_color_override("font_color", ClubhouseTheme.GOLD)
 	var pitches: PackedStringArray = []
 	for pitch in player.starting_pitches:
-		pitches.append(pitch.display_name)
+		pitches.append(pitch_name(player, pitch))
 	var arsenal: Label = line(box, "Pitches: " + " • ".join(pitches), 17)
 	arsenal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_abilities(box, player)
+	inspection_button(box, player)
+
+
+static func inspection_button(
+	parent: Node, player: PlayerDefinition, text: String = "INSPECT PLAYER"
+) -> Button:
+	var button: Button = Button.new()
+	button.text = text
+	button.custom_minimum_size.y = 44
+	button.set_meta("inspect_player", String(player.id))
+	button.tooltip_text = "Current ratings, repertoire, learned abilities and next mastery effects"
+	button.pressed.connect(func() -> void: SeasonPlayerInspector.open_from(parent, player))
+	parent.add_child(button)
+	return button
+
+
+static func _abilities(box: VBoxContainer, player: PlayerDefinition) -> void:
+	var text: String = SeasonAbilities.description(player)
+	if not text.is_empty():
+		SeasonPages.wrapped(box, "LEARNED THIS SEASON\n" + text)

@@ -1,0 +1,198 @@
+class_name SeasonOpponents
+extends RefCounted
+## Policy9 adds paid batting supplies; older sponsor/stat/learning policies stay frozen.
+
+const ClubLeagueCareer = preload("res://src/gameplay/season/club_league_career.gd")
+
+var draft_order: Array[int] = []
+# Omission preserves every historical opponent-policy representation.
+var draft_rule: String = ""
+var clubs: Dictionary = {}
+var _format: int = 2
+
+
+func draft_rule_valid() -> bool:
+	return draft_rule.is_empty() or (draft_rule == SeasonOpponentDraft.D2_RULE and _format == 13)
+
+
+func initialize(season: SeasonState) -> void:
+	if (
+		not season.league_rules.is_empty()
+		and (
+			_format != 13
+			or (season.career != null and not ClubLeagueCareer.admitted(season))
+			or season.build == null
+			or not season.build.league_context_valid()
+			or season.build._league_rules != season.league_rules
+			or draft_rule != (SeasonOpponentDraft.D2_RULE if season.league_rules.tier >= 2 else "")
+		)
+	):
+		return
+	if (
+		not draft_rule_valid()
+		or (
+			not draft_rule.is_empty()
+			and (season.build == null or not season.build.d1_pricing_valid())
+		)
+	):
+		return
+	if season.career != null and season.career.current > 0:
+		var selected_tier: int = season.career.active_tier()
+		var expected_rule: String = SeasonOpponentDraft.D2_RULE if selected_tier >= 2 else ""
+		if (
+			selected_tier not in [0, 1, 2, 3, 4]
+			or draft_rule != expected_rule
+			or season.build == null
+			or ((selected_tier == 3) != season.build.d3_sponsors_valid())
+			or ((selected_tier == 4) != season.build.d4_sponsors_valid())
+		):
+			return
+	if season.build != null and not season.build.pricing_context_valid():
+		return
+	var d1_pricing: bool = season.build != null and season.build.d1_pricing_valid()
+	var d3_sponsors: bool = season.build != null and season.build.d3_sponsors_valid()
+	var d4_sponsors: bool = season.build != null and season.build.d4_sponsors_valid()
+	if d1_pricing and (_format != 13 or season.build._market != 0):
+		return
+	for index in range(1, 6):
+		var roster: Array[String] = []
+		roster.assign(season.teams[index].roster)
+		var seed_value: int = (season.season_seed + index * 92821) & 0x7fffffff
+		var build: SeasonBuild = SeasonBuild.new(seed_value, roster)
+		if season.build != null and season.build.pitch_catalog_expanded():
+			if not build.enable_expanded_pitch_catalog():
+				clubs.clear()
+				return
+		if season.build != null and season.build.pitch_catalog_current():
+			if not build.enable_pitch_catalog():
+				clubs.clear()
+				return
+		build._format = 41 if _format >= 3 else 19
+		build._market = _format - 1 if _format >= 3 else 1
+		if (
+			not season.league_rules.is_empty()
+			and not build.enable_league_rules(season.league_rules)
+		):
+			clubs.clear()
+			return
+		if d4_sponsors:
+			build.enable_d4_sponsors()
+		elif d3_sponsors:
+			build.enable_d3_sponsors()
+		elif d1_pricing:
+			build.enable_d1_pricing()
+		clubs[str(index)] = {
+			"build": build,
+			"profile": SeasonOpponentPolicy.PROFILES[index],
+			"roles": SeasonOpponentPolicy.roles(build),
+			"cursor": 0,
+			"decisions": []
+		}
+
+		if _format >= 4:
+			clubs[str(index)]["primary"] = SeasonOpponentMastery.primary(
+				build, clubs[str(index)].roles.pitcher
+			)
+
+
+func settle(fixtures: Array, survivors: Array) -> void:
+	for result: Dictionary in fixtures:
+		for index: int in [int(result.home), int(result.away)]:
+			if index == 0:
+				continue
+			var club: Dictionary = clubs[str(index)]
+			var build: SeasonBuild = club.build
+			if build._bank.view().rewards.has(str(int(result.id))):
+				continue
+			var budget: bool = (
+				_format >= 12 and not SeasonSchoolSponsors.active(build, "E08").is_empty()
+			)
+			if budget:
+				build = build._fork()
+				if not SeasonOpponentBudget.commit(build, int(result.id)):
+					continue
+			var reward: Dictionary = SeasonOpponentPolicy.command(
+				build,
+				"reward",
+				{
+					"game": result.id,
+					"win": SeasonState._winner(result) == index,
+					"performance":
+					result.get("performance", {}).duplicate(true) if _format >= 7 else {}
+				}
+			)
+			if LeagueRules.earnings(build._league_rules):
+				reward["own_runs"] = (
+					result.get("home_runs") if result.home == index else result.get("away_runs")
+				)
+				reward["opponent_runs"] = (
+					result.get("away_runs") if result.home == index else result.get("home_runs")
+				)
+			if _format >= 9:
+				reward["tactics"] = result.get("ai_tactics", {}).get(str(index), {}).get(
+					"consumed", []
+				)
+			if LeagueRules.doubleheader(build._league_rules):
+				if (
+					not result.get("doubleheader_evidence") is Array
+					or result.doubleheader_evidence.size() != 2
+				):
+					continue
+				reward["doubleheader_workload"] = (
+					result.doubleheader_evidence[0 if result.away == index else 1].duplicate(true)
+				)
+				var evidence: Dictionary = result.get("ai_tactics", {}).get(str(index), {})
+				reward["pitching"] = {
+					"releases": evidence.get("pitching", []).duplicate(true),
+					"calls": [],
+					"strikeouts": evidence.get("recovery", {}).get("strikeouts", []).duplicate(true)
+				}
+			if not build.commit(reward).ok:
+				continue
+			if budget:
+				club.build = build
+			if survivors.has(index):
+				SeasonOpponentPolicy.checkout(build, club, int(result.id))
+
+
+func definition(id: String) -> PlayerDefinition:
+	for club: Dictionary in clubs.values():
+		if club.build.roster().has(id):
+			return club.build.definition(id)
+	return null
+
+
+func to_data() -> Dictionary:
+	var rows: Dictionary = {}
+	for key: String in clubs:
+		var club: Dictionary = clubs[key]
+		rows[key] = {
+			"build": club.build.to_data(),
+			"roles": club.roles.duplicate(true),
+			"profile": club.profile,
+			"cursor": club.cursor,
+			"decisions": club.decisions.duplicate(true)
+		}
+	var data: Dictionary = {"policy": _format, "clubs": rows}
+	if not draft_rule.is_empty():
+		data["draft_rule"] = draft_rule
+	if _format >= 2:
+		data["draft_order"] = draft_order.duplicate()
+	if _format >= 4:
+		for key: String in clubs:
+			rows[key]["primary"] = clubs[key].primary
+	return data
+
+
+func summary(index: int) -> Dictionary:
+	var club: Dictionary = clubs.get(str(index), {})
+	if club.is_empty():
+		return {}
+	var view: Dictionary = club.build.view()
+	return {
+		"cash": view.wallet.cash,
+		"profile": club.profile,
+		"purchases": club.decisions.size(),
+		"roles": club.roles.duplicate(),
+		"decisions": club.decisions.duplicate(true)
+	}

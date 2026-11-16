@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/sidearm.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.sidearm_trapdoor"
+display_name = "Sidearm Trapdoor"
+tactical_description = "Working project fiction: A smooth delayed dive beginning later than Splitter or Forkball. Not a real MLB or league pitch."
+category = 3
+rarity = 3
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 22.75
+nominal_spin_rpm = 0.0
+nominal_spin_axis_pitcher_frame = Vector3(0, 0, 1)
+nominal_hole_axis_ball_local = Vector3(1, 0, 0)
+perforation_influence = 0.0
+instability_strength = 0.0
+control_difficulty = 1.44
+execution_difficulty = 1.48
+stamina_cost = 7.7
+recognition_difficulty = 1.50
+timing_difficulty = 1.35
+mistake_punish = 1.50
+tags = [&"working_design", &"project_exotic", &"trapdoor", &"sidearm"]
+offering_id = &"offering.trapdoor"
+design_status = "Working design"
+source_urls = Array[String]([])
+exotic_shape = &"trapdoor"
+exotic_strength = 0.94

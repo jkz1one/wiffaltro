@@ -27,6 +27,8 @@ const TRANSITION_SPEED: float = 7.5
 
 var shot: Shot = Shot.BATTING
 var tracking_visibility: BallTrackingVisibility = BallTrackingVisibility.new()
+# Optional isolated presentation handler. False leaves the ordinary camera path unchanged.
+var presentation_override: Callable
 var _field_focus: Vector3 = Vector3(0.0, 2.2, 10.0)
 var _batter_side: float = 1.0
 var _presentation_motion: PresentationMotion = PresentationMotion.STILL
@@ -113,6 +115,9 @@ func update(
 	if camera == null:
 		return
 	_apply_projection(camera)
+	if presentation_override.is_valid() and presentation_override.call(
+		self, camera, delta_seconds, ball_live, ball_position):
+		return
 	if shot == Shot.BALL_IN_PLAY and not ball_live and _shot_before_inspection < 0:
 		return
 	if ball_live and shot == Shot.BALL_IN_PLAY:

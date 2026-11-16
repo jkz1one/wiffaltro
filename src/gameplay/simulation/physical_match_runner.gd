@@ -1,0 +1,419 @@
+class_name PhysicalMatchRunner
+extends Node
+## One detached real-time physical job. Never writes or settles a season/save.
+# gdlint: disable=max-returns
+
+signal finished(report: Dictionary)
+# Private result is never emitted to ordinary report/season consumers.
+signal private_finished(report: Dictionary)
+signal failed(reason: String)
+
+const MAX_SECONDS: float = 2400.0
+const STALL_SECONDS: float = 30.0
+
+## Diagnostic rendering only; copied at start, never part of match identity.
+var presentation_enabled: bool = false
+
+var _viewport: SubViewport
+var _lab: PitchBatLab
+var _elapsed: float = 0.0
+var _stalled: float = 0.0
+var _progress: String = ""
+var _running: bool = false
+var _pool_options: Dictionary = {}
+var _pool_entitlement: StadiumPoolBoundEntitlement
+var _pool_ledger: ClubAssetLedger
+var _pool_ledger_bytes: PackedByteArray
+
+
+func _init() -> void:
+	process_mode = Node.PROCESS_MODE_PAUSABLE
+	set_process(false)
+
+
+func start(
+	source: MatchState,
+	seed: int,
+	field: StringName = PitchBatLab.FIELD_ID,
+	ledger: ClubAssetLedger = null,
+	pool_request: Dictionary = {},
+	npc_season: SeasonState = null
+) -> bool:
+	if not is_inside_tree() or _running or _viewport != null or seed < 0 or seed > 2147483647:
+		return false
+	if ContentDB.get_field(field) == null:
+		return false
+	var snapshot: MatchState = PhysicalMatchRequest.capture(source)
+	if snapshot == null:
+		return false
+	if (
+		StadiumWaterfallAnimationSnapshot.is_family(snapshot.stadium)
+		and (
+			snapshot.stadium.get("version") != StadiumWaterfallAnimationSnapshot.FIXTURE_VERSION
+			or not StadiumWaterfallAnimationSnapshot.matches(snapshot.stadium, ledger)
+			or not pool_request.is_empty()
+		)
+	):
+		return false
+	if (
+		StadiumLowWallSnapshot.is_family(snapshot.stadium)
+		and (
+			snapshot.stadium.get("version") != StadiumLowWallSnapshot.FIXTURE_VERSION
+			or not StadiumLowWallSnapshot.matches(snapshot.stadium, ledger)
+			or not pool_request.is_empty()
+		)
+	):
+		return false
+	var terrain: bool = StadiumLayoutSnapshot.is_terrain(snapshot.stadium)
+	if (
+		terrain
+		and (
+			field != PitchBatLab.FIELD_ID
+			or not pool_request.is_empty()
+			or snapshot.stadium.get("version") != StadiumLayoutSnapshot.TERRAIN_FIXTURE_VERSION
+			or not StadiumLayoutSnapshot.matches(snapshot.stadium, ledger)
+		)
+	):
+		return false
+	var night: bool = StadiumSurfaceNightSnapshot.is_family(snapshot.stadium)
+	if (
+		night
+		and (
+			npc_season == null
+			or field != PitchBatLab.FIELD_ID
+			or not pool_request.is_empty()
+			or not StadiumSurfaceNightSnapshot.matches_fixture(
+				snapshot.stadium,
+				npc_season,
+				SeasonVenues.fixture_for_id(npc_season, int(snapshot.stadium.binding.fixture)),
+				ledger
+			)
+			or snapshot.stadium.binding.match_seed != seed
+			or not (snapshot.away_team.ai_base or snapshot.home_team.ai_base)
+		)
+	):
+		return false
+	var npc_yard: bool = StadiumNpcSnapshot.is_public(snapshot.stadium)
+	if field == &"field.npc_venue" and not npc_yard:
+		return false
+	if (
+		npc_yard
+		and (
+			npc_season == null
+			or field != &"field.npc_venue"
+			or not StadiumNpcSnapshot.is_fixture(snapshot.stadium)
+			or not (snapshot.away_team.ai_base or snapshot.home_team.ai_base)
+			or not StadiumNpcSnapshot.matches_fixture(
+				snapshot.stadium,
+				npc_season,
+				SeasonVenues.fixture_for_id(npc_season, int(snapshot.stadium.binding.fixture))
+			)
+			or snapshot.stadium.binding.match_seed != seed
+			or not pool_request.is_empty()
+		)
+	):
+		return false
+	if (
+		not snapshot.stadium.is_empty()
+		and not npc_yard
+		and not night
+		and (
+			field != PitchBatLab.FIELD_ID
+			or not (snapshot.away_team.ai_base or snapshot.home_team.ai_base)
+			or (snapshot.stadium.has("environment") and snapshot.stadium.environment.seed != seed)
+			or (snapshot.stadium.layout.version == 11 and snapshot.stadium.version != 7)
+			or (snapshot.stadium.layout.version == 12 and snapshot.stadium.version != 9)
+			or (
+				snapshot.stadium.layout.version == 14
+				and snapshot.stadium.version != StadiumScoreboardSnapshot.FIXTURE_VERSION
+			)
+			or (
+				snapshot.stadium.layout.version == 15
+				and StadiumMountedScoreboardContract.context(snapshot.stadium, ledger).is_empty()
+			)
+		)
+	):
+		return false
+	# Public owned layouts require the caller's real paid journal prefix before tree mutation.
+	if (
+		snapshot.stadium.get("version") == StadiumPoolOwnedSnapshot.FIXTURE_VERSION
+		and not StadiumPoolOwnedSnapshot.matches(snapshot.stadium, ledger)
+	):
+		return false
+	# Empty request preserves the ordinary startup path and its original guards.
+	if (
+		not pool_request.is_empty()
+		and not _private_pool_request_valid(pool_request, snapshot, ledger)
+	):
+		return false
+	_pool_options = pool_request.duplicate(true)
+	_viewport = SubViewport.new()
+	_viewport.size = Vector2i(1280, 720)
+	_viewport.own_world_3d = true
+	_viewport.gui_disable_input = true
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	var created_night_viewport: SubViewport = _viewport
+	add_child(_viewport)
+	if (
+		(night or terrain)
+		and (
+			not is_instance_valid(created_night_viewport)
+			or _viewport != created_night_viewport
+			or created_night_viewport.get_parent() != self
+			or _lab != null
+			or _running
+		)
+	):
+		return false
+	_lab = PitchBatLab.new()
+	_lab._configured_match = snapshot
+	_lab._npc_season = npc_season if npc_yard or night else null
+	_lab._stadium_ledger = (
+		ledger
+		if (
+			terrain
+			or night
+			or (
+				snapshot.stadium.get("version")
+				in [
+					15,
+					StadiumPoolOwnedSnapshot.FIXTURE_VERSION,
+					StadiumLowWallSnapshot.FIXTURE_VERSION,
+					StadiumWaterfallAnimationSnapshot.FIXTURE_VERSION
+				]
+			)
+		)
+		else null
+	)
+	if not _pool_options.is_empty():
+		_lab._stadium_ledger = ledger
+		_pool_ledger = ledger
+		_pool_ledger_bytes = var_to_bytes(ledger.to_data())
+	_lab._field_id = field
+	_lab._sky_backdrop_enabled = false
+	_lab._automation = MatchAutomation.new()
+	_lab._automation.seed = seed
+	_lab._automation.presentation_enabled = presentation_enabled
+	if not _pool_options.is_empty():
+		_pool_entitlement = StadiumPoolBoundEntitlement.issue_private(
+			_lab, snapshot.stadium, ledger
+		)
+		if (
+			_pool_entitlement == null
+			or not StadiumPoolBoundExtension.configure(
+				_lab, _pool_entitlement, _pool_options.enabled
+			)
+		):
+			_discard_unparented_pool_lab()
+			cancel()
+			return false
+	if night and not StadiumSurfaceNightRuntime.configure(_lab, npc_season, ledger):
+		_lab.free()
+		_lab = null
+		cancel()
+		return false
+	if terrain and not StadiumSurfaceTerrainRuntime.configure(_lab, ledger):
+		_lab.free()
+		_lab = null
+		cancel()
+		return false
+	var night_lab: PitchBatLab = _lab if night else null
+	var night_viewport: Variant = _viewport
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(night_lab)
+	var terrain_lab: PitchBatLab = _lab if terrain else null
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(
+		terrain_lab
+	)
+	_viewport.add_child(_lab)
+	if (
+		terrain
+		and (
+			not is_instance_valid(terrain_lab)
+			or _lab != terrain_lab
+			or _viewport != created_night_viewport
+			or terrain_lab.get_parent() != created_night_viewport
+			or terrain_lab._match_state != snapshot
+			or StadiumSurfaceTerrainRuntime.current(terrain_lab) != terrain_owner
+			or not StadiumSurfaceTerrainRuntime.installed_bound(terrain_lab, snapshot.stadium)
+		)
+	):
+		StadiumSurfaceTerrainRuntime.retire_captured(terrain_lab, terrain_owner)
+		return false
+	if (
+		night
+		and (
+			not is_instance_valid(night_lab)
+			or not is_instance_valid(night_viewport)
+			or _lab != night_lab
+			or _viewport != night_viewport
+			or night_lab.get_parent() != night_viewport
+			or night_lab._match_state != snapshot
+			or StadiumSurfaceNightRuntime.current(night_lab) != night_owner
+		)
+	):
+		StadiumSurfaceNightRuntime.retire_captured(night_lab, night_owner)
+		return false
+	if night and not StadiumSurfaceNightRuntime.installed_bound(_lab, snapshot.stadium):
+		cancel()
+		return false
+	if not snapshot.stadium.is_empty() and not _lab.has_meta("stadium_snapshot"):
+		cancel()
+		return false
+	if npc_yard and not StadiumPropertyRuntime.npc_installed_bound(_lab, snapshot.stadium):
+		cancel()
+		return false
+	if (
+		not _pool_options.is_empty()
+		and (_lab.pool_bound_startup_failed or not _private_pool_installed())
+	):
+		cancel()
+		return false
+	_elapsed = 0.0
+	_stalled = 0.0
+	_progress = ""
+	_running = true
+	set_process(true)
+	return true
+
+
+func cancel() -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(_lab)
+	_running = false
+	_cleanup()
+	if night_owner != null and (_lab != null or _viewport != null or _running):
+		return  # A restore callback replaced the captured job; do not stop its runner.
+	set_process(false)
+
+
+func _process(delta: float) -> void:
+	if not _running:
+		return
+	_elapsed += delta
+	var state: MatchState = _lab._match_state
+	if state == null:
+		_fail("Physical match initialization failed.")
+		return
+	if state.phase == MatchState.Phase.GAME_END:
+		if not _pool_options.is_empty():
+			_finish_private_pool()
+			return
+		var report: Dictionary = PhysicalMatchReport.capture(_lab)
+		if not PhysicalMatchReport.accepted(report, state.pitch_catalog):
+			_fail("Physical match evidence did not balance.")
+			return
+		cancel()
+		finished.emit(report)
+		return
+	var progress: String = (
+		"%d:%d:%d" % [state.phase, state.plate_appearance_number, _lab._throw_number]
+	)
+	_stalled = _stalled + delta if progress == _progress else 0.0
+	_progress = progress
+	if _elapsed >= MAX_SECONDS or _stalled >= STALL_SECONDS:
+		_fail("Physical match exceeded its time or progress limit; no result was settled.")
+
+
+func _fail(reason: String) -> void:
+	cancel()
+	failed.emit(reason)
+
+
+func _cleanup() -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(_lab)
+	var night_lab: PitchBatLab = _lab if night_owner != null else null
+	var night_viewport: Variant = _viewport
+	var night_state: MatchState = night_lab._match_state if is_instance_valid(night_lab) else null
+	StadiumSurfaceNightRuntime.retire_captured(night_lab, night_owner)
+	if (
+		night_owner != null
+		and (
+			not is_instance_valid(night_lab)
+			or _lab != night_lab
+			or _viewport != night_viewport
+			or night_lab._match_state != night_state
+			or StadiumSurfaceNightRuntime.current(night_lab) != night_owner
+		)
+	):
+		return
+	StadiumSurfaceTerrainRuntime.retire(_lab, "RUNNER_CLEANUP")
+	StadiumPoolOwnedExtension.retire_installed_field(_lab, "RUNNER_CLEANUP")
+	if is_instance_valid(_viewport):
+		# Stop processing before deferred deletion; consumers may start the next job.
+		if is_instance_valid(_lab):
+			_lab._stadium_ledger = null
+			_lab.process_mode = Node.PROCESS_MODE_DISABLED
+		_viewport.process_mode = Node.PROCESS_MODE_DISABLED
+		_viewport.queue_free()
+	_viewport = null
+	_lab = null
+	if _pool_entitlement != null:
+		_pool_entitlement.retire()
+	_pool_entitlement = null
+	_pool_ledger = null
+	_pool_ledger_bytes = PackedByteArray()
+	_pool_options = {}
+
+
+# Explicit private, finite request. It is neither a purchase nor a saved layout.
+static func _private_pool_request_valid(
+	request: Dictionary, snapshot: MatchState, ledger: ClubAssetLedger
+) -> bool:
+	return (
+		SeasonOwnership._keys(request, ["version", "authority", "enabled"])
+		and request.version is int
+		and request.version == 1
+		and request.authority is String
+		and request.authority == "EXPLICIT_PRIVATE_POOL_V27_DETACHED_MATCH"
+		and request.enabled is bool
+		and snapshot != null
+		and StadiumPoolBoundEntitlement.exact_base(snapshot.stadium, ledger)
+	)
+
+
+func _private_pool_installed() -> bool:
+	if (
+		not is_instance_valid(_lab)
+		or _pool_options.is_empty()
+		or _pool_entitlement == null
+		or _pool_ledger == null
+		or _lab._stadium_ledger != _pool_ledger
+		or var_to_bytes(_pool_ledger.to_data()) != _pool_ledger_bytes
+	):
+		return false
+	if not _private_pool_request_valid(_pool_options, _lab._match_state, _pool_ledger):
+		return false
+	var request: StadiumPoolBoundExtension = StadiumPoolBoundExtension._request(_lab)
+	if request == null or request._enabled != _pool_options.enabled:
+		return false
+	var property: StadiumPoolBoundProperty = StadiumPoolBoundExtension.current(_lab)
+	return (
+		property != null
+		and property.entitlement == _pool_entitlement
+		and property.valid_owner(_lab)
+		and _lab.pool_controller_active != null
+		and _lab.pool_controller_active._bound_profile == property
+		and _lab.pool_controller_active.enabled == _pool_options.enabled
+		and _lab.pool_controller_active.freeflight_enabled
+	)
+
+
+func _discard_unparented_pool_lab() -> void:
+	if _pool_entitlement != null:
+		_pool_entitlement.retire()
+	if is_instance_valid(_lab) and _lab.get_parent() == null:
+		_lab.free()
+		_lab = null
+
+
+func _finish_private_pool() -> void:
+	if not _private_pool_installed():
+		_fail("Private Pool ownership or journal changed; no detached result was accepted.")
+		return
+	var report: Dictionary = StadiumPoolMatchReport.capture(
+		_lab, _pool_entitlement, _pool_options.enabled
+	)
+	if not StadiumPoolMatchReport.valid(report):
+		_fail("Private Pool match evidence did not balance.")
+		return
+	cancel()
+	private_finished.emit(report)

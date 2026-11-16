@@ -1,6 +1,8 @@
 class_name MatchState
 extends RefCounted
 
+signal inventory_boundary
+
 enum Phase {
 	PRE_PITCH,
 	PITCH_IN_FLIGHT,
@@ -16,10 +18,22 @@ const BALLS_FOR_WALK: int = 4
 const STRIKES_FOR_OUT: int = 3
 const MERCY_RUNS: int = 10
 
+var league_rules: Dictionary = {}
+# Set only by the validated current Build/season adapter. Never read from a report.
+var pitch_catalog: String = ""
+var stadium: Dictionary = {}
 var away_team: TeamMatchState
 var home_team: TeamMatchState
 var bases: BaseState = BaseState.new()
 var performance: MatchPerformance = MatchPerformance.new()
+var base_flow: MatchBaseFlow = MatchBaseFlow.new()
+var sides: MatchBattingSides = MatchBattingSides.new()
+var sure_shot: MatchSureShot = MatchSureShot.new()
+var clean_outs: MatchCleanOuts = MatchCleanOuts.new()
+var jumpstart_mode: String = "normal"
+var abilities: MatchAbilities = MatchAbilities.new()
+var cold: MatchColdStreak = MatchColdStreak.new()
+var pitch_ledger: MatchPitchLedger = MatchPitchLedger.new()
 var phase: Phase = Phase.PRE_PITCH
 var inning: int = 1
 var top_half: bool = true
@@ -33,7 +47,16 @@ var between_batters: bool = true
 var batter_timeout_used: bool = false
 var last_event: String = "Game ready"
 var winner_name: String = ""
+var gear_usage: MatchGearUsage = MatchGearUsage.new()
+var frozen_contacts: Array[Dictionary] = []
+var pitch_disclosure: Dictionary = {}
+var ai_choice_events: Array[Dictionary] = []
+var optics_mode: String = "normal"
+var cornerstone_anchored: bool = false
+var _ai_choice_prepared: Dictionary = {}
 var _between_batters_before_pitch: bool = true
+var _pa_pitchers: Array[PlayerMatchState] = []
+var _deli_next_batter: bool = false
 
 static func create(
 	away: TeamMatchState,
@@ -42,6 +65,8 @@ static func create(
 	var result: MatchState = MatchState.new()
 	result.away_team = away
 	result.home_team = home
+	away.field_supply.receipt = "field-supply:away"
+	home.field_supply.receipt = "field-supply:home"
 	return result
 
 func batting_team() -> TeamMatchState:
@@ -65,6 +90,12 @@ func fielder() -> PlayerMatchState:
 func begin_pitch() -> bool:
 	if phase != Phase.PRE_PITCH:
 		return false
+	if between_batters:
+		inventory_boundary.emit()
+	abilities.released = false
+	sides.lock(self)
+	batting_team().tactics.checkout.clear()
+	pitch_disclosure = sure_shot.cue(self)
 	_between_batters_before_pitch = between_batters
 	phase = Phase.PITCH_IN_FLIGHT
 	between_batters = false
@@ -75,11 +106,14 @@ func cancel_pitch() -> void:
 		return
 	phase = Phase.PRE_PITCH
 	between_batters = _between_batters_before_pitch
+	abilities.released = false
+	sides.cancel(self)
 
 func begin_ball_in_play() -> void:
 	phase = Phase.BALL_IN_PLAY
 
 func record_called_pitch(is_strike: bool) -> StringName:
+	abilities.called(self, is_strike)
 	if is_strike:
 		return record_strike(false)
 	return record_ball()
@@ -90,7 +124,10 @@ func record_ball() -> StringName:
 		var batter_id: StringName = batter().definition.id
 		var runs_scored: int = bases.advance_for_walk(batter_id)
 		performance.complete(batter_id, pitcher().definition.id, "walk", runs_scored)
+		cold.complete(self, "walk")
+		batting_team().tactics.checkout.walk(self, batting_team())
 		_add_runs(runs_scored)
+		base_flow.complete(self, "walk", runs_scored)
 		_complete_plate_appearance("Walk")
 		return &"walk"
 	phase = Phase.PLAY_DEAD
@@ -101,7 +138,11 @@ func record_strike(swinging: bool = true) -> StringName:
 	strikes += 1
 	if strikes >= STRIKES_FOR_OUT:
 		performance.complete(batter().definition.id, pitcher().definition.id, "strikeout", 0)
+		cold.complete(self, "strikeout")
+		sure_shot.strikeout(self, swinging)
+		SeasonSponsorEffects.strikeout(self)
 		outs += 1
+		base_flow.complete(self, "strikeout", 0)
 		_complete_plate_appearance(
 			"Strikeout swinging" if swinging else "Called strikeout"
 		)
@@ -122,8 +163,10 @@ func record_ball_in_play_out(
 	description: String = "Out"
 ) -> void:
 	performance.complete(batter().definition.id, pitcher().definition.id, "out", runs_scored)
+	cold.complete(self, "out")
 	_add_runs(runs_scored)
 	outs += 1
+	base_flow.complete(self, "out", runs_scored)
 	_complete_plate_appearance(description)
 
 func record_hit(result: BallPlayOutcome.Result) -> int:
@@ -133,8 +176,10 @@ func record_hit(result: BallPlayOutcome.Result) -> int:
 		"hr" if result == BallPlayOutcome.Result.HOME_RUN else _hit_name(result).to_lower()
 	)
 	performance.complete(batter_id, pitcher().definition.id, outcome, runs_scored)
+	cold.complete(self, outcome)
 	_add_runs(runs_scored)
-	_complete_plate_appearance(_hit_name(result))
+	base_flow.complete(self, outcome, runs_scored)
+	_complete_plate_appearance(_hit_name(result), result == BallPlayOutcome.Result.SINGLE)
 	return runs_scored
 
 func continue_after_dead_ball() -> void:
@@ -180,7 +225,19 @@ func _add_runs(amount: int) -> void:
 	):
 		_finish_game("Mercy rule")
 
-func _complete_plate_appearance(description: String) -> void:
+func _complete_plate_appearance(description: String, single: bool = false) -> void:
+	abilities.reset()
+	defensive_team().sure_shot_locked = false
+	pitch_disclosure.clear()
+	sides.complete(self)
+	_deli_next_batter = single and outs < OUTS_PER_HALF and phase != Phase.GAME_END
+	for participant: PlayerMatchState in _pa_pitchers:
+		participant.first_batter_completed = true
+	_pa_pitchers.clear()
+	pitch_ledger.clear()
+	optics_mode = "normal"
+	cornerstone_anchored = false
+	jumpstart_mode = "normal"
 	last_event = description
 	batting_team().advance_batter()
 	plate_appearance_number += 1
@@ -188,14 +245,18 @@ func _complete_plate_appearance(description: String) -> void:
 	balls = 0
 	strikes = 0
 	between_batters = true
-	if phase == Phase.GAME_END:
-		return
-	if outs >= OUTS_PER_HALF:
-		phase = Phase.INNING_TRANSITION
-	else:
-		phase = Phase.PLAY_DEAD
+	if phase != Phase.GAME_END:
+		phase = Phase.INNING_TRANSITION if outs >= OUTS_PER_HALF else Phase.PLAY_DEAD
+	# Retire saved sales first, so delivery sees the capacity at this legal boundary.
+	inventory_boundary.emit()
+	home_team.field_supply.deliver(self, home_team)
+	away_team.field_supply.deliver(self, away_team)
 
 func _advance_half_inning() -> void:
+	abilities.reset()
+	away_team.tactics.checkout.clear()
+	home_team.tactics.checkout.clear()
+	_deli_next_batter = false
 	if top_half:
 		if (
 			_mercy_available()
@@ -243,6 +304,8 @@ func _run_difference() -> int:
 	return absi(away_team.runs - home_team.runs)
 
 func _finish_game(reason: String) -> void:
+	away_team.tactics.checkout.clear()
+	home_team.tactics.checkout.clear()
 	phase = Phase.GAME_END
 	winner_name = (
 		away_team.display_name
@@ -263,3 +326,16 @@ func _hit_name(result: BallPlayOutcome.Result) -> String:
 			return "Home Run"
 		_:
 			return "Ball in play"
+
+
+func note_pitch_released(recipe: StringName = &"", actual_paid: float = 0.0) -> void:
+	if phase != Phase.PITCH_IN_FLIGHT:
+		return
+	abilities.released = true
+	if not _pa_pitchers.has(pitcher()):
+		_pa_pitchers.append(pitcher())
+	pitch_ledger.record(pitcher(), recipe, actual_paid)
+	defensive_team().recovery.release(self, recipe, actual_paid)
+	sure_shot.release(self, recipe)
+	if recipe != &"":
+		gear_usage.released()

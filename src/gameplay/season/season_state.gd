@@ -1,7 +1,19 @@
 class_name SeasonState
 extends RefCounted
 
+# gdlint: disable=function-arguments-number
+# Preserve positional result evidence for historical callers.
+
 enum Phase { DRAFT, REGULAR, SEMIFINAL, FINAL, COMPLETE }
+
+const SOURCE_OPERATIONS_1: GDScript = preload(
+	"res://src/gameplay/season/season_state_operations_1.gd"
+)
+
+const SOURCE_OPERATIONS_2: GDScript = preload(
+	"res://src/gameplay/season/season_state_operations_2.gd"
+)
+
 const TEAM_NAMES: Array[String] = ["Yard Club", "Rivets", "Kites", "Lanterns", "Comets", "Switches"]
 const AWAY_FIELD_ID: StringName = &"field.commons_park"
 const LEGACY_IDS: Array[String] = [
@@ -30,10 +42,20 @@ const LEGACY_IDS: Array[String] = [
 	"player.sam_park",
 	"player.tess_vale"
 ]
+var league_rules: Dictionary = {}
+var inventory_rules: Dictionary = {}
+var league_live: bool = false
 var season_seed: int = 0
 var phase: Phase = Phase.DRAFT
 var round_index: int = 0
 var draft_pool: Array[String] = []
+var player_access: Array[String] = []
+var home_property: Dictionary = {}
+# Empty preserves the exact historical day path. New seasons opt in before checkpoint.
+var owned_surface_night: Dictionary = {}
+var npc_venues: Dictionary = {}
+# Explicit qualification only; absence preserves the historical Commons final.
+var final_venue: Dictionary = {}
 var picks: Array[String] = []
 var teams: Array[Dictionary] = []
 var schedule: Array[Dictionary] = []
@@ -46,247 +68,319 @@ var champion: int = -1
 var starter_index: int = 0
 var fielder_index: int = 1
 var difficulty: int = 1
+var ownership: SeasonOwnership = SeasonOwnership.new()
+var build: SeasonBuild
+var opponents: SeasonOpponents
+var league_career: bool = false
+var career: ClubCareer
+var physical: SeasonPhysicalFixtures
+
+var _dynasty_start: Dictionary = {}
+var _closed_access: Dictionary = {}
+# Runtime-only writer identity; never serialized into historical season payloads.
+var _dynasty_owner_binding: Dictionary = {}
+# Save83 binds a local closed session; shared Career28 stays in OwnerV2 only.
+var _league_home_context: Dictionary = {}
+var _standard_live_context: Dictionary = {}
+var _standard_bound_grant: Dictionary = {}
+var _dynasty_career_session: Dictionary = {}
+var _heat_replay_team: TeamMatchState
+var _doubleheader_replay_build: SeasonBuild
+# Validated v60 paid journal available while disposable result replay precedes career restore.
+var _pool_replay_ledger: ClubAssetLedger
+# Saved real career run while disposable result replay precedes career restoration.
+var _npc_replay_run: int = -1
 
 
-static func field_for_fixture(fixture: Dictionary) -> FieldDefinition:
-	var home: bool = fixture.get("home", -1) == 0 and not fixture.get("neutral", false)
-	return ContentDB.get_field(PitchBatLab.FIELD_ID if home else AWAY_FIELD_ID)
+static func field_for_fixture(fixture: Dictionary, season: SeasonState = null) -> FieldDefinition:
+	return SOURCE_OPERATIONS_1._source_public_field_for_fixture(fixture, season)
 
 
-static func create(seed_value: int, legacy: bool = false) -> SeasonState:
-	var season: SeasonState = SeasonState.new()
-	season.season_seed = seed_value
-	for id: StringName in ContentDB.player_by_id:
-		if id != PitchBatLab.DEBUG_PLAYER_ID and (not legacy or String(id) in LEGACY_IDS):
-			season.draft_pool.append(String(id))
-	season.draft_pool.sort()
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed_value
-	for index in range(season.draft_pool.size() - 1, 0, -1):
-		var other: int = rng.randi_range(0, index)
-		var held: String = season.draft_pool[index]
-		season.draft_pool[index] = season.draft_pool[other]
-		season.draft_pool[other] = held
-	if not legacy:
-		season._limit_specialist_offers()
-	for index in range(6):
-		season.teams.append({"name": TEAM_NAMES[index], "roster": [], "draw": rng.randf()})
-	season._build_schedule()
-	return season
+static func create(
+	seed_value: int,
+	legacy: bool = false,
+	working_progression: bool = false,
+	paid_opponents: bool = false
+) -> SeasonState:
+	return SOURCE_OPERATIONS_1._source_public_create(seed_value, legacy, working_progression, \
+		paid_opponents)
+
+
+func league_context_consistent() -> bool:
+	if _league_home_context.get("format") in [91, 92, 93, 94, 95, 96]:
+		return load("res://src/gameplay/season/dynasty_league_home_live.gd").matches(self)
+	if not _league_home_context.is_empty():
+		return not load("res://src/gameplay/season/dynasty_league_home_save.gd").capture(self).is_empty()
+	return SOURCE_OPERATIONS_1._source_public_league_context_consistent(self)
+
+
+func _league_inventory_context_consistent() -> bool:
+	return SOURCE_OPERATIONS_1._source_private_league_inventory_context_consistent(self)
+
+
+func _league_opponent_context_consistent() -> bool:
+	return SOURCE_OPERATIONS_1._source_private_league_opponent_context_consistent(self)
+
+
+static func create_closed_league(
+	seed_value: int, rules: Variant, live: bool = false, access_value: Dictionary = {}
+) -> SeasonState:
+	return SOURCE_OPERATIONS_1._source_public_create_closed_league(seed_value, rules, live, \
+		access_value)
 
 
 func _limit_specialist_offers() -> void:
-	var special_seen: bool = false
-	for index in range(12):
-		if ContentDB.get_player(StringName(draft_pool[index])).starting_pitches.size() < 4:
-			continue
-		if not special_seen:
-			special_seen = true
-			continue
-		for other in range(12, draft_pool.size()):
-			if ContentDB.get_player(StringName(draft_pool[other])).starting_pitches.size() < 4:
-				var held: String = draft_pool[index]
-				draft_pool[index] = draft_pool[other]
-				draft_pool[other] = held
-				break
+	SOURCE_OPERATIONS_1._source_private_limit_specialist_offers(self)
 
 
 func offers() -> Array[String]:
-	var result: Array[String] = []
-	if phase == Phase.DRAFT:
-		for index in range(picks.size() * 3, picks.size() * 3 + 3):
-			result.append(draft_pool[index])
-	return result
+	return SOURCE_OPERATIONS_1._source_public_offers(self)
 
 
 func choose_player(id: String) -> bool:
-	if phase != Phase.DRAFT or not offers().has(id):
-		return false
-	picks.append(id)
-	if picks.size() == 4:
-		teams[0]["roster"] = picks.duplicate()
-		var remaining: Array[String] = []
-		for candidate in draft_pool:
-			if not picks.has(candidate):
-				remaining.append(candidate)
-		for team in range(1, 6):
-			teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
-		for team in range(6):
-			teams[team]["strength"] = _strength(team)
-		phase = Phase.REGULAR
-	return true
+	return SOURCE_OPERATIONS_1._source_public_choose_player(self, id)
+
+
+func _choose_player_remaining_checks(id: String) -> bool:
+	return SOURCE_OPERATIONS_1._source_private_choose_player_remaining_checks(self, id)
 
 
 func pending_fixture() -> Dictionary:
-	if phase == Phase.REGULAR:
-		for fixture in schedule:
-			if fixture["round"] == round_index and (fixture["home"] == 0 or fixture["away"] == 0):
-				return fixture
-	elif phase == Phase.SEMIFINAL:
-		for fixture in semifinals:
-			if fixture["home"] == 0 or fixture["away"] == 0:
-				return fixture
-	elif phase == Phase.FINAL:
-		return final_fixture
-	return {}
+	return SOURCE_OPERATIONS_1._source_public_pending_fixture(self)
+
+
+func academy_fixture_ready(fixture: Dictionary) -> bool:
+	return SOURCE_OPERATIONS_1._source_public_academy_fixture_ready(self, fixture)
 
 
 func make_match() -> MatchState:
-	var fixture: Dictionary = pending_fixture()
-	if fixture.is_empty():
+	if not _league_home_context.is_empty() and _league_home_context.get("format") not in [91, 92, 93, 94, 95, 96]:
 		return null
-	var match_state: MatchState = MatchState.create(
-		_make_team(fixture["away"]), _make_team(fixture["home"])
-	)
-	match_state.ai_tactical_quality = clampf(
-		0.15 + difficulty * 0.25 + minf(round_index, 9) * 0.025, 0.0, 1.0
-	)
-	var player: TeamMatchState = (
-		match_state.home_team if fixture["home"] == 0 else match_state.away_team
-	)
-	player.pitcher_index = starter_index
-	player.fielder_index = fielder_index
-	return match_state
+	return SOURCE_OPERATIONS_1._source_public_make_match(self)
 
 
 func record_player_result(
-	fixture_id: int, away_runs: int, home_runs: int, performance: Dictionary = {}
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null
 ) -> bool:
-	var fixture: Dictionary = pending_fixture()
-	if fixture.is_empty() or fixture["id"] != fixture_id or away_runs == home_runs:
-		return false
-	if mini(away_runs, home_runs) < 0 or maxi(away_runs, home_runs) > 9999:
-		return false
-	var roster: Array = teams[fixture["away"]]["roster"] + teams[fixture["home"]]["roster"]
-	if not performance.is_empty() and not SeasonPerformance.valid(performance, roster):
-		return false
-	var result: Dictionary = fixture.duplicate(true)
-	result["away_runs"] = away_runs
-	result["home_runs"] = home_runs
-	if not performance.is_empty():
-		result["performance"] = performance.duplicate(true)
-	results.append(result)
-	player_results.append(result.duplicate(true))
+	return SOURCE_OPERATIONS_1._source_public_record_player_result(self, fixture_id, away_runs, \
+		home_runs, performance, used_gear, tactics, batting, stances, fielding, pitching, field_supply, \
+		frozen, ai_tactics, replayed_tactics, property_key, pool_evidence, yard_evidence)
+
+
+func record_inventory_result(human: Array) -> bool:
+	return SOURCE_OPERATIONS_1._source_public_record_inventory_result(self, human)
+
+
+func record_doubleheader_result(human: Array) -> bool:
+	return SOURCE_OPERATIONS_1._source_public_record_doubleheader_result(self, human)
+
+
+func record_surface_night_result(human: Array) -> bool:
+	return SOURCE_OPERATIONS_1._source_public_record_surface_night_result(self, human)
+
+
+func _record_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null,
+	night_evidence: Variant = null,
+	doubleheader_evidence: Variant = null,
+	replay_pitching: Dictionary = {},
+	inventory_final: Variant = null,
+	replay_doubleheader: bool = false
+) -> bool:
+	return SOURCE_OPERATIONS_1._source_private_record_player_result(self, fixture_id, away_runs, \
+		home_runs, performance, used_gear, tactics, batting, stances, fielding, pitching, field_supply, \
+		frozen, ai_tactics, replayed_tactics, property_key, pool_evidence, yard_evidence, \
+		night_evidence, doubleheader_evidence, replay_pitching, inventory_final, replay_doubleheader)
+
+
+func _validate_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary,
+	used_gear: Array,
+	tactics: Array,
+	batting: Dictionary,
+	stances: Array,
+	fielding: Array,
+	pitching: Dictionary,
+	field_supply: Dictionary,
+	frozen: Array,
+	ai_tactics: Dictionary,
+	replayed_tactics: Array,
+	property_key: String,
+	pool_evidence: Variant,
+	yard_evidence: Variant,
+	night_evidence: Variant,
+	doubleheader_evidence: Variant,
+	replay_pitching: Dictionary,
+	inventory_final: Variant,
+	doubleheader_replayed_prefix: SeasonBuild,
+	fixture: Dictionary
+) -> bool:
+	return SOURCE_OPERATIONS_1._source_private_validate_player_result(self, fixture_id, away_runs, \
+		home_runs, performance, used_gear, tactics, batting, stances, fielding, pitching, field_supply, \
+		frozen, ai_tactics, replayed_tactics, property_key, pool_evidence, yard_evidence, \
+		night_evidence, doubleheader_evidence, replay_pitching, inventory_final, \
+		doubleheader_replayed_prefix, fixture)
+
+
+func _commit_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary,
+	used_gear: Array,
+	tactics: Array,
+	batting: Dictionary,
+	stances: Array,
+	fielding: Array,
+	pitching: Dictionary,
+	field_supply: Dictionary,
+	frozen: Array,
+	ai_tactics: Dictionary,
+	replayed_tactics: Array,
+	property_key: String,
+	pool_evidence: Variant,
+	yard_evidence: Variant,
+	night_evidence: Variant,
+	doubleheader_evidence: Variant,
+	replay_pitching: Dictionary,
+	inventory_final: Variant,
+	fixture: Dictionary,
+	pitching_current: Dictionary = {}
+) -> bool:
+	return SOURCE_OPERATIONS_2._source_private_commit_player_result(self, fixture_id, away_runs, \
+		home_runs, performance, used_gear, tactics, batting, stances, fielding, pitching, field_supply, \
+		frozen, ai_tactics, replayed_tactics, property_key, pool_evidence, yard_evidence, \
+		night_evidence, doubleheader_evidence, replay_pitching, inventory_final, fixture, pitching_current)
+
+
+func _finish_round(fixture_id: int, result: Dictionary) -> bool:
 	if phase == Phase.REGULAR:
 		for game in schedule:
 			if game["round"] == round_index and game["id"] != fixture_id:
-				results.append(_simulate(game))
+				var other: Dictionary = _simulate(game)
+				if other.is_empty():
+					return false
+				results.append(other)
+		if opponents != null:
+			var played: Array = results.filter(
+				func(row: Dictionary) -> bool: return row["round"] == round_index
+			)
+			var survivors: Array = [1, 2, 3, 4, 5]
+			if round_index == 9:
+				survivors = standings().slice(0, 4).map(
+					func(row: Dictionary) -> int: return row.team
+				)
+			opponents.settle(played, survivors)
 		round_index += 1
 		if round_index == 10:
-			_begin_playoffs()
+			if not _begin_playoffs():
+				return false
 	elif phase == Phase.SEMIFINAL:
 		for game in semifinals:
 			if game["id"] != fixture_id:
-				results.append(_simulate(game))
-		_prepare_final()
+				var other: Dictionary = _simulate(game)
+				if other.is_empty():
+					return false
+				results.append(other)
+		_settle_semifinals()
+		if not _prepare_final():
+			return false
 	else:
+		if opponents != null:
+			opponents.settle([result], [])
 		champion = _winner(result)
 		phase = Phase.COMPLETE
 	return true
 
 
 func standings() -> Array[Dictionary]:
-	var rows: Array[Dictionary] = []
-	for team in range(6):
-		rows.append({"team": team, "wins": 0, "losses": 0, "rf": 0, "ra": 0})
-	for game in results:
-		if game["id"] >= 30:
-			continue
-		var away: Dictionary = rows[game["away"]]
-		var home: Dictionary = rows[game["home"]]
-		away["rf"] += game["away_runs"]
-		away["ra"] += game["home_runs"]
-		home["rf"] += game["home_runs"]
-		home["ra"] += game["away_runs"]
-		rows[_winner(game)]["wins"] += 1
-		rows[game["home"] if _winner(game) == game["away"] else game["away"]]["losses"] += 1
-	rows.sort_custom(_rank_before)
-	return rows
+	return SOURCE_OPERATIONS_2._source_public_standings(self)
 
 
 func swap_batters(first: int, second: int) -> void:
-	if phase == Phase.DRAFT or mini(first, second) < 0 or maxi(first, second) >= 4:
-		return
-	var roster: Array = teams[0]["roster"]
-	var held: String = roster[first]
-	roster[first] = roster[second]
-	roster[second] = held
-	if starter_index == first or starter_index == second:
-		starter_index = second if starter_index == first else first
-	if fielder_index == first or fielder_index == second:
-		fielder_index = second if fielder_index == first else first
+	SOURCE_OPERATIONS_2._source_public_swap_batters(self, first, second)
 
 
 func select_starter(index: int) -> void:
-	if index < 0 or index >= 4:
-		return
-	starter_index = index
-	if fielder_index == index:
-		fielder_index = (index + 1) % 4
+	SOURCE_OPERATIONS_2._source_public_select_starter(self, index)
 
 
 func _build_schedule() -> void:
-	var rotation: Array[int] = [0, 1, 2, 3, 4, 5]
-	for round_number in range(5):
-		for pair in range(3):
-			var away: int = rotation[pair]
-			var home: int = rotation[5 - pair]
-			if (round_number + pair) % 2 == 1:
-				var held: int = away
-				away = home
-				home = held
-			schedule.append(
-				{"id": round_number * 3 + pair, "round": round_number, "away": away, "home": home}
-			)
-			# Return leg swaps venues exactly once.
-			schedule.append(
-				{
-					"id": (round_number + 5) * 3 + pair,
-					"round": round_number + 5,
-					"away": home,
-					"home": away
-				}
-			)
-		rotation.insert(1, rotation.pop_back())
+	SOURCE_OPERATIONS_2._source_private_build_schedule(self)
 
 
-func _make_team(index: int) -> TeamMatchState:
-	var roster: Array[PlayerDefinition] = []
-	for id: String in teams[index]["roster"]:
-		roster.append(ContentDB.get_player(StringName(id)))
-	return TeamMatchState.create(teams[index]["name"], roster)
+func _make_team(index: int, fixture_id: int = -1) -> TeamMatchState:
+	return SOURCE_OPERATIONS_2._source_private_make_team(self, index, fixture_id)
+
+
+func opposing_starter(fixture: Dictionary) -> String:
+	return SOURCE_OPERATIONS_2._source_public_opposing_starter(self, fixture)
+
+
+func player_definition(id: String) -> PlayerDefinition:
+	return SOURCE_OPERATIONS_2._source_public_player_definition(self, id)
+
+
+func cash() -> int:
+	return SOURCE_OPERATIONS_2._source_public_cash(self)
+
+
+func shop_available() -> bool:
+	return SOURCE_OPERATIONS_2._source_public_shop_available(self)
+
+
+func recruit_blocked() -> Array[String]:
+	return SOURCE_OPERATIONS_2._source_public_recruit_blocked(self)
+
+
+func adopt_build(next: SeasonBuild) -> void:
+	SOURCE_OPERATIONS_2._source_public_adopt_build(self, next)
 
 
 func _rank_before(a: Dictionary, b: Dictionary) -> bool:
-	for stat in ["wins", "difference", "rf"]:
-		var left: int = a["rf"] - a["ra"] if stat == "difference" else a[stat]
-		var right: int = b["rf"] - b["ra"] if stat == "difference" else b[stat]
-		if left != right:
-			return left > right
-	return teams[a["team"]]["draw"] > teams[b["team"]]["draw"]
+	return SOURCE_OPERATIONS_2._source_private_rank_before(self, a, b)
 
 
-func _begin_playoffs() -> void:
-	var rows: Array[Dictionary] = standings()
-	for index in range(4):
-		playoff_seeds.append(rows[index]["team"])
-	for pair in range(2):
-		semifinals.append(
-			{
-				"id": 30 + pair,
-				"round": 10,
-				"home": playoff_seeds[pair],
-				"away": playoff_seeds[3 - pair]
-			}
-		)
-	phase = Phase.SEMIFINAL
-	if not playoff_seeds.has(0):
-		for game in semifinals:
-			results.append(_simulate(game))
-		_prepare_final()
+func _begin_playoffs() -> bool:
+	return SOURCE_OPERATIONS_2._source_private_begin_playoffs(self)
 
 
-func _prepare_final() -> void:
+func _prepare_final() -> bool:
 	var winners: Array[int] = []
 	for game in results:
 		if game["id"] in [30, 31]:
@@ -298,54 +392,35 @@ func _prepare_final() -> void:
 	phase = Phase.FINAL
 	if not winners.has(0):
 		var final_result: Dictionary = _simulate(final_fixture)
+		if final_result.is_empty():
+			return false
 		results.append(final_result)
+		if opponents != null:
+			opponents.settle([final_result], [])
 		champion = _winner(final_result)
 		phase = Phase.COMPLETE
+	return true
 
 
 func _simulate(fixture: Dictionary) -> Dictionary:
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = season_seed + int(fixture["id"]) * 104729
-	var result: Dictionary = fixture.duplicate(true)
-	var away: float = _strength(fixture["away"])
-	var home: float = _strength(fixture["home"])
-	result["away_runs"] = _poisson(rng, clampf(3.2 + (away - home) * 0.45, 1.0, 6.0))
-	result["home_runs"] = _poisson(rng, clampf(3.2 + (home - away) * 0.45, 1.0, 6.0))
-	# Abstract extra innings; no ties and no rubber-banding from player results.
-	if result["away_runs"] == result["home_runs"]:
-		result["away_runs" if rng.randf() < 0.5 else "home_runs"] += 1
-	return result
+	return SOURCE_OPERATIONS_2._source_private_simulate(self, fixture)
 
 
 func _strength(team: int) -> float:
-	if teams[team].has("strength"):
-		return float(teams[team]["strength"])
-	var total: float = 0.0
-	for id: String in teams[team]["roster"]:
-		var player: PlayerDefinition = ContentDB.get_player(StringName(id))
-		total += (
-			(
-				player.contact
-				+ player.power
-				+ player.fielding
-				+ player.velocity
-				+ player.break_rating
-				+ player.control
-				+ player.stamina
-			)
-			/ 7.0
-		)
-	return total / 4.0
+	return SOURCE_OPERATIONS_2._source_private_strength(self, team)
 
 
 static func _poisson(rng: RandomNumberGenerator, mean: float) -> int:
-	var product: float = 1.0
-	var count: int = -1
-	while product > exp(-mean):
-		product *= rng.randf()
-		count += 1
-	return maxi(0, count)
+	return SOURCE_OPERATIONS_2._source_private_poisson(rng, mean)
 
 
 static func _winner(result: Dictionary) -> int:
-	return result["away"] if result["away_runs"] > result["home_runs"] else result["home"]
+	return SOURCE_OPERATIONS_2._source_private_winner(result)
+
+
+func _settle_semifinals() -> void:
+	if opponents == null:
+		return
+	var played: Array = results.filter(func(row: Dictionary) -> bool: return row.id in [30, 31])
+	var survivors: Array = played.map(func(row: Dictionary) -> int: return _winner(row))
+	opponents.settle(played, survivors)

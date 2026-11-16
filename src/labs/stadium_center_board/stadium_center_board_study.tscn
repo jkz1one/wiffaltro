@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/labs/stadium_center_board/stadium_center_board_study.gd" id="1"]
+
+[node name="CenterBoardVisualStudy" type="Node3D"]
+script = ExtResource("1")
+enable_center_board = true

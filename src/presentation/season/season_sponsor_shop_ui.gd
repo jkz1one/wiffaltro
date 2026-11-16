@@ -1,0 +1,200 @@
+class_name SeasonSponsorShopUI
+extends RefCounted
+
+
+static func active(window: SeasonShopWindow, wallet: Dictionary) -> void:
+	window._label(
+		(
+			"ACTIVE SPONSORS • %d / %d • No reserves"
+			% [wallet.sponsors.size(), wallet.capacity.sponsors]
+		)
+	)
+	for receipt: Dictionary in wallet.sponsors:
+		var item: Dictionary = SeasonSponsorCatalog.item(receipt.item)
+		window._label(
+			(
+				"%s • %s • Working • Paid %d • Sell %d\n%s"
+				% [
+					item.name,
+					item.rarity,
+					receipt.paid,
+					SeasonSponsorCatalog.resale(receipt),
+					item.effect
+				]
+			)
+		)
+		var terms: String = SeasonSponsorCatalog.receipt_label(receipt)
+		if not terms.is_empty():
+			window._label(terms)
+		if receipt.item == "F09":
+			var target: String = window.app.season.build._major.player
+			window._label(
+				(
+					"Beneficiary: "
+					+ (
+						"none"
+						if target == ""
+						else window.app.season.build.definition(target).display_name
+					)
+				)
+			)
+			(
+				window
+				. _button(
+					"CHANGE BENEFICIARY",
+					window._preview.bind(
+						window._request("major_assign"),
+						"Change Double Major beneficiary. No ability transfers."
+					)
+				)
+				. set_meta("major_assign", true)
+			)
+		if receipt.item == "E05":
+			var stamps: Array = window.app.season.build._legends.get(receipt.id, [])
+			window._label(
+				(
+					"This copy: %d / 4 stamps • +%d%% fair Contact exit speed next game. %s"
+					% [stamps.size(), stamps.size(), ", ".join(stamps)]
+				)
+			)
+		if receipt.item == "B02":
+			_college_status(window)
+		var button: Button = (
+			window
+			. _button(
+				"SELL " + item.name,
+				(
+					window
+					. _preview
+					. bind(
+						window._request("sponsor_sell", {"receipt": receipt.id}),
+						(
+							"Sell %s for %d Cash. Remove its future effect. Already settled income stays.\n%s"
+							% [item.name, SeasonSponsorCatalog.resale(receipt), item.effect]
+						)
+					)
+				)
+			)
+		)
+		button.set_meta("sponsor_sell", receipt.id)
+
+
+static func offer(
+	window: SeasonShopWindow, offer_id: String, id: String, wallet: Dictionary
+) -> void:
+	var item: Dictionary = SeasonSponsorCatalog.item(id)
+	window._label(
+		"%s • %s • %d Cash • Working\n%s" % [item.name, item.rarity, item.price, item.effect]
+	)
+	window._label(_timing(id))
+	var terms: String = SeasonSponsorCatalog.offer_label(window.app.season.build, offer_id, id)
+	if not terms.is_empty():
+		window._label(terms)
+	if id == "B02":
+		_college_status(window)
+	if id == "J05" or wallet.sponsors.size() < wallet.capacity.sponsors:
+		_purchase(window, offer_id, id, {})
+	for receipt: Dictionary in wallet.sponsors:
+		_purchase(window, offer_id, id, receipt)
+
+
+static func _purchase(
+	window: SeasonShopWindow, offer_id: String, id: String, old: Dictionary
+) -> void:
+	var item: Dictionary = SeasonSponsorCatalog.item(id)
+	var review: String = (
+		"Activate %s for %d Cash • Working\n%s\n%s"
+		% [item.name, item.price, item.effect, _timing(id)]
+	)
+	var terms: String = SeasonSponsorCatalog.offer_label(window.app.season.build, offer_id, id)
+	if not terms.is_empty():
+		review += "\n" + terms
+	var label: String = "BUY AND ACTIVATE"
+	if not old.is_empty():
+		var previous: Dictionary = SeasonSponsorCatalog.item(old.item)
+		label = "REPLACE " + previous.name
+		review += (
+			"\nSell %s for %d Cash. Remove: %s\nNo reserve retained."
+			% [previous.name, SeasonSponsorCatalog.resale(old), previous.effect]
+		)
+	if id == "J10":
+		var nominate: Button = window._button(
+			label + " • CHOOSE STUDENT", SeasonSchoolShopUI.students.bind(window, offer_id, old)
+		)
+		nominate.set_meta("sponsor_offer", offer_id)
+		nominate.set_meta("sponsor_replace", old.get("id", ""))
+		return
+	if not old.is_empty():
+		window._label(
+			(
+				"Refund %d Cash • net cost %d Cash"
+				% [SeasonSponsorCatalog.resale(old), item.price - SeasonSponsorCatalog.resale(old)]
+			)
+		)
+	var button: Button = window._purchase(
+		label,
+		window._request("sponsor_buy", {"offer": offer_id, "replace": old.get("id", "")}),
+		review
+	)
+	button.set_meta("sponsor_offer", offer_id)
+	button.set_meta("sponsor_replace", old.get("id", ""))
+
+
+static func _timing(id: String) -> String:
+	if id == "G05":
+		return "Choose a removed arm in BULLPEN and confirm. Cancel preserves your return."
+	if id == "E05":
+		return "Starts with zero stamps. Only later completed games grow this purchased copy."
+	if id == "F01":
+		return "Working match choice in FIELD setup. Normal by default; no guaranteed catch or out."
+	if id in ["E06", "F04", "J10"]:
+		return (
+			"No guaranteed stock or Cash payout. Review exact recipients, prices "
+			+ "and remaining allowances before committing."
+		)
+	if id == "F05":
+		return (
+			"Accepted sale-trigger direction; price and transaction details remain Working. "
+			+ "Active at sale, not necessarily during play. Exact paid Bat/Ball/Misc copy must "
+			+ "have been equipped at first pitch of a completed game. No abandoned-game credit. "
+			+ "Buying another copy never inherits use. No value unless you reroll before leaving."
+		)
+	if id == "F03":
+		return (
+			"Match effect, no Cash payout. Choose before confirming each at-bat. "
+			+ "Defaults to normal. Gear applies first; ordinary contact quality uses the new ellipse."
+		)
+	if id in ["F02", "G04"]:
+		return (
+			"Match effect, no Cash payout. Only existing legal tag races change. "
+			+ "Courier and opposing Trackside modify different parts of the same timing comparison."
+		)
+	if id == "B03":
+		return (
+			"Match effect, no Cash payout. Repeated pitches and later distinct recipes "
+			+ "add nothing. Delivery variants count separately; only the credited pitcher's "
+			+ "own releases count. No refund without the K, and no extra substitution rights."
+		)
+	if id == "A07":
+		return (
+			"Match effect, no Cash payout. A new game starts with no chain. Bonus adds "
+			+ "to the Bat exit modifier; Gloves still apply once."
+		)
+	if id == "B02":
+		return (
+			"Match effect, no Cash payout. Prior earned growth counts; departing players "
+			+ "stop contributing and the same returning instance restores its "
+			+ "contribution. Gear workload factors still apply once."
+		)
+	return "Future completed games only. No guaranteed return; unfinished games pay nothing."
+
+
+static func _college_status(window: SeasonShopWindow) -> void:
+	var build: SeasonBuild = window.app.season.build
+	var count: int = mini(4, build._book.earned_players(build.roster()).size())
+	window._label(
+		(
+			"College eligibility now: %d / 4 players • %d%% natural-delivery reduction"
+			% [count, count * 3]
+		)
+	)

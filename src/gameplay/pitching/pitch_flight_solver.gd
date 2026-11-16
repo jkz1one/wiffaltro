@@ -17,8 +17,13 @@ static func step(
 		state.velocity,
 		state.orientation,
 		state.angular_velocity,
-		parameters
+		parameters,
+		movement_weight(state.position.z, parameters),
+		axis_movement_weight(state.position.z, parameters)
 	)
+
+	if not parameters.exotic_shape.is_empty():
+		acceleration_start += PitchExoticShape.acceleration(state.position.z, state.velocity, parameters)
 
 	var midpoint_velocity: Vector3 = (
 		state.velocity
@@ -34,8 +39,14 @@ static func step(
 		midpoint_velocity,
 		midpoint_orientation,
 		state.angular_velocity,
-		parameters
+		parameters,
+		movement_weight(state.position.z + state.velocity.z * delta_seconds * 0.5, parameters),
+		axis_movement_weight(state.position.z + state.velocity.z * delta_seconds * 0.5, parameters)
 	)
+
+	if not parameters.exotic_shape.is_empty():
+		acceleration_midpoint += PitchExoticShape.acceleration(
+			state.position.z + state.velocity.z * delta_seconds * 0.5, midpoint_velocity, parameters)
 
 	state.position += midpoint_velocity * delta_seconds
 	state.velocity += acceleration_midpoint * delta_seconds
@@ -45,6 +56,28 @@ static func step(
 		delta_seconds
 	)
 	state.elapsed_time += delta_seconds
+
+
+static func movement_weight(position_z: float, parameters: PitchLaunchParameters) -> float:
+	# The continuous current-position envelope redistributes force, not the
+	# final outcome. It uses no target error or future trajectory correction.
+	var distance: float = maxf(0.001, parameters.release_z - parameters.target_z)
+	var progress: float = clampf((parameters.release_z - position_z) / distance, 0.0, 1.0)
+	return 1.0 + parameters.mastery_late_bias * (2.0 * progress - 1.0)
+
+static func axis_movement_weight(position_z: float, parameters: PitchLaunchParameters) -> Vector2:
+	var distance: float = maxf(0.001, parameters.release_z - parameters.target_z)
+	var progress: float = clampf((parameters.release_z - position_z) / distance, 0.0, 1.0)
+	var result: Vector2 = Vector2.ONE
+	for axis: int in range(2):
+		if parameters.movement_initial_scale[axis] == 1.0:
+			continue
+		var start: float = clampf(parameters.movement_start[axis], 0.0, 0.98)
+		var finish: float = clampf(parameters.movement_end[axis], start + 0.01, 1.0)
+		var phase: float = smoothstep(start, finish, progress)
+		result[axis] = lerpf(parameters.movement_initial_scale[axis], 1.0, phase)
+	return result
+
 
 static func _instability_angular_velocity(
 	state: PitchState,

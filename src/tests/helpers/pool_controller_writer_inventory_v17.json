@@ -1,0 +1,379 @@
+{
+  "schema": "POOL-WRITER-INVENTORY-v1",
+  "sets": {
+    "unit": {
+      "count": 36,
+      "path_hash_table_bytes": 5048,
+      "source_file_bytes": 281621,
+      "rows": [
+        {
+          "path": "res://src/content/content_db.gd",
+          "sha256": "88d70cc3823815f0db4812b412131a57e51689f965c856a21c75c9a14b0295ee",
+          "bytes": 3654
+        },
+        {
+          "path": "res://src/gameplay/ball_in_play/ball_play_resolver.gd",
+          "sha256": "371da37f8112eb6da3881aa07b3225ddc4c6cfd4160d29eb06fc55241dbdaa4a",
+          "bytes": 7132
+        },
+        {
+          "path": "res://src/gameplay/ball_in_play/ball_play_state.gd",
+          "sha256": "8a31d563ea78bfa6637def55aeb83dcd036bb16a187773fece4e852676ad8c4c",
+          "bytes": 1155
+        },
+        {
+          "path": "res://src/gameplay/fielding/pitcher_defense.gd",
+          "sha256": "0c6774f23b58d1456e95531c31ecf29e0f61b771aaa9b3476ac3d35d8417f9dd",
+          "bytes": 1838
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_contract.gd",
+          "sha256": "94f06f487e3d020d5b26441a252e3e1c38d493ec588df69cda8735f40e8db9bd",
+          "bytes": 4164
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_controller_shadow.gd",
+          "sha256": "28e0e2af4f5f435deef0b800d6bb4ec41bed9e34995fdb3915c9c90d5995b3b4",
+          "bytes": 24728
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_interior_v2.gd",
+          "sha256": "ea15857f0e225aa520a053aae8d1020bba8ea00f4812bfae770e020e72eb0db2",
+          "bytes": 7031
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_party_asset_integrity.gd",
+          "sha256": "5da71e546e50af6e69aaf1574655c463036ac72e6ab2043886c7828ce5be6a1e",
+          "bytes": 3190
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_water_guard.gd",
+          "sha256": "63bef21f03b8970ce134d6456fe8258bbcc592d50d49a4b65c6c27c48bca72b9",
+          "bytes": 19906
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/match_lab_support.gd",
+          "sha256": "0bc5a5b81eeb89acffb56843b92b65265892ff0069f1217f6eb1b7f54cb492a5",
+          "bytes": 18625
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/pitch_bat_lab.gd",
+          "sha256": "fbf5cb3ce2d6502c93bf21d80510f02d1bedb083e8c70af85243cd4311fb03ac",
+          "bytes": 32898
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/pitch_bat_lab_defense_support.gd",
+          "sha256": "3227e3358e432ced68d359e8578a8e37f05c1392a38e103185f807ade8a016a3",
+          "bytes": 5095
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/starter_field_lab_geometry.gd",
+          "sha256": "0be889d48a37c9e5d017fcd234b2289cc8928a386605352557a6c7631ceeb9e5",
+          "bytes": 8881
+        },
+        {
+          "path": "res://src/presentation/ball/ball_visibility.gd",
+          "sha256": "85b5e439876247a1805242ffe46abe4c4fc56d83f8cb275734c9e0e673722fe6",
+          "bytes": 2924
+        },
+        {
+          "path": "res://src/presentation/ball/batted_ball_body.gd",
+          "sha256": "706bdcdb59030712ce4d90994e32ce8727e3806ddb45e584843e9b8d34f66b6e",
+          "bytes": 3911
+        },
+        {
+          "path": "res://src/presentation/ball/pitch_flight_actor.gd",
+          "sha256": "79a51e1fd14077d0ab1be26a61bed531124e9c4349806af9bc9a0321efb7464d",
+          "bytes": 5146
+        },
+        {
+          "path": "res://src/presentation/equipment/bat_actor.gd",
+          "sha256": "0ffde0469bae52363304cf94d5d2c6b0f8d0b786e1847b5108626e2a04456c14",
+          "bytes": 11956
+        },
+        {
+          "path": "res://src/presentation/fielding/fielder_controller.gd",
+          "sha256": "1b982fec0971e212900bc183c97953865f6027abb71c76f56b213579f132fab6",
+          "bytes": 6533
+        },
+        {
+          "path": "res://src/presentation/players/player_avatar.gd",
+          "sha256": "f2bb9e1e1fa7ab7fd44d2d48d76804c866d0675512f3b4f70e6dca4c1b99c485",
+          "bytes": 6826
+        },
+        {
+          "path": "res://src/presentation/stadium/stadium_property_runtime.gd",
+          "sha256": "bb8585e924d350c5230b4048ffdefc4f9ed928df1c8392dd87ede04cff3d72d7",
+          "bytes": 7380
+        },
+        {
+          "path": "res://src/presentation/ui/clubhouse_menu_stack.gd",
+          "sha256": "25581ee099ad5000baedbc1ee88936aab5ab81ba0dff25b1e05fbfb9fd020a44",
+          "bytes": 343
+        },
+        {
+          "path": "res://src/presentation/ui/match_jumpstart_controls.gd",
+          "sha256": "1586b31717e6367d6217c2908363e0241ca0e4b5dbe122c40da6c8b4130ba4f5",
+          "bytes": 2096
+        },
+        {
+          "path": "res://src/presentation/ui/match_roster_controls.gd",
+          "sha256": "8ed453fdcbfc4a17ac2c002422afd499e93fdc29d55f2af81dd721396fad91ad",
+          "bytes": 4748
+        },
+        {
+          "path": "res://src/presentation/ui/match_scorebug.gd",
+          "sha256": "b74e72fd91280f87b9e8470c4ade84d026f20e49075db07be1a14375bfc8c4e0",
+          "bytes": 6106
+        },
+        {
+          "path": "res://src/presentation/ui/match_sponsor_controls.gd",
+          "sha256": "12ddf06f413fb20b5bd36c2efc0fbc5028cf9ba4e65b429aab0579a010f93118",
+          "bytes": 7458
+        },
+        {
+          "path": "res://src/presentation/ui/match_stats_panel.gd",
+          "sha256": "d2324f82a3799a3fc6d780ee297851351e00799d72489b9ff992262b3ac43c19",
+          "bytes": 5038
+        },
+        {
+          "path": "res://src/presentation/ui/match_sure_shot_controls.gd",
+          "sha256": "cb8e20c0fbd279794206454d15eb810c6e986e06e9fafd58f083eb668a9a871d",
+          "bytes": 2979
+        },
+        {
+          "path": "res://src/presentation/ui/match_tactical_controls.gd",
+          "sha256": "faebe600b556f40c6321d639dee323c6300e13bca0f48951827579b7579656f7",
+          "bytes": 9853
+        },
+        {
+          "path": "res://src/presentation/ui/pitch_bat_lab_pause_menu.gd",
+          "sha256": "54902ff79d91c889051a38c6ef2ace084733595027403b74d83fc19a46d4e68f",
+          "bytes": 4513
+        },
+        {
+          "path": "res://src/presentation/ui/pitch_feedback.gd",
+          "sha256": "ca72cf95bac5cb4063db934d014f38870c3373ed0a18cefd138343ccc4a1fa3b",
+          "bytes": 1933
+        },
+        {
+          "path": "res://src/presentation/ui/pitch_picker.gd",
+          "sha256": "f3c256ce8257fe26e32782d8ede32e4424c258c383706984abe6805612b76dc0",
+          "bytes": 3955
+        },
+        {
+          "path": "res://src/presentation/ui/play_sounds.gd",
+          "sha256": "f35dcf43167242f16a4e0a16c51b6f24dc779627db2bf3a4727bb658a4f1913e",
+          "bytes": 3069
+        },
+        {
+          "path": "res://src/tests/helpers/pool_controller_shadow_lab.gd",
+          "sha256": "c53119cc5a943bf96d6de9c77f16d84412cee2c4cb4331a7f6886fc1fb17bf47",
+          "bytes": 2799
+        },
+        {
+          "path": "res://src/tests/helpers/pool_controller_writer_ledger.gd",
+          "sha256": "dd6099af63066d0ff15bc17f11e67b60777714a1fab32ffd56173052d4a8c410",
+          "bytes": 19240
+        },
+        {
+          "path": "res://src/tests/stadium_pool_controller_writer_test.gd",
+          "sha256": "8697ec904b0b17075f25d304d6491824e971b0ef2497b6e374a88d079cca50cf",
+          "bytes": 24065
+        },
+        {
+          "path": "res://src/tools/debug/trajectory_debug_draw.gd",
+          "sha256": "2ed454ee860d645cc89d74507ba690b9f005c98a262f9e1c8fcdd696f02c3fd0",
+          "bytes": 453
+        }
+      ]
+    },
+    "isolated_shadow": {
+      "count": 36,
+      "path_hash_table_bytes": 5044,
+      "source_file_bytes": 268199,
+      "rows": [
+        {
+          "path": "res://src/content/content_db.gd",
+          "sha256": "88d70cc3823815f0db4812b412131a57e51689f965c856a21c75c9a14b0295ee",
+          "bytes": 3654
+        },
+        {
+          "path": "res://src/gameplay/ball_in_play/ball_play_resolver.gd",
+          "sha256": "371da37f8112eb6da3881aa07b3225ddc4c6cfd4160d29eb06fc55241dbdaa4a",
+          "bytes": 7132
+        },
+        {
+          "path": "res://src/gameplay/ball_in_play/ball_play_state.gd",
+          "sha256": "8a31d563ea78bfa6637def55aeb83dcd036bb16a187773fece4e852676ad8c4c",
+          "bytes": 1155
+        },
+        {
+          "path": "res://src/gameplay/fielding/pitcher_defense.gd",
+          "sha256": "0c6774f23b58d1456e95531c31ecf29e0f61b771aaa9b3476ac3d35d8417f9dd",
+          "bytes": 1838
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_contract.gd",
+          "sha256": "94f06f487e3d020d5b26441a252e3e1c38d493ec588df69cda8735f40e8db9bd",
+          "bytes": 4164
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_controller_shadow.gd",
+          "sha256": "28e0e2af4f5f435deef0b800d6bb4ec41bed9e34995fdb3915c9c90d5995b3b4",
+          "bytes": 24728
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_interior_v2.gd",
+          "sha256": "ea15857f0e225aa520a053aae8d1020bba8ea00f4812bfae770e020e72eb0db2",
+          "bytes": 7031
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_party_asset_integrity.gd",
+          "sha256": "5da71e546e50af6e69aaf1574655c463036ac72e6ab2043886c7828ce5be6a1e",
+          "bytes": 3190
+        },
+        {
+          "path": "res://src/gameplay/stadium/stadium_pool_water_guard.gd",
+          "sha256": "63bef21f03b8970ce134d6456fe8258bbcc592d50d49a4b65c6c27c48bca72b9",
+          "bytes": 19906
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/match_lab_support.gd",
+          "sha256": "0bc5a5b81eeb89acffb56843b92b65265892ff0069f1217f6eb1b7f54cb492a5",
+          "bytes": 18625
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/pitch_bat_lab.gd",
+          "sha256": "fbf5cb3ce2d6502c93bf21d80510f02d1bedb083e8c70af85243cd4311fb03ac",
+          "bytes": 32898
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/pitch_bat_lab_defense_support.gd",
+          "sha256": "3227e3358e432ced68d359e8578a8e37f05c1392a38e103185f807ade8a016a3",
+          "bytes": 5095
+        },
+        {
+          "path": "res://src/labs/pitch_bat_lab/starter_field_lab_geometry.gd",
+          "sha256": "0be889d48a37c9e5d017fcd234b2289cc8928a386605352557a6c7631ceeb9e5",
+          "bytes": 8881
+        },
+        {
+          "path": "res://src/presentation/ball/ball_visibility.gd",
+          "sha256": "85b5e439876247a1805242ffe46abe4c4fc56d83f8cb275734c9e0e673722fe6",
+          "bytes": 2924
+        },
+        {
+          "path": "res://src/presentation/ball/batted_ball_body.gd",
+          "sha256": "706bdcdb59030712ce4d90994e32ce8727e3806ddb45e584843e9b8d34f66b6e",
+          "bytes": 3911
+        },
+        {
+          "path": "res://src/presentation/ball/pitch_flight_actor.gd",
+          "sha256": "79a51e1fd14077d0ab1be26a61bed531124e9c4349806af9bc9a0321efb7464d",
+          "bytes": 5146
+        },
+        {
+          "path": "res://src/presentation/equipment/bat_actor.gd",
+          "sha256": "0ffde0469bae52363304cf94d5d2c6b0f8d0b786e1847b5108626e2a04456c14",
+          "bytes": 11956
+        },
+        {
+          "path": "res://src/presentation/fielding/fielder_controller.gd",
+          "sha256": "1b982fec0971e212900bc183c97953865f6027abb71c76f56b213579f132fab6",
+          "bytes": 6533
+        },
+        {
+          "path": "res://src/presentation/players/player_avatar.gd",
+          "sha256": "f2bb9e1e1fa7ab7fd44d2d48d76804c866d0675512f3b4f70e6dca4c1b99c485",
+          "bytes": 6826
+        },
+        {
+          "path": "res://src/presentation/stadium/stadium_property_runtime.gd",
+          "sha256": "bb8585e924d350c5230b4048ffdefc4f9ed928df1c8392dd87ede04cff3d72d7",
+          "bytes": 7380
+        },
+        {
+          "path": "res://src/presentation/ui/clubhouse_menu_stack.gd",
+          "sha256": "25581ee099ad5000baedbc1ee88936aab5ab81ba0dff25b1e05fbfb9fd020a44",
+          "bytes": 343
+        },
+        {
+          "path": "res://src/presentation/ui/match_jumpstart_controls.gd",
+          "sha256": "1586b31717e6367d6217c2908363e0241ca0e4b5dbe122c40da6c8b4130ba4f5",
+          "bytes": 2096
+        },
+        {
+          "path": "res://src/presentation/ui/match_roster_controls.gd",
+          "sha256": "8ed453fdcbfc4a17ac2c002422afd499e93fdc29d55f2af81dd721396fad91ad",
+          "bytes": 4748
+        },
+        {
+          "path": "res://src/presentation/ui/match_scorebug.gd",
+          "sha256": "b74e72fd91280f87b9e8470c4ade84d026f20e49075db07be1a14375bfc8c4e0",
+          "bytes": 6106
+        },
+        {
+          "path": "res://src/presentation/ui/match_sponsor_controls.gd",
+          "sha256": "12ddf06f413fb20b5bd36c2efc0fbc5028cf9ba4e65b429aab0579a010f93118",
+          "bytes": 7458
+        },
+        {
+          "path": "res://src/presentation/ui/match_stats_panel.gd",
+          "sha256": "d2324f82a3799a3fc6d780ee297851351e00799d72489b9ff992262b3ac43c19",
+          "bytes": 5038
+        },
+        {
+          "path": "res://src/presentation/ui/match_sure_shot_controls.gd",
+          "sha256": "cb8e20c0fbd279794206454d15eb810c6e986e06e9fafd58f083eb668a9a871d",
+          "bytes": 2979
+        },
+        {
+          "path": "res://src/presentation/ui/match_tactical_controls.gd",
+          "sha256": "faebe600b556f40c6321d639dee323c6300e13bca0f48951827579b7579656f7",
+          "bytes": 9853
+        },
+        {
+          "path": "res://src/presentation/ui/pitch_bat_lab_pause_menu.gd",
+          "sha256": "54902ff79d91c889051a38c6ef2ace084733595027403b74d83fc19a46d4e68f",
+          "bytes": 4513
+        },
+        {
+          "path": "res://src/presentation/ui/pitch_feedback.gd",
+          "sha256": "ca72cf95bac5cb4063db934d014f38870c3373ed0a18cefd138343ccc4a1fa3b",
+          "bytes": 1933
+        },
+        {
+          "path": "res://src/presentation/ui/pitch_picker.gd",
+          "sha256": "f3c256ce8257fe26e32782d8ede32e4424c258c383706984abe6805612b76dc0",
+          "bytes": 3955
+        },
+        {
+          "path": "res://src/presentation/ui/play_sounds.gd",
+          "sha256": "f35dcf43167242f16a4e0a16c51b6f24dc779627db2bf3a4727bb658a4f1913e",
+          "bytes": 3069
+        },
+        {
+          "path": "res://src/tests/helpers/pool_controller_shadow_lab.gd",
+          "sha256": "c53119cc5a943bf96d6de9c77f16d84412cee2c4cb4331a7f6886fc1fb17bf47",
+          "bytes": 2799
+        },
+        {
+          "path": "res://src/tests/helpers/pool_controller_writer_ledger.gd",
+          "sha256": "dd6099af63066d0ff15bc17f11e67b60777714a1fab32ffd56173052d4a8c410",
+          "bytes": 19240
+        },
+        {
+          "path": "res://src/tests/stadium_pool_controller_case_test.gd",
+          "sha256": "8f49e7fe9c4a7bd93fcd8b42c3ba85e8902ddaa0b416669eae08ce3f8a6cd208",
+          "bytes": 10643
+        },
+        {
+          "path": "res://src/tools/debug/trajectory_debug_draw.gd",
+          "sha256": "2ed454ee860d645cc89d74507ba690b9f005c98a262f9e1c8fcdd696f02c3fd0",
+          "bytes": 453
+        }
+      ]
+    }
+  }
+}

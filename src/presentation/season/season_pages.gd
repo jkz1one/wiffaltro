@@ -24,9 +24,17 @@ static func stage(season: SeasonState) -> String:
 	return ending(season)
 
 
+static func league_identity(season: SeasonState) -> String:
+	var rules: Dictionary = LeagueRules.normalized(season.league_rules)
+	if rules.is_empty():
+		return "Backyard League"
+	var tier: String = "Base" if int(rules.tier) == 0 else "d%d" % int(rules.tier)
+	return str(rules.league).capitalize() + " / " + tier
+
+
 static func ending(season: SeasonState) -> String:
 	if season.champion == 0:
-		return "BACKYARD LEAGUE CHAMPIONS"
+		return league_identity(season).to_upper() + " CHAMPIONS"
 	if not season.playoff_seeds.has(0):
 		return "MISSED THE PLAYOFFS"
 	if season.final_fixture.get("home", -1) == 0 or season.final_fixture.get("away", -1) == 0:
@@ -39,12 +47,32 @@ static func hub(menu: SeasonMenu) -> void:
 	if season.phase == SeasonState.Phase.COMPLETE:
 		summary(menu)
 		return
-	menu._screen("hub", "YARD CLUB", stage(season) + " • Backyard League")
+	menu._screen("hub", "YARD CLUB", stage(season) + " • " + league_identity(season))
 	menu._label(menu._body, club_record(season), 24)
+	menu._label(menu._body, "SEASON CASH  •  %d" % season.cash(), 18)
+	ClubCareerUI.badge(menu, menu._body)
+	if season.build != null:
+		wrapped(menu._body, str(season.league_rules.get("league", "season")).to_upper())
+		var names: PackedStringArray = []
+		for receipt: Dictionary in season.build.view().wallet.sponsors:
+			names.append(SeasonSponsorCatalog.item(receipt.item).name)
+		wrapped(
+			menu._body, "Active sponsors: " + (", ".join(names) if not names.is_empty() else "None")
+		)
 	var card: VBoxContainer = SeasonPlayerCard.panel(menu._body, true)
 	menu._label(card, "NEXT UP  •  " + menu._matchup(season.pending_fixture()), 26)
-	menu._label(card, venue(season.pending_fixture()), 18)
+	menu._label(
+		card,
+		(
+			venue(season.pending_fixture(), season)
+			+ " • "
+			+ StadiumFixtureEnvironment.label(season, season.pending_fixture())
+		),
+		18
+	)
 	menu._label(card, defense(season), 18)
+	if season.shop_available():
+		menu._button(card, "SEASON SHOP", menu.app.open_shop)
 	if season.phase == SeasonState.Phase.REGULAR:
 		menu._label(
 			card, "Top 4 qualify • %d regular games remaining" % (10 - season.round_index), 18
@@ -66,13 +94,48 @@ static func hub(menu: SeasonMenu) -> void:
 	menu._button(menu._footer, "MAIN MENU", menu.show_home)
 
 
-static func venue(fixture: Dictionary) -> String:
-	var field_name: String = SeasonState.field_for_fixture(fixture).display_name
+static func venue(fixture: Dictionary, season: SeasonState = null) -> String:
+	var field: FieldDefinition = SeasonState.field_for_fixture(fixture, season)
+	var field_name: String = "Unavailable venue" if field == null else field.display_name
 	var opening: String = "You pitch first" if fixture["home"] == 0 else "You bat first"
 	if fixture.get("neutral", false):
+		var final_snapshot: Dictionary = SeasonFinalVenue.for_fixture(season, fixture)
+		if not final_snapshot.is_empty():
+			field_name = (
+				"Hillside"
+				if final_snapshot.version == StadiumNpcSnapshot.HILLSIDE_FINAL_FIXTURE_VERSION
+				else (
+					"Pool Party"
+					if final_snapshot.version == StadiumNpcSnapshot.POOL_PARTY_FINAL_FIXTURE_VERSION
+					else (
+						"Grand Gardens III"
+						if (
+							final_snapshot.version
+							== StadiumNpcSnapshot.GRAND_III_FINAL_FIXTURE_VERSION
+						)
+						else (
+							"Grand Gardens II"
+							if (
+								final_snapshot.version
+								== StadiumNpcSnapshot.GRAND_II_FINAL_FIXTURE_VERSION
+							)
+							else (
+								"Grand Gardens I"
+								if (
+									final_snapshot.version
+									== StadiumNpcSnapshot.GRAND_FINAL_FIXTURE_VERSION
+								)
+								else "Long Yard"
+							)
+						)
+					)
+				)
+			)
 		return "Neutral final • %s • %s" % [field_name, opening]
-	return ("Home • %s • You pitch first" if fixture["home"] == 0 else (
-		"Away • %s • You bat first")) % field_name
+	return (
+		("Home • %s • You pitch first" if fixture["home"] == 0 else ("Away • %s • You bat first"))
+		% field_name
+	)
 
 
 static func defense(season: SeasonState) -> String:
@@ -93,11 +156,17 @@ static func pregame(menu: SeasonMenu) -> void:
 		return
 	var card: VBoxContainer = SeasonPlayerCard.panel(menu._body, true)
 	menu._label(card, menu._matchup(fixture), 24)
-	menu._label(card, venue(fixture) + " • Fresh Stamina • 5 innings", 18)
-	var opponent: int = fixture["away"] if fixture["home"] == 0 else fixture["home"]
-	var starter: PlayerDefinition = ContentDB.get_player(
-		StringName(season.teams[opponent]["roster"][0])
+	menu._label(
+		card,
+		(
+			venue(fixture, season)
+			+ " • "
+			+ StadiumFixtureEnvironment.label(season, fixture)
+			+ " • Fresh Stamina • 5 innings"
+		),
+		18
 	)
+	var starter: PlayerDefinition = season.player_definition(season.opposing_starter(fixture))
 	menu._label(
 		card,
 		(
@@ -111,6 +180,14 @@ static func pregame(menu: SeasonMenu) -> void:
 		20
 	)
 	wrapped(card, "Arsenal: " + menu._pitches(starter).replace("\n", " • "))
+	SeasonOpponentUI.preview(menu, card, fixture)
+	SeasonFilmChoice.add(menu, card, fixture)
+	SeasonCarbonCopyUI.add(menu, card, fixture)
+	SeasonSecondChanceUI.add(menu, card, fixture)
+	if season.build != null:
+		var budget: String = SeasonBudgetBites.describe(season.build, int(fixture.id))
+		if not budget.is_empty():
+			wrapped(card, budget).set_meta("budget_preview", true)
 
 
 static func postgame(menu: SeasonMenu) -> void:
@@ -120,9 +197,48 @@ static func postgame(menu: SeasonMenu) -> void:
 		"postgame", "WIN" if SeasonState._winner(game) == 0 else "LOSS", result_label(menu, game)
 	)
 	menu._label(menu._body, movement(season, game), 22)
+	if season.career != null:
+		StadiumPlaqueUI.awards(
+			menu, menu._body, season.career.current, season.player_results.size()
+		)
+	menu._label(
+		menu._body,
+		(
+			"Game income: %d Cash"
+			% (
+				LeagueRules.game_income(
+					season.league_rules,
+					SeasonState._winner(game) == 0,
+					game.home_runs if game.home == 0 else game.away_runs,
+					game.away_runs if game.home == 0 else game.home_runs
+				)
+				if not season.league_rules.is_empty()
+				else (18 if SeasonState._winner(game) == 0 else 12)
+			)
+		),
+		18
+	)
+	if LeagueRules.doubleheader(season.league_rules) and season.build != null:
+		var sweep: int = SeasonDoubleheaderRules.bonus(
+			season.league_rules,
+			game.id,
+			SeasonState._winner(game) == 0,
+			season.build._bank.view().rewards
+		)
+		if sweep > 0:
+			menu._label(menu._body, "Pair sweep: +%d Cash • Settled once" % sweep, 18)
+	if season.build != null:
+		var income: Dictionary = season.build.income_for_game(int(game.id))
+		for id: String in income:
+			wrapped(
+				menu._body,
+				"%s: +%d Cash • Settled" % [SeasonSponsorCatalog.item(id).name, income[id]]
+			)
+	if season.build != null:
+		SeasonSecondChanceUI.result(menu, int(game.id))
 	var recorded: Dictionary = game.get("performance", {})
 	var highlights: Array[String] = SeasonPerformance.highlights(
-		recorded, season.teams[0]["roster"]
+		recorded, game.get("club_roster", season.teams[0]["roster"])
 	)
 	for line in highlights:
 		wrapped(menu._body, line)
@@ -146,6 +262,8 @@ static func postgame(menu: SeasonMenu) -> void:
 		menu.show_lineup if not next.is_empty() else menu.show_summary
 	)
 	menu._button(menu._footer, "SEASON HUB", menu.show_hub)
+	if season.shop_available():
+		menu._button(menu._footer, "SEASON SHOP", menu.app.open_shop)
 	menu._button(menu._footer, "MAIN MENU", menu.show_home)
 
 
@@ -188,11 +306,11 @@ static func stats(menu: SeasonMenu) -> void:
 static func players(menu: SeasonMenu) -> void:
 	var season: SeasonState = menu.app.season
 	menu._screen("players", "PLAYER RATINGS", "Yard Club • Current attributes and repertoires")
-	menu._label(menu._body,
-		"Ratings are 0–10. Higher is stronger. Season results are in Team Stats.", 18)
+	menu._label(
+		menu._body, "Ratings are 0–10. Higher is stronger. Season results are in Team Stats.", 18
+	)
 	for index in range(season.teams[0]["roster"].size()):
-		var player: PlayerDefinition = ContentDB.get_player(
-			StringName(season.teams[0]["roster"][index]))
+		var player: PlayerDefinition = season.player_definition(season.teams[0]["roster"][index])
 		var role: String = ""
 		if index == season.starter_index:
 			role = " • Starting Pitcher"
@@ -224,8 +342,9 @@ static func stat_tables(menu: SeasonMenu, stats_data: Dictionary) -> void:
 		menu._label(grid, "PLAYER", 16)
 		for heading: String in headings:
 			menu._label(grid, heading, 16)
-		for id: String in menu.app.season.teams[0]["roster"]:
-			menu._label(grid, ContentDB.get_player(StringName(id)).display_name, 20)
+		for id: String in SeasonPerformance.club_history(menu.app.season):
+			var former: String = " (former)" if not menu.app.season.teams[0].roster.has(id) else ""
+			menu._label(grid, ContentDB.get_player(StringName(id)).display_name + former, 20)
 			for key: String in keys:
 				menu._label(grid, str(stats_data[id][key]) if stats_data.has(id) else "—", 20)
 	wrapped(
@@ -239,7 +358,15 @@ static func stat_tables(menu: SeasonMenu, stats_data: Dictionary) -> void:
 
 static func summary(menu: SeasonMenu) -> void:
 	var season: SeasonState = menu.app.season
-	menu._screen("summary", ending(season), "Yard Club • " + club_record(season))
+	menu._screen(
+		"summary",
+		ending(season),
+		(
+			"Yard Club • "
+			+ club_record(season)
+			+ (" • " + league_identity(season) if not season.league_rules.is_empty() else "")
+		)
+	)
 	var card: VBoxContainer = SeasonPlayerCard.panel(menu._body, season.champion == 0)
 	menu._label(card, "%s win the title" % season.teams[season.champion]["name"], 28)
 	menu._label(
@@ -248,14 +375,26 @@ static func summary(menu: SeasonMenu) -> void:
 		18
 	)
 	for line in SeasonPerformance.highlights(
-		SeasonPerformance.totals(season), season.teams[0]["roster"]
+		SeasonPerformance.totals(season), SeasonPerformance.club_history(season)
 	):
 		wrapped(card, line)
+	ClubCareerUI.settlement(menu)
 	wrapped(menu._body, menu._playoffs())
 	menu._label(menu._body, "FINAL REGULAR-SEASON STANDINGS", 22)
 	menu._standings()
-	menu._label(menu._body, "This season stays available until you confirm a new season.", 18)
-	menu._button(menu._footer, "NEW SEASON", menu.app.ask_new_season)
+	if menu.app.has_method("_dynasty_career_summary") and menu.app.call("_dynasty_career_summary"):
+		pass
+	elif SeasonSave.dynasty_owner_bound():
+		wrapped(
+			menu._body,
+			(
+				"This season stays saved. Use the buttons below to continue Dynasty or return to it. "
+				+ "Your alternate can't be replaced in this playtest."
+			)
+		)
+	else:
+		menu._label(menu._body, "This season stays available until you confirm a new season.", 18)
+		menu._button(menu._footer, "NEW SEASON", menu.app.ask_new_season)
 	menu._button(menu._footer, "PLAYER RATINGS", menu.show_players)
 	menu._button(menu._footer, "TEAM STATS", menu.show_stats)
 	menu._button(menu._footer, "LAST GAME", menu.show_last_game)

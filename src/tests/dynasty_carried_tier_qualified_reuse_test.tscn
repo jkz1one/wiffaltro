@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/tests/dynasty_carried_tier_qualified_reuse_test.gd" id="1"]
+[node name="TierQualifiedReuse" type="Node"]
+script = ExtResource("1")

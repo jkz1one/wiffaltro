@@ -1,6 +1,7 @@
 extends Node
 
 var _failures: int = 0
+var _checks: int = 0
 
 
 func _ready() -> void:
@@ -12,6 +13,7 @@ func _ready() -> void:
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro playtest followup checks passed.")
+	print("HR_FLOW_RESULT checks=", _checks, " failures=", _failures)
 	get_tree().quit(0 if _failures == 0 else 1)
 
 
@@ -116,8 +118,27 @@ func _test_home_run(walkoff: bool) -> void:
 	_check(lab._home_run.elapsed == elapsed and lab._batted_ball.position == position,
 		"pause must freeze both HR carry and presentation time")
 	lab._display_menu_button.pressed.emit()
-	for frame in range(60):
+	# Shared followthrough (2026-10-23) follows the actual body until landing/rest
+	# or the six-second safety deadline, not the historical 1.25-second cut.
+	var live_follow: bool = true
+	for frame in range(370):
+		if lab._home_run.flight_complete:
+			break
+		live_follow = live_follow and not lab._batted_ball.freeze \
+			and lab._camera_director.shot == MatchCameraDirector.Shot.BALL_IN_PLAY
 		await get_tree().physics_frame
+	_check(live_follow, "uncompleted HR flight retains the same physical follow camera")
+	_check(lab._home_run.flight_complete and lab._batted_ball.freeze,
+		"HR flight completes and freezes by its bounded landing/timeout deadline")
+	_check(lab._home_run.flight_end_reason in [&"landed", &"rest", &"timeout"],
+		"HR completion must come from landing/rest or the explicit timeout")
+	_check(lab._home_run.flight_elapsed <= 6.05,
+		"flight safety deadline stays at six seconds plus frame tolerance")
+	if lab._home_run.flight_end_reason == &"timeout":
+		_check(lab._home_run.flight_elapsed >= 6.0,
+			"timeout cannot replace actual followthrough with the old early freeze")
+	print("HR_FLOW walkoff=", walkoff, " flight=", lab._home_run.flight_elapsed,
+		" reason=", lab._home_run.flight_end_reason)
 	_check(lab._home_run.wide_shot
 		and lab._camera_director.shot == MatchCameraDirector.Shot.ESTABLISHING,
 		"HR must transition smoothly to the wide celebration view")
@@ -161,6 +182,7 @@ func _test_chase_choices() -> void:
 
 
 func _check(condition: bool, message: String) -> void:
+	_checks += 1
 	if not condition:
 		_failures += 1
 		push_error(message)

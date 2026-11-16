@@ -1,6 +1,7 @@
 extends Node
 
 var _failures: int = 0
+var _checks: int = 0
 var _fixture_number: int = 0
 
 
@@ -18,6 +19,7 @@ func _ready() -> void:
 	await TestAudioDrain.finish(get_tree())
 	if _failures == 0:
 		print("Wiffaltro player flow checks passed.")
+	print("PLAYER_FLOW_RESULT checks=", _checks, " failures=", _failures)
 	get_tree().quit(0 if _failures == 0 else 1)
 
 
@@ -356,10 +358,21 @@ func _test_batting(profile_id: StringName, reset_live: bool = false) -> void:
 			_mouse(lab, MOUSE_BUTTON_LEFT, true, crossing.point)
 			_check(lab._at_bat_cadence.elapsed_seconds == hold_time,
 				"extra clicks must not skip the readable result hold")
-			for frame in range(330):
+			# HR followthrough may retain flight for six seconds plus bounded return.
+			# Ordinary results still use their original 330-frame readiness budget.
+			var is_hr: bool = lab._home_run.active
+			var hold_frames: int = 660 if is_hr else 330
+			var no_early_pitch: bool = true
+			for frame in range(hold_frames):
+				if lab._home_run.active:
+					no_early_pitch = no_early_pitch and lab._throw_number == 1 \
+						and not lab._awaiting_batter_confirm
 				await get_tree().physics_frame
 				if lab._awaiting_batter_confirm:
 					break
+			_check(no_early_pitch, "HR followthrough cannot pitch or request readiness early")
+			print("PLAYER_HOLD profile=", profile_id, " hr=", is_hr,
+				" ready=", lab._awaiting_batter_confirm, " throws=", lab._throw_number)
 			_check(lab._awaiting_batter_confirm and lab._throw_number == 1,
 				"next batter must wait for readiness after the automatic hold")
 	await _free_lab(lab)
@@ -401,6 +414,7 @@ func _test_early_swing() -> void:
 
 
 func _check(condition: bool, message: String) -> void:
+	_checks += 1
 	if not condition:
 		_failures += 1
 		push_error(message)

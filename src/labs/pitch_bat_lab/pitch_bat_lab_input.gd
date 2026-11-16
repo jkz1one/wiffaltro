@@ -2,6 +2,17 @@ class_name PitchBatLabInput
 extends RefCounted
 
 static func handle(lab: PitchBatLab, event: InputEvent) -> void:
+	if lab._automation != null:
+		return
+	if (
+		lab.has_meta("loadout_open")
+		or lab.has_meta("player_inspection_open")
+		or SeasonEncoreUI.reviewing(lab)
+	):
+		return
+	var tactics: MatchTacticalControls = lab.get_node_or_null("TacticalControls")
+	if tactics != null and tactics._dialog.visible:
+		return
 	if event is InputEventKey:
 		var debug_key: InputEventKey = event as InputEventKey
 		if (
@@ -223,7 +234,7 @@ static func _handle_action_event(
 			return true
 	if event.is_action_pressed(&"match_advance", false, true):
 		if not lab._match_mode:
-			lab._throw_pitch()
+			lab._request_lab_pitch()
 		return true
 	if event.is_action_released(&"pitch_release", true):
 		if lab._match_mode and lab._player_is_pitching():
@@ -261,7 +272,10 @@ static func _handle_match_key(lab: PitchBatLab, keycode: Key) -> bool:
 		if MatchLabSupport.can_edit_pitch_plan(lab):
 			var requested_index: int = int(keycode - KEY_1)
 			var options: Array[PitchDefinition] = lab._current_pitch_options()
-			if requested_index < options.size():
+			if (
+				requested_index < options.size()
+				and lab._match_state.sure_shot.allows(lab._match_state, options[requested_index].id)
+			):
 				lab._selected_pitch_index = requested_index
 				lab._refresh_config()
 		return true

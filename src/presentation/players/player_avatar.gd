@@ -133,6 +133,32 @@ func set_pitch_delivery_progress(progress: float, sidearm: bool) -> void:
 	_body_root.rotation.y = throw_side * lerpf(-0.16 * windup_load, 0.30, drive)
 
 
+func set_pitch_profile_progress(
+	progress: float, delivery: DeliveryProfileDefinition, release_world: Vector3
+) -> void:
+	# Only the two new slots use this path. Historical Overhand/Sidearm poses
+	# retain their original routine and exact transforms.
+	if role != Role.PITCHER or _body_root == null or delivery == null:
+		return
+	var low_slot: bool = delivery.delivery == DeliveryProfileDefinition.Delivery.SUBMARINE
+	var bounded: float = clampf(progress, 0.0, 1.0)
+	var load_amount: float = smoothstep(0.08, 0.48, bounded)
+	var drive: float = smoothstep(0.46, 0.94, bounded)
+	var side: float = -1.0 if throws_left else 1.0
+	_body_root.position.y = -0.20 * load_amount if low_slot else 0.0
+	_body_root.rotation = Vector3(
+		0.0, side * lerpf(-0.16 * load_amount, 0.30, drive),
+		side * 0.18 * load_amount if low_slot else 0.0
+	)
+	var loaded: Vector3 = Vector3(side * (0.72 if low_slot else 0.59),
+		0.91 if low_slot else 1.47, 0.14)
+	var release_local: Vector3 = _body_root.to_local(release_world)
+	_throw_hand.position = Vector3(side * 0.38, 1.12, 0.0).lerp(
+		loaded, load_amount).lerp(release_local, drive)
+	_glove_hand.position = Vector3(-side * 0.38, 1.10, 0.02).lerp(
+		Vector3(-side * 0.18, 0.94 if low_slot else 1.27, -0.16), load_amount)
+
+
 func play_batting_swing(profile: SwingProfileDefinition) -> void:
 	if role != Role.BATTER or profile == null or _body_root == null:
 		return

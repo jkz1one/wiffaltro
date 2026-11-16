@@ -82,7 +82,7 @@ func stop() -> void:
 	state = State.IDLE
 	elapsed_seconds = 0.0
 
-func advance(delta_seconds: float) -> Event:
+func advance(delta_seconds: float, can_continue: bool = true) -> Event:
 	if state != State.DELIVERY and state != State.DEAD_BALL_HOLD:
 		return Event.NONE
 	elapsed_seconds += maxf(0.0, delta_seconds)
@@ -92,6 +92,7 @@ func advance(delta_seconds: float) -> Event:
 	if (
 		state == State.DEAD_BALL_HOLD
 		and elapsed_seconds >= active_hold_seconds
+		and can_continue
 	):
 		state = State.IDLE
 		return Event.CONTINUE_PLAY

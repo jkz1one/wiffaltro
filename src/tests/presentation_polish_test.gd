@@ -32,7 +32,7 @@ func _test_audio_and_settings(lab: PitchBatLab) -> void:
 		var player: AudioStreamPlayer = lab._sounds._players[cue]
 		var stream: AudioStreamWAV = player.stream as AudioStreamWAV
 		_check(stream.get_length() > 0.08 and stream.get_length() < 1.0,
-			"cues must be short and nonempty")
+			"cue %s must be short and nonempty, got %.6fs" % [cue, stream.get_length()])
 		var data: PackedByteArray = stream.data
 		var peak: int = 0
 		for offset in range(0, data.size(), 2):

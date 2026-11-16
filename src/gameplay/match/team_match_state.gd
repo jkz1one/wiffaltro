@@ -3,12 +3,40 @@ extends RefCounted
 
 const ROSTER_SIZE: int = 4
 
+var league_rules: Dictionary = {}
+# Set only by the validated current Build/season adapter. Never read from a report.
+var pitch_catalog: String = ""
+var league_ownership: Dictionary = {}
+var league_pair: Dictionary = {}
+var dynasty_start: Dictionary = {}
+var inventory_actions: Array[Dictionary] = []
+
+
+
+var copy_source: String = ""
 var display_name: String = "Team"
+var ai_sponsor_choices: bool = false
+var track_bases: bool = false
+var ai_base: bool = false
+var ai_budget: Dictionary = {}
+var ai_heat: bool = false
+var ai_recovery_pitcher: String = ""
+var ai_tactical_hitter: String = ""
+var ai_tactical_initial: Array[Dictionary] = []
+
 var roster: Array[PlayerMatchState] = []
 var batting_index: int = 0
 var pitcher_index: int = 0
 var fielder_index: int = 1
 var runs: int = 0
+var scouted_recipe: StringName = &""
+var field_supply: MatchFieldSupply = MatchFieldSupply.new()
+var tactics: MatchTactics = MatchTactics.new()
+var recovery: MatchRecoveryFlow = MatchRecoveryFlow.new()
+var sure_shot_locked: bool = false
+var encore_used: bool = false
+var strikecraft_uses: int = 0
+var strikecraft_refunded: float = 0.0
 
 static func create(
 	team_name: String,
@@ -58,8 +86,12 @@ func next_available_pitcher(direction: int = 1) -> int:
 	return pitcher_index
 
 func select_pitcher(index: int) -> bool:
+	if sure_shot_locked and index != pitcher_index:
+		return false
 	if index < 0 or index >= roster.size() or roster[index].pitching_finished:
 		return false
+	if index != pitcher_index:
+		tactics.pitcher_changed()
 	if index != pitcher_index and current_pitcher().pitch_count > 0:
 		current_pitcher().pitching_finished = true
 	pitcher_index = index

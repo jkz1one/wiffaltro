@@ -2,6 +2,11 @@ class_name PitchBatLabFeelSupport
 extends RefCounted
 
 const AIM_SPEED_MPS: float = 0.82
+const MANUAL_QC_COMMAND_V1 = preload("res://src/labs/pitch_bat_lab/ac02_manual_qc_command_v1.gd")
+
+const Operations1: GDScript = preload(
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_feel_support_operations_1.gd"
+)
 
 
 static func adjust_pitch_target(lab: PitchBatLab, delta_xy: Vector2) -> void:
@@ -51,24 +56,167 @@ static func initialize(lab: PitchBatLab) -> void:
 
 
 static func update(lab: PitchBatLab, delta_seconds: float) -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
+	if lab.has_meta("loadout_open"):
+		return
+	if not MatchAutomation.presented(lab):
+		# Keep the exact gameplay cadence and home-run body/hold lifecycle.
+		if not lab._debug_paused:
+			lab._home_run.advance(lab, delta_seconds)
+			if (
+				not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state)
+				or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)
+			):
+				return
+			_update_at_bat_cadence(lab, delta_seconds)
+			if (
+				not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state)
+				or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)
+			):
+				return
+		return
 	lab._pitch_feedback.advance(lab, delta_seconds)
 	if lab._debug_paused:
-		_update_camera(lab, delta_seconds)
+		# Keep scored physical followthrough still until the player explicitly
+		# enters paused camera inspection. V navigation remains available.
+		if not lab._home_run.active or lab._camera_director._shot_before_inspection >= 0:
+			_update_camera(lab, delta_seconds)
 		return
 	if _update_match_presentation(lab, delta_seconds):
 		_update_camera(lab, delta_seconds)
 		PitchBatLabPresentation.refresh_event(lab)
 		return
 	lab._ball_visibility.update_ball(
-		lab._batted_ball, lab._camera, delta_seconds, lab._field_definition.back_wall_z_m
+		lab._batted_ball,
+		lab._camera,
+		delta_seconds,
+		(
+			lab._camera_director.tracking_visibility.field_wall_z
+			if lab.has_meta("stadium_property")
+			else lab._field_definition.back_wall_z_m
+		)
+	)
+	if (
+		not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)
+	):
+		return
+	# Reuse only the immediately preceding check across exact, read-only branches.
+	# Active helpers, foreign scripts and every outer/event entry retain their checks.
+	var release_noop: bool = (
+		owned_noop_scope(lab, night_owner, night_state) and continuous_release_noop(lab)
 	)
 	_update_continuous_input(lab, delta_seconds)
 	_update_pitch_release(lab, delta_seconds)
+	if (
+		(
+			(not release_noop or not owned_noop_scope(lab, night_owner, night_state))
+			and not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state)
+		)
+		or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)
+	):
+		return
+	var home_noop: bool = owned_noop_scope(lab, night_owner, night_state) and home_run_noop(lab)
 	lab._home_run.advance(lab, delta_seconds)
+	if (
+		(
+			(not home_noop or not owned_noop_scope(lab, night_owner, night_state))
+			and not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state)
+		)
+		or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)
+	):
+		return
+	var cadence_is_noop: bool = (
+		owned_noop_scope(lab, night_owner, night_state) and cadence_noop(lab)
+	)
 	_update_at_bat_cadence(lab, delta_seconds)
+	if (
+		(
+			(not cadence_is_noop or not owned_noop_scope(lab, night_owner, night_state))
+			and not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state)
+		)
+		or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)
+	):
+		return
 	_update_pitcher_telegraph(lab)
 	_update_camera(lab, delta_seconds)
 	PitchBatLabPresentation.refresh_event(lab)
+
+
+static func owned_noop_scope(
+	lab: PitchBatLab, owner: StadiumSurfaceNightRuntime, state: MatchState
+) -> bool:
+	# A synchronous local proof, never an admission check or a cached frame lease.
+	# Candidate3 reuses only these same exact no-op branches after a full action check.
+	return (
+		is_instance_valid(lab)
+		and lab.get_script() == PitchBatLab
+		and owner != null
+		and owner.get_script() == StadiumSurfaceNightRuntime
+		and StadiumSurfaceNightRuntime.current(lab) == owner
+		and (owner._floodlight_mode or owner._kit_mode)
+		and owner._phase == StadiumSurfaceNightRuntime.Phase.ACTIVE
+		and not owner._restoring
+		and not owner._tree_transition
+		and owner._lab != null
+		and owner._lab.get_ref() == lab
+		and state != null
+		and state.get_script() == MatchState
+		and owner._state == state
+		and lab._match_state == state
+		and not lab.has_meta(StadiumSurfaceTerrainRuntime.OWNER)
+		and not lab.has_meta(StadiumSurfaceTerrainRuntime.BOUND)
+	)
+
+
+static func continuous_release_noop(lab: PitchBatLab) -> bool:
+	return (
+		lab._automation != null
+		and (
+			lab._release_controller == null
+			or (
+				lab._release_controller.get_script() == PitchReleaseController
+				and not lab._release_controller.active
+			)
+		)
+	)
+
+
+static func home_run_noop(lab: PitchBatLab) -> bool:
+	return (
+		lab._home_run != null
+		and lab._home_run.get_script() == PitchBatLabHomeRun
+		and not lab._home_run.active
+	)
+
+
+static func cadence_noop(lab: PitchBatLab) -> bool:
+	return (
+		lab._at_bat_cadence == null
+		or (
+			lab._at_bat_cadence.get_script() == AtBatCadenceController
+			and (
+				lab._at_bat_cadence.state == AtBatCadenceController.State.IDLE
+				or lab._at_bat_cadence.state == AtBatCadenceController.State.PITCH_LIVE
+			)
+			and (
+				lab._automation == null
+				or (lab._home_run != null and lab._home_run.get_script() == PitchBatLabHomeRun)
+			)
+		)
+	)
+
+
+static func swing_noop(lab: PitchBatLab) -> bool:
+	# This branch returns before advance_swing reads the actor or calls the tracker.
+	return (
+		lab._swing_tracker == null
+		or (
+			lab._swing_tracker.get_script() == SwingContactTracker and not lab._swing_tracker.active
+		)
+	)
 
 
 static func begin_match_intro(lab: PitchBatLab) -> void:
@@ -85,6 +233,11 @@ static func begin_match_intro(lab: PitchBatLab) -> void:
 
 
 static func begin_match_outro(lab: PitchBatLab) -> void:
+	if lab._home_run.presentation_pending(lab):
+		return
+	if lab._automation != null:
+		lab._at_bat_cadence.stop()
+		return
 	if (
 		lab._match_state == null
 		or lab._match_state.phase != MatchState.Phase.GAME_END
@@ -100,10 +253,15 @@ static func begin_match_outro(lab: PitchBatLab) -> void:
 	lab._camera_director.set_shot(lab._match_presentation_director.current_shot())
 	_sync_presentation_camera(lab)
 	PitchBatLabPresentation.show_match_outro(
-		lab, lab._match_state.winner_name == (
-		lab._match_state.home_team.display_name if lab._player_home
-		else lab._match_state.away_team.display_name
-	)
+		lab,
+		(
+			lab._match_state.winner_name
+			== (
+				lab._match_state.home_team.display_name
+				if lab._player_home
+				else lab._match_state.away_team.display_name
+			)
+		)
 	)
 
 
@@ -123,8 +281,9 @@ static func _update_camera(lab: PitchBatLab, delta_seconds: float) -> void:
 		lab._batted_ball.global_position if lab._batted_ball != null else Vector3.ZERO
 	)
 	var pitch_live: bool = lab._pitch_actor != null and lab._pitch_actor.running
-	lab._camera_director.track_released_pitch(pitch_live,
-		lab._pitch_actor.state.position if pitch_live else Vector3.ZERO)
+	lab._camera_director.track_released_pitch(
+		pitch_live, lab._pitch_actor.state.position if pitch_live else Vector3.ZERO
+	)
 	lab._camera_director.update(lab._camera, delta_seconds, ball_live, ball_position)
 
 
@@ -159,8 +318,10 @@ static func _update_match_presentation(lab: PitchBatLab, delta_seconds: float) -
 
 
 static func _sync_presentation_camera(lab: PitchBatLab) -> void:
-	var result_view: bool = lab._match_presentation_director.mode in [
-		MatchPresentationDirector.Mode.OUTRO, MatchPresentationDirector.Mode.OUTRO_HOLD]
+	var result_view: bool = (
+		lab._match_presentation_director.mode
+		in [MatchPresentationDirector.Mode.OUTRO, MatchPresentationDirector.Mode.OUTRO_HOLD]
+	)
 	lab._camera_director.set_presentation_motion(
 		lab._match_presentation_director.current_motion(),
 		lab._match_presentation_director.shot_progress(),
@@ -185,6 +346,8 @@ static func _finish_intro(lab: PitchBatLab, snap_camera: bool) -> void:
 		lab._awaiting_batter_confirm = false
 		lab._status_label.text = ""
 		lab._refresh_config()
+
+	SeasonOpponentChoices.disclose(lab)
 
 
 static func confirm_batter_ready(lab: PitchBatLab) -> void:
@@ -220,8 +383,31 @@ static func request_batter_timeout(lab: PitchBatLab) -> bool:
 
 
 static func begin_ai_delivery(lab: PitchBatLab) -> void:
+	if lab.ac02_startup_pending():
+		return
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
+	# prepare handles both roles and can end the game through Take A Base.
+	# Full validation precedes its actual pre-PA work, not every cadence tick.
 	if (
-		not lab._player_is_batting()
+		night_state != null
+		and night_state.phase == MatchState.Phase.PRE_PITCH
+		and night_state.between_batters
+		and (
+			not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+			or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+		)
+	):
+		return
+	SeasonOpponentChoices.prepare(lab)
+	if (
+		not StadiumSurfaceNightRuntime.continue_action(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state)
+	):
+		return
+	if (
+		not MatchAutomation.pitching(lab)
 		or lab._match_state == null
 		or lab._match_state.phase != MatchState.Phase.PRE_PITCH
 		or (lab._pitch_actor != null and lab._pitch_actor.running)
@@ -251,7 +437,19 @@ static func _begin_ai_delivery_cadence(lab: PitchBatLab, seed_offset: int = 0) -
 
 
 static func handle_match_advance(lab: PitchBatLab) -> void:
-	if lab._match_state == null or lab._ball_in_play_is_live():
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
+	if (
+		lab._match_state == null
+		or lab._ball_in_play_is_live()
+		or lab._home_run.presentation_pending(lab)
+	):
 		return
 	match lab._match_state.phase:
 		MatchState.Phase.PRE_PITCH:
@@ -264,10 +462,21 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			var changed_half: bool = lab._match_state.phase == MatchState.Phase.INNING_TRANSITION
 			var completed_plate_appearance: bool = lab._match_state.between_batters
 			lab._cleanup_batted_ball()
+			if (
+				not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+				or not StadiumSurfaceTerrainRuntime.continue_boundary(
+					lab, terrain_owner, night_state
+				)
+			):
+				return
 			lab._match_state.continue_after_dead_ball()
 			lab._base_state = lab._match_state.bases
+			if lab._automation != null:
+				lab._automation.select_offense(lab)
 			if completed_plate_appearance and lab._batter_approach != null:
-				lab._batter_approach.begin_plate_appearance(lab._match_state.plate_appearance_number)
+				lab._batter_approach.begin_plate_appearance(
+					lab._match_state.plate_appearance_number
+				)
 				lab._last_ai_awareness = 0.0
 				lab._last_ai_read_text = "New batter"
 			if changed_half:
@@ -276,13 +485,18 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 				lab._selected_pitch_index = 0
 				lab._pitch_effort = 1.0
 				MatchLabSupport.assign_ai_defense_for_half(lab)
-			elif completed_plate_appearance and lab._player_is_batting():
+			elif completed_plate_appearance and MatchAutomation.pitching(lab):
 				MatchLabSupport.consider_ai_pitching_change(lab)
 				MatchLabSupport.assign_ai_fielder_anchor(lab)
 			lab._awaiting_batter_confirm = (
-				lab._player_is_batting() and (completed_plate_appearance or changed_half)
+				lab._automation == null
+				and lab._player_is_batting()
+				and (completed_plate_appearance or changed_half)
 			)
 			lab._apply_defensive_assignment()
+			SeasonOpponentChoices.prepare(lab)
+			if not StadiumSurfaceTerrainRuntime.continue_action(lab, terrain_owner, night_state):
+				return
 			lab._apply_role_camera()
 			if lab._match_state.phase == MatchState.Phase.GAME_END:
 				begin_match_outro(lab)
@@ -293,7 +507,7 @@ static func handle_match_advance(lab: PitchBatLab) -> void:
 			lab._refresh_markers()
 			lab._refresh_config()
 			if (
-				lab._player_is_batting()
+				MatchAutomation.pitching(lab)
 				and lab._match_state.phase == MatchState.Phase.PRE_PITCH
 				and not lab._awaiting_batter_confirm
 			):
@@ -342,7 +556,7 @@ static func recover_failed_pitch(lab: PitchBatLab, pitch: PitchDefinition) -> vo
 	lab._pending_release_overdrive = 0.0
 	if (
 		lab._match_mode
-		and lab._player_is_batting()
+		and MatchAutomation.pitching(lab)
 		and lab._match_state.phase == MatchState.Phase.PRE_PITCH
 		and not lab._current_pitch_options().is_empty()
 	):
@@ -428,6 +642,14 @@ static func reset_debug_pause(lab: PitchBatLab) -> void:
 
 
 static func toggle_match_mode(lab: PitchBatLab) -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
 	if lab._match_mode and not _can_suspend_match_for_lab(lab):
 		lab._status_label.text = "MECHANICS LAB\nAvailable before a Pitch, while play is stopped."
 		if lab._debug_paused:
@@ -439,6 +661,11 @@ static func toggle_match_mode(lab: PitchBatLab) -> void:
 		_suspend_match_for_lab(lab)
 	else:
 		_resume_suspended_match(lab)
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
 	lab._apply_role_camera()
 	lab._refresh_markers()
 	lab._refresh_config()
@@ -465,6 +692,14 @@ static func _can_suspend_match_for_lab(lab: PitchBatLab) -> bool:
 
 
 static func _suspend_match_for_lab(lab: PitchBatLab) -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
 	lab._match_suspend_snapshot = {
 		"selected_pitch_index": lab._selected_pitch_index,
 		"pitch_target": lab._pitch_target,
@@ -484,15 +719,38 @@ static func _suspend_match_for_lab(lab: PitchBatLab) -> void:
 	lab._debug_overlay_visible = true
 	lab._base_state = lab._debug_base_state
 	lab._reset_lab()
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
 	lab._status_label.text = "MECHANICS LAB\nF2 resumes the suspended match."
 
 
 static func _resume_suspended_match(lab: PitchBatLab) -> void:
+	var night_owner: StadiumSurfaceNightRuntime = StadiumSurfaceNightRuntime.current(lab)
+	var terrain_owner: StadiumSurfaceTerrainRuntime = StadiumSurfaceTerrainRuntime.current(lab)
+	var night_state: MatchState = lab._match_state
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
 	cancel_release(lab)
 	PitchBatLabSwingSupport.reset(lab)
 	if lab._pitch_actor != null:
 		lab._pitch_actor.reset_pitch()
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
 	lab._cleanup_batted_ball()
+	if (
+		not StadiumSurfaceNightRuntime.continue_boundary(lab, night_owner, night_state)
+		or not StadiumSurfaceTerrainRuntime.continue_boundary(lab, terrain_owner, night_state)
+	):
+		return
 	if lab._match_state == null or lab._match_suspend_snapshot.is_empty():
 		lab._match_mode = true
 		lab._start_new_match()
@@ -519,6 +777,8 @@ static func _resume_suspended_match(lab: PitchBatLab) -> void:
 
 
 static func begin_pitch_release(lab: PitchBatLab) -> void:
+	if lab.ac02_startup_pending():
+		return
 	if (
 		not lab._player_is_pitching()
 		or lab._match_state == null
@@ -534,6 +794,8 @@ static func begin_pitch_release(lab: PitchBatLab) -> void:
 
 
 static func commit_pitch_release(lab: PitchBatLab) -> void:
+	if lab.ac02_startup_pending():
+		return
 	if not lab._release_controller.active or lab._match_state == null:
 		return
 	var pitcher_state: PlayerMatchState = lab._match_state.pitcher()
@@ -579,60 +841,23 @@ static func start_record(
 	play_seed: int,
 	release_overdrive: float = 0.0
 ) -> void:
-	var record: PlayRecord = PlayRecord.new()
-	record.mode = "match" if lab._match_mode else "mechanics_lab"
-	record.play_number = lab._throw_number
-	record.pitch_id = pitch.id
-	record.intended_target = lab._pitch_target
-	record.effort = lab._pitch_effort
-	record.fatigue = fatigue
-	record.execution_quality = execution_quality
-	record.release_offset_seconds = lab._last_release_offset_seconds
-	record.release_overdrive = release_overdrive
-	record.seed = play_seed
-	if lab._match_mode and lab._match_state != null:
-		record.inning = lab._match_state.inning
-		record.top_half = lab._match_state.top_half
-		record.balls_before = lab._match_state.balls
-		record.strikes_before = lab._match_state.strikes
-		record.outs_before = lab._match_state.outs
-		record.batter_id = lab._match_state.batter().definition.id
-		record.pitcher_id = lab._match_state.pitcher().definition.id
-		record.batter_hand = lab._match_state.batter().batting_hand()
-		record.pitcher_hand = lab._match_state.pitcher().definition.throws
-	lab._active_play_record = record
+	Operations1._public_start_record(
+		lab, pitch, fatigue, execution_quality, play_seed, release_overdrive
+	)
 
 
 static func note_crossing(lab: PitchBatLab, point: Vector3, speed_mps: float) -> void:
-	if lab._active_play_record == null:
-		return
-	lab._active_play_record.crossed_plate = true
-	lab._active_play_record.crossing_point = Vector2(point.x, point.y)
-	lab._active_play_record.plate_speed_mps = speed_mps
+	Operations1._public_note_crossing(lab, point, speed_mps)
 
 
 static func note_swing(
 	lab: PitchBatLab, profile_id: StringName, aim_point: Vector2, result: ContactResult
 ) -> void:
-	if lab._active_play_record == null:
-		return
-	lab._active_play_record.swing_profile_id = profile_id
-	lab._active_play_record.swing_aim = aim_point
-	lab._active_play_record.contact_outcome = result.outcome
-	lab._active_play_record.contact_quality = result.quality
-	lab._active_play_record.timing_error_m = result.timing_error_m
-	lab._active_play_record.horizontal_error_m = result.horizontal_error_m
-	lab._active_play_record.vertical_error_m = result.vertical_error_m
-	lab._active_play_record.exit_speed_mps = result.exit_velocity.length()
-	lab._active_play_record.launch_angle_degrees = result.launch_angle_degrees
-	lab._active_play_record.spray_degrees = result.spray_degrees
+	Operations1._public_note_swing(lab, profile_id, aim_point, result)
 
 
 static func note_first_ground(lab: PitchBatLab, position: Vector3) -> void:
-	if lab._active_play_record == null or lab._active_play_record.has_first_ground:
-		return
-	lab._active_play_record.has_first_ground = true
-	lab._active_play_record.first_ground_position = position
+	Operations1._public_note_first_ground(lab, position)
 
 
 static func note_ball_play_outcome(
@@ -641,203 +866,90 @@ static func note_ball_play_outcome(
 	last_defender_touch: StringName,
 	result_floor: BallPlayState.ResultFloor
 ) -> void:
-	if lab._active_play_record == null:
-		return
-	lab._active_play_record.resolution_reason = outcome.reason
-	lab._active_play_record.resolution_position = outcome.resolution_position
-	lab._active_play_record.last_defender_touch = last_defender_touch
-	lab._active_play_record.result_floor = int(result_floor)
+	Operations1._public_note_ball_play_outcome(lab, outcome, last_defender_touch, result_floor)
 
 
 static func record_clean_fielding_control(
-	lab: PitchBatLab,
-	defender_id: StringName,
-	resolved_position: Vector3,
-	ball_was_moving: bool
+	lab: PitchBatLab, defender_id: StringName, resolved_position: Vector3, ball_was_moving: bool
 ) -> void:
-	var is_airborne: bool = not lab._ball_play_resolver.state.has_grounded
-	if defender_id == &"pitcher" and PitcherDefense.can_attempt(resolved_position, lab.MOUND_ORIGIN):
-		lab._ball_play_resolver.record_pitcher_clean_control(
-			resolved_position, is_airborne, ball_was_moving
-		)
-	else:
-		lab._ball_play_resolver.record_clean_control(
-			defender_id, resolved_position, is_airborne, ball_was_moving
-		)
+	Operations1._public_record_clean_fielding_control(
+		lab, defender_id, resolved_position, ball_was_moving
+	)
 
 
 static func finish_record(lab: PitchBatLab, result: StringName, runs_scored: int = 0) -> void:
-	if lab._active_play_record == null:
-		return
-	lab._active_play_record.result = result
-	lab._active_play_record.runs_scored = runs_scored
-	lab._play_records.append(lab._active_play_record)
-	lab._active_play_record = null
-	_save_records(lab)
+	Operations1._public_finish_record(lab, result, runs_scored)
 
 
 static func clear_records(lab: PitchBatLab) -> void:
-	lab._active_play_record = null
-	lab._play_records.clear()
-	lab._record_export = PlayRecordExport.new()
+	Operations1._public_clear_records(lab)
 
 
 static func dump_records(lab: PitchBatLab) -> void:
-	print("WIFFALTRO_FIELD_QC ", JSON.stringify(
-		PlayRecordExport.field_metadata(lab._field_definition)
-	))
-	var serialized: Array[Dictionary] = []
-	for record in lab._play_records:
-		serialized.append(record.to_dict())
-	print("WIFFALTRO_PLAY_RECORDS ", JSON.stringify(serialized))
-	var saved: bool = _save_records(lab)
-	if lab._status_label != null:
-		lab._status_label.text = (
-			"Saved %d records to %s" % [serialized.size(),
-			ProjectSettings.globalize_path(lab._record_export.path)]
-			if saved else "QC save failed. Records remain in Output."
-		)
+	Operations1._public_dump_records(lab)
+
+
+static func flush_pending_manual_records(lab: PitchBatLab, terminal: bool = true) -> bool:
+	return Operations1._public_flush_pending_manual_records(lab, terminal)
+
+
+static func warn_pending_manual_records(lab: PitchBatLab) -> void:
+	Operations1._public_warn_pending_manual_records(lab)
+
+
+static func _begin_manual_qc_export(lab: PitchBatLab) -> Dictionary:
+	return Operations1._begin_manual_qc_export(lab)
+
+
+static func _manual_qc_export_context_intact(context: Dictionary) -> bool:
+	return Operations1._manual_qc_export_context_intact(context)
+
+
+static func _end_manual_qc_export(context: Dictionary, saved: bool) -> bool:
+	return Operations1._end_manual_qc_export(context, saved)
 
 
 static func _save_records(lab: PitchBatLab) -> bool:
-	var error: Error = lab._record_export.save(lab._play_records, lab._field_definition)
-	if error != OK:
-		push_warning("QC export failed: %s" % error_string(error))
-		return false
-	return true
+	return Operations1._save_records(lab)
+
+
+static func _export_ready(lab: PitchBatLab) -> bool:
+	return Operations1._export_ready(lab)
+
+
+static func _public_export_intact(lab: PitchBatLab) -> bool:
+	return Operations1._public_export_intact(lab)
 
 
 static func measure_nominal_pitch(
 	lab: PitchBatLab, base_parameters: PitchLaunchParameters, target_position: Vector3
 ) -> void:
-	lab._last_nominal_release_speed_mps = base_parameters.velocity.length()
-	var nominal: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(
-		base_parameters, target_position.z
-	)
-	var neutral: PitchLaunchParameters = base_parameters.copy()
-	neutral.magnus_scale = 0.0
-	neutral.perforation_force_scale = 0.0
-	neutral.instability_strength = 0.0
-	var neutral_crossing: PitchCrossingResult = PitchTrajectorySimulator.simulate_to_plane(
-		neutral, target_position.z
-	)
-	if nominal.crossed and neutral_crossing.crossed:
-		lab._last_movement_x_m = nominal.point.x - neutral_crossing.point.x
-		lab._last_movement_y_m = nominal.point.y - neutral_crossing.point.y
-	else:
-		lab._last_movement_x_m = 0.0
-		lab._last_movement_y_m = 0.0
+	Operations1._public_measure_nominal_pitch(lab, base_parameters, target_position)
 
 
 static func _update_pitch_release(lab: PitchBatLab, delta_seconds: float) -> void:
-	if lab._release_controller == null or not lab._release_controller.active:
-		return
-	if lab._release_controller.advance(delta_seconds):
-		commit_pitch_release(lab)
-	else:
-		lab._refresh_config()
+	Operations1._update_pitch_release(lab, delta_seconds)
 
 
 static func _update_at_bat_cadence(lab: PitchBatLab, delta_seconds: float) -> void:
-	if lab._at_bat_cadence == null:
-		return
-	var event: AtBatCadenceController.Event = lab._at_bat_cadence.advance(delta_seconds)
-	match event:
-		AtBatCadenceController.Event.THROW_PITCH:
-			_reset_pitcher_telegraph(lab)
-			lab._throw_pitch()
-		AtBatCadenceController.Event.CONTINUE_PLAY:
-			lab._handle_match_advance()
-		_:
-			pass
+	Operations1._update_at_bat_cadence(lab, delta_seconds)
 
 
 static func _update_pitcher_telegraph(lab: PitchBatLab) -> void:
-	if lab._pitcher_marker == null or lab._match_state == null:
-		return
-	var progress: float = -1.0
-	var ai_delivery: bool = false
-	if (
-		lab._at_bat_cadence != null
-		and lab._at_bat_cadence.state == AtBatCadenceController.State.DELIVERY
-	):
-		progress = lab._at_bat_cadence.delivery_progress()
-		ai_delivery = true
-	elif (
-		lab._player_is_pitching()
-		and lab._release_controller != null
-		and lab._release_controller.active
-	):
-		progress = lab._release_controller.meter_progress()
-	if progress < 0.0:
-		return
-	var lift: float = sin(progress * PI)
-	var selected_pitch: PitchDefinition = lab._selected_pitch()
-	var slot_amount: float = 0.08
-	var sidearm: bool = false
-	if (
-		selected_pitch != null
-		and selected_pitch.delivery_profile != null
-		and selected_pitch.delivery_profile.delivery >= DeliveryProfileDefinition.Delivery.SIDEARM
-	):
-		slot_amount = 0.22
-		sidearm = true
-	var handedness: float = (
-		-1.0
-		if (lab._match_state.pitcher().definition.throws == PlayerDefinition.Handedness.LEFT)
-		else 1.0
-	)
-	lab._pitcher_marker.position = (
-		lab.MOUND_ORIGIN
-		+ Vector3(
-			handedness * slot_amount * lift, 0.16 * lift, -0.18 * smoothstep(0.55, 1.0, progress)
-		)
-	)
-	lab._pitcher_marker.rotation.z = handedness * slot_amount * lift
-	if lab._pitcher_avatar != null:
-		lab._pitcher_avatar.set_pitch_delivery_progress(progress, sidearm)
-	if ai_delivery and lab._action_label != null:
-		lab._action_label.text = lab._at_bat_cadence.delivery_cue()
+	Operations1._update_pitcher_telegraph(lab)
 
 
 static func _reset_pitcher_telegraph(lab: PitchBatLab) -> void:
-	if lab._pitcher_marker == null:
-		return
-	lab._pitcher_marker.position = lab.MOUND_ORIGIN
-	lab._pitcher_marker.rotation = Vector3.ZERO
-	if lab._pitcher_avatar != null:
-		lab._pitcher_avatar.reset_pose()
+	Operations1._reset_pitcher_telegraph(lab)
 
 
 static func _update_continuous_input(lab: PitchBatLab, delta_seconds: float) -> void:
-	var amount: float = AIM_SPEED_MPS * delta_seconds
-	if lab._match_mode:
-		if (
-			lab._player_is_pitching()
-			and lab._match_state.phase == MatchState.Phase.PRE_PITCH
-			and not lab._release_controller.active
-			and not lab._field_setup_active
-			and not lab._pitching_staff_active
-		):
-			_apply_pitch_aim(lab, amount)
-		elif lab._player_is_batting() and not lab._swing_consumed:
-			_apply_bat_aim(lab, amount)
-		return
-	_apply_pitch_aim(lab, amount)
-	_apply_bat_aim(lab, amount)
+	Operations1._update_continuous_input(lab, delta_seconds)
 
 
 static func _apply_pitch_aim(lab: PitchBatLab, amount: float) -> void:
-	var direction: Vector2 = Input.get_vector(
-		&"pitch_aim_left", &"pitch_aim_right", &"pitch_aim_down", &"pitch_aim_up"
-	)
-	if direction.length_squared() > 0.0001:
-		lab._adjust_pitch_target(direction * amount)
+	Operations1._apply_pitch_aim(lab, amount)
 
 
 static func _apply_bat_aim(lab: PitchBatLab, amount: float) -> void:
-	var direction: Vector2 = Input.get_vector(
-		&"bat_aim_left", &"bat_aim_right", &"bat_aim_down", &"bat_aim_up"
-	)
-	if direction.length_squared() > 0.0001:
-		lab._adjust_batting_aim(direction * amount)
+	Operations1._apply_bat_aim(lab, amount)

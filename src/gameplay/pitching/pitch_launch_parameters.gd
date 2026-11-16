@@ -17,6 +17,22 @@ var orientation_stability: float = 1.0
 var instability_strength: float = 0.0
 var instability_frequency_hz: float = 3.0
 
+var movement_start: Vector2 = Vector2.ZERO
+var movement_end: Vector2 = Vector2.ONE
+var movement_initial_scale: Vector2 = Vector2.ONE
+
+var exotic_shape: StringName
+var exotic_strength: float = 0.0
+
+var mastery_movement_scale: float = 1.0
+var mastery_late_bias: float = 0.0
+var mastery_noise_scale: float = 1.0
+var command_only_quality: bool = false
+var execution_direction_scale: float = 1.0
+var gear_command_scale: float = 1.0
+var release_z: float = 0.0
+var target_z: float = 0.0
+
 var hole_axis_ball_local: Vector3 = Vector3.RIGHT
 @warning_ignore("shadowed_global_identifier")
 var seed: int = 0
@@ -37,6 +53,19 @@ func copy() -> PitchLaunchParameters:
 	result.orientation_stability = orientation_stability
 	result.instability_strength = instability_strength
 	result.instability_frequency_hz = instability_frequency_hz
+	result.movement_start = movement_start
+	result.movement_end = movement_end
+	result.movement_initial_scale = movement_initial_scale
+	result.exotic_shape = exotic_shape
+	result.exotic_strength = exotic_strength
+	result.mastery_movement_scale = mastery_movement_scale
+	result.mastery_late_bias = mastery_late_bias
+	result.mastery_noise_scale = mastery_noise_scale
+	result.command_only_quality = command_only_quality
+	result.execution_direction_scale = execution_direction_scale
+	result.gear_command_scale = gear_command_scale
+	result.release_z = release_z
+	result.target_z = target_z
 	result.hole_axis_ball_local = hole_axis_ball_local
 	result.seed = seed
 	return result

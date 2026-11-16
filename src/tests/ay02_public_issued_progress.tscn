@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/tests/ay02_public_issued_progress.gd" id="1_test"]
+
+[node name="Ay02PublicIssuedProgress" type="Node"]
+script = ExtResource("1_test")

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/overhand.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.overhand_splitter"
+display_name = "Overhand Splitter"
+tactical_description = "Working design: Fast initial look then concentrated late downward movement. Slot pairing and numeric calibration are game design choices."
+category = 2
+rarity = 1
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 23.00
+nominal_spin_rpm = 1750.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.998, -0.04, 0)
+nominal_hole_axis_ball_local = Vector3(0.3, 0.5, 0.8)
+perforation_influence = 0.15
+instability_strength = 0.0
+instability_frequency_hz = 3.0
+control_difficulty = 1.12
+execution_difficulty = 1.20
+stamina_cost = 5.70
+recognition_difficulty = 1.3
+timing_difficulty = 1.2
+mistake_punish = 1.2
+tags = [&"working_design", &"splitter", &"overhand"]
+offering_id = &"offering.splitter"
+design_status = "Working design"
+source_urls = Array[String](["https://www.mlb.com/glossary/pitch-types/splitter"])
+movement_start = Vector2(0.15, 0.4)
+movement_end = Vector2(0.65, 0.82)
+movement_initial_scale = Vector2(0.4, 0.16)

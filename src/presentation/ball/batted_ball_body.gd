@@ -2,6 +2,7 @@ class_name BattedBallBody
 extends RigidBody3D
 
 signal surface_contact(surface_id: StringName, contact_position: Vector3)
+signal launch_started(position: Vector3)
 
 @export var aero_drag_coefficient: float = 0.22
 @export var aero_magnus_scale: float = 1.0
@@ -10,6 +11,7 @@ signal surface_contact(surface_id: StringName, contact_position: Vector3)
 var ball_mass_kg: float = 0.020
 var radius_m: float = 0.0365
 var hole_axis_ball_local: Vector3 = Vector3.RIGHT
+var physics_contact_router: Callable
 var _started: bool = false
 
 func _ready() -> void:
@@ -48,6 +50,7 @@ func launch(launch_data: BattedBallLaunch) -> void:
 	_started = true
 	freeze = false
 	sleeping = false
+	launch_started.emit(launch_data.position)
 
 func stop_and_freeze() -> void:
 	linear_velocity = Vector3.ZERO
@@ -76,6 +79,14 @@ func _integrate_forces(physics_state: PhysicsDirectBodyState3D) -> void:
 		hole_axis_ball_local
 	)
 	physics_state.linear_velocity += aero_acceleration * physics_state.step
+	if physics_contact_router.is_valid():
+		var batch: Array[Dictionary] = []
+		for index in range(physics_state.get_contact_count()):
+			var body: Object = physics_state.get_contact_collider_object(index)
+			if body is Node:
+				batch.append({"body": body,
+					"position": physics_state.get_contact_collider_position(index)})
+		physics_contact_router.call(self, batch)
 
 func _on_body_entered(body: Node) -> void:
 	if not _started:
@@ -93,16 +104,7 @@ func _build_debug_ball() -> void:
 	collision_shape.shape = sphere_shape
 	add_child(collision_shape)
 
-	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
-	var sphere_mesh: SphereMesh = SphereMesh.new()
-	sphere_mesh.radius = 0.075
-	sphere_mesh.height = 0.15
-	mesh_instance.mesh = sphere_mesh
-
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = Color(0.98, 0.96, 0.84)
-	material.roughness = 0.78
-	mesh_instance.material_override = material
+	var mesh_instance: WiffleBallVisual = WiffleBallVisual.create(0.78)
 	add_child(mesh_instance)
 
 	var physics_material: PhysicsMaterial = PhysicsMaterial.new()

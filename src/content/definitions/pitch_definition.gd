@@ -44,3 +44,26 @@ enum Rarity {
 @export_range(0.0, 2.0, 0.01) var mistake_punish: float = 1.0
 
 @export var tags: Array[StringName] = []
+
+# New recipes carry explicit Working design provenance. Empty on historical recipes.
+@export var offering_id: StringName
+@export var design_status: String = ""
+@export var source_urls: Array[String] = []
+
+# Continuous aerodynamic shaping, not a target correction. X is lateral and Y
+# vertical. Gravity and drag are never delayed. Neutral defaults preserve old flight.
+@export var movement_start := Vector2.ZERO
+@export var movement_end := Vector2.ONE
+@export var movement_initial_scale := Vector2.ONE
+
+# Project-fiction shape support. Empty/zero preserve every historical recipe.
+@export var exotic_shape: StringName
+@export_range(0.0, 2.0, 0.01) var exotic_strength: float = 0.0
+
+# Runtime calibration fields. Authored recipes keep neutral defaults.
+@export_storage var mastery_level: int = 1
+@export_storage var mastery_movement_scale: float = 1.0
+@export_storage var mastery_late_bias: float = 0.0
+@export_storage var mastery_noise_scale: float = 1.0
+@export_storage var command_only_quality: bool = false
+@export_storage var gear_command_scale: float = 1.0

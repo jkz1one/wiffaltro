@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/sidearm.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.sidearm_sweeper"
+display_name = "Sidearm Sweeper"
+tactical_description = "Working design: Broad sustained glove-side sweep, wider and slower than Slider. Slot pairing and numeric calibration are game design choices."
+category = 1
+rarity = 1
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 21.00
+nominal_spin_rpm = 2100.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.0205, 0.999, 0)
+nominal_hole_axis_ball_local = Vector3(0.3, 0.5, 0.8)
+perforation_influence = 0.15
+instability_strength = 0.0
+instability_frequency_hz = 3.0
+control_difficulty = 1.26
+execution_difficulty = 1.29
+stamina_cost = 6.10
+recognition_difficulty = 1.3
+timing_difficulty = 1.2
+mistake_punish = 1.2
+tags = [&"working_design", &"sweeper", &"sidearm", &"glove_side"]
+offering_id = &"offering.sweeper"
+design_status = "Working design"
+source_urls = Array[String](["https://www.mlb.com/glossary/pitch-types/sweeper"])
+movement_start = Vector2(0, 0)
+movement_end = Vector2(1, 1)
+movement_initial_scale = Vector2(1, 1)

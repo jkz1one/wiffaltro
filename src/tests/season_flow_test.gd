@@ -166,6 +166,7 @@ func _test_saved_season() -> void:
 	_check(SeasonSave._decode(data) == null, "foreign roster statistics rejected")
 	data = valid_data.duplicate(true)
 	data["version"] = 2
+	data.erase("ownership") # Schema 2 predates ownership; no silent downgrade.
 	for result: Dictionary in data["results"]:
 		result.erase("performance")
 	var migrated: SeasonState = SeasonSave._decode(data)
