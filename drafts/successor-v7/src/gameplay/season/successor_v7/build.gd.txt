@@ -1,0 +1,529 @@
+extends SeasonBuild
+const V7Catalog = preload("catalog_context.gd")
+const V7Progression = preload("progression.gd")
+const V7Access = preload("exotic_access.gd")
+const V7Eligibility = preload("exotic_eligibility.gd")
+const V7Reward = preload("reward.gd")
+const V7Shop = preload("shop.gd")
+const V7Book = preload("development.gd")
+const V7Adapter = preload("match_adapter.gd")
+const V7BuildShop = preload("build_shop.gd")
+const V7Market = preload("opponent_market.gd")
+
+func _init(
+	seed_value: int = 0,
+	roster: Array[String] = [],
+	pool: Array[String] = [],
+	blocked: Array[String] = [],
+	_fork_only: bool = false
+) -> void:
+	_seed = seed_value
+	_roster = roster.duplicate()
+	_initial_roster = roster.duplicate()
+	_pool = SeasonPlayerCatalog.ids() if pool.is_empty() else pool.duplicate()
+	_pool.sort()
+	_blocked = blocked.duplicate()
+	_blocked.sort()
+	for id: String in roster:
+		_contracts[id] = RecruitCatalog.contract(id).prices[0]
+	if _fork_only:
+		return
+	_bank = SeasonOwnership.new(SeasonSponsorCatalog.ownership_catalog())
+	_book = V7Book.new("season:%d" % _seed)
+
+func shop_item(id: String) -> Dictionary:
+	return V7Shop.item(id, _book._pitch_catalog_version)
+
+func definition(player_id: String) -> PlayerDefinition:
+	var result: PlayerDefinition = V7Adapter.player(_book, player_id)
+	if result != null and _roster.has(player_id):
+		result.season_abilities = _abilities.ids(player_id)
+		result = SeasonGearCatalog.equip(result, _bank.view().gear, _format >= 40)
+		result.season_sponsors = SeasonSponsorEffects.snapshot(
+			_bank.view().sponsors, _book, _roster, _legends
+		)
+	return result
+
+func targets(item_id: String) -> Array[Dictionary]:
+	return V7Shop.targets(_book, _roster, item_id)
+
+func to_data() -> Dictionary:
+	if not pricing_context_valid() or not _bank.completion_closed():
+		return {}
+	var data: Dictionary = {
+		"version": _format,
+		"seed": _seed,
+		"roster": _initial_roster.duplicate(),
+		"catalog":
+		_signature(_format, _league_rules if not _league_rules.is_empty() else null, _legacy_gap_name),
+		"events": _events.duplicate(true)
+	}
+	if _format >= 2:
+		data.merge(
+			{
+				"pool": _pool.duplicate(),
+				"blocked": _blocked.duplicate(),
+				"recruit_from": _recruit_from,
+				"recruits": _recruits.duplicate(true)
+			}
+		)
+	if _format >= 3:
+		data["gear_from"] = _gear_from
+	if _format >= 4:
+		data["misc_from"] = _misc_from
+	if _format >= 5:
+		data["mapped_gear_from"] = _mapped_gear_from
+	if _format >= 6:
+		data["sponsor_from"] = _sponsor_from
+	if _format >= 7:
+		data["gameplay_sponsor_from"] = _gameplay_sponsor_from
+	if _format >= 8:
+		data["sequence_sponsor_from"] = _sequence_sponsor_from
+	if _format >= 9:
+		data["field_sponsor_from"] = _field_sponsor_from
+	if _format >= 10:
+		data["shop_sponsor_from"] = _shop_sponsor_from
+	if _format >= 11:
+		data["school_sponsor_from"] = _school_sponsor_from
+	if _format >= 12:
+		data["anchor_sponsor_from"] = _anchor_sponsor_from
+	if _format >= 13:
+		data["wholesale_from"] = _wholesale_from
+	if _format >= 14:
+		data["tactical_from"] = _tactical_from
+	if _format >= 15:
+		data["expanded_tactical_from"] = _expanded_tactical_from
+	if _format >= 16:
+		data["tactical_sponsor_from"] = _tactical_sponsor_from
+	if _format >= 17:
+		data["budget_from"] = _budget_from
+	if _format >= 18:
+		data["film_from"] = _film_from
+	if _format >= 19:
+		data["market"] = _market
+	if _format >= 20:
+		data["gear_start"] = _gear_progress.start.duplicate() if _gear_progress.enabled else null
+	if _format >= 21:
+		data["sponsor_start"] = (
+			_sponsor_progress.start.duplicate(true) if _sponsor_progress.enabled else null
+		)
+	if _format >= 23:
+		data["order_start"] = _order_start
+	if _format >= 24:
+		data["rain_start"] = _rain_start
+	if _format >= 25:
+		data["transfer_start"] = _transfer_start
+	if _format >= 26:
+		data["supply_start"] = _supply_start
+	if _format >= 27:
+		data["checkout_start"] = _checkout_start
+	if _format >= 28:
+		data["association_start"] = _association_start
+	if _format >= 29:
+		data["freezer_start"] = _freezer_start
+	if _format >= 30:
+		data["sides_start"] = _sides_start
+	if _format >= 36:
+		data["ability_from"] = _abilities.from_visit
+		data["ability_start"] = _abilities.start
+	if _format >= 37:
+		data["major_start"] = _major.start
+	if _format >= 38:
+		data["retraining_enabled"] = _retraining_enabled
+	if _format >= 40:
+		data["alley_from"] = _gear_progress.alley_from
+	if _format >= 35:
+		data["copy_start"] = _copy.start
+	if _format >= 34:
+		data["field_start"] = _field_start
+	if _format >= 33:
+		data["sure_start"] = _sure_start
+	if _format >= 31:
+		data["jump_start"] = _jump_start
+	if _format >= 32:
+		data["batch_start"] = _batch_start.duplicate() if _batch_start != null else null
+	if _format in [D1_VERSION, D3_VERSION, D4_VERSION, LEAGUE_TIER_VERSION]:
+		data["pricing_rule"] = _pricing_rule
+	if _format in [D3_VERSION, D4_VERSION, LEAGUE_TIER_VERSION]:
+		data["sponsor_rule"] = _sponsor_rule
+	if _format in [LEAGUE_VERSION, LEAGUE_TIER_VERSION]:
+		data["league_rules"] = _league_rules.duplicate(true)
+		if LeagueRules.dynasty(_league_rules):
+			data["dynasty_start"] = _dynasty_start.duplicate(true)
+	if pitch_catalog_successor():
+		return V7Progression.wrap_build(data)
+	return WorkingPitchProgression.wrap_build(data, _book._exotic_start) if pitch_catalog_current() else data
+
+static func from_data(
+	value: Variant,
+	seed_value: int,
+	roster: Array[String],
+	pool: Array[String] = [],
+	blocked: Array[String] = []
+) -> SeasonBuild:
+	return load("res://src/gameplay/season/successor_v7/build_restore.gd").restore(value, seed_value, roster, pool, blocked)
+
+func candidate(command: Dictionary) -> SeasonBuild:
+	last_error = ""
+	if not pricing_context_valid() or not _bank.completion_closed():
+		last_error = "Invalid immutable reroll pricing context."
+		return null
+	if (
+		not SeasonOwnership._text(command.get("id"))
+		or not SeasonOwnership._whole(command.get("rev"), 0, MAX_EVENTS)
+	):
+		last_error = "Invalid shop transaction identity."
+		return null
+	var normalized: Dictionary = command.duplicate(true)
+	normalized.rev = int(normalized.rev)
+	if normalized.has("game") and SeasonOwnership._whole(normalized.game, 0, 32):
+		normalized.game = int(normalized.game)
+	if LeagueRules.earnings(_league_rules) and normalized.get("op") == "reward":
+		for score: String in ["own_runs", "opponent_runs"]:
+			if SeasonOwnership._whole(normalized.get(score), 0, 9999):
+				normalized[score] = int(normalized[score])
+	if (
+		normalized.get("op") == SeasonInventoryRules.CLOSE_OP
+		and normalized.get("attempt") is Dictionary
+	):
+		for field: String in ["game", "rev"]:
+			if SeasonOwnership._whole(normalized.attempt.get(field), 0, MAX_EVENTS):
+				normalized.attempt[field] = int(normalized.attempt[field])
+	if normalized.get("op") == "successor_reward":
+		var inner: Dictionary = V7Reward.unwrap(normalized)
+		if inner.is_empty():
+			last_error = "Invalid successor reward envelope."
+			return null
+		inner.rev = int(inner.rev)
+		if SeasonOwnership._whole(inner.get("game"), 0, 32):
+			inner.game = int(inner.game)
+		normalized.command = inner
+	var serialized: String = JSON.stringify(normalized)
+	if (
+		(normalized.get("op") == "successor_reward")
+		or (normalized.get("op") == "exotic_admit" and (pitch_catalog_current() or pitch_catalog_successor()))
+		or (LeagueRules.doubleheader(_league_rules) and normalized.get("op") == "reward")
+		or (
+			SeasonInventoryResale.enabled(_bank)
+			and (
+				(
+					normalized.get("op")
+					in ["match_sell", "match_supply_sell", SeasonInventoryRules.CLOSE_OP]
+				)
+				or (normalized.get("op") == "reward" and normalized.has("inventory_final"))
+			)
+		)
+	):
+		# New workload proofs retain float precision while normalizing integral JSON values.
+		serialized = JSON.stringify(
+			JSON.parse_string(JSON.stringify(normalized, "", true, true)), "", true, true
+		)
+	if _requests.has(normalized.id):
+		if _requests[normalized.id] == serialized:
+			return _fork()
+		last_error = "This transaction ID was already used for another action."
+		return null
+	if normalized.rev != revision() or revision() >= MAX_EVENTS:
+		last_error = "The build changed. Review a fresh purchase."
+		return null
+	var next: SeasonBuild = _fork()
+	last_error = next._major.apply(next, normalized)
+	if not last_error.is_empty():
+		return null
+	if _order_start != null and normalized.op == "reroll" and next.cash() < cash():
+		next._paid_rerolls += 1
+	SeasonRaincheck.after(self, next, normalized)
+	if next._transfer_start != null and SeasonTransfer.learners(next) >= 2:
+		next._transfer_earned = true
+	SeasonAssociation.earn(next, normalized)
+	SeasonCarbonCopy.earn(next, normalized)
+	SeasonLegends.prune(next)
+	if not next._bank.completion_closed():
+		last_error = "Incomplete completed-game sponsor settlement."
+		return null
+	next._events.append(normalized)
+	next._requests[normalized.id] = serialized
+	return next
+
+func _fork() -> SeasonBuild:
+	var result: SeasonBuild = load("res://src/gameplay/season/successor_v7/build.gd").new(_seed, _initial_roster, _pool, _blocked, true)
+	result._roster = _roster.duplicate()
+	result._contracts = _contracts.duplicate(true)
+	result._recruits = _recruits.duplicate(true)
+	result._game_rosters = _game_rosters.duplicate(true)
+	result._appeared = _appeared
+	result._format = _format
+	result._legacy_gap_name = _legacy_gap_name
+	result._market = _market
+	result._league_rules = _league_rules.duplicate(true)
+	result._dynasty_start = _dynasty_start
+	result._pricing_rule = _pricing_rule
+	result._sponsor_rule = _sponsor_rule
+	result._retraining_enabled = _retraining_enabled
+	result._gear_progress = _gear_progress.fork()
+	result._sponsor_progress = _sponsor_progress.fork()
+	result._legends = _legends.duplicate(true)
+	result._order_start = _order_start
+	result._paid_rerolls = _paid_rerolls
+	result._rain_start = _rain_start
+	result._rain_earned = _rain_earned
+	result._transfer_start = _transfer_start
+	result._transfer_earned = _transfer_earned
+	result._checkout_start = _checkout_start
+	result._checkout_earned = _checkout_earned
+	result._association_start = _association_start
+	result._freezer_start = _freezer_start
+	result._sides_start = _sides_start
+	result._major = _major.fork()
+	result._abilities = _abilities.fork()
+	result._copy = _copy.fork()
+	result._field_start = _field_start
+	result._field_outs = _field_outs
+	result._sure_start = _sure_start
+	result._sure_earned = _sure_earned
+	result._jump_start = _jump_start
+	result._batch_start = _batch_start.duplicate() if _batch_start != null else null
+	result._batch_used = _batch_used.duplicate()
+	result._association_earned = _association_earned
+	result._freezer_earned = _freezer_earned
+	result._sides_earned = _sides_earned
+	result._jump_earned = _jump_earned
+	result._supply_start = _supply_start
+	result._supply_used = _supply_used
+	result._insurance = _insurance.duplicate(true)
+	result._reservation = _reservation.duplicate(true)
+	result._recruit_from = _recruit_from
+	result._gear_from = _gear_from
+	result._misc_from = _misc_from
+	result._mapped_gear_from = _mapped_gear_from
+	result._sponsor_from = _sponsor_from
+	result._gameplay_sponsor_from = _gameplay_sponsor_from
+	result._sequence_sponsor_from = _sequence_sponsor_from
+	result._field_sponsor_from = _field_sponsor_from
+	result._shop_sponsor_from = _shop_sponsor_from
+	result._school_sponsor_from = _school_sponsor_from
+	result._anchor_sponsor_from = _anchor_sponsor_from
+	result._wholesale_from = _wholesale_from
+	result._tactical_from = _tactical_from
+	result._expanded_tactical_from = _expanded_tactical_from
+	result._tactical_sponsor_from = _tactical_sponsor_from
+	result._budget_from = _budget_from
+	result._film_from = _film_from
+	result._scouts = _scouts.duplicate(true)
+	result._pregames = _pregames.duplicate(true)
+	result._match_inventory = _match_inventory.duplicate(true)
+	result._scholarships = _scholarships.duplicate(true)
+	result._used_gear = _used_gear.duplicate()
+	result._income_by_game = _income_by_game.duplicate(true)
+	result._bank = _bank.fork()
+	result._book = _book.fork()
+	result._visit = _visit.duplicate(true)
+	result._events = _events.duplicate(true)
+	result._requests = _requests.duplicate(true)
+	return result
+
+func _apply(command: Dictionary) -> String:
+	var op: String = str(command.get("op", ""))
+	if pack_pending() and op not in ["pack_pick", "pack_skip", "leave_shop"]:
+		return "Choose or skip the open pack before leaving or doing other shopping."
+	if op == SeasonInventoryResale.ENABLE_OP:
+		return SeasonInventoryRules.build_enable(self, command)
+	if op == SeasonInventoryRules.CLOSE_OP:
+		return SeasonInventoryRules.close_attempt(self, command)
+	if op == "inventory_sell":
+		return SeasonInventoryRules.sell(self, command)
+	if op in ["match_inventory", "match_sell", "match_supply_sell"]:
+		return SeasonMatchInventory.commit(self, command)
+	if op == "copy_select":
+		return SeasonCarbonCopy.commit(self, command)
+	if op == "insure":
+		return SeasonSecondChance.commit(self, command)
+	if op == "scout":
+		return SeasonFilmRoom.commit(self, command)
+	if op == "pregame":
+		return SeasonBudgetBites.commit(self, command)
+	if op == "exotic_admit":
+		return V7Access.settle(self, command) if pitch_catalog_successor() else WorkingExoticAccess.settle(self, command)
+	if op == "successor_reward":
+		return V7Reward.settle(self, command)
+	if op == "reward":
+		return "Bare historical reward is not accepted in successor context."
+	if op == "open":
+		if not _keys(command, []) or _visit.open or _visit.number < 1:
+			return "No new postgame shop is available."
+		var union_earned: bool = _visit.get("union_earned", false)
+		_visit = {
+			"number": _visit.number,
+			"open": true,
+			"rerolls": 0,
+			"offers": _offers(0),
+			"cards":
+			(
+				V7Market.pack(self)
+				if _market != 0
+				else V7Shop.pack(_book, _roster, _rng(-1))
+			),
+			"pack_status": "sealed"
+		}
+		SeasonRaincheck.deliver(self)
+		if union_earned:
+			_visit["union_credit"] = 3
+		if (
+			_market == 0
+			and _format >= 2
+			and _visit.number >= _recruit_from
+			and not LeagueRules.dynasty(_league_rules)
+		):
+			_visit["recruit"] = _recruit_offer()
+		return ""
+	if not _visit.open:
+		return "Open the current postgame shop first."
+	match op:
+		"transfer_pitch":
+			return SeasonTransfer.commit(self, command)
+		"reserve_offer", "release_reservation":
+			return SeasonRaincheck.commit(self, command)
+		"focused_reroll":
+			return SeasonSpecialOrder.commit(self, command)
+		"tactical_exchange":
+			return SeasonTacticalExchange.exchange(self, command)
+		"major_assign":
+			return "" if _format >= 37 and _keys(command, []) else "Invalid Double Major choice."
+		"ability_buy":
+			return _abilities.buy(self, command)
+		"retrain_buy":
+			return SeasonRetraining.buy(self, command)
+		"tactical_buy":
+			return SeasonTacticalPurchase.buy(self, command)
+		"wholesale":
+			return SeasonWholesale.purchase(self, command)
+		"lesson_pair":
+			return SeasonSchoolSponsors.pair(self, command)
+		"leave_shop":
+			if _format < 10 or not _keys(command, []):
+				return "Invalid shop departure."
+			_visit["reroll_credit"] = 0
+			if _format >= 11:
+				_visit["union_credit"] = 0
+		"sponsor_buy", "sponsor_sell":
+			return SeasonSponsorPurchase.commit(self, command)
+		"spare_buy", "spare_swap":
+			return SeasonEquipment.commit(self, command)
+		"equip", "sell_gear":
+			return _gear_transaction(command)
+		"sign":
+			if LeagueRules.dynasty(_league_rules):
+				return "Dynasty replacement is not available in this closed bridge."
+			return _sign(command)
+		"buy":
+			return SeasonDevelopmentPurchase.buy(self, command)
+		"use":
+			return _use(command)
+		"discard":
+			if not _keys(command, ["receipt"]) or not command.receipt is String:
+				return "Choose a held card to discard."
+			var result: Dictionary = _bank.commit(
+				{
+					"id": "discard:%d" % revision(),
+					"rev": _bank.revision(),
+					"op": "discard",
+					"receipts": [command.receipt]
+				}
+			)
+			return "" if result.ok else result.error
+		"reroll":
+			if not _keys(command, []):
+				return "Invalid reroll."
+			var error: String = _charge(reroll_price())
+			if not error.is_empty():
+				return error
+			if _format >= 10:
+				_visit["reroll_credit"] = 0
+			_visit.rerolls += 1
+			var protected: Dictionary = SeasonRaincheck.protected_offer(self)
+			_visit.offers = _offers(_visit.rerolls)
+			SeasonRaincheck.preserve(self, protected)
+			_visit.erase("unavailable_slots")
+			_visit.erase("focused_category")
+		"pack_open":
+			if (
+				not _keys(command, [])
+				or _visit.pack_status != "sealed"
+				or _pack_choices().is_empty()
+			):
+				return "No eligible unopened pack."
+			var paid: int = pack_price()
+			var error: String = _charge(paid)
+			if not error.is_empty():
+				return error
+			if _format >= 11:
+				_visit["union_credit"] = 0
+			_visit.pack_status = "open"
+			_visit.cards = _pack_choices()
+			if LeagueRules.academy(_league_rules):
+				_visit["pack_paid"] = paid
+				_visit["pack_picked"] = []
+		"pack_pick":
+			if not _keys(command, ["item", "player", "pitch", "replace"]) or not pack_pending():
+				return "No revealed pack choice is pending."
+			if not command.item is String or not _visit.cards.has(command.item):
+				return "Choose one revealed card."
+			if LeagueRules.academy(_league_rules) and not _pack_choices().has(command.item):
+				return "Choose a distinct remaining eligible card from this fixed reveal."
+			var error: String = _develop(command.item, command)
+			if not error.is_empty():
+				return error
+			if LeagueRules.academy(_league_rules):
+				_visit.pack_picked.append(command.item)
+				if _visit.pack_picked.size() >= 2 or _pack_choices().is_empty():
+					_visit.pack_status = "used"
+			else:
+				_visit.pack_status = "used"
+		"pack_skip":
+			if not _keys(command, []) or not pack_pending():
+				return "No revealed pack to skip."
+			_visit.pack_status = "skipped"
+		_:
+			return "Unsupported shop operation."
+	return ""
+
+func _offers(rerolls: int) -> Dictionary:
+	return V7BuildShop.offers(self, rerolls)
+
+func enable_successor_pitch_catalog() -> bool:
+	if revision() != 0 or _bank.revision() != 0 or int(_visit.number) != 0 or _format != VERSION or _legacy_gap_name or not _league_rules.is_empty() or not _dynasty_start.is_empty():
+		return false
+	return _book.call("enable_successor_pitch_catalog")
+
+func pitch_catalog_successor() -> bool:
+	return _book != null and _book.get_script() == V7Book and _book._pitch_catalog_version == V7Catalog.VERSION
+
+func pitch_catalog_signature() -> String:
+	return V7Catalog.signature() if pitch_catalog_successor() else ""
+
+func pitch_catalog_current() -> bool:
+	return false
+
+func pitch_catalog_expanded() -> bool:
+	return false
+
+func enable_pitch_catalog() -> bool:
+	return false
+
+func enable_expanded_pitch_catalog() -> bool:
+	return false
+
+func enable_league_rules(_value: Variant) -> bool:
+	return false
+
+static func restore(value: Variant, seed_value: int, roster: Array[String], pool: Array[String] = [], blocked: Array[String] = [], before_game: int = -1, observer: Callable = Callable()) -> SeasonBuild:
+	return load("res://src/gameplay/season/successor_v7/build_restore.gd").restore(value, seed_value, roster, pool, blocked, before_game, observer)
+
+func enable_d1_pricing() -> bool:
+	return false
+
+func enable_d3_sponsors() -> bool:
+	return false
+
+func enable_d4_sponsors() -> bool:
+	return false

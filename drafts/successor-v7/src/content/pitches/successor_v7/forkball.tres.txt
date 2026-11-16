@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/overhand.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.forkball"
+display_name = "Forkball"
+tactical_description = "Unique Exotic game offering retaining the existing Overhand Forkball calibration: slower and earlier/deeper downward finish than Splitter. No automatic arm variants. Exotic is an acquisition tier, not a new physics category."
+category = 2
+rarity = 3
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 20.60
+nominal_spin_rpm = 1850.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.998, -0.05, 0)
+nominal_hole_axis_ball_local = Vector3(0.3, 0.5, 0.8)
+perforation_influence = 0.15
+instability_strength = 0.0
+instability_frequency_hz = 3.0
+control_difficulty = 1.26
+execution_difficulty = 1.30
+stamina_cost = 5.80
+recognition_difficulty = 1.3
+timing_difficulty = 1.2
+mistake_punish = 1.2
+tags = Array[StringName]([&"working_design", &"unique_exotic", &"forkball"])
+offering_id = &"offering.forkball"
+design_status = "Successor game-design prototype; native tuning pending"
+source_urls = Array[String](["https://www.mlb.com/glossary/pitch-types/forkball"])
+movement_start = Vector2(0, 0.22)
+movement_end = Vector2(1, 0.7)
+movement_initial_scale = Vector2(1, 0.24)

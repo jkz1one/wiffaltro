@@ -1,0 +1,56 @@
+extends RefCounted
+## V7-only runtime materialization. Prototype design constants, not measured physics.
+## Both human and AI profile adapters use this before ordinary effort/gear/aim.
+## Accepts IDs, never an already calibrated recipe: repeated calls cannot compound.
+const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+const VERSION: int = 1
+const CURVEBALL_IDS: Array[String] = [
+	"pitch.overhand_curveball", "pitch.three_quarter_curveball", "pitch.submarine_curveball"]
+const CURVEBALL_SPEED: float = 0.95
+const CURVEBALL_MOVEMENT: float = 1.04
+# PlayerDefinition.pitching_style existing authored enum: Balanced/Power/Breaking/Corners.
+# These are visible identity differences, not trainable stats or a Pitching multiplier.
+const STYLE_NAMES: Array[String] = ["Balanced", "Power", "Breaking", "Corners"]
+const SPEED_SCALES: Array[float] = [1.0, 1.035, 0.975, 0.99]
+const MOVEMENT_SCALES: Array[float] = [1.0, 0.97, 1.045, 1.015]
+
+
+static func valid_style(pitching_style: int) -> bool:
+	return pitching_style >= 0 and pitching_style < STYLE_NAMES.size()
+
+
+static func materialize(
+	pitch_id: String, mastery_level: int, pitching_style: int
+) -> PitchDefinition:
+	if not valid_style(pitching_style):
+		return null
+	# Fresh mastered recipe on EVERY call. No runtime markers or new saved fields.
+	var result: PitchDefinition = Provider.mastered(pitch_id, mastery_level)
+	if result == null:
+		return null
+	if not Provider.is_active(pitch_id):
+		# Readable historical recipes are not silently reauthored or aliased here.
+		return result
+	result.nominal_velocity_mps *= SPEED_SCALES[pitching_style]
+	result.mastery_movement_scale *= MOVEMENT_SCALES[pitching_style]
+	if CURVEBALL_IDS.has(pitch_id):
+		# Actual coefficient change, not description-only: every style remains slower
+		# than the same v6 Curveball at matched level/effort/gear. Higher nominal arc
+		# is a tuning intent which must still be checked in real solver trajectories.
+		result.nominal_velocity_mps *= CURVEBALL_SPEED
+		result.mastery_movement_scale *= CURVEBALL_MOVEMENT
+	return result
+
+
+static func describe(pitching_style: int) -> Dictionary:
+	if not valid_style(pitching_style):
+		return {}
+	return {
+		"version": VERSION,
+		"style": STYLE_NAMES[pitching_style],
+		"speed_scale": SPEED_SCALES[pitching_style],
+		"movement_scale": MOVEMENT_SCALES[pitching_style],
+		"curveball_speed_scale": SPEED_SCALES[pitching_style] * CURVEBALL_SPEED,
+		"curveball_movement_scale": MOVEMENT_SCALES[pitching_style] * CURVEBALL_MOVEMENT,
+		"note": "Authored style affects pitch pace and movement. Pitching trains command and endurance, not speed. Curveball has a slower, broader-arc design; visual tuning is provisional."
+	}

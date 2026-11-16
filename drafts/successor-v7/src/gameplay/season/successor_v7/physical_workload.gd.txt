@@ -1,0 +1,544 @@
+extends RefCounted
+## Doubleheader-only ordered, paid-release and supported-recovery authority.
+# gdlint: disable=max-returns,max-file-lines
+
+const VERSION: int = 1
+
+
+static func capture(state: MatchState, team: TeamMatchState) -> Dictionary:
+	if (
+		state == null
+		or team == null
+		or state.phase != MatchState.Phase.GAME_END
+		or team not in [state.away_team, state.home_team]
+		or not LeagueRules.doubleheader(team.league_rules)
+		or team.recovery.workload_initial.is_empty()
+	):
+		return {}
+	var remaining: Dictionary = {}
+	for player: PlayerMatchState in team.roster:
+		if player == null or player.definition == null:
+			return {}
+		remaining[String(player.definition.id)] = player.stamina_remaining
+	return {
+		"version": VERSION,
+		"initial": team.recovery.workload_initial.duplicate(true),
+		"events": team.recovery.workload_events.duplicate(true),
+		"remaining": remaining
+	}
+
+
+static func capture_human(state: MatchState, team: TeamMatchState) -> Dictionary:
+	var proof: Dictionary = capture(state, team)
+	return (
+		{}
+		if proof.is_empty()
+		else {"version": VERSION, "pair": team.league_pair.duplicate(true), "proof": proof}
+	)
+
+
+static func pair_valid(pair: Variant) -> bool:
+	if (
+		not pair is Dictionary
+		or not SeasonOwnership._keys(pair, ["game", "first", "debt"])
+		or not SeasonOwnership._whole(pair.game, 0, 32)
+		or not SeasonOwnership._whole(pair.first, -1, 32)
+		or not pair.debt is Dictionary
+	):
+		return false
+	if pair.first == -1 and not pair.debt.is_empty():
+		return false
+	if pair.first != SeasonDoubleheaderRules.first(int(pair.game)):
+		return false
+	for id: Variant in pair.debt:
+		if (
+			not id is String
+			or not SeasonPlayerCatalog.ids().has(id)
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(pair.debt[id], 0.0, 1000000.0)
+		):
+			return false
+	return true
+
+
+static func human_matches(
+	envelope: Variant,
+	team: TeamMatchState,
+	performance: Dictionary,
+	pitching: Dictionary,
+	tactics: Array,
+	refund_through: int,
+	cost_context: Array = [],
+	pitch_catalog: String = ""
+) -> bool:
+	if (
+		not envelope is Dictionary
+		or not SeasonOwnership._keys(envelope, ["version", "pair", "proof"])
+		or not SeasonOwnership._whole(envelope.version, VERSION, VERSION)
+		or team == null
+		or not ClubCareer.same(envelope.pair, team.league_pair)
+	):
+		return false
+	return valid_for_team(
+		envelope.proof, team, performance, pitching, tactics, refund_through, cost_context, pitch_catalog
+	)
+
+
+static func valid_for_team(
+	proof: Variant,
+	team: TeamMatchState,
+	performance: Dictionary,
+	pitching: Dictionary,
+	tactics: Array,
+	refund_through: int,
+	cost_context: Array = [],
+	pitch_catalog: String = ""
+) -> bool:
+	if team == null or not LeagueRules.doubleheader(team.league_rules) or team.roster.size() != 4:
+		return false
+	for player: PlayerMatchState in team.roster:
+		if player == null or player.definition == null:
+			return false
+	var roster: Array = team.roster.map(
+		func(player: PlayerMatchState) -> String: return String(player.definition.id)
+	)
+	var wallet: Dictionary = load("res://src/gameplay/season/successor_v7/physical_league.gd").wallet(team.league_rules, team.league_ownership)
+	if (
+		wallet.is_empty()
+		or not valid(
+			proof, roster, performance, pitching, tactics, wallet, team.league_pair, refund_through, pitch_catalog
+		)
+	):
+		return false
+	for player: PlayerMatchState in team.roster:
+		var row: Dictionary = proof.initial[String(player.definition.id)]
+		if (
+			not PhysicalRecoveryFlow.near(row.capacity, player.stamina_max)
+			or not PhysicalRecoveryFlow.near(row.initial, player.stamina_remaining)
+		):
+			return false
+	if not _cost_context_valid(cost_context, roster):
+		return false
+	var previous_pas: Dictionary = {}
+	for event: Dictionary in proof.events:
+		if event.kind != "release":
+			continue
+		var original: PlayerMatchState = team.roster[roster.find(event.player)]
+		var definition: PlayerDefinition = original.definition
+		for transition: Dictionary in cost_context:
+			if event.pa > transition.after:
+				definition = transition.definitions[event.player]
+		var player: PlayerMatchState = PlayerMatchState.create(definition)
+		player.stamina_max = float(proof.initial[event.player].capacity)
+		player.stamina_remaining = float(event.before)
+		player.first_batter_completed = (
+			previous_pas.has(event.player) and previous_pas[event.player] < event.pa
+		)
+		# Once a prior PA completed, later releases in this PA retain that state.
+		if previous_pas.has(event.player):
+			previous_pas[event.player] = mini(int(previous_pas[event.player]), int(event.pa))
+		else:
+			previous_pas[event.player] = int(event.pa)
+		var pitch: PitchDefinition
+		for candidate: PitchDefinition in definition.starting_pitches:
+			if String(candidate.id) == event.recipe:
+				pitch = candidate
+		if (
+			pitch == null
+			or not PhysicalRecoveryFlow.near(event.base_cost, pitch.stamina_cost)
+			or not PhysicalRecoveryFlow.near(
+				event.gear_scale, SeasonGearCatalog.workload(player, float(event.effort))
+			)
+			or not PhysicalRecoveryFlow.near(
+				event.sponsor_scale, SeasonSponsorEffects.workload(definition, pitch)
+			)
+		):
+			return false
+	return true
+
+
+static func _cost_context_valid(timeline: Array, roster: Array) -> bool:
+	var previous: int = -1
+	for transition: Variant in timeline:
+		if (
+			not transition is Dictionary
+			or not SeasonOwnership._keys(transition, ["after", "definitions"])
+			or not SeasonOwnership._whole(transition.after, maxi(0, previous), 99999)
+			or not transition.definitions is Dictionary
+			or not SeasonOwnership._keys(transition.definitions, roster)
+		):
+			return false
+		for id: String in roster:
+			if (
+				not transition.definitions[id] is PlayerDefinition
+				or String(transition.definitions[id].id) != id
+			):
+				return false
+		previous = int(transition.after)
+	return true
+
+
+static func valid(
+	proof: Variant,
+	roster: Array,
+	performance: Dictionary,
+	pitching: Dictionary,
+	tactics: Array,
+	wallet: Dictionary,
+	pair: Dictionary,
+	refund_through: int,
+	pitch_catalog: String = ""
+) -> bool:
+	if (
+		not load("res://src/gameplay/season/successor_v7/pitch_evidence.gd").context_valid(pitch_catalog)
+		or not pair_valid(pair)
+		or wallet.is_empty()
+		or roster.size() != 4
+		or not proof is Dictionary
+		or not SeasonOwnership._keys(proof, ["version", "initial", "events", "remaining"])
+		or not SeasonOwnership._whole(proof.version, VERSION, VERSION)
+		or not proof.initial is Dictionary
+		or not proof.remaining is Dictionary
+		or not SeasonOwnership._keys(proof.initial, roster)
+		or not SeasonOwnership._keys(proof.remaining, roster)
+		or not proof.events is Array
+		or proof.events.size() > 10010
+		or not pitching.get("releases") is Array
+		or not pitching.get("strikeouts") is Array
+		or pitching.releases.size() > 9999
+		or refund_through < -1
+		or refund_through > 99999
+	):
+		return false
+	var current: Dictionary = {}
+	for id: Variant in roster:
+		if (
+			not id is String
+			or not performance.get(id) is Dictionary
+			or not proof.initial[id] is Dictionary
+			or not SeasonOwnership._keys(proof.initial[id], ["capacity", "initial"])
+		):
+			return false
+		var row: Dictionary = proof.initial[id]
+		if (
+			not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(row.capacity, 0.001, 1000000.0)
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(row.initial, 0.0, float(row.capacity))
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(proof.remaining[id], 0.0, float(row.capacity))
+			or not PhysicalRecoveryFlow.near(
+				row.initial, maxf(0.0, float(row.capacity) - float(pair.debt.get(id, 0.0)))
+			)
+		):
+			return false
+		current[id] = float(row.initial)
+	var recovery: Variant = _recoveries(tactics, wallet, roster)
+	if recovery == null:
+		return false
+	var pa_halves: Dictionary = {}
+	var last_pitcher: Dictionary = {}
+	var previous_release: int = 0
+	var defense_parity: int = -1
+	var last_half: int = -1
+	for row: Variant in pitching.releases:
+		if (
+			not row is Dictionary
+			or not SeasonOwnership._keys(row, ["pa", "half", "player", "recipe"])
+			or not SeasonOwnership._whole(row.pa, maxi(1, previous_release), 99999)
+			or not SeasonOwnership._whole(row.half, 0, 9999)
+			or not roster.has(row.player)
+			or not row.recipe is String
+			or row.recipe.is_empty()
+		):
+			return false
+		if defense_parity == -1:
+			defense_parity = int(row.half) % 2
+		if (
+			int(row.half) % 2 != defense_parity
+			or int(row.half) < last_half
+			or (pa_halves.has(int(row.pa)) and pa_halves[int(row.pa)] != row.half)
+		):
+			return false
+		previous_release = int(row.pa)
+		last_half = int(row.half)
+		pa_halves[int(row.pa)] = row.half
+		last_pitcher[int(row.pa)] = row.player
+	var appearances: int = 0
+	for line: Variant in performance.values():
+		if not line is Dictionary or not SeasonOwnership._whole(line.get("pa"), 0, 99999):
+			return false
+		appearances += int(line.pa)
+	var strikeouts: Dictionary = {}
+	var strikeout_counts: Dictionary = {}
+	for row: Variant in pitching.strikeouts:
+		if (
+			not row is Dictionary
+			or not SeasonOwnership._keys(row, ["pa", "half", "player"])
+			or not SeasonOwnership._whole(row.pa, 1, 99999)
+			or not roster.has(row.player)
+			or strikeouts.has(int(row.pa))
+			or pa_halves.get(int(row.pa)) != row.half
+			or last_pitcher.get(int(row.pa)) != row.player
+		):
+			return false
+		strikeouts[int(row.pa)] = row.player
+		strikeout_counts[row.player] = strikeout_counts.get(row.player, 0) + 1
+	for id: String in roster:
+		if strikeout_counts.get(id, 0) != performance[id].get("p_k", -1):
+			return false
+	var released: Array = []
+	var counts: Dictionary = {}
+	var recovered: Array = []
+	var used: Array = []
+	var refunds: int = 0
+	var previous: int = 0
+	var half: int = -1
+	var first: Dictionary = {}
+	var final_pitcher: String = ""
+	var refunded: bool = false
+	var has_sponsor: bool = wallet.sponsors.any(
+		func(copy: Dictionary) -> bool: return copy.item == "B03"
+	)
+	for event: Variant in proof.events:
+		if not _event_shape(event, roster):
+			return false
+		if (
+			event.pa < previous
+			or (event.pa == previous and event.half != half)
+			or int(event.half) % 2 != defense_parity
+		):
+			return false
+		if pa_halves.has(int(event.pa)):
+			if event.half != pa_halves[int(event.pa)]:
+				return false
+		elif (
+			event.kind != "recovery"
+			or event.pa != appearances + 1
+			or int(event.half) not in [last_half, last_half + 2]
+		):
+			return false  # Only a terminal pre-pitch recovery may have no release.
+		if event.pa != previous:
+			if (
+				_refund_due(
+					previous,
+					final_pitcher,
+					first,
+					strikeouts,
+					has_sponsor,
+					refund_through,
+					refunds - (1 if refunded else 0)
+				)
+				!= refunded
+			):
+				return false
+			first = {}
+			final_pitcher = ""
+			refunded = false
+			previous = int(event.pa)
+			half = int(event.half)
+		if not PhysicalRecoveryFlow.near(event.before, current[event.player]):
+			return false
+		var capacity: float = float(proof.initial[event.player].capacity)
+		if event.kind == "release":
+			if refunded or released.size() >= pitching.releases.size():
+				return false
+			var row: Dictionary = {
+				"pa": event.pa, "half": event.half, "player": event.player, "recipe": event.recipe
+			}
+			if (
+				not ClubCareer.same(row, pitching.releases[released.size()])
+				or float(event.paid) > float(event.before) + 0.000001
+			):
+				return false
+			var source_pitch: PitchDefinition = load("res://src/gameplay/season/successor_v7/pitch_evidence.gd")._recipe(event.recipe, pitch_catalog)
+			if source_pitch == null:
+				return false
+			var pitch: PitchDefinition = source_pitch.duplicate(true) as PitchDefinition
+			pitch.stamina_cost = float(event.base_cost)
+			var cost: float = (
+				MatchLabSupport.stamina_cost(pitch, float(event.effort))
+				* lerpf(1.0, 1.08, float(event.overdrive))
+				* float(event.gear_scale)
+				* float(event.sponsor_scale)
+			)
+			if not PhysicalRecoveryFlow.near(event.paid, minf(float(event.before), cost)):
+				return false
+			current[event.player] = maxf(0.0, float(event.before) - float(event.paid))
+			released.append(row)
+			counts[event.player] = counts.get(event.player, 0) + 1
+			if not first.has(event.player):
+				first[event.player] = {}
+			if first[event.player].size() < 3 and not first[event.player].has(event.recipe):
+				first[event.player][event.recipe] = float(event.paid)
+			final_pitcher = event.player
+		elif event.kind == "recovery":
+			if (
+				not final_pitcher.is_empty()
+				or recovered.has(event.player)
+				or used.has(event.receipt)
+				or not recovery.has(event.receipt)
+				or event.before >= capacity
+			):
+				return false
+			var action: Dictionary = recovery[event.receipt]
+			if action.player != event.player or action.pa != event.pa:
+				return false
+			current[event.player] = minf(capacity, float(event.before) + capacity * 0.10)
+			recovered.append(event.player)
+			used.append(event.receipt)
+		else:
+			if (
+				refunded
+				or event.player != final_pitcher
+				or not _refund_due(
+					previous, final_pitcher, first, strikeouts, has_sponsor, refund_through, refunds
+				)
+			):
+				return false
+			var paid: float = 0.0
+			for amount: float in first[final_pitcher].values():
+				paid += amount
+			current[event.player] = minf(capacity, float(event.before) + minf(6.0, paid * 0.25))
+			if not PhysicalRecoveryFlow.near(
+				event.amount, float(current[event.player]) - float(event.before)
+			):
+				return false
+			refunds += 1
+			refunded = true
+		if not PhysicalRecoveryFlow.near(event.after, current[event.player]):
+			return false
+	if (
+		(
+			_refund_due(
+				previous,
+				final_pitcher,
+				first,
+				strikeouts,
+				has_sponsor,
+				refund_through,
+				refunds - (1 if refunded else 0)
+			)
+			!= refunded
+		)
+		or released.size() != pitching.releases.size()
+		or used.size() != recovery.size()
+	):
+		return false
+	for id: String in roster:
+		if (
+			counts.get(id, 0) != performance[id].get("pitches", -1)
+			or not PhysicalRecoveryFlow.near(current[id], proof.remaining[id])
+		):
+			return false
+	return true
+
+
+static func _recoveries(tactics: Array, wallet: Dictionary, roster: Array) -> Variant:
+	var result: Dictionary = {}
+	var receipts: Array = []
+	var appearances: Dictionary = {}
+	for action: Variant in tactics:
+		if (
+			not action is Dictionary
+			or not action.get("receipt") is String
+			or receipts.has(action.receipt)
+			or not SeasonOwnership._whole(action.get("pa"), 1, 99999)
+		):
+			return null
+		receipts.append(action.receipt)
+		appearances[int(action.pa)] = appearances.get(int(action.pa), 0) + 1
+	for action: Dictionary in tactics:
+		var copy: Dictionary = SeasonOwnership._owned(wallet, action.receipt)
+		if copy.get("item") != "C02":
+			continue
+		if (
+			appearances[int(action.pa)] != 1
+			or not roster.has(action.get("player"))
+			or not SeasonOwnership._whole(action.get("pa"), 1, 99999)
+			or action.get("swing") != ""
+		):
+			return null
+		result[action.receipt] = action
+	return result
+
+
+static func _event_shape(event: Variant, roster: Array) -> bool:
+	if not event is Dictionary or event.get("kind") not in ["release", "recovery", "refund"]:
+		return false
+	var keys: Array = ["kind", "pa", "half", "player", "before", "after"]
+	if event.kind == "release":
+		keys.append_array(
+			["recipe", "paid", "effort", "overdrive", "base_cost", "gear_scale", "sponsor_scale"]
+		)
+		if (
+			not event.get("recipe") is String
+			or event.recipe.is_empty()
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.get("paid"), 0.0, 1000000.0)
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(
+				event.get("effort"), MatchLabSupport.MIN_EFFORT, MatchLabSupport.MAX_EFFORT
+			)
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.get("overdrive"), 0.0, 1.0)
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.get("base_cost"), 0.001, 1000.0)
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.get("gear_scale"), 0.001, 100.0)
+			or not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.get("sponsor_scale"), 0.88, 1.0)
+		):
+			return false
+	elif event.kind == "recovery":
+		keys.append("receipt")
+		if not event.get("receipt") is String or event.receipt.is_empty():
+			return false
+	else:
+		keys.append("amount")
+		if not load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.get("amount"), 0.0, 6.0):
+			return false
+	return (
+		SeasonOwnership._keys(event, keys)
+		and SeasonOwnership._whole(event.pa, 1, 99999)
+		and SeasonOwnership._whole(event.half, 0, 9999)
+		and roster.has(event.player)
+		and load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.before, 0.0, 1000000.0)
+		and load("res://src/gameplay/season/successor_v7/physical_core.gd").number(event.after, 0.0, 1000000.0)
+	)
+
+
+static func _refund_due(
+	pa: int,
+	pitcher: String,
+	first: Dictionary,
+	strikeouts: Dictionary,
+	active: bool,
+	through: int,
+	count: int
+) -> bool:
+	return (
+		active
+		and pa <= through
+		and count < 2
+		and not pitcher.is_empty()
+		and strikeouts.get(pa) == pitcher
+		and first.get(pitcher, {}).size() == 3
+	)
+
+
+# Add to the preserved prior debt map; never derive debt by subtracting from a changed capacity.
+static func net_cost(proof: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for id: String in proof.initial:
+		result[id] = 0.0
+	# Project from the same full-precision serialized operands used by save replay.
+	# Explicit charges/refunds avoid subtractive cancellation of large balances.
+	var canonical: Dictionary = JSON.parse_string(JSON.stringify(proof, "", true, true))
+	for event: Dictionary in canonical.events:
+		if event.kind == "release":
+			result[event.player] += float(event.paid)
+		elif event.kind == "refund":
+			result[event.player] -= float(event.amount)
+		else:
+			result[event.player] -= float(event.after) - float(event.before)
+	return result
+
+
+static func net_debt(proof: Dictionary, prior_debt: Dictionary) -> Dictionary:
+	# Caller must validate the proof and bind its original pair before invoking this projection.
+	var result: Dictionary = prior_debt.duplicate(true)
+	var net: Dictionary = net_cost(proof)
+	for id: String in net:
+		result[id] = maxf(0.0, float(result.get(id, 0.0)) + float(net[id]))
+	return result

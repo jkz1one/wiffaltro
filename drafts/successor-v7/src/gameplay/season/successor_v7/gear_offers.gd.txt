@@ -1,0 +1,75 @@
+extends SeasonGearCatalog
+const V7Shop = preload("shop.gd")
+
+static func offers(
+	book: SeasonDevelopment,
+	roster: Array[String],
+	gear: Dictionary,
+	rng: RandomNumberGenerator,
+	prefix: String,
+	catalog_version: int = 3,
+	sponsor_pool: Dictionary = {},
+	tactical_pool: Dictionary = {},
+	earned: Array[String] = [],
+	ability_pool: Dictionary = {},
+	transformation_pool: Dictionary = {}
+) -> Dictionary:
+	var development: Dictionary = V7Shop.families(book, roster)
+	var lessons: Array[String] = []
+	for recipe: String in V7Shop.lesson_ids(book):
+		if not V7Shop.targets(book, roster, "lesson." + recipe).is_empty():
+			lessons.append("lesson." + recipe)
+	var equipment: Dictionary = eligible(gear, catalog_version, earned)
+	var sponsors: Dictionary = sponsor_pool.duplicate()
+	var weights: Dictionary = {}
+	if not development.is_empty():
+		weights["development"] = 25.0
+	if not lessons.is_empty():
+		weights["lesson"] = 12.0
+	if not equipment.is_empty():
+		weights["gear"] = 20.0
+	if not sponsors.is_empty():
+		weights["sponsor"] = 20.0
+	if not tactical_pool.is_empty():
+		weights["tactical"] = 10.0
+	if not ability_pool.is_empty():
+		weights["ability"] = 10.0
+	if not transformation_pool.is_empty():
+		weights["transformation"] = 3.0
+	var result: Dictionary = {}
+	var seen: Array[String] = []
+	for index in range(4):
+		var choices: Dictionary = weights.duplicate()
+		# At least two categories when feasible; bounded last-position repair.
+		if index == 3 and seen.size() == 1 and choices.size() > 1:
+			choices.erase(seen[0])
+		if choices.is_empty():
+			break
+		var kind: String = _weighted(choices, rng)
+		if not seen.has(kind):
+			seen.append(kind)
+		var id: String
+		if kind == "development":
+			var family: String = development.keys()[rng.randi_range(0, development.size() - 1)]
+			var variants: Array = development[family]
+			id = variants[rng.randi_range(0, variants.size() - 1)]
+		elif kind == "lesson":
+			id = lessons[rng.randi_range(0, lessons.size() - 1)]
+		elif kind == "ability":
+			id = _weighted(ability_pool, rng)
+		elif kind == "transformation":
+			id = _weighted(transformation_pool, rng)
+		elif kind == "tactical":
+			id = _weighted(tactical_pool, rng)
+		elif kind == "sponsor":
+			id = _weighted(sponsors, rng)
+			sponsors.erase(id)
+			if sponsors.is_empty():
+				weights.erase("sponsor")
+		else:
+			# Equal eligible Bat/Ball/Misc subweights, then eligible item within the slot.
+			var slot: String = equipment.keys()[rng.randi_range(0, equipment.size() - 1)]
+			var variants: Array = equipment[slot]
+			id = variants[rng.randi_range(0, variants.size() - 1)]
+		result["%s:%d" % [prefix, index]] = id
+	return result

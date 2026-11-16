@@ -1,0 +1,432 @@
+extends RefCounted
+## Stateless operations for the original SeasonState owner.
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_commit_player_result(_source_owner: SeasonState,
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary,
+	used_gear: Array,
+	tactics: Array,
+	batting: Dictionary,
+	stances: Array,
+	fielding: Array,
+	pitching: Dictionary,
+	field_supply: Dictionary,
+	frozen: Array,
+	ai_tactics: Dictionary,
+	replayed_tactics: Array,
+	property_key: String,
+	pool_evidence: Variant,
+	yard_evidence: Variant,
+	night_evidence: Variant,
+	doubleheader_evidence: Variant,
+	replay_pitching: Dictionary,
+	inventory_final: Variant,
+	fixture: Dictionary,
+	pitching_current: Dictionary = {}
+) -> bool:
+	if not pitching_current.is_empty() and not load("res://src/gameplay/season/successor_v7/called_proof.gd").accepts(
+		_source_owner.build, pitching_current, pitching):
+		return false
+	var command: Dictionary = {
+		"id": "game:%d" % fixture_id,
+		"rev": _source_owner.ownership.revision() if _source_owner.build == null else \
+			_source_owner.build.revision(),
+		"op": "reward",
+		"game": fixture_id,
+		"win": (home_runs > away_runs) == (fixture["home"] == 0)
+	}
+	if inventory_final is Dictionary and not inventory_final.is_empty():
+		command["inventory_final"] = inventory_final.duplicate(true)
+	if LeagueRules.doubleheader(_source_owner.league_rules):
+		command["doubleheader_workload"] = (
+			doubleheader_evidence[0 if fixture.away == 0 else 1].duplicate(true)
+		)
+		command["tactics"] = tactics.duplicate(true)
+		command["pitching"] = pitching.duplicate(true)
+	if LeagueRules.earnings(_source_owner.league_rules):
+		command["own_runs"] = home_runs if fixture.home == 0 else away_runs
+		command["opponent_runs"] = away_runs if fixture.home == 0 else home_runs
+	if _source_owner.build != null and _source_owner.build.to_data().version >= 6:
+		command["performance"] = performance.duplicate(true)
+	if _source_owner.build != null and _source_owner.build.to_data().version >= 10 and not \
+		used_gear.is_empty():
+		command["used_gear"] = used_gear.duplicate()
+	if not tactics.is_empty():
+		if _source_owner.build == null or _source_owner.build.to_data().version < 14:
+			return false
+		command["tactics"] = tactics.duplicate(true)
+	if not batting.is_empty():
+		command["batting"] = batting.duplicate(true)
+	if not stances.is_empty():
+		command["stances"] = stances.duplicate(true)
+	if not field_supply.is_empty():
+		command["field_supply"] = field_supply.duplicate(true)
+	if not pitching.is_empty():
+		command["pitching"] = pitching.duplicate(true)
+	if not fielding.is_empty():
+		command["fielding"] = fielding.duplicate(true)
+	if not frozen.is_empty():
+		command["frozen"] = frozen.duplicate(true)
+	if not pitching_current.is_empty():
+		command["pitching_current"] = pitching_current.duplicate(true)
+	var staged: SeasonBuild = null
+	var reward: Dictionary
+	if _source_owner.build != null and (_source_owner.build.pitch_catalog_current() or _source_owner.build.call("pitch_catalog_successor")):
+		var wrapped: Dictionary = load("res://src/gameplay/season/successor_v7/reward.gd").envelope(_source_owner.build, command)
+		if wrapped.is_empty():
+			return false
+		staged = _source_owner.build.candidate(wrapped)
+		reward = {"ok": staged != null}
+	else:
+		reward = _source_owner.ownership.commit(command) if _source_owner.build == null \
+			else _source_owner.build.commit(command)
+	if not reward.ok:
+		return false
+	var result: Dictionary = fixture.duplicate(true)
+	result["away_runs"] = away_runs
+	result["home_runs"] = home_runs
+	if command.has("inventory_final"):
+		result["inventory_final"] = inventory_final.duplicate(true)
+	if doubleheader_evidence != null:
+		result["doubleheader_evidence"] = doubleheader_evidence.duplicate(true)
+		result["pitching"] = (
+			(pitching if replay_pitching.is_empty() else replay_pitching).duplicate(true)
+		)
+		result["tactics"] = (tactics if not tactics.is_empty() else replayed_tactics).duplicate(
+			true
+		)
+	if not _source_owner.home_property.is_empty():
+		result["property"] = property_key
+	if pool_evidence != null:
+		result["pool_evidence"] = pool_evidence.duplicate(true)
+	if night_evidence != null:
+		result["night_evidence"] = night_evidence.duplicate(true)
+	if yard_evidence != null:
+		result["yard_evidence"] = yard_evidence.duplicate(true)
+	if _source_owner.build != null:
+		result["club_roster"] = _source_owner.teams[0]["roster"].duplicate()
+		result.club_roster.sort()
+	if not performance.is_empty():
+		result["performance"] = performance.duplicate(true)
+	if command.has("used_gear"):
+		result["used_gear"] = used_gear.duplicate()
+	if command.has("tactics"):
+		result["tactics"] = tactics.duplicate(true)
+	if command.has("batting"):
+		result["batting"] = batting.duplicate(true)
+	if command.has("stances"):
+		result["stances"] = stances.duplicate(true)
+	if command.has("field_supply"):
+		result["field_supply"] = field_supply.duplicate(true)
+	if command.has("pitching_current"):
+		result["pitching_current"] = pitching_current.duplicate(true)
+	if command.has("pitching"):
+		result["pitching"] = pitching.duplicate(true)
+	if command.has("fielding"):
+		result["fielding"] = fielding.duplicate(true)
+	if command.has("frozen"):
+		result["frozen"] = frozen.duplicate(true)
+	if _source_owner.opponents != null and _source_owner.opponents._format >= 9:
+		var index: int = fixture.away if fixture.home == 0 else fixture.home
+		result["ai_tactics"] = {str(index): ai_tactics.duplicate(true)}
+	if staged != null:
+		staged = load("res://src/gameplay/season/successor_v7/exotic_access.gd").finalized_candidate(staged, _source_owner.player_results, result) if staged.call("pitch_catalog_successor") else WorkingExoticAccess.finalized_candidate(staged, _source_owner.player_results, result)
+		if staged == null:
+			return false
+		_source_owner.build = staged
+	_source_owner.results.append(result)
+	_source_owner.player_results.append(result.duplicate(true))
+	return _source_owner._finish_round(fixture_id, result)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_standings(_source_owner: SeasonState) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for team in range(6):
+		rows.append({"team": team, "wins": 0, "losses": 0, "rf": 0, "ra": 0})
+	for game in _source_owner.results:
+		if game["id"] >= 30:
+			continue
+		var away: Dictionary = rows[game["away"]]
+		var home: Dictionary = rows[game["home"]]
+		away["rf"] += game["away_runs"]
+		away["ra"] += game["home_runs"]
+		home["rf"] += game["home_runs"]
+		home["ra"] += game["away_runs"]
+		rows[SeasonState._winner(game)]["wins"] += 1
+		rows[game["home"] if SeasonState._winner(game) == game["away"] else game["away"]]["losses"] += 1
+	rows.sort_custom(_source_owner._rank_before)
+	return rows
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_swap_batters(_source_owner: SeasonState, first: int, second: int) -> \
+	void:
+	if _source_owner.phase == SeasonState.Phase.DRAFT or mini(first, second) < 0 or maxi(first, \
+		second) >= 4:
+		return
+	var roster: Array = _source_owner.teams[0]["roster"]
+	var held: String = roster[first]
+	roster[first] = roster[second]
+	roster[second] = held
+	if _source_owner.starter_index == first or _source_owner.starter_index == second:
+		_source_owner.starter_index = second if _source_owner.starter_index == first else first
+	if _source_owner.fielder_index == first or _source_owner.fielder_index == second:
+		_source_owner.fielder_index = second if _source_owner.fielder_index == first else first
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_select_starter(_source_owner: SeasonState, index: int) -> void:
+	if index < 0 or index >= 4:
+		return
+	_source_owner.starter_index = index
+	if _source_owner.fielder_index == index:
+		_source_owner.fielder_index = (index + 1) % 4
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_build_schedule(_source_owner: SeasonState) -> void:
+	var rotation: Array[int] = [0, 1, 2, 3, 4, 5]
+	for round_number in range(5):
+		for pair in range(3):
+			var away: int = rotation[pair]
+			var home: int = rotation[5 - pair]
+			if (round_number + pair) % 2 == 1:
+				var held: int = away
+				away = home
+				home = held
+			_source_owner.schedule.append(
+				{"id": round_number * 3 + pair, "round": round_number, "away": away, "home": home}
+			)
+			# Return leg swaps venues exactly once.
+			_source_owner.schedule.append(
+				{
+					"id": (round_number + 5) * 3 + pair,
+					"round": round_number + 5,
+					"away": home,
+					"home": away
+				}
+			)
+		rotation.insert(1, rotation.pop_back())
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_make_team(_source_owner: SeasonState, index: int, fixture_id: int = \
+	-1) -> TeamMatchState:
+	var roster: Array[PlayerDefinition] = []
+	for id: String in _source_owner.teams[index]["roster"]:
+		roster.append(_source_owner.player_definition(id))
+	var team: TeamMatchState = TeamMatchState.create(_source_owner.teams[index]["name"], roster)
+	if not _source_owner.league_rules.is_empty():
+		team.league_rules = _source_owner.league_rules.duplicate(true)
+		var owning_build: SeasonBuild = _source_owner.build if index == 0 else \
+			_source_owner.opponents.clubs[str(index)].build
+		team.league_ownership = owning_build._bank.to_data().duplicate(true)
+		if LeagueRules.dynasty(_source_owner.league_rules):
+			team.dynasty_start = owning_build._dynasty_start
+		if index == 0:
+			team.tactics.held = SeasonTacticalCatalog.held(owning_build._bank.view())
+			MatchFieldSupply.sync_capacity(team, owning_build._bank.view())
+
+	var pair_game: int = fixture_id if fixture_id >= 0 else \
+		int(_source_owner.pending_fixture().get("id", -1))
+	if index == 0 and _source_owner.build != null and \
+		SeasonInventoryResale.enabled(_source_owner.build._bank):
+		team.field_supply.receipt = SeasonFieldGrant.receipt(pair_game)
+		team.field_supply.retired = SeasonInventoryResale.field_retired(_source_owner.build._bank, \
+			pair_game)
+	if not SeasonDoubleheader.apply(_source_owner, index, pair_game, team):
+		return null
+	if _source_owner.opponents != null and index > 0:
+		team.ai_sponsor_choices = _source_owner.opponents._format >= 8
+		team.ai_base = _source_owner.opponents._format >= 13
+		var role: Dictionary = _source_owner.opponents.clubs[str(index)].roles
+		team.pitcher_index = _source_owner.teams[index].roster.find(role.pitcher)
+		team.ai_recovery_pitcher = role.pitcher if _source_owner.opponents._format >= 11 else ""
+		team.fielder_index = _source_owner.teams[index].roster.find(role.fielder)
+		if _source_owner.opponents._format >= 9:
+			team.ai_heat = _source_owner.opponents._format >= 10
+			team.ai_tactical_hitter = role.hitter
+			team.tactics.held = SeasonTacticalCatalog.held(
+				_source_owner.opponents.clubs[str(index)].build._bank.view()
+			)
+			team.ai_tactical_initial.assign(team.tactics.held.duplicate(true))
+		if _source_owner.opponents._format >= 12:
+			var game: int = fixture_id if fixture_id >= 0 else \
+				int(_source_owner.pending_fixture().get("id", -1))
+			SeasonOpponentBudget.prepare(team, _source_owner.opponents.clubs[str(index)].build, game)
+	return team
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_opposing_starter(_source_owner: SeasonState, fixture: Dictionary) -> \
+	String:
+	var index: int = fixture.away if fixture.home == 0 else fixture.home
+	if _source_owner.opponents != null:
+		return _source_owner.opponents.clubs[str(index)].roles.pitcher
+	return _source_owner.teams[index].roster[0]
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_player_definition(_source_owner: SeasonState, id: String) -> \
+	PlayerDefinition:
+	if _source_owner.opponents != null:
+		var opponent: PlayerDefinition = _source_owner.opponents.definition(id)
+		if opponent != null:
+			return opponent
+	return ContentDB.get_player(StringName(id)) if _source_owner.build == null else \
+		_source_owner.build.definition(id)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_cash(_source_owner: SeasonState) -> int:
+	return _source_owner.ownership.cash() if _source_owner.build == null else \
+		_source_owner.build.cash()
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_shop_available(_source_owner: SeasonState) -> bool:
+	return (
+		_source_owner.build != null
+		and not _source_owner.player_results.is_empty()
+		and not _source_owner.pending_fixture().is_empty()
+		and (_source_owner.physical == null or _source_owner.physical.pending.is_empty())
+	)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_recruit_blocked(_source_owner: SeasonState) -> Array[String]:
+	var blocked: Array[String] = []
+	for index in range(1, _source_owner.teams.size()):
+		blocked.append_array(_source_owner.teams[index].roster)
+	return blocked
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_adopt_build(_source_owner: SeasonState, next: SeasonBuild) -> void:
+	var incoming: Array[String] = next.roster()
+	var current: Array = _source_owner.teams[0].roster
+	for id: String in current:
+		incoming.erase(id)
+	var ordered: Array = current.duplicate()
+	for index in range(ordered.size()):
+		if not next.roster().has(ordered[index]):
+			ordered[index] = incoming.pop_front()
+	_source_owner.teams[0].roster = ordered
+	_source_owner.build = next
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_rank_before(_source_owner: SeasonState, a: Dictionary, b: Dictionary) \
+	-> bool:
+	for stat in ["wins", "difference", "rf"]:
+		var left: int = a["rf"] - a["ra"] if stat == "difference" else a[stat]
+		var right: int = b["rf"] - b["ra"] if stat == "difference" else b[stat]
+		if left != right:
+			return left > right
+	return _source_owner.teams[a["team"]]["draw"] > _source_owner.teams[b["team"]]["draw"]
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_begin_playoffs(_source_owner: SeasonState) -> bool:
+	var rows: Array[Dictionary] = _source_owner.standings()
+	for index in range(4):
+		_source_owner.playoff_seeds.append(rows[index]["team"])
+	for pair in range(2):
+		_source_owner.semifinals.append(
+			{
+				"id": 30 + pair,
+				"round": 10,
+				"home": _source_owner.playoff_seeds[pair],
+				"away": _source_owner.playoff_seeds[3 - pair]
+			}
+		)
+	_source_owner.phase = SeasonState.Phase.SEMIFINAL
+	if not _source_owner.playoff_seeds.has(0):
+		for game in _source_owner.semifinals:
+			var other: Dictionary = _source_owner._simulate(game)
+			if other.is_empty():
+				return false
+			_source_owner.results.append(other)
+		_source_owner._settle_semifinals()
+		return _source_owner._prepare_final()
+	return true
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_simulate(_source_owner: SeasonState, fixture: Dictionary) -> Dictionary:
+	if _source_owner.physical != null:
+		return _source_owner.physical.resolve(_source_owner, fixture)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = _source_owner.season_seed + int(fixture["id"]) * 104729
+	var result: Dictionary = fixture.duplicate(true)
+	var away: float = _source_owner._strength(fixture["away"])
+	var home: float = _source_owner._strength(fixture["home"])
+	result["away_runs"] = SeasonState._poisson(rng, clampf(3.2 + (away - home) * 0.45, 1.0, 6.0))
+	result["home_runs"] = SeasonState._poisson(rng, clampf(3.2 + (home - away) * 0.45, 1.0, 6.0))
+	# Abstract extra innings; no ties and no rubber-banding from player results.
+	if result["away_runs"] == result["home_runs"]:
+		result["away_runs" if rng.randf() < 0.5 else "home_runs"] += 1
+	return result
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_strength(_source_owner: SeasonState, team: int) -> float:
+	if _source_owner.opponents == null and _source_owner.teams[team].has("strength"):
+		return float(_source_owner.teams[team]["strength"])
+	var total: float = 0.0
+	for id: String in _source_owner.teams[team]["roster"]:
+		var player: PlayerDefinition = _source_owner.player_definition(id)
+		if _source_owner.build != null:
+			total += (player.contact + player.power + player.fielding + player.control) / 4.0
+			continue
+		total += (
+			(
+				player.contact
+				+ player.power
+				+ player.fielding
+				+ player.velocity
+				+ player.break_rating
+				+ player.control
+				+ player.stamina
+			)
+			/ 7.0
+		)
+	return total / 4.0
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_poisson(rng: RandomNumberGenerator, mean: float) -> int:
+	var product: float = 1.0
+	var count: int = -1
+	while product > exp(-mean):
+		product *= rng.randf()
+		count += 1
+	return maxi(0, count)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_winner(result: Dictionary) -> int:
+	return result["away"] if result["away_runs"] > result["home_runs"] else result["home"]
+# gdlint: enable=function-arguments-number

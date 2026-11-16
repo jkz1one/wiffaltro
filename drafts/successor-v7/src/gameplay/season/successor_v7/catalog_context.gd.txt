@@ -1,0 +1,100 @@
+extends RefCounted
+## Additive fresh-run context. Descriptor is identity, NEVER ownership/proof authority.
+const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+const PURPOSE: String = "fresh_standalone_season_v7"
+const VERSION: int = 7
+const RESERVED_EXOTICS: Dictionary = Provider.RESERVED_EXOTICS
+const SAVE_PATH: String = "user://successor-standard-v7.json"
+const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_v7/build.gd",
+	"res://src/gameplay/season/successor_v7/build_restore.gd",
+	"res://src/gameplay/season/successor_v7/build_shop.gd",
+	"res://src/gameplay/season/successor_v7/called_proof.gd",
+	"res://src/gameplay/season/successor_v7/catalog_context.gd",
+	"res://src/gameplay/season/successor_v7/codec.gd",
+	"res://src/gameplay/season/successor_v7/decoder.gd",
+	"res://src/gameplay/season/successor_v7/development.gd",
+	"res://src/gameplay/season/successor_v7/exotic_access.gd",
+	"res://src/gameplay/season/successor_v7/exotic_eligibility.gd",
+	"res://src/gameplay/season/successor_v7/fresh_profiles.gd",
+	"res://src/gameplay/season/successor_v7/gear_offers.gd",
+	"res://src/gameplay/season/successor_v7/history.gd",
+	"res://src/gameplay/season/successor_v7/human_replay.gd",
+	"res://src/gameplay/season/successor_v7/match_adapter.gd",
+	"res://src/gameplay/season/successor_v7/opponent_lessons.gd",
+	"res://src/gameplay/season/successor_v7/opponent_market.gd",
+	"res://src/gameplay/season/successor_v7/opponent_policy.gd",
+	"res://src/gameplay/season/successor_v7/opponent_sponsors.gd",
+	"res://src/gameplay/season/successor_v7/opponents.gd",
+	"res://src/gameplay/season/successor_v7/pending.gd",
+	"res://src/gameplay/season/successor_v7/physical_core.gd",
+	"res://src/gameplay/season/successor_v7/physical_fixtures.gd",
+	"res://src/gameplay/season/successor_v7/physical_league.gd",
+	"res://src/gameplay/season/successor_v7/physical_report.gd",
+	"res://src/gameplay/season/successor_v7/physical_request.gd",
+	"res://src/gameplay/season/successor_v7/physical_runner.gd",
+	"res://src/gameplay/season/successor_v7/physical_workload.gd",
+	"res://src/gameplay/season/successor_v7/pitch_evidence.gd",
+	"res://src/gameplay/season/successor_v7/progression.gd",
+	"res://src/gameplay/season/successor_v7/replay_team.gd",
+	"res://src/gameplay/season/successor_v7/reward.gd",
+	"res://src/gameplay/season/successor_v7/runtime.gd",
+	"res://src/gameplay/season/successor_v7/runtime_commit.gd",
+	"res://src/gameplay/season/successor_v7/runtime_operations.gd",
+	"res://src/gameplay/season/successor_v7/save.gd",
+	"res://src/gameplay/season/successor_v7/shop.gd",
+	"res://src/gameplay/pitching/successor_v7/pitch_style_materializer.gd"]
+
+static func signature() -> String:
+	var source: String = Provider.signature()
+	if source.is_empty():
+		return ""
+	var parts: Array[String] = [PURPOSE, source]
+	for path: String in FILES:
+		var digest: String = FileAccess.get_sha256(path)
+		if digest.is_empty():
+			return ""
+		parts.append(digest)
+	return "|".join(parts).sha256_text()
+
+static func descriptor() -> Dictionary:
+	var source: String = signature()
+	return {} if source.is_empty() else {"version": VERSION, "purpose": PURPOSE, "signature": source}
+
+static func valid_descriptor(value: Variant) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "purpose", "signature"]):
+		return false
+	return SeasonOwnership._whole(value.version, VERSION, VERSION) \
+		and value.purpose is String and value.purpose == PURPOSE \
+		and value.signature is String and not value.signature.is_empty() \
+		and value.signature == signature()
+
+static func recipes() -> Array[PitchDefinition]:
+	return Provider.recipes()
+
+static func ids() -> Array[String]:
+	return Provider.ids()
+
+static func known_ids() -> Array[String]:
+	return Provider.known_ids()
+
+static func get_recipe(id: String) -> PitchDefinition:
+	return Provider.get_recipe(id)
+
+static func supports(id: String) -> bool:
+	return Provider.supports(id)
+
+static func is_active(id: String) -> bool:
+	return Provider.is_active(id)
+
+static func is_exotic(id: String) -> bool:
+	return Provider.is_exotic(id)
+
+static func lesson_price(id: String) -> int:
+	return Provider.lesson_price(id)
+
+static func mastered(id: String, level: int) -> PitchDefinition:
+	return Provider.mastered(id, level)
+
+static func acquisition_design(id: String) -> Dictionary:
+	return Provider.acquisition_design(id)

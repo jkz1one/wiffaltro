@@ -1,0 +1,290 @@
+{
+  "files": [
+    {
+      "backup_path": "drafts/successor-v7/src/content/pitches/successor_v7/forkball.tres.txt",
+      "bytes": 1471,
+      "restore_path": "src/content/pitches/successor_v7/forkball.tres",
+      "sha256": "1c5c8818a92f92a8a004b76753b3a7709783864f41fe72a207fee5d7f47d8163"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/content/pitches/successor_v7/gypsy_drop.tres.txt",
+      "bytes": 1477,
+      "restore_path": "src/content/pitches/successor_v7/gypsy_drop.tres",
+      "sha256": "fbcda25d8f13741b61af7201f38acdade2a0e6895282d730d6db43a30e29b38d"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/content/pitches/successor_v7/knuckle_drop.tres.txt",
+      "bytes": 1436,
+      "restore_path": "src/content/pitches/successor_v7/knuckle_drop.tres",
+      "sha256": "32f50ec2a3bef9477730c4998247e154c792244eeeb7d495f064ae3509672b8c"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/content/pitches/successor_v7/super_curve.tres.txt",
+      "bytes": 1449,
+      "restore_path": "src/content/pitches/successor_v7/super_curve.tres",
+      "sha256": "84bace0f8c9be3a0f319f3c25876803b9171cab5a6ec5f5f02d308adca58e584"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/pitching/successor_v7/pitch_style_materializer.gd.txt",
+      "bytes": 2711,
+      "restore_path": "src/gameplay/pitching/successor_v7/pitch_style_materializer.gd",
+      "sha256": "b0ca69786737687d27884d5150be322ee8c822bb0e494382bd6144bccda1b843"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/pitching/working_pitch_catalog_v7.gd.txt",
+      "bytes": 6642,
+      "restore_path": "src/gameplay/pitching/working_pitch_catalog_v7.gd",
+      "sha256": "75e0af458071c84122c43cf01f1726d2c2a2ae4bf8ef251d7627449cb935c77f"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/build.gd.txt",
+      "bytes": 19223,
+      "restore_path": "src/gameplay/season/successor_v7/build.gd",
+      "sha256": "3d9d6c3b902283f45b5e6ba90ef17c9a027ee619bcf111b3a1aa445845b85e9c"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/build_restore.gd.txt",
+      "bytes": 16008,
+      "restore_path": "src/gameplay/season/successor_v7/build_restore.gd",
+      "sha256": "60bc997f3f9c8422e59f0ebfa125d4fc7bab7060063c076c255afec630c9fe8b"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/build_shop.gd.txt",
+      "bytes": 1255,
+      "restore_path": "src/gameplay/season/successor_v7/build_shop.gd",
+      "sha256": "329b8d70bc3ed5ed0d55fe46cc3d44c7c205f06d46020bf0764fd36224c1a601"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/called_proof.gd.txt",
+      "bytes": 1800,
+      "restore_path": "src/gameplay/season/successor_v7/called_proof.gd",
+      "sha256": "18e58e702e142b2e809522be266e65ff011aa8d3bcb6b03214c158fac08bc28b"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/catalog_context.gd.txt",
+      "bytes": 4395,
+      "restore_path": "src/gameplay/season/successor_v7/catalog_context.gd",
+      "sha256": "424bd4a2eeaba3b28bfc71990a1962108ea00124d09f841ca11e97ebadb01e2c"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/codec.gd.txt",
+      "bytes": 3633,
+      "restore_path": "src/gameplay/season/successor_v7/codec.gd",
+      "sha256": "ec33cab78797bc2711e7107e0f2941f16667ee823d5cc943004237acd6295c7a"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/decoder.gd.txt",
+      "bytes": 35472,
+      "restore_path": "src/gameplay/season/successor_v7/decoder.gd",
+      "sha256": "04e41cb19dc76df07c27b5b46249e7e42196b6a8264841eacb8fafc7dcf9e580"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/development.gd.txt",
+      "bytes": 10859,
+      "restore_path": "src/gameplay/season/successor_v7/development.gd",
+      "sha256": "1567ba9ebcf2ac5cd686cb50d444772a3e9fa2915bed946d5e122e4fe2a0e30d"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/exotic_access.gd.txt",
+      "bytes": 4187,
+      "restore_path": "src/gameplay/season/successor_v7/exotic_access.gd",
+      "sha256": "29337cb62ce607a64829d4bec72a7cac35c4d52d33634c65891ce7354dbd6442"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/exotic_eligibility.gd.txt",
+      "bytes": 12786,
+      "restore_path": "src/gameplay/season/successor_v7/exotic_eligibility.gd",
+      "sha256": "84648cde6f8c7344334b06fc5fe15d7b631a75a9ce08d56a775301fe3e962465"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/fresh_profiles.gd.txt",
+      "bytes": 1040,
+      "restore_path": "src/gameplay/season/successor_v7/fresh_profiles.gd",
+      "sha256": "b351627603489164f4210195c003beea8840eefc10a915aceaa81037876b7171"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/gear_offers.gd.txt",
+      "bytes": 2635,
+      "restore_path": "src/gameplay/season/successor_v7/gear_offers.gd",
+      "sha256": "21fce948184391d55fd8032810cc25ec39f916aa227d6564acafea9f7425fe82"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/history.gd.txt",
+      "bytes": 4694,
+      "restore_path": "src/gameplay/season/successor_v7/history.gd",
+      "sha256": "8d0951391517c4960a205d6f919b7f3cbacfa520ea19c65b62c50533b7a8e673"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/human_replay.gd.txt",
+      "bytes": 2171,
+      "restore_path": "src/gameplay/season/successor_v7/human_replay.gd",
+      "sha256": "f1beda48f4aca9f53aea9cdfbcab02d6f8adef2d0204e67f8dc85c5b7907859d"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/match_adapter.gd.txt",
+      "bytes": 2254,
+      "restore_path": "src/gameplay/season/successor_v7/match_adapter.gd",
+      "sha256": "6c23291507db171c24b326754ba44c1354ddda8ed40a9cb3cbba56768793f8f5"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/opponent_lessons.gd.txt",
+      "bytes": 5647,
+      "restore_path": "src/gameplay/season/successor_v7/opponent_lessons.gd",
+      "sha256": "0a247eae6a9e60dd1395f747bf14b33185520e118c951be20243090f0f765fb1"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/opponent_market.gd.txt",
+      "bytes": 1724,
+      "restore_path": "src/gameplay/season/successor_v7/opponent_market.gd",
+      "sha256": "c424e5f07843a860c7c0207a0e9cd43ccd8238786d971727fb4cc5e86f72883a"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/opponent_policy.gd.txt",
+      "bytes": 6172,
+      "restore_path": "src/gameplay/season/successor_v7/opponent_policy.gd",
+      "sha256": "695c189f714346afd2a6fa443310778ae225209d06124ffab270ea7006a41dc3"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/opponent_sponsors.gd.txt",
+      "bytes": 8458,
+      "restore_path": "src/gameplay/season/successor_v7/opponent_sponsors.gd",
+      "sha256": "3b3bd6ab13e9a3c6baa912626f7d46caa3a215332c63e2a93e6ca8b04dbb29ac"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/opponents.gd.txt",
+      "bytes": 6354,
+      "restore_path": "src/gameplay/season/successor_v7/opponents.gd",
+      "sha256": "81041792bff24929d1d60bb428523361605a1a98ac817b81c068fbf8caf6ab3d"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/pending.gd.txt",
+      "bytes": 17745,
+      "restore_path": "src/gameplay/season/successor_v7/pending.gd",
+      "sha256": "ee65b4661d89f85fa6629b824eb121acb06156ec11c2ded123d0dc1c8f6efd3c"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/physical_core.gd.txt",
+      "bytes": 28276,
+      "restore_path": "src/gameplay/season/successor_v7/physical_core.gd",
+      "sha256": "915a9e8546d82951093417d7801170f1e8814db1163fb83a62c54f5826a71e11"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/physical_fixtures.gd.txt",
+      "bytes": 19861,
+      "restore_path": "src/gameplay/season/successor_v7/physical_fixtures.gd",
+      "sha256": "53955875528c289833c7403f93e033549ed9b00e7873e2ae6082db58d38d3de2"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/physical_league.gd.txt",
+      "bytes": 11433,
+      "restore_path": "src/gameplay/season/successor_v7/physical_league.gd",
+      "sha256": "466ed4d7f1523adfe43340a6b6dcd0d774217174afabdf26163fb9c0b33f2ace"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/physical_report.gd.txt",
+      "bytes": 13380,
+      "restore_path": "src/gameplay/season/successor_v7/physical_report.gd",
+      "sha256": "7784d4ed19469e910fbc8360e521176ab6a92df2670c860d8641688a66ad1166"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/physical_request.gd.txt",
+      "bytes": 8833,
+      "restore_path": "src/gameplay/season/successor_v7/physical_request.gd",
+      "sha256": "db60e195edc5cdb0662aa1d7ad43ffb92729090a4aad032c06deaf5be326d51c"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/physical_runner.gd.txt",
+      "bytes": 13407,
+      "restore_path": "src/gameplay/season/successor_v7/physical_runner.gd",
+      "sha256": "16e6e0225296a98a2944d9472144e82a7500c5cda3b942d1a00cc5fd3ffb3562"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/physical_workload.gd.txt",
+      "bytes": 18327,
+      "restore_path": "src/gameplay/season/successor_v7/physical_workload.gd",
+      "sha256": "e82529482889566dde035186abb5ee48800ebafdb9b69d256f310770810f714a"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/pitch_evidence.gd.txt",
+      "bytes": 894,
+      "restore_path": "src/gameplay/season/successor_v7/pitch_evidence.gd",
+      "sha256": "f03cd1d9294e54a938c1d5d470c6fa6f269cffb6aa46ddf744c45d3831f8de0c"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/progression.gd.txt",
+      "bytes": 4704,
+      "restore_path": "src/gameplay/season/successor_v7/progression.gd",
+      "sha256": "ce67eaa3eabe40f55e1bd91df0aeb69d5ea7ff7ea5d533bd3f308a260bc0b659"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/replay_team.gd.txt",
+      "bytes": 930,
+      "restore_path": "src/gameplay/season/successor_v7/replay_team.gd",
+      "sha256": "f6b406a179fd3b01995085ef0d12a6129d9497dcbc1ebdf3fd2023bc9be048ba"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/reward.gd.txt",
+      "bytes": 8049,
+      "restore_path": "src/gameplay/season/successor_v7/reward.gd",
+      "sha256": "f318ce907f9d68b05be8aa4bd870aabc3d5e8d7b89e54dbdd209fd1dc361c6d8"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/runtime.gd.txt",
+      "bytes": 12000,
+      "restore_path": "src/gameplay/season/successor_v7/runtime.gd",
+      "sha256": "7d2b7582d33fd69407eeb4a8c0180778621a99adfc0ce5dc6a244624f43a93dc"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/runtime_commit.gd.txt",
+      "bytes": 17585,
+      "restore_path": "src/gameplay/season/successor_v7/runtime_commit.gd",
+      "sha256": "f01fb7785aaf5bb33e194ff6cba1ff60fa4cfe50a340a25e4c01abed766cd46d"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/runtime_operations.gd.txt",
+      "bytes": 29204,
+      "restore_path": "src/gameplay/season/successor_v7/runtime_operations.gd",
+      "sha256": "cc5a7645ffa0e1cd8ae0da80a0190cd0a95f55201352b3ec10dc9047189bca5b"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/save.gd.txt",
+      "bytes": 2893,
+      "restore_path": "src/gameplay/season/successor_v7/save.gd",
+      "sha256": "ab7ed611c094929ab0b8295c8a7da5dc183c8a54d9b574ac157cb9431b43f0c8"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/shop.gd.txt",
+      "bytes": 6148,
+      "restore_path": "src/gameplay/season/successor_v7/shop.gd",
+      "sha256": "5e613ccec9f59e926729db9782258b0ad949bc666e44400fff54b97b700f80c9"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/app.gd.txt",
+      "bytes": 9503,
+      "restore_path": "src/presentation/season/successor_v7/app.gd",
+      "sha256": "a94aa27c45bbb5ffd715e210acee647e76503776389b5b5d42a7d9badbfa15ca"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/capture_human.gd.txt",
+      "bytes": 3135,
+      "restore_path": "src/presentation/season/successor_v7/capture_human.gd",
+      "sha256": "cd737d0686b0c89deb4704d65f9a04a785e7beea6f7768750fbeb3d87e6aa8b8"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/entry.tscn.txt",
+      "bytes": 196,
+      "restore_path": "src/presentation/season/successor_v7/entry.tscn",
+      "sha256": "67191db820cab3a8eb43b748ce95b9a47ca0865dea43896faa0f4751fa096a8b"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/menu.gd.txt",
+      "bytes": 1487,
+      "restore_path": "src/presentation/season/successor_v7/menu.gd",
+      "sha256": "c390f51979743698ebd5a4cd4bb958af6a31c7083d47a79833df640bd4fdd925"
+    }
+  ],
+  "restore_note": "Remove the final .txt suffix and restore each file to its listed relative path only as part of a separately reviewed integration. No current runtime files are changed by this backup.",
+  "scope": "Fresh standalone successor draft with 41 active pitches and seven unique Exotics; not restored lost work, not a verified playable build. No saved games or private evidence included.",
+  "source_manifest_sha256": "57d9827ba3fbb0390c6ef6067ff2449edeb4d2716ccbee72bf5799e2d60df612",
+  "status": "INACTIVE_SOURCE_DRAFT_NOT_NATIVE_QUALIFIED"
+}

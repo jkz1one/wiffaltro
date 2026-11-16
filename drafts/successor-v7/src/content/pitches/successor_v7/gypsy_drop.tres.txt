@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="PitchDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/content/definitions/pitch_definition.gd" id="1_pitch"]
+[ext_resource type="Resource" path="res://src/content/deliveries/three_quarter.tres" id="2_delivery"]
+
+[resource]
+script = ExtResource("1_pitch")
+id = &"pitch.gypsy_drop"
+display_name = "Gypsy Drop"
+tactical_description = "Game-design prototype inspired by the sourced tumbling Drop style: slower rolling downward movement through mid-flight. Distinctness needs native and batting-view checks; not measured tutorial physics."
+category = 3
+rarity = 3
+delivery_profile = ExtResource("2_delivery")
+nominal_velocity_mps = 19.20
+nominal_spin_rpm = 780.0
+nominal_spin_axis_pitcher_frame = Vector3(-0.90, -0.25, 0.35)
+nominal_hole_axis_ball_local = Vector3(0.15, -0.95, 0.27)
+perforation_influence = 0.95
+instability_strength = 0.0
+instability_frequency_hz = 3.0
+control_difficulty = 1.32
+execution_difficulty = 1.36
+stamina_cost = 6.40
+recognition_difficulty = 1.3
+timing_difficulty = 1.2
+mistake_punish = 1.2
+tags = Array[StringName]([&"working_design", &"unique_exotic", &"gypsy_drop"])
+offering_id = &"offering.gypsy_drop"
+design_status = "Successor game-design prototype; native tuning pending"
+source_urls = Array[String](["https://www.youtube.com/watch?v=l3neWQ3xpbA&t=312s"])
+movement_start = Vector2(0.12, 0.20)
+movement_end = Vector2(0.65, 0.64)
+movement_initial_scale = Vector2(0.45, 0.35)

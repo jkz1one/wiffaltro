@@ -1,0 +1,111 @@
+extends RefCounted
+const V7Catalog = preload("catalog_context.gd")
+const V7Access = preload("exotic_access.gd")
+const V7Eligibility = preload("exotic_eligibility.gd")
+
+const BUILD_VERSION: int = 107
+const DEVELOPMENT_VERSION: int = 7
+const FORMAT: String = "successor-standalone-v7-r1"
+
+static func recipe(id: String) -> PitchDefinition:
+	# Presentation/evidence identity only. Learning and ownership remain book-scoped.
+	return V7Catalog.get_recipe(id)
+
+static func lesson(id: String) -> Dictionary:
+	var pitch: PitchDefinition = recipe(id)
+	var price: int = V7Catalog.lesson_price(id)
+	if price < 0 and pitch != null:
+		price = V7Access.price(id)
+	if pitch == null or pitch.delivery_profile == null or price < 0:
+		return {}
+	return {"name": pitch.display_name + " Lesson", "price": price, "op": "learn",
+		"recipe": id, "family": "lesson"}
+
+static func display_item(id: String) -> Dictionary:
+	return lesson(id.trim_prefix("lesson.")) if id.begins_with("lesson.") \
+		else DevelopmentShopCatalog.item(id)
+
+static func signature(base: String) -> String:
+	return ("successor-standalone-v7-r1:" + base + ":" + V7Catalog.signature()).sha256_text()
+
+static func wrap_build(data: Dictionary, exotic_start: Array = []) -> Dictionary:
+	var result: Dictionary = data.duplicate(true)
+	result["successor_format"] = FORMAT
+	result["exotic_start"] = exotic_start.duplicate(true)
+	result["base_version"] = data.version
+	result.version = BUILD_VERSION
+	result["pitch_catalog"] = V7Catalog.signature()
+	result["catalog_context"] = V7Catalog.descriptor()
+	result.catalog = signature(data.catalog)
+	return result
+
+static func unwrap_build(value: Dictionary) -> Dictionary:
+	if value.get("successor_format") != FORMAT:
+		return {}
+	if not V7Catalog.valid_descriptor(value.get("catalog_context")) or not V7Access.valid_history(value.get("exotic_start")):
+		return {}
+	if not is_version(value.get("version"), BUILD_VERSION) \
+		or not SeasonOwnership._whole(value.get("base_version"), 41, 41) \
+		or not value.get("pitch_catalog") is String \
+		or value.pitch_catalog != V7Catalog.signature():
+		return {}
+	var base: String = SeasonBuild._signature(int(value.base_version), value.get("league_rules"))
+	if base.is_empty() or not value.get("catalog") is String or value.catalog != signature(base):
+		return {}
+	var result: Dictionary = value.duplicate(true)
+	result.version = int(value.base_version)
+	result.catalog = base
+	result.erase("exotic_start")
+	result.erase("base_version")
+	result.erase("successor_format")
+	result.erase("pitch_catalog")
+	result.erase("catalog_context")
+	return result
+
+static func wrap_development(data: Dictionary, exotic_start: Array = [], exotic_current: Dictionary = {}) -> Dictionary:
+	var result: Dictionary = data.duplicate(true)
+	result["successor_format"] = FORMAT
+	result["exotic_current"] = exotic_current.duplicate(true)
+	result["exotic_start"] = exotic_start.duplicate(true)
+	result["base_version"] = data.version
+	result.version = DEVELOPMENT_VERSION
+	result["pitch_catalog"] = V7Catalog.signature()
+	result["catalog_context"] = V7Catalog.descriptor()
+	result.catalog = signature(data.catalog)
+	return result
+
+static func unwrap_development(value: Dictionary) -> Dictionary:
+	if value.get("successor_format") != FORMAT:
+		return {}
+	if not value.get("exotic_current") is Dictionary or (not value.exotic_current.is_empty() and not V7Eligibility.valid(value.exotic_current)):
+		return {}
+	if not V7Catalog.valid_descriptor(value.get("catalog_context")) or not V7Access.valid_history(value.get("exotic_start")):
+		return {}
+	if not is_version(value.get("version"), DEVELOPMENT_VERSION) \
+		or not SeasonOwnership._whole(value.get("base_version"), 1, 1) \
+		or not value.get("pitch_catalog") is String \
+		or value.pitch_catalog != V7Catalog.signature() \
+		or not value.get("catalog") is String \
+		or value.catalog != signature(SeasonPlayerCatalog.signature()):
+		return {}
+	var result: Dictionary = value.duplicate(true)
+	result.version = int(value.base_version)
+	result.catalog = SeasonPlayerCatalog.signature()
+	result.erase("exotic_current")
+	result.erase("exotic_start")
+	result.erase("base_version")
+	result.erase("successor_format")
+	result.erase("pitch_catalog")
+	result.erase("catalog_context")
+	return result
+
+static func base_build_version(value: Variant) -> int:
+	if not value is Dictionary or not SeasonOwnership._whole(value.get("version"), 1, BUILD_VERSION):
+		return -1
+	if is_version(value.version, BUILD_VERSION):
+		return int(value.base_version) if SeasonOwnership._whole(value.get("base_version"), 41, 41) else -1
+	return int(value.version)
+
+static func is_version(value: Variant, expected: int) -> bool:
+	return SeasonOwnership._whole(value, expected, expected)
+

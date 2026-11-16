@@ -1,0 +1,56 @@
+extends RefCounted
+## Exact new standalone boundary. No old format or source-signature migration.
+const FORMAT: String = "successor-standalone-v7-r1"
+const ADMISSION: int = 107
+const Catalog = preload("res://src/gameplay/season/successor_v7/catalog_context.gd")
+const Progression = preload("res://src/gameplay/season/successor_v7/progression.gd")
+
+static func scope(season: SeasonState) -> bool:
+	return season != null and season.get_script() == load("res://src/gameplay/season/successor_v7/runtime.gd") \
+		and season.build != null and season.build.get_script() == load("res://src/gameplay/season/successor_v7/build.gd") \
+		and season.build.call("pitch_catalog_successor") and season.build._format == 41 \
+		and season.build._market == 0 and season.career == null \
+		and not season.league_live and not season.league_career \
+		and season.league_rules.is_empty() and season.inventory_rules.is_empty() \
+		and season._dynasty_start.is_empty() and season._closed_access.is_empty() \
+		and season._dynasty_owner_binding.is_empty() and season._dynasty_career_session.is_empty() \
+		and season._standard_live_context.is_empty() and season._standard_bound_grant.is_empty() \
+		and season._league_home_context.is_empty() and season.home_property.is_empty() \
+		and season.owned_surface_night.is_empty() and season.npc_venues.is_empty() \
+		and season.final_venue.is_empty() and season.player_access.is_empty() \
+		and season.opponents != null and season.opponents.get_script() == load("res://src/gameplay/season/successor_v7/opponents.gd") \
+		and season.opponents._format == 13 and season.physical != null \
+		and season.physical.get_script() == load("res://src/gameplay/season/successor_v7/physical_fixtures.gd")
+
+static func leaf_valid(value: Variant, pitch_catalog: String) -> bool:
+	if pitch_catalog.is_empty() or pitch_catalog != Catalog.signature() or not value is Dictionary \
+		or not SeasonOwnership._whole(value.get("version"), 57, 57) \
+		or not value.get("build") is Dictionary:
+		return false
+	for key: String in ["career", "home_property", "owned_surface_night", "npc_venues", "final_venue", "player_access", "league_rules", "inventory_rules"]:
+		if value.has(key):
+			return false
+	return not Progression.unwrap_build(value.build).is_empty() and value.build.get("exotic_start") == []
+
+static func envelope_valid(value: Variant) -> bool:
+	return value is Dictionary and SeasonOwnership._keys(value, ["format", "pitch_catalog", "checkpoint"]) \
+		and value.format is String and value.format == FORMAT and value.pitch_catalog is String \
+		and leaf_valid(value.checkpoint, value.pitch_catalog)
+
+static func capture(season: SeasonState) -> Dictionary:
+	if not scope(season) or not load("res://src/gameplay/season/successor_v7/exotic_access.gd").current_matches(season):
+		return {}
+	var payload: Dictionary = SeasonSave._ac02_passive_15_snapshot(season)
+	var result: Dictionary = {"format": FORMAT, "pitch_catalog": Catalog.signature(), "checkpoint": payload}
+	return result if envelope_valid(result) else {}
+
+static func restore(value: Variant) -> SeasonState:
+	if not envelope_valid(value):
+		return null
+	var season: SeasonState = load("res://src/gameplay/season/successor_v7/decoder.gd")._ac02_passive_15_private_decode_payload_terrain(
+		value.checkpoint, {}, false, {}, false, {}, null, {}, null, [], {}, {}, null,
+		value.pitch_catalog, ADMISSION)
+	if not scope(season) or not load("res://src/gameplay/season/successor_v7/exotic_access.gd").current_matches(season):
+		return null
+	var recaptured: Dictionary = capture(season)
+	return season if not recaptured.is_empty() and ClubCareer.same(recaptured, value) else null
