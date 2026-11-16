@@ -1,6 +1,6 @@
-extends RefCounted # Candidate: 5b539dc39fef78af39b217a052009fe7457fa9f725e100ee959cb8b2fb909d49
+extends RefCounted # Candidate: 914c29bfea08d37d3b95f4353d79b948156b7bff1b0e85e829a6fa1a258aa872
 ## Explicitly reviewed whole-source profile. Do not refresh automatically.
-const PROFILE_ID: String = "async-r6-r1" # Purpose: isolated-test
+const PROFILE_ID: String = "r6-receipt-r2" # Purpose: isolated-test
 const _CV="res://src";const _CW=_CV+"/core/m";const _Y=_CV+"/content/";const _D=_Y+"p"
 const _CX=_Y+"sw";const _BD=_CV+"/labs/owner";const _BE=_D+"la";const _V=_CV+"/presentation/"
 const _CY=_CV+"/tools/debug/t";const _BF=_Y+"delive";const _CZ=_CV+"/gameplay/stadi"
@@ -290,9 +290,9 @@ _BE+"yers/kendall_reed.tres":"5264957b949bac1899577a21b182c5e7cc6a2f4299810bb131
 "g.gd":"6285ae5b772796bedbf50a56cc7d47142bd7a2e656aef85efef1c215ff67c33c",_EK+"tch_catalog_registr"+
 "y.gd":"3186a3a1f2900531bfcf77b6107e02b3e5c3b5c20c6af432bc8d60fd3b84ee4c",_EK+"tch_catalog_v6.gd":
 "0e709f6bda6fa95a8fa7cc666ad31354cc223633c8c0782254adeb8d16820dff",_AF+"ync_save_coordinator.gd":
-"9bca9e2269ec796548316e139544c76d25352c5cbb347f2b20dd16dd6bc4e279",_AF+"ync_save_protocol.gd":
-"33607582eda61aa1dfb4181ac6437d3e2688be27bc2a9814d98d6218cbf69334",_AF+"ync_save_ui.gd":"1b931a051"+
-"12ae87d048d1e6aa84b13098318ca972047f12949fff25e07ed2758",_AF+"ync_save_validator.gd":"22d80a5df63"+
+"109c9caa4c5228d0f9245dd417adc0f3698ed76b5287afebec3a0dd67a62be97",_AF+"ync_save_protocol.gd":
+"33607582eda61aa1dfb4181ac6437d3e2688be27bc2a9814d98d6218cbf69334",_AF+"ync_save_ui.gd":"5cdd08d8a"+
+"fa570d475e2bb3f4c0db6ae2eee007e3ed9f661dfa824e668150a66",_AF+"ync_save_validator.gd":"22d80a5df63"+
 "44be63bc0569d0aa74be5acdb5804a24ad2070b542ce6edce3365",_AF+"ync_save_worker.gd":"0bbc711b47db4b6d"+
 "3bec02df3905ce2576d51e3b2843d2584986b8a4b76e41ed",_F+"closed_content_access.gd":"522547d3ced6a324"+
 "9fcf744eb11d49ae75a87ef812cb2710ff2d22b2fc470f36",_M+"_journal.gd":"63460ffb2d118fee942c49d15da44"+
@@ -717,7 +717,7 @@ _E+"loadout_sale.gd":"8dd597aeba846264e3c2f8a89d75b43b9a62cb0011e8cc7610d687af83
 "1175cb9956",_E+"pregame_commit.gd":"5b0b3ba7bd5c213df78bc155444ef60b443fa68d4b5fed1fa76f9ec83527"+
 "51c0",_E+"raincheck_ui.gd":"4ee982d4a3e54775f03f8070afa652823815517da75d710a538a1c28d55e03e9",_E+
 "retraining_ui.gd":"438efb49a752b23ee3e54bf4aaf960453e2b176c6d687a6a79728f13ee228e50",_E+"round_u"+
-"i.gd":"f3967921ebb5028646447174adbc91f482db3a6bd91f97dc8c1c283656c956fd",_E+"school_shop_ui.gd":
+"i.gd":"5637c6d1b26400f1656662d23bbb1486e149f8cad1cce7e8294ed13c247a3d9b",_E+"school_shop_ui.gd":
 "8f5944eb0b184d21d86f28e26357e0d901b9c5fc94e92a63c506defa89d4562e",_E+"second_chance_ui.gd":"90c91"+
 "13bb1bea17494406b2ab3db7eb6c2b00ef8ef8349b7cde29b2d97a4f47f",_E+"shop_quote.gd":"5c8a02b5d9b68ffb"+
 "88bc2a08aa7a52d37228aa02a3d53024904edf08ece8d3b1",_E+"shop_window.gd":"39293a9ce0217e1fc04ef102f5"+

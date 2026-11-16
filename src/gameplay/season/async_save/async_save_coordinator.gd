@@ -26,6 +26,9 @@ var _supervision: PhysicalTestSupervision
 var _start_attempted: bool = false
 var _owns_lease: bool = false
 var _cleanup_pending: bool = false
+var _saved_receipt: RefCounted
+var _backup_expected: PackedByteArray
+var _backup_must_match: bool = false
 
 func configure_supervisor(callback: Callable) -> bool:
 	if _start_attempted or _owns_lease or running or not callback.is_valid():
@@ -179,6 +182,8 @@ func _process(_delta: float) -> void:
 	if DirAccess.rename_absolute(_path + ".tmp", _path) != OK:
 		_finish(false, "Could not replace the season save. Retry before closing.")
 		return
+	_backup_must_match = _old_exists and response.old_valid
+	_backup_expected = _old.duplicate() if _backup_must_match else PackedByteArray()
 	_finish(true, "")
 
 static func _write_bytes(path: String, bytes: PackedByteArray) -> bool:
@@ -226,7 +231,84 @@ func _finish(saved: bool, reason: String) -> void:
 			_owns_lease = false
 	running = false
 	committing = false
+	if saved and stopped:
+		_saved_receipt = _mint_saved_receipt()
 	SeasonSave.last_error = reason
 	# Failed cleanup keeps this attempt's lease, even when the launch PID is unknown.
 	# Do not clear supervisor identity or retry its one-shot stop after ambiguous IPC.
 	completed.emit(saved, reason)
+
+
+# Optional optimization authority: never a durable save format or validation result cache.
+# Only the successful coordinator transfers this private in-memory object once.
+func take_saved_receipt() -> RefCounted:
+	var receipt: RefCounted = _saved_receipt
+	_saved_receipt = null
+	return receipt
+
+func _mint_saved_receipt() -> RefCounted:
+	if leased or _cleanup_pending or not _current() or FileAccess.file_exists(_path + ".tmp") \
+		or _storage_directory_exists(_path):
+		return null
+	var primary: Variant = Protocol.bytes_at(_path)
+	if not primary is PackedByteArray or primary != _bytes:
+		return null # Save outcome is unchanged; a missing receipt means normal save fallback.
+	var backup_exists: bool = FileAccess.file_exists(_path + ".bak")
+	var backup: Variant = Protocol.bytes_at(_path + ".bak") if backup_exists else PackedByteArray()
+	if not backup is PackedByteArray or (_backup_must_match and (not backup_exists or backup != _backup_expected)):
+		return null
+	var receipt := SavedCheckpoint.new()
+	receipt._season_ref = weakref(_season)
+	receipt._build_ref = weakref(_build)
+	receipt._revision = _revision
+	receipt._path = _path
+	receipt._native = _native.duplicate()
+	receipt._bytes = _bytes.duplicate()
+	receipt._backup_exists = backup_exists
+	receipt._backup = backup.duplicate()
+	receipt._binding = _request.binding.duplicate(true)
+	return receipt
+
+static func _storage_directory_exists(path: String) -> bool:
+	return DirAccess.dir_exists_absolute(path) or DirAccess.dir_exists_absolute(path + ".bak") \
+		or DirAccess.dir_exists_absolute(path + ".tmp")
+
+class SavedCheckpoint extends RefCounted:
+	var _used: bool = false
+	var _season_ref: WeakRef
+	var _build_ref: WeakRef
+	var _revision: int
+	var _path: String
+	var _native: PackedByteArray
+	var _bytes: PackedByteArray
+	var _backup_exists: bool
+	var _backup: PackedByteArray
+	var _binding: Dictionary
+
+	func consume(season: SeasonState) -> bool:
+		if _used:
+			return false
+		_used = true # Even a failed attempt is consumed, before any fallible check.
+		if season == null or _season_ref.get_ref() != season or _build_ref.get_ref() != season.build \
+			or season.build == null or season.build.revision() != _revision \
+			or SeasonSave.path != _path or not Protocol.standalone(season):
+			return false
+		if load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased \
+			or FileAccess.file_exists(_path + ".tmp") \
+			or DirAccess.dir_exists_absolute(_path) or DirAccess.dir_exists_absolute(_path + ".bak") \
+			or DirAccess.dir_exists_absolute(_path + ".tmp"):
+			return false
+		var snapshot: Dictionary = SeasonSave.snapshot(season)
+		if snapshot.is_empty() or var_to_bytes(snapshot) != _native \
+			or JSON.stringify(snapshot, "", true, true).to_utf8_buffer() != _bytes:
+			return false
+		# One source check at consumption, not every frame. No source trust cache.
+		if not ClubCareer.same(Protocol.binding(), _binding):
+			return false
+		if _season_ref.get_ref() != season or _build_ref.get_ref() != season.build \
+			or season.build == null or season.build.revision() != _revision \
+			or SeasonSave.path != _path or not Protocol.standalone(season):
+			return false
+		return Protocol.bytes_at(_path) == _bytes \
+			and FileAccess.file_exists(_path + ".bak") == _backup_exists \
+			and (not _backup_exists or Protocol.bytes_at(_path + ".bak") == _backup)

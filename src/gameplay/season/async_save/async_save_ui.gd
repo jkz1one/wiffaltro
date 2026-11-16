@@ -12,17 +12,18 @@ var _overlay: CanvasLayer
 var _restored: bool = false
 var _cancel_requested: bool = false
 
-static func save(app: SeasonApp, candidate: SeasonState, supervisor: Callable = Callable()) -> bool:
+static func save(app: SeasonApp, candidate: SeasonState, supervisor: Callable = Callable(), receipt_out: Dictionary = {}) -> bool:
+	receipt_out.clear()
 	if locked or Coordinator.leased or not app.is_inside_tree() or not app._ac02_settlement_ticket.is_empty():
 		return false
 	var owner = load("res://src/gameplay/season/async_save/async_save_ui.gd").new()
 	owner.process_mode = Node.PROCESS_MODE_ALWAYS
 	app.get_tree().root.add_child(owner)
-	var saved: bool = await owner._run(app, candidate, supervisor)
+	var saved: bool = await owner._run(app, candidate, supervisor, receipt_out)
 	owner.queue_free()
 	return saved
 
-func _run(app: SeasonApp, candidate: SeasonState, supervisor: Callable) -> bool:
+func _run(app: SeasonApp, candidate: SeasonState, supervisor: Callable, receipt_out: Dictionary) -> bool:
 	locked = true
 	_app = app
 	_tree = app.get_tree()
@@ -68,6 +69,10 @@ func _run(app: SeasonApp, candidate: SeasonState, supervisor: Callable) -> bool:
 		if not Coordinator.leased:
 			SeasonSave.last_error = ("Save cancelled. Your unsaved result remains available." if _cancel_requested
 				else "Save could not start. Your unsaved result remains available.")
+	if saved:
+		var receipt: RefCounted = _worker.take_saved_receipt()
+		if receipt != null:
+			receipt_out["receipt"] = receipt
 	_restore()
 	return saved
 

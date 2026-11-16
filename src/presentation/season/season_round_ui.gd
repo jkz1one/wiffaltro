@@ -5,6 +5,8 @@ extends CanvasLayer
 signal async_human_checkpoint_completed(saved: bool)
 var _async_human_saving: bool = false
 var _async_human_saved: bool = false
+var _human_receipt: RefCounted
+var _human_receipt_context: Dictionary = {}
 
 var app: SeasonApp
 var runner: PhysicalMatchRunner
@@ -172,18 +174,25 @@ func _save_human_async() -> void:
 		return
 	_async_human_saving = true
 	_async_human_saved = false
+	_human_receipt = null
+	_human_receipt_context.clear()
 	var owner: SeasonState = app.season
 	var captured_lab: PitchBatLab = app.lab
 	var generation: int = app._loading_generation
 	app._continue.disabled = true
 	var supervisor: Callable = _supervise_physical_test if _physical_test_supervisor.is_valid() else Callable()
-	var saved: bool = await load("res://src/gameplay/season/async_save/async_save_ui.gd").save(app, owner, supervisor)
+	var receipt_out: Dictionary = {}
+	var saved: bool = await load("res://src/gameplay/season/async_save/async_save_ui.gd").save(app, owner, supervisor, receipt_out)
 	_async_human_saving = false
 	if not is_inside_tree() or not is_instance_valid(app) or app.season != owner \
 		or app.lab != captured_lab or app._loading_generation != generation:
 		async_human_checkpoint_completed.emit(false)
 		return
 	_async_human_saved = saved
+	if saved and receipt_out.get("receipt") != null:
+		_human_receipt = receipt_out.receipt
+		_human_receipt_context = {"app": weakref(app), "lab": weakref(captured_lab) if is_instance_valid(captured_lab) else null,
+			"generation": generation, "fixture": app._fixture_id, "season_game": app._season_game}
 	# _result_saved remains false: the other games and full round are not settled.
 	app._continue.disabled = false
 	app._continue.text = "CONTINUE" if saved else "RETRY SAVE"
@@ -216,7 +225,10 @@ func resume() -> void:
 			_pause("Physical test resume authorization was rejected.")
 		return
 	if load("res://src/gameplay/season/async_save/async_save_coordinator.gd").supported() and app.season.career == null and app.season.build != null and app.season.build.pitch_catalog_expanded() 		and not _ac02_guard_needed():
-		_resume_with_async_save()
+		if _consume_human_receipt():
+			_resume_saved_checkpoint()
+		else:
+			_resume_with_async_save()
 		return
 	# Also retries a completed report whose checkpoint failed; no second physical run.
 	var saved: bool = _save_pending_checkpoint()
@@ -529,3 +541,18 @@ func _resume_saved_checkpoint() -> void:
 	app.loadout.close()
 	_started = Time.get_ticks_msec()
 	_next()
+
+
+func _consume_human_receipt() -> bool:
+	var receipt: RefCounted = _human_receipt
+	var context: Dictionary = _human_receipt_context
+	_human_receipt = null
+	_human_receipt_context = {} # Clear before any checks or continuation/reentry.
+	if receipt == null or context.is_empty() or not is_instance_valid(app) \
+		or context.app.get_ref() != app or app._loading_generation != context.generation \
+		or app._fixture_id != context.fixture or app._season_game != context.season_game:
+		return false
+	var prior_lab: Variant = context.lab.get_ref() if context.lab != null else null
+	if app.lab != prior_lab or (context.lab != null and not is_instance_valid(prior_lab)):
+		return false
+	return receipt.consume(app.season)

@@ -1,0 +1,24 @@
+{
+  "changes": {
+    "src/gameplay/season/async_save/async_save_coordinator.gd": {
+      "after": "109c9caa4c5228d0f9245dd417adc0f3698ed76b5287afebec3a0dd67a62be97",
+      "before": "9bca9e2269ec796548316e139544c76d25352c5cbb347f2b20dd16dd6bc4e279"
+    },
+    "src/gameplay/season/async_save/async_save_ui.gd": {
+      "after": "5cdd08d8afa570d475e2bb3f4c0db6ae2eee007e3ed9f661dfa824e668150a66",
+      "before": "1b931a05112ae87d048d1e6aa84b13098318ca972047f12949fff25e07ed2758"
+    },
+    "src/presentation/season/season_round_ui.gd": {
+      "after": "5637c6d1b26400f1656662d23bbb1486e149f8cad1cce7e8294ed13c247a3d9b",
+      "before": "f3967921ebb5028646447174adbc91f482db3a6bd91f97dc8c1c283656c956fd"
+    },
+    "src/presentation/stadium/stadium_npc_current_source_profile.gd": {
+      "after": "fdc8be03f1c744b9da3260d237f12ac8b9d75a3246ccd38fe2f57cd410d77827",
+      "before": "f1b5efdb72572422372eeaa861dfba986df4a508456bcc9c6ea93ef16cc5a3f1"
+    }
+  },
+  "coverage_limit": "Exact source/profile activation verified. Combined real save, receipt transfer, Continue and cold reopen not yet run.",
+  "native_test_status": "pending",
+  "parent_commit": "47cee9cd9640248c935c5868e8c1ca6c42e2d89f",
+  "scope": "three reviewed existing source changes and exact source profile"
+}
