@@ -1,0 +1,93 @@
+extends "res://tests/successor_flow.gd"
+## Continues a byte-copied actual-round test checkpoint, never an owner's slot.
+const Shop = preload("res://src/presentation/season/successor_v7/shop_window.gd")
+const Display = preload("res://src/gameplay/season/successor_v7/progression.gd")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated shop runner required"):
+		return
+	var app: SeasonApp = App.new()
+	add_child(app)
+	app.reload_save()
+	if not check(app.season != null and app.season.results.size() == 3 and app.season.build._bank.view().rewards.size() == 1, "actual earned round restored without grants"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		var expected: Variant = JSON.parse_string(FileAccess.get_file_as_string("user://shop-expected.json"))
+		if not check(ClubCareer.same(Codec.capture(app.season), expected) and app.season.make_match() != null, "cold exact full-shop checkpoint and playable fixture"):
+			return
+		print("PASS: cold full-shop checkpoint exactly restored")
+		app.queue_free()
+		get_tree().quit()
+		return
+	var before: Dictionary = Codec.capture(app.season)
+	app.open_shop()
+	var window: SeasonShopWindow
+	for child: Node in app.menu.get_children():
+		if child.get_script() == Shop:
+			window = child
+	if not check(window != null and window.theme != null and window._scroll != null and window._confirm != null and window._body.get_child_count() > 0, "full inherited shop widgets and generated offers"):
+		return
+	app.open_shop()
+	var count: int = 0
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow:
+			count += 1
+	if not check(count == 1, "singleton shop window"):
+		return
+	var selected: Dictionary = {}
+	for offer: String in app.season.build._visit.offers:
+		var item_id: String = app.season.build._visit.offers[offer]
+		var item: Dictionary = Display.display_item(item_id)
+		if item.is_empty():
+			continue # Equipment/sponsor offers use their own inherited review routes.
+		var targets: Array[Dictionary] = app.season.build.targets(item_id)
+		window._choose(item_id, window._request("buy", {"offer":offer,"mode":"use"}))
+		for target: Dictionary in targets:
+			if not check(not window._target_text(item, target).is_empty(), "successor generated target text"):
+				return
+			var command: Dictionary = window._request("buy", {"offer":offer,"mode":"use"})
+			command.merge(target)
+			if selected.is_empty() and app.season.build.preview(command).has("after"):
+				selected = command
+		window._refresh()
+	if not check(ClubCareer.same(Codec.capture(app.season), before), "target inspection and cancellation leave state unchanged"):
+		return
+	if not check(not selected.is_empty(), "affordable legal earned-cash offer"):
+		return
+	window._preview(selected, "Isolated test exact generated purchase")
+	if not check(ClubCareer.same(Codec.capture(app.season), before) and not window._pending.is_empty(), "confirmation preview spends nothing"):
+		return
+	window._confirm.hide()
+	var slot_before: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var blocker: FileAccess = FileAccess.open(Save.PATH + ".tmp", FileAccess.WRITE)
+	blocker.store_string("isolated deliberate existing-temp guard")
+	blocker.close()
+	window._commit()
+	if not check(app.get("retained") != null and ClubCareer.same(Codec.capture(app.season), before) and FileAccess.get_file_as_bytes(Save.PATH) == slot_before, "failed save retains exact candidate and unchanged live slot"):
+		return
+	if not check(not window._notice.begins_with("Saved."), "failed save never reports purchase success"):
+		return
+	var retained: SeasonState = app.get("retained")
+	var expected: Dictionary = Codec.capture(retained)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Save.PATH + ".tmp"))
+	var retry_button: Button
+	for child: Node in window._body.get_children():
+		if child is Button and child.text == "RETRY EXACT SAVE":
+			retry_button = child
+	if not check(retry_button != null, "exact-save retry reachable inside exclusive shop"):
+		return
+	retry_button.pressed.emit()
+	if not check(app.get("retained") == null and app.season == retained and ClubCareer.same(Codec.capture(app.season), expected), "retry promotes identical retained purchase once"):
+		return
+	app.commit_shop(selected)
+	if not check(ClubCareer.same(Codec.capture(app.season), expected), "duplicate exact shop purchase grants nothing twice"):
+		return
+	var output: FileAccess = FileAccess.open("user://shop-expected.json", FileAccess.WRITE)
+	output.store_string(JSON.stringify(expected, "", true, true))
+	output.close()
+	window._close()
+	await get_tree().process_frame
+	print("PASS: full-shop targets, preview, earned purchase, failed-save retention and exact retry")
+	app.queue_free()
+	await get_tree().process_frame
+	get_tree().quit()

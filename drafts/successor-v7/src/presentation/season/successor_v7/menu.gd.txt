@@ -27,4 +27,4 @@ func render() -> void:
 	else:
 		_label(_body,"Season complete. Earned results remain saved.",20)
 	if app.season.shop_available():
-		_button(_body,"PITCH SHOP",Callable(app,"open_pitch_shop"))
+		_button(_body,"SHOP",Callable(app,"open_pitch_shop"))

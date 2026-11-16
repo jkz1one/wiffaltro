@@ -19,6 +19,8 @@ def main():
     parser.add_argument('--expect-broken', action='store_true')
     parser.add_argument('--flow', action='store_true', help='Run draft UI and one actual native match instead of the signature-only suite')
     parser.add_argument('--round', action='store_true', help='Run actual three-game round and earned pack purchase suite')
+    parser.add_argument('--shop-fixture', type=Path, help='Read-only previously earned isolated round save; copied to a new isolated test directory')
+    parser.add_argument('--recruit', action='store_true', help='Run controlled build-ledger recruitment and cold replay, not actual-game qualification')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -28,15 +30,19 @@ def main():
     shutil.copy2(root / 'project.godot', project / 'project.godot')
     (project / 'tests').mkdir()
     names = ['successor_signature.gd', 'successor_signature.tscn']
-    if args.flow or args.round:
+    if args.flow or args.round or args.shop_fixture:
         names += ['successor_flow.gd', 'successor_flow.tscn']
-    if args.round:
-        names += ['successor_round.gd', 'successor_round.tscn']
+    if args.round or args.shop_fixture:
+        names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
+    if args.recruit:
+        names += ['successor_recruit.gd', 'successor_recruit.tscn']
     for name in names:
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
-    for entry in manifest['files']:
+    entries = manifest['files'] + manifest.get('additions', [])
+    assert len({entry['restore_path'] for entry in entries}) == len(entries)
+    for entry in entries:
         source = root / entry['backup_path']
         data = source.read_bytes()
         assert len(data) == entry['bytes']
@@ -64,6 +70,20 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
+    if args.recruit:
+        run('controlled-recruit', ['res://tests/successor_recruit.tscn', '--'], timeout=600)
+        run('controlled-recruit-cold', ['res://tests/successor_recruit.tscn', '--', 'reopen'], timeout=600)
+        return
+    if args.shop_fixture:
+        source = args.shop_fixture.resolve()
+        assert source.is_file() and source.name == 'successor-standard-v7.json'
+        assert any(part.startswith('wiffaltro-signature-') for part in source.parts), 'Only explicitly isolated prior test evidence is accepted'
+        destination = stage / 'data/godot/app_userdata/Wiffaltro/successor-standard-v7.json'
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        run('full-shop', ['res://tests/successor_shop.tscn', '--'], timeout=1200)
+        run('full-shop-cold', ['res://tests/successor_shop.tscn', '--', 'reopen'], timeout=600)
+        return
     if args.round:
         flow = ['--fixed-fps', '60', 'res://tests/successor_round.tscn', '--']
         run('actual-round-shop', flow, timeout=1200)

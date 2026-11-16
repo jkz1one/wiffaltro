@@ -260,9 +260,9 @@
     },
     {
       "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/app.gd.txt",
-      "bytes": 9503,
+      "bytes": 9484,
       "restore_path": "src/presentation/season/successor_v7/app.gd",
-      "sha256": "a94aa27c45bbb5ffd715e210acee647e76503776389b5b5d42a7d9badbfa15ca"
+      "sha256": "d7dd08558299f9c5054888c2c7385b0e4f69878158a898372254cc11b1fffe6e"
     },
     {
       "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/capture_human.gd.txt",
@@ -278,13 +278,33 @@
     },
     {
       "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/menu.gd.txt",
-      "bytes": 1487,
+      "bytes": 1481,
       "restore_path": "src/presentation/season/successor_v7/menu.gd",
-      "sha256": "c390f51979743698ebd5a4cd4bb958af6a31c7083d47a79833df640bd4fdd925"
+      "sha256": "3fc3f020d76853b5923bf6e9c7d7f58bf2aca4943226ce0bb0782699dc6a2ed4"
     }
   ],
   "restore_note": "Remove the final .txt suffix and restore each file to its listed relative path only as part of a separately reviewed integration. No current runtime files are changed by this backup.",
   "scope": "Fresh standalone successor draft with 41 active pitches and seven unique Exotics; not restored lost work, not a verified playable build. No saved games or private evidence included.",
   "source_manifest_sha256": "57d9827ba3fbb0390c6ef6067ff2449edeb4d2716ccbee72bf5799e2d60df612",
-  "status": "INACTIVE_SOURCE_DRAFT_NOT_NATIVE_QUALIFIED"
+  "status": "INACTIVE_SOURCE_DRAFT_NOT_NATIVE_QUALIFIED",
+  "additions": [
+    {
+      "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/shop_window.gd.txt",
+      "restore_path": "src/presentation/season/successor_v7/shop_window.gd",
+      "bytes": 14080,
+      "sha256": "d58a9981b5e4b8425b57441b69d2721e4ec172bb8ceb69003837998f45d3d42c"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/school_shop_ui.gd.txt",
+      "restore_path": "src/presentation/season/successor_v7/school_shop_ui.gd",
+      "bytes": 2601,
+      "sha256": "24d8163a9fdb2da4533798c21d1ea5407d7ca5553e733286ca9c059b168fa7cc"
+    },
+    {
+      "backup_path": "drafts/successor-v7/src/presentation/season/successor_v7/transfer_ui.gd.txt",
+      "restore_path": "src/presentation/season/successor_v7/transfer_ui.gd",
+      "bytes": 2680,
+      "sha256": "f0cb986c886da78dad0d98ef3d2c3db5553c5ccf31394d52b854e5d7b4e363ee"
+    }
+  ]
 }

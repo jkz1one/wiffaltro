@@ -1,0 +1,132 @@
+extends Node
+## Controlled build-command fixture, NOT actual-game evidence or full season/career persistence.
+## Only isolated test user data is written; production SeasonSave/Codec slots are never used.
+const Build = preload("res://src/gameplay/season/successor_v7/build.gd")
+const Reward = preload("res://src/gameplay/season/successor_v7/reward.gd")
+const Runtime = preload("res://src/gameplay/season/successor_v7/runtime.gd")
+const Adapter = preload("res://src/gameplay/season/successor_v7/match_adapter.gd")
+const FIXTURE_PATH: String = "user://controlled-recruit-build.json"
+const SEED: int = 5
+const ROSTER: Array[String] = [
+	"player.alex_finch", "player.rowan_chase", "player.nico_vega", "player.ari_banks"
+]
+const INCOMING: String = "player.gray_west"
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: controlled recruitment fixture: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func command(build: SeasonBuild, op: String, fields: Dictionary = {}) -> Dictionary:
+	var result: Dictionary = {"id": "fixture:%d" % build.revision(), "rev": build.revision(), "op": op}
+	result.merge(fields)
+	return result
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated runner required"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		cold_reopen()
+		return
+	if not check(not FileAccess.file_exists(FIXTURE_PATH), "fresh controlled fixture path"):
+		return
+	var pool: Array[String] = ROSTER.duplicate()
+	pool.append(INCOMING)
+	var build: SeasonBuild = Build.new(SEED, ROSTER, pool, [])
+	if not check(build.enable_successor_pitch_catalog(), "successor catalog enabled before ledger"):
+		return
+	var reward: Dictionary = Reward.envelope(build, command(build, "reward", {"game": 0, "win": true}))
+	if not check(not reward.is_empty() and build.commit(reward).ok, "controlled reward command accepted; no simulated game claimed"):
+		return
+	if not check(build.cash() == 18 and build.commit(command(build, "open")).ok, "controlled funding and ordinary shop open"):
+		return
+	var offer: Dictionary = build.view().shop.recruit
+	if not check(not offer.is_empty() and offer.player == INCOMING and offer.price == 18 and offer.stage == "early" and not offer.returning, "actual deterministic generated early recruit"):
+		return
+	var sign: Dictionary = command(build, "sign", {"offer": offer.id, "replace": ROSTER[1]})
+	var before: Dictionary = build.to_data()
+	var invalid: Dictionary = sign.duplicate(true)
+	invalid.price = 0
+	if not check(build.candidate(invalid) == null and ClubCareer.same(build.to_data(), before), "cannot override quoted price"):
+		return
+	invalid = sign.duplicate(true)
+	invalid.replace = INCOMING
+	if not check(build.candidate(invalid) == null and ClubCareer.same(build.to_data(), before), "cannot release a non-roster recruit"):
+		return
+	invalid = sign.duplicate(true)
+	invalid.offer = "recruit:999"
+	if not check(build.candidate(invalid) == null and ClubCareer.same(build.to_data(), before), "stale offer rejected"):
+		return
+	if not check(build.preview(sign).ok and ClubCareer.same(build.to_data(), before), "recruit preview spends and changes nothing"):
+		return
+	var candidate: SeasonBuild = build.candidate(sign)
+	if not check(candidate != null and candidate.cash() == 0 and candidate.view().shop.recruit.signed, "fixed fee charged once in candidate"):
+		return
+	var expected_roster: Array[String] = ROSTER.duplicate()
+	expected_roster[1] = INCOMING
+	if not check(candidate.roster() == expected_roster and ClubCareer.same(candidate.player(INCOMING), offer.profile), "exact slot replacement and quoted profile"):
+		return
+	# Deliberate minimal runtime fixture: no invented results, fixtures or game reports.
+	var owner: SeasonState = Runtime.new()
+	owner.build = build
+	owner.teams = [{"roster": [ROSTER[2], ROSTER[0], ROSTER[3], ROSTER[1]]}]
+	owner.adopt_build(candidate)
+	var lineup: Array = [ROSTER[2], ROSTER[0], ROSTER[3], INCOMING]
+	if not check(owner.build == candidate and owner.teams[0].roster == lineup, "runtime adoption preserves reordered lineup and replaces departing slot"):
+		return
+	var signed_data: Dictionary = candidate.to_data()
+	var duplicate: Dictionary = candidate.commit(sign)
+	if not check(duplicate.ok and duplicate.replayed and ClubCareer.same(candidate.to_data(), signed_data), "duplicate confirmation has no second fee"):
+		return
+	var definition: PlayerDefinition = Adapter.player(candidate._book, INCOMING)
+	if not check(definition != null and definition.progression_test and definition.starting_pitches.size() == offer.profile.active.size(), "current recruit match conversion"):
+		return
+	var record: Dictionary = {"scope": "controlled-build-ledger-not-gameplay", "seed": SEED,
+		"roster": ROSTER, "pool": pool, "build": signed_data, "view": candidate.view(),
+		"incoming": candidate.player(INCOMING), "lineup": lineup, "sign": sign}
+	var file: FileAccess = FileAccess.open(FIXTURE_PATH, FileAccess.WRITE)
+	if not check(file != null, "isolated fixture write opened"):
+		return
+	file.store_string(JSON.stringify(record, "", true, true))
+	file.close()
+	if not check(ClubCareer.same(JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_PATH)), record), "controlled fixture exact disk readback"):
+		return
+	print("PASS: controlled recruit command ledger, generated signing and reordered runtime adoption; not actual-game or full-season evidence")
+	get_tree().quit()
+
+func cold_reopen() -> void:
+	var record: Variant = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_PATH))
+	if not check(record is Dictionary and record.get("scope") == "controlled-build-ledger-not-gameplay", "cold fixture scope"):
+		return
+	var roster: Array[String] = []
+	var pool: Array[String] = []
+	roster.assign(record.roster)
+	pool.assign(record.pool)
+	if not check(int(record.seed) == SEED and roster == ROSTER and pool.has(INCOMING), "cold fixture provenance"):
+		return
+	var build: SeasonBuild = Build.from_data(record.build, int(record.seed), roster, pool, [])
+	if not check(build != null, "cold replay validates controlled build ledger"):
+		return
+	if not check(ClubCareer.same(build.to_data(), record.build) and ClubCareer.same(build.view(), record.view) and ClubCareer.same(build.player(INCOMING), record.incoming), "cold exact data view and recruit profile"):
+		return
+	var definition: PlayerDefinition = Adapter.player(build._book, INCOMING)
+	if not check(definition != null and definition.progression_test and definition.fielding == record.incoming.stats.fielding and definition.starting_pitches.size() == record.incoming.active.size(), "cold current match conversion"):
+		return
+	for index in range(definition.starting_pitches.size()):
+		if not check(String(definition.starting_pitches[index].id) == record.incoming.active[index], "cold exact pitch identity %d" % index):
+			return
+	var repeated: Dictionary = build.commit(record.sign)
+	if not check(repeated.ok and repeated.replayed and build.cash() == 0 and ClubCareer.same(build.to_data(), record.build), "cold duplicate signing inert"):
+		return
+	var tampered: Dictionary = record.build.duplicate(true)
+	tampered.recruits[0].offer.price = 0
+	if not check(Build.from_data(tampered, SEED, roster, pool, []) == null, "tampered recruit quote rejected"):
+		return
+	print("PASS: cold controlled recruit build replay and current match conversion; not full-season/career reopen")
+	get_tree().quit()
