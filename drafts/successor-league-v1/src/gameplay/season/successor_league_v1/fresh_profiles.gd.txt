@@ -1,0 +1,28 @@
+extends RefCounted
+## Fresh generation ONLY. Not a saved-profile reader, migration, or earned grant.
+const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+
+static func profile(player_id: String) -> Dictionary:
+	var result: Dictionary = SeasonPlayerCatalog.profile(player_id)
+	if result.is_empty():
+		return {}
+	# Current authored progression starts use the same nine conventional IDs.
+	# Never expand initial rights to the active catalog or remap legacy ownership.
+	var seen: Array[String] = []
+	for id: String in result.active:
+		if seen.has(id) or not Provider.is_active(id) or Provider.is_exotic(id) \
+			or not result.mastery.has(id):
+			return {}
+		seen.append(id)
+	if result.mastery.size() != seen.size():
+		return {}
+	return result.duplicate(true)
+
+static func all_profiles() -> Dictionary:
+	var result: Dictionary = {}
+	for player_id: String in SeasonPlayerCatalog.ids():
+		var initial: Dictionary = profile(player_id)
+		if initial.is_empty():
+			return {}
+		result[player_id] = initial
+	return result

@@ -1,0 +1,120 @@
+extends RefCounted
+## Original full reward/result chronology, explicit successor reward unwrap only.
+static func _build_history_valid(season: SeasonState, build: SeasonBuild) -> bool:
+	if SeasonInventoryResale.enabled(build._bank):
+		var fixture: Dictionary = season.pending_fixture()
+		if not fixture.is_empty():
+			var opponent: int = int(fixture.away if fixture.home == 0 else fixture.home)
+			if not SeasonInventoryRules.fixture_prefixes(
+				build, int(fixture.id), season.teams[opponent].roster, 0 if fixture.away == 0 else 1
+			):
+				return false
+	var cursor: int = 0
+	for submitted: Dictionary in build.to_data().events:
+		var event: Dictionary = submitted
+		if submitted.op == "successor_reward":
+			event = load("res://src/gameplay/season/successor_league_v1/reward.gd").unwrap(submitted)
+			if event.is_empty():
+				return false
+		elif submitted.op == "reward":
+			return false
+		if (
+			event.op
+			in [
+				"pregame",
+				"scout",
+				"insure",
+				"copy_select",
+				"match_inventory",
+				"match_sell",
+				"match_supply_sell",
+				SeasonInventoryRules.CLOSE_OP
+			]
+		):
+			var expected: int = (
+				int(season.player_results[cursor].id)
+				if cursor < season.player_results.size()
+				else int(season.pending_fixture().get("id", -1))
+			)
+			if event.game != expected:
+				return false
+			if event.op == "scout":
+				var fixture: Dictionary = (
+					season.player_results[cursor]
+					if cursor < season.player_results.size()
+					else season.pending_fixture()
+				)
+				if not SeasonFilmRoom.choices(season, fixture).has(event.recipe):
+					return false
+		elif event.op == "reward":
+			var inventory_result_row: Dictionary = {}
+			for inventory_played: Dictionary in season.player_results:
+				if inventory_played.id == event.game:
+					inventory_result_row = inventory_played
+					break
+			if (
+				event.has("inventory_final") != inventory_result_row.has("inventory_final")
+				or (
+					event.has("inventory_final")
+					and not ClubCareer.same(
+						event.inventory_final, inventory_result_row.inventory_final
+					)
+				)
+			):
+				return false
+			if cursor >= season.player_results.size():
+				return false
+			var result: Dictionary = season.player_results[cursor]
+			if event.game != result.id or event.win != (SeasonState._winner(result) == 0):
+				return false
+			if LeagueRules.doubleheader(season.league_rules):
+				if (
+					not result.get("doubleheader_evidence") is Array
+					or result.doubleheader_evidence.size() != 2
+					or not ClubCareer.same(
+						event.get("doubleheader_workload"),
+						result.doubleheader_evidence[0 if result.away == 0 else 1]
+					)
+				):
+					return false
+			if LeagueRules.earnings(season.league_rules):
+				var own: int = int(result.home_runs if result.home == 0 else result.away_runs)
+				var opponent: int = int(result.away_runs if result.home == 0 else result.home_runs)
+				if event.get("own_runs") != own or event.get("opponent_runs") != opponent:
+					return false
+			if event.get("used_gear", []) != result.get("used_gear", []):
+				return false
+			if event.get("tactics", []) != result.get("tactics", []):
+				return false
+			if event.get("batting", {}) != result.get("batting", {}):
+				return false
+			if event.get("stances", []) != result.get("stances", []):
+				return false
+			if event.get("field_supply", {}) != result.get("field_supply", {}):
+				return false
+			if not load("res://src/gameplay/season/successor_league_v1/called_proof.gd").same_retained(event, result):
+				return false
+			if event.get("pitching", {}) != result.get("pitching", {}):
+				return false
+			if event.get("fielding", []) != result.get("fielding", []):
+				return false
+			if not SeasonGapCommit.same(event.get("frozen", []), result.get("frozen", [])):
+				return false
+			if event.has("performance"):
+				var saved: Variant = JSON.parse_string(JSON.stringify(event.performance))
+				var actual: Variant = JSON.parse_string(
+					JSON.stringify(result.get("performance", {}))
+				)
+				if saved != actual:
+					return false
+			cursor += 1
+		elif event.op == "exotic_admit" and (build.pitch_catalog_current() or build.call("pitch_catalog_successor")):
+			# Final settlement may retain access, but never opens another shop.
+			if event.proof.games.size() != cursor:
+				return false
+		elif cursor == season.player_results.size() and season.phase == SeasonState.Phase.COMPLETE:
+			# Final income is retained, but creates no new purchasing window.
+			return false
+	return cursor == season.player_results.size() and (load("res://src/gameplay/season/successor_league_v1/exotic_access.gd").current_matches(season, build) if build.call("pitch_catalog_successor") else (not build.pitch_catalog_current() or WorkingExoticAccess.current_matches(season, build)))
+
+

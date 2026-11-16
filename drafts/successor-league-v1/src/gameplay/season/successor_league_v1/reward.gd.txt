@@ -1,0 +1,193 @@
+extends RefCounted
+const Catalog = preload("catalog_context.gd")
+const Called = preload("called_proof.gd")
+const FORMAT: String = "successor-dugout-v7-r1"
+# gdlint: disable=max-returns
+## One atomic completed-game settlement, replayed inside the candidate build.
+
+
+static func _settle_original(build: SeasonBuild, command: Dictionary) -> String:
+	if SeasonInventoryRules.closed(build):
+		return "Restart the closed attempt before completing this fixture."
+	if not build._match_inventory.is_empty() and command.get("game") != build._match_inventory.game:
+		return "Complete the current inventory attempt first."
+	# Catalog v3 is a new signed contract; historical reward parsers stay closed.
+	if command.has("pitching_current") and (not command.get("pitching") is Dictionary \
+		or not Called.accepts(
+			build, command.pitching_current, command.pitching)):
+		return "Current pitching proof does not match this catalog and reward."
+	var fields: Array = ["game", "win"]
+	if command.has("pitching_current"):
+		fields.append("pitching_current")
+	if SeasonInventoryResale.enabled(build._bank) and command.has("inventory_final"):
+		fields.append("inventory_final")
+	if LeagueRules.earnings(build._league_rules):
+		fields.append_array(["own_runs", "opponent_runs"])
+	if LeagueRules.doubleheader(build._league_rules):
+		fields.append("doubleheader_workload")
+	if build._format >= 41 and command.has("frozen"):
+		fields.append("frozen")
+	if build._format >= 34 and command.has("field_supply"):
+		fields.append("field_supply")
+	if build._format >= 33 and command.has("pitching"):
+		fields.append("pitching")
+	if build._format >= 31 and command.has("fielding"):
+		fields.append("fielding")
+	if build._format >= 30 and command.has("stances"):
+		fields.append("stances")
+	if build._format >= 29 and command.has("batting"):
+		fields.append("batting")
+	if build._format >= 6 and command.has("performance"):
+		fields.append("performance")
+	if build._format >= 10 and command.has("used_gear"):
+		fields.append("used_gear")
+	if build._format >= 14 and command.has("tactics"):
+		fields.append("tactics")
+	if not build._keys(command, fields) or build._roster.size() != 4:
+		return "Invalid season reward."
+	var inventory_error: String = SeasonInventoryRules.final_reward(build, command)
+	if not inventory_error.is_empty():
+		return inventory_error
+	var validated_recoveries: Dictionary = {}
+	if LeagueRules.doubleheader(build._league_rules):
+		var workload_error: String = SeasonDoubleheaderBuild.validate(build, command)
+		if not workload_error.is_empty():
+			return workload_error
+		validated_recoveries = SeasonDoubleheaderBuild.recoveries(command.doubleheader_workload)
+	var bank_command: Dictionary = {
+		"id": "game:%s" % str(command.game),
+		"rev": build._bank.revision(),
+		"op": "reward",
+		"game": command.game,
+		"win": command.win
+	}
+	if LeagueRules.earnings(build._league_rules):
+		bank_command["own_runs"] = command.own_runs
+		bank_command["opponent_runs"] = command.opponent_runs
+	var result: Dictionary = build._bank.commit(bank_command)
+	if not result.ok or result.replayed:
+		return "This fixture cannot pay again."
+	var error: String = build._settle_sponsors(command)
+	if not error.is_empty():
+		return error
+	error = SeasonGapCommit.settle(build, command)
+	if not error.is_empty():
+		return error
+	error = SeasonCarbonCopy.settle(build, command)
+	if not error.is_empty():
+		return error
+	if (LeagueRules.doubleheader(build._league_rules) or command.has("pitching_current")) \
+		and build._sure_start == null:
+		# Workload proof is required even for AI/untracked clubs, but must not
+		# silently activate or earn the independent Sure Shot progression system.
+		if (
+			not SeasonSureShot.valid(build, command.pitching, command.performance)
+			or not command.pitching.calls.is_empty()
+		):
+			return "Untracked clubs require exact pitching without Sure Shot calls."
+	else:
+		error = SeasonSureShot.settle(build, command)
+		if not error.is_empty():
+			return error
+	error = SeasonJumpstart.settle(build, command)
+	if not error.is_empty():
+		return error
+	error = build._major.settle(build, command)
+	if not error.is_empty():
+		return error
+	error = build._abilities.settle(build, command)
+	if not error.is_empty():
+		return error
+	error = SeasonFieldSupply.settle(build, command)
+	if not error.is_empty():
+		return error
+	error = SeasonFieldGrant.prepare(build, command)
+	if not error.is_empty():
+		return error
+	error = SeasonLeftRight.settle(build, command)
+	if not error.is_empty():
+		return error
+	error = SeasonFreezers.settle(build, command)
+	if not error.is_empty():
+		return error
+	if build._format >= 10:
+		error = SeasonReclamation.settle(
+			build, command.get("used_gear", []), command.get("performance", {})
+		)
+		if not error.is_empty():
+			return error
+	if build._format >= 14:
+		error = SeasonTacticalPurchase.settle(
+			build,
+			command.get("tactics", []),
+			command.get("performance", {}),
+			int(command.game),
+			validated_recoveries
+		)
+		if not error.is_empty():
+			return error
+	if build._checkout_start != null:
+		for action: Dictionary in command.get("tactics", []):
+			build._checkout_earned = build._checkout_earned or action.get("walked", false)
+	if build._supply_start != null:
+		build._supply_used += command.get("tactics", []).size()
+	error = SeasonFieldGrant.finish(build, command)
+	if not error.is_empty():
+		return error
+	var insured: String = SeasonSecondChance.settle(build, command)
+	if not insured.is_empty():
+		return insured
+	build._gear_progress.settle(build, command)
+	build._match_inventory.clear()
+	build._sponsor_progress.settle(build, command)
+	SeasonLegends.settle(build, command.get("performance", {}))
+	build._game_rosters[int(command.game)] = build.roster()
+	build._visit = {"number": build._visit.number + 1, "open": false}
+	if (
+		build._format >= 11
+		and SeasonSchoolSponsors.qualifies_union(build, command.get("performance", {}))
+	):
+		build._visit["union_earned"] = true
+	if build.d4_sponsors_valid():
+		var closed: Dictionary = build._bank.commit(
+			{
+				"id": "sponsor-game-end:%d" % int(command.game),
+				"rev": build._bank.revision(),
+				"op": "sponsor_game_end",
+				"game": command.game
+			}
+		)
+		if not closed.ok or closed.replayed:
+			return "This game's final sponsor settlement could not close."
+	return ""
+
+static func envelope(build: SeasonBuild, command: Dictionary) -> Dictionary:
+	if build == null or not build.has_method("pitch_catalog_successor") or not build.call("pitch_catalog_successor") \
+		or command.get("op") != "reward" or not SeasonOwnership._text(command.get("id")) \
+		or not SeasonOwnership._whole(command.get("rev"), 0, SeasonBuild.MAX_EVENTS) \
+		or int(command.rev) != build.revision():
+		return {}
+	var source: String = Catalog.signature()
+	if source.is_empty():
+		return {}
+	return {"id": command.id, "rev": int(command.rev), "op": "successor_reward", 
+		"context": FORMAT, "catalog": source, "command": command.duplicate(true)}
+
+static func unwrap(event: Dictionary) -> Dictionary:
+	if not SeasonOwnership._keys(event, ["id", "rev", "op", "context", "catalog", "command"]) \
+		or event.op != "successor_reward" or event.context != FORMAT \
+		or not event.catalog is String or event.catalog.is_empty() or event.catalog != Catalog.signature() \
+		or not event.command is Dictionary or event.command.get("op") != "reward" \
+		or not SeasonOwnership._text(event.id) or not SeasonOwnership._whole(event.rev, 0, SeasonBuild.MAX_EVENTS) \
+		or event.command.get("id") != event.id or not SeasonOwnership._whole(event.command.get("rev"), 0, SeasonBuild.MAX_EVENTS) \
+		or int(event.command.rev) != int(event.rev):
+		return {}
+	return event.command.duplicate(true)
+
+static func settle(build: SeasonBuild, event: Dictionary) -> String:
+	if build == null or not build.has_method("pitch_catalog_successor") or not build.call("pitch_catalog_successor"):
+		return "Reward belongs to a different catalog context."
+	var command: Dictionary = unwrap(event)
+	if command.is_empty():
+		return "Invalid successor reward envelope."
+	return _settle_original(build, command)

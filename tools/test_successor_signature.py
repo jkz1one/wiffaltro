@@ -16,11 +16,13 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--godot', default='godot')
-    parser.add_argument('--expect-broken', action='store_true')
-    parser.add_argument('--flow', action='store_true', help='Run draft UI and one actual native match instead of the signature-only suite')
-    parser.add_argument('--round', action='store_true', help='Run actual three-game round and earned pack purchase suite')
-    parser.add_argument('--shop-fixture', type=Path, help='Read-only previously earned isolated round save; copied to a new isolated test directory')
-    parser.add_argument('--recruit', action='store_true', help='Run controlled build-ledger recruitment and cold replay, not actual-game qualification')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--expect-broken', action='store_true')
+    mode.add_argument('--flow', action='store_true', help='Run draft UI and one actual native match instead of the signature-only suite')
+    mode.add_argument('--round', action='store_true', help='Run actual three-game round and earned pack purchase suite')
+    mode.add_argument('--shop-fixture', type=Path, help='Read-only previously earned isolated round save; copied to a new isolated test directory')
+    mode.add_argument('--recruit', action='store_true', help='Run controlled build-ledger recruitment and cold replay, not actual-game qualification')
+    mode.add_argument('--dugout', action='store_true', help='Run closed Dugout admission/draft/cold isolation suite, not gameplay')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -36,11 +38,16 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
+    if args.dugout:
+        names += ['successor_dugout.gd', 'successor_dugout.tscn']
     for name in names:
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
+    if args.dugout:
+        league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
+        entries += league_manifest['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -70,6 +77,10 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
+    if args.dugout:
+        run('closed-dugout', ['res://tests/successor_dugout.tscn', '--'], timeout=900)
+        run('closed-dugout-cold', ['res://tests/successor_dugout.tscn', '--', 'reopen'], timeout=600)
+        return
     if args.recruit:
         run('controlled-recruit', ['res://tests/successor_recruit.tscn', '--'], timeout=600)
         run('controlled-recruit-cold', ['res://tests/successor_recruit.tscn', '--', 'reopen'], timeout=600)

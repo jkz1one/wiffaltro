@@ -1,0 +1,89 @@
+extends "res://tests/successor_signature.gd"
+## Closed admission/draft fixture only, not completed League/gameplay/career proof.
+const LeagueRuntime = preload("res://src/gameplay/season/successor_league_v1/runtime.gd")
+const LeagueCodec = preload("res://src/gameplay/season/successor_league_v1/codec.gd")
+const LeagueSave = preload("res://src/gameplay/season/successor_league_v1/save.gd")
+const LeagueCatalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated Dugout runner required"):
+		return
+	var rules: Dictionary = LeagueRules.capture("dugout", 0)
+	var standalone_signature: String = preload("res://src/gameplay/season/successor_v7/catalog_context.gd").signature()
+	if not check(Save.PATH != LeagueSave.PATH, "distinct persistent slot paths"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		var cold: SeasonState = LeagueSave.restore()
+		var old: SeasonState = Save.restore()
+		if not check(cold != null and old != null, "cold separate Dugout and standalone slots"):
+			return
+		if not check(ClubCareer.same(LeagueCodec.capture(cold), JSON.parse_string(FileAccess.get_file_as_string(LeagueSave.PATH))), "cold exact Dugout recapture"):
+			return
+		if not check(cold.picks.size() == 4 and cold.build._bank.view().capacity.held == 3 and not cold.pending_fixture().is_empty() and cold.make_match() == null, "cold drafted Dugout capacity and closed gameplay guard"):
+			return
+		if not check(Codec.restore(LeagueCodec.capture(cold)) == null and LeagueCodec.restore(Codec.capture(old)) == null, "cold cross-domain rejection"):
+			return
+		print("PASS: closed Dugout cold admission, draft and closed gameplay guard; no gameplay/career claim")
+		get_tree().quit()
+		return
+	var standalone: SeasonState = Runtime.create_fresh(1701)
+	if not check(standalone != null and Save.save(standalone), "independent standalone v7 slot created"):
+		return
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(LeagueRuntime.create_closed_league(1702, rules, true) == null and LeagueRuntime.create_closed_league(1702, LeagueRules.capture("academy")) == null and LeagueRuntime.create_closed_league(1702, LeagueRules.capture_tier("dugout", 1)) == null, "unsupported live league and tier rejected"):
+		return
+	var season: SeasonState = LeagueRuntime.create_closed_league(1702, rules)
+	if not check(season != null and LeagueCodec.scope(season), "closed tier0 Dugout creation"):
+		return
+	var fresh: Dictionary = LeagueCodec.capture(season)
+	if not check(not fresh.is_empty() and LeagueCodec.restore(JSON.parse_string(JSON.stringify(fresh))) != null, "zero-pick JSON capture restore"):
+		return
+	for index in range(4):
+		var offers: Array[String] = season.offers()
+		if not check(not offers.is_empty() and season.choose_player(offers[0]), "Dugout real draft choice %d" % index):
+			return
+		var step: Dictionary = LeagueCodec.capture(season)
+		var resumed: SeasonState = LeagueCodec.restore(JSON.parse_string(JSON.stringify(step)))
+		if not check(not step.is_empty() and resumed != null, "Dugout JSON draft checkpoint %d" % index):
+			return
+		season = resumed # Next choice must work from restored state, not just the original.
+	if not check(season.build._format == 45 and season.build._bank.view().capacity.held == 3 and season.build._bank.view().capacity.sponsors == 5 and ClubCareer.same(season.build._league_rules, rules), "Dugout player base45 rules and capacities"):
+		return
+	if not check(season.opponents.clubs.size() == 5, "five drafted Dugout AI clubs"):
+		return
+	for club: Dictionary in season.opponents.clubs.values():
+		if not check(club.build.get_script() == season.build.get_script() and club.build._market == 12 and club.build._format == 45 and ClubCareer.same(club.build._league_rules, rules) and club.build._bank.view().capacity.held == 3 and club.build._bank.view().capacity.sponsors == 5, "same-domain AI rules and capacity"):
+			return
+	var valid: Dictionary = LeagueCodec.capture(season)
+	for key: String in ["version", "format", "pitch_catalog"]:
+		var wrong: Dictionary = valid.duplicate(true)
+		wrong[key] = 999 if key == "version" else "wrong"
+		if not check(LeagueCodec.restore(wrong) == null, "wrong envelope " + key):
+			return
+	for key: String in ["league", "tier", "profile"]:
+		var wrong: Dictionary = valid.duplicate(true)
+		wrong.league_rules[key] = 1 if key == "tier" else "wrong"
+		if not check(LeagueCodec.restore(wrong) == null, "wrong league contract " + key):
+			return
+	for key: String in ["career", "inventory_rules", "player_access"]:
+		var wrong: Dictionary = valid.duplicate(true)
+		wrong.checkpoint[key] = {}
+		if not check(LeagueCodec.restore(wrong) == null, "unexpected context " + key):
+			return
+	var wrong_seed: Dictionary = valid.duplicate(true)
+	wrong_seed.checkpoint.seed += 1
+	if not check(LeagueCodec.restore(wrong_seed) == null, "changed saved seed rejected"):
+		return
+	if not check(Codec.restore(valid) == null and LeagueCodec.restore(Codec.capture(standalone)) == null, "strict cross-domain rejection"):
+		return
+	if not check(not season.pending_fixture().is_empty() and season.make_match() == null, "drafted Dugout fixture exists but closed domain forbids gameplay"):
+		return
+	if not check(LeagueSave.save(season), "drafted Dugout durable save"):
+		return
+	if not check(FileAccess.get_file_as_bytes(Save.PATH) == original and Save.restore() != null and preload("res://src/gameplay/season/successor_v7/catalog_context.gd").signature() == standalone_signature, "standalone slot preserved byte-for-byte and still readable"):
+		return
+	season.results.append({"negative_fixture":true})
+	if not check(LeagueCodec.capture(season).is_empty(), "admission-only envelope rejects gameplay results"):
+		return
+	print("PASS: closed Dugout draft, capacity, strict admission and separate save; no gameplay/career claim")
+	get_tree().quit()

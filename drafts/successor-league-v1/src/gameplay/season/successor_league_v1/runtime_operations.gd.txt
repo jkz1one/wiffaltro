@@ -1,0 +1,796 @@
+extends RefCounted
+## Stateless operations for the original SeasonState owner.
+
+
+# gdlint: disable=function-arguments-number
+const ClubLeagueCareer = preload("res://src/gameplay/season/club_league_career.gd")
+
+static func _source_public_field_for_fixture(fixture: Dictionary, season: SeasonState = null) -> \
+	FieldDefinition:
+	if season != null:
+		return SeasonVenues.field_for_fixture(season, fixture)
+	var home: bool = fixture.get("home", -1) == 0 and not fixture.get("neutral", false)
+	return ContentDB.get_field(PitchBatLab.FIELD_ID if home else SeasonState.AWAY_FIELD_ID)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_create(
+	seed_value: int,
+	legacy: bool = false,
+	working_progression: bool = false,
+	paid_opponents: bool = false
+) -> SeasonState:
+	if legacy or not working_progression or not paid_opponents:
+		return null
+	var season: SeasonState = load("res://src/gameplay/season/successor_league_v1/runtime.gd").new()
+	season.season_seed = seed_value
+	if working_progression:
+		season.build = load("res://src/gameplay/season/successor_league_v1/build.gd").new(seed_value)
+		if not season.build.call("enable_successor_pitch_catalog"):
+			return null
+		if paid_opponents:
+			season.opponents = load("res://src/gameplay/season/successor_league_v1/opponents.gd").new()
+			season.opponents._format = 13
+	season.physical = load("res://src/gameplay/season/successor_league_v1/physical_fixtures.gd").new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	season.draft_pool = ClubPlayerCatalog.draft_pool(
+		rng, PitchBatLab.DEBUG_PLAYER_ID, legacy, SeasonState.LEGACY_IDS)
+	for index in range(6):
+		season.teams.append({"name": SeasonState.TEAM_NAMES[index], "roster": [], "draw": rng.randf()})
+	season._build_schedule()
+	return season
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_league_context_consistent(_source_owner: SeasonState) -> bool:
+	if not _source_owner._standard_live_context.is_empty() and not load("res://src/gameplay/season/dynasty_standard_live.gd").matches(_source_owner):
+		return false
+	if not _source_owner._closed_access.is_empty():
+		if (
+			_source_owner.league_rules.is_empty()
+			or _source_owner.career != null
+			or not ClosedContentAccess.matches(_source_owner.build, _source_owner._closed_access)
+		):
+			return false
+		if (
+			LeagueRules.dynasty(_source_owner.league_rules)
+			and not ClubCareer.same(_source_owner._dynasty_start.get("access", {}), \
+				_source_owner._closed_access)
+		):
+			return false
+	elif _source_owner._dynasty_start.has("access"):
+		return false
+	if not LeagueRules.dynasty(_source_owner.league_rules) and not \
+		_source_owner._dynasty_start.is_empty():
+		return false
+	if (
+		LeagueRules.dynasty(_source_owner.league_rules)
+		and (_source_owner.build == null or not ClubCareer.same(_source_owner._dynasty_start, \
+			_source_owner.build._dynasty_start))
+	):
+		return false
+	return _source_owner._league_inventory_context_consistent()
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_league_inventory_context_consistent(_source_owner: SeasonState) -> bool:
+	if not SeasonInventoryRules.consistent(_source_owner):
+		return false
+	if _source_owner.league_rules.is_empty():
+		if (
+			_source_owner.league_live
+			or (
+				_source_owner.build != null
+				and (
+					_source_owner.build._format in [
+						SeasonBuild.LEAGUE_VERSION, SeasonBuild.LEAGUE_TIER_VERSION
+					]
+					or not _source_owner.build._league_rules.is_empty()
+					or not _source_owner.build._bank._league_rules.is_empty()
+					or _source_owner.build._book == null
+					or not _source_owner.build._book.context_matches({})
+				)
+			)
+		):
+			return false
+		if _source_owner.opponents != null:
+			for club: Dictionary in _source_owner.opponents.clubs.values():
+				var ai: SeasonBuild = club.get("build")
+				if (
+					ai != null
+					and (
+						ai._format in [SeasonBuild.LEAGUE_VERSION, SeasonBuild.LEAGUE_TIER_VERSION]
+						or not ai._league_rules.is_empty()
+						or not ai._bank._league_rules.is_empty()
+						or ai._book == null
+						or not ai._book.context_matches({})
+					)
+				):
+					return false
+		return true
+	if (
+		not LeagueRules.season_matches(_source_owner.league_rules, _source_owner.season_seed)
+		or _source_owner.build == null
+		or not _source_owner.build.league_context_valid()
+		or _source_owner.build._market != 0
+		or _source_owner.build._league_rules != _source_owner.league_rules
+		or _source_owner.opponents == null
+		or _source_owner.opponents._format != 13
+		or (_source_owner.career != null and not ClubLeagueCareer.admitted(_source_owner))
+		or (_source_owner.league_career and not ClubLeagueCareer.admitted(_source_owner))
+		or (not _source_owner.player_access.is_empty()
+			and not ClubPlayerDraft.frozen_matches(_source_owner))
+		or not _source_owner.home_property.is_empty()
+		or not _source_owner.npc_venues.is_empty()
+		or not _source_owner.final_venue.is_empty()
+		or not _source_owner.owned_surface_night.is_empty()
+	):
+		return false
+	return _source_owner._league_opponent_context_consistent()
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_league_opponent_context_consistent(_source_owner: SeasonState) -> bool:
+	for club: Dictionary in _source_owner.opponents.clubs.values():
+		if (
+			not club.get("build") is SeasonBuild
+			or not club.build.league_context_valid()
+			or club.build._league_rules != _source_owner.league_rules
+			or club.build._market != 12
+			or not club.build._dynasty_start.is_empty()
+		):
+			return false
+	return true
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_create_closed_league(
+	seed_value: int, rules: Variant, live: bool = false, access_value: Dictionary = {}
+) -> SeasonState:
+	var normalized: Dictionary = LeagueRules.normalized(rules)
+	if (
+		not LeagueRules.season_matches(normalized, seed_value)
+		or not SeasonOwnership._whole(seed_value, 0, 2147483647)
+	):
+		return null
+	var season: SeasonState = load("res://src/gameplay/season/successor_league_v1/runtime.gd").create(seed_value, false, true, true)
+	season.league_rules = normalized
+	SeasonDoubleheader.install_schedule(season)
+	season.league_live = live
+	season.opponents._format = 13
+	season.opponents.draft_rule = SeasonOpponentDraft.D2_RULE if normalized.tier >= 2 else ""
+	season.physical = load("res://src/gameplay/season/successor_league_v1/physical_fixtures.gd").new()
+	if not season.build.enable_league_rules(normalized):
+		return null
+	if not access_value.is_empty():
+		season._closed_access = ClosedContentAccess.normalize(access_value)
+		if (
+			season._closed_access.is_empty()
+			or not ClosedContentAccess.install(season.build, season._closed_access)
+		):
+			return null
+	return season
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_limit_specialist_offers(_source_owner: SeasonState) -> void:
+	ClubPlayerCatalog.limit_draft_specialists(_source_owner.draft_pool)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_offers(_source_owner: SeasonState) -> Array[String]:
+	var result: Array[String] = []
+	if _source_owner.phase == SeasonState.Phase.DRAFT:
+		for index in range(_source_owner.picks.size() * 3, _source_owner.picks.size() * 3 + 3):
+			result.append(_source_owner.draft_pool[index])
+	return result
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_choose_player(_source_owner: SeasonState, id: String) -> bool:
+	if not _source_owner.league_context_consistent():
+		return false
+	if (
+		not _source_owner.league_rules.is_empty()
+		and (
+			_source_owner.build == null
+			or not _source_owner.build.league_context_valid()
+			or _source_owner.build._league_rules != _source_owner.league_rules
+			or _source_owner.opponents == null
+			or _source_owner.opponents._format != 13
+		)
+	):
+		return false
+	if _source_owner.phase != SeasonState.Phase.DRAFT or not _source_owner.offers().has(id):
+		return false
+	if (
+		_source_owner.opponents != null
+		and (
+			not _source_owner.opponents.draft_rule_valid()
+			or (
+				not _source_owner.opponents.draft_rule.is_empty()
+				and (_source_owner.build == null or not _source_owner.build.d1_pricing_valid())
+			)
+		)
+	):
+		return false
+	if _source_owner.career != null and _source_owner.career.current > 0:
+		var selected_tier: int = _source_owner.career.active_tier()
+		var expected_rule: String = SeasonOpponentDraft.D2_RULE if selected_tier >= 2 else ""
+		if (
+			selected_tier not in [0, 1, 2, 3, 4]
+			or (_source_owner.opponents == null and selected_tier >= 2)
+			or (_source_owner.opponents != null and _source_owner.opponents.draft_rule != expected_rule)
+			or (
+				_source_owner.build != null
+				and (
+					(selected_tier == 3) != _source_owner.build.d3_sponsors_valid()
+					or (selected_tier == 4) != _source_owner.build.d4_sponsors_valid()
+				)
+			)
+		):
+			return false
+	return _source_owner._choose_player_remaining_checks(id)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_choose_player_remaining_checks(_source_owner: SeasonState, id: \
+	String) -> bool:
+	if _source_owner.build != null:
+		if not _source_owner.build.pricing_context_valid():
+			return false
+		if (
+			_source_owner.build.d1_pricing_valid()
+			and (_source_owner.build._market != 0 or _source_owner.opponents == null or \
+				_source_owner.opponents._format != 13)
+		):
+			return false
+	_source_owner.picks.append(id)
+	if _source_owner.picks.size() == 4:
+		var remaining: Array[String] = []
+		for candidate in _source_owner.draft_pool:
+			if not _source_owner.picks.has(candidate):
+				remaining.append(candidate)
+		if not _source_owner.player_access.is_empty():
+			remaining = ClubPlayerDraft.opponents(_source_owner)
+		if _source_owner.opponents != null and _source_owner.opponents._format >= 2:
+			var allocation: Dictionary = (
+				SeasonOpponentDraft.allocate_d2(
+					_source_owner.season_seed, remaining,
+					_source_owner.league_rules if LeagueRules.scramble(_source_owner.league_rules) else {}
+				)
+				if _source_owner.opponents.draft_rule == SeasonOpponentDraft.D2_RULE
+				else SeasonOpponentDraft.allocate(
+					_source_owner.season_seed,
+					remaining,
+					_source_owner.league_rules if LeagueRules.scramble(_source_owner.league_rules) else {}
+				)
+			)
+			if allocation.is_empty():
+				_source_owner.picks.pop_back()
+				return false
+			_source_owner.opponents.draft_order.assign(allocation.order)
+			for team in range(1, 6):
+				_source_owner.teams[team]["roster"] = allocation.rosters[team]
+		else:
+			for team in range(1, 6):
+				_source_owner.teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
+		_source_owner.teams[0]["roster"] = _source_owner.picks.duplicate()
+		if _source_owner.build != null:
+			var expanded_pitches: bool = _source_owner.build.call("pitch_catalog_successor")
+			var current_pitches: bool = _source_owner.build.pitch_catalog_current()
+			var exotic_start: Array = _source_owner.build._book._exotic_start.duplicate(true)
+			var d1_pricing: bool = _source_owner.build.d1_pricing_valid()
+			var d3_sponsors: bool = _source_owner.build.d3_sponsors_valid()
+			var d4_sponsors: bool = _source_owner.build.d4_sponsors_valid()
+			var retraining_enabled: bool = _source_owner.build._retraining_enabled
+			var progress: SeasonGearProgress = _source_owner.build._gear_progress.fork()
+			var sponsor_progress: SeasonSponsorProgress = _source_owner.build._sponsor_progress.fork()
+			var order_start: Variant = _source_owner.build._order_start
+			var rain_start: Variant = _source_owner.build._rain_start
+			var transfer_start: Variant = _source_owner.build._transfer_start
+			var checkout_start: Variant = _source_owner.build._checkout_start
+			var association_start: Variant = _source_owner.build._association_start
+			var freezer_start: Variant = _source_owner.build._freezer_start
+			var sides_start: Variant = _source_owner.build._sides_start
+			var major_start: Variant = _source_owner.build._major.start
+			var ability_start: Variant = _source_owner.build._abilities.start
+			var copy_start: Variant = _source_owner.build._copy.start
+			var field_start: Variant = _source_owner.build._field_start
+			var sure_start: Variant = _source_owner.build._sure_start
+			var jump_start: Variant = _source_owner.build._jump_start
+			var batch_start: Variant = _source_owner.build._batch_start
+			var supply_start: Variant = _source_owner.build._supply_start
+			_source_owner.build = load("res://src/gameplay/season/successor_league_v1/build.gd").new(_source_owner.season_seed, _source_owner.picks, \
+				_source_owner.draft_pool, _source_owner.recruit_blocked())
+			if expanded_pitches and not _source_owner.build.call("enable_successor_pitch_catalog"):
+				return false
+			if current_pitches and (not _source_owner.build.enable_pitch_catalog() or not _source_owner.build._book.install_exotic_start(exotic_start)):
+				return false
+			if not _source_owner.league_rules.is_empty() and not \
+				_source_owner.build.enable_league_rules(_source_owner.league_rules):
+				return false
+			if d4_sponsors:
+				_source_owner.build.enable_d4_sponsors()
+			elif d3_sponsors:
+				_source_owner.build.enable_d3_sponsors()
+			elif d1_pricing:
+				_source_owner.build.enable_d1_pricing()
+			_source_owner.build._retraining_enabled = retraining_enabled
+			_source_owner.build._gear_progress = progress
+			_source_owner.build._sponsor_progress = sponsor_progress
+			_source_owner.build._order_start = order_start
+			_source_owner.build._rain_start = rain_start
+			_source_owner.build._transfer_start = transfer_start
+			_source_owner.build._supply_start = supply_start
+			_source_owner.build._checkout_start = checkout_start
+			_source_owner.build._association_start = association_start
+			_source_owner.build._freezer_start = freezer_start
+			_source_owner.build._sides_start = sides_start
+			_source_owner.build._major.start = major_start
+			_source_owner.build._abilities.start = ability_start
+			_source_owner.build._copy.start = copy_start
+			_source_owner.build._field_start = field_start
+			_source_owner.build._sure_start = sure_start
+			_source_owner.build._jump_start = jump_start
+			_source_owner.build._batch_start = batch_start
+			if (
+				not _source_owner._closed_access.is_empty()
+				and not ClosedContentAccess.matches(_source_owner.build, _source_owner._closed_access)
+			):
+				return false
+		if _source_owner.opponents != null:
+			_source_owner.opponents.initialize(_source_owner)
+		for team in range(6):
+			_source_owner.teams[team]["strength"] = _source_owner._strength(team)
+		_source_owner.phase = SeasonState.Phase.REGULAR
+	return true
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_pending_fixture(_source_owner: SeasonState) -> Dictionary:
+	if _source_owner.phase == SeasonState.Phase.REGULAR:
+		for fixture in _source_owner.schedule:
+			if fixture["round"] == _source_owner.round_index and (fixture["home"] == 0 or fixture["away"] \
+				== 0):
+				return fixture
+	elif _source_owner.phase == SeasonState.Phase.SEMIFINAL:
+		for fixture in _source_owner.semifinals:
+			if fixture["home"] == 0 or fixture["away"] == 0:
+				return fixture
+	elif _source_owner.phase == SeasonState.Phase.FINAL:
+		return _source_owner.final_fixture
+	return {}
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_academy_fixture_ready(_source_owner: SeasonState, fixture: Dictionary) \
+	-> bool:
+	if not LeagueRules.academy(_source_owner.league_rules):
+		return true
+	for index: int in [int(fixture.get("away", -1)), int(fixture.get("home", -1))]:
+		var participant: SeasonBuild = (
+			_source_owner.build
+			if index == 0
+			else (_source_owner.opponents.clubs.get(str(index), {}).get("build") if \
+				_source_owner.opponents != null else null)
+		)
+		if participant == null or participant.pack_pending():
+			return false
+	return true
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_make_match(_source_owner: SeasonState) -> MatchState:
+	if _source_owner.build != null and SeasonInventoryRules.closed(_source_owner.build):
+		return null
+	# Only the explicit live staging profile admits gameplay.
+	if not _source_owner.league_context_consistent() or (not _source_owner.league_rules.is_empty() \
+		and not _source_owner.league_live):
+		return null
+	var fixture: Dictionary = _source_owner.pending_fixture()
+	if (
+		fixture.is_empty()
+		or not _source_owner.academy_fixture_ready(fixture)
+		or (not _source_owner.npc_venues.is_empty() and not SeasonVenues.matches_season(_source_owner))
+		or (not _source_owner.final_venue.is_empty() and not \
+			SeasonFinalVenue.matches_season(_source_owner))
+	):
+		return null
+	var away: TeamMatchState = _source_owner._make_team(fixture.away, fixture.id)
+	var home: TeamMatchState = _source_owner._make_team(fixture.home, fixture.id)
+	if away == null or home == null:
+		return null
+	var match_state: MatchState = MatchState.create(away, home)
+	match_state.pitch_catalog = _source_owner.build.pitch_catalog_signature()
+	away.pitch_catalog = match_state.pitch_catalog
+	home.pitch_catalog = match_state.pitch_catalog
+	match_state.league_rules = _source_owner.league_rules.duplicate(true)
+	match_state.stadium = StadiumLayoutSnapshot.for_fixture(_source_owner, fixture)
+	if StadiumSurfaceNightSnapshot.expected(_source_owner, fixture) and match_state.stadium.is_empty():
+		return null
+	match_state.ai_tactical_quality = clampf(
+		0.15 + _source_owner.difficulty * 0.25 + minf(_source_owner.round_index, 9) * 0.025, 0.0, 1.0
+	)
+	var player: TeamMatchState = (
+		match_state.home_team if fixture["home"] == 0 else match_state.away_team
+	)
+	player.pitcher_index = _source_owner.starter_index
+	player.fielder_index = _source_owner.fielder_index
+	if _source_owner.build != null:
+		match_state.gear_usage.equipped = SeasonReclamation.receipts(_source_owner.build.view().wallet)
+		player.scouted_recipe = SeasonFilmRoom.target(_source_owner)
+		player.tactics.held = SeasonTacticalCatalog.held(_source_owner.build.view().wallet)
+		player.tactics.track_walks = _source_owner.build._format >= 27 and \
+			_source_owner.build._checkout_start != null
+		player.copy_source = SeasonCarbonCopy.target(_source_owner.build, int(fixture.id))
+		player.tactics.insured_receipt = SeasonSecondChance.target(_source_owner.build, int(fixture.id))
+		player.field_supply.receipt = "field-supply:%d" % int(fixture.id)
+		player.field_supply.retired = (
+			SeasonInventoryResale.enabled(_source_owner.build._bank)
+			and SeasonInventoryResale.field_retired(_source_owner.build._bank, int(fixture.id))
+		)
+		MatchFieldSupply.sync_capacity(player, _source_owner.build.view().wallet)
+	return match_state
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_record_player_result(_source_owner: SeasonState,
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null
+) -> bool:
+	return _source_owner._record_player_result(
+		fixture_id,
+		away_runs,
+		home_runs,
+		performance,
+		used_gear,
+		tactics,
+		batting,
+		stances,
+		fielding,
+		pitching,
+		field_supply,
+		frozen,
+		ai_tactics,
+		replayed_tactics,
+		property_key,
+		pool_evidence,
+		yard_evidence
+	)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_record_inventory_result(_source_owner: SeasonState, human: Array) -> \
+	bool:
+	if (
+		_source_owner.inventory_rules.is_empty()
+		or not load("res://src/gameplay/season/successor_league_v1/pending.gd")._inventory_shape(
+			{"human": human, "reports": []}, LeagueRules.doubleheader(_source_owner.league_rules)
+		)
+	):
+		return false
+	return _source_owner._record_player_result(
+		human[0],
+		human[1],
+		human[2],
+		human[3],
+		human[4],
+		human[5],
+		human[6],
+		human[7],
+		human[8],
+		human[9],
+		human[10],
+		human[11],
+		human[12],
+		[],
+		"",
+		null,
+		null,
+		null,
+		human[13] if LeagueRules.doubleheader(_source_owner.league_rules) else null,
+		{},
+		human[-1]
+	)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_record_doubleheader_result(_source_owner: SeasonState, human: Array) \
+	-> bool:
+	if (
+		not LeagueRules.doubleheader(_source_owner.league_rules)
+		or not load("res://src/gameplay/season/successor_league_v1/pending.gd")._doubleheader_shape({"human": human, "reports": []})
+	):
+		return false
+	return _source_owner._record_player_result(
+		human[0],
+		human[1],
+		human[2],
+		human[3],
+		human[4],
+		human[5],
+		human[6],
+		human[7],
+		human[8],
+		human[9],
+		human[10],
+		human[11],
+		human[12],
+		[],
+		"",
+		null,
+		null,
+		null,
+		human[13]
+	)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_public_record_surface_night_result(_source_owner: SeasonState, human: Array) \
+	-> bool:
+	if human.size() != 18 or not human[13] is Array:
+		return false
+	var shape: Array = human.duplicate(true)
+	shape[13] = []  # Replay-only tactics are validated by the unchanged baseball core.
+	if (
+		not load("res://src/gameplay/season/successor_league_v1/pending.gd")._night_shape({"human": shape, "reports": []})
+		or not StadiumSurfaceNightHumanEvidence.expected(_source_owner, _source_owner.pending_fixture())
+		or not StadiumSurfaceNightHumanEvidence.accepts(
+			_source_owner, _source_owner.pending_fixture(), human[17], int(human[1]), int(human[2]), \
+				human[3], human[12]
+		)
+	):
+		return false
+	return _source_owner.callv("_record_player_result", human)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_record_player_result(_source_owner: SeasonState,
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null,
+	night_evidence: Variant = null,
+	doubleheader_evidence: Variant = null,
+	replay_pitching: Dictionary = {},
+	inventory_final: Variant = null,
+	replay_doubleheader: bool = false
+) -> bool:
+	# The replay mode is a request to VALIDATE, never a caller-provided Build or
+	# a trusted flag. Reconstruct its exact journal prefix here, then keep that
+	# authority local until accepts() consumes it below. Ordinary calls do not
+	# enter this path and cannot supply an alternative mutable prefix.
+	var doubleheader_replayed_prefix: SeasonBuild = null
+	if replay_doubleheader:
+		if not LeagueRules.doubleheader(_source_owner.league_rules) or \
+			_source_owner._doubleheader_replay_build == null:
+			return false
+		var full: SeasonBuild = _source_owner._doubleheader_replay_build
+		doubleheader_replayed_prefix = load("res://src/gameplay/season/successor_league_v1/build.gd").restore(
+			full.to_data(), full._seed, full._initial_roster, full._pool, full._blocked, fixture_id
+		)
+		if doubleheader_replayed_prefix == null:
+			return false
+		_source_owner.build = doubleheader_replayed_prefix
+	if not _source_owner.league_context_consistent() or (not _source_owner.league_rules.is_empty() \
+		and not _source_owner.league_live):
+		return false  # Checkpoint-only profiles cannot ingest completed games.
+	var fixture: Dictionary = _source_owner.pending_fixture()
+	if not StadiumSurfaceNightHumanEvidence.accepts(
+		_source_owner, fixture, night_evidence, away_runs, home_runs, performance, ai_tactics
+	):
+		return false
+	if (
+		property_key != StadiumLayoutSnapshot.key(StadiumLayoutSnapshot.for_fixture(_source_owner, \
+			fixture))
+		or (_source_owner.opponents != null and _source_owner.opponents._format >= 3 and \
+			_source_owner.physical == null)
+		or (_source_owner.physical != null and not _source_owner.physical.projecting)
+		or fixture.is_empty()
+		or fixture["id"] != fixture_id
+		or away_runs == home_runs
+		or not StadiumPoolOwnedHumanEvidence.accepts(
+			_source_owner, fixture, pool_evidence, away_runs, home_runs, performance, ai_tactics
+		)
+		or not StadiumNpcYardTwoHumanEvidence.accepts(
+			_source_owner, fixture, yard_evidence, away_runs, home_runs, performance, ai_tactics
+		)
+	):
+		return false
+	return _source_owner._validate_player_result(
+		fixture_id,
+		away_runs,
+		home_runs,
+		performance,
+		used_gear,
+		tactics,
+		batting,
+		stances,
+		fielding,
+		pitching,
+		field_supply,
+		frozen,
+		ai_tactics,
+		replayed_tactics,
+		property_key,
+		pool_evidence,
+		yard_evidence,
+		night_evidence,
+		doubleheader_evidence,
+		replay_pitching,
+		inventory_final,
+		doubleheader_replayed_prefix,
+		fixture
+	)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number
+static func _source_private_validate_player_result(_source_owner: SeasonState,
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary,
+	used_gear: Array,
+	tactics: Array,
+	batting: Dictionary,
+	stances: Array,
+	fielding: Array,
+	pitching: Dictionary,
+	field_supply: Dictionary,
+	frozen: Array,
+	ai_tactics: Dictionary,
+	replayed_tactics: Array,
+	property_key: String,
+	pool_evidence: Variant,
+	yard_evidence: Variant,
+	night_evidence: Variant,
+	doubleheader_evidence: Variant,
+	replay_pitching: Dictionary,
+	inventory_final: Variant,
+	doubleheader_replayed_prefix: SeasonBuild,
+	fixture: Dictionary
+) -> bool:
+	# Only the explicitly current catalog admits the versioned live proof packet.
+	var pitching_current: Dictionary = {}
+	if pitching.has("version"):
+		if not load("res://src/gameplay/season/successor_league_v1/called_proof.gd").accepts(_source_owner.build, pitching):
+			return false
+		pitching_current = pitching.duplicate(true)
+		pitching = pitching_current.pitching.duplicate(true)
+	if (
+		mini(away_runs, home_runs) < 0
+		or maxi(away_runs, home_runs) > 9999
+		or not SeasonLeftRight.own_halves(stances, fixture.home == 0)
+		or not SeasonLeftRight.own_halves(frozen, fixture.home == 0)
+		or not SeasonLeftRight.own_halves(fielding, fixture.home != 0)
+		or (not pitching.is_empty() and not SeasonSureShot.own_halves(pitching, fixture.home != 0))
+	):
+		return false
+	var roster: Array = _source_owner.teams[fixture["away"]]["roster"] + \
+		_source_owner.teams[fixture["home"]]["roster"]
+	if (
+		(_source_owner.opponents != null and _source_owner.opponents._format >= 7 and \
+			performance.is_empty())
+		or (not performance.is_empty() and not SeasonPerformance.valid(performance, roster))
+		or (ai_tactics.has("terminal") and fixture.home != 0)
+		or not PhysicalHeatTerminal.ended(ai_tactics, home_runs, away_runs)
+		or not PhysicalBaseEvidence.ended(ai_tactics, away_runs, home_runs)
+		or not PhysicalTacticalEvidence.human_matches(
+			_source_owner,
+			fixture,
+			ai_tactics,
+			performance,
+			tactics if not tactics.is_empty() else replayed_tactics
+		)
+	):
+		return false
+	if not SeasonDoubleheader._accepts_with_prefix(
+		_source_owner,
+		fixture,
+		doubleheader_evidence,
+		performance,
+		pitching if replay_pitching.is_empty() else replay_pitching,
+		tactics if not tactics.is_empty() else replayed_tactics,
+		ai_tactics,
+		doubleheader_replayed_prefix
+	):
+		return false
+	if _source_owner.build != null and SeasonInventoryResale.enabled(_source_owner.build._bank):
+		var inventory_opponent: int = int(fixture.away if fixture.home == 0 else fixture.home)
+		if not SeasonInventoryRules.fixture_prefixes(
+			_source_owner.build,
+			fixture_id,
+			_source_owner.teams[inventory_opponent].roster,
+			0 if fixture.away == 0 else 1,
+			_source_owner.teams[0].roster
+		):
+			return false
+	var inventory_side: int = 0 if fixture.away == 0 else 1
+	var inventory_rival: int = int(fixture.home if fixture.away == 0 else fixture.away)
+	if (
+		_source_owner.build != null
+		and not SeasonInventoryRules.final_fixture(
+			_source_owner.build,
+			fixture_id,
+			inventory_final,
+			ai_tactics,
+			inventory_side,
+			_source_owner.teams[0].roster,
+			_source_owner.teams[inventory_rival].roster
+		)
+	):
+		return false
+	return _source_owner._commit_player_result(
+		fixture_id,
+		away_runs,
+		home_runs,
+		performance,
+		used_gear,
+		tactics,
+		batting,
+		stances,
+		fielding,
+		pitching,
+		field_supply,
+		frozen,
+		ai_tactics,
+		replayed_tactics,
+		property_key,
+		pool_evidence,
+		yard_evidence,
+		night_evidence,
+		doubleheader_evidence,
+		replay_pitching,
+		inventory_final,
+		fixture,
+		pitching_current
+	)
+# gdlint: enable=function-arguments-number

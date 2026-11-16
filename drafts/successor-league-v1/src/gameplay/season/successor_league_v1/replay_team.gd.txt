@@ -1,0 +1,19 @@
+extends RefCounted
+static func replay_team(build: SeasonBuild, game: int, roster: Array) -> TeamMatchState:
+	# Complete from_data validation precedes this read-only pre-reward reconstruction.
+	var prefix: SeasonBuild = load("res://src/gameplay/season/successor_league_v1/build.gd").restore(build.to_data(), build._seed,
+		build._initial_roster, build._pool, build._blocked, game)
+	if prefix == null:
+		return null
+	var players: Array[PlayerDefinition] = []
+	for id: String in roster:
+		if not prefix.roster().has(id):
+			return null
+		players.append(prefix.definition(id))
+	var team: TeamMatchState = TeamMatchState.create("Recorded opposing roster", players)
+	if prefix._format in [SeasonBuild.LEAGUE_VERSION, SeasonBuild.LEAGUE_TIER_VERSION]:
+		if not prefix.league_context_valid():
+			return null
+		team.league_rules = prefix._league_rules.duplicate(true)
+		team.league_ownership = prefix._bank.to_data().duplicate(true)
+	return team

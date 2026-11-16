@@ -1,0 +1,277 @@
+extends RefCounted
+## Derived prospective completed-game evidence, never a self-authorizing unlock blob.
+## The new career owner must compare capture(season), preserve its committed prefix,
+## and aggregate permanent earned access. valid() validates shape, not provenance.
+# gdlint: disable=max-returns
+
+const VERSION: int = 7
+const DROP_IDS: Array[String] = ["pitch.drop", "pitch.three_quarter_drop"]
+const Catalog = preload("catalog_context.gd")
+const CONTEXT: String = "successor-dugout-v7-r1"
+const PRICES: Dictionary = {"switchback": 18, "corkscrew": 20, "trapdoor": 18,
+	"super curve": 20, "gypsy drop": 18, "knuckle-drop": 20, "forkball": 18}
+const OFFERINGS: Dictionary = {"pitch.switchback": "switchback", "pitch.corkscrew": "corkscrew",
+	"pitch.trapdoor": "trapdoor", "pitch.super_curve": "super curve", "pitch.gypsy_drop": "gypsy drop",
+	"pitch.knuckle_drop": "knuckle-drop", "pitch.forkball": "forkball"}
+const CURVE_IDS: Array[String] = ["pitch.overhand_curveball", "pitch.three_quarter_curveball", "pitch.submarine_curveball"]
+const KNUCKLEBALL_IDS: Array[String] = ["pitch.knuckleball", "pitch.sidearm_knuckleball"]
+const KNUCKLE_CURVE_IDS: Array[String] = ["pitch.overhand_knuckle_curve", "pitch.three_quarter_knuckle_curve"]
+const SPLITTER_IDS: Array[String] = ["pitch.overhand_splitter", "pitch.three_quarter_splitter"]
+
+
+static func successor_build(build: SeasonBuild) -> bool:
+	return build != null and build.get_script().resource_path == "res://src/gameplay/season/successor_league_v1/build.gd" \
+		and build.has_method("pitch_catalog_successor") and build.call("pitch_catalog_successor") == true \
+		and build._book != null and build._book._pitch_catalog_version == 7
+
+
+static func reward_command(event: Dictionary) -> Dictionary:
+	# Shape/context only; authority is the actual fully replayed Build journal.
+	if not SeasonOwnership._keys(event, ["id", "rev", "op", "context", "catalog", "command"]) \
+		or event.get("op") != "successor_reward" or event.get("context") != CONTEXT \
+		or not event.get("catalog") is String or event.catalog.is_empty() \
+		or event.catalog != Catalog.signature() or not event.get("command") is Dictionary:
+		return {}
+	var command: Dictionary = event.command
+	if command.get("op") != "reward" or command.get("id") != event.id \
+		or command.get("rev") != event.rev or not event.id is String \
+		or not SeasonOwnership._whole(event.rev, 0, 999999):
+		return {}
+	return command
+
+
+
+static func capture(season: SeasonState) -> Dictionary:
+	if season == null or not successor_build(season.build) or season.build._market != 0:
+		return {}
+	var rewards: Array[Dictionary] = []
+	for event: Dictionary in season.build._events:
+		if event.get("op") == "reward":
+			return {}  # No legacy reward import/re-signing.
+		if event.get("op") == "successor_reward":
+			var reward: Dictionary = reward_command(event)
+			if reward.is_empty():
+				return {}
+			rewards.append(reward)
+	if rewards.size() != season.player_results.size():
+		return {}
+	var games: Array = []
+	for index in range(season.player_results.size()):
+		var game: Dictionary = season.player_results[index]
+		var reward: Dictionary = rewards[index]
+		var roster: Array[String] = season.build.roster_for_game(int(game.get("id", -1)))
+		roster.sort()
+		if reward.get("game") != game.get("id") or not game.get("pitching") is Dictionary \
+			or not ClubCareer.same(game.pitching, reward.get("pitching")) \
+			or not ClubCareer.same(game.get("performance"), reward.get("performance")) \
+			or not ClubCareer.same(game.get("club_roster"), roster) \
+			or game.has("pitching_current") != reward.has("pitching_current"):
+			return {}
+		if game.has("pitching_current") and not ClubCareer.same(game.pitching_current, reward.pitching_current):
+			return {}
+		var row: Dictionary = _capture_game(game)
+		if row.is_empty():
+			return {}
+		games.append(row)
+	var result: Dictionary = {"version": VERSION, "catalog": Catalog.signature(),
+		"season": season.build._book._season_key, "games": games}
+	return result if valid(result) else {}
+
+
+static func current_proof_valid(value: Variant, legacy: Variant) -> bool:
+	if not value is Dictionary or not legacy is Dictionary \
+		or not SeasonOwnership._keys(value, ["version", "pitching", "called_strikeouts"]) \
+		or not SeasonOwnership._whole(value.version, 2, 2) \
+		or not value.pitching is Dictionary or not ClubCareer.same(value.pitching, legacy) \
+		or not value.called_strikeouts is Array or not legacy.get("strikeouts") is Array:
+		return false
+	var previous: int = 0
+	for row: Variant in value.called_strikeouts:
+		if not row is Dictionary or not SeasonOwnership._keys(row, ["pa", "half", "player"]) \
+			or not SeasonOwnership._whole(row.pa, 1, 99999) \
+			or not SeasonOwnership._whole(row.half, 0, 9999) or not row.player is String \
+			or row.pa <= previous:
+			return false
+		previous = int(row.pa)
+		if not legacy.strikeouts.any(func(strikeout: Variant) -> bool:
+			return ClubCareer.same(row, strikeout)):
+			return false
+	return true
+
+
+static func _capture_game(game: Dictionary) -> Dictionary:
+	if not SeasonOwnership._whole(game.get("id"), 0, 32) \
+		or not game.get("pitching") is Dictionary or not game.get("performance") is Dictionary \
+		or not _roster(game.get("club_roster")):
+		return {}
+	var pitching: Dictionary = game.pitching
+	if not SeasonOwnership._keys(pitching, ["releases", "calls", "strikeouts"]) \
+		or not pitching.releases is Array or not pitching.calls is Array \
+		or not pitching.strikeouts is Array or pitching.releases.size() > 9999:
+		return {}
+	var known_called: bool = game.has("pitching_current")
+	if known_called and not current_proof_valid(game.pitching_current, pitching):
+		return {}
+	var sequences: Dictionary = {}
+	var final: Dictionary = {}
+	var previous: int = 0
+	for release: Variant in pitching.releases:
+		if not release is Dictionary \
+			or not SeasonOwnership._keys(release, ["pa", "half", "player", "recipe"]) \
+			or not SeasonOwnership._whole(release.pa, 1, 99999) \
+			or not SeasonOwnership._whole(release.half, 0, 9999) \
+			or not release.player is String or not game.club_roster.has(release.player) \
+			or not release.recipe is String or not Catalog.supports(release.recipe) \
+			or release.pa < previous:
+			return {}
+		if final.has(int(release.pa)) and (final[int(release.pa)].half != release.half \
+			or final[int(release.pa)].player != release.player):
+			return {}
+		previous = int(release.pa)
+		var key: String = "%d:%s" % [int(release.pa), release.player]
+		if not sequences.has(key):
+			sequences[key] = []
+		if not sequences[key].has(release.recipe):
+			sequences[key].append(release.recipe)
+		final[int(release.pa)] = release
+	var strikeouts: Array = []
+	var counts: Dictionary = {}
+	previous = 0
+	for strikeout: Variant in pitching.strikeouts:
+		if not strikeout is Dictionary \
+			or not SeasonOwnership._keys(strikeout, ["pa", "half", "player"]) \
+			or not SeasonOwnership._whole(strikeout.pa, 1, 99999) \
+			or not SeasonOwnership._whole(strikeout.half, 0, 9999) \
+			or not strikeout.player is String or not game.club_roster.has(strikeout.player) \
+			or strikeout.pa <= previous or not final.has(int(strikeout.pa)):
+			return {}
+		previous = int(strikeout.pa)
+		var finish: Dictionary = final[int(strikeout.pa)]
+		if finish.player != strikeout.player or finish.half != strikeout.half:
+			return {}
+		var called: Variant = null
+		if known_called:
+			called = game.pitching_current.called_strikeouts.any(func(row: Variant) -> bool:
+				return ClubCareer.same(row, strikeout))
+		strikeouts.append({"pa": int(strikeout.pa), "half": int(strikeout.half),
+			"pitcher": strikeout.player, "finish": finish.recipe,
+			"sequence": sequences["%d:%s" % [int(strikeout.pa), strikeout.player]].duplicate(),
+			"called": called})
+		counts[strikeout.player] = counts.get(strikeout.player, 0) + 1
+	for id: String in game.club_roster:
+		if not game.performance.get(id) is Dictionary \
+			or not SeasonOwnership._whole(game.performance[id].get("p_k"), 0, 9999) \
+			or game.performance[id].p_k != counts.get(id, 0):
+			return {}
+	# JSON roundtrip canonicalizes integer-looking numbers before hashing, so a
+	# cold decode's float2.0 cannot change an otherwise identical proof identity.
+	var canonical: Variant = JSON.parse_string(JSON.stringify(
+		[pitching, game.get("pitching_current")], "", true))
+	return {"game": int(game.id), "roster": game.club_roster.duplicate(), "strikeouts": strikeouts,
+		"evidence_hash": JSON.stringify(canonical, "", true).sha256_text()}
+
+
+static func valid(value: Variant) -> bool:
+	if not value is Dictionary \
+		or not SeasonOwnership._keys(value, ["version", "catalog", "season", "games"]) \
+		or not SeasonOwnership._whole(value.version, VERSION, VERSION) \
+		or not value.catalog is String or value.catalog.is_empty() or value.catalog != Catalog.signature() \
+		or not value.season is String or value.season.is_empty() or value.season.length() > 120 \
+		or not value.games is Array or value.games.size() > 12:
+		return false
+	var previous: int = -1
+	for game: Variant in value.games:
+		if not game is Dictionary \
+			or not SeasonOwnership._keys(game, ["game", "roster", "strikeouts", "evidence_hash"]) \
+			or not SeasonOwnership._whole(game.game, 0, 32) or game.game <= previous \
+			or not _roster(game.roster) or not game.strikeouts is Array \
+			or game.strikeouts.size() > 9999 or not _sha(game.evidence_hash):
+			return false
+		previous = int(game.game)
+		var previous_pa: int = 0
+		for row: Variant in game.strikeouts:
+			if not row is Dictionary or not SeasonOwnership._keys(
+				row, ["pa", "half", "pitcher", "finish", "sequence", "called"]):
+				return false
+			if not SeasonOwnership._whole(row.pa, 1, 99999) or row.pa <= previous_pa \
+				or not SeasonOwnership._whole(row.half, 0, 9999) \
+				or not row.pitcher is String or not game.roster.has(row.pitcher) \
+				or not row.finish is String or not Catalog.supports(row.finish) \
+				or not row.sequence is Array or row.sequence.is_empty() \
+				or row.sequence.size() > Catalog.known_ids().size() \
+				or not row.sequence.has(row.finish) or (row.called != null and not row.called is bool):
+				return false
+			previous_pa = int(row.pa)
+			var seen: Array = []
+			for id: Variant in row.sequence:
+				if not id is String or not Catalog.supports(id) or seen.has(id):
+					return false
+				seen.append(id)
+	return true
+
+
+static func eligible_ids(value: Dictionary) -> Array[String]:
+	# Engineering balance, not a user-mandated counter. No ownership or money grant.
+	var result: Array[String] = []
+	if not valid(value):
+		return result
+	var mixed: bool = false
+	var finishes: Dictionary = {}
+	var called_drop: int = 0
+	var curve: int = 0
+	var swinging_drop: int = 0
+	var knuckleball: int = 0
+	var knuckle_curve: int = 0
+	var splitter_setup: int = 0
+	for game: Dictionary in value.games:
+		for strikeout: Dictionary in game.strikeouts:
+			finishes[strikeout.finish] = true
+			var arm: bool = false
+			var glove: bool = false
+			var hard_setup: bool = false
+			for id: String in strikeout.sequence:
+				var pitch: PitchDefinition = Catalog.get_recipe(id)
+				arm = arm or pitch.tags.has(&"arm_side")
+				glove = glove or pitch.tags.has(&"glove_side")
+				# Splitter finish cannot itself be a hard setup; all matching releases precede it.
+				hard_setup = hard_setup or pitch.category == PitchDefinition.Category.FASTBALL \
+					or id in ["pitch.riser", "pitch.submarine_riser"]
+			mixed = mixed or (arm and glove)
+			if strikeout.called == true and DROP_IDS.has(strikeout.finish):
+				called_drop += 1
+			if strikeout.called == false and DROP_IDS.has(strikeout.finish):
+				swinging_drop += 1
+			curve += int(CURVE_IDS.has(strikeout.finish))
+			knuckleball += int(KNUCKLEBALL_IDS.has(strikeout.finish))
+			knuckle_curve += int(KNUCKLE_CURVE_IDS.has(strikeout.finish))
+			if hard_setup and SPLITTER_IDS.has(strikeout.finish):
+				splitter_setup += 1
+	var conditions: Dictionary = {"pitch.switchback": mixed, "pitch.corkscrew": finishes.size() >= 4,
+		"pitch.trapdoor": called_drop >= 3, "pitch.super_curve": curve >= 3,
+		"pitch.gypsy_drop": swinging_drop >= 3,
+		"pitch.knuckle_drop": knuckleball + knuckle_curve >= 3 and knuckleball >= 1 and knuckle_curve >= 1,
+		"pitch.forkball": splitter_setup >= 3}
+	for id: String in OFFERINGS:
+		if conditions[id]:
+			result.append(id)
+	return result
+
+
+static func _roster(value: Variant) -> bool:
+	if not value is Array or value.size() != 4:
+		return false
+	var seen: Array = []
+	for id: Variant in value:
+		if not id is String or not SeasonPlayerCatalog.ROWS.has(id) or seen.has(id):
+			return false
+		seen.append(id)
+	return true
+
+
+static func _sha(value: Variant) -> bool:
+	if not value is String or value.length() != 64:
+		return false
+	for character: String in value:
+		if not "0123456789abcdef".contains(character):
+			return false
+	return true
