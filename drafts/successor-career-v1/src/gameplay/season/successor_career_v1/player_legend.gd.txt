@@ -1,0 +1,62 @@
+extends RefCounted
+## Preserve prospective per-player and unknown historical provenance semantics.
+const VERSION = ClubPlayerLegend.VERSION
+
+static func capture(season: SeasonState) -> Dictionary:
+	var result: Dictionary = load("res://src/gameplay/season/successor_career_v1/player_progress.gd").capture_with_hits(season)
+	if result.is_empty():
+		return {}
+	for index in range(result.games.size()):
+		var row: Dictionary = result.games[index]
+		var game: Dictionary = season.player_results[index]
+		row["players"] = null
+		# Missing historic provenance is unknown, not the current roster or club totals.
+		if row.stats == null or not game.has("club_roster"):
+			continue
+		var own: Variant = game.club_roster
+		var source: Variant = game.get("performance")
+		if (
+			not ClubPlayerLegend._roster(own)
+			or not source is Dictionary
+			or not SeasonPerformance.valid(source, source.keys())
+		):
+			return {}
+		var fielding: Variant = game.get("fielding")
+		var known_fielding: bool = fielding != null
+		if (
+			known_fielding
+			and (
+				not fielding is Array
+				or not SeasonLeftRight.own_halves(fielding, game.home != 0)
+				or not SeasonJumpstart.valid_roster(own, fielding, source)
+			)
+		):
+			return {}
+		var players: Dictionary = {}
+		for id: String in own:
+			if not source.has(id):
+				return {}
+			var line: Dictionary = source[id]
+			var clean: Variant = 0 if known_fielding else null
+			var fielded: Variant = line.get("fielding_v1")
+			if known_fielding:
+				for play: Dictionary in fielding:
+					if play.player == id:
+						if fielded == false:
+							return {}
+						fielded = true
+						clean += 1 if play.clean else 0
+			players[id] = {
+				"pa": int(line.pa),
+				"pitches": int(line.pitches),
+				"hits": int(line.h),
+				"strikeouts": int(line.p_k),
+				"outs": int(line.outs),
+				"fielded": fielded,
+				"clean_outs": clean
+			}
+		row.players = players
+	result.version = VERSION
+	return result if load("res://src/gameplay/season/successor_career_v1/career_progress.gd").valid_capture(result, ClubSeasonRecord.capture(season).scores) else {}
+
+

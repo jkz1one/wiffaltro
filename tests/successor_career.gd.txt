@@ -1,0 +1,105 @@
+extends Node
+## Actual settled checkpoint -> evidence only. No owner, income or unlock grant.
+const Evidence = preload("res://src/gameplay/season/successor_career_v1/career_run_evidence.gd")
+const CareerCatalog = preload("res://src/gameplay/season/successor_career_v1/catalog.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_v1/codec.gd")
+const SOURCE: String = "user://source-season.json"
+const OUTPUT: String = "user://career-evidence.json"
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated career evidence runner required"):
+		return
+	var raw: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var checkpoint: Variant = JSON.parse_string(raw.get_string_from_utf8())
+	if OS.get_cmdline_user_args().has("reopen"):
+		var stored: Variant = JSON.parse_string(FileAccess.get_file_as_string(OUTPUT))
+		var restored: Dictionary = Evidence.restore(stored)
+		if not check(not restored.is_empty() and ClubCareer.same(restored, stored), "cold full evidence replay and exact recapture"):
+			return
+		if not check(FileAccess.get_sha256(SOURCE) == FileAccess.get_file_as_string("user://source.sha256") and FileAccess.get_file_as_bytes(SOURCE) == raw, "cold source slot untouched"):
+			return
+		print("PASS: cold successor career evidence; no career owner or completion claim")
+		get_tree().quit()
+		return
+	if not check(CareerCatalog.digest({"x":1}) == CareerCatalog.digest({"x":1.0}) and CareerCatalog.digest({"x":1.0000000001}) != CareerCatalog.digest({"x":1.0000000002}), "canonical identity retains fractional precision"):
+		return
+	var season: SeasonState = Codec.restore(checkpoint)
+	if not check(season != null and season.results.size() == 3 and season.build._visit.pack_status == "used", "actual settled game and earned pack source"):
+		return
+	if not check(Evidence.capture(season, 1).is_empty() and Evidence.capture(checkpoint, 0).is_empty() and Evidence.capture(checkpoint, 1000001).is_empty(), "live object and invalid run identity are not evidence authority"):
+		return
+	var fresh: SeasonState = load("res://src/gameplay/season/successor_league_v1/runtime.gd").create_live_dugout(1704)
+	if not check(Evidence.capture(Codec.capture(fresh), 1).is_empty(), "incomplete draft cannot become career evidence"):
+		return
+	if FileAccess.file_exists("user://source-pending.json"):
+		var pending: Variant = JSON.parse_string(FileAccess.get_file_as_string("user://source-pending.json"))
+		if not check(Codec.restore(pending) != null and Evidence.capture(pending, 1).is_empty(), "valid actual pending round cannot become settled career evidence"):
+			return
+	var before: Dictionary = Codec.capture(season)
+	var evidence: Dictionary = Evidence.capture(checkpoint, 1)
+	if not check(not evidence.is_empty() and evidence.proof.scores.size() == 3 and evidence.player_progress.games.size() == 1 and evidence.player_progress.exotic.games.size() == 1, "actual score player and Exotic correspondence captured"):
+		return
+	if not check(evidence.identity.seed == season.season_seed and evidence.identity.tier == 0 and ClubCareer.same(evidence.identity.league_rules, season.league_rules), "exact seed League tier identity"):
+		return
+	if not check(evidence.checkpoint.checkpoint.build.events[-1].op == "pack_pick" and season.build._book._events.size() == 1, "paid pack journal retained after ordered development replay"):
+		return
+	if not check(ClubSeasonRecord.analyze(evidence.proof).finish == "unfinished" and ClubSeasonRecord.receipt(evidence.proof, false).is_empty(), "partial run grants no completion receipt"):
+		return
+	var extra: Dictionary = evidence.duplicate(true)
+	extra["grant"] = true
+	if not check(Evidence.restore(extra).is_empty(), "extra grant field rejected"):
+		return
+	var native: Dictionary = Evidence.capture(before, 1)
+	if not check(ClubCareer.same(native, evidence), "native and JSON evidence identity equivalent"):
+		return
+	var roundtrip: Dictionary = Evidence.restore(JSON.parse_string(JSON.stringify(evidence, "", true, true)))
+	if not check(not roundtrip.is_empty() and ClubCareer.same(roundtrip, evidence), "full JSON evidence replay exact"):
+		return
+	for field: String in ["seed", "tier", "pitch_catalog", "module_signature"]:
+		var wrong: Dictionary = evidence.duplicate(true)
+		wrong.identity[field] = 999 if field in ["seed", "tier"] else "wrong"
+		if not check(Evidence.restore(wrong).is_empty(), "changed evidence identity " + field):
+			return
+	var wrong: Dictionary = evidence.duplicate(true)
+	wrong.proof.scores[0][4] += 1
+	if not check(Evidence.restore(wrong).is_empty(), "changed score evidence rejected"):
+		return
+	wrong = evidence.duplicate(true)
+	var id: String = wrong.player_progress.games[0].players.keys()[0]
+	wrong.player_progress.games[0].players[id].strikeouts += 1
+	if not check(Evidence.restore(wrong).is_empty(), "changed per-player strikeout provenance rejected"):
+		return
+	wrong = evidence.duplicate(true)
+	wrong.player_progress.development.lessons.append("pitch.overhand_four_seam")
+	if not check(Evidence.restore(wrong).is_empty(), "unearned lesson provenance rejected"):
+		return
+	wrong = evidence.duplicate(true)
+	wrong.player_progress.version = WorkingPitchCareerProgress.PROGRESS_VERSION
+	wrong.player_progress.erase("format")
+	if not check(Evidence.restore(wrong).is_empty(), "historical Progress5 substitution rejected"):
+		return
+	var wrong_source: Dictionary = checkpoint.duplicate(true)
+	wrong_source.checkpoint.results[0].home_runs += 1
+	if not check(Evidence.capture(wrong_source, 1).is_empty(), "changed source result fails full season replay"):
+		return
+	if not check(ClubCareer.same(Codec.capture(season), before) and FileAccess.get_file_as_bytes(SOURCE) == raw, "evidence and rejected attempts leave source unchanged"):
+		return
+	var output: FileAccess = FileAccess.open(OUTPUT, FileAccess.WRITE)
+	output.store_string(JSON.stringify(evidence, "", true, true))
+	output.close()
+	output = FileAccess.open("user://source.sha256", FileAccess.WRITE)
+	output.store_string(FileAccess.get_sha256(SOURCE))
+	output.close()
+	print("PASS: successor career evidence from actual gameplay, paid development and strict provenance; no owner grant")
+	get_tree().quit()

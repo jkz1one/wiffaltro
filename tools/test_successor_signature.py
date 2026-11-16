@@ -26,6 +26,7 @@ def main():
     mode.add_argument('--dugout-round', action='store_true', help='Run actual live Dugout human game, cold pending resume, AI round and earned pack')
     mode.add_argument('--dugout-pending-fixture', type=Path, help='Audit a read-only isolated actual human+one-AI pending checkpoint')
     mode.add_argument('--identity', action='store_true', help='Check local signature helper equivalence and scoped timings')
+    mode.add_argument('--career-fixture', type=Path, help='Capture and cold-verify career evidence from an isolated actual settled checkpoint')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -41,18 +42,23 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
+    if args.career_fixture:
+        names += ['successor_career.gd', 'successor_career.tscn']
     for name in names:
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
+    if args.career_fixture:
+        career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
+        entries += career_manifest['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -82,6 +88,20 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
+    if args.career_fixture:
+        source = args.career_fixture.resolve()
+        assert source.is_file() and source.name == 'successor-dugout-live-v7-r1.json'
+        assert any(part.startswith('wiffaltro-signature-') for part in source.parts)
+        destination = stage / 'data/godot/app_userdata/Wiffaltro/source-season.json'
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        origin = next(parent for parent in source.parents if parent.name.startswith('wiffaltro-signature-'))
+        pending = origin / 'retained-pending-1' / source.name
+        if pending.is_file():
+            shutil.copy2(pending, destination.with_name('source-pending.json'))
+        run('career-evidence', ['res://tests/successor_career.tscn', '--'], timeout=1800)
+        run('career-evidence-cold', ['res://tests/successor_career.tscn', '--', 'reopen'], timeout=900)
+        return
     if args.identity:
         run('local-identity', ['res://tests/successor_identity.tscn', '--'], timeout=900)
         return

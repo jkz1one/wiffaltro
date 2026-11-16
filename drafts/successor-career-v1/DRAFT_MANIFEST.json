@@ -1,0 +1,36 @@
+{
+  "format": "inactive-successor-career-evidence-v1",
+  "source_checkpoint": "4fe1e03",
+  "files": [
+    {
+      "backup_path": "drafts/successor-career-v1/src/gameplay/season/successor_career_v1/career_progress.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_v1/career_progress.gd",
+      "bytes": 3427,
+      "sha256": "bc278ee11cc6909e019151b02a0dadad50f3bc2b93364c59ea7897c3f96c78f5"
+    },
+    {
+      "backup_path": "drafts/successor-career-v1/src/gameplay/season/successor_career_v1/career_run_evidence.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_v1/career_run_evidence.gd",
+      "bytes": 2525,
+      "sha256": "998e9a4df9f3806a669fee7dae1e1e807660c511e0730594040264e6978b9732"
+    },
+    {
+      "backup_path": "drafts/successor-career-v1/src/gameplay/season/successor_career_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_v1/catalog.gd",
+      "bytes": 1438,
+      "sha256": "155a5ea16caca61cc06537f971c8cd28d9f87ff0f9abf2bc26532c0a945b357b"
+    },
+    {
+      "backup_path": "drafts/successor-career-v1/src/gameplay/season/successor_career_v1/player_legend.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_v1/player_legend.gd",
+      "bytes": 2067,
+      "sha256": "4c7653e20892f5f2a17a6d8ca0ffe2303e9f3d18a85c86c681b46edcb4f7071d"
+    },
+    {
+      "backup_path": "drafts/successor-career-v1/src/gameplay/season/successor_career_v1/player_progress.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_v1/player_progress.gd",
+      "bytes": 7556,
+      "sha256": "b6551eccf3dbcdf3c4ef8ea967d0b6b0c846f44ac96dde60190206259a5b28da"
+    }
+  ]
+}
