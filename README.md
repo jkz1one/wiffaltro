@@ -6,11 +6,13 @@ The baseline at commit 198d56d54003753b52a0209ce9f09337a6f37aa4 preserves the su
 
 The reviewed background-save integration now includes a single-use committed-checkpoint receipt to avoid saving the same pending result again on Continue. A missing or mismatched receipt falls back to the existing validated save path. Historical save formats, catalog inputs, and ownership rules are unchanged.
 
-The combined native save/receipt/Continue/cold-reopen test is pending. The previous candidate compiled all 11 changed scripts and decoded the retained game, but its test broker stopped before launching a save worker because a Linux process-evidence interface was unavailable. The correction uses the existing supervisor's PPID evidence with unchanged child ownership and time/resource limits. That earlier test did not qualify saving.
+A small operation-scoped resource-hold optimization is now installed: existing pitch manifests/retired Resources stay alive only during each expanded save snapshot or decode. All validation, source hashing, replay and original results remain unchanged; there is no persistent result cache.
+
+The next real save/receipt/Continue/cold-reopen test is pending. The previous source candidate compiled and loaded the retained game, configured the actual UI and launched its real save validator, but reached the 300-second limit before replacing the save. Original input and isolated primary remained unchanged and all processes were reaped. That timeout remains failed evidence, not a save pass. Earlier test setup issues were corrected separately.
 
 No release, measured speedup, visual acceptance, or completed remaining-round claim is made.
 
-BACKUP_MANIFEST.json records the baseline. ASYNC_SAVE_CANDIDATE_MANIFEST.json records the initial 14-file background-save delta. RECEIPT_CANDIDATE_MANIFEST.json records this subsequent four-file source/profile delta. These manifests describe their respective revisions, not all later hashes.
+BACKUP_MANIFEST.json records the baseline. ASYNC_SAVE_CANDIDATE_MANIFEST.json records the initial 14-file background-save delta. RECEIPT_CANDIDATE_MANIFEST.json records this subsequent four-file source/profile delta. OPERATION_HOLD_CANDIDATE_MANIFEST.json records the subsequent two-file performance candidate. These manifests describe their respective revisions, not all later hashes.
 
 ## Recovery scope
 

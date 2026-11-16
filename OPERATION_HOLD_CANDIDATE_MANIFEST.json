@@ -1,0 +1,23 @@
+{
+  "baseline_result": "Actual save test timed out at 300 seconds before commit; original save preserved. No speedup claimed.",
+  "changes": {
+    "src/gameplay/season/season_save.gd": {
+      "after": "1f80d3268423678289d74254aa2e67911f3d694b48d19a4baf949cdc944809a7",
+      "before": "16acc87a957498d5d3be287122e52ecceb529e54059766ff65932159758dde2a"
+    },
+    "src/presentation/stadium/stadium_npc_current_source_profile.gd": {
+      "after": "8a1c29935fbb68ebd1c0a3322c6e9090ad90d50d0705f598d3d03d803782e679",
+      "before": "fdc8be03f1c744b9da3260d237f12ac8b9d75a3246ccd38fe2f57cd410d77827"
+    }
+  },
+  "native_test_status": "pending",
+  "parent_commit": "d0196d80a1485cdf15e119797ef59cca15cf949c",
+  "preserved_semantics": [
+    "full validation",
+    "all source hashes",
+    "full replay",
+    "save formats and results",
+    "no persistent cache"
+  ],
+  "scope": "operation-local authored Resource holds in expanded snapshot and decode, plus exact source profile"
+}

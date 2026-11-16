@@ -123,9 +123,23 @@ static func _owner_restore() -> SeasonState:
 		_bind_owner_season(selected, outcome)
 	return selected
 
+static func _expanded_operation_content_roots() -> Array[Resource]:
+	# Strong references only, returned to one synchronous caller; never cached.
+	var roots: Array[Resource] = [
+		load(WorkingPitchCatalog.MANIFEST_PATH),
+		load("res://src/content/manifest/working_pitch_manifest_v6.tres")
+	]
+	for retired_path: String in WorkingPitchCatalog.RETIRED_PATHS.values():
+		roots.append(load(retired_path))
+	return roots
+
+
 static func snapshot(season: SeasonState) -> Dictionary:
 	if season != null and season.build != null and season.build.pitch_catalog_expanded():
-		return ExpandedSeasonProgression.capture_season(season)
+		var content_roots: Array[Resource] = _expanded_operation_content_roots()
+		var captured: Dictionary = ExpandedSeasonProgression.capture_season(season)
+		content_roots.clear()
+		return captured
 	if season != null and season.build != null and season.build.pitch_catalog_current():
 		if LeagueRules.dynasty(season.league_rules):
 			return WorkingPitchDynastySave.capture(season)
@@ -500,7 +514,10 @@ static func _decode_public(value: Variant) -> SeasonState:
 
 static func _decode(value: Variant) -> SeasonState:
 	if value is Dictionary and WorkingPitchProgression.is_version(value.get("version"), ExpandedSeasonProgression.SEASON_VERSION):
-		return ExpandedSeasonProgression.restore_season(value)
+		var content_roots: Array[Resource] = _expanded_operation_content_roots()
+		var restored: SeasonState = ExpandedSeasonProgression.restore_season(value)
+		content_roots.clear()
+		return restored
 	if ExpandedSeasonProgression.contains_current_build(value):
 		return null
 	if value is Dictionary and OwnedDraftSave.version_in(value.get("version"),

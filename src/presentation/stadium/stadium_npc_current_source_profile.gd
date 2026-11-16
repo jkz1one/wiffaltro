@@ -1,6 +1,6 @@
-extends RefCounted # Candidate: 914c29bfea08d37d3b95f4353d79b948156b7bff1b0e85e829a6fa1a258aa872
+extends RefCounted # Candidate: 1db6ba4f1f9b51a9814533adc1d28677e1252bba447be76b97c8d6fc4760bd52
 ## Explicitly reviewed whole-source profile. Do not refresh automatically.
-const PROFILE_ID: String = "r6-receipt-r2" # Purpose: isolated-test
+const PROFILE_ID: String = "r6-holds-r2" # Purpose: isolated-test
 const _CV="res://src";const _CW=_CV+"/core/m";const _Y=_CV+"/content/";const _D=_Y+"p"
 const _CX=_Y+"sw";const _BD=_CV+"/labs/owner";const _BE=_D+"la";const _V=_CV+"/presentation/"
 const _CY=_CV+"/tools/debug/t";const _BF=_Y+"delive";const _CZ=_CV+"/gameplay/stadi"
@@ -53,7 +53,7 @@ const BASELINE_SHA256: String = "ef25e39c8e8d76cc558ca2011fbead9e61560c102cdf0dd
 const REPLACEMENTS: Dictionary = {_DD+"tch_state.gd":"1648043d8343db8523d2cc2f0b9a8f8c80dd39767814"+
 "7c13833d1867cc8fbb88",_C+"_final_venue.gd":"2a8450990108996b8d992e6c4141509a563361c004ee0f52eec49"+
 "ad3dc6ce19f",_C+"_physical_fixtures.gd":"722819cc18617689043af61ec1d88a1c9f520c0b2e2fde4144c6d4f0"+
-"5b48b710",_C+"_save.gd":"16acc87a957498d5d3be287122e52ecceb529e54059766ff65932159758dde2a",_C+
+"5b48b710",_C+"_save.gd":"1f80d3268423678289d74254aa2e67911f3d694b48d19a4baf949cdc944809a7",_C+
 "_state.gd":"f4903a47febccc0977d9b584d1bea4463c2bf7aa5110bd945cbbce5823623b11",_C+"_venues.gd":
 "4b8960ec15b6ad6c4dbc45605b3d5e34f6296365287d25df8d34bed995f73829",_FB+"night_human_evidence.gd":
 "b1dce2a4339e62778265db1221399685af3859e172a1541ed037a02cf55eb8c4",_G+"l_match_report.gd":"1dfa209"+
