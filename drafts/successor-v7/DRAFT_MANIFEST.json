@@ -68,9 +68,9 @@
     },
     {
       "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/codec.gd.txt",
-      "bytes": 3633,
+      "bytes": 4445,
       "restore_path": "src/gameplay/season/successor_v7/codec.gd",
-      "sha256": "ec33cab78797bc2711e7107e0f2941f16667ee823d5cc943004237acd6295c7a"
+      "sha256": "c5a876965bae00c428f6108270a016606cb6ab3da5ade011991e696f95e3b2f9"
     },
     {
       "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/decoder.gd.txt",

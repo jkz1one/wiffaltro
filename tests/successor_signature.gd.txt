@@ -64,8 +64,23 @@ func run() -> void:
 	var season: SeasonState = Runtime.create(1701, false, true, true)
 	if not check(season != null, "successor fresh creation"):
 		return
+	var started: int = Time.get_ticks_msec()
 	var captured: Dictionary = Codec.capture(season)
+	print("HELD_CAPTURE_MS: ", Time.get_ticks_msec() - started)
 	if not check(not captured.is_empty(), "successor capture"):
+		return
+	started = Time.get_ticks_msec()
+	var unheld: Dictionary = Codec._capture(season)
+	print("UNHELD_CAPTURE_MS: ", Time.get_ticks_msec() - started)
+	if not check(ClubCareer.same(captured, unheld), "operation hold preserves exact capture"):
+		return
+	var tampered: Dictionary = captured.duplicate(true)
+	tampered.pitch_catalog = "wrong"
+	if not check(Codec.restore(tampered) == null, "changed catalog rejected after valid capture"):
+		return
+	tampered = captured.duplicate(true)
+	tampered["unexpected"] = true
+	if not check(Codec.restore(tampered) == null, "unexpected envelope key rejected"):
 		return
 	var restored: SeasonState = Codec.restore(JSON.parse_string(JSON.stringify(captured, "", true, true)))
 	if not check(restored != null and ClubCareer.same(Codec.capture(restored), captured), "successor JSON restore and exact recapture"):

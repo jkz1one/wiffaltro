@@ -37,7 +37,21 @@ static func envelope_valid(value: Variant) -> bool:
 		and value.format is String and value.format == FORMAT and value.pitch_catalog is String \
 		and leaf_valid(value.checkpoint, value.pitch_catalog)
 
+static func _operation_content_roots() -> Array[Resource]:
+	# Strong authored Resource references for this synchronous operation only.
+	# No signature, validation, decoded-state or result cache survives the call.
+	var roots: Array[Resource] = SeasonSave._expanded_operation_content_roots()
+	for path: String in preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd").NEW_PATHS.values():
+		roots.append(load(path))
+	return roots
+
 static func capture(season: SeasonState) -> Dictionary:
+	var roots: Array[Resource] = _operation_content_roots()
+	var result: Dictionary = _capture(season)
+	roots.clear()
+	return result
+
+static func _capture(season: SeasonState) -> Dictionary:
 	if not scope(season) or not load("res://src/gameplay/season/successor_v7/exotic_access.gd").current_matches(season):
 		return {}
 	var payload: Dictionary = SeasonSave._ac02_passive_15_snapshot(season)
@@ -45,6 +59,12 @@ static func capture(season: SeasonState) -> Dictionary:
 	return result if envelope_valid(result) else {}
 
 static func restore(value: Variant) -> SeasonState:
+	var roots: Array[Resource] = _operation_content_roots()
+	var result: SeasonState = _restore(value)
+	roots.clear()
+	return result
+
+static func _restore(value: Variant) -> SeasonState:
 	if not envelope_valid(value):
 		return null
 	var season: SeasonState = load("res://src/gameplay/season/successor_v7/decoder.gd")._ac02_passive_15_private_decode_payload_terrain(
