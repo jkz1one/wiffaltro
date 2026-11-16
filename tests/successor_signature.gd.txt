@@ -1,0 +1,78 @@
+extends Node
+## Run only through tools/test_successor_signature.py (isolated project and user data).
+const Catalog = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+const Runtime = preload("res://src/gameplay/season/successor_v7/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_v7/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_v7/save.gd")
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated runner required"):
+		return
+	var signature: String = Catalog.signature()
+	if OS.get_cmdline_user_args().has("broken"):
+		if not check(signature.is_empty(), "original signature failure reproduced"):
+			return
+		if not check(Runtime.create(1701, false, true, true) == null, "original fresh creation fails"):
+			return
+		print("PASS: original empty signature and failed fresh creation reproduced")
+		get_tree().quit()
+		return
+	if not check(signature.length() == 64, "nonempty catalog signature"):
+		return
+	if not check(WorkingPitchCatalog.signature() == Catalog.Base.LEGACY_SIGNATURE, "legacy catalog signature unchanged"):
+		return
+	if not check(Catalog.ids().size() == 41 and Catalog.known_ids().size() == 50, "catalog identities"):
+		return
+	for id: String in Catalog.NEW_PATHS:
+		var authored: PitchDefinition = load(Catalog.NEW_PATHS[id]) as PitchDefinition
+		var detached: PitchDefinition = Catalog.get_recipe(id)
+		if not check(detached.delivery_profile != authored.delivery_profile and detached.delivery_profile.resource_path.is_empty(), "detached delivery: " + id):
+			return
+		detached.delivery_profile.resource_name = "isolated mutation"
+		if not check(authored.delivery_profile.resource_name != "isolated mutation" and Catalog.signature() == signature, "authored input unchanged: " + id):
+			return
+	if OS.get_cmdline_user_args().has("reopen"):
+		var restored: SeasonState = Save.restore()
+		if not check(restored != null, "cold successor reopen"):
+			return
+		var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))
+		if not check(ClubCareer.same(Codec.capture(restored), saved), "cold successor exact recapture"):
+			return
+		var legacy: SeasonState = SeasonSave.restore()
+		if not check(legacy != null, "cold legacy reopen"):
+			return
+		if not check(ClubCareer.same(SeasonSave.snapshot(legacy), JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path))), "cold legacy exact recapture"):
+			return
+		print("PASS: cold successor and legacy reopen with exact recapture")
+		get_tree().quit()
+		return
+	var legacy: SeasonState = SeasonState.create(1701, false, true, true)
+	if not check(legacy != null and SeasonSave.save(legacy), "legacy fresh save"):
+		return
+	var legacy_bytes: PackedByteArray = FileAccess.get_file_as_bytes(SeasonSave.path)
+	var season: SeasonState = Runtime.create(1701, false, true, true)
+	if not check(season != null, "successor fresh creation"):
+		return
+	var captured: Dictionary = Codec.capture(season)
+	if not check(not captured.is_empty(), "successor capture"):
+		return
+	var restored: SeasonState = Codec.restore(JSON.parse_string(JSON.stringify(captured, "", true, true)))
+	if not check(restored != null and ClubCareer.same(Codec.capture(restored), captured), "successor JSON restore and exact recapture"):
+		return
+	if not check(Save.save(season), "successor durable save: " + Save.last_error):
+		return
+	if not check(FileAccess.get_file_as_bytes(SeasonSave.path) == legacy_bytes, "legacy slot byte preservation"):
+		return
+	print("PASS: fresh creation, capture, JSON restore, durable save, legacy slot preserved")
+	get_tree().quit()

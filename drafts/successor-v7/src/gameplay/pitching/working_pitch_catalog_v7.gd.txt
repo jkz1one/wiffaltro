@@ -163,8 +163,10 @@ static func signature() -> String:
 		return ""
 	var parts: Array[String] = ["working-pitch-successor-v7", base_signature, own_digest]
 	for id: String in NEW_PATHS:
-		var pitch: PitchDefinition = _new_recipe(id)
-		if pitch == null:
+		# Hash authored inputs, not detached gameplay copies whose resource_path is empty.
+		# recipes()/known_ids() above still validate the public detached catalog.
+		var pitch: PitchDefinition = load(NEW_PATHS[id]) as PitchDefinition
+		if pitch == null or pitch.delivery_profile == null:
 			return ""
 		var recipe_digest: String = FileAccess.get_sha256(NEW_PATHS[id])
 		var delivery_digest: String = FileAccess.get_sha256(pitch.delivery_profile.resource_path)

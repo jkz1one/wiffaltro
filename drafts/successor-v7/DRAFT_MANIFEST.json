@@ -32,9 +32,9 @@
     },
     {
       "backup_path": "drafts/successor-v7/src/gameplay/pitching/working_pitch_catalog_v7.gd.txt",
-      "bytes": 6642,
+      "bytes": 6860,
       "restore_path": "src/gameplay/pitching/working_pitch_catalog_v7.gd",
-      "sha256": "75e0af458071c84122c43cf01f1726d2c2a2ae4bf8ef251d7627449cb935c77f"
+      "sha256": "e433ea5c2947450451af0af862fd1ec78fc0811c9d3d8d9bef6b2c002d5c1598"
     },
     {
       "backup_path": "drafts/successor-v7/src/gameplay/season/successor_v7/build.gd.txt",
