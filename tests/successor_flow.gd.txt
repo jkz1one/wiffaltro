@@ -1,0 +1,70 @@
+extends "res://tests/successor_signature.gd"
+## Actual draft and native physical match; no fabricated score/reward.
+const App = preload("res://src/presentation/season/successor_v7/app.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_v7/physical_fixtures.gd")
+const Runner = preload("res://src/gameplay/season/successor_v7/physical_runner.gd")
+const Core = preload("res://src/gameplay/season/successor_v7/physical_core.gd")
+var job: Node
+var completed: bool = false
+var failed_reason: String = ""
+var report: Dictionary = {}
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated runner required"):
+		return
+	var app: SeasonApp = App.new()
+	add_child(app)
+	if OS.get_cmdline_user_args().has("reopen"):
+		app.reload_save()
+		if not check(app.season != null and app.season.teams[0].roster.size() == 4, "cold drafted UI reload"):
+			return
+		if not check(app.season.make_match() != null, "cold playable match construction"):
+			return
+		print("PASS: drafted cold UI reopen and match construction")
+		app.queue_free()
+		get_tree().quit()
+		return
+	app.create_fresh()
+	if not check(app.season != null and app.get("retained") == null, "fresh UI creation durably adopted"):
+		return
+	print("SEASON_SEED: ", app.season.season_seed)
+	for pick in range(4):
+		var offers: Array[String] = app.season.offers()
+		if not check(not offers.is_empty(), "draft offers %d" % pick):
+			return
+		app.call("draft", offers[0])
+		if not check(app.season.picks.size() == pick + 1 and app.get("retained") == null, "draft UI commit %d" % pick):
+			return
+	if not check(app.season.teams[0].roster.size() == 4 and app.season.phase != SeasonState.Phase.DRAFT, "complete four-player draft"):
+		return
+	var before: Dictionary = Codec.capture(app.season)
+	if not check(not before.is_empty(), "nonempty pre-match checkpoint"):
+		return
+	var fixture: Dictionary = app.season.pending_fixture()
+	var match_state: MatchState = app.season.make_match()
+	if not check(match_state != null and not fixture.is_empty(), "real pending fixture construction"):
+		return
+	var field: FieldDefinition = Runtime.field_for_fixture(fixture, app.season)
+	job = Runner.new()
+	add_child(job)
+	job.finished.connect(func(value: Dictionary) -> void: report = value; completed = true)
+	job.failed.connect(func(reason: String) -> void: failed_reason = reason; completed = true)
+	if not check(job.start(match_state, Fixtures.seed_for(app.season, fixture), field.id), "native physical job start"):
+		return
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if completed:
+			break
+		if frame % 12000 == 0:
+			print("PHYSICAL_PROGRESS: frame=", frame)
+	if not check(completed and failed_reason.is_empty() and not report.is_empty(), "actual physical completion: " + failed_reason):
+		return
+	if not check(Core.accepted(report, match_state.pitch_catalog), "balanced successor physical report"):
+		return
+	if not check(ClubCareer.same(Codec.capture(app.season), before), "detached job does not settle or pay original season"):
+		return
+	print("PASS: actual UI draft, native physical match, report acceptance; no round settlement claimed")
+	job.queue_free()
+	app.queue_free()
+	await get_tree().process_frame
+	get_tree().quit()

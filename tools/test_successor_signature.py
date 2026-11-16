@@ -17,6 +17,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--godot', default='godot')
     parser.add_argument('--expect-broken', action='store_true')
+    parser.add_argument('--flow', action='store_true', help='Run draft UI and one actual native match instead of the signature-only suite')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -25,7 +26,10 @@ def main():
     shutil.copytree(root / 'src', project / 'src')
     shutil.copy2(root / 'project.godot', project / 'project.godot')
     (project / 'tests').mkdir()
-    for name in ('successor_signature.gd', 'successor_signature.tscn'):
+    names = ['successor_signature.gd', 'successor_signature.tscn']
+    if args.flow:
+        names += ['successor_flow.gd', 'successor_flow.tscn']
+    for name in names:
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
@@ -44,11 +48,11 @@ def main():
         env[key] = str(stage / directory)
         Path(env[key]).mkdir()
     print(f'Isolated test evidence: {stage}', flush=True)
-    def run(label, switches):
+    def run(label, switches, timeout=300):
         command = [args.godot, '--headless', '--path', str(project), *switches]
         with (stage / f'{label}.log').open('w') as log:
             result = subprocess.run(command, env=env, stdout=log,
-                                    stderr=subprocess.STDOUT, timeout=300)
+                                    stderr=subprocess.STDOUT, timeout=timeout)
         output = (stage / f'{label}.log').read_text()
         if result.returncode or 'SCRIPT ERROR:' in output or 'ERROR:' in output or 'FAIL:' in output:
             raise RuntimeError(f'{label} failed (exit {result.returncode}):\n{output[-6000:]}')
@@ -57,7 +61,11 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
-    if args.expect_broken:
+    if args.flow:
+        flow = ['--fixed-fps', '60', 'res://tests/successor_flow.tscn', '--']
+        run('draft-physical-flow', flow, timeout=900)
+        run('draft-cold-reopen', flow + ['reopen'])
+    elif args.expect_broken:
         run('original-failure', script + ['broken'])
     else:
         run('create-save', script)
