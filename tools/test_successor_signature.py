@@ -18,6 +18,7 @@ def main():
     parser.add_argument('--godot', default='godot')
     parser.add_argument('--expect-broken', action='store_true')
     parser.add_argument('--flow', action='store_true', help='Run draft UI and one actual native match instead of the signature-only suite')
+    parser.add_argument('--round', action='store_true', help='Run actual three-game round and earned pack purchase suite')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -27,8 +28,10 @@ def main():
     shutil.copy2(root / 'project.godot', project / 'project.godot')
     (project / 'tests').mkdir()
     names = ['successor_signature.gd', 'successor_signature.tscn']
-    if args.flow:
+    if args.flow or args.round:
         names += ['successor_flow.gd', 'successor_flow.tscn']
+    if args.round:
+        names += ['successor_round.gd', 'successor_round.tscn']
     for name in names:
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
@@ -61,7 +64,11 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
-    if args.flow:
+    if args.round:
+        flow = ['--fixed-fps', '60', 'res://tests/successor_round.tscn', '--']
+        run('actual-round-shop', flow, timeout=1200)
+        run('round-shop-cold', flow + ['reopen'], timeout=600)
+    elif args.flow:
         flow = ['--fixed-fps', '60', 'res://tests/successor_flow.tscn', '--']
         run('draft-physical-flow', flow, timeout=900)
         run('draft-cold-reopen', flow + ['reopen'])
