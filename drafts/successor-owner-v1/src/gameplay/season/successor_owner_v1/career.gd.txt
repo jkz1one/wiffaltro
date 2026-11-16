@@ -1,0 +1,58 @@
+extends ClubCareer
+## Fresh first-run metadata only. Full owner-aware gameplay admission is deferred.
+const FORMAT: String = "successor-owner-career-v1"
+const OWNER_VERSION: int = 1
+
+static func fresh() -> ClubCareer:
+	return load("res://src/gameplay/season/successor_owner_v1/career.gd").new()
+
+func start_fresh(season: SeasonState) -> bool:
+	return load("res://src/gameplay/season/successor_owner_v1/start.gd").apply_to(season, self)
+
+static func validate_fresh_active(season: SeasonState) -> bool:
+	return load("res://src/gameplay/season/successor_owner_v1/start.gd").matches(season)
+
+func fork() -> ClubCareer:
+	var result: ClubCareer = fresh()
+	result.current = current
+	result.runs = runs.duplicate(true)
+	result._assets = _assets.duplicate(true)
+	result._pennants = _pennants.duplicate(true)
+	result._plaques = _plaques.duplicate(true)
+	result._pitch_catalog = _pitch_catalog
+	return result
+
+func sync(season: SeasonState) -> bool:
+	var start = load("res://src/gameplay/season/successor_owner_v1/start.gd")
+	if season == null or season.career != self or not start.matches(season, false):
+		return false
+	var row: Dictionary = start.row(season)
+	if row.is_empty():
+		return false
+	runs[0] = row
+	return true
+
+func matches(season: SeasonState) -> bool:
+	return season != null and season.career == self and validate_fresh_active(season)
+
+func to_data() -> Dictionary:
+	return {"version": OWNER_VERSION, "format": FORMAT, "pitch_catalog": _pitch_catalog,
+		"current": current, "runs": runs.duplicate(true), "assets": _assets.duplicate(true),
+		"pennants": _pennants.duplicate(true), "plaques": _plaques.duplicate(true)}
+
+# No inherited historical entry point may broaden this draft-only contract.
+func start(_season: SeasonState, _selected_tier: int = 0) -> bool:
+	return false
+
+func start_league(_season: SeasonState) -> bool:
+	return false
+
+func _start(_season: SeasonState, _selected_tier: int, _owner_history: bool = false) -> bool:
+	return false
+
+func close(_season: SeasonState) -> bool:
+	return false
+
+static func from_data(_value: Variant) -> ClubCareer:
+	# Only owner Codec can reconstruct a career together with its pristine birth.
+	return null

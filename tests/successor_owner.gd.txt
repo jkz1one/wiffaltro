@@ -1,0 +1,158 @@
+extends Node
+## Genuine owner-before-draft foundation, deliberately not gameplay qualification.
+const Catalog = preload("res://src/gameplay/season/successor_owner_v1/catalog.gd")
+const Runtime = preload("res://src/gameplay/season/successor_owner_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_v1/save.gd")
+const GameRuntime = preload("res://src/gameplay/season/successor_league_v1/runtime.gd")
+const GameCodec = preload("res://src/gameplay/season/successor_league_v1/codec.gd")
+const GameSave = preload("res://src/gameplay/season/successor_league_v1/save.gd")
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func starts_valid(season: SeasonState) -> bool:
+	var base: ClubCareer = ClubCareer.new()
+	var build: SeasonBuild = season.build
+	return build._gear_progress.enabled and build._sponsor_progress.enabled \
+		and ClubCareer.same(build._gear_progress.start, base.gear_counts()) \
+		and ClubCareer.same(build._sponsor_progress.start, base.sponsor_state()) \
+		and build._order_start == base.order_access() and build._rain_start == base.rain_access() \
+		and build._transfer_start == base.transfer_access() and build._supply_start == base.supply_count() \
+		and build._checkout_start == SeasonLateCheckout.access(base) \
+		and build._association_start == SeasonAssociation.access(base) \
+		and build._freezer_start == SeasonFreezers.access(base) \
+		and build._sides_start == SeasonLeftRight.access(base) \
+		and build._jump_start == SeasonJumpstart.access(base) \
+		and build._sure_start == SeasonSureShot.access(base) \
+		and build._major.start == SeasonDoubleMajor.access(base) \
+		and build._abilities.start == SeasonAbilities.access(base) \
+		and build._copy.start == SeasonCarbonCopy.access(base) \
+		and build._field_start == SeasonFieldSupply.access(base) \
+		and build._batch_start == SeasonSmallBatch.access(base) \
+		and build._book._exotic_start == []
+
+func retain(season: SeasonState) -> void:
+	var file: FileAccess = FileAccess.open("user://owner-pick-%d.json" % season.picks.size(), FileAccess.WRITE)
+	file.store_string(JSON.stringify(Codec.capture(season), "", true, true))
+	file.close()
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated owner runner required"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		for count in range(5):
+			var snapshot: Variant = JSON.parse_string(FileAccess.get_file_as_string("user://owner-pick-%d.json" % count))
+			var checkpoint: SeasonState = Codec.restore(snapshot)
+			if not check(checkpoint != null and checkpoint.picks.size() == count and starts_valid(checkpoint) and ClubCareer.same(Codec.capture(checkpoint), snapshot), "cold exact owner starts and replay pick %d" % count):
+				return
+		var restored: SeasonState = Save.restore()
+		if not check(restored != null and restored.career != null and restored.league_career and restored.picks.size() == 4, "cold genuine active owner and four picks"):
+			return
+		if not check(ClubCareer.same(Codec.capture(restored), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "cold exact owner replay"):
+			return
+		if not check(GameSave.restore() != null and FileAccess.get_sha256(GameSave.PATH) == FileAccess.get_file_as_string("user://preserved-game.sha256"), "cold separate original League slot unchanged"):
+			return
+		if not check(restored.make_match() == null and restored.results.is_empty() and restored.career.runs[0].receipt.is_empty(), "draft-only foundation grants no gameplay or completion"):
+			return
+		print("PASS: cold genuine owner draft; no owned gameplay or Dynasty claim")
+		get_tree().quit()
+		return
+	var shared_path: String = "res://src/gameplay/season/club_player_draft.gd"
+	var shared_bytes: PackedByteArray = FileAccess.get_file_as_bytes(shared_path)
+	var identity: String = Catalog.signature()
+	var game_identity: String = Catalog.game_signature()
+	var changed: FileAccess = FileAccess.open(shared_path, FileAccess.WRITE)
+	changed.store_buffer(shared_bytes)
+	changed.store_string("\n# isolated identity binding test\n")
+	changed.close()
+	var detected: bool = Catalog.signature() != identity and Catalog.game_signature() == game_identity
+	changed = FileAccess.open(shared_path, FileAccess.WRITE)
+	changed.store_buffer(shared_bytes)
+	changed.close()
+	if not check(detected and Catalog.signature() == identity and FileAccess.get_file_as_bytes(shared_path) == shared_bytes, "shared owner helper identity detects change and exact restoration without changing Game identity"):
+		return
+	var standalone: SeasonState = GameRuntime.create_live_dugout(1801)
+	if not check(GameSave.save(standalone) and Save.PATH != GameSave.PATH, "preserve separate unowned League slot"):
+		return
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(GameSave.PATH)
+	var season: SeasonState = Runtime.create_fresh(1802)
+	if not check(season != null and season.career != null and season.league_career and season.career.current == 1 and season.career.runs.size() == 1 and season.picks.is_empty(), "genuine owner exists before first pick"):
+		return
+	if not check(season.career.runs[0].status == "active" and season.career.runs[0].seed == 1802 and season.career.runs[0].league == "dugout" and season.career.runs[0].tier == 0 and season.career.runs[0].receipt.is_empty(), "fresh run identity and no unearned receipt"):
+		return
+	if not check(season.build._gear_progress.enabled and season.build._sponsor_progress.enabled and season.player_access == ClubPlayers.owned(ClubCareer.new()) and season.build._pool == season.player_access and season.draft_pool == ClubPlayerDraft.pool(1802, season.player_access), "career progression and owned human draft access installed before picks"):
+		return
+	if not check(Codec.capture(standalone).is_empty() and Codec.restore(GameCodec.capture(standalone)) == null and GameCodec.capture(season).is_empty(), "unowned and owned envelopes cannot substitute"):
+		return
+	if not check(starts_valid(season), "every starting entitlement matches genuine pristine career"):
+		return
+	var initial: Dictionary = Codec.capture(season)
+	if not check(not initial.is_empty() and Save.save(season), "fresh owner durable before draft"):
+		return
+	retain(season)
+	for change in ["seed", "tier", "current", "earned", "assets", "pending", "results", "shop", "source", "rules"]:
+		var wrong: Dictionary = initial.duplicate(true)
+		match change:
+			"seed": wrong.checkpoint.season_seed += 1
+			"tier": wrong.checkpoint.career.runs[0].tier = 1
+			"current": wrong.checkpoint.career.current = 2
+			"earned": wrong.checkpoint.career.runs[0].rain_earned = true
+			"assets": wrong.checkpoint.career.assets = {"unearned": true}
+			"pending": wrong.checkpoint.physical.pending = {"unearned": true}
+			"results": wrong.checkpoint.results = [{"unearned": true}]
+			"shop": wrong.checkpoint.build.events = [{"op": "pack_pick"}]
+			"source": wrong.owner_source = "wrong"
+			"rules": wrong.checkpoint.league_rules = LeagueRules.capture("academy")
+		if not check(Codec.restore(wrong) == null and ClubCareer.same(Codec.capture(season), initial), "reject changed owner " + change):
+			return
+	var invalid: Dictionary = initial.duplicate(true)
+	invalid["unearned_grant"] = true
+	if not check(Codec.restore(invalid) == null and ClubCareer.same(Codec.capture(season), initial), "extra grant rejected without live mutation"):
+		return
+	for index in range(4):
+		var before: Dictionary = Codec.capture(season)
+		if not check(not season.choose_player("invalid-player") and ClubCareer.same(Codec.capture(season), before), "invalid pick inert %d" % index):
+			return
+		if not check(season.choose_player(season.offers()[0]), "owned draft pick %d" % index):
+			return
+		var captured: Dictionary = Codec.capture(season)
+		season = Codec.restore(JSON.parse_string(JSON.stringify(captured, "", true, true)))
+		if not check(season != null and season.career != null and ClubCareer.same(Codec.capture(season), captured) and Save.save(season), "owned JSON replay and durable pick %d" % index):
+			return
+		if not check(starts_valid(season), "all starts retained at pick %d" % index):
+			return
+		retain(season)
+	var final: Dictionary = Codec.capture(season)
+	if not check(not season.choose_player(season.picks[0]) and ClubCareer.same(final, Codec.capture(season)), "duplicate fifth pick inert"):
+		return
+	var saved: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(DirAccess.make_dir_absolute(Save.PATH + ".tmp") == OK, "isolated save-failure fixture"):
+		return
+	if not check(not Save.save(season) and FileAccess.get_file_as_bytes(Save.PATH) == saved and ClubCareer.same(final, Codec.capture(season)), "failed owner save leaves slot and candidate unchanged"):
+		return
+	if not check(DirAccess.remove_absolute(Save.PATH + ".tmp") == OK and Save.save(season), "exact owner save retry"):
+		return
+	var expected: Dictionary = SeasonOpponentDraft.allocate(1802, ClubPlayerDraft.opponents(season), {})
+	if not check(not expected.is_empty(), "original opponent allocation exists"):
+		return
+	for team in range(1, 6):
+		if not check(season.teams[team].roster == expected.rosters[team], "opponent original pool allocation %d" % team):
+			return
+	if not check(season.make_match() == null and season.results.is_empty() and season.career.runs[0].receipt.is_empty(), "unimplemented owned gameplay stays closed rather than falling through unowned runtime"):
+		return
+	if not check(FileAccess.get_file_as_bytes(GameSave.PATH) == original, "all owner operations preserve unowned slot bytes"):
+		return
+	var output: FileAccess = FileAccess.open("user://preserved-game.sha256", FileAccess.WRITE)
+	output.store_string(FileAccess.get_sha256(GameSave.PATH))
+	output.close()
+	print("PASS: genuine owner before draft, owned access, four picks, exact replay and separate save; no gameplay qualification")
+	get_tree().quit()

@@ -1,0 +1,189 @@
+extends RefCounted
+## Preserve complete original initial starts; only pristine first Dugout0 is admitted.
+const Catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+
+static func apply(season: SeasonState) -> ClubCareer:
+	var career: ClubCareer = load("res://src/gameplay/season/successor_owner_v1/career.gd").fresh()
+	return career if apply_to(season, career) else null
+
+static func apply_to(season: SeasonState, career: ClubCareer) -> bool:
+	if not _pristine(season, career):
+		return false
+	var prefix: ClubCareer = ClubCareer.new()
+	season.build._gear_progress.enabled = true
+	season.build._gear_progress.start = prefix.gear_counts()
+	season.build._sponsor_progress.enabled = true
+	season.build._sponsor_progress.start = prefix.sponsor_state()
+	season.build._order_start = prefix.order_access()
+	season.build._rain_start = prefix.rain_access()
+	season.build._transfer_start = prefix.transfer_access()
+	season.build._supply_start = prefix.supply_count()
+	season.build._checkout_start = SeasonLateCheckout.access(prefix)
+	season.build._association_start = SeasonAssociation.access(prefix)
+	season.build._freezer_start = SeasonFreezers.access(prefix)
+	season.build._sides_start = SeasonLeftRight.access(prefix)
+	season.build._jump_start = SeasonJumpstart.access(prefix)
+	season.build._sure_start = SeasonSureShot.access(prefix)
+	season.build._major.start = SeasonDoubleMajor.access(prefix)
+	season.build._abilities.start = SeasonAbilities.access(prefix)
+	season.build._copy.start = SeasonCarbonCopy.access(prefix)
+	season.build._field_start = SeasonFieldSupply.access(prefix)
+	season.build._batch_start = SeasonSmallBatch.access(prefix)
+	if not season.build._book.install_exotic_start([]):
+		return false
+	var ledger: ClubAssetLedger = fresh_assets(season.season_seed)
+	if ledger == null or not ClubPlayerDraft.apply(season, ledger.owned()):
+		return false
+	var initial: Dictionary = row(season)
+	if initial.is_empty():
+		return false
+	career._pitch_catalog = Catalog.signature()
+	career.current = 1
+	career.runs.append(initial)
+	career._assets = ledger.to_data()
+	StadiumPennantRewards.adopt(career)
+	StadiumPlaqueRewards.adopt(career)
+	season.career = career
+	season.league_career = true
+	return matches(season)
+
+static func fresh_assets(seed_value: int) -> ClubAssetLedger:
+	# Exact empty first-run income/history/award basis; no purchased or earned assets.
+	return ClubAssetLedger.new(seed_value, [0], [], {})
+
+static func row(season: SeasonState) -> Dictionary:
+	var details: Dictionary = Progress.capture(season)
+	if details.is_empty():
+		return {}
+	return {
+			"id": 1,
+			"seed": season.season_seed,
+			"league": season.league_rules.get("league", "standard"),
+			"tier": 0,
+			"status": "active",
+			"proof": ClubSeasonRecord.capture(season),
+			"receipt": {},
+			"gear": [],
+			"sponsors": [],
+			"order_rerolls": 0,
+			"rain_earned": false,
+			"transfer_earned": false,
+			"checkout_earned": false,
+			"association_earned": false,
+			"freezer_earned": false,
+			"sides_earned": false,
+			"jump_earned": false,
+			"sure_earned": false,
+			"major_earned": false,
+			"sky_outs": 0,
+			"copy_earned": false,
+			"field_outs": 0,
+			"batch_used": [],
+			"collection": [],
+			"supplies_used": 0,
+			"player_progress": details,
+			"league_rules": season.league_rules.duplicate(true)
+		}
+
+static func _pristine(season: SeasonState, career: ClubCareer) -> bool:
+	return _stage(season) and season.phase == SeasonState.Phase.DRAFT \
+		and season.picks.is_empty() and season.career == null and not season.league_career \
+		and season.player_access.is_empty() and career != null \
+		and career.get_script() == load("res://src/gameplay/season/successor_owner_v1/career.gd") \
+		and career.current == 0 and career.runs.is_empty() and career._assets.is_empty() \
+		and career._pennants.is_empty() and career._plaques.is_empty() and career._pitch_catalog.is_empty() \
+		and not season.build._gear_progress.enabled and not season.build._sponsor_progress.enabled
+
+static func _stage(season: SeasonState) -> bool:
+	return season != null and season.get_script() == load("res://src/gameplay/season/successor_owner_v1/runtime.gd") \
+		and season.build != null and season.build.get_script() == load("res://src/gameplay/season/successor_league_v1/build.gd") \
+		and season.build.call("pitch_catalog_successor") and season.build.revision() == 0 \
+		and season.build._book._events.is_empty() and season.build._book._exotic_start.is_empty() \
+		and season.build._book._exotic_current.is_empty() and season.build._market == 0 \
+		and season.league_live and ClubCareer.same(season.league_rules, LeagueRules.capture("dugout")) \
+		and season.results.is_empty() and season.player_results.is_empty() \
+		and season.physical != null and season.physical.pending.is_empty() and season.physical.reports.is_empty() \
+		and season.picks.size() <= 4 and season.round_index == 0 \
+		and season.phase == (SeasonState.Phase.DRAFT if season.picks.size() < 4 else SeasonState.Phase.REGULAR) \
+		and season.inventory_rules.is_empty() and season._closed_access.is_empty() \
+		and season._dynasty_start.is_empty() and season._dynasty_owner_binding.is_empty() \
+		and season._dynasty_career_session.is_empty() and season._standard_live_context.is_empty() \
+		and season._standard_bound_grant.is_empty() and season._league_home_context.is_empty() \
+		and season.home_property.is_empty() and season.owned_surface_night.is_empty() \
+		and season.npc_venues.is_empty() and season.final_venue.is_empty()
+
+static func matches(season: SeasonState, compare_progress: bool = true) -> bool:
+	if not _stage(season) or not season.league_career or season.career == null:
+		return false
+	var career: ClubCareer = season.career
+	if career.get_script() != load("res://src/gameplay/season/successor_owner_v1/career.gd") \
+		or career.current != 1 or career.runs.size() != 1 or career._pitch_catalog != Catalog.signature() \
+		or not ClubCareer.same(_starts(season.build), expected_starts()):
+		return false
+	var ledger: ClubAssetLedger = fresh_assets(season.season_seed)
+	if not ClubCareer.same(career._assets, ledger.to_data()) \
+		or season.player_access != ledger.owned() or not ClubPlayerDraft.frozen_matches(season):
+		return false
+	var expected: Dictionary = row(season)
+	if expected.is_empty():
+		return false
+	var supplied: Dictionary = career.runs[0].duplicate(true)
+	if not compare_progress:
+		if not Progress.valid(supplied.get("player_progress"), []) \
+			or not supplied.player_progress.games.is_empty():
+			return false
+		supplied.player_progress = expected.player_progress
+	if not ClubCareer.same(expected, supplied):
+		return false
+	var awards: ClubCareer = ClubCareer.new()
+	awards.current = 1
+	StadiumPennantRewards.adopt(awards)
+	StadiumPlaqueRewards.adopt(awards)
+	return ClubCareer.same(career._pennants, awards._pennants) \
+		and ClubCareer.same(career._plaques, awards._plaques)
+
+static func _starts(build: SeasonBuild) -> Dictionary:
+	return {
+		"_gear_progress.enabled": build._gear_progress.enabled,
+		"_gear_progress.start": build._gear_progress.start,
+		"_sponsor_progress.enabled": build._sponsor_progress.enabled,
+		"_sponsor_progress.start": build._sponsor_progress.start,
+		"_order_start": build._order_start,
+		"_rain_start": build._rain_start,
+		"_transfer_start": build._transfer_start,
+		"_supply_start": build._supply_start,
+		"_checkout_start": build._checkout_start,
+		"_association_start": build._association_start,
+		"_freezer_start": build._freezer_start,
+		"_sides_start": build._sides_start,
+		"_jump_start": build._jump_start,
+		"_sure_start": build._sure_start,
+		"_major.start": build._major.start,
+		"_abilities.start": build._abilities.start,
+		"_copy.start": build._copy.start,
+		"_field_start": build._field_start,
+		"_batch_start": build._batch_start}
+
+static func expected_starts() -> Dictionary:
+	var prefix: ClubCareer = ClubCareer.new()
+	return {
+		"_gear_progress.enabled": true,
+		"_gear_progress.start": prefix.gear_counts(),
+		"_sponsor_progress.enabled": true,
+		"_sponsor_progress.start": prefix.sponsor_state(),
+		"_order_start": prefix.order_access(),
+		"_rain_start": prefix.rain_access(),
+		"_transfer_start": prefix.transfer_access(),
+		"_supply_start": prefix.supply_count(),
+		"_checkout_start": SeasonLateCheckout.access(prefix),
+		"_association_start": SeasonAssociation.access(prefix),
+		"_freezer_start": SeasonFreezers.access(prefix),
+		"_sides_start": SeasonLeftRight.access(prefix),
+		"_jump_start": SeasonJumpstart.access(prefix),
+		"_sure_start": SeasonSureShot.access(prefix),
+		"_major.start": SeasonDoubleMajor.access(prefix),
+		"_abilities.start": SeasonAbilities.access(prefix),
+		"_copy.start": SeasonCarbonCopy.access(prefix),
+		"_field_start": SeasonFieldSupply.access(prefix),
+		"_batch_start": SeasonSmallBatch.access(prefix)}
