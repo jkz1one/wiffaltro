@@ -2,6 +2,10 @@ class_name SeasonRoundUI
 extends CanvasLayer
 ## Durable completed-game checkpoints, sequential jobs, atomic round publication.
 
+signal async_human_checkpoint_completed(saved: bool)
+var _async_human_saving: bool = false
+var _async_human_saved: bool = false
+
 var app: SeasonApp
 var runner: PhysicalMatchRunner
 var process_runner: PhysicalRoundProcess
@@ -107,6 +111,8 @@ func _ready() -> void:
 
 
 func begin(human: Array) -> void:
+	if _async_human_saving:
+		return
 	if not _test_can_advance():
 		return
 	if _ac02_guard_needed() and not app._ac02_queue_authorized(human):
@@ -114,17 +120,23 @@ func begin(human: Array) -> void:
 			_pause("Physical test begin authorization was rejected.")
 		return
 	var queued: bool = queue_human(human)
-	if not queued and process_runner.physical_test_enabled():
+	if _async_human_saving:
+		queued = await async_human_checkpoint_completed
+		if not queued:
+			return
+	if not queued and not _async_human_saving and process_runner.physical_test_enabled():
 		return
 	resume()
 
 
 func queue_human(human: Array) -> bool:
+	if _async_human_saving:
+		return false
 	if not _test_can_advance():
 		return false
 	_round_attempted = true
 	var queued: bool = _queue_human(human)
-	if not queued and process_runner.physical_test_enabled():
+	if not queued and not _async_human_saving and process_runner.physical_test_enabled():
 		_pause("Physical test human checkpoint was not saved.")
 	return queued
 
@@ -149,7 +161,35 @@ func _queue_human(human: Array) -> bool:
 	if not app._ac02_settlement_ticket.is_empty():
 		app._ac02_settlement_ticket["pending"] = app.season.physical.pending
 		return app._ac02_save_settlement()
+	if load("res://src/gameplay/season/async_save/async_save_coordinator.gd").supported() and app.season.career == null and app.season.build != null and app.season.build.pitch_catalog_expanded():
+		_save_human_async()
+		return false # Pending is not durable yet. Never report a queued save as success.
 	return SeasonSave.save(app.season)
+
+
+func _save_human_async() -> void:
+	if _async_human_saving:
+		return
+	_async_human_saving = true
+	_async_human_saved = false
+	var owner: SeasonState = app.season
+	var captured_lab: PitchBatLab = app.lab
+	var generation: int = app._loading_generation
+	app._continue.disabled = true
+	var supervisor: Callable = _supervise_physical_test if _physical_test_supervisor.is_valid() else Callable()
+	var saved: bool = await load("res://src/gameplay/season/async_save/async_save_ui.gd").save(app, owner, supervisor)
+	_async_human_saving = false
+	if not is_inside_tree() or not is_instance_valid(app) or app.season != owner \
+		or app.lab != captured_lab or app._loading_generation != generation:
+		async_human_checkpoint_completed.emit(false)
+		return
+	_async_human_saved = saved
+	# _result_saved remains false: the other games and full round are not settled.
+	app._continue.disabled = false
+	app._continue.text = "CONTINUE" if saved else "RETRY SAVE"
+	app._continue.tooltip_text = "" if saved else SeasonSave.last_error
+	app.notice = SeasonSave.last_error
+	async_human_checkpoint_completed.emit(saved)
 
 
 func _ac02_guard_needed() -> bool:
@@ -164,6 +204,8 @@ func restore_pending() -> void:
 
 
 func resume() -> void:
+	if _async_human_saving:
+		return 
 	if not _test_can_advance():
 		return
 	_round_attempted = true
@@ -173,19 +215,15 @@ func resume() -> void:
 		if process_runner.physical_test_enabled():
 			_pause("Physical test resume authorization was rejected.")
 		return
+	if load("res://src/gameplay/season/async_save/async_save_coordinator.gd").supported() and app.season.career == null and app.season.build != null and app.season.build.pitch_catalog_expanded() 		and not _ac02_guard_needed():
+		_resume_with_async_save()
+		return
 	# Also retries a completed report whose checkpoint failed; no second physical run.
 	var saved: bool = _save_pending_checkpoint()
 	if not saved:
 		_pause(SeasonSave.last_error)
 		return
-	if app.lab != null and not app._close_match():
-		if process_runner.physical_test_enabled():
-			_pause("Physical test match close failed; retry is disabled.")
-		return
-	app.menu.hide()
-	app.loadout.close()
-	_started = Time.get_ticks_msec()
-	_next()
+	_resume_saved_checkpoint()
 
 
 # Kept separate for no-storage coordinator fault tests; default save routing is unchanged.
@@ -198,6 +236,8 @@ func _save_pending_checkpoint() -> bool:
 
 
 func cancel() -> void:
+	if _async_human_saving:
+		return 
 	if process_runner.physical_test_enabled():
 		process_runner.cancel()
 		_pause("Physical test cancelled; inspect retained evidence before a new test run.")
@@ -461,3 +501,31 @@ static func _label(parent: Node, text: String, size: int) -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(label)
 	return label
+
+
+func _resume_with_async_save() -> void:
+	if _async_human_saving:
+		return
+	_async_human_saving = true
+	var owner: SeasonState = app.season
+	var generation: int = app._loading_generation
+	var supervisor: Callable = _supervise_physical_test if _physical_test_supervisor.is_valid() else Callable()
+	var saved: bool = await load("res://src/gameplay/season/async_save/async_save_ui.gd").save(app, owner, supervisor)
+	_async_human_saving = false
+	if not is_inside_tree() or not is_instance_valid(app) or app.season != owner 		or app._loading_generation != generation:
+		return
+	if not saved:
+		_pause(SeasonSave.last_error)
+		return
+	_resume_saved_checkpoint()
+
+
+func _resume_saved_checkpoint() -> void:
+	if app.lab != null and not app._close_match():
+		if process_runner.physical_test_enabled():
+			_pause("Physical test match close failed; retry is disabled.")
+		return
+	app.menu.hide()
+	app.loadout.close()
+	_started = Time.get_ticks_msec()
+	_next()

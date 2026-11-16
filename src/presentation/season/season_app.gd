@@ -125,6 +125,8 @@ func _ready_with_loading_feedback() -> void:
 
 
 func _request_play_with_loading_feedback() -> void:
+	if round_ui != null and round_ui._async_human_saving:
+		return 
 	# Direct/headless APIs retain the original synchronous path.
 	if _loading_play or _loading_boot:
 		return
@@ -360,10 +362,14 @@ func _retry_draft_save() -> void:
 
 
 func _prepare_draft_exit() -> bool:
+	if round_ui != null and round_ui._async_human_saving:
+		return false
 	return SOURCE_OPERATIONS_2._source_private_prepare_draft_exit(self)
 
 
 func _request_quit() -> void:
+	if round_ui != null and round_ui._async_human_saving:
+		return 
 	SOURCE_OPERATIONS_2._source_private_request_quit(self)
 
 
@@ -384,6 +390,8 @@ func _restore_draft_quit_policy() -> void:
 
 
 func play_season_game() -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return 
 	SOURCE_OPERATIONS_2._source_public_play_season_game(self)
 
 
@@ -392,6 +400,8 @@ func _ac02_passive_16_play_season_game() -> void:
 
 
 func play_exhibition() -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return 
 	SOURCE_OPERATIONS_2._source_public_play_exhibition(self)
 
 
@@ -444,10 +454,14 @@ func _mounted_match_ledger(
 
 
 func finish_game() -> void:
+	if round_ui != null and round_ui._async_human_saving:
+		return 
 	SOURCE_OPERATIONS_3._source_public_finish_game(self)
 
 
 func _commit_result() -> bool:
+	if round_ui != null and round_ui._async_human_saving:
+		return false
 	# Scheduling only: keep the captured HR body and owner alive through its
 	# presentation. The existing result, validation and persistence paths follow.
 	if (
@@ -655,10 +669,14 @@ func _played_field_matches_remaining_checks(expected: Dictionary, key: String) -
 
 
 func ask_leave_game() -> void:
+	if round_ui != null and round_ui._async_human_saving:
+		return 
 	SOURCE_OPERATIONS_3._source_public_ask_leave_game(self)
 
 
 func leave_game() -> void:
+	if round_ui != null and round_ui._async_human_saving:
+		return 
 	SOURCE_OPERATIONS_3._source_public_leave_game(self)
 
 
@@ -667,18 +685,26 @@ func _ac02_settled_manual_qc_close_allowed() -> bool:
 
 
 func _close_match(close_inventory: bool = false) -> bool:
+	if round_ui != null and round_ui._async_human_saving:
+		return false
 	return SOURCE_OPERATIONS_3._source_private_close_match(self, close_inventory)
 
 
 func swap_lineup(first: int, second: int) -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return 
 	SOURCE_OPERATIONS_3._source_public_swap_lineup(self, first, second)
 
 
 func select_starter(index: int) -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return 
 	SOURCE_OPERATIONS_3._source_public_select_starter(self, index)
 
 
 func select_fielder(index: int) -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return 
 	SOURCE_OPERATIONS_3._source_public_select_fielder(self, index)
 
 
@@ -818,14 +844,20 @@ func _progression_terms(selected_tier: int) -> String:
 
 
 func commit_inventory(command: Dictionary) -> bool:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return false
 	return SOURCE_OPERATIONS_3._source_public_commit_inventory(self, command)
 
 
 func commit_shop(command: Dictionary) -> bool:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return false
 	return SOURCE_OPERATIONS_3._source_public_commit_shop(self, command)
 
 
 func open_shop() -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return 
 	SOURCE_OPERATIONS_3._source_public_open_shop(self)
 
 

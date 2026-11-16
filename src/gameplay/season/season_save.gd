@@ -26,6 +26,9 @@ static var _dynasty_owner_content_blocked: bool = false
 
 
 static func bind_dynasty_owner(owner_path: String) -> bool:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		last_error = "A result save is in progress. No competing operation was made."
+		return false
 	if owner_path.is_empty():
 		return false
 	_dynasty_owner_path = owner_path
@@ -401,6 +404,9 @@ static func _ac02_passive_15_snapshot(season: SeasonState) -> Dictionary:
 
 
 static func save(season: SeasonState, _ac02_career_write: Variant = null) -> bool:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		last_error = "A result save is in progress. No competing operation was made."
+		return false
 	if not WorkingPitchDynastySave.owner_context_valid(season):
 		last_error = "Current Dynasty requires its exact durable selected owner. Raw checkpoints are internal only."
 		return false
@@ -440,6 +446,9 @@ static func _same_save_career(source: Variant, checked: ClubCareer) -> ClubCaree
 
 
 static func restore() -> SeasonState:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		last_error = "A result save is in progress. No competing operation was made."
+		return null
 	var ac02_token: int = AC02_PASSIVE_15.enter("season_save.restore")
 	var ac02_result: SeasonState = _ac02_passive_15_restore()
 	AC02_PASSIVE_15.leave(ac02_token)

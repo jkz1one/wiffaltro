@@ -381,7 +381,8 @@ static func _source_public_finish_game(_source_owner: SeasonApp) -> void:
 	_source_owner._busy = true
 	var state: MatchState = _source_owner.lab._match_state
 	if not _source_owner._commit_result():
-		_source_owner._busy = false
+		if _source_owner.round_ui == null or not _source_owner.round_ui._async_human_saving:
+			_source_owner._busy = false
 		return
 	var score: String = state.score_label()
 	if not _source_owner._close_match():

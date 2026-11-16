@@ -1,0 +1,92 @@
+{
+  "baseline_commit": "198d56d54003753b52a0209ce9f09337a6f37aa4",
+  "native_tests": "NOT RUN on this installed composition",
+  "original_source_and_saved_game_preserved": true,
+  "profile_maps": {
+    "dependencies": 926,
+    "fixtures": 51,
+    "lines": 999,
+    "max_columns": 100,
+    "replacements": 69
+  },
+  "python_renderer_checks": {
+    "native_skipped": 1,
+    "passed": 47
+  },
+  "save_format_or_catalog_changed": false,
+  "saves_in_repository": false,
+  "scope": "Background validation for supported standalone expanded-pitch source builds; unsupported routes retain synchronous save.",
+  "source_changes": [
+    {
+      "bytes": 9844,
+      "path": "src/gameplay/season/async_save/async_save_coordinator.gd",
+      "sha256": "9bca9e2269ec796548316e139544c76d25352c5cbb347f2b20dd16dd6bc4e279"
+    },
+    {
+      "bytes": 2286,
+      "path": "src/gameplay/season/async_save/async_save_protocol.gd",
+      "sha256": "33607582eda61aa1dfb4181ac6437d3e2688be27bc2a9814d98d6218cbf69334"
+    },
+    {
+      "bytes": 4012,
+      "path": "src/gameplay/season/async_save/async_save_ui.gd",
+      "sha256": "1b931a05112ae87d048d1e6aa84b13098318ca972047f12949fff25e07ed2758"
+    },
+    {
+      "bytes": 2348,
+      "path": "src/gameplay/season/async_save/async_save_validator.gd",
+      "sha256": "22d80a5df6344be63bc0569d0aa74be5acdb5804a24ad2070b542ce6edce3365"
+    },
+    {
+      "bytes": 762,
+      "path": "src/gameplay/season/async_save/async_save_worker.gd",
+      "sha256": "0bbc711b47db4b6d3bec02df3905ce2576d51e3b2843d2584986b8a4b76e41ed"
+    },
+    {
+      "bytes": 40838,
+      "path": "src/gameplay/season/season_save.gd",
+      "sha256": "16acc87a957498d5d3be287122e52ecceb529e54059766ff65932159758dde2a"
+    },
+    {
+      "bytes": 5805,
+      "path": "src/gameplay/season/season_save_operations_2.gd",
+      "sha256": "822ffa3d5789034ace556afbf48281fb6d45688fed85152f189dbe100baff63a"
+    },
+    {
+      "bytes": 3605,
+      "path": "src/presentation/season/expanded_season_ui.gd",
+      "sha256": "d8450904648f80e969b13fc0b73157f872f573b0cb4a0c59246b20388346705f"
+    },
+    {
+      "bytes": 32220,
+      "path": "src/presentation/season/season_app.gd",
+      "sha256": "d50e49a3a08c071749a42e259a3b287592b0d561c393ba351733a5833e0217f0"
+    },
+    {
+      "bytes": 36036,
+      "path": "src/presentation/season/season_app_operations_3.gd",
+      "sha256": "05c402a5daedf29eec4899d325d83d042ed60dc0449fe47bfa31278bcb51b0d6"
+    },
+    {
+      "bytes": 17434,
+      "path": "src/presentation/season/season_round_ui.gd",
+      "sha256": "f3967921ebb5028646447174adbc91f482db3a6bd91f97dc8c1c283656c956fd"
+    },
+    {
+      "bytes": 99813,
+      "path": "src/presentation/stadium/stadium_npc_current_source_profile.gd",
+      "sha256": "f1b5efdb72572422372eeaa861dfba986df4a508456bcc9c6ea93ef16cc5a3f1"
+    },
+    {
+      "bytes": 19304,
+      "path": "tools/npc_current_source_profile.py",
+      "sha256": "56e3ed8e1e6a8dac41fe205f3e48d8edc6b40890eab81e68dd8bcb2605af8300"
+    },
+    {
+      "bytes": 39212,
+      "path": "tools/test_npc_current_source_profile.py",
+      "sha256": "7749db722e748a687b5588823d2778cec1f2e06eda6f9be77f1af3d68f0c6b28"
+    }
+  ],
+  "status": "reviewed-source-candidate-installed-native-test-pending"
+}

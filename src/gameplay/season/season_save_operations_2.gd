@@ -3,6 +3,9 @@ extends RefCounted
 
 
 static func _public_save(season: SeasonState, _ac02_career_write: Variant = null) -> bool:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		SeasonSave.last_error = "A result save is in progress. No competing write was made."
+		return false
 	if not WorkingPitchDynastySave.owner_context_valid(season):
 		SeasonSave.last_error = "Current Dynasty requires its exact durable selected owner."
 		return false

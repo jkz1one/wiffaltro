@@ -18,6 +18,8 @@ static func controls(app: SeasonApp, parent: Node) -> void:
 
 
 static func open(app: SeasonApp) -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return
 	if SeasonSave.dynasty_owner_bound() or not app._prepare_draft_exit():
 		return
 	if FileAccess.file_exists(SAVE_PATH) or FileAccess.file_exists(SAVE_PATH + ".bak"):
@@ -35,6 +37,8 @@ static func open(app: SeasonApp) -> void:
 
 
 static func ask_new(app: SeasonApp) -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return
 	app._confirm(
 		"Start a 43-pitch Working season in its separate save slot? "
 		+ "Draft the unchanged players, earn Cash in games, and buy slot-specific lessons. "
@@ -44,6 +48,8 @@ static func ask_new(app: SeasonApp) -> void:
 
 
 static func begin(app: SeasonApp) -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return
 	if SeasonSave.dynasty_owner_bound() or not app._prepare_draft_exit():
 		return
 	var season: SeasonState = ExpandedSeasonProgression.create_season(
@@ -76,6 +82,8 @@ static func _enter(app: SeasonApp, season: SeasonState) -> void:
 
 
 static func return_to_club(app: SeasonApp) -> void:
+	if load("res://src/gameplay/season/async_save/async_save_ui.gd").locked or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return
 	if SeasonSave.path != SAVE_PATH or previous_path.is_empty() or not app._prepare_draft_exit():
 		return
 	SeasonSave.path = previous_path
