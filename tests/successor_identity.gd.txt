@@ -1,0 +1,150 @@
+extends Node
+## Isolated identity equivalence and timing; no global cache or source-identity bypass.
+const Catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const Progression = preload("res://src/gameplay/season/successor_league_v1/progression.gd")
+const Runtime = preload("res://src/gameplay/season/successor_league_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_v1/codec.gd")
+# These aliases serve verbatim pre-optimization reference bodies below. Both paths
+# compute the SAME actual current source signature; no alternate catalog authority.
+const V7Catalog = Catalog
+const V7Access = preload("res://src/gameplay/season/successor_league_v1/exotic_access.gd")
+const V7Eligibility = preload("res://src/gameplay/season/successor_league_v1/exotic_eligibility.gd")
+const FORMAT: String = Progression.FORMAT
+const BUILD_VERSION: int = Progression.BUILD_VERSION
+const DEVELOPMENT_VERSION: int = Progression.DEVELOPMENT_VERSION
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func timed(label: String, action: Callable, count: int = 3) -> void:
+	var start: int = Time.get_ticks_usec()
+	for index in range(count):
+		action.call()
+	print("PERF: ", label, " count=", count, " mean_ms=", float(Time.get_ticks_usec() - start) / count / 1000.0)
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated runner required"):
+		return
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var season: SeasonState = Runtime.create_live_dugout(1701)
+	if not check(season != null, "fresh live Dugout"):
+		return
+	for index in range(4):
+		if not check(season.choose_player(season.offers()[0]), "draft choice %d" % index):
+			return
+	var build: Dictionary = season.build.to_data()
+	var development: Dictionary = season.build._book.to_data()
+	var raw_build: Dictionary = Progression.unwrap_build(build)
+	var raw_development: Dictionary = Progression.unwrap_development(development)
+	if not check(not raw_build.is_empty() and not raw_development.is_empty(), "actual current build and development inputs"):
+		return
+	if not check(ClubCareer.same(old_wrap_build(raw_build), Progression.wrap_build(raw_build)) and ClubCareer.same(old_unwrap_build(build), raw_build), "reference build wrap and unwrap equivalence"):
+		return
+	if not check(ClubCareer.same(old_wrap_development(raw_development), Progression.wrap_development(raw_development)) and ClubCareer.same(old_unwrap_development(development), raw_development), "reference development wrap and unwrap equivalence"):
+		return
+	for original: Dictionary in [build, development]:
+		for field: String in ["signature", "purpose", "version"]:
+			var corrupt: Dictionary = original.duplicate(true)
+			corrupt.catalog_context[field] = 999 if field == "version" else "wrong"
+			var is_build: bool = original == build
+			var old_result: Dictionary = old_unwrap_build(corrupt) if is_build else old_unwrap_development(corrupt)
+			var new_result: Dictionary = Progression.unwrap_build(corrupt) if is_build else Progression.unwrap_development(corrupt)
+			if not check(old_result.is_empty() and new_result.is_empty(), "both reject corrupt descriptor %s %s" % ["build" if is_build else "development", field]):
+				return
+	var checkpoint: Dictionary = Codec.capture(season)
+	var restored: SeasonState = Codec.restore(JSON.parse_string(JSON.stringify(checkpoint, "", true, true)))
+	if not check(not checkpoint.is_empty() and restored != null and ClubCareer.same(Codec.capture(restored), checkpoint), "full JSON replay and exact recapture"):
+		return
+	timed("fresh drafted capture", Codec.capture.bind(season))
+	timed("fresh drafted restore", Codec.restore.bind(checkpoint))
+	print("PERF: checkpoint_bytes=", JSON.stringify(checkpoint).to_utf8_buffer().size(), " held_roots=", roots.size())
+	roots.clear()
+	print("PASS: local signature reuse equals original helpers; descriptor rejection and full replay retained")
+	get_tree().quit()
+
+static func old_signature(base: String) -> String:
+	return (FORMAT + ":" + base + ":" + V7Catalog.signature()).sha256_text()
+
+
+static func old_wrap_build(data: Dictionary, exotic_start: Array = []) -> Dictionary:
+	var result: Dictionary = data.duplicate(true)
+	result["successor_format"] = FORMAT
+	result["exotic_start"] = exotic_start.duplicate(true)
+	result["base_version"] = data.version
+	result.version = BUILD_VERSION
+	result["pitch_catalog"] = V7Catalog.signature()
+	result["catalog_context"] = V7Catalog.descriptor()
+	result.catalog = old_signature(data.catalog)
+	return result
+
+
+static func old_unwrap_build(value: Dictionary) -> Dictionary:
+	if value.get("successor_format") != FORMAT:
+		return {}
+	if not V7Catalog.valid_descriptor(value.get("catalog_context")) or not V7Access.valid_history(value.get("exotic_start")):
+		return {}
+	if not Progression.is_version(value.get("version"), BUILD_VERSION) \
+		or not SeasonOwnership._whole(value.get("base_version"), 45, 45) \
+		or LeagueRules.normalized(value.get("league_rules")) != LeagueRules.capture("dugout") \
+		or not value.get("pitch_catalog") is String \
+		or value.pitch_catalog != V7Catalog.signature():
+		return {}
+	var base: String = SeasonBuild._signature(int(value.base_version), value.get("league_rules"))
+	if base.is_empty() or not value.get("catalog") is String or value.catalog != old_signature(base):
+		return {}
+	var result: Dictionary = value.duplicate(true)
+	result.version = int(value.base_version)
+	result.catalog = base
+	result.erase("exotic_start")
+	result.erase("base_version")
+	result.erase("successor_format")
+	result.erase("pitch_catalog")
+	result.erase("catalog_context")
+	return result
+
+
+static func old_wrap_development(data: Dictionary, exotic_start: Array = [], exotic_current: Dictionary = {}) -> Dictionary:
+	var result: Dictionary = data.duplicate(true)
+	result["successor_format"] = FORMAT
+	result["exotic_current"] = exotic_current.duplicate(true)
+	result["exotic_start"] = exotic_start.duplicate(true)
+	result["base_version"] = data.version
+	result.version = DEVELOPMENT_VERSION
+	result["pitch_catalog"] = V7Catalog.signature()
+	result["catalog_context"] = V7Catalog.descriptor()
+	result.catalog = old_signature(data.catalog)
+	return result
+
+
+static func old_unwrap_development(value: Dictionary) -> Dictionary:
+	if value.get("successor_format") != FORMAT:
+		return {}
+	if not value.get("exotic_current") is Dictionary or (not value.exotic_current.is_empty() and not V7Eligibility.valid(value.exotic_current)):
+		return {}
+	if not V7Catalog.valid_descriptor(value.get("catalog_context")) or not V7Access.valid_history(value.get("exotic_start")):
+		return {}
+	if not Progression.is_version(value.get("version"), DEVELOPMENT_VERSION) \
+		or not SeasonOwnership._whole(value.get("base_version"), 1, 1) \
+		or not value.get("pitch_catalog") is String \
+		or value.pitch_catalog != V7Catalog.signature() \
+		or not value.get("catalog") is String \
+		or value.catalog != old_signature(SeasonPlayerCatalog.signature()):
+		return {}
+	var result: Dictionary = value.duplicate(true)
+	result.version = int(value.base_version)
+	result.catalog = SeasonPlayerCatalog.signature()
+	result.erase("exotic_current")
+	result.erase("exotic_start")
+	result.erase("base_version")
+	result.erase("successor_format")
+	result.erase("pitch_catalog")
+	result.erase("catalog_context")
+	return result

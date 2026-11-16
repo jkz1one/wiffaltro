@@ -25,6 +25,7 @@ def main():
     mode.add_argument('--dugout', action='store_true', help='Run live Dugout admission/request/cold suite, not completed gameplay')
     mode.add_argument('--dugout-round', action='store_true', help='Run actual live Dugout human game, cold pending resume, AI round and earned pack')
     mode.add_argument('--dugout-pending-fixture', type=Path, help='Audit a read-only isolated actual human+one-AI pending checkpoint')
+    mode.add_argument('--identity', action='store_true', help='Check local signature helper equivalence and scoped timings')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
@@ -40,14 +41,16 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
+    if args.identity:
+        names += ['successor_identity.gd', 'successor_identity.tscn']
     for name in names:
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
@@ -79,6 +82,9 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
+    if args.identity:
+        run('local-identity', ['res://tests/successor_identity.tscn', '--'], timeout=900)
+        return
     if args.dugout_pending_fixture:
         source = args.dugout_pending_fixture.resolve()
         assert source.is_file() and source.name == 'successor-dugout-live-v7-r1.json'

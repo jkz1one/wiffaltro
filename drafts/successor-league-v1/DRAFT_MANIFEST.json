@@ -179,8 +179,8 @@
     {
       "backup_path": "drafts/successor-league-v1/src/gameplay/season/successor_league_v1/progression.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_v1/progression.gd",
-      "bytes": 4796,
-      "sha256": "b8354a3d9c7a7a12b4bccf41b4c5524ca331bd2245021b735a8cbd75973ab00d"
+      "bytes": 5689,
+      "sha256": "88864bc044f81ce97d9bc32039b55de6aced0c85991710ca3bae92cc4b7acfa0"
     },
     {
       "backup_path": "drafts/successor-league-v1/src/gameplay/season/successor_league_v1/replay_team.gd.txt",
