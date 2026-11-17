@@ -1,0 +1,62 @@
+extends RefCounted
+## Read-only permanent-asset basis for already replayed successor career objects.
+## Structural adapters are not ownership authority. A new owner decoder must
+## validate every run's physical/transaction provenance before using this basis.
+## No saved balance, unlocked flag, historical proxy or supplied reward is trusted.
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+const Metrics = preload("player_metrics.gd")
+const Progress = preload("stadium_progress.gd")
+const Plaques = preload("plaque_rewards.gd")
+
+static func basis(career: ClubCareer) -> Dictionary:
+	if career == null or not preload("mixed_progress.gd").history(career.runs): return {}
+	if career == null or career.runs.is_empty() or career.runs.size() > ClubCareer.MAX_RUNS \
+		or career.current not in [0, career.runs.size()]:
+		return {}
+	var last: Dictionary = career.runs[-1]
+	if (last.get("status") == "active" and career.current != career.runs.size()) \
+		or (last.get("status") == "abandoned" and career.current != 0):
+		return {}
+	var policy: Dictionary = Policy.evaluate(career.runs)
+	var metrics: Dictionary = Metrics.metrics(career.runs)
+	if policy.is_empty() or metrics.is_empty():
+		return {}
+	var credits: Array[int] = []
+	for run: Dictionary in career.runs:
+		credits.append(int(run.receipt.get("total", 0)))
+	var progress: Array = Progress.capture(career.runs)
+	if not StadiumCareerProgress.valid(progress, credits):
+		return {}
+	var closed_count: int = career.runs.size() - (1 if last.status == "active" else 0)
+	if progress.size() != closed_count:
+		return {} # An invalid closed record cannot masquerade as an empty prefix.
+	var pennants: Variant = StadiumPennantRewards.awards(career)
+	var plaques: Variant = Plaques.awards(career)
+	if not pennants is Dictionary or not plaques is Dictionary:
+		return {}
+	var awards: Dictionary = pennants.duplicate(true)
+	for key: String in plaques:
+		if awards.has(key):
+			return {}
+		awards[key] = plaques[key].duplicate(true)
+	if not StadiumPennantRewards.valid_awards(awards, credits):
+		return {}
+	var seed_value: int = int(career.runs[0].seed)
+	var ledger: ClubAssetLedger = ClubAssetLedger.new(seed_value, credits, progress, awards) \
+		if career._assets.is_empty() else ClubAssetLedger.from_data(career._assets, seed_value, credits, progress, awards)
+	if ledger == null or not ledger._valid:
+		return {}
+	var earned: Array[String] = ClubPlayerCatalog.earned(metrics)
+	return {"ledger": ledger, "income": credits, "progress": progress,
+		"awards": awards, "earned": earned, "owned": ledger.owned(earned),
+		"policy": policy}
+
+static func ledger(career: ClubCareer) -> ClubAssetLedger:
+	return basis(career).get("ledger")
+
+static func owned(career: ClubCareer) -> Array[String]:
+	var result: Dictionary = basis(career)
+	var ids: Array[String] = []
+	if not result.is_empty():
+		ids.assign(result.owned)
+	return ids

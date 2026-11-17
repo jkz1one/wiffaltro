@@ -1,5 +1,6 @@
 extends ClubCareer
-## Exact frozen predecessor plus active run2. Terminal awards/close remain disabled.
+## Authenticated frozen predecessor plus run2; terminal settlement is atomic.
+const Settlement = preload("settlement.gd")
 const FORMAT: String = "successor-owned-general-career-v1"
 var predecessor: Dictionary = {}
 var start_basis: Dictionary = {}
@@ -29,8 +30,15 @@ func sync(season: SeasonState) -> bool:
 	var row: Dictionary = load("res://src/gameplay/season/successor_owner_general_v1/start.gd").row(season)
 	if row.is_empty():
 		return false
-	runs[1] = row
-	return true
+	var proposed: Dictionary = Settlement.state(row,start_basis,season.phase == SeasonState.Phase.COMPLETE)
+	if proposed.is_empty(): return false
+	# No partial publication if original receipt, metrics, award or asset replay fails.
+	runs[1] = proposed.row.duplicate(true)
+	_assets = proposed.assets.duplicate(true)
+	_pennants = proposed.pennants.duplicate(true)
+	_plaques = proposed.plaques.duplicate(true)
+	return ClubCareer.same(runs[1],proposed.row) and ClubCareer.same(_assets,proposed.assets) \
+		and ClubCareer.same(_pennants,proposed.pennants) and ClubCareer.same(_plaques,proposed.plaques)
 
 func start(_season: SeasonState, _selected_tier: int = 0) -> bool:
 	return false

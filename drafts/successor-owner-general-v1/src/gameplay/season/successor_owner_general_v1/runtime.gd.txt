@@ -1,5 +1,5 @@
 extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
-## Owned General114 run2. Ordinary Dugout0 rounds/shops; terminal boundary closed.
+## Owned General114 run2 with original ordinary and playoff mechanics.
 static func create_next(envelope: Variant, seed_value: int) -> SeasonState:
 	return load("res://src/gameplay/season/successor_owner_general_v1/start.gd").create(envelope,seed_value)
 func league_context_consistent() -> bool:
@@ -39,24 +39,18 @@ func _choose_local(id: String) -> bool:
 		return false
 	return career.sync(self)
 func make_match() -> MatchState:
-	if phase != Phase.REGULAR or round_index >= 9 or not league_context_consistent(): return null
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return null
 	return super.make_match()
 
 func shop_available() -> bool:
 	return league_context_consistent() and super.shop_available()
 
 func _finish_round(fixture_id: int, result: Dictionary) -> bool:
-	if phase != Phase.REGULAR or round_index >= 9 or not league_context_consistent(): return false
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
 	# General retains all NPC simulation/payment checks. Career sync occurs only
 	# after the full result has been appended by record_player_result / Pending.
 	return super._finish_round(fixture_id,result)
 
-func _begin_playoffs() -> bool:
-	return false
-func _prepare_final() -> bool:
-	return false
-func _settle_semifinals() -> void:
-	pass
 
 func adopt_build(next: SeasonBuild) -> void:
 	if next == null or not league_context_consistent(): return
@@ -93,7 +87,7 @@ func record_player_result(
 	pool_evidence: Variant = null,
 	yard_evidence: Variant = null
 ) -> bool:
-	if phase != Phase.REGULAR or round_index >= 9 or not league_context_consistent(): return false
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
 	var ok: bool = super.record_player_result(fixture_id,away_runs,home_runs,performance,used_gear,tactics,batting,stances,fielding,pitching,field_supply,frozen,ai_tactics,replayed_tactics,property_key,pool_evidence,yard_evidence)
 	return ok and career.sync(self)
 

@@ -26,6 +26,9 @@ func negative_run() -> void:
 	if not check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak"),"separate new slot empty"): return
 	if not check(Codec.clone(null) == null and Codec.capture(null).is_empty() and Codec.guard_snapshot(null).is_empty() and Codec.restore(birth) == null,"invalid and old envelopes cannot enter new owner"): return
 	if not check(Runtime.create_next({},17) == null and Runtime.create_next(birth,-1) == null and Runtime.create_next(birth,17) == null,"active genuine predecessor cannot grant inherited start"): return
+	var forged_predecessor: Dictionary = birth.duplicate(true)
+	forged_predecessor.checkpoint.phase = SeasonState.Phase.COMPLETE
+	if not check(Runtime.create_next(forged_predecessor,7001) == null,"changing active predecessor phase cannot authorize terminal inheritance"): return
 	if not check(not Save.save(null) and not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".tmp"),"invalid save cannot create slot or temp"): return
 	var app = App.new()
 	app.predecessor = birth.duplicate(true)
@@ -133,7 +136,7 @@ func completed_run() -> void:
 func inherited_checks(app: SeasonApp) -> bool:
 	var career = app.season.career
 	var basis: Dictionary = career.start_basis
-	return check(Start.base_matches(app.season) and career.current == 2 and career.runs.size() == 2 and ClubCareer.same(career.predecessor,original_envelope) and ClubCareer.same(career.runs[0],basis.predecessor.row) and ClubCareer.same(career._assets,basis.assets) and ClubCareer.same(career._pennants,basis.pennants) and ClubCareer.same(career._plaques,basis.plaques) and ClubCareer.same(app.season.build._pool,basis.player_access) and ClubCareer.same(app.season.player_access,basis.player_access) and ClubCareer.same(app.season.build._book._exotic_start,basis.exotic_history),"original predecessor ledger awards pool and exotic history unchanged")
+	return check(Start.base_matches(app.season) and career.current == 2 and career.runs.size() == 2 and ClubCareer.same(career.predecessor,original_envelope) and ClubCareer.same(career.runs[0],basis.predecessor.row) and ClubCareer.same(career._assets,basis.assets) and ClubCareer.same(career._pennants,load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").birth_pennants(basis)) and ClubCareer.same(career._plaques,basis.plaques) and ClubCareer.same(app.season.build._pool,basis.player_access) and ClubCareer.same(app.season.player_access,basis.player_access) and ClubCareer.same(app.season.build._book._exotic_start,basis.exotic_history),"original predecessor ledger awards pool and exotic history unchanged")
 
 func shop_for(app: SeasonApp) -> SeasonShopWindow:
 	for child in app.menu.get_children():

@@ -1,0 +1,50 @@
+extends RefCounted
+## Structural mixed-family validation only, never owner provenance or a trust token.
+## The owner decoder independently authenticates the full ordered predecessor/current run.
+const Legacy = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+const Current = preload("res://src/gameplay/season/successor_career_general_v1/career_progress.gd")
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+
+static func valid(value: Variant, scores: Array) -> bool:
+	if not value is Dictionary: return false
+	if value.get("format") == Legacy.FORMAT: return Legacy.valid(value,scores)
+	if value.get("format") == Current.FORMAT: return Current.valid(value,scores)
+	return false
+
+static func history(runs: Variant) -> bool:
+	if not runs is Array or runs.is_empty() or runs.size() > 2 or Policy.evaluate(runs).is_empty():
+		return false
+	for index in range(runs.size()):
+		var row: Variant = runs[index]
+		if not row is Dictionary or row.get("id") != index+1 or not row.get("proof") is Dictionary \
+			or not row.proof.get("scores") is Array or (index == 0 and row.get("status") != "completed"):
+			return false
+		var details: Variant = row.get("player_progress")
+		# These two admitted owner families both capture full progress; optional
+		# unknown stats inside that evidence remain untouched by projection.
+		if not details is Dictionary or details.get("format") != (Legacy.FORMAT if index == 0 else Current.FORMAT) \
+			or not valid(details,row.proof.scores) or details.exotic.season != "season:%d" % int(row.seed): return false
+		if index == 0:
+			if not preload("res://src/gameplay/season/successor_owner_terminal_v1/career.gd")._row_valid(row): return false
+		elif not _current_row_shape(row): return false
+	return true
+
+static func _current_row_shape(value: Dictionary) -> bool:
+	if not SeasonOwnership._keys(value,["id","seed","league","tier","status","proof","receipt","league_rules",
+		"gear","sponsors","order_rerolls","rain_earned","transfer_earned","checkout_earned","association_earned",
+		"freezer_earned","sides_earned","jump_earned","sure_earned","major_earned","sky_outs","copy_earned",
+		"field_outs","batch_used","collection","supplies_used","player_progress"]) \
+		or value.league != "dugout" or not SeasonOwnership._whole(value.tier,0,0) \
+		or value.status not in ["active","completed"] \
+		or not ClubCareer.same(value.league_rules,LeagueRules.capture("dugout")) \
+		or not ClubCareer.same(value.proof.get("league_rules"),value.league_rules) \
+		or not ClubCollection.valid(value.collection,true) \
+		or not SeasonGearProgress.valid_games(value.gear,value.proof.scores,{},true) \
+		or not SeasonSponsorProgress.valid_games(value.sponsors,value.proof.scores) \
+		or not SeasonSmallBatch.valid(value.batch_used): return false
+	for field: String in ["rain_earned","transfer_earned","checkout_earned","association_earned","freezer_earned",
+		"sides_earned","jump_earned","sure_earned","major_earned","copy_earned"]:
+		if not value[field] is bool: return false
+	return SeasonOwnership._whole(value.order_rerolls,0,SeasonBuild.MAX_EVENTS) \
+		and SeasonOwnership._whole(value.supplies_used,0,SeasonBuild.MAX_EVENTS) \
+		and SeasonOwnership._whole(value.sky_outs,0,3) and SeasonOwnership._whole(value.field_outs,0,329967)

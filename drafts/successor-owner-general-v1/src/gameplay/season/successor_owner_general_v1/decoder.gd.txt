@@ -12,7 +12,6 @@ static func restore(state: Dictionary) -> SeasonState:
 	if not SeasonOwnership._whole(state.get("season_seed"), 0, 2147483647) \
 		or not state.get("career") is Dictionary \
 		or not state.career.get("predecessor") is Dictionary \
-		or state.get("phase") == SeasonState.Phase.COMPLETE \
 		or not state.get("picks") is Array or state.picks.size() > 4 \
 		or not state.get("player_results") is Array \
 		or not state.get("build") is Dictionary or not state.get("teams") is Array \
@@ -74,8 +73,6 @@ static func restore(state: Dictionary) -> SeasonState:
 		and not load("res://src/gameplay/season/successor_owner_general_v1/pending.gd")._valid_pending_replayed(season):
 		return null
 	season.physical.projecting = false
-	if season.phase == SeasonState.Phase.COMPLETE:
-		return null
 	var actual: Dictionary = load("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._snapshot(season)
 	return season if not actual.is_empty() and ClubCareer.same(actual,state) else null
 

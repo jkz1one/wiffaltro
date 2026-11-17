@@ -14,11 +14,11 @@ pennants must match the authenticated basis. Fourth-pick reconstruction reinstal
 that exact basis. Human/NPC history, called sidecars and pending reports use the
 original General validators; no history, rewards or offers are injected.
 
-Only ordinary run2 Dugout is wired in this increment. The tenth regular round and
-playoffs are explicitly blocked until mixed-family terminal settlement is wired.
-This is a temporary integration boundary, not a game-design limit. Other leagues,
-Dynasty, terminal awards, subsequent runs, final visuals/audio and distributable
-acceptance remain required. Nothing is removed from the agreed plan.
+Ordinary run2 Dugout now delegates the tenth regular round and playoffs to the
+unchanged General mechanics, including extra NPC jobs when the human club is
+eliminated. Mixed-family terminal receipt/award settlement is integrated but not
+positively qualified. Other leagues, Dynasty, subsequent runs, final visuals/audio
+and distributable acceptance remain required. Nothing is removed from the plan.
 
 ## Integrated persistence and proportional validation
 
@@ -45,8 +45,9 @@ latency or integrated positive-gameplay claim is made yet.
 
 ## Current evidence and gates
 
-Final-source native import, negative-boundary and separate cold-negative checks
-passed. The original strict decoder authenticated the active operand; the new
+Final terminal-extension source passed native import, negative-boundary and
+separate cold-negative checks, including rejection of a forged COMPLETE phase on
+the authentic active predecessor. No positive terminal-extension claim follows. The original strict decoder authenticated the active operand; the new
 constructor/App rejected it without writing a new slot. This is not positive
 owned gameplay proof. A preliminary
 negative test incorrectly assumed the original full-season archive 0000 was a
@@ -94,3 +95,26 @@ capture, and the coordinated-forgery public-capture rejection. A retained candid
 is authenticated by its successful production Save, not by its equality snapshot.
 This removes redundant test-only reconstructions; no measured player-path speedup
 or positive owned-run qualification is claimed.
+
+## Mixed-family terminal settlement
+
+The owner decoder authenticates the completed112 predecessor and independently
+replays the General114 current run. Only then do private mixed adapters dispatch
+each ordered row to its original progression validator and project original
+metrics, stadium progress and legend/plaque rules. They are not standalone
+provenance or permission tokens. Saved format/catalog fields are not relabeled
+to gain acceptance. Original completion policy, thresholds and award operations
+remain unchanged. Terminal settlement derives a complete proposed row, receipt,
+asset journal and awards before publishing them together. The predecessor journal
+is replayed under combined earned authority, never reset; existing award IDs must
+match their exact original operations and contents before new awards append.
+
+Birth now records the original prospective run2 pennant-era metadata. This
+preserves prior eras and does not grant an award or spend assets. Immutable birth
+starts and predecessor evidence remain separate from terminal-earned current
+assets. No positive116 save existed before this correction; frozen old identities
+and original save slots remain unchanged.
+
+Still required: actual terminal run2 settlement, failure/exact retry, cold reopen,
+and a separately authenticated run3 start. Run3 and Dynasty are not admitted by
+this extension. Synthetic scores or a changed phase flag are not terminal proof.

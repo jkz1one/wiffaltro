@@ -1,6 +1,6 @@
 extends RefCounted
-## INACTIVE integration: tenth regular round and playoffs await mixed-family
-## terminal settlement. This is NOT a design cap or a release-ready game.
+## Inactive owned integration. Birth starts are immutable; terminal settlement
+## may extend current assets only through authenticated replay.
 const Prefix = preload("res://src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd")
 const Progress = preload("res://src/gameplay/season/successor_career_general_v1/career_progress.gd")
 const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
@@ -42,7 +42,8 @@ static func _create(envelope: Variant, seed_value: int) -> SeasonState:
 	career.predecessor = envelope.duplicate(true)
 	career.start_basis = basis.duplicate(true)
 	career._assets = basis.assets.duplicate(true)
-	career._pennants = basis.pennants.duplicate(true)
+	career._pennants = load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").birth_pennants(basis)
+	if career._pennants.is_empty(): return null
 	career._plaques = basis.plaques.duplicate(true)
 	career._pitch_catalog = load("res://src/gameplay/season/successor_owner_general_v1/catalog.gd").Game.signature()
 	career.runs.append(basis.predecessor.row.duplicate(true))
@@ -93,8 +94,14 @@ static func structural(season: SeasonState) -> bool:
 	# projecting are valid private transients. Public Codec checks those separately.
 	if season.phase == SeasonState.Phase.DRAFT:
 		if season.picks.size() >= 4 or not season.results.is_empty() or not season.player_results.is_empty(): return false
-	elif season.phase != SeasonState.Phase.REGULAR or season.picks.size() != 4 or not SeasonOwnership._whole(season.round_index,0,9):
-		return false # Terminal/playoffs are not admitted by this bounded owner yet.
+	elif season.picks.size() != 4:
+		return false
+	elif season.phase == SeasonState.Phase.REGULAR:
+		if not SeasonOwnership._whole(season.round_index,0,9): return false
+	elif season.phase in [SeasonState.Phase.SEMIFINAL,SeasonState.Phase.FINAL,SeasonState.Phase.COMPLETE]:
+		if season.round_index != 10: return false
+	else:
+		return false
 	if not season.inventory_rules.is_empty() or not season._closed_access.is_empty() \
 		or not season._dynasty_start.is_empty() or not season._dynasty_owner_binding.is_empty() \
 		or not season._dynasty_career_session.is_empty() or not season._league_home_context.is_empty() \
@@ -160,9 +167,9 @@ static func base_matches(season: SeasonState) -> bool:
 		and not career.predecessor.is_empty() and not career.start_basis.is_empty() \
 		and ClubCareer.same(career.runs[0],career.start_basis.predecessor.row) \
 		and ClubCareer.same(career.predecessor,career.start_basis.predecessor.envelope) \
-		and ClubCareer.same(career._assets,career.start_basis.assets) \
-		and ClubCareer.same(career._pennants,career.start_basis.pennants) \
-		and ClubCareer.same(career._plaques,career.start_basis.plaques) \
+		and (season.phase == SeasonState.Phase.COMPLETE or (ClubCareer.same(career._assets,career.start_basis.assets) \
+		and ClubCareer.same(career._pennants,load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").birth_pennants(career.start_basis)) \
+		and ClubCareer.same(career._plaques,career.start_basis.plaques))) \
 		and ClubPlayerDraft.frozen_matches(season) \
 		and ClubCareer.same(season.player_access,career.start_basis.player_access)
 

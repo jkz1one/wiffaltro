@@ -9,6 +9,13 @@ const Progress = preload("res://src/gameplay/season/successor_career_general_v1/
 const FILES: Array[String] = [
 	"res://src/gameplay/season/successor_owner_general_v1/catalog.gd",
 	"res://src/gameplay/season/successor_owner_general_v1/career.gd",
+	"res://src/gameplay/season/successor_owner_general_v1/mixed_progress.gd",
+	"res://src/gameplay/season/successor_owner_general_v1/player_metrics.gd",
+	"res://src/gameplay/season/successor_owner_general_v1/stadium_progress.gd",
+	"res://src/gameplay/season/successor_owner_general_v1/legend_metrics.gd",
+	"res://src/gameplay/season/successor_owner_general_v1/plaque_rewards.gd",
+	"res://src/gameplay/season/successor_owner_general_v1/assets.gd",
+	"res://src/gameplay/season/successor_owner_general_v1/settlement.gd",
 	"res://src/gameplay/season/successor_owner_general_v1/start.gd",
 	"res://src/gameplay/season/successor_owner_general_v1/runtime.gd",
 	"res://src/gameplay/season/successor_owner_general_v1/codec.gd",

@@ -1,0 +1,30 @@
+extends RefCounted
+## Reuses original thresholds, award-time evidence, era and canonical records.
+## No owner admission, ledger mutation, delivery, or persistent save authority.
+const Legend = preload("legend_metrics.gd")
+
+static func valid_history(value: Variant, runs: Array) -> bool:
+	var projected: Dictionary = Legend.project(runs)
+	return not projected.is_empty() and StadiumPlaqueRewards.valid_history(value, projected.runs)
+
+static func awards(career: ClubCareer) -> Variant:
+	if career == null or not valid_history(career._plaques, career.runs):
+		return null
+	return {} if career._plaques.is_empty() else career._plaques.records.duplicate(true)
+
+static func capture(career: ClubCareer) -> bool:
+	if career == null:
+		return false
+	var projected: Dictionary = Legend.project(career.runs)
+	if projected.is_empty() or career.current != career.runs.size():
+		return false
+	# Shared capture may fail after adding an earlier record. Stage all mutations
+	# privately, so a rejected capture cannot partially change the caller.
+	var temporary: ClubCareer = ClubCareer.new()
+	temporary.runs.assign(projected.runs)
+	temporary.current = career.current
+	temporary._plaques = career._plaques.duplicate(true)
+	if not StadiumPlaqueRewards.capture(temporary):
+		return false
+	career._plaques = temporary._plaques.duplicate(true)
+	return true
