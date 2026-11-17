@@ -32,17 +32,31 @@ def main():
     mode.add_argument('--owner-performance-fixture', type=Path, help='Compare baseline and resource-retaining facade on an isolated actual owned checkpoint')
     mode.add_argument('--completion-fixture', type=Path, help='Verify pure successor metrics and synthetic receipt policy against actual owned-round evidence')
     mode.add_argument('--assets-fixture', type=Path, help='Verify successor asset basis and synthetic award policies against isolated actual owned evidence')
+    mode.add_argument('--terminal-policy', action='store_true', help='Synthetic terminal outcome policy checks; not physical completion')
+    mode.add_argument('--terminal-birth', action='store_true', help='Verify additive terminal owner birth and cold draft replay only')
+    mode.add_argument('--terminal-round', action='store_true', help='Verify actual round/shop under additive terminal owner; not full-season completion')
+    mode.add_argument('--terminal-season', action='store_true', help='Play a full actual first owned season, one cold durable boundary per process')
+    parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
     if args.facade and not args.owner_round:
         parser.error('--facade requires --owner-round')
+    if args.terminal_resume_stage and not args.terminal_season:
+        parser.error('--terminal-resume-stage requires --terminal-season')
     root = Path(__file__).resolve().parents[1]
-    stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
+    stage = args.terminal_resume_stage.resolve() if args.terminal_resume_stage else Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
+    assert stage.is_dir() and stage.name.startswith('wiffaltro-signature-')
     project = stage / 'project'
-    project.mkdir()
-    shutil.copytree(root / 'src', project / 'src')
-    shutil.copy2(root / 'project.godot', project / 'project.godot')
-    (project / 'tests').mkdir()
+    if args.terminal_resume_stage:
+        assert (project / 'project.godot').read_bytes() == (root / 'project.godot').read_bytes()
+        for source in (root / 'src').rglob('*'):
+            if source.is_file():
+                assert (project / source.relative_to(root)).read_bytes() == source.read_bytes(), source
+    else:
+        project.mkdir()
+        shutil.copytree(root / 'src', project / 'src')
+        shutil.copy2(root / 'project.godot', project / 'project.godot')
+        (project / 'tests').mkdir()
     names = ['successor_signature.gd', 'successor_signature.tscn']
     if args.flow or args.round or args.shop_fixture:
         names += ['successor_flow.gd', 'successor_flow.tscn']
@@ -50,7 +64,7 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
@@ -63,30 +77,35 @@ def main():
     if args.career_fixture:
         names += ['successor_career.gd', 'successor_career.tscn']
     for name in names:
+        if args.terminal_resume_stage:
+            assert (project / 'tests' / name).read_bytes() == (root / 'tests' / (name + '.txt')).read_bytes()
+            continue
         shutil.copy2(root / 'tests' / (name + '.txt'), project / 'tests' / name)
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
+    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
+    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
-    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
+    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
         live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
         entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
     if args.owner_performance_fixture or args.facade:
         facade_manifest = json.loads((root / 'drafts/successor-owner-ui-v1/DRAFT_MANIFEST.json').read_text())
         entries += facade_manifest['files']
-    if args.completion_fixture or args.assets_fixture:
+    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
         completion_manifest = json.loads((root / 'drafts/successor-career-completion-v1/DRAFT_MANIFEST.json').read_text())
         entries += completion_manifest['files']
-    if args.assets_fixture:
+    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
         entries += json.loads((root / 'drafts/successor-career-assets-v1/DRAFT_MANIFEST.json').read_text())['files']
+    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy:
+        entries += json.loads((root / 'drafts/successor-owner-terminal-v1/DRAFT_MANIFEST.json').read_text())['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -94,7 +113,11 @@ def main():
         assert len(data) == entry['bytes']
         assert hashlib.sha256(data).hexdigest() == entry['sha256'], source
         target = project / entry['restore_path']
-        assert target.is_relative_to(project) and not target.exists(), target
+        assert target.is_relative_to(project), target
+        if args.terminal_resume_stage:
+            assert target.read_bytes() == data, target
+            continue
+        assert not target.exists(), target
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
     env = dict(os.environ, WIFFALTRO_ISOLATED_TEST='1')
@@ -102,9 +125,12 @@ def main():
     for key, directory in [('HOME', 'home'), ('XDG_DATA_HOME', 'data'),
                            ('XDG_CONFIG_HOME', 'config'), ('XDG_CACHE_HOME', 'cache')]:
         env[key] = str(stage / directory)
-        Path(env[key]).mkdir()
+        Path(env[key]).mkdir(exist_ok=bool(args.terminal_resume_stage))
     print(f'Isolated test evidence: {stage}', flush=True)
     def run(label, switches, timeout=300):
+        is_import = label == 'import'
+        while (stage / f'{label}.log').exists():
+            label += '-resume'
         command = [args.godot, '--headless', '--path', str(project), *switches]
         with (stage / f'{label}.log').open('w') as log:
             result = subprocess.run(command, env=env, stdout=log,
@@ -112,9 +138,10 @@ def main():
         output = (stage / f'{label}.log').read_text()
         if result.returncode or 'SCRIPT ERROR:' in output or 'ERROR:' in output or 'FAIL:' in output:
             raise RuntimeError(f'{label} failed (exit {result.returncode}):\n{output[-6000:]}')
-        if label != 'import' and 'PASS:' not in output:
+        if not is_import and 'PASS:' not in output:
             raise RuntimeError(f'{label} produced no success marker: {output}')
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
+        return output
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
     if args.completion_fixture or args.assets_fixture:
@@ -147,8 +174,28 @@ def main():
         run('owner-performance-cold', ['res://tests/successor_owner_performance.tscn', '--', 'reopen'], timeout=1200)
         assert source.read_bytes() == source_before, 'Original isolated fixture was changed'
         return
-    if args.owner_round:
-        scene = ['--fixed-fps', '60', 'res://tests/successor_owner_round.tscn', '--']
+    if args.terminal_policy:
+        run('terminal-policy', ['res://tests/successor_terminal_policy.tscn'], timeout=1200)
+        return
+    if args.terminal_season:
+        scene = ['--fixed-fps', '60', 'res://tests/successor_terminal_season.tscn', '--']
+        for step in range(80):
+            label = f'terminal-season-step-{step:03}'
+            while (stage / (label + '.log')).exists():
+                label += '-resume'
+            output = run(label, scene + ['step'], timeout=3600)
+            records = [json.loads(line.split('STEP_DONE: ', 1)[1]) for line in output.splitlines() if line.startswith('STEP_DONE: ')]
+            assert len(records) == 1, 'Missing unique durable boundary record'
+            if records[0]['complete']:
+                run('terminal-season-cold', scene + ['verify-terminal'], timeout=3600)
+                return
+        raise RuntimeError('Season exceeded bounded steps; retained checkpoints are available')
+    if args.terminal_birth:
+        run('terminal-birth', ['res://tests/successor_terminal_birth.tscn', '--'], timeout=1200)
+        run('terminal-birth-cold', ['res://tests/successor_terminal_birth.tscn', '--', 'reopen'], timeout=900)
+        return
+    if args.owner_round or args.terminal_round:
+        scene = ['--fixed-fps', '60', 'res://tests/successor_terminal_round.tscn' if args.terminal_round else 'res://tests/successor_owner_round.tscn', '--']
         run('owned-human', scene + ['human-only'], timeout=1800)
         run('owned-first-ai', scene + ['resume-round', 'first-ai-only'], timeout=1800)
         run('owned-second-ai', scene + ['resume-round', 'second-ai-only'], timeout=1800)

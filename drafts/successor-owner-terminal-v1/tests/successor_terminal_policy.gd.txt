@@ -1,0 +1,119 @@
+extends Node
+## Synthetic structural policy operands only. Zero physical season/owner admission.
+const Runtime = preload("res://src/gameplay/season/successor_owner_terminal_v1/runtime.gd")
+const Career = preload("res://src/gameplay/season/successor_owner_terminal_v1/career.gd")
+const Settlement = preload("res://src/gameplay/season/successor_owner_terminal_v1/settlement.gd")
+const Assets = preload("res://src/gameplay/season/successor_career_assets_v1/assets.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const Fixture = preload("res://src/tests/league_unlock_fixture.gd")
+var failures: int = 0
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> void:
+	print("CHECK: ", label, " = ", ok)
+	if not ok:
+		failures += 1
+		push_error(label)
+
+func run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1":
+		get_tree().quit(2)
+		return
+	var roots: Array[Resource] = load("res://src/gameplay/season/successor_league_v1/codec.gd")._operation_content_roots()
+	var birth: SeasonState = Runtime.create_fresh(8107)
+	check(birth != null, "native fresh template for synthetic operands")
+	if birth == null:
+		get_tree().quit(1)
+		return
+	var original: Dictionary = birth.career.to_data().duplicate(true)
+	for finish: String in ["missed", "semifinal", "runner_up", "champion"]:
+		var operand: Dictionary = _operand(birth.career.runs[0], finish)
+		var proof: Dictionary = operand.proof
+		check(ClubSeasonRecord.analyze(proof).get("finish") == finish, "synthetic " + finish + " original result policy")
+		var done: Dictionary = Settlement.row(operand, true)
+		check(not done.is_empty() and Career._row_valid(done), "strict synthetic completed row " + finish)
+		if done.is_empty():
+			continue
+		var expected_receipt: Dictionary = ClubSeasonRecord.receipt(proof, true, 0)
+		check(ClubCareer.same(done.receipt, expected_receipt), "exact original receipt " + finish)
+		check(done.receipt.first_bonus == (25 if finish == "champion" else 0), "first title bonus original " + finish)
+		var state: Dictionary = Settlement.state(done)
+		check(not state.is_empty() and ClubCareer.same(state, Settlement.state(done)), "deterministic/idempotent settlement " + finish)
+		if state.is_empty():
+			continue
+		var career: ClubCareer = Career.fresh()
+		career.current = 1
+		career.runs.append(done.duplicate(true))
+		career._pitch_catalog = Catalog.signature()
+		career._assets = state.assets.duplicate(true)
+		career._pennants = state.pennants.duplicate(true)
+		career._plaques = state.plaques.duplicate(true)
+		var basis: Dictionary = Assets.basis(career)
+		check(not basis.is_empty() and basis.income == [expected_receipt.total] \
+			and basis.ledger.balance() == expected_receipt.total and basis.progress.size() == 1 \
+			and basis.progress[0].seasons == 1, "closed synthetic original cash/stadium basis " + finish)
+		check(Settlement.matches(career), "synthetic exact state check " + finish)
+		check(Career._prefix(done, done.duplicate(true)), "completed row repeat accepted unchanged")
+		var changed: Dictionary = done.duplicate(true)
+		changed.field_outs += 1
+		check(not Career._prefix(done, changed) and not Career._prefix(done, operand), "completed row cannot advance or regress")
+		changed = done.duplicate(true)
+		changed.receipt.total += 1
+		check(not Career._row_valid(changed), "forged terminal receipt rejected")
+		changed = done.duplicate(true)
+		changed.player_progress.pitch_catalog = "forged"
+		check(not Career._row_valid(changed) and Settlement.state(changed).is_empty(), "forged successor progress rejected")
+		changed = done.duplicate(true)
+		changed.id = 2
+		check(not Career._row_valid(changed), "second-run operand outside first-run owner")
+		career._assets["free_cash"] = 99999
+		check(not Settlement.matches(career) and Assets.basis(career).is_empty(), "forged closed asset state rejected")
+	check(ClubCareer.same(original, birth.career.to_data()), "all synthetic operations preserve native birth")
+	roots.clear()
+	print("PASS: synthetic terminal policy boundaries only; zero full physical season or owner completion admissions" if failures == 0 else "FAIL: terminal policy")
+	get_tree().quit(0 if failures == 0 else 1)
+
+func _proof(finish: String) -> Dictionary:
+	if finish == "champion":
+		return Fixture.proof("dugout")
+	var season: SeasonState = SeasonState.create(8107)
+	var reference: Dictionary = Fixture.proof("dugout")
+	var scores: Array = reference.scores.slice(0, 30).duplicate(true)
+	for score: Array in scores:
+		if finish == "missed" and 0 in [int(score[1]), int(score[2])]:
+			score[3] = 0 if score[1] == 0 else 1
+			score[4] = 0 if score[2] == 0 else 1
+		season.results.append({"id": score[0], "away": score[1], "home": score[2], "away_runs": score[3], "home_runs": score[4]})
+	var seeds: Array = season.standings().slice(0, 4).map(func(row: Dictionary) -> int: return row.team)
+	var winners: Array = []
+	for index in range(2):
+		var away: int = seeds[3 - index]
+		var home: int = seeds[index]
+		var home_wins: bool = not (finish == "semifinal" and home == 0)
+		scores.append([30 + index, away, home, 0 if home_wins else 1, 1 if home_wins else 0])
+		winners.append(home if home_wins else away)
+	winners.sort_custom(func(a: int, b: int) -> bool: return seeds.find(a) < seeds.find(b))
+	var home_wins: bool = not (finish == "runner_up" and winners[0] == 0)
+	scores.append([32, winners[1], winners[0], 0 if home_wins else 1, 1 if home_wins else 0])
+	reference.scores = scores
+	return reference
+
+func _operand(template: Dictionary, finish: String) -> Dictionary:
+	var row: Dictionary = template.duplicate(true)
+	row.proof = _proof(finish)
+	row.sponsors = []
+	row.player_progress.games = []
+	row.player_progress.exotic.games = []
+	var ids: Array = SeasonPlayerCatalog.ids().slice(0, 4)
+	for score: Array in row.proof.scores:
+		if 0 not in [int(score[1]), int(score[2])]:
+			continue
+		var players: Dictionary = {}
+		for id: String in ids:
+			players[id] = {"pa": 0, "pitches": 0, "hits": 0, "strikeouts": 0, "outs": 0, "fielded": false, "clean_outs": 0}
+		row.player_progress.games.append({"game": score[0], "stats": {"homers": 0, "hits": 0, "hitters": 0, "strikeouts": 0, "three_k": 0}, "sponsors": 0, "end_half": -1, "deficit": 0, "players": players})
+		row.player_progress.exotic.games.append({"game": score[0], "roster": ids.duplicate(), "strikeouts": [], "evidence_hash": "0".repeat(64)})
+		row.sponsors.append({"game": score[0], "hits": [], "win": (score[1] if score[3] > score[4] else score[2]) == 0, "multi_k": false})
+	return row

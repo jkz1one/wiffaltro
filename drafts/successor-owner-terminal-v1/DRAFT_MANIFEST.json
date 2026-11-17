@@ -1,0 +1,163 @@
+{
+  "format": "inactive-successor-owner-terminal-v1",
+  "source_checkpoint": "092dda299e873894284f6350118b8be476bcbc63",
+  "scope": "first Dugout0 terminal owner staging; not migration or Dynasty",
+  "files": [
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/career.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/career.gd",
+      "bytes": 8513,
+      "sha256": "fdc8d39c4f3ca420d5a7d518bab96676158230ef53e6ecfd2722ebbe798b7d73"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/catalog.gd",
+      "bytes": 15506,
+      "sha256": "b831591133d700b872b2b07ca821e56c7a0dd6093cc97ad834b8b34ebc3972c6"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/codec.gd",
+      "bytes": 4768,
+      "sha256": "5c4fd05b9d3cfb949f53a572cc198934f20e54cff4cd0dfa842f09a1d0527b49"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/decoder.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/decoder.gd",
+      "bytes": 5926,
+      "sha256": "240a46b237e01413cc7cb65c34dee0a21cf7367e70e153dc05d27cc94d38eca8"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/pending.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/pending.gd",
+      "bytes": 5899,
+      "sha256": "621a2dff56c71be34147795dd1e5cf4c3efb98fc012eebb6cb983d0a1a3d40cc"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/physical_fixtures.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/physical_fixtures.gd",
+      "bytes": 20031,
+      "sha256": "602791accd67e350e97a73cc70d9350356df2f5fd7c3f123401963c6b64074fa"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/runtime.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/runtime.gd",
+      "bytes": 4217,
+      "sha256": "b65c1458ba34229d1401b19a03bc26820ae03be4e565ec53b2460bf8d0d960bf"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/save.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/save.gd",
+      "bytes": 2905,
+      "sha256": "0a6f5cd73d71c5e260c079de20919b2fa54f67cea3a1d6b61a05da2afd4eb67a"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/settlement.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/settlement.gd",
+      "bytes": 2341,
+      "sha256": "e505011a0873f007d820f65f1470e9c57effcd2992ec4f795ae7ba41b9769822"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/gameplay/season/successor_owner_terminal_v1/start.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_terminal_v1/start.gd",
+      "bytes": 9835,
+      "sha256": "c8fbff792f6b3e74fe7b0842869d7c6d9d6a75323448d23dd61e6326932c29cc"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/app.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/app.gd",
+      "bytes": 2137,
+      "sha256": "2190f6166b574b23c3993aa47ba29f2425ef471e1c292764454f11f3d7d3371d"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/base_app.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/base_app.gd",
+      "bytes": 9885,
+      "sha256": "7a3d98aa066c5aecb430a5cd9dbb9212ab1bf607b32c1b6713651b53c2ab603c"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/capture_human.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/capture_human.gd",
+      "bytes": 3157,
+      "sha256": "ac4dd47949ccaba944b77a8415329544928636c482d99e6f9bf629db94175681"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/entry.tscn.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/entry.tscn",
+      "bytes": 211,
+      "sha256": "1a3227b20fba936a168931fa2083f13f73c6fefd03a2e67a7003d25416d245e7"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/menu.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/menu.gd",
+      "bytes": 2376,
+      "sha256": "686e035d7a09b97be61f1edcab453f5518c1540568b3902d9f8feddf74cff4e6"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/school_shop_ui.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/school_shop_ui.gd",
+      "bytes": 2608,
+      "sha256": "180a680ec9f21297b1dcbdfec8ea3299970f5f66abf9f90ec509006f4a11e002"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/shop_window.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/shop_window.gd",
+      "bytes": 14094,
+      "sha256": "87d7671f60b643f021e5f2fe371e02671c1b4e9b14694630234d277ec6432fc2"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/src/presentation/season/successor_owner_terminal_v1/transfer_ui.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_terminal_v1/transfer_ui.gd",
+      "bytes": 2687,
+      "sha256": "1281f3295e7073c5824ed9f686106d38df15bfa548a1c91a1e40f20f3389a37d"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_birth.gd.txt",
+      "restore_path": "tests/successor_terminal_birth.gd",
+      "bytes": 10295,
+      "sha256": "0f87de41ed0434de8fe83af3edf98d5835f4b27a8691e2faa65593d6b73dda96"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_birth.tscn.txt",
+      "restore_path": "tests/successor_terminal_birth.tscn",
+      "bytes": 187,
+      "sha256": "277944512e061614038466055e4d4a029b7771620d15240bbb212dd8da295471"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_policy.gd.txt",
+      "restore_path": "tests/successor_terminal_policy.gd",
+      "bytes": 6545,
+      "sha256": "61121d0422b4e38567dc3cdb095101c09fc90f03e4300976c2bffd992d8cce6f"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_policy.tscn.txt",
+      "restore_path": "tests/successor_terminal_policy.tscn",
+      "bytes": 193,
+      "sha256": "96adddd604fb1a912e1e0299777768ed231e8939de22d62edab3c350a160c74b"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_round.gd.txt",
+      "restore_path": "tests/successor_terminal_round.gd",
+      "bytes": 18539,
+      "sha256": "3d1612820875c2e90e8531f3685a6057abc4169e746ecef3250cd4e8d67391c7"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_round.tscn.txt",
+      "restore_path": "tests/successor_terminal_round.tscn",
+      "bytes": 192,
+      "sha256": "f9b892ff165d1388a0c4e0c0f6e663ea81665b12e0e12974ba7c535c211e0eca"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_season.gd.txt",
+      "restore_path": "tests/successor_terminal_season.gd",
+      "bytes": 13350,
+      "sha256": "b04ee8e2302756f0167a9e39d47a11f5a74e7357e401f195bd0ad0d6553ce38f"
+    },
+    {
+      "backup_path": "drafts/successor-owner-terminal-v1/tests/successor_terminal_season.tscn.txt",
+      "restore_path": "tests/successor_terminal_season.tscn",
+      "bytes": 197,
+      "sha256": "70845f8dd9f7ccfb4f3e019f3360ad1e0b6a55dccab06d8810cabef1545987ef"
+    }
+  ]
+}

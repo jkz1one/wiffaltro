@@ -1,0 +1,49 @@
+extends RefCounted
+## First-run settlement only, called inside owner-bound reconstruction/sync.
+## This is not a stand-alone career importer or permission to grant rewards.
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+const Assets = preload("res://src/gameplay/season/successor_career_assets_v1/assets.gd")
+const Plaques = preload("res://src/gameplay/season/successor_career_assets_v1/plaque_rewards.gd")
+
+static func row(active: Dictionary, terminal: bool) -> Dictionary:
+	if not terminal:
+		return active
+	return Policy.complete(active, []).get("row", {})
+
+static func state(run: Dictionary) -> Dictionary:
+	# This owner admits exactly the fresh first run and no permanent asset-shop
+	# journal edits. Rebuild its exact birth ledger, not an arbitrary saved wallet.
+	var staged: ClubCareer = ClubCareer.new()
+	staged.current = 1
+	staged.runs.append(run.duplicate(true))
+	StadiumPennantRewards.adopt(staged)
+	StadiumPlaqueRewards.adopt(staged)
+	if run.status == "active":
+		staged._assets = ClubAssetLedger.new(int(run.seed), [0], [], {}).to_data()
+	elif run.status == "completed":
+		if not Plaques.capture(staged):
+			return {}
+		var basis: Dictionary = Assets.basis(staged)
+		if basis.is_empty():
+			return {}
+		var ledger: ClubAssetLedger = basis.ledger
+		# Original award order and operation contracts; no legacy asset recursion.
+		for id: String in basis.awards:
+			var award: Dictionary = basis.awards[id]
+			var operation: String = "stadium_plaque" if award.has("player_id") else ("stadium_mastery" if award.has("mastery_contract") else "stadium_pennant")
+			if not ledger.commit({"id": id, "rev": ledger.revision(), "op": operation, "earned": award.duplicate(true)}).ok:
+				return {}
+		staged._assets = ledger.to_data()
+		if Assets.basis(staged).is_empty():
+			return {}
+	else:
+		return {}
+	return {"assets": staged._assets, "pennants": staged._pennants, "plaques": staged._plaques}
+
+static func matches(career: ClubCareer) -> bool:
+	if career == null or career.current != 1 or career.runs.size() != 1:
+		return false
+	var expected: Dictionary = state(career.runs[0])
+	return not expected.is_empty() and ClubCareer.same(career._assets, expected.assets) \
+		and ClubCareer.same(career._pennants, expected.pennants) \
+		and ClubCareer.same(career._plaques, expected.plaques)

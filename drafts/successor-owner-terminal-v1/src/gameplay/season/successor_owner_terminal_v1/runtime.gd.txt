@@ -1,0 +1,86 @@
+extends "res://src/gameplay/season/successor_league_v1/runtime.gd"
+## Fresh first Dugout0 owner, terminal-capable. No migration or later-run admission.
+const GameBuild = preload("res://src/gameplay/season/successor_league_v1/build.gd")
+const GameOpponents = preload("res://src/gameplay/season/successor_league_v1/opponents.gd")
+const GamePhysical = preload("res://src/gameplay/season/successor_owner_terminal_v1/physical_fixtures.gd")
+
+static func create_fresh(seed_value: int) -> SeasonState:
+	var roots: Array[Resource] = load("res://src/gameplay/season/successor_league_v1/codec.gd")._operation_content_roots()
+	var result: SeasonState = _create_fresh(seed_value)
+	roots.clear()
+	return result
+
+static func _create_fresh(seed_value: int) -> SeasonState:
+	if not SeasonOwnership._whole(seed_value, 0, 2147483647):
+		return null
+	var season: SeasonState = load("res://src/gameplay/season/successor_owner_terminal_v1/runtime.gd").new()
+	season.season_seed = seed_value
+	season.build = GameBuild.new(seed_value)
+	if not season.build.call("enable_successor_pitch_catalog"):
+		return null
+	season.league_rules = LeagueRules.capture("dugout")
+	season.league_live = true
+	if not season.build.enable_league_rules(season.league_rules):
+		return null
+	season.opponents = GameOpponents.new()
+	season.opponents._format = 13
+	season.physical = GamePhysical.new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	season.draft_pool = ClubPlayerCatalog.draft_pool(rng, PitchBatLab.DEBUG_PLAYER_ID, false, SeasonState.LEGACY_IDS)
+	for index in range(6):
+		season.teams.append({"name": SeasonState.TEAM_NAMES[index], "roster": [], "draw": rng.randf()})
+	season._build_schedule()
+	if load("res://src/gameplay/season/successor_owner_terminal_v1/start.gd").apply(season) == null:
+		return null
+	return season
+
+func league_context_consistent() -> bool:
+	# Structural consistency is also used during the pristine start handshake.
+	# Only OwnerCodec may grant persistence, and it separately requires the owner.
+	return league_live and league_rules == LeagueRules.capture("dugout") \
+		and inventory_rules.is_empty() and _closed_access.is_empty() \
+		and _dynasty_start.is_empty() and _dynasty_owner_binding.is_empty() \
+		and _dynasty_career_session.is_empty() and _league_home_context.is_empty() \
+		and _standard_live_context.is_empty() and _standard_bound_grant.is_empty() \
+		and _league_inventory_context_consistent()
+
+func choose_player(id: String) -> bool:
+	var roots: Array[Resource] = load("res://src/gameplay/season/successor_league_v1/codec.gd")._operation_content_roots()
+	var result: bool = _choose_owned(id)
+	roots.clear()
+	return result
+
+func _choose_owned(id: String) -> bool:
+	if career == null or not load("res://src/gameplay/season/successor_owner_terminal_v1/start.gd").matches(self):
+		return false
+	if not super.choose_player(id):
+		return false
+	return career.sync(self)
+
+func make_match() -> MatchState:
+	return super.make_match()
+
+func shop_available() -> bool:
+	return super.shop_available()
+
+func _league_inventory_context_consistent() -> bool:
+	if not SeasonInventoryRules.consistent(self) or build == null or build.get_script() != GameBuild \
+		or not build.league_context_valid() or build._market != 0 or build._league_rules != league_rules \
+		or opponents == null or opponents.get_script() != GameOpponents or opponents._format != 13 \
+		or not home_property.is_empty() or not npc_venues.is_empty() \
+		or not final_venue.is_empty() or not owned_surface_night.is_empty():
+		return false
+	if career == null:
+		# Pristine constructor handshake, never sufficient for Codec admission.
+		if league_career or not picks.is_empty() or not player_access.is_empty() or build.revision() != 0:
+			return false
+	else:
+		if career.get_script() != load("res://src/gameplay/season/successor_owner_terminal_v1/career.gd") \
+			or not league_career or career.current != 1 or career.runs.size() != 1 \
+			or career.runs[0].get("seed") != season_seed \
+			or career.runs[0].get("league") != "dugout" \
+			or not ClubCareer.same(career.runs[0].get("league_rules"), league_rules) \
+			or not ClubPlayerDraft.frozen_matches(self):
+			return false
+	return _league_opponent_context_consistent()
