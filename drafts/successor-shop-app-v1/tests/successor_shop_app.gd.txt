@@ -1,0 +1,169 @@
+extends "res://tests/successor_general_equipment.gd"
+## Actual App/dialog reroll only, using copied earned source. No synthetic funds.
+const RerollApp = preload("res://src/presentation/season/successor_shop_app_v1/app.gd")
+const SOURCE: String = "user://source-general.json"
+const RECEIPT: String = "user://shop-app-test-receipt.json"
+
+func reroll_button(node: Node) -> Button:
+	if node is Button and node.text.begins_with("Reroll individual offers"):
+		return node
+	for child: Node in node.get_children():
+		var found: Button = reroll_button(child)
+		if found != null:
+			return found
+	return null
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and FileAccess.file_exists(SOURCE),"isolated actual earned fixture required"):
+		return
+	var resource_probe = preload("res://tests/successor_general_replay_prefix.gd").new()
+	resource_probe.cohort_roots = Codec._operation_content_roots()
+	var resource_before: PackedByteArray = resource_probe.content_bytes()
+	if not check(resource_probe.snapshot_supported,"held authored graph snapshot supported"):
+		return
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var source: Dictionary = JSON.parse_string(original.get_string_from_utf8())
+	var original_season: SeasonState = Codec.restore(source)
+	if not check(original_season != null and original_season.league_rules.is_empty() \
+		and original_season.player_results.size() >= 1 and original_season.build._visit.open \
+		and original_season.physical.pending.is_empty(),"strict actual paid Standard shop already open"):
+		return
+	if not FileAccess.file_exists(Save.PATH):
+		if not check(not FileAccess.file_exists(Save.PATH+".bak") and DirAccess.copy_absolute(SOURCE,Save.PATH) == OK,"copy immutable fixture only into empty isolated primary"):
+			return
+	var reference: bool = OS.get_cmdline_user_args().has("reference")
+	var app = App.new() if reference else RerollApp.new()
+	add_child(app)
+	app.reload_save()
+	if not check(app.season != null and app.get("retained") == null,"actual wrapper App reloads unchanged General save"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		if not check(FileAccess.file_exists(RECEIPT),"durable test receipt exists"):
+			return
+		var proof: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(RECEIPT))
+		if not check(app.season.build.cash() == int(proof.cash)-int(proof.price) \
+			and app.season.build._visit.rerolls == int(proof.rerolls)+1 \
+			and app.season.build.revision() == int(proof.revision)+1 \
+			and ClubCareer.same(Codec.capture(app.season),proof.after),"cold App reopen exact single earned reroll"):
+			return
+	else:
+		if not check(ClubCareer.same(Codec.capture(app.season),source),"initial owner exactly copied source"):
+			return
+		app.open_pitch_shop()
+		var shop: SeasonShopWindow = shop_for(app)
+		var button: Button = reroll_button(shop) if shop != null else null
+		if not check(shop != null and button != null and not button.disabled,"actual earned reroll control available"):
+			return
+		var before: Dictionary = Codec.capture(app.season)
+		var owner: SeasonState = app.season
+		var cash: int = owner.build.cash()
+		var price: int = owner.build.reroll_price()
+		var rerolls: int = owner.build._visit.rerolls
+		var revision: int = owner.build.revision()
+		if not check(cash >= price,"original generated reroll price affordable from earned cash"):
+			return
+		var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		button.pressed.emit()
+		if not check(shop._confirm.visible and shop._pending.get("op") == "reroll","actual quote confirmation opens"):
+			return
+		shop._confirm.get_cancel_button().pressed.emit()
+		if not check(shop._pending.is_empty() and ClubCareer.same(Codec.capture(app.season),before) \
+			and FileAccess.get_file_as_bytes(Save.PATH) == primary \
+			and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"actual Cancel changes neither owner nor save"):
+			return
+		button.pressed.emit()
+		var command: Dictionary = shop._pending.duplicate(true)
+		app._busy = true
+		var busy_rejected: bool = not app.commit_shop(command)
+		app._busy = false
+		if not check(busy_rejected and app.get("retained") == null and ClubCareer.same(Codec.capture(app.season),before),"busy reroll rejected without transaction"):
+			return
+		var fault: bool = OS.get_cmdline_user_args().has("fault")
+		if fault and not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") \
+			and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated prewrite refusal directory"):
+			return
+		var started: int = Time.get_ticks_usec()
+		shop._confirm.get_ok_button().pressed.emit()
+		print("SHOP_APP_COMMIT_TIMING: ",JSON.stringify({"route":"reference" if reference else "wrapper","fault":fault,"seconds":float(Time.get_ticks_usec()-started)/1000000.0}),"; single synchronous actual-confirm diagnostic, concurrent load, not general speed claim")
+		if fault:
+			var retained: SeasonState = app.get("retained")
+			if not check(retained != null and not app.retained_saved and app.season == owner \
+				and ClubCareer.same(Codec.capture(app.season),before) \
+				and FileAccess.get_file_as_bytes(Save.PATH) == primary \
+				and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"failed App write retains original owner primary backup and exact candidate"):
+				return
+			if not check(app._exit_blocked(),"retained candidate blocks actual App exit guard"):
+				return
+			var expected: Dictionary = Codec.capture(retained)
+			if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only test fault"):
+				return
+			# Saving is now possible: a missing identity guard must make these probes fail.
+			# Identity guards only, not a fabricated live game: detached lab is never
+			# mounted or played, and exact owner/lab references are restored below.
+			app.season = original_season
+			app.retry_save()
+			var owner_guarded: bool = app.retained == retained and not app.retained_saved
+			app.season = owner
+			var original_lab: PitchBatLab = app.lab
+			var detached_lab: PitchBatLab = PitchBatLab.new()
+			app.lab = detached_lab
+			app.retry_save()
+			var lab_guarded: bool = app.retained == retained and not app.retained_saved
+			app.lab = original_lab
+			detached_lab.free()
+			if not check(owner_guarded and lab_guarded and ClubCareer.same(Codec.capture(retained),expected) \
+				and FileAccess.get_file_as_bytes(Save.PATH) == primary \
+				and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"mismatched owner/lab cannot retry; exact references restored"):
+				return
+			if not check(not app.commit_shop(command) and app.retained == retained \
+				and ClubCareer.same(Codec.capture(retained),expected),"retained candidate blocks repeated reroll"):
+				return
+			app.retry_save()
+			if not check(app.retained == null and app.season == retained \
+				and ClubCareer.same(Codec.capture(app.season),expected),"ordinary retry promotes exact candidate, no reroll recomputation"):
+				return
+		var after: Dictionary = Codec.capture(app.season)
+		if not check(app.retained == null and not app._busy and app.notice.is_empty() \
+			and app.season.build.cash() == cash-price and app.season.build._visit.rerolls == rerolls+1 \
+			and app.season.build.revision() == revision+1 \
+			and ClubCareer.same(after,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) \
+			and FileAccess.get_file_as_bytes(Save.PATH+".bak") == primary,"one paid reroll, exact durable promotion and one old-primary backup"):
+			return
+		if not check(not FileAccess.file_exists(RECEIPT),"new test receipt not overwritten"):
+			return
+		var file: FileAccess = FileAccess.open(RECEIPT,FileAccess.WRITE)
+		if not check(file != null,"private receipt writable"):
+			return
+		file.store_string(JSON.stringify({"cash":cash,"price":price,"rerolls":rerolls,"revision":revision,"after":after,"first_backup_sha256":FileAccess.get_sha256(Save.PATH+".bak")},"",true,true))
+		file.close()
+		var saved: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		app.retry_save()
+		shop._confirm.confirmed.emit()
+		app.commit_shop(command)
+		if reference:
+			if not check(ClubCareer.same(Codec.capture(app.season),after) \
+				and FileAccess.get_file_as_bytes(Save.PATH) == saved \
+				and FileAccess.get_file_as_bytes(Save.PATH+".bak") == saved,"reference duplicate command rotates backup despite unchanged purchased state"):
+				return
+			print("EXPECTED_REFERENCE_BACKUP_ROTATION: original App duplicate persisted again; first-purchase receipt preserved before duplicate")
+		else:
+			if not check(ClubCareer.same(Codec.capture(app.season),after) \
+				and FileAccess.get_file_as_bytes(Save.PATH) == saved \
+				and FileAccess.get_file_as_bytes(Save.PATH+".bak") == primary,"repeat confirm/retry/stale quote changes neither cost nor primary/backup"):
+				return
+			var conflicting: Dictionary = command.duplicate(true)
+			conflicting.rev = app.season.build.revision()
+			if not check(not app.commit_shop(conflicting) and FileAccess.get_file_as_bytes(Save.PATH+".bak") == primary \
+				and FileAccess.get_file_as_bytes(Save.PATH) == saved,"conflicting previously handled ID also cannot persist"):
+				return
+
+	if not check(FileAccess.get_file_as_bytes(SOURCE) == original \
+		and ClubCareer.same(app.season.player_results,original_season.player_results),"original fixture and actual earned game history unchanged"):
+		return
+	if not check(resource_probe.content_bytes() == resource_before and resource_probe.snapshot_supported,"held authored Resource graph unchanged"):
+		return
+	resource_probe.free()
+	print("PASS: reference first-purchase control only; duplicate backup defect explicitly observed" if reference else "PASS: wrapper App reroll/dialog/retry/cold route only; no performance claim")
+	app.queue_free()
+	get_tree().quit()

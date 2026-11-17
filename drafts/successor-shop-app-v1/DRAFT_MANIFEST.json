@@ -1,0 +1,31 @@
+{
+  "format": "inactive-successor-shop-app-v1",
+  "source_checkpoint": "bac970bfbba4f62ea8fb94d6915552d474fadfa0",
+  "scope": "Additive actual App reroll integration only; handled IDs reject before persistence; all other operations inherited. Actual earned success/fault-retry/cold passed, exact first-purchase reference match. Reference duplicate-backup defect preserved/reproduced. General114 and transaction37 unchanged.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-shop-app-v1/src/presentation/season/successor_shop_app_v1/app.gd.txt",
+      "restore_path": "src/presentation/season/successor_shop_app_v1/app.gd",
+      "bytes": 2451,
+      "sha256": "fc6231e2c3d4e226f80e2d7275a505f315c973da16b10c2c02c654a43476e7c4"
+    },
+    {
+      "backup_path": "drafts/successor-shop-app-v1/src/presentation/season/successor_shop_app_v1/entry.tscn.txt",
+      "restore_path": "src/presentation/season/successor_shop_app_v1/entry.tscn",
+      "bytes": 208,
+      "sha256": "1891d787f076e0336fd73ba331168b32f77c129474b569db241f69cf820a43b3"
+    },
+    {
+      "backup_path": "drafts/successor-shop-app-v1/tests/successor_shop_app.gd.txt",
+      "restore_path": "tests/successor_shop_app.gd",
+      "bytes": 9884,
+      "sha256": "764e59c76845b3ca7a8a20fc1dc31b2ebb3f4fcb0527cb8fea183230f78d2e1d"
+    },
+    {
+      "backup_path": "drafts/successor-shop-app-v1/tests/successor_shop_app.tscn.txt",
+      "restore_path": "tests/successor_shop_app.tscn",
+      "bytes": 176,
+      "sha256": "afb4409fda449013963ab03c0a29a2fa745968ad18d48aca1688bfb4791e0e3f"
+    }
+  ]
+}
