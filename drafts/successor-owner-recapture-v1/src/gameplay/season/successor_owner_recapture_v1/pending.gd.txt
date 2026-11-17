@@ -1,0 +1,153 @@
+extends RefCounted
+const Codec = preload("codec.gd")
+const GamePending = preload("res://src/gameplay/season/successor_league_v1/pending.gd")
+
+static func project(season: SeasonState) -> Dictionary:
+	var data: Dictionary = Codec.capture(season)
+	if data.is_empty() or not _pending_shape(season):
+		return {"error": "The owned pending round is invalid."}
+	var pending: Dictionary = data.checkpoint.physical.pending.duplicate(true)
+	data.checkpoint.physical.pending = {}
+	var candidate: SeasonState = Codec.restore(data)
+	if candidate == null:
+		return {"error": "The owned round checkpoint could not be restored."}
+	return _project_candidate(candidate, pending)
+
+static func _physical_payload(data: Dictionary) -> Dictionary:
+	return data.checkpoint if Codec.envelope_valid(data) else {}
+
+static func _pending_shape(season: SeasonState) -> bool:
+	return season != null and GamePending._shape(season.physical.pending, true, false, false, false, Codec.Catalog.game_signature())
+
+static func _project_candidate(candidate: SeasonState, pending: Dictionary) -> Dictionary:
+	var result: Dictionary = GamePending._project_candidate(candidate, pending)
+	if result.has("candidate") and not result.has("fixture"):
+		if not candidate.career.sync(candidate):
+			return {"error": "The owned round progression could not be synchronized."}
+	return result
+
+static func valid_pending(season: SeasonState) -> bool:
+	return not project(season).has("error")
+
+static func _valid_pending_replayed(season: SeasonState) -> bool:
+	# Decoder-only: all settled prefix evidence has been replayed in this call.
+	if not Codec.scope(season) or not _pending_shape(season) or season.physical.cursor != season.physical.reports.size():
+		return false
+	var candidate: SeasonState = _fork_replayed_state(season)
+	return candidate != null and not _project_candidate(candidate, season.physical.pending.duplicate(true)).has("error")
+
+static func _fork_replayed_state(season: SeasonState) -> SeasonState:
+	# Exhaustive list, checked against script variables below: future state fields
+	# must be reviewed before using this shortcut, otherwise fall back to replay.
+	var fields: Array[String] = [
+		"league_rules",
+		"_dynasty_start",
+		"_closed_access",
+		"_dynasty_owner_binding",
+		"_dynasty_career_session",
+		"_standard_live_context",
+		"_league_home_context",
+		"_standard_bound_grant",
+		"inventory_rules",
+		"league_live",
+		"league_career",
+		"season_seed",
+		"phase",
+		"round_index",
+		"draft_pool",
+		"player_access",
+		"home_property",
+		"owned_surface_night",
+		"npc_venues",
+		"final_venue",
+		"picks",
+		"teams",
+		"schedule",
+		"results",
+		"player_results",
+		"playoff_seeds",
+		"semifinals",
+		"final_fixture",
+		"champion",
+		"starter_index",
+		"fielder_index",
+		"difficulty",
+		"_npc_replay_run"
+	]
+	var objects: Array[String] = [
+		"ownership",
+		"build",
+		"opponents",
+		"career",
+		"physical",
+		"_heat_replay_team",
+		"_doubleheader_replay_build",
+		"_pool_replay_ledger"
+	]
+	for property: Dictionary in season.get_property_list():
+		if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			if not fields.has(property.name) and not objects.has(property.name):
+				return null
+	var result: SeasonState = load("res://src/gameplay/season/successor_owner_recapture_v1/runtime.gd").new()
+	for field: String in fields:
+		result.set(field, _detached_value(season.get(field)))
+	if season._pool_replay_ledger != null:
+		result._pool_replay_ledger = season._pool_replay_ledger.fork()
+	result.ownership = season.ownership.fork()
+	result.build = _fork_build(season.build)
+	result.opponents = load("res://src/gameplay/season/successor_league_v1/opponents.gd").new()
+	result.opponents.draft_order = season.opponents.draft_order.duplicate()
+	result.opponents.draft_rule = season.opponents.draft_rule
+	result.opponents._format = season.opponents._format
+	result.opponents.clubs = season.opponents.clubs.duplicate(true)
+	# Dictionary.duplicate(true) alone does NOT detach contained RefCounteds.
+	for key: String in result.opponents.clubs:
+		result.opponents.clubs[key].build = _fork_build(season.opponents.clubs[key].build)
+	# Ordinary Save93/94 carry Career27 through this decoder-only fork.
+	# Shared91/92 and historical closed replay must retain their null-career path.
+	if true: # Genuine owner is mandatory and retained in every replay fork.
+		if season.career == null or not season.league_career:
+			return null
+		result.career = season.career.fork()
+		if result.career == null:
+			return null
+	result.physical = load("res://src/gameplay/season/successor_owner_recapture_v1/physical_fixtures.gd").new()
+	result.physical.reports = season.physical.reports.duplicate(true)
+	result.physical.cursor = season.physical.cursor
+	# Match decoding a snapshot with pending removed, not a live job's transient
+	# needed/error state. _project_candidate performs the SAME remaining checks.
+	result.physical.pending = {}
+	result.physical.projecting = false
+	return result
+
+
+static func _detached_value(value: Variant) -> Variant:
+	return value.duplicate(true) if value is Array or value is Dictionary else value
+
+
+static func _fork_build(build: SeasonBuild) -> SeasonBuild:
+	var result: SeasonBuild = build._fork()
+	# Existing transaction forks intentionally share immutable start metadata.
+	# Detach those containers too, so projection cannot alias its validated input.
+	result._dynasty_start = build._dynasty_start.duplicate(true)
+	for field: String in [
+		"_order_start",
+		"_rain_start",
+		"_transfer_start",
+		"_checkout_start",
+		"_association_start",
+		"_freezer_start",
+		"_sides_start",
+		"_field_start",
+		"_sure_start",
+		"_jump_start",
+		"_batch_start",
+		"_supply_start"
+	]:
+		result.set(field, _detached_value(build.get(field)))
+	result._abilities.start = _detached_value(build._abilities.start)
+	result._major.start = _detached_value(build._major.start)
+	result._copy.start = _detached_value(build._copy.start)
+	return result
+
+

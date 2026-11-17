@@ -1,0 +1,175 @@
+extends Node
+## Diagnostic-only cross-domain fixture reconstruction, never public migration.
+## Reuse is scoped to one synchronous restore without interleaving user code.
+const Old = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_recapture_v1/codec.gd")
+const Decoder = preload("res://src/gameplay/season/successor_owner_recapture_v1/decoder.gd")
+const Runtime = preload("res://src/gameplay/season/successor_owner_recapture_v1/runtime.gd")
+const Memo = preload("res://src/gameplay/season/successor_owner_recapture_v1/row_handoff.gd")
+const SOURCE: String = "user://source-owned112.json"
+const OUTPUT: String = "user://recapture113.json"
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func encoded(value: Dictionary) -> PackedByteArray:
+	return JSON.stringify(value, "", true, true).to_utf8_buffer()
+
+func equivalent(data: Dictionary, label: String) -> bool:
+	var memo: RefCounted = Memo.new()
+	var cached: SeasonState = Codec._restore_with_handoff(data, memo)
+	var plain: SeasonState = Codec._restore_with_handoff(data, null)
+	return check(cached != null and plain != null and memo.hits > 0 \
+		and memo._row.is_empty() and memo._snapshot.is_empty() \
+		and encoded(Codec.capture(cached)) == encoded(data) \
+		and encoded(Codec.capture(plain)) == encoded(data), "cached/uncached exact bytes and local hit: " + label)
+
+func mutation(season: SeasonState, target: Object, key: String, replacement: Variant, label: String) -> bool:
+	var memo: RefCounted = Memo.new()
+	var original: Variant = target.get(key)
+	var revision: int = season.build.revision()
+	var row: Dictionary = memo.capture(season)
+	var before: PackedByteArray = Memo.snapshot(season)
+	if not check(not row.is_empty() and not before.is_empty(), "mutation baseline " + label):
+		return false
+	target.set(key, replacement)
+	var changed: PackedByteArray = Memo.snapshot(season)
+	var hits: int = memo.hits
+	var misses: int = memo.misses
+	memo.capture(season)
+	var refused: bool = memo.hits == hits and memo.misses == misses + 1 \
+		and changed != before and season.build.revision() == revision
+	target.set(key, original)
+	return check(refused and Memo.snapshot(season) == before, "unchanged-revision mutation misses and restores: " + label)
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated recapture diagnostic required"):
+		return
+	var source_bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	if not check(not source_bytes.is_empty(), "static actual112 fixture present"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(OUTPUT))
+		var reopened: SeasonState = Codec.restore(data)
+		if not check(reopened != null and encoded(Codec.capture(reopened)) == FileAccess.get_file_as_bytes(OUTPUT), "cold public113 restore exact fixture bytes"):
+			return
+		for reason: String in ["envelope", "recapture"]:
+			var damaged: Dictionary = data.duplicate(true)
+			if reason == "envelope":
+				damaged.owner_source = "invalid"
+			else:
+				damaged.checkpoint.career.runs[0].seed += 1
+			var failed_context: RefCounted = Memo.new()
+			failed_context._row = {"bogus": true}
+			failed_context._snapshot = PackedByteArray([1])
+			failed_context._digest = "bogus"
+			var rejected: SeasonState = Codec._restore_with_handoff(damaged, failed_context)
+			if not check(rejected == null and failed_context._row.is_empty() \
+				and failed_context._snapshot.is_empty() and failed_context._digest.is_empty() \
+				and (reason == "envelope" or (failed_context.captures > 0 and failed_context.hits > 0)),
+				"failed restore clears seeded context: " + reason):
+				return
+		if not check(FileAccess.get_sha256(SOURCE) == FileAccess.get_file_as_string("user://source112.sha256") \
+			and Old.restore(JSON.parse_string(source_bytes.get_string_from_utf8())) != null, "cold original112 unchanged and still valid"):
+			return
+		print("PASS: cold recapture113 diagnostic fixture; no migration or terminal qualification")
+		get_tree().quit()
+		return
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var fresh: SeasonState = Runtime.create_fresh(81321)
+	if not check(fresh != null, "genuine fresh113 birth") or not equivalent(Codec.capture(fresh), "birth"):
+		return
+	for index in range(4):
+		if not check(fresh.choose_player(fresh.offers()[0]), "genuine draft pick") \
+			or not equivalent(Codec.capture(fresh), "pick-%d" % index):
+			return
+	var old_data: Variant = JSON.parse_string(source_bytes.get_string_from_utf8())
+	var verified: SeasonState = Old.restore(old_data)
+	if not check(verified != null and verified.results.size() >= 3 and verified.build.revision() > 0, "actual112 paid-round input first passes original strict decoder"):
+		return
+	if not check(Codec.restore(old_data) == null, "public113 decoder rejects112 envelope; no migration"):
+		return
+	var season: SeasonState = Decoder.restore(old_data.checkpoint)
+	if not check(season != null, "test-only checkpoint reconstructed under113 exact birth"):
+		return
+	var data: Dictionary = Codec.capture(season)
+	if not check(not data.is_empty(), "test-only113 envelope independently captured") or not equivalent(data, "actual paid-round"):
+		return
+	# ABBA controls warm-order effects. Timings are diagnostic, not product claims.
+	for mode: String in ["cached", "plain", "plain", "cached"]:
+		var memo: RefCounted = Memo.new()
+		var start: int = Time.get_ticks_usec()
+		var restored: SeasonState = Codec._restore_with_handoff(data, memo if mode == "cached" else null)
+		var elapsed: int = Time.get_ticks_usec() - start
+		if not check(restored != null and encoded(Codec.capture(restored)) == encoded(data), "ABBA exact output " + mode):
+			return
+		print("RECAPTURE_TIMING: ", JSON.stringify({"mode":mode, "usec":elapsed, "hits":memo.hits, "captures":memo.captures}))
+	var memo: RefCounted = Memo.new()
+	var original_row: Dictionary = memo.capture(season)
+	var poison: Dictionary = original_row.duplicate(true)
+	poison.seed = -1
+	original_row.seed = -2
+	if not check(memo.capture(season).seed == season.season_seed and memo.hits > 0, "returned row copy cannot poison stored derivation"):
+		return
+	memo._row = poison
+	memo._snapshot = Memo.snapshot(season)
+	memo._digest = Memo._hash(memo._snapshot)
+	var reset: SeasonState = Codec._restore_with_handoff(data, memo)
+	if not check(reset != null and encoded(Codec.capture(reset)) == encoded(data) and memo._row.is_empty() and memo._snapshot.is_empty(), "injected seed context cleared at restore boundary"):
+		return
+	var contract: Dictionary = season.build._contracts.duplicate(true)
+	contract["diagnostic-only"] = 1
+	if not mutation(season, season.build, "_contracts", contract, "contracts") \
+		or not mutation(season, season.build._book, "_season_key", "season:0", "book season key") \
+		or not mutation(season, season.build, "_paid_rerolls", season.build._paid_rerolls + 1, "progression counter"):
+		return
+	var results: Array = season.results.duplicate(true)
+	results[0].home_runs += 1
+	var player_results: Array = season.player_results.duplicate(true)
+	var first_player: String = str(player_results[0].club_roster[0])
+	player_results[0].performance[first_player].h += 1
+	var teams: Array = season.teams.duplicate(true)
+	teams[0].roster.reverse()
+	if not mutation(season, season, "results", results, "nested result") \
+		or not mutation(season, season, "player_results", player_results, "nested performance") \
+		or not mutation(season, season, "teams", teams, "nested roster"):
+		return
+	# Unsupported object graph must decline reuse, never authorize it. Unknown
+	# dictionary key is ignored by ordinary roster derivation, so fallback is valid.
+	var contracts: Dictionary = season.build._contracts.duplicate(true)
+	contracts["diagnostic-only"] = RefCounted.new()
+	var previous: Dictionary = season.build._contracts
+	season.build._contracts = contracts
+	memo = Memo.new()
+	var fallback_a: Dictionary = memo.capture(season)
+	var fallback_b: Dictionary = memo.capture(season)
+	var fallback_ok: bool = Memo.snapshot(season).is_empty() and memo.hits == 0 and memo.captures == 2 \
+		and ClubCareer.same(fallback_a, fallback_b)
+	season.build._contracts = previous
+	if not check(fallback_ok, "unsupported object falls back without cache hit"):
+		return
+	for index in range(2):
+		var restored: SeasonState = Codec.restore(data)
+		if not check(restored != null and encoded(Codec.capture(restored)) == encoded(data), "repeated public restore independent exact state"):
+			return
+	if not check(FileAccess.get_file_as_bytes(SOURCE) == source_bytes and encoded(Codec.capture(season)) == encoded(data), "diagnostics preserve actual112 source and113 input"):
+		return
+	var output: FileAccess = FileAccess.open(OUTPUT, FileAccess.WRITE)
+	if not check(output != null, "isolated diagnostic checkpoint writable"):
+		return
+	output.store_buffer(encoded(data))
+	output.close()
+	output = FileAccess.open("user://source112.sha256", FileAccess.WRITE)
+	output.store_string(FileAccess.get_sha256(SOURCE))
+	output.close()
+	roots.clear()
+	print("PASS:113 local recapture equivalence/mutation diagnostics; no terminal or Dynasty claim")
+	get_tree().quit()

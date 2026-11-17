@@ -1,0 +1,180 @@
+extends ClubCareer
+## First Dugout0 active/terminal run. No second-run, legacy import or Dynasty admission.
+const FORMAT: String = "successor-owner-recapture-career-v1"
+const OWNER_VERSION: int = 1
+const Settlement = preload("settlement.gd")
+
+static func fresh() -> ClubCareer:
+	return load("res://src/gameplay/season/successor_owner_recapture_v1/career.gd").new()
+
+func start_fresh(season: SeasonState) -> bool:
+	return load("res://src/gameplay/season/successor_owner_recapture_v1/start.gd").apply_to(season, self)
+
+static func validate_fresh_active(season: SeasonState) -> bool:
+	return load("res://src/gameplay/season/successor_owner_recapture_v1/start.gd").matches(season)
+
+func fork() -> ClubCareer:
+	var result: ClubCareer = fresh()
+	result.current = current
+	result.runs = runs.duplicate(true)
+	result._assets = _assets.duplicate(true)
+	result._pennants = _pennants.duplicate(true)
+	result._plaques = _plaques.duplicate(true)
+	result._pitch_catalog = _pitch_catalog
+	return result
+
+func sync(season: SeasonState) -> bool:
+	return _sync_with_handoff(season, null)
+
+func _sync_with_handoff(season: SeasonState, handoff: RefCounted) -> bool:
+	if handoff != null and handoff.get_script() != load("res://src/gameplay/season/successor_owner_recapture_v1/row_handoff.gd"):
+		return false
+	var start = load("res://src/gameplay/season/successor_owner_recapture_v1/start.gd")
+	if season == null or season.career != self or not start.structural_matches(season) \
+		or not _row_valid(runs[0]) or not _progression_matches(season, false):
+		return false
+	var proposed: Dictionary = handoff.call("capture", season) if handoff != null else Settlement.row(start.row(season), season.phase == SeasonState.Phase.COMPLETE)
+	if not _row_valid(proposed) or not _prefix(runs[0], proposed):
+		return false
+	var proposed_state: Dictionary = Settlement.state(proposed)
+	if proposed_state.is_empty():
+		return false
+	# Publish row, receipts, prospective awards and permanent assets together only
+	# after every progression, prefix and original reward/ledger check succeeds.
+	runs[0] = proposed
+	_assets = proposed_state.assets.duplicate(true)
+	_pennants = proposed_state.pennants.duplicate(true)
+	_plaques = proposed_state.plaques.duplicate(true)
+	return true
+
+func exact_row_matches(season: SeasonState) -> bool:
+	return _exact_row_matches_with_handoff(season, null)
+
+func _exact_row_matches_with_handoff(season: SeasonState, handoff: RefCounted) -> bool:
+	if handoff != null and handoff.get_script() != load("res://src/gameplay/season/successor_owner_recapture_v1/row_handoff.gd"):
+		return false
+	var start = load("res://src/gameplay/season/successor_owner_recapture_v1/start.gd")
+	if season == null or season.career != self or not start.structural_matches(season) \
+		or not _row_valid(runs[0]) or not _progression_matches(season, true):
+		return false
+	var proposed: Dictionary = handoff.call("capture", season) if handoff != null else Settlement.row(start.row(season), season.phase == SeasonState.Phase.COMPLETE)
+	return _row_valid(proposed) and ClubCareer.same(runs[0], proposed)
+
+func matches(season: SeasonState) -> bool:
+	return exact_row_matches(season)
+
+func to_data() -> Dictionary:
+	return {"version": OWNER_VERSION, "format": FORMAT, "pitch_catalog": _pitch_catalog,
+		"current": current, "runs": runs.duplicate(true), "assets": _assets.duplicate(true),
+		"pennants": _pennants.duplicate(true), "plaques": _plaques.duplicate(true)}
+
+# No inherited historical entry point may broaden this first-run contract.
+func start(_season: SeasonState, _selected_tier: int = 0) -> bool:
+	return false
+
+func start_league(_season: SeasonState) -> bool:
+	return false
+
+func _start(_season: SeasonState, _selected_tier: int, _owner_history: bool = false) -> bool:
+	return false
+
+func close(_season: SeasonState) -> bool:
+	return false
+
+static func from_data(_value: Variant) -> ClubCareer:
+	# Only owner Codec can reconstruct a career together with its pristine birth.
+	return null
+
+func _progression_matches(season: SeasonState, exact: bool) -> bool:
+	if season.build == null or not season.build.call("pitch_catalog_successor") \
+		or season.build._market != 0 or not season.build.pricing_context_valid() \
+		or season.build._pricing_rule != "" or season.build._sponsor_rule != "" \
+		or season.opponents == null or not season.opponents.draft_rule_valid() \
+		or season.opponents.draft_rule != "" \
+		or not load("res://src/gameplay/season/successor_league_v1/exotic_access.gd").current_matches(season):
+		return false
+	return ClubCollection.matches(self, season, exact) \
+		and gear_matches(season, exact) and sponsor_matches(season, exact) \
+		and order_matches(season, exact) and rain_matches(season, exact) \
+		and transfer_matches(season, exact) and supply_matches(season, exact) \
+		and SeasonLateCheckout.matches(self, season, exact) \
+		and SeasonAssociation.matches(self, season, exact) \
+		and SeasonFreezers.matches(self, season, exact) \
+		and SeasonLeftRight.matches(self, season, exact) \
+		and SeasonJumpstart.matches(self, season, exact) \
+		and SeasonSureShot.matches(self, season, exact) \
+		and SeasonCarbonCopy.matches(self, season, exact) \
+		and SeasonFieldSupply.matches(self, season, exact) \
+		and SeasonDoubleMajor.matches(self, season, exact) \
+		and SeasonAbilities.matches(self, season, exact) \
+		and SeasonSmallBatch.matches(self, season, exact)
+
+static func _row_valid(value: Variant) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value, [
+		"id", "seed", "league", "tier", "status", "proof", "receipt", "league_rules",
+		"gear", "sponsors", "order_rerolls", "rain_earned", "transfer_earned",
+		"checkout_earned", "association_earned", "freezer_earned", "sides_earned",
+		"jump_earned", "sure_earned", "major_earned", "sky_outs", "copy_earned",
+		"field_outs", "batch_used", "collection", "supplies_used", "player_progress"]):
+		return false
+	if not SeasonOwnership._whole(value.id, 1, 1) or not SeasonOwnership._whole(value.seed, 0, 2147483647) \
+		or value.league != "dugout" or not SeasonOwnership._whole(value.tier, 0, 0) \
+		or value.status not in ["active", "completed"] or not value.receipt is Dictionary \
+		or not ClubCareer.same(value.league_rules, LeagueRules.capture("dugout")) \
+		or not value.proof is Dictionary or not value.proof.get("scores") is Array \
+		or not ClubCareer.same(value.proof.get("league_rules"), value.league_rules) \
+		or Settlement.Policy.evaluate([value]).is_empty():
+		return false
+	var progress = load("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+	if not progress.valid(value.player_progress, value.proof.scores) \
+		or value.player_progress.exotic.season != "season:%d" % int(value.seed) \
+		or not ClubCollection.valid(value.collection, true) \
+		or not SeasonGearProgress.valid_games(value.gear, value.proof.scores, {}, true) \
+		or not SeasonSponsorProgress.valid_games(value.sponsors, value.proof.scores) \
+		or not SeasonSmallBatch.valid(value.batch_used):
+		return false
+	for field: String in ["rain_earned", "transfer_earned", "checkout_earned", "association_earned",
+		"freezer_earned", "sides_earned", "jump_earned", "sure_earned", "major_earned", "copy_earned"]:
+		if not value[field] is bool:
+			return false
+	return SeasonOwnership._whole(value.order_rerolls, 0, SeasonBuild.MAX_EVENTS) \
+		and SeasonOwnership._whole(value.supplies_used, 0, SeasonBuild.MAX_EVENTS) \
+		and SeasonOwnership._whole(value.sky_outs, 0, 3) \
+		and SeasonOwnership._whole(value.field_outs, 0, 329967)
+
+static func _array_prefix(previous: Array, next: Array) -> bool:
+	if previous.size() > next.size():
+		return false
+	for index in range(previous.size()):
+		if not ClubCareer.same(previous[index], next[index]):
+			return false
+	return true
+
+static func _prefix(previous: Dictionary, next: Dictionary) -> bool:
+	if previous.status == "completed":
+		return ClubCareer.same(previous, next) # Terminal settlement is immutable/idempotent.
+	if next.status not in ["active", "completed"]:
+		return false
+	for field: String in ["id", "seed", "league", "tier", "league_rules"]:
+		if not ClubCareer.same(previous[field], next[field]):
+			return false
+	if not ClubCareer.same(previous.proof.draws, next.proof.draws) \
+		or not _array_prefix(previous.proof.scores, next.proof.scores) \
+		or not _array_prefix(previous.gear, next.gear) \
+		or not _array_prefix(previous.sponsors, next.sponsors) \
+		or not _array_prefix(previous.player_progress.games, next.player_progress.games) \
+		or not load("res://src/gameplay/season/successor_league_v1/exotic_access.gd").proof_prefix(
+			previous.player_progress.exotic, next.player_progress.exotic):
+		return false
+	for field: String in ["collection", "batch_used"]:
+		for item: Variant in previous[field]:
+			if not next[field].has(item):
+				return false
+	for field: String in ["rain_earned", "transfer_earned", "checkout_earned", "association_earned",
+		"freezer_earned", "sides_earned", "jump_earned", "sure_earned", "major_earned", "copy_earned"]:
+		if previous[field] and not next[field]:
+			return false
+	for field: String in ["order_rerolls", "supplies_used", "sky_outs", "field_outs"]:
+		if previous[field] > next[field]:
+			return false
+	return true

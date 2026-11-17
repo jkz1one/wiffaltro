@@ -1,0 +1,143 @@
+extends RefCounted
+## Private, one-restore derived-row handoff. Never stored on a season or serialized.
+## This class does not accept supplied rows or authorize owner/receipt admission.
+## Every miss calls the original full capture; every hit returns an isolated copy.
+const Start = preload("start.gd")
+const Settlement = preload("settlement.gd")
+const Catalog = preload("catalog.gd")
+const OBJECT_SCRIPTS: Array[String] = [
+	"res://src/gameplay/season/successor_league_v1/build.gd",
+	"res://src/gameplay/season/successor_league_v1/development.gd",
+	"res://src/gameplay/season/season_ownership.gd",
+	"res://src/gameplay/season/season_gear_progress.gd",
+	"res://src/gameplay/season/season_sponsor_progress.gd",
+	"res://src/gameplay/season/season_double_major.gd",
+	"res://src/gameplay/season/season_abilities.gd",
+	"res://src/gameplay/season/season_carbon_copy.gd",
+]
+var _snapshot: PackedByteArray = PackedByteArray()
+var _digest: String = ""
+var _row: Dictionary = {}
+# Read-only diagnostics by convention, never consulted for admission/reuse.
+var captures: int = 0
+var hits: int = 0
+var misses: int = 0
+
+func clear() -> void:
+	_snapshot = PackedByteArray()
+	_digest = ""
+	_row = {}
+
+func capture(season: SeasonState) -> Dictionary:
+	var before: PackedByteArray = snapshot(season)
+	var digest: String = _hash(before)
+	if not before.is_empty() and not _row.is_empty() and digest == _digest and before == _snapshot:
+		hits += 1
+		return _row.duplicate(true)
+	misses += 1
+	clear()
+	captures += 1
+	var row: Dictionary = Settlement.row(Start.row(season), season.phase == SeasonState.Phase.COMPLETE)
+	if row.is_empty() or not load("res://src/gameplay/season/successor_owner_recapture_v1/career.gd")._row_valid(row):
+		return {}
+	# Original derivation must not have changed its operands. Unsupported graphs
+	# deliberately decline reuse, while preserving the original uncached result.
+	var after: PackedByteArray = snapshot(season) if not before.is_empty() else PackedByteArray()
+	if not before.is_empty() and before == after:
+		_snapshot = before.duplicate()
+		_digest = digest
+		_row = row.duplicate(true)
+	return row.duplicate(true)
+
+static func snapshot(season: SeasonState) -> PackedByteArray:
+	if season == null or season.build == null \
+		or season.get_script() != load("res://src/gameplay/season/successor_owner_recapture_v1/runtime.gd"):
+		return PackedByteArray()
+	var source: String = Catalog.signature()
+	if source.is_empty():
+		return PackedByteArray()
+	# Exhaustive season operands of Start.row, ClubSeasonRecord.capture,
+	# successor Progress/player_progress/player_legend and Eligibility.capture.
+	# Career and physical projection cursors are NOT row inputs; all their original
+	# structural/progression/receipt/whole-envelope validators still run separately.
+	var operands: Dictionary = {
+		"source": source, "season_id": season.get_instance_id(), "build_id": season.build.get_instance_id(),
+		"career_id": season.career.get_instance_id() if season.career != null else 0,
+		"season_seed": season.season_seed, "phase": season.phase,
+		"league_rules": season.league_rules, "results": season.results,
+		"player_results": season.player_results, "teams": season.teams,
+		"player_access": season.player_access, "physical_present": season.physical != null,
+		"build": season.build,
+	}
+	var trace: Dictionary = {"ok": true, "nodes": 250000, "bytes": 8388608, "stack": []}
+	var graph: Variant = _value(operands, trace, 0)
+	if not trace.ok:
+		return PackedByteArray()
+	var bytes: PackedByteArray = var_to_bytes(graph)
+	return bytes if bytes.size() <= 8388608 else PackedByteArray()
+
+static func _hash(bytes: PackedByteArray) -> String:
+	if bytes.is_empty():
+		return ""
+	var hash: HashingContext = HashingContext.new()
+	if hash.start(HashingContext.HASH_SHA256) != OK or hash.update(bytes) != OK:
+		return ""
+	return hash.finish().hex_encode()
+
+static func _value(value: Variant, trace: Dictionary, depth: int) -> Variant:
+	if not trace.ok or depth > 48 or trace.nodes <= 0:
+		trace.ok = false
+		return null
+	trace.nodes -= 1
+	match typeof(value):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT:
+			return value
+		TYPE_FLOAT:
+			if not is_finite(value):
+				trace.ok = false
+			return value
+		TYPE_STRING, TYPE_STRING_NAME:
+			trace.bytes -= str(value).to_utf8_buffer().size()
+			if trace.bytes < 0:
+				trace.ok = false
+			return value
+		TYPE_ARRAY:
+			var result: Array = []
+			for item: Variant in value:
+				result.append(_value(item, trace, depth + 1))
+				if not trace.ok:
+					return null
+			return result
+		TYPE_DICTIONARY:
+			# Encode entries as ordered pairs to preserve key type and exact order.
+			var result: Array = []
+			for key: Variant in value:
+				if typeof(key) not in [TYPE_STRING, TYPE_STRING_NAME, TYPE_INT]:
+					trace.ok = false
+					return null
+				result.append([_value(key, trace, depth + 1), _value(value[key], trace, depth + 1)])
+				if not trace.ok:
+					return null
+			return {"dictionary": result}
+		TYPE_OBJECT:
+			if value == null or not value is RefCounted or value is Resource:
+				trace.ok = false
+				return null
+			var script: Script = value.get_script()
+			if script == null or not OBJECT_SCRIPTS.has(script.resource_path) \
+				or script != load(script.resource_path) or trace.stack.has(value.get_instance_id()):
+				trace.ok = false
+				return null
+			trace.stack.append(value.get_instance_id())
+			# Read ALL script variables, not a lossy journal/revision projection.
+			# This includes contracts, rosters, bank state/catalog/events, development
+			# derived caches/events/season key and every progression object/counter.
+			var properties: Dictionary = {}
+			for property: Dictionary in value.get_property_list():
+				if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+					properties[property.name] = value.get(property.name)
+			var result: Variant = _value(properties, trace, depth + 1)
+			trace.stack.pop_back()
+			return {"script": script.resource_path, "properties": result}
+	trace.ok = false
+	return null
