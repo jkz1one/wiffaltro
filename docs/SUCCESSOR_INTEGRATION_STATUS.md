@@ -80,6 +80,11 @@ Dynasty qualification is inferred from the one-round evidence.
   stay closed. See `SUCCESSOR_GENERAL_DOUBLEHEADER_FOUNDATION.md` (historical) and
   `SUCCESSOR_GENERAL_DOUBLEHEADER_B7.md` (partial integration).
 
+- Save-cost diagnostic on actual earned current-source evidence passes unchanged
+  public save and cold reopen. Distinct restore stages dominate; file I/O does
+  not. No optimization or normal player-click timing claim. See
+  `SUCCESSOR_GENERAL_SAVE_COST.md`.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing

@@ -1,6 +1,6 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "e22c56546ef1580ef928d8ddd1730858571fb4f3",
+  "source_checkpoint": "f78b3b481bd54420b79f0f4ca02d19020054e677",
   "scope": "Partial Doubleheader tier-zero integration: fresh/draft/cold, actual first leg and earned pack passed; return-leg/final cold qualification pending; no owner or Dynasty admission.",
   "files": [
     {
@@ -506,6 +506,18 @@
       "restore_path": "tests/successor_general_doubleheader_round.tscn",
       "bytes": 218,
       "sha256": "a6f269c99781f41952282f693d2aa9b66f82ddd1eb60fa066164d89ff671b8d2"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_save_cost.gd.txt",
+      "restore_path": "tests/successor_general_save_cost.gd",
+      "bytes": 6324,
+      "sha256": "17519b65148a20fa64a3cb0e20254dfb2ab7087e7df8680a61e7609067d73e1e"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_save_cost.tscn.txt",
+      "restore_path": "tests/successor_general_save_cost.tscn",
+      "bytes": 200,
+      "sha256": "1afcf006241c3efdedc6db3045ec77d003892fa48b8b9cf38e11799c2fff6485"
     }
   ]
 }

@@ -1,0 +1,113 @@
+extends "res://tests/successor_general_replay_prefix.gd"
+## Diagnostic decomposition only. Candidate deliberately equals the unchanged
+## authentic source fixture: no purchase, new gameplay or speedup is implied.
+const SOURCE: String = "user://source-general.json"
+var samples: Array[Dictionary] = []
+
+func mark(label: String, started: int) -> void:
+	var row: Dictionary = {"boundary":label,"seconds":float(Time.get_ticks_usec()-started)/1000000.0}
+	samples.append(row)
+	print("SAVE_COST: ",JSON.stringify(row))
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated diagnostic required"):
+		return
+	if not check(FileAccess.file_exists(SOURCE),"immutable actual source fixture required"):
+		return
+	var source_bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var value: Variant = JSON.parse_string(source_bytes.get_string_from_utf8())
+	if not check(value is Dictionary,"source JSON object"):
+		return
+	var original: PackedByteArray = var_to_bytes(value)
+	if OS.get_cmdline_user_args().has("reopen"):
+		var before: Dictionary = saved_bytes()
+		var started: int = Time.get_ticks_usec()
+		var restored: SeasonState = Save.restore()
+		mark("fresh-process Save.restore; includes read/parse/Codec roots; excludes engine startup",started)
+		if not check(restored != null and ClubCareer.same(Codec.capture(restored),value),"cold public restore exact source state"):
+			return
+		if not check(saved_bytes() == before and FileAccess.get_file_as_bytes(SOURCE) == source_bytes,"cold phase leaves every save byte unchanged"):
+			return
+		print("PASS: cold unchanged-state save-cost diagnostic")
+		get_tree().quit()
+		return
+	# Match the synchronous App facade, not a cold process or persistent cache.
+	cohort_roots = Codec._operation_content_roots()
+	var content_before: PackedByteArray = content_bytes()
+	if not check(snapshot_supported and not cohort_roots.is_empty(),"held authored Resource graph supported"):
+		return
+	var initial_files: Dictionary = saved_bytes()
+	var started: int = Time.get_ticks_usec()
+	var owner: SeasonState = Codec.restore(value)
+	mark("baseline source qualification restore; warm held Resources",started)
+	if not check(owner != null and owner.player_results.size() >= 1,"strict authentic paid-history source restore"):
+		return
+	started = Time.get_ticks_usec()
+	var old_data: Dictionary = Codec.capture(owner)
+	mark("clone old-state capture",started)
+	started = Time.get_ticks_usec()
+	var clone: SeasonState = Codec.restore(old_data)
+	mark("clone old-state restore",started)
+	if not check(clone != null,"clone restored"):
+		return
+	# No mutation: this is a same-state cost baseline, not a shop transaction.
+	started = Time.get_ticks_usec()
+	var candidate_data: Dictionary = Codec.capture(clone)
+	mark("unchanged candidate capture",started)
+	started = Time.get_ticks_usec()
+	var bytes: PackedByteArray = JSON.stringify(candidate_data,"",true,true).to_utf8_buffer()
+	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	mark("candidate full-precision serialize plus parse",started)
+	started = Time.get_ticks_usec()
+	var decoded: SeasonState = Codec.restore(parsed)
+	mark("candidate restore including Codec internal recapture",started)
+	if not check(decoded != null,"candidate restored"):
+		return
+	started = Time.get_ticks_usec()
+	var recaptured: Dictionary = Codec.capture(decoded)
+	mark("Save immediate extra candidate recapture",started)
+	started = Time.get_ticks_usec()
+	var disk_value: Variant = JSON.parse_string(FileAccess.get_file_as_bytes(SOURCE).get_string_from_utf8())
+	mark("old-disk read plus parse",started)
+	started = Time.get_ticks_usec()
+	var old_disk: SeasonState = Codec.restore(disk_value)
+	mark("old-disk backup-eligibility restore",started)
+	started = Time.get_ticks_usec()
+	var final_candidate: Dictionary = Codec.capture(clone)
+	mark("prewrite candidate recapture",started)
+	if not check(old_disk != null and ClubCareer.same(old_data,value) and ClubCareer.same(candidate_data,value) \
+		and ClubCareer.same(parsed,value) and ClubCareer.same(recaptured,value) and ClubCareer.same(final_candidate,value),"all baseline states equal unchanged source"):
+		return
+	if not check(var_to_bytes(value) == original and saved_bytes() == initial_files \
+		and content_bytes() == content_before and snapshot_supported,"read-only decomposition preserves input, files and authored Resources"):
+		return
+	# Refuse to overwrite any preexisting slot or uncertain temporary artifact.
+	for suffix: String in ["",".bak",".tmp"]:
+		if not check(not FileAccess.file_exists(Save.PATH+suffix) and not DirAccess.dir_exists_absolute(Save.PATH+suffix),"isolated destination absent " + suffix):
+			return
+	var file: FileAccess = FileAccess.open(Save.PATH,FileAccess.WRITE)
+	if not check(file != null,"create isolated exact-byte baseline slot"):
+		return
+	file.store_buffer(source_bytes)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	if not check(error == OK and FileAccess.get_file_as_bytes(Save.PATH) == source_bytes,"baseline slot copied exactly from validated source"):
+		return
+	started = Time.get_ticks_usec()
+	var saved: bool = Save.save(clone)
+	mark("actual unchanged-state public Save.save total; warm held Resources",started)
+	if not check(saved,"actual public save succeeds"):
+		return
+	started = Time.get_ticks_usec()
+	var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+	mark("postsave primary and backup readback only",started)
+	if not check(primary == bytes and backup == source_bytes and not FileAccess.file_exists(Save.PATH+".tmp") \
+		and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and FileAccess.get_file_as_bytes(SOURCE) == source_bytes,"exact canonical primary, original backup, absent temp, immutable source"):
+		return
+	if not check(var_to_bytes(value) == original and content_bytes() == content_before and snapshot_supported,"public save preserves caller input and held authored Resources"):
+		return
+	print("SAVE_COST_SCOPE: warm sequential single samples; baseline candidate unchanged; boundary timings overlap internal work and are not additive total or optimization speedup")
+	print("PASS: unchanged-state save-cost diagnostic; separate fresh-process reopen required")
+	get_tree().quit()
