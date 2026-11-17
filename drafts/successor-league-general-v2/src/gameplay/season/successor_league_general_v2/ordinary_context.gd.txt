@@ -1,9 +1,17 @@
 extends RefCounted
-## Qualified-context boundary only, never career, tier or owner authority.
+## Ordinary tier0 boundary only, never career, higher-tier or owner authority.
+const LEAGUES: Array[String] = ["dugout", "sponsorship", "earnings"]
 static func supported(rules: Variant, live: Variant) -> bool:
 	if not rules is Dictionary or not live is bool:
 		return false
-	return (rules.is_empty() and not live) or (live and ClubCareer.same(rules, LeagueRules.capture("dugout")))
+	if rules.is_empty():
+		return not live # Bare Standard remains distinct from explicit League profiles.
+	if not live:
+		return false
+	for id: String in LEAGUES:
+		if ClubCareer.same(rules, LeagueRules.capture(id)):
+			return true
+	return false
 
 static func build_matches(build: SeasonBuild, rules: Dictionary) -> bool:
 	if build == null:

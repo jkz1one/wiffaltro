@@ -1,0 +1,65 @@
+extends "res://tests/successor_general_birth.gd"
+## Clearly synthetic legal bank operands qualify unchanged policy, NOT earned
+## season purchases. Actual first-round income and shop are separate round tests.
+const Request = preload("res://src/gameplay/season/successor_league_general_v2/physical_request.gd")
+
+func buy(bank: SeasonOwnership, item: String) -> Dictionary:
+	var offer: String = "fixture:%d" % bank.revision()
+	var stock: Dictionary = bank.commit(OwnershipFixtures.request(bank, "stock", {"offers":{offer:item}}))
+	return bank.commit(OwnershipFixtures.buy(bank, offer)) if stock.ok else stock
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated B3 mechanics required"):
+		return
+	for id: String in ["sponsorship", "earnings"]:
+		var season: SeasonState = create_profile(67231, id)
+		if not check(profile(season,id), "exact B3 profile " + id):
+			return
+		for pick in range(4):
+			if not check(season.choose_player(season.offers()[0]), "real ordinary draft, no synthetic season reward"):
+				return
+		for index in range(6):
+			var build: SeasonBuild = season.build if index == 0 else season.opponents.clubs[str(index)].build
+			var capacity: Dictionary = build._bank.view().capacity
+			if not check(capacity.sponsors == (6 if id == "sponsorship" else 5) and capacity.held == 2, "original human/NPC capacities " + id):
+				return
+		if not check(Request.capture(season.make_match()) != null, "actual draft match request " + id):
+			return
+	var bank: SeasonOwnership = SeasonOwnership.new(SeasonSponsorCatalog.ownership_catalog())
+	if not check(bank.enable_league_rules(LeagueRules.capture("sponsorship")), "synthetic bank exact original Sponsorship rules"):
+		return
+	for game in range(12):
+		if not check(bank.commit(OwnershipFixtures.request(bank,"reward",{"game":game,"win":true})).ok, "synthetic funding only; not earned gameplay"):
+			return
+	var commons: Array[String] = []
+	for id: String in SeasonSponsorCatalog.catalog():
+		if SeasonSponsorCatalog.item(id).get("rarity") == "Common":
+			commons.append(id)
+	if not check(commons.size() >= 7, "original common sponsor candidates"):
+		return
+	for index in range(6):
+		var cash: int = bank.cash()
+		if not check(buy(bank,commons[index]).ok and bank.cash() == cash - int(SeasonSponsorCatalog.item(commons[index]).price), "synthetic exact paid sponsor slot%d" % (index+1)):
+			return
+	var before_bat: int = bank.cash()
+	if not check(buy(bank,"BAT-CON-01").ok and bank.view().gear.bat.item == "BAT-CON-01" \
+		and bank.cash() == before_bat - int(SeasonGearCatalog.item("BAT-CON-01").price), "normal non-neutral Bat purchase/equip, no free grant"):
+		return
+	if not check(not buy(bank,commons[6]).ok and bank.view().sponsors.size() == 6, "seventh ordinary sponsor rejected"):
+		return
+	var restored: SeasonOwnership = SeasonOwnership.from_data(JSON.parse_string(JSON.stringify(bank.to_data())), bank._catalog)
+	if not check(restored != null and ClubCareer.same(restored.to_data(),bank.to_data()), "synthetic paid sponsor/Bat exact JSON replay"):
+		return
+	for scores: Array in [[1,0],[0,1],[30,0],[0,30]]:
+		var income_bank: SeasonOwnership = SeasonOwnership.new(SeasonSponsorCatalog.ownership_catalog())
+		if not check(income_bank.enable_league_rules(LeagueRules.capture("earnings")), "original Earnings bank"):
+			return
+		var command: Dictionary = OwnershipFixtures.request(income_bank,"reward",{"game":0,"win":scores[0]>scores[1],"own_runs":scores[0],"opponent_runs":scores[1]})
+		var expected: int = LeagueRules.game_income(LeagueRules.capture("earnings"),scores[0]>scores[1],scores[0],scores[1])
+		if not check(income_bank.commit(command).ok and income_bank.cash() == expected, "synthetic Earnings replacement payout exact original clamp, no base stacking"):
+			return
+		var snapshot: Dictionary = income_bank.to_data()
+		if not check(income_bank.commit(command).replayed and ClubCareer.same(income_bank.to_data(),snapshot), "synthetic reward idempotence"):
+			return
+	print("PASS: B3 original policy and synthetic paid sixth sponsor/Bat; no earned purchase or season-completion claim")
+	get_tree().quit()

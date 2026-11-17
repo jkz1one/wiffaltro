@@ -1,5 +1,5 @@
 extends SeasonApp
-## Separate ordinary Standard/Dugout staging domain; no old slot, career grant or owner migration.
+## Separate ordinary League staging domain; no old slot, career grant or owner migration.
 const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
 const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
 const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
@@ -55,7 +55,7 @@ func _clone() -> SeasonState:
 	return Codec.restore(Codec.capture(season)) if season!=null else null
 
 func create_profile(value: String) -> void:
-	if not _available() or season != null or value not in ["standard", "dugout"]:
+	if not _available() or season != null or value not in ["standard", "dugout", "sponsorship", "earnings"]:
 		return
 	profile = value
 	create_fresh()
@@ -63,10 +63,10 @@ func create_profile(value: String) -> void:
 func create_fresh() -> void:
 	if not _available() or season!=null or FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH+".bak"):
 		return
-	if profile not in ["standard", "dugout"]:
+	if profile not in ["standard", "dugout", "sponsorship", "earnings"]:
 		return
 	var seed_value: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
-	var candidate: SeasonState = Runtime.create_fresh(seed_value) if profile == "standard" else Runtime.create_live_dugout(seed_value)
+	var candidate: SeasonState = Runtime.create_fresh(seed_value) if profile == "standard" else Runtime.create_closed_league(seed_value, LeagueRules.capture(profile), true)
 	if candidate!=null:
 		_retain(candidate)
 
@@ -78,7 +78,7 @@ func reload_save() -> void:
 		notice = Save.last_error
 	else:
 		season = candidate
-		profile = "standard" if season.league_rules.is_empty() else "dugout"
+		profile = "standard" if season.league_rules.is_empty() else String(season.league_rules.league)
 		notice = ""
 	show_season()
 

@@ -17,35 +17,44 @@ func check(ok: bool, label: String) -> bool:
 		print("CHECK: ", label)
 	return ok
 
-func profile(season: SeasonState, dugout: bool) -> bool:
+func requested_profile() -> String:
+	for id: String in ["dugout", "sponsorship", "earnings"]:
+		if OS.get_cmdline_user_args().has(id):
+			return id
+	return "standard"
+
+func create_profile(seed_value: int, id: String) -> SeasonState:
+	return Runtime.create_fresh(seed_value) if id == "standard" else Runtime.create_closed_league(seed_value, LeagueRules.capture(id), true)
+
+func profile(season: SeasonState, id: String) -> bool:
 	return season != null and Codec.scope(season) and season.career == null \
-		and season.league_live == dugout and not season.league_career \
-		and season.build._format == (45 if dugout else 41) \
-		and ClubCareer.same(season.league_rules, LeagueRules.capture("dugout") if dugout else {})
+		and season.league_live == (id != "standard") and not season.league_career \
+		and season.build._format == (41 if id == "standard" else 45) \
+		and ClubCareer.same(season.league_rules, {} if id == "standard" else LeagueRules.capture(id))
 
 func run() -> void:
 	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated B2 birth required"):
 		return
-	var dugout: bool = OS.get_cmdline_user_args().has("dugout")
+	var selected: String = requested_profile()
 	var old_exists: bool = FileAccess.file_exists(OldSave.PATH)
 	var old: PackedByteArray = FileAccess.get_file_as_bytes(OldSave.PATH) if old_exists else PackedByteArray()
 	if OS.get_cmdline_user_args().has("reopen"):
 		var restored: SeasonState = Save.restore()
-		if not check(profile(restored, dugout) and restored.picks.size() == 4 and restored.make_match() != null, "cold exact requested profile and drafted match"):
+		if not check(profile(restored, selected) and restored.picks.size() == 4 and restored.make_match() != null, "cold exact requested profile and drafted match"):
 			return
 		if not check(ClubCareer.same(Codec.capture(restored), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "cold exact disk recapture"):
 			return
 	else:
 		for league: String in LeagueRules.IDS:
 			for tier in range(5):
-				if league == "dugout" and tier == 0:
+				if league in ["dugout", "sponsorship", "earnings"] and tier == 0:
 					continue
 				var rules: Dictionary = LeagueRules.capture_tier(league, tier, 67231 if league == "scramble" else null)
 				if not check(Runtime.create_closed_league(67231, rules, true) == null, "unqualified League/tier constructor rejected %s%d" % [league,tier]):
 					return
-		var season: SeasonState = Runtime.create_live_dugout(67231) if dugout else Runtime.create_fresh(67231)
+		var season: SeasonState = create_profile(67231, selected)
 		for pick in range(5):
-			if not check(profile(season, dugout) and season.picks.size() == pick, "fresh/every-pick narrow profile %d" % pick):
+			if not check(profile(season, selected) and season.picks.size() == pick, "fresh/every-pick narrow profile %d" % pick):
 				return
 			var payload: Dictionary = Codec.capture(season)
 			var before: PackedByteArray = var_to_bytes(payload)
@@ -60,7 +69,7 @@ func run() -> void:
 				match kind:
 					"version": wrong.version = 109
 					"catalog": wrong.pitch_catalog = "wrong"
-					"live": wrong.league_live = not dugout
+					"live": wrong.league_live = selected == "standard"
 					"rules": wrong.league_rules = LeagueRules.capture("academy")
 					"access": wrong.checkpoint["player_access"] = {"unearned":true}
 					"extra": wrong["unearned"] = true

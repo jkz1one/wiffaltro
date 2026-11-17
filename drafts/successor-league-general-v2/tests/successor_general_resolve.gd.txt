@@ -19,8 +19,14 @@ func check(ok: bool, label: String) -> bool:
 		print("CHECK: ", label)
 	return ok
 
+func selected_profile() -> String:
+	for id: String in ["dugout", "sponsorship", "earnings"]:
+		if OS.get_cmdline_user_args().has(id):
+			return id
+	return "standard"
+
 func operand(row: Dictionary) -> SeasonState:
-	var season: SeasonState = Runtime.create_fresh(earned.season_seed) if earned.league_rules.is_empty() else Runtime.create_live_dugout(earned.season_seed)
+	var season: SeasonState = Runtime.create_fresh(earned.season_seed) if earned.league_rules.is_empty() else Runtime.create_closed_league(earned.season_seed, earned.league_rules, true)
 	if season == null:
 		return null
 	for id: String in earned.picks:
@@ -82,7 +88,7 @@ func run() -> void:
 	earned = Codec.restore(payload)
 	if not check(earned != null and earned.results.size() == 3 and earned.player_results.size() == 1 \
 		and earned.build._visit.pack_status == "used" and earned.physical.reports.size() == 2 \
-		and earned.league_live == OS.get_cmdline_user_args().has("dugout") \
+		and ("standard" if earned.league_rules.is_empty() else earned.league_rules.league) == selected_profile() \
 		and ClubCareer.same(Codec.capture(earned), payload), "strict same-source actual paid round before report extraction"):
 		return
 	if not structural_count():

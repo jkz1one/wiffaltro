@@ -34,6 +34,12 @@ Dynasty qualification is inferred from the one-round evidence.
   improve this resolver about19%, not whole-game responsiveness. See
   `SUCCESSOR_GENERAL_RESOLVE_REUSE.md`.
 
+- B3 adds standalone tier0 Sponsorship and Earnings with actual payout/round/
+  earned-pack/cold and resolver parity tests. Sixth-sponsor/Bat purchases are
+  separately labeled synthetic policy checks. See `SUCCESSOR_GENERAL_ECONOMIES_B3.md`.
+  Lab-exit confirmation and retained-candidate window-close protection are known
+  staging UI issues to fix before any playable handoff.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing

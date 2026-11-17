@@ -1,12 +1,14 @@
 extends SeasonMenu
+const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
 func render() -> void:
-	_screen("successor", "Standard / Dugout", "Standalone staging • separate save • legacy clubs unchanged")
+	_screen("successor", "Standalone Leagues", "Standalone staging • separate save • legacy clubs unchanged")
 	if app.get("retained")!=null:
 		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
 	if app.season==null:
-		_button(_body,"NEW STANDARD SEASON",Callable(app,"create_profile").bind("standard"))
-		_button(_body,"NEW DUGOUT SEASON",Callable(app,"create_profile").bind("dugout"))
+		var occupied: bool = FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH + ".bak")
+		for id: String in ["standard", "dugout", "sponsorship", "earnings"]:
+			_button(_body, "NEW %s SEASON" % id.to_upper(), Callable(app,"create_profile").bind(id)).disabled = occupied
 		_button(_body,"CONTINUE SAVED SEASON",Callable(app,"reload_save"))
 		return
 	if app.season.phase==SeasonState.Phase.DRAFT:

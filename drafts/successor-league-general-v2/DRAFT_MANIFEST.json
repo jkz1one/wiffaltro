@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "9d976dafc14bd0863ad84ba331ccb81a5403305c",
-  "scope": "B2 ordinary season plus transaction-local physical report self-validation reuse; no career admission",
+  "source_checkpoint": "509baca1f6d0c18b428195e41b4ac1f4c815553e",
+  "scope": "B3 ordinary tier0 Standard/Dugout/Sponsorship/Earnings; no career, Dynasty or higher-tier admission",
   "files": [
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/build.gd.txt",
@@ -36,8 +36,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/codec.gd",
-      "bytes": 6854,
-      "sha256": "15711473f5e5bcbabec907016165286cddb7acf83c145d2f33ba61d98b45efa4"
+      "bytes": 6871,
+      "sha256": "2bf9c9817a5a8e555428b87b0784b84a7e4c31985241d2c722a23f0ea9745795"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/decoder.gd.txt",
@@ -126,8 +126,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/ordinary_context.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/ordinary_context.gd",
-      "bytes": 666,
-      "sha256": "99053293d3f082c0d4d7a403a6cd50f60ac22791f481dfb65b6d021fa5960a53"
+      "bytes": 875,
+      "sha256": "9547eda59c5677c068c595aa4509b024f55376fb8cd6b4650b1ecb28e3d2af32"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/pending.gd.txt",
@@ -246,8 +246,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_league_general_v2/base_app.gd",
-      "bytes": 10099,
-      "sha256": "4b411442c6f97f5afb6cac8331463e7263b706929ace9f6002e2e477110e1aa5"
+      "bytes": 10208,
+      "sha256": "9c3a9dc3ba2eb1407df10ef86b82fe7a7a4e2d1e919fb084ecd04d239f8026ef"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/capture_human.gd.txt",
@@ -264,8 +264,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_league_general_v2/menu.gd",
-      "bytes": 1577,
-      "sha256": "4738486cb517794b1b0fbfc568404239fa61b0add54ce863a92b49576478fa0d"
+      "bytes": 1780,
+      "sha256": "2d06cb4c0afe4567e237bc112bbe5c347ffb61b886ea050a8e5de4f41bb55ced"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/school_shop_ui.gd.txt",
@@ -288,14 +288,26 @@
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_birth.gd.txt",
       "restore_path": "tests/successor_general_birth.gd",
-      "bytes": 4230,
-      "sha256": "51d668bc7bb87f47e44c75aa09d33c69e344899aecd088ca6d04e191de93cab2"
+      "bytes": 4609,
+      "sha256": "c28985aa1d3e18e31677758fb4bd77de61a7c48890292799d68192723e76914c"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_birth.tscn.txt",
       "restore_path": "tests/successor_general_birth.tscn",
       "bytes": 193,
       "sha256": "9633af53a72f29d7a193b0ae5a15721e09864d2d325e622966e619f3aa7132d1"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_economies.gd.txt",
+      "restore_path": "tests/successor_general_economies.gd",
+      "bytes": 4121,
+      "sha256": "08a89de10ba269ce0db82eafc7c1be66017048a5a42f84cb3738af57fe28cb60"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_economies.tscn.txt",
+      "restore_path": "tests/successor_general_economies.tscn",
+      "bytes": 201,
+      "sha256": "d1423e5f0c4443be665070cf0ed2a62785acb81cf3a57df1065569cf4f2a55c5"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_matrix.gd.txt",
@@ -312,8 +324,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_physical.gd.txt",
       "restore_path": "tests/successor_general_physical.gd",
-      "bytes": 13772,
-      "sha256": "8258387bfea38b4c60962993371acc5a9512e7b9e01b515cea28965b316fc8c9"
+      "bytes": 13813,
+      "sha256": "59af7d70dd217fff3086734b4a6c0af9cb6ce47688453aa3040bcebeb4021282"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_physical.tscn.txt",
@@ -324,8 +336,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_resolve.gd.txt",
       "restore_path": "tests/successor_general_resolve.gd",
-      "bytes": 8729,
-      "sha256": "f67eb7a6e8e00402e2491f43b24bc2cd68e4ae11ef70c55c4205541299315541"
+      "bytes": 8963,
+      "sha256": "aeee59963956c86dc30e2d89652d0abe542eccb511fffc4b19fe6798e3374e04"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_resolve.tscn.txt",
@@ -336,8 +348,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_round.gd.txt",
       "restore_path": "tests/successor_general_round.gd",
-      "bytes": 10210,
-      "sha256": "5db57be5fdc023bf018215707c51dab9a5ade3ec843077ca1852ee303b9a16a8"
+      "bytes": 12552,
+      "sha256": "7cd30c9263c90f1ec2b6522f1a49501fae9746d7464f134020c7217b531147a3"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_round.tscn.txt",

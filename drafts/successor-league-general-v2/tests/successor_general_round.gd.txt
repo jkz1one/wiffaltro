@@ -9,8 +9,8 @@ func run() -> void:
 	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated runner required"):
 		return
 	var app: SeasonApp = App.new()
-	var requested_dugout: bool = OS.get_cmdline_user_args().has("dugout")
-	app.set("profile", "dugout" if requested_dugout else "standard")
+	var selected_profile: String = requested_profile()
+	app.set("profile", selected_profile)
 	add_child(app)
 	if OS.get_cmdline_user_args().has("reopen"):
 		app.reload_save()
@@ -18,7 +18,14 @@ func run() -> void:
 			return
 		if not check(app.season.build._visit.pack_status == "used" and app.season.make_match() != null, "cold paid pack and next fixture"):
 			return
-		if not check(profile(app.season, requested_dugout) and ClubCareer.same(Codec.capture(app.season), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "cold paid exact requested-profile disk capture"):
+		if not check(profile(app.season, selected_profile) and ClubCareer.same(Codec.capture(app.season), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "cold paid exact requested-profile disk capture"):
+			return
+		var before_new: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		app.call("create_profile", "standard" if selected_profile != "standard" else "dugout")
+		if not check(FileAccess.get_file_as_bytes(Save.PATH) == before_new and profile(app.season,selected_profile), "UI new profile cannot overwrite existing season"):
+			return
+		app.reload_save()
+		if not check(app.get("profile") == selected_profile, "UI reload restores exact requested profile identity"):
 			return
 		print("PASS: cold settled round, earned pack purchase and next match")
 		app.queue_free()
@@ -27,7 +34,7 @@ func run() -> void:
 	var human: Array = []
 	if OS.get_cmdline_user_args().has("resume-round"):
 		app.reload_save()
-		if not check(profile(app.season, requested_dugout) and not app.season.physical.pending.is_empty(), "cold pending human report and requested standalone profile"):
+		if not check(profile(app.season, selected_profile) and not app.season.physical.pending.is_empty(), "cold pending human report and requested standalone profile"):
 			return
 		human = app.season.physical.pending.human.duplicate(true)
 	else:
@@ -81,7 +88,7 @@ func run() -> void:
 			return
 		if not check(app.season.results.is_empty() and app.season.build.cash() == 0, "pending round gives no premature reward"):
 			return
-		if not check(profile(app.season, requested_dugout) and ClubCareer.same(Codec.capture(app.season), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "human pending exact requested-profile disk capture"):
+		if not check(profile(app.season, selected_profile) and ClubCareer.same(Codec.capture(app.season), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "human pending exact requested-profile disk capture"):
 			return
 		if OS.get_cmdline_user_args().has("human-only"):
 			print("PASS: actual B2 selected-profile human game durably pending; no premature reward")
@@ -120,7 +127,9 @@ func run() -> void:
 	var human_results: Array = app.season.results.filter(func(row: Dictionary) -> bool: return row.id == human[0])
 	if not check(human_results.size() == 1, "exact actual human result"):
 		return
-	var earned: int = 18 if SeasonState._winner(human_results[0]) == 0 else 12
+	var own: int = human_results[0].home_runs if human_results[0].home == 0 else human_results[0].away_runs
+	var rival: int = human_results[0].away_runs if human_results[0].home == 0 else human_results[0].home_runs
+	var earned: int = (18 if own > rival else 12) if selected_profile == "standard" else LeagueRules.game_income(app.season.league_rules, own > rival, own, rival)
 	if not check(app.season.build._bank.view().rewards.size() == 1 and app.season.build.cash() == earned, "one score-matched earned human reward"):
 		return
 	if not check(app.season.opponents.clubs.size() == 5, "all five AI clubs retained"):
@@ -128,12 +137,41 @@ func run() -> void:
 	for club: Dictionary in app.season.opponents.clubs.values():
 		if not check(club.build._bank.view().rewards.size() == 1, "one reward per AI club"):
 			return
+	for index in range(6):
+		var owner_build: SeasonBuild = app.season.build if index == 0 else app.season.opponents.clubs[str(index)].build
+		var bank: SeasonOwnership = owner_build._bank
+		var prefix: Dictionary = bank.to_data()
+		prefix.events = []
+		var replay: SeasonOwnership = SeasonOwnership.from_data(prefix, bank._catalog)
+		if not check(replay != null, "original bank replay setup for payout audit"):
+			return
+		var reward_count: int = 0
+		for event: Dictionary in bank._events:
+			var cash: int = replay.cash()
+			if not check(replay.commit(event).ok, "exact actual bank journal replay"):
+				return
+			if event.op == "reward":
+				reward_count += 1
+				var game: Dictionary = app.season.results.filter(func(row: Dictionary) -> bool: return row.id == event.game)[0]
+				var scored: int = game.home_runs if game.home == index else game.away_runs
+				var conceded: int = game.away_runs if game.home == index else game.home_runs
+				var expected_income: int = (18 if scored > conceded else 12) if selected_profile == "standard" else LeagueRules.game_income(app.season.league_rules, scored > conceded, scored, conceded)
+				if not check(replay.cash() - cash == expected_income, "actual exact replacement base payout without stacking club%d" % index):
+					return
+		if not check(reward_count == 1 and ClubCareer.same(replay.to_data(), bank.to_data()), "exact once reward and full journal club%d" % index):
+			return
 	var settled: Dictionary = Codec.capture(app.season)
 	app.call("resume_round")
 	if not check(not settled.is_empty() and ClubCareer.same(Codec.capture(app.season), settled), "duplicate round resume is inert"):
 		return
 	var build: SeasonBuild = app.season.build
-	app.call("shop_command", {"id":"open:%d"%build.revision(),"rev":build.revision(),"op":"open"})
+	app.call("open_pitch_shop")
+	var visible_shop: bool = false
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow and child.visible:
+			visible_shop = true
+	if not check(visible_shop, "actual full-shop presentation route reachable; not visual acceptance"):
+		return
 	build = app.season.build
 	if not check(build._visit.open and not build._visit.cards.is_empty(), "generated earned shop opens"):
 		return
@@ -170,7 +208,7 @@ func run() -> void:
 	app.call("shop_command", selected)
 	if not check(ClubCareer.same(Codec.capture(app.season), purchased), "repeated purchase command grants nothing twice"):
 		return
-	if not check(ClubCareer.same(purchased, JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and profile(app.season, requested_dugout), "paid checkpoint exact profile and disk"):
+	if not check(ClubCareer.same(purchased, JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and profile(app.season, selected_profile), "paid checkpoint exact profile and disk"):
 		return
 	print("PASS: three actual B2 selected-profile games settled once, earned pack paid/applied once, durable checkpoint")
 	app.queue_free()
