@@ -74,11 +74,12 @@ Dynasty qualification is inferred from the one-round evidence.
 
 - Doubleheader foundation passed native schedule/context and strict successor
   envelope/workload/partner checks. B7 now wires standalone tier-zero runtime,
-  reward, physical capture/replay and menu paths. Fresh/draft/cold and the actual
-  first three-game leg plus earned pack purchase pass; return-leg qualification
-  remains in progress at this source checkpoint. Higher tiers/ownership/Dynasty
-  stay closed. See `SUCCESSOR_GENERAL_DOUBLEHEADER_FOUNDATION.md` (historical) and
-  `SUCCESSOR_GENERAL_DOUBLEHEADER_B7.md` (partial integration).
+  reward, physical capture/replay and menu paths. Fresh/draft/cold and the full
+  bounded two-leg sequence now pass: six games, earned between-leg upgrade,
+  debt/reset, both settlements, exact failed-save retry, all-club rewards, actual
+  NPC sweep bonus, tamper rejection and final cold reopen. This is not a full
+  paired season. Higher tiers/ownership/Dynasty stay closed. See `SUCCESSOR_GENERAL_DOUBLEHEADER_FOUNDATION.md` (historical) and
+  `SUCCESSOR_GENERAL_DOUBLEHEADER_B7.md` (bounded paired qualification).
 
 - Save-cost diagnostic on actual earned current-source evidence passes unchanged
   public save and cold reopen. Distinct restore stages dominate; file I/O does

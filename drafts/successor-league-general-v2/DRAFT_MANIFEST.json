@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-league-general-v2",
   "source_checkpoint": "f78b3b481bd54420b79f0f4ca02d19020054e677",
-  "scope": "Partial Doubleheader tier-zero integration: fresh/draft/cold, actual first leg and earned pack passed; return-leg/final cold qualification pending; no owner or Dynasty admission.",
+  "scope": "Bounded standalone Doubleheader tier-zero pair qualified: two human/four NPC games, earned upgrade, debt, settlements, exact retry, rewards and final cold reopen. No full-season, owner or Dynasty admission.",
   "files": [
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/build.gd.txt",

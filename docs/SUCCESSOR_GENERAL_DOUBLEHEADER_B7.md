@@ -38,10 +38,9 @@ General Build matrix also passes. These are not completed-game evidence.
 Current-source ordinary Standard regression also passes actual human/two NPC
 games, once-only settlement, earned pack payment/application and cold reopen.
 
-At this source checkpoint, the actual first human game and two NPC games have
-settled once, and the first-leg shop and paid pack are durable. Return-leg and
-final paired cold qualification are still running. Do not infer completion from
-the following remaining/overall test specification:
+Checkpoint31 initially preserved the tested first leg while the return-leg test
+continued on that exact unchanged engine. The complete bounded sequence now
+passes all of the following, including a separate final cold process:
 
 - Two actual human games and four actual NPC games, each leg independently settled.
 - A naturally generated, earned, paid first-leg pack and one stat choice, persisted
@@ -54,6 +53,12 @@ the following remaining/overall test specification:
   checks original 18/12 income plus only the original qualifying 6-Cash sweep bonus.
 - Independent result/reward sidecar tampering and workload/pair/debt/receipt
   tampering reject. A separate process reopens the exact completed paired state.
+
+The actual human club split its two games. One NPC club swept both legs, so the
+qualifying six-Cash bonus was exercised on earned play, not only a synthetic
+operand. Human return-leg debt was nonzero for three player IDs and zero for the
+fourth; exact remaining stamina was carried by identity after the real shop.
+All six clubs retained exactly two rewards and exact replayed bank journals.
 
 No full Doubleheader season, actual next-pair/playoff reset, recruitment, changed
 capacity Gear swap, higher-tier, career continuation, Dynasty, native visual pass
