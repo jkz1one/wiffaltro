@@ -6,8 +6,8 @@ all previous save slots remain unchanged. Version117 uses a new separate slot.
 
 ## Storage and authority
 
-The origin is one exact completed116 envelope. The frozen reader independently
-reconstructs it. Later completed runs are flat `{id, checkpoint}` records, and the
+The origin is one exact116 envelope plus an explicit completed/abandoned closure choice. The frozen reader independently
+reconstructs it. Later closed runs are flat `{id, checkpoint, closure}` records, and the
 active run has the same shape. A flat checkpoint contains all original durable
 season fields except career. Career appears once at the envelope level. Origin,
 prior archives and derived start bases never recursively appear in those records.
@@ -28,7 +28,7 @@ Gear-game validation includes the exact preceding Gear-use baseline.
 
 ## Persistence and entry
 
-The initial entry accepts an explicitly provided completed116 envelope. It does
+The initial entry accepts an explicitly provided116 envelope. Completed origins continue directly; unfinished origins require explicit abandonment confirmation. It does
 not search for or rewrite other slots. Subsequent START NEXT SEASON requires an
 actual COMPLETE current run, no pending reports, and exact current-disk/live
 agreement. It pins the old primary bytes before strict next creation and save.
@@ -79,3 +79,46 @@ and verified original bytes and all save slots unchanged. Separate cold negative
 verification is still running, not yet claimed passed. These are not completed-origin creation, playable
 League/career, Dynasty or release proof. Actual long-season tests continue with
 frozen116 and112 independently of these117 edits.
+
+## Explicit abandonment integration (birth verified; draft/cold pending)
+
+Original career policy permits closing an unfinished run as abandoned. The new
+117 action records that real choice separately from the immutable source:
+`origin_close` for116 and `closure` on later flat archived117 records. Every
+reopen still strictly reconstructs the raw source first. An abandoned projection
+requires unfinished actual history, empty receipt, no pending physical settlement
+and no unresolved paid pack. It marks only the copied career row abandoned and
+closes its current pointer. It does not alter scores, manufacture completion or
+pay a completion reward/title.
+
+The App confirms the selected new League, binds the exact source/disk and a
+single seed, then atomically saves the new birth. Cancel and repeated callbacks
+are inert; a prewrite failure retains the exact candidate for retry. Visible
+Shop/modal or unsaved physical work blocks this transition. Original save slots
+and the complete original source envelope remain unchanged.
+
+Original prospective plaque capture/delivery is retained. A missing plaque that
+would already have qualified at an earlier game is refused rather than silently
+backfilled with an invented acquisition time. That exceptional historical
+reconciliation remains unfinished, not claimed compatible.
+
+The positive test uses actual three-settled-round116 evidence and starts a new
+Standard draft, separately checking failed-write retry, four actual draft actions
+and a dedicated cold reconstruction. This is not fabricated terminal evidence,
+played next-round proof, full career qualification, or Dynasty roster retention.
+The unrelated actual full-season terminal tests continue unchanged.
+
+### Actual corrected birth evidence
+
+The first real transition test exposed a snapshot encoding defect: six newly
+added dictionary keys were StringName keys from dot assignment, whereas the
+primitive save contract correctly requires String keys. The codec now assigns
+those six keys explicitly as strings. Validation was not weakened. The failed
+stage wrote no new primary or backup and remains preserved.
+
+On corrected source, an authentic three-round116 origin was explicitly abandoned
+into a selected Standard birth. Actual selector, confirmation/Cancel, prewrite
+refusal, exact retained candidate, repeated-confirmation rejection, strict retry,
+unchanged origin and full prior row/asset comparisons passed. The new birth is
+durable. Four-pick and dedicated cold qualification remain running and are not
+yet claimed. Native import, Python compilation and diff checks pass.

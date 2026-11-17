@@ -30,6 +30,9 @@ var _npc_owner: SeasonState
 var _npc_before: Dictionary = {}
 var _npc_lab: PitchBatLab
 var _npc_state: MatchState
+var _transition_dialog: ConfirmationDialog
+var _transition: Dictionary = {}
+var _transition_owner: SeasonState
 var _exit_dialog: ConfirmationDialog
 var _exit_mode: String = ""
 var _exit_season: SeasonState
@@ -46,6 +49,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	_loading_generation += 1 # Invalidate any inherited deferred paint continuation.
 	_cancel_exit()
+	cancel_abandon()
 	if is_instance_valid(_quit_tree):
 		_quit_tree.auto_accept_quit = _previous_auto_quit
 	_quit_tree = null
@@ -127,6 +131,13 @@ func _quit_now() -> void:
 	get_tree().quit()
 
 func _ready() -> void:
+	_transition_dialog = ConfirmationDialog.new()
+	_transition_dialog.title = "Abandon season"
+	_transition_dialog.dialog_autowrap = true
+	_transition_dialog.confirmed.connect(confirm_abandon)
+	_transition_dialog.canceled.connect(cancel_abandon)
+	_transition_dialog.close_requested.connect(cancel_abandon)
+	add_child(_transition_dialog)
 	_exit_dialog = ConfirmationDialog.new()
 	_exit_dialog.title = "Leave unfinished game"
 	_exit_dialog.dialog_autowrap = true
@@ -161,7 +172,7 @@ func show_season() -> void:
 		menu.call("render")
 
 func _available() -> bool:
-	return not _busy and retained==null and not is_instance_valid(lab) and not Save.saving
+	return not _busy and retained==null and not is_instance_valid(lab) and not Save.saving and _transition.is_empty()
 
 func _clone() -> SeasonState:
 	return Codec.clone(season) if season!=null else null
@@ -177,8 +188,7 @@ func next_season() -> void:
 		return
 	var before: Dictionary = Codec.guard_snapshot(season)
 	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
-	var disk: Variant = JSON.parse_string(bytes.get_string_from_utf8())
-	if before.is_empty() or bytes.is_empty() or not ClubCareer.same(before,disk):
+	if before.is_empty() or not _disk_matches(before,bytes):
 		notice = "The completed save changed. Reload before starting another season."
 		show_season()
 		return
@@ -188,16 +198,21 @@ func next_season() -> void:
 # authenticates the complete archive and re-derives permission before any write.
 func next_season_choices() -> Array:
 	var rows: Variant = []
-	if season != null and season.phase == SeasonState.Phase.COMPLETE:
-		rows = season.career.runs
+	if season != null:
+		rows = season.career.runs.duplicate(true)
 	elif season == null and predecessor.get("checkpoint") is Dictionary:
 		var career_data: Variant = predecessor.checkpoint.get("career")
 		if career_data is Dictionary: rows = career_data.get("runs",[])
 	if not rows is Array: return []
+	# Display only: an unfinished source may propose abandonment. The confirmed
+	# transaction must independently reconstruct and close the genuine source.
+	rows = rows.duplicate(true)
+	if not rows.is_empty() and rows[-1] is Dictionary and rows[-1].get("status") == "active":
+		rows[-1].status = "abandoned"
 	return load("res://src/gameplay/season/successor_owner_career_v1/start.gd").available_specs(rows)
 
 func select_next_season(league: String, tier: int) -> void:
-	if not _available() or (season != null and season.phase != SeasonState.Phase.COMPLETE): return
+	if not _available(): return
 	for choice: Dictionary in next_season_choices():
 		if choice.league == league and choice.tier == tier and choice.implemented:
 			next_league = league
@@ -205,14 +220,63 @@ func select_next_season(league: String, tier: int) -> void:
 			show_season()
 			return
 
-func _start_next(input: Dictionary, expected_primary: PackedByteArray) -> void:
-	var seed_value: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
-	var candidate: SeasonState = Runtime.create_next(input,seed_value,next_league,next_tier)
+func _start_next(input: Dictionary, expected_primary: PackedByteArray, closure: String = "completed", pinned_seed: int = -1, selected_league: String = "", selected_tier: int = -1) -> void:
+	var seed_value: int = (int(Time.get_unix_time_from_system()) & 0x7fffffff) if pinned_seed < 0 else pinned_seed
+	var league: String = next_league if selected_league.is_empty() else selected_league
+	var tier: int = next_tier if selected_tier < 0 else selected_tier
+	var candidate: SeasonState = Runtime.create_next(input,seed_value,league,tier,closure)
 	if candidate == null:
 		notice = "The completed career could not advance safely. Existing saves remain unchanged."
 		show_season()
 		return
 	_retain(candidate,expected_primary)
+
+func _disk_matches(value: Dictionary, bytes: PackedByteArray) -> bool:
+	if bytes.is_empty(): return false
+	var parser: JSON = JSON.new()
+	return parser.parse(bytes.get_string_from_utf8()) == OK and ClubCareer.same(value,parser.data)
+
+func _abandon_available() -> bool:
+	if not _available() or not retained_human.is_empty() or not retained_report.is_empty() or not _exit_mode.is_empty(): return false
+	for child: Node in menu.get_children():
+		if child is Window and child.visible: return false
+	return true
+
+func request_abandon() -> void:
+	if not _abandon_available() or not is_instance_valid(_transition_dialog): return
+	var source: Dictionary = {}
+	var disk: PackedByteArray = PackedByteArray()
+	if season != null:
+		if season.phase == SeasonState.Phase.COMPLETE or not season.physical.pending.is_empty(): return
+		source = Codec.guard_snapshot(season)
+		disk = FileAccess.get_file_as_bytes(Save.PATH)
+		if source.is_empty() or not _disk_matches(source,disk): return
+	else:
+		if predecessor.is_empty() or FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH+".bak"): return
+		source = predecessor.duplicate(true)
+	_transition_owner = season
+	_transition = {"source":source,"disk":disk,"league":next_league,"tier":next_tier,
+		"seed":int(Time.get_unix_time_from_system()) & 0x7fffffff}
+	_transition_dialog.dialog_text = "Abandon this season and start a new %s draft? This run will be recorded as abandoned, with no completion reward or title. Existing career unlock progress is retained." % next_league.capitalize()
+	_transition_dialog.popup_centered(Vector2i(640,220))
+	_transition_dialog.get_cancel_button().grab_focus()
+
+func cancel_abandon() -> void:
+	_transition.clear()
+	_transition_owner = null
+	if is_instance_valid(_transition_dialog): _transition_dialog.hide()
+
+func confirm_abandon() -> void:
+	if _transition.is_empty(): return
+	var choice: Dictionary = _transition.duplicate(true)
+	var same_owner: bool = season == _transition_owner
+	cancel_abandon() # Consume once before the expensive transaction or callbacks.
+	if not same_owner or not _abandon_available(): return
+	if season == null:
+		if not ClubCareer.same(predecessor,choice.source) or FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH+".bak"): return
+	elif season.phase == SeasonState.Phase.COMPLETE or not season.physical.pending.is_empty() or FileAccess.get_file_as_bytes(Save.PATH) != choice.disk or not ClubCareer.same(Codec.guard_snapshot(season),choice.source):
+		return
+	_start_next(choice.source,choice.disk,"abandoned",choice.seed,choice.league,choice.tier)
 
 func reload_save() -> void:
 	if not _available():

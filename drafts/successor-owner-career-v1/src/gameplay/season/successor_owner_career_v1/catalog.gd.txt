@@ -7,6 +7,7 @@ const MAX_BYTES: int = 32 * 1024 * 1024
 const Game = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
 const Origin = preload("res://src/gameplay/season/successor_owner_general_v1/catalog.gd")
 const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_owner_career_v1/closure.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/catalog.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/codec.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/decoder.gd",

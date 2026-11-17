@@ -3,17 +3,13 @@ extends RefCounted
 const Codec = preload("codec.gd")
 const Origin = preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")
 const Prefix = preload("prefix.gd")
+const Closure = preload("closure.gd")
 const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
 const Physical = preload("physical_fixtures.gd")
 const Start = preload("start.gd")
 const Catalog = preload("catalog.gd")
 const GameReplay = preload("res://src/gameplay/season/successor_league_general_v2/human_replay.gd")
 const GameHistory = preload("res://src/gameplay/season/successor_league_general_v2/history.gd")
-
-static func _completed(season: SeasonState) -> bool:
-	return season != null and season.phase == SeasonState.Phase.COMPLETE and season.career != null \
-		and season.career.current >= 1 and season.career.current == season.career.runs.size() \
-		and season.career.runs[-1].get("status") == "completed" and season.physical.pending.is_empty()
 
 static func restore(value: Dictionary) -> SeasonState:
 	var roots: Array[Resource] = Codec._operation_content_roots()
@@ -23,26 +19,32 @@ static func restore(value: Dictionary) -> SeasonState:
 
 static func _restore(value: Dictionary) -> SeasonState:
 	if not Codec.envelope_valid(value): return null
-	var previous: SeasonState = Origin.restore(value.origin)
-	if not _completed(previous): return null
-	if previous.career.current + value.closed.size() + 1 > ClubCareer.MAX_RUNS: return null
+	var origin_season: SeasonState = Origin.restore(value.origin)
+	var previous: ClubCareer = Closure.project(origin_season,value.origin_close)
+	if previous == null: return null
+	if previous.runs.size() + value.closed.size() + 1 > ClubCareer.MAX_RUNS: return null
 	for record: Variant in value.closed:
-		previous = _record(record,previous.career)
-		if not _completed(previous): return null
-	var result: SeasonState = _record(value.active,previous.career)
+		if not record is Dictionary or not SeasonOwnership._keys(record,["id","checkpoint","closure"]) \
+			or not record.closure is String: return null
+		var played: SeasonState = _record({"id":record.id,"checkpoint":record.checkpoint},previous)
+		previous = Closure.project(played,record.closure)
+		if previous == null: return null
+	var result: SeasonState = _record(value.active,previous)
 	if result == null: return null
 	result.origin = value.origin.duplicate(true)
+	result.origin_close = value.origin_close
 	result.closed = value.closed.duplicate(true)
 	var actual: Dictionary = Codec.guard_snapshot(result)
 	return result if not actual.is_empty() and ClubCareer.same(actual,value) else null
 
-static func create_next(value: Dictionary, seed: int, league: String = "dugout", tier: int = 0) -> SeasonState:
+static func create_next(value: Dictionary, seed: int, league: String = "dugout", tier: int = 0, closure: String = "completed") -> SeasonState:
 	# Public archive boundary: strict predecessor replay, never caller basis/proof.
-	if seed < 0 or seed > 2147483647 or not Codec._bounded(value): return null
+	if seed < 0 or seed > 2147483647 or closure not in ["completed","abandoned"] or not Codec._bounded(value): return null
 	var roots: Array[Resource] = Codec._operation_content_roots()
 	var source: String = Catalog.signature()
 	var previous: SeasonState
 	var origin: Dictionary = {}
+	var origin_close: String = closure
 	var closed: Array = []
 	if value.get("version") == Origin.Catalog.VERSION:
 		previous = Origin.restore(value)
@@ -51,15 +53,20 @@ static func create_next(value: Dictionary, seed: int, league: String = "dugout",
 		previous = Codec.restore(value)
 		if previous != null:
 			origin = value.origin.duplicate(true)
+			origin_close = value.origin_close
 			closed = value.closed.duplicate(true)
-			closed.append(value.active.duplicate(true))
+			var record: Dictionary = value.active.duplicate(true)
+			record["closure"] = closure
+			closed.append(record)
 	var result: SeasonState = null
-	if _completed(previous) and previous.career.current < ClubCareer.MAX_RUNS:
-		var basis: Dictionary = Prefix._derive(previous.career)
+	var history: ClubCareer = Closure.project(previous,closure)
+	if history != null and history.runs.size() < ClubCareer.MAX_RUNS:
+		var basis: Dictionary = Prefix._derive(history)
 		if not basis.is_empty():
 			result = Start._create(seed,basis,league,tier)
 			if result != null:
 				result.origin = origin
+				result.origin_close = origin_close
 				result.closed = closed
 				var guard: Dictionary = Codec.guard_snapshot(result)
 				if guard.is_empty() or source.is_empty() or guard.owner_source != source: result = null
@@ -68,7 +75,7 @@ static func create_next(value: Dictionary, seed: int, league: String = "dugout",
 
 static func _record(record: Variant, previous: ClubCareer) -> SeasonState:
 	if not record is Dictionary or not SeasonOwnership._keys(record,["id","checkpoint"]) \
-		or not SeasonOwnership._whole(record.id,previous.current+1,previous.current+1) or not record.checkpoint is Dictionary: return null
+		or not SeasonOwnership._whole(record.id,previous.runs.size()+1,previous.runs.size()+1) or not record.checkpoint is Dictionary: return null
 	var basis: Dictionary = Prefix._derive(previous)
 	return null if basis.is_empty() else _run(record.checkpoint,basis)
 

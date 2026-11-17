@@ -1,0 +1,75 @@
+extends RefCounted
+## Decoder-internal closure of an independently replayed season. This projection
+## is not provenance or a public admission API; original snapshots remain intact.
+const Mixed = preload("mixed_progress.gd")
+const Assets = preload("assets.gd")
+const Plaques = preload("plaque_rewards.gd")
+const Legend = preload("legend_metrics.gd")
+
+static func project(season: SeasonState, reason: String) -> ClubCareer:
+	if reason not in ["completed","abandoned"] or season == null or season.career == null \
+		or season.physical == null or not season.physical.pending.is_empty() \
+		or season.physical.projecting or season.physical.cursor != season.physical.reports.size() \
+		or season.career.current < 1 or season.career.current != season.career.runs.size() \
+		or not Mixed.history(season.career.runs): return null
+	var row: Dictionary = season.career.runs[-1]
+	if reason == "completed":
+		if season.phase != SeasonState.Phase.COMPLETE or row.get("status") != "completed": return null
+	else:
+		if season.phase == SeasonState.Phase.COMPLETE or row.get("status") != "active" \
+			or not row.get("receipt") is Dictionary or not row.receipt.is_empty() \
+			or season.build == null or season.build.pack_pending(): return null
+		var summary: Dictionary = ClubSeasonRecord.analyze(row.get("proof"))
+		if summary.is_empty() or summary.finish != "unfinished": return null
+	var closed: ClubCareer = ClubCareer.new()
+	closed.current = season.career.current
+	closed.runs.assign(season.career.runs.duplicate(true))
+	closed._assets = season.career._assets.duplicate(true)
+	closed._pennants = season.career._pennants.duplicate(true)
+	closed._plaques = season.career._plaques.duplicate(true)
+	closed._pitch_catalog = season.career._pitch_catalog
+	if Assets.basis(closed).is_empty(): return null
+	if reason == "abandoned":
+		# Original close synchronizes earned progress before changing status. Keep
+		# existing prospective records; never manufacture a completion award.
+		if not _capture_close_plaques(closed) or not _deliver_plaques(closed): return null
+		closed.runs[-1].status = "abandoned"
+	closed.current = 0
+	if not Mixed.history(closed.runs) or Assets.basis(closed).is_empty(): return null
+	return closed
+
+static func _capture_close_plaques(career: ClubCareer) -> bool:
+	var before: Dictionary = career._plaques.duplicate(true)
+	if not Plaques.capture(career): return false
+	if career._plaques.is_empty(): return true
+	var projected: Dictionary = Legend.project(career.runs)
+	if projected.is_empty(): return false
+	for id: String in career._plaques.records:
+		var record: Dictionary = career._plaques.records[id]
+		if before.get("records",{}).has(id):
+			if not ClubCareer.same(before.records[id],record): return false
+			continue
+		# Frozen origins deferred plaques until terminal. Refuse a missing award
+		# already eligible at an earlier boundary rather than backfill a false
+		# award-time record. A separate historical reconciliation is required.
+		for count in range(1,int(record.award_game)):
+			var earlier: Dictionary = StadiumPlaqueRewards._at(projected.runs,int(record.season_id),count,false)
+			if earlier.get(record.player_id,{}).get("eligible",false): return false
+		if record.award_completed or record.season_id != career.current: return false
+	return Plaques.valid_history(career._plaques,career.runs)
+
+static func _deliver_plaques(career: ClubCareer) -> bool:
+	var derived: Dictionary = Assets.basis(career)
+	if derived.is_empty(): return false
+	var ledger: ClubAssetLedger = derived.ledger
+	var before: Array = ledger.to_data().events.duplicate(true)
+	var records: Variant = Plaques.awards(career)
+	if not records is Dictionary: return false
+	for id: String in records:
+		if ledger._stock.copies.has(id):
+			if not ClubCareer.same(ledger._stock.copies[id].get("earned"),records[id]): return false
+			continue
+		var committed: Dictionary = ledger.commit({"id":id,"rev":ledger.revision(),"op":"stadium_plaque","earned":records[id].duplicate(true)})
+		if not committed.ok or committed.replayed: return false
+	career._assets = ledger.to_data()
+	return ClubCareer.same(career._assets.events.slice(0,before.size()),before) and not Assets.basis(career).is_empty()

@@ -55,6 +55,7 @@ def main():
     mode.add_argument('--continuation-fixture', type=Path, help='Closed predecessor reader against immutable actual owner112 boundary evidence')
     parser.add_argument('--continuation-prefix', action='store_true', help='Derive closed run2 start basis only; no owner admission')
     parser.add_argument('--continuation-completed', action='store_true', help='Require actual terminal positive projection; never use synthetic completion')
+    mode.add_argument('--owned-career-abandon-fixture', type=Path, help='Actual abandoned116 origin to new Standard draft and separate cold; not completion or Dynasty')
     mode.add_argument('--owned-career-fixture', type=Path, help='Strict flat career negative admission against actual current116 active isolated save')
     mode.add_argument('--owned-general-season-fixture', type=Path, help='Continue an actual paid fresh-owned General checkpoint through a full season and final cold')
     mode.add_argument('--owned-general-fresh', action='store_true', help='Actual App fresh owned General birth, draft, round, earned shop and cold reopen without predecessor fixture')
@@ -91,6 +92,8 @@ def main():
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
+    career_abandon = bool(args.owned_career_abandon_fixture)
+    args.owned_career_fixture = args.owned_career_fixture or args.owned_career_abandon_fixture
     if args.owned_general_completed and not args.owned_general_fixture:
         parser.error('Owned General completion/resume requires --owned-general-fixture')
     if args.owned_general_resume_stage and not (args.owned_general_completed or args.owned_general_fresh or args.owned_general_season_fixture):
@@ -312,8 +315,8 @@ def main():
         destination.parent.mkdir(parents=True, exist_ok=True)
         assert not destination.exists()
         destination.write_bytes(original)
-        scene = ['res://tests/successor_owner_career.tscn', '--']
-        for label in ['negative', 'negative-cold']:
+        scene = ['res://tests/successor_owner_career_abandon.tscn' if career_abandon else 'res://tests/successor_owner_career.tscn', '--']
+        for label in (['birth','draft','cold'] if career_abandon else ['negative', 'negative-cold']):
             run('owned-career-' + label, scene + [label], timeout=8*3600)
             assert source.read_bytes() == original and destination.read_bytes() == original
         return

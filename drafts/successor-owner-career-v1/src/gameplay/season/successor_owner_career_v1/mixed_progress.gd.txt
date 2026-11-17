@@ -24,7 +24,7 @@ static func history(runs: Variant) -> bool:
 		var row: Variant = runs[index]
 		if not row is Dictionary or row.get("id") != index+1 or not row.get("proof") is Dictionary \
 			or not row.proof.get("scores") is Array: return false
-		if index < runs.size()-1 and row.get("status") != "completed": return false
+		if index < runs.size()-1 and row.get("status") not in ["completed","abandoned"]: return false
 		var legacy: bool = legacy_first and index == 0
 		var details: Variant = row.get("player_progress")
 		if not details is Dictionary or details.get("format") != (Legacy.FORMAT if legacy else Current.FORMAT) \
@@ -43,7 +43,7 @@ static func _current_row_shape(value: Dictionary, gear_baseline: Dictionary) -> 
 	if value.get("league") != "standard": keys.append("league_rules")
 	if not SeasonOwnership._keys(value,keys) \
 		or value.league not in ["standard","dugout","sponsorship","academy","equipment","earnings","scramble","doubleheader"] or not SeasonOwnership._whole(value.tier,0,0) \
-		or value.status not in ["active","completed"] \
+		or value.status not in ["active","completed","abandoned"] \
 		or not preload("res://src/gameplay/season/club_league_career.gd").row_valid(value) \
 		or not ClubCollection.valid(value.collection,true) \
 		or not SeasonGearProgress.valid_games(value.gear,value.proof.scores,gear_baseline,true) \

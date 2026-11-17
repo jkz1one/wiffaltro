@@ -37,7 +37,7 @@ static func state(active: Dictionary, basis: Dictionary, terminal: bool) -> Dict
 	var prior: Array = basis.runs.duplicate(true)
 	if not Mixed.history(prior): return {}
 	for previous: Dictionary in prior:
-		if previous.status != "completed": return {}
+		if previous.status not in ["completed","abandoned"]: return {}
 	var row: Dictionary = active.duplicate(true)
 	if terminal:
 		row = Policy.complete(row,prior).get("row",{})

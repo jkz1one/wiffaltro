@@ -16,7 +16,7 @@ const Policy = preload("res://src/gameplay/season/successor_career_completion_v1
 static func available_specs(runs: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for row: Variant in runs:
-		if not row is Dictionary or row.get("status") != "completed": return result
+		if not row is Dictionary or row.get("status") not in ["completed","abandoned"]: return result
 	var progress: Dictionary = Policy.evaluate(runs)
 	if progress.is_empty(): return result
 	for league: String in progress.available_leagues:

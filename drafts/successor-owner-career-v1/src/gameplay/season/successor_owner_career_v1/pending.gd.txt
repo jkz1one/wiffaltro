@@ -54,6 +54,7 @@ static func _fork_replayed_state(season: SeasonState) -> SeasonState:
 	# must be reviewed before using this shortcut, otherwise fall back to replay.
 	var fields: Array[String] = [
 		"origin",
+		"origin_close",
 		"closed",
 		"league_rules",
 		"_dynasty_start",

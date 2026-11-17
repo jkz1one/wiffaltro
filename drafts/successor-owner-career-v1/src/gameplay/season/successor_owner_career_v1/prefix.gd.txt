@@ -14,7 +14,7 @@ static func _derive(closed_career: ClubCareer) -> Dictionary:
 		return {}
 	var proofs: Array = []
 	for row: Dictionary in closed_career.runs:
-		if row.status != "completed": return {}
+		if row.status not in ["completed","abandoned"]: return {}
 		# Mixed validates each proof's family, scores and season key. Preserve the
 		# individual proof/order even when two legal runs deliberately repeat seed.
 		proofs.append(row.player_progress.exotic.duplicate(true))

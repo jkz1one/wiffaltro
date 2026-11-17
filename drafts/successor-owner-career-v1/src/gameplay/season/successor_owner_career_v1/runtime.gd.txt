@@ -1,11 +1,12 @@
 extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
 ## Repeatable owned career. Archive fields are excluded from flat run checkpoints.
 var origin: Dictionary = {}
+var origin_close: String = "completed"
 var closed: Array = []
 
-static func create_next(envelope: Variant, seed_value: int, league: String = "dugout", tier: int = 0) -> SeasonState:
+static func create_next(envelope: Variant, seed_value: int, league: String = "dugout", tier: int = 0, closure: String = "completed") -> SeasonState:
 	if not envelope is Dictionary: return null
-	return load("res://src/gameplay/season/successor_owner_career_v1/decoder.gd").create_next(envelope,seed_value,league,tier)
+	return load("res://src/gameplay/season/successor_owner_career_v1/decoder.gd").create_next(envelope,seed_value,league,tier,closure)
 func league_context_consistent() -> bool:
 	return load("res://src/gameplay/season/successor_owner_career_v1/start.gd").structural(self)
 func _league_inventory_context_consistent() -> bool:
@@ -22,7 +23,7 @@ func choose_player(id: String) -> bool:
 		return false
 	var boundary = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
 	var fields: Array = boundary.FIELDS.duplicate()
-	fields.append_array(["origin","closed"])
+	fields.append_array(["origin","origin_close","closed"])
 	for field: String in fields:
 		var value: Variant = candidate.get(field)
 		set(field,value.duplicate(true) if value is Array or value is Dictionary else value)

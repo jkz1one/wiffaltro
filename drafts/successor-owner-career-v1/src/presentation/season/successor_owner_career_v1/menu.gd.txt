@@ -2,6 +2,7 @@ extends SeasonMenu
 const Save = preload("res://src/gameplay/season/successor_owner_career_v1/save.gd")
 func render() -> void:
 	_screen("successor", "Owned career", "Original club progression • separate save • existing saves unchanged")
+	if not app.notice.is_empty(): _label(_body,app.notice,18)
 	if app.get("retained")!=null:
 		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
@@ -9,6 +10,7 @@ func render() -> void:
 		_next_options()
 		var occupied: bool = FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH + ".bak")
 		_button(_body,"CONTINUE COMPLETED CAREER",Callable(app,"create_fresh")).disabled = occupied or app.predecessor.is_empty()
+		_button(_body,"ABANDON IMPORTED SEASON AND START NEW",Callable(app,"request_abandon")).disabled = occupied or app.predecessor.is_empty()
 		_button(_body,"CONTINUE SAVED SEASON",Callable(app,"reload_save"))
 		return
 	if app.season.phase==SeasonState.Phase.DRAFT:
@@ -31,6 +33,9 @@ func render() -> void:
 		_label(_body,"Season complete. Earned results remain saved.",20)
 		_next_options()
 		_button(_body,"START NEXT SEASON",Callable(app,"next_season"))
+	if app.season.phase != SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
+		_next_options()
+		_button(_body,"ABANDON AND START NEW SEASON",Callable(app,"request_abandon"))
 	if app.season.shop_available():
 		_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
 

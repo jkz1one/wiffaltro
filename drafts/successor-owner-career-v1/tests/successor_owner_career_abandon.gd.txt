@@ -1,0 +1,106 @@
+extends "res://tests/successor_owner_career.gd"
+## Real abandoned origin, not synthetic completion and not Dynasty carryover.
+const SOURCE: String = "user://source-career-origin.json"
+const ARCHIVE: String = "user://owned-career-abandon-evidence"
+var original_bytes: PackedByteArray
+var original: Dictionary
+
+func immutable() -> bool:
+	return FileAccess.get_file_as_bytes(SOURCE) == original_bytes
+
+func archive(app: SeasonApp, action: String) -> void:
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	check(not bytes.is_empty() and ClubCareer.same(Codec.guard_snapshot(app.season),JSON.parse_string(bytes.get_string_from_utf8())) and immutable(),"exact durable "+action)
+	if failed: return
+	check(DirAccess.make_dir_recursive_absolute(ARCHIVE) == OK,"isolated evidence directory")
+	var index: int = 0
+	while FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) or FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index):
+		check(FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) and FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index),"paired existing evidence")
+		if failed: return
+		index += 1
+	var path: String = ARCHIVE+"/%04d.json"%index
+	check(DirAccess.copy_absolute(Save.PATH,path) == OK and FileAccess.get_file_as_bytes(path) == bytes,"exact new evidence without overwrite")
+	var meta: Dictionary = {"step":index,"action":action,"picks":app.season.picks.size(),"run":app.season.career.current,"prior_status":app.season.career.runs[0].status,"results":app.season.results.size()}
+	var file: FileAccess = FileAccess.open(ARCHIVE+"/%04d.meta.json"%index,FileAccess.WRITE)
+	check(file != null,"evidence metadata opens")
+	if failed: return
+	file.store_string(JSON.stringify(meta,"",true,true)); file.flush()
+	check(file.get_error() == OK,"evidence metadata flush")
+	file.close()
+	print("CAREER_ABANDON_STEP_DONE: ",JSON.stringify(meta,"",true,true))
+
+func state_ok(season: SeasonState) -> bool:
+	if season == null: return false
+	var expected: Dictionary = original.checkpoint.career.runs[0].duplicate(true)
+	expected.status = "abandoned"
+	return season.origin_close == "abandoned" and ClubCareer.same(season.origin,original) \
+		and season.closed.is_empty() and season.career.current == 2 and season.career.runs.size() == 2 \
+		and ClubCareer.same(season.career.runs[0],expected) and expected.receipt.is_empty() \
+		and season.league_rules.is_empty() and not season.league_live \
+		and season.career.runs[1].league == "standard" and not season.career.runs[1].has("league_rules") \
+		and ClubCareer.same(season.career._assets,original.checkpoint.career.assets)
+
+func run() -> void:
+	check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated real abandonment only")
+	original_bytes = FileAccess.get_file_as_bytes(SOURCE)
+	var parsed: Variant = JSON.parse_string(original_bytes.get_string_from_utf8())
+	check(parsed is Dictionary and parsed.get("version") == 116,"actual116 origin present")
+	if failed: get_tree().quit(1); return
+	original = parsed
+	check(original.checkpoint.career.origin == "fresh-general" and original.checkpoint.career.runs.size() == 1 and original.checkpoint.physical.pending.is_empty() and original.checkpoint.results.size() == 9,"exact genuine three-settled-round fixture scope")
+	if failed: get_tree().quit(1); return
+	var mode: String = OS.get_cmdline_user_args()[0]
+	var app = App.new()
+	if mode == "birth": app.predecessor = original.duplicate(true)
+	add_child(app)
+	await get_tree().process_frame
+	if mode == "birth":
+		check(not app._disk_matches({},"broken-json".to_utf8_buffer()) and not app._disk_matches({},PackedByteArray()),"malformed/empty primary refuses without parse diagnostics")
+		check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak"),"new slot absent; original never overwritten")
+		app.select_next_season("standard",0)
+		check(app.next_league == "standard","actual selector uses original available Standard")
+		app.request_abandon()
+		check(not app._transition.is_empty(),"explicit abandonment confirmation opens")
+		app._transition_dialog.canceled.emit()
+		check(app._transition.is_empty() and app.season == null and app.retained == null and not FileAccess.file_exists(Save.PATH),"Cancel is inert")
+		app.request_abandon()
+		var seed: int = app._transition.seed
+		check(DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated prewrite refusal injected")
+		if failed: get_tree().quit(1); return
+		app._transition_dialog.confirmed.emit()
+		check(app.season == null and app.retained != null and state_ok(app.retained) and app.retained.season_seed == seed and immutable(),"confirmed genuine source closes as abandoned, not completed; exact new birth retained")
+		check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak"),"failed birth writes no new primary or backup")
+		if failed: get_tree().quit(1); return
+		var retained: SeasonState = app.retained
+		app.confirm_abandon()
+		check(app.retained == retained and app.season == null,"repeated confirmation cannot reseed or duplicate closure")
+		check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only test fault")
+		app.retry_save()
+		check(app.retained == null and app.season == retained and state_ok(app.season),"exact retained birth save retry promoted")
+		if not failed: archive(app,"abandoned-standard-birth")
+	elif mode == "draft":
+		app.reload_save()
+		check(state_ok(app.season),"genuine abandoned origin and selected Standard cold restore")
+		if failed: get_tree().quit(1); return
+		for pick in range(4):
+			check(app.season.picks.size() == pick and not app.season.offers().is_empty(),"real draft offers available")
+			if failed: get_tree().quit(1); return
+			app.draft(app.season.offers()[0])
+			check(app.retained == null and state_ok(app.season) and app.season.picks.size() == pick+1,"actual four-player draft action")
+			if failed: get_tree().quit(1); return
+			archive(app,"draft-%d"%(pick+1))
+	elif mode == "cold":
+		app.reload_save()
+		check(state_ok(app.season) and app.season.picks.size() == 4 and app.season.phase == SeasonState.Phase.REGULAR,"separate cold fully drafted next Standard with genuine abandoned prefix")
+		if failed: get_tree().quit(1); return
+		var value: Dictionary = Codec.guard_snapshot(app.season)
+		var wrong: Dictionary = value.duplicate(true)
+		wrong.origin_close = "completed"
+		check(Codec.restore(wrong) == null,"closure cannot relabel unfinished origin as completed")
+		if not failed: archive(app,"cold-drafted")
+	else: check(false,"recognized qualification mode")
+	check(immutable(),"original source bytes preserved")
+	app.queue_free()
+	await get_tree().process_frame
+	if not failed: print("PASS: actual abandonment "+mode+"; no complete-season, played next-round or Dynasty claim")
+	get_tree().quit(1 if failed else 0)
