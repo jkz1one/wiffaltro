@@ -1,0 +1,129 @@
+extends "res://tests/successor_general_birth.gd"
+const Spy = preload("res://tests/successor_general_exit_spy.gd")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated interruption tests required"):
+		return
+	var prior_policy: bool = get_tree().auto_accept_quit
+	var app = Spy.new()
+	app.profile = requested_profile()
+	add_child(app)
+	if not check(not get_tree().auto_accept_quit, "actual App intercepts WM close"):
+		return
+	if OS.get_cmdline_user_args().has("pending"):
+		app.reload_save()
+		if not check(app.season != null and not app.season.physical.pending.is_empty() and app.retained == null, "strict actual durable pending round"):
+			return
+		var pending_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
+		if not check(app.quit_calls == 1 and FileAccess.get_file_as_bytes(Save.PATH) == pending_bytes, "idle durable pending round permits quit without lost checkpoint"):
+			return
+	else:
+		app.create_fresh()
+		if not check(app.season != null, "fresh isolated App"):
+			return
+		for pick in range(4):
+			app.draft(app.season.offers()[0])
+		var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		app.play_next()
+		if not check(is_instance_valid(app.lab) and app.lab._match_state != null, "actual game lab opened"):
+			return
+		app.lab.process_mode = Node.PROCESS_MODE_DISABLED # No invented game result.
+		var lab: PitchBatLab = app.lab
+		var state: MatchState = lab._match_state
+		lab.menu_exit_requested.emit()
+		if not check(app._exit_dialog.visible and app._exit_mode == "leave" and app.lab == lab, "actual lab exit signal requests confirmation"):
+			return
+		app._exit_dialog.get_cancel_button().pressed.emit()
+		if not check(not app._exit_dialog.visible and app.lab == lab and app.quit_calls == 0, "real Cancel preserves unfinished match"):
+			return
+		for pin: String in ["season", "lab", "state"]:
+			lab.menu_exit_requested.emit()
+			var old_season: SeasonState = app.season
+			var replacement: PitchBatLab
+			match pin:
+				"season": app.season = Codec.restore(Codec.capture(old_season))
+				"lab":
+					replacement = PitchBatLab.new()
+					app.lab = replacement
+				"state": lab._match_state = MatchState.new()
+			app._exit_dialog.get_ok_button().pressed.emit()
+			if not check(is_instance_valid(lab) and app.quit_calls == 0 and app._exit_mode.is_empty(), "changed pinned target rejects stale confirmation " + pin):
+				return
+			app.season = old_season
+			app.lab = lab
+			lab._match_state = state
+			if replacement != null:
+				replacement.free()
+		for guard: String in ["busy", "saving", "candidate", "report", "human", "ai", "completed"]:
+			var ai: Node
+			var old_phase: int = state.phase
+			match guard:
+				"busy": app._busy = true
+				"saving": Save.saving = true
+				"candidate": app.retained = app.season
+				"report": app.retained_report = {"guard_operand":true}
+				"human": app.retained_human = ["guard_operand"]
+				"ai":
+					ai = Node.new()
+					app.ai_runner = ai
+				"completed": state.phase = MatchState.Phase.GAME_END
+			lab.menu_exit_requested.emit()
+			app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
+			app._exit_dialog.confirmed.emit()
+			if not check(app.lab == lab and app.quit_calls == 0 and not app._exit_dialog.visible, "structural unsaved/busy guard blocks leave and WM quit " + guard):
+				return
+			app._busy = false
+			Save.saving = false
+			app.retained = null
+			app.retained_report = {}
+			app.retained_human = []
+			app.ai_runner = null
+			state.phase = old_phase
+			if ai != null:
+				ai.free()
+		lab.menu_exit_requested.emit()
+		app.retained = app.season
+		app._exit_dialog.get_ok_button().pressed.emit()
+		if not check(app.lab == lab and app.quit_calls == 0 and app._exit_mode.is_empty() and not app._exit_dialog.visible, "new retention after quote blocks stale OK and consumes confirmation"):
+			return
+		app.retained = null
+		app._exit_dialog.confirmed.emit()
+		if not check(app.lab == lab and app.quit_calls == 0, "clearing late guard cannot revive consumed confirmation"):
+			return
+		lab.menu_exit_requested.emit()
+		app.leave_game()
+		app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
+		if not check(app._exit_mode == "leave", "repeat and conflicting requests cannot change pinned purpose"):
+			return
+		app._exit_dialog.get_ok_button().pressed.emit()
+		app._exit_dialog.confirmed.emit()
+		if not check(not is_instance_valid(app.lab) and app.quit_calls == 0 and FileAccess.get_file_as_bytes(Save.PATH) == disk, "confirmed unfinished leave cleans up once without save mutation"):
+			return
+		app.play_next()
+		if not check(is_instance_valid(app.lab), "unchanged saved fixture reopens"):
+			return
+		app.lab.process_mode = Node.PROCESS_MODE_DISABLED
+		app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
+		app._exit_dialog.get_cancel_button().pressed.emit()
+		if not check(app.quit_calls == 0 and is_instance_valid(app.lab), "quit cancellation preserves lab"):
+			return
+		app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
+		app._exit_dialog.get_ok_button().pressed.emit()
+		app._exit_dialog.confirmed.emit()
+		if not check(app.quit_calls == 1 and not is_instance_valid(app.lab) and FileAccess.get_file_as_bytes(Save.PATH) == disk, "confirmed WM quit cleans up and invokes final action once"):
+			return
+	app.queue_free()
+	await get_tree().process_frame
+	if not check(get_tree().auto_accept_quit == prior_policy, "App teardown restores prior quit policy"):
+		return
+	get_tree().auto_accept_quit = false
+	var other = Spy.new()
+	add_child(other)
+	other.queue_free()
+	await get_tree().process_frame
+	if not check(not get_tree().auto_accept_quit, "preexisting false quit policy also preserved"):
+		return
+	get_tree().auto_accept_quit = prior_policy
+	print("PASS: actual exit controls and structural retention guards; no fabricated completed-game evidence")
+	get_tree().quit()

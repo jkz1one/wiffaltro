@@ -1,0 +1,5 @@
+extends "res://src/presentation/season/successor_league_general_v2/app.gd"
+## Only the final operating-system termination is intercepted.
+var quit_calls: int = 0
+func _quit_now() -> void:
+	quit_calls += 1

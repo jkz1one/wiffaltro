@@ -1,0 +1,100 @@
+extends "res://tests/successor_general_birth.gd"
+## Input is a separately preserved CURRENT-source actually earned open-shop
+## pre-pack checkpoint, copied by runner into this isolated slot. No fake funding.
+const Spy = preload("res://tests/successor_general_exit_spy.gd")
+
+func reroll_button(node: Node) -> Button:
+	if node is Button and node.text.begins_with("Reroll individual offers"):
+		return node
+	for child: Node in node.get_children():
+		var found: Button = reroll_button(child)
+		if found != null:
+			return found
+	return null
+
+func shop_for(app: SeasonApp) -> SeasonShopWindow:
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow:
+			return child
+	return null
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated actual earned quote fixture required"):
+		return
+	var prior_policy: bool = get_tree().auto_accept_quit
+	var app = Spy.new()
+	add_child(app)
+	app.reload_save()
+	if not check(app.season != null and app.season.results.size() == 3 and app.season.build._visit.open \
+		and app.season.build._visit.pack_status == "sealed" and profile(app.season,requested_profile()), "strict actually earned pre-pack open shop"):
+		return
+	app.open_pitch_shop()
+	var shop: SeasonShopWindow = shop_for(app)
+	if not check(shop != null and shop.visible, "actual full-shop Window"):
+		return
+	var initial: Dictionary = Codec.capture(app.season)
+	var initial_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var button: Button = reroll_button(shop)
+	if not check(button != null and not button.disabled, "affordable actual reroll control"):
+		return
+	button.pressed.emit()
+	if not check(shop._confirm.visible and not shop._pending.is_empty(), "real button opens fixed purchase quote"):
+		return
+	shop._confirm.get_cancel_button().pressed.emit()
+	if not check(shop._pending.is_empty() and ClubCareer.same(Codec.capture(app.season), initial) \
+		and FileAccess.get_file_as_bytes(Save.PATH) == initial_bytes, "actual Cancel clears quote without paying or saving"):
+		return
+	button = reroll_button(shop)
+	button.pressed.emit()
+	var cash: int = app.season.build.cash()
+	var quote: int = app.season.build.reroll_price()
+	shop._confirm.get_ok_button().pressed.emit()
+	if not check(app.retained == null and app.season.build.cash() == cash - quote, "actual OK pays exact displayed reroll once"):
+		return
+	var purchased: Dictionary = Codec.capture(app.season)
+	var purchased_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	shop._confirm.confirmed.emit()
+	if not check(ClubCareer.same(Codec.capture(app.season), purchased) and FileAccess.get_file_as_bytes(Save.PATH) == purchased_bytes, "repeated confirmation cannot pay twice"):
+		return
+	shop = shop_for(app)
+	button = reroll_button(shop)
+	if not check(button != null and not button.disabled, "second earned reroll affordable for fault qualification"):
+		return
+	button.pressed.emit()
+	cash = app.season.build.cash()
+	quote = app.season.build.reroll_price()
+	var backup_exists: bool = FileAccess.file_exists(Save.PATH + ".bak")
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH + ".bak") if backup_exists else PackedByteArray()
+	if not check(not FileAccess.file_exists(Save.PATH + ".tmp") and not DirAccess.dir_exists_absolute(Save.PATH + ".tmp") \
+		and DirAccess.make_dir_absolute(Save.PATH + ".tmp") == OK, "isolated pre-write refusal injected"):
+		return
+	shop._confirm.get_ok_button().pressed.emit()
+	var candidate: SeasonState = app.retained
+	if not check(candidate != null and candidate.build.cash() == cash - quote \
+		and ClubCareer.same(Codec.capture(app.season), purchased) and FileAccess.get_file_as_bytes(Save.PATH) == purchased_bytes \
+		and FileAccess.file_exists(Save.PATH + ".bak") == backup_exists \
+		and (not backup_exists or FileAccess.get_file_as_bytes(Save.PATH + ".bak") == backup), "real failed purchase retains exact candidate; original and backup remain unchanged"):
+		return
+	var candidate_data: Dictionary = Codec.capture(candidate)
+	app.ask_leave_game()
+	app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
+	if not check(app.quit_calls == 0 and app.retained == candidate, "real save-failure retention blocks quit/leave"):
+		return
+	shop._confirm.confirmed.emit()
+	if not check(app.retained == candidate and ClubCareer.same(Codec.capture(candidate), candidate_data), "repeated failed confirmation preserves exact retained candidate"):
+		return
+	if not check(DirAccess.remove_absolute(Save.PATH + ".tmp") == OK, "remove only injected fault directory"):
+		return
+	app.retry_save()
+	if not check(app.retained == null and app.season == candidate and ClubCareer.same(Codec.capture(app.season), candidate_data) \
+		and ClubCareer.same(JSON.parse_string(FileAccess.get_file_as_string(Save.PATH)), candidate_data), "retry promotes identical paid candidate once"):
+		return
+	app.retry_save()
+	if not check(ClubCareer.same(Codec.capture(app.season), candidate_data), "repeat retry grants and charges nothing"):
+		return
+	app.queue_free()
+	await get_tree().process_frame
+	if not check(get_tree().auto_accept_quit == prior_policy, "shop App restores quit policy"):
+		return
+	print("PASS: real earned quote Cancel/OK/repeat and exact failed-save retry; no native visual claim")
+	get_tree().quit()

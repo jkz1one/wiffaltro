@@ -20,8 +20,110 @@ var retained_state: MatchState
 var retained_report: Dictionary = {}
 var ai_runner: Node
 var projection: Dictionary = {}
+var _exit_dialog: ConfirmationDialog
+var _exit_mode: String = ""
+var _exit_season: SeasonState
+var _exit_lab: PitchBatLab
+var _exit_state: MatchState
+var _quit_tree: SceneTree
+var _previous_auto_quit: bool = true
+
+func _enter_tree() -> void:
+	_quit_tree = get_tree()
+	_previous_auto_quit = _quit_tree.auto_accept_quit
+	_quit_tree.auto_accept_quit = false
+
+func _exit_tree() -> void:
+	_loading_generation += 1 # Invalidate any inherited deferred paint continuation.
+	_cancel_exit()
+	if is_instance_valid(_quit_tree):
+		_quit_tree.auto_accept_quit = _previous_auto_quit
+	_quit_tree = null
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_request_quit()
+
+func _exit_blocked() -> bool:
+	if _busy or Save.saving or is_instance_valid(ai_runner):
+		notice = "A game or checkpoint is still running. Wait before leaving."
+		return true
+	if retained != null or not retained_report.is_empty() or not retained_human.is_empty():
+		notice = "Unsaved progress is retained. Retry the exact checkpoint before leaving."
+		return true
+	if is_instance_valid(lab) and lab._match_state != null and lab._match_state.phase == MatchState.Phase.GAME_END:
+		notice = "Save the completed game before leaving."
+		return true
+	return false
+
+func ask_leave_game() -> void:
+	_request_exit("leave")
+
+func leave_game() -> void:
+	# Direct inherited callbacks cannot bypass the same confirmation boundary.
+	_request_exit("leave")
+
+func _request_quit() -> void:
+	_request_exit("quit")
+
+func _request_exit(mode: String) -> void:
+	if mode not in ["leave", "quit"] or _exit_blocked():
+		return
+	if not is_instance_valid(lab):
+		if mode == "quit":
+			_cancel_exit()
+			_quit_now()
+		return
+	if lab._match_state == null or not is_instance_valid(_exit_dialog):
+		return
+	if not _exit_mode.is_empty():
+		return # Repeated/different requests cannot retarget an open confirmation.
+	_exit_mode = mode
+	_exit_season = season
+	_exit_lab = lab
+	_exit_state = lab._match_state
+	_exit_dialog.dialog_text = "Quit? This unfinished game will restart. Saved progress stays." if mode == "quit" else "Leave this unfinished game? It will restart. Saved progress stays."
+	_exit_dialog.popup_centered(Vector2i(560, 180))
+	_exit_dialog.get_cancel_button().grab_focus()
+
+func _cancel_exit() -> void:
+	_exit_mode = ""
+	_exit_season = null
+	_exit_lab = null
+	_exit_state = null
+	if is_instance_valid(_exit_dialog):
+		_exit_dialog.hide()
+
+func _confirm_exit() -> void:
+	var mode: String = _exit_mode
+	var owner: SeasonState = _exit_season
+	var matches: bool = mode in ["leave", "quit"] and season == _exit_season \
+		and is_instance_valid(lab) and lab == _exit_lab and lab._match_state == _exit_state
+	_cancel_exit() # Consume once before cleanup or any potential callback.
+	if not matches or _exit_blocked():
+		return
+	if not _close_match(false):
+		notice = "The original match could not close safely. It remains available."
+		return
+	if season != owner or is_instance_valid(lab) or _exit_blocked():
+		return # Cleanup may have invoked callbacks; never quit a replacement owner.
+	if mode == "quit":
+		_quit_now()
+	else:
+		show_season()
+
+func _quit_now() -> void:
+	# Sole final OS action; tests may spy on it without bypassing any exit guard.
+	get_tree().quit()
 
 func _ready() -> void:
+	_exit_dialog = ConfirmationDialog.new()
+	_exit_dialog.title = "Leave unfinished game"
+	_exit_dialog.dialog_autowrap = true
+	_exit_dialog.confirmed.connect(_confirm_exit)
+	_exit_dialog.canceled.connect(_cancel_exit)
+	_exit_dialog.close_requested.connect(_cancel_exit)
+	add_child(_exit_dialog)
 	menu = Page.new()
 	add_child(menu)
 	menu.build(self)

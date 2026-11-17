@@ -175,6 +175,13 @@ func run() -> void:
 	build = app.season.build
 	if not check(build._visit.open and not build._visit.cards.is_empty(), "generated earned shop opens"):
 		return
+	if OS.get_cmdline_user_args().has("retain-shop-prepack"):
+		# Alternate isolated UI test branch, never a rollback of this paid history.
+		var prepack: String = "user://earned-shop-prepack.json"
+		if not check(not FileAccess.file_exists(prepack) and not DirAccess.dir_exists_absolute(prepack) \
+			and DirAccess.copy_absolute(Save.PATH, prepack) == OK \
+			and FileAccess.get_file_as_bytes(prepack) == FileAccess.get_file_as_bytes(Save.PATH), "retain exact actual earned pre-pack checkpoint without overwrite"):
+			return
 	var cash_before: int = build.cash()
 	var price: int = build.pack_price()
 	var open_command: Dictionary = {"id":"pack:%d"%build.revision(),"rev":build.revision(),"op":"pack_open"}

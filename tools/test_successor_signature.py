@@ -42,12 +42,16 @@ def main():
     mode.add_argument('--general-physical', action='store_true', help='Ordinary single-game physical context tests only; no owned season admission')
     mode.add_argument('--general-birth', action='store_true', help='General ordinary season birth/draft exact cold replay')
     mode.add_argument('--general-round', action='store_true', help='General actual ordinary season round/earned shop/cold replay')
+    mode.add_argument('--general-interrupt', action='store_true', help='General App cancel, close and retained-write guards')
+    parser.add_argument('--interrupt-flows', action='store_true', help='Test actual pending close and isolated earned shop confirmation during general round')
     mode.add_argument('--general-economies', action='store_true', help='Original Sponsorship/Earnings policy and paid synthetic unit mechanics')
     parser.add_argument('--resolve-benchmark', action='store_true', help='After a fresh general round, compare immediate report reuse against full validation')
     parser.add_argument('--general-profile', choices=['standard', 'dugout', 'sponsorship', 'earnings'], default='standard')
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
+    if args.interrupt_flows and not args.general_round:
+        parser.error('--interrupt-flows requires a fresh --general-round')
     if args.resolve_benchmark and not args.general_round:
         parser.error('--resolve-benchmark requires a fresh --general-round')
     if args.facade and not args.owner_round:
@@ -75,7 +79,7 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
@@ -95,33 +99,33 @@ def main():
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
-    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
         entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
     if args.owner_performance_fixture or args.facade:
         facade_manifest = json.loads((root / 'drafts/successor-owner-ui-v1/DRAFT_MANIFEST.json').read_text())
         entries += facade_manifest['files']
-    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         completion_manifest = json.loads((root / 'drafts/successor-career-completion-v1/DRAFT_MANIFEST.json').read_text())
         entries += completion_manifest['files']
-    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         entries += json.loads((root / 'drafts/successor-career-assets-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         entries += json.loads((root / 'drafts/successor-owner-terminal-v1/DRAFT_MANIFEST.json').read_text())['files']
     if args.recapture_fixture:
         entries += json.loads((root / 'drafts/successor-owner-recapture-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         entries += json.loads((root / 'drafts/successor-career-history-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies:
+    if args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt:
         entries += json.loads((root / 'drafts/successor-league-general-v2/DRAFT_MANIFEST.json').read_text())['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
@@ -144,13 +148,13 @@ def main():
         env[key] = str(stage / directory)
         Path(env[key]).mkdir(exist_ok=bool(args.terminal_resume_stage))
     print(f'Isolated test evidence: {stage}', flush=True)
-    def run(label, switches, timeout=300):
+    def run(label, switches, timeout=300, run_env=None):
         is_import = label == 'import'
         while (stage / f'{label}.log').exists():
             label += '-resume'
         command = [args.godot, '--headless', '--path', str(project), *switches]
         with (stage / f'{label}.log').open('w') as log:
-            result = subprocess.run(command, env=env, stdout=log,
+            result = subprocess.run(command, env=run_env or env, stdout=log,
                                     stderr=subprocess.STDOUT, timeout=timeout)
         output = (stage / f'{label}.log').read_text()
         if result.returncode or 'SCRIPT ERROR:' in output or 'ERROR:' in output or 'FAIL:' in output:
@@ -194,6 +198,9 @@ def main():
     if args.general_economies:
         run('general-economies', ['res://tests/successor_general_economies.tscn'], timeout=1800)
         return
+    if args.general_interrupt:
+        run('general-interrupt', ['res://tests/successor_general_interrupt.tscn', '--', args.general_profile], timeout=1800)
+        return
     if args.general_birth or args.general_round:
         selected = [args.general_profile] if args.general_profile != 'standard' else []
         if args.general_birth:
@@ -203,10 +210,30 @@ def main():
         else:
             scene = ['--fixed-fps', '60', 'res://tests/successor_general_round.tscn', '--', *selected]
             run('general-human', scene + ['human-only'], timeout=2400)
+            if args.interrupt_flows:
+                run('general-interrupt-pending', ['res://tests/successor_general_interrupt.tscn', '--', *selected, 'pending'], timeout=1800)
             run('general-ai-first', scene + ['resume-round', 'one-ai'], timeout=2400)
             run('general-ai-second', scene + ['resume-round', 'one-ai'], timeout=2400)
-            run('general-settle-shop', scene + ['resume-round'], timeout=2400)
+            run('general-settle-shop', scene + ['resume-round'] + (['retain-shop-prepack'] if args.interrupt_flows else []), timeout=2400)
             run('general-round-cold', scene + ['reopen'], timeout=1800)
+            if args.interrupt_flows:
+                data_root = stage / 'data/godot/app_userdata/Wiffaltro'
+                primary = data_root / 'successor-general-build-v7-r2.json'
+                prepack = data_root / 'earned-shop-prepack.json'
+                primary_before, prepack_before = primary.read_bytes(), prepack.read_bytes()
+                isolated = stage / 'shop-confirm'
+                assert not isolated.exists()
+                isolated.mkdir()
+                shop_env = dict(env)
+                for key, directory in [('HOME', 'home'), ('XDG_DATA_HOME', 'data'), ('XDG_CONFIG_HOME', 'config'), ('XDG_CACHE_HOME', 'cache')]:
+                    shop_env[key] = str(isolated / directory)
+                    Path(shop_env[key]).mkdir()
+                destination = isolated / 'data/godot/app_userdata/Wiffaltro' / primary.name
+                destination.parent.mkdir(parents=True)
+                destination.write_bytes(prepack_before)
+                run('general-shop-confirm', ['res://tests/successor_general_shop_confirm.tscn', '--', *selected], timeout=2400, run_env=shop_env)
+                assert primary.read_bytes() == primary_before
+                assert prepack.read_bytes() == prepack_before
             if args.resolve_benchmark:
                 run('general-resolve', ['res://tests/successor_general_resolve.tscn', '--', *selected], timeout=2400)
         return
