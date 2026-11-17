@@ -71,9 +71,9 @@ static func _read(path: String) -> SeasonState:
 	if parser.parse(file.get_as_text()) != OK: return null
 	return Codec.restore(parser.data)
 
-# Fixed synchronous operation only. No API accepts a validated envelope or proof.
-# The private candidate is born from this call's strict primary-disk restoration;
-# only unchanged original pack operations may mutate it before atomic persistence.
+# Closed synchronous pack-or-NPC dispatcher. No API accepts a validated envelope
+# or proof. Each private candidate starts with strict primary-disk restoration;
+# only an original pack operation or one validated pending report may change it.
 static func commit_shop(owner: SeasonState, command: Dictionary) -> Dictionary:
 	var fallback: Dictionary = {"handled":false,"candidate":null,"saved":false,"error":"","expected_primary":null}
 	if command.get("op") not in ["pack_open","pack_pick"]: return fallback
@@ -115,9 +115,8 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 	var request_id: Variant = command.get("id")
 	if npc:
 		rejected.error = "The physical report cannot be appended to this owned checkpoint."
-		var budget: Array[int] = [100000,8388608]
 		if owner.physical.pending.is_empty() or not raw_report is Dictionary or raw_report.is_empty() \
-			or not load("res://src/gameplay/season/successor_owner_general_v1/physical_fixtures.gd")._current_report_value_graph(raw_report,budget,0): return rejected
+			or not _primitive_report_graph(raw_report): return rejected
 		# The frozen report core accepts typed ownership arguments before its late
 		# wrapper checks. Reject malformed elements before reaching that boundary.
 		if raw_report.get("ownership") is Array:
@@ -195,15 +194,18 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 	var data: Dictionary = Codec.guard_snapshot(candidate)
 	if data.is_empty() or not ClubCareer.same(Codec.guard_snapshot(owner),before): return result
 	# Equality is not a generic authentication shortcut: the only changed object
-	# here is the freshly decoded local candidate after the two fixed operations.
+	# here is the freshly decoded local candidate after a fixed pack operation or validated NPC pending addition.
 	for key: String in ["version","format","owner_source","pitch_catalog"]:
 		if not ClubCareer.same(data.get(key),before.get(key)): return result
+	# NPC schema validation above precedes serialization. The full envelope
+	# contains the raw report, so its existing cap also bounds report JSON bytes;
+	# no redundant stringify of arbitrary unvalidated/deep input is needed.
 	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
 	if bytes.is_empty() or bytes.size() > MAX_BYTES: return result
 	var parsed: JSON = JSON.new()
 	if parsed.parse(bytes.get_string_from_utf8()) != OK or not ClubCareer.same(parsed.data,data): return result
 	if not ClubCareer.same(Codec.guard_snapshot(candidate),data) or not ClubCareer.same(Codec.guard_snapshot(owner),before): return result
-	# Deliberately after candidate creation: prewrite faults retain the paid choice,
+	# Deliberately after candidate creation: prewrite faults retain the exact pack/report candidate,
 	# just as the ordinary App transaction does. Never overwrite uncertain files.
 	for suffix: String in ["", ".bak", ".tmp"]:
 		if DirAccess.dir_exists_absolute(PATH+suffix): return result
@@ -254,3 +256,53 @@ static func _lineup_only(disk: Variant, live: Dictionary) -> bool:
 	compared.checkpoint.starter_index = b.starter_index
 	compared.checkpoint.fielder_index = b.fielder_index
 	return ClubCareer.same(compared,live)
+
+# Shape/safety preflight only, never report validity or persistence authority.
+# Each visited value/key and each UTF-8 string byte consumes at least one JSON
+# byte. These conservative work bounds cannot exclude a report that fits inside
+# the existing MAX_BYTES complete envelope. No fast-path depth limit is admission.
+static func _primitive_report_graph(value: Variant) -> bool:
+	var remaining: int = MAX_BYTES
+	var string_bytes: int = MAX_BYTES
+	# Frames are [value, exiting]. Only current ancestors identify cycles: shared
+	# acyclic containers are permitted and charged again, as JSON encodes them.
+	var stack: Array = [[value,false]]
+	var ancestors: Array = []
+	while not stack.is_empty():
+		var frame: Array = stack.pop_back()
+		var current: Variant = frame[0]
+		if frame[1]:
+			ancestors.pop_back()
+			continue
+		remaining -= 1
+		if remaining < 0: return false
+		match typeof(current):
+			TYPE_NIL, TYPE_BOOL, TYPE_INT:
+				pass
+			TYPE_FLOAT:
+				if not is_finite(current): return false
+			TYPE_STRING:
+				if current.length() > string_bytes: return false
+				string_bytes -= current.to_utf8_buffer().size()
+				if string_bytes < 0: return false
+			TYPE_ARRAY, TYPE_DICTIONARY:
+				for ancestor: Variant in ancestors:
+					if is_same(current,ancestor): return false
+				var children: int = current.size() * (2 if current is Dictionary else 1)
+				# Include pending entry frames in the work bound; exit frames merely
+				# unwind ancestors and do not represent serialized data.
+				var pending: int = stack.size() - ancestors.size()
+				if children > remaining - pending: return false
+				ancestors.append(current)
+				stack.append([current,true])
+				if current is Dictionary:
+					for key: Variant in current:
+						if not key is String: return false
+						stack.append([current[key],false])
+						stack.append([key,false])
+				else:
+					for child: Variant in current:
+						stack.append([child,false])
+			_:
+				return false
+	return true

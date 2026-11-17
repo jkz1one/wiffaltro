@@ -1,0 +1,277 @@
+extends "res://tests/successor_owner_general.gd"
+## Actual continuation of a qualified fresh-owned paid checkpoint. Test only.
+const SOURCE_SEASON: String = "user://source-owned-general-season.json"
+const ARCHIVE: String = "user://owned-general-season-evidence"
+const Assets = preload("res://src/gameplay/season/successor_owner_general_v1/assets.gd")
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+var entry_bytes: PackedByteArray
+var entry: Dictionary
+var boundaries: int = 0
+var batch_done: bool = false
+
+func source_unchanged() -> bool:
+	return FileAccess.get_file_as_bytes(SOURCE_SEASON) == entry_bytes
+
+func lineage(season: SeasonState) -> bool:
+	var old: Dictionary = entry.checkpoint
+	if not check(season.career.origin == "fresh-general" and season.career.current == 1 and season.career.runs.size() == 1 and season.career.predecessor.is_empty() and season.season_seed == old.season_seed and ClubCareer.same(season.picks,old.picks) and ClubCareer.same(season.league_rules,old.league_rules) and ClubCareer.same(season.career.start_basis,old.career.start_basis),"same genuine fresh origin seed picks and genesis"): return false
+	for pair: Array in [[season.results,old.results],[season.player_results,old.player_results],[season.build._events,old.build.events],[season.physical.reports,old.physical.reports]]:
+		if not check(pair[0].size() >= pair[1].size() and ClubCareer.same(pair[0].slice(0,pair[1].size()),pair[1]),"immutable earned result/report/paid-build prefix"): return false
+	return check(source_unchanged(),"original paid entry bytes unchanged")
+
+func finish_step(app: SeasonApp, action: String, complete: bool = false) -> void:
+	if failed: return
+	var guard: Dictionary = Codec.guard_snapshot(app.season)
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(app.retained == null and not app._busy and not guard.is_empty() and ClubCareer.same(guard,JSON.parse_string(bytes.get_string_from_utf8())) and lineage(app.season),"actual durable full-season boundary " + action): return
+	if not check(DirAccess.make_dir_recursive_absolute(ARCHIVE) == OK,"private full-season archive"): return
+	var index: int = 0
+	while FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) or FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index):
+		if not check(FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) and FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index),"orphan archive pair fails closed"): return
+		index += 1
+	var path: String = ARCHIVE+"/%04d.json"%index
+	var meta_path: String = ARCHIVE+"/%04d.meta.json"%index
+	if not check(not DirAccess.dir_exists_absolute(path) and not DirAccess.dir_exists_absolute(meta_path),"archive destinations absent"): return
+	if not check(DirAccess.copy_absolute(Save.PATH,path) == OK and FileAccess.get_file_as_bytes(path) == bytes,"exact boundary archive without overwrite"): return
+	boundaries += 1
+	batch_done = action == "settlement" or app.season.phase == SeasonState.Phase.COMPLETE
+	var meta: Dictionary = {"step":index,"action":action,"phase":app.season.phase,"results":app.season.results.size(),"human_games":app.season.player_results.size(),"complete":app.season.phase == SeasonState.Phase.COMPLETE,"batch_done":batch_done,"batch_boundaries":boundaries}
+	var text: String = JSON.stringify(meta,"",true,true)
+	var file: FileAccess = FileAccess.open(meta_path,FileAccess.WRITE)
+	if not check(file != null,"archive metadata writable"): return
+	file.store_string(text)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	if not check(error == OK and FileAccess.get_file_as_string(meta_path) == text,"metadata exact readback"): return
+	print("OWNED_SEASON_STEP_DONE: ",text)
+
+func run() -> void:
+	if OS.get_cmdline_user_args().has("primitive-policy"):
+		primitive_policy()
+		return
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated real owned continuation"): return
+	entry_bytes = FileAccess.get_file_as_bytes(SOURCE_SEASON)
+	var parsed: Variant = JSON.parse_string(entry_bytes.get_string_from_utf8())
+	if not check(parsed is Dictionary and parsed.get("version") == 116 and parsed.get("checkpoint") is Dictionary,"immutable owned116 input envelope"): return
+	entry = parsed
+	if not check(entry.checkpoint.career.origin == "fresh-general" and entry.checkpoint.career.current == 1 and entry.checkpoint.player_results.size() == 1 and entry.checkpoint.results.size() == 3 and entry.checkpoint.build_view.shop.pack_status == "used","qualified real paid first-round source, not fabricated season"): return
+	var bootstrapped: bool = false
+	if not FileAccess.file_exists(Save.PATH):
+		if not check(not OS.get_cmdline_user_args().has("verify-complete") and not FileAccess.file_exists(Save.PATH+".bak") and not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH) and not DirAccess.dir_exists_absolute(ARCHIVE),"bootstrap only absent pristine isolated primary"): return
+		if not bootstrap_entry(): return
+		bootstrapped = true
+	var app = App.new()
+	add_child(app)
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	app.reload_save()
+	if not check(app.season != null and ClubCareer.same(Codec.guard_snapshot(app.season),JSON.parse_string(disk.get_string_from_utf8())) and FileAccess.get_file_as_bytes(Save.PATH) == disk,"strict current primary cold restore, no backup substitution"): return
+	if not lineage(app.season): return
+	if bootstrapped:
+		finish_step(app,"entry-reconstructed")
+		if failed: return
+	if OS.get_cmdline_user_args().has("verify-complete"):
+		if not verify_terminal(app): return
+		finish_step(app,"cold-complete",true)
+		if failed: return
+		print("PASS: cold actual owned General full season, terminal receipt and assets verified")
+		app.queue_free()
+		get_tree().quit()
+		return
+	for boundary in range(8-boundaries):
+		var previous: int = boundaries
+		await advance(app)
+		if failed: return
+		if not check(boundaries == previous+1,"one durable boundary per step"): return
+		if batch_done:
+			print("PASS: bounded actual owned General batch; each boundary durable, final cold remains separate")
+			app.queue_free()
+			get_tree().quit()
+			return
+	check(false,"bounded round exceeded eight boundaries; preserve last checkpoint")
+
+func terminal_possible(season: SeasonState) -> bool:
+	var pending: Dictionary = season.physical.pending
+	if pending.get("human") is Array and not pending.human.is_empty() and pending.human[0] == 32: return true
+	for row: Dictionary in pending.get("reports",[]):
+		if row.get("fixture") == 32: return true
+	return false
+
+func advance(app: SeasonApp) -> void:
+	if app.season.phase == SeasonState.Phase.COMPLETE:
+		finish_step(app,"already-terminal",true)
+		return
+	if app.season.physical.pending.is_empty():
+		await play_human(app)
+		return
+	var owner: SeasonState = app.season
+	var before: Dictionary = Codec.guard_snapshot(owner)
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak") if backup_exists else PackedByteArray()
+	var count: int = owner.physical.pending.reports.size()
+	if terminal_possible(owner):
+		# Exactly the final fixture marker enables the otherwise omitted preflight.
+		var terminal: Dictionary = Pending.project(owner)
+		if not check(not terminal.has("error") and not terminal.has("fixture") and terminal.candidate.phase == SeasonState.Phase.COMPLETE,"fixture32 evidence yields real completed projection"): return
+		if not terminal_retry(app,terminal.candidate): return
+		finish_step(app,"settlement",true)
+		return
+	app.resume_round()
+	var projection: Dictionary = app.projection
+	if not check(not projection.is_empty() and not projection.has("error"),"actual App pending projection"): return
+	if projection.has("fixture"):
+		var id: int = int(projection.fixture.id)
+		if not check(app._busy and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == disk and FileAccess.file_exists(Save.PATH+".bak") == backup_exists and (not backup_exists or FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup),"NPC start pays no premature reward"): return
+		var finished: bool = false
+		for frame in range(150000):
+			await get_tree().physics_frame
+			if not app._busy:
+				finished = true
+				break
+			if frame % 12000 == 0: print("OWNED_SEASON_AI_PROGRESS: ",id," frame=",frame)
+		if not check(finished and app.retained == null and app.season.physical.pending.reports.size() == count+1 and app.season.physical.pending.reports[-1].fixture == id and app.season.physical.pending.reports[-1].report.version == 114,"exact actual required NPC report durably appended"): return
+		if not check(ClubCareer.same(app.season.results,owner.results) and ClubCareer.same(app.season.career.to_data(),owner.career.to_data()),"NPC checkpoint cannot publish settlement or awards"): return
+		finish_step(app,"npc-%d"%id)
+	else:
+		if not check(app.retained == null and app.season.physical.pending.is_empty() and app.season.results.size() > owner.results.size(),"real round settles after every required job"): return
+		var settled: Dictionary = Codec.guard_snapshot(app.season)
+		var settled_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		app.resume_round()
+		if not check(ClubCareer.same(Codec.guard_snapshot(app.season),settled) and FileAccess.get_file_as_bytes(Save.PATH) == settled_bytes,"duplicate settlement inert"): return
+		finish_step(app,"settlement")
+
+func terminal_retry(app: SeasonApp, projected: SeasonState) -> bool:
+	var owner: SeasonState = app.season
+	var before: Dictionary = Codec.guard_snapshot(owner)
+	var expected: Dictionary = Codec.guard_snapshot(projected)
+	var receipt: Dictionary = ClubSeasonRecord.receipt(ClubSeasonRecord.capture(projected),true,0)
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak") if backup_exists else PackedByteArray()
+	if not check(not expected.is_empty() and not receipt.is_empty() and projected.career.runs[0].status == "completed" and ClubCareer.same(projected.career.runs[0].receipt,receipt),"actual terminal receipt before prewrite refusal"): return false
+	if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"inject only isolated terminal prewrite fault"): return false
+	app.resume_round()
+	var retained: SeasonState = app.retained
+	if not check(retained != null and app.season == owner and not app._busy and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == disk and FileAccess.file_exists(Save.PATH+".bak") == backup_exists and (not backup_exists or FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup),"terminal failure preserves owner primary and backup"): return false
+	if not check(ClubCareer.same(Codec.guard_snapshot(retained),expected) and owner.career.runs[0].status == "active", "exact completed candidate retained without publishing awards"): return false
+	var text: Array[String] = visible_text(app.menu)
+	if not check(text.has("RETRY EXACT SAVE") and not text.any(func(value: String) -> bool: return value.begins_with("Season saved:") or value.contains("Club Cash earned") or value.begins_with("Finish ")),"unsaved terminal receipt not presented as earned"): return false
+	if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only terminal fault directory"): return false
+	app.retry_save()
+	return check(app.retained == null and app.season == retained and app.notice.is_empty() and ClubCareer.same(Codec.guard_snapshot(app.season),expected) and ClubCareer.same(JSON.parse_string(FileAccess.get_file_as_string(Save.PATH)),expected),"strict retry promotes identical terminal candidate without replaying games")
+
+func visible_text(node: Node) -> Array[String]:
+	var result: Array[String] = []
+	if node is CanvasItem and not node.is_visible_in_tree(): return result
+	if node is Label or node is Button: result.append(node.text)
+	for child: Node in node.get_children(): result.append_array(visible_text(child))
+	return result
+
+func verify_terminal(app: SeasonApp) -> bool:
+	var season: SeasonState = app.season
+	if not check(season.phase == SeasonState.Phase.COMPLETE and season.results.size() == 33 and season.physical.pending.is_empty() and season.career.runs[0].status == "completed" and lineage(season),"cold real General full season and playoffs complete"): return false
+	var ids: Array = []
+	for row: Dictionary in season.results:
+		if not check(not ids.has(row.id) and row.id in range(33),"unique actual fixture result"): return false
+		ids.append(row.id)
+	var receipt: Dictionary = ClubSeasonRecord.receipt(ClubSeasonRecord.capture(season),true,0)
+	var assets: Dictionary = Assets.basis(season.career)
+	var policy: Dictionary = Policy.evaluate(season.career.runs)
+	if not check(not receipt.is_empty() and ClubCareer.same(receipt,season.career.runs[0].receipt) and not assets.is_empty() and not policy.is_empty() and assets.income == [int(receipt.total)] and ClubCareer.same(assets.ledger.to_data(),season.career._assets),"original terminal policy and complete asset journal derive exactly"): return false
+	for club in range(6):
+		var build: SeasonBuild = season.build if club == 0 else season.opponents.clubs[str(club)].build
+		var expected: Array = []
+		for row: Dictionary in season.results:
+			if row.home == club or row.away == club: expected.append(int(row.id))
+		var actual: Array = []
+		var replay: SeasonOwnership = build._bank.empty_fork()
+		for event: Dictionary in build._bank._events:
+			var cash: int = replay.cash()
+			var result: Dictionary = replay.commit(event)
+			if not check(result.ok and not result.replayed,"actual full bank journal replay"): return false
+			if event.op == "reward":
+				actual.append(int(event.game))
+				var played: Array = season.results.filter(func(row: Dictionary) -> bool: return int(row.id) == int(event.game))
+				if not check(played.size() == 1,"reward corresponds to exactly one actual fixture"): return false
+				var won: bool = (played[0].home_runs > played[0].away_runs) == (played[0].home == club)
+				if not check(event.win == won and replay.cash()-cash == (18 if won else 12),"original actual win/loss reward without stacking"): return false
+		if not check(ClubCareer.same(replay.view(),build._bank.view()),"entire paid and reward journal exact final view"): return false
+		expected.sort()
+		actual.sort()
+		if not check(actual == expected,"each club paid exactly its actual regular and playoff fixtures"): return false
+	var progress: Dictionary = load("res://src/gameplay/season/successor_career_general_v1/career_progress.gd").capture(season)
+	if not check(not progress.is_empty() and ClubCareer.same(progress,season.career.runs[0].player_progress),"fresh terminal General progression matches completed row"): return false
+	var active: Dictionary = Start.row(season)
+	var settlement: Dictionary = load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").state(active,season.career.start_basis,true)
+	if not check(not settlement.is_empty() and ClubCareer.same(settlement.row,season.career.runs[0]) and ClubCareer.same(settlement.assets,season.career._assets) and ClubCareer.same(settlement.pennants,season.career._pennants) and ClubCareer.same(settlement.plaques,season.career._plaques),"fresh original settlement reproduces row asset journal pennants and plaques"): return false
+	var payload: Dictionary = Codec.capture(season)
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+	if not check(not payload.is_empty() and ClubCareer.same(payload,JSON.parse_string(disk.get_string_from_utf8())) ,"final strict canonical capture equals already cold-restored primary"): return false
+	if not check(season.career.sync(season) and season.career.sync(season),"terminal sync is repeatable"): return false
+	app.resume_round()
+	if not check(ClubCareer.same(Codec.guard_snapshot(season),payload) and FileAccess.get_file_as_bytes(Save.PATH) == disk and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"repeat terminal calls grant nothing twice"): return false
+	for kind: String in ["receipt","champion","origin","assets"]:
+		var wrong: Dictionary = payload.duplicate(true)
+		match kind:
+			"receipt": wrong.checkpoint.career.runs[0].receipt.total += 1
+			"champion": wrong.checkpoint.champion = (int(wrong.checkpoint.champion)+1)%6
+			"origin": wrong.checkpoint.career.origin = "legacy112"
+			"assets": wrong.checkpoint.career.assets["free_cash"] = 999999
+		if not check(Codec.restore(wrong) == null,"terminal tamper rejection "+kind): return false
+	if not check(source_unchanged() and FileAccess.get_file_as_bytes(Save.PATH) == disk and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"terminal tests preserve exact original and current saves"): return false
+	print("OWNED_SEASON_TERMINAL_VERIFIED: ",JSON.stringify(receipt,"",true,true))
+	return true
+
+# Test-only replay bootstrap, NOT a production migration or a header relabel.
+# The historical hash narrowly identifies the audited input; current Decoder must
+# independently reconstruct every genesis/history field, then strict Codec and
+# Save authenticate the newly produced current-source object.
+func bootstrap_entry() -> bool:
+	var candidate: SeasonState = Codec.restore(entry)
+	if candidate == null:
+		if not check(FileAccess.get_sha256(SOURCE_SEASON) == "9450c43317a115f4a0bf14d42277dc86db0a05c91b3041808ee8d0189002696b" and entry.version == Codec.Catalog.VERSION and entry.format == Codec.Catalog.FORMAT and entry.pitch_catalog == Codec.Catalog.Game.signature(),"only exact audited58 input and unchanged General catalog may request test replay"): return false
+		candidate = load("res://src/gameplay/season/successor_owner_general_v1/decoder.gd").restore(entry.checkpoint)
+	if not check(candidate != null,"current decoder independently reconstructs genuine paid source history"): return false
+	var current: Dictionary = Codec.capture(candidate)
+	if not check(not current.is_empty(),"strict current capture authenticates reconstructed paid entry"): return false
+	for field: String in ["version","format","pitch_catalog","checkpoint"]:
+		if not check(ClubCareer.same(current[field],entry[field]),"reconstruction preserves exact source " + field): return false
+	if not check(current.owner_source == Codec.Catalog.signature() and source_unchanged(),"new descriptor comes from current codec; original source immutable"): return false
+	if not check(Save.save(candidate,PackedByteArray()) and ClubCareer.same(JSON.parse_string(FileAccess.get_file_as_string(Save.PATH)),current) and source_unchanged(),"absent-primary guarded save and exact reconstruction readback"): return false
+	print("SCOPE: test-only paid entry reconstructed under current source; no production migration or prior-evidence relabel")
+	return true
+
+func primitive_policy() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated primitive policy test"): return
+	# Release-shaped ordinary primitives, deliberately not a legal match proof.
+	var rows: Array = []
+	for index in range(9999):
+		rows.append({"pa":index,"half":0,"player":"test-player","recipe":"test-recipe",
+			"paid":1.0})
+	var operand: Dictionary = {"releases":rows}
+	var old_budget: Array[int] = [100000,8388608]
+	if not check(Save._primitive_report_graph(operand) and not Fixtures._current_report_value_graph(operand,old_budget,0),"9999 release-shaped rows accepted as primitives beyond old optimization budget only"): return
+	var shared: Array = [1,"shared",{"finite":2.0}]
+	if not check(Save._primitive_report_graph([shared,shared]),"acyclic aliases allowed as repeated values"): return
+	var deep: Array = []
+	for index in range(64): deep = [deep]
+	if not check(Save._primitive_report_graph(deep),"deep finite primitives accepted without old depth32 optimization cap"): return
+	var cycle_array: Array = []
+	cycle_array.append(cycle_array)
+	var rejects_array: bool = not Save._primitive_report_graph(cycle_array)
+	cycle_array.clear()
+	var cycle_dict: Dictionary = {}
+	cycle_dict["self"] = cycle_dict
+	var rejects_dict: bool = not Save._primitive_report_graph(cycle_dict)
+	cycle_dict.clear()
+	if not check(rejects_array and rejects_dict,"ancestor cycles rejected and test cycles released"): return
+	var object: RefCounted = RefCounted.new()
+	for invalid: Variant in [object,{1:"not-string-key"},INF,-INF,NAN,Vector2.ZERO]:
+		if not check(not Save._primitive_report_graph(invalid),"nonprimitive/nonfinite payload rejected"): return
+	# UTF8 is two bytes per character; bounded allocation just above byte cap.
+	var large: String = "é".repeat(int(Save.MAX_BYTES/2)+1)
+	if not check(not Save._primitive_report_graph(large),"UTF8 byte budget enforced"): return
+	print("PASS: primitive report eligibility policy only; no legal 9999-release game or owner authority claim")
+	get_tree().quit()

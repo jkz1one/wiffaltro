@@ -240,3 +240,51 @@ parity, foreign/duplicate callbacks, malformed reports, the normal second NPC,
 settlement, shared pack path and cold reopen. These new tests are pending; removal
 of two full owner reconstructions is a code-path change, not yet a measured
 latency claim.
+
+### Fixed NPC qualification passed (production58)
+
+The actual new-source fresh path passed through birth/draft/cold, one human game,
+first NPC prewrite failure, independently strict-reference-equal retained report,
+explicit retry, and the normal second NPC checkpoint. Foreign and late callbacks,
+malformed/Object payloads, and consumed reports were rejected without replacing
+state or backups. Settlement, all-six rewards, shared pack Cancel/fault/real retry/
+choice, duplicate no-ops and dedicated final cold also passed. Separate warm/cold
+negative, CAS and source-descriptor checks passed. Final checkpoint SHA-256:
+`9450c43317a115f4a0bf14d42277dc86db0a05c91b3041808ee8d0189002696b`.
+This verifies operation behavior and strict-path parity, not a latency percentage.
+
+### Full actual owned season gate (test-only, pending)
+
+`--owned-general-season-fixture PATH` continues that same real paid owned
+checkpoint under the same game rules. Each cold batch keeps the App alive
+through at most eight durable human/NPC/settlement boundaries and stops after one
+settlement. Every boundary is archived without overwrite. The original paid
+source stays immutable while resumed primary state may legitimately advance.
+Only actual final-fixture32 evidence enables the extra terminal preflight needed
+to inject a failed terminal write before publishing earned rewards; ordinary jobs
+use the actual App projection without duplicate preflight.
+
+The final separate cold gate requires all 33 actual fixtures, exact per-club
+rewards and full bank journals, original completion/asset policy, preserved paid
+prefix, exact current progress/settlement, once-only grants and tamper rejection.
+No current full season is claimed until these gates complete. Legacy112's separate
+long-running season cannot substitute for this General-owned qualification.
+
+### Preserve original large-report admission
+
+A post-58 audit found that reusing the resolver's 100,000-node / 8MiB fast-path
+eligibility budget as a hard admission bound was narrower than the original
+report schema. The schema permits 9,999 release rows, which alone can exceed
+that node count. Normal58 native play passed; no oversized actual match was
+manufactured or claimed. The safety traversal is being separated from resolver
+optimization eligibility, retaining the existing 32MiB complete-save policy
+without truncation or an unproven nesting-depth restriction.
+
+The full-season test bootstrap preserves the exact qualified58 source file.
+For that specifically pinned input only, it independently reconstructs the entire
+checkpoint through the current decoder, requires every semantic field and the
+unchanged game catalog to match, captures the new envelope through the current
+Codec, then uses an ordinary strict save into an absent isolated primary. No
+source hash is simply replaced, and the original fixture is never overwritten.
+This test-only reconstruction is not a general production migration feature.
+Primitive graph tests qualify safe traversal, not an actual 9,999-release game.

@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-general-v1",
   "source_checkpoint": "ca7292931cc92de5bc3414a5b02a92c982ad33a4",
-  "scope": "Inactive owned fresh General run1 or authenticated legacy112 run2. Prior production55/harness56 actual fresh draft/round/earned Shop/failure/real retry/final cold passed. New fixed NPC append and runner binding source under qualification; no full-season/current continuation/Dynasty/release claim.",
+  "scope": "Inactive owned fresh General run1 or authenticated legacy112 run2. Production58 actual first-owned round/fixedNPC/Shop/failure/realretry/finalcold passed. Conservative primitive input traversal restores original large-report admission; native policy/full owned season continuation under qualification. Same game rules; exact audited58 fixture independently replayed, never header-relabelled. No current completed full-season/nextcareer/Dynasty/release claim.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/career.gd.txt",
@@ -48,8 +48,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/save.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_general_v1/save.gd",
-      "bytes": 15053,
-      "sha256": "1b46ee90d7e69f46e35db5cfc2c431f65a21b0dd6edd6bd53938c98297396c28"
+      "bytes": 17134,
+      "sha256": "efe63b34de98fe9172dbbe0ecc4619c83be96cf187cba9e1b2a16847e3802af0"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/start.gd.txt",
@@ -146,6 +146,18 @@
       "restore_path": "src/gameplay/season/successor_owner_general_v1/genesis.gd",
       "bytes": 860,
       "sha256": "aad53e7f96def2a36600d86f155861b4c233803002ec067150a165c9870c7f8d"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general_season.gd.txt",
+      "restore_path": "tests/successor_owner_general_season.gd",
+      "bytes": 21221,
+      "sha256": "6eb379ecc8218f3a2fe02a789a3d404533af5f811bc18a0d64342813889dd395"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general_season.tscn.txt",
+      "restore_path": "tests/successor_owner_general_season.tscn",
+      "bytes": 206,
+      "sha256": "4d18848df496b98394fdf6f33513cd473f1ff6faed7226ccb9b0dc27ff578bae"
     }
   ]
 }
