@@ -1,0 +1,70 @@
+extends "res://tests/successor_general_replay_prefix.gd"
+## CLOSED predecessor qualification. Real terminal input is mandatory for positive mode.
+const Predecessor = preload("res://src/gameplay/season/successor_owner_continuation_v1/legacy_terminal.gd")
+const Legacy = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const LegacyCatalog = preload("res://src/gameplay/season/successor_owner_terminal_v1/catalog.gd")
+const CURRENT: String = "user://source-owner-current.json"
+const BIRTH: String = "user://source-owner-birth.json"
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and FileAccess.file_exists(CURRENT) and FileAccess.file_exists(BIRTH),"isolated actual owner fixtures required"):
+		return
+	cohort_roots = Legacy._operation_content_roots()
+	var authored: PackedByteArray = content_bytes()
+	var files: Dictionary = saved_bytes()
+	var birth: Variant = JSON.parse_string(FileAccess.get_file_as_string(BIRTH))
+	var current: Variant = JSON.parse_string(FileAccess.get_file_as_string(CURRENT))
+	var birth_before: PackedByteArray = var_to_bytes(birth)
+	var current_before: PackedByteArray = var_to_bytes(current)
+	var signature: String = LegacyCatalog.signature()
+	if not check(snapshot_supported and birth is Dictionary and current is Dictionary \
+		and Legacy.envelope_valid(birth) and Legacy.envelope_valid(current),"exact existing Owner112 fixture headers"):
+		return
+	var initial: SeasonState = Legacy.restore(birth)
+	if not check(initial != null and initial.career != null and initial.career.current == 1 \
+		and initial.phase != SeasonState.Phase.COMPLETE and initial.career.runs[0].status == "active","actual birth fully restored under frozen reader"):
+		return
+	if not check(Predecessor.project(birth).is_empty(),"actual active birth cannot become predecessor"):
+		return
+	var forged: Dictionary = birth.duplicate(true)
+	forged.checkpoint.phase = SeasonState.Phase.COMPLETE
+	forged.checkpoint.career.runs[0].status = "completed"
+	if not check(Predecessor.project(forged).is_empty(),"claimed terminal labels cannot replace physical completion and exact replay"):
+		return
+	for kind: String in ["owner source","pitch catalog","format","version","current","standalone"]:
+		var wrong: Dictionary = forged.duplicate(true)
+		match kind:
+			"owner source": wrong.owner_source = "unknown"
+			"pitch catalog": wrong.pitch_catalog = "partial-authored-content-is-not-a-reader"
+			"format": wrong.format = "unrecognized-owner"
+			"version": wrong.version = 114
+			"current": wrong.checkpoint.career.current = 0
+			"standalone": wrong.erase("owner_source")
+		if not check(Predecessor.project(wrong).is_empty(),"wrong predecessor identity rejected " + kind):
+			return
+	if OS.get_cmdline_user_args().has("completed"):
+		if not check(current.checkpoint.phase == SeasonState.Phase.COMPLETE and current.checkpoint.career.runs[0].status == "completed","positive mode requires actual terminal source"):
+			return
+		var projection: Dictionary = Predecessor.project(current)
+		if not check(not projection.is_empty() and projection.schema == Predecessor.SCHEMA and projection.closed \
+			and ClubCareer.same(projection.envelope,current) and projection.envelope.checkpoint.career.current == 1 \
+			and ClubCareer.same(projection.row,current.checkpoint.career.runs[0]) \
+			and ClubCareer.same(projection.receipt,current.checkpoint.career.runs[0].receipt) \
+			and ClubCareer.same(projection.assets,current.checkpoint.career.assets) \
+			and ClubCareer.same(projection.pennants,current.checkpoint.career.pennants) \
+			and ClubCareer.same(projection.plaques,current.checkpoint.career.plaques),"actual fully replayed terminal row, receipts, original ledger and awards preserved"):
+			return
+		projection.envelope.checkpoint.career.current = 999
+		projection.row.status = "invented"
+		projection.assets.clear()
+		if not check(var_to_bytes(current) == current_before,"returned projection is detached, never an owner mutation"):
+			return
+	else:
+		if not check(current.checkpoint.phase != SeasonState.Phase.COMPLETE and Predecessor.project(current).is_empty(),"actual progressed active owner rejected without promotion; no terminal-positive claim"):
+			return
+	if not check(var_to_bytes(birth) == birth_before and var_to_bytes(current) == current_before \
+		and saved_bytes() == files and content_bytes() == authored and snapshot_supported \
+		and LegacyCatalog.signature() == signature,"original fixtures, held Resources, saves and frozen descriptor unchanged"):
+		return
+	print("PASS: ","actual terminal predecessor projection only; no run2 birth or grants" if OS.get_cmdline_user_args().has("completed") else "negative-only predecessor foundation; actual terminal acceptance remains UNQUALIFIED")
+	get_tree().quit()

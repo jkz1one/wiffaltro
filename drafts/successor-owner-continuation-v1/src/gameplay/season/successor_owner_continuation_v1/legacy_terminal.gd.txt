@@ -1,0 +1,78 @@
+extends RefCounted
+## CLOSED continuation prerequisite: read-only projection of an exact terminal112
+## predecessor. Never an owner birth, migration, grant, wallet reset or save API.
+## Negative-only foundation until an actual completed owner112 qualifies this path.
+## Returned data is detached evidence, NOT a reusable "validated" trust token:
+## any future admission must re-run this reader against the retained old envelope.
+const Codec = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const Catalog = preload("res://src/gameplay/season/successor_owner_terminal_v1/catalog.gd")
+const Runtime = preload("res://src/gameplay/season/successor_owner_terminal_v1/runtime.gd")
+const Career = preload("res://src/gameplay/season/successor_owner_terminal_v1/career.gd")
+const Settlement = preload("res://src/gameplay/season/successor_owner_terminal_v1/settlement.gd")
+const Assets = preload("res://src/gameplay/season/successor_career_assets_v1/assets.gd")
+const SCHEMA: String = "closed-terminal112-predecessor-projection-v1"
+
+static func project(envelope: Variant) -> Dictionary:
+	# Keep authored roots alive throughout the full frozen reader and derivations.
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var result: Dictionary = _project(envelope)
+	roots.clear()
+	return result
+
+static func _project(envelope: Variant) -> Dictionary:
+	if not Codec.envelope_valid(envelope):
+		return {}
+	var checkpoint: Dictionary = envelope.checkpoint
+	# Cheap rejections only; these serialized labels never authorize acceptance.
+	if not SeasonOwnership._whole(checkpoint.get("phase"), SeasonState.Phase.COMPLETE, SeasonState.Phase.COMPLETE) \
+		or not checkpoint.get("career") is Dictionary:
+		return {}
+	var header: Dictionary = checkpoint.career
+	if not SeasonOwnership._whole(header.get("current"), 1, 1) \
+		or not header.get("runs") is Array or header.runs.size() != 1 \
+		or not header.runs[0] is Dictionary or header.runs[0].get("status") != "completed":
+		return {}
+	var archive: Dictionary = envelope.duplicate(true)
+	# No caller-supplied SeasonState, cached validation flag, source allowlist or
+	# replacement catalog can substitute for this complete exact replay.
+	var season: SeasonState = Codec.restore(archive)
+	if season == null or season.get_script() != Runtime \
+		or season.phase != SeasonState.Phase.COMPLETE or not Codec.scope(season) \
+		or season.career == null or season.career.get_script() != Career \
+		or season.career.current != 1 or season.career.runs.size() != 1 \
+		or season.physical == null or not season.physical.pending.is_empty() \
+		or season.physical.cursor != season.physical.reports.size():
+		return {}
+	var career: ClubCareer = season.career
+	var row: Dictionary = career.runs[0]
+	if not Career._row_valid(row) or row.status != "completed" \
+		or not Settlement.matches(career) or career._assets.is_empty():
+		return {}
+	# Existing nonempty wallet is replayed by Assets.basis/from_data. Never return
+	# a newly initialized replacement ledger or serialize the live ledger object.
+	var basis: Dictionary = Assets.basis(career)
+	if basis.is_empty() or not basis.get("ledger") is ClubAssetLedger:
+		return {}
+	var ledger: ClubAssetLedger = basis.ledger
+	if ledger.get_script() != preload("res://src/gameplay/season/club_asset_ledger.gd") \
+		or not ledger._valid or not ClubCareer.same(ledger.to_data(), career._assets):
+		return {}
+	# Recheck archive correspondence after all read-only derivations, not merely
+	# the header. Preserve old current=1 and all source/proof identities verbatim.
+	var recaptured: Dictionary = Codec.capture(season)
+	if recaptured.is_empty() or not ClubCareer.same(recaptured, archive) \
+		or not ClubCareer.same(archive, envelope):
+		return {}
+	var derived: Dictionary = {}
+	for key: String in ["income", "progress", "awards", "earned", "owned", "policy"]:
+		if not basis.has(key) or not (basis[key] is Array or basis[key] is Dictionary):
+			return {}
+		derived[key] = basis[key].duplicate(true)
+	return {"schema": SCHEMA, "closed": true,
+		"provenance": {"version": Catalog.VERSION, "format": Catalog.FORMAT,
+			"owner_source": archive.owner_source, "pitch_catalog": archive.pitch_catalog,
+			"run_id": 1, "reader": "frozen-owner112-exact-replay"},
+		"envelope": archive.duplicate(true), "row": row.duplicate(true),
+		"receipt": row.receipt.duplicate(true), "assets": career._assets.duplicate(true),
+		"pennants": career._pennants.duplicate(true), "plaques": career._plaques.duplicate(true),
+		"derived": derived}

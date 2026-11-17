@@ -91,6 +91,12 @@ Dynasty qualification is inferred from the one-round evidence.
   It changes no existing reader/descriptor and does not cover complete policy or
   admit a persistent owner. See `SUCCESSOR_PERSISTENT_IDENTITY_FOUNDATION.md`.
 
+- Closed terminal112 predecessor projection now passes actual active-birth and
+  progressed-active rejection, forged/foreign-source rejection and fresh-process
+  invariance tests. Positive terminal projection is still unqualified until the
+  real full season completes; no continuation grant or run 2 is admitted. See
+  `SUCCESSOR_CONTINUATION_PREDECESSOR.md`.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing

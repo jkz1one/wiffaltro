@@ -1,0 +1,25 @@
+{
+  "format": "inactive-successor-owner-continuation-v1",
+  "source_checkpoint": "639835014badb2ce8354ce39de34040333f7a74d",
+  "scope": "Closed terminal112 predecessor projection: negative active/forged/foreign source and cold invariance tests passed; actual positive terminal projection remains unqualified. No run2 birth or grants.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/src/gameplay/season/successor_owner_continuation_v1/legacy_terminal.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_continuation_v1/legacy_terminal.gd",
+      "bytes": 4507,
+      "sha256": "98a69a4a79ba1ec6c1b2431f266484047bf52c7e8cf6e5fae938c5ca66145770"
+    },
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/tests/successor_continuation_predecessor.gd.txt",
+      "restore_path": "tests/successor_continuation_predecessor.gd",
+      "bytes": 4769,
+      "sha256": "ac0f8c9585c6d729ff2fb4367ae8ed8bced6e42868b23dda87c2ba2804992d75"
+    },
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/tests/successor_continuation_predecessor.tscn.txt",
+      "restore_path": "tests/successor_continuation_predecessor.tscn",
+      "bytes": 215,
+      "sha256": "c2506b3d70a382f759365c42322d7d20902cc8f89913b7f8f4d0136fd57aa75b"
+    }
+  ]
+}
