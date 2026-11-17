@@ -83,3 +83,14 @@ including conflicting reuse, so stale purchases cannot rotate the backup. Its
 old-owner equality envelope is deep-detached. These preserve existing rules and
 choices; no wallet policy or prices change. Actual owned-path qualification of
 those guards remains pending until the genuine predecessor is available.
+
+### Proportional qualification checks
+
+The positive harness uses nonempty, fresh-source `guard_snapshot` envelopes only
+for equality assertions (durable copies, Cancel, retained candidate, duplicates).
+Those comparisons are not authentication. Production App clone and Save remain
+strict, as do authentic predecessor admission, cold batch reloads, final canonical
+capture, and the coordinated-forgery public-capture rejection. A retained candidate
+is authenticated by its successful production Save, not by its equality snapshot.
+This removes redundant test-only reconstructions; no measured player-path speedup
+or positive owned-run qualification is claimed.

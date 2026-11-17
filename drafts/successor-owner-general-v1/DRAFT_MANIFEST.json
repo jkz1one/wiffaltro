@@ -90,8 +90,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.gd.txt",
       "restore_path": "tests/successor_owner_general.gd",
-      "bytes": 22116,
-      "sha256": "0f072098304681eeda3b559e48e1b9e954ade3ac4bb40610b8f872d572e7e9c8"
+      "bytes": 22689,
+      "sha256": "709c6784cd2e5089adf91f951382ba883e054b72e8d56a6e4f16c243d5fc23c1"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.tscn.txt",

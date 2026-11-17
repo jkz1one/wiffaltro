@@ -57,7 +57,8 @@ func run() -> void:
 
 func finish_step(app: SeasonApp, action: String, complete: bool = false) -> void:
 	if failed: return
-	var payload: Dictionary = Codec.capture(app.season)
+	## Equality only: the real production Save authenticated this durable payload.
+	var payload: Dictionary = Codec.guard_snapshot(app.season)
 	if not check(app.get("retained") == null and not app._busy and not payload.is_empty() and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and FileAccess.get_file_as_bytes("user://source-owned.json") == original_bytes,"exact durable owned boundary and immutable predecessor "+action): return
 	if not check(DirAccess.make_dir_recursive_absolute(EVIDENCE) == OK,"private owner evidence directory"): return
 	var index: int = 0
@@ -242,7 +243,8 @@ func paid_pack(app: SeasonApp) -> bool:
 		var shop: SeasonShopWindow = shop_for(app)
 		var button: Button = button_prefix(shop,"Open fixed development pack") if shop != null else null
 		if not check(button != null and not button.disabled,"real owned Shop pack control"): return false
-		var before: Dictionary = Codec.capture(app.season)
+		var before: Dictionary = Codec.guard_snapshot(app.season)
+		if not check(not before.is_empty(),"nonempty Cancel and failure comparison baseline"): return false
 		var primary = FileAccess.get_file_as_bytes(Save.PATH)
 		var backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
 		var owner: SeasonState = app.season
@@ -252,24 +254,25 @@ func paid_pack(app: SeasonApp) -> bool:
 		for frame in range(3):
 			if not shop._confirm.visible: break
 			await get_tree().process_frame
-		if not check(not shop._confirm.visible and shop._pending.is_empty() and app.season == owner and ClubCareer.same(Codec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"bounded Cancel preserves owner primary backup"): return false
+		if not check(not shop._confirm.visible and shop._pending.is_empty() and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"bounded Cancel preserves owner primary backup"): return false
 		button.pressed.emit()
 		var command: Dictionary = shop._pending.duplicate(true)
 		if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated owned prewrite refusal"): return false
 		shop._confirm.get_ok_button().pressed.emit()
 		var retained: SeasonState = app.get("retained")
-		if not check(retained != null and app.season == owner and ClubCareer.same(Codec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"failed save keeps old owned state and disk intact"): return false
-		var candidate: Dictionary = Codec.capture(retained)
+		if not check(retained != null and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"failed save keeps old owned state and disk intact"): return false
+		var candidate: Dictionary = Codec.guard_snapshot(retained)
+		if not check(not candidate.is_empty(),"nonempty retained equality baseline; successful Save authenticates"): return false
 		app.shop_command(command)
-		if not check(app.get("retained") == retained and ClubCareer.same(Codec.capture(retained),candidate),"repeat while retained cannot replace candidate"): return false
+		if not check(app.get("retained") == retained and ClubCareer.same(Codec.guard_snapshot(retained),candidate),"repeat while retained cannot replace candidate"): return false
 		if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own fault directory"): return false
 		app.retry_save()
-		if not check(app.get("retained") == null and app.season == retained and app.notice.is_empty() and ClubCareer.same(Codec.capture(app.season),candidate) and app.season.build.cash() == cash-8 and app.season.build.pack_pending(),"exact owned candidate promoted with one pack charge"): return false
+		if not check(app.get("retained") == null and app.season == retained and app.notice.is_empty() and ClubCareer.same(Codec.guard_snapshot(app.season),candidate) and app.season.build.cash() == cash-8 and app.season.build.pack_pending(),"exact owned candidate promoted with one pack charge"): return false
 		primary = FileAccess.get_file_as_bytes(Save.PATH)
 		backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
 		app.retry_save()
 		app.shop_command(command)
-		if not check(ClubCareer.same(Codec.capture(app.season),candidate) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate paid command and retry are backup-inert"): return false
+		if not check(ClubCareer.same(Codec.guard_snapshot(app.season),candidate) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate paid command and retry are backup-inert"): return false
 		finish_step(app,"pack-paid-exact-retry")
 		if failed: return false
 	app.open_pitch_shop()
@@ -294,11 +297,12 @@ func paid_pack(app: SeasonApp) -> bool:
 	if not check(app.get("retained") == null and not app.season.build.pack_pending() and app.season.build._visit.pack_status == "used" and app.season.build.cash() == cash,"earned choice durably applied without recharge"): return false
 	if not check(not ClubCareer.same(app.season.build.player(str(command.player)),chosen_before),"actual selected recipient development changed"):
 		return false
-	var after: Dictionary = Codec.capture(app.season)
+	var after: Dictionary = Codec.guard_snapshot(app.season)
+	if not check(not after.is_empty(),"nonempty duplicate choice comparison baseline"): return false
 	var primary = FileAccess.get_file_as_bytes(Save.PATH)
 	var backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
 	app.shop_command(command)
-	if not check(ClubCareer.same(Codec.capture(app.season),after) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate choice is state and backup inert"): return false
+	if not check(ClubCareer.same(Codec.guard_snapshot(app.season),after) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate choice is state and backup inert"): return false
 	finish_step(app,"choice-paid")
 	return not failed
 
@@ -330,6 +334,7 @@ func final_checks(app: SeasonApp) -> bool:
 		# A genuine independently reconstructed owner is still not a trusted basis.
 		# Coordinating the live basis and build cannot replace predecessor authority.
 		var guard: Dictionary = Codec.guard_snapshot(season)
+		if not check(not guard.is_empty(),"nonempty original forgery comparison baseline"): return false
 		var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
 		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
 		var forged: SeasonState = Codec.clone(season)
