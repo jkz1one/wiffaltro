@@ -7,17 +7,18 @@ const MAX_BYTES: int = 32 * 1024 * 1024 # Retained predecessor plus active run; 
 static var saving: bool = false
 static var last_error: String = ""
 
-static func save(season: SeasonState) -> bool:
+static func save(season: SeasonState, expected_primary: Variant = null) -> bool:
 	if saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
 		or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
 		return false
 	saving = true
-	var result: bool = _save(season)
+	var result: bool = _save(season,expected_primary)
 	saving = false
 	return result
 
-static func _save(season: SeasonState) -> bool:
+static func _save(season: SeasonState, expected_primary: Variant = null) -> bool:
 	last_error = "The owned checkpoint could not be saved. Original progress remains available."
+	if not _primary_matches(expected_primary): return false
 	for suffix: String in ["", ".bak", ".tmp"]:
 		if DirAccess.dir_exists_absolute(PATH+suffix): return false
 	if FileAccess.file_exists(PATH+".tmp"): return false
@@ -38,6 +39,7 @@ static func _save(season: SeasonState) -> bool:
 	var parsed: JSON = JSON.new()
 	if parsed.parse(bytes.get_string_from_utf8()) != OK or not ClubCareer.same(parsed.data,data): return false
 	if not ClubCareer.same(Codec.guard_snapshot(season),data): return false
+	if not _primary_matches(expected_primary): return false
 	# Recheck slot guards after validation; never replace an uncertain temp file.
 	for suffix: String in ["", ".bak", ".tmp"]:
 		if DirAccess.dir_exists_absolute(PATH+suffix): return false
@@ -68,3 +70,132 @@ static func _read(path: String) -> SeasonState:
 	var parser: JSON = JSON.new()
 	if parser.parse(file.get_as_text()) != OK: return null
 	return Codec.restore(parser.data)
+
+# Fixed synchronous operation only. No API accepts a validated envelope or proof.
+# The private candidate is born from this call's strict primary-disk restoration;
+# only unchanged original pack operations may mutate it before atomic persistence.
+static func commit_shop(owner: SeasonState, command: Dictionary) -> Dictionary:
+	var fallback: Dictionary = {"handled":false,"candidate":null,"saved":false,"error":"","expected_primary":null}
+	if command.get("op") not in ["pack_open","pack_pick"]: return fallback
+	if saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
+		or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return {"handled":true,"candidate":null,"saved":false,"error":"Save is busy.","expected_primary":null}
+	saving = true
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var result: Dictionary = _commit_shop(owner,command)
+	roots.clear()
+	saving = false
+	if result.handled: last_error = result.error
+	return result
+
+static func _commit_shop(owner: SeasonState, command: Dictionary) -> Dictionary:
+	var fallback: Dictionary = {"handled":false,"candidate":null,"saved":false,"error":"","expected_primary":null}
+	var rejected: Dictionary = {"handled":true,"candidate":null,"saved":false,"error":"Invalid owned shop transaction.","expected_primary":null}
+	if owner == null or not Codec.scope(owner) or not owner.physical.pending.is_empty() or not owner.shop_available():
+		return rejected
+	# Pack commands are flat primitive records. Do not stringify caller Objects,
+	# run custom getters, or accept executable data through the fixed-operation API.
+	for key: Variant in command:
+		if not key is String or typeof(command[key]) not in [TYPE_NIL,TYPE_BOOL,TYPE_INT,TYPE_FLOAT,TYPE_STRING]:
+			return rejected
+	var request_id: Variant = command.get("id")
+	if request_id is String and not request_id.is_empty() and owner.build._requests.has(request_id):
+		rejected.error = "This shop request has already been handled."
+		return rejected
+	var before: Dictionary = Codec.guard_snapshot(owner)
+	if before.is_empty(): return rejected
+	# Only absence or benign unsaved lineup changes permit strict fallback. A
+	# different/corrupt existing checkpoint is never silently overwritten here.
+	if not FileAccess.file_exists(PATH):
+		if DirAccess.dir_exists_absolute(PATH): return rejected
+		fallback.expected_primary = PackedByteArray()
+		return fallback
+	var old: PackedByteArray = FileAccess.get_file_as_bytes(PATH)
+	rejected.expected_primary = old.duplicate()
+	if old.is_empty() or old.size() > MAX_BYTES: return rejected
+	var parser: JSON = JSON.new()
+	if parser.parse(old.get_string_from_utf8()) != OK: return rejected
+	if not ClubCareer.same(parser.data,before):
+		if _lineup_only(parser.data,before):
+			fallback.expected_primary = old.duplicate()
+			return fallback
+		rejected.error = "The saved checkpoint differs from this owner. Reload before purchasing."
+		return rejected
+	var candidate: SeasonState = Codec.restore(parser.data)
+	if candidate == null: return rejected
+	if not ClubCareer.same(Codec.guard_snapshot(candidate),before) or not ClubCareer.same(Codec.guard_snapshot(owner),before):
+		return rejected
+	if not candidate.physical.pending.is_empty() or not candidate.shop_available() or candidate.build._requests.has(request_id):
+		return rejected
+	var next: SeasonBuild = candidate.build.candidate(command.duplicate(true))
+	if next == null:
+		rejected.error = candidate.build.last_error
+		return rejected
+	candidate.adopt_build(next)
+	if candidate.build != next: return rejected # Exact Runtime adoption already synchronized, or rolled back.
+	# From here a valid private operation exists. Every I/O refusal retains this
+	# exact candidate; any later retry must use ordinary strict Save.save.
+	var result: Dictionary = {"handled":true,"candidate":candidate,"saved":false,"expected_primary":old.duplicate(),
+		"error":"The owned shop checkpoint could not be saved. The exact purchase is retained for retry."}
+	var data: Dictionary = Codec.guard_snapshot(candidate)
+	if data.is_empty() or not ClubCareer.same(Codec.guard_snapshot(owner),before): return result
+	# Equality is not a generic authentication shortcut: the only changed object
+	# here is the freshly decoded local candidate after the two fixed operations.
+	for key: String in ["version","format","owner_source","pitch_catalog"]:
+		if not ClubCareer.same(data.get(key),before.get(key)): return result
+	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
+	if bytes.is_empty() or bytes.size() > MAX_BYTES: return result
+	var parsed: JSON = JSON.new()
+	if parsed.parse(bytes.get_string_from_utf8()) != OK or not ClubCareer.same(parsed.data,data): return result
+	if not ClubCareer.same(Codec.guard_snapshot(candidate),data) or not ClubCareer.same(Codec.guard_snapshot(owner),before): return result
+	# Deliberately after candidate creation: prewrite faults retain the paid choice,
+	# just as the ordinary App transaction does. Never overwrite uncertain files.
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if DirAccess.dir_exists_absolute(PATH+suffix): return result
+	if FileAccess.file_exists(PATH+".tmp") or not FileAccess.file_exists(PATH) or FileAccess.get_file_as_bytes(PATH) != old: return result
+	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.WRITE)
+	if file == null: return result
+	file.store_buffer(bytes)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	if error != OK or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes: return result
+	if not FileAccess.file_exists(PATH) or FileAccess.get_file_as_bytes(PATH) != old: return result
+	if DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return result
+	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes: return result
+	result.saved = true
+	result.error = ""
+	return result
+
+# Optional compare-and-swap expectation only, never a validation proof. Empty
+# bytes explicitly pin absence; null preserves the original unpinned Save API.
+static func _primary_matches(expected: Variant) -> bool:
+	if expected == null: return true
+	if not expected is PackedByteArray: return false
+	if DirAccess.dir_exists_absolute(PATH): return false
+	if expected.is_empty(): return not FileAccess.file_exists(PATH)
+	return FileAccess.file_exists(PATH) and FileAccess.get_file_as_bytes(PATH) == expected
+
+static func _lineup_only(disk: Variant, live: Dictionary) -> bool:
+	if not disk is Dictionary or not disk.get("checkpoint") is Dictionary or not live.get("checkpoint") is Dictionary:
+		return false
+	var a: Dictionary = disk.checkpoint
+	var b: Dictionary = live.checkpoint
+	for row: Dictionary in [a,b]:
+		if not row.get("teams") is Array or row.teams.size() != 6 or not row.teams[0] is Dictionary \
+			or not row.teams[0].get("roster") is Array or row.teams[0].roster.size() != 4 \
+			or not SeasonOwnership._whole(row.get("starter_index"),0,3) \
+			or not SeasonOwnership._whole(row.get("fielder_index"),0,3) \
+			or row.starter_index == row.fielder_index:
+			return false
+		var ids: Array = []
+		for id: Variant in row.teams[0].roster:
+			if not id is String or id.is_empty() or ids.has(id): return false
+			ids.append(id)
+	for id: String in a.teams[0].roster:
+		if not b.teams[0].roster.has(id): return false
+	var compared: Dictionary = disk.duplicate(true)
+	compared.checkpoint.teams[0].roster = b.teams[0].roster.duplicate()
+	compared.checkpoint.starter_index = b.starter_index
+	compared.checkpoint.fielder_index = b.fielder_index
+	return ClubCareer.same(compared,live)

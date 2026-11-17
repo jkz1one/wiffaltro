@@ -30,6 +30,10 @@ func negative_run() -> void:
 	forged_predecessor.checkpoint.phase = SeasonState.Phase.COMPLETE
 	if not check(Runtime.create_next(forged_predecessor,7001) == null,"changing active predecessor phase cannot authorize terminal inheritance"): return
 	if not check(not Save.save(null) and not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".tmp"),"invalid save cannot create slot or temp"): return
+	var invalid_pack: Dictionary = Save.commit_shop(null,{"op":"pack_open"})
+	var unsupported_pack: Dictionary = Save.commit_shop(null,{"op":"reroll"})
+	if not check(invalid_pack.handled and invalid_pack.candidate == null and not invalid_pack.saved and not unsupported_pack.handled and not FileAccess.file_exists(Save.PATH),"fixed pack invalid owner rejects and other operations retain strict fallback"): return
+	if not cas_negative_checks(birth): return
 	var app = App.new()
 	app.predecessor = birth.duplicate(true)
 	add_child(app)
@@ -40,6 +44,39 @@ func negative_run() -> void:
 	app.queue_free()
 	print("PASS: owned General integration negative boundary; positive inherited gameplay remains unqualified")
 	get_tree().quit()
+
+
+func cas_negative_checks(birth: Dictionary) -> bool:
+	if not check(not FileAccess.file_exists(Save.PATH) and Save._primary_matches(null) and Save._primary_matches(PackedByteArray()) and not Save._primary_matches({}) and not Save._primary_matches("missing".to_utf8_buffer()),"CAS absent/type/missing byte rejection only, not owner authority"): return false
+	var marker: PackedByteArray = "isolated-CAS-marker-not-a-save".to_utf8_buffer()
+	var file = FileAccess.open(Save.PATH,FileAccess.WRITE)
+	if not check(file != null,"isolated CAS marker writable"): return false
+	file.store_buffer(marker)
+	file.close()
+	var exact: bool = Save._primary_matches(marker)
+	var rejected: bool = not Save._primary_matches(PackedByteArray()) and not Save._primary_matches("different".to_utf8_buffer()) and not Save.save(null,"different".to_utf8_buffer())
+	var unchanged: bool = FileAccess.get_file_as_bytes(Save.PATH) == marker and not FileAccess.file_exists(Save.PATH+".tmp") and not FileAccess.file_exists(Save.PATH+".bak")
+	var removed: bool = DirAccess.remove_absolute(Save.PATH) == OK
+	if not check(exact and rejected and unchanged and removed,"CAS mismatch refuses without touching primary backup or temp; remove only own marker"): return false
+	var reordered: Dictionary = birth.duplicate(true)
+	var roster: Array = reordered.checkpoint.teams[0].roster
+	var first: Variant = roster[0]
+	roster[0] = roster[1]
+	roster[1] = first
+	reordered.checkpoint.starter_index = birth.checkpoint.fielder_index
+	reordered.checkpoint.fielder_index = birth.checkpoint.starter_index
+	if not check(Save._lineup_only(birth,reordered),"only valid unsaved lineup order and role changes accepted structurally"): return false
+	for kind: String in ["seed","build","duplicate","membership","role-range","same-role"]:
+		var wrong: Dictionary = reordered.duplicate(true)
+		match kind:
+			"seed": wrong.checkpoint.season_seed += 1
+			"build": wrong.checkpoint.build["unexpected"] = true
+			"duplicate": wrong.checkpoint.teams[0].roster[0] = wrong.checkpoint.teams[0].roster[1]
+			"membership": wrong.checkpoint.teams[0].roster[0] = "not-the-roster"
+			"role-range": wrong.checkpoint.starter_index = -1
+			"same-role": wrong.checkpoint.starter_index = wrong.checkpoint.fielder_index
+		if not check(not Save._lineup_only(birth,wrong),"lineup comparator rejects "+kind): return false
+	return true
 
 
 const Pending = preload("res://src/gameplay/season/successor_owner_general_v1/pending.gd")
@@ -235,6 +272,19 @@ func play_human(app: SeasonApp) -> void:
 		return
 	finish_step(app, "human-%d" % int(fixture.id))
 
+func strict_pack_reference(owner: SeasonState, command: Dictionary) -> Dictionary:
+	# Qualification-only original path. The fixed writer never receives this
+	# independent expected envelope, candidate, or a caller validation flag.
+	var reference: SeasonState = Codec.clone(owner)
+	if not check(reference != null,"strict original-path reference owner"): return {}
+	var next: SeasonBuild = reference.build.candidate(command.duplicate(true))
+	if not check(next != null,"original candidate command accepted"): return {}
+	reference.adopt_build(next)
+	if not check(reference.build == next,"original reference adoption accepted"): return {}
+	var expected: Dictionary = Codec.capture(reference)
+	if not check(not expected.is_empty(),"independent original reference strict capture"): return {}
+	return expected
+
 func paid_pack(app: SeasonApp) -> bool:
 	app.open_pitch_shop()
 	if not check(app.season.build._visit.open and app.season.build._visit.number == 1,"actual earned owned Shop opens"): return false
@@ -260,12 +310,14 @@ func paid_pack(app: SeasonApp) -> bool:
 		if not check(not shop._confirm.visible and shop._pending.is_empty() and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"bounded Cancel preserves owner primary backup"): return false
 		button.pressed.emit()
 		var command: Dictionary = shop._pending.duplicate(true)
+		var expected: Dictionary = strict_pack_reference(app.season,command)
+		if expected.is_empty(): return false
 		if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated owned prewrite refusal"): return false
 		shop._confirm.get_ok_button().pressed.emit()
 		var retained: SeasonState = app.get("retained")
 		if not check(retained != null and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"failed save keeps old owned state and disk intact"): return false
 		var candidate: Dictionary = Codec.guard_snapshot(retained)
-		if not check(not candidate.is_empty(),"nonempty retained equality baseline; successful Save authenticates"): return false
+		if not check(not candidate.is_empty() and ClubCareer.same(candidate,expected),"retained fixed pack equals independent strict original path"): return false
 		app.shop_command(command)
 		if not check(app.get("retained") == retained and ClubCareer.same(Codec.guard_snapshot(retained),candidate),"repeat while retained cannot replace candidate"): return false
 		if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own fault directory"): return false
@@ -296,12 +348,14 @@ func paid_pack(app: SeasonApp) -> bool:
 	if not check(shop._confirm.visible and command.get("op") == "pack_pick","actual choice quote"): return false
 	var chosen_before: Dictionary = app.season.build.player(str(command.player)).duplicate(true)
 	var cash: int = app.season.build.cash()
+	var expected_choice: Dictionary = strict_pack_reference(app.season,command)
+	if expected_choice.is_empty(): return false
 	shop._confirm.get_ok_button().pressed.emit()
 	if not check(app.get("retained") == null and not app.season.build.pack_pending() and app.season.build._visit.pack_status == "used" and app.season.build.cash() == cash,"earned choice durably applied without recharge"): return false
 	if not check(not ClubCareer.same(app.season.build.player(str(command.player)),chosen_before),"actual selected recipient development changed"):
 		return false
 	var after: Dictionary = Codec.guard_snapshot(app.season)
-	if not check(not after.is_empty(),"nonempty duplicate choice comparison baseline"): return false
+	if not check(not after.is_empty() and ClubCareer.same(after,expected_choice),"fixed paid choice equals independent strict original path"): return false
 	var primary = FileAccess.get_file_as_bytes(Save.PATH)
 	var backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
 	app.shop_command(command)

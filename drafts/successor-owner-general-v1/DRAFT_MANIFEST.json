@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-general-v1",
   "source_checkpoint": "ca7292931cc92de5bc3414a5b02a92c982ad33a4",
-  "scope": "Inactive owned run2 Dugout integration with mixed-family terminal settlement source. Final native import and negative/cold-negative gates passed; actual completed-predecessor birth/round/shop/terminal/cold remain unqualified. Frozen families unchanged; run3 and Dynasty closed.",
+  "scope": "Inactive owned run2 Dugout with mixed-family terminal source and fixed pack transaction/CAS pins. Final native import and negative/CAS-shape/cold-negative gates passed; actual owned birth/round/pack parity/terminal/cold remain unqualified. Frozen families unchanged; run3/Dynasty closed.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/career.gd.txt",
@@ -48,8 +48,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/save.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_general_v1/save.gd",
-      "bytes": 3569,
-      "sha256": "84fed52232edac2aa24f25b813408955ceb2a4a50612a69b19128bb677aa60b0"
+      "bytes": 11342,
+      "sha256": "5e5c40f8105590155883d115ce3623780b7b8ac2813530e14c4be1b86c07393f"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/start.gd.txt",
@@ -60,14 +60,14 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_general_v1/app.gd",
-      "bytes": 2141,
-      "sha256": "0b409e96030eb8fc0e4c823c125fd9a0bf94553e3b3f14d3a63267020411ed2c"
+      "bytes": 2192,
+      "sha256": "6cc2a50b5b1f3a3b1f443ea7af5c199beb3bfc1ddf756572aad0e980ff3f4829"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_general_v1/base_app.gd",
-      "bytes": 15861,
-      "sha256": "a60167ee6fddbbe41c5e8422257920d00312f2bcbd47c15b53a3443a8d2864b8"
+      "bytes": 19027,
+      "sha256": "bdfecf44ca109dc9eb12fd54d15431ec9314e5697612ad9bab4bd5c4df9a004a"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/capture_human.gd.txt",
@@ -90,8 +90,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.gd.txt",
       "restore_path": "tests/successor_owner_general.gd",
-      "bytes": 23047,
-      "sha256": "16ab826e3deea44b700b121fdb2d189aac648155179a48959515271a0ab78c57"
+      "bytes": 26977,
+      "sha256": "c607057e342688cbc146e20551c3fd758783271601c571d58951fd86043405f1"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.tscn.txt",

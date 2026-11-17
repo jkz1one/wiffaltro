@@ -118,3 +118,31 @@ and original save slots remain unchanged.
 Still required: actual terminal run2 settlement, failure/exact retry, cold reopen,
 and a separately authenticated run3 start. Run3 and Dynasty are not admitted by
 this extension. Synthetic scores or a changed phase flag are not terminal proof.
+
+## Fixed paid-pack transaction candidate
+
+Only `pack_open` and `pack_pick` now have a fixed synchronous matching-primary
+route. It strictly restores the primary once, exactly matches the live owner,
+applies the unchanged original Build command on that private reconstructed
+candidate, confirms successful adoption/career synchronization, and writes with
+fresh source/equality, JSON, temporary-file, backup, CAS and readback guards.
+No caller supplies a candidate, authenticated envelope or reusable proof token.
+Other shop operations keep the ordinary strict route.
+
+A failed write retains the exact candidate; explicit retry always uses ordinary
+independent strict Save. Successful writes install durable snapshot/byte pins
+before promotion, without saving again. An optional expected-primary byte pin
+only strengthens ordinary Save guards and is retained across retries. Missing
+primary permits guarded strict fallback; an existing primary may differ only in
+valid same-member lineup order and distinct starter/fielder roles. Other existing
+primary differences, malformed data and oversized data reject without overwrite.
+This prevents a retained purchase from silently overwriting later primary data.
+The original fallback now also checks that void build adoption actually succeeded.
+
+Final native import, negative-boundary, CAS byte/shape checks and separate cold
+negative checks passed for this source. Actual owned
+paid equivalence, retained-newer-file refusal, valid lineup fallback, alternate
+JSON formatting and cold qualification remain pending. The prepared actual pack
+harness independently constructs/captures the original path for exact comparison.
+Three-to-one reconstruction is a code-path count for matching-primary packs,
+not a measured latency or complete-game claim.

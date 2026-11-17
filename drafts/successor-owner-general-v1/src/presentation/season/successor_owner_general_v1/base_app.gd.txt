@@ -18,6 +18,7 @@ var retained_human: Array = []
 var retained_saved: bool = false
 var retained_saved_snapshot: Dictionary = {}
 var retained_saved_bytes: PackedByteArray = PackedByteArray()
+var retained_primary_expected: Variant = null # CAS pin only, never validation authority.
 var retained_lab: PitchBatLab
 var retained_state: MatchState
 var retained_report: Dictionary = {}
@@ -195,7 +196,7 @@ func draft(id: String) -> void:
 	if candidate!=null and candidate.choose_player(id):
 		_retain(candidate)
 
-func _retain(candidate: SeasonState) -> void:
+func _retain(candidate: SeasonState, expected_primary: Variant = null) -> void:
 	# Equality guard only, not authentication. Save strictly authenticates candidate.
 	if season != null and Codec.guard_snapshot(season).is_empty(): return
 	if candidate==null or retained!=null:
@@ -208,6 +209,7 @@ func _retain(candidate: SeasonState) -> void:
 	retained_saved = false
 	retained_saved_snapshot.clear()
 	retained_saved_bytes = PackedByteArray()
+	retained_primary_expected = expected_primary.duplicate() if expected_primary is PackedByteArray else expected_primary
 	retry_save()
 
 func retry_save() -> void:
@@ -219,7 +221,7 @@ func retry_save() -> void:
 		return
 	_busy = true
 	if not retained_saved:
-		retained_saved = Save.save(retained)
+		retained_saved = Save.save(retained,retained_primary_expected)
 		if retained_saved:
 			var saved_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
 			var disk: Variant = JSON.parse_string(saved_bytes.get_string_from_utf8())
@@ -258,6 +260,7 @@ func retry_save() -> void:
 	retained_before.clear()
 	retained_saved_snapshot.clear()
 	retained_saved_bytes = PackedByteArray()
+	retained_primary_expected = null
 	retained_human.clear()
 	_busy = false
 	_result_recorded = false
@@ -398,6 +401,55 @@ func commit_shop(command: Dictionary) -> bool:
 	var request_id: Variant = command.get("id")
 	if request_id is String and not request_id.is_empty() and season.build._requests.has(request_id):
 		return false
+	var expected_primary: Variant = null
+	if command.get("op") in ["pack_open","pack_pick"]:
+		# Fixed pack path owns its one strict disk reconstruction and original command.
+		# Its result never serves as a reusable validation token or an arbitrary writer.
+		var prior_owner: SeasonState = season
+		var prior_lab: PitchBatLab = lab
+		var prior_state: MatchState = lab._match_state if is_instance_valid(lab) else null
+		var prior_snapshot: Dictionary = Codec.guard_snapshot(season)
+		if prior_snapshot.is_empty(): return false
+		_busy = true
+		var transaction: Dictionary = Save.commit_shop(season,command)
+		_busy = false
+		expected_primary = transaction.expected_primary
+		if transaction.handled:
+			if transaction.candidate == null:
+				notice = transaction.error
+				return false
+			retained = transaction.candidate
+			retained_owner = prior_owner
+			retained_lab = prior_lab
+			retained_state = prior_state
+			retained_before = prior_snapshot.duplicate(true)
+			retained_saved = transaction.saved
+			retained_saved_snapshot.clear()
+			retained_saved_bytes = PackedByteArray()
+			retained_primary_expected = expected_primary.duplicate() if expected_primary is PackedByteArray else expected_primary
+			if not retained_saved:
+				# Do not automatically repeat a refused write. Explicit retry uses the
+				# ordinary independent strict Save, never this earlier fixed-call state.
+				notice = transaction.error
+				show_season()
+				return false
+			var disk_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+			var disk: Variant = JSON.parse_string(disk_bytes.get_string_from_utf8())
+			var snapshot: Dictionary = Codec.guard_snapshot(retained)
+			if disk_bytes.is_empty() or not disk is Dictionary or snapshot.is_empty() or not ClubCareer.same(disk,snapshot):
+				notice = "Saved purchase differs from its durable checkpoint; promotion is blocked."
+				return false
+			retained_saved_snapshot = snapshot.duplicate(true)
+			retained_saved_bytes = disk_bytes.duplicate()
+			if season != prior_owner or lab != prior_lab or (is_instance_valid(lab) and lab._match_state != prior_state) or not ClubCareer.same(Codec.guard_snapshot(prior_owner),prior_snapshot):
+				notice = "Saved purchase retained; original owner changed before promotion."
+				return false
+			var paid: SeasonState = retained
+			retry_save() # Durable pins are installed first; this cannot save a second time.
+			return season == paid and retained == null
+		# Only a missing primary or valid lineup-only difference uses strict fallback.
+		if season != prior_owner or lab != prior_lab or (is_instance_valid(lab) and lab._match_state != prior_state) or not ClubCareer.same(Codec.guard_snapshot(prior_owner),prior_snapshot):
+			return false
 	var candidate: SeasonState = _clone()
 	if candidate==null:
 		notice = "The current shop checkpoint could not be validated."
@@ -409,5 +461,8 @@ func commit_shop(command: Dictionary) -> bool:
 	# Recruitment must replace the outgoing player's lineup position as well as
 	# the build roster; never promote either until this exact candidate is durable.
 	candidate.adopt_build(next)
-	_retain(candidate)
+	if candidate.build != next:
+		notice = "The shop change could not be adopted; original progress remains available."
+		return false
+	_retain(candidate,expected_primary)
 	return season==candidate and retained==null

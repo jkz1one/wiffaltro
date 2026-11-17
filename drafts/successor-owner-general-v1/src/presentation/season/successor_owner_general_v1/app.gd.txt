@@ -51,9 +51,9 @@ func _checkpoint_report() -> void:
 	super._checkpoint_report()
 	roots.clear()
 
-func _retain(candidate: SeasonState) -> void:
+func _retain(candidate: SeasonState, expected_primary: Variant = null) -> void:
 	var roots: Array[Resource] = Codec._operation_content_roots()
-	super._retain(candidate)
+	super._retain(candidate,expected_primary)
 	roots.clear()
 
 func open_shop() -> void:
