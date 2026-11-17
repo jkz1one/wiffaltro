@@ -76,7 +76,8 @@ func original_valid() -> bool:
 func run() -> void:
 	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated runner required"):
 		return
-	var app: SeasonApp = App.new()
+	var app: SeasonApp = load("res://src/presentation/season/successor_owner_ui_v1/app.gd").new() if OS.get_environment("WIFFALTRO_TEST_FACADE") == "1" else App.new()
+	print("APP_UNDER_TEST: ", app.get_script().resource_path)
 	add_child(app)
 	if OS.get_cmdline_user_args().has("reopen"):
 		app.reload_save()
@@ -95,7 +96,7 @@ func run() -> void:
 	var human: Array = []
 	if OS.get_cmdline_user_args().has("resume-round"):
 		app.reload_save()
-		if not check(app.season != null and app.season.league_live and not app.season.physical.pending.is_empty() and app.season.physical.pending.reports.size() == (0 if OS.get_cmdline_user_args().has("first-ai-only") else 1), "cold pending human/AI report and explicit genuine owner"):
+		if not check(app.season != null and app.season.league_live and not app.season.physical.pending.is_empty() and app.season.physical.pending.reports.size() == (2 if OS.get_cmdline_user_args().has("settle-only") else (0 if OS.get_cmdline_user_args().has("first-ai-only") else 1)), "cold pending human/AI report and explicit genuine owner"):
 			return
 		if not check(owner_valid(app.season) and original_valid(), "cold pending genuine owner and original slot"):
 			return
@@ -200,6 +201,11 @@ func run() -> void:
 			app.queue_free()
 			get_tree().quit()
 			return
+	if OS.get_cmdline_user_args().has("second-ai-only"):
+		print("PASS: actual second AI report durable before cold settlement")
+		app.queue_free()
+		get_tree().quit()
+		return
 	app.call("resume_round")
 	if not check(app.get("retained") == null and app.season.results.size() == 3 and app.season.player_results.size() == 1 and app.season.physical.pending.is_empty(), "three-game live Dugout round settlement"):
 		return

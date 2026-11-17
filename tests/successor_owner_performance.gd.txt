@@ -1,0 +1,138 @@
+extends Node
+## Same frozen111 data and transaction path, only local Resource lifetime differs.
+const Base = preload("res://src/presentation/season/successor_owner_live_v1/app.gd")
+const Facade = preload("res://src/presentation/season/successor_owner_ui_v1/app.gd")
+const Runtime = preload("res://src/gameplay/season/successor_owner_live_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_live_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_live_v1/save.gd")
+const Catalog = preload("res://src/gameplay/season/successor_owner_live_v1/catalog.gd")
+const Display = preload("res://src/gameplay/season/successor_league_v1/progression.gd")
+const SOURCE: String = "user://source-owned.json"
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func write_json(path: String, value: Dictionary) -> void:
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(value, "", true, true))
+	file.close()
+
+func compare_or_record(path: String, value: Dictionary, first: bool) -> bool:
+	if first:
+		write_json(path, value)
+	return not value.is_empty() and ClubCareer.same(value, JSON.parse_string(FileAccess.get_file_as_string(path)))
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated performance runner required"):
+		return
+	var trial: String = OS.get_cmdline_user_args()[0]
+	var source_bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var source: Dictionary = JSON.parse_string(source_bytes.get_string_from_utf8())
+	if not check(source.owner_source == Catalog.signature() and Codec.restore(source) != null, "frozen111 actual checkpoint still valid with facade present"):
+		return
+	if trial == "reopen":
+		var restored: SeasonState = Save.restore()
+		var paid: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("user://performance-paid.json"))
+		var draft: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("user://performance-draft.json"))
+		if not check(restored != null and ClubCareer.same(Codec.capture(restored), paid) and Codec.restore(draft) != null, "cold paid and draft baseline-equivalent checkpoints"):
+			return
+		if not check(ClubCareer.same(Codec.capture(restored), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and FileAccess.get_file_as_bytes(SOURCE) == source_bytes, "cold exact disk and read-only source fixture"):
+			return
+		for name: String in ["baseline", "facade", "facade-repeat", "baseline-repeat"]:
+			print("TIMING: ", FileAccess.get_file_as_string("user://timing-" + name + ".json"))
+		print("PASS: cold unchanged111 identity and baseline-equivalent facade transactions")
+		get_tree().quit()
+		return
+	var first: bool = trial == "baseline"
+	var fast: bool = trial.begins_with("facade")
+	# Reset only this isolated test's slot to the identical actual earned checkpoint.
+	var file: FileAccess = FileAccess.open(Save.PATH, FileAccess.WRITE)
+	file.store_buffer(source_bytes)
+	file.close()
+	var app: SeasonApp = Facade.new() if fast else Base.new()
+	add_child(app)
+	app.reload_save()
+	if not check(app.season != null and ClubCareer.same(Codec.capture(app.season), source), "identical actual earned starting state"):
+		return
+	# Use actual settled earnings; opening a generated shop is untimed setup.
+	if not app.season.build._visit.open:
+		var revision: int = app.season.build.revision()
+		app.call("shop_command", {"id":"performance-open:%d" % revision, "rev":revision, "op":"open"})
+	if not check(app.get("retained") == null and app.season.build._visit.open, "actual earned generated shop ready"):
+		return
+	var transaction_before: Dictionary = Codec.capture(app.season)
+	var transaction_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var command: Dictionary = {}
+	var build: SeasonBuild = app.season.build
+	for offer: String in build._visit.offers:
+		var item: String = build._visit.offers[offer]
+		if Display.display_item(item).is_empty():
+			continue
+		for target: Dictionary in build.targets(item):
+			var candidate: Dictionary = {"id":"performance-buy:%d" % build.revision(), "rev":build.revision(), "op":"buy", "offer":offer, "mode":"use"}
+			candidate.merge(target)
+			if build.preview(candidate).has("after"):
+				command = candidate
+				break
+		if not command.is_empty():
+			break
+	if not check(not command.is_empty(), "actual earned cash affords generated legal purchase"):
+		return
+	var failure: bool = trial == "facade-failure"
+	if failure and not check(DirAccess.make_dir_absolute(Save.PATH + ".tmp") == OK, "isolated facade save blocker"):
+		return
+	var started: int = Time.get_ticks_usec()
+	var accepted: bool = app.commit_shop(command)
+	if failure:
+		var retained: SeasonState = app.get("retained")
+		if not check(not accepted and retained != null and ClubCareer.same(Codec.capture(app.season), transaction_before) and FileAccess.get_file_as_bytes(Save.PATH) == transaction_bytes, "facade failed save preserves published candidate and original bytes"):
+			return
+		if not check(not app.commit_shop(command) and app.get("retained") == retained and compare_or_record("user://performance-paid.json", Codec.capture(retained), false), "facade repeated action cannot replace retained purchase"):
+			return
+		if not check(DirAccess.remove_absolute(Save.PATH + ".tmp") == OK, "release isolated facade blocker"):
+			return
+		app.call("retry_save")
+		accepted = app.get("retained") == null and app.season == retained
+	var purchase_us: int = Time.get_ticks_usec() - started
+	var paid: Dictionary = Codec.capture(app.season)
+	if not check(accepted and app.get("retained") == null and compare_or_record("user://performance-paid.json", paid, first), "exact paid candidate matches baseline"):
+		return
+	if not check(ClubCareer.same(paid, JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "exact paid durable payload"):
+		return
+	app.queue_free()
+	await get_tree().process_frame
+	if failure:
+		print("PASS: facade failure retains and retries identical earned purchase without changing111 identity")
+		get_tree().quit()
+		return
+	# A second nontrivial synchronous action exercises nested draft/save wrappers.
+	var fresh: SeasonState = Runtime.create_fresh(1902)
+	if not check(Save.save(fresh), "isolated identical fresh owner for draft benchmark"):
+		return
+	app = Facade.new() if fast else Base.new()
+	add_child(app)
+	app.reload_save()
+	var pick: String = app.season.offers()[0]
+	started = Time.get_ticks_usec()
+	app.call("draft", pick)
+	var draft_us: int = Time.get_ticks_usec() - started
+	var drafted: Dictionary = Codec.capture(app.season)
+	if not check(app.get("retained") == null and app.season.picks == [pick] and compare_or_record("user://performance-draft.json", drafted, first), "exact drafted candidate matches baseline"):
+		return
+	if not check(ClubCareer.same(drafted, JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and FileAccess.get_file_as_bytes(SOURCE) == source_bytes and Catalog.signature() == source.owner_source, "unchanged identity, exact draft disk payload and original source"):
+		return
+	var timing: Dictionary = {"trial":trial,"purchase_ms":purchase_us / 1000.0,"draft_ms":draft_us / 1000.0}
+	write_json("user://timing-" + trial + ".json", timing)
+	print("TIMING: ", JSON.stringify(timing, "", true, true))
+	print("PASS: ", trial, " real earned purchase and draft produce exact baseline data")
+	app.queue_free()
+	await get_tree().process_frame
+	get_tree().quit()

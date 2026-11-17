@@ -1,0 +1,18 @@
+{
+  "format": "inactive-successor-owner-ui-v1",
+  "source_checkpoint": "e83a1ba05fae54c684ef11548f82e89dafa09c97",
+  "files": [
+    {
+      "backup_path": "drafts/successor-owner-ui-v1/src/presentation/season/successor_owner_ui_v1/app.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_ui_v1/app.gd",
+      "bytes": 2181,
+      "sha256": "836ad684f34d4beee1ffe877ac0207e3a0aa6917b71640755327d4ddd76da359"
+    },
+    {
+      "backup_path": "drafts/successor-owner-ui-v1/src/presentation/season/successor_owner_ui_v1/entry.tscn.txt",
+      "restore_path": "src/presentation/season/successor_owner_ui_v1/entry.tscn",
+      "bytes": 204,
+      "sha256": "643f1d81fe933a427a45854af536ff76fcf89691ac02bfc02522b3e48cece472"
+    }
+  ]
+}

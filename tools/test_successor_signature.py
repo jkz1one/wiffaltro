@@ -29,7 +29,11 @@ def main():
     mode.add_argument('--career-fixture', type=Path, help='Capture and cold-verify career evidence from an isolated actual settled checkpoint')
     mode.add_argument('--owner', action='store_true', help='Verify genuine fresh owner, all initial access and draft-only cold replay')
     mode.add_argument('--owner-round', action='store_true', help='Run genuine owned human game, cold pending resume, actual AI settlement and earned shop')
+    mode.add_argument('--owner-performance-fixture', type=Path, help='Compare baseline and resource-retaining facade on an isolated actual owned checkpoint')
+    parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
+    if args.facade and not args.owner_round:
+        parser.error('--facade requires --owner-round')
     root = Path(__file__).resolve().parents[1]
     stage = Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
     project = stage / 'project'
@@ -44,10 +48,12 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
+    if args.owner_performance_fixture:
+        names += ['successor_owner_performance.gd', 'successor_owner_performance.tscn']
     if args.owner_round:
         names += ['successor_owner_round.gd', 'successor_owner_round.tscn']
     if args.owner:
@@ -59,18 +65,21 @@ def main():
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner or args.owner_round:
+    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner or args.owner_round:
+    if args.owner or args.owner_round or args.owner_performance_fixture:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
-    if args.owner_round:
+    if args.owner_round or args.owner_performance_fixture:
         live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
         entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
+    if args.owner_performance_fixture or args.facade:
+        facade_manifest = json.loads((root / 'drafts/successor-owner-ui-v1/DRAFT_MANIFEST.json').read_text())
+        entries += facade_manifest['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -82,6 +91,7 @@ def main():
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
     env = dict(os.environ, WIFFALTRO_ISOLATED_TEST='1')
+    env['WIFFALTRO_TEST_FACADE'] = '1' if args.facade else '0'
     for key, directory in [('HOME', 'home'), ('XDG_DATA_HOME', 'data'),
                            ('XDG_CONFIG_HOME', 'config'), ('XDG_CACHE_HOME', 'cache')]:
         env[key] = str(stage / directory)
@@ -100,11 +110,25 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
+    if args.owner_performance_fixture:
+        source = args.owner_performance_fixture.resolve()
+        assert source.is_file() and source.name == 'successor-fresh-owner-live-v1.json'
+        assert any(part.startswith('wiffaltro-signature-') for part in source.parts)
+        source_before = source.read_bytes()
+        destination = stage / 'data/godot/app_userdata/Wiffaltro/source-owned.json'
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(source_before)
+        for trial in ['baseline', 'facade', 'facade-repeat', 'baseline-repeat', 'facade-failure']:
+            run('owner-performance-' + trial, ['res://tests/successor_owner_performance.tscn', '--', trial], timeout=1800)
+        run('owner-performance-cold', ['res://tests/successor_owner_performance.tscn', '--', 'reopen'], timeout=1200)
+        assert source.read_bytes() == source_before, 'Original isolated fixture was changed'
+        return
     if args.owner_round:
         scene = ['--fixed-fps', '60', 'res://tests/successor_owner_round.tscn', '--']
         run('owned-human', scene + ['human-only'], timeout=1800)
         run('owned-first-ai', scene + ['resume-round', 'first-ai-only'], timeout=1800)
-        run('owned-resume-round', scene + ['resume-round'], timeout=2400)
+        run('owned-second-ai', scene + ['resume-round', 'second-ai-only'], timeout=1800)
+        run('owned-resume-round', scene + ['resume-round', 'settle-only'], timeout=2400)
         run('owned-round-cold', scene + ['reopen'], timeout=1200)
         return
     if args.owner:
