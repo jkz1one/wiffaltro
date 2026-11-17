@@ -134,6 +134,16 @@ No completed-season or Dynasty qualification is inferred from this evidence.
   production decoder integration is claimed. See
   `SUCCESSOR_PHYSICAL_VALIDATION_EXPERIMENT.md`.
 
+- A diagnostic PCK preserves 6,282 raw source hashes and current/legacy catalog
+  identities, strictly reopens copied paid Standard evidence, and passes fresh
+  four-pick save/separate cold reopen from an empty-directory packed launch.
+  No templates or standalone application were built. See
+  `SUCCESSOR_EXPORT_PACK_PROBE.md`.
+- Bounded native menu/shop/pre-pitch views and lower-shop quote/Cancel remain
+  readable with original visuals. Native audio initialization fails to dummy;
+  debugger diagnostics are not clean or exhaustively classified. This is not
+  full playtesting or audio acceptance. See `SUCCESSOR_NATIVE_VISUAL_PREVIEW.md`.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing

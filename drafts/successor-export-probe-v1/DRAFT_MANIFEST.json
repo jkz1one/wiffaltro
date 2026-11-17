@@ -1,0 +1,19 @@
+{
+  "format": "inactive-successor-export-probe-v1",
+  "source_checkpoint": "7cca58145235d02071ea25fbacca228688c7c57f",
+  "scope": "Diagnostic text-source PCK only. Baseline, export-pack without templates, empty-directory PCK paid-restore/freshdraft/save and separatecold passed. Not standalone template, target-platform, visual/audio, owner/Dynasty or distributable qualification.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-export-probe-v1/tests/successor_export_probe.gd.txt",
+      "restore_path": "tests/successor_export_probe.gd",
+      "bytes": 3524,
+      "sha256": "1917a8b1a8fe9982448dc2fe8f5e4edd934c540fa6f6e6e233206e9bc77d53c2"
+    },
+    {
+      "backup_path": "drafts/successor-export-probe-v1/tests/successor_export_probe.tscn.txt",
+      "restore_path": "tests/successor_export_probe.tscn",
+      "bytes": 178,
+      "sha256": "fb83e6084afe0e59273df861898963f9b08c2b83369d03dbf3574c5e016476d7"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+extends Node
+## Export compatibility only. No release or visual acceptance claim.
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+const Legacy = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+
+func _ready() -> void:
+	call_deferred("run")
+
+func require(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	return ok
+
+func run() -> void:
+	if not require(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated environment"):
+		return
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var expected: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://probe-hashes.json"))
+	for path: String in expected:
+		if not require(FileAccess.get_sha256(path) == expected[path], "exact packaged bytes " + path):
+			return
+	var authored: Array[String] = []
+	for resource: Resource in roots:
+		if not require(resource != null and not resource.resource_path.is_empty(), "loaded authored resource"):
+			return
+		authored.append(resource.resource_path)
+	var identity: Dictionary = {"general":Catalog.signature(), "provider":Provider.signature(), "legacy":Legacy.signature(), "authored":authored}
+	if not require(not identity.general.is_empty() and not identity.provider.is_empty() and not identity.legacy.is_empty(), "nonempty identities"):
+		return
+	if OS.get_cmdline_user_args().has("baseline"):
+		var file := FileAccess.open("user://baseline.json", FileAccess.WRITE)
+		file.store_string(JSON.stringify(identity))
+		file.close()
+	else:
+		if not require(ClubCareer.same(identity, JSON.parse_string(FileAccess.get_file_as_string("user://baseline.json"))), "PCK identity and authored path parity"):
+			return
+	var source: PackedByteArray = FileAccess.get_file_as_bytes("user://source-general.json")
+	var paid: Variant = JSON.parse_string(source.get_string_from_utf8())
+	var restored: SeasonState = Codec.restore(paid)
+	if not require(restored != null and restored.player_results.size() > 0 and ClubCareer.same(Codec.capture(restored), paid), "strict actual paid fixture reopen"):
+		return
+	if OS.get_cmdline_user_args().has("cold"):
+		var fresh: SeasonState = Save.restore()
+		if not require(fresh != null and fresh.picks.size() == 4 and fresh.player_results.is_empty() and ClubCareer.same(Codec.capture(fresh), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "cold fresh four-pick save reopen"):
+			return
+	elif not OS.get_cmdline_user_args().has("baseline"):
+		if not require(not FileAccess.file_exists(Save.PATH), "new isolated save slot"):
+			return
+		var fresh: SeasonState = Runtime.create_fresh(67391)
+		if not require(fresh != null, "fresh creation"):
+			return
+		for index in range(4):
+			if not require(fresh.choose_player(fresh.offers()[0]), "fresh pick"):
+				return
+		if not require(Save.save(fresh), "fresh drafted durable save"):
+			return
+	if not require(FileAccess.get_file_as_bytes("user://source-general.json") == source, "immutable paid fixture"):
+		return
+	print("PASS: export probe ", OS.get_cmdline_user_args(), " exact files=", expected.size(), " authored=", authored.size())
+	get_tree().quit()
