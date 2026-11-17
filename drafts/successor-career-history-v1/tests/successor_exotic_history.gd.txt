@@ -1,0 +1,117 @@
+extends Node
+## Pure structural history tests. Synthetic operands are NOT played/earned runs.
+const Adapter = preload("res://src/gameplay/season/successor_career_history_v1/exotic_history.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const Eligibility = preload("res://src/gameplay/season/successor_league_v1/exotic_eligibility.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+const SOURCE: String = "user://source-owned112.json"
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func expected_ids(proofs: Array) -> Array[String]:
+	var ids: Array[String] = []
+	for proof: Dictionary in proofs:
+		for id: String in Eligibility.eligible_ids(proof):
+			if not ids.has(id):
+				ids.append(id)
+	ids.sort()
+	return ids
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated pure history tests required"):
+		return
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var season: SeasonState = Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+	if not check(season != null and season.results.size() == 3 and season.career != null, "actual112 one-round fixture strictly restored first"):
+		return
+	var original: Dictionary = Codec.capture(season)
+	var runs: Array = season.career.runs.duplicate(true)
+	var active: Dictionary = Adapter.collect(runs, 1)
+	if not check(active.ok and active.proofs.is_empty() and active.ids.is_empty(), "active run at entry boundary contributes no historical access") \
+		or not check(not Adapter.collect(runs, 2).ok, "active run cannot masquerade as closed prefix"):
+		return
+	var abandoned: Dictionary = runs[0].duplicate(true)
+	abandoned.status = "abandoned" # Synthetic status operand, never saved or enacted.
+	var synthetic: Array = [abandoned]
+	var before: Array = synthetic.duplicate(true)
+	if not check(not Policy.evaluate(synthetic).is_empty() \
+		and Progress.valid(abandoned.player_progress, abandoned.proof.scores), "synthetic abandoned operand passes original policy and strict progress"):
+		return
+	var collected: Dictionary = Adapter.collect(synthetic, 2)
+	var proof: Dictionary = abandoned.player_progress.exotic.duplicate(true)
+	if not check(collected.ok and ClubCareer.same(collected.proofs, [proof]) \
+		and collected.ids == expected_ids([proof]), "closed structural operand returns exact detached proof and frozen eligibility union"):
+		return
+	collected.proofs[0].season = "poison-return-copy"
+	if not check(ClubCareer.same(synthetic, before) and Adapter.collect(synthetic, 2).proofs[0].season == proof.season, "returned history cannot mutate caller or future collection"):
+		return
+	var suffix: Array = [abandoned, {"status":"unvalidated-target"}]
+	if not check(Adapter.collect(suffix, 2).ok and not Adapter.collect(suffix, 3).ok, "only explicitly selected closed prefix is validated; target/suffix is not admitted"):
+		return
+	for boundary: int in [0, -1, 3]:
+		if not check(not Adapter.collect(synthetic, boundary).ok, "reject invalid target boundary " + str(boundary)):
+			return
+	for kind: String in ["catalog", "exotic-catalog", "season", "strikeouts", "receipt", "unfinished-complete", "dynasty", "null-progress"]:
+		var wrong: Dictionary = abandoned.duplicate(true)
+		match kind:
+			"catalog": wrong.player_progress.pitch_catalog = "wrong"
+			"exotic-catalog": wrong.player_progress.exotic.catalog = "wrong"
+			"season": wrong.player_progress.exotic.season = "season:incorrect"
+			"strikeouts":
+				var id: String = wrong.player_progress.games[0].players.keys()[0]
+				wrong.player_progress.games[0].players[id].strikeouts += 1
+			"receipt": wrong.receipt = {"total": 1}
+			"unfinished-complete": wrong.status = "completed"
+			"dynasty": wrong.league = "dynasty"
+			"null-progress": wrong.player_progress = null
+		if not check(not Adapter.collect([wrong], 2).ok, "reject malformed/mixed closed operand " + kind):
+			return
+	# Standalone synthetic proof ONLY exercises the existing eligibility policy.
+	# Its shape/hash is not physical authority; no closed run or owner receives it.
+	var curve: Dictionary = proof.duplicate(true)
+	curve.games = [proof.games[0].duplicate(true)]
+	curve.games[0].strikeouts = []
+	for index in range(3):
+		curve.games[0].strikeouts.append({"pa":index + 1, "half":0,
+			"pitcher":curve.games[0].roster[0], "finish":"pitch.overhand_curveball",
+			"sequence":["pitch.overhand_curveball"], "called":null})
+	if not check(Eligibility.valid(curve) and Eligibility.eligible_ids(curve).has("pitch.super_curve"), "labeled synthetic curve threshold proof structurally valid"):
+		return
+	var proofs: Array = [proof, curve, curve.duplicate(true)]
+	var proofs_before: Array = proofs.duplicate(true)
+	var evaluated: Dictionary = Adapter.evaluate(proofs)
+	if not check(evaluated.ok and evaluated.proofs.size() == 3 \
+		and ClubCareer.same(evaluated.proofs, proofs) and evaluated.ids == expected_ids(proofs), "duplicate/same-season proofs retained; eligible IDs independently unioned and sorted"):
+		return
+	# Duplicating below-threshold proof must not combine counters across proofs.
+	var below: Dictionary = curve.duplicate(true)
+	below.games[0].strikeouts.resize(2)
+	var separate: Dictionary = Adapter.evaluate([below, below.duplicate(true)])
+	if not check(Eligibility.valid(below) and separate.ok and not separate.ids.has("pitch.super_curve"), "duplicate proofs do not aggregate per-proof eligibility counters"):
+		return
+	for id: String in Eligibility.OFFERINGS:
+		if not check(Adapter.price(id) == int(Eligibility.PRICES[Eligibility.OFFERINGS[id]]), "unchanged frozen price " + id):
+			return
+	if not check(Adapter.price("pitch.unknown") == -1 and Adapter.evaluate([]).ok, "unknown price and empty valid history"):
+		return
+	var wrong_proof: Dictionary = curve.duplicate(true)
+	wrong_proof.catalog = "other-domain"
+	if not check(not Adapter.evaluate([proof, wrong_proof]).ok and not Adapter.evaluate({}).ok \
+		and not Adapter.evaluate([null]).ok, "mixed catalog and malformed proof lists rejected"):
+		return
+	evaluated.proofs[0].season = "poison-evaluation"
+	if not check(ClubCareer.same(proofs, proofs_before) and ClubCareer.same(synthetic, before) \
+		and ClubCareer.same(Codec.capture(season), original) and FileAccess.get_file_as_bytes(SOURCE) == bytes, "all caller operands and actual source unchanged"):
+		return
+	print("PASS: pure successor exotic history/union/price tests; synthetic closed operands only, no physical completion or grant")
+	get_tree().quit()

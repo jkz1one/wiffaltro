@@ -1,0 +1,58 @@
+extends RefCounted
+## Read-only legacy Game109 history branch, NOT physical/owner/installation authority.
+## Future game families must separately validate their own current-catalog branch.
+const Eligibility = preload("res://src/gameplay/season/successor_league_v1/exotic_eligibility.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+
+static func valid_history(value: Variant) -> bool:
+	if not value is Array or value.size() > ClubCareer.MAX_RUNS:
+		return false
+	for proof: Variant in value:
+		if not Eligibility.valid(proof):
+			return false
+	return true
+
+static func evaluate(value: Variant) -> Dictionary:
+	if not valid_history(value):
+		return {"ok": false, "error": "Invalid legacy Game109 exotic proof history."}
+	var proofs: Array = value.duplicate(true)
+	var ids: Array[String] = []
+	# Preserve each retained proof, including repeated seeds/season keys. Thresholds
+	# are evaluated per proof, NEVER by summing partial counters across seasons.
+	for proof: Dictionary in proofs:
+		for id: String in Eligibility.eligible_ids(proof):
+			if not ids.has(id):
+				ids.append(id)
+	ids.sort()
+	return {"ok": true, "proofs": proofs, "ids": ids}
+
+static func collect(runs: Variant, before_run: int) -> Dictionary:
+	# Target itself and later suffix are not operands or validated owner history.
+	# An explicit target prevents accidental inheritance of the active run.
+	if not runs is Array or runs.size() > ClubCareer.MAX_RUNS \
+		or before_run < 1 or before_run > runs.size() + 1:
+		return {"ok": false, "error": "Invalid bounded history or target run."}
+	var prefix: Array = []
+	var proofs: Array = []
+	for index in range(before_run - 1):
+		var run: Variant = runs[index]
+		if not run is Dictionary or not SeasonOwnership._whole(run.get("id"), index + 1, index + 1) \
+			or run.get("status") not in ["completed", "abandoned"] \
+			or not SeasonOwnership._whole(run.get("seed"), 0, 2147483647) \
+			or not run.get("proof") is Dictionary or not run.proof.get("scores") is Array:
+			return {"ok": false, "error": "Only an ordered closed successor prefix may be inherited."}
+		var progress: Variant = run.get("player_progress")
+		if not Progress.valid(progress, run.proof.scores) \
+			or progress.exotic.season != "season:%d" % int(run.seed):
+			return {"ok": false, "error": "Closed successor progress/catalog/season evidence is invalid."}
+		prefix.append(run.duplicate(true))
+		proofs.append(progress.exotic.duplicate(true))
+	# Original receipt, finish, tier and league-unlock policy is unchanged. This is
+	# structural consistency only: callers still owe complete owned physical replay.
+	if Policy.evaluate(prefix).is_empty():
+		return {"ok": false, "error": "Closed prefix fails original career progression policy."}
+	return evaluate(proofs)
+
+static func price(id: String) -> int:
+	return int(Eligibility.PRICES[Eligibility.OFFERINGS[id]]) if Eligibility.OFFERINGS.has(id) else -1

@@ -1,0 +1,25 @@
+{
+  "format": "inactive-successor-career-history-v1",
+  "source_checkpoint": "ca076b8d3ac202c1a0e25fd4ad8c26aef967cced",
+  "scope": "pure closed-prefix legacy109 exotic eligibility; no owner or grant authority",
+  "files": [
+    {
+      "backup_path": "drafts/successor-career-history-v1/src/gameplay/season/successor_career_history_v1/exotic_history.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_history_v1/exotic_history.gd",
+      "bytes": 3030,
+      "sha256": "ab3ff4a0a8d75fcbe99d6636c701dec93ee5dfe9b5e87a14e4cdd188688be909"
+    },
+    {
+      "backup_path": "drafts/successor-career-history-v1/tests/successor_exotic_history.gd.txt",
+      "restore_path": "tests/successor_exotic_history.gd",
+      "bytes": 6757,
+      "sha256": "68c1767568f5609590b628ed88ae55cc6d1f6a3414d5fa64a947e409687c8b92"
+    },
+    {
+      "backup_path": "drafts/successor-career-history-v1/tests/successor_exotic_history.tscn.txt",
+      "restore_path": "tests/successor_exotic_history.tscn",
+      "bytes": 191,
+      "sha256": "4e519e972ebcbd9a74c763deffbcfa70d90f519e9fbf10ca12fe89f85e21b5a9"
+    }
+  ]
+}
