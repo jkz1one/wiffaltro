@@ -18,19 +18,19 @@ func check(ok: bool, label: String) -> bool:
 	return ok
 
 func requested_profile() -> String:
-	for id: String in ["dugout", "sponsorship", "earnings", "academy", "equipment"]:
+	for id: String in ["dugout", "sponsorship", "earnings", "academy", "equipment", "scramble"]:
 		if OS.get_cmdline_user_args().has(id):
 			return id
 	return "standard"
 
 func create_profile(seed_value: int, id: String) -> SeasonState:
-	return Runtime.create_fresh(seed_value) if id == "standard" else Runtime.create_closed_league(seed_value, LeagueRules.capture(id), true)
+	return Runtime.create_fresh(seed_value) if id == "standard" else Runtime.create_closed_league(seed_value, LeagueRules.capture(id, 0, seed_value if id == "scramble" else null), true)
 
 func profile(season: SeasonState, id: String) -> bool:
 	return season != null and Codec.scope(season) and season.career == null \
 		and season.league_live == (id != "standard") and not season.league_career \
 		and season.build._format == (41 if id == "standard" else 45) \
-		and ClubCareer.same(season.league_rules, {} if id == "standard" else LeagueRules.capture(id))
+		and ClubCareer.same(season.league_rules, {} if id == "standard" else LeagueRules.capture(id, 0, season.season_seed if id == "scramble" else null))
 
 func run() -> void:
 	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated B2 birth required"):
@@ -47,7 +47,7 @@ func run() -> void:
 	else:
 		for league: String in LeagueRules.IDS:
 			for tier in range(5):
-				if league in ["dugout", "sponsorship", "earnings", "academy", "equipment"] and tier == 0:
+				if league in ["dugout", "sponsorship", "earnings", "academy", "equipment", "scramble"] and tier == 0:
 					continue
 				var rules: Dictionary = LeagueRules.capture_tier(league, tier, 67231 if league == "scramble" else null)
 				if not check(Runtime.create_closed_league(67231, rules, true) == null, "unqualified League/tier constructor rejected %s%d" % [league,tier]):

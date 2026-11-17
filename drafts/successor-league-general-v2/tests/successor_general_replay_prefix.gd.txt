@@ -214,8 +214,8 @@ func run() -> void:
 		if not abba(value,"actual paid history %d human results" % value.checkpoint.results.size()) or not malformed(value,true):
 			return
 	else:
-		for id: String in ["standard","dugout","sponsorship","earnings","academy","equipment"]:
-			var season: SeasonState = Runtime.create_fresh(67231) if id == "standard" else Runtime.create_closed_league(67231,LeagueRules.capture(id),true)
+		for id: String in ["standard","dugout","sponsorship","earnings","academy","equipment","scramble"]:
+			var season: SeasonState = Runtime.create_fresh(67231) if id == "standard" else Runtime.create_closed_league(67231,LeagueRules.capture(id,0,67231 if id == "scramble" else null),true)
 			if not check(season != null,"fresh profile " + id):
 				return
 			for stage: String in ["fresh","drafted"]:

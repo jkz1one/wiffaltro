@@ -195,6 +195,8 @@ func run() -> void:
 		build = app.season.build
 		selected = {}
 		for item: String in build._pack_choices():
+			if selected_profile == "scramble" and build.shop_item(item).get("op") != "stat":
+				continue # Require a naturally revealed stat card, never alter stock/funds.
 			var targets: Array[Dictionary] = build.targets(item)
 			if not targets.is_empty():
 				selected = {"id":"pick:%d"%build.revision(),"rev":build.revision(),"op":"pack_pick","item":item,"player":targets[0].player,"pitch":targets[0].pitch,"replace":targets[0].replace}

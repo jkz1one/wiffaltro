@@ -8,6 +8,13 @@ static func supported(rules: Variant, live: Variant) -> bool:
 		return not live # Bare Standard remains distinct from explicit League profiles.
 	if not live:
 		return false
+	# Scramble is one fixed stat-permutation profile, not a random League.
+	# Its root season seed is part of the exact normalized identity. Runtime,
+	# decoder and whole-season scope separately bind it to the actual season.
+	if rules.get("league") == "scramble":
+		var normalized: Dictionary = LeagueRules.normalized(rules)
+		return not normalized.is_empty() and normalized.tier == 0 \
+			and ClubCareer.same(rules, LeagueRules.capture("scramble", 0, normalized.season_seed))
 	for id: String in LEAGUES:
 		if ClubCareer.same(rules, LeagueRules.capture(id)):
 			return true

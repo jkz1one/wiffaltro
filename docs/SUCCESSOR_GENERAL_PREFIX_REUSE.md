@@ -23,7 +23,8 @@ The static two-to-one call routing is not presented as a measured runtime counte
 
 ## Qualification gates
 
-Godot 4.6.3 passed against the current source:
+The following results refer to frozen source checkpoint28 (`07c99ba`), not
+subsequent admission changes. Godot 4.6.3 passed:
 - All 47 structural Build/Development regression cases.
 - Fresh and fully drafted six-profile reference/combined/public Codec parity.
 - Newly generated Standard human plus two NPC games, once-only settlement, earned
@@ -34,9 +35,13 @@ Godot 4.6.3 passed against the current source:
 - Unchanged caller input, isolated primary/backup/temp bytes and held authored
   Resource storage-property graphs during both ABBA routes/public restore.
 
-Actual Academy pending/two-choice and multi-round Equipment regressions are still
-running at this source checkpoint. Their earlier checkpoint results are not
-claimed as passes of this changed source. The Standard stage began before the
+The subsequent actual Academy regression on the same checkpoint28 source passed
+earned two-choice NPC packs, exact failed first-choice retry, cold second/skip
+branches and paid replay/tamper checks. Its two warm samples/path averaged
+12.4804995s reference and 12.11118s combined, a small gain opposite the Standard
+sample below; these concurrent samples do not demonstrate reliable responsiveness.
+Multi-round Equipment regression remains pending at this documentation boundary.
+Earlier source qualification is never silently carried onto a changed identity. The Standard stage began before the
 two new comparison test files were added; only those test files were added before
 the comparison, and all staged production bytes matched the final source.
 

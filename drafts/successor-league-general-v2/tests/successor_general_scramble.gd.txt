@@ -1,0 +1,231 @@
+extends Node
+## Scramble0 structural policy plus isolated actual-save checks; not Dynasty.
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const App = preload("res://src/presentation/season/successor_league_general_v2/app.gd")
+const Shop = preload("res://src/presentation/season/successor_league_general_v2/shop_window.gd")
+var roots: Array[Resource] = []
+var observed: Array[Dictionary] = []
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ",label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ",label)
+	return ok
+
+func texts(node: Node) -> Array[String]:
+	var result: Array[String] = []
+	if node is Button or node is Label:
+		result.append(node.text)
+	for child: Node in node.get_children():
+		result.append_array(texts(child))
+	return result
+
+func policy() -> bool:
+	var catalog: String = SeasonPlayerCatalog.signature()
+	var vectors: Dictionary = {
+		0:["pitching","power","fielding","contact"],
+		67231:["pitching","power","fielding","contact"],
+		2147483647:["contact","fielding","power","pitching"]}
+	for seed_value: int in vectors:
+		var rules: Dictionary = LeagueRules.capture("scramble",0,seed_value)
+		var mapping: Dictionary = SeasonScramble.mapping("player.jordan_lake",rules)
+		for index in range(4):
+			if not check(mapping[SeasonPlayerCatalog.STATS[index]] == vectors[seed_value][index],"independent SHA-256 known vector seed %d destination %d" % [seed_value,index]):
+				return false
+	var rules: Dictionary = LeagueRules.capture("scramble",0,67231)
+	seed(991271)
+	var expected_rng: int = randi()
+	seed(991271)
+	for id: String in SeasonPlayerCatalog.ids():
+		var original: Dictionary = SeasonPlayerCatalog.profile(id)
+		var before: PackedByteArray = var_to_bytes(original)
+		var mapping: Dictionary = SeasonScramble.mapping(id,rules)
+		var transformed: Dictionary = SeasonScramble.transform(original,rules)
+		for stat: String in SeasonPlayerCatalog.STATS:
+			if not check(transformed.stats[stat] == original.stats[mapping[stat]] and transformed.base[stat] == original.base[mapping[stat]],"original stat/base permutation " + id + " " + stat):
+				return false
+		if not check(var_to_bytes(original) == before and transformed.active == original.active and transformed.mastery == original.mastery,"unchanged authored profile and pitch identity " + id):
+			return false
+		for stage: String in RecruitCatalog.STAGES:
+			var recruit: Dictionary = RecruitCatalog.fresh(id,stage)
+			var fresh: Dictionary = SeasonScramble.fresh(id,stage,rules)
+			for stat: String in SeasonPlayerCatalog.STATS:
+				if not check(fresh.stats[stat] == recruit.stats[mapping[stat]] and fresh.base[stat] == recruit.base[mapping[stat]],"STRUCTURAL recruit additions precede permutation " + id + " " + stage + " " + stat):
+					return false
+	var recruit_source: String = FileAccess.get_file_as_string("res://src/gameplay/season/season_build.gd")
+	if not check(recruit_source.contains("var profile: Dictionary = player(id) if returning else _book.recruit_profile(id, stage)"),"STATIC returning-recruit branch retains developed player; actual recruitment not qualified"):
+		return false
+	return check(randi() == expected_rng and SeasonPlayerCatalog.signature() == catalog,"pure policy preserves global RNG stream and authored catalog; no earned recruitment claim")
+
+func clubs(season: SeasonState, pristine: bool) -> bool:
+	if not check(season != null and Codec.scope(season) and LeagueRules.scramble(season.league_rules) \
+		and int(season.league_rules.season_seed) == season.season_seed and season.career == null,"exact standalone root-seeded Scramble scope"):
+		return false
+	var builds: Array[SeasonBuild] = [season.build]
+	for id: String in season.opponents.clubs:
+		builds.append(season.opponents.clubs[id].build)
+	if not check(builds.size() == (6 if season.picks.size() == 4 else 1),"NPC builds appear only after completed human draft"):
+		return false
+	for build: SeasonBuild in builds:
+		if not check(ClubCareer.same(build._league_rules,season.league_rules) and build._book.context_matches(season.league_rules),"club root rules independent of local shop seed " + str(build._seed)):
+			return false
+		var shared_id: String = "player.jordan_lake"
+		if not check(build.player(shared_id).base == SeasonScramble.profile(shared_id,season.league_rules).base \
+			and (not pristine or build.player(shared_id).stats == SeasonScramble.profile(shared_id,season.league_rules).stats),"same canonical player across distinct club/shop seeds"):
+			return false
+		for id: String in build.roster():
+			var baseline: Dictionary = SeasonScramble.profile(id,season.league_rules)
+			var actual: Dictionary = build.player(id)
+			if not check(actual.base == baseline.base and (not pristine or actual.stats == baseline.stats),"club transformed profile " + id):
+				return false
+	# Allocation role constraints use transformed pitching, not authored pitching.
+	if pristine and season.picks.size() == 4:
+		for team in range(1,6):
+			var arms: int = 0
+			for id: String in season.teams[team].roster:
+				arms += int(SeasonScramble.profile(id,season.league_rules).stats.pitching >= 2)
+			if not check(arms >= 2,"NPC allocation provides two arms using scrambled ratings"):
+				return false
+	return true
+
+func draft_ui(season: SeasonState) -> bool:
+	var app = App.new()
+	app.season = season
+	app.profile = "scramble"
+	add_child(app)
+	var visible: Array[String] = texts(app.menu)
+	for id: String in season.offers():
+		var expected: String = "%s  %s" % [ContentDB.get_player(StringName(id)).display_name,str(season.build.player(id).stats)]
+		if not check(visible.has(expected),"actual draft Button text uses transformed profile " + id):
+			app.queue_free()
+			return false
+	app.queue_free()
+	return true
+
+func reject_seeds(value: Dictionary) -> bool:
+	for kind: String in ["missing","fractional","changed"]:
+		var wrong: Dictionary = value.duplicate(true)
+		match kind:
+			"missing": wrong.league_rules.erase("season_seed")
+			"fractional": wrong.league_rules.season_seed = 0.5
+			"changed": wrong.league_rules.season_seed = int(value.league_rules.season_seed) + 1
+		if not check(Codec.restore(wrong) == null,"reject " + kind + " root seed"):
+			return false
+	if value.checkpoint.picks.size() == 4:
+		for kind: String in ["rules","book"]:
+			var candidate: SeasonState = Codec.restore(value)
+			if not check(candidate != null,"valid operand before NPC context tamper"):
+				return false
+			var npc: SeasonBuild = candidate.opponents.clubs["1"].build
+			if kind == "rules":
+				npc._league_rules = npc._league_rules.duplicate(true)
+				npc._league_rules.season_seed += 1
+			else:
+				npc._book._league_rules = npc._book._league_rules.duplicate(true)
+				npc._book._league_rules.season_seed += 1
+			if not check(Codec.capture(candidate).is_empty(),"reject mismatched NPC " + kind + " root context"):
+				return false
+	return true
+
+func observe(build: SeasonBuild) -> bool:
+	var state: Dictionary = {"profiles":{},"cash":build.cash(),"revision":build._book.revision(),"event":{}}
+	for id: String in build.roster():
+		state.profiles[id] = build.player(id).duplicate(true)
+	if not build._events.is_empty():
+		state.event = build._events.back().duplicate(true)
+	observed.append(state)
+	return true
+
+func paid(season: SeasonState) -> bool:
+	var before: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup_exists: bool = FileAccess.file_exists(Save.PATH + ".bak")
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH + ".bak") if backup_exists else PackedByteArray()
+	if not check(season.player_results.size() >= 1 and season.build._visit.pack_status == "used","actual earned human history and paid used pack required"):
+		return false
+	var build: SeasonBuild = season.build
+	observed.clear()
+	var replay: SeasonBuild = Build.restore(build.to_data(),build._seed,build._initial_roster,build._pool,build._blocked,-1,observe)
+	if not check(replay != null and ClubCareer.same(replay.to_data(),build.to_data()),"complete actual earned journal replay with read-only observer"):
+		return false
+	var picks: int = 0
+	for index in range(1,observed.size()):
+		var after: Dictionary = observed[index]
+		if after.event.get("op") != "pack_pick":
+			continue
+		var prior: Dictionary = observed[index-1]
+		var item: Dictionary = build.shop_item(after.event.item)
+		if not check(item.op == "stat","qualification fixture must select naturally revealed stat upgrade; no mastery substitute"):
+			return false
+		var player: String = after.event.player
+		var original: Dictionary = prior.profiles[player]
+		var changed: Dictionary = after.profiles[player]
+		for stat: String in SeasonPlayerCatalog.STATS:
+			if not check(int(changed.stats[stat]) == int(original.stats[stat]) + (1 if stat == item.family else 0),"earned upgrade changes exact scrambled destination once " + stat):
+				return false
+		if not check(changed.base == original.base and changed.mastery == original.mastery and after.cash == prior.cash and after.revision == prior.revision + 1,"no second permutation, recharge or unrelated mastery change"):
+			return false
+		picks += 1
+	if not check(picks == 1,"one actual ordinary paid pack pick"):
+		return false
+	var app = App.new()
+	app.season = season
+	add_child(app)
+	var shop = Shop.new()
+	shop.app = app
+	# Original target-label formatter used by real shop purchase controls.
+	for id: String in build.roster():
+		var target: Dictionary = {"player":id}
+		var item: Dictionary = build.shop_item("development.contact")
+		var label: String = shop._target_text(item,target)
+		if not check(label.contains("Contact %d → %d" % [build.player(id).stats.contact,build.player(id).stats.contact+1]),"shop target label uses transformed developed rating " + id):
+			shop.free()
+			app.queue_free()
+			return false
+	shop.free()
+	app.queue_free()
+	return check(FileAccess.get_file_as_bytes(Save.PATH) == before and FileAccess.file_exists(Save.PATH+".bak") == backup_exists \
+		and (not backup_exists or FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup),"paid checks preserve primary and backup bytes; no purchases or save writes")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated Scramble test required"):
+		return
+	roots = Codec._operation_content_roots()
+	if OS.get_cmdline_user_args().has("paid") or OS.get_cmdline_user_args().has("reopen"):
+		var season: SeasonState = Save.restore()
+		if not clubs(season,not OS.get_cmdline_user_args().has("paid")):
+			return
+		if not check(ClubCareer.same(Codec.capture(season),JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))),"cold exact Scramble disk recapture"):
+			return
+		if OS.get_cmdline_user_args().has("paid") and not paid(season):
+			return
+	else:
+		if not policy() or not check(LeagueRules.capture("scramble").is_empty(),"Scramble requires explicit root seed"):
+			return
+		var rules: Dictionary = LeagueRules.capture("scramble",0,67231)
+		if not check(Runtime.create_closed_league(67232,rules,true) == null,"constructor rejects rules/root seed mismatch"):
+			return
+		var season: SeasonState = Runtime.create_closed_league(67231,rules,true)
+		for pick in range(5):
+			if not clubs(season,true):
+				return
+			if pick < 4 and not draft_ui(season):
+				return
+			var value: Dictionary = Codec.capture(season)
+			var restored: SeasonState = Codec.restore(JSON.parse_string(JSON.stringify(value,"",true,true)))
+			if not check(restored != null and ClubCareer.same(Codec.capture(restored),value),"every-pick exact JSON restore " + str(pick)) or not reject_seeds(value):
+				return
+			if not check(Save.save(restored),"isolated durable Scramble pick " + str(pick)):
+				return
+			season = restored
+			if pick < 4 and not check(season.choose_player(season.offers()[0]),"real draft selection"):
+				return
+	print("PASS: Scramble0 policy and selected save/UI path; no visual or genuine recruitment acceptance")
+	get_tree().quit()
