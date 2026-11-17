@@ -195,7 +195,7 @@ func run() -> void:
 		and not dynasty.enable_dynasty(LeagueRules.capture("dynasty"), {"invented":"carry"}), "nonempty Dynasty carry remains closed"):
 		return
 	if not check(Runtime.create(Seed) == null and Runtime.create_live_dugout(Seed) != null \
-		and Runtime.create_closed_league(Seed, LeagueRules.capture("academy"), true) == null \
+		and Runtime.create_closed_league(Seed, LeagueRules.capture("equipment"), true) == null \
 		and not Codec.scope(Runtime.new()) and not Codec.envelope_valid({}) \
 		and Codec.restore({}) == null, "only narrow B2 public context admitted; malformed and other League contexts closed"):
 		return

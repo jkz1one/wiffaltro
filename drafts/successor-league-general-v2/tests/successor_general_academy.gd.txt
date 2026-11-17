@@ -1,0 +1,139 @@
+extends "res://tests/successor_general_birth.gd"
+## Alternate branches of authentic earned pre-pack evidence. Never synthetic Cash.
+const App = preload("res://src/presentation/season/successor_league_general_v2/app.gd")
+
+func command(build: SeasonBuild, op: String, fields: Dictionary = {}) -> Dictionary:
+	var result: Dictionary = {"id":"academy-test:%s:%d" % [op,build.revision()],"rev":build.revision(),"op":op}
+	result.merge(fields)
+	return result
+
+func choice(build: SeasonBuild) -> Dictionary:
+	for item: String in build._pack_choices():
+		var targets: Array[Dictionary] = build.targets(item)
+		if not targets.is_empty():
+			return command(build,"pack_pick",{"item":item,"player":targets[0].player,"pitch":targets[0].pitch,"replace":targets[0].replace})
+	return {}
+
+func immediate(before: Dictionary, after: Dictionary) -> bool:
+	var stats: int = 0
+	var mastery: int = 0
+	for key: String in before.stats:
+		stats += int(after.stats[key]) - int(before.stats[key])
+	for id: String in after.mastery:
+		mastery += int(after.mastery[id]) - int(before.mastery.get(id,0))
+	return stats >= 0 and mastery >= 0 and stats + mastery == 1
+
+func pending_guards(app: SeasonApp) -> bool:
+	var build: SeasonBuild = app.season.build
+	var before: Dictionary = Codec.capture(app.season)
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(build.pack_pending() and build._visit.pack_picked.size() == 1 \
+		and app.season.make_match() == null and not app.season.academy_fixture_ready(app.season.pending_fixture()), "actual pending second choice blocks human match"):
+		return false
+	app.play_next()
+	if not check(not is_instance_valid(app.lab), "actual play control cannot launch with pending choice"):
+		return false
+	if not check(not app.commit_shop(command(build,"reroll")) and ClubCareer.same(Codec.capture(app.season), before) \
+		and FileAccess.get_file_as_bytes(Save.PATH) == disk, "ordinary reroll blocked without mutation while second choice pending"):
+		return false
+	var first: Dictionary = {}
+	for event: Dictionary in build._events:
+		if event.get("op") == "pack_pick" and event.get("item") == build._visit.pack_picked[0]:
+			first = event.duplicate(true)
+	if not check(not first.is_empty(), "earned first choice retained in exact journal"):
+		return false
+	first.id = "academy-duplicate:%d" % build.revision()
+	first.rev = build.revision()
+	if not check(not app.commit_shop(first) and ClubCareer.same(Codec.capture(app.season), before), "same revealed card cannot be selected twice using a new command"):
+		return false
+	# Structural NPC guard operand only; not an AI purchase or an earned report.
+	var npc: SeasonBuild = app.season.opponents.clubs["1"].build
+	var original_visit: Dictionary = npc._visit
+	npc._visit = build._visit.duplicate(true)
+	var npc_fixture: Dictionary = {}
+	for fixture: Dictionary in app.season.schedule:
+		if fixture.away != 0 and fixture.home != 0 and (fixture.away == 1 or fixture.home == 1):
+			npc_fixture = fixture
+			break
+	var blocked: bool = not npc_fixture.is_empty() and not app.season.academy_fixture_ready(npc_fixture)
+	npc._visit = original_visit
+	return check(blocked and ClubCareer.same(Codec.capture(app.season), before), "structural NPC pending participant gate rejects and original operand restored")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated earned Academy branch required"):
+		return
+	var app = App.new()
+	add_child(app)
+	app.reload_save()
+	if not check(profile(app.season,"academy") and app.season.results.size() == 3 and app.season.player_results.size() == 1, "strict actual Academy earned round"):
+		return
+	var cold_second: bool = OS.get_cmdline_user_args().has("reopen-second")
+	var cold_skip: bool = OS.get_cmdline_user_args().has("reopen-skip")
+	if cold_second or cold_skip:
+		if not pending_guards(app):
+			return
+		var cash: int = app.season.build.cash()
+		var cards: Array = app.season.build._visit.cards.duplicate(true)
+		var first: String = app.season.build._visit.pack_picked[0]
+		var old_profiles: Dictionary = app.season.build._book._players.duplicate(true)
+		var selected: Dictionary = command(app.season.build,"pack_skip") if cold_skip else choice(app.season.build)
+		if not check(cold_skip or (not selected.is_empty() and selected.item != first), "cold next action is explicit skip or distinct exact revealed card"):
+			return
+		if not check(app.commit_shop(selected) and app.get("retained") == null and not app.season.build.pack_pending() \
+			and app.season.build.cash() == cash and app.season.build._visit.cards == cards \
+			and app.season.make_match() != null, "cold choice resolves without recharge/refund or reveal replacement; play resumes"):
+			return
+		if cold_skip:
+			if not check(app.season.build._visit.pack_status == "skipped" and app.season.build._visit.pack_picked == [first] \
+				and ClubCareer.same(old_profiles,app.season.build._book._players), "explicit skip retains first upgrade and forfeits only remaining choice without refund"):
+				return
+		else:
+			if not check(app.season.build._visit.pack_status == "used" and app.season.build._visit.pack_picked == [first,selected.item] \
+				and immediate(old_profiles[selected.player],app.season.build.player(selected.player)), "distinct second upgrade immediately applied once"):
+				return
+		var completed: Dictionary = Codec.capture(app.season)
+		app.commit_shop(selected)
+		if not check(ClubCareer.same(Codec.capture(app.season),completed) \
+			and ClubCareer.same(Codec.capture(Save.restore()),completed), "duplicate action inert and exact durable branch reopen"):
+			return
+	else:
+		var build: SeasonBuild = app.season.build
+		if not check(build._visit.open and build._visit.pack_status == "sealed" and build._pack_choices().size() >= 2, "authentic earned pre-pack fixed reveal has two eligible cards"):
+			return
+		var cash: int = build.cash()
+		var quote: int = build.pack_price()
+		if not check(quote == 12 and app.commit_shop(command(build,"pack_open")) \
+			and app.season.build.cash() == cash - quote and app.season.build._visit.pack_paid == quote, "real original candidate12 pack paid once with no unearned subsidy"):
+			return
+		build = app.season.build
+		var selected: Dictionary = choice(build)
+		if not check(not selected.is_empty(), "generated first eligible choice"):
+			return
+		var before_profile: Dictionary = build.player(selected.player).duplicate(true)
+		var published: Dictionary = Codec.capture(app.season)
+		var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH + ".bak")
+		if not check(not FileAccess.file_exists(Save.PATH + ".tmp") and not DirAccess.dir_exists_absolute(Save.PATH + ".tmp") \
+			and DirAccess.make_dir_absolute(Save.PATH + ".tmp") == OK, "inject isolated first-choice pre-write refusal"):
+			return
+		app.commit_shop(selected)
+		var candidate: SeasonState = app.get("retained")
+		if not check(candidate != null and immediate(before_profile,candidate.build.player(selected.player)) \
+			and candidate.build.pack_pending() and candidate.build._visit.pack_picked == [selected.item] \
+			and candidate.build.cash() == cash - quote and ClubCareer.same(Codec.capture(app.season),published) \
+			and FileAccess.get_file_as_bytes(Save.PATH) == bytes and FileAccess.get_file_as_bytes(Save.PATH + ".bak") == backup, "failed first-choice save retains upgraded candidate without publishing or mutating primary/backup"):
+			return
+		var exact: Dictionary = Codec.capture(candidate)
+		if not check(DirAccess.remove_absolute(Save.PATH + ".tmp") == OK, "remove only injected fault"):
+			return
+		app.retry_save()
+		if not check(app.get("retained") == null and app.season == candidate \
+			and ClubCareer.same(Codec.capture(app.season),exact) \
+			and ClubCareer.same(JSON.parse_string(FileAccess.get_file_as_string(Save.PATH)),exact), "retry publishes exact first upgrade while second remains durably pending"):
+			return
+		if not pending_guards(app):
+			return
+	print("PASS: genuine earned Academy branch: ", "cold-skip" if cold_skip else ("cold-second" if cold_second else "first-choice-pending"))
+	app.queue_free()
+	await get_tree().process_frame
+	get_tree().quit()

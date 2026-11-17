@@ -1,5 +1,5 @@
 extends RefCounted
-## Ordinary Standard0/Dugout0/Sponsorship0/Earnings0; no higher-tier or owner admission.
+## Ordinary supported tier0 profiles only; no higher-tier or owner admission.
 const FORMAT: String = "successor-general-build-v7-r2"
 const ADMISSION: int = 114
 const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")

@@ -1,0 +1,74 @@
+extends "res://tests/successor_general_birth.gd"
+## Read-only audit of actual paid NPC journals. No synthetic funding or results.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated actual Academy NPC audit"):
+		return
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var payload: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	var season: SeasonState = Codec.restore(payload)
+	if not check(profile(season,"academy") and season.results.size() == 3 and season.player_results.size() == 1 \
+		and season.build._visit.pack_status == "used" and ClubCareer.same(Codec.capture(season),payload), "strict current-source actually played paid Academy round"):
+		return
+	var qualifying: int = 0
+	for id: String in season.opponents.clubs:
+		var build: SeasonBuild = season.opponents.clubs[id].build
+		if not check(not build.pack_pending(), "actual NPC policy leaves no unresolved pack club" + id):
+			return
+		var opens: Array = build._events.filter(func(event: Dictionary) -> bool: return event.get("op") == "pack_open")
+		if opens.is_empty():
+			print("NPC_ACADEMY: club=",id," no pack bought; no purchase claim")
+			continue
+		var original: Dictionary = build.to_data()
+		var trace: Array[Dictionary] = []
+		var observer: Callable = func(current: SeasonBuild) -> bool:
+			trace.append({"cash":current.cash(),"quote":current.pack_price(),
+				"visit":current._visit.duplicate(true),"bank":current._bank._events.duplicate(true),
+				"revision":current._book.revision(),"players":current._book._players.duplicate(true)})
+			return true
+		var replay: SeasonBuild = Build.restore(original,build._seed,build._initial_roster,build._pool,build._blocked,-1,observer)
+		if not check(replay != null and trace.size() == build._events.size()+1 \
+			and ClubCareer.same(replay.to_data(),original) and ClubCareer.same(build.to_data(),original), "exact original NPC full replay with detached read-only observer club" + id):
+			return
+		var bought: bool = false
+		var picks: Array[String] = []
+		var pack_cash: int = 0
+		for index in range(build._events.size()):
+			var event: Dictionary = build._events[index]
+			var before: Dictionary = trace[index]
+			var after: Dictionary = trace[index+1]
+			if event.op == "pack_open":
+				if not check(not bought and before.visit.pack_status == "sealed" \
+					and after.visit.pack_status == "open" and after.cash == before.cash-before.quote \
+					and after.visit.pack_paid == before.quote and after.visit.pack_picked.is_empty(), "actual NPC original quoted pack payment once club" + id):
+					return
+				var delta: Array = after.bank.slice(before.bank.size())
+				if not check((before.quote == 0 and delta.is_empty()) or (delta.size() == 1 and delta[0].op == "charge" and delta[0].amount == before.quote), "actual original bank journal records exact one pack charge club" + id):
+					return
+				bought = true
+				picks = []
+				pack_cash = after.cash
+			elif event.op == "pack_pick":
+				if not check(bought and not picks.has(event.item) and before.visit.cards.has(event.item) \
+					and before.cash == after.cash and after.cash == pack_cash and ClubCareer.same(before.bank,after.bank) \
+					and ClubCareer.same(before.visit.cards,after.visit.cards) and after.revision == before.revision+1 \
+					and not ClubCareer.same(before.players[event.player],after.players[event.player]), "actual distinct NPC choice immediately changes profile without second charge or replacement club" + id):
+					return
+				picks.append(event.item)
+				if not check(ClubCareer.same(after.visit.pack_picked,picks), "actual NPC picked identity journal matches replay club" + id):
+					return
+				if picks.size() == 1 and not check(after.visit.pack_status == "open", "actual first NPC choice leaves second pending during same policy transaction"):
+					return
+				if picks.size() == 2:
+					if not check(after.visit.pack_status == "used", "actual second NPC choice closes paid pack"):
+						return
+					qualifying += 1
+					bought = false
+					print("NPC_ACADEMY: club=",id," two distinct actual picks=",picks)
+	if not check(qualifying >= 1, "at least one genuine NPC two-choice paid pack; not all clubs assumed buyers"):
+		return
+	if not check(FileAccess.get_file_as_bytes(Save.PATH) == bytes and ClubCareer.same(Codec.capture(season),payload), "actual paid save and caller state unchanged by NPC audit"):
+		return
+	print("PASS: actual Academy NPC original charge and distinct immediate two-pick replay; qualifying packs=",qualifying)
+	get_tree().quit()

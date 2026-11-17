@@ -37,8 +37,16 @@ Dynasty qualification is inferred from the one-round evidence.
 - B3 adds standalone tier0 Sponsorship and Earnings with actual payout/round/
   earned-pack/cold and resolver parity tests. Sixth-sponsor/Bat purchases are
   separately labeled synthetic policy checks. See `SUCCESSOR_GENERAL_ECONOMIES_B3.md`.
-  Lab-exit confirmation and retained-candidate window-close protection are known
-  staging UI issues to fix before any playable handoff.
+- The subsequent interruption checkpoint fixes the staging lab-exit confirmation
+  and retained-candidate window-close issues, with actual dialog/WM notification,
+  earned-shop Cancel/OK/repeat, exact failed-save retry and cold-round tests.
+  See `SUCCESSOR_GENERAL_INTERRUPTION.md`. This is headless native behavior,
+  not desktop visual acceptance.
+
+- B4 adds standalone Academy0 with actual human/NPC earned two-choice packs,
+  exact first-choice failure/retry and cold second-choice/skip branches, preserved
+  receipts/reveal/payment, and pending gameplay guards. See
+  `SUCCESSOR_GENERAL_ACADEMY_B4.md` for exact coverage and remaining edge cases.
 
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,

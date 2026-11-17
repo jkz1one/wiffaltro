@@ -188,32 +188,51 @@ func run() -> void:
 	app.call("shop_command", open_command)
 	if not check(app.get("retained") == null and app.season.build.pack_pending() and app.season.build.cash() == cash_before - price, "real earned pack payment"):
 		return
-	build = app.season.build
 	var selected: Dictionary = {}
-	for item: String in build._visit.cards:
-		var targets: Array[Dictionary] = build.targets(item)
-		if not targets.is_empty():
-			selected = {"id":"pick:%d"%build.revision(),"rev":build.revision(),"op":"pack_pick","item":item,"player":targets[0].player,"pitch":targets[0].pitch,"replace":targets[0].replace}
-			break
-	if not check(not selected.is_empty(), "generated legal pack target"):
-		return
-	var before_profile: Dictionary = build.player(selected.player).duplicate(true)
-	var book_revision: int = build._book.revision()
-	app.call("shop_command", selected)
-	var after_profile: Dictionary = app.season.build.player(selected.player)
-	var stats_delta: int = 0
-	var mastery_delta: int = 0
-	for stat: String in before_profile.stats:
-		stats_delta += int(after_profile.stats[stat]) - int(before_profile.stats[stat])
-	for pitch: String in after_profile.mastery:
-		mastery_delta += int(after_profile.mastery[pitch]) - int(before_profile.mastery.get(pitch, 0))
-	if not check(stats_delta >= 0 and mastery_delta >= 0 and stats_delta + mastery_delta == 1 and app.season.build._book.revision() == book_revision + 1, "exactly one earned development level applied"):
-		return
+	var picked: Array[String] = []
+	var purchase_cash: int = app.season.build.cash()
+	while app.season.build.pack_pending():
+		build = app.season.build
+		selected = {}
+		for item: String in build._pack_choices():
+			var targets: Array[Dictionary] = build.targets(item)
+			if not targets.is_empty():
+				selected = {"id":"pick:%d"%build.revision(),"rev":build.revision(),"op":"pack_pick","item":item,"player":targets[0].player,"pitch":targets[0].pitch,"replace":targets[0].replace}
+				break
+		if not check(not selected.is_empty() and not picked.has(selected.item), "generated distinct legal pack target"):
+			return
+		var before_profile: Dictionary = build.player(selected.player).duplicate(true)
+		var book_revision: int = build._book.revision()
+		app.call("shop_command", selected)
+		var after_profile: Dictionary = app.season.build.player(selected.player)
+		var stats_delta: int = 0
+		var mastery_delta: int = 0
+		for stat: String in before_profile.stats:
+			stats_delta += int(after_profile.stats[stat]) - int(before_profile.stats[stat])
+		for pitch: String in after_profile.mastery:
+			mastery_delta += int(after_profile.mastery[pitch]) - int(before_profile.mastery.get(pitch, 0))
+		if not check(stats_delta >= 0 and mastery_delta >= 0 and stats_delta + mastery_delta == 1 \
+			and app.season.build._book.revision() == book_revision + 1 and app.season.build.cash() == purchase_cash, "exactly one immediate development level without another charge"):
+			return
+		picked.append(selected.item)
+		var after_pick: Dictionary = Codec.capture(app.season)
+		app.call("shop_command", selected)
+		if not check(ClubCareer.same(Codec.capture(app.season), after_pick), "repeated purchase command grants nothing twice"):
+			return
+		if selected_profile == "academy" and picked.size() == 1:
+			if not check(app.season.build.pack_pending() and app.season.make_match() == null \
+				and ClubCareer.same(after_pick, JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "Academy first choice immediately durable; second remains pending and blocks play"):
+				return
+			if OS.get_cmdline_user_args().has("academy-first-only"):
+				print("PASS: actual Academy first earned choice persisted; second unresolved")
+				app.queue_free()
+				get_tree().quit()
+				return
+		if not check(picked.size() <= (2 if selected_profile == "academy" else 1), "bounded original pack choices"):
+			return
 	var purchased: Dictionary = Codec.capture(app.season)
-	if not check(not purchased.is_empty() and app.get("retained") == null and app.season.build._visit.pack_status == "used", "paid pack selection durably applied"):
-		return
-	app.call("shop_command", selected)
-	if not check(ClubCareer.same(Codec.capture(app.season), purchased), "repeated purchase command grants nothing twice"):
+	if not check(not purchased.is_empty() and app.get("retained") == null and app.season.build._visit.pack_status == "used" \
+		and picked.size() == (2 if selected_profile == "academy" else 1), "paid distinct pack selections durably applied"):
 		return
 	if not check(ClubCareer.same(purchased, JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and profile(app.season, selected_profile), "paid checkpoint exact profile and disk"):
 		return

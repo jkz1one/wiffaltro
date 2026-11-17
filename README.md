@@ -2,7 +2,11 @@
 
 The baseline at commit 198d56d54003753b52a0209ce9f09337a6f37aa4 preserves the surviving November 12 R6 source. This branch does not recover the missing later Standard v7 work.
 
-## Current candidate
+## Successor development status
+
+Active successor integration is tracked in [the qualification status and gates](docs/SUCCESSOR_INTEGRATION_STATUS.md). Additive drafts and isolated tests do not replace the original project entry or constitute a playable release. The recovered-baseline notes below describe their historical candidate, not the later successor qualification.
+
+## Recovered baseline candidate
 
 The reviewed background-save integration now includes a single-use committed-checkpoint receipt to avoid saving the same pending result again on Continue. A missing or mismatched receipt falls back to the existing validated save path. Historical save formats, catalog inputs, and ownership rules are unchanged.
 

@@ -43,13 +43,16 @@ def main():
     mode.add_argument('--general-birth', action='store_true', help='General ordinary season birth/draft exact cold replay')
     mode.add_argument('--general-round', action='store_true', help='General actual ordinary season round/earned shop/cold replay')
     mode.add_argument('--general-interrupt', action='store_true', help='General App cancel, close and retained-write guards')
+    parser.add_argument('--academy-flows', action='store_true', help='Qualify actual earned Academy first-pick retry and separate cold second/skip branches')
     parser.add_argument('--interrupt-flows', action='store_true', help='Test actual pending close and isolated earned shop confirmation during general round')
     mode.add_argument('--general-economies', action='store_true', help='Original Sponsorship/Earnings policy and paid synthetic unit mechanics')
     parser.add_argument('--resolve-benchmark', action='store_true', help='After a fresh general round, compare immediate report reuse against full validation')
-    parser.add_argument('--general-profile', choices=['standard', 'dugout', 'sponsorship', 'earnings'], default='standard')
+    parser.add_argument('--general-profile', choices=['standard', 'dugout', 'sponsorship', 'earnings', 'academy'], default='standard')
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
+    if args.academy_flows and (not args.general_round or args.general_profile != 'academy'):
+        parser.error('--academy-flows requires --general-round --general-profile academy')
     if args.interrupt_flows and not args.general_round:
         parser.error('--interrupt-flows requires a fresh --general-round')
     if args.resolve_benchmark and not args.general_round:
@@ -214,7 +217,7 @@ def main():
                 run('general-interrupt-pending', ['res://tests/successor_general_interrupt.tscn', '--', *selected, 'pending'], timeout=1800)
             run('general-ai-first', scene + ['resume-round', 'one-ai'], timeout=2400)
             run('general-ai-second', scene + ['resume-round', 'one-ai'], timeout=2400)
-            run('general-settle-shop', scene + ['resume-round'] + (['retain-shop-prepack'] if args.interrupt_flows else []), timeout=2400)
+            run('general-settle-shop', scene + ['resume-round'] + (['retain-shop-prepack'] if args.interrupt_flows or args.academy_flows else []), timeout=2400)
             run('general-round-cold', scene + ['reopen'], timeout=1800)
             if args.interrupt_flows:
                 data_root = stage / 'data/godot/app_userdata/Wiffaltro'
@@ -232,6 +235,38 @@ def main():
                 destination.parent.mkdir(parents=True)
                 destination.write_bytes(prepack_before)
                 run('general-shop-confirm', ['res://tests/successor_general_shop_confirm.tscn', '--', *selected], timeout=2400, run_env=shop_env)
+                assert primary.read_bytes() == primary_before
+                assert prepack.read_bytes() == prepack_before
+            if args.academy_flows:
+                data_root = stage / 'data/godot/app_userdata/Wiffaltro'
+                primary = data_root / 'successor-general-build-v7-r2.json'
+                prepack = data_root / 'earned-shop-prepack.json'
+                primary_before, prepack_before = primary.read_bytes(), prepack.read_bytes()
+
+                def academy_slot(name, saved_bytes):
+                    isolated = stage / name
+                    assert not isolated.exists()
+                    isolated.mkdir()
+                    branch_env = dict(env)
+                    for key, directory in [('HOME', 'home'), ('XDG_DATA_HOME', 'data'), ('XDG_CONFIG_HOME', 'config'), ('XDG_CACHE_HOME', 'cache')]:
+                        branch_env[key] = str(isolated / directory)
+                        Path(branch_env[key]).mkdir()
+                    destination = isolated / 'data/godot/app_userdata/Wiffaltro' / primary.name
+                    destination.parent.mkdir(parents=True)
+                    destination.write_bytes(saved_bytes)
+                    assert destination.read_bytes() == saved_bytes
+                    return branch_env, destination
+
+                run('general-academy-npc', ['res://tests/successor_general_academy_npc.tscn', '--', 'academy'], timeout=2400)
+                first_env, first_save = academy_slot('academy-first', prepack_before)
+                academy_scene = ['res://tests/successor_general_academy.tscn', '--', 'academy']
+                run('general-academy-first', academy_scene, timeout=2400, run_env=first_env)
+                first_bytes = first_save.read_bytes()
+                skip_env, skip_save = academy_slot('academy-skip', first_bytes)
+                run('general-academy-second', academy_scene + ['reopen-second'], timeout=2400, run_env=first_env)
+                second_bytes = first_save.read_bytes()
+                run('general-academy-skip', academy_scene + ['reopen-skip'], timeout=2400, run_env=skip_env)
+                assert first_save.read_bytes() == second_bytes
                 assert primary.read_bytes() == primary_before
                 assert prepack.read_bytes() == prepack_before
             if args.resolve_benchmark:
