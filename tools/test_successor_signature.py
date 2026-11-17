@@ -42,10 +42,13 @@ def main():
     mode.add_argument('--general-physical', action='store_true', help='Ordinary single-game physical context tests only; no owned season admission')
     mode.add_argument('--general-birth', action='store_true', help='General ordinary season birth/draft exact cold replay')
     mode.add_argument('--general-round', action='store_true', help='General actual ordinary season round/earned shop/cold replay')
+    parser.add_argument('--resolve-benchmark', action='store_true', help='After a fresh general round, compare immediate report reuse against full validation')
     parser.add_argument('--general-profile', choices=['standard', 'dugout'], default='standard')
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
+    if args.resolve_benchmark and not args.general_round:
+        parser.error('--resolve-benchmark requires a fresh --general-round')
     if args.facade and not args.owner_round:
         parser.error('--facade requires --owner-round')
     if args.terminal_resume_stage and not args.terminal_season:
@@ -200,6 +203,8 @@ def main():
             run('general-ai-second', scene + ['resume-round', 'one-ai'], timeout=2400)
             run('general-settle-shop', scene + ['resume-round'], timeout=2400)
             run('general-round-cold', scene + ['reopen'], timeout=1800)
+            if args.resolve_benchmark:
+                run('general-resolve', ['res://tests/successor_general_resolve.tscn', '--', *selected], timeout=2400)
         return
     if args.general_physical:
         run('general-physical', ['--fixed-fps', '60', 'res://tests/successor_general_physical.tscn'], timeout=3600)

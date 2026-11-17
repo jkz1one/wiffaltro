@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "73394628376cb2145e9efbd2c35533515a4d8666",
-  "scope": "B2 ordinary Standard0/Dugout0 standalone season integration; no owner or career admission",
+  "source_checkpoint": "9d976dafc14bd0863ad84ba331ccb81a5403305c",
+  "scope": "B2 ordinary season plus transaction-local physical report self-validation reuse; no career admission",
   "files": [
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/build.gd.txt",
@@ -150,8 +150,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/physical_fixtures.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/physical_fixtures.gd",
-      "bytes": 20191,
-      "sha256": "906259f9fef0368568d4e0de5bed863258216ceb30c3a2ea980bf3fca5a262f1"
+      "bytes": 19971,
+      "sha256": "5d716ad8c9ed116466b74af6766457b4a607200fcd519123516ccf8b8aeb8472"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/physical_league.gd.txt",
@@ -320,6 +320,18 @@
       "restore_path": "tests/successor_general_physical.tscn",
       "bytes": 195,
       "sha256": "c83826c77097f8536b37e499b701d419697cb06749d673de4b334b8e92a5a928"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_resolve.gd.txt",
+      "restore_path": "tests/successor_general_resolve.gd",
+      "bytes": 8729,
+      "sha256": "f67eb7a6e8e00402e2491f43b24bc2cd68e4ae11ef70c55c4205541299315541"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_resolve.tscn.txt",
+      "restore_path": "tests/successor_general_resolve.tscn",
+      "bytes": 197,
+      "sha256": "f7497f79f0bb06fa26f9813dfbcf5aa376c2d266c3f7e50a2d3c6809afe221a2"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_round.gd.txt",

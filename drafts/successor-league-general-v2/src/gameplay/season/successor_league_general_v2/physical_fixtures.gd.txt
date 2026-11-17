@@ -246,6 +246,12 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 
 
 func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
+	return _resolve(season, fixture, true)
+
+
+# Transaction-local diagnostic comparison only: false repeats full self-validation.
+# No caller-supplied validity, row or cache is accepted by either path.
+func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true) -> Dictionary:
 	needed = {}
 	if cursor >= reports.size():
 		needed = fixture.duplicate(true)
@@ -257,22 +263,16 @@ func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
 	var row: Dictionary = reports[cursor]
 	var validated_catalog: String = ""
 	var reuse_current: bool = (
-		get_script() == SeasonPhysicalFixtures and season.get_script() == SeasonState
-		and season.build != null and season.build.get_script() == SeasonBuild
-		and season.build._format == 41 and season.build._market == 0
-		and season.ownership != null and season.opponents != null
-		and season.opponents._format == 13 and season.physical == self
-		and season.career == null and not season.league_career and not season.league_live
-		and season.league_rules.is_empty() and season.inventory_rules.is_empty()
-		and season._dynasty_start.is_empty() and season._closed_access.is_empty()
-		and season._dynasty_owner_binding.is_empty() and season._dynasty_career_session.is_empty()
-		and season._standard_live_context.is_empty() and season._standard_bound_grant.is_empty()
-		and season._league_home_context.is_empty() and season.home_property.is_empty()
-		and season.owned_surface_night.is_empty() and season.npc_venues.is_empty()
-		and season.final_venue.is_empty() and season.player_access.is_empty()
+		allow_reuse
+		and get_script() == load("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+		and season != null
+		and season.get_script() == load("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+		and season.build != null
+		and season.build.get_script() == load("res://src/gameplay/season/successor_league_general_v2/build.gd")
+		and load("res://src/gameplay/season/successor_league_general_v2/codec.gd").scope(season)
+		and season.ownership != null and season.physical == self
 		and season._heat_replay_team == null and season._doubleheader_replay_build == null
 		and season._pool_replay_ledger == null and season._npc_replay_run == -1
-		and season.build.call("pitch_catalog_successor")
 	)
 	if reuse_current:
 		var value_budget: Array[int] = [100000, 8388608]

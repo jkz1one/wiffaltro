@@ -1,0 +1,142 @@
+extends Node
+## Current-source actual report regression only. Reconstructed pre-round operands
+## are not an admitted save and never confer ownership or settle a season.
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const Report = preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+var earned: SeasonState
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func operand(row: Dictionary) -> SeasonState:
+	var season: SeasonState = Runtime.create_fresh(earned.season_seed) if earned.league_rules.is_empty() else Runtime.create_live_dugout(earned.season_seed)
+	if season == null:
+		return null
+	for id: String in earned.picks:
+		if not season.choose_player(id):
+			return null
+	season.physical.reports.append(row.duplicate(true))
+	return season
+
+func snapshot(season: SeasonState) -> Dictionary:
+	var raw: Dictionary = {}
+	for id: String in season.opponents.clubs:
+		var build: SeasonBuild = season.opponents.clubs[id].build
+		raw[id] = {"players":build._book._players.duplicate(true), "bank":build._bank._state.duplicate(true)}
+	return {"build":season.build.to_data(), "opponents":season.opponents.to_data(), "raw":raw,
+		"teams":season.teams.duplicate(true), "results":season.results.duplicate(true),
+		"reports":season.physical.reports.duplicate(true), "pending":season.physical.pending.duplicate(true),
+		"seed":season.season_seed, "rules":season.league_rules.duplicate(true)}
+
+func resolve_once(season: SeasonState, fixture: Dictionary, reuse: bool) -> Dictionary:
+	season.physical.cursor = 0
+	season.physical.error = ""
+	season.physical.needed = {}
+	var start: int = Time.get_ticks_usec()
+	var value: Dictionary = season.physical.call("_resolve", season, fixture, reuse)
+	var elapsed: int = Time.get_ticks_usec() - start
+	return {"value":value, "error":season.physical.error, "cursor":season.physical.cursor,
+		"needed":season.physical.needed.duplicate(true), "us":elapsed}
+
+func equivalent(a: Dictionary, b: Dictionary) -> bool:
+	return ClubCareer.same(a.value, b.value) and a.error == b.error and a.cursor == b.cursor and ClubCareer.same(a.needed, b.needed)
+
+func reuse_eligible(season: SeasonState, row: Dictionary) -> bool:
+	var budget: Array[int] = [100000, 8388608]
+	var catalog: String = Fixtures.catalog_for(season)
+	return season.get_script() == Runtime and season.physical.get_script() == Fixtures \
+		and season.build.get_script() == load("res://src/gameplay/season/successor_league_general_v2/build.gd") \
+		and Codec.scope(season) and season.ownership != null \
+		and season._heat_replay_team == null and season._doubleheader_replay_build == null \
+		and season._pool_replay_ledger == null and season._npc_replay_run == -1 \
+		and Fixtures._current_report_value_graph(row, budget, 0) \
+		and not catalog.is_empty() and row.report.pitch_catalog == catalog
+
+func structural_count() -> bool:
+	var text: String = FileAccess.get_file_as_string("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+	var core: String = text.get_slice("static func core(", 1).get_slice("static func matches(", 0)
+	var matches: String = text.get_slice("static func matches(", 1).get_slice("static func _matches_validated_current(", 0)
+	var reuse: String = text.get_slice("static func _matches_validated_current(", 1).get_slice("static func human(", 0)
+	var route: String = FileAccess.get_file_as_string("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+	return check(core.contains("if valid(value, pitch_catalog)") and matches.contains("not valid(value, state.pitch_catalog)") \
+		and not reuse.contains("not valid(") and not reuse.contains("if valid(") \
+		and route.contains("if reuse_current and state.pitch_catalog == validated_catalog") \
+		and route.contains(".matches(row.report, state)"), "structural call routing: reference two full validations versus optimized one; not runtime counter evidence")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated current-source resolver fixture required"):
+		return
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var payload: Variant = JSON.parse_string(disk.get_string_from_utf8())
+	earned = Codec.restore(payload)
+	if not check(earned != null and earned.results.size() == 3 and earned.player_results.size() == 1 \
+		and earned.build._visit.pack_status == "used" and earned.physical.reports.size() == 2 \
+		and earned.league_live == OS.get_cmdline_user_args().has("dugout") \
+		and ClubCareer.same(Codec.capture(earned), payload), "strict same-source actual paid round before report extraction"):
+		return
+	if not structural_count():
+		return
+	for row: Dictionary in earned.physical.reports:
+		var season: SeasonState = operand(row)
+		if not check(season != null, "reconstruct exact original draft without fabricated results"):
+			return
+		var fixture: Dictionary = season.schedule.filter(func(value: Dictionary) -> bool: return value.id == row.fixture)[0].duplicate(true)
+		if not check(fixture.away != 0 and fixture.home != 0 and row.request == Fixtures.request_key(season, fixture) \
+			and Report.valid(row.report, season.build.pitch_catalog_signature()), "authentic NPC request matches pristine operand"):
+			return
+		if not check(reuse_eligible(season, season.physical.reports[0]) \
+			and Fixtures.match_for(season, fixture).pitch_catalog == Fixtures.catalog_for(season), "exact optimized branch guards and fresh match catalog eligible"):
+			return
+		var before: Dictionary = snapshot(season)
+		var baseline: Dictionary = {}
+		for reuse: bool in [false, true, true, false]:
+			if reuse and not check(reuse_eligible(season, season.physical.reports[0]), "optimized guard eligibility before each timed call"):
+				return
+			var measured: Dictionary = resolve_once(season, fixture, reuse)
+			print("RESOLVE_ABBA: fixture=", row.fixture, " reuse=", reuse, " us=", measured.us)
+			if baseline.is_empty():
+				baseline = measured.duplicate(true)
+			if not check(not measured.value.is_empty() and measured.cursor == 1 and measured.error.is_empty() \
+				and equivalent(baseline, measured) and ClubCareer.same(snapshot(season), before), "ABBA exact result and immutable source"):
+				return
+			measured.value["away_runs"] = -999
+			if measured.value.has("performance"):
+				measured.value.performance["poison"] = true
+			if not check(ClubCareer.same(snapshot(season), before), "returned deep-copy poison cannot alter source"):
+				return
+		for kind: String in ["report", "request", "seed", "field", "catalog", "build", "ownership", "fallback"]:
+			var changed: SeasonState = operand(row)
+			var target: Dictionary = fixture.duplicate(true)
+			match kind:
+				"report": changed.physical.reports[0].report.physical.home_runs += 1
+				"request": changed.physical.reports[0].request = "0".repeat(64)
+				"seed": changed.physical.reports[0].report.physical.seed += 1
+				"field": changed.physical.reports[0].report.physical.field = String(SeasonState.AWAY_FIELD_ID) if changed.physical.reports[0].report.physical.field == String(PitchBatLab.FIELD_ID) else String(PitchBatLab.FIELD_ID)
+				"catalog": changed.physical.reports[0].report.pitch_catalog = "wrong"
+				"build":
+					var build: SeasonBuild = changed.opponents.clubs[str(int(fixture.away))].build
+					var player: String = changed.teams[int(fixture.away)].roster[0]
+					build._book._players[player].stats.contact = 1 if build._book._players[player].stats.contact != 1 else 2
+				"ownership": changed.opponents.clubs[str(int(fixture.away))].build._bank._state.cash += 1
+				"fallback": changed._npc_replay_run = 0
+			var original: Dictionary = snapshot(changed)
+			var plain: Dictionary = resolve_once(changed, target, false)
+			var fast: Dictionary = resolve_once(changed, target, true)
+			if not check(equivalent(plain, fast) and (kind == "fallback" or plain.value.is_empty()) \
+				and ClubCareer.same(snapshot(changed), original), "tamper or full-validation fallback parity " + kind):
+				return
+	if not check(FileAccess.get_file_as_bytes(Save.PATH) == disk and ClubCareer.same(Codec.capture(earned), payload), "actual paid source save and decoded owner unchanged"):
+		return
+	print("PASS: current-source resolver exact ABBA/tamper regression; timings diagnostic, no season completion claim")
+	get_tree().quit()
