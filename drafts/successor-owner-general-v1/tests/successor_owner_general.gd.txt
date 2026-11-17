@@ -371,7 +371,11 @@ func paid_pack(app: SeasonApp) -> bool:
 		app.shop_command(command)
 		if not check(app.get("retained") == retained and ClubCareer.same(Codec.guard_snapshot(retained),candidate),"repeat while retained cannot replace candidate"): return false
 		if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own fault directory"): return false
-		app.retry_save()
+		# Exercise the real Shop handler, which saves AND refreshes its retained view.
+		# Direct App retry alone is not the UI interaction a player performs here.
+		var retry: Button = button_prefix(shop,"RETRY EXACT SAVE")
+		if not check(retry != null and not retry.disabled,"real retained Shop retry control"): return false
+		retry.pressed.emit()
 		if not check(app.get("retained") == null and app.season == retained and app.notice.is_empty() and ClubCareer.same(Codec.guard_snapshot(app.season),candidate) and app.season.build.cash() == cash-8 and app.season.build.pack_pending(),"exact owned candidate promoted with one pack charge"): return false
 		primary = FileAccess.get_file_as_bytes(Save.PATH)
 		backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")

@@ -192,3 +192,16 @@ origin and coordinated start forgery. Native import passed for this increment;
 the positive sequence is still running and is not yet claimed as passed.
 General-to-General subsequent-run admission and Dynasty remain closed pending
 their complete progression/carryover integrations and qualification.
+
+### Actual first-round and paid-pack evidence
+
+Checkpoint55 passed actual App birth/four picks, a separate cold draft reopen,
+one actual human/two NPC games, settlement, and another cold reopen. It also
+passed an earned 8-Cash pack, prewrite failure, exact retry, equality to the
+independent strict original path, and backup-inert duplicate commands.
+The test then stopped at the card control: it called App retry directly, leaving
+the Shop's retained-only view stale instead of invoking the real Shop retry
+handler that refreshes controls. The harness now presses the actual enabled
+RETRY EXACT SAVE button; production source is unchanged. A separate isolated
+copy will repeat from the genuine pre-purchase checkpoint. The failed stage and
+paid save are preserved; choice/final cold are still unqualified.
