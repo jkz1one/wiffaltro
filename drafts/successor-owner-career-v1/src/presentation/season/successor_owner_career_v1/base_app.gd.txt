@@ -10,6 +10,8 @@ const Capture = preload("capture_human.gd")
 const Page = preload("menu.gd")
 const Shop = preload("res://src/presentation/season/successor_league_general_v2/shop_window.gd")
 var profile: String = "dugout"
+var next_league: String = "dugout"
+var next_tier: int = 0
 var predecessor: Dictionary = {}
 var retained: SeasonState
 var retained_owner: SeasonState
@@ -182,9 +184,30 @@ func next_season() -> void:
 		return
 	_start_next(before,bytes)
 
+# Presentation choices are informational only. Runtime.create_next independently
+# authenticates the complete archive and re-derives permission before any write.
+func next_season_choices() -> Array:
+	var rows: Variant = []
+	if season != null and season.phase == SeasonState.Phase.COMPLETE:
+		rows = season.career.runs
+	elif season == null and predecessor.get("checkpoint") is Dictionary:
+		var career_data: Variant = predecessor.checkpoint.get("career")
+		if career_data is Dictionary: rows = career_data.get("runs",[])
+	if not rows is Array: return []
+	return load("res://src/gameplay/season/successor_owner_career_v1/start.gd").available_specs(rows)
+
+func select_next_season(league: String, tier: int) -> void:
+	if not _available() or (season != null and season.phase != SeasonState.Phase.COMPLETE): return
+	for choice: Dictionary in next_season_choices():
+		if choice.league == league and choice.tier == tier and choice.implemented:
+			next_league = league
+			next_tier = tier
+			show_season()
+			return
+
 func _start_next(input: Dictionary, expected_primary: PackedByteArray) -> void:
 	var seed_value: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
-	var candidate: SeasonState = Runtime.create_next(input,seed_value)
+	var candidate: SeasonState = Runtime.create_next(input,seed_value,next_league,next_tier)
 	if candidate == null:
 		notice = "The completed career could not advance safely. Existing saves remain unchanged."
 		show_season()

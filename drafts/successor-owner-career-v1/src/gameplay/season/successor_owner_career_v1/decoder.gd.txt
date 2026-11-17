@@ -36,7 +36,7 @@ static func _restore(value: Dictionary) -> SeasonState:
 	var actual: Dictionary = Codec.guard_snapshot(result)
 	return result if not actual.is_empty() and ClubCareer.same(actual,value) else null
 
-static func create_next(value: Dictionary, seed: int) -> SeasonState:
+static func create_next(value: Dictionary, seed: int, league: String = "dugout", tier: int = 0) -> SeasonState:
 	# Public archive boundary: strict predecessor replay, never caller basis/proof.
 	if seed < 0 or seed > 2147483647 or not Codec._bounded(value): return null
 	var roots: Array[Resource] = Codec._operation_content_roots()
@@ -57,7 +57,7 @@ static func create_next(value: Dictionary, seed: int) -> SeasonState:
 	if _completed(previous) and previous.career.current < ClubCareer.MAX_RUNS:
 		var basis: Dictionary = Prefix._derive(previous.career)
 		if not basis.is_empty():
-			result = Start._create(seed,basis)
+			result = Start._create(seed,basis,league,tier)
 			if result != null:
 				result.origin = origin
 				result.closed = closed
@@ -76,7 +76,14 @@ static func _run(state: Dictionary, basis: Dictionary) -> SeasonState:
 	if state.has("career") or not SeasonOwnership._whole(state.get("season_seed"),0,2147483647) \
 		or not state.get("picks") is Array or state.picks.size() > 4 or not state.get("player_results") is Array \
 		or not state.get("build") is Dictionary or not state.get("teams") is Array or state.teams.size() != 6: return null
-	var season: SeasonState = Start._create(int(state.season_seed),basis)
+	if not state.get("league_rules") is Dictionary or not state.get("league_live") is bool: return null
+	var rules: Dictionary = state.league_rules
+	var requested_league: Variant = rules.get("league","standard")
+	var requested_tier: Variant = rules.get("tier",0)
+	if not requested_league is String or not SeasonOwnership._whole(requested_tier,0,4): return null
+	var spec: Dictionary = Start.specification(int(state.season_seed),requested_league,int(requested_tier))
+	if spec.is_empty() or not ClubCareer.same(spec.rules,rules) or spec.live != state.league_live: return null
+	var season: SeasonState = Start._create(int(state.season_seed),basis,requested_league,int(requested_tier))
 	if season == null: return null
 	for id: Variant in state.picks:
 		if not id is String or not season._choose_local(id):
@@ -160,9 +167,14 @@ static func _result(season: SeasonState, restored: SeasonBuild, saved: Dictionar
 	if roster.is_empty():
 		return false
 	season.teams[0].roster = roster
-	# Exact ordinary Dugout0 scope only. This unchanged helper restores its own
-	# paid prefix and constructs the heat team; no caller-validated prefix enters.
-	if not GameReplay._ordinary_result(season, restored, saved, performance, tactics, saved.get("tactics", [])):
+	# Preserve the General paired replay route; ordinary play uses its unchanged
+	# paid-prefix reconstruction rather than a caller-validated shortcut.
+	if LeagueRules.doubleheader(season.league_rules):
+		season._doubleheader_replay_build = restored
+		var ok: bool = load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").replay_result(season,saved,performance,tactics,saved.get("tactics",[]))
+		season._doubleheader_replay_build = null
+		if not ok or not season.career.sync(season): return false
+	elif saved.has("doubleheader_evidence") or not GameReplay._ordinary_result(season, restored, saved, performance, tactics, saved.get("tactics", [])):
 		return false
 	season._heat_replay_team = null
 	# Original decoder retains optional exact proof fields after their validators

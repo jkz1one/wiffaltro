@@ -36,14 +36,15 @@ static func history(runs: Variant) -> bool:
 	return true
 
 static func _current_row_shape(value: Dictionary, gear_baseline: Dictionary) -> bool:
-	if not SeasonOwnership._keys(value,["id","seed","league","tier","status","proof","receipt","league_rules",
+	var keys: Array[String] = ["id","seed","league","tier","status","proof","receipt",
 		"gear","sponsors","order_rerolls","rain_earned","transfer_earned","checkout_earned","association_earned",
 		"freezer_earned","sides_earned","jump_earned","sure_earned","major_earned","sky_outs","copy_earned",
-		"field_outs","batch_used","collection","supplies_used","player_progress"]) \
-		or value.league != "dugout" or not SeasonOwnership._whole(value.tier,0,0) \
+		"field_outs","batch_used","collection","supplies_used","player_progress"]
+	if value.get("league") != "standard": keys.append("league_rules")
+	if not SeasonOwnership._keys(value,keys) \
+		or value.league not in ["standard","dugout","sponsorship","academy","equipment","earnings","scramble","doubleheader"] or not SeasonOwnership._whole(value.tier,0,0) \
 		or value.status not in ["active","completed"] \
-		or not ClubCareer.same(value.league_rules,LeagueRules.capture("dugout")) \
-		or not ClubCareer.same(value.proof.get("league_rules"),value.league_rules) \
+		or not preload("res://src/gameplay/season/club_league_career.gd").row_valid(value) \
 		or not ClubCollection.valid(value.collection,true) \
 		or not SeasonGearProgress.valid_games(value.gear,value.proof.scores,gear_baseline,true) \
 		or not SeasonSponsorProgress.valid_games(value.sponsors,value.proof.scores) \

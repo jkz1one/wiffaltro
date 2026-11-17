@@ -29,7 +29,9 @@ static func _physical_payload(data: Dictionary) -> Dictionary:
 	return data.active.checkpoint if Codec.envelope_valid(data) else {}
 
 static func _pending_shape(season: SeasonState) -> bool:
-	return season != null and GamePending._shape(season.physical.pending, true, false, false, false, Codec.Catalog.Game.signature())
+	if season == null: return false
+	var signature: String = Codec.Catalog.Game.signature()
+	return GamePending._doubleheader_shape(season.physical.pending,signature) if LeagueRules.doubleheader(season.league_rules) else GamePending._shape(season.physical.pending,true,false,false,false,signature)
 
 static func _project_candidate(candidate: SeasonState, pending: Dictionary) -> Dictionary:
 	var result: Dictionary = GamePending._project_candidate(candidate, pending)

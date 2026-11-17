@@ -6,6 +6,7 @@ func render() -> void:
 		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
 	if app.season==null:
+		_next_options()
 		var occupied: bool = FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH + ".bak")
 		_button(_body,"CONTINUE COMPLETED CAREER",Callable(app,"create_fresh")).disabled = occupied or app.predecessor.is_empty()
 		_button(_body,"CONTINUE SAVED SEASON",Callable(app,"reload_save"))
@@ -28,6 +29,15 @@ func render() -> void:
 		_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 	else:
 		_label(_body,"Season complete. Earned results remain saved.",20)
+		_next_options()
 		_button(_body,"START NEXT SEASON",Callable(app,"next_season"))
 	if app.season.shop_available():
 		_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
+
+func _next_options() -> void:
+	var choices: Array = app.next_season_choices()
+	for choice: Dictionary in choices:
+		if not choice.implemented: continue # Locked integration remains documented, not purchasable.
+		var selected: bool = choice.league == app.next_league and choice.tier == app.next_tier
+		var title: String = ("✓ " if selected else "") + String(choice.league).capitalize() + " · " + ("Base" if choice.tier == 0 else "Tier %d" % choice.tier)
+		_button(_body,title,Callable(app,"select_next_season").bind(choice.league,choice.tier))

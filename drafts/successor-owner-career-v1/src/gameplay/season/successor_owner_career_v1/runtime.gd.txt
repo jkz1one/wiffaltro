@@ -3,9 +3,9 @@ extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
 var origin: Dictionary = {}
 var closed: Array = []
 
-static func create_next(envelope: Variant, seed_value: int) -> SeasonState:
+static func create_next(envelope: Variant, seed_value: int, league: String = "dugout", tier: int = 0) -> SeasonState:
 	if not envelope is Dictionary: return null
-	return load("res://src/gameplay/season/successor_owner_career_v1/decoder.gd").create_next(envelope,seed_value)
+	return load("res://src/gameplay/season/successor_owner_career_v1/decoder.gd").create_next(envelope,seed_value,league,tier)
 func league_context_consistent() -> bool:
 	return load("res://src/gameplay/season/successor_owner_career_v1/start.gd").structural(self)
 func _league_inventory_context_consistent() -> bool:
@@ -93,3 +93,7 @@ func record_player_result(
 	var ok: bool = super.record_player_result(fixture_id,away_runs,home_runs,performance,used_gear,tactics,batting,stances,fielding,pitching,field_supply,frozen,ai_tactics,replayed_tactics,property_key,pool_evidence,yard_evidence)
 	return ok and career.sync(self)
 
+
+func record_doubleheader_result(human: Array) -> bool:
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
+	return super.record_doubleheader_result(human) and career.sync(self)

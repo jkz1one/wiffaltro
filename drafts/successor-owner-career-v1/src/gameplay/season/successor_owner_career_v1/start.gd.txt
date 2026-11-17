@@ -6,16 +6,57 @@ const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2
 const GameOpponents = preload("res://src/gameplay/season/successor_league_general_v2/opponents.gd")
 const GamePhysical = preload("res://src/gameplay/season/successor_owner_career_v1/physical_fixtures.gd")
 
+const LeagueUnlocks = preload("res://src/gameplay/season/league_unlocks.gd")
+const ClubLeagueCareer = preload("res://src/gameplay/season/club_league_career.gd")
+const Ordinary = preload("res://src/gameplay/season/successor_league_general_v2/ordinary_context.gd")
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+
+# Informational only: public constructors independently replay the whole archive.
+# Keep unlocked-but-not-integrated tiers visible, without admitting unsupported play.
+static func available_specs(runs: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for row: Variant in runs:
+		if not row is Dictionary or row.get("status") != "completed": return result
+	var progress: Dictionary = Policy.evaluate(runs)
+	if progress.is_empty(): return result
+	for league: String in progress.available_leagues:
+		for tier in range(5):
+			if tier > 0 and not progress.titles.get(ClubLeagueCareer.title_key(league,tier-1),false): continue
+			result.append({"league":league,"tier":tier,"implemented":league != "dynasty" and tier == 0})
+	return result
+
+static func specification(seed: int, league: String, tier: int) -> Dictionary:
+	if not SeasonOwnership._whole(seed,0,2147483647) or not SeasonOwnership._whole(tier,0,4) \
+		or league not in LeagueUnlocks.IDS or league == "dynasty" or tier != 0: return {}
+	var rules: Dictionary = {} if league == "standard" and tier == 0 else LeagueRules.capture(league,tier,seed if league == "scramble" else null)
+	var live: bool = not rules.is_empty()
+	if not Ordinary.supported(rules,live): return {}
+	return {"league":league,"tier":tier,"seed":seed,"rules":rules,"live":live}
+
+static func admitted(basis: Dictionary, spec: Dictionary) -> bool:
+	if spec.is_empty() or not basis.get("runs") is Array: return false
+	for option: Dictionary in available_specs(basis.runs):
+		if option.implemented and option.league == spec.league and option.tier == spec.tier: return true
+	return false
+
+static func state_spec(season: SeasonState) -> Dictionary:
+	if season == null: return {}
+	var league: String = str(season.league_rules.get("league","standard"))
+	var tier: int = int(season.league_rules.get("tier",0))
+	var spec: Dictionary = specification(season.season_seed,league,tier)
+	return spec if not spec.is_empty() and ClubCareer.same(spec.rules,season.league_rules) and spec.live == season.league_live else {}
+
 # Decoder-only synchronous birth. Public APIs must authenticate the full archive;
 # neither this basis nor the resulting live object grants caller authority.
-static func _create(seed_value: int, basis: Dictionary) -> SeasonState:
-	if not SeasonOwnership._whole(seed_value,0,2147483647) or not _basis_shape(basis): return null
+static func _create(seed_value: int, basis: Dictionary, league: String = "dugout", tier: int = 0) -> SeasonState:
+	var spec: Dictionary = specification(seed_value,league,tier)
+	if not _basis_shape(basis) or not admitted(basis,spec): return null
 	var season: SeasonState = load("res://src/gameplay/season/successor_owner_career_v1/runtime.gd").new()
 	season.season_seed = seed_value
-	season.league_rules = LeagueRules.capture("dugout")
-	season.league_live = true
+	season.league_rules = spec.rules.duplicate(true)
+	season.league_live = spec.live
 	season.build = GameBuild.new(seed_value)
-	if not season.build.enable_successor_pitch_catalog() or not season.build.enable_league_rules(season.league_rules):
+	if not season.build.enable_successor_pitch_catalog() or (season.league_live and not season.build.enable_league_rules(season.league_rules)):
 		return null
 	season.opponents = GameOpponents.new()
 	season.opponents._format = 13
@@ -26,6 +67,7 @@ static func _create(seed_value: int, basis: Dictionary) -> SeasonState:
 	for index in range(6):
 		season.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":[],"draw":rng.randf()})
 	season._build_schedule()
+	load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").install_schedule(season)
 	if not _install(season.build,basis) or not ClubPlayerDraft.apply(season,basis.player_access):
 		return null
 	var career: ClubCareer = load("res://src/gameplay/season/successor_owner_career_v1/career.gd").new()
@@ -73,8 +115,7 @@ static func structural(season: SeasonState) -> bool:
 		or season.opponents == null or season.opponents.get_script() != GameOpponents \
 		or season.physical == null or season.physical.get_script() != GamePhysical \
 		or season.career == null or season.career.get_script() != load("res://src/gameplay/season/successor_owner_career_v1/career.gd") \
-		or not season.league_career or not season.league_live \
-		or not ClubCareer.same(season.league_rules,LeagueRules.capture("dugout")) \
+		or not season.league_career or state_spec(season).is_empty() \
 		or season.picks.size() > 4 \
 		or season.build._book == null or season.build._bank == null \
 		or season.build._gear_progress == null or season.build._sponsor_progress == null \
@@ -98,10 +139,20 @@ static func structural(season: SeasonState) -> bool:
 		or not season._standard_live_context.is_empty() or not season._standard_bound_grant.is_empty() \
 		or not season.home_property.is_empty() or not season.npc_venues.is_empty() \
 		or not season.final_venue.is_empty() or not season.owned_surface_night.is_empty() \
-		or not season.build.league_context_valid() or season.build._league_rules != season.league_rules \
+		or not Ordinary.build_matches(season.build,season.league_rules) \
 		or season.build._market != 0 or season.opponents._format != 13:
 		return false
-	return base_matches(season) and season._league_opponent_context_consistent()
+	# Permission belongs to _create after full archive replay. This hot structural
+	# path is not authority and must not re-evaluate all closed history per pitch.
+	return base_matches(season) and _opponents_match(season)
+
+static func _opponents_match(season: SeasonState) -> bool:
+	if not season.league_rules.is_empty(): return season._league_opponent_context_consistent()
+	for club: Dictionary in season.opponents.clubs.values():
+		var build: SeasonBuild = club.get("build")
+		if build == null or build.get_script() != GameBuild or not Ordinary.build_matches(build,{}) \
+			or build._market != 12 or not build._dynasty_start.is_empty(): return false
+	return true
 
 # Exact correspondence to this owner's rederived start basis, not independent
 # authentication of that basis. Public creation/decoder independently reconstructs the complete closed prefix.
@@ -164,11 +215,11 @@ static func row(season: SeasonState) -> Dictionary:
 	var details: Dictionary = Progress.capture(season)
 	if details.is_empty():
 		return {}
-	return {
+	var result: Dictionary = {
 			"id": season.career.current,
 			"seed": season.season_seed,
 			"league": season.league_rules.get("league", "standard"),
-			"tier": 0,
+			"tier": int(season.league_rules.get("tier",0)),
 			"status": "active",
 			"proof": ClubSeasonRecord.capture(season),
 			"receipt": {},
@@ -193,6 +244,9 @@ static func row(season: SeasonState) -> Dictionary:
 			"player_progress": details,
 			"league_rules": season.league_rules.duplicate(true)
 		}
+
+	if season.league_rules.is_empty(): result.erase("league_rules")
+	return result
 
 
 # Structural shape only. Public Codec/constructor still replays the complete archive.

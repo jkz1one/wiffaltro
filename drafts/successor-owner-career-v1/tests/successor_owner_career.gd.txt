@@ -18,6 +18,7 @@ func run() -> void:
 	var value: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 	check(value is Dictionary and not bytes.is_empty(),"actual isolated116 source present")
 	if failed: get_tree().quit(1); return
+	policy_specs()
 	var original: SeasonState = Origin.restore(value)
 	check(original != null and original.phase != SeasonState.Phase.COMPLETE,"frozen116 independently authenticates actual ACTIVE season")
 	if failed: get_tree().quit(1); return
@@ -52,3 +53,14 @@ func run() -> void:
 	check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak") and not FileAccess.file_exists(Save.PATH+".tmp"),"negative admission writes no new save or backup")
 	if not failed: print("PASS: strict flat career negative admission; completed-origin gameplay remains unqualified")
 	get_tree().quit(1 if failed else 0)
+
+func policy_specs() -> void:
+	var start = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
+	check(ClubCareer.same(start.available_specs([]),[{"league":"standard","tier":0,"implemented":true},{"league":"dugout","tier":0,"implemented":true}]),"original empty-history Standard and Dugout access only; pure policy not owner admission")
+	check(start.available_specs([{"status":"completed"}]).is_empty(),"malformed claimed title cannot expose admission choices")
+	for league: String in ["standard","dugout","sponsorship","academy","equipment","earnings","scramble","doubleheader"]:
+		var spec: Dictionary = start.specification(1001,league,0)
+		check(not spec.is_empty() and spec.league == league and spec.seed == 1001 and spec.tier == 0,"normalized ordinary specification "+league)
+		check(not start.admitted({"runs":[]},spec) if league not in ["standard","dugout"] else start.admitted({"runs":[]},spec),"original policy gates "+league)
+		check(start.specification(1001,league,1).is_empty(),"unsupported higher-tier runtime not silently admitted "+league)
+	check(start.specification(1001,"dynasty",0).is_empty() and start.specification(-1,"standard",0).is_empty(),"Dynasty and invalid seed excluded from ordinary constructor")

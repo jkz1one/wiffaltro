@@ -56,3 +56,26 @@ next-career proof. Required actual gates remain:
 No completed-origin positive result, full career, Dynasty or release claim is
 made by this source checkpoint. Running full-season qualification remains pinned
 to frozen116 checkpoint59, separate from this additive family.
+
+## Ordinary League selection increment (qualification pending)
+
+The existing117 route now carries an explicit league/tier choice through App,
+strict next creation, flat replay and career rows. Selection persists in the
+existing seed/rules/live fields; no caller start basis grants authority. Closed
+history is replayed before original LeagueUnlocks/title gates decide access.
+Standard preserves its empty rules and original row shape; Scramble freezes its
+seeded rules; Doubleheader uses paired schedule, result and pending replay.
+
+All eight ordinary Base profiles have implementation paths. The current General
+runtime still rejects higher tiers; Dynasty needs its separate carried-roster
+contract. Those gaps are not removed from the intended build. The predecessor116
+reader, source and slot remain unchanged. Existing117 pre-release identities
+are still source-bound; this is not a production save migration solution.
+
+Native import, all eight normalized ordinary specifications, original empty-history
+access policy, malformed-title refusal and warm refusal of an actual unfinished
+origin passed. That strict test independently restored the authentic116 source
+and verified original bytes and all save slots unchanged. Separate cold negative
+verification is still running, not yet claimed passed. These are not completed-origin creation, playable
+League/career, Dynasty or release proof. Actual long-season tests continue with
+frozen116 and112 independently of these117 edits.
