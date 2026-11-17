@@ -1,0 +1,92 @@
+extends Node
+const Adapter = preload("res://src/gameplay/season/successor_career_assets_v1/stadium_progress.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_live_v1/codec.gd")
+const Fixture = preload("res://src/tests/league_unlock_fixture.gd")
+const SOURCE: String = "user://source-owned.json"
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated stadium aggregate test required"):
+		return
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var season: SeasonState = Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+	if not check(season != null and season.results.size() == 3 and season.career != null, "actual one-round owner evidence restored"):
+		return
+	var runs: Array = season.career.runs.duplicate(true)
+	var original: Array = runs.duplicate(true)
+	if not check(Adapter.capture(runs).is_empty(), "active round has no closed stadium credit"):
+		return
+	# Synthetic structural closed operands ONLY. No abandonment action or complete
+	# season was played here; these values never enter a save or asset ledger.
+	var abandoned: Dictionary = runs[0].duplicate(true)
+	abandoned.status = "abandoned"
+	var legacy: ClubCareer = ClubCareer.new()
+	var legacy_row: Dictionary = abandoned.duplicate(true)
+	var details: Dictionary = legacy_row.player_progress
+	details.erase("format")
+	details.erase("pitch_catalog")
+	details.erase("exotic")
+	details.version = ClubPlayerLegend.VERSION
+	var old_lessons: Array = []
+	for id: String in details.development.lessons:
+		if SeasonPlayerCatalog.RECIPES.values().has(id):
+			old_lessons.append(id)
+	details.development.lessons = old_lessons
+	legacy.runs.append(legacy_row)
+	var actual: Array = Adapter.capture([abandoned])
+	var expected: Array = StadiumCareerProgress.capture(legacy)
+	if not check(actual.size() == 1 and ClubCareer.same(actual, expected) and actual[0].seasons == 0, "synthetic abandonment retains exact shared wins/hits/homers/strikeouts"):
+		return
+	if not check(Adapter.valid(actual, [0]) and not Adapter.valid(actual, [1]), "abandoned credit pairing unchanged"):
+		return
+	var unknown: Dictionary = abandoned.duplicate(true)
+	unknown.player_progress = null
+	legacy.runs = [unknown]
+	var unknown_expected: Array = StadiumCareerProgress.capture(legacy)
+	if not check(ClubCareer.same(Adapter.capture([unknown]), unknown_expected) and unknown_expected[0].size() == 2, "null progress remains only known seasons and wins"):
+		return
+	var completed: Dictionary = {"status":"completed", "proof":Fixture.proof("dugout"), "player_progress":null}
+	legacy.runs = [completed]
+	var complete_expected: Array = StadiumCareerProgress.capture(legacy)
+	var complete_actual: Array = Adapter.capture([completed])
+	if not check(ClubCareer.same(complete_actual, complete_expected) and complete_actual[0].seasons == 1 and complete_actual[0].wins == 10, "synthetic complete proof counts regular wins, not playoff wins"):
+		return
+	if not check(Adapter.valid(complete_actual, [1]) and not Adapter.valid(complete_actual, [0]), "completed credit pairing unchanged"):
+		return
+	var prefix: Array = [abandoned, completed, runs[0], {"status":"invalid"}]
+	var prefix_before: Array = prefix.duplicate(true)
+	var combined: Array = actual.duplicate(true)
+	combined.append_array(complete_actual)
+	if not check(ClubCareer.same(Adapter.capture(prefix), combined) and ClubCareer.same(prefix, prefix_before), "closed prefix stops at active and never mutates input"):
+		return
+	for through in range(3):
+		if not check(ClubCareer.same(Adapter.metrics(combined, through), StadiumCareerProgress.metrics(combined, through)), "shared stadium totals through " + str(through)):
+			return
+	for kind: String in ["catalog", "strikeout", "null-stats", "completed-unfinished", "abandoned-finished"]:
+		var wrong: Dictionary = abandoned.duplicate(true)
+		match kind:
+			"catalog": wrong.player_progress.pitch_catalog = "wrong"
+			"strikeout":
+				var id: String = wrong.player_progress.games[0].players.keys()[0]
+				wrong.player_progress.games[0].players[id].strikeouts += 1
+			"null-stats": wrong.player_progress.games[0].stats = null
+			"completed-unfinished": wrong.status = "completed"
+			"abandoned-finished":
+				wrong = completed.duplicate(true)
+				wrong.status = "abandoned"
+		if not check(Adapter.capture([wrong]).is_empty(), "reject inconsistent stadium operand " + kind):
+			return
+	if not check(ClubCareer.same(runs, original) and FileAccess.get_file_as_bytes(SOURCE) == bytes, "actual owner source untouched"):
+		return
+	print("PASS: pure successor stadium aggregates and synthetic closed operands; no completion, abandonment, asset or reward authority")
+	get_tree().quit()

@@ -31,6 +31,7 @@ def main():
     mode.add_argument('--owner-round', action='store_true', help='Run genuine owned human game, cold pending resume, actual AI settlement and earned shop')
     mode.add_argument('--owner-performance-fixture', type=Path, help='Compare baseline and resource-retaining facade on an isolated actual owned checkpoint')
     mode.add_argument('--completion-fixture', type=Path, help='Verify pure successor metrics and synthetic receipt policy against actual owned-round evidence')
+    mode.add_argument('--assets-fixture', type=Path, help='Verify successor asset basis and synthetic award policies against isolated actual owned evidence')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
     if args.facade and not args.owner_round:
@@ -49,7 +50,7 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
@@ -66,24 +67,26 @@ def main():
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture:
+    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture:
+    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
-    if args.owner_round or args.owner_performance_fixture or args.completion_fixture:
+    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture:
         live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
         entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
     if args.owner_performance_fixture or args.facade:
         facade_manifest = json.loads((root / 'drafts/successor-owner-ui-v1/DRAFT_MANIFEST.json').read_text())
         entries += facade_manifest['files']
-    if args.completion_fixture:
+    if args.completion_fixture or args.assets_fixture:
         completion_manifest = json.loads((root / 'drafts/successor-career-completion-v1/DRAFT_MANIFEST.json').read_text())
         entries += completion_manifest['files']
+    if args.assets_fixture:
+        entries += json.loads((root / 'drafts/successor-career-assets-v1/DRAFT_MANIFEST.json').read_text())['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -114,14 +117,19 @@ def main():
         print(f'{label}: ' + '\n'.join(line for line in output.splitlines() if 'PASS:' in line), flush=True)
     run('import', ['--editor', '--import', '--quit'])
     script = ['res://tests/successor_signature.tscn', '--']
-    if args.completion_fixture:
-        source = args.completion_fixture.resolve()
+    if args.completion_fixture or args.assets_fixture:
+        source = (args.completion_fixture or args.assets_fixture).resolve()
         assert source.is_file() and source.name == 'successor-fresh-owner-live-v1.json'
         assert any(part.startswith('wiffaltro-signature-') for part in source.parts)
         source_before = source.read_bytes()
         destination = stage / 'data/godot/app_userdata/Wiffaltro/source-owned.json'
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(source_before)
+        if args.assets_fixture:
+            for suite in ['stadium_progress', 'plaque_adapter', 'asset_basis']:
+                run('assets-' + suite, ['res://tests/successor_' + suite + '.tscn'], timeout=900)
+            assert source.read_bytes() == source_before, 'Original isolated fixture was changed'
+            return
         run('completion-policy', ['res://tests/successor_completion_policy.tscn'], timeout=600)
         run('completion-metrics', ['res://tests/successor_player_metrics.tscn'], timeout=900)
         assert source.read_bytes() == source_before, 'Original isolated fixture was changed'

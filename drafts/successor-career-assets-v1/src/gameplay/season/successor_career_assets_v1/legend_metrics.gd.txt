@@ -1,0 +1,38 @@
+extends RefCounted
+## Pure private projection. Structural validity is NOT earned owner provenance.
+const Progress = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+
+static func project(runs: Variant) -> Dictionary:
+	if not runs is Array or runs.size() > ClubCareer.MAX_RUNS:
+		return {}
+	var projected: Array = []
+	for index in range(runs.size()):
+		var value: Variant = runs[index]
+		if not value is Dictionary or value.get("id") != index + 1 \
+			or value.get("status") not in ["active", "completed", "abandoned"] \
+			or (value.status == "active" and index != runs.size() - 1) \
+			or not value.get("proof") is Dictionary or not value.proof.get("scores") is Array:
+			return {}
+		var summary: Dictionary = ClubSeasonRecord.analyze(value.proof)
+		if summary.is_empty() or (value.status == "completed") != (summary.finish != "unfinished"):
+			return {}
+		var row: Dictionary = value.duplicate(true)
+		var details: Variant = row.get("player_progress")
+		if details != null:
+			if not Progress.valid(details, row.proof.scores):
+				return {}
+			details.erase("format")
+			details.erase("pitch_catalog")
+			details.erase("exotic")
+			details.version = ClubPlayerLegend.VERSION
+			var historical: Array = []
+			for id: String in details.development.lessons:
+				if SeasonPlayerCatalog.RECIPES.values().has(id):
+					historical.append(id)
+			details.development.lessons = historical
+		projected.append(row)
+	return {"runs": projected}
+
+static func evaluate(runs: Array) -> Dictionary:
+	var projected: Dictionary = project(runs)
+	return {} if projected.is_empty() else ClubPlayerLegend._evaluate_runs(projected.runs)

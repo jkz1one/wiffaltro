@@ -1,0 +1,67 @@
+{
+  "format": "inactive-successor-career-assets-v1",
+  "source_checkpoint": "252fecfa334c5c4824a10eebc6af5b6337d13eed",
+  "scope": "pure asset basis; not owner admission or earned completion evidence",
+  "files": [
+    {
+      "backup_path": "drafts/successor-career-assets-v1/src/gameplay/season/successor_career_assets_v1/assets.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_assets_v1/assets.gd",
+      "bytes": 2887,
+      "sha256": "14c15d3112851991a8afd79c1a49d956c1ab1704cef04d8d2b14406ffa550372"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/src/gameplay/season/successor_career_assets_v1/legend_metrics.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_assets_v1/legend_metrics.gd",
+      "bytes": 1640,
+      "sha256": "a275e58a402444228f01f9ad5404de7aa16a3d9edebd6f0705bad55f144be270"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/src/gameplay/season/successor_career_assets_v1/plaque_rewards.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_assets_v1/plaque_rewards.gd",
+      "bytes": 1388,
+      "sha256": "afef57164a9772251e07455bf713e4ddc4580aa86ce22de8158cd718fd5bb4bb"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/src/gameplay/season/successor_career_assets_v1/stadium_progress.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_assets_v1/stadium_progress.gd",
+      "bytes": 2047,
+      "sha256": "93add4996242184d26b4e06bc5ef46810d58364f38c7cc9e4da46f1de3fdffba"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/tests/successor_asset_basis.gd.txt",
+      "restore_path": "tests/successor_asset_basis.gd",
+      "bytes": 2864,
+      "sha256": "9a5198e4757d1c4fce088f5566548b88ecd13a9a63590e6fac5c1614040cd343"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/tests/successor_asset_basis.tscn.txt",
+      "restore_path": "tests/successor_asset_basis.tscn",
+      "bytes": 185,
+      "sha256": "5d43b16cb80fbaf9f8c1d878b0601b84e5d4952cc860c1a22241b81e42118cc7"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/tests/successor_plaque_adapter.gd.txt",
+      "restore_path": "tests/successor_plaque_adapter.gd",
+      "bytes": 5691,
+      "sha256": "7a61a27ad081220ef4e9e8fd3b6d8621e059a4999a593ea71a8f37b277528e6a"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/tests/successor_plaque_adapter.tscn.txt",
+      "restore_path": "tests/successor_plaque_adapter.tscn",
+      "bytes": 191,
+      "sha256": "d5519b1add66a69192b4ca50a2884e19185dc4e9576d1dc2a96053ee04f0d286"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/tests/successor_stadium_progress.gd.txt",
+      "restore_path": "tests/successor_stadium_progress.gd",
+      "bytes": 4885,
+      "sha256": "3b1199c0e97c6cee3c041425f7168c8fb9bed8206b0597d1c078693d68efab31"
+    },
+    {
+      "backup_path": "drafts/successor-career-assets-v1/tests/successor_stadium_progress.tscn.txt",
+      "restore_path": "tests/successor_stadium_progress.tscn",
+      "bytes": 199,
+      "sha256": "bed349f0a6006daa77a962c3755da44a164ca150c3b6a60d46d40daa2a2d833d"
+    }
+  ]
+}

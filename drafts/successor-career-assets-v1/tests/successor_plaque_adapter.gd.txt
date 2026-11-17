@@ -1,0 +1,95 @@
+extends Node
+const Legend = preload("res://src/gameplay/season/successor_career_assets_v1/legend_metrics.gd")
+const Plaques = preload("res://src/gameplay/season/successor_career_assets_v1/plaque_rewards.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_live_v1/codec.gd")
+var failed: bool = false
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> void:
+	print("CHECK: ", label, " = ", ok)
+	if not ok:
+		failed = true
+		push_error(label)
+
+func run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1":
+		get_tree().quit(1)
+		return
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes("user://source-owned.json")
+	var season: SeasonState = Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+	check(season != null and season.career != null, "actual owner checkpoint restores")
+	if failed:
+		get_tree().quit(1)
+		return
+	var before: Dictionary = season.career.to_data().duplicate(true)
+	var actual: Dictionary = Legend.evaluate(season.career.runs)
+	check(not actual.is_empty(), "actual played-round player evidence is retained")
+	for id: String in actual:
+		check(not actual[id].eligible, "active first season cannot qualify " + id)
+	check(Plaques.awards(season.career) is Dictionary and Plaques.awards(season.career).is_empty(), "actual owned active career has no plaque")
+	check(ClubCareer.same(before, season.career.to_data()), "read-only APIs preserve actual owner")
+	var unknown: Array = season.career.runs.duplicate(true)
+	unknown[0].player_progress = null
+	check(Legend.evaluate(unknown).is_empty() and not Legend.project(unknown).is_empty(), "unknown evidence remains unknown rather than invalid or invented")
+	var bad: Array = season.career.runs.duplicate(true)
+	bad[0].player_progress.pitch_catalog = "forged"
+	check(Legend.project(bad).is_empty() and not Plaques.valid_history({}, bad), "invalid successor progress fails before projection even for empty awards")
+	_synthetic()
+	check(FileAccess.get_file_as_bytes("user://source-owned.json") == bytes, "isolated original save preserved")
+	print("PASS: successor plaque adapter; synthetic threshold policies only, no full-season qualification" if not failed else "FAIL: successor plaque adapter")
+	get_tree().quit(1 if failed else 0)
+
+func _synthetic() -> void:
+	# Reuse original structural score fixture and author, NOT earned gameplay.
+	var fixture: Dictionary = StadiumPennantRewardRebuildChecks.fixture(3)
+	check(fixture.ok, "three-season synthetic fixture available")
+	if not fixture.ok:
+		return
+	var author: Node = load("res://src/tests/stadium_plaque_reward_test.gd").new()
+	var ids: Array = SeasonPlayerCatalog.ids().slice(0, 4)
+	for metric: String in ["hits", "strikeouts", "clean_outs"]:
+		var threshold: int = 60 if metric == "strikeouts" else 40
+		for amount: int in [threshold - 1, threshold]:
+			var career: ClubCareer = fixture.career.fork()
+			author._author(career, metric, amount, ids, 5)
+			career._plaques = {"version": 1, "from_season": 1, "records": {}}
+			for run_row: Dictionary in career.runs:
+				var progress: Dictionary = run_row.player_progress
+				progress.version = Progress.PROGRESS_VERSION
+				progress["format"] = Progress.FORMAT
+				progress["pitch_catalog"] = Catalog.signature()
+				var exotic_games: Array = []
+				for game: Dictionary in progress.games:
+					var strikes: Array = []
+					for player: String in ids:
+						for index in range(int(game.players[player].strikeouts)):
+							strikes.append({"pa": strikes.size() + 1, "half": 0, "pitcher": player, "finish": Catalog.known_ids()[0], "sequence": [Catalog.known_ids()[0]], "called": null})
+					exotic_games.append({"game": game.game, "roster": ids.duplicate(), "strikeouts": strikes, "evidence_hash": "0".repeat(64)})
+				progress["exotic"] = {"version": 7, "catalog": Catalog.signature(), "season": "synthetic-policy-only", "games": exotic_games}
+				check(Progress.valid(progress, run_row.proof.scores), "synthetic strict successor " + metric)
+			check(Plaques.capture(career), "prospective synthetic capture " + metric)
+			var awards: Variant = Plaques.awards(career)
+			check(awards is Dictionary and awards.size() == (1 if amount == threshold else 0), "unchanged OR threshold " + metric + " " + str(amount))
+			if awards is Dictionary and not awards.is_empty():
+				var history: Dictionary = career._plaques.duplicate(true)
+				var key: String = awards.keys()[0]
+				check(StadiumClubIdentity.valid(history.records[key].era), "prospective authored era retained")
+				history.records[key].stats[metric] += 1
+				check(not Plaques.valid_history(history, career.runs), "forged earned statistics rejected")
+				var short: Array = career.runs.duplicate(true)
+				short[0].player_progress = null
+				check(not Legend.evaluate(short)[ids[0]].eligible, "three completed known seasons required")
+				var four_games: Array = career.runs.duplicate(true)
+				for run_row: Dictionary in four_games:
+					run_row.player_progress.games[0].players[ids[0]].pa = 0
+				check(not Legend.evaluate(four_games)[ids[0]].eligible, "four credited games per season cannot qualify")
+				var wrong_time: Dictionary = career._plaques.duplicate(true)
+				wrong_time.records[key].award_completed = false
+				check(not Plaques.valid_history(wrong_time, career.runs), "award-time completion provenance enforced")
+				career._plaques = {"version": 1, "from_season": 1, "records": {}}
+				check(Plaques.awards(career).is_empty(), "read never retroactively invents achievement")
+	author.free()

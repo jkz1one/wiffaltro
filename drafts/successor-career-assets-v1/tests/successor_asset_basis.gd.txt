@@ -1,0 +1,53 @@
+extends Node
+const Assets = preload("res://src/gameplay/season/successor_career_assets_v1/assets.gd")
+const Metrics = preload("res://src/gameplay/season/successor_career_completion_v1/player_metrics.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_live_v1/codec.gd")
+var failures: int = 0
+func check(ok: bool,label: String) -> void:
+	if not ok:
+		failures += 1
+		printerr("FAIL: ",label)
+	else:
+		print("CHECK: ",label)
+func _ready() -> void:
+	call_deferred("run")
+func run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1":
+		get_tree().quit(2)
+		return
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes("user://source-owned.json")
+	var source: Dictionary = JSON.parse_string(bytes.get_string_from_utf8())
+	var season: SeasonState = Codec.restore(source)
+	check(season != null and season.results.size() == 3,"actual owner111 three-game round replay")
+	if season == null:
+		get_tree().quit(1)
+		return
+	var original: Dictionary = season.career.to_data()
+	var basis: Dictionary = Assets.basis(season.career)
+	check(not basis.is_empty(),"successor permanent basis restores original ledger")
+	if basis.is_empty():
+		get_tree().quit(1)
+		return
+	check(basis.income == [0] and basis.progress.is_empty() and basis.awards.is_empty() \
+		and basis.ledger.balance() == 0,"unfinished actual round grants no permanent income or awards")
+	check(ClubCareer.same(basis.ledger.to_data(),season.career._assets),"unchanged permanent journal exact")
+	check(basis.earned == Metrics.earned(season.career.runs) \
+		and basis.owned == basis.ledger.owned(basis.earned),"owned access uses original earned thresholds")
+	for id: String in season.player_access:
+		check(basis.owned.has(id),"original frozen draft access retained "+id)
+	var repeat: Dictionary = Assets.basis(season.career)
+	check(not repeat.is_empty() and ClubCareer.same(basis.ledger.to_data(),repeat.ledger.to_data()) \
+		and basis.owned == repeat.owned,"repeat basis grants nothing twice")
+	for kind: String in ["receipt","progress","assets","current","plaques"]:
+		var bad: ClubCareer = season.career.fork()
+		match kind:
+			"receipt": bad.runs[0].receipt = {"total":99999}
+			"progress": bad.runs[0].player_progress.version = 999
+			"assets": bad._assets["free_cash"] = 99999
+			"current": bad.current = 0
+			"plaques": bad._plaques.records["forged"] = {"eligible":true}
+		check(Assets.basis(bad).is_empty(),"inconsistent asset basis rejects "+kind)
+	check(ClubCareer.same(season.career.to_data(),original) and ClubCareer.same(Codec.capture(season),source) \
+		and FileAccess.get_file_as_bytes("user://source-owned.json") == bytes,"basis and failures preserve exact source owner")
+	print("PASS: actual unfinished successor asset basis unchanged; no persistent completion grant" if failures == 0 else "FAIL: asset basis checks")
+	get_tree().quit(0 if failures == 0 else 1)
