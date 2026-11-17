@@ -5,8 +5,9 @@
 The later checkpoint documents distinguish actual behavior from structural
 prerequisites. Owned Dugout gameplay, human/NPC round settlement, earned full-shop
 purchase, pre-write save refusal/exact retry and cold reopen have passed. A full
-owned first-season terminal test remains in progress; no completed-season or
-Dynasty qualification is inferred from the one-round evidence.
+owned first-season terminal test remains in progress: nine rounds/27 results
+are settled; the tenth actual human game is saved pending NPC work/settlement.
+No completed-season or Dynasty qualification is inferred from this evidence.
 
 - Owner112 adds first-run terminal settlement staging, with frozen earlier save
   families preserved. See `SUCCESSOR_TERMINAL_OWNER_CHECKPOINT.md`.
@@ -94,13 +95,44 @@ Dynasty qualification is inferred from the one-round evidence.
 - Closed terminal112 predecessor projection now passes actual active-birth and
   progressed-active rejection, forged/foreign-source rejection and fresh-process
   invariance tests. Positive terminal projection is still unqualified until the
-  real full season completes; no continuation grant or run 2 is admitted. See
+  real full season completes; no continuation grant or run2 is qualified. See
   `SUCCESSOR_CONTINUATION_PREDECESSOR.md`.
 
-- Actual fresh-recruitment/next-Doubleheader-pair coverage is running on copied
-  earned evidence. The third human game/new-pair reset is durable; paid recruit,
-  remaining games and final cold checks are not yet qualified. This adds tests,
-  not engine changes. See `SUCCESSOR_GENERAL_RECRUIT_PAIR.md`.
+- Actual fresh-recruitment/next-Doubleheader-pair coverage passes through final
+  separate cold reopen: four human/eight NPC games, all four settlements, earned
+  fresh recruit, cancel/failure/exact retry, newcomer/retained-player pair debt,
+  exact quoted catchup and separate departed development. This adds tests, not
+  engine changes. Returning recruitment and Dynasty remain unqualified. See
+  `SUCCESSOR_GENERAL_RECRUIT_PAIR.md`.
+- Closed-prefix start-basis derivation passes negative and explicitly synthetic
+  original-policy query tests; genuine terminal-positive acceptance remains
+  pending. No grant or new owner follows from the query operands. See
+  `SUCCESSOR_CONTINUATION_PREFIX.md`.
+- General114 career evidence passes actual Standard, Doubleheader and fresh-
+  recruit warm/cold derivation with complete checkpoint replay and historical
+  player provenance. It is not owned-season admission. See
+  `SUCCESSOR_GENERAL_CAREER_EVIDENCE.md`.
+- Next-owner115 draft-only implementation preserves a fully replayed terminal112
+  predecessor, inherited starts/assets and independent seed for run2. Native
+  import/negative/cold-negative checks pass; actual terminal-positive birth/four
+  picks are UNQUALIFIED. Gameplay/shop/settlement remain staged separately, not
+  removed from the planned game. See `SUCCESSOR_NEXT_OWNER_DRAFT.md`.
+- Additive round-batch orchestration preserves all production validation/saves
+  while reducing redundant per-fixture test cold starts. Ninth settlement and
+  tenth-human pending boundaries are archived; terminal qualification remains
+  pending. See `SUCCESSOR_TERMINAL_BATCH_HARNESS.md`.
+- A separate reroll-only App entry passes actual confirmation/cancel, earned
+  purchase, backup-safe duplicate rejection, failed-save retention, identity
+  guards, exact retry and cold reopen. First purchase matches the unchanged
+  reference exactly. The reference's duplicate-backup rotation defect remains
+  documented, not hidden. Other shop operations retain their existing route.
+  Single concurrent timing is diagnostic, not responsiveness acceptance. See
+  `SUCCESSOR_SHOP_APP_REROLL.md` and `SUCCESSOR_SHOP_TRANSACTION_EXPERIMENT.md`.
+- An unbound physical-validator candidate passes actual Standard/Doubleheader
+  parity/cold checks and candidate-only malformed ownership rejection. The
+  original reference malformed-type error is preserved as failed evidence; no
+  production decoder integration is claimed. See
+  `SUCCESSOR_PHYSICAL_VALIDATION_EXPERIMENT.md`.
 
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,

@@ -37,12 +37,19 @@ automatically invokes the original verify-terminal scene in a separate process.
 Native Godot 4.6.3 import passes. Exact action-branch comparison, manifest hashes,
 Python compilation and diff checks pass. All 6,174 preexisting frozen engine
 source files in the initial continuation stage match the original stage byte for
-byte. First actual batch completion is still pending, so this checkpoint is an
-audited test-harness backup, not completed-season qualification.
+byte. The first actual batch completed ninth-round settlement: 27 results, nine
+human results and no pending work, including duplicate-settlement rejection. Its
+output SHA256 is ec85dc732facda3e365538558614f509b0316a6b23f690432432997aa7dd7cb5.
+That first batch contained only one boundary, not a multi-boundary qualification.
+The next batch cold-loaded that archive and has saved/archived actual human
+fixture27 pending, without premature settlement or reward. It continues NPC work;
+its first marker still describes nine settled human results, not ten settlements.
 
 The handoff used actual boundary0030 (NPC26), whose immutable checkpoint SHA256
 is dd38cdf9cc9a82f393e61f4a7cbf9a44c11d5fd98af9b482a31129ea529fb1b6.
 The redundant old process was intentionally interrupted during its next cold
 reload. Its primary remained exactly0030, with no0031 archive or temporary file.
-Original evidence and saves remain preserved. Ninth-round settlement, remaining
-games, terminal fault/retry and final cold checks are not yet claimed passed.
+Original evidence and saves remain preserved. Remaining NPC work/tenth-round
+settlement, playoffs, terminal fault/retry and final cold checks are not yet
+claimed passed. No full-season, next-owner positive birth or Dynasty qualification
+follows from these intermediate milestones.
