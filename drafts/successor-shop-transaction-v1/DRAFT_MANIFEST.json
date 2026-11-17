@@ -1,0 +1,25 @@
+{
+  "format": "inactive-successor-shop-transaction-v1",
+  "source_checkpoint": "626c479def900be8f9669d9d3d65b754ee338d9c",
+  "scope": "Unbound fixed shop transaction experiment only; no current App integration or engine identity change.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-shop-transaction-v1/src/gameplay/season/successor_shop_transaction_v1/transaction.gd.txt",
+      "restore_path": "src/gameplay/season/successor_shop_transaction_v1/transaction.gd",
+      "bytes": 4160,
+      "sha256": "b498b709b89a9bfdc2a2faabb6922e77625706158abfa640b306e7aa19794351"
+    },
+    {
+      "backup_path": "drafts/successor-shop-transaction-v1/tests/successor_shop_transaction.gd.txt",
+      "restore_path": "tests/successor_shop_transaction.gd",
+      "bytes": 7059,
+      "sha256": "4f13b8fa5006cf3ded4493cd80975408218c1e8e6b788c52e467c4352276c1cc"
+    },
+    {
+      "backup_path": "drafts/successor-shop-transaction-v1/tests/successor_shop_transaction.tscn.txt",
+      "restore_path": "tests/successor_shop_transaction.tscn",
+      "bytes": 199,
+      "sha256": "1f2d022d2e84969800e20c77c63571b8c27334fe95371ee2bc2e2e2dd4f8f068"
+    }
+  ]
+}

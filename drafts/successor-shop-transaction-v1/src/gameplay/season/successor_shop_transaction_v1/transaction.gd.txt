@@ -1,0 +1,85 @@
+extends RefCounted
+## EXPERIMENTAL UNBOUND fixed shop transaction. No App integration or owner authority.
+## All proof is local to one synchronous call; retry uses ordinary Save.save.
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
+const PATH: String = Save.PATH
+const MAX_BYTES: int = Save.MAX_BYTES
+
+static func commit(owner: SeasonState, command: Dictionary) -> Dictionary:
+	if Save.saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
+		or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return {"candidate": null, "saved": false, "error": "Save is busy."}
+	Save.saving = true
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	# Local fixed operation is not exposed as a guard-bypassing helper.
+	var operation: Callable = func() -> Dictionary:
+		var rejected: Dictionary = {"candidate": null, "saved": false, "error": "Invalid shop transaction."}
+		if owner == null or not Codec.scope(owner) or not owner.physical.pending.is_empty() \
+			or not owner.shop_available() or not SeasonBuild.SHOP_OPS.has(str(command.get("op", ""))):
+			return rejected
+		var old_data: Dictionary = Codec.capture(owner).duplicate(true)
+		var season: SeasonState = Codec.restore(old_data)
+		if season == null:
+			return rejected
+		var next: SeasonBuild = season.build.candidate(command.duplicate(true))
+		if next == null:
+			rejected.error = season.build.last_error
+			return rejected
+		season.adopt_build(next)
+		var result: Dictionary = {"candidate": season, "saved": false, "error": "The successor checkpoint could not be saved. The original slot remains available."}
+		var data: Dictionary = Codec.capture(season)
+		if data.is_empty():
+			return result
+		var bytes: PackedByteArray = JSON.stringify(data, "", true, true).to_utf8_buffer()
+		if bytes.is_empty() or bytes.size() > MAX_BYTES:
+			return result
+		var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		var decoded: SeasonState = Codec.restore(parsed)
+		if decoded == null or not ClubCareer.same(parsed, data) or not ClubCareer.same(Codec.capture(decoded), data):
+			return result
+		for suffix: String in ["", ".bak", ".tmp"]:
+			if DirAccess.dir_exists_absolute(PATH + suffix):
+				return result
+		if FileAccess.file_exists(PATH + ".tmp"):
+			return result # Retained uncertain temporary file is not silently overwritten.
+		var old_exists: bool = FileAccess.file_exists(PATH)
+		var old: PackedByteArray = FileAccess.get_file_as_bytes(PATH) if old_exists else PackedByteArray()
+		if old_exists and (old.is_empty() or old.size() > MAX_BYTES):
+			return result
+		var old_valid: bool = false
+		if old_exists:
+			var disk_json: JSON = JSON.new()
+			var parse_error: Error = disk_json.parse(old.get_string_from_utf8())
+			var disk_value: Variant = disk_json.data if parse_error == OK else null
+			# This proof was established above in THIS call, before fixed mutation.
+			# No supplied proof, revision shortcut, or cache can enter this branch.
+			old_valid = ClubCareer.same(disk_value, old_data)
+			if not old_valid:
+				old_valid = Codec.restore(disk_value) != null
+		if not ClubCareer.same(Codec.capture(season), data):
+			return result
+		if not ClubCareer.same(Codec.capture(owner), old_data):
+			return result
+		var file: FileAccess = FileAccess.open(PATH + ".tmp", FileAccess.WRITE)
+		if file == null:
+			return result
+		file.store_buffer(bytes)
+		file.flush()
+		var error: Error = file.get_error()
+		file.close()
+		if error != OK or FileAccess.get_file_as_bytes(PATH + ".tmp") != bytes:
+			return result
+		if FileAccess.file_exists(PATH) != old_exists or (old_exists and FileAccess.get_file_as_bytes(PATH) != old):
+			return result
+		if old_valid and DirAccess.copy_absolute(PATH, PATH + ".bak") != OK:
+			return result
+		if DirAccess.rename_absolute(PATH + ".tmp", PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes:
+			return result
+		result.saved = true
+		result.error = ""
+		return result
+	var result: Dictionary = operation.call()
+	roots.clear()
+	Save.saving = false
+	return result

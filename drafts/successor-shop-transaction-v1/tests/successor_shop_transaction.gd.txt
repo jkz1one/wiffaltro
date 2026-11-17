@@ -1,0 +1,116 @@
+extends "res://tests/successor_general_replay_prefix.gd"
+## Unbound diagnostic only. Every mode starts in a NEW isolated user directory.
+## Actual earned funds/stock only; no fixture relabeling or invented purchase.
+const Transaction = preload("res://src/gameplay/season/successor_shop_transaction_v1/transaction.gd")
+const SOURCE: String = "user://source-general.json"
+const EXPECTED: String = "user://transaction-expected.json"
+
+func write_exact(path: String, bytes: PackedByteArray) -> bool:
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_buffer(bytes)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	return error == OK and FileAccess.get_file_as_bytes(path) == bytes
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated test required"):
+		return
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	var mode: String = args[0] if not args.is_empty() else "equal"
+	var source_bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var source: Variant = JSON.parse_string(source_bytes.get_string_from_utf8())
+	cohort_roots = Codec._operation_content_roots()
+	var authored: PackedByteArray = content_bytes()
+	if not check(snapshot_supported and source is Dictionary, "source and authored graph available"):
+		return
+	if mode == "reopen":
+		var before: Dictionary = saved_bytes()
+		var expected: Variant = JSON.parse_string(FileAccess.get_file_as_string(EXPECTED))
+		var restored: SeasonState = Save.restore()
+		if not check(restored != null and ClubCareer.same(Codec.capture(restored), expected), "cold full public restore exact changed candidate"):
+			return
+		if not check(saved_bytes() == before and content_bytes() == authored and snapshot_supported, "cold read-only invariance"):
+			return
+		print("PASS: experimental shop cold restore")
+		get_tree().quit()
+		return
+	if not check(mode in ["equal", "format", "different", "malformed", "fault"], "known independent scenario"):
+		return
+	if not check(FileAccess.get_file_as_bytes(Save.PATH) == source_bytes and not FileAccess.file_exists(EXPECTED), "fresh isolated primary is exact source"):
+		return
+	for suffix: String in [".bak", ".tmp"]:
+		if not check(not FileAccess.file_exists(Save.PATH+suffix) and not DirAccess.dir_exists_absolute(Save.PATH+suffix), "no prior artifacts " + suffix):
+			return
+	var owner: SeasonState = Codec.restore(source)
+	if not check(owner != null and owner.player_results.size() >= 1 and owner.league_rules.is_empty() and owner.build._visit.open, "strict actual paid Standard open-shop fixture"):
+		return
+	var old_data: Dictionary = Codec.capture(owner)
+	var original: PackedByteArray = var_to_bytes(old_data)
+	var price: int = owner.build.reroll_price()
+	var cash: int = owner.build.cash()
+	if not check(price > 0 and cash >= price and not owner.build.pack_pending(), "genuinely affordable reroll with no pending pack"):
+		return
+	var command: Dictionary = {"id":"experimental-reroll:%d"%owner.build.revision(), "rev":owner.build.revision(), "op":"reroll"}
+	var command_bytes: PackedByteArray = var_to_bytes(command)
+	# Independent unchanged production reference path, then restore ONLY this
+	# isolated test slot. Neither immutable source nor real user files are written.
+	var reference: SeasonState = Codec.restore(old_data)
+	var next: SeasonBuild = reference.build.candidate(command)
+	if not check(next != null, "reference candidate accepts genuine priced command"):
+		return
+	reference.adopt_build(next)
+	if not check(Save.save(reference), "reference full Save.save succeeds"):
+		return
+	var expected_data: Dictionary = Codec.capture(reference)
+	var expected_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(reference.build.cash() == cash-price and reference.build.revision() == owner.build.revision()+1, "reference exact charge and one journal revision"):
+		return
+	if not check(write_exact(Save.PATH, source_bytes) and DirAccess.remove_absolute(Save.PATH+".bak") == OK, "reset isolated reference output"):
+		return
+	var disk_before: PackedByteArray = source_bytes
+	if mode == "format":
+		disk_before = JSON.stringify(source, "\t", false, true).to_utf8_buffer()
+		if not check(disk_before != source_bytes, "alternate formatting actually differs"):
+			return
+	elif mode == "different":
+		disk_before = expected_bytes # Strictly validated distinct state, not stale proof.
+	elif mode == "malformed":
+		disk_before = "not valid JSON".to_utf8_buffer()
+		if not check(write_exact(Save.PATH+".bak", source_bytes), "preserve valid backup against invalid primary"):
+			return
+	if not check(write_exact(Save.PATH, disk_before), "scenario primary installed only in isolated slot"):
+		return
+	if mode == "fault":
+		if not check(DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK, "real prewrite directory obstruction"):
+			return
+	var started: int = Time.get_ticks_usec()
+	var result: Dictionary = Transaction.commit(owner, command)
+	print("DIAGNOSTIC: ", mode, " fixed transaction seconds=", float(Time.get_ticks_usec()-started)/1000000.0, "; warm sequential, not production speedup")
+	if not check(result.candidate != null and ClubCareer.same(Codec.capture(result.candidate), expected_data), "changed candidate exactly matches full reference including journal"):
+		return
+	if mode == "fault":
+		if not check(not result.saved and FileAccess.get_file_as_bytes(Save.PATH) == disk_before and not FileAccess.file_exists(Save.PATH+".bak"), "failure retains exact candidate without primary or backup publication"):
+			return
+		if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK and Save.save(result.candidate), "ordinary full Save retry exact retained candidate"):
+			return
+	else:
+		if not check(result.saved and result.error == "", "experimental persistence succeeded"):
+			return
+	var expected_backup: PackedByteArray = source_bytes if mode == "malformed" else disk_before
+	if not check(FileAccess.get_file_as_bytes(Save.PATH) == expected_bytes and FileAccess.get_file_as_bytes(Save.PATH+".bak") == expected_backup and not FileAccess.file_exists(Save.PATH+".tmp"), "primary exact reference; backup exact valid prior; no temp"):
+		return
+	var before_reject: Dictionary = saved_bytes()
+	var stale: Dictionary = command.duplicate(true)
+	stale.id += ":stale-new-id"
+	var denied: Dictionary = Transaction.commit(result.candidate, stale)
+	if not check(not denied.saved and denied.candidate == null and saved_bytes() == before_reject, "new-ID stale revision rejected without second charge or write"):
+		return
+	if not check(var_to_bytes(Codec.capture(owner)) == original and var_to_bytes(command) == command_bytes and FileAccess.get_file_as_bytes(SOURCE) == source_bytes and content_bytes() == authored and snapshot_supported and not Save.saving, "caller, source, authored Resources and save guard unchanged"):
+		return
+	if not check(write_exact(EXPECTED, expected_bytes), "persist isolated cold comparison metadata"):
+		return
+	print("PASS: experimental fixed shop transaction ", mode)
+	get_tree().quit()
