@@ -18,7 +18,7 @@ func check(ok: bool, label: String) -> bool:
 	return ok
 
 func requested_profile() -> String:
-	for id: String in ["dugout", "sponsorship", "earnings", "academy"]:
+	for id: String in ["dugout", "sponsorship", "earnings", "academy", "equipment"]:
 		if OS.get_cmdline_user_args().has(id):
 			return id
 	return "standard"
@@ -47,7 +47,7 @@ func run() -> void:
 	else:
 		for league: String in LeagueRules.IDS:
 			for tier in range(5):
-				if league in ["dugout", "sponsorship", "earnings", "academy"] and tier == 0:
+				if league in ["dugout", "sponsorship", "earnings", "academy", "equipment"] and tier == 0:
 					continue
 				var rules: Dictionary = LeagueRules.capture_tier(league, tier, 67231 if league == "scramble" else null)
 				if not check(Runtime.create_closed_league(67231, rules, true) == null, "unqualified League/tier constructor rejected %s%d" % [league,tier]):
@@ -70,7 +70,7 @@ func run() -> void:
 					"version": wrong.version = 109
 					"catalog": wrong.pitch_catalog = "wrong"
 					"live": wrong.league_live = selected == "standard"
-					"rules": wrong.league_rules = LeagueRules.capture("equipment")
+					"rules": wrong.league_rules = LeagueRules.capture("dynasty")
 					"access": wrong.checkpoint["player_access"] = {"unearned":true}
 					"extra": wrong["unearned"] = true
 				if not check(Codec.restore(wrong) == null, "reject malformed profile %s pick%d" % [kind,pick]):

@@ -7,7 +7,7 @@ func render() -> void:
 		return
 	if app.season==null:
 		var occupied: bool = FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH + ".bak")
-		for id: String in ["standard", "dugout", "sponsorship", "earnings", "academy"]:
+		for id: String in ["standard", "dugout", "sponsorship", "earnings", "academy", "equipment"]:
 			_button(_body, "NEW %s SEASON" % id.to_upper(), Callable(app,"create_profile").bind(id)).disabled = occupied
 		_button(_body,"CONTINUE SAVED SEASON",Callable(app,"reload_save"))
 		return

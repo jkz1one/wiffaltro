@@ -1,0 +1,60 @@
+extends "res://tests/successor_general_birth.gd"
+## Synthetic policy operands ONLY. No season save, earned rewards or free gameplay.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+
+func funded() -> SeasonOwnership:
+	var bank: SeasonOwnership = SeasonOwnership.new(SeasonSponsorCatalog.ownership_catalog())
+	if not bank.enable_league_rules(LeagueRules.capture("equipment")):
+		return null
+	for game in range(12):
+		if not bank.commit(OwnershipFixtures.request(bank,"reward",{"game":game,"win":true})).ok:
+			return null
+	return bank
+
+func buy(bank: SeasonOwnership, id: String, spare: bool = false) -> Dictionary:
+	var offer: String = "equipment-unit:%d" % bank.revision()
+	if not bank.commit(OwnershipFixtures.request(bank,"stock",{"offers":{offer:id}})).ok:
+		return {"ok":false}
+	return bank.commit(OwnershipFixtures.request(bank,"spare_buy" if spare else "buy",{"offer":offer,"replace":"","discard":[]}))
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated synthetic Equipment units"):
+		return
+	var bank: SeasonOwnership = funded()
+	var small: SeasonOwnership = funded()
+	var zero: SeasonOwnership = funded()
+	if not check(bank != null and small != null and zero != null and bank.view().capacity.held == 1 \
+		and buy(small,"G02").ok and small.view().capacity.held == 2 \
+		and buy(zero,"F09").ok and zero.view().capacity.held == 0 \
+		and buy(zero,"G02").ok and zero.view().capacity.held == 1,"synthetic unchanged Equipment capacities1/2/0/1"):
+		return
+	if not check(buy(bank,"BAT-CON-01").ok and buy(bank,"BALL-MOV-01").ok \
+		and not buy(bank,"BALL-MOV-01",true).ok \
+		and buy(bank,"BALL-HYB-01",true).ok and not buy(bank,"BAT-POW-01",true).ok,"synthetic duplicate-owned Gear and occupied spare rejected"):
+		return
+	var wallet: Dictionary = bank.view()
+	var before: Dictionary = bank.to_data()
+	var wrong: Dictionary = OwnershipFixtures.request(bank,"spare_swap",{"spare":wallet.spare.id,"active":wallet.gear.bat.id})
+	if not check(not bank.commit(wrong).ok and ClubCareer.same(bank.to_data(),before),"synthetic wrong-category swap atomic rejection"):
+		return
+	var roster: Array[String] = []
+	roster.assign(SeasonPlayerCatalog.ids().slice(0,4))
+	var build: SeasonBuild = Build.new(1001,roster)
+	if not check(build.call("enable_successor_pitch_catalog") and build.enable_league_rules(LeagueRules.capture("equipment")),"synthetic current Build operand"):
+		return
+	var original_visit: Dictionary = build._visit
+	build._visit = {"open":true,"pack_status":"open","number":1}
+	if not check(not SeasonEquipment.between_games(build),"synthetic pending pack blocks between-game spare route"):
+		return
+	build._visit.pack_status = "sealed"
+	build._match_inventory = {"game":0}
+	if not check(not SeasonEquipment.between_games(build),"synthetic live inventory blocks between-game spare route"):
+		return
+	build._match_inventory = {}
+	build._pregames = {"0":{} }
+	if not check(not SeasonEquipment.between_games(build),"synthetic unpaid pregame blocks spare route"):
+		return
+	build._pregames = {}
+	build._visit = original_visit
+	print("PASS: synthetic Equipment capacity and negative guards; not earned-game evidence")
+	get_tree().quit()

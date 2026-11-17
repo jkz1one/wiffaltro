@@ -1,6 +1,6 @@
 extends RefCounted
 ## Ordinary tier0 boundary only, never career, higher-tier or owner authority.
-const LEAGUES: Array[String] = ["dugout", "sponsorship", "earnings", "academy"]
+const LEAGUES: Array[String] = ["dugout", "sponsorship", "earnings", "academy", "equipment"]
 static func supported(rules: Variant, live: Variant) -> bool:
 	if not rules is Dictionary or not live is bool:
 		return false

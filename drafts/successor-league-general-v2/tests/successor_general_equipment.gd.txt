@@ -1,0 +1,280 @@
+extends "res://tests/successor_general_birth.gd"
+## One genuine durable boundary/process. No fabricated funding, stock or results.
+const App = preload("res://src/presentation/season/successor_league_general_v2/app.gd")
+const Pending = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const Capture = preload("res://src/presentation/season/successor_league_general_v2/capture_human.gd")
+const EQUIPMENT_SEED: int = 1001 # Original-generator stock exploration only; actual offers asserted.
+const ACTIVE_ITEM: String = "BALL-MOV-01"
+const SPARE_ITEM: String = "BALL-HYB-01"
+
+func finish_step(app: SeasonApp, action: String, complete: bool = false) -> void:
+	var payload: Dictionary = Codec.capture(app.season)
+	if not check(app.get("retained") == null and not app._busy and not payload.is_empty() \
+		and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "exact durable Equipment boundary " + action):
+		return
+	var root: String = "user://equipment-evidence"
+	if not check(DirAccess.make_dir_recursive_absolute(root) == OK, "private Equipment evidence directory"):
+		return
+	var index: int = 0
+	while FileAccess.file_exists(root + "/%04d.json" % index):
+		index += 1
+	if not check(DirAccess.copy_absolute(Save.PATH, root + "/%04d.json" % index) == OK, "retain exact boundary without overwrite"):
+		return
+	var meta: Dictionary = {"step":index,"action":action,"kind":action,"human_games":app.season.player_results.size(),"results":app.season.results.size(),"complete":complete}
+	var file: FileAccess = FileAccess.open(root + "/%04d.meta.json" % index,FileAccess.WRITE)
+	if not check(file != null,"boundary metadata writable"):
+		return
+	file.store_string(JSON.stringify(meta,"",true,true))
+	file.close()
+	print("EQUIPMENT_STEP_DONE: ",JSON.stringify(meta,"",true,true))
+	print("PASS: Equipment actual boundary ",action)
+	app.queue_free()
+	get_tree().quit()
+
+func find_button(node: Node, key: String, value: String) -> Button:
+	if node is Button and node.get_meta(key,"") == value:
+		return node
+	for child: Node in node.get_children():
+		var result: Button = find_button(child,key,value)
+		if result != null:
+			return result
+	return null
+
+func shop_for(app: SeasonApp) -> SeasonShopWindow:
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow:
+			return child
+	return null
+
+func offer_for(build: SeasonBuild, item: String) -> String:
+	for id: String in build._visit.offers:
+		if build._visit.offers[id] == item:
+			return id
+	return ""
+
+func ui_transaction(app: SeasonApp, key: String, value: String, fault: bool = false) -> bool:
+	app.open_pitch_shop()
+	var shop: SeasonShopWindow = shop_for(app)
+	var button: Button = find_button(shop,key,value) if shop != null else null
+	if not check(shop != null and shop.visible and button != null and not button.disabled,"real full Shop Equipment control " + key):
+		return false
+	var before: Dictionary = Codec.capture(app.season)
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	button.pressed.emit()
+	if not check(shop._confirm.visible and not shop._pending.is_empty(),"real Equipment quote visible"):
+		return false
+	shop._confirm.get_cancel_button().pressed.emit()
+	if not check(ClubCareer.same(Codec.capture(app.season),before) and FileAccess.get_file_as_bytes(Save.PATH) == disk,"Equipment quote Cancel is inert"):
+		return false
+	button.pressed.emit()
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH + ".bak")
+	if fault and not check(not FileAccess.file_exists(Save.PATH + ".tmp") and not DirAccess.dir_exists_absolute(Save.PATH + ".tmp") \
+		and DirAccess.make_dir_absolute(Save.PATH + ".tmp") == OK,"isolated Equipment prewrite fault"):
+		return false
+	shop._confirm.get_ok_button().pressed.emit()
+	if fault:
+		var retained: SeasonState = app.get("retained")
+		if not check(retained != null and ClubCareer.same(Codec.capture(app.season),before) \
+			and FileAccess.get_file_as_bytes(Save.PATH) == disk and FileAccess.get_file_as_bytes(Save.PATH + ".bak") == backup,"failed Equipment save keeps old primary/backup and exact candidate"):
+			return false
+		var expected: Dictionary = Codec.capture(retained)
+		if not check(DirAccess.remove_absolute(Save.PATH + ".tmp") == OK,"remove only Equipment fault"):
+			return false
+		app.retry_save()
+		if not check(app.get("retained") == null and app.season == retained and ClubCareer.same(Codec.capture(app.season),expected),"exact Equipment candidate promoted without replay"):
+			return false
+	var published: Dictionary = Codec.capture(app.season)
+	shop._confirm.confirmed.emit()
+	return check(app.get("retained") == null and ClubCareer.same(Codec.capture(app.season),published) \
+		and ClubCareer.same(published,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))),"Equipment confirm repeats neither cost nor grant")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated earned Equipment run"):
+		return
+	var app = App.new()
+	app.profile = "equipment"
+	add_child(app)
+	if not FileAccess.file_exists(Save.PATH):
+		if not check(not FileAccess.file_exists(Save.PATH + ".bak"),"birth must not replace backup"):
+			return
+		var fresh: SeasonState = Runtime.create_closed_league(EQUIPMENT_SEED,LeagueRules.capture("equipment"),true)
+		if not check(fresh != null,"planned deterministic seed public ordinary creation"):
+			return
+		app._retain(fresh) # Same persisted new-season transaction, no production seed hook.
+		finish_step(app,"birth")
+		return
+	app.reload_save()
+	if not check(profile(app.season,"equipment") and app.season.season_seed == EQUIPMENT_SEED,"cold exact Equipment profile and planned seed"):
+		return
+	if OS.get_cmdline_user_args().has("verify-complete"):
+		if not check(app.season.player_results.size() == 3 and app.season.physical.pending.is_empty() \
+			and app.season.build._events.any(func(e: Dictionary)->bool:return e.get("op") == "sell_gear"),"cold final verification cannot advance unfinished run"):
+			return
+		equipment_step(app,3)
+		return
+	if app.season.phase == SeasonState.Phase.DRAFT:
+		app.draft(app.season.offers()[0])
+		finish_step(app,"draft-%d" % app.season.picks.size())
+		return
+	if not app.season.physical.pending.is_empty():
+		var before: Dictionary = Codec.capture(app.season)
+		var projection: Dictionary = Pending.project(app.season)
+		if not check(not projection.has("error") and ClubCareer.same(Codec.capture(app.season),before),"pending projection read-only"):
+			return
+		var count: int = app.season.physical.pending.reports.size()
+		app.resume_round()
+		if projection.has("fixture"):
+			var finished: bool = false
+			for frame in range(150000):
+				await get_tree().physics_frame
+				if not app._busy:
+					finished = true
+					break
+				if frame % 12000 == 0:
+					print("EQUIPMENT_NPC: ",frame)
+			if not check(finished and app.get("retained") == null and app.season.physical.pending.reports.size() == count+1 \
+				and app.season.physical.pending.reports[-1].report.version == 114,"actual Equipment NPC durable"):
+				return
+			finish_step(app,"npc-%d" % int(projection.fixture.id))
+		else:
+			if not check(app.get("retained") == null and app.season.physical.pending.is_empty() \
+				and app.season.results.size() > before.checkpoint.results.size(),"actual Equipment round settled"):
+				return
+			finish_step(app,"settlement-%d" % app.season.player_results.size())
+		return
+	var games: int = app.season.player_results.size()
+	if games > 0:
+		if not equipment_step(app,games):
+			return
+	await play_human(app)
+
+func equipment_step(app: SeasonApp, games: int) -> bool:
+	var build: SeasonBuild = app.season.build
+	var wallet: Dictionary = build._bank.view()
+	var swapped: bool = build._events.any(func(e: Dictionary)->bool:return e.get("op") == "spare_swap")
+	var sold: bool = build._events.any(func(e: Dictionary)->bool:return e.get("op") == "sell_gear")
+	if games >= 3 and sold:
+		var played: Array = app.season.player_results
+		if not check(games == 3 and app.season.results.size() == 9 and wallet.spare.is_empty() \
+			and wallet.gear.ball.item == SPARE_ITEM and played[2].get("used_gear",[]).has(wallet.gear.ball.id) \
+			and not played[2].get("used_gear",[]).has(played[1].get("used_gear",[""])[0]), "cold final three-round receipt history and sold spare remain exact"):
+			return false
+		finish_step(app,"complete-already",true)
+		return false
+	if (games == 1 and wallet.gear.ball.is_empty()) or games >= 2:
+		if not build._visit.open:
+			app.open_pitch_shop()
+			if not check(app.season.build._visit.open,"actual earned shop opens"):
+				return false
+			finish_step(app,"shop-open-%d" % games)
+			return false
+	if games == 1 and wallet.gear.ball.is_empty():
+		var offer: String = offer_for(build,ACTIVE_ITEM)
+		var cash: int = build.cash()
+		if not check(not offer.is_empty(),"planned first active item actually generated, no stock injection") or not ui_transaction(app,"gear_offer",offer):
+			return false
+		var receipt: Dictionary = app.season.build._bank.view().gear.ball
+		if not check(receipt.item == ACTIVE_ITEM and receipt.paid == SeasonGearCatalog.item(ACTIVE_ITEM).price \
+			and app.season.build.cash() == cash - receipt.paid,"first actual paid active Ball exact receipt"):
+			return false
+		finish_step(app,"buy-active")
+		return false
+	if games == 2 and not swapped:
+		if wallet.spare.is_empty():
+			var offer: String = offer_for(build,SPARE_ITEM)
+			var cash: int = build.cash()
+			var active: Dictionary = wallet.gear.ball.duplicate(true)
+			if not check(not offer.is_empty(),"planned distinct spare actually generated, no free reroll") or not ui_transaction(app,"gear_spare_offer",offer):
+				return false
+			var next: Dictionary = app.season.build._bank.view()
+			if not check(next.spare.item == SPARE_ITEM and next.spare.paid == SeasonGearCatalog.item(SPARE_ITEM).price \
+				and ClubCareer.same(next.gear.ball,active) and app.season.build.cash() == cash-next.spare.paid,"actual spare purchase costs exact price and leaves active copy intact"):
+				return false
+			finish_step(app,"buy-spare")
+			return false
+		var before: Dictionary = wallet.duplicate(true)
+		var history: Array = app.season.player_results.duplicate(true)
+		if not check(history[1].get("used_gear",[]).has(before.gear.ball.id) \
+			and not history[1].get("used_gear",[]).has(before.spare.id),"round2 actually used paid active copy before swap"):
+			return false
+		if not ui_transaction(app,"gear_spare_swap",wallet.spare.id,true):
+			return false
+		var after: Dictionary = app.season.build._bank.view()
+		if not check(ClubCareer.same(after.gear.ball,before.spare) and ClubCareer.same(after.spare,before.gear.ball) \
+			and after.cash == before.cash and ClubCareer.same(app.season.player_results,history),"zero-charge swap preserves both exact identities/prices and prior use history"):
+			return false
+		finish_step(app,"swap-exact-retry")
+		return false
+	if games >= 3:
+		var active: Dictionary = wallet.gear.ball.duplicate(true)
+		var spare: Dictionary = wallet.spare.duplicate(true)
+		var results: Array = app.season.player_results.duplicate(true)
+		if not check(results[1].get("used_gear",[]).has(spare.id) and not results[2].get("used_gear",[]).has(spare.id) \
+			and results[2].get("used_gear",[]).has(active.id),"actual round3 uses swapped-in copy only; prior used spare earns no new game use"):
+			return false
+		var cash: int = build.cash()
+		if not ui_transaction(app,"gear_spare_sell",spare.id):
+			return false
+		var after: Dictionary = app.season.build._bank.view()
+		if not check(after.spare.is_empty() and ClubCareer.same(after.gear.ball,active) \
+			and after.cash == cash + floori(float(spare.paid)/2.0) \
+			and ClubCareer.same(app.season.player_results,results),"actual inactive sale exact paid-price refund preserves active receipt and history"):
+			return false
+		finish_step(app,"sell-inactive-complete",true)
+		return false
+	return true
+
+func play_human(app: SeasonApp) -> void:
+	var fixture: Dictionary = app.season.pending_fixture()
+	if not check(not fixture.is_empty() and (fixture.home == 0 or fixture.away == 0), "next human fixture available; NPC playoffs must remain pending jobs"):
+		return
+	app.play_next()
+	if not check(is_instance_valid(app.lab) and app.lab._match_state != null, "actual App opens human fixture"):
+		return
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not app.lab._match_presentation_director.blocks_gameplay():
+			break
+	if not check(not app.lab._match_presentation_director.blocks_gameplay(), "actual intro finishes"):
+		return
+	app.lab._automation = MatchAutomation.new()
+	app.lab._automation.seed = Fixtures.seed_for(app.season, fixture)
+	app.lab._automation.presentation_enabled = true
+	app.lab._automation.begin(app.lab)
+	var wallet: Dictionary = app.season.build._bank.view()
+	var expected_gear: Dictionary = {}
+	for slot: String in SeasonOwnership.GEAR_SLOTS:
+		if not wallet.gear[slot].is_empty():
+			expected_gear[slot] = wallet.gear[slot].item
+	var human_team: TeamMatchState = app.lab._match_state.home_team if fixture.home == 0 else app.lab._match_state.away_team
+	for player: PlayerMatchState in human_team.roster:
+		if not check(ClubCareer.same(player.definition.season_gear,expected_gear),"actual human definitions carry only active Gear, no spare effects"):
+			return
+	var expected_receipts: Array[String] = SeasonReclamation.receipts(wallet)
+	var seen_release: bool = false
+	var finished: bool = false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if not seen_release and app.lab._match_state.gear_usage.started:
+			seen_release = true
+			if not check(app.lab._match_state.gear_usage.first_pitch == expected_receipts,"actual first-release receipt evidence excludes inactive spare"):
+				return
+		if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._automation != null and not app.lab._home_run.presentation_pending(app.lab):
+			app.lab._automation = null
+			PitchBatLabFeelSupport.begin_match_outro(app.lab)
+		if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD:
+			finished = true
+			break
+		if frame % 12000 == 0:
+			print("HUMAN_PROGRESS: fixture=", fixture.id, " frame=", frame, " pa=", app.lab._match_state.plate_appearance_number)
+	if not check(finished and seen_release and not Capture.capture(app).is_empty(), "actual human physics game reaches capturable outro"):
+		return
+	var results_before: int = app.season.results.size()
+	var cash_before: int = app.season.build.cash()
+	app.finish_game()
+	if not check(app.get("retained") == null and not is_instance_valid(app.lab) \
+		and not app.season.physical.pending.is_empty() and app.season.results.size() == results_before \
+		and app.season.build.cash() == cash_before, "human game saved pending without premature settlement/reward"):
+		return
+	finish_step(app, "human-%d" % int(fixture.id))

@@ -20,7 +20,7 @@ func check(ok: bool, label: String) -> bool:
 	return ok
 
 func selected_profile() -> String:
-	for id: String in ["dugout", "sponsorship", "earnings", "academy"]:
+	for id: String in ["dugout", "sponsorship", "earnings", "academy", "equipment"]:
 		if OS.get_cmdline_user_args().has(id):
 			return id
 	return "standard"

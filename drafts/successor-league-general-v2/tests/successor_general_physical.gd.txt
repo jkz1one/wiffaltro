@@ -229,7 +229,7 @@ func run() -> void:
 		var rules: Dictionary = LeagueRules.capture(league, 0, SEED if league == "scramble" else null)
 		for live: bool in [false, true]:
 			for access: Dictionary in [{}, {"unsupported":true}]:
-				if not check((Runtime.create_closed_league(SEED, rules, live, access) != null) == (league in ["dugout", "sponsorship", "earnings", "academy"] and live and access.is_empty()), "League constructor admits only qualified tier0 profiles without access"):
+				if not check((Runtime.create_closed_league(SEED, rules, live, access) != null) == (league in ["dugout", "sponsorship", "earnings", "academy", "equipment"] and live and access.is_empty()), "League constructor admits only qualified tier0 profiles without access"):
 					return
 	if not check(not Codec.scope(Runtime.new()) and not Codec.envelope_valid({}) \
 		and Runtime.create_closed_league(SEED, LeagueRules.capture_tier("dugout", 1), true) == null, "malformed envelope and unqualified tier remain closed"):
