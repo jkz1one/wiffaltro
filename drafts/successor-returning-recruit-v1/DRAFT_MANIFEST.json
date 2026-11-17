@@ -1,0 +1,19 @@
+{
+  "format": "inactive-successor-returning-recruit-v1",
+  "source_checkpoint": "a289fd76ef56daa78309e65dc7e973d26019c295",
+  "scope": "Actual six-round returning-recruit test harness only; native import and actual seed66 birth/four picks passed. Gameplay, release/return and final cold pending. Existing engines unchanged.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-returning-recruit-v1/tests/successor_returning_recruit.gd.txt",
+      "restore_path": "tests/successor_returning_recruit.gd",
+      "bytes": 23625,
+      "sha256": "a27ecefffb33c91795b6f201bac24afa99561e898faeb4805ed7ee2faa818162"
+    },
+    {
+      "backup_path": "drafts/successor-returning-recruit-v1/tests/successor_returning_recruit.tscn.txt",
+      "restore_path": "tests/successor_returning_recruit.tscn",
+      "bytes": 197,
+      "sha256": "a1efa3258e46014301c68f8eff148bd0e5fc4d9f96bcfb598124784af3e00539"
+    }
+  ]
+}
