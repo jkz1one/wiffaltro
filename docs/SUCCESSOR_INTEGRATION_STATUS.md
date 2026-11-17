@@ -9,6 +9,18 @@ owned first-season terminal test remains in progress: nine rounds/27 results
 are settled; the tenth actual human game is saved pending NPC work/settlement.
 No completed-season or Dynasty qualification is inferred from this evidence.
 
+- Owned General116 now integrates authenticated completed112 inheritance with
+  General114 draft/physical/shop/persistence and mixed-family terminal settlement
+  source. Native import and authentic/forged active-predecessor rejection plus
+  separate cold-negative checks passed at `012368b484f3bd86c9f18283941963165cf7a27d`.
+  Positive run2 birth, gameplay and terminal behavior remain unqualified pending
+  the genuine first-season completion. Run3 and Dynasty remain closed. See
+  `SUCCESSOR_OWNED_GENERAL_INTEGRATION.md`; no standalone result proves Dynasty.
+- Actual returning-recruit sequence has five settled rounds (15 games), an earned
+  Mika Pitching upgrade, natural Kit replacement with exact save-failure retry,
+  and the natural developed-Mika return quote. Returning purchase, sixth-round
+  play and final cold verification remain pending, not implied by the quote.
+
 - Owner112 adds first-run terminal settlement staging, with frozen earlier save
   families preserved. See `SUCCESSOR_TERMINAL_OWNER_CHECKPOINT.md`.
 - Owner113 is a separate transaction-local recapture experiment with exact
