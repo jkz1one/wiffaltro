@@ -54,10 +54,11 @@ Dynasty qualification is inferred from the one-round evidence.
   whole-save or player-hardware speedup is claimed. See
   `SUCCESSOR_GENERAL_SIGNATURE_COMPOSITION.md`.
 
-- B5 checkpoints standalone Equipment0 admission after two actual earned rounds,
-  active/spare purchases and zero-charge swap with exact save-failure retry.
-  The third-round inactive-copy/sale/cold sequence is still running; no complete
-  Equipment qualification is claimed. See `SUCCESSOR_GENERAL_EQUIPMENT_B5.md`.
+- B5 qualifies standalone Equipment0 across three actual earned rounds,
+  active/spare purchases, zero-charge swap with exact save-failure retry,
+  swapped-in-only effects/use, inactive sale and final cold reopen. This is not
+  a full Equipment season or ownership qualification. See
+  `SUCCESSOR_GENERAL_EQUIPMENT_B5.md`.
 
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
