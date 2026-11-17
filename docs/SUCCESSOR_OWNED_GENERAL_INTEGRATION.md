@@ -1,13 +1,23 @@
 # Owned General116 integration boundary
 
 This is inactive integrated feature source, not an admitted release or completed
-Dynasty mode. It connects a completed Owner112 predecessor to General114 run2
-ordinary Dugout drafting, physical play, pending-round settlement and the full
-original shop. Frozen112, draft-only115 and standalone114 remain unchanged.
+Dynasty mode. It now supports genuine fresh General114 owned run1 or an
+authenticated completed Owner112 predecessor continuing into General114 run2.
+Both use ordinary Dugout drafting, physical play, pending-round settlement and
+the full original shop. Fresh integration qualification is in progress. Frozen112, draft-only115 and standalone114 remain unchanged.
 
 ## Authority and retained depth
 
-Creation and every independent restore rederive the exact closed predecessor.
+Creation and every independent restore rederive either original fresh genesis
+or the exact closed predecessor, selected by an explicit serialized origin.
+Fresh genesis uses the original empty-career progress accessors and
+`ClubAssetLedger(seed, [0], [], {})`, not standalone grants or `new_club`.
+It preserves the original starter-only owned draft pool, empty exotic history,
+and prospective pennant/mastery/plaque eligibility metadata without awards.
+Current1/one General row is distinct from legacy112 current2/two rows.
+The App defaults to fresh only when no predecessor was explicitly provided; an
+invalid explicit predecessor rejects without silently starting a replacement.
+Existing old save slots are not automatically loaded or overwritten.
 Paid Build journals cannot authorize their own starts: inherited progression,
 owned recruitment pool, exotic history, predecessor row, ledger, plaques and
 pennants must match the authenticated basis. Fourth-pick reconstruction reinstalls
@@ -170,3 +180,15 @@ separate cold-negative checks passed. Valid owned pending
 projection, input invariance during real replay, malformed-report parity and
 measured savings require the authentic116 run. Null rejection and descriptor
 source-change/recovery tests do not establish those positive cases.
+
+## Fresh integration qualification gate
+
+`python tools/test_successor_signature.py --owned-general-fresh` creates an actual
+App-owned first career without a predecessor fixture, drafts through actual App
+actions, plays one human game plus the two NPC games, settles all six club
+rewards, and exercises the earned pack purchase/choice with failed save and exact
+retry. A separate cold process then verifies persisted state and rejects changed
+origin and coordinated start forgery. Native import passed for this increment;
+the positive sequence is still running and is not yet claimed as passed.
+General-to-General subsequent-run admission and Dynasty remain closed pending
+their complete progression/carryover integrations and qualification.

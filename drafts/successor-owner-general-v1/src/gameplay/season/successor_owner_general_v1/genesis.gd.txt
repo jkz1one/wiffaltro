@@ -1,0 +1,15 @@
+extends RefCounted
+## Original first-owned empty history policy, not caller-supplied start authority.
+const Prefix = preload("res://src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd")
+static func derive(seed_value: int) -> Dictionary:
+	if not SeasonOwnership._whole(seed_value,0,2147483647): return {}
+	var prefix: ClubCareer = ClubCareer.new()
+	var ledger: ClubAssetLedger = ClubAssetLedger.new(seed_value,[0],[],{})
+	if not ledger._valid: return {}
+	var metadata: ClubCareer = ClubCareer.new()
+	metadata.current = 1
+	StadiumPlaqueRewards.adopt(metadata)
+	return {"schema":"owned-general-genesis-v1","origin":"fresh-general","target_run":1,
+		"predecessor":{},"starts":Prefix._query_starts(prefix),"exotic_history":[],
+		"player_access":ledger.owned(),"assets":ledger.to_data(),"pennants":{},
+		"plaques":metadata._plaques.duplicate(true)}

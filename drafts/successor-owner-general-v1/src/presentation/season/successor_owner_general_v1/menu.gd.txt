@@ -1,13 +1,13 @@
 extends SeasonMenu
 const Save = preload("res://src/gameplay/season/successor_owner_general_v1/save.gd")
 func render() -> void:
-	_screen("successor", "Owned career continuation", "Run2 integration • separate save • predecessor unchanged")
+	_screen("successor", "Owned career", "Original club progression • separate save • existing saves unchanged")
 	if app.get("retained")!=null:
 		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
 	if app.season==null:
 		var occupied: bool = FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH + ".bak")
-		_button(_body,"START INHERITED RUN2",Callable(app,"create_fresh")).disabled = occupied
+		_button(_body,"START NEW CAREER" if app.predecessor.is_empty() else "START INHERITED RUN2",Callable(app,"create_fresh")).disabled = occupied
 		_button(_body,"CONTINUE SAVED SEASON",Callable(app,"reload_save"))
 		return
 	if app.season.phase==SeasonState.Phase.DRAFT:

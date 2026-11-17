@@ -1,7 +1,9 @@
 extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
-## Owned General114 run2 with original ordinary and playoff mechanics.
+## Owned General114 fresh or inherited run with original ordinary and playoff mechanics.
 static func create_next(envelope: Variant, seed_value: int) -> SeasonState:
 	return load("res://src/gameplay/season/successor_owner_general_v1/start.gd").create(envelope,seed_value)
+static func create_fresh(seed_value: int) -> SeasonState:
+	return load("res://src/gameplay/season/successor_owner_general_v1/start.gd").create_fresh(seed_value)
 func league_context_consistent() -> bool:
 	return load("res://src/gameplay/season/successor_owner_general_v1/start.gd").structural(self)
 func _league_inventory_context_consistent() -> bool:
@@ -11,7 +13,7 @@ func choose_player(id: String) -> bool:
 		return false
 	# Rebuild a local candidate from the real predecessor; never publish a partial
 	# fourth-pick reconstruction if inherited-context repair/validation fails.
-	var candidate: SeasonState = create_next(career.predecessor,season_seed)
+	var candidate: SeasonState = create_fresh(season_seed) if career.origin == "fresh-general" else create_next(career.predecessor,season_seed)
 	if candidate == null:
 		return false
 	for previous: String in picks:
@@ -56,7 +58,7 @@ func adopt_build(next: SeasonBuild) -> void:
 	if next == null or not league_context_consistent(): return
 	var old_build: SeasonBuild = build
 	var old_lineup: Array = teams[0].roster.duplicate()
-	var old_row: Dictionary = career.runs[1].duplicate(true)
+	var old_row: Dictionary = career.runs[career.current-1].duplicate(true)
 	build = next
 	if not load("res://src/gameplay/season/successor_owner_general_v1/start.gd").base_matches(self):
 		build = old_build
@@ -66,7 +68,7 @@ func adopt_build(next: SeasonBuild) -> void:
 	if not career.sync(self):
 		build = old_build
 		teams[0].roster = old_lineup
-		career.runs[1] = old_row
+		career.runs[career.current-1] = old_row
 
 func record_player_result(
 	fixture_id: int,

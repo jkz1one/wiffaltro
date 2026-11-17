@@ -17,7 +17,14 @@ static func restore(state: Dictionary) -> SeasonState:
 		or not state.get("build") is Dictionary or not state.get("teams") is Array \
 		or state.teams.size() != 6:
 		return null
-	var season: SeasonState = Runtime.create_next(state.career.predecessor,int(state.season_seed))
+	var season: SeasonState
+	match state.career.get("origin"):
+		"fresh-general":
+			if not state.career.predecessor.is_empty(): return null
+			season = Runtime.create_fresh(int(state.season_seed))
+		"legacy112":
+			season = Runtime.create_next(state.career.predecessor,int(state.season_seed))
+		_: return null
 	if season == null:
 		return null
 	for id: Variant in state.picks:

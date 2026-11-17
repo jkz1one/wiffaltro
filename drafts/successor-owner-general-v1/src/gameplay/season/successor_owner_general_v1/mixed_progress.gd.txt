@@ -14,18 +14,22 @@ static func valid(value: Variant, scores: Array) -> bool:
 static func history(runs: Variant) -> bool:
 	if not runs is Array or runs.is_empty() or runs.size() > 2 or Policy.evaluate(runs).is_empty():
 		return false
+	var first: Variant = runs[0]
+	if not first is Dictionary or not first.get("player_progress") is Dictionary: return false
+	var legacy_first: bool = first.player_progress.get("format") == Legacy.FORMAT
+	# Precisely two admitted histories: fresh General row1, or completed legacy
+	# row1 optionally followed by General row2. No General continuation yet.
+	if not legacy_first and runs.size() != 1: return false
 	for index in range(runs.size()):
 		var row: Variant = runs[index]
 		if not row is Dictionary or row.get("id") != index+1 or not row.get("proof") is Dictionary \
-			or not row.proof.get("scores") is Array or (index == 0 and row.get("status") != "completed"):
-			return false
+			or not row.proof.get("scores") is Array: return false
+		var legacy: bool = legacy_first and index == 0
 		var details: Variant = row.get("player_progress")
-		# These two admitted owner families both capture full progress; optional
-		# unknown stats inside that evidence remain untouched by projection.
-		if not details is Dictionary or details.get("format") != (Legacy.FORMAT if index == 0 else Current.FORMAT) \
+		if not details is Dictionary or details.get("format") != (Legacy.FORMAT if legacy else Current.FORMAT) \
 			or not valid(details,row.proof.scores) or details.exotic.season != "season:%d" % int(row.seed): return false
-		if index == 0:
-			if not preload("res://src/gameplay/season/successor_owner_terminal_v1/career.gd")._row_valid(row): return false
+		if legacy:
+			if row.get("status") != "completed" or not preload("res://src/gameplay/season/successor_owner_terminal_v1/career.gd")._row_valid(row): return false
 		elif not _current_row_shape(row): return false
 	return true
 

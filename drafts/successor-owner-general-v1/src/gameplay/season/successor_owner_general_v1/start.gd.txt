@@ -13,12 +13,23 @@ static func create(envelope: Variant, seed_value: int) -> SeasonState:
 	roots.clear()
 	return result
 
+static func create_fresh(seed_value: int) -> SeasonState:
+	var roots: Array[Resource] = load("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var basis: Dictionary = preload("genesis.gd").derive(seed_value)
+	var result: SeasonState = _from_basis({},seed_value,basis) if not basis.is_empty() else null
+	roots.clear()
+	return result
+
 static func _create(envelope: Variant, seed_value: int) -> SeasonState:
 	if not SeasonOwnership._whole(seed_value,0,2147483647):
 		return null
 	var basis: Dictionary = Prefix.derive(envelope)
 	if basis.is_empty():
 		return null
+	basis["origin"] = "legacy112"
+	return _from_basis(envelope,seed_value,basis)
+
+static func _from_basis(envelope: Dictionary, seed_value: int, basis: Dictionary) -> SeasonState:
 	var season: SeasonState = load("res://src/gameplay/season/successor_owner_general_v1/runtime.gd").new()
 	season.season_seed = seed_value
 	season.league_rules = LeagueRules.capture("dugout")
@@ -38,7 +49,8 @@ static func _create(envelope: Variant, seed_value: int) -> SeasonState:
 	if not _install(season.build,basis) or not ClubPlayerDraft.apply(season,basis.player_access):
 		return null
 	var career: ClubCareer = load("res://src/gameplay/season/successor_owner_general_v1/career.gd").new()
-	career.current = 2
+	career.origin = basis.origin
+	career.current = int(basis.target_run)
 	career.predecessor = envelope.duplicate(true)
 	career.start_basis = basis.duplicate(true)
 	career._assets = basis.assets.duplicate(true)
@@ -46,7 +58,7 @@ static func _create(envelope: Variant, seed_value: int) -> SeasonState:
 	if career._pennants.is_empty(): return null
 	career._plaques = basis.plaques.duplicate(true)
 	career._pitch_catalog = load("res://src/gameplay/season/successor_owner_general_v1/catalog.gd").Game.signature()
-	career.runs.append(basis.predecessor.row.duplicate(true))
+	if career.origin == "legacy112": career.runs.append(basis.predecessor.row.duplicate(true))
 	career.runs.append({})
 	season.career = career
 	season.league_career = true
@@ -163,10 +175,7 @@ static func base_matches(season: SeasonState) -> bool:
 		return false
 	if not ClubCareer.same(season.build._batch_start,s.batch):
 		return false
-	return career.current == 2 and career.runs.size() == 2 \
-		and not career.predecessor.is_empty() and not career.start_basis.is_empty() \
-		and ClubCareer.same(career.runs[0],career.start_basis.predecessor.row) \
-		and ClubCareer.same(career.predecessor,career.start_basis.predecessor.envelope) \
+	return _origin_matches(career) \
 		and (season.phase == SeasonState.Phase.COMPLETE or (ClubCareer.same(career._assets,career.start_basis.assets) \
 		and ClubCareer.same(career._pennants,load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").birth_pennants(career.start_basis)) \
 		and ClubCareer.same(career._plaques,career.start_basis.plaques))) \
@@ -178,7 +187,7 @@ static func row(season: SeasonState) -> Dictionary:
 	if details.is_empty():
 		return {}
 	return {
-			"id": 2,
+			"id": season.career.current,
 			"seed": season.season_seed,
 			"league": season.league_rules.get("league", "standard"),
 			"tier": 0,
@@ -213,8 +222,11 @@ static func _basis_shape(basis: Dictionary) -> bool:
 	for key: String in ["starts","assets","pennants","plaques","predecessor"]:
 		if not basis.get(key) is Dictionary:
 			return false
-	if not basis.predecessor.get("row") is Dictionary or not basis.predecessor.get("envelope") is Dictionary:
-		return false
+	if basis.get("origin") == "legacy112":
+		if basis.get("target_run") != 2 or not basis.predecessor.get("row") is Dictionary or not basis.predecessor.get("envelope") is Dictionary: return false
+	elif basis.get("origin") == "fresh-general":
+		if basis.get("target_run") != 1 or not basis.predecessor.is_empty(): return false
+	else: return false
 	if not basis.get("exotic_history") is Array or not basis.get("player_access") is Array:
 		return false
 	var s: Dictionary = basis.starts
@@ -227,3 +239,12 @@ static func _basis_shape(basis: Dictionary) -> bool:
 
 static func matches(season: SeasonState) -> bool:
 	return structural(season)
+
+static func _origin_matches(career: ClubCareer) -> bool:
+	if career.origin != career.start_basis.get("origin"): return false
+	if career.origin == "fresh-general":
+		return career.current == 1 and career.runs.size() == 1 and career.predecessor.is_empty() and career.start_basis.predecessor.is_empty()
+	return career.origin == "legacy112" and career.current == 2 and career.runs.size() == 2 \
+		and not career.predecessor.is_empty() \
+		and ClubCareer.same(career.runs[0],career.start_basis.predecessor.row) \
+		and ClubCareer.same(career.predecessor,career.start_basis.predecessor.envelope)

@@ -1,6 +1,6 @@
 extends RefCounted
-## Deterministic run2 proposal only. Caller must reconstruct the authenticated
-## completed112 predecessor and actual General114 run before publishing anything.
+## Deterministic fresh run1 or inherited run2 proposal. Caller reconstructs
+## genesis or authenticated completed112 predecessor and the actual General run.
 ## No supplied balance, row or progress validator is independent owner authority.
 const Mixed = preload("mixed_progress.gd")
 const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
@@ -8,17 +8,18 @@ const Assets = preload("assets.gd")
 const Plaques = preload("plaque_rewards.gd")
 
 static func _basis_shape(basis: Dictionary) -> bool:
-	return basis.get("predecessor") is Dictionary and basis.predecessor.get("row") is Dictionary \
-		and basis.get("assets") is Dictionary and not basis.assets.is_empty() \
-		and basis.get("pennants") is Dictionary and basis.get("plaques") is Dictionary
+	if not basis.get("predecessor") is Dictionary or not basis.get("assets") is Dictionary or basis.assets.is_empty() \
+		or not basis.get("pennants") is Dictionary or not basis.get("plaques") is Dictionary: return false
+	if basis.get("origin") == "fresh-general": return basis.get("target_run") == 1 and basis.predecessor.is_empty()
+	return basis.get("origin") == "legacy112" and basis.get("target_run") == 2 and basis.predecessor.get("row") is Dictionary
 
 static func birth_pennants(basis: Dictionary) -> Dictionary:
 	# Cheap shape-only deterministic metadata; not validation or asset authority.
 	if not _basis_shape(basis): return {}
 	if not basis.pennants.is_empty() and (not basis.pennants.get("eras") is Dictionary or not basis.pennants.has("version")): return {}
 	var staged: ClubCareer = ClubCareer.new()
-	staged.current = 2
-	staged.runs.append(basis.predecessor.row.duplicate(true))
+	staged.current = int(basis.target_run)
+	if basis.origin == "legacy112": staged.runs.append(basis.predecessor.row.duplicate(true))
 	staged.runs.append({})
 	staged._pennants = basis.pennants.duplicate(true)
 	# Original prospective birth adoption, not an award or historical backfill.
@@ -26,12 +27,15 @@ static func birth_pennants(basis: Dictionary) -> Dictionary:
 	return staged._pennants.duplicate(true)
 
 static func state(active: Dictionary, basis: Dictionary, terminal: bool) -> Dictionary:
-	if not _basis_shape(basis) or not Mixed.history([basis.predecessor.row]) or active.get("id") != 2 or active.get("status") != "active" \
+	if not _basis_shape(basis) or active.get("id") != basis.target_run or active.get("status") != "active" \
 		or not active.get("receipt") is Dictionary or not active.receipt.is_empty() \
 		or not active.get("proof") is Dictionary or not active.proof.get("scores") is Array \
 		or not Mixed.Current.valid(active.get("player_progress"),active.proof.scores):
 		return {}
-	var prior: Array = [basis.predecessor.row.duplicate(true)]
+	var prior: Array = []
+	if basis.origin == "legacy112":
+		prior.append(basis.predecessor.row.duplicate(true))
+		if not Mixed.history(prior): return {}
 	var row: Dictionary = active.duplicate(true)
 	if terminal:
 		row = Policy.complete(row,prior).get("row",{})
@@ -42,7 +46,7 @@ static func state(active: Dictionary, basis: Dictionary, terminal: bool) -> Dict
 	var pennants: Dictionary = birth_pennants(basis)
 	if pennants.is_empty(): return {}
 	var staged: ClubCareer = ClubCareer.new()
-	staged.current = 2
+	staged.current = int(basis.target_run)
 	staged.runs.assign(rows)
 	staged._assets = basis.assets.duplicate(true)
 	staged._pennants = pennants

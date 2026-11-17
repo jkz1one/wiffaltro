@@ -163,16 +163,13 @@ func _clone() -> SeasonState:
 func create_fresh() -> void:
 	if not _available() or season != null or FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH+".bak"):
 		return
+	# An explicit predecessor always uses authenticated continuation. Empty input
+	# means a genuinely new career, never an implicit read/replacement of old saves.
 	var input: Dictionary = predecessor.duplicate(true)
-	if input.is_empty():
-		var old_path: String = "user://successor-fresh-owner-terminal-v1.json"
-		var file: FileAccess = FileAccess.open(old_path,FileAccess.READ)
-		if file != null and file.get_length() <= 8*1024*1024:
-			var parsed: Variant = JSON.parse_string(file.get_as_text())
-			if parsed is Dictionary: input = parsed
-	var candidate: SeasonState = Runtime.create_next(input,int(Time.get_unix_time_from_system()) & 0x7fffffff)
+	var seed_value: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
+	var candidate: SeasonState = Runtime.create_fresh(seed_value) if input.is_empty() else Runtime.create_next(input,seed_value)
 	if candidate == null:
-		notice = "A verified completed predecessor is required. Existing saves remain unchanged."
+		notice = "The requested career could not start safely. Existing saves remain unchanged."
 		show_season()
 		return
 	_retain(candidate)

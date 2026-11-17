@@ -114,10 +114,12 @@ const Start = preload("res://src/gameplay/season/successor_owner_general_v1/star
 const EVIDENCE: String = "user://owned-general-evidence"
 var failed: bool = false
 var original_bytes: PackedByteArray
+var fresh_origin: bool = false
 var original_envelope: Dictionary
 
 func run() -> void:
-	if not OS.get_cmdline_user_args().has("completed"):
+	fresh_origin = OS.get_cmdline_user_args().has("fresh")
+	if not fresh_origin and not OS.get_cmdline_user_args().has("completed"):
 		negative_run()
 		return
 	await completed_run()
@@ -126,7 +128,7 @@ func finish_step(app: SeasonApp, action: String, complete: bool = false) -> void
 	if failed: return
 	## Equality only: the real production Save authenticated this durable payload.
 	var payload: Dictionary = Codec.guard_snapshot(app.season)
-	if not check(app.get("retained") == null and not app._busy and not payload.is_empty() and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and FileAccess.get_file_as_bytes("user://source-owned.json") == original_bytes,"exact durable owned boundary and immutable predecessor "+action): return
+	if not check(app.get("retained") == null and not app._busy and not payload.is_empty() and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and source_unchanged(),"exact durable owned boundary and immutable predecessor "+action): return
 	if not check(DirAccess.make_dir_recursive_absolute(EVIDENCE) == OK,"private owner evidence directory"): return
 	var index: int = 0
 	while FileAccess.file_exists(EVIDENCE+"/%04d.json"%index) or FileAccess.file_exists(EVIDENCE+"/%04d.meta.json"%index):
@@ -152,18 +154,26 @@ func done(app: SeasonApp) -> void:
 
 func completed_run() -> void:
 	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated completed predecessor mode"): return
-	original_bytes = FileAccess.get_file_as_bytes("user://source-owned.json")
-	var parsed = JSON.parse_string(original_bytes.get_string_from_utf8())
-	if not check(parsed is Dictionary and parsed.get("version") == 112 and parsed.get("checkpoint") is Dictionary and parsed.checkpoint.get("phase") == SeasonState.Phase.COMPLETE,"requires actual completed112 input; no synthetic completion"): return
-	original_envelope = parsed
+	if fresh_origin:
+		if not check(not FileAccess.file_exists("user://source-owned.json"),"fresh owned origin uses no predecessor fixture"): return
+	else:
+		original_bytes = FileAccess.get_file_as_bytes("user://source-owned.json")
+		var parsed = JSON.parse_string(original_bytes.get_string_from_utf8())
+		if not check(parsed is Dictionary and parsed.get("version") == 112 and parsed.get("checkpoint") is Dictionary and parsed.checkpoint.get("phase") == SeasonState.Phase.COMPLETE,"requires actual completed112 input; no synthetic completion"): return
+		original_envelope = parsed
 	var app = App.new()
 	app.predecessor = original_envelope.duplicate(true)
 	add_child(app)
 	if not FileAccess.file_exists(Save.PATH):
 		if not check(not OS.get_cmdline_user_args().has("verify-complete") and not FileAccess.file_exists(Save.PATH+".bak") and not DirAccess.dir_exists_absolute(EVIDENCE),"separate pristine owned116 slot"): return
-		var fresh = Runtime.create_next(original_envelope,7001)
-		if not check(fresh != null and fresh.career.current == 2 and fresh.season_seed == 7001,"genuine authenticated inherited run2 birth"): return
-		app._retain(fresh)
+		if fresh_origin:
+			app.create_fresh()
+			if not check(app.season != null and app.season.career.origin == "fresh-general" and app.season.career.current == 1,"actual App fresh owned birth persisted"): return
+		else:
+			var fresh = Runtime.create_next(original_envelope,7001)
+			if not check(fresh != null and fresh.career.current == 2 and fresh.season_seed == 7001,"genuine authenticated inherited run2 birth"): return
+			app._retain(fresh)
+		if not inherited_checks(app): return
 		finish_step(app,"birth")
 		for index in range(4):
 			if failed: return
@@ -173,7 +183,7 @@ func completed_run() -> void:
 		done(app)
 		return
 	app.reload_save()
-	if not check(app.season != null and app.season.season_seed == 7001 and Codec.scope(app.season) and inherited_checks(app),"strict current owned116 cold restore"): return
+	if not check(app.season != null and (fresh_origin or app.season.season_seed == 7001) and Codec.scope(app.season) and inherited_checks(app),"strict current owned116 cold restore"): return
 	if OS.get_cmdline_user_args().has("verify-complete"):
 		if final_checks(app): finish_step(app,"cold-complete",true)
 		done(app)
@@ -200,7 +210,10 @@ func completed_run() -> void:
 func inherited_checks(app: SeasonApp) -> bool:
 	var career = app.season.career
 	var basis: Dictionary = career.start_basis
-	return check(Start.base_matches(app.season) and career.current == 2 and career.runs.size() == 2 and ClubCareer.same(career.predecessor,original_envelope) and ClubCareer.same(career.runs[0],basis.predecessor.row) and ClubCareer.same(career._assets,basis.assets) and ClubCareer.same(career._pennants,load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").birth_pennants(basis)) and ClubCareer.same(career._plaques,basis.plaques) and ClubCareer.same(app.season.build._pool,basis.player_access) and ClubCareer.same(app.season.player_access,basis.player_access) and ClubCareer.same(app.season.build._book._exotic_start,basis.exotic_history),"original predecessor ledger awards pool and exotic history unchanged")
+	if fresh_origin:
+		var expected: Dictionary = load("res://src/gameplay/season/successor_owner_general_v1/genesis.gd").derive(app.season.season_seed)
+		return check(career.origin == "fresh-general" and career.current == 1 and career.runs.size() == 1 and career.predecessor.is_empty() and ClubCareer.same(basis,expected) and Start.base_matches(app.season) and ClubCareer.same(career._assets,expected.assets) and ClubCareer.same(career._plaques,expected.plaques) and ClubCareer.same(career._pennants,load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").birth_pennants(expected)) and ClubCareer.same(app.season.player_access,expected.player_access) and ClubCareer.same(app.season.build._pool,expected.player_access) and app.season.build._book._exotic_start.is_empty(),"fresh original genesis assets access starts metadata and current1 preserved")
+	return check(career.origin == "legacy112" and Start.base_matches(app.season) and career.current == 2 and career.runs.size() == 2 and ClubCareer.same(career.predecessor,original_envelope) and ClubCareer.same(career.runs[0],basis.predecessor.row) and ClubCareer.same(career._assets,basis.assets) and ClubCareer.same(career._pennants,load("res://src/gameplay/season/successor_owner_general_v1/settlement.gd").birth_pennants(basis)) and ClubCareer.same(career._plaques,basis.plaques) and ClubCareer.same(app.season.build._pool,basis.player_access) and ClubCareer.same(app.season.player_access,basis.player_access) and ClubCareer.same(app.season.build._book._exotic_start,basis.exotic_history),"original predecessor ledger awards pool and exotic history unchanged")
 
 func shop_for(app: SeasonApp) -> SeasonShopWindow:
 	for child in app.menu.get_children():
@@ -423,7 +436,7 @@ func final_checks(app: SeasonApp) -> bool:
 				if not check(bank.cash()-cash == (18 if event.win else 12),"original ordinary round income"): return false
 		if not check(rewards == 1 and build._bank.view().rewards.size() == 1 and ClubCareer.same(bank.view(),build._bank.view()),"all six owned-run clubs paid exactly once"): return false
 	var payload: Dictionary = Codec.capture(season)
-	if not check(not payload.is_empty() and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and FileAccess.get_file_as_bytes("user://source-owned.json") == original_bytes,"exact cold canonical owned checkpoint and source bytes"): return false
+	if not check(not payload.is_empty() and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))) and source_unchanged(),"exact cold canonical owned checkpoint and source bytes"): return false
 	if OS.get_cmdline_user_args().has("verify-complete"):
 		# A genuine independently reconstructed owner is still not a trusted basis.
 		# Coordinating the live basis and build cannot replace predecessor authority.
@@ -431,11 +444,17 @@ func final_checks(app: SeasonApp) -> bool:
 		if not check(not guard.is_empty(),"nonempty original forgery comparison baseline"): return false
 		var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
 		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		var wrong_origin: Dictionary = payload.duplicate(true)
+		wrong_origin.checkpoint.career.origin = "legacy112" if fresh_origin else "fresh-general"
+		if not check(Codec.restore(wrong_origin) == null,"origin substitution cannot grant or erase predecessor authority"): return false
 		var forged: SeasonState = Codec.clone(season)
 		if not check(forged != null,"genuine owned clone for coordinated inherited-start negative"): return false
 		forged.career.start_basis.starts.order = not forged.career.start_basis.starts.order
 		forged.build._order_start = forged.career.start_basis.starts.order
 		if not check(Codec.capture(forged).is_empty(),"coordinated inherited Order basis/build forgery rejected by public capture"): return false
-		if not check(ClubCareer.same(Codec.guard_snapshot(season),guard) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and FileAccess.get_file_as_bytes("user://source-owned.json") == original_bytes,"coordinated forgery leaves genuine owner and source/save bytes unchanged"): return false
+		if not check(ClubCareer.same(Codec.guard_snapshot(season),guard) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and source_unchanged(),"coordinated forgery leaves genuine owner and source/save bytes unchanged"): return false
 	print("SCOPE: saved-candidate mutation/disk-change delayed promotion remains pending; no artificial retained_saved token used")
 	return true
+
+func source_unchanged() -> bool:
+	return not FileAccess.file_exists("user://source-owned.json") if fresh_origin else FileAccess.get_file_as_bytes("user://source-owned.json") == original_bytes

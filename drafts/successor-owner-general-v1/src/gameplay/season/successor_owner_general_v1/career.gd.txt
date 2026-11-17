@@ -1,13 +1,15 @@
 extends ClubCareer
-## Authenticated frozen predecessor plus run2; terminal settlement is atomic.
+## Explicit fresh run1 or authenticated frozen predecessor plus run2; atomic settlement.
 const Settlement = preload("settlement.gd")
 const FORMAT: String = "successor-owned-general-career-v1"
+var origin: String = ""
 var predecessor: Dictionary = {}
 var start_basis: Dictionary = {}
 
 func fork() -> ClubCareer:
 	var result: ClubCareer = get_script().new()
 	result.current = current
+	result.origin = origin
 	result.runs = runs.duplicate(true)
 	result._assets = _assets.duplicate(true)
 	result._pennants = _pennants.duplicate(true)
@@ -18,13 +20,13 @@ func fork() -> ClubCareer:
 	return result
 
 func to_data() -> Dictionary:
-	return {"format":FORMAT,"current":current,"runs":runs.duplicate(true),
+	return {"format":FORMAT,"origin":origin,"current":current,"runs":runs.duplicate(true),
 		"assets":_assets.duplicate(true),"pennants":_pennants.duplicate(true),
 		"plaques":_plaques.duplicate(true),"pitch_catalog":_pitch_catalog,
 		"predecessor":predecessor.duplicate(true),"start_basis":start_basis.duplicate(true)}
 
 func sync(season: SeasonState) -> bool:
-	if season == null or season.career != self or current != 2 or runs.size() != 2 \
+	if season == null or season.career != self or current not in [1,2] or runs.size() != current \
 		or not load("res://src/gameplay/season/successor_owner_general_v1/start.gd").structural(season):
 		return false
 	var row: Dictionary = load("res://src/gameplay/season/successor_owner_general_v1/start.gd").row(season)
@@ -33,11 +35,11 @@ func sync(season: SeasonState) -> bool:
 	var proposed: Dictionary = Settlement.state(row,start_basis,season.phase == SeasonState.Phase.COMPLETE)
 	if proposed.is_empty(): return false
 	# No partial publication if original receipt, metrics, award or asset replay fails.
-	runs[1] = proposed.row.duplicate(true)
+	runs[current-1] = proposed.row.duplicate(true)
 	_assets = proposed.assets.duplicate(true)
 	_pennants = proposed.pennants.duplicate(true)
 	_plaques = proposed.plaques.duplicate(true)
-	return ClubCareer.same(runs[1],proposed.row) and ClubCareer.same(_assets,proposed.assets) \
+	return ClubCareer.same(runs[current-1],proposed.row) and ClubCareer.same(_assets,proposed.assets) \
 		and ClubCareer.same(_pennants,proposed.pennants) and ClubCareer.same(_plaques,proposed.plaques)
 
 func start(_season: SeasonState, _selected_tier: int = 0) -> bool:
