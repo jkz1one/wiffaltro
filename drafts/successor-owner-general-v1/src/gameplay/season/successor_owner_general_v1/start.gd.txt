@@ -1,0 +1,222 @@
+extends RefCounted
+## INACTIVE integration: tenth regular round and playoffs await mixed-family
+## terminal settlement. This is NOT a design cap or a release-ready game.
+const Prefix = preload("res://src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_general_v1/career_progress.gd")
+const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const GameOpponents = preload("res://src/gameplay/season/successor_league_general_v2/opponents.gd")
+const GamePhysical = preload("res://src/gameplay/season/successor_owner_general_v1/physical_fixtures.gd")
+
+static func create(envelope: Variant, seed_value: int) -> SeasonState:
+	var roots: Array[Resource] = Prefix.LegacyTerminal.Codec._operation_content_roots()
+	var result: SeasonState = _create(envelope, seed_value)
+	roots.clear()
+	return result
+
+static func _create(envelope: Variant, seed_value: int) -> SeasonState:
+	if not SeasonOwnership._whole(seed_value,0,2147483647):
+		return null
+	var basis: Dictionary = Prefix.derive(envelope)
+	if basis.is_empty():
+		return null
+	var season: SeasonState = load("res://src/gameplay/season/successor_owner_general_v1/runtime.gd").new()
+	season.season_seed = seed_value
+	season.league_rules = LeagueRules.capture("dugout")
+	season.league_live = true
+	season.build = GameBuild.new(seed_value)
+	if not season.build.enable_successor_pitch_catalog() or not season.build.enable_league_rules(season.league_rules):
+		return null
+	season.opponents = GameOpponents.new()
+	season.opponents._format = 13
+	season.physical = GamePhysical.new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	season.draft_pool = ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
+	for index in range(6):
+		season.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":[],"draw":rng.randf()})
+	season._build_schedule()
+	if not _install(season.build,basis) or not ClubPlayerDraft.apply(season,basis.player_access):
+		return null
+	var career: ClubCareer = load("res://src/gameplay/season/successor_owner_general_v1/career.gd").new()
+	career.current = 2
+	career.predecessor = envelope.duplicate(true)
+	career.start_basis = basis.duplicate(true)
+	career._assets = basis.assets.duplicate(true)
+	career._pennants = basis.pennants.duplicate(true)
+	career._plaques = basis.plaques.duplicate(true)
+	career._pitch_catalog = load("res://src/gameplay/season/successor_owner_general_v1/catalog.gd").Game.signature()
+	career.runs.append(basis.predecessor.row.duplicate(true))
+	career.runs.append({})
+	season.career = career
+	season.league_career = true
+	return season if career.sync(season) else null
+
+static func _install(build: SeasonBuild, basis: Dictionary) -> bool:
+	var s: Dictionary = basis.starts
+	build._gear_progress.enabled = true
+	build._gear_progress.start = s.gear.duplicate(true)
+	build._sponsor_progress.enabled = true
+	build._sponsor_progress.start = s.sponsors.duplicate(true)
+	build._order_start = s.order
+	build._rain_start = s.rain
+	build._transfer_start = s.transfer
+	build._supply_start = s.supply
+	build._checkout_start = s.checkout
+	build._association_start = s.association
+	build._freezer_start = s.freezer
+	build._sides_start = s.sides
+	build._jump_start = s.jump
+	build._sure_start = s.sure
+	build._major.start = s.major
+	build._abilities.start = s.abilities
+	build._copy.start = s.copy
+	build._field_start = s.field
+	build._batch_start = s.batch.duplicate(true)
+	build._pool.assign(basis.player_access)
+	return build._book.install_exotic_start(basis.exotic_history)
+
+static func structural(season: SeasonState) -> bool:
+	if season == null or season.get_script() != load("res://src/gameplay/season/successor_owner_general_v1/runtime.gd") \
+		or season.ownership == null \
+		or season.build == null or season.build.get_script() != GameBuild \
+		or season.opponents == null or season.opponents.get_script() != GameOpponents \
+		or season.physical == null or season.physical.get_script() != GamePhysical \
+		or season.career == null or season.career.get_script() != load("res://src/gameplay/season/successor_owner_general_v1/career.gd") \
+		or not season.league_career or not season.league_live \
+		or not ClubCareer.same(season.league_rules,LeagueRules.capture("dugout")) \
+		or season.picks.size() > 4 \
+		or season.build._book == null or season.build._bank == null \
+		or season.build._gear_progress == null or season.build._sponsor_progress == null \
+		or season.build._major == null or season.build._abilities == null or season.build._copy == null:
+		return false
+	# Structural consistency also runs inside exact replay, where heat-team and
+	# projecting are valid private transients. Public Codec checks those separately.
+	if season.phase == SeasonState.Phase.DRAFT:
+		if season.picks.size() >= 4 or not season.results.is_empty() or not season.player_results.is_empty(): return false
+	elif season.phase != SeasonState.Phase.REGULAR or season.picks.size() != 4 or not SeasonOwnership._whole(season.round_index,0,9):
+		return false # Terminal/playoffs are not admitted by this bounded owner yet.
+	if not season.inventory_rules.is_empty() or not season._closed_access.is_empty() \
+		or not season._dynasty_start.is_empty() or not season._dynasty_owner_binding.is_empty() \
+		or not season._dynasty_career_session.is_empty() or not season._league_home_context.is_empty() \
+		or not season._standard_live_context.is_empty() or not season._standard_bound_grant.is_empty() \
+		or not season.home_property.is_empty() or not season.npc_venues.is_empty() \
+		or not season.final_venue.is_empty() or not season.owned_surface_night.is_empty() \
+		or not season.build.league_context_valid() or season.build._league_rules != season.league_rules \
+		or season.build._market != 0 or season.opponents._format != 13:
+		return false
+	return base_matches(season) and season._league_opponent_context_consistent()
+
+# Exact correspondence to this owner's rederived start basis, not independent
+# authentication of that basis. Public creation/decoder always calls Prefix.derive.
+static func base_matches(season: SeasonState) -> bool:
+	if season == null or season.build == null or season.career == null \
+		or season.career.get_script() != load("res://src/gameplay/season/successor_owner_general_v1/career.gd") \
+		or season.build.get_script() != GameBuild or season.build._book == null \
+		or season.build._book.get_script() != preload("res://src/gameplay/season/successor_league_general_v2/development.gd") \
+		or season.build._gear_progress == null or season.build._sponsor_progress == null \
+		or season.build._major == null or season.build._abilities == null or season.build._copy == null:
+		return false
+	var career: ClubCareer = season.career
+	if not _basis_shape(career.start_basis):
+		return false
+	var s: Dictionary = career.start_basis.starts
+	if not season.build._gear_progress.enabled or not season.build._sponsor_progress.enabled \
+		or not ClubCareer.same(season.build._gear_progress.start,s.gear) \
+		or not ClubCareer.same(season.build._sponsor_progress.start,s.sponsors) \
+		or not ClubCareer.same(season.build._book._exotic_start,career.start_basis.exotic_history) \
+		or not ClubCareer.same(season.build._pool,career.start_basis.player_access):
+		return false
+	if not ClubCareer.same(season.build._order_start,s.order):
+		return false
+	if not ClubCareer.same(season.build._rain_start,s.rain):
+		return false
+	if not ClubCareer.same(season.build._transfer_start,s.transfer):
+		return false
+	if not ClubCareer.same(season.build._supply_start,s.supply):
+		return false
+	if not ClubCareer.same(season.build._checkout_start,s.checkout):
+		return false
+	if not ClubCareer.same(season.build._association_start,s.association):
+		return false
+	if not ClubCareer.same(season.build._freezer_start,s.freezer):
+		return false
+	if not ClubCareer.same(season.build._sides_start,s.sides):
+		return false
+	if not ClubCareer.same(season.build._jump_start,s.jump):
+		return false
+	if not ClubCareer.same(season.build._sure_start,s.sure):
+		return false
+	if not ClubCareer.same(season.build._major.start,s.major):
+		return false
+	if not ClubCareer.same(season.build._abilities.start,s.abilities):
+		return false
+	if not ClubCareer.same(season.build._copy.start,s.copy):
+		return false
+	if not ClubCareer.same(season.build._field_start,s.field):
+		return false
+	if not ClubCareer.same(season.build._batch_start,s.batch):
+		return false
+	return career.current == 2 and career.runs.size() == 2 \
+		and not career.predecessor.is_empty() and not career.start_basis.is_empty() \
+		and ClubCareer.same(career.runs[0],career.start_basis.predecessor.row) \
+		and ClubCareer.same(career.predecessor,career.start_basis.predecessor.envelope) \
+		and ClubCareer.same(career._assets,career.start_basis.assets) \
+		and ClubCareer.same(career._pennants,career.start_basis.pennants) \
+		and ClubCareer.same(career._plaques,career.start_basis.plaques) \
+		and ClubPlayerDraft.frozen_matches(season) \
+		and ClubCareer.same(season.player_access,career.start_basis.player_access)
+
+static func row(season: SeasonState) -> Dictionary:
+	var details: Dictionary = Progress.capture(season)
+	if details.is_empty():
+		return {}
+	return {
+			"id": 2,
+			"seed": season.season_seed,
+			"league": season.league_rules.get("league", "standard"),
+			"tier": 0,
+			"status": "active",
+			"proof": ClubSeasonRecord.capture(season),
+			"receipt": {},
+			"gear": season.build._gear_progress.games.duplicate(true),
+			"sponsors": season.build._sponsor_progress.games.duplicate(true),
+			"order_rerolls": season.build._paid_rerolls,
+			"rain_earned": season.build._rain_earned,
+			"transfer_earned": season.build._transfer_earned,
+			"checkout_earned": season.build._checkout_earned,
+			"association_earned": season.build._association_earned,
+			"freezer_earned": season.build._freezer_earned,
+			"sides_earned": season.build._sides_earned,
+			"jump_earned": season.build._jump_earned,
+			"sure_earned": season.build._sure_earned,
+			"major_earned": season.build._major.earned,
+			"sky_outs": season.build._abilities.earned,
+			"copy_earned": season.build._copy.earned,
+			"field_outs": season.build._field_outs,
+			"batch_used": season.build._batch_used.duplicate(),
+			"collection": ClubCollection.acquired(season.build),
+			"supplies_used": season.build._supply_used,
+			"player_progress": details,
+			"league_rules": season.league_rules.duplicate(true)
+		}
+
+
+# Structural shape only. Public Codec/constructor still replays the predecessor.
+static func _basis_shape(basis: Dictionary) -> bool:
+	for key: String in ["starts","assets","pennants","plaques","predecessor"]:
+		if not basis.get(key) is Dictionary:
+			return false
+	if not basis.predecessor.get("row") is Dictionary or not basis.predecessor.get("envelope") is Dictionary:
+		return false
+	if not basis.get("exotic_history") is Array or not basis.get("player_access") is Array:
+		return false
+	var s: Dictionary = basis.starts
+	if not s.get("gear") is Dictionary or not s.get("sponsors") is Dictionary or not s.get("batch") is Array:
+		return false
+	for key: String in ["gear_enabled","sponsor_enabled","order","rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","field"]:
+		if not s.get(key) is bool:
+			return false
+	return SeasonOwnership._whole(s.get("supply"),0,3) and SeasonOwnership._whole(s.get("abilities"),0,3)
+
+static func matches(season: SeasonState) -> bool:
+	return structural(season)

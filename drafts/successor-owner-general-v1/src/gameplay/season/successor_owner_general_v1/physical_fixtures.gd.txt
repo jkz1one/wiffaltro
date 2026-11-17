@@ -1,0 +1,496 @@
+extends SeasonPhysicalFixtures
+## Versioned evidence archive. Historical score-only seasons never instantiate this.
+# gdlint: disable=max-returns
+
+
+
+func to_data() -> Dictionary:
+	return {"version": 1, "reports": reports.duplicate(true), "pending": pending.duplicate(true)}
+
+
+static func from_data(value: Variant, pitch_catalog: String = "") -> SeasonPhysicalFixtures:
+	if not load("res://src/gameplay/season/successor_league_general_v2/pitch_evidence.gd").context_valid(pitch_catalog):
+		return null
+	if (
+		not value is Dictionary
+		or not SeasonOwnership._keys(value, ["version", "reports", "pending"])
+	):
+		return null
+	if (
+		value.version != 1
+		or not value.reports is Array
+		or value.reports.size() > 23
+		or not value.pending is Dictionary
+	):
+		return null
+	var result: SeasonPhysicalFixtures = load("res://src/gameplay/season/successor_owner_general_v1/physical_fixtures.gd").new()
+	var ids: Array = []
+	for row: Variant in value.reports:
+		if not envelope(row, pitch_catalog) or ids.has(row.fixture):
+			return null
+		ids.append(row.fixture)
+		result.reports.append(row.duplicate(true))
+	result.pending = value.pending.duplicate(true)
+	result.projecting = true
+	return result
+
+
+static func envelope(value: Variant, pitch_catalog: String = "") -> bool:
+	return (
+		value is Dictionary
+		and SeasonOwnership._keys(value, ["fixture", "request", "report"])
+		and SeasonOwnership._whole(value.fixture, 0, 32)
+		and value.request is String
+		and value.request.length() == 64
+		and load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").accepted(value.report, pitch_catalog)
+	)
+
+
+static func seed_for(season: SeasonState, fixture: Dictionary) -> int:
+	return (season.season_seed + int(fixture.id) * 104729) & 0x7fffffff
+
+
+static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
+	if not load("res://src/gameplay/season/successor_owner_general_v1/codec.gd").scope(season):
+		return null
+	if season != null and not season._league_home_context.is_empty():
+		if season._league_home_context.get("format") not in [91, 92, 93, 94, 95, 96] \
+			or not load("res://src/gameplay/season/dynasty_league_home_live.gd").matches(season):
+			return null  # Save90 and unsupported home families remain pre-physical.
+	if (
+		season == null
+		or not season.league_context_consistent()
+		or (not season.league_rules.is_empty() and not season.league_live)
+	):
+		return null  # Only explicit live staging admits physical fixtures.
+	if (
+		(int(fixture.get("away", -1)) == 0 or int(fixture.get("home", -1)) == 0)
+		and SeasonInventoryRules.closed(season.build)
+	):
+		return null
+	if not season.academy_fixture_ready(fixture):
+		return null
+	var away: TeamMatchState = season._make_team(int(fixture.away), int(fixture.id))
+	var home: TeamMatchState = season._make_team(int(fixture.home), int(fixture.id))
+	if away == null or home == null:
+		return null
+	var state: MatchState = MatchState.create(away, home)
+	state.league_rules = season.league_rules.duplicate(true)
+	state.pitch_catalog = catalog_for(season)
+	away.pitch_catalog = state.pitch_catalog
+	home.pitch_catalog = state.pitch_catalog
+	if not season.inventory_rules.is_empty() and (fixture.away == 0 or fixture.home == 0):
+		var human: TeamMatchState = away if fixture.away == 0 else home
+		human.field_supply.receipt = SeasonFieldGrant.receipt(int(fixture.id))
+		human.field_supply.retired = SeasonInventoryResale.field_retired(
+			season.build._bank, int(fixture.id)
+		)
+	state.stadium = StadiumLayoutSnapshot.for_fixture(season, fixture)
+	if (
+		StadiumLayoutSnapshot.is_terrain(season.home_property)
+		and fixture.get("home", -1) == 0
+		and not fixture.get("neutral", false)
+		and state.stadium.is_empty()
+	):
+		return null
+	if StadiumSurfaceNightSnapshot.expected(season, fixture) and state.stadium.is_empty():
+		return null
+	if (
+		(
+			LeagueRules.equipment(season.league_rules)
+			or LeagueRules.doubleheader(season.league_rules)
+			or not season.inventory_rules.is_empty()
+		)
+		and (fixture.away == 0 or fixture.home == 0)
+	):
+		state.gear_usage.equipped = SeasonReclamation.receipts(season.build._bank.view())
+	state.ai_tactical_quality = clampf(
+		0.15 + season.difficulty * 0.25 + minf(int(fixture.round), 9) * 0.025, 0.0, 1.0
+	)
+	return state
+
+
+static func request_key(season: SeasonState, fixture: Dictionary) -> String:
+	var field: FieldDefinition = SeasonState.field_for_fixture(fixture, season)
+	if field == null:
+		return ""
+	var state: MatchState = match_for(season, fixture)
+	if state == null:
+		return ""
+	var rows: Array = []
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		var players: Array = []
+		for player: PlayerMatchState in team.roster:
+			players.append(
+				{
+					"definition": _resource(player.definition,
+						season.build != null and (season.build.pitch_catalog_current() or season.build.call("pitch_catalog_successor"))),
+					"capacity": player.stamina_max,
+					"initial": player.stamina_remaining
+				}
+			)
+		var row: Dictionary = {
+			"name": team.display_name,
+			"pitcher": team.pitcher_index,
+			"fielder": team.fielder_index,
+			"players": players
+		}
+		if team.ai_sponsor_choices:
+			row["choice_policy"] = 1
+		if not team.ai_tactical_hitter.is_empty():
+			row["batting_supplies"] = {
+				"featured": team.ai_tactical_hitter,
+				"held": team.ai_tactical_initial.duplicate(true)
+			}
+		if team.ai_heat:
+			row["heat_policy"] = 1
+		if not team.ai_recovery_pitcher.is_empty():
+			row["recovery_policy"] = {"version": 1, "pitcher": team.ai_recovery_pitcher}
+		if team.ai_base:
+			row["base_policy"] = 1
+		if not team.ai_budget.is_empty():
+			row["budget_policy"] = team.ai_budget.duplicate(true)
+		if not state.league_rules.is_empty():
+			row["league_ownership"] = team.league_ownership.duplicate(true)
+			if LeagueRules.dynasty(state.league_rules):
+				row["dynasty_start"] = team.dynasty_start.duplicate(true)
+			if LeagueRules.doubleheader(state.league_rules):
+				row["league_pair"] = team.league_pair.duplicate(true)
+		rows.append(row)
+	var resolver: String = (
+		load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").BASE_RESOLVER
+		if (state.away_team.ai_base or state.home_team.ai_base)
+		else (
+			load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").BUDGET_RESOLVER
+			if (
+				not state.away_team.ai_budget.is_empty() or not state.home_team.ai_budget.is_empty()
+			)
+			else (
+				load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").RECOVERY_RESOLVER
+				if (
+					not state.away_team.ai_recovery_pitcher.is_empty()
+					or not state.home_team.ai_recovery_pitcher.is_empty()
+				)
+				else (
+					load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").HEAT_RESOLVER
+					if (state.away_team.ai_heat or state.home_team.ai_heat)
+					else (
+						load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").TACTICAL_RESOLVER
+						if (
+							not state.away_team.ai_tactical_hitter.is_empty()
+							or not state.home_team.ai_tactical_hitter.is_empty()
+						)
+						else (
+							load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").CHOICE_RESOLVER
+							if (
+								state.away_team.ai_sponsor_choices
+								or state.home_team.ai_sponsor_choices
+							)
+							else load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").RESOLVER
+						)
+					)
+				)
+			)
+		)
+	)
+	var request: Dictionary = {
+		"resolver": resolver,
+		"seed": seed_for(season, fixture),
+		"field": String(field.id),
+		"quality": state.ai_tactical_quality,
+		"fixture": fixture,
+		"teams": rows
+	}
+	if not state.league_rules.is_empty():
+		request["league_rules"] = state.league_rules.duplicate(true)
+		request.resolver = (
+			PhysicalDoubleheaderReport.RESOLVER
+			if LeagueRules.doubleheader(state.league_rules)
+			else load("res://src/gameplay/season/successor_league_general_v2/physical_league.gd").RESOLVER
+		)
+	if not state.stadium.is_empty():
+		if StadiumLayoutSnapshot.is_terrain(state.stadium):
+			if (
+				not StadiumLayoutSnapshot.terrain_valid(state.stadium)
+				or state.stadium.version != StadiumLayoutSnapshot.TERRAIN_FIXTURE_VERSION
+			):
+				return ""
+			request.resolver = PhysicalStadiumReport.TERRAIN_RESOLVER
+		elif StadiumSurfaceNightSnapshot.is_family(state.stadium):
+			request.resolver = StadiumSurfaceNightReport.RESOLVER
+			if state.stadium.get("version") == StadiumSurfaceNightSnapshot.TIME_FIXTURE_VERSION:
+				request.resolver = StadiumSurfaceNightReport.TIME_RESOLVER
+			var proof: Dictionary = StadiumSurfaceNightSnapshot.proof(
+				state.stadium,
+				season.owned_surface_night,
+				StadiumSurfaceNightSnapshot.ledger(season)
+			)
+			if proof.is_empty():
+				return ""
+			request["night"] = proof
+		elif StadiumNpcSnapshot.is_public(state.stadium):
+			request.resolver = PhysicalStadiumReport.npc_resolver(state.stadium)
+			if request.resolver.is_empty():
+				return ""
+		else:
+			request.resolver = (
+				StadiumPoolOwnedReport.RESOLVER
+				if (state.stadium.get("version") == StadiumPoolOwnedSnapshot.FIXTURE_VERSION)
+				else PhysicalStadiumReport.RESOLVER
+			)
+		request["property"] = StadiumLayoutSnapshot.normalized(state.stadium)
+	if not state.pitch_catalog.is_empty():
+		request["pitch_catalog"] = state.pitch_catalog
+		request.resolver = load("res://src/gameplay/season/successor_league_general_v2/physical_report.gd").RESOLVER
+	return JSON.stringify(request, "", true, true).sha256_text()
+
+
+func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
+	return _resolve(season, fixture, true)
+
+
+# Transaction-local diagnostic comparison only: false repeats full self-validation.
+# No caller-supplied validity, row or cache is accepted by either path.
+func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true) -> Dictionary:
+	needed = {}
+	if cursor >= reports.size():
+		needed = fixture.duplicate(true)
+		return {}
+	var field: FieldDefinition = SeasonState.field_for_fixture(fixture, season)
+	if field == null:
+		error = "The saved away venue assignment is invalid."
+		return {}
+	var row: Dictionary = reports[cursor]
+	var validated_catalog: String = ""
+	var reuse_current: bool = (
+		allow_reuse
+		and get_script() == load("res://src/gameplay/season/successor_owner_general_v1/physical_fixtures.gd")
+		and season != null
+		and season.get_script() == load("res://src/gameplay/season/successor_owner_general_v1/runtime.gd")
+		and season.build != null
+		and season.build.get_script() == load("res://src/gameplay/season/successor_league_general_v2/build.gd")
+		and load("res://src/gameplay/season/successor_owner_general_v1/codec.gd").scope(season)
+		and not LeagueRules.doubleheader(season.league_rules) # Keep pair reports on independent full validation.
+		and season.ownership != null and season.physical == self
+		and season._heat_replay_team == null and season._doubleheader_replay_build == null
+		and season._pool_replay_ledger == null and season._npc_replay_run == -1
+	)
+	if reuse_current:
+		var value_budget: Array[int] = [100000, 8388608]
+		reuse_current = _current_report_value_graph(row, value_budget, 0)
+	if reuse_current:
+		validated_catalog = catalog_for(season)
+		reuse_current = not validated_catalog.is_empty()
+	var header: Dictionary
+	if reuse_current:
+		# Only JSON-value graphs reach deep duplication; no Object/Resource aliases.
+		row = row.duplicate(true)
+		header = load("res://src/gameplay/season/successor_league_general_v2/physical_report.gd").core(row.report, validated_catalog)
+	else:
+		header = load("res://src/gameplay/season/successor_league_general_v2/physical_report.gd").core(row.report, catalog_for(season)) \
+			if not catalog_for(season).is_empty() else (
+			PhysicalDoubleheaderReport.core(row.report) if row.report.get("version") == 28 else (
+			load("res://src/gameplay/season/successor_league_general_v2/physical_league.gd").core(row.report) if row.report.get("version") == 27 else row.report))
+	if (
+		header.is_empty()
+		or row.fixture != fixture.id
+		or row.request != request_key(season, fixture)
+		or header.seed != seed_for(season, fixture)
+		or (row.report.venue.field if not catalog_for(season).is_empty()
+			and row.report.has("venue") else header.field) != String(field.id)
+	):
+		error = "Saved physical fixture does not match its scheduled clubs and committed build."
+		return {}
+	var state: MatchState = match_for(season, fixture)
+	if state == null:
+		error = "The immutable night policy could not reconstruct its scheduled field."
+		return {}
+	if not state.pitch_catalog.is_empty():
+		if not (
+			load("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")._matches_validated_current(row.report, state)
+			if reuse_current and state.pitch_catalog == validated_catalog
+			else load("res://src/gameplay/season/successor_league_general_v2/physical_report.gd").matches(row.report, state)
+		) \
+			or (not state.stadium.is_empty() and not CurrentPhysicalStadiumEvidence.matches_source(
+				row.report.venue, season, fixture, state)):
+			error = "Current physical report does not match its exact catalog and source."
+			return {}
+	elif not state.league_rules.is_empty():
+		if not (
+			PhysicalDoubleheaderReport.matches(row.report, state)
+			if LeagueRules.doubleheader(state.league_rules)
+			else load("res://src/gameplay/season/successor_league_general_v2/physical_league.gd").matches(row.report, state)
+		):
+			error = "Saved physical report does not match its closed league and paid ownership."
+			return {}
+	elif (
+		int(row.report.get("version", 0)) in [27, 28]
+		or not PhysicalStadiumReport.matches(row.report, state.stadium)
+	):
+		error = "Saved physical report does not match its frozen fixture venue."
+		return {}
+	if (
+		state.pitch_catalog.is_empty() and StadiumNpcSnapshot.is_public(state.stadium)
+		and not StadiumNpcSnapshot.matches_fixture(row.report.property, season, fixture)
+	):
+		error = "Authored Yard report does not match its saved club assignment."
+		return {}
+	if (
+		state.pitch_catalog.is_empty() and StadiumSurfaceNightSnapshot.is_family(state.stadium)
+		and (
+			not StadiumSurfaceNightReport.matches(
+				row.report, state.stadium, StadiumSurfaceNightSnapshot.ledger(season)
+			)
+			or not StadiumSurfaceNightSnapshot.matches_fixture(
+				row.report.property, season, fixture, StadiumSurfaceNightSnapshot.ledger(season)
+			)
+		)
+	):
+		error = "Saved night report does not match its immutable policy and paid fixture."
+		return {}
+	if state.pitch_catalog.is_empty() and state.stadium.get("version") == StadiumPoolOwnedSnapshot.FIXTURE_VERSION:
+		if not StadiumPoolOwnedReport.matches(
+			row.report, state.stadium, StadiumPoolOwnedHumanEvidence.ledger(season)
+		):
+			error = "Owned Pool report does not match its paid fixture snapshot."
+			return {}
+	var report: Dictionary
+	var policies_match: bool
+	if not state.pitch_catalog.is_empty() or not state.league_rules.is_empty():
+		report = header
+		policies_match = PhysicalChoiceEvidence._matches_core(report, state)
+	elif SeasonOwnership._whole(
+		row.report.get("version"),
+		PhysicalStadiumReport.NPC_PUBLIC_VERSION,
+		PhysicalStadiumReport.NPC_PUBLIC_VERSION
+	):
+		# The full venue match above and this validating deep copy remain mandatory.
+		# Reuse only inside this call; policy readers do not mutate the core or state.
+		report = PhysicalStadiumReport.core(row.report)
+		policies_match = (
+			PhysicalChoiceEvidence._matches_core(report, state)
+			and PhysicalTacticalEvidence._report_matches_core(report, state)
+		)
+	else:
+		policies_match = (
+			PhysicalChoiceEvidence.matches(row.report, state)
+			and PhysicalTacticalEvidence.report_matches(row.report, state)
+		)
+	if not policies_match:
+		error = "Saved physical choices do not match the committed sponsor policy."
+		return {}
+	if report.is_empty():
+		report = PhysicalStadiumReport.core(row.report)
+	for index in range(2):
+		var team: TeamMatchState = state.away_team if index == 0 else state.home_team
+		var evidence: Dictionary = report.teams[index]
+		if evidence.name != team.display_name:
+			return {}
+		for slot in range(4):
+			var player: PlayerMatchState = team.roster[slot]
+			var id: String = String(player.definition.id)
+			if (
+				evidence.roster[slot] != id
+				or not ClubCareer.same(
+					evidence.recipes[id],
+					player.definition.starting_pitches.map(
+						func(pitch: PitchDefinition) -> String: return String(pitch.id)
+					)
+				)
+				or not ClubCareer.same(
+					[evidence.workload[id].capacity, evidence.workload[id].initial],
+					[player.stamina_max, player.stamina_remaining]
+				)
+			):
+				return {}
+	cursor += 1
+	var result: Dictionary = fixture.duplicate(true)
+	result["away_runs"] = int(report.away_runs)
+	result["home_runs"] = int(report.home_runs)
+	if LeagueRules.doubleheader(season.league_rules):
+		result["doubleheader_evidence"] = [
+			load("res://src/gameplay/season/successor_league_general_v2/physical_report.gd").human(row.report, 0, state.pitch_catalog)
+			if not state.pitch_catalog.is_empty() else PhysicalDoubleheaderReport.human(row.report, 0),
+			load("res://src/gameplay/season/successor_league_general_v2/physical_report.gd").human(row.report, 1, state.pitch_catalog)
+			if not state.pitch_catalog.is_empty() else PhysicalDoubleheaderReport.human(row.report, 1)
+		]
+	if season.opponents != null and season.opponents._format >= 7:
+		result["performance"] = report.performance.duplicate(true)
+	if season.opponents != null and season.opponents._format >= 9:
+		result["ai_tactics"] = {}
+		for index in range(2):
+			result.ai_tactics[str(int(fixture.away if index == 0 else fixture.home))] = (
+				(
+					PhysicalBaseEvidence
+					. enriched(report.tactics.teams[index], report.tactics.base)
+					. duplicate(true)
+				)
+				if report.version == load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd").BASE_VERSION
+				else report.tactics.teams[index].duplicate(true)
+			)
+	return result
+
+
+static func _resource(value: Variant, current_pitches: bool = false) -> Variant:
+	if value is Resource:
+		var data: Dictionary = {}
+		for property: Dictionary in value.get_property_list():
+			if not current_pitches and WorkingPitchProgression.neutral_pitch_property(value, property.name):
+				continue
+			if (
+				int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE
+				and int(property.usage) & PROPERTY_USAGE_STORAGE
+			):
+				data[property.name] = _resource(value.get(property.name), current_pitches)
+		return data
+	if value is Array:
+		return value.map(func(item: Variant) -> Variant: return _resource(item, current_pitches))
+	if value is Dictionary:
+		var data: Dictionary = {}
+		for key: Variant in value:
+			data[key] = _resource(value[key], current_pitches)
+		return data
+	if current_pitches and value is Vector2:
+		return [value.x, value.y]
+	if value is Vector3:
+		return [value.x, value.y, value.z]
+	return value
+
+
+# The caller supplies a season reconstructed by its exact versioned save boundary.
+static func catalog_for(season: SeasonState) -> String:
+	return season.build.pitch_catalog_signature() if season != null and season.build != null else ""
+
+
+# Optimization eligibility only, never report admission. Exhausted/unsupported
+# graphs take the unchanged public validation path without duplication/reuse.
+static func _current_report_value_graph(value: Variant, budget: Array[int], depth: int) -> bool:
+	if depth > 32 or budget[0] <= 0:
+		return false
+	budget[0] -= 1
+	match typeof(value):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT:
+			return true
+		TYPE_FLOAT:
+			return is_finite(value)
+		TYPE_STRING:
+			if value.length() > budget[1]:
+				return false
+			budget[1] -= value.to_utf8_buffer().size()
+			return budget[1] >= 0
+		TYPE_ARRAY:
+			if value.size() > budget[0]:
+				return false
+			for child: Variant in value:
+				if not _current_report_value_graph(child, budget, depth + 1):
+					return false
+			return true
+		TYPE_DICTIONARY:
+			if value.size() > budget[0]:
+				return false
+			for key: Variant in value:
+				if not key is String or not _current_report_value_graph(key, budget, depth + 1) \
+					or not _current_report_value_graph(value[key], budget, depth + 1):
+					return false
+			return true
+	return false

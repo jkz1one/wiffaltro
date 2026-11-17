@@ -1,0 +1,70 @@
+extends RefCounted
+## Independent slot. Strict capture authenticates the complete detached envelope
+## once; exact JSON equality/readback cannot introduce different semantic data.
+const Codec = preload("codec.gd")
+const PATH: String = "user://successor-owned-general-live-v1.json"
+const MAX_BYTES: int = 32 * 1024 * 1024 # Retained predecessor plus active run; never prune history.
+static var saving: bool = false
+static var last_error: String = ""
+
+static func save(season: SeasonState) -> bool:
+	if saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
+		or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return false
+	saving = true
+	var result: bool = _save(season)
+	saving = false
+	return result
+
+static func _save(season: SeasonState) -> bool:
+	last_error = "The owned checkpoint could not be saved. Original progress remains available."
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if DirAccess.dir_exists_absolute(PATH+suffix): return false
+	if FileAccess.file_exists(PATH+".tmp"): return false
+	var old_exists: bool = FileAccess.file_exists(PATH)
+	var old: PackedByteArray = FileAccess.get_file_as_bytes(PATH) if old_exists else PackedByteArray()
+	if old_exists and (old.is_empty() or old.size() > MAX_BYTES): return false
+	# Validate old bytes before authenticating the new candidate. No callbacks,
+	# engine mutation, or caller-provided proof occurs after strict capture.
+	var old_valid: bool = false
+	if old_exists:
+		var parser: JSON = JSON.new()
+		if parser.parse(old.get_string_from_utf8()) == OK:
+			old_valid = Codec.restore(parser.data) != null
+	var data: Dictionary = Codec.capture(season)
+	if data.is_empty(): return false
+	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
+	if bytes.is_empty() or bytes.size() > MAX_BYTES: return false
+	var parsed: JSON = JSON.new()
+	if parsed.parse(bytes.get_string_from_utf8()) != OK or not ClubCareer.same(parsed.data,data): return false
+	if not ClubCareer.same(Codec.guard_snapshot(season),data): return false
+	# Recheck slot guards after validation; never replace an uncertain temp file.
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if DirAccess.dir_exists_absolute(PATH+suffix): return false
+	if FileAccess.file_exists(PATH+".tmp") or FileAccess.file_exists(PATH) != old_exists \
+		or (old_exists and FileAccess.get_file_as_bytes(PATH) != old): return false
+	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.WRITE)
+	if file == null: return false
+	file.store_buffer(bytes)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	if error != OK or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes: return false
+	if FileAccess.file_exists(PATH) != old_exists or (old_exists and FileAccess.get_file_as_bytes(PATH) != old): return false
+	if old_valid and DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return false
+	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes: return false
+	last_error = ""
+	return true
+
+static func restore() -> SeasonState:
+	var result: SeasonState = _read(PATH)
+	if result == null: result = _read(PATH+".bak")
+	last_error = "" if result != null else "No valid owned continuation checkpoint is available."
+	return result
+
+static func _read(path: String) -> SeasonState:
+	var file: FileAccess = FileAccess.open(path,FileAccess.READ)
+	if file == null or file.get_length() > MAX_BYTES: return null
+	var parser: JSON = JSON.new()
+	if parser.parse(file.get_as_text()) != OK: return null
+	return Codec.restore(parser.data)

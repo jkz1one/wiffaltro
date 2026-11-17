@@ -1,0 +1,131 @@
+extends RefCounted
+## Genuine owner birth precedes all paid Build and actual physical/result replay.
+const Runtime = preload("runtime.gd")
+const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Physical = preload("physical_fixtures.gd")
+const Start = preload("start.gd")
+const Catalog = preload("catalog.gd")
+const GameReplay = preload("res://src/gameplay/season/successor_league_general_v2/human_replay.gd")
+const GameHistory = preload("res://src/gameplay/season/successor_league_general_v2/history.gd")
+
+static func restore(state: Dictionary) -> SeasonState:
+	if not SeasonOwnership._whole(state.get("season_seed"), 0, 2147483647) \
+		or not state.get("career") is Dictionary \
+		or not state.career.get("predecessor") is Dictionary \
+		or state.get("phase") == SeasonState.Phase.COMPLETE \
+		or not state.get("picks") is Array or state.picks.size() > 4 \
+		or not state.get("player_results") is Array \
+		or not state.get("build") is Dictionary or not state.get("teams") is Array \
+		or state.teams.size() != 6:
+		return null
+	var season: SeasonState = Runtime.create_next(state.career.predecessor,int(state.season_seed))
+	if season == null:
+		return null
+	for id: Variant in state.picks:
+		if not id is String or not season._choose_local(id):
+			return null
+	var roster: Array[String] = []
+	if season.picks.size() == 4:
+		roster.assign(season.picks)
+	var restored: SeasonBuild = GameBuild.restore(state.build, season.season_seed, roster, season.build._pool, season.recruit_blocked())
+	if restored == null:
+		return null
+	# A valid paid Build alone cannot authorize a career start. Validate every
+	# start/access/owner field against the genuine authenticated predecessor birth first.
+	var birth_build: SeasonBuild = season.build
+	season.build = restored
+	if not Start.base_matches(season):
+		return null
+	season.build = birth_build
+	season.physical = Physical.from_data(state.get("physical"), Catalog.Game.signature())
+	if season.physical == null:
+		return null
+	for saved: Variant in state.player_results:
+		if not saved is Dictionary or not _result(season, restored, saved):
+			return null
+	if season.physical.cursor != season.physical.reports.size() \
+		or not GameHistory._build_history_valid(season, restored):
+		return null
+	restored.migrate()
+	season.build = restored
+	var lineup: Variant = state.teams[0].get("roster") if state.teams[0] is Dictionary else null
+	if not lineup is Array:
+		return null
+	if season.picks.size() == 4:
+		if lineup.size() != 4:
+			return null
+		var unique: Array = []
+		for id: Variant in lineup:
+			if not id is String or not restored.roster().has(id) or unique.has(id):
+				return null
+			unique.append(id)
+		season.teams[0].roster = unique
+	elif not lineup.is_empty():
+		return null
+	if not SeasonOwnership._whole(state.get("starter_index"), 0, 3) \
+		or not SeasonOwnership._whole(state.get("fielder_index"), 0, 3) \
+		or state.starter_index == state.fielder_index:
+		return null
+	season.starter_index = int(state.starter_index)
+	season.fielder_index = int(state.fielder_index)
+	if not season.career.sync(season):
+		return null
+	if not season.physical.pending.is_empty() \
+		and not load("res://src/gameplay/season/successor_owner_general_v1/pending.gd")._valid_pending_replayed(season):
+		return null
+	season.physical.projecting = false
+	if season.phase == SeasonState.Phase.COMPLETE:
+		return null
+	var actual: Dictionary = load("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._snapshot(season)
+	return season if not actual.is_empty() and ClubCareer.same(actual,state) else null
+
+static func _result(season: SeasonState, restored: SeasonBuild, saved: Dictionary) -> bool:
+	if saved.has("pitching_current") and (not saved.get("pitching") is Dictionary
+		or not load("res://src/gameplay/season/successor_league_general_v2/called_proof.gd").accepts(restored, saved.pitching_current, saved.pitching)):
+		return false
+	for key: String in ["id", "away_runs", "home_runs"]:
+		if not SeasonOwnership._whole(saved.get(key), 0, 9999):
+			return false
+	var performance: Variant = saved.get("performance", {})
+	if not performance is Dictionary or (saved.has("performance") and performance.is_empty()):
+		return false
+	var fixture: Dictionary = season.pending_fixture()
+	if fixture.is_empty():
+		return false
+	var index: int = int(fixture.away if fixture.home == 0 else fixture.home)
+	if not saved.get("ai_tactics") is Dictionary \
+		or not SeasonOwnership._keys(saved.ai_tactics, [str(index)]) \
+		or not saved.ai_tactics[str(index)] is Dictionary or not saved.get("tactics", []) is Array:
+		return false
+	var tactics: Dictionary = saved.ai_tactics[str(index)]
+	var roster: Array = restored.roster_for_game(int(saved.id))
+	if roster.size() != 4:
+		return false
+	roster = SeasonSave._home_replay_roster(tactics, roster)
+	if roster.is_empty():
+		return false
+	season.teams[0].roster = roster
+	# Exact ordinary Dugout0 scope only. This unchanged helper restores its own
+	# paid prefix and constructs the heat team; no caller-validated prefix enters.
+	if not GameReplay._ordinary_result(season, restored, saved, performance, tactics, saved.get("tactics", [])):
+		return false
+	season._heat_replay_team = null
+	# Original decoder retains optional exact proof fields after their validators
+	# have consumed them. Complete envelope recapture still rejects added fields.
+	for key: String in ["used_gear", "tactics", "batting", "stances", "fielding", "pitching_current", "pitching", "field_supply", "frozen"]:
+		if saved.has(key):
+			if key in ["used_gear", "tactics", "stances", "fielding", "frozen"] and not saved[key] is Array:
+				return false
+			if key in ["batting", "pitching_current", "pitching", "field_supply"] and not saved[key] is Dictionary:
+				return false
+			if key in ["stances", "frozen"] and not SeasonLeftRight.own_halves(saved[key], season.player_results[-1].home == 0):
+				return false
+			if key == "fielding" and not SeasonLeftRight.own_halves(saved[key], season.player_results[-1].home != 0):
+				return false
+			if key == "pitching" and not SeasonSureShot.own_halves(saved[key], season.player_results[-1].home != 0):
+				return false
+			season.player_results[-1][key] = saved[key].duplicate(true)
+			for played: Dictionary in season.results:
+				if played.id == saved.id:
+					played[key] = saved[key].duplicate(true)
+	return true

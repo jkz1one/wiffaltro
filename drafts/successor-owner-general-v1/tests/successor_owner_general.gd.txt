@@ -1,0 +1,37 @@
+extends Node
+## Genuine active predecessor rejection and boundary safety. No synthetic terminal.
+const Legacy = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const Runtime = preload("res://src/gameplay/season/successor_owner_general_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_general_v1/save.gd")
+const App = preload("res://src/presentation/season/successor_owner_general_v1/app.gd")
+
+func _ready() -> void:
+	call_deferred("run")
+func check(value: bool, label: String) -> bool:
+	if not value:
+		printerr("FAIL: ",label)
+		get_tree().quit(1)
+	else: print("CHECK: ",label)
+	return value
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated owned integration only"): return
+	var source: PackedByteArray = FileAccess.get_file_as_bytes("user://source-owned.json")
+	var birth: Variant = JSON.parse_string(source.get_string_from_utf8())
+	if not check(birth is Dictionary and birth.get("version") == 112 and birth.checkpoint.phase != SeasonState.Phase.COMPLETE,"actual original active owned operand"): return
+	var original: SeasonState = Legacy.restore(birth)
+	if not check(original != null and original.phase != SeasonState.Phase.COMPLETE,"strict old decoder authenticates active operand"): return
+	if not check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak"),"separate new slot empty"): return
+	if not check(Codec.clone(null) == null and Codec.capture(null).is_empty() and Codec.guard_snapshot(null).is_empty() and Codec.restore(birth) == null,"invalid and old envelopes cannot enter new owner"): return
+	if not check(Runtime.create_next({},17) == null and Runtime.create_next(birth,-1) == null and Runtime.create_next(birth,17) == null,"active genuine predecessor cannot grant inherited start"): return
+	if not check(not Save.save(null) and not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".tmp"),"invalid save cannot create slot or temp"): return
+	var app = App.new()
+	app.predecessor = birth.duplicate(true)
+	add_child(app)
+	app.create_fresh()
+	if not check(app.season == null and app.get("retained") == null and not app.notice.is_empty() and not FileAccess.file_exists(Save.PATH),"actual App refuses unfinished predecessor without mutation"): return
+	app.retry_save()
+	if not check(app.season == null and FileAccess.get_file_as_bytes("user://source-owned.json") == source,"retry and negative checks preserve exact original fixture"): return
+	app.queue_free()
+	print("PASS: owned General integration negative boundary; positive inherited gameplay remains unqualified")
+	get_tree().quit()

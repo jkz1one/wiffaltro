@@ -1,0 +1,69 @@
+extends "base_app.gd"
+## Synchronous transaction facade. The general standalone App/Codec/Save remain authority.
+## Local strong references prevent authored Resource unload between unchanged
+## validators. No signature, validation result or decoded state is cached.
+## Nested calls may overlap their local references; no hold survives a return.
+
+func create_fresh() -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.create_fresh()
+	roots.clear()
+
+func reload_save() -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.reload_save()
+	roots.clear()
+
+func draft(id: String) -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.draft(id)
+	roots.clear()
+
+func retry_save() -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.retry_save()
+	roots.clear()
+
+func play_next() -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.play_next()
+	roots.clear()
+
+func finish_game() -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.finish_game()
+	roots.clear()
+
+func resume_round() -> void:
+	# Runner starts asynchronously, but this method does not await it.
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.resume_round()
+	roots.clear()
+
+func _ai_finished(report: Dictionary) -> void:
+	# Separate synchronous completion boundary, not a hold across AI frames.
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super._ai_finished(report)
+	roots.clear()
+
+func _checkpoint_report() -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super._checkpoint_report()
+	roots.clear()
+
+func _retain(candidate: SeasonState) -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super._retain(candidate)
+	roots.clear()
+
+func open_shop() -> void:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	super.open_shop()
+	roots.clear()
+
+func commit_shop(command: Dictionary) -> bool:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var result: bool = super.commit_shop(command)
+	roots.clear()
+	return result
+

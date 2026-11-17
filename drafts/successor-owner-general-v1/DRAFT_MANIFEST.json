@@ -1,0 +1,103 @@
+{
+  "format": "inactive-successor-owner-general-v1",
+  "source_checkpoint": "ca7292931cc92de5bc3414a5b02a92c982ad33a4",
+  "scope": "Integrated inactive owned run2 ordinary Dugout draft/gameplay/shop boundary. Exact final source native import/negative/cold-negative passed; actual terminal-positive and round/cold pending. Frozen engines unchanged; terminal/Dynasty admission remains closed.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/career.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/career.gd",
+      "bytes": 1764,
+      "sha256": "fea8a8a1a37c0708f9d74455e2e675016bc36d7cc0300e7242f76e1f1e81e3ef"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/catalog.gd",
+      "bytes": 2068,
+      "sha256": "830e18e046976f41447dc543cb46ef8a5af482290349fdd6d2633f6ff361058b"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/codec.gd",
+      "bytes": 4967,
+      "sha256": "e48c19aab1a2849efd7fb23b627d78068b9fb8ff993db7bb25751fc91a7bee6b"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/decoder.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/decoder.gd",
+      "bytes": 6340,
+      "sha256": "646c304de262379a3fb9d419a7c453a5f5b3d20c13d3ec5e6454da7073a2d641"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/pending.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/pending.gd",
+      "bytes": 5872,
+      "sha256": "74ce46cd4bed05e2e1e02c9953ccc291739abc82265c8ad09658d0023230011c"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/physical_fixtures.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/physical_fixtures.gd",
+      "bytes": 20074,
+      "sha256": "953f4909d43f2bc26a6b894e4e837e7c9acc4b8e492468c3baa7cd753d27c9c7"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/runtime.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/runtime.gd",
+      "bytes": 4217,
+      "sha256": "0a28656462159fe94a3481e56dc92d67aa6581e5da373d60b80f241072b961ed"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/save.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/save.gd",
+      "bytes": 3569,
+      "sha256": "84fed52232edac2aa24f25b813408955ceb2a4a50612a69b19128bb677aa60b0"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/start.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_general_v1/start.gd",
+      "bytes": 11514,
+      "sha256": "b2e950b58a037a0dbf5b1089780e8193462d49b17f438999d6f00c64e67413a0"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/app.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_general_v1/app.gd",
+      "bytes": 2141,
+      "sha256": "0b409e96030eb8fc0e4c823c125fd9a0bf94553e3b3f14d3a63267020411ed2c"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/base_app.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_general_v1/base_app.gd",
+      "bytes": 15606,
+      "sha256": "1c090889687fc537ace8dafe59c2848cb18f8a655c8338acec1040c6ba908d3d"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/capture_human.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_general_v1/capture_human.gd",
+      "bytes": 3324,
+      "sha256": "8c996b04e759a860915442554ea4a93bfc1314b5d66559eca46bdee4a34c3c1e"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/entry.tscn.txt",
+      "restore_path": "src/presentation/season/successor_owner_general_v1/entry.tscn",
+      "bytes": 217,
+      "sha256": "b038ac6888304570f7bec3d45efcb405a7b7c3544bd83f0384c892148dfe7ae6"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/menu.gd.txt",
+      "restore_path": "src/presentation/season/successor_owner_general_v1/menu.gd",
+      "bytes": 1689,
+      "sha256": "009cf67219e5421ff4044e2b45b951c8fe8b0f5879359938d79a0fc1da757784"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.gd.txt",
+      "restore_path": "tests/successor_owner_general.gd",
+      "bytes": 2751,
+      "sha256": "2fb4c6247893cd7b22add5b28305a999842ac0a438e6f640ac4fc5d0c4d057f6"
+    },
+    {
+      "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.tscn.txt",
+      "restore_path": "tests/successor_owner_general.tscn",
+      "bytes": 188,
+      "sha256": "1e76c621b69febd41613ae2ac1b8e2f537dcc0c4f0093bde52fe5d9dfe466ba9"
+    }
+  ]
+}

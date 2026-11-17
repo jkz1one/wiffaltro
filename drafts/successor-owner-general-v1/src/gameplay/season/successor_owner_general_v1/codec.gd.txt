@@ -1,0 +1,100 @@
+extends RefCounted
+## Exact owned run2 reconstruction. Serialized starts/paid Builds never grant authority.
+const Catalog = preload("res://src/gameplay/season/successor_owner_general_v1/catalog.gd")
+const Start = preload("res://src/gameplay/season/successor_owner_general_v1/start.gd")
+const Boundary = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const Game = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+
+static func scope(season: SeasonState) -> bool:
+	return Start.structural(season) and Start.base_matches(season)
+
+static func _snapshot(season: SeasonState) -> Dictionary:
+	if not scope(season) or season.phase == SeasonState.Phase.COMPLETE \
+		or season._heat_replay_team != null or season._doubleheader_replay_build != null \
+		or season._pool_replay_ledger != null or season._npc_replay_run != -1 \
+		or season.physical.projecting or season.physical.cursor != season.physical.reports.size():
+		return {}
+	for property: Dictionary in season.get_property_list():
+		if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			if not Boundary.FIELDS.has(property.name) and not Boundary.OBJECTS.has(property.name):
+				return {}
+	var state: Dictionary = {}
+	for field: String in Boundary.FIELDS:
+		var value: Variant = season.get(field)
+		state[field] = value.duplicate(true) if value is Array or value is Dictionary else value
+	state.ownership = season.ownership.to_data()
+	state.build = season.build.to_data()
+	state.development = season.build._book.to_data()
+	state.build_view = season.build.view()
+	state.opponents = season.opponents.to_data()
+	state.career = season.career.to_data()
+	state.physical = season.physical.to_data()
+	if state.build.is_empty() or state.development.is_empty():
+		return {}
+	return state
+
+static func _envelope(state: Dictionary) -> Dictionary:
+	var source: String = Catalog.signature()
+	var game: String = Catalog.Game.signature()
+	return {} if source.is_empty() or game.is_empty() else {
+		"version":Catalog.VERSION,"format":Catalog.FORMAT,"owner_source":source,
+		"pitch_catalog":game,"checkpoint":state}
+
+static func guard_snapshot(season: SeasonState) -> Dictionary:
+	# NONAUTHORITY equality guard only. Fresh source descriptors accompany the
+	# structural snapshot; this never authenticates predecessor or paid history.
+	# Only strict capture/restore/clone may establish a validated owned state.
+	var roots: Array[Resource] = _operation_content_roots()
+	var state: Dictionary = _snapshot(season)
+	var result: Dictionary = {} if state.is_empty() else _envelope(state)
+	roots.clear()
+	return result
+
+static func envelope_valid(value: Variant) -> bool:
+	return value is Dictionary and SeasonOwnership._keys(value,["version","format","owner_source","pitch_catalog","checkpoint"]) \
+		and SeasonOwnership._whole(value.version,Catalog.VERSION,Catalog.VERSION) \
+		and value.format == Catalog.FORMAT and value.owner_source is String and not value.owner_source.is_empty() \
+		and value.owner_source == Catalog.signature() and value.pitch_catalog is String \
+		and not value.pitch_catalog.is_empty() and value.pitch_catalog == Catalog.Game.signature() \
+		and value.checkpoint is Dictionary
+
+static func _operation_content_roots() -> Array[Resource]:
+	var roots: Array[Resource] = Game._operation_content_roots()
+	roots.append_array(Boundary._operation_content_roots())
+	return roots
+
+static func clone(season: SeasonState) -> SeasonState:
+	# Independent strict reconstruction, not a caller proof or capture/restore loop.
+	var roots: Array[Resource] = _operation_content_roots()
+	var state: Dictionary = _snapshot(season)
+	var result: SeasonState = null
+	if not state.is_empty():
+		var checked: SeasonState = load("res://src/gameplay/season/successor_owner_general_v1/decoder.gd").restore(state)
+		if checked != null and ClubCareer.same(_snapshot(checked),state):
+			result = checked
+	roots.clear()
+	return result
+
+static func capture(season: SeasonState) -> Dictionary:
+	var roots: Array[Resource] = _operation_content_roots()
+	var state: Dictionary = _snapshot(season)
+	var result: Dictionary = {}
+	if not state.is_empty():
+		# Validate even a caller-mutated live object by rebuilding inherited birth, picks, paid history and physical results.
+		var checked: SeasonState = load("res://src/gameplay/season/successor_owner_general_v1/decoder.gd").restore(state)
+		if checked != null and ClubCareer.same(_snapshot(checked),state):
+			result = _envelope(state)
+	roots.clear()
+	return result
+
+static func restore(value: Variant) -> SeasonState:
+	var roots: Array[Resource] = _operation_content_roots()
+	var result: SeasonState = null
+	if envelope_valid(value):
+		var checked: SeasonState = load("res://src/gameplay/season/successor_owner_general_v1/decoder.gd").restore(value.checkpoint)
+		if checked != null:
+			var actual: Dictionary = _envelope(_snapshot(checked))
+			if not actual.is_empty() and ClubCareer.same(actual,value):
+				result = checked
+	roots.clear()
+	return result
