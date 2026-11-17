@@ -1,0 +1,70 @@
+extends RefCounted
+## UNBOUND experiment. Ordinary reports delegate fresh identity to mandatory Core.
+## No App/Codec integration, cache, supplied proof, or new admission.
+const Reference = preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+const Context = preload("res://src/gameplay/season/successor_league_general_v2/physical_context.gd")
+const VERSION: int = Reference.VERSION
+const RESOLVER: String = Reference.RESOLVER
+
+static func valid(value: Variant, pitch_catalog: String = "") -> bool:
+	# Reference checks these element types only after Core. League Core can call
+	# a Dictionary-typed helper first; reject this known malformed-input error early.
+	if value is Dictionary and value.get("ownership") is Array and value.ownership.size() == 2:
+		for entry: Variant in value.ownership:
+			if not entry is Dictionary:
+				return false
+	if value is Dictionary and value.get("league_rules") is Dictionary and LeagueRules.doubleheader(value.league_rules):
+		return Reference.valid(value, pitch_catalog)
+	if (value is Dictionary and value.has("venue")) or pitch_catalog.is_empty() \
+		or not value is Dictionary or not Reference._keys(value) \
+		or not SeasonOwnership._whole(value.version, VERSION, VERSION) \
+		or value.resolver != RESOLVER or value.pitch_catalog != pitch_catalog \
+		or not value.league_rules is Dictionary or not value.physical is Dictionary:
+		return false
+	for key: String in ["ownership", "dynasty_start", "pair", "workload", "uses"]:
+		if not value[key] is Array or value[key].size() != 2:
+			return false
+	if not Context.supports_rules(value.league_rules):
+		return false
+	var league: bool = not value.league_rules.is_empty()
+	if league and not ClubCareer.same(LeagueRules.normalized(value.league_rules), value.league_rules):
+		return false
+	if not load("res://src/gameplay/season/successor_league_general_v2/physical_core.gd")._valid_core(value.physical, value.league_rules,
+		value.ownership if league else [], LeagueRules.doubleheader(value.league_rules), pitch_catalog):
+		return false
+	if value.has("venue"):
+		if not value.venue is Dictionary:
+			return false
+		var context: Dictionary = CurrentPhysicalStadiumEvidence.for_report(value, pitch_catalog)
+		if not CurrentPhysicalStadiumEvidence.valid(value.venue, context) \
+			or not ClubCareer.same(value.physical, CurrentPhysicalStadiumEvidence.core(value.venue, context)):
+			return false
+	var carried: int = 0
+	for index in range(2):
+		if not value.ownership[index] is Dictionary or not value.dynasty_start[index] is Dictionary \
+			or not value.pair[index] is Dictionary or not value.workload[index] is Dictionary \
+			or not value.uses[index] is Array or value.uses[index].size() > 64:
+			return false
+		if league:
+			if load("res://src/gameplay/season/successor_league_general_v2/physical_league.gd").wallet(value.league_rules, value.ownership[index]).is_empty():
+				return false
+		elif not value.ownership[index].is_empty():
+			return false
+		if LeagueRules.dynasty(value.league_rules):
+			if not load("res://src/gameplay/season/successor_league_general_v2/physical_league.gd")._dynasty_entry_valid(value.dynasty_start[index],
+				value.physical.teams[index].roster, value.physical.tactics.clubs[index]):
+				return false
+		elif not value.dynasty_start[index].is_empty():
+			return false
+		carried += int(not value.dynasty_start[index].is_empty())
+		if not LeagueRules.doubleheader(value.league_rules) \
+			and (not value.pair[index].is_empty() or not value.workload[index].is_empty()):
+			return false
+		if value.physical.get("tactics", {}).get("clubs", [false, false])[index]:
+			if not ClubCareer.same(value.uses[index], value.physical.tactics.teams[index].consumed):
+				return false
+		elif not value.uses[index].is_empty():
+			return false
+	return carried <= 1 and (not LeagueRules.doubleheader(value.league_rules)
+		or Reference._doubleheader_valid(value, pitch_catalog))
+

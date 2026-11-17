@@ -1,0 +1,25 @@
+{
+  "format": "inactive-successor-physical-validation-v1",
+  "source_checkpoint": "32403eb4528610a074bed7a93508aab2284de635",
+  "scope": "Unbound ordinary report validation candidate plus early malformed-ownership rejection only. Actual Standard and delegated Doubleheader parity/fresh-process/source-freshness tests pass; production reference remains unchanged and its malformed-ownership defect remains unfixed.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-physical-validation-v1/src/gameplay/season/successor_physical_validation_v1/report.gd.txt",
+      "restore_path": "src/gameplay/season/successor_physical_validation_v1/report.gd",
+      "bytes": 3902,
+      "sha256": "683f46b0d2f4c5da21aaa005bcda0f670bf0be5fa3b85a9562a5c28dc2924b76"
+    },
+    {
+      "backup_path": "drafts/successor-physical-validation-v1/tests/successor_physical_validation.gd.txt",
+      "restore_path": "tests/successor_physical_validation.gd",
+      "bytes": 6419,
+      "sha256": "5613fa800894160b5b0bf01dae5bf697c0c77fb74961a1c5e6f443074a77c196"
+    },
+    {
+      "backup_path": "drafts/successor-physical-validation-v1/tests/successor_physical_validation.tscn.txt",
+      "restore_path": "tests/successor_physical_validation.tscn",
+      "bytes": 205,
+      "sha256": "09b6783b97e31394d927db7243f6f982b9218c8449ef8a1cb28b3534ddfcd94f"
+    }
+  ]
+}

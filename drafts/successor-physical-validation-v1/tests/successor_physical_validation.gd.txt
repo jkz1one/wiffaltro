@@ -1,0 +1,105 @@
+extends "res://tests/successor_general_replay_prefix.gd"
+## Actual report operands, read-only save qualification. Inclusive experiment only.
+const Reference = preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+const Candidate = preload("res://src/gameplay/season/successor_physical_validation_v1/report.gd")
+const SOURCE: String = "user://source-general.json"
+
+func parity(value: Variant, catalog: String, expected: bool, label: String) -> bool:
+	var before: PackedByteArray = var_to_bytes(value)
+	var a: bool = Reference.valid(value, catalog)
+	var b: bool = Candidate.valid(value, catalog)
+	return check(a == b and b == expected and var_to_bytes(value) == before, label)
+
+func write_exact(path: String, bytes: PackedByteArray) -> bool:
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_buffer(bytes)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	return error == OK and FileAccess.get_file_as_bytes(path) == bytes
+
+func fresh_identity_between_calls(report: Dictionary, catalog: String) -> bool:
+	# Only a disposable copied source file, never the repository/original fixture.
+	if not check(ProjectSettings.globalize_path("res://").contains("/wiffaltro-signature-"), "source mutation limited to isolated copied project"):
+		return false
+	var path: String = "res://src/gameplay/season/successor_league_general_v2/doubleheader.gd"
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
+	if not check(not original.is_empty(), "isolated catalog-bound source readable"):
+		return false
+	var changed: PackedByteArray = original.duplicate()
+	changed.append_array("\n# isolated freshness check\n".to_utf8_buffer())
+	var wrote: bool = write_exact(path, changed)
+	var reference_rejects: bool = not Reference.valid(report, catalog) if wrote else false
+	var candidate_rejects: bool = not Candidate.valid(report, catalog) if wrote else false
+	# Always restore bytes before checking outcomes or returning from this case.
+	var restored: bool = write_exact(path, original)
+	if not check(wrote and restored and reference_rejects and candidate_rejects, "both independently reject changed source; copied file restored exactly"):
+		return false
+	return parity(report, catalog, true, "fresh identities recover after exact source restoration")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated actual report test required"):
+		return
+	var files_before: Dictionary = saved_bytes()
+	var source_bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var value: Variant = JSON.parse_string(source_bytes.get_string_from_utf8())
+	cohort_roots = Codec._operation_content_roots()
+	var authored: PackedByteArray = content_bytes()
+	var owner: SeasonState = Codec.restore(value)
+	var doubleheader: bool = OS.get_cmdline_user_args().has("doubleheader")
+	if not check(snapshot_supported and owner != null and owner.player_results.size() >= 1 \
+		and not owner.physical.reports.is_empty() and LeagueRules.doubleheader(owner.league_rules) == doubleheader \
+		and (doubleheader or owner.league_rules.is_empty()), "strict authentic paid Standard or explicit Doubleheader history"):
+		return
+	var owner_before: PackedByteArray = var_to_bytes(Codec.capture(owner))
+	var report_count: int = 0
+	for row: Dictionary in owner.physical.reports:
+		var report: Dictionary = row.report
+		var catalog: String = owner.build.pitch_catalog_signature()
+		if not parity(report, catalog, true, "actual report accepted by both validators"):
+			return
+		var samples: Array[Dictionary] = []
+		for route: String in ["reference", "candidate", "candidate", "reference"]:
+			var started: int = Time.get_ticks_usec()
+			var ok: bool = Reference.valid(report, catalog) if route == "reference" else Candidate.valid(report, catalog)
+			var elapsed: int = Time.get_ticks_usec() - started
+			if not check(ok, "timed actual report remains valid"):
+				return
+			samples.append({"route":route,"seconds":float(elapsed)/1000000.0})
+		print("REPORT_VALIDATION_ABBA: ", JSON.stringify({"fixture":row.fixture,"doubleheader":doubleheader,"samples":samples}), "; sequential warm diagnostic, not whole-restore speedup")
+		for kind: String in ["catalog", "empty-catalog", "envelope", "core", "rules", "ownership", "workload", "resolver", "extra"]:
+			var wrong: Dictionary = report.duplicate(true)
+			var expected_catalog: String = catalog
+			match kind:
+				"catalog": expected_catalog = "wrong"
+				"empty-catalog": expected_catalog = ""
+				"envelope": wrong.version = -1
+				"core": wrong.physical = {"version":-1}
+				"rules": wrong.league_rules = {"unexpected":true}
+				"ownership": wrong.ownership = [{"unexpected":true}, {}]
+				"workload": wrong.workload = [false, false]
+				"resolver": wrong.resolver = "wrong"
+				"extra": wrong["unexpected"] = true
+			if not parity(wrong, expected_catalog, false, "reject tampered " + kind):
+				return
+		# The reference's boolean ownership entries produce a native script error
+		# on Doubleheader (preserved initial failure evidence), not clean rejection.
+		# Do not mislabel that defect as parity or suppress strict harness errors.
+		for malformed_entries: Array in [[false, false], [{}, false], [false, {}]]:
+			var malformed_ownership: Dictionary = report.duplicate(true)
+			malformed_ownership.ownership = malformed_entries
+			var malformed_before: PackedByteArray = var_to_bytes(malformed_ownership)
+			if not check(not Candidate.valid(malformed_ownership, catalog) and var_to_bytes(malformed_ownership) == malformed_before, "candidate cleanly rejects known reference ownership-type error before Core"):
+				return
+		if not parity(null, catalog, false, "reject null envelope") or not parity(report, catalog, true, "fresh valid call after wrong-catalog and malformed inputs"):
+			return
+		report_count += 1
+	if not fresh_identity_between_calls(owner.physical.reports[0].report, owner.build.pitch_catalog_signature()):
+		return
+	if not check(var_to_bytes(Codec.capture(owner)) == owner_before and FileAccess.get_file_as_bytes(SOURCE) == source_bytes \
+		and saved_bytes() == files_before and content_bytes() == authored and snapshot_supported, "owner, immutable source, all saves and authored Resources unchanged"):
+		return
+	print("PASS: experimental physical validator actual report parity count=", report_count, " doubleheader=", doubleheader)
+	get_tree().quit()
