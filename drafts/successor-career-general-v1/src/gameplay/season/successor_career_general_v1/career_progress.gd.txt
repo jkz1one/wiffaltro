@@ -1,0 +1,77 @@
+extends RefCounted
+## New-domain progress evidence only. No Career33 wrapping or owner admission.
+const PROGRESS_VERSION: int = 1
+const FORMAT: String = "successor-career-general-progress-v1"
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Eligibility = preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd")
+
+static func is_current(value: Variant) -> bool:
+	return value is Dictionary and WorkingPitchProgression.is_version(value.get("version"), PROGRESS_VERSION) and value.get("format") == FORMAT
+
+
+static func capture(season: SeasonState) -> Dictionary:
+	if season == null or season.build == null or not season.build.call("pitch_catalog_successor"):
+		return {}
+	var result: Dictionary = load("res://src/gameplay/season/successor_career_general_v1/player_legend.gd").capture(season)
+	if result.is_empty():
+		return {}
+	result.version = PROGRESS_VERSION
+	result["format"] = FORMAT
+	result["pitch_catalog"] = Catalog.signature()
+	result["exotic"] = Eligibility.capture(season)
+	return result if valid(result, ClubSeasonRecord.capture(season).scores) else {}
+
+
+static func valid(value: Variant, scores: Array) -> bool:
+	if not is_current(value) \
+		or not SeasonOwnership._keys(value, ["version", "format", "games", "development", "pitch_catalog", "exotic"]) \
+		or not value.pitch_catalog is String or value.pitch_catalog != Catalog.signature():
+		return false
+	if not value.games is Array or not Eligibility.valid(value.exotic) or value.exotic.games.size() != value.games.size():
+		return false
+	for index in range(value.games.size()):
+		if not value.games[index] is Dictionary or value.games[index].get("game") != value.exotic.games[index].game:
+			return false
+		var players: Variant = value.games[index].get("players")
+		if not players is Dictionary or players.size() != 4:
+			return false
+		for id: String in value.exotic.games[index].roster:
+			if not players.get(id) is Dictionary:
+				return false
+			var count: int = 0
+			for strikeout: Dictionary in value.exotic.games[index].strikeouts:
+				count += 1 if strikeout.pitcher == id else 0
+			if players[id].get("strikeouts") != count:
+				return false
+	var legacy: Dictionary = value.duplicate(true)
+	legacy.erase("format")
+	legacy.erase("exotic")
+	legacy.erase("pitch_catalog")
+	legacy.version = ClubPlayerLegend.VERSION
+	return valid_capture(legacy, scores)
+
+
+static func valid_capture(value: Dictionary, scores: Array) -> bool:
+	# Only shared aggregate/game validation is projected. Every full current lesson
+	# is separately checked below; no serialized historical record uses this path.
+	var development: Variant = value.get("development")
+	if not development is Dictionary \
+		or not SeasonOwnership._keys(development, ["mastery", "known", "lessons"]) \
+		or not SeasonOwnership._whole(development.mastery, 0, 5) \
+		or not SeasonOwnership._whole(development.known, 0, 8) \
+		or not development.lessons is Array \
+		or development.lessons.size() > Catalog.known_ids().size():
+		return false
+	var previous: String = ""
+	var historical: Array = []
+	for id: Variant in development.lessons:
+		if not id is String or id <= previous or not Catalog.supports(id):
+			return false
+		previous = id
+		if SeasonPlayerCatalog.RECIPES.values().has(id):
+			historical.append(id)
+	var legacy: Dictionary = value.duplicate(true)
+	legacy.development.lessons = historical
+	return ClubPlayerProgress.valid(legacy, scores)
+
+

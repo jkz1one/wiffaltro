@@ -1,0 +1,49 @@
+{
+  "format": "inactive-successor-career-general-v1",
+  "source_checkpoint": "7e5095b8459bb27c35712da9fda3c5884dce72b2",
+  "scope": "Strict General114 standalone checkpoint-to-career evidence only. Actual Standard, Doubleheader and paid fresh-recruit warm/cold qualification passed. No grants, owned run2 or Dynasty admission. Existing109/currentGeneral identities unchanged.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-career-general-v1/src/gameplay/season/successor_career_general_v1/career_progress.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_general_v1/career_progress.gd",
+      "bytes": 3459,
+      "sha256": "d43feadea7398d8cd16d4163b53f55e138a167ac9ea3f35587876e23cc0723dd"
+    },
+    {
+      "backup_path": "drafts/successor-career-general-v1/src/gameplay/season/successor_career_general_v1/career_run_evidence.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_general_v1/career_run_evidence.gd",
+      "bytes": 2678,
+      "sha256": "0ef88c47d21890589de2d2c61617914a5f9aa6bc4cadbfd127d0662231dd1d8a"
+    },
+    {
+      "backup_path": "drafts/successor-career-general-v1/src/gameplay/season/successor_career_general_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_general_v1/catalog.gd",
+      "bytes": 1495,
+      "sha256": "05da59749911211b9be6fb710f9ba9d15ae39ea9294d0e0f2f402a9632b69d9c"
+    },
+    {
+      "backup_path": "drafts/successor-career-general-v1/src/gameplay/season/successor_career_general_v1/player_legend.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_general_v1/player_legend.gd",
+      "bytes": 2083,
+      "sha256": "794b755a6bb66f206e70cbadbb3ec5950cce3b0f87b93e6e0c8f70be17df05a6"
+    },
+    {
+      "backup_path": "drafts/successor-career-general-v1/src/gameplay/season/successor_career_general_v1/player_progress.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_general_v1/player_progress.gd",
+      "bytes": 7604,
+      "sha256": "1aecc013e3cc9fe33721993f7870104f10c9a53f3fdc60f4cfda8df25741dfa8"
+    },
+    {
+      "backup_path": "drafts/successor-career-general-v1/tests/successor_career_general.gd.txt",
+      "restore_path": "tests/successor_career_general.gd",
+      "bytes": 7508,
+      "sha256": "390b177ee70c5cf387fea96468ff794e95b1e5041022ae681db9d0b68db89c17"
+    },
+    {
+      "backup_path": "drafts/successor-career-general-v1/tests/successor_career_general.tscn.txt",
+      "restore_path": "tests/successor_career_general.tscn",
+      "bytes": 192,
+      "sha256": "9d0609b5449cd0ef2540bce22fad1855cbb9b830b3c70aa7b81978f2919edd6f"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+extends RefCounted
+## Strict General114 checkpoint-to-evidence boundary. No owner, award or unlock authority.
+## run_id is a caller label only; it does not establish career order or ownership.
+const VERSION: int = 1
+const Catalog = preload("catalog.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_general_v1/career_progress.gd")
+
+static func capture(checkpoint: Variant, run_id: int) -> Dictionary:
+	if run_id < 1 or run_id > 1000000 or not checkpoint is Dictionary:
+		return {}
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var result: Dictionary = _capture(checkpoint, run_id)
+	roots.clear()
+	return result
+
+static func _capture(checkpoint: Dictionary, run_id: int) -> Dictionary:
+	# scope()/capture() of a caller-mutated live object is not sufficient.
+	# Every input, including evidence restore, passes complete physical/history replay.
+	var season: SeasonState = Codec.restore(checkpoint)
+	if season == null or season.picks.size() != 4 or not season.physical.pending.is_empty():
+		return {}
+	var canonical: Dictionary = Codec.capture(season)
+	if canonical.is_empty() or not ClubCareer.same(canonical, checkpoint):
+		return {}
+	var source: String = Catalog.signature()
+	if source.is_empty():
+		return {}
+	var proof: Dictionary = ClubSeasonRecord.capture(season)
+	if ClubSeasonRecord.analyze(proof).is_empty():
+		return {}
+	var progress: Dictionary = Progress.capture(season)
+	if progress.is_empty():
+		return {}
+	var identity: Dictionary = {"run_id": run_id, "seed": season.season_seed,
+		"league_rules": season.league_rules.duplicate(true),
+		"tier": int(season.league_rules.get("tier", 0)),
+		"pitch_catalog": canonical.pitch_catalog, "module_signature": source}
+	return {"version": VERSION, "format": Catalog.FORMAT,
+		"identity": identity, "identity_digest": Catalog.digest(identity),
+		"checkpoint_digest": Catalog.digest(canonical),
+		"checkpoint": canonical, "proof": proof, "player_progress": progress}
+
+static func restore(value: Variant) -> Dictionary:
+	if not value is Dictionary or not SeasonOwnership._keys(value,
+		["version", "format", "identity", "identity_digest", "checkpoint_digest", "checkpoint", "proof", "player_progress"]) \
+		or not SeasonOwnership._whole(value.version, VERSION, VERSION) \
+		or value.format != Catalog.FORMAT or not value.identity is Dictionary \
+		or not SeasonOwnership._whole(value.identity.get("run_id"), 1, 1000000):
+		return {}
+	var checked: Dictionary = capture(value.checkpoint, int(value.identity.run_id))
+	return checked if not checked.is_empty() and ClubCareer.same(checked, value) else {}

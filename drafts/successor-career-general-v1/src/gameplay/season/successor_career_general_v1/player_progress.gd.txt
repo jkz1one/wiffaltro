@@ -1,0 +1,173 @@
+extends RefCounted
+## Internal derivation from a Codec114-replayed season; not admission authority.
+const VERSION = ClubPlayerProgress.VERSION
+const HITS_VERSION = ClubPlayerProgress.HITS_VERSION
+const BuildRestore = preload("res://src/gameplay/season/successor_league_general_v2/build_restore.gd")
+const Development = preload("res://src/gameplay/season/successor_league_general_v2/development.gd")
+const Eligibility = preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd")
+const Access = preload("res://src/gameplay/season/successor_league_general_v2/exotic_access.gd")
+
+static func capture(season: SeasonState) -> Dictionary:
+	if season.build == null or season.build._market != 0:
+		return {}
+	var sponsors: Dictionary = ClubPlayerProgress._sponsor_counts(season.build)
+	var development: Dictionary = _current_development(season.build)
+	if development.is_empty():
+		return {}
+	var games: Array = []
+	for game: Dictionary in season.player_results:
+		var own: Array = game.get("club_roster", season.teams[0].roster)
+		var stats: Variant = null
+		if game.has("performance"):
+			if not game.performance is Dictionary:
+				return {}
+			var source: Dictionary = game.performance
+			if (
+				source.size() != 8
+				or own.size() != 4
+				or not SeasonPerformance.valid(source, source.keys())
+			):
+				return {}
+			stats = {"homers": 0, "hitters": 0, "strikeouts": 0, "three_k": 0}
+			for id: String in own:
+				if not source.has(id):
+					return {}
+				stats.homers += int(source[id].hr)
+				stats.hitters += 1 if source[id].h > 0 else 0
+				stats.strikeouts += int(source[id].p_k)
+				stats.three_k += 1 if source[id].p_k >= 3 else 0
+		# Pre-physical saves accepted score/stat combinations without this cross-check.
+		# Preserve their original game journal, but do not infer any new stat unlocks.
+		# Owned-player seasons and every physical season remain strictly validated.
+		var own_runs: int = int(game.home_runs if game.home == 0 else game.away_runs)
+		if (
+			stats != null
+			and stats.homers > own_runs
+			and season.physical == null
+			and season.player_access.is_empty()
+		):
+			stats = null
+		var row: Dictionary = {
+			"game": int(game.id),
+			"stats": stats,
+			"sponsors": int(sponsors.get(int(game.id), 0)),
+			"end_half": -1,
+			"deficit": 0
+		}
+		var proofs: Dictionary = game.get("ai_tactics", {})
+		for proof: Dictionary in proofs.values():
+			if not proof.has("base"):
+				continue
+			var flow: Dictionary = proof.base
+			row.end_half = int(flow.final.half)
+			for point: Dictionary in flow.ready:
+				var deficit: int = int(
+					point.away - point.home if game.home == 0 else point.home - point.away
+				)
+				row.deficit = maxi(row.deficit, deficit)
+		games.append(row)
+	var result: Dictionary = {"version": VERSION, "games": games, "development": development}
+	return result if load("res://src/gameplay/season/successor_career_general_v1/career_progress.gd").valid_capture(result, ClubSeasonRecord.capture(season).scores) else {}
+
+
+static func capture_with_hits(season: SeasonState) -> Dictionary:
+	# New runs opt into a new evidence schema; the original capture remains exact.
+	# Historic missing/null game stats are still unknown and never get reconstructed.
+	var result: Dictionary = capture(season)
+	if result.is_empty():
+		return {}
+	for index in range(result.games.size()):
+		var row: Dictionary = result.games[index]
+		if row.stats == null:
+			continue
+		var game: Dictionary = season.player_results[index]
+		var own: Array = game.get("club_roster", season.teams[0].roster)
+		var source: Variant = game.get("performance")
+		if (
+			not source is Dictionary
+			or source.size() != 8
+			or own.size() != 4
+			or not SeasonPerformance.valid(source, source.keys())
+		):
+			return {}
+		var hits: int = 0
+		var used: Dictionary = {}
+		for id: String in own:
+			if not source.has(id) or used.has(id):
+				return {}
+			used[id] = true
+			hits += int(source[id].h)
+		row.stats["hits"] = hits
+	result.version = HITS_VERSION
+	return result if load("res://src/gameplay/season/successor_career_general_v1/career_progress.gd").valid_capture(result, ClubSeasonRecord.capture(season).scores) else {}
+
+
+static func _current_development(build: SeasonBuild) -> Dictionary:
+	if build == null or not build.call("pitch_catalog_successor"):
+		return {}
+	var trace: Dictionary = {"book": null, "count": 0,
+		"contracts": build._contracts.duplicate(true),
+		"result": {"mastery": 0, "known": 0, "lessons": []}}
+	var observer: Callable = func(replayed: SeasonBuild) -> bool:
+		return _observe_development(trace, replayed)
+	# Full transaction replay, not a book carrying the final unlocked IDs. This
+	# verifies prices, rewards and exotic_admit ordering before extracting lessons.
+	var checked: SeasonBuild = BuildRestore.restore(build.to_data(), build._seed,
+		build._initial_roster, build._pool, build._blocked, -1, observer)
+	if checked == null or trace.book == null \
+		or not ClubCareer.same(trace.book.to_data(), checked._book.to_data()) \
+		or not ClubCareer.same(checked._book.to_data(), build._book.to_data()) \
+		or not ClubCareer.same(checked._contracts, build._contracts):
+		return {}
+	trace.result.lessons.sort()
+	return trace.result
+
+
+static func _observe_development(trace: Dictionary, replayed: SeasonBuild) -> bool:
+	# The replay observer receives only a freshly committed local Build, never a
+	# serialized witness. All access comes from its exact replayed prefix.
+	var source: SeasonDevelopment = replayed._book
+	var book: SeasonDevelopment = trace.book
+	if book == null:
+		book = Development.new(source._season_key)
+		if not book.call("enable_successor_pitch_catalog") or not book.install_exotic_start(source._exotic_start):
+			return false
+		if LeagueRules.dynasty(replayed._league_rules) \
+			and not book.enable_dynasty(replayed._league_rules, source._dynasty_start):
+			return false
+		if LeagueRules.scramble(replayed._league_rules) and not book.enable_scramble(replayed._league_rules):
+			return false
+		trace.book = book
+		for id: String in replayed._initial_roster:
+			ClubPlayerProgress._profile(trace.result, book.player(id))
+	# Build commit has already replayed the matching rewards and admitted this
+	# proof. Later admission events are not visible at earlier buy boundaries.
+	if not ClubCareer.same(book._exotic_start, source._exotic_start):
+		return false
+	if not ClubCareer.same(book._exotic_current, source._exotic_current):
+		if source._exotic_current.is_empty() or not Eligibility.valid(source._exotic_current) \
+			or source._exotic_current.season != book._season_key \
+			or (not book._exotic_current.is_empty() and not Access.proof_prefix(
+				book._exotic_current, source._exotic_current)):
+			return false
+		book.retain_exotic_current(source._exotic_current)
+	if source._events.size() < int(trace.count):
+		return false
+	for index in range(int(trace.count), source._events.size()):
+		var event: Dictionary = source._events[index]
+		var before: Dictionary = book.player(event.player)
+		var applied: Dictionary = book.commit(event)
+		if not applied.ok or applied.replayed:
+			return false
+		if not trace.contracts.has(event.player):
+			continue
+		if event.op == "learn" and not before.mastery.has(event.target) \
+			and not trace.result.lessons.has(event.target):
+			trace.result.lessons.append(event.target)
+		ClubPlayerProgress._profile(trace.result, book.player(event.player))
+		if event.has("other") and trace.contracts.has(event.other):
+			ClubPlayerProgress._profile(trace.result, book.player(event.other))
+	trace.count = source._events.size()
+	return true  # Exact complete book identity is checked once after full replay.
+
+

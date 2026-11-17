@@ -1,0 +1,30 @@
+extends RefCounted
+## Independent evidence source identity. Does not change the General114 catalog.
+const FORMAT: String = "successor-career-general-evidence-v1"
+const LeagueCatalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_career_general_v1/catalog.gd",
+	"res://src/gameplay/season/successor_career_general_v1/career_progress.gd",
+	"res://src/gameplay/season/successor_career_general_v1/career_run_evidence.gd",
+	"res://src/gameplay/season/successor_career_general_v1/player_legend.gd",
+	"res://src/gameplay/season/successor_career_general_v1/player_progress.gd",
+	"res://src/gameplay/season/club_player_progress.gd",
+	"res://src/gameplay/season/club_player_legend.gd",
+	"res://src/gameplay/season/club_season_record.gd"]
+
+static func signature() -> String:
+	var league: String = LeagueCatalog.signature()
+	if league.is_empty():
+		return ""
+	var parts: Array[String] = [FORMAT, league]
+	for path: String in FILES:
+		var digest: String = FileAccess.get_sha256(path)
+		if digest.is_empty():
+			return ""
+		parts.append(path + ":" + digest)
+	return "|".join(parts).sha256_text()
+
+static func digest(value: Variant) -> String:
+	# Normalize ints/floats through JSON, then sort Dictionary keys recursively.
+	# Equivalent cold JSON checkpoints retain the same content address.
+	return JSON.stringify(JSON.parse_string(JSON.stringify(value, "", true, true)), "", true, true).sha256_text()

@@ -1,0 +1,122 @@
+extends "res://tests/successor_general_replay_prefix.gd"
+## Actual standalone General114 evidence only. No owner, rewards or Dynasty claim.
+const Evidence = preload("res://src/gameplay/season/successor_career_general_v1/career_run_evidence.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_general_v1/career_progress.gd")
+const EvidenceCatalog = preload("res://src/gameplay/season/successor_career_general_v1/catalog.gd")
+const OldEvidence = preload("res://src/gameplay/season/successor_career_v1/career_run_evidence.gd")
+const OldProgress = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+const OldCatalog = preload("res://src/gameplay/season/successor_career_v1/catalog.gd")
+const SOURCE: String = "user://source-general.json"
+const RECORD: String = "user://general-career-evidence.json"
+
+func recruitment_checks(season: SeasonState, evidence: Dictionary) -> bool:
+	var signs: Array = []
+	for event: Dictionary in season.build._events:
+		if event.get("op") == "sign":
+			signs.append(event)
+	if not check(signs.size() == 1 and season.player_results.size() == 3,"actual fresh recruit fixture has three games and one paid signing"):
+		return false
+	var sign: Dictionary = signs[0]
+	var offer: Dictionary = {}
+	for quote: Dictionary in season.build._recruits:
+		if quote.offer.get("id") == sign.offer:
+			offer = quote.offer
+	if not check(not offer.is_empty() and not offer.returning and season.build.roster().has(offer.player) \
+		and not season.build.roster().has(sign.replace),"actual quoted fresh newcomer replaces departed ID"):
+		return false
+	for index in range(evidence.player_progress.games.size()):
+		var original: Dictionary = season.player_results[index]
+		var row: Dictionary = evidence.player_progress.games[index]
+		if not check(original.club_roster.has(sign.replace) and not original.club_roster.has(offer.player) \
+			and row.players.has(sign.replace) and not row.players.has(offer.player),"past appearances retain released player, never invented newcomer appearances"):
+			return false
+	var current: Dictionary = season.build.player(offer.player)
+	for key: String in ["id","base","stats","capacity","active","mastery"]:
+		if not check(ClubCareer.same(current.get(key),offer.profile.get(key)),"newcomer retains exactly quoted catchup " + key):
+			return false
+	return check(not season.build.player(sign.replace).is_empty() and season.build._contracts.has(sign.replace),"departed development and contract remain under departed ID")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and FileAccess.file_exists(SOURCE),"isolated actual General114 fixture required"):
+		return
+	cohort_roots = Codec._operation_content_roots()
+	var authored: PackedByteArray = content_bytes()
+	var files: Dictionary = saved_bytes()
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var payload: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	var input_before: PackedByteArray = var_to_bytes(payload)
+	var season: SeasonState = Codec.restore(payload)
+	var paired: bool = OS.get_cmdline_user_args().has("doubleheader") or OS.get_cmdline_user_args().has("recruit")
+	if not check(snapshot_supported and season != null and season.career == null \
+		and season.player_results.size() > 0 and season.physical.pending.is_empty() \
+		and LeagueRules.doubleheader(season.league_rules) == paired \
+		and (paired or season.league_rules.is_empty()),"actual settled standalone Standard/Doubleheader fixture restored fully"):
+		return
+	var evidence: Dictionary
+	if OS.get_cmdline_user_args().has("reopen"):
+		if not check(FileAccess.file_exists(RECORD),"isolated saved evidence exists for cold replay"):
+			return
+		evidence = Evidence.restore(JSON.parse_string(FileAccess.get_file_as_string(RECORD)))
+	else:
+		evidence = Evidence.capture(payload,1)
+	if not check(not evidence.is_empty() and evidence.format == EvidenceCatalog.FORMAT \
+		and ClubCareer.same(evidence.checkpoint,payload) \
+		and evidence.player_progress.format == Progress.FORMAT \
+		and evidence.player_progress.games.size() == season.player_results.size() \
+		and Progress.valid(evidence.player_progress,evidence.proof.scores),"strict new-domain evidence retains complete original checkpoint and progress"):
+		return
+	for index in range(season.player_results.size()):
+		var game: Dictionary = season.player_results[index]
+		var row: Dictionary = evidence.player_progress.games[index]
+		var ids: Array = row.players.keys()
+		ids.sort()
+		if not check(row.game == game.id and ClubCareer.same(ids,game.club_roster),"historical game roster and player provenance exact"):
+			return
+	if OS.get_cmdline_user_args().has("recruit") and not recruitment_checks(season,evidence):
+		return
+	if not check(OldEvidence.restore(evidence).is_empty() and not OldProgress.valid(evidence.player_progress,evidence.proof.scores),"old109 readers reject new evidence/progress without relabeling"):
+		return
+	var old_format: Dictionary = evidence.duplicate(true)
+	old_format.format = OldCatalog.FORMAT
+	if not check(Evidence.restore(old_format).is_empty(),"new evidence reader rejects old-format envelope; not an old evidence migration"):
+		return
+	if not OS.get_cmdline_user_args().has("reopen"):
+		var restored: Dictionary = Evidence.restore(JSON.parse_string(JSON.stringify(evidence,"",true,true)))
+		if not check(ClubCareer.same(restored,evidence),"new evidence full replay and exact JSON recapture"):
+			return
+		for kind: String in ["catalog","checkpoint","scores","progress","sidecar"]:
+			var wrong: Dictionary = evidence.duplicate(true)
+			match kind:
+				"catalog": wrong.identity.pitch_catalog = "unknown"
+				"checkpoint": wrong.checkpoint.pitch_catalog = "unknown"
+				"scores": wrong.proof.scores = []
+				"progress": wrong.player_progress.games[0].players.clear()
+				"sidecar": wrong.checkpoint.checkpoint.results[0].pitching_current.version = -1
+			if not check(Evidence.restore(wrong).is_empty(),"full replay rejects tampered " + kind):
+				return
+		var pending: Dictionary = payload.duplicate(true)
+		pending.checkpoint.physical.pending = {"not_a_real_pending_report":true}
+		if not check(Evidence.capture(pending,1).is_empty(),"synthetic malformed pending injection rejected; no claim of a newly played pending fixture"):
+			return
+		if not check(Evidence.capture(payload,0).is_empty() and Evidence.capture(payload,1000001).is_empty(),"run label bounds, not ownership authority"):
+			return
+		var detached: Dictionary = evidence.duplicate(true)
+		detached.checkpoint.clear()
+		detached.player_progress.games.clear()
+		if not check(var_to_bytes(payload) == input_before,"derived dictionaries detached from input"):
+			return
+		if not check(not FileAccess.file_exists(RECORD),"new evidence cannot overwrite prior record"):
+			return
+		var file: FileAccess = FileAccess.open(RECORD,FileAccess.WRITE)
+		if not check(file != null,"private evidence writable"):
+			return
+		file.store_string(JSON.stringify(evidence,"",true,true))
+		file.close()
+	var after: Dictionary = saved_bytes()
+	if not OS.get_cmdline_user_args().has("reopen"):
+		after.erase(RECORD)
+	if not check(after == files and FileAccess.get_file_as_bytes(SOURCE) == bytes \
+		and var_to_bytes(payload) == input_before and content_bytes() == authored and snapshot_supported,"original saves, source envelope and held authored Resources unchanged"):
+		return
+	print("PASS: actual General114 career evidence only; no owned run, awards, completed season or Dynasty admission")
+	get_tree().quit()
