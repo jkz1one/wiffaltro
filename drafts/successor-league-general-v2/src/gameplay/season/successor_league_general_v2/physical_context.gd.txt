@@ -1,6 +1,6 @@
 extends RefCounted
 ## B1 structural physical context only. No league unlock, season or owner authority.
-## One-game, no-venue contexts; original wallet/flow/roster validation stays separate.
+## No-venue contexts; paid pair/workload validation remains in its exact authorities.
 const SINGLE_GAME: Array[String] = ["standard", "dugout", "sponsorship", "academy", "equipment", "earnings", "scramble"]
 
 static func supports_rules(value: Variant) -> bool:
@@ -9,7 +9,8 @@ static func supports_rules(value: Variant) -> bool:
 	if value.is_empty():
 		return true # Ordinary Standard uses its original empty-rule distinction.
 	var normalized: Dictionary = LeagueRules.normalized(value)
-	return not normalized.is_empty() and SINGLE_GAME.has(normalized.league) \
+	return not normalized.is_empty() and (SINGLE_GAME.has(normalized.league) \
+		 or (normalized.league == "doubleheader" and normalized.tier == 0)) \
 		and ClubCareer.same(value, normalized)
 
 static func matches(state: MatchState) -> bool:
@@ -18,11 +19,19 @@ static func matches(state: MatchState) -> bool:
 		return false
 	for team: TeamMatchState in [state.away_team, state.home_team]:
 		if team.recovery == null or not ClubCareer.same(team.league_rules, state.league_rules) \
-			or not team.dynasty_start.is_empty() or not team.league_pair.is_empty() \
-			or not team.inventory_actions.is_empty() \
-			or not team.recovery.workload_initial.is_empty() \
-			or not team.recovery.workload_events.is_empty() \
-			or not team.recovery.workload_input.is_empty():
+			or not team.dynasty_start.is_empty() or not team.inventory_actions.is_empty():
+			return false
+		if LeagueRules.doubleheader(state.league_rules):
+			if not preload("physical_workload.gd").pair_valid(team.league_pair) \
+				or team.league_pair.game != state.away_team.league_pair.get("game", -1):
+				return false
+			# Match-start may precede the first release. End-of-game evidence is
+			# independently validated against paid prefixes and exact workload.
+			if team.recovery.workload_initial.is_empty() and (not team.recovery.workload_events.is_empty() \
+				or not team.recovery.workload_input.is_empty()):
+				return false
+		elif not team.league_pair.is_empty() or not team.recovery.workload_initial.is_empty() \
+			or not team.recovery.workload_events.is_empty() or not team.recovery.workload_input.is_empty():
 			return false
 		if state.league_rules.is_empty() and not team.league_ownership.is_empty():
 			return false

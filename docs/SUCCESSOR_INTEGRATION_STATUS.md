@@ -72,10 +72,13 @@ Dynasty qualification is inferred from the one-round evidence.
   human/NPC round, earned stat upgrade and paid reopen/replay. Actual fresh and
   returning recruitment remain unqualified. See `SUCCESSOR_GENERAL_SCRAMBLE_B6.md`.
 
-- Closed Doubleheader adapter foundation passes native schedule/context, strict
-  successor-envelope and synthetic workload/partner checks. Actual runtime,
-  reward and physical integration remain unwired; all public Doubleheader tiers
-  stay closed. See `SUCCESSOR_GENERAL_DOUBLEHEADER_FOUNDATION.md`.
+- Doubleheader foundation passed native schedule/context and strict successor
+  envelope/workload/partner checks. B7 now wires standalone tier-zero runtime,
+  reward, physical capture/replay and menu paths. Fresh/draft/cold and the actual
+  first three-game leg plus earned pack purchase pass; return-leg qualification
+  remains in progress at this source checkpoint. Higher tiers/ownership/Dynasty
+  stay closed. See `SUCCESSOR_GENERAL_DOUBLEHEADER_FOUNDATION.md` (historical) and
+  `SUCCESSOR_GENERAL_DOUBLEHEADER_B7.md` (partial integration).
 
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,

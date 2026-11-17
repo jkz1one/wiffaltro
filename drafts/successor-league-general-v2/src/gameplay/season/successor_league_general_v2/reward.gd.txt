@@ -50,10 +50,10 @@ static func _settle_original(build: SeasonBuild, command: Dictionary) -> String:
 		return inventory_error
 	var validated_recoveries: Dictionary = {}
 	if LeagueRules.doubleheader(build._league_rules):
-		var workload_error: String = SeasonDoubleheaderBuild.validate(build, command)
+		var workload_error: String = load("res://src/gameplay/season/successor_league_general_v2/doubleheader_build.gd").validate(build, command)
 		if not workload_error.is_empty():
 			return workload_error
-		validated_recoveries = SeasonDoubleheaderBuild.recoveries(command.doubleheader_workload)
+		validated_recoveries = load("res://src/gameplay/season/successor_league_general_v2/doubleheader_build.gd").recoveries(command.doubleheader_workload)
 	var bank_command: Dictionary = {
 		"id": "game:%s" % str(command.game),
 		"rev": build._bank.revision(),

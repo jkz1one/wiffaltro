@@ -69,6 +69,8 @@ static func capture(app: SeasonApp) -> Array:
 				state, state.away_team if lab._player_home else state.home_team
 			)
 		)
+	if LeagueRules.doubleheader(season.league_rules):
+		human.append(load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").capture(state))
 	if not SeasonInventoryRules.paused_sales(season.build, _fixture_id).is_empty():
 		human.append(SeasonInventoryRules.capture_final(season.build,_fixture_id,state,state.home_team if lab._player_home else state.away_team))
 	return human

@@ -87,8 +87,9 @@ static func _capture(season: SeasonState) -> Dictionary:
 	if season.league_rules.is_empty():
 		payload = historical_shell
 	else:
+		var shell_version: int = 77 if LeagueRules.doubleheader(season.league_rules) else 76
 		if not SeasonOwnership._keys(historical_shell, ["version", "league_rules", "checkpoint"]) \
-			or not SeasonOwnership._whole(historical_shell.get("version"), 76, 76) \
+			or not SeasonOwnership._whole(historical_shell.get("version"), shell_version, shell_version) \
 			or not ClubCareer.same(historical_shell.league_rules, season.league_rules):
 			return {}
 		payload = historical_shell.checkpoint

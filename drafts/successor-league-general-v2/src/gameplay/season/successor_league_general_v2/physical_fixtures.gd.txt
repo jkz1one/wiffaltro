@@ -270,6 +270,7 @@ func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true
 		and season.build != null
 		and season.build.get_script() == load("res://src/gameplay/season/successor_league_general_v2/build.gd")
 		and load("res://src/gameplay/season/successor_league_general_v2/codec.gd").scope(season)
+		and not LeagueRules.doubleheader(season.league_rules) # Keep pair reports on independent full validation.
 		and season.ownership != null and season.physical == self
 		and season._heat_replay_team == null and season._doubleheader_replay_build == null
 		and season._pool_replay_ledger == null and season._npc_replay_run == -1

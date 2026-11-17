@@ -157,7 +157,7 @@ func _clone() -> SeasonState:
 	return Codec.restore(Codec.capture(season)) if season!=null else null
 
 func create_profile(value: String) -> void:
-	if not _available() or season != null or value not in ["standard", "dugout", "sponsorship", "earnings", "academy", "equipment", "scramble"]:
+	if not _available() or season != null or value not in ["standard", "dugout", "sponsorship", "earnings", "academy", "equipment", "scramble", "doubleheader"]:
 		return
 	profile = value
 	create_fresh()
@@ -165,7 +165,7 @@ func create_profile(value: String) -> void:
 func create_fresh() -> void:
 	if not _available() or season!=null or FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH+".bak"):
 		return
-	if profile not in ["standard", "dugout", "sponsorship", "earnings", "academy", "equipment", "scramble"]:
+	if profile not in ["standard", "dugout", "sponsorship", "earnings", "academy", "equipment", "scramble", "doubleheader"]:
 		return
 	var seed_value: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
 	var candidate: SeasonState = Runtime.create_fresh(seed_value) if profile == "standard" else Runtime.create_closed_league(seed_value, LeagueRules.capture(profile, 0, seed_value if profile == "scramble" else null), true)

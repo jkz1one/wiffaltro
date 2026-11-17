@@ -264,7 +264,7 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 		if not LeagueRules.season_matches(expected_rules, data.get("seed")):
 			return null
 		season.league_rules = expected_rules.duplicate(true)
-		SeasonDoubleheader.install_schedule(season)
+		load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").install_schedule(season)
 		season.league_live = league_live
 		if season.build == null or not season.build.enable_league_rules(expected_rules):
 			return null
@@ -644,7 +644,7 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 				return null
 		elif LeagueRules.doubleheader(season.league_rules):
 			season._doubleheader_replay_build = restored
-			if not SeasonDoubleheader.replay_result(
+			if not load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").replay_result(
 				season, result, performance, ai_tactics, replayed_tactics
 			):
 				return null

@@ -1,5 +1,8 @@
 # Closed successor Doubleheader adapter foundation
 
+Historical checkpoint30 boundary. The following describes that exact checkpoint,
+not later integration. See `SUCCESSOR_GENERAL_DOUBLEHEADER_B7.md` for the follow-on.
+
 This is not Doubleheader admission or actual paired-game qualification. Runtime,
 reward, physical and menu routes remain closed/unintegrated. The added helpers
 are not part of the ordinary catalog's active source closure until they are wired

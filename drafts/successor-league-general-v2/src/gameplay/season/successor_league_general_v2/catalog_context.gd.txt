@@ -6,6 +6,8 @@ const VERSION: int = 7
 const RESERVED_EXOTICS: Dictionary = Provider.RESERVED_EXOTICS
 const SAVE_PATH: String = "user://successor-general-build-v7-r2.json"
 const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_league_general_v2/doubleheader.gd",
+	"res://src/gameplay/season/successor_league_general_v2/doubleheader_build.gd",
 	# B2 ordinary snapshot/replay, draft, paid NPC and shop dependencies.
 	"res://src/gameplay/season/season_save.gd",
 	"res://src/gameplay/season/season_save_operations_3.gd",

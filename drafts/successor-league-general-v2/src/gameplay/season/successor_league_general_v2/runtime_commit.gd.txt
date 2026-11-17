@@ -244,7 +244,7 @@ static func _source_private_make_team(_source_owner: SeasonState, index: int, fi
 		team.field_supply.receipt = SeasonFieldGrant.receipt(pair_game)
 		team.field_supply.retired = SeasonInventoryResale.field_retired(_source_owner.build._bank, \
 			pair_game)
-	if not SeasonDoubleheader.apply(_source_owner, index, pair_game, team):
+	if not load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").apply(_source_owner, index, pair_game, team):
 		return null
 	if _source_owner.opponents != null and index > 0:
 		team.ai_sponsor_choices = _source_owner.opponents._format >= 8

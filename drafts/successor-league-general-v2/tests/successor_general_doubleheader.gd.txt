@@ -152,7 +152,7 @@ func build_cases(market: int) -> bool:
 	return check(Context.context(build,3).is_empty() and Context.pair_for(build,3).is_empty(),"legacy reward row cannot enter successor helper context")
 
 func run() -> void:
-	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated closed Doubleheader foundation"):
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated Doubleheader foundation"):
 		return
 	roots = Codec._operation_content_roots()
 	roster.assign(SeasonPlayerCatalog.ids().slice(0,4))
@@ -161,9 +161,12 @@ func run() -> void:
 	for market in [0,12]:
 		if not build_cases(market):
 			return
-	for tier in range(5):
+	for tier in range(1,5):
 		if not check(Runtime.create_closed_league(551,LeagueRules.capture_tier("doubleheader",tier),true) == null,"public Doubleheader admission remains closed tier " + str(tier)):
 			return
+	var paired: SeasonState = Runtime.create_closed_league(551,LeagueRules.capture("doubleheader"),true)
+	if not check(paired != null and Codec.restore(Codec.capture(paired)) != null,"tier zero paired birth and exact restore"):
+		return
 	var ordinary: SeasonState = Runtime.create_fresh(551)
 	var ordinary_payload: Dictionary = Codec.capture(ordinary)
 	if not check(not ordinary_payload.is_empty() and Codec.restore(ordinary_payload) != null,"ordinary public creation and exact restore unaffected"):
@@ -173,5 +176,5 @@ func run() -> void:
 	wrong.league_live = true
 	if not check(Codec.restore(wrong) == null,"ordinary envelope cannot be recast into Doubleheader"):
 		return
-	print("PASS: CLOSED Doubleheader adapter foundation only; no actual paired gameplay, earned sweep, cold two-leg save or Dynasty claim")
+	print("PASS: Doubleheader adapter foundation only; no actual paired gameplay, earned sweep, cold two-leg save or Dynasty claim")
 	get_tree().quit()

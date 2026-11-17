@@ -165,7 +165,7 @@ static func _source_public_create_closed_league(
 	if season == null:
 		return null
 	season.league_rules = normalized
-	SeasonDoubleheader.install_schedule(season)
+	load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").install_schedule(season)
 	season.league_live = live
 	season.opponents._format = 13
 	season.opponents.draft_rule = SeasonOpponentDraft.D2_RULE if normalized.tier >= 2 else ""
@@ -736,7 +736,7 @@ static func _source_private_validate_player_result(_source_owner: SeasonState,
 		)
 	):
 		return false
-	if not SeasonDoubleheader._accepts_with_prefix(
+	if not load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd")._accepts_with_prefix(
 		_source_owner,
 		fixture,
 		doubleheader_evidence,

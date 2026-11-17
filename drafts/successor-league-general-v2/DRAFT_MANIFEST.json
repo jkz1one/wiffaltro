@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "b2b9eb1c9090e54ddb2d1241339c58bf984bf45a",
-  "scope": "Closed successor Doubleheader adapter foundation only; original runtime/reward callers remain unintegrated and Doubleheader admission stays closed.",
+  "source_checkpoint": "e22c56546ef1580ef928d8ddd1730858571fb4f3",
+  "scope": "Partial Doubleheader tier-zero integration: fresh/draft/cold, actual first leg and earned pack passed; return-leg/final cold qualification pending; no owner or Dynasty admission.",
   "files": [
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/build.gd.txt",
@@ -30,20 +30,20 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/catalog_context.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/catalog_context.gd",
-      "bytes": 17163,
-      "sha256": "144863218f01d6dd61d486a62dcc03461c3f09ce08a3960776d8d421170878eb"
+      "bytes": 17317,
+      "sha256": "d33a97f61a4dc4de5fec3495b40c419de34b1e7dae46d6ee55746a1a8311cfbb"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/codec.gd",
-      "bytes": 6860,
-      "sha256": "e426a4e35e1748d75262155ffd8f68d09df89980c8abfd82376690e42a59b1e8"
+      "bytes": 6969,
+      "sha256": "09bb9577ea4605f78ded2cfddfdc624a6640d28d4943a14fe7f0e29b15ef4491"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/decoder.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/decoder.gd",
-      "bytes": 36465,
-      "sha256": "0ba6a8ef0bc4faa552f5a98d99c01a554b1b7dcd86a2034a6a0f8f832a447978"
+      "bytes": 36583,
+      "sha256": "770356326064d5af24ea2e896121016ef306dee5f3dc1dab637379fea5c7e02b"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/development.gd.txt",
@@ -54,8 +54,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/doubleheader.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/doubleheader.gd",
-      "bytes": 9832,
-      "sha256": "bba574fc828d60e732a135330513a5a9ffc95d4945a19b4edf7725ff68c73278"
+      "bytes": 10511,
+      "sha256": "0cad413d288d2c327317bf7269fd0e7e1c9d886c75c37a3106c1224b0973d2db"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/doubleheader_build.gd.txt",
@@ -138,8 +138,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/ordinary_context.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/ordinary_context.gd",
-      "bytes": 1373,
-      "sha256": "6850afd7729eab3f0e0d6d0fc64a1e38ebe432cfc00d3dc506384cfd2237cb84"
+      "bytes": 1389,
+      "sha256": "d2118733bb69c466a2677c9e32e6dd1e85729075effc3847542233f3645a42ee"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/pending.gd.txt",
@@ -150,8 +150,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/physical_context.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/physical_context.gd",
-      "bytes": 1457,
-      "sha256": "32dd9bca1c1f853135f36a5a03bb7ee3dd35af87e81d038d09398e699eefe29a"
+      "bytes": 2066,
+      "sha256": "dc3ee018fed21f4a30dfd58261b21fbb83487f63f025a9bdd6ecf4bdfa25a121"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/physical_core.gd.txt",
@@ -162,8 +162,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/physical_fixtures.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/physical_fixtures.gd",
-      "bytes": 19971,
-      "sha256": "5d716ad8c9ed116466b74af6766457b4a607200fcd519123516ccf8b8aeb8472"
+      "bytes": 20079,
+      "sha256": "cdff84763c79540f3016eb61b1f45ade1b541d387294e3e05a7a80107dece93a"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/physical_league.gd.txt",
@@ -216,8 +216,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/reward.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/reward.gd",
-      "bytes": 8052,
-      "sha256": "555b5fc3486f73c60649cd85863fe8b3c8b25e7cfc2e9071f4b47c8c7634984e"
+      "bytes": 8172,
+      "sha256": "01cb37b103d054edca2848699d0dcd2cf3dbf08c86f97bd498d7c86350f1f4d4"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/runtime.gd.txt",
@@ -228,14 +228,14 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/runtime_commit.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/runtime_commit.gd",
-      "bytes": 17630,
-      "sha256": "d1a6934a6f21e81578f74b6a77f845c39d803c6a539fae203363bedba7eb05b8"
+      "bytes": 17689,
+      "sha256": "2bd6c5a4f00d37ab2d1655e156ae7dc038de6c63c1e10b77648b567fd0bb904c"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/runtime_operations.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/runtime_operations.gd",
-      "bytes": 29595,
-      "sha256": "c269a49a5a16c4727015bb70d89c0aef4afece5e53b3de29418cc7a6e65199e2"
+      "bytes": 29713,
+      "sha256": "2d0ac159f527c363055d512036ade2e06e9eb4c6b731b6d632c23be5a68d6ccf"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/save.gd.txt",
@@ -258,14 +258,14 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_league_general_v2/base_app.gd",
-      "bytes": 13856,
-      "sha256": "79640a445ed01cee3190cc655319d2956b60459795fb7fabc137572ab0923778"
+      "bytes": 13888,
+      "sha256": "bd593748822c2edaf49837b939f6355142f85b5bd746f7ad65338bd1b99be44f"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/capture_human.gd.txt",
       "restore_path": "src/presentation/season/successor_league_general_v2/capture_human.gd",
-      "bytes": 3165,
-      "sha256": "317ec8d295e1f553d63902ea9513ca011892d9cded693d1444fc7e238e571615"
+      "bytes": 3325,
+      "sha256": "6a74f5ea9832470ecc007048822b9d375f0a1162cdd7a982d0eb7d7efbd02cfe"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/entry.tscn.txt",
@@ -276,8 +276,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_league_general_v2/menu.gd",
-      "bytes": 1816,
-      "sha256": "5c49a8871367d2ca1ba1dbdeb1586ca676522b6a871e68162ea0f13213156160"
+      "bytes": 1832,
+      "sha256": "40bddce32d41074b498bc854d3dd6601212d476715c035ea718c19a86d873923"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/presentation/season/successor_league_general_v2/school_shop_ui.gd.txt",
@@ -324,8 +324,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_birth.gd.txt",
       "restore_path": "tests/successor_general_birth.gd",
-      "bytes": 4779,
-      "sha256": "1d6c87b6b4657a1a3bcc6c73f224f1df6adedf439fbfa6116eee753589b79151"
+      "bytes": 4811,
+      "sha256": "970a9d48a0c28a36bc0a60df5756d248b48e02a873dcea7110bf345382f1a1e5"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_birth.tscn.txt",
@@ -336,8 +336,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_doubleheader.gd.txt",
       "restore_path": "tests/successor_general_doubleheader.gd",
-      "bytes": 9341,
-      "sha256": "c19f3dbd329cc4a220a34bbae02d3e885acb14928b1845b339c3c66cdcd8aae2"
+      "bytes": 9563,
+      "sha256": "c76d35332dacd0bb196d27eacd9da1ed69f1c9c97fc634ba6dc9a86f5b061f0e"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_doubleheader.tscn.txt",
@@ -494,6 +494,18 @@
       "restore_path": "tests/successor_general_signature.tscn",
       "bytes": 192,
       "sha256": "22718643268f1af8875bdb397292de59db6d63189831c573d9e4b09d685d48d6"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_doubleheader_round.gd.txt",
+      "restore_path": "tests/successor_general_doubleheader_round.gd",
+      "bytes": 17244,
+      "sha256": "40203b3b679ae4ece715be068961024730b995531a90da3978ddd4fba7b6b753"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_doubleheader_round.tscn.txt",
+      "restore_path": "tests/successor_general_doubleheader_round.tscn",
+      "bytes": 218,
+      "sha256": "a6f269c99781f41952282f693d2aa9b66f82ddd1eb60fa066164d89ff671b8d2"
     }
   ]
 }

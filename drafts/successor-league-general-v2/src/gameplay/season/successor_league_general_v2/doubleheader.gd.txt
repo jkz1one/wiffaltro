@@ -250,8 +250,18 @@ static func replay_result(
 		if event.get("op") == "reward" and event.get("game") == result.id:
 			reward = event
 			break
-	if reward.is_empty():
+	if reward.is_empty() or not reward.get("pitching") is Dictionary \
+		or not result.get("pitching") is Dictionary \
+		or not ClubCareer.same(reward.pitching, result.pitching) \
+		or not load("res://src/gameplay/season/successor_league_general_v2/called_proof.gd").same_retained(reward, result):
 		return false
+	# Preserve authenticated current evidence through the ordinary record path.
+	# Absent sidecars stay absent; legacy pitching cannot imply called outcomes.
+	var pitching: Dictionary = reward.pitching
+	if reward.has("pitching_current"):
+		if not load("res://src/gameplay/season/successor_league_general_v2/called_proof.gd").accepts(full, reward.pitching_current, pitching):
+			return false
+		pitching = reward.pitching_current
 	return season._record_player_result(
 		int(result.id),
 		int(result.away_runs),
@@ -262,7 +272,7 @@ static func replay_result(
 		reward.get("batting", {}),
 		reward.get("stances", []),
 		reward.get("fielding", []),
-		reward.get("pitching", {}),
+		pitching,
 		reward.get("field_supply", {}),
 		reward.get("frozen", []),
 		ai_tactics,
