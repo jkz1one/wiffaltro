@@ -1,13 +1,13 @@
 {
   "format": "inactive-successor-returning-recruit-v1",
   "source_checkpoint": "a289fd76ef56daa78309e65dc7e973d26019c295",
-  "scope": "Actual six-round returning-recruit test harness only; native import and actual seed66 birth/four picks passed. Gameplay, release/return and final cold pending. Existing engines unchanged.",
+  "scope": "Actual six-round returning-recruit harness only. Three earned rounds and Mika upgrade passed; first quote Cancel needed bounded frame wait, independently native-qualified without purchase. Release/return and final cold pending. Existing engines unchanged.",
   "files": [
     {
       "backup_path": "drafts/successor-returning-recruit-v1/tests/successor_returning_recruit.gd.txt",
       "restore_path": "tests/successor_returning_recruit.gd",
-      "bytes": 23625,
-      "sha256": "a27ecefffb33c91795b6f201bac24afa99561e898faeb4805ed7ee2faa818162"
+      "bytes": 23800,
+      "sha256": "9f5a4db9b6e1fd8725de97e53f19685836dbac9f0aebb51cfd851d69e3d64330"
     },
     {
       "backup_path": "drafts/successor-returning-recruit-v1/tests/successor_returning_recruit.tscn.txt",

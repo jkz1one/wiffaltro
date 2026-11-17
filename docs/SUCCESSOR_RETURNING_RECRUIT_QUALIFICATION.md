@@ -52,3 +52,20 @@ return, round-six use and final cold remain unqualified. An initial isolated sta
 and was intentionally stopped while adding stronger live-definition assertions;
 its evidence is retained and is not a gameplay pass. Full fresh/recruit/return,
 round-six, and final-cold assertions must complete before claiming qualification.
+
+### Bounded Cancel timing correction
+
+The first actual run settled three rounds (nine results) and purchased an earned
+8 Cash Pitching upgrade for Mika. The natural visit-three Kit quote was correct.
+Its first Cancel check failed only because native dialog hiding is deferred:
+pending command, owner, canonical state, primary and backup were unchanged.
+A separate isolated diagnostic confirmed all six predicates after at most three
+process frames, exited successfully before purchase, and verified all 6,476 files
+in the original stage unchanged. The original failure is retained.
+
+The test now awaits that bounded hide and propagates the coroutine through its
+shop sequence. No product code, save identity, assertions or source fixtures were
+weakened. Continuation uses a separate clone with identical production source and
+copied earned evidence, replacing only this test script. Three rounds are not
+replayed merely to correct a UI timing assertion. Recruitment remains unqualified
+until the actual sequence passes.
