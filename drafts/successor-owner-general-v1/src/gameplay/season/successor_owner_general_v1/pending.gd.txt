@@ -3,15 +3,27 @@ const Codec = preload("codec.gd")
 const GamePending = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
 
 static func project(season: SeasonState) -> Dictionary:
-	var data: Dictionary = Codec.capture(season)
-	if data.is_empty() or not _pending_shape(season):
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var result: Dictionary = _project_once(season)
+	roots.clear()
+	return result
+
+static func _project_once(season: SeasonState) -> Dictionary:
+	# Equality/source descriptors are not authority. Clone independently replays
+	# predecessor, paid history, physical prefix and existing pending evidence.
+	var before: Dictionary = Codec.guard_snapshot(season)
+	if before.is_empty() or not _pending_shape(season):
 		return {"error": "The owned pending round is invalid."}
-	var pending: Dictionary = data.checkpoint.physical.pending.duplicate(true)
-	data.checkpoint.physical.pending = {}
-	var candidate: SeasonState = Codec.restore(data)
+	var candidate: SeasonState = Codec.clone(season)
 	if candidate == null:
 		return {"error": "The owned round checkpoint could not be restored."}
-	return _project_candidate(candidate, pending)
+	# Clone alone does not check the complete owner descriptor. Preserve fresh
+	# missing/changed owner-bound source rejection and exact old-owner equality.
+	if not ClubCareer.same(Codec.guard_snapshot(candidate),before) or not ClubCareer.same(Codec.guard_snapshot(season),before) or not _pending_shape(candidate):
+		return {"error": "The owned source or checkpoint changed during pending validation."}
+	var pending: Dictionary = candidate.physical.pending.duplicate(true)
+	candidate.physical.pending.clear()
+	return _project_candidate(candidate,pending)
 
 static func _physical_payload(data: Dictionary) -> Dictionary:
 	return data.checkpoint if Codec.envelope_valid(data) else {}

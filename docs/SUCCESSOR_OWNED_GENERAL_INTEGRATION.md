@@ -136,7 +136,7 @@ only strengthens ordinary Save guards and is retained across retries. Missing
 primary permits guarded strict fallback; an existing primary may differ only in
 valid same-member lineup order and distinct starter/fielder roles. Other existing
 primary differences, malformed data and oversized data reject without overwrite.
-This prevents a retained purchase from silently overwriting later primary data.
+This prevents a retained pack purchase from silently overwriting later primary data.
 The original fallback now also checks that void build adoption actually succeeded.
 
 Final native import, negative-boundary, CAS byte/shape checks and separate cold
@@ -146,3 +146,27 @@ JSON formatting and cold qualification remain pending. The prepared actual pack
 harness independently constructs/captures the original path for exact comparison.
 Three-to-one reconstruction is a code-path count for matching-primary packs,
 not a measured latency or complete-game claim.
+
+## Single-reconstruction pending projection
+
+Public owned pending projection now performs one independent strict clone instead
+of strict capture followed by another strict restore. Nonempty fresh full-owner
+guard envelopes before/after cloning preserve owner-source descriptor checks,
+including source fields that plain clone does not authenticate. Both the cloned
+candidate and original owner must match that initial envelope. Only the cloned
+pending dictionary is cleared, then the unchanged pending replay discovers the
+next physical job or settles all receipts. Operation-scoped Resource roots remain
+held; no validation cache or caller proof is introduced. Shared authored Resources
+are not claimed to be immutable or isolated from concurrent mutation.
+
+The bounded one-round harness observes the actual App projection rather than
+running a second test-only preflight. Before awaiting an NPC game, it requires
+the original owner, primary/backup bytes and file existence to remain unchanged.
+The frozen112 full-season harness is unchanged, including its terminal preflight
+and deliberate final-save failure/retry gate.
+
+Final native import, negative/CAS-shape/null-pending/source-descriptor checks and
+separate cold-negative checks passed. Valid owned pending
+projection, input invariance during real replay, malformed-report parity and
+measured savings require the authentic116 run. Null rejection and descriptor
+source-change/recovery tests do not establish those positive cases.

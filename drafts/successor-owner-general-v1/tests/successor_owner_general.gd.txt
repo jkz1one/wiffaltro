@@ -34,6 +34,8 @@ func negative_run() -> void:
 	var unsupported_pack: Dictionary = Save.commit_shop(null,{"op":"reroll"})
 	if not check(invalid_pack.handled and invalid_pack.candidate == null and not invalid_pack.saved and not unsupported_pack.handled and not FileAccess.file_exists(Save.PATH),"fixed pack invalid owner rejects and other operations retain strict fallback"): return
 	if not cas_negative_checks(birth): return
+	if not descriptor_negative_checks(): return
+	if not check(Pending.project(null).has("error") and not FileAccess.file_exists(Save.PATH),"null pending projection rejects without persistence"): return
 	var app = App.new()
 	app.predecessor = birth.duplicate(true)
 	add_child(app)
@@ -77,6 +79,31 @@ func cas_negative_checks(birth: Dictionary) -> bool:
 			"same-role": wrong.checkpoint.starter_index = wrong.checkpoint.fielder_index
 		if not check(not Save._lineup_only(birth,wrong),"lineup comparator rejects "+kind): return false
 	return true
+
+
+func descriptor_negative_checks() -> bool:
+	if not check(ProjectSettings.globalize_path("res://").contains("/wiffaltro-signature-"),"descriptor probe limited to isolated copied project"): return false
+	var path: String = "res://src/presentation/season/successor_owner_general_v1/entry.tscn"
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
+	var before: String = Codec.Catalog.signature()
+	if not check(not original.is_empty() and not before.is_empty(),"complete owner descriptor exists"): return false
+	var modified: PackedByteArray = original.duplicate()
+	modified.append_array("\n; isolated descriptor probe\n".to_utf8_buffer())
+	var wrote: bool = descriptor_write(path,modified)
+	var changed: String = Codec.Catalog.signature() if wrote else ""
+	# Restore exact source bytes before any assertion can quit this process.
+	var restored: bool = descriptor_write(path,original)
+	var after: String = Codec.Catalog.signature()
+	return check(wrote and restored and not changed.is_empty() and changed != before and after == before,"fresh owner descriptor source-change/recovery only; not valid pending qualification")
+
+func descriptor_write(path: String, bytes: PackedByteArray) -> bool:
+	var file = FileAccess.open(path,FileAccess.WRITE)
+	if file == null: return false
+	file.store_buffer(bytes)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	return error == OK and FileAccess.get_file_as_bytes(path) == bytes
 
 
 const Pending = preload("res://src/gameplay/season/successor_owner_general_v1/pending.gd")
@@ -195,12 +222,22 @@ func target_button(node: Node) -> Button:
 func settle_batch(app: SeasonApp) -> void:
 	for job in range(4):
 		if app.season.physical.pending.is_empty(): return
-		var projection: Dictionary = Pending.project(app.season)
-		if not check(not projection.has("error"),"original pending projection"):
-			return
+		var owner: SeasonState = app.season
+		var before: Dictionary = Codec.guard_snapshot(owner)
+		var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		var primary_exists: bool = FileAccess.file_exists(Save.PATH)
+		var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
 		var count: int = app.season.physical.pending.reports.size()
+		if not check(not before.is_empty(),"nonempty actual round equality baseline"): return
 		app.resume_round()
+		# This bounded one-round test has no terminal-save fault. Observe the real
+		# App's projection instead of independently replaying the history twice.
+		var projection: Dictionary = app.projection
+		if not check(not projection.is_empty() and not projection.has("error"),"actual App pending projection"):
+			return
 		if projection.has("fixture"):
+			if not check(app._busy and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and FileAccess.file_exists(Save.PATH) == primary_exists and FileAccess.file_exists(Save.PATH+".bak") == backup_exists,"NPC start preserves original owner and disk before awaiting real physics"): return
 			var finished: bool = false
 			for frame in range(150000):
 				await get_tree().physics_frame

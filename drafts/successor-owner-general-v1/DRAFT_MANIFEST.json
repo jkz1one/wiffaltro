@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-general-v1",
   "source_checkpoint": "ca7292931cc92de5bc3414a5b02a92c982ad33a4",
-  "scope": "Inactive owned run2 Dugout with mixed-family terminal source and fixed pack transaction/CAS pins. Final native import and negative/CAS-shape/cold-negative gates passed; actual owned birth/round/pack parity/terminal/cold remain unqualified. Frozen families unchanged; run3/Dynasty closed.",
+  "scope": "Inactive owned run2 Dugout with mixed-family terminal source, fixed pack CAS transactions and single-clone pending projection. Final native/negative/CAS-shape/descriptor/cold-negative gates passed; actual owned birth/round/pack/projection/terminal/cold remain unqualified. Frozen families unchanged; run3/Dynasty closed.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/career.gd.txt",
@@ -30,8 +30,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/pending.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_general_v1/pending.gd",
-      "bytes": 5872,
-      "sha256": "74ce46cd4bed05e2e1e02c9953ccc291739abc82265c8ad09658d0023230011c"
+      "bytes": 6632,
+      "sha256": "eb60650c739fcdf4ef779df3d23e7e2303e44f2912aa7aaf19b1727de15c696d"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/physical_fixtures.gd.txt",
@@ -90,8 +90,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.gd.txt",
       "restore_path": "tests/successor_owner_general.gd",
-      "bytes": 26977,
-      "sha256": "c607057e342688cbc146e20551c3fd758783271601c571d58951fd86043405f1"
+      "bytes": 29680,
+      "sha256": "9675516390d65607a4f73a16acebb1d069d801c428bbcf6d0caa59e3310f6c98"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.tscn.txt",
