@@ -39,3 +39,58 @@ static func result(
 		saved.get("stances", []), saved.get("fielding", []), pitching,
 		saved.get("field_supply", {}), saved.get("frozen", []), ai_tactics, replayed_tactics
 	)
+
+
+# Decoder-only ordinary leaf operation, after complete final-journal validation.
+# Public result() above deliberately retains its independent restoration behavior.
+static func _ordinary_result(
+	season: SeasonState, final_build: SeasonBuild, saved: Dictionary,
+	performance: Dictionary, ai_tactics: Dictionary, replayed_tactics: Array
+) -> bool:
+	if season == null or final_build == null or not final_build.call("pitch_catalog_successor") \
+		or not SeasonOwnership._whole(saved.get("id"), 0, 32) \
+		or not saved.get("pitching") is Dictionary:
+		return false
+	for key: String in ["used_gear", "tactics", "stances", "fielding", "frozen"]:
+		if not saved.get(key, []) is Array:
+			return false
+	for key: String in ["batting", "field_supply"]:
+		if not saved.get(key, {}) is Dictionary:
+			return false
+	var prefix: SeasonBuild = load("res://src/gameplay/season/successor_league_general_v2/build.gd").restore(
+		final_build.to_data(), final_build._seed, final_build._initial_roster,
+		final_build._pool, final_build._blocked, int(saved.id)
+	)
+	# Lexical reuse only: this operation itself restores the prefix above. It never
+	# accepts a caller-supplied validated Build or retains one beyond this call.
+	if prefix == null:
+		return false
+	var players: Array[PlayerDefinition] = []
+	for id: String in season.teams[0].roster:
+		if not prefix.roster().has(id):
+			return false
+		players.append(prefix.definition(id))
+	var team: TeamMatchState = TeamMatchState.create("Recorded opposing roster", players)
+	if prefix._format in [SeasonBuild.LEAGUE_VERSION, SeasonBuild.LEAGUE_TIER_VERSION]:
+		if not prefix.league_context_valid():
+			return false
+		team.league_rules = prefix._league_rules.duplicate(true)
+		team.league_ownership = prefix._bank.to_data().duplicate(true)
+	season._heat_replay_team = team
+	if prefix == null or not prefix.call("pitch_catalog_successor") \
+		or not load("res://src/gameplay/season/successor_league_general_v2/exotic_access.gd").current_matches(season, prefix):
+		return false
+	var pitching: Dictionary = saved.pitching
+	if saved.has("pitching_current"):
+		if not load("res://src/gameplay/season/successor_league_general_v2/called_proof.gd").accepts(prefix, saved.pitching_current, pitching):
+			return false
+		pitching = saved.pitching_current
+	# Unknown called-strikeout status remains unknown when no sidecar was saved.
+	# Neither branch invents called evidence or bypasses ordinary reward validation.
+	season.build = prefix
+	return season.record_player_result(
+		int(saved.id), int(saved.away_runs), int(saved.home_runs), performance,
+		saved.get("used_gear", []), saved.get("tactics", []), saved.get("batting", {}),
+		saved.get("stances", []), saved.get("fielding", []), pitching,
+		saved.get("field_supply", {}), saved.get("frozen", []), ai_tactics, replayed_tactics
+	)

@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "88872218300f44650bb7b6b59d2e654b9e5b010a",
-  "scope": "Additive ordinary Equipment0 admission and genuine earned spare ownership/use/cold boundaries; no inning swaps or career admission.",
+  "source_checkpoint": "d238815c32494c610e4849af1eb7d77a5f0fcd4d",
+  "scope": "Private same-call ordinary human replay prefix reuse; no persistent cache, ownership or profile admission changes.",
   "files": [
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/build.gd.txt",
@@ -42,8 +42,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/decoder.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/decoder.gd",
-      "bytes": 35530,
-      "sha256": "b09c299b33a49e5f12438c3f77d7de4d4999bd97b1c2decb158b47c9b58c5b6c"
+      "bytes": 36465,
+      "sha256": "0ba6a8ef0bc4faa552f5a98d99c01a554b1b7dcd86a2034a6a0f8f832a447978"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/development.gd.txt",
@@ -84,8 +84,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/human_replay.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/human_replay.gd",
-      "bytes": 2216,
-      "sha256": "2476e75239febcf8a39a9951435a5e0e6cc2d5f06947616ca5dac94a015cd3d7"
+      "bytes": 5016,
+      "sha256": "dee3781424e51a4c504316187fe96de436e4e563dc9baabf5a295436c34d5a5d"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/match_adapter.gd.txt",
@@ -398,6 +398,18 @@
       "restore_path": "tests/successor_general_physical.tscn",
       "bytes": 195,
       "sha256": "c83826c77097f8536b37e499b701d419697cb06749d673de4b334b8e92a5a928"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_replay_prefix.gd.txt",
+      "restore_path": "tests/successor_general_replay_prefix.gd",
+      "bytes": 12347,
+      "sha256": "7dd6905ab0bfac32a38fe12fe86964ded8c0ad89a6d6830c2c39f8349f17732d"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_replay_prefix.tscn.txt",
+      "restore_path": "tests/successor_general_replay_prefix.tscn",
+      "bytes": 208,
+      "sha256": "7621b650f35b8181b2e5ffc46e88a168185e52fa3e0ab65fd8c038c08c9edc7f"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_resolve.gd.txt",

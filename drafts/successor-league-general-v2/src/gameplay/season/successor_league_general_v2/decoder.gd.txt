@@ -17,7 +17,8 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 	league_home_context: Dictionary = {},
 	standard_projection: ClubCareer = null,
 	pitch_catalog: String = "",
-	pitch_admission: int = 97
+	pitch_admission: int = 97,
+	reuse_ordinary_prefix: bool = true
 ) -> SeasonState:
 	if not night_policy.is_empty() or terrain_authorized or not preload("ordinary_context.gd").supported(expected_rules, league_live) \
 		or not inventory_rules.is_empty() or dynasty_start != null or not access.is_empty() \
@@ -597,7 +598,15 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 				)
 			):
 				return null
-		if data.version >= 54:
+		# Only the strictly admitted ordinary leaf shares its lexical prefix. Other
+		# replay branches retain the independent heat-team reconstruction below.
+		var ordinary_prefix: bool = reuse_ordinary_prefix and data.version == 57 \
+			and pitch_admission == load("res://src/gameplay/season/successor_league_general_v2/codec.gd").ADMISSION \
+			and league_home_context.is_empty() and inventory_rules.is_empty() \
+			and night_policy.is_empty() and not LeagueRules.doubleheader(season.league_rules) \
+			and not result.has("inventory_final") and not result.has("doubleheader_evidence") \
+			and not result.has("yard_evidence") and not result.has("pool_evidence")
+		if data.version >= 54 and not ordinary_prefix:
 			season._heat_replay_team = load("res://src/gameplay/season/successor_league_general_v2/replay_team.gd").replay_team(
 				restored, int(result.id), season.teams[0].roster
 			)
@@ -660,6 +669,9 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 				return null
 		elif result.has("pool_evidence"):
 			return null
+		elif ordinary_prefix:
+			if not load("res://src/gameplay/season/successor_league_general_v2/human_replay.gd")._ordinary_result(season, restored, result, performance, ai_tactics, replayed_tactics):
+				return null
 		elif pitch_admission == load("res://src/gameplay/season/successor_league_general_v2/codec.gd").ADMISSION:
 			if not load("res://src/gameplay/season/successor_league_general_v2/human_replay.gd").result(season, restored, result, performance, ai_tactics, replayed_tactics):
 				return null

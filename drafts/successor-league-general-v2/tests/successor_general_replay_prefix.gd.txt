@@ -1,0 +1,237 @@
+extends Node
+## Same-source private decoder comparison. No save writes or historical relabeling.
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
+const Decoder = preload("res://src/gameplay/season/successor_league_general_v2/decoder.gd")
+const Access = preload("res://src/gameplay/season/successor_league_general_v2/exotic_access.gd")
+var timings: Array = []
+var cohort_roots: Array[Resource] = []
+var snapshot_supported: bool = true
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+# Deliberately mirrors the public Codec restore boundary, changing ONLY the
+# private trailing test switch. Scope, exotic matching and full recapture remain.
+func decode(value: Variant, reuse: bool) -> SeasonState:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var result: SeasonState = decode_held(value, reuse)
+	roots.clear()
+	return result
+
+func decode_held(value: Variant, reuse: bool) -> SeasonState:
+	if not Codec.envelope_valid(value):
+		return null
+	var season: SeasonState = Decoder._ac02_passive_15_private_decode_payload_terrain(
+		value.checkpoint, {}, false, LeagueRules.normalized(value.league_rules), value.league_live,
+		{}, null, {}, null, [], {}, {}, null, value.pitch_catalog, Codec.ADMISSION, reuse)
+	if not Codec.scope(season) or not Access.current_matches(season):
+		return null
+	var recaptured: Dictionary = Codec.capture(season)
+	return season if not recaptured.is_empty() and ClubCareer.same(recaptured, value) else null
+
+func saved_bytes(path: String = "user://") -> Dictionary:
+	var result: Dictionary = {}
+	var directory: DirAccess = DirAccess.open(path)
+	if directory == null:
+		return result
+	for file: String in directory.get_files():
+		if file.ends_with(".json") or file.ends_with(".json.bak") or file.ends_with(".json.tmp"):
+			result[path.path_join(file)] = FileAccess.get_file_as_bytes(path.path_join(file))
+	for child: String in directory.get_directories():
+		result.merge(saved_bytes(path.path_join(child)))
+	return result
+
+# Exact stored/exported semantic graph, including nested Resources. References
+# are indexed so cycles/aliases terminate without silently omitting properties.
+func semantic(value: Variant, seen: Array, depth: int = 0) -> Variant:
+	if depth > 96:
+		snapshot_supported = false
+		return null
+	if value is Resource or value is Array or value is Dictionary:
+		for index in range(seen.size()):
+			if is_same(seen[index],value):
+				return ["reference",index]
+		var identity: int = seen.size()
+		seen.append(value)
+		if value is Resource:
+			var properties: Dictionary = {}
+			for property: Dictionary in value.get_property_list():
+				var key: String = property.name
+				if key != "script" and (int(property.usage) & PROPERTY_USAGE_STORAGE) != 0:
+					properties[key] = semantic(value.get(key),seen,depth+1)
+			return ["resource",identity,value.get_instance_id(),value.get_class(),properties]
+		if value is Array:
+			var array: Array = []
+			for item: Variant in value:
+				array.append(semantic(item,seen,depth+1))
+			return ["array",identity,array]
+		var entries: Array = []
+		for key: Variant in value:
+			entries.append([semantic(key,seen,depth+1),semantic(value[key],seen,depth+1)])
+		return ["dictionary",identity,entries]
+	if value is Object or value is Callable or value is Signal:
+		snapshot_supported = false
+		return null
+	return value
+
+func content_bytes() -> PackedByteArray:
+	snapshot_supported = true
+	return var_to_bytes(semantic(cohort_roots,[]))
+
+func abba(value: Dictionary, label: String) -> bool:
+	var original: PackedByteArray = var_to_bytes(value)
+	var content_before: PackedByteArray = content_bytes()
+	if not check(snapshot_supported and not cohort_roots.is_empty(),label + " exhaustive held Resource snapshot supported"):
+		return false
+	var outputs: Array = []
+	var samples: Array = []
+	for reuse: bool in [false, true, true, false]:
+		var started: int = Time.get_ticks_usec()
+		var restored: SeasonState = decode(value, reuse)
+		var elapsed: int = Time.get_ticks_usec() - started
+		if not check(restored != null and var_to_bytes(value) == original, label + " restore and immutable input " + str(reuse)):
+			return false
+		var captured: Dictionary = Codec.capture(restored)
+		if not check(ClubCareer.same(captured, value), label + " exact full recapture " + str(reuse)):
+			return false
+		if not check(content_bytes() == content_before and snapshot_supported, label + " loaded authored Resource semantics unchanged " + str(reuse)):
+			return false
+		outputs.append(captured)
+		samples.append({"reuse":reuse, "seconds":float(elapsed)/1000000.0})
+	if not check(ClubCareer.same(outputs[0],outputs[1]) and ClubCareer.same(outputs[1],outputs[2]) \
+		and ClubCareer.same(outputs[2],outputs[3]), label + " ABBA reference/optimized equivalence"):
+		return false
+	var public_result: SeasonState = Codec.restore(value)
+	if not check(public_result != null and ClubCareer.same(Codec.capture(public_result), value) \
+		and var_to_bytes(value) == original, label + " unchanged public Codec contract"):
+		return false
+	if not check(content_bytes() == content_before and snapshot_supported,label + " public restore preserves authored Resources"):
+		return false
+	timings.append({"case":label,"measurement":"warm held-Resource diagnostic wrapper only; not cold or player latency","samples":samples})
+	print("PREFIX_ABBA: ", JSON.stringify(timings.back()))
+	return true
+
+func rejected(value: Dictionary, label: String) -> bool:
+	var before: PackedByteArray = var_to_bytes(value)
+	var reference: SeasonState = decode(value, false)
+	var optimized: SeasonState = decode(value, true)
+	return check(reference == null and optimized == null and var_to_bytes(value) == before,
+		"both paths reject without input mutation: " + label)
+
+func malformed(value: Dictionary, paid: bool) -> bool:
+	for kind: String in ["catalog", "exotic type", "journal type", "ownership", "result type"]:
+		var wrong: Dictionary = value.duplicate(true)
+		match kind:
+			"catalog": wrong.pitch_catalog = "not-the-current-source"
+			"exotic type": wrong.checkpoint.build.exotic_start = {}
+			"journal type": wrong.checkpoint.build.events = "not-an-array"
+			"ownership": wrong.checkpoint["player_access"] = {"unearned":true}
+			"result type": wrong.checkpoint.results = {}
+		if not rejected(wrong,kind):
+			return false
+	if paid:
+		for kind: String in ["journal entry", "tactics type", "AI tactics type", "result score", "forged owned result", "foreign inventory", "fixture id", "pitching current type", "roster order"]:
+			var wrong: Dictionary = value.duplicate(true)
+			match kind:
+				"journal entry": wrong.checkpoint.build.events.append({"op":"not-a-valid-operation","id":"forged","rev":-1})
+				"tactics type": wrong.checkpoint.results[0]["tactics"] = {}
+				"AI tactics type": wrong.checkpoint.results[0].ai_tactics = "invalid"
+				"result score": wrong.checkpoint.results[0].home_runs = -1
+				"forged owned result": wrong.checkpoint.results[0].club_roster = ["player.unearned"]
+				"foreign inventory": wrong.checkpoint.results[0]["inventory_final"] = {}
+				"fixture id": wrong.checkpoint.results[0].id = -1
+				"pitching current type": wrong.checkpoint.results[0].pitching_current = []
+				"roster order":
+					# Duplicate a member, not an arbitrary potentially legal permutation.
+					if not check(wrong.checkpoint.results[0].club_roster is Array and wrong.checkpoint.results[0].club_roster.size() == 4,"actual ordered four-player roster operand"):
+						return false
+					wrong.checkpoint.results[0].club_roster[1] = wrong.checkpoint.results[0].club_roster[0]
+			if not rejected(wrong,kind):
+				return false
+		var reward_index: int = -1
+		for index in range(value.checkpoint.build.events.size()):
+			if value.checkpoint.build.events[index].get("op") == "successor_reward":
+				reward_index = index
+				break
+		if not check(reward_index >= 0,"actual paid history contains original successor reward event"):
+			return false
+		var missing: Dictionary = value.duplicate(true)
+		missing.checkpoint.build.events.remove_at(reward_index)
+		if not rejected(missing,"missing actual reward event, later revisions and result left intact"):
+			return false
+		# Reorder only a known reward followed by its exotic admission. The saved
+		# revisions are retained, so this is not a claim that arbitrary swaps fail.
+		if reward_index + 1 < value.checkpoint.build.events.size() and value.checkpoint.build.events[reward_index+1].get("op") == "exotic_admit":
+			var reordered: Dictionary = value.duplicate(true)
+			var reward: Dictionary = reordered.checkpoint.build.events[reward_index]
+			reordered.checkpoint.build.events[reward_index] = reordered.checkpoint.build.events[reward_index+1]
+			reordered.checkpoint.build.events[reward_index+1] = reward
+			if not rejected(reordered,"actual reward/exotic admission reordered with original revisions"):
+				return false
+	# A valid call after every failure batch proves no cross-call poison/reuse.
+	for reuse: bool in [true,false]:
+		var valid: SeasonState = decode(value,reuse)
+		if not check(valid != null and ClubCareer.same(Codec.capture(valid),value), "failed-then-valid independent restore " + str(reuse)):
+			return false
+	return true
+
+func structural_routing() -> bool:
+	var decoder: String = FileAccess.get_file_as_string("res://src/gameplay/season/successor_league_general_v2/decoder.gd")
+	var human: String = FileAccess.get_file_as_string("res://src/gameplay/season/successor_league_general_v2/human_replay.gd")
+	var ordinary: String = human.substr(human.find("static func _ordinary_result("))
+	return check(decoder.contains("data.version >= 54 and not ordinary_prefix") \
+		and decoder.contains("elif ordinary_prefix:") and decoder.contains("._ordinary_result(") \
+		and ordinary.count(".restore(") == 1 and not ordinary.contains(".replay_team("),
+		"STATIC source routing: optimized helper restores one prefix; not a runtime call-count measurement")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated prefix test required"):
+		return
+	cohort_roots = Codec._operation_content_roots()
+	var files_before: Dictionary = saved_bytes()
+	if not structural_routing():
+		return
+	if OS.get_cmdline_user_args().has("paid"):
+		if not check(FileAccess.file_exists(Save.PATH), "current-source actual paid save required"):
+			return
+		var value: Variant = JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))
+		if not check(value is Dictionary, "paid JSON object"):
+			return
+		var owned_by_no_career: SeasonState = Codec.restore(value)
+		if not check(owned_by_no_career != null and owned_by_no_career.career == null \
+			and value.checkpoint.results.size() >= 1, "actual current-source standalone history, at least one human result"):
+			return
+		if not abba(value,"actual paid history %d human results" % value.checkpoint.results.size()) or not malformed(value,true):
+			return
+	else:
+		for id: String in ["standard","dugout","sponsorship","earnings","academy","equipment"]:
+			var season: SeasonState = Runtime.create_fresh(67231) if id == "standard" else Runtime.create_closed_league(67231,LeagueRules.capture(id),true)
+			if not check(season != null,"fresh profile " + id):
+				return
+			for stage: String in ["fresh","drafted"]:
+				if stage == "drafted":
+					for pick in range(4):
+						if not check(season.choose_player(season.offers()[0]),"draft " + id + " pick " + str(pick)):
+							return
+				var original: Dictionary = Codec.capture(season)
+				var value: Dictionary = JSON.parse_string(JSON.stringify(original,"",true,true))
+				if not abba(value,id + " " + stage):
+					return
+				if id == "standard" and stage == "drafted" and not malformed(value,false):
+					return
+				if not check(ClubCareer.same(Codec.capture(season),original),"original runtime untouched " + id + " " + stage):
+					return
+	if not check(saved_bytes() == files_before,"all isolated primary/backup/temp save bytes unchanged; test writes no saves"):
+		return
+	print("PASS: same-call human prefix equivalence; no career, Dynasty or full-season claim")
+	get_tree().quit()

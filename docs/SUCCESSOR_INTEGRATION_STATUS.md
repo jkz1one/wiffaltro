@@ -60,6 +60,12 @@ Dynasty qualification is inferred from the one-round evidence.
   a full Equipment season or ownership qualification. See
   `SUCCESSOR_GENERAL_EQUIPMENT_B5.md`.
 
+- A private same-call human-prefix reuse candidate preserves original public
+  helpers and passes six-profile fresh/draft, actual Standard round/cold and
+  reference/tamper comparisons. First paid warm timings do not show improvement;
+  Academy and multi-round Equipment regressions remain pending. See
+  `SUCCESSOR_GENERAL_PREFIX_REUSE.md`. No responsiveness gain is claimed.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing
