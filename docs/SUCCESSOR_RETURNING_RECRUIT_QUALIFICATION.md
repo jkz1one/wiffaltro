@@ -1,8 +1,9 @@
 # Actual returning-recruit qualification harness
 
 This additive inactive test uses unchanged General114 engines. It is not a Dynasty
-integration, completed season, playable release, or proof that a returning recruit
-has passed before the recorded native sequence completes.
+integration, completed season or playable release. The bounded six-round sequence
+and separate final cold verification have now
+passed; scope and prior failures are recorded below.
 
 ## Actual sequence required
 
@@ -69,3 +70,31 @@ weakened. Continuation uses a separate clone with identical production source an
 copied earned evidence, replacing only this test script. Three rounds are not
 replayed merely to correct a UI timing assertion. Recruitment remains unqualified
 until the actual sequence passes.
+
+## Verified final native outcome
+
+The unchanged General engine at `f78b3b481bd54420b79f0f4ca02d19020054e677`
+and corrected test at `ca7292931cc92de5bc3414a5b02a92c982ad33a4` completed
+the actual seed-66 sequence. Six human games and twelve NPC games settled.
+The naturally generated 8-Cash Pitching upgrade stayed attached to Mika through
+the paid 24-Cash Kit replacement and natural 20-Cash Mika return. Kit appeared
+only in games four/five, and returned Mika actually played game six. Both original
+contracts, exact developed profile, lineup position and historical appearances
+remained identity-bound; no release Cash or development transfer was granted.
+
+Both real signings passed quote, bounded Cancel, prewrite refusal preserving old
+state/lineup/primary/backup, retained candidate and exact retry. All six clubs'
+six fixture rewards and complete bank journals matched independent replay.
+
+An environment restart interrupted the first final cold attempt after the
+completed sequence had been durably archived. Its primary exactly matched the
+archived boundary; unchanged source resumed without losing earned work. The
+subsequent dedicated final cold process exited successfully, verified exact
+canonical recapture and rejected a forged returning replacement. Final boundary
+42 has 18 results, six human games, no pending jobs, and SHA-256
+`3c455e114023b5caa87491bc767b1f7cce595a3b2a1729759145a83ac7f5782d`.
+Original Cancel-failure evidence and interrupted logs remain preserved.
+
+This qualifies the six-round standalone recruiting/save path only. It does not
+qualify a complete season, owned career continuation, Dynasty, final visual/audio
+acceptance or a distributable. Original character tuning remains unchanged.
