@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-general-v1",
   "source_checkpoint": "ca7292931cc92de5bc3414a5b02a92c982ad33a4",
-  "scope": "Integrated inactive owned run2 ordinary Dugout draft/gameplay/shop boundary. Exact final source native import/negative/cold-negative passed; actual terminal-positive and round/cold pending. Frozen engines unchanged; terminal/Dynasty admission remains closed.",
+  "scope": "Integrated inactive owned run2 ordinary Dugout boundary; final-source import/negative/cold-negative passed. Actual completed-predecessor/round/shop/retry/cold harness prepared, not positively qualified. Handled shop IDs reject before persistence. Frozen engines unchanged; terminal/Dynasty admission closed.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/career.gd.txt",
@@ -66,8 +66,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_general_v1/base_app.gd",
-      "bytes": 15606,
-      "sha256": "1c090889687fc537ace8dafe59c2848cb18f8a655c8338acec1040c6ba908d3d"
+      "bytes": 15861,
+      "sha256": "a60167ee6fddbbe41c5e8422257920d00312f2bcbd47c15b53a3443a8d2864b8"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/capture_human.gd.txt",
@@ -90,8 +90,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.gd.txt",
       "restore_path": "tests/successor_owner_general.gd",
-      "bytes": 2751,
-      "sha256": "2fb4c6247893cd7b22add5b28305a999842ac0a438e6f640ac4fc5d0c4d057f6"
+      "bytes": 22116,
+      "sha256": "0f072098304681eeda3b559e48e1b9e954ade3ac4bb40610b8f872d572e7e9c8"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.tscn.txt",

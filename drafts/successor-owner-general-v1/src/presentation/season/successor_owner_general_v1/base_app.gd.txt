@@ -202,7 +202,7 @@ func _retain(candidate: SeasonState) -> void:
 		return
 	retained = candidate
 	retained_owner = season
-	retained_before = Codec.guard_snapshot(season) if season!=null else {}
+	retained_before = Codec.guard_snapshot(season).duplicate(true) if season!=null else {}
 	retained_lab = lab
 	retained_state = lab._match_state if is_instance_valid(lab) else null
 	retained_saved = false
@@ -393,6 +393,10 @@ func commit_shop(command: Dictionary) -> bool:
 	if not _available() or season==null or not Codec.scope(season) or not season.physical.pending.is_empty() or not season.shop_available():
 		return false
 	if not SeasonBuild.SHOP_OPS.has(str(command.get("op", ""))):
+		return false
+	# Handled requests are not new persistence operations, even identical replays.
+	var request_id: Variant = command.get("id")
+	if request_id is String and not request_id.is_empty() and season.build._requests.has(request_id):
 		return false
 	var candidate: SeasonState = _clone()
 	if candidate==null:

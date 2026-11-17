@@ -62,3 +62,24 @@ terminal-positive qualification is still pending and is not implied here.
 
 The original development visuals are reused. The entry is additive and inactive;
 project/main and original save files are untouched.
+
+## Direct integrated qualification path
+
+The runner accepts `--owned-general-completed` with an actual terminal112 archive,
+then qualifies this integrated family directly: inherited birth/four App picks,
+one physical human plus two NPC games, earned pack, real choice, Cancel and
+prewrite-refusal/exact-retry, separate final cold, and one coordinated inherited
+Order-start forgery rejection. Intermediate archives within a batch are not cold
+reopens. `--owned-general-resume-stage` requires identical staged source.
+
+This avoids certifying the unused draft-only115 route separately. It does not
+claim that115 passed. The authentic completed predecessor is still mandatory;
+no synthetic completion can stand in for it. Delayed-promotion mutation/deleted
+primary behavior remains a specific positive-test gap, explicitly reported by the
+harness rather than simulated with a fabricated saved-candidate token.
+
+The owned App now rejects already-handled shop IDs before cloning or saving,
+including conflicting reuse, so stale purchases cannot rotate the backup. Its
+old-owner equality envelope is deep-detached. These preserve existing rules and
+choices; no wallet policy or prices change. Actual owned-path qualification of
+those guards remains pending until the genuine predecessor is available.

@@ -56,6 +56,8 @@ def main():
     parser.add_argument('--continuation-prefix', action='store_true', help='Derive closed run2 start basis only; no owner admission')
     parser.add_argument('--continuation-completed', action='store_true', help='Require actual terminal positive projection; never use synthetic completion')
     mode.add_argument('--owned-general-fixture', type=Path, help='Integrated owned run2 negative boundary from authentic active Owner112 evidence')
+    parser.add_argument('--owned-general-completed', action='store_true', help='Require actual terminal112 predecessor and actual owned run2 round/shop/cold')
+    parser.add_argument('--owned-general-resume-stage', type=Path, help='Resume exact-source isolated owned run2 sequence')
     mode.add_argument('--next-owner-fixture', type=Path, help='Draft-only owned run2 qualification; requires actual terminal for positive mode')
     parser.add_argument('--next-owner-birth-fixture', type=Path, help='Original isolated Owner112 birth for negative checks')
     parser.add_argument('--next-owner-completed', action='store_true', help='Require real terminal predecessor, birth/four picks/cold; no gameplay admission')
@@ -86,6 +88,10 @@ def main():
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
+    if (args.owned_general_completed or args.owned_general_resume_stage) and not args.owned_general_fixture:
+        parser.error('Owned General completion/resume requires --owned-general-fixture')
+    if args.owned_general_resume_stage and not args.owned_general_completed:
+        parser.error('--owned-general-resume-stage requires --owned-general-completed')
     if args.returning_recruit_resume_stage and not args.returning_recruit:
         parser.error('--returning-recruit-resume-stage requires --returning-recruit')
     if args.recruit_pair_resume_stage and not args.recruit_pair_fixture:
@@ -117,7 +123,7 @@ def main():
     if args.terminal_resume_stage and not args.terminal_season:
         parser.error('--terminal-resume-stage requires --terminal-season')
     root = Path(__file__).resolve().parents[1]
-    resume_stage = args.terminal_resume_stage or args.equipment_resume_stage or args.doubleheader_resume_stage or args.recruit_pair_resume_stage or args.returning_recruit_resume_stage
+    resume_stage = args.terminal_resume_stage or args.equipment_resume_stage or args.doubleheader_resume_stage or args.recruit_pair_resume_stage or args.returning_recruit_resume_stage or args.owned_general_resume_stage
     stage = resume_stage.resolve() if resume_stage else Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
     assert stage.is_dir() and stage.name.startswith('wiffaltro-signature-')
     project = stage / 'project'
@@ -292,15 +298,32 @@ def main():
         raise RuntimeError('Equipment sequence exceeded bounded steps; retained checkpoints remain available')
     if args.owned_general_fixture:
         source = args.owned_general_fixture.resolve()
-        assert source.is_file() and source.parent.name == 'full-season-evidence' and source.name == '0000.json'
+        assert source.is_file() and source.parent.name in ('full-season-evidence', 'batch-season-evidence') and source.suffix == '.json'
+        if not args.owned_general_completed:
+            assert source.parent.name == 'full-season-evidence' and source.name == '0000.json'
         assert any(part.startswith('wiffaltro-signature-') for part in source.parts)
         original = source.read_bytes()
         destination = stage / 'data/godot/app_userdata/Wiffaltro/source-owned.json'
         destination.parent.mkdir(parents=True, exist_ok=True)
-        assert not destination.exists()
-        destination.write_bytes(original)
+        if resume_stage:
+            assert destination.read_bytes() == original
+        else:
+            assert not destination.exists()
+            destination.write_bytes(original)
+        scene = ['--fixed-fps', '60', 'res://tests/successor_owner_general.tscn', '--']
+        if args.owned_general_completed:
+            for step in range(12):
+                output = run(f'owned-general-batch-{step:03}', scene + ['completed'], timeout=8*3600)
+                assert source.read_bytes() == original and destination.read_bytes() == original
+                records = [json.loads(line.split('OWNED_GENERAL_STEP_DONE: ',1)[1]) for line in output.splitlines() if line.startswith('OWNED_GENERAL_STEP_DONE: ')]
+                assert records and all(records[i]['step'] == records[i-1]['step']+1 for i in range(1,len(records))), 'Missing/nonconsecutive owned durable boundaries'
+                if records[-1]['complete']:
+                    run('owned-general-cold-complete', scene + ['completed','verify-complete'], timeout=8*3600)
+                    assert source.read_bytes() == original and destination.read_bytes() == original
+                    return
+            raise RuntimeError('Owned sequence exceeded bounded batches; earned checkpoints preserved')
         for label in ['negative', 'negative-cold']:
-            run('owned-general-' + label, ['res://tests/successor_owner_general.tscn'], timeout=3600)
+            run('owned-general-' + label, scene, timeout=3600)
             assert source.read_bytes() == original and destination.read_bytes() == original
         return
     if args.returning_recruit:
