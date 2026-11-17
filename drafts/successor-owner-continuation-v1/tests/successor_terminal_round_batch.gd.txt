@@ -1,0 +1,178 @@
+extends "res://tests/successor_terminal_season.gd"
+## Test-only bounded continuation. Frozen production and original test unchanged.
+## One cold entry, individual durable archives, at most one settlement per process.
+const SOURCE: String = "user://source-owner-batch.json"
+const MAX_BOUNDARIES: int = 8
+var source_bytes: PackedByteArray
+var failed: bool = false
+var batch_done: bool = false
+var boundary_count: int = 0
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		failed = true
+	return super.check(ok, label)
+
+func finish_step(app: SeasonApp, label: String) -> void:
+	var data: Dictionary = Codec.capture(app.season)
+	if not check(app.get("retained") == null and not app._busy and not data.is_empty() \
+		and ClubCareer.same(data, JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "boundary published exactly: " + label):
+		return
+	if not check(FileAccess.get_file_as_bytes(SOURCE) == source_bytes, "immutable entry source preserved"):
+		return
+	var root: String = "user://batch-season-evidence"
+	if not check(DirAccess.make_dir_recursive_absolute(root) == OK, "private batch evidence directory"):
+		return
+	var index: int = 0
+	while FileAccess.file_exists(root + "/%04d.json" % index) and FileAccess.file_exists(root + "/%04d.meta.json" % index):
+		index += 1
+	var snapshot: String = root + "/%04d.json" % index
+	var metadata: String = root + "/%04d.meta.json" % index
+	if not check(not FileAccess.file_exists(snapshot) and not FileAccess.file_exists(metadata) \
+		and not DirAccess.dir_exists_absolute(snapshot) and not DirAccess.dir_exists_absolute(metadata), "both archive destinations absent"):
+		return
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(DirAccess.copy_absolute(Save.PATH, snapshot) == OK and FileAccess.get_file_as_bytes(snapshot) == disk, "retain each exact boundary without overwriting"):
+		return
+	boundary_count += 1
+	batch_done = label == "settlement" or app.season.phase == SeasonState.Phase.COMPLETE
+	var state: Dictionary = {"step":index, "action":label, "phase":app.season.phase,
+		"seed":app.season.season_seed, "results":app.season.results.size(),
+		"human_games":app.season.player_results.size(),
+		"pending_reports":app.season.physical.pending.get("reports", []).size(),
+		"complete":app.season.phase == SeasonState.Phase.COMPLETE, "batch_done":batch_done,
+		"batch_boundaries":boundary_count}
+	var file: FileAccess = FileAccess.open(metadata, FileAccess.WRITE)
+	if not check(file != null, "boundary metadata writable"):
+		return
+	var text: String = JSON.stringify(state, "", true, true)
+	file.store_string(text)
+	file.flush()
+	var error: Error = file.get_error()
+	file.close()
+	if not check(error == OK and FileAccess.get_file_as_string(metadata) == text, "metadata exact readback"):
+		return
+	print("BATCH_STEP_DONE: ", text)
+	print("PASS: actual batched durable boundary ", label)
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated batch required"):
+		return
+	source_bytes = FileAccess.get_file_as_bytes(SOURCE)
+	if not check(not source_bytes.is_empty() and FileAccess.get_file_as_bytes(Save.PATH) == source_bytes, "primary exactly equals immutable copied earned entry"):
+		return
+	var app: SeasonApp = App.new()
+	add_child(app)
+	app.reload_save()
+	if not check(app.season != null and app.season.career != null and app.season.phase != SeasonState.Phase.DRAFT \
+		and app.season.player_results.size() > 0 \
+		and ClubCareer.same(Codec.capture(app.season), JSON.parse_string(source_bytes.get_string_from_utf8())) \
+		and FileAccess.get_file_as_bytes(Save.PATH) == source_bytes, "cold exact earned owner entry, no backup substitution"):
+		return
+	for boundary in range(MAX_BOUNDARIES):
+		var previous: int = boundary_count
+		await advance_boundary(app)
+		if failed:
+			return
+		if not check(boundary_count == previous + 1, "exactly one durable boundary advanced"):
+			return
+		if batch_done:
+			if not check(FileAccess.get_file_as_bytes(SOURCE) == source_bytes, "source unchanged through batch completion"):
+				return
+			print("PASS: bounded actual round batch; final cold verification remains separate")
+			app.queue_free()
+			get_tree().quit()
+			return
+	check(false, "batch boundary bound exceeded; preserve last durable checkpoint")
+
+func advance_boundary(app: SeasonApp) -> void:
+	if app.season.phase == SeasonState.Phase.COMPLETE:
+		finish_step(app, "terminal-already-published")
+		return
+	if app.season.phase == SeasonState.Phase.DRAFT:
+		var count: int = app.season.picks.size()
+		var offers: Array[String] = app.season.offers()
+		if not check(not offers.is_empty(), "genuine draft choice available"):
+			return
+		app.call("draft", offers[0])
+		if not check(app.season.picks.size() == count + 1, "one durable draft choice"):
+			return
+		finish_step(app, "draft-%d" % (count + 1))
+		return
+	if not app.season.physical.pending.is_empty():
+		var before: Dictionary = Codec.capture(app.season)
+		var projection: Dictionary = Pending.project(app.season)
+		if not check(not projection.has("error") and ClubCareer.same(Codec.capture(app.season), before), "pending discovery preserves original state"):
+			return
+		var report_count: int = app.season.physical.pending.reports.size()
+		var fixture_id: int = int(projection.fixture.id) if projection.has("fixture") else -1
+		if not projection.has("fixture") and projection.candidate.phase == SeasonState.Phase.COMPLETE:
+			if not terminal_save_retry(app, projection.candidate):
+				return
+		else:
+			app.call("resume_round")
+		if projection.has("fixture"):
+			var finished: bool = false
+			for frame in range(150000):
+				await get_tree().physics_frame
+				if not app._busy:
+					finished = true
+					break
+				if frame % 12000 == 0:
+					print("AI_PROGRESS: fixture=", fixture_id, " frame=", frame)
+			if not check(finished and app.get("retained") == null \
+				and app.season.physical.pending.get("reports", []).size() == report_count + 1,
+				"actual requested AI fixture durably captured: " + app.notice):
+				return
+			if not check(app.season.physical.pending.reports[-1].fixture == fixture_id \
+				and app.season.physical.pending.reports[-1].report.version == 30,
+				"exact requested Game109 physical report"):
+				return
+			finish_step(app, "npc-%d" % fixture_id)
+		else:
+			if not check(app.get("retained") == null and app.season.physical.pending.is_empty() \
+				and app.season.results.size() > before.checkpoint.results.size(), "actual round settles after all physical jobs"):
+				return
+			var settled: Dictionary = Codec.capture(app.season)
+			app.call("resume_round")
+			if not check(ClubCareer.same(Codec.capture(app.season), settled), "duplicate settlement inert"):
+				return
+			finish_step(app, "settlement")
+		return
+	var fixture: Dictionary = app.season.pending_fixture()
+	if not check(not fixture.is_empty() and (fixture.home == 0 or fixture.away == 0), "next human fixture available; NPC playoffs must remain pending jobs"):
+		return
+	app.play_next()
+	if not check(is_instance_valid(app.lab) and app.lab._match_state != null, "actual App opens human fixture"):
+		return
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not app.lab._match_presentation_director.blocks_gameplay():
+			break
+	if not check(not app.lab._match_presentation_director.blocks_gameplay(), "actual intro finishes"):
+		return
+	app.lab._automation = MatchAutomation.new()
+	app.lab._automation.seed = Fixtures.seed_for(app.season, fixture)
+	app.lab._automation.presentation_enabled = true
+	app.lab._automation.begin(app.lab)
+	var finished: bool = false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._automation != null and not app.lab._home_run.presentation_pending(app.lab):
+			app.lab._automation = null
+			PitchBatLabFeelSupport.begin_match_outro(app.lab)
+		if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD:
+			finished = true
+			break
+		if frame % 12000 == 0:
+			print("HUMAN_PROGRESS: fixture=", fixture.id, " frame=", frame, " pa=", app.lab._match_state.plate_appearance_number)
+	if not check(finished and not Capture.capture(app).is_empty(), "actual human physics game reaches capturable outro"):
+		return
+	var results_before: int = app.season.results.size()
+	var cash_before: int = app.season.build.cash()
+	app.finish_game()
+	if not check(app.get("retained") == null and not is_instance_valid(app.lab) \
+		and not app.season.physical.pending.is_empty() and app.season.results.size() == results_before \
+		and app.season.build.cash() == cash_before, "human game saved pending without premature settlement/reward"):
+		return
+	finish_step(app, "human-%d" % int(fixture.id))

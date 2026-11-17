@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-continuation-v1",
-  "source_checkpoint": "aa824f429212a902083ac353ac93251b0de996d8",
-  "scope": "Closed terminal112 predecessor and run2 start-basis projections only. Native active/forged/token rejection, synthetic pure policy queries and cold invariance pass; public positive terminal derivation remains unqualified. No run2 admission or grants.",
+  "source_checkpoint": "c8118f1b8f0d74fc8e170888a31a24ea891eabac",
+  "scope": "Closed predecessor/start-basis foundation plus additive frozen-engine round-batch test harness. Native batch import and byte-identical action branches verified; actual first batch and positive terminal still pending. No new owner admission.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-continuation-v1/src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd.txt",
@@ -38,6 +38,18 @@
       "restore_path": "tests/successor_continuation_prefix.tscn",
       "bytes": 192,
       "sha256": "0f05485205b4f8d319d771e121cceb3419672ad1196810ffe228fc9d1a49d9b5"
+    },
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/tests/successor_terminal_round_batch.gd.txt",
+      "restore_path": "tests/successor_terminal_round_batch.gd",
+      "bytes": 8767,
+      "sha256": "da665f0e08a9fcdac62260456e09d6640c273f4dda68ba1ef5a38d79a2bb6ce9"
+    },
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/tests/successor_terminal_round_batch.tscn.txt",
+      "restore_path": "tests/successor_terminal_round_batch.tscn",
+      "bytes": 206,
+      "sha256": "be6f75c8aa3fe1a04185036d957238aaba1fc47b81f4e275d4917ab7c3fe1a3c"
     }
   ]
 }
