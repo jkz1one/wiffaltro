@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-general-v1",
   "source_checkpoint": "ca7292931cc92de5bc3414a5b02a92c982ad33a4",
-  "scope": "Inactive owned fresh General Dugout run1 or authenticated legacy112 continuation run2. Original starter ledger/access/progression, separate origin reconstruction and save slot. Fresh integrated gameplay/shop/cold qualification pending. No run3/Dynasty claim.",
+  "scope": "Inactive owned fresh General run1 or authenticated legacy112 run2. Prior production55/harness56 actual fresh draft/round/earned Shop/failure/real retry/final cold passed. New fixed NPC append and runner binding source under qualification; no full-season/current continuation/Dynasty/release claim.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/career.gd.txt",
@@ -48,8 +48,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/save.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_general_v1/save.gd",
-      "bytes": 11342,
-      "sha256": "5e5c40f8105590155883d115ce3623780b7b8ac2813530e14c4be1b86c07393f"
+      "bytes": 15053,
+      "sha256": "1b46ee90d7e69f46e35db5cfc2c431f65a21b0dd6edd6bd53938c98297396c28"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/gameplay/season/successor_owner_general_v1/start.gd.txt",
@@ -60,14 +60,14 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_general_v1/app.gd",
-      "bytes": 2192,
-      "sha256": "6cc2a50b5b1f3a3b1f443ea7af5c199beb3bfc1ddf756572aad0e980ff3f4829"
+      "bytes": 2220,
+      "sha256": "46ddd9c9ca423deaeff9299ebdf81083cb41fa478529e13c994c8026e75e0db3"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_general_v1/base_app.gd",
-      "bytes": 18955,
-      "sha256": "27bfff482d64800a392fbe92b94ecee762869a9166082746a9c1ef5cb4becd49"
+      "bytes": 21544,
+      "sha256": "4c799b3cf0e9f0557707ab34f94997a3c3a945093539007b744bd365a54d9db2"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/src/presentation/season/successor_owner_general_v1/capture_human.gd.txt",
@@ -90,8 +90,8 @@
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.gd.txt",
       "restore_path": "tests/successor_owner_general.gd",
-      "bytes": 31751,
-      "sha256": "1ab65fd52b91ad171b59450367264f92e1e3187f90655fed1d7854c35c1361a4"
+      "bytes": 35286,
+      "sha256": "7c5762f6ea4af96714007243179576a8f15e08deba889633dc6d9cc42df2de65"
     },
     {
       "backup_path": "drafts/successor-owner-general-v1/tests/successor_owner_general.tscn.txt",

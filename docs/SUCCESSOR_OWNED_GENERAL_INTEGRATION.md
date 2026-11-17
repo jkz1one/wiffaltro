@@ -205,3 +205,38 @@ handler that refreshes controls. The harness now presses the actual enabled
 RETRY EXACT SAVE button; production source is unchanged. A separate isolated
 copy will repeat from the genuine pre-purchase checkpoint. The failed stage and
 paid save are preserved; choice/final cold are still unqualified.
+
+### Verified fresh owned integration (production55 / harness56)
+
+The corrected real Shop retry sequence and dedicated final cold process passed.
+The actual owned first career has four drafted players, one human/two NPC games
+settled, all six clubs paid once, and an earned development pack applied to a real
+recipient. Prewrite refusal preserved old state and both saves; the actual retry
+button promoted the exact candidate. Pack and choice matched the independent
+strict original path; repeated commands did not charge or rotate backups.
+Cold replay matched the canonical save and rejected origin substitution and a
+coordinated start-basis/Build forgery. Final save SHA-256:
+`da7e062df593eed8c3977b9362fc9dc1a7314020cfb3146e51e2090141d4148a`.
+The original failure, corrected isolated stage and provenance are preserved.
+This is a first-owned-round/shop/save qualification, not a full season, another
+career run, Dynasty, visual/audio acceptance or a distributable.
+
+### Fixed NPC checkpoint increment under qualification
+
+`Save.append_npc_report(owner, raw_report)` strictly restores an exact matching
+primary once, derives the next fixture/request internally, validates the appended
+primitive report through unchanged pending replay on detached state, and writes
+only that pending addition. Missing/malformed/different primary rejects without
+fallback. The same guarded fixed-operation persistence tail serves existing pack
+operations; original pack regression remains required. No caller candidate,
+validation token, mutable-resource cache or shortened history is accepted.
+
+The App binds each callback to its actual runner and original owner/lab snapshot.
+Foreign/duplicate/stale callbacks cannot publish to another owner. Prewrite
+refusal keeps the exact report/candidate for an explicit ordinary strict retry;
+success installs saved bytes/snapshot before normal guarded promotion, avoiding
+a second write. Tests exercise an actual first NPC refusal/retry and strict-path
+parity, foreign/duplicate callbacks, malformed reports, the normal second NPC,
+settlement, shared pack path and cold reopen. These new tests are pending; removal
+of two full owner reconstructions is a code-path change, not yet a measured
+latency claim.

@@ -24,6 +24,10 @@ var retained_state: MatchState
 var retained_report: Dictionary = {}
 var ai_runner: Node
 var projection: Dictionary = {}
+var _npc_owner: SeasonState
+var _npc_before: Dictionary = {}
+var _npc_lab: PitchBatLab
+var _npc_state: MatchState
 var _exit_dialog: ConfirmationDialog
 var _exit_mode: String = ""
 var _exit_season: SeasonState
@@ -254,6 +258,7 @@ func retry_save() -> void:
 	retained_lab = null
 	retained_state = null
 	retained_report.clear()
+	_clear_npc_pins()
 	retained_before.clear()
 	retained_saved_snapshot.clear()
 	retained_saved_bytes = PackedByteArray()
@@ -331,40 +336,94 @@ func resume_round() -> void:
 	var field: FieldDefinition = Runtime.field_for_fixture(fixture,candidate)
 	if state==null or field==null:
 		return
+	_npc_owner = season
+	_npc_before = Codec.guard_snapshot(season).duplicate(true)
+	_npc_lab = lab
+	_npc_state = lab._match_state if is_instance_valid(lab) else null
+	if _npc_before.is_empty():
+		_clear_npc_pins()
+		return
 	ai_runner = Runner.new()
 	add_child(ai_runner)
-	ai_runner.finished.connect(_ai_finished)
-	ai_runner.failed.connect(_ai_failed)
+	ai_runner.finished.connect(_ai_finished.bind(ai_runner))
+	ai_runner.failed.connect(_ai_failed.bind(ai_runner))
 	_busy = true
 	if not ai_runner.start(state,Fixtures.seed_for(candidate,fixture),field.id):
-		_ai_failed("The physical fixture could not start.")
+		_ai_failed("The physical fixture could not start.",ai_runner)
 
-func _ai_finished(report: Dictionary) -> void:
+func _npc_owner_matches() -> bool:
+	return _npc_owner != null and season == _npc_owner and not _npc_before.is_empty() \
+		and lab == _npc_lab and (not is_instance_valid(lab) or lab._match_state == _npc_state) \
+		and ClubCareer.same(Codec.guard_snapshot(season),_npc_before)
+
+func _clear_npc_pins() -> void:
+	_npc_owner = null
+	_npc_before.clear()
+	_npc_lab = null
+	_npc_state = null
+
+func _ai_finished(report: Dictionary, runner: Node = null) -> void:
+	# Only the currently bound runner may complete this job. Foreign or repeated
+	# callbacks must not clear busy state, stop a newer runner or replace evidence.
+	if runner == null or not is_instance_valid(runner) or runner != ai_runner or not _busy:
+		return
+	if retained != null or not retained_report.is_empty(): return
+	if not _npc_owner_matches():
+		_ai_failed("Completed physical job belongs to a changed owner; checkpoint was not changed.",runner)
+		return
 	_busy = false
-	if is_instance_valid(ai_runner):
-		ai_runner.queue_free()
+	ai_runner.queue_free()
 	ai_runner = null
 	retained_report = report.duplicate(true)
 	_checkpoint_report()
 
 func _checkpoint_report() -> void:
-	if retained_report.is_empty() or not projection.has("fixture") or season==null:
+	if _busy or retained != null or retained_report.is_empty() or not _npc_owner_matches():
 		return
-	var candidate: SeasonState = _clone()
-	if candidate==null:
-		notice = "Completed physical report retained in memory. Retry checkpoint, not gameplay."
+	# Fixed operation rederives the fixture from the strict matching primary.
+	# Neither projection.candidate nor a caller-provided request is authority.
+	_busy = true
+	var transaction: Dictionary = Save.append_npc_report(season,retained_report.duplicate(true))
+	_busy = false
+	if transaction.candidate == null:
+		notice = transaction.error
 		show_season()
 		return
-	var fixture: Dictionary = projection.fixture
-	candidate.physical.pending.reports.append({"fixture":int(fixture.id),"request":Fixtures.request_key(projection.candidate,fixture),"report":retained_report.duplicate(true)})
-	_retain(candidate)
+	retained = transaction.candidate
+	retained_owner = _npc_owner
+	retained_before = _npc_before.duplicate(true)
+	retained_lab = _npc_lab
+	retained_state = _npc_state
+	retained_saved = transaction.saved
+	retained_saved_snapshot.clear()
+	retained_saved_bytes = PackedByteArray()
+	var expected: Variant = transaction.expected_primary
+	retained_primary_expected = expected.duplicate() if expected is PackedByteArray else expected
+	if not retained_saved:
+		notice = transaction.error
+		show_season()
+		return # Explicit retry only; retain the exact report and failed candidate.
+	var disk_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var disk: Variant = JSON.parse_string(disk_bytes.get_string_from_utf8())
+	var snapshot: Dictionary = Codec.guard_snapshot(retained)
+	if disk_bytes.is_empty() or not disk is Dictionary or snapshot.is_empty() or not ClubCareer.same(disk,snapshot):
+		notice = "Saved physical report differs from its durable checkpoint; promotion is blocked."
+		return
+	retained_saved_snapshot = snapshot.duplicate(true)
+	retained_saved_bytes = disk_bytes.duplicate()
+	if not _npc_owner_matches():
+		notice = "Saved physical report retained; original owner changed before promotion."
+		return
+	retry_save() # Saved pins prohibit a second write; normal guarded promotion only.
 
-func _ai_failed(reason: String) -> void:
+func _ai_failed(reason: String, runner: Node = null) -> void:
+	if runner == null or not is_instance_valid(runner) or runner != ai_runner or not _busy:
+		return
 	_busy = false
 	notice = reason
-	if is_instance_valid(ai_runner):
-		ai_runner.queue_free()
+	ai_runner.queue_free()
 	ai_runner = null
+	_clear_npc_pins()
 	show_season()
 
 func open_pitch_shop() -> void:

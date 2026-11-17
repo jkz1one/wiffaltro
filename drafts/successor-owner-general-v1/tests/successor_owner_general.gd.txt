@@ -243,6 +243,13 @@ func settle_batch(app: SeasonApp) -> void:
 		var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
 		var count: int = app.season.physical.pending.reports.size()
 		if not check(not before.is_empty(),"nonempty actual round equality baseline"): return
+		var fault: bool = count == 0
+		if fault:
+			for malformed: Dictionary in [{},{"ownership":[1]},{"object":RefCounted.new()}]:
+				var refusal: Dictionary = Save.append_npc_report(owner,malformed)
+				if not check(refusal.handled and refusal.candidate == null and not refusal.saved,"malformed or executable NPC payload refuses before persistence"): return
+			if not check(ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"invalid NPC calls preserve original state and saves"): return
+		if fault and not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated first NPC prewrite fault"): return
 		app.resume_round()
 		# This bounded one-round test has no terminal-save fault. Observe the real
 		# App's projection instead of independently replaying the history twice.
@@ -251,12 +258,38 @@ func settle_batch(app: SeasonApp) -> void:
 			return
 		if projection.has("fixture"):
 			if not check(app._busy and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and FileAccess.file_exists(Save.PATH) == primary_exists and FileAccess.file_exists(Save.PATH+".bak") == backup_exists,"NPC start preserves original owner and disk before awaiting real physics"): return
+			# A foreign callback must not stop or replace the real in-flight runner.
+			var running: Node = app.ai_runner
+			var foreign: Node = Node.new()
+			app._ai_finished({},foreign)
+			foreign.free()
+			if not check(app._busy and app.ai_runner == running and app.retained_report.is_empty() and app.season == owner,"foreign NPC callback cannot replace active runner/owner"): return
 			var finished: bool = false
 			for frame in range(150000):
 				await get_tree().physics_frame
 				if not app._busy:
 					finished = true
 					break
+			if fault:
+				if not check(finished and app.retained != null and not app.retained_report.is_empty() and app.season == owner and ClubCareer.same(Codec.guard_snapshot(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"NPC prewrite refusal preserves original owner and both saves"): return
+				var retained: SeasonState = app.retained
+				var raw: Dictionary = app.retained_report.duplicate(true)
+				var actual: Dictionary = Codec.guard_snapshot(retained)
+				var reference: SeasonState = Codec.clone(owner)
+				if not check(reference != null,"independent original NPC reference clone"): return
+				reference.physical.pending.reports.append({"fixture":int(projection.fixture.id),"request":Fixtures.request_key(projection.candidate,projection.fixture),"report":raw.duplicate(true)})
+				var expected: Dictionary = Codec.capture(reference)
+				if not check(not actual.is_empty() and not expected.is_empty() and ClubCareer.same(actual,expected),"fixed NPC candidate equals original strict append/capture path"): return
+				app._ai_finished(raw,null)
+				if not check(app.retained == retained and ClubCareer.same(app.retained_report,raw) and ClubCareer.same(Codec.guard_snapshot(retained),actual),"late duplicate callback cannot replace retained NPC candidate"): return
+				if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own NPC prewrite fault"): return
+				app.retry_save()
+				if not check(app.retained == null and app.season == retained and app.retained_report.is_empty() and ClubCareer.same(Codec.guard_snapshot(app.season),actual),"explicit strict NPC retry promotes exact candidate once"): return
+				var paid_primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+				var paid_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+				app.retry_save()
+				var duplicate: Dictionary = Save.append_npc_report(app.season,raw)
+				if not check(duplicate.handled and duplicate.candidate == null and not duplicate.saved and FileAccess.get_file_as_bytes(Save.PATH) == paid_primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == paid_backup and ClubCareer.same(Codec.guard_snapshot(app.season),actual),"already consumed NPC report rejected without state or backup mutation"): return
 			if not check(finished and app.get("retained") == null and app.season.physical.pending.reports.size() == count+1,"actual NPC report saved once"):
 				return
 			finish_step(app,"npc-%d"%int(projection.fixture.id))

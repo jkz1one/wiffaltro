@@ -40,10 +40,10 @@ func resume_round() -> void:
 	super.resume_round()
 	roots.clear()
 
-func _ai_finished(report: Dictionary) -> void:
+func _ai_finished(report: Dictionary, runner: Node = null) -> void:
 	# Separate synchronous completion boundary, not a hold across AI frames.
 	var roots: Array[Resource] = Codec._operation_content_roots()
-	super._ai_finished(report)
+	super._ai_finished(report,runner)
 	roots.clear()
 
 func _checkpoint_report() -> void:
