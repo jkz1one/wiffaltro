@@ -40,7 +40,12 @@ earned two-choice NPC packs, exact failed first-choice retry, cold second/skip
 branches and paid replay/tamper checks. Its two warm samples/path averaged
 12.4804995s reference and 12.11118s combined, a small gain opposite the Standard
 sample below; these concurrent samples do not demonstrate reliable responsiveness.
-Multi-round Equipment regression remains pending at this documentation boundary.
+The same frozen checkpoint28 source also passed the full Equipment three-round
+sequence, paid active/spare swaps and sale, final cold checks, reference/tamper
+comparison and completed-stage resume. Its three-human-history warm means were
+53.509396s reference versus 46.809764s combined, only two samples/path with large
+reference drift (49.64s to 57.38s). This is limited later-history diagnostic
+evidence, not a reliable whole-player latency fix.
 Earlier source qualification is never silently carried onto a changed identity. The Standard stage began before the
 two new comparison test files were added; only those test files were added before
 the comparison, and all staged production bytes matched the final source.

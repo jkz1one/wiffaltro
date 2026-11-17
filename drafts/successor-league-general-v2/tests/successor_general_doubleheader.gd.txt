@@ -1,0 +1,177 @@
+extends Node
+## CLOSED adapter foundation. Synthetic operands are not physical or earned proof.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Reward = preload("res://src/gameplay/season/successor_league_general_v2/reward.gd")
+const Paired = preload("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd")
+const Context = preload("res://src/gameplay/season/successor_league_general_v2/doubleheader_build.gd")
+var roster: Array[String] = []
+var roots: Array[Resource] = []
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ",label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ",label)
+	return ok
+
+func construct(seed_value: int = 551, market: int = 0) -> SeasonBuild:
+	var build: SeasonBuild = Build.new(seed_value,roster)
+	build._market = market
+	if not build.enable_successor_pitch_catalog() or not build.enable_league_rules(LeagueRules.capture("doubleheader")):
+		return null
+	return build
+
+func schedule_cases() -> bool:
+	var schedule: Array[Dictionary] = SeasonDoubleheaderRules.schedule()
+	if not check(schedule.size() == 30,"five paired regular-season rounds, thirty total fixtures"):
+		return false
+	var by_id: Dictionary = {}
+	for fixture: Dictionary in schedule:
+		if not check(not by_id.has(fixture.id),"unique fixture ID " + str(fixture.id)):
+			return false
+		by_id[fixture.id] = fixture
+	for pair in range(5):
+		var appearances: Dictionary = {}
+		for slot in range(3):
+			var first: Dictionary = by_id[pair*6+slot]
+			var second: Dictionary = by_id[pair*6+3+slot]
+			if not check(first.round == pair*2 and second.round == pair*2+1 \
+				and first.home == second.away and first.away == second.home \
+				and SeasonDoubleheaderRules.first(second.id) == first.id and SeasonDoubleheaderRules.first(first.id) == -1,"exact return venues, legs and partner IDs"):
+				return false
+			appearances[first.home] = true
+			appearances[first.away] = true
+		if not check(appearances.size() == 6,"each club appears once per leg"):
+			return false
+	for game: Variant in [-1,0,1,2,6,12,18,24,30,31,32,true,0.5,"3"]:
+		if not check(SeasonDoubleheaderRules.first(game) == -1,"first-leg/playoff/invalid reset " + str(game)):
+			return false
+	var season: SeasonState = SeasonState.new()
+	season.league_rules = LeagueRules.capture("doubleheader")
+	Paired.install_schedule(season)
+	if not check(ClubCareer.same(season.schedule,schedule),"new adapter installs exact original schedule"):
+		return false
+	var ordinary: SeasonState = Runtime.create_fresh(551)
+	var before: Array = ordinary.schedule.duplicate(true)
+	Paired.install_schedule(ordinary)
+	return check(ClubCareer.same(before,ordinary.schedule),"ordinary schedule unaffected")
+
+func command(build: SeasonBuild, game: int) -> Dictionary:
+	var pair: Dictionary = Context.pair_for(build,game)
+	var initial: Dictionary = {}
+	var remaining: Dictionary = {}
+	var performance: Dictionary = {}
+	for id: String in roster:
+		var player: PlayerMatchState = PlayerMatchState.create(build.definition(id))
+		var start: float = maxf(0.0,player.stamina_max-float(pair.get("debt",{}).get(id,0.0)))
+		initial[id] = {"capacity":player.stamina_max,"initial":start}
+		remaining[id] = start
+		performance[id] = MatchPerformance.empty_line()
+	return {"id":"synthetic-foundation:"+str(game),"rev":build.revision(),"op":"reward","game":game,"win":true,
+		"performance":performance,"pitching":{"releases":[],"strikeouts":[],"calls":[]},"tactics":[],
+		"doubleheader_workload":{"version":1,"pair":pair,"proof":{"version":1,"initial":initial,"events":[],"remaining":remaining}}}
+
+func envelope(value: Dictionary) -> Dictionary:
+	return {"id":value.id,"rev":value.rev,"op":"successor_reward","context":Reward.FORMAT,
+		"catalog":Catalog.signature(),"command":value.duplicate(true)}
+
+func build_cases(market: int) -> bool:
+	var build: SeasonBuild = construct(551,market)
+	if not check(build != null,"private structural GeneralBuild Doubleheader construction market " + str(market)):
+		return false
+	var context: Dictionary = Context.context(build,0)
+	if not check(not context.is_empty() and context.roster == roster and context.pitch_catalog == Catalog.signature(),"exact successor pre-reward context"):
+		return false
+	var other: SeasonBuild = construct(552,market)
+	if not check(other != null and other._seed != build._seed and other.pitch_catalog_signature() == build.pitch_catalog_signature(),"root seed distinct from shared catalog identity"):
+		return false
+	if not check(Context.pair_for(build,0) == {"game":0,"first":-1,"debt":{}} \
+		and Context.pair_for(build,3).is_empty() \
+		and Context.pair_for(build,30) == {"game":30,"first":-1,"debt":{}},"fresh/reset pairs and missing partner fail closed"):
+		return false
+	var value: Dictionary = command(build,0)
+	var wrapped: Dictionary = envelope(value)
+	if not check(ClubCareer.same(Context._reward(wrapped),value) and Context._reward(value).is_empty(),"strict successor unwrap; original reward is not successor history"):
+		return false
+	for key: String in ["catalog","context","command","rev"]:
+		var wrong: Dictionary = wrapped.duplicate(true)
+		match key:
+			"catalog": wrong.catalog = "different-source"
+			"context": wrong.context = "legacy"
+			"command": wrong.command = []
+			"rev": wrong.rev = int(wrong.rev)+1
+		if not check(Context._reward(wrong).is_empty(),"reject malformed envelope " + key):
+			return false
+	var original: Dictionary = build.to_data()
+	var validation: String = Context.validate(build,value)
+	if validation.is_empty():
+		print("SYNTHETIC: zero-workload validator operand accepted; no physical game, reward commit or earned bonus")
+		for kind: String in ["missing","capacity","debt","receipt"]:
+			var wrong: Dictionary = value.duplicate(true)
+			match kind:
+				"missing": wrong.erase("doubleheader_workload")
+				"capacity": wrong.doubleheader_workload.proof.initial[roster[0]].capacity += 1.0
+				"debt": wrong.doubleheader_workload.pair.debt = {roster[0]:1.0}
+				"receipt": wrong.doubleheader_workload.proof.events.append({"kind":"recovery","receipt":"not-owned","player":roster[0],"pa":1})
+			if not check(not Context.validate(build,wrong).is_empty(),"synthetic validator rejects altered " + kind):
+				return false
+	else:
+		print("LIMITATION: no positive successor workload fixture admitted by closed downstream validators: ",validation)
+	if not check(ClubCareer.same(build.to_data(),original),"context and validation do not mutate Build"):
+		return false
+	# Deliberately synthetic internal helper operands only. These are NOT admitted
+	# journals: complete replay is a separate caller obligation, still unwired.
+	build._events.append(wrapped)
+	build._bank._state.rewards["0"] = true
+	var expected_debt: Dictionary = {}
+	for id: String in roster:
+		expected_debt[id] = 0.0
+	var actual_pair: Dictionary = Context.pair_for(build,3)
+	print("SYNTHETIC partner projection, explicit zero debt identities retained: ",JSON.stringify(actual_pair))
+	if not check(actual_pair == {"game":3,"first":0,"debt":expected_debt},"SYNTHETIC paid-partner helper correspondence, no admission claim"):
+		return false
+	build._events.append(wrapped.duplicate(true))
+	if not check(Context.pair_for(build,3).is_empty(),"duplicate partner row rejected"):
+		return false
+	build._events.pop_back()
+	build._bank._state.rewards["0"] = false
+	if not check(Context.pair_for(build,3).is_empty(),"partner outcome disagreement rejected"):
+		return false
+	build._bank._state.rewards["0"] = true
+	build._events[0].command.doubleheader_workload.pair.game = 1
+	if not check(Context.pair_for(build,3).is_empty(),"wrong partner fixture rejected"):
+		return false
+	build._events[0] = value
+	return check(Context.context(build,3).is_empty() and Context.pair_for(build,3).is_empty(),"legacy reward row cannot enter successor helper context")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated closed Doubleheader foundation"):
+		return
+	roots = Codec._operation_content_roots()
+	roster.assign(SeasonPlayerCatalog.ids().slice(0,4))
+	if not schedule_cases():
+		return
+	for market in [0,12]:
+		if not build_cases(market):
+			return
+	for tier in range(5):
+		if not check(Runtime.create_closed_league(551,LeagueRules.capture_tier("doubleheader",tier),true) == null,"public Doubleheader admission remains closed tier " + str(tier)):
+			return
+	var ordinary: SeasonState = Runtime.create_fresh(551)
+	var ordinary_payload: Dictionary = Codec.capture(ordinary)
+	if not check(not ordinary_payload.is_empty() and Codec.restore(ordinary_payload) != null,"ordinary public creation and exact restore unaffected"):
+		return
+	var wrong: Dictionary = ordinary_payload.duplicate(true)
+	wrong.league_rules = LeagueRules.capture("doubleheader")
+	wrong.league_live = true
+	if not check(Codec.restore(wrong) == null,"ordinary envelope cannot be recast into Doubleheader"):
+		return
+	print("PASS: CLOSED Doubleheader adapter foundation only; no actual paired gameplay, earned sweep, cold two-leg save or Dynasty claim")
+	get_tree().quit()

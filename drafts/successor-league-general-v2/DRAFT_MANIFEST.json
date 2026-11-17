@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "07c99baf48d98d63220cafe5c6806c8c35ae82f7",
-  "scope": "Additive standalone Scramble0 root-seeded original stat-permutation admission; no new policy, owner or Dynasty authority.",
+  "source_checkpoint": "b2b9eb1c9090e54ddb2d1241339c58bf984bf45a",
+  "scope": "Closed successor Doubleheader adapter foundation only; original runtime/reward callers remain unintegrated and Doubleheader admission stays closed.",
   "files": [
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/build.gd.txt",
@@ -50,6 +50,18 @@
       "restore_path": "src/gameplay/season/successor_league_general_v2/development.gd",
       "bytes": 11525,
       "sha256": "3bc54eb97c5bcbf6585b3df7c7ef62b860c670f2a99329ffa06bfca40f21031f"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/doubleheader.gd.txt",
+      "restore_path": "src/gameplay/season/successor_league_general_v2/doubleheader.gd",
+      "bytes": 9832,
+      "sha256": "bba574fc828d60e732a135330513a5a9ffc95d4945a19b4edf7725ff68c73278"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/doubleheader_build.gd.txt",
+      "restore_path": "src/gameplay/season/successor_league_general_v2/doubleheader_build.gd",
+      "bytes": 14638,
+      "sha256": "5831710d64f43abaceda22b3144c239119117327e448eb44adf2b873e6099b2c"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/exotic_access.gd.txt",
@@ -320,6 +332,18 @@
       "restore_path": "tests/successor_general_birth.tscn",
       "bytes": 193,
       "sha256": "9633af53a72f29d7a193b0ae5a15721e09864d2d325e622966e619f3aa7132d1"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_doubleheader.gd.txt",
+      "restore_path": "tests/successor_general_doubleheader.gd",
+      "bytes": 9341,
+      "sha256": "c19f3dbd329cc4a220a34bbae02d3e885acb14928b1845b339c3c66cdcd8aae2"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_doubleheader.tscn.txt",
+      "restore_path": "tests/successor_general_doubleheader.tscn",
+      "bytes": 207,
+      "sha256": "206ffd30e7f5464bb8e89ac0c1ecd6ae38de3d10addce8bc4579b502a53c6cfc"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/tests/successor_general_economies.gd.txt",

@@ -62,15 +62,20 @@ Dynasty qualification is inferred from the one-round evidence.
 
 - A private same-call human-prefix reuse candidate preserves original public
   helpers and passes six-profile fresh/draft, actual Standard round/cold and
-  reference/tamper comparisons. Frozen checkpoint28 Academy also passes its
-  choice/replay regression; Equipment remains pending there. Warm timing signs
-  are mixed and do not establish improvement. See
+  reference/tamper comparisons. Frozen checkpoint28 Academy and three-round
+  Equipment also pass their choice/spare/replay regressions. Small warm timing
+  samples are mixed; later-history evidence is not a reliable latency fix. See
   `SUCCESSOR_GENERAL_PREFIX_REUSE.md`. No responsiveness gain is claimed.
 
 - B6 adds root-seeded Scramble0 using the original fixed stat/base permutation,
   with fresh/every-pick/cold, all-club identity and draft-label checks, actual
   human/NPC round, earned stat upgrade and paid reopen/replay. Actual fresh and
   returning recruitment remain unqualified. See `SUCCESSOR_GENERAL_SCRAMBLE_B6.md`.
+
+- Closed Doubleheader adapter foundation passes native schedule/context, strict
+  successor-envelope and synthetic workload/partner checks. Actual runtime,
+  reward and physical integration remain unwired; all public Doubleheader tiers
+  stay closed. See `SUCCESSOR_GENERAL_DOUBLEHEADER_FOUNDATION.md`.
 
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
