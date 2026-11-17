@@ -1,0 +1,68 @@
+extends Node
+## Explicit synthetic receipt-policy unit operands, not played career completion.
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+const LeagueUnlocks = preload("res://src/gameplay/season/league_unlocks.gd")
+const Fixture = preload("res://src/tests/league_unlock_fixture.gd")
+var failures: int = 0
+func check(ok: bool, label: String) -> void:
+	if not ok:
+		failures += 1
+		printerr("FAIL: ",label)
+	else:
+		print("CHECK: ",label)
+func candidate(id: int, league: String, tier: int) -> Dictionary:
+	var proof: Dictionary = Fixture.proof(league,tier)
+	var row: Dictionary = {"id":id,"seed":8107,"league":league,"tier":tier,
+		"status":"active","proof":proof,"receipt":{}}
+	if proof.has("league_rules"):
+		row["league_rules"] = proof.league_rules.duplicate(true)
+	return row
+func _ready() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1":
+		get_tree().quit(2)
+		return
+	var empty: Dictionary = Policy.evaluate([])
+	check(empty.available_leagues == ["standard","dugout"] and empty.income == 0,"unchanged starter leagues")
+	var history: Array = []
+	for league: String in ["standard","sponsorship","academy","dugout","equipment","earnings"]:
+		var active: Dictionary = candidate(history.size()+1,league,0)
+		var before: Dictionary = active.duplicate(true)
+		var prior: Array = history.duplicate(true)
+		var result: Dictionary = Policy.complete(active,history)
+		check(not result.is_empty(),"synthetic legal title chain "+league)
+		if result.is_empty():
+			continue
+		check(ClubCareer.same(active,before) and ClubCareer.same(history,prior),"proposal never mutates history "+league)
+		check(ClubCareer.same(result.row.receipt,ClubSeasonRecord.receipt(active.proof,true,0)),"original receipt exact "+league)
+		history.append(result.row)
+	var repeated: Dictionary = Policy.complete(candidate(history.size()+1,"dugout",0),history)
+	check(not repeated.is_empty() and repeated.row.receipt.first_bonus == 0,"repeated title has no first bonus")
+	var snapshot: Array = history.duplicate(true)
+	check(ClubCareer.same(Policy.evaluate(history),Policy.evaluate(history)) and ClubCareer.same(history,snapshot),"repeat policy evaluation inert")
+	for tier in range(1,5):
+		var result: Dictionary = Policy.complete(candidate(history.size()+1,"dugout",tier),history)
+		check(not result.is_empty(),"strict own-league tier prefix "+str(tier))
+		if not result.is_empty():
+			check(ClubCareer.same(result.row.receipt,ClubSeasonRecord.receipt(result.row.proof,true,tier)),"unchanged tier reward scale "+str(tier))
+			history.append(result.row)
+	var final: Dictionary = Policy.evaluate(history)
+	check(final.available_leagues == LeagueUnlocks.IDS,"all nine unlocks derived from original chain")
+	check(Policy.complete(candidate(1,"equipment",0),[]).is_empty(),"locked league cannot title-unlock itself")
+	check(Policy.complete(candidate(1,"dugout",2),[]).is_empty(),"higher tier cannot self-unlock")
+	var forged: Array = history.duplicate(true)
+	forged[0].receipt.total += 1
+	check(Policy.evaluate(forged).is_empty(),"forged receipt rejected")
+	forged = history.duplicate(true)
+	forged[0].id = 2
+	check(Policy.evaluate(forged).is_empty(),"reordered or duplicate run id rejected")
+	var unfinished: Dictionary = candidate(1,"dugout",0)
+	unfinished.proof.scores = []
+	check(Policy.complete(unfinished,[]).is_empty(),"unfinished proof earns no completion receipt")
+	var terminal: Dictionary = candidate(1,"dugout",0)
+	terminal.receipt = {"total":999999}
+	check(Policy.complete(terminal,[]).is_empty(),"supplied award not accepted")
+	terminal = candidate(1,"dugout",0)
+	terminal.league = "dynasty"
+	check(Policy.complete(terminal,[]).is_empty(),"no Dynasty owner admission from structural policy")
+	print("PASS: synthetic completion policy preserves receipts and nine-league unlock policy; physical_games=0" if failures == 0 else "FAIL: policy checks")
+	get_tree().quit(0 if failures == 0 else 1)

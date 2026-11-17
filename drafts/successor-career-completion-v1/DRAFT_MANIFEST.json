@@ -1,0 +1,43 @@
+{
+  "format": "inactive-successor-career-completion-v1",
+  "source_checkpoint": "322ce9c1136a59f77c712d7b4a92111e62b4efe2",
+  "scope": "pure metrics and receipt policy only; no owner admission",
+  "files": [
+    {
+      "backup_path": "drafts/successor-career-completion-v1/src/gameplay/season/successor_career_completion_v1/completion_policy.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_completion_v1/completion_policy.gd",
+      "bytes": 2724,
+      "sha256": "74bd301e8ce02a4cf4a8bac3ff5b29d84fd8b28166bc427bded225053790c6ab"
+    },
+    {
+      "backup_path": "drafts/successor-career-completion-v1/src/gameplay/season/successor_career_completion_v1/player_metrics.gd.txt",
+      "restore_path": "src/gameplay/season/successor_career_completion_v1/player_metrics.gd",
+      "bytes": 2525,
+      "sha256": "796bba5e0628b1630e6e5ad4189aa962601da09dd80a237fd9daca2220be0352"
+    },
+    {
+      "backup_path": "drafts/successor-career-completion-v1/tests/successor_player_metrics.gd.txt",
+      "restore_path": "tests/successor_player_metrics.gd",
+      "bytes": 5504,
+      "sha256": "861a40aa06c579e7b0f7222cbda8b861b6c728437a4dc613b14fcee3330622cf"
+    },
+    {
+      "backup_path": "drafts/successor-career-completion-v1/tests/successor_player_metrics.tscn.txt",
+      "restore_path": "tests/successor_player_metrics.tscn",
+      "bytes": 195,
+      "sha256": "0bfff43a76fe5b3ab084ace45bce5510d4ad88a19583030bae92465b9440488a"
+    },
+    {
+      "backup_path": "tests/successor_completion_policy.gd.txt",
+      "restore_path": "tests/successor_completion_policy.gd",
+      "bytes": 3945,
+      "sha256": "86c3d67409746dc776152944e70c9da42f9633607a9da3ef34659615e006c5e9"
+    },
+    {
+      "backup_path": "tests/successor_completion_policy.tscn.txt",
+      "restore_path": "tests/successor_completion_policy.tscn",
+      "bytes": 192,
+      "sha256": "0f0be55adffbf4917e67906ab6382ad5d6080b57c9c297ea9cfbbc28f12aa498"
+    }
+  ]
+}

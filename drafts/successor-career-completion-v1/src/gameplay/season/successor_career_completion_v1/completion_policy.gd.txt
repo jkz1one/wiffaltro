@@ -1,0 +1,60 @@
+extends RefCounted
+## Pure receipt/title policy over structural proof operands, NOT owner authority.
+## A caller must first replay complete owned seasons and validate all progression,
+## assets and provenance. This adapter never grants cash, saves, or admits a run.
+## No Dynasty session/replacement policy is introduced by this first adapter.
+
+const LeagueUnlocks = preload("res://src/gameplay/season/league_unlocks.gd")
+const ClubLeagueCareer = preload("res://src/gameplay/season/club_league_career.gd")
+
+static func evaluate(runs: Variant) -> Dictionary:
+	if not runs is Array or runs.size() > ClubCareer.MAX_RUNS:
+		return {}
+	var titles: Dictionary = {}
+	var income: int = 0
+	var completed: int = 0
+	for index in range(runs.size()):
+		var row: Variant = runs[index]
+		if not row is Dictionary or not SeasonOwnership._whole(row.get("id"), index + 1, index + 1) \
+			or not SeasonOwnership._whole(row.get("seed"), 0, 2147483647) \
+			or row.get("league") == "dynasty" \
+			or not LeagueUnlocks.from_titles(titles).has(row.get("league")) \
+			or (row.get("status") == "active" and index != runs.size() - 1):
+			return {}
+		# Exact shared reward scales, previous-tier gate and first-title namespace.
+		var record: Dictionary = ClubCareer._progression_record(row, titles)
+		if record.is_empty():
+			return {}
+		if row.status == "completed":
+			income += int(row.receipt.total)
+			completed += 1
+	return {"titles": titles, "income": income, "completed": completed,
+		"available_leagues": LeagueUnlocks.from_titles(titles)}
+
+static func complete(active: Variant, prior: Variant) -> Dictionary:
+	# Pure proposal only. No current owner is changed; no supplied receipt trusted.
+	var prefix: Dictionary = evaluate(prior)
+	if prefix.is_empty() or not active is Dictionary or not prior is Array \
+		or active.get("status") != "active" or not active.get("receipt") is Dictionary \
+		or not active.receipt.is_empty() or not active.get("proof") is Dictionary \
+		or not SeasonOwnership._whole(active.get("id"), prior.size() + 1, prior.size() + 1) \
+		or not SeasonOwnership._whole(active.get("tier"), 0, 4):
+		return {}
+	for row: Dictionary in prior:
+		if row.status == "active":
+			return {}
+	var key: String = ClubLeagueCareer.title_key(str(active.get("league")), int(active.tier))
+	var award: Dictionary = ClubSeasonRecord.receipt(active.proof,
+		not prefix.titles.get(key, false), int(active.tier))
+	if award.is_empty():
+		return {}
+	var proposal: Dictionary = active.duplicate(true)
+	proposal.status = "completed"
+	proposal.receipt = award
+	var history: Array = prior.duplicate(true)
+	history.append(proposal)
+	var result: Dictionary = evaluate(history)
+	if result.is_empty():
+		return {}
+	result["row"] = proposal
+	return result

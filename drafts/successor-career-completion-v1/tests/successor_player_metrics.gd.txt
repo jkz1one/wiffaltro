@@ -1,0 +1,98 @@
+extends Node
+const Metrics = preload("res://src/gameplay/season/successor_career_completion_v1/player_metrics.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_v1/career_progress.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_live_v1/codec.gd")
+const SOURCE: String = "user://source-owned.json"
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated metrics runner required"):
+		return
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var season: SeasonState = Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+	if not check(season != null and season.results.size() == 3 and season.career != null, "actual owner-bound settled round replay"):
+		return
+	var runs: Array = season.career.runs.duplicate(true)
+	var before: Array = runs.duplicate(true)
+	var actual: Dictionary = Metrics.metrics(runs)
+	if not check(not actual.is_empty() and actual.completed_seasons == 0 and actual.championships == 0, "unfinished actual round grants no completion metric"):
+		return
+	# Independently construct the historical-compatible view. Only lesson count
+	# differs where successor recipe IDs are outside the old catalog.
+	var legacy: Array = runs.duplicate(true)
+	var details: Dictionary = legacy[0].player_progress
+	details.erase("format")
+	details.erase("pitch_catalog")
+	details.erase("exotic")
+	details.version = ClubPlayerLegend.VERSION
+	var old_lessons: Array = []
+	for id: String in details.development.lessons:
+		if SeasonPlayerCatalog.RECIPES.values().has(id):
+			old_lessons.append(id)
+	details.development.lessons = old_lessons
+	var expected: Dictionary = ClubPlayerProgress.metrics(legacy)
+	if not check(not expected.is_empty(), "shared historical-compatible aggregate accepted"):
+		return
+	expected.season_lessons = runs[0].player_progress.development.lessons.size()
+	if not check(ClubCareer.same(actual, expected) and Metrics.earned(runs) == ClubPlayerCatalog.earned(expected), "all shared metrics and unchanged earned thresholds equivalent"):
+		return
+	# Synthetic structural metric operand ONLY: this does not claim that the
+	# extra lesson was purchased or belongs in the restored owner checkpoint.
+	var synthetic: Array = runs.duplicate(true)
+	var successor_lesson: String = ""
+	for id: String in Catalog.known_ids():
+		if not SeasonPlayerCatalog.RECIPES.values().has(id) and not synthetic[0].player_progress.development.lessons.has(id):
+			successor_lesson = id
+			break
+	if not check(not successor_lesson.is_empty(), "synthetic nonlegacy supported recipe available"):
+		return
+	synthetic[0].player_progress.development.lessons.append(successor_lesson)
+	synthetic[0].player_progress.development.lessons.sort()
+	if not check(Progress.valid(synthetic[0].player_progress, synthetic[0].proof.scores), "synthetic lesson operand structurally valid, not earned provenance"):
+		return
+	var synthetic_before: Array = synthetic.duplicate(true)
+	var synthetic_expected: Dictionary = actual.duplicate(true)
+	synthetic_expected.season_lessons += 1
+	if not check(ClubCareer.same(Metrics.metrics(synthetic), synthetic_expected) and ClubCareer.same(synthetic, synthetic_before), "full successor-only lesson counted without changing input or other metrics"):
+		return
+	# Successor proof requires all four player lines. Null aggregate stats with
+	# those lines is inconsistent, not an excuse to invent zero-valued evidence.
+	var unknown_stats: Array = runs.duplicate(true)
+	unknown_stats[0].player_progress.games[0].stats = null
+	var unknown_stats_before: Array = unknown_stats.duplicate(true)
+	if not check(Metrics.metrics(unknown_stats).is_empty() and ClubCareer.same(unknown_stats, unknown_stats_before), "inconsistent null stats rejected without fabricating evidence"):
+		return
+	# Missing progress remains unknown: score metrics still exist, but no inferred
+	# mastery, repertoire, per-player or aggregate-stat evidence is manufactured.
+	var unknown: Array = runs.duplicate(true)
+	unknown[0].player_progress = null
+	if not check(ClubCareer.same(Metrics.metrics(unknown), ClubPlayerProgress.metrics(unknown)) and not Metrics.metrics(unknown).has("mastery_max"), "unknown progress remains unknown"):
+		return
+	for kind: String in ["catalog", "version", "lesson", "strikeout", "completed", "extra"]:
+		var wrong: Array = runs.duplicate(true)
+		match kind:
+			"catalog": wrong[0].player_progress.pitch_catalog = "wrong"
+			"version": wrong[0].player_progress.version = 999
+			"lesson": wrong[0].player_progress.development.lessons.append("not-a-recipe")
+			"strikeout":
+				var id: String = wrong[0].player_progress.games[0].players.keys()[0]
+				wrong[0].player_progress.games[0].players[id].strikeouts += 1
+			"completed": wrong[0].status = "completed"
+			"extra": wrong[0].player_progress["grant"] = true
+		if not check(Metrics.metrics(wrong).is_empty(), "reject inconsistent progress " + kind):
+			return
+	if not check(ClubCareer.same(runs, before) and FileAccess.get_file_as_bytes(SOURCE) == bytes, "metrics and rejected inputs preserve source"):
+		return
+	print("PASS: successor pure player metrics preserve shared rules and reject inconsistent progress; no completion authority")
+	get_tree().quit()
