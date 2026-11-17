@@ -18,6 +18,10 @@ Dynasty qualification is inferred from the one-round evidence.
 - Generalized Game114 Phase A passes47 structural Build/Development contexts;
   all public season/owner routes stay closed. See
   `SUCCESSOR_GENERAL_BUILD_PHASE_A.md`.
+- Generalized B1 qualifies32 detached physical request contexts plus actual
+  Standard/Dugout games and cold report reopen, not season ownership. See
+  `SUCCESSOR_GENERAL_PHYSICAL_B1.md`, including the Phase A constructor
+  coverage correction and retained failed preliminary test.
 
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,

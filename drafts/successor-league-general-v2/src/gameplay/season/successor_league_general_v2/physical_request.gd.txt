@@ -1,5 +1,6 @@
 extends RefCounted
-## Snapshot only fresh matches; callers retain all original resources and state.
+## Snapshot only fresh B1 single-game matches; original resources/state are retained.
+const Context = preload("physical_context.gd")
 # gdlint: disable=max-returns
 
 
@@ -7,12 +8,17 @@ static func capture(source: MatchState) -> MatchState:
 	if (
 		source == null
 		or not source.stadium.is_empty()
-		or LeagueRules.normalized(source.league_rules) != LeagueRules.capture("dugout")
+		or not Context.matches(source)
 		or not load("res://src/gameplay/season/successor_league_general_v2/pitch_evidence.gd").context_valid(source.pitch_catalog)
 		or source.away_team == null
 		or source.home_team == null
 		or source.phase != MatchState.Phase.PRE_PITCH
 	):
+		return null
+	# The explicit-League report contract requires Base chronology (Report7).
+	# Two manual teams cannot produce it; reject before starting an NPC runner.
+	# Mixed human/NPC remains supported by the original per-team validators.
+	if not source.league_rules.is_empty() and not (source.away_team.ai_base or source.home_team.ai_base):
 		return null
 	if (
 		not is_finite(source.ai_tactical_quality)

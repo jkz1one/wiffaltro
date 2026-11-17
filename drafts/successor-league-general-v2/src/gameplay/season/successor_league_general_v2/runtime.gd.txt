@@ -6,13 +6,12 @@ static func field_for_fixture(fixture: Dictionary, season: SeasonState = null) -
 
 
 static func create(
-	seed_value: int,
-	legacy: bool = false,
-	working_progression: bool = false,
-	paid_opponents: bool = false
+	_seed_value: int,
+	_legacy: bool = false,
+	_working_progression: bool = false,
+	_paid_opponents: bool = false
 ) -> SeasonState:
-	return load("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")._source_public_create(seed_value, legacy, working_progression, \
-		paid_opponents)
+	return null # All public construction flags remain closed until season qualification.
 
 
 func league_context_consistent() -> bool:

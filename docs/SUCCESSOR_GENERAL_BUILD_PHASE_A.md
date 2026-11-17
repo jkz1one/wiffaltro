@@ -51,3 +51,9 @@ project with no script errors. Comment mutations to active pricing, Dynasty-prof
 and Build sources changed the new signature; exact restoration recovered both
 new and legacy signatures. Manifest byte/hash, Python compilation and diff
 whitespace checks passed. This result does not open any public Game114 route.
+
+Follow-up B1 audit correction: a nondefault working+paid Runtime.create flag
+combination was not covered by this matrix and could construct an in-memory
+runtime. Codec admission stayed closed. See SUCCESSOR_GENERAL_PHYSICAL_B1.md
+for closure and expanded tests; the earlier all-constructors-closed claim was
+too broad. This does not change the47 structural Build test outcomes.

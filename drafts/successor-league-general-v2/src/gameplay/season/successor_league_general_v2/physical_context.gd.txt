@@ -1,0 +1,29 @@
+extends RefCounted
+## B1 structural physical context only. No league unlock, season or owner authority.
+## One-game, no-venue contexts; original wallet/flow/roster validation stays separate.
+const SINGLE_GAME: Array[String] = ["standard", "dugout", "sponsorship", "academy", "equipment", "earnings", "scramble"]
+
+static func supports_rules(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	if value.is_empty():
+		return true # Ordinary Standard uses its original empty-rule distinction.
+	var normalized: Dictionary = LeagueRules.normalized(value)
+	return not normalized.is_empty() and SINGLE_GAME.has(normalized.league) \
+		and ClubCareer.same(value, normalized)
+
+static func matches(state: MatchState) -> bool:
+	if state == null or not state.stadium.is_empty() or not supports_rules(state.league_rules) \
+		or state.away_team == null or state.home_team == null:
+		return false
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		if team.recovery == null or not ClubCareer.same(team.league_rules, state.league_rules) \
+			or not team.dynasty_start.is_empty() or not team.league_pair.is_empty() \
+			or not team.inventory_actions.is_empty() \
+			or not team.recovery.workload_initial.is_empty() \
+			or not team.recovery.workload_events.is_empty() \
+			or not team.recovery.workload_input.is_empty():
+			return false
+		if state.league_rules.is_empty() and not team.league_ownership.is_empty():
+			return false
+	return true

@@ -1,0 +1,240 @@
+extends Node
+## B1 detached single-game qualification. Synthetic ownership funding is NOT an
+## earned season result. No owner/season save, Dynasty lineage or public entry.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Context = preload("res://src/gameplay/season/successor_league_general_v2/physical_context.gd")
+const Request = preload("res://src/gameplay/season/successor_league_general_v2/physical_request.gd")
+const Report = preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+const Runner = preload("res://src/gameplay/season/successor_league_general_v2/physical_runner.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const LegacyCatalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const SEED: int = 67231
+const SINGLE: Array[String] = ["standard", "dugout", "sponsorship", "academy", "equipment", "earnings", "scramble"]
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func make_state(rules: Dictionary, paid_bag: bool = false) -> MatchState:
+	var all_ids: Array[String] = SeasonPlayerCatalog.ids()
+	var teams: Array[TeamMatchState] = []
+	for index in range(2):
+		var roster: Array[String] = []
+		roster.assign(all_ids.slice(index * 4, index * 4 + 4))
+		var build: SeasonBuild = Build.new(SEED + index, roster)
+		if not build.call("enable_successor_pitch_catalog") or (not rules.is_empty() and not build.enable_league_rules(rules)):
+			return null
+		if paid_bag:
+			# Explicit synthetic bank fixture: ordinary legal journal operations,
+			# never represented as physically earned season Cash or a real shop visit.
+			for game in range(3):
+				if not build._bank.commit(OwnershipFixtures.request(build._bank, "reward", {"game":game, "win":true})).ok:
+					return null
+			if not build._bank.commit(OwnershipFixtures.request(build._bank, "stock", {"offers":{"held0":"A10", "held1":"A10", "held2":"A10"}})).ok:
+				return null
+			for offer: String in ["held0", "held1", "held2"]:
+				if not build._bank.commit(OwnershipFixtures.buy(build._bank, offer)).ok:
+					return null
+		var definitions: Array[PlayerDefinition] = []
+		for id: String in roster:
+			definitions.append(build.definition(id))
+		var team: TeamMatchState = TeamMatchState.create("B1-%d" % index, definitions)
+		team.pitch_catalog = Catalog.signature()
+		team.league_rules = rules.duplicate(true)
+		if not rules.is_empty():
+			team.league_ownership = build._bank.to_data()
+			team.tactics.held.assign(SeasonTacticalCatalog.held(build._bank.view()))
+			MatchFieldSupply.sync_capacity(team, build._bank.view())
+		if not rules.is_empty():
+			# Full original NPC context is required for league BASE evidence.
+			# These roles and budget projection are synthetic engine operands.
+			team.ai_sponsor_choices = true
+			team.ai_base = true
+			team.ai_heat = true
+			team.ai_recovery_pitcher = roster[0]
+			team.ai_tactical_hitter = roster[2]
+			SeasonOpponentBudget.prepare(team, build, 8)
+		teams.append(team)
+	var state: MatchState = MatchState.create(teams[0], teams[1])
+	state.pitch_catalog = Catalog.signature()
+	state.league_rules = rules.duplicate(true)
+	return state
+
+func source_view(state: MatchState) -> Dictionary:
+	var teams: Array = []
+	for team: TeamMatchState in [state.away_team, state.home_team]:
+		var players: Array = []
+		for player: PlayerMatchState in team.roster:
+			players.append({"definition":Fixtures._resource(player.definition, true),
+				"stamina":player.stamina_remaining, "capacity":player.stamina_max,
+				"pitches":player.pitch_count, "finished":player.pitching_finished})
+		teams.append({"rules":team.league_rules.duplicate(true), "ownership":team.league_ownership.duplicate(true),
+			"catalog":team.pitch_catalog, "runs":team.runs, "batting":team.batting_index,
+			"pitcher":team.pitcher_index, "fielder":team.fielder_index, "players":players,
+			"held":team.tactics.held.duplicate(true), "consumed":team.tactics.consumed.duplicate(true),
+			"capacity":team.field_supply.capacity, "reserved":team.field_supply.reserved,
+			"field_evidence":team.field_supply.evidence(),
+			"ai_base":team.ai_base, "ai_heat":team.ai_heat,
+			"ai_choices":team.ai_sponsor_choices, "ai_hitter":team.ai_tactical_hitter,
+			"ai_pitcher":team.ai_recovery_pitcher, "ai_budget":team.ai_budget.duplicate(true),
+			"ai_initial":team.ai_tactical_initial.duplicate(true)})
+	return {"rules":state.league_rules.duplicate(true), "catalog":state.pitch_catalog,
+		"phase":state.phase, "inning":state.inning, "pa":state.plate_appearance_number,
+		"balls":state.balls, "strikes":state.strikes, "outs":state.outs, "teams":teams}
+
+func matrix_case(rules: Dictionary, label: String) -> bool:
+	var source: MatchState = make_state(rules)
+	if not check(source != null, "construct structural " + label):
+		return false
+	var before: Dictionary = source_view(source)
+	var copy: MatchState = Request.capture(source)
+	if not check(Context.supports_rules(rules) and Context.matches(source) and Report.context_valid(source) \
+		and copy != null and copy != source and copy.away_team != source.away_team \
+		and ClubCareer.same(source_view(copy), before) and ClubCareer.same(source_view(source), before), "strict supported detached request and source preservation " + label):
+		return false
+	copy.away_team.roster[0].definition.display_name = "test copy poison"
+	return check(ClubCareer.same(source_view(source), before), "detached definition cannot mutate source " + label)
+
+func audit_report(report: Dictionary, state: MatchState, label: String) -> bool:
+	var normalized: Variant = JSON.parse_string(JSON.stringify(report, "", true, true))
+	if not check(Report.valid(report, state.pitch_catalog) and Report.valid(normalized, state.pitch_catalog) \
+		and Report.matches(report, state) and Report.matches(normalized, state) \
+		and report.version == 114 and not report.physical.releases.is_empty() \
+		and report.physical.seed == SEED and report.physical.field == String(PitchBatLab.FIELD_ID), "actual report exact context and JSON validation " + label):
+		return false
+	if not check(not Report.valid(report, LegacyCatalog.signature()) and not Report.valid(report, "") \
+		and not Report.matches(report, make_state(LeagueRules.capture("academy"))), "wrong/absent catalog and different expected rules reject " + label):
+		return false
+	for kind: String in ["version", "resolver", "catalog", "score", "ownership", "rules", "seed-range", "field-unknown", "extra"]:
+		var wrong: Dictionary = report.duplicate(true)
+		match kind:
+			"version": wrong.version = 30
+			"resolver": wrong.resolver = "wrong"
+			"seed-range": wrong.physical.seed = -1
+			"field-unknown": wrong.physical.field = "not-an-authored-field"
+			"catalog": wrong.pitch_catalog = "wrong"
+			"score": wrong.physical.home_runs += 1
+			"ownership": wrong.ownership[0]["fabricated"] = true
+			"rules": wrong.league_rules = LeagueRules.capture("dynasty")
+			"extra": wrong["fabricated"] = true
+		if not check(not Report.valid(wrong, state.pitch_catalog), "reject report tamper " + label + ":" + kind):
+			return false
+	return true
+
+func actual(rules: Dictionary, label: String, paid_bag: bool) -> bool:
+	var state: MatchState = make_state(rules, paid_bag)
+	if not check(state != null and Request.capture(state) != null, "actual detached physical input " + label):
+		return false
+	if paid_bag and not check(state.away_team.tactics.held.size() == 3 and state.home_team.tactics.held.size() == 3, "synthetic paid three-slot ownership bound before actual game"):
+		return false
+	var before: Dictionary = source_view(state)
+	var runner: Node = Runner.new()
+	add_child(runner)
+	var report: Dictionary = {}
+	var errors: Array[String] = []
+	runner.finished.connect(func(value: Dictionary) -> void: report.merge(value, true))
+	runner.failed.connect(func(reason: String) -> void: errors.append(reason))
+	# Runner owns requested seed/field bounds; Report.matches has no seed argument.
+	if not check(not runner.start(state, -1) and not runner.start(state, 2147483648) \
+		and not runner.start(state, SEED, &"not-an-authored-field") \
+		and ClubCareer.same(source_view(state), before), "runner rejects invalid seed/field without source mutation " + label):
+		return false
+	if not check(runner.start(state, SEED), "start actual PhysicalRunner " + label):
+		return false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if not report.is_empty() or not errors.is_empty():
+			break
+		if frame % 12000 == 0:
+			print("PHYSICAL_PROGRESS: ", label, " frame=", frame)
+	if not check(errors.is_empty() and not report.is_empty(), "actual game completes " + label + ":" + str(errors)):
+		return false
+	if not audit_report(report, state, label) or not check(ClubCareer.same(source_view(state), before), "actual runner preserves original request/ownership " + label):
+		return false
+	var file: FileAccess = FileAccess.open("user://general-physical-%s.json" % label, FileAccess.WRITE)
+	if not check(file != null, "isolated actual report writable"):
+		return false
+	file.store_string(JSON.stringify(report, "", true, true))
+	file.close()
+	runner.queue_free()
+	await get_tree().process_frame
+	return true
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated B1 tests required"):
+		return
+	if OS.get_cmdline_user_args().has("reopen"):
+		for label: String in ["standard", "dugout"]:
+			var rules: Dictionary = {} if label == "standard" else LeagueRules.capture("dugout")
+			var report: Variant = JSON.parse_string(FileAccess.get_file_as_string("user://general-physical-%s.json" % label))
+			if not check(report is Dictionary, "cold actual report exists " + label) or not audit_report(report, make_state(rules, label == "dugout"), label):
+				return
+		print("PASS: cold B1 actual report validation; no season, ownership grant or Dynasty claim")
+		get_tree().quit()
+		return
+	if not matrix_case({}, "bare Standard"):
+		return
+	for league: String in SINGLE:
+		for level in range(1 if league == "standard" else 5):
+			var rules: Dictionary = LeagueRules.capture_tier(league, level, SEED if league == "scramble" else null)
+			if not matrix_case(rules, "%s-%d" % [league, level]):
+				return
+	for kind: String in ["malformed", "catalog", "team-catalog", "ownership", "team-rules", "venue", "inventory", "pair", "dynasty-start", "recovery-null", "both-human", "doubleheader", "dynasty"]:
+		var wrong: MatchState = make_state(LeagueRules.capture("dugout"))
+		match kind:
+			"malformed": wrong.league_rules["extra"] = true
+			"catalog": wrong.pitch_catalog = LegacyCatalog.signature()
+			"team-catalog": wrong.home_team.pitch_catalog = "wrong"
+			"ownership": wrong.home_team.league_ownership["capacity"] = {"held":99}
+			"team-rules": wrong.home_team.league_rules = LeagueRules.capture("academy")
+			"venue": wrong.stadium = {"unsupported":true}
+			"inventory": wrong.home_team.inventory_actions.append({"unsupported":true})
+			"pair": wrong.home_team.league_pair = {"unsupported":true}
+			"dynasty-start": wrong.home_team.dynasty_start = {"unsupported":true}
+			"recovery-null": wrong.home_team.recovery = null
+			"both-human":
+				for team: TeamMatchState in [wrong.away_team, wrong.home_team]:
+					team.ai_base = false
+					team.ai_heat = false
+					team.ai_sponsor_choices = false
+					team.ai_tactical_hitter = ""
+					team.ai_recovery_pitcher = ""
+					team.ai_budget = {}
+					team.ai_tactical_initial = []
+			"doubleheader", "dynasty":
+				wrong.league_rules = LeagueRules.capture(kind)
+				wrong.away_team.league_rules = wrong.league_rules.duplicate(true)
+				wrong.home_team.league_rules = wrong.league_rules.duplicate(true)
+		if not check(Request.capture(wrong) == null, "unsupported/malformed physical request rejected " + kind):
+			return
+	for legacy: bool in [false, true]:
+		for working: bool in [false, true]:
+			for paid: bool in [false, true]:
+				if not check(Runtime.create(SEED, legacy, working, paid) == null, "public create closed for every flag combination"):
+					return
+	for seed_value: int in [-1, 0, SEED, 2147483647]:
+		if not check(Runtime.create_fresh(seed_value) == null and Runtime.create_live_dugout(seed_value) == null, "public fresh/live constructors closed"):
+			return
+	for league: String in LeagueRules.IDS:
+		var rules: Dictionary = LeagueRules.capture(league, 0, SEED if league == "scramble" else null)
+		for live: bool in [false, true]:
+			for access: Dictionary in [{}, {"unsupported":true}]:
+				if not check(Runtime.create_closed_league(SEED, rules, live, access) == null, "public closed-League constructor closed for all profiles/access variants"):
+					return
+	if not check(not Codec.scope(Runtime.new()) and not Codec.envelope_valid({}) \
+		and Runtime.create_live_dugout(SEED) == null, "physical primitives do not grant season admission"):
+		return
+	if not await actual({}, "standard", false) or not await actual(LeagueRules.capture("dugout"), "dugout", true):
+		return
+	print("PASS: B1 ordinary request matrix and actual Standard/Dugout physical games; synthetic ownership only, no season/lineage/public entry")
+	get_tree().quit()

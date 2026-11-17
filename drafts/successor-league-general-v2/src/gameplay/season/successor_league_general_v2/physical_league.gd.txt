@@ -2,6 +2,7 @@ extends RefCounted
 ## Closed report27. Capacity comes from replayed ownership, never report integers.
 # gdlint: disable=max-returns
 
+const Context = preload("physical_context.gd")
 const VERSION: int = 27
 const RESOLVER: String = "physical-league-base-capacity-v1"
 
@@ -107,7 +108,7 @@ static func _capture_context_valid(state: MatchState, pitch_catalog: String) -> 
 		return false
 	if state == null or state.away_team == null or state.home_team == null:
 		return false
-	if not pitch_catalog.is_empty() and LeagueRules.normalized(state.league_rules) != LeagueRules.capture("dugout"):
+	if not pitch_catalog.is_empty() and not Context.matches(state):
 		return false
 	var present: bool = not state.league_rules.is_empty()
 	for team: TeamMatchState in [state.away_team, state.home_team]:
