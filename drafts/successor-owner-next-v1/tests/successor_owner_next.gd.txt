@@ -1,0 +1,126 @@
+extends "res://tests/successor_general_replay_prefix.gd"
+## Draft-only owned run2. Positive mode requires actual terminal112, never labels.
+const NextRuntime = preload("res://src/gameplay/season/successor_owner_next_v1/runtime.gd")
+const NextCodec = preload("res://src/gameplay/season/successor_owner_next_v1/codec.gd")
+const NextCatalog = preload("res://src/gameplay/season/successor_owner_next_v1/catalog.gd")
+const Legacy = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const Prefix = preload("res://src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd")
+const CURRENT: String = "user://source-owner-current.json"
+const BIRTH: String = "user://source-owner-birth.json"
+const RECORD: String = "user://next-owner-test.json"
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and FileAccess.file_exists(CURRENT) and FileAccess.file_exists(BIRTH),"isolated actual owner fixtures required"):
+		return
+	cohort_roots = Codec._operation_content_roots()
+	var content_before: PackedByteArray = content_bytes()
+	var files_before: Dictionary = saved_bytes()
+	var current: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CURRENT))
+	var birth: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(BIRTH))
+	var inputs: PackedByteArray = var_to_bytes([current,birth])
+	if not check(Legacy.envelope_valid(current) and Legacy.envelope_valid(birth),"actual frozen source envelopes"):
+		return
+	if not check(NextRuntime.create_next(birth,7001) == null and NextCodec.restore(birth) == null,"active predecessor and old envelope cannot enter new owner"):
+		return
+	var forged: Dictionary = birth.duplicate(true)
+	forged.checkpoint.phase = SeasonState.Phase.COMPLETE
+	forged.checkpoint.career.runs[0].status = "completed"
+	if not check(NextRuntime.create_next(forged,7001) == null,"forged completion does not replace full predecessor replay"):
+		return
+	for invalid: Variant in [null,{}, {"schema":Prefix.SCHEMA,"closed":true,"target_run":2}]:
+		if not check(NextRuntime.create_next(invalid,7001) == null,"caller projections are not predecessor authority"):
+			return
+	if not check(NextRuntime.create_next(current,-1) == null and NextRuntime.create_next(current,2147483648) == null,"independent seed bounds"):
+		return
+	if OS.get_cmdline_user_args().has("completed"):
+		if not check(current.checkpoint.phase == SeasonState.Phase.COMPLETE,"positive mode requires actual completed source"):
+			return
+		var season: SeasonState
+		if OS.get_cmdline_user_args().has("reopen"):
+			season = NextCodec.restore(JSON.parse_string(FileAccess.get_file_as_string(RECORD)))
+		else:
+			season = NextRuntime.create_next(current,7001)
+		if not check(season != null and season.season_seed == 7001 and season.career.current == 2 \
+			and ClubCareer.same(season.career.predecessor,current),"actual predecessor creates separately seeded run2 without rewriting old current"):
+			return
+		if not OS.get_cmdline_user_args().has("reopen"):
+			var alternate: SeasonState = NextRuntime.create_next(current,7002)
+			if not check(alternate != null and alternate.season_seed == 7002 and alternate.career.current == 2 \
+				and ClubCareer.same(alternate.career._assets,season.career._assets),"two independent legal seeds preserve same original wallet"):
+				return
+			for pick in range(5):
+				var captured: Dictionary = NextCodec.capture(season)
+				var restored: SeasonState = NextCodec.restore(JSON.parse_string(JSON.stringify(captured,"",true,true)))
+				if not check(not captured.is_empty() and restored != null and ClubCareer.same(NextCodec.capture(restored),captured),"owned draft exact JSON replay at pick %d"%pick):
+					return
+				if pick < 4 and not check(season.choose_player(season.offers()[0]),"actual owned draft choice %d"%pick):
+					return
+		if not check(season.picks.size() == 4 and season.opponents.clubs.size() == 5 \
+			and season.make_match() == null and not season.shop_available() \
+			and not season.record_player_result(0,1,0) and not season.record_doubleheader_result([]),"four picks and genuine NPC initialization; match/shop/results remain closed"):
+			return
+		var untouched: Dictionary = NextCodec._snapshot(season)
+		if not check(not season._finish_round(0,{}) and season._simulate({}).is_empty(),"inherited round/simulation seams explicitly closed"):
+			return
+		season._settle_semifinals()
+		if not check(ClubCareer.same(NextCodec._snapshot(season),untouched),"closed operations cannot mutate staged owner"):
+			return
+		var ownership: SeasonOwnership = season.ownership
+		season.ownership = null
+		var null_ownership_rejected: bool = NextCodec.capture(season).is_empty()
+		season.ownership = ownership
+		if not check(null_ownership_rejected and ClubCareer.same(NextCodec._snapshot(season),untouched),"null ownership rejected and original ownership restored exactly"):
+			return
+		var book: SeasonDevelopment = season.build._book
+		season.build._book = null
+		var null_rejected: bool = NextCodec.capture(season).is_empty()
+		season.build._book = book
+		if not check(null_rejected,"null live book fails closed without dereference"):
+			return
+		var saved_basis: Dictionary = season.career.start_basis.duplicate(true)
+		var saved_supply: Variant = season.build._supply_start
+		season.career.start_basis.starts.supply = (int(saved_supply)+1)%4
+		season.build._supply_start = season.career.start_basis.starts.supply
+		var coordinated_rejected: bool = NextCodec.capture(season).is_empty()
+		season.career.start_basis = saved_basis
+		season.build._supply_start = saved_supply
+		if not check(coordinated_rejected,"coordinated live basis/build forgery fails full predecessor reconstruction"):
+			return
+		var final: Dictionary = NextCodec.capture(season)
+		if not check(not final.is_empty() and ClubCareer.same(season.build._pool,season.player_access) \
+			and ClubCareer.same(season.build._book._exotic_start,season.career.start_basis.exotic_history) \
+			and ClubCareer.same(season.career._assets,current.checkpoint.career.assets) \
+			and ClubCareer.same(season.career._pennants,current.checkpoint.career.pennants) \
+			and ClubCareer.same(season.career._plaques,current.checkpoint.career.plaques),"fourth-pick inherited history/pool exact, original ledger and awards not regranted"):
+			return
+		if not OS.get_cmdline_user_args().has("reopen"):
+			for kind: String in ["start","pool","run","ledger","pending","paid","predecessor"]:
+				var wrong: Dictionary = final.duplicate(true)
+				match kind:
+					"start": wrong.checkpoint.career.start_basis.starts.supply = 999
+					"pool": wrong.checkpoint.player_access = []
+					"run": wrong.checkpoint.career.current = 3
+					"ledger": wrong.checkpoint.career.assets = {}
+					"pending": wrong.checkpoint.physical.pending = {"forged":true}
+					"paid": wrong.checkpoint.build.events.append({"op":"reward"})
+					"predecessor": wrong.checkpoint.career.predecessor = season.career.start_basis.duplicate(true)
+				if not check(NextCodec.restore(wrong) == null,"owned draft rejects injected " + kind):
+					return
+			if not check(not FileAccess.file_exists(RECORD),"private draft evidence not overwritten"):
+				return
+			var file: FileAccess = FileAccess.open(RECORD,FileAccess.WRITE)
+			if not check(file != null,"private draft evidence writable"):
+				return
+			file.store_string(JSON.stringify(final,"",true,true))
+			file.close()
+	else:
+		if not check(current.checkpoint.phase != SeasonState.Phase.COMPLETE and NextRuntime.create_next(current,7001) == null,"actual active current rejected; no positive owner claim"):
+			return
+	var files_after: Dictionary = saved_bytes()
+	if OS.get_cmdline_user_args().has("completed") and not OS.get_cmdline_user_args().has("reopen"):
+		files_after.erase(RECORD)
+	if not check(files_after == files_before and var_to_bytes([current,birth]) == inputs \
+		and content_bytes() == content_before and snapshot_supported,"original fixtures, saved bytes and authored Resources unchanged"):
+		return
+	print("PASS: ","actual owned run2 draft only; gameplay and settlement remain closed" if OS.get_cmdline_user_args().has("completed") else "negative-only run2 draft foundation; actual terminal birth unqualified")
+	get_tree().quit()

@@ -1,0 +1,27 @@
+extends RefCounted
+## Draft-only owner identity. Frozen112 and General114 evidence remain unchanged.
+const VERSION: int = 115
+const FORMAT: String = "successor-owned-next-draft-v1"
+const SAVE_PATH: String = "user://successor-owned-next-draft-v1.json"
+const Game = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Legacy = preload("res://src/gameplay/season/successor_owner_terminal_v1/catalog.gd")
+const Progress = preload("res://src/gameplay/season/successor_career_general_v1/catalog.gd")
+const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_owner_next_v1/catalog.gd",
+	"res://src/gameplay/season/successor_owner_next_v1/career.gd",
+	"res://src/gameplay/season/successor_owner_next_v1/start.gd",
+	"res://src/gameplay/season/successor_owner_next_v1/runtime.gd",
+	"res://src/gameplay/season/successor_owner_next_v1/codec.gd",
+	"res://src/gameplay/season/successor_owner_next_v1/decoder.gd",
+	"res://src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd",
+	"res://src/gameplay/season/successor_owner_continuation_v1/legacy_terminal.gd"]
+static func signature() -> String:
+	var parts: Array[String] = [FORMAT, Game.signature(), Legacy.signature(), Progress.signature()]
+	if parts.has(""):
+		return ""
+	for path: String in FILES:
+		var digest: String = FileAccess.get_sha256(path)
+		if digest.is_empty():
+			return ""
+		parts.append(path + ":" + digest)
+	return "|".join(parts).sha256_text()

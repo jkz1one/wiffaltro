@@ -1,0 +1,55 @@
+{
+  "format": "inactive-successor-owner-next-v1",
+  "source_checkpoint": "8c7bca3a222ff8c687bfc0a858c9cb841ac0363f",
+  "scope": "Draft-only inherited General114 run2 from exact completed112. Native import/negative/cold-negative passed; actual terminal positive birth/four picks UNQUALIFIED. No gameplay, shop, settlement, Dynasty or distributable claim. Frozen engines unchanged.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-owner-next-v1/src/gameplay/season/successor_owner_next_v1/career.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_next_v1/career.gd",
+      "bytes": 1756,
+      "sha256": "ae25af0bdeda1548c2506ead4ecf4cacd8be625e3aec3ea5de649517f3af54aa"
+    },
+    {
+      "backup_path": "drafts/successor-owner-next-v1/src/gameplay/season/successor_owner_next_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_next_v1/catalog.gd",
+      "bytes": 1461,
+      "sha256": "ad2531887a375cd0b7061a5f6cb19e582c8fcac849489b2d08af804bffdef851"
+    },
+    {
+      "backup_path": "drafts/successor-owner-next-v1/src/gameplay/season/successor_owner_next_v1/codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_next_v1/codec.gd",
+      "bytes": 3369,
+      "sha256": "0610465bbdbade35a1094fd45678a93e70c61583277fa961009fb0e200aeb6af"
+    },
+    {
+      "backup_path": "drafts/successor-owner-next-v1/src/gameplay/season/successor_owner_next_v1/decoder.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_next_v1/decoder.gd",
+      "bytes": 1361,
+      "sha256": "3cb9f325976a5efb85fe94353ff5dbab940d98af1484d8079c8cb9dc28e1c1d8"
+    },
+    {
+      "backup_path": "drafts/successor-owner-next-v1/src/gameplay/season/successor_owner_next_v1/runtime.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_next_v1/runtime.gd",
+      "bytes": 3997,
+      "sha256": "ce7634d7e8d59eacf95e6ca55303199f0051db05bd4ed22050ca9b93a10de91e"
+    },
+    {
+      "backup_path": "drafts/successor-owner-next-v1/src/gameplay/season/successor_owner_next_v1/start.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_next_v1/start.gd",
+      "bytes": 9594,
+      "sha256": "0a3f41a583ce7f7b4bb4fd4029bd004a9cb700426f01b9589f6a2febbfbb97db"
+    },
+    {
+      "backup_path": "drafts/successor-owner-next-v1/tests/successor_owner_next.gd.txt",
+      "restore_path": "tests/successor_owner_next.gd",
+      "bytes": 8183,
+      "sha256": "8e79def75c47c535344a4e788a8f47b44bde17e9aaa36b1cc10c70a5af3c399a"
+    },
+    {
+      "backup_path": "drafts/successor-owner-next-v1/tests/successor_owner_next.tscn.txt",
+      "restore_path": "tests/successor_owner_next.tscn",
+      "bytes": 176,
+      "sha256": "c78fc00b8200c90ebf0086d9243edccc2efb6749cf5ace11d4bc2ac54bdae7ec"
+    }
+  ]
+}

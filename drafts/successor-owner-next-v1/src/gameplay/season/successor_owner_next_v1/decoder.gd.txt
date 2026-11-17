@@ -1,0 +1,22 @@
+extends RefCounted
+## No saved Build/history is installed. This slice accepts only deterministic
+## pristine owned birth plus 0..4 actual picks, then compares every saved field.
+static func restore(state: Dictionary) -> SeasonState:
+	if not SeasonOwnership._whole(state.get("season_seed"),0,2147483647) \
+		or not state.get("picks") is Array or state.picks.size() > 4 \
+		or not state.get("career") is Dictionary \
+		or not state.career.get("predecessor") is Dictionary \
+		or not state.get("results") is Array or not state.results.is_empty() \
+		or not state.get("player_results") is Array or not state.player_results.is_empty() \
+		or not state.get("physical") is Dictionary \
+		or not state.physical.get("reports") is Array or not state.physical.reports.is_empty() \
+		or not state.physical.get("pending") is Dictionary or not state.physical.pending.is_empty():
+		return null
+	var season: SeasonState = load("res://src/gameplay/season/successor_owner_next_v1/start.gd").create(state.career.predecessor,int(state.season_seed))
+	if season == null:
+		return null
+	for id: Variant in state.picks:
+		if not id is String or not season._choose_local(id):
+			return null
+	var actual: Dictionary = load("res://src/gameplay/season/successor_owner_next_v1/codec.gd")._snapshot(season)
+	return season if not actual.is_empty() and ClubCareer.same(actual,state) else null

@@ -1,0 +1,70 @@
+extends RefCounted
+## Draft-only exact reconstruction. Serialized basis/rows never grant authority.
+const Catalog = preload("res://src/gameplay/season/successor_owner_next_v1/catalog.gd")
+const Start = preload("res://src/gameplay/season/successor_owner_next_v1/start.gd")
+const Boundary = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const Game = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+
+static func scope(season: SeasonState) -> bool:
+	return Start.structural(season)
+
+static func _snapshot(season: SeasonState) -> Dictionary:
+	if not scope(season):
+		return {}
+	for property: Dictionary in season.get_property_list():
+		if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			if not Boundary.FIELDS.has(property.name) and not Boundary.OBJECTS.has(property.name):
+				return {}
+	var state: Dictionary = {}
+	for field: String in Boundary.FIELDS:
+		var value: Variant = season.get(field)
+		state[field] = value.duplicate(true) if value is Array or value is Dictionary else value
+	state.ownership = season.ownership.to_data()
+	state.build = season.build.to_data()
+	state.development = season.build._book.to_data()
+	state.build_view = season.build.view()
+	state.opponents = season.opponents.to_data()
+	state.career = season.career.to_data()
+	state.physical = season.physical.to_data()
+	if state.build.is_empty() or state.development.is_empty():
+		return {}
+	return state
+
+static func _envelope(state: Dictionary) -> Dictionary:
+	var source: String = Catalog.signature()
+	var game: String = Catalog.Game.signature()
+	return {} if source.is_empty() or game.is_empty() else {
+		"version":Catalog.VERSION,"format":Catalog.FORMAT,"owner_source":source,
+		"pitch_catalog":game,"checkpoint":state}
+
+static func envelope_valid(value: Variant) -> bool:
+	return value is Dictionary and SeasonOwnership._keys(value,["version","format","owner_source","pitch_catalog","checkpoint"]) \
+		and SeasonOwnership._whole(value.version,Catalog.VERSION,Catalog.VERSION) \
+		and value.format == Catalog.FORMAT and value.owner_source is String and not value.owner_source.is_empty() \
+		and value.owner_source == Catalog.signature() and value.pitch_catalog is String \
+		and not value.pitch_catalog.is_empty() and value.pitch_catalog == Catalog.Game.signature() \
+		and value.checkpoint is Dictionary
+
+static func capture(season: SeasonState) -> Dictionary:
+	var roots: Array[Resource] = Game._operation_content_roots()
+	var state: Dictionary = _snapshot(season)
+	var result: Dictionary = {}
+	if not state.is_empty():
+		# Validate even a caller-mutated live object by rebuilding owned birth/picks.
+		var checked: SeasonState = load("res://src/gameplay/season/successor_owner_next_v1/decoder.gd").restore(state)
+		if checked != null and ClubCareer.same(_snapshot(checked),state):
+			result = _envelope(state)
+	roots.clear()
+	return result
+
+static func restore(value: Variant) -> SeasonState:
+	var roots: Array[Resource] = Game._operation_content_roots()
+	var result: SeasonState = null
+	if envelope_valid(value):
+		var checked: SeasonState = load("res://src/gameplay/season/successor_owner_next_v1/decoder.gd").restore(value.checkpoint)
+		if checked != null:
+			var actual: Dictionary = _envelope(_snapshot(checked))
+			if not actual.is_empty() and ClubCareer.same(actual,value):
+				result = checked
+	roots.clear()
+	return result

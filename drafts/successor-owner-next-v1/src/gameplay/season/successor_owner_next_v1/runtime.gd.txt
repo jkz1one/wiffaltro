@@ -1,0 +1,112 @@
+extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
+## Draft-only staged owner. Match/shop/results explicitly remain closed.
+static func create_next(envelope: Variant, seed_value: int) -> SeasonState:
+	return load("res://src/gameplay/season/successor_owner_next_v1/start.gd").create(envelope,seed_value)
+func league_context_consistent() -> bool:
+	return load("res://src/gameplay/season/successor_owner_next_v1/start.gd").structural(self)
+func _league_inventory_context_consistent() -> bool:
+	return league_context_consistent()
+func choose_player(id: String) -> bool:
+	if not league_context_consistent() or not offers().has(id):
+		return false
+	# Rebuild a local candidate from the real predecessor; never publish a partial
+	# fourth-pick reconstruction if inherited-context repair/validation fails.
+	var candidate: SeasonState = create_next(career.predecessor,season_seed)
+	if candidate == null:
+		return false
+	for previous: String in picks:
+		if not candidate._choose_local(previous):
+			return false
+	var codec = load("res://src/gameplay/season/successor_owner_next_v1/codec.gd")
+	if not ClubCareer.same(codec._snapshot(candidate),codec._snapshot(self)) or not candidate._choose_local(id):
+		return false
+	var boundary = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+	for field: String in boundary.FIELDS:
+		var value: Variant = candidate.get(field)
+		set(field,value.duplicate(true) if value is Array or value is Dictionary else value)
+	for field: String in boundary.OBJECTS:
+		set(field,candidate.get(field))
+	return true
+
+func _choose_local(id: String) -> bool:
+	if not league_context_consistent() or not offers().has(id):
+		return false
+	if not super.choose_player(id):
+		return false
+	# General standalone fourth-pick reconstruction does not reinstall successor
+	# history/full owned recruiting pool. Restore exact owner birth inputs here.
+	if picks.size() == 4 and not load("res://src/gameplay/season/successor_owner_next_v1/start.gd")._install(build,career.start_basis):
+		return false
+	return career.sync(self)
+func make_match() -> MatchState:
+	return null
+func shop_available() -> bool:
+	return false
+func adopt_build(_next: SeasonBuild) -> void:
+	pass
+
+func record_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null
+) -> bool:
+	return false
+
+func record_inventory_result(human: Array) -> bool:
+	return false
+
+func record_doubleheader_result(human: Array) -> bool:
+	return false
+
+func record_surface_night_result(human: Array) -> bool:
+	return false
+
+func _record_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null,
+	night_evidence: Variant = null,
+	doubleheader_evidence: Variant = null,
+	replay_pitching: Dictionary = {},
+	inventory_final: Variant = null,
+	replay_doubleheader: bool = false
+) -> bool:
+	return false
+
+# Operational inherited seams are deliberately inert for this draft-only slice.
+# Inherited static General constructors return standalone General objects; only
+# create_next enters this owner and its Codec rejects standalone objects.
+func _finish_round(_fixture_id: int, _result: Dictionary) -> bool:
+	return false
+func _simulate(_fixture: Dictionary) -> Dictionary:
+	return {}
+func _settle_semifinals() -> void:
+	pass
