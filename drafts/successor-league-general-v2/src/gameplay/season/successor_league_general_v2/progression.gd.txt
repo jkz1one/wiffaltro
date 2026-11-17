@@ -129,7 +129,7 @@ static func base_build_version(value: Variant) -> int:
 	if not value is Dictionary or not SeasonOwnership._whole(value.get("version"), 1, BUILD_VERSION):
 		return -1
 	if is_version(value.version, BUILD_VERSION):
-		return int(value.base_version) if SeasonOwnership._whole(value.get("base_version"), 45, 45) else -1
+		return int(value.base_version) if (SeasonOwnership._whole(value.get("base_version"), 41, 41) or SeasonOwnership._whole(value.get("base_version"), 45, 45)) else -1
 	return int(value.version)
 
 static func is_version(value: Variant, expected: int) -> bool:

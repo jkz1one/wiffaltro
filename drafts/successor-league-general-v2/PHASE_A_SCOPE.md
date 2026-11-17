@@ -1,3 +1,10 @@
+## Current follow-up
+
+B2 supersedes the original closed-admission paragraph below only for standalone
+Standard0 and live Dugout0. See `docs/SUCCESSOR_GENERAL_SEASON_B2.md` for actual
+round/shop/cold evidence and remaining limits. Other structural contexts are not
+season or owner grants. The Phase A description below is historical.
+
 # One generalized successor engine family: Phase A
 
 Additive clone of the 37 frozen Game109 engine files, retargeted into

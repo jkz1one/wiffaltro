@@ -1,0 +1,78 @@
+extends Node
+## B2 isolated ordinary season admission, not career/Dynasty qualification.
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_league_general_v2/save.gd")
+const OldSave = preload("res://src/gameplay/season/successor_league_v1/save.gd")
+const OldCodec = preload("res://src/gameplay/season/successor_league_v1/codec.gd")
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func profile(season: SeasonState, dugout: bool) -> bool:
+	return season != null and Codec.scope(season) and season.career == null \
+		and season.league_live == dugout and not season.league_career \
+		and season.build._format == (45 if dugout else 41) \
+		and ClubCareer.same(season.league_rules, LeagueRules.capture("dugout") if dugout else {})
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated B2 birth required"):
+		return
+	var dugout: bool = OS.get_cmdline_user_args().has("dugout")
+	var old_exists: bool = FileAccess.file_exists(OldSave.PATH)
+	var old: PackedByteArray = FileAccess.get_file_as_bytes(OldSave.PATH) if old_exists else PackedByteArray()
+	if OS.get_cmdline_user_args().has("reopen"):
+		var restored: SeasonState = Save.restore()
+		if not check(profile(restored, dugout) and restored.picks.size() == 4 and restored.make_match() != null, "cold exact requested profile and drafted match"):
+			return
+		if not check(ClubCareer.same(Codec.capture(restored), JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))), "cold exact disk recapture"):
+			return
+	else:
+		for league: String in LeagueRules.IDS:
+			for tier in range(5):
+				if league == "dugout" and tier == 0:
+					continue
+				var rules: Dictionary = LeagueRules.capture_tier(league, tier, 67231 if league == "scramble" else null)
+				if not check(Runtime.create_closed_league(67231, rules, true) == null, "unqualified League/tier constructor rejected %s%d" % [league,tier]):
+					return
+		var season: SeasonState = Runtime.create_live_dugout(67231) if dugout else Runtime.create_fresh(67231)
+		for pick in range(5):
+			if not check(profile(season, dugout) and season.picks.size() == pick, "fresh/every-pick narrow profile %d" % pick):
+				return
+			var payload: Dictionary = Codec.capture(season)
+			var before: PackedByteArray = var_to_bytes(payload)
+			var restored: SeasonState = Codec.restore(JSON.parse_string(JSON.stringify(payload, "", true, true)))
+			if not check(restored != null and ClubCareer.same(Codec.capture(restored), payload) and var_to_bytes(payload) == before \
+				and ClubCareer.same(Codec.capture(season), payload), "exact JSON restore and immutable caller %d" % pick):
+				return
+			if not check(Save.save(restored) and ClubCareer.same(Codec.capture(Save.restore()), payload), "durable fresh/pick checkpoint %d" % pick):
+				return
+			for kind: String in ["version", "catalog", "live", "rules", "access", "extra"]:
+				var wrong: Dictionary = payload.duplicate(true)
+				match kind:
+					"version": wrong.version = 109
+					"catalog": wrong.pitch_catalog = "wrong"
+					"live": wrong.league_live = not dugout
+					"rules": wrong.league_rules = LeagueRules.capture("academy")
+					"access": wrong.checkpoint["player_access"] = {"unearned":true}
+					"extra": wrong["unearned"] = true
+				if not check(Codec.restore(wrong) == null, "reject malformed profile %s pick%d" % [kind,pick]):
+					return
+			if not check(OldCodec.restore(payload) == null, "new envelope cannot enter frozen109"):
+				return
+			season = restored
+			if pick < 4 and not check(season.choose_player(season.offers()[0]), "ordinary draft choice"):
+				return
+	if not check(Save.PATH != OldSave.PATH and FileAccess.file_exists(OldSave.PATH) == old_exists \
+		and (not old_exists or FileAccess.get_file_as_bytes(OldSave.PATH) == old), "frozen save slot untouched"):
+		return
+	print("PASS: B2 fresh/draft profile and cold-capable save only; no completed season or career grant")
+	get_tree().quit()

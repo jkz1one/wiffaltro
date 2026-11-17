@@ -6,12 +6,14 @@ static func field_for_fixture(fixture: Dictionary, season: SeasonState = null) -
 
 
 static func create(
-	_seed_value: int,
-	_legacy: bool = false,
-	_working_progression: bool = false,
-	_paid_opponents: bool = false
+	seed_value: int,
+	legacy: bool = false,
+	working_progression: bool = false,
+	paid_opponents: bool = false
 ) -> SeasonState:
-	return null # All public construction flags remain closed until season qualification.
+	if not SeasonOwnership._whole(seed_value, 0, 2147483647):
+		return null
+	return load("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")._source_public_create(seed_value, legacy, working_progression, paid_opponents)
 
 
 func league_context_consistent() -> bool:
@@ -26,11 +28,13 @@ func _league_opponent_context_consistent() -> bool:
 	return load("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")._source_private_league_opponent_context_consistent(self)
 
 
-static func create_closed_league(_seed_value: int, _rules: Variant, _live: bool = false, _access_value: Dictionary = {}) -> SeasonState:
-	return null # PhaseA has no public season/owner admission.
+static func create_closed_league(seed_value: int, rules: Variant, live: bool = false, access_value: Dictionary = {}) -> SeasonState:
+	if not live or not access_value.is_empty() or not preload("ordinary_context.gd").supported(rules, live):
+		return null
+	return load("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")._source_public_create_closed_league(seed_value, rules, live, access_value)
 
-static func create_live_dugout(_seed_value: int) -> SeasonState:
-	return null # Structural Build support is not played-season qualification.
+static func create_live_dugout(seed_value: int) -> SeasonState:
+	return create_closed_league(seed_value, LeagueRules.capture("dugout"), true)
 
 
 func _limit_specialist_offers() -> void:

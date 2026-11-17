@@ -40,6 +40,9 @@ def main():
     mode.add_argument('--history-fixture', type=Path, help='Verify pure closed-prefix legacy109 exotic history; no owner admission')
     mode.add_argument('--general-build', action='store_true', help='Structural generalized Build matrix only; public Game114 season admission remains closed')
     mode.add_argument('--general-physical', action='store_true', help='Ordinary single-game physical context tests only; no owned season admission')
+    mode.add_argument('--general-birth', action='store_true', help='General ordinary season birth/draft exact cold replay')
+    mode.add_argument('--general-round', action='store_true', help='General actual ordinary season round/earned shop/cold replay')
+    parser.add_argument('--general-profile', choices=['standard', 'dugout'], default='standard')
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
@@ -68,7 +71,7 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
@@ -88,33 +91,33 @@ def main():
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
-    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
         entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
     if args.owner_performance_fixture or args.facade:
         facade_manifest = json.loads((root / 'drafts/successor-owner-ui-v1/DRAFT_MANIFEST.json').read_text())
         entries += facade_manifest['files']
-    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         completion_manifest = json.loads((root / 'drafts/successor-career-completion-v1/DRAFT_MANIFEST.json').read_text())
         entries += completion_manifest['files']
-    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         entries += json.loads((root / 'drafts/successor-career-assets-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical:
+    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         entries += json.loads((root / 'drafts/successor-owner-terminal-v1/DRAFT_MANIFEST.json').read_text())['files']
     if args.recapture_fixture:
         entries += json.loads((root / 'drafts/successor-owner-recapture-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.history_fixture or args.general_build or args.general_physical:
+    if args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round:
         entries += json.loads((root / 'drafts/successor-career-history-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.general_build or args.general_physical:
+    if args.general_build or args.general_physical or args.general_birth or args.general_round:
         entries += json.loads((root / 'drafts/successor-league-general-v2/DRAFT_MANIFEST.json').read_text())['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
@@ -183,6 +186,20 @@ def main():
             run('owner-performance-' + trial, ['res://tests/successor_owner_performance.tscn', '--', trial], timeout=1800)
         run('owner-performance-cold', ['res://tests/successor_owner_performance.tscn', '--', 'reopen'], timeout=1200)
         assert source.read_bytes() == source_before, 'Original isolated fixture was changed'
+        return
+    if args.general_birth or args.general_round:
+        selected = ['dugout'] if args.general_profile == 'dugout' else []
+        if args.general_birth:
+            scene = ['res://tests/successor_general_birth.tscn', '--', *selected]
+            run('general-birth', scene, timeout=1800)
+            run('general-birth-cold', scene + ['reopen'], timeout=900)
+        else:
+            scene = ['--fixed-fps', '60', 'res://tests/successor_general_round.tscn', '--', *selected]
+            run('general-human', scene + ['human-only'], timeout=2400)
+            run('general-ai-first', scene + ['resume-round', 'one-ai'], timeout=2400)
+            run('general-ai-second', scene + ['resume-round', 'one-ai'], timeout=2400)
+            run('general-settle-shop', scene + ['resume-round'], timeout=2400)
+            run('general-round-cold', scene + ['reopen'], timeout=1800)
         return
     if args.general_physical:
         run('general-physical', ['--fixed-fps', '60', 'res://tests/successor_general_physical.tscn'], timeout=3600)

@@ -21,7 +21,7 @@ static func _source_public_create(
 	working_progression: bool = false,
 	paid_opponents: bool = false
 ) -> SeasonState:
-	if legacy or not working_progression or not paid_opponents:
+	if not SeasonOwnership._whole(seed_value, 0, 2147483647) or legacy or not working_progression or not paid_opponents:
 		return null
 	var season: SeasonState = load("res://src/gameplay/season/successor_league_general_v2/runtime.gd").new()
 	season.season_seed = seed_value
@@ -153,6 +153,8 @@ static func _source_private_league_opponent_context_consistent(_source_owner: Se
 static func _source_public_create_closed_league(
 	seed_value: int, rules: Variant, live: bool = false, access_value: Dictionary = {}
 ) -> SeasonState:
+	if not live or not access_value.is_empty() or not preload("ordinary_context.gd").supported(rules, live):
+		return null
 	var normalized: Dictionary = LeagueRules.normalized(rules)
 	if (
 		not LeagueRules.season_matches(normalized, seed_value)
@@ -160,6 +162,8 @@ static func _source_public_create_closed_league(
 	):
 		return null
 	var season: SeasonState = load("res://src/gameplay/season/successor_league_general_v2/runtime.gd").create(seed_value, false, true, true)
+	if season == null:
+		return null
 	season.league_rules = normalized
 	SeasonDoubleheader.install_schedule(season)
 	season.league_live = live

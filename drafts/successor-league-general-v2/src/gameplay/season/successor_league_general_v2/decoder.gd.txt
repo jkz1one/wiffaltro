@@ -19,7 +19,7 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 	pitch_catalog: String = "",
 	pitch_admission: int = 97
 ) -> SeasonState:
-	if not night_policy.is_empty() or terrain_authorized or LeagueRules.normalized(expected_rules) != LeagueRules.capture("dugout") or not league_live \
+	if not night_policy.is_empty() or terrain_authorized or not preload("ordinary_context.gd").supported(expected_rules, league_live) \
 		or not inventory_rules.is_empty() or dynasty_start != null or not access.is_empty() \
 		or league_career != null or not player_access.is_empty() or not standard_context.is_empty() \
 		or not league_home_context.is_empty() or standard_projection != null:

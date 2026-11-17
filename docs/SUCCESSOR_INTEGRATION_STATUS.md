@@ -23,6 +23,12 @@ Dynasty qualification is inferred from the one-round evidence.
   `SUCCESSOR_GENERAL_PHYSICAL_B1.md`, including the Phase A constructor
   coverage correction and retained failed preliminary test.
 
+- B2 now narrowly admits standalone Standard0 and Dugout0 in Game114. Both
+  passed fresh/every-pick/cold and actual human/NPC round, earned shop purchase
+  and paid cold reopen through the additive presentation route. See
+  `SUCCESSOR_GENERAL_SEASON_B2.md`. Earlier Phase A/B1 closed-admission statements
+  describe those checkpoints; other League/tier/owner routes remain unqualified.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing
