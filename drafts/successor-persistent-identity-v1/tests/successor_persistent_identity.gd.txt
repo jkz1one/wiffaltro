@@ -1,0 +1,138 @@
+extends "res://tests/successor_general_replay_prefix.gd"
+## Read-only partial authored identity. No migration, game or ownership grant.
+const Canonical = preload("res://src/gameplay/season/successor_persistent_identity_v1/canonical_value.gd")
+const Projector = preload("res://src/gameplay/season/successor_persistent_identity_v1/authored_content.gd")
+const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+const FrozenCatalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const OwnerCatalog = preload("res://src/gameplay/season/successor_owner_terminal_v1/catalog.gd")
+const OwnerCodec = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+const GeneralCatalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const RECORD: String = "user://partial-authored-identity.json"
+
+func canonical_cases() -> bool:
+	for pair: Array in [[null,"00"],[false,"01"],[true,"02"],[1,"030000000000000001"],[-1,"03ffffffffffffffff"],[-9223372036854775807-1,"038000000000000000"],[1.0,"043ff0000000000000"],[-0.0,"048000000000000000"],["é","0500000002c3a9"],[[],"0600000000"],[{},"0700000000"]]:
+		if not check(Canonical.encode(pair[0]).hex_encode() == pair[1],"explicit canonical wire vector " + pair[1]):
+			return false
+	var first: Dictionary = {"b":true,"a":1}
+	var second: Dictionary = {"a":1,"b":true}
+	var before: PackedByteArray = var_to_bytes(first)
+	if not check(Canonical.encode(first).hex_encode() == "070000000205000000016103000000000000000105000000016202" \
+		and Canonical.digest(first) == Canonical.digest(second) and var_to_bytes(first) == before,"exact sorted dictionary and immutable caller"):
+		return false
+	if not check(Canonical.digest(1) != Canonical.digest(1.0) and Canonical.digest(false) != Canonical.digest(0) \
+		and Canonical.digest(["a","bc"]) != Canonical.digest(["ab","c"]) \
+		and Canonical.digest([1,2]) != Canonical.digest([2,1]),"typed and length-delimited unambiguous values"):
+		return false
+	for bad: Variant in [NAN,INF,-INF,Vector2.ZERO,Resource.new(),StringName("name"),{1:"integer key"}]:
+		if not check(Canonical.encode(bad).is_empty() and Canonical.digest(bad).is_empty(),"unsupported/nonfinite value fails closed"):
+			return false
+	var cycle: Array = []
+	cycle.append(cycle)
+	var cycle_rejected: bool = Canonical.encode(cycle).is_empty()
+	cycle.clear()
+	var map_cycle: Dictionary = {}
+	map_cycle.self = map_cycle
+	cycle_rejected = cycle_rejected and Canonical.encode(map_cycle).is_empty()
+	map_cycle.clear()
+	var alias: Array = [1,2]
+	if not check(cycle_rejected and Canonical.encode([alias,alias]) == Canonical.encode([[1,2],[1,2]]),"cycles reject; aliases encode by value"):
+		return false
+	var deep: Variant = null
+	for index in range(Canonical.MAX_DEPTH+2):
+		deep = [deep]
+	var many: Array = []
+	many.resize(Canonical.MAX_ELEMENTS+1)
+	if not check(Canonical.encode(deep).is_empty() and Canonical.encode(many).is_empty() \
+		and Canonical.encode("x".repeat(Canonical.MAX_BYTES+1)).is_empty(),"depth/count/byte budgets reject"):
+		return false
+	return true
+
+func mutation(resource: Resource, property: String, replacement: Variant, domain: String, baseline: Dictionary) -> bool:
+	var original: Variant = resource.get(property)
+	resource.set(property,replacement)
+	var changed: Dictionary = Projector.capture()
+	resource.set(property,original)
+	return check(not changed.is_empty() and changed.authored_content_id != baseline.authored_content_id \
+		and changed.domains[domain].digest != baseline.domains[domain].digest \
+		and ClubCareer.same(Projector.capture(),baseline),"live authored field sensitivity and exact restoration " + property)
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated partial identity test"):
+		return
+	cohort_roots = Codec._operation_content_roots()
+	var content_before: PackedByteArray = content_bytes()
+	var files_before: Dictionary = saved_bytes()
+	var descriptors: Array = [FrozenCatalog.signature(),OwnerCatalog.signature(),GeneralCatalog.signature()]
+	if not check(snapshot_supported and not descriptors.has(""),"authored graph and existing descriptors available"):
+		return
+	var baseline: Dictionary = Projector.capture()
+	if not check(not baseline.is_empty() and baseline.partial == true and baseline.schema == Projector.SCHEMA \
+		and baseline.domains.pitches.projection.definitions.size() == 50 \
+		and baseline.domains.pitches.projection.active_order.size() == 41 \
+		and baseline.domains.players.projection.initial_profiles.size() == SeasonPlayerCatalog.ids().size() \
+		and baseline.domains.fields.projection.size() == 2,"actual complete declared pitch/player/two-field domains, explicitly partial"):
+		return
+	for domain: String in baseline.domains:
+		if not check(Canonical.digest(baseline.domains[domain].projection) == baseline.domains[domain].digest,"domain digest exact " + domain):
+			return
+	if OS.get_cmdline_user_args().has("reopen"):
+		if not check(FileAccess.file_exists(RECORD) and ClubCareer.same(JSON.parse_string(FileAccess.get_file_as_string(RECORD)),baseline),"fresh-process canonical authored identity exact"):
+			return
+	else:
+		if not canonical_cases():
+			return
+		var pitch: PitchDefinition = load(Provider.NEW_PATHS["pitch.super_curve"])
+		var delivery: DeliveryProfileDefinition = pitch.delivery_profile
+		var field: FieldDefinition = load("res://src/content/fields/commons_park.tres")
+		var manifest: ContentManifest = load("res://src/content/manifest/content_manifest.tres")
+		var player: PlayerDefinition = manifest.players[0]
+		for operand: Array in [[pitch,"nominal_velocity_mps",pitch.nominal_velocity_mps+0.125,"pitches"],[delivery,"release_offset_pitcher_frame_m",delivery.release_offset_pitcher_frame_m+Vector3(0.01,0,0),"pitches"],[field,"back_wall_z_m",field.back_wall_z_m+0.25,"fields"],[player,"contact",player.contact+1,"players"]]:
+			if not mutation(operand[0],operand[1],operand[2],operand[3],baseline):
+				return
+		var velocity: float = pitch.nominal_velocity_mps
+		pitch.nominal_velocity_mps = NAN
+		var nonfinite_rejected: bool = Projector.capture().is_empty()
+		pitch.nominal_velocity_mps = velocity
+		pitch.delivery_profile = null
+		var missing_rejected: bool = Projector.capture().is_empty()
+		pitch.delivery_profile = delivery
+		manifest.players.append(player)
+		var duplicate_rejected: bool = Projector.capture().is_empty()
+		manifest.players.pop_back()
+		if not check(nonfinite_rejected and missing_rejected and duplicate_rejected \
+			and Projector._resource(Resource.new()).is_empty() and ClubCareer.same(Projector.capture(),baseline),"nonfinite, missing delivery, duplicate ID and unsupported Resource reject without residual mutation"):
+			return
+		var detached: Dictionary = baseline.duplicate(true)
+		detached.domains.pitches.projection.active_order.reverse()
+		if not check(Canonical.digest(detached.domains.pitches.projection) != baseline.domains.pitches.digest,"detached ordered active catalog sensitivity, not a live policy edit"):
+			return
+		detached = baseline.duplicate(true)
+		var id: String = SeasonPlayerCatalog.ids()[0]
+		detached.domains.players.projection.initial_profiles[id].stats.contact += 1
+		if not check(Canonical.digest(detached.domains.players.projection) != baseline.domains.players.digest \
+			and ClubCareer.same(Projector.capture(),baseline),"detached profile change changes digest but never authored content"):
+			return
+		var name_before: String = pitch.resource_name
+		pitch.resource_name = "isolated-editor-metadata"
+		var metadata_inert: bool = ClubCareer.same(Projector.capture(),baseline)
+		pitch.resource_name = name_before
+		if not check(metadata_inert,"editor metadata outside partial semantic identity"):
+			return
+		if not check(not Codec.envelope_valid(baseline) and not OwnerCodec.envelope_valid(baseline),"partial content record cannot enter existing Game114 or Owner112 reader"):
+			return
+		if not check(not FileAccess.file_exists(RECORD),"new isolated identity record cannot overwrite evidence"):
+			return
+		var file: FileAccess = FileAccess.open(RECORD,FileAccess.WRITE)
+		if not check(file != null,"isolated detached identity record writable"):
+			return
+		file.store_string(JSON.stringify(baseline,"",true,true))
+		file.close()
+	var files_after: Dictionary = saved_bytes()
+	if not OS.get_cmdline_user_args().has("reopen"):
+		files_after.erase(RECORD) # New isolated projection evidence is not a game save.
+	if not check(content_bytes() == content_before and snapshot_supported and files_after == files_before \
+		and descriptors == [FrozenCatalog.signature(),OwnerCatalog.signature(),GeneralCatalog.signature()],"held authored Resources, existing save bytes and 109/112/114 descriptors unchanged"):
+		return
+	print("PARTIAL_AUTHORED_CONTENT_ID: ",baseline.authored_content_id)
+	print("PASS: partial authored pitch/player/field identity; no policy completeness, replay admission, migration or owner grant")
+	get_tree().quit()

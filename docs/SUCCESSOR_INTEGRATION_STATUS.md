@@ -86,6 +86,11 @@ Dynasty qualification is inferred from the one-round evidence.
   not. No optimization or normal player-click timing claim. See
   `SUCCESSOR_GENERAL_SAVE_COST.md`.
 
+- Read-only partial authored identity now passes exact primitive encoding, live
+  pitch/player/field sensitivity, immutability and fresh-process consistency.
+  It changes no existing reader/descriptor and does not cover complete policy or
+  admit a persistent owner. See `SUCCESSOR_PERSISTENT_IDENTITY_FOUNDATION.md`.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing

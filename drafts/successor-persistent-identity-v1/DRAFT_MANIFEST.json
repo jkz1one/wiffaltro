@@ -1,0 +1,31 @@
+{
+  "format": "inactive-successor-persistent-identity-v1",
+  "source_checkpoint": "173e9e5ac36a56da6097d51efd2c76bc2bc48845",
+  "scope": "Read-only partial authored pitch/player/two-field semantic projection only; no complete policy identity, save admission or migration.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-persistent-identity-v1/src/gameplay/season/successor_persistent_identity_v1/authored_content.gd.txt",
+      "restore_path": "src/gameplay/season/successor_persistent_identity_v1/authored_content.gd",
+      "bytes": 9288,
+      "sha256": "21c1d0c41291f3f4056c48d30d0dfb30e65b711f2244096c56622adf43371711"
+    },
+    {
+      "backup_path": "drafts/successor-persistent-identity-v1/src/gameplay/season/successor_persistent_identity_v1/canonical_value.gd.txt",
+      "restore_path": "src/gameplay/season/successor_persistent_identity_v1/canonical_value.gd",
+      "bytes": 4029,
+      "sha256": "056fe120a51d275ccdcc542bb35e4101b2194ff92d716e5852a2975935685367"
+    },
+    {
+      "backup_path": "drafts/successor-persistent-identity-v1/tests/successor_persistent_identity.gd.txt",
+      "restore_path": "tests/successor_persistent_identity.gd",
+      "bytes": 8970,
+      "sha256": "7b4e38f6f4b7436c42779093812699f52396d0be1cb440f9311ad9d94d47fac5"
+    },
+    {
+      "backup_path": "drafts/successor-persistent-identity-v1/tests/successor_persistent_identity.tscn.txt",
+      "restore_path": "tests/successor_persistent_identity.tscn",
+      "bytes": 205,
+      "sha256": "0d085825b50761eceb8e9d4ee236ce43f8ca2cd7b649513fac4cac1b6cd83c88"
+    }
+  ]
+}

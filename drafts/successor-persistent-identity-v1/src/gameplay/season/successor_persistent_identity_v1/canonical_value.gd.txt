@@ -1,0 +1,106 @@
+extends RefCounted
+## Canonical primitive wire format v1. No object/resource or source-path identity.
+## Tags: 0 null, 1 false, 2 true, 3 signed int64, 4 binary64 float,
+## 5 UTF-8 string, 6 ordered array, 7 string-keyed dictionary.
+## Integers use two's-complement, floats IEEE754 binary64, both big-endian.
+## String byte lengths and container counts are unsigned 32-bit big-endian.
+## Dictionary keys sort by Godot's case-sensitive String ordering (Unicode
+## code-point order for valid Unicode strings), independent of insertion order.
+## Aliases encode by value; cycles fail. No mutable state survives an invocation.
+const MAX_DEPTH: int = 64
+const MAX_ELEMENTS: int = 100000
+const MAX_BYTES: int = 8 * 1024 * 1024
+
+static func encode(value: Variant) -> PackedByteArray:
+	var output: PackedByteArray = PackedByteArray()
+	var state: Dictionary = {"elements":0}
+	if not _encode(value, output, state, [], 0):
+		return PackedByteArray()
+	return output
+
+static func digest(value: Variant) -> String:
+	var bytes: PackedByteArray = encode(value)
+	if bytes.is_empty():
+		return ""
+	var context: HashingContext = HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256) != OK or context.update(bytes) != OK:
+		return ""
+	return context.finish().hex_encode()
+
+static func _append(output: PackedByteArray, bytes: PackedByteArray) -> bool:
+	if bytes.size() > MAX_BYTES - output.size():
+		return false
+	output.append_array(bytes)
+	return true
+
+static func _u32(value: int) -> PackedByteArray:
+	var bytes: PackedByteArray = PackedByteArray()
+	for shift: int in [24, 16, 8, 0]:
+		bytes.append((value >> shift) & 255)
+	return bytes
+
+static func _encode(value: Variant, output: PackedByteArray, state: Dictionary,
+	ancestors: Array, depth: int) -> bool:
+	if depth > MAX_DEPTH or int(state.elements) >= MAX_ELEMENTS:
+		return false
+	state.elements += 1
+	match typeof(value):
+		TYPE_NIL:
+			return _append(output, PackedByteArray([0]))
+		TYPE_BOOL:
+			return _append(output, PackedByteArray([2 if value else 1]))
+		TYPE_INT:
+			var bytes: PackedByteArray = PackedByteArray([3])
+			for shift: int in [56, 48, 40, 32, 24, 16, 8, 0]:
+				bytes.append((value >> shift) & 255)
+			return _append(output, bytes)
+		TYPE_FLOAT:
+			if not is_finite(value):
+				return false
+			# Request wire order explicitly rather than infer host/packed-buffer order.
+			var stream: StreamPeerBuffer = StreamPeerBuffer.new()
+			stream.big_endian = true
+			stream.put_double(value)
+			var bits: PackedByteArray = stream.data_array
+			return bits.size() == 8 and _append(output, PackedByteArray([4])) and _append(output, bits)
+		TYPE_STRING:
+			# Guard before UTF-8 allocation; each valid code point needs >=1 byte.
+			if value.length() > MAX_BYTES:
+				return false
+			var bytes: PackedByteArray = value.to_utf8_buffer()
+			# Reject strings that cannot roundtrip as their exact Unicode value.
+			if bytes.get_string_from_utf8() != value or bytes.size() > MAX_BYTES:
+				return false
+			return _append(output, PackedByteArray([5])) and _append(output, _u32(bytes.size())) \
+				and _append(output, bytes)
+		TYPE_ARRAY, TYPE_DICTIONARY:
+			if value.size() > MAX_ELEMENTS - int(state.elements):
+				return false
+			for ancestor: Variant in ancestors:
+				if is_same(value, ancestor):
+					return false
+			ancestors.append(value)
+			var ok: bool = _append(output, PackedByteArray([6 if typeof(value) == TYPE_ARRAY else 7])) \
+				and _append(output, _u32(value.size()))
+			if typeof(value) == TYPE_ARRAY:
+				for item: Variant in value:
+					if not ok or not _encode(item, output, state, ancestors, depth + 1):
+						ok = false
+						break
+			else:
+				var keys: Array = value.keys()
+				for key: Variant in keys:
+					if typeof(key) != TYPE_STRING:
+						ok = false
+						break
+				if ok:
+					keys.sort()
+					for key: String in keys:
+						if not _encode(key, output, state, ancestors, depth + 1) \
+							or not _encode(value[key], output, state, ancestors, depth + 1):
+							ok = false
+							break
+			ancestors.pop_back()
+			return ok
+		_:
+			return false
