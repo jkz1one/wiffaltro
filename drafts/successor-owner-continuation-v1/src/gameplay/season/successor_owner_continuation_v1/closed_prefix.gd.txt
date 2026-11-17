@@ -1,0 +1,66 @@
+extends RefCounted
+## CLOSED read-only start basis, not owner admission, grants or a trusted token.
+## Every public call replays the exact retained predecessor. No installation,
+## current mutation, ledger reset, award commit or save occurs here.
+const LegacyTerminal = preload("legacy_terminal.gd")
+const Assets = preload("res://src/gameplay/season/successor_career_assets_v1/assets.gd")
+const History = preload("res://src/gameplay/season/successor_career_history_v1/exotic_history.gd")
+const SCHEMA: String = "closed-terminal112-run2-start-basis-v1"
+
+static func derive(envelope: Variant) -> Dictionary:
+	var roots: Array[Resource] = LegacyTerminal.Codec._operation_content_roots()
+	var result: Dictionary = _derive(envelope)
+	roots.clear()
+	return result
+
+static func _derive(envelope: Variant) -> Dictionary:
+	var predecessor: Dictionary = LegacyTerminal.project(envelope)
+	if predecessor.is_empty():
+		return {}
+	# Private query operand only. The original envelope retains current=1. No
+	# from_data/start/close admission or change to the old owner's state is used.
+	var prefix: ClubCareer = ClubCareer.new()
+	prefix.current = 0
+	prefix.runs.append(predecessor.row.duplicate(true))
+	prefix._assets = predecessor.assets.duplicate(true)
+	prefix._pennants = predecessor.pennants.duplicate(true)
+	prefix._plaques = predecessor.plaques.duplicate(true)
+	prefix._pitch_catalog = predecessor.provenance.pitch_catalog
+	if prefix._assets.is_empty():
+		return {}
+	var basis: Dictionary = Assets.basis(prefix)
+	var history: Dictionary = History.collect(prefix.runs, 2)
+	if basis.is_empty() or not history.get("ok", false) \
+		or not basis.get("ledger") is ClubAssetLedger:
+		return {}
+	var ledger: ClubAssetLedger = basis.ledger
+	if not ledger._valid or not ClubCareer.same(ledger.to_data(), predecessor.assets) \
+		or not ClubPlayerCatalog.valid_ids(basis.owned):
+		return {}
+	for key: String in ["income", "progress", "awards", "earned", "owned", "policy"]:
+		if not ClubCareer.same(basis.get(key), predecessor.derived.get(key)):
+			return {}
+	var starts: Dictionary = _query_starts(prefix)
+	return {"schema": SCHEMA, "closed": true, "target_run": 2,
+		"predecessor": predecessor.duplicate(true), "starts": starts.duplicate(true),
+		"exotic_history": history.proofs.duplicate(true),
+		"exotic_eligible_ids": history.ids.duplicate(true),
+		"player_access": basis.owned.duplicate(true),
+		"assets": ledger.to_data().duplicate(true),
+		"pennants": prefix._pennants.duplicate(true), "plaques": prefix._plaques.duplicate(true),
+		"derived": predecessor.derived.duplicate(true),
+		"discoveries": ClubCollection.discoveries(prefix)}
+
+# Pure original-policy query helper, NOT a validator or alternate public derive.
+# Synthetic unit operands can exercise thresholds here, never establish ownership.
+static func _query_starts(prefix: ClubCareer) -> Dictionary:
+	return {"gear_enabled": true, "gear": prefix.gear_counts(),
+		"sponsor_enabled": true, "sponsors": prefix.sponsor_state(),
+		"order": prefix.order_access(), "rain": prefix.rain_access(),
+		"transfer": prefix.transfer_access(), "supply": prefix.supply_count(),
+		"checkout": SeasonLateCheckout.access(prefix),
+		"association": SeasonAssociation.access(prefix), "freezer": SeasonFreezers.access(prefix),
+		"sides": SeasonLeftRight.access(prefix), "jump": SeasonJumpstart.access(prefix),
+		"sure": SeasonSureShot.access(prefix), "major": SeasonDoubleMajor.access(prefix),
+		"abilities": SeasonAbilities.access(prefix), "copy": SeasonCarbonCopy.access(prefix),
+		"field": SeasonFieldSupply.access(prefix), "batch": SeasonSmallBatch.access(prefix)}

@@ -50,6 +50,7 @@ def main():
     mode.add_argument('--recruit-pair-fixture', type=Path, help='Continue authentic Doubleheader pair through earned fresh recruitment and next pair')
     parser.add_argument('--recruit-pair-resume-stage', type=Path, help='Resume exact-source isolated recruitment sequence')
     mode.add_argument('--continuation-fixture', type=Path, help='Closed predecessor reader against immutable actual owner112 boundary evidence')
+    parser.add_argument('--continuation-prefix', action='store_true', help='Derive closed run2 start basis only; no owner admission')
     parser.add_argument('--continuation-completed', action='store_true', help='Require actual terminal positive projection; never use synthetic completion')
     mode.add_argument('--persistent-identity', action='store_true', help='Read-only partial authored identity and cold deterministic projection')
     mode.add_argument('--shop-transaction-fixture', type=Path, help='Unbound fixed shop transaction against authentic paid Standard fixture')
@@ -73,6 +74,8 @@ def main():
     args = parser.parse_args()
     if args.recruit_pair_resume_stage and not args.recruit_pair_fixture:
         parser.error('--recruit-pair-resume-stage requires --recruit-pair-fixture')
+    if args.continuation_prefix and not args.continuation_fixture:
+        parser.error('--continuation-prefix requires --continuation-fixture')
     if args.continuation_completed and not args.continuation_fixture:
         parser.error('--continuation-completed requires --continuation-fixture')
     if args.general_profile == 'doubleheader' and not args.general_birth:
@@ -295,9 +298,11 @@ def main():
         destination.mkdir(parents=True, exist_ok=True)
         (destination / 'source-owner-current.json').write_bytes(original)
         (destination / 'source-owner-birth.json').write_bytes(original_birth)
-        scene = ['res://tests/successor_continuation_predecessor.tscn', '--'] + (['completed'] if args.continuation_completed else [])
-        run('continuation-predecessor', scene, timeout=3600)
-        run('continuation-predecessor-cold', scene + ['reopen'], timeout=3600)
+        suite = 'continuation-prefix' if args.continuation_prefix else 'continuation-predecessor'
+        scene_path = 'res://tests/successor_continuation_prefix.tscn' if args.continuation_prefix else 'res://tests/successor_continuation_predecessor.tscn'
+        scene = [scene_path, '--'] + (['completed'] if args.continuation_completed else [])
+        run(suite, scene, timeout=3600)
+        run(suite + '-cold', scene + ['reopen'], timeout=3600)
         assert source.read_bytes() == original and birth.read_bytes() == original_birth, 'Original owner evidence changed'
         return
     if args.persistent_identity:

@@ -1,0 +1,96 @@
+extends "res://tests/successor_continuation_predecessor.gd"
+## Negative-only unless completed mode receives an actual fully played terminal.
+const Prefix = preload("res://src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd")
+
+func synthetic_queries() -> bool:
+	# Deliberately incomplete structural rows: only pure policy queries are tested.
+	# These never enter derive(), a reader, a save or an owner constructor.
+	var query: ClubCareer = ClubCareer.new()
+	var row: Dictionary = {"id":1,"gear":[],"sponsors":[],"order_rerolls":2,
+		"rain_earned":false,"transfer_earned":false,"supplies_used":2,
+		"checkout_earned":false,"association_earned":false,"freezer_earned":false,
+		"sides_earned":false,"jump_earned":false,"sure_earned":false,
+		"major_earned":false,"sky_outs":2,"copy_earned":false,"field_outs":5,
+		"batch_used":["A10"]}
+	query.runs.append(row.duplicate(true))
+	var before: PackedByteArray = var_to_bytes(query.runs)
+	var low: Dictionary = Prefix._query_starts(query)
+	if not check(not low.order and not low.field and low.supply == 2 and low.abilities == 2 \
+		and low.batch == ["A10"] and low.gear.is_empty() \
+		and ClubCareer.same(low.sponsors,{"hits":[],"encore":false}) \
+		and var_to_bytes(query.runs) == before,"SYNTHETIC below-threshold queries, immutable; no ownership proof"):
+		return false
+	query.runs[0].order_rerolls = 3
+	query.runs[0].field_outs = 6
+	for key: String in ["rain_earned","transfer_earned","checkout_earned","association_earned","freezer_earned","sides_earned","jump_earned","sure_earned","major_earned","copy_earned"]:
+		query.runs[0][key] = true
+	var second: Dictionary = row.duplicate(true)
+	second.id = 2
+	second.batch_used = ["C02","C03"]
+	query.runs.append(second)
+	before = var_to_bytes(query.runs)
+	var high: Dictionary = Prefix._query_starts(query)
+	for key: String in ["gear_enabled","sponsor_enabled","order","field","rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy"]:
+		if not check(high[key] == true,"SYNTHETIC original flag/threshold " + key):
+			return false
+	return check(high.supply == 3 and high.abilities == 3 and high.batch == ["A10","C02","C03"] \
+		and var_to_bytes(query.runs) == before,"SYNTHETIC original capped totals and ordered supply union; no grants")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and FileAccess.file_exists(CURRENT) and FileAccess.file_exists(BIRTH),"isolated actual owner inputs required"):
+		return
+	cohort_roots = Legacy._operation_content_roots()
+	var authored: PackedByteArray = content_bytes()
+	var files: Dictionary = saved_bytes()
+	var current: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CURRENT))
+	var birth: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(BIRTH))
+	var before: PackedByteArray = var_to_bytes([current,birth])
+	if not check(Legacy.envelope_valid(current) and Legacy.envelope_valid(birth),"exact frozen fixture identities") or not synthetic_queries():
+		return
+	if not check(Prefix.derive(birth).is_empty(),"active birth cannot supply a closed start basis"):
+		return
+	var forged: Dictionary = birth.duplicate(true)
+	forged.checkpoint.phase = SeasonState.Phase.COMPLETE
+	forged.checkpoint.career.runs[0].status = "completed"
+	if not check(Prefix.derive(forged).is_empty(),"forged terminal labels still require complete frozen replay"):
+		return
+	for wrong: Variant in [null,{}, {"validated":true}, {"schema":Prefix.SCHEMA,"closed":true}]:
+		if not check(Prefix.derive(wrong).is_empty(),"no alternate trust-token admission"):
+			return
+	if OS.get_cmdline_user_args().has("completed"):
+		if not check(current.checkpoint.phase == SeasonState.Phase.COMPLETE,"positive mode requires genuine terminal input"):
+			return
+		var result: Dictionary = Prefix.derive(current)
+		if not check(not result.is_empty() and result.schema == Prefix.SCHEMA and result.closed and result.target_run == 2 \
+			and ClubCareer.same(result.predecessor.envelope,current) \
+			and ClubCareer.same(result.assets,current.checkpoint.career.assets) \
+			and ClubCareer.same(result.pennants,current.checkpoint.career.pennants) \
+			and ClubCareer.same(result.plaques,current.checkpoint.career.plaques),"actual terminal basis preserves original envelope, ledger and awards"):
+			return
+		var query: ClubCareer = ClubCareer.new()
+		query.runs.append(current.checkpoint.career.runs[0].duplicate(true))
+		query._assets = current.checkpoint.career.assets.duplicate(true)
+		query._pennants = current.checkpoint.career.pennants.duplicate(true)
+		query._plaques = current.checkpoint.career.plaques.duplicate(true)
+		var basis: Dictionary = Prefix.Assets.basis(query)
+		var history: Dictionary = Prefix.History.collect(query.runs,2)
+		if not check(not basis.is_empty() and history.ok and ClubCareer.same(result.starts,Prefix._query_starts(query)) \
+			and ClubCareer.same(result.player_access,basis.owned) \
+			and ClubCareer.same(result.exotic_history,history.proofs) \
+			and ClubCareer.same(result.exotic_eligible_ids,history.ids) \
+			and ClubCareer.same(result.discoveries,ClubCollection.discoveries(query)),"exact original start/access/exotic/discovery derivation after actual replay"):
+			return
+		for key: String in ["income","progress","awards","earned","owned","policy"]:
+			if not check(ClubCareer.same(result.derived[key],basis[key]),"original basis correspondence " + key):
+				return
+		result.assets.clear()
+		result.starts.clear()
+		result.predecessor.envelope.clear()
+	else:
+		if not check(current.checkpoint.phase != SeasonState.Phase.COMPLETE and Prefix.derive(current).is_empty(),"actual active current rejected; positive terminal remains unqualified"):
+			return
+	if not check(var_to_bytes([current,birth]) == before and saved_bytes() == files \
+		and content_bytes() == authored and snapshot_supported,"input envelopes, saved bytes and authored Resources unchanged"):
+		return
+	print("PASS: ","actual terminal closed start basis only; no run2 admission" if OS.get_cmdline_user_args().has("completed") else "negative-only closed-prefix foundation plus labeled synthetic original-policy queries")
+	get_tree().quit()

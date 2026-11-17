@@ -1,8 +1,14 @@
 {
   "format": "inactive-successor-owner-continuation-v1",
-  "source_checkpoint": "639835014badb2ce8354ce39de34040333f7a74d",
-  "scope": "Closed terminal112 predecessor projection: negative active/forged/foreign source and cold invariance tests passed; actual positive terminal projection remains unqualified. No run2 birth or grants.",
+  "source_checkpoint": "aa824f429212a902083ac353ac93251b0de996d8",
+  "scope": "Closed terminal112 predecessor and run2 start-basis projections only. Native active/forged/token rejection, synthetic pure policy queries and cold invariance pass; public positive terminal derivation remains unqualified. No run2 admission or grants.",
   "files": [
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd",
+      "bytes": 3592,
+      "sha256": "c19fb65b51bf40e53f41f718c62d30fce20486b4a5f0a4a3686e4f780dcc8ffa"
+    },
     {
       "backup_path": "drafts/successor-owner-continuation-v1/src/gameplay/season/successor_owner_continuation_v1/legacy_terminal.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_continuation_v1/legacy_terminal.gd",
@@ -20,6 +26,18 @@
       "restore_path": "tests/successor_continuation_predecessor.tscn",
       "bytes": 215,
       "sha256": "c2506b3d70a382f759365c42322d7d20902cc8f89913b7f8f4d0136fd57aa75b"
+    },
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/tests/successor_continuation_prefix.gd.txt",
+      "restore_path": "tests/successor_continuation_prefix.gd",
+      "bytes": 6133,
+      "sha256": "c58cc656fa4451b77688efb1f9b863707ecfd95f529d813bb83f23c5cbff37f1"
+    },
+    {
+      "backup_path": "drafts/successor-owner-continuation-v1/tests/successor_continuation_prefix.tscn.txt",
+      "restore_path": "tests/successor_continuation_prefix.tscn",
+      "bytes": 192,
+      "sha256": "0f05485205b4f8d319d771e121cceb3419672ad1196810ffe228fc9d1a49d9b5"
     }
   ]
 }
