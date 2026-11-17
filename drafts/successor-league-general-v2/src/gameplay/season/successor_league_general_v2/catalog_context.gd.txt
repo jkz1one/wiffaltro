@@ -257,7 +257,16 @@ static func signature() -> String:
 	var source: String = Provider.signature()
 	if source.is_empty():
 		return ""
-	var legacy: String = load("res://src/gameplay/season/successor_league_v1/catalog_context.gd").signature()
+	# Same frozen109 algebra, using the Provider value already checked above.
+	# No identity survives this call; every legacy/current file is freshly hashed.
+	var legacy_catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+	var legacy_parts: Array[String] = [legacy_catalog.PURPOSE, source]
+	for path: String in legacy_catalog.FILES:
+		var digest: String = FileAccess.get_sha256(path)
+		if digest.is_empty():
+			return ""
+		legacy_parts.append(digest)
+	var legacy: String = "|".join(legacy_parts).sha256_text()
 	if legacy.is_empty():
 		return ""
 	var parts: Array[String] = [PURPOSE, source, legacy]

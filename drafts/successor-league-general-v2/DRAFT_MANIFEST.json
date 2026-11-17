@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "0ab394dc8261bb159c1591a5b8b9f78c89a100c6",
-  "scope": "Additive ordinary tier0 Academy admission and exact sequential-choice interruption qualification; inactive development draft.",
+  "source_checkpoint": "1abd33711add252bb7b29c5a623896823fe1c03b",
+  "scope": "Additive ordinary tier0 signature composition with one Provider evaluation per call, no persistent cache or validator shortcuts.",
   "files": [
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/build.gd.txt",
@@ -30,8 +30,8 @@
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/catalog_context.gd.txt",
       "restore_path": "src/gameplay/season/successor_league_general_v2/catalog_context.gd",
-      "bytes": 16729,
-      "sha256": "61934993a58e27550252caee38fe3fdfd63bd071e8ad6ef7479b3e6f3fd9134c"
+      "bytes": 17163,
+      "sha256": "144863218f01d6dd61d486a62dcc03461c3f09ce08a3960776d8d421170878eb"
     },
     {
       "backup_path": "drafts/successor-league-general-v2/src/gameplay/season/successor_league_general_v2/codec.gd.txt",
@@ -410,6 +410,18 @@
       "restore_path": "tests/successor_general_shop_confirm.tscn",
       "bytes": 186,
       "sha256": "1a49e96205847d2d689267c9bec52ec431b9904f695559c1e59e49c841d3a3a6"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_signature.gd.txt",
+      "restore_path": "tests/successor_general_signature.gd",
+      "bytes": 6916,
+      "sha256": "3661320a1bfa301b5a1b291e72e7eda9c7d957bf4e890b03e7b996c4580f06c6"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_signature.tscn.txt",
+      "restore_path": "tests/successor_general_signature.tscn",
+      "bytes": 192,
+      "sha256": "22718643268f1af8875bdb397292de59db6d63189831c573d9e4b09d685d48d6"
     }
   ]
 }

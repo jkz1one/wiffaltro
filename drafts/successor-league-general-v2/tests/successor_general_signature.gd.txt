@@ -1,0 +1,126 @@
+extends "res://tests/successor_general_birth.gd"
+## Test-only independent original composition. No cached signatures/validators.
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+const Legacy = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+
+func reference() -> String:
+	var source: String = Provider.signature()
+	if source.is_empty():
+		return ""
+	var legacy: String = Legacy.signature() # Deliberately independently re-evaluates Provider.
+	if legacy.is_empty():
+		return ""
+	var parts: Array[String] = [Catalog.PURPOSE,source,legacy]
+	for path: String in Catalog.FILES:
+		var digest: String = FileAccess.get_sha256(path)
+		if digest.is_empty():
+			return ""
+		parts.append(digest)
+	return "|".join(parts).sha256_text()
+
+func write_bytes(path: String, bytes: PackedByteArray) -> bool:
+	var file: FileAccess = FileAccess.open(path,FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_buffer(bytes)
+	file.flush()
+	var ok: bool = file.get_error() == OK
+	file.close()
+	return ok and FileAccess.get_file_as_bytes(path) == bytes
+
+func file_cases(path: String, baseline: String) -> bool:
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
+	var modified: PackedByteArray = original.duplicate()
+	modified.append(10) # Valid whitespace only; do not reload any script/resource.
+	if not check(not original.is_empty() and write_bytes(path,modified), "isolated source whitespace mutation " + path):
+		return false
+	var changed: String = Catalog.signature()
+	var expected: String = reference()
+	var restored: bool = write_bytes(path,original)
+	if not check(restored and not changed.is_empty() and changed != baseline and changed == expected \
+		and Catalog.signature() == baseline and reference() == baseline, "fresh source hashing exact parity and byte restoration " + path):
+		return false
+	var held: String = path + ".signature-test-held"
+	if not check(not FileAccess.file_exists(held) and not DirAccess.dir_exists_absolute(held) \
+		and DirAccess.rename_absolute(path,held) == OK, "isolated missing-input fixture " + path):
+		return false
+	print("SIGNATURE_MISSING_BEGIN: ",path)
+	var missing: String = Catalog.signature()
+	var absent_reference: String = reference()
+	print("SIGNATURE_MISSING_END: ",path)
+	var recovered: bool = DirAccess.rename_absolute(held,path) == OK
+	return check(recovered and FileAccess.get_file_as_bytes(path) == original \
+		and missing.is_empty() and absent_reference.is_empty() \
+		and Catalog.signature() == baseline and reference() == baseline, "missing input fail-closed with exact restored source; no persistent cache " + path)
+
+func resource_cases(baseline: String) -> bool:
+	var recipe: PitchDefinition = load(Provider.NEW_PATHS["pitch.super_curve"])
+	var delivery: DeliveryProfileDefinition = recipe.delivery_profile
+	var speed: float = recipe.nominal_velocity_mps
+	recipe.nominal_velocity_mps = speed + 0.125
+	var changed: String = Catalog.signature()
+	var expected: String = reference()
+	recipe.nominal_velocity_mps = speed
+	if not check(changed == expected and Catalog.signature() == baseline, "loaded recipe scalar mutation follows original Provider semantics, restored"):
+		return false
+	var offset: Vector3 = delivery.release_offset_pitcher_frame_m
+	delivery.release_offset_pitcher_frame_m = offset + Vector3(0.125,0,0)
+	changed = Catalog.signature()
+	expected = reference()
+	delivery.release_offset_pitcher_frame_m = offset
+	if not check(changed == expected and Catalog.signature() == baseline, "loaded delivery scalar mutation original parity, not new in-memory hashing authority"):
+		return false
+	var old_id: StringName = recipe.id
+	recipe.id = &"pitch.invalid_signature_test"
+	changed = Catalog.signature()
+	expected = reference()
+	recipe.id = old_id
+	if not check(changed.is_empty() and expected.is_empty() and Catalog.signature() == baseline, "invalid loaded recipe rejected on next call then exact recovery"):
+		return false
+	recipe.delivery_profile = null
+	changed = Catalog.signature()
+	expected = reference()
+	recipe.delivery_profile = delivery
+	return check(changed.is_empty() and expected.is_empty() and Catalog.signature() == baseline \
+		and recipe.nominal_velocity_mps == speed and delivery.release_offset_pitcher_frame_m == offset, "missing loaded delivery rejected and authored objects fully restored")
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" \
+		and ProjectSettings.globalize_path("res://").contains("wiffaltro-signature-") \
+		and not DirAccess.dir_exists_absolute("res://.git"), "isolated staged project required for temporary hash-input mutation"):
+		return
+	var save_exists: bool = FileAccess.file_exists(Save.PATH)
+	var save_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH) if save_exists else PackedByteArray()
+	var baseline: String = Catalog.signature()
+	if not check(not baseline.is_empty() and reference() == baseline, "exact original two-Provider composition parity"):
+		return
+	if OS.get_cmdline_user_args().has("paid"):
+		var payload: Variant = JSON.parse_string(save_bytes.get_string_from_utf8())
+		var earned: SeasonState = Codec.restore(payload)
+		if not check(earned != null and earned.results.size() == 3 and earned.build._visit.pack_status == "used" \
+			and ClubCareer.same(Codec.capture(earned),payload), "strict authentic current-source paid round"):
+			return
+	else:
+		var fresh: SeasonState = Runtime.create_fresh(67231)
+		var payload: Dictionary = Codec.capture(fresh)
+		var reopened: SeasonState = Codec.restore(JSON.parse_string(JSON.stringify(payload,"",true,true)))
+		if not check(not payload.is_empty() and reopened != null and ClubCareer.same(Codec.capture(reopened),payload), "fresh actual Codec roundtrip before isolated signature probes"):
+			return
+	for optimized: bool in [false,true,true,false,false,true,true,false]:
+		var started: int = Time.get_ticks_usec()
+		var digest: String = Catalog.signature() if optimized else reference()
+		var elapsed: int = Time.get_ticks_usec() - started
+		print("SIGNATURE_ABBA: optimized=",optimized," us=",elapsed)
+		if not check(digest == baseline, "timed signature exact independent baseline"):
+			return
+	if not file_cases("res://src/content/fields/commons_park.tres",baseline) \
+		or not file_cases("res://src/gameplay/season/successor_league_v1/shop.gd",baseline) \
+		or not resource_cases(baseline):
+		return
+	if not check(Catalog.signature() == baseline and reference() == baseline \
+		and FileAccess.file_exists(Save.PATH) == save_exists \
+		and (not save_exists or FileAccess.get_file_as_bytes(Save.PATH) == save_bytes), "all probes restored exact signature and original save bytes"):
+		return
+	print("PASS: signature composition parity and fresh failure detection; raw timing only, no whole-save speedup claim")
+	get_tree().quit()

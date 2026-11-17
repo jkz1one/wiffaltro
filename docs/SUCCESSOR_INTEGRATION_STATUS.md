@@ -48,6 +48,12 @@ Dynasty qualification is inferred from the one-round evidence.
   receipts/reveal/payment, and pending gameplay guards. See
   `SUCCESSOR_GENERAL_ACADEMY_B4.md` for exact coverage and remaining edge cases.
 
+- Call-local one-Provider catalog composition preserves exact signature algebra,
+  fresh failure detection and actual round/cold behavior without a persistent
+  cache. Raw signature diagnostics improve only this measured operation; no
+  whole-save or player-hardware speedup is claimed. See
+  `SUCCESSOR_GENERAL_SIGNATURE_COMPOSITION.md`.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing
