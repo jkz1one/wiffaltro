@@ -1,0 +1,204 @@
+extends Node
+## Structural engine operands only. No owner, earned entitlement or gameplay grant.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Book = preload("res://src/gameplay/season/successor_league_general_v2/development.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Access = preload("res://src/gameplay/season/successor_league_general_v2/exotic_access.gd")
+const Eligibility = preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd")
+const LegacyCatalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+const LegacyEligibility = preload("res://src/gameplay/season/successor_league_v1/exotic_eligibility.gd")
+const Fresh = preload("res://src/gameplay/season/successor_league_general_v2/fresh_profiles.gd")
+const Runtime = preload("res://src/gameplay/season/successor_league_general_v2/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Seed: int = 86420
+var roster: Array[String] = []
+var cases: int = 0
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("FAIL: ", label)
+		get_tree().quit(1)
+	else:
+		print("CHECK: ", label)
+	return ok
+
+func json_copy(value: Variant) -> Variant:
+	return JSON.parse_string(JSON.stringify(value, "", true, true))
+
+func tier(build: SeasonBuild, level: int) -> bool:
+	if level == 4:
+		return build.enable_d4_sponsors()
+	if level == 3:
+		return build.enable_d3_sponsors()
+	return build.enable_d1_pricing() if level > 0 else true
+
+func pricing_operands(build: SeasonBuild, baseline: SeasonBuild, label: String) -> bool:
+	# Pristine CLOSED visits have no rerolls field. These temporary maps exercise
+	# arithmetic only, not an opened/earned shop, credit grant or paid transaction.
+	var original: Dictionary = build._visit
+	var original_baseline: Dictionary = baseline._visit
+	var before: Dictionary = original.duplicate(true)
+	var before_baseline: Dictionary = original_baseline.duplicate(true)
+	build._visit = original.duplicate(true)
+	baseline._visit = original_baseline.duplicate(true)
+	var matches: bool = true
+	for rerolls in range(3):
+		for credit: int in [0, 2]:
+			build._visit["rerolls"] = rerolls
+			build._visit["reroll_credit"] = credit
+			baseline._visit["rerolls"] = rerolls
+			baseline._visit["reroll_credit"] = credit
+			var ordinary: int = SeasonReclamation.price(build._visit)
+			var expected: int = ordinary + (1 if build.d1_pricing_valid() and ordinary > 0 else 0)
+			matches = matches and build.reroll_price() == expected and baseline.reroll_price() == expected
+	build._visit = original
+	baseline._visit = original_baseline
+	return check(matches and ClubCareer.same(build._visit, before) \
+		and ClubCareer.same(baseline._visit, before_baseline), "synthetic reroll arithmetic and exact pristine visit preservation " + label)
+
+func roundtrip(build: SeasonBuild, label: String) -> bool:
+	var data: Dictionary = build.to_data()
+	var before: Dictionary = data.duplicate(true)
+	var restored: SeasonBuild = Build.restore(json_copy(data), Seed, roster)
+	var details: Dictionary = build._book.to_data()
+	var book: SeasonDevelopment = Book.from_data(json_copy(details), "season:%d" % Seed, build._league_rules, {})
+	if not check(not data.is_empty() and data.version == 114 and restored != null \
+		and ClubCareer.same(restored.to_data(), data) and book != null \
+		and ClubCareer.same(book.to_data(), details) and ClubCareer.same(data, before), "exact Build/Development JSON roundtrip " + label):
+		return false
+	for id: String in roster:
+		if not check(ClubCareer.same(restored.player(id), build.player(id)) \
+			and ClubCareer.same(book.player(id), build.player(id)), "exact player profile " + label + ":" + id):
+			return false
+	for kind: String in ["catalog", "header", "history"]:
+		var wrong: Dictionary = data.duplicate(true)
+		match kind:
+			"catalog": wrong.pitch_catalog = "wrong"
+			"header": wrong.base_version = 999
+			"history": wrong.exotic_start = [{"invalid":true}]
+		if not check(Build.restore(wrong, Seed, roster) == null, "reject tampered " + kind + " " + label):
+			return false
+	cases += 1
+	return true
+
+func profile_policy(build: SeasonBuild, rules: Dictionary, label: String) -> bool:
+	for id: String in SeasonPlayerCatalog.ids():
+		var profile: Dictionary = build.player(id)
+		var original: Dictionary = Fresh.profile(id)
+		var expected: Dictionary = SeasonScramble.profile(id, rules) if LeagueRules.scramble(rules) else original
+		if not check(ClubCareer.same(profile, expected) and profile.active == original.active \
+			and ClubCareer.same(profile.mastery, original.mastery) and profile.capacity == original.capacity,
+			"authored recipe/mastery/capacity and exact stat policy " + label + ":" + id):
+			return false
+	return true
+
+func synthetic_proof(source: String) -> Dictionary:
+	var strikes: Array = []
+	for index in range(3):
+		strikes.append({"pa":index + 1, "half":0, "pitcher":roster[0],
+			"finish":"pitch.overhand_curveball", "sequence":["pitch.overhand_curveball"], "called":null})
+	return {"version":7, "catalog":source, "season":"season:synthetic-not-earned",
+		"games":[{"game":0, "roster":roster.duplicate(), "strikeouts":strikes,
+			"evidence_hash":"0".repeat(64)}]}
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1", "isolated structural engine test required"):
+		return
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	roster.assign(SeasonPlayerCatalog.ids().slice(0, 4))
+	for path: String in ["res://src/gameplay/season/season_reclamation.gd", "res://src/gameplay/season/dynasty_start_profile.gd", "res://src/gameplay/season/season_build.gd"]:
+		var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
+		var signature: String = Catalog.signature()
+		var legacy: String = LegacyCatalog.signature()
+		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+		file.store_buffer(original)
+		file.store_string("\n# isolated source-binding test\n")
+		file.close()
+		var changed: bool = Catalog.signature() != signature
+		file = FileAccess.open(path, FileAccess.WRITE)
+		file.store_buffer(original)
+		file.close()
+		if not check(changed and Catalog.signature() == signature and LegacyCatalog.signature() == legacy \
+			and FileAccess.get_file_as_bytes(path) == original, "active source binding and exact restoration " + path):
+			return
+	for level in range(5):
+		var build: SeasonBuild = Build.new(Seed, roster)
+		var baseline: SeasonBuild = SeasonBuild.new(Seed, roster)
+		if not check(build.call("enable_successor_pitch_catalog") and tier(build, level) and tier(baseline, level), "original Standard initializer tier " + str(level)):
+			return
+		var data: Dictionary = build.to_data()
+		if not check(build._league_rules.is_empty() and not data.has("league_rules") \
+			and data.base_version == baseline.to_data().version \
+			and build._pricing_rule == baseline._pricing_rule and build._sponsor_rule == baseline._sponsor_rule \
+			and ClubCareer.same(build._bank.view(), baseline._bank.view()), "Standard keeps original41-44 header/economy without fake League tier"):
+			return
+		if not pricing_operands(build, baseline, "Standard-%d" % level) or not roundtrip(build, "Standard-%d" % level):
+			return
+	for league: String in LeagueRules.IDS:
+		for level in range(1 if league == "standard" else 5):
+			var rules: Dictionary = LeagueRules.capture_tier(league, level, Seed if league == "scramble" else null)
+			var build: SeasonBuild = Build.new(Seed, roster)
+			var baseline: SeasonBuild = SeasonBuild.new(Seed, roster)
+			var label: String = "%s-%d" % [league, level]
+			if not check(not rules.is_empty() and build.call("enable_successor_pitch_catalog") \
+				and build.enable_league_rules(rules) and baseline.enable_league_rules(rules), "explicit original League initializer " + label):
+				return
+			var data: Dictionary = build.to_data()
+			if not check(ClubCareer.same(build._league_rules, rules) \
+				and data.base_version == baseline.to_data().version \
+				and ClubCareer.same(build._bank.view(), baseline._bank.view()) \
+				and build._pricing_rule == baseline._pricing_rule and build._sponsor_rule == baseline._sponsor_rule \
+					and ClubCareer.same(build._bank.view().capacity, LeagueRules.capacities(rules)), "unchanged source rules/capacity/economy " + label):
+				return
+			if not pricing_operands(build, baseline, label) or not roundtrip(build, label):
+				return
+			if level == 0 and not profile_policy(build, rules, label):
+				return
+	# Current numeric profiles stay original candidates; no new rates or approvals.
+	for scores: Array in [[1,0], [3,0], [9,0], [0,1], [0,3], [0,9]]:
+		var win: bool = scores[0] > scores[1]
+		if not check(LeagueRules.game_income(LeagueRules.capture("earnings"), win, scores[0], scores[1]) == clampi(15 + scores[0] - scores[1], 10, 24) \
+			and LeagueRules.game_income(LeagueRules.capture("sponsorship"), win) == (16 if win else 10), "unchanged candidate income profile arithmetic"):
+			return
+	var inherited: SeasonBuild = Build.new(Seed, roster)
+	if not check(inherited.call("enable_successor_pitch_catalog"), "synthetic inherited operand fresh build"):
+		return
+	var old_proof: Dictionary = synthetic_proof(LegacyCatalog.signature())
+	var current_proof: Dictionary = synthetic_proof(Catalog.signature())
+	var history: Array = [old_proof, current_proof]
+	var before: Array = history.duplicate(true)
+	if not check(LegacyEligibility.valid(old_proof) and Eligibility.valid(current_proof) \
+		and not Eligibility.valid(old_proof) and not LegacyEligibility.valid(current_proof) \
+		and Access.valid_history(history) and Access.ids(history).has("pitch.super_curve") \
+		and inherited._book.install_exotic_start(history), "synthetic legacy/current proof union accepted only by explicit history bridge"):
+		return
+	# These are synthetic start operands, not ownership or earned-credit evidence.
+	inherited._rain_start = true
+	inherited._order_start = true
+	inherited._supply_start = 2
+	if not roundtrip(inherited, "synthetic-starts"):
+		return
+	var restored: SeasonBuild = Build.restore(json_copy(inherited.to_data()), Seed, roster)
+	if not check(restored._rain_start and restored._order_start == true and restored._supply_start == 2 \
+		and ClubCareer.same(restored._book._exotic_start, history) \
+		and restored._book.lesson_supported("pitch.super_curve") and ClubCareer.same(history, before), "synthetic starts retained, never installed into owner"):
+		return
+	var bad: Dictionary = current_proof.duplicate(true)
+	bad.catalog = "unknown"
+	if not check(not Access.valid_history([old_proof, bad]) and not inherited._book.install_exotic_start([bad]), "reject unknown inherited proof branch"):
+		return
+	var dynasty: SeasonDevelopment = Book.new("season:%d" % Seed)
+	if not check(dynasty.call("enable_successor_pitch_catalog") \
+		and not dynasty.enable_dynasty(LeagueRules.capture("dynasty"), {"invented":"carry"}), "nonempty Dynasty carry remains closed"):
+		return
+	if not check(Runtime.create(Seed) == null and Runtime.create_live_dugout(Seed) == null \
+		and Runtime.create_closed_league(Seed, LeagueRules.capture("dugout"), true) == null \
+		and not Codec.scope(Runtime.new()) and not Codec.envelope_valid({}) \
+		and Codec.restore({}) == null, "all public season/owner admission remains closed"):
+		return
+	roots.clear()
+	print("PASS: ", cases, " structural generalized Build/Development cases; no actual League season, ownership grant, Dynasty lineage or public admission")
+	get_tree().quit()

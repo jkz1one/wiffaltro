@@ -1,5 +1,33 @@
 # Successor integration status and gates
 
+## Qualification snapshot, 2026-11-17
+
+The later checkpoint documents distinguish actual behavior from structural
+prerequisites. Owned Dugout gameplay, human/NPC round settlement, earned full-shop
+purchase, pre-write save refusal/exact retry and cold reopen have passed. A full
+owned first-season terminal test remains in progress; no completed-season or
+Dynasty qualification is inferred from the one-round evidence.
+
+- Owner112 adds first-run terminal settlement staging, with frozen earlier save
+  families preserved. See `SUCCESSOR_TERMINAL_OWNER_CHECKPOINT.md`.
+- Owner113 is a separate transaction-local recapture experiment with exact
+  equivalence/mutation/cold tests and a small diagnostic timing gain, not a
+  responsive-performance claim. See `SUCCESSOR_RECAPTURE_EXPERIMENT.md`.
+- Completion, asset and exotic-history adapters are pure prerequisites, not
+  full next-career ownership or earned grants.
+- Generalized Game114 Phase A passes47 structural Build/Development contexts;
+  all public season/owner routes stay closed. See
+  `SUCCESSOR_GENERAL_BUILD_PHASE_A.md`.
+
+Still required: full terminal qualification, persistent next-run ownership,
+all nine actual League/tier routes, true Dynasty lineage/session/replacement,
+full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing
+and a distributable. The original development visuals and planned depth remain
+requirements. The current project entry is not a delivered unified successor.
+
+The initial source-inspection map below remains historical context, not an
+assertion that its then-missing steps are all still untouched or now complete.
+
 Source inspection after signature checkpoint `59ea701444e38a78f2189855ea53c44c4b8bce29`.
 This is an implementation map, not a release or historical test certification.
 

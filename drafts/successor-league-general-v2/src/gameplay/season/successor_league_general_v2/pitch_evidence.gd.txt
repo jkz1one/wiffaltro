@@ -1,0 +1,16 @@
+extends RefCounted
+## A caller-supplied authority context, never inferred from untrusted evidence.
+## Current routes must first bind their exact catalog-bearing save/request boundary.
+## Empty context preserves the historical ContentDB recipe set and decoder behavior.
+
+
+static func context_valid(pitch_catalog: String) -> bool:
+	var expected: String = load("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd").signature()
+	return not expected.is_empty() and pitch_catalog == expected
+
+static func recipe(id: String, pitch_catalog: String = "") -> PitchDefinition:
+	return _recipe(id, pitch_catalog) if context_valid(pitch_catalog) else null
+
+# Hot-loop call requires caller's already-validated explicit successor context.
+static func _recipe(id: String, _pitch_catalog: String) -> PitchDefinition:
+	return load("res://src/gameplay/pitching/working_pitch_catalog_v7.gd").get_recipe(id)

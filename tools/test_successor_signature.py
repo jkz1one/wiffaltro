@@ -38,6 +38,7 @@ def main():
     mode.add_argument('--terminal-season', action='store_true', help='Play a full actual first owned season, one cold durable boundary per process')
     mode.add_argument('--recapture-fixture', type=Path, help='Measure private transaction-local row reuse against isolated actual112 evidence')
     mode.add_argument('--history-fixture', type=Path, help='Verify pure closed-prefix legacy109 exotic history; no owner admission')
+    mode.add_argument('--general-build', action='store_true', help='Structural generalized Build matrix only; public Game114 season admission remains closed')
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
@@ -66,7 +67,7 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
@@ -86,32 +87,34 @@ def main():
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
-    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
         entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
     if args.owner_performance_fixture or args.facade:
         facade_manifest = json.loads((root / 'drafts/successor-owner-ui-v1/DRAFT_MANIFEST.json').read_text())
         entries += facade_manifest['files']
-    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         completion_manifest = json.loads((root / 'drafts/successor-career-completion-v1/DRAFT_MANIFEST.json').read_text())
         entries += completion_manifest['files']
-    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         entries += json.loads((root / 'drafts/successor-career-assets-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture:
+    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build:
         entries += json.loads((root / 'drafts/successor-owner-terminal-v1/DRAFT_MANIFEST.json').read_text())['files']
     if args.recapture_fixture:
         entries += json.loads((root / 'drafts/successor-owner-recapture-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.history_fixture:
+    if args.history_fixture or args.general_build:
         entries += json.loads((root / 'drafts/successor-career-history-v1/DRAFT_MANIFEST.json').read_text())['files']
+    if args.general_build:
+        entries += json.loads((root / 'drafts/successor-league-general-v2/DRAFT_MANIFEST.json').read_text())['files']
     assert len({entry['restore_path'] for entry in entries}) == len(entries)
     for entry in entries:
         source = root / entry['backup_path']
@@ -179,6 +182,9 @@ def main():
             run('owner-performance-' + trial, ['res://tests/successor_owner_performance.tscn', '--', trial], timeout=1800)
         run('owner-performance-cold', ['res://tests/successor_owner_performance.tscn', '--', 'reopen'], timeout=1200)
         assert source.read_bytes() == source_before, 'Original isolated fixture was changed'
+        return
+    if args.general_build:
+        run('general-build', ['res://tests/successor_general_matrix.tscn'], timeout=2400)
         return
     if args.history_fixture:
         source = args.history_fixture.resolve()

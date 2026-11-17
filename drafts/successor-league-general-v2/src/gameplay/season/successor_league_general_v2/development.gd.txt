@@ -1,0 +1,268 @@
+extends SeasonDevelopment
+const V7Catalog = preload("catalog_context.gd")
+const V7Progression = preload("progression.gd")
+const V7Access = preload("exotic_access.gd")
+const V7Eligibility = preload("exotic_eligibility.gd")
+const FreshProfiles = preload("fresh_profiles.gd")
+
+func _init(season_key: String = "", _fork_only: bool = false) -> void:
+	_season_key = season_key
+	_dynasty_start.make_read_only()
+	if _fork_only:
+		return
+	for player_id: String in SeasonPlayerCatalog.ids():
+		_players[player_id] = FreshProfiles.profile(player_id)
+
+func retain_exotic_current(proof: Dictionary) -> void:
+	if _pitch_catalog_version == V7Catalog.VERSION:
+		if not proof.is_empty() and not V7Eligibility.valid(proof):
+			return
+		_exotic_current = proof.duplicate(true)
+		for id: String in V7Eligibility.eligible_ids(proof):
+			if not _exotic_ids.has(id):
+				_exotic_ids.append(id)
+		return
+	_exotic_current = proof.duplicate(true)
+	for id: String in WorkingExoticEligibility.eligible_ids(proof):
+		if not _exotic_ids.has(id):
+			_exotic_ids.append(id)
+
+func lesson_supported(recipe: String) -> bool:
+	if _pitch_catalog_version == V7Catalog.VERSION:
+		var pitch: PitchDefinition = V7Catalog.get_recipe(recipe)
+		return V7Catalog.is_active(recipe) and pitch != null \
+			and pitch.delivery_profile != null \
+			and (V7Catalog.lesson_price(recipe) >= 0 or _exotic_ids.has(recipe))
+	if _pitch_catalog_version == WorkingPitchCatalog.VERSION:
+		var pitch: PitchDefinition = WorkingPitchCatalog.get_recipe(recipe)
+		return WorkingPitchCatalog.is_active(recipe) and pitch != null \
+			and pitch.delivery_profile != null \
+			and (WorkingPitchCatalog.lesson_price(recipe) >= 0 or _exotic_ids.has(recipe))
+	return SeasonPlayerCatalog.lesson_supported(recipe)
+
+func fork() -> SeasonDevelopment:
+	var result: SeasonDevelopment = load("res://src/gameplay/season/successor_league_general_v2/development.gd").new(_season_key, true)
+	result._pitch_catalog_version = _pitch_catalog_version
+	result._exotic_start = _exotic_start.duplicate(true)
+	result._exotic_current = _exotic_current.duplicate(true)
+	result._exotic_ids = _exotic_ids.duplicate()
+	result._league_rules = _league_rules.duplicate(true)
+	result._dynasty_start = _dynasty_start.duplicate(true)
+	DynastyProfile.freeze(result._dynasty_start)
+	result._players = _players.duplicate(true)
+	result._events = _events.duplicate(true)
+	result._requests = _requests.duplicate(true)
+	return result
+
+func to_data() -> Dictionary:
+	var data: Dictionary = {
+		"version":
+		(
+			DYNASTY_VERSION
+			if LeagueRules.dynasty(_league_rules)
+			else (VERSION if _league_rules.is_empty() else SCRAMBLE_VERSION)
+		),
+		"season": _season_key,
+		"catalog": SeasonPlayerCatalog.signature(),
+		"events": _events.duplicate(true)
+	}
+	if not _league_rules.is_empty():
+		data["league_rules"] = _league_rules.duplicate(true)
+	if LeagueRules.dynasty(_league_rules):
+		data["dynasty_start"] = _dynasty_start.duplicate(true)
+	if _pitch_catalog_version == V7Catalog.VERSION:
+		return V7Progression.wrap_development(data, _exotic_start, _exotic_current)
+	return WorkingPitchProgression.wrap_development(data, _exotic_start, _exotic_current) if _pitch_catalog_version == WorkingPitchCatalog.VERSION else data
+
+static func from_data(
+	value: Variant, season_key: String, expected_rules: Variant = {}, expected_start: Variant = {}
+) -> SeasonDevelopment:
+	if not value is Dictionary or value.get("successor_format") != V7Progression.FORMAT:
+		return null
+	var expanded: bool = value is Dictionary and WorkingPitchProgression.is_version(value.get("version"), V7Progression.DEVELOPMENT_VERSION)
+	var expanded_proof: Dictionary = {}
+	var expanded_start: Array = []
+	if expanded:
+		# A standalone development ledger has no settled reward journal. Only
+		# SeasonBuild replay may authorize a nonempty v6 exotic proof.
+		if not value.get("exotic_current") is Dictionary or not value.exotic_current.is_empty():
+			return null
+		expanded_proof = value.exotic_current.duplicate(true)
+		if not V7Access.valid_history(value.get("exotic_start")):
+			return null
+		expanded_start = value.exotic_start.duplicate(true)
+		value = V7Progression.unwrap_development(value)
+	var current: bool = value is Dictionary and WorkingPitchProgression.is_version(value.get("version"), WorkingPitchProgression.DEVELOPMENT_VERSION)
+	var exotic_current: Variant = value.get("exotic_current", {}) if current else {}
+	var exotic_start: Variant = value.get("exotic_start", []) if current else []
+	if current:
+		value = WorkingPitchProgression.unwrap_development(value)
+	if not value is Dictionary or not _whole(value.get("version"), VERSION, DYNASTY_VERSION):
+		return null
+	var fields: Array[String] = ["version", "season", "catalog", "events"]
+	if value.version >= SCRAMBLE_VERSION:
+		fields.append("league_rules")
+	if value.version == DYNASTY_VERSION:
+		fields.append("dynasty_start")
+	if not _keys(value, fields) or value.season != season_key or season_key.is_empty():
+		return null
+	if value.catalog != SeasonPlayerCatalog.signature() or not value.events is Array:
+		return null
+	if value.events.size() > MAX_EVENTS:
+		return null
+	var result: SeasonDevelopment = load("res://src/gameplay/season/successor_league_general_v2/development.gd").new(season_key)
+	if expanded and not result.call("enable_successor_pitch_catalog"):
+		return null
+	if expanded:
+		exotic_current = expanded_proof
+	if current and not result.enable_pitch_catalog():
+		return null
+	if (current or expanded) and not result.install_exotic_start(expanded_start if expanded else exotic_start):
+		return null
+	result.retain_exotic_current(exotic_current)
+	if not result._exotic_current.is_empty() and result._exotic_current.season != season_key:
+		return null
+	if value.version == SCRAMBLE_VERSION:
+		if not result.enable_scramble(value.league_rules):
+			return null
+	elif value.version == DYNASTY_VERSION:
+		if (
+			not value.dynasty_start is Dictionary
+			or not result.enable_dynasty(value.league_rules, value.dynasty_start)
+		):
+			return null
+	if (
+		not expected_start is Dictionary
+		or not DynastyProfile.same(result._dynasty_start, expected_start)
+	):
+		return null
+	if not result.context_matches(expected_rules):
+		return null
+	for event: Variant in value.events:
+		if not event is Dictionary:
+			return null
+		var applied: Dictionary = result.commit(event)
+		if not applied.ok or applied.replayed:
+			return null
+	return result
+
+func _prepare(command: Dictionary) -> Dictionary:
+	if _season_key.is_empty():
+		return _error("A season instance is required.")
+	if (
+		not _league_rules.is_empty()
+		and not LeagueRules.scramble(_league_rules)
+		and not LeagueRules.dynasty(_league_rules)
+	):
+		return _error("Invalid development league context.")
+	if not command.get("id") is String or command.id.is_empty() or command.id.length() > 120:
+		return _error("Invalid development request ID.")
+	if not _whole(command.get("rev"), 0, MAX_EVENTS):
+		return _error("Invalid revision.")
+	if not command.get("player") is String or not _players.has(command.player):
+		return _error("Unknown season-player.")
+	var normalized: Dictionary = command.duplicate(true)
+	normalized.rev = int(command.rev)
+	if _requests.has(command.id):
+		if _requests[command.id] != JSON.stringify(normalized):
+			return _error("This request ID already means something else.")
+		return {"ok": true, "replayed": true, "after": player(command.player)}
+	if command.rev != revision() or revision() >= MAX_EVENTS:
+		return _error("Development changed. Preview this action again.")
+	if command.get("op") == "exchange":
+		return SeasonPitchExchange.prepare(self, command)
+	if command.get("op") == "retrain":
+		return SeasonRetraining.prepare(self, command)
+	if command.get("op") == "learn" and not lesson_supported(str(command.get("target", ""))):
+		return _error("This recipe is outside this season's catalog.")
+	var after: Dictionary = player(command.player)
+	var error: String = (
+		_apply_scramble_recruit(after, command)
+		if command.get("op") == "recruit" and LeagueRules.scramble(_league_rules)
+		else _apply(after, command, _pitch_catalog_version)
+	)
+	if not error.is_empty():
+		return _error(error)
+	return {"ok": true, "replayed": false, "after": after}
+
+static func _apply(
+	after: Dictionary, command: Dictionary, pitch_catalog_version: int = 0
+) -> String:
+	var fields: Array[String] = ["id", "rev", "player", "op", "target"]
+	if command.get("op") == "learn":
+		fields.append("replace")
+	if not _keys(command, fields) or not command.get("target") is String:
+		return "Unexpected development fields."
+	var target: String = command.target
+	match command.get("op"):
+		"recruit":
+			if after != SeasonPlayerCatalog.profile(after.id):
+				return "Only a fresh season instance can receive recruit development."
+			var fresh: Dictionary = RecruitCatalog.fresh(after.id, target)
+			if fresh.is_empty():
+				return "Unknown recruit stage."
+			after.merge(fresh, true)
+		"stat":
+			if not SeasonPlayerCatalog.STATS.has(target):
+				return "Only the four visible stats can grow."
+			if after.stats[target] >= STAT_CAP:
+				return "That stat is already at level 10."
+			after.stats[target] += 1
+		"mastery", "round_out":
+			if not after.active.has(target):
+				return "Choose an active exact recipe on this player."
+			if after.mastery[target] >= PITCH_CAP:
+				return "That recipe is already at level 5."
+			if command.op == "round_out":
+				for recipe: String in after.active:
+					if after.mastery[recipe] < after.mastery[target]:
+						return "Choose one of this player's lowest active pitches."
+			after.mastery[target] += 1
+		"learn":
+			if not command.replace is String or not (
+				V7Catalog.supports(target) if pitch_catalog_version == V7Catalog.VERSION
+				else WorkingPitchCatalog.supports(target) if pitch_catalog_version == WorkingPitchCatalog.VERSION
+				else SeasonPlayerCatalog.lesson_supported(target)
+			):
+				return "This recipe's lesson is not supported."
+			if after.active.has(target):
+				return "This player already knows that recipe."
+			if command.replace.is_empty():
+				if after.active.size() >= after.capacity:
+					return "At capacity: explicitly choose a recipe to replace."
+				after.active.append(target)
+			else:
+				var index: int = after.active.find(command.replace)
+				if index < 0:
+					return "The replacement must be one of this player's active recipes."
+				after.active[index] = target
+			after.mastery[target] = after.mastery.get(target, 1)
+		_:
+			return "Unsupported development operation."
+	return ""
+
+func enable_successor_pitch_catalog() -> bool:
+	if _pitch_catalog_version != 0 or revision() != 0 or not _requests.is_empty() or not _league_rules.is_empty() or not _dynasty_start.is_empty() or V7Catalog.descriptor().is_empty():
+		return false
+	_pitch_catalog_version = V7Catalog.VERSION
+	return true
+
+func enable_pitch_catalog() -> bool:
+	return false
+
+func enable_expanded_pitch_catalog() -> bool:
+	return false
+
+func enable_scramble(value: Variant) -> bool:
+	return _pitch_catalog_version == V7Catalog.VERSION and super.enable_scramble(value)
+
+func enable_dynasty(value: Variant, start: Dictionary = {}) -> bool:
+	# Original fresh empty-Dynasty policy, not a carried-profile/lineage admission.
+	return _pitch_catalog_version == V7Catalog.VERSION and start.is_empty() and super.enable_dynasty(value, start)
+
+func install_exotic_start(proofs: Array) -> bool:
+	if revision() != 0 or _pitch_catalog_version != V7Catalog.VERSION or not V7Access.valid_history(proofs):
+		return false
+	_exotic_start = proofs.duplicate(true)
+	_exotic_ids = V7Access.ids(_exotic_start)
+	return true
