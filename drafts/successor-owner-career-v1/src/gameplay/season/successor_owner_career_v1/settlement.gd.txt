@@ -1,0 +1,81 @@
+extends RefCounted
+## Deterministic flat-career proposal. Caller reconstructs the exact origin,
+## every closed run and the actual current General run.
+## No supplied balance, row or progress validator is independent owner authority.
+const Mixed = preload("mixed_progress.gd")
+const Policy = preload("res://src/gameplay/season/successor_career_completion_v1/completion_policy.gd")
+const Assets = preload("assets.gd")
+const Plaques = preload("plaque_rewards.gd")
+
+static func _basis_shape(basis: Dictionary) -> bool:
+	if not basis.get("runs") is Array or basis.runs.is_empty() or basis.runs.size() >= ClubCareer.MAX_RUNS \
+		or not SeasonOwnership._whole(basis.get("target_run"),basis.runs.size()+1,basis.runs.size()+1) \
+		or not basis.get("assets") is Dictionary or basis.assets.is_empty() \
+		or not basis.get("pennants") is Dictionary or not basis.get("plaques") is Dictionary:
+		return false
+	return true # Structural shape only; caller independently derives the basis.
+
+static func birth_pennants(basis: Dictionary) -> Dictionary:
+	# Cheap shape-only deterministic metadata; not validation or asset authority.
+	if not _basis_shape(basis): return {}
+	if not basis.pennants.is_empty() and (not basis.pennants.get("eras") is Dictionary or not basis.pennants.has("version")): return {}
+	var staged: ClubCareer = ClubCareer.new()
+	staged.current = int(basis.target_run)
+	staged.runs.assign(basis.runs.duplicate(true))
+	staged.runs.append({})
+	staged._pennants = basis.pennants.duplicate(true)
+	# Original prospective birth adoption, not an award or historical backfill.
+	StadiumPennantRewards.adopt(staged)
+	return staged._pennants.duplicate(true)
+
+static func state(active: Dictionary, basis: Dictionary, terminal: bool) -> Dictionary:
+	if not _basis_shape(basis) or active.get("id") != basis.target_run or active.get("status") != "active" \
+		or not active.get("receipt") is Dictionary or not active.receipt.is_empty() \
+		or not active.get("proof") is Dictionary or not active.proof.get("scores") is Array \
+		or not Mixed.Current.valid(active.get("player_progress"),active.proof.scores):
+		return {}
+	var prior: Array = basis.runs.duplicate(true)
+	if not Mixed.history(prior): return {}
+	for previous: Dictionary in prior:
+		if previous.status != "completed": return {}
+	var row: Dictionary = active.duplicate(true)
+	if terminal:
+		row = Policy.complete(row,prior).get("row",{})
+		if row.is_empty(): return {}
+	var rows: Array = prior.duplicate(true)
+	rows.append(row)
+	if not Mixed.history(rows): return {}
+	var pennants: Dictionary = birth_pennants(basis)
+	if pennants.is_empty(): return {}
+	var staged: ClubCareer = ClubCareer.new()
+	staged.current = int(basis.target_run)
+	staged.runs.assign(rows)
+	staged._assets = basis.assets.duplicate(true)
+	staged._pennants = pennants
+	staged._plaques = basis.plaques.duplicate(true)
+	if not StadiumPennantRewards.valid_history(staged._pennants,staged.runs) \
+		or not Plaques.valid_history(staged._plaques,staged.runs): return {}
+	if not terminal:
+		return {"row":row,"assets":staged._assets,"pennants":staged._pennants,"plaques":staged._plaques}
+	if not Plaques.capture(staged): return {}
+	var derived: Dictionary = Assets.basis(staged)
+	if derived.is_empty(): return {}
+	var ledger: ClubAssetLedger = derived.ledger
+	# Replay used the original predecessor asset journal under the complete new
+	# earned authority. Never reset it to a fresh ledger or discard purchases.
+	var before: Array = ledger.to_data().events.duplicate(true)
+	var prior_awards: Dictionary = {}
+	for event: Dictionary in before:
+		if event.op in ["stadium_pennant","stadium_mastery","stadium_plaque"]:
+			prior_awards[event.id] = event.duplicate(true)
+	for id: String in derived.awards:
+		var award: Dictionary = derived.awards[id]
+		var operation: String = "stadium_plaque" if award.has("player_id") else ("stadium_mastery" if award.has("mastery_contract") else "stadium_pennant")
+		if prior_awards.has(id):
+			if prior_awards[id].op != operation or not ClubCareer.same(prior_awards[id].earned,award): return {}
+			continue
+		var result: Dictionary = ledger.commit({"id":id,"rev":ledger.revision(),"op":operation,"earned":award.duplicate(true)})
+		if not result.ok or result.replayed: return {}
+	staged._assets = ledger.to_data()
+	if not ClubCareer.same(staged._assets.events.slice(0,before.size()),before) or Assets.basis(staged).is_empty(): return {}
+	return {"row":row,"assets":staged._assets.duplicate(true),"pennants":staged._pennants.duplicate(true),"plaques":staged._plaques.duplicate(true)}

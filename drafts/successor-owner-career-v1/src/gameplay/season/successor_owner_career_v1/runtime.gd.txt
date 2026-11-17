@@ -1,0 +1,95 @@
+extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
+## Repeatable owned career. Archive fields are excluded from flat run checkpoints.
+var origin: Dictionary = {}
+var closed: Array = []
+
+static func create_next(envelope: Variant, seed_value: int) -> SeasonState:
+	if not envelope is Dictionary: return null
+	return load("res://src/gameplay/season/successor_owner_career_v1/decoder.gd").create_next(envelope,seed_value)
+func league_context_consistent() -> bool:
+	return load("res://src/gameplay/season/successor_owner_career_v1/start.gd").structural(self)
+func _league_inventory_context_consistent() -> bool:
+	return league_context_consistent()
+func choose_player(id: String) -> bool:
+	if not league_context_consistent() or not offers().has(id):
+		return false
+	# Strict full-archive clone rebuilds inherited birth and prior picks before the
+	# private local draft step. It cannot authorize caller-mutated inherited starts.
+	var codec = load("res://src/gameplay/season/successor_owner_career_v1/codec.gd")
+	var before: Dictionary = codec.guard_snapshot(self)
+	var candidate: SeasonState = codec.clone(self)
+	if before.is_empty() or candidate == null or not ClubCareer.same(codec.guard_snapshot(candidate),before) or not candidate._choose_local(id):
+		return false
+	var boundary = preload("res://src/gameplay/season/successor_owner_terminal_v1/codec.gd")
+	var fields: Array = boundary.FIELDS.duplicate()
+	fields.append_array(["origin","closed"])
+	for field: String in fields:
+		var value: Variant = candidate.get(field)
+		set(field,value.duplicate(true) if value is Array or value is Dictionary else value)
+	for field: String in boundary.OBJECTS:
+		set(field,candidate.get(field))
+	return true
+
+func _choose_local(id: String) -> bool:
+	if not league_context_consistent() or not offers().has(id):
+		return false
+	if not super.choose_player(id):
+		return false
+	# General standalone fourth-pick reconstruction does not reinstall successor
+	# history/full owned recruiting pool. Restore exact owner birth inputs here.
+	if picks.size() == 4 and not load("res://src/gameplay/season/successor_owner_career_v1/start.gd")._install(build,career.start_basis):
+		return false
+	return career.sync(self)
+func make_match() -> MatchState:
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return null
+	return super.make_match()
+
+func shop_available() -> bool:
+	return league_context_consistent() and super.shop_available()
+
+func _finish_round(fixture_id: int, result: Dictionary) -> bool:
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
+	# General retains all NPC simulation/payment checks. Career sync occurs only
+	# after the full result has been appended by record_player_result / Pending.
+	return super._finish_round(fixture_id,result)
+
+
+func adopt_build(next: SeasonBuild) -> void:
+	if next == null or not league_context_consistent(): return
+	var old_build: SeasonBuild = build
+	var old_lineup: Array = teams[0].roster.duplicate()
+	var old_row: Dictionary = career.runs[career.current-1].duplicate(true)
+	build = next
+	if not load("res://src/gameplay/season/successor_owner_career_v1/start.gd").base_matches(self):
+		build = old_build
+		return
+	build = old_build
+	super.adopt_build(next)
+	if not career.sync(self):
+		build = old_build
+		teams[0].roster = old_lineup
+		career.runs[career.current-1] = old_row
+
+func record_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null
+) -> bool:
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
+	var ok: bool = super.record_player_result(fixture_id,away_runs,home_runs,performance,used_gear,tactics,batting,stances,fielding,pitching,field_supply,frozen,ai_tactics,replayed_tactics,property_key,pool_evidence,yard_evidence)
+	return ok and career.sync(self)
+

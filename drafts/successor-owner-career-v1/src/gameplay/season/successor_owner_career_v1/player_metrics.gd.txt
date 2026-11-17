@@ -1,0 +1,56 @@
+extends RefCounted
+## Pure aggregate adapter, not history/receipt/ownership authority.
+## Callers must first replay their owner-bound run evidence. Progress.valid checks
+## structural catalog/proof consistency; it does not prove a lesson was purchased.
+const Progress = preload("mixed_progress.gd")
+
+static func metrics(runs: Array) -> Dictionary:
+	if not Progress.history(runs): return {}
+	var projected: Array = []
+	var lessons: int = 0
+	var has_progress: bool = false
+	for value: Variant in runs:
+		if not value is Dictionary or not value.get("proof") is Dictionary \
+			or not value.proof.get("scores") is Array \
+			or value.get("status") not in ["active", "completed", "abandoned"]:
+			return {}
+		var summary: Dictionary = ClubSeasonRecord.analyze(value.proof)
+		if summary.is_empty() or (value.status == "completed") != (summary.finish != "unfinished"):
+			return {}
+		if value.get("field_outs") != null and not SeasonOwnership._whole(value.field_outs, 0, 329967):
+			return {}
+		if value.get("sponsors") != null and not SeasonSponsorProgress.valid_games(value.sponsors, value.proof.scores):
+			return {}
+		if value.get("collection") != null and not ClubCollection.valid(value.collection, true):
+			return {}
+		var row: Dictionary = value.duplicate(true)
+		var details: Variant = row.get("player_progress")
+		if details != null:
+			# Never relabel an unchecked successor record as historical progress.
+			if not Progress.valid(details, row.proof.scores):
+				return {}
+			has_progress = true
+			lessons = maxi(lessons, details.development.lessons.size())
+			details.erase("format")
+			details.erase("pitch_catalog")
+			details.erase("exotic")
+			details.version = ClubPlayerLegend.VERSION
+			# The shared historical validator knows only its original recipe IDs.
+			# This in-memory projection preserves all games and aggregate values;
+			# restore the fully validated successor lesson count after aggregation.
+			var historical: Array = []
+			for id: String in details.development.lessons:
+				if SeasonPlayerCatalog.RECIPES.values().has(id):
+					historical.append(id)
+			details.development.lessons = historical
+		projected.append(row)
+	var result: Dictionary = ClubPlayerProgress.metrics(projected)
+	if not projected.is_empty() and result.is_empty():
+		return {}
+	if has_progress:
+		result.season_lessons = lessons
+	return result
+
+static func earned(runs: Array) -> Array[String]:
+	# Catalog owns every threshold; this helper neither changes nor grants access.
+	return ClubPlayerCatalog.earned(metrics(runs))

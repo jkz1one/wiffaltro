@@ -1,0 +1,42 @@
+extends RefCounted
+## Decoder-local derivation only. A ClubCareer object or this returned dictionary
+## is not an authentication token. Public entry replays the complete archive.
+const Assets = preload("assets.gd")
+const Mixed = preload("mixed_progress.gd")
+const Queries = preload("res://src/gameplay/season/successor_owner_continuation_v1/closed_prefix.gd")
+const Exotics = preload("res://src/gameplay/season/successor_league_general_v2/exotic_access.gd")
+
+static func _derive(closed_career: ClubCareer) -> Dictionary:
+	if closed_career == null or closed_career.runs.is_empty() \
+		or closed_career.runs.size() >= ClubCareer.MAX_RUNS \
+		or closed_career.current not in [0,closed_career.runs.size()] \
+		or closed_career._assets.is_empty() or not Mixed.history(closed_career.runs):
+		return {}
+	var proofs: Array = []
+	for row: Dictionary in closed_career.runs:
+		if row.status != "completed": return {}
+		# Mixed validates each proof's family, scores and season key. Preserve the
+		# individual proof/order even when two legal runs deliberately repeat seed.
+		proofs.append(row.player_progress.exotic.duplicate(true))
+	if not Exotics.valid_history(proofs): return {}
+	var query: ClubCareer = ClubCareer.new()
+	query.current = 0
+	query.runs.assign(closed_career.runs.duplicate(true))
+	query._assets = closed_career._assets.duplicate(true)
+	query._pennants = closed_career._pennants.duplicate(true)
+	query._plaques = closed_career._plaques.duplicate(true)
+	query._pitch_catalog = closed_career._pitch_catalog
+	var derived: Dictionary = Assets.basis(query)
+	if derived.is_empty() or not derived.get("ledger") is ClubAssetLedger \
+		or not derived.ledger._valid \
+		or not ClubCareer.same(derived.ledger.to_data(),closed_career._assets) \
+		or not ClubPlayerCatalog.valid_ids(derived.owned): return {}
+	var details: Dictionary = {}
+	for key: String in ["income","progress","awards","earned","owned","policy"]:
+		details[key] = derived[key].duplicate(true) if derived[key] is Array or derived[key] is Dictionary else derived[key]
+	return {"target_run":query.runs.size()+1,"runs":query.runs.duplicate(true),
+		"assets":query._assets.duplicate(true),"pennants":query._pennants.duplicate(true),
+		"plaques":query._plaques.duplicate(true),"starts":Queries._query_starts(query).duplicate(true),
+		"exotic_history":proofs,"exotic_eligible_ids":Exotics.ids(proofs),
+		"player_access":derived.owned.duplicate(true),"derived":details,
+		"discoveries":ClubCollection.discoveries(query)}

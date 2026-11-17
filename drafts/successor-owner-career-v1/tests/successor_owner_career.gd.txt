@@ -1,0 +1,54 @@
+extends Node
+const Codec = preload("res://src/gameplay/season/successor_owner_career_v1/codec.gd")
+const Runtime = preload("res://src/gameplay/season/successor_owner_career_v1/runtime.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_career_v1/save.gd")
+const Origin = preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")
+const Pending = preload("res://src/gameplay/season/successor_owner_career_v1/pending.gd")
+const App = preload("res://src/presentation/season/successor_owner_career_v1/app.gd")
+var failed: bool = false
+func check(ok: bool, label: String) -> void:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed = true
+func _ready() -> void:
+	call_deferred("run")
+func run() -> void:
+	check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak"),"new career slot isolated and absent")
+	var source: String = "user://source-career-origin.json"
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(source)
+	var value: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	check(value is Dictionary and not bytes.is_empty(),"actual isolated116 source present")
+	if failed: get_tree().quit(1); return
+	var original: SeasonState = Origin.restore(value)
+	check(original != null and original.phase != SeasonState.Phase.COMPLETE,"frozen116 independently authenticates actual ACTIVE season")
+	if failed: get_tree().quit(1); return
+	check(Runtime.create_next(value,12345) == null,"unfinished actual season cannot authorize next career")
+	check(Runtime.create_next({},12345) == null and Runtime.create_next(value,-1) == null,"missing origin and invalid seed fail closed")
+	check(Codec.capture(original).is_empty() and Codec.clone(original) == null,"foreign116 runtime cannot bypass new archive")
+	check(Codec.restore(value) == null,"old header cannot be relabelled by new reader")
+	var forged: Dictionary = {"version":Codec.Catalog.VERSION,"format":Codec.Catalog.FORMAT,
+		"owner_source":Codec.Catalog.signature(),"pitch_catalog":Codec.Catalog.Game.signature(),
+		"origin":value,"closed":[],"active":{},"career":{}}
+	check(not Codec.envelope_valid(forged) and Pending._physical_payload(forged).is_empty(),"malformed active record fails without property access")
+	var cycle: Array = []
+	cycle.append(cycle)
+	check(not Codec._bounded(cycle),"cyclic graph rejected before serialization")
+	cycle.clear()
+	var nested: Array = []
+	var cursor: Array = nested
+	for depth in range(130):
+		var child: Array = []
+		cursor.append(child)
+		cursor = child
+	check(not Codec._bounded(nested),"hostile primitive nesting rejects before JSON serialization")
+	check(Codec._bounded({"finite":[1,2.5,true,null,"ok"]}),"ordinary primitive graph accepted")
+	var app = App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.create_fresh()
+	check(app.season == null and app.retained == null,"no implicit origin import or replacement")
+	app.queue_free()
+	await get_tree().process_frame
+	check(FileAccess.get_file_as_bytes(source) == bytes,"original source bytes unchanged")
+	check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak") and not FileAccess.file_exists(Save.PATH+".tmp"),"negative admission writes no new save or backup")
+	if not failed: print("PASS: strict flat career negative admission; completed-origin gameplay remains unqualified")
+	get_tree().quit(1 if failed else 0)

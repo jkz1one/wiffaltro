@@ -1,0 +1,49 @@
+extends ClubCareer
+## Replayed flat career. Start basis is ephemeral, never serialized authority.
+const Settlement = preload("settlement.gd")
+const FORMAT: String = "successor-owned-flat-career-v1"
+var start_basis: Dictionary = {}
+
+func fork() -> ClubCareer:
+	var result: ClubCareer = get_script().new()
+	result.current = current
+	result.runs = runs.duplicate(true)
+	result._assets = _assets.duplicate(true)
+	result._pennants = _pennants.duplicate(true)
+	result._plaques = _plaques.duplicate(true)
+	result._pitch_catalog = _pitch_catalog
+	result.start_basis = start_basis.duplicate(true)
+	return result
+
+func to_data() -> Dictionary:
+	return {"format":FORMAT,"current":current,"runs":runs.duplicate(true),
+		"assets":_assets.duplicate(true),"pennants":_pennants.duplicate(true),
+		"plaques":_plaques.duplicate(true),"pitch_catalog":_pitch_catalog}
+
+func sync(season: SeasonState) -> bool:
+	if season == null or season.career != self or not SeasonOwnership._whole(current,2,ClubCareer.MAX_RUNS) or runs.size() != current \
+		or not load("res://src/gameplay/season/successor_owner_career_v1/start.gd").structural(season):
+		return false
+	var row: Dictionary = load("res://src/gameplay/season/successor_owner_career_v1/start.gd").row(season)
+	if row.is_empty():
+		return false
+	var proposed: Dictionary = Settlement.state(row,start_basis,season.phase == SeasonState.Phase.COMPLETE)
+	if proposed.is_empty(): return false
+	# No partial publication if original receipt, metrics, award or asset replay fails.
+	runs[current-1] = proposed.row.duplicate(true)
+	_assets = proposed.assets.duplicate(true)
+	_pennants = proposed.pennants.duplicate(true)
+	_plaques = proposed.plaques.duplicate(true)
+	return ClubCareer.same(runs[current-1],proposed.row) and ClubCareer.same(_assets,proposed.assets) \
+		and ClubCareer.same(_pennants,proposed.pennants) and ClubCareer.same(_plaques,proposed.plaques)
+
+func start(_season: SeasonState, _selected_tier: int = 0) -> bool:
+	return false
+func start_league(_season: SeasonState) -> bool:
+	return false
+func _start(_season: SeasonState, _selected_tier: int, _owner_history: bool = false) -> bool:
+	return false
+func close(_season: SeasonState) -> bool:
+	return false
+static func from_data(_value: Variant) -> ClubCareer:
+	return null
