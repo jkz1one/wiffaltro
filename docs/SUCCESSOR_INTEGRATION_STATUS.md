@@ -97,6 +97,11 @@ Dynasty qualification is inferred from the one-round evidence.
   real full season completes; no continuation grant or run 2 is admitted. See
   `SUCCESSOR_CONTINUATION_PREDECESSOR.md`.
 
+- Actual fresh-recruitment/next-Doubleheader-pair coverage is running on copied
+  earned evidence. The third human game/new-pair reset is durable; paid recruit,
+  remaining games and final cold checks are not yet qualified. This adds tests,
+  not engine changes. See `SUCCESSOR_GENERAL_RECRUIT_PAIR.md`.
+
 Still required: full terminal qualification, persistent next-run ownership,
 all nine actual League/tier routes, true Dynasty lineage/session/replacement,
 full clubhouse/Equipped/safe-menu and paused sales, owned venues, visual testing

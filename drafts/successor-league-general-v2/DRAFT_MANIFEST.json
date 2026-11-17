@@ -1,6 +1,6 @@
 {
   "format": "inactive-successor-league-general-v2",
-  "source_checkpoint": "f78b3b481bd54420b79f0f4ca02d19020054e677",
+  "source_checkpoint": "94f087354421b17bec070fc457719ee0ca9b13e0",
   "scope": "Bounded standalone Doubleheader tier-zero pair qualified: two human/four NPC games, earned upgrade, debt, settlements, exact retry, rewards and final cold reopen. No full-season, owner or Dynasty admission.",
   "files": [
     {
@@ -518,6 +518,18 @@
       "restore_path": "tests/successor_general_save_cost.tscn",
       "bytes": 200,
       "sha256": "1afcf006241c3efdedc6db3045ec77d003892fa48b8b9cf38e11799c2fff6485"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_recruit_pair.gd.txt",
+      "restore_path": "tests/successor_general_recruit_pair.gd",
+      "bytes": 16921,
+      "sha256": "be0c3e51679fd3a05242cdab83ce2f3b616d18894de84513b907f4d7e57dee4e"
+    },
+    {
+      "backup_path": "drafts/successor-league-general-v2/tests/successor_general_recruit_pair.tscn.txt",
+      "restore_path": "tests/successor_general_recruit_pair.tscn",
+      "bytes": 188,
+      "sha256": "7abd0a0baeaca2c49e39df5d18c7e444b14be54570eefa9ee35882a5d726f185"
     }
   ]
 }

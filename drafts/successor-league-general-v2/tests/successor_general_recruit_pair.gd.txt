@@ -1,0 +1,306 @@
+extends "res://tests/successor_general_doubleheader_round.gd"
+## Continue an immutable actual two-leg fixture: two more human games and four
+## NPC reports. No manufactured stock, funds, outcomes or returning-recruit claim.
+const SOURCE: String = "user://source-general.json"
+const PROOF: String = "user://recruit-pair-proof.json"
+var source_bytes: PackedByteArray
+
+func finish_step(app: SeasonApp, action: String, complete: bool = false) -> void:
+	if not check(FileAccess.get_file_as_bytes(SOURCE) == source_bytes,"source fixture bytes unchanged"):
+		return
+	var payload: Dictionary = Codec.capture(app.season)
+	if not check(app.get("retained") == null and not app._busy and not payload.is_empty() \
+		and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))),"exact durable Doubleheader boundary " + action):
+		return
+	var directory: String = "user://recruit-pair-evidence"
+	if not check(DirAccess.make_dir_recursive_absolute(directory) == OK,"private paired evidence directory"):
+		return
+	var index: int = 0
+	while FileAccess.file_exists(directory + "/%04d.json" % index):
+		index += 1
+	if not check(DirAccess.copy_absolute(Save.PATH,directory + "/%04d.json" % index) == OK,"preserve actual boundary without overwrite"):
+		return
+	var meta: Dictionary = {"step":index,"action":action,"kind":action,"human_games":app.season.player_results.size(),"results":app.season.results.size(),"complete":complete}
+	var file: FileAccess = FileAccess.open(directory + "/%04d.meta.json" % index,FileAccess.WRITE)
+	if not check(file != null,"paired metadata writable"):
+		return
+	file.store_string(JSON.stringify(meta,"",true,true))
+	file.close()
+	print("RECRUIT_PAIR_STEP_DONE: ",JSON.stringify(meta,"",true,true))
+	print("PASS: actual Doubleheader boundary ",action)
+	app.queue_free()
+	get_tree().quit()
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and FileAccess.file_exists(SOURCE) and FileAccess.file_exists(Save.PATH),"isolated copied actual pair required; no synthetic birth"):
+		return
+	source_bytes = FileAccess.get_file_as_bytes(SOURCE)
+	var app = App.new()
+	app.profile = "doubleheader"
+	add_child(app)
+	app.reload_save()
+	if not check(exact_profile(app.season) and app.season.player_results.size() in [2,3,4],"strict cold actual continuation"):
+		return
+	if OS.get_cmdline_user_args().has("verify-complete"):
+		if final_checks(app):
+			finish_step(app,"cold-complete",true)
+		return
+	if not app.season.physical.pending.is_empty():
+		await pending_step(app)
+		return
+	var games: int = app.season.player_results.size()
+	if games == 4:
+		if final_checks(app):
+			finish_step(app,"recruit-pair-complete",true)
+		return
+	if games == 3 and not recruit_step(app):
+		return
+	await play_human(app)
+
+func recruit_step(app: SeasonApp) -> bool:
+	if not app.season.build._visit.open:
+		app.open_pitch_shop()
+		if not check(app.season.build._visit.open and app.season.build._visit.number == 3,"actual third earned shop opens"):
+			return false
+		finish_step(app,"third-shop-open")
+		return false
+	var build: SeasonBuild = app.season.build
+	var offer: Dictionary = build.view().shop.get("recruit",{})
+	if not check(not offer.is_empty() and not offer.returning and offer.stage == "middle","natural fresh middle-stage recruit, no substituted offer"):
+		return false
+	if offer.signed:
+		return recruitment_checks(app)
+	if not check(build.cash() >= offer.price and offer.price >= 22 and offer.price <= 28,"actual earned cash affords original middle price"):
+		return false
+	# Release the actually developed first-pair player, not an invented profile.
+	var outgoing: String = ""
+	for event: Dictionary in build._events:
+		if event.get("op") == "pack_pick":
+			outgoing = str(event.get("player",""))
+	if not check(build.roster().has(outgoing),"actual first-pair upgrade owner selected for release"):
+		return false
+	var old_roster: Array = build.roster().duplicate()
+	var proof: Dictionary = {"outgoing":outgoing,"incoming":offer.player,
+		"old_profile":build.player(outgoing).duplicate(true),"offered":offer.profile.duplicate(true),
+		"old_roster":old_roster,"old_lineup":app.season.teams[0].roster.duplicate(),
+		"position":old_roster.find(outgoing),"cash":build.cash(),"price":offer.price}
+	app.open_pitch_shop()
+	var shop: SeasonShopWindow = shop_for(app)
+	if not check(shop != null,"actual full Shop mounted"):
+		return false
+	shop._choose_recruit()
+	var button: Button = find_button(shop,"recruit_replace",outgoing)
+	if not check(button != null and not button.disabled,"actual recruit targeting button available"):
+		return false
+	var before: Dictionary = Codec.capture(app.season)
+	button.pressed.emit()
+	if not check(shop._confirm.visible and not shop._pending.is_empty(),"actual recruit quote confirmation opens"):
+		return false
+	shop._confirm.canceled.emit()
+	shop._confirm.hide()
+	if not check(shop._pending.is_empty() and ClubCareer.same(Codec.capture(app.season),before),"cancel quote spends nothing and preserves roster"):
+		return false
+	button.pressed.emit()
+	var command: Dictionary = shop._pending.duplicate(true)
+	var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+	if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated recruitment prewrite refusal"):
+		return false
+	shop._confirm.confirmed.emit()
+	var retained: SeasonState = app.get("retained")
+	if not check(retained != null and ClubCareer.same(Codec.capture(app.season),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and ClubCareer.same(app.season.teams[0].roster,proof.old_lineup),"failed write retains old primary backup owner and lineup"):
+		return false
+	var candidate: Dictionary = Codec.capture(retained)
+	app.shop_command(command)
+	if not check(app.get("retained") == retained and ClubCareer.same(Codec.capture(retained),candidate),"repeated purchase while retained cannot replace candidate"):
+		return false
+	if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own fault directory"):
+		return false
+	app.retry_save()
+	if not check(app.get("retained") == null and app.season == retained and app.notice.is_empty() and ClubCareer.same(Codec.capture(app.season),candidate),"exact retained recruit promoted once"):
+		return false
+	app.retry_save()
+	app.shop_command(command)
+	if not check(ClubCareer.same(Codec.capture(app.season),candidate),"stale repeated quote and retry cannot pay or recruit twice"):
+		return false
+	if not check(not FileAccess.file_exists(PROOF),"new test evidence cannot overwrite proof"):
+		return false
+	var file: FileAccess = FileAccess.open(PROOF,FileAccess.WRITE)
+	if not check(file != null,"detached recruitment evidence writable"):
+		return false
+	file.store_string(JSON.stringify(proof,"",true,true))
+	file.close()
+	if not recruitment_checks(app):
+		return false
+	finish_step(app,"fresh-recruit-paid")
+	return false
+
+func recruitment_checks(app: SeasonApp) -> bool:
+	if not check(FileAccess.file_exists(PROOF),"durable recruitment evidence exists"):
+		return false
+	var proof: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PROOF))
+	var build: SeasonBuild = app.season.build
+	var expected: Array = proof.old_roster.duplicate()
+	expected[int(proof.position)] = proof.incoming
+	var lineup: Array = proof.old_lineup.duplicate()
+	for index in range(lineup.size()):
+		if lineup[index] == proof.outgoing:
+			lineup[index] = proof.incoming
+	if not check(ClubCareer.same(build.roster(),expected) and ClubCareer.same(app.season.teams[0].roster,lineup),"incoming replaces exact roster and lineup position"):
+		return false
+	if not check(ClubCareer.same(build.player(proof.outgoing),proof.old_profile),"released player retains own development; no transfer or erasure"):
+		return false
+	var incoming: Dictionary = build.player(proof.incoming)
+	# Catchup metadata belongs to offer; compare the canonical developed fields.
+	for key: String in ["id","base","stats","capacity","active","mastery"]:
+		if not check(ClubCareer.same(incoming.get(key),proof.offered.get(key)),"incoming equals exact naturally quoted catchup field " + key):
+			return false
+	if app.season.player_results.size() == 3 and not check(build.cash() == int(proof.cash)-int(proof.price),"single exact recruit payment, zero release cash"):
+		return false
+	var signs: int = 0
+	for event: Dictionary in build._events:
+		if event.get("op") == "sign":
+			signs += 1
+	return check(signs == 1 and FileAccess.get_file_as_bytes(SOURCE) == source_bytes,"one genuine recruitment and immutable original fixture; no returning claim")
+
+func play_human(app: SeasonApp) -> void:
+	var fixture: Dictionary = app.season.pending_fixture()
+	var games: int = app.season.player_results.size()
+	if not check(games in [2,3] and not fixture.is_empty() and (fixture.home == 0 or fixture.away == 0),"next actual human leg"):
+		return
+	if games == 3 and not check(SeasonDoubleheaderRules.first(fixture.id) == app.season.player_results[2].id,"return fixture paired to exact first human leg"):
+		return
+	if not pristine_request_negatives(app.season):
+		return
+	var expected_pair: Dictionary = PairContext.pair_for(app.season.build,fixture.id)
+	if games == 2:
+		for debt: Variant in expected_pair.debt.values():
+			if not check(is_zero_approx(float(debt)),"new pair resets previous pair fatigue"):
+				return
+	if games == 3:
+		var proof: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PROOF))
+		if not check(is_zero_approx(float(expected_pair.debt.get(proof.incoming,0.0))),"fresh newcomer carries no prior-player debt"):
+			return
+	app.play_next()
+	if not check(is_instance_valid(app.lab) and app.lab._match_state != null,"actual App opens paired human match"):
+		return
+	var state: MatchState = app.lab._match_state
+	var team: TeamMatchState = state.home_team if fixture.home == 0 else state.away_team
+	if not check(state.balls == 0 and state.strikes == 0 and state.outs == 0 and state.inning == 1 and state.plate_appearance_number == 1 \
+		and ClubCareer.same(team.league_pair,expected_pair),"new-leg counts reset and exact player-keyed carry installed"):
+		return
+	for player: PlayerMatchState in team.roster:
+		var id: String = String(player.definition.id)
+		if not check(is_equal_approx(player.stamina_remaining,maxf(0.0,player.stamina_max-float(expected_pair.debt.get(id,0.0)))),"actual initial stamina derives player debt " + id):
+			return
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not app.lab._match_presentation_director.blocks_gameplay():
+			break
+	if not check(not app.lab._match_presentation_director.blocks_gameplay(),"paired intro completes"):
+		return
+	app.lab._automation = MatchAutomation.new()
+	app.lab._automation.seed = Fixtures.seed_for(app.season,fixture)
+	app.lab._automation.presentation_enabled = true
+	app.lab._automation.begin(app.lab)
+	var finished: bool = false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if state.phase == MatchState.Phase.GAME_END and app.lab._automation != null and not app.lab._home_run.presentation_pending(app.lab):
+			app.lab._automation = null
+			PitchBatLabFeelSupport.begin_match_outro(app.lab)
+		if state.phase == MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD:
+			finished = true
+			break
+		if frame % 12000 == 0:
+			print("DOUBLEHEADER_HUMAN: fixture=",fixture.id," frame=",frame," pa=",state.plate_appearance_number)
+	var workloads: Array = PairCapture.capture(state)
+	if not check(finished and workloads.size() == 2 and not workloads[0].is_empty() and not workloads[1].is_empty() \
+		and not Capture.capture(app).is_empty(),"actual two-team workload and called-sidecar-capable human capture"):
+		return
+	var count: int = app.season.results.size()
+	var cash: int = app.season.build.cash()
+	app.finish_game()
+	if not check(app.get("retained") == null and not is_instance_valid(app.lab) and not app.season.physical.pending.is_empty() \
+		and app.season.results.size() == count and app.season.build.cash() == cash,"actual human leg durable pending, no premature reward"):
+		return
+	finish_step(app,"human-%d"%int(fixture.id))
+
+func final_checks(app: SeasonApp) -> bool:
+	var season: SeasonState = app.season
+	if not check(season.player_results.size() == 4 and season.results.size() == 12 and season.physical.pending.is_empty() \
+		and season.physical.reports.size() == 8,"four actual human and eight NPC fixtures settled, no pending jobs"):
+		return false
+	var builds: Array[SeasonBuild] = [season.build]
+	for club in range(1,6):
+		builds.append(season.opponents.clubs[str(club)].build)
+	if not check(builds.size() == 6,"all six clubs retained"):
+		return false
+	for club in range(builds.size()):
+		var build: SeasonBuild = builds[club]
+		for fixture: Dictionary in season.schedule:
+			if fixture.round < 4 and (fixture.home == club or fixture.away == club):
+				if not check(build._bank.view().rewards.has(str(fixture.id)),"correct actual fixture reward for club %d game %d" % [club,fixture.id]):
+					return false
+		var bank: SeasonOwnership = build._bank.empty_fork()
+		var count: int = 0
+		for event: Dictionary in build._bank._events:
+			var before: int = bank.cash()
+			var rewards: Dictionary = bank.view().rewards.duplicate(true)
+			var result: Dictionary = bank.commit(event)
+			if not check(result.ok and not result.replayed,"independent exact paid bank journal replay"):
+				return false
+			if event.op == "reward":
+				var bonus: int = SeasonDoubleheaderRules.bonus(build._league_rules,event.game,event.win,rewards)
+				if not check(bank.cash()-before == (18 if event.win else 12)+bonus,"each actual reward pays ordinary income plus only original second-leg sweep"):
+					return false
+				count += 1
+		if not check(count == 4 and build._bank.view().rewards.size() == 4 and ClubCareer.same(bank.view(),build._bank.view()),"every club has four exact paid rewards; opponent failures cannot silently skip"):
+			return false
+	if not recruitment_checks(app):
+		return false
+	var payload: Dictionary = Codec.capture(season)
+	var sign_index: int = -1
+	for index in range(payload.checkpoint.build.events.size()):
+		if payload.checkpoint.build.events[index].get("op") == "sign":
+			sign_index = index
+	if not check(sign_index >= 0,"actual recruit command retained for cold tamper checks"):
+		return false
+	for kind: String in ["offer", "replace"]:
+		var wrong: Dictionary = payload.duplicate(true)
+		wrong.checkpoint.build.events[sign_index][kind] = "not-an-owned-or-offered-id"
+		if not check(Codec.restore(wrong) == null,"cold replay rejects altered paid recruit " + kind):
+			return false
+	for row: Dictionary in season.player_results:
+		if not check(row.get("doubleheader_evidence") is Array and row.doubleheader_evidence.size() == 2 \
+			and row.get("pitching_current") is Dictionary,"actual human workload and current called sidecar retained"):
+			return false
+	for kind: String in ["pair","debt","workload","receipt"]:
+		var wrong: Dictionary = payload.duplicate(true)
+		var evidence: Dictionary = wrong.checkpoint.results[3].doubleheader_evidence[0]
+		match kind:
+			"pair": evidence.pair.first = -1
+			"debt": evidence.pair.debt[season.build.roster()[0]] = 999999.0
+			"workload": evidence.proof.remaining = {}
+			"receipt": evidence.proof.events.append({"kind":"recovery","receipt":"not-owned","player":season.build.roster()[0],"pa":1})
+		if not check(Codec.restore(wrong) == null,"cold replay rejects tampered actual second-leg " + kind):
+			return false
+	var reward_index: int = -1
+	var game: int = int(payload.checkpoint.results[3].id)
+	for index in range(payload.checkpoint.build.events.size()):
+		var event: Dictionary = payload.checkpoint.build.events[index]
+		if event.get("op") == "successor_reward" and event.get("command",{}).get("game") == game:
+			reward_index = index
+			break
+	if not check(reward_index >= 0 and payload.checkpoint.build.events[reward_index].command.get("pitching_current") is Dictionary,"exact actual second reward retains current sidecar"):
+		return false
+	for kind: String in ["drop result","change result","drop reward","change reward"]:
+		var wrong: Dictionary = payload.duplicate(true)
+		var target: Dictionary = wrong.checkpoint.results[3] if kind.ends_with("result") else wrong.checkpoint.build.events[reward_index].command
+		if kind.begins_with("drop"):
+			target.erase("pitching_current")
+		else:
+			target.pitching_current.version = -1
+		if not check(Codec.restore(wrong) == null,"independent current sidecar tamper rejected: " + kind):
+			return false
+	return check(ClubCareer.same(Codec.capture(season),payload) and ClubCareer.same(payload,JSON.parse_string(FileAccess.get_file_as_string(Save.PATH))),"cold final pair exact; no full season or Dynasty claim")

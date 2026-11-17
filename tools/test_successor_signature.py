@@ -47,6 +47,8 @@ def main():
     parser.add_argument('--equipment-resume-stage', type=Path, help='Resume only an exact-source isolated Equipment stage')
     mode.add_argument('--doubleheader-round', action='store_true', help='Actual two-leg Doubleheader round/shop/cold qualification')
     parser.add_argument('--doubleheader-resume-stage', type=Path, help='Resume only exact-source isolated Doubleheader stage')
+    mode.add_argument('--recruit-pair-fixture', type=Path, help='Continue authentic Doubleheader pair through earned fresh recruitment and next pair')
+    parser.add_argument('--recruit-pair-resume-stage', type=Path, help='Resume exact-source isolated recruitment sequence')
     mode.add_argument('--continuation-fixture', type=Path, help='Closed predecessor reader against immutable actual owner112 boundary evidence')
     parser.add_argument('--continuation-completed', action='store_true', help='Require actual terminal positive projection; never use synthetic completion')
     mode.add_argument('--persistent-identity', action='store_true', help='Read-only partial authored identity and cold deterministic projection')
@@ -67,6 +69,8 @@ def main():
     parser.add_argument('--terminal-resume-stage', type=Path, help='Resume only an exact-source isolated --terminal-season stage')
     parser.add_argument('--facade', action='store_true', help='Use the additive resource-retaining UI facade during --owner-round')
     args = parser.parse_args()
+    if args.recruit_pair_resume_stage and not args.recruit_pair_fixture:
+        parser.error('--recruit-pair-resume-stage requires --recruit-pair-fixture')
     if args.continuation_completed and not args.continuation_fixture:
         parser.error('--continuation-completed requires --continuation-fixture')
     if args.general_profile == 'doubleheader' and not args.general_birth:
@@ -92,7 +96,7 @@ def main():
     if args.terminal_resume_stage and not args.terminal_season:
         parser.error('--terminal-resume-stage requires --terminal-season')
     root = Path(__file__).resolve().parents[1]
-    resume_stage = args.terminal_resume_stage or args.equipment_resume_stage or args.doubleheader_resume_stage
+    resume_stage = args.terminal_resume_stage or args.equipment_resume_stage or args.doubleheader_resume_stage or args.recruit_pair_resume_stage
     stage = resume_stage.resolve() if resume_stage else Path(tempfile.mkdtemp(prefix='wiffaltro-signature-'))
     assert stage.is_dir() and stage.name.startswith('wiffaltro-signature-')
     project = stage / 'project'
@@ -113,7 +117,7 @@ def main():
         names += ['successor_round.gd', 'successor_round.tscn', 'successor_shop.gd', 'successor_shop.tscn']
     if args.recruit:
         names += ['successor_recruit.gd', 'successor_recruit.tscn']
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         names += ['successor_dugout_live.gd', 'successor_dugout_live.tscn', 'successor_dugout_round.gd', 'successor_dugout_round.tscn', 'successor_dugout_integrity.gd', 'successor_dugout_integrity.tscn']
     if args.identity:
         names += ['successor_identity.gd', 'successor_identity.tscn']
@@ -133,33 +137,33 @@ def main():
     manifest = json.loads((root / 'drafts/successor-v7/DRAFT_MANIFEST.json').read_text())
     assert len(manifest['files']) == 47
     entries = manifest['files'] + manifest.get('additions', [])
-    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.dugout or args.dugout_round or args.dugout_pending_fixture or args.identity or args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         league_manifest = json.loads((root / 'drafts/successor-league-v1/DRAFT_MANIFEST.json').read_text())
         entries += league_manifest['files'] + league_manifest.get('additions', [])
-    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.career_fixture or args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         career_manifest = json.loads((root / 'drafts/successor-career-v1/DRAFT_MANIFEST.json').read_text())
         entries += career_manifest['files']
-    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.owner or args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         owner_manifest = json.loads((root / 'drafts/successor-owner-v1/DRAFT_MANIFEST.json').read_text())
         entries += owner_manifest['files']
-    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.owner_round or args.owner_performance_fixture or args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         live_owner_manifest = json.loads((root / 'drafts/successor-owner-live-v1/DRAFT_MANIFEST.json').read_text())
         entries += live_owner_manifest['files'] + live_owner_manifest.get('additions', [])
     if args.owner_performance_fixture or args.facade:
         facade_manifest = json.loads((root / 'drafts/successor-owner-ui-v1/DRAFT_MANIFEST.json').read_text())
         entries += facade_manifest['files']
-    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.completion_fixture or args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         completion_manifest = json.loads((root / 'drafts/successor-career-completion-v1/DRAFT_MANIFEST.json').read_text())
         entries += completion_manifest['files']
-    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.assets_fixture or args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         entries += json.loads((root / 'drafts/successor-career-assets-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.terminal_birth or args.terminal_round or args.terminal_season or args.terminal_policy or args.recapture_fixture or args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         entries += json.loads((root / 'drafts/successor-owner-terminal-v1/DRAFT_MANIFEST.json').read_text())['files']
     if args.recapture_fixture:
         entries += json.loads((root / 'drafts/successor-owner-recapture-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.history_fixture or args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         entries += json.loads((root / 'drafts/successor-career-history-v1/DRAFT_MANIFEST.json').read_text())['files']
-    if args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
+    if args.general_build or args.general_physical or args.general_birth or args.general_round or args.general_economies or args.general_interrupt or args.general_signature or args.general_prefix or args.general_scramble or args.recruit_pair_fixture or args.continuation_fixture or args.persistent_identity or args.general_save_cost_fixture or args.general_doubleheader or args.doubleheader_round or args.general_equipment or args.equipment_unit:
         entries += json.loads((root / 'drafts/successor-league-general-v2/DRAFT_MANIFEST.json').read_text())['files']
     if args.persistent_identity:
         entries += json.loads((root / 'drafts/successor-persistent-identity-v1/DRAFT_MANIFEST.json').read_text())['files']
@@ -251,6 +255,32 @@ def main():
                     run('equipment-prefix-replay', ['res://tests/successor_general_replay_prefix.tscn', '--', 'paid'], timeout=3600)
                 return
         raise RuntimeError('Equipment sequence exceeded bounded steps; retained checkpoints remain available')
+    if args.recruit_pair_fixture:
+        source = args.recruit_pair_fixture.resolve()
+        assert source.is_file() and source.parent.name == 'doubleheader-evidence' and source.suffix == '.json'
+        assert any(part.startswith('wiffaltro-signature-') for part in source.parts)
+        original = source.read_bytes()
+        destination = stage / 'data/godot/app_userdata/Wiffaltro'
+        destination.mkdir(parents=True, exist_ok=True)
+        copied = destination / 'source-general.json'
+        primary = destination / 'successor-general-build-v7-r2.json'
+        if resume_stage:
+            assert copied.read_bytes() == original
+        else:
+            assert not copied.exists() and not primary.exists()
+            copied.write_bytes(original)
+            primary.write_bytes(original)
+        scene = ['--fixed-fps', '60', 'res://tests/successor_general_recruit_pair.tscn', '--']
+        for step in range(32):
+            output = run(f'recruit-pair-step-{step:03}', scene + ['step'], timeout=3600)
+            assert source.read_bytes() == original and copied.read_bytes() == original, 'Original/copy source evidence changed'
+            records = [json.loads(line.split('RECRUIT_PAIR_STEP_DONE: ', 1)[1]) for line in output.splitlines() if line.startswith('RECRUIT_PAIR_STEP_DONE: ')]
+            assert len(records) == 1, 'Missing unique recruitment durable boundary'
+            if records[0]['complete']:
+                run('recruit-pair-cold-complete', scene + ['verify-complete'], timeout=3600)
+                assert source.read_bytes() == original and copied.read_bytes() == original
+                return
+        raise RuntimeError('Recruitment sequence exceeded bounded steps; durable checkpoints preserved')
     if args.continuation_fixture:
         source = args.continuation_fixture.resolve()
         assert source.is_file() and source.parent.name == 'full-season-evidence' and source.suffix == '.json'
