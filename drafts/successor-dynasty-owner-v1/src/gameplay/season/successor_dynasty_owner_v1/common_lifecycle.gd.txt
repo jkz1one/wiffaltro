@@ -1,0 +1,233 @@
+extends RefCounted
+const ClubLeagueCareer=preload("res://src/gameplay/season/club_league_career.gd")
+## Common close identity is independent of the Dynasty-local ordinal chain.
+const C = preload("codec.gd")
+const Adapter = preload("session_adapter.gd")
+const Life = preload("lifecycle.gd")
+const Progress = preload("common_progress.gd")
+const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
+const ORDINARY_FIELDS: Array[String]=["lineage","ordinal","status","last_close","proposal","last_transition","start_basis_sha256"]
+
+static func initialize(owner) -> bool:
+	if not owner.common.is_empty() or not owner.ordinary_state.is_empty(): return false
+	var ordinary_session: SeasonState=owner.session if owner.active=="ordinary" else null
+	if ordinary_session==null and not owner.paused.is_empty():
+		ordinary_session=Adapter.restore("ordinary",owner.paused)
+		if ordinary_session==null: return false
+	var dynasty_session: SeasonState=owner.session if owner.active=="dynasty" else null
+	if dynasty_session==null and not owner.paused.is_empty():
+		dynasty_session=Adapter.restore("dynasty",owner.paused)
+		if dynasty_session==null: return false
+	var access: Array=[]
+	for season: SeasonState in [ordinary_session,dynasty_session]:
+		if season==null: continue
+		for id: String in season.player_access:
+			if not access.has(id): access.append(id)
+	access.sort()
+	var aggregate: Dictionary=Progress.birth(owner.ledger,ordinary_session,access)
+	if aggregate.is_empty(): return false
+	if dynasty_session!=null:
+		var start: Dictionary=dynasty_session.build._dynasty_start
+		var ids: Array=dynasty_session.build._book._exotic_ids if owner.status=="closed" else start.get("exotic_rights",[])
+		var source: String=Life.digest(Adapter.capture("dynasty",dynasty_session)) if owner.status=="closed" else Life.digest(start)
+		for id: String in ids: aggregate.exotic_rights[id]={"origin":"baseline:"+source,"source":source}
+	if aggregate.is_empty(): return false
+	var closed: int=int(owner.ledger.get("closed",0))
+	owner.common={"version":1,"baseline":{"dynasty_closed":closed,"ledger_sha256":Life.digest(owner.ledger)},"sequence":closed,"cursors":{"dynasty":closed,"ordinary":0},"aggregate":aggregate,"last_fold":{}}
+	if ordinary_session!=null and not initialize_ordinary(owner,ordinary_session): return false
+	return valid(owner)
+
+static func initialize_ordinary(owner, season: SeasonState) -> bool:
+	if not owner.ordinary_state.is_empty() or not Adapter.scope("ordinary",season): return false
+	var current: Dictionary=Adapter.capture("ordinary",season)
+	if current.is_empty(): return false
+	var basis: Dictionary=season.career.start_basis
+	if basis.get("kind")==Start.KIND and basis.ordinal!=1: return false
+	var lineage: String=basis.lineage if basis.get("kind")==Start.KIND else "ordinary:"+Life.digest(current)
+	owner.ordinary_state={"lineage":lineage,"ordinal":1,"status":"active","last_close":{},"proposal":{},"last_transition":{},"start_basis_sha256":Life.digest(season.career.start_basis)}
+	return true
+
+static func initialize_missing(owner) -> bool:
+	if owner.active=="ordinary": return initialize_ordinary(owner,owner.session)
+	# A newly created Dynasty starts its own local ordinal; common accumulated
+	# ordinary rights are not rewritten or counted as Dynasty-local history.
+	return owner.common.cursors.dynasty==0 and owner.ordinal==1 and owner.ledger.closed==0
+
+static func valid(owner) -> bool:
+	var value: Dictionary=owner.common
+	if not C.keys(value,["version","baseline","sequence","cursors","aggregate","last_fold"]) or value.version!=1: return false
+	if not C.keys(value.baseline,["dynasty_closed","ledger_sha256"]) or not C.whole(value.baseline.dynasty_closed,0,ClubCareer.MAX_RUNS) or not owner._digest(value.baseline.ledger_sha256): return false
+	if not C.keys(value.cursors,["dynasty","ordinary"]): return false
+	for side: String in ["dynasty","ordinary"]:
+		if not C.whole(value.cursors[side],0,ClubCareer.MAX_RUNS): return false
+	if not C.whole(value.sequence,0,ClubCareer.MAX_RUNS*2) or value.sequence!=value.cursors.dynasty+value.cursors.ordinary or value.cursors.dynasty<value.baseline.dynasty_closed: return false
+	if value.cursors.dynasty!=owner.ledger.get("closed",0) or not Progress.valid(value.aggregate): return false
+	if value.aggregate.closed!=value.sequence or value.aggregate.legacy_closed!=value.baseline.dynasty_closed: return false
+	if value.last_fold.is_empty():
+		if value.sequence!=value.baseline.dynasty_closed or value.cursors.ordinary!=0: return false
+	else:
+		var row: Dictionary=value.last_fold
+		if not C.keys(row,["id","side","ordinal","sequence","source","aggregate_sha256","receipt"]) or not Adapter.side(row.side) or not row.id is String or not C.whole(row.ordinal,1,ClubCareer.MAX_RUNS) or row.ordinal!=value.cursors[row.side] or row.sequence!=value.sequence or not owner._digest(row.source) or not row.receipt is Dictionary: return false
+		if row.aggregate_sha256!=Life.digest(value.aggregate): return false
+		var lineage: String=Life.lineage(owner) if row.side=="dynasty" else str(owner.ordinary_state.get("lineage",""))
+		if row.id!="%s:%d:close"%[lineage,row.ordinal]: return false
+	var has_ordinary: bool=owner.active=="ordinary" or not owner.paused.is_empty()
+	if not has_ordinary: return owner.ordinary_state.is_empty() and value.cursors.ordinary==0
+	var state: Dictionary=owner.ordinary_state
+	if not C.keys(state,ORDINARY_FIELDS) or not state.lineage is String or not state.lineage.begins_with("ordinary:") or not owner._digest(state.lineage.trim_prefix("ordinary:")) or not C.whole(state.ordinal,1,ClubCareer.MAX_RUNS) or state.status not in ["active","closed"]: return false
+	if not owner._digest(state.start_basis_sha256) or not state.last_close is Dictionary or not state.proposal is Dictionary or not state.last_transition is Dictionary: return false
+	if value.cursors.ordinary!=int(state.ordinal)-int(state.status=="active"): return false
+	if state.status=="active" and (not state.last_close.is_empty() or not state.proposal.is_empty()): return false
+	if state.ordinal==1 and not state.last_transition.is_empty(): return false
+	if state.ordinal>1:
+		var t: Dictionary=state.last_transition
+		if not C.keys(t,["id","source","from","to","league","basis"]) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in ["standard","dugout"] or not Start.valid(t.basis): return false
+		if t.basis.lineage!=state.lineage or t.basis.ordinal!=state.ordinal or Life.digest(t.basis)!=state.start_basis_sha256 or t.basis.common_sequence>value.sequence: return false
+	return _ordinary_proposal_valid(owner)
+
+static func ordinary_current_valid(owner, season: SeasonState, current: Dictionary) -> bool:
+	if not Adapter.scope("ordinary",season) or current.is_empty() or owner.ordinary_state.is_empty(): return false
+	var state: Dictionary=owner.ordinary_state
+	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
+	var basis: Dictionary=season.career.start_basis
+	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false
+	if state.ordinal>1 and not C.same(season.career.start_basis,state.last_transition.basis): return false
+	if state.status=="active": return state.last_close.is_empty()
+	var row: Dictionary=state.last_close
+	if not C.keys(row,["id","ordinal","reason","session_sha256","receipt","first_title","league","tier"]) or row.id!="%s:%d:close"%[state.lineage,state.ordinal] or row.ordinal!=state.ordinal or row.reason not in ["complete","abandon"] or not row.first_title is bool: return false
+	if row.session_sha256!=Life.digest(current): return false
+	var league: String=str(season.league_rules.get("league","standard"))
+	var tier: int=int(season.league_rules.get("tier",0))
+	if row.league!=league or row.tier!=tier: return false
+	var proof: Dictionary=ClubSeasonRecord.capture(season)
+	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
+	if summary.is_empty() or (row.reason=="complete")!=(summary.finish!="unfinished"): return false
+	if (row.reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return false
+	var expected: Dictionary=ClubSeasonRecord.receipt(proof,row.first_title,tier) if row.reason=="complete" else {}
+	return C.same(row.receipt,expected)
+
+static func close(owner, reason: String) -> bool:
+	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
+	var season: SeasonState=owner.session
+	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false
+	if (reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return false
+	var source: Dictionary=Adapter.capture(owner.active,season)
+	if source.is_empty(): return false
+	var ordinal: int=owner.ordinal if owner.active=="dynasty" else int(owner.ordinary_state.ordinal)
+	var lineage: String=Life.lineage(owner) if owner.active=="dynasty" else owner.ordinary_state.lineage
+	var id: String="%s:%d:close"%[lineage,ordinal]
+	if owner.common.cursors[owner.active]!=ordinal-1: return false
+	var sequence: int=int(owner.common.sequence)+1
+	var folded: Dictionary=Progress.fold(owner.common.aggregate,owner.active,season,id,sequence,reason)
+	if folded.is_empty(): return false
+	if owner.active=="dynasty":
+		if not Life.close(owner,reason): return false
+	else:
+		var league: String=str(season.league_rules.get("league","standard"))
+		var tier: int=int(season.league_rules.get("tier",0))
+		var first_title: bool=not owner.common.aggregate.titles.get(ClubLeagueCareer.title_key(league,tier),false)
+		owner.ordinary_state.last_close={"id":id,"ordinal":ordinal,"reason":reason,"session_sha256":Life.digest(source),"receipt":folded.receipt.duplicate(true),"first_title":first_title,"league":league,"tier":tier}
+		owner.ordinary_state.status="closed";owner.ordinary_state.proposal={}
+	owner.common.aggregate=folded.aggregate
+	owner.common.cursors[owner.active]=ordinal;owner.common.sequence=sequence
+	owner.common.last_fold={"id":id,"side":owner.active,"ordinal":ordinal,"sequence":sequence,"source":Life.digest(source),"aggregate_sha256":Life.digest(folded.aggregate),"receipt":folded.receipt.duplicate(true)}
+	return valid(owner)
+
+static func projection(owner, source: SeasonState=null) -> Dictionary:
+	var aggregate: Dictionary=owner.common.aggregate
+	var ids: Array=aggregate.exotic_rights.keys();ids.sort()
+	# Retain actual issued legacy records without converting compact awards into
+	# fictitious asset journals. New awards have their own named projection.
+	var basis: Dictionary=(owner.session if source==null else source).career.start_basis
+	var inherited: Dictionary=basis.rights if basis.get("kind")=="dynasty-carried-start-v2" else basis
+	return {"player_access":aggregate.player_access.duplicate(),"starts":aggregate.starts.duplicate(true),"exotic_rights":ids,
+		"assets":inherited.get("assets",{}).duplicate(true),"plaques":inherited.get("plaques",{}).duplicate(true),
+		"pennants":{"version":StadiumPennantRewards.MASTERY_VERSION,"from_season":1,"eras":{"1":aggregate.era.duplicate(true)},"mastery_from":1,"mastery_contract":StadiumPennantRewards.MASTERY_CONTRACT},
+		"common_pennants":aggregate.pennants.duplicate(true),"common_plaques":awards(owner)}
+
+static func ordinary_birth(owner, seed_value: int, league: String) -> SeasonState:
+	if not valid(owner) or not owner.ordinary_state.is_empty() or not C.whole(seed_value,0,2147483647) or league not in ["standard","dugout"]: return null
+	var lineage: String="ordinary:"+Life.digest({"common":owner.common,"seed":seed_value,"league":league})
+	var basis: Dictionary=Start.make(seed_value,lineage,1,int(owner.common.sequence),Life.digest(owner.common.aggregate),projection(owner))
+	return Adapter.OrdinaryRuntime.create_common(basis,league) if not basis.is_empty() else null
+
+static func _ordinary_proposal_valid(owner) -> bool:
+	var state: Dictionary=owner.ordinary_state
+	var row: Dictionary=state.proposal
+	if row.is_empty(): return true
+	if state.status!="closed" or state.ordinal>=ClubCareer.MAX_RUNS or not C.keys(row,["id","source","league","tier","basis"]): return false
+	if row.id!="%s:%d:next"%[state.lineage,state.ordinal] or row.source!=state.last_close.get("session_sha256") or row.league not in ["standard","dugout"] or row.tier!=0: return false
+	if not Start.valid(row.basis) or row.basis.lineage!=state.lineage or row.basis.ordinal!=state.ordinal+1 or row.basis.common_sequence>owner.common.sequence: return false
+	# A proposal is frozen at creation. While that aggregate is still current,
+	# require exact derivation. Older persisted proposals remain bounded named
+	# materialized checkpoints, never permission to rewrite paused starts.
+	if row.basis.common_sequence==owner.common.sequence:
+		if row.basis.common_sha256!=Life.digest(owner.common.aggregate): return false
+		# The ordinary session may be dormant; projection uses its own legacy
+		# rights, not whichever side happens to be selected now.
+		var season: SeasonState=owner.session if owner.active=="ordinary" else Adapter.restore("ordinary",owner.paused)
+		if season==null: return false
+		var expected: Dictionary=projection(owner,season)
+		for key: String in expected:
+			if not C.same(row.basis[key],expected[key]): return false
+	return true
+
+static func next_block_reason(owner) -> String:
+	if owner.active=="dynasty":
+		return "" if dynasty_next_supported(owner) else "Shared earned rights are retained. Applying differing common rights to Dynasty Next is not yet available; Return keeps both saved seasons intact."
+	var basis: Dictionary=owner.session.career.start_basis
+	if not Start.assets_valid(basis.get("assets",{})) or not Start.legacy_plaques_valid(basis.get("plaques",{})):
+		return "This saved asset history is retained. Its earned next-season integration is not yet available; Return preserves both saved seasons."
+	return ""
+
+static func dynasty_next_supported(owner) -> bool:
+	if owner.active!="dynasty" or owner.status!="closed": return false
+	var local: Dictionary=Life.rights(owner)
+	var aggregate: Dictionary=owner.common.aggregate
+	if not C.same(local.starts,aggregate.starts) or not C.same(local.player_access,aggregate.player_access): return false
+	var profile: Dictionary=owner.last_close.profiles.get("club:0",{})
+	for id: String in aggregate.exotic_rights:
+		if id not in profile.get("exotic_rights",[]): return false
+	# Compact common awards outside the local Dynasty bank require the explicit
+	# future carried descriptor. Do not silently omit them at an apparent Next.
+	return aggregate.pennants.is_empty() and C.same(awards(owner),owner.ledger.plaques)
+
+static func propose(owner, seed_value: int) -> bool:
+	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.propose(owner,seed_value)
+	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.ordinal>=ClubCareer.MAX_RUNS or not C.whole(seed_value,0,2147483647): return false
+	var state: Dictionary=owner.ordinary_state
+	if not state.proposal.is_empty(): return state.proposal.basis.seed==seed_value
+	var source: Dictionary=Adapter.capture("ordinary",owner.session)
+	if not ordinary_current_valid(owner,owner.session,source): return false
+	var league: String=str(owner.session.league_rules.get("league","standard"))
+	if league not in ["standard","dugout"] or int(owner.session.league_rules.get("tier",0))!=0: return false
+	var basis: Dictionary=Start.make(seed_value,state.lineage,int(state.ordinal)+1,int(owner.common.sequence),Life.digest(owner.common.aggregate),projection(owner))
+	if basis.is_empty(): return false
+	state.proposal={"id":"%s:%d:next"%[state.lineage,state.ordinal],"source":Life.digest(source),"league":league,"tier":0,"basis":basis}
+	return _ordinary_proposal_valid(owner)
+
+static func preview(owner) -> Dictionary:
+	if owner.active=="dynasty": return Life.preview(owner) if dynasty_next_supported(owner) else {}
+	if not valid(owner) or owner.ordinary_state.proposal.is_empty(): return {}
+	var p: Dictionary=owner.ordinary_state.proposal
+	var b: Dictionary=p.basis
+	return {"kind":"ordinary","league":p.league,"tier":p.tier,"seed":b.seed,"ordinal":b.ordinal,"player_access":b.player_access.duplicate(),"starts":b.starts.duplicate(true),"exotic_rights":b.exotic_rights.duplicate()}
+
+static func advance(owner) -> bool:
+	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.advance(owner)
+	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.proposal.is_empty(): return false
+	var state: Dictionary=owner.ordinary_state
+	var source: Dictionary=Adapter.capture("ordinary",owner.session)
+	if not ordinary_current_valid(owner,owner.session,source): return false
+	var p: Dictionary=state.proposal.duplicate(true)
+	var next: SeasonState=Adapter.OrdinaryRuntime.create_common(p.basis,p.league)
+	if next==null: return false
+	state.last_transition={"id":p.id,"source":p.source,"from":state.ordinal,"to":p.basis.ordinal,"league":p.league,"basis":p.basis.duplicate(true)}
+	state.ordinal=p.basis.ordinal;state.status="active";state.last_close={};state.proposal={};state.start_basis_sha256=Life.digest(p.basis)
+	owner.session=next
+	return valid(owner) and ordinary_current_valid(owner,next,Adapter.capture("ordinary",next))
+static func awards(owner) -> Dictionary:
+	var aggregate: Dictionary=owner.common.get("aggregate",{})
+	var result: Dictionary=aggregate.get("legacy_plaques",{}).duplicate(true)
+	result.merge(aggregate.get("plaques",{}))
+	return result

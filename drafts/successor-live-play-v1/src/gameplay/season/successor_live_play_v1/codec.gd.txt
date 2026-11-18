@@ -17,6 +17,7 @@ static var _basis_seed: int = -1
 static var _basis: Dictionary = {}
 static var _draws: Array[float] = []
 static var _schedule: Array = []
+const CommonStart = preload("common_start.gd")
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
 const Progress = preload("progress.gd")
 const Settlement = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd")
@@ -112,8 +113,11 @@ static func scope(season: SeasonState) -> bool:
 	if not whole(season.season_seed,0,2147483647) or season.career.current != 1 or season.career.runs.size() != 1: return false
 	var expected: Dictionary = {} if season.league_rules.is_empty() else LeagueRules.capture("dugout")
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
-	var marker: Variant = season.career.start_basis.get("genesis")
-	if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
+	if season.career.start_basis.get("kind")==CommonStart.KIND:
+		if not CommonStart.valid(season.career.start_basis) or season.career.start_basis.seed!=season.season_seed: return false
+	else:
+		var marker: Variant = season.career.start_basis.get("genesis")
+		if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
 	return true
 
 static func _structural_valid(season: SeasonState) -> bool:
@@ -130,8 +134,18 @@ static func _structural_valid(season: SeasonState) -> bool:
 		ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
 		_draws.clear()
 		for i in range(6): _draws.append(rng.randf())
-	if _basis.is_empty() or not same(season.career.start_basis,_basis) or not same(season.player_access,_basis.player_access): return false
-	if not same(season.career._assets,_basis.assets) or not same(season.career._pennants,Settlement.birth_pennants(_basis)) or not same(season.career._plaques,_basis.plaques) or season.career._pitch_catalog != Catalog.game_signature(): return false
+	var earned: bool=season.career.start_basis.get("kind")==CommonStart.KIND
+	var basis: Dictionary=season.career.start_basis if earned else _basis
+	if earned and (not CommonStart.valid(basis) or not CommonStart.matches(season.build,basis) or not same(season.build._pool,basis.player_access)): return false
+	if earned:
+		var proof: Dictionary=preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd").capture(season)
+		if proof.is_empty(): return false
+		if season.build._book._exotic_current.is_empty():
+			if not proof.games.is_empty(): return false
+		elif not same(season.build._book._exotic_current,proof): return false
+	if basis.is_empty() or not same(season.career.start_basis,basis) or not same(season.player_access,basis.player_access): return false
+	var pennants: Dictionary=basis.pennants if earned else Settlement.birth_pennants(basis)
+	if not same(season.career._assets,basis.assets) or not same(season.career._pennants,pennants) or not same(season.career._plaques,basis.plaques) or season.career._pitch_catalog != Catalog.game_signature(): return false
 	if not same(season.career.runs[0],Progress.row(season)): return false
 	if season.teams.size()!=6 or season.draft_pool.size()<12 or season.picks.size()>4: return false
 	var seen: Dictionary = {}
@@ -284,7 +298,8 @@ static func _payload(season: SeasonState) -> Dictionary:
 		club.build = Builds.capture(club.build)
 		if club.build.is_empty(): return {}
 		clubs[id] = club
-	var data: Dictionary = {"version":Catalog.VERSION,"format":Catalog.FORMAT,"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
+	var earned: bool=season.career.start_basis.get("kind")==CommonStart.KIND
+	var data: Dictionary = {"version":1 if earned else Catalog.VERSION,"format":CommonStart.FORMAT if earned else Catalog.FORMAT,"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
 		"state":data_fields(season,FIELDS),"ownership":bank,"build":build,"career":data_fields(season.career,CAREER_FIELDS),
 		"opponents":{"draft_order":season.opponents.draft_order.duplicate(),"draft_rule":season.opponents.draft_rule,"format":season.opponents._format,"clubs":clubs},
 		"physical":data_fields(season.physical,PHYSICAL_FIELDS)}
@@ -298,9 +313,15 @@ static func _payload(season: SeasonState) -> Dictionary:
 
 
 static func restore(value: Variant) -> SeasonState:
+	# Standalone/legacy readers never admit the new owner-earned descriptor.
+	if not value is Dictionary or value.get("format")!=Catalog.FORMAT: return null
+	return restore_common(value)
+
+static func restore_common(value: Variant) -> SeasonState:
 	restore_calls += 1
+	var earned: bool=value is Dictionary and value.get("format")==CommonStart.FORMAT
 	if not primitive(value) or not keys(value,["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]) \
-		or not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT \
+		or (earned and not whole(value.version,1,1)) or (not earned and (not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT)) \
 		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
 	var result: SeasonState = Runtime.new()
 	if not install_fields(result,FIELDS,value.state): return null
@@ -308,6 +329,7 @@ static func restore(value: Variant) -> SeasonState:
 	result.ownership = Builds.restore_bank(value.ownership)
 	result.career = Career.new()
 	if not install_fields(result.career,CAREER_FIELDS,value.career): return null
+	if earned!=(result.career.start_basis.get("kind")==CommonStart.KIND): return null
 	result.physical = Physical.new()
 	if not install_fields(result.physical,PHYSICAL_FIELDS,value.physical): return null
 	var opponents: Variant = value.opponents

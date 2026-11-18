@@ -1,6 +1,147 @@
 # Bounded private common career
 
-## Increment85: scoped common owner integration qualified
+## Increment86: scoped common closure and earned ordinary starts qualified
+
+The same owner family uses a new `wiffaltro-common-career-v4.json` slot. Explicit
+strict v3/v2 copying preserves original files. The common aggregate and per-side
+close cursors are separate from Dynasty's local ledger, ordinal and transition
+chain. Close/Abandon folds only the current contribution once; abandonment pays
+no completion receipt. Return preserves either closed season and its saved Next
+proposal without decay, replacement, reseeding or another fold.
+
+Earned ordinary starts have an explicit named descriptor and constructor. They
+carry banked access, progression counters and typed compact awards into a real
+fresh four-player draft, not fabricated historical runs. Seasonal Cash,
+inventory, sponsorships and supplies reset; personal trained stats/mastery and
+learned receipts are not copied. Ordinary and Dynasty remain separately playable
+sessions, not two independently synchronized save writers. This checkpoint does
+not claim complete common asset ownership or every planned league.
+
+Already qualified, with exact source revisions retained:
+
+- Genuine85 v3 copy, actual ordinary abandonment, Return both ways and separate
+  cold passed on the foundation revision. Original session contributions and
+  local Dynasty metadata remain intact. After corrected preloads and the actual
+  metadata/session-key collision (renamed `ordinary_state`), the remaining
+  roundtrip mismatch was test-only default-precision JSON serialization.
+  Full-precision production-format roundtrip passed without weakening equality.
+- Genuine native79 inherited rights (`pitch.corkscrew`, `pitch.switchback`) survive
+  v2 copy, actual CREATE STANDARD SESSION, four authored menu picks, separate
+  cold, Abandon, persisted proposal, Next Cancel, Return, Next and cold. These are
+  access rights, not claims that the pitches are already learned or equipped.
+- Actual lifecycle write obstruction for Close, proposal and Next retains the
+  exact candidate; Retry promotes it once. Stale modal owner/bytes, duplicate
+  callbacks and malformed nested shapes refuse. No original slot is rewritten.
+- The explicit current legacy119 import also rejects valid earned ordinal2
+  sessions rather than resetting their lineage. Genuine71 legacy119 still imports
+  exactly, and malformed earned lineage/ordinal crosslinks refuse. Baseline-equivalent
+  Dynasty Abandon/proposal/six-club Next and separate cold pass; a labeled synthetic
+  differing-rights probe refuses Next without discarding common rights.
+- Strict old v3 active and dormant ordinary readers, and v2 ordinary alternates,
+  reject the new earned descriptor. The legacy v3 reader includes audited
+  self-path rebinding and explicit dependency-bound descriptor guards; it is not
+  described as byte-identical once shared codecs gain new schemas.
+- Final fresh Standard and Dugout owner gates make four actual choices with
+  full-precision JSON roundtrip after each, create all five opponents and build
+  a real matchup request. They also retain genuine empty-history Dynasty creation.
+  These owner-only roundtrips are not gameplay evidence. A separate final-source
+  actual App fresh Standard entry saves four menu picks, rejects stale draft
+  callbacks and reopens all six clubs in a second process without changing either
+  save file; no injected predecessor is required.
+- Earned Dugout creation also passed three actual menu picks, a separate-process
+  fourth pick with all five opponents, then a third-process cold load and matchup
+  request. Both inherited access IDs and the dormant side remain exact. This is
+  interrupted-draft/cold coverage, not an actual Dugout game. The initial staging
+  refusal loaded an older test from the wrong path; it occurred before input IO,
+  was preserved, and was corrected without a production change.
+- Native proposal Cancel, closed Return both ways, confirmed earned ordinary Next
+  and corrected-source separate cold passed. No-write Cancel/cold pairs remain
+  byte-identical. Return writes preserve exact semantics; numeric JSON spelling
+  may change from `0` to `0.0`. Native full games are not claimed.
+
+Revision and evidence boundaries:
+
+- `FOUNDATION_FOUR_GATE_RESULT.json`: initial migration/Abandon/Return/cold.
+- `EARNED_UI_SIX_GATE_RESULT.json`: initial birth revision plus final five modes.
+- `EARNED_UI_FAULT_SEVEN_GATE_RESULT.json`: final shape/retry/UI revision before
+  the fresh-constructor seed guard correction.
+- `IMPORT_BOUNDARY_FOUR_GATE_RESULT.json`: exact legacy119 boundary, earned cold,
+  positive local-equivalent Dynasty Next and synthetic omission refusal.
+- `FRESH_GENESIS_FIX_RESULT.json`: corrected old `basis.genesis.seed` dispatch,
+  fresh Standard/Dugout owner gates and independent earned App cold regression.
+- `EARNED_DUGOUT_THREE_GATE_RESULT.json`: actual interrupted earned draft and
+  separate cold/request on the final import-guard runtime, with staging provenance.
+- `NATIVE86_QUALIFICATION.json` SHA256
+  `dcc008e2f9fec47dbfa6fe9f6c332ed8ae956a7e09bd9491bbf45d53ecae74fa`:
+  actual native UX on the two recorded runtime revisions, not a fresh-entry claim
+  on the pre-correction constructor. Startup fallback/configuration messages are
+  not described as error-free logs.
+
+Final genuine lifecycle and gameplay qualification:
+
+- Frozen verified85 completed the remaining 27 actual ordinary games without
+  replay, reaching all 33 results: ten human games, 3–7, 58 runs for and 86 against.
+  The human missed the playoffs; club4 won. Final86 explicitly copied that strict
+  cold-qualified terminal and independently checked its completion receipt:
+  35 finish + 4 record = 39, with no first-title bonus or Standard pennant. Actual
+  Close Cancel/confirm, duplicate refusal, closed cold, Return both ways, saved
+  proposal/Next Cancel, confirmed Next and separate cold all passed. Ordinary
+  ordinal2 starts a real zero-pick draft with zero seasonal Cash/results; common
+  currency39 and the complete paused Dynasty/local metadata remain intact.
+  Positive championship/title/pennant issuance is not qualified by this outcome.
+- The final earned Standard descriptor completed one actual human game and two
+  NPC games, then settlement and independent cold. All six clubs received exactly
+  one reward. The actual Lab/request retained the two inherited access rights;
+  these were not relabeled learned pitches. Raw reports and predecessors were
+  preserved before admission. NPC write obstruction, exact retained retry and
+  duplicate refusal passed without simulation replay.
+- Genuine current Shop stock contained no inherited exotic recipe, so that
+  purchase remains untested. A normal offered pack instead exercised the paid
+  earned-descriptor path: quote/Cancel, one authored8-Cash charge from12 to4,
+  obstructed save/exact retry, real recipient selection and Power for Dakota
+  Wells, then separate cold showing Used and4Cash. Exactly one pack_open and
+  one pack_pick were recorded; common and dormant Dynasty data stayed exact.
+  No stock, money or lesson history was injected.
+
+Physics above is fixed60 headless functional evidence, separate from native UX.
+Shared-cloud handler observations remain visibly slow: natural import53.114s,
+Close42.785s, Next23.658s and final cold4.434s. These are not target-hardware
+benchmarks or a responsiveness qualification. No extra physics is attributed to
+owner-only or UI-only gates.
+
+Final evidence reports (their exact hashes bind individual logs and boundaries):
+
+- `NATURAL_86_QUALIFICATION.json` SHA256
+  `d64378ebc5dbb236900085835508602d49b7bc87752bf81ef6018ddb48d8742f`.
+- `EARNED_PHYSICAL_EIGHT_GATE_RESULT.json` SHA256
+  `d32f64267a6c23631745478b4ebfbc810e0e1dd436ccaee8c496c3160a4cfd40`.
+- `EARNED_PACK_THREE_GATE_RESULT.json` SHA256
+  `47a2ca579fe328676e4a74026dfa89db5143705eb403198cb609f2f247ed9ab7`.
+- `ORDINARY_TERMINAL_86_QUALIFICATION.json` SHA256
+  `b0096e8c0c9df6a480e48f99e3fca8dfe2dda6909c91750c2874d1b4f7e9c010`.
+
+
+Explicit supported bounds and remaining integration gaps:
+
+- Up to two current sessions; common total folds are bounded separately from each
+  local run ordinal. Old proposals are typed materialized checkpoints, not an
+  anti-edit or full historical-replay proof. Current-sequence proposals additionally
+  match the exact current aggregate and deterministic rights projection.
+- Current earned starts validate the original-seed initial asset ledger exactly.
+  Richer journals stay unchanged in existing sessions, but their earned transition
+  is explicitly blocked rather than erased, replayed with invented credits, or
+  accepted as an arbitrary dictionary. Full common asset integration remains.
+- Dynasty Next keeps its established six-club local carry policy. If differing
+  common access, counters, exotic rights or awards would be omitted, Next refuses
+  with a truthful explanation; Return and all saved rights remain available.
+  A new shared-rights carried descriptor is deferred. Baseline-equivalent local
+  Dynasty Next is not replaced by a new economic rule.
+- Missing earned Dynasty birth is likewise refused when common progress would be
+  lost. Truly empty fresh genesis remains supported. Public unlocks, replacement
+  economics, further league bindings and final distribution qualification remain
+  unresolved. No target-hardware responsiveness claim is made.
+
+## Historical Increment85: scoped common owner integration qualified
 
 One explicit `wiffaltro-common-career-v3.json` writer now stores one active named
 ordinary119 or Dynasty120 session and one dormant canonical snapshot. The former

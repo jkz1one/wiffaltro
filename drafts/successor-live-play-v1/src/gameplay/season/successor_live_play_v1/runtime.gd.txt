@@ -5,9 +5,18 @@ const Opponents = preload("res://src/gameplay/season/successor_league_general_v2
 const Physical = preload("physical_fixtures.gd")
 const LiveCareer = preload("career.gd")
 const Starts = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
+const CommonStart = preload("common_start.gd")
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
 
 static func create_fresh(seed_value: int, league: String = "standard") -> SeasonState:
+	return _create_named(seed_value,league,Genesis.derive(seed_value))
+
+static func create_common(basis: Dictionary, league: String = "standard") -> SeasonState:
+	return _create_named(int(basis.get("seed",-1)),league,basis) if CommonStart.valid(basis) else null
+
+static func _create_named(seed_value: int, league: String, basis: Dictionary) -> SeasonState:
+	var earned: bool=basis.get("kind")==CommonStart.KIND
+	if (earned and (not CommonStart.valid(basis) or basis.seed!=seed_value)) or (not earned and (not Genesis.valid_basis(basis) or basis.genesis.seed!=seed_value)): return null
 	if not SeasonOwnership._whole(seed_value,0,2147483647) or league not in ["standard","dugout"]: return null
 	var result: SeasonState = load("res://src/gameplay/season/successor_live_play_v1/runtime.gd").new()
 	result.season_seed = seed_value
@@ -21,13 +30,12 @@ static func create_fresh(seed_value: int, league: String = "standard") -> Season
 	result.draft_pool = ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
 	for index in range(6): result.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":[],"draw":rng.randf()})
 	result._build_schedule()
-	var basis: Dictionary = Genesis.derive(seed_value)
-	if basis.is_empty() or not Starts._install(result.build,basis) or not ClubPlayerDraft.apply(result,basis.player_access): return null
+	if not (CommonStart.install(result.build,basis) if earned else Starts._install(result.build,basis)) or not ClubPlayerDraft.apply(result,basis.player_access): return null
 	var ledger: ClubCareer = LiveCareer.new()
 	ledger.current = 1; ledger.runs.append({})
-	ledger.start_basis = basis
+	ledger.start_basis = basis.duplicate(true)
 	ledger._assets = basis.assets.duplicate(true)
-	ledger._pennants = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd").birth_pennants(basis)
+	ledger._pennants = basis.pennants.duplicate(true) if earned else preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd").birth_pennants(basis)
 	ledger._plaques = basis.plaques.duplicate(true)
 	ledger._pitch_catalog = preload("catalog.gd").game_signature()
 	result.career = ledger; result.league_career = true
@@ -41,7 +49,10 @@ func choose_player(id: String) -> bool:
 	# Store owns a detached materialized candidate. This invokes114's local
 	# gameplay operation, not117's historical clone/choose/capture path.
 	if not league_context_consistent() or not super.choose_player(id): return false
-	if picks.size() == 4 and not Starts._install(build,career.start_basis): return false
+	if picks.size() == 4:
+		if career.start_basis.get("kind")==CommonStart.KIND:
+			if not CommonStart.install(build,career.start_basis): return false
+		elif not Starts._install(build,career.start_basis): return false
 	return career.sync(self)
 func adopt_build(next: SeasonBuild) -> void:
 	if next == null or not league_context_consistent(): return

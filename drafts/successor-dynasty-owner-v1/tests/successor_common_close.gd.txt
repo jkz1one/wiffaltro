@@ -1,0 +1,111 @@
+extends Node
+## Isolated genuine85 migration/ordinary abandonment/closed return. No physics.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Common=preload("res://src/gameplay/season/successor_dynasty_owner_v1/common_lifecycle.gd")
+const Progress=preload("res://src/gameplay/season/successor_dynasty_owner_v1/common_progress.gd")
+const Adapter=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+var roots: Array[Resource]=[]
+var protected: Dictionary={}
+func _ready():call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label," store_error=",Store.last_error)
+	if not ok:get_tree().quit(1)
+	return ok
+func pair() -> Dictionary:
+	return {"main":Store.raw(),"bak":FileAccess.get_file_as_bytes(Store.PATH+".bak") if FileAccess.file_exists(Store.PATH+".bak") else null}
+func operate(owner,op: String):
+	var expected: PackedByteArray=Store.raw()
+	var ticket=Store.prepare_session_and_write(owner,expected,op)
+	if not check(ticket!=null,"fixed producer "+op):return null
+	var candidate=Store.prepared_candidate(ticket)
+	if not check(candidate!=null and Store.promote(ticket,owner,candidate,expected),"exact candidate promoted "+op):return null
+	return candidate
+func run():
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["migrate","close","fault","resume","cold"],"isolated common86 mode before IO"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"retain authored content before restore"):return
+	for name: String in ["source-common-v3.json","wiffaltro-common-career-v3.json","wiffaltro-dynasty-career-v2.json","wiffaltro-materialized-play-v1.json","wiffaltro-dynasty-owner-v1.json"]:
+		for suffix: String in ["",".bak",".tmp"]:
+			var path: String="user://"+name+suffix
+			protected[path]=FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else null
+	if not check(protected["user://source-common-v3.json"]!=null,"immutable actual85 input required"):return
+	var owner: RefCounted
+	if args[0]=="migrate":
+		if not check(not Store.occupied(),"isolated v4 initially empty"):return
+		var input: PackedByteArray=protected["user://source-common-v3.json"]
+		var old: Dictionary=JSON.parse_string(input.get_string_from_utf8())
+		owner=Owner.import_v3(input)
+		if not check(owner!=null,"strict actual85 import"):return
+		if not check(Common.valid(owner) and owner.common.cursors.ordinary==0 and owner.common.sequence==owner.ledger.closed
+			and C.same(owner.common.aggregate,Progress.birth(owner.ledger,owner.session if owner.active=="ordinary" else null))
+			and C.same(owner.ledger,old.ledger) and owner.common.aggregate.currency==old.ledger.currency
+			and C.same(Adapter.capture(owner.active,owner.session),old[owner.active]),"migration seeds only admitted Dynasty baseline, current ordinary credited zero"):return
+		var captured: Dictionary=Owner.capture(owner)
+		var restored=Owner.restore(JSON.parse_string(JSON.stringify(captured,"",true,true)))
+		if not check(not captured.is_empty() and restored!=null and C.same(Owner.capture(restored),captured),"same-process JSON cold parity"):return
+		if not check(Store.save(owner,PackedByteArray()),"initial strict v4 save"):return
+		owner=Store.read()
+	else:
+		var before: Dictionary=pair()
+		owner=Store.read()
+		if not check(owner!=null and Common.valid(owner) and pair()==before,"strict separate-process read preserves pair"):return
+	if not check(owner!=null and Store.match_owner(owner,Store.raw()),"registered exact live owner"):return
+	if args[0] in ["close","fault"]:
+		if owner.active!="ordinary":
+			owner=operate(owner,"resume")
+			if owner==null:return
+		if not check(owner.active=="ordinary" and owner.ordinary_state.status=="active" and owner.session.player_results.size()==2
+			and owner.session.results.size()==6 and owner.session.phase==SeasonState.Phase.REGULAR,"genuine85 unfinished ordinary two-human six-result source"):return
+		var old_pair: Dictionary=pair();var old_data: Dictionary=Owner.capture(owner)
+		var prior: Dictionary=owner.common.aggregate.duplicate(true)
+		var dynasty: Dictionary=owner.dynasty_metadata();var dormant: Dictionary=owner.paused.duplicate(true)
+		var current: Dictionary=Adapter.capture("ordinary",owner.session)
+		var wins: int=0;var runs_for: int=0;var runs_against: int=0
+		for game: Dictionary in owner.session.player_results:
+			var ours: int=int(game.home_runs if game.home==0 else game.away_runs)
+			var theirs: int=int(game.away_runs if game.home==0 else game.home_runs)
+			wins+=int(ours>theirs);runs_for+=ours;runs_against+=theirs
+		if args[0]=="fault":
+			if not check(not FileAccess.file_exists(Store.PATH+".tmp") and not DirAccess.dir_exists_absolute(Store.PATH+".tmp")
+				and DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"own empty prewrite obstruction"):return
+		var ticket=Store.prepare_session_and_write(owner,old_pair.main,"close",0,"","abandon")
+		if not check(ticket!=null,"actual fixed ordinary Abandon prepares candidate"):return
+		var candidate=Store.prepared_candidate(ticket)
+		if not check(candidate!=null,"opaque exact close candidate"):return
+		if args[0]=="fault":
+			if not check(Store.written_bytes(ticket).is_empty() and pair()==old_pair and C.same(Owner.capture(owner),old_data),"failed close retains exact candidate without touching original live/pair"):return
+			if not check(DirAccess.remove_absolute(Store.PATH+".tmp")==OK and Store.write_prepared(ticket),"remove only empty obstruction and retry exact ticket"):return
+		if not check(Store.promote(ticket,owner,candidate,old_pair.main),"promote only durable exact close"):return
+		owner=candidate
+		var aggregate: Dictionary=owner.common.aggregate
+		if not check(owner.ordinary_state.status=="closed" and owner.ordinary_state.last_close.reason=="abandon" and owner.ordinary_state.last_close.receipt.is_empty()
+			and aggregate.currency==prior.currency and aggregate.completed==prior.completed and aggregate.abandoned==prior.abandoned+1
+			and aggregate.games==prior.games+2 and aggregate.wins==prior.wins+wins and aggregate.runs_for==prior.runs_for+runs_for
+			and aggregate.runs_against==prior.runs_against+runs_against and owner.common.cursors.ordinary==1
+			and C.same(owner.dynasty_metadata(),dynasty) and C.same(owner.paused,dormant)
+			and C.same(Adapter.capture("ordinary",owner.session),current),"ordinary folds actual current stats once, zero completion pay, Dynasty/current snapshots exact"):return
+		var stable: Dictionary=pair()
+		if not check(Store.prepare_session_and_write(owner,stable.main,"close",0,"","abandon")==null and pair()==stable,"duplicate close refused without payout/write"):return
+	elif args[0]=="resume":
+		if not check(owner.active=="ordinary" and owner.ordinary_state.status=="closed","closed ordinary ready for return without Next"):return
+		var ordinary: Dictionary=Adapter.capture("ordinary",owner.session);var dynasty: Dictionary=owner.paused.duplicate(true)
+		var common: Dictionary=owner.common.duplicate(true);var lifecycle: Dictionary=owner.ordinary_state.duplicate(true)
+		owner=operate(owner,"resume")
+		if owner==null:return
+		if not check(owner.active=="dynasty" and C.same(Adapter.capture("dynasty",owner.session),dynasty) and C.same(owner.paused,ordinary),"actual Return restores exact Dynasty, keeps closed ordinary"):return
+		owner=operate(owner,"resume")
+		if owner==null:return
+		if not check(owner.active=="ordinary" and not owner.playable() and C.same(owner.ordinary_state,lifecycle) and C.same(owner.common,common)
+			and C.same(Adapter.capture("ordinary",owner.session),ordinary) and C.same(owner.paused,dynasty),"return to closed ordinary preserves both sessions and no Next/decay"):return
+	elif args[0]=="cold":
+		if not check(owner.active=="ordinary" and owner.ordinary_state.status=="closed" and not owner.playable()
+			and owner.common.cursors.ordinary==1 and owner.ordinary_state.last_close.receipt.is_empty(),"independent cold closed ordinary, exactly one unpaid abandonment"):return
+	if not check(Common.valid(owner) and C.same(Owner.capture(owner),JSON.parse_string(Store.raw().get_string_from_utf8())),"entire live owner equals durable v4"):return
+	for path: String in protected:
+		if not check((not FileAccess.file_exists(path)) if protected[path]==null else FileAccess.get_file_as_bytes(path)==protected[path],"original input/legacy pair unchanged: "+path.get_file()):return
+	print("PASS: common86 ",args[0]," actual unfinished ordinary only; no terminal or earned Next claim")
+	get_tree().quit(0)

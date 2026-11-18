@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "141f8884de70e27bda925b23758fb1f46862be73",
-  "scope": "Increment85 narrowly canonicalizes admitted Dugout native rule contexts on119 restore with exact serialized recapture invariant. Warm/every-pick JSON four-pick drafts, all-five-AI creation, malformed refusal and separate cold passed. Genuine Standard ordinary round/paid Shop/cold also passed inside common120 ownership with exact dormant preservation. Existing78 semifinal repair retained; no actual Dugout-game or full119-season claim.",
+  "source_checkpoint": "0b10d1d294e6b01f5758bb1ca99eaa9fc3880213",
+  "scope": "Increment86 scoped private v4 common Close/Abandon/Return and earned ordinary starts: genuine missed-playoffs completion receipt39, retained Return/proposal/Next/cold, actual earned Standard round and normal paid pack/cold qualified. Positive championship awards and inherited exotic purchase unqualified. Richer assets and differing common-to-Dynasty carry fail closed without loss. No public unlock, replacement economics, target performance or final distribution claim.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -24,8 +24,14 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 22795,
-      "sha256": "3f53ed4e546c0ba25a5be9fbb3e92b112bd42586c9dda773c4f3cea03456d0a9"
+      "bytes": 24341,
+      "sha256": "467aeada6f082788a16b1a049dcf294277b4a86c77b2aada7dcb092f8416f697"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/common_start.gd",
+      "bytes": 10458,
+      "sha256": "c0889761ed12dbda95d866f2c7e13302eaeaeefbba4f88fd0a25342ffb08b419"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/import_draft.gd.txt",
@@ -66,8 +72,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
-      "bytes": 5847,
-      "sha256": "d89b0a7ee3cae35bb8c0805ed4d5e45f531dd5869b7228cc63fc5fc7b55b8164"
+      "bytes": 6652,
+      "sha256": "72ba2edd1289ad5d5740dbffc9b80e771eb8721b27f9dee3a41d66a6533162ca"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/store.gd.txt",

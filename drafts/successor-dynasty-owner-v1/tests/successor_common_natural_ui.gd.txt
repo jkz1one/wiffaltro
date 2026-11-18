@@ -1,0 +1,144 @@
+extends "res://tests/successor_common_earned_ui.gd"
+## Genuine supplied ordinary terminal only. No synthetic results or game replay.
+const LeagueCareer=preload("res://src/gameplay/season/club_league_career.gd")
+const INPUT_MANIFEST: String="user://natural-input-manifest.json"
+const INPUTS: Array[String]=["source-terminal-v3.json","source-terminal-v3.json.bak","baseline-common-v3.json","baseline-common-v3.json.bak"]
+var handler_ms: Dictionary={}
+func record_step(mode: String,app) -> bool:
+	var path: String="user://natural86-"+mode+".json"
+	if not check(not FileAccess.file_exists(path),"new immutable natural evidence boundary "+mode):return false
+	var data: Dictionary={"mode":mode,"handler_wall_ms":handler_ms,"main_sha256":FileAccess.get_sha256(S.PATH),"backup_sha256":FileAccess.get_sha256(S.PATH+".bak"),"owner":O.capture(app.career_owner),"scope":"Actual supplied ordinary terminal; handler wall observations under shared load, not target hardware benchmark."}
+	var file: FileAccess=FileAccess.open(path,FileAccess.WRITE)
+	if not check(file!=null,"open own isolated evidence artifact"):return false
+	file.store_string(JSON.stringify(data,"",true,true));file.close();return true
+func begin_action(app,text: String,key: String) -> bool:
+	var started: int=Time.get_ticks_msec()
+	var ok: bool=click(app,text)
+	handler_ms[key]=Time.get_ticks_msec()-started
+	return ok
+func confirm_action(app,key: String) -> void:
+	var started: int=Time.get_ticks_msec();app._lifecycle_dialog.confirmed.emit();handler_ms[key]=Time.get_ticks_msec()-started
+func oracle(season: SeasonState,baseline: Dictionary) -> Dictionary:
+	if season.phase!=SeasonState.Phase.COMPLETE or season.results.size()!=33 or not season.league_rules.is_empty():return {}
+	var rows: Array=season.results.duplicate();rows.sort_custom(func(a,b):return a.id<b.id)
+	var scores: Array=[];var regular_wins: int=0;var games: int=0;var wins: int=0;var ours_total: int=0;var theirs_total: int=0
+	var finish: String="missed"
+	for index in range(33):
+		var game: Dictionary=rows[index]
+		if game.id!=index or game.away_runs==game.home_runs:return {}
+		scores.append([game.id,game.away,game.home,game.away_runs,game.home_runs])
+		if game.away!=0 and game.home!=0:continue
+		var ours: int=int(game.home_runs if game.home==0 else game.away_runs)
+		var theirs: int=int(game.away_runs if game.home==0 else game.home_runs)
+		games+=1;wins+=int(ours>theirs);ours_total+=ours;theirs_total+=theirs
+		if index<30:regular_wins+=int(ours>theirs)
+		elif index<32:finish="semifinal"
+		else:finish="champion" if ours>theirs else "runner_up"
+	var first: bool=not baseline.titles.get(LeagueCareer.title_key("standard",0),false)
+	var award: int={"missed":35,"semifinal":65,"runner_up":95,"champion":180}[finish]
+	var bonus: int=int(15*regular_wins/10.0);var first_bonus: int=25 if finish=="champion" and first else 0
+	var receipt: Dictionary={"version":1,"finish":finish,"wins":regular_wins,"finish_award":award,"record_bonus":bonus,"first_bonus":first_bonus,"total":award+bonus+first_bonus}
+	var proof: Dictionary=ClubSeasonRecord.capture(season)
+	if not C.same(proof.scores,scores) or not C.same(ClubSeasonRecord.receipt(proof,first,0),receipt):return {}
+	var stat: int=0;var mastery: int=0;var lessons: Array=[]
+	for event: Dictionary in season.build._book._events:
+		if event.op=="stat":stat+=1
+		elif event.op in ["mastery","round_out"]:mastery+=1
+		elif event.op=="learn" and not lessons.has(event.target):lessons.append(event.target)
+	return {"proof":proof,"receipt":receipt,"first_title":first,"games":games,"wins":wins,"runs_for":ours_total,"runs_against":theirs_total,"stat":stat,"mastery":mastery,"lessons":lessons}
+func run():
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1
+		and args[0] in ["import","close","closed-cold","return","propose","proposal-cold","next","cold-next"],"isolated natural ordinary mode before IO"):return
+	var manifest: Variant=JSON.parse_string(FileAccess.get_file_as_string(INPUT_MANIFEST))
+	if not check(manifest is Dictionary and manifest.get("version")==1 and manifest.get("files") is Dictionary
+		and manifest.files.size()==INPUTS.size(),"supplied exact terminal/baseline hash manifest"):return
+	for name: String in INPUTS:
+		var row: Variant=manifest.files.get(name)
+		if not check(row is Dictionary and row.get("sha256") is String and row.sha256.length()==64 and row.sha256.is_valid_hex_number(false)
+			and row.get("bytes") is float and row.bytes>=1 and row.bytes<=64*1024*1024 and row.bytes==int(row.bytes),"bounded manifest row "+name):return
+		var path: String="user://"+name
+		if not check(FileAccess.get_file_as_bytes(path).size()==row.bytes and FileAccess.get_sha256(path)==row.sha256,"exact supplied original "+name):return
+		protected[path]=FileAccess.get_file_as_bytes(path)
+	protected[INPUT_MANIFEST]=FileAccess.get_file_as_bytes(INPUT_MANIFEST)
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"retained content roots/catalog before model hydration"):return
+	for name: String in ["wiffaltro-common-career-v3.json","wiffaltro-dynasty-career-v2.json","wiffaltro-materialized-play-v1.json","wiffaltro-dynasty-owner-v1.json"]:
+		for suffix: String in ["",".bak",".tmp"]:
+			var path: String="user://"+name+suffix
+			protected[path]=FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else null
+	for suffix: String in ["",".bak"]:
+		if not check(protected["user://wiffaltro-common-career-v3.json"+suffix]==protected["user://source-terminal-v3.json"+suffix],"original V3 slot copy equals immutable terminal source"+suffix):return
+	if args[0]=="import" and not check(not S.occupied(),"isolated new v4 terminal import slot"):return
+	var app=App.new();add_child(app);await get_tree().process_frame
+	if args[0]=="import":
+		if not check(app.career_owner==null and app.season==null,"actual empty-slot launcher before explicit V3 copy"):return
+		if not begin_action(app,"COPY COMMON CAREER (V3)","copy_common_v3"):return
+		var owner=app.career_owner
+		if not check(owner!=null and app.retained==null and owner.active=="ordinary" and owner.session.phase==SeasonState.Phase.COMPLETE
+			and owner.session.results.size()==33 and owner.common.cursors.ordinary==0,"actual V3 copy handler admits genuine terminal without paying current receipt"):return
+	var before: Dictionary=pair()
+	var load_start: int=Time.get_ticks_msec();app.reload_save();handler_ms.strict_load=Time.get_ticks_msec()-load_start
+	if not check(app.career_owner!=null and app._owned() and pair()==before,"actual App strict load preserves primary/backup"):return
+	if args[0]=="close":
+		var prior: Dictionary=app.career_owner.common.aggregate.duplicate(true);var expected: Dictionary=oracle(app.season,prior)
+		if not check(not expected.is_empty(),"independent actual scores/finish/Base receipt oracle"):return
+		print("NATURAL_ORACLE ",JSON.stringify(expected.receipt)," games=",expected.games," wins=",expected.wins," runs=",expected.runs_for,"-",expected.runs_against)
+		var dynasty: Dictionary=app.career_owner.paused.duplicate(true);var local: Dictionary=app.career_owner.dynasty_metadata()
+		if not begin_action(app,"CLOSE COMPLETED SEASON","request_close"):return
+		app._lifecycle_dialog.canceled.emit()
+		if not check(pair()==before and app.career_owner.lifecycle_status()=="active","actual Close Cancel does not pay or close"):return
+		if not begin_action(app,"CLOSE COMPLETED SEASON","request_close_again"):return
+		confirm_action(app,"confirm_close")
+		var owner=app.career_owner;var aggregate: Dictionary=owner.common.aggregate
+		if not check(app.retained==null and owner.lifecycle_status()=="closed" and C.same(owner.ordinary_state.last_close.receipt,expected.receipt)
+			and aggregate.closed==prior.closed+1 and aggregate.completed==prior.completed+1 and aggregate.abandoned==prior.abandoned
+			and aggregate.currency==prior.currency+expected.receipt.total and aggregate.games==prior.games+expected.games
+			and aggregate.wins==prior.wins+expected.wins and aggregate.runs_for==prior.runs_for+expected.runs_for and aggregate.runs_against==prior.runs_against+expected.runs_against
+			and aggregate.development.stat==prior.development.stat+expected.stat and aggregate.development.mastery==prior.development.mastery+expected.mastery
+			and C.same(owner.paused,dynasty) and C.same(owner.dynasty_metadata(),local),"actual terminal close banks current contribution once, exact payout, no Dynasty/cumulative double count"):return
+		var eligible: bool=expected.receipt.finish=="champion" and not app.season.career._pennants.is_empty()
+		if not check(aggregate.pennants.size()==prior.pennants.size()+int(eligible),"Standard pennant only for actual eligible champion"):return
+		if eligible:
+			var record: Dictionary=aggregate.pennants[owner.ordinary_state.last_close.id].record
+			if not check(StadiumPennantRewards.valid_record(record) and record.league_id=="standard" and record.season_id==owner.ordinary_state.ordinal,"actual prospective Standard pennant identity"):return
+		var stable: Dictionary=pair();app._lifecycle_dialog.confirmed.emit();app.close_current("complete")
+		if not check(pair()==stable,"duplicate completed close cannot repay"):return
+	elif args[0]=="closed-cold":
+		if not check(app.career_owner.lifecycle_status()=="closed" and app.career_owner.ordinary_state.last_close.reason=="complete"
+			and not app.career_owner.ordinary_state.last_close.receipt.is_empty() and pair()==before,"independent cold paid terminal closure unchanged"):return
+	elif args[0]=="return":
+		var state: Dictionary=O.capture(app.career_owner)
+		if not begin_action(app,"RESUME DYNASTY SESSION","return_dynasty") or not begin_action(app,"RESUME ORDINARY SESSION","return_ordinary"):return
+		if not check(C.same(O.capture(app.career_owner),state),"closed Return both ways changes no session, progress or local metadata"):return
+	elif args[0]=="propose":
+		if not begin_action(app,"PREPARE NEXT SEASON","propose_next"):return
+		var proposal: Dictionary=app.career_owner.ordinary_state.proposal.duplicate(true);var stable: Dictionary=pair()
+		if not check(not proposal.is_empty(),"saved genuine earned Next proposal"):return
+		if not begin_action(app,"START NEXT SEASON…","request_next"):return
+		app._lifecycle_dialog.canceled.emit()
+		if not check(pair()==stable and C.same(app.career_owner.ordinary_state.proposal,proposal),"Next Cancel preserves saved seed/rights"):return
+	elif args[0]=="proposal-cold":
+		if not check(app.career_owner.next_preview().get("kind")=="ordinary" and app.career_owner.lifecycle_status()=="closed" and pair()==before,"independent cold exact next proposal"):return
+	elif args[0]=="next":
+		var preview: Dictionary=app.career_owner.next_preview();var common: Dictionary=app.career_owner.common.duplicate(true)
+		var dormant: Dictionary=app.career_owner.paused.duplicate(true);var local: Dictionary=app.career_owner.dynasty_metadata()
+		if not begin_action(app,"START NEXT SEASON…","request_next"):return
+		confirm_action(app,"confirm_next")
+		if not check(app.retained==null and app.career_owner.lifecycle_status()=="active" and app.career_owner.current_ordinal()==preview.ordinal
+			and app.season.phase==SeasonState.Phase.DRAFT and app.season.picks.is_empty() and app.season.season_seed==preview.seed
+			and Start.matches(app.season.build,app.season.career.start_basis) and C.same(app.season.career.start_basis.starts,preview.starts)
+			and C.same(app.season.career.start_basis.exotic_rights,preview.exotic_rights) and app.season.build._bank.cash()==0
+			and app.season.build._abilities.learned.is_empty() and app.season.results.is_empty() and C.same(app.career_owner.common,common)
+			and C.same(app.career_owner.paused,dormant) and C.same(app.career_owner.dynasty_metadata(),local),"actual earned Next fresh draft, no second fold or Dynasty mutation"):return
+	elif args[0]=="cold-next":
+		if not check(app.career_owner.active=="ordinary" and app.career_owner.lifecycle_status()=="active" and app.career_owner.current_ordinal()==2
+			and app.season.phase==SeasonState.Phase.DRAFT and app.season.picks.is_empty() and Start.matches(app.season.build,app.season.career.start_basis)
+			and pair()==before,"independent cold actual earned fresh draft; no gameplay claim"):return
+	if not check(C.same(O.capture(app.career_owner),JSON.parse_string(S.raw().get_string_from_utf8())),"whole live owner matches durable v4"):return
+	for path: String in protected:
+		if not check((not FileAccess.file_exists(path)) if protected[path]==null else FileAccess.get_file_as_bytes(path)==protected[path],"terminal/baseline/legacy original unchanged: "+path.get_file()):return
+	if not record_step(args[0],app):return
+	print("HANDLER_WALL_MS ",JSON.stringify(handler_ms)," shared-load functional observations only")
+	print("PASS: common86 natural ordinary UI ",args[0],"; actual supplied terminal, no replay or new draft gameplay claim")
+	app.queue_free();await get_tree().process_frame;get_tree().quit(0)

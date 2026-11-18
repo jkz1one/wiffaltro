@@ -548,27 +548,35 @@ func import_previous_dynasty() -> void:
 		notice="Previous Dynasty save could not be copied consistently. Originals are unchanged.";show_season();return
 	_retain_envelope(candidate,PackedByteArray())
 
+func _lifecycle_ready() -> bool:
+	if not _available() or not _scope() or is_instance_valid(ai_runner): return false
+	if not _exit_mode.is_empty() or not retained_human.is_empty() or not retained_report.is_empty(): return false
+	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false
+	if menu==null or not menu.visible or menu.page!="home": return false
+	for node: Node in find_children("*","Window",true,false):
+		if node.visible and not node.is_queued_for_deletion(): return false
+	return true
+
+func _lifecycle_commit(operation: String, seed_value: int=0, reason: String="") -> void:
+	if not _lifecycle_ready(): return
+	var expected: PackedByteArray=saved_bytes.duplicate()
+	var ticket: RefCounted=Store.prepare_session_and_write(career_owner,expected,operation,seed_value,"",reason)
+	if ticket==null:
+		notice=Store.last_error if not Store.last_error.is_empty() else "This career action could not be saved safely. Current progress is unchanged."
+		show_season();return
+	_clear_lineup_ticket();_clear_session_ticket()
+	_retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
 func close_current(reason: String) -> void:
-	if career_owner==null or career_owner.active!="dynasty": return
-	if not _available() or not _owned() or career_owner.status!="active" or not season.physical.pending.is_empty(): return
-	_busy=true
-	var candidate: RefCounted=career_owner.fork()
-	if candidate!=null and not candidate.close_current(reason): candidate=null
-	_busy=false
-	if candidate==null:
-		notice="This season could not close safely. Current progress is unchanged.";show_season();return
-	_retain_envelope(candidate,saved_bytes)
+	if career_owner==null or career_owner.lifecycle_status()!="active": return
+	_lifecycle_commit("close",0,reason)
 
 func propose_next(seed_value: int=-1) -> void:
-	if career_owner==null or career_owner.active!="dynasty": return
-	if not _available() or not _owned() or career_owner.status!="closed": return
-	if seed_value<0: seed_value=("dynasty:%d:%d:nextseed"%[career_owner.birth_seed,career_owner.ordinal+1]).hash() & 0x7fffffff
-	_busy=true
-	var candidate: RefCounted=career_owner.fork()
-	if candidate!=null and not candidate.propose_next(seed_value): candidate=null
-	_busy=false
-	if candidate==null: return
-	_retain_envelope(candidate,saved_bytes)
+	if career_owner==null or career_owner.lifecycle_status()!="closed": return
+	if seed_value<0:
+		var lineage: String=str(career_owner.birth_seed) if career_owner.active=="dynasty" else career_owner.ordinary_state.lineage
+		seed_value=("%s:%s:%d:nextseed"%[career_owner.active,lineage,career_owner.current_ordinal()+1]).hash() & 0x7fffffff
+	_lifecycle_commit("propose",seed_value)
 
 func choose_overflow(player: String, receipt: String) -> void:
 	if career_owner==null or career_owner.active!="dynasty": return
@@ -578,25 +586,25 @@ func choose_overflow(player: String, receipt: String) -> void:
 	_retain_envelope(candidate,saved_bytes)
 
 func commit_next() -> void:
-	if career_owner==null or career_owner.active!="dynasty": return
-	if not _available() or not _owned() or career_owner.status!="closed": return
-	_busy=true
-	var candidate: RefCounted=career_owner.fork()
-	if candidate!=null and not candidate.commit_next(): candidate=null
-	_busy=false
-	if candidate==null:
-		notice="Resolve every overflow choice before continuing. No decay or new season was saved.";show_season();return
-	_retain_envelope(candidate,saved_bytes)
+	if career_owner==null or career_owner.lifecycle_status()!="closed": return
+	_lifecycle_commit("next")
 
 func request_lifecycle(action: String) -> void:
-	if career_owner==null or career_owner.active!="dynasty": return
-	if not _available() or not _owned() or action not in ["abandon","complete","next"]: return
+	if not _lifecycle_ready() or not _owned() or action not in ["abandon","complete","next"]: return
+	var dynasty: bool=career_owner.active=="dynasty"
 	if action=="next":
-		if career_owner.status!="closed" or career_owner.next_preview().size()!=6: return
-	elif career_owner.status!="active" or not season.physical.pending.is_empty() or season.picks.size()!=4 or (action=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return
+		if career_owner.lifecycle_status()!="closed": return
+		var preview: Dictionary=career_owner.next_preview()
+		if (dynasty and preview.size()!=6) or (not dynasty and preview.get("kind")!="ordinary"): return
+	elif career_owner.lifecycle_status()!="active" or (action=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return
 	_lifecycle_action=action;_lifecycle_owner=career_owner;_lifecycle_season=season;_lifecycle_bytes=saved_bytes.duplicate()
 	_lifecycle_dialog.title="Start next season" if action=="next" else "Close current season"
-	_lifecycle_dialog.dialog_text="Start the next season with all six carried rosters? The provisional rule removes up to 2 above-authored points per stat and 1 mastery per known pitch, paid growth first. Seasonal Cash, items and sponsors reset. This happens only once on confirmation." if action=="next" else ("Abandon this season? Completed-game stats and earned progress remain. There is no completion payout. No decay occurs until you separately start the next season." if action=="abandon" else "Close this completed season and retain its verified career contribution? No decay occurs until you separately start the next season.")
+	if action=="next":
+		_lifecycle_dialog.dialog_text="Start the next season with all six carried rosters? The provisional rule removes up to 2 above-authored points per stat and 1 mastery per known pitch, paid growth first. Seasonal Cash, items and sponsors reset. This happens only once on confirmation." if dynasty else "Start a new ordinary season with a fresh four-player draft? Shared earned access and progression starts apply. Previous ordinary player development does not carry over. Seasonal Cash, items and sponsors reset; the other saved session stays unchanged."
+	elif action=="abandon":
+		_lifecycle_dialog.dialog_text="Abandon this season? Completed-game stats and earned progress are banked once. There is no completion payout. The saved season remains available for review or Return; no next season or Dynasty decay occurs."
+	else:
+		_lifecycle_dialog.dialog_text="Close this completed season and bank its verified career contribution once? The saved season remains available for review or Return. No next season or Dynasty decay occurs."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
 func _cancel_lifecycle() -> void:
 	_lifecycle_action="";_lifecycle_owner=null;_lifecycle_season=null;_lifecycle_bytes=PackedByteArray()
@@ -722,6 +730,17 @@ func _active_side() -> String:
 func _scope() -> bool:
 	return career_owner!=null and career_owner.session==season and Adapter.scope(career_owner.active,season)
 
+func import_previous_common() -> void:
+	if not _available() or season!=null or Store.occupied(): return
+	var path: String="user://wiffaltro-common-career-v3.json"
+	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
+	_busy=true
+	var candidate: RefCounted=Owner.import_v3(bytes)
+	_busy=false
+	if candidate==null or FileAccess.get_file_as_bytes(path)!=bytes:
+		notice="Previous common career could not be copied consistently. The V3 save and backup are unchanged.";show_season();return
+	_retain_envelope(candidate,PackedByteArray())
+
 func import_previous_career() -> void:
 	if not _available() or season!=null or Store.occupied(): return
 	var path: String="user://wiffaltro-dynasty-career-v2.json"
@@ -740,10 +759,10 @@ var _session_bytes: PackedByteArray=PackedByteArray()
 func _clear_session_ticket() -> void:
 	_session_ticket=null;_session_owner=null;_session_state=null;_session_bytes=PackedByteArray()
 func session_switch_allowed() -> bool:
-	if not _available() or not _scope() or not career_owner.playable() or is_instance_valid(ai_runner): return false
+	if not _available() or not _scope() or career_owner.lifecycle_status() not in ["active","closed"] or is_instance_valid(ai_runner): return false
 	if not retained_human.is_empty() or not retained_report.is_empty() or not projection.is_empty() and _busy: return false
 	if not _exit_mode.is_empty() or not season.physical.pending.is_empty() or season.build.pack_pending(): return false
-	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or season.picks.size()!=4: return false
+	if season.phase==SeasonState.Phase.DRAFT or (season.phase==SeasonState.Phase.COMPLETE and career_owner.lifecycle_status()!="closed") or season.picks.size()!=4: return false
 	if menu==null or not menu.visible or menu.page!="home": return false
 	for child: Node in find_children("*","Window",true,false):
 		if child.visible and not child.is_queued_for_deletion(): return false

@@ -27,7 +27,7 @@ static func capture(value: String, session: SeasonState) -> Dictionary:
 static func checked_restore(value: String, data: Variant) -> Dictionary:
 	if value=="dynasty": return Dynasty._hydrate_current_checked(data)
 	if value!="ordinary": return {}
-	var session: SeasonState=Ordinary.restore(data)
+	var session: SeasonState=Ordinary.restore_common(data)
 	# Ordinary.restore itself captures and compares the complete named schema.
 	# Return a detached copy of that checked input, never a caller admission pair.
 	return {} if session==null else {"season":session,"captured":data.duplicate(true)}

@@ -1,0 +1,240 @@
+extends "res://tests/successor_common_play.gd"
+## One actual earned-rights ordinary round; no new funds, redraft or lifecycle fold.
+const EARNED_SOURCE="user://source-earned86.json"
+const EARNED_SOURCE_SHA="c4d7b7ed308724caf9a2f930bb319cd2a4df900ce29f8c9075afed7eaa45da67"
+const RIGHTS=["pitch.corkscrew","pitch.switchback"]
+var original: Dictionary={}
+var protected_slots: Dictionary={}
+const Eligibility=preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd")
+func initial_results() -> int:return 0
+func source_unchanged() -> bool:
+	if FileAccess.get_sha256(EARNED_SOURCE)!=EARNED_SOURCE_SHA:return false
+	for path in protected_slots:
+		if not Codec.same(slot_state(path),protected_slots[path]):return false
+	return true
+func invariant(app) -> bool:
+	var captured: Dictionary=Owner.capture(app.career_owner)
+	if not check(not captured.is_empty() and source_unchanged(),"source and current full owner remain valid"):return false
+	for key in original:
+		if key!="ordinary" and not check(Codec.same(captured.get(key),original[key]),"ordinary play preserves outer field "+str(key)):return false
+	var expected: Array=RIGHTS.duplicate()
+	var eligibility: Dictionary=app.season.build._book._exotic_current
+	if not eligibility.is_empty():
+		if not check(Eligibility.valid(eligibility),"current entitlement summary valid"):return false
+		for id in Eligibility.eligible_ids(eligibility):
+			if not expected.has(id):expected.append(id)
+	expected.sort()
+	var actual: Array=app.season.build._book._exotic_ids.duplicate();actual.sort()
+	return check(captured.ordinary.format=="wiffaltro-common-ordinary-session-v1" and Codec.same(app.season.career.start_basis.exotic_rights,RIGHTS) and Codec.same(actual,expected) and Codec.same(captured.ordinary.build.book._exotic_ids,app.season.build._book._exotic_ids),"earned descriptor and two access rights retained, not claimed learned pitches")
+func final_checks(app: SeasonApp) -> bool:
+	if not round_checks(app) or not invariant(app):return false
+	var current: Dictionary=Adapter.capture(active,app.season)
+	for club in range(6):
+		var before: Dictionary=original.ordinary.build if club==0 else original.ordinary.opponents.clubs[str(club)].build
+		var after: Dictionary=current.build if club==0 else current.opponents.clubs[str(club)].build
+		var prior: Array=before.bank._events
+		var events: Array=after.bank._events
+		var rewards: int=0
+		for event in events:
+			if event.get("op")=="reward":rewards+=1
+		if not check(rewards==1 and events.size()>=prior.size() and Codec.same(events.slice(0,prior.size()),prior),"club %d exact prior journal plus one actual reward"%club):return false
+	return true
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["preflight","step","cold","shop","pack","pack-cold"],"isolated earned86 actual round mode"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty() and source_unchanged(),"authored roots and exact earned input"):return
+	for name in ["wiffaltro-materialized-play-v1.json","wiffaltro-dynasty-career-v1.json","wiffaltro-dynasty-career-v2.json","wiffaltro-common-career-v3.json"]:
+		for suffix in ["",".bak"]:protected_slots["user://"+name+suffix]=slot_state("user://"+name+suffix)
+	original=JSON.parse_string(FileAccess.get_file_as_string(EARNED_SOURCE))
+	if not check(original.active=="ordinary" and original.ordinary.state.results.is_empty() and original.ordinary.state.picks.size()==4,"genuine earned four-pick zero-game input"):return
+	var main=Save.raw();var bak=slot_state(Save.PATH+".bak")
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var counters=[Adapter.OrdinaryPending.project_calls,Adapter.OrdinaryFixtures.resolve_calls,OldDecoder.restore_calls]
+	app.reload_save()
+	if not check(app.season!=null and app.career_owner!=null,"earned cold owner exists before binding"):return
+	bind_side(app)
+	if not check(app.season!=null and active=="ordinary" and app._owned() and counters==[Adapter.OrdinaryPending.project_calls,Adapter.OrdinaryFixtures.resolve_calls,OldDecoder.restore_calls] and main==Save.raw() and Codec.same(bak,slot_state(Save.PATH+".bak")),"strict earned cold, no replay or pair writes"):return
+	if not invariant(app):return
+	if args[0]=="preflight":
+		var fixture=app.season.pending_fixture()
+		var clone=app.season.fork_live()
+		if not check(Codec.same(clone.build._book._exotic_ids,RIGHTS) and ActiveFixtures.match_for(clone,fixture)!=null and not ActiveFixtures.request_key(clone,fixture).is_empty(),"real physical request constructs with inherited access context"):return
+		finish_step(app,"earned86-preflight")
+	elif args[0]=="pack":
+		if not final_checks(app):return
+		if not await paid_pack(app):return
+	elif args[0]=="pack-cold":
+		if not final_checks(app):return
+		var opened: int=0;var picked: int=0
+		for event: Dictionary in app.season.build._events:
+			opened+=int(event.op=="pack_open");picked+=int(event.op=="pack_pick")
+		if not check(opened==1 and picked==1 and app.season.build._visit.pack_status=="used" and not app.season.build.pack_pending() and app.season.build.cash()==4,"cold exact one authored eight-Cash pack and one applied choice"):return
+		finish_step(app,"earned86-pack-cold",true)
+	elif args[0]=="shop":
+		if not final_checks(app):return
+		await inherited_shop(app)
+	elif args[0]=="cold":
+		if not final_checks(app):return
+		finish_step(app,"earned86-cold",true)
+	elif not app.season.physical.pending.is_empty():await settle_batch(app)
+	elif app.season.results.is_empty():await play_human(app)
+	else:
+		if not final_checks(app):return
+		finish_step(app,"earned86-round-complete")
+	if failed or not invariant(app):return
+	app.queue_free();await get_tree().process_frame
+	print("PASS: genuine earned86 ordinary round boundary; no optional purchase or fullseason claim")
+	get_tree().quit()
+
+func settle_batch(app: SeasonApp) -> void:
+	for job in range(1):
+		if app.season.physical.pending.is_empty(): return
+		var owner: SeasonState = app.season
+		var before: Dictionary = ActiveCodec.capture(owner)
+		var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		var primary_exists: bool = FileAccess.file_exists(Save.PATH)
+		var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
+		var count: int = app.season.physical.pending.reports.size()
+		if not check(count >= 0 and count <= 2 and app.season.results.size()==initial_results() and app.season.player_results.size()==initial_results()/3,"one unsettled actual round only"): return
+		if not check(not before.is_empty(),"nonempty actual round equality baseline"): return
+		var fault: bool = count == 0
+		if fault:
+			for malformed: Dictionary in [{},{"ownership":[1]},{"object":RefCounted.new()}]:
+				var refusal: Dictionary = ActivePending.stage_report(owner,malformed)
+				if not check(not refusal.has("candidate"),"malformed or executable NPC payload refuses before persistence"): return
+			if not check(ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"invalid NPC calls preserve original state and saves"): return
+		if fault and not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated first NPC prewrite fault"): return
+		app.resume_round()
+		# This bounded one-round test has no terminal-save fault. Observe the real
+		# App's projection instead of independently replaying the history twice.
+		var projection: Dictionary = app.projection
+		if not check(not projection.is_empty() and not projection.has("error"),"actual App pending projection"):
+			return
+		if projection.has("fixture"):
+			if not check(app._busy and app.season == owner and ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and FileAccess.file_exists(Save.PATH) == primary_exists and FileAccess.file_exists(Save.PATH+".bak") == backup_exists,"NPC start preserves original owner and disk before awaiting real physics"): return
+			# A foreign callback must not stop or replace the real in-flight runner.
+			var running: Node = app.ai_runner
+			# Preserve the actual output before the ORIGINAL App receiver attempts
+			# admission. Reconnect that exact receiver, do not replace its logic.
+			var receivers: Array = running.get_signal_connection_list("finished")
+			if not check(receivers.size()==1,"one original production NPC receiver"): return
+			var receiver: Callable=receivers[0].callable
+			var receiver_flags: int=int(receivers[0].flags)
+			running.disconnect("finished",receiver)
+			running.finished.connect(func(report: Dictionary): preserve_actual("actual120-npc-%d"%int(projection.fixture.id),{"report":report,"fixture":projection.fixture,"before":before,"owner_before":Owner.capture(app.career_owner)}))
+			running.connect("finished",receiver,receiver_flags)
+			var foreign: Node = Node.new()
+			app._ai_finished({},foreign)
+			foreign.free()
+			if not check(app._busy and app.ai_runner == running and app.retained_report.is_empty() and app.season == owner,"foreign NPC callback cannot replace active runner/owner"): return
+			var finished: bool = false
+			for frame in range(150000):
+				await get_tree().physics_frame
+				if not app._busy:
+					finished = true
+					break
+			if fault:
+				if not check(finished and app.retained != null and not app.retained_report.is_empty() and app.season == owner and ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"NPC prewrite refusal preserves original owner and both saves"): return
+				var retained: SeasonState = app.retained
+				var raw: Dictionary = app.retained_report.duplicate(true)
+				var actual: Dictionary = ActiveCodec.capture(retained)
+				var reference: SeasonState = Adapter.restore(active,ActiveCodec.capture(owner))
+				if not check(reference != null,"independent original NPC reference clone"): return
+				reference.physical.pending.reports.append({"fixture":int(projection.fixture.id),"request":ActiveFixtures.request_key(projection.candidate,projection.fixture),"report":raw.duplicate(true)})
+				var expected: Dictionary = ActiveCodec.capture(reference)
+				if not check(not actual.is_empty() and not expected.is_empty() and ClubCareer.same(actual,expected),"fixed NPC candidate equals original materialized append/capture path"): return
+				app._ai_finished(raw,null)
+				if not check(app.retained == retained and ClubCareer.same(app.retained_report,raw) and ClubCareer.same(ActiveCodec.capture(retained),actual),"late duplicate callback cannot replace retained NPC candidate"): return
+				if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own NPC prewrite fault"): return
+				app.retry_save()
+				if not check(app.retained == null and app.season == retained and app.retained_report.is_empty() and ClubCareer.same(ActiveCodec.capture(app.season),actual),"explicit materialized NPC retry promotes exact candidate once"): return
+				var paid_primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+				var paid_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+				app.retry_save()
+				var duplicate: Dictionary = ActivePending.stage_report(app.season,raw)
+				if not check(not duplicate.has("candidate") and FileAccess.get_file_as_bytes(Save.PATH) == paid_primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == paid_backup and ClubCareer.same(ActiveCodec.capture(app.season),actual),"already consumed NPC report rejected without state or backup mutation"): return
+			if not check(finished and app.get("retained") == null and app.season.physical.pending.reports.size() == count+1,"actual NPC report saved once"):
+				return
+			finish_step(app,"npc-%d"%int(projection.fixture.id))
+		else:
+			if not check(app.get("retained") == null and app.season.physical.pending.is_empty() and app.season.results.size() == app.season.player_results.size()*3,"all three actual games settled"):
+				return
+			var settled: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+			var settled_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+			app.resume_round(); app.retry_save()
+			if not check(FileAccess.get_file_as_bytes(Save.PATH) == settled and FileAccess.get_file_as_bytes(Save.PATH+".bak") == settled_backup,"duplicate settlement/retry cannot pay or rotate backup twice"): return
+			finish_step(app,"settlement-%d"%app.season.player_results.size())
+			return
+	return # One real NPC checkpoint per process; next invocation resumes its durable successor.
+
+func inherited_shop(app) -> void:
+	app.open_pitch_shop()
+	if not check(app.retained==null and app.season.build._visit.open,"real earned shop persisted"):return
+	var shop=shop_for(app)
+	if not check(shop!=null,"actual current shop window"):return
+	var offered: Array=[]
+	var chosen: String=""
+	var item_id: String=""
+	for offer in app.season.build._visit.offers:
+		var id: String=app.season.build._visit.offers[offer]
+		var item: Dictionary=Progression.display_item(id)
+		if item.get("recipe","") in RIGHTS:
+			offered.append({"offer":offer,"item":id,"targets":app.season.build.targets(id).size()})
+			if chosen.is_empty() and not app.season.build.targets(id).is_empty():chosen=offer;item_id=id
+	var report: Dictionary={"cash":app.season.build.cash(),"inherited_access":RIGHTS,"actual_exotic_offers":offered,"purchased":false}
+	if chosen.is_empty():
+		report["scope"]="No inherited exotic offer with legal target in actual current stock; exotic purchase untested. No stock injected."
+		preserve_actual("earned-exotic-shop",report);finish_step(app,"earned-exotic-unavailable");return
+	var buy: Button=null
+	for button in shop.find_children("*","Button",true,false):
+		if not button.is_queued_for_deletion() and button.has_meta("offer") and button.get_meta("offer")==chosen and button.text=="BUY AND USE":buy=button;break
+	if not check(buy!=null and not buy.disabled,"real exotic offer selection control"):return
+	var before=Save.raw();var bak=slot_state(Save.PATH+".bak")
+	buy.pressed.emit()
+	var target: Button=null
+	for button in shop.find_children("*","Button",true,false):
+		if not button.is_queued_for_deletion() and button.has_meta("target"):target=button;break
+	if not check(target!=null,"actual legal exotic recipient control"):return
+	var command: Dictionary=shop._request("buy",{"offer":chosen,"mode":"use"})
+	command.merge(target.get_meta("target"))
+	var raw_before: Dictionary=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd").capture(app.career_owner)
+	var prior_events: Array=app.season.build._events.duplicate(true)
+	var scratch=app.season.build._fork()
+	var quote: Dictionary=scratch.preview(command)
+	if not check(preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd").same(raw_before,preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd").capture(app.career_owner)) and Save.raw()==before and Codec.same(bak,slot_state(Save.PATH+".bak")),"detached quote leaves all live raw state and pair unchanged"):return
+	report["quote"]=quote.duplicate(true);report["command"]=command.duplicate(true)
+	if not quote.ok:
+		if not check(target.disabled and Save.raw()==before and Codec.same(bak,slot_state(Save.PATH+".bak")),"authoritative refused quote and disabled purchase preserve pair"):return
+		report["scope"]="Actual quote refused; purchase untested. No funds or targets injected."
+		preserve_actual("earned-exotic-shop",report);finish_step(app,"earned-exotic-refused");return
+	target.pressed.emit()
+	if not check(shop._confirm.visible,"actual exotic purchase confirmation"):return
+	shop._confirm.get_cancel_button().pressed.emit()
+	if not check(Save.raw()==before and Codec.same(bak,slot_state(Save.PATH+".bak")),"exotic Cancel preserves exact pair"):return
+	shop._preview(command,"Inherited exotic purchase")
+	if not check(shop._confirm.visible,"same valid exotic quote reconfirmed"):return
+	shop._confirm.get_ok_button().pressed.emit()
+	if not check(app.retained==null and app.season.build.player(command.player).active.has(Progression.display_item(item_id).recipe),"paid exotic recipe actually learned"):return
+	if not check(app.season.build.cash()==int(quote.after.wallet.cash) and int(quote.before_cash)>app.season.build.cash()
+		and app.season.build._events.size()==prior_events.size()+1 and Codec.same(app.season.build._events.slice(0,prior_events.size()),prior_events)
+		and app.season.build._events.back().id==command.id and app.season.build._events.back().op=="buy", "exact quoted Cash debit and one new purchase command receipt"):return
+	var committed=Save.raw();var committed_bak=slot_state(Save.PATH+".bak")
+	app.retry_save()
+	if not check(Save.raw()==committed and Codec.same(committed_bak,slot_state(Save.PATH+".bak")),"duplicate retry doesn't purchase again"):return
+	report["purchased"]=true;report["cash_after"]=app.season.build.cash()
+	preserve_actual("earned-exotic-shop",report);finish_step(app,"earned-exotic-purchased")
+
+func materialized_pack_reference(owner: SeasonState, command: Dictionary) -> Dictionary:
+	# Same independent reference path as the inherited paid-pack test, with the
+	# explicit earned-descriptor adapter rather than legacy119-only restore.
+	var reference: SeasonState=Adapter.restore(active,ActiveCodec.capture(owner))
+	if not check(reference!=null,"earned descriptor independent pack reference"):return {}
+	var next: SeasonBuild=reference.build.candidate(command.duplicate(true))
+	if not check(next!=null,"actual quoted pack command accepted by reference"):return {}
+	reference.adopt_build(next)
+	if not check(reference.build==next,"earned reference adopts exact candidate"):return {}
+	var expected: Dictionary=ActiveCodec.capture(reference)
+	if not check(not expected.is_empty(),"strict earned pack reference capture"):return {}
+	return expected

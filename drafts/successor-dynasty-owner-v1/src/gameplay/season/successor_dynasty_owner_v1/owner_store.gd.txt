@@ -4,7 +4,7 @@ const Codec = preload("codec.gd")
 const Owner = preload("owner.gd")
 const Adapter = preload("session_adapter.gd")
 const RawGuard = preload("raw_guard.gd")
-const PATH: String = "user://wiffaltro-common-career-v3.json"
+const PATH: String = "user://wiffaltro-common-career-v4.json"
 const MAX_BYTES: int = 64 * 1024 * 1024
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
@@ -121,6 +121,8 @@ static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
 static func _routine_pins(candidate: RefCounted) -> bool:
 	if candidate.active!=_active or not RawGuard.same(candidate.paused,_paused) or candidate.imported_sha256!=_imported_sha256: return false
 	if not RawGuard.same(candidate.migration_v2,_metadata.get("migration_v2")): return false
+	for name: String in ["common","ordinary_state","migration_v3"]:
+		if not RawGuard.same(candidate.get(name),_metadata.get(name)): return false
 	if _active=="ordinary": return RawGuard.same(Codec.data_fields(candidate,Owner.META_FIELDS),_metadata)
 	return candidate.birth_seed==_metadata.get("birth_seed")
 
@@ -204,17 +206,22 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.
 static func switch_available(owner: RefCounted) -> bool:
-	if owner==null or owner.get_script()!=Owner or not owner.playable(): return false
+	if owner==null or owner.get_script()!=Owner: return false
+	var closed: bool=owner.status=="closed" if owner.active=="dynasty" else owner.ordinary_state.get("status")=="closed"
+	if not owner.playable() and not closed: return false
 	var current: SeasonState=owner.session
 	return Adapter.scope(owner.active,current) and current.phase!=SeasonState.Phase.DRAFT \
-		and current.phase!=SeasonState.Phase.COMPLETE and current.physical.pending.is_empty() \
+		and (current.phase!=SeasonState.Phase.COMPLETE or closed) and current.physical.pending.is_empty() \
 		and current.physical.needed.is_empty() and not current.physical.projecting and not current.build.pack_pending()
 
-static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int = 0, league: String = "") -> RefCounted:
+static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int = 0, league: String = "", reason: String = "") -> RefCounted:
 	last_error=""
-	if saving or _ticket!=null or operation not in ["resume","create","attach119"]: return null
-	if not match_owner(owner,expected) or not switch_available(owner): return null
-	if operation!="create" and (seed_value!=0 or not league.is_empty()): return null
+	if saving or _ticket!=null or operation not in ["resume","create","attach119","close","propose","next"]: return null
+	if not match_owner(owner,expected): return null
+	if operation in ["resume","create","attach119"] and not switch_available(owner): return null
+	if operation not in ["create","propose"] and seed_value!=0: return null
+	if operation!="create" and not league.is_empty(): return null
+	if (operation=="close" and reason not in ["complete","abandon"]) or (operation!="close" and not reason.is_empty()): return null
 	var imported: PackedByteArray=PackedByteArray()
 	const SOURCE119: String="user://wiffaltro-materialized-play-v1.json"
 	if operation=="attach119":
@@ -227,7 +234,10 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	var changed: bool=false
 	if operation=="resume": changed=candidate.switch_existing()
 	elif operation=="create": changed=candidate.create_missing(seed_value,league)
-	else: changed=candidate.import_119(imported)
+	elif operation=="attach119": changed=candidate.import_119(imported)
+	elif operation=="close": changed=candidate.close_current(reason)
+	elif operation=="propose": changed=candidate.propose_next(seed_value)
+	elif operation=="next": changed=candidate.commit_next()
 	if not changed: return null
 	# This rare explicit boundary strictly admits BOTH sides and all metadata;
 	# routine operations still pin the dormant side and validate current only.

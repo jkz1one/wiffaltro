@@ -1,0 +1,178 @@
+extends RefCounted
+## One active live session, one dormant canonical snapshot, one durable writer.
+## Dynasty metadata is retained independently; pause never closes or decays it.
+const Session = preload("runtime.gd")
+const Codec = preload("codec.gd")
+const Previous = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Legacy = preload("legacy_owner_v2.gd")
+const Adapter = preload("session_adapter.gd")
+const Ledger = preload("ledger.gd")
+const Life = preload("lifecycle.gd")
+const FORMAT: String="wiffaltro-common-career-v3"
+const DYNASTY_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration"]
+const META_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration","imported_sha256","migration_v2"]
+const DATA_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration","imported_sha256","migration_v2","active","paused"]
+var session: SeasonState
+var active: String="dynasty"
+var paused: Dictionary={}
+var imported_sha256: String=""
+var migration_v2: Dictionary={}
+var birth_seed: int=0
+var ordinal: int=0
+var status: String="absent"
+var ledger: Dictionary={}
+var last_close: Dictionary={}
+var proposal: Dictionary={}
+var last_transition: Dictionary={}
+var migration: Dictionary={}
+
+static func _new(): return load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v3.gd").new()
+static func create_development(seed_value: int):
+	var prior=Legacy.create_development(seed_value)
+	if prior==null: return null
+	var result=_new(); result.session=prior.session
+	for name: String in DYNASTY_FIELDS: result.set(name,prior.get(name).duplicate(true) if prior.get(name) is Dictionary else prior.get(name))
+	return result
+static func create_ordinary(seed_value: int, league: String):
+	var result=_new(); result.active="ordinary"
+	result.session=Adapter.OrdinaryRuntime.create_fresh(seed_value,league)
+	return result if result.session!=null else null
+func fork():
+	var result=_new()
+	result.session=session.fork_live() if session!=null else null
+	if not Codec.install_fields(result,DATA_FIELDS,Codec.data_fields(self,DATA_FIELDS)): return null
+	return result if result.session!=null else null
+func playable() -> bool: return active=="ordinary" or (active=="dynasty" and status=="active")
+func close_current(reason: String) -> bool: return active=="dynasty" and Life.close(self,reason)
+func propose_next(seed_value: int) -> bool: return active=="dynasty" and Life.propose(self,seed_value)
+func choose_overflow(player: String, receipt: String) -> bool: return active=="dynasty" and Life.choose(self,player,receipt)
+func next_preview() -> Dictionary: return Life.preview(self) if active=="dynasty" else {}
+func commit_next() -> bool: return active=="dynasty" and Life.advance(self)
+func discovery_ids() -> Array:
+	var result: Array=ledger.get("collection",[]).duplicate()
+	if playable():
+		for id: String in ClubCollection.acquired(session.build):
+			if not result.has(id): result.append(id)
+	result.sort(); return result
+func awards() -> Dictionary: return ledger.get("plaques",{}).duplicate(true)
+func earned_player_ids() -> Array[String]: return ClubPlayerCatalog.earned(ledger.get("metrics",{}))
+func dynasty_metadata() -> Dictionary: return Codec.data_fields(self,DYNASTY_FIELDS)
+static func _digest(value: Variant) -> bool: return Legacy._digest(value)
+static func _hash(bytes: PackedByteArray) -> String:
+	var h: HashingContext=HashingContext.new()
+	return h.finish().hex_encode() if h.start(HashingContext.HASH_SHA256)==OK and h.update(bytes)==OK else ""
+static func _bytes_value(bytes: PackedByteArray) -> Variant:
+	if bytes.is_empty() or bytes.size()>64*1024*1024: return null
+	var parser: JSON=JSON.new()
+	return parser.data if parser.parse(bytes.get_string_from_utf8())==OK else null
+static func _adopt_legacy(prior):
+	var result=_new();result.session=prior.session
+	for name: String in DYNASTY_FIELDS: result.set(name,prior.get(name).duplicate(true) if prior.get(name) is Dictionary else prior.get(name))
+	result.paused=prior.alternate.duplicate(true);result.imported_sha256=prior.imported_sha256
+	return result
+static func import_v2(bytes: PackedByteArray):
+	var input: Variant=_bytes_value(bytes)
+	var prior=Legacy.restore(input)
+	if prior==null or not Codec.same(Legacy.capture(prior),input): return null
+	var result=_adopt_legacy(prior)
+	result.migration_v2={"format":Legacy.FORMAT,"sha256":_hash(bytes),"bytes":bytes.size()}
+	return result if not capture(result).is_empty() else null
+static func import_75(bytes: PackedByteArray):
+	var prior=Legacy.import_75(bytes)
+	if prior==null: return null
+	var result=_adopt_legacy(prior)
+	return result if not capture(result).is_empty() else null
+func import_119(bytes: PackedByteArray) -> bool:
+	if active!="dynasty" or not paused.is_empty(): return false
+	var value: Variant=_bytes_value(bytes)
+	if not _ordinary_v1(value): return false
+	var checked: Dictionary=Adapter.checked_restore("ordinary",value)
+	if checked.is_empty(): return false
+	paused=checked.captured; imported_sha256=_hash(bytes)
+	return not imported_sha256.is_empty()
+func switch_existing() -> bool:
+	if paused.is_empty(): return false
+	var outgoing: Dictionary=Adapter.capture(active,session)
+	var next: Dictionary=Adapter.checked_restore(Adapter.other(active),paused)
+	if outgoing.is_empty() or next.is_empty(): return false
+	session=next.season;paused=outgoing;active=Adapter.other(active)
+	return true
+func create_missing(seed_value: int, league: String) -> bool:
+	if not paused.is_empty(): return false
+	var outgoing: Dictionary=Adapter.capture(active,session)
+	if outgoing.is_empty(): return false
+	if active=="dynasty":
+		var next: SeasonState=Adapter.OrdinaryRuntime.create_fresh(seed_value,league)
+		if next==null: return false
+		session=next;active="ordinary"
+	else:
+		if league!="dynasty": return false
+		var next=Legacy.create_development(seed_value)
+		if next==null: return false
+		for name: String in DYNASTY_FIELDS: set(name,next.get(name).duplicate(true) if next.get(name) is Dictionary else next.get(name))
+		session=next.session;active="dynasty"
+	paused=outgoing
+	return true
+
+static func _base_valid(owner) -> bool:
+	if owner==null or owner.get_script()!=load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v3.gd") or not Codec.known_variables(owner,DATA_FIELDS+["session"]): return false
+	if not Adapter.scope(owner.active,owner.session) or not Codec.primitive(Codec.data_fields(owner,DATA_FIELDS)): return false
+	if not owner.imported_sha256.is_empty() and not _digest(owner.imported_sha256): return false
+	if owner.active=="dynasty" and owner.paused.is_empty() and not owner.imported_sha256.is_empty(): return false
+	if not owner.migration_v2.is_empty():
+		if not Codec.keys(owner.migration_v2,["format","sha256","bytes"]) or owner.migration_v2.format!=Legacy.FORMAT or not _digest(owner.migration_v2.sha256) or not Codec.whole(owner.migration_v2.bytes,1,64*1024*1024): return false
+	return true
+static func _missing_dynasty(owner) -> bool:
+	return owner.imported_sha256.is_empty() and owner.birth_seed==0 and owner.ordinal==0 and owner.status=="absent" and owner.ledger.is_empty() and owner.last_close.is_empty() and owner.proposal.is_empty() and owner.last_transition.is_empty() and owner.migration.is_empty() and owner.migration_v2.is_empty()
+static func _dynasty_valid(owner, season: SeasonState, current: Dictionary) -> bool:
+	var view=Legacy.new();view.session=season
+	for name: String in DYNASTY_FIELDS: view.set(name,owner.get(name))
+	# Ordinary import provenance is common-owner metadata, not a second copy in
+	# this Dynasty-only validation view. Original v2 inputs use Legacy.restore.
+	return not Legacy.pack_current(view,current).is_empty()
+
+# Explicit legacy dependency boundary: newer ordinary codecs may understand
+# earned starts, but an85 v3 snapshot always contains its original genesis.
+static func _ordinary_v1(value: Variant) -> bool:
+	if not value is Dictionary: return false
+	if value.is_empty(): return true
+	if value.get("format")!=Previous.Catalog.FORMAT or not Codec.whole(value.get("version"),Previous.Catalog.VERSION,Previous.Catalog.VERSION): return false
+	if not value.get("career") is Dictionary or not value.career.get("start_basis") is Dictionary or not value.get("state") is Dictionary: return false
+	var basis: Dictionary=value.career.start_basis
+	return Previous.Genesis.valid_basis(basis) and basis.genesis.seed==value.state.get("season_seed")
+
+static func pack_current(owner, current: Dictionary) -> Dictionary:
+	# Pure assembly, no writer authority. For ordinary actions Store separately
+	# pins every dormant Dynasty byte AND metadata to its strict admission.
+	if not _base_valid(owner) or current.is_empty(): return {}
+	if not _ordinary_v1(current if owner.active=="ordinary" else owner.paused): return {}
+	if owner.active=="dynasty" and not _dynasty_valid(owner,owner.session,current): return {}
+	if owner.active=="ordinary" and owner.paused.is_empty() and not _missing_dynasty(owner): return {}
+	var result: Dictionary=Codec.data_fields(owner,META_FIELDS)
+	result.merge({"version":3,"format":FORMAT,"active":owner.active,"dynasty":current if owner.active=="dynasty" else owner.paused.duplicate(true),"ordinary":current if owner.active=="ordinary" else owner.paused.duplicate(true)})
+	return result
+static func capture(owner) -> Dictionary:
+	if not _base_valid(owner): return {}
+	var current: Dictionary=Adapter.capture(owner.active,owner.session)
+	if current.is_empty(): return {}
+	if not owner.paused.is_empty():
+		var dormant: Dictionary=Adapter.checked_restore(Adapter.other(owner.active),owner.paused)
+		if dormant.is_empty(): return {}
+		if owner.active=="ordinary" and not _dynasty_valid(owner,dormant.season,dormant.captured): return {}
+	return pack_current(owner,current)
+static func restore(value: Variant):
+	if not Codec.primitive(value) or not Codec.keys(value,META_FIELDS+["version","format","active","dynasty","ordinary"]) or value.version!=3 or value.format!=FORMAT or not value.active is String or not Adapter.side(value.active): return null
+	if not value.dynasty is Dictionary or not _ordinary_v1(value.ordinary): return null
+	var result=_new(); var fields: Dictionary={}
+	for name: String in META_FIELDS: fields[name]=value[name]
+	if not Codec.install_fields(result,META_FIELDS,fields): return null
+	result.active=value.active;result.paused=value[Adapter.other(value.active)].duplicate(true)
+	var current: Dictionary=Adapter.checked_restore(result.active,value[result.active])
+	if current.is_empty(): return null
+	result.session=current.season
+	if not result.paused.is_empty():
+		var dormant: Dictionary=Adapter.checked_restore(Adapter.other(result.active),result.paused)
+		if dormant.is_empty(): return null
+		if result.active=="ordinary" and not _dynasty_valid(result,dormant.season,dormant.captured): return null
+	var checked: Dictionary=pack_current(result,current.captured)
+	return result if not checked.is_empty() and Codec.same(checked,value) else null

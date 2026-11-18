@@ -1,0 +1,114 @@
+extends RefCounted
+## Explicit materialized earned starts; never fabricated historical runs.
+const Builds=preload("build_codec.gd")
+const Eligibility=preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd")
+const KIND: String="common-ordinary-start-v1"
+const FORMAT: String="wiffaltro-common-ordinary-session-v1"
+const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
+const FIELDS: Array[String]=["kind","version","seed","lineage","ordinal","common_sequence","common_sha256","player_access","starts","exotic_rights","assets","pennants","plaques","common_pennants","common_plaques"]
+static func sha(value: Variant) -> bool:
+	return value is String and value.length()==64 and value.is_valid_hex_number(false)
+static func starts_valid(value: Variant) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value,FLAGS+["gear_enabled","sponsor_enabled","gear","sponsors","supply","abilities","batch"]): return false
+	for key: String in FLAGS+["gear_enabled","sponsor_enabled"]:
+		if not value[key] is bool: return false
+	return SeasonGearProgress.valid_counts(value.gear) and SeasonSponsorProgress.valid_state(value.sponsors) and SeasonOwnership._whole(value.supply,0,3) and SeasonOwnership._whole(value.abilities,0,3) and SeasonSmallBatch.valid(value.batch)
+static func ids_valid(value: Variant) -> bool:
+	if not value is Array or value.size()>Eligibility.OFFERINGS.size(): return false
+	var previous: String=""
+	for id: Variant in value:
+		if not id is String or not Eligibility.OFFERINGS.has(id) or id<=previous: return false
+		previous=id
+	return true
+static func valid(value: Variant) -> bool:
+	if not value is Dictionary or not Builds._primitive(value) or not SeasonOwnership._keys(value,FIELDS) or value.kind!=KIND or not SeasonOwnership._whole(value.version,1,1): return false
+	if not SeasonOwnership._whole(value.seed,0,2147483647) or not value.lineage is String or not value.lineage.begins_with("ordinary:") or not sha(value.lineage.trim_prefix("ordinary:")) or not SeasonOwnership._whole(value.ordinal,1,ClubCareer.MAX_RUNS): return false
+	if not SeasonOwnership._whole(value.common_sequence,0,ClubCareer.MAX_RUNS*2) or not sha(value.common_sha256) or not ClubPlayerCatalog.valid_ids(value.player_access) or not starts_valid(value.starts) or not ids_valid(value.exotic_rights): return false
+	for key: String in ["assets","pennants","plaques","common_pennants","common_plaques"]:
+		if not value[key] is Dictionary: return false
+	return assets_valid(value.assets) and legacy_plaques_valid(value.plaques) and pennant_history_valid(value.pennants) and common_awards_valid(value.common_pennants,value.common_plaques,int(value.common_sequence))
+static func assets_valid(value: Dictionary) -> bool:
+	# The currently admitted materialized families carry an untouched initial
+	# asset ledger. Do not invent credits/runs to replay richer journals.
+	if not SeasonOwnership._whole(value.get("seed"),0,2147483647) or not value.get("events") is Array or not value.events.is_empty(): return false
+	var basis: Dictionary=preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd").derive(int(value.seed))
+	return not basis.is_empty() and ClubCareer.same(value,basis.assets)
+static func legacy_plaques_valid(value: Dictionary) -> bool:
+	if value.is_empty(): return true
+	if not SeasonOwnership._keys(value,["version","from_season","records"]) or not SeasonOwnership._whole(value.version,1,1) or not SeasonOwnership._whole(value.from_season,1,ClubCareer.MAX_RUNS) or not value.records is Dictionary or value.records.size()>48: return false
+	for key: Variant in value.records:
+		var row: Variant=value.records[key]
+		if not key is String or not StadiumPlaqueRewards.valid_record(row) or key!=StadiumPlaqueRewards.key(row.player_id) or row.season_id<value.from_season: return false
+	return true
+static func pennant_history_valid(value: Dictionary) -> bool:
+	# One prospective era for this single materialized ordinary session, not a
+	# historical archive or a declaration that any pennant has been earned.
+	return SeasonOwnership._keys(value,["version","from_season","eras","mastery_from","mastery_contract"]) and SeasonOwnership._whole(value.version,StadiumPennantRewards.MASTERY_VERSION,StadiumPennantRewards.MASTERY_VERSION) and SeasonOwnership._whole(value.from_season,1,1) and SeasonOwnership._whole(value.mastery_from,1,1) and value.mastery_contract==StadiumPennantRewards.MASTERY_CONTRACT and value.eras is Dictionary and SeasonOwnership._keys(value.eras,["1"]) and StadiumClubIdentity.valid(value.eras["1"])
+static func close_id(value: Variant) -> bool:
+	if not value is String: return false
+	var parts: PackedStringArray=value.split(":")
+	if parts.size()!=4 or parts[3]!="close" or parts[0] not in ["ordinary","dynasty"] or not parts[2].is_valid_int() or str(int(parts[2]))!=parts[2] or not SeasonOwnership._whole(int(parts[2]),1,ClubCareer.MAX_RUNS): return false
+	return sha(parts[1]) if parts[0]=="ordinary" else parts[1].is_valid_int() and str(int(parts[1]))==parts[1] and SeasonOwnership._whole(int(parts[1]),0,2147483647)
+static func compact_stats_valid(value: Variant, limit: int, legacy: bool) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value,["hits","strikeouts","clean_outs","witnesses"]) or not value.witnesses is Dictionary or value.witnesses.size()!=3: return false
+	for field: String in ["hits","strikeouts","clean_outs"]:
+		if not SeasonOwnership._whole(value[field],0,12288000000): return false
+	if value.hits<40 and value.strikeouts<60 and value.clean_outs<40: return false
+	for key: Variant in value.witnesses:
+		if not key is String or not SeasonOwnership._whole(value.witnesses[key],5,12): return false
+		if legacy:
+			if not key.is_valid_int() or str(int(key))!=key or not SeasonOwnership._whole(int(key),1,limit): return false
+		elif key.begins_with("dynasty:"):
+			var ordinal: String=key.trim_prefix("dynasty:")
+			if not ordinal.is_valid_int() or str(int(ordinal))!=ordinal or not SeasonOwnership._whole(int(ordinal),1,mini(limit,ClubCareer.MAX_RUNS)): return false
+		elif not key.begins_with("common:") or not close_id(key.trim_prefix("common:")): return false
+	return true
+static func common_awards_valid(pennants: Dictionary, plaques: Dictionary, sequence: int) -> bool:
+	if pennants.size()>ClubCareer.MAX_RUNS+1 or plaques.size()>128: return false
+	for id: Variant in pennants:
+		var row: Variant=pennants[id]
+		if not close_id(id) or not str(id).begins_with("ordinary:") or not row is Dictionary or not SeasonOwnership._keys(row,["close_id","fold_index","record"]) or row.close_id!=id or not SeasonOwnership._whole(row.fold_index,1,sequence) or not StadiumPennantRewards.valid_reward(row.record) or row.record.season_id!=int(str(id).split(":")[-2]): return false
+	for id: Variant in plaques:
+		var row: Variant=plaques[id]
+		if not id is String or id not in SeasonPlayerCatalog.ids() or not row is Dictionary or row.get("player")!=id or not StadiumClubIdentity.valid(row.get("era")): return false
+		if row.get("format")=="dynasty-compact-legend-v1":
+			if not SeasonOwnership._keys(row,["format","player","ordinal","era","stats"]) or not SeasonOwnership._whole(row.ordinal,1,mini(sequence,ClubCareer.MAX_RUNS)) or not compact_stats_valid(row.stats,int(row.ordinal),true): return false
+		elif row.get("format")=="common-compact-legend-v1":
+			if not SeasonOwnership._keys(row,["format","player","close_id","fold_index","era","stats"]) or not close_id(row.close_id) or not SeasonOwnership._whole(row.fold_index,1,sequence) or not compact_stats_valid(row.stats,int(row.fold_index),false): return false
+		else: return false
+	return true
+static func make(seed_value: int, lineage: String, ordinal: int, sequence: int, common_sha: String, projection: Dictionary) -> Dictionary:
+	if not SeasonOwnership._keys(projection,["player_access","starts","exotic_rights","assets","pennants","plaques","common_pennants","common_plaques"]): return {}
+	var result: Dictionary=projection.duplicate(true)
+	result.merge({"kind":KIND,"version":1,"seed":seed_value,"lineage":lineage,"ordinal":ordinal,"common_sequence":sequence,"common_sha256":common_sha})
+	return result if valid(result) else {}
+static func install(build: SeasonBuild, basis: Dictionary) -> bool:
+	if not valid(basis) or build==null or build._book.revision()!=0: return false
+	var s: Dictionary=basis.starts
+	build._gear_progress.enabled=s.gear_enabled;build._gear_progress.start=s.gear.duplicate(true)
+	build._sponsor_progress.enabled=s.sponsor_enabled;build._sponsor_progress.start=s.sponsors.duplicate(true)
+	for key: String in ["order","rain","transfer","supply","checkout","association","freezer","sides","jump","sure","field","batch"]:
+		build.set("_"+key+"_start",s[key].duplicate(true) if s[key] is Array else s[key])
+	build._major.start=s.major;build._abilities.start=s.abilities;build._copy.start=s.copy
+	build._pool.assign(basis.player_access)
+	if not build._book.install_exotic_start([]): return false
+	# Compact rights have explicit common-owner provenance in this basis, not
+	# fake season proofs. Only this named constructor installs this start set.
+	build._book._exotic_ids.assign(basis.exotic_rights)
+	return build._abilities.learned.is_empty() and matches(build,basis)
+static func matches(build: SeasonBuild, basis: Dictionary) -> bool:
+	if not valid(basis) or build==null: return false
+	var s: Dictionary=basis.starts
+	if build._gear_progress.enabled!=s.gear_enabled or build._sponsor_progress.enabled!=s.sponsor_enabled or not ClubCareer.same(build._gear_progress.start,s.gear) or not ClubCareer.same(build._sponsor_progress.start,s.sponsors): return false
+	for key: String in ["order","rain","transfer","supply","checkout","association","freezer","sides","jump","sure","field","batch"]:
+		if not ClubCareer.same(build.get("_"+key+"_start"),s[key]): return false
+	if build._major.start!=s.major or build._abilities.start!=s.abilities or build._copy.start!=s.copy or not build._book._exotic_start.is_empty(): return false
+	var ids: Array=basis.exotic_rights.duplicate()
+	var current: Dictionary=build._book._exotic_current
+	if not current.is_empty():
+		if not Eligibility.valid(current): return false
+		for id: String in Eligibility.eligible_ids(current):
+			if not ids.has(id): ids.append(id)
+	ids.sort()
+	var actual: Array=build._book._exotic_ids.duplicate();actual.sort()
+	return ClubCareer.same(ids,actual)

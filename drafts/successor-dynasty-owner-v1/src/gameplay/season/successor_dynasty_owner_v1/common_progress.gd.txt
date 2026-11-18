@@ -1,0 +1,228 @@
+extends RefCounted
+const ClubLeagueCareer=preload("res://src/gameplay/season/club_league_career.gd")
+## Bounded shared human projection. Owner alone authenticates close IDs/cursors.
+## No historical run fabrication, asset replay, or mutation of either session.
+const C=preload("codec.gd")
+const Ledger=preload("ledger.gd")
+const Contribution=preload("contribution.gd")
+const Ordinary=preload("res://src/gameplay/season/successor_live_play_v1/progress.gd")
+const Adapter=preload("session_adapter.gd")
+const Catalog=preload("catalog.gd")
+const FIELDS: Array[String]=["version","closed","completed","abandoned","games","wins","runs_for","runs_against","currency","titles","metrics","players","collection","development","starts","legacy_closed","legacy_pennant_history","legacy_plaques","pennants","plaques","era","player_access","exotic_rights"]
+
+static func birth(dynasty_ledger: Dictionary, ordinary_session: SeasonState=null, initial_access: Array=[]) -> Dictionary:
+	var result: Dictionary={"version":1,"titles":{},"metrics":{},"players":{},"collection":[],"development":{"stat":0,"mastery":0,"lessons":[],"abilities":0},"starts":{},"legacy_closed":0,"legacy_pennant_history":{},"legacy_plaques":{},"pennants":{},"plaques":{},"era":StadiumClubIdentity.current(),"player_access":initial_access.duplicate(),"exotic_rights":{}}
+	if result.player_access.is_empty(): result.player_access=(ordinary_session.player_access if ordinary_session!=null else ClubPlayerCatalog.initial_owned()).duplicate()
+	result.player_access.sort()
+	for key: String in Ledger.COUNTERS: result[key]=0
+	if not dynasty_ledger.is_empty():
+		if not Ledger.valid(dynasty_ledger): return {}
+		for key: String in Ledger.COUNTERS: result[key]=dynasty_ledger[key]
+		for key: String in ["metrics","players","collection","era"]: result[key]=dynasty_ledger[key].duplicate(true)
+		result.development=dynasty_ledger.development["club:0"].duplicate(true)
+		result.starts=dynasty_ledger.club_starts["club:0"].duplicate(true)
+		result.legacy_closed=dynasty_ledger.closed
+		result.legacy_pennant_history=dynasty_ledger.pennants.duplicate(true)
+		result.legacy_plaques=dynasty_ledger.plaques.duplicate(true)
+		if dynasty_ledger.titles.get("dynasty",false): result.titles[ClubLeagueCareer.title_key("dynasty",0)]=true
+		for id: String in result.players:
+			var renamed: Dictionary={}
+			for ordinal: String in result.players[id].witnesses: renamed["dynasty:"+ordinal]=result.players[id].witnesses[ordinal]
+			result.players[id].witnesses=renamed
+	else:
+		if not Adapter.scope("ordinary",ordinary_session): return {}
+		var starts: Variant=ordinary_session.career.start_basis.get("starts")
+		if not Ledger.valid_starts(starts): return {}
+		result.starts=starts.duplicate(true)
+	return result if valid(result) else {}
+
+static func _development(value: Variant) -> bool:
+	if not C.keys(value,["stat","mastery","lessons","abilities"]) or not value.lessons is Array or value.lessons.size()>128: return false
+	for key: String in ["stat","mastery","abilities"]:
+		if not C.whole(value[key],0,4194304): return false
+	var seen: Array=[]
+	for id: Variant in value.lessons:
+		if not id is String or id in seen or id not in Catalog.known_ids(): return false
+		seen.append(id)
+	return true
+
+static func _stats(value: Variant, closed: int) -> bool:
+	if not C.keys(value,["hits","strikeouts","clean_outs","witnesses"]) or not value.witnesses is Dictionary or value.witnesses.size()>3: return false
+	for key: String in ["hits","strikeouts","clean_outs"]:
+		if not C.whole(value[key],0,12288000000): return false
+	for key: Variant in value.witnesses:
+		if not key is String or key.length()>256 or key.is_empty() or not C.whole(value.witnesses[key],5,12): return false
+	return value.witnesses.size()<=closed
+
+static func _legend(value: Dictionary) -> bool:
+	return value.witnesses.size()==3 and (value.hits>=40 or value.strikeouts>=60 or value.clean_outs>=40)
+
+static func valid(value: Variant) -> bool:
+	if not C.keys(value,FIELDS) or value.version!=1 or not C.primitive(value): return false
+	for key: String in Ledger.COUNTERS:
+		if not C.whole(value[key],0,12288000000): return false
+	if value.closed!=value.completed+value.abandoned or value.closed>ClubCareer.MAX_RUNS*2 or value.wins>value.games or not C.whole(value.legacy_closed,0,int(value.closed)): return false
+	if not ClubPlayerCatalog.valid_ids(value.player_access) or not value.exotic_rights is Dictionary or value.exotic_rights.size()>preload("exotic_eligibility.gd").OFFERINGS.size(): return false
+	for id: Variant in value.exotic_rights:
+		var right: Variant=value.exotic_rights[id]
+		if not id is String or not preload("exotic_eligibility.gd").OFFERINGS.has(id) or not C.keys(right,["origin","source"]) or not right.origin is String or not right.source is String or right.source.length()!=64 or not right.source.is_valid_hex_number(false): return false
+		if not _close_id(right.origin) and not (right.origin.begins_with("baseline:") and right.origin.trim_prefix("baseline:").length()==64 and right.origin.trim_prefix("baseline:").is_valid_hex_number(false)): return false
+	if not Ledger.valid_starts(value.starts) or not _development(value.development) or not ClubCollection.valid(value.collection) or value.collection.size()>512 or not StadiumClubIdentity.valid(value.era): return false
+	for key: String in ["titles","metrics","players","legacy_pennant_history","legacy_plaques","pennants","plaques"]:
+		if not value[key] is Dictionary: return false
+	if value.titles.size()>45 or value.metrics.size()>64 or value.players.size()>128 or value.legacy_plaques.size()>128 or value.plaques.size()>128 or value.pennants.size()>ClubCareer.MAX_RUNS+1: return false
+	for key: Variant in value.titles:
+		var known: bool=false
+		for league: String in ["standard","dynasty","dugout","sponsorship","academy","doubleheader","equipment","earnings","scramble"]:
+			for tier in range(5):
+				if key==ClubLeagueCareer.title_key(league,tier): known=true
+		if not key is String or not known or value.titles[key]!=true or not value.titles[key] is bool: return false
+	for key: Variant in value.metrics:
+		if not key is String or key not in Ledger.METRICS or not C.whole(value.metrics[key],0,12288000000): return false
+	for id: Variant in value.players:
+		if not id is String or id not in SeasonPlayerCatalog.ids() or not _stats(value.players[id],int(value.closed)): return false
+		for witness: String in value.players[id].witnesses:
+			if witness.begins_with("dynasty:"):
+				var ordinal: String=witness.trim_prefix("dynasty:")
+				if not ordinal.is_valid_int() or str(int(ordinal))!=ordinal or not C.whole(int(ordinal),1,int(value.legacy_closed)): return false
+			elif not witness.begins_with("common:") or not _close_id(witness.trim_prefix("common:")): return false
+	for id: Variant in value.legacy_plaques:
+		var award: Variant=value.legacy_plaques[id]
+		if not C.keys(award,["format","player","ordinal","era","stats"]) or award.format!="dynasty-compact-legend-v1" or award.player!=id or not value.players.has(id) or not C.whole(award.ordinal,1,int(value.legacy_closed)) or not StadiumClubIdentity.valid(award.era) or not _stats(award.stats,int(value.legacy_closed)) or not _legend(award.stats): return false
+		for ordinal: Variant in award.stats.witnesses:
+			if not ordinal is String or not ordinal.is_valid_int() or str(int(ordinal))!=ordinal or not C.whole(int(ordinal),1,int(award.ordinal)) or value.players[id].witnesses.get("dynasty:"+ordinal)!=award.stats.witnesses[ordinal]: return false
+		for key: String in ["hits","strikeouts","clean_outs"]:
+			if award.stats[key]>value.players[id][key]: return false
+	for id: Variant in value.plaques:
+		var award: Variant=value.plaques[id]
+		if not C.keys(award,["format","player","close_id","fold_index","era","stats"]) or award.format!="common-compact-legend-v1" or award.player!=id or not value.players.has(id) or value.legacy_plaques.has(id) or not _close_id(award.close_id) or not C.whole(award.fold_index,1,int(value.closed)) or not StadiumClubIdentity.valid(award.era) or not _stats(award.stats,int(value.closed)) or not _legend(award.stats): return false
+		for witness: String in award.stats.witnesses:
+			if value.players[id].witnesses.get(witness)!=award.stats.witnesses[witness]: return false
+		for key: String in ["hits","strikeouts","clean_outs"]:
+			if award.stats[key]>value.players[id][key]: return false
+	for id: Variant in value.pennants:
+		var award: Variant=value.pennants[id]
+		if not C.keys(award,["close_id","fold_index","record"]) or not _close_id(id) or award.close_id!=id or not C.whole(award.fold_index,1,int(value.closed)) or not StadiumPennantRewards.valid_reward(award.record) or award.record.season_id!=int(str(id).split(":")[-2]): return false
+	# Prospective legacy metadata is retained verbatim, not interpreted as ownership.
+	return _history(value.legacy_pennant_history)
+
+static func _history(value: Dictionary) -> bool:
+	if value.is_empty(): return true
+	var fields: Array=["version","from_season","eras"]
+	if value.get("version")==StadiumPennantRewards.MASTERY_VERSION:
+		fields.append_array(["mastery_from","mastery_contract"])
+		if value.get("mastery_contract")!=StadiumPennantRewards.MASTERY_CONTRACT or not C.whole(value.get("mastery_from"),1,ClubCareer.MAX_RUNS): return false
+	if not C.keys(value,fields) or not C.whole(value.version,1,2) or not C.whole(value.from_season,1,ClubCareer.MAX_RUNS) or not value.eras is Dictionary or value.eras.is_empty() or value.eras.size()>ClubCareer.MAX_RUNS: return false
+	if value.has("mastery_from") and value.mastery_from<value.from_season: return false
+	for i in range(value.eras.size()):
+		var ordinal: int=int(value.from_season)+i
+		if ordinal>ClubCareer.MAX_RUNS or not StadiumClubIdentity.valid(value.eras.get(str(ordinal))): return false
+	return not value.has("mastery_from") or value.mastery_from<=int(value.from_season)+value.eras.size()-1
+
+static func _close_id(value: Variant) -> bool:
+	if not value is String: return false
+	var parts: PackedStringArray=value.split(":")
+	if parts.size()!=4 or parts[3]!="close" or parts[0] not in ["ordinary","dynasty"] or not parts[2].is_valid_int() or str(int(parts[2]))!=parts[2] or not C.whole(int(parts[2]),1,ClubCareer.MAX_RUNS): return false
+	if parts[0]=="ordinary": return parts[1].length()==64 and parts[1].is_valid_hex_number(false)
+	return parts[1].is_valid_int() and str(int(parts[1]))==parts[1] and C.whole(int(parts[1]),0,2147483647)
+
+static func _earned(build: SeasonBuild, side: String) -> Dictionary:
+	if side=="dynasty": return Contribution.earned(build)
+	var result: Dictionary={"stat":0,"mastery":0,"lessons":[],"ability_receipts":[]}
+	for event: Dictionary in build._book._events:
+		if event.op=="stat": result.stat+=1
+		elif event.op in ["mastery","round_out"]: result.mastery+=1
+		elif event.op=="learn" and not result.lessons.has(event.target): result.lessons.append(event.target)
+	for id: String in build._abilities.learned:
+		for receipt: Dictionary in build._abilities.learned[id]: result.ability_receipts.append({"player":id,"receipt":receipt.duplicate(true)})
+	result.lessons.sort();return result
+
+static func fold(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String) -> Dictionary:
+	if not valid(before) or not Adapter.scope(side,season) or not _close_id(close_id) or fold_index!=before.closed+1 or reason not in ["complete","abandon"]: return {}
+	var proof: Dictionary=ClubSeasonRecord.capture(season)
+	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
+	if summary.is_empty() or (reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE) or (reason=="complete")!=(summary.finish!="unfinished"): return {}
+	var details: Dictionary=Contribution.capture(season) if side=="dynasty" else Ordinary.capture(season)
+	if details.is_empty(): return {}
+	var league: String="dynasty" if side=="dynasty" else str(season.league_rules.get("league","standard"))
+	var tier: int=int(season.league_rules.get("tier",0))
+	# Current factories admit only these Base modes; never broaden119's guard.
+	if tier!=0 or (side=="ordinary" and league not in ["standard","dugout"]): return {}
+	var result: Dictionary=before.duplicate(true)
+	result.closed+=1;result.completed+=int(reason=="complete");result.abandoned+=int(reason=="abandon")
+	var receipt: Dictionary={}
+	var title: String=ClubLeagueCareer.title_key(league,tier)
+	if reason=="complete":
+		receipt=ClubSeasonRecord.receipt(proof,not before.titles.get(title,false),tier)
+		if receipt.is_empty(): return {}
+		result.currency+=int(receipt.total)
+		if summary.finish=="champion": result.titles[title]=true
+	for score: Array in proof.scores:
+		if 0 not in [int(score[1]),int(score[2])]: continue
+		var ours: int=int(score[4] if score[2]==0 else score[3]);var theirs: int=int(score[3] if score[2]==0 else score[4])
+		result.games+=1;result.wins+=int(ours>theirs);result.runs_for+=ours;result.runs_against+=theirs
+	var credits: Dictionary={}
+	for game: Dictionary in details.games:
+		if game.players==null: continue
+		for id: String in game.players:
+			var line: Dictionary=game.players[id]
+			if not result.players.has(id): result.players[id]={"hits":0,"strikeouts":0,"clean_outs":0,"witnesses":{}}
+			for key: String in ["hits","strikeouts","clean_outs"]:
+				if line[key]!=null: result.players[id][key]+=int(line[key])
+			if line.pa>0 or line.pitches>0 or line.fielded==true: credits[id]=int(credits.get(id,0))+1
+	for id: String in credits:
+		var record: Dictionary=result.players[id]
+		if reason=="complete" and credits[id]>=5 and record.witnesses.size()<3: record.witnesses["common:"+close_id]=credits[id]
+		if not result.legacy_plaques.has(id) and not result.plaques.has(id) and _legend(record):
+			result.plaques[id]={"format":"common-compact-legend-v1","player":id,"close_id":close_id,"fold_index":fold_index,"era":before.era.duplicate(true),"stats":record.duplicate(true)}
+	# Same per-game metric reducer; current mastery/known are MAX, never SUM.
+	var metrics: Dictionary={}
+	metrics.completed_seasons=int(reason=="complete"); metrics.championships=int(reason=="complete" and summary.finish=="champion")
+	metrics.clean_total=season.build._field_outs
+	metrics.mastery_max=details.development.mastery; metrics.repertoire_max=details.development.known; metrics.season_lessons=details.development.lessons.size()
+	var streak: int=0
+	for game: Dictionary in details.games:
+		var matches: Array=proof.scores.filter(func(row: Array) -> bool: return row[0]==game.game)
+		if matches.size()!=1: return {}
+		var score: Array=matches[0]; var won: bool=(score[4]>score[3]) if score[2]==0 else (score[3]>score[4])
+		streak=streak+1 if won else 0; ClubPlayerProgress._max(metrics,"season_win_streak",streak)
+		ClubPlayerProgress._max(metrics,"shutout",int(won and (score[3] if score[2]==0 else score[4])==0))
+		ClubPlayerProgress._game_metrics(metrics,game,score,won)
+	var acquired: Array=ClubCollection.acquired(season.build)
+	var bats: Array=acquired.filter(func(id: String) -> bool: return SeasonGearCatalog.item(id).get("slot")=="bat")
+	if reason=="complete": metrics.no_bat_season=int(bats.is_empty())
+	var hit_types: Array=[]
+	for game: Dictionary in season.build._sponsor_progress.games:
+		for id: String in game.hits:
+			if not hit_types.has(id): hit_types.append(id)
+	metrics.season_hit_types=hit_types.size()
+	for key: String in metrics:
+		result.metrics[key]=int(result.metrics.get(key,0))+int(metrics[key]) if key in Ledger.ADD_METRICS else maxi(int(result.metrics.get(key,0)),int(metrics[key]))
+	for id: String in acquired:
+		if not result.collection.has(id): result.collection.append(id)
+	result.collection.sort()
+	for id: String in ClubPlayerCatalog.earned(result.metrics):
+		if not result.player_access.has(id): result.player_access.append(id)
+	result.player_access.sort()
+	var eligibility=preload("exotic_eligibility.gd") if side=="dynasty" else preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd")
+	var proof_rights: Dictionary=eligibility.capture(season)
+	if proof_rights.is_empty(): return {}
+	for id: String in eligibility.eligible_ids(proof_rights):
+		if not result.exotic_rights.has(id): result.exotic_rights[id]={"origin":close_id,"source":JSON.stringify(proof_rights,"",true,true).sha256_text()}
+	var earned: Dictionary=_earned(season.build,side)
+	result.development.stat+=earned.stat;result.development.mastery+=earned.mastery;result.development.abilities+=earned.ability_receipts.size()
+	for id: String in earned.lessons:
+		if not result.development.lessons.has(id): result.development.lessons.append(id)
+	result.development.lessons.sort()
+	result.starts=Contribution.starts(season.build,before.starts)
+	# Prospective Standard only: current authored era must already exist at start.
+	var history: Dictionary=season.career._pennants
+	var current: int=season.career.current
+	if league=="standard" and reason=="complete" and summary.finish=="champion" and not history.is_empty():
+		if not StadiumPennantRewards.valid_history(history,season.career.runs): return {}
+		if current>=int(history.from_season):
+			var ordinary_ordinal: int=int(close_id.split(":")[-2])
+			var record: Dictionary={"version":1,"season_id":ordinary_ordinal,"league_id":"standard","difficulty_id":"standard.d%d"%tier,"season_number":ordinary_ordinal,"era":history.eras[str(current)].duplicate(true)}
+			if not StadiumPennantRewards.valid_record(record): return {}
+			result.pennants[close_id]={"close_id":close_id,"fold_index":fold_index,"record":record}
+	return {"aggregate":result,"receipt":receipt,"proof":proof} if valid(result) else {}
