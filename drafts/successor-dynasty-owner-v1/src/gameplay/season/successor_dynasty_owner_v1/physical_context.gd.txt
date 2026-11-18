@@ -1,0 +1,114 @@
+extends RefCounted
+## Current-catalog Dynasty context only. This is not League unlock authority.
+const Profile = preload("dynasty_profile.gd")
+const LegacyLeague = preload("res://src/gameplay/season/successor_league_general_v2/physical_league.gd")
+const Pitches = preload("res://src/gameplay/season/successor_league_general_v2/pitch_evidence.gd")
+
+static func supports_rules(value: Variant) -> bool:
+	return value is Dictionary and ClubCareer.same(value, LeagueRules.capture("dynasty"))
+
+static func profile_matches(value: Variant, roster: Array) -> bool:
+	var profile: Dictionary = Profile.normalize(value)
+	if profile.is_empty() or profile.owner_id not in ["club:0","club:1","club:2","club:3","club:4","club:5"]:
+		return false
+	var expected: Array = profile.roster.duplicate()
+	var actual: Array = roster.duplicate()
+	expected.sort()
+	actual.sort()
+	return expected == actual
+
+static func dynasty_team_valid(team: TeamMatchState) -> bool:
+	if team == null or not team.is_valid_roster() or not supports_rules(team.league_rules): return false
+	var ids: Array = []
+	for player: PlayerMatchState in team.roster:
+		if player == null or player.definition == null: return false
+		ids.append(String(player.definition.id))
+	return profile_matches(team.dynasty_start, ids)
+
+static func pair_valid(a: Dictionary, b: Dictionary) -> bool:
+	# Per-club seeds differ; lineage and season ordinal must not.
+	return a.get("lineage_id") == b.get("lineage_id") \
+		and a.get("season_ordinal") == b.get("season_ordinal") \
+		and a.get("owner_id") != b.get("owner_id")
+
+static func matches(state: MatchState) -> bool:
+	if state == null or not state.stadium.is_empty() or not supports_rules(state.league_rules) \
+		or not Pitches.context_valid(state.pitch_catalog): return false
+	var ids: Array = []
+	for team: TeamMatchState in [state.away_team,state.home_team]:
+		if not dynasty_team_valid(team) or team.pitch_catalog != state.pitch_catalog \
+			or not ClubCareer.same(team.league_rules,state.league_rules) or team.recovery == null \
+			or not team.inventory_actions.is_empty() or not team.league_pair.is_empty() \
+			or not team.recovery.workload_initial.is_empty() or not team.recovery.workload_events.is_empty() \
+			or not team.recovery.workload_input.is_empty() \
+			or LegacyLeague.wallet(state.league_rules,team.league_ownership).is_empty(): return false
+		for player: PlayerMatchState in team.roster:
+			if ids.has(String(player.definition.id)): return false
+			ids.append(String(player.definition.id))
+	return pair_valid(state.away_team.dynasty_start,state.home_team.dynasty_start)
+
+static func team_valid(team: TeamMatchState) -> bool:
+	if team == null or not dynasty_team_valid(team):
+		return false
+	var owned: Dictionary = LegacyLeague.wallet(team.league_rules, team.league_ownership)
+	if owned.is_empty() or not LegacyLeague.inventory_field_valid(team, owned):
+		return false
+	if LeagueRules.doubleheader(team.league_rules):
+		if not load("res://src/gameplay/season/successor_league_general_v2/physical_workload.gd").pair_valid(team.league_pair):
+			return false
+		for player: PlayerMatchState in team.roster:
+			if player == null or player.definition == null:
+				return false
+			if not PhysicalRecoveryFlow.near(
+				player.stamina_remaining,
+				maxf(
+					0.0,
+					(
+						player.stamina_max
+						- float(team.league_pair.debt.get(String(player.definition.id), 0.0))
+					)
+				)
+			):
+				return false
+	elif not team.league_pair.is_empty():
+		return false
+	if LeagueRules.equipment(team.league_rules):
+		var active: Dictionary = {}
+		for slot: String in SeasonOwnership.GEAR_SLOTS:
+			if not owned.gear[slot].is_empty():
+				active[slot] = owned.gear[slot].item
+		for player: PlayerMatchState in team.roster:
+			if (
+				player == null
+				or player.definition == null
+				or not ClubCareer.same(player.definition.season_gear, active)
+			):
+				return false
+	if not team.ai_base:
+		return (
+			team.ai_budget.is_empty()
+			and team.ai_tactical_initial.is_empty()
+			and not team.ai_heat
+			and team.ai_recovery_pitcher.is_empty()
+			and team.ai_tactical_hitter.is_empty()
+			and team.field_supply.capacity == owned.capacity.held
+			and (
+				team.field_supply.reserved
+				== owned.held.size() - SeasonTacticalCatalog.held(owned).size()
+			)
+			and ClubCareer.same(team.tactics.held, SeasonTacticalCatalog.held(owned))
+		)
+	if (
+		team.ai_recovery_pitcher.is_empty()
+		or not team.ai_heat
+		or team.ai_tactical_hitter.is_empty()
+		or not team.ai_sponsor_choices
+	):
+		return false
+	return PhysicalBudgetEvidence.league_shape(
+		{"version": 4, "budget": team.ai_budget, "initial": team.ai_tactical_initial},
+		team.league_rules,
+		team.league_ownership
+	)
+
+

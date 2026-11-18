@@ -1,0 +1,124 @@
+extends RefCounted
+## Additive Dynasty report. No historical report reader is widened.
+const Context = preload("physical_context.gd")
+const Core = preload("res://src/gameplay/season/successor_league_general_v2/physical_core.gd")
+const Pitches = preload("res://src/gameplay/season/successor_league_general_v2/pitch_evidence.gd")
+const League = preload("res://src/gameplay/season/successor_league_general_v2/physical_league.gd")
+const VERSION: int = 120
+const RESOLVER: String = "physical-successor-dynasty-owner-v1"
+
+static func context_valid(state: MatchState) -> bool:
+	return Context.matches(state) and (state.away_team.ai_base or state.home_team.ai_base)
+
+static func capture(lab: PitchBatLab) -> Dictionary:
+	if not is_instance_valid(lab) or not context_valid(lab._match_state) \
+		or lab._automation == null or lab._match_state.phase != MatchState.Phase.GAME_END \
+		or lab.get_meta("stadium_candidate_only",false) \
+		or lab.get_meta("stadium_npc_retained_lab_only",false) \
+		or not Core._animation_capture_is_closed(lab): return {}
+	return wrap(Core._capture_core(lab),lab._match_state)
+
+static func wrap(body: Dictionary, state: MatchState, venue: Dictionary = {}) -> Dictionary:
+	if not context_valid(state) or not venue.is_empty(): return {}
+	var result: Dictionary = {"version":VERSION,"resolver":RESOLVER,"pitch_catalog":state.pitch_catalog,
+		"league_rules":state.league_rules.duplicate(true),"ownership":[],"dynasty_start":[],
+		"pair":[{},{}],"workload":[{},{}],"uses":[],"physical":body.duplicate(true)}
+	result.physical["current_pitch_bound"] = state.pitch_catalog
+	result.physical["league_bound"] = true
+	for team: TeamMatchState in [state.away_team,state.home_team]:
+		result.ownership.append(team.league_ownership.duplicate(true))
+		result.dynasty_start.append(team.dynasty_start.duplicate(true))
+		result.uses.append(team.tactics.consumed.duplicate(true))
+	return result if valid(result,state.pitch_catalog) else {}
+
+static func valid(value: Variant, pitch_catalog: String = "") -> bool:
+	if not _bounded_values(value) or not value is Dictionary or not SeasonOwnership._keys(value,["version","resolver","pitch_catalog",
+		"league_rules","ownership","dynasty_start","pair","workload","uses","physical"]) \
+		or not SeasonOwnership._whole(value.version,VERSION,VERSION) or value.resolver != RESOLVER \
+		or not Pitches.context_valid(pitch_catalog) or value.pitch_catalog != pitch_catalog \
+		or not Context.supports_rules(value.league_rules) or not value.physical is Dictionary: return false
+	for key: String in ["ownership","dynasty_start","pair","workload","uses"]:
+		if not value[key] is Array or value[key].size()!=2: return false
+	for index in range(2):
+		if not value.ownership[index] is Dictionary or not value.dynasty_start[index] is Dictionary \
+			or not value.pair[index] is Dictionary or not value.pair[index].is_empty() \
+			or not value.workload[index] is Dictionary or not value.workload[index].is_empty() \
+			or not value.uses[index] is Array or value.uses[index].size()>64 \
+			or League.wallet(value.league_rules,value.ownership[index]).is_empty(): return false
+	if not Core._valid_core(value.physical,value.league_rules,value.ownership,false,pitch_catalog): return false
+	var seen: Array = []
+	for index in range(2):
+		if not Context.profile_matches(value.dynasty_start[index],value.physical.teams[index].roster): return false
+		for id: String in value.physical.teams[index].roster:
+			if seen.has(id): return false
+			seen.append(id)
+		if value.physical.tactics.clubs[index]:
+			if not ClubCareer.same(value.uses[index],value.physical.tactics.teams[index].consumed): return false
+		elif not value.uses[index].is_empty(): return false
+	return Context.pair_valid(value.dynasty_start[0],value.dynasty_start[1])
+
+static func core(value: Dictionary, pitch_catalog: String = "") -> Dictionary:
+	return value.physical.duplicate(true) if valid(value,pitch_catalog) else {}
+
+static func matches(value: Dictionary, state: MatchState) -> bool:
+	if not context_valid(state) or not valid(value,state.pitch_catalog): return false
+	return _matches_validated_current(value,state)
+
+# Same-call reuse only. Public admission remains valid()/matches().
+static func _matches_validated_current(value: Dictionary, state: MatchState) -> bool:
+	if not context_valid(state) or value.pitch_catalog != state.pitch_catalog \
+		or not ClubCareer.same(value.league_rules,state.league_rules) \
+		or not PhysicalChoiceEvidence._matches_core(value.physical,state): return false
+	var teams: Array[TeamMatchState] = [state.away_team,state.home_team]
+	var body: Dictionary = value.physical
+	if not ClubCareer.same(body.tactics.clubs,[teams[0].ai_base,teams[1].ai_base]): return false
+	for index in range(2):
+		var team: TeamMatchState = teams[index]
+		if not ClubCareer.same(value.dynasty_start[index],team.dynasty_start) \
+			or not ClubCareer.same(value.ownership[index],team.league_ownership) \
+			or body.teams[index].name != team.display_name: return false
+		if team.ai_base and not PhysicalBaseEvidence.league_matches(
+			PhysicalBaseEvidence.enriched(body.tactics.teams[index],body.tactics.base),team,teams[1-index]): return false
+		for slot in range(team.roster.size()):
+			var player: PlayerMatchState = team.roster[slot]
+			var id: String = String(player.definition.id)
+			var row: Dictionary = body.teams[index]
+			if row.roster[slot] != id or not ClubCareer.same(row.recipes[id],player.definition.starting_pitches.map(
+				func(pitch: PitchDefinition) -> String: return String(pitch.id))) \
+				or not PhysicalRecoveryFlow.near(row.workload[id].capacity,player.stamina_max) \
+				or not PhysicalRecoveryFlow.near(row.workload[id].initial,player.stamina_remaining): return false
+	return true
+
+static func human(_value: Dictionary, _index: int, _pitch_catalog: String = "") -> Dictionary:
+	return {} # No Doubleheader workload proof is admitted by this Dynasty family.
+
+# Value-only report graph. No objects, cyclic graphs or unbounded admission work.
+static func _bounded_values(value: Variant) -> bool:
+	var queue: Array = [[value,0]]
+	var nodes: int = 1000000
+	var bytes: int = 8388608
+	while not queue.is_empty():
+		var pair: Array = queue.pop_back()
+		nodes -= 1
+		if nodes < 0 or pair[1] > 40: return false
+		var item: Variant = pair[0]
+		match typeof(item):
+			TYPE_NIL, TYPE_BOOL, TYPE_INT: pass
+			TYPE_FLOAT:
+				if not is_finite(item): return false
+			TYPE_STRING, TYPE_STRING_NAME:
+				bytes -= String(item).to_utf8_buffer().size()
+				if bytes < 0: return false
+			TYPE_ARRAY:
+				if item.size()>nodes: return false
+				for child: Variant in item: queue.append([child,pair[1]+1])
+			TYPE_DICTIONARY:
+				if item.size()>nodes: return false
+				var keys: Dictionary = {}
+				for key: Variant in item:
+					if typeof(key) not in [TYPE_STRING,TYPE_STRING_NAME,TYPE_INT] or keys.has(str(key)): return false
+					keys[str(key)] = true
+					queue.append([key,pair[1]+1])
+					queue.append([item[key],pair[1]+1])
+			_: return false
+	return true

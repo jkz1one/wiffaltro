@@ -1,0 +1,117 @@
+extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
+## Same authored gameplay; new explicitly materialized owner persistence.
+const Build = preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_build.gd")
+const Opponents = preload("res://src/gameplay/season/successor_dynasty_owner_v1/opponents.gd")
+const Physical = preload("physical_fixtures.gd")
+const LiveCareer = preload("career.gd")
+const Starts = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
+const Profile = preload("dynasty_profile.gd")
+
+const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
+
+static func create_fresh(seed_value: int, league: String = "dynasty") -> SeasonState:
+	if not SeasonOwnership._whole(seed_value,0,2147483647) or league != "dynasty": return null
+	var result: SeasonState = load("res://src/gameplay/season/successor_dynasty_owner_v1/runtime.gd").new()
+	result.season_seed = seed_value
+	result.league_rules = LeagueRules.capture("dynasty")
+	result.league_live = true
+	result.build = Build.new(seed_value)
+	if not result.build.enable_successor_pitch_catalog() or (result.league_live and not result.build.enable_league_rules(result.league_rules)): return null
+	result.opponents = Opponents.new(); result.opponents._format = 13
+	result.physical = Physical.new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new(); rng.seed = seed_value
+	result.draft_pool = ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
+	for index in range(6): result.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":[],"draw":rng.randf()})
+	result._build_schedule()
+	var basis: Dictionary = Genesis.derive(seed_value)
+	if basis.is_empty() or not Starts._install(result.build,basis) or not ClubPlayerCatalog.valid_ids(basis.player_access): return null
+	# This explicit Dynasty owner initializes its own frozen owned draft pool.
+	# The legacy ordinary-only ClubPlayerDraft.apply guard remains untouched.
+	var owned_pool: Array[String] = ClubPlayerDraft.pool(seed_value,basis.player_access)
+	if owned_pool.size() < 12: return null
+	result.player_access.assign(basis.player_access)
+	result.build._pool.assign(basis.player_access)
+	result.draft_pool = owned_pool
+	var ledger: ClubCareer = LiveCareer.new()
+	ledger.current = 1; ledger.runs.append({})
+	ledger.start_basis = basis
+	ledger._assets = basis.assets.duplicate(true)
+	ledger._pennants = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd").birth_pennants(basis)
+	ledger._plaques = basis.plaques.duplicate(true)
+	ledger._pitch_catalog = preload("catalog.gd").game_signature()
+	result.career = ledger; result.league_career = true
+	return result if ledger.sync(result) else null
+
+func league_context_consistent() -> bool:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd").scope(self)
+func _league_inventory_context_consistent() -> bool:
+	return league_context_consistent()
+func choose_player(id: String) -> bool:
+	if not league_context_consistent() or not offers().has(id) or phase != Phase.DRAFT: return false
+	if not preload("draft.gd")._source_private_choose_player_remaining_checks(self,id): return false
+	if picks.size() == 4:
+		if not Starts._install(build,career.start_basis): return false
+		if not preload("codec.gd").keys(opponents.clubs,["1","2","3","4","5"]): return false
+		var lineage: String = "dynasty:%d" % season_seed
+		for index in range(6):
+			var club: SeasonBuild = build if index == 0 else opponents.clubs[str(index)].build
+			var profile: Dictionary = Profile.capture(club,lineage,"club:%d"%index,1)
+			if profile.is_empty() or not club.enable_dynasty_start(profile): return false
+		_dynasty_start = build._dynasty_start.duplicate(true)
+	return career.sync(self)
+
+func adopt_build(next: SeasonBuild) -> void:
+	if next == null or not league_context_consistent(): return
+	super.adopt_build(next)
+	career.sync(self)
+
+func fork_live() -> SeasonState:
+	# Explicit detached transaction fork, not reconstruction of past commands.
+	var codec = load("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+	if not codec.scope(self) or not codec.known_variables(self,codec.FIELDS+codec.OBJECTS): return null
+	if _heat_replay_team != null or _doubleheader_replay_build != null or _pool_replay_ledger != null: return null
+	var result: SeasonState = get_script().new()
+	if not codec.install_fields(result,codec.FIELDS,codec.data_fields(self,codec.FIELDS)): return null
+	var detach = preload("res://src/gameplay/season/successor_owner_career_v1/pending.gd")
+	result.ownership = ownership.fork()
+	result.build = detach._fork_build(build)
+	result.career = career.fork()
+	result.opponents = Opponents.new()
+	result.opponents._format = opponents._format
+	result.opponents.draft_rule = opponents.draft_rule
+	result.opponents.draft_order.assign(opponents.draft_order)
+	for id: String in opponents.clubs:
+		var club: Dictionary = opponents.clubs[id].duplicate(true)
+		club.build = detach._fork_build(opponents.clubs[id].build)
+		result.opponents.clubs[id] = club
+	result.physical = Physical.new()
+	if not codec.install_fields(result.physical,codec.PHYSICAL_FIELDS,codec.data_fields(physical,codec.PHYSICAL_FIELDS)): return null
+	return result
+
+func record_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary = {},
+	used_gear: Array = [],
+	tactics: Array = [],
+	batting: Dictionary = {},
+	stances: Array = [],
+	fielding: Array = [],
+	pitching: Dictionary = {},
+	field_supply: Dictionary = {},
+	frozen: Array = [],
+	ai_tactics: Dictionary = {},
+	replayed_tactics: Array = [],
+	property_key: String = "",
+	pool_evidence: Variant = null,
+	yard_evidence: Variant = null
+) -> bool:
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
+	var ok: bool = super.record_player_result(fixture_id,away_runs,home_runs,performance,used_gear,tactics,batting,stances,fielding,pitching,field_supply,frozen,ai_tactics,replayed_tactics,property_key,pool_evidence,yard_evidence)
+	return ok and career.sync(self)
+
+
+func record_doubleheader_result(human: Array) -> bool:
+	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
+	return super.record_doubleheader_result(human) and career.sync(self)

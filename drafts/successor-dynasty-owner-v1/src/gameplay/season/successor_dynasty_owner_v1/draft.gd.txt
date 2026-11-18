@@ -1,0 +1,113 @@
+extends RefCounted
+## Same authored four-pick allocation; explicit Dynasty factory.
+static func _source_private_choose_player_remaining_checks(_source_owner: SeasonState, id: \
+	String) -> bool:
+	if _source_owner.build != null:
+		if not _source_owner.build.pricing_context_valid():
+			return false
+		if (
+			_source_owner.build.d1_pricing_valid()
+			and (_source_owner.build._market != 0 or _source_owner.opponents == null or \
+				_source_owner.opponents._format != 13)
+		):
+			return false
+	_source_owner.picks.append(id)
+	if _source_owner.picks.size() == 4:
+		var remaining: Array[String] = []
+		for candidate in _source_owner.draft_pool:
+			if not _source_owner.picks.has(candidate):
+				remaining.append(candidate)
+		if not _source_owner.player_access.is_empty():
+			remaining = ClubPlayerDraft.opponents(_source_owner)
+		if _source_owner.opponents != null and _source_owner.opponents._format >= 2:
+			var allocation: Dictionary = (
+				SeasonOpponentDraft.allocate_d2(
+					_source_owner.season_seed, remaining,
+					_source_owner.league_rules if LeagueRules.scramble(_source_owner.league_rules) else {}
+				)
+				if _source_owner.opponents.draft_rule == SeasonOpponentDraft.D2_RULE
+				else SeasonOpponentDraft.allocate(
+					_source_owner.season_seed,
+					remaining,
+					_source_owner.league_rules if LeagueRules.scramble(_source_owner.league_rules) else {}
+				)
+			)
+			if allocation.is_empty():
+				_source_owner.picks.pop_back()
+				return false
+			_source_owner.opponents.draft_order.assign(allocation.order)
+			for team in range(1, 6):
+				_source_owner.teams[team]["roster"] = allocation.rosters[team]
+		else:
+			for team in range(1, 6):
+				_source_owner.teams[team]["roster"] = remaining.slice((team - 1) * 4, team * 4)
+		_source_owner.teams[0]["roster"] = _source_owner.picks.duplicate()
+		if _source_owner.build != null:
+			var expanded_pitches: bool = _source_owner.build.call("pitch_catalog_successor")
+			var current_pitches: bool = _source_owner.build.pitch_catalog_current()
+			var exotic_start: Array = _source_owner.build._book._exotic_start.duplicate(true)
+			var d1_pricing: bool = _source_owner.build.d1_pricing_valid()
+			var d3_sponsors: bool = _source_owner.build.d3_sponsors_valid()
+			var d4_sponsors: bool = _source_owner.build.d4_sponsors_valid()
+			var retraining_enabled: bool = _source_owner.build._retraining_enabled
+			var progress: SeasonGearProgress = _source_owner.build._gear_progress.fork()
+			var sponsor_progress: SeasonSponsorProgress = _source_owner.build._sponsor_progress.fork()
+			var order_start: Variant = _source_owner.build._order_start
+			var rain_start: Variant = _source_owner.build._rain_start
+			var transfer_start: Variant = _source_owner.build._transfer_start
+			var checkout_start: Variant = _source_owner.build._checkout_start
+			var association_start: Variant = _source_owner.build._association_start
+			var freezer_start: Variant = _source_owner.build._freezer_start
+			var sides_start: Variant = _source_owner.build._sides_start
+			var major_start: Variant = _source_owner.build._major.start
+			var ability_start: Variant = _source_owner.build._abilities.start
+			var copy_start: Variant = _source_owner.build._copy.start
+			var field_start: Variant = _source_owner.build._field_start
+			var sure_start: Variant = _source_owner.build._sure_start
+			var jump_start: Variant = _source_owner.build._jump_start
+			var batch_start: Variant = _source_owner.build._batch_start
+			var supply_start: Variant = _source_owner.build._supply_start
+			_source_owner.build = load("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_build.gd").new(_source_owner.season_seed, _source_owner.picks, \
+				_source_owner.draft_pool, _source_owner.recruit_blocked())
+			if expanded_pitches and not _source_owner.build.call("enable_successor_pitch_catalog"):
+				return false
+			if current_pitches and (not _source_owner.build.enable_pitch_catalog() or not _source_owner.build._book.install_exotic_start(exotic_start)):
+				return false
+			if not _source_owner.league_rules.is_empty() and not \
+				_source_owner.build.enable_league_rules(_source_owner.league_rules):
+				return false
+			if d4_sponsors:
+				_source_owner.build.enable_d4_sponsors()
+			elif d3_sponsors:
+				_source_owner.build.enable_d3_sponsors()
+			elif d1_pricing:
+				_source_owner.build.enable_d1_pricing()
+			_source_owner.build._retraining_enabled = retraining_enabled
+			_source_owner.build._gear_progress = progress
+			_source_owner.build._sponsor_progress = sponsor_progress
+			_source_owner.build._order_start = order_start
+			_source_owner.build._rain_start = rain_start
+			_source_owner.build._transfer_start = transfer_start
+			_source_owner.build._supply_start = supply_start
+			_source_owner.build._checkout_start = checkout_start
+			_source_owner.build._association_start = association_start
+			_source_owner.build._freezer_start = freezer_start
+			_source_owner.build._sides_start = sides_start
+			_source_owner.build._major.start = major_start
+			_source_owner.build._abilities.start = ability_start
+			_source_owner.build._copy.start = copy_start
+			_source_owner.build._field_start = field_start
+			_source_owner.build._sure_start = sure_start
+			_source_owner.build._jump_start = jump_start
+			_source_owner.build._batch_start = batch_start
+			if (
+				not _source_owner._closed_access.is_empty()
+				and not ClosedContentAccess.matches(_source_owner.build, _source_owner._closed_access)
+			):
+				return false
+		if _source_owner.opponents != null:
+			_source_owner.opponents.initialize(_source_owner)
+		for team in range(6):
+			_source_owner.teams[team]["strength"] = _source_owner._strength(team)
+		_source_owner.phase = SeasonState.Phase.REGULAR
+	return true

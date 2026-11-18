@@ -1,0 +1,99 @@
+extends Node
+const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Codec = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+func stop(message: String) -> void:
+	push_error(message)
+	get_tree().quit(2)
+func _ready() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1":
+		stop("isolated-test-admission-required"); return
+	var started: int = Time.get_ticks_msec()
+	var cold: bool = OS.get_cmdline_user_args().has("cold")
+	var before: PackedByteArray = Store.raw()
+	var owner = Store.read() if cold else Owner.create_development(91743)
+	if owner == null: stop("fresh-owner-null"); return
+	if cold and owner.session.picks.size()!=4:
+		stop("cold-requires-completed-four-pick-owner"); return
+	print("cold-loaded" if cold else "fresh-created")
+	if not cold and not Store.save(owner,PackedByteArray()): stop("fresh-save:"+Store.last_error); return
+	for i in range(owner.session.picks.size(),4):
+		var picked_at: int = Time.get_ticks_msec()
+		var candidate = owner.fork()
+		if candidate == null: stop("fork:%d"%i); return
+		var offers: Array[String] = candidate.session.offers()
+		if offers.size()!=3 or not candidate.session.choose_player(offers[0]): stop("choose:%d"%i); return
+		if not Store.save(candidate,Store.raw()): stop("save:%d:"%i+Store.last_error); return
+		owner = Store.read()
+		if owner == null: stop("read:%d"%i); return
+		print("pick-save-read:",i+1," ms:",Time.get_ticks_msec()-picked_at)
+	for i in range(6):
+		var build: SeasonBuild = owner.session.build if i==0 else owner.session.opponents.clubs[str(i)].build
+		if build._dynasty_start.is_empty() or build._dynasty_start.owner_id!="club:%d"%i: stop("club-profile:%d"%i); return
+	var state: MatchState = owner.session.make_match()
+	if state == null: stop("match-null"); return
+	if preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_request.gd").capture(state) == null: stop("request-null"); return
+	if cold and Store.raw()!=before: stop("cold-reopen-mutated-save"); return
+	var capture_at: int = Time.get_ticks_msec()
+	var captured: Dictionary = Owner.capture(owner)
+	print("capture_ms:",Time.get_ticks_msec()-capture_at)
+	if captured.is_empty(): stop("owner-capture"); return
+	var builds = preload("res://src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd")
+	for invalid: Variant in ["wrong",0.5,true]:
+		var malformed: Dictionary = captured.dynasty.build.duplicate(true)
+		malformed.book._league_rules.tier = invalid
+		if builds.restore(malformed)!=null: stop("malformed-rule-admitted"); return
+	if cold and not _malformed(captured): stop("malformed-profile-admitted"); return
+	if OS.get_cmdline_user_args().has("extras") and not _extras(owner): stop("cache-or-import"); return
+	print("total_ms:",Time.get_ticks_msec()-started)
+	print("DYNASTY_FIRST_OWNER_COLD_PASS" if cold else "DYNASTY_FIRST_OWNER_FRESH_PASS")
+	get_tree().quit(0)
+
+func _malformed(captured: Dictionary) -> bool:
+	var profile = preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
+	var valid: Dictionary = captured.dynasty.build.build._dynasty_start
+	if profile.normalize(valid).is_empty(): return false
+	for kind: String in ["source","player","catchup","mastery","origin","learning","ability","stat","catalog"]:
+		var changed: Dictionary = JSON.parse_string(JSON.stringify(valid))
+		var id: String = changed.roster[0]
+		var recipe: String = changed.players[id].mastery.keys()[0]
+		match kind:
+			"source": changed.source = null
+			"player": changed.players[id] = []
+			"catchup": changed.players[id].catchup = null
+			"mastery": changed.players[id].mastery = []
+			"origin": changed.players[id].known_origin[recipe] = false
+			"learning": changed.players[id].active_learning[recipe] = null
+			"ability": changed.players[id].abilities = [null]
+			"stat": changed.players[id].stats[changed.players[id].stats.keys()[0]] = 99
+			"catalog": changed.pitch_catalog = "wrong"
+		if not profile.normalize(changed).is_empty(): return false
+	if profile.normalize(valid).is_empty(): return false
+	var bad: Dictionary = captured.dynasty.duplicate(true)
+	bad.state.league_rules.tier = false
+	if Codec.restore(bad)!=null: return false
+	print("MALFORMED_RULE_PROFILE_REFUSAL_PASS")
+	return true
+
+func _extras(owner) -> bool:
+	var identity = preload("res://src/gameplay/season/successor_dynasty_owner_v1/catalog.gd")
+	var original: Dictionary = identity.authored_profiles()
+	var changed: Dictionary = identity.authored_profiles()
+	var id: String = changed.keys()[0]
+	changed[id].stats[changed[id].stats.keys()[0]] = 99
+	changed[id].mastery.clear()
+	changed[id].active.clear()
+	if not Codec.same(original,identity.authored_profiles()): return false
+	var known: Array[String] = identity.known_ids()
+	var count: int = known.size()
+	known.clear()
+	if identity.known_ids().size()!=count: return false
+	var before: PackedByteArray = Store.raw()
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes("user://import119.json")
+	var started: int = Time.get_ticks_msec()
+	if not owner.import_119(bytes): return false
+	var snapshot: Dictionary = Owner.capture(owner)
+	if snapshot.is_empty() or Owner.restore(snapshot)==null: return false
+	if Store.raw()!=before or FileAccess.get_file_as_bytes("user://import119.json")!=bytes: return false
+	print("CACHE_COPY_ISOLATION_STRICT119_IMPORT_PASS ms:",Time.get_ticks_msec()-started)
+	return true

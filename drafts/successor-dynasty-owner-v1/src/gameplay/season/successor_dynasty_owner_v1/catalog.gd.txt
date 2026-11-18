@@ -1,0 +1,31 @@
+extends RefCounted
+##120/v1 materialized current-season gameplay consistency.
+## No historical physics/journal replay or anti-cheat provenance claim.
+const VERSION: int = 120
+const FORMAT: String = "wiffaltro-dynasty-current-session-v1"
+const Game = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+static var _game: String = ""
+static var _players: String = ""
+static func game_signature() -> String:
+	if _game.is_empty(): _game = Game.signature()
+	return _game
+static func player_signature() -> String:
+	if _players.is_empty(): _players = SeasonPlayerCatalog.signature()
+	return _players
+
+# Authored closed recipe identity only, never mutable player/profile validation.
+static var _known: Array[String] = []
+static func known_ids() -> Array[String]:
+	if _known.is_empty():
+		if game_signature().is_empty(): return []
+		_known = Game.known_ids()
+		_known.make_read_only()
+	return _known.duplicate()
+
+static var _authored: Dictionary = {}
+static func authored_profiles() -> Dictionary:
+	if _authored.is_empty():
+		if game_signature().is_empty(): return {}
+		_authored = preload("res://src/gameplay/season/successor_league_general_v2/fresh_profiles.gd").all_profiles()
+		_authored.make_read_only()
+	return _authored.duplicate(true)

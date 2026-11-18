@@ -1,0 +1,59 @@
+extends RefCounted
+## Private integrated first-season owner. Public unlock/transition admission absent.
+## At most two current sessions; never embeds a predecessor owner or run archive.
+const Session = preload("runtime.gd")
+const Codec = preload("codec.gd")
+const Previous = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const FORMAT: String = "wiffaltro-dynasty-owner-v1"
+var session: SeasonState
+var alternate: Dictionary = {}
+var imported_sha256: String = ""
+
+static func create_development(seed_value: int):
+	var result = load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd").new()
+	result.session = Session.create_fresh(seed_value,"dynasty")
+	return result if result.session != null else null
+
+func fork():
+	var result = get_script().new()
+	result.session = session.fork_live() if session != null else null
+	result.alternate = alternate.duplicate(true)
+	result.imported_sha256 = imported_sha256
+	return result if result.session != null else null
+
+func import_119(bytes: PackedByteArray) -> bool:
+	# Explicit copy only. The caller never writes the original119 slot.
+	if bytes.is_empty() or bytes.size()>32*1024*1024 or not alternate.is_empty(): return false
+	var parser: JSON = JSON.new()
+	if parser.parse(bytes.get_string_from_utf8()) != OK: return false
+	var prior: SeasonState = Previous.restore(parser.data)
+	if prior == null: return false
+	var checked: Dictionary = Previous.capture(prior)
+	if checked.is_empty(): return false
+	alternate = checked
+	var hash: HashingContext = HashingContext.new()
+	if hash.start(HashingContext.HASH_SHA256)!=OK or hash.update(bytes)!=OK: return false
+	imported_sha256 = hash.finish().hex_encode()
+	return true
+
+static func capture(owner) -> Dictionary:
+	if owner == null or owner.get_script() != load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd") or owner.session == null: return {}
+	if not Codec.known_variables(owner,["session","alternate","imported_sha256"]): return {}
+	var current: Dictionary = Codec.capture(owner.session)
+	if current.is_empty(): return {}
+	if not owner.alternate.is_empty():
+		if Previous.restore(owner.alternate)==null or owner.imported_sha256.length()!=64 or not owner.imported_sha256.is_valid_hex_number(false): return {}
+	elif not owner.imported_sha256.is_empty(): return {}
+	# Birth rights/current-season acquisitions remain in the materialized session.
+	# Terminal aggregation is not enabled by this first-season format.
+	return {"version":1,"format":FORMAT,"active":"dynasty","dynasty":current,
+		"alternate":owner.alternate.duplicate(true),"imported_sha256":owner.imported_sha256}
+
+static func restore(value: Variant):
+	if not Codec.primitive(value) or not Codec.keys(value,["version","format","active","dynasty","alternate","imported_sha256"]) or value.version!=1 or value.format!=FORMAT or value.active!="dynasty" or not value.alternate is Dictionary or not value.imported_sha256 is String: return null
+	var result = load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd").new()
+	result.session = Codec.restore(value.dynasty)
+	result.alternate = value.alternate.duplicate(true)
+	result.imported_sha256 = value.imported_sha256
+	var checked: Dictionary = capture(result)
+	return result if not checked.is_empty() and Codec.same(checked,value) else null

@@ -1,0 +1,52 @@
+extends RefCounted
+## Separate owner slot; guarded atomic write, original119 save never touched.
+const Owner = preload("owner.gd")
+const Codec = preload("codec.gd")
+const PATH: String = "user://wiffaltro-dynasty-owner-v1.json"
+const MAX_BYTES: int = 64*1024*1024
+static var saving: bool = false
+static var last_error: String = ""
+static func raw() -> PackedByteArray:
+	return FileAccess.get_file_as_bytes(PATH) if FileAccess.file_exists(PATH) else PackedByteArray()
+static func occupied() -> bool:
+	for suffix: String in ["",".bak",".tmp"]:
+		if FileAccess.file_exists(PATH+suffix) or DirAccess.dir_exists_absolute(PATH+suffix): return true
+	return false
+static func read():
+	var file: FileAccess = FileAccess.open(PATH,FileAccess.READ)
+	if file == null or file.get_length()>MAX_BYTES: return null
+	var bytes: PackedByteArray = file.get_buffer(file.get_length()); file.close()
+	var parser: JSON = JSON.new()
+	if parser.parse(bytes.get_string_from_utf8())!=OK: return null
+	var result = Owner.restore(parser.data)
+	return result if raw()==bytes else null
+static func save(owner,expected: PackedByteArray) -> bool:
+	if saving: return false
+	saving = true
+	var result: bool = _write(owner,expected)
+	saving = false
+	return result
+static func _matches(expected: PackedByteArray) -> bool:
+	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw()==expected))
+static func _write(owner,expected: PackedByteArray) -> bool:
+	last_error = "The exact candidate remains retained; no replacement owner was committed."
+	if not _matches(expected): return false
+	for suffix: String in ["",".bak",".tmp"]:
+		if DirAccess.dir_exists_absolute(PATH+suffix): return false
+	if FileAccess.file_exists(PATH+".tmp") or (expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
+	var data: Dictionary = Owner.capture(owner)
+	if data.is_empty(): return false
+	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
+	if bytes.is_empty() or bytes.size()>MAX_BYTES: return false
+	var parser: JSON = JSON.new()
+	if parser.parse(bytes.get_string_from_utf8())!=OK or not Codec.same(parser.data,data): return false
+	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.WRITE)
+	if file == null: return false
+	file.store_buffer(bytes); file.flush()
+	var ok: bool = file.get_error()==OK; file.close()
+	if not ok or FileAccess.get_file_as_bytes(PATH+".tmp")!=bytes or not _matches(expected): return false
+	if not expected.is_empty() and DirAccess.copy_absolute(PATH,PATH+".bak")!=OK: return false
+	if not _matches(expected): return false
+	if DirAccess.rename_absolute(PATH+".tmp",PATH)!=OK or raw()!=bytes: return false
+	last_error = ""
+	return true

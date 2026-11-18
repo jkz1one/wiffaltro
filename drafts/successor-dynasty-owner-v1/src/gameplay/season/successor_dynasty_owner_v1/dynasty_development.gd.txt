@@ -1,0 +1,53 @@
+extends "res://src/gameplay/season/successor_league_general_v2/development.gd"
+## Current-catalog Dynasty install; ordinary command math remains inherited.
+const Profile = preload("dynasty_profile.gd")
+const Identity = preload("catalog.gd")
+
+func _init(season_key: String = "", fork_only: bool = false) -> void:
+	super(season_key,true)
+	if not fork_only: _players = Identity.authored_profiles()
+
+
+func enable_dynasty(value: Variant, start: Dictionary = {}) -> bool:
+	var rules: Dictionary = LeagueRules.normalized(value)
+	if _pitch_catalog_version != V7Catalog.VERSION or _season_key.is_empty() or revision() != 0 or not _requests.is_empty() or not LeagueRules.dynasty(rules): return false
+	if not _league_rules.is_empty() and not context_matches(rules): return false
+	var checked: Dictionary = {} if start.is_empty() else Profile.normalize(start)
+	if not start.is_empty() and checked.is_empty(): return false
+	if not _dynasty_start.is_empty(): return Profile.same(_dynasty_start,checked)
+	var players: Dictionary = Identity.authored_profiles()
+	if players.size() != SeasonPlayerCatalog.ids().size(): return false
+	for id: String in SeasonPlayerCatalog.ids():
+		var authored: Dictionary = players[id]
+		if not Profile.same(player(id),authored): return false
+		players[id] = authored
+	if not checked.is_empty():
+		for id: String in checked.roster:
+			var carried: Dictionary = checked.players[id]
+			players[id].stats = carried.stats.duplicate(true)
+			players[id].active.assign(carried.active)
+			players[id].mastery = carried.mastery.duplicate(true)
+			if not carried.catchup.origin.is_empty(): players[id]["catchup"] = carried.catchup.origin.duplicate(true)
+	_players = players
+	_league_rules = rules.duplicate(true)
+	_dynasty_start = checked
+	Profile.freeze(_dynasty_start)
+	if not checked.is_empty():
+		for recipe: String in checked.exotic_rights:
+			if not _exotic_ids.has(recipe): _exotic_ids.append(recipe)
+	return true
+
+func fork() -> SeasonDevelopment:
+	var result: SeasonDevelopment = load("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_development.gd").new(_season_key, true)
+	result._pitch_catalog_version = _pitch_catalog_version
+	result._exotic_start = _exotic_start.duplicate(true)
+	result._exotic_current = _exotic_current.duplicate(true)
+	result._exotic_ids = _exotic_ids.duplicate()
+	result._league_rules = _league_rules.duplicate(true)
+	result._dynasty_start = _dynasty_start.duplicate(true)
+	Profile.freeze(result._dynasty_start)
+	result._players = _players.duplicate(true)
+	result._events = _events.duplicate(true)
+	result._requests = _requests.duplicate(true)
+	return result
+
