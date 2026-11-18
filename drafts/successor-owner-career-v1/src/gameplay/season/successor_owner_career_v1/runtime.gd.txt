@@ -4,6 +4,9 @@ var origin: Dictionary = {}
 var origin_close: String = "completed"
 var closed: Array = []
 
+static func create_fresh(seed_value: int, league: String = "standard", tier: int = 0) -> SeasonState:
+	return load("res://src/gameplay/season/successor_owner_career_v1/decoder.gd").create_fresh(seed_value,league,tier)
+
 static func create_next(envelope: Variant, seed_value: int, league: String = "dugout", tier: int = 0, closure: String = "completed") -> SeasonState:
 	if not envelope is Dictionary: return null
 	return load("res://src/gameplay/season/successor_owner_career_v1/decoder.gd").create_next(envelope,seed_value,league,tier,closure)

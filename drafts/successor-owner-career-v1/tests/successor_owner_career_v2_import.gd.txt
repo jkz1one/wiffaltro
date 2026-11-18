@@ -1,0 +1,94 @@
+extends Node
+## Actual checkpoint65 v2 bytes, additive v3 import and separate cold replay.
+const App = preload("res://src/presentation/season/successor_owner_career_v1/app.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_career_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_career_v1/save.gd")
+const Adapter = preload("res://src/gameplay/season/successor_owner_career_v1/legacy_import.gd")
+const ARCHIVE: String = "user://owned-career-v2-import-evidence"
+var failed: bool = false
+var originals: Dictionary = {}
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed = true
+	return ok
+
+func disk(path: String) -> Dictionary:
+	return {"exists":FileAccess.file_exists(path),"directory":DirAccess.dir_exists_absolute(path),"bytes":FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()}
+
+func unchanged() -> bool:
+	for path: String in originals:
+		if not ClubCareer.same(disk(path),originals[path]): return false
+	return true
+
+func same_semantics(season: SeasonState, raw: Dictionary) -> bool:
+	if season == null: return false
+	var snapshot: Dictionary = Codec.guard_snapshot(season)
+	if snapshot.is_empty() or snapshot.format != Codec.Catalog.FORMAT or snapshot.owner_source != Codec.Catalog.signature(): return false
+	snapshot.format = raw.format
+	snapshot.owner_source = raw.owner_source
+	return ClubCareer.same(snapshot,raw)
+
+func archive(app: SeasonApp, mode: String) -> void:
+	if not check(DirAccess.make_dir_recursive_absolute(ARCHIVE) == OK,"private v2 import evidence directory"): return
+	var path: String = ARCHIVE+"/"+mode+".json"
+	var meta_path: String = ARCHIVE+"/"+mode+".meta.json"
+	if not check(not FileAccess.file_exists(path) and not FileAccess.file_exists(meta_path),"evidence never overwritten"): return
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(not bytes.is_empty() and ClubCareer.same(JSON.parse_string(bytes.get_string_from_utf8()),Codec.guard_snapshot(app.season)),"new durable snapshot exact"): return
+	if not check(DirAccess.copy_absolute(Save.PATH,path) == OK and FileAccess.get_file_as_bytes(path) == bytes,"immutable import bytes"): return
+	var f: FileAccess = FileAccess.open(meta_path,FileAccess.WRITE)
+	if not check(f != null,"import evidence metadata"): return
+	var meta: Dictionary = {"action":mode,"picks":app.season.picks.size(),"format":Codec.Catalog.FORMAT,"source_format":Adapter.STABLE_FORMAT}
+	f.store_string(JSON.stringify(meta,"",true,true)); f.flush(); f.close()
+	print("OWNED_CAREER_V2_IMPORT_STEP: ",JSON.stringify(meta,"",true,true))
+
+func run() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and args.size() == 1 and args[0] in ["import","cold"],"isolated explicit v2 import mode"):
+		get_tree().quit(1); return
+	for filename: String in ["successor-owned-career-live-v1.json","successor-owned-career-live-v2.json","successor-owned-general-live-v1.json"]:
+		for suffix: String in ["", ".bak", ".tmp"]:
+			var path: String = "user://"+filename+suffix
+			originals[path] = disk(path)
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(Adapter.STABLE_PATH)
+	var raw: Variant = JSON.parse_string(original.get_string_from_utf8())
+	if not check(raw is Dictionary and not original.is_empty() and raw.get("version") == 117 and raw.get("format") == Adapter.STABLE_FORMAT and raw.get("owner_source") == Adapter.STABLE_SOURCE,"actual known stable v2 fixture"):
+		get_tree().quit(1); return
+	var app = App.new(); add_child(app); await get_tree().process_frame
+	if args[0] == "import":
+		for suffix: String in ["", ".bak", ".tmp"]:
+			check(not FileAccess.file_exists(Save.PATH+suffix) and not DirAccess.dir_exists_absolute(Save.PATH+suffix),"empty additive v3 destination "+suffix)
+		if failed: get_tree().quit(1); return
+		check(Codec.restore(raw) == null,"new reader cannot silently accept old format")
+		var invalid: Dictionary = raw.duplicate(true)
+		invalid.owner_source = "unknown-stable-source"
+		check(Adapter.convert(invalid) == null,"unknown stable rules refuse import")
+		invalid = raw.duplicate(true); invalid.career.current += 1
+		check(Adapter.convert(invalid) == null,"known descriptor cannot authorize corrupted career")
+		if failed: get_tree().quit(1); return
+		app.import_previous_save(2)
+		check(app.season != null and app.retained == null and same_semantics(app.season,raw),"explicit actual App import changes only outer descriptors")
+		if failed: get_tree().quit(1); return
+		check(app.season.picks.size() == 4 and app.season.phase == SeasonState.Phase.REGULAR,"real fully drafted checkpoint ready for gameplay")
+		var before: Dictionary = disk(Save.PATH)
+		app.import_previous_save(2); app.retry_save()
+		check(ClubCareer.same(disk(Save.PATH),before) and not FileAccess.file_exists(Save.PATH+".bak") and not FileAccess.file_exists(Save.PATH+".tmp"),"duplicate import/retry does not rewrite or rotate")
+		if not failed: archive(app,"import")
+	else:
+		var expected: PackedByteArray = FileAccess.get_file_as_bytes(ARCHIVE+"/import.json")
+		check(not expected.is_empty() and FileAccess.get_file_as_bytes(Save.PATH) == expected,"cold opens exact imported boundary")
+		app.reload_save()
+		check(same_semantics(app.season,raw),"separate strict cold replay preserves every v2 field")
+		if not failed:
+			check(app.season.picks.size() == 4 and app.season.phase == SeasonState.Phase.REGULAR,"cold real drafted state")
+			app.import_previous_save(2); app.retry_save()
+			check(FileAccess.get_file_as_bytes(Save.PATH) == expected and not FileAccess.file_exists(Save.PATH+".bak"),"cold duplicate import cannot rewrite")
+			if not failed: archive(app,"cold")
+	check(unchanged(),"all original v1/v2/116 primary backup and temp slots unchanged")
+	app.queue_free(); await get_tree().process_frame
+	if not failed: print("PASS: actual stable v2 to v3 "+args[0]+"; gameplay and Dynasty not claimed")
+	get_tree().quit(1 if failed else 0)

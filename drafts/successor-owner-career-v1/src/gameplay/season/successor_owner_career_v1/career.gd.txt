@@ -21,7 +21,7 @@ func to_data() -> Dictionary:
 		"plaques":_plaques.duplicate(true),"pitch_catalog":_pitch_catalog}
 
 func sync(season: SeasonState) -> bool:
-	if season == null or season.career != self or not SeasonOwnership._whole(current,2,ClubCareer.MAX_RUNS) or runs.size() != current \
+	if season == null or season.career != self or not SeasonOwnership._whole(current,1,ClubCareer.MAX_RUNS) or runs.size() != current \
 		or not load("res://src/gameplay/season/successor_owner_career_v1/start.gd").structural(season):
 		return false
 	var row: Dictionary = load("res://src/gameplay/season/successor_owner_career_v1/start.gd").row(season)

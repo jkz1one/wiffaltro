@@ -4,6 +4,7 @@ const Codec = preload("codec.gd")
 const Origin = preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")
 const Prefix = preload("prefix.gd")
 const Closure = preload("closure.gd")
+const Genesis = preload("genesis.gd")
 const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
 const Physical = preload("physical_fixtures.gd")
 const Start = preload("start.gd")
@@ -23,23 +24,45 @@ static func restore(value: Dictionary) -> SeasonState:
 
 static func _restore(value: Dictionary) -> SeasonState:
 	if not Codec.envelope_valid(value): return null
-	var origin_season: SeasonState = Origin.restore(value.origin)
-	var previous: ClubCareer = Closure.project(origin_season,value.origin_close)
-	if previous == null: return null
-	if previous.runs.size() + value.closed.size() + 1 > ClubCareer.MAX_RUNS: return null
+	var previous: ClubCareer = null
+	var fresh: Dictionary = {}
+	if value.origin_close == "fresh":
+		if not Genesis.valid_marker(value.origin): return null
+		fresh = Genesis.derive(int(value.origin.seed))
+		if fresh.is_empty(): return null
+	else:
+		var origin_season: SeasonState = Origin.restore(value.origin)
+		previous = Closure.project(origin_season,value.origin_close)
+		if previous == null: return null
+	var prefix_count: int = previous.runs.size() if previous != null else 0
+	if prefix_count + value.closed.size() + 1 > ClubCareer.MAX_RUNS: return null
 	for record: Variant in value.closed:
 		if not record is Dictionary or not SeasonOwnership._keys(record,["id","checkpoint","closure"]) \
 			or not record.closure is String: return null
-		var played: SeasonState = _record({"id":record.id,"checkpoint":record.checkpoint},previous)
+		var played: SeasonState = _record({"id":record.id,"checkpoint":record.checkpoint},previous,fresh)
 		previous = Closure.project(played,record.closure)
 		if previous == null: return null
-	var result: SeasonState = _record(value.active,previous)
+	var result: SeasonState = _record(value.active,previous,fresh)
 	if result == null: return null
 	result.origin = value.origin.duplicate(true)
 	result.origin_close = value.origin_close
 	result.closed = value.closed.duplicate(true)
 	var actual: Dictionary = Codec.guard_snapshot(result)
 	return result if not actual.is_empty() and ClubCareer.same(actual,value) else null
+
+static func create_fresh(seed: int, league: String = "standard", tier: int = 0) -> SeasonState:
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var source: String = Catalog.signature()
+	var basis: Dictionary = Genesis.derive(seed)
+	var result: SeasonState = Start._create(seed,basis,league,tier) if not basis.is_empty() else null
+	if result != null:
+		result.origin = Genesis.marker(seed)
+		result.origin_close = "fresh"
+		result.closed = []
+		var guard: Dictionary = Codec.guard_snapshot(result)
+		if guard.is_empty() or source.is_empty() or guard.owner_source != source: result = null
+	roots.clear()
+	return result
 
 static func create_next(value: Dictionary, seed: int, league: String = "dugout", tier: int = 0, closure: String = "completed") -> SeasonState:
 	# Public archive boundary: strict predecessor replay, never caller basis/proof.
@@ -77,10 +100,12 @@ static func create_next(value: Dictionary, seed: int, league: String = "dugout",
 	roots.clear()
 	return result
 
-static func _record(record: Variant, previous: ClubCareer) -> SeasonState:
+static func _record(record: Variant, previous: ClubCareer, fresh: Dictionary = {}) -> SeasonState:
+	var next_id: int = previous.runs.size()+1 if previous != null else 1
 	if not record is Dictionary or not SeasonOwnership._keys(record,["id","checkpoint"]) \
-		or not SeasonOwnership._whole(record.id,previous.runs.size()+1,previous.runs.size()+1) or not record.checkpoint is Dictionary: return null
-	var basis: Dictionary = Prefix._derive(previous)
+		or not SeasonOwnership._whole(record.id,next_id,next_id) or not record.checkpoint is Dictionary: return null
+	var basis: Dictionary = Prefix._derive(previous) if previous != null else fresh
+	if previous == null and not Genesis.valid_basis(basis): return null
 	return null if basis.is_empty() else _run(record.checkpoint,basis)
 
 static func _run(state: Dictionary, basis: Dictionary) -> SeasonState:

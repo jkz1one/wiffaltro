@@ -50,6 +50,7 @@ static func state_spec(season: SeasonState) -> Dictionary:
 # neither this basis nor the resulting live object grants caller authority.
 static func _create(seed_value: int, basis: Dictionary, league: String = "dugout", tier: int = 0) -> SeasonState:
 	var spec: Dictionary = specification(seed_value,league,tier)
+	if basis.has("genesis") and (not preload("genesis.gd").valid_basis(basis) or basis.genesis.seed != seed_value): return null
 	if not _basis_shape(basis) or not admitted(basis,spec): return null
 	var season: SeasonState = load("res://src/gameplay/season/successor_owner_career_v1/runtime.gd").new()
 	season.season_seed = seed_value
@@ -251,6 +252,8 @@ static func row(season: SeasonState) -> Dictionary:
 
 # Structural shape only. Public Codec/constructor still replays the complete archive.
 static func _basis_shape(basis: Dictionary) -> bool:
+	if basis.get("runs") is Array and basis.runs.is_empty():
+		return preload("genesis.gd").valid_basis(basis)
 	for key: String in ["starts","assets","pennants","plaques","derived"]:
 		if not basis.get(key) is Dictionary: return false
 	if not basis.get("runs") is Array or basis.runs.is_empty() or basis.runs.size() >= ClubCareer.MAX_RUNS \

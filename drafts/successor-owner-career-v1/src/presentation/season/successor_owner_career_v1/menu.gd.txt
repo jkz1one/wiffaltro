@@ -1,7 +1,7 @@
 extends SeasonMenu
 const Save = preload("res://src/gameplay/season/successor_owner_career_v1/save.gd")
 func render() -> void:
-	_screen("successor", "Owned career", "Original club progression • separate save • existing saves unchanged")
+	_screen("home", "WIFFALTRO", "YOUR CLUB. YOUR SEASON.")
 	if not app.notice.is_empty(): _label(_body,app.notice,18)
 	if app.get("retained")!=null:
 		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
@@ -9,12 +9,23 @@ func render() -> void:
 	if app.season==null:
 		_next_options()
 		var occupied: bool = FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH + ".bak")
-		_button(_body,"CONTINUE COMPLETED CAREER",Callable(app,"create_fresh")).disabled = occupied or app.predecessor.is_empty()
-		_button(_body,"ABANDON IMPORTED SEASON AND START NEW",Callable(app,"request_abandon")).disabled = occupied or app.predecessor.is_empty()
+		if app.predecessor.is_empty():
+			_button(_body,"NEW CAREER",Callable(app,"create_fresh")).disabled = occupied
+		else:
+			_button(_body,"CONTINUE COMPLETED CAREER",Callable(app,"create_fresh")).disabled = occupied
+			_button(_body,"BACK TO NEW CAREER",Callable(app,"clear_previous_selection"))
+		if not app.predecessor.is_empty():
+			_button(_body,"ABANDON IMPORTED SEASON AND START NEW",Callable(app,"request_abandon")).disabled = occupied
 		_button(_body,"CONTINUE SAVED SEASON",Callable(app,"reload_save"))
-		_button(_body,"IMPORT PREVIOUS SAVE (KEEPS ORIGINAL)",Callable(app,"import_previous_save")).disabled = occupied
+		if FileAccess.file_exists("user://successor-owned-career-live-v2.json"):
+			_button(_body,"IMPORT PREVIOUS CAREER",Callable(app,"import_previous_save").bind(2)).disabled = occupied
+		if FileAccess.file_exists("user://successor-owned-career-live-v1.json"):
+			_button(_body,"IMPORT EARLIER CAREER",Callable(app,"import_previous_save").bind(1)).disabled = occupied
+		if FileAccess.file_exists("user://successor-owned-general-live-v1.json"):
+			_button(_body,"OPEN PREVIOUS OWNED CAREER",Callable(app,"select_previous_owned")).disabled = occupied
+		_button(_body,"LEGACY GAME",Callable(app,"open_legacy_game"))
 		if not occupied and FileAccess.file_exists(Save.PATH+".tmp"):
-			_button(_body,"RECOVER INTERRUPTED IMPORT",Callable(app,"recover_interrupted_import"))
+			_button(_body,"RECOVER INTERRUPTED SAVE",Callable(app,"recover_interrupted_import"))
 		return
 	if app.season.phase==SeasonState.Phase.DRAFT:
 		for id: String in app.season.offers():

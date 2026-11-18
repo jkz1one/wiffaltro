@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Assemble audited successor sources into a NEW isolated project, never saves.
+
+The original project's main scene remains unchanged. This is a source assembly,
+not a verified distributable. Optional tests must be named explicitly.
+"""
+import argparse
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
+import subprocess
+
+FAMILIES = (
+    'successor-career-completion-v1', 'successor-career-assets-v1',
+    'successor-owner-live-v1', 'successor-owner-general-v1',
+    'successor-owner-terminal-v1', 'successor-league-v1',
+    'successor-career-general-v1', 'successor-owner-continuation-v1',
+    'successor-career-history-v1', 'successor-career-v1',
+    'successor-league-general-v2', 'successor-v7', 'successor-owner-v1',
+    'successor-owner-career-v1',
+)
+LAUNCHER = 'res://src/presentation/season/successor_owner_career_v1/launcher.tscn'
+
+def safe(name):
+    p = PurePosixPath(name)
+    if p.is_absolute() or '..' in p.parts or str(p) != name:
+        raise ValueError(f'Unsafe relative path: {name}')
+    return name
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+def assemble(repo, destination, tests=()):
+    repo, destination = repo.resolve(), destination.resolve()
+    if destination.exists():
+        raise ValueError('Destination must not exist; no files or saves are overwritten')
+    payload = {}
+    tracked = subprocess.check_output(['git', 'ls-files', '-z', '--', 'src', 'project.godot'], cwd=repo).decode().split('\0')
+    for name in filter(None, tracked):
+        path = repo / safe(name)
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f'Not an ordinary tracked source: {name}')
+        payload[name] = path.read_bytes()
+    requested = set(tests)
+    found = set()
+    for family in FAMILIES:
+        manifest = json.loads((repo / 'drafts' / family / 'DRAFT_MANIFEST.json').read_text())
+        for row in manifest.get('files', []) + manifest.get('additions', []):
+            name = safe(row['restore_path'])
+            if not name.startswith('src/') and name not in requested:
+                continue
+            source = repo / safe(row['backup_path'])
+            if source.is_symlink():
+                raise ValueError(f'Symlink source: {source}')
+            data = source.read_bytes()
+            if sha(data) != row['sha256'] or len(data) != row['bytes']:
+                raise ValueError(f'Manifest mismatch: {row["backup_path"]}')
+            if name in payload and payload[name] != data:
+                raise ValueError(f'Conflicting assembly path: {name}')
+            payload[name] = data
+            if name in requested:
+                found.add(name)
+    if found != requested:
+        raise ValueError(f'Tests not found in manifests: {sorted(requested-found)}')
+    config = payload['project.godot'].decode()
+    original = 'run/main_scene="res://src/presentation/season/season_app.tscn"'
+    if config.count(original) != 1:
+        raise ValueError('Unexpected original main scene')
+    payload['project.godot'] = config.replace(original, f'run/main_scene="{LAUNCHER}"').encode()
+    destination.mkdir(parents=True)
+    for name, data in payload.items():
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    record = {'format': 'wiffaltro-source-assembly-v1', 'launcher': LAUNCHER,
+              'files': {name: sha(data) for name, data in sorted(payload.items())}}
+    (destination / 'ASSEMBLY.json').write_text(json.dumps(record, indent=2)+'\n')
+    return record
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('destination', type=Path)
+    parser.add_argument('--test', action='append', default=[])
+    args = parser.parse_args()
+    result = assemble(Path(__file__).resolve().parents[1], args.destination, args.test)
+    print(f'Assembled {len(result["files"])} verified source files; no saves copied.')

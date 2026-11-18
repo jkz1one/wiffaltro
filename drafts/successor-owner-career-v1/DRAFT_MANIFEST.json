@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-career-v1",
-  "source_checkpoint": "bb17e9d603d31b5e8b0fc3d8aa555ef47ac63267",
-  "scope": "Private detached session draft path: actual stable64 firstpick input, remaining3 picks, strict reference parity, zero routine owner replays, hidden-state/copy/disk/source guards, prewrite failure/exact retry, duplicate preservation and separate cold all passed. Packs/NPC/generic/cold remain strict. Timings still seconds, not usable-performance or full-game claim.",
+  "source_checkpoint": "eaf3751a3309415a10d9444fbfd7282a1a5348a4",
+  "scope": "Genuine fresh Standard/Dugout run1 and additive launcher; birth/failure-retry/four-draft/cold passed in both. Actual stable-v2 explicit import/cold and informational previous-selection return passed. No new gameplay, Dynasty or release qualification.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/assets.gd.txt",
@@ -13,25 +13,25 @@
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/career.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/career.gd",
       "bytes": 2260,
-      "sha256": "22a62d03549d0723ead77ffa5865b34f14e7a5d138b995e8a9a1e2e0c58a3168"
+      "sha256": "cc159dc817e33ab33a581e475cfca280ebec086849aaefbc8f0d629aeded6a0c"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/catalog.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/catalog.gd",
-      "bytes": 2934,
-      "sha256": "59a12656ccc94ef88429c77b75df90eb2c2c988c2b1722270c71037297a3e85d"
+      "bytes": 3075,
+      "sha256": "4a7a19cd60fa78eb85ee612b430bb07fe25272929b5631a3db38ffc6d21fc228"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/codec.gd",
-      "bytes": 6366,
-      "sha256": "443f7d90242fa82516a3952b2f38246d060b049138b12b1ef07ff3a4b07d03f8"
+      "bytes": 6610,
+      "sha256": "a95b4cdf0afbed493d95d41c68eae971c0ed02ea43e818e44698b764b507caac"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/decoder.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/decoder.gd",
-      "bytes": 10754,
-      "sha256": "5eb973939eb5e3b016d3887a0c834869f14ee9c852ecfce7c98e0f7a1756e98a"
+      "bytes": 11898,
+      "sha256": "aafdce6b3dfc53228b9013456ead13d5850cd7cb5f737c88d387f1c729de1553"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/legend_metrics.gd.txt",
@@ -78,20 +78,20 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/runtime.gd",
-      "bytes": 4656,
-      "sha256": "1e98ab72fed45000ea2f01c117046fd2494c899431aa8c2093db0e68145355e8"
+      "bytes": 4875,
+      "sha256": "343579b6672b81a7faec549a5c07ea523831572b8ba16cf1c0884bd299344bf3"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/save.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/save.gd",
       "bytes": 23232,
-      "sha256": "27d930a65d5475d1e17432ec4147301537588036328d6fb1aa4d832c4ef7005e"
+      "sha256": "5b25ff087f8071a4946bffcc4321ce3e64eb53cbf43ba7fe88344863f7e21eae"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/settlement.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/settlement.gd",
-      "bytes": 4538,
-      "sha256": "01aa13d7151732a951a706f3130c66510bdb25475f8e7a40bf8e5248feee2574"
+      "bytes": 4731,
+      "sha256": "1d4cfa18a6742ff358669e570e2658bcace3e4be4ff9b09afd1886659799659e"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/stadium_progress.gd.txt",
@@ -102,8 +102,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/start.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/start.gd",
-      "bytes": 15077,
-      "sha256": "498c5f8616e8c46826d7a8ed6b859df0b3c5d7436f592bb6c93d49fd630c0420"
+      "bytes": 15310,
+      "sha256": "70c3650bf699fc905879856d809cd4f00f3b9701b0c3fbe4725ae3aeebcc07ba"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/app.gd.txt",
@@ -114,8 +114,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_career_v1/base_app.gd",
-      "bytes": 29440,
-      "sha256": "d936b32af8a8b66e9f1604dd1980e899be58d0fd7ddb7eab818236a6961af4c5"
+      "bytes": 31019,
+      "sha256": "553c01c94f37ce4493b347771b74d68669c34ef1248dbf411b8859ae0f45923a"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/capture_human.gd.txt",
@@ -132,8 +132,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_career_v1/menu.gd",
-      "bytes": 3029,
-      "sha256": "80d8808f667b7d6b87886c004e32bf2a67124d812b129a7a9d2f9d33e5bd21ab"
+      "bytes": 3646,
+      "sha256": "7239a83c46e4d43770a1ed6ac9515e766e1a0098aaf62f3ec170591cb1e5b63c"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career.gd.txt",
@@ -168,8 +168,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/legacy_import.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/legacy_import.gd",
-      "bytes": 1712,
-      "sha256": "bfebb97637109966f6c4c7b6ff375a879e06cdd327e2bde38aa2d3ac6868a6ec"
+      "bytes": 2264,
+      "sha256": "5756dcdceb86c158554f21294134fed060eb35044ccff468658c8618bcd93532"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_import.gd.txt",
@@ -194,6 +194,42 @@
       "restore_path": "tests/successor_owner_career_session.tscn",
       "bytes": 188,
       "sha256": "343f5eb66e6cd36b4ce1a0d89ca46e755b1b49863ce3ed506515f91c1387b659"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/genesis.gd.txt",
+      "restore_path": "src/gameplay/season/successor_owner_career_v1/genesis.gd",
+      "bytes": 1516,
+      "sha256": "5015a70f30ccc68834487a1f51d9a1867020a7726c3f4ef1ce3cb38dc5da2024"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/launcher.tscn.txt",
+      "restore_path": "src/presentation/season/successor_owner_career_v1/launcher.tscn",
+      "bytes": 201,
+      "sha256": "244014eb1b11324e06e4ccecad2f0934852825377ee4b5065af42dd594363a57"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_fresh.tscn.txt",
+      "restore_path": "tests/successor_owner_career_fresh.tscn",
+      "bytes": 188,
+      "sha256": "bb054c190211666dc8b4b7f3996d3d9586bad246355b8e6f59e6dc4e9ab34b95"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_fresh.gd.txt",
+      "restore_path": "tests/successor_owner_career_fresh.gd",
+      "bytes": 11184,
+      "sha256": "1a826c5be7a55f0463b07c6cc1cb142fe9dc687d9da6b289243e19a0c8c276f2"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_v2_import.tscn.txt",
+      "restore_path": "tests/successor_owner_career_v2_import.tscn",
+      "bytes": 189,
+      "sha256": "b16a59ae2d7a48a8244d5c0b6501c9243dcc4922cb303f29db0c67109e4b1774"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_v2_import.gd.txt",
+      "restore_path": "tests/successor_owner_career_v2_import.gd",
+      "bytes": 6100,
+      "sha256": "a6bdf32ca15d3aebe134be8b0bbc18788c0efec4b6b13d08c664d815ea3d982a"
     }
   ]
 }

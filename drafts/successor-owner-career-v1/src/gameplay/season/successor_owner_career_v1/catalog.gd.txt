@@ -1,13 +1,15 @@
 extends RefCounted
 ## Stable owner protocol; frozen116 and General114 identities stay explicit.
 const VERSION: int = 117
-const FORMAT: String = "successor-owned-career-live-v2"
-const RULES: String = "flat-owner-117-rules-1"
-const SAVE_PATH: String = "user://successor-owned-career-live-v2.json"
+const FORMAT: String = "successor-owned-career-live-v3"
+const RULES: String = "flat-owner-117-rules-2"
+const SAVE_PATH: String = "user://successor-owned-career-live-v3.json"
 const MAX_BYTES: int = 32 * 1024 * 1024
 const Game = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
 const Origin = preload("res://src/gameplay/season/successor_owner_general_v1/catalog.gd")
 const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_owner_career_v1/genesis.gd",
+	"res://src/presentation/season/successor_owner_career_v1/launcher.tscn",
 	"res://src/gameplay/season/successor_owner_career_v1/legacy_import.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/closure.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/catalog.gd",

@@ -2,7 +2,7 @@ extends RefCounted
 ## Independent slot. Strict capture authenticates the complete detached envelope
 ## once; exact JSON equality/readback cannot introduce different semantic data.
 const Codec = preload("codec.gd")
-const PATH: String = "user://successor-owned-career-live-v2.json"
+const PATH: String = "user://successor-owned-career-live-v3.json"
 const MAX_BYTES: int = 32 * 1024 * 1024 # Retained predecessor plus active run; never prune history.
 static var saving: bool = false
 static var last_error: String = ""

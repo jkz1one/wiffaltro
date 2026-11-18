@@ -199,3 +199,44 @@ counted as routine clicks. The three concurrent timings were approximately9.0,
 17.7 and21.2 seconds, so this is not final responsiveness acceptance. Remaining
 content-signature/snapshot work and full cold history still need attention.
 No new round, paid-pack, completed-career, Dynasty or release proof is claimed.
+
+## Genuine fresh career and additive launcher (increment66)
+
+The117 owner can now begin with a minimal seed marker and zero prior runs.
+Standard or Dugout starts at run1 with the original initial ledger, entitlements
+and prospective metadata. No abandoned predecessor, earned receipt or fabricated
+match is injected. Every restore derives the genesis basis again; the first
+season seed must equal the marker. Existing completed/abandoned-origin decoding
+is retained. This schema uses explicit formatv3/rules2 and a separate v3 slot.
+An allowlisted stable-v2 adapter changes only the two outer format descriptors,
+then strictly rebuilds and checks every other field; v1 adapters remain explicit.
+
+A clean assembly tool verifies all selected manifests and copies only tracked
+original source plus selected production drafts to a new directory. It changes
+only the assembled project's main scene to the career launcher. The original
+repository main scene, legacy route, visual assets and saves remain untouched.
+Tests must be explicitly requested; caches and local save files are not copied.
+Two synthetic Python tests cover isolation, manifest corruption, explicit tests,
+new-destination refusal and unsafe paths. This is not an exported release.
+
+Separate native Standard and Dugout suites passed actual App birth with an
+injected initial write failure, exact retained retry, repeated-birth refusal,
+four actual saved draft picks and a separate-process strict cold reopen. Each
+save has one active run, no prior history, no results and no physical reports.
+Marker-seed tampering is refused. Paired immutable evidence records each draft.
+The previous slots were unchanged (absent in the fresh tests); compatibility
+with an actual populated stable-v2 slot is tested separately.
+
+Native assembly import and headless launcher smoke passed. A first editor
+attempt lacked an isolated cache directory and was stopped; the corrected run
+sets HOME and all XDG roots. This does not establish visual playability, gameplay,
+shop settlement, a second fresh-origin season, Dynasty or distributable quality.
+
+A targeted final-source selection regression passed the actual return-button
+signal: selecting a previous116 file is informational, a retained save blocks
+clearing, and BACK TO NEW CAREER resets Standard/empty history without modifying
+any slot. Its malformed fixture is explicitly not import-valid. Actual stable65
+fully drafted v2 bytes also passed explicit App v2→v3 import, descriptor-only
+semantic equality, unknown-descriptor/career-corruption refusal and duplicate
+no-write. Separate-process imported cold replay also passed exact semantic equality and
+duplicate no-write. Gameplay is not inferred from import success.

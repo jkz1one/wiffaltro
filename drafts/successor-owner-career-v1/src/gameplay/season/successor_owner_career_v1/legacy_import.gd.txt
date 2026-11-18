@@ -3,6 +3,9 @@ extends RefCounted
 ## Exact legacy implementations were compared with the unchanged replay semantics.
 const Codec = preload("codec.gd")
 const LEGACY_PATH: String = "user://successor-owned-career-live-v1.json"
+const STABLE_PATH: String = "user://successor-owned-career-live-v2.json"
+const STABLE_FORMAT: String = "successor-owned-career-live-v2"
+const STABLE_SOURCE: String = "26dfe98c3b39d241a6f4dbc76083ee3f5105ee6b2c2cc31240b8a380b63ed27d"
 const LEGACY_FORMAT: String = "successor-owned-career-live-v1"
 const KNOWN: Dictionary = {
 	# Audited Git checkpoint62:15f54dc and checkpoint63:b50b12a respectively.
@@ -13,8 +16,7 @@ const KNOWN: Dictionary = {
 static func convert(value: Variant) -> SeasonState:
 	if not value is Dictionary or not Codec._bounded(value) \
 		or not SeasonOwnership._keys(value,["version","format","owner_source","pitch_catalog","origin","origin_close","closed","active","career"]) \
-		or value.get("version") != Codec.Catalog.VERSION or value.get("format") != LEGACY_FORMAT \
-		or not value.get("owner_source") is String or not KNOWN.has(value.owner_source) \
+		or value.get("version") != Codec.Catalog.VERSION or not _supported_descriptor(value) \
 		or value.get("pitch_catalog") != Codec.Catalog.Game.signature(): return null
 	# Legacy62/63 have identical replay semantics and primitive schemas. Only
 	# the two implementation descriptors differ. Do not repair any earned data.
@@ -27,3 +29,11 @@ static func convert(value: Variant) -> SeasonState:
 	actual["format"] = value.format
 	actual["owner_source"] = value.owner_source
 	return result if ClubCareer.same(actual,value) else null
+
+static func _supported_descriptor(value: Dictionary) -> bool:
+	if value.get("format") == LEGACY_FORMAT:
+		return value.get("owner_source") is String and KNOWN.has(value.owner_source)
+	return value.get("format") == STABLE_FORMAT and value.get("owner_source") == STABLE_SOURCE
+
+static func path(generation: int) -> String:
+	return LEGACY_PATH if generation == 1 else (STABLE_PATH if generation == 2 else "")

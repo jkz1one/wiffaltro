@@ -9,8 +9,8 @@ const Runner = preload("res://src/gameplay/season/successor_league_general_v2/ph
 const Capture = preload("capture_human.gd")
 const Page = preload("menu.gd")
 const Shop = preload("res://src/presentation/season/successor_league_general_v2/shop_window.gd")
-var profile: String = "dugout"
-var next_league: String = "dugout"
+var profile: String = "standard"
+var next_league: String = "standard"
 var next_tier: int = 0
 var predecessor: Dictionary = {}
 var retained: SeasonState
@@ -178,10 +178,47 @@ func _clone() -> SeasonState:
 	return Codec.clone(season) if season!=null else null
 
 func create_fresh() -> void:
-	# Initial import only. Never discover, replace or relabel a legacy save.
-	if not _available() or season != null or predecessor.is_empty() or FileAccess.file_exists(Save.PATH) or FileAccess.file_exists(Save.PATH+".bak"):
+	if not _available() or season != null: return
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if FileAccess.file_exists(Save.PATH+suffix) or DirAccess.dir_exists_absolute(Save.PATH+suffix):
+			notice = "Continue or recover the existing career before starting another."
+			show_season()
+			return
+	if not predecessor.is_empty():
+		_start_next(predecessor.duplicate(true),PackedByteArray())
 		return
-	_start_next(predecessor.duplicate(true),PackedByteArray())
+	var seed: int = int(Time.get_unix_time_from_system()) & 0x7fffffff
+	var candidate: SeasonState = Runtime.create_fresh(seed,next_league,next_tier)
+	if candidate == null:
+		notice = "The selected career could not start. Existing saves are unchanged."
+		show_season()
+		return
+	_retain(candidate,PackedByteArray())
+
+func open_legacy_game() -> void:
+	if _available() and season == null:
+		get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")
+
+func clear_previous_selection() -> void:
+	if not _available() or season != null: return
+	predecessor.clear()
+	next_league = "standard"
+	next_tier = 0
+	notice = "New career selected. Previous saves are unchanged."
+	show_season()
+
+func select_previous_owned() -> void:
+	if not _available() or season != null: return
+	var path: String = "user://successor-owned-general-live-v1.json"
+	var file: FileAccess = FileAccess.open(path,FileAccess.READ)
+	if file == null or file.get_length() > Save.MAX_BYTES: return
+	var parser: JSON = JSON.new()
+	var text: String = file.get_as_text(); file.close()
+	if parser.parse(text) != OK or not parser.data is Dictionary or parser.data.get("version") != 116: return
+	# Display selection only; continuation independently replays the full origin.
+	predecessor = parser.data.duplicate(true)
+	notice = "Previous owned career selected. Its original file will be kept."
+	show_season()
 
 func next_season() -> void:
 	if not _available() or season == null or season.phase != SeasonState.Phase.COMPLETE or not season.physical.pending.is_empty():
@@ -297,7 +334,7 @@ func recover_interrupted_import() -> void:
 		notice = Save.last_error
 		show_season()
 
-func import_previous_save() -> void:
+func import_previous_save(generation: int = 1) -> void:
 	# Explicit additive import into an empty new slot, never automatic replacement.
 	if not _available() or season != null or not predecessor.is_empty(): return
 	for suffix: String in ["", ".bak", ".tmp"]:
@@ -306,7 +343,9 @@ func import_previous_save() -> void:
 			show_season()
 			return
 	var adapter = preload("res://src/gameplay/season/successor_owner_career_v1/legacy_import.gd")
-	var file: FileAccess = FileAccess.open(adapter.LEGACY_PATH,FileAccess.READ)
+	var legacy_path: String = adapter.path(generation)
+	if legacy_path.is_empty(): return
+	var file: FileAccess = FileAccess.open(legacy_path,FileAccess.READ)
 	if file == null or file.get_length() > Save.MAX_BYTES: return
 	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
@@ -317,7 +356,7 @@ func import_previous_save() -> void:
 		notice = "This previous save is not supported or could not be validated. Its original file is unchanged."
 		show_season()
 		return
-	if FileAccess.get_file_as_bytes(adapter.LEGACY_PATH) != bytes: return
+	if FileAccess.get_file_as_bytes(legacy_path) != bytes: return
 	_retain(candidate,PackedByteArray())
 
 func draft(id: String) -> void:

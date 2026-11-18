@@ -78,10 +78,14 @@ static func envelope_valid(value: Variant) -> bool:
 		and SeasonOwnership._whole(value.version,Catalog.VERSION,Catalog.VERSION) and value.format == Catalog.FORMAT \
 		and value.owner_source is String and not value.owner_source.is_empty() and value.owner_source == Catalog.signature() \
 		and value.pitch_catalog is String and not value.pitch_catalog.is_empty() and value.pitch_catalog == Catalog.Game.signature() \
-		and value.origin is Dictionary and value.origin_close in ["completed","abandoned"] and value.closed is Array and value.closed.size() < ClubCareer.MAX_RUNS \
+		and value.origin is Dictionary and _origin_shape(value.origin,value.origin_close) and value.closed is Array and value.closed.size() < ClubCareer.MAX_RUNS \
 		and value.active is Dictionary and SeasonOwnership._keys(value.active,["id","checkpoint"]) \
 		and SeasonOwnership._whole(value.active.id,1,ClubCareer.MAX_RUNS) and value.active.checkpoint is Dictionary \
 		and value.career is Dictionary and _bounded(value)
+
+static func _origin_shape(origin: Dictionary, closure: Variant) -> bool:
+	if closure == "fresh": return preload("genesis.gd").valid_marker(origin)
+	return closure in ["completed","abandoned"] and origin.get("version") == Origin.Catalog.VERSION
 
 static func _operation_content_roots() -> Array[Resource]:
 	return Origin._operation_content_roots()

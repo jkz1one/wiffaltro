@@ -1,0 +1,169 @@
+extends Node
+## Actual App birth/draft and separate cold proof. No fabricated prior run or game.
+const Codec = preload("res://src/gameplay/season/successor_owner_career_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_career_v1/save.gd")
+const Runtime = preload("res://src/gameplay/season/successor_owner_career_v1/runtime.gd")
+const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
+const Start = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
+const Settlement = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd")
+const ARCHIVE: String = "user://owned-career-fresh-evidence"
+var failed: bool = false
+var preserved: Dictionary = {}
+
+class FaultApp extends "res://src/presentation/season/successor_owner_career_v1/app.gd":
+	var inject: bool = false
+	func _retain(candidate: SeasonState, expected_primary: Variant = null) -> void:
+		if inject: DirAccess.make_dir_absolute(Save.PATH+".tmp")
+		super._retain(candidate,expected_primary)
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed = true
+	return ok
+
+func disk(path: String) -> Dictionary:
+	return {"exists":FileAccess.file_exists(path),"directory":DirAccess.dir_exists_absolute(path),"bytes":FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()}
+
+func preserve_other_slots() -> void:
+	for filename: String in ["successor-owned-career-live-v1.json","successor-owned-career-live-v2.json","successor-owned-general-live-v1.json"]:
+		for suffix: String in ["", ".bak", ".tmp"]:
+			var path: String = "user://"+filename+suffix
+			preserved[path] = disk(path)
+
+func originals_unchanged() -> bool:
+	for path: String in preserved:
+		if not ClubCareer.same(disk(path),preserved[path]): return false
+	return true
+
+func state_ok(season: SeasonState, league: String) -> bool:
+	if season == null or not Genesis.valid_marker(season.origin) or season.origin_close != "fresh" \
+		or season.origin.seed != season.season_seed or not season.closed.is_empty() \
+		or season.career.current != 1 or season.career.runs.size() != 1 \
+		or not season.results.is_empty() or not season.player_results.is_empty() \
+		or not season.physical.pending.is_empty() or not season.physical.reports.is_empty(): return false
+	var basis: Dictionary = Genesis.derive(season.season_seed)
+	var spec: Dictionary = Start.state_spec(season)
+	return not spec.is_empty() and spec.league == league and spec.tier == 0 \
+		and ClubCareer.same(season.career.start_basis,basis) and basis.runs.is_empty() \
+		and ClubCareer.same(season.career._assets,basis.assets) \
+		and ClubCareer.same(season.career._plaques,basis.plaques) \
+		and ClubCareer.same(season.career._pennants,Settlement.birth_pennants(basis)) \
+		and ClubCareer.same(season.player_access,basis.player_access) \
+		and season.career.runs[0].status == "active" and season.career.runs[0].receipt.is_empty() \
+		and season.build._book._exotic_start.is_empty() and Start.base_matches(season)
+
+func archive(app: SeasonApp, action: String) -> void:
+	if not check(DirAccess.make_dir_recursive_absolute(ARCHIVE) == OK,"private fresh evidence directory"): return
+	var index: int = 0
+	while FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) or FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index):
+		if not check(FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) and FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index),"complete existing evidence pair"): return
+		index += 1
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(not bytes.is_empty() and ClubCareer.same(Codec.guard_snapshot(app.season),JSON.parse_string(bytes.get_string_from_utf8())),"exact durable fresh snapshot"): return
+	var path: String = ARCHIVE+"/%04d.json"%index
+	if not check(DirAccess.copy_absolute(Save.PATH,path) == OK and FileAccess.get_file_as_bytes(path) == bytes,"immutable fresh boundary bytes"): return
+	var meta: Dictionary = {"action":action,"picks":app.season.picks.size(),"league":app.season.league_rules.get("league","standard"),"human_games":0,"results":0}
+	var f: FileAccess = FileAccess.open(ARCHIVE+"/%04d.meta.json"%index,FileAccess.WRITE)
+	if not check(f != null,"fresh evidence metadata"): return
+	f.store_string(JSON.stringify(meta,"",true,true)); f.flush(); f.close()
+	print("OWNED_CAREER_FRESH_STEP: ",JSON.stringify(meta,"",true,true))
+
+func run() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and args.size() == 2 and args[0] in ["standard","dugout"] and args[1] in ["birth","cold","selection"],"isolated fresh League and mode arguments"):
+		get_tree().quit(1); return
+	var league: String = args[0]
+	if args[1] == "selection":
+		# Isolated informational fixture only, not an earned career or import proof.
+		var fixture_path: String = "user://successor-owned-general-live-v1.json"
+		if not check(not FileAccess.file_exists(fixture_path) and not DirAccess.dir_exists_absolute(fixture_path),"selection fixture never replaces an existing save"):
+			get_tree().quit(1); return
+		var fixture_file: FileAccess = FileAccess.open(fixture_path,FileAccess.WRITE)
+		if not check(fixture_file != null,"isolated informational selection fixture"):
+			get_tree().quit(1); return
+		fixture_file.store_string('{"version":116,"invalid_test_only":"not a playable save"}')
+		fixture_file.flush(); fixture_file.close()
+	preserve_other_slots()
+	var app = FaultApp.new(); add_child(app); await get_tree().process_frame
+	if args[1] == "selection":
+		var current_slots: Dictionary = {}
+		for suffix: String in ["", ".bak", ".tmp"]: current_slots[suffix] = disk(Save.PATH+suffix)
+		app.select_previous_owned()
+		check(app.season == null and app.predecessor.get("version") == 116 and app.predecessor.get("invalid_test_only") == "not a playable save","actual previous selection is informational only")
+		var back: Button = null
+		for button: Node in app.menu.find_children("*","Button",true,false):
+			if button.text == "BACK TO NEW CAREER": back = button
+		check(back != null,"actual previous-selection menu provides return button")
+		var selected: Dictionary = app.predecessor.duplicate(true)
+		app.next_league = "dugout"
+		var pending: SeasonState = SeasonState.new()
+		app.retained = pending
+		app.clear_previous_selection()
+		check(app.retained == pending and ClubCareer.same(app.predecessor,selected) and app.next_league == "dugout","retained-save guard blocks clearing selection")
+		app.retained = null
+		if back != null: back.pressed.emit()
+		check(app.predecessor.is_empty() and app.season == null and app.next_league == "standard" and app.next_tier == 0,"actual return button restores fresh Standard selection")
+		var standard: bool = false
+		var dugout: bool = false
+		for choice: Dictionary in app.next_season_choices():
+			if choice.tier == 0 and choice.implemented:
+				standard = standard or choice.league == "standard"
+				dugout = dugout or choice.league == "dugout"
+		check(standard and dugout,"empty-history Standard and Dugout selectable again")
+		for suffix: String in current_slots:
+			check(ClubCareer.same(disk(Save.PATH+suffix),current_slots[suffix]),"selection does not change current save slot "+suffix)
+	elif args[1] == "birth":
+		if not check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak") and not FileAccess.file_exists(Save.PATH+".tmp") and app.predecessor.is_empty(),"new slot with no predecessor injection"):
+			get_tree().quit(1); return
+		check(Runtime.create_fresh(-1,league,0) == null and Runtime.create_fresh(7,"academy",0) == null and Runtime.create_fresh(7,league,1) == null,"invalid seed and locked League/tier cannot create genesis")
+		app.next_league = "academy"
+		app.create_fresh()
+		check(app.season == null and app.retained == null and not FileAccess.file_exists(Save.PATH),"actual App rejects locked fresh selection without write")
+		app.select_next_season(league,0)
+		check(app.next_league == league and app.next_tier == 0,"actual empty-history selector admits Standard or Dugout")
+		if failed: get_tree().quit(1); return
+		app.inject = true
+		app.create_fresh()
+		check(app.season == null and app.retained != null and state_ok(app.retained,league),"actual fresh birth retained after initial prewrite failure")
+		check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak"),"failed birth writes no primary or backup")
+		if failed: get_tree().quit(1); return
+		var retained: SeasonState = app.retained
+		var seed: int = retained.season_seed
+		app.create_fresh()
+		check(app.retained == retained and retained.season_seed == seed,"repeat new-career request cannot replace or reseed retained birth")
+		check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only injected fault directory")
+		app.inject = false
+		app.retry_save()
+		check(app.season == retained and app.retained == null and state_ok(app.season,league),"exact fresh birth retry commits")
+		if failed: get_tree().quit(1); return
+		archive(app,"birth")
+		var birth_bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		app.create_fresh(); app.retry_save()
+		check(FileAccess.get_file_as_bytes(Save.PATH) == birth_bytes and not FileAccess.file_exists(Save.PATH+".bak"),"duplicate birth/retry cannot overwrite or rotate")
+		for pick in range(4):
+			if failed: break
+			check(app.season.picks.size() == pick and not app.season.offers().is_empty(),"actual fresh draft offers")
+			if failed: break
+			app.draft(app.season.offers()[0])
+			check(app.retained == null and app.season.picks.size() == pick+1 and state_ok(app.season,league),"actual draft saved with genuine genesis retained")
+			if not failed: archive(app,"draft-%d"%(pick+1))
+		check(app.season.phase == SeasonState.Phase.REGULAR and app.season.picks.size() == 4,"fresh four-pick career ready for actual gameplay")
+	elif args[1] == "cold":
+		var expected: PackedByteArray = FileAccess.get_file_as_bytes(ARCHIVE+"/0004.json")
+		check(not expected.is_empty() and FileAccess.get_file_as_bytes(Save.PATH) == expected,"cold opens exact prior fourth-pick boundary")
+		app.reload_save()
+		check(state_ok(app.season,league) and app.season.picks.size() == 4 and app.season.phase == SeasonState.Phase.REGULAR,"separate strict cold genesis and full draft reopen")
+		if not failed:
+			var wrong: Dictionary = Codec.guard_snapshot(app.season)
+			wrong.origin.seed = (int(wrong.origin.seed)+1)%2147483648
+			check(Codec.restore(wrong) == null,"first run seed cannot disagree with fresh origin marker")
+			check(FileAccess.get_file_as_bytes(Save.PATH) == expected,"negative replay cannot mutate saved career")
+			if not failed: archive(app,"cold-drafted")
+	check(originals_unchanged(),"all previous version slots remain exact")
+	app.queue_free(); await get_tree().process_frame
+	if not failed:
+		print("PASS: informational previous-selection UI only; malformed fixture not imported" if args[1] == "selection" else "PASS: actual fresh "+league+" "+args[1]+"; gameplay and Dynasty not claimed")
+	get_tree().quit(1 if failed else 0)

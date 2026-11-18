@@ -1,0 +1,27 @@
+extends RefCounted
+## Genuine empty-history policy. The marker contains identity, never earned state.
+const Original = preload("res://src/gameplay/season/successor_owner_general_v1/genesis.gd")
+
+static func marker(seed: int) -> Dictionary:
+	return {"kind":"fresh-owned-career","version":1,"seed":seed} if SeasonOwnership._whole(seed,0,2147483647) else {}
+
+static func valid_marker(value: Variant) -> bool:
+	return value is Dictionary and SeasonOwnership._keys(value,["kind","version","seed"]) \
+		and value.kind == "fresh-owned-career" and SeasonOwnership._whole(value.version,1,1) \
+		and SeasonOwnership._whole(value.seed,0,2147483647)
+
+static func derive(seed: int) -> Dictionary:
+	var original: Dictionary = Original.derive(seed)
+	if original.is_empty(): return {}
+	# Preserve the original initial ledger, entitlement and prospective metadata.
+	# No prior run is invented to fit the continuation schema.
+	return {"genesis":marker(seed),"target_run":1,"runs":[],
+		"assets":original.assets.duplicate(true),"pennants":original.pennants.duplicate(true),
+		"plaques":original.plaques.duplicate(true),"starts":original.starts.duplicate(true),
+		"exotic_history":[],"exotic_eligible_ids":[],"player_access":original.player_access.duplicate(true),
+		"derived":{},"discoveries":[]}
+
+static func valid_basis(value: Dictionary) -> bool:
+	if not valid_marker(value.get("genesis")): return false
+	var expected: Dictionary = derive(int(value.genesis.seed))
+	return not expected.is_empty() and ClubCareer.same(value,expected)

@@ -8,6 +8,8 @@ const Assets = preload("assets.gd")
 const Plaques = preload("plaque_rewards.gd")
 
 static func _basis_shape(basis: Dictionary) -> bool:
+	if basis.get("runs") is Array and basis.runs.is_empty():
+		return preload("genesis.gd").valid_basis(basis)
 	if not basis.get("runs") is Array or basis.runs.is_empty() or basis.runs.size() >= ClubCareer.MAX_RUNS \
 		or not SeasonOwnership._whole(basis.get("target_run"),basis.runs.size()+1,basis.runs.size()+1) \
 		or not basis.get("assets") is Dictionary or basis.assets.is_empty() \
@@ -35,7 +37,9 @@ static func state(active: Dictionary, basis: Dictionary, terminal: bool) -> Dict
 		or not Mixed.Current.valid(active.get("player_progress"),active.proof.scores):
 		return {}
 	var prior: Array = basis.runs.duplicate(true)
-	if not Mixed.history(prior): return {}
+	if prior.is_empty():
+		if not preload("genesis.gd").valid_basis(basis): return {}
+	elif not Mixed.history(prior): return {}
 	for previous: Dictionary in prior:
 		if previous.status not in ["completed","abandoned"]: return {}
 	var row: Dictionary = active.duplicate(true)
