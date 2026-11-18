@@ -41,6 +41,7 @@ func render() -> void:
 	if not app.season.physical.pending.is_empty():
 		_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
+		_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
 		_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 	else:
 		_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
@@ -127,3 +128,86 @@ func _note(text: String) -> Label:
 	label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	return label
+
+
+func show_lineup() -> void:
+	var ticket: RefCounted=app.call("lineup_ticket")
+	if ticket==null: return
+	_screen(
+		"lineup",
+		"PREGAME • LINEUP & DEFENSE",
+		"Edit freely before each game. Batting order locks when the game starts."
+	)
+	var roster: Array = app.season.teams[0]["roster"]
+	var grid: GridContainer = GridContainer.new()
+	var headings: Array = ["BATTING ORDER", "B / T"]
+	headings.append_array(SeasonPlayerCard.rating_names(app.season.player_definition(roster[0])))
+	headings.append_array(["", ""])
+	grid.columns = headings.size()
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 12)
+	_body.add_child(grid)
+	for heading in headings:
+		_label(grid, heading, 18)
+	for index in range(4):
+		var player: PlayerDefinition = app.season.player_definition(roster[index])
+		var name_button: Button = SeasonPlayerCard.inspection_button(
+			grid, player, "%d. %s" % [index + 1, player.display_name]
+		)
+		name_button.custom_minimum_size.x = 190
+		_label(grid, SeasonPlayerCard.hands(player), 18)
+		for rating in SeasonPlayerCard.values(player):
+			_label(grid, str(rating), 22)
+		var up: Button = _button(grid, "↑", Callable(app,"lineup_swap").bind(index,index-1,ticket))
+		up.set_meta("lineup_focus", String(player.id) + ":up")
+		up.set_meta("lineup_action","swap");up.set_meta("lineup_indices",[index,index-1])
+		up.custom_minimum_size = Vector2(40, 38)
+		up.disabled = index == 0
+		up.tooltip_text = "Move earlier in the batting order"
+		var down: Button = _button(grid, "↓", Callable(app,"lineup_swap").bind(index,index+1,ticket))
+		down.set_meta("lineup_focus", String(player.id) + ":down")
+		down.set_meta("lineup_action","swap");down.set_meta("lineup_indices",[index,index+1])
+		down.custom_minimum_size = Vector2(40, 38)
+		down.disabled = index == 3
+		down.tooltip_text = "Move later in the batting order"
+	SeasonLeftRight.lineup(self)
+	_label(_body, "OPENING DEFENSE", 22)
+	for pitcher in [true, false]:
+		var row: HBoxContainer = HBoxContainer.new()
+		_body.add_child(row)
+		var label: Label = _label(row, "Pitcher" if pitcher else "Primary Fielder", 20)
+		label.custom_minimum_size.x = 175
+		var choice: OptionButton = OptionButton.new()
+		choice.set_meta("lineup_focus", "pitcher" if pitcher else "fielder")
+		choice.custom_minimum_size = Vector2(360, 40)
+		for id: String in roster:
+			var player: PlayerDefinition = app.season.player_definition(id)
+			choice.add_item(
+				player.display_name + (" • Fielding %d" % player.fielding if not pitcher else "")
+			)
+		choice.selected = app.season.starter_index if pitcher else app.season.fielder_index
+		if not pitcher:
+			choice.set_item_disabled(app.season.starter_index, true)
+		choice.item_selected.connect(Callable(app,"lineup_starter" if pitcher else "lineup_fielder").bind(ticket))
+		choice.set_meta("lineup_action","starter" if pitcher else "fielder")
+		row.add_child(choice)
+	_label(
+		_body, "Field/Bullpen in game: change defenders between batters. Everyone still bats.", 18
+	)
+	for id: String in roster:
+		var player: PlayerDefinition = app.season.player_definition(id)
+		_label(_body, "%s: %s" % [player.display_name, _pitches(player).replace("\n", " • ")], 18)
+	_label(
+		_body,
+		"B / T = bats / throws. S = switch hitter. Fresh Stamina each game.",
+		18
+	)
+	_button(_footer,"PLAY GAME",Callable(app,"lineup_play").bind(ticket)).set_meta("lineup_action","play")
+	_button(_footer,"SEASON HUB",Callable(app,"lineup_back").bind(ticket)).set_meta("lineup_action","back")
+
+
+func show_lineup_blocked() -> void:
+	_screen("lineup-blocked","LINEUP NOT SAVED","Your saved lineup has not been overwritten.")
+	_note("The owner or saved file changed. Reload before editing; no new selection was saved.")
+	_button(_footer,"RELOAD SAVED CAREER",Callable(app,"reload_save"))
+	_button(_footer,"SEASON HUB",Callable(app,"show_season"))

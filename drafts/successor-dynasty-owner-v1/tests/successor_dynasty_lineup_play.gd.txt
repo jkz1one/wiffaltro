@@ -1,0 +1,59 @@
+extends "res://tests/successor_dynasty_carried_play.gd"
+## Same genuine ordinal2 driver, with explicit edited lineup/defense preservation.
+func fresh_checks(app: SeasonApp) -> bool:
+	if not super.fresh_checks(app):return false
+	var source: Dictionary=JSON.parse_string(original_bytes.get_string_from_utf8())
+	var original=Owner.restore(source)
+	if not check(original!=null,"edited source remains strictly admitted"):return false
+	var current: SeasonState=app.season
+	var wanted: SeasonState=original.session
+	if not check(Codec.same(current.teams[0].roster,wanted.teams[0].roster)
+		and current.starter_index==wanted.starter_index and current.fielder_index==wanted.fielder_index,
+		"edited batting order and opening roles survive actual gameplay/settlement/shop adoption"):return false
+	var fixture: Dictionary=current.pending_fixture()
+	if not fixture.is_empty():
+		for state: MatchState in [current.make_match(),Fixtures.match_for(current,fixture)]:
+			if not check(state!=null,"edited physical request constructs"):return false
+			var human: TeamMatchState=state.home_team if int(fixture.home)==0 else state.away_team
+			var ids: Array=[]
+			for player: PlayerMatchState in human.roster:ids.append(String(player.definition.id))
+			if not check(Codec.same(ids,wanted.teams[0].roster) and human.pitcher_index==wanted.starter_index
+				and human.fielder_index==wanted.fielder_index,"both physical constructors bind exact human order and roles"):return false
+	return true
+
+var _opening_app: SeasonApp
+var _opening_expected: Dictionary={}
+var _opening_required: bool=false
+var _opening_seen: bool=false
+func play_human(app: SeasonApp) -> void:
+	var source=Owner.restore(JSON.parse_string(original_bytes.get_string_from_utf8()))
+	if not check(source!=null and source.session.starter_index==2 and source.session.fielder_index==3,
+		"physical proof fixture has both explicitly nondefault opening roles"):return
+	_opening_expected={"ids":source.session.teams[0].roster.duplicate(),"pitcher":source.session.starter_index,
+		"fielder":source.session.fielder_index,"source_sha256":FileAccess.get_sha256(SOURCE),
+		"predecessor_sha256":FileAccess.get_sha256(Save.PATH),"fixture":app.season.pending_fixture().duplicate(true)}
+	_opening_required=true;_opening_seen=false;_opening_app=app;set_process(true)
+	await super.play_human(app)
+	_opening_app=null;set_process(false)
+	check(_opening_seen,"real opening Lab observed, not only a constructed helper request")
+func _process(_delta: float) -> void:
+	if _opening_app==null or _opening_seen:return
+	if not is_instance_valid(_opening_app.lab) or _opening_app.lab._match_state==null:return
+	var state: MatchState=_opening_app.lab._match_state
+	_opening_app=null;set_process(false)
+	if not check(not state.gear_usage.started,"actual Lab observation occurs before first pitch"):return
+	var fixture: Dictionary=_opening_expected.fixture
+	var human: TeamMatchState=state.home_team if int(fixture.home)==0 else state.away_team
+	var ids: Array=[]
+	for player: PlayerMatchState in human.roster:ids.append(String(player.definition.id))
+	if not check(Codec.same(ids,_opening_expected.ids) and human.pitcher_index==_opening_expected.pitcher
+		and human.fielder_index==_opening_expected.fielder,"actual live Lab opens edited order, pitcher2 and fielder3 before first pitch"):return
+	_opening_seen=true
+	var evidence: Dictionary=_opening_expected.duplicate(true)
+	evidence["observed_ids"]=ids;evidence["observed_pitcher"]=human.pitcher_index
+	evidence["observed_fielder"]=human.fielder_index;evidence["first_pitch_started"]=state.gear_usage.started
+	evidence["source"]="actual App.lab._match_state before first pitch; no runtime mutation"
+	preserve_actual("actual81-opening-lineup",evidence)
+func finish_step(app: SeasonApp,action: String,complete: bool=false) -> void:
+	if _opening_required and not check(_opening_seen,"opening observation required before durable human evidence completion"):return
+	super.finish_step(app,action,complete)

@@ -108,6 +108,7 @@ func _process(_delta: float) -> void:
 	_continue.disabled = _busy
 
 func show_season() -> void:
+	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
 	return _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
@@ -580,3 +581,87 @@ func _confirm_lifecycle() -> void:
 	if not valid: return
 	if action=="next": commit_next()
 	else: close_current(action)
+
+
+# Ephemeral UI capability only; never a save schema or persistence shortcut.
+var _lineup_ticket: RefCounted
+var _lineup_owner: RefCounted
+var _lineup_session: SeasonState
+var _lineup_bytes: PackedByteArray=PackedByteArray()
+
+func _clear_lineup_ticket() -> void:
+	_lineup_ticket=null;_lineup_owner=null;_lineup_session=null
+	_lineup_bytes=PackedByteArray()
+
+func lineup_allowed() -> bool:
+	if not _available() or career_owner==null or career_owner.status!="active" or season==null: return false
+	if career_owner.session!=season or not Codec.scope(season): return false
+	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or season.picks.size()!=4 or not season.physical.pending.is_empty(): return false
+	var fixture: Dictionary=season.pending_fixture()
+	if fixture.is_empty() or (fixture.get("home",-1)!=0 and fixture.get("away",-1)!=0) or season.build.pack_pending(): return false
+	for node: Node in find_children("*","Window",true,false):
+		if is_instance_valid(node) and not node.is_queued_for_deletion() and node.visible: return false
+	# Display eligibility is not authority. Actions authenticate hidden state/disk.
+	return season.teams.size()==6 \
+		and Codec.human_lineup_matches(season.teams[0].get("roster"),season.build.roster()) \
+		and Codec.whole(season.starter_index,0,3) and Codec.whole(season.fielder_index,0,3) \
+		and season.starter_index!=season.fielder_index
+
+func lineup_ticket() -> RefCounted:
+	_clear_lineup_ticket()
+	if not lineup_allowed(): return null
+	_lineup_ticket=RefCounted.new();_lineup_owner=career_owner;_lineup_session=season
+	_lineup_bytes=saved_bytes.duplicate()
+	return _lineup_ticket
+
+func _lineup_binding(ticket: RefCounted) -> bool:
+	return ticket!=null and ticket==_lineup_ticket and career_owner==_lineup_owner \
+		and season==_lineup_session and saved_bytes==_lineup_bytes and lineup_allowed()
+
+func _lineup_current(ticket: RefCounted) -> bool:
+	return _lineup_binding(ticket) and _owned()
+
+func open_lineup() -> void:
+	if lineup_allowed(): menu.call("show_lineup")
+
+func _lineup_edit(kind: String, first: int, second: int, ticket: RefCounted) -> void:
+	if not _lineup_binding(ticket) or first<0 or first>=4: return
+	if kind=="swap":
+		if second<0 or second>=4 or first==second: return
+	elif kind=="starter":
+		if first==season.starter_index: return
+	elif kind=="fielder":
+		if first==season.starter_index or first==season.fielder_index: return
+	else: return
+	if not _lineup_current(ticket):
+		notice="Lineup change was not saved. Reload the saved career before editing."
+		_clear_lineup_ticket()
+		menu.call("show_lineup_blocked")
+		return
+	# No callback/await since authoritative admission; Store remains strict below.
+	var candidate: SeasonState=season.fork_live()
+	if candidate==null: return
+	if kind=="swap": candidate.swap_batters(first,second)
+	elif kind=="starter": candidate.select_starter(first)
+	else: candidate.fielder_index=first
+	_retain(candidate,saved_bytes)
+	if season==candidate and retained==null: open_lineup()
+
+func lineup_swap(first: int, second: int, ticket: RefCounted) -> void:
+	_lineup_edit("swap",first,second,ticket)
+func lineup_starter(index: int, ticket: RefCounted) -> void:
+	_lineup_edit("starter",index,-1,ticket)
+func lineup_fielder(index: int, ticket: RefCounted) -> void:
+	_lineup_edit("fielder",index,-1,ticket)
+func lineup_play(ticket: RefCounted) -> void:
+	if not _lineup_binding(ticket): return
+	# play_next performs the current authoritative _owned check synchronously.
+	_clear_lineup_ticket();play_next()
+func lineup_back(ticket: RefCounted) -> void:
+	if not _lineup_binding(ticket): return
+	show_season()
+
+# Old callbacks have no originating UI ticket and must not reach legacy writers.
+func swap_lineup(_first: int, _second: int) -> void: return
+func select_starter(_index: int) -> void: return
+func select_fielder(_index: int) -> void: return

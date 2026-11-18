@@ -1,5 +1,11 @@
 # Dynasty owner: bounded private career integration
 
+Increment81 binds current-owner pregame batting order, opening pitcher and primary
+fielder controls. Native controls/cold/match mount and focused save, stale-state,
+compatibility and Next-preservation gates passed. The actual role-bound human and
+two-AI round, settlement, paid shop choice and separate cold also passed. Full
+mode admission and remaining controls are not implied.
+
 Increment80 adds only local presentation quote-build reuse within one synchronous
 shop refresh. Focused quote/state-safety checks, exact paired outcomes and scoped native
 paid-shop/cold qualification passed. Authoritative previews, purchase validation and Store
@@ -754,3 +760,121 @@ Native report SHA256:
 The measured rendering benefit remains modest; this does not resolve the dominant
 paid-save latency or qualify public mode admission, ordinary pause/resume, lineup
 controls, replacement economics, target-machine performance or a distributable build.
+
+
+## Increment81: owner-safe pregame order and defense
+
+Five local runtime files change. The original lineup grid, ratings, inspections,
+arrows and dropdown styling are reused with explicit current-owner callbacks.
+Legacy pregame Film/Carbon Copy callbacks and legacy writers are not invoked;
+those planned controls still require their own bindings. Each render issues a
+private ephemeral ticket pinning the outer owner, session and saved bytes. Display
+eligibility is cheap and is not authorization. A real edit authenticates current
+hidden state/disk once, forks a detached session synchronously, and uses the
+unchanged strict Store transaction. No-op edits do not rotate main or backup.
+Old render callbacks, closed/draft/pending/lab/shop/modal contexts and changed
+owner/session/file state refuse. A current selector rejected by disk/owner admission
+is replaced by a clear not-saved/reload screen, not a misleading selected value.
+
+Only the human batting order admits an exact four-ID membership permutation.
+Authored build/profile roster order and all five AI roster orders remain strict.
+Swapping preserves the selected role players; changing pitcher resolves a role
+collision using the existing distinct-fielder rule. Local _make_team now applies
+human role indices for both physical request construction and interactive matches.
+Shop adoption retains ordered IDs. Next preserves the same human order and role
+indices after confirming identical carried membership, without new save fields,
+roster replacement or invented grants.
+
+Final focused gates passed on both a genuine zero-game natural79 successor and
+a genuine earned76/80 successor containing completed gameplay. Actual arrow and
+both selectors, cold reopen, duplicate/no-op controls, exact retained retry after
+a temporary-file obstruction, stale tickets, hidden-state faults, visible Shop,
+modal refusal and changed-disk selector feedback were checked. Human duplicate,
+missing and foreign IDs and reordered AI rosters refuse. Both scheduled home and
+away request constructors preserve order/roles. Original78 terminal and original75
+pending saves still admit through their existing strict paths without replay or
+file changes. On a separate edited owner, abandon/propose/Next/cold retained order
+and defense; zero-game abandonment added no currency, stats or fabricated results.
+
+Evidence revisions are explicit. Earlier UI checks used the initial five-file
+implementation; one guard test incorrectly restored a cold float Cash value as
+int, causing strict raw comparison to fail. That test now preserves the original
+Variant and restores only the field it mutated. The final five-file production
+then passed six gates using test SHA38c130a4f1be92f813e5268f57126312f3eb9ffb220156c6ac626e00238f7377.
+A final test-only target refinement selected fielder3 rather than default index1;
+its fresh actual edit/cold passed with pitcher2/fielder3. The final test SHA is
+53a58b17d9f9b8807b5771d91b1b54837c28b61ec9ad26346246368c591f8b09.
+Prior source/logs and the earlier staged-but-unused transition input remain
+preserved; the executed transition series uses TRANSITION_FINAL_INPUT_PROVENANCE.
+
+The final physical predecessor is 259,023 bytes, SHA256
+`3e8f42545df9a352316dcf800ed9d0b216f4689af46b91853c370cec23405703`.
+The actual live Lab was observed before the first pitch with that exact order,
+Indy at pitcher2 and Emery at fielder3. One human game and both AI games ran once
+using fixed-fps60 headless execution, with untouched raw reports and exact saved
+predecessors preserved before admission. These are functional, not real-time or
+target-hardware performance tests. The raw human report and saved canonical
+pending operands differ only in three recovery.remaining floating-point tails;
+admission is canonicalization-equivalent, not a claim of raw-operand byte identity.
+All three games settled without changing the selected order/roles, carried ledger,
+or prior-season development. The NPC temporary-write failure retained its exact
+candidate for retry; duplicate callbacks and duplicate consumption refused.
+
+The real paid pack reveal saved once, a separate process restored its pending
+choice, the actual recipient choice applied once without another charge, and a
+final separate cold retained the Used pack. All six bank journals validated and
+human order/roles survived the actual build adoption. Prior earned ledger and
+carried development were not folded or decayed again. Main/backup, immutable
+predecessors and protected original75/119 slots were checked; no physical game
+was replayed. This qualifies one edited-role carried round, not a new full season,
+all possible lineups, real-time performance or a distributable build.
+
+### Increment81 native controls and cold
+
+Native QA81 used the genuine natural79 successor with seed1843816953. Actual
+arrows produced Cal Mercer, Ash Cole, Indy Shaw, Emery Lane. Real dropdowns chose
+Indy as pitcher2 and Emery as fielder3; the pitcher was disabled as a fielder.
+There was no popup/modal dispatch conflict. A separate process restored those
+selections and exact main/backup bytes. Play mounted the actual 3D scene with Cal
+as first batter; pause and confirmed Leave returned to the hub without settlement.
+Only human order/role fields changed, independently audited. This is not a completed
+native game or a visual proof of defensive role rendering. Known llvmpipe/audio
+fallbacks are not target-machine performance evidence. Native report SHA256:
+`a0cfbb4d0606616dff6f2d6fb3e25eca6acd2a44ea58211e71458c634fa63110`.
+
+
+### Increment81 final evidence identities
+
+Final paid-choice/cold main: 796,561 bytes, SHA256
+`f45f100cd604c555d9ec0efa2001975597569ecb57d51f23d132faf14bc91918`.
+Final runtime map (47 files):
+`2e7acf5b306e3906ce1f05a4432cb0d54f5851c0615e3bff80c5729c1339da4d`.
+Executed transition inputs are pinned by TRANSITION_FINAL_INPUT_PROVENANCE.json;
+the earlier non-final transition directory was staged but never executed.
+Source/provenance and raw/paired evidence were backed up owner-only separately;
+remote source checkpoint verification remains a separate publication step.
+
+Increment81 final evidence log SHA256:
+- edit-final-edit.log: `01c96932d7bb9085983586a9fb150bb9ff431b4b7597c5fde50b5fa8ccfe6502`
+- edit-final-cold.log: `b40a452ed8bbe8f401bd13119eb2065efc82dfcc4a73e9d45c8981b25ae3963a`
+- fault-final-fault.log: `40b7881742eda584dc2541ecb4b402541022c09f8bfa09a28d915872b878a370`
+- guards-final-guards.log: `1e06ac7f894ddb1dd90c79e8a65044bdea09d03ccb96e96610b51f2e64dd114a`
+- earned-final-edit.log: `01c96932d7bb9085983586a9fb150bb9ff431b4b7597c5fde50b5fa8ccfe6502`
+- earned-final-cold.log: `b40a452ed8bbe8f401bd13119eb2065efc82dfcc4a73e9d45c8981b25ae3963a`
+- nondefault-edit.log: `01c96932d7bb9085983586a9fb150bb9ff431b4b7597c5fde50b5fa8ccfe6502`
+- nondefault-cold.log: `b40a452ed8bbe8f401bd13119eb2065efc82dfcc4a73e9d45c8981b25ae3963a`
+- transition-malformed.log: `b1673086aae854fd267796348d97ba647a2f9ea7b3c199b991aea8a16121767a`
+- transition-compat.log: `5724035272e03816ce8366a1a8ee7f87aa9c155ef9ff455ffbf126425242b62e`
+- transition-close.log: `5a3b75cc6fa65b51911ca0b45e3ddb910c3dcc123b421069f734babeffc534b9`
+- transition-propose.log: `cd4b06d675f61d532888c0870e5ab1b9013b8e0427edb2b4dddba3af4c032e97`
+- transition-next.log: `857bfb5f2fd232b761c680edf95b3da3925bbe1fdcb41e95f3effc1abe4bb9e7`
+- transition-cold.log: `80457da26a55f8eb8878077f03cd24ffdd60b3f52af0d5ff80cf52490b72fa4b`
+- physical-preflight.log: `9525904ab17a82eb4d6b33f679b58737208408aad79392df0d5ad53569b9fa66`
+- physical-human.log: `862beddcf06abc7f15b3c62ce758795b304adb7297e08d3489fc6b591daae9e7`
+- physical-npc1.log: `7e4f52f4a4cc20347f1f021c25d8ec1a31708ebe84dab2940340a50f0a28cb82`
+- physical-npc2.log: `a2a6e8a56427cec30e8689b852fe4c5c3b463d7c0f8f92dcbe527166a2dce5dc`
+- physical-settlement.log: `b68f641e6a538e7dd4aacfa53da6bbe78f4fc411d1e069d8783959a3156f66a3`
+- physical-shop.log: `9ec971e5b808bb3b58524c4d9e9b4481aa39e4aca6ef0174dda6481686a0bb3b`
+- physical-cold.log: `d9e771162ecaf5cf53ff99919da6dabd4c884fc1071f8ba7b752dd404fc28003`
+- physical-choice.log: `b3204bfa21f05fbf7d303533e2e2285cbcca70edf3ec0cf50aeff5f17ae798d5`
+- physical-final-cold.log: `be078f8e88a2eb8f75014bfc7a8effcb205ace69488b48172edef45c4f40fe78`

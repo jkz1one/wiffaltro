@@ -232,3 +232,12 @@ func _prepare_final() -> bool:
 
 func _settle_semifinals() -> void:
 	preload("res://src/gameplay/season/successor_live_play_v1/playoffs.gd").settle_semifinals(self)
+
+
+func _make_team(index: int, fixture_id: int = -1) -> TeamMatchState:
+	var team: TeamMatchState=super._make_team(index,fixture_id)
+	# Physical request construction and interactive make_match share exact roles.
+	if team!=null and index==0:
+		team.pitcher_index=starter_index
+		team.fielder_index=fielder_index
+	return team

@@ -1,0 +1,145 @@
+extends "res://tests/successor_dynasty_play.gd"
+## Actual lineup controls, isolated persistence and explicit fault guards. No physics.
+const Raw=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+var roots: Array[Resource]=[]
+func slot() -> Dictionary:return {"main":Save.raw(),"bak":slot_state(Save.PATH+".bak")}
+func exact_disk(before: Dictionary) -> bool:return Save.raw()==before.main and Codec.same(slot_state(Save.PATH+".bak"),before.bak)
+func save_artifact(path: String,bytes: PackedByteArray) -> bool:
+	if FileAccess.file_exists(path):return check(FileAccess.get_file_as_bytes(path)==bytes,"artifact already exact")
+	var file=FileAccess.open(path,FileAccess.WRITE)
+	if not check(file!=null,"isolated artifact writable"):return false
+	file.store_buffer(bytes);file.flush();file.close();return check(FileAccess.get_file_as_bytes(path)==bytes,"artifact exact")
+func by_focus(node: Node,key: String) -> Control:
+	if node is Control and node.get_meta("lineup_focus","")==key:return node
+	for child in node.get_children():
+		var found: Control=by_focus(child,key)
+		if found!=null:return found
+	return null
+func replace_isolated_primary(bytes: PackedByteArray) -> bool:
+	var file=FileAccess.open(Save.PATH,FileAccess.WRITE)
+	if file==null:return false
+	file.store_buffer(bytes);file.flush();file.close();return Save.raw()==bytes
+func roles(season: SeasonState) -> Array:
+	return [season.teams[0].roster[season.starter_index],season.teams[0].roster[season.fielder_index]]
+func untouched(before: Dictionary,after: Dictionary) -> bool:
+	var a=before.duplicate(true);var b=after.duplicate(true)
+	for data: Dictionary in [a,b]:
+		data.dynasty.state.teams[0].roster=[];data.dynasty.state.starter_index=0;data.dynasty.state.fielder_index=0
+	return Codec.same(a,b)
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["edit","cold","fault","guards"],"isolated lineup mode before reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"authored roots pinned"):return
+	var initial=slot();var app=App.new();add_child(app);await get_tree().process_frame;app.reload_save()
+	if not check(app.career_owner!=null and app._owned() and exact_disk(initial),"strict cold load no rewrite"):return
+	var original=app.career_owner;var raw=Raw.capture(original);var before=Owner.capture(original)
+	if not check(app.lineup_allowed(),"genuine active pregame owner eligible"):return
+	if args[0]=="edit":
+		app.open_lineup()
+		var ticket=app._lineup_ticket;var old_roles=roles(app.season)
+		var order: Array=app.season.teams[0].roster.duplicate()
+		var down: Button=by_focus(app.menu,str(order[0])+":down") as Button
+		if not check(down!=null and not down.disabled,"actual batting-order arrow"):return
+		down.pressed.emit()
+		var expected: Array=order.duplicate();expected[0]=order[1];expected[1]=order[0]
+		if not check(Codec.same(app.season.teams[0].roster,expected) and roles(app.season)==old_roles,"actual swap saves order while preserving role players"):return
+		var stable=slot();app.lineup_swap(0,1,ticket)
+		if not check(exact_disk(stable),"old render ticket cannot repeat swap"):return
+		var pitcher: OptionButton=by_focus(app.menu,"pitcher") as OptionButton
+		if not check(pitcher!=null,"actual pitcher selector"):return
+		var next_pitcher: int=(app.season.starter_index+1)%4
+		pitcher.item_selected.emit(next_pitcher)
+		if not check(app.season.starter_index==next_pitcher and app.season.fielder_index!=next_pitcher,"pitcher save resolves role collision"):return
+		var fielder: OptionButton=by_focus(app.menu,"fielder") as OptionButton
+		if not check(fielder!=null,"actual fielder selector"):return
+		var previous_fielder: int=app.season.fielder_index
+		var next_fielder: int=-1
+		for index in range(4):
+			if index!=app.season.starter_index and index!=previous_fielder and index!=1:next_fielder=index;break
+		var fielder_pre: PackedByteArray=Save.raw()
+		fielder.item_selected.emit(next_fielder)
+		if not check(next_fielder>=0 and next_fielder!=1 and next_fielder!=previous_fielder and app.season.fielder_index==next_fielder
+			and Save.raw()!=fielder_pre and FileAccess.get_file_as_bytes(Save.PATH+".bak")==fielder_pre,
+			"actual fielder change saves new primary and exact previous primary as backup"):return
+		stable=slot();ticket=app.lineup_ticket()
+		app.lineup_swap(0,0,ticket);app.lineup_starter(next_pitcher,ticket);app.lineup_fielder(next_fielder,ticket)
+		if not check(exact_disk(stable),"no-op controls do not rotate primary or backup"):return
+		if not check(untouched(before,Owner.capture(app.career_owner)),"all AI/build/economy/profiles/ledger untouched"):return
+		if not save_artifact("user://lineup-edited-owner.json",Save.raw()):return
+	elif args[0]=="cold":
+		var expected=FileAccess.get_file_as_bytes("user://lineup-edited-owner.json")
+		if not check(expected==Save.raw() and Codec.same(Owner.capture(original),JSON.parse_string(expected.get_string_from_utf8())),"independent cold retains exact edited owner"):return
+		app.open_lineup()
+		if not check(exact_disk(initial) and Raw.matches(original,raw),"opening lineup is read-only"):return
+	elif args[0]=="fault":
+		var ticket=app.lineup_ticket()
+		if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp")
+			and DirAccess.make_dir_absolute(Save.PATH+".tmp")==OK,"own empty temporary obstruction"):return
+		app.lineup_swap(0,1,ticket)
+		if not check(app.retained_envelope!=null and app.career_owner==original and Raw.matches(original,raw) and exact_disk(initial),"failed write retains exact candidate and original owner/save"):return
+		var candidate=Owner.capture(app.retained_envelope)
+		if not check(DirAccess.remove_absolute(Save.PATH+".tmp")==OK,"remove known empty obstruction"):return
+		app.retry_save()
+		if not check(app.retained==null and Codec.same(Owner.capture(app.career_owner),candidate),"retry adopts exact saved candidate once"):return
+		var stable=slot();app.retry_save();app.lineup_swap(0,1,ticket)
+		if not check(exact_disk(stable),"duplicate retry/stale control inert"):return
+	elif args[0]=="guards":
+		var ticket=app.lineup_ticket()
+		app.swap_lineup(0,1);app.select_starter(2);app.select_fielder(3)
+		app.lineup_swap(-1,1,ticket);app.lineup_swap(0,4,ticket);app.lineup_starter(4,ticket);app.lineup_fielder(-1,ticket)
+		if not check(Raw.matches(original,raw) and exact_disk(initial),"missing ticket and invalid indices refuse"):return
+		app.career_owner=original.fork();app.lineup_swap(0,1,ticket);app.career_owner=original
+		var season=app.season;app.season=season.fork_live();app.lineup_starter(2,ticket);app.season=season
+		if not check(Raw.matches(original,raw) and exact_disk(initial),"replaced owner/session ticket refuses"):return
+		app.open_lineup();ticket=app._lineup_ticket
+		var foreign_selector: OptionButton=by_focus(app.menu,"pitcher") as OptionButton
+		if not check(foreign_selector!=null and ticket!=null,"actual current-render selector before disk race"):return
+		var refused_index: int=(season.starter_index+1)%4
+		var foreign: PackedByteArray=initial.main.duplicate();foreign.append(32)
+		if not check(replace_isolated_primary(foreign),"inject only isolated different disk bytes"):return
+		foreign_selector.selected=refused_index
+		foreign_selector.item_selected.emit(refused_index)
+		if not check(app.menu.page=="lineup-blocked" and app._lineup_ticket==null
+			and Save.raw()==foreign and Codec.same(slot_state(Save.PATH+".bak"),initial.bak)
+			and Raw.matches(original,raw),"actual visually changed selector rejects stale disk and switches to blocked page; roles/save unchanged"):return
+		if not check(replace_isolated_primary(initial.main),"restore isolated exact predecessor"):return
+		# Explicit synthetic unsafe-context probes only, never saved as gameplay.
+		for context: String in ["closed","draft","pending","raw","shop","lab"]:
+			ticket=app.lineup_ticket()
+			if not check(ticket!=null,"fresh valid ticket before "+context+" probe"):return
+			var status: String=original.status;var picks: Array=season.picks.duplicate()
+			var pending: Dictionary=season.physical.pending.duplicate(true)
+			var cash: Variant=season.build._bank._state.cash
+			var visit: Dictionary=season.build._visit.duplicate(true)
+			if context=="closed":original.status="closed"
+			elif context=="draft":season.picks.pop_back()
+			elif context=="pending":season.physical.pending["test_only"]=true
+			elif context=="raw":season.build._bank._state.cash=cash+1
+			elif context=="shop":season.build._visit.open=true
+			elif context=="lab":app.lab=PitchBatLab.new()
+			app.lineup_swap(0,1,ticket)
+			if context=="lab":app.lab.free();app.lab=null
+			if context=="closed":original.status=status
+			elif context=="draft":season.picks.assign(picks)
+			elif context=="pending":season.physical.pending=pending
+			elif context=="raw":season.build._bank._state.cash=cash
+			elif context=="shop":season.build._visit=visit
+			if not check(app.retained==null and exact_disk(initial) and Raw.matches(original,raw),"unsafe "+context+" refuses without lineup mutation"):return
+		# GUI-only Shop host avoids opening/charging a shop during a pregame guard probe.
+		ticket=app.lineup_ticket()
+		if not check(ticket!=null,"fresh ticket before GUI Shop"):return
+		var shop_window=preload("res://tests/successor_dynasty_quote_reference.gd").new()
+		shop_window.app=app;app.menu.add_child(shop_window);shop_window.show()
+		if not check(shop_window is SeasonShopWindow and shop_window.visible and not app.lineup_allowed(),"visible GUI Shop blocks lineup even with untouched owner"):return
+		app.lineup_swap(0,1,ticket)
+		shop_window.hide();shop_window.queue_free()
+		if not check(Raw.matches(original,raw) and exact_disk(initial),"visible Shop refusal changes neither raw owner nor saves"):return
+		ticket=app.lineup_ticket()
+		if not check(ticket!=null,"fresh ticket before lifecycle dialog"):return
+		app.request_lifecycle("abandon");app.lineup_swap(0,1,ticket);app._cancel_lifecycle()
+		if not check(Raw.matches(original,raw) and exact_disk(initial),"open lifecycle dialog refuses lineup action"):return
+	if not check(Codec.same(Owner.capture(app.career_owner),JSON.parse_string(Save.raw().get_string_from_utf8())),"live owner equals durable owner"):return
+	print("PASS: lineup ",args[0]," isolated actual controls; no physics")
+	app.queue_free();await get_tree().process_frame;get_tree().quit(0)

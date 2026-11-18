@@ -98,7 +98,14 @@ static func advance(owner) -> bool:
 	var carried: Dictionary={}
 	for id: String in prepared: carried[id]=prepared[id].profile
 	var next: SeasonState=preload("runtime.gd").create_carried(int(owner.proposal.seed),carried,rights(owner))
-	if next==null or C.capture(next).is_empty(): return false
+	if next==null: return false
+	# Preserve the human's saved order/defense across same-membership carry.
+	# Authored build/profile order and every AI roster remain untouched.
+	if not C.human_lineup_matches(owner.session.teams[0].roster,next.build.roster()): return false
+	next.teams[0].roster=owner.session.teams[0].roster.duplicate()
+	next.starter_index=owner.session.starter_index
+	next.fielder_index=owner.session.fielder_index
+	if C.capture(next).is_empty(): return false
 	owner.last_transition={"id":owner.proposal.id,"from":owner.ordinal,"to":owner.ordinal+1,"seed":owner.proposal.seed,"profiles_before":owner.last_close.profiles.duplicate(true),"proposal":owner.proposal.duplicate(true),"profiles_after":digest(carried),"ledger_sha256":digest(owner.ledger)}
 	owner.session=next;owner.ordinal+=1;owner.status="active";owner.last_close={};owner.proposal={}
 	return true

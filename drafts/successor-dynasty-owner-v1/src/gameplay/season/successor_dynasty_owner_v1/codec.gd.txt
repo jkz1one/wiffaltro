@@ -191,7 +191,10 @@ static func _structural_valid(season: SeasonState) -> bool:
 			if not team.roster.is_empty(): return false
 		else:
 			var build: SeasonBuild = season.build if i==0 else season.opponents.clubs[str(i)].get("build")
-			if build==null or team.roster.size()!=4 or not same(team.roster,build.roster()): return false
+			if build==null or team.roster.size()!=4: return false
+			if i==0:
+				if not human_lineup_matches(team.roster,build.roster()) or season.starter_index==season.fielder_index: return false
+			elif not same(team.roster,build.roster()): return false
 			if i>0:
 				var club: Dictionary = season.opponents.clubs[str(i)]
 				if not keys(club,["build","profile","roles","cursor","decisions","primary"]) or not club.roles is Dictionary or not club.decisions is Array or not whole(club.cursor,0,33): return false
@@ -415,3 +418,13 @@ static func starts_match(build: SeasonBuild, start: Dictionary) -> bool:
 	for key: String in ["order","rain","transfer","supply","checkout","association","freezer","sides","jump","sure","field","batch"]:
 		if not same(build.get("_"+key+"_start"),start[key]): return false
 	return true
+
+
+static func human_lineup_matches(order: Variant, members: Variant) -> bool:
+	# Batting order is a permutation, never ownership or an AI roster rewrite.
+	if not order is Array or not members is Array or order.size()!=4 or members.size()!=4: return false
+	var seen: Dictionary={}
+	for id: Variant in order:
+		if not id is String or seen.has(id) or not members.has(id): return false
+		seen[id]=true
+	return seen.size()==4

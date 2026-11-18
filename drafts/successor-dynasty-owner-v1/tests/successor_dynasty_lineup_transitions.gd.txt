@@ -1,0 +1,80 @@
+extends "res://tests/successor_dynasty_lineup.gd"
+## Isolated genuine edited owner. Source must be copied as lineup-reference-owner.json.
+## Shop uses an earned, settled source; lifecycle uses separate zero-game source.
+func identity(season: SeasonState,wanted: SeasonState) -> bool:
+	return Codec.same(season.teams[0].roster,wanted.teams[0].roster) and season.starter_index==wanted.starter_index and season.fielder_index==wanted.fielder_index
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["shop","close","propose","next","cold","malformed","compat"],"isolated transition mode before reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"retained authored roots"):return
+	var reference_bytes=FileAccess.get_file_as_bytes("user://lineup-reference-owner.json")
+	var reference=Owner.restore(JSON.parse_string(reference_bytes.get_string_from_utf8()))
+	if not check(reference!=null,"immutable genuine edited source admitted"):return
+	var initial=slot();var app=App.new();add_child(app);await get_tree().process_frame;app.reload_save()
+	if not check(app.career_owner!=null and app._owned() and exact_disk(initial) and identity(app.season,reference.session),"cold identity/order preserved without rewrite"):return
+	if args[0]=="shop":
+		if not check(app.season.shop_available() and not app.season.build._visit.get("open",false),"genuine settled source with unopened shop, no invented rewards"):return
+		var cash: int=app.season.build.cash();var build=app.season.build
+		app.open_pitch_shop()
+		if not check(app.retained==null and app.season.build!=build and app.season.build._visit.open and app.season.build.cash()==cash,
+			"actual open shop adopted saved new build without currency change"):return
+	elif args[0]=="close":
+		if not check(app.career_owner.status=="active" and app.season.results.is_empty(),"actual edited zero-game source"):return
+		app.request_lifecycle("abandon")
+		if not check(app._lifecycle_dialog.visible,"actual abandon confirmation"):return
+		app._confirm_lifecycle()
+		if not check(app.career_owner.status=="closed" and app.career_owner.ordinal==reference.ordinal,"close saves without advancing"):return
+	elif args[0]=="propose":
+		app.propose_next(810081)
+		if not check(app.career_owner.status=="closed" and app.career_owner.next_preview().size()==6,"all six proposed carried profiles"):return
+		# No invented default ability loss: this fixture must have no unresolved human overflow.
+		if not check(preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd").overflow(app.career_owner.last_close.profiles["club:0"]).is_empty(),"actual fixture has no human overflow; otherwise require explicit choice case"):return
+	elif args[0]=="next":
+		app.request_lifecycle("next")
+		if not check(app._lifecycle_dialog.visible,"actual Next confirmation"):return
+		app._confirm_lifecycle()
+		if not check(app.career_owner.status=="active" and app.career_owner.ordinal==reference.ordinal+1 and app.season.results.is_empty(),"exactly one new season with no invented results"):return
+	elif args[0]=="compat":
+		var terminal: PackedByteArray=FileAccess.get_file_as_bytes("user://compat-terminal.json")
+		var pending75: PackedByteArray=FileAccess.get_file_as_bytes("user://compat-pending75.json")
+		var terminal_owner=Owner.restore(JSON.parse_string(terminal.get_string_from_utf8()))
+		var pending_owner=Owner.import_75(pending75)
+		if not check(terminal_owner!=null and terminal_owner.session.phase==SeasonState.Phase.COMPLETE,
+			"genuine78 terminal admitted without physics replay"):return
+		if not check(pending_owner!=null and not pending_owner.session.physical.pending.is_empty(),
+			"genuine75 pending explicitly imports with original roles"):return
+		if not check(not Owner.capture(terminal_owner).is_empty() and not Owner.capture(pending_owner).is_empty()
+			and FileAccess.get_file_as_bytes("user://compat-terminal.json")==terminal
+			and FileAccess.get_file_as_bytes("user://compat-pending75.json")==pending75 and exact_disk(initial),
+			"compatibility admission/capture preserves source files and current save bytes"):return
+	elif args[0]=="malformed":
+		var valid: Dictionary=Owner.capture(app.career_owner)
+		for mutation: String in ["duplicate","missing","foreign","ai-reorder"]:
+			var data: Dictionary=valid.duplicate(true)
+			var order: Array=data.dynasty.state.teams[0].roster
+			if mutation=="duplicate":order[1]=order[0]
+			elif mutation=="missing":order.pop_back()
+			elif mutation=="foreign":order[0]="not-an-authored-player"
+			else:data.dynasty.state.teams[1].roster.reverse()
+			if not check(Owner.restore(data)==null,"strict malformed "+mutation+" refuses"):return
+		var sides: Dictionary={}
+		for fixture: Dictionary in app.season.schedule:
+			if int(fixture.home)!=0 and int(fixture.away)!=0:continue
+			var side: String="home" if int(fixture.home)==0 else "away"
+			if sides.has(side):continue
+			var state: MatchState=Fixtures.match_for(app.season,fixture)
+			if not check(state!=null and Report.context_valid(state),"actual scheduled "+side+" current-profile request"):return
+			var human: TeamMatchState=state.home_team if side=="home" else state.away_team
+			var ids: Array=[]
+			for player: PlayerMatchState in human.roster:ids.append(String(player.definition.id))
+			if not check(Codec.same(ids,reference.session.teams[0].roster) and human.pitcher_index==reference.session.starter_index and human.fielder_index==reference.session.fielder_index,"edited order and roles bind "+side+" request"):return
+			sides[side]=true
+		if not check(sides.size()==2 and exact_disk(initial),"both scheduled sides covered, malformed probes did not write"):return
+	if not check(identity(app.season,reference.session) and Codec.same(Owner.capture(app.career_owner),JSON.parse_string(Save.raw().get_string_from_utf8()))
+		and FileAccess.get_file_as_bytes("user://lineup-reference-owner.json")==reference_bytes,"order/roles persist and original source stays exact"):return
+	if args[0]=="cold" and not check(exact_disk(initial),"separate cold preserves primary and backup"):return
+	if not save_artifact("user://lineup-transition-"+args[0]+".json",Save.raw()):return
+	print("PASS: lineup transition ",args[0],"; no physics or fabricated rewards")
+	app.queue_free();await get_tree().process_frame;get_tree().quit(0)
