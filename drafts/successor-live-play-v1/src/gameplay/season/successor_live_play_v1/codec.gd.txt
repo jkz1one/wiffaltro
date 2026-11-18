@@ -17,7 +17,7 @@ static var _basis: Dictionary = {}
 static var _draws: Array[float] = []
 static var _schedule: Array = []
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
-const Starts = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
+const Progress = preload("progress.gd")
 const Settlement = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd")
 
 static func primitive(value: Variant) -> bool:
@@ -131,7 +131,7 @@ static func _structural_valid(season: SeasonState) -> bool:
 		for i in range(6): _draws.append(rng.randf())
 	if _basis.is_empty() or not same(season.career.start_basis,_basis) or not same(season.player_access,_basis.player_access): return false
 	if not same(season.career._assets,_basis.assets) or not same(season.career._pennants,Settlement.birth_pennants(_basis)) or not same(season.career._plaques,_basis.plaques) or season.career._pitch_catalog != Catalog.game_signature(): return false
-	if not same(season.career.runs[0],Starts.row(season)): return false
+	if not same(season.career.runs[0],Progress.row(season)): return false
 	if season.teams.size()!=6 or season.draft_pool.size()<12 or season.picks.size()>4: return false
 	var seen: Dictionary = {}
 	for id: String in season.draft_pool:

@@ -12,7 +12,7 @@ func render() -> void:
 		_button(_body,"IMPORT SAVED DRAFT",Callable(app,"import_draft"))
 		_button(_body,"PREVIOUS CAREER BUILD",Callable(app,"open_previous"))
 		_button(_body,"ORIGINAL GAME",Callable(app,"open_legacy"))
-		_label(_body,"Materialized gameplay integration. Earlier saves remain separate and unchanged.",16)
+		_label(_body,"Your previous saves are kept separately.",16)
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)

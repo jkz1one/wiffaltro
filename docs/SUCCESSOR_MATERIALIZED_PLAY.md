@@ -1,6 +1,8 @@
 # Materialized current-season gameplay integration
 
-Status: checkpoint71 targeted qualification complete; remote publication pending.
+Status: checkpoint71 remotely verified at `9d532c44ace3c2df14861d6d2cd75d2f9076dccc`.
+Checkpoint72 performance correction is documented in
+[SUCCESSOR_MATERIALIZED_PERFORMANCE.md](SUCCESSOR_MATERIALIZED_PERFORMANCE.md).
 
 This additive route follows verified checkpoint70. The draft-only reader and
 its save slot remain unchanged. The new119 contract uses the separate
@@ -12,8 +14,12 @@ remain the source of behavior. This is not a replacement economy or final build.
 
 Current human and five AI builds, current-season journals, pending physical
 round evidence and the current career row are materialized directly. Cold
-hydration must not replay physical games or historical shop commands. This is
-bounded offline consistency, not cryptographic anti-cheat provenance.
+hydration is intended not to replay physical games or shop commands. Checkpoint72
+profiling found that checkpoint71 still indirectly replayed the current Build
+and development journal while deriving career progress, plus wallet commands
+for sponsor counts. The earlier decoder/physics counters did not cover those
+nested calls. Checkpoint72 replaces that summary path; see the linked evidence.
+This is bounded offline consistency, not cryptographic anti-cheat provenance.
 
 Actual matches and NPC fixtures keep the existing physics/report algorithms.
 Explicit new-route adapters are necessary because frozen114 guards require a

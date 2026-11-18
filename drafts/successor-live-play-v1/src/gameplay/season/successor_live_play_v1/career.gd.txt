@@ -4,7 +4,7 @@ extends ClubCareer
 var start_basis: Dictionary = {}
 func sync(season: SeasonState) -> bool:
 	if season == null or season.career != self or current < 1 or runs.size() != current: return false
-	var row: Dictionary = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd").row(season)
+	var row: Dictionary = preload("progress.gd").row(season)
 	if row.is_empty(): return false
 	runs[current-1] = row
 	return true

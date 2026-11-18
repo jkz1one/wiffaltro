@@ -1,0 +1,27 @@
+extends Node
+## Actual saved-fixture parity. Legacy replay below is TEST-ONLY reference.
+const App = preload("res://src/presentation/season/successor_live_play_v1/app.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Progress = preload("res://src/gameplay/season/successor_live_play_v1/progress.gd")
+const Legacy = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
+func _ready() -> void: call_deferred("run")
+func run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1": get_tree().quit(2);return
+	var app = App.new();add_child(app);await get_tree().process_frame
+	for path: String in ["user://source.json","user://expected.json"]:
+		var value: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
+		var t: int = Time.get_ticks_msec()
+		var season: SeasonState = Codec.restore(value)
+		print("COLD_MS ",Time.get_ticks_msec()-t)
+		if season == null: print("FAIL restore ",path);get_tree().quit(1);return
+		t = Time.get_ticks_msec()
+		var direct: Dictionary = Progress.row(season)
+		print("DIRECT_ROW_MS ",Time.get_ticks_msec()-t)
+		t = Time.get_ticks_msec()
+		var legacy: Dictionary = Legacy.row(season)
+		print("REFERENCE_ROW_MS ",Time.get_ticks_msec()-t)
+		if direct.is_empty() or not Codec.same(direct,legacy):
+			print("FAIL parity ",path,JSON.stringify(direct),JSON.stringify(legacy));get_tree().quit(1);return
+		if not Codec.same(Codec.capture(season),value):print("FAIL full capture parity");get_tree().quit(1);return
+		print("PASS actual full row and snapshot parity ",path)
+	get_tree().quit(0)

@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "c1e78a43d1b7e6146e9da3951c480c97186bd9f5",
-  "scope": "Increment71 qualified Standard/Dugout fresh four-pick save/cold, genuine Standard one-round physical play/settlement/paid pack/choice/cold, pristine118 import, and retained-save cleanup/replacement fault guards. Native visual smoke pending; no terminal, Dynasty, distributable or responsiveness completion claim.",
+  "source_checkpoint": "9d532c44ace3c2df14861d6d2cd75d2f9076dccc",
+  "scope": "Increment72 targeted qualification: exact119 schema preserved; live progress derives monotone Standard/Dugout profiles and bounded receipt summaries without Build/development/wallet command replay. Actual paid-choice byte parity, fault/cold/cleanup regression, synthetic progression/sponsor parity and malformed operand refusal passed. Native footer review pending. Faster but responsiveness, Dynasty, terminal career and distributable remain unqualified.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -12,8 +12,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/career.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/career.gd",
-      "bytes": 906,
-      "sha256": "346ce90bcde1845b719fe24365d8cce2871fce8c8d8837af9f3946022ad1a3f8"
+      "bytes": 857,
+      "sha256": "eee4b25767610996b47b1b932c6d1792b4950d9bafe4ddc800910a05e38d1872"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/catalog.gd.txt",
@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 21120,
-      "sha256": "3c2605906e368ae9de57ba3405ccdc3d7e7085fe88da21ece44ade47895646de"
+      "bytes": 21075,
+      "sha256": "86f6c06bbb4c9c1d5882aab6b842e4dcc7ddcc71d54e6e2672551b3fdf98f9af"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/import_draft.gd.txt",
@@ -44,6 +44,12 @@
       "restore_path": "src/gameplay/season/successor_live_play_v1/physical_fixtures.gd",
       "bytes": 20252,
       "sha256": "c23afc7b6ab874245cb007007b878b4d868cd85ff12724c824c934a705ebe83f"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/progress.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/progress.gd",
+      "bytes": 12074,
+      "sha256": "55446a38fefd5cce4425fc9813d4affad38d637124c3838d2365dad9f184c54c"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
@@ -78,8 +84,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/presentation/season/successor_live_play_v1/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_live_play_v1/menu.gd",
-      "bytes": 3102,
-      "sha256": "3d82fddec1043546b6a9cdad31ef64b270dd686e5246c6ecd96dbdb7537054f0"
+      "bytes": 3063,
+      "sha256": "93c3b5f34f55220da4fd5773938fd12fda54266c8f09c8f0333583ba4966ac3f"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_birth.gd.txt",
@@ -134,6 +140,30 @@
       "restore_path": "tests/successor_live_play_import.tscn",
       "bytes": 185,
       "sha256": "b69dbb5a504ddd29c2bbe4f83ad8baec536ffcc0a1a97e44aba8598cbfbf2ec0"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_progress_actual.gd.txt",
+      "restore_path": "tests/successor_live_progress_actual.gd",
+      "bytes": 1599,
+      "sha256": "05c5b675ccb650d5b9df0abab6922fd96bb837a4efc38cbf63a4f3de1dcb32ff"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_progress_actual.tscn.txt",
+      "restore_path": "tests/successor_live_progress_actual.tscn",
+      "bytes": 181,
+      "sha256": "4581a626602851d18476064dfc0282a9bfc28d14ff96eea34ad26f87b296f795"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_progress_parity.gd.txt",
+      "restore_path": "tests/successor_live_progress_parity.gd",
+      "bytes": 9979,
+      "sha256": "8757cf88aac1664862b62d60a0d78bdebc3f52f9eea197f4c791114ad29fe19f"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_progress_parity.tscn.txt",
+      "restore_path": "tests/successor_live_progress_parity.tscn",
+      "bytes": 191,
+      "sha256": "b82682df64badefa581d44630c0e251fea5ae5befc90407ad2d699b414253766"
     }
   ]
 }

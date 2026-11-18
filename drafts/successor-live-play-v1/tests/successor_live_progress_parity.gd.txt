@@ -1,0 +1,132 @@
+extends Node
+## Synthetic bounded book/roster fixtures, not gameplay/economy qualification.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Direct = preload("res://src/gameplay/season/successor_live_play_v1/progress.gd")
+const Reference = preload("res://src/gameplay/season/successor_career_general_v1/player_progress.gd")
+var failed: bool = false
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed=true
+	return ok
+func parity(build: SeasonBuild,label: String) -> bool:
+	var trace: Dictionary = {"book":null,"count":0,"contracts":build._contracts.duplicate(true),"result":{"mastery":0,"known":0,"lessons":[]}}
+	if not check(Reference._observe_development(trace,build),label+" legacy event observer accepts actual book commands"): return false
+	trace.result.lessons.sort()
+	return check(ClubCareer.same(Direct._current_development(build),trace.result),label+" direct aggregates equal legacy observer")
+func command(build: SeasonBuild,op: String,player: String,target: String = "",extra: Dictionary = {}) -> bool:
+	var event: Dictionary = {"id":"synthetic-progress:%d"%build._book.revision(),"rev":build._book.revision(),"op":op,"player":player}
+	if op not in ["exchange","retrain"]: event.target=target
+	event.merge(extra)
+	var result: Dictionary = build._book.commit(event)
+	return check(result.ok and not result.replayed,"actual book "+op+" "+player+" "+target)
+func bank_command(build: SeasonBuild,op: String,extra: Dictionary = {}) -> String:
+	var id: String = "synthetic-bank:%d"%build._bank.revision()
+	var event: Dictionary = {"id":id,"rev":build._bank.revision(),"op":op}
+	event.merge(extra)
+	var result: Dictionary = build._bank.commit(event)
+	if not check(result.ok and not result.replayed,"actual synthetic bank "+op): return ""
+	return id
+func sponsor_parity(league: String) -> bool:
+	var roster: Array[String] = ["player.alex_finch","player.jo_lane","player.ari_banks","player.ash_cole"]
+	var build: SeasonBuild = Build.new(720120,roster)
+	if not build.enable_successor_pitch_catalog(): return false
+	if league=="dugout" and not build.enable_league_rules(LeagueRules.capture("dugout")): return false
+	if bank_command(build,"reward",{"game":0,"win":true}).is_empty(): return false
+	if bank_command(build,"stock",{"offers":{"s0":"D01","s1":"A08"}}).is_empty(): return false
+	var first: String = bank_command(build,"buy",{"offer":"s0","replace":"","discard":[]})
+	if first.is_empty() or bank_command(build,"reward",{"game":1,"win":true}).is_empty(): return false
+	var second: String = bank_command(build,"buy",{"offer":"s1","replace":"","discard":[]})
+	if second.is_empty() or bank_command(build,"reward",{"game":2,"win":true}).is_empty(): return false
+	if bank_command(build,"stock",{"offers":{"s2":"A09"}}).is_empty(): return false
+	var third: String = bank_command(build,"buy",{"offer":"s2","replace":first,"discard":[]})
+	if third.is_empty() or bank_command(build,"reward",{"game":3,"win":true}).is_empty(): return false
+	if bank_command(build,"sell",{"receipt":second,"discard":[]}).is_empty(): return false
+	if bank_command(build,"reward",{"game":4,"win":true}).is_empty(): return false
+	if bank_command(build,"stock",{"offers":{"s3":"D01","s4":"A08"}}).is_empty(): return false
+	var combined: String = bank_command(build,"sponsor_set",{"sales":[third],"purchases":[{"offer":"s3","discount":0},{"offer":"s4","discount":0}]})
+	if combined.is_empty() or bank_command(build,"reward",{"game":5,"win":true}).is_empty(): return false
+	if not check(ClubCareer.same(Direct._sponsor_counts(build),ClubPlayerProgress._sponsor_counts(build)),league+" receipt fold equals bank replay: stock/buy/replace/sell/multipurchase"): return false
+	if bank_command(build,SeasonInventoryResale.ENABLE_OP).is_empty(): return false
+	if bank_command(build,SeasonInventoryResale.SALE_OP,{"receipt":SeasonSponsorSet.receipt_id(combined,0)}).is_empty(): return false
+	if bank_command(build,"reward",{"game":6,"win":true}).is_empty(): return false
+	return check(ClubCareer.same(Direct._sponsor_counts(build),ClubPlayerProgress._sponsor_counts(build)),league+" inventory sponsor sale fold equals reference, synthetic only")
+func malformed_refusals() -> bool:
+	# Deliberately corrupted in-memory test doubles, never written to any slot.
+	var roster: Array[String] = ["player.jo_lane","player.ari_banks","player.ash_cole","player.alex_finch"]
+	var build: SeasonBuild = Build.new(720121,roster)
+	if not check(build.enable_successor_pitch_catalog(),"malformed fixture authored catalog"): return false
+	var events: Array[Dictionary] = [
+		{}, {"op":1}, {"op":"stock"}, {"op":"stock","offers":[]},
+		{"op":"stock","offers":{1:"D01"}}, {"op":"stock","offers":{"offer":false}},
+		{"op":"buy","id":"x","offer":"o"}, {"op":"buy","id":"x","offer":false,"replace":""},
+		{"op":"sell","receipt":[]}, {"op":"inventory_sale_v1"},
+		{"op":"sponsor_set","id":"x","sales":{},"purchases":[]},
+		{"op":"sponsor_set","id":"x","sales":[1],"purchases":[]},
+		{"op":"sponsor_set","id":"x","sales":[],"purchases":[1]},
+		{"op":"sponsor_set","id":"x","sales":[],"purchases":[{"offer":false}]},
+		{"op":"reward","game":true}, {"op":"reward","game":0.5}, {"op":"reward","game":33}
+	]
+	for i in range(events.size()):
+		build._bank._events.clear(); build._bank._events.append(events[i].duplicate(true))
+		if not check(Direct._sponsor_counts(build).get("invalid",false)==true,"malformed sponsor operand refused "+str(i)): return false
+	var original_catalog: Dictionary = build._bank._catalog.duplicate(true)
+	for value: Variant in [false,null,[]]:
+		build._bank._events.assign([
+			{"op":"stock","offers":{"offer":"D01"}},
+			{"op":"buy","id":"buy","offer":"offer","replace":""}])
+		build._bank._catalog["D01"] = value
+		if not check(Direct._sponsor_counts(build).get("invalid",false)==true,"malformed hidden catalog entry refused"): return false
+	build._bank._catalog = original_catalog
+	build._bank._events.clear()
+	if not check(not Direct._sponsor_counts(build).has("invalid"),"restored hidden catalog fixture accepted"): return false
+	build._bank._sponsor_rule=SeasonSponsorCatalog.D4_RULE
+	if not check(Direct._sponsor_counts(build).get("invalid",false)==true,"unsupported sponsor-term scope refused"): return false
+	build._bank._sponsor_rule=""
+	var original: Dictionary = build._book._players[roster[0]].duplicate(true)
+	var mutations: Array = [null,{}, {"active":{},"mastery":{}}, {"active":[],"mastery":[]},
+		{"active":[],"mastery":{1:1}}, {"active":[],"mastery":{"pitch.riser":true}},
+		{"active":[],"mastery":{"pitch.riser":1.5}}, {"active":[],"mastery":{"pitch.riser":6}}]
+	for i in range(mutations.size()):
+		build._book._players[roster[0]]=mutations[i]
+		if not check(Direct._current_development(build).is_empty(),"malformed contracted profile refused "+str(i)): return false
+	build._book._players[roster[0]]=original
+	build._contracts[1]=0
+	if not check(Direct._current_development(build).is_empty(),"nonstring contract identity refused"): return false
+	build._contracts.erase(1)
+	return check(not Direct._current_development(build).is_empty(),"restored synthetic profile remains accepted")
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1","isolated synthetic progression parity, no save writes"): get_tree().quit(1); return
+	if not malformed_refusals(): get_tree().quit(1); return
+	for league: String in ["standard","dugout"]:
+		var roster: Array[String] = ["player.alex_finch","player.jo_lane","player.ari_banks","player.ash_cole"]
+		var build: SeasonBuild = Build.new(720119,roster)
+		if not check(build.enable_successor_pitch_catalog(),"current authored catalog"): break
+		if league=="dugout" and not check(build.enable_league_rules(LeagueRules.capture("dugout")),"actual Dugout rules"): break
+		if not parity(build,league+" initial"): break
+		if not sponsor_parity(league):
+			failed=true; break
+		if not command(build,"learn","player.jo_lane","pitch.riser",{"replace":""}): break
+		if not command(build,"mastery","player.jo_lane","pitch.riser"): break
+		if not command(build,"learn","player.jo_lane","pitch.knuckleball",{"replace":"pitch.riser"}): break
+		if not parity(build,league+" remembered inactive mastery"): break
+		if not command(build,"learn","player.jo_lane","pitch.riser",{"replace":"pitch.knuckleball"}): break
+		# Drop is authored for Ari, but a genuine new lesson for Ash.
+		if not command(build,"learn","player.ash_cole","pitch.drop",{"replace":""}): break
+		if not command(build,"exchange","player.jo_lane","",{"other":"player.ash_cole","first":"pitch.riser","second":"pitch.drop"}): break
+		if not parity(build,league+" exchange and global lesson union"): break
+		if not command(build,"stat","player.jo_lane","contact"): break
+		if not command(build,"stat","player.jo_lane","contact"): break
+		if not command(build,"retrain","player.jo_lane","",{"remove":["contact","contact"],"add":["fielding","fielding"]}): break
+		if not parity(build,league+" retraining does not change pitch aggregates"): break
+		# Synthetic roster membership setup mirrors permanent contract semantics;
+		# book catch-up is an actual validated recruit command, not an earned claim.
+		if not command(build,"recruit","player.bailey_quinn","late"): break
+		build._contracts["player.bailey_quinn"] = RecruitCatalog.contract("player.bailey_quinn").prices[2]
+		build._roster[1]="player.bailey_quinn"
+		if not parity(build,league+" recruit catchup and released learned player retained"): break
+		build._roster[1]="player.jo_lane"
+		if not parity(build,league+" returning player preserves catchup and mastery history"): break
+		if not check(build._contracts.has("player.bailey_quinn") and build._contracts.has("player.jo_lane"),"synthetic released contracts retained"): break
+	if not failed: print("PASS: bounded synthetic Standard/Dugout progression parity; no physics or economy completion claim")
+	get_tree().quit(1 if failed else 0)
