@@ -1,5 +1,10 @@
 # Dynasty owner: bounded private career integration
 
+Increment83 moves four fixed Shop commands into a Store-owned synchronous producer.
+Focused admission, retained-write and handoff guards, paired byte parity and
+traversal counts and final native paid-shop/cold checks passed.
+No current claim of improved responsiveness or finished release is implied.
+
 Increment81 binds current-owner pregame batting order, opening pitcher and primary
 fielder controls. Native controls/cold/match mount and focused save, stale-state,
 compatibility and Next-preservation gates passed. The actual role-bound human and
@@ -908,3 +913,108 @@ Final82 logs (SHA256):
 - changed82-open.log: `78dfefdfdc817ee3bf083afa1300a0080806cbcefa56c84e30eb2231158b5acb`
 - changed82-pick.log: `3d1d62b3c5cf461fdbf12201de58f48c2184a70849e3710ad81f6a223111a2cf`
 - changed82-cold.log: `1e58af34bbf1ffd00d59ddc6f22eb893d6c590d0cae0c5b4ca3565f177abf9f5`
+
+
+## Increment83: fixed Shop producer, scoped checks passed
+
+Only local owner_store and App production files change. The optimized set is
+open, pack_open, pack_pick and pack_skip. Every other existing Shop operation
+selects its original generic path before attempting a transaction; no fallback
+runs after a fixed-producer write or refusal. Existing costs, commands, capacity,
+recipient effects and save formats are unchanged.
+
+The Store validates primitive command input before string conversion, matches
+the admitted owner/native graph/disk once, then creates its own detached named
+runtime/build candidate and adopts the original command result. It copies the
+bounded outer owner metadata, pins the dormant alternate and import identity,
+performs full semantic candidate capture and raw candidate capture, then invokes
+the existing exact writer. It accepts no caller candidate, checked payload,
+callback, trusted flag or cached admission. Registration remains inside that
+checked method; there is no new unchecked owner/candidate writer helper.
+
+An opaque ticket identifies the retained candidate. The App's shared handoff
+bookkeeping rejects busy/retained state, foreign tickets, wrong envelopes,
+replaced outer owners (even with the same session), mismatched sessions or saved
+bytes before touching retained state or cleanup. This cheap identity check is
+not semantic admission. Existing promotion still checks both live raw graphs
+after cleanup, and every later retry retains exact native checks and disk CAS.
+Failed commands do not mutate the live owner's diagnostics. Write obstructions
+retain the same candidate/ticket instead of retrying through another path.
+
+Evidence revisions remain explicit. The initial producer passed actual funded
+open/reveal/choice/skip/cold and write-obstruction retry against a detached
+original-path oracle. Before final freeze, primitive validation was moved ahead
+of op string conversion and a direct-helper identity barrier was added. The
+final Object-op test requires zero conversion callbacks at both App and Store;
+the valid-ticket/wrong-envelope test requires zero cleanup calls. Prior source
+versions and passing logs remain preserved, not relabeled as final-source runs.
+A final cheap pre-write guard also rejects a stale App.saved_bytes value before
+generic prepare can write, rather than refusing only during later bookkeeping.
+Its direct regression checks no orphaned ticket or file changes. Optimized paired
+measurements retain their exact preceding source revision; the one-line generic
+guard does not change that optimized command path. Final generic import, direct handoff and cleanup
+passed; final native qualification also passed.
+
+
+### Increment83 paired cost and exact-output evidence
+
+The same genuine 6,381,991-byte 75 input and unchanged actual UI benchmark commands
+were used. All four import/open/pick/cold results, primary/backup presence and
+bytes match the already-qualified 82 outputs. No game or historical command was
+replayed. The existing 82 workflow measurements were reused, not represented as a
+new contemporaneous benchmark; a separate counted paid-choice pair was run now.
+
+The counted actual UI choice made four Raw.matches calls on 82 and three on 83,
+with exactly one semantic candidate capture in both. Outputs were byte-identical.
+Its observed handler time was 7.867→7.426 seconds, roughly 0.44 seconds saved in
+this single shared-cloud pair. Uninstrumented historical82→83 observations were:
+paid reveal 7.012→6.123 seconds; paid choice 7.749→7.095 seconds; separate cold
+5.322→5.037 seconds. Cold was not changed by 83, and such wall-time differences
+include environment variability. This is not a CPU-exclusive, statistical or
+target-hardware claim. Paid actions still block for several seconds.
+
+The measured source is SOURCE_FINAL_HANDOFF_4, before the final generic pre-write
+expected-byte guard. That one-line guard does not enter the fixed Shop producer;
+its affected generic import, stale-App handoff and cleanup passed separately on the
+final source. Instrumentation existed only in separate counter projects; original
+runtime bytes, baseline outputs and all measurement provenance remain preserved.
+
+
+Increment83 final generic-guard evidence log SHA256:
+- prewrite-handoff.log: `db150cdc605fe3ce8a849bd2a8ea81634c649c134cee73bf32ac6fab429b9fdd`
+- prewrite-cleanup.log: `04e4df3a1e79a2655ef9444ad7de8107705ddf699026afa815a1c41e361f1792`
+- final-import.log: `ec0d3715689bbf2e38b4e29d23903e63ba8a5734a937e8b08588029c4570a8d9`
+
+The preceding fixed-producer paired workflow/count and focused safety logs are
+pinned in CLI_83_QUALIFICATION.json with their exact separate source revisions.
+
+
+### Increment83 final native paid-shop and cold
+
+Isolated QA83Shop used the same genuine earned76 input as native80 and all 47
+final runtime hashes, including the generic pre-write guard. Actual Continue and
+Shop showed 12 Cash. Canceling the 8-Cash pack quote left primary and backup
+unchanged. Confirm revealed three fixed cards at 4 Cash. Round Out applied to
+Ash Cole's overhand four-seam, mastery1→2, with no second charge; the pack became
+Used. A separate process restored 4 Cash and Used status. Both final save files
+were byte-identical to native80 and remained unchanged through cold inspection.
+All five captured logs were free of SCRIPT ERROR; they are not error-free logs.
+The actual isolated83 launches report unavailable Vulkan surface support, then
+successful OpenGL3/Mesa llvmpipe fallback, and unavailable ALSA audio followed by
+dummy audio. The fresh native slot copied only save files, not historical logs;
+identical startup messages recur during menu-only inspection and cold reopen.
+These fallback messages are not a gameplay crash or target-performance evidence.
+The game process was closed. No gameplay, whole-mode, target-performance or
+distributable claim is added.
+
+Final native main: 960,857 bytes, SHA256
+`e89b89263d1910333e4f07201063b36be20acabacadd1a4aff8442c64f1a1066`.
+Final native backup: 960,281 bytes, SHA256
+`96635d8ced26adc606144b888006c34605cf9a3817a0ffd0b9a797186171c890`.
+Native report SHA256:
+`d4f14cacea444b4843e19b84bf03f7cec38716d52c2ea5e456226a2dd2045c7f`.
+
+The final combined qualification supersedes earlier pending-stage reports without
+rewriting their historical scope. This is one removed comparison with measured
+modest savings, not a resolution of multi-second persistence latency. Remote
+source identity is verified separately after publication.

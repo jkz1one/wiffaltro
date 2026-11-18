@@ -1,0 +1,154 @@
+extends "res://tests/successor_dynasty_lineup.gd"
+## Fixed Store-owned producer: actual funded commands, no physics or fake economy.
+class OpProbe:
+	extends RefCounted
+	var conversions: int=0
+	func _to_string() -> String:
+		conversions+=1
+		return "pack_open"
+func command_for(owner,op: String) -> Dictionary:
+	var build: SeasonBuild=owner.session.build
+	var rev: int=build.revision()
+	var command: Dictionary={"id":"shop83:%s:%d"%[op,rev],"rev":rev,"op":op}
+	if op=="pack_pick":
+		for item: String in build._pack_choices():
+			for target: Dictionary in build.targets(item):
+				var choice: Dictionary=command.duplicate(true);choice.item=item;choice.merge(target)
+				if build._fork().preview(choice).ok:return choice
+		return {}
+	return command
+func available_op(owner) -> String:
+	if not owner.session.build._visit.get("open",false):return "open"
+	return "pack_pick" if owner.session.build.pack_pending() else "pack_open"
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["guards","fault","handoff","open","pack_open","pack_pick","pack_skip","cold"],"isolated producer mode before reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"retained authored roots"):return
+	var original=slot();var owner=Save.read()
+	if not check(owner!=null and Save.match_owner(owner,original.main) and exact_disk(original),"genuine current owner read without rewrite"):return
+	var raw=Raw.capture(owner)
+	var args_op: String=available_op(owner) if args[0] in ["guards","fault","handoff"] else args[0]
+	if args[0]=="cold":
+		if not check(Codec.same(Owner.capture(owner),JSON.parse_string(original.main.get_string_from_utf8())),"separate strict cold equals exact durable owner"):return
+		print("PASS: fixed shop producer cold");get_tree().quit(0);return
+	var command: Dictionary=command_for(owner,args_op)
+	if not check(not command.is_empty() and owner.session.shop_available() and owner.session.build._fork().preview(command).ok,
+		"actual funded eligible command from genuine settled source; no invented currency"):return
+	if args[0]=="handoff":
+		var probe=preload("res://tests/successor_dynasty_cleanup_app.gd").new()
+		add_child(probe);await get_tree().process_frame;probe.reload_save()
+		owner=probe.career_owner;raw=Raw.capture(owner)
+		if not check(owner!=null and Save.match_owner(owner,original.main),"actual App owner admitted before handoff probe"):return
+		probe.saved_bytes=PackedByteArray()
+		probe._retain_envelope(owner.fork(),original.main)
+		if not check(probe.retained==null and Save._ticket==null and exact_disk(original) and Raw.matches(owner,raw),
+			"stale App expected bytes refuse generic prepare before any write or orphan ticket"):return
+		probe.saved_bytes=original.main
+		if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp")
+			and DirAccess.make_dir_absolute(Save.PATH+".tmp")==OK,"own empty obstruction prevents any handoff write"):return
+		var handoff_ticket=Save.prepare_shop_and_write(owner,original.main,command)
+		var envelope=Save.prepared_candidate(handoff_ticket)
+		if not check(handoff_ticket!=null and envelope!=null and Save.written_bytes(handoff_ticket).is_empty()
+			and exact_disk(original),"real producer retains valid unwritten opaque ticket"):return
+		var lab=PitchBatLab.new();probe.lab=lab
+		var wrong_envelope=Owner.new();wrong_envelope.session=owner.session
+		for mismatch: String in ["envelope","ticket","owner","expected","busy","saving"]:
+			if mismatch=="owner":
+				probe.career_owner=Owner.new();probe.career_owner.session=owner.session
+			probe._busy=mismatch=="busy"
+			Save.saving=mismatch=="saving"
+			probe._retain_prepared(RefCounted.new() if mismatch=="ticket" else handoff_ticket,
+				wrong_envelope if mismatch=="envelope" else envelope,PackedByteArray() if mismatch=="expected" else original.main)
+			if not check(probe.retained==null and probe.retained_envelope==null and probe.close_calls==0
+				and probe.lab==lab and is_instance_valid(lab) and probe.season==owner.session
+				and Raw.matches(owner,raw) and exact_disk(original),"foreign "+mismatch+" refused before retained state or cleanup"):return
+			probe.career_owner=owner;probe._busy=false;Save.saving=false
+		if not check(DirAccess.remove_absolute(Save.PATH+".tmp")==OK,"remove only own known empty obstruction"):return
+		lab.free();probe.lab=null;probe.queue_free();await get_tree().process_frame
+		var readback=Save.read()
+		if not check(readback!=null and Save.prepared_candidate(handoff_ticket)==null and exact_disk(original),"strict reread clears private ticket without writing"):return
+		print("PASS: fixed producer handoff identity guards; no cleanup or write")
+		get_tree().quit(0);return
+	if args[0]=="guards":
+		var object_op=OpProbe.new()
+		var object_command: Dictionary={"id":"object-op","rev":owner.session.build.revision(),"op":object_op}
+		if not check(Save.prepare_shop_and_write(owner,original.main,object_command)==null and object_op.conversions==0
+			and Raw.matches(owner,raw) and exact_disk(original),"Store rejects Object op before any conversion callback"):return
+		# Actual App entry checks the primitive command before old string dispatch.
+		var app=App.new();add_child(app);await get_tree().process_frame;app.reload_save()
+		var app_raw=Raw.capture(app.career_owner)
+		if not check(not app.commit_shop(object_command) and object_op.conversions==0
+			and Raw.matches(app.career_owner,app_raw) and exact_disk(original),"App rejects Object op without conversion/live/disk effects"):return
+		app.queue_free();await get_tree().process_frame
+		owner=Save.read();raw=Raw.capture(owner)
+		if not check(owner!=null and Save.match_owner(owner,original.main),"restore strict producer admission after App probe"):return
+		var invalids: Array=[{"id":"bad","rev":owner.session.build.revision(),"op":"not-supported"},
+			{"id":"bad","rev":true,"op":args_op},{"id":"bad","rev":NAN,"op":args_op},
+			{"id":"bad","rev":owner.session.build.revision(),"op":args_op,"extra":RefCounted.new()},
+			{"id":"bad","rev":owner.session.build.revision()-1,"op":args_op}]
+		for invalid: Dictionary in invalids:
+			if not check(Save.prepare_shop_and_write(owner,original.main,invalid)==null and Raw.matches(owner,raw) and exact_disk(original),
+				"malformed/unknown/stale command refuses without live diagnostics or disk mutation"):return
+		if not check(Save.prepare_shop_and_write(RefCounted.new(),original.main,command)==null,"wrong owner factory refuses"):return
+		var ai=owner.session.opponents.clubs["1"].build
+		var hidden_cash: Variant=ai._bank._state.cash
+		ai._bank._state.cash=hidden_cash+1
+		var refused=Save.prepare_shop_and_write(owner,original.main,command)
+		ai._bank._state.cash=hidden_cash
+		if not check(refused==null and Raw.matches(owner,raw) and exact_disk(original),"hidden AI owner mutation refused with exact native restoration"):return
+		var wrong=owner.session.build;owner.session.build=SeasonBuild.new()
+		refused=Save.prepare_shop_and_write(owner,original.main,command);owner.session.build=wrong
+		if not check(refused==null and Raw.matches(owner,raw),"wrong current build factory refused"):return
+		var foreign: PackedByteArray=original.main.duplicate();foreign.append(32)
+		if not check(replace_isolated_primary(foreign),"own isolated changed disk bytes"):return
+		refused=Save.prepare_shop_and_write(owner,original.main,command)
+		if not check(refused==null and Save.raw()==foreign and Raw.matches(owner,raw),"foreign disk not overwritten"):return
+		if not check(replace_isolated_primary(original.main),"restore exact isolated predecessor"):return
+		if not owner.session.build._requests.is_empty():
+			var duplicate: Dictionary=command.duplicate(true);duplicate.id=owner.session.build._requests.keys()[0]
+			if not check(Save.prepare_shop_and_write(owner,original.main,duplicate)==null and Raw.matches(owner,raw) and exact_disk(original),"duplicate request id refuses without replay"):return
+		print("PASS: fixed shop producer guards");get_tree().quit(0);return
+	# Independent old-style detached candidate oracle, never supplied to writer.
+	var reference=owner.fork()
+	var next: SeasonBuild=reference.session.build.candidate(command)
+	if not check(next!=null,"same original candidate command valid"):return
+	reference.session.adopt_build(next)
+	var expected: Dictionary=Owner.capture(reference)
+	if not check(not expected.is_empty(),"strict generic oracle candidate"):return
+	if args[0]=="fault":
+		if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp")
+			and DirAccess.make_dir_absolute(Save.PATH+".tmp")==OK,"own empty write obstruction"):return
+	var ticket=Save.prepare_shop_and_write(owner,original.main,command)
+	if not check(ticket!=null,"fixed producer returned opaque ticket"):return
+	var candidate=Save.prepared_candidate(ticket)
+	if not check(candidate!=null and candidate!=owner and candidate.session!=owner.session and Codec.same(Owner.capture(candidate),expected)
+		and Raw.matches(owner,raw),"internally built detached candidate exactly equals generic oracle; original owner unchanged"):return
+	var detached: Dictionary=Save.prepared_snapshot(ticket);detached.clear()
+	if not check(Codec.same(Save.prepared_snapshot(ticket),expected),"diagnostic snapshot detached, cannot rewrite writer authority"):return
+	if args[0]=="fault":
+		if not check(Save.written_bytes(ticket).is_empty() and exact_disk(original),"obstruction retained ticket with old primary and backup"):return
+		if not check(DirAccess.remove_absolute(Save.PATH+".tmp")==OK,"remove own known empty obstruction"):return
+		var candidate_raw=Raw.capture(candidate)
+		var owner_cash: Variant=owner.session.build._bank._state.cash
+		owner.session.build._bank._state.cash=owner_cash+1
+		if not check(not Save.write_prepared(ticket) and exact_disk(original),"changed owner refuses retry"):return
+		owner.session.build._bank._state.cash=owner_cash
+		var candidate_cash: Variant=candidate.session.build._bank._state.cash
+		candidate.session.build._bank._state.cash=candidate_cash+1
+		if not check(not Save.write_prepared(ticket) and exact_disk(original),"changed prepared candidate refuses retry"):return
+		candidate.session.build._bank._state.cash=candidate_cash
+		var foreign: PackedByteArray=original.main.duplicate();foreign.append(32)
+		if not check(replace_isolated_primary(foreign),"foreign isolated bytes before retry"):return
+		if not check(not Save.write_prepared(ticket) and Save.raw()==foreign,"foreign disk retry refused without overwrite"):return
+		if not check(replace_isolated_primary(original.main) and Raw.matches(owner,raw) and Raw.matches(candidate,candidate_raw),"restore exact native owner/candidate and predecessor"):return
+		if not check(Save.write_prepared(ticket),"same opaque ticket retries exact candidate"):return
+	if not check(not Save.written_bytes(ticket).is_empty() and Codec.same(JSON.parse_string(Save.raw().get_string_from_utf8()),expected)
+		and FileAccess.get_file_as_bytes(Save.PATH+".bak")==original.main,"exact oracle output saved and old primary becomes backup"):return
+	if not check(Save.promote(ticket,owner,candidate,original.main) and Save.match_owner(candidate,Save.raw()),"strict opaque promotion admits saved candidate"):return
+	var saved=slot()
+	if not check(not Save.write_prepared(ticket) and not Save.promote(ticket,owner,candidate,original.main) and exact_disk(saved),"consumed ticket cannot rewrite/re-promote"):return
+	if not save_artifact("user://shop-producer-"+args[0]+".json",Save.raw()):return
+	print("PASS: fixed shop producer ",args[0]," genuine economy; exact generic candidate parity")
+	get_tree().quit(0)

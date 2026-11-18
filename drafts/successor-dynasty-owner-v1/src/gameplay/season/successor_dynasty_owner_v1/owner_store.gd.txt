@@ -5,6 +5,7 @@ const Owner = preload("owner.gd")
 const RawGuard = preload("raw_guard.gd")
 const PATH: String = "user://wiffaltro-dynasty-career-v2.json"
 const MAX_BYTES: int = 64 * 1024 * 1024
+const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
 static var last_error: String = ""
 # Process-private admission. Never serialized; no caller validation flag/payload.
@@ -150,9 +151,56 @@ static func prepare_and_write(owner: RefCounted, candidate: RefCounted, expected
 	_write_admitted()
 	return ticket
 
-static func prepared_matches(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
+## Fixed synchronous producer: authenticate before constructing any candidate.
+## Only named runtime/build factories admitted by match_owner can execute here.
+## No UI callbacks, awaits, caller candidate or unchecked payload are accepted.
+static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray, command: Dictionary) -> RefCounted:
+	last_error = ""
+	if saving or _ticket != null or not Codec.primitive(command) or not SHOP_PRODUCER_OPS.has(str(command.get("op",""))): return null
+	if not match_owner(owner,expected): return null
+	var session: SeasonState = owner.session
+	if owner.status != "active" or not Codec.scope(session) or not session.physical.pending.is_empty() or not session.shop_available(): return null
+	var request_id: Variant = command.get("id")
+	if request_id is String and not request_id.is_empty() and session.build._requests.has(request_id): return null
+	var next_session: SeasonState = session.fork_live()
+	if next_session == null: return null
+	var next_build: SeasonBuild = next_session.build.candidate(command.duplicate(true))
+	if next_build == null:
+		last_error = next_session.build.last_error
+		return null
+	next_session.adopt_build(next_build)
+	if next_session.build != next_build: return null
+	var envelope: RefCounted = Owner.new()
+	envelope.session = next_session
+	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+	# Keep this registration inside the checked producer, rather than exposing
+	# an unchecked owner/candidate helper (underscore methods are callable).
+	if not RawGuard.same(envelope.alternate,_alternate) or envelope.imported_sha256 != _imported_sha256: return null
+	var current: Dictionary = Codec.capture(next_session)
+	var data: Dictionary = Owner.pack_current(envelope,current) if not current.is_empty() else {}
+	if data.is_empty():
+		last_error = "The candidate could not be represented consistently. Saved progress is unchanged."
+		return null
+	var snapshot: Dictionary = RawGuard.capture(envelope)
+	if snapshot.is_empty(): return null
+	_ticket = RefCounted.new()
+	_candidate = envelope; _candidate_session = next_session; _candidate_raw = snapshot; _candidate_data = data
+	_expected = expected.duplicate(); _written = PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+# Identity handoff only. Later retry/promotion still authenticate this exact
+# live candidate against the private snapshot; no returned value authorizes IO.
+static func prepared_candidate(ticket: RefCounted) -> RefCounted:
+	return _candidate if ticket != null and ticket == _ticket else null
+
+# Cheap handoff identity only, never raw admission or authority to write/promote.
+static func prepared_binding(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
 	if ticket == null or ticket != _ticket or owner != _owner or candidate != _candidate or expected != _expected: return false
-	if candidate.session != _candidate_session or (owner != null and owner.session != _owner_session): return false
+	return candidate.session == _candidate_session and (owner == null or owner.session == _owner_session)
+
+static func prepared_matches(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
+	if not prepared_binding(ticket,owner,candidate,expected): return false
 	return (owner == null or _matches_raw(owner,_owner_raw)) and _matches_raw(candidate,_candidate_raw)
 
 static func prepared_snapshot(ticket: RefCounted) -> Dictionary:
