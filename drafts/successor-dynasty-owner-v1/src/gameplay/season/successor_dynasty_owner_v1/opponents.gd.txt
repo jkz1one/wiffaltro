@@ -191,3 +191,30 @@ func summary(index: int) -> Dictionary:
 		"roles": club.roles.duplicate(),
 		"decisions": club.decisions.duplicate(true)
 	}
+
+
+# Explicit continuation: no allocation, purchases or authored-profile recapture.
+# Install the already-advanced profile before deriving policy roles/mastery.
+func initialize_carried(season: SeasonState, profiles: Dictionary, rights: Dictionary) -> bool:
+	if not clubs.is_empty() or _format != 13 or not draft_rule.is_empty() \
+		or season == null or season.get_script() != load("res://src/gameplay/season/successor_dynasty_owner_v1/runtime.gd") \
+		or not load("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd").keys(profiles,["club:0","club:1","club:2","club:3","club:4","club:5"]): return false
+	var proposed: Dictionary = {}
+	for index in range(1,6):
+		var roster: Array[String] = []
+		roster.assign(season.teams[index].roster)
+		var seed_value: int = (season.season_seed+index*92821)&0x7fffffff
+		var build: SeasonBuild = preload("dynasty_build.gd").new(seed_value,roster)
+		build._format=41
+		build._market=12
+		if not build.enable_successor_pitch_catalog() or not build.enable_league_rules(season.league_rules) \
+			or not load("res://src/gameplay/season/successor_dynasty_owner_v1/runtime.gd").install_carried_rights(build,rights,"club:%d"%index) \
+			or not build.enable_dynasty_start(profiles["club:%d"%index]): return false
+		var roles: Dictionary = SeasonOpponentPolicy.roles(build)
+		proposed[str(index)]={"build":build,"profile":SeasonOpponentPolicy.PROFILES[index],
+			"roles":roles,"cursor":0,"decisions":[],
+			"primary":SeasonOpponentMastery.primary(build,roles.pitcher)}
+	clubs=proposed
+	# No new snake draft is performed. Stable club order is session metadata only.
+	draft_order.assign([1,2,3,4,5])
+	return true

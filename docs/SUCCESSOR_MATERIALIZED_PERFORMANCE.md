@@ -174,3 +174,40 @@ All32 manifest source hashes still matched. Native game logs contain only known
 graphics/software-renderer/audio fallback warnings, no GDScript errors. This
 smoke made no purchase and played no physical match; it is not target-platform
 or distributable qualification. Original QA72 source/save were untouched.
+
+## Frozen 75 endurance: correctness is not responsiveness
+
+The isolated current-Dynasty endurance run reached seven settled rounds with
+21 actual results (seven human, fourteen NPC) before the 76 checkpoint audit.
+Every boundary retained its raw physical result, predecessor, paired save and
+separate-process admission. The round-seven save was 5,034,148 bytes. This is
+not a completed-season, natural-terminal, or carried-next-season result.
+
+A controlled fixed-60 headless experiment compared the same preserved actual
+NPC request and predecessor with the normal run. The recursive report diff had
+one differing leaf, `physical.elapsed`; scores, plays, workload, accounting and
+profile results matched. The fixed-60 run took 17,780 ms. This permits faster
+functional endurance, not a player-build setting change or realtime/native
+performance claim. The complete duration difference remains in private evidence.
+
+Measured blocking costs grew with the current-season payload:
+
+| Save boundary | Paid pack open | Paid choice | Cold admission |
+| --- | ---: | ---: | ---: |
+| Round 3, approximately 2.20 MB | 6,707 ms | 7,538 ms | 2,994–3,912 ms |
+| Later approximately 3.58 MB save | 9,028 ms | 9,417 ms | approximately 4,300–4,700 ms |
+
+These are shared engineering-environment measurements, not target hardware
+benchmarks. Explicitly overlapped native/diagnostic intervals are excluded from
+the timing claims. Functional outcomes passed; these blocking times do **not**
+qualify acceptable responsiveness.
+
+Read-only call-path review found seven full-owner raw snapshots and six raw
+comparisons per successful paid transaction, plus strict candidate capture/validation and
+multiple serialization passes. Native shop refresh additionally forks a build
+twice per visible quote. Planned optimization must retain exact hidden-state,
+disk-CAS, retry and post-cleanup callback checks. Combining only synchronous
+Store-owned preparation and initial write, and comparing live state directly
+against private snapshots, are bounded candidates; neither is implemented or
+performance-qualified by this checkpoint. Removing gameplay depth or discarding
+required outcome evidence is not the proposed remedy.

@@ -1,0 +1,78 @@
+extends Node
+var _content_roots: Array[Resource]=[]
+## SYNTHETIC overflow contract probe, not earned ability/history evidence.
+## Separate actual ordinal2 read-only recapture regression; no gameplay fabricated.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Codec=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
+const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
+const SOURCE="user://source-dynasty-owner.json"
+var failed: bool=false
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed=true
+	return ok
+func _ready() -> void:
+	call_deferred("run")
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated read-only overflow probe"):
+		get_tree().quit(1);return
+	_content_roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not _content_roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"retained authored roots and current catalog identities before source reads"):
+		get_tree().quit(1);return
+	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(SOURCE)
+	print("ACTUAL_SOURCE_SHA256: ",FileAccess.get_sha256(SOURCE))
+	var owner=Owner.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+	if not check(owner!=null and owner.ordinal==2 and owner.status=="active","actual lifecycle ordinal2 source restored"):
+		get_tree().quit(1);return
+	var captured: Dictionary=Life.profiles(owner)
+	if not check(captured.size()==6,"all six actual carried profiles captured before JSON"):
+		get_tree().quit(1);return
+	var envelope: Dictionary=Owner.capture(owner)
+	var reopened=Owner.restore(JSON.parse_string(JSON.stringify(envelope,"",true,true)))
+	if not check(reopened!=null and Codec.same(Life.profiles(reopened),captured),"all six capture→owner JSON cold restore→recapture equality"):
+		get_tree().quit(1);return
+	check(not reopened.commit_next() and Codec.same(Owner.capture(reopened),envelope),"already-active actual owner refuses second transition without decay")
+	var fixture: Dictionary=captured["club:0"].duplicate(true)
+	var player: String=fixture.roster[0]
+	var row: Dictionary=fixture.players[player]
+	var source_season: String="%s:%d"%[fixture.lineage_id,fixture.season_ordinal]
+	# Deliberate validator operands with supported shapes; these are NOT
+	# asserted to have been earned in the actual predecessor or any season.
+	var kept: Dictionary={"source_season":source_season,"id":"synthetic:keep-soft-hands","item":"ability.A06","slot":"Fielding","paid":10}
+	var forgotten: Dictionary={"source_season":source_season,"id":"synthetic:forget-sky-reader","item":"ability.C01","slot":"Fielding","paid":12}
+	row.abilities=[kept.duplicate(true),forgotten.duplicate(true)]
+	row.temporary_fielding_slots=2
+	var stat: String=""
+	for key: String in SeasonPlayerCatalog.STATS:
+		if int(row.authored.stats[key])<=7:
+			stat=key;break
+	if not check(not stat.is_empty(),"synthetic stat fixture has bounded headroom"):
+		get_tree().quit(1);return
+	row.stats[stat]=int(row.authored.stats[stat])+3
+	row.trained[stat]=3
+	row.catchup.stats[stat]=0
+	row.ever_earned=true
+	fixture=Profile.normalize(fixture)
+	if not check(not fixture.is_empty(),"SYNTHETIC two-fielding-slot operand normalizes"):
+		get_tree().quit(1);return
+	var before: String=JSON.stringify(fixture,"",true,true)
+	check(Profile.advance(fixture,123456).is_empty(),"overflow refuses implicit human forgetting")
+	check(Profile.advance(fixture,123456,{player:{"player":"","forget":"missing"}}).is_empty(),"overflow refuses unknown receipt")
+	check(Profile.advance(fixture,123456,{player:{"player":player,"forget":forgotten.id}}).is_empty(),"overflow refuses beneficiary substitution")
+	var choices: Dictionary={player:{"player":"","forget":forgotten.id}}
+	var advanced: Dictionary=Profile.advance(fixture,123456,choices)
+	if not check(not advanced.is_empty(),"explicit synthetic human forget produces preview"):
+		get_tree().quit(1);return
+	var after: Dictionary=advanced.profile.players[player]
+	check(advanced.profile.season_ordinal==3 and after.temporary_fielding_slots==1 and Codec.same(after.abilities,[kept]),"retained receipt and original provenance survive exactly")
+	check(Codec.same(advanced.changes[player].forgotten,[{"index":1,"receipt":forgotten}]),"forgotten receipt recorded exactly")
+	check(after.stats[stat]==int(row.authored.stats[stat])+1 and after.trained[stat]==1,"single paid-first two-point stat decay")
+	for id: String in advanced.profile.roster:
+		var target: Dictionary=advanced.profile.players[id]
+		for key: String in SeasonPlayerCatalog.STATS: check(target.stats[key]>=target.authored.stats[key],"authored stat floor preserved")
+		for recipe: String in target.mastery: check(target.mastery[recipe]>=target.authored.mastery.get(recipe,1),"known mastery floor preserved")
+	check(Codec.same(Profile.advance(fixture,123456,choices),advanced) and JSON.stringify(fixture,"",true,true)==before,"repeated preview is identical and does not cumulatively decay source")
+	check(FileAccess.get_file_as_bytes(SOURCE)==bytes,"actual input bytes unchanged; synthetic operand never saved as career")
+	if not failed: print("PASS: synthetic overflow contract plus actual all-six cold recapture; no fabricated gameplay/history")
+	get_tree().quit(1 if failed else 0)

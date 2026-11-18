@@ -1,0 +1,228 @@
+extends RefCounted
+## Current Dynasty contribution only, folded once by the outer owner at close.
+## Frozen game/legend transforms are unchanged. Growth journals exclude carried state.
+const Legacy = preload("res://src/gameplay/season/successor_career_general_v1/career_progress.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Eligibility = preload("exotic_eligibility.gd")
+const VERSION = ClubPlayerProgress.VERSION
+const HITS_VERSION = ClubPlayerProgress.HITS_VERSION
+const PROGRESS_VERSION = Legacy.PROGRESS_VERSION
+const FORMAT = Legacy.FORMAT
+
+static func _capture_games(season: SeasonState) -> Dictionary:
+	if season.build == null or season.build._market != 0:
+		return {}
+	var sponsors: Dictionary = _sponsor_counts(season.build)
+	if sponsors.has("invalid"): return {}
+	var development: Dictionary = _current_development(season.build)
+	if development.is_empty():
+		return {}
+	var games: Array = []
+	for game: Dictionary in season.player_results:
+		var own: Array = game.get("club_roster", season.teams[0].roster)
+		var stats: Variant = null
+		if game.has("performance"):
+			if not game.performance is Dictionary:
+				return {}
+			var source: Dictionary = game.performance
+			if (
+				source.size() != 8
+				or own.size() != 4
+				or not SeasonPerformance.valid(source, source.keys())
+			):
+				return {}
+			stats = {"homers": 0, "hitters": 0, "strikeouts": 0, "three_k": 0}
+			for id: String in own:
+				if not source.has(id):
+					return {}
+				stats.homers += int(source[id].hr)
+				stats.hitters += 1 if source[id].h > 0 else 0
+				stats.strikeouts += int(source[id].p_k)
+				stats.three_k += 1 if source[id].p_k >= 3 else 0
+		# Pre-physical saves accepted score/stat combinations without this cross-check.
+		# Preserve their original game journal, but do not infer any new stat unlocks.
+		# Owned-player seasons and every physical season remain strictly validated.
+		var own_runs: int = int(game.home_runs if game.home == 0 else game.away_runs)
+		if (
+			stats != null
+			and stats.homers > own_runs
+			and season.physical == null
+			and season.player_access.is_empty()
+		):
+			stats = null
+		var row: Dictionary = {
+			"game": int(game.id),
+			"stats": stats,
+			"sponsors": int(sponsors.get(int(game.id), 0)),
+			"end_half": -1,
+			"deficit": 0
+		}
+		var proofs: Dictionary = game.get("ai_tactics", {})
+		for proof: Dictionary in proofs.values():
+			if not proof.has("base"):
+				continue
+			var flow: Dictionary = proof.base
+			row.end_half = int(flow.final.half)
+			for point: Dictionary in flow.ready:
+				var deficit: int = int(
+					point.away - point.home if game.home == 0 else point.home - point.away
+				)
+				row.deficit = maxi(row.deficit, deficit)
+		games.append(row)
+	var result: Dictionary = {"version": VERSION, "games": games, "development": development}
+	return result if load("res://src/gameplay/season/successor_career_general_v1/career_progress.gd").valid_capture(result, ClubSeasonRecord.capture(season).scores) else {}
+
+
+static func _capture_hits(season: SeasonState) -> Dictionary:
+	# New runs opt into a new evidence schema; the original capture remains exact.
+	# Historic missing/null game stats are still unknown and never get reconstructed.
+	var result: Dictionary = _capture_games(season)
+	if result.is_empty():
+		return {}
+	for index in range(result.games.size()):
+		var row: Dictionary = result.games[index]
+		if row.stats == null:
+			continue
+		var game: Dictionary = season.player_results[index]
+		var own: Array = game.get("club_roster", season.teams[0].roster)
+		var source: Variant = game.get("performance")
+		if (
+			not source is Dictionary
+			or source.size() != 8
+			or own.size() != 4
+			or not SeasonPerformance.valid(source, source.keys())
+		):
+			return {}
+		var hits: int = 0
+		var used: Dictionary = {}
+		for id: String in own:
+			if not source.has(id) or used.has(id):
+				return {}
+			used[id] = true
+			hits += int(source[id].h)
+		row.stats["hits"] = hits
+	result.version = HITS_VERSION
+	return result if load("res://src/gameplay/season/successor_career_general_v1/career_progress.gd").valid_capture(result, ClubSeasonRecord.capture(season).scores) else {}
+
+
+static func _capture_legend(season: SeasonState) -> Dictionary:
+	var result: Dictionary = _capture_hits(season)
+	if result.is_empty():
+		return {}
+	for index in range(result.games.size()):
+		var row: Dictionary = result.games[index]
+		var game: Dictionary = season.player_results[index]
+		row["players"] = null
+		# Missing historic provenance is unknown, not the current roster or club totals.
+		if row.stats == null or not game.has("club_roster"):
+			continue
+		var own: Variant = game.club_roster
+		var source: Variant = game.get("performance")
+		if (
+			not ClubPlayerLegend._roster(own)
+			or not source is Dictionary
+			or not SeasonPerformance.valid(source, source.keys())
+		):
+			return {}
+		var fielding: Variant = game.get("fielding")
+		var known_fielding: bool = fielding != null
+		if (
+			known_fielding
+			and (
+				not fielding is Array
+				or not SeasonLeftRight.own_halves(fielding, game.home != 0)
+				or not SeasonJumpstart.valid_roster(own, fielding, source)
+			)
+		):
+			return {}
+		var players: Dictionary = {}
+		for id: String in own:
+			if not source.has(id):
+				return {}
+			var line: Dictionary = source[id]
+			var clean: Variant = 0 if known_fielding else null
+			var fielded: Variant = line.get("fielding_v1")
+			if known_fielding:
+				for play: Dictionary in fielding:
+					if play.player == id:
+						if fielded == false:
+							return {}
+						fielded = true
+						clean += 1 if play.clean else 0
+			players[id] = {
+				"pa": int(line.pa),
+				"pitches": int(line.pitches),
+				"hits": int(line.h),
+				"strikeouts": int(line.p_k),
+				"outs": int(line.outs),
+				"fielded": fielded,
+				"clean_outs": clean
+			}
+		row.players = players
+	result.version = ClubPlayerLegend.VERSION
+	return result if load("res://src/gameplay/season/successor_career_general_v1/career_progress.gd").valid_capture(result, ClubSeasonRecord.capture(season).scores) else {}
+
+
+static func capture(season: SeasonState) -> Dictionary:
+	if season == null or season.build == null or not season.build.call("pitch_catalog_successor"):
+		return {}
+	var result: Dictionary = _capture_legend(season)
+	if result.is_empty():
+		return {}
+	result.version = PROGRESS_VERSION
+	result["format"] = FORMAT
+	result["pitch_catalog"] = Catalog.signature()
+	result["exotic"] = Eligibility.capture(season)
+	return result if Legacy.valid(result, ClubSeasonRecord.capture(season).scores) else {}
+
+
+static func _sponsor_counts(build: SeasonBuild) -> Dictionary:
+	return preload("res://src/gameplay/season/successor_live_play_v1/progress.gd")._sponsor_counts(build)
+
+static func _current_development(build: SeasonBuild) -> Dictionary:
+	if build == null or not build.dynasty_context_valid(): return {}
+	var result: Dictionary = {"mastery":0,"known":0,"lessons":[]}
+	# Absolute maxima are achievement observations, never additive earned growth.
+	for id: String in build.roster():
+		var player: Dictionary = build.player(id)
+		if player.is_empty(): return {}
+		ClubPlayerProgress._profile(result,player)
+	# Only actual current-season learn operations contribute seasonal lessons.
+	for event: Dictionary in build._book._events:
+		if event.op == "learn" and not result.lessons.has(event.target):
+			result.lessons.append(event.target)
+	result.lessons.sort()
+	return result
+
+static func earned(build: SeasonBuild) -> Dictionary:
+	var result: Dictionary = {"stat":0,"mastery":0,"lessons":[],"ability_receipts":[]}
+	for event: Dictionary in build._book._events:
+		if event.op == "stat": result.stat += 1
+		elif event.op in ["mastery","round_out"]: result.mastery += 1
+		elif event.op == "learn" and not result.lessons.has(event.target): result.lessons.append(event.target)
+	for id: String in build.roster():
+		var prior: Array = build._dynasty_start.players[id].abilities
+		for receipt: Dictionary in build._abilities.learned.get(id,[]):
+			var inherited: bool = false
+			for old: Dictionary in prior:
+				var original: Dictionary = old.duplicate(true); original.erase("source_season")
+				if ClubCareer.same(original,receipt): inherited = true; break
+			if not inherited: result.ability_receipts.append({"player":id,"receipt":receipt.duplicate(true)})
+	result.lessons.sort()
+	return result
+
+static func starts(build: SeasonBuild, prior: Dictionary) -> Dictionary:
+	# Same compact policy as dynasty_career_progress._fold, each club's own inputs.
+	# AI market12 may expose null legacy tracking starts; the admitted owner ledger
+	# supplies the typed permanent baseline, never an invented current-season delta.
+	var result: Dictionary = {"gear_enabled":build._gear_progress.enabled,"sponsor_enabled":build._sponsor_progress.enabled,"gear":SeasonGearProgress.add(prior.gear,build._gear_progress.games),
+		"sponsors":SeasonSponsorProgress.add(prior.sponsors,build._sponsor_progress.games),
+		"order":prior.order or build._paid_rerolls >= 3,
+		"field":prior.field or build._field_outs >= 6,
+		"supply":mini(3,int(prior.supply) + build._supply_used),
+		"abilities":mini(3,int(prior.abilities) + build._abilities.earned),
+		"batch":SeasonSmallBatch.combine(prior.batch,build._batch_used),
+		"major":prior.major or build._major.earned,"copy":prior.copy or build._copy.earned}
+	for flag: String in ["rain","transfer","checkout","association","freezer","sides","jump","sure"]:
+		result[flag] = prior[flag] or build.get("_"+flag+"_earned")
+	return result

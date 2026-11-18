@@ -1,0 +1,112 @@
+extends "res://tests/successor_dynasty_play.gd"
+var _content_roots: Array[Resource]=[]
+## Actual ordinal2 gameplay using the original physical driver and production App.
+## A separate isolated userdata directory must contain an immutable exact lifecycle
+## successor at SOURCE and its byte-identical initial primary. Never rewrites75.
+
+func fresh_checks(app: SeasonApp) -> bool:
+	var season: SeasonState=app.season
+	var owner=app.career_owner
+	if not check(season!=null and owner!=null and owner.session==season and owner.status=="active" and owner.ordinal==2,
+		"real carried second-season owner active"): return false
+	if not check(season.career.current==1 and season.career.runs.size()==1 and season.career.start_basis.get("kind")=="dynasty-carried-start-v2",
+		"one bounded current row with explicit carried origin"): return false
+	for index in range(6):
+		var build: SeasonBuild=season.build if index==0 else season.opponents.clubs[str(index)].build
+		var profile: Dictionary=build._dynasty_start
+		if not check(profile.owner_id=="club:%d"%index and profile.season_ordinal==2 and profile.lineage_id=="dynasty:%d"%owner.birth_seed
+			and Codec.same(profile,build._book._dynasty_start),"carried second-season identity club%d"%index): return false
+	return true
+
+func run() -> void:
+	var args: PackedStringArray=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["step","cold","shop","preflight","recover-human","recover-npc"],"isolated carried gameplay mode"): return
+	_content_roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not _content_roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"retained authored roots and current catalog identities before source reads"):
+		get_tree().quit(1);return
+	original_bytes=FileAccess.get_file_as_bytes(SOURCE)
+	var source: Variant=JSON.parse_string(original_bytes.get_string_from_utf8())
+	var predecessor=Owner.restore(source)
+	if not check(predecessor!=null and predecessor.ordinal==2 and predecessor.status=="active" and predecessor.session.results.is_empty()
+		and predecessor.session.player_results.is_empty() and predecessor.session.physical.pending.is_empty(),"exact lifecycle ordinal2 source, no invented games"): return
+	original_envelope=source.dynasty
+	print("CARRIED_SOURCE_SHA256: ",FileAccess.get_sha256(SOURCE))
+	for filename: String in ["wiffaltro-materialized-play-v1.json","wiffaltro-dynasty-owner-v1.json"]:
+		for suffix: String in ["",".bak",".tmp"]: other_slots["user://"+filename+suffix]=slot_state("user://"+filename+suffix)
+	if not check(FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp"),"isolated carried primary has no unfinished write"): return
+	var disk: PackedByteArray=Save.raw()
+	print("CARRIED_PRIMARY_SHA256: ",FileAccess.get_sha256(Save.PATH))
+	var backup: Dictionary=slot_state(Save.PATH+".bak")
+	var app=App.new(); add_child(app)
+	await get_tree().process_frame
+	var projects: int=Pending.project_calls
+	var resolves: int=Fixtures.resolve_calls
+	var legacy: int=OldDecoder.restore_calls
+	app.reload_save()
+	if not check(app.season!=null and Codec.scope(app.season) and fresh_checks(app),"production App restores carried session"): return
+	if not check(projects==Pending.project_calls and resolves==Fixtures.resolve_calls and legacy==OldDecoder.restore_calls
+		and Save.raw()==disk and Codec.same(slot_state(Save.PATH+".bak"),backup),"carried cold load runs no replay and changes no bytes"): return
+	if not check(Codec.same(app.career_owner.ledger,predecessor.ledger) and Codec.same(app.career_owner.last_transition,predecessor.last_transition),"carried play preserves prior close/transition aggregate"): return
+	if args[0]=="preflight":
+		for fixture: Dictionary in app.season.schedule:
+			if fixture.round!=0: continue
+			var state: MatchState=Fixtures.match_for(app.season,fixture)
+			if not check(state!=null and Report.context_valid(state) and not Fixtures.request_key(app.season,fixture).is_empty(),"carried fixture binds actual two-club context"): return
+		finish_step(app,"carried-preflight")
+	elif args[0] in ["recover-human","recover-npc"]:
+		recover_actual(app,args[0])
+	elif args[0]=="shop":
+		if not final_checks(app): return
+		if app.season.build._visit.get("pack_status","")=="used":
+			finish_step(app,"carried-shop-already-used",true)
+		else:
+			if not await paid_pack(app): return
+			if not final_checks(app): return
+	elif args[0]=="cold":
+		if final_checks(app): finish_step(app,"carried-cold-complete",true)
+	elif not app.season.physical.pending.is_empty():
+		await settle_batch(app)
+	elif app.season.player_results.is_empty():
+		if not check(Codec.same(Owner.capture(app.career_owner),source),"actual carried physics starts from exact lifecycle successor"): return
+		await play_human(app)
+	elif final_checks(app):
+		finish_step(app,"carried-round-complete",true)
+	if not check(Codec.same(app.career_owner.ledger,predecessor.ledger) and Codec.same(app.career_owner.last_transition,predecessor.last_transition),"gameplay does not refold prior earned growth or decay"): return
+	if not check(source_unchanged(),"immutable carried source and prior slots unchanged"): return
+	app.queue_free(); await get_tree().process_frame
+	if not failed: print("PASS: actual carried ordinal2 "+args[0]+"; one-round functional scope, no speed or full-career claim")
+	get_tree().quit(1 if failed else 0)
+
+func final_checks(app: SeasonApp) -> bool:
+	var season: SeasonState=app.season
+	if not check(fresh_checks(app) and season.player_results.size()==1 and season.results.size()==3
+		and season.physical.reports.size()==2 and season.physical.pending.is_empty() and season.round_index==1,
+		"actual carried human plus two AI games settled"): return false
+	var clubs: Dictionary={}
+	for row: Dictionary in season.physical.reports:
+		if not check(Report.valid(row.report,Codec.Catalog.game_signature()),"actual carried AI report valid"): return false
+		for profile: Dictionary in row.report.dynasty_start:
+			if not check(profile.season_ordinal==2 and profile.lineage_id=="dynasty:%d"%app.career_owner.birth_seed,"AI report retains second-season lineage"): return false
+			clubs[profile.owner_id]=true
+	if not check(clubs.size()==4,"two AI games cover four distinct carried clubs"): return false
+	for index in range(6):
+		var build: SeasonBuild=season.build if index==0 else season.opponents.clubs[str(index)].build
+		var bank: SeasonOwnership=build._bank.empty_fork()
+		var rewards: int=0
+		for event: Dictionary in build._bank._events:
+			var result: Dictionary=bank.commit(event)
+			if not check(result.ok and not result.replayed,"carried season bank journal validates"): return false
+			if event.op=="reward": rewards+=1
+		if not check(rewards==1 and build._bank.view().rewards.size()==1 and Codec.same(bank.view(),build._bank.view()),"carried club%d paid once"%index): return false
+	var packs: int=0
+	var choices: int=0
+	for event: Dictionary in season.build._events:
+		if event.op=="pack_open":packs+=1
+		if event.op=="pack_pick":choices+=1
+	var pack_status: String=season.build._visit.get("pack_status","")
+	if pack_status=="used":
+		if not check(packs==1 and choices==1 and not season.build.pack_pending(),"carried paid pack Used persists with one charge and one applied choice"):return false
+	elif pack_status=="open":
+		if not check(packs==1 and choices==0 and season.build.pack_pending(),"carried paid pack remains pending without duplicate charge"):return false
+	elif not check(packs==0 and choices==0,"carried unpurchased pack has no invented paid journal"):return false
+	return check(Codec.same(Owner.capture(app.career_owner),JSON.parse_string(Save.raw().get_string_from_utf8())) and source_unchanged(),"exact durable carried-round owner")

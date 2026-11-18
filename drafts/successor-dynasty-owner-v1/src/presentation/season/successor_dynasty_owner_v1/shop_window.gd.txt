@@ -1,0 +1,5 @@
+extends "res://src/presentation/season/successor_league_general_v2/shop_window.gd"
+## Keep the full original shop; do not imply ordinary recruiting works in Dynasty.
+func _recruit(_shop: Dictionary) -> void:
+	_label("DYNASTY ROSTER")
+	_label("In-season recruiting is unavailable. Between-season replacement remains planned; its cadence and price are not enabled in this engineering build.")

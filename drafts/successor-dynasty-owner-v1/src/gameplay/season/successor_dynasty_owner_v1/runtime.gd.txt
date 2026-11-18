@@ -146,3 +146,81 @@ func _commit_player_result(
 		home_runs, performance, used_gear, tactics, batting, stances, fielding, pitching, field_supply, \
 		frozen, ai_tactics, replayed_tactics, property_key, pool_evidence, yard_evidence, \
 		night_evidence, doubleheader_evidence, replay_pitching, inventory_final, fixture, pitching_current)
+
+
+# Explicit already-advanced continuation. Never decays, drafts or grants here.
+static func create_carried(seed_value: int, profiles: Dictionary, permanentrights: Dictionary = {}) -> SeasonState:
+	var codec = load("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+	if not codec.whole(seed_value,0,2147483647) or not codec.rights_valid(permanentrights) \
+		or not codec.keys(profiles,["club:0","club:1","club:2","club:3","club:4","club:5"]): return null
+	var checked: Dictionary = {}
+	var used: Dictionary = {}
+	for index in range(6):
+		var key: String = "club:%d"%index
+		var profile: Dictionary = Profile.normalize(profiles[key])
+		if profile.is_empty() or profile.owner_id!=key or profile.season_ordinal<2 \
+			or profile.lineage_id!="dynasty:%d"%int(permanentrights.birth_seed) \
+			or profile.seed!=((seed_value+index*92821)&0x7fffffff): return null
+		if index>0 and profile.season_ordinal!=checked["club:0"].season_ordinal: return null
+		for id: String in profile.roster:
+			if used.has(id): return null
+			used[id]=true
+		checked[key]=profile
+	var result: SeasonState = load("res://src/gameplay/season/successor_dynasty_owner_v1/runtime.gd").new()
+	result.season_seed=seed_value
+	result.league_rules=LeagueRules.capture("dynasty")
+	result.league_live=true
+	result.player_access.assign(permanentrights.player_access)
+	result.draft_pool.assign(permanentrights.player_access)
+	result.picks.assign(checked["club:0"].roster)
+	for id: String in result.picks:
+		if not result.player_access.has(id): return null
+	var blocked: Array[String] = []
+	for index in range(1,6): blocked.append_array(checked["club:%d"%index].roster)
+	result.build=Build.new(seed_value,result.picks,result.player_access,blocked)
+	if not result.build.enable_successor_pitch_catalog() or not result.build.enable_league_rules(result.league_rules) \
+		or not install_carried_rights(result.build,permanentrights,"club:0") \
+		or not result.build.enable_dynasty_start(checked["club:0"]): return null
+	result._dynasty_start=result.build._dynasty_start.duplicate(true)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed=seed_value
+	ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
+	for index in range(6):
+		result.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":checked["club:%d"%index].roster.duplicate(),"draw":rng.randf(),"strength":0.0})
+	result._build_schedule()
+	result.opponents=Opponents.new(); result.opponents._format=13
+	result.physical=Physical.new()
+	var ledger: ClubCareer = LiveCareer.new()
+	ledger.current=1; ledger.runs.append({})
+	ledger.start_basis={"kind":"dynasty-carried-start-v2","birth_seed":int(permanentrights.birth_seed),"rights":permanentrights.duplicate(true)}
+	ledger._assets=permanentrights.assets.duplicate(true)
+	ledger._pennants=permanentrights.pennants.duplicate(true)
+	ledger._plaques=permanentrights.plaques.duplicate(true)
+	ledger._pitch_catalog=preload("catalog.gd").game_signature()
+	result.career=ledger; result.league_career=true
+	if not result.opponents.initialize_carried(result,checked,permanentrights): return null
+	for index in range(6): result.teams[index].strength=result._strength(index)
+	result.phase=Phase.REGULAR
+	if not ledger.sync(result) or codec.capture(result).is_empty(): return null
+	return result
+
+static func install_carried_rights(build: SeasonBuild, rights: Dictionary, club: String) -> bool:
+	if build==null or not rights.club_starts.has(club): return false
+	# AI ownership pools retain their own roster; human pool retains owned access.
+	var pool: Array = rights.player_access if club=="club:0" else build._pool
+	var start: Dictionary = rights.club_starts[club]
+	if not Starts._install(build,{"starts":start.duplicate(true),
+		"player_access":pool.duplicate(),"exotic_history":[]}): return false
+	# The legacy installer enables both tracks; continuation preserves the
+	# actual club's access instead of silently activating AI progression.
+	build._gear_progress.enabled=start.gear_enabled
+	build._sponsor_progress.enabled=start.sponsor_enabled
+	if build._market==12:
+		# AI policy12 uses its own acquisition pool. Typed permanent ledger
+		# rights are retained, but must not activate human-only proof trackers.
+		for key: String in ["order","rain","transfer","supply","checkout","association","freezer","sides","jump","sure","field","batch"]:
+			build.set("_"+key+"_start",null)
+		build._major.start=null
+		build._abilities.start=null
+		build._copy.start=null
+	return true

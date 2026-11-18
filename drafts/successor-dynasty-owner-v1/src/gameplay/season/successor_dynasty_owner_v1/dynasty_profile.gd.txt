@@ -497,7 +497,7 @@ static func capture(
 	for id: String in build.roster():
 		var raw: Dictionary = build.player(id)
 		var authored: Dictionary = SeasonPlayerCatalog.profile(id)
-		if raw.is_empty() or raw.base != authored.base:
+		if raw.is_empty() or not same(raw.base, authored.base):
 			return {}
 		var trained: Dictionary = SeasonRetraining.points(build._book, id)
 		var catchup_stats: Dictionary = {}

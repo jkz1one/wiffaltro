@@ -1,0 +1,51 @@
+extends Node
+## Exact existing native/CLI payloads plus new warm-to-cold lifecycle. No game replay.
+const O=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const L=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
+var roots: Array[Resource]=[]
+func _ready():call_deferred("run")
+func check(ok: bool,label: String)->bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func run():
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","explicit isolated digest gate before reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	C.Catalog.game_signature();C.Catalog.player_signature()
+	var protected: Dictionary={}
+	for name: String in ["source-native.json","source-cli-proposal.json","source-cli-next.json","source-active.json"]:
+		var path: String="user://"+name
+		var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path);protected[path]=bytes
+		if not check(not bytes.is_empty(),"required exact fixture "+name):return
+		var data: Variant=JSON.parse_string(bytes.get_string_from_utf8())
+		var owner=O.restore(data)
+		if not check(owner!=null and C.same(O.capture(owner),data),"existing exact "+name+" admitted without rewriting stored hashes"):return
+		if owner.status=="closed":
+			var altered: Dictionary=data.duplicate(true);altered.proposal.source="0".repeat(64)
+			if not check(O.restore(altered)==null,"altered proposal digest refused"):return
+			altered=data.duplicate(true);altered.last_close.session_sha256="0".repeat(64)
+			if not check(O.restore(altered)==null,"altered session digest refused"):return
+		elif owner.ordinal>1:
+			for key: String in ["profiles_after","ledger_sha256"]:
+				var altered: Dictionary=data.duplicate(true);altered.last_transition[key]="0".repeat(64)
+				if not check(O.restore(altered)==null,"altered transition "+key+" refused"):return
+	var warm=O.restore(JSON.parse_string(protected["user://source-active.json"].get_string_from_utf8()))
+	if not check(warm!=null and warm.close_current("abandon") and warm.propose_next(1843816953),"actual earned owner close and large-seed proposal in ONE warm process"):return
+	var proposal: Dictionary=O.capture(warm)
+	var cold=O.restore(JSON.parse_string(JSON.stringify(proposal,"",true,true)))
+	if not check(cold!=null and C.same(O.capture(cold),proposal),"new warm proposal cold-reopens exactly"):return
+	if not check(warm.commit_next(),"same warm owner commits all6 Next without intervening reload"):return
+	var next: Dictionary=O.capture(warm)
+	cold=O.restore(JSON.parse_string(JSON.stringify(next,"",true,true)))
+	if not check(cold!=null and cold.ordinal==2 and C.same(O.capture(cold),next),"new warm Next cold-reopens exactly without extra decay"):return
+	var fractional: Dictionary={"frame":1.0,"physical":0.1234567890123456,"nested":[2,3.0]}
+	var canonical: Dictionary=L._canonical_numbers(fractional)
+	if not check(canonical.physical==fractional.physical and C.same(canonical,fractional) and L.digest(fractional)==L.digest(JSON.parse_string(JSON.stringify(fractional,"",true,true))),"exact integral encoding canonical; fractional double preserved"):return
+	var changed: Dictionary=fractional.duplicate(true);changed.physical+=0.000000000000001
+	if not check(not L.digest_matches(L.digest(fractional),changed),"altered fractional physical value cannot match original digest"):return
+	if not check(not L.digest_matches(null,fractional) and L._canonical_numbers(1e30)==1e30,"malformed hash and outside-safe-integer conversion guarded"):return
+	for path: String in protected:
+		if not check(FileAccess.get_file_as_bytes(path)==protected[path],"original fixture bytes unchanged"):return
+	print("PASS: exact native/CLI legacy encodings and new warm lifecycle cold parity; no hash bypass or gameplay replay")
+	get_tree().quit()

@@ -1,0 +1,97 @@
+extends Node
+var _content_roots: Array[Resource]=[]
+## Isolated App lifecycle fault test. Uses genuine source owners, never synthetic games.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Codec=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+var failed: bool=false
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed=true
+	return ok
+func write_bytes(path: String,bytes: PackedByteArray) -> bool:
+	var file=FileAccess.open(path,FileAccess.WRITE)
+	if file==null:return false
+	file.store_buffer(bytes);file.flush();file.close()
+	return FileAccess.get_file_as_bytes(path)==bytes
+func snapshot(path: String) -> Dictionary:
+	return {"exists":FileAccess.file_exists(path),"bytes":FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()}
+func _ready() -> void:call_deferred("run")
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["close","next"],"explicit isolated lifecycle fault mode"):
+		get_tree().quit(1);return
+	_content_roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not _content_roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"retained authored roots and current catalog identities before source reads"):
+		get_tree().quit(1);return
+	var active: PackedByteArray=FileAccess.get_file_as_bytes("user://source-active.json")
+	var proposal: PackedByteArray=FileAccess.get_file_as_bytes("user://source-proposal.json")
+	var active_owner=Owner.restore(JSON.parse_string(active.get_string_from_utf8()))
+	var proposal_owner=Owner.restore(JSON.parse_string(proposal.get_string_from_utf8()))
+	if not check(active_owner!=null and active_owner.status=="active" and proposal_owner!=null and proposal_owner.status=="closed" and proposal_owner.next_preview().size()==6,"both genuine source operands fully admitted"):
+		get_tree().quit(1);return
+	var source: PackedByteArray=active if args[0]=="close" else proposal
+	var foreign: PackedByteArray=proposal if args[0]=="close" else active
+	var expected=active_owner.fork() if args[0]=="close" else proposal_owner.fork()
+	var action: String="abandon" if args[0]=="close" else "next"
+	if not check(expected.close_current("abandon") if action=="abandon" else expected.commit_next(),"expected genuine lifecycle candidate prepared once"):
+		get_tree().quit(1);return
+	var expected_data: Dictionary=Owner.capture(expected)
+	var protected: Dictionary={}
+	for path: String in ["user://wiffaltro-dynasty-owner-v1.json","user://wiffaltro-dynasty-owner-v1.json.bak","user://wiffaltro-materialized-play-v1.json"]: protected[path]=snapshot(path)
+	if not check(not FileAccess.file_exists(Store.PATH+".tmp") and not DirAccess.dir_exists_absolute(Store.PATH+".tmp") and write_bytes(Store.PATH,source),"initialize only isolated v2 primary; no unresolved temp"):
+		get_tree().quit(1);return
+	print("LIFECYCLE_SOURCE_SHA256: ",FileAccess.get_sha256(Store.PATH))
+	var app=App.new();add_child(app);await get_tree().process_frame
+	app.reload_save()
+	var original=app.career_owner
+	var season: SeasonState=app.season
+	var original_data: Dictionary=Owner.capture(original)
+	var backup: Dictionary=snapshot(Store.PATH+".bak")
+	if not check(original!=null and app._owned(),"production App owns isolated source"):
+		get_tree().quit(1);return
+	app.request_lifecycle(action)
+	if not check(app._lifecycle_dialog.visible and app._lifecycle_action==action,"actual lifecycle confirmation visible"):
+		get_tree().quit(1);return
+	app._lifecycle_dialog.get_cancel_button().pressed.emit()
+	await get_tree().process_frame
+	if not check(app._lifecycle_action.is_empty() and app.retained==null and app.career_owner==original and Store.raw()==source and Codec.same(snapshot(Store.PATH+".bak"),backup),"Cancel keeps live owner primary backup unchanged"):
+		get_tree().quit(1);return
+	for stale: String in ["owner","session","disk"]:
+		app.request_lifecycle(action)
+		if not check(app._lifecycle_action==action,"confirmation pins source before stale "+stale):get_tree().quit(1);return
+		if stale=="owner":app.career_owner=original.fork()
+		elif stale=="session":app.season=season.fork_live()
+		else:
+			if not check(write_bytes(Store.PATH,foreign),"isolated foreign valid owner installed"):get_tree().quit(1);return
+		app._confirm_lifecycle()
+		if not check(app.retained==null and Store.raw()==(foreign if stale=="disk" else source) and Codec.same(snapshot(Store.PATH+".bak"),backup),"stale "+stale+" confirmation refuses without write"):get_tree().quit(1);return
+		app.career_owner=original;app.season=season
+		if stale=="disk" and not check(write_bytes(Store.PATH,source),"restore exact isolated predecessor after stale probe"):get_tree().quit(1);return
+	if not check(DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"inject own empty prewrite obstruction"):get_tree().quit(1);return
+	if action=="abandon":app.close_current("abandon")
+	else:app.commit_next()
+	var retained=app.retained_envelope
+	if not check(retained!=null and app.retained!=null and Codec.same(Owner.capture(retained),expected_data) and app.career_owner==original and app.season==season and Codec.same(Owner.capture(original),original_data) and Store.raw()==source and Codec.same(snapshot(Store.PATH+".bak"),backup),"failed lifecycle save retains exact candidate; old live/disk unchanged"):get_tree().quit(1);return
+	if not check(DirAccess.remove_absolute(Store.PATH+".tmp")==OK,"remove only known empty obstruction"):get_tree().quit(1);return
+	if not check(write_bytes(Store.PATH,foreign),"foreign valid disk before retained retry"):get_tree().quit(1);return
+	app.retry_save()
+	if not check(app.retained_envelope==retained and app.career_owner==original and Store.raw()==foreign and Codec.same(snapshot(Store.PATH+".bak"),backup),"retained retry refuses foreign disk without overwrite"):get_tree().quit(1);return
+	if not check(write_bytes(Store.PATH,source),"restore exact isolated predecessor for explicit retry"):get_tree().quit(1);return
+	app.retry_save()
+	if not check(app.retained==null and app.career_owner==retained and Codec.same(Owner.capture(app.career_owner),expected_data),"exact candidate promoted once after retry"):get_tree().quit(1);return
+	var final_bytes: PackedByteArray=Store.raw()
+	var final_backup: Dictionary=snapshot(Store.PATH+".bak")
+	app.retry_save()
+	if action=="abandon":app.close_current("abandon")
+	else:app.commit_next()
+	check(Store.raw()==final_bytes and Codec.same(snapshot(Store.PATH+".bak"),final_backup) and Codec.same(Owner.capture(app.career_owner),expected_data),"duplicate final action and retry inert")
+	check(Owner.restore(JSON.parse_string(final_bytes.get_string_from_utf8()))!=null,"final lifecycle disk independently restores")
+	for path: String in protected:check(Codec.same(snapshot(path),protected[path]),"prior source slot preserved")
+	check(FileAccess.get_file_as_bytes("user://source-active.json")==active and FileAccess.get_file_as_bytes("user://source-proposal.json")==proposal,"genuine source inputs byte-identical")
+	var artifact: String="user://lifecycle-fault-"+args[0]+"-result.json"
+	check(not FileAccess.file_exists(artifact) and write_bytes(artifact,final_bytes),"non-overwriting isolated result artifact")
+	app.queue_free();await get_tree().process_frame
+	if not failed:print("PASS: real App lifecycle "+args[0]+" Cancel/stale/prewrite/foreign/retry exactly-once")
+	get_tree().quit(1 if failed else 0)

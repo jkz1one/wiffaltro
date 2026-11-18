@@ -1,0 +1,104 @@
+extends RefCounted
+## Explicit closed->proposal->next transitions; never called by load/pause.
+const C = preload("codec.gd")
+const Profile = preload("dynasty_profile.gd")
+const Ledger = preload("ledger.gd")
+static func _canonical_numbers(value: Variant) -> Variant:
+	# Exact numeric equivalence only: never round a fractional physical value.
+	if value is Dictionary:
+		var result: Dictionary={}
+		for key: Variant in value: result[key]=_canonical_numbers(value[key])
+		return result
+	if value is Array:
+		var result: Array=[]
+		for item: Variant in value: result.append(_canonical_numbers(item))
+		return result
+	if value is float and is_finite(value) and abs(value)<=9007199254740991.0 and value==floor(value): return int(value)
+	return value
+static func digest(value: Variant) -> String:
+	return JSON.stringify(_canonical_numbers(value),"",true,true).sha256_text()
+static func digest_matches(expected: Variant, value: Variant) -> bool:
+	# Only schema-validated lifecycle payloads call this. Retain exact original
+	# prepublication76 encodings on read; never rewrite saved hashes or search
+	# arbitrary mixed representations. New writes always use canonical numbers.
+	return expected is String and (expected==digest(value) or expected==JSON.stringify(value,"",true,true).sha256_text())
+static func lineage(owner) -> String: return "dynasty:%d"%owner.birth_seed
+static func profiles(owner) -> Dictionary:
+	var result: Dictionary={}
+	if owner.session.picks.size()!=4: return {}
+	for index in range(6):
+		var id: String="club:%d"%index
+		var build: SeasonBuild=owner.session.build if index==0 else owner.session.opponents.clubs[str(index)].build
+		var row: Dictionary=Profile.capture(build,lineage(owner),id,owner.ordinal)
+		if row.is_empty(): return {}
+		result[id]=row
+	return result
+static func close(owner, reason: String) -> bool:
+	if owner.status!="active" or not owner.session.physical.pending.is_empty() or owner.session.physical.projecting or owner.session.picks.size()!=4: return false
+	var source: Dictionary=C.capture(owner.session)
+	var carried: Dictionary=profiles(owner)
+	var folded: Dictionary=Ledger.close(owner.ledger,owner.session,owner.ordinal,reason)
+	if source.is_empty() or carried.size()!=6 or folded.is_empty(): return false
+	owner.last_close={"id":"%s:%d:close"%[lineage(owner),owner.ordinal],"ordinal":owner.ordinal,"reason":reason,"session_sha256":digest(source),"profiles":carried,"before":owner.ledger.duplicate(true),"receipt":folded.receipt}
+	owner.ledger=folded.ledger
+	owner.status="closed"
+	owner.proposal={}
+	return true
+static func overflow(profile: Dictionary) -> Dictionary:
+	var result: Dictionary={}
+	for id: String in profile.roster:
+		var rows: Array=profile.players[id].abilities.filter(func(receipt: Dictionary)->bool:return receipt.slot=="Fielding")
+		if rows.size()>1: result[id]=rows
+	return result
+static func propose(owner, seed_value: int) -> bool:
+	if owner.status!="closed" or not owner.proposal.is_empty() or not C.whole(seed_value,0,2147483647): return false
+	var choices: Dictionary={}
+	for index in range(6):
+		var club: String="club:%d"%index
+		choices[club]={}
+		# Explicit deterministic AI policy: retain smallest receipt ID, forget
+		# lexicographically greatest receipt ID. Human never gets a default choice.
+		if index>0:
+			for player: String in overflow(owner.last_close.profiles[club]):
+				var rows: Array=overflow(owner.last_close.profiles[club])[player]
+				var ids: Array=rows.map(func(row:Dictionary)->String:return row.id); ids.sort()
+				choices[club][player]={"player":"","forget":ids[-1]}
+	owner.proposal={"id":"%s:%d:next"%[lineage(owner),owner.ordinal],"seed":seed_value,"source":digest(owner.last_close.profiles),"choices":choices,"rule":Profile.rule(),"ai_overflow":"retain-smallest-receipt-id-v1"}
+	return true
+static func choose(owner, player: String, receipt: String) -> bool:
+	if owner.status!="closed" or owner.proposal.is_empty(): return false
+	var needs: Dictionary=overflow(owner.last_close.profiles["club:0"])
+	if not needs.has(player) or not needs[player].any(func(row:Dictionary)->bool:return row.id==receipt): return false
+	owner.proposal.choices["club:0"][player]={"player":"","forget":receipt}
+	return true
+static func preview(owner) -> Dictionary:
+	if owner.status!="closed" or owner.proposal.is_empty(): return {}
+	var result: Dictionary={}
+	for index in range(6):
+		var club: String="club:%d"%index
+		var seed_value: int=(int(owner.proposal.seed)+index*92821)&0x7fffffff
+		var row: Dictionary=Profile.advance(owner.last_close.profiles[club],seed_value,owner.proposal.choices[club])
+		if row.is_empty(): return {}
+		result[club]=row
+	return result
+static func player_access(existing: Array, metrics: Dictionary) -> Array[String]:
+	var result: Array[String]=[]
+	for id: String in existing+ClubPlayerCatalog.earned(metrics):
+		if not result.has(id): result.append(id)
+	result.sort()
+	return result
+static func rights(owner) -> Dictionary:
+	var basis: Dictionary=owner.session.career.start_basis
+	var original: Dictionary=basis.rights if basis.get("kind")=="dynasty-carried-start-v2" else basis
+	return {"birth_seed":owner.birth_seed,"player_access":player_access(owner.session.player_access,owner.ledger.metrics),"assets":original.assets.duplicate(true),"pennants":owner.session.career._pennants.duplicate(true),"plaques":owner.session.career._plaques.duplicate(true),"starts":owner.ledger.club_starts["club:0"].duplicate(true),"club_starts":owner.ledger.club_starts.duplicate(true)}
+static func advance(owner) -> bool:
+	if owner.ordinal>=ClubCareer.MAX_RUNS: return false
+	var prepared: Dictionary=preview(owner)
+	if prepared.size()!=6: return false
+	var carried: Dictionary={}
+	for id: String in prepared: carried[id]=prepared[id].profile
+	var next: SeasonState=preload("runtime.gd").create_carried(int(owner.proposal.seed),carried,rights(owner))
+	if next==null or C.capture(next).is_empty(): return false
+	owner.last_transition={"id":owner.proposal.id,"from":owner.ordinal,"to":owner.ordinal+1,"seed":owner.proposal.seed,"profiles_before":owner.last_close.profiles.duplicate(true),"proposal":owner.proposal.duplicate(true),"profiles_after":digest(carried),"ledger_sha256":digest(owner.ledger)}
+	owner.session=next;owner.ordinal+=1;owner.status="active";owner.last_close={};owner.proposal={}
+	return true

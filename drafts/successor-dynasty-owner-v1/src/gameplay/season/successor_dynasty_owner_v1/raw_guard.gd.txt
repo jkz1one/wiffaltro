@@ -9,7 +9,7 @@ const MAX_NODES: int = 1000000
 const Owner = preload("owner.gd")
 static func capture(owner: Variant) -> Dictionary:
 	var budget: Array = [MAX_NODES,true]
-	var result: Dictionary = _object(owner,Owner,["alternate","imported_sha256"],["session"],budget)
+	var result: Dictionary = _object(owner,Owner,Owner.DATA_FIELDS,["session"],budget)
 	if not budget[1]: return {}
 	result.session = capture_session(owner.session)
 	return result if not result.session.is_empty() else {}

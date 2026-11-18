@@ -1,0 +1,69 @@
+extends Node
+## Isolated actual App import/close/proposal/next handlers; no fabricated game.
+const Launcher=preload("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
+const OLD="user://wiffaltro-dynasty-owner-v1.json"
+func _ready()->void: call_deferred("run")
+func check(value: bool,label: String)->bool:
+	print(("CHECK: " if value else "FAIL: ")+label)
+	if not value: get_tree().quit(1)
+	return value
+func run()->void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["import","close","closed-cold","propose","next","cold"],"explicit isolated lifecycle mode before reads"): return
+	var old: PackedByteArray=FileAccess.get_file_as_bytes(OLD)
+	var bak: PackedByteArray=FileAccess.get_file_as_bytes(OLD+".bak")
+	if not check(not old.is_empty() and not bak.is_empty(),"genuine75 main and backup preserved inputs"): return
+	var app=Launcher.instantiate();add_child(app);await get_tree().process_frame
+	var mode: String=args[0]
+	var before: PackedByteArray=Store.raw()
+	var started: int=Time.get_ticks_msec()
+	if mode=="import":
+		if not check(not Store.occupied(),"new explicitv2 slot empty"): return
+		app.import_previous_dynasty()
+	else:
+		app.reload_save()
+		if not check(app.career_owner!=null and app._owned(),"cold authoritative outer+current session"): return
+		if mode=="close":
+			if not check(app.career_owner.status=="active" and app.season.player_results.size()==1 and app.season.results.size()==3,"genuine first round predecessor"): return
+			app.close_current("abandon")
+		elif mode=="propose": app.propose_next(550076)
+		elif mode=="next": app.commit_next()
+	print("HANDLER_MS: ",Time.get_ticks_msec()-started)
+	if not check(app.career_owner!=null and app.retained==null and app._owned(),"handler atomically saved and promoted"): return
+	var owner=app.career_owner
+	if not check(not Owner.capture(owner).is_empty() and C.same(Owner.capture(owner),JSON.parse_string(Store.raw().get_string_from_utf8())),"strict current owner capture equals durable bytes"): return
+	if mode=="import":
+		if not check(owner.ordinal==1 and owner.ledger.closed==0 and owner.ledger.games==0 and owner.session.results.size()==3 and owner.migration.bytes==old.size(),"explicit copy has no invented prior contribution"): return
+	elif mode in ["close","closed-cold","propose"]:
+		if not check(owner.ordinal==1 and owner.status=="closed" and owner.ledger.closed==1 and owner.ledger.abandoned==1 and owner.ledger.completed==0 and owner.ledger.currency==0 and owner.last_close.receipt.is_empty(),"abandon folds once without completion payout"): return
+		if not check(owner.ledger.games==1 and owner.ledger.development["club:0"].stat==1 and owner.session.build.player("player.ash_cole").stats.fielding==3,"earned pack counted once, close does not decay"): return
+		var same_bytes: PackedByteArray=Store.raw();app.close_current("abandon")
+		if not check(Store.raw()==same_bytes,"duplicate close inert"): return
+		app.play_next();app.open_pitch_shop()
+		if not check(not is_instance_valid(app.lab) and Store.raw()==same_bytes,"closed owner cannot play or shop"): return
+		if mode=="propose":
+			if not check(owner.proposal.seed==550076 and owner.next_preview().size()==6,"seed persisted and all six previewed"): return
+			app.propose_next(999)
+			if not check(Store.raw()==same_bytes and app.career_owner.proposal.seed==550076,"repeat/cancel cannot reroll proposed seed"): return
+	else:
+		if not check(owner.ordinal==2 and owner.status=="active" and owner.session.season_seed==550076 and owner.session.results.is_empty() and owner.session.player_results.is_empty() and owner.session.picks.size()==4,"actual next carried season, no fresh draft or invented results"): return
+		if not check(owner.ledger.closed==1 and owner.ledger.development["club:0"].stat==1 and owner.session.build.player("player.ash_cole").stats.fielding==2,"one provisional paid-first decay, no second career credit"): return
+		for index in range(6):
+			var id: String="club:%d"%index
+			var build: SeasonBuild=owner.session.build if index==0 else owner.session.opponents.clubs[str(index)].build
+			var prior: Dictionary=owner.last_transition.profiles_before[id]
+			var expected: Dictionary=Profile.advance(prior,(550076+index*92821)&0x7fffffff,owner.last_transition.proposal.choices[id])
+			if not check(not expected.is_empty() and C.same(expected.profile,build._dynasty_start) and build._book._events.is_empty() and build._bank._events.is_empty() and build._bank.cash()==0,"all6 exact carried profile and empty seasonal economy"): return
+		var same_bytes: PackedByteArray=Store.raw();app.commit_next()
+		if not check(Store.raw()==same_bytes,"duplicate next inert"): return
+		var fixture: Dictionary=owner.session.pending_fixture()
+		if not check(not fixture.is_empty() and owner.session.physical.match_for(owner.session,fixture)!=null,"next season real human physical definition available"): return
+	if mode in ["cold","closed-cold"]:
+		if not check(Store.raw()==before,"cold read never rewrites/decays"): return
+	if not check(FileAccess.get_file_as_bytes(OLD)==old and FileAccess.get_file_as_bytes(OLD+".bak")==bak,"original75 main and backup unchanged"): return
+	print("PASS: scoped actual75 import/abandon/proposal/all6 next/cold; no natural terminal claim")
+	get_tree().quit()

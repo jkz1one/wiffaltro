@@ -1,0 +1,140 @@
+extends RefCounted
+## Bounded permanent owner aggregates. No season snapshots or recursive journals.
+const C = preload("codec.gd")
+const Contribution = preload("contribution.gd")
+const FLAGS: Array[String] = ["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
+const COUNTERS: Array[String] = ["closed","completed","abandoned","games","wins","runs_for","runs_against","currency"]
+const ADD_METRICS: Array[String] = ["completed_seasons","championships","clean_total","strikeouts_total"]
+const METRICS: Array[String] = ["completed_seasons","championships","clean_total","strikeouts_total","mastery_max","repertoire_max","season_lessons","season_win_streak","shutout","game_sponsors","comeback_deficit","walkoff","game_homers","winning_hitters","contact_runs","three_k_pitchers","no_bat_season","season_hit_types"]
+const FIELDS: Array[String] = ["version","closed","completed","abandoned","games","wins","runs_for","runs_against","currency","titles","metrics","players","collection","development","club_starts","pennants","plaques","era"]
+static func birth(season: SeasonState) -> Dictionary:
+	var result: Dictionary = {"version":1,"titles":{},"metrics":{},"players":{},"collection":[],"development":{},"club_starts":{},"pennants":season.career._pennants.duplicate(true),"plaques":{},"era":StadiumClubIdentity.current()}
+	for key: String in COUNTERS: result[key] = 0
+	for index in range(6):
+		var id: String = "club:%d"%index
+		result.development[id] = {"stat":0,"mastery":0,"lessons":[],"abilities":0}
+		result.club_starts[id] = season.career.start_basis.starts.duplicate(true)
+		if index>0:
+			result.club_starts[id].gear_enabled=false; result.club_starts[id].sponsor_enabled=false
+	return result
+
+static func valid_starts(value: Variant) -> bool:
+	if not C.keys(value,FLAGS+["gear_enabled","sponsor_enabled","gear","sponsors","supply","abilities","batch"]): return false
+	for key: String in FLAGS+["gear_enabled","sponsor_enabled"]:
+		if not value[key] is bool: return false
+	if not SeasonGearProgress.valid_counts(value.gear) or not SeasonSponsorProgress.valid_state(value.sponsors) or not value.batch is Array: return false
+	for id: Variant in value.gear:
+		if not id is String or not C.whole(value.gear[id],0,10000000): return false
+	if not C.keys(value.sponsors,["hits","encore"]) or not value.sponsors.hits is Array or value.sponsors.hits.size()>128 or not value.sponsors.encore is bool: return false
+	var seen: Array = []
+	for id: Variant in value.sponsors.hits:
+		if not id is String or id in seen: return false
+		seen.append(id)
+	return C.whole(value.supply,0,3) and C.whole(value.abilities,0,3) and SeasonSmallBatch.valid(value.batch)
+
+static func valid(value: Variant) -> bool:
+	if not C.keys(value,FIELDS) or value.version!=1 or not C.primitive(value): return false
+	for key: String in COUNTERS:
+		if not C.whole(value[key],0,12288000000): return false
+	if value.closed!=value.completed+value.abandoned or value.closed>ClubCareer.MAX_RUNS or value.wins>value.games: return false
+	for key: String in ["titles","metrics","players","development","club_starts","pennants","plaques"]:
+		if not value[key] is Dictionary: return false
+	if not C.keys(value.development,["club:0","club:1","club:2","club:3","club:4","club:5"]) or not C.keys(value.club_starts,value.development.keys()): return false
+	for key: String in value.development:
+		var row: Variant=value.development[key]
+		if not C.keys(row,["stat","mastery","lessons","abilities"]) or not C.whole(row.stat,0,4194304) or not C.whole(row.mastery,0,4194304) or not C.whole(row.abilities,0,4194304) or not row.lessons is Array or row.lessons.size()>128 or not valid_starts(value.club_starts[key]): return false
+		for id: Variant in row.lessons:
+			if not id is String or not preload("catalog.gd").known_ids().has(id): return false
+	if not ClubCollection.valid(value.collection): return false
+	if value.titles.size()>45 or value.metrics.size()>64 or value.players.size()>128 or value.plaques.size()>128 or not value.collection is Array or value.collection.size()>512 or not StadiumClubIdentity.valid(value.era): return false
+	for key: Variant in value.titles:
+		if key!="dynasty" or not value.titles[key] is bool: return false
+	for key: Variant in value.metrics:
+		if not key is String or key not in METRICS or not C.whole(value.metrics[key],0,12288000000): return false
+	for id: Variant in value.players:
+		var row: Variant=value.players[id]
+		if not id is String or not SeasonPlayerCatalog.ids().has(id) or not C.keys(row,["hits","strikeouts","clean_outs","witnesses"]): return false
+		for key: String in ["hits","strikeouts","clean_outs"]:
+			if not C.whole(row[key],0,12288000000): return false
+		if not row.witnesses is Dictionary or row.witnesses.size()>3: return false
+		for ordinal: Variant in row.witnesses:
+			if not ordinal is String or not ordinal.is_valid_int() or str(int(ordinal))!=ordinal or not C.whole(int(ordinal),1,int(value.closed)) or not C.whole(row.witnesses[ordinal],5,12): return false
+	for id: Variant in value.plaques:
+		var award: Variant=value.plaques[id]
+		if not id is String or not C.keys(award,["format","player","ordinal","era","stats"]) or award.format!="dynasty-compact-legend-v1" or award.player!=id or not value.players.has(id) or not C.whole(award.ordinal,1,int(value.closed)) or not StadiumClubIdentity.valid(award.era) or not award.stats is Dictionary: return false
+		if not C.keys(award.stats,["hits","strikeouts","clean_outs","witnesses"]) or not award.stats.witnesses is Dictionary or award.stats.witnesses.size()!=3: return false
+		for key: String in ["hits","strikeouts","clean_outs"]:
+			if not C.whole(award.stats[key],0,int(value.players[id][key])): return false
+		if award.stats.hits<40 and award.stats.strikeouts<60 and award.stats.clean_outs<40: return false
+		for ordinal: Variant in award.stats.witnesses:
+			if not ordinal is String or not ordinal.is_valid_int() or int(ordinal)>award.ordinal or not value.players[id].witnesses.has(ordinal) or award.stats.witnesses[ordinal]!=value.players[id].witnesses[ordinal]: return false
+	return true
+
+static func close(before: Dictionary, season: SeasonState, ordinal: int, reason: String) -> Dictionary:
+	if not valid(before) or before.closed!=ordinal-1 or reason not in ["complete","abandon"]: return {}
+	var proof: Dictionary=ClubSeasonRecord.capture(season)
+	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
+	if summary.is_empty() or (reason=="complete")!=(summary.finish!="unfinished"): return {}
+	var details: Dictionary=Contribution.capture(season)
+	if details.is_empty(): return {}
+	var result: Dictionary=before.duplicate(true)
+	result.closed+=1; result.completed+=int(reason=="complete"); result.abandoned+=int(reason=="abandon")
+	var receipt: Dictionary={}
+	if reason=="complete":
+		receipt=ClubSeasonRecord.receipt(proof,not before.titles.get("dynasty",false),0)
+		if receipt.is_empty(): return {}
+		result.currency+=int(receipt.total)
+		if summary.finish=="champion": result.titles["dynasty"]=true
+	for score: Array in proof.scores:
+		if 0 not in [int(score[1]),int(score[2])]: continue
+		var ours: int=int(score[4] if score[2]==0 else score[3]); var theirs: int=int(score[3] if score[2]==0 else score[4])
+		result.games+=1; result.wins+=int(ours>theirs); result.runs_for+=ours; result.runs_against+=theirs
+	var credits: Dictionary={}
+	for game: Dictionary in details.games:
+		if game.players==null: continue
+		for id: String in game.players:
+			var line: Dictionary=game.players[id]
+			if not result.players.has(id): result.players[id]={"hits":0,"strikeouts":0,"clean_outs":0,"witnesses":{}}
+			for key: String in ["hits","strikeouts","clean_outs"]:
+				if line[key]!=null: result.players[id][key]+=int(line[key])
+			if line.pa>0 or line.pitches>0 or line.fielded==true: credits[id]=int(credits.get(id,0))+1
+	for id: String in credits:
+		var record: Dictionary=result.players[id]
+		if reason=="complete" and credits[id]>=5 and record.witnesses.size()<3: record.witnesses[str(ordinal)]=credits[id]
+		if not result.plaques.has(id) and record.witnesses.size()==3 and (record.hits>=40 or record.strikeouts>=60 or record.clean_outs>=40):
+			result.plaques[id]={"format":"dynasty-compact-legend-v1","player":id,"ordinal":ordinal,"era":before.era.duplicate(true),"stats":record.duplicate(true)}
+	# Same per-game metric reducer; current mastery/known are MAX, never SUM.
+	var metrics: Dictionary={}
+	metrics.completed_seasons=int(reason=="complete"); metrics.championships=int(reason=="complete" and summary.finish=="champion")
+	metrics.clean_total=season.build._field_outs
+	metrics.mastery_max=details.development.mastery; metrics.repertoire_max=details.development.known; metrics.season_lessons=details.development.lessons.size()
+	var streak: int=0
+	for game: Dictionary in details.games:
+		var matches: Array=proof.scores.filter(func(row: Array) -> bool: return row[0]==game.game)
+		if matches.size()!=1: return {}
+		var score: Array=matches[0]; var won: bool=(score[4]>score[3]) if score[2]==0 else (score[3]>score[4])
+		streak=streak+1 if won else 0; ClubPlayerProgress._max(metrics,"season_win_streak",streak)
+		ClubPlayerProgress._max(metrics,"shutout",int(won and (score[3] if score[2]==0 else score[4])==0))
+		ClubPlayerProgress._game_metrics(metrics,game,score,won)
+	var acquired: Array=ClubCollection.acquired(season.build)
+	var bats: Array=acquired.filter(func(id: String) -> bool: return SeasonGearCatalog.item(id).get("slot")=="bat")
+	if reason=="complete": metrics.no_bat_season=int(bats.is_empty())
+	var hit_types: Array=[]
+	for game: Dictionary in season.build._sponsor_progress.games:
+		for id: String in game.hits:
+			if not hit_types.has(id): hit_types.append(id)
+	metrics.season_hit_types=hit_types.size()
+	for key: String in metrics:
+		result.metrics[key]=int(result.metrics.get(key,0))+int(metrics[key]) if key in ADD_METRICS else maxi(int(result.metrics.get(key,0)),int(metrics[key]))
+	for id: String in acquired:
+		if not result.collection.has(id): result.collection.append(id)
+	result.collection.sort()
+	for index in range(6):
+		var club: String="club:%d"%index
+		var build: SeasonBuild=season.build if index==0 else season.opponents.clubs[str(index)].build
+		var earned: Dictionary=Contribution.earned(build)
+		result.development[club].stat+=earned.stat; result.development[club].mastery+=earned.mastery; result.development[club].abilities+=earned.ability_receipts.size()
+		for id: String in earned.lessons:
+			if not result.development[club].lessons.has(id): result.development[club].lessons.append(id)
+		result.development[club].lessons.sort(); result.club_starts[club]=Contribution.starts(build,before.club_starts[club])
+	return {"ledger":result,"receipt":receipt,"proof":proof} if valid(result) else {}

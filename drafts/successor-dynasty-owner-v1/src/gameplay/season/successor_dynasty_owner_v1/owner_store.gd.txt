@@ -3,7 +3,7 @@ extends RefCounted
 const Codec = preload("codec.gd")
 const Owner = preload("owner.gd")
 const RawGuard = preload("raw_guard.gd")
-const PATH: String = "user://wiffaltro-dynasty-owner-v1.json"
+const PATH: String = "user://wiffaltro-dynasty-career-v2.json"
 const MAX_BYTES: int = 64 * 1024 * 1024
 static var saving: bool = false
 static var last_error: String = ""
@@ -128,8 +128,7 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 		# owner pins were checked above; no caller validation flag or payload.
 		var current: Dictionary = Codec.capture(candidate.session)
 		if not current.is_empty():
-			data = {"version":1,"format":Owner.FORMAT,"active":"dynasty","dynasty":current,
-				"alternate":_alternate.duplicate(true),"imported_sha256":_imported_sha256}
+			data = Owner.pack_current(candidate,current)
 	else:
 		data = Owner.capture(candidate)
 	if data.is_empty(): return null

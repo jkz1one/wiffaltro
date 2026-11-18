@@ -8,7 +8,7 @@ const Fixtures = preload("res://src/gameplay/season/successor_dynasty_owner_v1/p
 const Runner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_runner.gd")
 const Capture = preload("capture_human.gd")
 const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
-const Shop = preload("res://src/presentation/season/successor_league_general_v2/shop_window.gd")
+const Shop = preload("shop_window.gd")
 const Page = preload("menu.gd")
 var retained_before: Dictionary = {} # Detached diagnostics only, never writer authority.
 var _save_ticket: RefCounted
@@ -25,6 +25,11 @@ var _npc_before: Dictionary = {}
 var _npc_expected: PackedByteArray = PackedByteArray()
 var _npc_lab: PitchBatLab
 var _npc_state: MatchState
+var _lifecycle_dialog: ConfirmationDialog
+var _lifecycle_action: String=""
+var _lifecycle_owner: RefCounted
+var _lifecycle_season: SeasonState
+var _lifecycle_bytes: PackedByteArray=PackedByteArray()
 var _exit_dialog: ConfirmationDialog
 var _exit_mode: String = ""
 var _exit_envelope: RefCounted
@@ -63,6 +68,12 @@ func _ready() -> void:
 	_exit_dialog.canceled.connect(_cancel_exit)
 	_exit_dialog.close_requested.connect(_cancel_exit)
 	add_child(_exit_dialog)
+	_lifecycle_dialog=ConfirmationDialog.new()
+	_lifecycle_dialog.dialog_autowrap=true
+	_lifecycle_dialog.confirmed.connect(_confirm_lifecycle)
+	_lifecycle_dialog.canceled.connect(_cancel_lifecycle)
+	_lifecycle_dialog.close_requested.connect(_cancel_lifecycle)
+	add_child(_lifecycle_dialog)
 	menu = Page.new(); add_child(menu); menu.build(self)
 	_dialog = ConfirmationDialog.new()
 	add_child(_dialog)
@@ -81,6 +92,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	_cancel_exit()
+	_cancel_lifecycle()
 	_loading_generation += 1
 	if is_inside_tree(): get_tree().auto_accept_quit = _prior_auto_quit
 	_content_roots.clear()
@@ -96,7 +108,7 @@ func _process(_delta: float) -> void:
 func show_season() -> void:
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
-	return not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+	return _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func select_league(value: String) -> void:
 	if not _available() or season != null or value != "dynasty": return
 	selected_league = value; show_season()
@@ -123,6 +135,7 @@ func reload_save() -> void:
 	else: notice = Store.last_error
 	_busy = false; show_season()
 func draft(id: String) -> void:
+	if career_owner!=null and career_owner.status!="active": return
 	if not _available() or season == null or season.phase != SeasonState.Phase.DRAFT or not season.offers().has(id): return
 	if not _owned():
 		notice = "The save changed outside this view. Reload before drafting."
@@ -142,8 +155,16 @@ func _retain(candidate: SeasonState, expected: PackedByteArray) -> void:
 	var envelope: RefCounted = Owner.new()
 	envelope.session = candidate
 	if career_owner != null:
-		envelope.alternate = career_owner.alternate.duplicate(true)
-		envelope.imported_sha256 = career_owner.imported_sha256
+		if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(career_owner,Owner.DATA_FIELDS)): return
+	else:
+		envelope.birth_seed=candidate.season_seed
+		envelope.ledger=Owner.Ledger.birth(candidate)
+	_retain_envelope(envelope,expected)
+
+func _retain_envelope(envelope: RefCounted, expected: PackedByteArray) -> void:
+	if retained!=null or envelope==null or envelope.session==null: return
+	if career_owner!=null and career_owner.session!=season: return
+	var candidate: SeasonState=envelope.session
 	var ticket: RefCounted = Store.prepare(career_owner,envelope,expected)
 	if ticket == null:
 		notice = "The candidate could not be represented consistently. Saved progress is unchanged."
@@ -288,6 +309,7 @@ func _quit_now() -> void:
 
 
 func play_next() -> void:
+	if career_owner!=null and career_owner.status!="active": return
 	if not _available() or not _owned() or not Codec.scope(season) or not season.physical.pending.is_empty():
 		return
 	var fixture: Dictionary = season.pending_fixture()
@@ -339,6 +361,7 @@ func _checkpoint() -> bool:
 
 
 func resume_round() -> void:
+	if career_owner!=null and career_owner.status!="active": return
 	if not _available() or not _owned() or season.physical.pending.is_empty():
 		return
 	if not retained_report.is_empty():
@@ -420,10 +443,12 @@ func _ai_failed(reason: String, runner: Node = null) -> void:
 
 
 func open_pitch_shop() -> void:
+	if career_owner!=null and career_owner.status!="active": return
 	open_shop()
 
 
 func open_shop() -> void:
+	if career_owner!=null and career_owner.status!="active": return
 	if not _available() or season==null or not Codec.scope(season) or not season.physical.pending.is_empty() or not season.shop_available():
 		return
 	if not season.build._visit.open:
@@ -462,6 +487,7 @@ func _checkpoint_report() -> void:
 	_retain(candidate,_npc_expected)
 
 func commit_shop(command: Dictionary) -> bool:
+	if career_owner==null or career_owner.status!="active": return false
 	if not _available() or season == null or not Codec.scope(season) or not season.physical.pending.is_empty() or not season.shop_available(): return false
 	if not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return false
 	var request_id: Variant = command.get("id")
@@ -480,3 +506,71 @@ func import_draft() -> void:
 	# Explicit119 snapshot import is an Owner API, not an unlocked Dynasty entry.
 	notice = "Previous saves stay separate. Alternate activation is not enabled in this engineering build."
 	show_season()
+
+# Private lifecycle handlers. Menu exposure follows corresponding save/cold gates.
+func import_previous_dynasty() -> void:
+	if not _available() or season!=null or Store.occupied(): return
+	var path: String="user://wiffaltro-dynasty-owner-v1.json"
+	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
+	_busy=true
+	var candidate: RefCounted=Owner.import_75(bytes)
+	_busy=false
+	if candidate==null or FileAccess.get_file_as_bytes(path)!=bytes:
+		notice="Previous Dynasty save could not be copied consistently. Originals are unchanged.";show_season();return
+	_retain_envelope(candidate,PackedByteArray())
+
+func close_current(reason: String) -> void:
+	if not _available() or not _owned() or career_owner.status!="active" or not season.physical.pending.is_empty(): return
+	_busy=true
+	var candidate: RefCounted=career_owner.fork()
+	if candidate!=null and not candidate.close_current(reason): candidate=null
+	_busy=false
+	if candidate==null:
+		notice="This season could not close safely. Current progress is unchanged.";show_season();return
+	_retain_envelope(candidate,saved_bytes)
+
+func propose_next(seed_value: int=-1) -> void:
+	if not _available() or not _owned() or career_owner.status!="closed": return
+	if seed_value<0: seed_value=("dynasty:%d:%d:nextseed"%[career_owner.birth_seed,career_owner.ordinal+1]).hash() & 0x7fffffff
+	_busy=true
+	var candidate: RefCounted=career_owner.fork()
+	if candidate!=null and not candidate.propose_next(seed_value): candidate=null
+	_busy=false
+	if candidate==null: return
+	_retain_envelope(candidate,saved_bytes)
+
+func choose_overflow(player: String, receipt: String) -> void:
+	if not _available() or not _owned() or career_owner.status!="closed": return
+	var candidate: RefCounted=career_owner.fork()
+	if candidate==null or not candidate.choose_overflow(player,receipt): return
+	_retain_envelope(candidate,saved_bytes)
+
+func commit_next() -> void:
+	if not _available() or not _owned() or career_owner.status!="closed": return
+	_busy=true
+	var candidate: RefCounted=career_owner.fork()
+	if candidate!=null and not candidate.commit_next(): candidate=null
+	_busy=false
+	if candidate==null:
+		notice="Resolve every overflow choice before continuing. No decay or new season was saved.";show_season();return
+	_retain_envelope(candidate,saved_bytes)
+
+func request_lifecycle(action: String) -> void:
+	if not _available() or not _owned() or action not in ["abandon","complete","next"]: return
+	if action=="next":
+		if career_owner.status!="closed" or career_owner.next_preview().size()!=6: return
+	elif career_owner.status!="active" or not season.physical.pending.is_empty() or season.picks.size()!=4 or (action=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return
+	_lifecycle_action=action;_lifecycle_owner=career_owner;_lifecycle_season=season;_lifecycle_bytes=saved_bytes.duplicate()
+	_lifecycle_dialog.title="Start next season" if action=="next" else "Close current season"
+	_lifecycle_dialog.dialog_text="Start the next season with all six carried rosters? The provisional rule removes up to 2 above-authored points per stat and 1 mastery per known pitch, paid growth first. Seasonal Cash, items and sponsors reset. This happens only once on confirmation." if action=="next" else ("Abandon this season? Completed-game stats and earned progress remain. There is no completion payout. No decay occurs until you separately start the next season." if action=="abandon" else "Close this completed season and retain its verified career contribution? No decay occurs until you separately start the next season.")
+	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
+func _cancel_lifecycle() -> void:
+	_lifecycle_action="";_lifecycle_owner=null;_lifecycle_season=null;_lifecycle_bytes=PackedByteArray()
+	if is_instance_valid(_lifecycle_dialog): _lifecycle_dialog.hide()
+func _confirm_lifecycle() -> void:
+	var action: String=_lifecycle_action
+	var valid: bool=not action.is_empty() and career_owner==_lifecycle_owner and season==_lifecycle_season and career_owner!=null and career_owner.session==season and saved_bytes==_lifecycle_bytes and _owned()
+	_cancel_lifecycle()
+	if not valid: return
+	if action=="next": commit_next()
+	else: close_current(action)

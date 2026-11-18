@@ -1,15 +1,19 @@
 extends SeasonMenu
+const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
+const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
 func render() -> void:
 	_screen("home","WIFFALTRO","YOUR CLUB. YOUR SEASON.")
 	if app.retained != null:
 		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
 	if app.season == null:
-		_label(_body,"PRIVATE DYNASTY ENGINEERING · first-season play only",18)
+		_label(_body,"PRIVATE DYNASTY ENGINEERING · career lifecycle",18)
 		_button(_body,"NEW DYNASTY TEST CAREER",Callable(app,"create_fresh"))
 		_button(_body,"CONTINUE DYNASTY TEST CAREER",Callable(app,"reload_save"))
+		if FileAccess.file_exists("user://wiffaltro-dynasty-owner-v1.json"):
+			_button(_body,"COPY PREVIOUS DYNASTY SAVE",Callable(app,"import_previous_dynasty"))
 		_button(_body,"ORDINARY CAREER BUILD",Callable(app,"open_previous"))
-		_label(_body,"Original saves are separate. Unlocks, transitions and alternate activation are not enabled.",16)
+		_note("Previous saves stay separate. Public mode admission, replacement economics and alternate activation remain unavailable.")
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
@@ -18,6 +22,7 @@ func render() -> void:
 			_button(_body,player.display_name,Callable(app,"draft").bind(id))
 			_player_summary(player)
 		return
+	_label(_body,"DYNASTY · SEASON %d"%app.career_owner.ordinal,22)
 	_label(_body,"ROUND %d · %s"%[app.season.round_index+1,SeasonState.Phase.keys()[app.season.phase]],24)
 	var fixture: Dictionary = app.season.pending_fixture()
 	if not fixture.is_empty(): _label(_body,"NEXT: "+_matchup(fixture),20)
@@ -29,14 +34,20 @@ func render() -> void:
 		var player: PlayerDefinition = app.season.build.definition(id)
 		_label(_body,player.display_name,22)
 		_player_summary(player)
+	_career_records()
+	if app.career_owner.status=="closed":
+		_closed()
+		return
 	if not app.season.physical.pending.is_empty():
 		_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 	else:
-		_label(_body,"Season finished and saved. Dynasty transition and career awards are not enabled in this engineering build.",18)
+		_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty():
 		_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
+	if app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
+		_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
 
 func _player_summary(player: PlayerDefinition) -> void:
 	var repertoire: Array[String] = []
@@ -54,3 +65,65 @@ func _player_summary(player: PlayerDefinition) -> void:
 	if not labels.is_empty():
 		var stat_label: Label = _label(_body," · ".join(labels),16)
 		stat_label.set_meta("stat_keys",SeasonPlayerCatalog.STATS.duplicate())
+
+func _career_records() -> void:
+	var owner=app.career_owner
+	_label(_body,"CAREER · %d closed · %d completed · %d abandoned · %d games"%[owner.ledger.closed,owner.ledger.completed,owner.ledger.abandoned,owner.ledger.games],18)
+	_label(_body,"Career currency: %d · Season Cash stays separate"%owner.ledger.currency,16)
+	var discoveries: Array=owner.discovery_ids()
+	if not discoveries.is_empty():
+		var names: Array[String]=[]
+		var catalog: Dictionary=ClubCollection.catalog()
+		for id: String in discoveries: names.append(catalog[id].name)
+		_note("Discovered (not free inventory): "+", ".join(names))
+	var earned: Array[String]=owner.earned_player_ids()
+	if not earned.is_empty():
+		var names: Array[String]=[]
+		for id: String in earned:
+			var definition: PlayerDefinition=ContentDB.player_by_id.get(StringName(id))
+			names.append(definition.display_name if definition!=null else id)
+		_note("Earned player access for future seasons: "+", ".join(names))
+	for id: String in owner.awards():
+		var award: Dictionary=owner.awards()[id]
+		var definition: PlayerDefinition=ContentDB.player_by_id.get(StringName(id))
+		_label(_body,"CAREER PLAQUE · %s · Season %d · %s"%[definition.display_name if definition!=null else id,award.ordinal,award.era.name],18)
+func _closed() -> void:
+	var owner=app.career_owner
+	_label(_body,"SEASON CLOSED · "+owner.last_close.reason.to_upper(),24)
+	_note("Earned progress is retained. No decay has occurred. Abandonment earns no completion payout.")
+	if owner.proposal.is_empty():
+		_button(_body,"PREPARE NEXT SEASON",Callable(app,"propose_next"))
+		return
+	_label(_body,"NEXT SEASON PREVIEW · seed %d"%owner.proposal.seed,20)
+	_note("Provisional balance: up to 2 above-authored points per stat; 1 mastery per known pitch.")
+	_note("Paid growth is lost first. Authored floors remain. All six clubs carry forward; no new draft.")
+	_note("Seasonal Cash, items and sponsors reset only when you confirm Next.")
+	var needs: Dictionary=Life.overflow(owner.last_close.profiles["club:0"])
+	for player: String in needs:
+		var definition: PlayerDefinition=ContentDB.player_by_id.get(StringName(player))
+		_note("Choose an ability to forget for "+(definition.display_name if definition!=null else player)+". This is permanent on Next, not unequipped inventory.")
+		for receipt: Dictionary in needs[player]:
+			var selected: bool=owner.proposal.choices["club:0"].get(player,{}).get("forget","")==receipt.id
+			_button(_body,("SELECTED: " if selected else "FORGET ")+Profile.ABILITY_ITEMS[receipt.item].name,Callable(app,"choose_overflow").bind(player,receipt.id))
+	var preview: Dictionary=owner.next_preview()
+	if preview.size()!=6:
+		_note("Resolve every ability overflow before starting. The saved seed will not reroll.")
+		return
+	for player: String in preview["club:0"].profile.roster:
+		var before: Dictionary=owner.last_close.profiles["club:0"].players[player]
+		var after: Dictionary=preview["club:0"].profile.players[player]
+		var changes: Array[String]=[]
+		for stat: String in SeasonPlayerCatalog.STATS:
+			if before.stats[stat]!=after.stats[stat]: changes.append("%s %d → %d"%[stat.capitalize(),before.stats[stat],after.stats[stat]])
+		for recipe: String in before.mastery:
+			if before.mastery[recipe]!=after.mastery[recipe]: changes.append("%s mastery %d → %d"%[recipe,before.mastery[recipe],after.mastery[recipe]])
+		var definition: PlayerDefinition=ContentDB.player_by_id.get(StringName(player))
+		_note((definition.display_name if definition!=null else player)+": "+(", ".join(changes) if not changes.is_empty() else "No stat or mastery loss"))
+	_button(_body,"START NEXT SEASON…",Callable(app,"request_lifecycle").bind("next"))
+	_note("Cancel the confirmation to keep this exact saved preview. Loading or closing the app never applies decay.")
+
+func _note(text: String) -> Label:
+	var label: Label=_label(_body,text,16)
+	label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	return label

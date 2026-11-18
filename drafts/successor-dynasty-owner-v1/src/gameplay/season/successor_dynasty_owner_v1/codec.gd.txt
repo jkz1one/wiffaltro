@@ -1,5 +1,7 @@
 extends RefCounted
 ## Materialized offline consistency contract. No historical physics/journal replay.
+const SESSION_VERSION: int = 2
+const SESSION_FORMAT: String = "wiffaltro-dynasty-current-session-v2"
 const Catalog = preload("catalog.gd")
 const Builds = preload("build_codec.gd")
 const Runtime = preload("runtime.gd")
@@ -109,11 +111,15 @@ static func scope(season: SeasonState) -> bool:
 		or season.career == null or season.career.get_script() != Career or not season.league_career \
 		or season.opponents == null or season.opponents.get_script() != Opponents or season.opponents._format != 13 \
 		or season.physical == null or season.physical.get_script() != Physical or season.ownership == null: return false
-	if not whole(season.season_seed,0,2147483647) or season.career.current != 1 or season.career.runs.size() != 1: return false
+	if not whole(season.season_seed,0,2147483647) or season.build._seed!=season.season_seed or season.career.current != 1 or season.career.runs.size() != 1: return false
 	var expected: Dictionary = LeagueRules.capture("dynasty")
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
-	var marker: Variant = season.career.start_basis.get("genesis")
-	if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
+	var basis: Dictionary = season.career.start_basis
+	if basis.get("kind")=="dynasty-carried-start-v2":
+		if not keys(basis,["kind","birth_seed","rights"]) or not rights_valid(basis.rights) or basis.birth_seed!=basis.rights.birth_seed or season.phase==SeasonState.Phase.DRAFT: return false
+	else:
+		var marker: Variant = basis.get("genesis")
+		if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
 	return true
 
 static func _structural_valid(season: SeasonState) -> bool:
@@ -130,13 +136,22 @@ static func _structural_valid(season: SeasonState) -> bool:
 		ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
 		_draws.clear()
 		for i in range(6): _draws.append(rng.randf())
-	if _basis.is_empty() or not same(season.career.start_basis,_basis) or not same(season.player_access,_basis.player_access): return false
-	if not same(season.career._assets,_basis.assets) or not same(season.career._pennants,Settlement.birth_pennants(_basis)) or not same(season.career._plaques,_basis.plaques) or season.career._pitch_catalog != Catalog.game_signature(): return false
+	var carried: bool = season.career.start_basis.get("kind")=="dynasty-carried-start-v2"
+	if carried:
+		var rights: Dictionary = season.career.start_basis.rights
+		if not same(season.player_access,rights.player_access) or not same(season.draft_pool,rights.player_access) \
+			or not same(season.career._assets,rights.assets) or not same(season.career._pennants,rights.pennants) \
+			or not same(season.career._plaques,rights.plaques): return false
+	else:
+		if _basis.is_empty() or not same(season.career.start_basis,_basis) or not same(season.player_access,_basis.player_access): return false
+		if not same(season.career._assets,_basis.assets) or not same(season.career._pennants,Settlement.birth_pennants(_basis)) or not same(season.career._plaques,_basis.plaques): return false
+	if season.career._pitch_catalog != Catalog.game_signature(): return false
 	if not same(season.career.runs[0],Career.row(season)): return false
 	if season.phase == SeasonState.Phase.DRAFT:
 		if not season._dynasty_start.is_empty() or not season.build._dynasty_start.is_empty(): return false
 	else:
 		if not same(season._dynasty_start,season.build._dynasty_start): return false
+		var roster_ids: Dictionary = {}
 		for index in range(6):
 			var entry: Variant = season.opponents.clubs.get(str(index),{})
 			if index > 0 and not entry is Dictionary: return false
@@ -144,7 +159,15 @@ static func _structural_valid(season: SeasonState) -> bool:
 			if not club_value is SeasonBuild: return false
 			var club: SeasonBuild = club_value
 			var start: Dictionary = Profile.normalize(club._dynasty_start)
-			if start.is_empty() or start.lineage_id != "dynasty:%d"%season.season_seed or start.owner_id != "club:%d"%index or start.season_ordinal != 1 or start.seed != club._seed or not same(start.roster,club._initial_roster): return false
+			var birth: int = int(season.career.start_basis.birth_seed) if carried else season.season_seed
+			var ordinal: int = int(season._dynasty_start.get("season_ordinal",0))
+			if start.is_empty() or start.lineage_id != "dynasty:%d"%birth or start.owner_id != "club:%d"%index \
+				or start.season_ordinal!=ordinal or (ordinal<2 if carried else ordinal!=1) \
+				or start.seed != club._seed or not same(start.roster,club._initial_roster): return false
+			for id: String in start.roster:
+				if roster_ids.has(id): return false
+				roster_ids[id]=true
+			if carried and not starts_match(club,season.career.start_basis.rights.club_starts["club:%d"%index]): return false
 	if season.teams.size()!=6 or season.draft_pool.size()<12 or season.picks.size()>4: return false
 	var seen: Dictionary = {}
 	for id: String in season.draft_pool:
@@ -296,7 +319,7 @@ static func _payload(season: SeasonState) -> Dictionary:
 		club.build = Builds.capture(club.build)
 		if club.build.is_empty(): return {}
 		clubs[id] = club
-	var data: Dictionary = {"version":Catalog.VERSION,"format":Catalog.FORMAT,"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
+	var data: Dictionary = {"version":SESSION_VERSION,"format":SESSION_FORMAT,"session":session_metadata(season),"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
 		"state":data_fields(season,FIELDS),"ownership":bank,"build":build,"career":data_fields(season.career,CAREER_FIELDS),
 		"opponents":{"draft_order":season.opponents.draft_order.duplicate(),"draft_rule":season.opponents.draft_rule,"format":season.opponents._format,"clubs":clubs},
 		"physical":data_fields(season.physical,PHYSICAL_FIELDS)}
@@ -310,9 +333,19 @@ static func _payload(season: SeasonState) -> Dictionary:
 
 
 static func restore(value: Variant) -> SeasonState:
+	return _restore(value,false)
+
+# Explicit old75 admission, never an automatic fallback from the new reader.
+static func restore_legacy75(value: Variant) -> SeasonState:
+	return _restore(value,true)
+
+static func _restore(value: Variant, legacy: bool) -> SeasonState:
 	restore_calls += 1
-	if not primitive(value) or not keys(value,["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]) \
-		or not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT \
+	var fields: Array = ["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]
+	if not legacy: fields.append("session")
+	if not primitive(value) or not keys(value,fields) \
+		or not whole(value.version,Catalog.VERSION if legacy else SESSION_VERSION,Catalog.VERSION if legacy else SESSION_VERSION) \
+		or value.format != (Catalog.FORMAT if legacy else SESSION_FORMAT) \
 		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
 	var result: SeasonState = Runtime.new()
 	if not install_fields(result,FIELDS,value.state): return null
@@ -337,5 +370,48 @@ static func restore(value: Variant) -> SeasonState:
 		club.build = Builds.restore(club.build)
 		if club.build == null: return null
 		result.opponents.clubs[id] = club
+	if legacy and result.career.start_basis.get("kind")=="dynasty-carried-start-v2": return null
 	var captured: Dictionary = capture(result)
+	if legacy and not captured.is_empty():
+		captured.erase("session")
+		captured.version=Catalog.VERSION
+		captured.format=Catalog.FORMAT
 	return result if not captured.is_empty() and same(captured,value) else null
+
+
+static func session_metadata(season: SeasonState) -> Dictionary:
+	var carried: bool = season.career.start_basis.get("kind")=="dynasty-carried-start-v2"
+	var birth: int = int(season.career.start_basis.birth_seed) if carried else season.season_seed
+	return {"kind":"carried" if carried else "fresh","lineage":"dynasty:%d"%birth,
+		"ordinal":int(season._dynasty_start.get("season_ordinal",1)),"birth_seed":birth}
+
+static func rights_valid(value: Variant) -> bool:
+	if not primitive(value) or not keys(value,["birth_seed","player_access","assets","pennants","plaques","starts","club_starts"]) \
+		or not whole(value.birth_seed,0,2147483647) or not value.player_access is Array \
+		or not ClubPlayerCatalog.valid_ids(value.player_access) or value.player_access.size()<12 \
+		or not value.assets is Dictionary or not value.pennants is Dictionary or not value.plaques is Dictionary \
+		or not keys(value.club_starts,["club:0","club:1","club:2","club:3","club:4","club:5"]) \
+		or not same(value.starts,value.club_starts["club:0"]): return false
+	var template: Dictionary = Genesis.derive(int(value.birth_seed)).starts
+	for key: String in value.club_starts:
+		var start: Variant = value.club_starts[key]
+		if not keys(start,template.keys()): return false
+		for field: String in template:
+			if typeof(template[field])==TYPE_INT:
+				if not whole(start[field],0,3): return false
+			elif typeof(start[field])!=typeof(template[field]): return false
+	return true
+
+static func starts_match(build: SeasonBuild, start: Dictionary) -> bool:
+	if build._gear_progress.enabled!=start.gear_enabled or build._sponsor_progress.enabled!=start.sponsor_enabled: return false
+	if not same(build._gear_progress.start,start.gear) or not same(build._sponsor_progress.start,start.sponsors): return false
+	if build._market==12:
+		if build._major.start!=null or build._abilities.start!=null or build._copy.start!=null: return false
+		for key: String in ["order","rain","transfer","supply","checkout","association","freezer","sides","jump","sure","field","batch"]:
+			if build.get("_"+key+"_start")!=null: return false
+		return true
+	if not same(build._major.start,start.major) or not same(build._abilities.start,start.abilities) \
+		or not same(build._copy.start,start.copy): return false
+	for key: String in ["order","rain","transfer","supply","checkout","association","freezer","sides","jump","sure","field","batch"]:
+		if not same(build.get("_"+key+"_start"),start[key]): return false
+	return true
