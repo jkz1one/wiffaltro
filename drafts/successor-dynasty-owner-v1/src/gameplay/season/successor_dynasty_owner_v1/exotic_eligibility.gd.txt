@@ -1,0 +1,43 @@
+extends "res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd"
+## Same receipt mathematics and proof schema; explicit named Dynasty factory.
+
+static func successor_build(build: SeasonBuild) -> bool:
+	return build != null and build.get_script().resource_path == "res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_build.gd" \
+		and build.has_method("pitch_catalog_successor") and build.call("pitch_catalog_successor") == true \
+		and build._book != null and build._book._pitch_catalog_version == 7
+
+static func capture(season: SeasonState) -> Dictionary:
+	if season == null or not successor_build(season.build) or season.build._market != 0:
+		return {}
+	var rewards: Array[Dictionary] = []
+	for event: Dictionary in season.build._events:
+		if event.get("op") == "reward":
+			return {}  # No legacy reward import/re-signing.
+		if event.get("op") == "successor_reward":
+			var reward: Dictionary = reward_command(event)
+			if reward.is_empty():
+				return {}
+			rewards.append(reward)
+	if rewards.size() != season.player_results.size():
+		return {}
+	var games: Array = []
+	for index in range(season.player_results.size()):
+		var game: Dictionary = season.player_results[index]
+		var reward: Dictionary = rewards[index]
+		var roster: Array[String] = season.build.roster_for_game(int(game.get("id", -1)))
+		roster.sort()
+		if reward.get("game") != game.get("id") or not game.get("pitching") is Dictionary \
+			or not ClubCareer.same(game.pitching, reward.get("pitching")) \
+			or not ClubCareer.same(game.get("performance"), reward.get("performance")) \
+			or not ClubCareer.same(game.get("club_roster"), roster) \
+			or game.has("pitching_current") != reward.has("pitching_current"):
+			return {}
+		if game.has("pitching_current") and not ClubCareer.same(game.pitching_current, reward.pitching_current):
+			return {}
+		var row: Dictionary = _capture_game(game)
+		if row.is_empty():
+			return {}
+		games.append(row)
+	var result: Dictionary = {"version": VERSION, "catalog": Catalog.signature(),
+		"season": season.build._book._season_key, "games": games}
+	return result if valid(result) else {}

@@ -16,9 +16,9 @@ static func capture(lab: PitchBatLab) -> Dictionary:
 		or lab.get_meta("stadium_candidate_only",false) \
 		or lab.get_meta("stadium_npc_retained_lab_only",false) \
 		or not Core._animation_capture_is_closed(lab): return {}
-	return wrap(Core._capture_core(lab),lab._match_state)
+	return wrap_report(Core._capture_core(lab),lab._match_state)
 
-static func wrap(body: Dictionary, state: MatchState, venue: Dictionary = {}) -> Dictionary:
+static func wrap_report(body: Dictionary, state: MatchState, venue: Dictionary = {}) -> Dictionary:
 	if not context_valid(state) or not venue.is_empty(): return {}
 	var result: Dictionary = {"version":VERSION,"resolver":RESOLVER,"pitch_catalog":state.pitch_catalog,
 		"league_rules":state.league_rules.duplicate(true),"ownership":[],"dynasty_start":[],

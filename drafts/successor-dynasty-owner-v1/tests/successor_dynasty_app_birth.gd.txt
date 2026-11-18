@@ -1,0 +1,56 @@
+extends Node
+## Actual opt-in launcher handlers, isolated no-predecessor fresh draft and cold.
+## Button signal dispatch qualifies wiring, not native mouse dispatch.
+const Launcher=preload("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func button(node: Node,label: String) -> Button:
+	if node is Button and node.text==label: return node
+	for child in node.get_children():
+		var found=button(child,label)
+		if found!=null: return found
+	return null
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==1 and args[0] in ["birth","cold"],"explicit isolated launcher birth/cold"): return
+	var old: Dictionary={}
+	for path: String in ["user://wiffaltro-materialized-play-v1.json","user://wiffaltro-materialized-play-v1.json.bak"]:
+		old[path]=FileAccess.get_file_as_bytes(path)
+		if not check(not old[path].is_empty(),"genuine existing119 save fixture present"): return
+	var app=Launcher.instantiate();add_child(app);await get_tree().process_frame
+	if args[0]=="birth":
+		if not check(not Store.occupied() and app.season==null and app.career_owner==null,"new launcher has no injected owner or predecessor"): return
+		var start=button(app.menu,"NEW DYNASTY TEST CAREER")
+		if not check(start!=null and not start.disabled,"real new-career launcher control"): return
+		var begun: int=Time.get_ticks_msec();start.pressed.emit()
+		print("FRESH_HANDLER_MS: ",Time.get_ticks_msec()-begun)
+		if not check(app.season!=null and app.career_owner.session==app.season and app.retained==null and app._owned(),"null-owner prepared fresh save promoted and privately admitted"): return
+		for pick in range(4):
+			var id: String=app.season.offers()[0]
+			var choose=button(app.menu,app.season.build.definition(id).display_name)
+			if not check(choose!=null and not choose.disabled,"actual offered player choice control"): return
+			begun=Time.get_ticks_msec();choose.pressed.emit()
+			print("DRAFT_HANDLER_MS: ",Time.get_ticks_msec()-begun)
+			if not check(app.retained==null and app.season.picks.size()==pick+1 and app._owned(),"actual draft choice saved/promoted once"): return
+	else:
+		var primary: PackedByteArray=Store.raw()
+		var backup: PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+		var resume=button(app.menu,"CONTINUE DYNASTY TEST CAREER")
+		if not check(resume!=null,"actual cold Continue control"): return
+		var begun: int=Time.get_ticks_msec();resume.pressed.emit()
+		print("COLD_HANDLER_MS: ",Time.get_ticks_msec()-begun)
+		if not check(Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"separate cold preserves main and backup bytes"): return
+	if not check(app.season!=null and app.season.picks.size()==4 and app.season.results.is_empty() and app.season.career.current==1 and app.season.career.runs.size()==1 and app.career_owner.alternate.is_empty(),"genuine fresh first-season four-pick owner, no invented history"): return
+	for club in range(6):
+		var build=app.season.build if club==0 else app.season.opponents.clubs[str(club)].build
+		if not check(build._dynasty_start.owner_id=="club:%d"%club and build._dynasty_start.season_ordinal==1,"each authored carried club begins ordinal1"): return
+	if not check(ClubCareer.same(Owner.capture(app.career_owner),JSON.parse_string(Store.raw().get_string_from_utf8())),"exact materialized outer durable payload"): return
+	for path: String in old:
+		if not check(FileAccess.get_file_as_bytes(path)==old[path],"previous119 main/backup preserved"): return
+	print("PASS: actual Dynasty launcher fresh4pick/strictcold wiring; no physical or native-dispatch claim")
+	get_tree().quit()

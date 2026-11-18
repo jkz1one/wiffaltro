@@ -1,52 +1,178 @@
 extends RefCounted
-## Separate owner slot; guarded atomic write, original119 save never touched.
-const Owner = preload("owner.gd")
+## Atomic new-slot storage. CAS is concurrency consistency, not anti-cheat proof.
 const Codec = preload("codec.gd")
+const Owner = preload("owner.gd")
+const RawGuard = preload("raw_guard.gd")
 const PATH: String = "user://wiffaltro-dynasty-owner-v1.json"
-const MAX_BYTES: int = 64*1024*1024
+const MAX_BYTES: int = 64 * 1024 * 1024
 static var saving: bool = false
 static var last_error: String = ""
+# Process-private admission. Never serialized; no caller validation flag/payload.
+static var _owner_session: SeasonState
+static var _candidate_session: SeasonState
+static var _alternate: Dictionary = {}
+static var _imported_sha256: String = ""
+static var _owner: RefCounted
+static var _owner_raw: Dictionary = {}
+static var _owner_bytes: PackedByteArray = PackedByteArray()
+static var _ticket: RefCounted
+static var _candidate: RefCounted
+static var _candidate_raw: Dictionary = {}
+static var _candidate_data: Dictionary = {}
+static var _expected: PackedByteArray = PackedByteArray()
+static var _written: PackedByteArray = PackedByteArray()
+
 static func raw() -> PackedByteArray:
 	return FileAccess.get_file_as_bytes(PATH) if FileAccess.file_exists(PATH) else PackedByteArray()
 static func occupied() -> bool:
-	for suffix: String in ["",".bak",".tmp"]:
+	for suffix: String in ["", ".bak", ".tmp"]:
 		if FileAccess.file_exists(PATH+suffix) or DirAccess.dir_exists_absolute(PATH+suffix): return true
 	return false
-static func read():
+static func read() -> RefCounted:
+	last_error = ""
+	if not FileAccess.file_exists(PATH):
+		last_error = "No Dynasty owner is saved in this slot. Earlier saves are unchanged."
+		return null
 	var file: FileAccess = FileAccess.open(PATH,FileAccess.READ)
-	if file == null or file.get_length()>MAX_BYTES: return null
-	var bytes: PackedByteArray = file.get_buffer(file.get_length()); file.close()
+	if file == null or file.get_length() > MAX_BYTES:
+		last_error = "The save could not be read safely. It has not been changed."
+		return null
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
+	file.close()
 	var parser: JSON = JSON.new()
-	if parser.parse(bytes.get_string_from_utf8())!=OK: return null
-	var result = Owner.restore(parser.data)
-	return result if raw()==bytes else null
-static func save(owner,expected: PackedByteArray) -> bool:
+	if parser.parse(bytes.get_string_from_utf8()) != OK:
+		last_error = "The save is unreadable. Original and backup are preserved."
+		return null
+	var season: RefCounted = Owner.restore(parser.data)
+	if season == null:
+		last_error = "This Dynasty owner has an unsupported version or inconsistent state. No files were changed."
+		return null
+	var snapshot: Dictionary = RawGuard.capture(season)
+	if snapshot.is_empty() or raw() != bytes:
+		last_error = "The save changed during read or could not be admitted. No files were changed."
+		return null
+	_invalidate()
+	_owner = season; _owner_session = season.session; _owner_raw = snapshot; _owner_bytes = bytes.duplicate()
+	_alternate = season.alternate.duplicate(true); _imported_sha256 = season.imported_sha256
+	return season
+static func save(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary = {}) -> bool:
 	if saving: return false
 	saving = true
-	var result: bool = _write(owner,expected)
+	var result: bool = _write(season,expected,expected_snapshot)
 	saving = false
+	if result: _invalidate()
 	return result
 static func _matches(expected: PackedByteArray) -> bool:
-	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw()==expected))
-static func _write(owner,expected: PackedByteArray) -> bool:
-	last_error = "The exact candidate remains retained; no replacement owner was committed."
-	if not _matches(expected): return false
-	for suffix: String in ["",".bak",".tmp"]:
+	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw() == expected))
+static func _write(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary) -> bool:
+	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
+	if not _matches(expected):
+		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
+		return false
+	for suffix: String in ["", ".bak", ".tmp"]:
 		if DirAccess.dir_exists_absolute(PATH+suffix): return false
 	if FileAccess.file_exists(PATH+".tmp") or (expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
-	var data: Dictionary = Owner.capture(owner)
-	if data.is_empty(): return false
+	var data: Dictionary = Owner.capture(season)
+	if data.is_empty() or (not expected_snapshot.is_empty() and not Codec.same(data,expected_snapshot)):
+		last_error = "This candidate is inconsistent with the materialized save contract."
+		return false
+	return _write_data(data,expected)
+
+static func _write_data(data: Dictionary, expected: PackedByteArray) -> bool:
 	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
-	if bytes.is_empty() or bytes.size()>MAX_BYTES: return false
+	if bytes.is_empty() or bytes.size() > MAX_BYTES: return false
+	# Validate the actual encoded primitive representation against this exact
+	# same-call consistent candidate. Cold hydration is independently qualified;
+	# do not rerun it and recapture six clubs again inside every button handler.
 	var parser: JSON = JSON.new()
-	if parser.parse(bytes.get_string_from_utf8())!=OK or not Codec.same(parser.data,data): return false
+	if parser.parse(bytes.get_string_from_utf8()) != OK or not Codec.same(parser.data,data): return false
 	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.WRITE)
 	if file == null: return false
 	file.store_buffer(bytes); file.flush()
-	var ok: bool = file.get_error()==OK; file.close()
-	if not ok or FileAccess.get_file_as_bytes(PATH+".tmp")!=bytes or not _matches(expected): return false
-	if not expected.is_empty() and DirAccess.copy_absolute(PATH,PATH+".bak")!=OK: return false
+	var ok: bool = file.get_error() == OK
+	file.close()
+	if not ok or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes or not _matches(expected): return false
+	if not expected.is_empty() and DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return false
 	if not _matches(expected): return false
-	if DirAccess.rename_absolute(PATH+".tmp",PATH)!=OK or raw()!=bytes: return false
+	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or raw() != bytes: return false
 	last_error = ""
+	return true
+
+static func _invalidate() -> void:
+	_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = PackedByteArray()
+	_alternate = {}; _imported_sha256 = ""
+	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
+	_expected = PackedByteArray(); _written = PackedByteArray()
+
+static func match_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
+	return owner != null and owner == _owner and owner.session == _owner_session and expected == _owner_bytes \
+		and _matches(expected) and _matches_raw(owner,_owner_raw)
+
+static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
+	var current: Dictionary = RawGuard.capture(value)
+	return not current.is_empty() and RawGuard.same(current,snapshot)
+
+static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> RefCounted:
+	if saving or _ticket != null or candidate == null or candidate == owner: return null
+	if candidate.get_script()!=Owner or candidate.session==null: return null
+	if owner == null:
+		if not expected.is_empty() or not _matches(expected): return null
+	else:
+		if not match_owner(owner,expected) or candidate.session==owner.session: return null
+	# Only this private boundary creates the writer's canonical payload. Callers
+	# can receive detached diagnostics, never supply a substitute validated value.
+	var data: Dictionary = {}
+	if owner != null:
+		if not RawGuard.same(candidate.alternate,_alternate) or candidate.imported_sha256 != _imported_sha256: return null
+		# Dormant alternate was strictly admitted on read/promotion. Exact live raw
+		# owner pins were checked above; no caller validation flag or payload.
+		var current: Dictionary = Codec.capture(candidate.session)
+		if not current.is_empty():
+			data = {"version":1,"format":Owner.FORMAT,"active":"dynasty","dynasty":current,
+				"alternate":_alternate.duplicate(true),"imported_sha256":_imported_sha256}
+	else:
+		data = Owner.capture(candidate)
+	if data.is_empty(): return null
+	var snapshot: Dictionary = RawGuard.capture(candidate)
+	if snapshot.is_empty(): return null
+	if owner == null:
+		_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = expected.duplicate()
+	_ticket = RefCounted.new()
+	_candidate = candidate; _candidate_session = candidate.session; _candidate_raw = snapshot; _candidate_data = data
+	_expected = expected.duplicate(); _written = PackedByteArray()
+	return _ticket
+
+static func prepared_matches(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
+	if ticket == null or ticket != _ticket or owner != _owner or candidate != _candidate or expected != _expected: return false
+	if candidate.session != _candidate_session or (owner != null and owner.session != _owner_session): return false
+	return (owner == null or _matches_raw(owner,_owner_raw)) and _matches_raw(candidate,_candidate_raw)
+
+static func prepared_snapshot(ticket: RefCounted) -> Dictionary:
+	return _candidate_data.duplicate(true) if ticket != null and ticket == _ticket else {}
+
+static func write_prepared(ticket: RefCounted) -> bool:
+	if saving or ticket == null or ticket != _ticket or not _written.is_empty(): return false
+	if not prepared_matches(ticket,_owner,_candidate,_expected): return false
+	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
+	if not _matches(_expected):
+		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
+		return false
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if DirAccess.dir_exists_absolute(PATH+suffix): return false
+	if FileAccess.file_exists(PATH+".tmp") or (_expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
+	saving = true
+	var result: bool = _write_data(_candidate_data,_expected)
+	saving = false
+	if result: _written = raw()
+	return result
+
+static func written_bytes(ticket: RefCounted) -> PackedByteArray:
+	return _written.duplicate() if ticket != null and ticket == _ticket else PackedByteArray()
+
+static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
+	if _written.is_empty() or raw() != _written or not prepared_matches(ticket,owner,candidate,expected): return false
+	_owner = _candidate; _owner_session = _candidate_session; _owner_raw = _candidate_raw; _owner_bytes = _written.duplicate()
+	_alternate = _candidate.alternate.duplicate(true); _imported_sha256 = _candidate.imported_sha256
+	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
+	_expected = PackedByteArray(); _written = PackedByteArray()
 	return true

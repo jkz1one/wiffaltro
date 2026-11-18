@@ -1,0 +1,15 @@
+extends "res://src/presentation/season/successor_dynasty_owner_v1/app.gd"
+## No OS quit or physical teardown: isolated synchronous owner-boundary probes.
+var quit_calls: int=0
+var close_calls: int=0
+var swap_on_close: bool=false
+func _quit_now() -> void:
+	quit_calls+=1
+func _close_match(_close_inventory: bool=false) -> bool:
+	close_calls+=1
+	if is_instance_valid(lab): lab.free()
+	lab=null
+	if swap_on_close:
+		swap_on_close=false
+		career_owner=career_owner.fork()
+	return true

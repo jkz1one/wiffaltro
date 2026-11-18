@@ -3,10 +3,11 @@ extends RefCounted
 const Codec = preload("codec.gd")
 const Fixtures = preload("physical_fixtures.gd")
 const Original = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
+const MAX_PENDING_REPORTS: int = 5
 static var project_calls: int = 0
 static func shape(season: SeasonState) -> bool:
 	return season != null and Codec.scope(season) and not season.physical.pending.is_empty() \
-		and Original._shape(season.physical.pending,true,false,false,false,Codec.Catalog.game_signature())
+		and _shape(season.physical.pending,Codec.Catalog.game_signature())
 static func project(owner: SeasonState) -> Dictionary:
 	project_calls += 1
 	if not shape(owner): return {"error":"The saved current round is inconsistent."}
@@ -16,8 +17,10 @@ static func project(owner: SeasonState) -> Dictionary:
 	candidate.physical.pending.clear()
 	# Starts at the saved consumed-prefix cursor. Only this round's newly
 	# appended reports are resolved. Earlier physical games are not rerun.
-	return Original._project_candidate(candidate,pending)
+	return _project_candidate(candidate,pending)
 static func stage_report(owner: SeasonState, raw: Dictionary) -> Dictionary:
+	if not preload("physical_report.gd").valid(raw,Codec.Catalog.game_signature()):
+		return {"error":"The physical report is invalid."}
 	var result: Dictionary = project(owner)
 	if result.has("error") or not result.get("fixture") is Dictionary: return {"error":"No matching physical job remains in this round."}
 	var request: String = Fixtures.request_key(result.candidate,result.fixture)
@@ -30,3 +33,32 @@ static func stage_report(owner: SeasonState, raw: Dictionary) -> Dictionary:
 	var validated: Dictionary = project(candidate)
 	if validated.has("error"): return validated
 	return {"candidate":candidate}
+
+# Up to five reports preserve eliminated-human regular/playoff chains.
+# Current-only envelope: preserve the established human13 settlement arguments,
+# but admit only this family's carried-profile physical reports.
+static func _shape(value: Variant, catalog: String) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value,["human","reports"]) \
+		or not value.reports is Array or value.reports.size()>MAX_PENDING_REPORTS: return false
+	# Pure human argument shape; no historical report envelope reaches this helper.
+	if not Original._shape({"human":value.human,"reports":[]},true,false,false,false,catalog): return false
+	var seen: Array = []
+	for row: Variant in value.reports:
+		if not Fixtures.envelope(row,catalog) or seen.has(row.fixture): return false
+		seen.append(row.fixture)
+	return true
+
+static func _project_candidate(candidate: SeasonState, pending: Dictionary) -> Dictionary:
+	candidate.physical.reports.append_array(pending.reports.duplicate(true))
+	candidate.physical.projecting = true
+	var ok: bool = candidate.callv("record_player_result",pending.human)
+	if candidate.physical.cursor != candidate.physical.reports.size():
+		return {"error":"The pending round contains an unexpected physical fixture."}
+	if ok:
+		if not Original._receipts(candidate):
+			return {"error":"The round did not settle every club's own fixture exactly once."}
+		candidate.physical.projecting = false
+		return {"candidate":candidate}
+	if not candidate.physical.needed.is_empty() and candidate.physical.error.is_empty():
+		return {"candidate":candidate,"fixture":candidate.physical.needed.duplicate(true)}
+	return {"error":"The completed game or carried-profile physical evidence failed validation."}

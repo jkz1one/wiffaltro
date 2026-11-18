@@ -1,7 +1,10 @@
 # Materialized live progress summary (checkpoint72)
 
 Parent: verified checkpoint71 `9d532c44ace3c2df14861d6d2cd75d2f9076dccc`.
-Status: targeted final qualification and native smoke passed; remote publication pending.
+Status: checkpoints72 and73 were independently verified on the recovery branch.
+Checkpoint72: `a8e8b65cd67a1b682ed3de08c424b930b70bd209`; checkpoint73:
+`af4ed0d6aa96d47b565428ed5e35aa88db0a5771`. These are scoped performance
+checkpoints, not a completed game or target-platform release.
 
 ## Finding and bounded correction
 
@@ -111,8 +114,9 @@ later player-interface polish pass without removing features or original art.
 
 Parent72 is remotely verified at
 `a8e8b65cd67a1b682ed3de08c424b930b70bd209`.
-Status: all 11 final targeted regression processes and native smoke passed;
-remote publication pending. This is not yet a verified checkpoint.
+Status: all 11 final targeted regression processes and native smoke passed.
+Exact11 audited files, remote parent and every published byte/hash were
+independently verified at `af4ed0d6aa96d47b565428ed5e35aa88db0a5771`.
 
 The same119 schema, save slot and frozen gameplay remain unchanged. A private
 Store session now binds the strictly read owner to its exact primary bytes and

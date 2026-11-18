@@ -1,0 +1,71 @@
+extends Node
+## Isolated imported-alternate/private-owner checks. No fabricated gameplay.
+const App = preload("res://tests/successor_dynasty_owner_spy.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_fixtures.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Codec = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Previous = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1","isolated Dynasty private-owner test"): return
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var bytes: PackedByteArray=Store.raw()
+	var owner=Store.read()
+	var original: PackedByteArray=FileAccess.get_file_as_bytes("user://wiffaltro-materialized-play-v1.json")
+	var old_backup: PackedByteArray=FileAccess.get_file_as_bytes("user://wiffaltro-materialized-play-v1.json.bak")
+	if not check(owner!=null and owner.alternate.is_empty() and not original.is_empty(),"real74 fresh owner and copied genuine119 alternate"): return
+	if not check(owner.import_119(original) and Store.save(owner,bytes),"explicit strict119 alternate imported into separate owner slot"): return
+	app.reload_save()
+	if not check(app.career_owner!=null and app.career_owner.session==app.season and not app.career_owner.alternate.is_empty(),"strict outer cold admission binds exact current session"): return
+	bytes=Store.raw()
+	var snapshot: Dictionary=Owner.capture(app.career_owner)
+	var calls: int=Previous.restore_calls
+	if not check(app._owned() and Previous.restore_calls==calls,"routine owner guard does not restore119alternate"): return
+	var hash: String=app.career_owner.imported_sha256
+	app.career_owner.imported_sha256="0".repeat(64)
+	if not check(not app._owned(),"changed alternate import identity refused"): return
+	app.career_owner.imported_sha256=hash
+	app.career_owner.alternate.career._assets["hidden_probe"]=true
+	if not check(not app._owned(),"nested alternate asset mutation refused"): return
+	app.career_owner.alternate.career._assets.erase("hidden_probe")
+	var current: SeasonState=app.season
+	app.career_owner.session=current.fork_live()
+	if not check(not app._owned(),"equivalent replacement session pointer cannot impersonate active App season"): return
+	app.career_owner.session=current
+	if not check(app._owned() and Previous.restore_calls==calls,"exact alternate and session restored without old decode"): return
+	var replaced=app.career_owner.fork()
+	replaced.imported_sha256="f".repeat(64)
+	if not check(Store.prepare(app.career_owner,replaced,bytes)==null,"routine candidate cannot substitute valid-shape importhash"): return
+	replaced=app.career_owner.fork()
+	replaced.alternate.state.difficulty=(int(replaced.alternate.state.difficulty)+1)%3
+	if not check(Previous.restore(replaced.alternate)!=null,"alternate replacement is independently valid119 fixture"): return
+	calls=Previous.restore_calls
+	if not check(Store.prepare(app.career_owner,replaced,bytes)==null and Previous.restore_calls==calls,"routine candidate cannot replace valid alternate or invoke fallbackdecode"): return
+	var candidate=current.fork_live();candidate.difficulty=(current.difficulty+1)%3
+	app._retain(candidate,bytes)
+	if not check(app.retained==null and app.season==candidate and app.career_owner.session==candidate and Previous.restore_calls==calls,"routine retained transaction preserves immutable alternate without119replay"): return
+	if not check(Codec.same(app.career_owner.alternate,snapshot.alternate) and app.career_owner.imported_sha256==hash,"alternate payload and import identity preserved"): return
+	if not check(FileAccess.get_file_as_bytes("user://wiffaltro-materialized-play-v1.json")==original and FileAccess.get_file_as_bytes("user://wiffaltro-materialized-play-v1.json.bak")==old_backup,"original119slot main and backup unchanged"): return
+	var main: PackedByteArray=Store.raw();var backup: PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	app.reload_save()
+	if not check(app.career_owner!=null and app.career_owner.session==app.season and Store.raw()==main and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"outer cold preserves both files after private transaction"): return
+	var pinned=app.career_owner
+	var matched: MatchState=Fixtures.match_for(app.season.fork_live(),app.season.pending_fixture())
+	if not check(matched!=null,"real carried match context for exit-pin test double"): return
+	app.lab=PitchBatLab.new();app.lab._match_state=matched
+	app._request_exit("quit")
+	app.career_owner=app.career_owner.fork()
+	app._confirm_exit()
+	if not check(app.quit_calls==0 and app.close_calls==0 and is_instance_valid(app.lab),"outer wrapper swap before confirmation cannot close or quit"): return
+	app.career_owner=pinned
+	app._request_exit("quit");app.swap_on_close=true;app._confirm_exit()
+	if not check(app.quit_calls==0 and app.close_calls==1 and app.lab==null,"synchronous outer swap during cleanup cannot quit replacement"): return
+	app.career_owner=pinned
+	if not check(Store.raw()==main and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"exit wrapper probes preserve both saved files"): return
+	print("PASS: Dynasty outer owner and imported119alternate private pins; no gameplay claim")
+	get_tree().quit(0)

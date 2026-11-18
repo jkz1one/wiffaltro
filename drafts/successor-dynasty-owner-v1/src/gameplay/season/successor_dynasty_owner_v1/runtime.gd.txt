@@ -115,3 +115,34 @@ func record_player_result(
 func record_doubleheader_result(human: Array) -> bool:
 	if phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
 	return super.record_doubleheader_result(human) and career.sync(self)
+
+
+func _commit_player_result(
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary,
+	used_gear: Array,
+	tactics: Array,
+	batting: Dictionary,
+	stances: Array,
+	fielding: Array,
+	pitching: Dictionary,
+	field_supply: Dictionary,
+	frozen: Array,
+	ai_tactics: Dictionary,
+	replayed_tactics: Array,
+	property_key: String,
+	pool_evidence: Variant,
+	yard_evidence: Variant,
+	night_evidence: Variant,
+	doubleheader_evidence: Variant,
+	replay_pitching: Dictionary,
+	inventory_final: Variant,
+	fixture: Dictionary,
+	pitching_current: Dictionary = {}
+) -> bool:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/commit.gd")._source_private_commit_player_result(self, fixture_id, away_runs, \
+		home_runs, performance, used_gear, tactics, batting, stances, fielding, pitching, field_supply, \
+		frozen, ai_tactics, replayed_tactics, property_key, pool_evidence, yard_evidence, \
+		night_evidence, doubleheader_evidence, replay_pitching, inventory_final, fixture, pitching_current)

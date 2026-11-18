@@ -1,0 +1,144 @@
+extends RefCounted
+## Exact inherited human settlement, with only the current factory finalizer rebound.
+static func _source_private_commit_player_result(_source_owner: SeasonState,
+	fixture_id: int,
+	away_runs: int,
+	home_runs: int,
+	performance: Dictionary,
+	used_gear: Array,
+	tactics: Array,
+	batting: Dictionary,
+	stances: Array,
+	fielding: Array,
+	pitching: Dictionary,
+	field_supply: Dictionary,
+	frozen: Array,
+	ai_tactics: Dictionary,
+	replayed_tactics: Array,
+	property_key: String,
+	pool_evidence: Variant,
+	yard_evidence: Variant,
+	night_evidence: Variant,
+	doubleheader_evidence: Variant,
+	replay_pitching: Dictionary,
+	inventory_final: Variant,
+	fixture: Dictionary,
+	pitching_current: Dictionary = {}
+) -> bool:
+	if not pitching_current.is_empty() and not load("res://src/gameplay/season/successor_league_general_v2/called_proof.gd").accepts(
+		_source_owner.build, pitching_current, pitching):
+		return false
+	var command: Dictionary = {
+		"id": "game:%d" % fixture_id,
+		"rev": _source_owner.ownership.revision() if _source_owner.build == null else \
+			_source_owner.build.revision(),
+		"op": "reward",
+		"game": fixture_id,
+		"win": (home_runs > away_runs) == (fixture["home"] == 0)
+	}
+	if inventory_final is Dictionary and not inventory_final.is_empty():
+		command["inventory_final"] = inventory_final.duplicate(true)
+	if LeagueRules.doubleheader(_source_owner.league_rules):
+		command["doubleheader_workload"] = (
+			doubleheader_evidence[0 if fixture.away == 0 else 1].duplicate(true)
+		)
+		command["tactics"] = tactics.duplicate(true)
+		command["pitching"] = pitching.duplicate(true)
+	if LeagueRules.earnings(_source_owner.league_rules):
+		command["own_runs"] = home_runs if fixture.home == 0 else away_runs
+		command["opponent_runs"] = away_runs if fixture.home == 0 else home_runs
+	if _source_owner.build != null and _source_owner.build.to_data().version >= 6:
+		command["performance"] = performance.duplicate(true)
+	if _source_owner.build != null and _source_owner.build.to_data().version >= 10 and not \
+		used_gear.is_empty():
+		command["used_gear"] = used_gear.duplicate()
+	if not tactics.is_empty():
+		if _source_owner.build == null or _source_owner.build.to_data().version < 14:
+			return false
+		command["tactics"] = tactics.duplicate(true)
+	if not batting.is_empty():
+		command["batting"] = batting.duplicate(true)
+	if not stances.is_empty():
+		command["stances"] = stances.duplicate(true)
+	if not field_supply.is_empty():
+		command["field_supply"] = field_supply.duplicate(true)
+	if not pitching.is_empty():
+		command["pitching"] = pitching.duplicate(true)
+	if not fielding.is_empty():
+		command["fielding"] = fielding.duplicate(true)
+	if not frozen.is_empty():
+		command["frozen"] = frozen.duplicate(true)
+	if not pitching_current.is_empty():
+		command["pitching_current"] = pitching_current.duplicate(true)
+	var staged: SeasonBuild = null
+	var reward: Dictionary
+	if _source_owner.build != null and (_source_owner.build.pitch_catalog_current() or _source_owner.build.call("pitch_catalog_successor")):
+		var wrapped: Dictionary = load("res://src/gameplay/season/successor_league_general_v2/reward.gd").envelope(_source_owner.build, command)
+		if wrapped.is_empty():
+			return false
+		staged = _source_owner.build.candidate(wrapped)
+		reward = {"ok": staged != null}
+	else:
+		reward = _source_owner.ownership.commit(command) if _source_owner.build == null \
+			else _source_owner.build.commit(command)
+	if not reward.ok:
+		return false
+	var result: Dictionary = fixture.duplicate(true)
+	result["away_runs"] = away_runs
+	result["home_runs"] = home_runs
+	if command.has("inventory_final"):
+		result["inventory_final"] = inventory_final.duplicate(true)
+	if doubleheader_evidence != null:
+		result["doubleheader_evidence"] = doubleheader_evidence.duplicate(true)
+		result["pitching"] = (
+			(pitching if replay_pitching.is_empty() else replay_pitching).duplicate(true)
+		)
+		result["tactics"] = (tactics if not tactics.is_empty() else replayed_tactics).duplicate(
+			true
+		)
+	if not _source_owner.home_property.is_empty():
+		result["property"] = property_key
+	if pool_evidence != null:
+		result["pool_evidence"] = pool_evidence.duplicate(true)
+	if night_evidence != null:
+		result["night_evidence"] = night_evidence.duplicate(true)
+	if yard_evidence != null:
+		result["yard_evidence"] = yard_evidence.duplicate(true)
+	if _source_owner.build != null:
+		result["club_roster"] = _source_owner.teams[0]["roster"].duplicate()
+		result.club_roster.sort()
+	if not performance.is_empty():
+		result["performance"] = performance.duplicate(true)
+	if command.has("used_gear"):
+		result["used_gear"] = used_gear.duplicate()
+	if command.has("tactics"):
+		result["tactics"] = tactics.duplicate(true)
+	if command.has("batting"):
+		result["batting"] = batting.duplicate(true)
+	if command.has("stances"):
+		result["stances"] = stances.duplicate(true)
+	if command.has("field_supply"):
+		result["field_supply"] = field_supply.duplicate(true)
+	if command.has("pitching_current"):
+		result["pitching_current"] = pitching_current.duplicate(true)
+	if command.has("pitching"):
+		result["pitching"] = pitching.duplicate(true)
+	if command.has("fielding"):
+		result["fielding"] = fielding.duplicate(true)
+	if command.has("frozen"):
+		result["frozen"] = frozen.duplicate(true)
+	if _source_owner.opponents != null and _source_owner.opponents._format >= 9:
+		var index: int = fixture.away if fixture.home == 0 else fixture.home
+		result["ai_tactics"] = {str(index): ai_tactics.duplicate(true)}
+	if staged != null:
+		staged = load("res://src/gameplay/season/successor_dynasty_owner_v1/exotic_access.gd").finalized_candidate(staged, _source_owner.player_results, result) if staged.call("pitch_catalog_successor") else WorkingExoticAccess.finalized_candidate(staged, _source_owner.player_results, result)
+		if staged == null:
+			return false
+		_source_owner.build = staged
+	_source_owner.results.append(result)
+	_source_owner.player_results.append(result.duplicate(true))
+	return _source_owner._finish_round(fixture_id, result)
+# gdlint: enable=function-arguments-number
+
+
+# gdlint: disable=function-arguments-number

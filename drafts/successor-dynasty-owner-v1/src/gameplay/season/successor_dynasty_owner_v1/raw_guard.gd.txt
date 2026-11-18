@@ -1,0 +1,137 @@
+extends RefCounted
+## Private live identity guard only. Never save admission or serialized authority.
+## No semantic capture, catalog signatures, reconstruction or command execution.
+const Codec = preload("codec.gd")
+const Builds = preload("build_codec.gd")
+const MAX_DEPTH: int = 48
+const MAX_NODES: int = 1000000
+
+const Owner = preload("owner.gd")
+static func capture(owner: Variant) -> Dictionary:
+	var budget: Array = [MAX_NODES,true]
+	var result: Dictionary = _object(owner,Owner,["alternate","imported_sha256"],["session"],budget)
+	if not budget[1]: return {}
+	result.session = capture_session(owner.session)
+	return result if not result.session.is_empty() else {}
+
+static func capture_session(season: SeasonState) -> Dictionary:
+	var budget: Array = [MAX_NODES, true]
+	var result: Dictionary = _object(season, Codec.Runtime, Codec.FIELDS, Codec.OBJECTS, budget)
+	if not budget[1]: return {}
+	for name: String in ["_heat_replay_team", "_doubleheader_replay_build", "_pool_replay_ledger"]:
+		if season.get(name) != null: return {}
+		result[name] = null
+	result.ownership = _bank(season.ownership, budget)
+	result.build = _build(season.build, budget)
+	result.career = _object(season.career, Codec.Career, Codec.CAREER_FIELDS, [], budget)
+	result.physical = _object(season.physical, Codec.Physical, Codec.PHYSICAL_FIELDS, [], budget)
+	result.opponents = _object(season.opponents, Codec.Opponents, ["draft_order", "draft_rule", "_format"], ["clubs"], budget)
+	if not budget[1]: return {}
+	if season.opponents.clubs.is_typed(): return {}
+	var clubs: Dictionary = {}
+	for key: Variant in season.opponents.clubs:
+		if not key is String or not season.opponents.clubs[key] is Dictionary: return {}
+		var original: Dictionary = season.opponents.clubs[key]
+		if original.is_typed() or not original.has("build"): return {}
+		var club: Dictionary = {}
+		for field: Variant in original:
+			if not field is String: return {}
+			if field != "build": club[field] = _copy(original[field], 0, budget)
+		club.build = _build(original.build, budget)
+		if original.is_read_only(): club.make_read_only()
+		clubs[key] = club
+	if season.opponents.clubs.is_read_only(): clubs.make_read_only()
+	result.opponents["clubs"] = clubs
+	return result if budget[1] else {}
+
+static func _build(build: Variant, budget: Array) -> Dictionary:
+	var result: Dictionary = _object(build, Builds.GameBuild, Builds.BUILD.keys()+["last_error"], Builds.OBJECTS, budget)
+	if not budget[1]: return {}
+	result._bank = _bank(build._bank, budget)
+	result._book = _object(build._book, Builds.Book, Builds.BOOK.keys(), [], budget)
+	result._gear_progress = _object(build._gear_progress, SeasonGearProgress, Builds.GEAR.keys(), [], budget)
+	result._sponsor_progress = _object(build._sponsor_progress, SeasonSponsorProgress, Builds.SPONSOR.keys(), [], budget)
+	result._major = _object(build._major, SeasonDoubleMajor, Builds.MAJOR.keys(), [], budget)
+	result._abilities = _object(build._abilities, SeasonAbilities, Builds.ABILITIES.keys(), [], budget)
+	result._copy = _object(build._copy, SeasonCarbonCopy, Builds.COPY.keys(), [], budget)
+	return result
+
+static func _bank(bank: Variant, budget: Array) -> Dictionary:
+	return _object(bank, SeasonOwnership, Builds.BANK.keys()+["_catalog"], [], budget)
+
+static func _object(value: Variant, factory: Script, fields: Array, children: Array, budget: Array) -> Dictionary:
+	if not budget[1]: return {}
+	if not value is Object or not is_instance_valid(value) or value.get_script() != factory:
+		budget[1] = false
+		return {}
+	if not Codec.known_variables(value, fields+children):
+		budget[1] = false
+		return {}
+	var result: Dictionary = {}
+	for field: String in fields:
+		result[field] = _copy(value.get(field), 0, budget)
+	return result
+
+static func _copy(value: Variant, depth: int, budget: Array) -> Variant:
+	budget[0] -= 1
+	if not budget[1] or budget[0] < 0 or depth > MAX_DEPTH:
+		budget[1] = false
+		return null
+	match typeof(value):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_STRING, TYPE_STRING_NAME:
+			return value
+		TYPE_FLOAT:
+			if is_finite(value): return value
+		TYPE_ARRAY:
+			if value.get_typed_builtin() == TYPE_OBJECT: budget[1] = false; return null
+			var result: Array = value.duplicate(false)
+			for i in range(value.size()):
+				var item: Variant = _copy(value[i], depth+1, budget)
+				if not budget[1]: return null
+				result[i] = item
+			if value.is_read_only(): result.make_read_only()
+			return result
+		TYPE_DICTIONARY:
+			if value.get_typed_key_builtin() == TYPE_OBJECT or value.get_typed_value_builtin() == TYPE_OBJECT:
+				budget[1] = false; return null
+			var result: Dictionary = value.duplicate(false)
+			for key: Variant in value:
+				if typeof(key) not in [TYPE_INT, TYPE_STRING, TYPE_STRING_NAME]: budget[1] = false; return null
+				var item: Variant = _copy(value[key], depth+1, budget)
+				if not budget[1]: return null
+				result[key] = item
+			if value.is_read_only(): result.make_read_only()
+			return result
+	budget[1] = false
+	return null
+
+static func same(a: Variant, b: Variant) -> bool:
+	return _same(a,b,0,[MAX_NODES])
+
+static func _same(a: Variant, b: Variant, depth: int, budget: Array) -> bool:
+	budget[0] -= 1
+	if budget[0] < 0 or depth > MAX_DEPTH or typeof(a) != typeof(b): return false
+	match typeof(a):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_STRING, TYPE_STRING_NAME:
+			return a == b
+		TYPE_FLOAT:
+			return is_finite(a) and is_finite(b) and a == b
+		TYPE_ARRAY:
+			if a.is_read_only()!=b.is_read_only() or a.size()!=b.size() or a.get_typed_builtin()!=b.get_typed_builtin() or a.get_typed_class_name()!=b.get_typed_class_name() or a.get_typed_script()!=b.get_typed_script(): return false
+			for i in range(a.size()):
+				if not _same(a[i],b[i],depth+1,budget): return false
+			return true
+		TYPE_DICTIONARY:
+			if a.is_read_only()!=b.is_read_only() or a.size()!=b.size() or a.get_typed_key_builtin()!=b.get_typed_key_builtin() or a.get_typed_value_builtin()!=b.get_typed_value_builtin() or a.get_typed_key_class_name()!=b.get_typed_key_class_name() or a.get_typed_value_class_name()!=b.get_typed_value_class_name() or a.get_typed_key_script()!=b.get_typed_key_script() or a.get_typed_value_script()!=b.get_typed_value_script(): return false
+			# Godot dictionary lookup can conflate StringName and String keys.
+			# Compare actual key types, never merely has(key) or JSON key strings.
+			var keys_b: Dictionary = {}
+			for key: Variant in b:
+				if typeof(key) not in [TYPE_INT,TYPE_STRING,TYPE_STRING_NAME]: return false
+				keys_b[[typeof(key),str(key)]] = key
+			for key: Variant in a:
+				if typeof(key) not in [TYPE_INT,TYPE_STRING,TYPE_STRING_NAME]: return false
+				var tag: Array = [typeof(key),str(key)]
+				if not keys_b.has(tag) or not _same(a[key],b[keys_b[tag]],depth+1,budget): return false
+			return true
+	return false

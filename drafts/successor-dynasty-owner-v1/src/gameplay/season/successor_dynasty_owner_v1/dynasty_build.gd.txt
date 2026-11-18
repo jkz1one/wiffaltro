@@ -117,3 +117,10 @@ func _fork() -> SeasonBuild:
 	result._requests = _requests.duplicate(true)
 	return result
 
+
+
+func _apply(command: Dictionary) -> String:
+	if str(command.get("op","")) == "exotic_admit":
+		if pack_pending(): return "Choose or skip the open pack before leaving or doing other shopping."
+		return preload("exotic_access.gd").settle(self,command)
+	return super._apply(command)

@@ -1,0 +1,65 @@
+extends "res://src/gameplay/season/successor_league_general_v2/exotic_access.gd"
+## Current Dynasty factory binding only; no price, entitlement or receipt changes.
+const CurrentEligibility = preload("exotic_eligibility.gd")
+
+static func current_matches(season: SeasonState, build: SeasonBuild = null) -> bool:
+	if season == null or season.build == null or season.build._book == null \
+		or (build != null and build._book == null):
+		return false
+	var captured: Dictionary = CurrentEligibility.capture(season)
+	if captured.is_empty():
+		return false
+	var current: Dictionary = (season.build if build == null else build)._book._exotic_current
+	return captured.games.is_empty() if current.is_empty() else ClubCareer.same(current, captured)
+
+static func admit(season: SeasonState) -> bool:
+	if season == null or not CurrentEligibility.successor_build(season.build):
+		return false
+	var proof: Dictionary = CurrentEligibility.capture(season)
+	if proof.is_empty() or proof.games.is_empty():
+		return false
+	if ClubCareer.same(proof, season.build._book._exotic_current):
+		return true
+	return season.build.commit({"id": "exotic:%d" % int(proof.games[-1].game),
+		"rev": season.build.revision(), "op": "exotic_admit", "proof": proof}).ok
+
+static func settle(build: SeasonBuild, command: Dictionary) -> String:
+	if not CurrentEligibility.successor_build(build) or build._market != 0 or not build._keys(command, ["proof"]) \
+		or not CurrentEligibility.valid(command.get("proof")):
+		return "Invalid current Exotic admission."
+	var proof: Dictionary = command.proof
+	if proof.season != build._book._season_key or proof.games.is_empty():
+		return "Exotic admission belongs to another season."
+	var games: Array = []
+	for event: Dictionary in build._events:
+		if event.get("op") == "reward":
+			return "Legacy rewards cannot earn successor access."
+		if event.get("op") != "successor_reward":
+			continue
+		var reward: Dictionary = CurrentEligibility.reward_command(event)
+		if reward.is_empty():
+			return "Invalid successor reward origin."
+		var game: Dictionary = {"id": reward.get("game"), "club_roster": build.roster_for_game(int(reward.get("game", -1))),
+			"performance": reward.get("performance"), "pitching": reward.get("pitching")}
+		game.club_roster.sort()
+		if reward.has("pitching_current"):
+			game["pitching_current"] = reward.pitching_current
+		var row: Dictionary = CurrentEligibility._capture_game(game)
+		if row.is_empty():
+			return "Exotic admission requires complete settled reward evidence."
+		games.append(row)
+	if not ClubCareer.same(proof.games, games) or (not build._book._exotic_current.is_empty() \
+		and not proof_prefix(build._book._exotic_current, proof)):
+		return "Exotic admission changed settled evidence."
+	build._book.retain_exotic_current(proof)
+	return ""
+
+static func finalized_candidate(build: SeasonBuild, results: Array, result: Dictionary) -> SeasonBuild:
+	# Isolated proposed finalized state: failure cannot mutate caller's journal or rows.
+	if not CurrentEligibility.successor_build(build):
+		return null
+	var proposed: SeasonState = SeasonState.new()
+	proposed.build = build._fork()
+	proposed.player_results.assign(results.duplicate(true))
+	proposed.player_results.append(result.duplicate(true))
+	return proposed.build if admit(proposed) else null

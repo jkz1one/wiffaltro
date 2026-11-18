@@ -1,0 +1,76 @@
+extends RefCounted
+const Called = preload("res://src/gameplay/season/successor_league_general_v2/called_proof.gd")
+const Codec = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+static func capture(app: SeasonApp) -> Array:
+	if app==null or app.season==null or not Codec.scope(app.season) or not is_instance_valid(app.lab):
+		return []
+	var season: SeasonState = app.season
+	var lab: PitchBatLab = app.lab
+	var _fixture_id: int = app._fixture_id
+	if lab._match_state==null or lab._match_state.phase!=MatchState.Phase.GAME_END or not app._played_field_matches():
+		return []
+	if lab._home_run.presentation_pending(lab) or lab._match_presentation_director.mode!=MatchPresentationDirector.Mode.OUTRO_HOLD:
+		return []
+	var source_state: MatchState = lab._match_state
+	var fixture: Dictionary = season.pending_fixture().duplicate(true)
+	if int(fixture.get("id",-1))!=_fixture_id or not season.physical.pending.is_empty():
+		return []
+	if not PitchBatLabFeelSupport.flush_pending_manual_records(lab):
+		return []
+	if not is_instance_valid(lab) or app.lab!=lab or app.season!=season or lab._match_state!=source_state or app._fixture_id!=_fixture_id or not app._played_field_matches() or not ClubCareer.same(fixture,season.pending_fixture()):
+		return []
+	var state: MatchState = lab._match_state
+	var human: Array = [
+		_fixture_id,
+		state.away_team.runs,
+		state.home_team.runs,
+		state.performance.snapshot(state),
+		state.gear_usage.first_pitch,
+		(state.home_team if lab._player_home else state.away_team).tactics.consumed,
+		(
+			state.cold.evidence(state.home_team if lab._player_home else state.away_team)
+			if season.build != null and season.build._freezer_start != null
+			else {}
+		),
+		(
+			state.sides.evidence(state.home_team if lab._player_home else state.away_team)
+			if season.build != null and season.build._sides_start != null
+			else []
+		),
+		(
+			state.clean_outs.evidence(state.home_team if lab._player_home else state.away_team)
+			if season.build != null and season.build._jump_start != null
+			else []
+		),
+		(
+			state.sure_shot.evidence(state.home_team if lab._player_home else state.away_team)
+			if (
+				season.build != null
+				and (
+					season.build._sure_start != null
+					or LeagueRules.doubleheader(season.league_rules)
+				)
+			)
+			else {}
+		),
+		(state.home_team if lab._player_home else state.away_team).field_supply.evidence(),
+		state.frozen_contacts.filter(
+			func(row: Dictionary) -> bool: return season.teams[0].roster.has(row.player)
+		)
+	]
+	if Called.enabled(season.build):
+		var proof: Dictionary = state.sure_shot.evidence_current(
+			state.home_team if lab._player_home else state.away_team)
+		if not Called.install_human(season.build, human, proof):
+			return []
+	if season.opponents != null and season.opponents._format >= 9:
+		human.append(
+			SeasonOpponentTactics.evidence(
+				state, state.away_team if lab._player_home else state.home_team
+			)
+		)
+	if LeagueRules.doubleheader(season.league_rules):
+		human.append(load("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd").capture(state))
+	if not SeasonInventoryRules.paused_sales(season.build, _fixture_id).is_empty():
+		human.append(SeasonInventoryRules.capture_final(season.build,_fixture_id,state,state.home_team if lab._player_home else state.away_team))
+	return human
