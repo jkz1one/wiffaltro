@@ -1,0 +1,37 @@
+extends "res://tests/successor_dynasty_performance.gd"
+## Same genuine already-open sealed shop: direct refresh only, no write/command.
+func controls(node: Node) -> Array:
+	var result: Array=[]
+	if node is Button: result.append({"kind":"button","text":node.text,"disabled":node.disabled,"tooltip":node.tooltip_text})
+	elif node is Label: result.append({"kind":"label","text":node.text})
+	for child: Node in node.get_children():
+		if not child.is_queued_for_deletion(): result.append_array(controls(child))
+	return result
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","explicit isolated read-only refresh probe"):return
+	_content_roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not _content_roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"pin authored source identities"):return
+	var primary: PackedByteArray=Save.raw();var backup: Dictionary=slot_state(Save.PATH+".bak")
+	var resolves: int=Fixtures.resolve_calls;var projects: int=Pending.project_calls
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var started: int=clock_us();app.reload_save();elapsed("cold_reload",started)
+	if not check(app.career_owner!=null and app.retained==null and app._owned() and app.season.build._visit.open
+		and app.season.build._visit.pack_status=="sealed" and app.season.results.size()==27,"exact genuine opened pre-purchase round9 owner"):return
+	var raw_before: Dictionary=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd").capture(app.career_owner)
+	if not check(not raw_before.is_empty(),"full native owner snapshot before readonly UI"):return
+	started=clock_us();app.open_pitch_shop();elapsed("already_open_shop_window",started)
+	var shop: SeasonShopWindow=shop_for(app)
+	if not check(shop!=null,"actual full Shop window"):return
+	await get_tree().process_frame
+	var initial: Array=controls(shop)
+	started=clock_us();shop._refresh();elapsed("direct_full_window_refresh",started)
+	await get_tree().process_frame
+	var displayed: Array=controls(shop)
+	if not check(Codec.same(initial,displayed),"repeat full refresh preserves text/button eligibility/tooltips"):return
+	if not check(preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd").same(raw_before,preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd").capture(app.career_owner))
+		and Save.raw()==primary and Codec.same(slot_state(Save.PATH+".bak"),backup) and app.retained==null,"render leaves full native hidden state and both saves unchanged"):return
+	if not check(Fixtures.resolve_calls==resolves and Pending.project_calls==projects,"no physics or pending projection"):return
+	var result: Dictionary={"timings_us":timings,"input_sha256":sha(primary),"backup_sha256":sha(backup.bytes),"controls":displayed,"scope":"same already-open genuine round9 sealed shop; read-only full window refresh, no command or paid-action replay"}
+	if not archive("user://refresh-benchmark.json",JSON.stringify(result,"",true,true).to_utf8_buffer()):return
+	print("PASS: genuine already-open full refresh, exact native owner/save purity")
+	app.queue_free();await get_tree().process_frame;get_tree().quit()

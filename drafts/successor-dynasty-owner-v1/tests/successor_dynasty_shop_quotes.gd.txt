@@ -1,0 +1,95 @@
+extends "res://tests/successor_dynasty_play.gd"
+## Genuine earned fixture, read-only quote differential. No purchases or physics.
+const Spy=preload("res://tests/successor_dynasty_quote_spy.gd")
+const Raw=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+const Isolated=preload("res://src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd")
+var roots: Array[Resource]=[]
+func pin(window) -> void:
+	window._quote_owner=window.app.career_owner;window._quote_session=window.app.season
+	window._quote_source=window.app.season.build;window._quote_revision=window.app.season.build.revision()
+	window._quote_active=true
+func eligible_target(node: Node) -> Button:
+	if node is Button and node.has_meta("target") and not node.disabled:return node
+	for child in node.get_children():
+		var found: Button=eligible_target(child)
+		if found!=null:return found
+	return null
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated engineering flags before reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"retained authored catalogs"):return
+	var bytes=Save.raw();var bak=slot_state(Save.PATH+".bak")
+	var app=App.new();add_child(app);await get_tree().process_frame;app.reload_save()
+	if not check(app.career_owner!=null and app._owned() and app.season.player_results.size()>0 and app.season.physical.pending.is_empty(),"genuine settled earned v2 owner"):return
+	if not check(app.season.build._visit.get("open",false) and app.season.build.view().shop.has("pack_status"),"genuine fixture already has open shop with pack status; do not bypass open handler"):return
+	var owner=app.career_owner;var raw=Raw.capture(owner)
+	var spy=Spy.new();spy.app=app;add_child(spy)
+	if not check(spy.comparisons>0 and spy.mismatches.is_empty() and spy.collected_unchanged(),"every full-refresh purchase agrees with frozen quote: "+str(spy.mismatches)):return
+	if not check(spy.scratches.size()==1 and not spy._quote_active and spy._quote_build==null,"one lazy refresh scratch; no cached owner/build after refresh"):return
+	var command: Dictionary=spy._request("pack_open")
+	var invalid: Dictionary=command.duplicate(true);invalid.op="invalid-test-only-op"
+	pin(spy)
+	var bad=spy._purchase("Invalid",invalid,"Invalid command")
+	var scratch=spy._quote_build
+	var good=spy._purchase("Pack",command,"Current paid pack")
+	if not check(not bad.get_meta("shop_quote").ok and good.get_meta("shop_quote").ok and scratch==spy._quote_build,"invalid→valid command clears diagnostic contamination on shared scratch"):return
+	spy._purchase("Invalid again",invalid,"Failure after success")
+	if not check(spy.mismatches.is_empty() and spy.collected_unchanged(),"failure→success→failure exact frozen differential"):return
+	spy._clear_quote_scope()
+	spy.reenter_remaining=2;spy._refresh()
+	if not check(spy.reenter_remaining==0 and not spy._quote_active and spy._quote_build==null,"third-level refresh returns without reviving any cache"):return
+	pin(spy);spy._quote_build=scratch;spy.replace_on_purchase=true
+	spy._purchase("Callback replacement",command,"Owner replaced during renderer")
+	if not check(spy.replacement_invalidated and app.career_owner==owner,"callback owner replacement invalidates scratch"):return
+	var generation: int=spy._quote_generation
+	pin(spy);spy._quote_build=scratch;spy._refresh()
+	if not check(spy._quote_generation>generation and not spy._quote_active and spy._quote_build==null,"nested refresh invalidates outer scratch"):return
+	pin(spy);spy._quote_build=scratch;spy._quote_revision-=1
+	spy._purchase("Stale",command,"Stale quote refresh")
+	if not check(not spy._quote_active and spy._quote_build==null,"revision mismatch invalidates scratch"):return
+	pin(spy);spy._quote_build=scratch;spy._quote_owner=Owner.new()
+	spy._purchase("Replaced owner",command,"Replaced identity")
+	if not check(not spy._quote_active and spy._quote_build==null,"outer owner mismatch invalidates scratch"):return
+	pin(spy);spy._quote_build=scratch;spy._quote_session=Codec.Runtime.new()
+	spy._purchase("Replaced session",command,"Replaced session")
+	if not check(not spy._quote_active and spy._quote_build==null,"session mismatch invalidates scratch"):return
+	if not check(spy.mismatches.is_empty() and Raw.matches(owner,raw),"all quotes preserve complete live owner and match frozen renderer"):return
+	# Actual preview is deliberately outside cache scope and may change diagnostic last_error.
+	var diagnostic: String=app.season.build.last_error
+	good=spy._purchase("Review",command,"Actual review, then Cancel")
+	good.pressed.emit()
+	if not check(spy._confirm.visible and spy._quote_build==null,"actual callback gets no retained scratch"):return
+	spy._confirm.get_cancel_button().pressed.emit();spy._confirm.hide()
+	if not check(app.season.build.last_error==diagnostic,"valid actual preview leaves original diagnostic unchanged"):return
+	if not check(Raw.matches(owner,raw) and Save.raw()==bytes and Codec.same(slot_state(Save.PATH+".bak"),bak),"quote/review Cancel preserves raw owner and main/backup bytes"):return
+	# Real eligible stock and actual recipient callback; never fabricate a card or cash.
+	var recipient_item: String=""
+	var recipient_command: Dictionary={}
+	for offer: String in app.season.build.view().shop.offers:
+		var item: String=app.season.build.view().shop.offers[offer]
+		var display: Dictionary=Progression.display_item(item)
+		if not display.get("op","") in ["stat","mastery","round_out","learn"]:continue
+		for target: Dictionary in app.season.build.targets(item):
+			var candidate: Dictionary=spy._request("buy",{"offer":offer,"mode":"use"})
+			candidate.merge(target)
+			if app.season.build._fork().preview(candidate).ok:
+				recipient_item=item;recipient_command=spy._request("buy",{"offer":offer,"mode":"use"});break
+		if not recipient_item.is_empty():break
+	if not check(not recipient_item.is_empty(),"real stock has affordable eligible recipient; otherwise use another genuine fixture"):return
+	spy._choose(recipient_item,recipient_command)
+	var selected: Button=eligible_target(spy)
+	if not check(selected!=null and not selected.disabled and spy._quote_build==null,"recipient dialog has eligible target and no cached scratch"):return
+	selected.pressed.emit()
+	if not check(spy._confirm.visible,"actual recipient button opens current authoritative review"):return
+	spy._confirm.get_cancel_button().pressed.emit();spy._confirm.hide()
+	if not check(Raw.matches(owner,raw) and spy.mismatches.is_empty(),"recipient review Cancel has full parity and untouched owner"):return
+	# Tamper only the test dialog's pending receipt, not the owner or its revision.
+	spy._preview(command,"Stale confirmation receipt")
+	if not check(spy._confirm.visible,"real valid review opened before stale receipt fault"):return
+	spy._pending.rev=int(spy._pending.rev)-1
+	spy._confirm.get_ok_button().pressed.emit()
+	if not check(app.retained==null and Raw.matches(owner,raw) and Save.raw()==bytes
+		and Codec.same(slot_state(Save.PATH+".bak"),bak),"actual stale confirmation refuses without spend/save/live mutation"):return
+	if not check(spy.collected_unchanged(),"every earlier button retains detached frozen quote/command/presentation after full sequence"):return
+	print("PASS: quote differential ",spy.comparisons," buttons; no purchase/physics; genuine earned fixture")
+	app.queue_free();spy.queue_free();await get_tree().process_frame;get_tree().quit(0)

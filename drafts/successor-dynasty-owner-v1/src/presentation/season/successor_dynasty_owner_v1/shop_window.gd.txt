@@ -3,3 +3,67 @@ extends "res://src/presentation/season/successor_league_general_v2/shop_window.g
 func _recruit(_shop: Dictionary) -> void:
 	_label("DYNASTY ROSTER")
 	_label("In-season recruiting is unavailable. Between-season replacement remains planned; its cadence and price are not enabled in this engineering build.")
+
+
+const IsolatedQuote = preload("shop_quote.gd")
+var _quote_active: bool = false
+var _quote_generation: int = 0
+var _quote_owner: RefCounted
+var _quote_session: SeasonState
+var _quote_source: SeasonBuild
+var _quote_revision: int = -1
+var _quote_build: SeasonBuild
+
+
+func _clear_quote_scope() -> void:
+	_quote_active = false
+	_quote_owner = null
+	_quote_session = null
+	_quote_source = null
+	_quote_revision = -1
+	_quote_build = null
+
+
+func _refresh() -> void:
+	# No await and no cache across event callbacks. A nested refresh invalidates
+	# the outer scope rather than allowing either render to reuse its scratch.
+	var nested: bool = _quote_active
+	_quote_generation += 1
+	var generation: int = _quote_generation
+	_clear_quote_scope()
+	if not nested and app != null and app.season != null:
+		_quote_owner = app.get("career_owner")
+		_quote_session = app.season
+		_quote_source = app.season.build
+		_quote_revision = _quote_source.revision()
+		_quote_active = true
+	super._refresh()
+	if generation == _quote_generation:
+		_clear_quote_scope()
+
+
+func _quote_scope_matches() -> bool:
+	return (
+		_quote_active and app != null and _quote_owner != null
+		and app.get("career_owner") == _quote_owner
+		and _quote_owner.get("session") == _quote_session
+		and app.season == _quote_session and app.season.build == _quote_source
+		and _quote_source.revision() == _quote_revision
+	)
+
+
+func _purchase(
+	text: String, command: Dictionary, description: String, context: String = ""
+) -> Button:
+	var quote_build: SeasonBuild
+	if _quote_scope_matches():
+		if _quote_build == null:
+			_quote_build = _quote_source._fork()
+		quote_build = _quote_build
+	else:
+		# Recipient dialogs and any reentrant/replaced render get a fresh scratch.
+		# Quotes are presentation only: the button still invokes current _preview,
+		# and confirmation still uses App.commit_shop and the strict Store path.
+		_clear_quote_scope()
+		quote_build = app.season.build._fork()
+	return IsolatedQuote.button(self, quote_build, text, command, description, context)

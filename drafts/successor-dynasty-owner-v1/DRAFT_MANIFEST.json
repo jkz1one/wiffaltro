@@ -1,7 +1,7 @@
 {
   "format": "inactive-dynasty-owner-v1",
-  "source_checkpoint": "7f80fcfa0b9c583fa2ad5f8d2bac205fd99e6f60",
-  "scope": "Increment79: genuine full-season natural close/77-point receipt/all-six current-season folds, saved Next proposal, once-only carry/decay and separate-process cold passed using unchanged78 production. Native actual Close/Next Cancel/Confirm, cold preview and second-season cold passed; all-six profiles independently reviewed. No new-season physical simulation, human championship, full mode/public unlock/replacement/alternate activation/export claim.",
+  "source_checkpoint": "dc24b9a92fff1d9094572d0c67c892f18e616931",
+  "scope": "Increment80 local synchronous quote-build reuse: focused49-button quote/raw-state/recipientCancel/stale-confirmation gates and paired identical paid outputs passed. Direct refresh542\u2192487ms in one shared-cloud pair, a modest rendering improvement only; persistence latency unresolved. Native actual Shop/Cancel/paid recipient choice/separate cold passed with exactnative77 save parity. No economy, persistence authority, gameplay or lifecycle changes.",
   "files": [
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -178,10 +178,16 @@
       "sha256": "23107f4211291a22924abcc26513b1fcbf35ed9f1a36943d0d2e0c6b42d21622"
     },
     {
+      "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd.txt",
+      "restore_path": "src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd",
+      "bytes": 2743,
+      "sha256": "833c193e08934b075bc6bbe55551e8d31f09e474db0da17e96edcbb3da85cfdc"
+    },
+    {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/shop_window.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/shop_window.gd",
-      "bytes": 391,
-      "sha256": "1ca36fc87d34efb76b0b24c34fb8ca49a6c9954bfd236bc261ca52249c4e3395"
+      "bytes": 2411,
+      "sha256": "9405f197f7d67c7eac6882dfb59c79deac5fb4629ec4f633edc66fd2531a152e"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_app_birth.gd.txt",
@@ -376,6 +382,18 @@
       "sha256": "c1ed1162d7cd985476d2a3223b89c784ba394179d88c8d2980181af21772448d"
     },
     {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_quote_reference.gd.txt",
+      "restore_path": "tests/successor_dynasty_quote_reference.gd",
+      "bytes": 172,
+      "sha256": "81548560efbaf21d1a1dfd7e2a500a9aa552a48a5e9fe69404f57544a086c03f"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_quote_spy.gd.txt",
+      "restore_path": "tests/successor_dynasty_quote_spy.gd",
+      "bytes": 4021,
+      "sha256": "397b3f7001a223bdd1de4187bf5ac8939a952033a3382b7954ca37b6ac145022"
+    },
+    {
       "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_raw_match.gd.txt",
       "restore_path": "tests/successor_dynasty_raw_match.gd",
       "bytes": 6712,
@@ -386,6 +404,30 @@
       "restore_path": "tests/successor_dynasty_raw_match.tscn",
       "bytes": 189,
       "sha256": "e30cf6374b69625b6b419a6a35b94bf246c7a9d438eef0d6cb11c692d9f557ed"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_refresh_performance.gd.txt",
+      "restore_path": "tests/successor_dynasty_refresh_performance.gd",
+      "bytes": 3362,
+      "sha256": "4324d66f537141e18b667a9f24bfa7de6f233405d54c63c512c055e6c44c3f87"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_refresh_performance.tscn.txt",
+      "restore_path": "tests/successor_dynasty_refresh_performance.tscn",
+      "bytes": 209,
+      "sha256": "9ded3c33190f93b6ee1d5f3ee2018bcc2130777c843cce78f2249a9f5def8f50"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_shop_quotes.gd.txt",
+      "restore_path": "tests/successor_dynasty_shop_quotes.gd",
+      "bytes": 7676,
+      "sha256": "6e17e68f49e53db5ae6ebe738e2c6c0dc15daff39967ea274439294bff089f2e"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_shop_quotes.tscn.txt",
+      "restore_path": "tests/successor_dynasty_shop_quotes.tscn",
+      "bytes": 193,
+      "sha256": "f1ac5a4cd3b38db3c45525b921f60aafc0656f0268007451c917d7f082b1a297"
     }
   ]
 }

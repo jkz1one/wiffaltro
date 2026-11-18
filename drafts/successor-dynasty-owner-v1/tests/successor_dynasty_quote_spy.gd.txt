@@ -1,0 +1,66 @@
+extends "res://src/presentation/season/successor_dynasty_owner_v1/shop_window.gd"
+## Test-only observer. Production render and frozen reference receive same inputs.
+const Ref = preload("res://tests/successor_dynasty_quote_reference.gd")
+const C = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Raw = preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+var reenter_remaining: int=0
+var replace_on_purchase: bool=false
+var replacement_invalidated: bool=false
+var comparisons: int=0
+var mismatches: Array[String]=[]
+var scratches: Array=[]
+var collected: Array=[]
+func state(build: SeasonBuild) -> Dictionary:
+	var data=Raw._build(build,[Raw.MAX_NODES,true]);data.erase("last_error");return data
+func _purchase(text: String,command: Dictionary,description: String,context: String="") -> Button:
+	if reenter_remaining>0:
+		reenter_remaining-=1;_refresh()
+	var prior: Dictionary=state(app.season.build._fork()) if _quote_build==null else state(_quote_build)
+	var result: Button=super._purchase(text,command,description,context)
+	if _quote_build!=null:
+		if not Raw.same(prior,state(_quote_build)):mismatches.append("scratch mutated beyond last_error")
+		if not scratches.has(_quote_build):scratches.append(_quote_build)
+	var reference=Ref.new();reference.app=app;add_child(reference)
+	var expected: Button=SeasonShopQuote.button(reference,text,command,description,context)
+	for field: String in ["shop_quote","shop_command","shop_quote_message"]:
+		if not C.same(result.get_meta(field),expected.get_meta(field)):mismatches.append(field+": "+text)
+	if result.text!=expected.text or result.disabled!=expected.disabled or result.tooltip_text!=expected.tooltip_text:
+		mismatches.append("button presentation: "+text)
+	var actual_labels: Array=[];var expected_labels: Array=[]
+	for child in result.get_meta("shop_quote_group").get_children():
+		if child is Label:actual_labels.append([child.text,child.get_theme_color("font_color"),child.get_theme_font_size("font_size")])
+	for child in expected.get_meta("shop_quote_group").get_children():
+		if child is Label:expected_labels.append([child.text,child.get_theme_color("font_color"),child.get_theme_font_size("font_size")])
+	if actual_labels!=expected_labels:mismatches.append("status/context: "+text)
+	collected.append({"button":result,"expected":button_snapshot(expected)})
+	comparisons+=1;reference.queue_free();return result
+
+func _button(text: String,action: Callable) -> Button:
+	# Actual IsolatedQuote renderer calls this after preview, before grouping.
+	if replace_on_purchase:
+		replace_on_purchase=false
+		var saved_owner=app.get("career_owner")
+		var replacement=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd").new()
+		replacement.session=app.season;app.career_owner=replacement
+		_purchase("Nested renderer quote",_request("pack_open"),"Replacement during button rendering")
+		replacement_invalidated=not _quote_active and _quote_build==null
+		app.career_owner=saved_owner
+	return super._button(text,action)
+
+func button_snapshot(button: Button) -> Dictionary:
+	var labels: Array=[]
+	for child in button.get_meta("shop_quote_group").get_children():
+		if child is Label:labels.append([child.text,child.get_theme_color("font_color"),child.get_theme_font_size("font_size")])
+	return {"quote":button.get_meta("shop_quote").duplicate(true),
+		"command":button.get_meta("shop_command").duplicate(true),
+		"message":button.get_meta("shop_quote_message"),"text":button.text,
+		"disabled":button.disabled,"tooltip":button.tooltip_text,"labels":labels.duplicate(true)}
+func collected_unchanged() -> bool:
+	for entry: Dictionary in collected:
+		if not is_instance_valid(entry.button):return false
+		var actual: Dictionary=button_snapshot(entry.button)
+		var expected: Dictionary=entry.expected
+		for field: String in ["quote","command","message","text","disabled","tooltip"]:
+			if not C.same(actual[field],expected[field]):return false
+		if actual.labels!=expected.labels:return false
+	return true

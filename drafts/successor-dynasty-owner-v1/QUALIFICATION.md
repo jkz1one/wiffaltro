@@ -1,5 +1,10 @@
 # Dynasty owner: bounded private career integration
 
+Increment80 adds only local presentation quote-build reuse within one synchronous
+shop refresh. Focused quote/state-safety checks, exact paired outcomes and scoped native
+paid-shop/cold qualification passed. Authoritative previews, purchase validation and Store
+transactions remain unchanged. This is not a fix for dominant persistence latency.
+
 Increment79 qualifies genuine natural completion closure and all-six-club Next/cold
 on the actual full-season terminal fixture, using unchanged increment78 production.
 The semifinal-exit receipt is 77 permanent currency, credited once; no Dynasty
@@ -654,3 +659,98 @@ Native second-season main: 259,131 bytes, SHA256
 Its different seed explains the difference from CLI's seed550079 fixture. Native
 qualification report SHA256:
 `54fd2ca5cc68053297d671b3b0e04b998b920918503410c2e416ddbd203afc94`.
+
+
+## Increment80: isolated synchronous shop quote scope
+
+Only local120 shop presentation changes. One detached named Dynasty build is
+created lazily per synchronous refresh and reused for display quotes; each preview
+still forks its own candidate. Scope pins outer owner, session, source build and
+revision; nested refresh or replaced bindings invalidate it. No scratch survives
+the refresh or recipient dialogs. Original labels, grouping, command metadata and
+current preview callbacks remain. Actual confirmation still calls unchanged
+App.commit_shop and Store, never a cached quote payload.
+
+Focused49-button differential passed against the frozen original quote renderer:
+full quotes, commands, eligibility, tooltips and context/status labels agree. Earlier
+buttons retain detached expected metadata after subsequent quotes. Fresh-fork and
+reused scratch native state remain unchanged except diagnostic last_error; actual
+owner state, hidden AI fields and save/backup bytes remain exact. Failure/success/
+failure quotes, third-level refresh reentry, replacement during rendering, stale
+revision/owner/session, actual recipient selection and Cancel, and stale final
+confirmation refusal passed without a purchase or physical simulation.
+
+Two test-development failures remain preserved, not passed-runtime evidence. The
+first fixture was a genuine settled but unopened shop; a test directly constructing
+the window skipped the App.open_shop lifecycle, producing missing pack_status.
+The corrected test explicitly requires the genuine already-open sealed fixture.
+The next purity assertion incorrectly compared live cold-restored containers to a
+fresh fork: existing _fork recursively freezes Dynasty-start containers. A bounded
+diagnostic separately proved live-to-fork readonly-metadata differences and no
+fresh-fork-to-quoted change. The test now uses an untouched fresh-fork baseline,
+without whitelisting fields; live owner purity remains strict. Production required
+no fix for either test-development issue. Historical source and logs are retained.
+
+Paired benchmark and scoped native paid-shop/cold qualification passed. The same genuine
+6,381,991-byte nine-round source (27 results, 9 human-club games) was explicitly
+imported into isolated baseline79 and changed80 owners. All four import/open/pick/
+cold commands, resulting main bytes, and backup existence/bytes are identical.
+The final 6,386,308-byte save SHA256 remains
+`cca8677714c7e5eafdd57f07cd882b5a39c72ba32a01c8dced8e13e22988224c`.
+No physical game was replayed. Paid commands were exercised on isolated copies
+for the paired comparison, never against original saves.
+A separate read-only probe used the identical genuinely opened, sealed pre-purchase
+shop; all 49 final controls and full native owner/save state matched.
+
+Observed baseline79 → changed80 intervals in one sequential shared-cloud pair:
+- Direct full already-open refresh: 542.049 → 487.442 ms (about 10.1%, 55 ms).
+- Already-open window construction: 530.104 → 510.809 ms.
+- Initial Shop click including persisted visit opening: 11.233 → 10.608 s.
+- Paid pack open plus refresh: 9.744 → 9.481 s.
+- Paid card choice plus refresh: 10.524 → 9.972 s.
+- Separate cold: 7.119 → 9.394 s (variable and worse, not improved).
+
+This is a modest rendering improvement, not a dominant responsiveness fix. The
+initial transaction-inclusive Shop click must not be presented as pure rendering.
+Production persistence validation is unchanged; multi-second paid actions remain
+unresolved. These single shared-cloud observations, with idle native/editor state
+held fixed, are not CPU-exclusive, statistical or target-hardware guarantees.
+The comparison utility initially assumed an import backup existed; it was corrected
+to compare backup presence as well as bytes. No engine run, production source or
+paid action was replayed for that comparison-only correction.
+
+
+Increment80 CLI evidence log SHA256:
+- quotes-focused.log: `15783e2f531e9e81da00048d4196f7e0292b2c7dfecdecc351e8631519d07c90`
+- baseline79-import.log: `4c12a9f12655db5eda26ec4d9377f4ba33c6d45028f917b7d5f79ed3ef4c15da`
+- baseline79-open.log: `5b23fe6ac2f59c170c079e25d47fa6a00883b78ff0870702ba39eee19db368be`
+- baseline79-pick.log: `d48d5595b4678628d0d12e939726b498f57295efc9847992f71c429762026295`
+- baseline79-cold.log: `45e4750919d9ac0c00fe13876cb67646d84fbc0926e40a0e1a686bb3ff72e70a`
+- baseline79-refresh.log: `d9f1d577bd14784b4a2e44fdd9e4bf9963ecc013d39fd6d57bd2de04f2106881`
+- changed80-import.log: `038f8c0c8a50cdbb97c4d7f997f3a153ef28286a900bba9de62d6637174fb031`
+- changed80-open.log: `5b79b74af62c3cdc1025a4de91584a3196e7fd33b1667bee6cca8e9a0e45cde9`
+- changed80-pick.log: `2fca2a58dc067b797b7ed6e7bde92c4ea66555cd8912a6cb2ca4269b18195bb4`
+- changed80-cold.log: `e5e822a15c229402fc6755044dc2cb5e7b3a17afb167c88b427a3ba0e06b20a7`
+- changed80-refresh.log: `28e981433a83d1a3caa95b3fc0da8d14fd139c3c90ffd6df35a54f026a4de66e`
+
+
+### Increment80 native presentation and paid-shop/cold
+
+Isolated QA80Shop used the same genuine ordinal2 settled input as native77 and
+all 47 final runtime hashes. Actual App shop entry showed 12 Cash. The 8-Cash
+pack quote showed 12→4; Cancel preserved main and backup exactly. Confirm
+revealed three fixed cards at 4 Cash. Round Out targeted Ash Cole's overhand
+four-seam, mastery1→2, with quote4→4 and no second charge. After confirmation
+the pack was Used. A separate-process Continue and Shop showed the same 4 Cash
+and Used state; main and backup were unchanged and byte-identical to native77
+outputs. No SCRIPT ERROR occurred; existing software graphics/audio fallbacks
+remain outside any target-performance claim. No new game was simulated.
+
+Final native main: 960,857 bytes, SHA256
+`e89b89263d1910333e4f07201063b36be20acabacadd1a4aff8442c64f1a1066`.
+Native report SHA256:
+`d50b85c159c30ae19d63456ee490875b2d9bf7af404bacdd7055d28e5c13fc95`.
+
+The measured rendering benefit remains modest; this does not resolve the dominant
+paid-save latency or qualify public mode admission, ordinary pause/resume, lineup
+controls, replacement economics, target-machine performance or a distributable build.

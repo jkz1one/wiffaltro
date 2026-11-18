@@ -1,0 +1,4 @@
+extends SeasonShopWindow
+## Test-only frozen renderer host: no refresh, transaction or fixture mutation.
+func _ready() -> void:
+	_body=VBoxContainer.new();add_child(_body)
