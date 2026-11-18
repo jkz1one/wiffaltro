@@ -1,0 +1,14 @@
+extends RefCounted
+## Explicit zero-award import. The caller reads the old slot; this helper never
+## writes either slot. Strict118 admission remains the migration authority.
+const Previous = preload("res://src/gameplay/season/successor_live_owner_v1/codec.gd")
+const Codec = preload("codec.gd")
+const Catalog = preload("catalog.gd")
+static func create(value: Variant) -> SeasonState:
+	var old: SeasonState = Previous.restore(value)
+	if old == null: return null
+	var data: Dictionary = Previous.capture(old)
+	if data.is_empty(): return null
+	data.version = Catalog.VERSION
+	data.format = Catalog.FORMAT
+	return Codec.restore(data)

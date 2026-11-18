@@ -1,0 +1,139 @@
+{
+  "format": "inactive-materialized-live-play-v1",
+  "source_checkpoint": "c1e78a43d1b7e6146e9da3951c480c97186bd9f5",
+  "scope": "Increment71 qualified Standard/Dugout fresh four-pick save/cold, genuine Standard one-round physical play/settlement/paid pack/choice/cold, pristine118 import, and retained-save cleanup/replacement fault guards. Native visual smoke pending; no terminal, Dynasty, distributable or responsiveness completion claim.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/build_codec.gd",
+      "bytes": 22793,
+      "sha256": "d0b97e7552243bbe5e6ad07cec61e46c158e1d2d979e9dd965a2989f67b8aced"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/career.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/career.gd",
+      "bytes": 906,
+      "sha256": "346ce90bcde1845b719fe24365d8cce2871fce8c8d8837af9f3946022ad1a3f8"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/catalog.gd",
+      "bytes": 625,
+      "sha256": "87cc6f7f0dd621271ec92fa1b041b937c33750ea37dc9e36934b7080c3d4f580"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
+      "bytes": 21120,
+      "sha256": "3c2605906e368ae9de57ba3405ccdc3d7e7085fe88da21ece44ade47895646de"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/import_draft.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/import_draft.gd",
+      "bytes": 631,
+      "sha256": "65de60b7498170090c55f66c85501fc326af6c5bfe58f29713077ca456fe1863"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/pending.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/pending.gd",
+      "bytes": 2095,
+      "sha256": "20acbdcbb307286dda8ec48bf60e402951a16cffa1b26df11419279863bd1abd"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/physical_fixtures.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/physical_fixtures.gd",
+      "bytes": 20252,
+      "sha256": "c23afc7b6ab874245cb007007b878b4d868cd85ff12724c824c934a705ebe83f"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
+      "bytes": 5506,
+      "sha256": "edf6218524b256e7cd1a89f33ffaaf6a09263b84706f2cd61d891c00e5650c07"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/store.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/store.gd",
+      "bytes": 3756,
+      "sha256": "87be29c754bc85cc3d8342859f6fd89b33b7709beb72573dbc108eb3052a741b"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/presentation/season/successor_live_play_v1/app.gd.txt",
+      "restore_path": "src/presentation/season/successor_live_play_v1/app.gd",
+      "bytes": 18775,
+      "sha256": "b9623fb39de7993ff22d612c3cb83fc23e146495e02a07dd7f3c5675c23668dd"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/presentation/season/successor_live_play_v1/capture_human.gd.txt",
+      "restore_path": "src/presentation/season/successor_live_play_v1/capture_human.gd",
+      "bytes": 3320,
+      "sha256": "575cf8fba09c2ff7f016ca061ee60a8d195b4146aacd4b1ce1793e585d1909df"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/presentation/season/successor_live_play_v1/launcher.tscn.txt",
+      "restore_path": "src/presentation/season/successor_live_play_v1/launcher.tscn",
+      "bytes": 208,
+      "sha256": "023e621dd94aa48af29d1b33229396eb81b0b49a6a1cf86936eacd3b05d79927"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/presentation/season/successor_live_play_v1/menu.gd.txt",
+      "restore_path": "src/presentation/season/successor_live_play_v1/menu.gd",
+      "bytes": 3102,
+      "sha256": "3d82fddec1043546b6a9cdad31ef64b270dd686e5246c6ecd96dbdb7537054f0"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_birth.gd.txt",
+      "restore_path": "tests/successor_live_play_birth.gd",
+      "bytes": 7861,
+      "sha256": "77fe2e2c078b050101559522716290ce66bd0dca889b64b49a51544b1ba69b94"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_birth.tscn.txt",
+      "restore_path": "tests/successor_live_play_birth.tscn",
+      "bytes": 185,
+      "sha256": "031199192d6eba8cded5ebf64ab7d2ebb77e8d514a16340f7b0cd23b36e5c6bc"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_cleanup.gd.txt",
+      "restore_path": "tests/successor_live_play_cleanup.gd",
+      "bytes": 3665,
+      "sha256": "e69be6d96ebb18f1795c0de4396cf4338a9110941ab175d6f37fb48ee46b9113"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_cleanup.tscn.txt",
+      "restore_path": "tests/successor_live_play_cleanup.tscn",
+      "bytes": 187,
+      "sha256": "9bed6d2f013f3e1b5a831378be3e892acbfa0ac28a92d58260341f12f2314276"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_cleanup_app.gd.txt",
+      "restore_path": "tests/successor_live_play_cleanup_app.gd",
+      "bytes": 574,
+      "sha256": "5a5d2abfdb26a7e1a415fe05273d57ed178816ff30df76410ec5dd21f7820464"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_game.gd.txt",
+      "restore_path": "tests/successor_live_play_game.gd",
+      "bytes": 29555,
+      "sha256": "f5ce081c43422c2ff018a11d023718204f6938a68286976dd1032f368d2087e7"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_game.tscn.txt",
+      "restore_path": "tests/successor_live_play_game.tscn",
+      "bytes": 183,
+      "sha256": "8df20982b7753f641a41d731a924f104453c66d0bbf1609865398ea05f227e1e"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_import.gd.txt",
+      "restore_path": "tests/successor_live_play_import.gd",
+      "bytes": 2188,
+      "sha256": "ec0b0d75363ebedde339ed1841e98bec34bcfde3778f06f8282dd9ea789aecad"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/tests/successor_live_play_import.tscn.txt",
+      "restore_path": "tests/successor_live_play_import.tscn",
+      "bytes": 185,
+      "sha256": "b69dbb5a504ddd29c2bbe4f83ad8baec536ffcc0a1a97e44aba8598cbfbf2ec0"
+    }
+  ]
+}

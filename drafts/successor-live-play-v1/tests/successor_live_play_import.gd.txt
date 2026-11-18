@@ -1,0 +1,31 @@
+extends Node
+const App = preload("res://src/presentation/season/successor_live_play_v1/app.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Store = preload("res://src/gameplay/season/successor_live_play_v1/store.gd")
+const OldStore = preload("res://src/gameplay/season/successor_live_owner_v1/store.gd")
+const OldCodec = preload("res://src/gameplay/season/successor_live_owner_v1/codec.gd")
+var failed: bool = false
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed = true; get_tree().quit(1)
+	return ok
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and not Store.occupied(),"isolated new119 slot empty"): return
+	var primary: PackedByteArray = OldStore.raw()
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(OldStore.PATH+".bak")
+	if not check(not primary.is_empty() and not backup.is_empty(),"genuine copied118 main and backup operands"): return
+	var app = App.new(); add_child(app)
+	await get_tree().process_frame
+	var old: SeasonState = OldCodec.restore(JSON.parse_string(primary.get_string_from_utf8()))
+	if not check(old != null and old.picks.size() == 4 and old.results.is_empty(),"strict118 original fullydrafted state"): return
+	app.import_draft()
+	if not check(app.season != null and app.retained == null and app.season.picks == old.picks and Codec.scope(app.season),"explicit App import saves distinct119 owner"): return
+	var bytes: PackedByteArray = Store.raw()
+	app.import_draft()
+	if not check(Store.raw() == bytes and OldStore.raw() == primary and FileAccess.get_file_as_bytes(OldStore.PATH+".bak") == backup,"duplicate import cannot overwrite119 or either118 file"): return
+	var cold: SeasonState = Store.read()
+	if not check(cold != null and Codec.same(Codec.capture(cold),Codec.capture(app.season)) and Store.raw() == bytes,"119 explicit hydration equals imported owner without write"): return
+	app.queue_free(); await get_tree().process_frame
+	print("PASS: explicit pristine118 import preserves original main and backup; no earned migration claim")
+	get_tree().quit(0)

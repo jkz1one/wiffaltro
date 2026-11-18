@@ -1,0 +1,14 @@
+extends RefCounted
+##119/v1 materialized current-season gameplay consistency.
+## No historical physics/journal replay or anti-cheat provenance claim.
+const VERSION: int = 119
+const FORMAT: String = "wiffaltro-materialized-play-owner-v1"
+const Game = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+static var _game: String = ""
+static var _players: String = ""
+static func game_signature() -> String:
+	if _game.is_empty(): _game = Game.signature()
+	return _game
+static func player_signature() -> String:
+	if _players.is_empty(): _players = SeasonPlayerCatalog.signature()
+	return _players

@@ -1,0 +1,20 @@
+extends ClubCareer
+## Flat live ledger. Cold hydration never reruns past games or journal commands.
+## Terminal awards/transitions remain deliberately unavailable until integrated.
+var start_basis: Dictionary = {}
+func sync(season: SeasonState) -> bool:
+	if season == null or season.career != self or current < 1 or runs.size() != current: return false
+	var row: Dictionary = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd").row(season)
+	if row.is_empty(): return false
+	runs[current-1] = row
+	return true
+func fork() -> ClubCareer:
+	var result: ClubCareer = get_script().new()
+	result.current = current
+	result.runs.assign(runs.duplicate(true))
+	result._assets = _assets.duplicate(true)
+	result._pennants = _pennants.duplicate(true)
+	result._plaques = _plaques.duplicate(true)
+	result._pitch_catalog = _pitch_catalog
+	result.start_basis = start_basis.duplicate(true)
+	return result

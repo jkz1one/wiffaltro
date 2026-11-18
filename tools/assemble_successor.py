@@ -20,6 +20,8 @@ FAMILIES = (
     'successor-owner-career-v1',
 )
 LAUNCHER = 'res://src/presentation/season/successor_owner_career_v1/launcher.tscn'
+PLAY_FAMILY = 'successor-live-play-v1'
+PLAY_LAUNCHER = 'res://src/presentation/season/successor_live_play_v1/launcher.tscn'
 LIVE_FAMILY = 'successor-live-owner-v1'
 LIVE_LAUNCHER = 'res://src/presentation/season/successor_live_owner_v1/launcher.tscn'
 
@@ -32,7 +34,7 @@ def safe(name):
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def assemble(repo, destination, tests=(), live_owner=False):
+def assemble(repo, destination, tests=(), live_owner=False, live_play=False):
     repo, destination = repo.resolve(), destination.resolve()
     if destination.exists():
         raise ValueError('Destination must not exist; no files or saves are overwritten')
@@ -45,8 +47,8 @@ def assemble(repo, destination, tests=(), live_owner=False):
         payload[name] = path.read_bytes()
     requested = set(tests)
     found = set()
-    families = FAMILIES + ((LIVE_FAMILY,) if live_owner else ())
-    launcher = LIVE_LAUNCHER if live_owner else LAUNCHER
+    families = FAMILIES + ((LIVE_FAMILY,) if live_owner or live_play else ()) + ((PLAY_FAMILY,) if live_play else ())
+    launcher = PLAY_LAUNCHER if live_play else LIVE_LAUNCHER if live_owner else LAUNCHER
     for family in families:
         manifest = json.loads((repo / 'drafts' / family / 'DRAFT_MANIFEST.json').read_text())
         for row in manifest.get('files', []) + manifest.get('additions', []):
@@ -86,6 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('destination', type=Path)
     parser.add_argument('--test', action='append', default=[])
     parser.add_argument('--live-owner', action='store_true', help='Select the additive materialized-owner launcher; old project and save slots remain unchanged')
+    parser.add_argument('--live-play', action='store_true', help='Select materialized current-season gameplay with a separate save slot')
     args = parser.parse_args()
-    result = assemble(Path(__file__).resolve().parents[1], args.destination, args.test, args.live_owner)
+    result = assemble(Path(__file__).resolve().parents[1], args.destination, args.test, args.live_owner, args.live_play)
     print(f'Assembled {len(result["files"])} verified source files; no saves copied.')

@@ -1,0 +1,50 @@
+extends Node
+const App = preload("res://tests/successor_live_play_cleanup_app.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Store = preload("res://src/gameplay/season/successor_live_play_v1/store.gd")
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and not Store.occupied(),"isolated cleanup fault slot"): return
+	var app = App.new(); add_child(app)
+	await get_tree().process_frame
+	app.create_fresh(710119)
+	if not check(app.season != null and app.retained == null,"actual fresh predecessor saved"): return
+	var owner: SeasonState = app.season
+	var difficulty: int = owner.difficulty
+	var candidate: SeasonState = owner.fork_live()
+	if not check(candidate.choose_player(candidate.offers()[0]),"detached actual draft choice"): return
+	app.lab = PitchBatLab.new() # Unattached test double, never a completed game.
+	app._retain(candidate,Store.raw())
+	if not check(app.retained == candidate and app.retained_saved and app.season == owner and app.lab == null and app.close_calls == 1,"postcleanup owner mismatch blocks promotion but preserves durable candidate"): return
+	var bytes: PackedByteArray = Store.raw()
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	owner.difficulty = difficulty
+	var replacement: PitchBatLab = PitchBatLab.new(); app.lab = replacement
+	app.retry_save()
+	if not check(app.retained == candidate and app.lab == replacement and app.close_calls == 1 and Store.raw() == bytes,"replacement lab refuses retry without closing or writing"): return
+	app.lab = null; replacement.free()
+	app.retry_save()
+	if not check(app.retained == null and app.season == candidate and app.close_calls == 1 and Store.raw() == bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak") == backup,"restored original owner promotes exact alreadydurable candidate with no second close/write"): return
+	app.retry_save()
+	if not check(Store.raw() == bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak") == backup,"duplicate promotion retry inert"): return
+	owner = app.season
+	candidate = owner.fork_live()
+	if not check(candidate.choose_player(candidate.offers()[0]),"second actual detached choice for callback fault"): return
+	app.lab = PitchBatLab.new()
+	app.replacement_on_close = true
+	app._retain(candidate,Store.raw())
+	if not check(app.retained == candidate and app.retained_saved and app.season == owner and is_instance_valid(app.lab) and app.retained_lab == null and app.close_calls == 2,"synchronous replacement callback blocks promotion and pins closed original boundary"): return
+	bytes = Store.raw(); backup = FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	replacement = app.lab
+	app.retry_save()
+	if not check(app.retained == candidate and app.lab == replacement and app.close_calls == 2 and Store.raw() == bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak") == backup,"replacement remains untouched and exact durable candidate cannot be rewritten"): return
+	app.lab = null; replacement.free()
+	app.retry_save()
+	if not check(app.retained == null and app.season == candidate and app.close_calls == 2 and Store.raw() == bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak") == backup,"removed replacement allows exact saved promotion without second close or write"): return
+	app.queue_free(); await get_tree().process_frame
+	print("PASS: synthetic synchronous cleanup fault recovery; native lab behavior separately qualified")
+	get_tree().quit(0)

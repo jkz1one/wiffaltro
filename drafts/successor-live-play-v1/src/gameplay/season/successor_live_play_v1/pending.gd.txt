@@ -1,0 +1,32 @@
+extends RefCounted
+## Live current-round projection only. Never used by cold materialized hydration.
+const Codec = preload("codec.gd")
+const Fixtures = preload("physical_fixtures.gd")
+const Original = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
+static var project_calls: int = 0
+static func shape(season: SeasonState) -> bool:
+	return season != null and Codec.scope(season) and not season.physical.pending.is_empty() \
+		and Original._shape(season.physical.pending,true,false,false,false,Codec.Catalog.game_signature())
+static func project(owner: SeasonState) -> Dictionary:
+	project_calls += 1
+	if not shape(owner): return {"error":"The saved current round is inconsistent."}
+	var candidate: SeasonState = owner.fork_live()
+	if candidate == null: return {"error":"The current owner could not be detached."}
+	var pending: Dictionary = candidate.physical.pending.duplicate(true)
+	candidate.physical.pending.clear()
+	# Starts at the saved consumed-prefix cursor. Only this round's newly
+	# appended reports are resolved. Earlier physical games are not rerun.
+	return Original._project_candidate(candidate,pending)
+static func stage_report(owner: SeasonState, raw: Dictionary) -> Dictionary:
+	var result: Dictionary = project(owner)
+	if result.has("error") or not result.get("fixture") is Dictionary: return {"error":"No matching physical job remains in this round."}
+	var request: String = Fixtures.request_key(result.candidate,result.fixture)
+	if request.is_empty(): return {"error":"The physical job binding is missing."}
+	var candidate: SeasonState = owner.fork_live()
+	if candidate == null: return {"error":"The physical checkpoint could not be detached."}
+	candidate.physical.pending.reports.append({"fixture":int(result.fixture.id),"request":request,"report":raw.duplicate(true)})
+	# Actual report acceptance is checked now against the current real fixture,
+	# not deferred to cold load and not accepted as a caller validation token.
+	var validated: Dictionary = project(candidate)
+	if validated.has("error"): return validated
+	return {"candidate":candidate}

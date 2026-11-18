@@ -1,0 +1,112 @@
+extends Node
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Store = preload("res://src/gameplay/season/successor_live_play_v1/store.gd")
+const OldDecoder = preload("res://src/gameplay/season/successor_owner_career_v1/decoder.gd")
+const SCENE: String = "res://src/presentation/season/successor_live_play_v1/launcher.tscn"
+const ARCHIVE: String = "user://live-play-evidence"
+var failed: bool = false
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:
+		failed = true; get_tree().quit(1)
+	return ok
+func exact_write(path: String,bytes: PackedByteArray) -> bool:
+	var file: FileAccess = FileAccess.open(path,FileAccess.WRITE)
+	if file == null: return false
+	file.store_buffer(bytes); file.flush(); file.close()
+	return FileAccess.get_file_as_bytes(path) == bytes
+func archive(app: SeasonApp,action: String,elapsed: int) -> void:
+	DirAccess.make_dir_recursive_absolute(ARCHIVE)
+	var index: int = 0
+	while FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) or FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index):
+		if not check(FileAccess.file_exists(ARCHIVE+"/%04d.json"%index) and FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%index),"paired original evidence"): return
+		index += 1
+	var data: Dictionary = Codec.capture(app.season)
+	if not check(not data.is_empty() and Codec.same(data,JSON.parse_string(Store.raw().get_string_from_utf8())),"actual materialized state equals durable primary"): return
+	check(exact_write(ARCHIVE+"/%04d.json"%index,Store.raw()) and exact_write(ARCHIVE+"/%04d.meta.json"%index,JSON.stringify({"action":action,"elapsed_ms":elapsed,"picks":app.season.picks.size()},"",true,true).to_utf8_buffer()),"paired durable evidence and full-operation timing")
+func run() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and args.size() == 2 and args[0] in ["standard","dugout"] and args[1] in ["birth","resume_draft","cold"],"isolated fresh route test"): return
+	if not check(ProjectSettings.get_setting("application/run/main_scene") == SCENE,"assembled project actually selects new launcher"): return
+	var calls: int = OldDecoder.restore_calls
+	var app = load(SCENE).instantiate(); add_child(app)
+	await get_tree().process_frame
+	var original_slots: Dictionary = {}
+	for name: String in ["successor-owned-career-live-v1.json","successor-owned-career-live-v2.json","successor-owned-career-live-v3.json","successor-owned-general-live-v1.json"]:
+		for suffix: String in ["", ".bak", ".tmp"]:
+			var path: String = "user://"+name+suffix
+			original_slots[path] = {"exists":FileAccess.file_exists(path),"bytes":FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()}
+	if args[1] in ["birth","resume_draft"]:
+		if args[1] == "resume_draft":
+			app.reload_save()
+			if not check(app.season != null and app.season.phase == SeasonState.Phase.DRAFT,"resume exact existing draft without replaying earlier picks"): return
+		else:
+			if not check(not Store.occupied(),"new isolated slot empty"): return
+			app.select_league(args[0])
+			var birth_started: int = Time.get_ticks_msec()
+			app.create_fresh(710119)
+			var birth_elapsed: int = Time.get_ticks_msec()-birth_started
+			print("LIVE_BIRTH_MS: ",birth_elapsed)
+			if not check(app.season != null and app.retained == null and app.season.career.current == 1 and app.season.career.runs.size() == 1 and app.season.career.start_basis.runs.is_empty(),"real fresh career no invented predecessor"): return
+			archive(app,"birth",birth_elapsed)
+			var original: PackedByteArray = Store.raw()
+			app.create_fresh(710120)
+			if not check(Store.raw() == original,"duplicate birth cannot overwrite"): return
+		var started: int = 0
+		var elapsed: int = 0
+		for pick in range(app.season.picks.size(),4):
+			var owner: SeasonState = app.season
+			var disk: PackedByteArray = Store.raw()
+			var backup: PackedByteArray = FileAccess.get_file_as_bytes(Store.PATH+".bak") if FileAccess.file_exists(Store.PATH+".bak") else PackedByteArray()
+			if pick == 1:
+				if not check(DirAccess.make_dir_absolute(Store.PATH+".tmp") == OK,"isolated prewrite refusal"): return
+			started = Time.get_ticks_msec()
+			app.draft(app.season.offers()[0])
+			elapsed = Time.get_ticks_msec()-started
+			print("LIVE_DRAFT_MS: ",pick+1," ",elapsed)
+			if pick == 1:
+				if not check(app.retained != null and app.season == owner and Store.raw() == disk and FileAccess.get_file_as_bytes(Store.PATH+".bak") == backup,"refused write preserves owner and both files"): return
+				var retained: SeasonState = app.retained
+				if not check(DirAccess.remove_absolute(Store.PATH+".tmp") == OK,"remove only own fault"): return
+				app.retry_save()
+				if not check(app.retained == null and app.season == retained,"exact retained candidate retried once"): return
+			if not check(app.season.picks.size() == pick+1 and app.retained == null,"actual full draft transaction saved"): return
+			archive(app,"draft-%d"%(pick+1),elapsed)
+			if failed: return
+			if pick == 2:
+				disk = Store.raw()
+				var changed: PackedByteArray = "external-disk-change".to_utf8_buffer()
+				if not check(exact_write(Store.PATH,changed),"isolated CAS replacement"): return
+				app.draft(app.season.offers()[0])
+				var refused: bool = Store.raw() == changed and app.season.picks.size() == 3 and app.retained == null
+				var restored: bool = exact_write(Store.PATH,disk)
+				if not check(refused and restored,"changed primary refused and exact test source restored"): return
+		if not check(app.season.phase == SeasonState.Phase.REGULAR and app.season.opponents.clubs.size() == 5,"four real picks create actual six-club roster state"): return
+	else:
+		var before: PackedByteArray = Store.raw()
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Store.PATH+".bak")
+		var started: int = Time.get_ticks_msec()
+		app.reload_save()
+		var elapsed: int = Time.get_ticks_msec()-started
+		print("LIVE_COLD_MS: ",elapsed)
+		if not check(app.season != null and app.season.picks.size() == 4 and app.season.phase == SeasonState.Phase.REGULAR and Store.raw() == before and FileAccess.get_file_as_bytes(Store.PATH+".bak") == backup,"separate process Continue hydrates full roster without writes"): return
+		if not check(before == FileAccess.get_file_as_bytes(ARCHIVE+"/0004.json"),"exact fourth-pick bytes reopened"): return
+		var data: Dictionary = Codec.capture(app.season)
+		var wrong: Dictionary = data.duplicate(true); wrong.version += 1
+		if not check(Codec.restore(wrong) == null,"unknown materialized semantic version refused"): return
+		wrong = data.duplicate(true); wrong.state.picks[0] = "missing-player"
+		if not check(Codec.restore(wrong) == null,"malformed roster rejected without historical replay"): return
+		var fork: SeasonState = Codec.restore(data)
+		if not check(fork != null,"explicit materialized clone"): return
+		fork.build._visit["fork_only"] = true
+		fork.career.start_basis.starts.order = not fork.career.start_basis.starts.order
+		if not check(not app.season.build._visit.has("fork_only") and Codec.same(Codec.capture(app.season),data),"nested clone mutation cannot alias live owner"): return
+		archive(app,"cold-continue",elapsed)
+	if not check(OldDecoder.restore_calls == calls,"zero117 owner-history decoder calls"): return
+	for path: String in original_slots:
+		var record: Dictionary = original_slots[path]
+		if not check(FileAccess.file_exists(path) == record.exists and (not record.exists or FileAccess.get_file_as_bytes(path) == record.bytes),"earlier save slot unchanged"): return
+	app.queue_free(); await get_tree().process_frame
+	if not failed: print("PASS: materialized launcher ",args[0]," ",args[1],"; gameplay/terminal/Dynasty not claimed")
+	get_tree().quit(1 if failed else 0)

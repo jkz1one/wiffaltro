@@ -1,0 +1,59 @@
+extends SeasonMenu
+func render() -> void:
+	_screen("home","WIFFALTRO","YOUR CLUB. YOUR SEASON.")
+	if app.retained != null:
+		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
+		return
+	if app.season == null:
+		for league: String in ["standard","dugout"]:
+			_button(_body,("✓ " if app.selected_league == league else "")+league.capitalize(),Callable(app,"select_league").bind(league))
+		_button(_body,"NEW CAREER",Callable(app,"create_fresh"))
+		_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
+		_button(_body,"IMPORT SAVED DRAFT",Callable(app,"import_draft"))
+		_button(_body,"PREVIOUS CAREER BUILD",Callable(app,"open_previous"))
+		_button(_body,"ORIGINAL GAME",Callable(app,"open_legacy"))
+		_label(_body,"Materialized gameplay integration. Earlier saves remain separate and unchanged.",16)
+		return
+	if app.season.phase == SeasonState.Phase.DRAFT:
+		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
+		for id: String in app.season.offers():
+			var player: PlayerDefinition = app.season.build.definition(id)
+			_button(_body,player.display_name,Callable(app,"draft").bind(id))
+			_player_summary(player)
+		return
+	_label(_body,"ROUND %d · %s"%[app.season.round_index+1,SeasonState.Phase.keys()[app.season.phase]],24)
+	var fixture: Dictionary = app.season.pending_fixture()
+	if not fixture.is_empty(): _label(_body,"NEXT: "+_matchup(fixture),20)
+	_standings()
+	for result: Dictionary in app.season.player_results:
+		_label(_body,"%s · %d–%d"%[_matchup(result),result.away_runs,result.home_runs],18)
+	_label(_body,"YOUR ROSTER",28)
+	for id: String in app.season.teams[0].roster:
+		var player: PlayerDefinition = app.season.build.definition(id)
+		_label(_body,player.display_name,22)
+		_player_summary(player)
+	if not app.season.physical.pending.is_empty():
+		_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
+	elif app.season.phase != SeasonState.Phase.COMPLETE:
+		_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
+	else:
+		_label(_body,"Season finished and saved. Career awards, next-season and Dynasty integration are not enabled yet.",18)
+	if app.season.shop_available() and app.season.physical.pending.is_empty():
+		_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
+
+func _player_summary(player: PlayerDefinition) -> void:
+	var repertoire: Array[String] = []
+	var pitch_ids: Array[String] = []
+	for pitch: PitchDefinition in player.starting_pitches:
+		repertoire.append(pitch.display_name)
+		pitch_ids.append(String(pitch.id))
+	var pitch_label: Label = _label(_body,"Pitches: "+", ".join(repertoire),16)
+	pitch_label.set_meta("pitch_ids",pitch_ids)
+	# Authored attribute labels, no retuning and no raw data dump.
+	var stats: Dictionary = app.season.build.player(String(player.id)).get("stats",{})
+	var labels: Array[String] = []
+	for stat: String in SeasonPlayerCatalog.STATS:
+		if stats.has(stat): labels.append(stat.capitalize()+": "+str(stats[stat]))
+	if not labels.is_empty():
+		var stat_label: Label = _label(_body," · ".join(labels),16)
+		stat_label.set_meta("stat_keys",SeasonPlayerCatalog.STATS.duplicate())

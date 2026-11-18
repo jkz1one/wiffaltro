@@ -50,6 +50,10 @@ class AssemblyTests(unittest.TestCase):
                     self.assertEqual(live['launcher'], assembly.LIVE_LAUNCHER)
                     self.assertIn(assembly.LIVE_LAUNCHER, (root/'live/project.godot').read_text())
                     self.assertEqual((repo/'project.godot').read_text(), config)
+                with patch.object(assembly, 'LIVE_FAMILY', 'test'), patch.object(assembly, 'PLAY_FAMILY', 'test'):
+                    played = assembly.assemble(repo, root/'played', live_play=True)
+                    self.assertEqual(played['launcher'], assembly.PLAY_LAUNCHER)
+                    self.assertEqual((repo/'project.godot').read_text(), config)
                 (folder/'new.gd').write_text('corrupted')
                 with self.assertRaises(ValueError):
                     assembly.assemble(repo, root/'bad')

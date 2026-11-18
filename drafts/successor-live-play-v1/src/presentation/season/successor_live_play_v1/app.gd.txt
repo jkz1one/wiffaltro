@@ -1,0 +1,461 @@
+extends SeasonApp
+## Integrated materialized route. Original117/legacy launchers remain separate.
+const Runtime = preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Store = preload("res://src/gameplay/season/successor_live_play_v1/store.gd")
+const Pending = preload("res://src/gameplay/season/successor_live_play_v1/pending.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_live_play_v1/physical_fixtures.gd")
+const Runner = preload("res://src/gameplay/season/successor_league_general_v2/physical_runner.gd")
+const Capture = preload("capture_human.gd")
+const ImportDraft = preload("res://src/gameplay/season/successor_live_play_v1/import_draft.gd")
+const PreviousStore = preload("res://src/gameplay/season/successor_live_owner_v1/store.gd")
+const Shop = preload("res://src/presentation/season/successor_league_general_v2/shop_window.gd")
+const Page = preload("menu.gd")
+var retained_before: Dictionary = {}
+var retained_human: Array = []
+var retained_report: Dictionary = {}
+var retained_saved: bool = false
+var retained_saved_bytes: PackedByteArray = PackedByteArray()
+var retained_lab: PitchBatLab
+var retained_state: MatchState
+var ai_runner: Node
+var projection: Dictionary = {}
+var _npc_owner: SeasonState
+var _npc_before: Dictionary = {}
+var _npc_expected: PackedByteArray = PackedByteArray()
+var _npc_lab: PitchBatLab
+var _npc_state: MatchState
+var _exit_dialog: ConfirmationDialog
+var _exit_mode: String = ""
+var _exit_season: SeasonState
+var _exit_lab: PitchBatLab
+var _exit_state: MatchState
+var selected_league: String = "standard"
+var retained: SeasonState
+var retained_owner: SeasonState
+var retained_expected: PackedByteArray = PackedByteArray()
+var retained_snapshot: Dictionary = {}
+var saved_bytes: PackedByteArray = PackedByteArray()
+var _content_roots: Array[Resource] = []
+var _prior_auto_quit: bool = true
+func _enter_tree() -> void:
+	_prior_auto_quit = get_tree().auto_accept_quit
+	get_tree().auto_accept_quit = false
+func _ready() -> void:
+	# Keep authored catalog Resources owned for this live route, not per-button reloads.
+	_content_roots = preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	Codec.Catalog.game_signature(); Codec.Catalog.player_signature()
+	_exit_dialog = ConfirmationDialog.new()
+	# The match menu pauses SceneTree. Real dialog input must still dispatch;
+	# directly emitting button signals in a test does not prove this behavior.
+	_exit_dialog.process_mode = Node.PROCESS_MODE_ALWAYS
+	_exit_dialog.title = "Leave unfinished game"
+	_exit_dialog.dialog_autowrap = true
+	_exit_dialog.confirmed.connect(_confirm_exit)
+	_exit_dialog.canceled.connect(_cancel_exit)
+	_exit_dialog.close_requested.connect(_cancel_exit)
+	add_child(_exit_dialog)
+	menu = Page.new(); add_child(menu); menu.build(self)
+	_dialog = ConfirmationDialog.new()
+	add_child(_dialog)
+	_continue = Button.new()
+	_continue.text = "SAVE COMPLETED GAME"
+	_continue.position = Vector2(24,24)
+	_continue.pressed.connect(finish_game)
+	add_child(_continue)
+	_continue.hide()
+	loadout = SeasonLoadoutUI.new()
+	loadout.app = self
+	add_child(loadout)
+	loadout.process_mode = Node.PROCESS_MODE_DISABLED
+	loadout.entry.hide() # Legacy equipment transactions are not routed into this new domain.
+	show_season()
+
+func _exit_tree() -> void:
+	_cancel_exit()
+	_loading_generation += 1
+	if is_inside_tree(): get_tree().auto_accept_quit = _prior_auto_quit
+	_content_roots.clear()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_request_quit()
+
+func _process(_delta: float) -> void:
+	_continue.visible = is_instance_valid(lab) and lab._match_state!=null and lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD and not _busy
+	_continue.disabled = _busy
+
+func show_season() -> void:
+	if is_instance_valid(menu): menu.call("render")
+func _available() -> bool:
+	return not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+func select_league(value: String) -> void:
+	if not _available() or season != null or value not in ["standard","dugout"]: return
+	selected_league = value; show_season()
+func create_fresh(seed_value: int = -1) -> void:
+	if not _available() or season != null: return
+	if Store.occupied():
+		notice = "This slot already contains saved or interrupted work. Continue it; nothing was overwritten."
+		show_season(); return
+	if seed_value == -1: seed_value = int(Time.get_unix_time_from_system()) & 0x7fffffff
+	_busy = true
+	var candidate: SeasonState = Runtime.create_fresh(seed_value,selected_league)
+	_busy = false
+	if candidate == null:
+		notice = "This fresh career could not be initialized. No save was written."
+		show_season(); return
+	_retain(candidate,PackedByteArray())
+func reload_save() -> void:
+	if not _available(): return
+	_busy = true
+	var before: PackedByteArray = Store.raw()
+	var candidate: SeasonState = Store.read()
+	if candidate != null and Store.raw() == before:
+		season = candidate; saved_bytes = before; notice = ""
+	else: notice = Store.last_error
+	_busy = false; show_season()
+func draft(id: String) -> void:
+	if not _available() or season == null or season.phase != SeasonState.Phase.DRAFT or not season.offers().has(id): return
+	if not _owned():
+		notice = "The save changed outside this view. Reload before drafting."
+		show_season(); return
+	_busy = true
+	# One explicit detached operation fork, no historical reconstruction.
+	var candidate: SeasonState = season.fork_live()
+	if candidate != null and not candidate.choose_player(id): candidate = null
+	_busy = false
+	if candidate == null:
+		notice = "This choice could not be applied. Your current saved roster is unchanged."
+		show_season(); return
+	_retain(candidate,saved_bytes)
+func _retain(candidate: SeasonState, expected: PackedByteArray) -> void:
+	if retained != null or candidate == null: return
+	var snapshot: Dictionary = Codec.capture(candidate)
+	if snapshot.is_empty():
+		notice = "The candidate could not be represented consistently. Saved progress is unchanged."
+		show_season(); return
+	retained = candidate; retained_owner = season; retained_expected = expected.duplicate()
+	retained_before = Codec.capture(season) if season != null else {}
+	retained_snapshot = snapshot
+	retained_lab = lab; retained_state = lab._match_state if is_instance_valid(lab) else null
+	retained_saved = false; retained_saved_bytes = PackedByteArray()
+	retry_save()
+
+func retry_save() -> void:
+	if _busy or retained == null or season != retained_owner: return
+	if lab != retained_lab or (is_instance_valid(lab) and lab._match_state != retained_state): return
+	if season != null and not Codec.same(Codec.capture(season),retained_before): return
+	if not Codec.same(Codec.capture(retained),retained_snapshot): return
+	_busy = true
+	if not retained_saved:
+		retained_saved = Store.save(retained,retained_expected,retained_snapshot)
+		if retained_saved: retained_saved_bytes = Store.raw()
+	if not retained_saved:
+		notice = Store.last_error; _busy = false; show_season(); return
+	if Store.raw() != retained_saved_bytes:
+		notice = "Saved candidate changed before promotion. Exact progress remains retained."
+		_busy = false; return
+	if is_instance_valid(lab) and not _close_match():
+		notice = "Saved. Original match cleanup must finish before continuing."
+		_busy = false; return
+	# A successful close consumed the original pinned lab. Record that boundary
+	# even if a synchronous callback attached another lab: never promote or
+	# close the replacement. Retry can continue only after it is removed.
+	retained_lab = null; retained_state = null
+	if is_instance_valid(lab):
+		notice = "Saved candidate retained. A replacement match blocks promotion."
+		_busy = false; return
+	if season != retained_owner or (season != null and not Codec.same(Codec.capture(season),retained_before)) or Store.raw() != retained_saved_bytes or not Codec.same(Codec.capture(retained),retained_snapshot):
+		notice = "Saved candidate retained; ownership changed during cleanup."
+		_busy = false; return
+	season = retained; saved_bytes = retained_saved_bytes.duplicate()
+	retained = null; retained_owner = null; retained_lab = null; retained_state = null
+	retained_expected = PackedByteArray(); retained_snapshot = {}; retained_before = {}
+	retained_saved = false; retained_saved_bytes = PackedByteArray()
+	retained_human.clear(); retained_report.clear(); _clear_npc_pins()
+	_result_recorded = false; _result_saved = false
+	notice = ""; _busy = false; show_season()
+
+func open_previous() -> void:
+	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/successor_owner_career_v1/launcher.tscn")
+func open_legacy() -> void:
+	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")
+
+func _exit_blocked() -> bool:
+	if _busy or Store.saving or is_instance_valid(ai_runner):
+		notice = "A game or checkpoint is still running. Wait before leaving."
+		return true
+	if retained != null or not retained_report.is_empty() or not retained_human.is_empty():
+		notice = "Unsaved progress is retained. Retry the exact checkpoint before leaving."
+		return true
+	if is_instance_valid(lab) and lab._match_state != null and lab._match_state.phase == MatchState.Phase.GAME_END:
+		notice = "Save the completed game before leaving."
+		return true
+	return false
+
+
+func ask_leave_game() -> void:
+	_request_exit("leave")
+
+
+func leave_game() -> void:
+	# Direct inherited callbacks cannot bypass the same confirmation boundary.
+	_request_exit("leave")
+
+
+func _request_quit() -> void:
+	_request_exit("quit")
+
+
+func _request_exit(mode: String) -> void:
+	if mode not in ["leave", "quit"] or _exit_blocked():
+		return
+	if not is_instance_valid(lab):
+		if mode == "quit":
+			_cancel_exit()
+			_quit_now()
+		return
+	if lab._match_state == null or not is_instance_valid(_exit_dialog):
+		return
+	if not _exit_mode.is_empty():
+		return # Repeated/different requests cannot retarget an open confirmation.
+	_exit_mode = mode
+	_exit_season = season
+	_exit_lab = lab
+	_exit_state = lab._match_state
+	_exit_dialog.dialog_text = "Quit? This unfinished game will restart. Saved progress stays." if mode == "quit" else "Leave this unfinished game? It will restart. Saved progress stays."
+	_exit_dialog.popup_centered(Vector2i(560, 180))
+	_exit_dialog.get_cancel_button().grab_focus()
+
+
+func _cancel_exit() -> void:
+	_exit_mode = ""
+	_exit_season = null
+	_exit_lab = null
+	_exit_state = null
+	if is_instance_valid(_exit_dialog):
+		_exit_dialog.hide()
+
+
+func _confirm_exit() -> void:
+	var mode: String = _exit_mode
+	var owner: SeasonState = _exit_season
+	var matches: bool = mode in ["leave", "quit"] and season == _exit_season \
+		and is_instance_valid(lab) and lab == _exit_lab and lab._match_state == _exit_state
+	_cancel_exit() # Consume once before cleanup or any potential callback.
+	if not matches or _exit_blocked():
+		return
+	if not _close_match(false):
+		notice = "The original match could not close safely. It remains available."
+		return
+	if season != owner or is_instance_valid(lab) or _exit_blocked():
+		return # Cleanup may have invoked callbacks; never quit a replacement owner.
+	if mode == "quit":
+		_quit_now()
+	else:
+		show_season()
+
+
+func _quit_now() -> void:
+	# Sole final OS action; tests may spy on it without bypassing any exit guard.
+	get_tree().quit()
+
+
+func play_next() -> void:
+	if not _available() or not _owned() or not Codec.scope(season) or not season.physical.pending.is_empty():
+		return
+	var fixture: Dictionary = season.pending_fixture()
+	var state: MatchState = season.make_match()
+	var field: FieldDefinition = Runtime.field_for_fixture(fixture,season)
+	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence():
+		notice = "This fixture could not be prepared."
+		show_season()
+		return
+	_fixture_id = int(fixture.id)
+	_result_recorded = false
+	_result_saved = false
+	_open_match(state,int(fixture.home)==0,true,field.id)
+
+
+func _played_field_matches() -> bool:
+	if season==null or not Codec.scope(season) or not is_instance_valid(lab) or lab._match_state==null:
+		return false
+	var fixture: Dictionary = season.pending_fixture()
+	var expected: FieldDefinition = Runtime.field_for_fixture(fixture,season)
+	return expected!=null and lab._field_definition==expected and lab._field_id==expected.id and lab._match_state.stadium.is_empty() and ClubCareer.same(lab._match_state.league_rules, season.league_rules) and _fixture_id==int(fixture.get("id",-1)) and lab._match_state.pitch_catalog==season.build.pitch_catalog_signature()
+
+
+func finish_game() -> void:
+	if _busy:
+		return
+	if retained!=null:
+		retry_save()
+		return
+	var human: Array = Capture.capture(self)
+	if human.is_empty():
+		notice = "The actual completed game could not be captured. It remains open."
+		return
+	var candidate: SeasonState = _clone()
+	if candidate==null:
+		return
+	candidate.physical.pending = {"human":human.duplicate(true),"reports":[]}
+	retained_human = human.duplicate(true)
+	_retain(candidate,saved_bytes)
+
+
+func _commit_result() -> bool:
+	finish_game()
+	return false
+
+
+func _checkpoint() -> bool:
+	return false # No inherited legacy transaction may write a new-domain season.
+
+
+func resume_round() -> void:
+	if not _available() or not _owned() or season.physical.pending.is_empty():
+		return
+	if not retained_report.is_empty():
+		_checkpoint_report()
+		return
+	projection = Pending.project(season)
+	if projection.has("error"):
+		notice = str(projection.error)
+		show_season()
+		return
+	if not projection.has("fixture"):
+		_retain(projection.candidate,saved_bytes)
+		return
+	var candidate: SeasonState = projection.candidate
+	var fixture: Dictionary = projection.fixture
+	var state: MatchState = Fixtures.match_for(candidate,fixture)
+	var field: FieldDefinition = Runtime.field_for_fixture(fixture,candidate)
+	if state==null or field==null:
+		return
+	_npc_expected = saved_bytes.duplicate()
+	_npc_owner = season
+	_npc_before = Codec.capture(season).duplicate(true)
+	_npc_lab = lab
+	_npc_state = lab._match_state if is_instance_valid(lab) else null
+	if _npc_before.is_empty():
+		_clear_npc_pins()
+		return
+	ai_runner = Runner.new()
+	add_child(ai_runner)
+	ai_runner.finished.connect(_ai_finished.bind(ai_runner))
+	ai_runner.failed.connect(_ai_failed.bind(ai_runner))
+	_busy = true
+	if not ai_runner.start(state,Fixtures.seed_for(candidate,fixture),field.id):
+		_ai_failed("The physical fixture could not start.",ai_runner)
+
+
+func _npc_owner_matches() -> bool:
+	return Store.raw() == _npc_expected and _npc_owner != null and season == _npc_owner and not _npc_before.is_empty() \
+		and lab == _npc_lab and (not is_instance_valid(lab) or lab._match_state == _npc_state) \
+		and ClubCareer.same(Codec.capture(season),_npc_before)
+
+
+func _clear_npc_pins() -> void:
+	_npc_expected = PackedByteArray()
+	_npc_owner = null
+	_npc_before.clear()
+	_npc_lab = null
+	_npc_state = null
+
+
+func _ai_finished(report: Dictionary, runner: Node = null) -> void:
+	# Only the currently bound runner may complete this job. Foreign or repeated
+	# callbacks must not clear busy state, stop a newer runner or replace evidence.
+	if runner == null or not is_instance_valid(runner) or runner != ai_runner or not _busy:
+		return
+	if retained != null or not retained_report.is_empty(): return
+	if not _npc_owner_matches():
+		_ai_failed("Completed physical job belongs to a changed owner; checkpoint was not changed.",runner)
+		return
+	_busy = false
+	ai_runner.queue_free()
+	ai_runner = null
+	retained_report = report.duplicate(true)
+	_checkpoint_report()
+
+
+func _ai_failed(reason: String, runner: Node = null) -> void:
+	if runner == null or not is_instance_valid(runner) or runner != ai_runner or not _busy:
+		return
+	_busy = false
+	notice = reason
+	ai_runner.queue_free()
+	ai_runner = null
+	_clear_npc_pins()
+	show_season()
+
+
+func open_pitch_shop() -> void:
+	open_shop()
+
+
+func open_shop() -> void:
+	if not _available() or season==null or not Codec.scope(season) or not season.physical.pending.is_empty() or not season.shop_available():
+		return
+	if not season.build._visit.open:
+		var revision: int = season.build.revision()
+		if not commit_shop({"id":"shop-open:%d"%revision,"rev":revision,"op":"open"}):
+			return
+	for child: Node in menu.get_children():
+		if child is SeasonShopWindow:
+			child.popup_centered()
+			return
+	var window: SeasonShopWindow = Shop.new()
+	window.app = self
+	menu.add_child(window)
+	window.popup_centered()
+
+
+func shop_command(command: Dictionary) -> void:
+	commit_shop(command)
+
+
+func _owned() -> bool:
+	return season != null and Store.raw() == saved_bytes and Codec.same(Codec.capture(season),JSON.parse_string(saved_bytes.get_string_from_utf8()))
+
+func _clone() -> SeasonState:
+	return season.fork_live() if _owned() else null
+
+func _checkpoint_report() -> void:
+	if _busy or retained != null or retained_report.is_empty() or not _npc_owner_matches(): return
+	_busy = true
+	var staged: Dictionary = Pending.stage_report(season,retained_report)
+	var candidate: SeasonState = staged.get("candidate")
+	_busy = false
+	if candidate == null:
+		notice = "The completed physical report could not be admitted. It remains retained."
+		show_season(); return
+	_retain(candidate,_npc_expected)
+
+func commit_shop(command: Dictionary) -> bool:
+	if not _available() or season == null or not Codec.scope(season) or not season.physical.pending.is_empty() or not season.shop_available(): return false
+	if not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return false
+	var request_id: Variant = command.get("id")
+	if request_id is String and not request_id.is_empty() and season.build._requests.has(request_id): return false
+	if not _owned(): return false
+	var candidate: SeasonState = _clone()
+	if candidate == null: return false
+	var next: SeasonBuild = candidate.build.candidate(command)
+	if next == null:
+		notice = candidate.build.last_error; return false
+	candidate.adopt_build(next)
+	if candidate.build != next: return false
+	_retain(candidate,saved_bytes)
+	return season == candidate and retained == null
+
+func import_draft() -> void:
+	if not _available() or season != null or Store.occupied(): return
+	var bytes: PackedByteArray = PreviousStore.raw()
+	if bytes.is_empty():
+		notice = "No previous materialized draft was found. Nothing was changed."
+		show_season(); return
+	var candidate: SeasonState = ImportDraft.create(JSON.parse_string(bytes.get_string_from_utf8()))
+	if candidate == null or PreviousStore.raw() != bytes:
+		notice = "The previous draft could not be imported. Its original files are unchanged."
+		show_season(); return
+	_retain(candidate,PackedByteArray())
