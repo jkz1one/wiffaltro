@@ -1,5 +1,47 @@
 # Bounded private common career
 
+## Increment87: scoped final-report projection reuse qualified
+
+The Store retains its own validated terminal projection only for the exact
+immediately promoted report checkpoint and live owner. Settlement reuses that
+projection instead of projecting the same round and AI purchases twice. Disk,
+raw owner, authored-content and cached hidden-state checks remain; admission,
+full semantic validation, exact retained retries and atomic save promotion are
+not skipped. Reads, generic prepares, failed writes, mutations and foreign disk
+bytes discard reuse. No serialized schema or legacy-reader behavior changes.
+
+Fifteen focused guarded modes pass: stale App bytes; settlement obstruction,
+exact retry and duplicate refusal; report obstruction/retry; cached book and
+catalog mutations; live owner and active-side mutations; read and generic
+invalidation; unpromoted checkpoint; cleanup failure and replacement; cold
+fallback; failed read; foreign disk. Original fixtures remain unchanged.
+
+Preserved authentic ordinary earned-round, full-season ordinary and Dynasty
+reports were consumed at their original completion boundary, then settled and
+reopened in separate cold processes. Baseline86 and changed source produce
+byte-identical primary/backup artifacts: seven per warm lane. The separate
+ordinary pending-save cold-fallback pair produces five identical artifacts.
+These are report-consumption and persistence tests, not newly played physics or
+proof of shared-earned-rights Dynasty integration. All current54 runtime hashes
+were verified in isolated stages. Fifty-one Python tool tests ran:50 pass and
+one existing skip. Exact changed-source whitespace checks pass.
+
+Same-machine warm settlement milliseconds (baseline -> changed): ordinary
+earned12456 ->3583 (earlier paired run); full-season ordinary51011 ->16368;
+Dynasty21710 ->8495. The final two pairs ran serially on Intel Xeon Platinum8573C
+cloud. Report admission remains expensive (large ordinary77192 ->77144ms).
+Cold fallback remains full validation, not accelerated cache reuse. Shared-host
+measurements are not target-device promises, nor a claim that all delays are
+fixed. No AI purchase/development logic or game depth was removed.
+
+No new visual playtest, final distributable, public league unlock, replacement
+economy or full integrated-game completion is claimed. Source-only publication
+excludes generated saves, caches, logs and unrelated adapter drafts. Existing
+native and physical gameplay evidence remains scoped to its earlier increment.
+
+Qualification pair report SHA-256: `2520010ad7e78a04eba460038ea8590df5f2d48bf24a5e19c6c89e1798a91ff7`.
+Remaining13 guard report SHA-256: `71c2bf8449443b344ab15510223656ec8504ce913e4b06ca75e470fab7ddeac0`.
+
 ## Increment86: scoped common closure and earned ordinary starts qualified
 
 The same owner family uses a new `wiffaltro-common-career-v4.json` slot. Explicit

@@ -191,6 +191,7 @@ func _retain_prepared(ticket: RefCounted, envelope: RefCounted, expected: Packed
 	_finish_save()
 
 func retry_save() -> void:
+	Store.forget_projection() # Retry never transfers a warm projection lease.
 	if _busy or retained == null or season != retained_owner: return
 	if career_owner != retained_owner_envelope or retained_envelope == null or retained_envelope.session != retained: return
 	if career_owner != null and career_owner.session != season: return
@@ -204,11 +205,14 @@ func retry_save() -> void:
 
 func _finish_save() -> void:
 	if not retained_saved:
+		Store.forget_projection()
 		notice = Store.last_error; _busy = false; show_season(); return
 	if Store.raw() != retained_saved_bytes:
+		Store.forget_projection()
 		notice = "Saved candidate changed before promotion. Exact progress remains retained."
 		_busy = false; return
 	if is_instance_valid(lab) and not _close_match():
+		Store.forget_projection()
 		notice = "Saved. Original match cleanup must finish before continuing."
 		_busy = false; return
 	# A successful close consumed the original pinned lab. Record that boundary
@@ -216,12 +220,15 @@ func _finish_save() -> void:
 	# close the replacement. Retry can continue only after it is removed.
 	retained_lab = null; retained_state = null
 	if is_instance_valid(lab):
+		Store.forget_projection()
 		notice = "Saved candidate retained. A replacement match blocks promotion."
 		_busy = false; return
 	if season != retained_owner or career_owner != retained_owner_envelope or (career_owner != null and career_owner.session != season) or retained_envelope.session != retained or Store.raw() != retained_saved_bytes:
+		Store.forget_projection()
 		notice = "Saved candidate retained; ownership changed during cleanup."
 		_busy = false; return
 	if not Store.promote(_save_ticket,retained_owner_envelope,retained_envelope,retained_expected):
+		Store.forget_projection()
 		notice = "Saved candidate remains retained; its private admission changed."
 		_busy = false; return
 	_save_ticket = null
@@ -384,13 +391,14 @@ func resume_round() -> void:
 	if not retained_report.is_empty():
 		_checkpoint_report()
 		return
-	projection = Adapter.pending(_active_side()).project(season)
+	projection = Store.prepare_settlement_and_write(career_owner,saved_bytes)
 	if projection.has("error"):
 		notice = str(projection.error)
 		show_season()
 		return
-	if not projection.has("fixture"):
-		_retain(projection.candidate,saved_bytes)
+	if projection.has("ticket"):
+		var ticket: RefCounted = projection.ticket
+		_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
 		return
 	var candidate: SeasonState = projection.candidate
 	var fixture: Dictionary = projection.fixture
@@ -417,7 +425,7 @@ func resume_round() -> void:
 
 
 func _npc_owner_matches() -> bool:
-	return Store.raw() == _npc_expected and _npc_owner != null and season == _npc_owner and not _npc_before.is_empty() \
+	return saved_bytes == _npc_expected and Store.raw() == _npc_expected and _npc_owner != null and season == _npc_owner and not _npc_before.is_empty() \
 		and lab == _npc_lab and (not is_instance_valid(lab) or lab._match_state == _npc_state) \
 		and career_owner == _npc_envelope and career_owner != null and career_owner.session == season \
 		and Store.RawGuard.matches(career_owner,_npc_before)
@@ -495,13 +503,12 @@ func _clone() -> SeasonState:
 func _checkpoint_report() -> void:
 	if _busy or retained != null or retained_report.is_empty() or not _npc_owner_matches(): return
 	_busy = true
-	var staged: Dictionary = Adapter.pending(_active_side()).stage_report(season,retained_report)
-	var candidate: SeasonState = staged.get("candidate")
+	var ticket: RefCounted = Store.prepare_report_and_write(career_owner,_npc_expected,retained_report)
 	_busy = false
-	if candidate == null:
+	if ticket == null:
 		notice = "The completed physical report could not be admitted. It remains retained."
 		show_season(); return
-	_retain(candidate,_npc_expected)
+	_retain_prepared(ticket,Store.prepared_candidate(ticket),_npc_expected)
 
 func commit_shop(command: Dictionary) -> bool:
 	if not Codec.primitive(command): return false

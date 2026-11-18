@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "0b10d1d294e6b01f5758bb1ca99eaa9fc3880213",
-  "scope": "Increment86 scoped private v4 common Close/Abandon/Return and earned ordinary starts: genuine missed-playoffs completion receipt39, retained Return/proposal/Next/cold, actual earned Standard round and normal paid pack/cold qualified. Positive championship awards and inherited exotic purchase unqualified. Richer assets and differing common-to-Dynasty carry fail closed without loss. No public unlock, replacement economics, target performance or final distribution claim.",
+  "source_checkpoint": "269ea584b35f7b294b840dddaa97473a65561450",
+  "scope": "Increment87: scoped Store-owned reuse of final-report terminal projection, no serialized trust change. Exact paired saved-report/settlement/cold and guard evidence described in qualification; no new physical gameplay, complete integration, target performance or final distribution claim.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -42,8 +42,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/pending.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/pending.gd",
-      "bytes": 2095,
-      "sha256": "20acbdcbb307286dda8ec48bf60e402951a16cffa1b26df11419279863bd1abd"
+      "bytes": 2358,
+      "sha256": "05e39e975ad371e06bd61a7475e736e77fcc327fd77164e0acb138e04c4f109b"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/physical_fixtures.gd.txt",

@@ -29,4 +29,7 @@ static func stage_report(owner: SeasonState, raw: Dictionary) -> Dictionary:
 	# not deferred to cold load and not accepted as a caller validation token.
 	var validated: Dictionary = project(candidate)
 	if validated.has("error"): return validated
+	# Expose only the already validated terminal result to the fixed Store producer.
+	# This return value is not an admission token; Store never accepts one from callers.
+	if not validated.has("fixture"): return {"candidate":candidate,"settled":validated.candidate}
 	return {"candidate":candidate}

@@ -25,6 +25,18 @@ static var _candidate_raw: Dictionary = {}
 static var _candidate_data: Dictionary = {}
 static var _expected: PackedByteArray = PackedByteArray()
 static var _written: PackedByteArray = PackedByteArray()
+# One unarmed report-ticket result, or one promoted same-owner terminal result.
+# No serialized trust marker, cross-process cache, or caller registration API.
+static var _projection_ticket: RefCounted
+static var _projection_checkpoint: RefCounted
+static var _projection_owner: RefCounted
+static var _projection_value: RefCounted
+static var _projection_raw: Dictionary = {}
+
+# Clear-only invalidation has no admission/write authority.
+static func forget_projection() -> void:
+	_projection_ticket = null; _projection_checkpoint = null; _projection_owner = null
+	_projection_value = null; _projection_raw = {}
 
 static func raw() -> PackedByteArray:
 	return FileAccess.get_file_as_bytes(PATH) if FileAccess.file_exists(PATH) else PackedByteArray()
@@ -33,6 +45,7 @@ static func occupied() -> bool:
 		if FileAccess.file_exists(PATH+suffix) or DirAccess.dir_exists_absolute(PATH+suffix): return true
 	return false
 static func read() -> RefCounted:
+	forget_projection()
 	last_error = ""
 	if not FileAccess.file_exists(PATH):
 		last_error = "No common career is saved in this slot. Earlier saves are unchanged."
@@ -61,6 +74,7 @@ static func read() -> RefCounted:
 	_metadata = Codec.data_fields(season,Owner.META_FIELDS); _imported_sha256 = season.imported_sha256
 	return season
 static func save(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary = {}) -> bool:
+	forget_projection()
 	if saving: return false
 	saving = true
 	var result: bool = _write(season,expected,expected_snapshot)
@@ -104,14 +118,17 @@ static func _write_data(data: Dictionary, expected: PackedByteArray) -> bool:
 	return true
 
 static func _invalidate() -> void:
+	forget_projection()
 	_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = PackedByteArray()
 	_paused = {}; _active = ""; _metadata = {}; _imported_sha256 = ""
 	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 
 static func match_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
-	return owner != null and owner == _owner and owner.session == _owner_session and expected == _owner_bytes \
+	var valid: bool = owner != null and owner == _owner and owner.session == _owner_session and expected == _owner_bytes \
 		and _matches(expected) and _matches_raw(owner,_owner_raw)
+	if not valid: forget_projection()
+	return valid
 
 static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
 	return RawGuard.matches(value,snapshot)
@@ -127,6 +144,7 @@ static func _routine_pins(candidate: RefCounted) -> bool:
 	return candidate.birth_seed==_metadata.get("birth_seed")
 
 static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> RefCounted:
+	forget_projection()
 	if saving or _ticket != null or candidate == null or candidate == owner: return null
 	if candidate.get_script()!=Owner or candidate.session==null: return null
 	if owner == null:
@@ -169,6 +187,7 @@ static func prepare_and_write(owner: RefCounted, candidate: RefCounted, expected
 ## Only named runtime/build factories admitted by match_owner can execute here.
 ## No UI callbacks, awaits, caller candidate or unchecked payload are accepted.
 static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray, command: Dictionary) -> RefCounted:
+	forget_projection()
 	last_error = ""
 	if saving or _ticket != null or not Codec.primitive(command) or not SHOP_PRODUCER_OPS.has(str(command.get("op",""))): return null
 	if not match_owner(owner,expected): return null
@@ -203,6 +222,60 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 	_write_admitted()
 	return _ticket
 
+## Fixed producer invokes the named pending implementation itself. The optional
+## terminal result is retained only after this exact immediate checkpoint write.
+## A failed write/retry keeps the ordinary ticket, but deliberately loses reuse.
+static func prepare_report_and_write(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
+	forget_projection()
+	if saving or _ticket != null or not match_owner(owner,expected): return null
+	if not owner.playable() or not Adapter.scope(owner.active,owner.session) or owner.session.physical.pending.is_empty(): return null
+	var staged: Dictionary = Adapter.pending(owner.active).stage_report(owner.session,report)
+	var current: SeasonState = staged.get("candidate")
+	if current == null: return null
+	var envelope: RefCounted = Owner.new()
+	envelope.session = current
+	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+	var settled: RefCounted
+	var snapshot: Dictionary = {}
+	if staged.get("settled") is SeasonState:
+		settled = Owner.new(); settled.session = staged.settled
+		if not Codec.install_fields(settled,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+		if not _routine_pins(settled) or not settled.session.physical.pending.is_empty() \
+			or not settled.session.physical.needed.is_empty() or settled.session.physical.projecting: return null
+		snapshot = RawGuard.capture(settled)
+		if snapshot.is_empty(): return null
+	var ticket: RefCounted = prepare_and_write(owner,envelope,expected)
+	if ticket != null and not _written.is_empty() and settled != null:
+		_projection_ticket = ticket; _projection_checkpoint = envelope
+		_projection_value = settled; _projection_raw = snapshot
+	return ticket
+
+## Same active owner only. On cold/cache miss, use the normal complete projection.
+## Partial projections are returned solely to construct the next real runner.
+## Terminal candidates still cross the existing full semantic prepare boundary.
+static func prepare_settlement_and_write(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
+	if saving or _ticket != null:
+		forget_projection(); return {"error":"A checkpoint is already retained."}
+	if not match_owner(owner,expected): return {"error":"The current owner changed."}
+	if not owner.playable() or not Adapter.scope(owner.active,owner.session) or owner.session.physical.pending.is_empty():
+		forget_projection(); return {"error":"No current round is pending."}
+	var envelope: RefCounted
+	if _projection_owner == owner:
+		if _projection_value == null or not RawGuard.matches(_projection_value,_projection_raw):
+			forget_projection(); return {"error":"The retained terminal projection changed."}
+		envelope = _projection_value
+	forget_projection()
+	if envelope == null:
+		var projected: Dictionary = Adapter.pending(owner.active).project(owner.session)
+		if projected.has("error") or projected.has("fixture"): return projected
+		var current: SeasonState = projected.get("candidate")
+		if current == null: return {"error":"The current round did not produce a candidate."}
+		envelope = Owner.new(); envelope.session = current
+		if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)):
+			return {"error":"The round metadata could not be preserved."}
+	var ticket: RefCounted = prepare_and_write(owner,envelope,expected)
+	return {"ticket":ticket} if ticket != null else {"error":"The settled candidate could not be admitted."}
+
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.
 static func switch_available(owner: RefCounted) -> bool:
@@ -215,6 +288,7 @@ static func switch_available(owner: RefCounted) -> bool:
 		and current.physical.needed.is_empty() and not current.physical.projecting and not current.build.pack_pending()
 
 static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int = 0, league: String = "", reason: String = "") -> RefCounted:
+	forget_projection()
 	last_error=""
 	if saving or _ticket!=null or operation not in ["resume","create","attach119","close","propose","next"]: return null
 	if not match_owner(owner,expected): return null
@@ -263,13 +337,17 @@ static func prepared_binding(ticket: RefCounted, owner: RefCounted, candidate: R
 	return candidate.session == _candidate_session and (owner == null or owner.session == _owner_session)
 
 static func prepared_matches(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
-	if not prepared_binding(ticket,owner,candidate,expected): return false
-	return (owner == null or _matches_raw(owner,_owner_raw)) and _matches_raw(candidate,_candidate_raw)
+	if not prepared_binding(ticket,owner,candidate,expected):
+		forget_projection(); return false
+	var valid: bool = (owner == null or _matches_raw(owner,_owner_raw)) and _matches_raw(candidate,_candidate_raw)
+	if not valid: forget_projection()
+	return valid
 
 static func prepared_snapshot(ticket: RefCounted) -> Dictionary:
 	return _candidate_data.duplicate(true) if ticket != null and ticket == _ticket else {}
 
 static func write_prepared(ticket: RefCounted) -> bool:
+	forget_projection()
 	if saving or ticket == null or ticket != _ticket or not _written.is_empty(): return false
 	if not prepared_matches(ticket,_owner,_candidate,_expected): return false
 	return _write_admitted()
@@ -294,7 +372,12 @@ static func written_bytes(ticket: RefCounted) -> PackedByteArray:
 	return _written.duplicate() if ticket != null and ticket == _ticket else PackedByteArray()
 
 static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
-	if _written.is_empty() or raw() != _written or not prepared_matches(ticket,owner,candidate,expected): return false
+	if _written.is_empty() or raw() != _written or not prepared_matches(ticket,owner,candidate,expected):
+		forget_projection(); return false
+	var arm: bool = _projection_ticket == ticket and _projection_checkpoint == candidate and _projection_value != null
+	if arm:
+		_projection_owner = candidate; _projection_ticket = null; _projection_checkpoint = null
+	else: forget_projection()
 	_owner = _candidate; _owner_session = _candidate_session; _owner_raw = _candidate_raw; _owner_bytes = _written.duplicate()
 	_paused = _candidate.paused.duplicate(true); _active = _candidate.active
 	_metadata = Codec.data_fields(_candidate,Owner.META_FIELDS); _imported_sha256 = _candidate.imported_sha256

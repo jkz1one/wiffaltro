@@ -1,0 +1,78 @@
+extends Node
+## Genuine saved report completion harness. No runner or new physical simulation.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const O=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const A=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+var roots: Array[Resource]=[]
+var inputs: Dictionary={}
+var metrics: Dictionary={}
+var failed: bool=false
+func _ready():run.call_deferred()
+func check(ok: bool,label: String) -> bool:
+	print("CHECK: " if ok else "FAIL: ",label)
+	if not ok:failed=true;get_tree().quit(1)
+	return ok
+func archive(label: String) -> bool:
+	for suffix in ["",".bak"]:
+		var target="user://result-"+label+".json"+suffix
+		if not check(not FileAccess.file_exists(target),"new immutable "+label+suffix):return false
+		if FileAccess.file_exists(S.PATH+suffix):
+			var f=FileAccess.open(target,FileAccess.WRITE);f.store_buffer(FileAccess.get_file_as_bytes(S.PATH+suffix));f.close()
+	return true
+func run():
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["prepare","chain","cold-fallback","cold"],"isolated no-physics parity mode"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty(),"owned authored catalog roots"):return
+	var manifest: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("user://inputs.json"))
+	for name in manifest.files:
+		var path="user://"+name
+		if not check(FileAccess.get_sha256(path)==manifest.files[name].sha256,"exact input "+name):return
+		inputs[path]=FileAccess.get_file_as_bytes(path)
+	var source: Dictionary=JSON.parse_string(inputs["user://before.json"].get_string_from_utf8())
+	var raw: Dictionary=JSON.parse_string(inputs["user://actual.json"].get_string_from_utf8())
+	if not check(C.same(raw.owner_before,source) and C.same(raw.before,source.ordinary),"actual raw authentic whole-owner/session predecessor"):return
+	if args[0]=="prepare":
+		if not check(not S.occupied(),"empty isolated target slot"):return
+		var value: Dictionary=JSON.parse_string(inputs["user://selected.json"].get_string_from_utf8())
+		var owner=O.import_v3(inputs["user://selected.json"]) if value.version==3 else O.restore(value)
+		if not check(owner!=null and S.save(owner,PackedByteArray()),"strict named import/read and generic save"):return
+		if not archive("prepare"):return
+	else:
+		var app=App.new();add_child(app);await get_tree().process_frame
+		var before=S.raw();var bak=FileAccess.get_file_as_bytes(S.PATH+".bak") if FileAccess.file_exists(S.PATH+".bak") else PackedByteArray()
+		var calls=A.OrdinaryPending.project_calls
+		var started=Time.get_ticks_msec();app.reload_save();metrics.cold_ms=Time.get_ticks_msec()-started
+		if not check(app.career_owner!=null and app._owned() and S.raw()==before and A.OrdinaryPending.project_calls==calls,"strict cold admits without projection/write"):return
+		var outer=O.capture(app.career_owner)
+		if args[0]=="chain":
+			if not check(C.same(A.capture("ordinary",app.season),source.ordinary),"migrated current session exact raw predecessor"):return
+			# Test-only completion injection at original retained-report boundary.
+			# No runner callback or physical gameplay is claimed in this benchmark.
+			app._npc_expected=app.saved_bytes.duplicate();app._npc_owner=app.season;app._npc_envelope=app.career_owner
+			app._npc_before=S.RawGuard.capture(app.career_owner);app._npc_lab=null;app._npc_state=null
+			app.retained_report=raw.report.duplicate(true)
+			calls=A.OrdinaryPending.project_calls;started=Time.get_ticks_msec();app._checkpoint_report()
+			metrics.report_ms=Time.get_ticks_msec()-started;metrics.report_projects=A.OrdinaryPending.project_calls-calls
+			if not check(app.retained==null and app.retained_report.is_empty() and app._owned(),"actual named report admission and promotion"):return
+			if not archive("report"):return
+		if args[0] in ["chain","cold-fallback"]:
+			calls=A.OrdinaryPending.project_calls;started=Time.get_ticks_msec();app.resume_round()
+			metrics.settlement_ms=Time.get_ticks_msec()-started;metrics.settlement_projects=A.OrdinaryPending.project_calls-calls
+			if not check(app.retained==null and not app._busy and app.ai_runner==null and app.season.physical.pending.is_empty() and app._owned(),"actual completed settlement promotion without runner"):return
+			var expected: Dictionary=JSON.parse_string(inputs["user://settled.json"].get_string_from_utf8())
+			if not check(C.same(A.capture("ordinary",app.season),expected.ordinary),"entire actual settled session including RNG/journals/receipts matches recorded result"):return
+			var completed_outer: Dictionary=O.capture(app.career_owner)
+			for key in outer:
+				if key!="ordinary" and not check(C.same(completed_outer[key],outer[key]),"outer/dormant unchanged "+key):return
+			if not archive("settled"):return
+		else:
+			if not check(S.raw()==before and (FileAccess.get_file_as_bytes(S.PATH+".bak") if FileAccess.file_exists(S.PATH+".bak") else PackedByteArray())==bak,"cold pair exact"):return
+			if not archive("cold"):return
+		app.queue_free();await get_tree().process_frame
+	for path in inputs:
+		if not check(FileAccess.get_file_as_bytes(path)==inputs[path],"original input unchanged"):return
+	var out=FileAccess.open("user://metrics-"+args[0]+".json",FileAccess.WRITE);out.store_string(JSON.stringify(metrics,"",true,true));out.close()
+	print("METRICS ",JSON.stringify(metrics));print("PASS: no-physics named projection benchmark ",args[0]);get_tree().quit()

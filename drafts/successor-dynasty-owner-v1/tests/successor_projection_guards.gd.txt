@@ -1,0 +1,116 @@
+extends "res://tests/successor_dynasty_lineup.gd"
+## Actual earned86 last-NPC report, isolated fault probes. No simulated games.
+const Adapter87=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const PIN87={"projection-pending.json":"2ca1ead513f52cc07becd6abd3551c5a1f2beb05b42e990c8ef9c16691121873","projection-before.json":"2f6e4910267957f5de585d2a78af403f7319fb4ed7aba16a383adee09e694c91","projection-before.json.bak":"b13ce3a1775ccf16f550f2f95506be8e3e2498d7a8c01fba10fadfb135ff85e6","projection-actual.json":"976c068dcf8d846f5f8fcf55958c8093cc7415e07d17f3ef51436e713e98518a"}
+class Cleanup87:
+	extends "res://src/presentation/season/successor_dynasty_owner_v1/app.gd"
+	var replacement: bool=false
+	func _close_match(_close_inventory: bool=false) -> bool:
+		if not replacement:return false
+		lab.free();lab=PitchBatLab.new();return true
+func obstruction(create: bool) -> bool:
+	if create:return check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp")==OK,"own empty write obstruction")
+	return check(DirAccess.remove_absolute(Save.PATH+".tmp")==OK,"remove only own empty obstruction")
+func no_projection() -> bool:
+	return Save._projection_owner==null and Save._projection_value==null and Save._projection_ticket==null and Save._projection_checkpoint==null and Save._projection_raw.is_empty()
+func settle(owner,warm: bool,fault: bool) -> bool:
+	var old: Dictionary=slot();var calls: int=Adapter87.OrdinaryPending.project_calls
+	if fault and not obstruction(true):return false
+	var result: Dictionary=Save.prepare_settlement_and_write(owner,old.main)
+	if not check(result.has("ticket") and result.ticket!=null,"fixed terminal settlement producer admits genuine report set"):return false
+	var ticket=result.ticket;var candidate=Save.prepared_candidate(ticket)
+	if not check(candidate!=null and candidate.session.physical.pending.is_empty() and candidate.session.results.size()==3
+		and Adapter87.OrdinaryPending.project_calls==calls+int(not warm),"warm hit avoids project; cold/fallback performs exactly one project"):return false
+	var expected: Dictionary=Owner.capture(candidate)
+	if fault:
+		if not check(Save.written_bytes(ticket).is_empty() and exact_disk(old) and no_projection(),"settlement failure retains ticket, preserves pair, consumes projection"):return false
+		if not obstruction(false) or not check(Save.write_prepared(ticket),"retry writes exact retained settlement"):return false
+		if not check(Adapter87.OrdinaryPending.project_calls==calls+int(not warm) and Codec.same(Owner.capture(Save.prepared_candidate(ticket)),expected),"retry never reprojects or replaces candidate"):return false
+	if not check(Save.promote(ticket,owner,candidate,old.main),"strict post-write settlement promotion"):return false
+	var paid: Dictionary=slot()
+	return check(Save.prepare_settlement_and_write(candidate,paid.main).has("error") and exact_disk(paid) and no_projection(),"duplicate settlement refuses without payment or backup rotation")
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1
+		and args[0] in ["report-fault","settlement-fault","cache-book","cache-catalog","owner","side","read","generic","unpromoted","cleanup-fail","cleanup-replace","stale-app","cold","failed-read","foreign-disk"],"isolated projection fault mode before IO"):return
+	for name: String in PIN87:
+		if not check(FileAccess.get_sha256("user://"+name)==PIN87[name],"exact authentic immutable "+name):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"retain current authored content before restore"):return
+	var initial: Dictionary=slot()
+	var expected_main: String="projection-pending.json" if args[0]=="cold" else "projection-before.json"
+	var expected_backup: String="projection-before.json" if args[0]=="cold" else "projection-before.json.bak"
+	if not check(initial.main==FileAccess.get_file_as_bytes("user://"+expected_main) and initial.bak.bytes==FileAccess.get_file_as_bytes("user://"+expected_backup),"mode starts from exact copied genuine pair"):return
+	var actual: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("user://projection-actual.json"))
+	var report: Dictionary=actual.report;var owner=Save.read()
+	if not check(owner!=null and owner.active=="ordinary" and Save.match_owner(owner,initial.main) and exact_disk(initial),"strict genuine earned owner admitted without rewrite"):return
+	var raw: Dictionary=Raw.capture(owner)
+	if args[0]!="cold" and not check(Codec.same(Owner.capture(owner),actual.owner_before),"actual raw report predecessor is exact whole current owner"):return
+	if args[0]=="cold":
+		if not check(no_projection(),"new-process authentic pending input has no cache"):return
+		if not settle(owner,false,false):return
+	elif args[0]=="stale-app":
+		var app=App.new();add_child(app);await get_tree().process_frame;app.reload_save()
+		app._npc_owner=app.season;app._npc_envelope=app.career_owner;app._npc_expected=initial.main.duplicate();app._npc_before=Raw.capture(app.career_owner)
+		app._npc_lab=null;app._npc_state=null;app.retained_report=report.duplicate(true)
+		if not check(app._npc_owner_matches(),"actual NPC owner pins valid before stale bytes probe"):return
+		app.saved_bytes=PackedByteArray();app._checkpoint_report()
+		if not check(exact_disk(initial) and Save._ticket==null and no_projection() and app.retained==null and Codec.same(app.retained_report,report),"stale App saved_bytes refuses before report write and retains raw"):return
+		app.queue_free();await get_tree().process_frame
+	elif args[0] in ["cleanup-fail","cleanup-replace"]:
+		var app=Cleanup87.new();add_child(app);await get_tree().process_frame;app.reload_save();owner=app.career_owner
+		var ticket=Save.prepare_report_and_write(owner,initial.main,report)
+		var candidate=Save.prepared_candidate(ticket);var saved: Dictionary=slot()
+		if not check(ticket!=null and candidate!=null and Save._projection_owner==null and Save._projection_ticket==ticket,"saved-but-unpromoted report is not armed"):return
+		app.lab=PitchBatLab.new();app.replacement=args[0]=="cleanup-replace"
+		app._retain_prepared(ticket,candidate,initial.main)
+		if not check(app.retained_envelope==candidate and app.career_owner==owner and no_projection() and exact_disk(saved),"failed or replacement cleanup leaves written candidate retained but reuse unarmed"):return
+		if is_instance_valid(app.lab):app.lab.free();app.lab=null
+		app.queue_free();await get_tree().process_frame
+	else:
+		var fault: bool=args[0]=="report-fault"
+		if fault and not obstruction(true):return
+		var ticket=Save.prepare_report_and_write(owner,initial.main,report)
+		var candidate=Save.prepared_candidate(ticket)
+		if not check(ticket!=null and candidate!=null and Raw.matches(owner,raw),"fixed report producer leaves original owner unchanged"):return
+		if fault:
+			if not check(Save.written_bytes(ticket).is_empty() and exact_disk(initial) and no_projection(),"report writefailure retains checkpoint only, no warm reuse"):return
+			if not obstruction(false) or not check(Save.write_prepared(ticket),"exact report retry writes without reconstruction"):return
+		if args[0]=="unpromoted":
+			var saved: Dictionary=slot()
+			if not check(Save._projection_owner==null and Save.prepare_settlement_and_write(owner,initial.main).has("error") and exact_disk(saved) and no_projection(),"saved unpromoted checkpoint cannot use terminal result"):return
+		else:
+			if not check(Save.promote(ticket,owner,candidate,initial.main),"same saved report checkpoint promoted"):return
+			owner=candidate;var current: Dictionary=slot()
+			if not check((no_projection() if fault else Save._projection_owner==owner),"only immediate promoted report owns warm projection"):return
+			if args[0] in ["cache-book","cache-catalog"]:
+				var cached=Save._projection_value
+				if args[0]=="cache-book":cached.session.opponents.clubs["1"].build._book._events.append({"synthetic_probe":true})
+				else:cached.session.opponents.clubs["1"].build._bank._catalog["synthetic_probe"]={}
+				if not check(Save.prepare_settlement_and_write(owner,current.main).has("error") and exact_disk(current) and no_projection(),"mutated cached hidden state refuses without IO"):return
+			elif args[0] in ["failed-read","foreign-disk"]:
+				var foreign: PackedByteArray="{malformed isolated test".to_utf8_buffer() if args[0]=="failed-read" else current.main.duplicate()
+				if args[0]=="foreign-disk":foreign.append(32)
+				if not check(replace_isolated_primary(foreign),"alter only own isolated current primary"):return
+				if args[0]=="failed-read":
+					if not check(Save.read()==null,"malformed primary read refuses"):return
+				else:
+					if not check(Save.prepare_settlement_and_write(owner,current.main).has("error"),"warm foreign bytes refuse before settlement write"):return
+				if not check(no_projection() and Save.raw()==foreign and Codec.same(slot_state(Save.PATH+".bak"),current.bak),"failedread/foreign disk clears cache without overwriting either file"):return
+			elif args[0] in ["owner","side"]:
+				if args[0]=="owner":owner.session.opponents.clubs["1"].build._book._events.append({"synthetic_probe":true})
+				else:owner.active="dynasty"
+				if not check(Save.prepare_settlement_and_write(owner,current.main).has("error") and exact_disk(current) and no_projection(),"mutated live owner or selector invalidates warm result without IO"):return
+			else:
+				var warm: bool=not fault
+				if args[0] in ["read","cold"]:
+					owner=Save.read();warm=false
+					if not check(owner!=null and no_projection() and exact_disk(current),"strict read discards warm state without writes"):return
+				elif args[0]=="generic":
+					if not check(Save.prepare(owner,null,current.main)==null and no_projection() and exact_disk(current),"generic prepare invalidates cache even on refusal"):return
+					warm=false
+				if not settle(owner,warm,args[0]=="settlement-fault"):return
+	for name: String in PIN87:
+		if not check(FileAccess.get_sha256("user://"+name)==PIN87[name],"original remains immutable "+name):return
+	print("PASS: projection87 guards ",args[0],"; genuine saved report, no physics")
+	get_tree().quit(0)
