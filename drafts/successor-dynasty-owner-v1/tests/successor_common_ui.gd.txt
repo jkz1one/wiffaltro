@@ -1,0 +1,162 @@
+extends Node
+## Actual common App/menu/opaque Store handoffs, genuine copied inputs, no physics.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Adapter=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+var roots: Array[Resource]=[]
+var protected: Dictionary={}
+func _ready() -> void:call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func disk() -> Dictionary:
+	return {"main":Store.raw(),"bak":FileAccess.get_file_as_bytes(Store.PATH+".bak") if FileAccess.file_exists(Store.PATH+".bak") else null}
+func exact(before: Dictionary) -> bool:
+	return before==disk()
+func button(node: Node,text: String) -> Button:
+	if node is Button and not node.is_queued_for_deletion() and node.text==text:return node
+	for child in node.get_children():
+		var found: Button=button(child,text)
+		if found!=null:return found
+	return null
+func click(node: Node,text: String) -> bool:
+	var control: Button=button(node,text)
+	if not check(control!=null and not control.disabled,"actual control: "+text):return false
+	control.pressed.emit();return true
+func shop_for(app) -> SeasonShopWindow:
+	for child in app.menu.get_children():
+		if child is SeasonShopWindow and not child.is_queued_for_deletion():return child
+	return null
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["import","attach","switch","cold","fresh","fresh-standard","fresh-dynasty","cold-standard","cold-dynasty","create-other","fault","guards"],"isolated common UI mode before reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"retained authored roots"):return
+	for name: String in ["wiffaltro-dynasty-career-v2.json","wiffaltro-dynasty-owner-v1.json","wiffaltro-materialized-play-v1.json"]:
+		for suffix: String in ["",".bak",".tmp"]:
+			var path: String="user://"+name+suffix
+			protected[path]=FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else null
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var before: Dictionary=disk()
+	if args[0]=="import":
+		if not check(not Store.occupied(),"new v3 slot empty, originalv2 remains separate"):return
+		if not click(app.menu,"COPY PREVIOUS CAREER (V2)"):return
+		if not check(app.career_owner!=null and app.career_owner.active=="dynasty" and app.retained==null
+			and app.career_owner.migration_v2.sha256==FileAccess.get_sha256("user://wiffaltro-dynasty-career-v2.json"),"actual explicit menu import saved strict migrated owner"):return
+	elif args[0] in ["fresh","fresh-standard","fresh-dynasty"]:
+		var league: String="dynasty" if args[0]=="fresh-dynasty" else "standard"
+		if not check(not Store.occupied(),"genuine fresh "+league+" newslot"):return
+		if app.selected_league!=league and not click(app.menu,"SELECT · "+league.to_upper()):return
+		if not click(app.menu,"NEW "+league.to_upper()+" TEST CAREER"):return
+		if not check(app.career_owner!=null and app.career_owner.paused.is_empty(),"actual fresh creation has no dormant predecessor"):return
+		if league=="standard":
+			if not check(app.career_owner.active=="ordinary" and app.career_owner.status=="absent"
+				and app.season.career.start_basis.runs.is_empty(),"actual ordinary-first creation has no hidden Dynasty/predecessor"):return
+		elif not check(app.career_owner.active=="dynasty" and app.career_owner.status=="active" and app.career_owner.ordinal==1
+			and app.career_owner.last_close.is_empty() and app.career_owner.last_transition.is_empty(),"actual Dynasty-first creation has no prior close/transition"):return
+		for index in range(4):
+			var id: String=app.season.offers()[0]
+			var control: Button=button(app.menu,app.season.build.definition(id).display_name)
+			if not check(control!=null,"actual draft menu offer"):return
+			control.pressed.emit()
+			if not check(app.retained==null and app.season.picks.size()==index+1,"genuine menu pick saved "+str(index+1)):return
+			var stable: Dictionary=disk();control.pressed.emit()
+			if not check(exact(stable),"old draft render callback inert"):return
+		if not check(app.season.phase==SeasonState.Phase.REGULAR and app.season.opponents.clubs.size()==5,"actual four-pick "+league+" season ready"):return
+	else:
+		app.reload_save()
+		if not check(app.career_owner!=null and app._owned() and exact(before),"strict active-selector cold load leaves bytes unchanged"):return
+		if args[0] in ["cold-standard","cold-dynasty"]:
+			var side: String="dynasty" if args[0]=="cold-dynasty" else "ordinary"
+			if not check(app.career_owner.active==side and app.career_owner.paused.is_empty()
+				and app.season.picks.size()==4 and app.season.phase==SeasonState.Phase.REGULAR
+				and app.season.opponents.clubs.size()==5,"independent process restores genuine fresh four-pick "+side):return
+		if args[0]=="create-other":
+			var original_side: String=app.career_owner.active
+			var original: Dictionary=Adapter.capture(original_side,app.season)
+			var original_metadata: Dictionary=app.career_owner.dynasty_metadata()
+			if not check(app.career_owner.paused.is_empty() and app.season.picks.size()==4
+				and app.session_switch_allowed(),"fresh fully drafted original side with no dormant session"):return
+			if not click(app.menu,"CREATE DYNASTY TEST SESSION" if original_side=="ordinary" else "CREATE STANDARD SESSION"):return
+			if not check(app.retained==null and app.career_owner.active==Adapter.other(original_side)
+				and C.same(app.career_owner.paused,original) and app.season.phase==SeasonState.Phase.DRAFT
+				and app.season.picks.is_empty(),"actual Create Other preserves original and creates genuine empty draft"):return
+			if original_side=="dynasty":
+				if not check(C.same(app.career_owner.dynasty_metadata(),original_metadata)
+					and app.season.career.start_basis.runs.is_empty(),"new ordinary draft preserves Dynasty metadata without fake predecessor"):return
+			elif not check(app.career_owner.status=="active" and app.career_owner.ordinal==1
+				and app.career_owner.last_close.is_empty() and app.career_owner.last_transition.is_empty(),"new Dynasty draft begins ordinal one without prior close/transition"):return
+			for index in range(4):
+				var id: String=app.season.offers()[0]
+				if not click(app.menu,app.season.build.definition(id).display_name):return
+				if not check(app.retained==null and app.season.picks.size()==index+1,"other-session actual menu pick saved "+str(index+1)):return
+			if not check(app.season.phase==SeasonState.Phase.REGULAR and app.season.opponents.clubs.size()==5,"new other session genuinely ready after four picks"):return
+			var created: Dictionary=Adapter.capture(app.career_owner.active,app.season)
+			var created_metadata: Dictionary=app.career_owner.dynasty_metadata()
+			if not click(app.menu,"RESUME "+("ORDINARY" if original_side=="ordinary" else "DYNASTY")+" SESSION"):return
+			if not check(app.retained==null and app.career_owner.active==original_side
+				and C.same(Adapter.capture(original_side,app.season),original) and C.same(app.career_owner.paused,created)
+				and C.same(app.career_owner.dynasty_metadata(),created_metadata),"actual Resume restores exact original and preserves new dormant session+metadata"):return
+		elif args[0]=="attach":
+			var dynasty: Dictionary=Adapter.capture("dynasty",app.season)
+			if not click(app.menu,"COPY SAVED ORDINARY SESSION"):return
+			if not check(app.retained==null and app.career_owner.active=="dynasty" and not app.career_owner.paused.is_empty()
+				and C.same(Adapter.capture("dynasty",app.season),dynasty),"actual attach copies119 without switching/resettingDynasty"):return
+		elif args[0] in ["switch","fault"]:
+			var original=app.career_owner;var session: SeasonState=app.season
+			var side: String=original.active;var outgoing: Dictionary=Adapter.capture(side,session)
+			var metadata: Dictionary=original.dynasty_metadata();var incoming: Dictionary=original.paused.duplicate(true)
+			if not check(not incoming.is_empty(),"existing actual dormant side"):return
+			var old_play: Button=button(app.menu,"PLAY NEXT GAME")
+			if args[0]=="fault":
+				if not check(not FileAccess.file_exists(Store.PATH+".tmp") and not DirAccess.dir_exists_absolute(Store.PATH+".tmp")
+					and DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"own empty retained-write obstruction"):return
+			if not click(app.menu,"RESUME "+("ORDINARY" if side=="dynasty" else "DYNASTY")+" SESSION"):return
+			if args[0]=="fault":
+				if not check(app.retained!=null and app.career_owner==original and app.season==session and exact(before),"failedswitch retains exact candidate and original live+disk"):return
+				var retained=app.retained_envelope
+				if not check(DirAccess.remove_absolute(Store.PATH+".tmp")==OK,"remove only own empty obstruction"):return
+				if not click(app.menu,"RETRY EXACT SAVE"):return
+				if not check(app.retained==null and app.career_owner==retained,"actual Retry promotes sameopaque candidate"):return
+			if not check(app.career_owner.active==Adapter.other(side) and C.same(Adapter.capture(app.career_owner.active,app.season),incoming)
+				and C.same(app.career_owner.paused,outgoing) and C.same(app.career_owner.dynasty_metadata(),metadata),"actualswitch exact sessions+Dynasty lifecycle metadata"):return
+			var stable: Dictionary=disk()
+			if old_play!=null:old_play.pressed.emit()
+			if not check(app.lab==null and exact(stable),"stale previous menu Play cannot launch switched session"):return
+		elif args[0]=="guards":
+			if not check(not app.career_owner.paused.is_empty() and app.session_switch_allowed(),"genuine two-session cleanhub"):return
+			for kind: String in ["lab","pending","modal"]:
+				var ticket=app.session_ticket()
+				if kind=="lab":app.lab=PitchBatLab.new()
+				elif kind=="pending":app.season.physical.pending["test_only"]=true
+				else:app.loadout.open()
+				if not check(not app.session_switch_allowed(),"cleanhub refuses "+kind):return
+				app.switch_session(ticket)
+				if kind=="lab":app.lab.free();app.lab=null
+				elif kind=="pending":app.season.physical.pending.erase("test_only")
+				else:app.loadout.close()
+				if not check(app.retained==null and exact(before),"blocked "+kind+" switch writes nothing"):return
+			app.open_pitch_shop()
+			var shop: SeasonShopWindow=shop_for(app)
+			if not check(shop!=null and shop.visible and not app.session_switch_allowed(),"visible actual Shop blocks switch"):return
+			# Keep the old Window and command callback alive across a real switch.
+			shop.hide();app.show_season()
+			var ticket=app.session_ticket();app.switch_session(ticket)
+			if not check(app.retained==null and shop.is_queued_for_deletion(),"successful switch retires old Shop"):return
+			var stable: Dictionary=disk()
+			var command: Dictionary={"id":"stale-shop-current-revision","rev":app.season.build.revision(),"op":"pack_open"}
+			shop._pending=command;shop._preview(command,"Old Shop cannot target new owner");shop._commit()
+			if not check(not shop._confirm.visible and exact(stable) and app.retained==null,"stale Shop callback refused even with destination's current revision"):return
+		else:
+			if not check(exact(before),"independent cold active side never writes"):return
+	if not check(app.career_owner!=null and C.same(Owner.capture(app.career_owner),JSON.parse_string(Store.raw().get_string_from_utf8())),"active App owner equals entire durable v3 save"):return
+	for path: String in protected:
+		if protected[path]==null:
+			if not check(not FileAccess.file_exists(path),"absent original slot stays absent"):return
+		elif not check(FileAccess.get_file_as_bytes(path)==protected[path],"original save/backup unchanged: "+path.get_file()):return
+	print("PASS: common UI ",args[0]," active=",app.career_owner.active,"; no physics or unlock claim")
+	app.queue_free();await get_tree().process_frame;get_tree().quit(0)

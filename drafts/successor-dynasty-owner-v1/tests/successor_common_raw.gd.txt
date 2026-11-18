@@ -1,0 +1,76 @@
+extends Node
+## Native private-guard dispatch only; no IO, Store authority, or earned fixtures.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Raw=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+const Adapter=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const Old=preload("res://src/gameplay/season/successor_live_play_v1/raw_guard.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+var roots: Array[Resource]=[]
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func _ready() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated guard flags before actions"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"retained authored catalogs"):return
+	var ordinary=Owner.create_ordinary(850301,"standard")
+	var dynasty=Owner.create_development(850302)
+	if not check(ordinary!=null and dynasty!=null,"genuine named factories create actual partial drafts"):return
+	if not check(ordinary.session.choose_player(ordinary.session.offers()[0]) and dynasty.session.choose_player(dynasty.session.offers()[0]),"one genuine authored pick on each side"):return
+	if not check(dynasty.import_119(JSON.stringify(Adapter.capture("ordinary",ordinary.session)).to_utf8_buffer()),"actual ordinary partial draft attached as dormant snapshot"):return
+	if not check(ordinary.create_missing(850303,"dynasty") and ordinary.switch_existing(),"ordinary active with genuine dormant Dynasty partial draft"):return
+	if not check(Raw.same(Old.capture(ordinary.session),Raw.capture_session(ordinary.session,"ordinary")),"new119 dispatch snapshot exactly equals unchanged119 raw capture including native metadata"):return
+	for owner in [ordinary,dynasty]:
+		var side: String=owner.active;var snapshot: Dictionary=Raw.capture(owner)
+		if not check(not snapshot.is_empty() and Raw.matches(owner,snapshot) and Raw.same(snapshot,Raw.capture(owner)),"native reflexivity "+side):return
+		var bank=owner.session.build._bank
+		var cash: Variant=bank._state.cash
+		bank._state.cash=cash+1
+		if not check(not Raw.matches(owner,snapshot),"hidden bank mutation refused "+side):return
+		bank._state.cash=cash
+		var key: Variant=bank._catalog.keys()[0];var catalog_value: Variant=bank._catalog[key]
+		bank._catalog[key]=false
+		if not check(not Raw.matches(owner,snapshot),"hidden catalog mutation refused "+side):return
+		bank._catalog[key]=catalog_value
+		var events: Array=owner.session.build._book._events
+		events.append({"raw_probe":true})
+		if not check(not Raw.matches(owner,snapshot),"hidden development journal mutation refused "+side):return
+		events.pop_back()
+		owner.active=Adapter.other(side)
+		if not check(not Raw.matches(owner,snapshot) and Raw.capture(owner).is_empty(),"selector cannot reinterpret wrong runtime factory "+side):return
+		owner.active="invalid"
+		if not check(not Raw.matches(owner,snapshot) and Raw.capture(owner).is_empty() and Raw.capture_session(owner.session,"invalid").is_empty(),"invalid selector cleanly refuses "+side):return
+		owner.active=side
+		owner.paused["raw_probe"]=true
+		if not check(not Raw.matches(owner,snapshot) and not snapshot.paused.has("raw_probe"),"dormant snapshot mutation refused and snapshot detached "+side):return
+		owner.paused.erase("raw_probe")
+		var ordinal: Variant=owner.ordinal;owner.ordinal+=1
+		if not check(not Raw.matches(owner,snapshot),"Dynasty metadata mutation refused "+side):return
+		owner.ordinal=ordinal
+		var runtime: SeasonState=owner.session
+		owner.session=dynasty.session if side=="ordinary" else ordinary.session
+		if not check(not Raw.matches(owner,snapshot) and Raw.capture(owner).is_empty(),"wrong119/120 session factory refused "+side):return
+		owner.session=runtime
+		var build: SeasonBuild=runtime.build
+		runtime.build=dynasty.session.build if side=="ordinary" else ordinary.session.build
+		if not check(not Raw.matches(owner,snapshot) and Raw.capture(owner).is_empty(),"wrong119/120 build factory refused "+side):return
+		runtime.build=build
+		bank._state.cash=float(cash) if typeof(cash)==TYPE_INT else int(cash)
+		if not check(not Raw.matches(owner,snapshot),"equal-valued int/float cannot alias native owner "+side):return
+		bank._state.cash=cash
+		if not check(Raw.matches(owner,snapshot) and Raw.same(snapshot,Raw.capture(owner)),"exact native Variant/reference restoration accepted "+side):return
+	var typed: Array[String]=["a"];var plain: Array=["a"]
+	var typed_map: Dictionary[String,int]={"a":1};var plain_map: Dictionary={"a":1}
+	var readonly: Array=[{"values":[1,2]}];readonly[0].make_read_only();readonly.make_read_only()
+	for pair: Array in [[1,1.0],[{&"x":1},{"x":1}],[typed,plain],[typed_map,plain_map],[readonly,[{"values":[1,2]}]],[NAN,NAN]]:
+		if not check(not Raw.same(pair[0],pair[1]) and Raw.same(pair[0],pair[1])==Old.same(pair[0],pair[1]) and Raw.same(pair[1],pair[0])==Old.same(pair[1],pair[0]),"native metadata/nonfinite refusal agrees with original119 comparator"):return
+	var budget: Array=[Raw.MAX_NODES,true]
+	var copied: Variant=Raw._copy(readonly,0,budget)
+	if not check(budget[1] and copied.is_read_only() and copied[0].is_read_only() and Raw.same(copied,readonly),"nested readonly copy metadata exact"):return
+	copied[0]["values"].append(3)
+	if not check(readonly[0]["values"]==[1,2],"readonly child copy detached"):return
+	var object_array: Array[RefCounted]=[];budget=[Raw.MAX_NODES,true];Raw._copy(object_array,0,budget)
+	if not check(not budget[1],"empty typed Object array refused"):return
+	print("PASS: common-owner native raw dispatch, no Store/App/physics claim")
+	get_tree().quit(0)

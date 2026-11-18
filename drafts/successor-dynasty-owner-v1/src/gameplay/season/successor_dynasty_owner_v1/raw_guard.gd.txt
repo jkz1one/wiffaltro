@@ -3,6 +3,8 @@ extends RefCounted
 ## No semantic capture, catalog signatures, reconstruction or command execution.
 const Codec = preload("codec.gd")
 const Builds = preload("build_codec.gd")
+const Ordinary = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Adapter = preload("session_adapter.gd")
 const MAX_DEPTH: int = 48
 const MAX_NODES: int = 1000000
 
@@ -11,21 +13,24 @@ static func capture(owner: Variant) -> Dictionary:
 	var budget: Array = [MAX_NODES,true]
 	var result: Dictionary = _object(owner,Owner,Owner.DATA_FIELDS,["session"],budget)
 	if not budget[1]: return {}
-	result.session = capture_session(owner.session)
+	if not Adapter.side(owner.active): return {}
+	result.session = capture_session(owner.session,owner.active)
 	return result if not result.session.is_empty() else {}
 
-static func capture_session(season: SeasonState) -> Dictionary:
+static func capture_session(season: SeasonState, side: String = "dynasty") -> Dictionary:
+	if not Adapter.side(side): return {}
+	var schema: Script=Adapter.codec(side)
 	var budget: Array = [MAX_NODES, true]
-	var result: Dictionary = _object(season, Codec.Runtime, Codec.FIELDS, Codec.OBJECTS, budget)
+	var result: Dictionary = _object(season, schema.Runtime, schema.FIELDS, schema.OBJECTS, budget)
 	if not budget[1]: return {}
 	for name: String in ["_heat_replay_team", "_doubleheader_replay_build", "_pool_replay_ledger"]:
 		if season.get(name) != null: return {}
 		result[name] = null
-	result.ownership = _bank(season.ownership, budget)
-	result.build = _build(season.build, budget)
-	result.career = _object(season.career, Codec.Career, Codec.CAREER_FIELDS, [], budget)
-	result.physical = _object(season.physical, Codec.Physical, Codec.PHYSICAL_FIELDS, [], budget)
-	result.opponents = _object(season.opponents, Codec.Opponents, ["draft_order", "draft_rule", "_format"], ["clubs"], budget)
+	result.ownership = _bank(season.ownership, budget,side)
+	result.build = _build(season.build, budget,side)
+	result.career = _object(season.career, schema.Career, schema.CAREER_FIELDS, [], budget)
+	result.physical = _object(season.physical, schema.Physical, schema.PHYSICAL_FIELDS, [], budget)
+	result.opponents = _object(season.opponents, schema.Opponents, ["draft_order", "draft_rule", "_format"], ["clubs"], budget)
 	if not budget[1]: return {}
 	if season.opponents.clubs.is_typed(): return {}
 	var clubs: Dictionary = {}
@@ -37,27 +42,31 @@ static func capture_session(season: SeasonState) -> Dictionary:
 		for field: Variant in original:
 			if not field is String: return {}
 			if field != "build": club[field] = _copy(original[field], 0, budget)
-		club.build = _build(original.build, budget)
+		club.build = _build(original.build, budget,side)
 		if original.is_read_only(): club.make_read_only()
 		clubs[key] = club
 	if season.opponents.clubs.is_read_only(): clubs.make_read_only()
 	result.opponents["clubs"] = clubs
 	return result if budget[1] else {}
 
-static func _build(build: Variant, budget: Array) -> Dictionary:
-	var result: Dictionary = _object(build, Builds.GameBuild, Builds.BUILD.keys()+["last_error"], Builds.OBJECTS, budget)
+static func _build(build: Variant, budget: Array, side: String = "dynasty") -> Dictionary:
+	if not Adapter.side(side): budget[1]=false; return {}
+	var builds: Script=Builds if side=="dynasty" else Ordinary.Builds
+	var result: Dictionary = _object(build, builds.GameBuild, builds.BUILD.keys()+["last_error"], builds.OBJECTS, budget)
 	if not budget[1]: return {}
-	result._bank = _bank(build._bank, budget)
-	result._book = _object(build._book, Builds.Book, Builds.BOOK.keys(), [], budget)
-	result._gear_progress = _object(build._gear_progress, SeasonGearProgress, Builds.GEAR.keys(), [], budget)
-	result._sponsor_progress = _object(build._sponsor_progress, SeasonSponsorProgress, Builds.SPONSOR.keys(), [], budget)
-	result._major = _object(build._major, SeasonDoubleMajor, Builds.MAJOR.keys(), [], budget)
-	result._abilities = _object(build._abilities, SeasonAbilities, Builds.ABILITIES.keys(), [], budget)
-	result._copy = _object(build._copy, SeasonCarbonCopy, Builds.COPY.keys(), [], budget)
+	result._bank = _bank(build._bank, budget,side)
+	result._book = _object(build._book, builds.Book, builds.BOOK.keys(), [], budget)
+	result._gear_progress = _object(build._gear_progress, SeasonGearProgress, builds.GEAR.keys(), [], budget)
+	result._sponsor_progress = _object(build._sponsor_progress, SeasonSponsorProgress, builds.SPONSOR.keys(), [], budget)
+	result._major = _object(build._major, SeasonDoubleMajor, builds.MAJOR.keys(), [], budget)
+	result._abilities = _object(build._abilities, SeasonAbilities, builds.ABILITIES.keys(), [], budget)
+	result._copy = _object(build._copy, SeasonCarbonCopy, builds.COPY.keys(), [], budget)
 	return result
 
-static func _bank(bank: Variant, budget: Array) -> Dictionary:
-	return _object(bank, SeasonOwnership, Builds.BANK.keys()+["_catalog"], [], budget)
+static func _bank(bank: Variant, budget: Array, side: String = "dynasty") -> Dictionary:
+	if not Adapter.side(side): budget[1]=false; return {}
+	var builds: Script=Builds if side=="dynasty" else Ordinary.Builds
+	return _object(bank, SeasonOwnership, builds.BANK.keys()+["_catalog"], [], budget)
 
 static func _object(value: Variant, factory: Script, fields: Array, children: Array, budget: Array) -> Dictionary:
 	if not budget[1]: return {}
@@ -111,7 +120,7 @@ static func _copy(value: Variant, depth: int, budget: Array) -> Variant:
 static func matches(owner: Variant, snapshot: Dictionary) -> bool:
 	var budget: Array = [MAX_NODES]
 	if not _match_object(owner,Owner,Owner.DATA_FIELDS,["session"],snapshot,0,budget): return false
-	return _match_session(owner.session,snapshot.session,1,budget)
+	return Adapter.side(owner.active) and _match_session(owner.session,snapshot.session,1,budget,owner.active)
 
 static func _match_object(value: Variant, factory: Script, fields: Array, children: Array, snapshot: Variant, depth: int, budget: Array, string_children: Array = []) -> bool:
 	budget[0] -= 1
@@ -133,17 +142,19 @@ static func _match_object(value: Variant, factory: Script, fields: Array, childr
 		if not _same(value.get(field),snapshot[field],depth+1,budget): return false
 	return true
 
-static func _match_session(season: Variant, snapshot: Variant, depth: int, budget: Array) -> bool:
+static func _match_session(season: Variant, snapshot: Variant, depth: int, budget: Array, side: String) -> bool:
+	if not Adapter.side(side): return false
+	var schema: Script=Adapter.codec(side)
 	# Replay pointers are synthetic null fields of the captured wrapper.
 	var replay: Array = ["_heat_replay_team","_doubleheader_replay_build","_pool_replay_ledger"]
-	if not _match_object(season,Codec.Runtime,Codec.FIELDS,Codec.OBJECTS,snapshot,depth,budget,replay): return false
+	if not _match_object(season,schema.Runtime,schema.FIELDS,schema.OBJECTS,snapshot,depth,budget,replay): return false
 	for name: String in replay:
 		if season.get(name)!=null or not _same(null,snapshot[name],depth+1,budget): return false
-	if not _match_bank(season.ownership,snapshot.ownership,depth+1,budget): return false
-	if not _match_build(season.build,snapshot.build,depth+1,budget): return false
-	if not _match_object(season.career,Codec.Career,Codec.CAREER_FIELDS,[],snapshot.career,depth+1,budget): return false
-	if not _match_object(season.physical,Codec.Physical,Codec.PHYSICAL_FIELDS,[],snapshot.physical,depth+1,budget): return false
-	if not _match_object(season.opponents,Codec.Opponents,["draft_order","draft_rule","_format"],["clubs"],snapshot.opponents,depth+1,budget,["clubs"]): return false
+	if not _match_bank(season.ownership,snapshot.ownership,depth+1,budget,side): return false
+	if not _match_build(season.build,snapshot.build,depth+1,budget,side): return false
+	if not _match_object(season.career,schema.Career,schema.CAREER_FIELDS,[],snapshot.career,depth+1,budget): return false
+	if not _match_object(season.physical,schema.Physical,schema.PHYSICAL_FIELDS,[],snapshot.physical,depth+1,budget): return false
+	if not _match_object(season.opponents,schema.Opponents,["draft_order","draft_rule","_format"],["clubs"],snapshot.opponents,depth+1,budget,["clubs"]): return false
 	var clubs: Variant=season.opponents.clubs
 	var saved: Variant=snapshot.opponents.clubs
 	budget[0]-=1
@@ -163,21 +174,23 @@ static func _match_session(season: Variant, snapshot: Variant, depth: int, budge
 		for field: Variant in club:
 			if typeof(field)!=TYPE_STRING or not old.has(field): return false
 			if field!="build" and not _same(club[field],old[field],depth+4,budget): return false
-		if not _match_build(club.build,old.build,depth+4,budget): return false
+		if not _match_build(club.build,old.build,depth+4,budget,side): return false
 	return true
 
-static func _match_build(build: Variant, snapshot: Variant, depth: int, budget: Array) -> bool:
-	if not _match_object(build,Builds.GameBuild,Builds.BUILD.keys()+["last_error"],Builds.OBJECTS,snapshot,depth,budget): return false
-	return _match_bank(build._bank,snapshot._bank,depth+1,budget) \
-		and _match_object(build._book,Builds.Book,Builds.BOOK.keys(),[],snapshot._book,depth+1,budget) \
-		and _match_object(build._gear_progress,SeasonGearProgress,Builds.GEAR.keys(),[],snapshot._gear_progress,depth+1,budget) \
-		and _match_object(build._sponsor_progress,SeasonSponsorProgress,Builds.SPONSOR.keys(),[],snapshot._sponsor_progress,depth+1,budget) \
-		and _match_object(build._major,SeasonDoubleMajor,Builds.MAJOR.keys(),[],snapshot._major,depth+1,budget) \
-		and _match_object(build._abilities,SeasonAbilities,Builds.ABILITIES.keys(),[],snapshot._abilities,depth+1,budget) \
-		and _match_object(build._copy,SeasonCarbonCopy,Builds.COPY.keys(),[],snapshot._copy,depth+1,budget)
+static func _match_build(build: Variant, snapshot: Variant, depth: int, budget: Array, side: String) -> bool:
+	var builds: Script=Builds if side=="dynasty" else Ordinary.Builds
+	if not _match_object(build,builds.GameBuild,builds.BUILD.keys()+["last_error"],builds.OBJECTS,snapshot,depth,budget): return false
+	return _match_bank(build._bank,snapshot._bank,depth+1,budget,side) \
+		and _match_object(build._book,builds.Book,builds.BOOK.keys(),[],snapshot._book,depth+1,budget) \
+		and _match_object(build._gear_progress,SeasonGearProgress,builds.GEAR.keys(),[],snapshot._gear_progress,depth+1,budget) \
+		and _match_object(build._sponsor_progress,SeasonSponsorProgress,builds.SPONSOR.keys(),[],snapshot._sponsor_progress,depth+1,budget) \
+		and _match_object(build._major,SeasonDoubleMajor,builds.MAJOR.keys(),[],snapshot._major,depth+1,budget) \
+		and _match_object(build._abilities,SeasonAbilities,builds.ABILITIES.keys(),[],snapshot._abilities,depth+1,budget) \
+		and _match_object(build._copy,SeasonCarbonCopy,builds.COPY.keys(),[],snapshot._copy,depth+1,budget)
 
-static func _match_bank(bank: Variant, snapshot: Variant, depth: int, budget: Array) -> bool:
-	return _match_object(bank,SeasonOwnership,Builds.BANK.keys()+["_catalog"],[],snapshot,depth,budget)
+static func _match_bank(bank: Variant, snapshot: Variant, depth: int, budget: Array, side: String) -> bool:
+	var builds: Script=Builds if side=="dynasty" else Ordinary.Builds
+	return _match_object(bank,SeasonOwnership,builds.BANK.keys()+["_catalog"],[],snapshot,depth,budget)
 
 static func same(a: Variant, b: Variant) -> bool:
 	return _same(a,b,0,[MAX_NODES])

@@ -2,8 +2,9 @@ extends RefCounted
 ## Atomic new-slot storage. CAS is concurrency consistency, not anti-cheat proof.
 const Codec = preload("codec.gd")
 const Owner = preload("owner.gd")
+const Adapter = preload("session_adapter.gd")
 const RawGuard = preload("raw_guard.gd")
-const PATH: String = "user://wiffaltro-dynasty-career-v2.json"
+const PATH: String = "user://wiffaltro-common-career-v3.json"
 const MAX_BYTES: int = 64 * 1024 * 1024
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
@@ -11,7 +12,9 @@ static var last_error: String = ""
 # Process-private admission. Never serialized; no caller validation flag/payload.
 static var _owner_session: SeasonState
 static var _candidate_session: SeasonState
-static var _alternate: Dictionary = {}
+static var _paused: Dictionary = {}
+static var _active: String = ""
+static var _metadata: Dictionary = {}
 static var _imported_sha256: String = ""
 static var _owner: RefCounted
 static var _owner_raw: Dictionary = {}
@@ -32,7 +35,7 @@ static func occupied() -> bool:
 static func read() -> RefCounted:
 	last_error = ""
 	if not FileAccess.file_exists(PATH):
-		last_error = "No Dynasty owner is saved in this slot. Earlier saves are unchanged."
+		last_error = "No common career is saved in this slot. Earlier saves are unchanged."
 		return null
 	var file: FileAccess = FileAccess.open(PATH,FileAccess.READ)
 	if file == null or file.get_length() > MAX_BYTES:
@@ -46,7 +49,7 @@ static func read() -> RefCounted:
 		return null
 	var season: RefCounted = Owner.restore(parser.data)
 	if season == null:
-		last_error = "This Dynasty owner has an unsupported version or inconsistent state. No files were changed."
+		last_error = "This common career has an unsupported version or inconsistent state. No files were changed."
 		return null
 	var snapshot: Dictionary = RawGuard.capture(season)
 	if snapshot.is_empty() or raw() != bytes:
@@ -54,7 +57,8 @@ static func read() -> RefCounted:
 		return null
 	_invalidate()
 	_owner = season; _owner_session = season.session; _owner_raw = snapshot; _owner_bytes = bytes.duplicate()
-	_alternate = season.alternate.duplicate(true); _imported_sha256 = season.imported_sha256
+	_paused = season.paused.duplicate(true); _active = season.active
+	_metadata = Codec.data_fields(season,Owner.META_FIELDS); _imported_sha256 = season.imported_sha256
 	return season
 static func save(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary = {}) -> bool:
 	if saving: return false
@@ -101,7 +105,7 @@ static func _write_data(data: Dictionary, expected: PackedByteArray) -> bool:
 
 static func _invalidate() -> void:
 	_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = PackedByteArray()
-	_alternate = {}; _imported_sha256 = ""
+	_paused = {}; _active = ""; _metadata = {}; _imported_sha256 = ""
 	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 
@@ -111,6 +115,14 @@ static func match_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
 
 static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
 	return RawGuard.matches(value,snapshot)
+
+# Pure refusal predicate, never a writer or an admission token. Routine actions
+# cannot replace either session or provenance through the generic candidate API.
+static func _routine_pins(candidate: RefCounted) -> bool:
+	if candidate.active!=_active or not RawGuard.same(candidate.paused,_paused) or candidate.imported_sha256!=_imported_sha256: return false
+	if not RawGuard.same(candidate.migration_v2,_metadata.get("migration_v2")): return false
+	if _active=="ordinary": return RawGuard.same(Codec.data_fields(candidate,Owner.META_FIELDS),_metadata)
+	return candidate.birth_seed==_metadata.get("birth_seed")
 
 static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> RefCounted:
 	if saving or _ticket != null or candidate == null or candidate == owner: return null
@@ -123,10 +135,10 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 	# can receive detached diagnostics, never supply a substitute validated value.
 	var data: Dictionary = {}
 	if owner != null:
-		if not RawGuard.same(candidate.alternate,_alternate) or candidate.imported_sha256 != _imported_sha256: return null
+		if not _routine_pins(candidate): return null
 		# Dormant alternate was strictly admitted on read/promotion. Exact live raw
 		# owner pins were checked above; no caller validation flag or payload.
-		var current: Dictionary = Codec.capture(candidate.session)
+		var current: Dictionary = Adapter.capture(candidate.active,candidate.session)
 		if not current.is_empty():
 			data = Owner.pack_current(candidate,current)
 	else:
@@ -159,7 +171,7 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 	if saving or _ticket != null or not Codec.primitive(command) or not SHOP_PRODUCER_OPS.has(str(command.get("op",""))): return null
 	if not match_owner(owner,expected): return null
 	var session: SeasonState = owner.session
-	if owner.status != "active" or not Codec.scope(session) or not session.physical.pending.is_empty() or not session.shop_available(): return null
+	if not owner.playable() or not Adapter.scope(owner.active,session) or not session.physical.pending.is_empty() or not session.shop_available(): return null
 	var request_id: Variant = command.get("id")
 	if request_id is String and not request_id.is_empty() and session.build._requests.has(request_id): return null
 	var next_session: SeasonState = session.fork_live()
@@ -175,8 +187,8 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
 	# Keep this registration inside the checked producer, rather than exposing
 	# an unchecked owner/candidate helper (underscore methods are callable).
-	if not RawGuard.same(envelope.alternate,_alternate) or envelope.imported_sha256 != _imported_sha256: return null
-	var current: Dictionary = Codec.capture(next_session)
+	if not _routine_pins(envelope): return null
+	var current: Dictionary = Adapter.capture(envelope.active,next_session)
 	var data: Dictionary = Owner.pack_current(envelope,current) if not current.is_empty() else {}
 	if data.is_empty():
 		last_error = "The candidate could not be represented consistently. Saved progress is unchanged."
@@ -186,6 +198,47 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 	_ticket = RefCounted.new()
 	_candidate = envelope; _candidate_session = next_session; _candidate_raw = snapshot; _candidate_data = data
 	_expected = expected.duplicate(); _written = PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+## Explicit session boundary producer. Routine candidate APIs above cannot
+## alter selector/dormant identity. No caller candidate, payload or callback.
+static func switch_available(owner: RefCounted) -> bool:
+	if owner==null or owner.get_script()!=Owner or not owner.playable(): return false
+	var current: SeasonState=owner.session
+	return Adapter.scope(owner.active,current) and current.phase!=SeasonState.Phase.DRAFT \
+		and current.phase!=SeasonState.Phase.COMPLETE and current.physical.pending.is_empty() \
+		and current.physical.needed.is_empty() and not current.physical.projecting and not current.build.pack_pending()
+
+static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int = 0, league: String = "") -> RefCounted:
+	last_error=""
+	if saving or _ticket!=null or operation not in ["resume","create","attach119"]: return null
+	if not match_owner(owner,expected) or not switch_available(owner): return null
+	if operation!="create" and (seed_value!=0 or not league.is_empty()): return null
+	var imported: PackedByteArray=PackedByteArray()
+	const SOURCE119: String="user://wiffaltro-materialized-play-v1.json"
+	if operation=="attach119":
+		if owner.active!="dynasty" or not owner.paused.is_empty() or not FileAccess.file_exists(SOURCE119): return null
+		var source: FileAccess=FileAccess.open(SOURCE119,FileAccess.READ)
+		if source==null or source.get_length()>MAX_BYTES: return null
+		imported=source.get_buffer(source.get_length());source.close()
+	var candidate: RefCounted=owner.fork()
+	if candidate==null: return null
+	var changed: bool=false
+	if operation=="resume": changed=candidate.switch_existing()
+	elif operation=="create": changed=candidate.create_missing(seed_value,league)
+	else: changed=candidate.import_119(imported)
+	if not changed: return null
+	# This rare explicit boundary strictly admits BOTH sides and all metadata;
+	# routine operations still pin the dormant side and validate current only.
+	var data: Dictionary=Owner.capture(candidate)
+	if data.is_empty(): return null
+	var snapshot: Dictionary=RawGuard.capture(candidate)
+	if snapshot.is_empty(): return null
+	if operation=="attach119" and FileAccess.get_file_as_bytes(SOURCE119)!=imported: return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
 	_write_admitted()
 	return _ticket
 
@@ -233,7 +286,8 @@ static func written_bytes(ticket: RefCounted) -> PackedByteArray:
 static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
 	if _written.is_empty() or raw() != _written or not prepared_matches(ticket,owner,candidate,expected): return false
 	_owner = _candidate; _owner_session = _candidate_session; _owner_raw = _candidate_raw; _owner_bytes = _written.duplicate()
-	_alternate = _candidate.alternate.duplicate(true); _imported_sha256 = _candidate.imported_sha256
+	_paused = _candidate.paused.duplicate(true); _active = _candidate.active
+	_metadata = Codec.data_fields(_candidate,Owner.META_FIELDS); _imported_sha256 = _candidate.imported_sha256
 	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 	return true

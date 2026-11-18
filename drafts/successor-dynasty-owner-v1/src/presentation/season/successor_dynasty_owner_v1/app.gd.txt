@@ -1,5 +1,6 @@
 extends SeasonApp
 ## Integrated materialized route. Original117/legacy launchers remain separate.
+const Adapter = preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
 const Runtime = preload("res://src/gameplay/season/successor_dynasty_owner_v1/runtime.gd")
 const Codec = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
 const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
@@ -108,12 +109,13 @@ func _process(_delta: float) -> void:
 	_continue.disabled = _busy
 
 func show_season() -> void:
+	_clear_session_ticket()
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
 	return not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func select_league(value: String) -> void:
-	if not _available() or season != null or value != "dynasty": return
+	if not _available() or season != null or value not in ["dynasty","standard","dugout"]: return
 	selected_league = value; show_season()
 func create_fresh(seed_value: int = -1) -> void:
 	if not _available() or season != null: return
@@ -122,12 +124,12 @@ func create_fresh(seed_value: int = -1) -> void:
 		show_season(); return
 	if seed_value == -1: seed_value = int(Time.get_unix_time_from_system()) & 0x7fffffff
 	_busy = true
-	var candidate: SeasonState = Runtime.create_fresh(seed_value,selected_league)
+	var candidate: RefCounted = Owner.create_development(seed_value) if selected_league=="dynasty" else Owner.create_ordinary(seed_value,selected_league)
 	_busy = false
 	if candidate == null:
 		notice = "This fresh career could not be initialized. No save was written."
 		show_season(); return
-	_retain(candidate,PackedByteArray())
+	_retain_envelope(candidate,PackedByteArray())
 func reload_save() -> void:
 	if not _available(): return
 	_busy = true
@@ -138,7 +140,7 @@ func reload_save() -> void:
 	else: notice = Store.last_error
 	_busy = false; show_season()
 func draft(id: String) -> void:
-	if career_owner!=null and career_owner.status!="active": return
+	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or season == null or season.phase != SeasonState.Phase.DRAFT or not season.offers().has(id): return
 	if not _owned():
 		notice = "The save changed outside this view. Reload before drafting."
@@ -159,9 +161,7 @@ func _retain(candidate: SeasonState, expected: PackedByteArray) -> void:
 	envelope.session = candidate
 	if career_owner != null:
 		if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(career_owner,Owner.DATA_FIELDS)): return
-	else:
-		envelope.birth_seed=candidate.season_seed
-		envelope.ledger=Owner.Ledger.birth(candidate)
+	else: return
 	_retain_envelope(envelope,expected)
 
 func _retain_envelope(envelope: RefCounted, expected: PackedByteArray) -> void:
@@ -325,12 +325,12 @@ func _quit_now() -> void:
 
 
 func play_next() -> void:
-	if career_owner!=null and career_owner.status!="active": return
-	if not _available() or not _owned() or not Codec.scope(season) or not season.physical.pending.is_empty():
+	if career_owner!=null and not career_owner.playable(): return
+	if not _available() or not _owned() or not _scope() or not season.physical.pending.is_empty():
 		return
 	var fixture: Dictionary = season.pending_fixture()
 	var state: MatchState = season.make_match()
-	var field: FieldDefinition = Runtime.field_for_fixture(fixture,season)
+	var field: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
 	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence():
 		notice = "This fixture could not be prepared."
 		show_season()
@@ -342,20 +342,21 @@ func play_next() -> void:
 
 
 func _played_field_matches() -> bool:
-	if season==null or not Codec.scope(season) or not is_instance_valid(lab) or lab._match_state==null:
+	if season==null or not _scope() or not is_instance_valid(lab) or lab._match_state==null:
 		return false
 	var fixture: Dictionary = season.pending_fixture()
-	var expected: FieldDefinition = Runtime.field_for_fixture(fixture,season)
+	var expected: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
 	return expected!=null and lab._field_definition==expected and lab._field_id==expected.id and lab._match_state.stadium.is_empty() and ClubCareer.same(lab._match_state.league_rules, season.league_rules) and _fixture_id==int(fixture.get("id",-1)) and lab._match_state.pitch_catalog==season.build.pitch_catalog_signature()
 
 
 func finish_game() -> void:
+	if not _scope() or not career_owner.playable(): return
 	if _busy or is_instance_valid(_loadout_modal):
 		return
 	if retained!=null:
 		retry_save()
 		return
-	var human: Array = Capture.capture(self)
+	var human: Array = Adapter.human_capture(_active_side()).capture(self)
 	if human.is_empty():
 		notice = "The actual completed game could not be captured. It remains open."
 		return
@@ -377,13 +378,13 @@ func _checkpoint() -> bool:
 
 
 func resume_round() -> void:
-	if career_owner!=null and career_owner.status!="active": return
+	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or not _owned() or season.physical.pending.is_empty():
 		return
 	if not retained_report.is_empty():
 		_checkpoint_report()
 		return
-	projection = Pending.project(season)
+	projection = Adapter.pending(_active_side()).project(season)
 	if projection.has("error"):
 		notice = str(projection.error)
 		show_season()
@@ -393,8 +394,8 @@ func resume_round() -> void:
 		return
 	var candidate: SeasonState = projection.candidate
 	var fixture: Dictionary = projection.fixture
-	var state: MatchState = Fixtures.match_for(candidate,fixture)
-	var field: FieldDefinition = Runtime.field_for_fixture(fixture,candidate)
+	var state: MatchState = Adapter.fixtures(_active_side()).match_for(candidate,fixture)
+	var field: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,candidate)
 	if state==null or field==null:
 		return
 	_npc_expected = saved_bytes.duplicate()
@@ -406,12 +407,12 @@ func resume_round() -> void:
 	if _npc_before.is_empty():
 		_clear_npc_pins()
 		return
-	ai_runner = Runner.new()
+	ai_runner = Adapter.runner(_active_side()).new()
 	add_child(ai_runner)
 	ai_runner.finished.connect(_ai_finished.bind(ai_runner))
 	ai_runner.failed.connect(_ai_failed.bind(ai_runner))
 	_busy = true
-	if not ai_runner.start(state,Fixtures.seed_for(candidate,fixture),field.id):
+	if not ai_runner.start(state,Adapter.fixtures(_active_side()).seed_for(candidate,fixture),field.id):
 		_ai_failed("The physical fixture could not start.",ai_runner)
 
 
@@ -459,20 +460,20 @@ func _ai_failed(reason: String, runner: Node = null) -> void:
 
 
 func open_pitch_shop() -> void:
-	if career_owner!=null and career_owner.status!="active": return
+	if career_owner!=null and not career_owner.playable(): return
 	open_shop()
 
 
 func open_shop() -> void:
-	if career_owner!=null and career_owner.status!="active": return
-	if not _available() or season==null or not Codec.scope(season) or not season.physical.pending.is_empty() or not season.shop_available():
+	if career_owner!=null and not career_owner.playable(): return
+	if not _available() or season==null or not _scope() or not season.physical.pending.is_empty() or not season.shop_available():
 		return
 	if not season.build._visit.open:
 		var revision: int = season.build.revision()
 		if not commit_shop({"id":"shop-open:%d"%revision,"rev":revision,"op":"open"}):
 			return
 	for child: Node in menu.get_children():
-		if child is SeasonShopWindow:
+		if child is SeasonShopWindow and not child.is_queued_for_deletion() and child.call("_origin_matches"):
 			child.popup_centered()
 			return
 	var window: SeasonShopWindow = Shop.new()
@@ -494,7 +495,7 @@ func _clone() -> SeasonState:
 func _checkpoint_report() -> void:
 	if _busy or retained != null or retained_report.is_empty() or not _npc_owner_matches(): return
 	_busy = true
-	var staged: Dictionary = Pending.stage_report(season,retained_report)
+	var staged: Dictionary = Adapter.pending(_active_side()).stage_report(season,retained_report)
 	var candidate: SeasonState = staged.get("candidate")
 	_busy = false
 	if candidate == null:
@@ -504,8 +505,8 @@ func _checkpoint_report() -> void:
 
 func commit_shop(command: Dictionary) -> bool:
 	if not Codec.primitive(command): return false
-	if career_owner==null or career_owner.status!="active": return false
-	if not _available() or season == null or not Codec.scope(season) or not season.physical.pending.is_empty() or not season.shop_available(): return false
+	if career_owner==null or not career_owner.playable(): return false
+	if not _available() or season == null or not _scope() or not season.physical.pending.is_empty() or not season.shop_available(): return false
 	if not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return false
 	var request_id: Variant = command.get("id")
 	if request_id is String and not request_id.is_empty() and season.build._requests.has(request_id): return false
@@ -532,9 +533,8 @@ func commit_shop(command: Dictionary) -> bool:
 	return season == candidate and retained == null
 
 func import_draft() -> void:
-	# Explicit119 snapshot import is an Owner API, not an unlocked Dynasty entry.
-	notice = "Previous saves stay separate. Alternate activation is not enabled in this engineering build."
-	show_season()
+	# Unticketed inherited callbacks never attach or replace a session.
+	return
 
 # Private lifecycle handlers. Menu exposure follows corresponding save/cold gates.
 func import_previous_dynasty() -> void:
@@ -549,6 +549,7 @@ func import_previous_dynasty() -> void:
 	_retain_envelope(candidate,PackedByteArray())
 
 func close_current(reason: String) -> void:
+	if career_owner==null or career_owner.active!="dynasty": return
 	if not _available() or not _owned() or career_owner.status!="active" or not season.physical.pending.is_empty(): return
 	_busy=true
 	var candidate: RefCounted=career_owner.fork()
@@ -559,6 +560,7 @@ func close_current(reason: String) -> void:
 	_retain_envelope(candidate,saved_bytes)
 
 func propose_next(seed_value: int=-1) -> void:
+	if career_owner==null or career_owner.active!="dynasty": return
 	if not _available() or not _owned() or career_owner.status!="closed": return
 	if seed_value<0: seed_value=("dynasty:%d:%d:nextseed"%[career_owner.birth_seed,career_owner.ordinal+1]).hash() & 0x7fffffff
 	_busy=true
@@ -569,12 +571,14 @@ func propose_next(seed_value: int=-1) -> void:
 	_retain_envelope(candidate,saved_bytes)
 
 func choose_overflow(player: String, receipt: String) -> void:
+	if career_owner==null or career_owner.active!="dynasty": return
 	if not _available() or not _owned() or career_owner.status!="closed": return
 	var candidate: RefCounted=career_owner.fork()
 	if candidate==null or not candidate.choose_overflow(player,receipt): return
 	_retain_envelope(candidate,saved_bytes)
 
 func commit_next() -> void:
+	if career_owner==null or career_owner.active!="dynasty": return
 	if not _available() or not _owned() or career_owner.status!="closed": return
 	_busy=true
 	var candidate: RefCounted=career_owner.fork()
@@ -585,6 +589,7 @@ func commit_next() -> void:
 	_retain_envelope(candidate,saved_bytes)
 
 func request_lifecycle(action: String) -> void:
+	if career_owner==null or career_owner.active!="dynasty": return
 	if not _available() or not _owned() or action not in ["abandon","complete","next"]: return
 	if action=="next":
 		if career_owner.status!="closed" or career_owner.next_preview().size()!=6: return
@@ -616,8 +621,8 @@ func _clear_lineup_ticket() -> void:
 	_lineup_bytes=PackedByteArray()
 
 func lineup_allowed() -> bool:
-	if not _available() or career_owner==null or career_owner.status!="active" or season==null: return false
-	if career_owner.session!=season or not Codec.scope(season): return false
+	if not _available() or career_owner==null or career_owner.active!="dynasty" or career_owner.status!="active" or season==null: return false
+	if career_owner.session!=season or not _scope(): return false
 	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or season.picks.size()!=4 or not season.physical.pending.is_empty(): return false
 	var fixture: Dictionary=season.pending_fixture()
 	if fixture.is_empty() or (fixture.get("home",-1)!=0 and fixture.get("away",-1)!=0) or season.build.pack_pending(): return false
@@ -694,11 +699,12 @@ func commit_inventory(_command: Dictionary) -> bool:
 	return false
 
 func loadout_allowed(ui: SeasonLoadoutUI) -> bool:
+	if not _scope(): return false
 	if ui == null or _busy or Store.saving or retained != null or is_instance_valid(ai_runner): return false
 	if ui.shop != null and (not is_instance_valid(ui.shop) or not ui.shop.visible or ui.shop.is_queued_for_deletion()): return false
 	if is_instance_valid(_loadout_modal) and _loadout_modal != ui: return false
 	if not _lifecycle_action.is_empty() or not _exit_mode.is_empty(): return false
-	if career_owner == null or career_owner.session != season or career_owner.status != "active": return false
+	if career_owner == null or career_owner.session != season or not career_owner.playable(): return false
 	if season == null or season.build == null or season.picks.size() != 4 or not season.physical.pending.is_empty(): return false
 	if is_instance_valid(lab):
 		if not _season_game or lab._match_state == null or lab._match_state.phase == MatchState.Phase.GAME_END: return false
@@ -709,3 +715,61 @@ func loadout_allowed(ui: SeasonLoadoutUI) -> bool:
 		if node == ui.shop: continue
 		return false
 	return true
+
+
+func _active_side() -> String:
+	return career_owner.active if career_owner!=null else ""
+func _scope() -> bool:
+	return career_owner!=null and career_owner.session==season and Adapter.scope(career_owner.active,season)
+
+func import_previous_career() -> void:
+	if not _available() or season!=null or Store.occupied(): return
+	var path: String="user://wiffaltro-dynasty-career-v2.json"
+	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
+	_busy=true
+	var candidate: RefCounted=Owner.import_v2(bytes)
+	_busy=false
+	if candidate==null or FileAccess.get_file_as_bytes(path)!=bytes:
+		notice="Previous career could not be copied consistently. Originals are unchanged.";show_season();return
+	_retain_envelope(candidate,PackedByteArray())
+
+var _session_ticket: RefCounted
+var _session_owner: RefCounted
+var _session_state: SeasonState
+var _session_bytes: PackedByteArray=PackedByteArray()
+func _clear_session_ticket() -> void:
+	_session_ticket=null;_session_owner=null;_session_state=null;_session_bytes=PackedByteArray()
+func session_switch_allowed() -> bool:
+	if not _available() or not _scope() or not career_owner.playable() or is_instance_valid(ai_runner): return false
+	if not retained_human.is_empty() or not retained_report.is_empty() or not projection.is_empty() and _busy: return false
+	if not _exit_mode.is_empty() or not season.physical.pending.is_empty() or season.build.pack_pending(): return false
+	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or season.picks.size()!=4: return false
+	if menu==null or not menu.visible or menu.page!="home": return false
+	for child: Node in find_children("*","Window",true,false):
+		if child.visible and not child.is_queued_for_deletion(): return false
+	return true
+func session_ticket() -> RefCounted:
+	_clear_session_ticket()
+	if not session_switch_allowed(): return null
+	_session_ticket=RefCounted.new();_session_owner=career_owner;_session_state=season;_session_bytes=saved_bytes.duplicate()
+	return _session_ticket
+func _session_current(ticket: RefCounted) -> bool:
+	return ticket!=null and ticket==_session_ticket and career_owner==_session_owner and season==_session_state \
+		and saved_bytes==_session_bytes and session_switch_allowed()
+func _change_session(operation: String,seed_value: int,league: String,ticket: RefCounted) -> void:
+	if not _session_current(ticket): return
+	var prepared: RefCounted=Store.prepare_session_and_write(career_owner,saved_bytes,operation,seed_value,league)
+	if prepared==null:
+		notice=Store.last_error;show_season();return
+	_clear_lineup_ticket();_clear_session_ticket()
+	for child: Node in menu.get_children():
+		if child is SeasonShopWindow: child.hide();child.queue_free()
+	_retain_prepared(prepared,Store.prepared_candidate(prepared),saved_bytes)
+func switch_session(ticket: RefCounted=null) -> void:
+	_change_session("resume",0,"",ticket)
+func attach_ordinary(ticket: RefCounted=null) -> void:
+	_change_session("attach119",0,"",ticket)
+func create_session(seed_value: int=-1,league: String="standard",ticket: RefCounted=null) -> void:
+	if not _session_current(ticket): return
+	if seed_value<0: seed_value=int(Time.get_unix_time_from_system()) & 0x7fffffff
+	_change_session("create",seed_value,league,ticket)

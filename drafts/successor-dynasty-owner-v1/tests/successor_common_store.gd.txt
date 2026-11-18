@@ -1,0 +1,91 @@
+extends Node
+## Actual earned two-side storage, fixed producer and exact retained retry.
+const O=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const A=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const Raw=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+var roots: Array[Resource]=[]
+var protected: Dictionary={}
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func put(bytes: PackedByteArray) -> void:
+	var file=FileAccess.open(S.PATH,FileAccess.WRITE);file.store_buffer(bytes);file.close()
+func accept(ticket,owner,bytes):
+	var candidate=S.prepared_candidate(ticket)
+	if not check(ticket!=null and candidate!=null and not S.written_bytes(ticket).is_empty() and S.promote(ticket,owner,candidate,bytes),"exact ticket promoted after full owner/candidate and disk checks"):return null
+	return candidate
+func raw_clubs(owner) -> bool:
+	var snapshot: Dictionary=Raw.capture(owner)
+	if not check(not snapshot.is_empty() and Raw.matches(owner,snapshot),"earned full-six active raw admission "+owner.active):return false
+	for id: String in owner.session.opponents.clubs:
+		var bank=owner.session.opponents.clubs[id].build._bank
+		var original: Variant=bank._state.cash;bank._state.cash=original+1
+		if not check(not Raw.matches(owner,snapshot),"hidden actual AI bank refused "+owner.active+id):return false
+		bank._state.cash=original
+	if not check(Raw.matches(owner,snapshot),"exact native all-AI restoration accepted"):return false
+	return true
+func _ready() -> void:call_deferred("run")
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated flags before IO"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"authored catalogs retained"):return
+	for name: String in ["wiffaltro-dynasty-career-v2.json","wiffaltro-materialized-play-v1.json"]:
+		for suffix: String in ["",".bak"]:
+			var path="user://"+name+suffix
+			protected[path]=FileAccess.get_file_as_bytes(path)
+	if not check(not S.occupied(),"new v3 test slot only"):return
+	var owner=O.import_v2(protected["user://wiffaltro-dynasty-career-v2.json"])
+	if not check(owner!=null,"strict actual equipped84 v2 copy import"):return
+	owner=accept(S.prepare_and_write(null,owner,PackedByteArray()),null,PackedByteArray())
+	if owner==null:return
+	var bytes: PackedByteArray=S.raw()
+	owner=accept(S.prepare_session_and_write(owner,bytes,"attach119"),owner,bytes)
+	if owner==null:return
+	if not raw_clubs(owner):return
+	var dynasty: Dictionary=A.capture("dynasty",owner.session)
+	var ordinary: Dictionary=owner.paused.duplicate(true)
+	var metadata: Dictionary=C.data_fields(owner,O.META_FIELDS)
+	bytes=S.raw()
+	var forged=owner.fork();forged.imported_sha256="b".repeat(64)
+	if not check(not O.capture(forged).is_empty() and S.prepare(owner,forged,bytes)==null and S.raw()==bytes,"valid forged provenance refused by routine pins"):return
+	forged=owner.fork();forged.paused=A.capture("ordinary",O.create_ordinary(850899,"standard").session)
+	if not check(not O.capture(forged).is_empty() and S.prepare(owner,forged,bytes)==null and S.raw()==bytes,"valid replacement ordinary session refused by routine path"):return
+	var before: Dictionary=Raw.capture(owner)
+	if not check(DirAccess.make_dir_absolute(S.PATH+".tmp")==OK,"intentional isolated prewrite obstruction"):return
+	var ticket=S.prepare_session_and_write(owner,bytes,"resume")
+	var retained=S.prepared_candidate(ticket)
+	if not check(ticket!=null and retained!=null and retained.active=="ordinary" and S.written_bytes(ticket).is_empty() and S.raw()==bytes and Raw.matches(owner,before),"failed switch retains exact candidate; old owner and bytes authoritative"):return
+	if not check(S.prepare_session_and_write(owner,bytes,"resume")==null,"duplicate producer refused while retained"):return
+	DirAccess.remove_absolute(S.PATH+".tmp")
+	var cash: Variant=retained.session.build._bank._state.cash;retained.session.build._bank._state.cash=cash+1
+	if not check(not S.write_prepared(ticket) and S.raw()==bytes,"retained mutation cannot bypass strict retry"):return
+	retained.session.build._bank._state.cash=cash
+	put(bytes+" ".to_utf8_buffer())
+	if not check(not S.write_prepared(ticket),"foreign disk blocks exact retained retry"):return
+	put(bytes)
+	if not check(S.write_prepared(ticket),"same retained switch retries once after exact obstruction repair"):return
+	owner=accept(ticket,owner,bytes)
+	if owner==null:return
+	if not raw_clubs(owner):return
+	if not check(owner.active=="ordinary" and C.same(A.capture("ordinary",owner.session),ordinary) and C.same(owner.paused,dynasty) and C.same(C.data_fields(owner,O.META_FIELDS),metadata),"switch keeps exact two sessions and all Dynasty lifecycle metadata"):return
+	bytes=S.raw();owner=S.read()
+	if not check(owner!=null and owner.active=="ordinary" and S.raw()==bytes,"strict stored ordinary read is byte-inert"):return
+	forged=owner.fork();forged.ledger["extra"]=true
+	if not check(S.prepare(owner,forged,bytes)==null and S.raw()==bytes,"ordinary routine cannot alter dormant Dynasty ledger"):return
+	forged=owner.fork();forged.paused["extra"]=true
+	if not check(S.prepare(owner,forged,bytes)==null and S.raw()==bytes,"ordinary routine cannot alter dormant Dynasty snapshot"):return
+	var candidate=owner.fork();candidate.session.difficulty=(candidate.session.difficulty+1)%3
+	owner=accept(S.prepare_and_write(owner,candidate,bytes),owner,bytes)
+	if owner==null:return
+	if not check(C.same(owner.paused,dynasty) and C.same(C.data_fields(owner,O.META_FIELDS),metadata),"ordinary active candidate saves without touching paused Dynasty"):return
+	ordinary=A.capture("ordinary",owner.session);bytes=S.raw()
+	owner=accept(S.prepare_session_and_write(owner,bytes,"resume"),owner,bytes)
+	if owner==null:return
+	if not check(owner.active=="dynasty" and C.same(A.capture("dynasty",owner.session),dynasty) and C.same(owner.paused,ordinary) and C.same(C.data_fields(owner,O.META_FIELDS),metadata),"return resumes exact Dynasty with no reseed, close, decay, fold or loss"):return
+	for path: String in protected:
+		if not check(FileAccess.get_file_as_bytes(path)==protected[path],"original source main/backup untouched "+path.get_file()):return
+	print("PASS: earned common Store fixed switch/attach and exact retry; no App/physics claim")
+	get_tree().quit(0)

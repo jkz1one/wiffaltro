@@ -1,0 +1,382 @@
+extends "res://tests/successor_dynasty_play.gd"
+## Source-only WIP until integrated common App/Store reviewed and frozen.
+## Real existing119 + equipped84; no replay of already-earned rounds.
+const Adapter=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+var ActiveCodec: Script
+var ActivePending: Script
+var ActiveFixtures: Script
+var ActiveCapture: Script
+var active: String=""
+var roots: Array[Resource]=[]
+var guard_dormant: Dictionary={}
+var guard_metadata: Dictionary={}
+var metadata_source: Dictionary={}
+const INPUTS={"wiffaltro-materialized-play-v1.json":"72e26e0cbf762162a1e78f9ef3fccdff396dfe816ba9fb677434c92f3350fc56","wiffaltro-materialized-play-v1.json.bak":"eccac09c57c6ab2bb931185ceb8374d3b615cc26f4c7c860d7fcbd3cee90abe6","wiffaltro-dynasty-career-v2.json":"8551800d18990582efb5d85c376ba589dcab1b74b5257bb51a0464dab00800f6","wiffaltro-dynasty-career-v2.json.bak":"0a63a714a70550205e7c1e59bc8b1e9a6a8b50596ee1daec0320a735f6b744c6"}
+
+func bind_side(app) -> void:
+	active=app.career_owner.active
+	ActiveCodec=Adapter.codec(active);ActivePending=Adapter.pending(active)
+	ActiveFixtures=Adapter.fixtures(active);ActiveCapture=Adapter.human_capture(active)
+
+func initial_results() -> int:return 3 if active=="ordinary" else 9
+
+func source_unchanged() -> bool:
+	for name: String in INPUTS:
+		if FileAccess.get_sha256("user://"+name)!=INPUTS[name]:return false
+	for path: String in other_slots:
+		if not Codec.same(slot_state(path),other_slots[path]):return false
+	return true
+
+func preserve_actual(name: String,value: Variant) -> void:
+	# Namespace each actual side so completing the second game cannot overwrite
+	# the already-backed first side's raw human report/predecessor.
+	super.preserve_actual("common85-"+active+"-"+name,value)
+
+func fresh_checks(app: SeasonApp) -> bool:
+	return check(app.career_owner!=null and app.career_owner.session==app.season and Adapter.scope(active,app.season),"fixed active-side runtime and exact owner session pointer")
+
+func invariant(app) -> bool:
+	return check(Codec.same(app.career_owner.paused,guard_dormant) and Codec.same(app.career_owner.dynasty_metadata(),guard_metadata) and source_unchanged(),"active action preserves complete dormant side, all Dynasty metadata and original pairs")
+
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["import","attach","ordinary","dynasty","inspect","step","shop","cold","resume-ordinary"],"isolated explicit common lifecycle mode"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"authored roots pinned before input reads"):return
+	if not check(source_unchanged(),"exact authentic119 and84 main/backup inputs"):return
+	for name: String in INPUTS:other_slots["user://"+name]=slot_state("user://"+name)
+	var original_dynasty: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("user://wiffaltro-dynasty-career-v2.json"))
+	metadata_source={}
+	for key: String in Owner.DYNASTY_FIELDS:metadata_source[key]=original_dynasty[key]
+	var app=App.new();add_child(app);await get_tree().process_frame
+	if args[0]=="import":
+		if not check(Save.raw().is_empty(),"new common slot empty before explicit migration"):return
+		app.import_previous_career()
+		if not check(app.season!=null and app.retained==null and app.career_owner.active=="dynasty", "explicit App v2 copy migration admitted"):return
+		bind_side(app)
+		if not check(Codec.same(Adapter.capture(active,app.season),original_dynasty.dynasty) and Codec.same(app.career_owner.dynasty_metadata(),metadata_source),"migration preserves actual Dynasty session/metadata"):return
+		finish_step(app,"common-import-v2")
+	else:
+		var disk=Save.raw();var bak=slot_state(Save.PATH+".bak")
+		var calls=[Adapter.DynastyPending.project_calls,Adapter.OrdinaryPending.project_calls,Adapter.DynastyFixtures.resolve_calls,Adapter.OrdinaryFixtures.resolve_calls,OldDecoder.restore_calls]
+		var start=Time.get_ticks_msec();app.reload_save();print("COMMON_COLD_MS: ",Time.get_ticks_msec()-start)
+		if not check(app.season!=null and app.retained==null,"common App restores active owner"):return
+		bind_side(app)
+		if not check(calls==[Adapter.DynastyPending.project_calls,Adapter.OrdinaryPending.project_calls,Adapter.DynastyFixtures.resolve_calls,Adapter.OrdinaryFixtures.resolve_calls,OldDecoder.restore_calls] and Save.raw()==disk and Codec.same(slot_state(Save.PATH+".bak"),bak),"common cold never projects/replays or rewrites either file"):return
+		if not fresh_checks(app):return
+		guard_metadata=app.career_owner.dynasty_metadata().duplicate(true);guard_dormant=app.career_owner.paused.duplicate(true)
+		if not check(Codec.same(guard_metadata,metadata_source),"pause/import never closes, decays, folds or reseeds Dynasty"):return
+		if args[0]=="attach":
+			if not check(active=="dynasty" and guard_dormant.is_empty(),"attach requires empty ordinary slot"):return
+			var current=Adapter.capture(active,app.season)
+			app.attach_ordinary(app.session_ticket())
+			if not check(app.retained==null and Codec.same(Adapter.capture(active,app.season),current) and Codec.same(app.career_owner.paused,JSON.parse_string(FileAccess.get_file_as_string("user://wiffaltro-materialized-play-v1.json"))),"explicit copy attach preserves active Dynasty and exact ordinary input"):return
+			finish_step(app,"common-attach119")
+		elif args[0] in ["ordinary","dynasty","resume-ordinary"]:
+			var target: String="ordinary" if args[0]=="resume-ordinary" else args[0]
+			if not check(active!=target and not guard_dormant.is_empty(),"explicit existing-side switch operand"):return
+			var outgoing=Adapter.capture(active,app.season)
+			app.switch_session(app.session_ticket());bind_side(app)
+			if not check(app.retained==null and active==target and Codec.same(Adapter.capture(active,app.season),guard_dormant) and Codec.same(app.career_owner.paused,outgoing) and Codec.same(app.career_owner.dynasty_metadata(),guard_metadata),"switch swaps exact current sessions without closing or applying decay"):return
+			if args[0]=="resume-ordinary":
+				if not check(Codec.same(Adapter.capture(active,app.season),JSON.parse_string(FileAccess.get_file_as_string("user://completed85-ordinary.json"))) and Codec.same(app.career_owner.paused,JSON.parse_string(FileAccess.get_file_as_string("user://completed85-dynasty.json"))),"return preserves both genuinely advanced and purchased sessions"):return
+			finish_step(app,"common-switch-"+target)
+		else:
+			if args[0]=="inspect":
+				var count: int=0
+				for fixture: Dictionary in app.season.schedule:
+					if int(fixture.round)!=app.season.round_index:continue
+					var detached: SeasonState=app.season.fork_live()
+					var match_state: MatchState=ActiveFixtures.match_for(detached,fixture)
+					if not check(match_state!=null and not ActiveFixtures.request_key(detached,fixture).is_empty(),"selected-side actual physical request and two-club match construct"):return
+					count+=1
+				if not check(count==3,"three actual upcoming fixtures preflighted without simulation"):return
+				finish_step(app,"common-readonly-"+active)
+			elif args[0]=="cold":
+				if not final_checks(app):return
+				# Exact immutable completed-side anchor, distinct from raw physics.
+				super.preserve_actual("completed85-"+active,Adapter.capture(active,app.season))
+				finish_step(app,"common-complete-"+active,true)
+			elif args[0]=="shop":
+				if not round_checks(app):return
+				if not await paid_pack(app):return
+			elif not app.season.physical.pending.is_empty():await settle_batch(app)
+			elif app.season.results.size()==initial_results():await play_human(app)
+			else:
+				if not round_checks(app):return
+				finish_step(app,"common-round-done-"+active)
+			if not invariant(app):return
+	if not check(source_unchanged(),"original119/v2 pairs remain unchanged"):return
+	app.queue_free();await get_tree().process_frame
+	if not failed:print("PASS: common alternating lifecycle ",args[0],"; shared career closure not qualified")
+	get_tree().quit(1 if failed else 0)
+
+func round_checks(app) -> bool:
+	return check(app.season.results.size()==initial_results()+3 and app.season.player_results.size()==initial_results()/3+1 and app.season.physical.pending.is_empty(),"exact one additional real human plus two AI games on selected side")
+
+func final_checks(app: SeasonApp) -> bool:
+	if not round_checks(app):return false
+	return check(app.season.build._visit.get("pack_status","")=="used" and not app.season.build.pack_pending(),"earned paid pack and choice persist on selected side")
+
+func settle_batch(app: SeasonApp) -> void:
+	for job in range(1):
+		if app.season.physical.pending.is_empty(): return
+		var owner: SeasonState = app.season
+		var before: Dictionary = ActiveCodec.capture(owner)
+		var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		var primary_exists: bool = FileAccess.file_exists(Save.PATH)
+		var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
+		var count: int = app.season.physical.pending.reports.size()
+		if not check(count >= 0 and count <= 2 and app.season.results.size()==initial_results() and app.season.player_results.size()==initial_results()/3,"one unsettled actual round only"): return
+		if not check(not before.is_empty(),"nonempty actual round equality baseline"): return
+		var fault: bool = count == 0
+		if fault:
+			for malformed: Dictionary in [{},{"ownership":[1]},{"object":RefCounted.new()}]:
+				var refusal: Dictionary = ActivePending.stage_report(owner,malformed)
+				if not check(not refusal.has("candidate"),"malformed or executable NPC payload refuses before persistence"): return
+			if not check(ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"invalid NPC calls preserve original state and saves"): return
+		if fault and not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated first NPC prewrite fault"): return
+		app.resume_round()
+		# This bounded one-round test has no terminal-save fault. Observe the real
+		# App's projection instead of independently replaying the history twice.
+		var projection: Dictionary = app.projection
+		if not check(not projection.is_empty() and not projection.has("error"),"actual App pending projection"):
+			return
+		if projection.has("fixture"):
+			if not check(app._busy and app.season == owner and ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and FileAccess.file_exists(Save.PATH) == primary_exists and FileAccess.file_exists(Save.PATH+".bak") == backup_exists,"NPC start preserves original owner and disk before awaiting real physics"): return
+			# A foreign callback must not stop or replace the real in-flight runner.
+			var running: Node = app.ai_runner
+			# Preserve the actual output before the ORIGINAL App receiver attempts
+			# admission. Reconnect that exact receiver, do not replace its logic.
+			var receivers: Array = running.get_signal_connection_list("finished")
+			if not check(receivers.size()==1,"one original production NPC receiver"): return
+			var receiver: Callable=receivers[0].callable
+			var receiver_flags: int=int(receivers[0].flags)
+			running.disconnect("finished",receiver)
+			running.finished.connect(func(report: Dictionary): preserve_actual("actual120-npc-%d"%int(projection.fixture.id),{"report":report,"fixture":projection.fixture,"before":before,"owner_before":Owner.capture(app.career_owner)}))
+			running.connect("finished",receiver,receiver_flags)
+			var foreign: Node = Node.new()
+			app._ai_finished({},foreign)
+			foreign.free()
+			if not check(app._busy and app.ai_runner == running and app.retained_report.is_empty() and app.season == owner,"foreign NPC callback cannot replace active runner/owner"): return
+			var finished: bool = false
+			for frame in range(150000):
+				await get_tree().physics_frame
+				if not app._busy:
+					finished = true
+					break
+			if fault:
+				if not check(finished and app.retained != null and not app.retained_report.is_empty() and app.season == owner and ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"NPC prewrite refusal preserves original owner and both saves"): return
+				var retained: SeasonState = app.retained
+				var raw: Dictionary = app.retained_report.duplicate(true)
+				var actual: Dictionary = ActiveCodec.capture(retained)
+				var reference: SeasonState = ActiveCodec.restore(ActiveCodec.capture(owner))
+				if not check(reference != null,"independent original NPC reference clone"): return
+				reference.physical.pending.reports.append({"fixture":int(projection.fixture.id),"request":ActiveFixtures.request_key(projection.candidate,projection.fixture),"report":raw.duplicate(true)})
+				var expected: Dictionary = ActiveCodec.capture(reference)
+				if not check(not actual.is_empty() and not expected.is_empty() and ClubCareer.same(actual,expected),"fixed NPC candidate equals original materialized append/capture path"): return
+				app._ai_finished(raw,null)
+				if not check(app.retained == retained and ClubCareer.same(app.retained_report,raw) and ClubCareer.same(ActiveCodec.capture(retained),actual),"late duplicate callback cannot replace retained NPC candidate"): return
+				if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own NPC prewrite fault"): return
+				app.retry_save()
+				if not check(app.retained == null and app.season == retained and app.retained_report.is_empty() and ClubCareer.same(ActiveCodec.capture(app.season),actual),"explicit materialized NPC retry promotes exact candidate once"): return
+				var paid_primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+				var paid_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+				app.retry_save()
+				var duplicate: Dictionary = ActivePending.stage_report(app.season,raw)
+				if not check(not duplicate.has("candidate") and FileAccess.get_file_as_bytes(Save.PATH) == paid_primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == paid_backup and ClubCareer.same(ActiveCodec.capture(app.season),actual),"already consumed NPC report rejected without state or backup mutation"): return
+			if not check(finished and app.get("retained") == null and app.season.physical.pending.reports.size() == count+1,"actual NPC report saved once"):
+				return
+			finish_step(app,"npc-%d"%int(projection.fixture.id))
+		else:
+			if not check(app.get("retained") == null and app.season.physical.pending.is_empty() and app.season.results.size() == app.season.player_results.size()*3,"all three actual games settled"):
+				return
+			var settled: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+			var settled_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+			app.resume_round(); app.retry_save()
+			if not check(FileAccess.get_file_as_bytes(Save.PATH) == settled and FileAccess.get_file_as_bytes(Save.PATH+".bak") == settled_backup,"duplicate settlement/retry cannot pay or rotate backup twice"): return
+			finish_step(app,"settlement-%d"%app.season.player_results.size())
+			return
+	return # One real NPC checkpoint per process; next invocation resumes its durable successor.
+
+
+func play_human(app: SeasonApp) -> void:
+	var fixture: Dictionary = app.season.pending_fixture()
+	if not check(not fixture.is_empty() and (fixture.home == 0 or fixture.away == 0), "next human fixture available; NPC playoffs must remain pending jobs"):
+		return
+	app.play_next()
+	if not check(is_instance_valid(app.lab) and app.lab._match_state != null, "actual App opens human fixture"):
+		return
+	if not check(app._owned(),"actual match mount preserves admitted owner before automation"):return
+	var opening: TeamMatchState=app.lab._match_state.home_team if int(fixture.home)==0 else app.lab._match_state.away_team
+	var opening_ids: Array=[]
+	for player: PlayerMatchState in opening.roster:opening_ids.append(String(player.definition.id))
+	if not check(not app.lab._match_state.gear_usage.started and ActiveCodec.same(opening_ids,app.season.teams[0].roster) and opening.pitcher_index==app.season.starter_index and opening.fielder_index==app.season.fielder_index,"actual selected-side Lab binds exact opening roster and roles before first pitch"):return
+	preserve_actual("opening-selected-side",{"active":active,"fixture":fixture,"ids":opening_ids,"pitcher":opening.pitcher_index,"fielder":opening.fielder_index,"predecessor_sha256":FileAccess.get_sha256(Save.PATH)})
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not app.lab._match_presentation_director.blocks_gameplay():
+			break
+	if not check(not app.lab._match_presentation_director.blocks_gameplay(), "actual intro finishes"):
+		return
+	app.lab._automation = MatchAutomation.new()
+	app.lab._automation.seed = ActiveFixtures.seed_for(app.season, fixture)
+	app.lab._automation.presentation_enabled = true
+	app.lab._automation.begin(app.lab)
+	var wallet: Dictionary = app.season.build._bank.view()
+	var expected_gear: Dictionary = {}
+	for slot: String in SeasonOwnership.GEAR_SLOTS:
+		if not wallet.gear[slot].is_empty():
+			expected_gear[slot] = wallet.gear[slot].item
+	for pair: Array in [[int(fixture.home),app.lab._match_state.home_team],[int(fixture.away),app.lab._match_state.away_team]]:
+		var build: SeasonBuild=app.season.build if pair[0]==0 else app.season.opponents.clubs[str(pair[0])].build
+		if active=="dynasty" and not check(ActiveCodec.same(pair[1].dynasty_start,build._dynasty_start),"actual human fixture binds both carried team profiles"): return
+	var human_team: TeamMatchState = app.lab._match_state.home_team if fixture.home == 0 else app.lab._match_state.away_team
+	for player: PlayerMatchState in human_team.roster:
+		if not check(ClubCareer.same(player.definition.season_gear,expected_gear),"actual human definitions carry only active Gear, no spare effects"):
+			return
+	var expected_receipts: Array[String] = SeasonReclamation.receipts(wallet)
+	var seen_release: bool = false
+	var finished: bool = false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if not seen_release and app.lab._match_state.gear_usage.started:
+			seen_release = true
+			if not check(app._owned(),"actual first release preserves admitted seasonal owner"):return
+			if not check(app.lab._match_state.gear_usage.first_pitch == expected_receipts,"actual first-release receipt evidence excludes inactive spare"):
+				return
+		if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._automation != null and not app.lab._home_run.presentation_pending(app.lab):
+			app.lab._automation = null
+			PitchBatLabFeelSupport.begin_match_outro(app.lab)
+		if app.lab._match_state.phase == MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode == MatchPresentationDirector.Mode.OUTRO_HOLD:
+			finished = true
+			break
+		if frame % 12000 == 0:
+			print("HUMAN_PROGRESS: fixture=", fixture.id, " frame=", frame, " pa=", app.lab._match_state.plate_appearance_number)
+	if finished:
+		# Preserve actual components even when a new boundary validator refuses
+		# the final human operand. These are diagnostics, never fabricated results.
+		var state: MatchState=app.lab._match_state
+		var team: TeamMatchState=state.home_team if app.lab._player_home else state.away_team
+		var opponent: TeamMatchState=state.away_team if app.lab._player_home else state.home_team
+		preserve_actual("actual120-human",{"human":ActiveCapture.capture(app),"before":ActiveCodec.capture(app.season),"owner_before":Owner.capture(app.career_owner),
+			"components":{"fixture":app._fixture_id,"away_runs":state.away_team.runs,"home_runs":state.home_team.runs,
+			"performance":state.performance.snapshot(state),"first_pitch":state.gear_usage.first_pitch,
+			"uses":team.tactics.consumed,"cold":state.cold.evidence(team),"sides":state.sides.evidence(team),
+			"clean_outs":state.clean_outs.evidence(team),"sure":state.sure_shot.evidence(team),
+			"sure_current":state.sure_shot.evidence_current(team),"field_supply":team.field_supply.evidence(),
+			"frozen_contacts":state.frozen_contacts,"opponent_tactics":SeasonOpponentTactics.evidence(state,opponent),
+			"away_profile":state.away_team.dynasty_start,"home_profile":state.home_team.dynasty_start}})
+	if failed: return
+	if not check(finished and seen_release and not ActiveCapture.capture(app).is_empty(), "actual human physics game reaches capturable outro"):
+		return
+	var results_before: int = app.season.results.size()
+	var cash_before: int = app.season.build.cash()
+	app.finish_game()
+	if not check(app.get("retained") == null and not is_instance_valid(app.lab) \
+		and not app.season.physical.pending.is_empty() and app.season.results.size() == results_before \
+		and app.season.build.cash() == cash_before, "human game saved pending without premature settlement/reward"):
+		return
+	finish_step(app, "human-%d" % int(fixture.id))
+
+func materialized_pack_reference(owner: SeasonState, command: Dictionary) -> Dictionary:
+	# Qualification-only original path. The fixed writer never receives this
+	# independent expected envelope, candidate, or a caller validation flag.
+	var reference: SeasonState = ActiveCodec.restore(ActiveCodec.capture(owner))
+	if not check(reference != null,"materialized independent-path reference owner"): return {}
+	var next: SeasonBuild = reference.build.candidate(command.duplicate(true))
+	if not check(next != null,"original candidate command accepted"): return {}
+	reference.adopt_build(next)
+	if not check(reference.build == next,"original reference adoption accepted"): return {}
+	var expected: Dictionary = ActiveCodec.capture(reference)
+	if not check(not expected.is_empty(),"independent original reference materialized capture"): return {}
+	return expected
+
+func paid_pack(app: SeasonApp) -> bool:
+	app.open_pitch_shop()
+	if not check(app.season.build._visit.open and app.season.build._visit.number == initial_results()/3+1,"actual earned owned Shop opens"): return false
+	finish_step(app,"shop-open")
+	if failed: return false
+	if not app.season.build.pack_pending():
+		var cash: int = app.season.build.cash()
+		var price: int = app.season.build.pack_price()
+		if not check(app.season.build.pack_price() > 0 and cash >= app.season.build.pack_price(),"authored pack price funded by actual owned round"): return false
+		var shop: SeasonShopWindow = shop_for(app)
+		var button: Button = button_prefix(shop,"Open fixed development pack") if shop != null else null
+		if not check(button != null and not button.disabled,"real owned Shop pack control"): return false
+		var before: Dictionary = ActiveCodec.capture(app.season)
+		if not check(not before.is_empty(),"nonempty Cancel and failure comparison baseline"): return false
+		var primary = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		var owner: SeasonState = app.season
+		button.pressed.emit()
+		if not check(shop._confirm.visible and shop._pending.get("op") == "pack_open","real pack quote opens"): return false
+		shop._confirm.get_cancel_button().pressed.emit()
+		for frame in range(3):
+			if not shop._confirm.visible: break
+			await get_tree().process_frame
+		if not check(not shop._confirm.visible and shop._pending.is_empty() and app.season == owner and ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"bounded Cancel preserves owner primary backup"): return false
+		button.pressed.emit()
+		var command: Dictionary = shop._pending.duplicate(true)
+		var expected: Dictionary = materialized_pack_reference(app.season,command)
+		if expected.is_empty(): return false
+		if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated owned prewrite refusal"): return false
+		var started: int = Time.get_ticks_msec()
+		shop._confirm.get_ok_button().pressed.emit()
+		print("PACK_OPEN_HANDLER_MS: ",Time.get_ticks_msec()-started)
+		var retained: SeasonState = app.get("retained")
+		if not check(retained != null and app.season == owner and ClubCareer.same(ActiveCodec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"failed save keeps old owned state and disk intact"): return false
+		var candidate: Dictionary = ActiveCodec.capture(retained)
+		if not check(not candidate.is_empty() and ClubCareer.same(candidate,expected),"retained fixed pack equals independent independent materialized path"): return false
+		app.shop_command(command)
+		if not check(app.get("retained") == retained and ClubCareer.same(ActiveCodec.capture(retained),candidate),"repeat while retained cannot replace candidate"): return false
+		if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own fault directory"): return false
+		# Exercise the real Shop handler, which saves AND refreshes its retained view.
+		# Direct App retry alone is not the UI interaction a player performs here.
+		var retry: Button = button_prefix(shop,"RETRY EXACT SAVE")
+		if not check(retry != null and not retry.disabled,"real retained Shop retry control"): return false
+		retry.pressed.emit()
+		if not check(app.get("retained") == null and app.season == retained and app.notice.is_empty() and ClubCareer.same(ActiveCodec.capture(app.season),candidate) and app.season.build.cash() == cash-price and app.season.build.pack_pending(),"exact owned candidate promoted with one pack charge"): return false
+		primary = FileAccess.get_file_as_bytes(Save.PATH)
+		backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		app.retry_save()
+		app.shop_command(command)
+		if not check(ClubCareer.same(ActiveCodec.capture(app.season),candidate) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate paid command and retry are backup-inert"): return false
+		finish_step(app,"pack-paid-exact-retry")
+		return not failed
+	app.open_pitch_shop()
+	var shop: SeasonShopWindow = shop_for(app)
+	var selected: String = ""
+	for item: String in app.season.build._pack_choices():
+		if not app.season.build.targets(item).is_empty():
+			selected = item
+			break
+	if not check(not selected.is_empty() and shop != null,"actual generated eligible owned card"): return false
+	var choice: Button = button_prefix(shop,str(Progression.display_item(selected).name))
+	if not check(choice != null and not choice.disabled,"real generated card selection control"): return false
+	choice.pressed.emit()
+	var target: Button = target_button(shop)
+	if not check(target != null,"real recipient control"): return false
+	target.pressed.emit()
+	var command: Dictionary = shop._pending.duplicate(true)
+	if not check(shop._confirm.visible and command.get("op") == "pack_pick","actual choice quote"): return false
+	var chosen_before: Dictionary = app.season.build.player(str(command.player)).duplicate(true)
+	var cash: int = app.season.build.cash()
+	var expected_choice: Dictionary = materialized_pack_reference(app.season,command)
+	if expected_choice.is_empty(): return false
+	var choice_started: int = Time.get_ticks_msec()
+	shop._confirm.get_ok_button().pressed.emit()
+	print("PACK_PICK_HANDLER_MS: ",Time.get_ticks_msec()-choice_started)
+	if not check(app.get("retained") == null and not app.season.build.pack_pending() and app.season.build._visit.pack_status == "used" and app.season.build.cash() == cash,"earned choice durably applied without recharge"): return false
+	if not check(not ClubCareer.same(app.season.build.player(str(command.player)),chosen_before),"actual selected recipient development changed"):
+		return false
+	var after: Dictionary = ActiveCodec.capture(app.season)
+	if not check(not after.is_empty() and ClubCareer.same(after,expected_choice),"fixed paid choice equals independent independent materialized path"): return false
+	var primary = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+	app.shop_command(command)
+	if not check(ClubCareer.same(ActiveCodec.capture(app.season),after) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate choice is state and backup inert"): return false
+	finish_step(app,"choice-paid")
+	return not failed
+

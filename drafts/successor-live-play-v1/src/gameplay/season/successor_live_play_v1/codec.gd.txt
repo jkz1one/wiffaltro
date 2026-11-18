@@ -324,4 +324,34 @@ static func restore(value: Variant) -> SeasonState:
 		if club.build == null: return null
 		result.opponents.clubs[id] = club
 	var captured: Dictionary = capture(result)
-	return result if not captured.is_empty() and same(captured,value) else null
+	if captured.is_empty() or not same(captured,value): return null
+	if not result.league_rules.is_empty():
+		# Frozen gameplay compares these native context Dictionaries directly.
+		# Hydrated JSON numbers must agree with newly authored fourth-pick builds.
+		# Normalize ONLY known rule holders after strict semantic admission, then
+		# independently prove serialized recapture stays exactly the same.
+		if not _canonical_dugout_context(result): return null
+		var canonical: Dictionary=capture(result)
+		if canonical.is_empty() or not same(canonical,captured): return null
+	return result
+
+static func _canonical_dugout_context(season: SeasonState) -> bool:
+	var expected: Dictionary=LeagueRules.capture("dugout")
+	if not same(season.league_rules,expected): return false
+	var builds: Array=[season.build]
+	for club: Dictionary in season.opponents.clubs.values(): builds.append(club.build)
+	var holders: Array=[]
+	for build: SeasonBuild in builds:
+		if not same(build._league_rules,expected) or not same(build._bank._league_rules,expected): return false
+		holders.append(build);holders.append(build._bank)
+		# Non-scramble development books legitimately have an empty rule context.
+		if not build._book._league_rules.is_empty():
+			if not same(build._book._league_rules,expected): return false
+			holders.append(build._book)
+	if not season.ownership._league_rules.is_empty():
+		if not same(season.ownership._league_rules,expected): return false
+		holders.append(season.ownership)
+	# Validate all holders before changing this detached, not-yet-returned graph.
+	season.league_rules=expected.duplicate(true)
+	for holder: Object in holders: holder.set("_league_rules",expected.duplicate(true))
+	return true

@@ -1,0 +1,57 @@
+extends Node
+## Existing119 cold-rule boundary. No new economics, simulated games or old-slot writes.
+const C=preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const R=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+var roots: Array[Resource]=[]
+const PATH="user://common-dugout-context-proof.json"
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func _ready() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["build","cold"],"isolated explicit mode before IO"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"authored roots pinned"):return
+	if args[0]=="cold":
+		var bytes=FileAccess.get_file_as_bytes(PATH)
+		var value: Variant=JSON.parse_string(bytes.get_string_from_utf8())
+		var restored=C.restore(value)
+		if not check(restored!=null and restored.opponents.clubs.size()==5 and C.same(C.capture(restored),value),"separate-process119 complete Dugout cold exact"):return
+		if not check(FileAccess.get_file_as_bytes(PATH)==bytes,"read-only cold bytes unchanged"):return
+	else:
+		if not check(not FileAccess.file_exists(PATH),"new isolated proof path only"):return
+		var expected: Dictionary={}
+		for route: String in ["warm","roundtrip"]:
+			var season: SeasonState=R.create_fresh(850119,"dugout")
+			if not check(season!=null,"genuine existing119 Dugout birth"):return
+			for index in range(4):
+				if not check(season.choose_player(season.offers()[0]),route+" actual pick "+str(index+1)):return
+				var data: Dictionary=C.capture(season)
+				if not check(not data.is_empty(),route+" strict119 capture"):return
+				if route=="roundtrip":
+					season=C.restore(JSON.parse_string(JSON.stringify(data,"",true,true)))
+					if not check(season!=null,"strict119 restore at each actual pick"):return
+			if not check(season.opponents.clubs.size()==5 and season.make_match()!=null,"all five real AI and actual matchup retained"):return
+			for build: SeasonBuild in [season.build]+season.opponents.clubs.values().map(func(club):return club.build):
+				if not check(build._league_rules==season.league_rules and build._bank._league_rules==season.league_rules,"exact native authored rule contexts"):return
+			var final: Dictionary=C.capture(season)
+			if route=="warm":expected=final
+			elif not check(C.same(final,expected),"warm and every-pick roundtrip exact serialized equality"):return
+		for holder: String in ["state","build","bank","book","ai"]:
+			for fault: String in ["fractional","boolean","extra","foreign"]:
+				var value: Dictionary=expected.duplicate(true)
+				var rules: Dictionary=LeagueRules.capture("dugout")
+				if fault=="fractional":rules.tier=0.5
+				elif fault=="boolean":rules.version=true
+				elif fault=="extra":rules.extra=true
+				else:rules.league="standard"
+				if holder=="state":value.state.league_rules=rules
+				elif holder=="ai":value.opponents.clubs["5"].build.build._league_rules=rules
+				else:value.build[holder]._league_rules=rules
+				if not check(C.restore(value)==null,holder+" malformed "+fault+" refused without normalization concealment"):return
+		var file=FileAccess.open(PATH,FileAccess.WRITE)
+		if not check(file!=null,"isolated proof file open"):return
+		file.store_string(JSON.stringify(expected,"",true,true));file.close()
+	print("PASS: Dugout exact native context ",args[0],"; no actual-game claim")
+	get_tree().quit(0)

@@ -1,6 +1,8 @@
 extends "res://src/presentation/season/successor_league_general_v2/shop_window.gd"
 ## Keep the full original shop; do not imply ordinary recruiting works in Dynasty.
 func _recruit(_shop: Dictionary) -> void:
+	if app.get("career_owner")!=null and app.career_owner.active=="ordinary":
+		super._recruit(_shop);return
 	_label("DYNASTY ROSTER")
 	_label("In-season recruiting is unavailable. Between-season replacement remains planned; its cadence and price are not enabled in this engineering build.")
 
@@ -25,6 +27,7 @@ func _clear_quote_scope() -> void:
 
 
 func _refresh() -> void:
+	if not _origin_matches(): return
 	# No await and no cache across event callbacks. A nested refresh invalidates
 	# the outer scope rather than allowing either render to reuse its scratch.
 	var nested: bool = _quote_active
@@ -71,6 +74,7 @@ func _purchase(
 
 const ManagedLoadout = preload("loadout_ui.gd")
 func _ready() -> void:
+	_bind_origin()
 	super._ready()
 	# The inherited shop creates its own utility. Replace it synchronously before
 	# any input dispatch, not just the separate App entry.
@@ -82,3 +86,53 @@ func _ready() -> void:
 	utility.app = app
 	utility.shop = self
 	add_child(utility)
+
+
+var _origin_owner: RefCounted
+var _origin_session: SeasonState
+var _origin_bytes: PackedByteArray=PackedByteArray()
+var _view_generation: int=0
+func _bind_origin() -> void:
+	_origin_owner=app.get("career_owner");_origin_session=app.season
+	_origin_bytes=app.get("saved_bytes").duplicate()
+	_view_generation+=1
+func _origin_matches() -> bool:
+	return not is_queued_for_deletion() and app!=null and _origin_owner!=null \
+		and app.get("career_owner")==_origin_owner and app.season==_origin_session \
+		and _origin_owner.get("session")==_origin_session and app.get("saved_bytes")==_origin_bytes
+func _clear() -> void:
+	_view_generation+=1
+	super._clear()
+func _button(text: String,action: Callable) -> Button:
+	var generation: int=_view_generation
+	return super._button(text,func() -> void:
+		if not visible or generation!=_view_generation or not _origin_matches(): return
+		action.call())
+func _preview(command: Dictionary,description: String) -> void:
+	if not visible or not _origin_matches(): return
+	super._preview(command,description)
+func _commit() -> void:
+	if not visible or not _origin_matches(): return
+	var departing: bool=_pending.get("op")=="reserve_offer"
+	var ok: bool=app.commit_shop(_pending)
+	_pending.clear()
+	if ok: _bind_origin()
+	if ok and departing:
+		_close();return
+	_notice="Saved. Your build is ready for the next game." if ok else app.notice
+	if ok and LeagueRules.academy(app.season.league_rules) and app.season.build.pack_pending():
+		_notice="Saved. Choose or skip the remaining Academy pack choices before the next game."
+	_refresh()
+func _retry_checkpoint() -> void:
+	if not _origin_matches(): return
+	var candidate=app.get("retained_envelope")
+	app.call("retry_save")
+	if candidate!=null and app.get("career_owner")==candidate and app.get("retained")==null: _bind_origin()
+	_notice=app.notice if app.get("retained")!=null else "Saved. Your build is ready for the next game."
+	_refresh()
+func _close() -> void:
+	if not _origin_matches(): hide();queue_free();return
+	super._close()
+func _close_retained() -> void:
+	if not _origin_matches(): hide();queue_free();return
+	super._close_retained()

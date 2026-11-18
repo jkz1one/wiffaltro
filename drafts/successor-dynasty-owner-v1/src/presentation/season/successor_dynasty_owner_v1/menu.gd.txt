@@ -3,26 +3,31 @@ const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecyc
 const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
 func render() -> void:
 	_screen("home","WIFFALTRO","YOUR CLUB. YOUR SEASON.")
+	if not app.notice.is_empty(): _note(app.notice)
 	if app.retained != null:
-		_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
+		_bound_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
 	if app.season == null:
-		_label(_body,"PRIVATE DYNASTY ENGINEERING · career lifecycle",18)
-		_button(_body,"NEW DYNASTY TEST CAREER",Callable(app,"create_fresh"))
-		_button(_body,"CONTINUE DYNASTY TEST CAREER",Callable(app,"reload_save"))
+		_label(_body,"PRIVATE CAREER ENGINEERING · saved sessions",18)
+		for league: String in ["dynasty","standard","dugout"]:
+			_bound_button(_body,("SELECTED · " if app.selected_league==league else "SELECT · ")+league.to_upper(),Callable(app,"select_league").bind(league))
+		_bound_button(_body,"NEW "+app.selected_league.to_upper()+" TEST CAREER",Callable(app,"create_fresh"))
+		_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
+		if FileAccess.file_exists("user://wiffaltro-dynasty-career-v2.json"):
+			_bound_button(_body,"COPY PREVIOUS CAREER (V2)",Callable(app,"import_previous_career"))
 		if FileAccess.file_exists("user://wiffaltro-dynasty-owner-v1.json"):
-			_button(_body,"COPY PREVIOUS DYNASTY SAVE",Callable(app,"import_previous_dynasty"))
-		_button(_body,"ORDINARY CAREER BUILD",Callable(app,"open_previous"))
-		_note("Previous saves stay separate. Public mode admission, replacement economics and alternate activation remain unavailable.")
+			_bound_button(_body,"COPY PREVIOUS DYNASTY SAVE",Callable(app,"import_previous_dynasty"))
+		_bound_button(_body,"ORDINARY CAREER BUILD",Callable(app,"open_previous"))
+		_note("Previous saves stay separate. Session switching preserves progress; shared accounting, public unlocks and replacement economics remain planned.")
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
 		for id: String in app.season.offers():
 			var player: PlayerDefinition = app.season.build.definition(id)
-			_button(_body,player.display_name,Callable(app,"draft").bind(id))
+			_bound_button(_body,player.display_name,Callable(app,"draft").bind(id))
 			_player_summary(player)
 		return
-	_label(_body,"DYNASTY · SEASON %d"%app.career_owner.ordinal,22)
+	_label(_body,("DYNASTY · SEASON %d"%app.career_owner.ordinal) if app.career_owner.active=="dynasty" else ("ORDINARY · "+str(app.season.league_rules.get("league","standard")).to_upper()),22)
 	_label(_body,"ROUND %d · %s"%[app.season.round_index+1,SeasonState.Phase.keys()[app.season.phase]],24)
 	var fixture: Dictionary = app.season.pending_fixture()
 	if not fixture.is_empty(): _label(_body,"NEXT: "+_matchup(fixture),20)
@@ -35,20 +40,24 @@ func render() -> void:
 		_label(_body,player.display_name,22)
 		_player_summary(player)
 	_career_records()
-	if app.career_owner.status=="closed":
+	if app.career_owner.active=="dynasty" and app.career_owner.status=="closed":
 		_closed()
 		return
 	if not app.season.physical.pending.is_empty():
-		_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
+		_bound_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
-		_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
-		_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
+		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
+		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
+	elif app.career_owner.active=="dynasty":
+		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	else:
-		_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
+		_note("Ordinary season complete. Shared career closure is not enabled yet; this exact season stays saved.")
 	if app.season.shop_available() and app.season.physical.pending.is_empty():
-		_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
-	if app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
-		_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
+		_bound_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
+	if app.career_owner.active=="dynasty" and app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
+		_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
+
+	_session_controls()
 
 func _player_summary(player: PlayerDefinition) -> void:
 	var repertoire: Array[String] = []
@@ -69,7 +78,10 @@ func _player_summary(player: PlayerDefinition) -> void:
 
 func _career_records() -> void:
 	var owner=app.career_owner
-	_label(_body,"CAREER · %d closed · %d completed · %d abandoned · %d games"%[owner.ledger.closed,owner.ledger.completed,owner.ledger.abandoned,owner.ledger.games],18)
+	if owner.status=="absent":
+		_note("Ordinary career · no Dynasty has been created. Shared career accounting remains planned.")
+		return
+	_label(_body,"DYNASTY CAREER · %d closed · %d completed · %d abandoned · %d games"%[owner.ledger.closed,owner.ledger.completed,owner.ledger.abandoned,owner.ledger.games],18)
 	_label(_body,"Career currency: %d · Season Cash stays separate"%owner.ledger.currency,16)
 	var discoveries: Array=owner.discovery_ids()
 	if not discoveries.is_empty():
@@ -93,7 +105,7 @@ func _closed() -> void:
 	_label(_body,"SEASON CLOSED · "+owner.last_close.reason.to_upper(),24)
 	_note("Earned progress is retained. No decay has occurred. Abandonment earns no completion payout.")
 	if owner.proposal.is_empty():
-		_button(_body,"PREPARE NEXT SEASON",Callable(app,"propose_next"))
+		_bound_button(_body,"PREPARE NEXT SEASON",Callable(app,"propose_next"))
 		return
 	_label(_body,"NEXT SEASON PREVIEW · seed %d"%owner.proposal.seed,20)
 	_note("Provisional balance: up to 2 above-authored points per stat; 1 mastery per known pitch.")
@@ -105,7 +117,7 @@ func _closed() -> void:
 		_note("Choose an ability to forget for "+(definition.display_name if definition!=null else player)+". This is permanent on Next, not unequipped inventory.")
 		for receipt: Dictionary in needs[player]:
 			var selected: bool=owner.proposal.choices["club:0"].get(player,{}).get("forget","")==receipt.id
-			_button(_body,("SELECTED: " if selected else "FORGET ")+Profile.ABILITY_ITEMS[receipt.item].name,Callable(app,"choose_overflow").bind(player,receipt.id))
+			_bound_button(_body,("SELECTED: " if selected else "FORGET ")+Profile.ABILITY_ITEMS[receipt.item].name,Callable(app,"choose_overflow").bind(player,receipt.id))
 	var preview: Dictionary=owner.next_preview()
 	if preview.size()!=6:
 		_note("Resolve every ability overflow before starting. The saved seed will not reroll.")
@@ -120,7 +132,7 @@ func _closed() -> void:
 			if before.mastery[recipe]!=after.mastery[recipe]: changes.append("%s mastery %d → %d"%[recipe,before.mastery[recipe],after.mastery[recipe]])
 		var definition: PlayerDefinition=ContentDB.player_by_id.get(StringName(player))
 		_note((definition.display_name if definition!=null else player)+": "+(", ".join(changes) if not changes.is_empty() else "No stat or mastery loss"))
-	_button(_body,"START NEXT SEASON…",Callable(app,"request_lifecycle").bind("next"))
+	_bound_button(_body,"START NEXT SEASON…",Callable(app,"request_lifecycle").bind("next"))
 	_note("Cancel the confirmation to keep this exact saved preview. Loading or closing the app never applies decay.")
 
 func _note(text: String) -> Label:
@@ -158,13 +170,13 @@ func show_lineup() -> void:
 		_label(grid, SeasonPlayerCard.hands(player), 18)
 		for rating in SeasonPlayerCard.values(player):
 			_label(grid, str(rating), 22)
-		var up: Button = _button(grid, "↑", Callable(app,"lineup_swap").bind(index,index-1,ticket))
+		var up: Button = _bound_button(grid, "↑", Callable(app,"lineup_swap").bind(index,index-1,ticket))
 		up.set_meta("lineup_focus", String(player.id) + ":up")
 		up.set_meta("lineup_action","swap");up.set_meta("lineup_indices",[index,index-1])
 		up.custom_minimum_size = Vector2(40, 38)
 		up.disabled = index == 0
 		up.tooltip_text = "Move earlier in the batting order"
-		var down: Button = _button(grid, "↓", Callable(app,"lineup_swap").bind(index,index+1,ticket))
+		var down: Button = _bound_button(grid, "↓", Callable(app,"lineup_swap").bind(index,index+1,ticket))
 		down.set_meta("lineup_focus", String(player.id) + ":down")
 		down.set_meta("lineup_action","swap");down.set_meta("lineup_indices",[index,index+1])
 		down.custom_minimum_size = Vector2(40, 38)
@@ -202,12 +214,42 @@ func show_lineup() -> void:
 		"B / T = bats / throws. S = switch hitter. Fresh Stamina each game.",
 		18
 	)
-	_button(_footer,"PLAY GAME",Callable(app,"lineup_play").bind(ticket)).set_meta("lineup_action","play")
-	_button(_footer,"SEASON HUB",Callable(app,"lineup_back").bind(ticket)).set_meta("lineup_action","back")
+	_bound_button(_footer,"PLAY GAME",Callable(app,"lineup_play").bind(ticket)).set_meta("lineup_action","play")
+	_bound_button(_footer,"SEASON HUB",Callable(app,"lineup_back").bind(ticket)).set_meta("lineup_action","back")
 
 
 func show_lineup_blocked() -> void:
 	_screen("lineup-blocked","LINEUP NOT SAVED","Your saved lineup has not been overwritten.")
 	_note("The owner or saved file changed. Reload before editing; no new selection was saved.")
-	_button(_footer,"RELOAD SAVED CAREER",Callable(app,"reload_save"))
-	_button(_footer,"SEASON HUB",Callable(app,"show_season"))
+	_bound_button(_footer,"RELOAD SAVED CAREER",Callable(app,"reload_save"))
+	_bound_button(_footer,"SEASON HUB",Callable(app,"show_season"))
+
+
+var _render_token: RefCounted
+func _screen(key: String,title: String,subtitle: String) -> void:
+	_render_token=RefCounted.new()
+	super._screen(key,title,subtitle)
+func _bound_button(parent: Node,text: String,action: Callable) -> Button:
+	var token: RefCounted=_render_token
+	var envelope: RefCounted=app.get("career_owner")
+	var state: SeasonState=app.season
+	var bytes: PackedByteArray=app.get("saved_bytes").duplicate()
+	return SeasonMenu._button(parent,text,func() -> void:
+		if is_queued_for_deletion() or not visible or token!=_render_token: return
+		if app.get("career_owner")!=envelope or app.season!=state or app.get("saved_bytes")!=bytes: return
+		action.call())
+func _session_controls() -> void:
+	var ticket: RefCounted=app.call("session_ticket")
+	if ticket==null: return
+	var owner=app.career_owner
+	_label(_body,"SAVED SESSIONS",22)
+	_note("Switching pauses this exact season. It grants nothing, charges nothing and never applies Dynasty decay.")
+	if not owner.paused.is_empty():
+		_bound_button(_body,"RESUME "+("ORDINARY" if owner.active=="dynasty" else "DYNASTY")+" SESSION",Callable(app,"switch_session").bind(ticket))
+	elif owner.active=="dynasty":
+		for league: String in ["standard","dugout"]:
+			_bound_button(_body,"CREATE "+league.to_upper()+" SESSION",Callable(app,"create_session").bind(-1,league,ticket))
+		if FileAccess.file_exists("user://wiffaltro-materialized-play-v1.json"):
+			_bound_button(_body,"COPY SAVED ORDINARY SESSION",Callable(app,"attach_ordinary").bind(ticket))
+	else:
+		_bound_button(_body,"CREATE DYNASTY TEST SESSION",Callable(app,"create_session").bind(-1,"dynasty",ticket))

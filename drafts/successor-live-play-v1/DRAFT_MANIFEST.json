@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "882cf5dd4eb294c28ee615eece1ea4e33261fa41",
-  "scope": "Increment78 local numeric semifinal-ID selection and settlement repair: shared helper bound to119/120; focused synthetic warm/JSON/malformed/rank/AI-policy dispatch passed. Prior ordinary gameplay qualification retained, no new full119 season claim.",
+  "source_checkpoint": "141f8884de70e27bda925b23758fb1f46862be73",
+  "scope": "Increment85 narrowly canonicalizes admitted Dugout native rule contexts on119 restore with exact serialized recapture invariant. Warm/every-pick JSON four-pick drafts, all-five-AI creation, malformed refusal and separate cold passed. Genuine Standard ordinary round/paid Shop/cold also passed inside common120 ownership with exact dormant preservation. Existing78 semifinal repair retained; no actual Dugout-game or full119-season claim.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 21173,
-      "sha256": "22fca720acc38a24cf44852914cacfe84cd9d73679efe26e99e8405171249205"
+      "bytes": 22795,
+      "sha256": "3f53ed4e546c0ba25a5be9fbb3e92b112bd42586c9dda773c4f3cea03456d0a9"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/import_draft.gd.txt",

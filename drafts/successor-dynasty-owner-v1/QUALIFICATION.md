@@ -1,4 +1,93 @@
-# Dynasty owner: bounded private career integration
+# Bounded private common career
+
+## Increment85: scoped common owner integration qualified
+
+One explicit `wiffaltro-common-career-v3.json` writer now stores one active named
+ordinary119 or Dynasty120 session and one dormant canonical snapshot. The former
+v2/75/119 files are not synchronized or overwritten. Explicit v2 copy migration
+uses a frozen reader whose only body changes are five audited self-factory path
+rebindings. The complete Dynasty metadata remains independent of the active side.
+Routine ordinary actions pin the entire dormant Dynasty snapshot and all its
+metadata; routine Dynasty actions pin the ordinary snapshot. Selector changes
+use a fixed Store-owned producer, never a caller-supplied trusted payload.
+
+Scoped gates passed:
+
+- Seven genuine v2 states (equipped earned, terminal, closed, proposal, Next,
+  edited lineup and pending human) migrate without losing session or metadata.
+  Foundation JSON helpers are same-process roundtrips, not separate cold runs.
+- Genuine fresh Standard and Dynasty App/menu entries each make four actual
+  authored choices and reopen in a separate process. Actual missing-side Create,
+  four picks, Resume original and separate cold also pass in both directions;
+  injected predecessors are not the only route into a two-session career.
+- Actual earned Store attachment/switch, full six-club raw guards, forged dormant
+  replacement/provenance refusal, retained mutation and foreign-file refusal,
+  exact retry, ordinary metadata pins and original pair preservation pass.
+- Actual App/menu copy/attach/switch, cold reads, retained Retry, clean-hub barriers,
+  stale prior menu and Shop callbacks (even with the new side's revision) pass.
+- Native exact-runtime50 inspection covers ordinary activation/Shop/default
+  inventory, a real pitch and paused inspection/Leave, return to the retained
+  equipped Dynasty and separate cold. Native full games and purchases are not
+  claimed. Slow responses were observed; delayed inspection opened correctly,
+  so no functional ownership failure or responsiveness guarantee is inferred.
+
+A real pre-existing119 cold-draft seam was found: after a JSON-restored third
+Dugout pick, the fourth pick creates native-int Build rules while session rules
+retain integral floats; frozen114's native comparison silently declines all AI
+initialization. Local119 hydration now first strictly captures and compares the
+input, validates only its known authored Dugout rule holders, canonicalizes those
+contexts, then independently recaptures the same serialized value. Empty Standard
+contexts remain unchanged; frozen114 is untouched. Warm/per-pick-roundtrip parity,
+all five AI, twenty malformed holder mutations and separate cold pass. This does
+not qualify an actual Dugout physical game.
+
+Current runtime/source maps are `common85/RUNTIME_PREFLIGHT_FINAL_50.json` and
+`SOURCE_PREFLIGHT_FINAL_136.json` (103 current-family and 33 ordinary-family
+source/test files). `SOURCE_CANDIDATE_22.json` freezes the changed runtime/tests;
+`CHEAP85_QUALIFICATION.json` binds the first twenty scoped PASS logs. The four
+additional Create/cold logs use the narrowly refined UI test, with the earlier
+passed revision preserved. Initial parse failures and the exact baseline Dugout
+failure/diagnostic are preserved rather than reclassified as passes.
+
+Actual alternating gameplay passed on the same common owner: the genuine ordinary
+session completed fixtures 3/4/5, settlement, a paid pack and choice, and cold;
+Dynasty resumed its exact prior state and completed fixtures 9/10/11, settlement,
+a paid pack and choice, and cold. Returning to ordinary and reopening in a new
+process restored its exact advanced snapshot. Six new physical games ran once,
+with untouched raw reports saved before admission. Retained fault/retry and
+late/duplicate callback checks passed. Every step preserved the dormant snapshot,
+Dynasty metadata and original119/v2 pairs; no pause credited, closed, decayed or
+reseeded either side.
+
+The final common main is 4,211,359 bytes, SHA256
+`fa33246c4619fa4cf55ae345a68f67e1bae218058054945f8f8a43527eab9f6d`;
+backup is 4,211,358 bytes, SHA256
+`2f253a6f33b3d6f050592e38ef9e767a33aec5bf152bede9aeab109f22873d59`.
+Ordinary has 6 results/2 human games and 8 seasonal Cash; Dynasty has 12 results/
+4 human games and 17 seasonal Cash. These are separate seasonal balances, not
+shared career currency. `ACTUAL_ALTERNATION_85_QUALIFICATION.json` binds 24 logs,
+all raw reports and 28 paired boundaries. Fixed-fps60 headless simulation is
+functional evidence, not a performance benchmark.
+`ACTUAL_ALTERNATION_TIMINGS.json` records shared-cloud observations only. Its
+pack-open handler values measure deliberately obstructed first save attempts,
+not successful retry or full pack-open workflows. Player-visible blocking remains.
+
+Native evidence is separately bound by `visual85/NATIVE85_QUALIFICATION.json`,
+SHA256 `fa0bc9fd3dbeaafff678baaec183712982aa9cb77fe6f41907d9ea6ec7c78f54`.
+`FINAL_85_QUALIFICATION.json` binds the final source/maps and evidence reports;
+`FINAL_SOURCE_FREEZE_25.json` records the exact 25 changed source/test/doc paths.
+No runtime changes followed the qualified 50-file runtime freeze.
+This remains private engineering access. Shared ordinary career accounting and
+terminal return are not complete: current switching explicitly refuses Draft,
+Complete, closed/proposal, pending-result, open-pack, live-match and modal states
+rather than resetting them. Follow-on closure must not force decay/reseed merely
+to return to the paused side. Ordinary totals/entitlements are not invented or
+silently summed on import. Generic paused resale, replacement economics, other
+league bindings, public admission, target performance and distributables remain
+planned. Native and fixed-fps headless runs may overlap; no CPU-exclusive timing
+or target-hardware performance claim is made.
+
+## Historical qualified increments
 
 Increment84 restores original-styled loadout inspection through owner-bound App
 and Shop utilities. Focused inspection/modal/pause/cleanup checks and genuine

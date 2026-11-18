@@ -27,6 +27,7 @@ func _process(_delta: float) -> void:
 	if shade.visible and not _binding(): close(false)
 
 func _binding() -> bool:
+	if shop!=null and (not is_instance_valid(shop) or not shop.call("_origin_matches")): return false
 	return (shop == null or (is_instance_valid(shop) and shop.visible and not shop.is_queued_for_deletion())) \
 		and app.get("_loadout_modal") == self and app.get("career_owner") == _envelope \
 		and app.season == _session and _envelope != null and _envelope.get("session") == _session \
@@ -111,7 +112,7 @@ func inventory_sales_enabled() -> bool:
 	return false
 
 func _sale_action(parent: Node, row: Dictionary) -> void:
-	if shop == null or app.lab != null or _tab not in ["gear", "sponsors"]: return
+	if shop == null or not shop.call("_origin_matches") or app.lab != null or _tab not in ["gear", "sponsors"]: return
 	if not _binding() or not app.season.shop_available() or not app.season.build._visit.open or app.season.build.pack_pending(): return
 	var receipt: String = row.get("receipt", "")
 	if receipt.is_empty(): return

@@ -1,0 +1,189 @@
+extends RefCounted
+## Bounded career v2. One current Dynasty and one dormant ordinary session.
+const Session = preload("runtime.gd")
+const Codec = preload("codec.gd")
+const Previous = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Ledger = preload("ledger.gd")
+const Life = preload("lifecycle.gd")
+const Profile = preload("dynasty_profile.gd")
+const FORMAT: String = "wiffaltro-dynasty-career-v2"
+const DATA_FIELDS: Array[String] = ["alternate","imported_sha256","birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration"]
+var session: SeasonState
+var alternate: Dictionary = {}
+var imported_sha256: String = ""
+var birth_seed: int = 0
+var ordinal: int = 1
+var status: String = "active"
+var ledger: Dictionary = {}
+var last_close: Dictionary = {}
+var proposal: Dictionary = {}
+var last_transition: Dictionary = {}
+var migration: Dictionary = {}
+
+static func create_development(seed_value: int):
+	var result = load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v2.gd").new()
+	result.session = Session.create_fresh(seed_value,"dynasty")
+	if result.session==null: return null
+	result.birth_seed=seed_value; result.ledger=Ledger.birth(result.session)
+	return result
+func fork():
+	var result=get_script().new()
+	result.session=session.fork_live() if session!=null else null
+	if not Codec.install_fields(result,DATA_FIELDS,Codec.data_fields(self,DATA_FIELDS)): return null
+	return result if result.session!=null else null
+func close_current(reason: String) -> bool: return Life.close(self,reason)
+func propose_next(seed_value: int) -> bool: return Life.propose(self,seed_value)
+func choose_overflow(player: String, receipt: String) -> bool: return Life.choose(self,player,receipt)
+func next_preview() -> Dictionary: return Life.preview(self)
+func commit_next() -> bool: return Life.advance(self)
+func discovery_ids() -> Array:
+	var result: Array=ledger.collection.duplicate()
+	if status=="active":
+		for id: String in ClubCollection.acquired(session.build):
+			if not result.has(id): result.append(id)
+	result.sort()
+	return result
+func awards() -> Dictionary:
+	# Compact awards are displayed explicitly, never relabeled legacy receipts.
+	return ledger.plaques.duplicate(true)
+func earned_player_ids() -> Array[String]:
+	return ClubPlayerCatalog.earned(ledger.metrics)
+func import_119(bytes: PackedByteArray) -> bool:
+	if bytes.is_empty() or bytes.size()>32*1024*1024 or not alternate.is_empty(): return false
+	var parser: JSON=JSON.new()
+	if parser.parse(bytes.get_string_from_utf8())!=OK: return false
+	var prior: SeasonState=Previous.restore(parser.data)
+	if prior==null: return false
+	var checked: Dictionary=Previous.capture(prior)
+	if checked.is_empty(): return false
+	alternate=checked
+	# Same byte SHA-256 as previous import contract, not hexadecimal-string hash.
+	var hash: HashingContext=HashingContext.new()
+	if hash.start(HashingContext.HASH_SHA256)!=OK or hash.update(bytes)!=OK: return false
+	imported_sha256=hash.finish().hex_encode()
+	return true
+static func _digest(value: Variant) -> bool:
+	return value is String and value.length()==64 and value.is_valid_hex_number(false)
+static func import_75(bytes: PackedByteArray):
+	if bytes.is_empty() or bytes.size()>64*1024*1024: return null
+	var parser: JSON=JSON.new()
+	if parser.parse(bytes.get_string_from_utf8())!=OK: return null
+	var value: Variant=parser.data
+	if not Codec.primitive(value) or not Codec.keys(value,["version","format","active","dynasty","alternate","imported_sha256"]) or value.version!=1 or value.format!="wiffaltro-dynasty-owner-v1" or value.active!="dynasty" or not value.alternate is Dictionary or not value.imported_sha256 is String: return null
+	var result=load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v2.gd").new()
+	result.session=Codec.restore_legacy75(value.dynasty)
+	if result.session==null: return null
+	result.alternate=value.alternate.duplicate(true);result.imported_sha256=value.imported_sha256
+	result.birth_seed=result.session.season_seed;result.ledger=Ledger.birth(result.session)
+	# The imported season has not closed: start aggregates are its birth starts,
+	# not current achievements. Current journals are folded only by close_current.
+
+	var hash: HashingContext=HashingContext.new()
+	if hash.start(HashingContext.HASH_SHA256)!=OK or hash.update(bytes)!=OK: return null
+	result.migration={"format":"wiffaltro-dynasty-owner-v1","sha256":hash.finish().hex_encode(),"bytes":bytes.size()}
+	return result if not capture(result).is_empty() else null
+
+static func _profiles_valid(value: Variant, birth: int, expected: int) -> bool:
+	if not Codec.keys(value,["club:0","club:1","club:2","club:3","club:4","club:5"]): return false
+	var ids: Array=[]
+	for index in range(6):
+		var club: String="club:%d"%index
+		var p: Dictionary=Profile.normalize(value[club])
+		if p.is_empty() or p.lineage_id!="dynasty:%d"%birth or p.owner_id!=club or p.season_ordinal!=expected: return false
+		for id: String in p.roster:
+			if id in ids: return false
+			ids.append(id)
+	return true
+static func _proposal_valid(owner) -> bool:
+	var value: Dictionary=owner.proposal
+	if value.is_empty(): return true
+	if owner.status!="closed" or not Codec.keys(value,["id","seed","source","choices","rule","ai_overflow"]) or value.id!="dynasty:%d:%d:next"%[owner.birth_seed,owner.ordinal] or not Codec.whole(value.seed,0,2147483647) or not Life.digest_matches(value.source,owner.last_close.profiles) or not Codec.same(value.rule,Profile.rule()) or value.ai_overflow!="retain-smallest-receipt-id-v1" or not Codec.keys(value.choices,owner.last_close.profiles.keys()): return false
+	for index in range(6):
+		var club: String="club:%d"%index; var choices: Variant=value.choices[club]
+		if not choices is Dictionary: return false
+		var needed: Dictionary=Life.overflow(owner.last_close.profiles[club])
+		for id: Variant in choices:
+			if not id is String or not needed.has(id) or not Codec.keys(choices[id],["player","forget"]) or choices[id].player!="" or not choices[id].forget is String: return false
+			if not needed[id].any(func(row:Dictionary)->bool:return row.id==choices[id].forget): return false
+		if index>0:
+			if choices.size()!=needed.size(): return false
+			for id: String in needed:
+				var receipts: Array=needed[id].map(func(row:Dictionary)->String:return row.id); receipts.sort()
+				if choices[id].forget!=receipts[-1]: return false
+	return true
+static func _transition_valid(owner) -> bool:
+	var t: Dictionary=owner.last_transition
+	if owner.ordinal==1: return t.is_empty()
+	if not Codec.keys(t,["id","from","to","seed","profiles_before","proposal","profiles_after","ledger_sha256"]) or t.to!=owner.ordinal or t.from!=owner.ordinal-1 or t.seed!=owner.session.season_seed or t.id!="dynasty:%d:%d:next"%[owner.birth_seed,owner.ordinal-1] or not _profiles_valid(t.profiles_before,owner.birth_seed,owner.ordinal-1) or not _digest(t.profiles_after) or not t.proposal is Dictionary: return false
+	# Validate the persisted old proposal against its own source, independent of
+	# current closed state. At most one six-profile transition witness is retained.
+	var proxy=load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v2.gd").new()
+	proxy.birth_seed=owner.birth_seed;proxy.ordinal=owner.ordinal-1;proxy.status="closed";proxy.last_close={"profiles":t.profiles_before};proxy.proposal=t.proposal
+	if not _proposal_valid(proxy) or t.proposal.id!=t.id or t.proposal.seed!=t.seed: return false
+	var after: Dictionary={}
+	for index in range(6):
+		var id: String="club:%d"%index;var build: SeasonBuild=owner.session.build if index==0 else owner.session.opponents.clubs[str(index)].build
+		var advanced: Dictionary=Profile.advance(t.profiles_before[id],(int(t.seed)+index*92821)&0x7fffffff,t.proposal.choices[id])
+		if advanced.is_empty() or not Codec.same(advanced.profile,build._dynasty_start): return false
+		after[id]=advanced.profile
+	# A bounded materialized aggregate is authoritative, not a replayed history.
+	# Bind its exact bytes across Next; closing this new session has its own before.
+	var retained_ledger: Dictionary=owner.ledger if owner.status=="active" else owner.last_close.before
+	return Life.digest_matches(t.profiles_after,after) and _digest(t.ledger_sha256) and Life.digest_matches(t.ledger_sha256,retained_ledger)
+
+static func envelope_valid(owner, current: Dictionary) -> bool:
+	if owner==null or owner.get_script()!=load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v2.gd") or owner.session==null or current.is_empty() or not Codec.known_variables(owner,DATA_FIELDS+["session"]): return false
+	if not Codec.whole(owner.birth_seed,0,2147483647) or not Codec.whole(owner.ordinal,1,ClubCareer.MAX_RUNS) or owner.status not in ["active","closed"] or not Ledger.valid(owner.ledger): return false
+	if owner.ledger.closed!=owner.ordinal-int(owner.status=="active"): return false
+	#75 genesis owns no earned trophy records; preserve its exact prospective era
+	# metadata. Ordinary alternate awards remain in that untouched snapshot.
+	var genesis: Dictionary=owner.session.career.start_basis if owner.ordinal==1 else Codec.Genesis.derive(owner.birth_seed)
+	if not Codec.same(owner.ledger.pennants,Codec.Settlement.birth_pennants(genesis)): return false
+	var meta: Dictionary=current.session
+	if meta.birth_seed!=owner.birth_seed or meta.ordinal!=owner.ordinal: return false
+	if owner.alternate.is_empty():
+		if not owner.imported_sha256.is_empty(): return false
+	elif not _digest(owner.imported_sha256): return false
+	if not owner.migration.is_empty():
+		if not Codec.keys(owner.migration,["format","sha256","bytes"]) or owner.migration.format!="wiffaltro-dynasty-owner-v1" or not _digest(owner.migration.sha256) or not Codec.whole(owner.migration.bytes,1,64*1024*1024): return false
+	if owner.status=="closed":
+		var close: Dictionary=owner.last_close
+		if not Codec.keys(close,["id","ordinal","reason","session_sha256","profiles","before","receipt"]) or close.id!="dynasty:%d:%d:close"%[owner.birth_seed,owner.ordinal] or close.ordinal!=owner.ordinal or close.reason not in ["complete","abandon"] or not Life.digest_matches(close.session_sha256,current) or not _profiles_valid(close.profiles,owner.birth_seed,owner.ordinal) or not close.before is Dictionary or not close.receipt is Dictionary: return false
+		if not Codec.same(close.profiles,Life.profiles(owner)): return false
+		if owner.ordinal==1 and not Codec.same(close.before,Ledger.birth(owner.session)): return false
+		var folded: Dictionary=Ledger.close(close.before,owner.session,owner.ordinal,close.reason)
+		if folded.is_empty() or not Codec.same(folded.ledger,owner.ledger) or not Codec.same(folded.receipt,close.receipt): return false
+	elif not owner.last_close.is_empty() or not owner.proposal.is_empty(): return false
+	elif owner.ordinal==1 and not Codec.same(owner.ledger,Ledger.birth(owner.session)): return false
+	if owner.ordinal>1:
+		var retained: Dictionary=owner.last_close.before if owner.status=="closed" else owner.ledger
+		var rights: Dictionary=owner.session.career.start_basis.rights
+		if not Codec.same(rights.club_starts,retained.club_starts) or not Codec.same(rights.player_access,Life.player_access(genesis.player_access,retained.metrics)) or not Codec.same(rights.assets,genesis.assets) or not Codec.same(rights.pennants,Codec.Settlement.birth_pennants(genesis)) or not Codec.same(rights.plaques,genesis.plaques): return false
+	return _proposal_valid(owner) and _transition_valid(owner)
+
+static func pack_current(owner, current: Dictionary) -> Dictionary:
+	# Pure assembly, not save authority. Store supplies semantically captured
+	# current session and independently pinned dormant alternate before calling.
+	if not envelope_valid(owner,current): return {}
+	var result: Dictionary=Codec.data_fields(owner,DATA_FIELDS)
+	result.merge({"version":2,"format":FORMAT,"active":"dynasty","dynasty":current})
+	return result
+static func capture(owner) -> Dictionary:
+	if owner==null or owner.session==null: return {}
+	var current: Dictionary=Codec.capture(owner.session)
+	if current.is_empty() or (not owner.alternate.is_empty() and Previous.restore(owner.alternate)==null): return {}
+	return pack_current(owner,current)
+static func restore(value: Variant):
+	if not Codec.primitive(value) or not Codec.keys(value,DATA_FIELDS+["version","format","active","dynasty"]) or value.version!=2 or value.format!=FORMAT or value.active!="dynasty": return null
+	var result=load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v2.gd").new()
+	var fields: Dictionary={}
+	for name: String in DATA_FIELDS: fields[name]=value[name]
+	if not Codec.install_fields(result,DATA_FIELDS,fields): return null
+	# Consume only the fixed codec producer's fresh checked output in this call.
+	# No input API accepts a caller-created admission pair or trusted payload.
+	var current: Dictionary=Codec._hydrate_current_checked(value.dynasty)
+	if current.is_empty(): return null
+	result.session=current.season
+	if not result.alternate.is_empty() and Previous.restore(result.alternate)==null: return null
+	var checked: Dictionary=pack_current(result,current.captured)
+	return result if not checked.is_empty() and Codec.same(checked,value) else null

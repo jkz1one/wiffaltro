@@ -1,0 +1,113 @@
+extends Node
+## Owner-only v3 foundation. No Store/App authority, physics or automatic migration.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Adapter=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const Legacy=preload("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v2.gd")
+var roots: Array[Resource]=[]
+var protected: Dictionary={}
+func _ready() -> void:call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func read_source(name: String) -> PackedByteArray:
+	var path: String="user://"+name
+	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
+	protected[path]=bytes
+	if FileAccess.file_exists(path+".bak"):protected[path+".bak"]=FileAccess.get_file_as_bytes(path+".bak")
+	return bytes
+func cold(owner):
+	var data: Dictionary=Owner.capture(owner)
+	if not check(not data.is_empty(),"v3 strict capture"):return null
+	var json: Variant=JSON.parse_string(JSON.stringify(data,"",true,true))
+	var restored=Owner.restore(json)
+	if not check(restored!=null and C.same(Owner.capture(restored),data),"same-process JSON roundtrip exact complete v3 owner"):return null
+	json["ordinary"]["detachment_probe"]=true
+	if not check(C.same(Owner.capture(restored),data),"restored owner cannot alias caller input"):return null
+	return restored
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["corpus","fresh-standard","fresh-dugout","switch"],"isolated owner-only mode before IO"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"retained authored identity roots"):return
+	for name: String in ["wiffaltro-dynasty-career-v2.json","wiffaltro-dynasty-owner-v1.json","wiffaltro-materialized-play-v1.json"]:
+		for suffix: String in ["",".bak",".tmp"]:
+			var path: String="user://"+name+suffix
+			protected[path]=FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else null
+	if args[0]=="corpus":
+		for kind: String in ["earned","closed","proposal","next","terminal","pending","edited"]:
+			var bytes: PackedByteArray=read_source("source-"+kind+"-v2.json")
+			var input: Variant=JSON.parse_string(bytes.get_string_from_utf8())
+			var legacy=Legacy.restore(input)
+			var owner=Owner.import_v2(bytes)
+			if not check(legacy!=null and owner!=null and owner.active=="dynasty","actual "+kind+" v2 migration admitted explicitly"):return
+			if not check(C.same(owner.dynasty_metadata(),C.data_fields(legacy,Owner.DYNASTY_FIELDS))
+				and C.same(Adapter.capture("dynasty",owner.session),input.dynasty)
+				and C.same(owner.paused,input.alternate) and owner.imported_sha256==legacy.imported_sha256,
+				"migration retains exact active session, dormant state and all Dynasty metadata"):return
+			if not check(owner.migration_v2.sha256==FileAccess.get_sha256("user://source-"+kind+"-v2.json")
+				and owner.migration_v2.bytes==bytes.size(),"migration records exact source digest/size"):return
+			if cold(owner)==null:return
+			print("MIGRATION_CASE ",kind," bytes=",bytes.size())
+	elif args[0].begins_with("fresh-"):
+		var league: String=args[0].trim_prefix("fresh-")
+		var owner=Owner.create_ordinary(850119,league)
+		if not check(owner!=null and owner.active=="ordinary" and owner.paused.is_empty() and owner.status=="absent"
+			and owner.ordinal==0 and owner.ledger.is_empty() and owner.session.career.start_basis.runs.is_empty(),"genuine ordinary genesis has no Dynasty or invented predecessor"):return
+		var malformed_absent: Dictionary=Owner.capture(owner)
+		malformed_absent.imported_sha256="a".repeat(64)
+		if not check(Owner.restore(malformed_absent)==null,"ordinary-only absent Dynasty provenance refuses nonempty digest"):return
+		owner=cold(owner)
+		if owner==null:return
+		for index in range(4):
+			var offers: Array[String]=owner.session.offers()
+			if not check(offers.size()==3 and owner.session.choose_player(offers[0]) and owner.session.picks.size()==index+1,"actual fresh authored offer/pick "+str(index+1)):return
+			owner=cold(owner)
+			if owner==null:return
+		if not check(owner.session.phase==SeasonState.Phase.REGULAR and owner.session.opponents.clubs.size()==5
+			and owner.session.results.is_empty() and owner.session.player_results.is_empty() and owner.session.make_match()!=null,
+			"genuine four-pick ordinary six-club season constructs actual matchup without games"):return
+		var ordinary: Dictionary=Adapter.capture("ordinary",owner.session)
+		if not check(owner.create_missing(850120,"dynasty") and owner.active=="dynasty" and C.same(owner.paused,ordinary),"explicit missing Dynasty creation preserves fresh ordinary snapshot"):return
+		if cold(owner)==null:return
+	else:
+		var bytes: PackedByteArray=read_source("source-earned-v2.json")
+		var ordinary_bytes: PackedByteArray=read_source("source-earned-119.json")
+		var owner=Owner.import_v2(bytes)
+		if not check(owner!=null,"genuine earned Dynasty migrated"):return
+		var dynasty: Dictionary=Adapter.capture("dynasty",owner.session)
+		var metadata: Dictionary=owner.dynasty_metadata()
+		var ordinary: Variant=JSON.parse_string(ordinary_bytes.get_string_from_utf8())
+		if not check(owner.import_119(ordinary_bytes) and owner.active=="dynasty" and C.same(owner.paused,ordinary),"explicit earned119 attachment preserves both genuine sessions"):return
+		var before: Dictionary=Owner.capture(owner)
+		if not check(not owner.import_119(ordinary_bytes) and not owner.create_missing(1,"standard") and C.same(Owner.capture(owner),before),"occupied dormant side cannot be overwritten"):return
+		var detached=owner.fork();detached.paused["alias_probe"]=true
+		if not check(C.same(Owner.capture(owner),before),"fork dormant snapshot detached"):return
+		for iteration in range(4):
+			if not check(owner.switch_existing(),"explicit existing-side switch "+str(iteration)):return
+			owner=cold(owner)
+			if owner==null:return
+			var active_expected: Dictionary=ordinary if owner.active=="ordinary" else dynasty
+			var dormant_expected: Dictionary=dynasty if owner.active=="ordinary" else ordinary
+			if not check(C.same(Adapter.capture(owner.active,owner.session),active_expected) and C.same(owner.paused,dormant_expected)
+				and C.same(owner.dynasty_metadata(),metadata),"switch/cold preserves exact active, paused and Dynasty ledger/lifecycle with no decay/settlement"):return
+		if not check(owner.switch_existing() and owner.active=="ordinary","ordinary active for dormant metadata adversary"):return
+		var bad_meta: Dictionary=Owner.capture(owner)
+		bad_meta.ordinal=0
+		if not check(Owner.restore(bad_meta)==null,"ordinary active cannot bypass dormant Dynasty lifecycle validation"):return
+		if not check(owner.switch_existing(),"restore Dynasty active for remaining adversaries"):return
+		for mutation: String in ["selector","dormant","metadata","duplicate-side"]:
+			var malformed: Dictionary=Owner.capture(owner)
+			if mutation=="selector":malformed.active="invalid"
+			elif mutation=="dormant":malformed.ordinary["unknown"]=true
+			elif mutation=="metadata":malformed.ordinal=0
+			else:malformed.ordinary=malformed.dynasty.duplicate(true)
+			if not check(Owner.restore(malformed)==null,"malformed "+mutation+" refused"):return
+	for path: String in protected:
+		if protected[path]==null:
+			if not check(not FileAccess.file_exists(path),"absent original slot remains absent"):return
+		elif not check(FileAccess.get_file_as_bytes(path)==protected[path],"original input/slot bytes untouched: "+path.get_file()):return
+	print("PASS: common-owner foundation ",args[0],"; no Store/App/physics authority claim")
+	get_tree().quit(0)
