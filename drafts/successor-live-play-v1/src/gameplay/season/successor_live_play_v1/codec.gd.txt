@@ -12,6 +12,7 @@ const OBJECTS: Array[String] = ["ownership","build","opponents","career","physic
 const CAREER_FIELDS: Array[String] = ["current","runs","_assets","_pennants","_plaques","_pitch_catalog","start_basis"]
 const PHYSICAL_FIELDS: Array[String] = ["reports","pending","cursor","needed","error","projecting"]
 static var restore_calls: int = 0 # Diagnostics, never persistence authority.
+static var capture_calls: int = 0 # Diagnostics, never persistence authority.
 static var _basis_seed: int = -1
 static var _basis: Dictionary = {}
 static var _draws: Array[float] = []
@@ -269,6 +270,7 @@ static func _report_shape(row: Dictionary,rules: Dictionary) -> bool:
 	return whole(report.physical.get("away_runs"),0,100000) and whole(report.physical.get("home_runs"),0,100000)
 
 static func capture(season: SeasonState) -> Dictionary:
+	capture_calls += 1
 	if not _structural_valid(season): return {}
 	return _payload(season)
 

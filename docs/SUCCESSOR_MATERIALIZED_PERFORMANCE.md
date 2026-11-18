@@ -106,3 +106,67 @@ This did not rerun a full physical match. Historical editor missing-fixture
 errors and environment-specific software-renderer/dummy-audio warnings remain.
 The inherited shop also retains old Working/proposal labels; those require a
 later player-interface polish pass without removing features or original art.
+
+## Checkpoint73: private live transaction admission
+
+Parent72 is remotely verified at
+`a8e8b65cd67a1b682ed3de08c424b930b70bd209`.
+Status: all 11 final targeted regression processes and native smoke passed;
+remote publication pending. This is not yet a verified checkpoint.
+
+The same119 schema, save slot and frozen gameplay remain unchanged. A private
+Store session now binds the strictly read owner to its exact primary bytes and
+complete native raw snapshot. Preparation performs one full semantic candidate
+capture, retaining its canonical payload and separate exact raw snapshot under
+an opaque identity token. The App cannot supply a validated payload to this
+writer. Exposed diagnostic copies are detached and carry no authority.
+
+Raw snapshots explicitly include all six builds, player books, wallet catalogs,
+hidden shop state, AI metadata, career and physical state. Named factories and
+known-field allowlists refuse unknown object state. Equality preserves native
+number/key types, StringName identity, typed Array/Dictionary metadata and
+readonly flags. Bounded deep copying rejects arbitrary Objects and pathological
+nesting. This private equality is deliberately stricter than JSON save equality.
+
+A failed write retains the same private candidate. Saved candidates do not
+become the admitted current owner until the App's original owner/lab/cleanup
+checks and Store's final raw/disk checks pass. Saved retries do not rewrite or
+close a replacement lab. Strict generic Store.save remains available and fully
+validates its operand; successful generic saves or reads invalidate stale tokens.
+No caller-controlled trust flag or alternate public payload writer was added.
+
+The final actual Shop tests assert exactly one semantic Codec.capture during
+paid-open and paid-choice handlers, and zero during exact retry. Cold reads
+remain fully validated; those assertions do not claim no validation at cold.
+The final same-choice handler measured 3,205ms, versus 72’s 7,572–9,996ms observed
+runs. Faulted paid-open measured 2,222ms. These are shared-cloud wall-clock
+observations, not controlled target-hardware benchmarks or a responsiveness pass.
+Final earned cold reopen measured 1,080ms, with primary and backup unchanged.
+The full paid-choice result remains byte-identical to genuine71 boundary0007
+(SHA256 `72e26e0cbf762162a1e78f9ef3fccdff396dfe816ba9fb677434c92f3350fc56`).
+
+The focused tests cover private token/owner/expected-byte identity, refusal of a
+second preparation, hidden owner/candidate/AI/catalog changes, native type and
+key changes, detached nested readonly copies and typed containers, external CAS
+replacement, prewrite failure and exact retry, corrupted diagnostic payloads,
+once-only promotion, and stale admission after generic save/read. The original
+cleanup callback and fresh/import paths are rerun on the exact source. A separate
+callback test reuses preserved genuine71 NPC evidence to qualify async raw pins
+and retained saves without pretending another physical game was played.
+
+Both Standard and Dugout genuine fresh creation, four choices, prewrite retry,
+changed-primary refusal and separate cold reopen passed through the actual
+launcher. Copied nonempty old saves remained unchanged. Explicit pristine118
+import and both original file bytes were preserved. Final cleanup callback
+probes and the recorded genuine NPC callback passed; the latter reproduced
+its original pending snapshot bytes exactly. Native smoke is a separate gate.
+
+Native73 used a separate isolated QA73 name and a copied genuine71 final save.
+Two cold opens preserved round2, Comets at Yard Club, standings, the four-player
+roster and Shop Visit1 with4 Cash and Development pack Used. Return-to-season
+and clean close succeeded. The779,448-byte primary remained exactly
+`72e26e0cbf762162a1e78f9ef3fccdff396dfe816ba9fb677434c92f3350fc56`.
+All32 manifest source hashes still matched. Native game logs contain only known
+graphics/software-renderer/audio fallback warnings, no GDScript errors. This
+smoke made no purchase and played no physical match; it is not target-platform
+or distributable qualification. Original QA72 source/save were untouched.

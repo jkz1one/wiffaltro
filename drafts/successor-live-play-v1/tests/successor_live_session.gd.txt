@@ -1,0 +1,96 @@
+extends Node
+## Isolated private-admission tests against copied genuine paid-reveal state.
+const App = preload("res://src/presentation/season/successor_live_play_v1/app.gd")
+const Store = preload("res://src/gameplay/season/successor_live_play_v1/store.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Raw = preload("res://src/gameplay/season/successor_live_play_v1/raw_guard.gd")
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func exact_write(path: String,bytes: PackedByteArray) -> bool:
+	var file: FileAccess=FileAccess.open(path,FileAccess.WRITE)
+	if file==null: return false
+	file.store_buffer(bytes);file.flush();file.close()
+	return FileAccess.get_file_as_bytes(path)==bytes
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1","isolated copied-save session test"): return
+	var app = App.new(); add_child(app); await get_tree().process_frame
+	var bytes: PackedByteArray = Store.raw()
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var owner: SeasonState = Store.read()
+	if not check(owner!=null and owner.build.pack_pending(),"strict cold admission of genuine paid reveal"): return
+	var count: int = Codec.capture_calls
+	if not check(Store.match_owner(owner,bytes) and Codec.capture_calls==count,"owner raw guard invokes no semantic capture"): return
+	var raw: Dictionary = Raw.capture(owner)
+	if not check(not raw.is_empty() and Raw.same(raw,Raw.capture(owner)),"complete raw snapshot reflexive"): return
+	if not check(not Raw.same({"n":1},{"n":1.0}) and not Raw.same({1:"v"},{"1":"v"}) and not Raw.same({&"x":1},{"x":1}),"native numeric/key types cannot alias"): return
+	var readonly: Array=["a"];readonly.make_read_only()
+	if not check(not Raw.same(readonly,["a"]),"readonly container metadata preserved"): return
+	var nested: Dictionary={"values":[1,2]}
+	nested.make_read_only()
+	var outer: Array=[nested];outer.make_read_only()
+	var budget: Array=[Raw.MAX_NODES,true]
+	var detached: Variant=Raw._copy(outer,0,budget)
+	if not check(budget[1] and detached.is_read_only() and detached[0].is_read_only() and Raw.same(outer,detached),"raw copy preserves nested readonly metadata"): return
+	detached[0]["values"].append(3)
+	if not check(outer[0]["values"]==[1,2],"nested readonly-copy child cannot alias original"): return
+	var typed_map: Dictionary[String,int]={"a":1}
+	budget=[Raw.MAX_NODES,true]
+	var detached_map: Variant=Raw._copy(typed_map,0,budget)
+	if not check(budget[1] and Raw.same(typed_map,detached_map) and not Raw.same(typed_map,{"a":1}),"typed Dictionary metadata copies exactly"): return
+	var typed: Array[String]=["a"]
+	if not check(not Raw.same(typed,["a"]),"Array native element metadata preserved"): return
+	var id: String=owner.build.roster()[0]
+	owner.build._book._players[id]["guard_probe"]=true
+	if not check(not Store.match_owner(owner,bytes) and not raw.build._book._players[id].has("guard_probe"),"hidden player mutation refused and snapshot detached"): return
+	owner.build._book._players[id].erase("guard_probe")
+	var ai: SeasonBuild=owner.opponents.clubs["1"].build
+	ai._visit["guard_probe"]=true
+	if not check(not Store.match_owner(owner,bytes),"hidden AI visit mutation refused"): return
+	ai._visit.erase("guard_probe")
+	var catalog: Variant=owner.build._bank._catalog["D01"]
+	owner.build._bank._catalog["D01"]=false
+	if not check(not Store.match_owner(owner,bytes),"hidden bank catalog mutation refused"): return
+	owner.build._bank._catalog["D01"]=catalog
+	if not check(Store.match_owner(owner,bytes),"restored exact owner accepted"): return
+	var candidate: SeasonState=owner.fork_live()
+	candidate.difficulty=(owner.difficulty+1)%3
+	count=Codec.capture_calls
+	var token: RefCounted=Store.prepare(owner,candidate,bytes)
+	if not check(token!=null and Codec.capture_calls==count+1,"private prepare performs exactly one full candidate capture"): return
+	count=Codec.capture_calls
+	var diagnostic: Dictionary=Store.prepared_snapshot(token)
+	var canonical: Dictionary=diagnostic.duplicate(true)
+	diagnostic.state.difficulty=999
+	if not check(Store.prepare(owner,owner.fork_live(),bytes)==null and not Store.prepared_matches(RefCounted.new(),owner,candidate,bytes) and not Store.prepared_matches(token,candidate,owner,bytes) and not Store.prepared_matches(token,owner,candidate,PackedByteArray()),"second preparation and wrong token owner expected bytes refused"): return
+	candidate.build._book._players[id]["guard_probe"]=true
+	if not check(not Store.write_prepared(token) and Store.raw()==bytes,"mutated retained candidate cannot write"): return
+	candidate.build._book._players[id].erase("guard_probe")
+	var foreign_bytes: PackedByteArray="isolated-external-replacement".to_utf8_buffer()
+	if not check(exact_write(Store.PATH,foreign_bytes) and not Store.write_prepared(token) and Store.raw()==foreign_bytes,"prepared writer refuses externally changed primary"): return
+	if not check(exact_write(Store.PATH,bytes),"restore only own isolated predecessor"): return
+	if not check(DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"isolated prewrite obstruction"): return
+	if not check(not Store.write_prepared(token) and Store.raw()==bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"failed prepared write preserves both files"): return
+	DirAccess.remove_absolute(Store.PATH+".tmp")
+	if not check(Store.write_prepared(token) and Codec.capture_calls==count,"exact retry writes with zero further semantic captures"): return
+	var committed: PackedByteArray=Store.raw()
+	if not check(Codec.same(JSON.parse_string(committed.get_string_from_utf8()),canonical) and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"writer ignores corrupted diagnostic and commits private payload"): return
+	if not check(not Store.write_prepared(token) and Store.prepared_matches(token,owner,candidate,bytes) and not Store.match_owner(owner,bytes),"written session preserves old-owner guard but refuses duplicate write"): return
+	owner.build._book._players[id]["guard_probe"]=true
+	if not check(not Store.promote(token,owner,candidate,bytes),"changed old owner blocks saved promotion"): return
+	owner.build._book._players[id].erase("guard_probe")
+	candidate.build._visit["guard_probe"]=true
+	if not check(not Store.promote(token,owner,candidate,bytes),"changed candidate blocks saved promotion"): return
+	candidate.build._visit.erase("guard_probe")
+	if not check(Store.promote(token,owner,candidate,bytes) and Store.match_owner(candidate,committed) and not Store.promote(token,owner,candidate,bytes),"exact promotion consumes token once"): return
+	var next: SeasonState=candidate.fork_live(); next.difficulty=(candidate.difficulty+1)%3
+	var old_token: RefCounted=Store.prepare(candidate,next,committed)
+	if not check(old_token!=null and Store.save(candidate,committed),"strict generic save remains available"): return
+	if not check(not Store.write_prepared(old_token) and not Store.match_owner(candidate,Store.raw()),"generic success invalidates stale private admissions"): return
+	owner=Store.read();bytes=Store.raw();next=owner.fork_live();next.difficulty=(owner.difficulty+1)%3
+	old_token=Store.prepare(owner,next,bytes)
+	if not check(old_token!=null and Store.read()!=null and not Store.write_prepared(old_token),"successful strict read invalidates stale preparation"): return
+	print("PASS: private exact raw owner/candidate session; generic writer stays strict")
+	get_tree().quit(0)

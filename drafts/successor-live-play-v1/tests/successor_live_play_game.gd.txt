@@ -339,9 +339,11 @@ func paid_pack(app: SeasonApp) -> bool:
 		var expected: Dictionary = materialized_pack_reference(app.season,command)
 		if expected.is_empty(): return false
 		if not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated owned prewrite refusal"): return false
+		var captures: int = Codec.capture_calls
 		var started: int = Time.get_ticks_msec()
 		shop._confirm.get_ok_button().pressed.emit()
 		print("PACK_OPEN_HANDLER_MS: ",Time.get_ticks_msec()-started)
+		if not check(Codec.capture_calls==captures+1,"one semantic capture for actual paid-open candidate"): return false
 		var retained: SeasonState = app.get("retained")
 		if not check(retained != null and app.season == owner and ClubCareer.same(Codec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"failed save keeps old owned state and disk intact"): return false
 		var candidate: Dictionary = Codec.capture(retained)
@@ -353,7 +355,9 @@ func paid_pack(app: SeasonApp) -> bool:
 		# Direct App retry alone is not the UI interaction a player performs here.
 		var retry: Button = button_prefix(shop,"RETRY EXACT SAVE")
 		if not check(retry != null and not retry.disabled,"real retained Shop retry control"): return false
+		captures=Codec.capture_calls
 		retry.pressed.emit()
+		if not check(Codec.capture_calls==captures,"exact retry invokes zero semantic captures"): return false
 		if not check(app.get("retained") == null and app.season == retained and app.notice.is_empty() and ClubCareer.same(Codec.capture(app.season),candidate) and app.season.build.cash() == cash-price and app.season.build.pack_pending(),"exact owned candidate promoted with one pack charge"): return false
 		primary = FileAccess.get_file_as_bytes(Save.PATH)
 		backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
@@ -382,9 +386,11 @@ func paid_pack(app: SeasonApp) -> bool:
 	var cash: int = app.season.build.cash()
 	var expected_choice: Dictionary = materialized_pack_reference(app.season,command)
 	if expected_choice.is_empty(): return false
+	var captures: int = Codec.capture_calls
 	var choice_started: int = Time.get_ticks_msec()
 	shop._confirm.get_ok_button().pressed.emit()
 	print("PACK_PICK_HANDLER_MS: ",Time.get_ticks_msec()-choice_started)
+	if not check(Codec.capture_calls==captures+1,"one semantic capture for actual paid-choice candidate"): return false
 	if not check(app.get("retained") == null and not app.season.build.pack_pending() and app.season.build._visit.pack_status == "used" and app.season.build.cash() == cash,"earned choice durably applied without recharge"): return false
 	if not check(not ClubCareer.same(app.season.build.player(str(command.player)),chosen_before),"actual selected recipient development changed"):
 		return false

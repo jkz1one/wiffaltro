@@ -1,0 +1,42 @@
+extends Node
+## Reuses genuine saved71 pending/report evidence, not a new physical game pass.
+const App = preload("res://src/presentation/season/successor_live_play_v1/app.gd")
+const Store = preload("res://src/gameplay/season/successor_live_play_v1/store.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+func _ready() -> void: call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1","isolated recorded NPC callback regression"): return
+	var app=App.new(); add_child(app);await get_tree().process_frame;app.reload_save()
+	var original: PackedByteArray=Store.raw()
+	var backup: PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var evidence: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("user://actual119-npc-1.json"))
+	if not check(app.season!=null and Codec.same(Codec.capture(app.season),evidence.before),"exact genuine pending predecessor"): return
+	app._npc_owner=app.season;app._npc_expected=original.duplicate();app._npc_before=Store.RawGuard.capture(app.season)
+	app._npc_lab=null;app._npc_state=null
+	var runner: Node=Node.new();app.add_child(runner);app.ai_runner=runner;app._busy=true
+	var foreign: Node=Node.new();app._ai_finished({},foreign);foreign.free()
+	if not check(app._busy and app.ai_runner==runner and app.retained_report.is_empty(),"foreign callback does not disturb pinned job"): return
+	var id: String=app.season.build.roster()[0]
+	app.season.build._book._players[id]["pin_probe"]=true
+	if not check(not app._npc_owner_matches(),"async hidden owner mutation invalidates raw pin"): return
+	app.season.build._book._players[id].erase("pin_probe")
+	if not check(app._npc_owner_matches(),"restored exact async owner pin accepted"): return
+	if not check(DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"own NPC save obstruction"): return
+	app._ai_finished(evidence.report,runner)
+	if not check(app.retained!=null and not app.retained_report.is_empty() and Store.raw()==original and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"recorded genuine callback retained on failedwrite"): return
+	var candidate: SeasonState=app.retained
+	app._ai_finished(evidence.report,null)
+	if not check(app.retained==candidate,"late duplicate cannot replace retained report"): return
+	DirAccess.remove_absolute(Store.PATH+".tmp")
+	app.retry_save()
+	if not check(app.retained==null and app.season==candidate and app.retained_report.is_empty(),"exact recorded NPC candidate promotes once"): return
+	if not check(Store.raw()==FileAccess.get_file_as_bytes("user://expected-npc.json"),"full saved pending bytes equal genuine71 NPC boundary"): return
+	var saved: PackedByteArray=Store.raw();backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	app.retry_save();app._ai_finished(evidence.report,null)
+	if not check(Store.raw()==saved and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"duplicate callback/retry preserves primary and backup"): return
+	print("PASS: private session async pins with preserved real report; no physics rerun")
+	get_tree().quit(0)
