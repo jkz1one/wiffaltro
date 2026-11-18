@@ -1,0 +1,115 @@
+extends Node
+## Dispatch real input, not dialog signals, while the original match is paused.
+const App = preload("res://src/presentation/season/successor_owner_career_v1/app.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_career_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_career_v1/save.gd")
+const Feel = preload("res://src/labs/pitch_bat_lab/pitch_bat_lab_feel_support.gd")
+const SOURCE: String = "user://source-career-paused-exit.json"
+var failed: bool = false
+var before_files: Dictionary = {}
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:
+		failed = true
+		get_tree().quit(1)
+	return ok
+
+func disk(path: String) -> Dictionary:
+	return {"file":FileAccess.file_exists(path),"directory":DirAccess.dir_exists_absolute(path),"bytes":FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()}
+
+func files_unchanged() -> bool:
+	for path: String in before_files:
+		if not ClubCareer.same(disk(path),before_files[path]): return false
+	return true
+
+func frames(count: int) -> void:
+	for index in range(count): await get_tree().process_frame
+
+func mouse_button(window: Window, button: Button, down: bool) -> void:
+	var position: Vector2 = get_tree().root.get_final_transform() * (button.get_global_rect().get_center()+Vector2(window.position))
+	if down:
+		var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+		motion.window_id = get_tree().root.get_window_id()
+		motion.position = position
+		motion.global_position = position
+		Input.parse_input_event(motion)
+		Input.flush_buffered_events()
+		print("PAUSED_INPUT: embedded=",window.is_embedded()," dialog_pos=",window.position," button_rect=",button.get_global_rect()," root_transform=",get_tree().root.get_final_transform()," pointer=",position)
+	var event: InputEventMouseButton = InputEventMouseButton.new()
+	event.window_id = get_tree().root.get_window_id()
+	event.position = position
+	event.global_position = position
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+	event.pressed = down
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
+
+func enter_key(down: bool) -> void:
+	var event: InputEventKey = InputEventKey.new()
+	event.window_id = get_tree().root.get_window_id()
+	event.keycode = KEY_ENTER
+	event.physical_keycode = KEY_ENTER
+	event.pressed = down
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
+
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated paused-input test"): return
+	var source: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	if not check(not source.is_empty() and FileAccess.get_file_as_bytes(Save.PATH) == source,"actual immutable drafted fixture copied exactly"): return
+	for name: String in [SOURCE,Save.PATH,Save.PATH+".bak",Save.PATH+".tmp","user://successor-owned-career-live-v1.json","user://successor-owned-career-live-v2.json","user://successor-owned-general-live-v1.json"]:
+		before_files[name] = disk(name)
+	# Embedded windows give headless and native runs the same viewport routing.
+	get_tree().root.gui_embed_subwindows = true
+	var app = App.new()
+	# Critical: the always-running test must not accidentally make App/dialog
+	# process during pause through inheritance, masking the original defect.
+	app.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(app)
+	await frames(2)
+	app.reload_save()
+	if not check(app.season != null and app.season.picks.size() == 4 and app.season.results.is_empty() and app.season.phase == SeasonState.Phase.REGULAR,"strict actual drafted career restore"): return
+	var owner: SeasonState = app.season
+	var snapshot: Dictionary = Codec.guard_snapshot(owner)
+	app.play_next()
+	if not check(is_instance_valid(app.lab) and app.lab._match_state != null,"actual playable lab opened"): return
+	var lab: PitchBatLab = app.lab
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not check(not lab._match_presentation_director.blocks_gameplay(),"actual match intro finished"): return
+	Feel.toggle_debug_pause(lab)
+	if not check(get_tree().paused and lab._debug_paused,"original pause function pauses SceneTree"): return
+	app.ask_leave_game()
+	await frames(3)
+	var dialog: ConfirmationDialog = app._exit_dialog
+	if not check(dialog.visible and dialog.can_process(),"visible exit dialog processes while actual tree paused"): return
+	var cancel: Button = dialog.get_cancel_button()
+	mouse_button(dialog,cancel,true)
+	await frames(1)
+	mouse_button(dialog,cancel,false)
+	await frames(5)
+	if not check(not dialog.visible and app._exit_mode.is_empty(),"actual mouse Cancel dismisses paused dialog"): return
+	if not check(app.lab == lab and app.season == owner and get_tree().paused and lab._debug_paused and ClubCareer.same(Codec.guard_snapshot(owner),snapshot) and files_unchanged(),"Cancel preserves original paused lab owner and exact saves"): return
+	app.ask_leave_game()
+	await frames(3)
+	if not check(dialog.visible and dialog.can_process(),"reopened paused confirmation processes"): return
+	dialog.get_ok_button().grab_focus()
+	await frames(2)
+	if not check(dialog.get_ok_button().has_focus(),"actual OK keyboard focus"): return
+	enter_key(true)
+	await frames(1)
+	enter_key(false)
+	await frames(8)
+	if not check(not dialog.visible and app._exit_mode.is_empty() and not is_instance_valid(app.lab) and not get_tree().paused,"actual Enter confirms leave and unpauses to menu"): return
+	if not check(app.season == owner and is_instance_valid(app.menu) and ClubCareer.same(Codec.guard_snapshot(owner),snapshot) and files_unchanged(),"leaving unfinished game preserves owner fixture and every checked save byte"): return
+	app.queue_free()
+	await frames(2)
+	print("PASS: actual paused exit mouse Cancel and keyboard Confirm; no signals emitted and no save rewritten")
+	get_tree().quit(0)

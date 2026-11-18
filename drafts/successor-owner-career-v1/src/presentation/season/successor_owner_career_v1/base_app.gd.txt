@@ -139,6 +139,9 @@ func _ready() -> void:
 	_transition_dialog.close_requested.connect(cancel_abandon)
 	add_child(_transition_dialog)
 	_exit_dialog = ConfirmationDialog.new()
+	# The match menu pauses SceneTree. Real dialog input must still dispatch;
+	# directly emitting button signals in a test does not prove this behavior.
+	_exit_dialog.process_mode = Node.PROCESS_MODE_ALWAYS
 	_exit_dialog.title = "Leave unfinished game"
 	_exit_dialog.dialog_autowrap = true
 	_exit_dialog.confirmed.connect(_confirm_exit)

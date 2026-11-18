@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-career-v1",
-  "source_checkpoint": "ebfe06bce123839b58a8cdc214a5e5a5f990e73f",
-  "scope": "Actual fresh117 Dugout human/NPC/settlement/earned pack/pick and separate cold passed. Standard round/paid-pack passed; choice/cold pending. Production unchanged from66. Native paused exit-input defect documented, not fixed.",
+  "source_checkpoint": "306494a6255de20d3cbe23eb628248e1e0594f90",
+  "scope": "Increment68: actual paused exit input fix, negative regression and corrected real mouse/keyboard tests plus native verification. Both fresh leagues have actual first-round/shop/cold evidence. No completed season, Dynasty or distributable claim.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/assets.gd.txt",
@@ -114,8 +114,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_career_v1/base_app.gd",
-      "bytes": 31019,
-      "sha256": "553c01c94f37ce4493b347771b74d68669c34ef1248dbf411b8859ae0f45923a"
+      "bytes": 31224,
+      "sha256": "33b015111b0d870c5e53e1e2e9e5da74f5abf023c60aaad926ae114c3d03be6a"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/capture_human.gd.txt",
@@ -242,6 +242,18 @@
       "restore_path": "tests/successor_owner_career_play.gd",
       "bytes": 26269,
       "sha256": "033cceace60c7a395c82fc521ba2726005c3bdd6b0b7f19ff8684e85480a6913"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_paused_exit.gd.txt",
+      "restore_path": "tests/successor_owner_career_paused_exit.gd",
+      "bytes": 6043,
+      "sha256": "5e9764363a2b9ac6910892f6f86828f11e5bf716eb99fdf01a4e96f330d64b13"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_paused_exit.tscn.txt",
+      "restore_path": "tests/successor_owner_career_paused_exit.tscn",
+      "bytes": 198,
+      "sha256": "2a74bf39415185be79388e8a3fb56587a8adce545b86ec032e7356f3090a9dec"
     }
   ]
 }

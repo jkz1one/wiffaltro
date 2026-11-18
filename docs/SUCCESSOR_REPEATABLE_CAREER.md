@@ -281,3 +281,29 @@ mode. Earlier signal-only tests did not establish actual paused input dispatch.
 The paused synthetic game remains preserved, and fixing this actual input path
 is required before visual acceptance. Draft presentation also lacks a progress
 indicator and uses raw stat dictionaries. No release-ready claim is made.
+
+## Actual paused exit input correction (increment68)
+
+Standard subsequently completed the same genuine first-round/shop sequence as
+Dugout, including applied card and separate strict cold reopen. Both leagues
+now have paired boundary evidence through cold-complete. This remains one
+round per fresh career, not completed seasons or Dynasty integration.
+
+The exit ConfirmationDialog now processes while the match SceneTree is paused.
+The regression explicitly keeps its App pausable and dispatches real mouse
+Cancel and keyboard Enter events rather than emitting button signals. Unchanged
+67 source fails the visible-dialog processing assertion. Fixed source passes
+Cancel (same paused lab) and confirmation (unpause and return to roster), with
+owner, primary and backup unchanged. The initial positive harness used logical
+coordinates against a scaled headless viewport and failed mouse routing; that
+failed log is preserved. Corrected viewport-transformed input passes against
+the exact final source. No failure is relabeled as a successful run.
+
+Native Sky retesting independently restored the actual fresh four-pick QA save,
+opened the original field and paused: mouse Cancel dismissed the dialog while
+preserving pause, and mouse OK left to the same roster. Copies of the native
+main and backup taken afterward exactly match the pre-fix evidence bytes.
+Only the dialog process mode changes production behavior; no format, rules,
+physics, original development art or original save is changed. Native renderer
+and audio limitations above still apply. Loading feedback, full season/career
+rollover, Dynasty and a distributable remain unqualified.
