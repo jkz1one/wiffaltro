@@ -1,0 +1,29 @@
+extends RefCounted
+## Explicit representation adapter, not an arbitrary signature replacement API.
+## Exact legacy implementations were compared with the unchanged replay semantics.
+const Codec = preload("codec.gd")
+const LEGACY_PATH: String = "user://successor-owned-career-live-v1.json"
+const LEGACY_FORMAT: String = "successor-owned-career-live-v1"
+const KNOWN: Dictionary = {
+	# Audited Git checkpoint62:15f54dc and checkpoint63:b50b12a respectively.
+	"c27cc5151495a4edb5b7401170eb52c978598b478a95e4ae3458dfd2415be394":"checkpoint62",
+	"efa62266d34aec58644e7e88abd80659ab90dde4ce98fbdd9d57215c85ed3107":"checkpoint63"
+}
+
+static func convert(value: Variant) -> SeasonState:
+	if not value is Dictionary or not Codec._bounded(value) \
+		or not SeasonOwnership._keys(value,["version","format","owner_source","pitch_catalog","origin","origin_close","closed","active","career"]) \
+		or value.get("version") != Codec.Catalog.VERSION or value.get("format") != LEGACY_FORMAT \
+		or not value.get("owner_source") is String or not KNOWN.has(value.owner_source) \
+		or value.get("pitch_catalog") != Codec.Catalog.Game.signature(): return null
+	# Legacy62/63 have identical replay semantics and primitive schemas. Only
+	# the two implementation descriptors differ. Do not repair any earned data.
+	var converted: Dictionary = value.duplicate(true)
+	converted["format"] = Codec.Catalog.FORMAT
+	converted["owner_source"] = Codec.Catalog.signature()
+	var result: SeasonState = Codec.restore(converted)
+	if result == null: return null
+	var actual: Dictionary = Codec.guard_snapshot(result)
+	actual["format"] = value.format
+	actual["owner_source"] = value.owner_source
+	return result if ClubCareer.same(actual,value) else null

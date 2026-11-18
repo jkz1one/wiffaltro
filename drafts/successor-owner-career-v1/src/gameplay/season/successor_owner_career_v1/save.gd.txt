@@ -2,7 +2,7 @@ extends RefCounted
 ## Independent slot. Strict capture authenticates the complete detached envelope
 ## once; exact JSON equality/readback cannot introduce different semantic data.
 const Codec = preload("codec.gd")
-const PATH: String = "user://successor-owned-career-live-v1.json"
+const PATH: String = "user://successor-owned-career-live-v2.json"
 const MAX_BYTES: int = 32 * 1024 * 1024 # Retained predecessor plus active run; never prune history.
 static var saving: bool = false
 static var last_error: String = ""
@@ -54,6 +54,36 @@ static func _save(season: SeasonState, expected_primary: Variant = null) -> bool
 	if error != OK or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes: return false
 	if FileAccess.file_exists(PATH) != old_exists or (old_exists and FileAccess.get_file_as_bytes(PATH) != old): return false
 	if old_valid and DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return false
+	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes: return false
+	last_error = ""
+	return true
+
+# Explicit recovery only for a new-slot import interrupted before promotion.
+# Never replace an existing primary/backup, and never discard uncertain temp data.
+static func recover_interrupted_import() -> bool:
+	if saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
+		or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased: return false
+	saving = true
+	var result: bool = _recover_interrupted_import()
+	saving = false
+	return result
+
+static func _recover_interrupted_import() -> bool:
+	last_error = "Interrupted save could not be recovered. All files are preserved."
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if DirAccess.dir_exists_absolute(PATH+suffix): return false
+	if FileAccess.file_exists(PATH) or FileAccess.file_exists(PATH+".bak") or not FileAccess.file_exists(PATH+".tmp"): return false
+	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.READ)
+	if file == null or file.get_length() > MAX_BYTES: return false
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
+	file.close()
+	var parser: JSON = JSON.new()
+	if bytes.is_empty() or parser.parse(bytes.get_string_from_utf8()) != OK: return false
+	var valid: SeasonState = Codec.restore(parser.data)
+	if valid == null or not ClubCareer.same(Codec.guard_snapshot(valid),parser.data): return false
+	if FileAccess.file_exists(PATH) or FileAccess.file_exists(PATH+".bak") \
+		or DirAccess.dir_exists_absolute(PATH) or DirAccess.dir_exists_absolute(PATH+".bak") \
+		or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes: return false
 	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes: return false
 	last_error = ""
 	return true

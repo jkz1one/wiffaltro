@@ -1,12 +1,14 @@
 extends RefCounted
-## New source-bound flat career archive; frozen116 and General114 stay unchanged.
+## Stable owner protocol; frozen116 and General114 identities stay explicit.
 const VERSION: int = 117
-const FORMAT: String = "successor-owned-career-live-v1"
-const SAVE_PATH: String = "user://successor-owned-career-live-v1.json"
+const FORMAT: String = "successor-owned-career-live-v2"
+const RULES: String = "flat-owner-117-rules-1"
+const SAVE_PATH: String = "user://successor-owned-career-live-v2.json"
 const MAX_BYTES: int = 32 * 1024 * 1024
 const Game = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
 const Origin = preload("res://src/gameplay/season/successor_owner_general_v1/catalog.gd")
 const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_owner_career_v1/legacy_import.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/closure.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/catalog.gd",
 	"res://src/gameplay/season/successor_owner_career_v1/codec.gd",
@@ -31,8 +33,15 @@ const FILES: Array[String] = [
 	"res://src/presentation/season/successor_owner_career_v1/menu.gd",
 	"res://src/presentation/season/successor_owner_career_v1/entry.tscn"]
 
+# Deliberate rule/content revisions, not UI/orchestration bytes, define saves.
+# Any change to replay semantics must revise RULES or provide a named adapter.
 static func signature() -> String:
-	var parts: Array[String] = [FORMAT,Game.signature(),Origin.signature()]
+	var parts: Array[String] = [FORMAT,RULES,Game.signature(),Origin.signature()]
+	return "" if parts.has("") else "|".join(parts).sha256_text()
+
+# Diagnostic only. This executable fingerprint grants no save authority.
+static func build_fingerprint() -> String:
+	var parts: Array[String] = [signature()]
 	if parts.has(""): return ""
 	for path: String in FILES:
 		var digest: String = FileAccess.get_sha256(path)

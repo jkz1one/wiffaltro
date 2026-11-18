@@ -55,6 +55,7 @@ def main():
     mode.add_argument('--continuation-fixture', type=Path, help='Closed predecessor reader against immutable actual owner112 boundary evidence')
     parser.add_argument('--continuation-prefix', action='store_true', help='Derive closed run2 start basis only; no owner admission')
     parser.add_argument('--continuation-completed', action='store_true', help='Require actual terminal positive projection; never use synthetic completion')
+    parser.add_argument('--owned-career-import-fixture', type=Path, help='Known exact117 legacy checkpoint; additive new-slot migration and cold/UI compatibility test')
     mode.add_argument('--owned-career-abandon-fixture', type=Path, help='Actual abandoned116 origin to new Standard draft and separate cold; not completion or Dynasty')
     mode.add_argument('--owned-career-fixture', type=Path, help='Strict flat career negative admission against actual current116 active isolated save')
     mode.add_argument('--owned-general-season-fixture', type=Path, help='Continue an actual paid fresh-owned General checkpoint through a full season and final cold')
@@ -94,6 +95,8 @@ def main():
     args = parser.parse_args()
     career_abandon = bool(args.owned_career_abandon_fixture)
     args.owned_career_fixture = args.owned_career_fixture or args.owned_career_abandon_fixture
+    if args.owned_career_import_fixture and not args.owned_career_fixture:
+        parser.error('--owned-career-import-fixture requires --owned-career-fixture or --owned-career-abandon-fixture for isolated stage setup')
     if args.owned_general_completed and not args.owned_general_fixture:
         parser.error('Owned General completion/resume requires --owned-general-fixture')
     if args.owned_general_resume_stage and not (args.owned_general_completed or args.owned_general_fresh or args.owned_general_season_fixture):
@@ -315,6 +318,26 @@ def main():
         destination.parent.mkdir(parents=True, exist_ok=True)
         assert not destination.exists()
         destination.write_bytes(original)
+        if args.owned_career_import_fixture:
+            legacy = args.owned_career_import_fixture.resolve()
+            legacy_bytes = legacy.read_bytes()
+            assert json.loads(legacy_bytes).get('version') == 117
+            old_slot = destination.parent / 'successor-owned-career-live-v1.json'
+            assert not old_slot.exists()
+            old_slot.write_bytes(legacy_bytes)
+            scene = ['res://tests/successor_owner_career_import.tscn', '--']
+            for label in ['import', 'prepare-interruption', 'recover', 'cold']:
+                run('owned-career-import-' + label, scene + [label], timeout=8*3600)
+                assert legacy.read_bytes() == legacy_bytes and old_slot.read_bytes() == legacy_bytes
+            menu = project / 'src/presentation/season/successor_owner_career_v1/menu.gd'
+            menu_bytes = menu.read_bytes()
+            try:
+                menu.write_bytes(menu_bytes + b'\n# Isolated UI-only compatibility test, no gameplay change.\n')
+                run('owned-career-import-ui-cold', scene + ['ui-cold'], timeout=8*3600)
+            finally:
+                menu.write_bytes(menu_bytes)
+            assert legacy.read_bytes() == legacy_bytes and old_slot.read_bytes() == legacy_bytes
+            return
         scene = ['res://tests/successor_owner_career_abandon.tscn' if career_abandon else 'res://tests/successor_owner_career.tscn', '--']
         for label in (['birth','draft','cold'] if career_abandon else ['negative', 'negative-cold']):
             run('owned-career-' + label, scene + [label], timeout=8*3600)

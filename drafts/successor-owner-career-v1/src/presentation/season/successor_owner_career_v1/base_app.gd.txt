@@ -290,6 +290,36 @@ func reload_save() -> void:
 		notice = ""
 	show_season()
 
+func recover_interrupted_import() -> void:
+	if not _available() or season != null or not predecessor.is_empty(): return
+	if Save.recover_interrupted_import(): reload_save()
+	else:
+		notice = Save.last_error
+		show_season()
+
+func import_previous_save() -> void:
+	# Explicit additive import into an empty new slot, never automatic replacement.
+	if not _available() or season != null or not predecessor.is_empty(): return
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if FileAccess.file_exists(Save.PATH+suffix) or DirAccess.dir_exists_absolute(Save.PATH+suffix):
+			notice = "An existing or interrupted save is preserved. Continue it or use recovery before importing."
+			show_season()
+			return
+	var adapter = preload("res://src/gameplay/season/successor_owner_career_v1/legacy_import.gd")
+	var file: FileAccess = FileAccess.open(adapter.LEGACY_PATH,FileAccess.READ)
+	if file == null or file.get_length() > Save.MAX_BYTES: return
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
+	file.close()
+	var parser: JSON = JSON.new()
+	if parser.parse(bytes.get_string_from_utf8()) != OK: return
+	var candidate: SeasonState = adapter.convert(parser.data)
+	if candidate == null:
+		notice = "This previous save is not supported or could not be validated. Its original file is unchanged."
+		show_season()
+		return
+	if FileAccess.get_file_as_bytes(adapter.LEGACY_PATH) != bytes: return
+	_retain(candidate,PackedByteArray())
+
 func draft(id: String) -> void:
 	if not _available() or season==null or season.phase!=SeasonState.Phase.DRAFT or not season.offers().has(id):
 		return

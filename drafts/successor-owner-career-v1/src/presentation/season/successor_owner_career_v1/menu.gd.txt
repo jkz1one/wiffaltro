@@ -12,6 +12,9 @@ func render() -> void:
 		_button(_body,"CONTINUE COMPLETED CAREER",Callable(app,"create_fresh")).disabled = occupied or app.predecessor.is_empty()
 		_button(_body,"ABANDON IMPORTED SEASON AND START NEW",Callable(app,"request_abandon")).disabled = occupied or app.predecessor.is_empty()
 		_button(_body,"CONTINUE SAVED SEASON",Callable(app,"reload_save"))
+		_button(_body,"IMPORT PREVIOUS SAVE (KEEPS ORIGINAL)",Callable(app,"import_previous_save")).disabled = occupied
+		if not occupied and FileAccess.file_exists(Save.PATH+".tmp"):
+			_button(_body,"RECOVER INTERRUPTED IMPORT",Callable(app,"recover_interrupted_import"))
 		return
 	if app.season.phase==SeasonState.Phase.DRAFT:
 		for id: String in app.season.offers():

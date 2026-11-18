@@ -133,11 +133,43 @@ Runtime.choose_player API and all generic save/cold validation stay unchanged.
 On an actual one-settled-round116 origin, explicit abandonment birth, Cancel,
 failed write, exact retry and a separate birth reopen passed. The first App draft
 pick matches the unchanged strict public wrapper exactly and leaves its original
-owner unchanged. All four picks, fourth-pick parity and final cold are still
-running, not claimed complete. Native import, Python compilation and diff checks
+owner unchanged. All four picks, fourth-pick parity and a separate final cold reopen subsequently
+passed on the exact checkpoint63 source. Native import, Python compilation and diff checks
 passed. No responsiveness percentage or playable-release claim is made.
 
 An earlier unpublished test source was lost during an environment restart; its
 two-pick evidence remains preserved, not relabelled to this source. This rebuilt
 candidate's exact source and each earned synthetic boundary are separately
 backed up before further work. Frozen116/112 season tests continue independently.
+
+## Stable owner protocol and explicit legacy import (bounded qualification)
+
+The owner117 envelope now has format `successor-owned-career-live-v2`, with a
+fixed owner rules revision and the unchanged frozen General114/Origin116 identity.
+Presentation and orchestration source bytes are no longer save compatibility
+keys. The executable fingerprint remains diagnostic only. A semantic rules change
+must deliberately revise the contract or add a named adapter; retaining the same
+identifier is not permission to reinterpret history. General114 and116 remain
+source-bound, so this is not yet migration across arbitrary gameplay updates.
+
+The new slot leaves the previous117 slot unchanged. The explicit import action
+recognizes only audited checkpoint62 and rebuilt checkpoint63 descriptors. Their
+23-file signatures were independently recomputed from exact Git bytes and match
+actual archived snapshots. The adapter changes only two outer descriptors, then
+runs the complete unchanged origin/archive/current replay and compares every
+other field. Unknown older drafts, including the lost unpublished63 source,
+remain unsupported rather than receiving a fabricated source identity. Neither
+hashes nor a caller's "validated" flag establish earned progress.
+
+Initial real first-pick63 import passed prewrite failure, exact retry, repeated
+import/retry refusal, separate cold semantic equality, malformed authority refusal
+and a separate cold reopen after an isolated UI-only source edit. No old file was
+changed. The final recovery-inclusive suite passed: it simulated a process ending with a
+temp-only new import, restarted, rejected/preserved malformed temp bytes, then
+explicitly validated/promoted the exact valid interrupted bytes. Dedicated cold
+equality/tamper and UI-only-edit cold tests passed again on the final source.
+The registry includes62 by exact-schema equivalence; its actual positive fixture
+has not yet been run through this new importer, unlike63.
+Recovery refuses to replace any existing primary or backup. This is not actual
+power-loss or concurrent-writer qualification. Post-import actual gameplay and
+full multi-season/Dynasty qualification remain required.

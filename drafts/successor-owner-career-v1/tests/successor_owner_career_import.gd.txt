@@ -1,0 +1,103 @@
+extends "res://tests/successor_owner_career.gd"
+const Adapter = preload("res://src/gameplay/season/successor_owner_career_v1/legacy_import.gd")
+const ARCHIVE: String = "user://owned-career-import-evidence"
+class FaultApp extends "res://src/presentation/season/successor_owner_career_v1/app.gd":
+	var inject: bool = false
+	func _retain(candidate: SeasonState, expected_primary: Variant = null) -> void:
+		if inject: DirAccess.make_dir_absolute(Save.PATH+".tmp")
+		super._retain(candidate,expected_primary)
+
+func archive(app: SeasonApp, action: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ARCHIVE)
+	var index: int = 0
+	while FileAccess.file_exists(ARCHIVE+"/%04d.json"%index): index += 1
+	var path: String = ARCHIVE+"/%04d.json"%index
+	check(DirAccess.copy_absolute(Save.PATH,path) == OK,"new immutable imported boundary")
+	var f: FileAccess = FileAccess.open(ARCHIVE+"/%04d.meta.json"%index,FileAccess.WRITE)
+	check(f != null,"import evidence metadata")
+	if f == null: return
+	f.store_string(JSON.stringify({"action":action,"picks":app.season.picks.size(),"format":Codec.Catalog.FORMAT},"",true,true)); f.flush(); f.close()
+
+func run() -> void:
+	check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated actual legacy import")
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(Adapter.LEGACY_PATH)
+	var raw: Variant = JSON.parse_string(original.get_string_from_utf8())
+	check(raw is Dictionary and not original.is_empty() and raw.version == 117,"actual legacy117 fixture")
+	if failed: get_tree().quit(1); return
+	var mode: String = OS.get_cmdline_user_args()[0]
+	var app = FaultApp.new()
+	add_child(app)
+	await get_tree().process_frame
+	if mode == "import":
+		var invalid: Dictionary = raw.duplicate(true)
+		invalid.owner_source = "unrecognized"
+		check(Adapter.convert(invalid) == null,"unknown legacy implementation refuses")
+		invalid = raw.duplicate(true); invalid.pitch_catalog = "foreign"
+		check(Adapter.convert(invalid) == null,"different gameplay identity refuses")
+		check(Codec.restore(raw) == null,"generic new reader cannot silently consume old format")
+		app.inject = true
+		app.import_previous_save()
+		check(app.season == null and app.retained != null and not app.retained_saved,"actual import retains exact candidate on prewrite failure")
+		check(not FileAccess.file_exists(Save.PATH) and not FileAccess.file_exists(Save.PATH+".bak") and FileAccess.get_file_as_bytes(Adapter.LEGACY_PATH) == original,"failure preserves original and empty new slots")
+		if failed: get_tree().quit(1); return
+		var candidate: SeasonState = app.retained
+		var converted: Dictionary = Codec.guard_snapshot(candidate)
+		var comparison: Dictionary = converted.duplicate(true)
+		comparison.format = raw.format; comparison.owner_source = raw.owner_source
+		check(ClubCareer.same(comparison,raw),"only explicit outer descriptors differ; every earned field preserved")
+		check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only test fault")
+		app.inject = false
+		app.retry_save()
+		check(app.season == candidate and app.retained == null,"exact retained import retry commits")
+		if failed: get_tree().quit(1); return
+		var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		app.import_previous_save(); app.retry_save()
+		check(FileAccess.get_file_as_bytes(Save.PATH) == disk and not FileAccess.file_exists(Save.PATH+".bak"),"duplicate import/retry has no write or backup rotation")
+		archive(app,"imported")
+	elif mode == "prepare-interruption":
+		# Simulate the exact disk state before first promotion, not a power-loss claim.
+		var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		check(not disk.is_empty() and not FileAccess.file_exists(Save.PATH+".bak") and not FileAccess.file_exists(Save.PATH+".tmp"),"known sole new primary before isolated interruption simulation")
+		if failed: get_tree().quit(1); return
+		check(DirAccess.rename_absolute(Save.PATH,Save.PATH+".tmp") == OK and FileAccess.get_file_as_bytes(Save.PATH+".tmp") == disk and not FileAccess.file_exists(Save.PATH),"preserved exact temp-only restart state")
+	elif mode == "recover":
+		var temp: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".tmp")
+		check(not temp.is_empty() and not FileAccess.file_exists(Save.PATH),"separate process begins with temp-only interrupted import")
+		app.import_previous_save()
+		check(app.season == null and FileAccess.get_file_as_bytes(Save.PATH+".tmp") == temp,"reimport preserves uncertain temp")
+		var bad: PackedByteArray = "broken-json".to_utf8_buffer()
+		var f: FileAccess = FileAccess.open(Save.PATH+".tmp",FileAccess.WRITE)
+		check(f != null,"isolated malformed temp injection")
+		if f == null: get_tree().quit(1); return
+		f.store_buffer(bad); f.flush(); f.close()
+		app.recover_interrupted_import()
+		check(app.season == null and not FileAccess.file_exists(Save.PATH) and FileAccess.get_file_as_bytes(Save.PATH+".tmp") == bad,"invalid temp is preserved, never promoted or deleted")
+		f = FileAccess.open(Save.PATH+".tmp",FileAccess.WRITE)
+		check(f != null,"restore exact isolated test bytes")
+		if f == null: get_tree().quit(1); return
+		f.store_buffer(temp); f.flush(); f.close()
+		app.recover_interrupted_import()
+		check(app.season != null and FileAccess.get_file_as_bytes(Save.PATH) == temp and not FileAccess.file_exists(Save.PATH+".tmp"),"explicit strict recovery promotes exactly interrupted bytes")
+		app.recover_interrupted_import()
+		check(FileAccess.get_file_as_bytes(Save.PATH) == temp and not FileAccess.file_exists(Save.PATH+".bak"),"duplicate recovery does not rotate or overwrite")
+		if not failed: archive(app,"recovered-interruption")
+	elif mode == "cold":
+		app.reload_save()
+		check(app.season != null,"separate cold imported save")
+		if failed: get_tree().quit(1); return
+		var comparison: Dictionary = Codec.guard_snapshot(app.season)
+		comparison.format = raw.format; comparison.owner_source = raw.owner_source
+		check(ClubCareer.same(comparison,raw),"cold full legacy semantic equality")
+		var wrong: Dictionary = Codec.guard_snapshot(app.season)
+		wrong.career.current += 1
+		check(Codec.restore(wrong) == null,"tampered career pointer refuses replay")
+		archive(app,"cold-imported")
+	elif mode == "ui-cold":
+		app.reload_save()
+		check(app.season != null and Codec.Catalog.signature() == JSON.parse_string(FileAccess.get_file_as_string(Save.PATH)).owner_source,"UI-only build change does not invalidate save")
+		if not failed: archive(app,"ui-only-cold")
+	else: check(false,"known migration mode")
+	check(FileAccess.get_file_as_bytes(Adapter.LEGACY_PATH) == original,"original legacy bytes never changed")
+	app.queue_free(); await get_tree().process_frame
+	if not failed: print("PASS: explicit legacy import "+mode+"; no full career or Dynasty claim")
+	get_tree().quit(1 if failed else 0)
