@@ -1,0 +1,212 @@
+extends "res://tests/successor_dynasty_lineup.gd"
+const Managed=preload("res://src/presentation/season/successor_dynasty_owner_v1/loadout_ui.gd")
+const LabRig=preload("res://tests/successor_dynasty_loadout_lab.gd")
+func inspect(ui,app,raw: Dictionary,disk: Dictionary) -> bool:
+	ui.entry.grab_focus();ui.entry.pressed.emit()
+	if not check(ui.shade.visible and ui._binding() and app._loadout_modal==ui,"actual Equipped entry binds current owner"):return false
+	if not check(ui.shade is ColorRect and ui.shade.mouse_filter==Control.MOUSE_FILTER_STOP
+		and ui.panel.mouse_filter==Control.MOUSE_FILTER_STOP,"original-style shade/panel block underlying pointer input"):return false
+	for tab: Button in ui._tab_buttons:
+		tab.pressed.emit()
+		if not check(not ui.can_sell() and not ui.inventory_sales_enabled(),"inspection never enables legacy inventory writer"):return false
+	var ticket=app._lineup_ticket
+	app.open_lineup();app.play_next();app.open_pitch_shop()
+	app.lineup_swap(0,1,ticket)
+	if not check(not app.commit_inventory({"op":"sell"}) and not app.commit_shop({"id":"blocked","rev":app.season.build.revision(),"op":"open"})
+		and app.lab==null and app._loadout_modal==ui and Raw.matches(app.career_owner,raw) and exact_disk(disk),"ColorRect modal also blocks underlying command dispatch and legacy inventory persistence"):return false
+	ui.close_button.pressed.emit()
+	var focus_ok: bool=ui.get_viewport().gui_get_focus_owner()==ui.entry
+	var owner_ok: bool=Raw.matches(app.career_owner,raw)
+	var disk_ok: bool=exact_disk(disk)
+	print("LOADOUT_CLOSE_PREDICATES ",{"hidden":not ui.shade.visible,"modal_cleared":app._loadout_modal==null,
+		"focus_ui_viewport":focus_ok,"owner":owner_ok,"disk":disk_ok})
+	return check(not ui.shade.visible and app._loadout_modal==null and focus_ok
+		and owner_ok and disk_ok,"close restores exact entry focus without owner/save mutation")
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["inspection","shop","owned-shop","exit-shop","exit-utility","pause","nested","nested-dispose","nested-dispose-paused"],"isolated loadout mode before reads"):return
+	process_mode=Node.PROCESS_MODE_ALWAYS
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var catalog: Array=[Codec.Catalog.game_signature(),Codec.Catalog.player_signature()]
+	if not check(not roots.is_empty() and not catalog.has(""),"retained authored roots/catalogs"):return
+	var initial=slot();var app=App.new();add_child(app);await get_tree().process_frame;app.reload_save();await get_tree().process_frame
+	if not check(app.career_owner!=null and app._owned() and exact_disk(initial),"strict admitted actual fixture without rewrite"):return
+	var owner=app.career_owner;var raw=Raw.capture(owner);var ui=app.loadout
+	if not check(ui.get_script()==Managed,"global utility uses bound current implementation"):return
+	if args[0]=="inspection":
+		if not inspect(ui,app,raw,initial):return
+		var cash: Variant=app.season.build._bank._state.cash
+		app.season.build._bank._state.cash=cash+1;ui.open()
+		if not check(not ui.shade.visible and app._loadout_modal==null,"dirty owner cannot open inspection"):return
+		app.season.build._bank._state.cash=cash
+		var foreign: PackedByteArray=initial.main.duplicate();foreign.append(32)
+		if not check(replace_isolated_primary(foreign),"own isolated disk race"):return
+		ui.open()
+		if not check(not ui.shade.visible and Save.raw()==foreign,"stale disk admission refuses without overwrite"):return
+		if not check(replace_isolated_primary(initial.main),"restore isolated exact predecessor"):return
+	elif args[0]=="shop":
+		if not check(app.season.shop_available() and app.season.build._visit.get("open",false),"genuine previously opened Shop fixture"):return
+		app.open_pitch_shop()
+		var shop: SeasonShopWindow=shop_for(app)
+		if not check(shop!=null,"actual original-style Shop opens"):return
+		var utility=null
+		for child in shop.get_children():
+			if child is SeasonLoadoutUI:utility=child
+		if not check(utility!=null and utility.get_script()==Managed,"Shop replaces inherited utility with bound implementation"):return
+		if not inspect(utility,app,raw,initial):return
+		utility.open()
+		if not check(utility.shade.visible and app._loadout_modal==utility,"Shop inspection reopened before hide"):return
+		shop.hide();utility._process(0.0)
+		if not check(not utility.shade.visible and app._loadout_modal==null,"hidden Shop invalidates inspection and clears modal"):return
+		utility._review_shop_sale("late-test-receipt","Late receipt","gear")
+		if not check(not shop._confirm.visible and Raw.matches(owner,raw) and exact_disk(initial),"late hidden-Shop sale cannot show confirmation or write"):return
+		shop.show();utility.open()
+		if not check(utility.shade.visible,"Shop inspection reopened before queue deletion"):return
+		shop.queue_free();utility._process(0.0)
+		if not check(not utility.shade.visible and app._loadout_modal==null,"queued Shop releases modal without stale UI"):return
+		utility._review_shop_sale("late-test-receipt","Late receipt","gear")
+		if not check(not shop._confirm.visible and Raw.matches(owner,raw) and exact_disk(initial),"late queued-Shop sale inert"):return
+		await get_tree().process_frame
+		if not check(not is_instance_valid(shop) and app._loadout_modal==null,"freed Shop leaves no modal blocker"):return
+	elif args[0] in ["exit-shop","exit-utility"]:
+		if not check(app.season.shop_available() and app.season.build._visit.get("open",false),"genuine already-open Shop for exit cleanup"):return
+		app.open_pitch_shop()
+		var shop: SeasonShopWindow=shop_for(app)
+		if not check(shop!=null,"actual Shop exit fixture"):return
+		var utility=null
+		for child in shop.get_children():
+			if child is SeasonLoadoutUI:utility=child
+		if not check(utility!=null and utility.get_script()==Managed,"bound utility before direct disposal"):return
+		utility.open()
+		if not check(utility.shade.visible and app._loadout_modal==utility,"shade genuinely open at direct queue_free"):return
+		# Exclude periodic/manual close so inherited _exit_tree is the tested cleanup.
+		utility.set_process(false)
+		if args[0]=="exit-shop":shop.queue_free()
+		else:utility.queue_free()
+		await get_tree().process_frame;await get_tree().process_frame
+		if not check(not is_instance_valid(utility) and app._loadout_modal==null and Raw.matches(owner,raw) and exact_disk(initial),"direct disposal while open clears modal through exit cleanup, no manual process/close"):return
+		if is_instance_valid(shop):shop.hide();shop.queue_free()
+	elif args[0]=="owned-shop":
+		if not check(app.season.shop_available() and app.season.build._visit.get("open",false) and not app.season.build.pack_pending(),"genuine owned settled Shop fixture"):return
+		app.open_pitch_shop()
+		var shop: SeasonShopWindow=shop_for(app)
+		if not check(shop!=null,"actual paid-inventory Shop"):return
+		var utility=null
+		for child in shop.get_children():
+			if child is SeasonLoadoutUI:utility=child
+		if not check(utility!=null and utility.get_script()==Managed,"owned Shop managed utility"):return
+		for category: String in ["gear","sponsors"]:
+			utility.entry.pressed.emit()
+			if not check(utility.shade.visible,"owned inspection opens"):return
+			for tab: Button in utility._tab_buttons:
+				if tab.get_meta("loadout_tab")==category:tab.pressed.emit();break
+			var tile: Button=null
+			for item: Button in utility._item_buttons:
+				var row: Dictionary=item.get_meta("loadout_row")
+				if row.get("icon_code","")==("BALL-VEL-01" if category=="gear" else "E10"):
+					tile=item;break
+			if not check(tile!=null and not str(tile.get_meta("loadout_row").get("receipt","")).is_empty(),"actual paid "+category+" receipt tile, not fabricated inventory"):return
+			tile.pressed.emit()
+			if not check(utility._sale_buttons.size()==1 and utility._sale_buttons[0].text=="REVIEW SHOP SALE","actual paid tile exposes Shop review only"):return
+			var receipt: String=tile.get_meta("loadout_row").receipt
+			var command: Dictionary=shop._request("sell_gear" if category=="gear" else "sponsor_sell",{"receipt":receipt})
+			var quote: Dictionary=app.season.build._fork().preview(command)
+			if not check(quote.ok,"original transaction rules quote exact owned receipt"):return
+			var refund: int=int(quote.after.wallet.cash)-app.season.build.cash()
+			if not check(refund>0 and (category!="gear" or refund==5),"actual receipt refund derived from quote; Slick Ball refund5"):return
+			utility._sale_buttons[0].pressed.emit()
+			if not check(not utility.shade.visible and app._loadout_modal==null and shop._confirm.visible
+				and Codec.same(shop._pending,command),"inspection closes before existing authoritative Shop sale confirmation"):return
+			if not check(shop._review_text.text.contains("Cash: %d → %d"%[app.season.build.cash(),quote.after.wallet.cash]),"visible confirmation has exact quoted cash/refund"):return
+			shop._confirm.get_cancel_button().pressed.emit();shop._confirm.hide()
+			if not check(Raw.matches(owner,raw) and exact_disk(initial),"Cancel retains all paid "+category+" receipts, full owner, primary and backup"):return
+			print("OWNED_SALE_CANCEL ",category," receipt=",receipt," refund=",refund)
+		shop.hide();shop.queue_free()
+	elif args[0] in ["pause","nested","nested-dispose","nested-dispose-paused"]:
+		# Synthetic lease tests use a real constructed current MatchState but no physics.
+		var lab=LabRig.new();app.add_child(lab);app.lab=lab;app._season_game=true
+		lab._match_state=app.season.make_match();lab._player_home=int(app.season.pending_fixture().home)==0
+		app._fixture_id=int(app.season.pending_fixture().id);lab._managed_match=true
+		app.loadout.match_snapshot=SeasonLoadoutData.capture(app.season)
+		if not check(lab._match_state!=null,"actual fixture supplies synthetic lease rig state"):return
+		if args[0].begins_with("nested"):
+			var prior_states: Array=[false,true] if args[0]=="nested" else [args[0]=="nested-dispose-paused"]
+			for prepaused: bool in prior_states:
+				get_tree().paused=prepaused;lab._debug_paused=prepaused
+				var focused: Control=get_viewport().gui_get_focus_owner()
+				if focused!=null:focused.release_focus()
+				if prepaused:ui.entry.grab_focus()
+				var prior_focus: Control=get_viewport().gui_get_focus_owner()
+				ui.open()
+				for tab: Button in ui._tab_buttons:
+					if tab.get_meta("loadout_tab")=="abilities":tab.pressed.emit();break
+				if not check(ui.shade.visible and ui._player_buttons.size()==4,"actual Abilities tab exposes four player Inspect controls"):return
+				var inspect_button: Button=ui._player_buttons[0]
+				inspect_button.grab_focus();inspect_button.pressed.emit()
+				var inspector: SeasonPlayerInspector=null
+				for child in ui.body.get_children():
+					if child is SeasonPlayerInspector:inspector=child
+				if not check(inspector!=null and inspector.visible and get_tree().paused and lab._debug_paused
+					and ui.shade.visible and ui._binding(),"legitimate nested player inspector retains parent pause lease"):return
+				var token=ui._pause_token
+				ui.close()
+				if not check(ui.shade.visible and inspector.visible and app._loadout_modal==ui and ui._pause_token==token
+					and lab.get_meta("dynasty_loadout_pause")==token and get_tree().paused,"direct normal parent close refuses while owned inspector visible"):return
+				if args[0]=="nested":
+					inspector.confirmed.emit()
+					if not check(not inspector.visible and get_tree().paused and lab._debug_paused
+						and ui.get_viewport().gui_get_focus_owner()==inspect_button,"actual inspector Back restores parentfocus and pause"):return
+					ui.close_button.pressed.emit()
+					if not check(not ui.shade.visible and get_viewport().gui_get_focus_owner()==prior_focus,"normal parent Close restores exact prior focus"):return
+				else:
+					# Test real child exit order; neither parent nor child gets a manual close/process call.
+					ui.set_process(false);ui.queue_free()
+					await get_tree().process_frame;await get_tree().process_frame
+					if not check(not is_instance_valid(ui) and not is_instance_valid(inspector),"direct parent disposal frees still-open inspector through exit order"):return
+				if not check(get_tree().paused==prepaused and lab._debug_paused==prepaused and app._loadout_modal==null
+					and not lab.has_meta("dynasty_loadout_pause") and Raw.matches(owner,raw) and exact_disk(initial),
+					"nested unwind restores exact prior tree/debug pause, clears lease, preserves raw owner/save"):return
+			get_tree().paused=false;lab.free();app.lab=null;app._season_game=false
+			if not is_instance_valid(ui):app.loadout=null
+			app.queue_free();await get_tree().process_frame
+			print("PASS: ",args[0]," actual nested controls/exit cleanup; synthetic pause rig only")
+			get_tree().quit(0);return
+		lab._release_controller.active=true;ui.open()
+		if not check(not ui.shade.visible and app._loadout_modal==null,"active pitch release refuses modal"):return
+		lab._release_controller.active=false
+		for prepaused: bool in [false,true]:
+			get_tree().paused=prepaused;lab._debug_paused=prepaused
+			ui.entry.grab_focus();var focus=get_viewport().gui_get_focus_owner();ui.open()
+			if not check(ui.shade.visible and get_tree().paused and lab._debug_paused,"opening acquires exact Lab pause lease"):return
+			ui.close()
+			if not check(get_tree().paused==prepaused and lab._debug_paused==prepaused and not lab.has_meta("dynasty_loadout_pause")
+				and (not prepaused or get_viewport().gui_get_focus_owner()==focus),"closing restores prior tree/Lab pause and paused focus"):return
+			get_tree().paused=false;lab._debug_paused=false
+		for mismatch: String in ["owner","lab","state","token","window","modal"]:
+			ui.open()
+			if not check(ui.shade.visible,"lease acquired before "+mismatch):return
+			var state: MatchState=lab._match_state;var replacement=null;var window: Window=null
+			if mismatch=="owner":app.career_owner=owner.fork()
+			elif mismatch=="lab":replacement=LabRig.new();app.add_child(replacement);app.lab=replacement
+			elif mismatch=="state":lab._match_state=app.season.make_match()
+			elif mismatch=="token":lab.set_meta("dynasty_loadout_pause",RefCounted.new())
+			elif mismatch=="window":window=Window.new();app.add_child(window);window.show()
+			elif mismatch=="modal":replacement=Managed.new();app._loadout_modal=replacement
+			var focus_guard: Button=Button.new();app.add_child(focus_guard);focus_guard.grab_focus()
+			ui.close(true)
+			if not check(get_viewport().gui_get_focus_owner()==focus_guard,"stale "+mismatch+" cannot steal replacement focus"):return
+			focus_guard.free()
+			if not check(get_tree().paused and lab._debug_paused and app._loadout_modal==(replacement if mismatch=="modal" else null),"stale "+mismatch+" does not resume someone else's pause"):return
+			app.career_owner=owner;app.lab=lab;lab._match_state=state;app._loadout_modal=null
+			if replacement!=null:replacement.free()
+			if window!=null:window.hide();window.free()
+			# Explicit synthetic rig cleanup only, never production pause restoration.
+			if lab.has_meta("loadout_open"):lab.remove_meta("loadout_open")
+			if lab.has_meta("dynasty_loadout_pause"):lab.remove_meta("dynasty_loadout_pause")
+			get_tree().paused=false;lab._debug_paused=false
+		lab.free();app.lab=null;app._season_game=false
+	if not check(Raw.matches(owner,raw) and exact_disk(initial)
+		and catalog==[Codec.Catalog.game_signature(),Codec.Catalog.player_signature()],"inspection leaves full owner/catalogs/primary/backup unchanged"):return
+	print("PASS: bound loadout ",args[0],"; pause rig synthetic, no gameplay claim")
+	app.queue_free();await get_tree().process_frame;get_tree().quit(0)

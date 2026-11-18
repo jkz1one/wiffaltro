@@ -1,0 +1,138 @@
+extends SeasonLoadoutUI
+## Original cards/tabs/navigation, bound read-only to one materialized owner.
+var _envelope: RefCounted
+var _session: SeasonState
+var _bytes: PackedByteArray
+var _state: MatchState
+var _fixture: int = -1
+var _pause_token: RefCounted
+
+func _ready() -> void:
+	super._ready()
+	# Keep the original renderer's hidden sale placeholder, never its writer.
+	if sale.confirmed.is_connected(sale._commit): sale.confirmed.disconnect(sale._commit)
+	sale.process_mode = Node.PROCESS_MODE_DISABLED
+
+func _blocked() -> bool:
+	return not app.call("loadout_allowed", self)
+
+func _process(_delta: float) -> void:
+	context.visible = not context.text.is_empty()
+	_resize()
+	entry.visible = app.season != null and app.season.picks.size() == 4
+	if shop == null:
+		for node: Node in app.menu.get_children():
+			if node is SeasonShopWindow and node.visible: entry.hide()
+	entry.disabled = shade.visible or _blocked()
+	if shade.visible and not _binding(): close(false)
+
+func _binding() -> bool:
+	return (shop == null or (is_instance_valid(shop) and shop.visible and not shop.is_queued_for_deletion())) \
+		and app.get("_loadout_modal") == self and app.get("career_owner") == _envelope \
+		and app.season == _session and _envelope != null and _envelope.get("session") == _session \
+		and app.get("saved_bytes") == _bytes and app.lab == _paused_lab \
+		and (not is_instance_valid(_paused_lab) or (_paused_lab._match_state == _state and app._fixture_id == _fixture))
+
+func open() -> void:
+	if shade.visible or _blocked() or not app.call("_owned"): return
+	_envelope = app.get("career_owner")
+	_session = app.season
+	_bytes = app.get("saved_bytes").duplicate()
+	_paused_lab = app.lab
+	_state = _paused_lab._match_state if is_instance_valid(_paused_lab) else null
+	_fixture = app._fixture_id
+	_previous_focus = weakref(get_viewport().gui_get_focus_owner())
+	app.set("_loadout_modal", self)
+	_rows = SeasonLoadoutData.pages(app)
+	_was_tree_paused = get_tree().paused
+	_was_paused = false
+	if is_instance_valid(_paused_lab):
+		_was_paused = _paused_lab._debug_paused
+		_pause_token = RefCounted.new()
+		_paused_lab.set_meta("loadout_open", true)
+		_paused_lab.set_meta("dynasty_loadout_pause", _pause_token)
+		_paused_lab._debug_paused = true
+		get_tree().paused = true
+	context.text = "PAUSED • Inspection only" if is_instance_valid(_paused_lab) else "Inspection • Shop sales are available between games."
+	shade.show()
+	_select(_tab)
+	_resize()
+	close_button.grab_focus()
+
+func close(restore_focus: bool = true) -> void:
+	if shade == null or not shade.visible: return
+	# A normal Close cannot retire the parent's pause while its own player
+	# inspector still holds the nested pause. Exit cleanup (false) must proceed.
+	if restore_focus:
+		for child: Node in find_children("*", "Window", true, false):
+			if child is SeasonPlayerInspector and child.visible and not child.is_queued_for_deletion(): return
+	var bound: bool = _binding()
+	var focus_owned: bool = bound
+	if is_instance_valid(_paused_lab) and _paused_lab.get_meta("dynasty_loadout_pause", null) != _pause_token: focus_owned = false
+	var resume: bool = focus_owned and is_instance_valid(_paused_lab) and not _was_paused
+	sale.hide()
+	shade.hide()
+	if bound and is_instance_valid(_paused_lab) and _paused_lab.is_inside_tree() \
+		and _paused_lab.get_meta("dynasty_loadout_pause", null) == _pause_token:
+		# A replacement owner/state or newer modal never inherits this pause lease.
+		var other_modal: bool = false
+		for node: Node in app.find_children("*", "Window", true, false):
+			if node.visible and node != shop and not node.is_queued_for_deletion(): other_modal = true
+		_paused_lab.remove_meta("loadout_open")
+		_paused_lab.remove_meta("dynasty_loadout_pause")
+		if not other_modal:
+			_paused_lab._debug_paused = _was_paused
+			get_tree().paused = _was_tree_paused
+			_paused_lab._refresh_config()
+		else:
+			resume = false
+			focus_owned = false
+	if app.get("_loadout_modal") == self: app.set("_loadout_modal", null)
+	_paused_lab = null
+	_state = null
+	_pause_token = null
+	_envelope = null
+	_session = null
+	_bytes = PackedByteArray()
+	if not restore_focus or not focus_owned: return
+	if resume:
+		var focused: Control = get_viewport().gui_get_focus_owner()
+		if focused != null: focused.release_focus()
+		return
+	var target: Control = _previous_focus.get_ref() if _previous_focus != null else null
+	if is_instance_valid(target) and target.is_inside_tree() and target.is_visible_in_tree(): target.grab_focus()
+	elif entry.is_visible_in_tree(): entry.grab_focus()
+
+func can_sell() -> bool:
+	# Never activate the inherited generic/paused SeasonLoadoutSale writer.
+	return false
+
+func inventory_sales_enabled() -> bool:
+	return false
+
+func _sale_action(parent: Node, row: Dictionary) -> void:
+	if shop == null or app.lab != null or _tab not in ["gear", "sponsors"]: return
+	if not _binding() or not app.season.shop_available() or not app.season.build._visit.open or app.season.build.pack_pending(): return
+	var receipt: String = row.get("receipt", "")
+	if receipt.is_empty(): return
+	var button: Button = Button.new()
+	button.text = "REVIEW SHOP SALE"
+	button.custom_minimum_size = Vector2(180, 44)
+	button.pressed.connect(_review_shop_sale.bind(receipt, str(row.name), _tab))
+	parent.add_child(button)
+	_sale_buttons.append(button)
+
+func _review_shop_sale(receipt: String, item_name: String, category: String) -> void:
+	if not shade.visible or not _binding() or _blocked() or shop == null or not app.call("_owned"): return
+	if app.lab != null or category not in ["gear", "sponsors"]: return
+	var target: SeasonShopWindow = shop
+	var command: Dictionary = target._request("sell_gear" if category == "gear" else "sponsor_sell", {"receipt": receipt})
+	close(false)
+	# Existing Shop confirmation quotes current authoritative state and commits
+	# through App.commit_shop; no sale or persistent mutation occurs here.
+	target._preview(command, "Review selling %s. Your other owned copies stay unchanged." % item_name)
+
+
+func _select(key: String) -> void:
+	if not shade.visible or not _binding(): return
+	super._select(key)

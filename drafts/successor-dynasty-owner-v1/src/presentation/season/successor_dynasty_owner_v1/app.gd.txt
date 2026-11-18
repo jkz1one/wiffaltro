@@ -9,6 +9,8 @@ const Runner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/phy
 const Capture = preload("capture_human.gd")
 const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
 const Shop = preload("shop_window.gd")
+const Loadout = preload("loadout_ui.gd")
+var _loadout_modal: SeasonLoadoutUI
 const Page = preload("menu.gd")
 var retained_before: Dictionary = {} # Detached diagnostics only, never writer authority.
 var _save_ticket: RefCounted
@@ -85,11 +87,9 @@ func _ready() -> void:
 	_continue.pressed.connect(finish_game)
 	add_child(_continue)
 	_continue.hide()
-	loadout = SeasonLoadoutUI.new()
+	loadout = Loadout.new()
 	loadout.app = self
 	add_child(loadout)
-	loadout.process_mode = Node.PROCESS_MODE_DISABLED
-	loadout.entry.hide() # Legacy equipment transactions are not routed into this new domain.
 	show_season()
 
 func _exit_tree() -> void:
@@ -111,7 +111,7 @@ func show_season() -> void:
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
-	return _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+	return not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func select_league(value: String) -> void:
 	if not _available() or season != null or value != "dynasty": return
 	selected_league = value; show_season()
@@ -240,6 +240,7 @@ func open_legacy() -> void:
 	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")
 
 func _exit_blocked() -> bool:
+	if is_instance_valid(_loadout_modal): return true
 	if _busy or Store.saving or is_instance_valid(ai_runner):
 		notice = "A game or checkpoint is still running. Wait before leaving."
 		return true
@@ -349,7 +350,7 @@ func _played_field_matches() -> bool:
 
 
 func finish_game() -> void:
-	if _busy:
+	if _busy or is_instance_valid(_loadout_modal):
 		return
 	if retained!=null:
 		retry_save()
@@ -686,3 +687,25 @@ func lineup_back(ticket: RefCounted) -> void:
 func swap_lineup(_first: int, _second: int) -> void: return
 func select_starter(_index: int) -> void: return
 func select_fielder(_index: int) -> void: return
+
+
+func commit_inventory(_command: Dictionary) -> bool:
+	# Full menu/paused resale remains planned; never dispatch legacy persistence.
+	return false
+
+func loadout_allowed(ui: SeasonLoadoutUI) -> bool:
+	if ui == null or _busy or Store.saving or retained != null or is_instance_valid(ai_runner): return false
+	if ui.shop != null and (not is_instance_valid(ui.shop) or not ui.shop.visible or ui.shop.is_queued_for_deletion()): return false
+	if is_instance_valid(_loadout_modal) and _loadout_modal != ui: return false
+	if not _lifecycle_action.is_empty() or not _exit_mode.is_empty(): return false
+	if career_owner == null or career_owner.session != season or career_owner.status != "active": return false
+	if season == null or season.build == null or season.picks.size() != 4 or not season.physical.pending.is_empty(): return false
+	if is_instance_valid(lab):
+		if not _season_game or lab._match_state == null or lab._match_state.phase == MatchState.Phase.GAME_END: return false
+		if lab.ac02_startup_pending() or lab._release_controller.active or SeasonEncoreUI.reviewing(lab): return false
+		if not lab._managed_match or int(season.pending_fixture().get("id", -1)) != _fixture_id: return false
+	for node: Node in find_children("*", "Window", true, false):
+		if not is_instance_valid(node) or node.is_queued_for_deletion() or not node.visible: continue
+		if node == ui.shop: continue
+		return false
+	return true

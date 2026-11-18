@@ -1,0 +1,254 @@
+extends "res://tests/successor_dynasty_play.gd"
+## Genuine earned visit2 purchases and one actual equipped/tactical round.
+## Isolated only. No invented cash, physics results, or readiness phases.
+const LEGACY="user://wiffaltro-dynasty-owner-v1.json"
+const LEGACY_SHA="40e581d097a1fe4486ba3b3b45d9d0d50a2023ecb3d113fc3a146f251ddaa6f0"
+var roots: Array[Resource]=[]
+var observed_app: SeasonApp
+var activated: bool=false
+var definitions_checked: bool=false
+var max_cold: int=0
+var heat_receipt: String=""
+var match_primary: PackedByteArray
+
+func source_unchanged() -> bool:
+	for path: String in other_slots:
+		if not Codec.same(slot_state(path),other_slots[path]): return false
+	return FileAccess.get_sha256(LEGACY)==LEGACY_SHA
+
+func meta_button(node: Node,key: String,value: Variant) -> Button:
+	if node is Button and node.has_meta(key) and node.get_meta(key)==value: return node
+	for child in node.get_children():
+		var found=meta_button(child,key,value)
+		if found!=null:return found
+	return null
+
+func fresh_checks(app: SeasonApp) -> bool:
+	return check(app.career_owner!=null and app.career_owner.session==app.season and app.career_owner.ordinal==1 and app.season.results.size() in [6,9] and app.season.player_results.size() in [2,3],"genuine first-season earned predecessor and bounded next round")
+
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["import","gear","heat","sponsor","owned-cold","step","cold","recover-human","recover-npc"],"isolated explicit owned-item mode"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"authored resource roots retained before save reads"):return
+	if not check(FileAccess.get_sha256(LEGACY)==LEGACY_SHA,"exact genuine earned 28 Cash source"):return
+	for filename: String in ["wiffaltro-dynasty-owner-v1.json","wiffaltro-materialized-play-v1.json","expected-open75.json"]:
+		for suffix: String in ["",".bak",".tmp"]:other_slots["user://"+filename+suffix]=slot_state("user://"+filename+suffix)
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var before=Save.raw();var bak=slot_state(Save.PATH+".bak")
+	var calls=[Pending.project_calls,Fixtures.resolve_calls,OldDecoder.restore_calls]
+	if args[0]=="import":
+		if not check(before.is_empty(),"fresh new slot for explicit legacy import"):return
+		app.import_previous_dynasty()
+		if not check(app.retained==null and app.season!=null and app.season.build.cash()==28 and app.season.round_index==2,"strict actual App import, earned 28 Cash unchanged"):return
+		finish_step(app,"import")
+	else:
+		var t=Time.get_ticks_msec();app.reload_save();print("COLD_MS: ",Time.get_ticks_msec()-t)
+		if not check(app.season!=null and calls==[Pending.project_calls,Fixtures.resolve_calls,OldDecoder.restore_calls] and Save.raw()==before and Codec.same(slot_state(Save.PATH+".bak"),bak),"strict cold has no projection/replay or byte writes"):return
+		if not fresh_checks(app):return
+		if args[0] in ["gear","heat","sponsor"]:
+			await purchase(app,args[0])
+		elif args[0]=="owned-cold":
+			if not owned_checks(app,true):return
+			preserve_actual("owned84-source",Owner.capture(app.career_owner))
+			finish_step(app,"owned-cold")
+		elif args[0] in ["recover-human","recover-npc"]:
+			recover_actual(app,args[0])
+		elif args[0]=="cold":
+			if not final_checks(app):return
+			finish_step(app,"owned-items-final-cold",true)
+		elif not app.season.physical.pending.is_empty():
+			await settle_batch(app)
+		elif app.season.player_results.size()==2:
+			if not owned_checks(app,true):return
+			if not check(Codec.same(Owner.capture(app.career_owner),JSON.parse_string(FileAccess.get_file_as_string("user://owned84-source.json"))),"actual game starts exact cold-verified paid owner"):return
+			observed_app=app;match_primary=Save.raw()
+			await play_human(app)
+			observed_app=null
+			if not check(activated,"actual Extra Heat UI activation observed before completed human admission"):return
+		else:
+			if not final_checks(app):return
+			finish_step(app,"owned-items-complete",true)
+	if not check(source_unchanged(),"all original slots and immutable stock fixture unchanged"):return
+	app.queue_free();await get_tree().process_frame
+	if not failed:print("PASS: owned gear/sponsor/tactical ",args[0],"; actual UI signal qualification, native dispatch separate")
+	get_tree().quit(1 if failed else 0)
+
+func purchase(app: SeasonApp,kind: String) -> void:
+	var specs={"gear":["BALL-VEL-01","gear_offer",10,28],"heat":["tactical.extra_heat","tactical_offer",5,18],"sponsor":["E10","sponsor_offer",12,13]}
+	var spec: Array=specs[kind]
+	if not check(app.season.build.cash()==spec[3],"exact prior earned balance, no fabricated funds"):return
+	app.open_shop();await get_tree().process_frame
+	var shop=shop_for(app)
+	if not check(shop!=null and app.retained==null,"actual shop opens owned visit"):return
+	if kind=="gear":
+		var expected: Variant=JSON.parse_string(FileAccess.get_file_as_string("user://expected-open75.json"))
+		if not check(expected is Dictionary and Codec.same(app.season.build._visit.offers,expected.dynasty.build.build._visit.offers),"deterministic genuine visit2 stock unchanged by strict import"):return
+	var offer: String=""
+	for id: String in app.season.build._visit.offers:
+		if app.season.build._visit.offers[id]==spec[0]:offer=id
+	var button=meta_button(shop,spec[1],offer)
+	if not check(not offer.is_empty() and button!=null and not button.disabled,"actual owned-stock purchase button enabled"):return
+	var disk=Save.raw();var bak=slot_state(Save.PATH+".bak")
+	button.pressed.emit()
+	if not check(shop._confirm.visible and not shop._pending.is_empty(),"actual purchase review shown"):return
+	var command=shop._pending.duplicate(true)
+	var quote=app.season.build.preview(command)
+	if not check(quote.ok and int(quote.before_cash)-int(quote.after.wallet.cash)==spec[2],"authoritative exact quoted price"):return
+	shop._confirm.canceled.emit();shop._confirm.hide()
+	if not check(shop._pending.is_empty() and Save.raw()==disk and Codec.same(slot_state(Save.PATH+".bak"),bak),"Cancel purchase changes neither ownership nor saves"):return
+	button.pressed.emit();shop._confirm.confirmed.emit();shop._confirm.hide()
+	if not check(app.retained==null and app.season.build.cash()==spec[3]-spec[2],"actual confirmed purchase charged exactly once"):return
+	finish_step(app,"purchase-"+kind)
+
+func owned_checks(app: SeasonApp,held: bool) -> bool:
+	var w: Dictionary=app.season.build._bank.view()
+	if not check(w.gear.ball.get("item")=="BALL-VEL-01" and w.gear.ball.get("paid")==10,"paid Slick Ball remains active"):return false
+	var sponsor: bool=false
+	for receipt: Dictionary in w.sponsors:
+		if receipt.item=="E10" and receipt.paid==12:sponsor=true
+	if not check(sponsor,"paid Frankie's Freezers active"):return false
+	var copies: Array=[]
+	for receipt: Dictionary in w.held:
+		if receipt.item=="tactical.extra_heat":copies.append(receipt)
+	if not check(copies.size()==(1 if held else 0),"exact Extra Heat held/consumed state"):return false
+	if held:
+		heat_receipt=copies[0].id
+		if not check(copies[0].paid==5 and app.season.build.cash()==1,"three authoritative purchases total27, one earned Cash left"):return false
+	return true
+
+func _process(_delta: float) -> void:
+	if failed or not is_instance_valid(observed_app) or not is_instance_valid(observed_app.lab):return
+	var lab=observed_app.lab
+	if lab._match_state==null:return
+	var human: TeamMatchState=lab._match_state.home_team if lab._player_home else lab._match_state.away_team
+	if not definitions_checked:
+		for player: PlayerMatchState in human.roster:
+			if not check(player.definition.season_gear.get("ball")=="BALL-VEL-01" and player.definition.season_sponsors.get("E10",false),"actual live human definition binds paid Slick Ball and Freezers"):return
+		definitions_checked=true
+	for player: PlayerMatchState in human.roster:max_cold=maxi(max_cold,lab._match_state.cold.stacks(player))
+	if activated:return
+	var controls=lab.get_node_or_null("TacticalControls")
+	if controls==null or lab._player_is_batting() or not controls.can_open():return
+	var team=controls.team()
+	var held=team.tactics.held.duplicate(true)
+	var consumed=team.tactics.consumed.duplicate(true)
+	controls._entry.pressed.emit()
+	var button=meta_button(controls,"tactical_receipt",heat_receipt)
+	if not check(button!=null and not button.disabled,"actual defensive readiness offers owned Extra Heat"):return
+	button.pressed.emit();controls._dialog.canceled.emit();controls._dialog.hide()
+	if not check(team.tactics.held==held and team.tactics.consumed==consumed and Save.raw()==match_primary,"tactical Cancel preserves detached inventory and season checkpoint"):return
+	controls._entry.pressed.emit();button=meta_button(controls,"tactical_receipt",heat_receipt);button.pressed.emit()
+	if not check(not controls._dialog.get_ok_button().disabled,"actual tactical confirmation available at original readiness boundary"):return
+	controls._dialog.confirmed.emit();controls._dialog.hide()
+	if not check(team.tactics.consumed.size()==consumed.size()+1 and team.tactics.consumed.back().receipt==heat_receipt and team.tactics.held.size()==held.size()-1 and Save.raw()==match_primary,"actual Confirm consumes match-only exact receipt, not seasonal checkpoint"):return
+	activated=true
+	controls._dialog.confirmed.emit()
+	if not check(team.tactics.consumed.size()==consumed.size()+1,"duplicate tactical confirmation inert"):return
+	preserve_actual("actual84-tactical-use",{"fixture":observed_app._fixture_id,"pa":lab._match_state.plate_appearance_number,"phase":lab._match_state.phase,"receipt":heat_receipt,"held_before":held,"held_after":team.tactics.held,"uses":team.tactics.consumed,"season_sha256":FileAccess.get_sha256(Save.PATH)})
+
+func play_human(app: SeasonApp) -> void:
+	await super.play_human(app)
+	if failed:return
+	var raw: Variant=JSON.parse_string(FileAccess.get_file_as_string("user://actual120-human.json"))
+	var receipt: String=app.season.build._bank.view().gear.ball.id
+	if not check(definitions_checked and raw is Dictionary and raw.components.first_pitch.has(receipt) and raw.components.uses.size()==1 and raw.components.uses[0].receipt==heat_receipt,"actual first-pitch gear receipt and exact tactical use retained before settlement"):return
+	preserve_actual("actual84-effects",{"slick_ball_receipt":receipt,"first_pitch":raw.components.first_pitch,"freezers_live_definitions":definitions_checked,"max_observed_cold_stacks":max_cold,"cold_outcomes":raw.components.cold,"frozen_contacts":raw.components.frozen_contacts,"tactical_uses":raw.components.uses})
+
+func final_checks(app: SeasonApp) -> bool:
+	if not check(app.season.results.size()==9 and app.season.player_results.size()==3 and app.season.physical.reports.size()==6 and app.season.round_index==3 and app.season.physical.pending.is_empty(),"actual equipped human and two AI games settled once"):return false
+	if not owned_checks(app,false):return false
+	var use: Variant=JSON.parse_string(FileAccess.get_file_as_string("user://actual84-tactical-use.json"))
+	if not check(use is Dictionary and use.fixture==6 and use.uses.size()==1,"preserved actual Extra Heat activation, no fabricated use"):return false
+	var discards: int=0
+	for event: Dictionary in app.season.build._bank._events:
+		if event.op=="discard" and event.get("receipts",[]).has(use.receipt):discards+=1
+	if not check(discards==1,"exact used supply settled to one bank discard"):return false
+	for club in range(6):
+		var build: SeasonBuild=app.season.build if club==0 else app.season.opponents.clubs[str(club)].build
+		if not check(build._bank.view().rewards.size()==3,"each club paid once per three real rounds"):return false
+	return true
+
+func settle_batch(app: SeasonApp) -> void:
+	for job in range(1):
+		if app.season.physical.pending.is_empty(): return
+		var owner: SeasonState = app.season
+		var before: Dictionary = Codec.capture(owner)
+		var primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		var primary_exists: bool = FileAccess.file_exists(Save.PATH)
+		var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
+		var count: int = app.season.physical.pending.reports.size()
+		if not check(count >= 0 and count <= 2 and app.season.results.size()==6 and app.season.player_results.size()==2,"one unsettled actual round only"): return
+		if not check(not before.is_empty(),"nonempty actual round equality baseline"): return
+		var fault: bool = count == 0
+		if fault:
+			for malformed: Dictionary in [{},{"ownership":[1]},{"object":RefCounted.new()}]:
+				var refusal: Dictionary = Pending.stage_report(owner,malformed)
+				if not check(not refusal.has("candidate"),"malformed or executable NPC payload refuses before persistence"): return
+			if not check(ClubCareer.same(Codec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"invalid NPC calls preserve original state and saves"): return
+		if fault and not check(not FileAccess.file_exists(Save.PATH+".tmp") and not DirAccess.dir_exists_absolute(Save.PATH+".tmp") and DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated first NPC prewrite fault"): return
+		app.resume_round()
+		# This bounded one-round test has no terminal-save fault. Observe the real
+		# App's projection instead of independently replaying the history twice.
+		var projection: Dictionary = app.projection
+		if not check(not projection.is_empty() and not projection.has("error"),"actual App pending projection"):
+			return
+		if projection.has("fixture"):
+			if not check(app._busy and app.season == owner and ClubCareer.same(Codec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup and FileAccess.file_exists(Save.PATH) == primary_exists and FileAccess.file_exists(Save.PATH+".bak") == backup_exists,"NPC start preserves original owner and disk before awaiting real physics"): return
+			# A foreign callback must not stop or replace the real in-flight runner.
+			var running: Node = app.ai_runner
+			# Preserve the actual output before the ORIGINAL App receiver attempts
+			# admission. Reconnect that exact receiver, do not replace its logic.
+			var receivers: Array = running.get_signal_connection_list("finished")
+			if not check(receivers.size()==1,"one original production NPC receiver"): return
+			var receiver: Callable=receivers[0].callable
+			var receiver_flags: int=int(receivers[0].flags)
+			running.disconnect("finished",receiver)
+			running.finished.connect(func(report: Dictionary): preserve_actual("actual120-npc-%d"%int(projection.fixture.id),{"report":report,"fixture":projection.fixture,"before":before,"owner_before":Owner.capture(app.career_owner)}))
+			running.connect("finished",receiver,receiver_flags)
+			var foreign: Node = Node.new()
+			app._ai_finished({},foreign)
+			foreign.free()
+			if not check(app._busy and app.ai_runner == running and app.retained_report.is_empty() and app.season == owner,"foreign NPC callback cannot replace active runner/owner"): return
+			var finished: bool = false
+			for frame in range(150000):
+				await get_tree().physics_frame
+				if not app._busy:
+					finished = true
+					break
+			if fault:
+				if not check(finished and app.retained != null and not app.retained_report.is_empty() and app.season == owner and ClubCareer.same(Codec.capture(owner),before) and FileAccess.get_file_as_bytes(Save.PATH) == primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"NPC prewrite refusal preserves original owner and both saves"): return
+				var retained: SeasonState = app.retained
+				var raw: Dictionary = app.retained_report.duplicate(true)
+				var actual: Dictionary = Codec.capture(retained)
+				var reference: SeasonState = Codec.restore(Codec.capture(owner))
+				if not check(reference != null,"independent original NPC reference clone"): return
+				reference.physical.pending.reports.append({"fixture":int(projection.fixture.id),"request":Fixtures.request_key(projection.candidate,projection.fixture),"report":raw.duplicate(true)})
+				var expected: Dictionary = Codec.capture(reference)
+				if not check(not actual.is_empty() and not expected.is_empty() and ClubCareer.same(actual,expected),"fixed NPC candidate equals original materialized append/capture path"): return
+				app._ai_finished(raw,null)
+				if not check(app.retained == retained and ClubCareer.same(app.retained_report,raw) and ClubCareer.same(Codec.capture(retained),actual),"late duplicate callback cannot replace retained NPC candidate"): return
+				if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only own NPC prewrite fault"): return
+				app.retry_save()
+				if not check(app.retained == null and app.season == retained and app.retained_report.is_empty() and ClubCareer.same(Codec.capture(app.season),actual),"explicit materialized NPC retry promotes exact candidate once"): return
+				var paid_primary: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+				var paid_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+				app.retry_save()
+				var duplicate: Dictionary = Pending.stage_report(app.season,raw)
+				if not check(not duplicate.has("candidate") and FileAccess.get_file_as_bytes(Save.PATH) == paid_primary and FileAccess.get_file_as_bytes(Save.PATH+".bak") == paid_backup and ClubCareer.same(Codec.capture(app.season),actual),"already consumed NPC report rejected without state or backup mutation"): return
+			if not check(finished and app.get("retained") == null and app.season.physical.pending.reports.size() == count+1,"actual NPC report saved once"):
+				return
+			finish_step(app,"npc-%d"%int(projection.fixture.id))
+		else:
+			if not check(app.get("retained") == null and app.season.physical.pending.is_empty() and app.season.results.size() == app.season.player_results.size()*3,"all three actual games settled"):
+				return
+			var settled: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+			var settled_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+			app.resume_round(); app.retry_save()
+			if not check(FileAccess.get_file_as_bytes(Save.PATH) == settled and FileAccess.get_file_as_bytes(Save.PATH+".bak") == settled_backup,"duplicate settlement/retry cannot pay or rotate backup twice"): return
+			finish_step(app,"settlement-%d"%app.season.player_results.size())
+			return
+	return # One real NPC checkpoint per process; next invocation resumes its durable successor.
+
+

@@ -1,0 +1,8 @@
+extends PitchBatLab
+## Synthetic modal lease rig only. Never claims gameplay/render/physics qualification.
+var refresh_calls: int=0
+func _ready() -> void:
+	_release_controller=PitchReleaseController.new()
+func _process(_delta: float) -> void:pass
+func _physics_process(_delta: float) -> void:pass
+func _refresh_config() -> void:refresh_calls+=1

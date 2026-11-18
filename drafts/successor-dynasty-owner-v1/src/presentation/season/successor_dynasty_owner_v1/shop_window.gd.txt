@@ -67,3 +67,18 @@ func _purchase(
 		_clear_quote_scope()
 		quote_build = app.season.build._fork()
 	return IsolatedQuote.button(self, quote_build, text, command, description, context)
+
+
+const ManagedLoadout = preload("loadout_ui.gd")
+func _ready() -> void:
+	super._ready()
+	# The inherited shop creates its own utility. Replace it synchronously before
+	# any input dispatch, not just the separate App entry.
+	for child: Node in get_children():
+		if child is SeasonLoadoutUI:
+			remove_child(child)
+			child.queue_free()
+	var utility: SeasonLoadoutUI = ManagedLoadout.new()
+	utility.app = app
+	utility.shop = self
+	add_child(utility)

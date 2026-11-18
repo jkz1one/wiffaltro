@@ -1,5 +1,11 @@
 # Dynasty owner: bounded private career integration
 
+Increment84 restores original-styled loadout inspection through owner-bound App
+and Shop utilities. Focused inspection/modal/pause/cleanup checks and genuine
+earned gear, sponsor and tactical purchases/cold passed. Scoped native inspection,
+final nested-flow checks, an actual equipped human/two-AI round, settlement and
+separate cold all passed. Full mode/release and target performance are not implied.
+
 Increment83 moves four fixed Shop commands into a Store-owned synchronous producer.
 Focused admission, retained-write and handoff guards, paired byte parity and
 traversal counts and final native paid-shop/cold checks passed.
@@ -1018,3 +1024,131 @@ The final combined qualification supersedes earlier pending-stage reports withou
 rewriting their historical scope. This is one removed comparison with measured
 modest savings, not a resolution of multi-second persistence latency. Remote
 source identity is verified separately after publication.
+
+
+## Increment84: owned loadout integration (scoped checks passed)
+
+Only three presentation files change: current App, current Shop, and a local
+SeasonLoadoutUI subclass. The inherited cards, glyphs, tabs, descriptions,
+player inspection and navigation remain. Both independently-created entry points
+are bound to the current owner. No model, authored art, physics, price table,
+wallet, save format or historical reducer changes are made.
+
+Inspection authenticates the current owner/save once at entry, then pins exact
+outer owner, session, saved bytes, managed Lab, MatchState and fixture. Its
+ColorRect shade also gates underlying App commands. Active release/startup and
+other dialogs refuse opening rather than cancelling an attempt. Ordinary close
+restores its own pause/focus; replacement identities/tokens do not. The synthetic
+foreign-Window case proves fail-closed noninterference only: it does not prove
+restoration after an independently introduced foreign modal closes. That fault
+case resets the isolated test rig explicitly and is not a normal gameplay path.
+
+Nine focused modes passed: global inspection, Shop inspection, synthetic pause
+ownership, actual owned Shop sale-review/Cancel, direct Shop destruction, direct
+utility destruction, nested player inspection, and nested destruction in both
+initially paused and unpaused states. The two direct destruction cases disable periodic
+processing, leave the shade open and prove inherited exit cleanup clears the
+App barrier. The final narrow guard refuses normal parent Close while its own
+visible PlayerInspector remains open; it does not refuse exit cleanup. Actual
+nested Back then Close and real nested destruction restore the original pause
+and clear the lease. This is distinct from the synthetic foreign-Window fault.
+Read-only tests retain full owner/catalog/primary/backup identity.
+The first Shop test incorrectly inspected root viewport focus instead of the
+Shop Window's own viewport; that harness failure is preserved separately. No
+production state guard was weakened to address it.
+
+The initial inspection/purchase/native revisions precede only the final narrow
+UI nested-close guard. That change does not alter Shop authority or paid outcomes.
+Final-source nested close/disposal and owned-sale Cancel regressions pass;
+unchanged purchases are not replayed or relabeled as final-revision runs.
+The actual equipped round uses the final frozen source.
+
+Generic menu/paused resale remains planned and cannot invoke the legacy
+commit_inventory writer here. The hidden inherited sale confirmation is inert.
+Between games, paid gear/sponsor review closes inspection and delegates to the
+existing current Shop confirmation/commit path. Actual Cancel tests quote Slick
+Ball's 5 Cash and Frankie's Freezers' 6 Cash refunds without selling either copy
+or changing the owner/save. This does not qualify generic paused resale.
+
+The genuine earlier visit2 main checkpoint is strictly imported into an isolated
+new slot, with the original slots preserved. Its 28 earned Cash purchases Slick
+Ball for 10, Extra Heat for 5 and Frankie's Freezers for 12 through actual Shop
+buttons, authoritative quotes, Cancel and Confirm. Separate cold verifies the
+three paid receipts and 1 Cash remaining. No cash, owned item or game result is
+fabricated. The untouched purchased main is 1,528,673 bytes, SHA-256
+`fed2c4e3f4a790423303b3aeba8835a1261da1cab2d0799d64b64985a0804df6`.
+
+Actual tactical activation uses the existing defensive PRE_PITCH/readiness
+boundary and paid-copy receipt. Its live consumption is committed to seasonal
+inventory only with a completed game result; unfinished Leave does not invent
+a persistent consumption or refund transaction. Actual owned-item game,
+first-pitch gear, sponsor runtime evidence, settlement and final cold passed.
+Headless fixed60 evidence is functional qualification, not real-time or
+target-hardware performance proof.
+
+Full generic resale, paused-session switching, remaining league integration,
+public mode admission, final tuning and distributable export remain planned.
+
+
+### Increment84 native source provenance
+
+The broader initial native pass covers original hub gear/sponsor/supply cards,
+Shop gear and sponsor sale quotes with Cancel, actual 3D match inspection,
+Abilities player details and Back, already-paused inspection preserving the pause
+menu, and unfinished Leave. Input main and backup remain byte-identical. That
+pass precedes only the narrow parent-close/descendant-inspector guard.
+
+The final-source separate native process reopens the same paid owner, mounts the
+actual match, performs Abilities → Inspect Ash → Back → Close, and advances an
+actual pitch (P1, count 1–0) to prove resumed gameplay. Pause/Leave returns to the
+hub with the original paid pair unchanged. No native full game or confirmed
+supply use is claimed. Actual startup logs include Vulkan → OpenGL/llvmpipe and
+ALSA → dummy fallbacks, with no SCRIPT ERROR; they are not error-free or target
+hardware performance evidence. The test-project preparation initially retained
+the ordinary119 main scene; the explicit private120 scene was selected before
+these actions, with preparation provenance preserved. A unified distributable
+launcher is not qualified by this engineering harness.
+
+Initial native report SHA-256:
+`6a4b29dee69b9b5ca886882c6d13a4b56da111162f2201adab66960eb193785a`.
+Final native report SHA-256:
+`57f9fc56d35bc48d1f6b7a58db91c35349fcd74131f1c3396a16a7f586b499e4`.
+
+
+### Increment84 actual equipped round and cold
+
+On the final frozen source, genuine human fixture6 and NPC fixtures7/8 completed
+once, with untouched raw reports and exact predecessors preserved before
+admission. No earlier game or purchase was replayed to obtain this proof.
+The actual defensive readiness UI selects Extra Heat, Cancels without mutation,
+then confirms the same paid receipt exactly once; duplicate confirmation is
+inert. Seasonal inventory remains unchanged until completed settlement.
+
+The live human definitions carry Slick Ball and Frankie's Freezers. First-pitch
+evidence contains gear receipt `purchase:8`; actual tactical use contains
+`tactical-purchase:9` at PA6. Cold accumulation reaches 2 observed stacks.
+`frozen_contacts` is empty: no frozen-contact proc is claimed or fabricated.
+The actual human outcome is 5–11; native visual checks are separate from this
+fixed60 functional game and are not a native full-game proof.
+
+Settlement and a separate cold process verify nine results/three human games,
+round3, no physical pending transaction, every club's third reward exactly once,
+Slick Ball and E10 still owned, and Extra Heat discarded exactly once. The
+injected NPC prewrite obstruction retains the exact candidate for retry;
+foreign/duplicate callbacks and duplicate report consumption refuse. Original
+75/119 slots, source stock and purchased predecessor remain untouched.
+
+Final primary: 2,159,169 bytes, SHA-256
+`8551800d18990582efb5d85c376ba589dcab1b74b5257bb51a0464dab00800f6`.
+Final backup: 1,864,412 bytes, SHA-256
+`0a63a714a70550205e7c1e59bc8b1e9a6a8b50596ee1daec0320a735f6b744c6`.
+Actual-round qualification report SHA-256:
+`632bdd1b4c5c45c1c0de56ee0ef2ed8191b22ee9e2554c1b4b45a0c7f2baaaa5`.
+Purchase/cold report SHA-256:
+`2f654d0cb4edb7ac73e31bc488ec1295dccca08f6ef6e6545464b8d7eba52966`.
+
+The manifest contains 89 current-family source/test entries; together with 33
+prior-family dependencies the qualification stage contains 122, of which 48
+are runtime files. This is a ten-file source/documentation increment. It adds
+no general paused resale, league switching, public unlock, final tuning, export
+or Mac distributable claim. Remote source identity is verified separately.
