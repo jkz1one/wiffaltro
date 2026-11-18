@@ -1,0 +1,308 @@
+extends RefCounted
+## Materialized offline consistency, not proof of omitted history. No replay,
+## Resource deserialization, caller factory, or arbitrary property admission.
+const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Book = preload("res://src/gameplay/season/successor_league_general_v2/development.gd")
+const Catalog = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+static var _signature: String = ""
+static var _player_signature: String = ""
+static var _active_recipes: Array[String] = []
+static var _ownership_catalog: Dictionary = {}
+static var _player_ids: Array[String] = []
+static var _player_baselines: Dictionary = {}
+
+static func _ensure_player_baselines() -> void:
+	if not _player_baselines.is_empty(): return
+	# Only immutable authored primitives are cached, never a caller's live book.
+	_player_ids.assign(SeasonPlayerCatalog.ids())
+	for id: String in _player_ids:
+		var profile: Dictionary = SeasonPlayerCatalog.profile(id)
+		var base: Dictionary = profile.base.duplicate(true)
+		var mastery: Dictionary = profile.mastery.duplicate(true)
+		base.make_read_only()
+		mastery.make_read_only()
+		var baseline: Dictionary = {"base":base,"capacity":int(profile.capacity),"mastery":mastery}
+		baseline.make_read_only()
+		_player_baselines[id] = baseline
+	_player_ids.make_read_only()
+	_player_baselines.make_read_only()
+
+static func ownership_catalog() -> Dictionary:
+	if _ownership_catalog.is_empty(): _ownership_catalog = SeasonSponsorCatalog.ownership_catalog()
+	return _ownership_catalog.duplicate(true)
+
+static func active_recipe(id: String) -> bool:
+	if _active_recipes.is_empty(): _active_recipes.assign(Catalog.Provider.ids())
+	return _active_recipes.has(id)
+
+static func signature() -> String:
+	if _signature.is_empty(): _signature = Catalog.signature()
+	return _signature
+
+static func player_signature() -> String:
+	if _player_signature.is_empty(): _player_signature = SeasonPlayerCatalog.signature()
+	return _player_signature
+
+const FORMAT: String = "materialized-successor-build-v1"
+const MAX_BYTES: int = 16 * 1024 * 1024
+const OBJECTS: Array = ["_bank","_book","_gear_progress","_sponsor_progress","_major","_abilities","_copy"]
+const BUILD: Dictionary = {"_seed":"int","_roster":"Array[String]","_initial_roster":"Array[String]","_pool":"Array[String]","_blocked":"Array[String]","_contracts":"Dictionary","_recruits":"Array[Dictionary]","_game_rosters":"Dictionary","_appeared":"bool","_format":"int","_legacy_gap_name":"bool","_market":"int","_league_rules":"Dictionary","_dynasty_start":"Dictionary","_pricing_rule":"String","_sponsor_rule":"String","_retraining_enabled":"bool","_legends":"Dictionary","_order_start":"Variant","_paid_rerolls":"int","_rain_start":"Variant","_rain_earned":"bool","_transfer_start":"Variant","_transfer_earned":"bool","_checkout_start":"Variant","_checkout_earned":"bool","_association_start":"Variant","_freezer_start":"Variant","_sides_start":"Variant","_field_start":"Variant","_field_outs":"int","_sure_start":"Variant","_sure_earned":"bool","_jump_start":"Variant","_batch_start":"Variant","_batch_used":"Array","_association_earned":"bool","_freezer_earned":"bool","_sides_earned":"bool","_jump_earned":"bool","_supply_start":"Variant","_supply_used":"int","_insurance":"Dictionary","_reservation":"Dictionary","_recruit_from":"int","_gear_from":"int","_misc_from":"int","_mapped_gear_from":"int","_sponsor_from":"int","_gameplay_sponsor_from":"int","_sequence_sponsor_from":"int","_field_sponsor_from":"int","_shop_sponsor_from":"int","_school_sponsor_from":"int","_anchor_sponsor_from":"int","_wholesale_from":"int","_tactical_from":"int","_expanded_tactical_from":"int","_tactical_sponsor_from":"int","_budget_from":"int","_film_from":"int","_scouts":"Dictionary","_pregames":"Dictionary","_match_inventory":"Dictionary","_scholarships":"Dictionary","_used_gear":"Dictionary","_income_by_game":"Dictionary","_visit":"Dictionary","_events":"Array[Dictionary]","_requests":"Dictionary"}
+const BANK: Dictionary = {"_format":"int","_league_rules":"Dictionary","_sponsor_rule":"String","_term_seed":"int","_events":"Array[Dictionary]","_requests":"Dictionary","_state":"Dictionary"}
+const BOOK: Dictionary = {"_pitch_catalog_version":"int","_exotic_start":"Array","_exotic_current":"Dictionary","_exotic_ids":"Array[String]","_season_key":"String","_league_rules":"Dictionary","_dynasty_start":"Dictionary","_players":"Dictionary","_events":"Array[Dictionary]","_requests":"Dictionary"}
+const GEAR: Dictionary = {"enabled":"bool","alley_from":"int","start":"Dictionary","games":"Array[Dictionary]"}
+const SPONSOR: Dictionary = {"enabled":"bool","start":"Dictionary","games":"Array[Dictionary]"}
+const MAJOR: Dictionary = {"start":"Variant","earned":"bool","player":"String"}
+const ABILITIES: Dictionary = {"from_visit":"int","start":"Variant","earned":"int","learned":"Dictionary"}
+const COPY: Dictionary = {"start":"Variant","earned":"bool","selections":"Dictionary"}
+
+static func capture(build: SeasonBuild) -> Dictionary:
+	if build == null or build._book == null or build._bank == null or build._bank.get_script() != SeasonOwnership: return {}
+	if build.get_script() != GameBuild or build._book.get_script() != Book or not ClubCareer.same(build._bank._catalog,ownership_catalog()): return {}
+	var value: Dictionary = {"version":1,"format":FORMAT,"factory":"general114","pitch_catalog":signature(),"player_catalog":player_signature(),
+		"build":_take(build,BUILD,["last_error"]+OBJECTS),"bank":_take(build._bank,BANK,["_catalog"]),"book":_take(build._book,BOOK),
+		"gear":_take(build._gear_progress,GEAR),"sponsor":_take(build._sponsor_progress,SPONSOR),"major":_take(build._major,MAJOR),
+		"abilities":_take(build._abilities,ABILITIES),"copy":_take(build._copy,COPY)}
+	return value if _validate(value) else {}
+
+static func restore(value: Variant) -> SeasonBuild:
+	if not _validate(value): return null
+	# Named factory only. Future Dynasty adapter requires an explicit schema review.
+	var build: SeasonBuild = GameBuild.new(int(value.build._seed),[],[],[],true)
+	build._bank = SeasonOwnership.new(ownership_catalog())
+	build._book = Book.new(value.book._season_key,true)
+	_put(build,value.build,BUILD)
+	for field: String in ["_game_rosters","_income_by_game"]:
+		var mapped: Dictionary = {}
+		for key: Variant in build.get(field):
+			if not str(key).is_valid_int(): return null
+			mapped[int(key)] = build.get(field)[key]
+		build.set(field,mapped)
+	_put(build._bank,value.bank,BANK)
+	_put(build._book,value.book,BOOK)
+	_put(build._gear_progress,value.gear,GEAR)
+	_put(build._sponsor_progress,value.sponsor,SPONSOR)
+	_put(build._major,value.major,MAJOR)
+	_put(build._abilities,value.abilities,ABILITIES)
+	_put(build._copy,value.copy,COPY)
+	if not build._bank.context_valid() or not build.pricing_context_valid() or not build._bank.completion_closed(): return null
+	var cap: Dictionary = build._bank._capacity(build._bank._state)
+	if build._bank._state.held.size() > cap.held or build._bank._state.sponsors.size() > cap.sponsors: return null
+	return build if ClubCareer.same(capture(build),value) else null
+
+static func _take(object: Object, fields: Dictionary, ignored: Array = []) -> Dictionary:
+	if object == null: return {}
+	for property: Dictionary in object.get_property_list():
+		if int(property.usage)&PROPERTY_USAGE_SCRIPT_VARIABLE and not fields.has(property.name) and not ignored.has(property.name): return {}
+	var result: Dictionary = {}
+	for field: String in fields:
+		var v: Variant = object.get(field)
+		result[field] = v.duplicate(true) if v is Array or v is Dictionary else v
+	return result
+
+static func _put(object: Object, value: Dictionary, fields: Dictionary) -> void:
+	for field: String in fields:
+		var v: Variant = value[field]
+		if fields[field].begins_with("Array["):
+			object.get(field).assign(v.duplicate(true))
+		else:
+			object.set(field,int(v) if fields[field] == "int" else (v.duplicate(true) if v is Array or v is Dictionary else v))
+
+static func _primitive(value: Variant) -> bool:
+	var stack: Array = [[value,0]]
+	var remaining: int = 500000
+	while not stack.is_empty():
+		remaining -= 1
+		if remaining < 0: return false
+		var pair: Array = stack.pop_back()
+		var item: Variant = pair[0]
+		if pair[1] > 64: return false
+		if item is Dictionary:
+			for key: Variant in item:
+				if typeof(key) not in [TYPE_STRING,TYPE_STRING_NAME,TYPE_INT]: return false
+				stack.append([item[key],pair[1]+1])
+		elif item is Array:
+			for child: Variant in item: stack.append([child,pair[1]+1])
+		elif item is float:
+			if not is_finite(item): return false
+		elif typeof(item) not in [TYPE_NIL,TYPE_BOOL,TYPE_INT,TYPE_STRING,TYPE_STRING_NAME]: return false
+	return JSON.stringify(value,"",true,true).to_utf8_buffer().size() <= MAX_BYTES
+
+static func _shape(value: Variant, fields: Dictionary) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value,fields.keys()): return false
+	for field: String in fields:
+		var v: Variant = value[field]
+		var type: String = fields[field]
+		if type == "int" and not SeasonOwnership._whole(v,-2147483648,2147483647): return false
+		if type == "bool" and not v is bool: return false
+		if type == "String" and not v is String: return false
+		if type == "Dictionary" and not v is Dictionary: return false
+		if type == "Variant" and v != null:
+			if field in ["_batch_start"] and not v is Array: return false
+			elif field in ["_supply_start"] and not SeasonOwnership._whole(v,0,3): return false
+			elif field not in ["_batch_start","_supply_start","start"] and not v is bool: return false
+		if type.begins_with("Array"):
+			if not v is Array: return false
+			for item: Variant in v:
+				if type == "Array[String]" and not item is String: return false
+				if type == "Array[Dictionary]" and not item is Dictionary: return false
+	return true
+
+static func _journal(events: Array, requests: Dictionary, limit: int, bank: bool = false) -> bool:
+	if events.size() > limit or (not bank and requests.size() != events.size()): return false
+	var seen: Dictionary = {}
+	for i in range(events.size()):
+		var row: Dictionary = events[i]
+		if not row.get("id") is String or row.id.is_empty() or seen.has(row.id) or not row.get("op") is String or not SeasonOwnership._whole(row.get("rev"),i,i) or not requests.has(row.id): return false
+		var stored: Variant = requests[row.id]
+		if stored is String: stored = JSON.parse_string(stored)
+		if not ClubCareer.same(stored,row): return false
+		seen[row.id] = true
+	for id: Variant in requests:
+		if seen.has(id): continue
+		var extra: Variant = requests[id]
+		if not bank or not extra is Dictionary: return false
+		if extra.size()!=1: return false
+		var parent: Variant = extra.get("set",extra.get("field_sale"))
+		if not parent is String or not seen.has(parent): return false
+	return true
+
+static func _ids(value: Array, limit: int) -> bool:
+	_ensure_player_baselines()
+	if value.size()>limit: return false
+	var seen: Dictionary = {}
+	for id: Variant in value:
+		if not id is String or not _player_baselines.has(id) or seen.has(id): return false
+		seen[id] = true
+	return true
+
+static func _validate(value: Variant) -> bool:
+	_ensure_player_baselines()
+	if not _primitive(value) or not value is Dictionary or not SeasonOwnership._keys(value,["version","format","factory","pitch_catalog","player_catalog","build","bank","book","gear","sponsor","major","abilities","copy"]): return false
+	if value.version != 1 or value.format != FORMAT or value.factory != "general114" or value.pitch_catalog != signature() or value.player_catalog != player_signature(): return false
+	for key: String in {"build":BUILD,"bank":BANK,"book":BOOK,"gear":GEAR,"sponsor":SPONSOR,"major":MAJOR,"abilities":ABILITIES,"copy":COPY}:
+		var fields: Dictionary = {"build":BUILD,"bank":BANK,"book":BOOK,"gear":GEAR,"sponsor":SPONSOR,"major":MAJOR,"abilities":ABILITIES,"copy":COPY}[key]
+		if not _shape(value[key],fields): return false
+	var b: Dictionary = value.build
+	var book: Dictionary = value.book
+	if not SeasonOwnership._whole(b._seed,0,2147483647) or int(b._format) not in [41,42,43,44,45,46] or int(b._market) not in [0,12] or b._legacy_gap_name: return false
+	if not SeasonOwnership._whole(value.bank._format,1,5): return false
+	if not b._dynasty_start.is_empty() or not book._dynasty_start.is_empty(): return false
+	if book._pitch_catalog_version != Catalog.VERSION or book._season_key != "season:%d"%int(b._seed): return false
+	if not _ids(b._roster,4) or not _ids(b._initial_roster,4) or not _ids(b._pool,_player_ids.size()) or not _ids(b._blocked,_player_ids.size()): return false
+	for id: String in b._roster:
+		if not b._pool.has(id) or b._blocked.has(id): return false
+	if not _journal(b._events,b._requests,SeasonBuild.MAX_EVENTS) or not _journal(book._events,book._requests,SeasonDevelopment.MAX_EVENTS) or not _journal(value.bank._events,value.bank._requests,SeasonOwnership.MAX_EVENTS,true): return false
+	if not _players(book._players,LeagueRules.scramble(b._league_rules)) or not _wallet(value.bank._state) or not _fresh_wallet(value.bank): return false
+	if not _visit_valid(b._visit): return false
+	if b._visit.has("pack_status"):
+		if b._visit.pack_status not in ["sealed","open","used","skipped"] or not b._visit.get("cards") is Array: return false
+		for card: Variant in b._visit.cards:
+			if not card is String or not DevelopmentShopCatalog.CARDS.has(card): return false
+	for id: Variant in value.abilities.learned:
+		if not id is String or not book._players.has(id) or not value.abilities.learned[id] is Array: return false
+		var slots: Dictionary = {"Hitting":0,"Fielding":0}
+		for receipt: Variant in value.abilities.learned[id]:
+			if not receipt is Dictionary or not SeasonOwnership._keys(receipt,["id","item","slot","paid"]) or not SeasonAbilities.ITEMS.has(receipt.item): return false
+			var item: Dictionary = SeasonAbilities.ITEMS[receipt.item]
+			if not receipt.id is String or receipt.id.is_empty() or receipt.slot != item.slot or receipt.paid != item.price: return false
+			slots[receipt.slot] += 1
+		if slots.Hitting > 1 or slots.Fielding > (2 if value.major.player == id else 1): return false
+	return true
+
+static func _players(players: Dictionary, scramble: bool = false) -> bool:
+	_ensure_player_baselines()
+	if not SeasonOwnership._keys(players,_player_ids): return false
+	for id: String in players:
+		var p: Variant = players[id]
+		var authored: Dictionary = _player_baselines[id]
+		if not p is Dictionary: return false
+		var fields: Array = ["id","base","stats","capacity","active","mastery"]
+		if p.has("catchup"):
+			if not p.catchup is Dictionary: return false
+			fields.append("catchup")
+		if not SeasonOwnership._keys(p,fields) or p.id != id or not ClubCareer.same(p.base,authored.base) or p.capacity != authored.capacity or not p.stats is Dictionary or not SeasonOwnership._keys(p.stats,SeasonPlayerCatalog.STATS) or not p.mastery is Dictionary or not p.active is Array or p.active.size()>p.capacity: return false
+		for stat: String in SeasonPlayerCatalog.STATS:
+			if not SeasonOwnership._whole(p.stats[stat],1 if scramble else int(authored.base[stat]),SeasonPlayerCatalog.STAT_CAP): return false
+		var seen: Dictionary = {}
+		for recipe: Variant in p.active:
+			if not recipe is String or seen.has(recipe) or not p.mastery.has(recipe): return false
+			seen[recipe] = true
+		for recipe: Variant in p.mastery:
+			if not recipe is String or not active_recipe(recipe) or not SeasonOwnership._whole(p.mastery[recipe],int(authored.mastery.get(recipe,1)),5): return false
+		for recipe: String in authored.mastery:
+			if not p.mastery.has(recipe): return false
+	return true
+
+static func _wallet(state: Dictionary) -> bool:
+	var fields: Array = ["cash","gear","sponsors","held","stock","seen_offers","rewards"]
+	for optional: String in ["spare","sponsor_pending"]:
+		if state.has(optional): fields.append(optional)
+	if not SeasonOwnership._keys(state,fields) or not SeasonOwnership._whole(state.cash,0,2147483647) or not state.gear is Dictionary or not SeasonOwnership._keys(state.gear,["bat","ball","misc"]) or not state.sponsors is Array or not state.held is Array or not state.stock is Dictionary or not state.seen_offers is Array or not state.rewards is Dictionary: return false
+	var catalog: Dictionary = SeasonSponsorCatalog.ownership_catalog()
+	var receipts: Array = []
+	for slot: String in state.gear:
+		if not state.gear[slot] is Dictionary: return false
+		if not state.gear[slot].is_empty(): receipts.append([state.gear[slot],"gear",slot])
+	for receipt: Variant in state.sponsors: receipts.append([receipt,"sponsor",""])
+	for receipt: Variant in state.held: receipts.append([receipt,"held",""])
+	if state.has("spare"):
+		if not state.spare is Dictionary: return false
+		if not state.spare.is_empty(): receipts.append([state.spare,"gear",""])
+	var seen: Dictionary = {}
+	for row: Array in receipts:
+		var receipt: Variant = row[0]
+		if not receipt is Dictionary: return false
+		var keys: Array = ["id","item","kind","paid"]
+		for optional: String in ["terms","games_remaining"]:
+			if receipt.has(optional): keys.append(optional)
+		if not SeasonOwnership._keys(receipt,keys) or not receipt.get("id") is String or receipt.id.is_empty() or seen.has(receipt.id) or not receipt.get("item") is String or not catalog.has(receipt.item): return false
+		var item: Dictionary = catalog[receipt.item]
+		if receipt.kind != row[1] or receipt.kind != item.kind or (not row[2].is_empty() and item.get("slot") != row[2]) or not SeasonOwnership._whole(receipt.paid,0,int(item.price)): return false
+		seen[receipt.id] = true
+	for id: Variant in state.stock.values():
+		if not id is String or not catalog.has(id): return false
+	return true
+
+static func capture_bank(bank: SeasonOwnership) -> Dictionary:
+	if bank == null or bank.get_script() != SeasonOwnership: return {}
+	var kind: String = "empty" if bank._catalog.is_empty() else "season"
+	if kind == "season" and not ClubCareer.same(bank._catalog,ownership_catalog()): return {}
+	var data: Dictionary = _take(bank,BANK,["_catalog"])
+	if not _primitive(data) or not _shape(data,BANK) or not _wallet(data._state) or not _fresh_wallet(data) or not _journal(data._events,data._requests,SeasonOwnership.MAX_EVENTS,true): return {}
+	return {"version":1,"catalog":kind,"data":data}
+
+static func restore_bank(value: Variant) -> SeasonOwnership:
+	if not _primitive(value) or not value is Dictionary or not SeasonOwnership._keys(value,["version","catalog","data"]) or value.version != 1 or value.catalog not in ["empty","season"]: return null
+	var data: Variant = value.data
+	if not _shape(data,BANK) or not SeasonOwnership._whole(data._format,1,5) or not _wallet(data._state) or not _fresh_wallet(data) or not _journal(data._events,data._requests,SeasonOwnership.MAX_EVENTS,true): return null
+	if value.catalog == "empty":
+		# A no-catalog auxiliary bank cannot own authored merchandise.
+		for receipt: Dictionary in data._state.gear.values():
+			if not receipt.is_empty(): return null
+		if not data._state.sponsors.is_empty() or not data._state.held.is_empty() or not data._state.stock.is_empty() or not data._state.get("spare",{}).is_empty(): return null
+	var bank: SeasonOwnership = SeasonOwnership.new({} if value.catalog == "empty" else ownership_catalog())
+	_put(bank,data,BANK)
+	if not bank.context_valid() or not bank.completion_closed(): return null
+	var cap: Dictionary = bank._capacity(bank._state)
+	if bank._state.held.size()>cap.held or bank._state.sponsors.size()>cap.sponsors: return null
+	return bank if ClubCareer.same(capture_bank(bank),value) else null
+
+static func _fresh_wallet(value: Dictionary) -> bool:
+	if not value._events.is_empty(): return true
+	var state: Dictionary = value._state
+	if state.cash != 0 or not state.rewards.is_empty() or not state.stock.is_empty() or not state.seen_offers.is_empty() or not state.sponsors.is_empty() or not state.held.is_empty() or not state.get("spare",{}).is_empty() or not state.get("sponsor_pending",{}).is_empty(): return false
+	for receipt: Dictionary in state.gear.values():
+		if not receipt.is_empty(): return false
+	return true
+
+static func _visit_valid(visit: Dictionary) -> bool:
+	var allowed: Array = ["number","open","rerolls","offers","cards","pack_status","focused_category","focused_used","mix_used","pack_paid","pack_picked","pair_used","rain_carried","rain_price","reclamation_used","recruit","reroll_credit","transfer_used","unavailable_slots","union_credit","union_earned","wholesale_used"]
+	for key: Variant in visit:
+		if not allowed.has(key): return false
+	if not visit.get("open") is bool or not SeasonOwnership._whole(visit.get("number"),0,SeasonBuild.MAX_EVENTS): return false
+	for field: String in ["rerolls","union_credit","reroll_credit","rain_price"]:
+		if visit.has(field) and not SeasonOwnership._whole(visit[field],0,1000000): return false
+	if visit.has("offers") and not visit.offers is Dictionary: return false
+	if visit.has("pack_picked") and not visit.pack_picked is Array: return false
+	if visit.number == 0 and not SeasonOwnership._keys(visit,["number","open"]): return false
+	return true

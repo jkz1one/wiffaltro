@@ -1,0 +1,72 @@
+extends "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
+## Same authored gameplay; new explicitly materialized owner persistence.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Opponents = preload("res://src/gameplay/season/successor_league_general_v2/opponents.gd")
+const Physical = preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const LiveCareer = preload("career.gd")
+const Starts = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
+const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
+
+static func create_fresh(seed_value: int, league: String = "standard") -> SeasonState:
+	if not SeasonOwnership._whole(seed_value,0,2147483647) or league not in ["standard","dugout"]: return null
+	var result: SeasonState = load("res://src/gameplay/season/successor_live_owner_v1/runtime.gd").new()
+	result.season_seed = seed_value
+	result.league_rules = {} if league == "standard" else LeagueRules.capture("dugout")
+	result.league_live = league != "standard"
+	result.build = Build.new(seed_value)
+	if not result.build.enable_successor_pitch_catalog() or (result.league_live and not result.build.enable_league_rules(result.league_rules)): return null
+	result.opponents = Opponents.new(); result.opponents._format = 13
+	result.physical = Physical.new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new(); rng.seed = seed_value
+	result.draft_pool = ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
+	for index in range(6): result.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":[],"draw":rng.randf()})
+	result._build_schedule()
+	var basis: Dictionary = Genesis.derive(seed_value)
+	if basis.is_empty() or not Starts._install(result.build,basis) or not ClubPlayerDraft.apply(result,basis.player_access): return null
+	var ledger: ClubCareer = LiveCareer.new()
+	ledger.current = 1; ledger.runs.append({})
+	ledger.start_basis = basis
+	ledger._assets = basis.assets.duplicate(true)
+	ledger._pennants = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd").birth_pennants(basis)
+	ledger._plaques = basis.plaques.duplicate(true)
+	ledger._pitch_catalog = preload("catalog.gd").game_signature()
+	result.career = ledger; result.league_career = true
+	return result if ledger.sync(result) else null
+
+func league_context_consistent() -> bool:
+	return load("res://src/gameplay/season/successor_live_owner_v1/codec.gd").scope(self)
+func _league_inventory_context_consistent() -> bool:
+	return league_context_consistent()
+func choose_player(id: String) -> bool:
+	# Store owns a detached materialized candidate. This invokes114's local
+	# gameplay operation, not117's historical clone/choose/capture path.
+	if not league_context_consistent() or not super.choose_player(id): return false
+	if picks.size() == 4 and not Starts._install(build,career.start_basis): return false
+	return career.sync(self)
+func adopt_build(next: SeasonBuild) -> void:
+	if next == null or not league_context_consistent(): return
+	super.adopt_build(next)
+	career.sync(self)
+
+func fork_live() -> SeasonState:
+	# Explicit detached transaction fork, not reconstruction of past commands.
+	var codec = load("res://src/gameplay/season/successor_live_owner_v1/codec.gd")
+	if not codec.scope(self) or not codec.known_variables(self,codec.FIELDS+codec.OBJECTS): return null
+	if _heat_replay_team != null or _doubleheader_replay_build != null or _pool_replay_ledger != null: return null
+	var result: SeasonState = get_script().new()
+	if not codec.install_fields(result,codec.FIELDS,codec.data_fields(self,codec.FIELDS)): return null
+	var detach = preload("res://src/gameplay/season/successor_owner_career_v1/pending.gd")
+	result.ownership = ownership.fork()
+	result.build = detach._fork_build(build)
+	result.career = career.fork()
+	result.opponents = Opponents.new()
+	result.opponents._format = opponents._format
+	result.opponents.draft_rule = opponents.draft_rule
+	result.opponents.draft_order.assign(opponents.draft_order)
+	for id: String in opponents.clubs:
+		var club: Dictionary = opponents.clubs[id].duplicate(true)
+		club.build = detach._fork_build(opponents.clubs[id].build)
+		result.opponents.clubs[id] = club
+	result.physical = Physical.new()
+	if not codec.install_fields(result.physical,codec.PHYSICAL_FIELDS,codec.data_fields(physical,codec.PHYSICAL_FIELDS)): return null
+	return result

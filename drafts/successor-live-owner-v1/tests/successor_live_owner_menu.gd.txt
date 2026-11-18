@@ -1,0 +1,57 @@
+extends Node
+## Rendered UI invariant only. No saves, currency, games or player tuning changes.
+const Runtime = preload("res://src/gameplay/season/successor_live_owner_v1/runtime.gd")
+const SCENE: String = "res://src/presentation/season/successor_live_owner_v1/launcher.tscn"
+var failed: bool = false
+func _ready() -> void: call_deferred("run")
+func check(ok: bool, label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok: failed = true
+	return ok
+func summary_matches(app: SeasonApp,id: String) -> bool:
+	var definition: PlayerDefinition = app.season.build.definition(id)
+	var ids: Array[String] = []
+	var names: Array[String] = []
+	for pitch: PitchDefinition in definition.starting_pitches:
+		ids.append(String(pitch.id)); names.append(pitch.display_name)
+	var stats: Dictionary = app.season.build.player(id).stats
+	var labels: Array[String] = []
+	for key: String in SeasonPlayerCatalog.STATS: labels.append(key.capitalize()+": "+str(stats[key]))
+	var children: Array[Node] = app.menu._body.get_children()
+	for i in range(children.size()-2):
+		if (children[i] is Button or children[i] is Label) and children[i].text == definition.display_name:
+			var pitches: Node = children[i+1]
+			var ratings: Node = children[i+2]
+			return check(pitches is Label and ratings is Label and pitches.text == "Pitches: "+", ".join(names) and pitches.get_meta("pitch_ids",[]) == ids and ratings.text == " · ".join(labels) and ratings.get_meta("stat_keys",[]) == SeasonPlayerCatalog.STATS,"rendered "+id+" exact actual build repertoire IDs and all four ratings")
+	return check(false,"summary heading exists for "+id)
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated presentation-only test"): get_tree().quit(1); return
+	var seed_value: int = int(OS.get_cmdline_user_args()[0]) if not OS.get_cmdline_user_args().is_empty() else 700118
+	var app = load(SCENE).instantiate(); add_child(app); await get_tree().process_frame
+	app.season = Runtime.create_fresh(seed_value,"dugout")
+	if not check(app.season != null,"genuine fresh authored Dugout for menu checks"): get_tree().quit(1); return
+	var seen: Array[String] = []
+	var native_picks: Array[String] = ["player.jules_moss","player.val_morgan","player.finley_brooks","player.jo_lane"]
+	for pick in range(4):
+		app.show_season()
+		for id: String in app.season.offers():
+			if not summary_matches(app,id): get_tree().quit(1); return
+			if not seen.has(id): seen.append(id)
+		var selected: String = native_picks[pick] if seed_value == 1794975511 else app.season.offers()[0]
+		if not check(app.season.offers().has(selected) and app.season.choose_player(selected),"real draft advances presentation fixture"): get_tree().quit(1); return
+	app.show_season()
+	for id: String in app.season.teams[0].roster:
+		if not summary_matches(app,id): get_tree().quit(1); return
+	# Explicit regressions use actual build state and same summary renderer;
+	# they do not inject a save, a roster, an award or a completed game.
+	for id: String in ["player.val_morgan","player.jo_lane"]:
+		var definition: PlayerDefinition = app.season.build.definition(id)
+		app.menu._screen("home","SUMMARY REGRESSION","Presentation-only fixture")
+		app.menu._label(app.menu._body,definition.display_name,22)
+		app.menu._player_summary(definition)
+		if not summary_matches(app,id): get_tree().quit(1); return
+	if not check(not FileAccess.file_exists("user://wiffaltro-materialized-draft-v1.json"),"presentation test wrote no save"): get_tree().quit(1); return
+	print("OFFERED_IDS: ",seen)
+	app.queue_free(); await get_tree().process_frame
+	if not failed: print("PASS: actual offered and roster summaries match build pitches and contact/power/fielding/pitching; no gameplay qualification")
+	get_tree().quit(1 if failed else 0)

@@ -20,6 +20,8 @@ FAMILIES = (
     'successor-owner-career-v1',
 )
 LAUNCHER = 'res://src/presentation/season/successor_owner_career_v1/launcher.tscn'
+LIVE_FAMILY = 'successor-live-owner-v1'
+LIVE_LAUNCHER = 'res://src/presentation/season/successor_live_owner_v1/launcher.tscn'
 
 def safe(name):
     p = PurePosixPath(name)
@@ -30,7 +32,7 @@ def safe(name):
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def assemble(repo, destination, tests=()):
+def assemble(repo, destination, tests=(), live_owner=False):
     repo, destination = repo.resolve(), destination.resolve()
     if destination.exists():
         raise ValueError('Destination must not exist; no files or saves are overwritten')
@@ -43,7 +45,9 @@ def assemble(repo, destination, tests=()):
         payload[name] = path.read_bytes()
     requested = set(tests)
     found = set()
-    for family in FAMILIES:
+    families = FAMILIES + ((LIVE_FAMILY,) if live_owner else ())
+    launcher = LIVE_LAUNCHER if live_owner else LAUNCHER
+    for family in families:
         manifest = json.loads((repo / 'drafts' / family / 'DRAFT_MANIFEST.json').read_text())
         for row in manifest.get('files', []) + manifest.get('additions', []):
             name = safe(row['restore_path'])
@@ -66,13 +70,13 @@ def assemble(repo, destination, tests=()):
     original = 'run/main_scene="res://src/presentation/season/season_app.tscn"'
     if config.count(original) != 1:
         raise ValueError('Unexpected original main scene')
-    payload['project.godot'] = config.replace(original, f'run/main_scene="{LAUNCHER}"').encode()
+    payload['project.godot'] = config.replace(original, f'run/main_scene="{launcher}"').encode()
     destination.mkdir(parents=True)
     for name, data in payload.items():
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-    record = {'format': 'wiffaltro-source-assembly-v1', 'launcher': LAUNCHER,
+    record = {'format': 'wiffaltro-source-assembly-v1', 'launcher': launcher,
               'files': {name: sha(data) for name, data in sorted(payload.items())}}
     (destination / 'ASSEMBLY.json').write_text(json.dumps(record, indent=2)+'\n')
     return record
@@ -81,6 +85,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('destination', type=Path)
     parser.add_argument('--test', action='append', default=[])
+    parser.add_argument('--live-owner', action='store_true', help='Select the additive materialized-owner launcher; old project and save slots remain unchanged')
     args = parser.parse_args()
-    result = assemble(Path(__file__).resolve().parents[1], args.destination, args.test)
+    result = assemble(Path(__file__).resolve().parents[1], args.destination, args.test, args.live_owner)
     print(f'Assembled {len(result["files"])} verified source files; no saves copied.')

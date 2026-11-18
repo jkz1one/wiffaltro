@@ -45,6 +45,11 @@ class AssemblyTests(unittest.TestCase):
                     assembly.assemble(repo, target)
                 tested = assembly.assemble(repo, root/'tested', ['tests/check.gd'])
                 self.assertIn('tests/check.gd', tested['files'])
+                with patch.object(assembly, 'LIVE_FAMILY', 'test'):
+                    live = assembly.assemble(repo, root/'live', live_owner=True)
+                    self.assertEqual(live['launcher'], assembly.LIVE_LAUNCHER)
+                    self.assertIn(assembly.LIVE_LAUNCHER, (root/'live/project.godot').read_text())
+                    self.assertEqual((repo/'project.godot').read_text(), config)
                 (folder/'new.gd').write_text('corrupted')
                 with self.assertRaises(ValueError):
                     assembly.assemble(repo, root/'bad')

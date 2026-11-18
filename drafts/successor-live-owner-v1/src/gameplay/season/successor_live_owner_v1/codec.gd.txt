@@ -1,0 +1,212 @@
+extends RefCounted
+## Materialized offline consistency contract. No historical physics/journal replay.
+const Catalog = preload("catalog.gd")
+const Builds = preload("build_codec.gd")
+const Runtime = preload("runtime.gd")
+const Career = preload("career.gd")
+const GameBuild = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Opponents = preload("res://src/gameplay/season/successor_league_general_v2/opponents.gd")
+const Physical = preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const FIELDS: Array[String] = ["league_rules","inventory_rules","league_live","season_seed","phase","round_index","draft_pool","player_access","home_property","owned_surface_night","npc_venues","final_venue","picks","teams","schedule","results","player_results","playoff_seeds","semifinals","final_fixture","champion","starter_index","fielder_index","difficulty","league_career","_dynasty_start","_closed_access","_dynasty_owner_binding","_league_home_context","_standard_live_context","_standard_bound_grant","_dynasty_career_session","_npc_replay_run"]
+const OBJECTS: Array[String] = ["ownership","build","opponents","career","physical","_heat_replay_team","_doubleheader_replay_build","_pool_replay_ledger"]
+const CAREER_FIELDS: Array[String] = ["current","runs","_assets","_pennants","_plaques","_pitch_catalog","start_basis"]
+const PHYSICAL_FIELDS: Array[String] = ["reports","pending","cursor","needed","error","projecting"]
+static var restore_calls: int = 0 # Diagnostics, never persistence authority.
+static var _pristine_reference: SeasonState
+static var _pristine_payloads: Dictionary = {}
+static var birth_reference_creations: int = 0
+static var draft_reference_operations: int = 0
+
+static func primitive(value: Variant) -> bool:
+	var queue: Array = [[value,0]]
+	var budget: int = 1000000
+	while not queue.is_empty():
+		budget -= 1
+		if budget < 0: return false
+		var entry: Array = queue.pop_back()
+		var v: Variant = entry[0]
+		if entry[1] > 40: return false
+		if v is Dictionary:
+			for key: Variant in v:
+				if not key is String: return false
+				queue.append([v[key],entry[1]+1])
+		elif v is Array:
+			for child: Variant in v: queue.append([child,entry[1]+1])
+		elif typeof(v) not in [TYPE_NIL,TYPE_BOOL,TYPE_INT,TYPE_FLOAT,TYPE_STRING]: return false
+		elif typeof(v) == TYPE_FLOAT and not is_finite(v): return false
+	return true
+static func keys(value: Variant, names: Array) -> bool:
+	if not value is Dictionary or value.size() != names.size(): return false
+	for name: String in names:
+		if not value.has(name): return false
+	return true
+static func whole(v: Variant, lo: int, hi: int) -> bool:
+	return typeof(v) in [TYPE_INT,TYPE_FLOAT] and is_finite(float(v)) and float(v) == floor(float(v)) and v >= lo and v <= hi
+static func same(a: Variant,b: Variant) -> bool:
+	# JSON numbers hydrate as floats. Compare primitive semantics without
+	# repeatedly serializing the entire owner or relying on typed-array equality.
+	if typeof(a) in [TYPE_INT,TYPE_FLOAT] and typeof(b) in [TYPE_INT,TYPE_FLOAT]: return float(a) == float(b)
+	if a is Array and b is Array:
+		if a.size() != b.size(): return false
+		for i in range(a.size()):
+			if not same(a[i],b[i]): return false
+		return true
+	if a is Dictionary and b is Dictionary:
+		if a.size() != b.size(): return false
+		for key: Variant in a:
+			if not b.has(key) or not same(a[key],b[key]): return false
+		return true
+	return typeof(a) == typeof(b) and a == b
+static func data_fields(object: Object, names: Array[String]) -> Dictionary:
+	var data: Dictionary = {}
+	for name: String in names:
+		var value: Variant = object.get(name)
+		data[name] = value.duplicate(true) if value is Array or value is Dictionary else value
+	return data
+static func install_fields(object: Object, names: Array[String], data: Variant) -> bool:
+	if not keys(data,names): return false
+	for name: String in names:
+		var current: Variant = object.get(name)
+		var value: Variant = data[name]
+		if current is Array:
+			if not value is Array: return false
+			# Validate element type before assigning into a typed native array.
+			var kind: int = current.get_typed_builtin()
+			for item: Variant in value:
+				if kind == TYPE_INT:
+					if not whole(item,-2147483648,2147483647): return false
+				elif kind != TYPE_NIL and typeof(item) != kind: return false
+			current.assign(value.duplicate(true))
+		elif current is Dictionary:
+			if not value is Dictionary: return false
+			object.set(name,value.duplicate(true))
+		elif typeof(current) == TYPE_INT:
+			if not whole(value,-2147483648,2147483647): return false
+			object.set(name,int(value))
+		elif typeof(value) == typeof(current): object.set(name,value)
+		else: return false
+	return true
+static func known_variables(object: Object, names: Array) -> bool:
+	for property: Dictionary in object.get_property_list():
+		if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE and not names.has(property.name): return false
+	return true
+
+static func scope(season: SeasonState) -> bool:
+	if season == null or season.get_script() != Runtime or season.build == null or season.build.get_script() != GameBuild \
+		or season.career == null or season.career.get_script() != Career or not season.league_career \
+		or season.opponents == null or season.opponents.get_script() != Opponents or season.opponents._format != 13 \
+		or season.physical == null or season.physical.get_script() != Physical or season.ownership == null: return false
+	if not whole(season.season_seed,0,2147483647) or season.career.current != 1 or season.career.runs.size() != 1: return false
+	var expected: Dictionary = {} if season.league_rules.is_empty() else LeagueRules.capture("dugout")
+	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
+	var marker: Variant = season.career.start_basis.get("genesis")
+	if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
+	return true
+
+static func _structural_valid(season: SeasonState) -> bool:
+	if not scope(season) or not known_variables(season,FIELDS+OBJECTS) or not known_variables(season.career,CAREER_FIELDS): return false
+	if season._heat_replay_team != null or season._doubleheader_replay_build != null or season._pool_replay_ledger != null or season._npc_replay_run != -1: return false
+	if season.physical.projecting or season.physical.cursor != season.physical.reports.size(): return false
+	if season.teams.size() != 6 or season.draft_pool.size() < 12 or season.player_access.is_empty() or season.picks.size() > 4: return false
+	if not whole(season.phase,0,4) or not whole(season.round_index,0,10) or not whole(season.difficulty,0,2): return false
+	if season.phase == SeasonState.Phase.DRAFT:
+		if season.picks.size() >= 4 or not season.results.is_empty() or not season.opponents.clubs.is_empty(): return false
+	else:
+		if season.picks.size() != 4 or season.opponents.clubs.size() != 5: return false
+	var seen: Dictionary = {}
+	for id: String in season.draft_pool:
+		if ContentDB.get_player(StringName(id)) == null or seen.has(id): return false
+		seen[id] = true
+	seen.clear()
+	for id: String in season.picks:
+		if not season.draft_pool.has(id) or seen.has(id): return false
+		seen[id] = true
+	for i in range(6):
+		var team: Dictionary = season.teams[i]
+		if not team.get("name") is String or not team.get("roster") is Array: return false
+		if season.phase == SeasonState.Phase.DRAFT:
+			if not team.roster.is_empty(): return false
+		else:
+			var build: SeasonBuild = season.build if i == 0 else season.opponents.clubs.get(str(i),{}).get("build")
+			if build == null or team.roster.size() != 4 or not same(team.roster,build.roster()): return false
+	#70 is a fully integrated fresh/draft checkpoint, not earned-game admission.
+	#71 must explicitly version/qualify its expanded live-state consistency rules.
+	if season.phase not in [SeasonState.Phase.DRAFT,SeasonState.Phase.REGULAR] or season.round_index != 0 or not season.results.is_empty() or not season.player_results.is_empty() or not season.physical.reports.is_empty() or not season.physical.pending.is_empty(): return false
+	if season.schedule.size() != 30: return false
+	for fixture: Dictionary in season.schedule:
+		if not whole(fixture.get("id"),0,29) or not whole(fixture.get("round"),0,9) or not whole(fixture.get("home"),0,5) or not whole(fixture.get("away"),0,5) or fixture.home == fixture.away: return false
+	return true
+
+static func _pristine_expected(season: SeasonState) -> Dictionary:
+	var league: String = "standard" if season.league_rules.is_empty() else "dugout"
+	var key: String = str(season.season_seed)+":"+league+":"+JSON.stringify(season.picks)
+	if _pristine_payloads.has(key): return _pristine_payloads[key]
+	var prefix: bool = _pristine_reference != null and _pristine_reference.season_seed == season.season_seed and same(_pristine_reference.league_rules,season.league_rules) and _pristine_reference.picks.size() <= season.picks.size()
+	if prefix:
+		for i in range(_pristine_reference.picks.size()):
+			if _pristine_reference.picks[i] != season.picks[i]: prefix = false; break
+	if not prefix:
+		_pristine_payloads.clear() # One current seed/league/branch, at most five positions.
+		_pristine_reference = Runtime.create_fresh(season.season_seed,league)
+		birth_reference_creations += 1
+	if _pristine_reference == null: return {}
+	while _pristine_reference.picks.size() < season.picks.size():
+		if not _pristine_reference.choose_player(season.picks[_pristine_reference.picks.size()]): return {}
+		draft_reference_operations += 1
+	var expected: Dictionary = _payload(_pristine_reference)
+	if not expected.is_empty():
+		if _pristine_payloads.size() >= 5: _pristine_payloads.erase(_pristine_payloads.keys()[0])
+		_pristine_payloads[key] = expected
+	return expected
+
+static func capture(season: SeasonState) -> Dictionary:
+	if not _structural_valid(season): return {}
+	var data: Dictionary = _payload(season)
+	if data.is_empty(): return {}
+	var expected: Dictionary = _pristine_expected(season)
+	return data if not expected.is_empty() and same(data,expected) else {}
+
+static func _payload(season: SeasonState) -> Dictionary:
+	var build: Dictionary = Builds.capture(season.build)
+	var bank: Dictionary = Builds.capture_bank(season.ownership)
+	if build.is_empty() or bank.is_empty(): return {}
+	var clubs: Dictionary = {}
+	for id: String in season.opponents.clubs:
+		var club: Dictionary = season.opponents.clubs[id].duplicate(true)
+		club.build = Builds.capture(club.build)
+		if club.build.is_empty(): return {}
+		clubs[id] = club
+	var data: Dictionary = {"version":Catalog.VERSION,"format":Catalog.FORMAT,"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
+		"state":data_fields(season,FIELDS),"ownership":bank,"build":build,"career":data_fields(season.career,CAREER_FIELDS),
+		"opponents":{"draft_order":season.opponents.draft_order.duplicate(),"draft_rule":season.opponents.draft_rule,"format":season.opponents._format,"clubs":clubs},
+		"physical":data_fields(season.physical,PHYSICAL_FIELDS)}
+	return data if primitive(data) else {}
+
+static func restore(value: Variant) -> SeasonState:
+	restore_calls += 1
+	if not primitive(value) or not keys(value,["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]) \
+		or not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT \
+		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
+	var result: SeasonState = Runtime.new()
+	if not install_fields(result,FIELDS,value.state): return null
+	result.build = Builds.restore(value.build)
+	result.ownership = Builds.restore_bank(value.ownership)
+	result.career = Career.new()
+	if not install_fields(result.career,CAREER_FIELDS,value.career): return null
+	result.physical = Physical.new()
+	if not install_fields(result.physical,PHYSICAL_FIELDS,value.physical): return null
+	var opponents: Variant = value.opponents
+	if not keys(opponents,["draft_order","draft_rule","format","clubs"]) or not opponents.draft_order is Array or not opponents.draft_rule is String or not whole(opponents.format,13,13) or not opponents.clubs is Dictionary: return null
+	result.opponents = Opponents.new(); result.opponents._format = 13
+	for id: Variant in opponents.draft_order:
+		if not whole(id,1,5): return null
+	result.opponents.draft_order.assign(opponents.draft_order)
+	result.opponents.draft_rule = opponents.draft_rule
+	for id: String in opponents.clubs:
+		if id not in ["1","2","3","4","5"] or not opponents.clubs[id] is Dictionary or not opponents.clubs[id].has("build"): return null
+		var club: Dictionary = opponents.clubs[id].duplicate(true)
+		club.build = Builds.restore(club.build)
+		if club.build == null: return null
+		result.opponents.clubs[id] = club
+	var captured: Dictionary = capture(result)
+	return result if not captured.is_empty() and same(captured,value) else null

@@ -1,0 +1,14 @@
+extends RefCounted
+##118/v1 admits genuine fresh/draft state only; earned gameplay requires an
+## explicit new semantic contract/migration. Not an anti-cheat/replay proof.
+const VERSION: int = 118
+const FORMAT: String = "wiffaltro-materialized-draft-owner-v1"
+const Game = preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+static var _game: String = ""
+static var _players: String = ""
+static func game_signature() -> String:
+	if _game.is_empty(): _game = Game.signature()
+	return _game
+static func player_signature() -> String:
+	if _players.is_empty(): _players = SeasonPlayerCatalog.signature()
+	return _players

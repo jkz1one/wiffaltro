@@ -1,0 +1,99 @@
+extends SeasonApp
+## Integrated materialized route. Original117/legacy launchers remain separate.
+const Runtime = preload("res://src/gameplay/season/successor_live_owner_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_owner_v1/codec.gd")
+const Store = preload("res://src/gameplay/season/successor_live_owner_v1/store.gd")
+const Page = preload("menu.gd")
+var selected_league: String = "standard"
+var retained: SeasonState
+var retained_owner: SeasonState
+var retained_expected: PackedByteArray = PackedByteArray()
+var retained_snapshot: Dictionary = {}
+var saved_bytes: PackedByteArray = PackedByteArray()
+var _content_roots: Array[Resource] = []
+var _prior_auto_quit: bool = true
+func _enter_tree() -> void:
+	_prior_auto_quit = get_tree().auto_accept_quit
+	get_tree().auto_accept_quit = false
+func _ready() -> void:
+	# Keep authored catalog Resources owned for this live route, not per-button reloads.
+	_content_roots = preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	Codec.Catalog.game_signature(); Codec.Catalog.player_signature()
+	menu = Page.new(); add_child(menu); menu.build(self)
+	show_season()
+func _exit_tree() -> void:
+	_loading_generation += 1
+	if is_inside_tree(): get_tree().auto_accept_quit = _prior_auto_quit
+	_content_roots.clear()
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		if retained != null or _busy:
+			notice = "Unsaved progress is retained. Retry before leaving."
+			show_season()
+		else: get_tree().quit()
+func _process(_delta: float) -> void:
+	pass # This checkpoint has no legacy match HUD/process callbacks.
+func show_season() -> void:
+	if is_instance_valid(menu): menu.call("render")
+func _available() -> bool:
+	return not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+func select_league(value: String) -> void:
+	if not _available() or season != null or value not in ["standard","dugout"]: return
+	selected_league = value; show_season()
+func create_fresh(seed_value: int = -1) -> void:
+	if not _available() or season != null: return
+	if Store.occupied():
+		notice = "This slot already contains saved or interrupted work. Continue it; nothing was overwritten."
+		show_season(); return
+	if seed_value == -1: seed_value = int(Time.get_unix_time_from_system()) & 0x7fffffff
+	_busy = true
+	var candidate: SeasonState = Runtime.create_fresh(seed_value,selected_league)
+	_busy = false
+	if candidate == null:
+		notice = "This fresh career could not be initialized. No save was written."
+		show_season(); return
+	_retain(candidate,PackedByteArray())
+func reload_save() -> void:
+	if not _available(): return
+	_busy = true
+	var before: PackedByteArray = Store.raw()
+	var candidate: SeasonState = Store.read()
+	if candidate != null and Store.raw() == before:
+		season = candidate; saved_bytes = before; notice = ""
+	else: notice = Store.last_error
+	_busy = false; show_season()
+func draft(id: String) -> void:
+	if not _available() or season == null or season.phase != SeasonState.Phase.DRAFT or not season.offers().has(id): return
+	if Store.raw() != saved_bytes:
+		notice = "The save changed outside this view. Reload before drafting."
+		show_season(); return
+	_busy = true
+	# One explicit detached operation fork, no historical reconstruction.
+	var candidate: SeasonState = season.fork_live()
+	if candidate != null and not candidate.choose_player(id): candidate = null
+	_busy = false
+	if candidate == null:
+		notice = "This choice could not be applied. Your current saved roster is unchanged."
+		show_season(); return
+	_retain(candidate,saved_bytes)
+func _retain(candidate: SeasonState, expected: PackedByteArray) -> void:
+	if retained != null: return
+	var snapshot: Dictionary = Codec.capture(candidate)
+	if snapshot.is_empty():
+		notice = "The candidate could not be represented consistently. Saved progress is unchanged."
+		show_season(); return
+	retained = candidate; retained_owner = season; retained_expected = expected.duplicate()
+	retained_snapshot = snapshot
+	retry_save()
+func retry_save() -> void:
+	if _busy or retained == null or season != retained_owner: return
+	_busy = true
+	if Store.save(retained,retained_expected,retained_snapshot):
+		season = retained; saved_bytes = Store.raw(); retained = null; retained_owner = null
+		retained_expected = PackedByteArray(); retained_snapshot = {}; notice = ""
+	else: notice = Store.last_error
+	_busy = false; show_season()
+func open_previous() -> void:
+	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/successor_owner_career_v1/launcher.tscn")
+func open_legacy() -> void:
+	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")

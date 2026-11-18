@@ -1,0 +1,85 @@
+{
+  "format": "inactive-materialized-live-owner-v1",
+  "source_checkpoint": "b0d17b8ef6f6d4a679a8bf2816273ae247d4a56b",
+  "scope": "Increment70 qualified additive fresh Standard/Dugout draft/save/cold route with native menu correction. No earned gameplay/Dynasty/distributable completion. Deferred Dynasty adapters excluded.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/gameplay/season/successor_live_owner_v1/build_codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_owner_v1/build_codec.gd",
+      "bytes": 21091,
+      "sha256": "496c39ac51f1cbaf79c107d47cb68031b3dd158f11915e647b4b4af21b92091f"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/gameplay/season/successor_live_owner_v1/career.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_owner_v1/career.gd",
+      "bytes": 906,
+      "sha256": "346ce90bcde1845b719fe24365d8cce2871fce8c8d8837af9f3946022ad1a3f8"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/gameplay/season/successor_live_owner_v1/catalog.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_owner_v1/catalog.gd",
+      "bytes": 648,
+      "sha256": "b6946c80f1d7f27292df6f9b1b9366b963f1faeb8182ce961b4d69c93a82847a"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/gameplay/season/successor_live_owner_v1/codec.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_owner_v1/codec.gd",
+      "bytes": 12993,
+      "sha256": "9b5a6e37b8ea4cf72602529f88e176983bdb1adc960f1b35f388f653bee63dde"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/gameplay/season/successor_live_owner_v1/runtime.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_owner_v1/runtime.gd",
+      "bytes": 4482,
+      "sha256": "7cfa41c5c37658e45920bb578bcda41d7c0bcdfcb156081a6bbf79648e7ebf92"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/gameplay/season/successor_live_owner_v1/store.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_owner_v1/store.gd",
+      "bytes": 3757,
+      "sha256": "edc46d0ea94e331d8f41e4a41faa4e2626123e151d7aead411707922470cbab7"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/presentation/season/successor_live_owner_v1/app.gd.txt",
+      "restore_path": "src/presentation/season/successor_live_owner_v1/app.gd",
+      "bytes": 4771,
+      "sha256": "667b20fd8f0d7dd09746ea550d9d58bb24e4f42dbcf28f031fe9177900cae545"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/presentation/season/successor_live_owner_v1/launcher.tscn.txt",
+      "restore_path": "src/presentation/season/successor_live_owner_v1/launcher.tscn",
+      "bytes": 210,
+      "sha256": "789d92b0e09a5b01d611cd9494b32750be4d8a167fdc9256d78d7f1076a8280d"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/src/presentation/season/successor_live_owner_v1/menu.gd.txt",
+      "restore_path": "src/presentation/season/successor_live_owner_v1/menu.gd",
+      "bytes": 2303,
+      "sha256": "021b2c83696767bb0197c38246c28942d46896246f3dffccaeb6c242ad6c526c"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/tests/successor_live_owner.gd.txt",
+      "restore_path": "tests/successor_live_owner.gd",
+      "bytes": 7507,
+      "sha256": "c945a6eb2d3176c5806e2b5830133e2421e0648e7f16ea2476acee290c9fca3f"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/tests/successor_live_owner.tscn.txt",
+      "restore_path": "tests/successor_live_owner.tscn",
+      "bytes": 180,
+      "sha256": "95dfe5abf070bc45857566db388a4a71869416326d2b1b17a02722724fdb89b8"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/tests/successor_live_owner_menu.gd.txt",
+      "restore_path": "tests/successor_live_owner_menu.gd",
+      "bytes": 3788,
+      "sha256": "1f22bcca7bd596c024d7e2b54ea264f81887dfce9307c405248afd827f36b274"
+    },
+    {
+      "backup_path": "drafts/successor-live-owner-v1/tests/successor_live_owner_menu.tscn.txt",
+      "restore_path": "tests/successor_live_owner_menu.tscn",
+      "bytes": 189,
+      "sha256": "fbe4879317ae66ea76d94280077ccf75c96082b05a4f9001449f64b79fa40edd"
+    }
+  ]
+}
