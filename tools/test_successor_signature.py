@@ -55,6 +55,7 @@ def main():
     mode.add_argument('--continuation-fixture', type=Path, help='Closed predecessor reader against immutable actual owner112 boundary evidence')
     parser.add_argument('--continuation-prefix', action='store_true', help='Derive closed run2 start basis only; no owner admission')
     parser.add_argument('--continuation-completed', action='store_true', help='Require actual terminal positive projection; never use synthetic completion')
+    parser.add_argument('--owned-career-session-fixture', type=Path, help='Actual stable117 first-pick input; fixed-session draft/parity/failure/cold')
     parser.add_argument('--owned-career-import-fixture', type=Path, help='Known exact117 legacy checkpoint; additive new-slot migration and cold/UI compatibility test')
     mode.add_argument('--owned-career-abandon-fixture', type=Path, help='Actual abandoned116 origin to new Standard draft and separate cold; not completion or Dynasty')
     mode.add_argument('--owned-career-fixture', type=Path, help='Strict flat career negative admission against actual current116 active isolated save')
@@ -95,6 +96,8 @@ def main():
     args = parser.parse_args()
     career_abandon = bool(args.owned_career_abandon_fixture)
     args.owned_career_fixture = args.owned_career_fixture or args.owned_career_abandon_fixture
+    if args.owned_career_session_fixture and (not args.owned_career_fixture or args.owned_career_import_fixture):
+        parser.error('--owned-career-session-fixture requires companion career stage input and excludes import test')
     if args.owned_career_import_fixture and not args.owned_career_fixture:
         parser.error('--owned-career-import-fixture requires --owned-career-fixture or --owned-career-abandon-fixture for isolated stage setup')
     if args.owned_general_completed and not args.owned_general_fixture:
@@ -318,6 +321,19 @@ def main():
         destination.parent.mkdir(parents=True, exist_ok=True)
         assert not destination.exists()
         destination.write_bytes(original)
+        if args.owned_career_session_fixture:
+            source_session = args.owned_career_session_fixture.resolve()
+            session_bytes = source_session.read_bytes()
+            assert json.loads(session_bytes).get('format') == 'successor-owned-career-live-v2'
+            primary = destination.parent / 'successor-owned-career-live-v2.json'
+            immutable = destination.parent / 'source-career-session.json'
+            assert not primary.exists() and not immutable.exists()
+            primary.write_bytes(session_bytes)
+            immutable.write_bytes(session_bytes)
+            for label in ['draft', 'cold']:
+                run('owned-career-session-' + label, ['res://tests/successor_owner_career_session.tscn', '--', label], timeout=8*3600)
+                assert source_session.read_bytes() == session_bytes and immutable.read_bytes() == session_bytes
+            return
         if args.owned_career_import_fixture:
             legacy = args.owned_career_import_fixture.resolve()
             legacy_bytes = legacy.read_bytes()

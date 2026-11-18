@@ -1,0 +1,120 @@
+extends "res://tests/successor_owner_career.gd"
+const Decoder = preload("res://src/gameplay/season/successor_owner_career_v1/decoder.gd")
+const SOURCE: String = "user://source-career-session.json"
+const ARCHIVE: String = "user://owned-career-session-evidence"
+func write_exact(path: String, bytes: PackedByteArray) -> bool:
+	var f: FileAccess = FileAccess.open(path,FileAccess.WRITE)
+	if f == null: return false
+	f.store_buffer(bytes); f.flush()
+	var ok: bool = f.get_error() == OK
+	f.close()
+	return ok and FileAccess.get_file_as_bytes(path) == bytes
+func archive(app: SeasonApp, action: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ARCHIVE)
+	var index: int = 0
+	while FileAccess.file_exists(ARCHIVE+"/%04d.json"%index): index += 1
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	check(ClubCareer.same(Codec.guard_snapshot(app.season),JSON.parse_string(bytes.get_string_from_utf8())) and write_exact(ARCHIVE+"/%04d.json"%index,bytes),"exact durable session boundary")
+	var meta: Dictionary = {"action":action,"picks":app.season.picks.size(),"session_hits":Save.session_hits,"strict_owner_replays":Decoder.restore_calls}
+	check(write_exact(ARCHIVE+"/%04d.meta.json"%index,JSON.stringify(meta,"",true,true).to_utf8_buffer()),"paired session metadata")
+
+func run() -> void:
+	check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated actual stable career session")
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var source: Dictionary = JSON.parse_string(original.get_string_from_utf8())
+	check(source.get("format") == Codec.Catalog.FORMAT,"actual stable64 input remains compatible")
+	var app = App.new(); add_child(app); await get_tree().process_frame
+	app.reload_save()
+	check(app.season != null,"strict cold open authenticates private session")
+	if failed: get_tree().quit(1); return
+	var mode: String = OS.get_cmdline_user_args()[0]
+	if mode == "draft":
+		check(app.season.picks.size() == 1 and app.season.results.is_empty(),"genuine imported first pick, no synthetic games")
+		if failed: get_tree().quit(1); return
+		var before: Dictionary = Codec.guard_snapshot(app.season)
+		# Serialized equality alone cannot authenticate hidden runtime caches.
+		var hidden_id: String = "__isolated_hidden_state__"
+		app.season.build._book._players[hidden_id] = {"invalid":"caller-only"}
+		check(ClubCareer.same(Codec.guard_snapshot(app.season),before),"hidden development cache mutation leaves durable snapshot unchanged")
+		check(Save.save(app.season),"generic save strictly reconstructs valid durable snapshot")
+		var private_copy: SeasonState = Save._session_candidate(FileAccess.get_file_as_bytes(Save.PATH),before)
+		check(private_copy != null and not private_copy.build._book._players.has(hidden_id),"generic save session seeded from reconstructed state, never caller hidden cache")
+		app.season.build._book._players.erase(hidden_id)
+		if failed: get_tree().quit(1); return
+		var fork: SeasonState = Save._clean_fork(app.season)
+		check(fork != null,"exhaustive detached session fork")
+		if failed: get_tree().quit(1); return
+		fork.origin.version = -1
+		fork.career.runs[0].status = "changed"
+		fork.build._events.append({"invalid":"test"})
+		check(ClubCareer.same(Codec.guard_snapshot(app.season),before),"origin/career/build mutations cannot alias UI owner")
+		var row_status: String = app.season.career.runs[0].status
+		app.season.career.runs[0].status = "changed"
+		var rejected: Dictionary = Save.commit_draft(app.season,app.season.offers()[0])
+		check(rejected.candidate == null and FileAccess.get_file_as_bytes(Save.PATH) == original,"mutated UI owner cannot spend authenticated session")
+		app.season.career.runs[0].status = row_status
+		var bad: PackedByteArray = "broken-json".to_utf8_buffer()
+		check(write_exact(Save.PATH,bad),"isolated disk replacement")
+		rejected = Save.commit_draft(app.season,app.season.offers()[0])
+		check(rejected.candidate == null and FileAccess.get_file_as_bytes(Save.PATH) == bad,"changed primary never overwritten by cached owner")
+		check(write_exact(Save.PATH,original),"restore exact test primary")
+		var game_path: String = "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
+		var game_bytes: PackedByteArray = FileAccess.get_file_as_bytes(game_path)
+		check(write_exact(game_path,game_bytes+"\n# isolated changed gameplay build\n".to_utf8_buffer()),"isolated source identity mutation")
+		rejected = Save.commit_draft(app.season,app.season.offers()[0])
+		check(rejected.candidate == null and FileAccess.get_file_as_bytes(Save.PATH) == original,"changed gameplay identity refuses cached session")
+		check(write_exact(game_path,game_bytes),"exact gameplay source restored")
+		if failed: get_tree().quit(1); return
+		for pick in range(1,4):
+			var id: String = app.season.offers()[0]
+			var owner: SeasonState = app.season
+			before = Codec.guard_snapshot(owner)
+			var expected: Dictionary = {}
+			if pick in [1,3]:
+				var reference: SeasonState = Codec.clone(owner)
+				check(reference != null and reference.choose_player(id),"unchanged strict public draft reference")
+				if failed: get_tree().quit(1); return
+				expected = Codec.guard_snapshot(reference)
+			var calls: int = Decoder.restore_calls
+			var hits: int = Save.session_hits
+			var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+			var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak") if FileAccess.file_exists(Save.PATH+".bak") else PackedByteArray()
+			if pick == 1: check(DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"inject isolated prewrite failure")
+			var start: int = Time.get_ticks_msec()
+			app.draft(id)
+			print("SESSION_DRAFT_MS: ",pick+1," ",Time.get_ticks_msec()-start)
+			check(Decoder.restore_calls == calls and Save.session_hits == hits+1,"routine draft performs zero owner-history replays")
+			check(ClubCareer.same(Codec.guard_snapshot(owner),before),"session operation preserves prior UI owner")
+			if pick == 1:
+				check(app.retained != null and app.season == owner and FileAccess.get_file_as_bytes(Save.PATH) == disk and (not FileAccess.file_exists(Save.PATH+".bak") or FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup),"failed write preserves disk and retains candidate")
+				if failed: get_tree().quit(1); return
+				check(ClubCareer.same(Codec.guard_snapshot(app.retained),expected),"failed candidate matches strict reference exactly")
+				check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove only test fault")
+				app.retry_save()
+			check(app.retained == null and app.season.picks.size() == pick+1,"actual session draft durable promotion")
+			if not expected.is_empty(): check(ClubCareer.same(Codec.guard_snapshot(app.season),expected),"session exact public-reference parity")
+			if failed: get_tree().quit(1); return
+			archive(app,"draft-%d"%(pick+1))
+		var saved: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+		app.draft(app.season.picks[0]); app.retry_save()
+		check(FileAccess.get_file_as_bytes(Save.PATH) == saved and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate actions cannot rewrite or rotate backup")
+	elif mode == "cold":
+		check(app.season.picks.size() == 4 and app.season.phase == SeasonState.Phase.REGULAR and app.season.results.is_empty(),"separate strict cold fully drafted stable career")
+		check(ClubCareer.same(app.season.origin,source.origin) and ClubCareer.same(app.season.closed,source.closed) and app.season.origin_close == source.origin_close,"all immutable previous career history retained")
+		var id: String = app.season.build._book._players.keys()[0]
+		var stats: Dictionary = app.season.build._book._players[id].stats.duplicate(true)
+		var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+		var snapshot: Dictionary = Codec.guard_snapshot(app.season)
+		var one: SeasonState = Save._session_candidate(disk,snapshot)
+		check(one != null,"cold private candidate available")
+		if failed: get_tree().quit(1); return
+		one.build._book._players[id].stats["power"] = -123
+		var two: SeasonState = Save._session_candidate(disk,snapshot)
+		check(two != null and ClubCareer.same(two.build._book._players[id].stats,stats) and ClubCareer.same(app.season.build._book._players[id].stats,stats),"nested hidden profile edits cannot alias private session or UI")
+		archive(app,"cold-drafted")
+	else: check(false,"known session test mode")
+	check(FileAccess.get_file_as_bytes(SOURCE) == original,"immutable source fixture unchanged")
+	app.queue_free(); await get_tree().process_frame
+	if not failed: print("PASS: actual session "+mode+"; no round, pack or Dynasty qualification")
+	get_tree().quit(1 if failed else 0)

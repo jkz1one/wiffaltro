@@ -173,3 +173,29 @@ has not yet been run through this new importer, unlike63.
 Recovery refuses to replace any existing primary or backup. This is not actual
 power-loss or concurrent-writer qualification. Post-import actual gameplay and
 full multi-season/Dynasty qualification remain required.
+
+## Private session draft transactions
+
+A successful strict load or save now retains a detached, independently replayed
+runtime inside the persistence layer. Fixed draft commands require exact disk,
+UI snapshot, content identity and private-state agreement, then fork and apply the
+existing draft operation without reconstructing the complete prior career again.
+No caller-supplied validation token is accepted. Pack/NPC operations retain their
+previous strict disk replay, and generic saves/imports/cold loads remain strict.
+
+Review caught a hidden-state risk in an unpublished first candidate: a caller's
+serialized equality does not authenticate hidden development caches. The final
+code retains the independently reconstructed runtime instead of caching the
+caller. Tests inject an invisible development-cache entry, verify it cannot enter
+the private session, and mutate detached nested profiles without changing the
+session or UI owner. Changed disk, UI history and gameplay identity all reject.
+
+On the actual stable64 first-pick save, final65 completed the remaining three
+picks, public-reference equality at the second/fourth pick, prewrite failure,
+exact strict retry, duplicate no-write/backup preservation and separate cold
+reopen. Instrumentation confirms zero owner117 history replays on each routine
+draft action; strict reference/explicit retry/cold checks are intentionally not
+counted as routine clicks. The three concurrent timings were approximately9.0,
+17.7 and21.2 seconds, so this is not final responsiveness acceptance. Remaining
+content-signature/snapshot work and full cold history still need attention.
+No new round, paid-pack, completed-career, Dynasty or release proof is claimed.

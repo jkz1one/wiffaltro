@@ -6,6 +6,49 @@ const PATH: String = "user://successor-owned-career-live-v2.json"
 const MAX_BYTES: int = 32 * 1024 * 1024 # Retained predecessor plus active run; never prune history.
 static var saving: bool = false
 static var last_error: String = ""
+# Private process-owned validated state. No serialized/caller validation tokens.
+# These guards protect detached UI mutation and disk replacement, not arbitrary
+# injected script execution in an owner-controlled offline process.
+static var _session: SeasonState
+static var _session_bytes: PackedByteArray = PackedByteArray()
+static var _session_snapshot: Dictionary = {}
+static var session_hits: int = 0 # Diagnostic only, never authority.
+
+static func _forget_session() -> void:
+	_session = null
+	_session_bytes = PackedByteArray()
+	_session_snapshot = {}
+
+static func _clean_fork(season: SeasonState) -> SeasonState:
+	if season == null or not season.physical.pending.is_empty(): return null
+	var before: Dictionary = Codec.guard_snapshot(season)
+	if before.is_empty(): return null
+	# This existing exhaustive fork deliberately clears pending; zero-pending is
+	# mandatory here. Every mutable runtime/build/career container is detached.
+	var candidate: SeasonState = load("res://src/gameplay/season/successor_owner_career_v1/pending.gd")._fork_replayed_state(season)
+	return candidate if candidate != null and ClubCareer.same(Codec.guard_snapshot(candidate),before) else null
+
+static func _remember_session(valid: SeasonState, bytes: PackedByteArray) -> void:
+	_forget_session()
+	if bytes.is_empty() or not FileAccess.file_exists(PATH) or FileAccess.get_file_as_bytes(PATH) != bytes: return
+	var parser: JSON = JSON.new()
+	if parser.parse(bytes.get_string_from_utf8()) != OK: return
+	var candidate: SeasonState = _clean_fork(valid)
+	if candidate == null: return
+	var snapshot: Dictionary = Codec.guard_snapshot(candidate)
+	if not ClubCareer.same(snapshot,parser.data): return
+	_session = candidate
+	_session_bytes = bytes.duplicate()
+	_session_snapshot = snapshot.duplicate(true)
+
+static func _session_candidate(bytes: PackedByteArray, owner: Dictionary) -> SeasonState:
+	if _session == null or bytes != _session_bytes or not ClubCareer.same(owner,_session_snapshot) \
+		or not ClubCareer.same(Codec.guard_snapshot(_session),_session_snapshot):
+		_forget_session()
+		return null
+	var candidate: SeasonState = _clean_fork(_session)
+	if candidate != null: session_hits += 1
+	return candidate
 
 static func save(season: SeasonState, expected_primary: Variant = null) -> bool:
 	if saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
@@ -32,7 +75,11 @@ static func _save(season: SeasonState, expected_primary: Variant = null) -> bool
 		var parser: JSON = JSON.new()
 		if parser.parse(old.get_string_from_utf8()) == OK:
 			old_valid = Codec.restore(parser.data) != null
-	var data: Dictionary = Codec.capture(season)
+	# Keep the independently reconstructed runtime as well as its snapshot.
+	# Caller-hidden caches are not authenticated by serialized equality alone.
+	var authenticated: SeasonState = Codec.clone(season)
+	if authenticated == null: return false
+	var data: Dictionary = Codec.guard_snapshot(authenticated)
 	if data.is_empty(): return false
 	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
 	if bytes.is_empty() or bytes.size() > MAX_BYTES: return false
@@ -55,6 +102,7 @@ static func _save(season: SeasonState, expected_primary: Variant = null) -> bool
 	if FileAccess.file_exists(PATH) != old_exists or (old_exists and FileAccess.get_file_as_bytes(PATH) != old): return false
 	if old_valid and DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return false
 	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes: return false
+	_remember_session(authenticated,bytes)
 	last_error = ""
 	return true
 
@@ -89,8 +137,15 @@ static func _recover_interrupted_import() -> bool:
 	return true
 
 static func restore() -> SeasonState:
+	_forget_session()
+	var primary: PackedByteArray = PackedByteArray()
+	var file: FileAccess = FileAccess.open(PATH,FileAccess.READ)
+	if file != null:
+		if file.get_length() <= MAX_BYTES: primary = file.get_buffer(file.get_length())
+		file.close()
 	var result: SeasonState = _read(PATH)
-	if result == null: result = _read(PATH+".bak")
+	if result != null: _remember_session(result,primary)
+	else: result = _read(PATH+".bak")
 	last_error = "" if result != null else "No valid owned continuation checkpoint is available."
 	return result
 
@@ -104,6 +159,18 @@ static func _read(path: String) -> SeasonState:
 # Closed synchronous pack-or-NPC dispatcher. No API accepts a validated envelope
 # or proof. Each private candidate starts with strict primary-disk restoration;
 # only an original pack operation or one validated pending report may change it.
+static func commit_draft(owner: SeasonState, player: String) -> Dictionary:
+	if saving or load("res://src/gameplay/season/async_save/async_save_ui.gd").locked \
+		or load("res://src/gameplay/season/async_save/async_save_coordinator.gd").leased:
+		return {"handled":true,"candidate":null,"saved":false,"error":"Save is busy.","expected_primary":null}
+	saving = true
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var result: Dictionary = _commit_fixed(owner,{"op":"draft","player":player},null)
+	roots.clear()
+	saving = false
+	last_error = result.error
+	return result
+
 static func commit_shop(owner: SeasonState, command: Dictionary) -> Dictionary:
 	var fallback: Dictionary = {"handled":false,"candidate":null,"saved":false,"error":"","expected_primary":null}
 	if command.get("op") not in ["pack_open","pack_pick"]: return fallback
@@ -139,6 +206,7 @@ static func append_npc_report(owner: SeasonState, raw_report: Dictionary) -> Dic
 # primary and validates its raw action. This is not a prevalidated writer API.
 static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: Variant) -> Dictionary:
 	var npc: bool = raw_report != null
+	var draft: bool = not npc and command.get("op") == "draft"
 	var fallback: Dictionary = {"handled":false,"candidate":null,"saved":false,"error":"","expected_primary":null}
 	var rejected: Dictionary = {"handled":true,"candidate":null,"saved":false,"error":"Invalid owned shop transaction.","expected_primary":null}
 	if owner == null or not Codec.scope(owner): return rejected
@@ -153,7 +221,11 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 			for entry: Variant in raw_report.ownership:
 				if not entry is Dictionary: return rejected
 	else:
-		if command.get("op") not in ["pack_open","pack_pick"] or not owner.physical.pending.is_empty() or not owner.shop_available(): return rejected
+		if draft:
+			rejected.error = "This draft choice cannot be saved from the current checkpoint."
+			if owner.phase != SeasonState.Phase.DRAFT or not command.get("player") is String or not owner.offers().has(command.player): return rejected
+		elif command.get("op") not in ["pack_open","pack_pick"] or not owner.shop_available(): return rejected
+		if not owner.physical.pending.is_empty(): return rejected
 		# Pack commands are flat primitive records, with original exact validation.
 		for key: Variant in command:
 			if not key is String or typeof(command[key]) not in [TYPE_NIL,TYPE_BOOL,TYPE_INT,TYPE_FLOAT,TYPE_STRING]: return rejected
@@ -165,7 +237,7 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 	# Only absence or benign unsaved lineup changes permit strict fallback. A
 	# different/corrupt existing checkpoint is never silently overwritten here.
 	if not FileAccess.file_exists(PATH):
-		if npc or DirAccess.dir_exists_absolute(PATH): return rejected
+		if npc or draft or DirAccess.dir_exists_absolute(PATH): return rejected
 		fallback.expected_primary = PackedByteArray()
 		return fallback
 	var old: PackedByteArray = FileAccess.get_file_as_bytes(PATH)
@@ -174,12 +246,14 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 	var parser: JSON = JSON.new()
 	if parser.parse(old.get_string_from_utf8()) != OK: return rejected
 	if not ClubCareer.same(parser.data,before):
-		if not npc and _lineup_only(parser.data,before):
+		if not npc and not draft and _lineup_only(parser.data,before):
 			fallback.expected_primary = old.duplicate()
 			return fallback
 		rejected.error = "The saved checkpoint differs from this owner. Reload before purchasing."
 		return rejected
-	var candidate: SeasonState = Codec.restore(parser.data)
+	# Only draft is admitted to session reuse in this increment. Pack/NPC retain strict disk replay.
+	var candidate: SeasonState = _session_candidate(old,before) if draft else null
+	if candidate == null: candidate = Codec.restore(parser.data)
 	if candidate == null: return rejected
 	if not ClubCareer.same(Codec.guard_snapshot(candidate),before) or not ClubCareer.same(Codec.guard_snapshot(owner),before):
 		return rejected
@@ -209,6 +283,11 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 		var unchanged: Dictionary = changed.duplicate(true)
 		unchanged.active.checkpoint.physical.pending = before.active.checkpoint.physical.pending.duplicate(true)
 		if not ClubCareer.same(unchanged,before): return rejected
+	elif draft:
+		if candidate.phase != SeasonState.Phase.DRAFT or not candidate._choose_local(command.player): return rejected
+		var after: Dictionary = Codec.guard_snapshot(candidate)
+		for key: String in ["origin","origin_close","closed"]:
+			if not ClubCareer.same(after.get(key),before.get(key)): return rejected
 	else:
 		if not candidate.physical.pending.is_empty() or not candidate.shop_available() or candidate.build._requests.has(request_id): return rejected
 		var next: SeasonBuild = candidate.build.candidate(command.duplicate(true))
@@ -250,6 +329,7 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 	if not FileAccess.file_exists(PATH) or FileAccess.get_file_as_bytes(PATH) != old: return result
 	if DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return result
 	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or FileAccess.get_file_as_bytes(PATH) != bytes: return result
+	_remember_session(candidate,bytes)
 	result.saved = true
 	result.error = ""
 	return result

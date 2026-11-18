@@ -11,7 +11,11 @@ const Catalog = preload("catalog.gd")
 const GameReplay = preload("res://src/gameplay/season/successor_league_general_v2/human_replay.gd")
 const GameHistory = preload("res://src/gameplay/season/successor_league_general_v2/history.gd")
 
+# Diagnostic only; never serialized and never used to admit a state.
+static var restore_calls: int = 0
+
 static func restore(value: Dictionary) -> SeasonState:
+	restore_calls += 1
 	var roots: Array[Resource] = Codec._operation_content_roots()
 	var result: SeasonState = _restore(value)
 	roots.clear()

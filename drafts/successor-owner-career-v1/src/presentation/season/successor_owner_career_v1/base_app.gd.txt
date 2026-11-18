@@ -321,13 +321,39 @@ func import_previous_save() -> void:
 	_retain(candidate,PackedByteArray())
 
 func draft(id: String) -> void:
-	if not _available() or season==null or season.phase!=SeasonState.Phase.DRAFT or not season.offers().has(id):
+	if not _available() or season==null or season.phase!=SeasonState.Phase.DRAFT or not season.offers().has(id): return
+	var owner: SeasonState = season
+	var before: Dictionary = Codec.guard_snapshot(owner)
+	if before.is_empty(): return
+	_busy = true
+	var transaction: Dictionary = Save.commit_draft(owner,id)
+	_busy = false
+	if transaction.candidate == null:
+		notice = transaction.error
+		show_season()
 		return
-	var candidate: SeasonState = _clone()
-	# _clone already strictly rebuilt the complete archive. The local operation
-	# changes only that detached candidate; _retain still uses strict Save.save.
-	if candidate!=null and candidate._choose_local(id):
-		_retain(candidate)
+	retained = transaction.candidate
+	retained_owner = owner
+	retained_before = before.duplicate(true)
+	retained_lab = lab
+	retained_state = lab._match_state if is_instance_valid(lab) else null
+	retained_primary_expected = transaction.expected_primary.duplicate() if transaction.expected_primary is PackedByteArray else transaction.expected_primary
+	retained_saved = transaction.saved
+	retained_saved_snapshot.clear()
+	retained_saved_bytes = PackedByteArray()
+	if not retained_saved:
+		notice = transaction.error
+		show_season()
+		return # Exact candidate remains for explicit strict retry.
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var value: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	var snapshot: Dictionary = Codec.guard_snapshot(retained)
+	if bytes.is_empty() or not value is Dictionary or snapshot.is_empty() or not ClubCareer.same(value,snapshot):
+		notice = "Saved draft differs from its durable checkpoint; promotion is blocked."
+		return
+	retained_saved_snapshot = snapshot.duplicate(true)
+	retained_saved_bytes = bytes.duplicate()
+	retry_save() # Already durable. This only promotes after all existing pins match.
 
 func _retain(candidate: SeasonState, expected_primary: Variant = null) -> void:
 	# Equality guard only, not authentication. Save strictly authenticates candidate.
