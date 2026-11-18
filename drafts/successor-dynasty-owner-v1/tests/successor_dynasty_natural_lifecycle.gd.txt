@@ -1,0 +1,185 @@
+extends Node
+## Genuine78 terminal lifecycle only. No fabricated wins, profile growth or physics.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
+const Ledger=preload("res://src/gameplay/season/successor_dynasty_owner_v1/ledger.gd")
+const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
+const Fixtures=preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_fixtures.gd")
+const SOURCE="user://source-terminal.json"
+const SOURCE_SHA="7b5167ac5514a158e0e0e4c59e610bdb88041d18709a6c32e7bbe964cf6a3a89"
+const BACKUP_SHA="f57ea583d1eb0882546615a7a5af02d8f5d6f7c744a5331b440fb6a9fa203a54"
+const NEXT_SEED: int=550079
+var roots: Array[Resource]=[]
+var failed: bool=false
+var timings: Dictionary={}
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:failed=true;get_tree().quit(1)
+	return ok
+func slot(path: String) -> Dictionary:
+	return {"exists":FileAccess.file_exists(path),"bytes":FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()}
+func archive(path: String,bytes: PackedByteArray) -> bool:
+	if not check(not FileAccess.file_exists(path) and not DirAccess.dir_exists_absolute(path),"non-overwriting natural lifecycle evidence"):return false
+	var file=FileAccess.open(path,FileAccess.WRITE)
+	if not check(file!=null,"natural boundary file writable"):return false
+	file.store_buffer(bytes);file.flush();file.close()
+	return check(FileAccess.get_file_as_bytes(path)==bytes,"natural boundary exact readback")
+func elapsed(label: String,t: int) -> void:
+	timings[label]=Time.get_ticks_usec()-t
+	print("NATURAL_HANDLER_US ",label,": ",timings[label])
+func cancel_confirm(app: SeasonApp,action: String) -> bool:
+	var before: Dictionary=Owner.capture(app.career_owner)
+	var bytes: PackedByteArray=Store.raw()
+	var backup: Dictionary=slot(Store.PATH+".bak")
+	app.request_lifecycle(action)
+	if not check(app._lifecycle_dialog.visible and app._lifecycle_action==action,"real "+action+" confirmation shown"):return false
+	app._cancel_lifecycle()
+	if not check(C.same(before,Owner.capture(app.career_owner)) and Store.raw()==bytes and C.same(slot(Store.PATH+".bak"),backup)
+		and not app._lifecycle_dialog.visible,"Cancel preserves seed, owner, profiles and both savebytes"):return false
+	app.request_lifecycle(action)
+	if not check(app._lifecycle_action==action,"same real confirmation reopens"):return false
+	var t: int=Time.get_ticks_usec()
+	app._confirm_lifecycle();elapsed(action+"_confirm",t)
+	return check(app.retained==null and app._owned(),"confirmed lifecycle action saved and promoted")
+func independent_fold(source,expected: Dictionary) -> bool:
+	var wins: int=0;var rf: int=0;var ra: int=0
+	for row: Dictionary in source.session.player_results:
+		var ours: int=int(row.home_runs if row.home==0 else row.away_runs)
+		var theirs: int=int(row.away_runs if row.home==0 else row.home_runs)
+		wins+=int(ours>theirs);rf+=ours;ra+=theirs
+	if not check(expected.games-source.ledger.games==source.session.player_results.size() and expected.wins-source.ledger.wins==wins
+		and expected.runs_for-source.ledger.runs_for==rf and expected.runs_against-source.ledger.runs_against==ra and wins==8 and rf==96 and ra==62,"independent actual11game8wins96for62against totals equal fold"):return false
+	for index in range(6):
+		var key: String="club:%d"%index
+		var build: SeasonBuild=source.session.build if index==0 else source.session.opponents.clubs[str(index)].build
+		var stats: int=0;var mastery: int=0;var lessons: Array=[];var abilities: int=0
+		for event: Dictionary in build._book._events:
+			if event.op=="stat":stats+=1
+			elif event.op in ["mastery","round_out"]:mastery+=1
+			elif event.op=="learn" and not lessons.has(event.target):lessons.append(event.target)
+		for id: String in build.roster():
+			for receipt: Dictionary in build._abilities.learned.get(id,[]):
+				var inherited: bool=false
+				for origin: Dictionary in build._dynasty_start.players[id].abilities:
+					var old: Dictionary=origin.duplicate(true);old.erase("source_season")
+					if C.same(old,receipt):inherited=true
+				if not inherited:abilities+=1
+		var prior: Dictionary=source.ledger.development[key]
+		var actual: Dictionary=expected.development[key]
+		var combined: Array=prior.lessons.duplicate()
+		for recipe: String in lessons:
+			if not combined.has(recipe):combined.append(recipe)
+		combined.sort()
+		if not check(actual.stat==prior.stat+stats and actual.mastery==prior.mastery+mastery and actual.abilities==prior.abilities+abilities
+			and C.same(actual.lessons,combined),"independent current-only growth fold "+key):return false
+	return true
+func carried_checks(owner,folded: Dictionary,profiles: Dictionary) -> bool:
+	if not check(owner.ordinal==2 and owner.status=="active" and owner.session.season_seed==NEXT_SEED and owner.session.phase==SeasonState.Phase.REGULAR
+		and owner.session.picks.size()==4 and owner.session.results.is_empty() and owner.session.player_results.is_empty()
+		and C.same(owner.ledger,folded),"natural continuation no draft/no invented game/no repeated permanent fold"):return false
+	for index in range(6):
+		var key: String="club:%d"%index
+		var build: SeasonBuild=owner.session.build if index==0 else owner.session.opponents.clubs[str(index)].build
+		var prior: Dictionary=profiles[key]
+		var expected: Dictionary=Profile.advance(prior,(NEXT_SEED+index*92821)&0x7fffffff,owner.last_transition.proposal.choices[key])
+		if not check(not expected.is_empty() and C.same(expected.profile,build._dynasty_start) and build._events.is_empty() and build._book._events.is_empty()
+			and build._bank._events.is_empty() and build._bank.cash()==0 and build._bank.view().rewards.is_empty(),"all6 exact once-advanced profiles and empty seasonal banks/journals "+key):return false
+		if not check(C.same(prior.exotic_rights,build._dynasty_start.exotic_rights),"acquired exotic rights retained "+key):return false
+		for id: String in prior.roster:
+			var before: Dictionary=prior.players[id];var after: Dictionary=build._dynasty_start.players[id]
+			var before_known: Array=before.mastery.keys();before_known.sort()
+			var after_known: Array=after.mastery.keys();after_known.sort()
+			if not check(C.same(before.active,after.active) and C.same(before.known_origin,after.known_origin) and C.same(before.active_learning,after.active_learning)
+				and C.same(before_known,after_known),"active/inactive repertoire and original learning receipts retained "+id):return false
+			for stat: String in SeasonPlayerCatalog.STATS:
+				var drop: int=mini(2,int(before.trained[stat])+int(before.catchup.stats[stat]))
+				if not check(after.stats[stat]==before.stats[stat]-drop and after.stats[stat]>=after.authored.stats[stat]
+					and after.trained[stat]==before.trained[stat]-mini(drop,int(before.trained[stat]))
+					and after.catchup.stats[stat]==before.catchup.stats[stat]-(drop-mini(drop,int(before.trained[stat]))),"independent paid-first stat loss/floor "+id+" "+stat):return false
+			for recipe: String in before.mastery:
+				var drop: int=mini(1,int(before.earned_mastery[recipe])+int(before.catchup.mastery[recipe]))
+				if not check(after.mastery[recipe]==before.mastery[recipe]-drop and after.mastery[recipe]>=after.authored.mastery.get(recipe,1)
+					and after.earned_mastery[recipe]==before.earned_mastery[recipe]-mini(drop,int(before.earned_mastery[recipe]))
+					and after.catchup.mastery[recipe]==before.catchup.mastery[recipe]-(drop-mini(drop,int(before.earned_mastery[recipe]))),"independent paid-first known mastery decay/floor "+id):return false
+			for receipt: Dictionary in after.abilities:
+				if not check(before.abilities.any(func(original:Dictionary)->bool:return C.same(original,receipt)),"retained ability receipt is exact original"):return false
+	for fixture: Dictionary in owner.session.schedule:
+		if fixture.round!=0:continue
+		if not check(Fixtures.match_for(owner.session,fixture)!=null and not Fixtures.request_key(owner.session,fixture).is_empty(),"actual next human/bothAI request construction, not gameplay claim"):return false
+	return true
+func _ready() -> void:call_deferred("run")
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["close","closed-cold","propose","proposal-cold","next","cold"],"explicit isolated natural lifecycle mode before reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"retained content and catalog pinned before JSON"):return
+	if not check(FileAccess.get_sha256(SOURCE)==SOURCE_SHA and FileAccess.get_sha256(SOURCE+".bak")==BACKUP_SHA,"exact verified actualterminal pair"):return
+	var protected: Dictionary={}
+	for path: String in [SOURCE,SOURCE+".bak","user://wiffaltro-dynasty-owner-v1.json","user://wiffaltro-dynasty-owner-v1.json.bak","user://wiffaltro-materialized-play-v1.json","user://wiffaltro-materialized-play-v1.json.bak"]:protected[path]=slot(path)
+	var source=Owner.restore(JSON.parse_string(FileAccess.get_file_as_string(SOURCE)))
+	if not check(source!=null and source.status=="active" and source.ordinal==1 and source.session.phase==SeasonState.Phase.COMPLETE
+		and source.session.results.size()==33 and source.session.player_results.size()==11,"actual naturalterminal source, no backdated evidence"):return
+	var proof: Dictionary=ClubSeasonRecord.capture(source.session)
+	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
+	var receipt: Dictionary=ClubSeasonRecord.receipt(proof,not source.ledger.titles.get("dynasty",false),0)
+	if not check(summary.finish=="semifinal" and summary.wins==8 and receipt.finish_award==65 and receipt.record_bonus==12 and receipt.first_bonus==0 and receipt.total==77,"pure original rules derive8–2semifinal77 receipt, no injected payment"):return
+	var folded: Dictionary=Ledger.close(source.ledger,source.session,1,"complete")
+	var profiles: Dictionary=Life.profiles(source)
+	if not check(not folded.is_empty() and profiles.size()==6 and C.same(receipt,folded.receipt),"pure all6 natural fold and profile capture"):return
+	if not independent_fold(source,folded.ledger):return
+	var before: PackedByteArray=Store.raw();var backup: Dictionary=slot(Store.PATH+".bak")
+	var resolves: int=Fixtures.resolve_calls
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var t: int=Time.get_ticks_usec();app.reload_save();elapsed("cold_load",t)
+	if not check(app.career_owner!=null and app._owned() and Store.raw()==before and C.same(slot(Store.PATH+".bak"),backup),"actual App cold load leaves main/backup unchanged"):return
+	var mode: String=args[0]
+	if mode=="close":
+		if not check(before==protected[SOURCE].bytes,"close begins exact actualterminal primary"):return
+		if not cancel_confirm(app,"complete"):return
+	elif mode=="propose":
+		t=Time.get_ticks_usec();app.propose_next(NEXT_SEED);elapsed("proposal",t)
+		if not check(app.retained==null and app.career_owner.proposal.seed==NEXT_SEED,"fixed proposal durably saved once"):return
+		# If real overflow exists, this test makes and records an explicit receipt
+		# choice. Production must not select a human loss automatically.
+		for player: String in Life.overflow(app.career_owner.last_close.profiles["club:0"]):
+			var choices: Array=Life.overflow(app.career_owner.last_close.profiles["club:0"])[player]
+			var ids: Array=choices.map(func(row:Dictionary)->String:return row.id);ids.sort()
+			print("EXPLICIT_TEST_OVERFLOW_FORGET: ",player," ",ids[-1])
+			app.choose_overflow(player,ids[-1])
+			if not check(app.retained==null and app.career_owner.proposal.choices["club:0"][player].forget==ids[-1],"explicit actual receipt choice persisted"):return
+	elif mode=="next":
+		if not check(app.career_owner.proposal.seed==NEXT_SEED and app.career_owner.next_preview().size()==6,"same saved seed/all6 advance preview"):return
+		if not cancel_confirm(app,"next"):return
+	var owner=app.career_owner
+	if mode in ["close","closed-cold","propose","proposal-cold"]:
+		if not check(owner.status=="closed" and owner.ordinal==1 and C.same(owner.ledger,folded.ledger) and C.same(owner.last_close.receipt,receipt)
+			and C.same(Life.profiles(owner),profiles) and C.same(C.capture(owner.session),C.capture(source.session)),"close/cold/proposal no decay; exact natural fold once"):return
+		var stable: PackedByteArray=Store.raw();var stable_bak: Dictionary=slot(Store.PATH+".bak")
+		app.close_current("complete")
+		if mode in ["propose","proposal-cold"]:
+			app.propose_next(999)
+			if not check(owner.proposal.seed==NEXT_SEED,"repeat cannot reroll saved seed"):return
+		if not check(Store.raw()==stable and C.same(slot(Store.PATH+".bak"),stable_bak),"duplicate close/proposal backup-inert"):return
+	else:
+		if not carried_checks(owner,folded.ledger,profiles):return
+		var stable: PackedByteArray=Store.raw();var stable_bak: Dictionary=slot(Store.PATH+".bak")
+		app.commit_next()
+		if not check(Store.raw()==stable and C.same(slot(Store.PATH+".bak"),stable_bak),"duplicate Next cannot decay/pay/rotatebackup again"):return
+	if not check(owner.ledger.completed==1 and owner.ledger.abandoned==0 and owner.ledger.games==11 and owner.ledger.currency==77
+		and C.same(owner.ledger.pennants,source.ledger.pennants) and C.same(owner.ledger.titles,source.ledger.titles) and owner.ledger.plaques.is_empty(),"onecompleted11games77currency; no false Standard pennant or one-season plaque"):return
+	if mode in ["closed-cold","proposal-cold","cold"]:
+		if not check(Store.raw()==before and C.same(slot(Store.PATH+".bak"),backup),"separate cold process does not rewrite or decay"):return
+	if not check(Fixtures.resolve_calls==resolves and app.retained==null and C.same(Owner.capture(owner),JSON.parse_string(Store.raw().get_string_from_utf8())),"exact durable owner, no physical replay"):return
+	for path: String in protected:
+		if not check(C.same(slot(path),protected[path]),"protected source/oldslot pair unchanged"):return
+	if not archive("user://natural79-"+mode+".json",Store.raw()):return
+	if FileAccess.file_exists(Store.PATH+".bak") and not archive("user://natural79-"+mode+".json.bak",FileAccess.get_file_as_bytes(Store.PATH+".bak")):return
+	var metrics: Dictionary={"mode":mode,"timings_us":timings,"source_sha256":SOURCE_SHA,"result_sha256":FileAccess.get_sha256(Store.PATH),"ordinal":owner.ordinal,"status":owner.status,"receipt":receipt,"choices":owner.proposal.get("choices",{}) if owner.status=="closed" else owner.last_transition.proposal.choices}
+	if not archive("user://natural79-"+mode+".metrics.json",JSON.stringify(metrics,"",true,true).to_utf8_buffer()):return
+	app.queue_free();await get_tree().process_frame
+	if not failed:print("PASS: genuine natural79 "+mode+"; nextfixture construction only, no newseason gameplay claim")
+	get_tree().quit(1 if failed else 0)

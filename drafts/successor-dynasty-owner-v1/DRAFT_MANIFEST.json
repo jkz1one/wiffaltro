@@ -1,7 +1,7 @@
 {
   "format": "inactive-dynasty-owner-v1",
-  "source_checkpoint": "882cf5dd4eb294c28ee615eece1ea4e33261fa41",
-  "scope": "Increment78 local numeric semifinal-ID repair: synthetic119/120 policy gates and genuine75pending strictimport/original31recovery/actualfinal32/33-result terminal/cold passed, exactall6rewardjournals. Native read-only terminalview passed. Prior76 lifecycle/77 performance scope retained. No naturalcareerclose/awards/rollover, full119, humanfinal/missedplayoffchain, publicunlock/replacement/alternateactivation/export claim.",
+  "source_checkpoint": "7f80fcfa0b9c583fa2ad5f8d2bac205fd99e6f60",
+  "scope": "Increment79: genuine full-season natural close/77-point receipt/all-six current-season folds, saved Next proposal, once-only carry/decay and separate-process cold passed using unchanged78 production. Native actual Close/Next Cancel/Confirm, cold preview and second-season cold passed; all-six profiles independently reviewed. No new-season physical simulation, human championship, full mode/public unlock/replacement/alternate activation/export claim.",
   "files": [
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -260,6 +260,18 @@
       "restore_path": "tests/successor_dynasty_lifecycle_fault.tscn",
       "bytes": 201,
       "sha256": "7cb63453a9d848d17df059348e0edfa21a5e378471312658f8234e8cc247825b"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_natural_lifecycle.gd.txt",
+      "restore_path": "tests/successor_dynasty_natural_lifecycle.gd",
+      "bytes": 15404,
+      "sha256": "9eaa5749f31343420b873e176118ac2e60a257544ecde78bb88800b3084d87a8"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_natural_lifecycle.tscn.txt",
+      "restore_path": "tests/successor_dynasty_natural_lifecycle.tscn",
+      "bytes": 205,
+      "sha256": "a333570e37c33aa8e6d663983be20fad7fa6ab00eeb8e7d8ec40fd9765248e8b"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_overflow.gd.txt",

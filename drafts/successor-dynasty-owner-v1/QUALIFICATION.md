@@ -1,10 +1,16 @@
 # Dynasty owner: bounded private career integration
 
+Increment79 qualifies genuine natural completion closure and all-six-club Next/cold
+on the actual full-season terminal fixture, using unchanged increment78 production.
+The semifinal-exit receipt is 77 permanent currency, credited once; no Dynasty
+Standard pennant is issued. Native natural-close/Next/cold qualification also passed. This remains a private
+engineering route, not a finished mode or distributable build.
+
 Increment78 qualifies a narrow semifinal-ID repair and the actual recovered
 Dynasty gameplay-terminal/cold path:33 results from11 player-club games and22
 AI games, with complete exactly-once reward journals. Native read-only terminal
 viewing also passed. Natural career close/completion awards and rollover from this full
-season are not included.
+season were not included in increment78; increment79 below qualifies those steps.
 
 Increment77 qualifies a narrow measured transaction optimization on the same
 genuine larger save, with exact saved-byte parity and strict safety regressions.
@@ -16,8 +22,8 @@ Increment76 qualifies the bounded private lifecycle: strict75 copy, actual
 abandon/all-six Next/cold, scoped native lifecycle/cold/launch/leave, and a genuine
 carried second-season human+twoAI round followed by paid shop choice and cold.
 Historical increment75 qualified its first round and native entry. Natural
-career close/completion awards, public unlock, alternate activation, replacement economics
-and export remain unqualified.
+career close/completion awards were not part of increment76. Public unlock, alternate
+activation, replacement economics and export remain unqualified.
 This inactive additive family is not a finished Dynasty mode or a public unlock.
 The ordinary launcher remains on the verified 119 route. Original saves, frozen
 source families, visuals, and the earlier five-file adapter draft remain intact.
@@ -572,3 +578,79 @@ There was no SCRIPT ERROR; known software-renderer and dummy-audio fallback
 warnings remain. This is read-only native terminal viewing, not a new native
 physical game, a natural career close/award/rollover, target-device timing or
 all-league/export qualification.
+
+
+## Increment79: genuine natural close and next-season qualification
+
+No production code changed. Isolated copies of the verified78 terminal main and
+backup were used; original terminal, prior75 and ordinary119 slots remained byte-identical.
+The six separate-process modes close, closed-cold, propose, proposal-cold, next and
+cold passed. Actual App confirmation Cancel preserved state before both Close and
+Next; Confirm applied each once and duplicate actions were inert. The independent
+score oracle counted 11 human-club games, 8 wins and 96–62 runs. The original
+ClubSeasonRecord policy yields semifinal 65 + record bonus 12 + title bonus 0 = 77.
+All six clubs folded only current-season contributions; close did not decay their
+profiles. No championship pennant or unsupported award was manufactured.
+
+The persisted seed 550079 and all-six preview survived a cold reopen. Next applied
+the versioned provisional two-stat/one-mastery rule once, with independent paid-first
+stat and mastery attribution, catch-up remainders, authored floors, inactive known
+recipes, original learning/ability receipts and acquisition rights checked. Seasonal
+currency and journals reset without fresh draft grants. All six actual profiles had
+no ability overflow, so this genuine run does not replace the separately labeled
+synthetic overflow tests from76. Second-season cold did not decay or write again.
+Human and AI request construction passed; no new-season physical game was simulated
+here. The actual carried second-season round from76 remains separate evidence.
+
+Harness provenance: close used script SHA
+`e0a4486dc5b5723b37fc15e5bd0f2b272441f2d37a24f8bd5875c5ff3c0c6ff8`.
+Only independent carried-profile assertions were subsequently strengthened; remaining
+five modes used final script SHA
+`9eaa5749f31343420b873e176118ac2e60a257544ecde78bb88800b3084d87a8`.
+The successful close was not replayed for unrelated assertions. All 46 runtime files
+remain byte-identical to78. Original logs and both harness versions are preserved.
+
+Observed scoped wall intervals (sequential shared cloud, not target or statistical
+benchmarks): Close Confirm 22.697 s; proposal 16.869 s; Next Confirm 6.835 s.
+Initial terminal cold was 9.930 s, closed/proposal cold 14.405–15.025 s, and the
+new compact second-season cold 1.007 s. These do not demonstrate acceptable finished
+responsiveness. Handler measurements exclude independent oracle work; whole-harness
+duration is not represented as handler latency.
+
+Final second-season main: 259,019 bytes, SHA256
+`17baef44f21fa0c0049d0f641fdf287c8bfa8cca953ca95005c23ccacd46470f`.
+Closed main: 7,787,515 bytes, SHA256
+`c381ff8f738bf548775026eff1bf06a2e81371e4f7f20fc17d4261736fc64a41`.
+
+CLI evidence log SHA256:
+- close: `295a0b3c104bbdd55a01c5f6c03c619acbada77d648c6b0f6fda59b0da45d28c`
+- closed-cold: `cf7a97cc06555cfca3611e2339ea21d52e8cb7b9284053356b16419940179070`
+- propose: `f49ffb0750a78c47c832f86a1d34a256fb76f668869ec5702d10a06ee05edad9`
+- proposal-cold: `b45c528143e4098b25f43aedd317b0838acbaef2943f4c9b812b59d9d26dad57`
+- next: `65a7d65306b8490e44445ce7b33675ff9b90085151bfa58c7582019d1c3a9a23`
+- cold: `f4c9f6d458e8708ae8c39e7decc878bf9c948b3ba64984bdc90e8b1c21983e74`
+
+Native natural-close/Next/cold qualification passed as detailed below. No human championship, repeated multi-season endurance,
+ordinary alternate activation, all-league integration, public Dynasty admission,
+replacement economics, target-machine performance or distributable export is claimed.
+
+
+### Increment79 native natural-close/Next/cold
+
+Unchanged78 runtime ran in isolated QA79Natural under native Godot4.6.3 on cloud
+llvmpipe. Actual Close Cancel preserved the terminal pair; Confirm showed one closed,
+one completed, zero abandoned, 11 games and 77 currency. Closed main was byte-identical
+to CLI qualification. Next Cancel preserved the proposed pair. A separate-process cold
+preview retained seed1843816953 and the same losses; confirming Next showed Season2,
+Round1 with all six standings reset, and 77 currency/11 banked games retained. Independent
+inspection checked all-six paid-first decay, authored floors, retained rights/receipts,
+reset seasonal journals and unchanged permanent ledger. A further cold Continue showed
+the same Yard Club at Switches fixture; main and backup remained byte-identical.
+No completed native game or target-platform performance is claimed. Known graphics/audio
+fallback warnings remained; no SCRIPT ERROR occurred.
+
+Native second-season main: 259,131 bytes, SHA256
+`10a0dd74f81eda56a52a1464b4691f3c9ef41be1ffdf077cedf7a062f6a648bf`.
+Its different seed explains the difference from CLI's seed550079 fixture. Native
+qualification report SHA256:
+`54fd2ca5cc68053297d671b3b0e04b998b920918503410c2e416ddbd203afc94`.
