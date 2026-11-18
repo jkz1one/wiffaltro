@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-career-v1",
-  "source_checkpoint": "eaf3751a3309415a10d9444fbfd7282a1a5348a4",
-  "scope": "Genuine fresh Standard/Dugout run1 and additive launcher; birth/failure-retry/four-draft/cold passed in both. Actual stable-v2 explicit import/cold and informational previous-selection return passed. No new gameplay, Dynasty or release qualification.",
+  "source_checkpoint": "ebfe06bce123839b58a8cdc214a5e5a5f990e73f",
+  "scope": "Actual fresh117 Dugout human/NPC/settlement/earned pack/pick and separate cold passed. Standard round/paid-pack passed; choice/cold pending. Production unchanged from66. Native paused exit-input defect documented, not fixed.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/assets.gd.txt",
@@ -230,6 +230,18 @@
       "restore_path": "tests/successor_owner_career_v2_import.gd",
       "bytes": 6100,
       "sha256": "a6bdf32ca15d3aebe134be8b0bbc18788c0efec4b6b13d08c664d815ea3d982a"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_play.tscn.txt",
+      "restore_path": "tests/successor_owner_career_play.tscn",
+      "bytes": 202,
+      "sha256": "5fb73a11e512a26ebcdb3524a9ba311d6de9f42af94bfb4942eb1d09bf8241a1"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_play.gd.txt",
+      "restore_path": "tests/successor_owner_career_play.gd",
+      "bytes": 26269,
+      "sha256": "033cceace60c7a395c82fc521ba2726005c3bdd6b0b7f19ff8684e85480a6913"
     }
   ]
 }

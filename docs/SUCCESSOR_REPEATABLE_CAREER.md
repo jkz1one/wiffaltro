@@ -215,7 +215,9 @@ A clean assembly tool verifies all selected manifests and copies only tracked
 original source plus selected production drafts to a new directory. It changes
 only the assembled project's main scene to the career launcher. The original
 repository main scene, legacy route, visual assets and saves remain untouched.
-Tests must be explicitly requested; caches and local save files are not copied.
+Draft tests must be explicitly requested; caches and local save files are not copied.
+Tracked original source still includes legacy test/worker dependencies, so this
+source assembly is not yet a minimized release dependency package.
 Two synthetic Python tests cover isolation, manifest corruption, explicit tests,
 new-destination refusal and unsafe paths. This is not an exported release.
 
@@ -240,3 +242,42 @@ fully drafted v2 bytes also passed explicit App v2→v3 import, descriptor-only
 semantic equality, unknown-descriptor/career-corruption refusal and duplicate
 no-write. Separate-process imported cold replay also passed exact semantic equality and
 duplicate no-write. Gameplay is not inferred from import success.
+
+
+## Actual fresh gameplay and earned shop (increment67)
+
+The new standalone resume-safe play test uses a genuine66 four-pick fresh save.
+Each process performs one durable operation: real human physics, NPC1, NPC2,
+round settlement, paid pack, or generated card/target choice. No match results
+or settlement are injected. Immutable paired boundary saves and logs allow
+resumption without replaying completed games after a workspace interruption.
+The driver pins source/input hashes, preserves every log, bounds each batch and
+runs final cold verification in another process. It uses the existing runner's
+fixed60Hz QA mode to disable wall-clock synchronization, not as evidence of
+player performance.
+
+Dugout passed the complete sequence and separate strict cold reopen: one human
+game, three round results, two real NPC reports, one8Cash paid pack and one
+applied card. All six club bank journals reproduce exactly one ordinary reward.
+NPC1 and pack purchase also passed injected prewrite failure, exact retained
+retry, strict public-path parity and duplicate no-write/backup preservation.
+Quote Cancel preserved owner, primary and backup. Cold preserved original
+fixture and earlier save slots exactly. Standard has independently reached
+real first-round settlement and paid-pack retry; its choice/final cold remain
+pending at this checkpoint. No fullseason, subsequent-season or Dynasty claim.
+
+Native Sky mouse/keyboard smoke on an isolated66 assembly rendered the original
+clubhouse, completed fresh Dugout creation and four picks, opened the original
+field and advanced a real at-bat/pitch counter. Aim/pause inputs responded.
+The environment falls back to OpenGL3/llvmpipe and reports unavailable Vulkan,
+VSync/audio and embedded-window diagnostics; this is not target-renderer/audio
+or performance qualification. The QA project has a unique application name
+so it cannot overwrite original Wiffaltro saves.
+
+Visual testing found an unresolved exit-dialog defect: while SceneTree is
+paused, the dialog appears and keyboard focus changes, but its Cancel/OK button
+activation is inert; Escape closes it. The exit dialog inherits paused process
+mode. Earlier signal-only tests did not establish actual paused input dispatch.
+The paused synthetic game remains preserved, and fixing this actual input path
+is required before visual acceptance. Draft presentation also lacks a progress
+indicator and uses raw stat dictionaries. No release-ready claim is made.
