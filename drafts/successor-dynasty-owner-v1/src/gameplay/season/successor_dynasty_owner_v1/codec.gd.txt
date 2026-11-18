@@ -336,11 +336,48 @@ static func _payload(season: SeasonState) -> Dictionary:
 
 
 static func restore(value: Variant) -> SeasonState:
-	return _restore(value,false)
+	return _hydrate_current_checked(value).get("season")
 
 # Explicit old75 admission, never an automatic fallback from the new reader.
 static func restore_legacy75(value: Variant) -> SeasonState:
 	return _restore(value,true)
+
+## Same-call output only, never caller-supplied admission authority. The fresh
+## canonical capture is detached from the hydrated runtime; no cross-call cache.
+static func _hydrate_current_checked(value: Variant) -> Dictionary:
+	restore_calls += 1
+	var fields: Array = ["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]
+	fields.append("session")
+	if not primitive(value) or not keys(value,fields) \
+		or not whole(value.version,SESSION_VERSION,SESSION_VERSION) \
+		or value.format != SESSION_FORMAT \
+		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return {}
+	var result: SeasonState = Runtime.new()
+	if not install_fields(result,FIELDS,value.state): return {}
+	result.league_rules = LeagueRules.normalized(result.league_rules)
+	if result.league_rules.is_empty(): return {}
+	result.build = Builds.restore(value.build)
+	result.ownership = Builds.restore_bank(value.ownership)
+	result.career = Career.new()
+	if not install_fields(result.career,CAREER_FIELDS,value.career): return {}
+	result.physical = Physical.new()
+	if not install_fields(result.physical,PHYSICAL_FIELDS,value.physical): return {}
+	var opponents: Variant = value.opponents
+	if not keys(opponents,["draft_order","draft_rule","format","clubs"]) or not opponents.draft_order is Array or not opponents.draft_rule is String or not whole(opponents.format,13,13) or not opponents.clubs is Dictionary: return {}
+	result.opponents = Opponents.new(); result.opponents._format = 13
+	for id: Variant in opponents.draft_order:
+		if not whole(id,1,5): return {}
+	result.opponents.draft_order.assign(opponents.draft_order)
+	result.opponents.draft_rule = opponents.draft_rule
+	for id: String in opponents.clubs:
+		if id not in ["1","2","3","4","5"] or not opponents.clubs[id] is Dictionary or not opponents.clubs[id].has("build"): return {}
+		var club: Dictionary = opponents.clubs[id].duplicate(true)
+		club.build = Builds.restore(club.build)
+		if club.build == null: return {}
+		result.opponents.clubs[id] = club
+	var captured: Dictionary = capture(result)
+	if captured.is_empty() or not same(captured,value): return {}
+	return {"season":result,"captured":captured}
 
 static func _restore(value: Variant, legacy: bool) -> SeasonState:
 	restore_calls += 1

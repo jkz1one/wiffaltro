@@ -179,6 +179,11 @@ static func restore(value: Variant):
 	var fields: Dictionary={}
 	for name: String in DATA_FIELDS: fields[name]=value[name]
 	if not Codec.install_fields(result,DATA_FIELDS,fields): return null
-	result.session=Codec.restore(value.dynasty)
-	var checked: Dictionary=capture(result)
+	# Consume only the fixed codec producer's fresh checked output in this call.
+	# No input API accepts a caller-created admission pair or trusted payload.
+	var current: Dictionary=Codec._hydrate_current_checked(value.dynasty)
+	if current.is_empty(): return null
+	result.session=current.season
+	if not result.alternate.is_empty() and Previous.restore(result.alternate)==null: return null
+	var checked: Dictionary=pack_current(result,current.captured)
 	return result if not checked.is_empty() and Codec.same(checked,value) else null

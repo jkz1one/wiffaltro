@@ -1,0 +1,79 @@
+extends Node
+## Bounded read-only malformed/alias checks; fixture is a genuine isolated owner.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+var roots: Array[Resource]=[]
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func _ready() -> void:call_deferred("run")
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(args.is_empty() or (args.size()==1 and args[0]=="baseline"),"explicit baseline or changed mode"):return
+	var baseline: bool=not args.is_empty()
+	var current_codec: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated flags before fixture reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"authored identities retained before JSON"):return
+	var path: String="user://fixture.json"
+	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
+	var original: Variant=JSON.parse_string(bytes.get_string_from_utf8())
+	if not check(original is Dictionary,"genuine fixture dictionary"):return
+	var input: Dictionary=original.duplicate(true)
+	var owner=Owner.restore(input)
+	if not check(owner!=null and C.same(Owner.capture(owner),original),"strict owner roundtrip"):return
+	if not check(owner.session.teams.size()==6 and owner.session.teams[0].roster.size()==4 and owner.session.teams[1].roster.size()==4,"fixture has genuine fully drafted human/AI rosters"):return
+	# Input containers must not remain attached to any hydrated runtime fields.
+	input.dynasty.state.teams[0].roster[0]="test-only-input-mutation"
+	input.ledger.currency+=1
+	input.alternate["test-only-mutation"]=true
+	if not check(C.same(Owner.capture(owner),original),"input mutations cannot change restored current/ledger/alternate"):return
+	if not baseline:
+		var pair: Dictionary=current_codec.call("_hydrate_current_checked",original.dynasty)
+		if not check(pair.has("season") and pair.has("captured") and C.same(pair.captured,original.dynasty),"producer returns exact checked capture"):return
+		var canonical: Dictionary=pair.captured.duplicate(true)
+		pair.captured.state.teams[0].roster[0]="test-only-capture-mutation"
+		pair.captured.build.bank._state.cash+=1
+		if not check(C.same(C.capture(pair.season),canonical),"returned canonical capture is detached from live runtime"):return
+		var saved_capture: Dictionary=pair.captured.duplicate(true)
+		pair.season.teams[0].roster.reverse()
+		pair.season.build._bank._state.cash+=1
+		if not check(C.same(pair.captured,saved_capture),"runtime mutations cannot change returned capture"):return
+		if not check(C.restore(pair)==null and Owner.restore(pair)==null,"caller-created pair is not an accepted restore envelope"):return
+	for mutation: String in ["outer-version","outer-extra","current-version","catalog","session-extra","duplicate-human","ai-order","malformed-alternate","alternate-without-digest"]:
+		var data: Dictionary=original.duplicate(true)
+		if mutation=="outer-version":data.version=999
+		elif mutation=="outer-extra":data["trusted"]=true
+		elif mutation=="current-version":data.dynasty.version=999
+		elif mutation=="catalog":data.dynasty.game_catalog="not-the-authored-catalog"
+		elif mutation=="session-extra":data.dynasty.session["trusted"]=true
+		elif mutation=="duplicate-human":data.dynasty.state.teams[0].roster[1]=data.dynasty.state.teams[0].roster[0]
+		elif mutation=="ai-order":data.dynasty.state.teams[1].roster.reverse()
+		elif mutation=="malformed-alternate":data.alternate={"version":119};data.imported_sha256="a".repeat(64)
+		else:data.alternate={"version":119};data.imported_sha256=""
+		if not check(Owner.restore(data)==null,"malformed boundary refuses "+mutation):return
+	if FileAccess.file_exists("user://alternate119.json"):
+		var altbytes: PackedByteArray=FileAccess.get_file_as_bytes("user://alternate119.json")
+		var alt: Variant=JSON.parse_string(altbytes.get_string_from_utf8())
+		if not check(Owner.Previous.restore(alt)!=null,"optional alternate fixture strictly admitted"):return
+		var data: Dictionary=original.duplicate(true)
+		data.alternate=alt;data.imported_sha256=FileAccess.get_sha256("user://alternate119.json")
+		var combined=Owner.restore(data)
+		if not check(combined!=null and C.same(Owner.capture(combined),data),"valid dormant alternate retains strict full roundtrip"):return
+		data.alternate.version=999
+		if not check(Owner.restore(data)==null,"invalid alternate rejected after valid admission"):return
+		# The shared local alt variable was mutated with data; persisted bytes remain original.
+		if not check(C.same(combined.alternate,JSON.parse_string(altbytes.get_string_from_utf8())) and FileAccess.get_file_as_bytes("user://alternate119.json")==altbytes,"alternate runtime detached and input file untouched"):return
+	if FileAccess.file_exists("user://legacy75.json"):
+		var oldbytes: PackedByteArray=FileAccess.get_file_as_bytes("user://legacy75.json")
+		var old: Variant=JSON.parse_string(oldbytes.get_string_from_utf8())
+		if not check(Owner.restore(old)==null and Owner.import_75(oldbytes)!=null,"legacy75 explicit import only, unchanged admission"):return
+		if not check(C.restore(old.dynasty)==null and C.restore_legacy75(old.dynasty)!=null,"legacy descriptors admitted only by explicit legacy reader"):return
+		if not baseline:
+			var refused: Dictionary=current_codec.call("_hydrate_current_checked",old.dynasty)
+			if not check(refused.is_empty(),"legacy descriptors never admitted by current checked producer"):return
+		if not check(FileAccess.get_file_as_bytes("user://legacy75.json")==oldbytes,"legacy input bytes untouched"):return
+	if not check(FileAccess.get_file_as_bytes(path)==bytes,"mandatory fixture bytes unchanged"):return
+	print("PASS: ","baseline" if baseline else "changed"," cold restore malformed boundaries and detached aliases; no saves or gameplay")
+	get_tree().quit(0)

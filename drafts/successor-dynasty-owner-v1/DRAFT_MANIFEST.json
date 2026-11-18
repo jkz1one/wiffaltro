@@ -1,7 +1,7 @@
 {
   "format": "inactive-dynasty-owner-v1",
-  "source_checkpoint": "d6e775e654d340c26985693ee0408afd6a5bdcf8",
-  "scope": "Increment81 current-owner pregame order/pitcher/fielder controls: scoped native controls/cold/3D mount, UI/fault/stale guards, earned-history and original-save compatibility, all-six Next preservation, actual edited-role human plus two-AI round/settlement, paid pack/choice and separate cold passed. Human-only membership permutation; AI order, authored build roster, economy and Store authority preserved. Private route; no target-performance or distributable-build claim.",
+  "source_checkpoint": "a63838fcdc1796f3f7726f25d72b4c6b7eb3e549",
+  "scope": "Increment82 current-only cold restore removes one duplicate current-session capture. Same full semantic/outer/alternate validation, exact legacy75 reader and Store/App authority retained. Eight real fixture parity and paired malformed/alias/legacy plus actual paid workflow/cold checks passed. Shared-cloud cold improved but remains multi-second; no new gameplay or target-performance claim.",
   "files": [
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/codec.gd",
-      "bytes": 27188,
-      "sha256": "9500526a28be5e5a3fc94670071ab71c8261d45992ba3a8e910050de3acb5814"
+      "bytes": 29452,
+      "sha256": "b594010e3092962c5a69920ea022575d511d5ba90bfe13ee2ebe1e45179ef497"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/commit.gd.txt",
@@ -96,8 +96,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner.gd",
-      "bytes": 12825,
-      "sha256": "abef4400b01d6864cca58c645fe63bb4306ff027ef6dc447cb11e8ff7d9de732"
+      "bytes": 13188,
+      "sha256": "8ad2d4c9879acdafa43e54a056d28b4c5d6acceee43fdab52d88bb9577485c9a"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
@@ -230,6 +230,18 @@
       "restore_path": "tests/successor_dynasty_cleanup_app.gd",
       "bytes": 578,
       "sha256": "0c20e97d5d9ec6eff865309b3d7a5f92a372339e0e13d64737b6eb766f6447b7"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_cold_parity.gd.txt",
+      "restore_path": "tests/successor_dynasty_cold_parity.gd",
+      "bytes": 2637,
+      "sha256": "661a3a6ac355c4e9fdce07402fc09de94ccdab60a505af097f268e603adc36c4"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_cold_parity.tscn.txt",
+      "restore_path": "tests/successor_dynasty_cold_parity.tscn",
+      "bytes": 191,
+      "sha256": "b6a6c84b109f75c8a315083ee54d94d06f5578731b6302b0270d2c95d5931111"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_digest.gd.txt",
@@ -452,6 +464,18 @@
       "restore_path": "tests/successor_dynasty_refresh_performance.tscn",
       "bytes": 209,
       "sha256": "9ded3c33190f93b6ee1d5f3ee2018bcc2130777c843cce78f2249a9f5def8f50"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_restore_isolation.gd.txt",
+      "restore_path": "tests/successor_dynasty_restore_isolation.gd",
+      "bytes": 6268,
+      "sha256": "30800dde21333df2f8027cec6f8ac501c7aa06037056f76ef8b710434f78f102"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_restore_isolation.tscn.txt",
+      "restore_path": "tests/successor_dynasty_restore_isolation.tscn",
+      "bytes": 198,
+      "sha256": "96f538b047c0b157ea5b35a7c92e54d54dc010f4207848d2a5dc78d34ef7dc50"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_shop_quotes.gd.txt",

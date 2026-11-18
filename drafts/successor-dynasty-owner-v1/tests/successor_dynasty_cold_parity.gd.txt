@@ -1,0 +1,35 @@
+extends Node
+## Read-only real current-owner fixture corpus, identical baseline/current harness.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const Physical=preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_fixtures.gd")
+var roots: Array[Resource]=[]
+func check(ok: bool,label: String)->bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:get_tree().quit(1)
+	return ok
+func _ready()->void:call_deferred("run")
+func run()->void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==1 and args[0] in ["1","2"],"isolated expected capture count before any reads"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not C.Catalog.game_signature().is_empty() and not C.Catalog.player_signature().is_empty(),"authored resources pinned"):return
+	var reports: Array=[]
+	for label: String in ["active-large","terminal","closed","proposed","next","edited","pending","earned-edited"]:
+		var path: String="user://"+label+".json";var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
+		if not check(not bytes.is_empty(),"real fixture supplied "+label):return
+		var value: Variant=JSON.parse_string(bytes.get_string_from_utf8())
+		var captures: int=C.capture_calls;var resolves: int=Physical.resolve_calls;var started: int=Time.get_ticks_usec()
+		var owner=Owner.restore(value);var duration: int=Time.get_ticks_usec()-started
+		var count: int=C.capture_calls-captures
+		if not check(owner!=null and count==int(args[0]),"strict current hydration expected capture count "+label):return
+		if not check(C.same(Owner.capture(owner),value) and Physical.resolve_calls==resolves and FileAccess.get_file_as_bytes(path)==bytes,"full recapture/physics/input preservation "+label):return
+		reports.append({"fixture":label,"sha256":FileAccess.get_sha256(path),"capture_calls":count,"restore_us":duration,"round":owner.session.round_index,"ordinal":owner.ordinal,"status":owner.status})
+		print("COLD_PARITY ",JSON.stringify(reports[-1],"",true,true))
+	var out: String="user://cold-parity-results.json"
+	if not check(not FileAccess.file_exists(out),"fresh report destination"):return
+	var f=FileAccess.open(out,FileAccess.WRITE)
+	if not check(f!=null,"report writable"):return
+	f.store_string(JSON.stringify(reports,"",true,true));f.close()
+	print("PASS: real8fixture current hydration exact parity, no replay/write")
+	get_tree().quit()

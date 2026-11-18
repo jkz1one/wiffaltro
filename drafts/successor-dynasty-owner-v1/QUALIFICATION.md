@@ -878,3 +878,33 @@ Increment81 final evidence log SHA256:
 - physical-cold.log: `d9e771162ecaf5cf53ff99919da6dabd4c884fc1071f8ba7b752dd404fc28003`
 - physical-choice.log: `b3204bfa21f05fbf7d303533e2e2285cbcca70edf3ec0cf50aeff5f17ae798d5`
 - physical-final-cold.log: `be078f8e88a2eb8f75014bfc7a8effcb205ace69488b48172edef45c4f40fe78`
+
+
+## Increment82: current-only cold hydration, duplicate capture removed
+
+Parent checkpoint81: `a63838fcdc1796f3f7726f25d72b4c6b7eb3e549`. Publication/remote verification is separate from the following local qualification.
+
+Only `codec.gd` and `owner.gd` change in production. A private current-format producer returns its fresh runtime and detached canonical snapshot only after full semantic capture and exact current-envelope comparison. Owner.restore obtains that output itself, retains strict dormant-alternate validation, full envelope/ledger/lifecycle validation and exact outer comparison. No caller-provided admission pairs, cache or skip-validation flag. Public readers still return SeasonState/null; the original legacy75 `_restore` body is byte-for-byte unchanged. Store, App, writer/CAS, generic capture and candidate-save authority are untouched.
+
+Qualified on exact final source:
+- Paired81/82 eight genuine current-owner fixtures: large earned active, actual terminal, natural closed, proposed, ordinal2 Next, edited lineup, pending human, edited earned. All strict recaptures match; each current Owner.restore capture count is exactly2 before versus1 after. No physics or input writes.
+- Same baseline/current isolation suite: input/runtime detachment, nine malformed envelopes/catalog/order/alternate refusals, valid/invalid genuine119 alternate and detachment, explicit75 import compatibility. New checked output additionally proves runtime/snapshot detachment both ways, rejects supplied pairs as public restore envelopes, and refuses legacy descriptors. Both optional119 and75 fixture branches were exercised on both versions; new helper-specific assertions apply to82 only.
+- Same genuine6.38MB fixture, separate-process actual App import/open/paid pack/choice/cold workflow: exact command, final primary and backup presence/bytes match81 in every mode. Final paid-choice SHA256 `cca8677714c7e5eafdd57f07cd882b5a39c72ba32a01c8dced8e13e22988224c`.
+
+Separate App cold observation:7.594s before,5.322s after (about2.27s less). This is a single paired serial engineering/shared-cloud observation with an old idle editor in the background; the native81 game process was closed, not CPU-exclusive, a target-hardware benchmark or a statistical guarantee. Cold still exceeds the3s engineering responsiveness target. Paid handler timing differences are not attributed to this reader-only change. Within-process corpus timings separately support the removed traversal; closed/proposed large saves remain particularly slow. No new gameplay, full-career/all-league, or distributable readiness claim.
+
+Evidence: `cold82/CORPUS_PARITY_RESULT.json`, `WORKFLOW_PARITY_RESULT.json`, `UNCHANGED_AUTHORITY_AND_LEGACY.json`, final six-source provenance and owner-only backups. No private saves or raw evidence are included in source publication.
+
+Final82 logs (SHA256):
+- baseline81-parity.log: `4b0bd69ea4f9c814c55335fcf069ac7a27a865e058a7257d9deec3f18c054322`
+- changed82-parity.log: `a78c0e0db475a179fc41e13f177d7a4ef556be32b38d49fe55a1c179ac938d1b`
+- baseline81-isolation.log: `23de2d67263090c3ff542d4b68d3697a2f26dff8a8e196b8eaf1084600c96626`
+- changed82-isolation.log: `97dc138a34c72328ed338bb1c6503d8f6952b05a33976be47871a689b788ea4d`
+- baseline81-import.log: `57e16986878eb028e173b9be8732ebe2861922baf5604e5897684f06bec92a1a`
+- baseline81-open.log: `72ee45ab8c320ef87d1ad9764330e6d44d81284ee3e05ebebcab5560be2c15e5`
+- baseline81-pick.log: `5744ed79672184a95fdbb0d4d521b2bafa1476e65ee62979efcd73ae873870e9`
+- baseline81-cold.log: `26b3a0a53812d86475c0ba8a07e33a141a8c291c7fa0d5ee5708aadb9432743e`
+- changed82-import.log: `f4852cefab698c914a2f988e1d103bacd3d33ee591338f0cd860e02d31e0f8a1`
+- changed82-open.log: `78dfefdfdc817ee3bf083afa1300a0080806cbcefa56c84e30eb2231158b5acb`
+- changed82-pick.log: `3d1d62b3c5cf461fdbf12201de58f48c2184a70849e3710ad81f6a223111a2cf`
+- changed82-cold.log: `1e58af34bbf1ffd00d59ddc6f22eb893d6c590d0cae0c5b4ca3565f177abf9f5`
