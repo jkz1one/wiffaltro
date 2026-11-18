@@ -105,6 +105,80 @@ static func _copy(value: Variant, depth: int, budget: Array) -> Variant:
 	budget[1] = false
 	return null
 
+## Compare the live graph against a private capture without allocating another
+## graph. Depth/nodes are counted at the same virtual Dictionary positions as
+## capture(owner) followed by same(), including synthetic object wrappers.
+static func matches(owner: Variant, snapshot: Dictionary) -> bool:
+	var budget: Array = [MAX_NODES]
+	if not _match_object(owner,Owner,Owner.DATA_FIELDS,["session"],snapshot,0,budget): return false
+	return _match_session(owner.session,snapshot.session,1,budget)
+
+static func _match_object(value: Variant, factory: Script, fields: Array, children: Array, snapshot: Variant, depth: int, budget: Array, string_children: Array = []) -> bool:
+	budget[0] -= 1
+	if budget[0]<0 or depth>MAX_DEPTH: return false
+	if not value is Object or not is_instance_valid(value) or value.get_script()!=factory: return false
+	if not Codec.known_variables(value,fields+children): return false
+	# Capture fields use String keys; dot-assigned child keys are StringName.
+	# Preserve this exact native distinction, including explicit [] child writes.
+	if not snapshot is Dictionary or snapshot.is_typed() or snapshot.is_read_only() or snapshot.size()!=fields.size()+children.size(): return false
+	for key: Variant in snapshot:
+		if typeof(key) not in [TYPE_STRING,TYPE_STRING_NAME]: return false
+		var name: String=String(key)
+		if name in fields:
+			if typeof(key)!=TYPE_STRING: return false
+		elif name in children:
+			if typeof(key)!=(TYPE_STRING if name in string_children else TYPE_STRING_NAME): return false
+		else: return false
+	for field: String in fields:
+		if not _same(value.get(field),snapshot[field],depth+1,budget): return false
+	return true
+
+static func _match_session(season: Variant, snapshot: Variant, depth: int, budget: Array) -> bool:
+	# Replay pointers are synthetic null fields of the captured wrapper.
+	var replay: Array = ["_heat_replay_team","_doubleheader_replay_build","_pool_replay_ledger"]
+	if not _match_object(season,Codec.Runtime,Codec.FIELDS,Codec.OBJECTS,snapshot,depth,budget,replay): return false
+	for name: String in replay:
+		if season.get(name)!=null or not _same(null,snapshot[name],depth+1,budget): return false
+	if not _match_bank(season.ownership,snapshot.ownership,depth+1,budget): return false
+	if not _match_build(season.build,snapshot.build,depth+1,budget): return false
+	if not _match_object(season.career,Codec.Career,Codec.CAREER_FIELDS,[],snapshot.career,depth+1,budget): return false
+	if not _match_object(season.physical,Codec.Physical,Codec.PHYSICAL_FIELDS,[],snapshot.physical,depth+1,budget): return false
+	if not _match_object(season.opponents,Codec.Opponents,["draft_order","draft_rule","_format"],["clubs"],snapshot.opponents,depth+1,budget,["clubs"]): return false
+	var clubs: Variant=season.opponents.clubs
+	var saved: Variant=snapshot.opponents.clubs
+	budget[0]-=1
+	if budget[0]<0 or depth+2>MAX_DEPTH or not clubs is Dictionary or not saved is Dictionary: return false
+	if clubs.is_typed() or saved.is_typed() or clubs.is_read_only()!=saved.is_read_only() or clubs.size()!=saved.size(): return false
+	for key: Variant in saved:
+		if typeof(key)!=TYPE_STRING: return false
+	for key: Variant in clubs:
+		if typeof(key)!=TYPE_STRING or not saved.has(key): return false
+		var club: Variant=clubs[key]
+		var old: Variant=saved[key]
+		budget[0]-=1
+		if budget[0]<0 or depth+3>MAX_DEPTH or not club is Dictionary or not old is Dictionary: return false
+		if club.is_typed() or old.is_typed() or club.is_read_only()!=old.is_read_only() or club.size()!=old.size() or not club.has("build"): return false
+		for field: Variant in old:
+			if typeof(field)!=(TYPE_STRING_NAME if field=="build" else TYPE_STRING): return false
+		for field: Variant in club:
+			if typeof(field)!=TYPE_STRING or not old.has(field): return false
+			if field!="build" and not _same(club[field],old[field],depth+4,budget): return false
+		if not _match_build(club.build,old.build,depth+4,budget): return false
+	return true
+
+static func _match_build(build: Variant, snapshot: Variant, depth: int, budget: Array) -> bool:
+	if not _match_object(build,Builds.GameBuild,Builds.BUILD.keys()+["last_error"],Builds.OBJECTS,snapshot,depth,budget): return false
+	return _match_bank(build._bank,snapshot._bank,depth+1,budget) \
+		and _match_object(build._book,Builds.Book,Builds.BOOK.keys(),[],snapshot._book,depth+1,budget) \
+		and _match_object(build._gear_progress,SeasonGearProgress,Builds.GEAR.keys(),[],snapshot._gear_progress,depth+1,budget) \
+		and _match_object(build._sponsor_progress,SeasonSponsorProgress,Builds.SPONSOR.keys(),[],snapshot._sponsor_progress,depth+1,budget) \
+		and _match_object(build._major,SeasonDoubleMajor,Builds.MAJOR.keys(),[],snapshot._major,depth+1,budget) \
+		and _match_object(build._abilities,SeasonAbilities,Builds.ABILITIES.keys(),[],snapshot._abilities,depth+1,budget) \
+		and _match_object(build._copy,SeasonCarbonCopy,Builds.COPY.keys(),[],snapshot._copy,depth+1,budget)
+
+static func _match_bank(bank: Variant, snapshot: Variant, depth: int, budget: Array) -> bool:
+	return _match_object(bank,SeasonOwnership,Builds.BANK.keys()+["_catalog"],[],snapshot,depth,budget)
+
 static func same(a: Variant, b: Variant) -> bool:
 	return _same(a,b,0,[MAX_NODES])
 
@@ -117,12 +191,29 @@ static func _same(a: Variant, b: Variant, depth: int, budget: Array) -> bool:
 		TYPE_FLOAT:
 			return is_finite(a) and is_finite(b) and a == b
 		TYPE_ARRAY:
+			if a.get_typed_builtin()==TYPE_OBJECT: return false
 			if a.is_read_only()!=b.is_read_only() or a.size()!=b.size() or a.get_typed_builtin()!=b.get_typed_builtin() or a.get_typed_class_name()!=b.get_typed_class_name() or a.get_typed_script()!=b.get_typed_script(): return false
 			for i in range(a.size()):
 				if not _same(a[i],b[i],depth+1,budget): return false
 			return true
 		TYPE_DICTIONARY:
+			if a.get_typed_key_builtin()==TYPE_OBJECT or a.get_typed_value_builtin()==TYPE_OBJECT: return false
 			if a.is_read_only()!=b.is_read_only() or a.size()!=b.size() or a.get_typed_key_builtin()!=b.get_typed_key_builtin() or a.get_typed_value_builtin()!=b.get_typed_value_builtin() or a.get_typed_key_class_name()!=b.get_typed_key_class_name() or a.get_typed_value_class_name()!=b.get_typed_value_class_name() or a.get_typed_key_script()!=b.get_typed_key_script() or a.get_typed_value_script()!=b.get_typed_value_script(): return false
+			# Captures preserve insertion order. Check actual key types positionally
+			# for the common unchanged case; reordered equal maps still use the
+			# exact typed-key fallback below. Neither path copies nested values.
+			var ordered_keys: Array = b.keys()
+			var ordered: bool = true
+			var index: int = 0
+			for key: Variant in a:
+				if typeof(key) not in [TYPE_INT,TYPE_STRING,TYPE_STRING_NAME]: return false
+				if typeof(key)!=typeof(ordered_keys[index]) or key!=ordered_keys[index]:
+					ordered=false; break
+				index+=1
+			if ordered:
+				for key: Variant in a:
+					if not _same(a[key],b[key],depth+1,budget): return false
+				return true
 			# Godot dictionary lookup can conflate StringName and String keys.
 			# Compare actual key types, never merely has(key) or JSON key strings.
 			var keys_b: Dictionary = {}

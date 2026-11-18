@@ -17,6 +17,15 @@ func run() -> void:
 	var difficulty: int = owner.difficulty
 	var candidate: SeasonState = owner.fork_live()
 	if not check(candidate.choose_player(candidate.offers()[0]),"detached actual draft choice"): return
+	var guarded_bytes: PackedByteArray=Store.raw()
+	app._busy=true
+	app._retain(candidate,guarded_bytes)
+	if not check(app.retained==null and app.season==owner and Store.raw()==guarded_bytes and app._busy,"busy helper cannot prepare or write a candidate"): return
+	app._busy=false
+	Store.saving=true
+	app._retain(candidate,guarded_bytes)
+	if not check(app.retained==null and app.season==owner and Store.raw()==guarded_bytes and Store.saving,"save-in-progress helper cannot prepare or write a candidate"): return
+	Store.saving=false
 	app.lab = PitchBatLab.new() # Unattached test double, never a completed game.
 	app._retain(candidate,Store.raw())
 	if not check(app.retained == candidate and app.retained_saved and app.season == owner and app.lab == null and app.close_calls == 1,"postcleanup owner mismatch blocks promotion but preserves durable candidate"): return

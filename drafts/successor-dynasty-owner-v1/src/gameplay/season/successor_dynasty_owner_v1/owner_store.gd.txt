@@ -109,8 +109,7 @@ static func match_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
 		and _matches(expected) and _matches_raw(owner,_owner_raw)
 
 static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
-	var current: Dictionary = RawGuard.capture(value)
-	return not current.is_empty() and RawGuard.same(current,snapshot)
+	return RawGuard.matches(value,snapshot)
 
 static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> RefCounted:
 	if saving or _ticket != null or candidate == null or candidate == owner: return null
@@ -141,6 +140,16 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 	_expected = expected.duplicate(); _written = PackedByteArray()
 	return _ticket
 
+## One synchronous Store-owned admission/write stack. No token or caller flag
+## permits skipping later checks. prepare strictly captures the candidate and
+## matches the live owner; no callbacks or external handoff intervene here.
+## On obstruction the ordinary private ticket survives, and retry stays strict.
+static func prepare_and_write(owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> RefCounted:
+	var ticket: RefCounted = prepare(owner,candidate,expected)
+	if ticket == null: return null
+	_write_admitted()
+	return ticket
+
 static func prepared_matches(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
 	if ticket == null or ticket != _ticket or owner != _owner or candidate != _candidate or expected != _expected: return false
 	if candidate.session != _candidate_session or (owner != null and owner.session != _owner_session): return false
@@ -152,6 +161,11 @@ static func prepared_snapshot(ticket: RefCounted) -> Dictionary:
 static func write_prepared(ticket: RefCounted) -> bool:
 	if saving or ticket == null or ticket != _ticket or not _written.is_empty(): return false
 	if not prepared_matches(ticket,_owner,_candidate,_expected): return false
+	return _write_admitted()
+
+# Private immediate continuation only; callers use prepare_and_write or the
+# fully checked write_prepared retry. Disk CAS/readback remain in every write.
+static func _write_admitted() -> bool:
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(_expected):
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."

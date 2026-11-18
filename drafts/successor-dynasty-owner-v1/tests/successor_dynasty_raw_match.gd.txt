@@ -1,0 +1,103 @@
+extends Node
+## Direct matcher strict parity; not saved-state admission or anticheat proof.
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Codec=preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const OriginalSame=preload("res://src/gameplay/season/successor_live_play_v1/raw_guard.gd")
+const Raw=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+var roots: Array[Resource]=[]
+var failed: bool=false
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:failed=true
+	return ok
+func parity(owner, snapshot: Dictionary, expected: bool,label: String) -> void:
+	var captured: Dictionary=Raw.capture(owner)
+	var old: bool=not captured.is_empty() and OriginalSame.same(captured,snapshot)
+	check(Raw.same(captured,snapshot)==OriginalSame.same(captured,snapshot),"optimized comparator matches frozen119 reference: "+label)
+	var direct: bool=Raw.matches(owner,snapshot)
+	check(old==expected and direct==old,label)
+func _ready() -> void:call_deferred("run")
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated raw matcher probe before reads"):
+		get_tree().quit(1);return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"current-only matcher and content roots available"):
+		get_tree().quit(1);return
+	var path: String="user://source-owner-v2.json"
+	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
+	var owner=Owner.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+	if not check(owner!=null,"actual source owner admitted"):
+		get_tree().quit(1);return
+	var before: Dictionary=Raw.capture(owner)
+	parity(owner,before,true,"unchanged exact concrete owner matches snapshot")
+	var build: SeasonBuild=owner.session.build
+	owner.session.build=preload("res://src/gameplay/season/successor_league_general_v2/build.gd").new()
+	parity(owner,before,false,"wrong concrete human factory refused")
+	owner.session.build=build
+	var ai: SeasonBuild=owner.session.opponents.clubs["5"].build
+	owner.session.opponents.clubs["5"].build=preload("res://src/gameplay/season/successor_league_general_v2/build.gd").new()
+	parity(owner,before,false,"wrong concrete fifth AI factory refused")
+	owner.session.opponents.clubs["5"].build=ai
+	var catalog: Dictionary=ai._bank._catalog
+	ai._bank._catalog=catalog.duplicate(true);ai._bank._catalog["hidden_probe"]={"price":123}
+	parity(owner,before,false,"hidden AI catalog mutation detected")
+	ai._bank._catalog=catalog
+	var players: Dictionary=ai._book._players
+	ai._book._players=players.duplicate(true);ai._book._players["hidden_probe"]={}
+	parity(owner,before,false,"hidden fifth AI player mutation detected")
+	ai._book._players=players
+	var wrapper: Dictionary=before.duplicate(true)
+	var wrapper_child: Variant=wrapper.session.build
+	wrapper.session.erase(&"build");wrapper.session[String("build")]=wrapper_child
+	parity(owner,wrapper,false,"snapshot child wrapper StringName-to-String mutation rejected")
+	var old_alternate: Dictionary=owner.alternate
+	owner.alternate={"probe":1}
+	var sample: Dictionary=Raw.capture(owner)
+	parity(owner,sample,true,"native integer snapshot exact")
+	owner.alternate={"probe":1.0};parity(owner,sample,false,"native int versus float remains distinct")
+	owner.alternate={&"probe":1};parity(owner,sample,false,"StringName key is not String key")
+	sample=Raw.capture(owner);parity(owner,sample,true,"same StringName key remains supported")
+	var typed: Array[int]=[1,2]
+	owner.alternate={"probe":typed};sample=Raw.capture(owner);parity(owner,sample,true,"same typed primitive array preserved")
+	owner.alternate={"probe":[1,2]};parity(owner,sample,false,"typed versus untyped array refused")
+	var typed_map: Dictionary[String,int]={"value":1}
+	owner.alternate={"probe":typed_map};sample=Raw.capture(owner);parity(owner,sample,true,"same typed primitive dictionary preserved")
+	owner.alternate={"probe":{"value":1}};parity(owner,sample,false,"typed versus untyped dictionary refused")
+	var readonly: Array=[1,2];readonly.make_read_only()
+	owner.alternate={"probe":readonly};sample=Raw.capture(owner);parity(owner,sample,true,"read-only container metadata preserved")
+	owner.alternate={"probe":[1,2]};parity(owner,sample,false,"read-only versus mutable container refused")
+	owner.alternate={"alpha":1,"beta":2};sample=Raw.capture(owner)
+	owner.alternate={"beta":2,"alpha":1};parity(owner,sample,true,"equal reordered dictionary uses exact fallback")
+	owner.alternate={"finite":1.25};sample=Raw.capture(owner);parity(owner,sample,true,"finite native float exact")
+	owner.alternate={"finite":NAN};parity(owner,sample,false,"NaN refused even before equality")
+	owner.alternate={"finite":INF};parity(owner,sample,false,"infinite scalar refused")
+	var objects: Array[Resource]=[]
+	owner.alternate={"probe":objects};parity(owner,before,false,"empty typed Object array refused")
+	var object_map: Dictionary[String,Resource]={}
+	owner.alternate={"probe":object_map};parity(owner,before,false,"empty typed Object dictionary refused")
+	for count in [Raw.MAX_DEPTH-2,Raw.MAX_DEPTH-1]:
+		var boundary: Array=[]
+		var tail: Array=boundary
+		for i in range(count):
+			var next: Array=[];tail.append(next);tail=next
+		owner.alternate={"probe":boundary}
+		sample=Raw.capture(owner)
+		check(not sample.is_empty(),"per-field copy supports near-boundary graph")
+		parity(owner,sample,count==Raw.MAX_DEPTH-2,"global wrapper depth boundary "+str(count))
+	owner.alternate={"probe":RefCounted.new()};parity(owner,before,false,"embedded executable object refused")
+	var nested: Array=[]
+	var cursor: Array=nested
+	for i in range(Raw.MAX_DEPTH+2):
+		var child: Array=[];cursor.append(child);cursor=child
+	owner.alternate={"probe":nested}
+	sample=before.duplicate(true);sample.alternate=owner.alternate
+	parity(owner,sample,false,"over-depth identical graph refuses boundedly")
+	var oversized: Array=[];oversized.resize(Raw.MAX_NODES+1)
+	owner.alternate={"probe":oversized}
+	sample=before.duplicate(true);sample.alternate=owner.alternate
+	parity(owner,sample,false,"over-node identical graph refuses boundedly")
+	owner.alternate=old_alternate
+	parity(owner,before,true,"all caller mutations restored exactly")
+	check(FileAccess.get_file_as_bytes(path)==bytes,"actual source file unchanged")
+	if not failed:print("PASS: direct raw matcher parity factories/hiddenstate/native types/containers/bounds")
+	get_tree().quit(1 if failed else 0)

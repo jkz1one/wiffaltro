@@ -1,5 +1,11 @@
 # Dynasty owner: bounded private career integration
 
+Increment77 qualifies a narrow measured transaction optimization on the same
+genuine larger save, with exact saved-byte parity and strict safety regressions.
+Blocking paid actions are roughly twice as fast, not yet responsive enough for
+a finished build. Cold admission is unchanged. Scoped native paid-shop and cold qualification
+also passed.
+
 Increment76 qualifies the bounded private lifecycle: strict75 copy, actual
 abandon/all-six Next/cold, scoped native lifecycle/cold/launch/leave, and a genuine
 carried second-season human+twoAI round followed by paid shop choice and cold.
@@ -340,3 +346,133 @@ Final evidence log SHA256 values:
 - `fresh-birth.log`: `f16ca03d61ef6732fc3edcc68a4cf9401e9eb6971869ae22eb54eca705cebfd1`
 - `fresh-cold.log`: `4b09e0a10413185c55517b7306dc29f3634ad33ce5788c3490cc1f0cfca5471a`
 - `NATIVE76_SMOKE_REPORT.json`: `321a7f096ecbd39953327f617df80fb8466a99257d5edbb82d93e5fa771b1671`
+
+## Increment 77: bounded same-save transaction performance
+
+This increment changes only the existing private raw guard, owner store and App
+transaction continuation. It does not alter gameplay, save schema, evidence
+retention, balance, catalog contents, physics or the public mode admission.
+
+- Live objects are compared directly with the process-private captured graph.
+  Exact factories, known fields, native value/key types, typed/read-only
+  containers, hidden human/all-five-AI state, finite values and the assembled
+  graph's global depth/node bounds remain checked. No second deep graph copy is
+  created for each comparison. Equal reordered dictionaries retain an exact
+  typed-key fallback; String and StringName keys are not conflated.
+- Only the first synchronous Store-owned prepare/write continuation omits the
+  immediately redundant raw copies/comparisons. Candidate semantic capture,
+  cold/generic validation, disk CAS/readback, later retry checks and post-cleanup
+  owner/candidate/disk checks remain. There is no caller skip-validation flag.
+- Diagnostic retained snapshots are copied lazily when requested. They remain
+  detached and are never accepted as the writer's payload. Busy/save-in-progress
+  callers cannot enter the initial writer.
+
+### Paired actual earned-save measurement
+
+One quiet sequential sample per action used the identical real ninth-settlement
+75 save, explicitly imported into separate v2 slots for unchanged 76 and 77. It
+contains nine human games and 27 results; no outcomes were replayed or removed,
+no currency was fabricated, and the actual full Shop handlers were used.
+
+| Measured handler |76 |77 |
+| --- | ---: | ---: |
+| Full Shop opening/offer refresh |17.092s |9.318s |
+| Actual paid pack confirmation |16.103s |7.939s |
+| Actual development choice confirmation |17.024s |8.778s |
+| Final cold admission |7.543s |7.844s |
+
+Paid confirmation times fell 50.7% and 48.4% respectively; full Shop opening fell
+45.5%. These remain blocking multi-second operations, not acceptable finished
+responsiveness. Cold admission was not improved. This is a paired functional
+engineering measurement, not a statistical or target-hardware benchmark.
+Remaining Shop quote/fork work is a separate next optimization, not a reason to
+remove features or weaken validation in this checkpoint.
+
+Original input: 6,381,991 bytes,
+SHA256 `3810c79e5a03550748294e9c981d6136e851818a90b7e23e7f76cb00901e83fc`.
+Both runs issued the exact same pack command and fielding choice for Ash Cole.
+Every import/open/pick/cold pre/post save and post-backup compared byte-identical.
+Final output: 6,386,308 bytes,
+SHA256 `cca8677714c7e5eafdd57f07cd882b5a39c72ba32a01c8dced8e13e22988224c`.
+Both original 75 main and backup remained unchanged. The independent comparison
+is recorded in `PAIRED_BENCHMARK_RESULT.json`.
+
+### Safety regression and retained development failures
+
+The direct matcher passed adversarial comparison against the frozen 119 raw
+comparator: human/fifth-AI factory changes, hidden AI catalog/book changes,
+String/StringName keys, int/float distinction, typed and read-only containers,
+reordered maps, typed-object empties, nonfinite/object rejection and global
+wrapper depth/node limits. The actual source fixture remained byte-identical.
+
+An initial fresh-construction probe exposed that capture's dot-assigned child
+keys are native StringName while scalar/explicit-bracket keys are String. The
+matcher was corrected to mirror those exact distinctions, not coerce them.
+The initial saved candidate and failed logs were retained. Two test-harness
+parse errors (duplicate local name and invalid class-level dynamic method use)
+were fixed before the successful adversarial run. The baseline import helper
+logged an empty-buffer hash-update error after its measured successful action;
+the helper was corrected to skip the empty update. Its actual output/hash was
+unchanged, and the original log remains preserved.
+
+Final exact-source CLI regressions passed: busy/save-in-progress helper refusal;
+synchronous cleanup owner/replacement-lab guards; close and Next confirmation
+Cancel, stale owner/session/disk, prewrite obstruction, foreign-disk refusal and
+exactly-once retry; lazy diagnostic nested-copy isolation; actual fresh four-pick
+launcher and separate cold; imported119 alternate, session-pointer and quit
+callback guards. Native77 smoke passed separately as described below. Earlier 76 physical and lifecycle qualification remains
+as scoped above; 77 does not claim a new full-season physics run, natural
+terminal closure, alternate activation, public unlock, replacement economics,
+finished responsiveness or distributable export.
+
+### Increment77 exact CLI evidence hashes
+
+- `baseline76-import.log`: `3b3a1e3486544f192bad96c5cf257af08018847135908c4540059f20e301759d`
+- `baseline76-open.log`: `0e57f704f586ad4a2def0d8e6750d8b55e886dbe24f023ad3f40325959aa67b5`
+- `baseline76-pick.log`: `830b5f5cc4d33f15b3149f27166979d0c4478a02e091e8c59769939f6c291a3e`
+- `baseline76-cold.log`: `81a2dcd17ddf734fe59277a9d78234340cc8037ee8c73adad465a2a4344e45a7`
+- `changed77-import.log`: `1d942725ef89a0b909b62bac219e3454de3b74bbea8abce56285c8f4dcbb3186`
+- `changed77-open.log`: `678106fd735cb84eeb0d0d6d78f6bd43e5b9e1fc770b4c133177ddb3d58cd865`
+- `changed77-pick.log`: `c6dce4d04f54b98246a60854a6fe8b1672cea4ca03c81ac609cf7f3e847f4775`
+- `changed77-cold.log`: `6cc303c69b8c25f307f6ee2e9237cbc5d1f1dd4c561e1ef622ac9c873f152af4`
+- `raw-static-fixed.log`: `5a3bc4af459706e4e278ebd1056f6f49711d59c92bcc8e7ef5195ec5c891fadb`
+- `cleanup-final.log`: `04e4df3a1e79a2655ef9444ad7de8107705ddf699026afa815a1c41e361f1792`
+- `fault-final-close.log`: `10f8d4e3cd9689b6afa2a31b25a146e32c82522c5b75484e6c777e8137967522`
+- `fault-final-next.log`: `e5ef538bdc965a7c0aaa7216e6f1d4d90ed87eb99b2eadd1d83b12f56bbf0a6b`
+- `fresh-birth.log`: `d16358e94cbc4b5a3c4813098a822156389f28f5b6a3dbde188b12378a545e9e`
+- `fresh-cold.log`: `390e55f01d931b80e0dfa29d7cbe39020fde2c165421f0cc517f1768358e80c2`
+- `owner-session.log`: `80a0c18c74ff2045516c4d9dade94cb6bc421402038e76ff53066ec43087cfda`
+
+Failed `raw-final.log` and `raw-parse-fixed.log` are retained historical harness
+logs, not successful qualification runs. Only `raw-static-fixed.log` qualifies
+the final raw parity test.
+
+### Increment77 actual native shop and cold
+
+The original-style native launcher continued a separate copy of the actual
+carried second-season settlement. Shop displayed 12 Cash; the paid pack quoted
+12 to4, Cancel preserved12, and actual confirmation saved4 and three fixed
+cards. RoundOut for Ash Cole's overhand four-seam increased mastery1 to2 with
+no second charge. Pack Used and4 Cash remained after clean exit and a second
+process Continue/Shop. Main and backup bytes were unchanged across that cold
+read and final exit. This smoke did not play a new physical match.
+
+Native final main:960,857bytes,
+SHA256 `e89b89263d1910333e4f07201063b36be20acabacadd1a4aff8442c64f1a1066`;
+it is byte-identical to the verified76 actual carried paid-choice result.
+Native backup:960,281bytes,
+SHA256 `96635d8ced26adc606144b888006c34605cf9a3817a0ffd0b9a797186171c890`.
+`NATIVE77_SMOKE_REPORT.json` SHA256:
+`2a1886cd9fcc1497bdceab33d3373849ab79947534690705bee9d037cb79df91`.
+
+The first source-only native preparation lacked the imported global script
+class cache and stopped before an App/save action. The exact-stage imported
+cache was copied without changing runtime source. That preparation failure is
+preserved separately; final warm/cold logs have no SCRIPT ERROR. Software
+renderer and dummy-audio fallback warnings do not establish target-device
+performance or distributable-build qualification.
+
+Separately, frozen75 full-season endurance has exposed an inherited cold
+semifinal-ID advancement/reward issue. Its actual reports and predecessors are
+preserved for a later narrow repair. This checkpoint neither repairs that
+issue nor claims natural-terminal completion; it does not replay those games.

@@ -211,3 +211,43 @@ Store-owned preparation and initial write, and comparing live state directly
 against private snapshots, are bounded candidates; neither is implemented or
 performance-qualified by this checkpoint. Removing gameplay depth or discarding
 required outcome evidence is not the proposed remedy.
+
+## Checkpoint77: preserve save authority without repeated deep copies
+
+Parent76 is verified at `d69e8d08d14d959a0148e732f21f2c8fe605e965`.
+This increment changes only three runtime files in the existing Dynasty family.
+A direct live-graph/private-snapshot comparator replaces redundant detached
+captures. It retains native key/value types, typed and readonly container
+metadata, exact factories/known fields, hidden catalogs and AI state, finite
+numbers, and the original global depth/node limits including virtual wrappers.
+
+A Store-owned synchronous prepare-and-write path removes only the two immediate
+rechecks with no intervening callback. Later retries, disk compare-and-swap and
+readback, and post-cleanup owner/candidate checks remain strict. Diagnostic
+snapshots are detached copies materialized only when requested. No save schema,
+physics, economy, reports, planned feature, or historical evidence was removed.
+
+Paired sequential measurements use the same genuine nine-round Dynasty save:
+6,381,991 bytes, 27 results and nine human games. Full result main/backup files
+for import, paid pack reveal, paid choice and separate cold reopen are identical
+between76 and77. Final save:6,386,308 bytes, SHA256
+`cca8677714c7e5eafdd57f07cd882b5a39c72ba32a01c8dced8e13e22988224c`.
+
+- Paid pack confirmation including refresh:16.103s to7.939s (50.7% reduction).
+- Paid choice including refresh:17.024s to8.778s (48.4% reduction).
+- Full initial Shop refresh:17.092s to9.318s (45.5% reduction).
+- Final strict cold read:7.543s to7.844s; no improvement claim.
+
+These are one sequential sample per action on shared cloud hardware, not a
+statistical or target-device benchmark. Eight-to-nine-second paid actions and
+cold loading are still too slow for final responsiveness. Shop preview work and
+remaining semantic capture/serialization remain follow-up targets, not excuses
+to prune the game or bypass validation.
+
+Final focused CLI gates cover independent frozen-comparator adversarial parity,
+actual fresh four-pick creation and separate cold, hidden owner/session changes,
+cleanup callbacks, busy barriers, detached diagnostics, close/Next cancellation,
+stale disks and identities, prewrite failure/exact retry, and duplicate actions.
+Earlier test-harness parse failures are retained separately and are not counted
+as successful runs. Native shop qualification is recorded in the family's
+qualification document. This is not full Dynasty, all-league, or release proof.

@@ -44,7 +44,9 @@ var selected_league: String = "dynasty"
 var retained: SeasonState
 var retained_owner: SeasonState
 var retained_expected: PackedByteArray = PackedByteArray()
-var retained_snapshot: Dictionary = {}
+# Detached diagnostics are materialized only when inspected, never by writer.
+var retained_snapshot: Dictionary:
+	get: return Store.prepared_snapshot(_save_ticket)
 var saved_bytes: PackedByteArray = PackedByteArray()
 var _content_roots: Array[Resource] = []
 var _prior_auto_quit: bool = true
@@ -162,10 +164,10 @@ func _retain(candidate: SeasonState, expected: PackedByteArray) -> void:
 	_retain_envelope(envelope,expected)
 
 func _retain_envelope(envelope: RefCounted, expected: PackedByteArray) -> void:
-	if retained!=null or envelope==null or envelope.session==null: return
+	if _busy or Store.saving or retained!=null or envelope==null or envelope.session==null: return
 	if career_owner!=null and career_owner.session!=season: return
 	var candidate: SeasonState=envelope.session
-	var ticket: RefCounted = Store.prepare(career_owner,envelope,expected)
+	var ticket: RefCounted = Store.prepare_and_write(career_owner,envelope,expected)
 	if ticket == null:
 		notice = "The candidate could not be represented consistently. Saved progress is unchanged."
 		show_season(); return
@@ -173,10 +175,11 @@ func _retain_envelope(envelope: RefCounted, expected: PackedByteArray) -> void:
 	retained_envelope = envelope; retained_owner_envelope = career_owner
 	_save_ticket = ticket
 	retained_before = {}
-	retained_snapshot = Store.prepared_snapshot(ticket) # Detached view, not accepted by writer.
 	retained_lab = lab; retained_state = lab._match_state if is_instance_valid(lab) else null
-	retained_saved = false; retained_saved_bytes = PackedByteArray()
-	retry_save()
+	retained_saved_bytes = Store.written_bytes(ticket)
+	retained_saved = not retained_saved_bytes.is_empty()
+	_busy = true
+	_finish_save()
 
 func retry_save() -> void:
 	if _busy or retained == null or season != retained_owner: return
@@ -188,6 +191,9 @@ func retry_save() -> void:
 	if not retained_saved:
 		retained_saved = Store.write_prepared(_save_ticket)
 		if retained_saved: retained_saved_bytes = Store.written_bytes(_save_ticket)
+	_finish_save()
+
+func _finish_save() -> void:
 	if not retained_saved:
 		notice = Store.last_error; _busy = false; show_season(); return
 	if Store.raw() != retained_saved_bytes:
@@ -213,7 +219,7 @@ func retry_save() -> void:
 	career_owner = retained_envelope; season = career_owner.session; saved_bytes = retained_saved_bytes.duplicate()
 	retained_envelope = null; retained_owner_envelope = null
 	retained = null; retained_owner = null; retained_lab = null; retained_state = null
-	retained_expected = PackedByteArray(); retained_snapshot = {}; retained_before = {}
+	retained_expected = PackedByteArray(); retained_before = {}
 	retained_saved = false; retained_saved_bytes = PackedByteArray()
 	retained_human.clear(); retained_report.clear(); _clear_npc_pins()
 	_result_recorded = false; _result_saved = false
@@ -403,7 +409,7 @@ func _npc_owner_matches() -> bool:
 	return Store.raw() == _npc_expected and _npc_owner != null and season == _npc_owner and not _npc_before.is_empty() \
 		and lab == _npc_lab and (not is_instance_valid(lab) or lab._match_state == _npc_state) \
 		and career_owner == _npc_envelope and career_owner != null and career_owner.session == season \
-		and Store.RawGuard.same(Store.RawGuard.capture(career_owner),_npc_before)
+		and Store.RawGuard.matches(career_owner,_npc_before)
 
 
 func _clear_npc_pins() -> void:

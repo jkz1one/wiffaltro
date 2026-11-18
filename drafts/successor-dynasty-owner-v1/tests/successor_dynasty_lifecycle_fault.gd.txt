@@ -74,6 +74,11 @@ func run() -> void:
 	else:app.commit_next()
 	var retained=app.retained_envelope
 	if not check(retained!=null and app.retained!=null and Codec.same(Owner.capture(retained),expected_data) and app.career_owner==original and app.season==season and Codec.same(Owner.capture(original),original_data) and Store.raw()==source and Codec.same(snapshot(Store.PATH+".bak"),backup),"failed lifecycle save retains exact candidate; old live/disk unchanged"):get_tree().quit(1);return
+	var diagnostic: Dictionary=app.retained_snapshot
+	if not check(Codec.same(diagnostic,expected_data),"lazy retained diagnostic represents exact private candidate"):get_tree().quit(1);return
+	diagnostic.ledger.closed=-1
+	diagnostic.clear()
+	if not check(Codec.same(app.retained_snapshot,expected_data) and Codec.same(Owner.capture(retained),expected_data),"mutating detached nested diagnostic cannot alter private payload or live candidate"):get_tree().quit(1);return
 	if not check(DirAccess.remove_absolute(Store.PATH+".tmp")==OK,"remove only known empty obstruction"):get_tree().quit(1);return
 	if not check(write_bytes(Store.PATH,foreign),"foreign valid disk before retained retry"):get_tree().quit(1);return
 	app.retry_save()

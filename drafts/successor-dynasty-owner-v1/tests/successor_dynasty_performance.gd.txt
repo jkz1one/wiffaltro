@@ -1,0 +1,102 @@
+extends "res://tests/successor_dynasty_play.gd"
+## Same-input76/77 real Shop benchmark. No physics, fabricated currency or pruning.
+## Run import/open/pick/cold as separate processes in a fresh isolated directory.
+## Preserve original75 primary AND backup under their original names before import.
+var _content_roots: Array[Resource]=[]
+var timings: Dictionary={}
+var instruction: Dictionary={}
+const INPUT="user://wiffaltro-dynasty-owner-v1.json"
+func clock_us() -> int:return Time.get_ticks_usec()
+func elapsed(label: String,started: int) -> void:
+	timings[label]=Time.get_ticks_usec()-started
+	print("BENCH_US ",label,": ",timings[label])
+func sha(bytes: PackedByteArray) -> String:
+	var hash: HashingContext=HashingContext.new()
+	hash.start(HashingContext.HASH_SHA256)
+	if not bytes.is_empty():hash.update(bytes)
+	return hash.finish().hex_encode()
+func archive(path: String,bytes: PackedByteArray) -> bool:
+	if FileAccess.file_exists(path):return check(FileAccess.get_file_as_bytes(path)==bytes,"existing benchmark artifact is byte-identical")
+	var file=FileAccess.open(path,FileAccess.WRITE)
+	if not check(file!=null,"new benchmark artifact writable"):return false
+	file.store_buffer(bytes);file.flush();file.close()
+	return check(FileAccess.get_file_as_bytes(path)==bytes,"benchmark artifact exact readback")
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+		and args.size()==1 and args[0] in ["import","open","pick","cold"],"explicit isolated performance-only mode"):
+		return
+	_content_roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not _content_roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"pin authored source identities"):return
+	var input: PackedByteArray=FileAccess.get_file_as_bytes(INPUT)
+	var input_backup: PackedByteArray=FileAccess.get_file_as_bytes(INPUT+".bak")
+	if not check(not input.is_empty() and not input_backup.is_empty(),"immutable genuine larger75 main and backup supplied"):return
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var pre: PackedByteArray=Save.raw()
+	var pre_backup: Dictionary=slot_state(Save.PATH+".bak")
+	var projects: int=Pending.project_calls
+	var resolves: int=Fixtures.resolve_calls
+	var started: int=clock_us()
+	if args[0]=="import":
+		if not check(not Save.occupied(),"fresh isolated v2 benchmark slot"):return
+		app.import_previous_dynasty();elapsed("import_handler",started)
+	else:
+		app.reload_save();elapsed("cold_reload",started)
+	if not check(app.career_owner!=null and app.retained==null and app._owned() and app.season.round_index>=7
+		and app.season.physical.pending.is_empty() and app.season.player_results.size()>=7,"genuine larger settled owner admitted with no truncation"):return
+	if args[0]!="import" and not check(Save.raw()==pre and Codec.same(slot_state(Save.PATH+".bak"),pre_backup),"cold reload preserves exact main and backup"):return
+	var ledger: Dictionary=app.career_owner.ledger.duplicate(true)
+	if not archive("user://benchmark-"+args[0]+"-pre.json",Save.raw()):return
+	if args[0] in ["open","pick"]:
+		started=clock_us();app.open_pitch_shop();elapsed("open_shop_and_offer_refresh",started)
+		var shop: SeasonShopWindow=shop_for(app)
+		if not check(shop!=null and app.retained==null,"actual full Shop available"):return
+		var cash: int=app.season.build.cash()
+		if args[0]=="open":
+			if not check(not app.season.build.pack_pending() and app.season.build._visit.get("pack_status")!="used"
+				and cash>=app.season.build.pack_price() and app.season.build.pack_price()>0,"actual accumulated cash funds authored pack"):return
+			var button: Button=button_prefix(shop,"Open fixed development pack")
+			if not check(button!=null and not button.disabled,"actual paid-pack button enabled"):return
+			var price: int=app.season.build.pack_price()
+			started=clock_us();button.pressed.emit();elapsed("pack_quote",started)
+			if not check(shop._confirm.visible and shop._pending.get("op")=="pack_open","actual pack quote opens"):return
+			instruction=shop._pending.duplicate(true)
+			started=clock_us();shop._confirm.get_ok_button().pressed.emit();elapsed("pack_open_and_refresh",started)
+			if not check(app.retained==null and app.season.build.pack_pending() and app.season.build.cash()==cash-price,"paid pack saved exactly once at original price"):return
+		else:
+			if not check(app.season.build.pack_pending(),"actual previously purchased pack pending"):return
+			var selected: String=""
+			for item: String in app.season.build._pack_choices():
+				if not app.season.build.targets(item).is_empty():selected=item;break
+			if not check(not selected.is_empty(),"deterministic first eligible existing card"):return
+			var button: Button=button_prefix(shop,str(Progression.display_item(selected).name))
+			if not check(button!=null and not button.disabled,"actual generated card button"):return
+			started=clock_us();button.pressed.emit();elapsed("card_target_refresh",started)
+			var target: Button=target_button(shop)
+			if not check(target!=null,"actual first eligible target button"):return
+			started=clock_us();target.pressed.emit();elapsed("choice_quote",started)
+			if not check(shop._confirm.visible and shop._pending.get("op")=="pack_pick","actual choice quote opens"):return
+			instruction=shop._pending.duplicate(true)
+			var player_before: Dictionary=app.season.build.player(str(instruction.player)).duplicate(true)
+			started=clock_us();shop._confirm.get_ok_button().pressed.emit();elapsed("pack_pick_and_refresh",started)
+			if not check(app.retained==null and app.season.build._visit.pack_status=="used" and not app.season.build.pack_pending()
+				and app.season.build.cash()==cash and not Codec.same(player_before,app.season.build.player(str(instruction.player))),"actual development choice applied with no second charge"):return
+	elif args[0]=="cold":
+		if not check(app.season.build._visit.get("pack_status")=="used" and not app.season.build.pack_pending(),"separate-process cold preserves completed paid choice"):return
+	if not check(Pending.project_calls==projects and Fixtures.resolve_calls==resolves,"benchmark never projects or reruns any physics"):return
+	if not check(Codec.same(app.career_owner.ledger,ledger) and FileAccess.get_file_as_bytes(INPUT)==input
+		and FileAccess.get_file_as_bytes(INPUT+".bak")==input_backup,"aggregate and original75 main/backup unchanged"):return
+	var after: PackedByteArray=Save.raw()
+	var data: Dictionary=Owner.capture(app.career_owner)
+	if not check(not data.is_empty() and Codec.same(data,JSON.parse_string(after.get_string_from_utf8())),"live result equals exact durable full owner"):return
+	if not archive("user://benchmark-"+args[0]+"-post.json",after):return
+	if FileAccess.file_exists(Save.PATH+".bak") and not archive("user://benchmark-"+args[0]+"-post.bak",FileAccess.get_file_as_bytes(Save.PATH+".bak")):return
+	var report: Dictionary={"mode":args[0],"input_sha256":sha(input),"input_backup_sha256":sha(input_backup),
+		"pre_sha256":sha(pre),"post_sha256":sha(after),"post_bytes":after.size(),"round":app.season.round_index,
+		"results":app.season.results.size(),"human_games":app.season.player_results.size(),"command":instruction,
+		"timings_us":timings,"scope":"same actual earned save; no physics; compare exact command and result bytes independently"}
+	if not archive("user://benchmark-"+args[0]+"-metrics.json",JSON.stringify(report,"",true,true).to_utf8_buffer()):return
+	print("BENCHMARK_RESULT: ",JSON.stringify(report,"",true,true))
+	app.queue_free();await get_tree().process_frame
+	if not failed:print("PASS: genuine larger-save "+args[0]+" benchmark; improvement requires paired comparison")
+	get_tree().quit(1 if failed else 0)
