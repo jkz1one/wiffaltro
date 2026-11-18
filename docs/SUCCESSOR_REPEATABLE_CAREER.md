@@ -122,3 +122,22 @@ refusal, exact retained candidate, repeated-confirmation rejection, strict retry
 unchanged origin and full prior row/asset comparisons passed. The new birth is
 durable. Four-pick and dedicated cold qualification remain running and are not
 yet claimed. Native import, Python compilation and diff checks pass.
+
+## Draft transaction duplicate replay removal
+
+The App already obtains a strict, fully reconstructed detached career clone. It
+now invokes that clone's existing local draft operation instead of invoking the
+public wrapper that repeats the same entire archive reconstruction. The public
+Runtime.choose_player API and all generic save/cold validation stay unchanged.
+
+On an actual one-settled-round116 origin, explicit abandonment birth, Cancel,
+failed write, exact retry and a separate birth reopen passed. The first App draft
+pick matches the unchanged strict public wrapper exactly and leaves its original
+owner unchanged. All four picks, fourth-pick parity and final cold are still
+running, not claimed complete. Native import, Python compilation and diff checks
+passed. No responsiveness percentage or playable-release claim is made.
+
+An earlier unpublished test source was lost during an environment restart; its
+two-pick evidence remains preserved, not relabelled to this source. This rebuilt
+candidate's exact source and each earned synthetic boundary are separately
+backed up before further work. Frozen116/112 season tests continue independently.

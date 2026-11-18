@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-career-v1",
-  "source_checkpoint": "d68f2be49bdb58481b2d91739dbefc32d5037686",
-  "scope": "Actual three-round116 abandonment to selected Standard birth passed: confirmation/Cancel, prewrite refusal/exact retry, no false completion reward/title, unchanged origin/row/assets. Snapshot StringName-key defect corrected without relaxing validation. Native passed. Four-pick/cold remain pending; no next-round gameplay, full career, Dynasty or release claim.",
+  "source_checkpoint": "15f54dc3e7f50347f969d6a656c3c6ef36e417bd",
+  "scope": "Rebuilt duplicate-draft replay removal: native, genuine abandoned birth/retry/cold-birth and first-pick strict-wrapper parity passed. Remaining picks/fourth parity/final cold pending. Frozen116/114 unchanged; no gameplay, Dynasty or responsiveness claim.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/assets.gd.txt",
@@ -114,8 +114,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_career_v1/base_app.gd",
-      "bytes": 26667,
-      "sha256": "ed98c836099fa08417757a2c4808cede121d0c0e300defc561d3ea7582a48d9a"
+      "bytes": 26822,
+      "sha256": "3481d3b84f8145e47a40015863abf923f5036c4bc9c60199701ec2ee442cbcca"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/capture_human.gd.txt",
@@ -156,8 +156,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_abandon.gd.txt",
       "restore_path": "tests/successor_owner_career_abandon.gd",
-      "bytes": 6786,
-      "sha256": "e98ca1ea1cf8c42b77aa72fc032c14b7b1f3b2a360898ee376af55460b7181ea"
+      "bytes": 7635,
+      "sha256": "0fc35d88f39108f6b1ad367dcb653adaca3663fb7b0ff1114ab01b72d536b40a"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/closure.gd.txt",

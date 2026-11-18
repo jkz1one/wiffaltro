@@ -294,7 +294,9 @@ func draft(id: String) -> void:
 	if not _available() or season==null or season.phase!=SeasonState.Phase.DRAFT or not season.offers().has(id):
 		return
 	var candidate: SeasonState = _clone()
-	if candidate!=null and candidate.choose_player(id):
+	# _clone already strictly rebuilt the complete archive. The local operation
+	# changes only that detached candidate; _retain still uses strict Save.save.
+	if candidate!=null and candidate._choose_local(id):
 		_retain(candidate)
 
 func _retain(candidate: SeasonState, expected_primary: Variant = null) -> void:

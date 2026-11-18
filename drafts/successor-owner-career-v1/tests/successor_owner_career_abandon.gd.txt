@@ -47,7 +47,7 @@ func run() -> void:
 	check(parsed is Dictionary and parsed.get("version") == 116,"actual116 origin present")
 	if failed: get_tree().quit(1); return
 	original = parsed
-	check(original.checkpoint.career.origin == "fresh-general" and original.checkpoint.career.runs.size() == 1 and original.checkpoint.physical.pending.is_empty() and original.checkpoint.results.size() == 9,"exact genuine three-settled-round fixture scope")
+	check(original.checkpoint.career.origin == "fresh-general" and original.checkpoint.career.runs.size() == 1 and original.checkpoint.physical.pending.is_empty() and original.checkpoint.results.size() in [3,9],"genuine one-or-three-settled-round fixture scope; source authenticates in birth/reopen")
 	if failed: get_tree().quit(1); return
 	var mode: String = OS.get_cmdline_user_args()[0]
 	var app = App.new()
@@ -82,10 +82,22 @@ func run() -> void:
 		app.reload_save()
 		check(state_ok(app.season),"genuine abandoned origin and selected Standard cold restore")
 		if failed: get_tree().quit(1); return
-		for pick in range(4):
+		for pick in range(app.season.picks.size(),4):
 			check(app.season.picks.size() == pick and not app.season.offers().is_empty(),"real draft offers available")
 			if failed: get_tree().quit(1); return
-			app.draft(app.season.offers()[0])
+			var id: String = app.season.offers()[0]
+			var before: Dictionary = Codec.guard_snapshot(app.season)
+			var expected: Dictionary = {}
+			if pick in [0,3]:
+				var reference: SeasonState = Codec.clone(app.season)
+				check(reference != null and reference.choose_player(id),"unchanged strict public draft reference")
+				if failed: get_tree().quit(1); return
+				expected = Codec.guard_snapshot(reference)
+				check(ClubCareer.same(Codec.guard_snapshot(app.season),before),"reference keeps original owner unchanged")
+			var owner: SeasonState = app.season
+			app.draft(id)
+			check(ClubCareer.same(Codec.guard_snapshot(owner),before),"App leaves detached prior owner unchanged")
+			if not expected.is_empty(): check(ClubCareer.same(Codec.guard_snapshot(app.season),expected),"App draft exact strict-reference parity")
 			check(app.retained == null and state_ok(app.season) and app.season.picks.size() == pick+1,"actual four-player draft action")
 			if failed: get_tree().quit(1); return
 			archive(app,"draft-%d"%(pick+1))
