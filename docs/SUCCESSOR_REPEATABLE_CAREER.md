@@ -307,3 +307,43 @@ Only the dialog process mode changes production behavior; no format, rules,
 physics, original development art or original save is changed. Native renderer
 and audio limitations above still apply. Loading feedback, full season/career
 rollover, Dynasty and a distributable remain unqualified.
+
+## Canonical earned-pack transactions (increment69)
+
+Fixed pack purchase and card selection now reuse the process-private canonical
+session already used by drafting. The session originates from strict restore
+or a freshly reconstructed save, never caller-supplied hidden caches. Missing
+session still uses strict replay. NPC dispatch, schema, source identities,
+compare-and-swap guards, atomic writes and strict retained retry are unchanged.
+This removes owner-history reconstruction from the two normal pack handlers,
+not all build work or cold-load replay. The clean purchase handler still took
+about40seconds, and clean selection about47seconds, in this environment; removing owner replays alone is not a
+responsiveness qualification. A materialized current-state owner remains needed
+to avoid repeated reconstruction on ordinary interaction and cold reopen.
+
+Tests start from genuine67 earned shop-open and paid-pending boundaries, without
+replaying already earned games. Corrected tests distinguish hidden sealed-card
+ordering from visible eligible-card count and open-card contents. Initial tests
+incorrectly changed that count while calling the change hidden; those failures
+are preserved. One simultaneous editor import was killed137 before gameplay or
+save writes; its serialized retry succeeded, with no established termination
+cause. Subsequent expensive lanes are serialized to limit contention.
+
+Fault-purchase, fault-selection and missing-session fallback lanes passed strict
+reference equality, exact retained retry, duplicate no-charge/no-backup-rotation
+and separate cold reopening. Hidden player/cache changes and sealed-card order
+cannot seed canonical state; nested forks cannot alias it. Visible card/UI,
+primary-disk and gameplay-source changes are refused. Final primary snapshots
+also equal original67 earned-choice evidence semantically. Tests invoke actual
+shop transaction handlers, not native mouse dispatch. Clean no-fault sequence
+also passed, including its separate cold reopen. All four final saves match
+the original67 earned-choice boundary in every field. Final source/provenance
+and original fixture hashes were rechecked after completion.
+
+The older frozen112 terminal retry process ended with exit -9 after its retained
+candidate checks, before durable retry or final cold qualification. Its primary
+still exactly equals its immutable earned input, with no backup/temp or new
+boundary. Failure evidence is preserved; the termination cause is unproven and
+that workflow is not marked passed. Frozen116 full-season work remains partial.
+No completed-season, Dynasty, final-performance or distributable claim follows
+from these targeted improvements.

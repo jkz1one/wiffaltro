@@ -659,7 +659,7 @@ func commit_shop(command: Dictionary) -> bool:
 		return false
 	var expected_primary: Variant = null
 	if command.get("op") in ["pack_open","pack_pick"]:
-		# Fixed pack path owns its one strict disk reconstruction and original command.
+		# Fixed pack path owns its canonical private session or strict replay fallback.
 		# Its result never serves as a reusable validation token or an arbitrary writer.
 		var prior_owner: SeasonState = season
 		var prior_lab: PitchBatLab = lab

@@ -1,0 +1,57 @@
+extends "res://tests/successor_owner_career_pack_session.gd"
+## Pack-specific rejection gates and absent-session strict fallback.
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1","isolated pack guard test"): return
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var app = App.new(); add_child(app); await get_tree().process_frame
+	app.reload_save()
+	if not check(app.season != null and app.season.build.pack_pending(),"actual67 paidpending strict cold input"): return
+	var shop: SeasonShopWindow = quote(app,"pack_pick")
+	if shop == null: return
+	var command: Dictionary = shop._pending.duplicate(true)
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak") if FileAccess.file_exists(Save.PATH+".bak") else PackedByteArray()
+	var backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
+	var before: Dictionary = Codec.guard_snapshot(app.season)
+	var cards: Array = app.season.build._visit.cards.duplicate(true)
+	app.season.build._visit.cards = ["invalid-caller-card"]
+	var changed_cards: bool = not ClubCareer.same(Codec.guard_snapshot(app.season),before)
+	var card_rejection: Dictionary = Save.commit_shop(app.season,command)
+	app.season.build._visit.cards = cards
+	if not check(changed_cards and card_rejection.candidate == null and FileAccess.get_file_as_bytes(Save.PATH) == disk,"cards are snapshot-visible; altered cards cannot consume canonical session"): return
+	var status: String = app.season.career.runs[0].status
+	app.season.career.runs[0].status = "changed-ui"
+	var rejected: Dictionary = Save.commit_shop(app.season,command)
+	app.season.career.runs[0].status = status
+	if not check(rejected.candidate == null and FileAccess.get_file_as_bytes(Save.PATH) == disk,"changed UI cannot consume pack session"): return
+	var corrupt: PackedByteArray = "not-a-save".to_utf8_buffer()
+	if not check(write_exact(Save.PATH,corrupt),"isolated disk replacement"): return
+	rejected = Save.commit_shop(app.season,command)
+	var intact: bool = FileAccess.get_file_as_bytes(Save.PATH) == corrupt
+	var restored: bool = write_exact(Save.PATH,disk)
+	if not check(rejected.candidate == null and intact and restored,"changed disk refused and exact fixture restored"): return
+	var game_path: String = "res://src/gameplay/season/successor_league_general_v2/runtime.gd"
+	var game: PackedByteArray = FileAccess.get_file_as_bytes(game_path)
+	if not check(write_exact(game_path,game+"\n# isolated source identity probe\n".to_utf8_buffer()),"isolated game source probe"): return
+	rejected = Save.commit_shop(app.season,command)
+	restored = write_exact(game_path,game)
+	if not check(rejected.candidate == null and restored and FileAccess.get_file_as_bytes(Save.PATH) == disk,"changed game identity cannot consume pack session; source restored exactly"): return
+	if not check(FileAccess.file_exists(Save.PATH+".bak") == backup_exists and (not backup_exists or FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup),"all rejection gates preserve backup"): return
+	var reference: SeasonState = Codec.clone(app.season)
+	if not check(reference != null,"strict fallback reference"): return
+	var next: SeasonBuild = reference.build.candidate(command.duplicate(true))
+	if not check(next != null,"strict fallback reference pick"): return
+	reference.adopt_build(next)
+	var expected: Dictionary = Codec.capture(reference)
+	if not check(not expected.is_empty(),"strict captured fallback expectation"): return
+	Save._forget_session()
+	var calls: int = Decoder.restore_calls
+	var hits: int = Save.session_hits
+	shop._confirm.get_ok_button().pressed.emit()
+	if not check(Decoder.restore_calls > calls and Save.session_hits == hits,"missing private session uses strict restore, no fabricated hit"): return
+	if not check(app.retained == null and ClubCareer.same(Codec.guard_snapshot(app.season),expected),"strict fallback promotes exact public reference"): return
+	archive(app,"missing-session-strict-pick")
+	if not check(FileAccess.get_file_as_bytes(SOURCE) == original and FileAccess.get_file_as_bytes(game_path) == game,"source fixture and gameplay bytes unchanged"): return
+	app.queue_free(); await get_tree().process_frame
+	print("PASS: pack guards and missing-session strict fallback")
+	get_tree().quit(1 if failed else 0)

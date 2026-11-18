@@ -202,8 +202,8 @@ static func append_npc_report(owner: SeasonState, raw_report: Dictionary) -> Dic
 	last_error = result.error
 	return result
 
-# Operation selection is internal; every branch strictly reconstructs its own
-# primary and validates its raw action. This is not a prevalidated writer API.
+# Operation selection is internal; each branch uses a canonical private fork
+# or strict primary replay and validates its raw action. No caller validation token.
 static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: Variant) -> Dictionary:
 	var npc: bool = raw_report != null
 	var draft: bool = not npc and command.get("op") == "draft"
@@ -251,8 +251,10 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 			return fallback
 		rejected.error = "The saved checkpoint differs from this owner. Reload before purchasing."
 		return rejected
-	# Only draft is admitted to session reuse in this increment. Pack/NPC retain strict disk replay.
-	var candidate: SeasonState = _session_candidate(old,before) if draft else null
+	# Only fixed draft/pack commands may fork the private canonical session.
+	# NPC reports retain strict replay; all misses use the unchanged strict reader.
+	var session_allowed: bool = not npc and (draft or command.get("op") in ["pack_open","pack_pick"])
+	var candidate: SeasonState = _session_candidate(old,before) if session_allowed else null
 	if candidate == null: candidate = Codec.restore(parser.data)
 	if candidate == null: return rejected
 	if not ClubCareer.same(Codec.guard_snapshot(candidate),before) or not ClubCareer.same(Codec.guard_snapshot(owner),before):
@@ -303,7 +305,7 @@ static func _commit_fixed(owner: SeasonState, command: Dictionary, raw_report: V
 	var data: Dictionary = Codec.guard_snapshot(candidate)
 	if data.is_empty() or not ClubCareer.same(Codec.guard_snapshot(owner),before): return result
 	# Equality is not a generic authentication shortcut: the only changed object
-	# here is the freshly decoded local candidate after a fixed pack operation or validated NPC pending addition.
+	# here is a canonical detached candidate after a fixed command or validated NPC pending addition.
 	for key: String in ["version","format","owner_source","pitch_catalog"]:
 		if not ClubCareer.same(data.get(key),before.get(key)): return result
 	# NPC schema validation above precedes serialization. The full envelope

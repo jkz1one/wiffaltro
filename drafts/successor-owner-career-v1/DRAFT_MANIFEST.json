@@ -1,7 +1,7 @@
 {
   "format": "inactive-successor-owner-career-v1",
-  "source_checkpoint": "306494a6255de20d3cbe23eb628248e1e0594f90",
-  "scope": "Increment68: actual paused exit input fix, negative regression and corrected real mouse/keyboard tests plus native verification. Both fresh leagues have actual first-round/shop/cold evidence. No completed season, Dynasty or distributable claim.",
+  "source_checkpoint": "d7cd203b6e21daf24c21fc53d5ddce51f63f3949",
+  "scope": "Increment69: fixed pack commands reuse canonical validated session; clean/fault/retry/guard/fallback and separate cold paths pass exact genuine67 parity. Successful handlers remain slow; no full responsiveness, completed season, Dynasty or distributable claim.",
   "files": [
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/assets.gd.txt",
@@ -84,8 +84,8 @@
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/save.gd.txt",
       "restore_path": "src/gameplay/season/successor_owner_career_v1/save.gd",
-      "bytes": 23232,
-      "sha256": "5b25ff087f8071a4946bffcc4321ce3e64eb53cbf43ba7fe88344863f7e21eae"
+      "bytes": 23391,
+      "sha256": "7e22dc723e6af46de81f9fd3a6f8beaf94430264f1496d40200556ec35b3cb71"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/gameplay/season/successor_owner_career_v1/settlement.gd.txt",
@@ -115,7 +115,7 @@
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/base_app.gd.txt",
       "restore_path": "src/presentation/season/successor_owner_career_v1/base_app.gd",
       "bytes": 31224,
-      "sha256": "33b015111b0d870c5e53e1e2e9e5da74f5abf023c60aaad926ae114c3d03be6a"
+      "sha256": "6b8013be4d6fca5a0cc25673fdfeab486fd011f9cac6ca631f4b735e3714e03e"
     },
     {
       "backup_path": "drafts/successor-owner-career-v1/src/presentation/season/successor_owner_career_v1/capture_human.gd.txt",
@@ -254,6 +254,30 @@
       "restore_path": "tests/successor_owner_career_paused_exit.tscn",
       "bytes": 198,
       "sha256": "2a74bf39415185be79388e8a3fb56587a8adce545b86ec032e7356f3090a9dec"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_pack_session.gd.txt",
+      "restore_path": "tests/successor_owner_career_pack_session.gd",
+      "bytes": 10866,
+      "sha256": "5b0a6741b42af64152ca10c0ddd2486fe9af8e596cb48a5e42cde83478491893"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_pack_session.tscn.txt",
+      "restore_path": "tests/successor_owner_career_pack_session.tscn",
+      "bytes": 197,
+      "sha256": "a2e9597fed13be3eb2cf72b75f8729333daddf645178e6c4a6a6b3eece485751"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_pack_guards.gd.txt",
+      "restore_path": "tests/successor_owner_career_pack_guards.gd",
+      "bytes": 4355,
+      "sha256": "dce6caee3ed6b4ea52e3e3ba71c229b04351da0f2294709b13e75ef4d7eec919"
+    },
+    {
+      "backup_path": "drafts/successor-owner-career-v1/tests/successor_owner_career_pack_guards.tscn.txt",
+      "restore_path": "tests/successor_owner_career_pack_guards.tscn",
+      "bytes": 194,
+      "sha256": "d1b2bc9927d1d67f891ff60d60ffd5e71574f8ad057f2c5b5016971410786e0e"
     }
   ]
 }

@@ -1,0 +1,154 @@
+extends Node
+const App = preload("res://src/presentation/season/successor_owner_career_v1/app.gd")
+const Codec = preload("res://src/gameplay/season/successor_owner_career_v1/codec.gd")
+const Save = preload("res://src/gameplay/season/successor_owner_career_v1/save.gd")
+const Decoder = preload("res://src/gameplay/season/successor_owner_career_v1/decoder.gd")
+const Progression = preload("res://src/gameplay/season/successor_league_general_v2/progression.gd")
+const SOURCE: String = "user://source-pack-session.json"
+const ARCHIVE: String = "user://owned-career-pack-session-evidence"
+var failed: bool = false
+func _ready() -> void: call_deferred("run")
+func check(ok: bool, label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:
+		failed = true
+		get_tree().quit(1)
+	return ok
+func write_exact(path: String, bytes: PackedByteArray) -> bool:
+	var file: FileAccess = FileAccess.open(path,FileAccess.WRITE)
+	if file == null: return false
+	file.store_buffer(bytes); file.flush(); file.close()
+	return FileAccess.get_file_as_bytes(path) == bytes
+func archive(app: SeasonApp, label: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ARCHIVE)
+	var i: int = 0
+	while FileAccess.file_exists(ARCHIVE+"/%04d.json"%i) or FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%i):
+		if not check(FileAccess.file_exists(ARCHIVE+"/%04d.json"%i) and FileAccess.file_exists(ARCHIVE+"/%04d.meta.json"%i),"paired prior evidence"): return
+		i += 1
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	if not check(ClubCareer.same(Codec.guard_snapshot(app.season),JSON.parse_string(bytes.get_string_from_utf8())) and write_exact(ARCHIVE+"/%04d.json"%i,bytes),"exact durable pack session boundary"): return
+	check(write_exact(ARCHIVE+"/%04d.meta.json"%i,JSON.stringify({"action":label,"hits":Save.session_hits,"owner_replays":Decoder.restore_calls},"",true,true).to_utf8_buffer()),"paired metadata")
+func cache_checks(app: SeasonApp) -> bool:
+	var before: Dictionary = Codec.guard_snapshot(app.season)
+	var cards: Array = app.season.build._visit.cards.duplicate(true)
+	var hidden: String = "__isolated_caller_only__"
+	app.season.build._book._players[hidden] = {"invalid":true}
+	if not check(ClubCareer.same(Codec.guard_snapshot(app.season),before),"hidden caller book entry does not alter serialized snapshot"): return false
+	if app.season.build._visit.pack_status == "sealed":
+		app.season.build._visit.cards.reverse()
+		if not check(not ClubCareer.same(app.season.build._visit.cards,cards) and ClubCareer.same(Codec.guard_snapshot(app.season),before),"sealed card order is hidden while eligible choice_count remains exact"): return false
+	if not check(Save.save(app.season),"generic save strictly reconstructs canonical state"): return false
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var one: SeasonState = Save._session_candidate(disk,before)
+	if not check(one != null and not one.build._book._players.has(hidden) and ClubCareer.same(one.build._visit.cards,cards),"hidden player cannot seed session; canonical cards match saved view"): return false
+	app.season.build._book._players.erase(hidden)
+	app.season.build._visit.cards = cards.duplicate(true)
+	var id: String = one.build._book._players.keys()[0]
+	var stats: Dictionary = one.build._book._players[id].stats.duplicate(true)
+	one.build._visit.cards.append("private-fork-only")
+	one.build._book._players[id].stats.power = -100
+	var two: SeasonState = Save._session_candidate(disk,before)
+	return check(two != null and ClubCareer.same(two.build._visit.cards,cards) and ClubCareer.same(app.season.build._visit.cards,cards) and ClubCareer.same(two.build._book._players[id].stats,stats) and ClubCareer.same(app.season.build._book._players[id].stats,stats),"nested private forks cannot alias canonical session or UI")
+func quote(app: SeasonApp, op: String) -> SeasonShopWindow:
+	app.open_pitch_shop()
+	var shop: SeasonShopWindow = shop_for(app)
+	if not check(shop != null,"actual Shop exists"): return null
+	if op == "pack_open":
+		var button: Button = button_prefix(shop,"Open fixed development pack")
+		if not check(button != null and not button.disabled,"real pack purchase control"): return null
+		button.pressed.emit()
+	else:
+		var selected: String = ""
+		for item: String in app.season.build._pack_choices():
+			if not app.season.build.targets(item).is_empty(): selected = item; break
+		var card: Button = button_prefix(shop,str(Progression.display_item(selected).name)) if not selected.is_empty() else null
+		if not check(card != null and not card.disabled,"real eligible generated card"): return null
+		card.pressed.emit()
+		var target: Button = target_button(shop)
+		if not check(target != null,"real eligible target"): return null
+		target.pressed.emit()
+	if not check(shop._confirm.visible and shop._pending.get("op") == op,"real operation quote"): return null
+	return shop
+func operate(app: SeasonApp, op: String, fault: bool) -> bool:
+	var shop: SeasonShopWindow = quote(app,op)
+	if shop == null: return false
+	var command: Dictionary = shop._pending.duplicate(true)
+	var owner: SeasonState = app.season
+	var before: Dictionary = Codec.guard_snapshot(owner)
+	var reference: SeasonState = Codec.clone(owner)
+	if not check(reference != null,"strict original reference restore"): return false
+	var next: SeasonBuild = reference.build.candidate(command.duplicate(true))
+	if not check(next != null,"strict original reference operation"): return false
+	reference.adopt_build(next)
+	var expected: Dictionary = Codec.capture(reference)
+	if not check(not expected.is_empty(),"independently strict captured expected result"): return false
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+	if fault and not check(DirAccess.make_dir_absolute(Save.PATH+".tmp") == OK,"isolated prewrite failure"): return false
+	var calls: int = Decoder.restore_calls
+	var hits: int = Save.session_hits
+	var start: int = Time.get_ticks_msec()
+	shop._confirm.get_ok_button().pressed.emit()
+	print("PACK_SESSION_MS: ",op," ",Time.get_ticks_msec()-start," fault=",fault)
+	if not check(Decoder.restore_calls == calls and Save.session_hits == hits+1,"actual fixed pack operation uses one session and zero owner-history restores"): return false
+	if not check(ClubCareer.same(Codec.guard_snapshot(owner),before),"prior UI owner remains unchanged"): return false
+	if fault:
+		if not check(app.retained != null and app.season == owner and ClubCareer.same(Codec.guard_snapshot(app.retained),expected) and FileAccess.get_file_as_bytes(Save.PATH) == disk and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"failed write retains exact reference candidate and preserves both saves"): return false
+		var retained: SeasonState = app.retained
+		app.shop_command(command)
+		if not check(app.retained == retained,"duplicate cannot replace retained candidate"): return false
+		if not check(DirAccess.remove_absolute(Save.PATH+".tmp") == OK,"remove own fault only"): return false
+		var retry: Button = button_prefix(shop,"RETRY EXACT SAVE")
+		if not check(retry != null and not retry.disabled,"actual Shop retry control"): return false
+		retry.pressed.emit()
+	if not check(app.retained == null and ClubCareer.same(Codec.guard_snapshot(app.season),expected),"durable promotion equals independent strict reference"): return false
+	disk = FileAccess.get_file_as_bytes(Save.PATH)
+	backup = FileAccess.get_file_as_bytes(Save.PATH+".bak")
+	app.shop_command(command); app.retry_save()
+	if not check(FileAccess.get_file_as_bytes(Save.PATH) == disk and FileAccess.get_file_as_bytes(Save.PATH+".bak") == backup,"duplicate operation/retry cannot charge or rotate backup"): return false
+	archive(app,op+("-retry" if fault else "-normal"))
+	return not failed
+func run() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" and args.size() == 1 and args[0] in ["normal","fault","paid-fault","cold"],"isolated explicit pack-session mode"): return
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	var source: Dictionary = JSON.parse_string(original.get_string_from_utf8())
+	var app = App.new(); add_child(app); await get_tree().process_frame
+	var disk: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH)
+	var cold_backup_exists: bool = FileAccess.file_exists(Save.PATH+".bak")
+	var cold_backup: PackedByteArray = FileAccess.get_file_as_bytes(Save.PATH+".bak") if cold_backup_exists else PackedByteArray()
+	app.reload_save()
+	if not check(app.season != null and app.season.player_results.size() == 1 and app.season.results.size() == 3 and app.season.physical.pending.is_empty(),"actual one-round strict cold source"): return
+	if not check(ClubCareer.same(Codec.guard_snapshot(app.season),JSON.parse_string(disk.get_string_from_utf8())) and FileAccess.file_exists(Save.PATH+".bak") == cold_backup_exists and (not cold_backup_exists or FileAccess.get_file_as_bytes(Save.PATH+".bak") == cold_backup),"strict load equals primary and leaves backup exact"): return
+	if args[0] == "cold":
+		if not check(app.season.build._visit.pack_status == "used" and FileAccess.get_file_as_bytes(Save.PATH) == disk,"cold used pack no rewrite"): return
+		var i: int = 0
+		while FileAccess.file_exists(ARCHIVE+"/%04d.json"%i): i += 1
+		if not check(i > 0 and FileAccess.get_file_as_bytes(ARCHIVE+"/%04d.json"%(i-1)) == disk,"cold exact last actual saved operation"): return
+	else:
+		if not check(ClubCareer.same(Codec.guard_snapshot(app.season),source),"initial exact source fixture"): return
+		if not cache_checks(app): return
+		if not app.season.build.pack_pending():
+			if not operate(app,"pack_open",args[0] == "fault"): return
+		if not operate(app,"pack_pick",args[0] != "normal"): return
+	if not check(FileAccess.get_file_as_bytes(SOURCE) == original and ClubCareer.same(app.season.origin,source.origin) and ClubCareer.same(app.season.closed,source.closed),"source and original history preserved"): return
+	app.queue_free(); await get_tree().process_frame
+	print("PASS: pack-session ",args[0],"; no NPC session or Dynasty qualification")
+	get_tree().quit(1 if failed else 0)
+func shop_for(app: SeasonApp) -> SeasonShopWindow:
+	for child in app.menu.get_children():
+		if child is SeasonShopWindow: return child
+	return null
+func button_prefix(node: Node, prefix: String) -> Button:
+	if node is Button and node.text.begins_with(prefix): return node
+	for child in node.get_children():
+		var result = button_prefix(child,prefix)
+		if result != null: return result
+	return null
+func target_button(node: Node) -> Button:
+	if node is Button and node.has_meta("target") and not node.disabled: return node
+	for child in node.get_children():
+		var result = target_button(child)
+		if result != null: return result
+	return null
+
