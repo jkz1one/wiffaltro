@@ -1,0 +1,77 @@
+extends Node
+## SYNTHETIC semifinal policy fixtures only. Not earned seasons or actual physics.
+## Tests real materialized119/120 entry dispatch; frozen114 remains unchanged.
+const Ordinary=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const Dynasty=preload("res://src/gameplay/season/successor_dynasty_owner_v1/runtime.gd")
+const OpponentsSpy=preload("res://tests/successor_dynasty_playoffs_opponents.gd")
+const PhysicalSpy=preload("res://tests/successor_dynasty_playoffs_physical.gd")
+var failed: bool=false
+func check(ok: bool,label: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+label)
+	if not ok:failed=true
+	return ok
+func rows(human: bool=true) -> Array:
+	return [{"id":30,"round":10,"home":0 if human else 1,"away":3,"home_runs":3,"away_runs":1,"proof":{"synthetic":"row30"}},
+		{"id":31,"round":10,"home":2,"away":4,"home_runs":4,"away_runs":2,"proof":{"synthetic":"row31"}}]
+func setup(factory: Script,results: Array,seeds: Array=[2,0,3,4]) -> SeasonState:
+	var season: SeasonState=factory.new()
+	season.results.assign(results)
+	season.playoff_seeds.assign(seeds)
+	season.phase=SeasonState.Phase.SEMIFINAL
+	season.opponents=OpponentsSpy.new()
+	season.physical=PhysicalSpy.new()
+	return season
+func state_text(season: SeasonState) -> String:
+	return JSON.stringify({"results":season.results,"final":season.final_fixture,"phase":season.phase,"champion":season.champion},"",true,true)
+func refuse(factory: Script,results: Array,label: String,seeds: Array=[2,0,3,4]) -> void:
+	var season: SeasonState=setup(factory,results,seeds)
+	var before: String=state_text(season)
+	season._settle_semifinals()
+	check(season.opponents.calls.is_empty() and state_text(season)==before,"invalid settle refuses without mutation: "+label)
+	check(not season._prepare_final() and state_text(season)==before and season.physical.calls.is_empty(),"invalid final refuses without mutation: "+label)
+func _ready() -> void:call_deferred("run")
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","explicit isolated synthetic playoff policy test"):
+		get_tree().quit(1);return
+	for factory: Script in [Ordinary,Dynasty]:
+		for cold: bool in [false,true]:
+			var policy: Array=rows()
+			if cold:policy=JSON.parse_string(JSON.stringify(policy))
+			var season: SeasonState=setup(factory,policy)
+			var before: String=state_text(season)
+			season._settle_semifinals()
+			if not check(season.opponents.calls.size()==1,"actual runtime settles both "+("JSON-float" if cold else "warm-integer")+" semifinal rows"):continue
+			var received: Dictionary=season.opponents.calls[0]
+			check(received.fixtures.size()==2 and received.survivors==[0,2] and state_text(season)==before,"both winners and untouched proof-bearing rows delivered")
+			received.fixtures[0]["alias_probe"]=true
+			check(season.results[0].get("alias_probe",false),"settlement receives original proof row, not reconstruction")
+			received.fixtures[0].erase("alias_probe")
+			check(season._prepare_final() and season.final_fixture=={"id":32,"round":11,"home":2,"away":0,"neutral":true}
+				and season.phase==SeasonState.Phase.FINAL and season.physical.calls.is_empty(),"ranked human final32 neutral, no AI simulation")
+		for invalid: Variant in [30.5,true,"30",NAN]:
+			var bad: Array=rows();bad[0].id=invalid
+			refuse(factory,bad,"non-whole/non-numeric fixture id "+str(invalid))
+		var duplicate: Array=rows();duplicate[1].id=30.0;refuse(factory,duplicate,"duplicate canonical30")
+		refuse(factory,[rows()[0]],"missing31")
+		var missing: Array=rows();missing[1].erase("id");refuse(factory,missing,"missing id field")
+		var repeated_winner: Array=rows();repeated_winner[1].home=0;refuse(factory,repeated_winner,"duplicate winner")
+		var unseeded: Array=rows();unseeded[1].home=5;refuse(factory,unseeded,"unseeded winner")
+		refuse(factory,rows(),"duplicate seed",[2,0,3,3])
+		for field: String in ["home","away","home_runs","away_runs"]:
+			for invalid: Variant in [1.5,true,"1",NAN]:
+				var bad: Array=rows();bad[0][field]=invalid;refuse(factory,bad,"invalid "+field+" "+str(invalid))
+		var tied: Array=rows();tied[0].away_runs=tied[0].home_runs;refuse(factory,tied,"tied semifinal")
+		var same_team: Array=rows();same_team[0].away=same_team[0].home;refuse(factory,same_team,"same club both sides")
+		var ai: SeasonState=setup(factory,JSON.parse_string(JSON.stringify(rows(false))),[2,1,3,4])
+		ai.physical.supply_result=true
+		check(ai._prepare_final() and ai.phase==SeasonState.Phase.COMPLETE and ai.champion==2 and ai.results.size()==3,"synthetic AI-only final completes through actual runtime dispatch")
+		check(ai.physical.calls==[{"id":32,"round":11,"home":2,"away":1,"neutral":true}]
+			and ai.opponents.calls.size()==1 and ai.opponents.calls[0].fixtures.size()==1 and ai.opponents.calls[0].survivors.is_empty(),"AI final simulated and settled once with exact expected fixture")
+		var awaiting: SeasonState=setup(factory,JSON.parse_string(JSON.stringify(rows(false))),[2,1,3,4])
+		var original: String=JSON.stringify(awaiting.results)
+		check(not awaiting._prepare_final() and awaiting.phase==SeasonState.Phase.FINAL and awaiting.champion==-1
+			and awaiting.final_fixture=={"id":32,"round":11,"home":2,"away":1,"neutral":true}
+			and awaiting.physical.needed==awaiting.final_fixture and awaiting.physical.calls.size()==1
+			and awaiting.opponents.calls.is_empty() and JSON.stringify(awaiting.results)==original,"missing physical final preserves exact FINAL request without inventing result or payout")
+	if not failed:print("PASS: synthetic119/120 semifinal dispatch; no actual119 gameplay/fullseason qualification claimed")
+	get_tree().quit(1 if failed else 0)

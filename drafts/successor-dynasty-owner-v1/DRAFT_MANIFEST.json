@@ -1,7 +1,7 @@
 {
   "format": "inactive-dynasty-owner-v1",
-  "source_checkpoint": "d69e8d08d14d959a0148e732f21f2c8fe605e965",
-  "scope": "Increment77 scoped same-input transaction optimization: exact saved-byte parity with76, paidpack50.7%/choice48.4% faster in one quietpair, raw/fault/fresh/alternate CLI and actualnative paidshop/cold passed. Prior76 scoped lifecycle/carriedround preserved. Not finished responsiveness, cold optimization, naturalterminal, publicunlock, replacement, alternateactivation or export.",
+  "source_checkpoint": "882cf5dd4eb294c28ee615eece1ea4e33261fa41",
+  "scope": "Increment78 local numeric semifinal-ID repair: synthetic119/120 policy gates and genuine75pending strictimport/original31recovery/actualfinal32/33-result terminal/cold passed, exactall6rewardjournals. Native read-only terminalview passed. Prior76 lifecycle/77 performance scope retained. No naturalcareerclose/awards/rollover, full119, humanfinal/missedplayoffchain, publicunlock/replacement/alternateactivation/export claim.",
   "files": [
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -150,8 +150,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/runtime.gd",
-      "bytes": 11854,
-      "sha256": "7c98ddd35766bbeee5bac2065c9cffc436225dd939fc66bf053664e97e99f011"
+      "bytes": 12195,
+      "sha256": "55ebc51b5abadb2996d5b56a44ae3b6b27a0ccfae2f52c27792cc2930c485da0"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",
@@ -326,6 +326,42 @@
       "restore_path": "tests/successor_dynasty_play.tscn",
       "bytes": 181,
       "sha256": "b91485d3717cdb2bad89bf2e62047b17c501d5429c83b91c618c0867dff7d2d8"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_playoff_recovery.gd.txt",
+      "restore_path": "tests/successor_dynasty_playoff_recovery.gd",
+      "bytes": 10367,
+      "sha256": "55e095893df3bb3a4472c48ecb05abf428e4a3b7e8ce73faeec9473b95179864"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_playoff_recovery.tscn.txt",
+      "restore_path": "tests/successor_dynasty_playoff_recovery.tscn",
+      "bytes": 187,
+      "sha256": "e26ff61666e4514a018fa308aed0b22ff6323117c301c3aadaf1058245543e07"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_playoffs.gd.txt",
+      "restore_path": "tests/successor_dynasty_playoffs.gd",
+      "bytes": 5735,
+      "sha256": "43b42b7546245c63a10399a6950f2baf7cae4ac975610a8be650820abdb46bf2"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_playoffs.tscn.txt",
+      "restore_path": "tests/successor_dynasty_playoffs.tscn",
+      "bytes": 194,
+      "sha256": "c1670cb3412453bc3751035e2713191c44a62a371ba86ab045071bc26bd0f8a2"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_playoffs_opponents.gd.txt",
+      "restore_path": "tests/successor_dynasty_playoffs_opponents.gd",
+      "bytes": 242,
+      "sha256": "5e7f237866c6fe9f71ad046cfae5bc75292de533771686d3c404d76fa69e14a6"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_playoffs_physical.gd.txt",
+      "restore_path": "tests/successor_dynasty_playoffs_physical.gd",
+      "bytes": 466,
+      "sha256": "c1ed1162d7cd985476d2a3223b89c784ba394179d88c8d2980181af21772448d"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/tests/successor_dynasty_raw_match.gd.txt",

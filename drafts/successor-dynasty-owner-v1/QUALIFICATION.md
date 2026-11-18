@@ -1,5 +1,11 @@
 # Dynasty owner: bounded private career integration
 
+Increment78 qualifies a narrow semifinal-ID repair and the actual recovered
+Dynasty gameplay-terminal/cold path:33 results from11 player-club games and22
+AI games, with complete exactly-once reward journals. Native read-only terminal
+viewing also passed. Natural career close/completion awards and rollover from this full
+season are not included.
+
 Increment77 qualifies a narrow measured transaction optimization on the same
 genuine larger save, with exact saved-byte parity and strict safety regressions.
 Blocking paid actions are roughly twice as fast, not yet responsive enough for
@@ -10,7 +16,7 @@ Increment76 qualifies the bounded private lifecycle: strict75 copy, actual
 abandon/all-six Next/cold, scoped native lifecycle/cold/launch/leave, and a genuine
 carried second-season human+twoAI round followed by paid shop choice and cold.
 Historical increment75 qualified its first round and native entry. Natural
-terminal closure, public unlock, alternate activation, replacement economics
+career close/completion awards, public unlock, alternate activation, replacement economics
 and export remain unqualified.
 This inactive additive family is not a finished Dynasty mode or a public unlock.
 The ordinary launcher remains on the verified 119 route. Original saves, frozen
@@ -472,7 +478,97 @@ preserved separately; final warm/cold logs have no SCRIPT ERROR. Software
 renderer and dummy-audio fallback warnings do not establish target-device
 performance or distributable-build qualification.
 
-Separately, frozen75 full-season endurance has exposed an inherited cold
-semifinal-ID advancement/reward issue. Its actual reports and predecessors are
-preserved for a later narrow repair. This checkpoint neither repairs that
-issue nor claims natural-terminal completion; it does not replay those games.
+At the increment77 boundary, frozen75 full-season endurance exposed an inherited
+cold semifinal-ID advancement/reward issue. Its actual reports and predecessors
+were preserved for the narrow repair below. Increment77 did not repair that
+issue or claim gameplay-terminal completion.
+
+## Increment 78: materialized semifinal ID repair
+
+Frozen 114 selected semifinal results with integer Array membership. After JSON
+cold hydration, whole fixture IDs are floats: both final-winner selection and
+semifinal AI settlement could miss the same actual results. The preserved
+player-club semifinal 30 and actual NPC semifinal 31 exposed this at advancement;
+no final 32 had been played, and the original source/saves/reports were retained.
+
+A small shared helper is bound explicitly to the existing 119 and 120 runtime
+methods. It validates finite whole numeric IDs before conversion, requires
+exactly one each 30/31, validates result primitives and distinct seeded winners,
+and preserves original proof-bearing rows. Existing seeded final ordering,
+fixture 32/round 11/neutral flag, physical resolution, opponent reward/acquisition
+policy, champion and phase transitions are retained. Frozen 114 files, authored
+catalogs, physics, save schemas, prices and planned features are unchanged.
+
+Focused synthetic tests exercise both actual runtime entry points with warm
+integer and JSON-float rows; malformed/fractional/boolean/string/nonfinite IDs,
+duplicate/missing IDs, malformed teams/scores, duplicate/unseeded winners and
+seeds are refused without advancing. Original row delivery, human-final ranking,
+AI-only final resolution/settlement and missing-physical-report request behavior
+are covered. These are synthetic policy tests, not a new actual 119 season.
+
+The actual 120 recovery first pins the exact immutable original 75 primary,
+backup and raw 31 hashes and checks raw owner/session predecessor equality. It
+then uses the existing explicit strict75-to-v2 import, validates the untouched
+physical report against the requested current-session fixture and admits it
+through normal Pending/Store/App paths. No general predecessor or report guard
+is bypassed, and neither semifinal is replayed.
+
+Original pending primary: 7,034,846 bytes,
+SHA256 `8a68a359849fbc2f55794379aeb4e540815e1187ab97672ea48ce5977b5f36e5`.
+Actual preserved raw 31: 14,200,256 bytes,
+SHA256 `c41954fac7f21017fec7c97570fcf04f805d3b9176fcb568dc16a52d355151ad`.
+The exact actual result remains 6–0. The first imported/recovered gate passed:
+all six clubs' reward identities and journals match their actual games exactly
+once; repeated detached projection yields the same results, banks and seeded
+final request; duplicate 31 admission is refused; original files remain unchanged.
+
+The new actual final32 was then played once, preserved before admission and
+settled through the original App handlers. Club1 won11–8. The durable terminal
+contains33 actual results,11 player-club games and22 NPC physical reports; every
+club's reward map and journal match its played fixtures exactly once. A separate
+process cold restored the same complete season without changing main or backup.
+The owner remains active with no close receipt or next proposal: gameplay
+completion is not career closure or a completion payout.
+
+Final main:7,750,433 bytes,
+SHA256 `7b5167ac5514a158e0e0e4c59e610bdb88041d18709a6c32e7bbe964cf6a3a89`.
+The full path combines genuine frozen75 earlier games, strict versioned migration,
+preserved-semifinal recovery and the newly played final. It is not an uninterrupted
+same-process/native season, an actual player-club championship game, or an
+actual missed-playoffs five-report transaction. Those broader claims are not made.
+Native read-only terminal-view qualification passed as detailed below. This increment does not perform a natural
+career close, completion award, next-season transition, alternate activation,
+public unlock, replacement-economics activation or distributable export.
+
+### Increment78 exact CLI evidence hashes
+
+- `synthetic.log`: `22fb207fc2a242e1a490e1aa98329ecb4c81170ad8aec5fe06f9f35a4489e65b`
+- `recovery-import.log`: `1b71a5c1d9081f0adf61c7f298f69304f511b1ede37ad7e2cb1c8c8e7383eb89`
+- `recovery31.log`: `00149928bbb5fa6339b21450ecbde09e59bb70a4785d38ec3224ca7cafe995d7`
+- `actual-final32.log`: `cb3d73a87d384e3f50df4572f16377e5898182709ab55827948243c6fed04f3b`
+- `terminal-settlement.log`: `30e4c2e2b49fc79c67be3a109ad15c6545ad91bfad068f5fc047d74ea265b130`
+- `terminal-cold.log`: `0446565505b8a94928a9de190f4e22ac4b0bf8b008591a08fbd6fffcf4456c24`
+
+`TERMINAL_QUALIFICATION.json` records the actual source path, paired saves and
+limits. Its aggregate test duration includes repeated checks and is not a
+settlement-handler benchmark. No performance improvement is claimed by78.
+
+### Increment78 native terminal view
+
+A separate native process continued the exact actual completed save and showed
+Dynasty Season1 / Round11 COMPLETE, original green/gold visuals, roster,
+completed player results and regular standings: YardClub8–2, Switches6–4,
+Comets5–5, Rivets4–6, Kites4–6 and Lanterns3–7. The Close Completed Season control
+was visible but deliberately not activated. Permanent career counters remained
+zero because the season had not been folded into the career yet.
+
+Clean window exit preserved both main and backup exactly. Main SHA256 is
+`7b5167ac5514a158e0e0e4c59e610bdb88041d18709a6c32e7bbe964cf6a3a89`;
+backup is7,377,289 bytes, SHA256
+`f57ea583d1eb0882546615a7a5af02d8f5d6f7c744a5331b440fb6a9fa203a54`.
+`NATIVE78_SMOKE_REPORT.json` SHA256:
+`1f69961fc02c69236f7c49ede80402186e7d36639e598b13297e498387df1b07`.
+There was no SCRIPT ERROR; known software-renderer and dummy-audio fallback
+warnings remain. This is read-only native terminal viewing, not a new native
+physical game, a natural career close/award/rollover, target-device timing or
+all-league/export qualification.

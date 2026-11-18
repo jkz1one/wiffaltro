@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "a8e8b65cd67a1b682ed3de08c424b930b70bd209",
-  "scope": "Increment73 targeted qualification passed:32 exact family source/test files; private typed raw owner/candidate session; one semantic capture per actual paid candidate, retry zero; strict generic save/cold unchanged; same119 output bytes; fresh Standard/Dugout, import, hidden/type/CAS/fault/cleanup/NPC callback tests. Native review and remote publication pending; responsiveness, Dynasty and distributable not claimed.",
+  "source_checkpoint": "882cf5dd4eb294c28ee615eece1ea4e33261fa41",
+  "scope": "Increment78 local numeric semifinal-ID selection and settlement repair: shared helper bound to119/120; focused synthetic warm/JSON/malformed/rank/AI-policy dispatch passed. Prior ordinary gameplay qualification retained, no new full119 season claim.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -46,6 +46,12 @@
       "sha256": "c23afc7b6ab874245cb007007b878b4d868cd85ff12724c824c934a705ebe83f"
     },
     {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/playoffs.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/playoffs.gd",
+      "bytes": 2656,
+      "sha256": "a4ea4a19c227932fb7facccefb9f21635b80fd43b7cbe70184c0a56a37c257e9"
+    },
+    {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/progress.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/progress.gd",
       "bytes": 12074,
@@ -60,8 +66,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
-      "bytes": 5506,
-      "sha256": "edf6218524b256e7cd1a89f33ffaaf6a09263b84706f2cd61d891c00e5650c07"
+      "bytes": 5847,
+      "sha256": "d89b0a7ee3cae35bb8c0805ed4d5e45f531dd5869b7228cc63fc5fc7b55b8164"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/store.gd.txt",

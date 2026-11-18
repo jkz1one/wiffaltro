@@ -224,3 +224,11 @@ static func install_carried_rights(build: SeasonBuild, rights: Dictionary, club:
 		build._abilities.start=null
 		build._copy.start=null
 	return true
+
+
+# Materialized saves admit exact whole numeric IDs, including JSON floats.
+func _prepare_final() -> bool:
+	return preload("res://src/gameplay/season/successor_live_play_v1/playoffs.gd").prepare_final(self)
+
+func _settle_semifinals() -> void:
+	preload("res://src/gameplay/season/successor_live_play_v1/playoffs.gd").settle_semifinals(self)

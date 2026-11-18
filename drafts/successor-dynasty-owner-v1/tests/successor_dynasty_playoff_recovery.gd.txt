@@ -1,0 +1,129 @@
+extends "res://tests/successor_dynasty_play.gd"
+## Actual preserved75 semifinals; no fabricated outcome or NPC31 replay.
+## Separate modes import/recover31/final/settle/terminal/cold; isolated fixed60.
+const RAW31: String="user://original-npc31.json"
+const OLD: String="user://wiffaltro-dynasty-owner-v1.json"
+var _content_roots: Array[Resource]=[]
+var raw31: Dictionary
+var raw31_bytes: PackedByteArray
+var old_bytes: PackedByteArray
+var old_backup: PackedByteArray
+func run() -> void:
+	var args=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["import","recover31","final","settle","terminal","cold"],"explicit isolated genuine playoff recovery mode"):return
+	_content_roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	if not check(not _content_roots.is_empty() and not Codec.Catalog.game_signature().is_empty() and not Codec.Catalog.player_signature().is_empty(),"pin authored source identities before input hydration"):return
+	if not check(FileAccess.get_sha256(OLD)=="8a68a359849fbc2f55794379aeb4e540815e1187ab97672ea48ce5977b5f36e5" and FileAccess.get_sha256(OLD+".bak")=="beb38d59fc180a15c58a01eab038d2741c8d41d61fa1a263d9325c7cd1921884" and FileAccess.get_sha256(RAW31)=="c41954fac7f21017fec7c97570fcf04f805d3b9176fcb568dc16a52d355151ad","exact immutable genuine75 semifinal predecessor and raw31 hashes"):return
+	original_bytes=FileAccess.get_file_as_bytes(SOURCE)
+	old_bytes=FileAccess.get_file_as_bytes(OLD)
+	old_backup=FileAccess.get_file_as_bytes(OLD+".bak")
+	raw31_bytes=FileAccess.get_file_as_bytes(RAW31)
+	var old: Dictionary=JSON.parse_string(old_bytes.get_string_from_utf8())
+	raw31=JSON.parse_string(raw31_bytes.get_string_from_utf8())
+	if not check(original_bytes==old_bytes and old.version==1 and old.format=="wiffaltro-dynasty-owner-v1" and Codec.same(raw31.owner_before,old) and Codec.same(raw31.before,old.dynasty),"untouched actual31 predecessor exactly equals original75 pending primary"):return
+	if not check(int(raw31.fixture.id)==31 and int(old.dynasty.physical.pending.human[0])==30 and old.dynasty.physical.pending.reports.is_empty(),"genuine two semifinals; final not invented"):return
+	for path: String in [OLD,OLD+".bak",RAW31]:other_slots[path]=slot_state(path)
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var prior: PackedByteArray=Save.raw()
+	var backup: Dictionary=slot_state(Save.PATH+".bak")
+	var calls: int=Fixtures.resolve_calls
+	var projects: int=Pending.project_calls
+	var started: int=Time.get_ticks_msec()
+	if args[0]=="import":
+		if not check(not Save.occupied(),"empty separate v2 slot"):return
+		app.import_previous_dynasty()
+	else:app.reload_save()
+	print("RECOVERY_",args[0].to_upper(),"_LOAD_WALL_MS: ",Time.get_ticks_msec()-started)
+	if not check(app.season!=null and app.career_owner!=null and app.retained==null and app._owned(),"strict materialized owner admitted"):return
+	if args[0]!="import" and not check(Save.raw()==prior and Codec.same(slot_state(Save.PATH+".bak"),backup) and Fixtures.resolve_calls==calls and Pending.project_calls==projects,"separate cold no write or physical/current-round projection"):return
+	if args[0]=="import":
+		var expected=Owner.import_75(old_bytes)
+		if not check(expected!=null and Codec.same(Owner.capture(expected),Owner.capture(app.career_owner)),"actual App strict75import equals independent approved import path"):return
+		finish_step(app,"strict75-import")
+	elif args[0]=="recover31":
+		var expected=Owner.import_75(old_bytes)
+		if not check(expected!=null and Codec.same(Owner.capture(expected),Owner.capture(app.career_owner)),"recovery current equals exact imported original predecessor"):return
+		if not check(Report.valid(raw31.report,Codec.Catalog.game_signature()),"untouched genuine31 report valid under current catalog"):return
+		var projection: Dictionary=Pending.project(app.season)
+		if not check(projection.has("fixture") and Codec.same(projection.fixture,raw31.fixture),"same original31 fixture requested before admission"):return
+		var staged: Dictionary=Pending.stage_report(app.season,raw31.report)
+		if not check(staged.get("candidate") is SeasonState,"original31 report accepted without any game replay"):return
+		var next: Dictionary=Pending.project(staged.candidate)
+		if not check(next.has("fixture") and int(next.fixture.id)==32 and int(next.fixture.round)==11 and next.fixture.neutral==true,"numeric-ID semifinal winners produce real neutral final32"):return
+		if not rewards(next.candidate):return
+		var winners: Array[int]=[]
+		for result: Dictionary in next.candidate.results:
+			if int(result.id) in [30,31]:winners.append(SeasonState._winner(result))
+		winners.sort_custom(func(a: int,b: int):return next.candidate.playoff_seeds.find(a)<next.candidate.playoff_seeds.find(b))
+		if not check(winners.size()==2 and int(next.fixture.home)==winners[0] and int(next.fixture.away)==winners[1],"actual finalist seeding preserved"):return
+		var repeated: Dictionary=Pending.project(staged.candidate)
+		if not check(repeated.has("fixture") and Codec.same(repeated.fixture,next.fixture) and Codec.same(repeated.candidate.results,next.candidate.results),"repeated detached projection preserves results/final fixture"):return
+		if not rewards(repeated.candidate):return
+		for club in range(6):
+			var left: SeasonBuild=next.candidate.build if club==0 else next.candidate.opponents.clubs[str(club)].build
+			var right: SeasonBuild=repeated.candidate.build if club==0 else repeated.candidate.opponents.clubs[str(club)].build
+			if not check(Codec.same(left._bank.view(),right._bank.view()),"repeated projection neither duplicates reward nor re-shops AI"):return
+		app._retain(staged.candidate,Save.raw())
+		if not check(app.retained==null and app.season.physical.pending.reports.size()==1,"recovered original31 durable pending exactly once"):return
+		var current: PackedByteArray=Save.raw()
+		if not check(not Pending.stage_report(app.season,raw31.report).has("candidate") and Save.raw()==current,"duplicate semifinal31 refused without save mutation"):return
+		finish_step(app,"original31-admitted-no-replay")
+	elif args[0]=="final":
+		await actual_final(app)
+	elif args[0]=="settle":
+		if not check(app.season.physical.pending.reports.size()==2,"both actual NPC playoff outcomes durable before settlement"):return
+		app.resume_round()
+		if not check(app.retained==null and not app._busy and app.season.phase==SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty(),"actual final settlement durably reaches COMPLETE"):return
+		if not terminal(app):return
+		finish_step(app,"actual-terminal-settlement",true)
+	else:
+		if not terminal(app):return
+		finish_step(app,args[0]+"-terminal",true)
+	if failed:return
+	if not check(source_unchanged() and FileAccess.get_file_as_bytes(RAW31)==raw31_bytes and FileAccess.get_file_as_bytes(OLD)==old_bytes and FileAccess.get_file_as_bytes(OLD+".bak")==old_backup,"original75 main/backup/raw31 untouched"):return
+	print("PASS: actual playoff recovery ",args[0],"; no natural close, award, rollover or gameplay31 replay")
+	app.queue_free();await get_tree().process_frame
+	get_tree().quit()
+func rewards(season: SeasonState) -> bool:
+	for club in range(6):
+		var build: SeasonBuild=season.build if club==0 else season.opponents.clubs[str(club)].build
+		var expected: Dictionary={}
+		for game: Dictionary in season.results:
+			if int(game.home)!=club and int(game.away)!=club:continue
+			expected[str(int(game.id))]=(int(game.home)==club)==(game.home_runs>game.away_runs)
+		if not check(Codec.same(build._bank.view().rewards,expected),"all actual club%d fixture reward identities and wins exactly once"%club):return false
+		var seen: Dictionary={}
+		for event: Dictionary in build._bank._events:
+			if event.op!="reward":continue
+			var id: String=str(int(event.game))
+			if not check(not seen.has(id) and expected.has(id) and event.win==expected[id],"reward journal matches actual unique fixture"):return false
+			seen[id]=true
+		if not check(seen.size()==expected.size(),"no missing or duplicate actual reward"):return false
+	return true
+func terminal(app: SeasonApp) -> bool:
+	var season: SeasonState=app.season
+	if not check(season.phase==SeasonState.Phase.COMPLETE and season.results.size()==33 and season.player_results.size()==11 and season.physical.reports.size()==22 and season.physical.pending.is_empty(),"genuine elimination fullseason33 with11human22NPC outcomes"):return false
+	if not rewards(season):return false
+	var final: Dictionary=season.results[-1]
+	if not check(int(final.id)==32 and final.neutral and season.champion==SeasonState._winner(final),"actual final winner recorded as champion"):return false
+	return check(app.career_owner.status=="active" and app.career_owner.last_close.is_empty() and app.career_owner.proposal.is_empty(),"terminal gameplay only, no career closure/rollover performed")
+func actual_final(app: SeasonApp) -> void:
+	if not check(app.season.physical.pending.reports.size()==1,"saved actual31 awaits only final32"):return
+	var owner: SeasonState=app.season
+	var before: Dictionary=Codec.capture(owner)
+	var envelope: Dictionary=Owner.capture(app.career_owner)
+	app.resume_round()
+	var projection: Dictionary=app.projection
+	if not check(projection.has("fixture") and int(projection.fixture.id)==32 and app._busy and is_instance_valid(app.ai_runner),"original App starts actual physical final32"):return
+	var runner=app.ai_runner
+	var receivers=runner.get_signal_connection_list("finished")
+	if not check(receivers.size()==1,"one original final receiver"):return
+	var receiver: Callable=receivers[0].callable
+	runner.disconnect("finished",receiver)
+	runner.finished.connect(func(report: Dictionary):preserve_actual("actual120-npc-32",{"report":report,"fixture":projection.fixture,"before":before,"owner_before":envelope}))
+	runner.connect("finished",receiver,int(receivers[0].flags))
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if not app._busy:break
+	if not check(not app._busy and app.retained==null and app.retained_report.is_empty() and app.season!=owner and app.season.physical.pending.reports.size()==2,"actual final report retained durably before terminal settlement"):return
+	finish_step(app,"actual-final32-pending")

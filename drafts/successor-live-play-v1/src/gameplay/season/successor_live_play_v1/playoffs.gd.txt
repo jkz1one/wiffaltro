@@ -1,0 +1,53 @@
+extends RefCounted
+## Shared only by the materialized119/120 runtimes. Frozen114 is untouched.
+## JSON keeps whole numeric fixture IDs as floats; validate before canonicalizing.
+static func semifinal_results(owner: SeasonState) -> Array:
+	var played: Array=[]
+	var seen: Dictionary={}
+	for row: Variant in owner.results:
+		if not row is Dictionary or not SeasonOwnership._whole(row.get("id"),0,32): return []
+		var id: int=int(row.id)
+		if id!=30 and id!=31: continue
+		if seen.has(id): return []
+		if not SeasonOwnership._whole(row.get("home"),0,5) or not SeasonOwnership._whole(row.get("away"),0,5) or row.home==row.away: return []
+		if not SeasonOwnership._whole(row.get("home_runs"),0,100000) or not SeasonOwnership._whole(row.get("away_runs"),0,100000) or row.home_runs==row.away_runs: return []
+		seen[id]=true
+		played.append(row) # Original receipt/proof-bearing rows, not reconstructed outcomes.
+	return played if seen.has(30) and seen.has(31) and played.size()==2 else []
+
+static func winners(owner: SeasonState, played: Array) -> Array[int]:
+	var result: Array[int]=[]
+	if played.size()!=2 or owner.playoff_seeds.size()!=4: return result
+	var seeds: Dictionary={}
+	for seed: Variant in owner.playoff_seeds:
+		if not SeasonOwnership._whole(seed,0,5) or seeds.has(int(seed)): return []
+		seeds[int(seed)]=true
+	for row: Dictionary in played:
+		var winner: int=owner._winner(row)
+		if not seeds.has(winner) or result.has(winner): return []
+		result.append(winner)
+	return result
+
+static func prepare_final(owner: SeasonState) -> bool:
+	var surviving: Array[int]=winners(owner,semifinal_results(owner))
+	if surviving.size()!=2: return false
+	surviving.sort_custom(func(a: int,b: int) -> bool: return owner.playoff_seeds.find(a)<owner.playoff_seeds.find(b))
+	owner.final_fixture={"id":32,"round":11,"home":surviving[0],"away":surviving[1],"neutral":true}
+	owner.phase=SeasonState.Phase.FINAL
+	if not surviving.has(0):
+		var final_result: Dictionary=owner._simulate(owner.final_fixture)
+		if final_result.is_empty(): return false
+		owner.results.append(final_result)
+		if owner.opponents!=null: owner.opponents.settle([final_result],[])
+		owner.champion=owner._winner(final_result)
+		owner.phase=SeasonState.Phase.COMPLETE
+	return true
+
+static func settle_semifinals(owner: SeasonState) -> void:
+	if owner.opponents==null: return
+	var played: Array=semifinal_results(owner)
+	var surviving: Array[int]=winners(owner,played)
+	if surviving.size()!=2: return
+	# Existing opponent policy retains its per-game reward deduplication, costs,
+	# acquisition and survivor decisions. No replacement reward is fabricated.
+	owner.opponents.settle(played,surviving)

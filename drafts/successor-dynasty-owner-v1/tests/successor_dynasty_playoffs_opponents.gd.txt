@@ -1,0 +1,5 @@
+extends SeasonOpponents
+## Synthetic policy call recorder only; does not award money or growth.
+var calls: Array=[]
+func settle(fixtures: Array,survivors: Array) -> void:
+	calls.append({"fixtures":fixtures,"survivors":survivors.duplicate()})

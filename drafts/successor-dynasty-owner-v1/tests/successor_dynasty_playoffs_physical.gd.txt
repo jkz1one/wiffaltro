@@ -1,0 +1,13 @@
+extends SeasonPhysicalFixtures
+## Synthetic outcome/missing-report adapter, never actual physical evidence.
+var calls: Array=[]
+var supply_result: bool=false
+func resolve(_season: SeasonState,fixture: Dictionary) -> Dictionary:
+	calls.append(fixture.duplicate(true))
+	if not supply_result:
+		needed=fixture.duplicate(true)
+		return {}
+	var row: Dictionary=fixture.duplicate(true)
+	row["home_runs"]=2;row["away_runs"]=1
+	row["synthetic_policy_only"]=true
+	return row
