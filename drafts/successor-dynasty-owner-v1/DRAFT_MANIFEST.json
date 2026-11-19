@@ -1,7 +1,7 @@
 {
   "format": "inactive-dynasty-owner-v1",
-  "source_checkpoint": "b106079379949721ebefa9e52b8258c346966cb1",
-  "scope": "Increment90: add Base Academy to private common career and bind resumable two-choice materialized pack to the visit journal/charge. Isolated short owner and detached policy checks; full earned Academy play pending on beta checklist.",
+  "source_checkpoint": "65ede84ba91e2ab4bf48d9a869d55a8537c0a0a9",
+  "scope": "Increment91: Base Scramble private ordinary admission, exact seeded build/book/bank identity and pristine baseline validation. Short owner isolation checks; full gameplay remains pending.",
   "files": [
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -778,6 +778,18 @@
       "restore_path": "tests/academy90.tscn",
       "bytes": 166,
       "sha256": "a60c61c2ee8bb96a45db34f29fd9d7d606e2fda475680bea9951d7d33ae26a7e"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/scramble91.gd.txt",
+      "restore_path": "tests/scramble91.gd",
+      "bytes": 4714,
+      "sha256": "08a51929bde125911e201bfdf48dd0fe81b40d40f80340dfe1a25875b6baf296"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/scramble91.tscn.txt",
+      "restore_path": "tests/scramble91.tscn",
+      "bytes": 167,
+      "sha256": "222ecc4d6ef6a29774b4ae15f5df3963dfcc6d0eebdec23ee00272249b18c510"
     }
   ]
 }

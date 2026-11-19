@@ -1,13 +1,13 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "b106079379949721ebefa9e52b8258c346966cb1",
-  "scope": "Increment90: add Base Academy to private common career and bind resumable two-choice materialized pack to the visit journal/charge. Isolated short owner and detached policy checks; full earned Academy play pending on beta checklist.",
+  "source_checkpoint": "65ede84ba91e2ab4bf48d9a869d55a8537c0a0a9",
+  "scope": "Increment91: Base Scramble private ordinary admission, exact seeded build/book/bank identity and pristine baseline validation. Short owner isolation checks; full gameplay remains pending.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/build_codec.gd",
-      "bytes": 24793,
-      "sha256": "5cc50a75d92e7eaea2c7d021a986cfa4baa4924be200d3c738ebe2e09c21d214"
+      "bytes": 26462,
+      "sha256": "0bd932b82ac2c1763cd88fd98124a83b260e8896778028b20c9805dd6c9d3ea7"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/career.gd.txt",
@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 24817,
-      "sha256": "2c508e1d180e34fb1b4cd98d915ff1559631eb71df02861b0f0066c5ae2e8821"
+      "bytes": 24889,
+      "sha256": "8989247ca9a5c9ba00362110796e31da4845e12932d1594dfb201575674a5d8b"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
@@ -60,8 +60,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/progress.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/progress.gd",
-      "bytes": 12136,
-      "sha256": "6fca68417cfc0b0f2fc1af1016934e51fddbaa811aff187ca34b22ddeec1c760"
+      "bytes": 12263,
+      "sha256": "54dd16f6175cb336a39866e1993915725165afc4f890903d52190b5c195c7160"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/raw_guard.gd.txt",
@@ -72,8 +72,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
-      "bytes": 6821,
-      "sha256": "520c6e3c85fa803b0787b344851bfc9bba8d8a3a0e6227f35914e8ade8193e75"
+      "bytes": 6841,
+      "sha256": "0adb96ca6417f9eb834070b9dd6390b42fcb8350bb95fefef374c7e19567d3b2"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/store.gd.txt",
@@ -212,8 +212,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/ordinary_admission.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/ordinary_admission.gd",
-      "bytes": 467,
-      "sha256": "4dfbf8d63c8d30804485d0f372cf51d42c660ea662dff603a954047cde278b53"
+      "bytes": 585,
+      "sha256": "dda6877efd13e8f4f8060389199ee24d1245ee3a5c3869cb4886cf4f074853b1"
     }
   ]
 }

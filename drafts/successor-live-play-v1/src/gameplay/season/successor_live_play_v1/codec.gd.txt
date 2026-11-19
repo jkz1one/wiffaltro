@@ -115,7 +115,7 @@ static func scope(season: SeasonState) -> bool:
 		or season.opponents == null or season.opponents.get_script() != Opponents or season.opponents._format != 13 \
 		or season.physical == null or season.physical.get_script() != Physical or season.ownership == null: return false
 	if not whole(season.season_seed,0,2147483647) or season.career.current != 1 or season.career.runs.size() != 1: return false
-	var expected: Dictionary = Admissions.expected(season.league_rules)
+	var expected: Dictionary = Admissions.expected(season.league_rules,season.season_seed)
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if season.career.start_basis.get("kind")==CommonStart.KIND:
 		if not CommonStart.valid(season.career.start_basis) or season.career.start_basis.seed!=season.season_seed: return false
@@ -365,7 +365,7 @@ static func restore_common(value: Variant) -> SeasonState:
 	return result
 
 static func _canonical_named_context(season: SeasonState) -> bool:
-	var expected: Dictionary=Admissions.expected(season.league_rules)
+	var expected: Dictionary=Admissions.expected(season.league_rules,season.season_seed)
 	if not same(season.league_rules,expected): return false
 	var builds: Array=[season.build]
 	for club: Dictionary in season.opponents.clubs.values(): builds.append(club.build)
@@ -374,7 +374,7 @@ static func _canonical_named_context(season: SeasonState) -> bool:
 		if not same(build._league_rules,expected) or not same(build._bank._league_rules,expected): return false
 		holders.append(build);holders.append(build._bank)
 		# Non-scramble development books legitimately have an empty rule context.
-		if not build._book._league_rules.is_empty():
+		if LeagueRules.scramble(expected) or not build._book._league_rules.is_empty():
 			if not same(build._book._league_rules,expected): return false
 			holders.append(build._book)
 	if not season.ownership._league_rules.is_empty():

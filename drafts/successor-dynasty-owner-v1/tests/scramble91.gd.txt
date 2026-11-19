@@ -1,0 +1,67 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const A=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+var roots: Array[Resource]=[]
+func check(ok: bool,msg: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+msg)
+	if not ok:get_tree().quit(1)
+	return ok
+func _ready() -> void:call_deferred("run")
+func authentic(season: SeasonState,seed_value: int) -> bool:
+	var rules: Dictionary=LeagueRules.capture("scramble",0,seed_value)
+	if not check(season.season_seed==seed_value and ClubCareer.same(season.league_rules,rules),"exact root seed binds Scramble"):return false
+	var clubs: Array=[season.build]
+	for club: Dictionary in season.opponents.clubs.values():clubs.append(club.build)
+	for build: SeasonBuild in clubs:
+		if not check(ClubCareer.same(build._league_rules,rules) and build._book.context_matches(rules),"original root in each build and book"):return false
+		for id: String in SeasonPlayerCatalog.ids():
+			var expected: Dictionary=SeasonScramble.profile(id,rules)
+			var actual: Dictionary=build.player(id)
+			if not ClubCareer.same(actual.base,expected.base) or not ClubCareer.same(actual.stats,expected.stats):
+				return check(false,"canonical pristine transformed vector for "+id)
+	return check(true,"all drafted clubs authenticate every pristine seeded vector")
+func run() -> void:
+	var args: PackedStringArray=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["birth","next","cold"],"isolated Scramble gate"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var app=App.new();add_child(app);await get_tree().process_frame
+	var id: String=SeasonPlayerCatalog.ids()[0]
+	var original: Dictionary=SeasonPlayerCatalog.profile(id)
+	if args[0]=="birth":
+		if not check(S.raw().is_empty(),"no existing slot before named creation"):return
+		app.select_league("scramble");app.create_fresh(7491)
+		if not check(app.season!=null and app._owned(),"real shared Scramble fresh creation"):return
+		if not authentic(app.season,7491):return
+		for i in range(4):
+			var offers: Array=app.season.offers()
+			if not check(not offers.is_empty(),"actual draft offers"):return
+			app.draft(offers[0])
+			if not check(app.retained==null and app.season.picks.size()==i+1,"each draft pick persisted"):return
+		if not check(app.season.opponents.clubs.size()==5 and app.season.results.is_empty(),"all five original AI drafted; no played games"):return
+		if not authentic(app.season,7491):return
+		if not check(A.OrdinaryFixtures.match_for(app.season,app.season.pending_fixture())!=null,"first match constructs using seeded profile"):return
+		var captured: Dictionary=A.capture("ordinary",app.season)
+		if not check(not captured.is_empty() and A.Ordinary.restore(captured)==null,"legacy reader refuses named seed variant"):return
+		for mode in ["wrong-root","wrong-ai-book","wrong-base","pristine-stat"]:
+			var bad: Dictionary=captured.duplicate(true)
+			if mode=="wrong-root":bad.state.league_rules.season_seed=7492
+			elif mode=="wrong-ai-book":bad.opponents.clubs["1"].build.book._league_rules={}
+			elif mode=="wrong-base":bad.build.book._players[id].base[SeasonPlayerCatalog.STATS[0]]=99
+			else:
+				var stat: String=SeasonPlayerCatalog.STATS[0]
+				bad.build.book._players[id].stats[stat]=int(bad.build.book._players[id].stats[stat])+1
+			if not check(A.Ordinary.restore_common(bad)==null,"reject tampered "+mode):return
+	elif args[0]=="next":
+		var before: PackedByteArray=S.raw();app.reload_save()
+		if not check(app.season!=null and app._owned() and app.season.picks.size()==4 and S.raw()==before,"cross-process fourth pick cold exact"):return
+		if not authentic(app.season,7491):return
+		app.close_current("abandon");app.propose_next(7492);app.commit_next()
+		if not check(app.career_owner.current_ordinal()==2 and app.career_owner.common.sequence==1 and app.season.picks.is_empty(),"ordinary close and new local seed through Next"):return
+		if not authentic(app.season,7492):return
+	else:
+		var before: PackedByteArray=S.raw();app.reload_save()
+		if not check(app.season!=null and app._owned() and app.career_owner.current_ordinal()==2 and S.raw()==before,"new Scramble seed separate cold reopen"):return
+		if not authentic(app.season,7492):return
+	if not check(ClubCareer.same(original,SeasonPlayerCatalog.profile(id)),"global authored player remains immutable"):return
+	print("PASS: shared Scramble 91 ",args[0]);get_tree().quit(0)

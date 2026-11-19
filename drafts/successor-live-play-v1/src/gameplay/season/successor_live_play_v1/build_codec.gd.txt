@@ -10,6 +10,21 @@ static var _active_recipes: Array[String] = []
 static var _ownership_catalog: Dictionary = {}
 static var _player_ids: Array[String] = []
 static var _player_baselines: Dictionary = {}
+static var _scramble_seed: int = -1
+static var _scramble_baselines: Dictionary = {}
+
+static func _scramble_catalog(rules: Dictionary) -> Dictionary:
+	var seed_value: int=int(rules.season_seed)
+	if seed_value==_scramble_seed: return _scramble_baselines
+	var profiles: Dictionary={}
+	for id: String in _player_ids:
+		var row: Dictionary=SeasonScramble.profile(id,rules)
+		if row.is_empty(): return {}
+		row.base.make_read_only();row.stats.make_read_only();row.make_read_only()
+		profiles[id]=row
+	profiles.make_read_only()
+	_scramble_seed=seed_value;_scramble_baselines=profiles
+	return _scramble_baselines
 
 static func _ensure_player_baselines() -> void:
 	if not _player_baselines.is_empty(): return
@@ -91,6 +106,15 @@ static func restore(value: Variant) -> SeasonBuild:
 	_put(build._major,value.major,MAJOR)
 	_put(build._abilities,value.abilities,ABILITIES)
 	_put(build._copy,value.copy,COPY)
+	# Scramble's original Book compares the native seeded rule dictionaries.
+	# _validate has already compared their complete shapes and matching seeds;
+	# canonicalize JSON whole numbers before calling the frozen native guards.
+	if LeagueRules.scramble(build._league_rules):
+		var expected: Dictionary=LeagueRules.normalized(build._league_rules)
+		if expected.is_empty(): return null
+		build._league_rules=expected.duplicate(true)
+		build._bank._league_rules=expected.duplicate(true)
+		build._book._league_rules=expected.duplicate(true)
 	if not build._bank.context_valid() or not build.pricing_context_valid() or not build._bank.completion_closed(): return null
 	var cap: Dictionary = build._bank._capacity(build._bank._state)
 	if build._bank._state.held.size() > cap.held or build._bank._state.sponsors.size() > cap.sponsors: return null
@@ -199,7 +223,9 @@ static func _validate(value: Variant) -> bool:
 	for id: String in b._roster:
 		if not b._pool.has(id) or b._blocked.has(id): return false
 	if not _journal(b._events,b._requests,SeasonBuild.MAX_EVENTS) or not _journal(book._events,book._requests,SeasonDevelopment.MAX_EVENTS) or not _journal(value.bank._events,value.bank._requests,SeasonOwnership.MAX_EVENTS,true): return false
-	if not _players(book._players,LeagueRules.scramble(b._league_rules)) or not _wallet(value.bank._state) or not _fresh_wallet(value.bank): return false
+	var scramble: bool=LeagueRules.scramble(b._league_rules)
+	if scramble and (not ClubCareer.same(book._league_rules,b._league_rules) or not ClubCareer.same(value.bank._league_rules,b._league_rules)): return false
+	if not _players(book._players,b._league_rules if scramble else {},book._events.is_empty()) or not _wallet(value.bank._state) or not _fresh_wallet(value.bank): return false
 	if not _visit_valid(b._visit): return false
 	if LeagueRules.academy(b._league_rules) and not _academy_pack_valid(b._visit,b._events,value.bank._events): return false
 	for field: String in ["_paid_rerolls","_field_outs","_supply_used"]:
@@ -230,12 +256,15 @@ static func _validate(value: Variant) -> bool:
 		if slots.Hitting > 1 or slots.Fielding > (2 if value.major.player == id else 1): return false
 	return true
 
-static func _players(players: Dictionary, scramble: bool = false) -> bool:
+static func _players(players: Dictionary, scramble_rules: Dictionary={}, pristine: bool=false) -> bool:
 	_ensure_player_baselines()
+	var scramble: bool=not scramble_rules.is_empty()
+	var baselines: Dictionary=_scramble_catalog(scramble_rules) if scramble else _player_baselines
+	if baselines.is_empty(): return false
 	if not SeasonOwnership._keys(players,_player_ids): return false
 	for id: String in players:
 		var p: Variant = players[id]
-		var authored: Dictionary = _player_baselines[id]
+		var authored: Dictionary = baselines[id]
 		if not p is Dictionary: return false
 		var fields: Array = ["id","base","stats","capacity","active","mastery"]
 		if p.has("catchup"):
@@ -244,6 +273,7 @@ static func _players(players: Dictionary, scramble: bool = false) -> bool:
 		if not SeasonOwnership._keys(p,fields) or p.id != id or not ClubCareer.same(p.base,authored.base) or p.capacity != authored.capacity or not p.stats is Dictionary or not SeasonOwnership._keys(p.stats,SeasonPlayerCatalog.STATS) or not p.mastery is Dictionary or not p.active is Array or p.active.size()>p.capacity: return false
 		for stat: String in SeasonPlayerCatalog.STATS:
 			if not SeasonOwnership._whole(p.stats[stat],1 if scramble else int(authored.base[stat]),SeasonPlayerCatalog.STAT_CAP): return false
+		if scramble and pristine and not ClubCareer.same(p.stats,authored.stats): return false
 		var seen: Dictionary = {}
 		for recipe: Variant in p.active:
 			if not recipe is String or seen.has(recipe) or not p.mastery.has(recipe): return false
