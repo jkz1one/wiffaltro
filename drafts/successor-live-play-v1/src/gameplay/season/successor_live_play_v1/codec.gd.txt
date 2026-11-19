@@ -105,13 +105,17 @@ static func known_variables(object: Object, names: Array) -> bool:
 		if int(property.usage) & PROPERTY_USAGE_SCRIPT_VARIABLE and not names.has(property.name): return false
 	return true
 
+const NAMED_LEAGUE_FORMAT: String = "wiffaltro-common-ordinary-named-league-session-v1"
+const Admissions = preload("ordinary_admission.gd")
+const NEW_LEAGUES = Admissions.NEW_LEAGUES
+
 static func scope(season: SeasonState) -> bool:
 	if season == null or season.get_script() != Runtime or season.build == null or season.build.get_script() != GameBuild \
 		or season.career == null or season.career.get_script() != Career or not season.league_career \
 		or season.opponents == null or season.opponents.get_script() != Opponents or season.opponents._format != 13 \
 		or season.physical == null or season.physical.get_script() != Physical or season.ownership == null: return false
 	if not whole(season.season_seed,0,2147483647) or season.career.current != 1 or season.career.runs.size() != 1: return false
-	var expected: Dictionary = {} if season.league_rules.is_empty() else LeagueRules.capture("dugout")
+	var expected: Dictionary = Admissions.expected(season.league_rules)
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if season.career.start_basis.get("kind")==CommonStart.KIND:
 		if not CommonStart.valid(season.career.start_basis) or season.career.start_basis.seed!=season.season_seed: return false
@@ -299,7 +303,8 @@ static func _payload(season: SeasonState) -> Dictionary:
 		if club.build.is_empty(): return {}
 		clubs[id] = club
 	var earned: bool=season.career.start_basis.get("kind")==CommonStart.KIND
-	var data: Dictionary = {"version":1 if earned else Catalog.VERSION,"format":CommonStart.FORMAT if earned else Catalog.FORMAT,"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
+	var named: bool=season.league_rules.get("league","") in NEW_LEAGUES
+	var data: Dictionary = {"version":1 if earned or named else Catalog.VERSION,"format":CommonStart.FORMAT if earned else (NAMED_LEAGUE_FORMAT if named else Catalog.FORMAT),"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
 		"state":data_fields(season,FIELDS),"ownership":bank,"build":build,"career":data_fields(season.career,CAREER_FIELDS),
 		"opponents":{"draft_order":season.opponents.draft_order.duplicate(),"draft_rule":season.opponents.draft_rule,"format":season.opponents._format,"clubs":clubs},
 		"physical":data_fields(season.physical,PHYSICAL_FIELDS)}
@@ -320,11 +325,13 @@ static func restore(value: Variant) -> SeasonState:
 static func restore_common(value: Variant) -> SeasonState:
 	restore_calls += 1
 	var earned: bool=value is Dictionary and value.get("format")==CommonStart.FORMAT
+	var named: bool=value is Dictionary and value.get("format")==NAMED_LEAGUE_FORMAT
 	if not primitive(value) or not keys(value,["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]) \
-		or (earned and not whole(value.version,1,1)) or (not earned and (not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT)) \
+		or ((earned or named) and not whole(value.version,1,1)) or (not earned and not named and (not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT)) \
 		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
 	var result: SeasonState = Runtime.new()
 	if not install_fields(result,FIELDS,value.state): return null
+	if not earned and named!=(result.league_rules.get("league","") in NEW_LEAGUES): return null
 	result.build = Builds.restore(value.build)
 	result.ownership = Builds.restore_bank(value.ownership)
 	result.career = Career.new()
@@ -352,13 +359,13 @@ static func restore_common(value: Variant) -> SeasonState:
 		# Hydrated JSON numbers must agree with newly authored fourth-pick builds.
 		# Normalize ONLY known rule holders after strict semantic admission, then
 		# independently prove serialized recapture stays exactly the same.
-		if not _canonical_dugout_context(result): return null
+		if not _canonical_named_context(result): return null
 		var canonical: Dictionary=capture(result)
 		if canonical.is_empty() or not same(canonical,captured): return null
 	return result
 
-static func _canonical_dugout_context(season: SeasonState) -> bool:
-	var expected: Dictionary=LeagueRules.capture("dugout")
+static func _canonical_named_context(season: SeasonState) -> bool:
+	var expected: Dictionary=Admissions.expected(season.league_rules)
 	if not same(season.league_rules,expected): return false
 	var builds: Array=[season.build]
 	for club: Dictionary in season.opponents.clubs.values(): builds.append(club.build)

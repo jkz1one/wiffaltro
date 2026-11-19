@@ -115,7 +115,7 @@ func show_season() -> void:
 func _available() -> bool:
 	return not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func select_league(value: String) -> void:
-	if not _available() or season != null or value not in ["dynasty","standard","dugout"]: return
+	if not _available() or season != null or (value!="dynasty" and value not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES): return
 	selected_league = value; show_season()
 func create_fresh(seed_value: int = -1) -> void:
 	if not _available() or season != null: return

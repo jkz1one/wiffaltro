@@ -8,6 +8,9 @@ const Starts = preload("res://src/gameplay/season/successor_owner_career_v1/star
 const CommonStart = preload("common_start.gd")
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
 
+# Explicitly qualified engineering owner admission; registry presence grants no public unlock.
+const COMMON_ORDINARY_LEAGUES = preload("ordinary_admission.gd").LEAGUES
+
 static func create_fresh(seed_value: int, league: String = "standard") -> SeasonState:
 	return _create_named(seed_value,league,Genesis.derive(seed_value))
 
@@ -17,10 +20,10 @@ static func create_common(basis: Dictionary, league: String = "standard") -> Sea
 static func _create_named(seed_value: int, league: String, basis: Dictionary) -> SeasonState:
 	var earned: bool=basis.get("kind")==CommonStart.KIND
 	if (earned and (not CommonStart.valid(basis) or basis.seed!=seed_value)) or (not earned and (not Genesis.valid_basis(basis) or basis.genesis.seed!=seed_value)): return null
-	if not SeasonOwnership._whole(seed_value,0,2147483647) or league not in ["standard","dugout"]: return null
+	if not SeasonOwnership._whole(seed_value,0,2147483647) or league not in COMMON_ORDINARY_LEAGUES: return null
 	var result: SeasonState = load("res://src/gameplay/season/successor_live_play_v1/runtime.gd").new()
 	result.season_seed = seed_value
-	result.league_rules = {} if league == "standard" else LeagueRules.capture("dugout")
+	result.league_rules = {} if league == "standard" else LeagueRules.capture(league)
 	result.league_live = league != "standard"
 	result.build = Build.new(seed_value)
 	if not result.build.enable_successor_pitch_catalog() or (result.league_live and not result.build.enable_league_rules(result.league_rules)): return null

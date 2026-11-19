@@ -1,0 +1,73 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const A=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const O=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+var roots: Array[Resource]=[]
+func check(ok: bool,msg: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+msg)
+	if not ok:get_tree().quit(1)
+	return ok
+func _ready() -> void:
+	call_deferred("run")
+func run() -> void:
+	var args: PackedStringArray=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==2 and args[0] in ["sponsorship","earnings"] and args[1] in ["birth","next","cold"],"isolated named lane"):return
+	var league: String=args[0]
+	var mode: String=args[1]
+	var seed_value: int=7189
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var app=App.new();add_child(app);await get_tree().process_frame
+	if mode=="birth":
+		if not check(S.raw().is_empty(),"original shared slot empty"):return
+		app.select_league(league)
+		if not check(app.selected_league==league,"actual engineering selection"):return
+		app.create_fresh(seed_value)
+		if not check(app.season!=null and app.career_owner.active=="ordinary" and app._owned(),"actual named ordinary career saved"):return
+		for idx in range(4):
+			var offers: Array=app.season.offers()
+			if not check(not offers.is_empty(),"actual draft offers"):return
+			app.draft(offers[0])
+			if not check(app.retained==null and app.season.picks.size()==idx+1,"actual draft write"):return
+		if not check(app.season.league_rules==LeagueRules.capture(league) and app.season.results.is_empty() and app.season.opponents.clubs.size()==5,"exact base profile and all AI were created, not played"):return
+		for idx in range(6):
+			var build: SeasonBuild=app.season.build if idx==0 else app.season.opponents.clubs[str(idx)].build
+			if not check(build._bank._league_rules==LeagueRules.capture(league) and build._bank.view().capacity.sponsors==(6 if league=="sponsorship" else 5),"all-club exact original economy/capacity"):return
+		var payload: Dictionary=A.capture("ordinary",app.season)
+		if not check(payload.format==A.Ordinary.NAMED_LEAGUE_FORMAT and A.Ordinary.restore(payload)==null,"never import new profile through frozen legacy reader"):return
+		var bad: Dictionary=payload.duplicate(true);bad.state.league_rules.tier=1
+		if not check(A.Ordinary.restore_common(bad)==null,"unearned tier mutation refused"):return
+		var fixture: Dictionary=app.season.pending_fixture()
+		if not check(A.OrdinaryFixtures.match_for(app.season,fixture)!=null,"actual prepared physical request available; no simulation claim"):return
+	elif mode=="next":
+		var original: PackedByteArray=S.raw()
+		app.reload_save()
+		if not check(app.season!=null and app._owned() and app.season.picks.size()==4 and app.season.league_rules==LeagueRules.capture(league) and S.raw()==original,"cold fourth pick exact"):return
+		app.request_lifecycle("abandon")
+		if not check(app._lifecycle_dialog.visible,"actual no-game close modal"):return
+		app._lifecycle_dialog.confirmed.emit()
+		if not check(app.career_owner.ordinary_state.status=="closed" and app.career_owner.common.sequence==1 and app.career_owner.ordinary_state.last_close.receipt.is_empty(),"ordinary named league fold once, no fabricated payout"):return
+		app.propose_next(seed_value+1)
+		if not check(app.career_owner.ordinary_state.proposal.league==league,"same league proposal persisted"):return
+		app.request_lifecycle("next")
+		if not check(app._lifecycle_dialog.visible,"actual next confirmation modal"):return
+		app._lifecycle_dialog.confirmed.emit()
+		if not check(app.career_owner.current_ordinal()==2 and app.career_owner.common.sequence==1 and app.season.picks.is_empty(),"real same-league Next without duplicate close"):return
+	else:
+		var original: PackedByteArray=S.raw()
+		app.reload_save()
+		if not check(app.season!=null and app._owned() and app.career_owner.current_ordinal()==2 and app.season.league_rules==LeagueRules.capture(league) and app.season.picks.is_empty() and S.raw()==original,"earned next profile cold exact"):return
+		var bank: SeasonOwnership=app.season.build._bank.fork()
+		for n in range(2):
+			var payload: Dictionary={"game":n,"win":n==0}
+			if league=="earnings":
+				payload["own_runs"]=30 if n==0 else 0
+				payload["opponent_runs"]=0 if n==0 else 30
+			var expected: int=10 if n==1 else (24 if league=="earnings" else 16)
+			var cmd: Dictionary=OwnershipFixtures.request(bank,"reward",payload)
+			var cash: int=bank.cash()
+			if not check(bank.commit(cmd).ok and bank.cash()==cash+expected,"detached policy oracle exact reward, no ordinary payout stack"):return
+			if not check(bank.commit(cmd).replayed and bank.cash()==cash+expected,"detached reward retry no second charge or payout"):return
+		if not check(S.raw()==original and app.season.results.is_empty(),"synthetic policy journal stays detached from actual save"):return
+	print("PASS: ordinary named economy 89 ",league," ",mode)
+	get_tree().quit(0)

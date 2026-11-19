@@ -1,4 +1,6 @@
 extends SeasonMenu
+const OrdinaryAdmissions=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+
 const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
 const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
 func render() -> void:
@@ -9,7 +11,7 @@ func render() -> void:
 		return
 	if app.season == null:
 		_label(_body,"PRIVATE CAREER ENGINEERING · common V4 save",18)
-		for league: String in ["dynasty","standard","dugout"]:
+		for league: String in ["dynasty"]+OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES:
 			_bound_button(_body,("SELECTED · " if app.selected_league==league else "SELECT · ")+league.to_upper(),Callable(app,"select_league").bind(league))
 		_bound_button(_body,"NEW "+app.selected_league.to_upper()+" TEST CAREER",Callable(app,"create_fresh"))
 		_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
@@ -265,7 +267,7 @@ func _session_controls() -> void:
 	if not owner.paused.is_empty():
 		_bound_button(_body,"RESUME "+("ORDINARY" if owner.active=="dynasty" else "DYNASTY")+" SESSION",Callable(app,"switch_session").bind(ticket))
 	elif owner.active=="dynasty":
-		for league: String in ["standard","dugout"]:
+		for league: String in OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES:
 			_bound_button(_body,"CREATE "+league.to_upper()+" SESSION",Callable(app,"create_session").bind(-1,league,ticket))
 		if FileAccess.file_exists("user://wiffaltro-materialized-play-v1.json"):
 			_bound_button(_body,"COPY SAVED ORDINARY SESSION",Callable(app,"attach_ordinary").bind(ticket))

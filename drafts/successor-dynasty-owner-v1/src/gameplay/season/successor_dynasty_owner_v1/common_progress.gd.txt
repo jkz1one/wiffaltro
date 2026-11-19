@@ -10,6 +10,8 @@ const Adapter=preload("session_adapter.gd")
 const Catalog=preload("catalog.gd")
 const FIELDS: Array[String]=["version","closed","completed","abandoned","games","wins","runs_for","runs_against","currency","titles","metrics","players","collection","development","starts","legacy_closed","legacy_pennant_history","legacy_plaques","pennants","plaques","era","player_access","exotic_rights"]
 
+const OrdinaryAdmissions = preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+
 static func birth(dynasty_ledger: Dictionary, ordinary_session: SeasonState=null, initial_access: Array=[]) -> Dictionary:
 	var result: Dictionary={"version":1,"titles":{},"metrics":{},"players":{},"collection":[],"development":{"stat":0,"mastery":0,"lessons":[],"abilities":0},"starts":{},"legacy_closed":0,"legacy_pennant_history":{},"legacy_plaques":{},"pennants":{},"plaques":{},"era":StadiumClubIdentity.current(),"player_access":initial_access.duplicate(),"exotic_rights":{}}
 	if result.player_access.is_empty(): result.player_access=(ordinary_session.player_access if ordinary_session!=null else ClubPlayerCatalog.initial_owned()).duplicate()
@@ -147,7 +149,7 @@ static func fold(before: Dictionary, side: String, season: SeasonState, close_id
 	var league: String="dynasty" if side=="dynasty" else str(season.league_rules.get("league","standard"))
 	var tier: int=int(season.league_rules.get("tier",0))
 	# Current factories admit only these Base modes; never broaden119's guard.
-	if tier!=0 or (side=="ordinary" and league not in ["standard","dugout"]): return {}
+	if tier!=0 or (side=="ordinary" and league not in OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES): return {}
 	var result: Dictionary=before.duplicate(true)
 	result.closed+=1;result.completed+=int(reason=="complete");result.abandoned+=int(reason=="abandon")
 	var receipt: Dictionary={}

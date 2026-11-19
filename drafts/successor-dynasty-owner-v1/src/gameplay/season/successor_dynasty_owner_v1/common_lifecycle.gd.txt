@@ -81,7 +81,7 @@ static func valid(owner) -> bool:
 	if state.ordinal==1 and not state.last_transition.is_empty(): return false
 	if state.ordinal>1:
 		var t: Dictionary=state.last_transition
-		if not C.keys(t,["id","source","from","to","league","basis"]) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in ["standard","dugout"] or not Start.valid(t.basis): return false
+		if not C.keys(t,["id","source","from","to","league","basis"]) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or not Start.valid(t.basis): return false
 		if t.basis.lineage!=state.lineage or t.basis.ordinal!=state.ordinal or Life.digest(t.basis)!=state.start_basis_sha256 or t.basis.common_sequence>value.sequence: return false
 	return _ordinary_proposal_valid(owner)
 
@@ -146,7 +146,7 @@ static func projection(owner, source: SeasonState=null) -> Dictionary:
 		"common_pennants":aggregate.pennants.duplicate(true),"common_plaques":awards(owner)}
 
 static func ordinary_birth(owner, seed_value: int, league: String) -> SeasonState:
-	if not valid(owner) or not owner.ordinary_state.is_empty() or not C.whole(seed_value,0,2147483647) or league not in ["standard","dugout"]: return null
+	if not valid(owner) or not owner.ordinary_state.is_empty() or not C.whole(seed_value,0,2147483647) or league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES: return null
 	var lineage: String="ordinary:"+Life.digest({"common":owner.common,"seed":seed_value,"league":league})
 	var basis: Dictionary=Start.make(seed_value,lineage,1,int(owner.common.sequence),Life.digest(owner.common.aggregate),projection(owner))
 	return Adapter.OrdinaryRuntime.create_common(basis,league) if not basis.is_empty() else null
@@ -173,7 +173,7 @@ static func _ordinary_proposal_valid(owner) -> bool:
 	var row: Dictionary=state.proposal
 	if row.is_empty(): return true
 	if state.status!="closed" or state.ordinal>=ClubCareer.MAX_RUNS or not C.keys(row,["id","source","league","tier","basis"]): return false
-	if row.id!="%s:%d:next"%[state.lineage,state.ordinal] or row.source!=state.last_close.get("session_sha256") or row.league not in ["standard","dugout"] or row.tier!=0: return false
+	if row.id!="%s:%d:next"%[state.lineage,state.ordinal] or row.source!=state.last_close.get("session_sha256") or row.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or row.tier!=0: return false
 	if not Start.valid(row.basis) or row.basis.lineage!=state.lineage or row.basis.ordinal!=state.ordinal+1 or row.basis.common_sequence>owner.common.sequence: return false
 	# A proposal is frozen at creation. While that aggregate is still current,
 	# require exact derivation. Older persisted proposals remain bounded named
@@ -217,7 +217,7 @@ static func propose(owner, seed_value: int) -> bool:
 	var source: Dictionary=Adapter.capture("ordinary",owner.session)
 	if not ordinary_current_valid(owner,owner.session,source): return false
 	var league: String=str(owner.session.league_rules.get("league","standard"))
-	if league not in ["standard","dugout"] or int(owner.session.league_rules.get("tier",0))!=0: return false
+	if league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or int(owner.session.league_rules.get("tier",0))!=0: return false
 	var basis: Dictionary=Start.make(seed_value,state.lineage,int(state.ordinal)+1,int(owner.common.sequence),Life.digest(owner.common.aggregate),projection(owner))
 	if basis.is_empty(): return false
 	state.proposal={"id":"%s:%d:next"%[state.lineage,state.ordinal],"source":Life.digest(source),"league":league,"tier":0,"basis":basis}

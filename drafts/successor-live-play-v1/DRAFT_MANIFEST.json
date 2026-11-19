@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "269ea584b35f7b294b840dddaa97473a65561450",
-  "scope": "Increment87: scoped Store-owned reuse of final-report terminal projection, no serialized trust change. Exact paired saved-report/settlement/cold and guard evidence described in qualification; no new physical gameplay, complete integration, target performance or final distribution claim.",
+  "source_checkpoint": "64c27b503455a1cacb50a1ca8d021188f71448cd",
+  "scope": "Increment89: closed engineering Sponsorship and Earnings Base shared owner integration; named draft/cold and no-game close/Next smoke, detached policy oracle. Full visible and offscreen league qualification pending.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 24341,
-      "sha256": "467aeada6f082788a16b1a049dcf294277b4a86c77b2aada7dcb092f8416f697"
+      "bytes": 24817,
+      "sha256": "2c508e1d180e34fb1b4cd98d915ff1559631eb71df02861b0f0066c5ae2e8821"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
@@ -60,8 +60,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/progress.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/progress.gd",
-      "bytes": 12074,
-      "sha256": "55446a38fefd5cce4425fc9813d4affad38d637124c3838d2365dad9f184c54c"
+      "bytes": 12136,
+      "sha256": "6fca68417cfc0b0f2fc1af1016934e51fddbaa811aff187ca34b22ddeec1c760"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/raw_guard.gd.txt",
@@ -72,8 +72,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
-      "bytes": 6652,
-      "sha256": "72ba2edd1289ad5d5740dbffc9b80e771eb8721b27f9dee3a41d66a6533162ca"
+      "bytes": 6821,
+      "sha256": "520c6e3c85fa803b0787b344851bfc9bba8d8a3a0e6227f35914e8ade8193e75"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/store.gd.txt",
@@ -206,6 +206,14 @@
       "restore_path": "tests/successor_live_session_npc.tscn",
       "bytes": 181,
       "sha256": "d984594864b966d6ecdd11b1be4a6600ff55ddbb995991ed28aa0cb6e5a088cb"
+    }
+  ],
+  "additions": [
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/ordinary_admission.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/ordinary_admission.gd",
+      "bytes": 447,
+      "sha256": "7e4451f29a799349f62c6787818b8c172906242d24b4a1a5b39032f61bde192b"
     }
   ]
 }
