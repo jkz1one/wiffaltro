@@ -131,13 +131,15 @@ static func _transition_valid(owner) -> bool:
 	var retained_ledger: Dictionary=owner.ledger if owner.status=="active" else owner.last_close.before
 	return Life.digest_matches(t.profiles_after,after) and _digest(t.ledger_sha256) and Life.digest_matches(t.ledger_sha256,retained_ledger)
 
-static func envelope_valid(owner, current: Dictionary) -> bool:
+static func envelope_valid(owner, current: Dictionary, allow_common_birth: bool=false) -> bool:
 	if owner==null or owner.get_script()!=load("res://src/gameplay/season/successor_dynasty_owner_v1/legacy_owner_v2.gd") or owner.session==null or current.is_empty() or not Codec.known_variables(owner,DATA_FIELDS+["session"]): return false
 	if not Codec.whole(owner.birth_seed,0,2147483647) or not Codec.whole(owner.ordinal,1,ClubCareer.MAX_RUNS) or owner.status not in ["active","closed"] or not Ledger.valid(owner.ledger): return false
 	if owner.ledger.closed!=owner.ordinal-int(owner.status=="active"): return false
 	#75 genesis owns no earned trophy records; preserve its exact prospective era
 	# metadata. Ordinary alternate awards remain in that untouched snapshot.
-	var genesis: Dictionary=owner.session.career.start_basis if owner.ordinal==1 else Codec.Genesis.derive(owner.birth_seed)
+	var basis: Dictionary=owner.session.career.start_basis
+	if basis.get("kind")==Codec.CommonBirth.KIND and (not allow_common_birth or owner.ordinal!=1): return false
+	var genesis: Dictionary=(basis.genesis if basis.get("kind")==Codec.CommonBirth.KIND else basis) if owner.ordinal==1 else Codec.Genesis.derive(owner.birth_seed)
 	if not Codec.same(owner.ledger.pennants,Codec.Settlement.birth_pennants(genesis)): return false
 	var meta: Dictionary=current.session
 	if meta.birth_seed!=owner.birth_seed or meta.ordinal!=owner.ordinal: return false

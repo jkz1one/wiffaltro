@@ -126,11 +126,21 @@ func create_missing(seed_value: int, league: String) -> bool:
 		if next==null: return false
 		session=next;active="ordinary"
 	else:
-		if league!="dynasty" or common.sequence!=0 or not common.aggregate.exotic_rights.is_empty(): return false
-		var next=Legacy.create_development(seed_value)
-		if next==null: return false
-		for name: String in DYNASTY_FIELDS: set(name,next.get(name).duplicate(true) if next.get(name) is Dictionary else next.get(name))
-		session=next.session;active="dynasty"
+		if league!="dynasty": return false
+		if common.sequence==0 and common.aggregate.exotic_rights.is_empty():
+			var next=Legacy.create_development(seed_value)
+			if next==null: return false
+			for name: String in DYNASTY_FIELDS: set(name,next.get(name).duplicate(true) if next.get(name) is Dictionary else next.get(name))
+			session=next.session
+		else:
+			var basis: Dictionary=Common.dynasty_birth_basis(self,seed_value)
+			if basis.is_empty(): return false
+			var next: SeasonState=Session.create_common_birth(basis)
+			if next==null: return false
+			var fresh_ledger: Dictionary=Ledger.birth(next)
+			if not Ledger.valid(fresh_ledger): return false
+			session=next;birth_seed=seed_value;ordinal=1;status="active";ledger=fresh_ledger
+		active="dynasty"
 	paused=outgoing
 	return Common.initialize_missing(self)
 
@@ -151,6 +161,9 @@ static func _dynasty_valid(owner, season: SeasonState, current: Dictionary) -> b
 	for name: String in DYNASTY_FIELDS: view.set(name,owner.get(name))
 	# Ordinary import provenance is common-owner metadata, not a second copy in
 	# this Dynasty-only validation view. Original v2 inputs use Legacy.restore.
+	var basis: Dictionary=season.career.start_basis
+	if basis.get("kind")==Codec.CommonBirth.KIND:
+		return Common.dynasty_birth_bound(owner,basis) and Legacy.envelope_valid(view,current,true)
 	return not Legacy.pack_current(view,current).is_empty()
 static func pack_current(owner, current: Dictionary) -> Dictionary:
 	# Pure assembly, no writer authority. For ordinary actions Store separately

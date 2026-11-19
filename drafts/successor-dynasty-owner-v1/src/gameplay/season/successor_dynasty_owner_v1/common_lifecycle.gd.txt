@@ -151,6 +151,23 @@ static func ordinary_birth(owner, seed_value: int, league: String) -> SeasonStat
 	var basis: Dictionary=Start.make(seed_value,lineage,1,int(owner.common.sequence),Life.digest(owner.common.aggregate),projection(owner))
 	return Adapter.OrdinaryRuntime.create_common(basis,league) if not basis.is_empty() else null
 
+static func dynasty_birth_basis(owner, seed_value: int) -> Dictionary:
+	if owner.active!="ordinary" or not owner.paused.is_empty() or not valid(owner) or not C.whole(seed_value,0,2147483647) or owner.common.sequence<1: return {}
+	var projection_basis: Dictionary=Start.make(seed_value,owner.ordinary_state.lineage,1,int(owner.common.sequence),Life.digest(owner.common.aggregate),projection(owner))
+	return C.CommonBirth.make(seed_value,projection_basis)
+
+static func dynasty_birth_bound(owner, basis: Dictionary) -> bool:
+	var rights: Dictionary=basis.projection
+	if rights.common_sequence>owner.common.sequence or rights.lineage!=owner.ordinary_state.lineage: return false
+	for id: String in rights.exotic_rights:
+		if not owner.common.aggregate.exotic_rights.has(id): return false
+	if rights.common_sequence==owner.common.sequence:
+		var ordinary: SeasonState=owner.session if owner.active=="ordinary" else Adapter.restore("ordinary",owner.paused)
+		if ordinary==null: return false
+		var expected: Dictionary=Start.make(int(rights.seed),rights.lineage,1,int(owner.common.sequence),Life.digest(owner.common.aggregate),projection(owner,ordinary))
+		if not C.same(rights,expected): return false
+	return true
+
 static func _ordinary_proposal_valid(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	var row: Dictionary=state.proposal

@@ -1,0 +1,30 @@
+extends Node
+const O=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const R=preload("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+var roots: Array[Resource]=[]
+func check(v: bool,msg: String) -> bool:
+	print(("CHECK: " if v else "FAIL: ")+msg)
+	if not v:get_tree().quit(1)
+	return v
+func _ready() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1","guard before reading"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var data: Variant=JSON.parse_string(FileAccess.get_file_as_string("user://guard-ready.json"))
+	var owner=O.restore(data)
+	if not check(owner!=null and owner.session.career.start_basis.kind=="dynasty-common-birth-start-v1","exact birth envelope restore"):return
+	var snap: Dictionary=R.capture(owner)
+	if not check(not snap.is_empty() and R.matches(owner,snap),"named raw guard captures earned birth"):return
+	owner.session.career.start_basis.projection.exotic_rights.clear()
+	if not check(not R.matches(owner,snap),"live nested right mutation detected"):return
+	for mode in ["type","digest","unknown","dropped"]:
+		var bad: Dictionary=data.duplicate(true)
+		var basis: Dictionary=bad.dynasty.career.start_basis
+		if mode=="type":basis.projection=[]
+		elif mode=="digest":basis.projection.common_sha256="0".repeat(64)
+		elif mode=="unknown":basis.extra=true
+		else:
+			basis.projection.exotic_rights=[]
+			bad.dynasty.build.book._exotic_ids=[]
+		if not check(O.restore(bad)==null,"malformed or materially altered right refused: "+mode):return
+	print("PASS: earned Dynasty birth negative gates")
+	get_tree().quit(0)

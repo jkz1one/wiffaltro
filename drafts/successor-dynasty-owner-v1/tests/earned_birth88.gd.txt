@@ -1,0 +1,77 @@
+extends "res://tests/successor_common_play.gd"
+func initial_results() -> int: return 0
+func source_unchanged() -> bool: return FileAccess.get_sha256("user://source-fresh86.json")=="9630b8f537b708843b1eceb16314c62b2bb0bac8c360c9cf1fe91d29a821e09b"
+func run() -> void:
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated harness"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var app=App.new();add_child(app);await get_tree().process_frame
+	app.reload_save()
+	var args: PackedStringArray=OS.get_cmdline_user_args()
+	if args.has("return") or args.has("resume"):
+		var owner=app.career_owner
+		if not check(owner!=null and app._owned(),"real pair admitted before switching sides"):return
+		var outgoing: Dictionary=Adapter.capture(owner.active,app.season)
+		var incoming: Dictionary=owner.paused.duplicate(true)
+		var common: Dictionary=owner.common.duplicate(true)
+		var expected: String="ordinary" if args.has("return") else "dynasty"
+		app.switch_session(app.session_ticket())
+		if not check(app.career_owner.active==expected and app._owned(),"actual saved side switch "+expected):return
+		if not check(Codec.same(outgoing,app.career_owner.paused) and Codec.same(incoming,Adapter.capture(expected,app.season)) and Codec.same(common,app.career_owner.common),"exact pair and fold unchanged by switching"):return
+		print("PASS: first earned Dynasty switch ",args)
+		get_tree().quit(0);return
+	if args.has("game") or args.has("shop") or args.has("cold-shop"):
+		if not check(app.career_owner!=null and app.career_owner.active=="dynasty" and app.career_owner.common.sequence==1,"strict earned Dynasty game starts in owned side"):return
+		bind_side(app)
+		if args.has("shop"):
+			if not round_checks(app) or not await paid_pack(app):return
+		elif args.has("cold-shop"):
+			if not final_checks(app):return
+		elif not app.season.physical.pending.is_empty(): await settle_batch(app)
+		elif app.season.results.is_empty(): await play_human(app)
+		elif not round_checks(app):return
+		if not check(not failed and app.career_owner.paused.state.results.size()==3 and app.season.build._book._exotic_ids.has("pitch.switchback") and app._owned(),"real Dynasty play preserves ordinary dormant side and shared right"):return
+		print("PASS: first earned Dynasty physical ",args)
+		get_tree().quit(0);return
+	if args.has("draft") or args.has("cold-ready"):
+		if not check(app.career_owner!=null and app.career_owner.active=="dynasty","cold restores real earned Dynasty"):return
+		if args.has("draft"):
+			for index in range(4):
+				var offers: Array=app.season.offers()
+				if not check(not offers.is_empty(),"real Dynasty offers"):return
+				app.draft(offers[0])
+				if not check(app.retained==null and app.season.picks.size()==index+1,"actual Dynasty pick persists"):return
+		var owner=app.career_owner
+		if not check(owner.ordinal==1 and owner.common.sequence==1 and owner.ledger.closed==0 and owner.paused.state.results.size()==3,"draft preserves source progression"):return
+		if not check(owner.session.picks.size()==4 and owner.session.opponents.clubs.size()==5 and owner.session.phase==SeasonState.Phase.REGULAR and app._owned(),"actual four pick Dynasty and all five AI playable"):return
+		if not check(owner.session.build._book._exotic_ids==["pitch.switchback"] and owner.session.build._dynasty_start.exotic_rights.is_empty(),"earned club access distinct from personal initial profile"):return
+		for key in owner.session.opponents.clubs:
+			if not check(not owner.session.opponents.clubs[key].build._book._exotic_ids.has("pitch.switchback"),"no human access leaked to AI"):return
+		print("PASS: first earned Dynasty draft ",args)
+		get_tree().quit(0);return
+	if args.has("birth") or args.has("cold-birth"):
+		if args.has("birth"):
+			if not check(app.career_owner!=null and app.career_owner.active=="ordinary" and app.career_owner.common.sequence==1,"real earned ordinary source before create"):return
+			app.create_session(9188,"dynasty",app.session_ticket())
+		var owner=app.career_owner
+		if not check(owner!=null and owner.active=="dynasty" and owner.ordinal==1 and owner.common.sequence==1 and owner.ledger.closed==0,"legacy ordinal and common fold remain independent"):return
+		if not check(owner.session.career.start_basis.kind=="dynasty-common-birth-start-v1" and owner.session.build._book._exotic_ids==["pitch.switchback"],"real Switchback entitlement not lost at birth"):return
+		if not check(owner.session.picks.is_empty() and owner.paused.state.results.size()==3 and app._owned(),"fresh Dynasty draft and preserved three ordinary results, exact persisted owner"):return
+		print("PASS: first earned Dynasty birth ",args)
+		get_tree().quit(0);return
+	if not check(app.career_owner!=null and app.career_owner.active=="ordinary" and app.career_owner.paused.is_empty() and app.career_owner.common.sequence==0,"ordinary only, no Dynasty fixture"):return
+	bind_side(app)
+	if OS.get_cmdline_user_args().has("close-baseline"):
+		if not round_checks(app):return
+		app.request_lifecycle("abandon")
+		if not check(app._lifecycle_dialog.visible,"genuine close confirmation"):return
+		app._lifecycle_dialog.confirmed.emit()
+		if not check(app.career_owner.common.sequence==1 and app.career_owner.paused.is_empty() and app.career_owner.ordinary_state.status=="closed","actual common fold with no prior Dynasty"):return
+		var candidate=app.career_owner.fork()
+		if not check(not candidate.create_missing(9188,"dynasty"),"87 refuses first Dynasty after actual ordinary close"):return
+		print("PASS: ordinary-only earned fixture and exact baseline refusal")
+		get_tree().quit(0);return
+	if not app.season.physical.pending.is_empty():await settle_batch(app)
+	elif app.season.results.is_empty(): await play_human(app)
+	elif not round_checks(app):return
+	print("PASS: first earned birth fixture phase")
+	get_tree().quit(1 if failed else 0)

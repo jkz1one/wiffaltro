@@ -19,6 +19,7 @@ static var _basis_seed: int = -1
 static var _basis: Dictionary = {}
 static var _draws: Array[float] = []
 static var _schedule: Array = []
+const CommonBirth = preload("common_birth.gd")
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
 const Profile = preload("dynasty_profile.gd")
 const Settlement = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd")
@@ -118,6 +119,7 @@ static func scope(season: SeasonState) -> bool:
 	if basis.get("kind")=="dynasty-carried-start-v2":
 		if not keys(basis,["kind","birth_seed","rights"]) or not rights_valid(basis.rights) or basis.birth_seed!=basis.rights.birth_seed or season.phase==SeasonState.Phase.DRAFT: return false
 	else:
+		if basis.get("kind")==CommonBirth.KIND: return CommonBirth.valid(basis,season.season_seed)
 		var marker: Variant = basis.get("genesis")
 		if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
 	return true
@@ -137,7 +139,12 @@ static func _structural_valid(season: SeasonState) -> bool:
 		_draws.clear()
 		for i in range(6): _draws.append(rng.randf())
 	var carried: bool = season.career.start_basis.get("kind")=="dynasty-carried-start-v2"
-	if carried:
+	if season.career.start_basis.get("kind")==CommonBirth.KIND:
+		var common_birth: Dictionary=season.career.start_basis
+		var rights: Dictionary=common_birth.projection
+		if not CommonBirth.matches(season.build,common_birth) or not same(season.player_access,rights.player_access) or not same(season.draft_pool,ClubPlayerDraft.pool(season.season_seed,rights.player_access)): return false
+		if not same(season.career._assets,_basis.assets) or not same(season.career._pennants,Settlement.birth_pennants(_basis)) or not same(season.career._plaques,_basis.plaques): return false
+	elif carried:
 		var rights: Dictionary = season.career.start_basis.rights
 		if not same(season.player_access,rights.player_access) or not same(season.draft_pool,rights.player_access) \
 			or not same(season.career._assets,rights.assets) or not same(season.career._pennants,rights.pennants) \
@@ -410,7 +417,7 @@ static func _restore(value: Variant, legacy: bool) -> SeasonState:
 		club.build = Builds.restore(club.build)
 		if club.build == null: return null
 		result.opponents.clubs[id] = club
-	if legacy and result.career.start_basis.get("kind")=="dynasty-carried-start-v2": return null
+	if legacy and result.career.start_basis.get("kind") in ["dynasty-carried-start-v2",CommonBirth.KIND]: return null
 	var captured: Dictionary = capture(result)
 	if legacy and not captured.is_empty():
 		captured.erase("session")

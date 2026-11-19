@@ -89,7 +89,7 @@ static func player_access(existing: Array, metrics: Dictionary) -> Array[String]
 	return result
 static func rights(owner) -> Dictionary:
 	var basis: Dictionary=owner.session.career.start_basis
-	var original: Dictionary=basis.rights if basis.get("kind")=="dynasty-carried-start-v2" else basis
+	var original: Dictionary=basis.rights if basis.get("kind")=="dynasty-carried-start-v2" else (basis.genesis if basis.get("kind")==C.CommonBirth.KIND else basis)
 	return {"birth_seed":owner.birth_seed,"player_access":player_access(owner.session.player_access,owner.ledger.metrics),"assets":original.assets.duplicate(true),"pennants":owner.session.career._pennants.duplicate(true),"plaques":owner.session.career._plaques.duplicate(true),"starts":owner.ledger.club_starts["club:0"].duplicate(true),"club_starts":owner.ledger.club_starts.duplicate(true)}
 static func advance(owner) -> bool:
 	if owner.ordinal>=ClubCareer.MAX_RUNS: return false

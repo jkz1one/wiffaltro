@@ -7,9 +7,17 @@ const LiveCareer = preload("career.gd")
 const Starts = preload("res://src/gameplay/season/successor_owner_career_v1/start.gd")
 const Profile = preload("dynasty_profile.gd")
 
+const CommonBirth = preload("common_birth.gd")
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
 
 static func create_fresh(seed_value: int, league: String = "dynasty") -> SeasonState:
+	return _create_fresh(seed_value,league,{})
+
+static func create_common_birth(basis: Dictionary) -> SeasonState:
+	var seed_value: int=int(basis.get("projection",{}).get("seed",-1))
+	return _create_fresh(seed_value,"dynasty",basis) if CommonBirth.valid(basis,seed_value) else null
+
+static func _create_fresh(seed_value: int, league: String, common_birth: Dictionary) -> SeasonState:
 	if not SeasonOwnership._whole(seed_value,0,2147483647) or league != "dynasty": return null
 	var result: SeasonState = load("res://src/gameplay/season/successor_dynasty_owner_v1/runtime.gd").new()
 	result.season_seed = seed_value
@@ -24,17 +32,19 @@ static func create_fresh(seed_value: int, league: String = "dynasty") -> SeasonS
 	for index in range(6): result.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":[],"draw":rng.randf()})
 	result._build_schedule()
 	var basis: Dictionary = Genesis.derive(seed_value)
-	if basis.is_empty() or not Starts._install(result.build,basis) or not ClubPlayerCatalog.valid_ids(basis.player_access): return null
+	var access: Array=common_birth.projection.player_access if not common_birth.is_empty() else basis.player_access
+	if basis.is_empty() or not ClubPlayerCatalog.valid_ids(access): return null
+	if not (Starts._install(result.build,basis) if common_birth.is_empty() else CommonBirth.install(result.build,common_birth)): return null
 	# This explicit Dynasty owner initializes its own frozen owned draft pool.
 	# The legacy ordinary-only ClubPlayerDraft.apply guard remains untouched.
-	var owned_pool: Array[String] = ClubPlayerDraft.pool(seed_value,basis.player_access)
+	var owned_pool: Array[String] = ClubPlayerDraft.pool(seed_value,access)
 	if owned_pool.size() < 12: return null
-	result.player_access.assign(basis.player_access)
-	result.build._pool.assign(basis.player_access)
+	result.player_access.assign(access)
+	result.build._pool.assign(access)
 	result.draft_pool = owned_pool
 	var ledger: ClubCareer = LiveCareer.new()
 	ledger.current = 1; ledger.runs.append({})
-	ledger.start_basis = basis
+	ledger.start_basis = basis if common_birth.is_empty() else common_birth.duplicate(true)
 	ledger._assets = basis.assets.duplicate(true)
 	ledger._pennants = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd").birth_pennants(basis)
 	ledger._plaques = basis.plaques.duplicate(true)
@@ -50,13 +60,17 @@ func choose_player(id: String) -> bool:
 	if not league_context_consistent() or not offers().has(id) or phase != Phase.DRAFT: return false
 	if not preload("draft.gd")._source_private_choose_player_remaining_checks(self,id): return false
 	if picks.size() == 4:
-		if not Starts._install(build,career.start_basis): return false
+		var basis: Dictionary=career.start_basis
+		var earned: bool=basis.get("kind")==CommonBirth.KIND
+		if not (CommonBirth.install(build,basis) if earned else Starts._install(build,basis)): return false
 		if not preload("codec.gd").keys(opponents.clubs,["1","2","3","4","5"]): return false
+		if earned: build._book._exotic_ids.clear()
 		var lineage: String = "dynasty:%d" % season_seed
 		for index in range(6):
 			var club: SeasonBuild = build if index == 0 else opponents.clubs[str(index)].build
 			var profile: Dictionary = Profile.capture(club,lineage,"club:%d"%index,1)
 			if profile.is_empty() or not club.enable_dynasty_start(profile): return false
+		if earned: build._book._exotic_ids.assign(basis.projection.exotic_rights)
 		_dynasty_start = build._dynasty_start.duplicate(true)
 	return career.sync(self)
 

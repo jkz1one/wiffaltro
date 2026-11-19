@@ -1,0 +1,21 @@
+extends RefCounted
+## Common-account entitlement belongs to the human start, not a Dynasty player profile.
+const KIND: String = "dynasty-common-birth-start-v1"
+const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
+const Shared = preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
+
+static func make(seed: int, projection: Dictionary) -> Dictionary:
+	var value: Dictionary = {"kind":KIND,"genesis":Genesis.derive(seed),"projection":projection.duplicate(true)}
+	return value if valid(value,seed) else {}
+
+static func valid(value: Variant, seed: int) -> bool:
+	return value is Dictionary and SeasonOwnership._keys(value,["kind","genesis","projection"]) \
+		and value.kind==KIND and value.genesis is Dictionary and Genesis.valid_basis(value.genesis) \
+		and value.genesis.genesis.seed==seed and Shared.valid(value.projection) \
+		and value.projection.seed==seed and value.projection.ordinal==1 and value.projection.common_sequence>0
+
+static func install(build: SeasonBuild, value: Dictionary) -> bool:
+	return Shared.install(build,value.projection)
+
+static func matches(build: SeasonBuild, value: Dictionary) -> bool:
+	return Shared.matches(build,value.projection) and ClubCareer.same(build._pool,value.projection.player_access)

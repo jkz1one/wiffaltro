@@ -8,12 +8,14 @@ const ADD_METRICS: Array[String] = ["completed_seasons","championships","clean_t
 const METRICS: Array[String] = ["completed_seasons","championships","clean_total","strikeouts_total","mastery_max","repertoire_max","season_lessons","season_win_streak","shutout","game_sponsors","comeback_deficit","walkoff","game_homers","winning_hitters","contact_runs","three_k_pitchers","no_bat_season","season_hit_types"]
 const FIELDS: Array[String] = ["version","closed","completed","abandoned","games","wins","runs_for","runs_against","currency","titles","metrics","players","collection","development","club_starts","pennants","plaques","era"]
 static func birth(season: SeasonState) -> Dictionary:
+	var basis: Dictionary=season.career.start_basis
+	var is_common: bool=basis.get("kind")==C.CommonBirth.KIND
 	var result: Dictionary = {"version":1,"titles":{},"metrics":{},"players":{},"collection":[],"development":{},"club_starts":{},"pennants":season.career._pennants.duplicate(true),"plaques":{},"era":StadiumClubIdentity.current()}
 	for key: String in COUNTERS: result[key] = 0
 	for index in range(6):
 		var id: String = "club:%d"%index
 		result.development[id] = {"stat":0,"mastery":0,"lessons":[],"abilities":0}
-		result.club_starts[id] = season.career.start_basis.starts.duplicate(true)
+		result.club_starts[id] = (basis.projection.starts if index==0 else basis.genesis.starts).duplicate(true) if is_common else basis.starts.duplicate(true)
 		if index>0:
 			result.club_starts[id].gear_enabled=false; result.club_starts[id].sponsor_enabled=false
 	return result
