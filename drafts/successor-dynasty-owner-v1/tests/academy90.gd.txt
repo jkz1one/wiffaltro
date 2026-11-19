@@ -1,0 +1,81 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const A=preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Builds=preload("res://src/gameplay/season/successor_live_play_v1/build_codec.gd")
+const PATH="user://academy90-detached-policy-only.json"
+var roots: Array[Resource]=[]
+func check(ok: bool,msg: String) -> bool:
+	print(("CHECK: " if ok else "FAIL: ")+msg)
+	if not ok:get_tree().quit(1)
+	return ok
+func _ready() -> void:
+	call_deferred("run")
+func command(build: SeasonBuild, operation: String, extra: Dictionary={}) -> Dictionary:
+	var value: Dictionary={"id":"academy90:%s:%d"%[operation,build.revision()],"rev":build.revision(),"op":operation}
+	value.merge(extra)
+	return value
+func choice(build: SeasonBuild) -> Dictionary:
+	for card: String in build._pack_choices():
+		var target: Array[Dictionary]=build.targets(card)
+		if not target.is_empty():
+			return command(build,"pack_pick",{"item":card,"player":target[0].player,"pitch":target[0].pitch,"replace":target[0].replace})
+	return {}
+func run() -> void:
+	var args: PackedStringArray=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["birth","cold","next-cold"],"isolated Academy gate"):return
+	roots=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var app=App.new();add_child(app);await get_tree().process_frame
+	if args[0]=="birth":
+		if not check(S.raw().is_empty() and not FileAccess.file_exists(PATH),"no preexisting or real save"):return
+		app.select_league("academy");app.create_fresh(7390)
+		if not check(app.season!=null and app._owned() and LeagueRules.academy(app.season.league_rules),"actual named Academy owner"):return
+		for idx in range(4):
+			var offers: Array=app.season.offers()
+			if not check(not offers.is_empty(),"actual Academy offers"):return
+			app.draft(offers[0])
+			if not check(app.retained==null and app.season.picks.size()==idx+1,"actual Academy draft persists"):return
+		if not check(app.season.opponents.clubs.size()==5 and app.season.results.is_empty() and A.OrdinaryFixtures.match_for(app.season,app.season.pending_fixture())!=null,"five AI and playable preparation only; no played games"):return
+		var original: PackedByteArray=S.raw()
+		var build: SeasonBuild=app.season.build._fork()
+		var bank: SeasonOwnership=build._bank
+		# Synthetic legal funding ONLY in a detached Build; no seasonal results.
+		if not check(bank.commit(OwnershipFixtures.request(bank,"reward",{"game":0,"win":true})).ok,"detached synthetic funding, not earned gameplay"):return
+		build._visit={"number":1,"open":false} # Detached postgame shop operand; never inside career save.
+		if not check(build.commit(command(build,"open")).ok and build.pack_price()==12 and build._pack_choices().size()>=2,"original Academy pack quote and fixed reveal"):return
+		var before_cash: int=build.cash()
+		if not check(build.commit(command(build,"pack_open")).ok and build.cash()==before_cash-12,"one charge on detached pack"):return
+		var first: Dictionary=choice(build)
+		if not check(not first.is_empty(),"first legal generated choice"):return
+		var player: Dictionary=build.player(first.player).duplicate(true)
+		if not check(build.commit(first).ok and not ClubCareer.same(player,build.player(first.player)) and build.pack_pending() and build._visit.pack_picked==[first.item],"first applies immediately, second remains pending"):return
+		var payload: Dictionary=Builds.capture(build)
+		if not check(not payload.is_empty(),"current named materializer accepts exact interrupted pack"):return
+		var out: FileAccess=FileAccess.open(PATH,FileAccess.WRITE)
+		if not check(out!=null,"write isolated synthetic build fixture"):return
+		out.store_string(JSON.stringify(payload,"",true,true));out.close()
+		if not check(S.raw()==original and app.season.results.is_empty(),"no synthetic activity touched actual branch"):return
+	elif args[0]=="cold":
+		var original: PackedByteArray=S.raw();app.reload_save()
+		if not check(app.season!=null and app._owned() and app.season.picks.size()==4 and S.raw()==original,"actual fresh Academy owner cold exact"):return
+		var payload: Dictionary=JSON.parse_string(FileAccess.get_file_as_string(PATH))
+		var build: SeasonBuild=Builds.restore(payload)
+		if not check(build!=null and build.pack_pending() and build._visit.pack_picked.size()==1,"separate process restores pending second choice"):return
+		var cash: int=build.cash();var cards: Array=build._visit.cards.duplicate()
+		var first: String=build._visit.pack_picked[0]
+		var bad: Dictionary=payload.duplicate(true);bad.build._visit.pack_picked=[]
+		if not check(Builds.restore(bad)==null,"cannot drop prior applied choice from saved pack"):return
+		bad=payload.duplicate(true);bad.build._visit.pack_paid=11
+		if not check(Builds.restore(bad)==null,"cannot change paid amount independently of charge"):return
+		var branch: SeasonBuild=build._fork()
+		if not check(branch.commit(command(branch,"pack_skip")).ok and branch.cash()==cash and branch._visit.pack_status=="skipped" and branch._visit.pack_picked==[first],"alternate explicit skip without refund or losing first"):return
+		var next: Dictionary=choice(build)
+		if not check(not next.is_empty() and next.item!=first and build.commit(next).ok and build.cash()==cash and build._visit.pack_status=="used" and build._visit.cards==cards,"distinct second choice, no recharge or reroll"):return
+		if not check(Builds.restore(JSON.parse_string(JSON.stringify(Builds.capture(build),"",true,true)))!=null and S.raw()==original,"completed detached branch reopens without writing actual save"):return
+		app.close_current("abandon");app.propose_next(7391);app.commit_next()
+		if not check(app.career_owner.current_ordinal()==2 and app.career_owner.common.sequence==1 and LeagueRules.academy(app.season.league_rules),"actual shared Academy close and next saved"):return
+	else:
+		var before: PackedByteArray=S.raw();app.reload_save()
+		if not check(app.season!=null and app._owned() and app.career_owner.current_ordinal()==2 and LeagueRules.academy(app.season.league_rules) and S.raw()==before,"actual Academy Next cold exact"):return
+	print("PASS: Academy shared 90 ",args[0])
+	get_tree().quit(0)

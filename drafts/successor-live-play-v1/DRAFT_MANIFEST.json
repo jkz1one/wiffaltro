@@ -1,13 +1,13 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "64c27b503455a1cacb50a1ca8d021188f71448cd",
-  "scope": "Increment89: closed engineering Sponsorship and Earnings Base shared owner integration; named draft/cold and no-game close/Next smoke, detached policy oracle. Full visible and offscreen league qualification pending.",
+  "source_checkpoint": "b106079379949721ebefa9e52b8258c346966cb1",
+  "scope": "Increment90: add Base Academy to private common career and bind resumable two-choice materialized pack to the visit journal/charge. Isolated short owner and detached policy checks; full earned Academy play pending on beta checklist.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/build_codec.gd",
-      "bytes": 22793,
-      "sha256": "d0b97e7552243bbe5e6ad07cec61e46c158e1d2d979e9dd965a2989f67b8aced"
+      "bytes": 24793,
+      "sha256": "5cc50a75d92e7eaea2c7d021a986cfa4baa4924be200d3c738ebe2e09c21d214"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/career.gd.txt",
@@ -212,8 +212,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/ordinary_admission.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/ordinary_admission.gd",
-      "bytes": 447,
-      "sha256": "7e4451f29a799349f62c6787818b8c172906242d24b4a1a5b39032f61bde192b"
+      "bytes": 467,
+      "sha256": "4dfbf8d63c8d30804485d0f372cf51d42c660ea662dff603a954047cde278b53"
     }
   ]
 }

@@ -201,6 +201,7 @@ static func _validate(value: Variant) -> bool:
 	if not _journal(b._events,b._requests,SeasonBuild.MAX_EVENTS) or not _journal(book._events,book._requests,SeasonDevelopment.MAX_EVENTS) or not _journal(value.bank._events,value.bank._requests,SeasonOwnership.MAX_EVENTS,true): return false
 	if not _players(book._players,LeagueRules.scramble(b._league_rules)) or not _wallet(value.bank._state) or not _fresh_wallet(value.bank): return false
 	if not _visit_valid(b._visit): return false
+	if LeagueRules.academy(b._league_rules) and not _academy_pack_valid(b._visit,b._events,value.bank._events): return false
 	for field: String in ["_paid_rerolls","_field_outs","_supply_used"]:
 		if not SeasonOwnership._whole(b[field],0,2147483647): return false
 	for field: String in ["_game_rosters","_income_by_game"]:
@@ -335,3 +336,44 @@ static func _visit_valid(visit: Dictionary) -> bool:
 	if visit.has("pack_paid") and not SeasonOwnership._whole(visit.pack_paid,0,1000000): return false
 	if visit.number == 0 and not SeasonOwnership._keys(visit,["number","open"]): return false
 	return true
+
+## Academy uses a fixed reveal and two serial, distinct choices. Admission
+## checks the current visit against its actual journal without replay.
+static func _academy_pack_valid(visit: Dictionary, events: Array, bank_events: Array) -> bool:
+	if int(visit.number)==0: return true
+	var opened: Dictionary={}
+	var picked: Array=[]
+	var skipped: bool=false
+	var visit_seen: bool=false
+	for event: Dictionary in events:
+		match event.get("op"):
+			"successor_reward","reward":
+				visit_seen=false;opened={};picked=[];skipped=false
+			"open":
+				visit_seen=true;opened={};picked=[];skipped=false
+			"pack_open":
+				if not visit_seen or not opened.is_empty(): return false
+				opened=event
+			"pack_pick":
+				if opened.is_empty() or skipped or picked.size()>=2: return false
+				picked.append(event.get("item"))
+			"pack_skip":
+				if opened.is_empty() or skipped or picked.size()>=2: return false
+				skipped=true
+	if not visit.open:
+		return not visit_seen and not visit.has("pack_status") and not visit.has("pack_paid") and not visit.has("pack_picked")
+	if not visit_seen: return false
+	if opened.is_empty(): return visit.get("pack_status")=="sealed" and not visit.has("pack_paid") and not visit.has("pack_picked")
+	var status: Variant=visit.get("pack_status")
+	if not SeasonOwnership._whole(visit.get("pack_paid"),0,12) or not ClubCareer.same(visit.get("pack_picked"),picked): return false
+	for id: Variant in picked:
+		if id not in visit.get("cards",[]): return false
+	var charge: String="charge:%d"%int(opened.rev)
+	var paid: int=0
+	for event: Dictionary in bank_events:
+		if event.get("id")==charge and event.get("op")=="charge":
+			if not ClubCareer.same(event.get("amount"),visit.pack_paid): return false
+			paid+=1
+	if paid!=1: return false
+	if skipped: return status=="skipped"
+	return (status=="open" and picked.size()<2) or (status=="used" and not picked.is_empty())

@@ -1,7 +1,7 @@
 {
   "format": "inactive-dynasty-owner-v1",
-  "source_checkpoint": "64c27b503455a1cacb50a1ca8d021188f71448cd",
-  "scope": "Increment89: closed engineering Sponsorship and Earnings Base shared owner integration; named draft/cold and no-game close/Next smoke, detached policy oracle. Full visible and offscreen league qualification pending.",
+  "source_checkpoint": "b106079379949721ebefa9e52b8258c346966cb1",
+  "scope": "Increment90: add Base Academy to private common career and bind resumable two-choice materialized pack to the visit journal/charge. Isolated short owner and detached policy checks; full earned Academy play pending on beta checklist.",
   "files": [
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -766,6 +766,18 @@
       "restore_path": "tests/ordinary_economies89.tscn",
       "bytes": 177,
       "sha256": "00e33b8850e06b7e50c7cff61e957f7a209a881d9ffd0325839579e197e2a909"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/academy90.gd.txt",
+      "restore_path": "tests/academy90.gd",
+      "bytes": 6444,
+      "sha256": "b72f1683545cc9f2979e48d5fccf76b6a6ea7a7e144b5d0dffdd8675fc0ab696"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/academy90.tscn.txt",
+      "restore_path": "tests/academy90.tscn",
+      "bytes": 166,
+      "sha256": "a60c61c2ee8bb96a45db34f29fd9d7d606e2fda475680bea9951d7d33ae26a7e"
     }
   ]
 }
