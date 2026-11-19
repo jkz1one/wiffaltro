@@ -1,7 +1,7 @@
 {
   "format": "inactive-dynasty-owner-v1",
-  "source_checkpoint": "65ede84ba91e2ab4bf48d9a869d55a8537c0a0a9",
-  "scope": "Increment91: Base Scramble private ordinary admission, exact seeded build/book/bank identity and pristine baseline validation. Short owner isolation checks; full gameplay remains pending.",
+  "source_checkpoint": "4a14cd800dbceee7c81060879d409123919fb3bd",
+  "scope": "Increment92: closed shared Base Equipment admission using original Equipment and full Shop policies. Short owner and detached active/spare smoke checks; earned full gameplay remains pending.",
   "files": [
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -790,6 +790,18 @@
       "restore_path": "tests/scramble91.tscn",
       "bytes": 167,
       "sha256": "222ecc4d6ef6a29774b4ae15f5df3963dfcc6d0eebdec23ee00272249b18c510"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/equipment92.gd.txt",
+      "restore_path": "tests/equipment92.gd",
+      "bytes": 5398,
+      "sha256": "9de1bd201c950c5971af2bf36dcf61ff8f5ed80e9c83c73efcaabb238ca1f8a1"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/tests/equipment92.tscn.txt",
+      "restore_path": "tests/equipment92.tscn",
+      "bytes": 167,
+      "sha256": "f00103c4d4066777f7826b2843f41579cf575bdd3f437bfbf519ef604cf6858b"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "65ede84ba91e2ab4bf48d9a869d55a8537c0a0a9",
-  "scope": "Increment91: Base Scramble private ordinary admission, exact seeded build/book/bank identity and pristine baseline validation. Short owner isolation checks; full gameplay remains pending.",
+  "source_checkpoint": "4a14cd800dbceee7c81060879d409123919fb3bd",
+  "scope": "Increment92: closed shared Base Equipment admission using original Equipment and full Shop policies. Short owner and detached active/spare smoke checks; earned full gameplay remains pending.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -212,8 +212,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/ordinary_admission.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/ordinary_admission.gd",
-      "bytes": 585,
-      "sha256": "dda6877efd13e8f4f8060389199ee24d1245ee3a5c3869cb4886cf4f074853b1"
+      "bytes": 609,
+      "sha256": "f2364a72497e0801948cafa61a478113eb9d8c9fbae0b326cfa0be6f0e3a8fa3"
     }
   ]
 }

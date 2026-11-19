@@ -1,7 +1,7 @@
 extends RefCounted
 ## Explicit shared-owner engineering admission, not a public entitlement rule.
-const LEAGUES: Array[String] = ["standard","dugout","sponsorship","earnings","academy","scramble"]
-const NEW_LEAGUES: Array[String] = ["sponsorship","earnings","academy","scramble"]
+const LEAGUES: Array[String] = ["standard","dugout","sponsorship","earnings","academy","scramble","equipment"]
+const NEW_LEAGUES: Array[String] = ["sponsorship","earnings","academy","scramble","equipment"]
 
 static func expected(rules: Dictionary, seed_value: int=-1) -> Dictionary:
 	var league: Variant=rules.get("league","")
