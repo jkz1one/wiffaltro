@@ -1,0 +1,70 @@
+extends "res://tests/successor_pair_history_context.gd"
+const Collector=preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+func run() -> void:
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1": get_tree().quit(2);return
+ var roots=Codec._operation_content_roots()
+ var path="user://successor-general-build-v7-r2.json"
+ var bytes=FileAccess.get_file_as_bytes(path)
+ var season=Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+ if not check(season!=null,"authentic pair restores"):get_tree().quit(1);return
+ var builds={"0":season.build}
+ var targets={}
+ var originals={}
+ for club: String in season.opponents.clubs: builds[club]=season.opponents.clubs[club].build
+ for club: String in builds:
+  targets[club]=[]
+  originals[club]=Collector.Materialized.capture(builds[club])
+  for row: Dictionary in season.results:
+   if row.away==int(club) or row.home==int(club):targets[club].append(int(row.id))
+ var before_calls=Collector.replay_calls
+ var started=Time.get_ticks_msec()
+ var batch=Collector.collect(builds,targets)
+ print("BATCH_MS=",Time.get_ticks_msec()-started," REPLAYS=",Collector.replay_calls-before_calls)
+ if not check(batch.size()==6,"six authenticated club histories publish atomically"):get_tree().quit(1);return
+ check(Collector.replay_calls-before_calls==6,"exactly one full replay per club")
+ for club: String in builds:
+  for game: int in targets[club]:
+   var reference=extract(builds[club],game)
+   check(reference!=null and ClubCareer.same(reference.to_data(),batch[club][str(game)].pregame.to_data()),"exact independent policy snapshot %s/%d"%[club,game])
+   var full:SeasonBuild=builds[club]
+   var reward_reference=Build.restore(full.to_data(),full._seed,full._initial_roster,full._pool,full._blocked,game)
+   check(reward_reference!=null and ClubCareer.same(reward_reference.to_data(),batch[club][str(game)].reward.to_data()),"exact pre-reward snapshot %s/%d"%[club,game])
+  check(ClubCareer.same(originals[club],Collector.Materialized.capture(builds[club])),"source materialization unchanged")
+ var bad=builds["4"]._fork()
+ var invalid={"id":"invalid-history-suffix","rev":bad._events.size(),"op":"invalid_history_suffix"}
+ bad._events.append(invalid)
+ bad._requests[invalid.id]=JSON.stringify(invalid)
+ check(not Collector.Materialized.capture(bad).is_empty(),"corrupt suffix retains structural journal shape")
+ before_calls=Collector.replay_calls
+ check(Collector.collect({"1":builds["1"],"4":bad},{"1":targets["1"],"4":targets["4"]}).is_empty(),"failed later club releases no earlier contexts")
+ check(Collector.replay_calls-before_calls==2,"corrupt suffix reaches full replay after earlier club validated")
+ bad=builds["4"]._fork()
+ bad._bank._state.cash+=1
+ check(Collector.collect({"4":bad},{"4":targets["4"]}).is_empty(),"altered materialized cash cannot authenticate from unchanged journal")
+ check(Collector.collect({"4":builds["4"]},{"4":[32]}).is_empty(),"missing requested historical boundary rejects")
+ for malformed: Variant in [{},[],true,"1",1.5,-1,33]:
+  bad=builds["4"]._fork()
+  bad._events[0].command.game=malformed
+  bad._requests[bad._events[0].id]=JSON.stringify(bad._events[0],"",true,true)
+  check(Collector.collect({"4":bad},{"4":[1]}).is_empty(),"malformed journal game rejects without coercion")
+  check(Collector.collect({"4":builds["4"]},{"4":[malformed]}).is_empty(),"malformed requested game rejects")
+ check(Collector.collect({"4":builds["4"]},{"4":[1,1.0]}).is_empty(),"duplicate numeric targets reject")
+ var grant_bytes=FileAccess.get_file_as_bytes("user://genuine-grant.json")
+ var basis:SeasonBuild=builds["4"]
+ var grant=Build.restore(JSON.parse_string(grant_bytes.get_string_from_utf8()),basis._seed,basis._initial_roster,basis._pool,basis._blocked)
+ if check(grant!=null,"cp97 actual paid grant journal restores"):
+  check(grant._pregames.get("4",{}).get("outcome")=="granted" and grant._bank.view().held.filter(func(copy):return copy.id=="budget:4" and copy.item=="C03" and copy.paid==0).size()==1,"actual cp97 granted outcome and exact unpaid receipt")
+  var grant_original=Collector.Materialized.capture(grant)
+  before_calls=Collector.replay_calls
+  var grant_batch=Collector.collect({"4":grant},{"4":[4]})
+  check(not grant_batch.is_empty() and Collector.replay_calls-before_calls==1,"one full actual grant replay")
+  if not grant_batch.is_empty():
+   var reference=extract(grant,4)
+   check(ClubCareer.same(reference.to_data(),grant_batch["4"]["4"].pregame.to_data()),"exact BEFORE actual grant reference parity")
+   check(not grant_batch["4"]["4"].has("reward"),"unsettled actual grant never invents reward snapshot")
+   grant_batch["4"]["4"].pregame._bank._state.cash+=1
+   check(ClubCareer.same(grant_original,Collector.Materialized.capture(grant)),"returned detached snapshot cannot mutate source")
+ check(FileAccess.get_file_as_bytes(path)==bytes and FileAccess.get_file_as_bytes("user://genuine-grant.json")==grant_bytes,"both original fixture copies unchanged")
+ roots.clear()
+ if failures==0: print("BATCHED_HISTORY_PASS")
+ get_tree().quit(0 if failures==0 else 1)

@@ -1,0 +1,13 @@
+{
+  "format": "inactive-paired-history-collector-v1",
+  "source_checkpoint": "a240d0749bee0e316cf392b3eb8ab0bf3d30f69c",
+  "scope": "Full replay snapshot collection only. No codec, runtime, physical, admission or Dynasty integration. Not result/report validation.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-paired-history-v1/collector.gd.txt",
+      "restore_path": "src/gameplay/season/successor_paired_history_v1/collector.gd",
+      "bytes": 3350,
+      "sha256": "0a928f37a3ba728accffb67c70eb76c354a7ee5de50bbd020f6aef709a9bd6c3"
+    }
+  ]
+}

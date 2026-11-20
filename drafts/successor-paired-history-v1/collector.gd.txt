@@ -1,0 +1,60 @@
+extends RefCounted
+## Inactive operation-local history extraction, NOT result/report validation.
+## Every supplied build is fully replayed once. Nothing is returned on failure.
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Reward = preload("res://src/gameplay/season/successor_league_general_v2/reward.gd")
+const Materialized = preload("res://src/gameplay/season/successor_live_play_v1/build_codec.gd")
+static var replay_calls: int = 0 # Diagnostic count only, never authority.
+
+static func collect(builds: Dictionary, games: Dictionary) -> Dictionary:
+ if builds.is_empty() or builds.size()!=games.size() or builds.size()>6: return {}
+ var result: Dictionary = {}
+ for club: Variant in builds:
+  if not club is String or club not in ["0","1","2","3","4","5"] or not games.has(club): return {}
+  var full: Variant=builds[club]
+  if not full is SeasonBuild or full.get_script()!=Build or not games[club] is Array or games[club].is_empty() or games[club].size()>33: return {}
+  var original: Dictionary=Materialized.capture(full)
+  if original.is_empty(): return {}
+  var journal: Dictionary=full.to_data().duplicate(true)
+  var needed: Dictionary={}
+  for game: Variant in games[club]:
+   if not SeasonOwnership._whole(game,0,32) or needed.has(str(int(game))): return {}
+   needed[str(int(game))]={"pregame":-1,"reward":-1}
+  for index: int in range(journal.events.size()):
+   var event: Dictionary=journal.events[index]
+   var command: Dictionary=Reward.unwrap(event) if event.get("op")=="successor_reward" else event
+   if command.get("op") not in ["pregame","reward"]: continue
+   if not SeasonOwnership._whole(command.get("game"),0,32): return {}
+   var key: String=str(int(command.game))
+   if not needed.has(key): continue
+   var kind: String=command.op
+   if needed[key][kind]!=-1: return {}
+   needed[key][kind]=index
+  var at: Dictionary={}
+  for key: String in needed:
+   var indices: Dictionary=needed[key]
+   if indices.pregame<0 and indices.reward<0: return {}
+   if indices.pregame>=0 and indices.reward>=0 and indices.pregame>=indices.reward: return {}
+   # Inactive Budget adds no pregame event; its policy boundary is pre-reward.
+   for kind: String in ["pregame","reward"]:
+    var index: int=indices[kind]
+    if kind=="pregame" and index<0: index=indices.reward
+    if index<0: continue # An actual pregame may legitimately be not yet rewarded.
+    if not at.has(index): at[index]=[]
+    at[index].append([key,kind])
+  var snapshots: Dictionary={}
+  var observer: Callable=func(prefix: SeasonBuild) -> bool:
+   var revision: int=prefix._events.size()
+   if at.has(revision):
+    for destination: Array in at[revision]:
+     if not snapshots.has(destination[0]): snapshots[destination[0]]={}
+     snapshots[destination[0]][destination[1]]=prefix._fork()
+   return true
+  replay_calls+=1
+  var restored: SeasonBuild=Build.restore(journal,full._seed,full._initial_roster,full._pool,full._blocked,-1,observer)
+  if restored==null or not ClubCareer.same(Materialized.capture(restored),original) or not ClubCareer.same(Materialized.capture(full),original): return {}
+  for key: String in needed:
+   if not snapshots.has(key) or not snapshots[key].has("pregame"): return {}
+   if needed[key].reward>=0 and not snapshots[key].has("reward"): return {}
+  result[club]=snapshots
+ return result
