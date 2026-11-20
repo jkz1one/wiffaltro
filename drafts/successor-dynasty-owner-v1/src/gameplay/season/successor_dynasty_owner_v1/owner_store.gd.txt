@@ -12,6 +12,8 @@ static var last_error: String = ""
 # Diagnostics for the private first-leg producer only.
 static var paired_candidate_ms: int = 0
 static var paired_admission_ms: int = 0
+static var paired_shop_candidate_ms: int = 0
+static var paired_shop_admission_ms: int = 0
 # Process-private admission. Never serialized; no caller validation flag/payload.
 static var _owner_session: SeasonState
 static var _candidate_session: SeasonState
@@ -279,6 +281,42 @@ static func _prepare_paired_first_settlement(owner: RefCounted, expected: Packed
 	started=Time.get_ticks_msec()
 	var captured: Dictionary=Adapter.capture(owner.active,current)
 	paired_admission_ms=Time.get_ticks_msec()-started
+	var data: Dictionary=Owner.pack_current(envelope,captured) if not captured.is_empty() else {}
+	if data.is_empty(): return null
+	var snapshot: Dictionary=RawGuard.capture(envelope)
+	if snapshot.is_empty() or not match_owner(owner,expected): return null
+	_ticket=RefCounted.new()
+	_candidate=envelope; _candidate_session=current; _candidate_raw=snapshot; _candidate_data=data
+	_expected=expected.duplicate(); _written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+## Private and fixed to the first earned, naturally priced pack. The original
+## General Build owns every tour/offer, charge, target and application rule.
+static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteArray, command: Dictionary) -> RefCounted:
+	forget_projection()
+	last_error=""
+	if saving or _ticket!=null or not Codec.primitive(command) or not match_owner(owner,expected): return null
+	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
+	var session: SeasonState=owner.session
+	const General=preload("res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd")
+	if not General._source_public_shop_available(session): return null
+	var step: int=session.build.revision()-2
+	if not Adapter.Ordinary.first_shop_command(session.build,command,step) or session.build._requests.has(command.id): return null
+	var started: int=Time.get_ticks_msec()
+	var current: SeasonState=session.fork_live()
+	if current==null: return null
+	var build: SeasonBuild=current.build.candidate(command.duplicate(true))
+	if build==null: return null
+	current.adopt_build(build)
+	if current.build!=build: return null
+	paired_shop_candidate_ms=Time.get_ticks_msec()-started
+	var envelope: RefCounted=Owner.new()
+	envelope.session=current
+	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) or not _routine_pins(envelope): return null
+	started=Time.get_ticks_msec()
+	var captured: Dictionary=Adapter.capture(owner.active,current)
+	paired_shop_admission_ms=Time.get_ticks_msec()-started
 	var data: Dictionary=Owner.pack_current(envelope,captured) if not captured.is_empty() else {}
 	if data.is_empty(): return null
 	var snapshot: Dictionary=RawGuard.capture(envelope)

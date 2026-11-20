@@ -152,8 +152,8 @@ static func _runtime_context(season: SeasonState) -> bool:
 		if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
 	return true
 
-# Exact private round-1 settlement; no human shop events, pending return,
-# unsupported phases or later receipts. Full semantic history is checked below.
+# Exact private round-1 settlement or one authored pack/upgrade. No return,
+# unsupported phases or later game receipts. Full history is checked below.
 static func _first_leg_shape(season: SeasonState) -> bool:
 	if season.get_script()!=Runtime or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
 	if season.results.size()!=3 or season.player_results.size()!=1 or season.player_results[0].get("id")!=0: return false
@@ -164,7 +164,36 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	for index: int in range(2):
 		if physical.reports[index].get("fixture")!=index+1: return false
 	var build: SeasonBuild=season.build
-	return build._bank!=null and build._events.size()==2 and build._events[0].get("op")=="successor_reward" and build._events[1].get("op")=="exotic_admit" and build._events[1].get("id")=="exotic:0" and build._bank._events.size()==1 and build._bank._events[0].get("op")=="reward"
+	return _first_shop_prefix(build)
+
+const FIRST_SHOP_OPS: Array[String]=["open","pack_open","pack_pick"]
+const FIRST_SHOP_IDS: Array[String]=["shop-open","pair-pack","pair-pick"]
+
+static func first_shop_id(step: int) -> String:
+	return "%s:%d"%[FIRST_SHOP_IDS[step],step+2] if step>=0 and step<FIRST_SHOP_IDS.size() else ""
+
+static func first_shop_command(build: SeasonBuild, command: Dictionary, step: int) -> bool:
+	# The native Build still validates the selected target, eligibility, price,
+	# active offers, revealed cards, revision and all actual wallet effects.
+	if step<0 or step>=FIRST_SHOP_OPS.size(): return false
+	if command.get("op")!=FIRST_SHOP_OPS[step] or command.get("id")!=first_shop_id(step) or not whole(command.get("rev"),step+2,step+2): return false
+	if step!=2: return keys(command,["id","rev","op"])
+	if not keys(command,["id","rev","op","item","player","pitch","replace"]): return false
+	for key: String in ["item","player","pitch","replace"]:
+		if not command[key] is String: return false
+	return build.shop_item(command.item).get("op")=="stat"
+
+static func _first_shop_prefix(build: SeasonBuild) -> bool:
+	if build._bank==null or build._events.size()<2 or build._events.size()>5: return false
+	if build._events[0].get("op")!="successor_reward" or build._events[1].get("op")!="exotic_admit" or build._events[1].get("id")!="exotic:0": return false
+	var steps: int=build._events.size()-2
+	for step: int in range(steps):
+		if not first_shop_command(build,build._events[step+2],step): return false
+	var bank: Array=build._bank._events
+	if bank.size()!=(2 if steps>=2 else 1) or bank[0].get("op")!="reward": return false
+	if steps>=2 and (bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3"): return false
+	if not whole(build._visit.get("number"),1,1) or build._visit.get("open")!=(steps>0): return false
+	return steps==0 or build._visit.get("pack_status")==["","sealed","open","used"][steps]
 
 # The paid winner and workload alone do not bind exact human runs. First-leg
 # result retains original Base occupancy: replay its flow and terminal score.

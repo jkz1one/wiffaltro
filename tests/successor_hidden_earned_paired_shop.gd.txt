@@ -1,0 +1,103 @@
+extends "res://tests/successor_hidden_first_settlement.gd"
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes=Store.raw()
+ var backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var started=Time.get_ticks_msec()
+ var gates=Live.paired_history_calls
+ app.reload_save()
+ print("EARNED_SHOP_COLD_MS=",Time.get_ticks_msec()-started," HISTORY_CALLS=",Live.paired_history_calls-gates)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"actual App cold refuses "+args[0]+" without any writes")
+ elif not check(app.season!=null and settled(app.season) and exact(bytes,backup) and Live.paired_history_calls-gates==1 and PairHistory.checked_sides==6 and PairHistory.checked_reports==2,"authentic settled first leg and exact files cold"):
+  get_tree().quit(1);return
+ else:
+  verify_closed(app,bytes,backup)
+  if args[0]=="cold":
+   check(wallet(app.season.build,10,2) and app.season.build._visit.pack_status=="used" and not app.season.build.pack_pending(),"upgraded paid pack cold with one exact charge")
+   var last:Dictionary=app.season.build._events[-1]
+   var player:Dictionary=app.season.build.player(last.player)
+   var stat:String=app.season.build.shop_item(last.item).family
+   var authored:Dictionary=SeasonPlayerCatalog.profile(last.player)
+   check(last.op=="pack_pick" and player.stats[stat]==authored.stats[stat]+1,"cold loads exactly one purchased upgrade")
+   app._paired_first_shop(last)
+   check(exact(bytes,backup) and app.retained==null,"repeat final choice and all later shop actions refuse without writes")
+  else:
+   if not operate(app,args[0],bytes,backup):get_tree().quit(1);return
+ app.free()
+ if failures==0:print("HIDDEN_EARNED_PAIRED_SHOP_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func command(build:SeasonBuild,step:int) -> Dictionary:
+ return {"id":Live.first_shop_id(step),"rev":build.revision(),"op":Live.FIRST_SHOP_OPS[step]}
+
+func operate(app, mode:String, bytes:PackedByteArray, backup:PackedByteArray) -> bool:
+ var owner=app.career_owner
+ var before:SeasonState=app.season
+ var build:SeasonBuild=before.build
+ var step:int=["open","pay","pick"].find(mode)
+ if not check(step>=0 and build.revision()==step+2 and wallet(build,18 if step<2 else 10,1 if step<2 else 2),"exact authored step and earned 18 Cash before one purchase"):return false
+ var request:Dictionary=command(build,step)
+ if step==0:
+  check(not build._visit.open,"earned shop genuinely unopened")
+ elif step==1:
+  check(build._visit.pack_status=="sealed" and build.pack_price()==8,"original eligible sealed pack costs 8 Cash")
+ else:
+  for item:String in build._pack_choices():
+   var targets:Array[Dictionary]=build.targets(item)
+   if build.shop_item(item).get("op")=="stat" and not targets.is_empty():
+    request.merge({"item":item,"player":targets[0].player,"pitch":targets[0].pitch,"replace":targets[0].replace})
+    break
+  if not check(request.has("item") and build.pack_pending(),"natural reveal has actual eligible stat and roster target"):return false
+  var unknown:Dictionary=request.duplicate(true); unknown.player="player.unavailable"
+  check(Store._prepare_paired_first_shop(owner,bytes,unknown)==null and exact(bytes,backup),"unowned target is not an eligible original pick")
+ var malformed:Dictionary=request.duplicate(true); malformed["unauthorized_free_price"]=0
+ var stale:Dictionary=request.duplicate(true); stale.rev-=1
+ var bypass:Dictionary=request.duplicate(true); bypass.op="buy"
+ for rejected:Dictionary in [malformed,stale,bypass]:
+  check(Store._prepare_paired_first_shop(owner,bytes,rejected)==null and exact(bytes,backup),"malformed, stale or unauthorized command cannot write")
+ check(Store._prepare_paired_first_shop(owner.fork(),bytes,request)==null and Store._prepare_paired_first_shop(owner,backup,request)==null and exact(bytes,backup),"foreign owner and stale primary cannot write")
+ var pinned=Store.RawGuard.capture(owner)
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated synthetic write obstruction"):return false
+ var gate:int=Live.paired_history_calls
+ var started:int=Time.get_ticks_msec()
+ app._paired_first_shop(request)
+ print("EARNED_SHOP_STEP=",mode," CANDIDATE_MS=",Store.paired_shop_candidate_ms," ADMISSION_MS=",Store.paired_shop_admission_ms," BLOCKED_TOTAL_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained!=null and Live.paired_history_calls-gate==1 and PairHistory.checked_sides==6 and PairHistory.checked_reports==2,"fixed producer independently validates candidate and original first leg"):return false
+ var next:SeasonState=app.retained
+ check(app.season==before and app.career_owner==owner and Store.RawGuard.matches(owner,pinned) and exact(bytes,backup),"blocked write leaves exact owner, primary and backup unchanged")
+ check(settled(next) and Live.same(next.results,before.results) and Live.same(next.player_results,before.player_results) and Live.same(next.physical.reports,before.physical.reports),"settled game evidence and all six reward receipts unchanged")
+ if step==0:
+  check(next.build._visit.open and next.build._visit.pack_status=="sealed" and wallet(next.build,18,1),"free authored opening fixes stock and sealed pack without a charge")
+ elif step==1:
+  check(next.build.pack_pending() and wallet(next.build,10,2),"one original 8-Cash bank charge reveals the pack")
+ else:
+  var old:Dictionary=build.player(request.player).stats
+  var now:Dictionary=next.build.player(request.player).stats
+  var stat:String=next.build.shop_item(request.item).family
+  for field:String in SeasonPlayerCatalog.STATS:
+   check(now[field]==old[field]+(1 if field==stat else 0),"actual roster upgrade proves exact "+field)
+  check(not next.build.pack_pending() and next.build._visit.pack_status=="used" and wallet(next.build,10,2),"fixed choice adds one stat and spends no second charge")
+ app._paired_first_shop(request)
+ check(app.retained==next and exact(bytes,backup),"duplicate while retained still cannot write")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"removed only owned temporary obstruction"):return false
+ gate=Live.paired_history_calls
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("EARNED_SHOP_RETRY_WRITE_PROMOTE_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==next and Store.RawGuard.matches(owner,pinned) and Live.paired_history_calls==gate and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact retry promotes without replay or any duplicate award"):return false
+ var saved=Store.raw()
+ app._paired_first_shop(request)
+ check(exact(saved,bytes) and app.retained==null,"repeat original command doesn't re-open, recharge or reapply")
+ check(Store.prepare_and_write(app.career_owner,app.career_owner.fork(),saved)==null and not Store.save(app.career_owner,saved) and exact(saved,bytes),"generic writer cannot push private shop state")
+ verify_closed(app,saved,bytes)
+ return failures==0
+
+func wallet(build:SeasonBuild,cash:int,events:int) -> bool:
+ var bank=build._bank._events
+ return build.cash()==cash and bank.size()==events and bank[0].get("id")=="game:0" and (events==1 or Live.same(bank[1],{"id":"charge:3","rev":1,"op":"charge","amount":8}))
