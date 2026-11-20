@@ -1,0 +1,86 @@
+extends RefCounted
+## Inactive exact Base draft/regular prefix. No playoff, legacy, or closed lane.
+const D = "res://src/gameplay/season/successor_league_general_v2/"
+const Build = preload(D + "build.gd")
+const Reward = preload(D + "reward.gd")
+const Materialized = preload("res://src/gameplay/season/successor_live_play_v1/build_codec.gd")
+
+static func verify(season: SeasonState) -> bool:
+	if season==null or not ClubCareer.same(season.league_rules,LeagueRules.capture("doubleheader")) or not season.league_live: return false
+	if season.opponents==null or season.opponents._format!=13 or season.physical==null or not season.inventory_rules.is_empty() or not season._closed_access.is_empty() or not season._dynasty_start.is_empty() or not season._dynasty_owner_binding.is_empty(): return false
+	if season.teams.size()!=6 or not season.home_property.is_empty() or not season.npc_venues.is_empty() or not season.final_venue.is_empty() or not season.owned_surface_night.is_empty() or not season._dynasty_career_session.is_empty() or not season._league_home_context.is_empty(): return false
+	if not season.semifinals.is_empty() or not season.playoff_seeds.is_empty() or not season.final_fixture.is_empty() or season.champion!=-1: return false
+	var draft: bool=season.phase==SeasonState.Phase.DRAFT
+	if not draft and season.phase!=SeasonState.Phase.REGULAR: return false
+	var rounds: int=season.round_index
+	if rounds<0 or rounds>9 or (draft and rounds!=0): return false
+	if draft and (season.picks.size()>=4 or not season.opponents.clubs.is_empty()): return false
+	if not draft and (season.picks.size()!=4 or not SeasonOwnership._keys(season.opponents.clubs,["1","2","3","4","5"])): return false
+	var schedule=SeasonDoubleheaderRules.schedule()
+	if not ClubCareer.same(season.schedule,schedule) or season.results.size()!=rounds*3: return false
+	var fixtures: Dictionary={}
+	for fixture: Dictionary in schedule: fixtures[int(fixture.id)]=fixture
+	var played: Dictionary={}
+	var expected: Dictionary={}
+	for club: int in range(1 if draft else 6): expected[str(club)]={}
+	for row: Dictionary in season.results:
+		if not SeasonOwnership._whole(row.get("id"),0,rounds*3-1): return false
+		var game: int=int(row.id)
+		if played.has(game): return false
+		var fixture: Dictionary=fixtures[game]
+		for key: String in ["id","round","away","home"]:
+			if not ClubCareer.same(row.get(key),fixture[key]): return false
+		if not SeasonOwnership._whole(row.get("away_runs"),0,9999) or not SeasonOwnership._whole(row.get("home_runs"),0,9999) or row.away_runs==row.home_runs: return false
+		played[game]=row
+		expected[str(fixture.away)][str(game)]=row.away_runs>row.home_runs
+		expected[str(fixture.home)][str(game)]=row.home_runs>row.away_runs
+	if season.player_results.size()!=rounds: return false
+	var human_seen: Dictionary={}
+	for row: Dictionary in season.player_results:
+		if not SeasonOwnership._whole(row.get("id"),0,29): return false
+		var game: int=int(row.id)
+		if not played.has(game) or human_seen.has(game) or (played[game].away!=0 and played[game].home!=0) or not ClubCareer.same(row,played[game]): return false
+		human_seen[game]=true
+	if not season.physical.pending.is_empty():
+		if draft or not SeasonOwnership._keys(season.physical.pending,["human","reports"]): return false
+		var human: Variant=season.physical.pending.human
+		if not season.physical.pending.reports is Array or not human is Array or human.is_empty() or not SeasonOwnership._whole(human[0],rounds*3,rounds*3+2): return false
+		var next: Dictionary=fixtures[int(human[0])]
+		if next.away!=0 and next.home!=0: return false
+	if rounds==0 and not season.physical.reports.is_empty(): return false
+	for club: String in expected:
+		var holder: Variant=season.opponents.clubs.get(club,{})
+		if not holder is Dictionary: return false
+		var full: Variant=season.build if club=="0" else holder.get("build")
+		if not full is SeasonBuild or full.get_script()!=Build or full._bank==null or not ClubCareer.same(full._league_rules,season.league_rules) or SeasonInventoryRules.closed(full): return false
+		if not _payouts(full,expected[club],club=="0"): return false
+		# Nonempty prefixes are fully authenticated by Collector, once/club,
+		# immediately after this pure set check. Empty has no snapshot requests.
+		if rounds==0 and not _authenticate_empty(full): return false
+	return true
+
+static func _payouts(full: SeasonBuild, expected: Dictionary, human: bool) -> bool:
+	var wrapped: Dictionary={}
+	for event: Dictionary in full._events:
+		if event.get("op")=="reward": return false # Legacy unwrapped row.
+		if event.get("op")!="successor_reward": continue # Includes legitimate unpaid pregame.
+		var command: Dictionary=Reward.unwrap(event)
+		if not SeasonOwnership._whole(command.get("game"),0,29): return false
+		var game: String=str(int(command.game))
+		if wrapped.has(game) or not expected.has(game) or not command.get("win") is bool or command.win!=expected[game]: return false
+		if command.id!=("game:"+game if human else "ai:%d"%int(command.rev)): return false
+		wrapped[game]=command.win
+	var paid: Dictionary={}
+	for event: Dictionary in full._bank._events:
+		if event.get("op")!="reward": continue # Grants/refunds are not fixtures.
+		if not SeasonOwnership._whole(event.get("game"),0,29): return false
+		var game: String=str(int(event.game))
+		if paid.has(game) or not expected.has(game) or event.get("id")!="game:"+game or not event.get("win") is bool or event.win!=expected[game]: return false
+		paid[game]=event.win
+	return ClubCareer.same(wrapped,expected) and ClubCareer.same(paid,expected) and ClubCareer.same(full._bank.view().rewards,expected)
+
+static func _authenticate_empty(full: SeasonBuild) -> bool:
+	var original: Dictionary=Materialized.capture(full)
+	if original.is_empty(): return false
+	var replayed: SeasonBuild=Build.restore(full.to_data().duplicate(true),full._seed,full._initial_roster,full._pool,full._blocked)
+	return replayed!=null and ClubCareer.same(Materialized.capture(replayed),original)

@@ -9,6 +9,18 @@ func run() -> void:
  var bytes=FileAccess.get_file_as_bytes(path)
  var season=Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
  if not check(season!=null,"retained pair exact General identity restores"):get_tree().quit(1);return
+ for boundary: String in ["0000","0001","0004","0005"]:
+  var early_path:String="user://completeness-"+boundary+".json"
+  var early_bytes=FileAccess.get_file_as_bytes(early_path)
+  var early=Codec.restore(JSON.parse_string(early_bytes.get_string_from_utf8()))
+  if check(early!=null,"authentic early boundary restores "+boundary):
+   check(early.results.is_empty() and (not early.physical.pending.is_empty())==(boundary=="0005"),"exact unpaid early shape "+boundary)
+   check(Validator.validate_settled(early) and Validator.checked_sides==0 and Validator.checked_reports==0,"authentic unpaid early boundary qualifies "+boundary)
+   if boundary=="0000":
+    early.home_property={"unsupported_venue_probe":true}
+    check(not Validator.validate_settled(early),"empty boundary cannot skip unsupported context gate")
+    early.home_property.clear()
+   check(FileAccess.get_file_as_bytes(early_path)==early_bytes,"unchanged earlier boundary "+boundary)
  var original=Codec.capture(season)
  var rows=season.results.duplicate(true)
  check(rows.size()==6 and season.player_results.size()==2,"authentic six settled fixtures, both human legs")
@@ -85,6 +97,33 @@ func run() -> void:
  season.physical.reports.pop_back()
  check(not Validator.validate_settled(season) and Validator.checked_reports==0,"missing terminal report rejects")
  season.physical.reports.assign(archived.duplicate(true))
+ var authored_round:int=season.round_index
+ var mirror=season.player_results.duplicate(true)
+ season.results.assign(rows.filter(func(row):return row.id not in [1,4]))
+ season.physical.reports.assign(archived.filter(func(row):return row.fixture not in [1,4]))
+ check(not Validator.validate_settled(season),"omitted exact both legs and both matching reports reject")
+ season.results.assign(rows.filter(func(row):return row.id<3))
+ season.player_results.assign(mirror.filter(func(row):return row.id<3))
+ season.physical.reports.assign(archived.filter(func(row):return row.fixture<3))
+ season.round_index=1
+ check(not Validator.validate_settled(season),"coherently rewound one round with intact payouts rejects")
+ season.results.clear()
+ season.player_results.clear()
+ season.physical.reports.clear()
+ season.round_index=0
+ check(not Validator.validate_settled(season),"omitted all rows with round rewind and intact payouts rejects")
+ season.results.assign(rows.duplicate(true))
+ season.player_results.assign(mirror.duplicate(true))
+ season.physical.reports.assign(archived.duplicate(true))
+ check(not Validator.validate_settled(season),"illegal future settled rows reject")
+ season.round_index=authored_round
+ season.player_results.pop_back()
+ check(not Validator.validate_settled(season),"missing human settled mirror rejects")
+ season.player_results.assign(mirror)
+ var phase=season.phase
+ season.phase=SeasonState.Phase.SEMIFINAL
+ check(not Validator.validate_settled(season),"unqualified playoff phase fails closed")
+ season.phase=phase
  check(ClubCareer.same(original,Codec.capture(season)) and FileAccess.get_file_as_bytes(path)==bytes,"original season and evidence stay unchanged")
  roots.clear()
  if failures==0:print("SETTLED_WORKLOAD_PASS")

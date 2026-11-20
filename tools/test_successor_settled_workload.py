@@ -66,12 +66,23 @@ def main():
     target = stage / SAVE
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
+    # Immutable, already generated stage boundaries; no new gameplay.
+    for boundary, digest in {
+        '0000': 'eded97816b0819c83c55d992f3109930ae568f7da692d81f36616c47c939912f',
+        '0001': 'a8331fb0a25307908d776dcafb2bc9f0420b2de175a1c6c32e7041b489a3b427',
+        '0004': 'c94ce816c22e5eee46356e6bdeaa5513f1be0cd57a71e3ab00d8466b1a7524a6',
+        '0005': '4e6de157c90fd52ee71a5092f10b5a683edb88477f423677c3f55836ed6c57a0',
+    }.items():
+        earlier = (source / SAVE).parent / 'doubleheader-evidence' / (boundary + '.json')
+        raw = earlier.read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == digest
+        (target.parent / ('completeness-' + boundary + '.json')).write_bytes(raw)
     env = support.environment(stage)
     print('Disposable settled evidence:', stage, flush=True)
     execute([godot, '--headless', '--editor', '--path', str(project), '--quit'], env, 180)
     for mode in ('first', 'independent-cold'):
         output = execute([godot, '--headless', '--path', str(project),
-                          'res://tests/successor_settled_workload.tscn', '--', mode], env, 420)
+                          'res://tests/successor_settled_workload.tscn', '--', mode], env, 480)
         if 'SETTLED_WORKLOAD_PASS' not in output:
             raise RuntimeError('Missing positive ' + mode + ' request proof')
     assert (source / SAVE).read_bytes() == data == target.read_bytes()

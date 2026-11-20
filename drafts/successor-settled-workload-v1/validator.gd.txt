@@ -6,6 +6,7 @@ const Pair = preload(D + "doubleheader.gd")
 const BuildRules = preload(D + "doubleheader_build.gd")
 const Reward = preload(D + "reward.gd")
 const Npc = preload("npc_report.gd")
+const Completeness = preload("completeness.gd")
 # Diagnostics only; never influence validation.
 static var collection_ms: int = 0
 static var workload_ms: int = 0
@@ -15,7 +16,8 @@ static var checked_reports: int = 0
 
 static func validate_settled(season: SeasonState) -> bool:
 	collection_ms=0; workload_ms=0; checked_sides=0; report_ms=0; checked_reports=0
-	if season==null or not LeagueRules.doubleheader(season.league_rules) or season.results.is_empty() or season.results.size()>33: return false
+	if not Completeness.verify(season): return false
+	if season.results.is_empty(): return true
 	if season.opponents==null or season.teams.size()!=6 or not ClubCareer.same(season.schedule,SeasonDoubleheaderRules.schedule()): return false
 	var fixtures: Dictionary={}
 	var fixture_rows: Array=season.schedule.duplicate()
