@@ -109,6 +109,7 @@ static func known_variables(object: Object, names: Array) -> bool:
 	return true
 
 const NAMED_LEAGUE_FORMAT: String = "wiffaltro-common-ordinary-named-league-session-v1"
+const PairSchedule = preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
 const ScheduleSelector = preload("res://src/gameplay/season/successor_doubleheader_selector_v1/schedule_selector.gd")
 const Admissions = preload("ordinary_admission.gd")
 const NEW_LEAGUES = Admissions.NEW_LEAGUES
@@ -134,7 +135,7 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
-		if season.round_index in [3,4]:
+		if season.round_index in [3,4,5]:
 			if not _followup_settled_shape(season): return false
 		elif season.round_index==2:
 			if not _pair_settled_shape(season): return false
@@ -204,7 +205,7 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var detached: bool=projection.followup_projection(season)
 	if (season.get_script()!=Runtime and not detached) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
-	var authored: Dictionary=projection._round_fixtures(season.round_index)
+	var authored: Dictionary=PairSchedule.authored_phase(season.round_index)
 	if authored.is_empty(): return false
 	if not same(season.results.map(func(row):return row.get("id")),authored.prior_results) or not same(season.player_results.map(func(row):return row.get("id")),authored.prior_humans): return false
 	var physical=season.physical
@@ -215,12 +216,12 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 		var queued: Array=physical.reports.slice(prefix).map(func(row):return row.get("fixture"))
 		if queued.size()>authored.npc.size() or not same(queued,authored.npc.slice(0,queued.size()).map(func(row):return row.id)): return false
 	elif physical.reports.size()!=prefix: return false
-	if not physical.pending.is_empty() and (not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
+	if not physical.pending.is_empty() and (season.round_index not in projection.HUMAN_PHASES or not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
 	var build: SeasonBuild=season.build
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==false
 
 static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
-	if paid_rounds not in [2,3,4] or build._bank==null or build._events.size()!=3+2*paid_rounds or not _first_shop_journal(build,3): return false
+	if paid_rounds not in [2,3,4,5] or build._bank==null or build._events.size()!=3+2*paid_rounds or not _first_shop_journal(build,3): return false
 	if build._events[5].get("op")!="successor_reward" or build._events[5].get("id")!="game:3" or build._events[6].get("op")!="exotic_admit" or build._events[6].get("id")!="exotic:3": return false
 	var bank: Array=build._bank._events
 	if bank.size()!=paid_rounds+1 or bank[0].get("op")!="reward" or bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3" or bank[2].get("op")!="reward": return false
