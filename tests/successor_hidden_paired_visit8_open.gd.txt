@@ -93,6 +93,6 @@ func rejects_at_visit8(app,bytes:PackedByteArray,backup:PackedByteArray) -> void
  app._open_paired_late_shop(8)
  app._open_paired_visit6_shop()
  app._open_paired_late_shop(9)
- check(Binding.start(app.season).is_empty()!=Binding.human_enabled(8) and Live.late_shop_open(9).is_empty(),"only the exact current phase may start; no visit9 authority")
+ check(Binding.start(app.season).is_empty()!=Binding.human_enabled(8) and Store._prepare_paired_late_shop_open(owner,bytes,9)==null,"only the exact current phase may start; no visit9 authority")
  sealed_game8(app,bytes,backup)
  check(app.season==s and app.career_owner==owner and Store.RawGuard.matches(owner,pin) and s.build.cash()==104 and exact(bytes,backup),"all refused actions leave primary, backup, Cash and roster untouched")

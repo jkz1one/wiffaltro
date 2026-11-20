@@ -245,7 +245,10 @@ static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
 		if after_cutoff:
 			if tail not in [0,1] or not visit7_open_command(build._events[19]): return false
 			if after_visit8:
-				if tail!=0 or not late_shop_open_command(build._events[22],8) or not _archived_late_cutoffs(build,8) or build._visit.has("recruit"): return false
+				if not late_shop_open_command(build._events[22],8): return false
+				if tail==0:
+					if not _archived_late_cutoffs(build,8) or build._visit.has("recruit"): return false
+				elif not late_shop_open_command(build._events[size],9) or not _late_recruit_cutoff(build,9): return false
 			elif tail==0:
 				if not _archived_visit7_cutoff(build) or build._visit.has("recruit"): return false
 			elif tail!=1 or not late_shop_open_command(build._events[size],8) or not _late_recruit_cutoff(build,8): return false
@@ -279,7 +282,7 @@ static func visit6_open_command(command: Dictionary) -> bool:
 
 # Optional owned open only. The frozen Build authors/validates stock and
 # the empty current/archived recruit; this table cannot admit a purchase.
-const LATE_SHOP_REVS: Dictionary={7:19,8:22}
+const LATE_SHOP_REVS: Dictionary={7:19,8:22,9:25}
 static func late_shop_open(visit: int) -> Dictionary:
 	if not LATE_SHOP_REVS.has(visit): return {}
 	var rev: int=LATE_SHOP_REVS[visit]
@@ -317,7 +320,7 @@ static func visit6_sign_command(command: Dictionary) -> bool:
 # the recruited history or the sign/Book/bank receipts at the original cutoffs.
 static func _archived_visit6_offer(build: SeasonBuild) -> Dictionary:
 	var profile: Dictionary=RecruitCatalog.fresh(VISIT6_RECRUIT,"late")
-	if profile.is_empty() or not whole(profile.catchup.price,32,32) or (build._recruits.size()!=2 and not _archived_visit7_cutoff(build) and not _archived_late_cutoffs(build,8)): return {}
+	if profile.is_empty() or not whole(profile.catchup.price,32,32) or (build._recruits.size()!=2 and not _archived_late_cutoffs(build,build._recruits.size()+4)): return {}
 	var original: Dictionary={"id":"recruit:6","player":VISIT6_RECRUIT,"stage":"late","price":profile.catchup.price,"returning":false,"profile":profile,"signed":false}
 	return original if same(build._recruits[1],{"visit":6,"chance":0.5,"offer":original}) else {}
 

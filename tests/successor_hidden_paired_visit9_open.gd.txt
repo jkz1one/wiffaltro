@@ -1,0 +1,98 @@
+extends "res://tests/successor_hidden_paired_late_game9.gd"
+
+const OPEN9={"id":"visit9-open:25","rev":25,"op":"open"}
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var calls:int=PairHistory.Collector.replay_calls
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE cold")
+ app.reload_save()
+ print("VISIT9_COLD_MS=",Time.get_ticks_msec()-started," hist=",PairHistory.historical_humans_checked," builds=",PairHistory.Collector.replay_calls-calls)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"fresh App rejects "+args[0]+" without writing either file")
+ elif check(app.season!=null and app._owned() and exact(bytes,backup) and Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-calls==6 and PairHistory.historical_humans_checked==9 and PairHistory.checked_reports==18 and PairHistory.checked_sides==54,"fresh App authenticates one entire paid signed history batch"):
+  if args[0]=="open":
+   if check(paid_game9(app.season),"exact paid cp139 entry: Game24, Dakota/Mika and closed earned visit9"):
+    open_visit9_cutoff(app,bytes,backup)
+  elif args[0]=="cold":
+   check(exact_visit9(app.season),"original seeded normal stock/pack present; visit9 has no recruit or new signing")
+   for size:int in [17,22,24]:
+    var malformed:SeasonState=app.season.fork_live()
+    malformed.build._events.resize(size)
+    check(not Live._paid_pair_journal(malformed.build,9),"short-but-signed journal "+str(size)+" rejects before indexing")
+   rejects_at_visit9(app,bytes,backup)
+  else:
+   check(false,"unexpected mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func open_visit9_cutoff(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var original:SeasonState=app.season
+ var pin:Dictionary=Store.RawGuard.capture(owner)
+ verify_closed(app,bytes,backup)
+ var fake:Dictionary=OPEN9.duplicate()
+ fake.recruit={"id":"recruit:9"}
+ check(Store._prepare_paired_late_shop_open(owner.fork(),bytes,9)==null and Store._prepare_paired_late_shop_open(owner,backup,9)==null and Store._prepare_paired_shop(owner,bytes,fake,9)==null and Store._prepare_paired_visit6_shop_open(owner,bytes)==null and exact(bytes,backup),"foreign owner, stale bytes, forged open and wrong visit refuse")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated exact-write obstruction"):return
+ var gates:int=Live.paired_history_calls
+ var calls:int=PairHistory.Collector.replay_calls
+ print("CP127_STAGE candidate")
+ app._open_paired_late_shop(9)
+ print("VISIT9_CANDIDATE_MS=",Store.paired_shop_candidate_ms," ADMISSION_MS=",Store.paired_shop_admission_ms)
+ if not check(app.retained!=null and Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-calls==6 and PairHistory.historical_humans_checked==9 and PairHistory.checked_reports==18 and PairHistory.checked_sides==54,"actual native fixed open retained after one full history check"):return
+ var next:SeasonState=app.retained
+ check(exact_visit9(next),"natural ninth visit has ordinary stock and an exact zero-chance empty recruit")
+ check(Live.same(next.build._bank._events,original.build._bank._events) and Live.same(next.build.roster(),original.build.roster()) and Live.same(next.build._contracts,original.build._contracts) and Live.same(next.build._book._events,original.build._book._events) and Live.same(next.build._game_rosters,original.build._game_rosters) and Live.same(next.results,original.results) and Live.same(next.player_results,original.player_results) and Live.same(next.physical.reports,original.physical.reports),"existing signed receipt, roster, contracts and all nine paid rounds are exact")
+ app._open_paired_late_shop(9)
+ check(app.retained==next and app.season==original and app.career_owner==owner and Store.RawGuard.matches(owner,pin) and exact(bytes,backup),"held duplicate and obstructed write preserve exact owner and both files")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only isolated obstruction"):return
+ print("CP127_STAGE retry")
+ gates=Live.paired_history_calls;calls=PairHistory.Collector.replay_calls
+ var started:int=Time.get_ticks_msec()
+ app.retry_save()
+ print("VISIT9_RETRY_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==next and Live.paired_history_calls==gates and PairHistory.Collector.replay_calls==calls and Store.RawGuard.matches(owner,pin) and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact held ticket writes once with no further validation"):return
+ rejects_at_visit9(app,Store.raw(),bytes)
+
+func exact_visit9(season:SeasonState) -> bool:
+ var b:SeasonBuild=season.build
+ if season.round_index!=9 or season.results.size()!=27 or season.player_results.size()!=9 or season.player_results[-1].id!=24 or season.physical.reports.size()!=18 or not season.physical.pending.is_empty():return false
+ if b.cash()!=122 or b.revision()!=26 or not Live.late_shop_open_command(b._events[-1],9) or not Live._signed_visit6_prefix(b):return false
+ if b._market!=0 or not b._appeared or not Live.whole(b._visit.get("number"),9,9) or b._visit.get("open")!=true or not Live._late_recruit_cutoff(b,9):return false
+ if RecruitCatalog.appearance_chance(9,true)!=0.0 or RecruitCatalog.appearance_chance(9,false)!=0.0 or RecruitCatalog.stage_for_visit(9)!="":return false
+ var rng:RandomNumberGenerator=b._rng(1000)
+ print("VISIT9_ORIGINAL_SEEDED_RECRUIT_ROLL=",rng.randf()," eligible_chance=0")
+ print("VISIT9_STOCK=",b._visit.offers.size()," PACK_CARDS=",b._visit.cards.size())
+ return Live.same(b._visit.offers,b._offers(0)) and Live.same(b._visit.cards,ShopSource.pack(b._book,b.roster(),b._rng(-1))) and not Live._archived_visit6_offer(b).is_empty()
+
+func rejects_at_visit9(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var s:SeasonState=app.season
+ var pin:Dictionary=Store.RawGuard.capture(owner)
+ var stale:Dictionary={"id":"visit9-stale:26","rev":26,"op":"sign","offer":"recruit:6","replace":"player.mika_reed"}
+ var forged:Dictionary={"id":"visit9-forgery:26","rev":26,"op":"sign","offer":"recruit:9","replace":"player.mika_reed"}
+ var offered:String=String(s.build._visit.offers.keys()[0])
+ var buy:Dictionary={"id":"visit9-buy:26","rev":26,"op":"buy","offer":offered}
+ app._sign_paired_visit6_recruit()
+ for command:Dictionary in [EXACT_SIGN,stale,forged,buy]:
+  check(Store._prepare_paired_shop(owner,bytes,command,9)==null and not app.commit_shop(command),"owned/public refuses "+command.id)
+ for command:Dictionary in [stale,forged]:
+  var isolated:SeasonState=s.fork_live()
+  check(isolated.build.candidate(command)==null,"unchanged frozen signer independently refuses "+command.id)
+ check(Store._prepare_paired_visit6_sign(owner,bytes)==null and Store._prepare_paired_late_shop_open(owner,bytes,9)==null and Store._prepare_paired_late_shop_open(owner.fork(),bytes,9)==null and Store._prepare_paired_late_shop_open(owner,backup,9)==null,"old sign, repeat open, wrong owner and stale expected bytes refuse")
+ app._open_paired_late_shop(9)
+ app._open_paired_visit6_shop()
+ app._open_paired_late_shop(10)
+ check(Binding.start(app.season).is_empty() and Live.late_shop_open(10).is_empty(),"no Game10 or visit10 authority")
+ sealed_game9(app,bytes,backup)
+ check(app.season==s and app.career_owner==owner and Store.RawGuard.matches(owner,pin) and s.build.cash()==122 and exact(bytes,backup),"all refused actions leave primary, backup, Cash and roster untouched")
