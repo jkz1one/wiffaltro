@@ -219,10 +219,15 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	elif physical.reports.size()!=prefix: return false
 	if not physical.pending.is_empty() and (season.round_index not in projection.HUMAN_PHASES or not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
 	var build: SeasonBuild=season.build
-	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==false
+	var opened: bool=season.round_index==6 and build.revision()==16
+	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
 
 static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
-	if paid_rounds not in [2,3,4,5,6] or build._bank==null or build._events.size()!=3+2*paid_rounds or not _first_shop_journal(build,3): return false
+	var size: int=3+2*paid_rounds
+	if paid_rounds not in [2,3,4,5,6] or build._bank==null: return false
+	if build._events.size()!=size:
+		if paid_rounds!=6 or build._events.size()!=size+1 or not visit6_open_command(build._events[size]) or build._visit.get("pack_status")!="sealed" or not build._visit.get("recruit") is Dictionary: return false
+	if not _first_shop_journal(build,3): return false
 	if build._events[5].get("op")!="successor_reward" or build._events[5].get("id")!="game:3" or build._events[6].get("op")!="exotic_admit" or build._events[6].get("id")!="exotic:3": return false
 	var bank: Array=build._bank._events
 	if bank.size()!=paid_rounds+1 or bank[0].get("op")!="reward" or bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3" or bank[2].get("op")!="reward": return false
@@ -234,6 +239,11 @@ static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
 		if reward.get("op")!="successor_reward" or reward.get("id")!="game:"+game or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:"+game: return false
 		if bank[index+1].get("op")!="reward" or bank[index+1].get("id")!="game:"+game: return false
 	return true
+
+# The only post-round6 command presently admitted. The native journal replay
+# independently re-derives the visit, quote and its seeded recruit snapshot.
+static func visit6_open_command(command: Dictionary) -> bool:
+	return keys(command,["id","rev","op"]) and command.id=="visit6-open:15" and whole(command.rev,15,15) and command.op=="open"
 
 const FIRST_SHOP_OPS: Array[String]=["open","pack_open","pack_pick"]
 const FIRST_SHOP_IDS: Array[String]=["shop-open","pair-pack","pair-pick"]

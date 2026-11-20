@@ -309,18 +309,26 @@ static func _prepare_paired_settlement(owner: RefCounted, expected: PackedByteAr
 	_write_admitted()
 	return _ticket
 
-## Private and fixed to the first earned, naturally priced pack. The original
-## General Build owns every tour/offer, charge, target and application rule.
+## Fixed private routes; every effect still belongs to the frozen General Build.
 static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteArray, command: Dictionary) -> RefCounted:
+	return _prepare_paired_shop(owner,expected,command,1)
+
+static func _prepare_paired_visit6_shop_open(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _prepare_paired_shop(owner,expected,{"id":"visit6-open:15","rev":15,"op":"open"},6)
+
+static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, command: Dictionary, visit: int) -> RefCounted:
 	forget_projection()
 	last_error=""
 	if saving or _ticket!=null or not Codec.primitive(command) or not match_owner(owner,expected): return null
 	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
 	var session: SeasonState=owner.session
 	const General=preload("res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd")
-	if session.round_index!=1 or not General._source_public_shop_available(session): return null
-	var step: int=session.build.revision()-2
-	if not Adapter.Ordinary.first_shop_command(session.build,command,step) or session.build._requests.has(command.id): return null
+	if visit not in [1,6] or session.round_index!=visit or not General._source_public_shop_available(session): return null
+	if visit==1:
+		var step: int=session.build.revision()-2
+		if not Adapter.Ordinary.first_shop_command(session.build,command,step): return null
+	elif not Adapter.Ordinary.visit6_open_command(command) or session.build.revision()!=15 or session.build._visit.get("open")!=false or session.player_results[-1].get("id")!=15: return null
+	if session.build._requests.has(command.id): return null
 	var started: int=Time.get_ticks_msec()
 	var current: SeasonState=session.fork_live()
 	if current==null: return null

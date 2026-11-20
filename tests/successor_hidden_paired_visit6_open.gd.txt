@@ -1,0 +1,88 @@
+extends "res://tests/successor_hidden_paired_third_return_settlement.gd"
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE cold")
+ app.reload_save()
+ print("VISIT6_COLD_MS=",Time.get_ticks_msec()-started)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"altered quote/journal rejected without file writes")
+ elif check(app.season!=null and app._owned() and exact(bytes,backup) and Live.paired_history_calls-gates==1,"actual cold App authenticates the exact owned paid history"):
+  if args[0]=="open":
+   open_visit(app,bytes,backup)
+  elif args[0]=="cold":
+   check(exact_late_offer(app.season),"cold validates the natural unsigned late Dakota Wells offer, real 50% roll and 32 Cash quote")
+   stays_limited(app,bytes,backup)
+  else:
+   check(false,"unexpected mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func open_visit(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var original:SeasonState=app.season
+ if not check(paid_third_return(original) and original.player_results[-1].id==15 and original.physical.pending.is_empty() and original.build.cash()==94 and original.build.revision()==15 and original.build._visit.get("open")==false,"exact earned unopened visit6 after actual fixture15"):return
+ verify_closed(app,bytes,backup)
+ var pin:Dictionary=Store.RawGuard.capture(owner)
+ check(Store._prepare_paired_visit6_shop_open(owner.fork(),bytes)==null and Store._prepare_paired_visit6_shop_open(owner,backup)==null and Store._prepare_paired_first_shop(owner,bytes,{"id":"visit6-open:15","rev":15,"op":"open"})==null and exact(bytes,backup),"foreign owner, stale bytes and wrong visit route refuse")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated test write obstruction"):return
+ var gates:int=Live.paired_history_calls
+ print("CP127_STAGE candidate")
+ app._open_paired_visit6_shop()
+ print("VISIT6_CANDIDATE_MS=",Store.paired_shop_candidate_ms," ADMISSION_MS=",Store.paired_shop_admission_ms)
+ if not check(app.retained!=null and Live.paired_history_calls-gates==1,"actual native App holds one fully admitted open quote"):return
+ check(exact_late_offer(app.retained),"actual native open yields exactly the deterministic eligible quote without signing")
+ var next:SeasonState=app.retained
+ check(Live.same(next.build._bank._events,original.build._bank._events) and Live.same(next.build._game_rosters,original.build._game_rosters) and Live.same(next.build._book._events,original.build._book._events) and Live.same(next.build.roster(),original.build.roster()) and Live.same(next.build._contracts,original.build._contracts) and Live.same(next.results,original.results) and Live.same(next.physical.reports,original.physical.reports),"cash, roster, book, historical game rosters and all paid evidence remain unchanged")
+ app._open_paired_visit6_shop()
+ check(app.retained==next and app.season==original and app.career_owner==owner and Store.RawGuard.matches(owner,pin) and exact(bytes,backup),"duplicate and blocked write preserve exact owner, primary and backup")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only isolated test obstruction"):return
+ print("CP127_STAGE retry")
+ gates=Live.paired_history_calls
+ var started:int=Time.get_ticks_msec()
+ app.retry_save()
+ print("VISIT6_RETRY_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==next and Live.paired_history_calls==gates and Store.RawGuard.matches(owner,pin) and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact once-only retry needs no further reconstruction"):return
+ stays_limited(app,Store.raw(),bytes)
+
+func exact_late_offer(season:SeasonState) -> bool:
+ if season.round_index!=6 or season.results.size()!=18 or season.player_results[-1].id!=15 or season.physical.reports.size()!=12 or not season.physical.pending.is_empty():return false
+ var b:SeasonBuild=season.build
+ if b.cash()!=94 or b.revision()!=16 or not Live.visit6_open_command(b._events[-1]) or not Live.whole(b._visit.get("number"),6,6) or b._visit.get("open")!=true or b._visit.get("pack_status")!="sealed":return false
+ if b.player("player.mika_reed").stats.fielding!=SeasonPlayerCatalog.profile("player.mika_reed").stats.fielding+1:return false
+ var prior:Array=b._recruits.slice(0,-1)
+ if not ClubCareer.same(prior,[{"visit":1,"chance":0.25,"offer":{}}]):return false
+ var rng=RandomNumberGenerator.new()
+ rng.seed=b._seed*1009+6*104729+1000*7919
+ var roll:float=rng.randf()
+ var chance:float=RecruitCatalog.appearance_chance(6,false)
+ if chance!=0.5 or roll>=chance:return false
+ var eligible:Array[String]=[]
+ for player:String in b._pool:
+  if not b._roster.has(player) and not b._blocked.has(player):eligible.append(player)
+ if not ClubCareer.same(eligible,["player.ash_cole","player.casey_rivers","player.dakota_wells"]):return false
+ var player:String=eligible[rng.randi_range(0,eligible.size()-1)]
+ if player!="player.dakota_wells" or b.roster().has(player) or b._contracts.has(player) or not b._appeared:return false
+ var profile:Dictionary=RecruitCatalog.fresh(player,"late")
+ var expected:Dictionary={"id":"recruit:6","player":player,"stage":"late","price":32,"returning":false,"profile":profile,"signed":false}
+ return ClubCareer.same(b._visit.get("recruit"),expected) and ClubCareer.same(b._recruits[-1],{"visit":6,"chance":chance,"offer":expected}) and not profile.is_empty() and profile.catchup.price==32
+
+func stays_limited(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var command:Dictionary={"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":"player.val_morgan"}
+ check(Store._prepare_paired_shop(owner,bytes,command,6)==null and Store._prepare_paired_shop(owner,bytes,{"id":"visit7-open:16","rev":16,"op":"open"},7)==null and not app.commit_shop(command),"sign and future shop routes have no authority")
+ app._open_paired_visit6_shop()
+ app._play_paired_human(6)
+ app._run_paired_npc(19)
+ app._settle_paired_third_return_leg()
+ verify_closed(app,bytes,backup)
+ check(app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"repeat open, later games and settlement do not change either file")
