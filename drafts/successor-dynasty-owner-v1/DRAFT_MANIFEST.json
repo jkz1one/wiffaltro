@@ -126,8 +126,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 30821,
-      "sha256": "a7a690a7eeee0718f322588ea7522f62f16abcba267c34cdefad327339266595"
+      "bytes": 31327,
+      "sha256": "ad90e948812a7b578678114b8dc658c238e3e72a1c95ff315520e2589172bbd2"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -186,8 +186,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/app.gd",
-      "bytes": 45412,
-      "sha256": "38b291d1e17c0b1f19dfdd6078b39f1391429243127a497c21f2577530fa2dee"
+      "bytes": 45788,
+      "sha256": "14875a66f4c4bcaf9b4551db908cdd276e457948ee4c25abbd5e113ded2f1ebc"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/capture_human.gd.txt",

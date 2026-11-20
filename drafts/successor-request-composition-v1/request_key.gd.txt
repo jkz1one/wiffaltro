@@ -14,6 +14,10 @@ static func for_materialized_next_first(season: SeasonState, fixture: Dictionary
 	if fixture.get("round")!=2 or fixture.get("id") not in [7,8]: return ""
 	return _for_materialized_wallet(season,fixture,state,field)
 
+static func for_materialized_next_return(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:
+	if fixture.get("round")!=3 or fixture.get("id") not in [9,10,11]: return ""
+	return _for_materialized_wallet(season,fixture,state,field)
+
 # Hydration represents three derived receipt arrays as JSON numbers. Recreate
 # exactly that form from independently authenticated state, then restore it.
 static func _for_materialized_wallet(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:

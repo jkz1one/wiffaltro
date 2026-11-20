@@ -10,7 +10,7 @@ const PairedHistory = preload("res://src/gameplay/season/successor_settled_workl
 # The complete old lanes and next human-only lane are deliberately bounded.
 # Resolve both club-0 and NPC participants from the unmodified authored schedule.
 static func _round_fixtures(round_index: int) -> Dictionary:
-	if round_index not in [0,1,2]: return {}
+	if round_index not in [0,1,2,3]: return {}
 	var human: Dictionary={}
 	var npc: Array[Dictionary]=[]
 	for row: Dictionary in SeasonDoubleheaderRules.schedule():
@@ -22,7 +22,7 @@ static func _round_fixtures(round_index: int) -> Dictionary:
 static func bound_shape(value: Variant) -> bool:
 	if not Live.keys(value,["human","reports","binding"]) or not value.human is Array or value.human.size()!=14 or not value.reports is Array or value.reports.size()>2: return false
 	var fixtures: Dictionary={}
-	for round_index: int in range(3):
+	for round_index: int in range(4):
 		var authored: Dictionary=_round_fixtures(round_index)
 		if Live.whole(value.human[0],authored.human.id,authored.human.id):
 			fixtures=authored
@@ -36,21 +36,22 @@ static func bound_shape(value: Variant) -> bool:
 	return Live.keys(binding,["version","request"]) and Live.whole(binding.version,1,1) and binding.request is String and binding.request.length()==64 and binding.request.is_valid_hex_number(false)
 
 static func start(source: SeasonState) -> Dictionary:
-	if not Live.scope(source) or not Live.same(source.league_rules,LeagueRules.capture("doubleheader")) or source.phase!=SeasonState.Phase.REGULAR or source.round_index not in [0,1,2] or source.picks.size()!=4 or not source.physical.pending.is_empty(): return {}
+	if not Live.scope(source) or not Live.same(source.league_rules,LeagueRules.capture("doubleheader")) or source.phase!=SeasonState.Phase.REGULAR or source.round_index not in [0,1,2,3] or source.picks.size()!=4 or not source.physical.pending.is_empty(): return {}
 	if source.round_index==1 and source.build.revision()!=5: return {}
 	# Saved JSON hydrates whole IDs as floats. Bind to the semantically equal
 	# frozen-authored row so warm and cold hash exactly the same primitives.
 	var authored: Dictionary=_round_fixtures(source.round_index)
 	var fixture: Dictionary=authored.human
 	if not Live.same(fixture,source.pending_fixture()): return {}
-	if SeasonDoubleheaderRules.first(fixture.id)!=(_round_fixtures(0).human.id if source.round_index==1 else -1): return {}
+	var first_id: int=_round_fixtures(source.round_index-1).human.id if source.round_index%2==1 else -1
+	if SeasonDoubleheaderRules.first(fixture.id)!=first_id: return {}
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,source)
 	var state: MatchState=GeneralOps._source_public_make_match(source)
 	if field==null or state==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence(): return {}
-	var hash: String=Request.for_context(source,fixture,state,field)
+	var hash: String=Request.for_materialized_next_return(source,fixture,state,field) if source.round_index==3 else Request.for_context(source,fixture,state,field)
 	if hash.is_empty(): return {}
 	var club: TeamMatchState=state.home_team if fixture.home==0 else state.away_team
-	var format: String=["private-first-human-start-v1","private-return-human-start-v1","private-next-first-human-start-v1"][source.round_index]
+	var format: String=["private-first-human-start-v1","private-return-human-start-v1","private-next-first-human-start-v1","private-next-return-human-start-v1"][source.round_index]
 	var live: Dictionary={"format":format,"request":hash,"equipped":state.gear_usage.equipped,"held":club.tactics.held,"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,"track_walks":club.tactics.track_walks}
 	return {"state":state,"field":field,"fixture":fixture.duplicate(true),"binding":{"version":1,"request":JSON.stringify(live,"",true,true).sha256_text()}}
 
@@ -84,8 +85,8 @@ static func _inspect_bound(source: SeasonState, produce_settlement: bool = false
 	pristine.physical.pending.clear()
 	var opening: Dictionary=start(pristine)
 	if opening.is_empty() or not Live.same(opening.binding,pending.binding) or opening.fixture.id!=pending.human[0]: return {}
-	if source.round_index==2:
-		return _inspect_next_first(pristine,pending,opening.fixture,preview_job,produce_settlement)
+	if source.round_index in [2,3]:
+		return _inspect_followup(pristine,pending,opening.fixture,preview_job,produce_settlement)
 	if source.round_index==1:
 		return _inspect_return(pristine,pending.human,pending.reports,preview_job,produce_settlement)
 	return _inspect(pristine,pending.human,pending.reports,produce_settlement)
@@ -105,7 +106,7 @@ static func npc_queue(season: SeasonState) -> bool:
 static func projected_npc_fixture(season: SeasonState, fixture: Dictionary) -> Dictionary:
 	if season==null or not Live.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return {}
 	var leg: int=season.round_index
-	if not ((leg==0 and season.get_script()==PrivateFirstFork) or (leg==1 and season.get_script()==PrivateReturnFork) or (leg==2 and season.get_script()==PrivateNextFirstFork)): return {}
+	if not ((leg==0 and season.get_script()==PrivateFirstFork) or (leg==1 and season.get_script()==PrivateReturnFork) or (leg in [2,3] and season.get_script()==PrivateFollowupFork)): return {}
 	var fixtures: Dictionary=_round_fixtures(leg)
 	var human: int=fixtures.human.id
 	var archive: int=2*leg
@@ -131,20 +132,20 @@ class PrivateFirstFork extends "res://src/gameplay/season/successor_live_play_v1
 class PrivateReturnFork extends PrivateFirstFork:
 	pass
 
-class PrivateNextFirstFork extends PrivateFirstFork:
+class PrivateFollowupFork extends PrivateFirstFork:
 	pass
 
-static func next_first_projection(season: SeasonState) -> bool:
-	return season!=null and season.get_script()==PrivateNextFirstFork and season.round_index==2 and season.physical!=null and season.physical.projecting and season.physical.pending.is_empty()
+static func followup_projection(season: SeasonState) -> bool:
+	return season!=null and season.get_script()==PrivateFollowupFork and season.round_index in [2,3] and season.physical!=null and season.physical.projecting and season.physical.pending.is_empty()
 
-# The native resolver authenticates the exact ordered NPC data. Only the fixed
-# settlement operation can request a new concrete owner after complete replay.
-static func _inspect_next_first(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
-	if Live._capture_structural(source).is_empty(): return {}
+# The original resolver authenticates exact ordered NPC data. Only the
+# already qualified leg2 producer may materialize a concrete paid owner.
+static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
+	if source.round_index not in [2,3] or (produce_settlement and source.round_index!=2) or Live._capture_structural(source).is_empty(): return {}
 	for paid: Dictionary in source.player_results:
 		if not Live._human_score(source,paid): return {}
 	if not PairedHistory.validate_settled(source): return {}
-	var candidate: SeasonState=_detached(source,PrivateNextFirstFork)
+	var candidate: SeasonState=_detached(source,PrivateFollowupFork)
 	if candidate==null or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return {}
 	detached_calls+=1
 	projection_calls+=1
