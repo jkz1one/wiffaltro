@@ -4,6 +4,37 @@ extends RefCounted
 ## This localized body is mechanically derived from cp98, not a replacement for
 ## its guards. Future internal callers must independently authenticate context.
 const Frozen=preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+# One exact V4 return request representation. Materialized saves hydrate these
+# wallet-event/held-receipt arrays as JSON numbers. Journal replay builds the
+# same authorized values natively. Hash their V4 representation on both paths,
+# without reading the untrusted report or mutating the gameplay context.
+static func for_materialized_return(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:
+	if state==null or field==null or fixture.get("round")!=1 or fixture.get("id") not in [4,5] or not LeagueRules.doubleheader(state.league_rules): return ""
+	var teams: Array[TeamMatchState]=[state.away_team,state.home_team]
+	for team: TeamMatchState in teams:
+		if team==null or not team.league_ownership.get("events") is Array or (team.ai_budget.has("before") and not team.ai_budget.before is Array): return ""
+	var originals: Array=[]
+	for team: TeamMatchState in teams:
+		originals.append([team.league_ownership,team.ai_tactical_initial,team.ai_budget])
+		var wallet: Dictionary=team.league_ownership.duplicate()
+		wallet.events=_materialized_receipts(wallet.events)
+		var tactics: Array[Dictionary]=[]
+		tactics.assign(_materialized_receipts(team.ai_tactical_initial))
+		var budget: Dictionary=team.ai_budget.duplicate()
+		if budget.has("before"): budget.before=_materialized_receipts(budget.before)
+		team.league_ownership=wallet
+		team.ai_tactical_initial=tactics
+		team.ai_budget=budget
+	var hash: String=for_context(season,fixture,state,field)
+	for side: int in range(2):
+		teams[side].league_ownership=originals[side][0]
+		teams[side].ai_tactical_initial=originals[side][1]
+		teams[side].ai_budget=originals[side][2]
+	return hash
+
+static func _materialized_receipts(value: Array) -> Array:
+	return JSON.parse_string(JSON.stringify(value,"",true,true))
+
 static func for_context(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:
 	var rows: Array = []
 	for team: TeamMatchState in [state.away_team, state.home_team]:

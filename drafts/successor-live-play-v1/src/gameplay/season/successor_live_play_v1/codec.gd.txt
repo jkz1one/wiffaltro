@@ -134,7 +134,9 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
-		if season.round_index==1:
+		if season.round_index==2:
+			if not _pair_settled_shape(season): return false
+		elif season.round_index==1:
 			if not _first_leg_shape(season): return false
 		elif season.round_index==0:
 			if not season.results.is_empty() or not season.player_results.is_empty(): return false
@@ -169,6 +171,24 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	var build: SeasonBuild=season.build
 	return _first_shop_prefix(build)
 
+# Stop at the completed pair, with the single qualified pack and no new shop
+# or later pending. The unchanged paired history gate independently replays it.
+static func _pair_settled_shape(season: SeasonState) -> bool:
+	if season.get_script()!=Runtime or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
+	if season.results.size()!=6 or season.player_results.size()!=2 or season.player_results[0].get("id")!=0 or season.player_results[1].get("id")!=3: return false
+	for index: int in range(6):
+		if season.results[index].get("id")!=index: return false
+	var physical=season.physical
+	if not physical.pending.is_empty() or physical.projecting or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=4 or physical.reports.size()!=4: return false
+	for index: int in range(4):
+		if physical.reports[index].get("fixture")!=[1,2,4,5][index]: return false
+	var build: SeasonBuild=season.build
+	if build._bank==null or build._events.size()!=7 or not _first_shop_journal(build,3): return false
+	if build._events[5].get("op")!="successor_reward" or build._events[5].get("id")!="game:3" or build._events[6].get("op")!="exotic_admit" or build._events[6].get("id")!="exotic:3": return false
+	var bank: Array=build._bank._events
+	if bank.size()!=3 or bank[0].get("op")!="reward" or bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3" or bank[2].get("op")!="reward": return false
+	return whole(build._visit.get("number"),2,2) and build._visit.get("open")==false
+
 const FIRST_SHOP_OPS: Array[String]=["open","pack_open","pack_pick"]
 const FIRST_SHOP_IDS: Array[String]=["shop-open","pair-pack","pair-pick"]
 
@@ -188,26 +208,33 @@ static func first_shop_command(build: SeasonBuild, command: Dictionary, step: in
 
 static func _first_shop_prefix(build: SeasonBuild) -> bool:
 	if build._bank==null or build._events.size()<2 or build._events.size()>5: return false
-	if build._events[0].get("op")!="successor_reward" or build._events[1].get("op")!="exotic_admit" or build._events[1].get("id")!="exotic:0": return false
 	var steps: int=build._events.size()-2
-	for step: int in range(steps):
-		if not first_shop_command(build,build._events[step+2],step): return false
+	if not _first_shop_journal(build,steps): return false
 	var bank: Array=build._bank._events
 	if bank.size()!=(2 if steps>=2 else 1) or bank[0].get("op")!="reward": return false
 	if steps>=2 and (bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3"): return false
 	if not whole(build._visit.get("number"),1,1) or build._visit.get("open")!=(steps>0): return false
 	return steps==0 or build._visit.get("pack_status")==["","sealed","open","used"][steps]
 
-# The paid winner and workload alone do not bind exact human runs. First-leg
-# result retains original Base occupancy: replay its flow and terminal score.
+static func _first_shop_journal(build: SeasonBuild, steps: int) -> bool:
+	if build._events[0].get("op")!="successor_reward" or build._events[1].get("op")!="exotic_admit" or build._events[1].get("id")!="exotic:0": return false
+	for step: int in range(steps):
+		if not first_shop_command(build,build._events[step+2],step): return false
+	return true
+
+# Paid winner/workload alone do not bind exact runs. The human result keeps
+# the original Base occupancy, including its exact final score.
 static func _first_human_score(season: SeasonState) -> bool:
-	var row: Dictionary=season.player_results[0]
+	return _human_score(season,season.player_results[0])
+
+static func _human_score(season: SeasonState, row: Dictionary) -> bool:
 	var side: int=int(row.home if row.away==0 else row.away)
 	var tactics: Variant=row.get("ai_tactics")
-	if not tactics is Dictionary: return false
+	var performance: Variant=row.get("performance")
+	if not tactics is Dictionary or not performance is Dictionary: return false
 	var ai: Variant=tactics.get(str(side))
 	if not ai is Dictionary or ai.get("version")!=5 or not PhysicalBaseEvidence.ended(ai,int(row.away_runs),int(row.home_runs)): return false
-	return PhysicalBaseFlow.valid(ai.base,[season.teams[int(row.away)].roster,season.teams[int(row.home)].roster],row.get("performance",{}))
+	return PhysicalBaseFlow.valid(ai.base,[season.teams[int(row.away)].roster,season.teams[int(row.home)].roster],performance)
 
 
 static func _structural_valid(season: SeasonState) -> bool:
@@ -464,7 +491,9 @@ static func _history_valid(season: SeasonState) -> bool:
 	paired_history_calls+=1
 	if not season.physical.pending.is_empty():
 		return load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").verify_bound(season)
-	return (season.round_index!=1 or _first_human_score(season)) and PairedHistory.validate_settled(season)
+	for row: Dictionary in season.player_results:
+		if not _human_score(season,row): return false
+	return PairedHistory.validate_settled(season)
 
 static func _canonical_named_context(season: SeasonState) -> bool:
 	var expected: Dictionary=Admissions.expected(season.league_rules,season.season_seed)

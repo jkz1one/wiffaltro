@@ -263,16 +263,22 @@ static func prepare_report_and_write(owner: RefCounted, expected: PackedByteArra
 		_projection_value = settled; _projection_raw = snapshot
 	return ticket
 
-## Unbound first-leg settlement. Owns both original pending authentication and
+## Unbound paired settlement. Owns original pending authentication and
 ## independent concrete capture; generic candidate writers cannot admit it.
 static func _prepare_paired_first_settlement(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _prepare_paired_settlement(owner,expected,0)
+
+static func _prepare_paired_return_settlement(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _prepare_paired_settlement(owner,expected,1)
+
+static func _prepare_paired_settlement(owner: RefCounted, expected: PackedByteArray, leg: int) -> RefCounted:
 	forget_projection()
 	last_error=""
-	if saving or _ticket!=null or not match_owner(owner,expected): return null
-	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=0: return null
+	if leg not in [0,1] or saving or _ticket!=null or not match_owner(owner,expected): return null
+	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=leg: return null
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var started: int=Time.get_ticks_msec()
-	var current: SeasonState=projection.materialize_settlement(owner.session)
+	var current: SeasonState=projection.materialize_settlement(owner.session,leg)
 	paired_candidate_ms=Time.get_ticks_msec()-started
 	if current==null: return null
 	var envelope: RefCounted=Owner.new()
@@ -300,7 +306,7 @@ static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteAr
 	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
 	var session: SeasonState=owner.session
 	const General=preload("res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd")
-	if not General._source_public_shop_available(session): return null
+	if session.round_index!=1 or not General._source_public_shop_available(session): return null
 	var step: int=session.build.revision()-2
 	if not Adapter.Ordinary.first_shop_command(session.build,command,step) or session.build._requests.has(command.id): return null
 	var started: int=Time.get_ticks_msec()

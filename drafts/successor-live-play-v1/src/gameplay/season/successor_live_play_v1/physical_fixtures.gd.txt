@@ -124,7 +124,8 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 		var start: MatchState=match_for(season,authored)
 		var authored_field: FieldDefinition=SeasonState.field_for_fixture(authored,season)
 		if start==null or authored_field==null: return ""
-		return preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd").for_context(season,authored,start,authored_field)
+		var composer=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
+		return composer.for_materialized_return(season,authored,start,authored_field) if authored.id in [4,5] else composer.for_context(season,authored,start,authored_field)
 	var field: FieldDefinition = SeasonState.field_for_fixture(fixture, season)
 	if field == null:
 		return ""

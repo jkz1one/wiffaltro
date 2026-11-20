@@ -61,7 +61,10 @@ static func _matches(season: SeasonState, fixture: Dictionary, result: Dictionar
 	state.home_team.pitch_catalog=state.pitch_catalog
 	state.ai_tactical_quality=clampf(0.15 + season.difficulty * 0.25 + minf(int(fixture.round), 9) * 0.025, 0.0, 1.0)
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,season)
-	if field==null or Request.for_context(season,fixture,state,field)!=archive.request: return false
+	if field==null: return false
+	var v4_return: bool=season.get_script()==load("res://src/gameplay/season/successor_live_play_v1/runtime.gd") and season.round_index==2 and game in [4,5]
+	var request: String=Request.for_materialized_return(season,fixture,state,field) if v4_return else Request.for_context(season,fixture,state,field)
+	if request!=archive.request: return false
 	var report: Dictionary=archive.report
 	# matches() invokes the complete frozen valid() before context correspondence.
 	if not Report.matches(report,state): return false

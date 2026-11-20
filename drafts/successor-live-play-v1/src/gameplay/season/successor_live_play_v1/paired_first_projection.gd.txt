@@ -1,5 +1,5 @@
 extends RefCounted
-## Pair boundary verification. Only the first leg can produce settlement.
+## Pair boundary verification and detached concrete settlement construction.
 const Live = preload("codec.gd")
 const GeneralPending = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
 const GeneralOps = preload("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")
@@ -50,8 +50,8 @@ static func npc_job(source: SeasonState, fixture_id: int) -> Dictionary:
 	return _inspect_bound(source,false,true).get("job",{})
 
 # There is no reusable projection token or caller-supplied candidate.
-static func materialize_settlement(source: SeasonState) -> SeasonState:
-	if not Live.scope(source) or source.round_index!=0 or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=2: return null
+static func materialize_settlement(source: SeasonState, leg: int=0) -> SeasonState:
+	if leg not in [0,1] or not Live.scope(source) or source.round_index!=leg or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=2: return null
 	return _inspect_bound(source,true).get("settlement")
 
 static func _inspect_bound(source: SeasonState, produce_settlement: bool = false, preview_job: bool = false) -> Dictionary:
@@ -63,7 +63,7 @@ static func _inspect_bound(source: SeasonState, produce_settlement: bool = false
 	var opening: Dictionary=start(pristine)
 	if opening.is_empty() or not Live.same(opening.binding,pending.binding) or opening.fixture.id!=pending.human[0]: return {}
 	if source.round_index==1:
-		return {} if produce_settlement else _inspect_return(pristine,pending.human,pending.reports,preview_job)
+		return _inspect_return(pristine,pending.human,pending.reports,preview_job,produce_settlement)
 	return _inspect(pristine,pending.human,pending.reports,produce_settlement)
 
 # Frozen Pending queues its already shape-checked archive before recording
@@ -116,9 +116,9 @@ static func return_projection(season: SeasonState) -> bool:
 		if not Live.keys(report,["fixture","request","report"]) or not Live.whole(report.fixture,index+2,index+2): return false
 	return true
 
-# Authenticated first-leg prefix plus ordered return reports. Even terminal
-# replay only yields acceptance; the projected rewards/results never escape.
-static func _inspect_return(source: SeasonState, human: Array, reports: Array, preview_job: bool) -> Dictionary:
+# Authenticated first-leg prefix plus ordered return reports. Only the fixed
+# settlement operation requests concrete construction after complete replay.
+static func _inspect_return(source: SeasonState, human: Array, reports: Array, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if not Live.scope(source) or source.round_index!=1 or source.build.revision()!=5 or not source.physical.pending.is_empty() or reports.size()>2: return {}
 	var shape: Dictionary={"human":human.duplicate(true),"reports":reports.duplicate(true)}
 	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()) or human[0]!=3: return {}
@@ -140,7 +140,8 @@ static func _inspect_return(source: SeasonState, human: Array, reports: Array, p
 	if not Live.same(candidate.build._bank.view().rewards,expected): return {}
 	if reports.size()==2:
 		if projected.has("fixture") or candidate.round_index!=2 or candidate.phase!=SeasonState.Phase.REGULAR or candidate.physical.projecting or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty() or not GeneralPending._receipts(candidate): return {}
-		return {"accepted":true}
+		return _concrete_settlement(candidate) if produce_settlement else {"accepted":true}
+	if produce_settlement: return {}
 	var needed: Dictionary={}
 	for row: Dictionary in SeasonDoubleheaderRules.schedule():
 		if row.id==4+reports.size(): needed=row
@@ -196,17 +197,19 @@ static func _inspect(source: SeasonState, human: Array, reports: Array, produce_
 		# Frozen Pending validates each NPC's exact game receipts on terminal
 		# success. The nonpersistable projection never leaves this method.
 		if projected.has("fixture") or candidate.round_index!=1 or candidate.phase!=SeasonState.Phase.REGULAR or candidate.physical.projecting or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty() or not GeneralPending._receipts(candidate): return {}
-		if not produce_settlement: return {"accepted":true}
-		var concrete: SeasonState=Live.Runtime.new()
-		if not Live.install_fields(concrete,Live.FIELDS,Live.data_fields(candidate,Live.FIELDS)): return {}
-		for key: String in Live.OBJECTS:
-			concrete.set(key,candidate.get(key)) # Objects belong only to the detached projection.
-		if not concrete.career.sync(concrete) or not Live.scope(concrete): return {}
-		return {"settlement":concrete}
+		return _concrete_settlement(candidate) if produce_settlement else {"accepted":true}
 	if candidate.round_index!=0 or not Live.same(projected.get("fixture"),needed): return {}
 	for club: Dictionary in candidate.opponents.clubs.values():
 		if not club.build._bank.view().rewards.is_empty(): return {}
 	return _job(candidate,needed)
+
+static func _concrete_settlement(candidate: SeasonState) -> Dictionary:
+	var concrete: SeasonState=Live.Runtime.new()
+	if not Live.install_fields(concrete,Live.FIELDS,Live.data_fields(candidate,Live.FIELDS)): return {}
+	for key: String in Live.OBJECTS:
+		concrete.set(key,candidate.get(key)) # Objects belong only to the detached projection.
+	if not concrete.career.sync(concrete) or not Live.scope(concrete): return {}
+	return {"settlement":concrete}
 
 static func _job(candidate: SeasonState, needed: Dictionary) -> Dictionary:
 	var state: MatchState=Physical.match_for(candidate,needed)
