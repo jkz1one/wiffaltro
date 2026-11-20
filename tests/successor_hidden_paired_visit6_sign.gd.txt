@@ -84,9 +84,9 @@ func signed_exact(season:SeasonState) -> bool:
 func sealed(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  app._sign_paired_visit6_recruit()
  app._open_paired_visit6_shop()
- app._play_paired_human(6)
+ app._play_paired_human(7)
  app._run_paired_npc(19)
  app._settle_paired_third_return_leg()
  check(Store._prepare_paired_visit6_sign(app.career_owner,bytes)==null and Store._prepare_paired_visit6_sign(app.career_owner.fork(),bytes)==null and not app.commit_shop(EXACT_SIGN),"repeat/replaced owner and public sign stay closed")
  verify_closed(app,bytes,backup)
- check(app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"signed owner cannot open later games, shop, recruit or settlement")
+ check(app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"signed owner cannot open other games, shop, recruit or settlement")

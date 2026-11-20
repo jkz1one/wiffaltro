@@ -129,7 +129,7 @@ func verify_unqualified(app,bytes:PackedByteArray,backup:PackedByteArray) -> voi
  var altered:Dictionary=pending.duplicate(true)
  altered.reports.append(prior)
  check(not Binding.bound_shape(altered) and Store._prepare_paired_report(app.career_owner,bytes,prior,5)==null and Store._prepare_paired_human_checkpoint(app.career_owner,bytes,altered,5)==null,"phase5 cannot add an unauthorized NPC17 report through either Store entry")
- check(Binding.next_npc_fixture(app.season).get("id")==16 and Binding.npc_job(app.season,17).is_empty() and Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null and Binding._round_fixtures(6).is_empty(),"phase5 can expose only NPC16, no NPC17 job, payout or later phase")
+ check(Binding.next_npc_fixture(app.season).get("id")==16 and Binding.npc_job(app.season,17).is_empty() and Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null and Binding.start(app.season).is_empty(),"phase5 can expose only NPC16, no NPC17 job, payout or later phase")
  app._play_paired_third_return()
  app._run_paired_npc(17)
  app._paired_first_shop({"id":"shop-open:13","rev":13,"op":"open"})

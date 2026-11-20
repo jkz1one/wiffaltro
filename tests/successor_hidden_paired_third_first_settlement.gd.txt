@@ -76,7 +76,7 @@ func closed_third_first(app,bytes:PackedByteArray,backup:PackedByteArray) -> voi
  app._run_paired_npc(16)
  app._paired_first_shop({"id":"shop-open:13","rev":13,"op":"open"})
  verify_closed(app,bytes,backup)
- check(Binding._round_fixtures(6).is_empty() and Binding.next_npc_fixture(app.season).is_empty() and Binding.materialize_settlement(app.season,5)==null and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"paid round5 remains sealed against repeat payout, unqualified later play and shop")
+ check(Binding.start(app.season).is_empty() and Binding.next_npc_fixture(app.season).is_empty() and Binding.materialize_settlement(app.season,5)==null and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"paid round5 remains sealed against repeat payout, unqualified later play and shop")
 
 func paid_third_first(season:SeasonState) -> bool:
  if season.round_index!=5 or season.phase!=SeasonState.Phase.REGULAR or season.results.size()!=15 or season.player_results.size()!=5 or season.physical.cursor!=10 or season.physical.reports.size()!=10 or not season.physical.pending.is_empty():return false

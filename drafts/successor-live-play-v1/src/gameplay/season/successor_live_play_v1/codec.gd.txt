@@ -219,6 +219,7 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	elif physical.reports.size()!=prefix: return false
 	if not physical.pending.is_empty() and (season.round_index not in projection.HUMAN_PHASES or not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
 	var build: SeasonBuild=season.build
+	if season.round_index==6 and not physical.pending.is_empty() and not _signed_visit6_journal(build): return false
 	var opened: bool=season.round_index==6 and build.revision() in [16,17]
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
 
@@ -571,6 +572,10 @@ static func _history_valid(season: SeasonState) -> bool:
 	paired_history_calls+=1
 	if not season.physical.pending.is_empty():
 		return load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").verify_bound(season)
+	return _paid_history_valid(season)
+
+# Also consumes the one paid-prefix batch before private pending projection.
+static func _paid_history_valid(season: SeasonState) -> bool:
 	# Only the exact qualified signed envelope uses authenticated pre-reward
 	# rosters; originals/unsigned use the old check and never replay a second time.
 	if season.round_index==6 and _signed_visit6_journal(season.build):
