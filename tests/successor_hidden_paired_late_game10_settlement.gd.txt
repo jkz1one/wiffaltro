@@ -110,5 +110,5 @@ func sealed_semis(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  app._open_paired_late_shop(10)
  app._sign_paired_visit6_recruit()
  verify_closed(app,bytes,backup)
- check(not Binding.settlement_enabled(10) and Binding.npc_job(s,31).is_empty() and Store._prepare_paired_settlement(owner,bytes,9)==null and Store.prepare_and_write(owner,owner.fork(),bytes)==null,"no NPC, duplicate, shop, or generic write capability")
+ check(Binding.materialize_settlement(s,10)==null and Binding.npc_job(s,31).is_empty() and Store._prepare_paired_settlement(owner,bytes,9)==null and Store.prepare_and_write(owner,owner.fork(),bytes)==null,"no NPC, duplicate, shop, or generic write capability")
  check(app.career_owner==owner and app.season==s and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"sealed private bracket performs no activity and keeps both exact bytes")

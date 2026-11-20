@@ -22,7 +22,7 @@ static func human_enabled(round_index: int) -> bool:
 	return round_index==10 or round_index in HUMAN_PHASES or LATE_REGULAR.has(round_index)
 
 static func settlement_enabled(round_index: int) -> bool:
-	return round_index in SETTLEMENT_PHASES or LATE_REGULAR.get(round_index,{}).get("settle",false)
+	return round_index==10 or round_index in SETTLEMENT_PHASES or LATE_REGULAR.get(round_index,{}).get("settle",false)
 
 static func _round_fixtures(round_index: int) -> Dictionary:
 	return Request.authored_phase(round_index) if human_enabled(round_index) else {}
@@ -109,6 +109,9 @@ static func npc_job(source: SeasonState, fixture_id: int) -> Dictionary:
 # There is no reusable projection token or caller-supplied candidate.
 static func materialize_settlement(source: SeasonState, leg: int=0) -> SeasonState:
 	if not settlement_enabled(leg): return null
+	if leg==10:
+		if not Live.scope(source) or source.round_index!=10 or source.phase!=SeasonState.Phase.SEMIFINAL or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=2: return null
+		return _inspect_bound(source,true).get("settlement")
 	var authored: Dictionary=_round_fixtures(leg)
 	if authored.is_empty() or not Live.scope(source) or source.round_index!=leg or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=authored.npc.size(): return null
 	return _inspect_bound(source,true).get("settlement")
@@ -122,7 +125,7 @@ static func _inspect_bound(source: SeasonState, produce_settlement: bool = false
 	var opening: Dictionary=start(pristine)
 	if opening.is_empty() or not Live.same(opening.binding,pending.binding) or opening.fixture.id!=pending.human[0]: return {}
 	if source.round_index==10:
-		return {} if produce_settlement else _inspect_semifinal(pristine,pending,opening.fixture,preview_job)
+		return _inspect_semifinal(pristine,pending,opening.fixture,preview_job,produce_settlement)
 	if source.round_index>=2 and human_enabled(source.round_index):
 		return _inspect_followup(pristine,pending,opening.fixture,preview_job,produce_settlement)
 	if source.round_index==1:
@@ -197,7 +200,7 @@ static func _semifinal_fixtures(season: SeasonState) -> Dictionary:
 	return {"human":human,"other":other} if (human.home==0 or human.away==0) else {}
 
 static func _projected_semifinal_npc(season: SeasonState, fixture: Dictionary) -> Dictionary:
-	if not semifinal_projection(season) or season.phase!=SeasonState.Phase.SEMIFINAL or season.round_index!=10 or season.semifinals.size()!=2 or season.physical.cursor!=20 or season.physical.reports.size() not in [20,21]: return {}
+	if not semifinal_projection(season) or season.phase!=SeasonState.Phase.SEMIFINAL or season.round_index!=10 or season.semifinals.size()!=2 or season.physical.cursor!=20 or season.physical.reports.size() not in [20,21,22]: return {}
 	if season.results.size()!=31 or season.player_results.size()!=11 or season.results[-1].get("id")!=30 or season.player_results[-1].get("id")!=30 or not season.build._bank.view().rewards.has("30"): return {}
 	var saved: Dictionary=season.semifinals[1]
 	if not Live.whole(saved.get("id"),31,31) or not Live.whole(saved.get("round"),10,10) or not Live.whole(saved.get("away"),1,5) or not Live.whole(saved.get("home"),1,5): return {}
@@ -242,7 +245,42 @@ static func _inspect_npc_final(source: SeasonState, candidate: SeasonState, pend
 	if candidate.phase!=SeasonState.Phase.FINAL or candidate.results.size()!=32 or candidate.champion!=-1: return {}
 	return {"accepted":true} # Keep every playoff result and payout unapplied.
 
-static func _inspect_semifinal(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool) -> Dictionary:
+# The owning Store's one terminal operation takes both native reports.
+# Frozen General performs both semifinal and final effects in one fork.
+static func _inspect_postseason_settlement(source: SeasonState, candidate: SeasonState, pending: Dictionary) -> Dictionary:
+	var shape: Dictionary={"human":pending.human,"reports":pending.reports}
+	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return {}
+	var projected: Dictionary=GeneralPending._project_candidate(candidate,shape)
+	if projected.has("error") or projected.has("fixture") or projected.get("candidate")!=candidate or Live.scope(candidate): return {}
+	if candidate.phase!=SeasonState.Phase.COMPLETE or candidate.round_index!=10 or candidate.results.size()!=33 or candidate.player_results.size()!=11 or candidate.physical.projecting or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty() or candidate.physical.cursor!=22: return {}
+	if not Live.same(candidate.results.slice(0,30),source.results) or not Live.same(candidate.player_results.slice(0,10),source.player_results) or not Live.same(candidate.physical.reports,source.physical.reports+pending.reports): return {}
+	if _complete_geometry(candidate).is_empty() or not GeneralPending._receipts(candidate): return {}
+	var human: Dictionary=candidate.player_results[-1]
+	var expected: Dictionary=source.build._bank.view().rewards.duplicate(true)
+	expected["30"]=false
+	if not Live.same(human,candidate.results[30]) or human.away_runs!=pending.human[1] or human.home_runs!=pending.human[2] or not Live.same(candidate.build._bank.view().rewards,expected): return {}
+	return _concrete_settlement(candidate)
+
+# Author the exact finalized geometry from regular standings and actual
+# semifinal winners. Called only on the sealed eliminated-owner format.
+static func _complete_geometry(season: SeasonState) -> Dictionary:
+	if season.phase!=SeasonState.Phase.COMPLETE or season.round_index!=10 or season.results.size()!=33 or season.teams.size()!=6 or not Live._results_valid(season): return {}
+	for team: Dictionary in season.teams:
+		if typeof(team.get("draw")) not in [TYPE_FLOAT,TYPE_INT] or not is_finite(float(team.draw)): return {}
+	var seeds: Array=[]
+	for row: Dictionary in season.standings().slice(0,4): seeds.append(int(row.team))
+	if seeds.size()!=4 or not Live.same(season.playoff_seeds,seeds) or 0 not in [seeds[0],seeds[3]]: return {}
+	var semis: Array=[]
+	for pair: int in range(2): semis.append({"id":30+pair,"round":10,"home":seeds[pair],"away":seeds[3-pair]})
+	if not Live.same(season.semifinals,semis) or season.results[30].get("id")!=30 or season.results[31].get("id")!=31 or season.results[32].get("id")!=32: return {}
+	var winners: Array[int]=[SeasonState._winner(season.results[30]),SeasonState._winner(season.results[31])]
+	if winners.has(0): return {}
+	winners.sort_custom(func(a: int,b: int):return seeds.find(a)<seeds.find(b))
+	var final: Dictionary={"id":32,"round":11,"home":winners[0],"away":winners[1],"neutral":true}
+	if not Live.same(final,season.final_fixture) or season.champion!=SeasonState._winner(season.results[32]): return {}
+	return {"semis":semis,"final":final}
+
+static func _inspect_semifinal(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if fixture.id!=30 or (preview_job and pending.reports.size()==2) or Live._capture_structural(source).is_empty() or not Live._paid_history_valid(source): return {}
 	var bracket: Dictionary=_semifinal_fixtures(source)
 	if bracket.is_empty() or not Live.same(bracket.human,fixture): return {}
@@ -250,6 +288,8 @@ static func _inspect_semifinal(source: SeasonState, pending: Dictionary, fixture
 	if candidate==null or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return {}
 	detached_calls+=1
 	projection_calls+=1
+	if produce_settlement:
+		return _inspect_postseason_settlement(source,candidate,pending) if pending.reports.size()==2 and _unpaid_human_eliminated(pending.human,fixture) else {}
 	if pending.reports.size()==2 or (preview_job and pending.reports.size()==1):
 		return _inspect_npc_final(source,candidate,pending,preview_job) if _unpaid_human_eliminated(pending.human,fixture) else {}
 	var shape: Dictionary={"human":pending.human,"reports":[]}

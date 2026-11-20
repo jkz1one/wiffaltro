@@ -1,0 +1,121 @@
+extends "res://tests/successor_hidden_paired_final_npc.gd"
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var mode:String=args[0]
+ var app=Game10ObservedApp.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ print("CP127_STAGE cold")
+ var started:int=Time.get_ticks_msec()
+ app.reload_save()
+ print("POSTSEASON_COLD_MS=",Time.get_ticks_msec()-started)
+ if mode.begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"corrupt "+mode+" refuses without writes")
+ elif check(app.season!=null and app._owned() and exact(bytes,backup),"exact owner reopened in independent process"):
+  if mode=="settle":
+   if check(history(gates,replays,10) and all_playoff_pending(app.season),"exact unpaid native postseason with ten-round history"):
+    settle_postseason(app,bytes,backup)
+  elif mode=="complete":
+   check(history(gates,replays,11) and postseason_paid(app.season),"full paid COMPLETE, original bracket and exact native incomes")
+   closed_complete(app,bytes,backup)
+  else:check(false,"unexpected proof mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func settle_postseason(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var source:SeasonState=app.season
+ var pending:Dictionary=source.physical.pending.duplicate(true)
+ var pin:Dictionary=Store.RawGuard.capture(owner)
+ check(Store._prepare_paired_settlement(owner.fork(),bytes,10)==null and Store._prepare_paired_settlement(owner,backup,10)==null,"foreign and stale postseason producers refused")
+ app._settle_paired_late_regular()
+ check(app.retained==null and exact(bytes,backup),"old regular producer cannot settle postseason")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"hold isolated write"):return
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ var resolutions:int=Live.Physical.resolve_calls
+ print("CP127_STAGE candidate")
+ var started:int=Time.get_ticks_msec()
+ app._settle_paired_postseason()
+ print("POSTSEASON_CANDIDATE_MS=",Store.paired_candidate_ms," ADMISSION_MS=",Store.paired_admission_ms," TOTAL_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained!=null and app.retained.get_script()==Live.Runtime,"owned exact concrete COMPLETE season prepared"):return
+ var target:SeasonState=app.retained
+ check(Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-replays==12 and PairHistory.historical_humans_checked==11 and Live.Physical.resolve_calls-resolutions==2,"one native postseason projection uses two original reports and one independent full paid batch")
+ check(postseason_paid(target) and Live.same(target.results.slice(0,30),source.results) and Live.same(target.player_results.slice(0,10),source.player_results) and Live.same(target.physical.reports,source.physical.reports+pending.reports),"history fixed and exact native postoperative suffix only")
+ var result:Dictionary=target.player_results[-1]
+ check(Live.same(result.performance,pending.human[3]) and Live.same(result.pitching_current,pending.human[9]) and Live.same(result.doubleheader_evidence,pending.human[13]),"actual human called, roster and workload proof preserved")
+ app._settle_paired_postseason()
+ check(app.retained==target and app.season==source and app.career_owner==owner and Store.RawGuard.matches(owner,pin) and exact(bytes,backup),"held duplicate keeps old active owner and both slots exact")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only isolated obstruction"):return
+ gates=Live.paired_history_calls;replays=PairHistory.Collector.replay_calls
+ print("CP127_STAGE retry")
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("POSTSEASON_RETRY_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==target and Live.paired_history_calls==gates and PairHistory.Collector.replay_calls==replays and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes and Store.RawGuard.matches(owner,pin),"held retry commits exact once-only native effects without another validation"):return
+ closed_complete(app,Store.raw(),bytes)
+
+func postseason_paid(season:SeasonState) -> bool:
+ if not Live._completed_postseason_shape(season) or Binding._complete_geometry(season).is_empty():return false
+ if season.champion!=3 or not Live.same(season.playoff_seeds,[0,4,1,3]) or not Live.same(season.final_fixture,{"id":32,"round":11,"away":3,"home":4,"neutral":true}):return false
+ if not Live.same(season.results.slice(30).map(func(row):return [row.id,row.away_runs,row.home_runs]),[[30,8,2],[31,3,13],[32,1,0]]):return false
+ var own:SeasonBuild=season.build
+ if own.roster()[1]!=RECRUIT or own.roster().has(RELEASED) or not Live.same(own.roster_for_game(30),own.roster()) or own.player("player.mika_reed").stats.fielding!=SeasonPlayerCatalog.profile("player.mika_reed").stats.fielding+1:return false
+ var receipts:Array=[]
+ for club:int in range(6):
+  var build:SeasonBuild=own if club==0 else season.opponents.clubs[str(club)].build
+  var expected:Dictionary={}
+  for result:Dictionary in season.results.slice(30):
+   if result.away==club or result.home==club:expected[str(int(result.id))]=SeasonState._winner(result)==club
+  var rewarded:Dictionary={}
+  for written:Dictionary in build._events:
+   if written.get("op")!="successor_reward":continue
+   var command:Dictionary=Reward.unwrap(written)
+   if int(command.get("game",-1))<30:continue
+   var game:String=str(int(command.game))
+   if rewarded.has(game) or not expected.has(game) or command.win!=expected[game]:return false
+   var side:int=0 if season.results[int(game)].away==club else 1
+   if not Live.same(command.doubleheader_workload.pair,{"game":int(game),"first":-1,"debt":{}}) or not Live.same(command.doubleheader_workload,season.results[int(game)].doubleheader_evidence[side]):return false
+   rewarded[game]=command.win
+  if not Live.same(rewarded,expected):return false
+  var bank:SeasonOwnership=build._bank.empty_fork()
+  var found:Dictionary={}
+  for event:Dictionary in build._bank._events:
+   var before:int=bank.cash()
+   var prior:Dictionary=bank.view().rewards.duplicate(true)
+   var outcome:Dictionary=bank.commit(event)
+   if not outcome.ok or outcome.replayed:return false
+   var id:int=int(event.get("game",-1))
+   if event.op!="reward" or id<30:continue
+   var key:String=str(id)
+   if found.has(key) or not expected.has(key) or event.id!="game:"+key or event.win!=expected[key]:return false
+   var bonus:int=SeasonDoubleheaderRules.bonus(season.league_rules,id,event.win,prior)
+   var payout:int=bank.cash()-before
+   if bonus!=0 or payout!=(18 if event.win else 12):return false
+   if club==0 and (before!=146 or own.cash()!=before+payout):return false
+   receipts.append([club,id,event.win,payout,bonus])
+   found[key]=event.win
+  if not Live.same(found,expected) or not Live.same(bank.view(),build._bank.view()):return false
+ print("POSTSEASON_NATIVE_RECEIPTS=",JSON.stringify(receipts)," HUMAN_CASH=",own.cash()," CHAMPION=",season.champion)
+ return receipts.size()==6
+
+func closed_complete(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var source:SeasonState=app.season
+ var owner=app.career_owner
+ app._settle_paired_postseason()
+ app._play_paired_human(10)
+ app._run_paired_npc(32)
+ app._open_paired_late_shop(10)
+ app.close_current("complete")
+ verify_closed(app,bytes,backup)
+ var trial=owner.fork()
+ check(Store._prepare_paired_settlement(owner,bytes,10)==null and Store.prepare_and_write(owner,trial,bytes)==null and not owner.playable(),"terminal season only: no duplicate, generic write or play")
+ check(trial!=null and not trial.close_current("complete") and not trial.propose_next(1002) and not trial.commit_next() and trial.lifecycle_status()=="active","actual lifecycle writers refuse the sealed postseason without changing state")
+ check(app.season==source and app.career_owner==owner and app.retained==null and not is_instance_valid(app.ai_runner) and not is_instance_valid(app.lab) and exact(bytes,backup),"terminal owner/both slots exact")

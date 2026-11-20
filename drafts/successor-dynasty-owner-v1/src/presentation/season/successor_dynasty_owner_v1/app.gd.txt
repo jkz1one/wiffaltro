@@ -307,9 +307,16 @@ func _settle_paired_fourth_first_leg() -> void:
 
 # Unbound late regular settlement uses the authored current owner phase only.
 func _settle_paired_late_regular() -> void:
-	if not _available() or not _owned() or not career_owner.paired_draft_only() or season.round_index<7 or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or season.round_index not in [7,8,9] or not retained_report.is_empty() or is_instance_valid(ai_runner): return
 	var expected: PackedByteArray=saved_bytes.duplicate()
 	var ticket: RefCounted=Store._prepare_paired_settlement(career_owner,expected,season.round_index)
+	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
+# One private native postseason transaction. Lifecycle/progression do not use it.
+func _settle_paired_postseason() -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or season.phase!=SeasonState.Phase.SEMIFINAL or season.round_index!=10 or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	var expected: PackedByteArray=saved_bytes.duplicate()
+	var ticket: RefCounted=Store._prepare_paired_settlement(career_owner,expected,10)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
 # Unbound private earned-pack continuation; normal shop remains inaccessible.

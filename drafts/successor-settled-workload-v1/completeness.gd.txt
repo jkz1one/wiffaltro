@@ -1,5 +1,5 @@
 extends RefCounted
-## Exact Base draft/regular prefix and sealed pre-semifinal boundary only.
+## Exact Base draft/regular prefix and exact sealed postseason boundaries.
 const D = "res://src/gameplay/season/successor_league_general_v2/"
 const Build = preload(D + "build.gd")
 const Reward = preload(D + "reward.gd")
@@ -12,20 +12,28 @@ static func verify(season: SeasonState) -> bool:
 	var draft: bool=season.phase==SeasonState.Phase.DRAFT
 	var rounds: int=season.round_index
 	var sealed: bool=rounds==10 and season.phase==SeasonState.Phase.SEMIFINAL and season.get_script()==load("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
-	if not sealed and (not draft and season.phase!=SeasonState.Phase.REGULAR): return false
-	if not sealed and (not season.semifinals.is_empty() or not season.playoff_seeds.is_empty() or not season.final_fixture.is_empty() or season.champion!=-1): return false
-	if rounds<0 or rounds>(10 if sealed else 9) or (draft and rounds!=0): return false
+	var complete: bool=rounds==10 and season.phase==SeasonState.Phase.COMPLETE and season.get_script()==load("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+	if not complete and not sealed and (not draft and season.phase!=SeasonState.Phase.REGULAR): return false
+	if not complete and not sealed and (not season.semifinals.is_empty() or not season.playoff_seeds.is_empty() or not season.final_fixture.is_empty() or season.champion!=-1): return false
+	if rounds<0 or rounds>(10 if sealed or complete else 9) or (draft and rounds!=0): return false
 	if draft and (season.picks.size()>=4 or not season.opponents.clubs.is_empty()): return false
 	if not draft and (season.picks.size()!=4 or not SeasonOwnership._keys(season.opponents.clubs,["1","2","3","4","5"])): return false
 	var schedule=SeasonDoubleheaderRules.schedule()
-	if not ClubCareer.same(season.schedule,schedule) or season.results.size()!=rounds*3: return false
+	var count: int=33 if complete else rounds*3
+	if not ClubCareer.same(season.schedule,schedule) or season.results.size()!=count: return false
 	var fixtures: Dictionary={}
 	for fixture: Dictionary in schedule: fixtures[int(fixture.id)]=fixture
+	if complete:
+		if not season.physical.pending.is_empty(): return false
+		var binding=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+		var playoff: Dictionary=binding._complete_geometry(season)
+		if playoff.is_empty(): return false
+		for fixture: Dictionary in playoff.semis+[playoff.final]: fixtures[fixture.id]=fixture
 	var played: Dictionary={}
 	var expected: Dictionary={}
 	for club: int in range(1 if draft else 6): expected[str(club)]={}
 	for row: Dictionary in season.results:
-		if not SeasonOwnership._whole(row.get("id"),0,rounds*3-1): return false
+		if not SeasonOwnership._whole(row.get("id"),0,count-1): return false
 		var game: int=int(row.id)
 		if played.has(game): return false
 		var fixture: Dictionary=fixtures[game]
@@ -35,7 +43,7 @@ static func verify(season: SeasonState) -> bool:
 		played[game]=row
 		expected[str(fixture.away)][str(game)]=row.away_runs>row.home_runs
 		expected[str(fixture.home)][str(game)]=row.home_runs>row.away_runs
-	if season.player_results.size()!=rounds: return false
+	if season.player_results.size()!=(11 if complete else rounds): return false
 	# Geometry and score ranges are established above before native standings.
 	if sealed:
 		for team: Dictionary in season.teams:
@@ -44,7 +52,7 @@ static func verify(season: SeasonState) -> bool:
 		if not binding._unplayed_semifinals(season): return false
 	var human_seen: Dictionary={}
 	for row: Dictionary in season.player_results:
-		if not SeasonOwnership._whole(row.get("id"),0,29): return false
+		if not SeasonOwnership._whole(row.get("id"),0,30 if complete else 29): return false
 		var game: int=int(row.id)
 		if not played.has(game) or human_seen.has(game) or (played[game].away!=0 and played[game].home!=0) or not ClubCareer.same(row,played[game]): return false
 		human_seen[game]=true
@@ -60,19 +68,19 @@ static func verify(season: SeasonState) -> bool:
 		if not holder is Dictionary: return false
 		var full: Variant=season.build if club=="0" else holder.get("build")
 		if not full is SeasonBuild or full.get_script()!=Build or full._bank==null or not ClubCareer.same(full._league_rules,season.league_rules) or SeasonInventoryRules.closed(full): return false
-		if not _payouts(full,expected[club],club=="0"): return false
+		if not _payouts(full,expected[club],club=="0",32 if complete else 29): return false
 		# Nonempty prefixes are fully authenticated by Collector, once/club,
 		# immediately after this pure set check. Empty has no snapshot requests.
 		if rounds==0 and not _authenticate_empty(full): return false
 	return true
 
-static func _payouts(full: SeasonBuild, expected: Dictionary, human: bool) -> bool:
+static func _payouts(full: SeasonBuild, expected: Dictionary, human: bool,max_game: int) -> bool:
 	var wrapped: Dictionary={}
 	for event: Dictionary in full._events:
 		if event.get("op")=="reward": return false # Legacy unwrapped row.
 		if event.get("op")!="successor_reward": continue # Includes legitimate unpaid pregame.
 		var command: Dictionary=Reward.unwrap(event)
-		if not SeasonOwnership._whole(command.get("game"),0,29): return false
+		if not SeasonOwnership._whole(command.get("game"),0,max_game): return false
 		var game: String=str(int(command.game))
 		if wrapped.has(game) or not expected.has(game) or not command.get("win") is bool or command.win!=expected[game]: return false
 		if command.id!=("game:"+game if human else "ai:%d"%int(command.rev)): return false
@@ -80,7 +88,7 @@ static func _payouts(full: SeasonBuild, expected: Dictionary, human: bool) -> bo
 	var paid: Dictionary={}
 	for event: Dictionary in full._bank._events:
 		if event.get("op")!="reward": continue # Grants/refunds are not fixtures.
-		if not SeasonOwnership._whole(event.get("game"),0,29): return false
+		if not SeasonOwnership._whole(event.get("game"),0,max_game): return false
 		var game: String=str(int(event.game))
 		if paid.has(game) or not expected.has(game) or event.get("id")!="game:"+game or not event.get("win") is bool or event.win!=expected[game]: return false
 		paid[game]=event.win
