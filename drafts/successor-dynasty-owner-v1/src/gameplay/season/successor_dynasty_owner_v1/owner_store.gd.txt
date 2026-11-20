@@ -377,7 +377,7 @@ static func _prepare_paired_next_return_report(owner: RefCounted, expected: Pack
 static func _prepare_paired_third_first_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
 	return _prepare_paired_report(owner,expected,report,4)
 
-static func _prepare_paired_third_return_first_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
+static func _prepare_paired_third_return_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
 	return _prepare_paired_report(owner,expected,report,5)
 
 static func _prepare_paired_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary, round_index: int) -> RefCounted:

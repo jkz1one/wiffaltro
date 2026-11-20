@@ -9,7 +9,7 @@ const PairedHistory = preload("res://src/gameplay/season/successor_settled_workl
 
 # Geometry is reusable; only these exact private phases are qualified.
 const HUMAN_PHASES: Array[int]=[0,1,2,3,4,5]
-const REPORT_PHASES: Array[int]=[0,1,2,3,4]
+const REPORT_PHASES: Array[int]=[0,1,2,3,4,5]
 const SETTLEMENT_PHASES: Array[int]=[0,1,2,3,4]
 
 static func _round_fixtures(round_index: int) -> Dictionary:
@@ -17,7 +17,6 @@ static func _round_fixtures(round_index: int) -> Dictionary:
 
 # Qualified report count is independent of the authored number of NPC games.
 static func report_limit(round_index: int) -> int:
-	if round_index==5: return 1
 	return 2 if round_index in REPORT_PHASES else 0
 
 static func bound_shape(value: Variant) -> bool:

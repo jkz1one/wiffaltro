@@ -676,7 +676,7 @@ func _checkpoint_report() -> void:
 				2: paired_ticket=Store._prepare_paired_next_first_report(career_owner,expected,row)
 				3: paired_ticket=Store._prepare_paired_next_return_report(career_owner,expected,row)
 				4: paired_ticket=Store._prepare_paired_third_first_report(career_owner,expected,row)
-				5: paired_ticket=Store._prepare_paired_third_return_first_report(career_owner,expected,row)
+				5: paired_ticket=Store._prepare_paired_third_return_report(career_owner,expected,row)
 			if paired_ticket!=null: _retain_prepared(paired_ticket,Store.prepared_candidate(paired_ticket),expected)
 			return
 		var candidate: SeasonState=_clone()

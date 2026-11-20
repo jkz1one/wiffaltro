@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Play NPC16 only from the exact human15 output of the cp126 reproducer.
+"""Play one exact private third-pair NPC. The default is slot16.
 
-Supply that --fixture-stage and the cp121 --paid-stage for Standard.
-One launch, independent cold after its write, two targeted negatives.
-A stage timeout is fatal and never relaunches. --completed-stage runs
-only cold checks on the exact pinned durable output already played. The callback saves the native
-report/request/owner binding in disposable local scratch before admission.
-"""
+For --fixture 16 supply cp126 --fixture-stage (human15 only). For --fixture
+17 supply cp127 --fixture-stage (human15 and the genuine NPC16 report).
+--paid-stage is the cp121 pinned Standard cold control. --completed-stage
+runs only cold checks on the exact retained output for the requested game.
+Every phase is bounded; never relaunch or rerun a captured report. Actual
+runner evidence is retained locally before the App admits it."""
 import argparse
 import hashlib
+import json
 from pathlib import Path
 import os
 import selectors
@@ -32,7 +33,9 @@ TEST = 'successor_hidden_paired_third_return_first_npc'
 BUDGET = {'startup':30, 'cold':180, 'launch':210, 'physics':180, 'admission':210, 'retry':30}
 OUTER = 800
 NPC16 = ('a9eac8d14d29f5e89444b46c4714e1f0e87883d6568707f6f717e32e746e15d9', HUMAN15[0])
-RUNNER_EVIDENCE = '30215c9a2ca00893476bf3900c864ab43769e9fcca06975e629eee6e9e07c337'
+RUNNER_EVIDENCE16 = '30215c9a2ca00893476bf3900c864ab43769e9fcca06975e629eee6e9e07c337'
+NPC17 = ('ca9ed64d314242779508277e346dad726812231ac810940e063765eae9453aa2', NPC16[0])
+RUNNER_EVIDENCE17 = '6502f3e64694be17e2a2b6c7ccd6877b75be09c1188258998b7327cfa74545ac'
 
 
 def native(project, home, mode, godot):
@@ -70,7 +73,7 @@ def native(project, home, mode, godot):
                     stage_started=time.monotonic()
         assert process.wait(timeout=5)==0 and 'CP127_PASS' in parts
         assert not any('ERROR:' in row or row.startswith('CP127_RUNNER_FAILED') for row in parts)
-        expected=['cold','launch','physics','admission','retry'] if mode=='play' else ['cold']
+        expected=['cold','launch','physics','admission','retry'] if mode.startswith('play') else ['cold']
         assert phases==expected
     finally:
         selector.close()
@@ -85,6 +88,7 @@ def native(project, home, mode, godot):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--fixture',choices=(16,17),type=int,default=16)
     parser.add_argument('--fixture-stage',required=True,type=Path)
     parser.add_argument('--paid-stage',required=True,type=Path)
     parser.add_argument('--completed-stage',type=Path)
@@ -93,12 +97,14 @@ def main():
     godot=shutil.which(args.godot)
     if godot is None:
         parser.error('Godot unavailable')
-    origin=args.fixture_stage.resolve()/'third-return'/draft.SLOT
+    job=args.fixture
+    prior='third-return' if job==16 else 'third-return-npc16'
+    origin=args.fixture_stage.resolve()/prior/draft.SLOT
     standard_path=args.paid_stage.resolve()/'standard'/draft.SLOT
-    starter=verify_fixture(slot_pair(origin),HUMAN15)
+    starter=verify_fixture(slot_pair(origin),HUMAN15 if job==16 else NPC16)
     standard=verify_fixture(slot_pair(standard_path),STANDARD)
     repo=Path(__file__).resolve().parents[1]
-    root=Path(tempfile.mkdtemp(prefix='wiffaltro-third-return-npc16-'))
+    root=Path(tempfile.mkdtemp(prefix=f'wiffaltro-third-return-npc{job}-'))
     print('Retained disposable local stage:',root,flush=True)
     project=draft.stage(repo,root/'engine',(repo/'tests'/(draft.TEST+'.gd.txt')).read_bytes(),godot)
     dependencies=(TEST,'successor_hidden_paired_third_return','successor_hidden_paired_third_first_settlement',
@@ -111,31 +117,37 @@ def main():
     (project/'tests'/(TEST+'.tscn')).write_text(
         '[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" path="res://tests/'
         + TEST + '.gd" id="1"]\n[node name="Proof" type="Node"]\nscript = ExtResource("1")\n')
-    home=root/'third-return-npc16'
-    completed=args.completed_stage.resolve()/'third-return-npc16'/draft.SLOT if args.completed_stage else None
-    primary=install(home,verify_fixture(slot_pair(completed),NPC16) if completed else starter)
+    phase=f'third-return-npc{job}'
+    home=root/phase
+    completed=args.completed_stage.resolve()/phase/draft.SLOT if args.completed_stage else None
+    primary=install(home,verify_fixture(slot_pair(completed),NPC16 if job==16 else NPC17) if completed else starter)
     if not completed:
-        native(project,home,'play',godot)
+        native(project,home,f'play{job}',godot)
     durable=slot_pair(primary)
     assert durable[1]==starter[0]
-    print('DURABLE NPC16',hashlib.sha256(durable[0]).hexdigest(),flush=True)
-    report_path=(completed or primary).parent/'npc16-runner-report.local'
+    print(f'DURABLE NPC{job}',hashlib.sha256(durable[0]).hexdigest(),flush=True)
+    report_path=(completed or primary).parent/f'npc{job}-runner-report.local'
     assert report_path.is_file()
     report_hash=hashlib.sha256(report_path.read_bytes()).hexdigest()
     if completed:
-        assert report_hash==RUNNER_EVIDENCE
+        assert report_hash==(RUNNER_EVIDENCE16 if job==16 else RUNNER_EVIDENCE17)
     text=durable[0].decode()
     marker='"pending":'
     value,raw=raw_value(text,marker)
     _, reports=raw_value(raw,'"reports":')
-    assert [row['fixture'] for row in value['reports']]==[16]
-    assert once(text,marker+raw,marker+once(raw,'"reports":'+reports,'"reports":[]')).encode()==starter[0]
+    _, previous_raw=raw_value(starter[0].decode(),marker)
+    _, previous_reports=raw_value(previous_raw,'"reports":')
+    assert [row['fixture'] for row in value['reports']]==list(range(16,job+1))
+    if job==17:
+        _, end=json.JSONDecoder().raw_decode(reports,1)
+        assert reports[1:end]==previous_reports[1:-1]
+    assert once(text,marker+raw,marker+once(raw,'"reports":'+reports,'"reports":'+previous_reports)).encode()==starter[0]
     cold=root/'cold'
     cold_path=install(cold,durable)
-    native(project,cold,'cold',godot)
+    native(project,cold,f'cold{job}',godot)
     assert slot_pair(cold_path)==durable and not (cold_path.parent/report_path.name).exists()
     faults={
-        'request':once(text,value['reports'][0]['request'],'0'*64),
+        'request':once(text,value['reports'][-1]['request'],'0'*64),
         'fixture17':once(text,marker+raw,marker+once(raw,reports,reports.replace('"fixture":16','"fixture":17',1))),
     }
     for name, changed in faults.items():
@@ -153,7 +165,7 @@ def main():
     if completed:
         assert slot_pair(completed)==durable
     assert hashlib.sha256(report_path.read_bytes()).hexdigest()==report_hash
-    print('PASS: real private NPC16 only, own carried debt, held retry, independent cold, no payout, Standard exact')
+    print(f'PASS: real private NPC{job} only, own carried debt, held retry, independent cold, no payout, Standard exact')
 
 
 if __name__=='__main__':
