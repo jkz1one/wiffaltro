@@ -1,5 +1,5 @@
 extends RefCounted
-## First-leg verification and detached concrete settlement production. Never publishes.
+## Pair boundary verification. Only the first leg can produce settlement.
 const Live = preload("codec.gd")
 const GeneralPending = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
 const GeneralOps = preload("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")
@@ -8,7 +8,8 @@ const Request = preload("res://src/gameplay/season/successor_request_composition
 const PairedHistory = preload("res://src/gameplay/season/successor_settled_workload_v1/validator.gd")
 
 static func bound_shape(value: Variant) -> bool:
-	if not Live.keys(value,["human","reports","binding"]) or not value.human is Array or not value.reports is Array or value.reports.size()>2: return false
+	if not Live.keys(value,["human","reports","binding"]) or not value.human is Array or value.human.size()!=14 or not value.reports is Array or value.reports.size()>2: return false
+	if not Live.whole(value.human[0],0,0) and not (Live.whole(value.human[0],3,3) and value.reports.is_empty()): return false
 	for index: int in range(value.reports.size()):
 		var row: Variant=value.reports[index]
 		if not Live.keys(row,["fixture","request","report"]) or not Live.whole(row.fixture,index+1,index+1) or not row.request is String or row.request.length()!=64 or not row.request.is_valid_hex_number(false) or not row.report is Dictionary: return false
@@ -16,24 +17,25 @@ static func bound_shape(value: Variant) -> bool:
 	return Live.keys(binding,["version","request"]) and Live.whole(binding.version,1,1) and binding.request is String and binding.request.length()==64 and binding.request.is_valid_hex_number(false)
 
 static func start(source: SeasonState) -> Dictionary:
-	if not Live.scope(source) or not Live.same(source.league_rules,LeagueRules.capture("doubleheader")) or source.phase!=SeasonState.Phase.REGULAR or source.round_index!=0 or source.picks.size()!=4 or not source.physical.pending.is_empty(): return {}
+	if not Live.scope(source) or not Live.same(source.league_rules,LeagueRules.capture("doubleheader")) or source.phase!=SeasonState.Phase.REGULAR or source.round_index not in [0,1] or source.picks.size()!=4 or not source.physical.pending.is_empty(): return {}
+	if source.round_index==1 and source.build.revision()!=5: return {}
 	# Saved JSON hydrates whole IDs as floats. Bind to the semantically equal
 	# frozen-authored row so warm and cold hash exactly the same primitives.
 	var pending: Dictionary=source.pending_fixture()
-	if pending.is_empty() or not Live.whole(pending.get("id"),0,2): return {}
+	if pending.is_empty() or not Live.whole(pending.get("id"),source.round_index*3,source.round_index*3): return {}
 	var fixture: Dictionary={}
 	for authored: Dictionary in SeasonDoubleheaderRules.schedule():
 		if authored.id==pending.id and Live.same(authored,pending):
 			fixture=authored
 			break
-	if fixture.is_empty() or fixture.round!=0 or SeasonDoubleheaderRules.first(fixture.id)!=-1: return {}
+	if fixture.is_empty() or fixture.round!=source.round_index or SeasonDoubleheaderRules.first(fixture.id)!=(-1 if source.round_index==0 else 0): return {}
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,source)
 	var state: MatchState=GeneralOps._source_public_make_match(source)
 	if field==null or state==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence(): return {}
 	var hash: String=Request.for_context(source,fixture,state,field)
 	if hash.is_empty(): return {}
 	var club: TeamMatchState=state.home_team if fixture.home==0 else state.away_team
-	var live: Dictionary={"format":"private-first-human-start-v1","request":hash,"equipped":state.gear_usage.equipped,"held":club.tactics.held,"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,"track_walks":club.tactics.track_walks}
+	var live: Dictionary={"format":"private-first-human-start-v1" if source.round_index==0 else "private-return-human-start-v1","request":hash,"equipped":state.gear_usage.equipped,"held":club.tactics.held,"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,"track_walks":club.tactics.track_walks}
 	return {"state":state,"field":field,"fixture":fixture.duplicate(true),"binding":{"version":1,"request":JSON.stringify(live,"",true,true).sha256_text()}}
 
 static func verify_bound(source: SeasonState) -> bool:
@@ -41,12 +43,12 @@ static func verify_bound(source: SeasonState) -> bool:
 
 # Only a detached match start is returned, never the projected season/payout.
 static func npc_job(source: SeasonState, fixture_id: int) -> Dictionary:
-	if fixture_id not in [1,2] or not Live.scope(source) or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=fixture_id-1: return {}
+	if fixture_id not in [1,2] or not Live.scope(source) or source.round_index!=0 or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=fixture_id-1: return {}
 	return _inspect_bound(source).get("job",{})
 
 # There is no reusable projection token or caller-supplied candidate.
 static func materialize_settlement(source: SeasonState) -> SeasonState:
-	if not Live.scope(source) or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=2: return null
+	if not Live.scope(source) or source.round_index!=0 or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=2: return null
 	return _inspect_bound(source,true).get("settlement")
 
 static func _inspect_bound(source: SeasonState, produce_settlement: bool = false) -> Dictionary:
@@ -56,7 +58,9 @@ static func _inspect_bound(source: SeasonState, produce_settlement: bool = false
 	if pristine==null: return {}
 	pristine.physical.pending.clear()
 	var opening: Dictionary=start(pristine)
-	if opening.is_empty() or not Live.same(opening.binding,pending.binding): return {}
+	if opening.is_empty() or not Live.same(opening.binding,pending.binding) or opening.fixture.id!=pending.human[0]: return {}
+	if source.round_index==1:
+		return {"accepted":true} if not produce_settlement and _inspect_return(pristine,pending.human) else {}
 	return _inspect(pristine,pending.human,pending.reports,produce_settlement)
 
 # Frozen Pending queues its already shape-checked archive before recording
@@ -95,6 +99,51 @@ class PrivateFirstFork extends "res://src/gameplay/season/successor_live_play_v1
 	func record_doubleheader_result(human: Array) -> bool:
 		return load("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")._source_public_record_doubleheader_result(self,human)
 
+class PrivateReturnFork extends PrivateFirstFork:
+	pass
+
+static func return_projection(season: SeasonState) -> bool:
+	return season!=null and season.get_script()==PrivateReturnFork and season.physical!=null and season.physical.projecting and season.physical.pending.is_empty()
+
+# Original General projection stops at NPC4. Do not construct it or publish
+# the projected human receipt. The only durable result here is pending evidence.
+static func _inspect_return(source: SeasonState, human: Array) -> bool:
+	if not Live.scope(source) or source.round_index!=1 or source.build.revision()!=5 or not source.physical.pending.is_empty(): return false
+	var shape: Dictionary={"human":human.duplicate(true),"reports":[]}
+	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()) or human[0]!=3: return false
+	if Live._capture_structural(source).is_empty() or not Live._first_human_score(source) or not PairedHistory.validate_settled(source): return false
+	var candidate: SeasonState=_detached(source,PrivateReturnFork)
+	if candidate==null or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return false
+	detached_calls+=1
+	projection_calls+=1
+	var projected: Dictionary=GeneralPending._project_candidate(candidate,shape)
+	if projected.has("error") or projected.get("candidate")!=candidate or Live.scope(candidate): return false
+	var needed: Dictionary={}
+	for row: Dictionary in SeasonDoubleheaderRules.schedule():
+		if row.id==4: needed=row
+	if not Live.same(projected.get("fixture"),needed) or candidate.round_index!=1 or candidate.results.size()!=4 or candidate.player_results.size()!=2: return false
+	if not Live.same(candidate.results.slice(0,3),source.results) or not Live.same(candidate.player_results[0],source.player_results[0]) or candidate.player_results[1].get("id")!=3: return false
+	if candidate.physical.cursor!=2 or not Live.same(candidate.physical.reports,source.physical.reports): return false
+	var expected: Dictionary=source.build._bank.view().rewards.duplicate(true)
+	var result: Dictionary=candidate.player_results[1]
+	expected["3"]=(human[2]>human[1])==(result.home==0)
+	if not Live.same(candidate.build._bank.view().rewards,expected): return false
+	for club: String in source.opponents.clubs:
+		if not Live.same(candidate.opponents.clubs[club].build._bank.view().rewards,source.opponents.clubs[club].build._bank.view().rewards): return false
+	return true
+
+static func _detached(source: SeasonState, type: Script) -> SeasonState:
+	var old: SeasonState=source.fork_live()
+	if old==null: return null
+	var candidate: SeasonState=type.new()
+	if not Live.install_fields(candidate,Live.FIELDS,Live.data_fields(old,Live.FIELDS)): return null
+	for key: String in Live.OBJECTS:
+		candidate.set(key,old.get(key))
+	if candidate.build==source.build or candidate.ownership==source.ownership or candidate.physical==source.physical or candidate.career==source.career or candidate.opponents==source.opponents: return null
+	for club: String in source.opponents.clubs:
+		if candidate.opponents.clubs[club].build==source.opponents.clubs[club].build: return null
+	return candidate
+
 static func verify(source: SeasonState, human: Array) -> bool:
 	return not _inspect(source,human,[]).is_empty()
 
@@ -113,16 +162,8 @@ static func _inspect(source: SeasonState, human: Array, reports: Array, produce_
 	if reports.size()<2 and (needed.is_empty() or needed.away==0 or needed.home==0): return {}
 	# Full structural+history authentication in this call, not a caller flag.
 	if Live._capture_structural(source).is_empty() or not PairedHistory.validate_settled(source): return {}
-	var old: SeasonState=source.fork_live()
-	if old==null: return {}
-	var candidate: SeasonState=PrivateFirstFork.new()
-	if not Live.install_fields(candidate,Live.FIELDS,Live.data_fields(old,Live.FIELDS)): return {}
-	for key: String in Live.OBJECTS:
-		candidate.set(key,old.get(key))
-	if candidate.build==source.build or candidate.ownership==source.ownership or candidate.physical==source.physical or candidate.career==source.career or candidate.opponents==source.opponents: return {}
-	for club: String in source.opponents.clubs:
-		if candidate.opponents.clubs[club].build==source.opponents.clubs[club].build: return {}
-	if not candidate.league_context_consistent() or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return {}
+	var candidate: SeasonState=_detached(source,PrivateFirstFork)
+	if candidate==null or not candidate.league_context_consistent() or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return {}
 	detached_calls+=1
 	projection_calls+=1
 	var projected: Dictionary=GeneralPending._project_candidate(candidate,shape)

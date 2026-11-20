@@ -138,10 +138,16 @@ func _create_paired_draft(seed_value: int) -> void:
 	_busy=false
 	if candidate!=null: _retain_envelope(candidate,PackedByteArray())
 
-# Unbound, first human only. The normal play/finish/resume actions remain closed.
+# Unbound human first/return fixtures. Normal play/finish/resume remains closed.
 var _paired_first_pin: Dictionary={}
 func _play_paired_first() -> void:
-	if not _available() or not _owned() or not career_owner.paired_draft_only(): return
+	_play_paired_human(0)
+
+func _play_paired_return() -> void:
+	_play_paired_human(1)
+
+func _play_paired_human(round_index: int) -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or season.round_index!=round_index: return
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var opening: Dictionary=factory.start(season)
 	if opening.is_empty(): return
@@ -152,14 +158,28 @@ func _play_paired_first() -> void:
 	_paired_first_pin={"owner":career_owner,"season":season,"bytes":saved_bytes.duplicate(),"fixture":opening.fixture,"binding":opening.binding,"lab":lab,"state":opening.state}
 
 func _finish_paired_first() -> void:
-	if _busy or retained!=null or _paired_first_pin.is_empty() or not _owned() or not is_instance_valid(lab): return
+	_finish_paired_human(0)
+
+func _finish_paired_return() -> void:
+	_finish_paired_human(1)
+
+func _finish_paired_human(round_index: int) -> void:
+	if _busy or retained!=null or _paired_first_pin.is_empty() or not _owned() or not is_instance_valid(lab) or season.round_index!=round_index: return
 	var pin: Dictionary=_paired_first_pin
 	if pin.owner!=career_owner or pin.season!=season or pin.bytes!=saved_bytes or pin.lab!=lab or pin.state!=lab._match_state or not Codec.same(pin.fixture,season.pending_fixture()) or not season.physical.pending.is_empty(): return
 	var human: Array=Adapter.human_capture("ordinary").capture(self)
 	if human.is_empty(): return
+	var pending: Dictionary={"human":human.duplicate(true),"reports":[],"binding":pin.binding.duplicate(true)}
+	if round_index==1:
+		var expected: PackedByteArray=saved_bytes.duplicate()
+		var ticket: RefCounted=Store._prepare_paired_return_human(career_owner,expected,pending)
+		if ticket!=null:
+			_retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+			_paired_first_pin.clear()
+		return
 	var candidate: SeasonState=_clone()
 	if candidate==null: return
-	candidate.physical.pending={"human":human.duplicate(true),"reports":[],"binding":pin.binding.duplicate(true)}
+	candidate.physical.pending=pending
 	_retain(candidate,saved_bytes)
 	if retained!=null or season==candidate: _paired_first_pin.clear()
 

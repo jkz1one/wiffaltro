@@ -139,7 +139,7 @@ static func _runtime_context(season: SeasonState) -> bool:
 		elif season.round_index==0:
 			if not season.results.is_empty() or not season.player_results.is_empty(): return false
 			if not season.physical.reports.is_empty() and not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").npc_queue(season): return false
-			if not season.physical.pending.is_empty() and (season.phase!=SeasonState.Phase.REGULAR or not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").bound_shape(season.physical.pending)): return false
+			if not season.physical.pending.is_empty() and (season.phase!=SeasonState.Phase.REGULAR or not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").bound_shape(season.physical.pending) or season.physical.pending.human[0]!=0): return false
 			if not (season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4) and not (season.phase==SeasonState.Phase.REGULAR and season.picks.size()==4): return false
 			if not _draft_journal_only(season.build): return false
 			for club: Variant in season.opponents.clubs.values():
@@ -152,15 +152,18 @@ static func _runtime_context(season: SeasonState) -> bool:
 		if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
 	return true
 
-# Exact private round-1 settlement or one authored pack/upgrade. No return,
-# unsupported phases or later game receipts. Full history is checked below.
+# Exact private round-1 history, one authored upgrade and unpaid return human.
+# No public admission or later settled receipts; full history is checked below.
 static func _first_leg_shape(season: SeasonState) -> bool:
-	if season.get_script()!=Runtime or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
+	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	var detached: bool=projection.return_projection(season)
+	if (season.get_script()!=Runtime and not detached) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
 	if season.results.size()!=3 or season.player_results.size()!=1 or season.player_results[0].get("id")!=0: return false
 	for index: int in range(3):
 		if season.results[index].get("id")!=index: return false
 	var physical=season.physical
-	if not physical.pending.is_empty() or physical.projecting or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or physical.reports.size()!=2: return false
+	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or physical.reports.size()!=2: return false
+	if not physical.pending.is_empty() and (season.build.revision()!=5 or not projection.bound_shape(physical.pending) or physical.pending.human[0]!=3): return false
 	for index: int in range(2):
 		if physical.reports[index].get("fixture")!=index+1: return false
 	var build: SeasonBuild=season.build

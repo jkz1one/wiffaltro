@@ -327,6 +327,33 @@ static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteAr
 	_write_admitted()
 	return _ticket
 
+## Accept only unpaid human evidence for the exact upgraded round-1 owner.
+## The ordinary capture reconstructs the bound start and runs frozen General
+## projection; the detached match reward never enters the writer's candidate.
+static func _prepare_paired_return_human(owner: RefCounted, expected: PackedByteArray, pending: Dictionary) -> RefCounted:
+	forget_projection()
+	last_error=""
+	if saving or _ticket!=null or not Codec.primitive(pending) or not match_owner(owner,expected): return null
+	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
+	var session: SeasonState=owner.session
+	if session.round_index!=1 or session.build.revision()!=5 or not session.physical.pending.is_empty() or session.build.pack_pending(): return null
+	var current: SeasonState=session.fork_live()
+	if current==null: return null
+	current.physical.pending=pending.duplicate(true)
+	var envelope: RefCounted=Owner.new()
+	envelope.session=current
+	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) or not _routine_pins(envelope): return null
+	var captured: Dictionary=Adapter.capture(owner.active,current)
+	var data: Dictionary=Owner.pack_current(envelope,captured) if not captured.is_empty() else {}
+	if data.is_empty(): return null
+	var snapshot: Dictionary=RawGuard.capture(envelope)
+	if snapshot.is_empty() or not match_owner(owner,expected): return null
+	_ticket=RefCounted.new()
+	_candidate=envelope; _candidate_session=current; _candidate_raw=snapshot; _candidate_data=data
+	_expected=expected.duplicate(); _written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
 ## Same active owner only. On cold/cache miss, use the normal complete projection.
 ## Partial projections are returned solely to construct the next real runner.
 ## Terminal candidates still cross the existing full semantic prepare boundary.
