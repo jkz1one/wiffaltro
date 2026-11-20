@@ -41,7 +41,7 @@ func run() -> void:
  check(wrong==[false,false,false,false,false,false],"current roster incorrectly rejects all six prior games after real replacement")
  print("CP127_STAGE signed")
  check(check_history(signed,true,"signed")==6,"both authenticated historical build rosters revalidate all six actual games")
- check(Live.capture(signed).is_empty() and Store._prepare_paired_shop(app.career_owner,bytes,SIGN,6)==null and not app.commit_shop(SIGN),"new validator grants no codec, Store or public sign admission")
+ check(not app.commit_shop(SIGN) and exact(bytes,backup),"public sign remains closed and never writes the detached proof")
  for fault:String in ["score","occupancy","row-roster","receipt","missing"]:
   print("CP127_STAGE ",fault)
   var altered:SeasonState=detached_sign(original)

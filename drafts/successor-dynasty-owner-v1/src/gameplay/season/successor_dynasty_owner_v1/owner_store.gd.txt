@@ -316,6 +316,9 @@ static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteAr
 static func _prepare_paired_visit6_shop_open(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
 	return _prepare_paired_shop(owner,expected,{"id":"visit6-open:15","rev":15,"op":"open"},6)
 
+static func _prepare_paired_visit6_sign(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _prepare_paired_shop(owner,expected,{"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":Adapter.Ordinary.VISIT6_OUTGOING},6)
+
 static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, command: Dictionary, visit: int) -> RefCounted:
 	forget_projection()
 	last_error=""
@@ -324,14 +327,19 @@ static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, c
 	var session: SeasonState=owner.session
 	const General=preload("res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd")
 	if visit not in [1,6] or session.round_index!=visit or not General._source_public_shop_available(session): return null
+	var sign_visit6: bool=visit==6 and Adapter.Ordinary.visit6_sign_command(command)
 	if visit==1:
 		var step: int=session.build.revision()-2
 		if not Adapter.Ordinary.first_shop_command(session.build,command,step): return null
-	elif not Adapter.Ordinary.visit6_open_command(command) or session.build.revision()!=15 or session.build._visit.get("open")!=false or session.player_results[-1].get("id")!=15: return null
+	else:
+		if session.player_results[-1].get("id")!=15: return null
+		if sign_visit6:
+			if session.build.revision()!=16 or session.build._visit.get("open")!=true or not Adapter.Ordinary.visit6_recruit_quote(session.build,false): return null
+		elif not Adapter.Ordinary.visit6_open_command(command) or session.build.revision()!=15 or session.build._visit.get("open")!=false: return null
 	if session.build._requests.has(command.id): return null
 	var started: int=Time.get_ticks_msec()
 	var current: SeasonState=session.fork_live()
-	if current==null: return null
+	if current==null or (sign_visit6 and not _bind_visit6_fresh_profile(current.build)): return null
 	var build: SeasonBuild=current.build.candidate(command.duplicate(true))
 	if build==null: return null
 	current.adopt_build(build)
@@ -352,6 +360,30 @@ static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, c
 	_expected=expected.duplicate(); _written=PackedByteArray()
 	_write_admitted()
 	return _ticket
+
+# Exact native representation on the detached candidate only. No changed
+# semantic/materialized inputs are allowed to reach the frozen signer.
+static func _bind_visit6_fresh_profile(build: SeasonBuild) -> bool:
+	var id: String=Adapter.Ordinary.VISIT6_RECRUIT
+	var outgoing: String=Adapter.Ordinary.VISIT6_OUTGOING
+	if not Adapter.Ordinary.visit6_recruit_quote(build,false) or build.cash()<int(build._visit.recruit.price) or build._contracts.has(id) or build.roster().has(id) or build._blocked.has(id) or not build._pool.has(id) or not Adapter.Ordinary.same(build.roster(),build._initial_roster) or not build.roster().has(outgoing) or SeasonSchoolSponsors.scholarship(build).get("player")==outgoing: return false
+	var profile: Dictionary=build.player(id)
+	var original: Dictionary=SeasonPlayerCatalog.profile(id)
+	if original.is_empty() or not Adapter.Ordinary.same(profile,original): return false
+	var before: String=_canonical_shop_bytes(Adapter.Ordinary.Builds.capture(build))
+	if before.is_empty(): return false
+	for field: String in ["base","stats","mastery"]:
+		profile[field]=original[field].duplicate(true)
+	profile.capacity=original.capacity
+	if profile!=original: return false
+	build._book._players[id]=profile
+	var after: Dictionary=Adapter.Ordinary.Builds.capture(build)
+	return before==_canonical_shop_bytes(after)
+
+static func _canonical_shop_bytes(value: Dictionary) -> String:
+	if value.is_empty(): return ""
+	var parsed: Variant=JSON.parse_string(JSON.stringify(value,"",true,true))
+	return JSON.stringify(parsed,"",true,true) if parsed is Dictionary else ""
 
 ## Accept only exact staged evidence for these private checkpoints.
 ## Existing proof/reports cannot be replaced. No detached reward is serialized.

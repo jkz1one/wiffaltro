@@ -303,6 +303,13 @@ func _open_paired_visit6_shop() -> void:
 	var ticket: RefCounted=Store._prepare_paired_visit6_shop_open(career_owner,expected)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+# Private exact quote only; no existing public shop route is enabled.
+func _sign_paired_visit6_recruit() -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	var expected: PackedByteArray=saved_bytes.duplicate()
+	var ticket: RefCounted=Store._prepare_paired_visit6_sign(career_owner,expected)
+	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
 func reload_save() -> void:
 	if not _available(): return
 	_busy = true

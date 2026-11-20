@@ -1,0 +1,92 @@
+extends "res://tests/successor_hidden_paired_visit6_open.gd"
+
+const RECRUIT="player.dakota_wells"
+const RELEASED="player.val_morgan"
+const EXACT_SIGN={"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":RELEASED}
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var calls:int=PairHistory.Collector.replay_calls
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE cold")
+ app.reload_save()
+ print("VISIT6_SIGN_COLD_MS=",Time.get_ticks_msec()-started," historical_scores=",PairHistory.historical_humans_checked," replays=",PairHistory.Collector.replay_calls-calls)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"modified signed offer/profile/past roster fails closed and does not write "+args[0])
+ elif check(app.season!=null and app._owned() and exact(bytes,backup) and Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-calls==6,"fresh App runs exactly one complete paid-history admission"):
+  if args[0]=="sign":
+   if check(PairHistory.historical_humans_checked==0 and exact_late_offer(app.season),"exact admitted unsigned original keeps old validation route"):
+    sign_visit(app,bytes,backup)
+  elif args[0]=="cold":
+   check(PairHistory.historical_humans_checked==6 and PairHistory.checked_sides==36 and PairHistory.checked_reports==12 and signed_exact(app.season),"signed cold passes six original human games in the historical route with native contract and charge")
+   sealed(app,bytes,backup)
+  else:
+   check(false,"unexpected mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func sign_visit(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var original:SeasonState=app.season
+ var snapshot:Dictionary=Store.RawGuard.capture(owner)
+ var forged_price:SeasonState=original.fork_live()
+ forged_price.build._visit.recruit.price=1
+ var forged_profile:SeasonState=original.fork_live()
+ var changed:Dictionary=forged_profile.build.player(RECRUIT)
+ changed.stats.fielding+=1
+ forged_profile.build._book._players[RECRUIT]=changed
+ var altered_command:Dictionary=EXACT_SIGN.duplicate(true)
+ altered_command.price=1
+ check(not Store._bind_visit6_fresh_profile(forged_price.build) and not Store._bind_visit6_fresh_profile(forged_profile.build) and Store._prepare_paired_shop(owner,bytes,altered_command,6)==null,"edited quote, rival player data and caller-supplied price refuse")
+ check(Store._prepare_paired_visit6_sign(owner.fork(),bytes)==null and Store._prepare_paired_visit6_sign(owner,backup)==null and exact(bytes,backup) and Store.RawGuard.matches(owner,snapshot),"foreign owner and stale primary refuse without changes")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated test write obstruction"):return
+ var gates:int=Live.paired_history_calls
+ var calls:int=PairHistory.Collector.replay_calls
+ print("CP127_STAGE candidate")
+ app._sign_paired_visit6_recruit()
+ print("VISIT6_SIGN_CANDIDATE_MS=",Store.paired_shop_candidate_ms," ADMISSION_MS=",Store.paired_shop_admission_ms," HIST_FLOW_MS=",PairHistory.historical_human_ms)
+ if not check(app.retained!=null and Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-calls==6,"actual private App holds one independently admitted signed owner"):return
+ var next:SeasonState=app.retained
+ check(PairHistory.historical_humans_checked==6 and signed_exact(next),"quoted 32 Cash charged once, native Book contract, one correct replacement slot")
+ check(Live.same(next.results,original.results) and Live.same(next.player_results,original.player_results) and Live.same(next.physical.reports,original.physical.reports) and Live.same(next.build._game_rosters,original.build._game_rosters) and Live.same(next.build.player(RELEASED),original.build.player(RELEASED)) and Live.same(next.build.player("player.mika_reed"),original.build.player("player.mika_reed")),"old Val-era rows and roster proofs, Val profile and Mika all exact")
+ for id:String in original.build._contracts:
+  check(Live.whole(next.build._contracts.get(id),int(original.build._contracts[id]),int(original.build._contracts[id])),"original contract intact for "+id)
+ app._sign_paired_visit6_recruit()
+ check(app.retained==next and app.season==original and app.career_owner==owner and exact(bytes,backup) and Store.RawGuard.matches(owner,snapshot),"blocked write and repeat preserve active owner and exact primary/backup")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only isolated test obstruction"):return
+ print("CP127_STAGE retry")
+ gates=Live.paired_history_calls;calls=PairHistory.Collector.replay_calls
+ var started:int=Time.get_ticks_msec()
+ app.retry_save()
+ print("VISIT6_SIGN_RETRY_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==next and Live.paired_history_calls==gates and PairHistory.Collector.replay_calls==calls and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes and Store.RawGuard.matches(owner,snapshot),"exact held retry promotes once without another history replay"):return
+ sealed(app,Store.raw(),bytes)
+
+func signed_exact(season:SeasonState) -> bool:
+ if season.round_index!=6 or season.results.size()!=18 or season.player_results.size()!=6 or season.physical.reports.size()!=12 or not season.physical.pending.is_empty() or season.build.cash()!=62 or not Live._signed_visit6_journal(season.build):return false
+ var build:SeasonBuild=season.build
+ var roster:Array[String]=["player.mika_reed",RECRUIT,"player.emery_lane","player.finley_brooks"]
+ if not Live.same(build.roster(),roster) or not Live.same(season.teams[0].roster,roster) or not Live.same(build.player(RECRUIT),RecruitCatalog.fresh(RECRUIT,"late")) or build.player("player.mika_reed").stats.fielding!=SeasonPlayerCatalog.profile("player.mika_reed").stats.fielding+1:return false
+ if build._contracts.size()!=5 or not Live.whole(build._contracts.get(RELEASED),18,18) or not Live.whole(build._contracts.get(RECRUIT),32,32):return false
+ if not Live.same(build._events[-1],EXACT_SIGN) or not Live.same(build._book._events[-1],{"id":"recruit:16","rev":1,"op":"recruit","player":RECRUIT,"target":"late"}) or not Live.same(build._bank._events[-1],{"id":"charge:16","rev":7,"op":"charge","amount":32}):return false
+ for row:Dictionary in season.player_results:
+  if not row.club_roster.has(RELEASED) or row.club_roster.has(RECRUIT):return false
+ return true
+
+func sealed(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ app._sign_paired_visit6_recruit()
+ app._open_paired_visit6_shop()
+ app._play_paired_human(6)
+ app._run_paired_npc(19)
+ app._settle_paired_third_return_leg()
+ check(Store._prepare_paired_visit6_sign(app.career_owner,bytes)==null and Store._prepare_paired_visit6_sign(app.career_owner.fork(),bytes)==null and not app.commit_shop(EXACT_SIGN),"repeat/replaced owner and public sign stay closed")
+ verify_closed(app,bytes,backup)
+ check(app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"signed owner cannot open later games, shop, recruit or settlement")

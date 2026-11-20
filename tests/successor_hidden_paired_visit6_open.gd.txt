@@ -78,8 +78,8 @@ func exact_late_offer(season:SeasonState) -> bool:
 
 func stays_limited(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  var owner=app.career_owner
- var command:Dictionary={"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":"player.val_morgan"}
- check(Store._prepare_paired_shop(owner,bytes,command,6)==null and Store._prepare_paired_shop(owner,bytes,{"id":"visit7-open:16","rev":16,"op":"open"},7)==null and not app.commit_shop(command),"sign and future shop routes have no authority")
+ var command:Dictionary={"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":"player.mika_reed"}
+ check(Store._prepare_paired_shop(owner,bytes,command,6)==null and Store._prepare_paired_shop(owner,bytes,{"id":"visit7-open:16","rev":16,"op":"open"},7)==null and not app.commit_shop(command),"unqualified replacement and future shop routes have no authority")
  app._open_paired_visit6_shop()
  app._play_paired_human(6)
  app._run_paired_npc(19)
