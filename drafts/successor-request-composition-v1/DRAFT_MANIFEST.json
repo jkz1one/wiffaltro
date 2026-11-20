@@ -1,0 +1,13 @@
+{
+  "format": "inactive-request-composition-v1",
+  "source_checkpoint": "27e21756b8a9309ddcb16992578ed34a9bdeed3f",
+  "scope": "Duplicated frozen serialization compatibility seam only. No context authentication, live wiring, codec, admission or Dynasty changes.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-request-composition-v1/request_key.gd.txt",
+      "restore_path": "src/gameplay/season/successor_request_composition_v1/request_key.gd",
+      "bytes": 5498,
+      "sha256": "7a3cbf4c3f07deae563b388f9741fe877e309aaf7395006dacdeacb020675c59"
+    }
+  ]
+}

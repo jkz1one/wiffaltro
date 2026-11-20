@@ -1,0 +1,61 @@
+extends "res://tests/successor_pair_history_context.gd"
+const Candidate=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
+const Baseline=preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const Collector=preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+func team_inputs(team: TeamMatchState) -> Dictionary:
+ return {"ownership":team.league_ownership.duplicate(true),"budget":team.ai_budget.duplicate(true),"pair":team.league_pair.duplicate(true),"held":team.ai_tactical_initial.duplicate(true),"pitcher":team.pitcher_index,"fielder":team.fielder_index,"stamina":team.roster.map(func(player):return [player.stamina_max,player.stamina_remaining])}
+func compare(season: SeasonState, fixture: Dictionary, label: String) -> void:
+ var old=Baseline.request_key(season,fixture)
+ var state=Baseline.match_for(season,fixture)
+ var field=SeasonState.field_for_fixture(fixture,season)
+ if not check(state!=null and field!=null,"authentic factory context "+label):return
+ if label.begins_with("genuine"):
+  check(state.away_team.ai_budget.get("outcome")=="granted" or state.home_team.ai_budget.get("outcome")=="granted","authentic budget projection really grants in this context")
+ var before=team_inputs(state.away_team)
+ var direct=Candidate.for_context(season,fixture,state,field)
+ check(old.length()==64 and old.is_valid_hex_number(false) and old==direct,"exact cp98/factory/direct request bytes "+label)
+ check(ClubCareer.same(before,team_inputs(state.away_team)),"serialization preserves team "+label)
+ var quality=state.ai_tactical_quality
+ state.ai_tactical_quality+=0.01
+ check(Candidate.for_context(season,fixture,state,field)!=old,"changed quality cannot retain request binding "+label)
+ state.ai_tactical_quality=quality
+ var owned=state.away_team.league_ownership.duplicate(true)
+ state.away_team.league_ownership["invalid_request_probe"]=true
+ check(Candidate.for_context(season,fixture,state,field)!=old,"changed ownership cannot retain request binding "+label)
+ state.away_team.league_ownership=owned
+ check(Candidate.for_context(season,fixture,state,field)==old,"restored exact context restores key "+label)
+func run() -> void:
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1":get_tree().quit(2);return
+ var roots=Codec._operation_content_roots()
+ var path="user://successor-general-build-v7-r2.json"
+ var bytes=FileAccess.get_file_as_bytes(path)
+ var season=Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+ if not check(season!=null,"authentic pair restores"):get_tree().quit(1);return
+ var original=Codec.capture(season)
+ var builds={};var targets={}
+ for club: String in ["1","2","3","4"]:
+  builds[club]=season.opponents.clubs[club].build
+  targets[club]=[1,4] if club in ["1","4"] else [2,5]
+ var batch=Collector.collect(builds,targets)
+ if not check(batch.size()==4,"authenticated historical prefixes"):get_tree().quit(1);return
+ for game: int in [1,4,2,5]:
+  var fixture: Dictionary=season.schedule.filter(func(row):return row.id==game)[0]
+  for club: int in [fixture.away,fixture.home]:season.opponents.clubs[str(club)].build=batch[str(club)][str(game)].pregame
+  compare(season,fixture,"actual history %d"%game)
+  for club: int in [fixture.away,fixture.home]:season.opponents.clubs[str(club)].build=builds[str(club)]
+ var grant_bytes=FileAccess.get_file_as_bytes("user://genuine-grant.json")
+ var basis:SeasonBuild=builds["4"]
+ var grant=Build.restore(JSON.parse_string(grant_bytes.get_string_from_utf8()),basis._seed,basis._initial_roster,basis._pool,basis._blocked)
+ if check(grant!=null and grant._pregames.get("4",{}).get("outcome")=="granted","genuine earned grant journal"):
+  var grant_batch=Collector.collect({"4":grant},{"4":[4]})
+  if check(not grant_batch.is_empty(),"authenticated genuine pregrant snapshot"):
+   season.opponents.clubs["4"].build=grant_batch["4"]["4"].pregame
+   season.opponents.clubs["1"].build=batch["1"]["4"].pregame
+   compare(season,season.schedule.filter(func(row):return row.id==4)[0],"genuine grant controlled branch")
+   season.opponents.clubs["4"].build=builds["4"]
+   season.opponents.clubs["1"].build=builds["1"]
+ check(ClubCareer.same(original,Codec.capture(season)),"full original season unchanged")
+ check(FileAccess.get_file_as_bytes(path)==bytes and FileAccess.get_file_as_bytes("user://genuine-grant.json")==grant_bytes,"both input fixture bytes unchanged")
+ roots.clear()
+ if failures==0:print("REQUEST_COMPOSITION_PASS")
+ get_tree().quit(0 if failures==0 else 1)
