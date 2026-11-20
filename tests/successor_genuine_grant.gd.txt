@@ -1,0 +1,61 @@
+extends "res://tests/successor_pair_history_context.gd"
+## Controlled earned-history shop branch, NOT actual NPC policy or report proof.
+func run() -> void:
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1": get_tree().quit(2);return
+ var roots=Codec._operation_content_roots()
+ var path="user://successor-general-build-v7-r2.json"
+ var bytes=FileAccess.get_file_as_bytes(path)
+ var season=Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+ if not check(season!=null,"authentic pair cold restores"): get_tree().quit(1);return
+ var full: SeasonBuild=season.opponents.clubs["4"].build
+ var original=full.to_data().duplicate(true)
+ var holder={}
+ var observer=func(prefix: SeasonBuild) -> bool:
+  if prefix._events.size()==1: holder.build=prefix._fork()
+  return true
+ var validated=Build.restore(original,full._seed,full._initial_roster,full._pool,full._blocked,-1,observer)
+ if not check(validated!=null and holder.has("build"),"earned prefix published only after complete valid replay"): get_tree().quit(1);return
+ var b: SeasonBuild=holder.build
+ check(b.cash()==18 and b._seed==372285,"exact club4 first earned reward basis")
+ for row: Dictionary in [{"op":"open"},{"op":"sponsor_buy","offer":"visit:1:roll:0:0","replace":""},{"op":"reroll"}]:
+  var op: String=row.op
+  row.erase("op")
+  if not check(b.commit(SeasonOpponentPolicy.command(b,op,row)).ok,"authentic paid "+op): get_tree().quit(1);return
+ check(b.cash()==4 and SeasonBudgetBites.outcome(b)=="granted","genuine paid E08 and eligible low cash/bag")
+ var before=b.to_data().duplicate(true)
+ var wallet=b._bank.view().duplicate(true)
+ var command=SeasonOpponentPolicy.command(b,"pregame",{"game":4})
+ check(b.commit(command).ok,"authentic pregame commits")
+ var after=b.to_data().duplicate(true)
+ var copies: Array=b._bank.view().held.filter(func(copy): return copy.id=="budget:4" and copy.item=="C03" and copy.paid==0)
+ check(copies.size()==1 and b._bank.view().held.size()==wallet.held.size()+1,"exact one unpaid grant receipt")
+ check(b._pregames["4"].outcome=="granted","actual pregame journal outcome")
+ check(b.commit(command).ok and ClubCareer.same(after,b.to_data()),"exact request retry is idempotent")
+ check(SeasonOpponentBudget.commit(b,4) and ClubCareer.same(after,b.to_data()),"budget wrapper retry is idempotent")
+ check(not b.commit(SeasonOpponentPolicy.command(b,"pregame",{"game":4})).ok and ClubCareer.same(after,b.to_data()),"new duplicate pregame rejected without mutation")
+ var prefix=extract(b,4)
+ check(prefix!=null and ClubCareer.same(before,prefix.to_data()),"full replay publishes exact immutable BEFORE actual pregame")
+ check(extract(b,4,"command")==null,"corrupt later command cannot publish granted prefix")
+ var bad=after.duplicate(true)
+ bad.events.back().game=-1
+ var seen={}
+ var cutoff=func(p: SeasonBuild) -> bool:
+  if p._events.size()==before.events.size(): seen.prefix=p._fork()
+  return true
+ var rejected=Build.restore(bad,b._seed,b._initial_roster,b._pool,b._blocked,-1,cutoff)
+ check(rejected==null and seen.has("prefix"),"changed grant event rejected after cutoff reached")
+ seen.clear()
+ var saved_path="user://genuine-grant.json"
+ var cold=OS.get_cmdline_user_args().has("cold")
+ if cold:
+  var saved=JSON.parse_string(FileAccess.get_file_as_string(saved_path))
+  var reopened=Build.restore(saved,b._seed,b._initial_roster,b._pool,b._blocked)
+  check(reopened!=null and ClubCareer.same(after,reopened.to_data()),"separate cold saved grant replay equals authentic reconstructed branch")
+ else:
+  var file=FileAccess.open(saved_path,FileAccess.WRITE)
+  if file==null: check(false,"synthetic grant file writable")
+  else: file.store_string(JSON.stringify(after,"",true,true));file.close()
+ check(ClubCareer.same(original,full.to_data()) and FileAccess.get_file_as_bytes(path)==bytes,"source pair journal and save unchanged")
+ roots.clear()
+ if failures==0: print("GENUINE_GRANT_HISTORY_PASS")
+ get_tree().quit(0 if failures==0 else 1)
