@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--fixture-stage', required=True, type=Path)
     parser.add_argument('--godot', default='godot')
+    parser.add_argument('--codec-boundary-only', action='store_true')
     args = parser.parse_args()
     source = args.fixture_stage.resolve()
     if not source.name.startswith('wiffaltro-signature-'):
@@ -54,8 +55,15 @@ def main():
             content = (repo / row['backup_path']).read_bytes()
             assert len(content) == row['bytes'] and hashlib.sha256(content).hexdigest() == row['sha256']
             destination = project / row['restore_path']
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
+            assert row['restore_path'] in record['files'] and destination.read_bytes() == content
+    live = (project / 'src/gameplay/season/successor_live_play_v1/codec.gd').read_text()
+    capture = live.split('static func capture(', 1)[1].split('static func _payload(', 1)[0]
+    public, structural = capture.split('static func _capture_structural(', 1)
+    restore = live.split('static func restore_common(', 1)[1].split('static func _history_valid(', 1)[0]
+    assert public.count('_history_valid(season)') == 1 and '_history_valid(' not in structural
+    assert restore.count('_capture_structural(result)') == 2 and restore.count('_history_valid(result)') == 1
+    assert restore.index('_history_valid(result)') > restore.index('same(canonical,captured)')
+    print('PASS: one capture/cold history boundary; no history on structural recapture', flush=True)
     print('PASS: exact pinned frozen source and mechanically derived body', flush=True)
     for name in ('successor_pair_history_context', 'successor_settled_workload'):
         target = project / 'tests' / (name + '.gd')
@@ -82,7 +90,8 @@ def main():
     execute([godot, '--headless', '--editor', '--path', str(project), '--quit'], env, 180)
     for mode in ('first', 'independent-cold'):
         output = execute([godot, '--headless', '--path', str(project),
-                          'res://tests/successor_settled_workload.tscn', '--', mode], env, 480)
+                          'res://tests/successor_settled_workload.tscn', '--', mode]
+                         + (['codec-only'] if args.codec_boundary_only else []), env, 480)
         if 'SETTLED_WORKLOAD_PASS' not in output:
             raise RuntimeError('Missing positive ' + mode + ' request proof')
     assert (source / SAVE).read_bytes() == data == target.read_bytes()

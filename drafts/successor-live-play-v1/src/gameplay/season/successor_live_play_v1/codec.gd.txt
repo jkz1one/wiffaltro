@@ -1,6 +1,7 @@
 extends RefCounted
-## Materialized offline consistency contract. No historical physics/journal replay.
+## Materialized offline consistency. Ordinary routes retain structural-only history.
 const Evidence = preload("evidence_boundary.gd")
+const PairedHistory = preload("res://src/gameplay/season/successor_settled_workload_v1/validator.gd")
 const Catalog = preload("catalog.gd")
 const Builds = preload("build_codec.gd")
 const Runtime = preload("runtime.gd")
@@ -14,6 +15,7 @@ const CAREER_FIELDS: Array[String] = ["current","runs","_assets","_pennants","_p
 const PHYSICAL_FIELDS: Array[String] = ["reports","pending","cursor","needed","error","projecting"]
 static var restore_calls: int = 0 # Diagnostics, never persistence authority.
 static var capture_calls: int = 0 # Diagnostics, never persistence authority.
+static var paired_history_calls: int = 0 # Diagnostics only; never a validity flag.
 static var _basis_seed: int = -1
 static var _basis: Dictionary = {}
 static var _draws: Array[float] = []
@@ -291,6 +293,12 @@ static func _report_shape(row: Dictionary,rules: Dictionary) -> bool:
 	return whole(report.physical.get("away_runs"),0,100000) and whole(report.physical.get("home_runs"),0,100000)
 
 static func capture(season: SeasonState) -> Dictionary:
+	var data: Dictionary = _capture_structural(season)
+	return data if not data.is_empty() and _history_valid(season) else {}
+
+# Canonical equality checks use this internal structural path; neither is a
+# publication or trust boundary. Exactly one history gate follows restore.
+static func _capture_structural(season: SeasonState) -> Dictionary:
 	capture_calls += 1
 	if not _structural_valid(season): return {}
 	return _payload(season)
@@ -355,7 +363,7 @@ static func restore_common(value: Variant) -> SeasonState:
 		club.build = Builds.restore(club.build)
 		if club.build == null: return null
 		result.opponents.clubs[id] = club
-	var captured: Dictionary = capture(result)
+	var captured: Dictionary = _capture_structural(result)
 	if captured.is_empty() or not same(captured,value): return null
 	if not result.league_rules.is_empty():
 		# Frozen gameplay compares these native context Dictionaries directly.
@@ -363,9 +371,17 @@ static func restore_common(value: Variant) -> SeasonState:
 		# Normalize ONLY known rule holders after strict semantic admission, then
 		# independently prove serialized recapture stays exactly the same.
 		if not _canonical_named_context(result): return null
-		var canonical: Dictionary=capture(result)
+		var canonical: Dictionary=_capture_structural(result)
 		if canonical.is_empty() or not same(canonical,captured): return null
-	return result
+	return result if _history_valid(result) else null
+
+# Future exact Base gate only. Existing scope/Admissions independently rejects
+# paired materialized saves and cannot be reached by calling this private check.
+static func _history_valid(season: SeasonState) -> bool:
+	if season.league_rules.get("league","")!="doubleheader": return true
+	if not same(season.league_rules,LeagueRules.capture("doubleheader")): return false
+	paired_history_calls+=1
+	return PairedHistory.validate_settled(season)
 
 static func _canonical_named_context(season: SeasonState) -> bool:
 	var expected: Dictionary=Admissions.expected(season.league_rules,season.season_seed)

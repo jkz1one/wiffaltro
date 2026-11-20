@@ -4,7 +4,7 @@
 Real assembler live-play output, isolated HOME/XDG, generated birth saves only.
 Standard and Dugout save via Store then reopen in a new process. Named
 Sponsorship uses synthetic canonical JSON plus restore_common in separate
-processes, NOT shared OwnerStore save qualification; standalone rejection stays. Pinned cp93 (default) or cp94 baseline builds run the same birth/cold contract and final
+processes, NOT shared OwnerStore save qualification; standalone rejection stays. Pinned cp93 (default) cp94, or cp103 baseline builds run the same birth/cold contract and final
 bytes must match. A separate real Dynasty assembly tests its shared menu's
 Doubleheader exclusion. No archive fixtures, original saves, gameplay, playoffs,
 reward, or Doubleheader career qualification. Only temporary synthetic data.
@@ -24,7 +24,8 @@ import sys
 
 sys.dont_write_bytecode = True
 BASELINE = "5deec1f5a7a423b247b4d5cc808452d6e076e96a"
-BASELINES = {BASELINE: "cp93", "c5801675f9c1d55ea8d14e51846de66c8e771448": "cp94"}
+BASELINES = {BASELINE: "cp93", "c5801675f9c1d55ea8d14e51846de66c8e771448": "cp94",
+             "8a5f77f386a4a63a18294d9c4d95a3fcacfabdb2": "cp103"}
 
 MARKER = "SUCCESSOR_SCHEDULE_WIRING_PASS"
 TEST = "tests/successor_schedule_wiring.gd"
@@ -108,7 +109,7 @@ def births(repo, stage, test_source, godot, baseline=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--godot", default="godot")
-    parser.add_argument("--baseline-ref", default=BASELINE, help="Pinned cp93 (default) or cp94 revision only")
+    parser.add_argument("--baseline-ref", default=BASELINE, help="Pinned cp93 (default), cp94, or cp103")
     args = parser.parse_args()
     godot = shutil.which(args.godot)
     if not godot:
@@ -116,8 +117,10 @@ def main():
     repo = Path(__file__).resolve().parents[1]
     revision = subprocess.check_output(["git", "rev-parse", "--verify", args.baseline_ref + "^{commit}"], cwd=repo, text=True).strip()
     if revision not in BASELINES:
-        parser.error("Baseline must resolve to exact verified cp93 or cp94")
+        parser.error("Baseline must resolve to exact verified cp93, cp94, or cp103")
     baseline_label = BASELINES[revision]
+    if baseline_label == "cp103":
+        os.environ["WIFFALTRO_EXPECT_HISTORY_HOOK"] = "1"
     test_source = (repo / (TEST + ".txt")).read_bytes()
     with tempfile.TemporaryDirectory(prefix="wiffaltro-schedule-wiring-") as temp:
         stage = Path(temp)

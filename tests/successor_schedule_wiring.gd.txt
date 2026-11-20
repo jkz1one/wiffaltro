@@ -139,5 +139,9 @@ func run() -> void:
 		else: get_tree().quit(2); return
 		if league=="standard": named_codec(mode)
 		roots.clear()
+	if OS.get_environment("WIFFALTRO_BASELINE")!="1" and OS.get_environment("WIFFALTRO_EXPECT_HISTORY_HOOK")=="1":
+		var script: Variant=load("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+		var collector: Variant=load("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+		check(script.paired_history_calls==0 and collector.replay_calls==0,"ordinary Store/common codec/menu run performs no paired replay")
 	if failures==0: print("SUCCESSOR_SCHEDULE_WIRING_PASS ",mode)
 	get_tree().quit(0 if failures==0 else 1)

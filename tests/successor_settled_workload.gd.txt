@@ -1,7 +1,31 @@
 extends "res://tests/successor_pair_history_context.gd"
 const Validator=preload("res://src/gameplay/season/successor_settled_workload_v1/validator.gd")
 const Collector=preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+const LiveCodec=preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
 const Pair=preload("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd")
+func codec_boundary(season: SeasonState, bytes: PackedByteArray, path: String) -> void:
+ var calls=LiveCodec.paired_history_calls
+ var releases=Collector.replay_calls
+ var started=Time.get_ticks_msec()
+ check(not LiveCodec.scope(season) and LiveCodec.capture(season).is_empty(),"actual General paired season does not qualify for materialized capture")
+ check(LiveCodec.paired_history_calls==calls and Collector.replay_calls==releases,"closed structural scope cannot reach history gate")
+ var original=Codec.capture(season)
+ started=Time.get_ticks_msec()
+ check(LiveCodec._history_valid(season),"assembled private Base gate accepts authentic paired history")
+ print("ASSEMBLED_GATE_MS=",Time.get_ticks_msec()-started," COLLECT_MS=",Validator.collection_ms," WORKLOAD_MS=",Validator.workload_ms," REPORT_MS=",Validator.report_ms)
+ check(LiveCodec.paired_history_calls==calls+1 and Collector.replay_calls==releases+6 and Validator.checked_reports==4 and Validator.checked_sides==12,"one private history pass; exactly six full replays")
+ var saved=season.physical.reports.back().request
+ season.physical.reports.back().request="0".repeat(64)
+ check(not LiveCodec._history_valid(season) and LiveCodec.paired_history_calls==calls+2,"one private gate rejects authentic archive with altered terminal request")
+ season.physical.reports.back().request=saved
+ var phase=season.phase
+ season.phase=SeasonState.Phase.SEMIFINAL
+ releases=Collector.replay_calls
+ check(not LiveCodec._history_valid(season) and LiveCodec.paired_history_calls==calls+3 and Collector.replay_calls==releases,"unqualified paired playoff fails closed before replay")
+ season.phase=phase
+ check(ClubCareer.same(original,Codec.capture(season)) and FileAccess.get_file_as_bytes(path)==bytes,"private gate leaves original and file bytes untouched")
+ if failures==0:print("SETTLED_WORKLOAD_PASS")
+ get_tree().quit(0 if failures==0 else 1)
 func run() -> void:
  if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1":get_tree().quit(2);return
  var roots=Codec._operation_content_roots()
@@ -9,6 +33,10 @@ func run() -> void:
  var bytes=FileAccess.get_file_as_bytes(path)
  var season=Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
  if not check(season!=null,"retained pair exact General identity restores"):get_tree().quit(1);return
+ if OS.get_cmdline_user_args().has("codec-only"):
+  codec_boundary(season,bytes,path)
+  roots.clear()
+  return
  for boundary: String in ["0000","0001","0004","0005"]:
   var early_path:String="user://completeness-"+boundary+".json"
   var early_bytes=FileAccess.get_file_as_bytes(early_path)
