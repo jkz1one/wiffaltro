@@ -64,11 +64,13 @@ static func _matches(season: SeasonState, fixture: Dictionary, result: Dictionar
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,season)
 	if field==null: return false
 	var v4: bool=season.get_script()==load("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
-	var v4_return: bool=v4 and season.round_index in [2,3] and game in [4,5]
-	var v4_next_first: bool=v4 and season.round_index==3 and game in [7,8]
+	var v4_return: bool=v4 and season.round_index in [2,3,4] and game in [4,5]
+	var v4_next_first: bool=v4 and season.round_index in [3,4] and game in [7,8]
+	var v4_next_return: bool=v4 and season.round_index==4 and game in [10,11]
 	var request: String
 	if v4_return: request=Request.for_materialized_return(season,fixture,state,field)
 	elif v4_next_first: request=Request.for_materialized_next_first(season,fixture,state,field)
+	elif v4_next_return: request=Request.for_materialized_next_return(season,fixture,state,field)
 	else: request=Request.for_context(season,fixture,state,field)
 	if request!=archive.request: return false
 	var report: Dictionary=archive.report.duplicate(true) if v4_return else archive.report
