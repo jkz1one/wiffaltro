@@ -220,7 +220,7 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	if not physical.pending.is_empty() and (season.round_index not in projection.HUMAN_PHASES or not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
 	var build: SeasonBuild=season.build
 	if season.round_index==6 and not physical.pending.is_empty() and not _signed_visit6_journal(build): return false
-	var opened: bool=season.round_index==6 and build.revision() in [16,17]
+	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (season.round_index==7 and build.revision()==20)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
 
 static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
@@ -228,8 +228,12 @@ static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
 	var size: int=3+2*paid_rounds+(2 if after_sign else 0)
 	var tail: int=build._events.size()-size
 	if paid_rounds not in [2,3,4,5,6,7] or build._bank==null: return false
-	if after_sign and not _signed_visit6_prefix(build): return false
-	if tail!=0:
+	if after_sign:
+		if not _signed_visit6_prefix(build): return false
+		if tail==0:
+			if build._recruits.size()!=2 or build._visit.has("recruit"): return false
+		elif tail!=1 or not visit7_open_command(build._events[size]) or not _visit7_recruit_cutoff(build): return false
+	elif tail!=0:
 		if paid_rounds!=6 or tail not in [1,2] or not visit6_open_command(build._events[size]) or build._visit.get("pack_status")!="sealed" or not build._visit.get("recruit") is Dictionary: return false
 		if tail==2 and not _signed_visit6_journal(build): return false
 	if not _first_shop_journal(build,3): return false
@@ -254,6 +258,18 @@ const VISIT6_OUTGOING: String="player.val_morgan"
 static func visit6_open_command(command: Dictionary) -> bool:
 	return keys(command,["id","rev","op"]) and command.id=="visit6-open:15" and whole(command.rev,15,15) and command.op=="open"
 
+static func visit7_open_command(command: Dictionary) -> bool:
+	return keys(command,["id","rev","op"]) and same(command,{"id":"visit7-open:19","rev":19,"op":"open"})
+
+static func _visit7_recruit_cutoff(build: SeasonBuild) -> bool:
+	var visit: Dictionary=build._visit
+	var offers: Variant=visit.get("offers")
+	var pack: Variant=visit.get("cards")
+	return _archived_visit7_cutoff(build) and visit.get("recruit") is Dictionary and visit.recruit.is_empty() and visit.get("pack_status")=="sealed" and whole(visit.get("rerolls"),0,0) and offers is Dictionary and not offers.is_empty() and pack is Array and not pack.is_empty()
+
+static func _archived_visit7_cutoff(build: SeasonBuild) -> bool:
+	return build._recruits.size()==3 and same(build._recruits[2],{"visit":7,"chance":0.0,"offer":{}})
+
 static func visit6_sign_command(command: Dictionary) -> bool:
 	return keys(command,["id","rev","op","offer","replace"]) and same(command,{"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":VISIT6_OUTGOING})
 
@@ -261,11 +277,12 @@ static func visit6_sign_command(command: Dictionary) -> bool:
 # the recruited history or the sign/Book/bank receipts at the original cutoffs.
 static func _archived_visit6_offer(build: SeasonBuild) -> Dictionary:
 	var profile: Dictionary=RecruitCatalog.fresh(VISIT6_RECRUIT,"late")
-	if profile.is_empty() or not whole(profile.catchup.price,32,32) or build._recruits.size()!=2: return {}
+	if profile.is_empty() or not whole(profile.catchup.price,32,32) or (build._recruits.size()!=2 and not _archived_visit7_cutoff(build)): return {}
 	var original: Dictionary={"id":"recruit:6","player":VISIT6_RECRUIT,"stage":"late","price":profile.catchup.price,"returning":false,"profile":profile,"signed":false}
-	return original if same(build._recruits[-1],{"visit":6,"chance":0.5,"offer":original}) else {}
+	return original if same(build._recruits[1],{"visit":6,"chance":0.5,"offer":original}) else {}
 
 static func visit6_recruit_quote(build: SeasonBuild, signed: bool) -> bool:
+	if build._recruits.size()!=2: return false
 	var original: Dictionary=_archived_visit6_offer(build)
 	if original.is_empty(): return false
 	original.signed=signed
