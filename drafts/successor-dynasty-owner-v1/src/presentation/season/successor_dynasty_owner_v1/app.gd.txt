@@ -326,11 +326,14 @@ func _open_paired_visit6_shop() -> void:
 	var ticket: RefCounted=Store._prepare_paired_visit6_shop_open(career_owner,expected)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
-# Exact earned visit7 opening only. No purchase, sign or shop UI action.
+# Exact earned late visit opening only. No purchase, sign or shop UI action.
 func _open_paired_visit7_shop() -> void:
+	_open_paired_late_shop(7)
+
+func _open_paired_late_shop(visit: int) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return
 	var expected: PackedByteArray=saved_bytes.duplicate()
-	var ticket: RefCounted=Store._prepare_paired_visit7_shop_open(career_owner,expected)
+	var ticket: RefCounted=Store._prepare_paired_late_shop_open(career_owner,expected,visit)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
 # Private exact quote only; no existing public shop route is enabled.

@@ -222,7 +222,8 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	if not physical.pending.is_empty():
 		if season.round_index==6 and not _signed_visit6_journal(build): return false
 		if projection.late_revision(season.round_index)>=0 and not _paired_late_start(season): return false
-	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (season.round_index==7 and build.revision()==20)
+	var late_open: Dictionary=late_shop_open(season.round_index)
+	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (not late_open.is_empty() and build.revision()==int(late_open.rev)+1)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
 
 # This helper is not standalone authority: callers first gate exact Runtime
@@ -239,7 +240,10 @@ static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
 	if after_sign:
 		if not _signed_visit6_prefix(build): return false
 		if after_cutoff:
-			if tail!=0 or not visit7_open_command(build._events[19]) or not _archived_visit7_cutoff(build) or build._visit.has("recruit"): return false
+			if tail not in [0,1] or not visit7_open_command(build._events[19]): return false
+			if tail==0:
+				if not _archived_visit7_cutoff(build) or build._visit.has("recruit"): return false
+			elif tail!=1 or not late_shop_open_command(build._events[size],8) or not _late_recruit_cutoff(build,8): return false
 		elif tail==0:
 			if build._recruits.size()!=2 or build._visit.has("recruit"): return false
 		elif tail!=1 or not visit7_open_command(build._events[size]) or not _visit7_recruit_cutoff(build): return false
@@ -268,17 +272,38 @@ const VISIT6_OUTGOING: String="player.val_morgan"
 static func visit6_open_command(command: Dictionary) -> bool:
 	return keys(command,["id","rev","op"]) and command.id=="visit6-open:15" and whole(command.rev,15,15) and command.op=="open"
 
+# Optional owned open only. The frozen Build authors/validates stock and
+# the empty current/archived recruit; this table cannot admit a purchase.
+const LATE_SHOP_REVS: Dictionary={7:19,8:22}
+static func late_shop_open(visit: int) -> Dictionary:
+	if not LATE_SHOP_REVS.has(visit): return {}
+	var rev: int=LATE_SHOP_REVS[visit]
+	return {"id":"visit%d-open:%d"%[visit,rev],"rev":rev,"op":"open"}
+
+static func late_shop_open_command(command: Dictionary, visit: int) -> bool:
+	var authored: Dictionary=late_shop_open(visit)
+	return not authored.is_empty() and keys(command,["id","rev","op"]) and same(command,authored)
+
 static func visit7_open_command(command: Dictionary) -> bool:
-	return keys(command,["id","rev","op"]) and same(command,{"id":"visit7-open:19","rev":19,"op":"open"})
+	return late_shop_open_command(command,7)
 
 static func _visit7_recruit_cutoff(build: SeasonBuild) -> bool:
+	return _late_recruit_cutoff(build,7)
+
+static func _late_recruit_cutoff(build: SeasonBuild, number: int) -> bool:
 	var visit: Dictionary=build._visit
 	var offers: Variant=visit.get("offers")
 	var pack: Variant=visit.get("cards")
-	return _archived_visit7_cutoff(build) and visit.get("recruit") is Dictionary and visit.recruit.is_empty() and visit.get("pack_status")=="sealed" and whole(visit.get("rerolls"),0,0) and offers is Dictionary and not offers.is_empty() and pack is Array and not pack.is_empty()
+	return _archived_late_cutoffs(build,number) and visit.get("recruit") is Dictionary and visit.recruit.is_empty() and visit.get("pack_status")=="sealed" and whole(visit.get("rerolls"),0,0) and offers is Dictionary and not offers.is_empty() and pack is Array and not pack.is_empty()
 
 static func _archived_visit7_cutoff(build: SeasonBuild) -> bool:
-	return build._recruits.size()==3 and same(build._recruits[2],{"visit":7,"chance":0.0,"offer":{}})
+	return _archived_late_cutoffs(build,7)
+
+static func _archived_late_cutoffs(build: SeasonBuild, through: int) -> bool:
+	if not LATE_SHOP_REVS.has(through) or build._recruits.size()!=through-4: return false
+	for number: int in range(7,through+1):
+		if not same(build._recruits[number-5],{"visit":number,"chance":0.0,"offer":{}}): return false
+	return true
 
 static func visit6_sign_command(command: Dictionary) -> bool:
 	return keys(command,["id","rev","op","offer","replace"]) and same(command,{"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":VISIT6_OUTGOING})
@@ -287,7 +312,7 @@ static func visit6_sign_command(command: Dictionary) -> bool:
 # the recruited history or the sign/Book/bank receipts at the original cutoffs.
 static func _archived_visit6_offer(build: SeasonBuild) -> Dictionary:
 	var profile: Dictionary=RecruitCatalog.fresh(VISIT6_RECRUIT,"late")
-	if profile.is_empty() or not whole(profile.catchup.price,32,32) or (build._recruits.size()!=2 and not _archived_visit7_cutoff(build)): return {}
+	if profile.is_empty() or not whole(profile.catchup.price,32,32) or (build._recruits.size()!=2 and not _archived_visit7_cutoff(build) and not _archived_late_cutoffs(build,8)): return {}
 	var original: Dictionary={"id":"recruit:6","player":VISIT6_RECRUIT,"stage":"late","price":profile.catchup.price,"returning":false,"profile":profile,"signed":false}
 	return original if same(build._recruits[1],{"visit":6,"chance":0.5,"offer":original}) else {}
 

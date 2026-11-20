@@ -320,7 +320,11 @@ static func _prepare_paired_visit6_shop_open(owner: RefCounted, expected: Packed
 	return _prepare_paired_shop(owner,expected,{"id":"visit6-open:15","rev":15,"op":"open"},6)
 
 static func _prepare_paired_visit7_shop_open(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
-	return _prepare_paired_shop(owner,expected,{"id":"visit7-open:19","rev":19,"op":"open"},7)
+	return _prepare_paired_late_shop_open(owner,expected,7)
+
+static func _prepare_paired_late_shop_open(owner: RefCounted, expected: PackedByteArray, visit: int) -> RefCounted:
+	var command: Dictionary=Adapter.Ordinary.late_shop_open(visit)
+	return _prepare_paired_shop(owner,expected,command,visit) if not command.is_empty() else null
 
 static func _prepare_paired_visit6_sign(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
 	return _prepare_paired_shop(owner,expected,{"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":Adapter.Ordinary.VISIT6_OUTGOING},6)
@@ -332,13 +336,15 @@ static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, c
 	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
 	var session: SeasonState=owner.session
 	const General=preload("res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd")
-	if visit not in [1,6,7] or session.round_index!=visit or not General._source_public_shop_available(session): return null
+	var late: Dictionary=Adapter.Ordinary.late_shop_open(visit)
+	if (visit not in [1,6] and late.is_empty()) or session.round_index!=visit or not General._source_public_shop_available(session): return null
 	var sign_visit6: bool=visit==6 and Adapter.Ordinary.visit6_sign_command(command)
 	if visit==1:
 		var step: int=session.build.revision()-2
 		if not Adapter.Ordinary.first_shop_command(session.build,command,step): return null
-	elif visit==7:
-		if not Adapter.Ordinary.visit7_open_command(command) or session.player_results[-1].get("id")!=18 or session.build.revision()!=19 or session.build._visit.get("open")!=false: return null
+	elif not late.is_empty():
+		var played: Dictionary=Adapter.Ordinary.PairSchedule.authored_phase(visit-1)
+		if played.is_empty() or not Adapter.Ordinary.late_shop_open_command(command,visit) or session.player_results[-1].get("id")!=played.human.id or session.build.revision()!=int(late.rev) or session.build._visit.get("open")!=false: return null
 	else:
 		if session.player_results[-1].get("id")!=15: return null
 		if sign_visit6:
