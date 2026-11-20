@@ -307,17 +307,32 @@ func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true
 			if not catalog_for(season).is_empty() else (
 			PhysicalDoubleheaderReport.core(row.report) if row.report.get("version") == 28 else (
 			load("res://src/gameplay/season/successor_league_general_v2/physical_league.gd").core(row.report) if row.report.get("version") == 27 else row.report))
+	# This exact projected V4 return owns its opening state in this call.
+	# Hash and compare the same state; no state or validity escapes resolution.
+	var authored_return: Dictionary={}
+	var return_state: MatchState
+	var expected_request: String=""
+	if not header.is_empty() and row.fixture==fixture.id:
+		if season!=null and season.round_index==1 and LeagueRules.doubleheader(season.league_rules):
+			authored_return=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").projected_npc_fixture(season,fixture)
+		if authored_return.is_empty():
+			expected_request=request_key(season,fixture)
+		else:
+			return_state=match_for(season,authored_return)
+			var authored_field: FieldDefinition=SeasonState.field_for_fixture(authored_return,season)
+			if return_state!=null and authored_field!=null:
+				expected_request=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd").for_materialized_return(season,authored_return,return_state,authored_field)
 	if (
 		header.is_empty()
 		or row.fixture != fixture.id
-		or row.request != request_key(season, fixture)
+		or row.request != expected_request
 		or header.seed != seed_for(season, fixture)
 		or (row.report.venue.field if not catalog_for(season).is_empty()
 			and row.report.has("venue") else header.field) != String(field.id)
 	):
 		error = "Saved physical fixture does not match its scheduled clubs and committed build."
 		return {}
-	var state: MatchState = match_for(season, fixture)
+	var state: MatchState = match_for(season, fixture) if authored_return.is_empty() else return_state
 	if state == null:
 		error = "The immutable night policy could not reconstruct its scheduled field."
 		return {}
