@@ -327,16 +327,31 @@ static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteAr
 	_write_admitted()
 	return _ticket
 
-## Accept only unpaid human evidence for the exact upgraded round-1 owner.
-## The ordinary capture reconstructs the bound start and runs frozen General
-## projection; the detached match reward never enters the writer's candidate.
+## Accept only exact staged return evidence for the upgraded round-1 owner.
+## Existing proof/reports cannot be replaced. No detached reward is serialized.
 static func _prepare_paired_return_human(owner: RefCounted, expected: PackedByteArray, pending: Dictionary) -> RefCounted:
+	if owner==null or owner.session==null or owner.session.physical==null or not owner.session.physical.pending.is_empty(): return null
+	return _prepare_paired_return_checkpoint(owner,expected,pending)
+
+static func _prepare_paired_return_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
+	if not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.physical.pending.is_empty(): return null
+	var pending: Dictionary=owner.session.physical.pending.duplicate(true)
+	pending.reports.append(report.duplicate(true))
+	return _prepare_paired_return_checkpoint(owner,expected,pending)
+
+static func _prepare_paired_return_checkpoint(owner: RefCounted, expected: PackedByteArray, pending: Dictionary) -> RefCounted:
 	forget_projection()
 	last_error=""
 	if saving or _ticket!=null or not Codec.primitive(pending) or not match_owner(owner,expected): return null
 	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
 	var session: SeasonState=owner.session
-	if session.round_index!=1 or session.build.revision()!=5 or not session.physical.pending.is_empty() or session.build.pack_pending(): return null
+	if session.round_index!=1 or session.build.revision()!=5 or session.build.pack_pending(): return null
+	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if not projection.bound_shape(pending) or pending.human[0]!=3: return null
+	var prior: Dictionary=session.physical.pending
+	if prior.is_empty():
+		if not pending.reports.is_empty(): return null
+	elif pending.reports.size()!=prior.reports.size()+1 or not Codec.same(pending.human,prior.human) or not Codec.same(pending.binding,prior.binding) or not Codec.same(pending.reports.slice(0,prior.reports.size()),prior.reports): return null
 	var current: SeasonState=session.fork_live()
 	if current==null: return null
 	current.physical.pending=pending.duplicate(true)

@@ -162,7 +162,7 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	for index: int in range(3):
 		if season.results[index].get("id")!=index: return false
 	var physical=season.physical
-	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or physical.reports.size()!=2: return false
+	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or (not detached and physical.reports.size()!=2): return false
 	if not physical.pending.is_empty() and (season.build.revision()!=5 or not projection.bound_shape(physical.pending) or physical.pending.human[0]!=3): return false
 	for index: int in range(2):
 		if physical.reports[index].get("fixture")!=index+1: return false
