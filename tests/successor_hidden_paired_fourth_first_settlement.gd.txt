@@ -73,11 +73,11 @@ func settle_game7(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
 
 func sealed_paid(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  app._settle_paired_fourth_first_leg()
- app._play_paired_human(7)
+ app._play_paired_human(8)
  app._run_paired_npc(21)
  app._run_paired_npc(22)
  verify_closed(app,bytes,backup)
- check(Binding.start(app.season).is_empty() and Binding.next_npc_fixture(app.season).is_empty() and Binding.materialize_settlement(app.season,7)==null and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"repeat settle, subsequent fixtures and public routes remain sealed")
+ check((Binding.start(app.season).is_empty() if app.season.build._visit.get("open")==false else not Binding.start(app.season).is_empty()) and Binding.next_npc_fixture(app.season).is_empty() and Binding.materialize_settlement(app.season,7)==null and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"repeat settle, subsequent fixtures and public routes remain sealed")
 
 func paid_exact(season:SeasonState) -> bool:
  if season.round_index!=7 or season.phase!=SeasonState.Phase.REGULAR or season.results.size()!=21 or season.player_results.size()!=7 or season.physical.cursor!=14 or season.physical.reports.size()!=14 or not season.physical.pending.is_empty():return false

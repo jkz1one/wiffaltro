@@ -289,9 +289,9 @@ static func _prepare_paired_fourth_first_settlement(owner: RefCounted, expected:
 static func _prepare_paired_settlement(owner: RefCounted, expected: PackedByteArray, leg: int) -> RefCounted:
 	forget_projection()
 	last_error=""
-	if leg not in [0,1,2,3,4,5,6] or saving or _ticket!=null or not match_owner(owner,expected): return null
-	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=leg: return null
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if not projection.settlement_enabled(leg) or saving or _ticket!=null or not match_owner(owner,expected): return null
+	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=leg: return null
 	var started: int=Time.get_ticks_msec()
 	var current: SeasonState=projection.materialize_settlement(owner.session,leg)
 	paired_candidate_ms=Time.get_ticks_msec()-started
@@ -439,7 +439,8 @@ static func _prepare_paired_fourth_first_report(owner: RefCounted, expected: Pac
 	return _prepare_paired_report(owner,expected,report,6)
 
 static func _prepare_paired_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary, round_index: int) -> RefCounted:
-	if round_index not in [1,2,3,4,5,6] or not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.round_index!=round_index or owner.session.physical.pending.is_empty(): return null
+	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if round_index<=0 or projection.report_limit(round_index)==0 or not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.round_index!=round_index or owner.session.physical.pending.is_empty(): return null
 	var pending: Dictionary=owner.session.physical.pending.duplicate(true)
 	pending.reports.append(report.duplicate(true))
 	return _prepare_paired_human_checkpoint(owner,expected,pending,round_index)
@@ -450,9 +451,12 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	if saving or _ticket!=null or not Codec.primitive(pending) or not match_owner(owner,expected): return null
 	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
 	var session: SeasonState=owner.session
-	if round_index not in [1,2,3,4,5,6] or session.round_index!=round_index or session.build.revision()!=[0,5,7,9,11,13,17][round_index] or session.build.pack_pending(): return null
-	if round_index==6 and not Adapter.Ordinary._signed_visit6_journal(session.build): return null
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if round_index<=0 or not projection.human_enabled(round_index) or session.round_index!=round_index or session.build.pack_pending(): return null
+	var revision: int=[0,5,7,9,11,13,17][round_index] if round_index<7 else projection.late_revision(round_index)
+	if session.build.revision()!=revision: return null
+	if round_index==6 and not Adapter.Ordinary._signed_visit6_journal(session.build): return null
+	if round_index>=7 and not Adapter.Ordinary._paired_late_start(session): return null
 	var opening: Dictionary=projection._round_fixtures(round_index).human
 	if not projection.bound_shape(pending) or not Codec.whole(pending.human[0],opening.id,opening.id): return null
 	var prior: Dictionary=session.physical.pending

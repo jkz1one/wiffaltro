@@ -11,18 +11,30 @@ const PairedHistory = preload("res://src/gameplay/season/successor_settled_workl
 const HUMAN_PHASES: Array[int]=[0,1,2,3,4,5,6]
 const REPORT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 const SETTLEMENT_PHASES: Array[int]=[0,1,2,3,4,5,6]
+# Exact authored regular advancement, independent of UI eligibility.
+# State identity, native replay and the owned CAS still gate every operation.
+const LATE_REGULAR: Dictionary={7:{"revision":20,"reports":2,"settle":true}}
+
+static func late_revision(round_index: int) -> int:
+	return int(LATE_REGULAR.get(round_index,{}).get("revision",-1))
+
+static func human_enabled(round_index: int) -> bool:
+	return round_index in HUMAN_PHASES or LATE_REGULAR.has(round_index)
+
+static func settlement_enabled(round_index: int) -> bool:
+	return round_index in SETTLEMENT_PHASES or LATE_REGULAR.get(round_index,{}).get("settle",false)
 
 static func _round_fixtures(round_index: int) -> Dictionary:
-	return Request.authored_phase(round_index) if round_index in HUMAN_PHASES else {}
+	return Request.authored_phase(round_index) if human_enabled(round_index) else {}
 
 # Qualified report count is independent of the authored number of NPC games.
 static func report_limit(round_index: int) -> int:
-	return 2 if round_index in REPORT_PHASES else 0
+	return 2 if round_index in REPORT_PHASES else int(LATE_REGULAR.get(round_index,{}).get("reports",0))
 
 static func bound_shape(value: Variant) -> bool:
 	if not Live.keys(value,["human","reports","binding"]) or not value.human is Array or value.human.size()!=14 or not value.reports is Array or value.reports.size()>2: return false
 	var fixtures: Dictionary={}
-	for round_index: int in HUMAN_PHASES:
+	for round_index: int in HUMAN_PHASES+LATE_REGULAR.keys():
 		var authored: Dictionary=_round_fixtures(round_index)
 		if not authored.is_empty() and Live.whole(value.human[0],authored.human.id,authored.human.id):
 			if value.reports.size()>report_limit(round_index): return false
@@ -37,9 +49,10 @@ static func bound_shape(value: Variant) -> bool:
 	return Live.keys(binding,["version","request"]) and Live.whole(binding.version,1,1) and binding.request is String and binding.request.length()==64 and binding.request.is_valid_hex_number(false)
 
 static func start(source: SeasonState) -> Dictionary:
-	if not Live.scope(source) or not Live.same(source.league_rules,LeagueRules.capture("doubleheader")) or source.phase!=SeasonState.Phase.REGULAR or source.round_index not in HUMAN_PHASES or source.picks.size()!=4 or not source.physical.pending.is_empty(): return {}
+	if not Live.scope(source) or not Live.same(source.league_rules,LeagueRules.capture("doubleheader")) or source.phase!=SeasonState.Phase.REGULAR or not human_enabled(source.round_index) or source.picks.size()!=4 or not source.physical.pending.is_empty(): return {}
 	if source.round_index==1 and source.build.revision()!=5: return {}
 	if source.round_index==6 and not Live._signed_visit6_journal(source.build): return {}
+	if LATE_REGULAR.has(source.round_index) and not Live._paired_late_start(source): return {}
 	# Saved JSON hydrates whole IDs as floats. Bind to the semantically equal
 	# frozen-authored row so warm and cold hash exactly the same primitives.
 	var authored: Dictionary=_round_fixtures(source.round_index)
@@ -52,7 +65,7 @@ static func start(source: SeasonState) -> Dictionary:
 	var hash: String=Request.for_live_regular(source,fixture,state,field)
 	if hash.is_empty(): return {}
 	var club: TeamMatchState=state.home_team if fixture.home==0 else state.away_team
-	var format: String=["private-first-human-start-v1","private-return-human-start-v1","private-next-first-human-start-v1","private-next-return-human-start-v1","private-pair3-first-human-start-v1","private-pair3-return-human-start-v1","private-pair4-first-human-start-v1"][source.round_index]
+	var format: String="private-late-regular-human-start-v1" if LATE_REGULAR.has(source.round_index) else ["private-first-human-start-v1","private-return-human-start-v1","private-next-first-human-start-v1","private-next-return-human-start-v1","private-pair3-first-human-start-v1","private-pair3-return-human-start-v1","private-pair4-first-human-start-v1"][source.round_index]
 	var live: Dictionary={"format":format,"request":hash,"equipped":state.gear_usage.equipped,"held":club.tactics.held,"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,"track_walks":club.tactics.track_walks}
 	return {"state":state,"field":field,"fixture":fixture.duplicate(true),"binding":{"version":1,"request":JSON.stringify(live,"",true,true).sha256_text()}}
 
@@ -75,7 +88,7 @@ static func npc_job(source: SeasonState, fixture_id: int) -> Dictionary:
 
 # There is no reusable projection token or caller-supplied candidate.
 static func materialize_settlement(source: SeasonState, leg: int=0) -> SeasonState:
-	if leg not in SETTLEMENT_PHASES: return null
+	if not settlement_enabled(leg): return null
 	var authored: Dictionary=_round_fixtures(leg)
 	if authored.is_empty() or not Live.scope(source) or source.round_index!=leg or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=authored.npc.size(): return null
 	return _inspect_bound(source,true).get("settlement")
@@ -88,7 +101,7 @@ static func _inspect_bound(source: SeasonState, produce_settlement: bool = false
 	pristine.physical.pending.clear()
 	var opening: Dictionary=start(pristine)
 	if opening.is_empty() or not Live.same(opening.binding,pending.binding) or opening.fixture.id!=pending.human[0]: return {}
-	if source.round_index>=2 and source.round_index in HUMAN_PHASES:
+	if source.round_index>=2 and human_enabled(source.round_index):
 		return _inspect_followup(pristine,pending,opening.fixture,preview_job,produce_settlement)
 	if source.round_index==1:
 		return _inspect_return(pristine,pending.human,pending.reports,preview_job,produce_settlement)
@@ -140,13 +153,13 @@ class PrivateFollowupFork extends PrivateFirstFork:
 	pass
 
 static func followup_projection(season: SeasonState) -> bool:
-	return season!=null and season.get_script()==PrivateFollowupFork and season.round_index>=2 and season.round_index in HUMAN_PHASES and season.physical!=null and season.physical.projecting and season.physical.pending.is_empty()
+	return season!=null and season.get_script()==PrivateFollowupFork and season.round_index>=2 and human_enabled(season.round_index) and season.physical!=null and season.physical.projecting and season.physical.pending.is_empty()
 
 # The original resolver authenticates exact ordered NPC data. Fixed owned
 # producers may materialize a paid owner only after exact terminal replay.
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
-	if source.round_index<2 or source.round_index not in HUMAN_PHASES: return {}
-	if produce_settlement and source.round_index not in SETTLEMENT_PHASES: return {}
+	if source.round_index<2 or not human_enabled(source.round_index): return {}
+	if produce_settlement and not settlement_enabled(source.round_index): return {}
 	var limit: int=report_limit(source.round_index)
 	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}
 	if Live._capture_structural(source).is_empty(): return {}

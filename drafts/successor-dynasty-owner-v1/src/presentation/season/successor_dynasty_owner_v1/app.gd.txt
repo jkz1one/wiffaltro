@@ -200,7 +200,8 @@ func _finish_paired_human(round_index: int) -> void:
 	var human: Array=Adapter.human_capture("ordinary").capture(self)
 	if human.is_empty(): return
 	var pending: Dictionary={"human":human.duplicate(true),"reports":[],"binding":pin.binding.duplicate(true)}
-	if round_index in [1,2,3,4,5,6]:
+	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if round_index>0 and factory.human_enabled(round_index):
 		var expected: PackedByteArray=saved_bytes.duplicate()
 		var ticket: RefCounted
 		match round_index:
@@ -210,6 +211,7 @@ func _finish_paired_human(round_index: int) -> void:
 			4: ticket=Store._prepare_paired_third_first_human(career_owner,expected,pending)
 			5: ticket=Store._prepare_paired_third_return_human(career_owner,expected,pending)
 			6: ticket=Store._prepare_paired_fourth_first_human(career_owner,expected,pending)
+			_: ticket=Store._prepare_paired_human_checkpoint(career_owner,expected,pending,season.round_index)
 		if ticket!=null:
 			_retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 			_paired_first_pin.clear()
@@ -301,6 +303,13 @@ func _settle_paired_fourth_first_leg() -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return
 	var expected: PackedByteArray=saved_bytes.duplicate()
 	var ticket: RefCounted=Store._prepare_paired_fourth_first_settlement(career_owner,expected)
+	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
+# Unbound late regular settlement uses the authored current owner phase only.
+func _settle_paired_late_regular() -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or season.round_index<7 or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	var expected: PackedByteArray=saved_bytes.duplicate()
+	var ticket: RefCounted=Store._prepare_paired_settlement(career_owner,expected,season.round_index)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
 # Unbound private earned-pack continuation; normal shop remains inaccessible.
@@ -710,7 +719,7 @@ func _checkpoint_report() -> void:
 		if expected_fixture.is_empty() or _paired_npc_binding.get("fixture")!=expected_fixture.id: return
 		var row: Dictionary=_paired_npc_binding.duplicate(true)
 		row.report=retained_report.duplicate(true)
-		if season.round_index in [1,2,3,4,5,6]:
+		if season.round_index>0 and projection.report_limit(season.round_index)>0:
 			var expected: PackedByteArray=_npc_expected.duplicate()
 			var paired_ticket: RefCounted
 			match season.round_index:
@@ -720,6 +729,7 @@ func _checkpoint_report() -> void:
 				4: paired_ticket=Store._prepare_paired_third_first_report(career_owner,expected,row)
 				5: paired_ticket=Store._prepare_paired_third_return_report(career_owner,expected,row)
 				6: paired_ticket=Store._prepare_paired_fourth_first_report(career_owner,expected,row)
+				_: paired_ticket=Store._prepare_paired_report(career_owner,expected,row,season.round_index)
 			if paired_ticket!=null: _retain_prepared(paired_ticket,Store.prepared_candidate(paired_ticket),expected)
 			return
 		var candidate: SeasonState=_clone()

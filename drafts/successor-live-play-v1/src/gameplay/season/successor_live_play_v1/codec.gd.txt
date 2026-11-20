@@ -135,7 +135,7 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
-		if season.round_index in [3,4,5,6,7]:
+		if season.round_index in [3,4,5,6,7,8]:
 			if not _followup_settled_shape(season): return false
 		elif season.round_index==2:
 			if not _pair_settled_shape(season): return false
@@ -217,20 +217,30 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 		var queued: Array=physical.reports.slice(prefix).map(func(row):return row.get("fixture"))
 		if queued.size()>report_limit or queued.size()>authored.npc.size() or not same(queued,authored.npc.slice(0,queued.size()).map(func(row):return row.id)): return false
 	elif physical.reports.size()!=prefix: return false
-	if not physical.pending.is_empty() and (season.round_index not in projection.HUMAN_PHASES or not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
+	if not physical.pending.is_empty() and (not projection.human_enabled(season.round_index) or not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
 	var build: SeasonBuild=season.build
-	if season.round_index==6 and not physical.pending.is_empty() and not _signed_visit6_journal(build): return false
+	if not physical.pending.is_empty():
+		if season.round_index==6 and not _signed_visit6_journal(build): return false
+		if projection.late_revision(season.round_index)>=0 and not _paired_late_start(season): return false
 	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (season.round_index==7 and build.revision()==20)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
 
+# This helper is not standalone authority: callers first gate exact Runtime
+# scope (or its separately authenticated detached projection).
+static func _paired_late_start(season: SeasonState) -> bool:
+	return season.round_index==7 and season.build.revision()==20 and season.build._visit.get("open")==true and _visit7_recruit_cutoff(season.build)
+
 static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
-	var after_sign: bool=paid_rounds==7
-	var size: int=3+2*paid_rounds+(2 if after_sign else 0)
+	var after_sign: bool=paid_rounds>=7
+	var after_cutoff: bool=paid_rounds>=8
+	var size: int=3+2*paid_rounds+(2 if after_sign else 0)+(1 if after_cutoff else 0)
 	var tail: int=build._events.size()-size
-	if paid_rounds not in [2,3,4,5,6,7] or build._bank==null: return false
+	if paid_rounds not in [2,3,4,5,6,7,8] or build._bank==null: return false
 	if after_sign:
 		if not _signed_visit6_prefix(build): return false
-		if tail==0:
+		if after_cutoff:
+			if tail!=0 or not visit7_open_command(build._events[19]) or not _archived_visit7_cutoff(build) or build._visit.has("recruit"): return false
+		elif tail==0:
 			if build._recruits.size()!=2 or build._visit.has("recruit"): return false
 		elif tail!=1 or not visit7_open_command(build._events[size]) or not _visit7_recruit_cutoff(build): return false
 	elif tail!=0:
@@ -243,8 +253,8 @@ static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	for index: int in range(2,paid_rounds):
 		var game: String=str(projection._round_fixtures(index).human.id)
-		var signed_cutoff: bool=after_sign and index==6
-		var reward_index: int=3+2*index+(2 if signed_cutoff else 0)
+		var signed_cutoff: bool=after_sign and index>=6
+		var reward_index: int=3+2*index+(2 if signed_cutoff else 0)+(1 if index>=7 else 0)
 		var reward: Dictionary=build._events[reward_index]
 		var exotic: Dictionary=build._events[reward_index+1]
 		if reward.get("op")!="successor_reward" or reward.get("id")!="game:"+game or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:"+game: return false
@@ -609,8 +619,8 @@ static func _history_valid(season: SeasonState) -> bool:
 static func _paid_history_valid(season: SeasonState) -> bool:
 	# Only the exact qualified signed envelope uses authenticated pre-reward
 	# rosters; originals/unsigned use the old check and never replay a second time.
-	if season.round_index==7:
-		return _paid_pair_journal(season.build,7) and PairedHistory.validate_settled_with_historical_humans(season)
+	if season.round_index in [7,8]:
+		return _paid_pair_journal(season.build,season.round_index) and PairedHistory.validate_settled_with_historical_humans(season)
 	if season.round_index==6 and _signed_visit6_journal(season.build):
 		return PairedHistory.validate_settled_with_historical_humans(season)
 	for row: Dictionary in season.player_results:
