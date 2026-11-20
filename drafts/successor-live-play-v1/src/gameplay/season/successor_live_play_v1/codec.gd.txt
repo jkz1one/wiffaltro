@@ -133,7 +133,8 @@ static func _runtime_context(season: SeasonState) -> bool:
 	var expected: Dictionary = Admissions.expected(season.league_rules,season.season_seed)
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
-		if season.career.start_basis.get("kind")==CommonStart.KIND or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() or not season.physical.reports.is_empty(): return false
+		if season.career.start_basis.get("kind")==CommonStart.KIND or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty(): return false
+		if not season.physical.reports.is_empty() and not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").first_npc_queued(season): return false
 		if not season.physical.pending.is_empty() and (season.phase!=SeasonState.Phase.REGULAR or not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").bound_shape(season.physical.pending)): return false
 		if not (season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4) and not (season.phase==SeasonState.Phase.REGULAR and season.picks.size()==4): return false
 		if not season.ownership._events.is_empty() or not _draft_journal_only(season.build): return false

@@ -54,8 +54,11 @@ static func seed_for(season: SeasonState, fixture: Dictionary) -> int:
 
 
 static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
-	if season!=null and season.league_rules.get("league","")=="doubleheader": return null
-	if not load("res://src/gameplay/season/successor_live_play_v1/codec.gd").scope(season):
+	var projected: bool=false
+	if season!=null and season.league_rules.get("league","")=="doubleheader":
+		projected=not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").projected_npc_fixture(season,fixture).is_empty()
+		if not projected: return null
+	if not projected and not load("res://src/gameplay/season/successor_live_play_v1/codec.gd").scope(season):
 		return null
 	if season != null and not season._league_home_context.is_empty():
 		if season._league_home_context.get("format") not in [91, 92, 93, 94, 95, 96] \
@@ -63,7 +66,7 @@ static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
 			return null  # Save90 and unsupported home families remain pre-physical.
 	if (
 		season == null
-		or not season.league_context_consistent()
+		or (not projected and not season.league_context_consistent())
 		or (not season.league_rules.is_empty() and not season.league_live)
 	):
 		return null  # Only explicit live staging admits physical fixtures.
@@ -115,6 +118,13 @@ static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
 
 
 static func request_key(season: SeasonState, fixture: Dictionary) -> String:
+	if season!=null and season.league_rules.get("league","")=="doubleheader":
+		var authored: Dictionary=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").projected_npc_fixture(season,fixture)
+		if authored.is_empty(): return ""
+		var start: MatchState=match_for(season,authored)
+		var authored_field: FieldDefinition=SeasonState.field_for_fixture(authored,season)
+		if start==null or authored_field==null: return ""
+		return preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd").for_context(season,authored,start,authored_field)
 	var field: FieldDefinition = SeasonState.field_for_fixture(fixture, season)
 	if field == null:
 		return ""

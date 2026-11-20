@@ -186,8 +186,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/app.gd",
-      "bytes": 40158,
-      "sha256": "792fc8852267c6c796a6eafe76a24cb2807b7ec000544f41594c3001945fa7da"
+      "bytes": 41648,
+      "sha256": "5576675fa8d66934ae507bcec2e0936a5d47447c3389ed565c4453ca7ea5cd7e"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/capture_human.gd.txt",

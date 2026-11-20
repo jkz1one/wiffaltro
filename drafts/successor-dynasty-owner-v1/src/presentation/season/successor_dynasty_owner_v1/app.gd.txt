@@ -163,6 +163,28 @@ func _finish_paired_first() -> void:
 	_retain(candidate,saved_bytes)
 	if retained!=null or season==candidate: _paired_first_pin.clear()
 
+# Unbound single NPC job; public resume still rejects this owner profile.
+var _paired_npc_binding: Dictionary={}
+func _run_paired_first_npc() -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	var job: Dictionary=factory.first_npc(season)
+	if job.is_empty(): return
+	_npc_expected=saved_bytes.duplicate(); _npc_owner=season; _npc_envelope=career_owner
+	_npc_before=Store.RawGuard.capture(career_owner)
+	_npc_lab=lab; _npc_state=null
+	if _npc_before.is_empty():
+		_clear_npc_pins()
+		return
+	_paired_npc_binding=job.binding.duplicate(true)
+	ai_runner=Adapter.runner("ordinary").new()
+	add_child(ai_runner)
+	ai_runner.finished.connect(_ai_finished.bind(ai_runner))
+	ai_runner.failed.connect(_ai_failed.bind(ai_runner))
+	_busy=true
+	if not ai_runner.start(job.state,job.seed,job.field.id):
+		_ai_failed("The private first NPC fixture could not start.",ai_runner)
+
 func reload_save() -> void:
 	if not _available(): return
 	_busy = true
@@ -465,6 +487,7 @@ func _npc_owner_matches() -> bool:
 
 
 func _clear_npc_pins() -> void:
+	_paired_npc_binding.clear()
 	_npc_expected = PackedByteArray()
 	_npc_owner = null
 	_npc_envelope = null
@@ -535,6 +558,15 @@ func _clone() -> SeasonState:
 
 func _checkpoint_report() -> void:
 	if _busy or retained != null or retained_report.is_empty() or not _npc_owner_matches(): return
+	if career_owner.paired_draft_only():
+		if _paired_npc_binding.is_empty() or not season.physical.pending.reports.is_empty(): return
+		var candidate: SeasonState=_clone()
+		if candidate==null: return
+		var row: Dictionary=_paired_npc_binding.duplicate(true)
+		row.report=retained_report.duplicate(true)
+		candidate.physical.pending.reports.append(row)
+		_retain(candidate,saved_bytes)
+		return
 	_busy = true
 	var ticket: RefCounted = Store.prepare_report_and_write(career_owner,_npc_expected,retained_report)
 	_busy = false

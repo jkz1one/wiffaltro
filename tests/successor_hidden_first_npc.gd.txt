@@ -1,0 +1,74 @@
+extends "res://tests/successor_hidden_paired_draft.gd"
+const Binding=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+class ProofApp extends "res://src/presentation/season/successor_dynasty_owner_v1/app.gd":
+ var finished_at:int=0
+ var checkpoint_ms:int=0
+ func _ai_finished(report:Dictionary, runner:Node=null) -> void:
+  finished_at=Time.get_ticks_msec()
+  super._ai_finished(report,runner)
+  checkpoint_ms=Time.get_ticks_msec()-finished_at
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=ProofApp.new()
+ get_tree().root.add_child(app)
+ var bytes=Store.raw()
+ var backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var start=Time.get_ticks_msec()
+ var calls=Live.paired_history_calls
+ app.reload_save()
+ print("NPC_COLD_MS=",Time.get_ticks_msec()-start," HISTORY_CALLS=",Live.paired_history_calls-calls)
+ if args[0].begins_with("tamper"):
+  check(app.season==null,"actual cold App refuses isolated "+args[0])
+  check(Store.raw()==bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"rejected cold retains exact primary and backup")
+ elif not check(app.season!=null and Store.raw()==bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup and Live.paired_history_calls-calls==1,"actual App cold verifies exact owned pending bytes"):
+  get_tree().quit(1);return
+ elif args[0]=="cold":
+  var pending:Dictionary=app.season.physical.pending
+  check(pending.reports.size()==1 and pending.reports[0].fixture==1 and pending.human[0]==0,"cold retains only first NPC plus real human frame")
+  check(app.season.results.is_empty() and app.season.physical.reports.is_empty() and app.season.build._bank.view().rewards.is_empty(),"cold has no committed payout, settled rows or report cursor")
+  app._run_paired_first_npc()
+  app.resume_round()
+  check(not is_instance_valid(app.ai_runner) and Store.raw()==bytes,"duplicate dispatch and public resume cannot start next fixture")
+ else:
+  var original:Dictionary=app.season.physical.pending.duplicate(true)
+  if not check(args[0]=="play" and original.reports.is_empty() and original.human[0]==0 and Binding.bound_shape(original),"retained cp107 genuine human-only pending"):get_tree().quit(1);return
+  app.resume_round()
+  check(not is_instance_valid(app.ai_runner),"normal resume remains closed")
+  var obstruct=ProjectSettings.globalize_path(Store.PATH+".tmp")
+  if not check(DirAccess.make_dir_absolute(obstruct)==OK,"isolated synthetic write obstruction"):get_tree().quit(1);return
+  start=Time.get_ticks_msec()
+  app._run_paired_first_npc()
+  var started=Time.get_ticks_msec()
+  print("NPC_CONTEXT_AND_CONSTRUCTION_MS=",started-start)
+  if not check(is_instance_valid(app.ai_runner) and app._npc_owner_matches(),"exact asynchronous owner/runner pins"):get_tree().quit(1);return
+  for frame in range(200000):
+   await get_tree().physics_frame
+   if app.finished_at>0 or not is_instance_valid(app.ai_runner):break
+   if frame%18000==0:print("ACTUAL_NPC_FRAME=",frame)
+  if not check(app.finished_at>0 and app.retained!=null,"real first NPC completed and passed full validation into retained write"):get_tree().quit(1);return
+  print("NPC_SIMULATION_MS=",app.finished_at-started," NPC_CAPTURE_AND_VALIDATION_BEFORE_BLOCKED_WRITE_MS=",app.checkpoint_ms)
+  var pending:Dictionary=app.retained.physical.pending.duplicate(true)
+  check(pending.reports.size()==1 and pending.reports[0].fixture==1 and Live.same(pending.human,original.human) and Live.same(pending.binding,original.binding),"exact human proof and binding plus one authentic report")
+  check(app.season.results.is_empty() and app.season.build._bank.view().rewards.is_empty() and app.retained.results.is_empty() and app.retained.build._bank.view().rewards.is_empty(),"no projected human or NPC payout released")
+  app._run_paired_first_npc()
+  check(Store.raw()==bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"blocked write and repeated request preserve exact primary and backup")
+  if not check(DirAccess.remove_absolute(obstruct)==OK,"removed only owned isolated obstruction"):get_tree().quit(1);return
+  calls=Live.paired_history_calls
+  start=Time.get_ticks_msec()
+  app.retry_save()
+  print("NPC_RETRY_WRITE_AND_PROMOTE_MS=",Time.get_ticks_msec()-start)
+  if not check(app.retained==null and Live.paired_history_calls==calls and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes and Live.same(app.season.physical.pending,pending),"exact existing ticket retry promotes without validation replay"):get_tree().quit(1);return
+  var saved=Store.raw()
+  for fault:String in ["duplicate","wrong-id","bad-request","foreign-owner"]:
+   var owner=app.career_owner
+   var detached=owner.fork()
+   match fault:
+    "duplicate":detached.session.physical.pending.reports.append(pending.reports[0].duplicate(true))
+    "wrong-id":detached.session.physical.pending.reports[0].fixture=2
+    "bad-request":detached.session.physical.pending.reports[0].request="0".repeat(64)
+    "foreign-owner":owner=owner.fork()
+   check(Store.prepare_and_write(owner,detached,saved)==null and Store.raw()==saved and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"Store refuses "+fault+" without writes")
+ app.free()
+ if failures==0:print("HIDDEN_FIRST_NPC_PASS")
+ get_tree().quit(0 if failures==0 else 1)
