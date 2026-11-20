@@ -120,7 +120,12 @@ static func _draft_journal_only(build: SeasonBuild) -> bool:
 	return build!=null and build.get_script()==GameBuild and build._bank!=null and build._events.is_empty() and build._bank._events.is_empty()
 
 static func scope(season: SeasonState) -> bool:
-	if season == null or season.get_script() != Runtime or season.build == null or season.build.get_script() != GameBuild \
+	return season!=null and season.get_script()==Runtime and _runtime_context(season)
+
+# Context checks are not persistence authority; only scope admits the exact
+# live runtime. The detached projection type cannot pass scope.
+static func _runtime_context(season: SeasonState) -> bool:
+	if season == null or season.build == null or season.build.get_script() != GameBuild \
 		or season.career == null or season.career.get_script() != Career or not season.league_career \
 		or season.opponents == null or season.opponents.get_script() != Opponents or season.opponents._format != 13 \
 		or season.physical == null or season.physical.get_script() != Physical or season.ownership == null: return false

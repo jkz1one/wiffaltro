@@ -1,0 +1,67 @@
+extends Node
+const General=preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Pending=preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
+const Adapter=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const Live=preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+var failures:int=0
+func _ready() -> void:
+ call_deferred("run")
+func check(ok:bool,label:String) -> bool:
+ print(("PASS: " if ok else "FAIL: ")+label)
+ if not ok:failures+=1
+ return ok
+func run() -> void:
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1":get_tree().quit(2);return
+ var roots=General._operation_content_roots()
+ var path="user://paired-first-projection-0005.json"
+ var bytes=FileAccess.get_file_as_bytes(path)
+ var original=General.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+ if not check(original!=null,"genuine retained standalone pending human reopens"):get_tree().quit(1);return
+ var capture=General.capture(original)
+ var human=original.physical.pending.human.duplicate(true)
+ var started=Time.get_ticks_msec()
+ var valid=Pending.project(original)
+ print("FROZEN_PROJECTION_MS=",Time.get_ticks_msec()-started)
+ check(not valid.has("error") and valid.get("fixture",{}).get("id")==1 and valid.candidate.results.size()==1 and valid.candidate.physical.reports.is_empty(),"original General projection accepts genuine human and stops before NPC play")
+ check(not Adapter.verify(original,human) and Adapter.detached_calls==0,"standalone source cannot enter V4 adapter")
+ for fault:String in ["fixture","called","workload","ownership"]:
+  var bad={"human":human.duplicate(true),"reports":[]}
+  match fault:
+   "fixture":bad.human[0]=3
+   "called":bad.human[9].version=1
+   "workload":
+    var remaining:Dictionary=bad.human[13][0].proof.remaining
+    remaining[remaining.keys()[0]]+=1000
+   "ownership":bad.human[12].budget.cash+=1
+  check(Pending._doubleheader_shape(bad,original.build.pitch_catalog_signature()),"fault retains original outer shape "+fault)
+  var detached=Pending._fork_replayed_state(original)
+  check(detached!=null and Pending._project_candidate(detached,bad).has("error"),"frozen original projection rejects "+fault)
+ check(ClubCareer.same(capture,General.capture(original)) and FileAccess.get_file_as_bytes(path)==bytes,"original standalone owner/evidence unchanged")
+ var app=App.new()
+ get_tree().root.add_child(app)
+ app._create_paired_draft(1001)
+ if not check(app.season!=null and app.season.phase==SeasonState.Phase.DRAFT,"genuine private shared App birth"):get_tree().quit(1);return
+ # Negative-only, independently authored payload; no standalone human evidence
+ # is transplanted to the materialized owner.
+ var invalid=[0,1,0,{},[],[],{},[],[],{"version":2,"pitching":{"releases":[],"calls":[],"strikeouts":[]},"called_strikeouts":[]},{},[],{},[{},{}]]
+ check(not Adapter.verify(app.season,invalid) and Adapter.detached_calls==0,"pre-draft source cannot enter typed projection")
+ for i:int in range(4):app.draft(app.season.offers()[0])
+ if not check(app.season.picks.size()==4 and app.season.round_index==0 and Live.scope(app.season),"actual V4 drafted source admitted only in ordinary concrete type"):get_tree().quit(1);return
+ var raw=Store.raw()
+ var keeper=app.season
+ var normalized=Live._capture_structural(keeper)
+ check(not Adapter.verify(keeper,[]) and not Adapter.verify(keeper,[0]) and Adapter.detached_calls==0,"malformed V4 pending rejected before detachment")
+ invalid[0]=1
+ check(not Adapter.verify(keeper,invalid) and Adapter.detached_calls==0,"wrong V4 fixture rejected before detachment")
+ invalid[0]=int(keeper.pending_fixture().id)
+ check(Pending._doubleheader_shape({"human":invalid,"reports":[]},keeper.build.pitch_catalog_signature()),"independent negative V4 probe passes only shape")
+ started=Time.get_ticks_msec()
+ check(not Adapter.verify(keeper,invalid) and Adapter.detached_calls==1 and Adapter.projection_calls==1,"exact authenticated V4 fork reached nonpersistable typed projection and refused invalid evidence")
+ print("REJECTED_TYPED_V4_PROJECTION_MS=",Time.get_ticks_msec()-started)
+ check(app.season==keeper and Store.raw()==raw and Store.match_owner(app.career_owner,raw) and Live.same(normalized,Live._capture_structural(keeper)),"V4 owner, in-memory objects and durable bytes unchanged")
+ app.free()
+ roots.clear()
+ if failures==0:print("PAIRED_FIRST_PROJECTION_PASS")
+ get_tree().quit(0 if failures==0 else 1)
