@@ -152,7 +152,9 @@ func no_more(app,bytes:PackedByteArray,backup:PackedByteArray,job:int) -> void:
  altered.reports.append(foreign)
  var upcoming:Dictionary=Binding.next_npc_fixture(app.season)
  check((upcoming.get("id")==20 if job==19 else upcoming.is_empty()) and Binding.npc_job(app.season,21).is_empty() and not Binding.bound_shape(altered) and Store._prepare_paired_fourth_first_report(app.career_owner,bytes,foreign)==null and Store._prepare_paired_human_checkpoint(app.career_owner,bytes,altered,6)==null,"only remaining authored scope; foreign fixture refused")
- check(Binding.materialize_settlement(app.season,6)==null and Store._prepare_paired_settlement(app.career_owner,bytes,6)==null and Binding.start(app.season).is_empty(),"no round 7 payout or further human match")
+ if job==19:
+  check(Binding.materialize_settlement(app.season,6)==null and Store._prepare_paired_settlement(app.career_owner,bytes,6)==null,"partial owner never pays")
+ check(Binding.materialize_settlement(app.season,7)==null and Store._prepare_paired_settlement(app.career_owner,bytes,7)==null and Binding.start(app.season).is_empty(),"closed future settlement and later match; checkpoint remains unpaid")
  app._run_paired_npc(19)
  if job==20:app._run_paired_npc(20)
  app._run_paired_npc(21)

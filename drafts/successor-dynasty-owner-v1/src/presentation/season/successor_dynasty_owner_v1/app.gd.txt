@@ -296,6 +296,13 @@ func _settle_paired_third_return_leg() -> void:
 	var ticket: RefCounted=Store._prepare_paired_third_return_settlement(career_owner,expected)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+# Unbound exact private fixture 18/19/20 settlement. No visit7 action.
+func _settle_paired_fourth_first_leg() -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	var expected: PackedByteArray=saved_bytes.duplicate()
+	var ticket: RefCounted=Store._prepare_paired_fourth_first_settlement(career_owner,expected)
+	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
 # Unbound private earned-pack continuation; normal shop remains inaccessible.
 func _paired_first_shop(command: Dictionary) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return

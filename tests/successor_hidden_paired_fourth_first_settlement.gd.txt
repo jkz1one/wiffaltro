@@ -1,0 +1,120 @@
+extends "res://tests/successor_hidden_paired_fourth_first_npcs.gd"
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ var resolves:int=Live.Physical.resolve_calls
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE cold")
+ app.reload_save()
+ print("GAME7_COLD_MS=",Time.get_ticks_msec()-started," gates=",Live.paired_history_calls-gates," replays=",PairHistory.Collector.replay_calls-replays," resolves=",Live.Physical.resolve_calls-resolves)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"fresh App refuses "+args[0]+" without altering the files")
+ elif check(app.season!=null and app._owned() and exact(bytes,backup),"fresh App authenticates exact owned bytes"):
+  if args[0]=="settle":
+   if check(single_history(gates,replays) and Live.Physical.resolve_calls-resolves==2,"complete pending cold authenticates six original Val-era scores + both original NPC reports"):
+    settle_game7(app,bytes,backup)
+  elif args[0]=="cold":
+   check(Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-replays==6 and Live.Physical.resolve_calls==resolves and checked_paid(),"paid cold uses one historic batch and does not project pending")
+   check(paid_exact(app.season),"seven real played rounds, historical Val rows and Dakota's own Game18, six new receipts and closed visit7")
+   sealed_paid(app,bytes,backup)
+  else:
+   check(false,"unexpected mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func checked_paid() -> bool:
+ return PairHistory.historical_humans_checked==7 and PairHistory.checked_sides==42 and PairHistory.checked_reports==14
+
+func settle_game7(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var source:SeasonState=app.season
+ var pending:Dictionary=source.physical.pending.duplicate(true)
+ if not check(unpaid_signed(source) and Live.same(pending.reports.map(func(row):return row.fixture),[19,20]),"actual signed human18 and exact original two NPCs, no match rerun"):return
+ var raw_guard:Dictionary=Store.RawGuard.capture(owner)
+ check(Store._prepare_paired_fourth_first_settlement(owner.fork(),bytes)==null and Store._prepare_paired_fourth_first_settlement(owner,backup)==null and Store._prepare_paired_settlement(owner,bytes,7)==null and exact(bytes,backup),"foreign owner, real stale primary and wrong authored leg reject")
+ verify_closed(app,bytes,backup)
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated obstruction before final owned write"):return
+ var gates:int=Live.paired_history_calls
+ var calls:int=PairHistory.Collector.replay_calls
+ var resolves:int=Live.Physical.resolve_calls
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE candidate")
+ app._settle_paired_fourth_first_leg()
+ print("GAME7_CANDIDATE_MS=",Store.paired_candidate_ms," ADMISSION_MS=",Store.paired_admission_ms," BLOCKED_TOTAL_MS=",Time.get_ticks_msec()-started," BUILD_REPLAYS=",PairHistory.Collector.replay_calls-calls," NPC_RESOLVES=",Live.Physical.resolve_calls-resolves)
+ if not check(app.retained!=null and app.retained.get_script()==Live.Runtime,"native owned exact concrete candidate from genuine complete pending"):return
+ var next:SeasonState=app.retained
+ check(Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-calls==12 and Live.Physical.resolve_calls-resolves==2 and checked_paid(),"one pending prefix batch plus one distinct paid batch; no repeated projection in capture")
+ check(paid_exact(next),"all six new authored payouts are ordinary win/loss amounts, no opening sweep, Dakota and Mika exact")
+ check(Live.same(next.results.slice(0,18),source.results) and Live.same(next.player_results.slice(0,6),source.player_results) and Live.same(next.physical.reports,source.physical.reports+pending.reports),"Val-era records, archived request keys and two native pending reports are exact")
+ check(Live.same(next.build._events.slice(0,17),source.build._events) and Live.same(next.build._bank._events.slice(0,8),source.build._bank._events) and Live.same(next.build._book._events,source.build._book._events) and Live.same(next.build._contracts,source.build._contracts),"earlier signed sign/charge/book, other ledger receipts and all contracts exact")
+ var result:Dictionary=next.player_results[-1]
+ check(Live.same([result.id,result.away_runs,result.home_runs],pending.human.slice(0,3)) and Live.same(result.performance,pending.human[3]) and Live.same(result.pitching_current,pending.human[9]) and Live.same(result.doubleheader_evidence,pending.human[13]),"new actual Game18 row uses Dakota's own evidence and original winning score")
+ app._settle_paired_fourth_first_leg()
+ check(app.retained==next and app.career_owner==owner and app.season==source and Store.RawGuard.matches(owner,raw_guard) and exact(bytes,backup),"held exact candidate: obstruction and repeated settle do not change files or owner")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove isolated obstruction"):return
+ gates=Live.paired_history_calls;calls=PairHistory.Collector.replay_calls;resolves=Live.Physical.resolve_calls
+ started=Time.get_ticks_msec()
+ print("CP127_STAGE retry")
+ app.retry_save()
+ print("GAME7_RETRY_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==next and app.career_owner!=owner and Live.paired_history_calls==gates and PairHistory.Collector.replay_calls==calls and Live.Physical.resolve_calls==resolves and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes and Store.RawGuard.matches(owner,raw_guard),"exact held retry writes and promotes once with zero validation or payment reruns"):return
+ var saved:PackedByteArray=Store.raw()
+ check(Store.prepare_and_write(app.career_owner,owner.fork(),saved)==null and Store.prepare_and_write(app.career_owner,app.career_owner.fork(),saved)==null,"generic writes cannot rewrite or roll back")
+ sealed_paid(app,saved,bytes)
+
+func sealed_paid(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ app._settle_paired_fourth_first_leg()
+ app._play_paired_human(7)
+ app._run_paired_npc(21)
+ app._run_paired_npc(22)
+ verify_closed(app,bytes,backup)
+ check(Binding.start(app.season).is_empty() and Binding.next_npc_fixture(app.season).is_empty() and Binding.materialize_settlement(app.season,7)==null and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"repeat settle, subsequent fixtures and public routes remain sealed")
+
+func paid_exact(season:SeasonState) -> bool:
+ if season.round_index!=7 or season.phase!=SeasonState.Phase.REGULAR or season.results.size()!=21 or season.player_results.size()!=7 or season.physical.cursor!=14 or season.physical.reports.size()!=14 or not season.physical.pending.is_empty():return false
+ if not Live.same(season.results.slice(18).map(func(row):return [row.id,row.away_runs,row.home_runs]),[[18,15,17],[19,6,7],[20,6,7]]):return false
+ var build:SeasonBuild=season.build
+ if build.cash()!=80 or build.revision()!=19 or not Live.whole(build._visit.get("number"),7,7) or build._visit.get("open")!=false or build._visit.has("recruit") or not Live._signed_visit6_prefix(build):return false
+ if build.player("player.mika_reed").stats.fielding!=SeasonPlayerCatalog.profile("player.mika_reed").stats.fielding+1 or not Live.same(build.player(RECRUIT),RecruitCatalog.fresh(RECRUIT,"late")):return false
+ for row:Dictionary in season.player_results.slice(0,6):
+  if not row.club_roster.has(RELEASED) or row.club_roster.has(RECRUIT):return false
+ var row:Dictionary=season.player_results[-1]
+ if row.club_roster.has(RELEASED) or not row.club_roster.has(RECRUIT) or row.performance.has(RELEASED) or row.performance.get(RECRUIT,{}).get("pa")!=10:return false
+ if not Live.same(build.roster_for_game(18),build.roster()) or not build.roster_for_game(15).has(RELEASED):return false
+ var receipts:int=0
+ var bonuses:Array=[]
+ for club:int in range(6):
+  var side:SeasonBuild=build if club==0 else season.opponents.clubs[str(club)].build
+  var latest:Array=season.results.slice(18).filter(func(item):return item.away==club or item.home==club)
+  if latest.size()!=1:return false
+  var played:Dictionary=latest[0]
+  var win:bool=(played.away_runs>played.home_runs)==(played.away==club)
+  var paid:Array=side._events.filter(func(event):return event.get("op")=="successor_reward" and Reward.unwrap(event).get("game")==played.id)
+  if paid.size()!=1 or Reward.unwrap(paid[0]).get("win")!=win:return false
+  var bank:SeasonOwnership=side._bank.empty_fork()
+  var rewards:Dictionary={}
+  for event:Dictionary in side._bank._events:
+   var before:int=bank.cash()
+   var earned:Dictionary=bank.view().rewards.duplicate(true)
+   var actual:Dictionary=bank.commit(event)
+   if not actual.ok or actual.replayed:return false
+   if event.op!="reward":continue
+   var id:String=str(int(event.game))
+   var bonus:int=SeasonDoubleheaderRules.bonus(season.league_rules,event.game,event.win,earned)
+   if rewards.has(id) or event.id!="game:"+id or bank.cash()-before!=(18 if event.win else 12)+bonus:return false
+   rewards[id]=true
+   if bonus>0:bonuses.append([club,int(event.game),bonus])
+   if event.game>=18:
+    if event.game!=played.id or event.win!=win or bonus!=0:return false
+    receipts+=1
+  if rewards.size()!=7 or not Live.same(bank.view(),side._bank.view()):return false
+ return receipts==6 and Live.same(bonuses,[[0,3,6],[1,17,6],[3,5,6],[3,10,6],[4,4,6]])

@@ -135,7 +135,7 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
-		if season.round_index in [3,4,5,6]:
+		if season.round_index in [3,4,5,6,7]:
 			if not _followup_settled_shape(season): return false
 		elif season.round_index==2:
 			if not _pair_settled_shape(season): return false
@@ -224,23 +224,28 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
 
 static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
-	var size: int=3+2*paid_rounds
+	var after_sign: bool=paid_rounds==7
+	var size: int=3+2*paid_rounds+(2 if after_sign else 0)
 	var tail: int=build._events.size()-size
-	if paid_rounds not in [2,3,4,5,6] or build._bank==null: return false
+	if paid_rounds not in [2,3,4,5,6,7] or build._bank==null: return false
+	if after_sign and not _signed_visit6_prefix(build): return false
 	if tail!=0:
 		if paid_rounds!=6 or tail not in [1,2] or not visit6_open_command(build._events[size]) or build._visit.get("pack_status")!="sealed" or not build._visit.get("recruit") is Dictionary: return false
 		if tail==2 and not _signed_visit6_journal(build): return false
 	if not _first_shop_journal(build,3): return false
 	if build._events[5].get("op")!="successor_reward" or build._events[5].get("id")!="game:3" or build._events[6].get("op")!="exotic_admit" or build._events[6].get("id")!="exotic:3": return false
 	var bank: Array=build._bank._events
-	if bank.size()!=paid_rounds+1+(1 if tail==2 else 0) or bank[0].get("op")!="reward" or bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3" or bank[2].get("op")!="reward": return false
+	if bank.size()!=paid_rounds+1+(1 if tail==2 or after_sign else 0) or bank[0].get("op")!="reward" or bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3" or bank[2].get("op")!="reward": return false
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	for index: int in range(2,paid_rounds):
 		var game: String=str(projection._round_fixtures(index).human.id)
-		var reward: Dictionary=build._events[3+2*index]
-		var exotic: Dictionary=build._events[4+2*index]
+		var signed_cutoff: bool=after_sign and index==6
+		var reward_index: int=3+2*index+(2 if signed_cutoff else 0)
+		var reward: Dictionary=build._events[reward_index]
+		var exotic: Dictionary=build._events[reward_index+1]
 		if reward.get("op")!="successor_reward" or reward.get("id")!="game:"+game or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:"+game: return false
-		if bank[index+1].get("op")!="reward" or bank[index+1].get("id")!="game:"+game: return false
+		var receipt: Dictionary=bank[index+1+(1 if signed_cutoff else 0)]
+		if receipt.get("op")!="reward" or receipt.get("id")!="game:"+game: return false
 	return true
 
 # Exact private visit6 commands; frozen replay still owns every transition.
@@ -252,23 +257,32 @@ static func visit6_open_command(command: Dictionary) -> bool:
 static func visit6_sign_command(command: Dictionary) -> bool:
 	return keys(command,["id","rev","op","offer","replace"]) and same(command,{"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":VISIT6_OUTGOING})
 
-static func visit6_recruit_quote(build: SeasonBuild, signed: bool) -> bool:
-	var quote: Variant=build._visit.get("recruit")
+# Author the exact original quote; a later earned visit replaces _visit, never
+# the recruited history or the sign/Book/bank receipts at the original cutoffs.
+static func _archived_visit6_offer(build: SeasonBuild) -> Dictionary:
 	var profile: Dictionary=RecruitCatalog.fresh(VISIT6_RECRUIT,"late")
-	if profile.is_empty() or not whole(profile.catchup.price,32,32) or build._recruits.size()!=2: return false
+	if profile.is_empty() or not whole(profile.catchup.price,32,32) or build._recruits.size()!=2: return {}
 	var original: Dictionary={"id":"recruit:6","player":VISIT6_RECRUIT,"stage":"late","price":profile.catchup.price,"returning":false,"profile":profile,"signed":false}
-	if not same(build._recruits[-1],{"visit":6,"chance":0.5,"offer":original}): return false
+	return original if same(build._recruits[-1],{"visit":6,"chance":0.5,"offer":original}) else {}
+
+static func visit6_recruit_quote(build: SeasonBuild, signed: bool) -> bool:
+	var original: Dictionary=_archived_visit6_offer(build)
+	if original.is_empty(): return false
 	original.signed=signed
-	return same(quote,original)
+	return same(build._visit.get("recruit"),original)
 
 static func _signed_visit6_journal(build: SeasonBuild) -> bool:
-	if build.revision()!=17 or build._book==null or build._bank==null or not visit6_sign_command(build._events[16]) or not visit6_recruit_quote(build,true): return false
+	return build.revision()==17 and build._bank!=null and build._bank._events.size()==8 and visit6_recruit_quote(build,true) and _signed_visit6_prefix(build)
+
+static func _signed_visit6_prefix(build: SeasonBuild) -> bool:
+	if build._events.size()<17 or build._book==null or build._bank==null or build._bank._events.size()<8 or not visit6_open_command(build._events[15]) or not visit6_sign_command(build._events[16]): return false
+	var quote: Dictionary=_archived_visit6_offer(build)
+	if quote.is_empty(): return false
 	var roster: Array[String]=build._initial_roster.duplicate()
 	var slot: int=roster.find(VISIT6_OUTGOING)
 	if roster.size()!=4 or slot<0 or roster.has(VISIT6_RECRUIT): return false
 	roster[slot]=VISIT6_RECRUIT
-	var quote: Dictionary=build._visit.recruit
-	return same(build.roster(),roster) and same(build.player(VISIT6_RECRUIT),quote.profile) and whole(build._contracts.get(VISIT6_RECRUIT),32,32) and build._book._events.size()==2 and same(build._book._events[-1],{"id":"recruit:16","rev":1,"op":"recruit","player":VISIT6_RECRUIT,"target":"late"}) and build._bank._events.size()==8 and same(build._bank._events[-1],{"id":"charge:16","rev":7,"op":"charge","amount":quote.price})
+	return same(build.roster(),roster) and same(build.player(VISIT6_RECRUIT),quote.profile) and whole(build._contracts.get(VISIT6_RECRUIT),32,32) and build._book._events.size()==2 and same(build._book._events[1],{"id":"recruit:16","rev":1,"op":"recruit","player":VISIT6_RECRUIT,"target":"late"}) and same(build._bank._events[7],{"id":"charge:16","rev":7,"op":"charge","amount":quote.price})
 
 const FIRST_SHOP_OPS: Array[String]=["open","pack_open","pack_pick"]
 const FIRST_SHOP_IDS: Array[String]=["shop-open","pair-pack","pair-pick"]
@@ -578,6 +592,8 @@ static func _history_valid(season: SeasonState) -> bool:
 static func _paid_history_valid(season: SeasonState) -> bool:
 	# Only the exact qualified signed envelope uses authenticated pre-reward
 	# rosters; originals/unsigned use the old check and never replay a second time.
+	if season.round_index==7:
+		return _paid_pair_journal(season.build,7) and PairedHistory.validate_settled_with_historical_humans(season)
 	if season.round_index==6 and _signed_visit6_journal(season.build):
 		return PairedHistory.validate_settled_with_historical_humans(season)
 	for row: Dictionary in season.player_results:
