@@ -133,7 +133,8 @@ static func _runtime_context(season: SeasonState) -> bool:
 	var expected: Dictionary = Admissions.expected(season.league_rules,season.season_seed)
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
-		if season.career.start_basis.get("kind")==CommonStart.KIND or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() or not season.physical.pending.is_empty() or not season.physical.reports.is_empty(): return false
+		if season.career.start_basis.get("kind")==CommonStart.KIND or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() or not season.physical.reports.is_empty(): return false
+		if not season.physical.pending.is_empty() and (season.phase!=SeasonState.Phase.REGULAR or not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").bound_shape(season.physical.pending)): return false
 		if not (season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4) and not (season.phase==SeasonState.Phase.REGULAR and season.picks.size()==4): return false
 		if not season.ownership._events.is_empty() or not _draft_journal_only(season.build): return false
 		for club: Variant in season.opponents.clubs.values():
@@ -291,7 +292,7 @@ static func _physical_valid(season: SeasonState) -> bool:
 	for id: int in settled:
 		if settled[id].home!=0 and settled[id].away!=0 and not seen.has(id): return false
 	if physical.pending.is_empty(): return true
-	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or not keys(physical.pending,["human","reports"]) or not physical.pending.human is Array or not physical.pending.reports is Array or physical.pending.reports.size()>5: return false
+	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or (not Admissions.paired_draft_only(season) and not keys(physical.pending,["human","reports"])) or not physical.pending.human is Array or not physical.pending.reports is Array or physical.pending.reports.size()>5: return false
 	var human: Array = physical.pending.human
 	if not Evidence.codec_human_shape(human,season.league_rules,Catalog.game_signature()): return false
 	var fixture: Dictionary = season.pending_fixture()
@@ -398,6 +399,8 @@ static func _history_valid(season: SeasonState) -> bool:
 	if season.league_rules.get("league","")!="doubleheader": return true
 	if not same(season.league_rules,LeagueRules.capture("doubleheader")): return false
 	paired_history_calls+=1
+	if not season.physical.pending.is_empty():
+		return load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").verify_bound(season)
 	return PairedHistory.validate_settled(season)
 
 static func _canonical_named_context(season: SeasonState) -> bool:

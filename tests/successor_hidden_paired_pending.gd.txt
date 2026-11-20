@@ -1,0 +1,112 @@
+extends "res://tests/successor_hidden_paired_draft.gd"
+const Binding=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const Capture=preload("res://src/presentation/season/successor_live_play_v1/capture_human.gd")
+func rejected(app, pending:Dictionary, fault:String, bytes:PackedByteArray, backup:PackedByteArray) -> void:
+ var candidate=app.career_owner.fork()
+ candidate.session.physical.pending=pending.duplicate(true)
+ var authority=app.career_owner
+ match fault:
+  "owner":authority=authority.fork()
+  "fixture":candidate.session.physical.pending.human[0]=1
+  "request":candidate.session.physical.pending.binding.request="0".repeat(64)
+  "proof":candidate.session.physical.pending.human[9].version=1
+ check(Store.prepare_and_write(authority,candidate,bytes)==null,"actual Store rejects "+fault)
+ check(Store.raw()==bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup and Store.match_owner(app.career_owner,bytes),"primary, backup and owner unchanged after "+fault)
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ if args[0] in ["cold","tamper"]:
+  var before=Store.raw()
+  var backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+  var started=Time.get_ticks_msec()
+  var calls=Live.paired_history_calls
+  app.reload_save()
+  print("PENDING_COLD_MS=",Time.get_ticks_msec()-started," HISTORY_CALLS=",Live.paired_history_calls-calls)
+  if args[0]=="tamper":check(app.season==null,"cold App refuses altered sidecar on isolated copy")
+  elif check(app.season!=null and app.saved_bytes==before and Live.paired_history_calls-calls==1,"actual fresh App/OwnerStore cold accepts durable pending"):
+   check(Binding.bound_shape(app.season.physical.pending) and app.season.results.is_empty() and app.season.build._bank.view().rewards.is_empty() and app.season.physical.reports.is_empty(),"saved first human only, no durable payout or NPC reports")
+   var pristine=app.season.fork_live()
+   var binding=pristine.physical.pending.binding.duplicate(true)
+   pristine.physical.pending.clear()
+   check(Live.same(Binding.start(pristine).get("binding"),binding),"authored start request exactly matches original warm binding after cold")
+   app.play_next()
+   app._play_paired_first()
+   app.resume_round()
+   check(not is_instance_valid(app.lab) and Store.raw()==before,"cold pending cannot duplicate, resume settlement or launch return")
+  check(Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"cold primary and backup unchanged")
+ else:
+  if not check(args[0]=="play" and not Store.occupied(),"isolated empty working slot"):get_tree().quit(1);return
+  app._create_paired_draft(1001)
+  if not check(app.season!=null,"real private birth"):get_tree().quit(1);return
+  for i:int in range(4):app.draft(app.season.offers()[0])
+  var bytes=Store.raw()
+  var backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+  var fixture:Dictionary=app.season.pending_fixture()
+  check(app.season.picks.size()==4 and fixture.id==0 and app.season.round_index==0,"real first authored fixture after four picks")
+  var warm=Binding.start(app.season)
+  if not check(not warm.is_empty(),"authored warm request derives from original fixture"):get_tree().quit(1);return
+  for fault: String in ["id","away","home","round","unexpected_field","fractional"]:
+   var probe=app.season.fork_live()
+   var row:Dictionary=probe.schedule.filter(func(item):return item.id==fixture.id)[0]
+   if fault=="fractional":row.home=5.5
+   else:row[fault]=17
+   check(Binding.start(probe).is_empty(),"authored request refuses altered fixture "+fault)
+  app.play_next()
+  check(not is_instance_valid(app.lab),"normal play remains closed")
+  var started=Time.get_ticks_msec()
+  app._play_paired_first()
+  print("PENDING_MATCH_CONSTRUCTION_MS=",Time.get_ticks_msec()-started)
+  if not check(is_instance_valid(app.lab) and not app._paired_first_pin.is_empty() and Live.same(app._paired_first_pin.binding,warm.binding) and app._owned(),"prepared match and exact live Store owner pinned"):get_tree().quit(1);return
+  for frame in range(600):
+   await get_tree().physics_frame
+   if not app.lab._match_presentation_director.blocks_gameplay():break
+  if not check(not app.lab._match_presentation_director.blocks_gameplay(),"normal match intro completed"):get_tree().quit(1);return
+  app.lab._automation=MatchAutomation.new()
+  app.lab._automation.seed=Physical.seed_for(app.season,fixture)
+  app.lab._automation.presentation_enabled=true
+  app.lab._automation.begin(app.lab)
+  started=Time.get_ticks_msec()
+  var finished=false
+  var seen=false
+  for frame in range(150000):
+   await get_tree().physics_frame
+   seen=seen or app.lab._match_state.gear_usage.started
+   if app.lab._match_state.phase==MatchState.Phase.GAME_END and app.lab._automation!=null and not app.lab._home_run.presentation_pending(app.lab):
+    app.lab._automation=null
+    PitchBatLabFeelSupport.begin_match_outro(app.lab)
+   if app.lab._match_state.phase==MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+    finished=true;break
+   if frame%12000==0:print("ACTUAL_HUMAN_FRAME=",frame)
+  print("PENDING_MATCH_SIMULATION_MS=",Time.get_ticks_msec()-started)
+  if not check(finished and seen,"actual pitched human match reached capturable outro"):get_tree().quit(1);return
+  started=Time.get_ticks_msec()
+  var human=Capture.capture(app)
+  print("PENDING_HUMAN_CAPTURE_MS=",Time.get_ticks_msec()-started)
+  if not check(human.size()==14 and human[9].get("version")==2 and human[13].size()==2,"actual called and two-sided workload proof captured"):get_tree().quit(1);return
+  var pending={"human":human,"reports":[],"binding":app._paired_first_pin.binding.duplicate(true)}
+  for fault:String in ["owner","fixture","request","proof"]:rejected(app,pending,fault,bytes,backup)
+  var obstruct=ProjectSettings.globalize_path(Store.PATH+".tmp")
+  if not check(DirAccess.make_dir_absolute(obstruct)==OK,"synthetic obstruction in empty test .tmp path"):get_tree().quit(1);return
+  started=Time.get_ticks_msec()
+  app._finish_paired_first()
+  print("PENDING_CAPTURE_AND_VALIDATION_BEFORE_BLOCKED_WRITE_MS=",Time.get_ticks_msec()-started)
+  if not check(app.retained!=null and app.season.physical.pending.is_empty() and Live.same(app.retained.physical.pending,pending),"completed human held as exact authenticated candidate"):get_tree().quit(1);return
+  app._finish_paired_first()
+  check(Store.raw()==bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"blocked write and duplicate finish leave primary and backup unchanged")
+  if not check(DirAccess.remove_absolute(obstruct)==OK,"remove only owned test obstruction"):get_tree().quit(1);return
+  var calls=Live.paired_history_calls
+  started=Time.get_ticks_msec()
+  app.retry_save()
+  print("PENDING_RETRY_WRITE_AND_PROMOTE_MS=",Time.get_ticks_msec()-started)
+  check(app.retained==null and not is_instance_valid(app.lab) and Live.paired_history_calls==calls and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact retry writes then promotes without history replay")
+  check(Live.same(app.season.physical.pending,pending) and app.season.results.is_empty() and app.season.build._bank.view().rewards.is_empty(),"durable pending only, no projected payout")
+  var durable=Store.raw()
+  app._finish_paired_first()
+  app.retry_save()
+  app.resume_round()
+  check(Store.raw()==durable and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"duplicates and settlement attempts leave saved pending unchanged")
+ app.free()
+ if failures==0:print("HIDDEN_PAIRED_PENDING_PASS")
+ get_tree().quit(0 if failures==0 else 1)
