@@ -1,0 +1,90 @@
+extends "res://tests/successor_pair_history_context.gd"
+const Candidate=preload("res://src/gameplay/season/successor_team_composition_v1/team.gd")
+const Frozen=preload("res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd")
+const Pair=preload("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd")
+const Physical=preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const Request=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
+const Collector=preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+func graph(value: Variant, seen: Dictionary = {}) -> Variant:
+ if value is Object:
+  var identity=value.get_instance_id()
+  if seen.has(identity):return {"ref":seen[identity]}
+  seen[identity]=seen.size()
+  var fields={}
+  for property: Dictionary in value.get_property_list():
+   if int(property.usage)&PROPERTY_USAGE_SCRIPT_VARIABLE:fields[property.name]=graph(value.get(property.name),seen)
+  return {"type":value.get_class(),"fields":fields}
+ if value is Dictionary:
+  var result={}
+  for key:Variant in value:result[key]=graph(value[key],seen)
+  return result
+ if value is Array:
+  var result=[]
+  for entry:Variant in value:result.append(graph(entry,seen))
+  return result
+ return var_to_str(value)
+func compare(season: SeasonState, fixture: Dictionary, label: String) -> void:
+ var state=Physical.match_for(season,fixture)
+ if not check(state!=null,"authentic match context "+label):return
+ var old_request=Physical.request_key(season,fixture)
+ for side: int in range(2):
+  var club:int=fixture.away if side==0 else fixture.home
+  var original=Frozen._source_private_make_team(season,club,fixture.id)
+  var team=Candidate.base(season,club,fixture.id)
+  check(team.league_pair.is_empty() and team.ai_budget.is_empty(),"base does not invent pair or budget validation "+label)
+  if not check(Pair.apply(season,club,fixture.id,team),"unchanged authentic pair validation "+label):continue
+  var paired=team.league_pair.duplicate(true)
+  var stamina=team.roster.map(func(player):return player.stamina_remaining)
+  team=Candidate.finish(season,club,fixture.id,team)
+  check(ClubCareer.same(graph(original,{}),graph(team,{})),"full frozen team graph parity "+label)
+  check(ClubCareer.same(paired,team.league_pair) and stamina==team.roster.map(func(player):return player.stamina_remaining),"post-pair composition preserves validated debt/stamina "+label)
+  if side==0:state.away_team=team
+  else:state.home_team=team
+ if label.begins_with("genuine"):
+  check(state.away_team.ai_budget.get("outcome")=="granted" or state.home_team.ai_budget.get("outcome")=="granted","actual genuine grant projected by authentic budget helper")
+ check(old_request.length()==64 and Request.for_context(season,fixture,state,SeasonState.field_for_fixture(fixture,season))==old_request,"unchanged physical request binding "+label)
+ var first=SeasonDoubleheaderRules.first(int(fixture.id))
+ if first>=0:
+  var result:Dictionary=season.results.filter(func(row):return row.id==first)[0]
+  var original=result.doubleheader_evidence.duplicate(true)
+  var prior_side:int=0 if result.away==fixture.away else 1
+  var remaining:Dictionary=result.doubleheader_evidence[prior_side].proof.remaining
+  remaining[remaining.keys()[0]]+=999.0
+  var team=Candidate.base(season,fixture.away,fixture.id)
+  check(not Pair.apply(season,fixture.away,fixture.id,team) and Frozen._source_private_make_team(season,fixture.away,fixture.id)==null,"corrupt prior workload still rejected by authentic guard "+label)
+  result.doubleheader_evidence=original
+func run() -> void:
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1":get_tree().quit(2);return
+ var roots=Codec._operation_content_roots()
+ var path="user://successor-general-build-v7-r2.json"
+ var bytes=FileAccess.get_file_as_bytes(path)
+ var season=Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+ if not check(season!=null,"authentic pair restores"):get_tree().quit(1);return
+ var original=Codec.capture(season)
+ var builds={};var targets={}
+ for club: String in ["1","2","3","4"]:
+  builds[club]=season.opponents.clubs[club].build
+  targets[club]=[1,4] if club in ["1","4"] else [2,5]
+ var batch=Collector.collect(builds,targets)
+ if not check(batch.size()==4,"authenticated historical prefixes"):get_tree().quit(1);return
+ for game: int in [1,4,2,5]:
+  var fixture: Dictionary=season.schedule.filter(func(row):return row.id==game)[0]
+  for club: int in [fixture.away,fixture.home]:season.opponents.clubs[str(club)].build=batch[str(club)][str(game)].pregame
+  compare(season,fixture,"actual history %d"%game)
+  for club: int in [fixture.away,fixture.home]:season.opponents.clubs[str(club)].build=builds[str(club)]
+ var grant_bytes=FileAccess.get_file_as_bytes("user://genuine-grant.json")
+ var basis:SeasonBuild=builds["4"]
+ var grant=Build.restore(JSON.parse_string(grant_bytes.get_string_from_utf8()),basis._seed,basis._initial_roster,basis._pool,basis._blocked)
+ if check(grant!=null and grant._pregames.get("4",{}).get("outcome")=="granted","genuine earned grant journal"):
+  var grant_batch=Collector.collect({"4":grant},{"4":[4]})
+  if check(not grant_batch.is_empty(),"authenticated genuine pregrant snapshot"):
+   season.opponents.clubs["4"].build=grant_batch["4"]["4"].pregame
+   season.opponents.clubs["1"].build=batch["1"]["4"].pregame
+   compare(season,season.schedule.filter(func(row):return row.id==4)[0],"genuine grant controlled branch")
+   season.opponents.clubs["4"].build=builds["4"]
+   season.opponents.clubs["1"].build=builds["1"]
+ check(ClubCareer.same(original,Codec.capture(season)),"full original season unchanged")
+ check(FileAccess.get_file_as_bytes(path)==bytes and FileAccess.get_file_as_bytes("user://genuine-grant.json")==grant_bytes,"both input fixture bytes unchanged")
+ roots.clear()
+ if failures==0:print("TEAM_COMPOSITION_PASS")
+ get_tree().quit(0 if failures==0 else 1)

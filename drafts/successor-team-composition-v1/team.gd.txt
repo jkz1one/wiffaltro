@@ -1,0 +1,50 @@
+extends RefCounted
+## Inactive internal composition only; neither helper authenticates history.
+## Frozen General bytes define save identity. These two localized bodies are
+## mechanically derived from cp99; the unchanged authentic pair validator belongs
+## BETWEEN them. No bypass flag, admission or runtime replacement is provided.
+static func base(_source_owner: SeasonState, index: int, fixture_id: int = -1) -> TeamMatchState:
+	var roster: Array[PlayerDefinition] = []
+	for id: String in _source_owner.teams[index]["roster"]:
+		roster.append(_source_owner.player_definition(id))
+	var team: TeamMatchState = TeamMatchState.create(_source_owner.teams[index]["name"], roster)
+	if not _source_owner.league_rules.is_empty():
+		team.league_rules = _source_owner.league_rules.duplicate(true)
+		var owning_build: SeasonBuild = _source_owner.build if index == 0 else \
+			_source_owner.opponents.clubs[str(index)].build
+		team.league_ownership = owning_build._bank.to_data().duplicate(true)
+		if LeagueRules.dynasty(_source_owner.league_rules):
+			team.dynasty_start = owning_build._dynasty_start
+		if index == 0:
+			team.tactics.held = SeasonTacticalCatalog.held(owning_build._bank.view())
+			MatchFieldSupply.sync_capacity(team, owning_build._bank.view())
+
+	var pair_game: int = fixture_id if fixture_id >= 0 else \
+		int(_source_owner.pending_fixture().get("id", -1))
+	if index == 0 and _source_owner.build != null and \
+		SeasonInventoryResale.enabled(_source_owner.build._bank):
+		team.field_supply.receipt = SeasonFieldGrant.receipt(pair_game)
+		team.field_supply.retired = SeasonInventoryResale.field_retired(_source_owner.build._bank, \
+			pair_game)
+	return team
+
+static func finish(_source_owner: SeasonState, index: int, fixture_id: int, team: TeamMatchState) -> TeamMatchState:
+	if _source_owner.opponents != null and index > 0:
+		team.ai_sponsor_choices = _source_owner.opponents._format >= 8
+		team.ai_base = _source_owner.opponents._format >= 13
+		var role: Dictionary = _source_owner.opponents.clubs[str(index)].roles
+		team.pitcher_index = _source_owner.teams[index].roster.find(role.pitcher)
+		team.ai_recovery_pitcher = role.pitcher if _source_owner.opponents._format >= 11 else ""
+		team.fielder_index = _source_owner.teams[index].roster.find(role.fielder)
+		if _source_owner.opponents._format >= 9:
+			team.ai_heat = _source_owner.opponents._format >= 10
+			team.ai_tactical_hitter = role.hitter
+			team.tactics.held = SeasonTacticalCatalog.held(
+				_source_owner.opponents.clubs[str(index)].build._bank.view()
+			)
+			team.ai_tactical_initial.assign(team.tactics.held.duplicate(true))
+		if _source_owner.opponents._format >= 12:
+			var game: int = fixture_id if fixture_id >= 0 else \
+				int(_source_owner.pending_fixture().get("id", -1))
+			SeasonOpponentBudget.prepare(team, _source_owner.opponents.clubs[str(index)].build, game)
+	return team

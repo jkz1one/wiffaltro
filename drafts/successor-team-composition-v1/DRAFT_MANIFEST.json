@@ -1,0 +1,13 @@
+{
+  "format": "inactive-team-composition-v1",
+  "source_checkpoint": "2524a18b4f7f0c1422a079def8854f0d3f327cfb",
+  "scope": "Mechanical base and post-pair team composition only. Authentic pair/debt validation remains separate. No live wiring, authorization, admission or Dynasty change.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-team-composition-v1/team.gd.txt",
+      "restore_path": "src/gameplay/season/successor_team_composition_v1/team.gd",
+      "bytes": 2865,
+      "sha256": "4c0d96439561c97ed1f74b798e43f7dc1be5d7c223bd8e5c2ed0e6f873e003b4"
+    }
+  ]
+}
