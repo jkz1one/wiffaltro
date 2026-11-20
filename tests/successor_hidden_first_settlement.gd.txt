@@ -1,0 +1,92 @@
+extends "res://tests/successor_hidden_paired_draft.gd"
+const PairHistory=preload("res://src/gameplay/season/successor_settled_workload_v1/validator.gd")
+const Reward=preload("res://src/gameplay/season/successor_league_general_v2/reward.gd")
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes=Store.raw()
+ var backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var started=Time.get_ticks_msec()
+ var gates=Live.paired_history_calls
+ app.reload_save()
+ print("SETTLEMENT_COLD_MS=",Time.get_ticks_msec()-started," HISTORY_CALLS=",Live.paired_history_calls-gates)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"actual cold App refuses "+args[0]+" and preserves both files")
+ elif not check(app.season!=null and exact(bytes,backup) and Live.paired_history_calls-gates==1,"actual App cold verifies exact primary and backup"):
+  get_tree().quit(1);return
+ elif args[0]=="cold":
+  check(settled(app.season) and PairHistory.checked_sides==6 and PairHistory.checked_reports==2,"cold verifies three real results, two archived reports, one human and all six exact receipts")
+  verify_closed(app,bytes,backup)
+ else:
+  var owner=app.career_owner
+  var original:SeasonState=app.season
+  if not check(args[0]=="settle" and original.round_index==0 and original.physical.pending.reports.size()==2 and original.results.is_empty() and original.build._bank.view().rewards.is_empty(),"exact retained unpaid cp109 legacy-free V4 pending"):get_tree().quit(1);return
+  var owner_raw=Store.RawGuard.capture(owner)
+  var cash=original.build.cash()
+  check(Store._prepare_paired_first_settlement(owner.fork(),bytes)==null and Store._prepare_paired_first_settlement(owner,backup)==null and exact(bytes,backup),"rejects forged owner and stale primary")
+  verify_closed(app,bytes,backup,false)
+  var obstruct=ProjectSettings.globalize_path(Store.PATH+".tmp")
+  if not check(DirAccess.make_dir_absolute(obstruct)==OK,"isolated synthetic write obstruction"):get_tree().quit(1);return
+  gates=Live.paired_history_calls
+  started=Time.get_ticks_msec()
+  app._settle_paired_first_leg()
+  print("SETTLEMENT_CANDIDATE_MS=",Store.paired_candidate_ms," SETTLEMENT_ADMISSION_MS=",Store.paired_admission_ms," BLOCKED_TOTAL_MS=",Time.get_ticks_msec()-started)
+  if not check(app.retained!=null and app.retained.get_script()==Live.Runtime and settled(app.retained) and PairHistory.checked_sides==6 and PairHistory.checked_reports==2 and Live.paired_history_calls-gates==1,"only independently authenticated concrete first-leg state reaches retained ticket"):get_tree().quit(1);return
+  var candidate:SeasonState=app.retained
+  var original_pending:Dictionary=original.physical.pending
+  var human:Dictionary=candidate.player_results[0]
+  check(Live.same(candidate.physical.reports,original_pending.reports) and Live.same([human.id,human.away_runs,human.home_runs],original_pending.human.slice(0,3)) and Live.same(human.pitching_current,original_pending.human[9]),"original reports, human score and full called proof preserved")
+  check(candidate.build.cash()>cash and app.season==original and app.career_owner==owner and Store.RawGuard.matches(owner,owner_raw) and exact(bytes,backup),"blocked write has no primary, backup, active owner or payout mutation")
+  app._settle_paired_first_leg()
+  check(app.retained==candidate and Store.RawGuard.matches(owner,owner_raw) and exact(bytes,backup),"duplicate while blocked leaves the same retained candidate")
+  if not check(DirAccess.remove_absolute(obstruct)==OK,"removed only owned isolated obstruction"):get_tree().quit(1);return
+  gates=Live.paired_history_calls
+  started=Time.get_ticks_msec()
+  app.retry_save()
+  print("SETTLEMENT_RETRY_WRITE_PROMOTE_MS=",Time.get_ticks_msec()-started)
+  if not check(app.retained==null and app.season==candidate and app.career_owner!=owner and Live.paired_history_calls==gates and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact ticket promotes with no history replay or duplicated payout"):get_tree().quit(1);return
+  check(Store.RawGuard.matches(owner,owner_raw) and settled(app.season),"original owner unchanged; all six awards exactly once")
+  var saved=Store.raw()
+  check(Store.prepare_and_write(app.career_owner,app.career_owner.fork(),saved)==null and not Store.save(app.career_owner,saved) and not Store._write(app.career_owner,saved,{}),"generic writers cannot mint settled paired tickets")
+  check(Store.prepare_and_write(app.career_owner,owner.fork(),saved)==null and not Store.save(owner.fork(),saved) and exact(saved,bytes),"generic writers cannot rewind settled paired owner")
+  var altered:SeasonState=app.season.fork_live()
+  var misplaced:Dictionary=altered.player_results[0]
+  var winner_field:String="away_runs" if misplaced.away_runs>misplaced.home_runs else "home_runs"
+  misplaced[winner_field]+=1
+  altered.results[0][winner_field]+=1
+  check(not Live._first_human_score(altered),"same-winner altered human score fails the retained original Base flow")
+  verify_closed(app,saved,bytes)
+ app.free()
+ if failures==0:print("HIDDEN_FIRST_SETTLEMENT_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func exact(primary: PackedByteArray, backup: PackedByteArray) -> bool:
+ return Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup
+
+func verify_closed(app,primary:PackedByteArray,backup:PackedByteArray, already_settled:bool=true) -> void:
+ if already_settled: app._settle_paired_first_leg()
+ app.resume_round()
+ app.play_next()
+ app.open_shop()
+ app.close_current("abandon")
+ app.propose_next(1002)
+ var shop:bool=app.commit_shop({"id":"closed-shop","rev":app.season.build.revision(),"op":"open"})
+ check(not shop and not app.career_owner.playable() and not is_instance_valid(app.ai_runner) and not is_instance_valid(app.lab) and exact(primary,backup),"public resume, next match, shop, abandon and progression stay closed")
+
+func settled(season: SeasonState) -> bool:
+ if season.round_index!=1 or season.phase!=SeasonState.Phase.REGULAR or season.results.size()!=3 or season.player_results.size()!=1 or not season.physical.pending.is_empty() or season.physical.cursor!=2 or season.physical.reports.size()!=2: return false
+ var sides:int=0
+ for fixture:Dictionary in season.results:
+  for club:int in [int(fixture.away),int(fixture.home)]:
+   var build:SeasonBuild=season.build if club==0 else season.opponents.clubs[str(club)].build
+   var winner:bool=(fixture.away_runs>fixture.home_runs)==(fixture.away==club)
+   var captures:Array=build._events.filter(func(e:Dictionary)->bool:return e.get("op")=="successor_reward")
+   var paid:Array=build._bank._events.filter(func(e:Dictionary)->bool:return e.get("op")=="reward")
+   if captures.size()!=1 or paid.size()!=1: return false
+   var command:Dictionary=Reward.unwrap(captures[0])
+   if command.get("game")!=fixture.id or command.get("win")!=winner or paid[0].get("game")!=fixture.id or paid[0].get("win")!=winner or not Live.same(build._bank.view().rewards,{str(int(fixture.id)):winner}):return false
+   sides+=1
+ return sides==6

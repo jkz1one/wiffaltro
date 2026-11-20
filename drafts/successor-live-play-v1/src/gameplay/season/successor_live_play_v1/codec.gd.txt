@@ -133,19 +133,50 @@ static func _runtime_context(season: SeasonState) -> bool:
 	var expected: Dictionary = Admissions.expected(season.league_rules,season.season_seed)
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
-		if season.career.start_basis.get("kind")==CommonStart.KIND or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty(): return false
-		if not season.physical.reports.is_empty() and not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").npc_queue(season): return false
-		if not season.physical.pending.is_empty() and (season.phase!=SeasonState.Phase.REGULAR or not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").bound_shape(season.physical.pending)): return false
-		if not (season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4) and not (season.phase==SeasonState.Phase.REGULAR and season.picks.size()==4): return false
-		if not season.ownership._events.is_empty() or not _draft_journal_only(season.build): return false
-		for club: Variant in season.opponents.clubs.values():
-			if not club is Dictionary or not club.get("build") is SeasonBuild or not _draft_journal_only(club.build): return false
+		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
+		if season.round_index==1:
+			if not _first_leg_shape(season): return false
+		elif season.round_index==0:
+			if not season.results.is_empty() or not season.player_results.is_empty(): return false
+			if not season.physical.reports.is_empty() and not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").npc_queue(season): return false
+			if not season.physical.pending.is_empty() and (season.phase!=SeasonState.Phase.REGULAR or not load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").bound_shape(season.physical.pending)): return false
+			if not (season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4) and not (season.phase==SeasonState.Phase.REGULAR and season.picks.size()==4): return false
+			if not _draft_journal_only(season.build): return false
+			for club: Variant in season.opponents.clubs.values():
+				if not club is Dictionary or not club.get("build") is SeasonBuild or not _draft_journal_only(club.build): return false
+		else: return false
 	if season.career.start_basis.get("kind")==CommonStart.KIND:
 		if not CommonStart.valid(season.career.start_basis) or season.career.start_basis.seed!=season.season_seed: return false
 	else:
 		var marker: Variant = season.career.start_basis.get("genesis")
 		if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
 	return true
+
+# Exact private round-1 settlement; no human shop events, pending return,
+# unsupported phases or later receipts. Full semantic history is checked below.
+static func _first_leg_shape(season: SeasonState) -> bool:
+	if season.get_script()!=Runtime or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
+	if season.results.size()!=3 or season.player_results.size()!=1 or season.player_results[0].get("id")!=0: return false
+	for index: int in range(3):
+		if season.results[index].get("id")!=index: return false
+	var physical=season.physical
+	if not physical.pending.is_empty() or physical.projecting or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or physical.reports.size()!=2: return false
+	for index: int in range(2):
+		if physical.reports[index].get("fixture")!=index+1: return false
+	var build: SeasonBuild=season.build
+	return build._bank!=null and build._events.size()==2 and build._events[0].get("op")=="successor_reward" and build._events[1].get("op")=="exotic_admit" and build._events[1].get("id")=="exotic:0" and build._bank._events.size()==1 and build._bank._events[0].get("op")=="reward"
+
+# The paid winner and workload alone do not bind exact human runs. First-leg
+# result retains original Base occupancy: replay its flow and terminal score.
+static func _first_human_score(season: SeasonState) -> bool:
+	var row: Dictionary=season.player_results[0]
+	var side: int=int(row.home if row.away==0 else row.away)
+	var tactics: Variant=row.get("ai_tactics")
+	if not tactics is Dictionary: return false
+	var ai: Variant=tactics.get(str(side))
+	if not ai is Dictionary or ai.get("version")!=5 or not PhysicalBaseEvidence.ended(ai,int(row.away_runs),int(row.home_runs)): return false
+	return PhysicalBaseFlow.valid(ai.base,[season.teams[int(row.away)].roster,season.teams[int(row.home)].roster],row.get("performance",{}))
+
 
 static func _structural_valid(season: SeasonState) -> bool:
 	if not scope(season) or not known_variables(season,FIELDS+OBJECTS) or not known_variables(season.career,CAREER_FIELDS): return false
@@ -394,15 +425,14 @@ static func restore_common(value: Variant) -> SeasonState:
 		if canonical.is_empty() or not same(canonical,captured): return null
 	return result if _history_valid(result) else null
 
-# Future exact Base gate only. Existing scope/Admissions independently rejects
-# paired materialized saves and cannot be reached by calling this private check.
+# The privately admitted Base scopes use one full history gate per operation.
 static func _history_valid(season: SeasonState) -> bool:
 	if season.league_rules.get("league","")!="doubleheader": return true
 	if not same(season.league_rules,LeagueRules.capture("doubleheader")): return false
 	paired_history_calls+=1
 	if not season.physical.pending.is_empty():
 		return load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").verify_bound(season)
-	return PairedHistory.validate_settled(season)
+	return (season.round_index!=1 or _first_human_score(season)) and PairedHistory.validate_settled(season)
 
 static func _canonical_named_context(season: SeasonState) -> bool:
 	var expected: Dictionary=Admissions.expected(season.league_rules,season.season_seed)

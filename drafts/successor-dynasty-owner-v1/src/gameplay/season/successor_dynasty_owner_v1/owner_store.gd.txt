@@ -9,6 +9,9 @@ const MAX_BYTES: int = 64 * 1024 * 1024
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
 static var last_error: String = ""
+# Diagnostics for the private first-leg producer only.
+static var paired_candidate_ms: int = 0
+static var paired_admission_ms: int = 0
 # Process-private admission. Never serialized; no caller validation flag/payload.
 static var _owner_session: SeasonState
 static var _candidate_session: SeasonState
@@ -84,6 +87,8 @@ static func save(season: RefCounted, expected: PackedByteArray, expected_snapsho
 static func _matches(expected: PackedByteArray) -> bool:
 	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw() == expected))
 static func _write(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary) -> bool:
+	# Legacy unbound writer never modifies the private paired slot.
+	if _paired_owner(season) or _paired_settled(_owner): return false
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(expected):
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
@@ -143,10 +148,16 @@ static func _routine_pins(candidate: RefCounted) -> bool:
 	if _active=="ordinary": return RawGuard.same(Codec.data_fields(candidate,Owner.META_FIELDS),_metadata)
 	return candidate.birth_seed==_metadata.get("birth_seed")
 
+static func _paired_owner(value: RefCounted) -> bool:
+	return value!=null and value.get_script()==Owner and value.paired_draft_only()
+
+static func _paired_settled(value: RefCounted) -> bool:
+	return _paired_owner(value) and value.session.round_index!=0
+
 static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> RefCounted:
 	forget_projection()
-	if saving or _ticket != null or candidate == null or candidate == owner: return null
-	if candidate.get_script()!=Owner or candidate.session==null: return null
+	if saving or _ticket != null or candidate == null or candidate == owner or _paired_settled(owner): return null
+	if candidate.get_script()!=Owner or candidate.session==null or _paired_settled(candidate): return null
 	if owner == null:
 		if not expected.is_empty() or not _matches(expected): return null
 	else:
@@ -249,6 +260,34 @@ static func prepare_report_and_write(owner: RefCounted, expected: PackedByteArra
 		_projection_ticket = ticket; _projection_checkpoint = envelope
 		_projection_value = settled; _projection_raw = snapshot
 	return ticket
+
+## Unbound first-leg settlement. Owns both original pending authentication and
+## independent concrete capture; generic candidate writers cannot admit it.
+static func _prepare_paired_first_settlement(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	forget_projection()
+	last_error=""
+	if saving or _ticket!=null or not match_owner(owner,expected): return null
+	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=0: return null
+	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	var started: int=Time.get_ticks_msec()
+	var current: SeasonState=projection.materialize_settlement(owner.session)
+	paired_candidate_ms=Time.get_ticks_msec()-started
+	if current==null: return null
+	var envelope: RefCounted=Owner.new()
+	envelope.session=current
+	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) or not _routine_pins(envelope): return null
+	started=Time.get_ticks_msec()
+	var captured: Dictionary=Adapter.capture(owner.active,current)
+	paired_admission_ms=Time.get_ticks_msec()-started
+	var data: Dictionary=Owner.pack_current(envelope,captured) if not captured.is_empty() else {}
+	if data.is_empty(): return null
+	var snapshot: Dictionary=RawGuard.capture(envelope)
+	if snapshot.is_empty() or not match_owner(owner,expected): return null
+	_ticket=RefCounted.new()
+	_candidate=envelope; _candidate_session=current; _candidate_raw=snapshot; _candidate_data=data
+	_expected=expected.duplicate(); _written=PackedByteArray()
+	_write_admitted()
+	return _ticket
 
 ## Same active owner only. On cold/cache miss, use the normal complete projection.
 ## Partial projections are returned solely to construct the next real runner.

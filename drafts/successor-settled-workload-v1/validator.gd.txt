@@ -20,7 +20,9 @@ static func validate_settled(season: SeasonState) -> bool:
 	if season.results.is_empty(): return true
 	if season.opponents==null or season.teams.size()!=6 or not ClubCareer.same(season.schedule,SeasonDoubleheaderRules.schedule()): return false
 	var fixtures: Dictionary={}
-	var fixture_rows: Array=season.schedule.duplicate()
+	# The equality above authenticates the complete schedule. Use authored
+	# integers for the request key even after V4 JSON hydrates numeric IDs.
+	var fixture_rows: Array=SeasonDoubleheaderRules.schedule()
 	fixture_rows.append_array(season.semifinals)
 	if not season.final_fixture.is_empty(): fixture_rows.append(season.final_fixture)
 	for fixture: Dictionary in fixture_rows:

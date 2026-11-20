@@ -1,5 +1,5 @@
 extends RefCounted
-## First-leg pending verification only. Never publishes the projection.
+## First-leg verification and detached concrete settlement production. Never publishes.
 const Live = preload("codec.gd")
 const GeneralPending = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
 const GeneralOps = preload("res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd")
@@ -44,7 +44,12 @@ static func npc_job(source: SeasonState, fixture_id: int) -> Dictionary:
 	if fixture_id not in [1,2] or not Live.scope(source) or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=fixture_id-1: return {}
 	return _inspect_bound(source).get("job",{})
 
-static func _inspect_bound(source: SeasonState) -> Dictionary:
+# There is no reusable projection token or caller-supplied candidate.
+static func materialize_settlement(source: SeasonState) -> SeasonState:
+	if not Live.scope(source) or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=2: return null
+	return _inspect_bound(source,true).get("settlement")
+
+static func _inspect_bound(source: SeasonState, produce_settlement: bool = false) -> Dictionary:
 	if not Live.scope(source) or not bound_shape(source.physical.pending): return {}
 	var pending: Dictionary=source.physical.pending.duplicate(true)
 	var pristine: SeasonState=source.fork_live()
@@ -52,7 +57,7 @@ static func _inspect_bound(source: SeasonState) -> Dictionary:
 	pristine.physical.pending.clear()
 	var opening: Dictionary=start(pristine)
 	if opening.is_empty() or not Live.same(opening.binding,pending.binding): return {}
-	return _inspect(pristine,pending.human,pending.reports)
+	return _inspect(pristine,pending.human,pending.reports,produce_settlement)
 
 # Frozen Pending queues its already shape-checked archive before recording
 # the human result. Only this exact private projection can carry that queue.
@@ -93,7 +98,7 @@ class PrivateFirstFork extends "res://src/gameplay/season/successor_live_play_v1
 static func verify(source: SeasonState, human: Array) -> bool:
 	return not _inspect(source,human,[]).is_empty()
 
-static func _inspect(source: SeasonState, human: Array, reports: Array) -> Dictionary:
+static func _inspect(source: SeasonState, human: Array, reports: Array, produce_settlement: bool = false) -> Dictionary:
 	if reports.size()>2: return {}
 	if not Live.scope(source) or not Live.same(source.league_rules,LeagueRules.capture("doubleheader")) or source.phase!=SeasonState.Phase.REGULAR or source.round_index!=0 or source.picks.size()!=4 or not source.physical.pending.is_empty(): return {}
 	var shape: Dictionary={"human":human.duplicate(true),"reports":reports.duplicate(true)}
@@ -131,9 +136,15 @@ static func _inspect(source: SeasonState, human: Array, reports: Array) -> Dicti
 	if not Live.same(candidate.build._bank.view().rewards,expected): return {}
 	if reports.size()==2:
 		# Frozen Pending validates each NPC's exact game receipts on terminal
-		# success. No candidate or payout leaves this verifier.
+		# success. The nonpersistable projection never leaves this method.
 		if projected.has("fixture") or candidate.round_index!=1 or candidate.phase!=SeasonState.Phase.REGULAR or candidate.physical.projecting or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty() or not GeneralPending._receipts(candidate): return {}
-		return {"accepted":true}
+		if not produce_settlement: return {"accepted":true}
+		var concrete: SeasonState=Live.Runtime.new()
+		if not Live.install_fields(concrete,Live.FIELDS,Live.data_fields(candidate,Live.FIELDS)): return {}
+		for key: String in Live.OBJECTS:
+			concrete.set(key,candidate.get(key)) # Objects belong only to the detached projection.
+		if not concrete.career.sync(concrete) or not Live.scope(concrete): return {}
+		return {"settlement":concrete}
 	if candidate.round_index!=0 or not Live.same(projected.get("fixture"),needed): return {}
 	for club: Dictionary in candidate.opponents.clubs.values():
 		if not club.build._bank.view().rewards.is_empty(): return {}
