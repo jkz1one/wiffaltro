@@ -9,7 +9,7 @@ const PairedHistory = preload("res://src/gameplay/season/successor_settled_workl
 
 # Geometry is reusable; only these exact private phases are qualified.
 const HUMAN_PHASES: Array[int]=[0,1,2,3,4,5,6]
-const REPORT_PHASES: Array[int]=[0,1,2,3,4,5]
+const REPORT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 const SETTLEMENT_PHASES: Array[int]=[0,1,2,3,4,5]
 
 static func _round_fixtures(round_index: int) -> Dictionary:

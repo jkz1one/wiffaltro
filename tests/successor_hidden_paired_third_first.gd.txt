@@ -51,7 +51,7 @@ func play_third_first(app, bytes:PackedByteArray, backup:PackedByteArray) -> voi
  if not check(paid_next_return(original) and original.physical.pending.is_empty() and original.build._visit.get("number")==4 and original.build._visit.get("open")==false,"exact twelve-game paid starter and earned upgrade, no replay of earlier games"):return
  var phase:Dictionary=Authored.authored_phase(4)
  var return_phase:Dictionary=Authored.authored_phase(5)
- if not check(Live.same(phase.prior_npcs,[1,2,4,5,7,8,10,11]) and phase.human.id==12 and phase.npc[0].id==13 and phase.npc[1].id==14 and phase.firsts[12]==-1 and return_phase.firsts[15]==12 and Binding.report_limit(6)==0,"authored role, cursor and pair geometry do not open any other fixture on this phase"):return
+ if not check(Live.same(phase.prior_npcs,[1,2,4,5,7,8,10,11]) and phase.human.id==12 and phase.npc[0].id==13 and phase.npc[1].id==14 and phase.firsts[12]==-1 and return_phase.firsts[15]==12 and Binding.npc_job(original,19).is_empty(),"authored role, cursor and pair geometry do not open any other fixture on this phase"):return
  var snapshot:Dictionary=Store.RawGuard.capture(owner)
  var fixture:Dictionary=original.pending_fixture()
  verify_closed(app,bytes,backup)

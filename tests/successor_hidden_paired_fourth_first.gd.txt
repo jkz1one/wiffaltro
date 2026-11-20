@@ -40,13 +40,14 @@ func single_history(gates:int,calls:int) -> bool:
  return Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-calls==6 and PairHistory.historical_humans_checked==6 and PairHistory.checked_sides==36 and PairHistory.checked_reports==12
 
 func no_later(app,bytes:PackedByteArray,backup:PackedByteArray,probe_sign:bool=true) -> void:
- app._run_paired_npc(19)
  app._run_paired_npc(20)
  app._play_paired_human(7)
  app._settle_paired_third_return_leg()
  app._open_paired_visit6_shop()
  if probe_sign:app._sign_paired_visit6_recruit()
- check(Binding.next_npc_fixture(app.season).is_empty() and Binding.npc_job(app.season,19).is_empty() and Binding.materialize_settlement(app.season,6)==null and Store._prepare_paired_settlement(app.career_owner,bytes,6)==null,"no report, paid7, shop, recruit, or later phase authority")
+ var next:Dictionary=Binding.next_npc_fixture(app.season)
+ var exact_next:bool=next.is_empty() if app.season.physical.pending.is_empty() else next.get("id")==19
+ check(exact_next and Binding.npc_job(app.season,20).is_empty() and Binding.materialize_settlement(app.season,6)==null and Store._prepare_paired_settlement(app.career_owner,bytes,6)==null,"only exact next report before settlement; no paid7, shop, recruit, or later phase authority")
  verify_closed(app,bytes,backup)
  check(app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"all other private/public producers leave both files exact")
 
@@ -56,7 +57,7 @@ func play_fixture18(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  if not check(signed_exact(original),"signed cp132 starter opens exact native history and Dakota/Val/Mika profiles"):return
  var raw_guard:Dictionary=Store.RawGuard.capture(owner)
  var phase:Dictionary=Authored.authored_phase(6)
- if not check(phase.human.id==18 and phase.human.away==2 and phase.human.home==0 and phase.firsts[18]==-1 and Live.same(phase.npc.map(func(row):return row.id),[19,20]) and Binding.report_limit(6)==0,"frozen fourth-pair opener only"):return
+ if not check(phase.human.id==18 and phase.human.away==2 and phase.human.home==0 and phase.firsts[18]==-1 and Live.same(phase.npc.map(func(row):return row.id),[19,20]) and Binding.report_limit(6)==2,"frozen fourth-pair opener only"):return
  no_later(app,bytes,backup)
  print("CP127_STAGE launch")
  var started:int=Time.get_ticks_msec()
