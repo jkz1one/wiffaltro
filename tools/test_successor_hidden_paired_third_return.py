@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Play or verify only private third-pair return human15. NPCs remain barred.
+"""Play or verify only private third-pair return human15. NPC17 remains barred.
 
 Obtain --fixture-stage at cp125 with the third-first settlement reproducer.
 Provide cp121 --paid-stage for its pinned admitted Standard cold control.
@@ -78,7 +78,7 @@ def main():
     run(project,home,'cold',godot)
     assert slot_pair(primary)==durable
     foreign = json.loads(start[0])['ordinary']['physical']['reports'][-1]
-    foreign['fixture']=16
+    foreign['fixture']=17
     faults = {
         'human-start':once(text,value['binding']['request'],'0'*64),
         'unqualified-npc':once(text,marker+raw,marker+once(raw,'"reports":[]',
@@ -98,7 +98,7 @@ def main():
     assert slot_pair(origin)==start and slot_pair(standard_path)==standard
     if completed:
         assert slot_pair(completed)==durable
-    print('PASS: real fixture15 exact own debt and Mika, unchanged paid history, NPC/payout closed, Standard exact')
+    print('PASS: real fixture15 exact own debt and Mika, unchanged paid history, NPC17/payout closed, Standard exact')
 
 
 if __name__ == '__main__':

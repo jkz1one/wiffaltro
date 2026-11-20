@@ -1,0 +1,161 @@
+extends "res://tests/successor_hidden_paired_third_return.gd"
+
+class ObservedApp extends "res://src/presentation/season/successor_dynasty_owner_v1/app.gd":
+ const EVIDENCE="user://npc16-runner-report.local"
+ var emitted_at:int=0
+ var admitted_at:int=0
+ var preserved:bool=false
+ var injury:String=""
+
+ static func digest(bytes:PackedByteArray) -> String:
+  var hasher=HashingContext.new()
+  if hasher.start(HashingContext.HASH_SHA256)!=OK or hasher.update(bytes)!=OK:return ""
+  return hasher.finish().hex_encode()
+
+ func _ai_finished(report:Dictionary, runner:Node=null) -> void:
+  emitted_at=Time.get_ticks_msec()
+  print("CP127_STAGE admission original_runner_callback")
+  if is_instance_valid(runner) and runner==ai_runner and _busy and _npc_owner_matches() and _paired_npc_binding.get("fixture")==16 and not report.is_empty():
+   var file=FileAccess.open(EVIDENCE,FileAccess.WRITE)
+   if file!=null:
+    # Test-local forensic output only; preserves native types and never grants authority.
+    file.store_var({"fixture":16,"request":_paired_npc_binding.request,"primary":digest(_npc_expected),"backup":digest(FileAccess.get_file_as_bytes(Store.PATH+".bak")),"report":report},false)
+    file.flush()
+    file.close()
+    preserved=FileAccess.file_exists(EVIDENCE)
+  print("CP127_REPORT_RETAINED ",preserved)
+  super._ai_finished(report,runner)
+  admitted_at=Time.get_ticks_msec()
+
+ func _ai_failed(reason:String, runner:Node=null) -> void:
+  injury=reason
+  print("CP127_RUNNER_FAILED ",reason)
+  super._ai_failed(reason,runner)
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=ObservedApp.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var started:int=Time.get_ticks_msec()
+ var gates:int=Live.paired_history_calls
+ var resolves:int=Live.Physical.resolve_calls
+ print("CP127_STAGE cold")
+ app.reload_save()
+ print("CP127_COLD_MS ",Time.get_ticks_msec()-started," gates=",Live.paired_history_calls-gates," resolves=",Live.Physical.resolve_calls-resolves)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"cold refuses "+args[0]+" without mutating either file")
+ elif check(app.season!=null and app._owned() and unpaid_third_return(app.season) and exact(bytes,backup) and Live.paired_history_calls-gates==1,"fresh App authenticates exact paid prefix and unpaid human"):
+  var pending:Dictionary=app.season.physical.pending
+  if args[0]=="play" and check(pending.reports.is_empty() and Live.Physical.resolve_calls-resolves==1,"exact human-only checkpoint is the sole NPC16 source"):
+   await play_npc16(app,bytes,backup)
+  elif args[0]=="cold" and check(pending.reports.size()==1 and Live.Physical.resolve_calls-resolves==2,"independent cold validates exactly NPC16 plus discovers the empty next slot"):
+   check(npc16_debt(app.season,pending.reports[0],[]),"cold revalidates fixture13-only carried work and no payout")
+   no_more(app,bytes,backup)
+  else:
+   check(false,"unexpected mode or fixture")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func play_npc16(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var original:SeasonState=app.season
+ var owner=app.career_owner
+ var pin:Dictionary=Store.RawGuard.capture(owner)
+ var prior:Dictionary=original.physical.pending.duplicate(true)
+ var authored:Dictionary=Authored.authored_phase(5)
+ var fixture:Dictionary=authored.npc[0]
+ if not check(fixture.id==16 and authored.firsts[16]==13 and Binding.next_npc_fixture(original).id==fixture.id,"exact authored return fixture16/first fixture13 selected"):return
+ verify_closed(app,bytes,backup)
+ app._run_paired_npc(17)
+ app._run_paired_npc(13)
+ check(not is_instance_valid(app.ai_runner) and exact(bytes,backup),"out-of-order and historical jobs reject without writes")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated write obstruction"):return
+ print("CP127_STAGE launch")
+ var started:int=Time.get_ticks_msec()
+ var gates:int=Live.paired_history_calls
+ app._run_paired_npc(16)
+ var ready:int=Time.get_ticks_msec()
+ print("CP127_LAUNCH_MS ",ready-started)
+ if not check(is_instance_valid(app.ai_runner) and app._npc_owner_matches() and app._paired_npc_binding.fixture==16,"actual original runner is bound to exact owner and fixture"):return
+ var state:MatchState=app.ai_runner._lab._match_state
+ var live_starts:Array=[]
+ for side:int in range(2):
+  var team:TeamMatchState=state.away_team if side==0 else state.home_team
+  var expected:Dictionary=third_exact_debt(original,fixture,side)
+  var stamina:Dictionary={}
+  check(not expected.is_empty() and ClubCareer.same(team.league_pair,expected),"live authored fixture13 debt for side "+str(side))
+  for player:PlayerMatchState in team.roster:
+   var id:String=String(player.definition.id)
+   stamina[id]=player.stamina_remaining
+   check(PhysicalRecoveryFlow.near(player.stamina_remaining,maxf(0.0,player.stamina_max-float(expected.debt.get(id,0.0)))),"live exact stamina for "+id)
+  live_starts.append(stamina)
+ var request:String=app._paired_npc_binding.request
+ print("CP127_STAGE physics")
+ var beat:int=0
+ var terminal_seen:bool=false
+ for frame:int in range(200000):
+  await get_tree().physics_frame
+  if app.emitted_at>0 or not is_instance_valid(app.ai_runner):break
+  var runner=app.ai_runner
+  var current:int=Time.get_ticks_msec()
+  if state.phase==MatchState.Phase.GAME_END and not terminal_seen:
+   terminal_seen=true
+   print("CP127_GAME_END ",frame)
+  if current>=beat:
+   beat=current+5000
+   print("CP127_HEARTBEAT frame=",frame," phase=",state.phase," pa=",state.plate_appearance_number," throw=",runner._lab._throw_number," elapsed=",runner._elapsed," stalled=",runner._stalled," progress=",runner._progress)
+ if not check(app.emitted_at>0 and app.preserved and app.retained!=null and Live.paired_history_calls-gates==1,"original report emitted and retained before one complete authenticated admission"):return
+ print("CP127_PHYSICS_AND_CAPTURE_MS ",app.emitted_at-ready," CP127_ADMISSION_MS ",app.admitted_at-app.emitted_at)
+ var next:SeasonState=app.retained
+ var pending:Dictionary=next.physical.pending
+ var row:Dictionary=pending.reports[0]
+ var native=FileAccess.open(ObservedApp.EVIDENCE,FileAccess.READ)
+ var evidence:Variant=native.get_var(false) if native!=null else null
+ check(evidence is Dictionary and evidence.get("primary")==ObservedApp.digest(bytes) and evidence.get("backup")==ObservedApp.digest(backup) and Live.same({"fixture":evidence.fixture,"request":evidence.request,"report":evidence.report},row),"test-local exact runner report and owner pins match staged row")
+ print("CP127_RESULT ",row.report.physical.away_runs,":",row.report.physical.home_runs)
+ check(row.fixture==16 and row.request==request and Live.same(pending.binding,prior.binding) and Live.same(pending.human,prior.human) and npc16_debt(original,row,live_starts),"exact report/request and own debt, immutable played human evidence")
+ check(unpaid_third_return(next) and Live.same(next.results,original.results) and Live.same(next.physical.reports,original.physical.reports) and app.season==original and Store.RawGuard.matches(owner,pin) and exact(bytes,backup),"blocked write leaves active owner and both files unchanged and never pays")
+ app._run_paired_npc(16)
+ check(app.retained==next and exact(bytes,backup),"duplicate job cannot replace retained admission")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only isolated obstruction"):return
+ print("CP127_STAGE retry")
+ gates=Live.paired_history_calls
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("CP127_RETRY_MS ",Time.get_ticks_msec()-started)
+ var written:PackedByteArray=Store.raw()
+ if not check(app.retained==null and app.season==next and Live.paired_history_calls==gates and Store.RawGuard.matches(owner,pin) and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact retry promotes once with no replay"):return
+ check(Store._prepare_paired_third_return_first_report(app.career_owner,written,row)==null and Store._prepare_paired_third_return_first_report(app.career_owner,bytes,row)==null and Store._prepare_paired_third_return_first_report(app.career_owner.fork(),written,row)==null,"duplicate, stale and foreign report attempts refuse")
+ no_more(app,written,bytes)
+
+func no_more(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var pending:Dictionary=app.season.physical.pending
+ var altered:Dictionary=pending.duplicate(true)
+ var foreign:Dictionary=pending.reports[0].duplicate(true)
+ foreign.fixture=17
+ altered.reports.append(foreign)
+ check(not Binding.bound_shape(altered) and Binding.next_npc_fixture(app.season).is_empty() and Binding.npc_job(app.season,17).is_empty() and Store._prepare_paired_third_return_first_report(app.career_owner,bytes,foreign)==null and Store._prepare_paired_human_checkpoint(app.career_owner,bytes,altered,5)==null,"NPC17 cannot start or append through either Store lane")
+ check(Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null and Binding._round_fixtures(6).is_empty(),"partial return cannot pay or advance")
+ app._run_paired_npc(16)
+ app._run_paired_npc(17)
+ app._paired_first_shop({"id":"shop-open:13","rev":13,"op":"open"})
+ verify_closed(app,bytes,backup)
+ check(app.retained==null and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"public play, repeat, shop and later job leave exact bytes")
+
+func npc16_debt(season:SeasonState,row:Dictionary,opening:Array) -> bool:
+ var fixture:Dictionary=Authored.authored_phase(5).npc[0]
+ if row.fixture!=fixture.id:return false
+ for side:int in range(2):
+  var expected:Dictionary=third_exact_debt(season,fixture,side)
+  # Mirror frozen Report.matches; exact hydrated float addition is not its comparison boundary.
+  if expected.is_empty() or not ClubCareer.same(row.report.pair[side],expected):return false
+  for player:String in row.report.workload[side].initial:
+   var entry:Dictionary=row.report.workload[side].initial[player]
+   var start:float=maxf(0.0,float(entry.capacity)-float(expected.debt.get(player,0.0)))
+   if not PhysicalRecoveryFlow.near(entry.initial,start):return false
+   if not opening.is_empty() and not PhysicalRecoveryFlow.near(entry.initial,opening[side][player]):return false
+ return true

@@ -15,13 +15,18 @@ const SETTLEMENT_PHASES: Array[int]=[0,1,2,3,4]
 static func _round_fixtures(round_index: int) -> Dictionary:
 	return Request.authored_phase(round_index) if round_index in HUMAN_PHASES else {}
 
+# Qualified report count is independent of the authored number of NPC games.
+static func report_limit(round_index: int) -> int:
+	if round_index==5: return 1
+	return 2 if round_index in REPORT_PHASES else 0
+
 static func bound_shape(value: Variant) -> bool:
 	if not Live.keys(value,["human","reports","binding"]) or not value.human is Array or value.human.size()!=14 or not value.reports is Array or value.reports.size()>2: return false
 	var fixtures: Dictionary={}
 	for round_index: int in HUMAN_PHASES:
 		var authored: Dictionary=_round_fixtures(round_index)
 		if not authored.is_empty() and Live.whole(value.human[0],authored.human.id,authored.human.id):
-			if round_index not in REPORT_PHASES and not value.reports.is_empty(): return false
+			if value.reports.size()>report_limit(round_index): return false
 			fixtures=authored
 			break
 	if fixtures.is_empty(): return false
@@ -56,10 +61,10 @@ static func verify_bound(source: SeasonState) -> bool:
 
 # Read only the exact next slot. Job and Store admission independently replay it.
 static func next_npc_fixture(source: SeasonState) -> Dictionary:
-	if not Live.scope(source) or source.round_index not in REPORT_PHASES or not bound_shape(source.physical.pending): return {}
+	if not Live.scope(source) or report_limit(source.round_index)==0 or not bound_shape(source.physical.pending): return {}
 	var authored: Dictionary=_round_fixtures(source.round_index)
 	var index: int=source.physical.pending.reports.size()
-	if authored.is_empty() or index>=authored.npc.size() or source.physical.pending.human[0]!=authored.human.id: return {}
+	if authored.is_empty() or index>=report_limit(source.round_index) or index>=authored.npc.size() or source.physical.pending.human[0]!=authored.human.id: return {}
 	return authored.npc[index]
 
 # Only a detached match start is returned, never the projected season/payout.
@@ -104,13 +109,13 @@ static func npc_queue(season: SeasonState) -> bool:
 static func projected_npc_fixture(season: SeasonState, fixture: Dictionary) -> Dictionary:
 	if season==null or not Live.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return {}
 	var leg: int=season.round_index
-	if not ((leg==0 and season.get_script()==PrivateFirstFork) or (leg==1 and season.get_script()==PrivateReturnFork) or (leg>=2 and leg in REPORT_PHASES and season.get_script()==PrivateFollowupFork)): return {}
+	if not ((leg==0 and season.get_script()==PrivateFirstFork) or (leg==1 and season.get_script()==PrivateReturnFork) or (leg>=2 and report_limit(leg)>0 and season.get_script()==PrivateFollowupFork)): return {}
 	var fixtures: Dictionary=_round_fixtures(leg)
 	var human: int=fixtures.human.id
 	var archive: int=fixtures.prior_npcs.size()
 	if season.physical==null or not season.physical.projecting or not season.physical.pending.is_empty() or season.player_results.size()!=fixtures.prior_humans.size()+1 or not season.build._bank.view().rewards.has(str(human)): return {}
 	var progress: int=season.physical.cursor-archive
-	if progress<0 or progress>=fixtures.npc.size() or season.physical.reports.size()<archive+progress: return {}
+	if progress<0 or progress>=report_limit(leg) or progress>=fixtures.npc.size() or season.physical.reports.size()<archive+progress: return {}
 	var played: Array=fixtures.prior_results+[human]
 	for index: int in range(progress): played.append(fixtures.npc[index].id)
 	if not Live.same(season.results.map(func(row):return row.get("id")),played): return {}
@@ -142,7 +147,8 @@ static func followup_projection(season: SeasonState) -> bool:
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if source.round_index<2 or source.round_index not in HUMAN_PHASES: return {}
 	if produce_settlement and source.round_index not in SETTLEMENT_PHASES: return {}
-	if (preview_job or not pending.reports.is_empty()) and source.round_index not in REPORT_PHASES: return {}
+	var limit: int=report_limit(source.round_index)
+	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}
 	if Live._capture_structural(source).is_empty(): return {}
 	for paid: Dictionary in source.player_results:
 		if not Live._human_score(source,paid): return {}

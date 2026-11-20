@@ -212,9 +212,10 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	var prefix: int=authored.prior_npcs.size()
 	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=prefix: return false
 	if not same(physical.reports.slice(0,prefix).map(func(row):return row.get("fixture")),authored.prior_npcs): return false
-	if detached and season.round_index in projection.REPORT_PHASES:
+	var report_limit: int=projection.report_limit(season.round_index)
+	if detached and report_limit>0:
 		var queued: Array=physical.reports.slice(prefix).map(func(row):return row.get("fixture"))
-		if queued.size()>authored.npc.size() or not same(queued,authored.npc.slice(0,queued.size()).map(func(row):return row.id)): return false
+		if queued.size()>report_limit or queued.size()>authored.npc.size() or not same(queued,authored.npc.slice(0,queued.size()).map(func(row):return row.id)): return false
 	elif physical.reports.size()!=prefix: return false
 	if not physical.pending.is_empty() and (season.round_index not in projection.HUMAN_PHASES or not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
 	var build: SeasonBuild=season.build
