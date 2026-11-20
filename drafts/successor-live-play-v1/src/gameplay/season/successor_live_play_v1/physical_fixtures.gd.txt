@@ -316,7 +316,7 @@ func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true
 	var return_state: MatchState
 	var expected_request: String=""
 	if not header.is_empty() and row.fixture==fixture.id:
-		if season!=null and season.round_index==1 and LeagueRules.doubleheader(season.league_rules):
+		if season!=null and LeagueRules.doubleheader(season.league_rules) and (season.round_index==1 or (season.round_index==3 and season.physical==self)):
 			authored_return=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").projected_npc_fixture(season,fixture)
 		if authored_return.is_empty():
 			expected_request=request_key(season,fixture)
@@ -324,7 +324,12 @@ func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true
 			return_state=match_for(season,authored_return)
 			var authored_field: FieldDefinition=SeasonState.field_for_fixture(authored_return,season)
 			if return_state!=null and authored_field!=null:
-				expected_request=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd").for_materialized_return(season,authored_return,return_state,authored_field)
+				var composer=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
+				# The exact private follow-up fork supplies the authored fixture10/11.
+				if season.round_index==3:
+					expected_request=composer.for_materialized_next_return(season,authored_return,return_state,authored_field)
+				else:
+					expected_request=composer.for_materialized_return(season,authored_return,return_state,authored_field)
 	if (
 		header.is_empty()
 		or row.fixture != fixture.id
