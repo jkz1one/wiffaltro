@@ -81,7 +81,7 @@ func play_human24(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  if not check(exact_visit8(original),"exact cp138 opened visit8 cutoff, signed Dakota/Mika"):return
  var raw_guard:Dictionary=Store.RawGuard.capture(owner)
  var phase:Dictionary=Authored.authored_phase(8)
- if not check(phase.human.id==24 and phase.human.away==0 and phase.human.home==1 and phase.firsts[24]==-1 and Live.same(phase.npc.map(func(row):return row.id),[25,26]) and not Binding.settlement_enabled(9),"frozen fifth-pair opening only"):return
+ if not check(phase.human.id==24 and phase.human.away==0 and phase.human.home==1 and phase.firsts[24]==-1 and Live.same(phase.npc.map(func(row):return row.id),[25,26]) and Binding.materialize_settlement(original,9)==null,"frozen fifth-pair opening only"):return
  sealed_game9(app,bytes,backup)
  print("CP127_STAGE launch")
  var started:int=Time.get_ticks_msec()

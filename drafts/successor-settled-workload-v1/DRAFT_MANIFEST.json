@@ -1,7 +1,7 @@
 {
   "format": "inactive-settled-workload-v1",
   "source_checkpoint": "de846ad7dd0bb402552c260ac0d6e48fc1e5da7f",
-  "scope": "Inactive exact Base draft and complete regular-round settlement history, workload, payout and NPC report linkage only. No playoff, codec, pending authenticity, admission or Dynasty changes.",
+  "scope": "Exact Base draft and regular-round settlement history, workload, payout and NPC linkage, including sealed unplayed semifinals only. No playoff results, legacy, pending authenticity or Dynasty.",
   "files": [
     {
       "backup_path": "drafts/successor-settled-workload-v1/validator.gd.txt",
@@ -18,8 +18,8 @@
     {
       "backup_path": "drafts/successor-settled-workload-v1/completeness.gd.txt",
       "restore_path": "src/gameplay/season/successor_settled_workload_v1/completeness.gd",
-      "bytes": 5985,
-      "sha256": "6eadc9b4d4be4725c8ccd974537ad72ce33bd90e9e873cf0e7c0e63665ab7e0e"
+      "bytes": 6596,
+      "sha256": "0109d1da6bef186f05434bc3901eec57619889a8a2c1c62a2ea09e0983e37bd2"
     }
   ]
 }

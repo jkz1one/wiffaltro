@@ -13,7 +13,7 @@ const REPORT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 const SETTLEMENT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 # Exact authored regular advancement, independent of UI eligibility.
 # State identity, native replay and the owned CAS still gate every operation.
-const LATE_REGULAR: Dictionary={7:{"revision":20,"reports":2,"settle":true},8:{"revision":23,"reports":2,"settle":true},9:{"revision":26,"reports":2,"settle":false}}
+const LATE_REGULAR: Dictionary={7:{"revision":20,"reports":2,"settle":true},8:{"revision":23,"reports":2,"settle":true},9:{"revision":26,"reports":2,"settle":true}}
 
 static func late_revision(round_index: int) -> int:
 	return int(LATE_REGULAR.get(round_index,{}).get("revision",-1))
@@ -219,7 +219,8 @@ static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture:
 	if complete:
 		if preview_job or projected.has("fixture") or candidate.round_index!=source.round_index+1 or candidate.physical.projecting or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty() or not GeneralPending._receipts(candidate): return {}
 		if regular_end:
-			return {"accepted":true} if not produce_settlement and _unplayed_semifinals(candidate) else {}
+			if not _unplayed_semifinals(candidate): return {}
+			return _concrete_settlement(candidate) if produce_settlement else {"accepted":true}
 		if candidate.phase!=SeasonState.Phase.REGULAR: return {}
 		return _concrete_settlement(candidate) if produce_settlement else {"accepted":true}
 	if produce_settlement: return {}

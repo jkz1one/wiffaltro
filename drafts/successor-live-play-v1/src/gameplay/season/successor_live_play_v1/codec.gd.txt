@@ -135,7 +135,9 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
-		if season.round_index in [3,4,5,6,7,8,9]:
+		if season.round_index==10:
+			if not _sealed_regular_end_shape(season): return false
+		elif season.round_index in [3,4,5,6,7,8,9]:
 			if not _followup_settled_shape(season): return false
 		elif season.round_index==2:
 			if not _pair_settled_shape(season): return false
@@ -226,6 +228,19 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (not late_open.is_empty() and build.revision()==int(late_open.rev)+1)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
 
+# Concrete pre-semifinal save only. No launch or playoff result is admitted.
+# The history gate below reconstructs seeds from the independently paid rows.
+static func _sealed_regular_end_shape(season: SeasonState) -> bool:
+	if season.get_script()!=Runtime or season.phase!=SeasonState.Phase.SEMIFINAL or season.round_index!=10 or season.picks.size()!=4: return false
+	var final: Dictionary=PairSchedule.authored_phase(9)
+	if not same(season.results.map(func(row):return row.get("id")),final.prior_results+[final.human.id]+final.npc.map(func(row):return row.id)) or not same(season.player_results.map(func(row):return row.get("id")),final.prior_humans+[final.human.id]): return false
+	var physical=season.physical
+	if physical.projecting or not physical.needed.is_empty() or not physical.error.is_empty() or not physical.pending.is_empty() or physical.cursor!=20: return false
+	if not same(physical.reports.map(func(row):return row.get("fixture")),final.prior_npcs+final.npc.map(func(row):return row.id)): return false
+	if season.playoff_seeds.size()!=4 or not season.playoff_seeds.has(0) or season.semifinals.size()!=2 or not season.final_fixture.is_empty() or season.champion!=-1: return false
+	var build: SeasonBuild=season.build
+	return _paid_pair_journal(build,10) and whole(build._visit.get("number"),10,10) and build._visit.get("open")==false and not build._visit.has("recruit")
+
 # This helper is not standalone authority: callers first gate exact Runtime
 # scope (or its separately authenticated detached projection).
 static func _paired_late_start(season: SeasonState) -> bool:
@@ -237,16 +252,18 @@ static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
 	var after_sign: bool=paid_rounds>=7
 	var after_cutoff: bool=paid_rounds>=8
 	var after_visit8: bool=paid_rounds>=9
-	var size: int=3+2*paid_rounds+(2 if after_sign else 0)+(1 if after_cutoff else 0)+(1 if after_visit8 else 0)
+	var size: int=3+2*paid_rounds+(2 if after_sign else 0)+(1 if after_cutoff else 0)+(1 if after_visit8 else 0)+(1 if paid_rounds==10 else 0)
 	var tail: int=build._events.size()-size
-	if paid_rounds not in [2,3,4,5,6,7,8,9] or build._bank==null: return false
+	if paid_rounds not in [2,3,4,5,6,7,8,9,10] or build._bank==null: return false
 	if after_sign:
 		if not _signed_visit6_prefix(build): return false
 		if after_cutoff:
 			if tail not in [0,1] or not visit7_open_command(build._events[19]): return false
 			if after_visit8:
 				if not late_shop_open_command(build._events[22],8): return false
-				if tail==0:
+				if paid_rounds==10:
+					if tail!=0 or not late_shop_open_command(build._events[25],9) or not _archived_late_cutoffs(build,9) or build._visit.has("recruit"): return false
+				elif tail==0:
 					if not _archived_late_cutoffs(build,8) or build._visit.has("recruit"): return false
 				elif not late_shop_open_command(build._events[size],9) or not _late_recruit_cutoff(build,9): return false
 			elif tail==0:
@@ -266,7 +283,7 @@ static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
 	for index: int in range(2,paid_rounds):
 		var game: String=str(projection._round_fixtures(index).human.id)
 		var signed_cutoff: bool=after_sign and index>=6
-		var reward_index: int=3+2*index+(2 if signed_cutoff else 0)+(1 if index>=7 else 0)+(1 if index>=8 else 0)
+		var reward_index: int=3+2*index+(2 if signed_cutoff else 0)+(1 if index>=7 else 0)+(1 if index>=8 else 0)+(1 if index==9 else 0)
 		var reward: Dictionary=build._events[reward_index]
 		var exotic: Dictionary=build._events[reward_index+1]
 		if reward.get("op")!="successor_reward" or reward.get("id")!="game:"+game or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:"+game: return false
@@ -652,7 +669,7 @@ static func _history_valid(season: SeasonState) -> bool:
 static func _paid_history_valid(season: SeasonState) -> bool:
 	# Only the exact qualified signed envelope uses authenticated pre-reward
 	# rosters; originals/unsigned use the old check and never replay a second time.
-	if season.round_index in [7,8,9]:
+	if season.round_index in [7,8,9,10]:
 		return _paid_pair_journal(season.build,season.round_index) and PairedHistory.validate_settled_with_historical_humans(season)
 	if season.round_index==6 and _signed_visit6_journal(season.build):
 		return PairedHistory.validate_settled_with_historical_humans(season)
