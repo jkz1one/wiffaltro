@@ -4,12 +4,20 @@ extends RefCounted
 ## This localized body is mechanically derived from cp98, not a replacement for
 ## its guards. Future internal callers must independently authenticate context.
 const Frozen=preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
-# One exact V4 return request representation. Materialized saves hydrate these
-# wallet-event/held-receipt arrays as JSON numbers. Journal replay builds the
-# same authorized values natively. Hash their V4 representation on both paths,
-# without reading the untrusted report or mutating the gameplay context.
+# Exact V4 route representations. The fixture's authored lane selects a
+# single representation; a report or request digest never selects it.
 static func for_materialized_return(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:
-	if state==null or field==null or fixture.get("round")!=1 or fixture.get("id") not in [4,5] or not LeagueRules.doubleheader(state.league_rules): return ""
+	if fixture.get("round")!=1 or fixture.get("id") not in [4,5]: return ""
+	return _for_materialized_wallet(season,fixture,state,field)
+
+static func for_materialized_next_first(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:
+	if fixture.get("round")!=2 or fixture.get("id") not in [7,8]: return ""
+	return _for_materialized_wallet(season,fixture,state,field)
+
+# Hydration represents three derived receipt arrays as JSON numbers. Recreate
+# exactly that form from independently authenticated state, then restore it.
+static func _for_materialized_wallet(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:
+	if state==null or field==null or not LeagueRules.doubleheader(state.league_rules): return ""
 	var teams: Array[TeamMatchState]=[state.away_team,state.home_team]
 	for team: TeamMatchState in teams:
 		if team==null or not team.league_ownership.get("events") is Array or (team.ai_budget.has("before") and not team.ai_budget.before is Array): return ""

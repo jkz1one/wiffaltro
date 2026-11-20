@@ -63,8 +63,13 @@ static func _matches(season: SeasonState, fixture: Dictionary, result: Dictionar
 	state.ai_tactical_quality=clampf(0.15 + season.difficulty * 0.25 + minf(int(fixture.round), 9) * 0.025, 0.0, 1.0)
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,season)
 	if field==null: return false
-	var v4_return: bool=season.get_script()==load("res://src/gameplay/season/successor_live_play_v1/runtime.gd") and season.round_index==2 and game in [4,5]
-	var request: String=Request.for_materialized_return(season,fixture,state,field) if v4_return else Request.for_context(season,fixture,state,field)
+	var v4: bool=season.get_script()==load("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+	var v4_return: bool=v4 and season.round_index in [2,3] and game in [4,5]
+	var v4_next_first: bool=v4 and season.round_index==3 and game in [7,8]
+	var request: String
+	if v4_return: request=Request.for_materialized_return(season,fixture,state,field)
+	elif v4_next_first: request=Request.for_materialized_next_first(season,fixture,state,field)
+	else: request=Request.for_context(season,fixture,state,field)
 	if request!=archive.request: return false
 	var report: Dictionary=archive.report.duplicate(true) if v4_return else archive.report
 	# matches() invokes the complete frozen valid() before context correspondence.

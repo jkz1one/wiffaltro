@@ -271,10 +271,13 @@ static func _prepare_paired_first_settlement(owner: RefCounted, expected: Packed
 static func _prepare_paired_return_settlement(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
 	return _prepare_paired_settlement(owner,expected,1)
 
+static func _prepare_paired_next_first_settlement(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _prepare_paired_settlement(owner,expected,2)
+
 static func _prepare_paired_settlement(owner: RefCounted, expected: PackedByteArray, leg: int) -> RefCounted:
 	forget_projection()
 	last_error=""
-	if leg not in [0,1] or saving or _ticket!=null or not match_owner(owner,expected): return null
+	if leg not in [0,1,2] or saving or _ticket!=null or not match_owner(owner,expected): return null
 	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=leg: return null
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var started: int=Time.get_ticks_msec()
