@@ -1,0 +1,15 @@
+extends RefCounted
+## Inactive pure dispatch only: no league admission, difficulty/AI selection,
+## playoff transition, owner mutation, or save behavior. The caller supplies its
+## existing ordinary schedule. Preserve its exact order and return detached data.
+## Doubleheader delegates to the authentic existing rules, never a second algorithm.
+const Doubleheader = preload("res://src/gameplay/season/season_doubleheader_rules.gd")
+
+
+static func select(use_doubleheader: Variant, ordinary: Array[Dictionary]) -> Array[Dictionary]:
+	# Do not coerce strings, numbers, null, or profiles into an admission decision.
+	if not use_doubleheader is bool:
+		return []
+	if use_doubleheader:
+		return Doubleheader.schedule()
+	return ordinary.duplicate(true)
