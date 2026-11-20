@@ -333,22 +333,28 @@ static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteAr
 	_write_admitted()
 	return _ticket
 
-## Accept only exact staged return evidence for the upgraded round-1 owner.
+## Accept only exact staged evidence for these two private checkpoints.
 ## Existing proof/reports cannot be replaced. No detached reward is serialized.
 static func _prepare_paired_return_human(owner: RefCounted, expected: PackedByteArray, pending: Dictionary) -> RefCounted:
 	if owner==null or owner.session==null or owner.session.physical==null or not owner.session.physical.pending.is_empty(): return null
 	return _prepare_paired_human_checkpoint(owner,expected,pending,1)
 
-# Exact settled owner, one new human only. No report or settlement producer.
+# Exact settled owner, first new human. No settlement producer.
 static func _prepare_paired_next_first_human(owner: RefCounted, expected: PackedByteArray, pending: Dictionary) -> RefCounted:
 	if owner==null or owner.session==null or owner.session.physical==null or not owner.session.physical.pending.is_empty(): return null
 	return _prepare_paired_human_checkpoint(owner,expected,pending,2)
 
 static func _prepare_paired_return_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
-	if not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.physical.pending.is_empty(): return null
+	return _prepare_paired_report(owner,expected,report,1)
+
+static func _prepare_paired_next_first_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
+	return _prepare_paired_report(owner,expected,report,2)
+
+static func _prepare_paired_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary, round_index: int) -> RefCounted:
+	if not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.round_index!=round_index or owner.session.physical.pending.is_empty(): return null
 	var pending: Dictionary=owner.session.physical.pending.duplicate(true)
 	pending.reports.append(report.duplicate(true))
-	return _prepare_paired_human_checkpoint(owner,expected,pending,1)
+	return _prepare_paired_human_checkpoint(owner,expected,pending,round_index)
 
 static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: PackedByteArray, pending: Dictionary, round_index: int) -> RefCounted:
 	forget_projection()
@@ -361,7 +367,6 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	var opening: Dictionary=projection._round_fixtures(round_index).human
 	if not projection.bound_shape(pending) or not Codec.whole(pending.human[0],opening.id,opening.id): return null
 	var prior: Dictionary=session.physical.pending
-	if round_index==2 and (not prior.is_empty() or not pending.reports.is_empty()): return null
 	if prior.is_empty():
 		if not pending.reports.is_empty(): return null
 	elif pending.reports.size()!=prior.reports.size()+1 or not Codec.same(pending.human,prior.human) or not Codec.same(pending.binding,prior.binding) or not Codec.same(pending.reports.slice(0,prior.reports.size()),prior.reports): return null

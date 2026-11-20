@@ -618,12 +618,14 @@ func _clone() -> SeasonState:
 func _checkpoint_report() -> void:
 	if _busy or retained != null or retained_report.is_empty() or not _npc_owner_matches(): return
 	if career_owner.paired_draft_only():
-		if _paired_npc_binding.is_empty() or _paired_npc_binding.get("fixture")!=3*season.round_index+1+season.physical.pending.reports.size(): return
+		var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+		var expected_fixture: Dictionary=projection.next_npc_fixture(season)
+		if expected_fixture.is_empty() or _paired_npc_binding.get("fixture")!=expected_fixture.id: return
 		var row: Dictionary=_paired_npc_binding.duplicate(true)
 		row.report=retained_report.duplicate(true)
-		if season.round_index==1:
+		if season.round_index in [1,2]:
 			var expected: PackedByteArray=_npc_expected.duplicate()
-			var paired_ticket: RefCounted=Store._prepare_paired_return_report(career_owner,expected,row)
+			var paired_ticket: RefCounted=Store._prepare_paired_return_report(career_owner,expected,row) if season.round_index==1 else Store._prepare_paired_next_first_report(career_owner,expected,row)
 			if paired_ticket!=null: _retain_prepared(paired_ticket,Store.prepared_candidate(paired_ticket),expected)
 			return
 		var candidate: SeasonState=_clone()

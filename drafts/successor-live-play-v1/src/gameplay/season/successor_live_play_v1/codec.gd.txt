@@ -171,8 +171,8 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	var build: SeasonBuild=season.build
 	return _first_shop_prefix(build)
 
-# The completed pair stays immutable. At this boundary only the next
-# authored human may be pending; reports, later round and shop remain closed.
+# The completed pair stays immutable. Only the next authored pending
+# evidence is admitted; paid progress, later rounds and shop remain closed.
 static func _pair_settled_shape(season: SeasonState) -> bool:
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var detached: bool=projection.next_first_projection(season)
@@ -181,9 +181,14 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 	for index: int in range(6):
 		if season.results[index].get("id")!=index: return false
 	var physical=season.physical
-	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=4 or physical.reports.size()!=4: return false
+	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=4: return false
+	if (detached and physical.reports.size() not in [4,5,6]) or (not detached and physical.reports.size()!=4): return false
+	if detached:
+		var npcs: Array=projection._round_fixtures(season.round_index).npc
+		for index: int in range(4,physical.reports.size()):
+			if not whole(physical.reports[index].get("fixture"),npcs[index-4].id,npcs[index-4].id): return false
 	if not physical.pending.is_empty():
-		if not projection.bound_shape(physical.pending) or not physical.pending.reports.is_empty(): return false
+		if not projection.bound_shape(physical.pending): return false
 		var opening: Dictionary=projection._round_fixtures(season.round_index).human
 		if not whole(physical.pending.human[0],opening.id,opening.id): return false
 	for index: int in range(4):
