@@ -9,7 +9,8 @@ const PairedHistory = preload("res://src/gameplay/season/successor_settled_workl
 
 # Geometry is reusable; only these exact private phases are qualified.
 const HUMAN_PHASES: Array[int]=[0,1,2,3,4]
-const COMPLETE_PHASES: Array[int]=[0,1,2,3]
+const REPORT_PHASES: Array[int]=[0,1,2,3,4]
+const SETTLEMENT_PHASES: Array[int]=[0,1,2,3]
 
 static func _round_fixtures(round_index: int) -> Dictionary:
 	return Request.authored_phase(round_index) if round_index in HUMAN_PHASES else {}
@@ -20,7 +21,7 @@ static func bound_shape(value: Variant) -> bool:
 	for round_index: int in HUMAN_PHASES:
 		var authored: Dictionary=_round_fixtures(round_index)
 		if not authored.is_empty() and Live.whole(value.human[0],authored.human.id,authored.human.id):
-			if round_index not in COMPLETE_PHASES and not value.reports.is_empty(): return false
+			if round_index not in REPORT_PHASES and not value.reports.is_empty(): return false
 			fixtures=authored
 			break
 	if fixtures.is_empty(): return false
@@ -55,7 +56,7 @@ static func verify_bound(source: SeasonState) -> bool:
 
 # Read only the exact next slot. Job and Store admission independently replay it.
 static func next_npc_fixture(source: SeasonState) -> Dictionary:
-	if not Live.scope(source) or source.round_index not in COMPLETE_PHASES or not bound_shape(source.physical.pending): return {}
+	if not Live.scope(source) or source.round_index not in REPORT_PHASES or not bound_shape(source.physical.pending): return {}
 	var authored: Dictionary=_round_fixtures(source.round_index)
 	var index: int=source.physical.pending.reports.size()
 	if authored.is_empty() or index>=authored.npc.size() or source.physical.pending.human[0]!=authored.human.id: return {}
@@ -69,7 +70,7 @@ static func npc_job(source: SeasonState, fixture_id: int) -> Dictionary:
 
 # There is no reusable projection token or caller-supplied candidate.
 static func materialize_settlement(source: SeasonState, leg: int=0) -> SeasonState:
-	if leg not in COMPLETE_PHASES: return null
+	if leg not in SETTLEMENT_PHASES: return null
 	var authored: Dictionary=_round_fixtures(leg)
 	if authored.is_empty() or not Live.scope(source) or source.round_index!=leg or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=authored.npc.size(): return null
 	return _inspect_bound(source,true).get("settlement")
@@ -103,7 +104,7 @@ static func npc_queue(season: SeasonState) -> bool:
 static func projected_npc_fixture(season: SeasonState, fixture: Dictionary) -> Dictionary:
 	if season==null or not Live.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return {}
 	var leg: int=season.round_index
-	if not ((leg==0 and season.get_script()==PrivateFirstFork) or (leg==1 and season.get_script()==PrivateReturnFork) or (leg in [2,3] and season.get_script()==PrivateFollowupFork)): return {}
+	if not ((leg==0 and season.get_script()==PrivateFirstFork) or (leg==1 and season.get_script()==PrivateReturnFork) or (leg>=2 and leg in REPORT_PHASES and season.get_script()==PrivateFollowupFork)): return {}
 	var fixtures: Dictionary=_round_fixtures(leg)
 	var human: int=fixtures.human.id
 	var archive: int=fixtures.prior_npcs.size()
@@ -139,7 +140,9 @@ static func followup_projection(season: SeasonState) -> bool:
 # The original resolver authenticates exact ordered NPC data. Fixed owned
 # producers may materialize a paid owner only after exact terminal replay.
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
-	if source.round_index not in [2,3,4] or (source.round_index not in COMPLETE_PHASES and (preview_job or produce_settlement or not pending.reports.is_empty())): return {}
+	if source.round_index not in [2,3,4]: return {}
+	if produce_settlement and source.round_index not in SETTLEMENT_PHASES: return {}
+	if (preview_job or not pending.reports.is_empty()) and source.round_index not in REPORT_PHASES: return {}
 	if Live._capture_structural(source).is_empty(): return {}
 	for paid: Dictionary in source.player_results:
 		if not Live._human_score(source,paid): return {}

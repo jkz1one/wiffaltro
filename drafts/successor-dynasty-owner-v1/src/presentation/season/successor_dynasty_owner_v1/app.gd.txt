@@ -654,13 +654,14 @@ func _checkpoint_report() -> void:
 		if expected_fixture.is_empty() or _paired_npc_binding.get("fixture")!=expected_fixture.id: return
 		var row: Dictionary=_paired_npc_binding.duplicate(true)
 		row.report=retained_report.duplicate(true)
-		if season.round_index in [1,2,3]:
+		if season.round_index in [1,2,3,4]:
 			var expected: PackedByteArray=_npc_expected.duplicate()
 			var paired_ticket: RefCounted
 			match season.round_index:
 				1: paired_ticket=Store._prepare_paired_return_report(career_owner,expected,row)
 				2: paired_ticket=Store._prepare_paired_next_first_report(career_owner,expected,row)
 				3: paired_ticket=Store._prepare_paired_next_return_report(career_owner,expected,row)
+				4: paired_ticket=Store._prepare_paired_third_first_report(career_owner,expected,row)
 			if paired_ticket!=null: _retain_prepared(paired_ticket,Store.prepared_candidate(paired_ticket),expected)
 			return
 		var candidate: SeasonState=_clone()

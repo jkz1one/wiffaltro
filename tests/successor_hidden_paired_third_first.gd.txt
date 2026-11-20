@@ -29,10 +29,10 @@ func run() -> void:
   row.home=4
   check(row.home!=opening.fixture.home and Binding.start(altered).is_empty() and exact(bytes,backup),"foreign authored matchup refuses without changing either file")
   app._play_paired_third_first()
-  app._run_paired_npc(13)
+  app._run_paired_npc(15)
   app._run_paired_npc(14)
   verify_closed(app,bytes,backup)
-  check(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"duplicate next first or any NPC cannot run")
+  check(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"duplicate human, future match and out-of-order NPC cannot run")
  elif args[0]=="play":
   await play_third_first(app,bytes,backup)
  elif args[0].begins_with("legacy"):
@@ -98,7 +98,7 @@ func play_third_first(app, bytes:PackedByteArray, backup:PackedByteArray) -> voi
  app._finish_paired_third_first()
  app._paired_first_pin.owner=owner
  check(app.retained==null and exact(bytes,backup),"App refuses displaced owner/start pin")
- for fault:String in ["owner","stale-primary","fixture","request","proof","unexpected-npc"]:
+ for fault:String in ["owner","stale-primary","fixture","request","proof","foreign-npc"]:
   var candidate:Dictionary=pending.duplicate(true)
   var authority=owner
   var expected=bytes
@@ -108,7 +108,7 @@ func play_third_first(app, bytes:PackedByteArray, backup:PackedByteArray) -> voi
    "fixture":candidate.human[0]=13
    "request":candidate.binding.request="0".repeat(64)
    "proof":candidate.human[9].version=1
-   "unexpected-npc":candidate.reports.append(original.physical.reports[0].duplicate(true))
+   "foreign-npc":candidate.reports.append(original.physical.reports[0].duplicate(true))
   check(Store._prepare_paired_third_first_human(authority,expected,candidate)==null and exact(bytes,backup) and Store.RawGuard.matches(owner,snapshot),"fixed Store refuses "+fault+" without changing historic evidence or bytes")
  var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
  if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated test write obstruction"):return
@@ -131,7 +131,7 @@ func play_third_first(app, bytes:PackedByteArray, backup:PackedByteArray) -> voi
  var saved:PackedByteArray=Store.raw()
  app._play_paired_third_first()
  app._finish_paired_third_first()
- app._run_paired_npc(13)
+ app._run_paired_npc(15)
  app._run_paired_npc(14)
  app._settle_paired_next_return_leg()
  app._paired_first_shop({"id":"shop-open:11","rev":11,"op":"open"})

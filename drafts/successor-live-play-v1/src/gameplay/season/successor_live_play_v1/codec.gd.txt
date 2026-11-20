@@ -199,7 +199,7 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 	return _paid_pair_journal(build,2) and whole(build._visit.get("number"),2,2) and build._visit.get("open")==false
 
 # Authored paid prefix plus only the individually qualified pending lane.
-# Round4 allows the human report but never queues an NPC or releases payout.
+# Report-capable rounds may queue only the authored suffix in a detached fork.
 static func _followup_settled_shape(season: SeasonState) -> bool:
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var detached: bool=projection.followup_projection(season)
@@ -211,7 +211,7 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	var prefix: int=authored.prior_npcs.size()
 	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=prefix: return false
 	if not same(physical.reports.slice(0,prefix).map(func(row):return row.get("fixture")),authored.prior_npcs): return false
-	if detached and season.round_index==3:
+	if detached and season.round_index in projection.REPORT_PHASES:
 		var queued: Array=physical.reports.slice(prefix).map(func(row):return row.get("fixture"))
 		if queued.size()>authored.npc.size() or not same(queued,authored.npc.slice(0,queued.size()).map(func(row):return row.id)): return false
 	elif physical.reports.size()!=prefix: return false

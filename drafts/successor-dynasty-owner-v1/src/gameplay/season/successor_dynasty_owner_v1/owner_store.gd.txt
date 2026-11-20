@@ -367,8 +367,11 @@ static func _prepare_paired_next_first_report(owner: RefCounted, expected: Packe
 static func _prepare_paired_next_return_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
 	return _prepare_paired_report(owner,expected,report,3)
 
+static func _prepare_paired_third_first_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
+	return _prepare_paired_report(owner,expected,report,4)
+
 static func _prepare_paired_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary, round_index: int) -> RefCounted:
-	if round_index not in [1,2,3] or not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.round_index!=round_index or owner.session.physical.pending.is_empty(): return null
+	if round_index not in [1,2,3,4] or not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.round_index!=round_index or owner.session.physical.pending.is_empty(): return null
 	var pending: Dictionary=owner.session.physical.pending.duplicate(true)
 	pending.reports.append(report.duplicate(true))
 	return _prepare_paired_human_checkpoint(owner,expected,pending,round_index)
@@ -384,7 +387,6 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	var opening: Dictionary=projection._round_fixtures(round_index).human
 	if not projection.bound_shape(pending) or not Codec.whole(pending.human[0],opening.id,opening.id): return null
 	var prior: Dictionary=session.physical.pending
-	if round_index==4 and (not prior.is_empty() or not pending.reports.is_empty()): return null
 	if prior.is_empty():
 		if not pending.reports.is_empty(): return null
 	elif pending.reports.size()!=prior.reports.size()+1 or not Codec.same(pending.human,prior.human) or not Codec.same(pending.binding,prior.binding) or not Codec.same(pending.reports.slice(0,prior.reports.size()),prior.reports): return null

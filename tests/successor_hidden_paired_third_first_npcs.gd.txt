@@ -1,0 +1,138 @@
+extends "res://tests/successor_hidden_paired_third_first.gd"
+
+class NpcApp extends "res://src/presentation/season/successor_dynasty_owner_v1/app.gd":
+ var finished_at:int=0
+ var admission_ms:int=0
+ var refused_replacements:bool=false
+ func _ai_finished(report:Dictionary, runner:Node=null) -> void:
+  finished_at=Time.get_ticks_msec()
+  var pending:Dictionary=season.physical.pending.duplicate(true)
+  var row:Dictionary=_paired_npc_binding.duplicate(true)
+  row.report=report
+  pending.reports.append(row)
+  var altered:Dictionary=pending.duplicate(true)
+  altered.binding.request="0".repeat(64)
+  var relabeled:Dictionary=row.duplicate(true)
+  relabeled.fixture=1
+  # Exercise prefix pinning with this genuine next result, not fake proof.
+  refused_replacements=Store._prepare_paired_human_checkpoint(career_owner,saved_bytes,altered,4)==null and Store._prepare_paired_third_first_report(career_owner,saved_bytes,relabeled)==null
+  var started:int=Time.get_ticks_msec()
+  super._ai_finished(report,runner)
+  admission_ms=Time.get_ticks_msec()-started
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=NpcApp.new()
+ get_tree().root.add_child(app)
+ var bytes=Store.raw()
+ var backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var start=Time.get_ticks_msec()
+ var calls=Live.paired_history_calls
+ app.reload_save()
+ print("THIRD_FIRST_NPC_COLD_MS=",Time.get_ticks_msec()-start," HISTORY_CALLS=",Live.paired_history_calls-calls)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"fresh cold refuses "+args[0]+" without changing either file")
+ elif not check(app.season!=null and exact(bytes,backup) and Live.paired_history_calls-calls==1 and third_unpaid(app.season),"actual fresh App validates the paid pair and exact new pending bytes"):
+  get_tree().quit(1);return
+ else:
+  var pending:Dictionary=app.season.physical.pending
+  var count:int=pending.reports.size()
+  check(pending.human[0]==12 and app.season.build.player("player.mika_reed").stats.fielding==SeasonPlayerCatalog.profile("player.mika_reed").stats.fielding+1,"real fixture 12 human frame and purchased upgrade preserved")
+  verify_closed(app,bytes,backup)
+  check(Binding.materialize_settlement(app.season,4)==null and Store._prepare_paired_settlement(app.career_owner,bytes,4)==null and Binding._round_fixtures(5).is_empty(),"no round5 payout or next phase producer")
+  app._run_paired_npc(15)
+  check(not is_instance_valid(app.ai_runner) and exact(bytes,backup),"future pairing cannot construct")
+  for index:int in range(count):
+   check(pending.reports[index].fixture==13+index and played_reset(app.season,pending.reports[index]),"fresh process revalidates existing ordered report and both fresh budgets")
+  if args[0]=="partial":
+   check(count==1 and Live.Physical.resolve_calls==2,"partial authentic cold without replaying NPC13")
+  elif args[0]=="cold":
+   check(Live.Physical.resolve_calls==2,"cold authenticates two actual reports")
+   check(count==2,"cold authenticates both full reports without materializing a payout")
+   app._run_paired_npc(13)
+   app._run_paired_npc(14)
+   app._settle_paired_return_leg()
+   check(not is_instance_valid(app.ai_runner) and exact(bytes,backup),"complete pending cannot launch any duplicate or new round")
+  else:
+   check(Live.Physical.resolve_calls==count+1,"independent cold validates ordered earlier reports and encounters the next empty slot")
+   await run_next_npc(app,args[0],bytes,backup)
+ app.free()
+ if failures==0:print("HIDDEN_PAIRED_THIRD_FIRST_NPCS_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func run_next_npc(app, mode:String, bytes:PackedByteArray, backup:PackedByteArray) -> void:
+ var source:SeasonState=app.season
+ var owner=app.career_owner
+ var raw:Dictionary=Store.RawGuard.capture(owner)
+ var pending:Dictionary=source.physical.pending.duplicate(true)
+ var fixture_id:int=13 if mode=="npc13" else (14 if mode=="npc14" else -1)
+ if not check(fixture_id in [13,14] and pending.reports.size()==fixture_id-13,"owned third-pair first pending exactly before fixture "+str(fixture_id)):return
+ app._run_paired_first_npc()
+ app._run_paired_return_second_npc()
+ app._run_paired_npc(14 if fixture_id==13 else 13)
+ check(not is_instance_valid(app.ai_runner) and exact(bytes,backup),"wrong/premature/repeated fixture cannot launch")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated test obstruction"):return
+ var calls:int=Live.paired_history_calls
+ var started:int=Time.get_ticks_msec()
+ app._run_paired_npc(fixture_id)
+ var ready:int=Time.get_ticks_msec()
+ print("THIRD_FIRST_NPC_FIXTURE=",fixture_id," CONSTRUCTION_MS=",ready-started)
+ if not check(is_instance_valid(app.ai_runner) and app._npc_owner_matches() and app._paired_npc_binding.fixture==fixture_id,"original runner is pinned to exact owned third-pair first fixture and request"):return
+ var state:MatchState=app.ai_runner._lab._match_state
+ var opening:Array=[]
+ for team:TeamMatchState in [state.away_team,state.home_team]:
+  var stamina:Dictionary={}
+  for player:PlayerMatchState in team.roster:
+   stamina[String(player.definition.id)]=player.stamina_remaining
+  opening.append(stamina)
+ var key:String=app._paired_npc_binding.request
+ for frame:int in range(200000):
+  await get_tree().physics_frame
+  if app.finished_at>0 or not is_instance_valid(app.ai_runner):break
+  if frame%18000==0:print("ACTUAL_THIRD_FIRST_NPC_FRAME=",frame)
+ if not check(app.finished_at>0 and app.retained!=null and Live.paired_history_calls-calls==1,"actual NPC finishes and full frozen evidence validates before write"):return
+ print("THIRD_FIRST_NPC_SIMULATION_MS=",app.finished_at-ready," ADMISSION_BEFORE_BLOCKED_WRITE_MS=",app.admission_ms)
+ var next:SeasonState=app.retained
+ var after:Dictionary=next.physical.pending
+ var row:Dictionary=after.reports[-1]
+ print("NPC_RESULT=",fixture_id," ",row.report.physical.away_runs,":",row.report.physical.home_runs)
+ check(after.reports.size()==fixture_id-12 and row.fixture==fixture_id and row.request==key and Live.same(after.human,pending.human) and Live.same(after.binding,pending.binding) and Live.same(after.reports.slice(0,pending.reports.size()),pending.reports),"exact original human, previous pending prefix and new report request")
+ check(played_reset(source,row,opening),"actual report's both fresh workloads match live starts after positive earlier debt")
+ check(third_unpaid(next) and Live.same(next.results,source.results) and Live.same(next.physical.reports,source.physical.reports),"historic reports/receipts untouched and terminal projection never pays")
+ check(app.refused_replacements and exact(bytes,backup) and app.season==source and Store.RawGuard.matches(owner,raw),"genuine report cannot replace pinned proof or move fixture; blocked write preserves exact owner/files")
+ app._run_paired_npc(fixture_id)
+ check(app.retained==next and exact(bytes,backup),"duplicate retained job cannot write")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only owned scratch obstruction"):return
+ calls=Live.paired_history_calls
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("THIRD_FIRST_NPC_RETRY_WRITE_PROMOTE_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==next and Live.paired_history_calls==calls and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes and Store.RawGuard.matches(owner,raw),"exact retry promotes without history replay or reward mutation"):return
+ var saved:PackedByteArray=Store.raw()
+ check(Store._prepare_paired_third_first_report(app.career_owner,saved,row)==null and Store._prepare_paired_third_first_report(app.career_owner,bytes,row)==null and Store._prepare_paired_third_first_report(app.career_owner.fork(),saved,row)==null and exact(saved,bytes),"duplicate, stale bytes and foreign owner refuse")
+ var replaced:Dictionary=after.duplicate(true)
+ replaced.human[9].version=1
+ replaced.reports.append(row.duplicate(true))
+ check(Store._prepare_paired_human_checkpoint(app.career_owner,saved,replaced,4)==null and exact(saved,bytes),"cannot replace already-owned human evidence through generic prefix entry")
+ verify_closed(app,saved,bytes)
+
+func played_reset(season:SeasonState,row:Dictionary,opening:Array=[]) -> bool:
+ var fixture:Dictionary={}
+ for authored:Dictionary in SeasonDoubleheaderRules.schedule():
+  if authored.id==row.fixture:fixture=authored
+ if fixture.is_empty() or fixture.round!=4 or SeasonDoubleheaderRules.first(fixture.id)!=-1:return false
+ for side:int in range(2):
+  var club:int=int(fixture.away if side==0 else fixture.home)
+  var prior:Array=season.results.filter(func(item):return item.round==3 and (item.away==club or item.home==club))
+  if prior.size()!=1:return false
+  var historic:Dictionary=prior[0].doubleheader_evidence[0 if prior[0].away==club else 1]
+  if not historic.pair.debt.values().any(func(n):return n>0):return false
+  var report:Dictionary=row.report
+  if not ClubCareer.same(report.pair[side],{"game":fixture.id,"first":-1,"debt":{}}):return false
+  for player:String in report.workload[side].initial:
+   var entry:Dictionary=report.workload[side].initial[player]
+   if not PhysicalRecoveryFlow.near(entry.initial,entry.capacity):return false
+   if not opening.is_empty() and not PhysicalRecoveryFlow.near(entry.initial,opening[side][player]):return false
+ return true
