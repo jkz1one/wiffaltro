@@ -13,7 +13,7 @@ const REPORT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 const SETTLEMENT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 # Exact authored regular advancement, independent of UI eligibility.
 # State identity, native replay and the owned CAS still gate every operation.
-const LATE_REGULAR: Dictionary={7:{"revision":20,"reports":2,"settle":true}}
+const LATE_REGULAR: Dictionary={7:{"revision":20,"reports":2,"settle":true},8:{"revision":23,"reports":2,"settle":true}}
 
 static func late_revision(round_index: int) -> int:
 	return int(LATE_REGULAR.get(round_index,{}).get("revision",-1))

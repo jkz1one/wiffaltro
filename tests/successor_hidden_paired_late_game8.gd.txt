@@ -69,7 +69,7 @@ func history(gates:int,replays:int,games:int) -> bool:
  return Live.paired_history_calls-gates==1 and PairHistory.Collector.replay_calls-replays==6 and PairHistory.historical_humans_checked==games and PairHistory.checked_reports==games*2 and PairHistory.checked_sides==games*6
 
 func sealed_game8(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
- app._play_paired_human(8)
+ if not (app.season.round_index==8 and app.season.build._visit.get("open")==true and Binding.human_enabled(8)):app._play_paired_human(8)
  app._run_paired_npc(24)
  app._run_paired_npc(25)
  app._open_paired_visit7_shop()
@@ -84,7 +84,7 @@ func play_human21(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  if not check(exact_cutoff(original),"exact cp136 opened cutoff, signed Dakota/Mika"):return
  var raw_guard:Dictionary=Store.RawGuard.capture(owner)
  var phase:Dictionary=Authored.authored_phase(7)
- if not check(phase.human.id==21 and phase.human.away==0 and phase.human.home==2 and phase.firsts[21]==18 and Live.same(phase.npc.map(func(row):return row.id),[22,23]) and Binding.report_limit(8)==0,"frozen fourth-pair return only"):return
+ if not check(phase.human.id==21 and phase.human.away==0 and phase.human.home==2 and phase.firsts[21]==18 and Live.same(phase.npc.map(func(row):return row.id),[22,23]) and Binding.npc_job(original,25).is_empty(),"frozen fourth-pair return only"):return
  sealed_game8(app,bytes,backup)
  print("CP127_STAGE launch")
  var started:int=Time.get_ticks_msec()
