@@ -12,8 +12,8 @@
     {
       "backup_path": "drafts/successor-settled-workload-v1/npc_report.gd.txt",
       "restore_path": "src/gameplay/season/successor_settled_workload_v1/npc_report.gd",
-      "bytes": 5102,
-      "sha256": "e4e11492543dc11bf0cd87f87a968d3e61d26a0fadbfce04dea5a62b7f7738fd"
+      "bytes": 5616,
+      "sha256": "e09008a2c733ade9b400f964cdbe681bbafa26c545263dea3fa09c0cb9e21d55"
     },
     {
       "backup_path": "drafts/successor-settled-workload-v1/completeness.gd.txt",

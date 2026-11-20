@@ -5,6 +5,7 @@ const D = "res://src/gameplay/season/successor_league_general_v2/"
 const BuildRules = preload(D + "doubleheader_build.gd")
 const Physical = preload(D + "physical_fixtures.gd")
 const Report = preload(D + "physical_report.gd")
+const Workload = preload(D + "physical_workload.gd")
 const Core = preload(D + "physical_core.gd")
 const Runtime = preload(D + "runtime.gd")
 const Opponents = preload(D + "opponents.gd")
@@ -65,14 +66,18 @@ static func _matches(season: SeasonState, fixture: Dictionary, result: Dictionar
 	var v4_return: bool=season.get_script()==load("res://src/gameplay/season/successor_live_play_v1/runtime.gd") and season.round_index==2 and game in [4,5]
 	var request: String=Request.for_materialized_return(season,fixture,state,field) if v4_return else Request.for_context(season,fixture,state,field)
 	if request!=archive.request: return false
-	var report: Dictionary=archive.report
+	var report: Dictionary=archive.report.duplicate(true) if v4_return else archive.report
 	# matches() invokes the complete frozen valid() before context correspondence.
 	if not Report.matches(report,state): return false
+	if v4_return and not LeagueRules.doubleheader(report.league_rules): return false
 	var body: Dictionary=report.physical
 	if body.seed!=Physical.seed_for(season,fixture) or body.field!=String(field.id) or body.away_runs!=result.away_runs or body.home_runs!=result.home_runs or not ClubCareer.same(body.performance,result.performance): return false
 	for side: int in range(2):
 		var club: String=str(int(fixture.away if side==0 else fixture.home))
-		if not ClubCareer.same(Report.human(report,side,state.pitch_catalog),result.doubleheader_evidence[side]): return false
+		# Only the exact paid V4 return path reuses this same detached, fully matched
+		# report without callbacks or mutation. Envelope mirrors frozen Report.human.
+		var workload: Dictionary={"version":Workload.VERSION,"pair":report.pair[side].duplicate(true),"proof":report.workload[side].duplicate(true)} if v4_return else Report.human(report,side,state.pitch_catalog)
+		if not ClubCareer.same(workload,result.doubleheader_evidence[side]): return false
 		var tactics: Dictionary=body.tactics.teams[side]
 		if body.version==Core.BASE_VERSION: tactics=PhysicalBaseEvidence.enriched(tactics,body.tactics.base)
 		if not ClubCareer.same(tactics,result.ai_tactics[club]): return false
