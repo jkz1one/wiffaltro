@@ -73,7 +73,6 @@ func sealed_game10(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  var owner=app.career_owner
  var season:SeasonState=app.season
  if not season.physical.pending.is_empty():app._play_paired_human(9)
- app._play_paired_human(10)
  app._run_paired_npc(30)
  app._run_paired_npc(31)
  app._open_paired_late_shop(10)
@@ -81,7 +80,7 @@ func sealed_game10(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  if not Binding.settlement_enabled(9) or season.physical.pending.get("reports",[]).size()<2:
   app._settle_paired_late_regular()
   check(Binding.materialize_settlement(season,9)==null and Store._prepare_paired_settlement(owner,bytes,9)==null,"partial regular round cannot settle")
- check(not Binding.human_enabled(10) and Binding.npc_job(season,30).is_empty() and Store._prepare_paired_settlement(owner.fork(),bytes,9)==null,"playoff and foreign settlement authority remain absent")
+ check(Binding.npc_job(season,30).is_empty() and Store._prepare_paired_settlement(owner.fork(),bytes,9)==null,"postseason NPC and foreign settlement authority remain absent")
  verify_closed(app,bytes,backup)
  check(app.season==season and app.career_owner==owner and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"public, playoffs and generic/lifecycle routes leave both bytes exact")
 

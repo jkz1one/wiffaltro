@@ -1,0 +1,171 @@
+extends "res://tests/successor_hidden_paired_late_game10_settlement.gd"
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=Game10ObservedApp.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ var projections:int=Binding.projection_calls
+ print("CP127_STAGE cold")
+ var started:int=Time.get_ticks_msec()
+ app.reload_save()
+ print("H30_COLD_MS=",Time.get_ticks_msec()-started)
+ var mode:String=args[0]
+ if mode.begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"tampered "+mode+" rejected without writes")
+ elif check(app.season!=null and app._owned() and exact(bytes,backup),"real isolated owned App in fresh process") and check(history(gates,replays,10),"exact one historical batch authenticates all ten paid rounds"):
+  if mode=="complete":
+   check(Binding.projection_calls-projections==1 and human_pending(app.season),"one detached #30 result, no persisted payout or NPC")
+   still_closed(app,bytes,backup)
+  elif check(Live._sealed_regular_end_shape(app.season),"original sealed unplayed bracket"):
+   match mode:
+    "capture":await play_human30(app,bytes,backup)
+    "admit":admit_human30(app,bytes,backup)
+    _:check(false,"unexpected test mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func play_human30(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var original:SeasonState=app.season
+ if not check(Live._sealed_regular_end_shape(original),"exact authored paid regular end, signed Dakota/Mika"):return
+ var raw_guard:Dictionary=Store.RawGuard.capture(owner)
+ var phase:Dictionary=Binding._semifinal_fixtures(original)
+ if not check(Live.same(phase.human,{"id":30,"round":10,"away":3,"home":0}) and Live.same(phase.other,{"id":31,"round":10,"away":1,"home":4}) and Physical.seed_for(original,phase.human)==3142871 and SeasonState.field_for_fixture(phase.human,original).id==PitchBatLab.FIELD_ID,"exact canonical frozen bracket, park and seed"):return
+ verify_closed(app,bytes,backup)
+ print("CP127_STAGE launch")
+ var started:int=Time.get_ticks_msec()
+ app._play_paired_human(10)
+ print("FIXTURE30_CONSTRUCTION_MS=",Time.get_ticks_msec()-started)
+ if not check(is_instance_valid(app.lab) and not app._paired_first_pin.is_empty() and semi_rosters(original,app.lab._match_state,phase.human,[]),"live exact Dakota batting order and Val fielding slot, earned Mika, genuine held items and full postseason stamina for both clubs"):return
+ print("CP127_STAGE physics")
+ var beat:int=Time.get_ticks_msec()
+ for frame:int in range(600):
+  await get_tree().physics_frame
+  if not app.lab._match_presentation_director.blocks_gameplay():break
+ if not check(not app.lab._match_presentation_director.blocks_gameplay(),"normal intro completes"):return
+ app.lab._automation=MatchAutomation.new()
+ app.lab._automation.seed=Physical.seed_for(original,phase.human)
+ app.lab._automation.presentation_enabled=true
+ app.lab._automation.begin(app.lab)
+ started=Time.get_ticks_msec()
+ var seen:bool=false
+ var finished:bool=false
+ for frame:int in range(150000):
+  await get_tree().physics_frame
+  var state:MatchState=app.lab._match_state
+  seen=seen or state.gear_usage.started
+  if state.phase==MatchState.Phase.GAME_END and app.lab._automation!=null and not app.lab._home_run.presentation_pending(app.lab):
+   app.lab._automation=null
+   PitchBatLabFeelSupport.begin_match_outro(app.lab)
+  if state.phase==MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+   finished=true;break
+  if Time.get_ticks_msec()-beat>=5000:
+   beat=Time.get_ticks_msec()
+   print("FIXTURE30_FRAME=",frame," PHASE=",state.phase," PA=",state.plate_appearance_number," THROW=",app.lab._throw_number," SCORE=",state.away_team.runs,":",state.home_team.runs)
+ print("FIXTURE30_SIMULATION_MS=",Time.get_ticks_msec()-started)
+ if not check(seen and finished,"genuine game pitched to normal capturable outro"):return
+ print("CP127_STAGE capture")
+ started=Time.get_ticks_msec()
+ var human:Array=Capture.capture(app)
+ print("FIXTURE30_CAPTURE_MS=",Time.get_ticks_msec()-started)
+ if not check(human.size()==14 and human[0]==30 and human[9].get("version")==2 and semi_rosters(original,app.lab._match_state,phase.human,human[13]),"actual called proof and ordinary postseason workload for both current rosters"):return
+ var pin:Dictionary=app._paired_first_pin
+ var pending:Dictionary={"human":human,"reports":[],"binding":pin.binding.duplicate(true)}
+ # Retain the real captured primitive before synchronous admission, local only.
+ var local:=FileAccess.open("user://fixture30-human-capture.local",FileAccess.WRITE)
+ if not check(local!=null,"isolated local native evidence"):return
+ local.store_var({"pending":pending,"primary":FileAccess.get_sha256(Store.PATH),"backup":FileAccess.get_sha256(Store.PATH+".bak")},false)
+ local.flush()
+ local.close()
+ print("FIXTURE30_SCORE=",human[1],":",human[2]," LOCAL_CAPTURE_SHA=",FileAccess.get_sha256("user://fixture30-human-capture.local"))
+ app._paired_first_pin.owner=owner.fork()
+ app._finish_paired_human(10)
+ app._paired_first_pin.owner=owner
+ check(app.retained==null and Store.RawGuard.matches(owner,raw_guard) and exact(bytes,backup),"wrong App owner pin refuses after real capture")
+ check(not Store.raw().is_empty() and exact(bytes,backup),"capture-only process writes no owner bytes")
+
+func semi_rosters(season:SeasonState,state:MatchState,_fixture:Dictionary,proofs:Array) -> bool:
+ var roster:Array[String]=season.build.roster()
+ var own:TeamMatchState=state.home_team
+ if not Live.same(own.roster.map(func(player):return String(player.definition.id)),roster) or roster[1]!=RECRUIT or roster.has(RELEASED):return false
+ if own.roster[0].definition.fielding!=SeasonPlayerCatalog.profile("player.mika_reed").stats.fielding+1:return false
+ if proofs.is_empty() and (own.current_fielder()!=own.roster[1] or not Live.same(own.tactics.held,SeasonTacticalCatalog.held(season.build.view().wallet))):return false
+ if SeasonDoubleheaderRules.first(30)!=-1 or SeasonDoubleheaderRules.bonus(season.league_rules,30,true,season.build._bank.view().rewards)!=0:return false
+ for side:int in range(2):
+  var team:TeamMatchState=state.away_team if side==0 else own
+  var pair:Dictionary={"game":30,"first":-1,"debt":{}}
+  if not Live.same(team.league_pair,pair):return false
+  if not proofs.is_empty() and not Live.same(proofs[side].pair,pair):return false
+  for player:PlayerMatchState in team.roster:
+   var id:String=String(player.definition.id)
+   if proofs.is_empty() and not PhysicalRecoveryFlow.near(player.stamina_remaining,player.stamina_max):return false
+   if not proofs.is_empty() and not PhysicalRecoveryFlow.near(proofs[side].proof.initial[id].initial,player.stamina_max):return false
+ return true
+
+func admit_human30(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var original:SeasonState=app.season
+ var path:String="user://fixture30-human-capture.local"
+ var digest:String=OS.get_environment("WIFFALTRO_FIXTURE30_CAPTURE")
+ if not check(digest.length()==64 and digest==FileAccess.get_sha256(path),"exact retained native capture digest"):return
+ var file:=FileAccess.open(path,FileAccess.READ)
+ var raw:Variant=file.get_var(false) if file!=null else null
+ if not check(raw is Dictionary and raw.get("primary")==Game10ObservedApp.digest(bytes) and raw.get("backup")==Game10ObservedApp.digest(backup) and raw.pending.human[0]==30,"local native capture bound to both exact owner bytes"):return
+ var pending:Dictionary=raw.pending
+ var snapshot:Dictionary=Store.RawGuard.capture(owner)
+ for fault:String in ["owner","stale","fixture","binding","report"]:
+  var bad:Dictionary=pending.duplicate(true)
+  var candidate_owner=owner
+  var expected:PackedByteArray=bytes
+  match fault:
+   "owner":candidate_owner=owner.fork()
+   "stale":expected=backup
+   "fixture":bad.human[0]=31
+   "binding":bad.binding.version=2
+   "report":bad.reports.append(original.physical.reports[-1].duplicate(true))
+  check(Store._prepare_paired_human_checkpoint(candidate_owner,expected,bad,10)==null and Store.RawGuard.matches(owner,snapshot) and exact(bytes,backup),"refuses "+fault+" without mutation")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated obstruction"):return
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ var projections:int=Binding.projection_calls
+ var resolutions:int=Live.Physical.resolve_calls
+ print("CP127_STAGE admission")
+ var started:int=Time.get_ticks_msec()
+ var ticket:RefCounted=Store._prepare_paired_human_checkpoint(owner,bytes,pending,10)
+ if ticket!=null:app._retain_prepared(ticket,Store.prepared_candidate(ticket),bytes)
+ print("H30_ADMISSION_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained!=null and history(gates,replays,10) and Binding.projection_calls-projections==1 and Live.Physical.resolve_calls-resolutions==1 and human_pending(app.retained) and Live.same(app.retained.physical.pending,pending),"history plus original called/workload validation ends only at missing #31"):return
+ var candidate:SeasonState=app.retained
+ check(Store._prepare_paired_human_checkpoint(owner,bytes,pending,10)==null and app.retained==candidate and app.season==original and Store.RawGuard.matches(owner,snapshot) and exact(bytes,backup),"held retry leaves both owner slots and raw owner exact")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only isolated obstruction"):return
+ gates=Live.paired_history_calls;replays=PairHistory.Collector.replay_calls
+ print("CP127_STAGE retry")
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("H30_RETRY_MS=",Time.get_ticks_msec()-started)
+ var durable:PackedByteArray=Store.raw()
+ if not check(app.retained==null and app.season==candidate and Live.paired_history_calls==gates and PairHistory.Collector.replay_calls==replays and Store.RawGuard.matches(owner,snapshot) and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"held retry writes once, no new projection or payout"):return
+ check(Store._prepare_paired_human_checkpoint(app.career_owner,durable,pending,10)==null,"duplicate human capture refused")
+ still_closed(app,durable,bytes)
+
+func human_pending(season:SeasonState) -> bool:
+ return season.phase==SeasonState.Phase.SEMIFINAL and season.round_index==10 and season.results.size()==30 and season.player_results.size()==10 and season.physical.reports.size()==20 and season.physical.cursor==20 and season.physical.pending.human[0]==30 and season.physical.pending.reports.is_empty() and not season.build._bank.view().rewards.has("30") and season.build.cash()==146 and season.final_fixture.is_empty() and season.champion==-1
+
+func still_closed(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var original:SeasonState=app.season
+ var owner=app.career_owner
+ app._play_paired_human(10)
+ app._run_paired_npc(31)
+ app._run_paired_npc(32)
+ app._open_paired_late_shop(10)
+ app._settle_paired_late_regular()
+ verify_closed(app,bytes,backup)
+ check(not Binding.settlement_enabled(10) and Binding.npc_job(original,31).is_empty() and Store._prepare_paired_settlement(owner,bytes,10)==null and Store.prepare_and_write(owner,owner.fork(),bytes)==null,"NPC, settlement and generic authority remain closed")
+ check(app.season==original and app.career_owner==owner and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"unpaid owner remains intact")

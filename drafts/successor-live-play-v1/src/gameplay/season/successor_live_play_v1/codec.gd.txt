@@ -136,7 +136,7 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
 		if season.round_index==10:
-			if not _sealed_regular_end_shape(season): return false
+			if not _semifinal_checkpoint_shape(season): return false
 		elif season.round_index in [3,4,5,6,7,8,9]:
 			if not _followup_settled_shape(season): return false
 		elif season.round_index==2:
@@ -231,11 +231,18 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 # Concrete pre-semifinal save only. No launch or playoff result is admitted.
 # The history gate below reconstructs seeds from the independently paid rows.
 static func _sealed_regular_end_shape(season: SeasonState) -> bool:
-	if season.get_script()!=Runtime or season.phase!=SeasonState.Phase.SEMIFINAL or season.round_index!=10 or season.picks.size()!=4: return false
+	return season.get_script()==Runtime and season.physical.pending.is_empty() and _semifinal_checkpoint_shape(season)
+
+static func _semifinal_checkpoint_shape(season: SeasonState) -> bool:
+	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	var detached: bool=projection.semifinal_projection(season)
+	if (season.get_script()!=Runtime and not detached) or season.phase!=SeasonState.Phase.SEMIFINAL or season.round_index!=10 or season.picks.size()!=4: return false
 	var final: Dictionary=PairSchedule.authored_phase(9)
 	if not same(season.results.map(func(row):return row.get("id")),final.prior_results+[final.human.id]+final.npc.map(func(row):return row.id)) or not same(season.player_results.map(func(row):return row.get("id")),final.prior_humans+[final.human.id]): return false
 	var physical=season.physical
-	if physical.projecting or not physical.needed.is_empty() or not physical.error.is_empty() or not physical.pending.is_empty() or physical.cursor!=20: return false
+	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=20: return false
+	if not physical.pending.is_empty():
+		if not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],30,30): return false
 	if not same(physical.reports.map(func(row):return row.get("fixture")),final.prior_npcs+final.npc.map(func(row):return row.id)): return false
 	if season.playoff_seeds.size()!=4 or not season.playoff_seeds.has(0) or season.semifinals.size()!=2 or not season.final_fixture.is_empty() or season.champion!=-1: return false
 	var build: SeasonBuild=season.build

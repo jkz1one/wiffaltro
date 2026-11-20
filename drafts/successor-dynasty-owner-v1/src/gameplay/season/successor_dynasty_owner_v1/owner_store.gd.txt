@@ -459,11 +459,14 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	var session: SeasonState=owner.session
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if round_index<=0 or not projection.human_enabled(round_index) or session.round_index!=round_index or session.build.pack_pending(): return null
-	var revision: int=[0,5,7,9,11,13,17][round_index] if round_index<7 else projection.late_revision(round_index)
+	var revision: int=28 if round_index==10 else ([0,5,7,9,11,13,17][round_index] if round_index<7 else projection.late_revision(round_index))
 	if session.build.revision()!=revision: return null
 	if round_index==6 and not Adapter.Ordinary._signed_visit6_journal(session.build): return null
-	if round_index>=7 and not Adapter.Ordinary._paired_late_start(session): return null
-	var opening: Dictionary=projection._round_fixtures(round_index).human
+	if round_index==10 and not Adapter.Ordinary._sealed_regular_end_shape(session): return null
+	if round_index in [7,8,9] and not Adapter.Ordinary._paired_late_start(session): return null
+	var authored: Dictionary=projection._semifinal_fixtures(session) if round_index==10 else projection._round_fixtures(round_index)
+	if authored.is_empty(): return null
+	var opening: Dictionary=authored.human
 	if not projection.bound_shape(pending) or not Codec.whole(pending.human[0],opening.id,opening.id): return null
 	var prior: Dictionary=session.physical.pending
 	if prior.is_empty():
