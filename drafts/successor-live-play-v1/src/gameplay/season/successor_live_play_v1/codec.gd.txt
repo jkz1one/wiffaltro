@@ -106,6 +106,7 @@ static func known_variables(object: Object, names: Array) -> bool:
 	return true
 
 const NAMED_LEAGUE_FORMAT: String = "wiffaltro-common-ordinary-named-league-session-v1"
+const ScheduleSelector = preload("res://src/gameplay/season/successor_doubleheader_selector_v1/schedule_selector.gd")
 const Admissions = preload("ordinary_admission.gd")
 const NEW_LEAGUES = Admissions.NEW_LEAGUES
 
@@ -194,12 +195,18 @@ static func _structural_valid(season: SeasonState) -> bool:
 		for index in season.opponents.draft_order:
 			if not whole(index,1,5) or order_seen.has(int(index)): return false
 			order_seen[int(index)] = true
+	if not schedule_matches(season.schedule,season.league_rules): return false
+	return _results_valid(season) and _physical_valid(season)
+
+# Schedule comparison only; scope() remains the separate admission authority.
+static func schedule_matches(schedule: Array, rules: Dictionary) -> bool:
 	if _schedule.is_empty():
 		var template: SeasonState = SeasonState.new()
 		template._build_schedule()
 		_schedule = template.schedule.duplicate(true)
-	if not same(season.schedule,_schedule): return false
-	return _results_valid(season) and _physical_valid(season)
+	var ordinary: Array[Dictionary] = []
+	ordinary.assign(_schedule)
+	return same(schedule,ScheduleSelector.select(LeagueRules.doubleheader(rules),ordinary))
 
 static func _results_valid(season: SeasonState) -> bool:
 	if season.results.size()>33 or season.player_results.size()>13: return false

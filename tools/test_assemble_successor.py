@@ -50,11 +50,11 @@ class AssemblyTests(unittest.TestCase):
                     self.assertEqual(live['launcher'], assembly.LIVE_LAUNCHER)
                     self.assertIn(assembly.LIVE_LAUNCHER, (root/'live/project.godot').read_text())
                     self.assertEqual((repo/'project.godot').read_text(), config)
-                with patch.object(assembly, 'LIVE_FAMILY', 'test'), patch.object(assembly, 'PLAY_FAMILY', 'test'):
+                with patch.object(assembly, 'LIVE_FAMILY', 'test'), patch.object(assembly, 'PLAY_FAMILY', 'test'), patch.object(assembly, 'SELECTOR_FAMILY', 'test'):
                     played = assembly.assemble(repo, root/'played', live_play=True)
                     self.assertEqual(played['launcher'], assembly.PLAY_LAUNCHER)
                     self.assertEqual((repo/'project.godot').read_text(), config)
-                with patch.object(assembly, 'LIVE_FAMILY', 'test'), patch.object(assembly, 'PLAY_FAMILY', 'test'), patch.object(assembly, 'DYNASTY_FAMILY', 'test'):
+                with patch.object(assembly, 'LIVE_FAMILY', 'test'), patch.object(assembly, 'PLAY_FAMILY', 'test'), patch.object(assembly, 'DYNASTY_FAMILY', 'test'), patch.object(assembly, 'SELECTOR_FAMILY', 'test'):
                     dynasty = assembly.assemble(repo, root/'dynasty', dynasty_owner=True)
                     self.assertEqual(dynasty['launcher'], assembly.DYNASTY_LAUNCHER)
                     self.assertIn(assembly.DYNASTY_LAUNCHER, (root/'dynasty/project.godot').read_text())
@@ -74,7 +74,7 @@ class AssemblyTests(unittest.TestCase):
             config = 'run/main_scene="res://src/presentation/season/season_app.tscn"\n'
             (repo/'project.godot').write_text(config)
             subprocess.run(['git', 'add', 'project.godot'], cwd=repo, check=True)
-            names = [assembly.LIVE_FAMILY, assembly.PLAY_FAMILY, assembly.DYNASTY_FAMILY]
+            names = [assembly.LIVE_FAMILY, assembly.PLAY_FAMILY, assembly.DYNASTY_FAMILY, assembly.SELECTOR_FAMILY]
             for index, family in enumerate(names):
                 folder = repo/'drafts'/family
                 folder.mkdir(parents=True)
@@ -87,9 +87,10 @@ class AssemblyTests(unittest.TestCase):
                 (folder/'DRAFT_MANIFEST.json').write_text(json.dumps({'files': [row]}))
             with patch.object(assembly, 'FAMILIES', ()):
                 result = assembly.assemble(repo, root/'dynasty', dynasty_owner=True)
-                self.assertTrue(all('src/dependency%d.gd' % i in result['files'] for i in range(3)))
+                self.assertTrue(all('src/dependency%d.gd' % i in result['files'] for i in range(4)))
                 ordinary = assembly.assemble(repo, root/'ordinary', live_play=True)
                 self.assertNotIn('src/dependency2.gd', ordinary['files'])
+                self.assertIn('src/dependency3.gd', ordinary['files'])
                 self.assertEqual(ordinary['launcher'], assembly.PLAY_LAUNCHER)
                 self.assertEqual((repo/'project.godot').read_text(), config)
 

@@ -1,0 +1,13 @@
+{
+  "format": "inactive-doubleheader-schedule-selector-v1",
+  "source_checkpoint": "5deec1f5a7a423b247b4d5cc808452d6e076e96a",
+  "scope": "Pure schedule dispatch only; no Doubleheader admission, pending, results, rewards or Dynasty constructor changes.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-doubleheader-selector-v1/schedule_selector.gd.txt",
+      "restore_path": "src/gameplay/season/successor_doubleheader_selector_v1/schedule_selector.gd",
+      "bytes": 746,
+      "sha256": "0723756ff5c80850756626710f631e3b07bce6075a433173aea04fa88be085b2"
+    }
+  ]
+}

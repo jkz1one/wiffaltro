@@ -1,0 +1,143 @@
+extends Node
+## Creation/codec wiring only. No Doubleheader admission or gameplay qualification.
+const Runtime = preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Store = preload("res://src/gameplay/season/successor_live_play_v1/store.gd")
+const ORDINARY = [[0,0,0,5],[15,5,5,0],[1,0,4,1],[16,5,1,4],[2,0,2,3],[17,5,3,2],[3,1,4,0],[18,6,0,4],[4,1,5,3],[19,6,3,5],[5,1,2,1],[20,6,1,2],[6,2,0,3],[21,7,3,0],[7,2,2,4],[22,7,4,2],[8,2,5,1],[23,7,1,5],[9,3,2,0],[24,8,0,2],[10,3,3,1],[25,8,1,3],[11,3,5,4],[26,8,4,5],[12,4,0,1],[27,9,1,0],[13,4,5,2],[28,9,2,5],[14,4,3,4],[29,9,4,3]]
+var failures: int = 0
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	if not ok:
+		failures += 1
+		printerr("FAIL: ",label)
+	return ok
+
+func ordinary() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for row: Array in ORDINARY:
+		result.append({"id":row[0],"round":row[1],"away":row[2],"home":row[3]})
+	return result
+
+func matches(games: Array, rules: Dictionary) -> bool:
+	# Dynamic dispatch lets the exact same birth/save test run against cp93,
+	# whose Codec intentionally predates this public comparison helper.
+	var script: Variant = load("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+	return script.schedule_matches(games,rules)
+
+func wiring() -> void:
+	var normal: Array[Dictionary] = ordinary()
+	var paired: Array[Dictionary] = SeasonDoubleheaderRules.schedule()
+	var double_rules: Dictionary = LeagueRules.capture("doubleheader")
+	check(LeagueRules.doubleheader(double_rules),"authentic paired rules")
+	var frozen_normal: Array = normal.duplicate(true)
+	var frozen_paired: Array = paired.duplicate(true)
+	var frozen_rules: Dictionary = double_rules.duplicate(true)
+	for rules: Dictionary in [{},LeagueRules.capture("dugout")]:
+		check(matches(normal,rules),"ordinary exact ordered schedule accepted")
+		check(not matches(paired,rules),"paired schedule rejected for ordinary rules")
+	check(matches(paired,double_rules),"authentic paired exact order accepted by comparator only")
+	check(not matches(normal,double_rules),"ordinary schedule rejected for paired rules")
+	for pair: Array in [[normal,{}],[paired,double_rules]]:
+		var reversed: Array = pair[0].duplicate(true); reversed.reverse()
+		check(not matches(reversed,pair[1]),"reversed order rejected")
+		var reordered: Array = pair[0].duplicate(true)
+		var first: Dictionary = reordered[0]; reordered[0]=reordered[1]; reordered[1]=first
+		check(not matches(reordered,pair[1]),"swapped order rejected")
+		var duplicate: Array = pair[0].duplicate(true); duplicate[1]=duplicate[0].duplicate(true)
+		check(not matches(duplicate,pair[1]),"duplicate fixture rejected")
+		var altered: Array = pair[0].duplicate(true); altered[0].round=999
+		check(not matches(altered,pair[1]),"altered fixture rejected")
+	check(Codec.same(normal,frozen_normal) and Codec.same(paired,frozen_paired) and Codec.same(double_rules,frozen_rules),"comparator does not mutate inputs")
+	normal[0].away=99; paired[0].round=99; double_rules.clear()
+	check(matches(ordinary(),{}) and matches(SeasonDoubleheaderRules.schedule(),LeagueRules.capture("doubleheader")),"no aliases retained across calls")
+	check(not Runtime.COMMON_ORDINARY_LEAGUES.has("doubleheader"),"common admission excludes Doubleheader")
+	check(Runtime.create_fresh(940026,"doubleheader")==null,"real fresh runtime rejects Doubleheader")
+
+func buttons(node: Node, labels: Array[String]) -> void:
+	if node is Button: labels.append(node.text)
+	for child: Node in node.get_children(): buttons(child,labels)
+
+func menu_check() -> void:
+	var app = load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd").new()
+	get_tree().root.add_child(app)
+	var labels: Array[String] = []
+	buttons(app.menu,labels)
+	for league: String in Runtime.COMMON_ORDINARY_LEAGUES:
+		check(labels.has("SELECT · "+league.to_upper()),"shared menu exposes admitted "+league)
+	for label: String in labels:
+		check(not label.contains("DOUBLEHEADER"),"shared menu does not offer Doubleheader")
+	var selected: String = app.selected_league
+	app.select_league("doubleheader")
+	check(app.selected_league==selected and app.season==null,"player-facing selector rejects Doubleheader")
+	check(not Store.occupied(),"menu negative test writes no ordinary save")
+	app.free()
+
+func named_codec(mode: String) -> void:
+	# Synthetic canonical payload only. Not a shared OwnerStore save test.
+	if mode=="fresh":
+		var season: SeasonState = Runtime.create_fresh(940026,"sponsorship")
+		if not check(season!=null,"genuine named birth"): return
+		var data: Dictionary = Codec.capture(season)
+		if not check(data.get("format")==Codec.NAMED_LEAGUE_FORMAT,"named-format capture"): return
+		check(Codec.restore(data)==null,"standalone reader intentionally rejects named format")
+		var restored: SeasonState = Codec.restore_common(data)
+		check(restored!=null and Codec.same(Codec.capture(restored),data),"named common codec hydration")
+		var file: FileAccess = FileAccess.open("user://schedule-wiring-named-codec.json",FileAccess.WRITE)
+		file.store_string(JSON.stringify(data,"",true,true)); file.close()
+	else:
+		var bytes: PackedByteArray = FileAccess.get_file_as_bytes("user://schedule-wiring-named-codec.json")
+		var data: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+		check(Codec.restore(data)==null,"cold standalone reader still rejects named format")
+		var restored: SeasonState = Codec.restore_common(data)
+		check(restored!=null and Codec.same(Codec.capture(restored),data),"independent named common codec cold hydration")
+		check(FileAccess.get_file_as_bytes("user://schedule-wiring-named-codec.json")==bytes,"named synthetic input unchanged")
+
+func run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1":
+		printerr("Refusing non-isolated test")
+		get_tree().quit(2); return
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if args.size()<1: get_tree().quit(2); return
+	var mode: String = args[0]
+	if mode=="menu":
+		menu_check()
+	else:
+		if args.size()!=2 or args[1] not in ["standard","dugout"]: get_tree().quit(2); return
+		var league: String = args[1]
+		var roots: Array[Resource] = load("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+		if mode=="fresh":
+			if OS.get_environment("WIFFALTRO_BASELINE")!="1": wiring()
+			if not check(not Store.occupied(),"fresh isolated slot empty"): get_tree().quit(1); return
+			var season: SeasonState = Runtime.create_fresh(940026,league)
+			if not check(season!=null,"real admitted birth "+league): get_tree().quit(1); return
+			check(Codec.same(season.schedule,ordinary()),"birth preserves exact ordinary schedule")
+			var before: Dictionary = Codec.capture(season)
+			if not check(not before.is_empty(),"birth capture accepted"): get_tree().quit(1); return
+
+			var forged: Dictionary = before.duplicate(true)
+			forged.state.league_rules = LeagueRules.capture("doubleheader")
+			forged.state.schedule = SeasonDoubleheaderRules.schedule()
+			check(Codec.restore(forged)==null,"paired comparator grants no save admission")
+			check(Store.save(season,PackedByteArray(),before),"real Store saves birth")
+			var bytes: PackedByteArray = Store.raw()
+			check(bytes==JSON.stringify(before,"",true,true).to_utf8_buffer(),"durable bytes exactly equal captured fields")
+			check(Codec.same(before,Codec.capture(season)),"save does not mutate birth fields")
+			var file: FileAccess = FileAccess.open("user://schedule-wiring-expected.json",FileAccess.WRITE)
+			file.store_buffer(bytes); file.close()
+		elif mode=="cold":
+			var expected: PackedByteArray = FileAccess.get_file_as_bytes("user://schedule-wiring-expected.json")
+			var before: PackedByteArray = Store.raw()
+			var season: SeasonState = Store.read()
+			if not check(season!=null,"independent process Store cold reopen"): get_tree().quit(1); return
+			check(before==expected and Store.raw()==expected,"cold reopen leaves exact saved bytes unchanged")
+			check(Codec.same(Codec.capture(season),JSON.parse_string(expected.get_string_from_utf8())),"cold reopen preserves every captured field")
+			check(Codec.same(season.schedule,ordinary()),"cold schedule unchanged")
+			check(season.league_rules.is_empty() if league=="standard" else season.league_rules.get("league")==league,"cold league unchanged")
+		else: get_tree().quit(2); return
+		if league=="standard": named_codec(mode)
+		roots.clear()
+	if failures==0: print("SUCCESSOR_SCHEDULE_WIRING_PASS ",mode)
+	get_tree().quit(0 if failures==0 else 1)

@@ -20,6 +20,7 @@ FAMILIES = (
     'successor-owner-career-v1',
 )
 LAUNCHER = 'res://src/presentation/season/successor_owner_career_v1/launcher.tscn'
+SELECTOR_FAMILY = 'successor-doubleheader-selector-v1'
 PLAY_FAMILY = 'successor-live-play-v1'
 PLAY_LAUNCHER = 'res://src/presentation/season/successor_live_play_v1/launcher.tscn'
 LIVE_FAMILY = 'successor-live-owner-v1'
@@ -50,7 +51,7 @@ def assemble(repo, destination, tests=(), live_owner=False, live_play=False, dyn
     requested = set(tests)
     found = set()
     families = (FAMILIES + ((LIVE_FAMILY,) if live_owner or live_play or dynasty_owner else ())
-                + ((PLAY_FAMILY,) if live_play or dynasty_owner else ())
+                + ((SELECTOR_FAMILY, PLAY_FAMILY) if live_play or dynasty_owner else ())
                 + ((DYNASTY_FAMILY,) if dynasty_owner else ()))
     launcher = DYNASTY_LAUNCHER if dynasty_owner else PLAY_LAUNCHER if live_play else LIVE_LAUNCHER if live_owner else LAUNCHER
     for family in families:

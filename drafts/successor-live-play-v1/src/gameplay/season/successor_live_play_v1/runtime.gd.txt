@@ -9,6 +9,7 @@ const CommonStart = preload("common_start.gd")
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
 
 # Explicitly qualified engineering owner admission; registry presence grants no public unlock.
+const ScheduleSelector = preload("res://src/gameplay/season/successor_doubleheader_selector_v1/schedule_selector.gd")
 const Admissions = preload("ordinary_admission.gd")
 const COMMON_ORDINARY_LEAGUES = Admissions.LEAGUES
 
@@ -34,6 +35,7 @@ static func _create_named(seed_value: int, league: String, basis: Dictionary) ->
 	result.draft_pool = ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
 	for index in range(6): result.teams.append({"name":SeasonState.TEAM_NAMES[index],"roster":[],"draw":rng.randf()})
 	result._build_schedule()
+	result.schedule = ScheduleSelector.select(LeagueRules.doubleheader(result.league_rules), result.schedule)
 	if not (CommonStart.install(result.build,basis) if earned else Starts._install(result.build,basis)) or not ClubPlayerDraft.apply(result,basis.player_access): return null
 	var ledger: ClubCareer = LiveCareer.new()
 	ledger.current = 1; ledger.runs.append({})

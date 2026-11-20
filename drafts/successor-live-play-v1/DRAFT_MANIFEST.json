@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "4a14cd800dbceee7c81060879d409123919fb3bd",
-  "scope": "Increment92: closed shared Base Equipment admission using original Equipment and full Shop policies. Short owner and detached active/spare smoke checks; earned full gameplay remains pending.",
+  "source_checkpoint": "5deec1f5a7a423b247b4d5cc808452d6e076e96a",
+  "scope": "Increment94: shared creation and codec schedule selector wiring only; Doubleheader admission remains closed.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 24889,
-      "sha256": "8989247ca9a5c9ba00362110796e31da4845e12932d1594dfb201575674a5d8b"
+      "bytes": 25337,
+      "sha256": "cbb6ca0e42fcf653e815ea0a4027d3718a77bf8df6427b19c3417d7280af570b"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
@@ -72,8 +72,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
-      "bytes": 6841,
-      "sha256": "0adb96ca6417f9eb834070b9dd6390b42fcb8350bb95fefef374c7e19567d3b2"
+      "bytes": 7066,
+      "sha256": "c9e83828162aeb619d7741c8347c3e494821b92a17b4c22a2275a492b3847384"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/store.gd.txt",
