@@ -163,12 +163,18 @@ func _finish_paired_first() -> void:
 	_retain(candidate,saved_bytes)
 	if retained!=null or season==candidate: _paired_first_pin.clear()
 
-# Unbound single NPC job; public resume still rejects this owner profile.
+# Unbound first-leg NPC jobs; public resume still rejects this owner profile.
 var _paired_npc_binding: Dictionary={}
 func _run_paired_first_npc() -> void:
+	_run_paired_npc(1)
+
+func _run_paired_second_npc() -> void:
+	_run_paired_npc(2)
+
+func _run_paired_npc(fixture_id: int) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
-	var job: Dictionary=factory.first_npc(season)
+	var job: Dictionary=factory.npc_job(season,fixture_id)
 	if job.is_empty(): return
 	_npc_expected=saved_bytes.duplicate(); _npc_owner=season; _npc_envelope=career_owner
 	_npc_before=Store.RawGuard.capture(career_owner)
@@ -183,7 +189,7 @@ func _run_paired_first_npc() -> void:
 	ai_runner.failed.connect(_ai_failed.bind(ai_runner))
 	_busy=true
 	if not ai_runner.start(job.state,job.seed,job.field.id):
-		_ai_failed("The private first NPC fixture could not start.",ai_runner)
+		_ai_failed("The private first-leg NPC fixture could not start.",ai_runner)
 
 func reload_save() -> void:
 	if not _available(): return
@@ -559,7 +565,7 @@ func _clone() -> SeasonState:
 func _checkpoint_report() -> void:
 	if _busy or retained != null or retained_report.is_empty() or not _npc_owner_matches(): return
 	if career_owner.paired_draft_only():
-		if _paired_npc_binding.is_empty() or not season.physical.pending.reports.is_empty(): return
+		if _paired_npc_binding.is_empty() or _paired_npc_binding.get("fixture")!=1+season.physical.pending.reports.size(): return
 		var candidate: SeasonState=_clone()
 		if candidate==null: return
 		var row: Dictionary=_paired_npc_binding.duplicate(true)
