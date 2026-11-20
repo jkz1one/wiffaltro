@@ -4,6 +4,57 @@ extends RefCounted
 ## This localized body is mechanically derived from cp98, not a replacement for
 ## its guards. Future internal callers must independently authenticate context.
 const Frozen=preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+# Pure geometry from the frozen schedule; this descriptor is not admission.
+static func authored_phase(round_index: int) -> Dictionary:
+	if round_index<0 or round_index>=10: return {}
+	var schedule: Array=SeasonDoubleheaderRules.schedule()
+	var by_id: Dictionary={}
+	var human: Dictionary={}
+	var npc: Array[Dictionary]=[]
+	var prior_results: Array[int]=[]
+	var prior_humans: Array[int]=[]
+	var prior_npcs: Array[int]=[]
+	for row: Dictionary in schedule:
+		if by_id.has(row.id): return {}
+		by_id[row.id]=row
+		var managed: bool=row.away==0 or row.home==0
+		if row.round<round_index:
+			prior_results.append(row.id)
+			if managed: prior_humans.append(row.id)
+			else: prior_npcs.append(row.id)
+		elif row.round==round_index:
+			if managed:
+				if not human.is_empty(): return {}
+				human=row
+			else: npc.append(row)
+	if human.is_empty() or npc.size()!=2: return {}
+	prior_results.sort()
+	prior_humans.sort()
+	prior_npcs.sort()
+	var firsts: Dictionary={}
+	for row: Dictionary in [human]+npc:
+		var first: int=SeasonDoubleheaderRules.first(row.id)
+		if round_index%2==1:
+			if not by_id.has(first): return {}
+			var origin: Dictionary=by_id[first]
+			if origin.round!=round_index-1 or origin.away!=row.home or origin.home!=row.away: return {}
+		elif first!=-1: return {}
+		firsts[row.id]=first
+	return {"human":human,"npc":npc,"prior_results":prior_results,"prior_humans":prior_humans,"prior_npcs":prior_npcs,"firsts":firsts}
+
+# Serialization for authenticated ordinary-live callers only. The complete
+# authored fixture, not the saved season's current round, chooses its dialect.
+static func for_live_regular(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:
+	if season==null or state==null or field==null or not LeagueRules.doubleheader(state.league_rules) or not SeasonOwnership._whole(fixture.get("round"),0,9): return ""
+	var phase: Dictionary=authored_phase(int(fixture.round))
+	if phase.is_empty(): return ""
+	if ClubCareer.same(fixture,phase.human):
+		return for_context(season,phase.human,state,field) if phase.human.round<3 else _for_materialized_wallet(season,phase.human,state,field)
+	for authored: Dictionary in phase.npc:
+		if ClubCareer.same(fixture,authored):
+			return for_context(season,authored,state,field) if authored.round==0 else _for_materialized_wallet(season,authored,state,field)
+	return ""
+
 # Exact V4 route representations. The fixture's authored lane selects a
 # single representation; a report or request digest never selects it.
 static func for_materialized_return(season: SeasonState, fixture: Dictionary, state: MatchState, field: FieldDefinition) -> String:

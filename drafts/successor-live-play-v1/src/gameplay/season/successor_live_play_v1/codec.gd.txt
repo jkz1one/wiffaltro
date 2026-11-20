@@ -198,35 +198,24 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 	var build: SeasonBuild=season.build
 	return _paid_pair_journal(build,2) and whole(build._visit.get("number"),2,2) and build._visit.get("open")==false
 
-# Preserve the authored paid prefix. Only round3 accepts pending return
-# evidence; round4 has no playable continuation or pending shape.
+# Authored paid prefix plus only the individually qualified pending lane.
+# Round4 allows the human report but never queues an NPC or releases payout.
 static func _followup_settled_shape(season: SeasonState) -> bool:
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var detached: bool=projection.followup_projection(season)
 	if (season.get_script()!=Runtime and not detached) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
-	var expected: Array=[]
-	var humans: Array=[]
-	var npcs: Array=[]
-	for row: Dictionary in SeasonDoubleheaderRules.schedule():
-		if row.round>=season.round_index: continue
-		expected.append(row.id)
-		if row.away==0 or row.home==0: humans.append(row.id)
-		else: npcs.append(row.id)
-	expected.sort()
-	humans.sort()
-	npcs.sort()
-	if not same(season.results.map(func(row):return row.get("id")),expected) or not same(season.player_results.map(func(row):return row.get("id")),humans): return false
+	var authored: Dictionary=projection._round_fixtures(season.round_index)
+	if authored.is_empty(): return false
+	if not same(season.results.map(func(row):return row.get("id")),authored.prior_results) or not same(season.player_results.map(func(row):return row.get("id")),authored.prior_humans): return false
 	var physical=season.physical
-	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=npcs.size(): return false
-	if not same(physical.reports.slice(0,npcs.size()).map(func(row):return row.get("fixture")),npcs): return false
-	if season.round_index==3:
-		var authored: Dictionary=projection._round_fixtures(season.round_index)
-		if detached:
-			var queued: Array=physical.reports.slice(npcs.size()).map(func(row):return row.get("fixture"))
-			if queued.size()>authored.npc.size() or not same(queued,authored.npc.slice(0,queued.size()).map(func(row):return row.id)): return false
-		elif physical.reports.size()!=npcs.size(): return false
-		if not physical.pending.is_empty() and (not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
-	elif detached or physical.reports.size()!=npcs.size() or not physical.pending.is_empty(): return false
+	var prefix: int=authored.prior_npcs.size()
+	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=prefix: return false
+	if not same(physical.reports.slice(0,prefix).map(func(row):return row.get("fixture")),authored.prior_npcs): return false
+	if detached and season.round_index==3:
+		var queued: Array=physical.reports.slice(prefix).map(func(row):return row.get("fixture"))
+		if queued.size()>authored.npc.size() or not same(queued,authored.npc.slice(0,queued.size()).map(func(row):return row.id)): return false
+	elif physical.reports.size()!=prefix: return false
+	if not physical.pending.is_empty() and (not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],authored.human.id,authored.human.id)): return false
 	var build: SeasonBuild=season.build
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==false
 

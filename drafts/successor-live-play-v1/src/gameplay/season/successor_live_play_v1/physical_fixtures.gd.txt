@@ -125,10 +125,7 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 		var authored_field: FieldDefinition=SeasonState.field_for_fixture(authored,season)
 		if start==null or authored_field==null: return ""
 		var composer=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
-		if authored.id in [4,5]: return composer.for_materialized_return(season,authored,start,authored_field)
-		if authored.id in [7,8]: return composer.for_materialized_next_first(season,authored,start,authored_field)
-		if authored.id in [10,11]: return composer.for_materialized_next_return(season,authored,start,authored_field)
-		return composer.for_context(season,authored,start,authored_field)
+		return composer.for_live_regular(season,authored,start,authored_field)
 	var field: FieldDefinition = SeasonState.field_for_fixture(fixture, season)
 	if field == null:
 		return ""
@@ -325,11 +322,7 @@ func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true
 			var authored_field: FieldDefinition=SeasonState.field_for_fixture(authored_return,season)
 			if return_state!=null and authored_field!=null:
 				var composer=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
-				# The exact private follow-up fork supplies the authored fixture10/11.
-				if season.round_index==3:
-					expected_request=composer.for_materialized_next_return(season,authored_return,return_state,authored_field)
-				else:
-					expected_request=composer.for_materialized_return(season,authored_return,return_state,authored_field)
+				expected_request=composer.for_live_regular(season,authored_return,return_state,authored_field)
 	if (
 		header.is_empty()
 		or row.fixture != fixture.id

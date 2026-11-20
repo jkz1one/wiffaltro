@@ -354,6 +354,10 @@ static func _prepare_paired_next_return_human(owner: RefCounted, expected: Packe
 	if owner==null or owner.session==null or owner.session.physical==null or not owner.session.physical.pending.is_empty(): return null
 	return _prepare_paired_human_checkpoint(owner,expected,pending,3)
 
+static func _prepare_paired_third_first_human(owner: RefCounted, expected: PackedByteArray, pending: Dictionary) -> RefCounted:
+	if owner==null or owner.session==null or owner.session.physical==null or not owner.session.physical.pending.is_empty(): return null
+	return _prepare_paired_human_checkpoint(owner,expected,pending,4)
+
 static func _prepare_paired_return_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
 	return _prepare_paired_report(owner,expected,report,1)
 
@@ -364,7 +368,7 @@ static func _prepare_paired_next_return_report(owner: RefCounted, expected: Pack
 	return _prepare_paired_report(owner,expected,report,3)
 
 static func _prepare_paired_report(owner: RefCounted, expected: PackedByteArray, report: Dictionary, round_index: int) -> RefCounted:
-	if not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.round_index!=round_index or owner.session.physical.pending.is_empty(): return null
+	if round_index not in [1,2,3] or not match_owner(owner,expected) or not _paired_settled(owner) or owner.session.round_index!=round_index or owner.session.physical.pending.is_empty(): return null
 	var pending: Dictionary=owner.session.physical.pending.duplicate(true)
 	pending.reports.append(report.duplicate(true))
 	return _prepare_paired_human_checkpoint(owner,expected,pending,round_index)
@@ -375,11 +379,12 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	if saving or _ticket!=null or not Codec.primitive(pending) or not match_owner(owner,expected): return null
 	if not _paired_settled(owner) or not Adapter.scope(owner.active,owner.session): return null
 	var session: SeasonState=owner.session
-	if round_index not in [1,2,3] or session.round_index!=round_index or session.build.revision()!=[0,5,7,9][round_index] or session.build.pack_pending(): return null
+	if round_index not in [1,2,3,4] or session.round_index!=round_index or session.build.revision()!=[0,5,7,9,11][round_index] or session.build.pack_pending(): return null
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	var opening: Dictionary=projection._round_fixtures(round_index).human
 	if not projection.bound_shape(pending) or not Codec.whole(pending.human[0],opening.id,opening.id): return null
 	var prior: Dictionary=session.physical.pending
+	if round_index==4 and (not prior.is_empty() or not pending.reports.is_empty()): return null
 	if prior.is_empty():
 		if not pending.reports.is_empty(): return null
 	elif pending.reports.size()!=prior.reports.size()+1 or not Codec.same(pending.human,prior.human) or not Codec.same(pending.binding,prior.binding) or not Codec.same(pending.reports.slice(0,prior.reports.size()),prior.reports): return null
