@@ -1,0 +1,136 @@
+extends Node
+## Synthetic shape-only payloads, NOT played evidence or live Doubleheader authority.
+const Boundary = preload("res://src/gameplay/season/successor_live_play_v1/evidence_boundary.gd")
+const General = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
+const Catalog = preload("res://src/gameplay/season/successor_live_play_v1/catalog.gd")
+const OLD_FIELDS = ["id","round","home","away","neutral","away_runs","home_runs","club_roster","performance","used_gear","tactics","batting","stances","field_supply","pitching_current","pitching","fielding","frozen","ai_tactics"]
+var failures: int = 0
+var checks: int = 0
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> void:
+	checks += 1
+	if not ok:
+		failures += 1
+		printerr("FAIL: ",label)
+
+func ordinary() -> Array:
+	return [0,1,0,{},[],[],{},[],[],{},{},[],{}]
+
+func paired() -> Array:
+	var value: Array = ordinary()
+	value.append([{},{}])
+	return value
+
+func old_codec_shape(value: Variant) -> bool:
+	# Exact pre-cp95 ordinary guard, independent of the new dispatch helper.
+	if not value is Array or value.size()!=13: return false
+	if not SeasonOwnership._whole(value[0],0,32) or not SeasonOwnership._whole(value[1],0,100000) or not SeasonOwnership._whole(value[2],0,100000) or value[1]==value[2]: return false
+	for index in [3,6,9,10,12]:
+		if not value[index] is Dictionary: return false
+	for index in [4,5,7,8,11]:
+		if not value[index] is Array: return false
+	return true
+
+func pending_tests(catalog: String, rules: Dictionary, pair: bool) -> void:
+	var human: Array = paired() if pair else ordinary()
+	var payload: Dictionary = {"human":human,"reports":[]}
+	var before: Dictionary = payload.duplicate(true)
+	check(Boundary.pending_shape(payload,rules,catalog),"synthetic pending skeleton shape accepted")
+	check(payload==before,"pending input unchanged")
+	for bad: Variant in [null,false,0,"human",[],{}, {"human":human}, {"reports":[]}, {"human":human,"reports":[],"extra":0}, {"human":{},"reports":[]}, {"human":human,"reports":{}}]:
+		check(not Boundary.pending_shape(bad,rules,catalog),"invalid pending outer shape")
+	for report: Variant in [null,0,[],{}, {"fixture":0,"request":"bad","report":{}}, {"fixture":0,"request":"a".repeat(64),"report":{}}, {"fixture":0,"request":"a".repeat(64),"report":null}]:
+		var candidate: Dictionary = {"human":human.duplicate(true),"reports":[report]}
+		check(not Boundary.pending_shape(candidate,rules,catalog),"malformed report rejected")
+	check(not Boundary.pending_shape({"human":human,"reports":[{},{},{},{},{},{}]},rules,catalog),"too many reports rejected")
+	var variants: Array = [human.duplicate(true)]
+	var missing: Array = human.duplicate(true); missing.pop_back(); variants.append(missing)
+	var extra: Array = human.duplicate(true); extra.append({}); variants.append(extra)
+	var reordered: Array = human.duplicate(true); reordered[3]=[]; reordered[4]={}; variants.append(reordered)
+	for index: int in range(human.size()):
+		var wrong: Array = human.duplicate(true); wrong[index]=null; variants.append(wrong)
+	for value: Array in variants:
+		var candidate: Dictionary = {"human":value,"reports":[]}
+		var expected: bool = General._doubleheader_shape(candidate,catalog) if pair else General._shape(candidate,true,false,false,false,catalog)
+		check(Boundary.pending_shape(candidate,rules,catalog)==expected,"authentic pending shape delegation parity")
+	var tie: Array = human.duplicate(true); tie[2]=tie[1]
+	check(Boundary.pending_shape({"human":tie,"reports":[]},rules,catalog),"authentic pending shape does not grant non-tie semantics")
+	check(not Boundary.codec_human_shape(tie,rules,catalog),"codec still rejects tie")
+	var high_id: Array = human.duplicate(true); high_id[0]=9999
+	check(Boundary.pending_shape({"human":high_id,"reports":[]},rules,catalog),"authentic pending ID shape bound retained")
+	check(not Boundary.codec_human_shape(high_id,rules,catalog),"codec retains fixture ID bound")
+
+func codec_tests(catalog: String, double_rules: Dictionary) -> void:
+	var samples: Array = [null,false,0,{},ordinary(),paired()]
+	for index: int in range(13):
+		for value: Variant in [null,true,"1",1.5,INF,-INF,NAN,{},[]]:
+			var sample: Array = ordinary(); sample[index]=value; samples.append(sample)
+	for index: int in [0,1,2]:
+		for value: int in [-1,0,1,32,33,9999,10000,100000,100001]:
+			var sample: Array = ordinary(); sample[index]=value; samples.append(sample)
+	var missing: Array=ordinary(); missing.pop_back(); samples.append(missing)
+	var extra: Array=ordinary(); extra.append(null); samples.append(extra)
+	var swapped: Array=ordinary(); swapped[3]=[]; swapped[4]={}; samples.append(swapped)
+	for rules: Dictionary in [{},LeagueRules.capture("dugout")]:
+		for sample: Variant in samples:
+			check(Boundary.codec_human_shape(sample,rules,catalog)==old_codec_shape(sample),"ordinary13 exact old guard compatibility")
+	var score_limit: Array=ordinary(); score_limit[1]=100000
+	check(Boundary.codec_human_shape(score_limit,{},catalog),"ordinary old100000 upper score bound preserved")
+	check(not Boundary.pending_shape({"human":score_limit,"reports":[]},{},catalog),"authentic pending retains separate9999 bound")
+	check(Boundary.codec_human_shape(paired(),double_rules,catalog),"paired codec skeleton shape accepted")
+	check(not Boundary.codec_human_shape(ordinary(),double_rules,catalog),"paired codec requires14")
+	check(not Boundary.codec_human_shape(paired(),{},catalog),"ordinary codec rejects14")
+	var fifteen: Array=paired(); fifteen.append({})
+	check(not Boundary.codec_human_shape(fifteen,double_rules,catalog),"paired codec rejects15")
+	for bad: Variant in [null,{},[],[{}],[{},{},{}]]:
+		var sample: Array=paired(); sample[13]=bad
+		check(not Boundary.codec_human_shape(sample,double_rules,catalog),"paired workload outer shape invalid")
+	var reordered: Array=paired(); reordered[12]=[]; reordered[13]={}
+	check(not Boundary.codec_human_shape(reordered,double_rules,catalog),"paired payload type/order invalid")
+	for score: int in [9999,10000,100000]:
+		var sample: Array=paired(); sample[1]=score
+		check(Boundary.codec_human_shape(sample,double_rules,catalog)==(score==9999),"paired keeps authentic score shape bound")
+	# Authentic helper only requires an Array of two here; semantic workload
+	# validation remains elsewhere. Do not invent extra admission in this seam.
+	var unproved: Array=paired(); unproved[13]=[null,7]
+	check(Boundary.codec_human_shape(unproved,double_rules,catalog)==General._doubleheader_shape({"human":unproved,"reports":[]},catalog),"paired outer shape is not workload proof")
+
+func result_tests(double_rules: Dictionary) -> void:
+	check(Boundary.result_fields({},{}),"ordinary empty whitelist is not result authority")
+	var row: Dictionary={}
+	for key: String in OLD_FIELDS: row[key]=null
+	check(Boundary.result_fields(row,{}),"all original result fields retained without new semantic checks")
+	var before: Dictionary=row.duplicate(true)
+	check(not Boundary.result_fields(row,double_rules),"paired result requires workload key")
+	var paired_row: Dictionary=row.duplicate(true); paired_row.doubleheader_evidence=[{},{}]
+	check(Boundary.result_fields(paired_row,double_rules),"paired result permits two workload dictionaries")
+	check(not Boundary.result_fields(paired_row,{}),"ordinary result rejects paired field")
+	paired_row.doubleheader_evidence.reverse()
+	check(Boundary.result_fields(paired_row,double_rules),"dictionary ordering alone is not semantic authority")
+	for bad: Variant in [null,{},[],[{}],[{},{} ,{}],[{},null],[7,{}]]:
+		var candidate: Dictionary=row.duplicate(true); candidate.doubleheader_evidence=bad
+		check(not Boundary.result_fields(candidate,double_rules),"paired result rejects missing/wrong workload dictionaries")
+	for rules: Dictionary in [{},double_rules]:
+		var candidate: Dictionary=paired_row.duplicate(true) if not rules.is_empty() else row.duplicate(true)
+		candidate.unrecognized=true
+		check(not Boundary.result_fields(candidate,rules),"unknown result field rejected")
+	check(row==before,"result input unchanged")
+	check(Boundary.result_fields({},{}),"paired call does not alter ordinary dispatch")
+
+func run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1": get_tree().quit(2); return
+	var roots: Array[Resource]=load("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var catalog: String=Catalog.game_signature()
+	var rules: Dictionary=LeagueRules.capture("doubleheader")
+	check(not catalog.is_empty() and LeagueRules.doubleheader(rules),"authentic context available")
+	pending_tests(catalog,{},false)
+	pending_tests(catalog,rules,true)
+	pending_tests(catalog,LeagueRules.capture("dugout"),false)
+	codec_tests(catalog,rules)
+	result_tests(rules)
+	roots.clear()
+	if failures==0: print("SUCCESSOR_EVIDENCE_BOUNDARY_PASS checks=",checks,"; synthetic shapes only, no admission")
+	get_tree().quit(0 if failures==0 else 1)

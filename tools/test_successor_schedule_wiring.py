@@ -4,7 +4,7 @@
 Real assembler live-play output, isolated HOME/XDG, generated birth saves only.
 Standard and Dugout save via Store then reopen in a new process. Named
 Sponsorship uses synthetic canonical JSON plus restore_common in separate
-processes, NOT shared OwnerStore save qualification; standalone rejection stays. Exact cp93 baseline builds run the same birth/cold contract and final
+processes, NOT shared OwnerStore save qualification; standalone rejection stays. Pinned cp93 (default) or cp94 baseline builds run the same birth/cold contract and final
 bytes must match. A separate real Dynasty assembly tests its shared menu's
 Doubleheader exclusion. No archive fixtures, original saves, gameplay, playoffs,
 reward, or Doubleheader career qualification. Only temporary synthetic data.
@@ -24,6 +24,7 @@ import sys
 
 sys.dont_write_bytecode = True
 BASELINE = "5deec1f5a7a423b247b4d5cc808452d6e076e96a"
+BASELINES = {BASELINE: "cp93", "c5801675f9c1d55ea8d14e51846de66c8e771448": "cp94"}
 
 MARKER = "SUCCESSOR_SCHEDULE_WIRING_PASS"
 TEST = "tests/successor_schedule_wiring.gd"
@@ -107,19 +108,20 @@ def births(repo, stage, test_source, godot, baseline=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--godot", default="godot")
-    parser.add_argument("--baseline-ref", default=BASELINE, help="Pinned cp93 revision (other revisions rejected)")
+    parser.add_argument("--baseline-ref", default=BASELINE, help="Pinned cp93 (default) or cp94 revision only")
     args = parser.parse_args()
     godot = shutil.which(args.godot)
     if not godot:
         parser.error("Godot executable not found")
     repo = Path(__file__).resolve().parents[1]
     revision = subprocess.check_output(["git", "rev-parse", "--verify", args.baseline_ref + "^{commit}"], cwd=repo, text=True).strip()
-    if revision != BASELINE:
-        parser.error("Baseline must resolve to exact verified cp93 " + BASELINE)
+    if revision not in BASELINES:
+        parser.error("Baseline must resolve to exact verified cp93 or cp94")
+    baseline_label = BASELINES[revision]
     test_source = (repo / (TEST + ".txt")).read_bytes()
     with tempfile.TemporaryDirectory(prefix="wiffaltro-schedule-wiring-") as temp:
         stage = Path(temp)
-        print(f"Temporary isolated stage: {stage}; baseline {revision}", flush=True)
+        print(f"Temporary isolated stage: {stage}; baseline {baseline_label} {revision}", flush=True)
         baseline_repo = stage / "baseline-source"
         baseline_repo.mkdir()
         archive = subprocess.check_output(["git", "archive", "--format=tar", revision], cwd=repo)
@@ -131,7 +133,7 @@ def main():
         baseline = births(baseline_repo, stage / "baseline", test_source, godot, True)
         for league in current:
             if current[league] != baseline[league]:
-                raise RuntimeError(f"cp93 serialized bytes changed for {league}")
+                raise RuntimeError(f"{baseline_label} serialized bytes changed for {league}")
             print(f"BYTE PARITY {league}: {hashlib.sha256(current[league]).hexdigest()}")
         menu_stage = stage / "menu"
         project = stage_project(repo, menu_stage, test_source, dynasty=True)
@@ -140,7 +142,7 @@ def main():
             env, menu_stage / "import.log")
         run([godot, "--headless", "--path", str(project), SCENE, "--", "menu"],
             env, menu_stage / "menu.log", marker=True)
-    print("PASS: schedule wiring; real birth/save/cold; cp93 byte parity; Doubleheader remains unadmitted")
+    print(f"PASS: schedule wiring; real birth/save/cold; {baseline_label} byte parity; Doubleheader remains unadmitted")
 
 
 if __name__ == "__main__":

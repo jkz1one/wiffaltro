@@ -1,7 +1,7 @@
 {
   "format": "inactive-materialized-live-play-v1",
-  "source_checkpoint": "5deec1f5a7a423b247b4d5cc808452d6e076e96a",
-  "scope": "Increment94: shared creation and codec schedule selector wiring only; Doubleheader admission remains closed.",
+  "source_checkpoint": "c5801675f9c1d55ea8d14e51846de66c8e771448",
+  "scope": "Increment95: conditional pending/result shape adapter only; General semantic validation unchanged and Doubleheader admission remains closed.",
   "files": [
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/build_codec.gd.txt",
@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 25337,
-      "sha256": "cbb6ca0e42fcf653e815ea0a4027d3718a77bf8df6427b19c3417d7280af570b"
+      "bytes": 24988,
+      "sha256": "78059d4b6c0c9e51bb02f9d3e65d973c99cf072c776eff8012f78847499ac429"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
@@ -42,8 +42,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/pending.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/pending.gd",
-      "bytes": 2358,
-      "sha256": "05e39e975ad371e06bd61a7475e736e77fcc327fd77164e0acb138e04c4f109b"
+      "bytes": 2411,
+      "sha256": "2561a4c9545be8b4dbdd19a154ed5b490b38d57f6fc27c9d637da3cfdd83071d"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/physical_fixtures.gd.txt",
@@ -206,6 +206,12 @@
       "restore_path": "tests/successor_live_session_npc.tscn",
       "bytes": 181,
       "sha256": "d984594864b966d6ecdd11b1be4a6600ff55ddbb995991ed28aa0cb6e5a088cb"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/evidence_boundary.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/evidence_boundary.gd",
+      "bytes": 2194,
+      "sha256": "003dd7851b9a2c9bbdc7a577f561e7d0947ba82dced2514364f65bd6074e25c9"
     }
   ],
   "additions": [

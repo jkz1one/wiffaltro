@@ -1,0 +1,34 @@
+extends RefCounted
+## Shape boundaries only. These grant no league, save, result or payout admission.
+## Live General projection, workload proof and journal replay remain authoritative.
+const General = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
+const RESULT_FIELDS: Array[String] = ["id","round","home","away","neutral","away_runs","home_runs","club_roster","performance","used_gear","tactics","batting","stances","field_supply","pitching_current","pitching","fielding","frozen","ai_tactics"]
+
+static func pending_shape(value: Variant, rules: Dictionary, catalog: String) -> bool:
+	if LeagueRules.doubleheader(rules):
+		return General._doubleheader_shape(value,catalog)
+	return General._shape(value,true,false,false,false,catalog)
+
+static func codec_human_shape(human: Variant, rules: Dictionary, catalog: String) -> bool:
+	# Preserve the existing materialized ordinary bounds, independent of the
+	# stricter General projection boundary. Do not relax either into the other.
+	if not human is Array: return false
+	var paired: bool = LeagueRules.doubleheader(rules)
+	if paired and not General._doubleheader_shape({"human":human,"reports":[]},catalog): return false
+	if human.size() != (14 if paired else 13): return false
+	if not SeasonOwnership._whole(human[0],0,32) or not SeasonOwnership._whole(human[1],0,100000) or not SeasonOwnership._whole(human[2],0,100000) or human[1]==human[2]: return false
+	for index in [3,6,9,10,12]:
+		if not human[index] is Dictionary: return false
+	for index in [4,5,7,8,11]:
+		if not human[index] is Array: return false
+	return true
+
+static func result_fields(row: Dictionary, rules: Dictionary) -> bool:
+	var paired: bool = LeagueRules.doubleheader(rules)
+	for key: Variant in row:
+		if key not in RESULT_FIELDS and not (paired and key=="doubleheader_evidence"): return false
+	if not paired: return true
+	# Only outer structure is admitted here. Authentic General result validation
+	# must still prove both workload envelopes against the exact historical clubs.
+	var evidence: Variant = row.get("doubleheader_evidence")
+	return evidence is Array and evidence.size()==2 and evidence[0] is Dictionary and evidence[1] is Dictionary

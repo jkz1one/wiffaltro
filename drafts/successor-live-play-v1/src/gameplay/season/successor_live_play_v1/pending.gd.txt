@@ -1,12 +1,13 @@
 extends RefCounted
 ## Live current-round projection only. Never used by cold materialized hydration.
+const Evidence = preload("evidence_boundary.gd")
 const Codec = preload("codec.gd")
 const Fixtures = preload("physical_fixtures.gd")
 const Original = preload("res://src/gameplay/season/successor_league_general_v2/pending.gd")
 static var project_calls: int = 0
 static func shape(season: SeasonState) -> bool:
 	return season != null and Codec.scope(season) and not season.physical.pending.is_empty() \
-		and Original._shape(season.physical.pending,true,false,false,false,Codec.Catalog.game_signature())
+		and Evidence.pending_shape(season.physical.pending,season.league_rules,Codec.Catalog.game_signature())
 static func project(owner: SeasonState) -> Dictionary:
 	project_calls += 1
 	if not shape(owner): return {"error":"The saved current round is inconsistent."}

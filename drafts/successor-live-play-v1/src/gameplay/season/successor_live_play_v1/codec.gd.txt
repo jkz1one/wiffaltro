@@ -1,5 +1,6 @@
 extends RefCounted
 ## Materialized offline consistency contract. No historical physics/journal replay.
+const Evidence = preload("evidence_boundary.gd")
 const Catalog = preload("catalog.gd")
 const Builds = preload("build_codec.gd")
 const Runtime = preload("runtime.gd")
@@ -220,8 +221,7 @@ static func _results_valid(season: SeasonState) -> bool:
 		fixtures[32] = season.final_fixture
 	var seen: Dictionary = {}
 	for row: Dictionary in season.results:
-		for key: Variant in row:
-			if key not in ["id","round","home","away","neutral","away_runs","home_runs","club_roster","performance","used_gear","tactics","batting","stances","field_supply","pitching_current","pitching","fielding","frozen","ai_tactics"]: return false
+		if not Evidence.result_fields(row,season.league_rules): return false
 		if not whole(row.get("id"),0,32) or seen.has(int(row.id)) or not fixtures.has(int(row.id)): return false
 		var fixture: Dictionary = fixtures[int(row.id)]
 		for key: String in fixture:
@@ -274,11 +274,7 @@ static func _physical_valid(season: SeasonState) -> bool:
 	if physical.pending.is_empty(): return true
 	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or not keys(physical.pending,["human","reports"]) or not physical.pending.human is Array or not physical.pending.reports is Array or physical.pending.reports.size()>5: return false
 	var human: Array = physical.pending.human
-	if human.size()!=13 or not whole(human[0],0,32) or not whole(human[1],0,100000) or not whole(human[2],0,100000) or human[1]==human[2]: return false
-	for index in [3,6,9,10,12]:
-		if not human[index] is Dictionary: return false
-	for index in [4,5,7,8,11]:
-		if not human[index] is Array: return false
+	if not Evidence.codec_human_shape(human,season.league_rules,Catalog.game_signature()): return false
 	var fixture: Dictionary = season.pending_fixture()
 	if fixture.is_empty() or human[0]!=fixture.id: return false
 	for row: Variant in physical.pending.reports:
