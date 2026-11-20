@@ -147,7 +147,9 @@ func no_more(app,bytes:PackedByteArray,backup:PackedByteArray,job:int) -> void:
  altered.reports.append(foreign)
  var upcoming:Dictionary=Binding.next_npc_fixture(app.season)
  check((upcoming.get("id")==17 if job==16 else upcoming.is_empty()) and Binding.npc_job(app.season,18).is_empty() and not Binding.bound_shape(altered) and Store._prepare_paired_third_return_report(app.career_owner,bytes,foreign)==null and Store._prepare_paired_human_checkpoint(app.career_owner,bytes,altered,5)==null,"only remaining authored scope, no foreign fixture or report")
- check(Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null and Binding._round_fixtures(6).is_empty(),"unpaid return cannot pay or advance")
+ check(Binding.materialize_settlement(app.season,6)==null and Store._prepare_paired_settlement(app.career_owner,bytes,6)==null and Binding._round_fixtures(6).is_empty(),"unpaid return cannot start any later phase")
+ if job==16:
+  check(Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null,"partial return cannot pay")
  app._run_paired_npc(16)
  if job==17:app._run_paired_npc(17)
  app._run_paired_npc(18)

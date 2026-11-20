@@ -38,9 +38,10 @@ NPC17 = ('ca9ed64d314242779508277e346dad726812231ac810940e063765eae9453aa2', NPC
 RUNNER_EVIDENCE17 = '6502f3e64694be17e2a2b6c7ccd6877b75be09c1188258998b7327cfa74545ac'
 
 
-def native(project, home, mode, godot):
+def native(project, home, mode, godot, *, scene=TEST, budgets=BUDGET, outer=OUTER,
+           stages=None):
     command = [godot,'--headless','--fixed-fps','60','--path',str(project),
-               'res://tests/'+TEST+'.tscn','--',mode]
+               'res://tests/'+scene+'.tscn','--',mode]
     process = subprocess.Popen(command, env=environment(home), stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, start_new_session=True)
     selector = selectors.DefaultSelector()
@@ -52,7 +53,7 @@ def native(project, home, mode, godot):
     pending = b''
     try:
         while True:
-            remaining = min(stage_started+BUDGET[phase],begun+OUTER)-time.monotonic()
+            remaining = min(stage_started+budgets[phase],begun+outer)-time.monotonic()
             if remaining <= 0:
                 raise RuntimeError(f'{mode}: stage {phase} timed out, completed markers {phases}; not rerunning')
             if not selector.select(remaining):
@@ -68,12 +69,12 @@ def native(project, home, mode, godot):
                 parts.append(value)
                 if value.startswith('CP127_STAGE '):
                     _, phase, *_ = value.split()
-                    assert phase in BUDGET and phase not in phases
+                    assert phase in budgets and phase not in phases
                     phases.append(phase)
                     stage_started=time.monotonic()
         assert process.wait(timeout=5)==0 and 'CP127_PASS' in parts
         assert not any('ERROR:' in row or row.startswith('CP127_RUNNER_FAILED') for row in parts)
-        expected=['cold','launch','physics','admission','retry'] if mode.startswith('play') else ['cold']
+        expected=stages if stages is not None else (['cold','launch','physics','admission','retry'] if mode.startswith('play') else ['cold'])
         assert phases==expected
     finally:
         selector.close()

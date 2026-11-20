@@ -135,7 +135,7 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
-		if season.round_index in [3,4,5]:
+		if season.round_index in [3,4,5,6]:
 			if not _followup_settled_shape(season): return false
 		elif season.round_index==2:
 			if not _pair_settled_shape(season): return false
@@ -222,7 +222,7 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==false
 
 static func _paid_pair_journal(build: SeasonBuild, paid_rounds: int) -> bool:
-	if paid_rounds not in [2,3,4,5] or build._bank==null or build._events.size()!=3+2*paid_rounds or not _first_shop_journal(build,3): return false
+	if paid_rounds not in [2,3,4,5,6] or build._bank==null or build._events.size()!=3+2*paid_rounds or not _first_shop_journal(build,3): return false
 	if build._events[5].get("op")!="successor_reward" or build._events[5].get("id")!="game:3" or build._events[6].get("op")!="exotic_admit" or build._events[6].get("id")!="exotic:3": return false
 	var bank: Array=build._bank._events
 	if bank.size()!=paid_rounds+1 or bank[0].get("op")!="reward" or bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3" or bank[2].get("op")!="reward": return false
