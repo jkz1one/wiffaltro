@@ -13,7 +13,7 @@ const REPORT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 const SETTLEMENT_PHASES: Array[int]=[0,1,2,3,4,5,6]
 # Exact authored regular advancement, independent of UI eligibility.
 # State identity, native replay and the owned CAS still gate every operation.
-const LATE_REGULAR: Dictionary={7:{"revision":20,"reports":2,"settle":true},8:{"revision":23,"reports":2,"settle":true}}
+const LATE_REGULAR: Dictionary={7:{"revision":20,"reports":2,"settle":true},8:{"revision":23,"reports":2,"settle":true},9:{"revision":26,"reports":2,"settle":false}}
 
 static func late_revision(round_index: int) -> int:
 	return int(LATE_REGULAR.get(round_index,{}).get("revision",-1))
@@ -155,6 +155,34 @@ class PrivateFollowupFork extends PrivateFirstFork:
 static func followup_projection(season: SeasonState) -> bool:
 	return season!=null and season.get_script()==PrivateFollowupFork and season.round_index>=2 and human_enabled(season.round_index) and season.physical!=null and season.physical.projecting and season.physical.pending.is_empty()
 
+# Called only after the settled prefix authenticates. Without a guaranteed
+# top-four seat, frozen General may immediately simulate both semifinals.
+static func _clinched_regular_end(source: SeasonState, fixtures: Dictionary) -> bool:
+	var remaining: Dictionary={}
+	for row: Dictionary in [fixtures.human]+fixtures.npc:
+		for club: int in [row.away,row.home]:
+			remaining[club]=int(remaining.get(club,0))+1
+	if remaining.size()!=6 or remaining.values().any(func(games):return games!=1): return false
+	var standings: Array[Dictionary]=source.standings()
+	var human_wins: int=-1
+	for row: Dictionary in standings:
+		if row.team==0: human_wins=int(row.wins)
+	if human_wins<0: return false
+	var possible_rivals: int=0
+	for row: Dictionary in standings:
+		if row.team!=0 and int(row.wins)+int(remaining.get(row.team,0))>=human_wins: possible_rivals+=1
+	return possible_rivals<4
+
+static func _unplayed_semifinals(candidate: SeasonState) -> bool:
+	if candidate.phase!=SeasonState.Phase.SEMIFINAL or candidate.results.size()!=30 or candidate.player_results.size()!=10 or candidate.physical.cursor!=20 or not candidate.physical.pending.is_empty() or not candidate.final_fixture.is_empty() or candidate.champion!=-1: return false
+	var seeds: Array=[]
+	for row: Dictionary in candidate.standings().slice(0,4): seeds.append(int(row.team))
+	if seeds.size()!=4 or not seeds.has(0) or not Live.same(candidate.playoff_seeds,seeds): return false
+	var games: Array=[]
+	for pair: int in range(2):
+		games.append({"id":30+pair,"round":10,"home":seeds[pair],"away":seeds[3-pair]})
+	return Live.same(candidate.semifinals,games)
+
 # The original resolver authenticates exact ordered NPC data. Fixed owned
 # producers may materialize a paid owner only after exact terminal replay.
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
@@ -164,6 +192,10 @@ static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture:
 	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}
 	if Live._capture_structural(source).is_empty(): return {}
 	if not Live._paid_history_valid(source): return {}
+	var fixtures: Dictionary=_round_fixtures(source.round_index)
+	var complete: bool=pending.reports.size()==fixtures.npc.size()
+	var regular_end: bool=complete and source.round_index==9
+	if regular_end and not _clinched_regular_end(source,fixtures): return {}
 	var candidate: SeasonState=_detached(source,PrivateFollowupFork)
 	if candidate==null or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return {}
 	detached_calls+=1
@@ -178,15 +210,17 @@ static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture:
 	if not Live.same(candidate.results.slice(0,prior),source.results) or not Live.same(candidate.player_results.slice(0,-1),source.player_results): return {}
 	var result: Dictionary=candidate.player_results[-1]
 	if result.get("id")!=fixture.id or not Live.same(candidate.results[prior],result): return {}
-	var fixtures: Dictionary=_round_fixtures(source.round_index)
 	for index: int in range(reports.size()):
 		if candidate.results[prior+index+1].get("id")!=fixtures.npc[index].id: return {}
 	if candidate.physical.cursor!=source.physical.cursor+reports.size() or not Live.same(candidate.physical.reports,source.physical.reports+reports): return {}
 	var expected: Dictionary=source.build._bank.view().rewards.duplicate(true)
 	expected[str(fixture.id)]=(pending.human[2]>pending.human[1])==(fixture.home==0)
 	if not Live.same(candidate.build._bank.view().rewards,expected): return {}
-	if reports.size()==fixtures.npc.size():
-		if preview_job or projected.has("fixture") or candidate.round_index!=source.round_index+1 or candidate.phase!=SeasonState.Phase.REGULAR or candidate.physical.projecting or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty() or not GeneralPending._receipts(candidate): return {}
+	if complete:
+		if preview_job or projected.has("fixture") or candidate.round_index!=source.round_index+1 or candidate.physical.projecting or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty() or not GeneralPending._receipts(candidate): return {}
+		if regular_end:
+			return {"accepted":true} if not produce_settlement and _unplayed_semifinals(candidate) else {}
+		if candidate.phase!=SeasonState.Phase.REGULAR: return {}
 		return _concrete_settlement(candidate) if produce_settlement else {"accepted":true}
 	if produce_settlement: return {}
 	var needed: Dictionary=fixtures.npc[reports.size()]

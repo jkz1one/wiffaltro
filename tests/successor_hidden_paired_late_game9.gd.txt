@@ -66,12 +66,12 @@ func run() -> void:
  get_tree().quit(0 if failures==0 else 1)
 
 func sealed_game9(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
- app._play_paired_human(9)
+ if not Live._paired_late_start(app.season):app._play_paired_human(9)
  app._run_paired_npc(27)
  app._run_paired_npc(28)
  app._open_paired_visit7_shop()
  app._sign_paired_visit6_recruit()
- check(Binding.npc_job(app.season,28).is_empty() and Store._prepare_paired_settlement(app.career_owner,bytes,9)==null,"Game10 play, settlement and shop authority remain absent")
+ check(Binding.npc_job(app.season,28).is_empty() and Store._prepare_paired_settlement(app.career_owner,bytes,9)==null,"phase9 settlement and unmatched NPC/shop authority remain absent")
  verify_closed(app,bytes,backup)
  check(app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"public, later fixtures and generic/lifecycle routes leave both bytes exact")
 
@@ -81,7 +81,7 @@ func play_human24(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  if not check(exact_visit8(original),"exact cp138 opened visit8 cutoff, signed Dakota/Mika"):return
  var raw_guard:Dictionary=Store.RawGuard.capture(owner)
  var phase:Dictionary=Authored.authored_phase(8)
- if not check(phase.human.id==24 and phase.human.away==0 and phase.human.home==1 and phase.firsts[24]==-1 and Live.same(phase.npc.map(func(row):return row.id),[25,26]) and Binding.report_limit(9)==0,"frozen fifth-pair opening only"):return
+ if not check(phase.human.id==24 and phase.human.away==0 and phase.human.home==1 and phase.firsts[24]==-1 and Live.same(phase.npc.map(func(row):return row.id),[25,26]) and not Binding.settlement_enabled(9),"frozen fifth-pair opening only"):return
  sealed_game9(app,bytes,backup)
  print("CP127_STAGE launch")
  var started:int=Time.get_ticks_msec()

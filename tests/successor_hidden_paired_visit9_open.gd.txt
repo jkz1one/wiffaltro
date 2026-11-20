@@ -93,6 +93,6 @@ func rejects_at_visit9(app,bytes:PackedByteArray,backup:PackedByteArray) -> void
  app._open_paired_late_shop(9)
  app._open_paired_visit6_shop()
  app._open_paired_late_shop(10)
- check(Binding.start(app.season).is_empty() and Live.late_shop_open(10).is_empty(),"no Game10 or visit10 authority")
+ check(not Binding.settlement_enabled(9) and Live.late_shop_open(10).is_empty(),"Game10 settlement and visit10 authority remain absent")
  sealed_game9(app,bytes,backup)
  check(app.season==s and app.career_owner==owner and Store.RawGuard.matches(owner,pin) and s.build.cash()==122 and exact(bytes,backup),"all refused actions leave primary, backup, Cash and roster untouched")
