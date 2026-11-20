@@ -1,0 +1,119 @@
+extends Node
+## Diagnostic only: authentic General fixture history, no live-play admission.
+const Codec = preload("res://src/gameplay/season/successor_league_general_v2/codec.gd")
+const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
+const Reward = preload("res://src/gameplay/season/successor_league_general_v2/reward.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd")
+const Report = preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+var failures: int = 0
+
+func _ready() -> void:
+	call_deferred("run")
+
+func check(ok: bool, label: String) -> bool:
+	print("PASS: " if ok else "FAIL: ",label)
+	if not ok: failures += 1
+	return ok
+
+func extract(full: SeasonBuild, game: int, corruption: String = "") -> SeasonBuild:
+	var replay_started: int = Time.get_ticks_msec()
+	var data: Dictionary = full.to_data().duplicate(true)
+	var target: int = -1
+	var target_kind: String = ""
+	for index: int in range(data.events.size()):
+		var event: Dictionary = data.events[index]
+		var command: Dictionary = Reward.unwrap(event) if event.get("op")=="successor_reward" else event
+		if command.get("game")==game and command.get("op") in ["pregame","reward"]:
+			target=index
+			target_kind=command.op
+			break
+	if target<0: return null
+	if corruption=="command": data.events.append({"op":"invalid_context_probe"})
+	if corruption=="receipt":
+		var changed: bool = false
+		for index: int in range(data.events.size()-1,target-1,-1):
+			if data.events[index].get("op")=="successor_reward":
+				data.events[index].command.id="invalid-context-receipt"
+				changed=true
+				break
+		if not changed: return null
+	var holder: Dictionary = {}
+	var observer: Callable = func(prefix: SeasonBuild) -> bool:
+		if prefix._events.size()==target:
+			holder.snapshot=prefix._fork()
+		return true
+	var complete: SeasonBuild = Build.restore(data,full._seed,full._initial_roster,full._pool,full._blocked,-1,observer)
+	print("FULL_BUILD_REPLAY_MS=",Time.get_ticks_msec()-replay_started," GAME=",game," CORRUPTION=",corruption)
+	# Never expose an observer snapshot from a failed full replay.
+	if complete==null:
+		if not corruption.is_empty(): check(holder.has("snapshot"),"invalid suffix tested after observer extraction")
+		holder.clear()
+		return null
+	print("EXTRACTED_GAME=",game," BEFORE=",target_kind)
+	return holder.get("snapshot")
+
+func run() -> void:
+	var started: int = Time.get_ticks_msec()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1": get_tree().quit(2); return
+	# Runner supplies only its isolated generated fixture, never an original save.
+	var path: String = "user://successor-general-build-v7-r2.json"
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(path)
+	var data: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	var roots: Array[Resource] = Codec._operation_content_roots()
+	var cold_started: int = Time.get_ticks_msec()
+	var original: SeasonState = Codec.restore(data)
+	print("REFERENCE_COLD_RESTORE_MS=",Time.get_ticks_msec()-cold_started)
+	if not check(original!=null,"authentic completed General save restores"): get_tree().quit(1); return
+	var before: Dictionary = Codec.capture(original)
+	cold_started=Time.get_ticks_msec()
+	var shell: SeasonState = Codec.restore(data)
+	print("DETACHED_SHELL_RESTORE_MS=",Time.get_ticks_msec()-cold_started)
+	if not check(shell!=null,"independent detached General shell restores"): get_tree().quit(1); return
+	check(LeagueRules.doubleheader(original.league_rules),"authentic Doubleheader context")
+	var checked: int = 0
+	var grants: int = 0
+	for game: int in [1,4,2,5]:
+		var fixture: Dictionary = {}
+		for row: Dictionary in original.schedule:
+			if int(row.id)==game: fixture=row.duplicate(true)
+		var evidence: Dictionary = {}
+		for row: Dictionary in original.physical.reports:
+			if int(row.fixture)==game: evidence=row.report.duplicate(true)
+		if not check(not fixture.is_empty() and not evidence.is_empty(),"recorded NPC fixture %d" % game): continue
+		if not check(fixture.away!=0 and fixture.home!=0,"NPC-only history probe"): continue
+		for team: Dictionary in evidence.physical.tactics.teams:
+			grants += int(team.get("budget",{}).get("outcome")=="granted")
+		var retained: Dictionary = {}
+		var prefixes: Dictionary = {}
+		var ready: bool = true
+		for club: int in [int(fixture.away),int(fixture.home)]:
+			var full: SeasonBuild = original.opponents.clubs[str(club)].build
+			var journal: Dictionary = full.to_data().duplicate(true)
+			var prefix: SeasonBuild = extract(full,game)
+			if not check(prefix!=null,"validated pre-pregame prefix game%d club%d" % [game,club]): ready=false; continue
+			check(ClubCareer.same(journal,full.to_data()),"full replay leaves source journal unchanged")
+			retained[str(club)]=shell.opponents.clubs[str(club)].build
+			shell.opponents.clubs[str(club)].build=prefix
+			prefixes[str(club)]=prefix.to_data().duplicate(true)
+			if club==int(fixture.away) and game in [1,4]:
+				check(extract(full,game,"command")==null,"corrupt full command exposes no prefix")
+				check(extract(full,game,"receipt")==null,"corrupt full receipt exposes no prefix")
+		if ready:
+			var state: MatchState = Fixtures.match_for(shell,fixture)
+			if check(state!=null,"existing factory reconstructs historical context %d" % game):
+				check(Report.valid(evidence,state.pitch_catalog),"recorded report independently valid")
+				check(ClubCareer.same(evidence.ownership[0],state.away_team.league_ownership) and ClubCareer.same(evidence.ownership[1],state.home_team.league_ownership),"exact pregrant ownership both sides")
+				check(Report.matches(evidence,state),"full historical Report.matches game%d" % game)
+				checked+=1
+		for club: String in retained:
+			check(ClubCareer.same(prefixes[club],shell.opponents.clubs[club].build.to_data()),"historical context remains immutable through factory/matching")
+			shell.opponents.clubs[club].build=retained[club]
+	check(checked==4,"both legs of both NPC pairs reconstructed")
+	check(ClubCareer.same(before,Codec.capture(original)),"original full capture unchanged")
+	check(ClubCareer.same(before,Codec.capture(shell)),"detached shell restored without settlement mutation")
+	check(FileAccess.get_file_as_bytes(path)==bytes,"synthetic fixture bytes unchanged")
+	roots.clear()
+	print("ACTUAL_PREGAME_GRANTS=",grants,"; zero means grant-placement coverage remains unproven")
+	print("PAIR_HISTORY_CONTEXT_ELAPSED_MS=",Time.get_ticks_msec()-started)
+	if failures==0: print("SUCCESSOR_PAIR_HISTORY_CONTEXT_PASS")
+	get_tree().quit(0 if failures==0 else 1)
