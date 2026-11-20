@@ -88,6 +88,9 @@ static func valid(owner) -> bool:
 static func ordinary_current_valid(owner, season: SeasonState, current: Dictionary) -> bool:
 	if not Adapter.scope("ordinary",season) or current.is_empty() or owner.ordinary_state.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
+	if season.league_rules.get("league","")=="doubleheader":
+		if owner.active!="ordinary" or not owner.paused.is_empty() or not owner.migration_v3.is_empty() or not owner._missing_dynasty(owner): return false
+		if state.ordinal!=1 or state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,Progress.birth({},season,season.player_access)): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false

@@ -130,6 +130,14 @@ func create_fresh(seed_value: int = -1) -> void:
 		notice = "This fresh career could not be initialized. No save was written."
 		show_season(); return
 	_retain_envelope(candidate,PackedByteArray())
+# Unbound engineering entry. Never linked by select_league or a menu control.
+func _create_paired_draft(seed_value: int) -> void:
+	if not _available() or season!=null or Store.occupied(): return
+	_busy=true
+	var candidate: RefCounted=Owner._create_paired_draft(seed_value)
+	_busy=false
+	if candidate!=null: _retain_envelope(candidate,PackedByteArray())
+
 func reload_save() -> void:
 	if not _available(): return
 	_busy = true
@@ -556,6 +564,7 @@ func import_previous_dynasty() -> void:
 	_retain_envelope(candidate,PackedByteArray())
 
 func _lifecycle_ready() -> bool:
+	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or is_instance_valid(ai_runner): return false
 	if not _exit_mode.is_empty() or not retained_human.is_empty() or not retained_report.is_empty(): return false
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false

@@ -1,0 +1,92 @@
+extends Node
+## Real common App/OwnerStore in a disposable environment. No match launch.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Live=preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Runtime=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const Physical=preload("res://src/gameplay/season/successor_live_play_v1/physical_fixtures.gd")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+var failures:int=0
+func _ready() -> void:
+ call_deferred("run")
+func check(ok: bool,label: String) -> bool:
+ print(("PASS: " if ok else "FAIL: ")+label)
+ if not ok:failures+=1
+ return ok
+func buttons(node: Node, labels: Array[String]) -> void:
+ if node is Button:labels.append(node.text)
+ for child: Node in node.get_children():buttons(child,labels)
+func checkpoint(app,paired: bool, delta: int, started: int, label: String, expected: int) -> bool:
+ var bytes=Store.raw()
+ print("OPERATION ",label," GATES=",delta," ELAPSED_MS=",Time.get_ticks_msec()-started)
+ if not check(delta==expected and app.season!=null and bytes==app.saved_bytes and not bytes.is_empty() and app.retained==null and Store.match_owner(app.career_owner,bytes),"real promoted owner "+label):return false
+ var canonical=JSON.parse_string(bytes.get_string_from_utf8())
+ var actual=Owner.pack_current(app.career_owner,Live._capture_structural(app.season))
+ check(not actual.is_empty() and Live.same(actual,canonical),"strict canonical owner fields "+label)
+ if label!="cold":check(bytes==JSON.stringify(actual,"",true,true).to_utf8_buffer(),"canonical created owner bytes "+label)
+ check(canonical.active=="ordinary" and canonical.dynasty.is_empty() and canonical.common.sequence==0 and canonical.ordinary_state.ordinal==1 and canonical.ordinary_state.status=="active","ordinary ordinal one, no earned advances or alternate "+label)
+ check(canonical.ordinary.format==(Live.NAMED_LEAGUE_FORMAT if paired else Live.Catalog.FORMAT),"exact session format "+label)
+ print("SNAPSHOT ",label," ",bytes.get_string_from_utf8().sha256_text())
+ return true
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=2:get_tree().quit(2);return
+ var paired:bool=args[1]=="paired"
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var labels:Array[String]=[]
+ buttons(app.menu,labels)
+ check(not Runtime.COMMON_ORDINARY_LEAGUES.has("doubleheader") and not labels.any(func(row):return row.contains("DOUBLEHEADER")),"unreachable from ordinary league menu")
+ var before=app.selected_league
+ app.select_league("doubleheader")
+ check(app.selected_league==before and Runtime.create_fresh(1001,"doubleheader")==null and Owner.create_ordinary(1001,"doubleheader")==null,"public selectors and constructors reject without saves")
+ if args[0]=="birth":
+  if not check(not Store.occupied(),"fresh isolated V4 slot"):get_tree().quit(1);return
+  var start=Time.get_ticks_msec()
+  var calls=Live.paired_history_calls
+  if paired: app._create_paired_draft(1001)
+  else:
+   app.select_league("standard")
+   app.create_fresh(1001)
+  if not checkpoint(app,paired,Live.paired_history_calls-calls,start,"birth",2 if paired else 0):get_tree().quit(1);return
+  for pick: int in range(1,5):
+   var player:String=app.season.offers()[0]
+   start=Time.get_ticks_msec()
+   calls=Live.paired_history_calls
+   app.draft(player)
+   if not checkpoint(app,paired,Live.paired_history_calls-calls,start,"pick%d"%pick,1 if paired else 0):get_tree().quit(1);return
+   check(app.season.picks.size()==pick and app.season.picks[-1]==player and app.season.phase==(SeasonState.Phase.DRAFT if pick<4 else SeasonState.Phase.REGULAR),"real draft phase/pick %d"%pick)
+ elif args[0]=="cold":
+  var bytes=Store.raw()
+  var calls=Live.paired_history_calls
+  var start=Time.get_ticks_msec()
+  app.reload_save()
+  if not checkpoint(app,paired,Live.paired_history_calls-calls,start,"cold",1 if paired else 0):get_tree().quit(1);return
+  check(Store.raw()==bytes,"cold reload leaves exact V4 bytes unchanged")
+ else:get_tree().quit(2);return
+ check(app.season.picks.size()==4 and app.season.phase==SeasonState.Phase.REGULAR and app.season.round_index==0 and app.season.results.is_empty() and app.season.physical.pending.is_empty() and app.season.opponents.clubs.size()==5,"genuine fourth-pick landing, no play or pending")
+ if paired:
+  check(ClubCareer.same(app.season.league_rules,LeagueRules.capture("doubleheader")) and ClubCareer.same(app.season.schedule,SeasonDoubleheaderRules.schedule()),"exact Base paired descriptor and authored order")
+  var bytes=Store.raw()
+  var fixture:Dictionary=app.season.pending_fixture()
+  check(not fixture.is_empty() and app.season.make_match()==null and Physical.match_for(app.season,fixture)==null and not app.season.shop_available(),"both match factories and shop closed")
+  var moved=app.season.fork_live()
+  var command=SeasonOpponentPolicy.command(moved.build,"pregame",{"game":int(fixture.id)})
+  var later:SeasonBuild=moved.build.candidate(command)
+  if check(later!=null and later._events.size()==1,"authentic non-draft journal produced only on detached probe"):
+   moved.build=later
+   check(not Live.scope(moved) and Live.capture(moved).is_empty(),"draft-only codec rejects genuine non-draft journal")
+  var owner=app.career_owner
+  check(not owner.playable() and not owner.close_current("abandon") and not owner.close_current("complete") and not owner.create_missing(1002,"dynasty") and not owner.switch_existing() and not owner.propose_next(1002),"owner refuses abandon, close, alternate and next season")
+  app.play_next()
+  app.open_shop()
+  app.close_current("abandon")
+  app.request_lifecycle("abandon")
+  labels.clear();buttons(app.menu,labels)
+  check(not is_instance_valid(app.lab) and not labels.any(func(row):return row.contains("PLAY") or row.contains("SHOP") or row.contains("ABANDON") or row.contains("DYNASTY")),"post-pick screen has no progression actions")
+  check(Store.raw()==bytes and Store.match_owner(owner,bytes),"blocked actions leave durable owner unchanged")
+ else:
+  check(app.season.league_rules.is_empty() and Live.paired_history_calls==0,"ordinary admitted App invokes zero paired checks")
+ app.free()
+ if failures==0:print("HIDDEN_DRAFT_PASS")
+ get_tree().quit(0 if failures==0 else 1)

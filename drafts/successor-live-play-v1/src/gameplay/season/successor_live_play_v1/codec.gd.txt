@@ -113,6 +113,12 @@ const ScheduleSelector = preload("res://src/gameplay/season/successor_doublehead
 const Admissions = preload("ordinary_admission.gd")
 const NEW_LEAGUES = Admissions.NEW_LEAGUES
 
+static func _named_profile(rules: Dictionary) -> bool:
+	return rules.get("league","") in NEW_LEAGUES or rules.get("league","")=="doubleheader"
+
+static func _draft_journal_only(build: SeasonBuild) -> bool:
+	return build!=null and build.get_script()==GameBuild and build._bank!=null and build._events.is_empty() and build._bank._events.is_empty()
+
 static func scope(season: SeasonState) -> bool:
 	if season == null or season.get_script() != Runtime or season.build == null or season.build.get_script() != GameBuild \
 		or season.career == null or season.career.get_script() != Career or not season.league_career \
@@ -121,6 +127,12 @@ static func scope(season: SeasonState) -> bool:
 	if not whole(season.season_seed,0,2147483647) or season.career.current != 1 or season.career.runs.size() != 1: return false
 	var expected: Dictionary = Admissions.expected(season.league_rules,season.season_seed)
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
+	if Admissions.paired_draft_only(season):
+		if season.career.start_basis.get("kind")==CommonStart.KIND or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() or not season.physical.pending.is_empty() or not season.physical.reports.is_empty(): return false
+		if not (season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4) and not (season.phase==SeasonState.Phase.REGULAR and season.picks.size()==4): return false
+		if not season.ownership._events.is_empty() or not _draft_journal_only(season.build): return false
+		for club: Variant in season.opponents.clubs.values():
+			if not club is Dictionary or not club.get("build") is SeasonBuild or not _draft_journal_only(club.build): return false
 	if season.career.start_basis.get("kind")==CommonStart.KIND:
 		if not CommonStart.valid(season.career.start_basis) or season.career.start_basis.seed!=season.season_seed: return false
 	else:
@@ -314,7 +326,7 @@ static func _payload(season: SeasonState) -> Dictionary:
 		if club.build.is_empty(): return {}
 		clubs[id] = club
 	var earned: bool=season.career.start_basis.get("kind")==CommonStart.KIND
-	var named: bool=season.league_rules.get("league","") in NEW_LEAGUES
+	var named: bool=_named_profile(season.league_rules)
 	var data: Dictionary = {"version":1 if earned or named else Catalog.VERSION,"format":CommonStart.FORMAT if earned else (NAMED_LEAGUE_FORMAT if named else Catalog.FORMAT),"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
 		"state":data_fields(season,FIELDS),"ownership":bank,"build":build,"career":data_fields(season.career,CAREER_FIELDS),
 		"opponents":{"draft_order":season.opponents.draft_order.duplicate(),"draft_rule":season.opponents.draft_rule,"format":season.opponents._format,"clubs":clubs},
@@ -342,7 +354,7 @@ static func restore_common(value: Variant) -> SeasonState:
 		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
 	var result: SeasonState = Runtime.new()
 	if not install_fields(result,FIELDS,value.state): return null
-	if not earned and named!=(result.league_rules.get("league","") in NEW_LEAGUES): return null
+	if not earned and named!=_named_profile(result.league_rules): return null
 	result.build = Builds.restore(value.build)
 	result.ownership = Builds.restore_bank(value.ownership)
 	result.career = Career.new()

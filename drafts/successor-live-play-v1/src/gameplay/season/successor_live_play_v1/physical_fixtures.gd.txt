@@ -54,6 +54,7 @@ static func seed_for(season: SeasonState, fixture: Dictionary) -> int:
 
 
 static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
+	if season!=null and season.league_rules.get("league","")=="doubleheader": return null
 	if not load("res://src/gameplay/season/successor_live_play_v1/codec.gd").scope(season):
 		return null
 	if season != null and not season._league_home_context.is_empty():

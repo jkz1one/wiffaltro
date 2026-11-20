@@ -1,9 +1,14 @@
 extends RefCounted
 ## Explicit shared-owner engineering admission, not a public entitlement rule.
 const LEAGUES: Array[String] = ["standard","dugout","sponsorship","earnings","academy","scramble","equipment"]
+const BACKEND_LEAGUES: Array[String] = ["standard","dugout","sponsorship","earnings","academy","scramble","equipment","doubleheader"]
 const NEW_LEAGUES: Array[String] = ["sponsorship","earnings","academy","scramble","equipment"]
 
 static func expected(rules: Dictionary, seed_value: int=-1) -> Dictionary:
 	var league: Variant=rules.get("league","")
 	if league=="scramble": return LeagueRules.capture("scramble",0,seed_value)
-	return LeagueRules.capture(league) if league is String and league in LEAGUES and league!="standard" else {}
+	return LeagueRules.capture(league) if league is String and league in BACKEND_LEAGUES and league!="standard" else {}
+
+# Draft capability only, independent of menu and ordinary lifecycle admission.
+static func paired_draft_only(season: SeasonState) -> bool:
+	return season!=null and season.league_rules.get("league","")=="doubleheader"

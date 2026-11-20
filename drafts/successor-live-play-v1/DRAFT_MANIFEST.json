@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 26022,
-      "sha256": "1c31ecabafcda083c57805c41ef07127d4a2b0b0a0f0a1657a4a1442b766b8f9"
+      "bytes": 27077,
+      "sha256": "510343dbe9bbff8a900d8bcf83951801724395568897a5e730ccc4561888ca1c"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
@@ -48,8 +48,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/physical_fixtures.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/physical_fixtures.gd",
-      "bytes": 20252,
-      "sha256": "c23afc7b6ab874245cb007007b878b4d868cd85ff12724c824c934a705ebe83f"
+      "bytes": 20339,
+      "sha256": "3e4ddf4fffe90d6d087a2ac41f552e2244ebed6d5665732eca74c9bab61e446c"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/playoffs.gd.txt",
@@ -72,8 +72,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
-      "bytes": 7066,
-      "sha256": "c9e83828162aeb619d7741c8347c3e494821b92a17b4c22a2275a492b3847384"
+      "bytes": 7627,
+      "sha256": "39fd71f2e9844d44f52055aed301bab380ef256cb799ae60b4ac833bd505f0a3"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/store.gd.txt",
@@ -218,8 +218,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/ordinary_admission.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/ordinary_admission.gd",
-      "bytes": 609,
-      "sha256": "f2364a72497e0801948cafa61a478113eb9d8c9fbae0b326cfa0be6f0e3a8fa3"
+      "bytes": 969,
+      "sha256": "46c60d938c8b9f5eb507e853d442df986493a3c133c59f1a768b4d73914aeb64"
     }
   ]
 }

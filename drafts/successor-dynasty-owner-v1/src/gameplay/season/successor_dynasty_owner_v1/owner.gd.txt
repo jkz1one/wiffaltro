@@ -42,12 +42,20 @@ static func create_ordinary(seed_value: int, league: String):
 	var result=_new(); result.active="ordinary"
 	result.session=Adapter.OrdinaryRuntime.create_fresh(seed_value,league)
 	return result if result.session!=null and Common.initialize(result) else null
+static func _create_paired_draft(seed_value: int):
+	var result=_new(); result.active="ordinary"
+	result.session=Adapter.OrdinaryRuntime._create_paired_draft(seed_value)
+	return result if result.session!=null and Common.initialize(result) else null
+func paired_draft_only() -> bool:
+	return active=="ordinary" and session!=null and session.league_rules.get("league","")=="doubleheader"
 func fork():
 	var result=_new()
 	result.session=session.fork_live() if session!=null else null
 	if not Codec.install_fields(result,DATA_FIELDS,Codec.data_fields(self,DATA_FIELDS)): return null
 	return result if result.session!=null else null
-func playable() -> bool: return (active=="ordinary" and ordinary_state.get("status")=="active") or (active=="dynasty" and status=="active")
+func playable() -> bool:
+	if paired_draft_only(): return ordinary_state.get("status")=="active" and session.phase==SeasonState.Phase.DRAFT
+	return (active=="ordinary" and ordinary_state.get("status")=="active") or (active=="dynasty" and status=="active")
 func lifecycle_status() -> String: return str(ordinary_state.get("status","absent")) if active=="ordinary" else status
 func current_ordinal() -> int: return int(ordinary_state.get("ordinal",0)) if active=="ordinary" else ordinal
 func lifecycle_reason() -> String: return str(ordinary_state.get("last_close",{}).get("reason","")) if active=="ordinary" else str(last_close.get("reason",""))
@@ -111,14 +119,14 @@ func import_119(bytes: PackedByteArray) -> bool:
 	paused=checked.captured; imported_sha256=_hash(bytes)
 	return not imported_sha256.is_empty() and Common.initialize_ordinary(self,checked.season)
 func switch_existing() -> bool:
-	if paused.is_empty(): return false
+	if paired_draft_only() or paused.is_empty(): return false
 	var outgoing: Dictionary=Adapter.capture(active,session)
 	var next: Dictionary=Adapter.checked_restore(Adapter.other(active),paused)
 	if outgoing.is_empty() or next.is_empty(): return false
 	session=next.season;paused=outgoing;active=Adapter.other(active)
 	return true
 func create_missing(seed_value: int, league: String) -> bool:
-	if not paused.is_empty(): return false
+	if paired_draft_only() or not paused.is_empty(): return false
 	var outgoing: Dictionary=Adapter.capture(active,session)
 	if outgoing.is_empty(): return false
 	if active=="dynasty":
