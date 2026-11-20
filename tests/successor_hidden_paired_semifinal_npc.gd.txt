@@ -148,4 +148,4 @@ func complete_pending(s:SeasonState) -> bool:
 func no_later_activity(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  app._run_paired_npc(31)
  still_closed(app,bytes,backup)
- check(Binding.next_npc_fixture(app.season).is_empty() and exact(bytes,backup),"both pending now, cannot replay either or start #32")
+ check(Binding.npc_job(app.season,31).is_empty() and exact(bytes,backup),"both pending now, cannot replay either semifinal")

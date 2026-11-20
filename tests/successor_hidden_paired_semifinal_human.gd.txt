@@ -162,9 +162,9 @@ func still_closed(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
  var original:SeasonState=app.season
  var owner=app.career_owner
  app._play_paired_human(10)
- app._run_paired_npc(32)
+ app._run_paired_npc(33)
  app._open_paired_late_shop(10)
  app._settle_paired_late_regular()
  verify_closed(app,bytes,backup)
- check(not Binding.settlement_enabled(10) and Binding.npc_job(original,32).is_empty() and Store._prepare_paired_settlement(owner,bytes,10)==null and Store.prepare_and_write(owner,owner.fork(),bytes)==null,"NPC, settlement and generic authority remain closed")
+ check(not Binding.settlement_enabled(10) and Binding.npc_job(original,33).is_empty() and Store._prepare_paired_settlement(owner,bytes,10)==null and Store.prepare_and_write(owner,owner.fork(),bytes)==null,"NPC, settlement and generic authority remain closed")
  check(app.season==original and app.career_owner==owner and app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"unpaid owner remains intact")

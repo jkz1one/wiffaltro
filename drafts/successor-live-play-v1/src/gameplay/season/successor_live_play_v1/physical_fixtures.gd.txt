@@ -125,7 +125,7 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 		var authored_field: FieldDefinition=SeasonState.field_for_fixture(authored,season)
 		if start==null or authored_field==null: return ""
 		var composer=preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
-		return composer._for_materialized_wallet(season,authored,start,authored_field) if authored.round==10 else composer.for_live_regular(season,authored,start,authored_field)
+		return composer._for_materialized_wallet(season,authored,start,authored_field) if authored.round in [10,11] else composer.for_live_regular(season,authored,start,authored_field)
 	var field: FieldDefinition = SeasonState.field_for_fixture(fixture, season)
 	if field == null:
 		return ""

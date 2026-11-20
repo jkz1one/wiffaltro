@@ -1,0 +1,152 @@
+extends "res://tests/successor_hidden_paired_semifinal_npc.gd"
+
+# The genuine runner completes normally. This test alone stages the native
+# report before synchronous admission, so a restart cannot replay #32.
+class Capture32App extends "res://src/presentation/season/successor_dynasty_owner_v1/app.gd":
+ var emitted_at:int=0
+ var preserved:bool=false
+ func _checkpoint_report() -> void:
+  pass
+
+ func _ai_finished(report:Dictionary, runner:Node=null) -> void:
+  emitted_at=Time.get_ticks_msec()
+  print("CP127_STAGE capture")
+  if is_instance_valid(runner) and runner==ai_runner and _busy and _npc_owner_matches() and _paired_npc_binding.get("fixture")==32 and not report.is_empty():
+   var file:=FileAccess.open("user://fixture32-npc-report.local",FileAccess.WRITE)
+   if file!=null:
+    file.store_var({"row":{"fixture":32,"request":_paired_npc_binding.request,"report":report},
+      "primary":Game10ObservedApp.digest(_npc_expected),"backup":Game10ObservedApp.digest(FileAccess.get_file_as_bytes(Store.PATH+".bak"))},false)
+    file.flush()
+    file.close()
+    preserved=true
+  super._ai_finished(report,runner)
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var mode:String=args[0]
+ var app=Capture32App.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ var resolutions:int=Live.Physical.resolve_calls
+ print("CP127_STAGE cold")
+ var started:int=Time.get_ticks_msec()
+ app.reload_save()
+ print("NPC32_COLD_MS=",Time.get_ticks_msec()-started)
+ if mode.begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"tampered "+mode+" rejected without writes")
+ elif check(app.season!=null and app._owned() and exact(bytes,backup) and history(gates,replays,10),"exact owned cacheless ten-round prefix"):
+  if mode=="complete":
+   check(all_playoff_pending(app.season) and Live.Physical.resolve_calls-resolutions==3,"authentic final report bound, no persisted playoff payouts or champion")
+   no_terminal_activity(app,bytes,backup)
+  elif check(complete_pending(app.season) and Live.Physical.resolve_calls-resolutions==2,"exact two unpaid semifinal outcomes, original final not yet invoked"):
+   match mode:
+    "capture":await capture_32(app,bytes,backup)
+    "admit":admit_32(app,bytes,backup)
+    _:check(false,"unexpected test mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func capture_32(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var current:SeasonState=app.season
+ var expected:Dictionary={"id":32,"round":11,"away":3,"home":4,"neutral":true}
+ if not check(Live.whole(Binding.next_npc_fixture(current).get("id"),32,32) and Physical.seed_for(current,expected)==3352329 and SeasonState.field_for_fixture(expected,current).id==SeasonState.AWAY_FIELD_ID and current.physical.pending.human[1]>current.physical.pending.human[2],"native eliminated-owner final cursor, neutral commons park and seed"):return
+ verify_closed(app,bytes,backup)
+ app._run_paired_npc(31)
+ app._run_paired_npc(33)
+ if not check(not is_instance_valid(app.ai_runner) and exact(bytes,backup),"reject stale semi and foreign fixture before final"):return
+ var replays:int=PairHistory.Collector.replay_calls
+ var resolutions:int=Live.Physical.resolve_calls
+ print("CP127_STAGE launch")
+ var started:int=Time.get_ticks_msec()
+ app._run_paired_npc(32)
+ print("NPC32_LAUNCH_MS=",Time.get_ticks_msec()-started)
+ if not check(is_instance_valid(app.ai_runner) and app._npc_owner_matches() and app._paired_npc_binding.fixture==32 and PairHistory.Collector.replay_calls-replays==6 and Live.Physical.resolve_calls-resolutions==2,"actual native runner after authentic #31 and only an empty #32 request"):return
+ var state:MatchState=app.ai_runner._lab._match_state
+ var initial:Array=[{},{}]
+ for side:int in range(2):
+  var team:TeamMatchState=state.away_team if side==0 else state.home_team
+  if not check(Live.same(team.league_pair,{"game":32,"first":-1,"debt":{}}),"native unpaired postseason workload"):return
+  var club:String="3" if side==0 else "4"
+  if not check(Live.same(team.roster.map(func(player):return String(player.definition.id)),current.opponents.clubs[club].build.roster()),"ordered roster from authentic paid club"):return
+  for player:PlayerMatchState in team.roster:
+   if not check(PhysicalRecoveryFlow.near(player.stamina_remaining,player.stamina_max),"full unpaired stamina"):return
+   initial[side][String(player.definition.id)]=player.stamina_remaining
+ var request:String=app._paired_npc_binding.request
+ print("CP127_STAGE physics")
+ started=Time.get_ticks_msec()
+ var beat:int=0
+ for frame:int in range(200000):
+  await get_tree().physics_frame
+  if app.emitted_at>0 or not is_instance_valid(app.ai_runner):break
+  var runner=app.ai_runner
+  var now:int=Time.get_ticks_msec()
+  if now>=beat:
+   beat=now+5000
+   print("NPC32_HEARTBEAT frame=",frame," phase=",state.phase," pa=",state.plate_appearance_number," throw=",runner._lab._throw_number," elapsed=",runner._elapsed," stalled=",runner._stalled)
+ print("NPC32_PHYSICS_MS=",app.emitted_at-started)
+ if not check(app.preserved and not app.retained_report.is_empty() and final_no_debt(app.retained_report,initial),"genuine terminal report from native engine with exact opening workloads"):return
+ print("NPC32_SCORE=",app.retained_report.physical.away_runs,":",app.retained_report.physical.home_runs," NATIVE_SHA=",FileAccess.get_sha256("user://fixture32-npc-report.local"))
+ check(app.season==current and app.career_owner==owner and app.retained==null and exact(bytes,backup),"native capture-only phase leaves owned save unchanged")
+
+func final_no_debt(report:Dictionary,initial:Array=[]) -> bool:
+ for side:int in range(2):
+  if not Live.same(report.pair[side],{"game":32,"first":-1,"debt":{}}):return false
+  for id:String in report.workload[side].initial:
+   var row:Dictionary=report.workload[side].initial[id]
+   if not PhysicalRecoveryFlow.near(row.initial,row.capacity):return false
+   if not initial.is_empty() and not PhysicalRecoveryFlow.near(row.initial,initial[side][id]):return false
+ return true
+
+func admit_32(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var current:SeasonState=app.season
+ var owner=app.career_owner
+ var path:String="user://fixture32-npc-report.local"
+ var digest:String=OS.get_environment("WIFFALTRO_FIXTURE32_CAPTURE")
+ if not check(digest.length()==64 and digest==FileAccess.get_sha256(path),"exact retained native report digest"):return
+ var file:=FileAccess.open(path,FileAccess.READ)
+ var raw:Variant=file.get_var(false) if file!=null else null
+ if not check(raw is Dictionary and raw.get("primary")==Game10ObservedApp.digest(bytes) and raw.get("backup")==Game10ObservedApp.digest(backup) and raw.row.fixture==32 and final_no_debt(raw.row.report),"exact native start key and immutable paired owner input"):return
+ var row:Dictionary=raw.row
+ var pin:Dictionary=Store.RawGuard.capture(owner)
+ var wrong:Dictionary=row.duplicate(true)
+ wrong.fixture=31
+ check(Store._prepare_paired_report(owner.fork(),bytes,row,10)==null and Store._prepare_paired_report(owner,backup,row,10)==null and Store._prepare_paired_report(owner,bytes,wrong,10)==null and Store.RawGuard.matches(owner,pin) and exact(bytes,backup),"wrong/foreign/stale final requires no write")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"hold isolated write"):return
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ var resolutions:int=Live.Physical.resolve_calls
+ print("CP127_STAGE admission")
+ var started:int=Time.get_ticks_msec()
+ var ticket:RefCounted=Store._prepare_paired_report(owner,bytes,row,10)
+ if ticket!=null:app._retain_prepared(ticket,Store.prepared_candidate(ticket),bytes)
+ print("NPC32_ADMISSION_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained!=null and history(gates,replays,10) and Live.Physical.resolve_calls-resolutions==3 and all_playoff_pending(app.retained) and Live.same(app.retained.physical.pending.reports,current.physical.pending.reports+[row]) and Live.same(app.retained.physical.pending.human,current.physical.pending.human),"original final resolver authenticates only after native semifinal settlement, no final result or payouts on owner"):return
+ var retained:SeasonState=app.retained
+ check(Store._prepare_paired_report(owner,bytes,row,10)==null and app.retained==retained and app.season==current and Store.RawGuard.matches(owner,pin) and exact(bytes,backup),"duplicate while held leaves owner/bytes unchanged")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only test obstruction"):return
+ gates=Live.paired_history_calls;replays=PairHistory.Collector.replay_calls
+ print("CP127_STAGE retry")
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("NPC32_RETRY_MS=",Time.get_ticks_msec()-started)
+ var saved:PackedByteArray=Store.raw()
+ if not check(app.retained==null and app.season==retained and Live.paired_history_calls==gates and PairHistory.Collector.replay_calls==replays and Store.RawGuard.matches(owner,pin) and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact held retry writes once, no revalidation or payout"):return
+ check(Store._prepare_paired_report(app.career_owner,saved,row,10)==null,"duplicate after durable completion refused")
+ no_terminal_activity(app,saved,bytes)
+
+func all_playoff_pending(s:SeasonState) -> bool:
+ var p:Dictionary=s.physical.pending
+ return s.phase==SeasonState.Phase.SEMIFINAL and s.round_index==10 and s.results.size()==30 and s.player_results.size()==10 and s.physical.reports.size()==20 and s.physical.cursor==20 and p.human[0]==30 and p.human[1]>p.human[2] and p.reports.size()==2 and p.reports[0].fixture==31 and p.reports[1].fixture==32 and final_no_debt(p.reports[1].report) and not s.build._bank.view().rewards.has("30") and s.build.cash()==146 and s.final_fixture.is_empty() and s.champion==-1
+
+func no_terminal_activity(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ app._run_paired_npc(31)
+ app._run_paired_npc(32)
+ still_closed(app,bytes,backup)
+ check(Binding.next_npc_fixture(app.season).is_empty() and exact(bytes,backup),"all playoff reports pending, no replay, payout or terminal authority")

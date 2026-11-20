@@ -243,7 +243,13 @@ static func _semifinal_checkpoint_shape(season: SeasonState) -> bool:
 	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=20: return false
 	if not physical.pending.is_empty():
 		if not projection.bound_shape(physical.pending) or not whole(physical.pending.human[0],30,30): return false
-	if not same(physical.reports.map(func(row):return row.get("fixture")),final.prior_npcs+final.npc.map(func(row):return row.id)): return false
+	var expected_reports: Array=final.prior_npcs+final.npc.map(func(row):return row.id)
+	# Frozen Pending queues its report before checking the exact detached
+	# pre-semifinal context. No materialized owner can carry this queue.
+	if detached and physical.reports.size()==21:
+		if not projection._bound_report(physical.reports[-1],31): return false
+		expected_reports.append(31)
+	if not same(physical.reports.map(func(row):return row.get("fixture")),expected_reports): return false
 	if season.playoff_seeds.size()!=4 or not season.playoff_seeds.has(0) or season.semifinals.size()!=2 or not season.final_fixture.is_empty() or season.champion!=-1: return false
 	var build: SeasonBuild=season.build
 	return _paid_pair_journal(build,10) and whole(build._visit.get("number"),10,10) and build._visit.get("open")==false and not build._visit.has("recruit")
