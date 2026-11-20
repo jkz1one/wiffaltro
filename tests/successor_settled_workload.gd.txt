@@ -1,0 +1,68 @@
+extends "res://tests/successor_pair_history_context.gd"
+const Validator=preload("res://src/gameplay/season/successor_settled_workload_v1/validator.gd")
+const Collector=preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+const Pair=preload("res://src/gameplay/season/successor_league_general_v2/doubleheader.gd")
+func run() -> void:
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1":get_tree().quit(2);return
+ var roots=Codec._operation_content_roots()
+ var path="user://successor-general-build-v7-r2.json"
+ var bytes=FileAccess.get_file_as_bytes(path)
+ var season=Codec.restore(JSON.parse_string(bytes.get_string_from_utf8()))
+ if not check(season!=null,"retained pair exact General identity restores"):get_tree().quit(1);return
+ var original=Codec.capture(season)
+ var rows=season.results.duplicate(true)
+ check(rows.size()==6 and season.player_results.size()==2,"authentic six settled fixtures, both human legs")
+ var n=Collector.replay_calls
+ if not check(Validator.validate_settled(season),"all authentic settled workloads and both paid receipts accepted"):get_tree().quit(1);return
+ print("SETTLED_COLLECT_MS=",Validator.collection_ms," WORKLOAD_MS=",Validator.workload_ms," REPLAYS=",Collector.replay_calls-n)
+ check(Collector.replay_calls-n==6 and Validator.checked_sides==12,"six club replays and all twelve exact sides")
+ for row: Dictionary in rows:
+  for club: int in [int(row.away),int(row.home)]:
+   var expected=Pair._historical_team(season,club,int(row.id))
+   var side:int=0 if row.away==club else 1
+   check(not expected.is_empty() and Pair._matches_result(row,club,expected) and ClubCareer.same(expected.team.league_pair,row.doubleheader_evidence[side].pair),"frozen independent result and projected debt parity %d/%d"%[int(row.id),club])
+ season.results.remove_at(0)
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"missing exact first leg rejects")
+ season.results.assign(rows.duplicate(true))
+ season.results.append(rows[0].duplicate(true))
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"duplicate fixture rejects")
+ season.results.assign(rows.duplicate(true))
+ var last:Dictionary=season.results.filter(func(row):return row.id==5)[0]
+ last.doubleheader_evidence[0].pair.first=0
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"altered terminal return pair rejects")
+ season.results.assign(rows.duplicate(true))
+ last=season.results.filter(func(row):return row.id==5)[0]
+ var recovery:Dictionary=last.ai_tactics[str(int(last.away))].recovery.remaining
+ recovery[recovery.keys()[0]]+=2
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"altered terminal return recovery rejects with original paid workload")
+ season.results.assign(rows.duplicate(true))
+ var human:Dictionary=season.results.filter(func(row):return row.id==3)[0]
+ human.pitching.releases.append({})
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"altered human return pitching rejects")
+ season.results.assign(rows.duplicate(true))
+ var source:SeasonBuild=season.opponents.clubs["4"].build
+ var altered=source._fork()
+ var paid:Dictionary=altered._bank._events.filter(func(row):return row.get("op")=="reward")[0]
+ paid.win=not paid.win
+ altered._bank._requests[paid.id]=JSON.stringify(paid,"",true,true)
+ season.opponents.clubs["4"].build=altered
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"wrong paid bank receipt rejects")
+ altered=source._fork()
+ var wrapped:Dictionary=altered._events.filter(func(row):return row.get("op")=="successor_reward")[0].duplicate(true)
+ wrapped.id="duplicate-reward-probe"
+ wrapped.rev=altered.revision()
+ wrapped.command.id=wrapped.id
+ wrapped.command.rev=wrapped.rev
+ altered._events.append(wrapped)
+ altered._requests[wrapped.id]=JSON.stringify(wrapped,"",true,true)
+ season.opponents.clubs["4"].build=altered
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"duplicate wrapped reward rejects")
+ altered=source._fork()
+ altered._bank._state.cash+=1
+ season.opponents.clubs["4"].build=altered
+ check(not Validator.validate_settled(season) and Validator.checked_sides==0,"materially altered snapshot rejects")
+ season.opponents.clubs["4"].build=source
+ check(ClubCareer.same(original,Codec.capture(season)) and FileAccess.get_file_as_bytes(path)==bytes,"original season and evidence stay unchanged")
+ roots.clear()
+ if failures==0:print("SETTLED_WORKLOAD_PASS")
+ get_tree().quit(0 if failures==0 else 1)

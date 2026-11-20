@@ -1,0 +1,13 @@
+{
+  "format": "inactive-settled-workload-v1",
+  "source_checkpoint": "4f8c5739e7aa99ccbb55b0eabe7e3219bdcd104f",
+  "scope": "Settled workload and paid receipt checks only. No codec, report/request, pending, admission or Dynasty integration.",
+  "files": [
+    {
+      "backup_path": "drafts/successor-settled-workload-v1/validator.gd.txt",
+      "restore_path": "src/gameplay/season/successor_settled_workload_v1/validator.gd",
+      "bytes": 6658,
+      "sha256": "db23119dfaa81b501ef3a267ae878f74542c8345e4f6508c1e40acde0e85909f"
+    }
+  ]
+}

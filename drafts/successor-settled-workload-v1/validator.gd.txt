@@ -1,0 +1,113 @@
+extends RefCounted
+## Inactive settled workload/payment validation. Not Report, pending, or save admission.
+const Collector = preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+const D = "res://src/gameplay/season/successor_league_general_v2/"
+const Pair = preload(D + "doubleheader.gd")
+const BuildRules = preload(D + "doubleheader_build.gd")
+const Reward = preload(D + "reward.gd")
+# Diagnostics only; never influence validation.
+static var collection_ms: int = 0
+static var workload_ms: int = 0
+static var checked_sides: int = 0
+
+static func validate_settled(season: SeasonState) -> bool:
+	collection_ms=0; workload_ms=0; checked_sides=0
+	if season==null or not LeagueRules.doubleheader(season.league_rules) or season.results.is_empty() or season.results.size()>33: return false
+	if season.opponents==null or season.teams.size()!=6 or not ClubCareer.same(season.schedule,SeasonDoubleheaderRules.schedule()): return false
+	var fixtures: Dictionary={}
+	var fixture_rows: Array=season.schedule.duplicate()
+	fixture_rows.append_array(season.semifinals)
+	if not season.final_fixture.is_empty(): fixture_rows.append(season.final_fixture)
+	for fixture: Dictionary in fixture_rows:
+		if not SeasonOwnership._whole(fixture.get("id"),0,32) or fixtures.has(int(fixture.id)): return false
+		fixtures[int(fixture.id)]=fixture
+	var rows: Dictionary={}
+	var targets: Dictionary={}
+	var builds: Dictionary={}
+	for result: Dictionary in season.results:
+		if not _shape(result): return false
+		var game: int=int(result.id)
+		if rows.has(game) or not fixtures.has(game): return false
+		for field: Variant in fixtures[game]:
+			if not result.has(field) or not ClubCareer.same(result[field],fixtures[game][field]): return false
+		rows[game]=result
+		for club: String in [str(int(result.away)),str(int(result.home))]:
+			if not targets.has(club):
+				targets[club]=[]
+				var holder: Variant=season.opponents.clubs.get(club,{})
+				if not holder is Dictionary: return false
+				var full: Variant=season.build if club=="0" else holder.get("build")
+				if not full is SeasonBuild or not ClubCareer.same(full._league_rules,season.league_rules): return false
+				builds[club]=full
+			targets[club].append(game)
+	var ordered: Array=rows.keys()
+	ordered.sort()
+	var checked: Dictionary={}
+	for game: int in ordered:
+		var first: int=SeasonDoubleheaderRules.first(game)
+		if first>=0 and (not rows.has(first) or rows[first].away!=rows[game].home or rows[first].home!=rows[game].away): return false
+	var started: int=Time.get_ticks_msec()
+	var snapshots: Dictionary=Collector.collect(builds,targets)
+	collection_ms=Time.get_ticks_msec()-started
+	if snapshots.is_empty(): return false
+	started=Time.get_ticks_msec()
+	for game: int in ordered:
+		var row: Dictionary=rows[game]
+		var first: int=SeasonDoubleheaderRules.first(game)
+		if first>=0 and not checked.has(first): return false
+		for club: int in [int(row.away),int(row.home)]:
+			var prefix: SeasonBuild=snapshots[str(club)][str(game)].get("reward")
+			if prefix==null or not _side(season,row,club,builds[str(club)],prefix): return false
+		checked[game]=true
+	workload_ms=Time.get_ticks_msec()-started
+	checked_sides=2*checked.size()
+	return true
+
+static func _shape(row: Dictionary) -> bool:
+	for field: String in ["id","away","home","away_runs","home_runs"]:
+		if not SeasonOwnership._whole(row.get(field),0,32 if field=="id" else 5 if field in ["away","home"] else 9999): return false
+	if row.away==row.home or row.away_runs==row.home_runs or not row.get("doubleheader_evidence") is Array or row.doubleheader_evidence.size()!=2: return false
+	if not row.get("performance",{}) is Dictionary or not row.get("ai_tactics") is Dictionary: return false
+	for club: int in [int(row.away),int(row.home)]:
+		if club==0:
+			if not row.get("pitching") is Dictionary or not row.get("tactics") is Array: return false
+		else:
+			var ai: Variant=row.ai_tactics.get(str(club))
+			if not ai is Dictionary or not ai.get("pitching") is Array or not ai.get("consumed") is Array or not ai.get("recovery") is Dictionary: return false
+			if not ai.recovery.get("strikeouts") is Array or not ai.recovery.get("initial") is Dictionary or not ai.recovery.get("remaining") is Dictionary: return false
+	return true
+
+static func _side(season: SeasonState, row: Dictionary, club: int, full: SeasonBuild, prefix: SeasonBuild) -> bool:
+	var game: int=int(row.id)
+	var side: int=0 if row.away==club else 1
+	var win: bool=(row.away_runs>row.home_runs)==(side==0)
+	var rev: int=prefix.revision()
+	var bank_rev: int=prefix._bank.revision()
+	if rev>=full._events.size() or bank_rev>=full._bank._events.size(): return false
+	var command: Dictionary=Reward.unwrap(full._events[rev])
+	if command.is_empty() or command.get("id")!=("game:%d"%game if club==0 else "ai:%d"%rev) or command.get("rev")!=rev or command.get("game")!=game or not command.get("win") is bool or command.win!=win: return false
+	if not ClubCareer.same(command.get("doubleheader_workload"),row.doubleheader_evidence[side]) or not ClubCareer.same(command.get("performance"),row.get("performance",{})): return false
+	var pitching: Dictionary=Pair._pitching(row,club)
+	if club!=0: pitching["calls"]=[]
+	if not ClubCareer.same(command.get("pitching"),pitching) or not ClubCareer.same(command.get("tactics"),Pair._uses(row,club)): return false
+	if club==0 and not ClubCareer.same(command.get("pitching_current",{}),row.get("pitching_current",{})): return false
+	var paid: Dictionary={"id":"game:%d"%game,"rev":bank_rev,"op":"reward","game":game,"win":win}
+	if not ClubCareer.same(full._bank._events[bank_rev],paid) or full._bank.view().rewards.get(str(game))!=win: return false
+	var start: Dictionary=BuildRules.context(prefix,game)
+	var pair: Dictionary=BuildRules.pair_for(prefix,game)
+	if start.is_empty() or pair.is_empty(): return false
+	return Pair._matches_result(row,club,_expected(season,club,start,pair))
+
+static func _expected(season: SeasonState, club: int, start: Dictionary, pair: Dictionary) -> Dictionary:
+	var players: Array[PlayerDefinition] = []
+	for id: String in start.roster:
+		players.append(start.definitions[id])
+	var team: TeamMatchState = TeamMatchState.create(season.teams[club].name, players)
+	team.league_rules = season.league_rules.duplicate(true)
+	team.league_ownership = start.ownership.duplicate(true)
+	team.league_pair = pair.duplicate(true)
+	for player: PlayerMatchState in team.roster:
+		player.stamina_remaining = maxf(
+			0.0, player.stamina_max - float(pair.debt.get(String(player.definition.id), 0.0))
+		)
+	return {"team":team,"refund_through":start.refund_through,"cost_context":start.cost_context,"pitch_catalog":start.pitch_catalog}
