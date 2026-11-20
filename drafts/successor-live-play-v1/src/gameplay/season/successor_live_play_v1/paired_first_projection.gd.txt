@@ -29,12 +29,12 @@ static func _round_fixtures(round_index: int) -> Dictionary:
 
 # Qualified report count is independent of the authored number of NPC games.
 static func report_limit(round_index: int) -> int:
-	return 2 if round_index in REPORT_PHASES else int(LATE_REGULAR.get(round_index,{}).get("reports",0))
+	return 1 if round_index==10 else 2 if round_index in REPORT_PHASES else int(LATE_REGULAR.get(round_index,{}).get("reports",0))
 
 static func bound_shape(value: Variant) -> bool:
 	if not Live.keys(value,["human","reports","binding"]) or not value.human is Array or value.human.size()!=14 or not value.reports is Array or value.reports.size()>2: return false
 	if Live.whole(value.human[0],30,30):
-		return value.reports.is_empty() and _binding_shape(value.binding)
+		return (value.reports.is_empty() or (value.reports.size()==1 and _bound_report(value.reports[0],31))) and _binding_shape(value.binding)
 	var fixtures: Dictionary={}
 	for round_index: int in HUMAN_PHASES+LATE_REGULAR.keys():
 		var authored: Dictionary=_round_fixtures(round_index)
@@ -46,8 +46,11 @@ static func bound_shape(value: Variant) -> bool:
 	for index: int in range(value.reports.size()):
 		var row: Variant=value.reports[index]
 		var id: int=fixtures.npc[index].id
-		if not Live.keys(row,["fixture","request","report"]) or not Live.whole(row.fixture,id,id) or not row.request is String or row.request.length()!=64 or not row.request.is_valid_hex_number(false) or not row.report is Dictionary: return false
+		if not _bound_report(row,id): return false
 	return _binding_shape(value.binding)
+
+static func _bound_report(row: Variant, id: int) -> bool:
+	return Live.keys(row,["fixture","request","report"]) and Live.whole(row.fixture,id,id) and row.request is String and row.request.length()==64 and row.request.is_valid_hex_number(false) and row.report is Dictionary
 
 static func _binding_shape(binding: Variant) -> bool:
 	return Live.keys(binding,["version","request"]) and Live.whole(binding.version,1,1) and binding.request is String and binding.request.length()==64 and binding.request.is_valid_hex_number(false)
@@ -83,6 +86,8 @@ static func verify_bound(source: SeasonState) -> bool:
 # Read only the exact next slot. Job and Store admission independently replay it.
 static func next_npc_fixture(source: SeasonState) -> Dictionary:
 	if not Live.scope(source) or report_limit(source.round_index)==0 or not bound_shape(source.physical.pending): return {}
+	if source.round_index==10:
+		return _semifinal_fixtures(source).get("other",{}) if source.physical.pending.reports.is_empty() else {}
 	var authored: Dictionary=_round_fixtures(source.round_index)
 	var index: int=source.physical.pending.reports.size()
 	if authored.is_empty() or index>=report_limit(source.round_index) or index>=authored.npc.size() or source.physical.pending.human[0]!=authored.human.id: return {}
@@ -110,7 +115,7 @@ static func _inspect_bound(source: SeasonState, produce_settlement: bool = false
 	var opening: Dictionary=start(pristine)
 	if opening.is_empty() or not Live.same(opening.binding,pending.binding) or opening.fixture.id!=pending.human[0]: return {}
 	if source.round_index==10:
-		return {} if preview_job or produce_settlement else _inspect_semifinal(pristine,pending,opening.fixture)
+		return {} if produce_settlement else _inspect_semifinal(pristine,pending,opening.fixture,preview_job)
 	if source.round_index>=2 and human_enabled(source.round_index):
 		return _inspect_followup(pristine,pending,opening.fixture,preview_job,produce_settlement)
 	if source.round_index==1:
@@ -130,7 +135,9 @@ static func npc_queue(season: SeasonState) -> bool:
 # Exact non-persistable type and state after the original human-only projection.
 # The mutable projecting field alone never admits any materialized owner.
 static func projected_npc_fixture(season: SeasonState, fixture: Dictionary) -> Dictionary:
-	if season==null or not Live.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return {}
+	if season==null or not Live.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.picks.size()!=4: return {}
+	if season.round_index==10: return _projected_semifinal_npc(season,fixture)
+	if season.phase!=SeasonState.Phase.REGULAR: return {}
 	var leg: int=season.round_index
 	if not ((leg==0 and season.get_script()==PrivateFirstFork) or (leg==1 and season.get_script()==PrivateReturnFork) or (leg>=2 and report_limit(leg)>0 and season.get_script()==PrivateFollowupFork)): return {}
 	var fixtures: Dictionary=_round_fixtures(leg)
@@ -175,14 +182,22 @@ static func _semifinal_fixtures(season: SeasonState) -> Dictionary:
 	if not Live._results_valid(season) or season.teams.size()!=6: return {}
 	for team: Dictionary in season.teams:
 		if typeof(team.get("draw")) not in [TYPE_FLOAT,TYPE_INT] or not is_finite(float(team.draw)): return {}
-	if not _unplayed_semifinals(season): return {}
+	if not _unplayed_bracket(season): return {}
 	var seeds: Array=season.playoff_seeds
 	var human: Dictionary={"id":30,"round":10,"home":int(seeds[0]),"away":int(seeds[3])}
 	var other: Dictionary={"id":31,"round":10,"home":int(seeds[1]),"away":int(seeds[2])}
 	return {"human":human,"other":other} if (human.home==0 or human.away==0) else {}
 
-static func _inspect_semifinal(source: SeasonState, pending: Dictionary, fixture: Dictionary) -> Dictionary:
-	if fixture.id!=30 or not pending.reports.is_empty() or Live._capture_structural(source).is_empty() or not Live._paid_history_valid(source): return {}
+static func _projected_semifinal_npc(season: SeasonState, fixture: Dictionary) -> Dictionary:
+	if not semifinal_projection(season) or season.phase!=SeasonState.Phase.SEMIFINAL or season.round_index!=10 or season.semifinals.size()!=2 or season.physical.cursor!=20 or season.physical.reports.size() not in [20,21]: return {}
+	if season.results.size()!=31 or season.player_results.size()!=11 or season.results[-1].get("id")!=30 or season.player_results[-1].get("id")!=30 or not season.build._bank.view().rewards.has("30"): return {}
+	var saved: Dictionary=season.semifinals[1]
+	if not Live.whole(saved.get("id"),31,31) or not Live.whole(saved.get("round"),10,10) or not Live.whole(saved.get("away"),1,5) or not Live.whole(saved.get("home"),1,5): return {}
+	var other: Dictionary={"id":31,"round":10,"home":int(saved.home),"away":int(saved.away)}
+	return other if Live.same(saved,other) and Live.same(fixture,other) else {}
+
+static func _inspect_semifinal(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool) -> Dictionary:
+	if fixture.id!=30 or (preview_job and not pending.reports.is_empty()) or Live._capture_structural(source).is_empty() or not Live._paid_history_valid(source): return {}
 	var bracket: Dictionary=_semifinal_fixtures(source)
 	if bracket.is_empty() or not Live.same(bracket.human,fixture): return {}
 	var candidate: SeasonState=_detached(source,PrivateSemifinalFork)
@@ -203,6 +218,15 @@ static func _inspect_semifinal(source: SeasonState, pending: Dictionary, fixture
 	if not Live.same(candidate.build._bank.view().rewards,expected): return {}
 	for club: String in source.opponents.clubs:
 		if not Live.same(candidate.opponents.clubs[club].build._bank.view().rewards,source.opponents.clubs[club].build._bank.view().rewards): return {}
+	if preview_job: return _job(candidate,bracket.other)
+	if not pending.reports.is_empty():
+		# Frozen General stopped at the missing #31 before any semifinal
+		# settlement. Authenticate only that physical report on this fork;
+		# never call the terminal continuation (it could auto-play #32).
+		candidate.physical.reports.append(pending.reports[0].duplicate(true))
+		var other: Dictionary=candidate.physical.resolve(candidate,bracket.other)
+		if other.is_empty() or other.get("id")!=31 or candidate.physical.cursor!=21 or not candidate.physical.needed.is_empty() or not candidate.physical.error.is_empty(): return {}
+		if candidate.phase!=SeasonState.Phase.SEMIFINAL or candidate.results.size()!=31 or not candidate.final_fixture.is_empty() or candidate.champion!=-1: return {}
 	return {"accepted":true} # Neither the projected reward nor bracket escapes.
 
 
@@ -228,7 +252,10 @@ static func _clinched_regular_end(source: SeasonState, fixtures: Dictionary) -> 
 	return possible_rivals<4
 
 static func _unplayed_semifinals(candidate: SeasonState) -> bool:
-	if candidate.phase!=SeasonState.Phase.SEMIFINAL or candidate.results.size()!=30 or candidate.player_results.size()!=10 or candidate.physical.cursor!=20 or not candidate.physical.pending.is_empty() or not candidate.final_fixture.is_empty() or candidate.champion!=-1: return false
+	return candidate.physical.pending.is_empty() and _unplayed_bracket(candidate)
+
+static func _unplayed_bracket(candidate: SeasonState) -> bool:
+	if candidate.phase!=SeasonState.Phase.SEMIFINAL or candidate.results.size()!=30 or candidate.player_results.size()!=10 or candidate.physical.cursor!=20 or not candidate.final_fixture.is_empty() or candidate.champion!=-1: return false
 	var seeds: Array=[]
 	for row: Dictionary in candidate.standings().slice(0,4): seeds.append(int(row.team))
 	if seeds.size()!=4 or not seeds.has(0) or not Live.same(candidate.playoff_seeds,seeds): return false

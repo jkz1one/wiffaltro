@@ -462,7 +462,7 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	var revision: int=28 if round_index==10 else ([0,5,7,9,11,13,17][round_index] if round_index<7 else projection.late_revision(round_index))
 	if session.build.revision()!=revision: return null
 	if round_index==6 and not Adapter.Ordinary._signed_visit6_journal(session.build): return null
-	if round_index==10 and not Adapter.Ordinary._sealed_regular_end_shape(session): return null
+	if round_index==10 and not Adapter.Ordinary._semifinal_checkpoint_shape(session): return null
 	if round_index in [7,8,9] and not Adapter.Ordinary._paired_late_start(session): return null
 	var authored: Dictionary=projection._semifinal_fixtures(session) if round_index==10 else projection._round_fixtures(round_index)
 	if authored.is_empty(): return null
