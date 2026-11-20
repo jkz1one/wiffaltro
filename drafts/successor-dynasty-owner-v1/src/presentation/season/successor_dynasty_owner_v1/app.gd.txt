@@ -146,6 +146,9 @@ func _play_paired_first() -> void:
 func _play_paired_return() -> void:
 	_play_paired_human(1)
 
+func _play_paired_next_first() -> void:
+	_play_paired_human(2)
+
 func _play_paired_human(round_index: int) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or season.round_index!=round_index: return
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
@@ -163,6 +166,9 @@ func _finish_paired_first() -> void:
 func _finish_paired_return() -> void:
 	_finish_paired_human(1)
 
+func _finish_paired_next_first() -> void:
+	_finish_paired_human(2)
+
 func _finish_paired_human(round_index: int) -> void:
 	if _busy or retained!=null or _paired_first_pin.is_empty() or not _owned() or not is_instance_valid(lab) or season.round_index!=round_index: return
 	var pin: Dictionary=_paired_first_pin
@@ -170,9 +176,9 @@ func _finish_paired_human(round_index: int) -> void:
 	var human: Array=Adapter.human_capture("ordinary").capture(self)
 	if human.is_empty(): return
 	var pending: Dictionary={"human":human.duplicate(true),"reports":[],"binding":pin.binding.duplicate(true)}
-	if round_index==1:
+	if round_index in [1,2]:
 		var expected: PackedByteArray=saved_bytes.duplicate()
-		var ticket: RefCounted=Store._prepare_paired_return_human(career_owner,expected,pending)
+		var ticket: RefCounted=Store._prepare_paired_return_human(career_owner,expected,pending) if round_index==1 else Store._prepare_paired_next_first_human(career_owner,expected,pending)
 		if ticket!=null:
 			_retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 			_paired_first_pin.clear()

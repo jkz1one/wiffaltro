@@ -171,15 +171,21 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	var build: SeasonBuild=season.build
 	return _first_shop_prefix(build)
 
-# Stop at the completed pair, with the single qualified pack and no new shop
-# or later pending. The unchanged paired history gate independently replays it.
+# The completed pair stays immutable. At this boundary only the next
+# authored human may be pending; reports, later round and shop remain closed.
 static func _pair_settled_shape(season: SeasonState) -> bool:
-	if season.get_script()!=Runtime or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
+	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	var detached: bool=projection.next_first_projection(season)
+	if (season.get_script()!=Runtime and not detached) or season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
 	if season.results.size()!=6 or season.player_results.size()!=2 or season.player_results[0].get("id")!=0 or season.player_results[1].get("id")!=3: return false
 	for index: int in range(6):
 		if season.results[index].get("id")!=index: return false
 	var physical=season.physical
-	if not physical.pending.is_empty() or physical.projecting or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=4 or physical.reports.size()!=4: return false
+	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=4 or physical.reports.size()!=4: return false
+	if not physical.pending.is_empty():
+		if not projection.bound_shape(physical.pending) or not physical.pending.reports.is_empty(): return false
+		var opening: Dictionary=projection._round_fixtures(season.round_index).human
+		if not whole(physical.pending.human[0],opening.id,opening.id): return false
 	for index: int in range(4):
 		if physical.reports[index].get("fixture")!=[1,2,4,5][index]: return false
 	var build: SeasonBuild=season.build
