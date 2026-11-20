@@ -14,8 +14,8 @@ func run() -> void:
  check(rows.size()==6 and season.player_results.size()==2,"authentic six settled fixtures, both human legs")
  var n=Collector.replay_calls
  if not check(Validator.validate_settled(season),"all authentic settled workloads and both paid receipts accepted"):get_tree().quit(1);return
- print("SETTLED_COLLECT_MS=",Validator.collection_ms," WORKLOAD_MS=",Validator.workload_ms," REPLAYS=",Collector.replay_calls-n)
- check(Collector.replay_calls-n==6 and Validator.checked_sides==12,"six club replays and all twelve exact sides")
+ print("SETTLED_COLLECT_MS=",Validator.collection_ms," WORKLOAD_MS=",Validator.workload_ms," REPORT_MS=",Validator.report_ms," REPLAYS=",Collector.replay_calls-n)
+ check(Collector.replay_calls-n==6 and Validator.checked_sides==12 and Validator.checked_reports==4,"six club replays, twelve exact sides and four archived NPC reports")
  for row: Dictionary in rows:
   for club: int in [int(row.away),int(row.home)]:
    var expected=Pair._historical_team(season,club,int(row.id))
@@ -62,6 +62,29 @@ func run() -> void:
  season.opponents.clubs["4"].build=altered
  check(not Validator.validate_settled(season) and Validator.checked_sides==0,"materially altered snapshot rejects")
  season.opponents.clubs["4"].build=source
+ var archived=season.physical.reports.duplicate(true)
+ var terminal:Dictionary=season.physical.reports.back()
+ terminal.request="0".repeat(64)
+ check(not Validator.validate_settled(season) and Validator.checked_reports==0,"wrong terminal stored request rejects")
+ season.physical.reports.assign(archived.duplicate(true))
+ season.physical.reports.reverse()
+ check(not Validator.validate_settled(season) and Validator.checked_reports==0,"reordered reports reject")
+ season.physical.reports.assign(archived.duplicate(true))
+ terminal=season.physical.reports.back()
+ terminal.report.ownership.reverse()
+ check(not Validator.validate_settled(season) and Validator.checked_reports==0,"terminal report ownership rebound to wrong side rejects")
+ season.physical.reports.assign(archived.duplicate(true))
+ terminal=season.physical.reports.back()
+ terminal.report.physical.away_runs+=1
+ check(not Validator.validate_settled(season) and Validator.checked_reports==0,"terminal report score mutation rejects")
+ season.physical.reports.assign(archived.duplicate(true))
+ terminal=season.physical.reports.back()
+ terminal.report.workload.reverse()
+ check(not Validator.validate_settled(season) and Validator.checked_reports==0,"terminal report workload mutation rejects")
+ season.physical.reports.assign(archived.duplicate(true))
+ season.physical.reports.pop_back()
+ check(not Validator.validate_settled(season) and Validator.checked_reports==0,"missing terminal report rejects")
+ season.physical.reports.assign(archived.duplicate(true))
  check(ClubCareer.same(original,Codec.capture(season)) and FileAccess.get_file_as_bytes(path)==bytes,"original season and evidence stay unchanged")
  roots.clear()
  if failures==0:print("SETTLED_WORKLOAD_PASS")

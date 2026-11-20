@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Settled workload/payment checks on the retained exact authentic pair only."""
+"""Settled workload/payment and NPC archive checks on the retained exact pair."""
 import argparse
 import hashlib
 import json
@@ -48,7 +48,7 @@ def main():
     candidate = (repo / 'drafts/successor-settled-workload-v1/validator.gd.txt').read_text()
     derived = frozen[a:b].replace('prefix.', 'start.') + '\tteam.league_pair = pair.duplicate(true)\n' + frozen[c:d].replace('float(debt.get', 'float(pair.debt.get')
     assert candidate[candidate.index('\tvar players: Array[PlayerDefinition] = []'):candidate.index('\treturn {"team":')] == derived
-    for family in ('successor-paired-history-v1', 'successor-settled-workload-v1'):
+    for family in ('successor-paired-history-v1', 'successor-request-composition-v1', 'successor-team-composition-v1', 'successor-settled-workload-v1'):
         manifest = json.loads((repo / 'drafts' / family / 'DRAFT_MANIFEST.json').read_text())
         for row in manifest['files']:
             content = (repo / row['backup_path']).read_bytes()
@@ -71,11 +71,11 @@ def main():
     execute([godot, '--headless', '--editor', '--path', str(project), '--quit'], env, 180)
     for mode in ('first', 'independent-cold'):
         output = execute([godot, '--headless', '--path', str(project),
-                          'res://tests/successor_settled_workload.tscn', '--', mode], env, 300)
+                          'res://tests/successor_settled_workload.tscn', '--', mode], env, 420)
         if 'SETTLED_WORKLOAD_PASS' not in output:
             raise RuntimeError('Missing positive ' + mode + ' request proof')
     assert (source / SAVE).read_bytes() == data == target.read_bytes()
-    print('PASS: settled workload and paid receipts; no Report or codec qualification')
+    print('PASS: settled workload, paid receipts and NPC archive; no codec qualification')
 
 
 if __name__ == '__main__':

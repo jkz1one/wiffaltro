@@ -1,13 +1,19 @@
 {
   "format": "inactive-settled-workload-v1",
-  "source_checkpoint": "4f8c5739e7aa99ccbb55b0eabe7e3219bdcd104f",
-  "scope": "Settled workload and paid receipt checks only. No codec, report/request, pending, admission or Dynasty integration.",
+  "source_checkpoint": "77727b42cddfb2cbc4ea568c4bd86a9f2a6bb69d",
+  "scope": "Inactive settled workload/payment and NPC Report/request binding only; no runtime, codec, pending, admission or Dynasty changes.",
   "files": [
     {
       "backup_path": "drafts/successor-settled-workload-v1/validator.gd.txt",
       "restore_path": "src/gameplay/season/successor_settled_workload_v1/validator.gd",
-      "bytes": 6658,
-      "sha256": "db23119dfaa81b501ef3a267ae878f74542c8345e4f6508c1e40acde0e85909f"
+      "bytes": 6992,
+      "sha256": "caf6a181239a172d2bbc7454cf01a5b3b0c4c4edba99d5e8d69651de69d51265"
+    },
+    {
+      "backup_path": "drafts/successor-settled-workload-v1/npc_report.gd.txt",
+      "restore_path": "src/gameplay/season/successor_settled_workload_v1/npc_report.gd",
+      "bytes": 4826,
+      "sha256": "f658eec5ba712552d69448500d49686a6361163418743fb809e08b22ee6b5fa6"
     }
   ]
 }

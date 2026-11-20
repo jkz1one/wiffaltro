@@ -1,0 +1,76 @@
+extends RefCounted
+## Internal continuation of the inactive validator's operation-local batch.
+## This is not a public authenticity entry point. No snapshots escape the caller.
+const D = "res://src/gameplay/season/successor_league_general_v2/"
+const BuildRules = preload(D + "doubleheader_build.gd")
+const Physical = preload(D + "physical_fixtures.gd")
+const Report = preload(D + "physical_report.gd")
+const Core = preload(D + "physical_core.gd")
+const Runtime = preload(D + "runtime.gd")
+const Opponents = preload(D + "opponents.gd")
+const Team = preload("res://src/gameplay/season/successor_team_composition_v1/team.gd")
+const Request = preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
+
+static func _link(season: SeasonState, rows: Dictionary, fixtures: Dictionary, ordered: Array, batch: Dictionary) -> int:
+	if season.physical==null or not season.league_live or not season.inventory_rules.is_empty() or not season.home_property.is_empty() or not season.npc_venues.is_empty() or not season.final_venue.is_empty() or not season.owned_surface_night.is_empty() or not season._dynasty_start.is_empty(): return -1
+	var index: int=0
+	for game: int in ordered:
+		var result: Dictionary=rows[game]
+		if result.away==0 or result.home==0: continue
+		if index>=season.physical.reports.size(): return -1
+		var archive: Dictionary=season.physical.reports[index]
+		if not SeasonOwnership._keys(archive,["fixture","request","report"]) or not SeasonOwnership._whole(archive.fixture,game,game) or not archive.request is String or not archive.report is Dictionary: return -1
+		if not _matches(season,fixtures[game],result,archive,batch): return -1
+		index+=1
+	return index if index==season.physical.reports.size() else -1
+
+static func _matches(season: SeasonState, fixture: Dictionary, result: Dictionary, archive: Dictionary, batch: Dictionary) -> bool:
+	var game: int=int(fixture.id)
+	var shell: SeasonState=Runtime.new()
+	shell.build=season.build # Read-only General catalog identity.
+	shell.league_rules=season.league_rules.duplicate(true)
+	shell.league_live=season.league_live
+	shell.season_seed=season.season_seed
+	shell.difficulty=season.difficulty
+	shell.teams.assign(season.teams.duplicate(true))
+	shell.opponents=Opponents.new()
+	shell.opponents._format=season.opponents._format
+	var teams: Array[TeamMatchState]=[]
+	for club: int in [int(fixture.away),int(fixture.home)]:
+		var key: String=str(club)
+		var snapshots: Dictionary=batch[key][str(game)]
+		var club_row: Dictionary=season.opponents.clubs[key].duplicate(true)
+		club_row.build=snapshots.pregame
+		var roles: Variant=club_row.get("roles")
+		if not roles is Dictionary or not roles.get("pitcher") is String or not roles.get("fielder") is String or not roles.get("hitter") is String: return false
+		shell.opponents.clubs[key]=club_row
+		shell.teams[club].roster=club_row.build.roster()
+	for club: int in [int(fixture.away),int(fixture.home)]:
+		var snapshots: Dictionary=batch[str(club)][str(game)]
+		var pair: Dictionary=BuildRules.pair_for(snapshots.reward,game)
+		if pair.is_empty(): return false
+		var team: TeamMatchState=Team.base(shell,club,game)
+		team.league_pair=pair
+		for player: PlayerMatchState in team.roster:
+			player.stamina_remaining=maxf(0.0,player.stamina_max-float(pair.debt.get(String(player.definition.id),0.0)))
+		teams.append(Team.finish(shell,club,game,team))
+	var state: MatchState=MatchState.create(teams[0],teams[1])
+	state.league_rules=season.league_rules.duplicate(true)
+	state.pitch_catalog=Physical.catalog_for(season)
+	state.away_team.pitch_catalog=state.pitch_catalog
+	state.home_team.pitch_catalog=state.pitch_catalog
+	state.ai_tactical_quality=clampf(0.15 + season.difficulty * 0.25 + minf(int(fixture.round), 9) * 0.025, 0.0, 1.0)
+	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,season)
+	if field==null or Request.for_context(season,fixture,state,field)!=archive.request: return false
+	var report: Dictionary=archive.report
+	# matches() invokes the complete frozen valid() before context correspondence.
+	if not Report.matches(report,state): return false
+	var body: Dictionary=report.physical
+	if body.seed!=Physical.seed_for(season,fixture) or body.field!=String(field.id) or body.away_runs!=result.away_runs or body.home_runs!=result.home_runs or not ClubCareer.same(body.performance,result.performance): return false
+	for side: int in range(2):
+		var club: String=str(int(fixture.away if side==0 else fixture.home))
+		if not ClubCareer.same(Report.human(report,side,state.pitch_catalog),result.doubleheader_evidence[side]): return false
+		var tactics: Dictionary=body.tactics.teams[side]
+		if body.version==Core.BASE_VERSION: tactics=PhysicalBaseEvidence.enriched(tactics,body.tactics.base)
+		if not ClubCareer.same(tactics,result.ai_tactics[club]): return false
+	return true

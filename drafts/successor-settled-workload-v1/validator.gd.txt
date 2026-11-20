@@ -1,17 +1,20 @@
 extends RefCounted
-## Inactive settled workload/payment validation. Not Report, pending, or save admission.
+## Inactive settled workload/payment and NPC report linkage. Not pending or save admission.
 const Collector = preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
 const D = "res://src/gameplay/season/successor_league_general_v2/"
 const Pair = preload(D + "doubleheader.gd")
 const BuildRules = preload(D + "doubleheader_build.gd")
 const Reward = preload(D + "reward.gd")
+const Npc = preload("npc_report.gd")
 # Diagnostics only; never influence validation.
 static var collection_ms: int = 0
 static var workload_ms: int = 0
 static var checked_sides: int = 0
+static var report_ms: int = 0
+static var checked_reports: int = 0
 
 static func validate_settled(season: SeasonState) -> bool:
-	collection_ms=0; workload_ms=0; checked_sides=0
+	collection_ms=0; workload_ms=0; checked_sides=0; report_ms=0; checked_reports=0
 	if season==null or not LeagueRules.doubleheader(season.league_rules) or season.results.is_empty() or season.results.size()>33: return false
 	if season.opponents==null or season.teams.size()!=6 or not ClubCareer.same(season.schedule,SeasonDoubleheaderRules.schedule()): return false
 	var fixtures: Dictionary={}
@@ -60,6 +63,11 @@ static func validate_settled(season: SeasonState) -> bool:
 			if prefix==null or not _side(season,row,club,builds[str(club)],prefix): return false
 		checked[game]=true
 	workload_ms=Time.get_ticks_msec()-started
+	started=Time.get_ticks_msec()
+	var verified: int=Npc._link(season,rows,fixtures,ordered,snapshots)
+	report_ms=Time.get_ticks_msec()-started
+	if verified<0: return false
+	checked_reports=verified
 	checked_sides=2*checked.size()
 	return true
 
