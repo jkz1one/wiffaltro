@@ -13,10 +13,23 @@ static var workload_ms: int = 0
 static var checked_sides: int = 0
 static var report_ms: int = 0
 static var checked_reports: int = 0
+static var historical_human_ms: int = 0
+static var historical_humans_checked: int = 0
 
 static func validate_settled(season: SeasonState) -> bool:
+	return _validate_settled(season,false)
+
+# Internal future V4 continuation only. It grants no persistence/Shop authority
+# and always runs the complete ordinary paired history validator first.
+static func validate_settled_with_historical_humans(season: SeasonState) -> bool:
+	if season==null or season.get_script()!=load("res://src/gameplay/season/successor_live_play_v1/runtime.gd") or not ClubCareer.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.physical==null or not season.physical.pending.is_empty(): return false
+	return _validate_settled(season,true)
+
+static func _validate_settled(season: SeasonState, require_historical_humans: bool) -> bool:
 	collection_ms=0; workload_ms=0; checked_sides=0; report_ms=0; checked_reports=0
+	historical_human_ms=0; historical_humans_checked=0
 	if not Completeness.verify(season): return false
+	if require_historical_humans and not _human_rows_correspond(season): return false
 	if season.results.is_empty(): return true
 	if season.opponents==null or season.teams.size()!=6 or not ClubCareer.same(season.schedule,SeasonDoubleheaderRules.schedule()): return false
 	var fixtures: Dictionary={}
@@ -71,9 +84,45 @@ static func validate_settled(season: SeasonState) -> bool:
 	var verified: int=Npc._link(season,rows,fixtures,ordered,snapshots)
 	report_ms=Time.get_ticks_msec()-started
 	if verified<0: return false
+	if require_historical_humans:
+		started=Time.get_ticks_msec()
+		for game: int in ordered:
+			var row: Dictionary=rows[game]
+			if row.away!=0 and row.home!=0: continue
+			if not _historical_human_score(row,snapshots[str(int(row.away))][str(game)].reward,snapshots[str(int(row.home))][str(game)].reward): return false
+			historical_humans_checked+=1
+		historical_human_ms=Time.get_ticks_msec()-started
 	checked_reports=verified
 	checked_sides=2*checked.size()
 	return true
+
+static func _human_rows_correspond(season: SeasonState) -> bool:
+	var expected: Dictionary={}
+	for row: Dictionary in season.results:
+		if not _shape(row): return false
+		if row.away!=0 and row.home!=0: continue
+		if not row.get("performance") is Dictionary: return false
+		var game: int=int(row.id)
+		if expected.has(game): return false
+		expected[game]=row
+	for row: Dictionary in season.player_results:
+		if not SeasonOwnership._whole(row.get("id"),0,32): return false
+		var game: int=int(row.id)
+		if not expected.has(game) or not ClubCareer.same(row,expected[game]): return false
+		expected.erase(game)
+	return expected.is_empty()
+
+# Only called with the two already-authenticated pre-reward snapshots from
+# this operation. Row labels corroborate, but never choose, ordered rosters.
+static func _historical_human_score(row: Dictionary, away: SeasonBuild, home: SeasonBuild) -> bool:
+	if away==null or home==null: return false
+	var own: Array[String]=away.roster().duplicate() if row.away==0 else home.roster().duplicate()
+	own.sort()
+	if not ClubCareer.same(row.get("club_roster"),own): return false
+	var opponent: String=str(int(row.home if row.away==0 else row.away))
+	var ai: Variant=row.ai_tactics.get(opponent)
+	if not ai is Dictionary or ai.get("version")!=5 or not PhysicalBaseEvidence.ended(ai,int(row.away_runs),int(row.home_runs)): return false
+	return PhysicalBaseFlow.valid(ai.base,[away.roster(),home.roster()],row.performance)
 
 static func _shape(row: Dictionary) -> bool:
 	for field: String in ["id","away","home","away_runs","home_runs"]:

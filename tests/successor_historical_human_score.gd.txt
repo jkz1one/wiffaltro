@@ -1,0 +1,110 @@
+extends "res://tests/successor_hidden_paired_visit6_open.gd"
+
+const PLAYER="player.dakota_wells"
+const OUTGOING="player.val_morgan"
+const SIGN={"id":"visit6-sign:16","rev":16,"op":"sign","offer":"recruit:6","replace":OUTGOING}
+
+func run() -> void:
+ var args:PackedStringArray=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1 or args[0] not in ["proof","performance-gate"]:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE cold")
+ app.reload_save()
+ print("HISTORIC_HUMAN_COLD_MS=",Time.get_ticks_msec()-started)
+ if not check(app.season!=null and app._owned() and exact_late_offer(app.season) and exact(bytes,backup),"actual visit6 unsigned owner is authentic"):stop(app);return
+ var original:SeasonState=app.season
+ var pin:Dictionary=Store.RawGuard.capture(app.career_owner)
+ if args[0]=="performance-gate":
+  print("CP127_STAGE missing-performance")
+  var altered:SeasonState=detached_sign(original)
+  if not check(altered!=null,"exact detached original signer"):stop(app);return
+  var row:Dictionary=altered.player_results[-1].duplicate(true)
+  row.erase("performance")
+  altered.player_results[-1]=row
+  altered.results[int(row.id)]=row.duplicate(true)
+  var calls:int=PairHistory.Collector.replay_calls
+  check(check_history(altered,false,"missing-performance")==0 and PairHistory.Collector.replay_calls==calls,"absent historical performance fails closed before replay")
+  check(Store.RawGuard.matches(app.career_owner,pin) and app.season==original and exact(bytes,backup),"original owner and both files remain exact")
+  stop(app)
+  return
+ var unsigned_games:Array=original.player_results.map(func(row):return Live._human_score(original,row))
+ print("CP127_STAGE unsigned")
+ check(check_history(original,true,"unsigned")==6 and unsigned_games==[true,true,true,true,true,true],"new and existing full flow checks agree on all six genuine unsigned results")
+ var signed:SeasonState=detached_sign(original)
+ if not check(signed!=null and signed!=original and signed.build.cash()==62 and signed.build._visit.recruit.signed,"authentic original frozen signing only on a separate nonpersistable test fork"):stop(app);return
+ check(Live.same(signed.results,original.results) and Live.same(signed.player_results,original.player_results) and Live.same(signed.physical.reports,original.physical.reports) and Live.same(signed.build._game_rosters,original.build._game_rosters),"no historical row, report or roster rewritten for the signed fork")
+ var wrong:Array=signed.player_results.map(func(row):return Live._human_score(signed,row))
+ check(wrong==[false,false,false,false,false,false],"current roster incorrectly rejects all six prior games after real replacement")
+ print("CP127_STAGE signed")
+ check(check_history(signed,true,"signed")==6,"both authenticated historical build rosters revalidate all six actual games")
+ check(Live.capture(signed).is_empty() and Store._prepare_paired_shop(app.career_owner,bytes,SIGN,6)==null and not app.commit_shop(SIGN),"new validator grants no codec, Store or public sign admission")
+ for fault:String in ["score","occupancy","row-roster","receipt","missing"]:
+  print("CP127_STAGE ",fault)
+  var altered:SeasonState=detached_sign(original)
+  if not check(altered!=null,"create independent native detached evidence for "+fault):stop(app);return
+  var row:Dictionary=altered.player_results[-1].duplicate(true)
+  match fault:
+   "score":row.away_runs+=1 # Fixture15: preserves original away winner.
+   "occupancy":row.ai_tactics[str(int(row.away))].base.ready[0].bases[0]=PLAYER
+   "row-roster":
+    var index:int=row.club_roster.find(OUTGOING)
+    if not check(index>=0,"old roster contains original outgoing player"):stop(app);return
+    row.club_roster[index]=PLAYER
+    row.club_roster.sort()
+   "receipt":
+    var events:Array=altered.build._bank._events
+    var index:int=events.find_custom(func(e):return e.get("id")=="game:15")
+    if not check(index>=0,"genuine original human reward fixture15 is present"):stop(app);return
+    events.remove_at(index)
+   "missing":altered.player_results.pop_back()
+  if fault in ["score","occupancy","row-roster"]:
+   altered.player_results[-1]=row
+   altered.results[int(row.id)]=row.duplicate(true)
+  var checked:int=check_history(altered,false,fault)
+  if fault in ["score","occupancy","row-roster"]:
+   check(checked==5,"exact terminal historically matched check rejects "+fault+" after all five previous positives")
+  if fault=="missing":
+   check(checked==0,"missing human row cannot start score verification")
+ check(Store.RawGuard.matches(app.career_owner,pin) and app.season==original and exact(bytes,backup),"unsigned active owner and exact primary/backup never changed")
+ stop(app)
+
+func stop(app) -> void:
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func check_history(season:SeasonState, expected:bool, label:String) -> int:
+ var started:int=Time.get_ticks_msec()
+ var calls:int=PairHistory.Collector.replay_calls
+ var ok:bool=PairHistory.validate_settled_with_historical_humans(season)
+ var replays:int=PairHistory.Collector.replay_calls-calls
+ print("HISTORIC_HUMAN ",label," total_ms=",Time.get_ticks_msec()-started," flow_ms=",PairHistory.historical_human_ms," replays=",replays," accepted=",ok," scores=",PairHistory.historical_humans_checked)
+ check(ok==expected and replays<=6,"scope result and at most one Build replay per club for "+label)
+ if expected:
+  check(replays==6 and PairHistory.checked_sides==36 and PairHistory.checked_reports==12,"all original settled blocks plus exactly six authenticated Build replays")
+ return PairHistory.historical_humans_checked
+
+# Test-only preroll repair on a fork, never assigned to Store/App. The actual
+# signer and original frozen Build/Book/charge operations stay unchanged.
+func detached_sign(original:SeasonState) -> SeasonState:
+ var next:SeasonState=original.fork_live()
+ if next==null or not exact_late_offer(next) or not SeasonSchoolSponsors.scholarship(next.build).is_empty():return null
+ var b:SeasonBuild=next.build
+ var saved:Dictionary=Live.Builds.capture(b)
+ var authored:Dictionary=SeasonPlayerCatalog.profile(PLAYER)
+ var profile:Dictionary=b.player(PLAYER)
+ if not Live.same(profile,authored):return null
+ for field:String in ["base","stats","mastery"]:
+  profile[field]=authored[field].duplicate(true)
+ profile.capacity=authored.capacity
+ if profile!=authored:return null
+ b._book._players[PLAYER]=profile
+ if not ClubCareer.same(saved,Live.Builds.capture(b)):return null
+ var signed:SeasonBuild=b.candidate(SIGN)
+ if signed==null or signed._bank._events[-1].id!="charge:16" or signed._bank._events[-1].amount!=32 or signed._book._events[-1].id!="recruit:16":return null
+ next.adopt_build(signed)
+ return next if next.build==signed else null
