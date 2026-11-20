@@ -40,7 +40,7 @@ func run() -> void:
   var count:int=pending.reports.size()
   check(pending.human[0]==12 and app.season.build.player("player.mika_reed").stats.fielding==SeasonPlayerCatalog.profile("player.mika_reed").stats.fielding+1,"real fixture 12 human frame and purchased upgrade preserved")
   verify_closed(app,bytes,backup)
-  check(Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null and Binding._round_fixtures(5).is_empty(),"no return phase producer")
+  check(Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null and Binding._round_fixtures(6).is_empty(),"no return settlement or later phase producer")
   if count<2:
    check(Binding.materialize_settlement(app.season,4)==null and Store._prepare_paired_settlement(app.career_owner,bytes,4)==null,"incomplete pending still cannot pay")
   app._run_paired_npc(15)

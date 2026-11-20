@@ -1,0 +1,179 @@
+extends "res://tests/successor_hidden_paired_third_first_settlement.gd"
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var app=App.new()
+ get_tree().root.add_child(app)
+ var bytes=Store.raw()
+ var backup=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var started:int=Time.get_ticks_msec()
+ var gates:int=Live.paired_history_calls
+ var resolves:int=Live.Physical.resolve_calls
+ app.reload_save()
+ print("THIRD_RETURN_COLD_MS=",Time.get_ticks_msec()-started," HISTORY_CALLS=",Live.paired_history_calls-gates," REPORT_RESOLVES=",Live.Physical.resolve_calls-resolves)
+ if args[0].begins_with("tamper"):
+  check(app.season==null and exact(bytes,backup),"fresh App refuses "+args[0]+" without altering either file")
+ elif not check(app.season!=null and exact(bytes,backup) and Live.paired_history_calls-gates==1,"fresh App authenticates exact privately owned bytes"):
+  get_tree().quit(1);return
+ elif args[0]=="human":
+  await play_third_return(app,bytes,backup)
+ elif args[0]=="cold" and check(unpaid_third_return(app.season),"all paid history, earned loadout and no return payment on cold"):
+  var pending:Dictionary=app.season.physical.pending
+  check(pending.reports.is_empty() and Live.Physical.resolve_calls-resolves==1,"original General verification stops at the first empty NPC slot")
+  var pristine:SeasonState=app.season.fork_live()
+  pristine.physical.pending.clear()
+  var opening:Dictionary=Binding.start(pristine)
+  check(not opening.is_empty() and Live.same(opening.binding,pending.binding) and third_return_loadout(pristine,opening.state,opening.fixture,pending.human[13]),"cold rebinds actual human to only fixture12 debt and exact Mika upgrade")
+  verify_unqualified(app,bytes,backup)
+ else:
+  check(false,"unexpected mode or owner")
+ app.free()
+ if failures==0:print("HIDDEN_PAIRED_THIRD_RETURN_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func play_third_return(app, bytes:PackedByteArray, backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var original:SeasonState=app.season
+ if not check(paid_third_first(original) and original.physical.pending.is_empty() and original.build._visit.get("number")==5 and original.build._visit.get("open")==false,"exact paid fifteen-game starter and earned upgrade, no replay of earlier games"):return
+ var snapshot:Dictionary=Store.RawGuard.capture(owner)
+ var fixture:Dictionary=original.pending_fixture()
+ verify_closed(app,bytes,backup)
+ app._play_paired_first()
+ check(not is_instance_valid(app.lab),"first human cannot replay")
+ var altered:SeasonState=original.fork_live()
+ var row:Dictionary=altered.schedule.filter(func(item):return item.id==fixture.id)[0]
+ row.home=4
+ check(Binding.start(altered).is_empty(),"altered authored fixture cannot construct")
+ var started:int=Time.get_ticks_msec()
+ app._play_paired_third_return()
+ print("THIRD_RETURN_CONSTRUCTION_MS=",Time.get_ticks_msec()-started)
+ if not check(is_instance_valid(app.lab) and not app._paired_first_pin.is_empty() and app._owned() and fixture.id==15,"genuine next return match is pinned to owner, fixture and live match state"):return
+ if not check(third_return_loadout(original,app.lab._match_state,fixture,[]),"actual match starts with both clubs carry precisely their fixture 12 debt, not prior-pair debt; earned loadout persists"):return
+ for frame:int in range(600):
+  await get_tree().physics_frame
+  if not app.lab._match_presentation_director.blocks_gameplay():break
+ if not check(not app.lab._match_presentation_director.blocks_gameplay(),"normal intro completes"):return
+ app.lab._automation=MatchAutomation.new()
+ app.lab._automation.seed=Physical.seed_for(original,fixture)
+ app.lab._automation.presentation_enabled=true
+ app.lab._automation.begin(app.lab)
+ started=Time.get_ticks_msec()
+ var seen:bool=false
+ var finished:bool=false
+ for frame:int in range(150000):
+  await get_tree().physics_frame
+  seen=seen or app.lab._match_state.gear_usage.started
+  if app.lab._match_state.phase==MatchState.Phase.GAME_END and app.lab._automation!=null and not app.lab._home_run.presentation_pending(app.lab):
+   app.lab._automation=null
+   PitchBatLabFeelSupport.begin_match_outro(app.lab)
+  if app.lab._match_state.phase==MatchState.Phase.GAME_END and app.lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+   finished=true;break
+  if frame%12000==0:print("ACTUAL_THIRD_RETURN_FRAME=",frame)
+ print("THIRD_RETURN_SIMULATION_MS=",Time.get_ticks_msec()-started)
+ if not check(seen and finished,"actual third-pair human return match pitches to normal capturable outro"):return
+ started=Time.get_ticks_msec()
+ var human:Array=Capture.capture(app)
+ print("THIRD_RETURN_CAPTURE_MS=",Time.get_ticks_msec()-started)
+ if not check(human.size()==14 and human[0]==15 and human[9].get("version")==2 and third_return_loadout(original,app.lab._match_state,fixture,human[13],false),"played called proof and exact current-pair workload starts"):return
+ var pin:Dictionary=app._paired_first_pin
+ var pending:Dictionary={"human":human,"reports":[],"binding":pin.binding.duplicate(true)}
+ app._paired_first_pin.owner=owner.fork()
+ app._finish_paired_third_return()
+ app._paired_first_pin.owner=owner
+ check(app.retained==null and exact(bytes,backup),"App refuses displaced owner/start pin")
+ for fault:String in ["owner","stale-primary","fixture","request","proof","unexpected-npc"]:
+  var candidate:Dictionary=pending.duplicate(true)
+  var authority=owner
+  var expected=bytes
+  match fault:
+   "owner":authority=owner.fork()
+   "stale-primary":expected=backup
+   "fixture":candidate.human[0]=16
+   "request":candidate.binding.request="0".repeat(64)
+   "proof":candidate.human[9].version=1
+   "unexpected-npc":candidate.reports.append(original.physical.reports[0].duplicate(true))
+  check(Store._prepare_paired_third_return_human(authority,expected,candidate)==null and exact(bytes,backup) and Store.RawGuard.matches(owner,snapshot),"fixed Store refuses "+fault+" without changing historic evidence or bytes")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"isolated test write obstruction"):return
+ var gates:int=Live.paired_history_calls
+ started=Time.get_ticks_msec()
+ app._finish_paired_third_return()
+ print("THIRD_RETURN_CAPTURE_ADMISSION_BEFORE_BLOCKED_WRITE_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained!=null and Live.paired_history_calls-gates==1 and Live.same(app.retained.physical.pending,pending) and unpaid_third_return(app.retained),"original General projection admits exactly unpaid human proof and stops before authored NPC16"):return
+ var retained:SeasonState=app.retained
+ app._finish_paired_third_return()
+ check(app.retained==retained and app.season==original and Store.RawGuard.matches(owner,snapshot) and exact(bytes,backup),"duplicate finish and blocked write preserve active owner, backup and primary")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"removed only owned obstruction"):return
+ gates=Live.paired_history_calls
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("THIRD_RETURN_RETRY_WRITE_PROMOTE_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained==null and app.season==retained and not is_instance_valid(app.lab) and Live.paired_history_calls==gates and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bytes,"exact retained ticket promotes with no validation replay"):return
+ check(Store.RawGuard.matches(owner,snapshot) and unpaid_third_return(app.season) and Live.same(app.season.physical.pending,pending),"no detached payout, NPC report or historic mutation persisted")
+ print("THIRD_RETURN_RESULT=",human[1],":",human[2])
+ var saved:PackedByteArray=Store.raw()
+ app._play_paired_third_return()
+ app._finish_paired_third_return()
+ app._run_paired_npc(7)
+ app._run_paired_npc(8)
+ app._settle_paired_return_leg()
+ app._paired_first_shop({"id":"shop-open:13","rev":13,"op":"open"})
+ check(Store.prepare_and_write(app.career_owner,owner.fork(),saved)==null and Store.prepare_and_write(app.career_owner,app.career_owner.fork(),saved)==null,"generic Store cannot rewrite the private return owner")
+ verify_unqualified(app,saved,bytes)
+
+func verify_unqualified(app,bytes:PackedByteArray,backup:PackedByteArray) -> void:
+ var pending:Dictionary=app.season.physical.pending
+ var prior:Dictionary=app.season.physical.reports[-1].duplicate(true)
+ prior.fixture=16
+ var altered:Dictionary=pending.duplicate(true)
+ altered.reports.append(prior)
+ check(not Binding.bound_shape(altered) and Store._prepare_paired_report(app.career_owner,bytes,prior,5)==null and Store._prepare_paired_human_checkpoint(app.career_owner,bytes,altered,5)==null,"phase5 cannot add an NPC report through either Store entry")
+ check(Binding.next_npc_fixture(app.season).is_empty() and Binding.npc_job(app.season,16).is_empty() and Binding.materialize_settlement(app.season,5)==null and Store._prepare_paired_settlement(app.career_owner,bytes,5)==null and Binding._round_fixtures(6).is_empty(),"phase5 cannot release an NPC job, payout or later phase")
+ app._play_paired_third_return()
+ app._run_paired_npc(16)
+ app._run_paired_npc(17)
+ app._paired_first_shop({"id":"shop-open:13","rev":13,"op":"open"})
+ verify_closed(app,bytes,backup)
+ check(app.retained==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(bytes,backup),"repeated human, NPCs and shop leave the owner and both files unchanged")
+
+func unpaid_third_return(season:SeasonState) -> bool:
+ if season.round_index!=5 or not Binding.bound_shape(season.physical.pending) or season.physical.pending.human[0]!=15:return false
+ var paid:SeasonState=season.fork_live()
+ if paid==null:return false
+ paid.physical.pending.clear()
+ return paid_third_first(paid)
+
+func third_exact_debt(season:SeasonState,fixture:Dictionary,side:int) -> Dictionary:
+ var club:int=int(fixture.away if side==0 else fixture.home)
+ var first:int=SeasonDoubleheaderRules.first(fixture.id)
+ if first not in [12,13,14]:return {}
+ var own:Dictionary=season.results[first]
+ if own.away!=fixture.home or own.home!=fixture.away:return {}
+ var observed:Dictionary=own.doubleheader_evidence[0 if own.away==club else 1]
+ var debt:Dictionary=Work.net_debt(observed.proof,observed.pair.debt)
+ var earlier:Array=season.results.filter(func(row):return row.round==3 and (row.away==club or row.home==club))
+ if earlier.size()!=1:return {}
+ var retired:Dictionary=earlier[0].doubleheader_evidence[0 if earlier[0].away==club else 1].pair.debt
+ if not debt.values().any(func(n):return n>0) or not retired.values().any(func(n):return n>0) or ClubCareer.same(debt,retired):return {}
+ return {"game":fixture.id,"first":first,"debt":debt}
+
+func third_return_loadout(season:SeasonState,state:MatchState,fixture:Dictionary,proofs:Array,opening:bool=true) -> bool:
+ if fixture.id!=15 or fixture.away!=3 or fixture.home!=0 or SeasonDoubleheaderRules.first(fixture.id)!=12:return false
+ var picked:Dictionary=season.build._events[4]
+ if picked.get("player")!="player.mika_reed":return false
+ var loadout:bool=false
+ for side:int in range(2):
+  var team:TeamMatchState=state.away_team if side==0 else state.home_team
+  var expected:Dictionary=third_exact_debt(season,fixture,side)
+  if expected.is_empty() or not ClubCareer.same(team.league_pair,expected) or (not proofs.is_empty() and not ClubCareer.same(proofs[side].pair,expected)):return false
+  for player:PlayerMatchState in team.roster:
+   var id:String=String(player.definition.id)
+   var initial:float=maxf(0.0,player.stamina_max-float(expected.debt.get(id,0.0)))
+   if opening and not PhysicalRecoveryFlow.near(player.stamina_remaining,initial):return false
+   if not proofs.is_empty() and not PhysicalRecoveryFlow.near(proofs[side].proof.initial[id].initial,initial):return false
+   if side==1 and id==picked.player:
+    var stat:String=season.build.shop_item(picked.item).family
+    loadout=stat=="fielding" and player.definition.fielding==season.build.player(id).stats[stat] and player.definition.fielding==SeasonPlayerCatalog.profile(id).stats[stat]+1
+ return loadout
+
