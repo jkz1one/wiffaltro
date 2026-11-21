@@ -1,0 +1,137 @@
+extends "res://scramble.gd"
+## One naturally generated stat card changes the transformed destination, not the original vector.
+const Display=preload("res://src/gameplay/season/successor_league_general_v2/progression.gd")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==3 and args[0] in ["buy","cold"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and FileAccess.get_sha256(Store.PATH+".bak")==args[2]
+			and not FileAccess.file_exists(ORIGINAL),"isolated exact earned Scramble shop pair"): return
+	var before:=Store.raw()
+	var previous:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var catalog:=_authored_resources()
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(_owned_scramble(app) and _settled(app) and _exact(before,previous)
+			and app.league_entry_state("scramble")=="locked","strict actual settled result; D2-gated fresh entry remains locked"): return
+	var book: SeasonBuild=app.season.build
+	if args[0]=="cold":
+		var picked: Dictionary=_pack_pick(book)
+		var item: Dictionary=Display.display_item(picked.get("item",""))
+		if not check(not picked.is_empty() and not item.is_empty() and item.op=="stat"
+				and _paid_stat(book,picked,_expected(picked.player),item.family) and _exact(before,previous)
+				and _authored_resources()==catalog,"actual upgraded destination, exact base/mastery and global resources untouched cold"): return
+		print("SCRAMBLE_PAID_COLD_PASS ",args[1]," ",picked.player," ",item.family," Cash ",book.cash())
+		await _finish(app)
+		return
+	var shop:=_button(app.menu,"SHOP")
+	if not check(shop!=null,"normal Common Shop available after actual settlement"): return
+	shop.pressed.emit()
+	await get_tree().process_frame
+	var window:=_shop(app)
+	var reveal:=_quote(window,"pack_open")
+	var earned: int=book.cash()
+	if not check(window!=null and window.visible and reveal!=null,"normal earned funds buy actual generated pack"): return
+	var price: int=app.season.build.pack_price()
+	var opened:=Store.raw()
+	if not check(price>0 and earned>=price and _confirm(window,reveal),"native pack quote and paid confirmation"): return
+	book=app.season.build
+	if not check(book.cash()==earned-price and book.pack_pending()
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==opened,"one native debit and durable fixed reveal"): return
+	var candidates: Array=book._visit.cards.duplicate(true)
+	print("SCRAMBLE_NATIVE_REVEAL ",JSON.stringify(candidates)," price=",price," starting Cash=",earned)
+	var selected: String=""
+	var distinct_target: String=""
+	for id: String in candidates:
+		var offered: Dictionary=Display.display_item(id)
+		if offered.get("op")!="stat": continue
+		var targets: Array[Dictionary]=book.targets(id)
+		if selected.is_empty() and not targets.is_empty(): selected=id
+		for option: Dictionary in targets:
+			if book.player(option.player).stats[offered.family]!=SeasonPlayerCatalog.profile(option.player).stats[offered.family]:
+				selected=id
+				distinct_target=option.player
+				break
+		if not distinct_target.is_empty(): break
+	if not check(not selected.is_empty(),"native reveal actually includes an eligible stat card"): return
+	var item: Dictionary=Display.display_item(selected)
+	var card:=_button(window,item.name)
+	if not check(card!=null and not card.disabled,"actual stat card target panel available"): return
+	card.pressed.emit()
+	var target:=_quote(window,"pack_pick",distinct_target)
+	if not check(target!=null,"actual native valid recipient quote"): return
+	var command: Dictionary=target.get_meta("shop_command").duplicate(true)
+	var old: Dictionary=book.player(command.player).duplicate(true)
+	var authored: Dictionary=SeasonPlayerCatalog.profile(command.player)
+	var delta: int=int(old.stats[item.family])
+	var text: String="%s • %s %d → %d"%[app.season.player_definition(command.player).display_name,item.family.capitalize(),delta,delta+1]
+	if not check(target.text==text and ClubCareer.same(old,_expected(command.player)),
+			"native target label shows live permuted rating and exact destination"): return
+	print("SCRAMBLE_NATIVE_QUOTE ",target.text," authored same-field ",authored.stats[item.family])
+	var paid_pair:=Store.raw()
+	var paid_backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	target.pressed.emit()
+	if not check(window._confirm.visible and not window._pending.is_empty(),"normal explicit recipient confirmation"): return
+	window._confirm.canceled.emit();window._confirm.hide()
+	if not check(_exact(paid_pair,paid_backup) and _confirm(window,target),"cancel byte-inert then actual selected upgrade"): return
+	book=app.season.build
+	var final:=Store.raw()
+	if not check(_paid_stat(book,command,old,item.family) and book.cash()==earned-price and book._visit.cards==candidates
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==paid_pair
+			and not app.commit_shop(command) and Store.raw()==final and _settled(app) and _authored_resources()==catalog,
+			"one transformed destination raised, no recharge, replay inert and original source preserved"): return
+	if _archive("paid-stat"):
+		print("SCRAMBLE_PAID_STAT_PASS ",FileAccess.get_sha256(Store.PATH)," Cash ",book.cash())
+		await _finish(app)
+
+func _authored_resources() -> String:
+	var all: Array=[]
+	for id: String in SeasonPlayerCatalog.ids():
+		var d: PlayerDefinition=ContentDB.get_player(StringName(id))
+		all.append([id,d.contact,d.power,d.fielding,d.control,d.velocity,d.break_rating,d.stamina])
+	return JSON.stringify(all,"",true,true).sha256_text()
+
+func _pack_pick(book: SeasonBuild) -> Dictionary:
+	var records: Array=book._events.filter(func(e: Dictionary)->bool: return e.op=="pack_pick")
+	return records[0] if records.size()==1 else {}
+
+func _paid_stat(book: SeasonBuild,command: Dictionary,old: Dictionary,family: String) -> bool:
+	var after: Dictionary=book.player(command.player)
+	var expected: Dictionary=old.duplicate(true)
+	expected.stats[family]=int(expected.stats[family])+1
+	var open: Array=book._events.filter(func(e: Dictionary)->bool: return e.op=="pack_open")
+	return book._visit.pack_status=="used" and open.size()==1 and not _pack_pick(book).is_empty() \
+		and ClubCareer.same(after,expected) and ClubCareer.same(after.base,_expected(command.player).base)
+
+func _exact(primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	return Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup
+
+func _button(root: Node,text: String) -> Button:
+	for n: Node in root.find_children("*","Button",true,false):
+		if n is Button and n.text==text and n.is_visible_in_tree() and not n.is_queued_for_deletion(): return n
+	return null
+
+func _shop(app: App) -> SeasonShopWindow:
+	for n: Node in app.menu.get_children():
+		if n is SeasonShopWindow and not n.is_queued_for_deletion(): return n
+	return null
+
+func _quote(window: SeasonShopWindow,op: String,recipient: String="") -> Button:
+	if window==null: return null
+	for n: Node in window.find_children("*","Button",true,false):
+		if not n is Button or n.disabled or n.is_queued_for_deletion() or not n.has_meta("shop_command"): continue
+		var cmd: Dictionary=n.get_meta("shop_command")
+		if cmd.op==op and (recipient.is_empty() or cmd.get("player","")==recipient) \
+			and n.get_meta("shop_quote",{}).get("ok",false): return n
+	return null
+
+func _confirm(window: SeasonShopWindow,button: Button) -> bool:
+	button.pressed.emit()
+	if not window._confirm.visible or window._pending.is_empty(): return false
+	window._confirm.confirmed.emit();window._confirm.hide()
+	return window._pending.is_empty() and window.app.retained==null
