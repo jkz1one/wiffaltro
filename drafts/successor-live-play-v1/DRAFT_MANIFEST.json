@@ -246,8 +246,14 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_pending.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_pending.gd",
-      "bytes": 3861,
-      "sha256": "6e23844c3727b6d72f30e88f9b4a196c91bab32e0c94380a775e226d3f0b95ef"
+      "bytes": 3994,
+      "sha256": "0dbf17d63a75a5fc7ad5507f093f3c247fb3ec4158bdff70d20169368e4206fd"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_settlement.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_settlement.gd",
+      "bytes": 5942,
+      "sha256": "ecb685154648b0a544a87fdb67ff9e8fe2768b5c45194c47f848dbdd2f1ddc06"
     }
   ],
   "additions": [

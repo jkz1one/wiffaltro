@@ -518,3 +518,31 @@ fails. Prove a corrupt second report leaves original pending bytes and
 all six reward journals unchanged, then verify three real results and
 all six rewards exactly once on the successful path. This checkpoint
 does not implement or test any of that payout logic.
+
+### Detached opening settlement
+
+The opening projector reads the full pending evidence, preflights both
+NPC reports against the exact committed sponsor/choice and tactical
+policy and each player's opening workload, and only then enters the
+ordinary native human result and round accounting on a fresh, detached
+D1 candidate. The scoped resolver yields the two validated NPC rows
+in native order, with enriched tactics and full performance. No match
+is run. Native round completion, opponent accounting and progression
+produce the three rows, next round and all six wallet journals. The
+projector refuses anything other than one native reward per club and
+preserves all other ordinary journal behavior.
+
+The output is a separate private settled receipt, not a career
+checkpoint or live title. Its cold reader rederives the exact receipt
+from the immutable pending bytes instead of trusting a recorded
+settled flag or fabricated balance. Passing a receipt as pending
+cannot run settlement again. The test-only writer uses a new isolated
+file; cancellation just drops the detached proposal; retry writes
+only once. No shared Store, public Next, league admission or shop
+window is enabled.
+
+For QA, assemble with the source-preserving flags and attach
+`successor_standard_d1_settlement.gd.txt` to a scratch scene. Run
+`-- settle <exact CP185 pending>`, then `-- cold <exact CP185 pending>`
+and `-- repeat <exact CP185 pending>` in separate processes with the
+same disposable profile. The input remains read-only throughout.

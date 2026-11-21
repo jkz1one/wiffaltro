@@ -60,11 +60,14 @@ static func pack(draft: Variant, human: Variant, reports: Variant) -> Dictionary
 		"human":human,"human_sha256":Npc.canonical(human).sha256_text(),"npc":reports}
 	return row.duplicate(true) if _valid(row,context) else {}
 
-static func restore(bytes: PackedByteArray) -> Dictionary:
+static func _checked(bytes: PackedByteArray) -> Dictionary:
 	if bytes.is_empty() or bytes.size()>LIMIT: return {}
 	var encoded:=bytes.get_string_from_utf8()
 	var value: Variant=JSON.parse_string(encoded)
 	if not value is Dictionary or value.get("kind")!=KIND or not Codec.primitive(value) \
 			or Npc.canonical(value)!=encoded: return {}
 	var context:=prepare(value.get("draft"))
-	return value if _valid(value,context) else {}
+	return {"pending":value,"context":context} if _valid(value,context) else {}
+
+static func restore(bytes: PackedByteArray) -> Dictionary:
+	return _checked(bytes).get("pending",{})

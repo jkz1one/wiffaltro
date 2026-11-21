@@ -1,0 +1,112 @@
+extends RefCounted
+## Replay-only opening settlement receipt, not a shared slot or owner writer.
+const Pending=preload("standard_d1_pending.gd")
+const Npc=preload("standard_d1_npc.gd")
+const Codec=preload("codec.gd")
+const Contract=preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_transition.gd")
+const KIND: String="common-standard-d1-opening-settled-v1"
+const LIMIT: int=4*1024*1024
+
+class OpeningResolver extends SeasonPhysicalFixtures:
+	var _owner: SeasonState
+	var _rows: Array[Dictionary]=[]
+	func resolve(season: SeasonState, fixture: Dictionary) -> Dictionary:
+		if season!=_owner or not projecting or cursor>=_rows.size() or fixture.get("id")!=cursor+1:
+			return {}
+		var data: Dictionary=_rows[cursor]
+		for member: String in ["id","round","away","home"]:
+			if data.get(member)!=fixture.get(member): return {}
+		cursor+=1
+		return data.duplicate(true)
+
+static func _npc_result(report: Dictionary, job: Dictionary) -> Dictionary:
+	var state: MatchState=job.state
+	var body: Dictionary=report.physical
+	if not Npc.valid(report,job) or not PhysicalChoiceEvidence._matches_core(body,state) \
+			or not PhysicalTacticalEvidence._report_matches_core(body,state): return {}
+	for side in range(2):
+		var team: TeamMatchState=state.away_team if side==0 else state.home_team
+		for player: PlayerMatchState in team.roster:
+			var stamina: Dictionary=body.teams[side].workload[String(player.definition.id)]
+			if not ClubCareer.same([stamina.capacity,stamina.initial],[player.stamina_max,player.stamina_remaining]): return {}
+	var fixture: Dictionary=job.fixture
+	var row: Dictionary=fixture.duplicate(true)
+	row.away_runs=int(body.away_runs);row.home_runs=int(body.home_runs)
+	row.performance=body.performance.duplicate(true)
+	row.ai_tactics={}
+	for side in range(2):
+		var club: String=str(int(fixture.away if side==0 else fixture.home))
+		row.ai_tactics[club]=PhysicalBaseEvidence.enriched(body.tactics.teams[side],body.tactics.base).duplicate(true)
+	return row
+
+static func _club_build(season: SeasonState, club: int) -> SeasonBuild:
+	return season.build if club==0 else season.opponents.clubs[str(club)].build
+
+static func _rewards(season: SeasonState, before: Dictionary) -> Dictionary:
+	var rows: Dictionary={}
+	for game: Dictionary in season.results:
+		for club: int in [int(game.away),int(game.home)]:
+			var key: String=str(club)
+			if rows.has(key): return {}
+			var build:=_club_build(season,club)
+			if not build.d1_pricing_valid(): return {}
+			var bank: Dictionary=build._bank.view()
+			var win: bool=SeasonState._winner(game)==club
+			var events: Array=build._bank._events.filter(func(event: Dictionary)->bool: return event.get("op")=="reward")
+			if events.size()!=1 or events[0].game!=game.id or events[0].win!=win \
+					or not ClubCareer.same(bank.rewards,{str(int(game.id)):win}): return {}
+			rows[key]={"fixture":int(game.id),"win":win,"opening_cash":before[key],
+				"closing_cash":build.cash(),"reward_event":events[0].duplicate(true)}
+	return rows if rows.size()==6 else {}
+
+static func project(bytes: PackedByteArray) -> Dictionary:
+	var checked:=Pending._checked(bytes)
+	if checked.is_empty(): return {}
+	return _project_checked(checked,Contract._source_digest(bytes))
+
+static func _project_checked(checked: Dictionary, pending_sha: String) -> Dictionary:
+	var prior: Dictionary=checked.pending
+	var context: Dictionary=checked.context
+	var candidate: SeasonState=context.human.season
+	if not Codec.d1_draft_scope(candidate) or candidate.phase!=SeasonState.Phase.REGULAR \
+			or candidate.round_index!=0 or not candidate.results.is_empty(): return {}
+	var first:=_npc_result(prior.npc[0],context.jobs[0])
+	var second:=_npc_result(prior.npc[1],context.jobs[1])
+	if first.is_empty() or second.is_empty(): return {}
+	var before: Dictionary={}
+	for i in range(6):
+		var build:=_club_build(candidate,i)
+		if not build._bank._events.is_empty() or not build._bank.view().rewards.is_empty(): return {}
+		before[str(i)]=build.cash()
+	var resolver:=OpeningResolver.new()
+	resolver._owner=candidate
+	resolver._rows.assign([first,second])
+	resolver.projecting=true
+	candidate.physical=resolver
+	var human: Array=prior.human.human
+	var fixture: Dictionary=context.human.fixture
+	# All venue/fixture/accounting preconditions were checked against the
+	# pristine native opening above. Enter the shared accounting operation
+	# directly; the existing public entry cannot adopt this venue dialect.
+	var ok: bool=candidate._validate_player_result(0,int(human[1]),int(human[2]),human[3],human[4],
+		human[5],human[6],human[7],human[8],human[9],human[10],human[11],human[12],
+		[],prior.human.venue,null,null,null,null,{},null,null,fixture)
+	resolver._owner=null;resolver.projecting=false
+	if not ok or resolver.cursor!=2 or candidate.round_index!=1 or candidate.results.size()!=3 \
+			or candidate.player_results.size()!=1 or not candidate.career.sync(candidate): return {}
+	var rewards:=_rewards(candidate,before)
+	if rewards.is_empty() or candidate.career.active_tier()!=1: return {}
+	return {"version":1,"kind":KIND,"pending_sha256":pending_sha,"draft_sha256":context.sha,
+		"human_sha256":prior.human_sha256,"human_venue":prior.human.venue,"round_index":candidate.round_index,
+		"results":candidate.results.duplicate(true),"player_results":candidate.player_results.duplicate(true),
+		"build":candidate.build.to_data(),"opponents":candidate.opponents.to_data(),
+		"career":candidate.career.runs[0].duplicate(true),"rewards":rewards}
+
+static func restore(bytes: PackedByteArray, pending_bytes: PackedByteArray) -> Dictionary:
+	if bytes.is_empty() or bytes.size()>LIMIT: return {}
+	var text:=bytes.get_string_from_utf8()
+	var value: Variant=JSON.parse_string(text)
+	if not value is Dictionary or value.get("kind")!=KIND or not Codec.primitive(value) \
+			or Npc.canonical(value)!=text: return {}
+	var replay:=project(pending_bytes)
+	return value if not replay.is_empty() and Codec.same(value,replay) else {}

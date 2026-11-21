@@ -1,0 +1,97 @@
+extends Node
+## Exact real CP185 pending input. No match, profile, or synthetic reward mutations.
+const Settle=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1_settlement.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const SHA="15875cdcf9de0c580634252c10f50449628ece090f3c1d52fa2f420e2157708e"
+const FILE="user://d1-qa-opening-settled-v1.json"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool,label: String) -> bool:
+	if ok: return true
+	printerr("D1 OPENING SETTLEMENT FAIL ",label)
+	get_tree().quit(1)
+	return false
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and args.size()==2 and args[0] in ["settle","cold","repeat"]
+			and FileAccess.get_sha256(args[1])==SHA and not Store.occupied()
+			and not FileAccess.file_exists("user://season-v1.json"),"exact archived pending and isolated slot"): return
+	var pending:=FileAccess.get_file_as_bytes(args[1])
+	if args[0]=="cold":
+		var saved:=FileAccess.get_file_as_bytes(FILE)
+		var cold:=Settle.restore(saved,pending)
+		if not _need(not cold.is_empty() and _actual(cold)
+				and Settle.project(saved).is_empty() and FileAccess.get_file_as_bytes(FILE)==saved,
+				"cold exact deterministic replay; settled input cannot reward again"): return
+		print("STANDARD_D1_OPENING_SETTLED_COLD_PASS ",FileAccess.get_sha256(FILE))
+	elif args[0]=="repeat":
+		var before:=FileAccess.get_file_as_bytes(FILE)
+		if not _need(not before.is_empty() and not _write_new("would overwrite")
+				and FileAccess.get_file_as_bytes(FILE)==before,"existing detached receipt cannot be overwritten"): return
+		print("STANDARD_D1_OPENING_SETTLED_REPEAT_DENIED ",FileAccess.get_sha256(FILE))
+	else:
+		if not _need(not FileAccess.file_exists(FILE),"fresh inert output"): return
+		var boundary:=Settle.Pending._checked(pending)
+		if not _need(not boundary.is_empty(),"strict exact pending restore"): return
+		var native: SeasonState=boundary.context.human.season
+		var untouched:=_journals(native)
+		var second: Dictionary=boundary.pending.npc[1]
+		var job: Dictionary=boundary.context.jobs[1]
+		var broken:=second.duplicate(true)
+		broken.binding.venue=boundary.pending.npc[0].binding.venue
+		if not _need(not Settle.Pending._valid_npc([boundary.pending.npc[0],broken],boundary.context)
+				and Settle._npc_result(broken,job).is_empty() and _journals(native)==untouched
+				and not FileAccess.file_exists(FILE),"malformed second leaves all original journals untouched"): return
+		var start_tamper:=second.duplicate(true)
+		var arm: String=start_tamper.physical.teams[0].roster[0]
+		start_tamper.physical.teams[0].workload[arm].initial-=0.01
+		if not _need(Settle._npc_result(start_tamper,job).is_empty()
+				and not FileAccess.file_exists(FILE) and _journals(native)==untouched,
+				"forged starting workload or committed evidence cannot mutate original"): return
+		boundary={}
+		native=null
+		var cancelled:=Settle.project(pending)
+		if not _need(not cancelled.is_empty() and _actual(cancelled)
+				and FileAccess.get_file_as_bytes(args[1])==pending and not FileAccess.file_exists(FILE),
+				"discard successful proposal without writing or applying"): return
+		var retry:=Settle.project(pending)
+		if not _need(_actual(retry) and Settle.Codec.same(retry,cancelled)
+				and _write_new(Settle.Npc.canonical(retry)) and not _write_new("duplicate"),
+				"identical retry writes exactly once to private QA output"): return
+		print("STANDARD_D1_OPENING_SETTLED_WRITE_PASS ",FileAccess.get_sha256(FILE),
+			" rewards=",JSON.stringify(retry.rewards))
+	if not _need(FileAccess.get_file_as_bytes(args[1])==pending and not Store.occupied(),
+			"pending original byte-inert and no shared slot"): return
+	get_tree().quit()
+
+func _journals(season: SeasonState) -> String:
+	var banks: Array=[]
+	for id in range(6):
+		banks.append(Settle._club_build(season,id)._bank.to_data())
+	return Settle.Npc.canonical(banks)
+
+func _actual(row: Dictionary) -> bool:
+	if row.is_empty() or row.pending_sha256!=SHA or row.round_index!=1 or row.career.tier!=1 \
+			or row.results.size()!=3 or row.player_results.size()!=1 or row.rewards.size()!=6: return false
+	var scores: Array=[[5,3],[9,2],[13,6]]
+	for i in range(3):
+		var match_row: Dictionary=row.results[i]
+		if match_row.id!=i or match_row.away_runs!=scores[i][0] or match_row.home_runs!=scores[i][1] \
+				or match_row.performance.size()!=8 or match_row.ai_tactics.size()!=(1 if i==0 else 2): return false
+	return row.get("human_venue","")=="b15c3eee0c51b007c6281d23bc5371749d3255d632e5e62c036237b8d481c6bf"
+
+func _write_new(text: String) -> bool:
+	if FileAccess.file_exists(FILE) or FileAccess.file_exists(FILE+".tmp"): return false
+	if text.to_utf8_buffer().size()>Settle.LIMIT: return false
+	var f:=FileAccess.open(FILE+".tmp",FileAccess.WRITE)
+	if f==null: return false
+	f.store_string(text)
+	f.flush()
+	var ok: bool=f.get_error()==OK
+	f.close()
+	return ok and not FileAccess.file_exists(FILE) and DirAccess.rename_absolute(FILE+".tmp",FILE)==OK
