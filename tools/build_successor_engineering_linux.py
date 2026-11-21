@@ -157,6 +157,7 @@ script="plugin.gd"
 name="{TITLE}"
 platform="Linux"
 runnable=true
+custom_features="wiffaltro_engineering_export"
 export_filter="all_resources"
 include_filter="src/*,engineering_bootstrap/*"
 exclude_filter="addons/wiffaltro_exact_export/*"
@@ -210,6 +211,10 @@ binary_format/architecture="x86_64"
     denied = run([*boot,'--','--physical-job=x'],empty,boot_env,root/'malformed-worker.log',
                  'Private packaged worker request refused.',expected=3)
     assert 'WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE' not in denied and audited['launcher'] not in denied
+    denied_cross = run([*boot,'--','--d1-witness=x','--scene=res://wrong.tscn'],
+                       empty,boot_env,root/'malformed-cross-worker.log',
+                       'Private packaged archived draft worker request refused.',expected=3)
+    assert audited['launcher'] not in denied_cross
     assert not (Path(boot_env['XDG_DATA_HOME'])/'godot/app_userdata/Wiffaltro').exists()
     assert not list(Path(boot_env['XDG_DATA_HOME']).rglob('wiffaltro-common-career-v4.json'))
     inspect_env=build_environment(root/'inspect-home')

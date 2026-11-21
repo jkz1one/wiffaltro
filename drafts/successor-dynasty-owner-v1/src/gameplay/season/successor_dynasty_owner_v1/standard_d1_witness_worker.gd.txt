@@ -7,14 +7,9 @@ func _ready() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	var args:=OS.get_cmdline_user_args()
-	var prefix: String="--d1-witness="
-	if not Work.supported() or args.size()!=1 or not args[0].begins_with(prefix) or args[0].length()>1024:
-		get_tree().quit(2)
-		return
-	var json:=Marshalls.base64_to_utf8(args[0].trim_prefix(prefix))
-	var request: Variant=JSON.parse_string(json)
-	if not Work.request_valid(request) or JSON.stringify(request,"",true,true)!=json:
+	var request:=Work.parse_args(OS.get_cmdline_user_args())
+	if request.is_empty() or not Work.supported(request.kind) \
+		or (not OS.has_feature("editor") and not Work.take_packaged_read(request)):
 		get_tree().quit(2)
 		return
 	var bytes:=Work._bounded_slot(request.kind)

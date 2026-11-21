@@ -11,6 +11,10 @@ const CROSS_FILE: String="candidate.json"
 const CROSS_MAX: int=24*1024*1024
 const CROSS_KIND: String="common-cross-league-review-worker-v2"
 const CONTINUE_KIND: String="common-standard-d1-continue-worker-v2"
+const PACK_FEATURE: String="wiffaltro_engineering_export"
+const PACK_BOOTSTRAP: String="res://engineering_bootstrap/entry.tscn"
+const PACK_WITNESS_FLAG: String="WIFFALTRO_PACKAGED_CROSS_DRAFT"
+const ARG: String="--d1-witness="
 const FRAME: String="WIFFALTRO_D1_WITNESS_V2 "
 const MAX_FRAME: int=16384
 const MAX_MS: int=300000
@@ -30,9 +34,36 @@ var _completed_cross: Dictionary={}
 var _completed_cross_read: Dictionary={}
 var _cross_dir: String=""
 
-static func supported() -> bool:
-	return OS.has_feature("editor") and OS.get_name()=="Linux" \
-		and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+static func supported(kind: String=KIND) -> bool:
+	if OS.get_name()!="Linux" or OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1": return false
+	if OS.has_feature("editor"): return true
+	return kind==CROSS_READ_KIND and Store.cross_league_preview() and OS.has_feature(PACK_FEATURE) \
+		and OS.get_environment(PACK_WITNESS_FLAG)=="1" \
+		and ProjectSettings.get_setting("application/run/main_scene")==PACK_BOOTSTRAP
+
+# Both fixed routers decode the same canonical bounded capsule. It chooses a
+# contract and exact revision, never a resource, executable, output or slot.
+static func parse_args(args: PackedStringArray) -> Dictionary:
+	if args.size()!=1 or not args[0].begins_with(ARG) or args[0].length()>1024: return {}
+	var json:=Marshalls.base64_to_utf8(args[0].trim_prefix(ARG))
+	var request: Variant=JSON.parse_string(json)
+	return request if request_valid(request) and JSON.stringify(request,"",true,true)==json else {}
+
+# A directly loaded scene cannot arm itself. Only the compiled packaging
+# bootstrap installs this read-only, one-shot in-process boot lease.
+static var _packed_admission: Dictionary={}
+
+static func arm_packaged_read(request: Dictionary) -> bool:
+	if not _packed_admission.is_empty() or not request_valid(request) \
+		or request.kind!=CROSS_READ_KIND or OS.has_feature("editor") \
+		or not supported(CROSS_READ_KIND) or DisplayServer.get_name()!="headless": return false
+	_packed_admission=request.duplicate(true)
+	return true
+
+static func take_packaged_read(request: Dictionary) -> bool:
+	var admitted: Dictionary=_packed_admission
+	_packed_admission={}
+	return not admitted.is_empty() and ClubCareer.same(admitted,request)
 
 static func _bounded_slot(kind: String) -> PackedByteArray:
 	var file:=FileAccess.open(Store.PATH,FileAccess.READ)
@@ -61,7 +92,7 @@ static func canonical(value: Variant) -> String:
 	return JSON.stringify(JSON.parse_string(JSON.stringify(value,"",true,true)),"",true,true)
 
 func start(source_sha256: String, seed_value: int, kind: String=KIND) -> bool:
-	if running or not is_inside_tree() or not supported() or not T.Start.sha(source_sha256) \
+	if running or not is_inside_tree() or not supported(kind) or not T.Start.sha(source_sha256) \
 			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision(kind)!=source_sha256 \
 			or kind not in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND,PAIR_SETTLE_KIND] or (kind!=KIND and seed_value!=0) \
 			or (kind in [CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND] and not Store.cross_league_preview()): return false
@@ -76,10 +107,14 @@ func start(source_sha256: String, seed_value: int, kind: String=KIND) -> bool:
 			_clear()
 			return false
 		_cross_dir=folder
-	var worker: String=(get_script() as GDScript).resource_path.get_base_dir().path_join("standard_d1_witness_worker.tscn")
-	var packet: String=Marshalls.utf8_to_base64(canonical(_request))
-	var launched:=OS.execute_with_pipe(OS.get_executable_path(),
-		["--headless","--path",ProjectSettings.globalize_path("res://"),worker,"--","--d1-witness="+packet],false)
+	var packet: String=ARG+Marshalls.utf8_to_base64(canonical(_request))
+	var args: PackedStringArray=["--headless","--",packet]
+	if OS.has_feature("editor"):
+		var worker: String=(get_script() as GDScript).resource_path.get_base_dir().path_join("standard_d1_witness_worker.tscn")
+		args=["--headless","--path",ProjectSettings.globalize_path("res://"),worker,"--",packet]
+	# Release child boots the same official executable and adjacent PCK. No
+	# scene, project path or pack override is handed to the release process.
+	var launched:=OS.execute_with_pipe(OS.get_executable_path(),args,false)
 	_pid=int(launched.get("pid",-1))
 	_stdout=launched.get("stdio")
 	_stderr=launched.get("stderr")

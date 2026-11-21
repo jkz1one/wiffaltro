@@ -403,3 +403,26 @@ but it showed no progress for the running simulation. A new report was
 observed after about four minutes on this test host. This is not a target
 performance, second fixture, full round, separate child process, named
 stadium, or native macOS test.
+
+### Private archived Dugout reader export transport
+
+This engineering-only Linux package can opt in to the existing marked
+archived Dugout zero/one-pick Continue worker. It uses the official release
+executable and its adjacent PCK, with the compiled engineering export
+feature and the existing engineering, earned-leagues and cross-league flags
+plus `WIFFALTRO_PACKAGED_CROSS_DRAFT=1`. Without the new flag the package
+does not expose this private reader. This does not enable exported D1,
+cross-league activation, Doubleheader settlement or ordinary worker scene
+selection.
+
+The parent starts only itself, headless, with the bounded canonical
+archived-draft packet and a fresh random nonce; no scene, project or pack
+override is supplied. The compiled bootstrap chooses its fixed worker
+scene only for this exact kind and provides a one-shot in-process binding.
+A direct scene invocation cannot use that binding. The worker rechecks the
+exact slot digest and performs strict restore. It returns only the exact
+live, private pipe's draft seal; it never writes the career. The parent
+still validates the exact current source bytes, native draft reconstruction
+and standard Store authority. The old packaged Original worker remains
+separately routed and guarded. This is not protection from arbitrary local
+code or replacement of the audited executable/PCK.

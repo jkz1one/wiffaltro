@@ -755,7 +755,7 @@ func _complete_d1_continue(outcome: String, _proof: Dictionary, check: Node, epo
 	show_season()
 
 func private_cross_draft_continue_visible() -> bool:
-	return Store.cross_league_preview() and D1Check.supported() and career_owner==null \
+	return Store.cross_league_preview() and D1Check.supported(D1Check.CROSS_READ_KIND) and career_owner==null \
 		and season==null and FileAccess.file_exists(Store.PATH) and Store.standard_d1_slot_kind().is_empty()
 
 func continue_cross_draft() -> void:

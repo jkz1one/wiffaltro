@@ -1,6 +1,8 @@
 extends Node
 ## Packaging-only scene selection. The original App/worker enforce authority.
 const PHYSICAL = preload("res://src/gameplay/simulation/physical_job_entry.gd")
+const Witness = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
+const CROSS_DRAFT_WORKER := "res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_worker.tscn"
 const INTEGRATED := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 const LEGACY := "res://src/presentation/season/season_app.tscn"
 
@@ -9,7 +11,16 @@ func _ready() -> void:
 		push_error("Private Dynasty engineering route not admitted.")
 		get_tree().quit(2)
 		return
-	var mode: int = PHYSICAL.route(OS.get_cmdline_user_args())
+	var args:=OS.get_cmdline_user_args()
+	if _witness_requested(args):
+		var request:=Witness.parse_args(args)
+		if not Witness.arm_packaged_read(request):
+			push_error("Private packaged archived draft worker request refused.")
+			get_tree().quit(3)
+			return
+		call_deferred("_transition",CROSS_DRAFT_WORKER)
+		return
+	var mode: int = PHYSICAL.route(args)
 	if mode == PHYSICAL.NORMAL:
 		call_deferred("_transition",INTEGRATED)
 		return
@@ -24,6 +35,11 @@ func _ready() -> void:
 	# original token, permitted transport and headless mode before its worker.
 	print("WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE")
 	call_deferred("_transition",LEGACY)
+
+static func _witness_requested(args: PackedStringArray) -> bool:
+	for arg: String in args:
+		if arg.begins_with("--d1-witness"): return true
+	return false
 
 func _transition(scene_path: String) -> void:
 	if get_tree().change_scene_to_file(scene_path) != OK:
