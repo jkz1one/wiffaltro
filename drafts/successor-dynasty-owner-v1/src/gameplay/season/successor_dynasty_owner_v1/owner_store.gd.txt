@@ -515,10 +515,42 @@ static func prepare_settlement_and_write(owner: RefCounted, expected: PackedByte
 	var ticket: RefCounted = prepare_and_write(owner,envelope,expected)
 	return {"ticket":ticket} if ticket != null else {"error":"The settled candidate could not be admitted."}
 
+# Fixed private Close producer. No caller-selected candidate or report.
+static func _prepare_paired_close(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	forget_projection()
+	last_error=""
+	if saving or _ticket!=null or not _paired_owner(owner) or owner.lifecycle_status()!="active" or not match_owner(owner,expected): return null
+	# match_owner binds expected bytes, disk CAS, exact previously admitted
+	# native owner and its unchanged raw graph. Close does not change a single
+	# session field. Carry that exact io representation within this operation
+	# rather than replaying physical history for an unchanged fork.
+	var decoded: Variant=JSON.parse_string(expected.get_string_from_utf8())
+	if not decoded is Dictionary or decoded.get("active")!="ordinary" or not decoded.get("ordinary") is Dictionary: return null
+	var current: Dictionary=decoded.ordinary
+	# A gameplay fork may normalize session internals. Only clone outer
+	# metadata: the completed session is unchanged, and both owner graphs'
+	# session identity is checked against the original private native snapshot.
+	var candidate: RefCounted=Owner.new()
+	candidate.session=owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+	if not Owner.Common._close_paired_complete(candidate,current): return null
+	var data: Dictionary=Owner.pack_current(candidate,current)
+	if data.is_empty() or not _matches_raw(owner,_owner_raw): return null
+	var budget: Array=[RawGuard.MAX_NODES,true]
+	var snapshot: Dictionary=RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)
+	if not budget[1] or snapshot.is_empty(): return null
+	snapshot.session=_owner_raw.session
+	if not _matches_raw(candidate,snapshot): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.
 static func switch_available(owner: RefCounted) -> bool:
-	if owner==null or owner.get_script()!=Owner: return false
+	if owner==null or owner.get_script()!=Owner or owner.paired_draft_only(): return false
 	var closed: bool=owner.status=="closed" if owner.active=="dynasty" else owner.ordinary_state.get("status")=="closed"
 	if not owner.playable() and not closed: return false
 	var current: SeasonState=owner.session

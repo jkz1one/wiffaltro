@@ -149,7 +149,8 @@ static func fold(before: Dictionary, side: String, season: SeasonState, close_id
 	var league: String="dynasty" if side=="dynasty" else str(season.league_rules.get("league","standard"))
 	var tier: int=int(season.league_rules.get("tier",0))
 	# Current factories admit only these Base modes; never broaden119's guard.
-	if tier!=0 or (side=="ordinary" and league not in OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES): return {}
+	var paired_complete: bool=side=="ordinary" and league=="doubleheader" and reason=="complete" and summary.finish=="semifinal" and Adapter.Ordinary._completed_postseason_shape(season)
+	if tier!=0 or (side=="ordinary" and league not in OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES and not paired_complete): return {}
 	var result: Dictionary=before.duplicate(true)
 	result.closed+=1;result.completed+=int(reason=="complete");result.abandoned+=int(reason=="abandon")
 	var receipt: Dictionary={}

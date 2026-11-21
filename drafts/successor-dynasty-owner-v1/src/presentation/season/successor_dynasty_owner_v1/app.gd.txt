@@ -319,6 +319,13 @@ func _settle_paired_postseason() -> void:
 	var ticket: RefCounted=Store._prepare_paired_settlement(career_owner,expected,10)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+# Unbound standalone Close. Never linked to the ordinary lifecycle UI.
+func _close_paired_complete() -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or career_owner.lifecycle_status()!="active" or season.phase!=SeasonState.Phase.COMPLETE or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	var expected: PackedByteArray=saved_bytes.duplicate()
+	var ticket: RefCounted=Store._prepare_paired_close(career_owner,expected)
+	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
 # Unbound private earned-pack continuation; normal shop remains inaccessible.
 func _paired_first_shop(command: Dictionary) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return
@@ -1012,6 +1019,7 @@ var _session_bytes: PackedByteArray=PackedByteArray()
 func _clear_session_ticket() -> void:
 	_session_ticket=null;_session_owner=null;_session_state=null;_session_bytes=PackedByteArray()
 func session_switch_allowed() -> bool:
+	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or career_owner.lifecycle_status() not in ["active","closed"] or is_instance_valid(ai_runner): return false
 	if not retained_human.is_empty() or not retained_report.is_empty() or not projection.is_empty() and _busy: return false
 	if not _exit_mode.is_empty() or not season.physical.pending.is_empty() or season.build.pack_pending(): return false

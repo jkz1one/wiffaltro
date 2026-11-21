@@ -90,7 +90,10 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 	var state: Dictionary=owner.ordinary_state
 	if season.league_rules.get("league","")=="doubleheader":
 		if owner.active!="ordinary" or not owner.paused.is_empty() or not owner.migration_v3.is_empty() or not owner._missing_dynasty(owner): return false
-		if state.ordinal!=1 or state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,Progress.birth({},season,season.player_access)): return false
+		if state.ordinal!=1: return false
+		var birth: Dictionary=Progress.birth({},season,season.player_access)
+		if state.status=="closed": return _paired_closed_valid(owner,season,current,birth)
+		if state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,birth): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false
@@ -109,13 +112,50 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 	var expected: Dictionary=ClubSeasonRecord.receipt(proof,row.first_title,tier) if row.reason=="complete" else {}
 	return C.same(row.receipt,expected)
 
+# Only the already-qualified private eliminated semifinal COMPLETE can close.
+static func _paired_complete_scope(owner, season: SeasonState) -> bool:
+	return owner.paired_draft_only() and owner.active=="ordinary" and owner.paused.is_empty() \
+		and owner.migration_v3.is_empty() and owner._missing_dynasty(owner) and Adapter.scope("ordinary",season) \
+		and Adapter.Ordinary._completed_postseason_shape(season) and season.champion!=0 \
+		and ClubSeasonRecord.analyze(ClubSeasonRecord.capture(season)).get("finish")=="semifinal" \
+		and not season.build.pack_pending()
+
+static func _paired_closed_valid(owner, season: SeasonState, current: Dictionary, birth: Dictionary) -> bool:
+	if birth.is_empty() or not _paired_complete_scope(owner,season): return false
+	var state: Dictionary=owner.ordinary_state
+	if not state.proposal.is_empty() or not state.last_transition.is_empty(): return false
+	if owner.common.sequence!=1 or not C.same(owner.common.cursors,{"ordinary":1,"dynasty":0}) \
+		or not C.same(owner.common.baseline,{"dynasty_closed":0,"ledger_sha256":Life.digest({})}): return false
+	# This first ordinal may only originate from the deterministic private draft,
+	# not an arbitrary lineage whose two close envelopes agree with each other.
+	var draft: SeasonState=Adapter.OrdinaryRuntime._create_paired_draft(season.season_seed)
+	if draft==null or not C.same(draft.career.start_basis,season.career.start_basis): return false
+	var origin: Dictionary=Adapter.capture("ordinary",draft)
+	if origin.is_empty() or state.lineage!="ordinary:"+Life.digest(origin) \
+		or state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
+	var id: String="%s:1:close"%state.lineage
+	var source: String=Life.digest(current)
+	var folded: Dictionary=Progress.fold(birth,"ordinary",season,id,1,"complete")
+	if folded.is_empty() or not C.same(owner.common.aggregate,folded.aggregate): return false
+	return C.same(state.last_close,{"id":id,"ordinal":1,"reason":"complete","session_sha256":source,"receipt":folded.receipt,"first_title":true,"league":"doubleheader","tier":0}) \
+		and C.same(owner.common.last_fold,{"id":id,"side":"ordinary","ordinal":1,"sequence":1,"source":source,"aggregate_sha256":Life.digest(folded.aggregate),"receipt":folded.receipt})
+
+# Pure metadata fold on a detached owner; only Store can bind existing
+# admitted session bytes, enforce exact raw equality, and write the envelope.
+static func _close_paired_complete(owner, current: Dictionary) -> bool:
+	if not _paired_complete_scope(owner,owner.session) or not valid(owner) or owner.ordinary_state.status!="active": return false
+	return ordinary_current_valid(owner,owner.session,current) and _apply_close(owner,"complete",current)
+
 static func close(owner, reason: String) -> bool:
 	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
 	var season: SeasonState=owner.session
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false
 	if (reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return false
 	var source: Dictionary=Adapter.capture(owner.active,season)
-	if source.is_empty(): return false
+	return not source.is_empty() and _apply_close(owner,reason,source)
+
+static func _apply_close(owner, reason: String, source: Dictionary) -> bool:
+	var season: SeasonState=owner.session
 	var ordinal: int=owner.ordinal if owner.active=="dynasty" else int(owner.ordinary_state.ordinal)
 	var lineage: String=Life.lineage(owner) if owner.active=="dynasty" else owner.ordinary_state.lineage
 	var id: String="%s:%d:close"%[lineage,ordinal]
@@ -213,6 +253,7 @@ static func dynasty_next_supported(owner) -> bool:
 	return aggregate.pennants.is_empty() and C.same(awards(owner),owner.ledger.plaques)
 
 static func propose(owner, seed_value: int) -> bool:
+	if owner.paired_draft_only(): return false
 	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.propose(owner,seed_value)
 	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.ordinal>=ClubCareer.MAX_RUNS or not C.whole(seed_value,0,2147483647): return false
 	var state: Dictionary=owner.ordinary_state
@@ -234,6 +275,7 @@ static func preview(owner) -> Dictionary:
 	return {"kind":"ordinary","league":p.league,"tier":p.tier,"seed":b.seed,"ordinal":b.ordinal,"player_access":b.player_access.duplicate(),"starts":b.starts.duplicate(true),"exotic_rights":b.exotic_rights.duplicate()}
 
 static func advance(owner) -> bool:
+	if owner.paired_draft_only(): return false
 	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.advance(owner)
 	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.proposal.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state

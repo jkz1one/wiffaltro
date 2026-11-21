@@ -1,0 +1,93 @@
+extends "res://tests/successor_hidden_paired_postseason_settlement.gd"
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var mode:String=args[0]
+ var app=Game10ObservedApp.new()
+ get_tree().root.add_child(app)
+ var primary:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ print("CP127_STAGE cold")
+ var started:int=Time.get_ticks_msec()
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ app.reload_save()
+ print("CLOSE_READ_MS=",Time.get_ticks_msec()-started," GATES=",Live.paired_history_calls-gates," REPLAYS=",PairHistory.Collector.replay_calls-replays)
+ if mode.begins_with("tamper"):
+  check(app.season==null and exact(primary,backup),"corrupt "+mode+" refused without touching either slot")
+ elif check(app.season!=null and app._owned() and exact(primary,backup),"fresh owner and exact primary/backup"):
+  if mode=="close":
+   close_once(app,primary,backup)
+  elif mode=="closed":
+   check(Live.paired_history_calls-gates==2 and PairHistory.Collector.replay_calls-replays==6,"cacheless closed read uses entire prior physical history validator and separate empty draft lineage proof")
+   check(postseason_paid(app.season) and native_closed(app.career_owner,source_digest(primary)),"exact native close provenance, receipt, aggregate and original 33 paid results")
+   sealed(app,primary,backup)
+  elif mode=="standard":
+   check(Live.paired_history_calls==0 and app.career_owner.active=="ordinary" and not app.career_owner.paired_draft_only(),"unchanged Standard authentic owner; zero paired history gates")
+   app._close_paired_complete()
+   check(app.retained==null and Store._prepare_paired_close(app.career_owner,primary)==null and exact(primary,backup),"private close rejects Standard without writes")
+  else:
+   check(false,"unexpected mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func close_once(app,primary:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ var source:SeasonState=app.season
+ var canonical:String=source_digest(primary)
+ var draft_scope_gates:int=Live.paired_history_calls
+ check(owner.lifecycle_status()=="active" and postseason_paid(source),"eligible exact active private COMPLETE")
+ var foreign=Owner.new(); foreign.session=source; foreign.active="ordinary"
+ check(Store._prepare_paired_close(foreign,primary)==null and Store._prepare_paired_close(owner,backup)==null,"foreign and stale cannot close")
+ app.close_current("complete")
+ app.close_current("abandon")
+ check(app.retained==null and Store.match_owner(owner,primary) and exact(primary,backup),"public and abandon routes still sealed")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"hold isolated writer"):return
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE candidate")
+ app._close_paired_complete()
+ print("CLOSE_CANDIDATE_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained!=null and app.retained_envelope!=null,"retains own admitted closed candidate"):return
+ var held=app.retained_envelope
+ check(native_closed(held,canonical) and held.session==source and Live.paired_history_calls-draft_scope_gates==1,"native single aggregate fold; exact paid outcomes")
+ app._close_paired_complete()
+ check(app.retained_envelope==held and app.season==source and app.career_owner==owner and Store.match_owner(owner,primary) and exact(primary,backup),"duplicate held action and rejected write leave owner and slots exact")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"remove only isolated hold"):return
+ var reason:String=held.ordinary_state.last_close.reason
+ held.ordinary_state.last_close.reason="abandon"
+ check(not Store.write_prepared(app._save_ticket) and exact(primary,backup),"held metadata mutation fails native pin before write")
+ held.ordinary_state.last_close.reason=reason
+ var gates:int=Live.paired_history_calls
+ print("CP127_STAGE retry")
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("CLOSE_RETRY_MS=",Time.get_ticks_msec()-started)
+ if not check(app.career_owner==held and app.retained==null and app.season==held.session and Store.RawGuard._match_session(source,Store._owner_raw.session,1,[Store.RawGuard.MAX_NODES],"ordinary") and Live.paired_history_calls==gates,"retry promotes exact candidate without replay or extra fold"):return
+ check(FileAccess.get_file_as_bytes(Store.PATH+".bak")==primary,"backup is byte-identical active COMPLETE")
+ sealed(app,Store.raw(),primary)
+
+func source_digest(bytes:PackedByteArray) -> String:
+ return Owner.Common.Life.digest(JSON.parse_string(bytes.get_string_from_utf8()).ordinary)
+
+func native_closed(owner,canonical:String) -> bool:
+ var state:Dictionary=owner.ordinary_state
+ var aggregate:Dictionary=owner.common.aggregate
+ var receipt:Dictionary=ClubSeasonRecord.receipt(ClubSeasonRecord.capture(owner.session),true,0)
+ return owner.lifecycle_status()=="closed" and owner.lifecycle_reason()=="complete" and owner.current_ordinal()==1 and owner.active=="ordinary" and owner.paused.is_empty() and owner._missing_dynasty(owner) \
+  and Live.same(receipt,{"version":1,"finish":"semifinal","wins":8,"finish_award":65,"record_bonus":12,"first_bonus":0,"total":77}) \
+  and state.last_close.id==state.lineage+":1:close" and state.last_close.session_sha256==canonical and Live.same(state.last_close.receipt,receipt) and state.last_close.league=="doubleheader" and state.last_close.tier==0 \
+  and owner.common.sequence==1 and Live.same(owner.common.cursors,{"ordinary":1,"dynasty":0}) and owner.common.last_fold.source==canonical and owner.common.last_fold.id==state.last_close.id and owner.common.last_fold.side=="ordinary" and owner.common.last_fold.ordinal==1 and owner.common.last_fold.sequence==1 and Live.same(owner.common.last_fold.receipt,receipt) \
+  and aggregate.closed==1 and aggregate.completed==1 and aggregate.abandoned==0 and aggregate.games==11 and aggregate.wins==8 and aggregate.currency==77 and aggregate.titles.is_empty() and aggregate.pennants.is_empty() and owner.session.build.cash()==158
+
+func sealed(app,primary:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ app._close_paired_complete()
+ app.close_current("complete")
+ app.propose_next(1002)
+ app.commit_next()
+ check(not Store.switch_available(owner) and not app.session_switch_allowed() and Store.prepare_session_and_write(owner,primary,"create",1002,"dynasty")==null,"no alternate career or Dynasty entry")
+ check(not owner.close_current("complete") and not owner.propose_next(1002) and not owner.commit_next() and owner.next_preview().is_empty(),"no second close, abandon or Next")
+ check(Store._prepare_paired_close(owner,primary)==null and not owner.playable() and app.career_owner==owner and app.retained==null and exact(primary,backup),"private repeated, ordinary/public and generic paths remain sealed")
