@@ -16,6 +16,11 @@ const Page = preload("menu.gd")
 const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
 var _d1_check: Node
 var _d1_close_after_check: bool=false
+var _d1_epoch: int=0
+var _d1_proof_epoch: int=-1
+var _d1_proof_expiry: int=0
+var _d1_proof: Dictionary={}
+const D1_PROOF_MS: int=30000
 var retained_before: Dictionary = {} # Detached diagnostics only, never writer authority.
 var _save_ticket: RefCounted
 var retained_human: Array = []
@@ -98,6 +103,7 @@ func _ready() -> void:
 	show_season()
 
 func _exit_tree() -> void:
+	_expire_d1_proof()
 	var checking: Node=_d1_check
 	_d1_check=null
 	if is_instance_valid(checking): checking.cancel()
@@ -136,6 +142,7 @@ func select_league(value: String) -> void:
 	if earned_league_preview() and league_entry_state(value)!="playable": return
 	selected_league = value; show_season()
 func create_fresh(seed_value: int = -1) -> void:
+	if not d1_check_running(): _expire_d1_proof()
 	if not _available() or season != null: return
 	if Store.occupied():
 		notice = "This slot already contains saved or interrupted work. Continue it; nothing was overwritten."
@@ -392,12 +399,13 @@ func d1_check_running() -> bool:
 
 func begin_d1_check() -> void:
 	if not d1_check_visible() or not _available(): return
+	_expire_d1_proof()
 	var check:=D1Check.new()
 	_d1_check=check
 	add_child(check)
-	check.completed.connect(_complete_d1_check.bind(check),CONNECT_ONE_SHOT)
+	check.completed.connect(_complete_d1_check.bind(check,_d1_epoch),CONNECT_ONE_SHOT)
 	if not check.start(D1Check._revision(),0):
-		_complete_d1_check("invalid",check)
+		_complete_d1_check("invalid",{},check,_d1_epoch)
 		return
 	notice="Checking the saved Standard Base championship in the background…"
 	show_season()
@@ -405,15 +413,34 @@ func begin_d1_check() -> void:
 func cancel_d1_check() -> void:
 	if is_instance_valid(_d1_check): _d1_check.cancel()
 
-func _complete_d1_check(outcome: String, check: Node) -> void:
-	if _d1_check!=check: return
+func _expire_d1_proof() -> void:
+	_d1_epoch+=1
+	_d1_proof={}
+	_d1_proof_epoch=-1
+	_d1_proof_expiry=0
+
+# A single-use in-process handoff for a future private consumer, not a save ticket.
+func _take_d1_check_proof() -> Dictionary:
+	var result: Dictionary=_d1_proof if _d1_proof_epoch==_d1_epoch \
+		and Time.get_ticks_msec()<_d1_proof_expiry and _available() and d1_check_visible() \
+		and D1Check._revision()==_d1_proof.get("request",{}).get("source_sha256") else {}
+	_expire_d1_proof()
+	return result
+
+func _complete_d1_check(outcome: String, proof: Dictionary, check: Node, epoch: int) -> void:
+	if _d1_check!=check or epoch!=_d1_epoch: return
 	_d1_check=null
 	check.queue_free()
 	if _d1_close_after_check:
 		_d1_close_after_check=false
 		_quit_now()
 		return
+	if outcome=="qualified" and not proof.is_empty():
+		_d1_proof=proof
+		_d1_proof_epoch=epoch
+		_d1_proof_expiry=Time.get_ticks_msec()+D1_PROOF_MS
 	notice={
+		"qualified":"The Standard Base title was verified. No career was loaded or changed.",
 		"refused":"This save does not qualify for Standard D1. No career was loaded or changed.",
 		"stale":"The saved career changed during the check. Check again using the current save.",
 		"cancelled":"Championship check cancelled. Your career is unchanged."
@@ -422,6 +449,7 @@ func _complete_d1_check(outcome: String, check: Node) -> void:
 
 func reload_save() -> void:
 	if not _available(): return
+	_expire_d1_proof()
 	_busy = true
 	var before: PackedByteArray = Store.raw()
 	var candidate: RefCounted = Store.read()
@@ -591,6 +619,7 @@ func _finish_save() -> void:
 	notice = ""; _busy = false; show_season()
 
 func open_previous() -> void:
+	if not d1_check_running(): _expire_d1_proof()
 	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/successor_live_play_v1/launcher.tscn")
 func open_legacy() -> void:
 	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")
@@ -624,6 +653,7 @@ func _request_quit() -> void:
 		_d1_close_after_check=true
 		cancel_d1_check()
 		return
+	_expire_d1_proof()
 	_request_exit("quit")
 
 
@@ -941,6 +971,7 @@ func import_draft() -> void:
 
 # Private lifecycle handlers. Menu exposure follows corresponding save/cold gates.
 func import_previous_dynasty() -> void:
+	if not d1_check_running(): _expire_d1_proof()
 	if not _available() or season!=null or Store.occupied(): return
 	var path: String="user://wiffaltro-dynasty-owner-v1.json"
 	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
@@ -1135,6 +1166,7 @@ func _scope() -> bool:
 	return career_owner!=null and career_owner.session==season and Adapter.scope(career_owner.active,season)
 
 func import_previous_common() -> void:
+	if not d1_check_running(): _expire_d1_proof()
 	if not _available() or season!=null or Store.occupied(): return
 	var path: String="user://wiffaltro-common-career-v3.json"
 	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)
@@ -1146,6 +1178,7 @@ func import_previous_common() -> void:
 	_retain_envelope(candidate,PackedByteArray())
 
 func import_previous_career() -> void:
+	if not d1_check_running(): _expire_d1_proof()
 	if not _available() or season!=null or Store.occupied(): return
 	var path: String="user://wiffaltro-dynasty-career-v2.json"
 	var bytes: PackedByteArray=FileAccess.get_file_as_bytes(path)

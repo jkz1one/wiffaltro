@@ -52,14 +52,15 @@ func _run() -> void:
 		if not _need(app.d1_check_running() and cancel!=null and "in the background" in app.notice
 				and _button(app,"CONTINUE SAVED CAREER")==null,"real running render, no competing Restore button"): return
 		var started:=Time.get_ticks_msec()
-		var folder: String=app._d1_check._folder
+		var check: Node=app._d1_check
 		if args[0]=="cancel": cancel.pressed.emit()
 		if args[0]=="close": app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
 		if args[0]=="stale":
 			app._d1_check.set_process(false)
-			while not FileAccess.file_exists(folder.path_join("response.json")) and Time.get_ticks_msec()-started<120000:
+			while not check._output.get_string_from_utf8().contains(check.FRAME) and Time.get_ticks_msec()-started<120000:
+				if not _need(check._drain(),"read only own child pipe"): return
 				await get_tree().process_frame
-			if not _need(FileAccess.file_exists(folder.path_join("response.json"))
+			if not _need(check._output.get_string_from_utf8().contains(check.FRAME)
 					and DirAccess.rename_absolute(S.PATH,S.PATH+".qa-moved")==OK,"real child response before moving disposable primary"): return
 			app._d1_check.set_process(true)
 		var frames: int=0
@@ -67,8 +68,8 @@ func _run() -> void:
 			await get_tree().process_frame
 			frames+=1
 		if args[0]=="stale" and not _need(DirAccess.rename_absolute(S.PATH+".qa-moved",S.PATH)==OK,"restore exact disposable primary"): return
-		if not _need(not app.d1_check_running() and not DirAccess.dir_exists_absolute(folder)
-				and app.career_owner==null and app.season==null and app.saved_bytes.is_empty(),"no owner admission, worker or job files remain"): return
+		if not _need(not app.d1_check_running() and not is_instance_valid(app._d1_check)
+				and app.career_owner==null and app.season==null and app.saved_bytes.is_empty() and app._take_d1_check_proof().is_empty(),"no owner admission, worker or job files remain"): return
 		match args[0]:
 			"refused":
 				if not _need(frames>10 and "does not qualify" in app.notice and app.quits==0,"responsive App, refused notice"): return

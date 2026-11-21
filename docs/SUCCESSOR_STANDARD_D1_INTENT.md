@@ -309,3 +309,27 @@ performs the final exact-revision CAS after deterministic D1 structural
 hydration; it must not run a second full owner replay on the menu frame.
 The pipe and a real title's successful private Store consumption still
 require validation before this can write a draft or grant access.
+
+### Private positive-capable pipe
+
+On the Linux source-editor route, the verified child executable now
+receives the canonical request on its command line (format, nonce, fixed
+slot digest and seed only; never save bytes). The parent uses directly
+attached nonblocking stdout/stderr pipes rather than any result file.
+It accepts exactly one canonical response frame (16 KiB total cap),
+matching request plus exit code, no extra data or stderr, and a still
+matching primary revision. A qualified frame must also pass the existing
+transition contract and retain the exact seed. The App holds it only for
+one private, 30-second, generation- and byte-revision-bound handoff;
+another check, restore, navigation into another career, or window close
+discards it. No consumer currently writes a draft or exposes D1.
+
+The shaped positive protocol fixture is parser-only, does not come from
+a title, and never enters the App or Save Store. The actual replay
+fixture remains the generated eliminated Standard Base slot for which
+the separate worker can only refuse. Test that a planted, well-formed
+legacy reply file plus dead worker cannot qualify, as well as stale,
+duplicate, oversized and wrong-nonce cases. A genuine title must still
+qualify the positive transition in-process before adding the parent-only
+Store CAS. The retained closed witness must be persisted atomically
+with the ensuing private draft and verified again on future cold loads.

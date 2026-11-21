@@ -10,16 +10,12 @@ func _ready() -> void:
 func _run() -> void:
 	var args:=OS.get_cmdline_user_args()
 	var prefix: String="--d1-witness="
-	if not Work.supported() or args.size()!=1 or not args[0].begins_with(prefix):
+	if not Work.supported() or args.size()!=1 or not args[0].begins_with(prefix) or args[0].length()>1024:
 		get_tree().quit(2)
 		return
-	var token: String=args[0].trim_prefix(prefix)
-	var folder:=PhysicalJobFiles.directory(token)
-	if folder.is_empty():
-		get_tree().quit(2)
-		return
-	var request: Variant=PhysicalJobFiles.read(folder.path_join("request.json"))
-	if not Work.request_valid(request,token):
+	var json:=Marshalls.base64_to_utf8(args[0].trim_prefix(prefix))
+	var request: Variant=JSON.parse_string(json)
+	if not Work.request_valid(request) or JSON.stringify(request,"",true,true)!=json:
 		get_tree().quit(2)
 		return
 	var file:=FileAccess.open(S.PATH,FileAccess.READ)
@@ -37,12 +33,10 @@ func _run() -> void:
 		get_tree().quit(3)
 		return
 	var qualified: Dictionary=T.derive(owner,int(request.seed))
-	# Do not publish successful qualification through file IPC: this increment
-	# has no witnessed store consumer, and no genuine title QA fixture.
-	if not qualified.is_empty():
-		get_tree().quit(4)
-		return
-	if not PhysicalJobFiles.write(folder.path_join("response.json"),{"request":request,"outcome":"refused"}):
+	var result: Dictionary={"request":request,"outcome":"refused" if qualified.is_empty() else "qualified","transition":qualified}
+	var frame: String=Work.FRAME+Work.canonical(result)
+	if frame.to_utf8_buffer().size()>Work.MAX_FRAME-1024:
 		get_tree().quit(3)
 		return
-	get_tree().quit(Work.REFUSED_EXIT)
+	print(frame)
+	get_tree().quit(Work.REFUSED_EXIT if qualified.is_empty() else 0)

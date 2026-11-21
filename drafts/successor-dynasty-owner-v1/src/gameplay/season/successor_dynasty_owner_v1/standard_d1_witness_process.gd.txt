@@ -1,22 +1,25 @@
 extends Node
-## Private editor-only proof transport. Never writes a slot or returns a grant.
+## Private same-binary proof transport. No disk reply or slot writer.
 const Store=preload("owner_store.gd")
 const T=preload("standard_d1_transition.gd")
-const KIND: String="common-standard-d1-witness-worker-v1"
-const REFUSED_EXIT: int=23
+const KIND: String="common-standard-d1-witness-worker-v2"
+const FRAME: String="WIFFALTRO_D1_WITNESS_V2 "
+const MAX_FRAME: int=16384
 const MAX_MS: int=300000
-signal completed(outcome: String)
+const REFUSED_EXIT: int=23
+signal completed(outcome: String, proof: Dictionary)
 var running: bool=false
 var _pid: int=-1
-var _token: String=""
-var _folder: String=""
+var _stdout: FileAccess
+var _stderr: FileAccess
+var _output: PackedByteArray
 var _request: Dictionary={}
 var _started: int=0
 var _last_poll: int=0
 var _stopping: String=""
 
 static func supported() -> bool:
-	return OS.has_feature("editor") and PhysicalRoundProcess.supported() \
+	return OS.has_feature("editor") and OS.get_name()=="Linux" \
 		and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
 
 static func _revision() -> String:
@@ -25,26 +28,31 @@ static func _revision() -> String:
 	file.close()
 	return FileAccess.get_sha256(Store.PATH)
 
-static func request_valid(value: Variant, token: String) -> bool:
+static func request_valid(value: Variant) -> bool:
 	return value is Dictionary and SeasonOwnership._keys(value,["version","kind","token","source_sha256","seed"]) \
-		and SeasonOwnership._whole(value.version,1,1) and value.kind==KIND and value.token==token \
+		and SeasonOwnership._whole(value.version,2,2) and value.kind==KIND \
+		and value.token is String and value.token.length()==32 and value.token.is_valid_hex_number(false) \
 		and T.Start.sha(value.source_sha256) and SeasonOwnership._whole(value.seed,0,2147483647)
+
+# Godot's JSON parser materializes numbers as floats; normalize once before
+# writing so the receiver can check the exact canonical wire representation.
+static func canonical(value: Variant) -> String:
+	return JSON.stringify(JSON.parse_string(JSON.stringify(value,"",true,true)),"",true,true)
 
 func start(source_sha256: String, seed_value: int) -> bool:
 	if running or not is_inside_tree() or not supported() or not T.Start.sha(source_sha256) \
 			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision()!=source_sha256: return false
-	_token=Crypto.new().generate_random_bytes(16).hex_encode()
-	_folder=PhysicalJobFiles.directory(_token)
-	if _folder.is_empty() or DirAccess.dir_exists_absolute(_folder) \
-			or DirAccess.make_dir_recursive_absolute(_folder)!=OK: return false
-	_request={"version":1,"kind":KIND,"token":_token,"source_sha256":source_sha256,"seed":seed_value}
-	if not PhysicalJobFiles.write(_folder.path_join("request.json"),_request):
-		_clear()
-		return false
+	_request={"version":2,"kind":KIND,"token":Crypto.new().generate_random_bytes(16).hex_encode(),
+		"source_sha256":source_sha256,"seed":seed_value}
 	var worker: String=(get_script() as GDScript).resource_path.get_base_dir().path_join("standard_d1_witness_worker.tscn")
-	_pid=OS.create_process(OS.get_executable_path(),["--headless","--path",ProjectSettings.globalize_path("res://"),
-		"--log-file",_folder.path_join("worker.log"),worker,"--","--d1-witness="+_token])
-	if _pid<=0:
+	var packet: String=Marshalls.utf8_to_base64(canonical(_request))
+	var launched:=OS.execute_with_pipe(OS.get_executable_path(),
+		["--headless","--path",ProjectSettings.globalize_path("res://"),worker,"--","--d1-witness="+packet],false)
+	_pid=int(launched.get("pid",-1))
+	_stdout=launched.get("stdio")
+	_stderr=launched.get("stderr")
+	if _pid<=0 or _stdout==null or _stderr==null:
+		if _pid>0: OS.kill(_pid)
 		_clear()
 		return false
 	process_mode=Node.PROCESS_MODE_ALWAYS
@@ -65,16 +73,22 @@ func _exit_tree() -> void:
 
 func _stop(emit_result: bool=true) -> void:
 	if OS.is_process_running(_pid) and OS.kill(_pid)!=OK: return
-	_finish(_stopping,emit_result)
+	_finish(_stopping,{},emit_result)
 
 func _clear() -> void:
-	PhysicalJobFiles.clean(_token)
 	running=false
-	_token="";_folder="";_request={};_pid=-1;_stopping=""
+	_stdout=null;_stderr=null;_output=PackedByteArray();_request={};_pid=-1;_stopping=""
 
-func _finish(outcome: String, emit_result: bool=true) -> void:
+func _finish(outcome: String, proof: Dictionary={}, emit_result: bool=true) -> void:
 	_clear()
-	if emit_result: completed.emit(outcome)
+	if emit_result: completed.emit(outcome,proof)
+
+func _drain() -> bool:
+	if _stdout==null or _stderr==null or _stderr.get_length()>0: return false
+	var available: int=_stdout.get_length()
+	if available>MAX_FRAME-_output.size(): return false
+	if available>0: _output.append_array(_stdout.get_buffer(available))
+	return true
 
 func _process(_delta: float) -> void:
 	if not running or Time.get_ticks_msec()-_last_poll<100: return
@@ -82,27 +96,38 @@ func _process(_delta: float) -> void:
 	if not _stopping.is_empty():
 		_stop()
 		return
-	if _last_poll-_started>MAX_MS:
-		_stopping="timeout"
+	if _last_poll-_started>MAX_MS or not _drain():
+		_stopping="invalid"
 		_stop()
 		return
 	if OS.is_process_running(_pid): return
 	var exit_code:=OS.get_process_exit_code(_pid)
-	var result: Variant=PhysicalJobFiles.read(_folder.path_join("response.json"))
-	var log:=FileAccess.open(_folder.path_join("worker.log"),FileAccess.READ)
-	if log==null or log.get_length()>1048576:
+	if not _drain():
 		_finish("invalid")
 		return
-	var clean:=not log.get_as_text().contains("ERROR:")
-	log.close()
 	if _revision()!=_request.source_sha256:
 		_finish("stale")
-	elif exit_code!=REFUSED_EXIT or not clean or not _matches_refusal(result,_request):
+		return
+	var packet:=_decode(_output,_request,exit_code)
+	if packet.is_empty():
 		_finish("invalid")
 	else:
-		_finish("refused")
+		_finish(packet.outcome,packet if packet.outcome=="qualified" else {})
 
-static func _matches_refusal(value: Variant, request: Dictionary) -> bool:
-	if not value is Dictionary or not SeasonOwnership._keys(value,["request","outcome"]) \
-			or value.outcome!="refused" or not value.request is Dictionary: return false
-	return request_valid(value.request,request.token) and ClubCareer.same(value.request,request)
+static func _decode(bytes: PackedByteArray, request: Dictionary, exit_code: int) -> Dictionary:
+	if bytes.is_empty() or bytes.size()>MAX_FRAME or not request_valid(request): return {}
+	var text:=bytes.get_string_from_utf8().replace("\r\n","\n")
+	if not text.ends_with("\n"): return {}
+	var lines:=text.split("\n",true)
+	# The same executable prints an engine banner and blank line before the scene.
+	if lines.size()!=4 or not lines[0].begins_with("Godot Engine v") \
+			or not lines[0].ends_with(" - https://godotengine.org") or not lines[1].is_empty() \
+			or not lines[2].begins_with(FRAME): return {}
+	var json: String=lines[2].trim_prefix(FRAME)
+	var result: Variant=JSON.parse_string(json)
+	if not result is Dictionary or not SeasonOwnership._keys(result,["request","outcome","transition"]) \
+			or not ClubCareer.same(result.request,request) or JSON.stringify(result,"",true,true)!=json: return {}
+	if exit_code==REFUSED_EXIT and result.outcome=="refused" and result.transition is Dictionary and result.transition.is_empty(): return result
+	if exit_code==0 and result.outcome=="qualified" and T.valid(result.transition) \
+			and result.transition.basis.seed==request.seed: return result
+	return {}
