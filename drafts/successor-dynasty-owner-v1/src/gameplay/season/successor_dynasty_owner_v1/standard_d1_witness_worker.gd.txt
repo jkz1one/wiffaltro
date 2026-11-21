@@ -21,6 +21,9 @@ func _run() -> void:
 	if bytes.is_empty() or T._source_digest(bytes)!=request.source_sha256:
 		get_tree().quit(3)
 		return
+	if request.kind==Work.CROSS_KIND:
+		_review_cross(request,bytes)
+		return
 	if request.kind==Work.CONTINUE_KIND:
 		_continue_exact(request,bytes)
 		return
@@ -32,6 +35,24 @@ func _run() -> void:
 	var qualified: Dictionary=T.derive(owner,int(request.seed))
 	var result: Dictionary={"request":request,"outcome":"refused" if qualified.is_empty() else "qualified","transition":qualified}
 	_emit(result,not qualified.is_empty())
+
+# Review the actual owner and candidate. Only the native draft fingerprint
+# crosses the private pipe; this process cannot write or mint a Store ticket.
+func _review_cross(request: Dictionary, bytes: PackedByteArray) -> void:
+	if not Work.Store.cross_league_preview():
+		get_tree().quit(2)
+		return
+	var owner: RefCounted=Work.Store.Owner.restore(Work.Store.Owner._bytes_value(bytes))
+	var digest: String=""
+	if owner!=null and Work.Store.Owner.Common._activate_cross(owner,bytes):
+		var current: Dictionary=Work.Store.Adapter.capture("ordinary",owner.session)
+		if not Work.Store.Owner.pack_current(owner,current).is_empty():
+			digest=Work.Store.Owner.Common.Life.digest(current)
+	if Work._revision(request.kind)!=request.source_sha256:
+		get_tree().quit(3)
+		return
+	_emit({"request":request,"outcome":"refused" if digest.is_empty() else "qualified",
+		"draft_sha256":digest},not digest.is_empty())
 
 func _continue_exact(request: Dictionary, bytes: PackedByteArray) -> void:
 	var data:=T._durable_shape(bytes)

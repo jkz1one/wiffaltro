@@ -212,3 +212,23 @@ process for each of home play, NPC1, NPC2, and settlement. Then run
 `-- cold <settled SHA>`. The harness checks both rounds' exact report
 carriage, twelve once-only league rewards, verbatim archived predecessor,
 separate 72 Club Bucks, and refusal of a tampered later-game score.
+
+## Interactive private transition verification
+
+On supported Linux editor source builds, the already-proposed private
+Standard owner offers **Verify Dugout Base Transition**. The same Godot
+executable strictly cold-replays the exact source revision and constructs
+the real archive-marked zero-pick candidate off the menu frame. It returns
+only the canonical bounded draft fingerprint over its private pipe. Cancel
+kills the owned child; a changed revision rejects the reply. Neither a
+qualified reply nor the menu can write or activate this transition.
+
+To test on the real CP202 proposed pair, attach
+`tests/successor_common_cross_league_review.gd.txt` to a scratch Node
+scene under the usual isolation and flags. Run `qualify`, `cancel`,
+`stale`, and `flag-off` in separate profiles; the stale control simulates
+an external change with the preexisting genuine Standard predecessor.
+The original synchronous Store commit is still off-menu: the next
+increment must eliminate/defer the measured expensive parent capture and
+raw guard work before using a one-shot exact reply to promote a native
+candidate with parent-only write and readback.

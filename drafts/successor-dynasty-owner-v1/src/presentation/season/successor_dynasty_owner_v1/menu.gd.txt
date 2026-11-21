@@ -47,7 +47,9 @@ func render() -> void:
 		_bound_button(_footer,"QUIT GAME",Callable(app,"_request_quit"))
 	if not app.notice.is_empty(): _note(app.notice)
 	if app.d1_check_running():
-		_bound_button(_body,"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK",Callable(app,"cancel_d1_check"))
+		var cancel_label: String="CANCEL LEAGUE TRANSITION CHECK" if app._cross_reviewing else (
+			"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK")
+		_bound_button(_body,cancel_label,Callable(app,"cancel_d1_check"))
 		return
 	if app.retained != null:
 		_bound_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
@@ -103,6 +105,8 @@ func render() -> void:
 	if app.career_owner.lifecycle_status()=="closed":
 		_workshop_draft()
 		_closed()
+		if app.cross_review_visible():
+			_bound_button(_body,"VERIFY DUGOUT BASE TRANSITION",Callable(app,"begin_cross_review"))
 		if not archived: _session_controls()
 		if app.earned_league_preview(): _earned_leagues(false)
 		return

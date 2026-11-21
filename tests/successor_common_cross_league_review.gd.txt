@@ -1,0 +1,69 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const EXACT="b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+const PRIOR="1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+const VERIFY="VERIFY DUGOUT BASE TRANSITION"
+const CANCEL="CANCEL LEAGUE TRANSITION CHECK"
+func _ready() -> void: call_deferred("_run")
+func _check(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==1
+			and args[0] in ["qualify","cancel","stale","flag-off"] and not FileAccess.file_exists("user://season-v1.json")
+			and FileAccess.get_sha256(S.PATH)==EXACT and FileAccess.get_sha256(S.PATH+".bak")==PRIOR,"exact genuine pair only"): return
+	var before:=S.raw()
+	var prior:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not _check(app._owned() and app.season.results.size()==33 and app.career_owner.lifecycle_status()=="closed","actual exact Standard proposal"): return
+	var owner: RefCounted=app.career_owner
+	var button:=_button(app,VERIFY)
+	if args[0]=="flag-off":
+		app.begin_cross_review()
+		if _check(button==null and not app.d1_check_running() and S.raw()==before,"flag-off removes control and rejects its App method"): get_tree().quit()
+		return
+	if not _check(button!=null,"visible private review control"): return
+	var start:=Time.get_ticks_msec()
+	button.pressed.emit()
+	var sync:=Time.get_ticks_msec()-start
+	if not _check(app.d1_check_running() and _button(app,CANCEL)!=null and sync<1000,"nonblocking launch and visible cancel"): return
+	var child: Node=app._d1_check
+	var completion: Array=[]
+	child.completed.connect(func(outcome: String, proof: Dictionary)->void: completion.append([outcome,proof]))
+	if args[0]=="cancel": _button(app,CANCEL).pressed.emit()
+	if args[0]=="stale":
+		var file:=FileAccess.open(S.PATH,FileAccess.WRITE)
+		file.store_buffer(prior)
+		file.close()
+	var frames:=0
+	var last_frame:=Time.get_ticks_usec()
+	var max_frame_gap:=0
+	while app.d1_check_running() and Time.get_ticks_msec()-start<120000:
+		await get_tree().process_frame
+		frames+=1
+		var now:=Time.get_ticks_usec()
+		max_frame_gap=maxi(max_frame_gap,now-last_frame)
+		last_frame=now
+	if not _check(not app.d1_check_running() and completion.size()==1 and app.career_owner==owner
+			and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,"terminal outcome with no activation or backup write"): return
+	var result: Array=completion[0]
+	if args[0]=="qualify":
+		if not _check(result[0]=="qualified" and frames>30 and app.notice.contains("Activation is not enabled")
+				and App.D1Check.T.Start.sha(result[1].get("draft_sha256")),"trusted compact prepared draft proof and event-loop heartbeat"): return
+	elif not _check(result[0]==("cancelled" if args[0]=="cancel" else "stale") and result[1].is_empty(),"cancel/stale releases no proof"): return
+	if not _check(S.raw()==(prior if args[0]=="stale" else before),"exact expected disk revision left untouched"): return
+	print("CROSS_ASYNC_REVIEW_PASS ",args[0]," frames=",frames," launch_ms=",sync," max_frame_gap_us=",max_frame_gap," elapsed_ms=",Time.get_ticks_msec()-start)
+	get_tree().quit()

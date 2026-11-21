@@ -16,6 +16,7 @@ const Page = preload("menu.gd")
 const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
 var _d1_check: Node
 var _d1_close_after_check: bool=false
+var _cross_reviewing: bool=false
 var _d1_continuing: bool=false
 var _d1_sealed_view: RefCounted
 var _d1_view_poll: int=0
@@ -399,6 +400,43 @@ func _sign_paired_visit6_recruit() -> void:
 	var expected: PackedByteArray=saved_bytes.duplicate()
 	var ticket: RefCounted=Store._prepare_paired_visit6_sign(career_owner,expected)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
+func cross_review_visible() -> bool:
+	return Store.cross_league_preview() and D1Check.supported() and career_owner!=null \
+		and career_owner.session==season and not saved_bytes.is_empty() \
+		and career_owner.active=="ordinary" and career_owner.lifecycle_status()=="closed" \
+		and career_owner.ordinary_state.get("proposal",{}).get("kind")==Owner.Common.CROSS_KIND
+
+func begin_cross_review() -> void:
+	if not _available() or not cross_review_visible(): return
+	_expire_d1_proof()
+	var check:=D1Check.new()
+	_d1_check=check
+	_cross_reviewing=true
+	add_child(check)
+	check.completed.connect(_complete_cross_review.bind(check,_d1_epoch),CONNECT_ONE_SHOT)
+	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.CROSS_KIND):
+		_complete_cross_review("invalid",{},check,_d1_epoch)
+		return
+	notice="Checking the exact saved league transition in the background…"
+	show_season()
+
+func _complete_cross_review(outcome: String, _proof: Dictionary, check: Node, epoch: int) -> void:
+	if _d1_check!=check or epoch!=_d1_epoch: return
+	_d1_check=null
+	_cross_reviewing=false
+	check.queue_free()
+	if _d1_close_after_check:
+		_d1_close_after_check=false
+		_quit_now()
+		return
+	notice={
+		"qualified":"Dugout Base draft verified. Activation is not enabled; your Standard season was not changed.",
+		"cancelled":"League transition check cancelled. Your career is unchanged.",
+		"stale":"The saved career changed during the check. Continue the current save before checking again.",
+		"refused":"The saved league transition did not qualify. Your career is unchanged."
+	}.get(outcome,"The saved league transition could not be verified. Your career is unchanged.")
+	show_season()
 
 func d1_check_visible() -> bool:
 	return OS.get_environment("WIFFALTRO_STANDARD_D1_CHECK")=="1" and D1Check.supported() \
