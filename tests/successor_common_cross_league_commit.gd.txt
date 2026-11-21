@@ -70,6 +70,24 @@ func _run() -> void:
 			if not need(DirAccess.rename_absolute(held,S.PATH)==OK and rejected,
 					"generic first writer cannot mint an archive on an empty slot"): return
 		var old: Dictionary=S.Owner._bytes_value(before)
+		old.ordinary_state.erase("archive")
+		if not need(S.Owner.restore(old)==null,"declared archived transition requires its archive"): return
+		old=S.Owner._bytes_value(before)
+		old.ordinary_state.last_transition.erase("kind")
+		if not need(S.Owner.restore(old)==null,"native v2 start cannot use generic transition"): return
+		old=S.Owner._bytes_value(before)
+		var downgraded: Dictionary=old.ordinary_state.last_transition.basis
+		downgraded.erase("archive_origin")
+		downgraded.version=1
+		old.ordinary_state.last_transition.erase("kind")
+		old.ordinary_state.erase("archive")
+		old.ordinary_state.start_basis_sha256=S.Owner.Common.Life.digest(downgraded)
+		if not need(S.Owner.restore(old)==null,"outer-only downgrade cannot rewrite native start"): return
+		old=S.Owner._bytes_value(before)
+		old.ordinary_state.archive.source+=" "
+		old.ordinary_state.archive.sha256=S.Owner._hash(old.ordinary_state.archive.source.to_utf8_buffer())
+		if not need(S.Owner.restore(old)==null,"rehash cannot replace exact bound predecessor"): return
+		old=S.Owner._bytes_value(before)
 		old.ordinary_state.archive.sha256="0".repeat(64)
 		if not need(S.Owner.restore(old)==null and S.raw()==before,"tampered archived SHA denied"): return
 		var a: Dictionary=old.ordinary_state.archive
@@ -91,4 +109,5 @@ func _valid(app: App,picks: int) -> bool:
 		and not season.build.d1_pricing_valid() and season.season_seed==1002 and season.picks.size()==picks \
 		and season.build.cash()==0 and season.results.is_empty() and old.ordinary.state.results.size()==33 \
 		and S.Codec.same(owner.common,old.common) and S.Codec.same(owner.paused,old.dynasty) \
-		and S.Codec.same(season.career.start_basis,old.ordinary_state.proposal.basis)
+		and owner.ordinary_state.last_transition.kind==S.Owner.Common.ARCHIVE_TRANSITION \
+		and S.Codec.same(season.career.start_basis,S.Owner.Common.Start.bind_archive(old.ordinary_state.proposal.basis,PROPOSED))

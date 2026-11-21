@@ -8,6 +8,7 @@ const WorkshopHistory = preload("workshop_close_history.gd")
 const Progress = preload("common_progress.gd")
 const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
 const ARCHIVE_KIND: String="common-ordinary-predecessor-v1"
+const ARCHIVE_TRANSITION: String="common-ordinary-archived-transition-v1"
 const ARCHIVE_MAX: int=16*1024*1024
 const CROSS_KIND: String="common-ordinary-league-proposal-v1"
 const ORDINARY_FIELDS: Array[String]=["lineage","ordinal","status","last_close","proposal","last_transition","start_basis_sha256"]
@@ -85,7 +86,9 @@ static func valid(owner) -> bool:
 	if state.ordinal==1 and not state.last_transition.is_empty(): return false
 	if state.ordinal>1:
 		var t: Dictionary=state.last_transition
-		if not C.keys(t,["id","source","from","to","league","basis"]) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or not Start.valid(t.basis): return false
+		var stamped: bool=t.has("kind")
+		if not C.keys(t,["id","source","from","to","league","basis"]+(["kind"] if stamped else [])) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or not Start.valid(t.basis): return false
+		if stamped!=(t.basis.version==2) or (stamped and (t.kind!=ARCHIVE_TRANSITION or not state.has("archive"))): return false
 		if t.basis.lineage!=state.lineage or t.basis.ordinal!=state.ordinal or Life.digest(t.basis)!=state.start_basis_sha256 or t.basis.common_sequence>value.sequence: return false
 	return _archive_shape(owner) and _ordinary_proposal_valid(owner)
 
@@ -93,10 +96,12 @@ static func _archive_shape(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	if not state.has("archive"): return true
 	var a: Variant=state.archive
+	var t: Dictionary=state.last_transition
 	return C.keys(a,["kind","sha256","source"]) and a.kind==ARCHIVE_KIND \
 		and a.source is String and not a.source.is_empty() and a.source.length()<=ARCHIVE_MAX \
 		and owner._digest(a.sha256) and owner.active=="ordinary" and state.ordinal==2 \
-		and state.proposal.is_empty() and state.last_transition.get("league")=="dugout" \
+		and state.proposal.is_empty() and t.get("league")=="dugout" \
+		and (not t.has("kind") or t.basis.archive_origin.sha256==a.sha256) \
 		and (state.status=="active" or (state.status=="closed" and state.last_close.get("reason")=="abandon"))
 
 static func cross_commit_ready(owner) -> bool:
@@ -114,14 +119,16 @@ static func _activate_cross(owner, raw: PackedByteArray) -> bool:
 	var text:=raw.get_string_from_utf8()
 	if text.to_utf8_buffer()!=raw: return false
 	var p: Dictionary=owner.ordinary_state.proposal
-	var next: SeasonState=Adapter.OrdinaryRuntime.create_common(p.basis,p.league)
+	var digest: String=owner._hash(raw)
+	var basis: Dictionary=Start.bind_archive(p.basis,digest)
+	var next: SeasonState=Adapter.OrdinaryRuntime.create_common(basis,p.league)
 	if next==null or next.phase!=SeasonState.Phase.DRAFT or not next.picks.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
-	state.last_transition={"id":"%s:1:next"%state.lineage,"source":p.source,"from":1,"to":2,
-		"league":p.league,"basis":p.basis.duplicate(true)}
+	state.last_transition={"kind":ARCHIVE_TRANSITION,"id":"%s:1:next"%state.lineage,"source":p.source,"from":1,"to":2,
+		"league":p.league,"basis":basis.duplicate(true)}
 	state.ordinal=2;state.status="active";state.last_close={};state.proposal={}
-	state.start_basis_sha256=Life.digest(p.basis)
-	state.archive={"kind":ARCHIVE_KIND,"sha256":owner._hash(raw),"source":text}
+	state.start_basis_sha256=Life.digest(basis)
+	state.archive={"kind":ARCHIVE_KIND,"sha256":digest,"source":text}
 	owner.session=next
 	return valid(owner)
 

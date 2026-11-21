@@ -167,3 +167,27 @@ The Common bank's game counter counts human completed games, not all
 league fixtures. This owned Dugout round adds one (11 to 12) while
 retaining all three Dugout match rows. No championship, payout or
 second archive is created.
+
+## Archive-required transition
+
+New cross-league commits write an explicit archived transition kind and
+a native Common start basis v2 with an archive origin. The origin binds
+the SHA-256 of the exact predecessor bytes to both the outer transition
+and the materialized season's native career start. Removing the archive,
+dropping only the discriminator, substituting/re-hashing the archive,
+or relabeling only the outer transition as legacy is rejected. Cold
+still verifies the original typed proposal and reconstructs the native
+start from it; a checksum alone cannot prove a predecessor.
+
+CP203–205 private archives with the original v1 basis remain readable by
+the existing strict archive replay, without a write or a change to
+their original embedded bytes. Ordinary same-league v1 starts do not
+change. This is a requirement for the declared new transition, not
+authentication against wholesale rewriting into a plausible legacy
+save. The original opt-in and restrictions on later seasons are unchanged.
+
+Run the existing cross-league commit test's `commit`, `pick`, and
+`cold` phases on a fresh isolated copy of the exact CP202 pair. For
+backward compatibility, the existing archived Abandon test's `cold`
+phase can read the exact CP205 pair without changing the primary or
+backup. No games need to be played.
