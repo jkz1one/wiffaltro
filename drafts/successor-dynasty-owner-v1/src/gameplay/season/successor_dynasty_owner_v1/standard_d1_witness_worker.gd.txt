@@ -22,7 +22,7 @@ func _run() -> void:
 	if request.kind in [Work.CROSS_KIND,Work.ACTIVATE_KIND]:
 		_review_cross(request,bytes)
 		return
-	if request.kind in [Work.PAIR_SETTLE_KIND,Work.NEXT_OPENER_SETTLE_KIND]:
+	if request.kind in [Work.PAIR_SETTLE_KIND,Work.NEXT_OPENER_SETTLE_KIND,Work.NEXT_REVERSE_SETTLE_KIND]:
 		_settle_private_pair(request,bytes)
 		return
 	if request.kind==Work.CONTINUE_KIND:

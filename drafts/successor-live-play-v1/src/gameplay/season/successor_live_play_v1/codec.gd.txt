@@ -279,6 +279,9 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 		if season.round_index==6 and not _signed_visit6_journal(build): return false
 		if projection.late_revision(season.round_index)>=0 and not _paired_late_start(season): return false
 	if not unpurchased_next_reverse_kind(season).is_empty(): return true # Physical prefix/order already checked.
+	if season.round_index==4 and not detached and physical.pending.is_empty() \
+			and not _unpurchased_completed_legs(build,4).is_empty():
+		return whole(build._visit.get("number"),4,4) and build._visit.get("open")==false
 	var late_open: Dictionary=late_shop_open(season.round_index)
 	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (not late_open.is_empty() and build.revision()==int(late_open.rev)+1)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
@@ -487,7 +490,7 @@ static func unpurchased_settled_pair_kind(build: SeasonBuild) -> String:
 # All events are independently replayed; this additionally forbids paid or
 # unexpected actions between the authored reward/exotic pairs.
 static func _unpurchased_completed_legs(build: SeasonBuild, legs: int) -> String:
-	if legs not in [2,3] or build==null or build._bank==null: return ""
+	if legs not in [2,3,4] or build==null or build._bank==null: return ""
 	var size: int=build._events.size()
 	if size not in [2*legs,2*legs+1] or build.revision()!=size: return ""
 	var browsed: bool=size==2*legs+1

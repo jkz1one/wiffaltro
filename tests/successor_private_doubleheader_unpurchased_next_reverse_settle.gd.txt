@@ -1,0 +1,108 @@
+extends "res://tests/successor_private_doubleheader_unpurchased_next_reverse_npcs.gd"
+const SOURCE="2e2b88cfa2c494ca2589a0386eae5aeb4e8041e5a0c263f6eb290c7a6afe5a23"
+const REFERENCE="user://exact-next-reverse-npc11.json"
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["settle","cold","cancel"] and FileAccess.get_sha256(REFERENCE)==SOURCE
+			and FileAccess.get_sha256(Store.PATH)==args[1],"exact isolated CP229 input"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var original: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(REFERENCE))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var started:=Time.get_ticks_msec()
+	app.reload_save()
+	print("NEXT_REVERSE_SETTLE_COLD_LOAD_MS ",Time.get_ticks_msec()-started)
+	if not need(app._owned() and exact(before,backup),"strict owner and unchanged bytes"): return
+	var button:=_button(app,"SETTLE NEXT DOUBLEHEADER RETURN")
+	if args[0]=="cold":
+		app.resume_private_unpurchased_next_reverse()
+		app.play_next()
+		if need(backup.is_empty() and button==null and _settled(app,original) and exact(before,backup)
+				and not app.d1_check_running() and not is_instance_valid(app.lab),"exact 12 games and 24 payouts; repeat and third pair held"):
+			print("NEXT_REVERSE_SETTLE_COLD_PASS ",args[1]);get_tree().quit()
+		return
+	if not need(args[1]==SOURCE and button!=null and Store.eligible_private_pair_settlement(app.career_owner),"real pending settlement button"): return
+	app._settle_paired_next_return_leg()
+	if not need(exact(before,backup),"no synchronous write"): return
+	started=Time.get_ticks_msec()
+	button.pressed.emit()
+	var start_ms:=Time.get_ticks_msec()-started
+	var worker: Node=app._d1_check
+	var cancel:=_button(app,"CANCEL DOUBLEHEADER SETTLEMENT")
+	app.resume_private_unpurchased_next_reverse()
+	if not need(is_instance_valid(worker) and app._d1_check==worker and cancel!=null and exact(before,backup),"one exact child with cancel, no early write"): return
+	if args[0]=="cancel": cancel.pressed.emit()
+	var last:=Time.get_ticks_msec()
+	var max_gap:=0
+	var frames:=0
+	while app.d1_check_running() and Time.get_ticks_msec()-started<315000:
+		await get_tree().process_frame
+		var now:=Time.get_ticks_msec()
+		if app.d1_check_running(): max_gap=maxi(max_gap,now-last)
+		last=now
+		frames+=1
+	print("NEXT_REVERSE_SETTLE_TIMING wall=",Time.get_ticks_msec()-started," start=",start_ms,
+		" gap=",max_gap," frames=",frames," write=",app._pair_settle_write_ms," notice=",app.notice)
+	if args[0]=="cancel":
+		if need(not app.d1_check_running() and exact(before,backup),"cancel leaves bytes intact"): get_tree().quit()
+		return
+	if need(app.career_owner==null and Store.raw()!=before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,
+			"sole parent commit with exact prior backup"):
+		print("NEXT_REVERSE_SETTLE_WRITE_PASS ",FileAccess.get_sha256(Store.PATH));get_tree().quit()
+
+func _settled(app: App, source: Dictionary) -> bool:
+	var s: SeasonState=app.season
+	if s.round_index!=4 or not s.physical.pending.is_empty() or s.pending_fixture().get("id")!=12 \
+			or SeasonDoubleheaderRules.first(12)!=-1 or s.results.size()!=12 or s.player_results.size()!=4 \
+			or s.build.cash()!=84 or Live._unpurchased_completed_legs(s.build,4)!="browsed": return false
+	if not Live.same(s.results.slice(0,9),source.ordinary.state.results) or not Live.same(s.player_results.slice(0,3),source.ordinary.state.player_results) \
+			or not Live.same(s.physical.reports,source.ordinary.physical.reports+source.ordinary.physical.pending.reports) \
+			or not Live.same(app.career_owner.common,source.common): return false
+	var pending: Dictionary=source.ordinary.physical.pending
+	var human: Dictionary=s.player_results[3]
+	if not Live.same([human.id,human.away_runs,human.home_runs],pending.human.slice(0,3)) \
+			or not Live.same(human.doubleheader_evidence,pending.human[13]): return false
+	for index in range(2):
+		var native: Dictionary=pending.reports[index].report.physical
+		var row: Dictionary=s.results[index+10]
+		if not Live.same([row.id,row.away_runs,row.home_runs],[pending.reports[index].fixture,native.away_runs,native.home_runs]): return false
+	for row: Dictionary in s.results.slice(9):
+		var first_id: int=SeasonDoubleheaderRules.first(row.id)
+		if first_id!=int(row.id)-3: return false
+		var prior: Dictionary=s.results[first_id]
+		if prior.away!=row.home or prior.home!=row.away: return false
+		for side in range(2):
+			var original: Dictionary=prior.doubleheader_evidence[1-side]
+			var debt: Dictionary=Work.net_debt(original.proof,original.pair.debt)
+			var pair: Dictionary=row.doubleheader_evidence[side].pair
+			if pair.game!=row.id or pair.first!=prior.id or pair.debt.size()!=debt.size(): return false
+			for id: String in debt:
+				# Independent replay can sum adjacent JSON floating-point encodings.
+				if not pair.debt.has(id) or absf(float(pair.debt[id])-float(debt[id]))>1e-12: return false
+	var sweeps: Array=[]
+	var payouts:=0
+	for index in range(6):
+		var b: SeasonBuild=s.build if index==0 else s.opponents.clubs[str(index)].build
+		var rewards: Dictionary=b._bank.view().rewards
+		if rewards.size()!=4: return false
+		var bank: SeasonOwnership=b._bank.empty_fork()
+		var paid:=0
+		for event: Dictionary in b._bank._events:
+			var cash: int=bank.cash()
+			var previous: Dictionary=bank.view().rewards.duplicate(true)
+			var receipt: Dictionary=bank.commit(event)
+			if not receipt.ok or receipt.replayed: return false
+			if event.op!="reward": continue # Native NPC shops also legitimately journal purchases.
+			paid+=1
+			var bonus: int=SeasonDoubleheaderRules.bonus(s.league_rules,event.game,event.win,previous)
+			if bank.cash()-cash!=(18 if event.win else 12)+bonus: return false
+			if int(event.game)>=9 and bonus>0: sweeps.append([index,int(event.game),bonus])
+		if paid!=4 or not Live.same(bank.view(),b._bank.view()): return false
+		for row: Dictionary in s.results:
+			if index not in [int(row.home),int(row.away)]: continue
+			if not rewards.has(str(int(row.id))) or rewards[str(int(row.id))]!=((row.away_runs>row.home_runs)==(int(row.away)==index)): return false
+			payouts+=1
+	return payouts==24 and Live.same(sweeps,[[0,9,6],[3,10,6]])

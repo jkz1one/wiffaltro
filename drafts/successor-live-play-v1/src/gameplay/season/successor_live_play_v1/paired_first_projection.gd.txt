@@ -66,6 +66,7 @@ static func start(source: SeasonState) -> Dictionary:
 	if source.round_index==1 and not Live.return_human_ready(source.build): return {}
 	if source.round_index==2 and not Live._paid_pair_journal(source.build,2) \
 		and Live.unpurchased_next_pair_kind(source).is_empty(): return {}
+	if source.round_index==4 and not Live._unpurchased_completed_legs(source.build,4).is_empty(): return {}
 	if source.round_index==6 and not Live._signed_visit6_journal(source.build): return {}
 	if LATE_REGULAR.has(source.round_index) and not Live._paired_late_start(source): return {}
 	# Saved JSON hydrates whole IDs as floats. Bind to the semantically equal
@@ -367,8 +368,6 @@ static func _unplayed_bracket(candidate: SeasonState) -> bool:
 # producers may materialize a paid owner only after exact terminal replay.
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if source.round_index<2 or not human_enabled(source.round_index): return {}
-	if not Live.unpurchased_next_reverse_kind(source).is_empty() \
-			and produce_settlement: return {}
 	if produce_settlement and not settlement_enabled(source.round_index): return {}
 	var limit: int=report_limit(source.round_index)
 	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}

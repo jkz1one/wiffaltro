@@ -299,3 +299,28 @@ reference as `user://exact-before-next-reverse.json`. Run `npc10` and
 alone. `tamper` replaces only the second request digest in a separate
 copy, and `flag-off` attempts neither launch nor write. The previous
 human match is never replayed.
+
+## Settle the second no-purchase pair
+
+The private source-editor runner can now settle the exact saved
+fixtures 9–11 without replaying them. The next-return request kind
+is bound to this authored phase independently of either first-pair
+settlement or the next opener. It uses the existing child stage and
+sole parent write, backup, and readback. The ordinary synchronous
+paired writer remains closed for this branch.
+
+The no-spend journal can retain four completed native legs. Cold
+admission checks the authored twelve results and eight NPC reports,
+both directions' preserved workload, closed visit 4 and the replayed
+reward/exotic journal. The one original free browse may remain in
+the exact authored placement. Second-pair sweep bonuses occur only
+inside the winning native return reward when that same club won
+the opener. A split pays no such bonus. Fixture 12 is identified as
+a new opener by the authored schedule but is not launched here.
+
+Run `successor_private_doubleheader_unpurchased_next_reverse_settle`
+with the reverse NPC harness parents. In isolated profiles retain the
+exact CP229 primary as `user://exact-next-reverse-npc11.json` and
+the original CP228/CP227 references. Use `settle`, independent
+primary-only `cold`, and a separate `cancel` from the original pair.
+No games or third-pair actions run.

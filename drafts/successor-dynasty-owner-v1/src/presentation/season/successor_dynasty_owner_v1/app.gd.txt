@@ -348,6 +348,9 @@ func resume_private_unpurchased_next_reverse() -> void:
 	if not private_unpurchased_next_reverse() or not _available() or not _owned() or is_instance_valid(ai_runner): return
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if not factory.bound_shape(season.physical.pending) or season.physical.pending.human[0]!=9: return
+	if season.physical.pending.reports.size()==2:
+		_begin_private_pair_settlement()
+		return
 	if not retained_report.is_empty():
 		_checkpoint_report()
 		return
