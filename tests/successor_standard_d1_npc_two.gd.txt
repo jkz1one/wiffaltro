@@ -1,0 +1,74 @@
+extends "res://transition.gd"
+## Shape-only prior-title fixture; actual isolated worker evidence.
+const PRIOR_REQUEST="e34db0d101cb7128bb6bda3e32f906d7ccdac2833212aff07313991e2c9f4e2e"
+const PRIOR_RESPONSE="7014816786763d2166ef5d100e994c6a20c706595f0d672a83579bc0d844d5b8"
+const Npc=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1_npc.gd")
+const Worker="res://src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.tscn"
+const BaseReport=preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+
+func _run() -> void:
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and not S.occupied()
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and not FileAccess.file_exists("user://season-v1.json"),"empty private isolated source profile"): return
+	var args:=OS.get_cmdline_user_args()
+	if not _expect(args.size()==2 and FileAccess.get_sha256(args[0])==PRIOR_REQUEST
+			and FileAccess.get_sha256(args[1])==PRIOR_RESPONSE,"exact preserved CP183 evidence inputs"): return
+	var prior: Dictionary=PhysicalJobFiles.read(args[0])
+	var previous_result: Dictionary=PhysicalJobFiles.read(args[1])
+	var draft: Dictionary=prior.draft
+	var first: Dictionary=Npc.prepare(draft,1)
+	if not _expect(not first.is_empty() and Npc.Draft.same(first.binding,prior.binding)
+			and previous_result.token==prior.token and previous_result.request_sha256==Npc.canonical(prior).sha256_text()
+			and Npc.valid(previous_result.report,first),"existing AC-02 report revalidated without replaying match"): return
+	print("STANDARD_D1_NPC_PRIOR_RETAINED ",Npc.canonical(previous_result.report).sha256_text())
+	var job: Dictionary=Npc.prepare(draft,2)
+	if not _expect(not job.is_empty() and job.fixture.id==2 and job.fixture.away==2 and job.fixture.home==3
+			and job.state.stadium.binding.venue_id=="AY-03" and job.binding.field=="field.npc_venue"
+			and job.binding.draft_sha256==first.binding.draft_sha256
+			and job.binding.venue!=first.binding.venue and StadiumNpcPublicRuntime.source_qualified()
+			and Npc.prepare(draft,0).is_empty() and Npc.prepare(draft,3).is_empty()
+			and not Npc.valid(previous_result.report,job),"opening allowlist, exact same draft and authored AY-03 only"): return
+	var token:=Crypto.new().generate_random_bytes(16).hex_encode()
+	var folder:=PhysicalJobFiles.directory(token)
+	var packet: Dictionary={"token":token,"draft":draft,"binding":job.binding}
+	var request: String=Npc.canonical(packet).sha256_text()
+	if not _expect(DirAccess.make_dir_recursive_absolute(folder)==OK
+			and PhysicalJobFiles.write(folder.path_join("request.json"),packet),"bounded exact local request"): return
+	var started:=Time.get_ticks_msec()
+	var pid:=OS.create_process(OS.get_executable_path(),["--headless","--audio-driver","Dummy","--fixed-fps","60","--path",
+		ProjectSettings.globalize_path("res://"),"--log-file",folder.path_join("worker.log"),Worker,"--","--common-d1-npc="+token+":"+request])
+	if not _expect(pid>0,"actual same-binary child starts"): return
+	var frames: int=0
+	while OS.is_process_running(pid) and Time.get_ticks_msec()-started<650000:
+		await get_tree().create_timer(0.1).timeout
+		frames+=1
+	if Time.get_ticks_msec()-started>=650000:
+		OS.kill(pid)
+		_expect(false,"child over wall budget; isolated job retained")
+		return
+	var rc:=OS.get_process_exit_code(pid)
+	if not _expect(rc==0,"worker exit status "+str(rc)+"; job "+folder): return
+	var response: Variant=PhysicalJobFiles.read(folder.path_join("response.json"))
+	if not _expect(response is Dictionary and SeasonOwnership._keys(response,["token","request_sha256","report"])
+			and response.token==token and response.request_sha256==request and Npc.valid(response.report,job),
+			"finished real NPC evidence with exact job and full validator"): return
+	var bad: Dictionary=response.report.duplicate(true)
+	bad.binding.venue=first.binding.venue
+	var transplanted: Dictionary=previous_result.report.duplicate(true)
+	transplanted.binding=job.binding.duplicate(true)
+	var stale: Dictionary=response.report.duplicate(true)
+	stale.binding.draft_sha256="9".repeat(64)
+	var old: Dictionary=response.report.duplicate(true)
+	old.version=114
+	if not _expect(not Npc.valid(bad,job) and not Npc.valid(stale,job) and not Npc.valid(old,job)
+			and not BaseReport.valid(response.report,job.binding.pitch_catalog)
+			and not Npc.valid(response.report.physical,job) and not Npc.valid(response.report,first)
+			and not Npc.valid(transplanted,job) and FileAccess.get_sha256(args[0])==PRIOR_REQUEST
+			and FileAccess.get_sha256(args[1])==PRIOR_RESPONSE
+			and not S.occupied() and not FileAccess.file_exists("user://season-v1.json"),
+			"wrong venue/stale/old rejected, cannot settle or use Base114"): return
+	print("STANDARD_D1_NPC_TWO_WORKER_PASS ",JSON.stringify({"binding":job.binding,"away":response.report.physical.away_runs,
+		"home":response.report.physical.home_runs,"surfaces":response.report.surfaces.size(),
+		"evidence_sha256":Npc.canonical(response.report).sha256_text(),"wall_ms":Time.get_ticks_msec()-started,
+		"parent_polls":frames,"isolated_evidence":folder}))
+	get_tree().quit()

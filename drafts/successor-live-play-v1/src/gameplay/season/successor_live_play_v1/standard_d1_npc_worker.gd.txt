@@ -33,7 +33,11 @@ func _run() -> void:
 			or packet.token!=parts[0] or Protocol.canonical(packet).sha256_text()!=parts[1]:
 		_stop("request does not match fixed revision")
 		return
-	var job:=Protocol.prepare(packet.draft)
+	if not packet.binding is Dictionary or not packet.binding.get("fixture") is Dictionary \
+			or not Protocol.Draft.whole(packet.binding.fixture.get("id"),1,2):
+		_stop("invalid opening NPC fixture")
+		return
+	var job:=Protocol.prepare(packet.draft,int(packet.binding.fixture.id))
 	if job.is_empty() or not Protocol.Draft.same(packet.binding,job.binding):
 		_stop("stale or unauthored fixture")
 		return

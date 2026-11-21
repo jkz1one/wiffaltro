@@ -1,5 +1,5 @@
 extends RefCounted
-## One D1 opening-round NPC fixture. No owner/settlement/public admission.
+## Authored D1 opening-round NPC fixtures. No owner/settlement/public admission.
 const Opening=preload("standard_d1_opening.gd")
 const Draft=preload("codec.gd")
 const Physical=preload("physical_fixtures.gd")
@@ -10,17 +10,22 @@ const REPORT: String="common-standard-d1-npc-report-v1"
 static func canonical(value: Variant) -> String:
 	return JSON.stringify(JSON.parse_string(JSON.stringify(value,"",true,true)),"",true,true)
 
-static func prepare(snapshot: Variant) -> Dictionary:
+static func prepare(snapshot: Variant, fixture_id: int=1) -> Dictionary:
+	if fixture_id not in [1,2]: return {}
 	var season: SeasonState=Draft.restore_d1_draft(snapshot)
 	if season==null or season.picks.size()!=4 or season.pending_fixture().get("id")!=0: return {}
-	var fixture: Dictionary=SeasonVenues.fixture_for_id(season,1)
+	var fixture: Dictionary=SeasonVenues.fixture_for_id(season,fixture_id)
 	if fixture.get("round")!=0 or not Draft.whole(fixture.get("away"),1,5) \
 			or not Draft.whole(fixture.get("home"),1,5) or fixture.away==fixture.home: return {}
 	var context:=Opening._venue_context(season)
 	if context==null: return {}
 	var stadium: Dictionary=SeasonVenues.for_fixture(context,fixture)
 	var field: FieldDefinition=SeasonVenues.field_for_fixture(context,fixture)
-	if field==null or field.id!=&"field.npc_venue" or not StadiumNpcPublicContacts.matches(stadium): return {}
+	if field==null or field.id!=&"field.npc_venue": return {}
+	# Keep the existing fixture-1 public family. The second job has only
+	# qualified its authored AY-03 field and native contact contract.
+	if fixture_id==1 and not StadiumNpcPublicContacts.matches(stadium): return {}
+	if fixture_id==2 and not StadiumNpcYardThreeContacts.matches(stadium): return {}
 	var state: MatchState=Physical._match_materialized(season,fixture,stadium)
 	if state==null or state.pitch_catalog.is_empty() or not state.league_rules.is_empty(): return {}
 	var seed: int=Physical.seed_for(season,fixture)
@@ -37,7 +42,8 @@ static func capture(lab: PitchBatLab, job: Dictionary) -> Dictionary:
 			or lab._automation.seed!=binding.seed or state.phase!=MatchState.Phase.GAME_END \
 			or StadiumLayoutSnapshot.key(state.stadium)!=binding.venue \
 			or not StadiumPropertyRuntime.npc_installed_bound(lab,state.stadium): return {}
-	var property: StadiumNpcPublicProperty=StadiumNpcPublicRuntime._property(lab)
+	var property: Node=StadiumNpcYardThreeRuntimeV1._property(lab) if int(job.fixture.id)==2 \
+		else StadiumNpcPublicRuntime._property(lab)
 	if not is_instance_valid(property): return {}
 	var body: Dictionary=General._capture_core(lab)
 	body.current_pitch_bound=state.pitch_catalog
@@ -64,7 +70,10 @@ static func valid(report: Variant, job: Dictionary) -> bool:
 	var baseball: Dictionary=body.duplicate()
 	baseball.field=String(PitchBatLab.FIELD_ID)
 	if not General._valid_core(baseball,{},[],false,state.pitch_catalog): return false
-	if not StadiumNpcPublicContacts.evidence(report.surfaces,body.plays,report.yard,state.stadium): return false
+	if int(job.fixture.id)==2:
+		if not StadiumNpcYardThreeContacts.valid(report.surfaces,body.plays,state.stadium) \
+				or not StadiumNpcYardThreeContacts.provenance(report.yard,state.stadium): return false
+	elif not StadiumNpcPublicContacts.evidence(report.surfaces,body.plays,report.yard,state.stadium): return false
 	for index in range(2):
 		var team: TeamMatchState=state.away_team if index==0 else state.home_team
 		var row: Dictionary=body.teams[index]

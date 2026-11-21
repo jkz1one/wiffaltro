@@ -424,9 +424,9 @@ real AE-01 plate appearance against the unchanged gate. Launch the QA
 scene explicitly under the same engine/project with the headless flags
 above; do not rewrite the project after assembly.
 
-### One venue-bearing NPC worker
+### Venue-bearing NPC workers
 
-A separate D1 source-engineering request/report dialect covers only
+The first D1 source-engineering request/report path qualified
 opening-round NPC fixture 1 from an exact replayable four-pick D1
 draft. The same-binary child launches its explicit scene in the
 source-preserving project. It independently restores the draft and
@@ -460,3 +460,21 @@ The headless Linux child took about 411 seconds including setup;
 its physical loop took about 356 seconds. No target device frame rate
 was measured. Altered venue, stale draft, and old/relabelled report
 formats did not pass validation.
+
+The second opening NPC fixture uses the same D1 envelope, with an
+explicit fixture-ID allowlist (1 and 2 only) and a separate contact
+route for fixture 2's authored AY-03 r1. Its exact scheduled teams,
+draft digest, stadium key and derived seed still form the request.
+The native AY-03 geometry installation and its yard-specific contact
+and provenance validators are required; that is not permission to
+accept a legacy Report16, a public fixture-1 report or an arbitrary
+later match. The fixture-1 request and report format are unchanged.
+
+The `successor_standard_d1_npc_two.gd.txt` QA scene takes the two exact
+CP183 raw request/response paths as arguments. It verifies both hashes,
+reconstructs the same synthetic-authority draft, revalidates fixture 1
+without replaying it, then starts only real fixture 2. Cross-fixture
+and venue transplants reject. No shared save or settlement is produced.
+The earlier complete human run retained a digest/log, not the row;
+the next human run should capture directly into an isolated pending
+format once that format is ready.
