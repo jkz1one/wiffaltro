@@ -1,0 +1,145 @@
+extends Node
+## Actual Common V4 Standard Base journey. The native simulator owns every score.
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Adapter = preload("res://src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd")
+const ARCHIVE = "user://standard-base-steps"
+const ORIGINAL = "user://season-v1.json"
+const FRAME_LIMIT := 150000
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func check(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==2 and args[0] in ["birth","step","cold","close"],"isolated explicit Standard run"): return
+	# This runner only accepts a wholly new QA profile, not a parked/legacy career.
+	if not check(not FileAccess.file_exists(ORIGINAL),"Original slot absent"): return
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	if args[0]=="birth":
+		if not check(args[1].is_valid_int() and int(args[1])>=0 and int(args[1])<=2147483647 and not Store.occupied(),"fresh isolated slot and exact seed"): return
+		app.select_league("standard")
+		app.create_fresh(int(args[1]))
+		if not check(_owned_standard(app) and app.season.picks.is_empty(),"actual Standard Base App birth"): return
+		for index: int in range(4):
+			var previous:=Store.raw()
+			if not check(not app.season.offers().is_empty(),"authored draft offer "+str(index)): return
+			app.draft(app.season.offers()[0])
+			if not check(_owned_standard(app) and app.season.picks.size()==index+1
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"actual draft pick and prior primary backup "+str(index)): return
+		if _archive("birth"): await _finish(app)
+		return
+	if not check(args[1].length()==64 and FileAccess.get_sha256(Store.PATH)==args[1]
+			and FileAccess.file_exists(Store.PATH+".bak")
+			and not FileAccess.file_exists(Store.PATH+".tmp")
+			and not DirAccess.dir_exists_absolute(Store.PATH+".tmp"),"pinned primary and clean previous save boundary"): return
+	var raw:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	app.reload_save()
+	if not check(_owned_standard(app) and Store.raw()==raw and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"cold strict reopen with byte-inert slots"): return
+	var season: SeasonState=app.season
+	if args[0]=="cold":
+		if not check(not season.results.is_empty() and season.physical.pending.is_empty() and season.physical.needed.is_empty(),"only a real settled frontier can pass cold mode"): return
+		print("STANDARD_BASE_COLD results=",season.results.size()," humans=",season.player_results.size()," npcs=",season.physical.reports.size()," sha=",args[1])
+		await _finish(app);return
+	var action: String=""
+	if args[0]=="close":
+		if not check(season.phase==SeasonState.Phase.COMPLETE and season.results.size()==33 and app.career_owner.lifecycle_status()=="active","actual complete Standard season required"): return
+		app.close_current("complete")
+		if not check(app.career_owner.lifecycle_status()=="closed","Standard Close through actual App"): return
+		var earned: Dictionary=Store.qualify_standard_d1(app.career_owner,Store.raw(),(season.season_seed+1)&0x7fffffff)
+		print("STANDARD_BASE_CLOSE_RECEIPT ",JSON.stringify(app.career_owner.ordinary_state.last_close.receipt))
+		print("STANDARD_BASE_D1_QUALIFIED=",not earned.is_empty())
+		action="close"
+	elif app.career_owner.lifecycle_status()!="active":
+		check(false,"closed season cannot take a game step"); return
+	elif not season.physical.pending.is_empty():
+		action=await _resume(app)
+	elif season.phase==SeasonState.Phase.COMPLETE:
+		print("STANDARD_BASE_COMPLETE results=",season.results.size())
+		await _finish(app);return
+	else:
+		action=await _play(app)
+	if action.is_empty(): return
+	if not check(app.retained==null and _owned_standard(app) and Store.raw()!=raw
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw and not FileAccess.file_exists(ORIGINAL),
+			"one committed operation, exact previous backup and untouched Original slot"): return
+	if not _archive(action): return
+	print("STANDARD_BASE_STEP ",action," results=",app.season.results.size()," human=",app.season.player_results.size()," phase=",app.season.phase)
+	await _finish(app)
+
+func _owned_standard(app) -> bool:
+	return app.career_owner!=null and app.career_owner.active=="ordinary" and app.career_owner.paused.is_empty() \
+		and app.career_owner._missing_dynasty(app.career_owner) and app._owned() and app.season.league_rules.is_empty() \
+		and not app.season.build.d1_pricing_valid()
+
+func _finish(app) -> void:
+	app.queue_free()
+	await get_tree().process_frame
+	await TestAudioDrain.finish(get_tree())
+	get_tree().quit(0)
+
+func _resume(app) -> String:
+	var count: int=app.season.physical.pending.reports.size()
+	var parent: SeasonState=app.season
+	var previous: int=app.season.results.size()
+	app.resume_round()
+	if not is_instance_valid(app.ai_runner):
+		return "settle-%d"%app.season.results.size() if check(app.season.results.size()>previous and app.season.physical.pending.is_empty(),"original App settles actual report set") else ""
+	var fixture: int=int(app.projection.get("fixture",{}).get("id",-1))
+	if not check(fixture>=0 and app._busy and app.season==parent,"one original awaited NPC runner"): return ""
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if not app._busy: break
+	if not check(not app._busy and app.retained==null and app.season.physical.pending.reports.size()==count+1,"original NPC result admitted exactly once: "+app.notice): return ""
+	return "npc-%d"%fixture
+
+func _play(app) -> String:
+	var fixture: Dictionary=app.season.pending_fixture()
+	if not check(not fixture.is_empty() and (fixture.away==0 or fixture.home==0),"scheduled human fixture from current owner"): return ""
+	app.play_next()
+	var lab: PitchBatLab=app.lab
+	if not check(lab!=null and lab._match_state!=null,"actual App starts scheduled match"): return ""
+	for frame: int in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not check(not lab._match_presentation_director.blocks_gameplay(),"authored intro completes"): return ""
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=Adapter.fixtures("ordinary").seed_for(app.season,fixture)
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	var finished:=false
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+			finished=true
+			break
+		if frame%12000==0: print("STANDARD_BASE_ACTIVE fixture=",fixture.id," frames=",frame," plate=",lab._match_state.plate_appearance_number)
+	if not check(finished and not Adapter.human_capture("ordinary").capture(app).is_empty(),"actual human-side physics reaches native capturable outro"): return ""
+	var score:=Vector2i(lab._match_state.away_team.runs,lab._match_state.home_team.runs)
+	app.finish_game()
+	if not check(not app.season.physical.pending.is_empty() and app.retained==null and not is_instance_valid(app.lab),"actual human result enters pending checkpoint"): return ""
+	print("STANDARD_BASE_ACTUAL_SCORE fixture=",fixture.id," away=",score.x," home=",score.y)
+	return "human-%d"%int(fixture.id)
+
+func _archive(action: String) -> bool:
+	var sha:=FileAccess.get_sha256(Store.PATH)
+	var path:=ARCHIVE.path_join(action+"-"+sha)
+	if not check(sha.length()==64 and not DirAccess.dir_exists_absolute(path) and DirAccess.make_dir_recursive_absolute(path)==OK,"unique append-only local checkpoint"): return false
+	for suffix: String in ["",".bak"]:
+		if not check(DirAccess.copy_absolute(Store.PATH+suffix,path.path_join("owner.json"+suffix))==OK and FileAccess.get_sha256(Store.PATH+suffix)==FileAccess.get_sha256(path.path_join("owner.json"+suffix)),"checkpoint copy/hash "+suffix): return false
+	print("STANDARD_BASE_COMPLETION_SHA256=",sha)
+	return true
