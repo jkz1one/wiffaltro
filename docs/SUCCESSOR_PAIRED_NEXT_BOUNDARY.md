@@ -203,3 +203,26 @@ took 310 ms. These two synchronous costs are not hidden in the waiting-frame
 metric. The earlier warm synchronous settlement took 59.643 seconds with the
 menu blocked. The new route trades an additional strict process read for
 responsiveness, not a reduction in total CPU or elapsed time.
+
+## Resume the next-pair opener
+
+The private standalone Base preview now resumes the exact no-purchase
+next-pair opener already saved at fixture 6. Each action binds one
+native opponent fixture in authored order (7 then 8). Strict restoration
+rederives the rested first-leg matchups and authenticates the exact
+archived pair plus the ordered pending reports. Pending proved games
+are not yet paid: the source human proof, six previous results, four
+previous NPC reports, prior bank journals and Common aggregate stay
+unchanged. After both reports are retained, the menu stops; qualification
+of the next settled no-purchase journal and later actions is separate.
+The existing paid journal and its request dialect remain unchanged.
+
+Use `tests/successor_private_doubleheader_unpurchased_next_npcs.gd.txt`
+with the previous next-pair and hidden-first-settlement parents. Clone
+the exact CP216 pair; retain the exact CP216 primary and its CP215
+reference as `user://exact-pending-next-opener.json` and
+`user://exact-settled-pair.json`. Run `npc7` and `npc8` in separate
+processes, each with the exact current primary SHA. Reopen `cold`
+from the final primary alone. A separate `flag-off` copy refuses resume,
+and `tamper` rejects a changed second request with exact files untouched.
+Only two new NPC fixtures are simulated; fixture 6 is never replayed.

@@ -51,10 +51,10 @@ func run() -> void:
 				and _fresh_pair(prior,opening.state,opening.fixture,app.season.physical.pending.human[13]),
 				"cold same exact bound field, opponent and both first-leg full stamina budgets"): return
 		app.play_private_unpurchased_next_pair()
-		app._run_paired_npc(7)
+		app._run_paired_npc(8)
 		app._settle_paired_next_first_leg()
 		if need(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(before,backup),
-				"duplicate, future NPC and settlement held"):
+				"duplicate, out-of-order NPC and settlement held"):
 			print("UNPURCHASED_NEXT_PAIR_COLD_PASS ",args[1])
 			get_tree().quit()
 		return

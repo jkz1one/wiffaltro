@@ -1,0 +1,63 @@
+extends "res://tests/successor_private_doubleheader_unpurchased_next_pair.gd"
+const INPUT="user://exact-pending-next-opener.json"
+const INPUT_HASH="7289b1d65c94233f9eff9aa185d3aa1448288a35761b9c08507a122b836ced9b"
+const RESUME="RESUME NEXT DOUBLEHEADER OPENER"
+
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["npc7","npc8","cold","flag-off","tamper"]
+			and FileAccess.get_sha256(BASELINE)==EXACT and FileAccess.get_sha256(INPUT)==INPUT_HASH
+			and FileAccess.get_sha256(Store.PATH)==args[1], "exact generated next-pair family"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var original: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(INPUT))
+	var raw: Dictionary=Store.Owner._bytes_value(before)
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if args[0]=="tamper":
+		if need(app.career_owner==null and exact(before,backup),"altered report rejected in strict cold"): get_tree().quit()
+		return
+	var count: int={"npc7":0,"npc8":1,"cold":2,"flag-off":0}.get(args[0],-1)
+	if not need(app._owned() and _carried(app,original,count) and exact(before,backup),"strict owner, prior physical and all bank journals unchanged"): return
+	var button:=_button(app,RESUME)
+	if args[0] in ["cold","flag-off"]:
+		app.resume_private_unpurchased_next_opener()
+		app._run_paired_npc(7)
+		app._settle_paired_next_first_leg()
+		if need(button==null and not is_instance_valid(app.ai_runner) and exact(before,backup)
+				and (args[0]!="cold" or backup.is_empty()),"cold both pending or flag-off inert; no settlement"):
+			print("NEXT_OPENER_",args[0].to_upper(),"_PASS ",args[1])
+			get_tree().quit()
+		return
+	if not need(button!=null and (count!=0 or args[1]==INPUT_HASH),"exact ordered visible native resume"): return
+	var wrong:=8 if count==0 else 7
+	app._run_paired_npc(wrong)
+	if not need(not is_instance_valid(app.ai_runner) and exact(before,backup),"wrong-order direct launch refused"): return
+	button.pressed.emit()
+	var runner: Node=app.ai_runner
+	app.resume_private_unpurchased_next_opener()
+	if not need(is_instance_valid(runner) and runner==app.ai_runner and app._busy
+			and app._paired_npc_binding.get("fixture")==7+count and exact(before,backup),"exactly one native worker, no early write"): return
+	for index in range(150000):
+		await get_tree().physics_frame
+		if not app._busy: break
+	var rows: Array=app.season.physical.pending.reports
+	if need(not app._busy and app.retained==null and app.retained_report.is_empty() and _carried(app,original,count+1)
+			and Live.same(rows.slice(0,count),raw.ordinary.physical.pending.reports)
+			and rows[count].fixture==7+count and Store.raw()!=before
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"real worker exact ordered append and one backup; no payout"):
+		print("NEXT_OPENER_",args[0].to_upper(),"_PASS ",FileAccess.get_sha256(Store.PATH))
+		get_tree().quit()
+
+func _carried(app: App, original: Dictionary, count: int) -> bool:
+	var snapshot: Dictionary=Store.Owner._bytes_value(Store.raw())
+	var a: Dictionary=snapshot.ordinary.duplicate(true)
+	var b: Dictionary=original.ordinary.duplicate(true)
+	var pending: Dictionary=a.physical.pending
+	if not Pair.bound_shape(pending) or pending.reports.size()!=count or not Live.same(pending.human,b.physical.pending.human) \
+			or not Live.same(pending.binding,b.physical.pending.binding): return false
+	pending.reports=[]
+	return Live.same(a,b) and Live.same(snapshot.common,original.common) and app.season.build.cash()==42

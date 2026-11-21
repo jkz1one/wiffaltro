@@ -553,8 +553,7 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	var revision: int=28 if round_index==10 else ([0,5,7,9,11,13,17][round_index] if round_index<7 else projection.late_revision(round_index))
 	if session.build.revision()!=revision:
 		var unpurchased_return: bool=round_index==1 and not Adapter.Ordinary.unpurchased_return_kind(session.build).is_empty()
-		var unpurchased_next: bool=round_index==2 and not Adapter.Ordinary.unpurchased_next_pair_kind(session).is_empty() \
-			and session.physical.pending.is_empty() and pending.get("reports",[])==[]
+		var unpurchased_next: bool=round_index==2 and not Adapter.Ordinary.unpurchased_next_pair_kind(session).is_empty()
 		if not (unpurchased_return or unpurchased_next): return null
 	if round_index==6 and not Adapter.Ordinary._signed_visit6_journal(session.build): return null
 	if round_index==10 and not Adapter.Ordinary._semifinal_checkpoint_shape(session): return null

@@ -115,8 +115,15 @@ func render() -> void:
 			if app.season.physical.pending.is_empty():
 				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT PAIR",22)
 				_bound_button(_body,"PLAY NEXT DOUBLEHEADER PAIR",Callable(app,"play_private_unpurchased_next_pair"))
+			elif app.season.physical.pending.reports.size()<2:
+				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT PAIR OPENER",22)
+				_round_resume=_bound_button(_body,"RESUME NEXT DOUBLEHEADER OPENER",Callable(app,"resume_private_unpurchased_next_opener"))
+				_round_progress=_label(_footer,"",16)
+				_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+				_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+				_refresh_round_progress()
 			else:
-				_note("Next pair opener saved. Its NPC fixtures and settlement are not exposed in this preview.")
+				_note("All three next-pair opener games are saved. Settlement is not enabled in this preview.")
 		elif app.private_paired_development_step()>=0:
 			_private_paired_development()
 		else:

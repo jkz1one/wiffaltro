@@ -228,14 +228,10 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 	var build: SeasonBuild=season.build
 	if not whole(build._visit.get("number"),2,2) or build._visit.get("open")!=false: return false
 	if _paid_pair_journal(build,2): return true
-	# The separate exact journal permits only the next human pending proof,
-	# not the next two reports or a later settlement.
-	if unpurchased_next_pair_kind(season).is_empty(): return false
-	# General's detached human ingestion checks this context after setting
-	# projecting. Admit only the exact original four archived reports there,
-	# never a follow-up NPC queue. The detached type still cannot pass scope().
-	if detached: return physical.reports.size()==4 and physical.pending.is_empty()
-	return physical.pending.is_empty() or physical.pending.reports.is_empty()
+	# This exact no-spend journal permits the already shape-checked authored
+	# next-leg prefix, not a new settlement or later round. Detached queued
+	# reports are replayed by General; the detached type cannot pass scope().
+	return not unpurchased_next_pair_kind(season).is_empty()
 
 # Derive the optional no-spend start from the authenticated journal, not a
 # shifted paid revision. Geometry still comes from the authored schedule.
