@@ -165,3 +165,20 @@ authenticated legacy V2 or V3 raw save was available for an import run; their
 previous no-stadium restriction stays explicit. This was a headless,
 automated managed game, not a rendered manual playtest, confirmed chair
 collision, purchased-copy placement or Pool support.
+
+### Controlled starter-chair contact
+
+A separate headless test opened the normally scheduled Dynasty home fixture 3
+and confirmed the App's installed field and receiver identity. With its own
+disposable resolver, it launched a test ball from `(0, 0.75, 0.2)` at
+`(0, 0, -6)`. The actual backrest `ST079_BACK` of
+`starter-v1:ST-079` made exactly one batted contact and resolved exactly one
+foul with reason `receiver_containment`. Neither save slot was modified.
+This is an isolated controlled native collision, not evidence that a player
+naturally hit the chair during the 8–6 game.
+
+To repeat, attach `tests/successor_dynasty_workshop_contact.gd.txt` as a Node
+script in a scratch test scene of the CP163 source assembly. Use the
+exact pre-home synthetic primary and backup hashes pinned in the test,
+an isolated profile and both private engineering/test flags above. The test
+refuses other slots and never contributes a score to the season.

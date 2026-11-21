@@ -1,0 +1,51 @@
+extends Node
+## Controlled native contact on an isolated admitted paid-free home layout.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+func _ready() -> void:
+	call_deferred("_run")
+func _run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1":
+		get_tree().quit(2)
+		return
+	var original:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if FileAccess.get_sha256(Store.PATH)!="ef1531af54d837bc3a07f52e4223e2ef4fa4368ac6eacd83b687312c5c64de26" or FileAccess.get_sha256(Store.PATH+".bak")!="1c325952805a6b8c8c90d1f4f195a4e51be950a3b631a712f1f683be0caf4439":
+		get_tree().quit(2)
+		return
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	app.play_next()
+	if not app._played_field_matches():
+		get_tree().quit(3)
+		return
+	var lab: PitchBatLab=app.lab
+	var property: StadiumPropertyGeometry=lab.get_meta("stadium_property")
+	var receiver: StadiumPitchReceiver=property.get_node("PitchReceiverPresentation")
+	var count:=receiver.contacts.size()
+	var batted:=BattedBallBody.new()
+	lab.add_child(batted)
+	var resolver:=BallPlayResolver.new()
+	var outcomes: Array[BallPlayOutcome]=[]
+	resolver.play_resolved.connect(func(outcome: BallPlayOutcome)->void: outcomes.append(outcome))
+	resolver.start_play(lab._field_definition)
+	property.bind_ball(batted,resolver)
+	var launch:=BattedBallLaunch.new()
+	launch.position=Vector3(0,0.75,0.2)
+	launch.velocity=Vector3(0,0,-6)
+	batted.launch(launch)
+	for frame: int in range(60):
+		await get_tree().physics_frame
+		if resolver.state.dead: break
+	if outcomes.size()!=1 or outcomes[0].result!=BallPlayOutcome.Result.FOUL or outcomes[0].reason!=&"receiver_containment" or receiver.contacts.size()!=count+1 or receiver.contacts[-1].kind!="batted" or receiver.contacts[-1].copy!="starter-v1:ST-079" or receiver.contacts[-1].surface!="ST079_BACK" or Store.raw()!=original or FileAccess.get_file_as_bytes(Store.PATH+".bak")!=backup:
+		print("CONTACT REFUSED outcomes=",outcomes.size()," contacts=",receiver.contacts)
+		get_tree().quit(4)
+		return
+	print("DYNASTY_WORKSHOP_CONTROLLED_BATTED_FOUL_PASS ",receiver.contacts[-1].surface)
+	batted.queue_free()
+	app.queue_free()
+	await get_tree().process_frame
+	await TestAudioDrain.finish(get_tree())
+	get_tree().quit()
