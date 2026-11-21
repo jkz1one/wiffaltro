@@ -77,6 +77,17 @@ func _workshop_draft() -> void:
 		_note("Starter backstop chair · Primary receiver. Save a free draft without changing the field.")
 		_bound_button(_body,"SAVE STARTER STADIUM DRAFT",Callable(app,"save_workshop_draft"))
 
+	if owner.status!="closed": return
+	var purchase: Script=owner.get_script().WorkshopPurchase
+	var balance: int=purchase.available_balance(owner)
+	_note("Workshop balance from recorded Dynasty seasons: %d Club Bucks."%balance)
+	if not owner.workshop_chair_purchase.is_empty():
+		_note("Extra backstop chair owned. It is not placed on the field.")
+	elif owner.get_script().workshop_window(owner) and balance>=purchase.PRICE:
+		_bound_button(_body,"BUY EXTRA BACKSTOP CHAIR · %d CLUB BUCKS"%purchase.PRICE,Callable(app,"buy_workshop_chair"))
+	else:
+		_note("An extra chair costs %d Club Bucks. Only recorded Dynasty completion awards can fund it."%purchase.PRICE)
+
 func _player_summary(player: PlayerDefinition) -> void:
 	var repertoire: Array[String] = []
 	var pitch_ids: Array[String] = []

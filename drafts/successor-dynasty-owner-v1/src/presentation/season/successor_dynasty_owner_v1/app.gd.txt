@@ -383,6 +383,47 @@ func save_workshop_draft() -> void:
 		return
 	_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
 
+var _chair_dialog: ConfirmationDialog
+var _chair_owner: RefCounted
+var _chair_session: SeasonState
+var _chair_bytes: PackedByteArray
+
+func _chair_available() -> bool:
+	return _available() and _scope() and _owned() and _exit_mode.is_empty() and Owner.workshop_window(career_owner) \
+		and career_owner.status=="closed" and career_owner.workshop_chair_purchase.is_empty() \
+		and Owner.WorkshopPurchase.available_balance(career_owner)>=Owner.WorkshopPurchase.PRICE
+
+func buy_workshop_chair() -> void:
+	if not _chair_available() or is_instance_valid(_chair_dialog) and _chair_dialog.visible: return
+	if not is_instance_valid(_chair_dialog):
+		_chair_dialog=ConfirmationDialog.new()
+		_chair_dialog.title="Buy extra backstop chair"
+		_chair_dialog.ok_button_text="Buy chair"
+		_chair_dialog.confirmed.connect(_confirm_workshop_chair)
+		_chair_dialog.canceled.connect(_cancel_workshop_chair)
+		add_child(_chair_dialog)
+	_chair_owner=career_owner;_chair_session=season;_chair_bytes=saved_bytes.duplicate()
+	_chair_dialog.dialog_text="Spend %d earned Club Bucks for one extra backstop chair? It will be owned but not placed."%Owner.WorkshopPurchase.PRICE
+	_chair_dialog.popup_centered(Vector2i(520,180))
+	_chair_dialog.get_cancel_button().grab_focus()
+
+func _cancel_workshop_chair() -> void:
+	_chair_owner=null;_chair_session=null;_chair_bytes=PackedByteArray()
+	if is_instance_valid(_chair_dialog): _chair_dialog.hide()
+
+func _confirm_workshop_chair() -> void:
+	var expected: PackedByteArray=_chair_bytes
+	var authorized: bool=_chair_owner!=null and _chair_owner==career_owner and _chair_session==season \
+		and not expected.is_empty() and expected==saved_bytes and _chair_available()
+	_cancel_workshop_chair()
+	if not authorized: return
+	var ticket: RefCounted=Store.prepare_workshop_chair_and_write(career_owner,expected)
+	if ticket==null:
+		notice="The chair was not purchased. Your career is unchanged."
+		show_season()
+		return
+	_retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
 func draft(id: String) -> void:
 	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or season == null or season.phase != SeasonState.Phase.DRAFT or not season.offers().has(id): return
@@ -491,6 +532,7 @@ func open_legacy() -> void:
 	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")
 
 func _exit_blocked() -> bool:
+	if is_instance_valid(_chair_dialog) and _chair_dialog.visible: return true
 	if is_instance_valid(_loadout_modal): return true
 	if _busy or Store.saving or is_instance_valid(ai_runner):
 		notice = "A game or checkpoint is still running. Wait before leaving."

@@ -93,3 +93,28 @@ positive completion award through the new archive. The older exact 33-game
 fixture is mentioned in the historical qualification notes; its save bytes
 were not available in the local and private backup sources checked. These
 tests do not substitute a synthetic win for that end-to-end proof.
+
+## Extra starter-chair purchase
+
+After closing Dynasty, before preparing Next, the Workshop can offer one
+additional backstop chair (ST-079) for 35 Club Bucks. The confirm dialog defaults
+to Cancel and pins the exact owner, session and save bytes. The purchase places
+nothing on the field and leaves the existing starter draft untouched.
+
+Only admitted Dynasty close rows fund it. Abandoned rows carry zero credit.
+Pre-archive opening totals are visible to the existing career ledger, not
+spendable as receipt-backed Workshop funds. The purchase stores the exact
+archive prefix and original purchase epoch, so future Close rows cannot fund
+an earlier purchase. The native ledger replays the one-copy purchase; the V4
+writer preserves the previous save as backup and changes only the optional
+chair metadata. Old V4 saves without that metadata retain their original shape.
+
+`tests/successor_dynasty_workshop_chair.gd.txt` is an isolated Godot scene
+script. Copy it to a scratch assembly as a Node script and attach it to a
+scratch scene. Run `policy` for native price/funding vectors (synthetic, not
+earned season evidence); use `refuse` with a real abandoned Dynasty save and
+`active` with a real active Dynasty save. An authenticated completed-and-closed
+Dynasty save with at least 35 recorded Club Bucks is needed for `buy`, followed
+by separate-process `cold` on the same isolated copy. These check Cancel,
+obstructed write, exact retry, one debit/copy, repeat refusal and cold
+validation. They are not proof of a playable stadium or later purchases.

@@ -1,0 +1,68 @@
+extends RefCounted
+## One native starter-copy transaction. Only the strict owner Store issues it.
+const C = preload("codec.gd")
+const Life = preload("lifecycle.gd")
+const ITEM: String = "ST-079"
+const PRICE: int = 35
+
+# A projection of an already validated archive, not save or purchase authority.
+static func _basis(history: Dictionary, ordinal: int) -> Dictionary:
+	if history.is_empty(): return {}
+	var count: int=ordinal-int(history.opening.closed)
+	if count<=0 or count>history.rows.size(): return {}
+	var rows: Array=history.rows.slice(0,count)
+	var credits: Array[int]=[]
+	var progress: Array=[]
+	var through: int=0
+	for row: Dictionary in rows:
+		var summary: Dictionary=ClubSeasonRecord.analyze(row.proof)
+		if summary.is_empty(): return {}
+		var earned: int=int(row.receipt.get("total",0))
+		credits.append(earned)
+		progress.append({"seasons":int(row.reason=="complete"),"wins":int(summary.wins)})
+		if earned>0: through=credits.size()
+	return {"credits":credits,"progress":progress,"through":through,
+		"source":rows[-1].source,"sha256":Life.digest({"opening":history.opening,"rows":rows})}
+
+static func available_balance(owner) -> int:
+	if not owner.workshop_chair_purchase.is_empty():
+		return maxi(0,_income(_basis(owner.workshop_close_history,int(owner.ledger.closed)))-PRICE)
+	return _income(_basis(owner.workshop_close_history,int(owner.ledger.closed)))
+
+static func _income(basis: Dictionary) -> int:
+	var result: int=0
+	for amount: int in basis.get("credits",[]): result+=amount
+	return result
+
+static func issue(owner) -> Dictionary:
+	if owner.active!="dynasty" or owner.status!="closed" or not owner.workshop_chair_purchase.is_empty(): return {}
+	var basis: Dictionary=_basis(owner.workshop_close_history,owner.ordinal)
+	if basis.is_empty() or basis.source!=owner.last_close.get("session_sha256"): return {}
+	return _record(owner,owner.ordinal,basis)
+
+static func valid(owner) -> bool:
+	var saved: Dictionary=owner.workshop_chair_purchase
+	if saved.is_empty(): return true
+	if not C.keys(saved,["version","lineage","ordinal","source","prefix_sha256","ledger"]) or not C.whole(saved.ordinal,1,int(owner.ledger.get("closed",0))): return false
+	var basis: Dictionary=_basis(owner.workshop_close_history,int(saved.ordinal))
+	var expected: Dictionary=_record(owner,int(saved.ordinal),basis)
+	return not expected.is_empty() and C.same(saved,expected)
+
+static func _record(owner, ordinal: int, basis: Dictionary) -> Dictionary:
+	if basis.is_empty() or basis.through<=0 or _income(basis)<PRICE: return {}
+	var ledger:=ClubAssetLedger.new(owner.birth_seed,basis.credits,basis.progress,{})
+	var starter: Dictionary=ledger.construction().copies
+	var price: Dictionary=ClubConstruction.copy_catalog(ITEM)
+	if price!={"known":true,"price_version":StadiumPurchases.VERSION,"progress":false}: return {}
+	var result: Dictionary=ledger.commit({"id":"stadium-buy:0","rev":0,"op":"stadium_buy",
+		"item":ITEM,"quantity":1,"through":basis.through,"price_version":StadiumPurchases.VERSION})
+	var owned: Dictionary=ledger.construction().copies
+	if not result.get("ok",false) or result.get("replayed",true) or int(result.get("view",{}).get("spent",-1))!=PRICE or ledger.balance()!=_income(basis)-PRICE: return {}
+	if owned.size()!=starter.size()+1 or not owned.has("purchase:stadium-buy:0:0") or owned["purchase:stadium-buy:0:0"].item!=ITEM: return {}
+	for id: String in starter:
+		if not owned.has(id) or not C.same(owned[id],starter[id]): return {}
+	var saved: Dictionary=ledger.to_data()
+	var restored:=ClubAssetLedger.from_data(saved,owner.birth_seed,basis.credits,basis.progress,{})
+	if restored==null or not C.same(restored.to_data(),saved): return {}
+	return {"version":1,"lineage":Life.lineage(owner),"ordinal":ordinal,
+		"source":basis.source,"prefix_sha256":basis.sha256,"ledger":saved}

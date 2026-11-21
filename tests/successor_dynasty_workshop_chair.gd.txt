@@ -1,0 +1,132 @@
+extends Node
+## Isolated native starter purchase, not a source of earning or save authority.
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Purchase = preload("res://src/gameplay/season/successor_dynasty_owner_v1/workshop_purchase.gd")
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1 or args[0] not in ["policy","refuse","active","buy","cold"]:
+		get_tree().quit(2)
+		return
+	if args[0]=="policy":
+		get_tree().quit(_policy())
+		return
+	var before: PackedByteArray=Store.raw()
+	var backup: PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var owner: RefCounted=Store.read()
+	if owner==null or owner.active!="dynasty" or (owner.status!="active" if args[0]=="active" else owner.status!="closed" or owner.workshop_close_history.is_empty()):
+		get_tree().quit(3)
+		return
+	if args[0] in ["refuse","active","buy"]:
+		var app=App.new()
+		add_child(app)
+		await get_tree().process_frame
+		app.reload_save()
+		owner=app.career_owner
+		if owner==null or not app._owned() or Store.raw()!=before:
+			get_tree().quit(4)
+			return
+		var balance: int=Purchase.available_balance(owner)
+		if args[0] in ["refuse","active"]:
+			app.buy_workshop_chair()
+			app._confirm_workshop_chair()
+			if (args[0]=="refuse" and balance!=0) or is_instance_valid(app._chair_dialog) or Store.prepare_workshop_chair_and_write(owner,before)!=null or not owner.workshop_chair_purchase.is_empty() or before!=Store.raw() or backup!=FileAccess.get_file_as_bytes(Store.PATH+".bak"):
+				get_tree().quit(5)
+				return
+			print("DYNASTY_WORKSHOP_CHAIR_ACTIVE_REFUSED" if args[0]=="active" else "DYNASTY_WORKSHOP_CHAIR_ZERO_CREDIT_REFUSED")
+			get_tree().quit()
+			return
+		if balance<35 or not owner.workshop_chair_purchase.is_empty():
+			get_tree().quit(6)
+			return
+		app.buy_workshop_chair()
+		if not is_instance_valid(app._chair_dialog) or not app._chair_dialog.visible:
+			get_tree().quit(7)
+			return
+		app._chair_dialog.canceled.emit()
+		app._confirm_workshop_chair()
+		if app._chair_dialog.visible or Store.raw()!=before or backup!=FileAccess.get_file_as_bytes(Store.PATH+".bak"):
+			get_tree().quit(8)
+			return
+		if DirAccess.make_dir_absolute(Store.PATH+".tmp")!=OK:
+			get_tree().quit(9)
+			return
+		app.buy_workshop_chair()
+		app._chair_dialog.confirmed.emit()
+		if app.retained==null or app.career_owner!=owner or not owner.workshop_chair_purchase.is_empty() or Store.raw()!=before or backup!=FileAccess.get_file_as_bytes(Store.PATH+".bak"):
+			get_tree().quit(10)
+			return
+		if DirAccess.remove_absolute(Store.PATH+".tmp")!=OK:
+			get_tree().quit(11)
+			return
+		app.retry_save()
+		var candidate: RefCounted=app.career_owner
+		var written: PackedByteArray=Store.raw()
+		var proven: Dictionary=JSON.parse_string(written.get_string_from_utf8())
+		proven.erase("workshop_chair_purchase")
+		var previous: Variant=JSON.parse_string(before.get_string_from_utf8())
+		if app.retained!=null or candidate==owner or not Owner.Codec.same(previous,proven) or Purchase.available_balance(candidate)!=balance-35 or FileAccess.get_file_as_bytes(Store.PATH+".bak")!=before or Store.prepare_workshop_chair_and_write(candidate,written)!=null or Store.raw()!=written:
+			get_tree().quit(12)
+			return
+		print("DYNASTY_WORKSHOP_CHAIR_PAIRED_DEBIT ",balance,"->",balance-35)
+		get_tree().quit()
+		return
+	if owner.workshop_chair_purchase.is_empty() or not Purchase.valid(owner) or Store.raw()!=before or FileAccess.get_file_as_bytes(Store.PATH+".bak")!=backup:
+		get_tree().quit(8)
+		return
+	var saved: Dictionary=JSON.parse_string(before.get_string_from_utf8())
+	for key: String in ["ordinal","source","prefix_sha256","lineage","ledger"]:
+		var altered: Dictionary=saved.duplicate(true)
+		altered.workshop_chair_purchase[key]="forged"
+		if Owner.restore(altered)!=null:
+			get_tree().quit(13)
+			return
+	print("DYNASTY_WORKSHOP_CHAIR_COLD_PASS")
+	get_tree().quit()
+
+func _score(season: SeasonState, id: int, away: int, home: int, winner: int) -> void:
+	season.results.append({"id":id,"away":away,"home":home,"away_runs":3 if winner==away else 0,"home_runs":3 if winner==home else 0})
+
+func _synthetic_proof() -> Dictionary:
+	var season := SeasonState.new()
+	for index: int in range(6):
+		season.teams.append({"draw":float(index)/6.0})
+	season._build_schedule()
+	season.league_rules=LeagueRules.capture("dynasty")
+	for fixture: Dictionary in season.schedule:
+		_score(season,fixture.id,fixture.away,fixture.home,fixture.away if fixture.home!=0 else 0)
+	var seeds: Array=season.standings().slice(0,4).map(func(row: Dictionary) -> int: return row.team)
+	_score(season,30,seeds[3],seeds[0],seeds[0])
+	_score(season,31,seeds[2],seeds[1],seeds[1])
+	_score(season,32,seeds[1],seeds[0],seeds[0])
+	return ClubSeasonRecord.capture(season)
+
+func _policy() -> int:
+	var owner=Owner.new()
+	owner.birth_seed=42
+	var legal: Dictionary={"through":1,"credits":[77,0],"progress":[{"seasons":1,"wins":8},{"seasons":0,"wins":1}],"source":"synthetic","sha256":"synthetic"}
+	var record: Dictionary=Purchase._record(owner,2,legal)
+	if record.is_empty() or record.ordinal!=2 or record.ledger.events.size()!=1 or record.ledger.events[0].through!=1: return 9
+	for entry: Array in [[0,[0,0],[{"seasons":0,"wins":8},{"seasons":0,"wins":1}]], [2,[77,0],legal.progress], [0,[0],[{"seasons":0,"wins":1}]], [1,[34],[{"seasons":1,"wins":0}]]]:
+		var invalid: Dictionary=legal.duplicate(true)
+		invalid.through=entry[0]
+		invalid.credits=entry[1]
+		invalid.progress=entry[2]
+		if not Purchase._record(owner,2,invalid).is_empty(): return 10
+	var proof: Dictionary=_synthetic_proof()
+	var abandoned: Dictionary=proof.duplicate(true)
+	abandoned.scores.resize(3)
+	owner.workshop_close_history={"opening":{"closed":4,"currency":200},"rows":[
+		{"proof":abandoned,"reason":"abandon","receipt":{},"source":"aaaa"},
+		{"proof":proof,"reason":"complete","receipt":ClubSeasonRecord.receipt(proof,true),"source":"bbbb"}]}
+	var early: Dictionary=Purchase._basis(owner.workshop_close_history,5)
+	var funded: Dictionary=Purchase._basis(owner.workshop_close_history,6)
+	if early.credits!=[0] or early.through!=0 or not Purchase._record(owner,5,early).is_empty(): return 14
+	if funded.credits!=[0,220] or funded.through!=2 or funded.sha256==early.sha256 or Purchase._record(owner,6,funded).is_empty(): return 15
+	print("DYNASTY_WORKSHOP_CHAIR_NATIVE_POLICY_PASS")
+	return 0
