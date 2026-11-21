@@ -6,6 +6,9 @@ const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dyna
 func render() -> void:
 	_screen("home","WIFFALTRO","YOUR CLUB. YOUR SEASON.")
 	if not app.notice.is_empty(): _note(app.notice)
+	if app.d1_check_running():
+		_bound_button(_body,"CANCEL CHAMPIONSHIP CHECK",Callable(app,"cancel_d1_check"))
+		return
 	if app.retained != null:
 		_bound_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
@@ -17,6 +20,8 @@ func render() -> void:
 				_bound_button(_body,("SELECTED · " if app.selected_league==league else "SELECT · ")+league.to_upper(),Callable(app,"select_league").bind(league))
 		_bound_button(_body,"NEW "+app.selected_league.to_upper()+" TEST CAREER",Callable(app,"create_fresh"))
 		_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
+		if app.d1_check_visible():
+			_bound_button(_body,"PRIVATE STANDARD D1 CHAMPIONSHIP CHECK",Callable(app,"begin_d1_check"))
 		if FileAccess.file_exists("user://wiffaltro-common-career-v3.json"):
 			_bound_button(_body,"COPY COMMON CAREER (V3)",Callable(app,"import_previous_common"))
 		if FileAccess.file_exists("user://wiffaltro-dynasty-career-v2.json"):

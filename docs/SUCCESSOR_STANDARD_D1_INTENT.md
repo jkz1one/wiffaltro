@@ -273,3 +273,39 @@ and an isolated copy of the generated CP170 closed semifinal pair.
 The QA modes are `-- replay`, `-- cancel`, `-- forged`, and `-- stale`.
 The stale case temporarily moves only the disposable test primary and
 restores it before the final hash checks.
+
+### Private App cold check
+
+With `WIFFALTRO_STANDARD_D1_CHECK=1` in the source editor engineering
+route, an unloaded App with an existing Common V4 primary shows
+**Private Standard D1 Championship Check**. It is separate from
+**Continue Saved Career**; default, packaged and legacy launch behavior
+is unchanged. The App starts the worker directly, temporarily replaces
+the cold menu controls with a cancel button, and displays refusal, stale
+or cancellation notices. It never loads an owner, calls normal Store
+restore, or unlocks/starts D1 from this action. Closing the window first
+cancels the worker and then uses the normal quit action.
+
+For headless App QA, stage
+`successor_standard_d1_app_witness.gd.txt` as a one-Node scratch scene
+in a Common V4 assembly. Copy the audited generated CP170 closed Base
+pair into a disposable profile and enable the isolated and engineering
+flags. Run five separate invocations with `-- cancel`, `-- close`,
+`-- refused`, `-- stale`, and `-- normal`; turn the extra check
+flag off for the last invocation. The runner dispatches actual App
+button signals, menu render, and the standard window-close notification
+(only the final quit action is intercepted). Normal Continue separately
+checks the existing strict Base admission.
+
+For positive consumption, replace editable reply files with a private,
+bounded, length-framed stream from the exact child launched with Godot
+4.6's nonblocking [process pipe](https://docs.godotengine.org/en/4.6/classes/class_os.html#class-os-method-execute-with-pipe).
+Drain stdout and stderr while the child runs, verify exit status and
+exact version/nonce/slot revision/seed/basis, reject extra frames, and
+expire the single-use admission on cancellation, timeout, App close,
+owner replacement or changed slot bytes. No result is durable and
+editable saves still require fresh strict replay. The parent alone
+performs the final exact-revision CAS after deterministic D1 structural
+hydration; it must not run a second full owner replay on the menu frame.
+The pipe and a real title's successful private Store consumption still
+require validation before this can write a draft or grant access.

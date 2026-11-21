@@ -1,0 +1,85 @@
+extends Node
+## The real App/Menu omit the ordinary Restore path from the private action.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const EXACT="1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+const PRIOR="427deabb3f82a95afe829323955cea7ad39d36067078686d522268cc1bc91293"
+
+class QuitProbe extends App:
+	var quits: int=0
+	func _quit_now() -> void:
+		quits+=1
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool,label: String) -> bool:
+	if ok: return true
+	printerr("APP WITNESS FAIL ",label)
+	get_tree().quit(1)
+	return false
+
+func _button(node: Node, title: String) -> Button:
+	if node is Button and node.text==title and node.is_visible_in_tree() and not node.is_queued_for_deletion(): return node
+	for child: Node in node.get_children():
+		if child.is_queued_for_deletion(): continue
+		var found:=_button(child,title)
+		if found!=null: return found
+	return null
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==1
+			and args[0] in ["refused","cancel","close","stale","normal"],"isolated explicit App test"): return
+	if not _need(FileAccess.get_sha256(S.PATH)==EXACT and FileAccess.get_sha256(S.PATH+".bak")==PRIOR
+			and not FileAccess.file_exists("user://season-v1.json"),"exact generated closed Base control"): return
+	var app:=QuitProbe.new()
+	add_child(app)
+	await get_tree().process_frame
+	var title: String="PRIVATE STANDARD D1 CHAMPIONSHIP CHECK"
+	var button:=_button(app,title)
+	if args[0]=="normal":
+		if not _need(button==null and not app.d1_check_running(),"default private opt-in absent"): return
+		var normal:=_button(app,"CONTINUE SAVED CAREER")
+		if not _need(normal!=null,"normal Continue visible"): return
+		normal.pressed.emit()
+		if not _need(app.career_owner!=null and app.career_owner.lifecycle_status()=="closed"
+				and S.match_owner(app.career_owner,app.saved_bytes),"unchanged strict Base Continue"): return
+	else:
+		if not _need(button!=null and app.career_owner==null,"cold actual button"): return
+		button.pressed.emit()
+		var cancel:=_button(app,"CANCEL CHAMPIONSHIP CHECK")
+		if not _need(app.d1_check_running() and cancel!=null and "in the background" in app.notice
+				and _button(app,"CONTINUE SAVED CAREER")==null,"real running render, no competing Restore button"): return
+		var started:=Time.get_ticks_msec()
+		var folder: String=app._d1_check._folder
+		if args[0]=="cancel": cancel.pressed.emit()
+		if args[0]=="close": app.notification(NOTIFICATION_WM_CLOSE_REQUEST)
+		if args[0]=="stale":
+			app._d1_check.set_process(false)
+			while not FileAccess.file_exists(folder.path_join("response.json")) and Time.get_ticks_msec()-started<120000:
+				await get_tree().process_frame
+			if not _need(FileAccess.file_exists(folder.path_join("response.json"))
+					and DirAccess.rename_absolute(S.PATH,S.PATH+".qa-moved")==OK,"real child response before moving disposable primary"): return
+			app._d1_check.set_process(true)
+		var frames: int=0
+		while app.d1_check_running() and Time.get_ticks_msec()-started<120000:
+			await get_tree().process_frame
+			frames+=1
+		if args[0]=="stale" and not _need(DirAccess.rename_absolute(S.PATH+".qa-moved",S.PATH)==OK,"restore exact disposable primary"): return
+		if not _need(not app.d1_check_running() and not DirAccess.dir_exists_absolute(folder)
+				and app.career_owner==null and app.season==null and app.saved_bytes.is_empty(),"no owner admission, worker or job files remain"): return
+		match args[0]:
+			"refused":
+				if not _need(frames>10 and "does not qualify" in app.notice and app.quits==0,"responsive App, refused notice"): return
+			"cancel":
+				if not _need("cancelled" in app.notice and app.quits==0,"visible cancel leaves App open"): return
+			"stale":
+				if not _need("changed during" in app.notice and app.quits==0,"visible stale retry state"): return
+			"close":
+				if not _need(app.quits==1,"window close delegates only after cancel"): return
+		print("STANDARD_D1_APP_WITNESS_METRICS mode=",args[0]," ms=",Time.get_ticks_msec()-started," frames=",frames)
+	if not _need(FileAccess.get_sha256(S.PATH)==EXACT and FileAccess.get_sha256(S.PATH+".bak")==PRIOR
+			and not FileAccess.file_exists(S.PATH+".tmp"),"primary and predecessor unmodified"): return
+	print("STANDARD_D1_APP_WITNESS_PASS ",args[0])
+	get_tree().quit()

@@ -13,6 +13,9 @@ const Shop = preload("shop_window.gd")
 const Loadout = preload("loadout_ui.gd")
 var _loadout_modal: SeasonLoadoutUI
 const Page = preload("menu.gd")
+const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
+var _d1_check: Node
+var _d1_close_after_check: bool=false
 var retained_before: Dictionary = {} # Detached diagnostics only, never writer authority.
 var _save_ticket: RefCounted
 var retained_human: Array = []
@@ -95,6 +98,9 @@ func _ready() -> void:
 	show_season()
 
 func _exit_tree() -> void:
+	var checking: Node=_d1_check
+	_d1_check=null
+	if is_instance_valid(checking): checking.cancel()
 	_cancel_exit()
 	_cancel_lifecycle()
 	_loading_generation += 1
@@ -114,7 +120,7 @@ func show_season() -> void:
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
-	return not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+	return not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
 func league_entry_state(league: String, tier: int = 0) -> String:
 	var titles: Dictionary={} if career_owner==null else career_owner.common.aggregate.titles
@@ -377,6 +383,43 @@ func _sign_paired_visit6_recruit() -> void:
 	var ticket: RefCounted=Store._prepare_paired_visit6_sign(career_owner,expected)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+func d1_check_visible() -> bool:
+	return OS.get_environment("WIFFALTRO_STANDARD_D1_CHECK")=="1" and D1Check.supported() \
+		and career_owner==null and season==null and FileAccess.file_exists(Store.PATH)
+
+func d1_check_running() -> bool:
+	return is_instance_valid(_d1_check)
+
+func begin_d1_check() -> void:
+	if not d1_check_visible() or not _available(): return
+	var check:=D1Check.new()
+	_d1_check=check
+	add_child(check)
+	check.completed.connect(_complete_d1_check.bind(check),CONNECT_ONE_SHOT)
+	if not check.start(D1Check._revision(),0):
+		_complete_d1_check("invalid",check)
+		return
+	notice="Checking the saved Standard Base championship in the background…"
+	show_season()
+
+func cancel_d1_check() -> void:
+	if is_instance_valid(_d1_check): _d1_check.cancel()
+
+func _complete_d1_check(outcome: String, check: Node) -> void:
+	if _d1_check!=check: return
+	_d1_check=null
+	check.queue_free()
+	if _d1_close_after_check:
+		_d1_close_after_check=false
+		_quit_now()
+		return
+	notice={
+		"refused":"This save does not qualify for Standard D1. No career was loaded or changed.",
+		"stale":"The saved career changed during the check. Check again using the current save.",
+		"cancelled":"Championship check cancelled. Your career is unchanged."
+	}.get(outcome,"The championship check could not be verified. Your career is unchanged.")
+	show_season()
+
 func reload_save() -> void:
 	if not _available(): return
 	_busy = true
@@ -577,6 +620,10 @@ func leave_game() -> void:
 
 
 func _request_quit() -> void:
+	if is_instance_valid(_d1_check):
+		_d1_close_after_check=true
+		cancel_d1_check()
+		return
 	_request_exit("quit")
 
 
