@@ -338,3 +338,39 @@ assembly. Attach it as a Node scratch scene and run `match`,
 and isolated-test flags. The source probe proves the native quit handler,
 slot-inert cleanup, and cold admission. Physical clicks and any newly
 exported runtime must be qualified separately.
+
+### Rendered Quit and real Dugout round settlement on the updated package
+
+The clean rebuild at `75b9c87deb7e1cd6390f9109b890cdcce4f7dab5`
+uses the same official ELF and PCK SHA-256
+`b735e9f8ea9be4e1403f0ed326ab6a86fbaac9b2b18cf1bdfa67618179f867f2`.
+It passed the same no-save audit (3,051 raw paths, 1,246 reviewed pins).
+The separate real desktop test used the same software OpenGL and Dummy
+audio environment, with all game data isolated.
+
+In the actual native window, **Play Next → Escape → Quit Game** opened
+the unfinished-match warning. **Cancel** kept the same match paused.
+**Quit Game → OK** exited normally. A separate process continued the same
+roster and unplayed fixture without changing either slot, and the
+clubhouse footer Quit also exited normally. The manual fair double on
+the earlier build was separately confirmed by the HUD and the native
+play record; no new physical game was necessary for the Quit check.
+
+For settlement, use a disposable copy of the generated Dugout QA
+`npc-2` stage from [the Dugout opening proof](SUCCESSOR_COMMON_DUGOUT_OPENING.md),
+never a player save. Launch in the native desktop with both the engineering
+and earned-leagues preview flags. Continue and click **Resume Saved Round**
+from the exact pending primary
+`954e9bf5c9f75eb1cb6b987b79f8416bcbd433f4d7fac124bdefa8da5ac28706`
+and that stage's exact recorded predecessor. The actual native UI advanced
+to Round 2 after the 6–5 opening win and showed 18 Cash. The settled primary
+exactly reproduced the independently sourced
+`030b791edf6dd3e20687044accb83f9983555ffd488a8558f12f9e41c0cb196f`
+and the backup was the exact pending primary. Both worker reports stayed
+intact and all six clubs received exactly one matching reward across the
+three recorded games. Normal Quit, fresh Continue and Quit again all
+succeeded; the two exact slot files remained unchanged at cold reopen.
+
+This is native Linux UI settlement of already captured physical results,
+not a packaged worker launch, a new full manual round, hardware timing,
+audio, native macOS, or public-beta qualification.
