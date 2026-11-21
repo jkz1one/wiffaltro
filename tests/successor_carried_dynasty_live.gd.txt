@@ -1,0 +1,22 @@
+extends "res://tests/successor_dynasty_carried_play.gd"
+## The original production App driver plus checks for this alternating owner.
+
+func fresh_checks(app: SeasonApp) -> bool:
+	if not super.fresh_checks(app): return false
+	var original: Dictionary = JSON.parse_string(original_bytes.get_string_from_utf8())
+	var owner = app.career_owner
+	var expected: Dictionary = original.dynasty.state
+	var season: SeasonState = app.season
+	return check(owner.active == "dynasty"
+		and Codec.same(owner.paused, original.ordinary)
+		and Codec.same(owner.common, original.common)
+		and Codec.same(owner.ordinary_state, original.ordinary_state)
+		and Codec.same(owner.ledger, original.ledger)
+		and Codec.same(owner.last_transition, original.last_transition)
+		and Codec.same(season.teams[0].roster, expected.teams[0].roster)
+		and season.starter_index == expected.starter_index and season.fielder_index == expected.fielder_index,
+		"parked ordinary, banked progression, and second-season lineup stay exact")
+
+func finish_step(app: SeasonApp, action: String, complete: bool = false) -> void:
+	if not fresh_checks(app): return
+	super.finish_step(app, action, complete)
