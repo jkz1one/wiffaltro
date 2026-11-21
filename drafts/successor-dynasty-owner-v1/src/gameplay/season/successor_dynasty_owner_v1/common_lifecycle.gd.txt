@@ -8,6 +8,10 @@ const WorkshopHistory = preload("workshop_close_history.gd")
 const Progress = preload("common_progress.gd")
 const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
 const ARCHIVE_KIND: String="common-ordinary-predecessor-v1"
+const ARCHIVE_CHAIN: String="common-ordinary-two-predecessors-v1"
+const CHAIN_FRAGMENT: String="common-ordinary-second-fragments-v1"
+const CHAIN_TRANSITION: String="common-ordinary-archived-dugout-third-transition-v1"
+const CHAIN_MAX: int=20*1024*1024
 const ARCHIVE_TRANSITION: String="common-ordinary-archived-transition-v1"
 const ARCHIVE_MAX: int=16*1024*1024
 const SPONSOR_PROPOSAL: String="common-standard-to-sponsorship-proposal-v1"
@@ -91,7 +95,10 @@ static func valid(owner) -> bool:
 		var t: Dictionary=state.last_transition
 		var stamped: bool=t.has("kind")
 		if not C.keys(t,["id","source","from","to","league","basis"]+(["kind"] if stamped else [])) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or not Start.valid(t.basis): return false
-		if stamped!=(t.basis.version==2) or (stamped and (t.kind!=_archive_transition(t.league) or not state.has("archive"))): return false
+		if stamped!=(t.basis.version==2 or t.basis.version==3) or (stamped and not state.has("archive")): return false
+		if t.basis.version==3:
+			if t.get("kind")!=CHAIN_TRANSITION or t.league!="dugout": return false
+		elif stamped and t.kind!=_archive_transition(t.league): return false
 		if t.basis.lineage!=state.lineage or t.basis.ordinal!=state.ordinal or Life.digest(t.basis)!=state.start_basis_sha256 or t.basis.common_sequence>value.sequence: return false
 	return _archive_shape(owner) and _ordinary_proposal_valid(owner)
 
@@ -109,6 +116,12 @@ static func _archive_shape(owner) -> bool:
 	if not state.has("archive"): return true
 	var a: Variant=state.archive
 	var t: Dictionary=state.last_transition
+	if a is Dictionary and a.get("kind")==ARCHIVE_CHAIN:
+		return owner.active=="ordinary" and owner.paused.is_empty() and owner._missing_dynasty(owner) \
+			and state.ordinal==3 and state.status=="active" and state.proposal.is_empty() \
+			and t.get("kind")==CHAIN_TRANSITION and t.get("league")=="dugout" and t.basis.version==3 \
+			and _chain_archive_shape(a) and C.same(t.basis.archive_origin.ordered_sha256,
+				[a.entries[0].sha256,a.entries[1].sha256])
 	return C.keys(a,["kind","sha256","source"]) and a.kind==ARCHIVE_KIND \
 		and a.source is String and not a.source.is_empty() and a.source.length()<=ARCHIVE_MAX \
 		and owner._digest(a.sha256) and owner.active=="ordinary" and state.ordinal==2 \
@@ -118,6 +131,78 @@ static func _archive_shape(owner) -> bool:
 		and (not t.has("kind") or (t.basis.archive_origin.sha256==a.sha256 \
 			and t.basis.archive_origin.kind==Start.archive_origin_kind(t.league))) \
 		and (state.status=="active" or (state.status=="closed" and state.last_close.get("reason")=="abandon"))
+
+# Previous owner may be reconstructed in memory, but only these two
+# ordered flat entries are stored. The Standard raw bytes appear once.
+static func _chain_archive_shape(value: Variant) -> bool:
+	if not C.keys(value,["kind","entries"]) or value.kind!=ARCHIVE_CHAIN or not value.entries is Array \
+			or value.entries.size()!=2: return false
+	var first: Variant=value.entries[0]
+	var second: Variant=value.entries[1]
+	if not C.keys(first,["kind","sha256","source"]) or first.kind!=ARCHIVE_KIND or not Start.sha(first.sha256) \
+			or not first.source is String or first.source.is_empty() or first.source.length()>ARCHIVE_MAX: return false
+	if not C.keys(second,["kind","sha256","prefix","suffix"]) or second.kind!=CHAIN_FRAGMENT or not Start.sha(second.sha256) \
+			or second.sha256==first.sha256 or not second.prefix is String or not second.suffix is String \
+			or second.prefix.is_empty() or second.suffix.is_empty(): return false
+	return first.source.length()+second.prefix.length()+second.suffix.length()<=CHAIN_MAX
+
+static func _chain_hash(bytes: PackedByteArray) -> String:
+	var digest:=HashingContext.new()
+	if digest.start(HashingContext.HASH_SHA256)!=OK or digest.update(bytes)!=OK: return ""
+	return digest.finish().hex_encode()
+
+static func _chain_second_bytes(archive: Dictionary) -> PackedByteArray:
+	if not _chain_archive_shape(archive): return PackedByteArray()
+	var first: Dictionary=archive.entries[0]
+	var second: Dictionary=archive.entries[1]
+	var raw_first: PackedByteArray=first.source.to_utf8_buffer()
+	if raw_first.size()>ARCHIVE_MAX or _chain_hash(raw_first)!=first.sha256: return PackedByteArray()
+	var raw: PackedByteArray=(second.prefix+JSON.stringify(first.source,"",true,true)+second.suffix).to_utf8_buffer()
+	return raw if raw.size()<=CHAIN_MAX and _chain_hash(raw)==second.sha256 else PackedByteArray()
+
+# Compact canonical string/key/array structure must be exact. Native
+# float decimals may change by one ULP on a parse/re-encode; their values
+# are separately authenticated by the full predecessor reader.
+static func _flat_chain_encoding(fragments: Dictionary,value: Dictionary) -> bool:
+	var canonical: Dictionary=value.duplicate(false)
+	canonical.ordinary_state=value.ordinary_state.duplicate(false)
+	canonical.ordinary_state.archive=value.ordinary_state.archive.duplicate(false)
+	canonical.ordinary_state.archive.source=""
+	var tokens:=RegEx.new()
+	if tokens.compile(r'("(?:[^"\\]|\\.)*")|-?[0-9]+(?:\.[0-9]+)?(?:[Ee][+-]?[0-9]+)?')!=OK: return false
+	var raw: String=fragments.prefix+'""'+fragments.suffix
+	var authored: String=JSON.stringify(canonical,"",true,true)
+	return tokens.sub(raw,"$1@",true)==tokens.sub(authored,"$1@",true)
+
+static func _make_archive_chain(owner,raw: PackedByteArray) -> Dictionary:
+	if raw.is_empty() or raw.size()>CHAIN_MAX or owner.ordinary_state.archive.get("kind")!=ARCHIVE_KIND: return {}
+	var first: Dictionary=owner.ordinary_state.archive
+	var text: String=raw.get_string_from_utf8()
+	var literal: String=JSON.stringify(first.source,"",true,true)
+	var offset: int=text.find(literal)
+	var tag: String='"archive":{"kind":"%s","sha256":"%s","source":'%[ARCHIVE_KIND,first.sha256]
+	if offset<tag.length() or text.find(literal,offset+literal.length())!=-1 \
+			or not text.left(offset).ends_with(tag): return {}
+	var second: Dictionary={"kind":CHAIN_FRAGMENT,"sha256":_chain_hash(raw),"prefix":text.left(offset),
+		"suffix":text.substr(offset+literal.length())}
+	var chain: Dictionary={"kind":ARCHIVE_CHAIN,"entries":[first.duplicate(true),second]}
+	return chain if _chain_second_bytes(chain)==raw else {}
+
+static func _install_archive_chain(owner,raw: PackedByteArray) -> bool:
+	if owner==null or owner.ordinary_state.get("proposal",{}).get("kind")!=ARCHIVED_NEXT_KIND or not valid(owner): return false
+	var s: Dictionary=owner.ordinary_state
+	var p: Dictionary=s.proposal
+	var archive: Dictionary=_make_archive_chain(owner,raw)
+	if archive.is_empty(): return false
+	var basis: Dictionary=Start.bind_archive_chain(p.basis,archive.entries[0].sha256,archive.entries[1].sha256)
+	var next: SeasonState=Adapter.OrdinaryRuntime.create_common(basis,"dugout")
+	if next==null or next.phase!=SeasonState.Phase.DRAFT or not next.picks.is_empty() or next.build.cash()!=0: return false
+	s.last_transition={"kind":CHAIN_TRANSITION,"id":"%s:2:next"%s.lineage,"source":p.source,
+		"from":2,"to":3,"league":"dugout","basis":basis.duplicate(true)}
+	s.ordinal=3;s.status="active";s.last_close={};s.proposal={}
+	s.start_basis_sha256=Life.digest(basis);s.archive=archive
+	owner.session=next
+	return valid(owner)
 
 static func cross_commit_ready(owner) -> bool:
 	if owner==null or owner.active!="ordinary" or owner.ordinary_state.has("archive"): return false
@@ -231,7 +316,7 @@ static func _close_paired_complete(owner, current: Dictionary) -> bool:
 
 static func close(owner, reason: String) -> bool:
 	if owner.ordinary_state.has("archive") and (reason!="abandon" or owner.active!="ordinary" \
-		or not archive_close_scope(owner.session)): return false
+		or owner.ordinary_state.archive.get("kind")==ARCHIVE_CHAIN or not archive_close_scope(owner.session)): return false
 	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
 	var season: SeasonState=owner.session
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false

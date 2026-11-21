@@ -348,3 +348,37 @@ original archived-Abandon QA parent. Retain exact CP235 closed primary as
 `cold`, `tamper` (first archive digest, later fold or locked destination),
 `flag-off`, and `active-held` on exact CP207 before Abandon. No game,
 season simulation or activation runs.
+
+### Private ordinal-three activation and flat two-source archive
+
+The exact saved Dugout proposal can now activate a native ordinal-three
+Dugout Base draft at the private Store boundary. There is no menu action
+for activation: the synchronous preflight consumes CPU and requires
+a later interactive transport. Ordinary native draft controls are
+available after activation. Completing or abandoning this third season,
+another rollover, mode switches and public earned entry remain held.
+
+The two ordered entries retain the exact original Standard source once
+and the exact CP236 closed Dugout/proposal source in two raw text
+fragments around that prior archived payload. Re-inserting the single
+canonical quoted Standard source reconstructs the entire exact original
+CP236 byte stream. No complete nested outer owner is persisted again.
+Both raw digests are required in the marked version-3 native Start.
+Old version-1 and version-2 starts keep their original path and bytes.
+
+Restore bounds the ordered chain, rejects missing/multiple encodings or
+nesting, checks the exact reconstructed digest and authored compact JSON
+structure, then replays the original Standard and real Dugout Abandon
+and rederives the next basis. Original numeric values are still checked
+by native replay; the supplemental lexical check does not insist that
+the JSON engine preserve equivalent floating-point token spelling.
+The private Store validates that the complete output can strictly
+reopen before the parent writes its guarded primary and exact backup.
+
+Use `tests/successor_common_archive_third_ordinal.gd.txt` with the
+original archived-Abandon QA parent. Supply the exact CP236 proposal
+as `user://exact-cp236-proposal.json`. In separate isolated profiles,
+run `activate`, `pick` via an actual native draft button, then
+primary-only `cold`. `tamper` and `flag-off` are separate tests.
+No games are simulated. Banked Common Club Bucks remain 72; the new
+season starts at 0 seasonal Cash.

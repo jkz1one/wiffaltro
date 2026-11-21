@@ -5,6 +5,7 @@ const Eligibility=preload("res://src/gameplay/season/successor_league_general_v2
 const KIND: String="common-ordinary-start-v1"
 const FORMAT: String="wiffaltro-common-ordinary-session-v1"
 const ARCHIVED: String="standard-to-dugout-archive-v1"
+const CHAIN_ARCHIVED: String="standard-dugout-to-dugout-chain-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
 const FIELDS: Array[String]=["kind","version","seed","lineage","ordinal","common_sequence","common_sha256","player_access","starts","exotic_rights","assets","pennants","plaques","common_pennants","common_plaques"]
@@ -26,11 +27,17 @@ static func valid(value: Variant) -> bool:
 	if not value is Dictionary or not Builds._primitive(value) or value.get("kind")!=KIND: return false
 	var archived: bool=value.has("archive_origin")
 	if not SeasonOwnership._keys(value,FIELDS+(["archive_origin"] if archived else [])) \
-		or not SeasonOwnership._whole(value.version,2 if archived else 1,2 if archived else 1): return false
+		or not SeasonOwnership._whole(value.version,2 if archived else 1,3 if archived else 1): return false
 	if archived:
 		var origin: Variant=value.archive_origin
-		if not origin is Dictionary or not SeasonOwnership._keys(origin,["kind","sha256"]) \
-			or origin.kind not in [ARCHIVED,SPONSOR_ARCHIVED] or not sha(origin.sha256) or value.ordinal!=2: return false
+		if not origin is Dictionary: return false
+		if value.version==2:
+			if not SeasonOwnership._keys(origin,["kind","sha256"]) or origin.kind not in [ARCHIVED,SPONSOR_ARCHIVED] \
+					or not sha(origin.sha256) or value.ordinal!=2: return false
+		elif not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind!=CHAIN_ARCHIVED \
+				or value.ordinal!=3 or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=2 \
+				or not sha(origin.ordered_sha256[0]) or not sha(origin.ordered_sha256[1]) \
+				or origin.ordered_sha256[0]==origin.ordered_sha256[1]: return false
 	if not SeasonOwnership._whole(value.seed,0,2147483647) or not value.lineage is String or not value.lineage.begins_with("ordinary:") or not sha(value.lineage.trim_prefix("ordinary:")) or not SeasonOwnership._whole(value.ordinal,1,ClubCareer.MAX_RUNS): return false
 	if not SeasonOwnership._whole(value.common_sequence,0,ClubCareer.MAX_RUNS*2) or not sha(value.common_sha256) or not ClubPlayerCatalog.valid_ids(value.player_access) or not starts_valid(value.starts) or not ids_valid(value.exotic_rights): return false
 	for key: String in ["assets","pennants","plaques","common_pennants","common_plaques"]:
@@ -95,7 +102,16 @@ static func archive_origin_kind(league: Variant) -> String:
 	return ARCHIVED if league=="dugout" else (SPONSOR_ARCHIVED if league=="sponsorship" else "")
 
 static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
-	return not basis.has("archive_origin") or basis.archive_origin.kind==archive_origin_kind(build._league_rules.get("league"))
+	if not basis.has("archive_origin"): return true
+	var league: Variant=build._league_rules.get("league")
+	return league=="dugout" if basis.version==3 else basis.archive_origin.kind==archive_origin_kind(league)
+
+static func bind_archive_chain(basis: Dictionary,first: String,second: String) -> Dictionary:
+	if not valid(basis) or basis.version!=1 or basis.ordinal!=3: return {}
+	var result: Dictionary=basis.duplicate(true)
+	result.version=3
+	result.archive_origin={"kind":CHAIN_ARCHIVED,"ordered_sha256":[first,second]}
+	return result if valid(result) else {}
 
 static func bind_archive(basis: Dictionary,digest: String,league: String="dugout") -> Dictionary:
 	var kind:=archive_origin_kind(league)

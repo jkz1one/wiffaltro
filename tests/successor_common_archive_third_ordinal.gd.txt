@@ -1,0 +1,118 @@
+extends "res://tests/successor_common_cross_league_abandon.gd"
+const EXACT="00b1debe8958bf7f198df2cc0027a618890d426acabae43da54ff3e8e9ea7ffc"
+const INPUT="user://exact-cp236-proposal.json"
+const C=S.Owner.Common
+
+func _button(n: Node,label: String) -> Button:
+	if n.is_queued_for_deletion(): return null
+	if n is Button and n.text==label and n.is_visible_in_tree(): return n
+	for child: Node in n.get_children():
+		var b:=_button(child,label)
+		if b!=null: return b
+	return null
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["activate","pick","cold","tamper","flag-off"]
+			and FileAccess.get_sha256(INPUT)==EXACT and FileAccess.get_sha256(S.PATH)==args[1],
+			"exact generated CP236 ordinal-three lineage"): return
+	var before:=S.raw()
+	var backup:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var previous_bytes:=FileAccess.get_file_as_bytes(INPUT)
+	var previous: Dictionary=S.Owner._bytes_value(previous_bytes)
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var started:=Time.get_ticks_msec()
+	app.reload_save()
+	print("ARCHIVE_CHAIN_LOAD_MS ",Time.get_ticks_msec()-started)
+	if not need(app._owned() and _exact(before,backup),"strict admitted owner; initial save unchanged"): return
+	if args[0]=="flag-off":
+		if need(S.activate_archived_dugout_next_and_write(app.career_owner,before)==null and _exact(before,backup),
+				"flag-off exact proposal cannot activate"): get_tree().quit()
+		return
+	if args[0]=="activate":
+		if not need(args[1]==EXACT and app.career_owner.lifecycle_status()=="closed" and app.season.build.cash()==36
+				and S.activate_archived_dugout_next_and_write(app.career_owner,backup)==null,"stale revision held before activation"): return
+		started=Time.get_ticks_msec()
+		var t: RefCounted=S.activate_archived_dugout_next_and_write(app.career_owner,before)
+		print("ARCHIVE_CHAIN_ACTIVATION_MS ",Time.get_ticks_msec()-started)
+		if not need(t!=null and not S.written_bytes(t).is_empty(),"real strict prevalidated Store activation wrote"): return
+		app._retain_prepared(t,S.prepared_candidate(t),before)
+		var after:=S.raw()
+		if need(after!=before and _exact(after,before) and _valid(app,previous_bytes,previous,0)
+				and S.activate_archived_dugout_next_and_write(app.career_owner,after)==null
+				and _exact(after,before),"active native 0/4 draft, exact once-only predecessor and no duplicate activation"):
+			print("ARCHIVE_CHAIN_ACTIVATED_PASS ",FileAccess.get_sha256(S.PATH));get_tree().quit()
+		return
+	if args[0]=="pick":
+		if not need(_valid(app,previous_bytes,previous,0),"independent native 0/4 draft and both exact predecessors"): return
+		var offers: Array=app.season.offers()
+		if not need(not offers.is_empty(),"real native offered draft players"): return
+		var id: String=offers[0]
+		var player: PlayerDefinition=app.season.build.definition(id)
+		var control:=_button(app,player.display_name)
+		if not need(control!=null,"real native first pick menu action"): return
+		control.pressed.emit()
+		var after:=S.raw()
+		if need(after!=before and _exact(after,before) and _valid(app,previous_bytes,previous,1)
+				and app.season.picks[0]==id,"real selected first pick, exact archive chain remains"):
+			print("ARCHIVE_CHAIN_PICKED_PASS ",FileAccess.get_sha256(S.PATH)," id=",id);get_tree().quit()
+		return
+	if args[0]=="cold":
+		if need(backup.is_empty() and _valid(app,previous_bytes,previous,1) and _exact(before,backup),
+				"primary-only native cold one-pick owner and both exact histories"):
+			print("ARCHIVE_CHAIN_COLD_PASS ",args[1]);get_tree().quit()
+		return
+	if not need(_valid(app,previous_bytes,previous,1),"actual clean source before deliberate tampering"): return
+	var bad: Dictionary=S.Owner._bytes_value(before)
+	bad.ordinary_state.erase("archive")
+	if not need(S.Owner.restore(bad)==null,"native start refuses removed archive"): return
+	bad=S.Owner._bytes_value(before)
+	bad.ordinary_state.archive.entries.reverse()
+	if not need(S.Owner.restore(bad)==null,"swapped archive entries refused"): return
+	bad=S.Owner._bytes_value(before)
+	bad.ordinary_state.archive.entries[0].kind=C.ARCHIVE_CHAIN
+	if not need(S.Owner.restore(bad)==null,"nested archive kind refused before any recursive replay"): return
+	bad=S.Owner._bytes_value(before)
+	bad.ordinary_state.archive.entries[1].prefix+=JSON.stringify(bad.ordinary_state.archive.entries[0].source,"",true,true)
+	_reset_second_digest(bad)
+	if not need(S.Owner.restore(bad)==null,"duplicate first encoding refuses despite rehashed outer metadata"): return
+	bad=S.Owner._bytes_value(before)
+	# Same JSON semantics, different raw encoding, with all matching hashes forged.
+	bad.ordinary_state.archive.entries[1].suffix+=" "
+	_reset_second_digest(bad)
+	if need(S.Owner.restore(bad)==null and _exact(before,backup),"fully rehashed noncanonical predecessor encoding refused"):
+		get_tree().quit()
+
+func _reset_second_digest(value: Dictionary) -> void:
+	var a: Dictionary=value.ordinary_state.archive
+	var second: Dictionary=a.entries[1]
+	second.sha256=S.Owner._hash((second.prefix+JSON.stringify(a.entries[0].source,"",true,true)+second.suffix).to_utf8_buffer())
+	var b: Dictionary=value.ordinary_state.last_transition.basis
+	b.archive_origin.ordered_sha256[1]=second.sha256
+	value.ordinary.career.start_basis=b.duplicate(true)
+	value.ordinary_state.start_basis_sha256=S.Owner.Life.digest(b)
+
+func _exact(p: PackedByteArray,b: PackedByteArray) -> bool:
+	return S.raw()==p and FileAccess.get_file_as_bytes(S.PATH+".bak")==b
+
+func _valid(app: App,raw: PackedByteArray,previous: Dictionary,picks: int) -> bool:
+	var owner: RefCounted=app.career_owner
+	var state: Dictionary=owner.ordinary_state
+	var a: Dictionary=state.archive
+	if a.kind!=C.ARCHIVE_CHAIN or a.entries.size()!=2 or a.entries[0]!=previous.ordinary_state.archive \
+			or C._chain_second_bytes(a)!=raw or a.entries[1].sha256!=EXACT: return false
+	var b: Dictionary=app.season.career.start_basis
+	var draft: SeasonState=S.Adapter.OrdinaryRuntime.create_common(b,"dugout")
+	if draft==null: return false
+	for id: String in app.season.picks:
+		if not draft.choose_player(id): return false
+	return owner.playable() and owner.lifecycle_status()=="active" and owner.current_ordinal()==3 \
+		and b.version==3 and S.Codec.same(b.archive_origin.ordered_sha256,[ARCHIVE,EXACT]) \
+		and app.season.phase==SeasonState.Phase.DRAFT and app.season.picks.size()==picks and app.season.build.cash()==0 \
+		and not owner.next_supported() and not app.archived_abandon_visible() \
+		and S.Codec.same(S.Adapter.capture("ordinary",app.season),S.Adapter.capture("ordinary",draft)) \
+		and S.Codec.same(owner.common,previous.common) and owner.common.aggregate.currency==72 \
+		and owner.ordinary_state.last_transition.source==previous.ordinary_state.last_close.session_sha256
