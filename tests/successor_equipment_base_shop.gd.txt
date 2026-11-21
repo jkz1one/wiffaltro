@@ -1,0 +1,184 @@
+extends "res://equipment.gd"
+## Exact earned Common Equipment shop; one naturally stocked copy, no second full game.
+const BALL="BALL-MOV-01"
+const PLAY="PLAY NEXT GAME"
+const SHOP="SHOP"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==3 and args[0] in ["buy","activate","cold"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and FileAccess.get_sha256(Store.PATH+".bak")==args[2]
+			and not FileAccess.file_exists(ORIGINAL),"own isolated exact Equipment fixture only"): return
+	var mode: String=args[0]
+	var before:=Store.raw()
+	var previous:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(_owned_equipment(app) and _settled(app) and _exact(before,previous)
+			and app.league_entry_state("equipment")=="locked","earned physical opener and exact read, not public entitlement"): return
+	var wallet: Dictionary=app.season.build._bank.view()
+	var prior_used: Dictionary=app.season.build._used_gear.duplicate(true)
+	if mode=="cold":
+		var original: Dictionary=Store.Owner._bytes_value(previous)
+		var receipt: Dictionary=wallet.gear.ball
+		if not check(receipt.get("item")==BALL and receipt.get("paid")==10 and wallet.spare.is_empty()
+				and receipt.id=="spare-purchase:%d"%_old_purchase_revision(app.season.build)
+				and not prior_used.has(receipt.id),"exact paid copy now active, never used in a completed match"): return
+		if not check(original.ordinary.state.results.size()==3 and _exact(before,previous),"previous inactive branch readable and exact"): return
+		if not await _live_one_release(app,receipt,true,{},before,previous): return
+		print("EQUIPMENT_COLD_ACTIVE_PASS ",args[1]," receipt=",receipt.id)
+		await _finish(app)
+		return
+
+	var button:=_button(app.menu,SHOP)
+	if not check(button!=null,"actual Common shop visible for safe gear choices"): return
+	button.pressed.emit()
+	await get_tree().process_frame
+	var window:=_window(app)
+	if not check(window!=null and window.visible and window.spare_actions_available(),
+			"native Equipment controls only at the open between-games shop"): return
+	var base:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if mode=="buy":
+		if not check(wallet.gear.ball.is_empty() and wallet.spare.is_empty() and wallet.cash>=10
+				and app.season.build.cash()==wallet.cash and _labels(window).contains("Spare 0 / 1"),
+				"no free spare or equipped Ball, normal opening Shop shows spare capacity"): return
+		var visit: Dictionary=app.season.build._visit
+		var eligible:=_quote(window,"spare_buy",BALL)
+		print("EQUIPMENT_NATIVE_STOCK ",JSON.stringify(visit.offers))
+		if not check(eligible!=null,"preselected seed naturally stocked exact Ball, no reroll/fabricated offer"): return
+		var command: Dictionary=eligible.get_meta("shop_command").duplicate(true)
+		eligible.pressed.emit()
+		if not check(window._confirm.visible and not window._pending.is_empty(),"inactive purchase quote needs native confirmation"): return
+		window._confirm.canceled.emit();window._confirm.hide()
+		if not check(_exact(base,backup) and _confirm(window,eligible),"cancel inert and one ordinary paid purchase"): return
+		var saved:=Store.raw()
+		var after: Dictionary=app.season.build._bank.view()
+		if not check(after.spare.get("item")==BALL and after.spare.get("paid")==10 and after.cash==wallet.cash-10
+				and after.gear.ball.is_empty() and not app.season.build._used_gear.has(after.spare.id)
+				and not app.commit_shop(command) and Store.raw()==saved
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==base and _settled(app),
+				"normal paid inactive receipt, active standard Ball unchanged and duplicate inert"): return
+		print("EQUIPMENT_NATIVE_SPARE ",after.spare.id," cash=",after.cash)
+	else:
+		var receipt: Dictionary=wallet.spare
+		var activate:=_quote(window,"spare_swap")
+		if not check(_exact(before,previous) and receipt.get("item")==BALL and receipt.get("paid")==10
+				and wallet.gear.ball.is_empty() and activate!=null and activate.text=="ACTIVATE SPARE",
+				"exact purchased Ball stays inactive with safe zero-cost activation available"): return
+		var blocked: Dictionary=activate.get_meta("shop_command").duplicate(true)
+		window.close_requested.emit()
+		await get_tree().process_frame
+		if not check(_exact(before,previous),"normal close keeps inactive receipt exact"): return
+		if not await _live_one_release(app,receipt,false,blocked,before,previous): return
+		button=_button(app.menu,SHOP)
+		if not check(button!=null,"returned to safe pre-match menu"): return
+		button.pressed.emit()
+		await get_tree().process_frame
+		window=_window(app)
+		activate=_quote(window,"spare_swap")
+		if not check(window!=null and activate!=null and window.spare_actions_available()
+				and _confirm(window,activate),"native matching Ball activation in safe Shop"): return
+		var current:=Store.raw()
+		var after: Dictionary=app.season.build._bank.view()
+		if not check(ClubCareer.same(after.gear.ball,receipt) and after.spare.is_empty() and after.cash==wallet.cash
+				and ClubCareer.same(app.season.build._used_gear,prior_used) and not app.commit_shop(blocked)
+				and Store.raw()==current and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before and _settled(app),
+				"same receipt moved to active at zero Cash; exact history and six rewards unchanged"): return
+		print("EQUIPMENT_NATIVE_ACTIVE ",receipt.id," cash=",after.cash)
+	if _archive(mode):
+		print("EQUIPMENT_COMMON_SHOP_PASS ",mode," ",FileAccess.get_sha256(Store.PATH))
+		await _finish(app)
+
+func _old_purchase_revision(build: SeasonBuild) -> int:
+	for e: Dictionary in build._events:
+		if e.get("op")=="spare_buy": return int(e.rev)
+	return -1
+
+func _live_one_release(app: App,receipt: Dictionary,active: bool,blocked: Dictionary,
+		primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	app.loadout.open()
+	var view: Dictionary=app.loadout._rows
+	var ball: Dictionary=view.get("gear",[])[1] if view.get("gear",[]).size()>=2 else {}
+	if not check(app.loadout.shade.visible and view.get("equipment_league",false)
+			and ball.get("receipt","")== (receipt.id if active else "")
+			and view.get("spare",{}).get("receipt","")== ("" if active else receipt.id),
+			"original Common loadout shows exact active versus labeled inactive copy"): return false
+	app.loadout.close()
+	var launch:=_button(app.menu,PLAY)
+	if not check(launch!=null,"normal Play available after safe Shop"): return false
+	var fixture: Dictionary=app.season.pending_fixture()
+	launch.pressed.emit()
+	var lab: PitchBatLab=app.lab
+	if not check(is_instance_valid(lab) and lab._match_state!=null and _exact(primary,backup),
+			"actual native pregame, no pending record or save"): return false
+	var state: MatchState=lab._match_state
+	var own: TeamMatchState=state.home_team if lab._player_home else state.away_team
+	var owned: Dictionary=PhysicalLeagueReport.wallet(state.league_rules,own.league_ownership)
+	var def: PlayerDefinition=own.current_pitcher().definition
+	var expected: String=BALL if active else ""
+	var factor: float=1.08 if active else 1.0
+	if not check(owned.gear.ball.get("item","")==expected and def.season_gear.get("ball","")==expected
+			and is_equal_approx(SeasonGearCatalog.factor(def,"movement"),factor)
+			and state.gear_usage.equipped.has(receipt.id)==active
+			and state.gear_usage.first_pitch.is_empty(),"match snapshot and pitcher movement use only active Ball, no use before release"): return false
+	if not blocked.is_empty() and not check(not app.commit_shop(blocked) and _exact(primary,backup),
+			"exact normally legal swap command refused in native pregame"): return false
+	for frame: int in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not check(not lab._match_presentation_director.blocks_gameplay(),"native intro completed"): return false
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=Adapter.fixtures("ordinary").seed_for(app.season,fixture)
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	for frame: int in range(2400):
+		await get_tree().physics_frame
+		if state.gear_usage.started: break
+	if not check(state.gear_usage.started and state.gear_usage.first_pitch.has(receipt.id)==active
+			and not app.season.build._used_gear.has(receipt.id) and _exact(primary,backup),
+			"real first pitch captures the active receipt only, no completed-game use awarded"): return false
+	if not blocked.is_empty() and not check(not app.commit_shop(blocked) and _exact(primary,backup),
+			"direct swap still refused during physical play"): return false
+	print("EQUIPMENT_REAL_RELEASE active=",active," fixture=",fixture.id," movement=",factor," receipts=",state.gear_usage.first_pitch)
+	lab._automation=null
+	return check(app._close_match() and _exact(primary,backup),"leave isolated match probe without settling or granting use")
+
+func _exact(primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	return Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup
+
+func _button(root: Node,text: String) -> Button:
+	for n: Node in root.find_children("*","Button",true,false):
+		if n is Button and n.text==text and n.is_visible_in_tree() and not n.is_queued_for_deletion(): return n
+	return null
+
+func _window(app: App) -> SeasonShopWindow:
+	for n: Node in app.menu.get_children():
+		if n is SeasonShopWindow and not n.is_queued_for_deletion(): return n
+	return null
+
+func _labels(root: Node) -> String:
+	var result: String=""
+	for n: Node in root.find_children("*","Label",true,false):
+		if n is Label: result+="\n"+n.text
+	return result
+
+func _quote(window: SeasonShopWindow,op: String,item: String="") -> Button:
+	if window==null: return null
+	for n: Node in window.find_children("*","Button",true,false):
+		if not n is Button or n.disabled or n.is_queued_for_deletion() or not n.has_meta("shop_command"): continue
+		var c: Dictionary=n.get_meta("shop_command")
+		if c.op!=op or not n.get_meta("shop_quote",{}).get("ok",false): continue
+		if item.is_empty() or window.app.season.build._visit.offers.get(c.get("offer",""))==item: return n
+	return null
+
+func _confirm(window: SeasonShopWindow,button: Button) -> bool:
+	button.pressed.emit()
+	if not window._confirm.visible or window._pending.is_empty(): return false
+	window._confirm.confirmed.emit();window._confirm.hide()
+	return window._pending.is_empty() and window.app.retained==null
