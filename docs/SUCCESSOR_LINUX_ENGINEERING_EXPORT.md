@@ -166,3 +166,45 @@ non-Dynasty data; it does not launch the window or provide new gameplay.
 The rendering host used software OpenGL and dummy audio. This is not
 qualification of native Mac, supported audio, target performance, or the
 closed-season title path.
+
+## Packaged Original Game: owned Pool purchase and placement
+
+The unchanged Linux engineering package from the Save98 fix also passed a
+rendered Stadium Workshop transaction in **Original Game**. An isolated
+synthetic career was prepared through the authored seed-42 simulator
+(`stadium_pool_owned_career_fixture.gd`): 18 simulated completed seasons,
+54 regular-season wins, and 702 Club Bucks. No balance was injected and no
+physics match was needed. The test started with a copy of that save.
+
+The actual **BUY POOL** control charged exactly 700 Club Bucks: 540 for the
+blueprint and 160 for the first copy. The workshop showed 2 remaining and one
+new stored copy. A yard without the receiver correctly refused Pool
+placement. The normal Standard/Base start kept the purchase and balance.
+Before the first draft pick, the existing starter backstop chair was
+selected as the receiver and its draft saved and applied. Then **POOL
+INVENTORY → PLACE POOL → SAVE DRAFT → APPLY LAYOUT** installed the same paid
+copy at X 12, Z 18, yaw 0. Canceling the first Apply prompt left both slots
+unchanged. Confirming added only one apply event, with no further charge.
+
+After using the normal Quit button, a new process reopened the same Original
+Game workshop, still showing the Pool and 2 Club Bucks. The primary
+`864a86f64ddb20665616de68f9b12b8a06ac32432f97dece9cc7c71567140f6b` and
+backup `9ad0c7c102de8d105a2cb02239d0da916c337d08db53e992e056bd08abf3b5cf`
+did not change. The backup retains the saved draft before confirmation
+with the receiver-only active layout. No player save was opened or copied.
+
+For an independent cold check, copy
+`tests/successor_packaged_stadium_pool_cold.gd.txt` to a scratch `.gd` script.
+With the matching Godot editor, a new isolated HOME/XDG profile, and
+`WIFFALTRO_ISOLATED_TEST=1`, mount the unchanged engineering PCK with
+`--headless --audio-driver Dummy --path EMPTY --main-pack PACK --script SCRIPT`.
+Pass the absolute disposable settled save path after `--`, with its adjacent
+backup. The script replays both through the original native readers, checks
+the frozen property against its one paid copy, validates the previous
+unapplied state, and makes no writes. A separate swapped-slot copy is refused.
+
+This is workshop and persistence proof, not ball contact, water scoring,
+controller, native macOS, or the integrated V4 Dynasty stadium route.
+The Linux desktop emitted Godot popup signal warnings when choosing the
+receiver; the selection and transactions completed. The long catalog scroll
+is also visible UX debt; no UI redesign is included in this checkpoint.

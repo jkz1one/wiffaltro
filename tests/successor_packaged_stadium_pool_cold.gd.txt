@@ -1,0 +1,61 @@
+extends SceneTree
+## Strict read-only native audit of the ordinary paid Pool workshop proof.
+
+func _initialize() -> void:
+	call_deferred("_check")
+
+func _check() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or args.size() != 1 \
+		or not args[0].is_absolute_path() or root.get_node_or_null("ContentDB") == null:
+		quit(2)
+		return
+	var save: Variant = load("res://src/gameplay/season/season_save.gd")
+	var players: Variant = load("res://src/gameplay/season/club_players.gd")
+	var pool: Variant = load("res://src/gameplay/stadium/stadium_pool_owned_snapshot.gd")
+	var path: String = args[0]
+	var primary := FileAccess.get_sha256(path)
+	var backup := FileAccess.get_sha256(path + ".bak")
+	if primary.length() != 64 or backup.length() != 64 or primary == backup \
+		or FileAccess.file_exists(path + ".tmp"):
+		quit(3)
+		return
+	save.path = path
+	var current: Variant = save.restore()
+	if current == null or not save.last_error.is_empty():
+		quit(4)
+		return
+	var previous: Variant = save._read(path + ".bak")
+	if previous == null or not current.picks.is_empty() or not previous.picks.is_empty() \
+		or not current.results.is_empty() or not previous.results.is_empty() \
+		or current.physical == null or not current.physical.pending.is_empty():
+		quit(5)
+		return
+	var ledger: Variant = players.assets(current.career)
+	var older: Variant = players.assets(previous.career)
+	if ledger == null or older == null or current.career.balance() != 2 \
+		or previous.career.balance() != 2 or ledger.view().spent != 700 \
+		or older.view().spent != 700 or ledger.revision() != older.revision() + 1:
+		quit(6)
+		return
+	var layout: Dictionary = ledger.view().stadium_active
+	var placed: Variant = layout.get("pool")
+	var coords: Variant = placed.get("position") if placed is Dictionary else null
+	var copies: Array = []
+	for copy: String in ledger.construction().copies:
+		if ledger.construction().copies[copy].item == "ST-006":
+			copies.append(copy)
+	if not placed is Dictionary or copies.size() != 1 or placed.get("copy") != copies[0] \
+		or not pool.matches(current.home_property, ledger) \
+		or layout.get("receiver") != "starter-v1:ST-079" \
+		or not coords is Array or coords.size() != 2 \
+		or coords[0] != 12 or coords[1] != 18 or placed.get("yaw") != 0 \
+		or layout != ledger.view().stadium_draft or layout != older.view().stadium_draft \
+		or older.view().stadium_active.has("pool") or previous.home_property.layout.has("pool"):
+		quit(7)
+		return
+	if FileAccess.get_sha256(path) != primary or FileAccess.get_sha256(path + ".bak") != backup:
+		quit(8)
+		return
+	print("PACKAGED_ORIGINAL_STADIUM_POOL_COLD_PASS")
+	quit()
