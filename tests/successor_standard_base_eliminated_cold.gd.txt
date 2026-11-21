@@ -1,0 +1,51 @@
+extends SceneTree
+## Cold verification of the actual seed-42 Standard Base semifinal finish.
+
+const RECEIPT := {"version":1,"finish":"semifinal","wins":5,"finish_award":65,
+	"record_bonus":7,"first_bonus":0,"total":72}
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _expect(ok: bool, label: String) -> bool:
+	if ok: return true
+	printerr("STANDARD DECLINED TITLE FAIL: ",label)
+	quit(1)
+	return false
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==2,"isolated exact settled/closed pair arguments"): return
+	var S=load("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+	var C=load("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+	var before: PackedByteArray=S.raw()
+	var backup:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	if not _expect(args[0].length()==64 and args[1].length()==64 and FileAccess.get_sha256(S.PATH)==args[0]
+			and FileAccess.get_sha256(S.PATH+".bak")==args[1],"pinned closed primary and exact active predecessor"): return
+	var app=load("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn").instantiate()
+	root.add_child(app)
+	await process_frame
+	app.reload_save()
+	var owner=app.career_owner
+	if not _expect(owner!=null and app._owned() and owner.active=="ordinary"
+			and owner.paused.is_empty() and owner.lifecycle_status()=="closed","strict owned cold close"): return
+	var season=app.season
+	var aggregate: Dictionary=owner.common.aggregate
+	if not _expect(int(season.season_seed)==42 and season.results.size()==33 and season.player_results.size()==11
+			and season.physical.reports.size()==22 and season.physical.pending.is_empty()
+			and int(season.champion)==1 and season.final_fixture.get("neutral",false),"exact final physical outcome"): return
+	if not _expect(C.same(owner.ordinary_state.last_close.receipt,RECEIPT) and C.same(owner.common.last_fold.receipt,RECEIPT)
+			and int(aggregate.currency)==72 and int(aggregate.completed)==1 and aggregate.titles.is_empty(),
+			"72 Club Bucks paid once, no human title"): return
+	if not _expect(app.league_entry_state("standard",1)=="locked"
+			and S.qualify_standard_d1(owner,before,43).is_empty(),"D1 remains locked on cold reopen"): return
+	app.close_current("complete")
+	if not _expect(S.prepare_session_and_write(owner,before,"close",0,"","complete")==null
+			and app._owned() and S.raw()==before and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup
+			and not FileAccess.file_exists(S.PATH+".tmp") and not FileAccess.file_exists("user://season-v1.json"),
+			"repeated App and Store Close are byte-inert"): return
+	print("STANDARD_BASE_ELIMINATED_COLD_PASS ",JSON.stringify(RECEIPT))
+	quit()
