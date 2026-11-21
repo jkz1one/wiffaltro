@@ -1,0 +1,51 @@
+extends SceneTree
+## Offline Linux host only; test script stays outside the Mac artifact.
+
+func _initialize() -> void:
+	call_deferred("_check")
+
+
+func _fail(message: String) -> void:
+	printerr("MAC PACKAGE AUDIT: ", message)
+	quit(1)
+
+
+func _paths(root_path: String) -> Array[String]:
+	var paths: Array[String] = []
+	for name in DirAccess.get_files_at(root_path):
+		paths.append(root_path.path_join(name))
+	for name in DirAccess.get_directories_at(root_path):
+		paths.append_array(_paths(root_path.path_join(name)))
+	return paths
+
+
+func _check() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or args.size() != 1:
+		_fail("unisolated invocation"); return
+	var value: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[0]))
+	if not value is Dictionary or not value.get("source") is Dictionary:
+		_fail("missing external source inventory"); return
+	if ProjectSettings.get_setting("application/run/main_scene") != "res://engineering_bootstrap/entry.tscn" \
+			or not ProjectSettings.get_setting("application/config/use_custom_user_dir") \
+			or OS.get_user_data_dir().get_file() != "WiffaltroEngineeringQA-v1":
+		_fail("effective entry or engineering user directory mismatch"); return
+	var stadium = load("res://src/presentation/stadium/stadium_npc_public_runtime.gd")
+	var broad = load("res://src/gameplay/stadium/stadium_pool_party_asset_integrity.gd")
+	if stadium == null or broad == null or not stadium.source_qualified():
+		_fail("reviewed native gate failed"); return
+	for path: String in value.source:
+		if not FileAccess.file_exists(path) or FileAccess.get_sha256(path) != value.source[path]:
+			_fail("missing or changed raw resource " + path); return
+	for path: String in _paths("res://"):
+		if path.begins_with("res://src/") and not value.source.has(path) \
+				or path.begins_with("res://addons/") or path.begins_with("res://tests/") \
+				or path.begins_with("res://drafts/") or path.ends_with(".log") \
+				or path.ends_with(".bak") or path.ends_with(".zip") or path.ends_with(".pem") \
+				or "wiffaltro-common-career" in path:
+			_fail("unexpected package resource " + path); return
+	var measured: String = broad.source_sha256()
+	if measured.length() != 64:
+		_fail("broad runtime identity unavailable"); return
+	print("MAC_PACK_STATIC_PASS ", value.source.size(), " ", measured)
+	quit()
