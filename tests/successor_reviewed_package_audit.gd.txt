@@ -1,6 +1,6 @@
 extends SceneTree
 ## Runs from the matching editor binary; never included in exported resources.
-const ENTRY := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
+const ENTRY := "res://engineering_bootstrap/entry.tscn"
 const RAW_CONFIG_SHA := "9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd"
 
 func _initialize() -> void:

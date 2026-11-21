@@ -65,3 +65,37 @@ observed paid hash and the post-reopen primary/backup. No input or screenshot
 is embedded in the package. This adds genuine rendered mouse/menu and shop
 evidence only: no rendered match, external controller, audio or native Mac
 test follows. The separate stadium-placement and legacy worker gaps remain.
+
+## Packaged legacy worker boundary
+
+The integrated build can reach the original game. That older mode starts the
+same exported executable for an offscreen match. Its command has
+`--physical-job` but no scene path; a normal integrated menu must not receive
+that command. The packaging-only bootstrap routes normal launches to the
+same integrated launcher, and valid engineering/headless worker launches to
+the unchanged original scene and its own original worker dispatcher. It
+rejects malformed jobs and remains behind the same engineering flag.
+It is packaged outside `src`; neither existing stadium identity changes.
+
+For the test, assemble a disposable source tree, restore the exact original
+`project.godot` in the copy, and place
+`tests/successor_packaged_legacy_prepare.gd.txt` as a scratch `.gd` attached to a
+Node scene. In a unique empty test HOME/XDG environment with
+`WIFFALTRO_ISOLATED_TEST=1`, invoke that scene with `-- draft` (stock seed 443,
+four actual picks), and in the same isolated home invoke `-- capture` to play
+and durably queue the actual original fixture. This uses the current original
+App's managed capture; an older flat-format helper cannot read this bound
+report. Do not retry capture after a retained original report exists.
+
+`tools/test_successor_packaged_legacy_worker.py` takes that prepared local
+save directory, the new packaged build directory, and the matching editor.
+It starts the **actual release ELF** with original worker arguments after
+checking the ungated and missing-request refusals. The original worker
+produces a physical report against the authored projected fixture. A second
+process with the mounted PCK calls the unmodified native parent validator
+and rejects altered fixtures and request identities. Both source slots and
+the request must stay byte-identical. This is an actual worker transport
+test and an independent native report check, **not** a claim that the
+packaged parent UI launched it, both fixtures settled, or that the separate
+broader stadium authority passed. The previous rendered shop evidence
+belongs to its original exact package, not this updated worker package.

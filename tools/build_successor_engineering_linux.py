@@ -22,6 +22,8 @@ PROFILE_SHA = '43f050bfacdccb5a305c0351bdaf8371a339fa9a77ae3fb608e74ced4f2757c4'
 PINNED_CONFIG_SHA = '9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd'
 TEMPLATE = 'templates/linux_release.x86_64'
 USER_DIR = 'WiffaltroEngineeringQA-v1'
+BOOTSTRAP = 'res://engineering_bootstrap/entry.tscn'
+PACK_BROAD_SHA = '5ec5f67d30845abaa1558c2d0e97e449b117d1de1635b9860e15db301e016364'
 TITLE = 'Wiffaltro Linux Engineering'
 EXTRA_SUPPORT = {
     'src/tests/helpers/pool_active_receipt.gd',
@@ -117,11 +119,19 @@ author="Wiffaltro"
 version="1"
 script="plugin.gd"
 ''')
+    bootstrap_dir = project/'engineering_bootstrap'
+    bootstrap_dir.mkdir()
+    bootstrap_script = bootstrap_dir/'entry.gd'
+    bootstrap_script.write_bytes((repo/'tools/successor_engineering_bootstrap.gd.txt').read_bytes())
+    bootstrap_scene = bootstrap_dir/'entry.tscn'
+    bootstrap_scene.write_text('[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" '
+                               'path="res://engineering_bootstrap/entry.gd" id="1"]\n'
+                               '[node name="EngineeringBootstrap" type="Node"]\nscript = ExtResource("1")\n')
     active = original.decode()
     entry = 'run/main_scene="res://src/presentation/season/season_app.tscn"'
     name = 'config/name="Wiffaltro"'
     assert active.count(entry)==1 and active.count(name)==1 and '[editor]' not in active and '[editor_plugins]' not in active
-    active = active.replace(entry, f'run/main_scene="{audited["launcher"]}"')
+    active = active.replace(entry, f'run/main_scene="{BOOTSTRAP}"')
     active = active.replace(name, f'config/name="Wiffaltro Engineering QA"\nconfig/use_custom_user_dir=true\n'
                                   f'config/custom_user_dir_name="{USER_DIR}"')
     config.write_text(active+'\n[editor]\nexport/convert_text_resources_to_binary=false\n\n[editor_plugins]\n'
@@ -131,7 +141,7 @@ name="{TITLE}"
 platform="Linux"
 runnable=true
 export_filter="all_resources"
-include_filter="src/*"
+include_filter="src/*,engineering_bootstrap/*"
 exclude_filter="addons/wiffaltro_exact_export/*"
 export_path=""
 script_export_mode=0
@@ -157,6 +167,8 @@ binary_format/architecture="x86_64"
         inventory['res://'+name] = value
     for name, sha in reviewed.items():
         assert (PINNED_CONFIG_SHA if name=='res://project.godot' else inventory.get(name)) == sha
+    for p in (bootstrap_script,bootstrap_scene):
+        inventory['res://'+p.relative_to(project).as_posix()] = digest(p)
     expected = root/'expected.json'
     expected.write_text(json.dumps({'source':inventory,'broad_sha256':profile['broad_sha256']},sort_keys=True))
     exe, pack = package/'Wiffaltro.x86_64', package/'Wiffaltro.pck'
@@ -173,6 +185,9 @@ binary_format/architecture="x86_64"
     run([*boot,'--log-file','user://engineering-boot.log'],empty,boot_env,root/'standalone.log',
         'Loading resource: '+audited['launcher'])
     assert (Path(boot_env['XDG_DATA_HOME'])/USER_DIR/'engineering-boot.log').is_file()
+    denied = run([*boot,'--','--physical-job=x'],empty,boot_env,root/'malformed-worker.log',
+                 'Private packaged worker request refused.',expected=3)
+    assert 'WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE' not in denied and audited['launcher'] not in denied
     assert not (Path(boot_env['XDG_DATA_HOME'])/'godot/app_userdata/Wiffaltro').exists()
     assert not list(Path(boot_env['XDG_DATA_HOME']).rglob('wiffaltro-common-career-v4.json'))
     inspect_env=environment(root/'inspect-home')
@@ -189,6 +204,7 @@ binary_format/architecture="x86_64"
               'source_broad_sha256':profile['broad_sha256'],
               'pack_broad_sha256':re.search(r'PACK_BROAD_SHA256 ([0-9a-f]{64})',result)[1],
               'scope':'headless Linux engineering; no rendered input, native Mac, legacy worker or broad-stadium qualification'}
+    assert metadata['pack_broad_sha256'] == PACK_BROAD_SHA
     (root/'result.json').write_text(json.dumps(metadata,indent=2)+'\n')
     print(json.dumps(metadata),flush=True)
 

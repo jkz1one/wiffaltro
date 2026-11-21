@@ -1,0 +1,31 @@
+extends Node
+## Packaging-only scene selection. The original App/worker enforce authority.
+const PHYSICAL = preload("res://src/gameplay/simulation/physical_job_entry.gd")
+const INTEGRATED := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
+const LEGACY := "res://src/presentation/season/season_app.tscn"
+
+func _ready() -> void:
+	if OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING") != "1":
+		push_error("Private Dynasty engineering route not admitted.")
+		get_tree().quit(2)
+		return
+	var mode: int = PHYSICAL.route(OS.get_cmdline_user_args())
+	if mode == PHYSICAL.NORMAL:
+		call_deferred("_transition",INTEGRATED)
+		return
+	if mode == PHYSICAL.INVALID or DisplayServer.get_name() != "headless":
+		push_error("Private packaged worker request refused.")
+		get_tree().quit(3)
+		return
+	if mode != PHYSICAL.WORKER and mode != PHYSICAL.DIAGNOSTIC:
+		get_tree().quit(3)
+		return
+	# The fixed original main receives unchanged argv and revalidates the
+	# original token, permitted transport and headless mode before its worker.
+	print("WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE")
+	call_deferred("_transition",LEGACY)
+
+func _transition(scene_path: String) -> void:
+	if get_tree().change_scene_to_file(scene_path) != OK:
+		push_error("The fixed packaged engineering entry could not be loaded.")
+		get_tree().quit(4)

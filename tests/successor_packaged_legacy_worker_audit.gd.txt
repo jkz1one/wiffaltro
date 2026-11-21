@@ -1,0 +1,46 @@
+extends SceneTree
+## External audit only. No worker is spawned or report applied on this side.
+func _initialize() -> void:
+	call_deferred("_inspect")
+
+func _fail(message: String) -> void:
+	printerr("PACKAGED LEGACY WORKER AUDIT: ",message)
+	quit(1)
+
+func _inspect() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or args.size() != 2 \
+			or root.get_node_or_null("ContentDB") == null:
+		_fail("isolated packed autoload required"); return
+	var input: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[0]))
+	var output: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[1]))
+	if not input is Dictionary or not output is Dictionary:
+		_fail("native request and response required"); return
+	var process_script = load("res://src/gameplay/simulation/physical_round_process.gd")
+	var settlement_script = load("res://src/gameplay/season/season_round_settlement.gd")
+	var fixtures_script = load("res://src/gameplay/season/season_physical_fixtures.gd")
+	var before: PackedByteArray = FileAccess.get_file_as_bytes("user://season-v1.json")
+	var season = process_script.decode_request(input,input.token)
+	if season == null:
+		_fail("original worker cannot decode exact request"); return
+	var projection: Dictionary = settlement_script.project(season)
+	if not projection.has("fixture") or int(projection.fixture.id) != int(input.fixture) \
+			or fixtures_script.request_key(projection.candidate,projection.fixture) != input.request:
+		_fail("not the current exact authored physical fixture"); return
+	var receiver = process_script.new()
+	receiver._token = input.token
+	receiver._key = input.request
+	receiver._fixture = projection.fixture
+	receiver._candidate = projection.candidate
+	var good: bool = receiver._valid(output)
+	var wrong: Dictionary = output.duplicate(true)
+	wrong.fixture = int(input.fixture) + 1
+	var wrong_fixture: bool = receiver._valid(wrong)
+	wrong = output.duplicate(true)
+	wrong.request = "foreign"
+	var wrong_request: bool = receiver._valid(wrong)
+	receiver.free()
+	if not good or wrong_fixture or wrong_request or FileAccess.get_file_as_bytes("user://season-v1.json") != before:
+		_fail("original native receiver did not authenticate exact evidence and reject foreigners"); return
+	print("ACTUAL_ELF_LEGACY_REPORT_VALIDATED fixture=",input.fixture)
+	quit()

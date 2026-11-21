@@ -1,0 +1,86 @@
+extends Node
+
+func _ready() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or not OS.has_feature("editor"):
+		get_tree().quit(2); return
+	var args := OS.get_cmdline_user_args()
+	if args.size() != 1 or args[0] not in ["draft","capture"]:
+		get_tree().quit(2); return
+	var app := SeasonApp.new()
+	add_child(app)
+	await get_tree().process_frame
+	if args[0] == "draft":
+		if FileAccess.file_exists(SeasonSave.path) or FileAccess.file_exists(SeasonSave.path + ".bak"):
+			get_tree().quit(2); return
+		app.begin_season(443,true,false)
+		for pick in range(4):
+			app.choose_player(app.season.offers()[0])
+		var drafted: SeasonState = SeasonSave._decode(JSON.parse_string(FileAccess.get_file_as_string(SeasonSave.path)))
+		if drafted == null or drafted.picks.size()!=4 or not drafted.physical.pending.is_empty():
+			get_tree().quit(2); return
+		print("LEGACY_NATIVE_DRAFT_READY ",FileAccess.get_sha256(SeasonSave.path))
+		app.queue_free()
+		await get_tree().process_frame
+		await TestAudioDrain.finish(get_tree())
+		get_tree().quit()
+		return
+	if FileAccess.file_exists("user://actual-stock-human.json") or FileAccess.file_exists("user://generated.json"):
+		printerr("Existing original capture; do not replay the game."); get_tree().quit(2); return
+	app.set_process(false)
+	var start: PackedByteArray = FileAccess.get_file_as_bytes(SeasonSave.path)
+	var original: SeasonState = SeasonSave._decode(JSON.parse_string(start.get_string_from_utf8()))
+	if original == null or original.picks.size() != 4 or not original.physical.pending.is_empty():
+		printerr("Authentic stock drafted start unavailable"); get_tree().quit(3); return
+	app.season = original
+	var fixture: Dictionary = app.season.pending_fixture()
+	app.play_season_game()
+	var lab: PitchBatLab = app.lab
+	if lab == null or not app._season_game:
+		printerr("Native managed game did not launch ",app.notice); get_tree().quit(4); return
+	for count in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if lab._match_presentation_director.blocks_gameplay():
+		printerr("Native game remained in intro"); get_tree().quit(5); return
+	lab._automation = MatchAutomation.new()
+	lab._automation.seed = SeasonPhysicalFixtures.seed_for(original,fixture)
+	lab._automation.presentation_enabled = true
+	lab._automation.begin(lab)
+	for count in range(150000):
+		if lab._match_state.phase == MatchState.Phase.GAME_END and not lab._home_run.presentation_pending(lab):
+			break
+		if count % 12000 == 0: print("STOCK_HUMAN_PROGRESS frame=",count," plate=",lab._match_state.plate_appearance_number)
+		await get_tree().physics_frame
+	if lab._match_state.phase != MatchState.Phase.GAME_END:
+		printerr("Native managed game did not finish"); get_tree().quit(6); return
+	var captured: Dictionary = PhysicalMatchReport.capture(lab)
+	if not PhysicalMatchReport.accepted(captured,lab._match_state.pitch_catalog) \
+			or not PhysicalJobFiles.write(ProjectSettings.globalize_path("user://actual-stock-human.json"),captured):
+		printerr("Real bound report could not be retained"); get_tree().quit(7); return
+	app._commit_result()
+	for count in range(240):
+		if not app.round_ui._async_human_saving: break
+		await get_tree().process_frame
+	var primary: PackedByteArray = FileAccess.get_file_as_bytes(SeasonSave.path)
+	var saved: SeasonState = SeasonSave._decode(JSON.parse_string(primary.get_string_from_utf8()))
+	if saved == null or saved.physical.pending.is_empty() or primary == start:
+		printerr("Authentic pending did not persist ",SeasonSave.last_error," ",app.notice); get_tree().quit(8); return
+	var projected: Dictionary = SeasonRoundSettlement.project(saved)
+	if not projected.has("fixture"):
+		printerr("No next authored NPC fixture ",projected.get("error")); get_tree().quit(9); return
+	var token := Crypto.new().generate_random_bytes(16).hex_encode()
+	var key: String = SeasonPhysicalFixtures.request_key(projected.candidate,projected.fixture)
+	var request: Dictionary = PhysicalRoundProcess.request_for(saved,token,key,int(projected.fixture.id))
+	var folder: String = PhysicalJobFiles.directory(token)
+	if request.is_empty() or DirAccess.make_dir_recursive_absolute(folder) != OK \
+			or not PhysicalJobFiles.write(folder.path_join("request.json"),request):
+		printerr("Native request capture failed"); get_tree().quit(10); return
+	var data := {"fixture":int(projected.fixture.id),"token":token,"source_sha256":FileAccess.get_sha256(SeasonSave.path),
+		"request_sha256":FileAccess.get_sha256(folder.path_join("request.json"))}
+	if not PhysicalJobFiles.write(ProjectSettings.globalize_path("user://generated.json"),data):
+		get_tree().quit(11); return
+	print("LEGACY_AUTHENTIC_PENDING_CAPTURED ",data.fixture," ",data.source_sha256," ",data.request_sha256)
+	app.queue_free()
+	await get_tree().process_frame
+	await TestAudioDrain.finish(get_tree())
+	get_tree().quit()
