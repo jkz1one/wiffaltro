@@ -1,0 +1,134 @@
+extends Node
+## Actual App and Store, isolated synthetic profiles only.
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Codec = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const LEGACY = "user://season-v1.json"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func check(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ") + label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func button(node: Node, label: String) -> Button:
+	if node is Button and not node.is_queued_for_deletion() and node.text == label: return node
+	for child: Node in node.get_children():
+		var found := button(child,label)
+		if found != null: return found
+	return null
+
+func disk() -> Array:
+	return [Store.raw(), FileAccess.get_file_as_bytes(Store.PATH + ".bak")]
+
+func decoded(bytes: PackedByteArray) -> Dictionary:
+	return JSON.parse_string(bytes.get_string_from_utf8())
+
+func selections(app) -> bool:
+	for index: int in range(4):
+		app.draft(app.season.offers()[0])
+		if app.season.picks.size()!=index+1 or app.retained!=null or not app._owned(): return false
+	return true
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["write","cold-switch","cold-final","closed-write","closed-cold"],"isolated synthetic profile"): return
+	var stage: String=args[0]
+	if stage=="write":
+		if not check(not Store.occupied() and not FileAccess.file_exists(LEGACY),"fresh common and original slots"): return
+		var sentinel:=FileAccess.open(LEGACY,FileAccess.WRITE)
+		sentinel.store_string("synthetic-original-slot-do-not-touch"); sentinel.close()
+	var legacy:=FileAccess.get_file_as_bytes(LEGACY)
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	if stage=="write":
+		app.select_league("dynasty")
+		app.create_fresh(18152)
+		if not check(app.career_owner!=null and app._owned() and app.career_owner.workshop_draft.is_empty(),"ordinary V4 Dynasty birth"): return
+		var before:=disk()
+		var old_wire:=decoded(before[0])
+		if not check(not old_wire.has("workshop_draft") and Owner.restore(old_wire)!=null,"old wire shape still restores unchanged"): return
+		var native: Dictionary=Owner.starter_workshop_draft(app.career_owner)
+		if not check(not native.is_empty() and native.layout.receiver=="starter-v1:ST-079","exact owned native starter draft"): return
+		var outsider=app.career_owner.fork()
+		outsider.workshop_draft=native
+		if not check(Store.prepare(app.career_owner,outsider,before[0])==null and Store.save(outsider,before[0])==false and disk()==before,"generic and unbound writes cannot introduce draft"): return
+		app.reload_save()
+		var old=app.career_owner
+		if not check(Store.prepare_workshop_draft_and_write(old,PackedByteArray([7]))==null and dir_block(),"stale raw revision refused; isolated obstruction ready"): return
+		var save:=button(app.menu,"SAVE STARTER STADIUM DRAFT")
+		if not check(save!=null and not save.disabled,"actual Workshop draft control"): return
+		save.pressed.emit()
+		if not check(app.retained!=null and app.career_owner==old and old.workshop_draft.is_empty() and disk()==before,"blocked write keeps exact owner and both slots"): return
+		var held=app.retained_envelope
+		var retry:=button(app.menu,"RETRY EXACT SAVE")
+		if not check(retry!=null and DirAccess.remove_absolute(Store.PATH+".tmp")==OK,"actual Retry control and owned obstruction removed"): return
+		retry.pressed.emit()
+		if not check(app.retained==null and app.career_owner==held and app._owned() and disk()[1]==before[0],"same retained ticket promotes and backup is predecessor"): return
+		var wire:=decoded(Store.raw())
+		var no_draft:=wire.duplicate(true)
+		no_draft.erase("workshop_draft")
+		if not check(Codec.same(no_draft,old_wire) and Codec.same(wire.workshop_draft,native),"sole persisted change is authorized starter draft"): return
+		var forged:=wire.duplicate(true)
+		forged.workshop_draft.layout.receiver="unpaid"
+		var foreign:=wire.duplicate(true)
+		foreign.workshop_draft.lineage="dynasty:18153"
+		if not check(Owner.restore(forged)==null and Owner.restore(foreign)==null,"forged stock and lineage rejected on restore"): return
+		var gone=app.career_owner.fork()
+		gone.workshop_draft={}
+		if not check(Store.prepare(app.career_owner,gone,Store.raw())==null and Store.save(gone,Store.raw())==false and Codec.same(decoded(Store.raw()),wire),"generic and unbound writers cannot erase draft"): return
+	elif stage=="cold-switch":
+		var before:=disk()
+		var load_button:=button(app.menu,"CONTINUE SAVED CAREER")
+		if not check(load_button!=null,"actual Continue control available"): return
+		load_button.pressed.emit()
+		if not check(app.career_owner!=null and app._owned() and disk()==before and app.season.picks.is_empty() and not app.career_owner.workshop_draft.is_empty() and not app.session_switch_allowed(),"cold draft restores and pre-pick switch stays unavailable"): return
+		var workshop: Dictionary=app.career_owner.workshop_draft.duplicate(true)
+		if not check(selections(app) and Codec.same(app.career_owner.workshop_draft,workshop) and app.session_switch_allowed(),"four real draft writes retain workshop before allowed switch"): return
+		var dynasty: Dictionary=decoded(Store.raw()).dynasty
+		var create:=button(app.menu,"CREATE STANDARD SESSION")
+		if not check(create!=null,"actual create-ordinary control"): return
+		create.pressed.emit()
+		if not check(app.career_owner.active=="ordinary" and Codec.same(decoded(Store.raw()).dynasty,dynasty) and button(app.menu,"SAVE STARTER STADIUM DRAFT")==null,"parks exact Dynasty and no ordinary workshop command"): return
+		if not check(Store.prepare_workshop_draft_and_write(app.career_owner,Store.raw())==null and selections(app),"ordinary refuses workshop writer and drafts normally"): return
+		var ordinary: Dictionary=decoded(Store.raw()).ordinary
+		var resume:=button(app.menu,"RESUME DYNASTY SESSION")
+		if not check(resume!=null,"actual Resume Dynasty control"): return
+		resume.pressed.emit()
+		var wire:=decoded(Store.raw())
+		if not check(wire.active=="dynasty" and Codec.same(wire.dynasty,dynasty) and Codec.same(wire.ordinary,ordinary) and Codec.same(wire.workshop_draft,workshop),"mode switch preserves exact parked ordinary and Dynasty draft"): return
+	elif stage in ["closed-write","closed-cold"]:
+		var before:=disk()
+		app.reload_save()
+		if not check(app.career_owner!=null and app.career_owner.active=="dynasty" and disk()==before,"actual earned fixture or carried result restores without writes"): return
+		if stage=="closed-write":
+			var wire:=decoded(Store.raw())
+			if not check(app.career_owner.status=="active" and app.career_owner.ordinal==1 and app.season.results.size()==3 and not wire.ordinary.is_empty() and app.career_owner.workshop_draft.is_empty(),"one real previously settled round and a parked ordinary session"): return
+			if not check(Store.prepare_workshop_draft_and_write(app.career_owner,Store.raw())==null,"active regular-season window refuses a draft write"): return
+			app.close_current("abandon")
+			if not check(app.career_owner.status=="closed" and app.career_owner.last_close.reason=="abandon","existing Close path banks the actual round"): return
+			var save:=button(app.menu,"SAVE STARTER STADIUM DRAFT")
+			if not check(save!=null and not save.disabled,"closed Dynasty workshop control available"): return
+			save.pressed.emit()
+			var workshop: Dictionary=app.career_owner.workshop_draft.duplicate(true)
+			if not check(not workshop.is_empty() and app._owned() and app.retained==null,"closed starter draft commits through exact store path"): return
+			app.propose_next()
+			if not check(not app.career_owner.proposal.is_empty() and Codec.same(app.career_owner.workshop_draft,workshop),"real Next proposal preserves draft"): return
+			app.commit_next()
+			var carried:=decoded(Store.raw())
+			if not check(app.career_owner.ordinal==2 and app.career_owner.status=="active" and app.season.picks.size()==4 and app.season.results.is_empty() and app.season.home_property.is_empty() and Codec.same(carried.workshop_draft,workshop) and Codec.same(carried.ordinary,wire.ordinary),"actual Next keeps four carried picks, saved draft and untouched ordinary snapshot"): return
+		else:
+			if not check(app.career_owner.ordinal==2 and app.season.picks.size()==4 and app.season.home_property.is_empty() and app._owned() and app.career_owner.workshop_draft.layout.receiver=="starter-v1:ST-079" and disk()==before,"cold Season 2 keeps draft without affecting live field"): return
+	else:
+		var before:=disk()
+		app.reload_save()
+		if not check(app.career_owner!=null and app.career_owner.active=="dynasty" and app._owned() and app.season.picks.size()==4 and app.season.home_property.is_empty() and app.career_owner.workshop_draft.layout.receiver=="starter-v1:ST-079" and disk()==before,"second cold reopen keeps draft, no applied field and no extra writes"): return
+	if not check(not legacy.is_empty() and FileAccess.get_file_as_bytes(LEGACY)==legacy,"Original Game slot untouched"): return
+	get_tree().quit(0)
+
+func dir_block() -> bool:
+	return DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK

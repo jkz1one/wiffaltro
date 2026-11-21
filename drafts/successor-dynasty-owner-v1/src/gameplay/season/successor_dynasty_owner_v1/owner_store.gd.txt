@@ -90,7 +90,7 @@ static func _matches(expected: PackedByteArray) -> bool:
 	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw() == expected))
 static func _write(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary) -> bool:
 	# Legacy unbound writer never modifies the private paired slot.
-	if _paired_owner(season) or _paired_settled(_owner): return false
+	if season==null or season.get_script()!=Owner or _paired_owner(season) or _paired_settled(_owner): return false
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(expected):
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
@@ -98,6 +98,9 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 	for suffix: String in ["", ".bak", ".tmp"]:
 		if DirAccess.dir_exists_absolute(PATH+suffix): return false
 	if FileAccess.file_exists(PATH+".tmp") or (expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
+	# Unbound legacy writes cannot create, replace, or erase workshop metadata.
+	var previous: Variant=Owner._bytes_value(expected)
+	if not season.workshop_draft.is_empty() or (previous is Dictionary and previous.has("workshop_draft")): return false
 	var data: Dictionary = Owner.capture(season)
 	if data.is_empty() or (not expected_snapshot.is_empty() and not Codec.same(data,expected_snapshot)):
 		last_error = "This candidate is inconsistent with the materialized save contract."
@@ -145,7 +148,7 @@ static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
 static func _routine_pins(candidate: RefCounted) -> bool:
 	if candidate.active!=_active or not RawGuard.same(candidate.paused,_paused) or candidate.imported_sha256!=_imported_sha256: return false
 	if not RawGuard.same(candidate.migration_v2,_metadata.get("migration_v2")): return false
-	for name: String in ["common","ordinary_state","migration_v3"]:
+	for name: String in ["common","ordinary_state","migration_v3","workshop_draft"]:
 		if not RawGuard.same(candidate.get(name),_metadata.get(name)): return false
 	if _active=="ordinary": return RawGuard.same(Codec.data_fields(candidate,Owner.META_FIELDS),_metadata)
 	return candidate.birth_seed==_metadata.get("birth_seed")
@@ -161,7 +164,7 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 	if saving or _ticket != null or candidate == null or candidate == owner or _paired_settled(owner): return null
 	if candidate.get_script()!=Owner or candidate.session==null or _paired_settled(candidate): return null
 	if owner == null:
-		if not expected.is_empty() or not _matches(expected): return null
+		if not expected.is_empty() or not _matches(expected) or not candidate.workshop_draft.is_empty(): return null
 	else:
 		if not match_owner(owner,expected) or candidate.session==owner.session: return null
 	# Only this private boundary creates the writer's canonical payload. Callers
@@ -560,6 +563,33 @@ static func _prepare_paired_metadata(owner: RefCounted, expected: PackedByteArra
 
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.
+static func prepare_workshop_draft_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	forget_projection()
+	last_error=""
+	if saving or _ticket!=null or not match_owner(owner,expected): return null
+	if not owner.workshop_draft.is_empty() or not Owner.workshop_window(owner): return null
+	var decoded: Variant=Owner._bytes_value(expected)
+	if not decoded is Dictionary or decoded.get("active")!="dynasty" or not decoded.get("dynasty") is Dictionary or decoded.has("workshop_draft"): return null
+	var candidate: RefCounted=Owner.new()
+	candidate.session=owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+	candidate.workshop_draft=Owner.starter_workshop_draft(owner)
+	if candidate.workshop_draft.is_empty(): return null
+	var data: Dictionary=Owner.pack_current(candidate,decoded.dynasty)
+	var unchanged: Dictionary=data.duplicate()
+	unchanged.erase("workshop_draft")
+	if data.is_empty() or not Codec.same(unchanged,decoded) or not _matches_raw(owner,_owner_raw): return null
+	var budget: Array=[RawGuard.MAX_NODES,true]
+	var snapshot: Dictionary=RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)
+	if not budget[1] or snapshot.is_empty(): return null
+	snapshot.session=_owner_raw.session
+	if not _matches_raw(candidate,snapshot): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
 static func switch_available(owner: RefCounted) -> bool:
 	if owner==null or owner.get_script()!=Owner or owner.paired_draft_only(): return false
 	var closed: bool=owner.status=="closed" if owner.active=="dynasty" else owner.ordinary_state.get("status")=="closed"

@@ -25,6 +25,7 @@ func render() -> void:
 		_note("Previous V3, V2 and ordinary saves stay separate. Explicit copying writes only the new V4 slot. Public unlocks, higher-tier play and replacement economics remain planned.")
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
+		_workshop_draft()
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
 		for id: String in app.season.offers():
 			var player: PlayerDefinition = app.season.build.definition(id)
@@ -48,6 +49,7 @@ func render() -> void:
 		_player_summary(player)
 	_career_records()
 	if app.career_owner.lifecycle_status()=="closed":
+		_workshop_draft()
 		_closed()
 		_session_controls()
 		return
@@ -64,6 +66,16 @@ func render() -> void:
 		_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
 
 	_session_controls()
+
+func _workshop_draft() -> void:
+	var owner=app.career_owner
+	if owner.active!="dynasty": return
+	if not owner.workshop_draft.is_empty():
+		_note("Stadium Workshop: starter backstop chair draft saved. This does not change the field.")
+	elif owner.get_script().workshop_window(owner):
+		_label(_body,"STADIUM WORKSHOP",18)
+		_note("Starter backstop chair · Primary receiver. Save a free draft without changing the field.")
+		_bound_button(_body,"SAVE STARTER STADIUM DRAFT",Callable(app,"save_workshop_draft"))
 
 func _player_summary(player: PlayerDefinition) -> void:
 	var repertoire: Array[String] = []
