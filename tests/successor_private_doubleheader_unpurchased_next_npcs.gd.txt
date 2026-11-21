@@ -24,11 +24,11 @@ func run() -> void:
 	if not need(app._owned() and _carried(app,original,count) and exact(before,backup),"strict owner, prior physical and all bank journals unchanged"): return
 	var button:=_button(app,RESUME)
 	if args[0] in ["cold","flag-off"]:
-		app.resume_private_unpurchased_next_opener()
+		if args[0]=="flag-off": app.resume_private_unpurchased_next_opener()
 		app._run_paired_npc(7)
 		app._settle_paired_next_first_leg()
 		if need(button==null and not is_instance_valid(app.ai_runner) and exact(before,backup)
-				and (args[0]!="cold" or backup.is_empty()),"cold both pending or flag-off inert; no settlement"):
+				and (args[0]!="cold" or backup.is_empty()),"cold both pending or flag-off inert; sync settlement blocked"):
 			print("NEXT_OPENER_",args[0].to_upper(),"_PASS ",args[1])
 			get_tree().quit()
 		return

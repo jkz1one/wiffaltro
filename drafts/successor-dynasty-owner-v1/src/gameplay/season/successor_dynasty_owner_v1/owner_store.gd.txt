@@ -345,6 +345,7 @@ static func _prepare_paired_settlement(owner: RefCounted, expected: PackedByteAr
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if not projection.settlement_enabled(leg) or saving or _ticket!=null or not match_owner(owner,expected): return null
 	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=leg: return null
+	if leg==2 and not Adapter.Ordinary.unpurchased_next_pair_kind(owner.session).is_empty(): return null # Private worker only.
 	var prepared:=_build_paired_settlement(owner,leg,projection)
 	if prepared.is_empty() or not match_owner(owner,expected): return null
 	_ticket=RefCounted.new()
@@ -378,17 +379,19 @@ static func private_pair_settlement_preview() -> bool:
 static func eligible_private_pair_settlement(owner: RefCounted) -> bool:
 	if not private_pair_settlement_preview() or owner==null or not owner.paired_draft_only() \
 		or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.current_ordinal()!=1 \
-		or not Owner._missing_dynasty(owner) or not owner.paused.is_empty() or owner.session.round_index!=1: return false
+		or not Owner._missing_dynasty(owner) or not owner.paused.is_empty() or owner.session.round_index not in [1,2]: return false
 	var pending: Dictionary=owner.session.physical.pending
 	var projection: Script=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
-	return projection.bound_shape(pending) and pending.human[0]==3 and pending.reports.size()==2 \
-		and not Adapter.Ordinary.unpurchased_return_kind(owner.session.build).is_empty()
+	if not projection.bound_shape(pending) or pending.reports.size()!=2: return false
+	if owner.session.round_index==2:
+		return pending.human[0]==6 and not Adapter.Ordinary.unpurchased_next_pair_kind(owner.session).is_empty()
+	return pending.human[0]==3 and not Adapter.Ordinary.unpurchased_return_kind(owner.session.build).is_empty()
 
 static func accept_private_pair_settlement(owner: RefCounted,expected: PackedByteArray,child: Node) -> String:
 	var process_script: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
 	if child==null or child.get_script()!=process_script or not eligible_private_pair_settlement(owner): return "refused"
 	if not _cross_bound(owner,expected): return "stale"
-	var bytes: PackedByteArray=child.take_pair_settled_bytes(Owner._hash(expected))
+	var bytes: PackedByteArray=child.take_pair_settled_bytes(Owner._hash(expected),owner.session.round_index)
 	if bytes.is_empty(): return "refused"
 	var dir:=DirAccess.open("user://")
 	if dir==null: return "obstructed"

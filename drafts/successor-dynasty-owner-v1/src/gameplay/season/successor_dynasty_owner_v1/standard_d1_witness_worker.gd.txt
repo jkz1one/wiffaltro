@@ -22,8 +22,8 @@ func _run() -> void:
 	if request.kind in [Work.CROSS_KIND,Work.ACTIVATE_KIND]:
 		_review_cross(request,bytes)
 		return
-	if request.kind==Work.PAIR_SETTLE_KIND:
-		_settle_private_return(request,bytes)
+	if request.kind in [Work.PAIR_SETTLE_KIND,Work.NEXT_OPENER_SETTLE_KIND]:
+		_settle_private_pair(request,bytes)
 		return
 	if request.kind==Work.CONTINUE_KIND:
 		_continue_exact(request,bytes)
@@ -59,7 +59,7 @@ func _review_cross(request: Dictionary, bytes: PackedByteArray) -> void:
 	_emit({"request":request,"outcome":"refused" if digest.is_empty() else "qualified",
 		"draft_sha256":digest},not digest.is_empty())
 
-func _settle_private_return(request: Dictionary,bytes: PackedByteArray) -> void:
+func _settle_private_pair(request: Dictionary,bytes: PackedByteArray) -> void:
 	if not Work.Store.private_pair_settlement_preview():
 		get_tree().quit(2)
 		return
@@ -75,8 +75,9 @@ func _settle_private_return(request: Dictionary,bytes: PackedByteArray) -> void:
 	var prepared: Dictionary={}
 	if Work.Store.eligible_private_pair_settlement(owner) and Work.Store.Adapter.scope(owner.active,owner.session):
 		var projection: Script=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
-		if projection.settlement_enabled(1):
-			prepared=Work.Store._build_paired_settlement(owner,1,projection)
+		var leg: int=owner.session.round_index
+		if request.kind==Work.pair_settlement_kind(leg) and projection.settlement_enabled(leg):
+			prepared=Work.Store._build_paired_settlement(owner,leg,projection)
 	_stage_cross(request,prepared.get("data",{}))
 	content_roots.clear()
 

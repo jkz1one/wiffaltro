@@ -118,7 +118,7 @@ func _async_settle(app: App,control: Button,before: PackedByteArray,backup: Pack
 		" wait_gap_ms=",max_gap," frames=",ticks," parent_ms=",app._pair_settle_write_ms)
 	if not need(not app.d1_check_running() and _no_staged_pairs(),"worker ended and disposable stage removed"): return
 	if mode=="settle":
-		if not need(app.season==null and app.career_owner==null and app.notice.begins_with("Doubleheader return leg settled.")
+		if not need(app.season==null and app.career_owner==null and app.notice.begins_with("Doubleheader leg settled.")
 				and FileAccess.get_sha256(Store.PATH)==SETTLED and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before and ticks>100,
 				"exact stock settled bytes, one backup rotation, no parent owner hydration"): return
 		app.resume_private_unpurchased_return()

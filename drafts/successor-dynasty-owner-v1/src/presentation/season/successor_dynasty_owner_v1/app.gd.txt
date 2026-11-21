@@ -273,10 +273,10 @@ func _begin_private_pair_settlement() -> void:
 	_pair_settling=true
 	add_child(check)
 	check.completed.connect(_complete_private_pair_settlement.bind(check,_d1_epoch,saved_bytes),CONNECT_ONE_SHOT)
-	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.PAIR_SETTLE_KIND):
+	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.pair_settlement_kind(season.round_index)):
 		_complete_private_pair_settlement("invalid",{},check,_d1_epoch,saved_bytes)
 		return
-	notice="Settling the exact Doubleheader return leg in the background…"
+	notice="Settling the exact Doubleheader leg in the background…"
 	show_season()
 
 func _complete_private_pair_settlement(outcome: String,_proof: Dictionary,check: Node,epoch: int,expected: PackedByteArray) -> void:
@@ -295,14 +295,14 @@ func _complete_private_pair_settlement(outcome: String,_proof: Dictionary,check:
 	if outcome in ["saved","renamed_unverified","unverified_io","stale"]:
 		career_owner=null; season=null; saved_bytes=PackedByteArray()
 	notice={
-		"saved":"Doubleheader return leg settled. Use Continue Saved Career to verify and reopen the save.",
+		"saved":"Doubleheader leg settled. Use Continue Saved Career to verify and reopen the save.",
 		"renamed_unverified":"The save was replaced, but its contents could not be verified. Use Continue to check it before playing.",
 		"unverified_io":"Settlement could not be verified after a save error. Use Continue to check the save before retrying.",
 		"obstructed":"Save path blocked before writing. Resolve the obstruction, then retry settlement.",
 		"cancelled":"Settlement cancelled before writing.",
 		"stale":"The saved career changed. No settlement was written by this action.",
-		"refused":"The pending return leg did not qualify. Nothing was written."
-	}.get(outcome,"The pending return leg could not be verified. Nothing was written.")
+		"refused":"The pending Doubleheader leg did not qualify. Nothing was written."
+	}.get(outcome,"The pending Doubleheader leg could not be verified. Nothing was written.")
 	show_season()
 
 func private_unpurchased_next_pair() -> bool:
@@ -317,6 +317,9 @@ func resume_private_unpurchased_next_opener() -> void:
 	if not private_unpurchased_next_pair() or not _available() or not _owned() or is_instance_valid(ai_runner): return
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if not factory.bound_shape(season.physical.pending) or season.physical.pending.human[0]!=6: return
+	if season.physical.pending.reports.size()==2:
+		_begin_private_pair_settlement()
+		return
 	if not retained_report.is_empty():
 		_checkpoint_report()
 		return

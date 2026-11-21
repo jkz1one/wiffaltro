@@ -6,6 +6,7 @@ const View=preload("standard_d1_view.gd")
 const KIND: String="common-standard-d1-witness-worker-v2"
 const CROSS_READ_KIND: String="common-cross-league-draft-read-worker-v1"
 const PAIR_SETTLE_KIND: String="common-doubleheader-no-purchase-return-settle-v1"
+const NEXT_OPENER_SETTLE_KIND: String="common-doubleheader-no-purchase-next-opener-settle-v1"
 const ACTIVATE_KIND: String="common-cross-league-activate-worker-v1"
 const CROSS_FILE: String="candidate.json"
 const CROSS_MAX: int=24*1024*1024
@@ -81,7 +82,7 @@ static func _revision(kind: String=KIND) -> String:
 
 static func request_valid(value: Variant) -> bool:
 	return value is Dictionary and SeasonOwnership._keys(value,["version","kind","token","source_sha256","seed"]) \
-		and SeasonOwnership._whole(value.version,2,2) and value.kind in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND,PAIR_SETTLE_KIND] \
+		and SeasonOwnership._whole(value.version,2,2) and value.kind in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND,PAIR_SETTLE_KIND,NEXT_OPENER_SETTLE_KIND] \
 		and value.token is String and value.token.length()==32 and value.token.is_valid_hex_number(false) \
 		and T.Start.sha(value.source_sha256) and SeasonOwnership._whole(value.seed,0,2147483647) \
 		and (value.kind==KIND or value.seed==0)
@@ -94,14 +95,14 @@ static func canonical(value: Variant) -> String:
 func start(source_sha256: String, seed_value: int, kind: String=KIND) -> bool:
 	if running or not is_inside_tree() or not supported(kind) or not T.Start.sha(source_sha256) \
 			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision(kind)!=source_sha256 \
-			or kind not in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND,PAIR_SETTLE_KIND] or (kind!=KIND and seed_value!=0) \
+			or kind not in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND,PAIR_SETTLE_KIND,NEXT_OPENER_SETTLE_KIND] or (kind!=KIND and seed_value!=0) \
 			or (kind in [CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND] and not Store.cross_league_preview()): return false
 	_request={"version":2,"kind":kind,"token":Crypto.new().generate_random_bytes(16).hex_encode(),
 		"source_sha256":source_sha256,"seed":seed_value}
-	if kind==PAIR_SETTLE_KIND and not Store.private_pair_settlement_preview():
+	if kind in [PAIR_SETTLE_KIND,NEXT_OPENER_SETTLE_KIND] and not Store.private_pair_settlement_preview():
 		_clear()
 		return false
-	if kind in [ACTIVATE_KIND,PAIR_SETTLE_KIND]:
+	if kind in [ACTIVATE_KIND,PAIR_SETTLE_KIND,NEXT_OPENER_SETTLE_KIND]:
 		var folder:=_stage_dir(_request.token,kind)
 		if folder.is_empty() or DirAccess.make_dir_absolute(folder)!=OK:
 			_clear()
@@ -156,7 +157,7 @@ func _finish(outcome: String, proof: Dictionary={}, emit_result: bool=true) -> v
 
 static func _stage_dir(token: String,kind: String) -> String:
 	if token.length()!=32 or not token.is_valid_hex_number(false): return ""
-	if kind==PAIR_SETTLE_KIND: return "user://.pair-settle-"+token
+	if kind in [PAIR_SETTLE_KIND,NEXT_OPENER_SETTLE_KIND]: return "user://.pair-settle-"+token
 	return "user://.cross-activate-"+token if kind==ACTIVATE_KIND else ""
 
 func _clean_cross() -> void:
@@ -172,8 +173,11 @@ func _clean_cross() -> void:
 func take_cross_bytes(source_sha256: String) -> PackedByteArray:
 	return _take_staged_bytes(source_sha256,ACTIVATE_KIND)
 
-func take_pair_settled_bytes(source_sha256: String) -> PackedByteArray:
-	return _take_staged_bytes(source_sha256,PAIR_SETTLE_KIND)
+static func pair_settlement_kind(leg: int) -> String:
+	return PAIR_SETTLE_KIND if leg==1 else NEXT_OPENER_SETTLE_KIND if leg==2 else ""
+
+func take_pair_settled_bytes(source_sha256: String,leg: int) -> PackedByteArray:
+	return _take_staged_bytes(source_sha256,pair_settlement_kind(leg))
 
 func _take_staged_bytes(source_sha256: String,kind: String) -> PackedByteArray:
 	var proof: Dictionary=_completed_cross
@@ -241,7 +245,7 @@ func _process(_delta: float) -> void:
 	elif _request.kind==CROSS_READ_KIND and packet.outcome=="qualified":
 		_completed_cross_read=packet
 		_finish("qualified")
-	elif _request.kind in [ACTIVATE_KIND,PAIR_SETTLE_KIND] and packet.outcome=="qualified":
+	elif _request.kind in [ACTIVATE_KIND,PAIR_SETTLE_KIND,NEXT_OPENER_SETTLE_KIND] and packet.outcome=="qualified":
 		_completed_cross=packet
 		_finish("qualified")
 	else:
@@ -260,7 +264,7 @@ static func _decode(bytes: PackedByteArray, request: Dictionary, exit_code: int)
 	var result: Variant=JSON.parse_string(json)
 	if not result is Dictionary or not ClubCareer.same(result.get("request"),request) \
 			or JSON.stringify(result,"",true,true)!=json: return {}
-	if request.kind in [ACTIVATE_KIND,PAIR_SETTLE_KIND]:
+	if request.kind in [ACTIVATE_KIND,PAIR_SETTLE_KIND,NEXT_OPENER_SETTLE_KIND]:
 		if not SeasonOwnership._keys(result,["request","outcome","size","candidate_sha256"]) or not result.candidate_sha256 is String: return {}
 		if exit_code==REFUSED_EXIT and result.outcome=="refused" and result.size==0 and result.candidate_sha256.is_empty(): return result
 		if exit_code==0 and result.outcome=="qualified" and SeasonOwnership._whole(result.size,1,CROSS_MAX) \

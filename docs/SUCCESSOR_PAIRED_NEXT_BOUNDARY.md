@@ -226,3 +226,31 @@ processes, each with the exact current primary SHA. Reopen `cold`
 from the final primary alone. A separate `flag-off` copy refuses resume,
 and `tamper` rejects a changed second request with exact files untouched.
 Only two new NPC fixtures are simulated; fixture 6 is never replayed.
+
+## Settle the saved next-pair opener
+
+The same private source-editor menu now settles the completed next-pair
+opener (fixtures 6, 7 and 8) without replaying any game. Its own fixed
+child request kind binds the exact saved revision and authored phase.
+The trusted child strictly restores that predecessor, projects the native
+settlement and stages exact validated bytes; only the parent may replace
+the save. Cancel is before the write, and Continue independently reloads
+the result. The legacy return-settlement worker kind and paid dialect
+are not aliases for this request.
+
+The no-purchase journal requires the authored native reward/exotic
+pair for each admitted completed leg, with at most the existing exact
+free browse after the opening leg. The third-leg cold contract requires
+all nine ordered results and six native reports, no new pending game,
+closed visit 3, and the full existing report/workload and roster replay.
+Fixture 6 uses first-leg reset; its saved workload is the source for the
+next reversed fixture 9. This is not permission to launch that reverse
+fixture, use a new shop, or take a new public career route.
+
+The isolated `successor_private_doubleheader_unpurchased_next_settle`
+harness uses the CP226 NPC7/8 QA parent, the exact pending primary named
+`user://exact-next-opener-npc8.json`, and its two original QA references.
+Run `settle` with the CP226 primary, `cold` from the resulting primary
+alone in a separate profile, and `cancel` from an independent original
+pair. These stages pay no additional sweep bonus, do not launch new
+games, and keep Common funds separate from the native season bank.

@@ -264,6 +264,9 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	if not physical.pending.is_empty():
 		if season.round_index==6 and not _signed_visit6_journal(build): return false
 		if projection.late_revision(season.round_index)>=0 and not _paired_late_start(season): return false
+	if season.round_index==3 and not detached and physical.pending.is_empty() \
+			and not _unpurchased_completed_legs(build,3).is_empty():
+		return whole(build._visit.get("number"),3,3) and build._visit.get("open")==false
 	var late_open: Dictionary=late_shop_open(season.round_index)
 	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (not late_open.is_empty() and build.revision()==int(late_open.rev)+1)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
@@ -466,20 +469,31 @@ static func unpurchased_return_kind(build: SeasonBuild) -> String:
 # Both variants have two native rewards and two native exotic admissions.
 # A browsed profile may have the exact free-open command before the return.
 static func unpurchased_settled_pair_kind(build: SeasonBuild) -> String:
+	return _unpurchased_completed_legs(build,2)
+
+# Exact closed native journal for the admitted opening and next-pair opener.
+# All events are independently replayed; this additionally forbids paid or
+# unexpected actions between the authored reward/exotic pairs.
+static func _unpurchased_completed_legs(build: SeasonBuild, legs: int) -> String:
+	if legs not in [2,3] or build==null or build._bank==null: return ""
 	var size: int=build._events.size()
-	if size not in [4,5] or build.revision()!=size or build._bank==null: return ""
-	var browsed: bool=size==5
+	if size not in [2*legs,2*legs+1] or build.revision()!=size: return ""
+	var browsed: bool=size==2*legs+1
 	if not _first_shop_journal(build,1 if browsed else 0): return ""
-	var reward: Dictionary=build._events[size-2]
-	var exotic: Dictionary=build._events[size-1]
-	if reward.get("op")!="successor_reward" or reward.get("id")!="game:3" \
-		or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:3": return ""
 	var bank: Array=build._bank._events
-	if bank.size()!=2: return ""
-	for index: int in range(2):
-		var game: int=index*3
+	if bank.size()!=legs: return ""
+	var offset: int=0
+	for index: int in range(legs):
+		var authored: Dictionary=PairSchedule.authored_phase(index)
+		if authored.is_empty(): return ""
+		var game: int=int(authored.human.id)
+		if index==1 and browsed: offset=1
+		var reward: Dictionary=build._events[2*index+offset]
+		var exotic: Dictionary=build._events[2*index+offset+1]
+		if reward.get("op")!="successor_reward" or reward.get("id")!="game:%d"%game \
+				or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:%d"%game: return ""
 		if not same(bank[index],{"id":"game:%d"%game,"op":"reward","rev":index,"game":game,"win":bank[index].get("win")}) \
-			or not bank[index].get("win") is bool: return ""
+				or not bank[index].get("win") is bool: return ""
 	return "browsed" if browsed else "unopened"
 
 static func return_human_ready(build: SeasonBuild) -> bool:

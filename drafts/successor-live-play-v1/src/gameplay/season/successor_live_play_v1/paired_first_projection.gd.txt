@@ -364,8 +364,6 @@ static func _unplayed_bracket(candidate: SeasonState) -> bool:
 # producers may materialize a paid owner only after exact terminal replay.
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if source.round_index<2 or not human_enabled(source.round_index): return {}
-	if source.round_index==2 and not Live.unpurchased_next_pair_kind(source).is_empty() \
-		and produce_settlement: return {}
 	if produce_settlement and not settlement_enabled(source.round_index): return {}
 	var limit: int=report_limit(source.round_index)
 	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}
