@@ -17,6 +17,8 @@ const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/st
 var _d1_check: Node
 var _d1_close_after_check: bool=false
 var _d1_continuing: bool=false
+var _d1_sealed_view: RefCounted
+var _d1_view_poll: int=0
 var _d1_epoch: int=0
 var _d1_proof_epoch: int=-1
 var _d1_proof_expiry: int=0
@@ -122,6 +124,12 @@ func _notification(what: int) -> void:
 func _process(_delta: float) -> void:
 	_continue.visible = is_instance_valid(lab) and lab._match_state!=null and lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD and not _busy
 	_continue.disabled = _busy
+	if _d1_sealed_view!=null and Time.get_ticks_msec()>=_d1_view_poll:
+		_d1_view_poll=Time.get_ticks_msec()+1000
+		if D1Check._revision(D1Check.CONTINUE_KIND)!=_d1_sealed_view._revision:
+			_expire_d1_proof()
+			notice="The saved career changed. Try Continue again."
+			show_season()
 
 func show_season() -> void:
 	_clear_session_ticket()
@@ -417,6 +425,7 @@ func cancel_d1_check() -> void:
 	if is_instance_valid(_d1_check): _d1_check.cancel()
 
 func _expire_d1_proof() -> void:
+	_d1_sealed_view=null
 	_d1_epoch+=1
 	_d1_proof={}
 	_d1_proof_epoch=-1
@@ -476,10 +485,12 @@ func _complete_d1_continue(outcome: String, _proof: Dictionary, check: Node, epo
 		_d1_close_after_check=false
 		_quit_now()
 		return
-	# No admission capability is retained. A qualified digest response can
-	# attest this attempt; it cannot install an owner or enable the draft yet.
+	if outcome=="qualified":
+		_d1_sealed_view=check.take_completed_view()
+		if _d1_sealed_view==null: outcome="stale"
+		else: _d1_view_poll=Time.get_ticks_msec()+1000
 	notice={
-		"qualified":"The Standard D1 career was verified. Loading and drafting remain disabled.",
+		"qualified":"The Standard D1 career was verified. Drafting and all changes remain disabled.",
 		"refused":"This Standard D1 career did not pass validation. Your save is unchanged.",
 		"stale":"The saved career changed during verification. Try Continue again.",
 		"cancelled":"Standard D1 verification cancelled. Your save is unchanged."

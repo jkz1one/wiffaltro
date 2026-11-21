@@ -15,6 +15,7 @@ func render() -> void:
 		return
 	if app.season == null:
 		if not Store.standard_d1_slot_kind().is_empty():
+			if app._d1_sealed_view!=null: _label(_body,app._d1_sealed_view.title(),24)
 			_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
 			return
 		_label(_body,"PRIVATE CAREER ENGINEERING · common V4 save",18)

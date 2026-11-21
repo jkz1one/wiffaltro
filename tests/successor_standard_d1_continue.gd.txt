@@ -84,10 +84,12 @@ func _run() -> void:
 		if not _need(not app.d1_check_running() and expected in app.notice
 				and (mode=="cancel" or frames>10),"terminal result and live frame heartbeat"): return
 	if not _need(Store.last_error==READ_SENTINEL and app.career_owner==null and app.season==null
-			and app.saved_bytes.is_empty() and app._take_d1_check_proof().is_empty()
+			and app.saved_bytes.is_empty() and app._d1_sealed_view==null and app._take_d1_check_proof().is_empty()
 			and FileAccess.get_sha256(Store.PATH)==args[1] and FileAccess.get_sha256(Store.PATH+".bak")==PREVIOUS
 			and not FileAccess.file_exists(Store.PATH+".tmp"),"no parent Store.read, authority, writes or fallback"): return
 	if not _need(_digest_shape_only(),"synthetic pipe shape is not transport authority"): return
+	if mode=="flag-off" and not _need(_project_shape_only() and app._d1_sealed_view==null,
+			"pure shape test does not publish a view, change owner or confer rights"): return
 	print("STANDARD_D1_APP_CONTINUE_PASS ",mode," ms=",Time.get_ticks_msec()-started," frames=",frames)
 	get_tree().quit()
 
@@ -100,3 +102,22 @@ func _digest_shape_only() -> bool:
 	if Work._decode(frame,request,0).is_empty() or not Work._decode(frame,request,Work.REFUSED_EXIT).is_empty(): return false
 	reply.digests["data"]="not transport"
 	return Work._decode((prefix+Work.canonical(reply)+"\n").to_utf8_buffer(),request,0).is_empty()
+
+
+func _project_shape_only() -> bool:
+	# This is the exact prior eliminated case with a shape-only draft. The
+	# projection is called locally only to assert exact preserved byte custody.
+	var bytes:=Store.raw()
+	var revision:=Work.T._source_digest(bytes)
+	var row:=Work.T._durable_shape(bytes)
+	if row.is_empty(): return false
+	var digests: Dictionary={"stamp":row.stamp,"witness":row.witness.source_sha256,
+		"draft":Work.T._slot_text(row.draft).sha256_text()}
+	var view:=Work.View._from_bytes(bytes,revision,digests)
+	if view==null or view._ordinal!=2 or not view.title().ends_with("READ-ONLY") \
+			or Work.T._source_digest(view._prior_bytes)!=row.witness.source_sha256: return false
+	var unused:=Work.new()
+	var accepted: bool=unused.take_completed_view()!=null
+	unused.free()
+	digests.draft="0".repeat(64)
+	return not accepted and Work.View._from_bytes(bytes,revision,digests)==null

@@ -2,6 +2,7 @@ extends Node
 ## Private same-binary proof transport. No disk reply or slot writer.
 const Store=preload("owner_store.gd")
 const T=preload("standard_d1_transition.gd")
+const View=preload("standard_d1_view.gd")
 const KIND: String="common-standard-d1-witness-worker-v2"
 const CONTINUE_KIND: String="common-standard-d1-continue-worker-v2"
 const FRAME: String="WIFFALTRO_D1_WITNESS_V2 "
@@ -18,6 +19,7 @@ var _request: Dictionary={}
 var _started: int=0
 var _last_poll: int=0
 var _stopping: String=""
+var _completed_view: RefCounted
 
 static func supported() -> bool:
 	return OS.has_feature("editor") and OS.get_name()=="Linux" \
@@ -94,6 +96,13 @@ func _finish(outcome: String, proof: Dictionary={}, emit_result: bool=true) -> v
 	_clear()
 	if emit_result: completed.emit(outcome,proof)
 
+# The view is obtainable once, synchronously while this exact private child
+# emits completion. No caller-supplied payload can populate the handoff.
+func take_completed_view() -> RefCounted:
+	var view:=_completed_view
+	_completed_view=null
+	return view if view!=null and _revision(CONTINUE_KIND)==view._revision else null
+
 func _drain() -> bool:
 	if _stdout==null or _stderr==null or _stderr.get_length()>0: return false
 	var available: int=_stdout.get_length()
@@ -122,6 +131,14 @@ func _process(_delta: float) -> void:
 	var packet:=_decode(_output,_request,exit_code)
 	if packet.is_empty():
 		_finish("invalid")
+	elif _request.kind==CONTINUE_KIND and packet.outcome=="qualified":
+		var view:=View._from_bytes(_bounded_slot(CONTINUE_KIND),_request.source_sha256,packet.digests)
+		if view==null:
+			_finish("stale" if _revision(CONTINUE_KIND)!=_request.source_sha256 else "invalid")
+			return
+		_completed_view=view
+		_finish("qualified")
+		_completed_view=null
 	else:
 		_finish(packet.outcome,packet if packet.outcome=="qualified" else {})
 

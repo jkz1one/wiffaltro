@@ -1,0 +1,35 @@
+extends RefCounted
+## Sealed presentation snapshot; no Owner, SeasonState, or writer interface.
+const T=preload("standard_d1_transition.gd")
+var _revision: String
+var _ordinal: int
+var _seed: int
+# Parked Dynasty, Workshop and all prior owner metadata remain in their
+# original exact bytes; no public getter lets a consumer alter or export them.
+var _prior_bytes: PackedByteArray
+
+# Pure projection only. Shape/digests cannot convey entitlement or publish
+# this view; only the private completion of the exact Continue child may.
+static func _from_bytes(bytes: PackedByteArray, revision: String, digests: Dictionary) -> RefCounted:
+	if not T.Start.sha(revision) or T._source_digest(bytes)!=revision: return null
+	var data:=T._durable_shape(bytes)
+	if data.is_empty() or data.stamp!=digests.get("stamp") \
+			or T._slot_text(data.draft).sha256_text()!=digests.get("draft"): return null
+	var prior:=T._unpack_closed_source(data.witness)
+	if prior.is_empty() or data.witness.source_sha256!=digests.get("witness"): return null
+	var prior_career: Variant=data.draft.get("career")
+	if not prior_career is Dictionary: return null
+	var basis: Variant=prior_career.get("start_basis")
+	var state: Variant=data.draft.get("state")
+	if not T.valid(basis) or not state is Dictionary \
+			or not SeasonOwnership._whole(state.get("phase"),SeasonState.Phase.DRAFT,SeasonState.Phase.DRAFT) \
+			or not state.get("picks") is Array or not state.picks.is_empty(): return null
+	var result: RefCounted=load("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_view.gd").new()
+	result._revision=revision
+	result._ordinal=int(basis.basis.ordinal)
+	result._seed=int(basis.basis.seed)
+	result._prior_bytes=prior
+	return result
+
+func title() -> String:
+	return "STANDARD D1 · SEASON %d · READ-ONLY" % _ordinal

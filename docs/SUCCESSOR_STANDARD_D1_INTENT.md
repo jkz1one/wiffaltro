@@ -632,3 +632,25 @@ The isolated App regression covers flag-off, unsupported version, wrong
 stamp, exact stamped eliminated witness, cancellation and stale revision.
 It asserts the Common primary/backup and old-format behavior remain untouched.
 The digest-only positive parser sample exercises shape, not actual entitlement.
+
+The parent now has a private sealed presentation snapshot. Only the exact
+Continue child can hand it off synchronously once after checking the revision,
+stamp, draft digest and retained witness digest. Parent projection unpacks and
+retains the prior Common bytes verbatim (including parked Dynasty and Workshop)
+but does not restore or replay the prior career. It exposes only a zero-pick
+read-only season heading while the same revision is present. Normal Owner,
+SeasonState, Store and draft/shop/transition controls remain unbound. A pure
+test can project the eliminated fixture's shape and check byte custody; it
+cannot publish the view or certify that fixture. No genuine positive source
+has been observed, so the real view/writer positive remains unqualified.
+
+The first eligible write must originate from a strict admitted real champion
+and the exact old primary via the D1-specific prepare branch. A private
+ticket must bind that owner/raw snapshot, old revision and immutable new
+bytes; reserve this writer separately from generic V4 tickets. Verify old
+bytes before and immediately after backup, atomically rename the verified
+owned temporary payload, read back exact bytes, and test retry without replacing
+a newly changed slot. With the real earned fixture, restart via private Continue,
+check the once-only view and preserved parked state, then test stale/revocation.
+Keep general editing and the four-pick route closed until their separate
+D1 contracts exist.
