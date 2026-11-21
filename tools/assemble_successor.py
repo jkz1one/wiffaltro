@@ -29,6 +29,9 @@ LIVE_FAMILY = 'successor-live-owner-v1'
 LIVE_LAUNCHER = 'res://src/presentation/season/successor_live_owner_v1/launcher.tscn'
 DYNASTY_FAMILY = 'successor-dynasty-owner-v1'
 DYNASTY_LAUNCHER = 'res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn'
+ORIGINAL_LAUNCHER = 'res://src/presentation/season/season_app.tscn'
+# The unchanged raw configuration already used for the CP165 source review.
+AUTHORED_PROJECT_SHA256 = '9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd'
 
 def safe(name):
     p = PurePosixPath(name)
@@ -39,10 +42,13 @@ def safe(name):
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def assemble(repo, destination, tests=(), live_owner=False, live_play=False, dynasty_owner=False):
+def assemble(repo, destination, tests=(), live_owner=False, live_play=False, dynasty_owner=False,
+             preserve_authored_project=False):
     repo, destination = repo.resolve(), destination.resolve()
     if destination.exists():
         raise ValueError('Destination must not exist; no files or saves are overwritten')
+    if preserve_authored_project and (not dynasty_owner or live_owner or live_play):
+        raise ValueError('Authored-project mode requires only the private Common V4 launcher')
     payload = {}
     tracked = subprocess.check_output(['git', 'ls-files', '-z', '--', 'src', 'project.godot'], cwd=repo).decode().split('\0')
     for name in filter(None, tracked):
@@ -76,10 +82,16 @@ def assemble(repo, destination, tests=(), live_owner=False, live_play=False, dyn
     if found != requested:
         raise ValueError(f'Tests not found in manifests: {sorted(requested-found)}')
     config = payload['project.godot'].decode()
-    original = 'run/main_scene="res://src/presentation/season/season_app.tscn"'
+    original = f'run/main_scene="{ORIGINAL_LAUNCHER}"'
     if config.count(original) != 1:
         raise ValueError('Unexpected original main scene')
-    payload['project.godot'] = config.replace(original, f'run/main_scene="{launcher}"').encode()
+    if preserve_authored_project:
+        if sha(payload['project.godot']) != AUTHORED_PROJECT_SHA256:
+            raise ValueError('Reviewed authored project bytes changed; no assembly written')
+        if launcher.removeprefix('res://') not in payload:
+            raise ValueError('Private Common V4 startup scene is missing')
+    else:
+        payload['project.godot'] = config.replace(original, f'run/main_scene="{launcher}"').encode()
     destination.mkdir(parents=True)
     for name, data in payload.items():
         target = destination / name
@@ -87,6 +99,11 @@ def assemble(repo, destination, tests=(), live_owner=False, live_play=False, dyn
         target.write_bytes(data)
     record = {'format': 'wiffaltro-source-assembly-v1', 'launcher': launcher,
               'files': {name: sha(data) for name, data in sorted(payload.items())}}
+    if preserve_authored_project:
+        record['startup'] = {'mode': 'explicit-private-scene-v1',
+                             'default_scene': ORIGINAL_LAUNCHER,
+                             'explicit_scene': launcher,
+                             'required_environment': {'WIFFALTRO_DYNASTY_ENGINEERING': '1'}}
     (destination / 'ASSEMBLY.json').write_text(json.dumps(record, indent=2)+'\n')
     return record
 
@@ -97,6 +114,9 @@ if __name__ == '__main__':
     parser.add_argument('--live-owner', action='store_true', help='Select the additive materialized-owner launcher; old project and save slots remain unchanged')
     parser.add_argument('--live-play', action='store_true', help='Select materialized current-season gameplay with a separate save slot')
     parser.add_argument('--dynasty-owner', action='store_true', help='Select the private Dynasty engineering route; requires WIFFALTRO_DYNASTY_ENGINEERING=1 at launch, not a public unlock')
+    parser.add_argument('--preserve-authored-project', action='store_true',
+                        help='Keep the exact reviewed project; launch Common V4 with its explicit scene')
     args = parser.parse_args()
-    result = assemble(Path(__file__).resolve().parents[1], args.destination, args.test, args.live_owner, args.live_play, args.dynasty_owner)
+    result = assemble(Path(__file__).resolve().parents[1], args.destination, args.test,
+                      args.live_owner, args.live_play, args.dynasty_owner, args.preserve_authored_project)
     print(f'Assembled {len(result["files"])} verified source files; no saves copied.')

@@ -390,3 +390,36 @@ of loop time after setup on the headless Linux worker. The test's regular
 bounding mode independently completed the first plate appearance in 353
 ticks. This was source gameplay and capture only: no save, NPC round
 settlement, playable public D1, packaged startup, or Mac performance result.
+
+### Source-preserving private startup recipe
+
+The optional assembly mode below keeps the raw authored project bytes in
+the initial output and manifest, rather than rewriting the main scene.
+It rejects any configuration whose SHA-256 differs from the existing
+reviewed source pin. The manifest records the Original default scene
+separately from the explicit private Common V4 scene. Legacy assembly
+modes and the export builders are unchanged.
+
+```sh
+python tools/assemble_successor.py --dynasty-owner --preserve-authored-project "$stage"
+# Use a disposable separate HOME and XDG_DATA_HOME, XDG_CONFIG_HOME, XDG_CACHE_HOME.
+WIFFALTRO_DYNASTY_ENGINEERING=1 godot --path "$stage" \
+  res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn
+```
+
+The default scene with no explicit scene is still Original. Explicit
+Common startup with the engineering flag off refuses. The source
+recipe uses the actual stock files; it does not change the stadium
+guard or assert alternative reviewed hashes. The existing private
+worker uses the same executable/project path with its explicit worker
+scene, and a separate D1 NPC worker still needs its own dialect and
+qualification. No public D1 or packaged startup change.
+
+The QA wrapper `successor_common_authored_startup.gd.txt` extends the
+opening QA harness: stage the three scripts at `res://transition.gd`,
+`res://opening.gd`, and `res://startup_qa.gd` and attach the final
+script to a scratch Node scene. It first starts the actual explicit
+Common App scene and verifies its live menu, then finishes the first
+real AE-01 plate appearance against the unchanged gate. Launch the QA
+scene explicitly under the same engine/project with the headless flags
+above; do not rewrite the project after assembly.

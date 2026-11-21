@@ -97,6 +97,41 @@ class AssemblyTests(unittest.TestCase):
                 self.assertEqual(ordinary['launcher'], assembly.PLAY_LAUNCHER)
                 self.assertEqual((repo/'project.godot').read_text(), config)
 
+    def test_authored_project_requires_private_explicit_start_and_exact_bytes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            repo = root/'source'
+            repo.mkdir()
+            subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+            raw = f'run/main_scene="{assembly.ORIGINAL_LAUNCHER}"\n'.encode()
+            config = repo/'project.godot'
+            config.write_bytes(raw)
+            startup = repo/assembly.DYNASTY_LAUNCHER.removeprefix('res://')
+            startup.parent.mkdir(parents=True)
+            startup.write_text('[gd_scene format=3]\n')
+            subprocess.run(['git', 'add', 'project.godot', 'src'], cwd=repo, check=True)
+            with patch.object(assembly, 'FAMILIES', ()), patch.object(assembly, 'LIVE_FAMILY', 'fixture'), \
+                    patch.object(assembly, 'PLAY_FAMILY', 'fixture'), patch.object(assembly, 'SELECTOR_FAMILY', 'fixture'), \
+                    patch.object(assembly, 'DYNASTY_FAMILY', 'fixture'), patch.object(assembly, 'PAIRED_HISTORY_FAMILIES', ()), \
+                    patch.object(assembly, 'AUTHORED_PROJECT_SHA256', hashlib.sha256(raw).hexdigest()):
+                folder = repo/'drafts'/'fixture'
+                folder.mkdir(parents=True)
+                (folder/'DRAFT_MANIFEST.json').write_text('{"files":[]}')
+                target = root/'exact'
+                result = assembly.assemble(repo, target, dynasty_owner=True, preserve_authored_project=True)
+                self.assertEqual((target/'project.godot').read_bytes(), raw)
+                self.assertEqual(result['files']['project.godot'], hashlib.sha256(raw).hexdigest())
+                self.assertEqual(result['startup']['default_scene'], assembly.ORIGINAL_LAUNCHER)
+                self.assertEqual(result['startup']['explicit_scene'], assembly.DYNASTY_LAUNCHER)
+                self.assertEqual(result['startup']['required_environment'], {'WIFFALTRO_DYNASTY_ENGINEERING': '1'})
+                self.assertEqual(json.loads((target/'ASSEMBLY.json').read_bytes()), result)
+                with self.assertRaises(ValueError):
+                    assembly.assemble(repo, root/'no-flag', preserve_authored_project=True)
+                config.write_bytes(raw + b'\n')
+                with self.assertRaises(ValueError):
+                    assembly.assemble(repo, root/'modified', dynasty_owner=True, preserve_authored_project=True)
+                self.assertFalse((root/'modified').exists())
+
     def test_unsafe_paths(self):
         for path in ['../save', '/tmp/save', 'src/../../save']:
             with self.assertRaises(ValueError):

@@ -1,0 +1,23 @@
+extends "res://opening.gd"
+## Source recipe smoke: actual private App, then canonical physical opening PA.
+const COMMON_SCENE="res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
+const ORIGINAL_SCENE="res://src/presentation/season/season_app.tscn"
+const AUTHORED_SHA="9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd"
+
+func _run() -> void:
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and FileAccess.get_sha256("res://project.godot")==AUTHORED_SHA
+			and ProjectSettings.get_setting("application/run/main_scene")==ORIGINAL_SCENE
+			and not S.occupied(),"exact authored config and isolated explicit Common project"): return
+	var scene:=load(COMMON_SCENE) as PackedScene
+	var app:=scene.instantiate()
+	add_child(app)
+	await get_tree().process_frame
+	if not _expect(app is SeasonApp and app.menu!=null and app.menu.is_visible_in_tree()
+			and app.season==null and app.career_owner==null and app._available(),
+			"actual authored-project Common menu initialized without admitting a save"): return
+	print("COMMON_AUTHORED_EXPLICIT_APP_PASS ",AUTHORED_SHA)
+	app.queue_free()
+	await get_tree().process_frame
+	await super._run()
