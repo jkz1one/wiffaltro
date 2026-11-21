@@ -1,0 +1,105 @@
+extends "res://opening.gd"
+## Only isolated generated QA persistence; no common or original game slots.
+const Pending=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1_pending.gd")
+const Npc=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1_npc.gd")
+const INPUTS=["e34db0d101cb7128bb6bda3e32f906d7ccdac2833212aff07313991e2c9f4e2e",
+	"7014816786763d2166ef5d100e994c6a20c706595f0d672a83579bc0d844d5b8",
+	"d04043bdf3a7d472f18a25e0db27441a675e9cbe7b8fe09faa4ad2a593d662c6",
+	"ee09cb983c498bab49df93fd1fbeafa4934893d884ba650eb90e749fcd18bdde"]
+const RAW="user://d1-qa-opening-human-v1.json"
+const FILE="user://d1-qa-opening-pending-v1.json"
+var prior_draft: Dictionary={}
+var reports: Array=[]
+var _preflight: Dictionary={}
+
+func _run() -> void:
+	var a:=OS.get_cmdline_user_args()
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and not S.occupied()
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and not FileAccess.file_exists("user://season-v1.json")
+			and a.size()==5 and a[0] in ["preflight","full","cold"],"isolated explicit mode and pinned external evidence operands"): return
+	for i in range(4):
+		if not _expect(FileAccess.get_sha256(a[i+1])==INPUTS[i],"exact archived worker raw input "+str(i)): return
+	var first: Dictionary=PhysicalJobFiles.read(a[1])
+	var second: Dictionary=PhysicalJobFiles.read(a[3])
+	if not _expect(Draft.same(first.draft,second.draft),"one shared exact draft, no reconstruction of fake worker results"): return
+	prior_draft=first.draft
+	for i in range(2):
+		var request: Dictionary=PhysicalJobFiles.read(a[1+i*2])
+		var response: Dictionary=PhysicalJobFiles.read(a[2+i*2])
+		if not _expect(response.token==request.token and response.request_sha256==Npc.canonical(request).sha256_text()
+				and Draft.same(response.report.binding,request.binding),"exact prior worker request/response pair"): return
+		reports.append(response.report)
+	if a[0]=="cold":
+		_cold()
+		return
+	if not _expect(not FileAccess.file_exists(FILE) and not FileAccess.file_exists(RAW),"new inert QA persistence paths"): return
+	var context:=Pending.prepare(prior_draft)
+	if not _expect(not context.is_empty() and Pending._valid_npc(reports,context),"both real archived reports match exact opening draft"): return
+	_preflight=context
+	var altered: Dictionary=reports[0].duplicate(true)
+	altered.binding.venue=reports[1].binding.venue
+	var stale: Dictionary=reports[1].duplicate(true)
+	stale.binding.draft_sha256="a".repeat(64)
+	var transplanted: Dictionary=reports[0].duplicate(true)
+	transplanted.binding=reports[1].binding.duplicate(true)
+	var oversized:=PackedByteArray()
+	oversized.resize(Pending.LIMIT+1)
+	if not _expect(not Pending._valid_npc([reports[0],reports[0]],context)
+			and not Pending._valid_npc([reports[1],reports[0]],context)
+			and not Pending._valid_npc([altered,reports[1]],context)
+			and not Pending._valid_npc([reports[0],stale],context)
+			and not Pending._valid_npc([reports[0],transplanted],context)
+			and Pending.restore(oversized).is_empty() and Pending.restore("{}".to_utf8_buffer()).is_empty()
+			and not Pending._valid_human({},context.human),"negative structure and cross-fixture/request controls"): return
+	print("STANDARD_D1_PENDING_PREFLIGHT_PASS ",context.sha)
+	if a[0]=="preflight":
+		get_tree().quit()
+		return
+	await super._run()
+
+func _verify_qa_draft(checkpoint: Dictionary) -> bool:
+	return _expect(Draft.same(checkpoint,prior_draft),"actual human driver shares archived exact draft")
+
+func _retain_qa_capture(checkpoint: Dictionary,row: Dictionary) -> bool:
+	var raw:=Npc.canonical(row)
+	if not _expect(_write_new(RAW,raw),"preserve exact raw human capture immediately at outro"): return false
+	print("STANDARD_D1_PENDING_ACTUAL_HUMAN_SHA ",FileAccess.get_sha256(RAW))
+	var envelope:=Pending.pack(checkpoint,row,reports)
+	if not _expect(not envelope.is_empty(),"native human validates and exact three entries pack"): return false
+	var encoded:=Npc.canonical(envelope)
+	if not _expect(encoded.to_utf8_buffer().size()<=Pending.LIMIT and _write_new(FILE,encoded),
+			"exclusive local QA pending file only"): return false
+	print("STANDARD_D1_PENDING_WRITE_PASS ",FileAccess.get_sha256(FILE))
+	return true
+
+func _cold() -> void:
+	var bytes:=FileAccess.get_file_as_bytes(FILE)
+	var raw:=FileAccess.get_file_as_bytes(RAW)
+	var restored:=Pending.restore(bytes)
+	if not _expect(not restored.is_empty() and Draft.same(restored.draft,prior_draft)
+			and Npc.canonical(restored.human).to_utf8_buffer()==raw and Draft.same(restored.npc,reports)
+			and Npc.canonical(restored).to_utf8_buffer()==bytes
+			and Draft.restore_common(restored.draft)==null and O.restore(restored)==null and not S.occupied(),
+			"cold exact human and two reports, no game-slot admission"): return
+	var forged: Dictionary=restored.duplicate(true)
+	forged.human.venue=reports[0].binding.venue
+	forged.human_sha256=Npc.canonical(forged.human).sha256_text()
+	var substituted: Dictionary=restored.duplicate(true)
+	substituted.draft_sha256=reports[1].binding.venue
+	var context:=Pending.prepare(prior_draft)
+	if not _expect(not Pending._valid(forged,context) and not Pending._valid(substituted,context)
+			and FileAccess.get_file_as_bytes(FILE)==bytes and FileAccess.get_file_as_bytes(RAW)==raw,
+			"rehashed wrong human venue, wrong draft digest rejected, files byte-inert"): return
+	print("STANDARD_D1_PENDING_COLD_PASS ",FileAccess.get_sha256(FILE)," human=",FileAccess.get_sha256(RAW))
+	get_tree().quit()
+
+func _write_new(path: String, value: String) -> bool:
+	if FileAccess.file_exists(path) or FileAccess.file_exists(path+".tmp"): return false
+	var file:=FileAccess.open(path+".tmp",FileAccess.WRITE)
+	if file==null: return false
+	file.store_string(value)
+	file.flush()
+	var ok: bool=file.get_error()==OK
+	file.close()
+	return ok and not FileAccess.file_exists(path) and DirAccess.rename_absolute(path+".tmp",path)==OK

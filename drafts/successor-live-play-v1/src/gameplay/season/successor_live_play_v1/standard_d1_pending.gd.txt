@@ -1,0 +1,70 @@
+extends RefCounted
+## Immutable detached opening evidence. Not a game save, claim or settlement.
+const Npc=preload("standard_d1_npc.gd")
+const Opening=preload("standard_d1_opening.gd")
+const Codec=preload("codec.gd")
+const Evidence=preload("evidence_boundary.gd")
+const Called=preload("res://src/gameplay/season/successor_league_general_v2/called_proof.gd")
+const KIND: String="common-standard-d1-opening-pending-v1"
+const LIMIT: int=2*1024*1024
+
+static func prepare(draft: Variant) -> Dictionary:
+	if not draft is Dictionary or not draft.get("state") is Dictionary \
+			or not draft.state.get("schedule") is Array: return {}
+	var selected: Dictionary={}
+	for row: Variant in draft.state.schedule:
+		if row is Dictionary and row.get("id")==0:
+			if not selected.is_empty(): return {}
+			selected=row
+	if selected.is_empty(): return {}
+	var human:=Opening.prepare(draft,selected)
+	if human.is_empty(): return {}
+	var first:=Npc.prepare(draft,1)
+	var second:=Npc.prepare(draft,2)
+	if first.is_empty() or second.is_empty() or first.binding.draft_sha256!=second.binding.draft_sha256: return {}
+	return {"draft":human.snapshot,"sha":first.binding.draft_sha256,"human":human,"jobs":[first,second]}
+
+static func _valid_human(row: Variant, human: Dictionary) -> bool:
+	if not row is Dictionary or not SeasonOwnership._keys(row,["version","fixture","field","venue","pitch_catalog","human"]) \
+			or not Codec.whole(row.version,1,1) or not Codec.same(row.fixture,human.fixture) \
+			or row.field!=String(human.field.id) or row.venue!=human.venue \
+			or row.pitch_catalog!=human.state.pitch_catalog \
+			or not Evidence.codec_human_shape(row.human,{},row.pitch_catalog) or row.human[0]!=0: return false
+	var season: SeasonState=human.season
+	var ids: Array[String]=[]
+	for team: TeamMatchState in [human.state.away_team,human.state.home_team]:
+		for player: PlayerMatchState in team.roster: ids.append(String(player.definition.id))
+	var stats: Dictionary=row.human[3]
+	if not Codec.keys(stats,ids): return false
+	for id: String in ids:
+		if not stats[id] is Dictionary or not Codec.whole(stats[id].get("pa"),0,9999) \
+				or not Codec.whole(stats[id].get("pitches"),0,9999): return false
+	if Called.enabled(season.build) and not Called.accepts(season.build,row.human[9]): return false
+	return true
+
+static func _valid_npc(rows: Variant, context: Dictionary) -> bool:
+	return rows is Array and rows.size()==2 \
+		and Npc.valid(rows[0],context.jobs[0]) and Npc.valid(rows[1],context.jobs[1])
+
+static func _valid(value: Variant, context: Dictionary) -> bool:
+	return not context.is_empty() and value is Dictionary \
+		and SeasonOwnership._keys(value,["version","kind","draft","draft_sha256","human","human_sha256","npc"]) \
+		and Codec.whole(value.version,1,1) and value.kind==KIND and value.draft_sha256==context.sha \
+		and Codec.same(value.draft,context.draft) and _valid_human(value.human,context.human) \
+		and Npc.canonical(value.human).sha256_text()==value.human_sha256 and _valid_npc(value.npc,context)
+
+static func pack(draft: Variant, human: Variant, reports: Variant) -> Dictionary:
+	var context:=prepare(draft)
+	if context.is_empty() or not Codec.primitive(human) or not Codec.primitive(reports): return {}
+	var row: Dictionary={"version":1,"kind":KIND,"draft":draft,"draft_sha256":context.sha,
+		"human":human,"human_sha256":Npc.canonical(human).sha256_text(),"npc":reports}
+	return row.duplicate(true) if _valid(row,context) else {}
+
+static func restore(bytes: PackedByteArray) -> Dictionary:
+	if bytes.is_empty() or bytes.size()>LIMIT: return {}
+	var encoded:=bytes.get_string_from_utf8()
+	var value: Variant=JSON.parse_string(encoded)
+	if not value is Dictionary or value.get("kind")!=KIND or not Codec.primitive(value) \
+			or Npc.canonical(value)!=encoded: return {}
+	var context:=prepare(value.get("draft"))
+	return value if _valid(value,context) else {}

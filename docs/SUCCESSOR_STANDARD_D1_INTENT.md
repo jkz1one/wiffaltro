@@ -478,3 +478,43 @@ and venue transplants reject. No shared save or settlement is produced.
 The earlier complete human run retained a digest/log, not the row;
 the next human run should capture directly into an isolated pending
 format once that format is ready.
+
+### Isolated opening pending envelope
+
+The detached `common-standard-d1-opening-pending-v1` envelope carries
+the original CP176 draft, exact human capture, and the two separately
+retained, ordered D1 NPC reports. The current draft is reconstructed
+rather than accepted by hash alone. Each of the three fixtures derives
+its exact field, venue and successor catalog again. Human evidence
+must have the existing Common field-independent result/called shape
+and exact rosters. The NPC reports revalidate their full baseball
+core and each venue-specific contact/provenance contract. Wrong,
+reordered, repeated or transplanted results are rejected.
+
+The extra human checksum protects transport identity, not genuine-title
+authority or arbitrary edited scores. The original human row originates
+at the native outro and is stored separately before assembling the
+pending envelope. Canonical cold validation reopens the full evidence
+without admitting it through either existing game reader. The QA file
+uses a new scratch-only name, a size cap, and an atomic new-file rename;
+it cannot replace a career slot. No round settlement, payout, calendar
+advance, normal Continue, or public D1 entry uses this envelope.
+
+For QA, stage the existing transition and opening QA scripts as
+`res://transition.gd` and `res://opening.gd` and attach
+`successor_standard_d1_pending.gd.txt` to a separate scratch Node scene.
+Use the authored-project assembly and isolated/engineering flags.
+Pass `-- preflight <fixture1 request> <fixture1 response> <fixture2 request>
+<fixture2 response>`; repeat with `full` for the one real human match
+and `cold` in a distinct process with the same disposable profile.
+Both worker inputs are fixed by their audited raw hashes and never
+rerun in this test.
+
+A later settlement must preflight both NPC reports (including committed
+sponsor/choice policy, opening stamina and exact per-club tactics and
+performance) before applying anything to a detached candidate. Existing
+legacy machinery can append the first result before a later report
+fails. Prove a corrupt second report leaves original pending bytes and
+all six reward journals unchanged, then verify three real results and
+all six rewards exactly once on the successful path. This checkpoint
+does not implement or test any of that payout logic.

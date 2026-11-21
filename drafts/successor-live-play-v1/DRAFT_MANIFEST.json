@@ -242,6 +242,12 @@
       "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.tscn",
       "bytes": 225,
       "sha256": "dff46417e84a4229bb28edaea7e5a2b71142be50c36cd97c524ee1e68b62ca15"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_pending.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_pending.gd",
+      "bytes": 3861,
+      "sha256": "6e23844c3727b6d72f30e88f9b4a196c91bab32e0c94380a775e226d3f0b95ef"
     }
   ],
   "additions": [

@@ -32,6 +32,7 @@ func _run() -> void:
 	for n in range(4):
 		if not _expect(d1.choose_player(d1.offers()[0]),"native choice "+str(n)): return
 	var checkpoint: Dictionary=Draft.capture_d1_draft(d1)
+	if not _verify_qa_draft(checkpoint): return
 	var fixture: Dictionary=d1.pending_fixture()
 	var opening: Dictionary=Opening.prepare(checkpoint,fixture)
 	if opening.is_empty() or opening.venue!=Oracle:
@@ -102,7 +103,14 @@ func _run() -> void:
 	print("STANDARD_D1_MATERIALIZED_OPENING_PASS ",JSON.stringify({"fixture":row.fixture,"field":row.field,
 		"venue":row.venue,"pitch_catalog":row.pitch_catalog,"away":row.human[1],"home":row.human[2],
 		"evidence_sha256":JSON.stringify(row,"",true,true).sha256_text()}))
+	if not _retain_qa_capture(checkpoint,row): return
 	await _finish_host(host)
+
+func _verify_qa_draft(_checkpoint: Dictionary) -> bool:
+	return true
+
+func _retain_qa_capture(_checkpoint: Dictionary, _row: Dictionary) -> bool:
+	return true
 
 func _finish_host(host: SeasonApp) -> void:
 	host.queue_free()
