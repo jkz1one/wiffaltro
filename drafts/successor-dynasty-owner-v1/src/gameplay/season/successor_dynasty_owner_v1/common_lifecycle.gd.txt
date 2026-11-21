@@ -4,6 +4,7 @@ const ClubLeagueCareer=preload("res://src/gameplay/season/club_league_career.gd"
 const C = preload("codec.gd")
 const Adapter = preload("session_adapter.gd")
 const Life = preload("lifecycle.gd")
+const WorkshopHistory = preload("workshop_close_history.gd")
 const Progress = preload("common_progress.gd")
 const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
 const ORDINARY_FIELDS: Array[String]=["lineage","ordinal","status","last_close","proposal","last_transition","start_basis_sha256"]
@@ -164,7 +165,7 @@ static func _apply_close(owner, reason: String, source: Dictionary) -> bool:
 	var folded: Dictionary=Progress.fold(owner.common.aggregate,owner.active,season,id,sequence,reason)
 	if folded.is_empty(): return false
 	if owner.active=="dynasty":
-		if not Life.close(owner,reason): return false
+		if not Life.close(owner,reason) or not WorkshopHistory.append_close(owner): return false
 	else:
 		var league: String=str(season.league_rules.get("league","standard"))
 		var tier: int=int(season.league_rules.get("tier",0))

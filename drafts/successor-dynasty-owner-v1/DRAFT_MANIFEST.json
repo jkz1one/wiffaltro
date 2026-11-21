@@ -36,8 +36,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/common_lifecycle.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/common_lifecycle.gd",
-      "bytes": 24158,
-      "sha256": "03c13e3575a09b8ed9555be5ec6204b9b98b812d8444d20f6bed78745754aa6c"
+      "bytes": 24262,
+      "sha256": "0615a15f3eb5f462268219b714e6c6939e12f18ef497f6060fda688eb7b855e9"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/common_progress.gd.txt",
@@ -120,14 +120,14 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner.gd",
-      "bytes": 15899,
-      "sha256": "529b06825b57ee9a9d9d0b29a4e93d75189ad057e1364b46115d6159155708c1"
+      "bytes": 16468,
+      "sha256": "6ccb916479159d7002d4a805f17e7dce22d1670090195fa070abfee0c93bdab9"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 42490,
-      "sha256": "1401f753ed39e8ae81a5fc94875d60a5caaf68328b83ac5dc45254e6e2a4147d"
+      "bytes": 42671,
+      "sha256": "f99b60da14896fca9883c31d592868a2ed03e05d93ef4cf9c451ce66cc1fb8b5"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -722,6 +722,12 @@
       "restore_path": "tests/successor_projection_dynasty_benchmark.tscn",
       "bytes": 202,
       "sha256": "fb1a7b3af2ec21d09ed9eb9b12e458832a7a3b00daaf68fdee29cad40da54f38"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/workshop_close_history.gd.txt",
+      "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/workshop_close_history.gd",
+      "bytes": 4533,
+      "sha256": "d3e36e6f24711c430df27f87fd474978c19f32c58de4c7773738adfcf4ba8bdf"
     }
   ],
   "additions": [

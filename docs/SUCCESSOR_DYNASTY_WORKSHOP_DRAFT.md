@@ -58,3 +58,38 @@ seasons), or the Original Game ledger. Preserve validated Close receipts
 before Next clears its single last-close slot. Applying the layout and binding
 it to actual home fixtures will require a compatible request, report and
 settlement path, not loosening the existing validators.
+
+## Retain Dynasty's close receipts before Next
+
+The Common V4 Close operation now preserves a Dynasty-only, lineage-bound
+history alongside the current session. It retains one contiguous compact score
+proof per new close: a completed season carries the exact native award receipt;
+an abandoned season carries no receipt. Existing V4 saves still read without
+the optional field. If the history starts on an older career, the previous
+Dynasty-local completed count, balance and title status are an opening
+reconciliation only. No old receipts are fabricated or credited by this feature.
+
+The history checks native schedule and finish, regular-season wins, award math,
+one-time first title, contiguous ordinals and exact agreement with the local
+Dynasty ledger. A still-closed live season must also match the source digest,
+prior balance and actual score proof. After Next, the retained score proofs
+validate consistency; they are not archived physical match reports. New rows
+are issued only by the existing strict Close path. The archive is bounded by
+the existing 1,024-run limit, not full playable save snapshots. No wallet,
+purchase, field apply, or new unlock consumes this history yet.
+
+The native test `tests/successor_dynasty_workshop_close_history.gd.txt` uses
+the same one-node scene setup as above. In an isolated test process, `vectors`
+checks explicitly synthetic receipt math/first title and rejects malformed
+records, wrong lineage, duplicate or missing ordinal continuity, repeated
+bonus, paid abandon and mismatched totals. On a separate copy of the same
+CP153 played fixture, `abandon` exercises actual Close, duplicate refusal,
+tamper rejection and Next. Then `cold` reopens in a fresh process and checks
+the retained zero-credit entry, unchanged parked ordinary session at Next,
+and untouched Original Game path. The earlier Workshop tests were also rerun.
+
+A naturally completed terminal Dynasty save is still needed to qualify a
+positive completion award through the new archive. The older exact 33-game
+fixture is mentioned in the historical qualification notes; its save bytes
+were not available in the local and private backup sources checked. These
+tests do not substitute a synthetic win for that end-to-end proof.

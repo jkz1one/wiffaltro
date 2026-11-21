@@ -1,0 +1,67 @@
+extends RefCounted
+## Retain the compact basis for future Workshop earnings. This is not a wallet.
+## Only the already-qualified Common V4 Close path issues a row. Prior scalar
+## balances are reconciled but never treated as receipt-backed workshop income.
+const C = preload("codec.gd")
+const Life = preload("lifecycle.gd")
+const MAX_CURRENCY: int = ClubCareer.MAX_RUNS * 220
+
+static func opening(ledger: Dictionary) -> Dictionary:
+	return {"closed":ledger.closed,"completed":ledger.completed,"currency":ledger.currency,"champion":ledger.titles.get("dynasty",false)}
+
+static func append_close(owner) -> bool:
+	if owner.active!="dynasty" or owner.status!="closed" or owner.last_close.is_empty(): return false
+	var close: Dictionary=owner.last_close
+	var value: Dictionary=owner.workshop_close_history.duplicate(true)
+	if value.is_empty():
+		value={"version":1,"lineage":Life.lineage(owner),"opening":opening(close.before),"rows":[]}
+	# Every actual close is retained, including a zero-credit abandonment.
+	value.rows.append({"ordinal":owner.ordinal,"source":close.session_sha256,"reason":close.reason,
+		"proof":ClubSeasonRecord.capture(owner.session),"receipt":close.receipt.duplicate(true)})
+	if not valid_history(value,owner.ledger,Life.lineage(owner),close): return false
+	owner.workshop_close_history=value
+	return true
+
+static func valid_history(value: Dictionary, ledger: Dictionary, lineage: String, close: Dictionary) -> bool:
+	if not C.keys(value,["version","lineage","opening","rows"]) or not C.whole(value.version,1,1) or value.lineage!=lineage or not value.rows is Array or value.rows.is_empty(): return false
+	var base: Variant=value.opening
+	if not C.keys(base,["closed","completed","currency","champion"]) or not C.whole(base.closed,0,ClubCareer.MAX_RUNS-1): return false
+	if not C.whole(base.completed,0,int(base.closed)) or not C.whole(base.currency,0,MAX_CURRENCY) or not base.champion is bool: return false
+	if (base.completed==0 and (base.currency!=0 or base.champion)) or int(base.closed)+value.rows.size()!=ledger.get("closed"): return false
+	if value.rows.size()>ClubCareer.MAX_RUNS or not ledger.get("titles") is Dictionary: return false
+	if not close.is_empty():
+		if not C.keys(close,["id","ordinal","reason","session_sha256","profiles","before","receipt"]) or not close.before is Dictionary or not preload("ledger.gd").valid(close.before): return false
+	var completed: int=int(base.completed)
+	var currency: int=int(base.currency)
+	var champion: bool=base.champion
+	var ordinal: int=int(base.closed)
+	for row: Variant in value.rows:
+		ordinal+=1
+		if not C.keys(row,["ordinal","source","reason","proof","receipt"]) or not C.whole(row.ordinal,ordinal,ordinal) or not _digest(row.source): return false
+		if row.reason not in ["complete","abandon"] or not row.receipt is Dictionary or not row.proof is Dictionary: return false
+		if not C.same(row.proof.get("league_rules"),LeagueRules.capture("dynasty")): return false
+		var summary: Dictionary=ClubSeasonRecord.analyze(row.proof)
+		if summary.is_empty() or (row.reason=="complete")!=(summary.finish!="unfinished"): return false
+		var receipt: Dictionary=ClubSeasonRecord.receipt(row.proof,not champion,0) if row.reason=="complete" else {}
+		if (row.reason=="complete" and receipt.is_empty()) or not C.same(row.receipt,receipt): return false
+		if ordinal==ledger.get("closed") and not close.is_empty() and not C.same(opening(close.before),{"closed":ordinal-1,"completed":completed,"currency":currency,"champion":champion}): return false
+		if row.reason=="complete":
+			completed+=1
+			currency+=int(receipt.total)
+			champion=champion or receipt.finish=="champion"
+	if completed!=ledger.get("completed") or currency!=ledger.get("currency") or champion!=ledger.titles.get("dynasty",false): return false
+	if not close.is_empty():
+		var last: Dictionary=value.rows[-1]
+		if last.ordinal!=close.ordinal or last.source!=close.session_sha256 or last.reason!=close.reason or not C.same(last.receipt,close.receipt): return false
+	return true
+
+static func matches_current(value: Dictionary, season: SeasonState, close: Dictionary) -> bool:
+	if value.is_empty() or close.is_empty(): return true
+	var rows: Variant=value.get("rows")
+	return rows is Array and not rows.is_empty() and rows[-1] is Dictionary and C.same(rows[-1].get("proof"),ClubSeasonRecord.capture(season))
+
+static func _digest(value: Variant) -> bool:
+	if not value is String or value.length()!=64: return false
+	for char: String in value:
+		if char not in "0123456789abcdef": return false
+	return true

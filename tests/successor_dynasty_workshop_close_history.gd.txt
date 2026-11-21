@@ -1,0 +1,107 @@
+extends Node
+## Synthetic scoring vectors plus a separately restored, actually played abandonment.
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const History = preload("res://src/gameplay/season/successor_dynasty_owner_v1/workshop_close_history.gd")
+const Codec = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+const ORIGINAL = "user://season-v1.json"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func check(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ") + label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _score(season: SeasonState, id: int, away: int, home: int, winner: int) -> void:
+	season.results.append({"id":id,"away":away,"home":home,"away_runs":3 if winner==away else 0,"home_runs":3 if winner==home else 0})
+
+func _synthetic_proof() -> Dictionary:
+	var season := SeasonState.new()
+	for index: int in range(6):
+		season.teams.append({"draw":float(index)/6.0})
+	season._build_schedule()
+	season.league_rules=LeagueRules.capture("dynasty")
+	for fixture: Dictionary in season.schedule:
+		_score(season,fixture.id,fixture.away,fixture.home,fixture.away if fixture.home!=0 else 0)
+	var seeds: Array=season.standings().slice(0,4).map(func(row: Dictionary) -> int: return row.team)
+	_score(season,30,seeds[3],seeds[0],seeds[0])
+	_score(season,31,seeds[2],seeds[1],seeds[1])
+	_score(season,32,seeds[1],seeds[0],seeds[0])
+	return ClubSeasonRecord.capture(season)
+
+func _vectors() -> bool:
+	var proof := _synthetic_proof()
+	var first := ClubSeasonRecord.receipt(proof,true)
+	var later := ClubSeasonRecord.receipt(proof,false)
+	if not check(first.get("total")==220 and first.get("wins")==10 and later.get("total")==195,"synthetic only: native ten regular wins and one first-title bonus"):
+		return false
+	var abandoned := proof.duplicate(true)
+	abandoned.scores.resize(3)
+	var value := {"version":1,"lineage":"dynasty:1","opening":{"closed":2,"completed":1,"currency":44,"champion":false},"rows":[
+		{"ordinal":3,"source":"a".repeat(64),"reason":"abandon","proof":abandoned,"receipt":{}},
+		{"ordinal":4,"source":"b".repeat(64),"reason":"complete","proof":proof,"receipt":first},
+		{"ordinal":5,"source":"c".repeat(64),"reason":"complete","proof":proof,"receipt":later}]}
+	var local := {"closed":5,"completed":3,"currency":459,"titles":{"dynasty":true}}
+	var disk: Dictionary=JSON.parse_string(JSON.stringify(value,"",true,true))
+	if not check(History.valid_history(value,local,"dynasty:1",{}) and History.valid_history(disk,local,"dynasty:1",{}),"synthetic only: round-trip ledger reconciliation uses legacy opening but issues nothing for it"):
+		return false
+	for mutation: String in ["gap","wrong-side","double-title","wrong-source","paid-abandon","now-incomplete","overpaid","malformed-row"]:
+		var bad := value.duplicate(true)
+		match mutation:
+			"gap": bad.rows[1].ordinal=3
+			"wrong-side": bad.lineage="ordinary:1"
+			"double-title": bad.rows[2].receipt=first
+			"wrong-source": bad.rows[1].source="short"
+			"paid-abandon": bad.rows[0].receipt=first
+			"now-incomplete": bad.rows[1].proof=abandoned
+			"overpaid": bad.opening.currency=45
+			"malformed-row": bad.rows[1]=null
+		if not check(not History.valid_history(bad,local,"dynasty:1",{}),"synthetic rejection: "+mutation):
+			return false
+	return true
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["vectors","abandon","cold"],"isolated synthetic profile"):
+		return
+	if args[0]=="vectors":
+		if _vectors(): get_tree().quit(0)
+		return
+	var before := Store.raw()
+	var legacy := FileAccess.get_file_as_bytes(ORIGINAL)
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(app.career_owner!=null and app._owned() and app.career_owner.active=="dynasty" and before==Store.raw(),"existing actual routed Dynasty fixture restores without writing"):
+		return
+	if args[0]=="abandon":
+		var wire: Dictionary=JSON.parse_string(before.get_string_from_utf8())
+		if not check(app.career_owner.ordinal==1 and app.season.results.size()==3 and not wire.has("workshop_close_history"),"actual earned regular round in old V4 format"):
+			return
+		app.close_current("abandon")
+		var owner=app.career_owner
+		var history: Dictionary=owner.workshop_close_history
+		if not check(owner.status=="closed" and app._owned() and not history.is_empty() and history.opening.closed==0 and history.rows.size()==1 and history.rows[0].reason=="abandon" and history.rows[0].receipt.is_empty() and history.rows[0].source==owner.last_close.session_sha256 and owner.ledger.currency==0,"real Close stores one exact zero-credit row"):
+			return
+		var paid: PackedByteArray=Store.raw()
+		app.close_current("abandon")
+		if not check(Store.raw()==paid,"duplicate Close leaves archive and slots unchanged"): return
+		var malformed: Dictionary=JSON.parse_string(paid.get_string_from_utf8())
+		malformed.workshop_close_history.rows[0].proof.scores[0][3]+=1
+		if not check(Owner.restore(malformed)==null,"restored close refuses changed archive proof"): return
+		app.propose_next()
+		app.commit_next()
+		var carried: Dictionary=JSON.parse_string(Store.raw().get_string_from_utf8())
+		if not check(app.career_owner.ordinal==2 and app.career_owner.last_close.is_empty() and Codec.same(carried.workshop_close_history,history) and Codec.same(carried.ordinary,wire.ordinary),"Next retains archive independently without changing parked Ordinary"):
+			return
+	else:
+		var owner=app.career_owner
+		if not check(owner.ordinal==2 and owner.last_close.is_empty() and owner.workshop_close_history.rows.size()==1 and owner.workshop_close_history.rows[0].receipt.is_empty() and Store.raw()==before,"cold run two retains zero-credit history without writing"):
+			return
+	if not check(not legacy.is_empty() and legacy==FileAccess.get_file_as_bytes(ORIGINAL),"Original Game slot untouched"):
+		return
+	get_tree().quit(0)

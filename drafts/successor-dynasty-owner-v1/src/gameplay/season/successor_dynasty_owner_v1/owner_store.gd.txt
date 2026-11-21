@@ -100,7 +100,8 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 	if FileAccess.file_exists(PATH+".tmp") or (expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
 	# Unbound legacy writes cannot create, replace, or erase workshop metadata.
 	var previous: Variant=Owner._bytes_value(expected)
-	if not season.workshop_draft.is_empty() or (previous is Dictionary and previous.has("workshop_draft")): return false
+	if not season.workshop_draft.is_empty() or not season.workshop_close_history.is_empty(): return false
+	if previous is Dictionary and (previous.has("workshop_draft") or previous.has("workshop_close_history")): return false
 	var data: Dictionary = Owner.capture(season)
 	if data.is_empty() or (not expected_snapshot.is_empty() and not Codec.same(data,expected_snapshot)):
 		last_error = "This candidate is inconsistent with the materialized save contract."
@@ -148,7 +149,7 @@ static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
 static func _routine_pins(candidate: RefCounted) -> bool:
 	if candidate.active!=_active or not RawGuard.same(candidate.paused,_paused) or candidate.imported_sha256!=_imported_sha256: return false
 	if not RawGuard.same(candidate.migration_v2,_metadata.get("migration_v2")): return false
-	for name: String in ["common","ordinary_state","migration_v3","workshop_draft"]:
+	for name: String in ["common","ordinary_state","migration_v3","workshop_draft","workshop_close_history"]:
 		if not RawGuard.same(candidate.get(name),_metadata.get(name)): return false
 	if _active=="ordinary": return RawGuard.same(Codec.data_fields(candidate,Owner.META_FIELDS),_metadata)
 	return candidate.birth_seed==_metadata.get("birth_seed")
@@ -164,7 +165,7 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 	if saving or _ticket != null or candidate == null or candidate == owner or _paired_settled(owner): return null
 	if candidate.get_script()!=Owner or candidate.session==null or _paired_settled(candidate): return null
 	if owner == null:
-		if not expected.is_empty() or not _matches(expected) or not candidate.workshop_draft.is_empty(): return null
+		if not expected.is_empty() or not _matches(expected) or not candidate.workshop_draft.is_empty() or not candidate.workshop_close_history.is_empty(): return null
 	else:
 		if not match_owner(owner,expected) or candidate.session==owner.session: return null
 	# Only this private boundary creates the writer's canonical payload. Callers
