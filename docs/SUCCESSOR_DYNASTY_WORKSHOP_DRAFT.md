@@ -182,3 +182,29 @@ script in a scratch test scene of the CP163 source assembly. Use the
 exact pre-home synthetic primary and backup hashes pinned in the test,
 an isolated profile and both private engineering/test flags above. The test
 refuses other slots and never contributes a score to the season.
+
+### Equip the purchased chair
+
+In a closed Dynasty Workshop, **Save Purchased Chair Draft** selects the
+already purchased ST-079 for the primary receiver. It can replace an
+unapplied free draft. **Apply Purchased Chair for Next Season** records the
+selection; it does not charge again or change the completed season. There is
+one receiver slot, not a second live chair or a different collision effect.
+The free copy remains owned but stored and the previous free Apply format is
+unchanged. No applied layout is edited in this increment.
+
+The paid draft and Apply record use version 2. The V4 owner replays the
+original purchase against its exact earned Close prefix, then performs native
+Draft and Apply on that ledger. The paid snapshot must match the single native
+session transport shape; an exact shape alone is never authority to admit an
+owner or enable a field. The owner independently binds the replay and the
+future carried season to its exact lineage and Close ordinal. Older V2/V3
+owners still reject stadium snapshots. Ordinary, away and neutral games
+remain outside this placement.
+
+The isolated `tests/successor_dynasty_workshop_paid_placement.gd.txt` requires
+the actual generated CP167 paid closed primary and its immediate predecessor,
+not fabricated credit. Run `apply`, `cold`, `next`, and `home-cold` in
+separate Godot processes against the same scratch profile. This checks the
+native App write/reopen and projected home MatchState, not a subsequently
+played paid-layout baseball game, receiver collision, or a rendered pass.

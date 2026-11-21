@@ -1,18 +1,45 @@
 extends RefCounted
-## One exact free starter-chair application, independent of paid inventory.
+## One native primary receiver. A paid copy substitutes for, never adds to, the free chair.
 const Life = preload("lifecycle.gd")
+const Purchase = preload("workshop_purchase.gd")
 
 static func snapshot(seed: int) -> Dictionary:
 	var ledger:=ClubAssetLedger.new(seed,[0],[],{})
+	return _freeze(ledger,"starter-v1:ST-079")
+
+static func _freeze(ledger: ClubAssetLedger, copy: String) -> Dictionary:
 	var layout:=StadiumStarterLayout.empty()
-	layout.receiver="starter-v1:ST-079"
+	layout.receiver=copy
+	var revision: int=ledger.revision()
+	var balance: int=ledger.balance()
 	if not StadiumStarterLayout.validate(layout,ledger.construction()).ok: return {}
-	if not ledger.commit({"id":"stadium-draft:0","rev":0,"op":"stadium_draft","layout":layout}).ok: return {}
-	if not ledger.commit({"id":"stadium-apply:1","rev":1,"op":"stadium_apply","layout":layout,
+	if not ledger.commit({"id":"stadium-draft:%d"%revision,"rev":revision,"op":"stadium_draft","layout":layout}).ok: return {}
+	revision+=1
+	if not ledger.commit({"id":"stadium-apply:%d"%revision,"rev":revision,"op":"stadium_apply","layout":layout,
 		"geometry":StadiumOwnedLayout.geometry("backyard",layout)}).ok: return {}
 	var result:=StadiumLayoutSnapshot.capture(ledger)
-	if result.is_empty() or not StadiumLayoutSnapshot.matches(result,ledger) or ledger.balance()!=0: return {}
+	if result.is_empty() or not StadiumLayoutSnapshot.matches(result,ledger) or ledger.balance()!=balance: return {}
 	return result
+
+# A native session's transport shape is not proof of Dynasty ownership.
+# Only the V4 owner can authorize the paid home property from authenticated Close history.
+static func _paid_shape(seed: int) -> Dictionary:
+	var ledger:=ClubAssetLedger.new(seed,[Purchase.PRICE],[],{})
+	if not ledger.commit({"id":"stadium-buy:0","rev":0,"op":"stadium_buy","item":Purchase.ITEM,
+		"quantity":1,"through":1,"price_version":StadiumPurchases.VERSION}).ok: return {}
+	return _freeze(ledger,Purchase.COPY)
+
+static func paid_draft(owner) -> Dictionary:
+	var ledger:=Purchase.placement_ledger(owner)
+	if ledger==null: return {}
+	var layout:=StadiumStarterLayout.empty()
+	layout.receiver=Purchase.COPY
+	if not StadiumStarterLayout.validate(layout,ledger.construction()).ok: return {}
+	return {"version":2,"lineage":Life.lineage(owner),"layout":layout}
+
+static func can_select_paid(owner) -> bool:
+	return owner.status=="closed" and owner.workshop_applied.is_empty() \
+		and owner.workshop_draft.get("version")!=2 and not paid_draft(owner).is_empty()
 
 static func issue(owner) -> Dictionary:
 	if owner.active!="dynasty" or owner.status!="closed" or owner.workshop_draft.is_empty() or not owner.workshop_applied.is_empty(): return {}
@@ -25,9 +52,17 @@ static func _record(owner, ordinal: int) -> Dictionary:
 	if index<0 or index>=history.rows.size(): return {}
 	var row: Dictionary=history.rows[index]
 	if row.ordinal!=ordinal: return {}
-	var frozen:=snapshot(owner.birth_seed)
+	var paid: bool=owner.workshop_draft.get("version")==2
+	var frozen: Dictionary
+	if paid:
+		var ledger:=Purchase.placement_ledger(owner)
+		if ledger==null or int(owner.workshop_chair_purchase.ordinal)>ordinal: return {}
+		frozen=_freeze(ledger,Purchase.COPY)
+		if not ClubCareer.same(frozen,_paid_shape(owner.birth_seed)): return {}
+	else:
+		frozen=snapshot(owner.birth_seed)
 	if frozen.is_empty() or not ClubCareer.same(frozen.layout,owner.workshop_draft.get("layout")): return {}
-	return {"version":1,"lineage":Life.lineage(owner),"closed_ordinal":ordinal,
+	return {"version":2 if paid else 1,"lineage":Life.lineage(owner),"closed_ordinal":ordinal,
 		"source":row.source,"snapshot":frozen}
 
 static func valid(owner) -> bool:
@@ -50,7 +85,9 @@ static func native_season_valid(season: SeasonState) -> bool:
 	var basis: Dictionary=season.career.start_basis
 	if basis.get("kind")!="dynasty-carried-start-v2" or not SeasonOwnership._whole(basis.get("birth_seed"),0,2147483647) \
 		or not SeasonOwnership._whole(start.get("season_ordinal"),2,ClubCareer.MAX_RUNS): return false
-	var expected:=snapshot(int(basis.birth_seed))
+	var layout: Variant=season.home_property.get("layout")
+	var expected:=_paid_shape(int(basis.birth_seed)) if layout is Dictionary and layout.get("receiver")==Purchase.COPY \
+		else snapshot(int(basis.birth_seed))
 	return not expected.is_empty() and ClubCareer.same(season.home_property,expected)
 
 static func fixture(season: SeasonState, row: Dictionary) -> Dictionary:

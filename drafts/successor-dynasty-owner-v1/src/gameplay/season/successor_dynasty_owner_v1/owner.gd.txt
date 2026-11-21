@@ -192,7 +192,9 @@ static func _base_valid(owner) -> bool:
 		if not Codec.keys(owner.migration_v2,["format","sha256","bytes"]) or owner.migration_v2.format!=Legacy.FORMAT or not _digest(owner.migration_v2.sha256) or not Codec.whole(owner.migration_v2.bytes,1,64*1024*1024): return false
 	if not owner.migration_v3.is_empty():
 		if not Codec.keys(owner.migration_v3,["format","sha256","bytes"]) or owner.migration_v3.format!=PreviousOwner.FORMAT or not _digest(owner.migration_v3.sha256) or not Codec.whole(owner.migration_v3.bytes,1,64*1024*1024): return false
-	if not owner.workshop_draft.is_empty() and not Codec.same(owner.workshop_draft,starter_workshop_draft(owner)): return false
+	if not owner.workshop_draft.is_empty():
+		var authored: Dictionary=WorkshopApply.paid_draft(owner) if owner.workshop_draft.get("version")==2 else starter_workshop_draft(owner)
+		if authored.is_empty() or not Codec.same(owner.workshop_draft,authored): return false
 	if not Common.valid(owner): return false
 	return (owner.workshop_close_history.is_empty() or WorkshopHistory.valid_history(owner.workshop_close_history,owner.ledger,Life.lineage(owner),owner.last_close)) and WorkshopPurchase.valid(owner) and WorkshopApply.valid(owner)
 static func _missing_dynasty(owner) -> bool:

@@ -4,6 +4,7 @@ const C = preload("codec.gd")
 const Life = preload("lifecycle.gd")
 const ITEM: String = "ST-079"
 const PRICE: int = 35
+const COPY: String = "purchase:stadium-buy:0:0"
 
 # A projection of an already validated archive, not save or purchase authority.
 static func _basis(history: Dictionary, ordinal: int) -> Dictionary:
@@ -48,6 +49,13 @@ static func valid(owner) -> bool:
 	var expected: Dictionary=_record(owner,int(saved.ordinal),basis)
 	return not expected.is_empty() and C.same(saved,expected)
 
+# Only the exact replayed purchase at its original earned prefix can fund placement.
+static func placement_ledger(owner) -> ClubAssetLedger:
+	var saved: Dictionary=owner.workshop_chair_purchase
+	if saved.is_empty() or not valid(owner): return null
+	var basis:=_basis(owner.workshop_close_history,int(saved.ordinal))
+	return ClubAssetLedger.from_data(saved.ledger,owner.birth_seed,basis.credits,basis.progress,{})
+
 static func _record(owner, ordinal: int, basis: Dictionary) -> Dictionary:
 	if basis.is_empty() or basis.through<=0 or _income(basis)<PRICE: return {}
 	var ledger:=ClubAssetLedger.new(owner.birth_seed,basis.credits,basis.progress,{})
@@ -58,7 +66,7 @@ static func _record(owner, ordinal: int, basis: Dictionary) -> Dictionary:
 		"item":ITEM,"quantity":1,"through":basis.through,"price_version":StadiumPurchases.VERSION})
 	var owned: Dictionary=ledger.construction().copies
 	if not result.get("ok",false) or result.get("replayed",true) or int(result.get("view",{}).get("spent",-1))!=PRICE or ledger.balance()!=_income(basis)-PRICE: return {}
-	if owned.size()!=starter.size()+1 or not owned.has("purchase:stadium-buy:0:0") or owned["purchase:stadium-buy:0:0"].item!=ITEM: return {}
+	if owned.size()!=starter.size()+1 or not owned.has(COPY) or owned[COPY].item!=ITEM: return {}
 	for id: String in starter:
 		if not owned.has(id) or not C.same(owned[id],starter[id]): return {}
 	var saved: Dictionary=ledger.to_data()

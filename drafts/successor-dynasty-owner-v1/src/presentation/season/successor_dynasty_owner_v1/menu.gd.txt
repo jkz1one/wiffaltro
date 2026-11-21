@@ -84,8 +84,9 @@ func render() -> void:
 func _workshop_draft() -> void:
 	var owner=app.career_owner
 	if owner.active!="dynasty": return
+	var paid: bool=owner.workshop_draft.get("version")==2
 	if not owner.workshop_draft.is_empty():
-		_note("Stadium Workshop: starter backstop chair draft saved. This does not change the field.")
+		_note("Stadium Workshop: %s backstop chair draft saved. This does not change the field."%("purchased" if paid else "starter"))
 	elif owner.get_script().workshop_window(owner):
 		_label(_body,"STADIUM WORKSHOP",18)
 		_note("Starter backstop chair · Primary receiver. Save a free draft without changing the field.")
@@ -93,15 +94,17 @@ func _workshop_draft() -> void:
 
 	if owner.status!="closed": return
 	if not owner.workshop_applied.is_empty():
-		_note("Starter chair applied for subsequent Dynasty home games. This season's record stays unchanged.")
+		_note("%s chair applied for subsequent Dynasty home games. This season's record stays unchanged."%("Purchased" if paid else "Starter"))
 	elif not owner.workshop_draft.is_empty() and not owner.workshop_close_history.is_empty() \
 		and owner.get_script().workshop_window(owner):
-		_bound_button(_body,"APPLY STARTER DRAFT FOR NEXT SEASON",Callable(app,"apply_workshop_draft"))
+		_bound_button(_body,"APPLY PURCHASED CHAIR FOR NEXT SEASON" if paid else "APPLY STARTER DRAFT FOR NEXT SEASON",Callable(app,"apply_workshop_draft"))
+	if owner.get_script().workshop_window(owner) and owner.get_script().WorkshopApply.can_select_paid(owner):
+		_bound_button(_body,"SAVE PURCHASED CHAIR DRAFT",Callable(app,"save_workshop_draft").bind(true))
 	var purchase: Script=owner.get_script().WorkshopPurchase
 	var balance: int=purchase.available_balance(owner)
 	_note("Workshop balance from recorded Dynasty seasons: %d Club Bucks."%balance)
 	if not owner.workshop_chair_purchase.is_empty():
-		_note("Extra backstop chair owned. It is not placed on the field.")
+		_note("Purchased backstop chair owns the only receiver slot on future Dynasty home fields." if paid and not owner.workshop_applied.is_empty() else "Extra backstop chair owned. It is not placed on the field.")
 	elif owner.get_script().workshop_window(owner) and balance>=purchase.PRICE:
 		_bound_button(_body,"BUY EXTRA BACKSTOP CHAIR · %d CLUB BUCKS"%purchase.PRICE,Callable(app,"buy_workshop_chair"))
 	else:

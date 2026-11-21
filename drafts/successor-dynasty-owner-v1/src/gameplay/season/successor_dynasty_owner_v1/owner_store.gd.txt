@@ -581,21 +581,24 @@ static func _prepare_paired_metadata(owner: RefCounted, expected: PackedByteArra
 
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.
-static func prepare_workshop_draft_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+static func prepare_workshop_draft_and_write(owner: RefCounted, expected: PackedByteArray, paid: bool=false) -> RefCounted:
 	forget_projection()
 	last_error=""
 	if saving or _ticket!=null or not match_owner(owner,expected): return null
-	if not owner.workshop_draft.is_empty() or not Owner.workshop_window(owner): return null
+	if not Owner.workshop_window(owner): return null
+	if paid and not Owner.WorkshopApply.can_select_paid(owner): return null
+	if not paid and not owner.workshop_draft.is_empty(): return null
 	var decoded: Variant=Owner._bytes_value(expected)
-	if not decoded is Dictionary or decoded.get("active")!="dynasty" or not decoded.get("dynasty") is Dictionary or decoded.has("workshop_draft"): return null
+	if not decoded is Dictionary or decoded.get("active")!="dynasty" or not decoded.get("dynasty") is Dictionary: return null
 	var candidate: RefCounted=Owner.new()
 	candidate.session=owner.session
 	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
-	candidate.workshop_draft=Owner.starter_workshop_draft(owner)
+	candidate.workshop_draft=Owner.WorkshopApply.paid_draft(owner) if paid else Owner.starter_workshop_draft(owner)
 	if candidate.workshop_draft.is_empty(): return null
 	var data: Dictionary=Owner.pack_current(candidate,decoded.dynasty)
 	var unchanged: Dictionary=data.duplicate()
-	unchanged.erase("workshop_draft")
+	if decoded.has("workshop_draft"): unchanged.workshop_draft=decoded.workshop_draft
+	else: unchanged.erase("workshop_draft")
 	if data.is_empty() or not Codec.same(unchanged,decoded) or not _matches_raw(owner,_owner_raw): return null
 	var budget: Array=[RawGuard.MAX_NODES,true]
 	var snapshot: Dictionary=RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)

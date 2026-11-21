@@ -1,0 +1,117 @@
+extends Node
+## Exact generated CP167 purchase, isolated native Draft / Apply / Next.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Fixtures=preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_fixtures.gd")
+const PAID="30ca1ee00572a2ab90c58c6f38ed38f1bd1bbf33ff362c94b57a199cfcbc6bee"
+const BACKUP="b7edea0e923df22194a2e90dc35c65233b4bfa313891d4d6e9a0f50dd6c6e3b2"
+const COPY="purchase:stadium-buy:0:0"
+const SEED=1982165675
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool, label: String) -> bool:
+	if not ok:
+		printerr("DYNASTY PAID PLACEMENT FAIL ",label)
+		get_tree().quit(1)
+	else:
+		print("DYNASTY PAID PLACEMENT PASS ",label)
+	return ok
+
+func _without(value: Dictionary, field: String) -> Dictionary:
+	var result:=value.duplicate()
+	result.erase(field)
+	return result
+
+func _decode(bytes: PackedByteArray) -> Dictionary:
+	return JSON.parse_string(bytes.get_string_from_utf8())
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and args.size()==3 and args[0] in ["apply","cold","next","home-cold"]
+			and FileAccess.get_sha256(args[1])==PAID and FileAccess.get_sha256(args[2])==BACKUP
+			and not FileAccess.file_exists("user://season-v1.json"),"exact generated paid archive and separate slots"): return
+	var baseline:=_decode(FileAccess.get_file_as_bytes(args[1]))
+	var primary:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not _need(app.career_owner!=null and app._owned() and Store.raw()==primary,"strict native App admission"): return
+	var owner: RefCounted=app.career_owner
+	if args[0]=="apply":
+		if not _need(FileAccess.get_sha256(Store.PATH)==PAID and FileAccess.get_sha256(Store.PATH+".bak")==BACKUP
+				and owner.workshop_draft.is_empty(),"unaltered initial CP167 pair"): return
+		app.save_workshop_draft()
+		var free_bytes:=Store.raw()
+		if not _need(free_bytes!=primary and app.career_owner.workshop_draft.version==1,"free draft route still works"): return
+		app.save_workshop_draft(true)
+		var draft_bytes:=Store.raw()
+		var draft:=_decode(draft_bytes)
+		if not _need(draft.workshop_draft.version==2 and draft.workshop_draft.layout.receiver==COPY
+				and Owner.Codec.same(_without(draft,"workshop_draft"),baseline)
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==free_bytes,"replace un-applied free draft with exact purchased copy only"): return
+		app.apply_workshop_draft()
+		owner=app.career_owner
+		var applied:=_decode(Store.raw())
+		if not _need(Owner.Codec.same(_without(applied,"workshop_applied"),draft)
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==draft_bytes,"Apply changes only optional owner field"): return
+		var after:=Store.raw()
+		app.apply_workshop_draft()
+		app.save_workshop_draft(true)
+		if not _need(Store.raw()==after and Store.prepare_workshop_chair_and_write(owner,after)==null,"repeat Apply/equip/purchase are inert"): return
+	elif not _need(Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"cold read leaves both slots unchanged"): return
+	owner=app.career_owner
+	var disk:=_decode(Store.raw())
+	if not _need(owner.workshop_applied.version==2 and owner.workshop_applied.snapshot.layout.receiver==COPY
+			and owner.workshop_applied.snapshot.layout.obstacles.is_empty()
+			and Owner.Codec.same(disk.ordinary,baseline.ordinary)
+			and Owner.Codec.same(disk.workshop_chair_purchase,baseline.workshop_chair_purchase)
+			and Owner.WorkshopPurchase.available_balance(owner)==69,"only one receiver, purchase and 69 Club Bucks retained, parked Ordinary exact"): return
+	if args[0] in ["apply","cold","next"]:
+		if not _need(owner.status=="closed" and app.season.home_property.is_empty()
+				and Owner.Codec.same(disk.dynasty,baseline.dynasty),"played Season 2 and its field unchanged"): return
+	if args[0]=="cold":
+		var forged:=disk.duplicate(true)
+		forged.workshop_applied.snapshot.layout.receiver="starter-v1:ST-079"
+		if not _need(Owner.restore(forged)==null,"forged copy refused"): return
+		forged=disk.duplicate(true)
+		forged.erase("workshop_chair_purchase")
+		if not _need(Owner.restore(forged)==null and Store.raw()==primary,"paid Apply without purchase refused"): return
+	if args[0]=="next":
+		app.propose_next(SEED)
+		app.commit_next()
+		owner=app.career_owner
+		disk=_decode(Store.raw())
+	if args[0] in ["next","home-cold"]:
+		if not _need(owner.status=="active" and owner.ordinal==3 and app.season.season_seed==SEED
+				and Owner.Codec.same(app.season.home_property,owner.workshop_applied.snapshot)
+				and Owner.Codec.same(disk.ordinary,baseline.ordinary)
+				and Owner.Codec.same(disk.workshop_chair_purchase,baseline.workshop_chair_purchase)
+				and Owner.WorkshopPurchase.available_balance(owner)==69,"native Next/genuine cold freezes exact paid snapshot in Season 3"): return
+		var home: Dictionary={}
+		var away: Dictionary={}
+		for row: Dictionary in app.season.schedule:
+			if row.home==0 and home.is_empty(): home=row
+			if row.away==0 and away.is_empty(): away=row
+		var home_match: MatchState=Fixtures.match_for(app.season,home)
+		var away_match: MatchState=Fixtures.match_for(app.season,away)
+		if not _need(home_match!=null and away_match!=null
+				and home_match.stadium.get("layout",{}).get("receiver")==COPY and away_match.stadium.is_empty()
+				and Owner.WorkshopApply.property_key(app.season,home)==StadiumLayoutSnapshot.key(home_match.stadium),
+				"authored home MatchState binds the paid receiver; away has no property"): return
+	if args[0]=="home-cold":
+		var detached:=disk.duplicate(true)
+		detached.erase("workshop_applied")
+		detached.erase("workshop_draft")
+		detached.erase("workshop_chair_purchase")
+		if not _need(Owner.restore(detached)==null and Store.raw()==primary,
+				"exact paid field without owner authorization is refused"): return
+	if not _need(FileAccess.get_sha256(args[1])==PAID and FileAccess.get_sha256(args[2])==BACKUP
+			and not FileAccess.file_exists("user://season-v1.json"),"archive and Original Game unchanged"): return
+	print("DYNASTY_PAID_PLACEMENT_",args[0]," ",FileAccess.get_sha256(Store.PATH)," ",FileAccess.get_sha256(Store.PATH+".bak"))
+	get_tree().quit()
