@@ -278,9 +278,7 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	if not physical.pending.is_empty():
 		if season.round_index==6 and not _signed_visit6_journal(build): return false
 		if projection.late_revision(season.round_index)>=0 and not _paired_late_start(season): return false
-	if not unpurchased_next_reverse_kind(season).is_empty():
-		return (physical.pending.is_empty() if detached else physical.pending.get("reports",[]).is_empty()) \
-			and physical.reports.size()==prefix
+	if not unpurchased_next_reverse_kind(season).is_empty(): return true # Physical prefix/order already checked.
 	var late_open: Dictionary=late_shop_open(season.round_index)
 	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (not late_open.is_empty() and build.revision()==int(late_open.rev)+1)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened

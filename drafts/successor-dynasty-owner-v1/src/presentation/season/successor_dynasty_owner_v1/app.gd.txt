@@ -344,6 +344,20 @@ func private_unpurchased_next_reverse() -> bool:
 		and career_owner.lifecycle_status()=="active" and Owner._missing_dynasty(career_owner) \
 		and career_owner.paused.is_empty() and not Adapter.Ordinary.unpurchased_next_reverse_kind(season).is_empty()
 
+func resume_private_unpurchased_next_reverse() -> void:
+	if not private_unpurchased_next_reverse() or not _available() or not _owned() or is_instance_valid(ai_runner): return
+	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if not factory.bound_shape(season.physical.pending) or season.physical.pending.human[0]!=9: return
+	if not retained_report.is_empty():
+		_checkpoint_report()
+		return
+	var next: Dictionary=factory.next_npc_fixture(season)
+	if next.get("id") not in [10,11]: return
+	_run_paired_npc(int(next.id))
+	if is_instance_valid(ai_runner):
+		projection={"fixture":next}
+		show_season()
+
 func play_private_unpurchased_next_reverse() -> void:
 	if not private_unpurchased_next_reverse() or not season.physical.pending.is_empty() or not _available(): return
 	_play_paired_next_return()
@@ -454,6 +468,8 @@ func _run_paired_npc(fixture_id: int) -> void:
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if season.round_index==2 and not Adapter.Ordinary.unpurchased_next_pair_kind(season).is_empty() \
 			and not private_unpurchased_next_pair(): return
+	if season.round_index==3 and not Adapter.Ordinary.unpurchased_next_reverse_kind(season).is_empty() \
+			and not private_unpurchased_next_reverse(): return
 	var job: Dictionary=factory.npc_job(season,fixture_id)
 	if job.is_empty(): return
 	_npc_expected=saved_bytes.duplicate(); _npc_owner=season; _npc_envelope=career_owner

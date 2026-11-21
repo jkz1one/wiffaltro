@@ -99,7 +99,6 @@ static func verify_bound(source: SeasonState) -> bool:
 # Read only the exact next slot. Job and Store admission independently replay it.
 static func next_npc_fixture(source: SeasonState) -> Dictionary:
 	if not Live.scope(source) or report_limit(source.round_index)==0 or not bound_shape(source.physical.pending): return {}
-	if not Live.unpurchased_next_reverse_kind(source).is_empty(): return {}
 	if source.round_index==10:
 		var playoff: Dictionary=_semifinal_fixtures(source)
 		if playoff.is_empty(): return {}
@@ -369,7 +368,7 @@ static func _unplayed_bracket(candidate: SeasonState) -> bool:
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if source.round_index<2 or not human_enabled(source.round_index): return {}
 	if not Live.unpurchased_next_reverse_kind(source).is_empty() \
-			and (preview_job or produce_settlement or not pending.reports.is_empty()): return {}
+			and produce_settlement: return {}
 	if produce_settlement and not settlement_enabled(source.round_index): return {}
 	var limit: int=report_limit(source.round_index)
 	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}

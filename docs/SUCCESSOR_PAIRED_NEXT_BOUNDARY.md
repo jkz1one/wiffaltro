@@ -280,3 +280,22 @@ Return. Use the resulting primary alone for `cold` in a second
 profile, then run `flag-off` and the exact original paid start
 `paid` control in their own profiles. Only the fixture 9 human game
 is simulated.
+
+## Resume NPCs for the next reversed leg
+
+The private no-spend fixture 9 lane can now resume authored fixtures
+10 and 11 in order via the native runner. Each report has its own
+durable owned checkpoint. The earlier three legs, actual reverse
+human report, existing Build journals, and Common balances survive
+unchanged. Both CPU reports remain pending and do not award Cash.
+The next native settlement and visiting phase are not exposed here.
+
+Use `tests/successor_private_doubleheader_unpurchased_next_reverse_npcs.gd.txt`
+with the prior reverse and hidden-first-settlement QA parents. In a
+new isolated copy of the exact CP228 pending pair, retain the
+primary as `user://exact-pending-next-reverse.json` and the exact CP227
+reference as `user://exact-before-next-reverse.json`. Run `npc10` and
+`npc11` in separate processes, then `cold` with the final primary
+alone. `tamper` replaces only the second request digest in a separate
+copy, and `flag-off` attempts neither launch nor write. The previous
+human match is never replayed.

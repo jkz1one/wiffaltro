@@ -129,8 +129,15 @@ func render() -> void:
 			if app.season.physical.pending.is_empty():
 				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT RETURN LEG",22)
 				_bound_button(_body,"PLAY NEXT DOUBLEHEADER RETURN WITHOUT PURCHASE",Callable(app,"play_private_unpurchased_next_reverse"))
+			elif app.season.physical.pending.reports.size()<2:
+				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT RETURN LEG",22)
+				_round_resume=_bound_button(_body,"RESUME NEXT DOUBLEHEADER RETURN",Callable(app,"resume_private_unpurchased_next_reverse"))
+				_round_progress=_label(_footer,"",16)
+				_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+				_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+				_refresh_round_progress()
 			else:
-				_note("Next return leg saved. Its NPC games and settlement are not enabled in this preview.")
+				_note("All three next-pair return games are saved. Settlement is not enabled in this preview.")
 		elif app.private_paired_development_step()>=0:
 			_private_paired_development()
 		else:
