@@ -1,0 +1,180 @@
+extends "res://academy.gd"
+## Native Common shop controls on one exact earned Academy run.
+const Display=preload("res://src/gameplay/season/successor_league_general_v2/progression.gd")
+const RESUME="RESUME PAID ACADEMY PACK"
+const PLAY="PLAY NEXT GAME"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==3 and args[0] in ["reveal","first","second","skip","cold-second","cold-skip"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and FileAccess.get_sha256(Store.PATH+".bak")==args[2]
+			and not FileAccess.file_exists(ORIGINAL),"own isolated exact Academy branch only"): return
+	var mode: String=args[0]
+	var before:=Store.raw()
+	var prior:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(_owned_academy(app) and _settled(app) and _exact(before,prior)
+			and app.league_entry_state("academy")=="locked","real earned round and existing Continue, not admission"): return
+	var build: SeasonBuild=app.season.build
+	if mode.begins_with("cold-"):
+		var skipped: bool=mode=="cold-skip"
+		var events:=_ops(build,"pack_pick")
+		if not check(_post_pack(app,skipped) and events.size()==(1 if skipped else 2) and _exact(before,prior),
+				"independent cold exact final branch, no new charges or writes, Play restored"): return
+		for e: Dictionary in events:
+			print("ACADEMY_COLD_UPGRADE ",e.item," target=",e.player)
+		_find(app.menu,PLAY).pressed.emit()
+		if not check(is_instance_valid(app.lab) and app.lab._match_state!=null and _exact(before,prior),
+				"restored Play starts native pregame without rewriting the verified save"): return
+		app._close_match()
+		print("ACADEMY_COLD_PACK_PASS ",mode," ",args[1]," Cash ",build.cash())
+		await _finish(app)
+		return
+
+	if mode=="reveal":
+		if not check(not build.pack_pending() and _find(app.menu,PLAY)!=null and build.cash()>=12,
+				"real gameplay earnings fund candidate 12 Cash"): return
+		var open:=_find(app.menu,"SHOP")
+		if not check(open!=null,"native Shop button before reveal"): return
+		open.pressed.emit()
+	else:
+		if not _blocked(app,before,prior): return
+		var resume:=_find(app.menu,RESUME)
+		if not check(resume!=null,"visible paid pack resume after independent cold"): return
+		resume.pressed.emit()
+		if not check(_exact(before,prior),"resuming paid pack never charges or rotates backup"): return
+	await get_tree().process_frame
+	var window:=_shop(app)
+	if not check(window!=null and window.visible,"actual Common full shop visible"): return
+	build=app.season.build
+	var old_cash: int=build.cash()
+	var old_profiles: Dictionary=build._book._players.duplicate(true)
+	var reveal_cards: Array=build._visit.get("cards",[]).duplicate(true)
+	var prev_picks: Array=build._visit.get("pack_picked",[]).duplicate(true)
+	var count: int=_ops(build,"pack_pick").size()
+	var opened:=Store.raw()
+	var opened_backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if mode=="reveal":
+		var reveal:=_quote(window,"pack_open")
+		if not check(reveal!=null and build.pack_price()==12 and build._pack_choices().size()>=2
+				and _confirm(window,reveal),"actual paid reveal through quote and confirmation"): return
+		build=app.season.build
+		if not check(build.cash()==old_cash-12 and _paid_once(build) and build._visit.cards.size()>=2
+				and build._visit.pack_picked.is_empty() and ClubCareer.same(build._book._players,old_profiles),
+				"one 12 Cash debit, fixed reveal, no upgrade before actual choice"): return
+	elif mode=="skip":
+		var skip:=_find(window,"Skip this paid pack")
+		if not check(count==1 and skip!=null and _confirm(window,skip),"actual explicit skip after first earned effect"): return
+		build=app.season.build
+		if not check(_post_pack(app,true) and build.cash()==old_cash and ClubCareer.same(build._book._players,old_profiles)
+				and build._visit.cards==reveal_cards and build._visit.pack_picked==prev_picks,
+				"skip preserves first effect and exact reveal; no refund or recharge"): return
+	else:
+		var expected_count: int=0 if mode=="first" else 1
+		if not check(count==expected_count and build._visit.cards.size()>=2,"exact pending first or second journal frontier"): return
+		var choices: Array=build._pack_choices()
+		if not check(not choices.is_empty(),"a currently eligible native card remains"): return
+		var item: String=choices[0]
+		var card:=_find(window,Display.display_item(item).name)
+		if not check(card!=null and not card.disabled and item not in prev_picks,"native distinct visible card"): return
+		if mode=="second":
+			var old_card:=_find(window,Display.display_item(prev_picks[0]).name)
+			if not check(old_card!=null and old_card.disabled,"previous chosen native card is visibly disabled"): return
+		card.pressed.emit()
+		var first_player: String="" if count==0 else str(_ops(build,"pack_pick")[0].player)
+		var target:=_quote(window,"pack_pick",first_player)
+		if not check(target!=null,"native eligible recipient action"): return
+		var command: Dictionary=target.get_meta("shop_command").duplicate(true)
+		target.pressed.emit()
+		if not check(window._confirm.visible and not window._pending.is_empty(),"recipient confirm before mutation"): return
+		window._confirm.canceled.emit(); window._confirm.hide()
+		if not check(_exact(opened,opened_backup) and _confirm(window,target),"cancel inert; exact chosen effect confirmed once"): return
+		build=app.season.build
+		var after:=Store.raw()
+		if not check(build._visit.cards==reveal_cards and build._visit.pack_picked==prev_picks+[item]
+				and build.cash()==old_cash and _paid_once(build) and _immediate(old_profiles[command.player],build.player(command.player))
+				and (first_player.is_empty() or first_player==command.player
+					or ClubCareer.same(old_profiles[first_player],build.player(first_player)))
+				and not app.commit_shop(command) and Store.raw()==after,
+				"distinct upgrade applied immediately, first effect and reveal kept, replay inert"): return
+		print("ACADEMY_NATIVE_UPGRADE ",item," player=",command.player," cash=",build.cash())
+		if mode=="first":
+			var duplicate:=command.duplicate(true)
+			duplicate.rev=build.revision()
+			duplicate.id="qa-reselect:%d"%build.revision()
+			if not check(not app.commit_shop(duplicate) and Store.raw()==after,
+					"tampered fresh command cannot pick same card twice"): return
+		elif not check(_post_pack(app,false),"second paid upgrade clears play gate"): return
+	if not check(Store.raw()!=opened and FileAccess.get_file_as_bytes(Store.PATH+".bak")==opened and _settled(app),
+			"one exact committed action; six earned rewards unchanged"): return
+	if mode in ["reveal","first"]:
+		window.close_requested.emit()
+		await get_tree().process_frame
+		if not _blocked(app,Store.raw(),FileAccess.get_file_as_bytes(Store.PATH+".bak")): return
+	if _archive(mode):
+		print("ACADEMY_PACK_PASS ",mode," ",FileAccess.get_sha256(Store.PATH)," Cash ",build.cash())
+		await _finish(app)
+
+func _exact(primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	return Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup
+
+func _find(root: Node,label: String) -> Button:
+	for n: Node in root.find_children("*","Button",true,false):
+		if n is Button and n.text==label and n.is_visible_in_tree() and not n.is_queued_for_deletion(): return n
+	return null
+
+func _shop(app: App) -> SeasonShopWindow:
+	for n: Node in app.menu.get_children():
+		if n is SeasonShopWindow and not n.is_queued_for_deletion(): return n
+	return null
+
+func _quote(window: SeasonShopWindow,op: String,avoid: String="") -> Button:
+	var fallback: Button
+	for n: Node in window.find_children("*","Button",true,false):
+		if not n is Button or n.disabled or n.is_queued_for_deletion() or not n.has_meta("shop_command"): continue
+		var command: Dictionary=n.get_meta("shop_command")
+		if command.op!=op or not n.get_meta("shop_quote",{}).get("ok",false): continue
+		if command.get("player","")!=avoid or avoid.is_empty(): return n
+		fallback=n
+	return fallback
+
+func _confirm(window: SeasonShopWindow,button: Button) -> bool:
+	button.pressed.emit()
+	if not window._confirm.visible or window._pending.is_empty(): return false
+	window._confirm.confirmed.emit(); window._confirm.hide()
+	return window._pending.is_empty() and window.app.retained==null
+
+func _ops(build: SeasonBuild,op: String) -> Array[Dictionary]:
+	return build._events.filter(func(e: Dictionary)->bool: return e.op==op)
+
+func _paid_once(build: SeasonBuild) -> bool:
+	return _ops(build,"pack_open").size()==1 and build._visit.pack_paid==12
+
+func _blocked(app: App,primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	if not check(app.academy_pack_choice_pending() and app.season.make_match()==null
+			and _find(app.menu,PLAY)==null and _find(app.menu,RESUME)!=null,
+			"unresolved paid Academy choice routes to pack instead of Play"): return false
+	app.play_next()
+	return check(not is_instance_valid(app.lab) and app.notice.begins_with("Choose or explicitly skip")
+			and _exact(primary,backup),"direct Play refusal gives exact recovery and no write")
+
+func _post_pack(app: App,skip: bool) -> bool:
+	var build: SeasonBuild=app.season.build
+	return not app.academy_pack_choice_pending() and app.season.make_match()!=null \
+		and _find(app.menu,PLAY)!=null and _find(app.menu,RESUME)==null and _paid_once(build) \
+		and build.cash()==(18 if SeasonState._winner(app.season.results[0])==0 else 12)-12 \
+		and build._visit.pack_status==("skipped" if skip else "used") and build._visit.pack_picked.size()==(1 if skip else 2)
+
+func _immediate(before: Dictionary,after: Dictionary) -> bool:
+	var delta: int=0
+	for key: String in before.stats:
+		delta+=int(after.stats[key])-int(before.stats[key])
+	for id: String in after.mastery:
+		delta+=int(after.mastery[id])-int(before.mastery.get(id,0))
+	return delta==1

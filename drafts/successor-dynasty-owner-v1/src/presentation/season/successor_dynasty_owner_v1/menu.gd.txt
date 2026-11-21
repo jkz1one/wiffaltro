@@ -149,12 +149,15 @@ func render() -> void:
 		_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		_refresh_round_progress()
+	elif app.academy_pack_choice_pending():
+		_note("Your Academy pack is already paid. Apply a remaining distinct upgrade or skip it without a refund before playing.")
+		_bound_button(_body,"RESUME PAID ACADEMY PACK",Callable(app,"open_pitch_shop"))
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
 		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 	elif not archived:
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
-	if app.season.shop_available() and app.season.physical.pending.is_empty():
+	if app.season.shop_available() and app.season.physical.pending.is_empty() and not app.academy_pack_choice_pending():
 		_bound_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
 	if not archived and app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
 		_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))

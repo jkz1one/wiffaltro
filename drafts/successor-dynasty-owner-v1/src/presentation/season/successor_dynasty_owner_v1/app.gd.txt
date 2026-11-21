@@ -1086,9 +1086,18 @@ func _open_match(state: MatchState, player_home: bool, season_game: bool,
 			if lab==opened: _request_quit())
 
 
+func academy_pack_choice_pending() -> bool:
+	return career_owner!=null and career_owner.active=="ordinary" and career_owner.session==season \
+		and season!=null and LeagueRules.academy(season.league_rules) and season.build.pack_pending()
+
+
 func play_next() -> void:
 	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or not _owned() or not _scope() or not season.physical.pending.is_empty():
+		return
+	if academy_pack_choice_pending():
+		notice="Choose or explicitly skip the remaining paid Academy upgrade before playing."
+		show_season()
 		return
 	var fixture: Dictionary = season.pending_fixture()
 	var state: MatchState = season.make_match()

@@ -1,0 +1,113 @@
+extends "res://qa.gd"
+## Actual Common V4 Academy Base opening, using the pre-existing private engineering factory; not earned admission.
+const RULES=preload("res://src/gameplay/season/league_rules.gd")
+const GENERAL=preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+const ACADEMY_ARCHIVE="user://academy-base-steps"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and (OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1")== (args.size()==2 and args[0] in ["cold"])
+			and args.size()==2 and args[0] in ["birth","step","cold"]
+			and not FileAccess.file_exists(ORIGINAL),"isolated exact Academy Common profile"): return
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var action: String=""
+	if args[0]=="birth":
+		if not check(args[1].is_valid_int() and not Store.occupied()
+				and not app.earned_league_preview(),"explicit private named engineering lane, no prior title"): return
+		app.select_league("academy")
+		app.create_fresh(int(args[1]))
+		if not check(_owned_academy(app) and app.season.picks.is_empty()
+				and app.career_owner.common.aggregate.titles.is_empty(),"actual Academy Base Common App birth"): return
+		for index in range(4):
+			var previous:=Store.raw()
+			app.draft(app.season.offers()[0])
+			if not check(_owned_academy(app) and app.season.picks.size()==index+1
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"native Academy draft picks and backup"): return
+		if not check(_capacities(app.season),"Academy slots allocated to the human and all five opponents"): return
+		action="birth"
+	else:
+		var prior:=Store.raw()
+		var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+		if not check(args[1].length()==64 and FileAccess.get_sha256(Store.PATH)==args[1] and not backup.is_empty(),
+				"exact current generated slot and archive custody"): return
+		app.reload_save()
+		if not check(_owned_academy(app) and _capacities(app.season)
+				and Store.raw()==prior and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"strict cold reopen preserves all six capacities"): return
+		if args[0]=="cold":
+			if not check(_settled(app) and app.season.build.cash()>=12
+					and app.league_entry_state("academy")=="locked","earned pack price reachable after real Common round; no public entitlement"): return
+			print("ACADEMY_BASE_COLD ",args[1]," cash=",app.season.build.cash())
+			await _finish(app)
+			return
+		if not check(app.season.round_index==0,"bounded to opening round"): return
+		action=await _play(app) if app.season.physical.pending.is_empty() else await _resume(app)
+		if action.is_empty(): return
+		if not check(app.retained==null and _owned_academy(app) and Store.raw()!=prior
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==prior,"one real operation and exact backup"): return
+		if action.begins_with("settle") and not check(_settled(app),"all three games and six awards settle"): return
+	if _archive(action):
+		print("ACADEMY_BASE_STEP ",action," ",FileAccess.get_sha256(Store.PATH))
+		await _finish(app)
+
+func _owned_academy(app) -> bool:
+	return app.career_owner!=null and app.career_owner.active=="ordinary" and app.career_owner.paused.is_empty() \
+		and app._owned() and app.season.league_live and ClubCareer.same(app.season.league_rules,RULES.capture("academy",0))
+
+func _capacities(season: SeasonState) -> bool:
+	if season.opponents.clubs.size()!=5: return false
+	for build: SeasonBuild in [season.build]+season.opponents.clubs.values().map(func(club: Dictionary)->SeasonBuild: return club.build):
+		var expected: Dictionary=RULES.capacities(RULES.capture("academy",0))
+		if expected!={"held":2,"sponsors":5} or not ClubCareer.same(build._league_rules,season.league_rules) or not ClubCareer.same(build._bank.view().capacity,expected): return false
+	return true
+
+func _before_automated_play(lab: PitchBatLab, fixture: Dictionary) -> void:
+	var state:=lab._match_state
+	var caps: Dictionary=RULES.capacities(RULES.capture("academy",0))
+	check(ClubCareer.same(state.league_rules,RULES.capture("academy",0))
+		and ClubCareer.same(PhysicalLeagueReport.wallet(state.league_rules,state.away_team.league_ownership).get("capacity"),caps)
+		and ClubCareer.same(PhysicalLeagueReport.wallet(state.league_rules,state.home_team.league_ownership).get("capacity"),caps)
+		and not state.pitch_catalog.is_empty() and state.stadium.is_empty(),
+		"actual human match consumes equal 2 held/5 sponsors, successor pitch catalog and ordinary field")
+	print("ACADEMY_FIELD fixture=",fixture.id," catalog=",state.pitch_catalog," named_venue=",not state.stadium.is_empty())
+
+func _settled(app) -> bool:
+	var season: SeasonState=app.season
+	if season.round_index!=1 or season.results.size()!=3 or season.player_results.size()!=1 \
+			or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() \
+			or season.physical.reports.size()!=2: return false
+	var seen: Dictionary={}
+	for game: Dictionary in season.results:
+		for i: int in [int(game.away),int(game.home)]:
+			if seen.has(i): return false
+			var build: SeasonBuild=season.build if i==0 else season.opponents.clubs[str(i)].build
+			var award: Array=build._bank._events.filter(func(e: Dictionary)->bool: return e.op=="reward")
+			var win: bool=SeasonState._winner(game)==i
+			if award.size()!=1 or award[0].game!=game.id or award[0].win!=win: return false
+			var cursor: SeasonOwnership=build._bank.empty_fork()
+			var paid: int=0
+			for e: Dictionary in build._bank._events:
+				var before: int=cursor.cash()
+				var native: Dictionary=cursor.commit(e)
+				if not native.get("ok",false) or native.get("replayed",true): return false
+				if e.op=="reward": paid=cursor.cash()-before
+			if paid!=(18 if win else 12) or not ClubCareer.same(cursor.view(),build._bank.view()): return false
+			print("ACADEMY_NATIVE_REWARD team=",i," game=",game.id," win=",win," cash=",paid)
+			seen[i]=true
+	for row: Dictionary in season.physical.reports:
+		if not GENERAL.valid(row.report,season.build.pitch_catalog_signature()): return false
+	return seen.size()==6 and _capacities(season)
+
+func _archive(action: String) -> bool:
+	var sha:=FileAccess.get_sha256(Store.PATH)
+	var path:=ACADEMY_ARCHIVE.path_join(action+"-"+sha)
+	if not check(sha.length()==64 and not DirAccess.dir_exists_absolute(path)
+			and DirAccess.make_dir_recursive_absolute(path)==OK,"unique generated Academy stage"): return false
+	for suffix: String in ["",".bak"]:
+		var dest:=path.path_join("owner.json"+suffix)
+		if not check(DirAccess.copy_absolute(Store.PATH+suffix,dest)==OK
+				and FileAccess.get_sha256(dest)==FileAccess.get_sha256(Store.PATH+suffix),"byte-exact Academy stage "+suffix): return false
+	return true
