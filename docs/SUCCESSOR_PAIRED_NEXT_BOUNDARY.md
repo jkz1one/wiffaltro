@@ -376,3 +376,22 @@ existing Market QA parent and exact CP231 stock as
 resulting primary alone in an isolated profile. The evidence is actual
 checkout, cold native receipt and real pregame, not paid return physics
 or a new settlement.
+
+## Native game proof after the optional Bullpen Coach
+
+`tests/successor_private_doubleheader_later_pitch_game.gd.txt` starts the
+actual paid visit-3 return from the exact CP232 checkout with the same
+authored fixture, starter and roster. Save that exact checkout as
+`user://exact-paid-pitch-return.json` in the isolated profile and pass its
+hash to `play`. The harness compares both teams' absolute fixture-6
+debt and live first-pitch stamina, then drives one full native match. It
+retains `user://fixture9-paid-native-pre-return.json` before using normal
+Return, and checks actual Mika Reed pitch releases with no reset:
+191.16 capacity minus 161.506941 carried debt, about 29.653059 available.
+In this run two actual pitch releases used about 10.819233 stamina.
+
+Use the resulting primary alone for `cold` in another isolated profile.
+The pending proof keeps both teams' workload, the original visit-3 payment,
+54 game Cash, nine prior results, all prior rewards, and the unchanged
+Common account. Neither this test nor the checkout grants a new reward
+or replays either the no-purchase fixture or the previous games.
