@@ -273,3 +273,41 @@ paid synthetic workshop slots. Substitute
 the real-time unaltered match. These are mounted-pack headless diagnostics, not
 a rendered contact playtest, a player-driven swing-to-water result, solid
 Pool collision qualification, a native Mac check, or Dynasty stadium wiring.
+
+## Current no-save package: rendered mouse and keyboard smoke
+
+The exact no-save package from runtime source
+`e4d65b568af27fa03af2e031281b0db23c5cfc6a` was opened in the
+connected Linux desktop, not in headless mode. Its ELF SHA-256 was
+`2c78919325d7f29fa7607287c7c1eeac367ea4c94e7b8b6f5f4c6b20492f73d0`
+and adjacent PCK SHA-256 was
+`84ba3f862705836fe4f10843e0ca953338fc584f91603babfb762e3233f7ab9e`.
+The actual 1100×680 X11 window fell back from Vulkan to Mesa llvmpipe
+OpenGL 4.5 and from PulseAudio to Dummy. That qualifies rendered input
+on this software renderer, not target performance or sound.
+
+With a fresh, disposable profile and only the engineering flag, the actual
+menu admitted a new Standard career. The mouse drafted Jules Moss, Indy
+Shaw, Emery Lane and Val Morgan. Commons Park rendered; Space started
+batting, counts advanced, camera switching worked, and Escape paused and
+resumed. In the bottom of the first, key 2 selected Overhand Sinker.
+A held/released mouse pitch produced an on-screen 42 mph reading, and the
+opponent doubled (37 mph exit speed). Canceling Leave Game preserved the
+paused inning and runner on second. Confirming returned to the clubhouse.
+
+After stopping the isolated process at the clubhouse, a separate native
+launch and Continue reopened the same roster and unplayed opening fixture.
+The primary
+`022c03187bd5d96b75d222b8cbe5f8bc4a2b143c014671271d107f7bf5fe419c`
+and backup
+`6676761338eb58095b93b9151cc79de7f79b9ab64d37418f85669126a0f19d3c`
+stayed unchanged across that reopen. No human bat contact, completed round,
+graceful operating-system quit, hardware or controller performance, Vulkan,
+audio, macOS, or paid-chair visual result was observed in this test.
+
+To repeat, keep the exact ELF and adjacent PCK together. From a native
+desktop terminal with a working display, use a fresh isolated HOME and
+XDG data, config, and cache; launch the ELF with
+`WIFFALTRO_DYNASTY_ENGINEERING=1` and `--resolution 1100x680 --verbose`.
+Leave earned-preview and D1 flags unset for the Standard control. Test
+through the in-game controls rather than copying a player save.
