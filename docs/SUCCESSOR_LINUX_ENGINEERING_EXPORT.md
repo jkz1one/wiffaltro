@@ -42,7 +42,26 @@ save slot may change in that proof. No test script in the PCK is used.
 **Not approved for distribution.** The broader whole-tree identity for Pool
 Party, Timber and paid stadium placement is separate and its digest differs
 in the curated package. Do not refresh that allowlist from packaging output.
-We have not exercised stadium placement, the legacy same-binary worker,
-rendered controls, audio or performance, native Mac, or public progression in
-this package. The current private Doubleheader and Dynasty restrictions
+The automated headless test does not exercise stadium placement, the legacy
+same-binary worker, rendered controls, audio or performance, native Mac, or
+public progression. The current private Doubleheader and Dynasty restrictions
 remain unchanged.
+
+## Rendered Linux smoke test of the same two-file package
+
+The same ELF/PCK was also run as a real window in a disposable Linux desktop
+at 1100×680. The VM fell back from Vulkan to Mesa llvmpipe OpenGL; this is not
+a performance or Vulkan qualification. With a copied authentic earned save,
+the visible Continue and both Resume buttons switched from Dynasty to the
+closed ordinary season and back. At the rendered shop, Cancel left 4 Cash and
+the exact original owner. A new confirmed Swing Plan purchase cost 3 in-game
+Cash once and held one item. After stopping the idle foreground test process
+and starting a new process, Continue and Shop visibly showed 1 Cash and one
+held item. This tests fresh-process durability, not a graceful OS quit.
+
+`verify_successor_packaged_shop_trace.py` checks the two exact package hashes,
+the authenticated original archive, the post-Cancel primary, the earlier
+observed paid hash and the post-reopen primary/backup. No input or screenshot
+is embedded in the package. This adds genuine rendered mouse/menu and shop
+evidence only: no rendered match, external controller, audio or native Mac
+test follows. The separate stadium-placement and legacy worker gaps remain.
