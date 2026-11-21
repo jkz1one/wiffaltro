@@ -240,7 +240,7 @@ static func _archive_valid(owner, current: Dictionary) -> bool:
 	if not owner.ordinary_state.has("archive"): return true
 	if not Common._archive_shape(owner): return false
 	var archive: Dictionary=owner.ordinary_state.archive
-	if archive.get("kind")==Common.ARCHIVE_CHAIN: return _archive_chain_valid(owner)
+	if archive.get("kind")==Common.ARCHIVE_CHAIN: return _archive_chain_valid(owner,current)
 	var bytes: PackedByteArray=archive.source.to_utf8_buffer()
 	if bytes.size()>Common.ARCHIVE_MAX or _hash(bytes)!=archive.sha256: return false
 	var old: Variant=_bytes_value(bytes)
@@ -262,7 +262,7 @@ static func _archive_valid(owner, current: Dictionary) -> bool:
 		and owner.imported_sha256==predecessor.imported_sha256 \
 		and Codec.same(owner.migration_v2,predecessor.migration_v2) and Codec.same(owner.migration_v3,predecessor.migration_v3)
 
-static func _archive_chain_valid(owner) -> bool:
+static func _archive_chain_valid(owner, current: Dictionary) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	var a: Dictionary=state.archive
 	var second: PackedByteArray=Common._chain_second_bytes(a)
@@ -285,8 +285,9 @@ static func _archive_chain_valid(owner) -> bool:
 			or not Codec.same(state.last_transition.basis,basis) or not Codec.same(owner.paused,prev.paused): return false
 	var saved: Dictionary=Codec.data_fields(owner,META_FIELDS)
 	var previous: Dictionary=Codec.data_fields(prev,META_FIELDS)
-	saved.erase("ordinary_state");previous.erase("ordinary_state")
-	return Codec.same(saved,previous)
+	for name: String in ["ordinary_state","common"]:
+		saved.erase(name);previous.erase(name)
+	return Codec.same(saved,previous) and _archive_fold_matches(owner,prev,current)
 
 # Reconstruct the one supported native Abandon from the exact earlier fold.
 # The current snapshot already passed full ordinary restore; reuse it.

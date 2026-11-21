@@ -473,3 +473,23 @@ CP236 and raw human references. Run `npc1`, `npc2`, and `settle` with the
 current SHA in separate processes, retaining each completed primary.
 Run `cold` with only the final primary and the same references in its
 own isolated profile. The product assembly is unchanged.
+
+### Ordinal-three Abandon
+
+The private Common App now accepts Abandon after the verified
+ordinal-three settled opener, not from draft, an in-flight round, or
+a later ordinal-three round. The two archived historical sources stay
+unchanged. Strict Continue independently replays the earlier archive
+and recomputes the third fold from its native result; it does not trust
+the saved aggregate or rotating backup. No fourth season is offered.
+
+On the exact CP240 lane, native confirmation banks one human loss
+(4 runs for, 5 against), not the two NPC games. It adds one Abandon and
+one sequence step, with no win, title or completion award. The native
+fold determines earned rights. Common stays at 72 Club Bucks and the
+closed season retains 12 Cash. The three actual games remain intact.
+The isolated `successor_common_archive_third_abandon.gd.txt` QA scene
+uses the exact CP240 primary as a read-only reference via
+`WIFFALTRO_ORDINAL3_QA_ACTIVE`, verifies confirmation and cancellation,
+then independently opens a primary-only copy and rejects a rehashed
+false fold.

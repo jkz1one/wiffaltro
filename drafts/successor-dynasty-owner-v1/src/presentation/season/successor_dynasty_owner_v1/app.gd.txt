@@ -1497,9 +1497,8 @@ func import_previous_dynasty() -> void:
 func archived_abandon_visible() -> bool:
 	return career_owner!=null and season!=null and career_owner.session==season \
 		and career_owner.ordinary_state.has("archive") and Store.cross_league_preview() \
-		and career_owner.ordinary_state.archive.get("kind")!=Owner.Common.ARCHIVE_CHAIN \
 		and career_owner.active=="ordinary" and career_owner.lifecycle_status()=="active" \
-		and Owner.Common.archive_close_scope(season)
+		and Owner.Common.archived_abandon_scope(career_owner,season)
 
 func _lifecycle_ready(action: String) -> bool:
 	if career_owner!=null and career_owner.ordinary_state.has("archive") \

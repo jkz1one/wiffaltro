@@ -118,7 +118,8 @@ static func _archive_shape(owner) -> bool:
 	var t: Dictionary=state.last_transition
 	if a is Dictionary and a.get("kind")==ARCHIVE_CHAIN:
 		return owner.active=="ordinary" and owner.paused.is_empty() and owner._missing_dynasty(owner) \
-			and state.ordinal==3 and state.status=="active" and state.proposal.is_empty() \
+			and state.ordinal==3 and state.proposal.is_empty() \
+			and (state.status=="active" or (state.status=="closed" and state.last_close.get("reason")=="abandon")) \
 			and t.get("kind")==CHAIN_TRANSITION and t.get("league")=="dugout" and t.basis.version==3 \
 			and _chain_archive_shape(a) and C.same(t.basis.archive_origin.ordered_sha256,
 				[a.entries[0].sha256,a.entries[1].sha256])
@@ -251,6 +252,12 @@ static func archive_close_scope(season: SeasonState) -> bool:
 		and season.physical.pending.is_empty() and season.physical.needed.is_empty() \
 		and season.physical.error.is_empty() and not season.physical.projecting
 
+# Ordinal three supports only the qualified settled opening. No draft,
+# pending game, later round or extra rollover is admitted by this slice.
+static func archived_abandon_scope(owner, season: SeasonState) -> bool:
+	return archive_close_scope(season) and (owner.ordinary_state.archive.get("kind")!=ARCHIVE_CHAIN \
+		or season.round_index==1)
+
 static func ordinary_current_valid(owner, season: SeasonState, current: Dictionary) -> bool:
 	if not Adapter.scope("ordinary",season) or current.is_empty() or owner.ordinary_state.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
@@ -261,7 +268,7 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 		if state.status=="closed": return _paired_closed_valid(owner,season,current,birth)
 		if state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,birth): return false
 	if state.has("archive") and (not archive_play_scope(season) \
-		or (state.status=="closed" and not archive_close_scope(season))): return false
+		or (state.status=="closed" and not archived_abandon_scope(owner,season))): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false
@@ -316,7 +323,7 @@ static func _close_paired_complete(owner, current: Dictionary) -> bool:
 
 static func close(owner, reason: String) -> bool:
 	if owner.ordinary_state.has("archive") and (reason!="abandon" or owner.active!="ordinary" \
-		or owner.ordinary_state.archive.get("kind")==ARCHIVE_CHAIN or not archive_close_scope(owner.session)): return false
+		or not archived_abandon_scope(owner,owner.session)): return false
 	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
 	var season: SeasonState=owner.session
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false

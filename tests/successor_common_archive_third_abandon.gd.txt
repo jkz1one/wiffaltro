@@ -1,0 +1,119 @@
+extends "res://tests/successor_common_cross_league_abandon.gd"
+const ACTIVE="fb937c2162891084f9a660c9cfbc4a33da8d70d9e781d07111452d611249f6ae"
+const SECOND="00b1debe8958bf7f198df2cc0027a618890d426acabae43da54ff3e8e9ea7ffc"
+const DRAFT="7a0028d28da71db811c706c3796df34aa76a7d04b52fdd5124644e7eeed8c31e"
+const OLD_CLOSE="12fb4e42c46b6433dceaf3c49e513eec365e8ebbc3098c17a90bc3044b48374b"
+const PENDING="6cc48c0b227d6f1a1296970e1d73ad8c9ca7f087f131eafaa5eeafa6c2d26d5b"
+const C=S.Owner.Common
+const ABANDON="ABANDON CURRENT SEASON…"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["live","cold","flag-off","compat"],"isolated ordinal-three Abandon test"): return
+	if args[0]=="compat":
+		_compat(args[1])
+		return
+	var reference:=OS.get_environment("WIFFALTRO_ORDINAL3_QA_ACTIVE")
+	if not need(FileAccess.get_sha256(reference)==ACTIVE and FileAccess.get_sha256(S.PATH)==args[1],
+			"exact generated settled source and tested revision"): return
+	var before:=S.raw()
+	var backup:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var original: Dictionary=S.Owner._bytes_value(FileAccess.get_file_as_bytes(reference))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var started:=Time.get_ticks_msec()
+	app.reload_save()
+	print("ORDINAL3_ABANDON_STRICT_READ_MS ",Time.get_ticks_msec()-started)
+	if not need(app._owned() and _exact(before,backup),"strict native owner loads without write"): return
+	var control:=_button(app,ABANDON)
+	if args[0]=="flag-off":
+		app.request_lifecycle("abandon")
+		if need(control==null and not app._lifecycle_dialog.visible
+				and S.prepare_session_and_write(app.career_owner,before,"close",0,"","abandon")==null
+				and _exact(before,backup),"flag-off refuses native control and actual Store writer"):
+			print("ORDINAL3_ABANDON_FLAG_OFF_PASS");get_tree().quit()
+		return
+	if args[0]=="cold":
+		if not need(backup.is_empty() and control==null and _closed_third(app,original) and _locked(app,before,backup),
+				"primary-only strict native refold, no duplicate or fourth Next"): return
+		var forged: Dictionary=S.Owner._bytes_value(before)
+		forged.common.aggregate.runs_for+=1
+		forged.common.last_fold.aggregate_sha256=S.Owner.Life.digest(forged.common.aggregate)
+		if need(S.Owner.restore(forged)==null and _exact(before,backup),"arithmetically rehashed false fold refused"):
+			print("ORDINAL3_ABANDON_COLD_PASS ",args[1]);get_tree().quit()
+		return
+	if not need(args[1]==ACTIVE and control!=null and app.archived_abandon_visible() and app.season.round_index==1
+			and app.season.results.size()==3 and app.season.player_results.size()==1 and app.season.build.cash()==12,
+			"actual archived settled opener, exactly one human game"): return
+	if not need(S.prepare_session_and_write(app.career_owner,backup,"close",0,"","abandon")==null
+			and S.prepare_session_and_write(app.career_owner,before,"close",0,"","complete")==null
+			and _exact(before,backup),"stale and completed Close refuse without write"): return
+	control.pressed.emit()
+	if not need(app._lifecycle_dialog.visible and app._lifecycle_action=="abandon" and _exact(before,backup),
+			"real confirmation shown; no eager write"): return
+	app._lifecycle_dialog.canceled.emit()
+	if not need(not app._lifecycle_dialog.visible and _exact(before,backup),"native cancel preserves both files"): return
+	_button(app,ABANDON).pressed.emit()
+	started=Time.get_ticks_msec()
+	app._lifecycle_dialog.confirmed.emit()
+	print("ORDINAL3_ABANDON_CONFIRM_MS ",Time.get_ticks_msec()-started)
+	var after:=S.raw()
+	if need(after!=before and _exact(after,before) and _closed_third(app,original) and _locked(app,after,before),
+			"actual Abandon folds only the human opener once and preserves both old raw sources"):
+		print("ORDINAL3_ABANDON_LIVE_PASS ",FileAccess.get_sha256(S.PATH));get_tree().quit()
+
+func _compat(hash: String) -> void:
+	var path:=OS.get_environment("WIFFALTRO_ORDINAL3_QA_COMPAT")
+	if not need(hash in [DRAFT,OLD_CLOSE,PENDING] and FileAccess.get_sha256(path)==hash
+			and not FileAccess.file_exists(S.PATH),"exact isolated compatibility input with no active slot"): return
+	var roots: Array[Resource]=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	var owner: RefCounted=S.Owner.restore(S.Owner._bytes_value(FileAccess.get_file_as_bytes(path)))
+	roots.clear()
+	if not need(owner!=null and C.archived_abandon_scope(owner,owner.session)==(hash==OLD_CLOSE),
+			"legacy closed record or actual ordinal-three draft/pending loads and gates correctly"): return
+	if need(FileAccess.get_sha256(path)==hash and not FileAccess.file_exists(S.PATH),"compatibility read no write"):
+		print("ORDINAL3_ABANDON_COMPAT_PASS ",hash);get_tree().quit()
+
+func _closed_third(app: App,original: Dictionary) -> bool:
+	var owner: RefCounted=app.career_owner
+	var s: Dictionary=owner.ordinary_state
+	var record: Dictionary=S.Owner._bytes_value(S.raw())
+	var before: Dictionary=original.common
+	var after: Dictionary=owner.common
+	var row: Dictionary=s.last_close
+	if not S.Codec.same(s.archive,original.ordinary_state.archive) \
+			or S.Owner._hash(C._chain_second_bytes(s.archive))!=SECOND \
+			or not S.Codec.same(s.last_transition,original.ordinary_state.last_transition) \
+			or not S.Codec.same(record.ordinary,original.ordinary) or not S.Codec.same(record.dynasty,original.dynasty):
+		return false
+	var folded: Dictionary=C.Progress.fold(before.aggregate,"ordinary",app.season,row.id,int(before.sequence)+1,"abandon")
+	return not folded.is_empty() and S.Codec.same(folded.aggregate,after.aggregate) and S.Codec.same(folded.receipt,row.receipt) \
+		and owner.lifecycle_status()=="closed" and owner.lifecycle_reason()=="abandon" and not owner.playable() \
+		and s.ordinal==3 and s.proposal.is_empty() and row.league=="dugout" and row.tier==0 and row.receipt.is_empty() \
+		and app.season.build.cash()==12 and app.season.results.size()==3 and app.season.player_results.size()==1 \
+		and after.sequence==before.sequence+1 and after.cursors.ordinary==3 and after.cursors.dynasty==before.cursors.dynasty \
+		and after.last_fold.source==row.session_sha256 and after.last_fold.receipt.is_empty() \
+		and after.aggregate.currency==72 and before.aggregate.currency==72 \
+		and after.aggregate.games==before.aggregate.games+1 and after.aggregate.wins==before.aggregate.wins \
+		and after.aggregate.runs_for==before.aggregate.runs_for+4 and after.aggregate.runs_against==before.aggregate.runs_against+5 \
+		and after.aggregate.abandoned==before.aggregate.abandoned+1 and after.aggregate.completed==before.aggregate.completed \
+		and S.Codec.same(after.aggregate.titles,before.aggregate.titles)
+
+func _locked(app: App,primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	app.request_lifecycle("abandon")
+	app.propose_next(1004)
+	return not app._lifecycle_dialog.visible and not app.archived_abandon_visible() \
+		and not app.career_owner.next_supported() and _exact(primary,backup)
+
+func _exact(primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	return S.raw()==primary and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup
+
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var found:=_button(child,label)
+		if found!=null: return found
+	return null
