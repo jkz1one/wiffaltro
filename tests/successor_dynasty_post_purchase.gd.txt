@@ -1,0 +1,91 @@
+extends Node
+## Real common App and Store with an isolated, already-authenticated earned save.
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Codec = preload("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd")
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _pass(ok: bool, label: String) -> bool:
+	print(("PASS: " if ok else "FAIL: ") + label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _button(node: Node, label: String) -> Button:
+	if node is Button and not node.is_queued_for_deletion() and node.text == label:
+		return node
+	for child: Node in node.get_children():
+		var found: Button = _button(child, label)
+		if found != null: return found
+	return null
+
+func _disk() -> Array:
+	return [Store.raw(), FileAccess.get_file_as_bytes(Store.PATH + ".bak"),
+		FileAccess.file_exists(Store.PATH + ".bak")]
+
+func _state(app, side: String) -> bool:
+	if app.career_owner == null or app.career_owner.active != side or not app._owned() or app.retained != null:
+		return false
+	var season: SeasonState = app.season
+	return season.results.size() == 3 and season.picks.size() == 4 and season.opponents.clubs.size() == 5 		and season.physical.pending.is_empty() and app.career_owner.paused.state.results.size() == 3 		and app.career_owner.common.sequence == 1 and app.career_owner.common.cursors.ordinary == 1 		and app.career_owner.common.cursors.dynasty == 0 and app.career_owner.ordinary_state.status == "closed"
+
+func _pack(app, pending: bool) -> bool:
+	var build: SeasonBuild = app.season.build
+	var opened := 0
+	var picked := 0
+	for event: Dictionary in build._events:
+		opened += int(event.op == "pack_open")
+		picked += int(event.op == "pack_pick")
+	return build.cash() == 4 and opened == 1 and picked == int(not pending) and build.pack_pending() == pending 		and build._visit.pack_status == ("open" if pending else "used")
+
+func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	if not _pass(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" 			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING") == "1" 			and args.size() == 1 and args[0] in ["pending", "park", "resume", "cold"], "isolated test before reading"): return
+	var mode: String = args[0]
+	var before: Array = _disk()
+	var app = App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var open := _button(app.menu, "CONTINUE SAVED CAREER")
+	if not _pass(open != null and not open.disabled, "actual Continue control"): return
+	var t0 := Time.get_ticks_msec()
+	open.pressed.emit()
+	var expected: String = "ordinary" if mode == "resume" else "dynasty"
+	if not _pass(_state(app, expected) and _disk() == before, "fresh App opens the expected original side with no writes"): return
+	print("DYNASTY_CONTINUE_MS=", Time.get_ticks_msec() - t0)
+	if expected == "dynasty" and not _pass(_pack(app, mode == "pending"), "exact pack receipt, choice state and remaining Cash"): return
+	var next_label: String = "RESUME DYNASTY SESSION" if expected == "ordinary" else "RESUME ORDINARY SESSION"
+	var next := _button(app.menu, next_label)
+	if mode == "pending":
+		if not _pass(next == null and app.session_ticket() == null 				and not Store.switch_available(app.career_owner), "real unresolved paid choice blocks menu, App ticket and Store entry"): return
+		app.switch_session()
+		var ticket = Store.prepare_session_and_write(app.career_owner, Store.raw(), "resume")
+		if not _pass(ticket == null and _state(app, "dynasty") and _pack(app, true) and _disk() == before 				and not FileAccess.file_exists(Store.PATH + ".tmp"), "pending attempts leave both slots and paid choice exact"): return
+	elif mode == "cold":
+		if not _pass(next != null and not next.disabled and _disk() == before, "final frozen round-trip is usable without an extra write"): return
+	else:
+		if not _pass(next != null and not next.disabled, "actual Resume control on expected side"): return
+		var original = app.career_owner
+		var original_session: SeasonState = app.season
+		var metadata: Dictionary = original.dynasty_metadata()
+		var common: Dictionary = original.common.duplicate(true)
+		var ordinary_close: Dictionary = original.ordinary_state.duplicate(true)
+		if mode == "park" and not _pass(not DirAccess.dir_exists_absolute(Store.PATH + ".tmp") 				and DirAccess.make_dir_absolute(Store.PATH + ".tmp") == OK, "isolated empty write obstruction"): return
+		next.pressed.emit()
+		if mode == "park":
+			var retained = app.retained_envelope
+			if not _pass(app.retained != null and retained != null and app.career_owner == original 					and app.season == original_session and _disk() == before, "held Resume does not touch original slots or owner"): return
+			if not _pass(DirAccess.remove_absolute(Store.PATH + ".tmp") == OK, "remove only the owned empty obstruction"): return
+			var retry := _button(app.menu, "RETRY EXACT SAVE")
+			if not _pass(retry != null and not retry.disabled, "actual exact Retry control"): return
+			retry.pressed.emit()
+			if not _pass(app.career_owner == retained, "Retry promotes same retained owner once"): return
+		var destination: String = "ordinary" if expected == "dynasty" else "dynasty"
+		var saved: Array = _disk()
+		if not _pass(_state(app, destination) and saved[0] != before[0] and saved[1] == before[0] and saved[2] 				and Codec.same(app.career_owner.common, common) and Codec.same(app.career_owner.ordinary_state, ordinary_close) 				and Codec.same(app.career_owner.dynasty_metadata(), metadata), "switch commits once, rotates previous bytes and retains both lifecycle records"): return
+		if is_instance_valid(next): next.pressed.emit()
+		if not _pass(app.lab == null and _disk() == saved, "stale rendered Resume cannot switch or write again"): return
+		if destination == "dynasty" and not _pass(_pack(app, false), "paid pack and Cash remain exact after resuming Dynasty"): return
+	print("DYNASTY_POST_PURCHASE_PASS ", mode)
+	get_tree().quit()
