@@ -1,0 +1,138 @@
+extends "res://tests/successor_hidden_first_settlement.gd"
+const Binding=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const PairBuild=preload("res://src/gameplay/season/successor_league_general_v2/doubleheader_build.gd")
+const UNOPENED="bf7a233d75a42b9a34f1d02fc73afa6f2f627a0fef9b6cbfa36baf8933a84109"
+const BROWSED="289a30f5d6b3231b56f4c3d6c2dc8c39aa178ff12dba9a03d77b943827e9c126"
+const PAID="7f544c926d547ef0372e7cf1810ff2f2557f27f79818b17ed4d8cbb1189a2ba9"
+const REVEALED="7de90337da34a3779d7f568d4f41396e0c955a6cf70cd3fb2ec616de88e999f8"
+const BASELINE="user://exact-browsed-opening.json"
+const BUTTON="PLAY RETURN LEG WITHOUT PURCHASE"
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func need(ok: bool,label: String) -> bool:
+	if check(ok,label): return true
+	get_tree().quit(1)
+	return false
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["unopened","play","cold","flag-off","paid","revealed"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
+			"exact generated private profile"): return
+	var expected: String={"unopened":UNOPENED,"play":BROWSED,"flag-off":UNOPENED,"paid":PAID,"revealed":REVEALED}.get(args[0],args[1])
+	if not need(args[1]==expected,"known native frontier"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and (settled(app.season) if args[0]!="cold" else _pending(app)) and exact(before,backup),"native strict owner and exact first result/reports"): return
+	var control:=_button(app,BUTTON)
+	if args[0] in ["paid","revealed"]:
+		var opening: Dictionary=Binding.start(app.season)
+		if not need(control==null and Live.unpurchased_return_kind(app.season.build).is_empty()
+				and (opening.is_empty() if args[0]=="revealed" else not opening.is_empty())
+				and app.season.build.cash()==10 and exact(before,backup),"paid choice keeps old route; unresolved paid reveal cannot play or be disguised"): return
+		if args[0]=="paid": print("PAID_RETURN_NATIVE_BINDING ",opening.binding.request)
+		get_tree().quit()
+		return
+	if args[0]=="flag-off":
+		app.play_private_unpurchased_return()
+		if need(control==null and not is_instance_valid(app.lab) and exact(before,backup),"flag-off holds both visible route and direct call"): get_tree().quit()
+		return
+	if args[0]=="cold":
+		if not need(_pending(app) and control==null and _historical_exact(app),"faithful cold native return pending preserves all first-leg evidence"): return
+		var pristine: SeasonState=app.season.fork_live()
+		pristine.physical.pending.clear()
+		var opening: Dictionary=Binding.start(pristine)
+		if not need(not opening.is_empty() and Live.same(opening.binding,app.season.physical.pending.binding)
+				and _debt(pristine,opening.state,opening.fixture,app.season.physical.pending.human[13]),
+				"fresh exact return binding and both paid workload-debt starts"): return
+		app.play_private_unpurchased_return()
+		app._run_paired_return_first_npc()
+		app._settle_paired_return_leg()
+		if need(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(before,backup),
+				"duplicate, NPC, settlement and awards remain held"):
+			print("UNPURCHASED_RETURN_COLD_PASS ",args[1])
+			get_tree().quit()
+		return
+	var opened: bool=args[0]=="play"
+	var kind: String="browsed" if opened else "unopened"
+	if not need(control!=null and Live.unpurchased_return_kind(app.season.build)==kind
+			and app.season.build.cash()==18 and not app.season.build.pack_pending(),"exact no-charge "+kind+" prefix offers real return"): return
+	var authored: Dictionary=Binding.start(app.season)
+	if not need(not authored.is_empty() and authored.fixture.id==3 and authored.fixture.home==0,"exact reversed original matchup, fixture 3"): return
+	control.pressed.emit()
+	var lab: PitchBatLab=app.lab
+	if not need(is_instance_valid(lab) and lab._player_home and Live.same(app._paired_first_pin.binding,authored.binding)
+			and _debt(app.season,lab._match_state,authored.fixture,[]) and exact(before,backup),
+			"real native home match carries both sides' exact identity and workload; no debit"): return
+	print("UNPURCHASED_RETURN_BINDING ",kind," ",authored.binding.request)
+	if not opened:
+		app.ask_leave_game()
+		if not need(app._exit_mode=="leave","native Leave prompt on unopened path"): return
+		app._confirm_exit()
+		if need(not is_instance_valid(app.lab) and exact(before,backup),"unopened launch and confirmed leave make no save or charge"): get_tree().quit()
+		return
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not need(not lab._match_presentation_director.blocks_gameplay(),"native intro completes"): return
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=Physical.seed_for(app.season,authored.fixture)
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	var start:=Time.get_ticks_msec()
+	var finished:=false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+			finished=true
+			break
+		if frame%12000==0: print("UNPURCHASED_RETURN_PHYSICS frame=",frame," PA=",lab._match_state.plate_appearance_number)
+	if not need(finished,"actual return reached capture without synthetic result"): return
+	var score:=Vector2i(lab._match_state.away_team.runs,lab._match_state.home_team.runs)
+	lab.match_return_requested.emit()
+	if need(_pending(app) and _historical_exact(app) and not is_instance_valid(app.lab) and Store.raw()!=before
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before and Live.same(app.season.physical.pending.binding,authored.binding),
+			"actual Return writes pending only; prior and Cash exact"):
+		print("UNPURCHASED_RETURN_PENDING_PASS ",FileAccess.get_sha256(Store.PATH)," away=",score.x," home=",score.y," elapsed_ms=",Time.get_ticks_msec()-start)
+		get_tree().quit()
+func _pending(app: App) -> bool:
+	var s: SeasonState=app.season
+	var pending: Dictionary=s.physical.pending
+	var original: SeasonState=s.fork_live()
+	if original==null: return false
+	original.physical.pending.clear()
+	return settled(original) and Live.unpurchased_return_kind(s.build)=="browsed" and s.build.cash()==18 \
+		and Binding.bound_shape(pending) and pending.human[0]==3 and pending.reports.is_empty() \
+		and Live.same(s.build._bank.view().rewards,{"0":true})
+func _historical_exact(app: App) -> bool:
+	if FileAccess.get_sha256(BASELINE)!=BROWSED: return false
+	var old: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BASELINE))
+	return Live.same(app.season.results,old.ordinary.state.results) and Live.same(app.season.player_results,old.ordinary.state.player_results) \
+		and Live.same(app.season.physical.reports,old.ordinary.physical.reports) and Live.same(app.career_owner.common,old.common)
+func _debt(season: SeasonState,state: MatchState,fixture: Dictionary,proofs: Array) -> bool:
+	var teams: Array=[state.away_team,state.home_team]
+	var sides: Array=[int(fixture.away),int(fixture.home)]
+	for ix: int in range(2):
+		var team: TeamMatchState=teams[ix]
+		var side: int=sides[ix]
+		var build: SeasonBuild=season.build if side==0 else season.opponents.clubs[str(side)].build
+		var pair: Dictionary=PairBuild.pair_for(build,3)
+		if pair.get("first")!=0 or not Live.same(team.league_pair,pair) or not pair.debt.values().any(func(v): return float(v)>0.0): return false
+		for player: PlayerMatchState in team.roster:
+			var id: String=player.definition.id
+			var expected: float=maxf(0.0,player.stamina_max-float(pair.debt.get(id,0)))
+			if not is_equal_approx(player.stamina_remaining,expected): return false
+			if not proofs.is_empty() and not is_equal_approx(float(proofs[ix].proof.initial[id].initial),expected): return false
+	return true

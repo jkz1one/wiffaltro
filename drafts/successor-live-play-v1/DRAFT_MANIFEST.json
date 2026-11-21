@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 52170,
-      "sha256": "fd6d10cf699638b68b43e47d3f5a89f55a2ffa086d4b707b5a3dfaaa480d712f"
+      "bytes": 52964,
+      "sha256": "78951a55feb7a2e8e09acc097114fdb88433818ed4fa23c54cf96b154424f27e"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
@@ -216,8 +216,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/paired_first_projection.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/paired_first_projection.gd",
-      "bytes": 38333,
-      "sha256": "b75103a7f5970a7f2d4ddc2b8b27b2ff4d7c8d261ba4e831a67fbd8177fb176e"
+      "bytes": 38793,
+      "sha256": "6b868b785d45be246b05a0c7464ee2d784b9f650fd4dd849b3499b2b5b97877e"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_opening.gd.txt",

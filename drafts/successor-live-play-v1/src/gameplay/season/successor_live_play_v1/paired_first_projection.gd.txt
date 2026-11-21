@@ -63,7 +63,7 @@ static func start(source: SeasonState) -> Dictionary:
 	if semifinal:
 		if not Live._sealed_regular_end_shape(source): return {}
 	elif source.phase!=SeasonState.Phase.REGULAR: return {}
-	if source.round_index==1 and source.build.revision()!=5: return {}
+	if source.round_index==1 and not Live.return_human_ready(source.build): return {}
 	if source.round_index==6 and not Live._signed_visit6_journal(source.build): return {}
 	if LATE_REGULAR.has(source.round_index) and not Live._paired_late_start(source): return {}
 	# Saved JSON hydrates whole IDs as floats. Bind to the semantically equal
@@ -79,6 +79,9 @@ static func start(source: SeasonState) -> Dictionary:
 	if hash.is_empty(): return {}
 	var club: TeamMatchState=state.home_team if fixture.home==0 else state.away_team
 	var format: String="private-semifinal-human-start-v1" if semifinal else "private-late-regular-human-start-v1" if LATE_REGULAR.has(source.round_index) else ["private-first-human-start-v1","private-return-human-start-v1","private-next-first-human-start-v1","private-next-return-human-start-v1","private-pair3-first-human-start-v1","private-pair3-return-human-start-v1","private-pair4-first-human-start-v1"][source.round_index]
+	if source.round_index==1:
+		var unpurchased: String=Live.unpurchased_return_kind(source.build)
+		if not unpurchased.is_empty(): format="private-unpurchased-return-"+unpurchased+"-v1"
 	var live: Dictionary={"format":format,"request":hash,"equipped":state.gear_usage.equipped,"held":club.tactics.held,"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,"track_walks":club.tactics.track_walks}
 	return {"state":state,"field":field,"fixture":fixture.duplicate(true),"binding":{"version":1,"request":JSON.stringify(live,"",true,true).sha256_text()}}
 
@@ -88,6 +91,7 @@ static func verify_bound(source: SeasonState) -> bool:
 # Read only the exact next slot. Job and Store admission independently replay it.
 static func next_npc_fixture(source: SeasonState) -> Dictionary:
 	if not Live.scope(source) or report_limit(source.round_index)==0 or not bound_shape(source.physical.pending): return {}
+	if source.round_index==1 and not Live.unpurchased_return_kind(source.build).is_empty(): return {}
 	if source.round_index==10:
 		var playoff: Dictionary=_semifinal_fixtures(source)
 		if playoff.is_empty(): return {}
@@ -409,7 +413,10 @@ static func return_projection(season: SeasonState) -> bool:
 # Authenticated first-leg prefix plus ordered return reports. Only the fixed
 # settlement operation requests concrete construction after complete replay.
 static func _inspect_return(source: SeasonState, human: Array, reports: Array, preview_job: bool, produce_settlement: bool) -> Dictionary:
-	if not Live.scope(source) or source.round_index!=1 or source.build.revision()!=5 or not source.physical.pending.is_empty() or reports.size()>2: return {}
+	if not Live.scope(source) or source.round_index!=1 or not Live.return_human_ready(source.build) \
+		or not source.physical.pending.is_empty() or reports.size()>2: return {}
+	if not Live.unpurchased_return_kind(source.build).is_empty() \
+		and (not reports.is_empty() or preview_job or produce_settlement): return {}
 	var shape: Dictionary={"human":human.duplicate(true),"reports":reports.duplicate(true)}
 	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()) or human[0]!=3: return {}
 	if Live._capture_structural(source).is_empty() or not Live._first_human_score(source) or not PairedHistory.validate_settled(source): return {}

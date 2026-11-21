@@ -91,3 +91,29 @@ earlier settlement/draft parents. Keep the exact CP212 primary as
 `user://exact-settled-opening.json`, then run `open`, `pay`, `pick`,
 and `cold` separately, plus `flag-off` in an independent initial clone.
 Nothing in this test launches a match or edits the previous settlement.
+
+## Optional return without a purchase
+
+The private opening preview now offers **Play Return Leg Without
+Purchase** on the exact standalone Doubleheader Base opening settlement.
+The native journal distinguishes never-opened revision 2 from revision 3
+with only the free-open event. Both use the authored reversed fixture 3
+and the independently replayed first-leg workload, and each has a
+distinct request provenance derived from the journal. A paid reveal
+without a chosen card cannot use this path. The pre-existing completed
+paid upgrade keeps its own original request and is not linked by this
+control.
+
+The normal match Return durably checkpoints only the reversed human
+proof. Existing first-leg results/reports/rewards and the entire
+no-charge Build remain intact. Return-leg NPCs and settlement for this
+new lane are not yet admitted; there is no second-leg award or new
+public routing in this increment.
+
+The isolated `tests/successor_private_doubleheader_unpurchased_return.gd.txt`
+harness uses the prior first-settlement parent. Use exact CP212 for
+`unopened`, actual CP213 free-browsed for `play`, and its resulting
+pending slot for independent `cold`; keep the exact free-browsed primary
+as `user://exact-browsed-opening.json` in that isolate. `paid`,
+`revealed`, and `flag-off` use their own exact profiles. Only the
+`play` case simulates a game; it does not replay the original opener.

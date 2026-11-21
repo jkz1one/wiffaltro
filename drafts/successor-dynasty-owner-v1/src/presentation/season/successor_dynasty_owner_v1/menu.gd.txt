@@ -104,6 +104,8 @@ func render() -> void:
 			_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_refresh_round_progress()
+		elif app.private_unpurchased_return_pending():
+			_note("The return leg is saved. Return-leg NPC fixtures and settlement are not exposed in this preview.")
 		elif app.private_paired_development_step()>=0:
 			_private_paired_development()
 		else:
@@ -152,8 +154,10 @@ func render() -> void:
 func _private_paired_development() -> void:
 	var step: int=app.private_paired_development_step()
 	_label(_body,"DOUBLEHEADER · OPENING LEG SETTLED",22)
-	_note("Development pack is optional. The return leg is not enabled in this preview, with or without a purchase.")
+	_note("The development pack is optional. This preview supports the return leg without a purchase; the paid return remains held.")
 	if not app._paired_development_showing:
+		if app.private_unpurchased_return_visible():
+			_bound_button(_body,"PLAY RETURN LEG WITHOUT PURCHASE",Callable(app,"play_private_unpurchased_return"))
 		_bound_button(_body,"OPTIONAL DEVELOPMENT PACK",Callable(app,"show_private_paired_development"))
 		return
 	var build: SeasonBuild=app.season.build

@@ -512,7 +512,9 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if round_index<=0 or not projection.human_enabled(round_index) or session.round_index!=round_index or session.build.pack_pending(): return null
 	var revision: int=28 if round_index==10 else ([0,5,7,9,11,13,17][round_index] if round_index<7 else projection.late_revision(round_index))
-	if session.build.revision()!=revision: return null
+	if session.build.revision()!=revision:
+		if round_index!=1 or Adapter.Ordinary.unpurchased_return_kind(session.build).is_empty() \
+			or not session.physical.pending.is_empty() or pending.get("reports",[])!=[]: return null
 	if round_index==6 and not Adapter.Ordinary._signed_visit6_journal(session.build): return null
 	if round_index==10 and not Adapter.Ordinary._semifinal_checkpoint_shape(session): return null
 	if round_index in [7,8,9] and not Adapter.Ordinary._paired_late_start(session): return null

@@ -185,7 +185,7 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 		if not marker is Dictionary or marker.get("seed") != season.season_seed: return false
 	return true
 
-# Exact private round-1 history, one authored upgrade and unpaid return human.
+# Exact private first-leg history plus one purchased upgrade or exact untouched/browsed prefix.
 # No public admission or later settled receipts; full history is checked below.
 static func _first_leg_shape(season: SeasonState) -> bool:
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
@@ -196,7 +196,9 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 		if season.results[index].get("id")!=index: return false
 	var physical=season.physical
 	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or (not detached and physical.reports.size()!=2): return false
-	if not physical.pending.is_empty() and (season.build.revision()!=5 or not projection.bound_shape(physical.pending) or physical.pending.human[0]!=3): return false
+	if not physical.pending.is_empty():
+		if not return_human_ready(season.build) or not projection.bound_shape(physical.pending) or physical.pending.human[0]!=3: return false
+		if not unpurchased_return_kind(season.build).is_empty() and not physical.pending.reports.is_empty(): return false
 	for index: int in range(2):
 		if physical.reports[index].get("fixture")!=index+1: return false
 	var build: SeasonBuild=season.build
@@ -438,6 +440,18 @@ static func _first_shop_prefix(build: SeasonBuild) -> bool:
 	if steps>=2 and (bank[1].get("op")!="charge" or bank[1].get("id")!="charge:3"): return false
 	if not whole(build._visit.get("number"),1,1) or build._visit.get("open")!=(steps>0): return false
 	return steps==0 or build._visit.get("pack_status")==["","sealed","open","used"][steps]
+
+# A return without a purchase recognizes only exact native journal
+# prefixes, not a caller toggle or an unresolved paid reveal.
+static func unpurchased_return_kind(build: SeasonBuild) -> String:
+	var rev: int=build.revision()
+	if rev not in [2,3] or build._events.size()!=rev or not _first_shop_prefix(build): return ""
+	var reward: Dictionary=build._bank._events[0]
+	if reward.get("id")!="game:0" or reward.get("game")!=0 or not reward.get("win") is bool: return ""
+	return "unopened" if rev==2 else "browsed"
+
+static func return_human_ready(build: SeasonBuild) -> bool:
+	return build.revision()==5 or not unpurchased_return_kind(build).is_empty()
 
 static func _first_shop_journal(build: SeasonBuild, steps: int) -> bool:
 	if build._events[0].get("op")!="successor_reward" or build._events[1].get("op")!="exotic_admit" or build._events[1].get("id")!="exotic:0": return false
