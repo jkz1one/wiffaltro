@@ -97,3 +97,38 @@ Expect `STANDARD_BASE_ELIMINATED_COLD_PASS`.
 This is a complete physical Standard Base proof and an explicit negative
 control for unlocking D1 without a championship. The separate champion
 entitlement and playable D1 still need actual positive evidence.
+
+## One-game controls-only batting pilot
+
+The separate QA script `tests/successor_standard_contact_pilot.gd.txt`
+extends the scratch baseline driver. Save it as `pilot.gd`, attach it to
+its own one-Node `pilot.tscn`, and launch that scene in a **new** isolated
+profile. Keep the baseline as `qa.gd`; its two optional hooks do nothing
+unless this specific pilot overrides them. Run `birth 42`, one opening
+human/worker/worker/settlement chain, and a separate cold reopen. The
+intervention is limited to the human away batting half of fixture 0.
+
+The pilot uses the stock plate-location estimate from past visible ball
+motion and the displayed count. It takes pitches clearly outside, defends
+close two-strike pitches, and swings at selected on-plate reads. It changes
+only the swing/take Boolean at the native input plan, not power/contact
+choice, aim, timing, assigned lineup, either pitching policy, opponent
+batting, rules, or resolution. It does not read the true target, actual
+future crossing, umpire call or eventual outcome to make a decision.
+Different inputs can change future game situations even with opponent
+policy unchanged.
+
+Both profiles began at the byte-identical seed-42 four-pick checkpoint.
+The baseline driver re-ran its ordinary opener to the same prior checkpoint
+hash, with the original 6–5 win. The pilot supplied 76 batting plans, 64
+swings, 13 takes changed to swings and four swings changed to takes. Its
+human offense had 16 hits, one home run and 10 strikeouts in 31 plate
+appearances (baseline: 15 hits, no home runs and 13 strikeouts in 33 plate
+appearances). However, it **lost 8–10**, so this is not a better title
+strategy based on this pilot. The two original NPC reports matched the
+baseline exactly; the round settled with six correct rewards and cold
+reopened without rewriting either slot.
+
+Pilot settled primary: `cfdc3f23b7034a29555fc9c1da76a52978969714c8af30f07394416bc81e4727`.
+Backup: `2ac1c0cadf07fb3475af11a00eeb0f52e78ebc936a237aaba8dd2e2bda9b8dbd`.
+Do not continue a full pilot season solely on this result.

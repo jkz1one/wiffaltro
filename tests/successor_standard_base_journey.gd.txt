@@ -104,6 +104,13 @@ func _resume(app) -> String:
 	if not check(not app._busy and app.retained==null and app.season.physical.pending.reports.size()==count+1,"original NPC result admitted exactly once: "+app.notice): return ""
 	return "npc-%d"%fixture
 
+# Test-only extension points. The baseline driver leaves native controllers untouched.
+func _before_automated_play(_lab: PitchBatLab, _fixture: Dictionary) -> void:
+	pass
+
+func _after_automated_play(_lab: PitchBatLab, _fixture: Dictionary) -> void:
+	pass
+
 func _play(app) -> String:
 	var fixture: Dictionary=app.season.pending_fixture()
 	if not check(not fixture.is_empty() and (fixture.away==0 or fixture.home==0),"scheduled human fixture from current owner"): return ""
@@ -118,6 +125,7 @@ func _play(app) -> String:
 	lab._automation.seed=Adapter.fixtures("ordinary").seed_for(app.season,fixture)
 	lab._automation.presentation_enabled=true
 	lab._automation.begin(lab)
+	_before_automated_play(lab,fixture)
 	var finished:=false
 	for frame: int in range(FRAME_LIMIT):
 		await get_tree().physics_frame
@@ -129,6 +137,7 @@ func _play(app) -> String:
 			break
 		if frame%12000==0: print("STANDARD_BASE_ACTIVE fixture=",fixture.id," frames=",frame," plate=",lab._match_state.plate_appearance_number)
 	if not check(finished and not Adapter.human_capture("ordinary").capture(app).is_empty(),"actual human-side physics reaches native capturable outro"): return ""
+	_after_automated_play(lab,fixture)
 	var score:=Vector2i(lab._match_state.away_team.runs,lab._match_state.home_team.runs)
 	app.finish_game()
 	if not check(not app.season.physical.pending.is_empty() and app.retained==null and not is_instance_valid(app.lab),"actual human result enters pending checkpoint"): return ""

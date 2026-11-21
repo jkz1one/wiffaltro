@@ -1,0 +1,53 @@
+extends "res://qa.gd"
+## Controls-only variant. Active solely for the seed-42 opening human away game.
+
+class VisibleDiscipline extends BatterApproachModel:
+	var plans := 0
+	var swings := 0
+	var override_takes := 0
+	var override_swings := 0
+
+	func plan_swing(pitch: PitchDefinition, position: Vector3, velocity: Vector3,
+			batter: PlayerDefinition, balls: int, strikes: int, decision_seed: int,
+			batting_hand: int, elapsed: float) -> Dictionary:
+		var intent: Dictionary = super.plan_swing(pitch,position,velocity,batter,balls,strikes,
+			decision_seed,batting_hand,elapsed)
+		# The input is the existing visual estimate from observed ball motion.
+		# No true crossing, future frames, strike call, pitch target, or result.
+		var predicted: Vector2 = intent.plate_read
+		var x: float = absf(predicted.x)
+		var y: float = absf(predicted.y-ZONE_CENTER_Y_M)
+		var outside_margin: float = 0.12 if strikes==2 else 0.05
+		var on_plate: bool = x <= ZONE_HALF_WIDTH_M-0.06 and y <= ZONE_HALF_HEIGHT_M-0.07
+		var protect: bool = strikes==2 and x <= ZONE_HALF_WIDTH_M+0.02 and y <= ZONE_HALF_HEIGHT_M+0.02
+		var ahead: bool = balls==3 and strikes<2
+		var center: bool = x<=0.19 and y<=0.23
+		plans += 1
+		if x > ZONE_HALF_WIDTH_M+outside_margin or y > ZONE_HALF_HEIGHT_M+outside_margin:
+			if intent.swing: override_takes += 1
+			intent.swing = false
+		elif protect or (on_plate and (not ahead or center)):
+			if not intent.swing: override_swings += 1
+			intent.swing = true
+		swings += int(intent.swing)
+		# Native power/contact choice, aim, timing and resolver are unchanged.
+		return intent
+
+var _discipline: VisibleDiscipline
+
+func _before_automated_play(lab: PitchBatLab, fixture: Dictionary) -> void:
+	if not check(int(fixture.id)==0 and int(fixture.away)==0 and not lab._player_home
+			and lab._automation.approaches.size()==2
+			and lab._automation.approaches[1].get_script()==BatterApproachModel,
+			"only opening human away offense uses pilot; home controller is native"): return
+	_discipline=VisibleDiscipline.new()
+	lab._automation.approaches[0]=_discipline
+	lab._automation.select_offense(lab)
+	_discipline.reset(lab._match_state.plate_appearance_number)
+
+func _after_automated_play(_lab: PitchBatLab, _fixture: Dictionary) -> void:
+	if not check(_discipline!=null and _discipline.plans>0
+			and _discipline.override_takes+_discipline.override_swings>0,"visible policy supplied distinct native inputs"): return
+	print("STANDARD_CONTACT_PILOT_PLANS ",JSON.stringify({"plans":_discipline.plans,
+		"swings":_discipline.swings,"take_changes":_discipline.override_takes,
+		"swing_changes":_discipline.override_swings}))
