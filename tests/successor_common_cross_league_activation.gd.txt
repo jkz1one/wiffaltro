@@ -1,0 +1,105 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const EXACT="b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+const PRIOR="1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+const VERIFY="ACTIVATE DUGOUT BASE"
+const DEST="9163ba693e67b9fb401a9f5ee745bc24b61aafbc5fb693aa15570529e5f457f7"
+const CANCEL="CANCEL LEAGUE TRANSITION CHECK"
+func _ready() -> void: call_deferred("_run")
+func _check(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==1
+			and args[0] in ["activate","retry","cancel","stale","flag-off","stage-tamper","unverified-ui"] and not FileAccess.file_exists("user://season-v1.json")
+			and FileAccess.get_sha256(S.PATH)==EXACT and FileAccess.get_sha256(S.PATH+".bak")==PRIOR,"exact genuine pair only"): return
+	var before:=S.raw()
+	var prior:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not _check(app._owned() and app.season.results.size()==33 and app.career_owner.lifecycle_status()=="closed","actual exact Standard proposal"): return
+	var owner: RefCounted=app.career_owner
+	# Presentation-only outcome control, not a fabricated write failure or
+	# an override of the real Store's disk protocol.
+	if args[0]=="unverified-ui":
+		app._finish_cross_activation("renamed_unverified")
+		if _check(app.career_owner==null and app.season==null and not app._cross_retry
+				and _button(app,"CONTINUE SAVED CAREER")!=null and app.notice.contains("could not be verified")
+				and S.raw()==before and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,
+				"unverified post-rename outcome requires Continue, no retry/success claim"): get_tree().quit()
+		return
+	var button:=_button(app,VERIFY)
+	if args[0]=="flag-off":
+		app.begin_cross_review()
+		if _check(button==null and not app.d1_check_running() and S.raw()==before,"flag-off removes control and rejects its App method"): get_tree().quit()
+		return
+	if not _check(button!=null,"visible private activation control"): return
+	var obstruction: String=S.PATH+".tmp"
+	if args[0]=="retry" and not _check(DirAccess.make_dir_absolute(obstruction)==OK,"own isolated transaction obstruction"): return
+	var start:=Time.get_ticks_msec()
+	button.pressed.emit()
+	var sync:=Time.get_ticks_msec()-start
+	if not _check(app.d1_check_running() and _button(app,CANCEL)!=null and sync<1000,"nonblocking launch and visible cancel"): return
+	var child: Node=app._d1_check
+	var completion: Array=[]
+	child.completed.connect(func(outcome: String, proof: Dictionary)->void: completion.append([outcome,proof]))
+	if args[0]=="cancel": _button(app,CANCEL).pressed.emit()
+	if args[0]=="stage-tamper":
+		var intruder:=FileAccess.open(child._cross_dir.path_join(App.D1Check.CROSS_FILE),FileAccess.WRITE)
+		intruder.store_string("{}")
+		intruder.close()
+	if args[0]=="stale":
+		var file:=FileAccess.open(S.PATH,FileAccess.WRITE)
+		file.store_buffer(prior)
+		file.close()
+	var frames:=0
+	var last_frame:=Time.get_ticks_usec()
+	var max_frame_gap:=0
+	var max_wait_gap:=0
+	while app.d1_check_running() and Time.get_ticks_msec()-start<120000:
+		await get_tree().process_frame
+		frames+=1
+		var now:=Time.get_ticks_usec()
+		max_frame_gap=maxi(max_frame_gap,now-last_frame)
+		if app.d1_check_running(): max_wait_gap=maxi(max_wait_gap,now-last_frame)
+		last_frame=now
+	if not _check(not app.d1_check_running() and completion.size()==1,"single terminal child outcome"): return
+	var result: Array=completion[0]
+	if args[0] in ["activate","retry"]:
+		if not _check(result[0]=="qualified" and result[1].is_empty() and frames>30,"accepted live private reply, no reusable proof"): return
+		if args[0]=="retry":
+			if not _check(app._cross_retry and app.career_owner==owner and S.raw()==before
+					and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,"obstruction leaves exact owner and both files byte-inert"): return
+			var retry:=_button(app,"RETRY EXACT DUGOUT ACTIVATION")
+			if not _check(retry!=null and DirAccess.remove_absolute(obstruction)==OK,"retry exact prepared candidate"): return
+			retry.pressed.emit()
+		if not _check(app.career_owner==null and app.season==null and not app._cross_retry
+				and FileAccess.get_sha256(S.PATH)==DEST and FileAccess.get_file_as_bytes(S.PATH+".bak")==before,
+				"parent atomic promotion/readback exact native draft and predecessor"): return
+		app.begin_cross_review()
+		app.retry_cross_activation()
+		if not _check(FileAccess.get_sha256(S.PATH)==DEST and FileAccess.get_file_as_bytes(S.PATH+".bak")==before,
+				"repeat activates nothing and does not rotate backup"): return
+	else:
+		if not _check(app.career_owner==owner and result[0]=={"cancel":"cancelled","stale":"stale","stage-tamper":"invalid"}[args[0]]
+				and result[1].is_empty() and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior
+				and S.raw()==(prior if args[0]=="stale" else before),"cancel/stale/invalid stage leaves files and owner untouched"): return
+	var root:=DirAccess.open("user://")
+	root.include_hidden=true
+	if not _check(not Array(root.get_directories()).any(func(name: String)->bool: return name.begins_with(".cross-activate-")),
+			"unique disposable child staging was cleaned"): return
+	print("CROSS_ASYNC_ACTIVATION_PASS ",args[0]," frames=",frames," launch_ms=",sync,
+		" wait_gap_us=",max_wait_gap," max_frame_gap_us=",max_frame_gap," write_ms=",app._cross_write_ms," elapsed_ms=",Time.get_ticks_msec()-start)
+	get_tree().quit()

@@ -46,6 +46,10 @@ func render() -> void:
 	if app.retained == null:
 		_bound_button(_footer,"QUIT GAME",Callable(app,"_request_quit"))
 	if not app.notice.is_empty(): _note(app.notice)
+	if app._cross_retry:
+		_bound_button(_body,"RETRY EXACT DUGOUT ACTIVATION",Callable(app,"retry_cross_activation"))
+		_bound_button(_body,"CANCEL DUGOUT ACTIVATION",Callable(app,"cancel_cross_retry"))
+		return
 	if app.d1_check_running():
 		var cancel_label: String="CANCEL LEAGUE TRANSITION CHECK" if app._cross_reviewing else (
 			"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK")
@@ -106,7 +110,7 @@ func render() -> void:
 		_workshop_draft()
 		_closed()
 		if app.cross_review_visible():
-			_bound_button(_body,"VERIFY DUGOUT BASE TRANSITION",Callable(app,"begin_cross_review"))
+			_bound_button(_body,"ACTIVATE DUGOUT BASE",Callable(app,"begin_cross_review"))
 		if not archived: _session_controls()
 		if app.earned_league_preview(): _earned_leagues(false)
 		return

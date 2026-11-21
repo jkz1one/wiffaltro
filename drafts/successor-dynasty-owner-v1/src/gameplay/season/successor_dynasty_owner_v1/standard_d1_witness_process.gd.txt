@@ -1,9 +1,12 @@
 extends Node
-## Private same-binary proof transport. No disk reply or slot writer.
+## Private same-binary proof transport. Only activation stages disposable bytes.
 const Store=preload("owner_store.gd")
 const T=preload("standard_d1_transition.gd")
 const View=preload("standard_d1_view.gd")
 const KIND: String="common-standard-d1-witness-worker-v2"
+const ACTIVATE_KIND: String="common-cross-league-activate-worker-v1"
+const CROSS_FILE: String="candidate.json"
+const CROSS_MAX: int=24*1024*1024
 const CROSS_KIND: String="common-cross-league-review-worker-v2"
 const CONTINUE_KIND: String="common-standard-d1-continue-worker-v2"
 const FRAME: String="WIFFALTRO_D1_WITNESS_V2 "
@@ -21,6 +24,8 @@ var _started: int=0
 var _last_poll: int=0
 var _stopping: String=""
 var _completed_view: RefCounted
+var _completed_cross: Dictionary={}
+var _cross_dir: String=""
 
 static func supported() -> bool:
 	return OS.has_feature("editor") and OS.get_name()=="Linux" \
@@ -42,7 +47,7 @@ static func _revision(kind: String=KIND) -> String:
 
 static func request_valid(value: Variant) -> bool:
 	return value is Dictionary and SeasonOwnership._keys(value,["version","kind","token","source_sha256","seed"]) \
-		and SeasonOwnership._whole(value.version,2,2) and value.kind in [KIND,CONTINUE_KIND,CROSS_KIND] \
+		and SeasonOwnership._whole(value.version,2,2) and value.kind in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND] \
 		and value.token is String and value.token.length()==32 and value.token.is_valid_hex_number(false) \
 		and T.Start.sha(value.source_sha256) and SeasonOwnership._whole(value.seed,0,2147483647) \
 		and (value.kind==KIND or value.seed==0)
@@ -55,10 +60,16 @@ static func canonical(value: Variant) -> String:
 func start(source_sha256: String, seed_value: int, kind: String=KIND) -> bool:
 	if running or not is_inside_tree() or not supported() or not T.Start.sha(source_sha256) \
 			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision(kind)!=source_sha256 \
-			or kind not in [KIND,CONTINUE_KIND,CROSS_KIND] or (kind!=KIND and seed_value!=0) \
-			or (kind==CROSS_KIND and not Store.cross_league_preview()): return false
+			or kind not in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND] or (kind!=KIND and seed_value!=0) \
+			or (kind in [CROSS_KIND,ACTIVATE_KIND] and not Store.cross_league_preview()): return false
 	_request={"version":2,"kind":kind,"token":Crypto.new().generate_random_bytes(16).hex_encode(),
 		"source_sha256":source_sha256,"seed":seed_value}
+	if kind==ACTIVATE_KIND:
+		var folder:=_activation_dir(_request.token)
+		if folder.is_empty() or DirAccess.make_dir_absolute(folder)!=OK:
+			_clear()
+			return false
+		_cross_dir=folder
 	var worker: String=(get_script() as GDScript).resource_path.get_base_dir().path_join("standard_d1_witness_worker.tscn")
 	var packet: String=Marshalls.utf8_to_base64(canonical(_request))
 	var launched:=OS.execute_with_pipe(OS.get_executable_path(),
@@ -69,6 +80,7 @@ func start(source_sha256: String, seed_value: int, kind: String=KIND) -> bool:
 	if _pid<=0 or _stdout==null or _stderr==null:
 		if _pid>0: OS.kill(_pid)
 		_clear()
+		_clean_cross()
 		return false
 	process_mode=Node.PROCESS_MODE_ALWAYS
 	_started=Time.get_ticks_msec()
@@ -97,6 +109,36 @@ func _clear() -> void:
 func _finish(outcome: String, proof: Dictionary={}, emit_result: bool=true) -> void:
 	_clear()
 	if emit_result: completed.emit(outcome,proof)
+	_completed_cross={}
+	_clean_cross()
+
+static func _activation_dir(token: String) -> String:
+	return "user://.cross-activate-"+token if token.length()==32 and token.is_valid_hex_number(false) else ""
+
+func _clean_cross() -> void:
+	if _cross_dir.is_empty(): return
+	var root:=DirAccess.open("user://")
+	if root!=null and not root.is_link(_cross_dir.get_file()):
+		DirAccess.remove_absolute(_cross_dir.path_join(CROSS_FILE))
+		DirAccess.remove_absolute(_cross_dir)
+	_cross_dir=""
+
+# The file is not authority: only the currently validated child pipe can
+# unlock one read of its exact size and content in this synchronous callback.
+func take_cross_bytes(source_sha256: String) -> PackedByteArray:
+	var proof: Dictionary=_completed_cross
+	_completed_cross={}
+	if proof.is_empty() or proof.request.source_sha256!=source_sha256 \
+		or _cross_dir!=_activation_dir(proof.request.token): return PackedByteArray()
+	var root:=DirAccess.open("user://")
+	var folder:=DirAccess.open(_cross_dir)
+	if root==null or root.is_link(_cross_dir.get_file()) or folder==null or folder.is_link(CROSS_FILE):
+		return PackedByteArray()
+	var f:=FileAccess.open(_cross_dir.path_join(CROSS_FILE),FileAccess.READ)
+	if f==null or f.get_length()!=int(proof.size): return PackedByteArray()
+	var b:=f.get_buffer(int(proof.size))
+	f.close()
+	return b if b.size()==int(proof.size) and T._source_digest(b)==proof.candidate_sha256 else PackedByteArray()
 
 # The view is obtainable once, synchronously while this exact private child
 # emits completion. No caller-supplied payload can populate the handoff.
@@ -141,6 +183,9 @@ func _process(_delta: float) -> void:
 		_completed_view=view
 		_finish("qualified")
 		_completed_view=null
+	elif _request.kind==ACTIVATE_KIND and packet.outcome=="qualified":
+		_completed_cross=packet
+		_finish("qualified")
 	else:
 		_finish(packet.outcome,packet if packet.outcome=="qualified" else {})
 
@@ -157,6 +202,12 @@ static func _decode(bytes: PackedByteArray, request: Dictionary, exit_code: int)
 	var result: Variant=JSON.parse_string(json)
 	if not result is Dictionary or not ClubCareer.same(result.get("request"),request) \
 			or JSON.stringify(result,"",true,true)!=json: return {}
+	if request.kind==ACTIVATE_KIND:
+		if not SeasonOwnership._keys(result,["request","outcome","size","candidate_sha256"]) or not result.candidate_sha256 is String: return {}
+		if exit_code==REFUSED_EXIT and result.outcome=="refused" and result.size==0 and result.candidate_sha256.is_empty(): return result
+		if exit_code==0 and result.outcome=="qualified" and SeasonOwnership._whole(result.size,1,CROSS_MAX) \
+			and T.Start.sha(result.candidate_sha256): return result
+		return {}
 	if request.kind==CROSS_KIND:
 		if not SeasonOwnership._keys(result,["request","outcome","draft_sha256"]) \
 			or not result.draft_sha256 is String: return {}

@@ -33,6 +33,9 @@ static var _expected: PackedByteArray = PackedByteArray()
 static var _written: PackedByteArray = PackedByteArray()
 # One unarmed report-ticket result, or one promoted same-owner terminal result.
 # No serialized trust marker, cross-process cache, or caller registration API.
+static var _cross_pending: PackedByteArray
+static var _cross_owner: RefCounted
+static var _cross_expected: PackedByteArray
 static var _projection_ticket: RefCounted
 static var _projection_checkpoint: RefCounted
 static var _projection_owner: RefCounted
@@ -138,20 +141,41 @@ static func _write_data(data: Dictionary, expected: PackedByteArray) -> bool:
 	# do not rerun it and recapture six clubs again inside every button handler.
 	var parser: JSON = JSON.new()
 	if parser.parse(bytes.get_string_from_utf8()) != OK or not Codec.same(parser.data,data): return false
+	return _write_exact_bytes(bytes,expected)
+
+static func _write_exact_bytes(bytes: PackedByteArray, expected: PackedByteArray) -> bool:
+	return _write_exact_result(bytes,expected,false)=="saved"
+
+static func _write_exact_result(bytes: PackedByteArray, expected: PackedByteArray, bounded: bool) -> String:
 	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.WRITE)
-	if file == null: return false
+	if file == null: return "not_renamed"
 	file.store_buffer(bytes); file.flush()
 	var ok: bool = file.get_error() == OK
 	file.close()
-	if not ok or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes or not _matches(expected): return false
-	if not expected.is_empty() and DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return false
-	if not _matches(expected): return false
-	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK or raw() != bytes: return false
+	if not ok or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes or not _write_revision_matches(expected,bounded): return "not_renamed"
+	if not expected.is_empty() and DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return "not_renamed"
+	if not _write_revision_matches(expected,bounded): return "not_renamed"
+	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK: return "not_renamed"
+	var readback_ok: bool=_write_revision_matches(bytes,true) if bounded else raw()==bytes
+	if not readback_ok: return "renamed_unverified"
 	last_error = ""
-	return true
+	return "saved"
+
+# The bounded cross path never reads a replacement of arbitrary length and
+# refuses linked slot objects. The stock write protocol is otherwise unchanged.
+static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> bool:
+	if not bounded: return _matches(bytes)
+	var dir:=DirAccess.open("user://")
+	if dir==null or dir.is_link(PATH.get_file()): return false
+	var f:=FileAccess.open(PATH,FileAccess.READ)
+	if f==null or f.get_length()!=bytes.size(): return false
+	var same: bool=f.get_buffer(bytes.size())==bytes and f.get_length()==bytes.size()
+	f.close()
+	return same
 
 static func _invalidate() -> void:
 	forget_projection()
+	_discard_cross_activation()
 	_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = PackedByteArray()
 	_paused = {}; _active = ""; _metadata = {}; _imported_sha256 = ""
 	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
@@ -636,6 +660,55 @@ static func commit_cross_league_and_write(owner: RefCounted, expected: PackedByt
 	_expected=expected.duplicate();_written=PackedByteArray()
 	_write_admitted()
 	return _ticket
+
+# Only a live validated child completion can stage candidate bytes here.
+# The child prepared the native state; this parent owns compare and write.
+static func accept_cross_activation(owner: RefCounted,expected: PackedByteArray,child: Node) -> String:
+	var process_script: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
+	if not cross_league_preview() or child==null or child.get_script()!=process_script or not _cross_pending.is_empty():
+		return "refused"
+	if not _cross_bound(owner,expected): return "stale"
+	var bytes: PackedByteArray=child.take_cross_bytes(Owner._hash(expected))
+	if bytes.is_empty(): return "refused"
+	_cross_pending=bytes
+	_cross_owner=owner
+	_cross_expected=expected
+	return retry_cross_activation(owner,expected)
+
+static func _cross_bound(owner: RefCounted,expected: PackedByteArray) -> bool:
+	return not saving and _ticket==null and owner!=null and owner==_owner \
+		and owner.session==_owner_session and expected==_owner_bytes and not expected.is_empty() \
+		and _write_revision_matches(expected,true)
+
+static func _discard_cross_activation() -> void:
+	_cross_pending=PackedByteArray()
+	_cross_owner=null
+	_cross_expected=PackedByteArray()
+
+static func cancel_cross_activation(owner: RefCounted) -> void:
+	if owner!=null and owner==_cross_owner: _discard_cross_activation()
+
+static func retry_cross_activation(owner: RefCounted,expected: PackedByteArray) -> String:
+	if _cross_pending.is_empty() or owner!=_cross_owner or expected!=_cross_expected: return "refused"
+	if not cross_league_preview() or not _cross_bound(owner,expected):
+		_discard_cross_activation()
+		return "stale"
+	var dir:=DirAccess.open("user://")
+	if dir==null: return "obstructed"
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if dir.is_link((PATH+suffix).get_file()) or DirAccess.dir_exists_absolute(PATH+suffix): return "obstructed"
+	if FileAccess.file_exists(PATH+".tmp"): return "obstructed"
+	saving=true
+	var outcome: String=_write_exact_result(_cross_pending,expected,true)
+	saving=false
+	if outcome in ["saved","renamed_unverified"]:
+		# Once renamed, never retry or publish old owner authority even when
+		# verifying the new primary failed. Strict Continue decides what exists.
+		_invalidate()
+		return outcome
+	if _write_revision_matches(expected,true): return "obstructed"
+	_discard_cross_activation()
+	return "stale"
 
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.

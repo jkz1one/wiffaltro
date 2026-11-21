@@ -17,6 +17,8 @@ const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/st
 var _d1_check: Node
 var _d1_close_after_check: bool=false
 var _cross_reviewing: bool=false
+var _cross_retry: bool=false
+var _cross_write_ms: int=0
 var _d1_continuing: bool=false
 var _d1_sealed_view: RefCounted
 var _d1_view_poll: int=0
@@ -108,6 +110,7 @@ func _ready() -> void:
 	show_season()
 
 func _exit_tree() -> void:
+	Store.cancel_cross_activation(career_owner)
 	_expire_d1_proof()
 	var checking: Node=_d1_check
 	_d1_check=null
@@ -137,7 +140,7 @@ func show_season() -> void:
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
-	return not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+	return not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
 func league_entry_state(league: String, tier: int = 0) -> String:
 	var titles: Dictionary={} if career_owner==null else career_owner.common.aggregate.titles
@@ -415,10 +418,10 @@ func begin_cross_review() -> void:
 	_cross_reviewing=true
 	add_child(check)
 	check.completed.connect(_complete_cross_review.bind(check,_d1_epoch),CONNECT_ONE_SHOT)
-	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.CROSS_KIND):
+	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.ACTIVATE_KIND):
 		_complete_cross_review("invalid",{},check,_d1_epoch)
 		return
-	notice="Checking the exact saved league transition in the background…"
+	notice="Preparing the exact Dugout Base draft in the background…"
 	show_season()
 
 func _complete_cross_review(outcome: String, _proof: Dictionary, check: Node, epoch: int) -> void:
@@ -430,12 +433,45 @@ func _complete_cross_review(outcome: String, _proof: Dictionary, check: Node, ep
 		_d1_close_after_check=false
 		_quit_now()
 		return
+	if outcome=="qualified":
+		var started:=Time.get_ticks_msec()
+		var result:=Store.accept_cross_activation(career_owner,saved_bytes,check)
+		_cross_write_ms=Time.get_ticks_msec()-started
+		_finish_cross_activation(result)
+		return
 	notice={
-		"qualified":"Dugout Base draft verified. Activation is not enabled; your Standard season was not changed.",
 		"cancelled":"League transition check cancelled. Your career is unchanged.",
-		"stale":"The saved career changed during the check. Continue the current save before checking again.",
+		"stale":"The saved career changed during preparation. No transition was written.",
 		"refused":"The saved league transition did not qualify. Your career is unchanged."
 	}.get(outcome,"The saved league transition could not be verified. Your career is unchanged.")
+	show_season()
+
+func retry_cross_activation() -> void:
+	if not _cross_retry: return
+	var started:=Time.get_ticks_msec()
+	var result:=Store.retry_cross_activation(career_owner,saved_bytes)
+	_cross_write_ms=Time.get_ticks_msec()-started
+	_finish_cross_activation(result)
+
+func cancel_cross_retry() -> void:
+	if not _cross_retry: return
+	Store.cancel_cross_activation(career_owner)
+	_cross_retry=false
+	notice="Dugout activation cancelled. No transition was written."
+	show_season()
+
+func _finish_cross_activation(outcome: String) -> void:
+	_cross_retry=outcome=="obstructed"
+	if outcome in ["saved","renamed_unverified"]:
+		career_owner=null; season=null; saved_bytes=PackedByteArray()
+		notice="Dugout Base activated. Continue the saved career to draft your club." if outcome=="saved" else (
+			"The save was replaced, but its contents could not be verified. Use Continue to check the saved career before playing.")
+	elif _cross_retry:
+		notice="The exact Dugout draft could not be saved. Resolve the save obstruction, then retry."
+	elif outcome=="stale":
+		notice="The saved career changed. No transition was written."
+	else:
+		notice="The prepared Dugout draft could not be verified. No transition was written."
 	show_season()
 
 func d1_check_visible() -> bool:
@@ -741,6 +777,9 @@ func leave_game() -> void:
 
 
 func _request_quit() -> void:
+	if _cross_retry:
+		Store.cancel_cross_activation(career_owner)
+		_cross_retry=false
 	if is_instance_valid(_d1_check):
 		_d1_close_after_check=true
 		cancel_d1_check()

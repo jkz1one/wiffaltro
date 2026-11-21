@@ -232,3 +232,33 @@ The original synchronous Store commit is still off-menu: the next
 increment must eliminate/defer the measured expensive parent capture and
 raw guard work before using a one-shot exact reply to promote a native
 candidate with parent-only write and readback.
+
+## Private activation from an already prepared transition
+
+**Activate Dugout Base** supersedes the review-only control above. The
+same-engine child still strictly rederives the precise source and native
+zero-pick draft, but now stages bounded serialized candidate bytes in a
+unique scratch directory. The live, request-bound pipe reports only the
+size and SHA-256. The parent reads those bytes once, verifies both, and
+owns the exact primary comparison, backup, rename, and readback. There
+is no persisted proof or saved-candidate trust marker. Cancel and stale
+discard the stage. A pre-write obstruction retains the exact candidate
+in the parent only; retry checks the same revision and either writes
+once or refuses a changed primary.
+
+After the write, Continue uses the existing strict cold loader rather
+than adopting the child's runtime or replaying careers inside activation.
+This Continue still has its previous synchronous cold cost. Activation
+does not prepare a new proposal and is available only under the same
+private flags and supported engine; no title or ordinary start changed.
+The CP208 review-only harness is historical. The current activation
+harness `tests/successor_common_cross_league_activation.gd.txt` uses
+separate exact CP202 copies for `activate`, `retry`, `cancel`, `stale`,
+and `flag-off`. The existing cross commit harness qualifies the real
+first pick and an independent cold process after activation.
+
+A successful final rename followed by unreadable or mismatching readback
+is reported separately from a pre-rename failure. The retained candidate
+and old owner authority are dropped, and the player must use strict
+Continue; no automatic retry or success/no-write claim is made in that
+case. This does not change stock save failure behavior.
