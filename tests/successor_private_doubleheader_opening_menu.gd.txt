@@ -1,0 +1,109 @@
+extends "res://tests/successor_hidden_paired_draft.gd"
+const Binding=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const BUTTON="PLAY OPENING DOUBLEHEADER LEG"
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func need(ok: bool,label: String) -> bool:
+	if check(ok,label): return true
+	get_tree().quit(1)
+	return false
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and args.size()==2 and args[0] in ["draft","play","cold","flag-off"]
+			and not FileAccess.file_exists("user://season-v1.json"),"dedicated isolation"): return
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	if args[0]=="draft":
+		if not need(args[1]=="new" and not Store.occupied(),"fresh generated profile; no existing slot"): return
+		if not need(_button(app,BUTTON)==null and not Runtime.COMMON_ORDINARY_LEAGUES.has("doubleheader"),"no public league entry or title grant"): return
+		app._create_paired_draft(1001)
+		for i: int in range(4):
+			if not need(_button(app,BUTTON)==null,"opening is unavailable before four actual picks"): return
+			app.draft(app.season.offers()[0])
+		if need(app._owned() and app.season.picks.size()==4 and _button(app,BUTTON)!=null,
+				"native private draft completes and shows exact opening control"):
+			print("PRIVATE_DH_DRAFT_MENU_PASS ",FileAccess.get_sha256(Store.PATH))
+			get_tree().quit()
+		return
+	if not need(FileAccess.get_sha256(Store.PATH)==args[1],"expected exact generated primary"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	app.reload_save()
+	if not need(app._owned() and app.career_owner.paired_draft_only() and app.career_owner.current_ordinal()==1
+			and app.season.picks.size()==4 and app.season.pending_fixture().id==0,"actual standalone native fixture zero cold"): return
+	var control:=_button(app,BUTTON)
+	if args[0]=="flag-off":
+		app.play_private_paired_opening()
+		if need(control==null and not is_instance_valid(app.lab) and Store.raw()==before
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"flag off suppresses UI and direct action, preserves saves"): get_tree().quit()
+		return
+	if args[0]=="cold":
+		app.play_private_paired_opening()
+		app.play_next()
+		app.resume_round()
+		app.finish_game()
+		if need(control==null and not is_instance_valid(app.lab) and _pending(app)
+				and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+				"strict fresh cold pending; duplicate, NPC and settlement are unavailable"):
+			print("PRIVATE_DH_MENU_COLD_PASS ",args[1])
+			get_tree().quit()
+		return
+	app.play_next()
+	if not need(control!=null and not is_instance_valid(app.lab),"only the explicit native private menu action can launch"): return
+	var expected: Dictionary=Binding.start(app.season)
+	var launch:=Time.get_ticks_msec()
+	control.pressed.emit()
+	var launch_ms:=Time.get_ticks_msec()-launch
+	var lab: PitchBatLab=app.lab
+	if not need(is_instance_valid(lab) and app._paired_menu_lab==lab
+			and Live.same(app._paired_first_pin.binding,expected.binding)
+			and Live.same(app._paired_first_pin.fixture,expected.fixture)
+			and Store.raw()==before,"visible control launches exact existing native paired binding"): return
+	app.ask_leave_game()
+	if not need(app._exit_mode=="leave" and app._exit_lab==lab,"unfinished match retains native Leave confirmation"): return
+	app._cancel_exit()
+	app.finish_game()
+	if not need(app.lab==lab and app._exit_mode.is_empty() and Store.raw()==before
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"cancel/early finish cannot skip or mutate"): return
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not need(not lab._match_presentation_director.blocks_gameplay(),"authored intro completed"): return
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=Physical.seed_for(app.season,expected.fixture)
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	var began:=Time.get_ticks_msec()
+	var completed:=false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+			completed=true
+			break
+		if frame%12000==0: print("PRIVATE_DH_PHYSICS fixture=0 frame=",frame," PA=",lab._match_state.plate_appearance_number)
+	if not need(completed and lab._match_state.gear_usage.started,"actual native match reached outro; no injected score"): return
+	var score:=Vector2i(lab._match_state.away_team.runs,lab._match_state.home_team.runs)
+	var played_ms:=Time.get_ticks_msec()-began
+	var checkpoint:=Time.get_ticks_msec()
+	lab.match_return_requested.emit()
+	if not need(app._owned() and app.lab==null and _pending(app) and app.retained==null
+			and _button(app,BUTTON)==null and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before
+			and Live.same(app.season.physical.pending.binding,expected.binding),"native Return durably checkpoints only exact human result"): return
+	print("PRIVATE_DH_MENU_MATCH_PASS ",FileAccess.get_sha256(Store.PATH)," away=",score.x," home=",score.y,
+		" launch_ms=",launch_ms," played_ms=",played_ms," checkpoint_ms=",Time.get_ticks_msec()-checkpoint)
+	get_tree().quit()
+func _pending(app: App) -> bool:
+	var p: Dictionary=app.season.physical.pending
+	return Binding.bound_shape(p) and p.human[0]==0 and p.human[9].get("version")==2 and p.human[13].size()==2 \
+		and p.reports.is_empty() and app.season.results.is_empty() and app.season.physical.reports.is_empty() \
+		and app.season.build._bank.view().rewards.is_empty()

@@ -93,7 +93,14 @@ func render() -> void:
 		return
 	var archived: bool=app.career_owner.ordinary_state.has("archive")
 	if app.career_owner.paired_draft_only():
-		_note("Private draft verification complete. Matches, shop and career actions are unavailable.")
+		if app.private_paired_opening_visible():
+			_label(_body,"PRIVATE DOUBLEHEADER BASE · OPENING LEG",22)
+			_bound_button(_body,"PLAY OPENING DOUBLEHEADER LEG",Callable(app,"play_private_paired_opening"))
+		elif app.season.round_index==0 and not app.season.physical.pending.is_empty() \
+				and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1":
+			_note("Opening leg saved. Remaining fixtures and settlement are not exposed in this preview.")
+		else:
+			_note("Private draft verification complete. Matches, shop and career actions are unavailable.")
 		return
 	_label(_body,("DYNASTY · SEASON %d"%app.career_owner.ordinal) if app.career_owner.active=="dynasty" else ("ORDINARY · "+str(app.season.league_rules.get("league","standard")).to_upper()+" · SEASON %d"%app.career_owner.current_ordinal()),22)
 	_label(_body,"ROUND %d · %s"%[app.season.round_index+1,SeasonState.Phase.keys()[app.season.phase]],24)

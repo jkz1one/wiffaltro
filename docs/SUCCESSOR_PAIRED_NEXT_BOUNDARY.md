@@ -21,3 +21,25 @@ that archive and derive the new start again. No recursive owner snapshots.
 Later rollover will need a separately qualified bounded, ordered archive of
 season-native checkpoints and folds rather than assuming this first proposal
 supports arbitrary ordinals.
+
+## Private opening-leg menu
+
+`WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW=1` under the Common engineering
+launcher exposes **Play Opening Doubleheader Leg** only for an already
+generated standalone Doubleheader Base owner, ordinal one, after four
+actual draft picks. It hands off to the existing authored fixture-zero
+materializer with the exact owner/disk/fixture/lineup request binding.
+Regular league entry, titles, later legs and general resume stay held.
+
+The normal managed-match Return signal uses the same private human
+checkpoint only for the exact lab that this button opened. The
+existing Leave/quit confirmation is not changed. The pending checkpoint
+contains the one actual human result and its proof, not a settlement or
+a payout. The button disappears on a cold reopen of that checkpoint.
+
+To verify, attach `tests/successor_private_doubleheader_opening_menu.gd.txt`
+to an isolated scratch project, with `successor_hidden_paired_draft.gd`
+as its parent under `res://tests`. Run `draft new`, then use the actual
+primary hash for `flag-off` (separate profile, private option unset) and
+`play` (normal native physics and Return). Run `cold <pending SHA>`
+in a new process. No NPC fixture, second leg, or settlement is run.

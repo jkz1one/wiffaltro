@@ -179,6 +179,26 @@ func _create_paired_draft(seed_value: int) -> void:
 	_busy=false
 	if candidate!=null: _retain_envelope(candidate,PackedByteArray())
 
+# Only fixture zero in an already-generated standalone owner. This does
+# not grant entry, bypass the paired factory, or expose general resume.
+var _paired_menu_lab: PitchBatLab
+func private_paired_opening_visible() -> bool:
+	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
+		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+		and career_owner!=null and season!=null and career_owner.session==season \
+		and career_owner.paired_draft_only() and career_owner.current_ordinal()==1 \
+		and career_owner.lifecycle_status()=="active" and career_owner.paused.is_empty() \
+		and Owner._missing_dynasty(career_owner) and season.league_rules.get("tier")==0 \
+		and season.phase==SeasonState.Phase.REGULAR and season.round_index==0 and season.picks.size()==4 \
+		and season.results.is_empty() and season.physical.pending.is_empty() and season.physical.reports.is_empty() \
+		and season.pending_fixture().get("id")==0
+
+func play_private_paired_opening() -> void:
+	if not private_paired_opening_visible() or not _available(): return
+	_play_paired_first()
+	if is_instance_valid(lab) and _paired_first_pin.get("lab")==lab:
+		_paired_menu_lab=lab
+
 # Unbound human first/return fixtures. Normal play/finish/resume remains closed.
 var _paired_first_pin: Dictionary={}
 func _play_paired_first() -> void:
@@ -946,6 +966,11 @@ func _played_field_matches() -> bool:
 
 
 func finish_game() -> void:
+	if is_instance_valid(_paired_menu_lab) and lab==_paired_menu_lab:
+		if not private_paired_opening_visible(): return
+		if retained!=null: retry_save()
+		else: _finish_paired_first()
+		return
 	if not _scope() or not career_owner.playable(): return
 	if _busy or is_instance_valid(_loadout_modal):
 		return
