@@ -132,3 +132,41 @@ reopened without rewriting either slot.
 Pilot settled primary: `cfdc3f23b7034a29555fc9c1da76a52978969714c8af30f07394416bc81e4727`.
 Backup: `2ac1c0cadf07fb3475af11a00eeb0f52e78ebc936a237aaba8dd2e2bda9b8dbd`.
 Do not continue a full pilot season solely on this result.
+
+## Separate seed-42 stock-controls draft pilot
+
+Copy `tests/successor_standard_draft_pilot.gd.txt` to `draft.gd` next to
+the scratch `qa.gd` and attach it to a separate one-Node `draft.tscn`.
+Use a new isolated profile with `birth 42`. The baseline hook still
+returns the first offer and reproduced its exact prior four-pick
+checkpoint. The pilot chooses only current authored offers through the
+App, and uses unmodified MatchAutomation for all game controls. It runs
+without the batting experiment. No lineup setter is used.
+
+The four picks in their authored slots were Val Morgan, Dakota Wells,
+Emery Lane and Casey Rivers. Val has control 8; Dakota ties Ash at
+fielding 6, ahead of Frankie at 4. Emery has fielding 8 and was preferred
+over equally rated Cal. Casey and Jules tied at 6 contact / 7 power;
+Casey came first in the visible offer. Native starter and fielder slots
+were still 0 and 1.
+
+Fixture 0 produced a real **10–0 road win**, versus the baseline 6–5.
+Pilot batting was 32 PA, 17 hits, one home run, zero walks and 10
+strikeouts (baseline 33 PA, 15 hits, no home runs or walks and 13
+strikeouts). Val threw 24 pitches, allowing one hit, no walks and four
+strikeouts; Dakota threw 26, allowing two hits, no walks and four
+strikeouts. The baseline four pitchers combined for 87 pitches, nine
+hits, no walks and 14 strikeouts. Opponent policy stayed stock; the
+opponent draft changed naturally after the different human selections.
+This is one promising matchup, not proof of a better full-season roster
+or of a title.
+
+Both original NPC jobs finished, the round produced three settled results
+and six exact club rewards, and the separate cold check did not write
+either save. The exact generated pilot pair is:
+
+- Primary `965ade35837ff04e0ebab63746a5a907d6536bb7f92006d98f5d73d4d8dd4761`.
+- Backup `f04e11d5b42fe83720c1c086c89a9f99670187f51d0533c99584715dbc94f566`.
+
+Do not advance this separate title candidate without first verifying its
+settled checkpoint. Its opening win supplies no earned D1 access.

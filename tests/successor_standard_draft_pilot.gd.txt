@@ -1,0 +1,28 @@
+extends "res://qa.gd"
+## Selects only visible authored offers through the unchanged App. Stock gameplay.
+
+func _draft_choice(app, index: int) -> String:
+	var offers: Array[String] = app.season.offers()
+	var preferred: Array[String] = []
+	match index:
+		0: preferred = ["player.val_morgan"]
+		1: preferred = ["player.dakota_wells","player.ash_cole","player.frankie_bell"]
+		2: preferred = ["player.emery_lane","player.cal_mercer"]
+	var choice: String = ""
+	if index<3:
+		for id: String in preferred:
+			if id in offers:
+				choice=id
+				break
+	else:
+		# Equal weight contact and power; contact breaks ties, then visible order.
+		var rating: int = -1
+		for id: String in offers:
+			var player: PlayerDefinition = app.season.build.definition(id)
+			if player==null: continue
+			var value: int = 100*(player.contact+player.power)+player.contact
+			if value>rating:
+				choice=id
+				rating=value
+	print("STANDARD_DRAFT_PILOT_PICK ",JSON.stringify({"slot":index,"offers":offers,"selected":choice}))
+	return choice

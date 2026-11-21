@@ -34,7 +34,9 @@ func _run() -> void:
 		for index: int in range(4):
 			var previous:=Store.raw()
 			if not check(not app.season.offers().is_empty(),"authored draft offer "+str(index)): return
-			app.draft(app.season.offers()[0])
+			var choice: String=_draft_choice(app,index)
+			if not check(choice in app.season.offers(),"selected player is in the visible offer"): return
+			app.draft(choice)
 			if not check(_owned_standard(app) and app.season.picks.size()==index+1
 					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"actual draft pick and prior primary backup "+str(index)): return
 		if _archive("birth"): await _finish(app)
@@ -77,6 +79,10 @@ func _run() -> void:
 	if not _archive(action): return
 	print("STANDARD_BASE_STEP ",action," results=",app.season.results.size()," human=",app.season.player_results.size()," phase=",app.season.phase)
 	await _finish(app)
+
+# Baseline remains the first authored offer; other QA scenes may choose inputs.
+func _draft_choice(app, _index: int) -> String:
+	return app.season.offers()[0]
 
 func _owned_standard(app) -> bool:
 	return app.career_owner!=null and app.career_owner.active=="ordinary" and app.career_owner.paused.is_empty() \
