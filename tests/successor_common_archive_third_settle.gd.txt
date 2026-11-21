@@ -1,0 +1,109 @@
+extends "res://tests/successor_common_archive_third_play.gd"
+## Resume only the exact real CP239 human report. No direct report/score setter.
+const HUMAN_PENDING="6cc48c0b227d6f1a1296970e1d73ad8c9ca7f087f131eafaa5eeafa6c2d26d5b"
+const HUMAN_RAW="69a54f3b76af950a2d7a137ef93e26934aeacb0f1f3b4807cdc68f907233be3e"
+const HUMAN_SOURCE="user://ordinal3-human-pending-reference.json"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and Store.cross_league_preview()
+			and args.size()==2 and args[0] in ["npc1","npc2","settle","cold"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and FileAccess.get_sha256(PRIOR)==DUGOUT
+			and FileAccess.get_sha256(RAW)==HUMAN_RAW and FileAccess.get_sha256(HUMAN_SOURCE)==HUMAN_PENDING
+			and not FileAccess.file_exists(ORIGINAL),"isolated exact CP239 human proof"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var time:=Time.get_ticks_msec()
+	app.reload_save()
+	print("ORDINAL3_SETTLE_CONTINUE_MS ",Time.get_ticks_msec()-time)
+	if not check(Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+			"strict Continue is byte-inert"): return
+	if args[0]=="cold":
+		if not check(backup.is_empty() and _qualified_settled(app),"primary-only strict three results, exact reports and six native payouts"): return
+		if not _no_repeat(app,before,backup): return
+		print("ORDINAL3_SETTLED_COLD_PASS ",args[1])
+		await _finish(app)
+		return
+	var count: int={"npc1":0,"npc2":1,"settle":2}[args[0]]
+	if not check(_qualified_pending(app,count) and (count!=0 or args[1]==HUMAN_PENDING),
+			"exact native pending frontier with no rewards"): return
+	var resume:=_button(app,"RESUME SAVED ROUND")
+	if not check(resume!=null and not resume.disabled,"actual guarded Resume Saved Round control"): return
+	time=Time.get_ticks_msec()
+	resume.pressed.emit()
+	if count<2:
+		if not check(is_instance_valid(app.ai_runner) and app._busy and app.projection.get("fixture",{}).get("id")==count+1,
+				"one original native worker from exact scheduled round"): return
+		var budget:=360000
+		while app._busy and Time.get_ticks_msec()-time<budget:
+			await get_tree().process_frame
+		if not check(not app._busy and app.retained==null and app.retained_report.is_empty() and _qualified_pending(app,count+1),
+				"native NPC checkpoint survives without reward: "+app.notice): return
+	else:
+		if not check(not app._busy and app.retained==null and not is_instance_valid(app.ai_runner) and _qualified_settled(app),
+				"actual native settlement reports exact global and private balances: "+app.notice): return
+		if not _no_repeat(app,Store.raw(),before): return
+	if not check(Store.raw()!=before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"one atomic write and exact preceding primary backup"): return
+	print("ORDINAL3_NATIVE_STEP_PASS ",args[0]," ",FileAccess.get_sha256(Store.PATH)," elapsed_ms=",Time.get_ticks_msec()-time)
+	await _finish(app)
+
+func _qualified_pending(app: Node,count: int) -> bool:
+	if not _intact(app) or app.season.round_index!=0 or app.season.picks.size()!=4 			or not app.season.results.is_empty() or not app.season.player_results.is_empty() or app.season.physical.cursor!=0: return false
+	var pending: Dictionary=app.season.physical.pending
+	var source: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(HUMAN_SOURCE))
+	if not Store.Codec.same(pending.get("human"),source.ordinary.physical.pending.human) or pending.get("reports",[]).size()!=count:
+		return false
+	for index: int in range(count):
+		var row: Dictionary=pending.reports[index]
+		if row.fixture!=index+1 or not GENERAL.valid(row.report,app.season.build.pitch_catalog_signature()): return false
+		print("ORDINAL3_NPC_PROOF ",row.fixture," ",Store.Owner._hash(JSON.stringify(row,"",true,true).to_utf8_buffer()))
+	for id: int in range(6):
+		var build: SeasonBuild=app.season.build if id==0 else app.season.opponents.clubs[str(id)].build
+		if build._bank._events.any(func(e: Dictionary)->bool: return e.op=="reward"): return false
+	return app.season.physical.reports.is_empty()
+
+func _qualified_settled(app: Node) -> bool:
+	if not _intact(app,12) or not _settled(app) or app.season.physical.cursor!=2 or app.season.shop_available()==false: return false
+	var s: SeasonState=app.season
+	var h: Dictionary=s.player_results[0]
+	if h.id!=0 or h.away!=0 or h.home!=5 or h.away_runs!=4 or h.home_runs!=5 or not Store.Codec.same(h,s.results[0]): return false
+	var seen: Dictionary={}
+	for row: Dictionary in s.results:
+		if row.id!=seen.size()/2 or row.away_runs==row.home_runs: return false
+		for id: int in [int(row.away),int(row.home)]:
+			if seen.has(id): return false
+			var build: SeasonBuild=s.build if id==0 else s.opponents.clubs[str(id)].build
+			var expected: int=18 if SeasonState._winner(row)==id else 12
+			if _native_reward(build,row.id)!=expected: return false
+			seen[id]=expected
+		print("ORDINAL3_SETTLED_SCORE ",[row.id,row.away,row.home,row.away_runs,row.home_runs])
+	print("ORDINAL3_NATIVE_GROSS ",seen)
+	return seen.size()==6
+
+# Replay each actually committed wallet journal in isolation to measure the
+# native reward's delta before subsequent sponsor income or NPC shopping.
+func _native_reward(build: SeasonBuild,game: int) -> int:
+	var original: SeasonOwnership=build._bank
+	var replay:=SeasonOwnership.new(original._catalog)
+	if not replay.enable_league_rules(original._league_rules): return -1
+	var reward:=0
+	var rows:=0
+	for event: Dictionary in original._events:
+		var before: int=replay.view().cash
+		var outcome:=replay.commit(event.duplicate(true))
+		if not outcome.ok or outcome.replayed: return -1
+		if event.op=="reward":
+			if event.game!=game: return -1
+			rows+=1
+			reward=replay.view().cash-before
+	return reward if rows==1 and Store.Codec.same(replay.view(),original.view()) else -1
+
+func _no_repeat(app: Node,primary: PackedByteArray,backup: PackedByteArray) -> bool:
+	app.resume_round()
+	return check(_button(app,"RESUME SAVED ROUND")==null and not is_instance_valid(app.ai_runner)
+		and not app.archived_abandon_visible() and not app.career_owner.next_supported()
+		and Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+		"repeat settlement and later lifecycle are held byte-inert")

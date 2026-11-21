@@ -447,3 +447,29 @@ Continue retained pending fixture 0 without NPC reports, settled
 results or a reward. Common remained 72 Club Bucks and new seasonal
 Cash remained 0. This qualifies gameplay through durable human pending,
 not the remaining NPC fixtures or settlement. No product source changed.
+
+### Ordinal-three opening settlement
+
+The same private lane can now be qualified through the existing **Resume
+Saved Round** control. From the exact human-pending CP239 primary,
+separate native worker processes recorded fixture 1 (club 4 over club 1,
+11–6) and fixture 2 (club 2 over club 3, 15–7). Neither pending report
+paid. Resume on the two-report checkpoint settled all three results;
+the preserved human opener was a 4–5 loss to club 5.
+
+The six committed wallets replayed to one native reward apiece, gross by
+club ID `[12,12,18,12,18,18]` before any other legal bank events. Human
+seasonal Cash is now 12 and Common remains exactly 72 Club Bucks. The
+two original histories and actual ordered physical reports are unchanged.
+The settled primary independently reopens without its backup, and repeat
+Resume cannot pay or write again. No Close, title, extra season payout,
+shop transaction, or new human fixture was exercised.
+
+Use the preceding assembly recipe plus
+`tests/successor_common_archive_third_settle.gd.txt` as the Node scene
+script, and the exact CP239 human-pending primary as the read-only
+`user://ordinal3-human-pending-reference.json` alongside the existing
+CP236 and raw human references. Run `npc1`, `npc2`, and `settle` with the
+current SHA in separate processes, retaining each completed primary.
+Run `cold` with only the final primary and the same references in its
+own isolated profile. The product assembly is unchanged.

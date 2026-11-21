@@ -92,13 +92,13 @@ func _run() -> void:
 		print("ORDINAL3_PLAY_PENDING_PASS ",FileAccess.get_sha256(Store.PATH))
 		await _finish(app)
 
-func _intact(app: Node) -> bool:
+func _intact(app: Node, cash: int=0) -> bool:
 	if not _owned_dugout(app) or app.career_owner.current_ordinal()!=3 or app.season.season_seed!=1003: return false
 	var owner: RefCounted=app.career_owner
 	var archive: Dictionary=owner.ordinary_state.get("archive",{})
 	var raw:=FileAccess.get_file_as_bytes(PRIOR)
 	var prior: Dictionary=Store.Owner._bytes_value(raw)
-	return archive.kind==C.ARCHIVE_CHAIN and archive.entries[0]==prior.ordinary_state.archive 		and archive.entries[0].sha256==STANDARD and C._chain_second_bytes(archive)==raw 		and Store.Codec.same(owner.common,prior.common) and owner.common.aggregate.currency==72 		and app.season.career.start_basis.version==3 and app.season.build.cash()==0 		and not owner.next_supported() and not app.archived_abandon_visible()
+	return archive.kind==C.ARCHIVE_CHAIN and archive.entries[0]==prior.ordinary_state.archive 		and archive.entries[0].sha256==STANDARD and C._chain_second_bytes(archive)==raw 		and Store.Codec.same(owner.common,prior.common) and owner.common.aggregate.currency==72 		and app.season.career.start_basis.version==3 and app.season.build.cash()==cash 		and not owner.next_supported() and not app.archived_abandon_visible()
 
 func _pending(app: Node) -> bool:
 	if not _intact(app) or app.season.picks.size()!=4 or app.season.round_index!=0 			or not app.season.results.is_empty() or not app.season.player_results.is_empty() 			or not app.season.physical.reports.is_empty() or app.season.physical.cursor!=0: return false
