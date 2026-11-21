@@ -1,0 +1,24 @@
+extends RefCounted
+## Opt-in policy for the Common V4 launcher only; never a save admission rule.
+const Unlocks = preload("res://src/gameplay/season/league_unlocks.gd")
+const Ordinary = preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const Titles = preload("res://src/gameplay/season/club_league_career.gd")
+
+static func enabled() -> bool:
+	return OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW") == "1"
+
+static func state(league: String, tier: int, titles: Dictionary) -> String:
+	if tier not in [0,1,2,3,4] or league not in Unlocks.from_titles(titles):
+		return "locked"
+	if tier>0:
+		return "unwired" if titles.get(Titles.title_key(league,tier-1),false)==true else "locked"
+	return "playable" if league=="dynasty" or league in Ordinary.COMMON_ORDINARY_LEAGUES else "unwired"
+
+static func reason(league: String, tier: int, titles: Dictionary) -> String:
+	if league not in Unlocks.from_titles(titles): return Unlocks.requirement(league)
+	if tier>0 and state(league,tier,titles)=="locked":
+		return "Win "+league.capitalize()+" "+("Base" if tier==1 else "D%d"%(tier-1))+"."
+	return "Earned. This league or difficulty is not playable in this preview yet."
+
+static func guard(league: String, tier: int, titles: Dictionary) -> bool:
+	return not enabled() or state(league,tier,titles)=="playable"

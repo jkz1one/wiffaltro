@@ -60,6 +60,7 @@ func _ready() -> void:
 	if OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING") != "1":
 		push_error("Private Dynasty engineering route not admitted.")
 		get_tree().quit(2); return
+	if Store.LeagueAdmission.enabled(): selected_league="standard"
 	# Keep authored catalog Resources owned for this live route, not per-button reloads.
 	_content_roots = preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
 	Codec.Catalog.game_signature(); Codec.Catalog.player_signature()
@@ -114,8 +115,19 @@ func show_season() -> void:
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
 	return not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
+func league_entry_state(league: String, tier: int = 0) -> String:
+	var titles: Dictionary={} if career_owner==null else career_owner.common.aggregate.titles
+	return Store.LeagueAdmission.state(league,tier,titles)
+func league_entry_reason(league: String, tier: int = 0) -> String:
+	var titles: Dictionary={} if career_owner==null else career_owner.common.aggregate.titles
+	return Store.LeagueAdmission.reason(league,tier,titles)
+func next_league_block() -> String:
+	return Store.league_block(career_owner,"next") if career_owner!=null else ""
+
 func select_league(value: String) -> void:
 	if not _available() or season != null or (value!="dynasty" and value not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES): return
+	if earned_league_preview() and league_entry_state(value)!="playable": return
 	selected_league = value; show_season()
 func create_fresh(seed_value: int = -1) -> void:
 	if not _available() or season != null: return
@@ -124,7 +136,7 @@ func create_fresh(seed_value: int = -1) -> void:
 		show_season(); return
 	if seed_value == -1: seed_value = int(Time.get_unix_time_from_system()) & 0x7fffffff
 	_busy = true
-	var candidate: RefCounted = Owner.create_development(seed_value) if selected_league=="dynasty" else Owner.create_ordinary(seed_value,selected_league)
+	var candidate: RefCounted = Store.fresh_candidate(seed_value,selected_league)
 	_busy = false
 	if candidate == null:
 		notice = "This fresh career could not be initialized. No save was written."
@@ -938,7 +950,7 @@ func request_lifecycle(action: String) -> void:
 	if not _lifecycle_ready() or not _owned() or action not in ["abandon","complete","next"]: return
 	var dynasty: bool=career_owner.active=="dynasty"
 	if action=="next":
-		if career_owner.lifecycle_status()!="closed": return
+		if career_owner.lifecycle_status()!="closed" or not next_league_block().is_empty(): return
 		var preview: Dictionary=career_owner.next_preview()
 		if (dynasty and preview.size()!=6) or (not dynasty and preview.get("kind")!="ordinary"): return
 	elif career_owner.lifecycle_status()!="active" or (action=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return

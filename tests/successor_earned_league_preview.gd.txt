@@ -1,0 +1,73 @@
+extends SceneTree
+## Standalone isolated app test. Title operands below test policy, not earned saves.
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _expect(ok: bool, label: String) -> bool:
+	if ok: return true
+	printerr("LEAGUE PREVIEW FAIL: ",label)
+	quit(1)
+	return false
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1,"isolated invocation"): return
+	var mode:=String(args[0])
+	var P=load("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
+	var S=load("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+	var is_preview: bool=mode in ["standard","dugout","legacy_resume"]
+	if not _expect(P!=null and S!=null and P.enabled()==is_preview,"literal opt-in flag"): return
+	var empty: Dictionary={}
+	for league: String in P.Unlocks.IDS:
+		var expected: String="playable" if league in ["standard","dugout"] else "locked"
+		if not _expect(P.state(league,0,empty)==expected and P.state(league,1,empty)=="locked","initial policy "+league): return
+	if not _expect(P.state("sponsorship",0,{"0":true})=="playable" and P.state("academy",0,{"0":true})=="locked" and P.state("academy",0,{"sponsorship:0":true})=="playable","Standard chain"): return
+	if not _expect(P.state("equipment",0,{"dugout:0":true})=="playable" and P.state("earnings",0,{"equipment:0":true})=="playable","Dugout chain"): return
+	if not _expect(P.state("doubleheader",0,{"1":true})=="unwired" and P.state("scramble",0,{"dugout:2":true})=="playable" and P.state("dynasty",0,{"dugout:3":true})=="playable","cross-league exact tier prerequisites"): return
+	for tier: int in range(1,5):
+		if not _expect(P.state("standard",tier,{str(tier-1):true})=="unwired" and P.state("dugout",tier,{str(tier-1):true})=="locked","exact same-league previous tier"): return
+	if mode=="policy_off":
+		if not _expect(not S.occupied() and S.fresh_candidate(123,"dynasty")!=null and not S.occupied(),"default engineering factory unchanged and no save"): return
+		print("EARNED_LEAGUE_PREVIEW_PASS ",mode)
+		quit();return
+	var scene=load("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+	var app=scene.instantiate()
+	root.add_child(app)
+	await process_frame
+	if mode=="legacy_resume":
+		var old: PackedByteArray=S.raw()
+		var backup: PackedByteArray=FileAccess.get_file_as_bytes(S.PATH+".bak")
+		if not _expect(not old.is_empty() and not backup.is_empty(),"provided generated V4 input"): return
+		app.reload_save()
+		if not _expect(app.career_owner!=null and app.career_owner.active=="dynasty" and app.league_entry_state("dynasty")=="locked" and not app.career_owner.paused.is_empty() and S.raw()==old and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup,"locked existing and parked careers still load, bytes unchanged"): return
+		for op: String in ["create","propose","next"]:
+			var requested: String="sponsorship" if op=="create" else ""
+			var seed_value: int=321 if op!="next" else 0
+			if not _expect(S.prepare_session_and_write(app.career_owner,old,op,seed_value,requested)==null and S.last_error.begins_with("Win") and S.raw()==old and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup,"locked "+op+" refused at exact admitted owner writer"): return
+		var ticket=app.session_ticket()
+		if not _expect(ticket!=null,"parked resume available"): return
+		app.switch_session(ticket)
+		if not _expect(app.career_owner.active=="ordinary" and not app.career_owner.paused.is_empty() and S.raw()!=old and FileAccess.get_file_as_bytes(S.PATH+".bak")==old,"ordinary resumes normally; exact Dynasty input becomes backup"): return
+		var cold_bytes: PackedByteArray=S.raw()
+		var readback=S.read()
+		if not _expect(readback!=null and readback.active=="ordinary" and not readback.paused.is_empty() and S.raw()==cold_bytes,"readback still retains both modes"): return
+	else:
+		if not _expect(not S.occupied() and app.selected_league=="standard","standard default with empty slot"): return
+		app.select_league("sponsorship")
+		if not _expect(app.selected_league=="standard","locked selector refuses"): return
+		app.selected_league="dynasty"
+		app.create_fresh(123)
+		if not _expect(not S.occupied() and app.season==null and S.fresh_candidate(123,"doubleheader")==null,"direct locked fresh attempts remain byte-inert"): return
+		app.select_league(mode)
+		app.create_fresh(123)
+		var bytes: PackedByteArray=S.raw()
+		if not _expect(app.season!=null and app.career_owner.active=="ordinary" and app.season.league_rules.get("league","standard")==mode and int(app.season.league_rules.get("tier",0))==0 and not bytes.is_empty(),"selected ordinary Base starts through actual writer"): return
+		var owned=app.career_owner
+		var forged=owned.fork()
+		forged.common.aggregate.titles["3"]=true
+		if not _expect(S.prepare_session_and_write(forged,bytes,"create",321,"dynasty")==null and S.raw()==bytes,"unadmitted forged title cannot reach writer"): return
+		var reopened=S.read()
+		if not _expect(reopened!=null and reopened.session.league_rules.get("league","standard")==mode and S.raw()==bytes,"strict native read leaves exact bytes"): return
+	print("EARNED_LEAGUE_PREVIEW_PASS ",mode)
+	quit()

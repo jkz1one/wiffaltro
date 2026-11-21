@@ -11,8 +11,10 @@ func render() -> void:
 		return
 	if app.season == null:
 		_label(_body,"PRIVATE CAREER ENGINEERING · common V4 save",18)
-		for league: String in ["dynasty"]+OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES:
-			_bound_button(_body,("SELECTED · " if app.selected_league==league else "SELECT · ")+league.to_upper(),Callable(app,"select_league").bind(league))
+		if app.earned_league_preview(): _earned_leagues()
+		else:
+			for league: String in ["dynasty"]+OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES:
+				_bound_button(_body,("SELECTED · " if app.selected_league==league else "SELECT · ")+league.to_upper(),Callable(app,"select_league").bind(league))
 		_bound_button(_body,"NEW "+app.selected_league.to_upper()+" TEST CAREER",Callable(app,"create_fresh"))
 		_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
 		if FileAccess.file_exists("user://wiffaltro-common-career-v3.json"):
@@ -22,7 +24,7 @@ func render() -> void:
 		if FileAccess.file_exists("user://wiffaltro-dynasty-owner-v1.json"):
 			_bound_button(_body,"COPY PREVIOUS DYNASTY SAVE",Callable(app,"import_previous_dynasty"))
 		_bound_button(_body,"ORDINARY CAREER BUILD",Callable(app,"open_previous"))
-		_note("Previous V3, V2 and ordinary saves stay separate. Explicit copying writes only the new V4 slot. Public unlocks, higher-tier play and replacement economics remain planned.")
+		_note("Previous V3, V2 and ordinary saves stay separate. Explicit copying writes only the new V4 slot. Higher-tier play and replacement economics remain planned.")
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
 		_workshop_draft()
@@ -52,6 +54,7 @@ func render() -> void:
 		_workshop_draft()
 		_closed()
 		_session_controls()
+		if app.earned_league_preview(): _earned_leagues(false)
 		return
 	if not app.season.physical.pending.is_empty():
 		_bound_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
@@ -66,6 +69,7 @@ func render() -> void:
 		_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
 
 	_session_controls()
+	if app.earned_league_preview(): _earned_leagues(false)
 
 func _workshop_draft() -> void:
 	var owner=app.career_owner
@@ -141,6 +145,10 @@ func _closed() -> void:
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
 	_note("Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")
 	var proposal: Dictionary=owner.proposal if owner.active=="dynasty" else owner.ordinary_state.proposal
+	var access_block: String=app.next_league_block()
+	if not access_block.is_empty():
+		_note(access_block+" Return or Continue preserves this saved season.")
+		return
 	if not owner.next_supported():
 		_note(owner.next_block_reason())
 		return
@@ -289,6 +297,28 @@ func _bound_button(parent: Node,text: String,action: Callable) -> Button:
 		if is_queued_for_deletion() or not visible or token!=_render_token: return
 		if app.get("career_owner")!=envelope or app.season!=state or app.get("saved_bytes")!=bytes: return
 		action.call())
+const EarnedUnlocks = preload("res://src/gameplay/season/league_unlocks.gd")
+func _earned_leagues(selectable: bool = true) -> void:
+	_label(_body,"LEAGUE ACCESS PREVIEW",20)
+	for league: String in EarnedUnlocks.IDS:
+		var state: String=app.league_entry_state(league)
+		if state=="playable" and selectable:
+			_bound_button(_body,("SELECTED · " if app.selected_league==league else "SELECT · ")+league.to_upper()+" BASE",Callable(app,"select_league").bind(league))
+		elif state=="playable":
+			_note(league.to_upper()+" BASE · EARNED" if league not in ["standard","dugout"] else league.to_upper()+" BASE · AVAILABLE")
+		else:
+			_note("%s BASE · %s · %s"%[league.to_upper(),"EARNED, NOT PLAYABLE" if state=="unwired" else "LOCKED",app.league_entry_reason(league)])
+		var tiers: Array[String]=[]
+		for tier: int in range(1,5):
+			tiers.append("D%d %s"%[tier,"earned, not playable" if app.league_entry_state(league,tier)=="unwired" else "locked"])
+		_note(" · ".join(tiers)+" (win the preceding difficulty in this league)")
+
+func _earned_create(league: String, ticket: RefCounted) -> void:
+	if app.league_entry_state(league)=="playable":
+		_bound_button(_body,"CREATE "+league.to_upper()+" BASE SESSION",Callable(app,"create_session").bind(-1,league,ticket))
+	else:
+		_note("CREATE "+league.to_upper()+" · "+app.league_entry_reason(league))
+
 func _session_controls() -> void:
 	var ticket: RefCounted=app.call("session_ticket")
 	if ticket==null: return
@@ -299,8 +329,10 @@ func _session_controls() -> void:
 		_bound_button(_body,"RESUME "+("ORDINARY" if owner.active=="dynasty" else "DYNASTY")+" SESSION",Callable(app,"switch_session").bind(ticket))
 	elif owner.active=="dynasty":
 		for league: String in OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES:
-			_bound_button(_body,"CREATE "+league.to_upper()+" SESSION",Callable(app,"create_session").bind(-1,league,ticket))
+			if app.earned_league_preview(): _earned_create(league,ticket)
+			else: _bound_button(_body,"CREATE "+league.to_upper()+" SESSION",Callable(app,"create_session").bind(-1,league,ticket))
 		if FileAccess.file_exists("user://wiffaltro-materialized-play-v1.json"):
 			_bound_button(_body,"COPY SAVED ORDINARY SESSION",Callable(app,"attach_ordinary").bind(ticket))
+	elif app.earned_league_preview(): _earned_create("dynasty",ticket)
 	else:
 		_bound_button(_body,"CREATE DYNASTY TEST SESSION",Callable(app,"create_session").bind(-1,"dynasty",ticket))

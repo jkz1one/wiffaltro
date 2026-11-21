@@ -4,6 +4,7 @@ const Codec = preload("codec.gd")
 const Owner = preload("owner.gd")
 const Adapter = preload("session_adapter.gd")
 const RawGuard = preload("raw_guard.gd")
+const LeagueAdmission = preload("league_admission.gd")
 const PATH: String = "user://wiffaltro-common-career-v4.json"
 const MAX_BYTES: int = 64 * 1024 * 1024
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
@@ -654,11 +655,27 @@ static func switch_available(owner: RefCounted) -> bool:
 		and (current.phase!=SeasonState.Phase.COMPLETE or closed) and current.physical.pending.is_empty() \
 		and current.physical.needed.is_empty() and not current.physical.projecting and not current.build.pack_pending()
 
+# Fresh creation only; copies and existing-slot reads retain their strict native paths.
+static func fresh_candidate(seed_value: int, league: String) -> RefCounted:
+	if occupied() or not LeagueAdmission.guard(league,0,{}): return null
+	return Owner.create_development(seed_value) if league=="dynasty" else Owner.create_ordinary(seed_value,league)
+
+static func league_block(owner: RefCounted, operation: String, league: String = "") -> String:
+	if not LeagueAdmission.enabled() or operation not in ["create","propose","next"]: return ""
+	var tier: int=0
+	if operation!="create":
+		league="dynasty" if owner.active=="dynasty" else str(owner.session.league_rules.get("league","standard"))
+		tier=int(owner.session.league_rules.get("tier",0))
+	var titles: Dictionary=owner.common.aggregate.titles
+	return "" if LeagueAdmission.guard(league,tier,titles) else LeagueAdmission.reason(league,tier,titles)
+
 static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int = 0, league: String = "", reason: String = "") -> RefCounted:
 	forget_projection()
 	last_error=""
 	if saving or _ticket!=null or operation not in ["resume","create","attach119","close","propose","next"]: return null
 	if not match_owner(owner,expected): return null
+	last_error=league_block(owner,operation,league)
+	if not last_error.is_empty(): return null
 	if operation in ["resume","create","attach119"] and not switch_available(owner): return null
 	if operation not in ["create","propose"] and seed_value!=0: return null
 	if operation!="create" and not league.is_empty(): return null
