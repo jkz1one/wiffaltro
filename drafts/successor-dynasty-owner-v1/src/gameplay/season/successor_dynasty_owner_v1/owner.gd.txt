@@ -249,8 +249,8 @@ static func _archive_valid(owner, current: Dictionary) -> bool:
 	if not Common.cross_commit_ready(predecessor): return false
 	var p: Dictionary=predecessor.ordinary_state.proposal
 	var state: Dictionary=owner.ordinary_state
-	var basis: Dictionary=p.basis if not state.last_transition.has("kind") else Common.Start.bind_archive(p.basis,archive.sha256)
-	return state.lineage==predecessor.ordinary_state.lineage and state.last_transition.source==p.source \
+	var basis: Dictionary=p.basis if not state.last_transition.has("kind") else Common.Start.bind_archive(p.basis,archive.sha256,p.league)
+	return state.lineage==predecessor.ordinary_state.lineage and state.last_transition.source==p.source and state.last_transition.league==p.league \
 		and Codec.same(state.last_transition.basis,basis) \
 		and _archive_fold_matches(owner,predecessor,current) and Codec.same(owner.paused,predecessor.paused) \
 		and Codec.same(owner.dynasty_metadata(),predecessor.dynasty_metadata()) \

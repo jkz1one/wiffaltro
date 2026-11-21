@@ -1,0 +1,69 @@
+extends Node
+## Only the historical eliminated Standard source; forged shapes stay detached.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const C=S.Owner.Common
+const PRIMARY="1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+const PRIOR="427deabb3f82a95afe829323955cea7ad39d36067078686d522268cc1bc91293"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and S.cross_league_preview()
+			and FileAccess.get_sha256(S.PATH)==PRIMARY and FileAccess.get_sha256(S.PATH+".bak")==PRIOR,
+			"isolated exact CP170 eliminated source and previous revision"): return
+	var raw:=S.raw()
+	var old:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and app.season.results.size()==33 and app.career_owner.lifecycle_status()=="closed"
+			and ClubSeasonRecord.analyze(ClubSeasonRecord.capture(app.season)).finish=="semifinal"
+			and app.league_entry_state("sponsorship")=="locked","real archived Standard No Title under exact closed owner"): return
+	var owner: RefCounted=app.career_owner
+	if not need(C.cross_target_open(owner,"dugout") and not C.cross_target_open(owner,"sponsorship")
+			and S.prepare_cross_league_proposal_and_write(owner,raw,"sponsorship",1002)==null
+			and S.commit_earned_sponsorship_and_write(owner,raw)==null
+			and S.commit_earned_sponsorship_and_write(owner,old)==null
+			and S.raw()==raw and FileAccess.get_file_as_bytes(S.PATH+".bak")==old,
+			"admitted actual loser cannot propose or activate Sponsorship; eligible legacy Dugout unchanged"): return
+	var wrong: RefCounted=S.Owner.new()
+	wrong.session=owner.session
+	if not need(S.Codec.install_fields(wrong,S.Owner.DATA_FIELDS,S.Codec.data_fields(owner,S.Owner.DATA_FIELDS)),
+			"detached metadata-only shape control"): return
+	wrong.common.aggregate.titles["0"]=true
+	wrong.common.last_fold.aggregate_sha256=C.Life.digest(wrong.common.aggregate)
+	if not need(S.LeagueAdmission.state("sponsorship",0,wrong.common.aggregate.titles)=="playable"
+			and not C._sponsorship_champion(wrong) and not C.cross_target_open(wrong,"sponsorship")
+			and S.prepare_cross_league_proposal_and_write(wrong,raw,"sponsorship",1002)==null,
+			"synthetic title and recomputed aggregate hash still cannot override native completed loss"): return
+	var basis: Dictionary=C.Start.make(1002,wrong.ordinary_state.lineage,2,int(wrong.common.sequence),
+		C.Life.digest(wrong.common.aggregate),C.projection(wrong))
+	var close: Dictionary=wrong.ordinary_state.last_close
+	wrong.ordinary_state.proposal={"kind":C.SPONSOR_PROPOSAL,"id":"%s:1:next-league"%wrong.ordinary_state.lineage,
+		"source":close.session_sha256,"close_id":close.id,"source_league":"standard","source_tier":0,
+		"league":"sponsorship","tier":0,"basis":basis}
+	if not need(not basis.is_empty() and not C.cross_commit_ready(wrong) and not C.valid(wrong),
+			"detached typed proposal rejects even exact basis over unearned metadata"): return
+	wrong.ordinary_state.proposal.league="dugout"
+	if not need(not C.cross_commit_ready(wrong),"Sponsor kind cannot be transplanted to valid old Dugout destination"): return
+	# Shape/runtime only. Do not attach it to an owner, pack or write it.
+	var detached: Dictionary=C.Start.bind_archive(basis,PRIMARY,"sponsorship")
+	var draft: SeasonState=S.Adapter.OrdinaryRuntime.create_common(detached,"sponsorship")
+	if not need(detached.get("archive_origin",{}).get("kind")==C.Start.SPONSOR_ARCHIVED and draft!=null
+			and draft.picks.is_empty() and draft.build.cash()==0 and draft.league_rules.get("league")=="sponsorship"
+			and draft.build._bank.view().capacity=={"held":2,"sponsors":6}
+			and S.Adapter.OrdinaryRuntime.create_common(detached,"dugout")==null
+			and S.Adapter.OrdinaryRuntime.create_common(C.Start.bind_archive(basis,PRIMARY),"sponsorship")==null,
+			"detached Sponsorship native draft has exact destination marker and rejects both cross-target transplants"): return
+	if not need(S.raw()==raw and FileAccess.get_file_as_bytes(S.PATH+".bak")==old and app._owned()
+			and not app.cross_review_visible(),"exact both files and loaded ordinary authority preserved, no earned action"): return
+	print("EARNED_SPONSORSHIP_DENIAL_PASS ",PRIMARY)
+	get_tree().quit()

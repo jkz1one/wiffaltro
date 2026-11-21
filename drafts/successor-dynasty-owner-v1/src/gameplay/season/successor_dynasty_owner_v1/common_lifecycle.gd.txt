@@ -10,6 +10,8 @@ const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_sta
 const ARCHIVE_KIND: String="common-ordinary-predecessor-v1"
 const ARCHIVE_TRANSITION: String="common-ordinary-archived-transition-v1"
 const ARCHIVE_MAX: int=16*1024*1024
+const SPONSOR_PROPOSAL: String="common-standard-to-sponsorship-proposal-v1"
+const SPONSOR_TRANSITION: String="common-standard-to-sponsorship-archive-v1"
 const CROSS_KIND: String="common-ordinary-league-proposal-v1"
 const ORDINARY_FIELDS: Array[String]=["lineage","ordinal","status","last_close","proposal","last_transition","start_basis_sha256"]
 
@@ -88,9 +90,18 @@ static func valid(owner) -> bool:
 		var t: Dictionary=state.last_transition
 		var stamped: bool=t.has("kind")
 		if not C.keys(t,["id","source","from","to","league","basis"]+(["kind"] if stamped else [])) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or not Start.valid(t.basis): return false
-		if stamped!=(t.basis.version==2) or (stamped and (t.kind!=ARCHIVE_TRANSITION or not state.has("archive"))): return false
+		if stamped!=(t.basis.version==2) or (stamped and (t.kind!=_archive_transition(t.league) or not state.has("archive"))): return false
 		if t.basis.lineage!=state.lineage or t.basis.ordinal!=state.ordinal or Life.digest(t.basis)!=state.start_basis_sha256 or t.basis.common_sequence>value.sequence: return false
 	return _archive_shape(owner) and _ordinary_proposal_valid(owner)
+
+static func cross_proposal_kind(kind: Variant) -> bool:
+	return kind in [CROSS_KIND,SPONSOR_PROPOSAL]
+
+static func _proposal_kind_for(league: Variant) -> String:
+	return SPONSOR_PROPOSAL if league=="sponsorship" else (CROSS_KIND if league=="dugout" else "")
+
+static func _archive_transition(league: Variant) -> String:
+	return SPONSOR_TRANSITION if league=="sponsorship" else (ARCHIVE_TRANSITION if league=="dugout" else "")
 
 static func _archive_shape(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
@@ -100,31 +111,34 @@ static func _archive_shape(owner) -> bool:
 	return C.keys(a,["kind","sha256","source"]) and a.kind==ARCHIVE_KIND \
 		and a.source is String and not a.source.is_empty() and a.source.length()<=ARCHIVE_MAX \
 		and owner._digest(a.sha256) and owner.active=="ordinary" and state.ordinal==2 \
-		and state.proposal.is_empty() and t.get("league")=="dugout" \
-		and (not t.has("kind") or t.basis.archive_origin.sha256==a.sha256) \
+		and state.proposal.is_empty() and t.get("league") in ["dugout","sponsorship"] \
+		and (t.get("league")=="dugout" or (t.get("kind")==SPONSOR_TRANSITION and state.status=="active")) \
+		and (not t.has("kind") or (t.basis.archive_origin.sha256==a.sha256 \
+			and t.basis.archive_origin.kind==Start.archive_origin_kind(t.league))) \
 		and (state.status=="active" or (state.status=="closed" and state.last_close.get("reason")=="abandon"))
 
 static func cross_commit_ready(owner) -> bool:
 	if owner==null or owner.active!="ordinary" or owner.ordinary_state.has("archive"): return false
 	var state: Dictionary=owner.ordinary_state
 	var p: Dictionary=state.get("proposal",{})
-	if p.get("kind")!=CROSS_KIND or not _cross_proposal_valid(owner,p): return false
+	if not cross_proposal_kind(p.get("kind")) or not _cross_proposal_valid(owner,p): return false
 	var fold: Dictionary=owner.common.last_fold
 	return p.basis.common_sequence==owner.common.sequence and fold.get("side")=="ordinary" \
 		and fold.get("sequence")==owner.common.sequence and fold.get("id")==p.close_id \
 		and fold.get("source")==p.source and C.same(fold.get("receipt"),state.last_close.get("receipt"))
 
-static func _activate_cross(owner, raw: PackedByteArray) -> bool:
+static func _activate_cross(owner, raw: PackedByteArray, target: String="dugout") -> bool:
 	if not cross_commit_ready(owner) or raw.is_empty() or raw.size()>ARCHIVE_MAX: return false
 	var text:=raw.get_string_from_utf8()
 	if text.to_utf8_buffer()!=raw: return false
 	var p: Dictionary=owner.ordinary_state.proposal
+	if p.league!=target: return false
 	var digest: String=owner._hash(raw)
-	var basis: Dictionary=Start.bind_archive(p.basis,digest)
+	var basis: Dictionary=Start.bind_archive(p.basis,digest,p.league)
 	var next: SeasonState=Adapter.OrdinaryRuntime.create_common(basis,p.league)
 	if next==null or next.phase!=SeasonState.Phase.DRAFT or not next.picks.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
-	state.last_transition={"kind":ARCHIVE_TRANSITION,"id":"%s:1:next"%state.lineage,"source":p.source,"from":1,"to":2,
+	state.last_transition={"kind":_archive_transition(p.league),"id":"%s:1:next"%state.lineage,"source":p.source,"from":1,"to":2,
 		"league":p.league,"basis":basis.duplicate(true)}
 	state.ordinal=2;state.status="active";state.last_close={};state.proposal={}
 	state.start_basis_sha256=Life.digest(basis)
@@ -135,12 +149,12 @@ static func _activate_cross(owner, raw: PackedByteArray) -> bool:
 # Exact schedule, report and reward validation remain with the stock Ordinary
 # runtime and codec. This owner only limits the archive family to its own league.
 static func archive_play_scope(season: SeasonState) -> bool:
-	return season!=null and season.league_rules.get("league")=="dugout" \
+	return season!=null and season.league_rules.get("league") in ["dugout","sponsorship"] \
 		and season.league_rules.get("tier")==0 and not season.career.start_basis.is_empty()
 
 # Only the previously proven opening Abandon can produce a second fold.
 static func archive_close_scope(season: SeasonState) -> bool:
-	return archive_play_scope(season) and season.round_index==1 and season.phase==SeasonState.Phase.REGULAR \
+	return archive_play_scope(season) and season.league_rules.get("league")=="dugout" and season.round_index==1 and season.phase==SeasonState.Phase.REGULAR \
 		and season.results.size()==3 and season.player_results.size()==1 and season.physical.reports.size()==2 \
 		and season.physical.pending.is_empty() and season.physical.needed.is_empty()
 
@@ -305,8 +319,31 @@ static func cross_target_open(owner, league: String) -> bool:
 	return state.status=="closed" and state.ordinal==1 and state.last_close.get("reason")=="complete" \
 		and state.last_close.get("league")=="standard" and state.last_close.get("tier")==0 \
 		and owner.session!=null and owner.session.phase==SeasonState.Phase.COMPLETE \
-		and owner.session.league_rules.is_empty() and league=="dugout" \
+		and owner.session.league_rules.is_empty() and not _proposal_kind_for(league).is_empty() \
+		and (league=="dugout" or _sponsorship_champion(owner)) \
 		and league in preload("res://src/gameplay/season/league_unlocks.gd").from_titles(owner.common.aggregate.titles)
+
+# No policy dictionary alone is authority. The closed native Standard
+# record and exact live fold must also rederive the same championship.
+# Called only on Store-admitted or strictly rehydrated owners.
+static func _sponsorship_champion(owner) -> bool:
+	var state: Dictionary=owner.ordinary_state
+	var close: Dictionary=state.last_close
+	var fold: Dictionary=owner.common.last_fold
+	var season: SeasonState=owner.session
+	if owner.active!="ordinary" or season==null or season.phase!=SeasonState.Phase.COMPLETE \
+		or not season.league_rules.is_empty() or season.picks.size()!=4 or season.results.size()!=33 \
+		or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() \
+		or season.physical.projecting or not season.league_career or season.build==null or season.build.d1_pricing_valid() \
+		or owner.common.aggregate.titles.get(ClubLeagueCareer.title_key("standard",0))!=true or not close.get("first_title") is bool \
+		or fold.get("side")!="ordinary" or fold.get("ordinal")!=1 or fold.get("sequence")!=owner.common.sequence \
+		or fold.get("id")!=close.get("id") or fold.get("source")!=close.get("session_sha256") \
+		or fold.get("aggregate_sha256")!=Life.digest(owner.common.aggregate) \
+		or not C.same(fold.get("receipt"),close.get("receipt")): return false
+	var proof: Dictionary=ClubSeasonRecord.capture(season)
+	if ClubSeasonRecord.analyze(proof).get("finish")!="champion": return false
+	var receipt: Dictionary=ClubSeasonRecord.receipt(proof,close.first_title,0)
+	return not receipt.is_empty() and C.same(receipt,close.receipt)
 
 static func _prepare_cross_proposal(owner, current: Dictionary, league: String, seed_value: int) -> bool:
 	if not cross_target_open(owner,league) or not C.whole(seed_value,0,2147483647) \
@@ -316,7 +353,7 @@ static func _prepare_cross_proposal(owner, current: Dictionary, league: String, 
 	var basis: Dictionary=Start.make(seed_value,state.lineage,2,int(owner.common.sequence),
 		Life.digest(owner.common.aggregate),projection(owner))
 	if basis.is_empty(): return false
-	state.proposal={"kind":CROSS_KIND,"id":"%s:1:next-league"%state.lineage,"source":close.session_sha256,
+	state.proposal={"kind":_proposal_kind_for(league),"id":"%s:1:next-league"%state.lineage,"source":close.session_sha256,
 		"close_id":close.id,"source_league":"standard","source_tier":0,"league":league,"tier":0,"basis":basis}
 	return valid(owner)
 
@@ -329,7 +366,10 @@ static func _cross_proposal_valid(owner, row: Dictionary) -> bool:
 		or not owner._digest(row.source) or row.source!=close.get("session_sha256") \
 		or row.source_league!="standard" or close.get("league")!=row.source_league \
 		or not C.whole(row.source_tier,0,0) or close.get("tier")!=row.source_tier \
-		or row.league!="dugout" or not C.whole(row.tier,0,0) or not Start.valid(row.basis): return false
+		or not cross_proposal_kind(row.kind) or row.kind!=_proposal_kind_for(row.league) \
+		or not C.whole(row.tier,0,0) or not Start.valid(row.basis): return false
+	if row.kind==SPONSOR_PROPOSAL and (row.basis.common_sequence!=owner.common.sequence \
+		or not _sponsorship_champion(owner)): return false
 	if row.league not in preload("res://src/gameplay/season/league_unlocks.gd").from_titles(owner.common.aggregate.titles) \
 		or row.basis.lineage!=state.lineage or row.basis.ordinal!=2 or row.basis.common_sequence>owner.common.sequence: return false
 	if row.basis.common_sequence==owner.common.sequence:
@@ -344,7 +384,7 @@ static func _ordinary_proposal_valid(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	var row: Dictionary=state.proposal
 	if row.is_empty(): return true
-	if row.get("kind")==CROSS_KIND: return _cross_proposal_valid(owner,row)
+	if cross_proposal_kind(row.get("kind")): return _cross_proposal_valid(owner,row)
 	if state.status!="closed" or state.ordinal>=ClubCareer.MAX_RUNS or not C.keys(row,["id","source","league","tier","basis"]): return false
 	if owner.paired_draft_only(): return _paired_proposal_valid(owner,row)
 	if row.id!="%s:%d:next"%[state.lineage,state.ordinal] or row.source!=state.last_close.get("session_sha256") or row.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or row.league!=state.last_close.get("league") or row.tier!=0: return false
@@ -367,7 +407,7 @@ static func next_block_reason(owner) -> String:
 	if owner.ordinary_state.has("archive"): return "Further seasons from this archived rollover are not available."
 	if owner.active=="dynasty":
 		return "" if dynasty_next_supported(owner) else "Shared earned rights are retained. Applying differing common rights to Dynasty Next is not yet available; Return keeps both saved seasons intact."
-	if owner.ordinary_state.get("proposal",{}).get("kind")==CROSS_KIND:
+	if cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")):
 		return "A different Base league is prepared. Activation awaits safe archive rollover; your completed season stays intact."
 	var basis: Dictionary=owner.session.career.start_basis
 	if not Start.assets_valid(basis.get("assets",{})) or not Start.legacy_plaques_valid(basis.get("plaques",{})):
@@ -392,7 +432,7 @@ static func propose(owner, seed_value: int) -> bool:
 	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.propose(owner,seed_value)
 	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.ordinal>=ClubCareer.MAX_RUNS or not C.whole(seed_value,0,2147483647): return false
 	var state: Dictionary=owner.ordinary_state
-	if not state.proposal.is_empty(): return state.proposal.get("kind")!=CROSS_KIND and state.proposal.basis.seed==seed_value
+	if not state.proposal.is_empty(): return not cross_proposal_kind(state.proposal.get("kind")) and state.proposal.basis.seed==seed_value
 	var source: Dictionary=Adapter.capture("ordinary",owner.session)
 	if not ordinary_current_valid(owner,owner.session,source): return false
 	var league: String=str(owner.session.league_rules.get("league","standard"))
@@ -418,7 +458,7 @@ static func advance(owner) -> bool:
 	var source: Dictionary=Adapter.capture("ordinary",owner.session)
 	if not ordinary_current_valid(owner,owner.session,source): return false
 	var p: Dictionary=state.proposal.duplicate(true)
-	if p.get("kind")==CROSS_KIND: return false
+	if cross_proposal_kind(p.get("kind")): return false
 	var next: SeasonState=Adapter.OrdinaryRuntime.create_common(p.basis,p.league)
 	if next==null: return false
 	state.last_transition={"id":p.id,"source":p.source,"from":state.ordinal,"to":p.basis.ordinal,"league":p.league,"basis":p.basis.duplicate(true)}

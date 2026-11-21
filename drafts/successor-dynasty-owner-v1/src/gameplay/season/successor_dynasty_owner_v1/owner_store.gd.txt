@@ -122,10 +122,10 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 	# Unbound legacy writes cannot create, replace, or erase workshop metadata.
 	var previous: Variant=Owner._bytes_value(expected)
 	# The unbound writer cannot erase or manufacture a typed career proposal.
-	if season.ordinary_state.has("archive") or season.ordinary_state.get("proposal",{}).get("kind")==Owner.Common.CROSS_KIND: return false
+	if season.ordinary_state.has("archive") or Owner.Common.cross_proposal_kind(season.ordinary_state.get("proposal",{}).get("kind")): return false
 	if previous is Dictionary and previous.get("ordinary_state") is Dictionary:
 		var prior_proposal: Variant=previous.ordinary_state.get("proposal")
-		if previous.ordinary_state.has("archive") or (prior_proposal is Dictionary and prior_proposal.get("kind")==Owner.Common.CROSS_KIND): return false
+		if previous.ordinary_state.has("archive") or (prior_proposal is Dictionary and Owner.Common.cross_proposal_kind(prior_proposal.get("kind"))): return false
 	if not season.workshop_draft.is_empty() or not season.workshop_close_history.is_empty() or not season.workshop_chair_purchase.is_empty() or not season.workshop_applied.is_empty(): return false
 	if previous is Dictionary and (previous.has("workshop_draft") or previous.has("workshop_close_history") or previous.has("workshop_chair_purchase") or previous.has("workshop_applied")): return false
 	var data: Dictionary = Owner.capture(season)
@@ -212,7 +212,8 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 	if saving or _ticket != null or candidate == null or candidate == owner or _paired_settled(owner): return null
 	if candidate.get_script()!=Owner or candidate.session==null or _paired_settled(candidate): return null
 	if owner == null:
-		if candidate.ordinary_state.has("archive"): return null
+		if candidate.ordinary_state.has("archive") or Owner.Common.cross_proposal_kind(
+				candidate.ordinary_state.get("proposal",{}).get("kind")): return null
 		if not expected.is_empty() or not _matches(expected) or not candidate.workshop_draft.is_empty() or not candidate.workshop_close_history.is_empty() or not candidate.workshop_chair_purchase.is_empty() or not candidate.workshop_applied.is_empty(): return null
 	else:
 		if not match_owner(owner,expected) or candidate.session==owner.session: return null
@@ -686,14 +687,21 @@ static func prepare_cross_league_proposal_and_write(owner: RefCounted, expected:
 
 # Exact native rollover, off the App menu until a bounded async path.
 static func commit_cross_league_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _commit_exact_cross_league(owner,expected,"dugout")
+
+# No menu or worker invokes this until genuine earned proof is qualified.
+static func commit_earned_sponsorship_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _commit_exact_cross_league(owner,expected,"sponsorship")
+
+static func _commit_exact_cross_league(owner: RefCounted,expected: PackedByteArray,target: String) -> RefCounted:
 	forget_projection()
 	last_error=""
 	if saving or _ticket!=null or not cross_league_preview() or not match_owner(owner,expected) \
-		or not Owner.Common.cross_commit_ready(owner): return null
+		or not Owner.Common.cross_commit_ready(owner) or owner.ordinary_state.proposal.league!=target: return null
 	var candidate: RefCounted=Owner.new()
 	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
 	candidate.session=owner.session
-	if not Owner.Common._activate_cross(candidate,expected): return null
+	if not Owner.Common._activate_cross(candidate,expected,target): return null
 	var current: Dictionary=Adapter.capture("ordinary",candidate.session)
 	var data: Dictionary=Owner.pack_current(candidate,current)
 	var snapshot: Dictionary=RawGuard.capture(candidate)
@@ -973,7 +981,7 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	if not last_error.is_empty(): return null
 	if operation in ["resume","create","attach119"] and not switch_available(owner): return null
 	if operation in ["propose","next"] and owner.active=="ordinary" \
-		and owner.ordinary_state.proposal.get("kind")==Owner.Common.CROSS_KIND: return null
+		and Owner.Common.cross_proposal_kind(owner.ordinary_state.proposal.get("kind")): return null
 	if operation not in ["create","propose"] and seed_value!=0: return null
 	if operation!="create" and not league.is_empty(): return null
 	if (operation=="close" and reason not in ["complete","abandon"]) or (operation!="close" and not reason.is_empty()): return null

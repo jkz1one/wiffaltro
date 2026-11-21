@@ -44,8 +44,8 @@ The native policy requires a Standard championship, not a completed season
 or a runner-up. With earned preview enabled an empty slot has no title:
 both the actual selector and Store fresh writer refuse Sponsorship. The
 mode-switch writer creates only a missing opposite side, not one ordinary
-league after another. The only current cross-league proposal, archive reader,
-draft hydrator and native activation controls pin Standard Base → Dugout Base.
+league after another. The only current rendered cross-league activation and async draft hydrator
+pin Standard Base → Dugout Base.
 A policy row saying `playable` for a title is therefore not an earned
 Standard → Sponsorship route.
 
@@ -61,3 +61,32 @@ target league/rules before enabling native pick controls. First qualify exact
 no-title/refusal and stale/cross-target mismatch with the existing
 CP170 eliminated Standard archive; a true positive still requires genuine
 Standard championship evidence.
+
+## Private authoritative transition core
+
+The Common owner now has a separate, destination-pinned Sponsorship proposal,
+outer archive marker, and native start marker. The real proposal writer and
+fixed-destination activation core share the previous exact owner/primary CAS.
+They additionally require the selected ordinal-one Standard Close and current fold, native 33-game champion classification, canonical
+Standard Base title key, and matching original championship receipt. A new
+descriptor or title flag alone cannot authorize either operation. On cold
+restore the flat archive uses the exact former Standard source, not `.bak`;
+native and outer destination, retained proposal and digest must all agree.
+Ordinary generic creation, Next and switch cannot replace this archive.
+Sponsorship archive Close, further rollover and the actual rendered earned
+action remain held; the earlier Dugout private worker and activation controls
+never consume the Sponsorship proposal.
+
+Qualification uses a genuine CP170 eliminated Standard save and exact
+preceding bytes: no earned proposal or commit; even a detached title bit,
+rehashed aggregate, and properly shaped proposal over those same real losing
+results are refused. A separately labeled detached draft exercises the native
+2-held/6-sponsor Base rules and rejects both target marker transplants. It
+cannot be written as an earned save. The exact existing CP202→Dugout route is
+the compatibility control; it did not need a new source archive or title.
+
+There is no genuine Standard champion fixture in the approved test inputs, so
+a positive live Sponsorship proposal, commit and cold Continue are not yet
+verified or linked to an interactive control. With a genuine proof, next
+exercise those three steps and a native draft pick, then adapt the existing
+off-frame staging and parent CAS/readback UI to the new fixed destination.
