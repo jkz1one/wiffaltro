@@ -50,9 +50,23 @@ static func occupied() -> bool:
 	for suffix: String in ["", ".bak", ".tmp"]:
 		if FileAccess.file_exists(PATH+suffix) or DirAccess.dir_exists_absolute(PATH+suffix): return true
 	return false
+# Bounded prefix probe; unsupported family versions remain protected.
+static func standard_d1_slot_kind() -> String:
+	var contract=preload("standard_d1_transition.gd")
+	var file:=FileAccess.open(PATH,FileAccess.READ)
+	if file==null: return ""
+	var prefix: String=file.get_buffer(contract.SLOT_HEADER.length()).get_string_from_ascii()
+	var size:=file.get_length()
+	file.close()
+	if not prefix.begins_with(contract.SLOT_FAMILY): return ""
+	return "supported" if prefix==contract.SLOT_HEADER and size<=contract.MAX_SLOT else "unsupported"
+
 static func read() -> RefCounted:
 	forget_projection()
 	last_error = ""
+	if not standard_d1_slot_kind().is_empty():
+		last_error="This Standard D1 slot requires private Continue. No files were changed."
+		return null
 	if not FileAccess.file_exists(PATH):
 		last_error = "No common career is saved in this slot. Earlier saves are unchanged."
 		return null
@@ -88,6 +102,8 @@ static func save(season: RefCounted, expected: PackedByteArray, expected_snapsho
 	if result: _invalidate()
 	return result
 static func _matches(expected: PackedByteArray) -> bool:
+	# Generic read/admission/write/retry paths never own the D1 dialect.
+	if not standard_d1_slot_kind().is_empty(): return false
 	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw() == expected))
 static func _write(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary) -> bool:
 	# Legacy unbound writer never modifies the private paired slot.

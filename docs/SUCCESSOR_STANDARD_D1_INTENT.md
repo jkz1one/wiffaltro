@@ -608,3 +608,27 @@ boundary. The latter two test canonical stamp rejection, byte-exact
 retry/readback at a distinct QA path, then strict rejection of a
 correctly stamped but unauthorized witness. Also run the real App
 witness refusal with `WIFFALTRO_STANDARD_D1_CHECK=1`.
+
+### Private asynchronous Continue, read-only
+
+The D1 candidate has a fixed, bounded version prefix before its canonical
+stamped payload. There were no live slots in the previous unprefixed QA
+dialect. The family takes precedence over ordinary Continue: unsupported
+or flag-off attempts show a read-only message; the occupied menu hides
+fresh/copy/alternate launch actions, and the ordinary Store writer refuses.
+Ordinary unprefixed V4 Continue is unchanged.
+
+With the existing private Linux editor flag enabled, real Continue spawns the
+same executable on the existing private pipe with a separate request purpose,
+nonce and exact primary SHA. The child bounds input, checks the stamp, strictly
+replays the prior owner, and rederives the D1 entitlement once. Only the
+exact child may report refusal or three digest identifiers; it sends no draft,
+player or parked-owner metadata. Parent revision, identity/epoch and
+cancellation gates discard stale results; there is no second Store restore,
+saved trust, shared writer, owner publication, or four-pick UI. Even a
+qualified response currently only reports verification; it cannot arm a save.
+
+The isolated App regression covers flag-off, unsupported version, wrong
+stamp, exact stamped eliminated witness, cancellation and stale revision.
+It asserts the Common primary/backup and old-format behavior remain untouched.
+The digest-only positive parser sample exercises shape, not actual entitlement.

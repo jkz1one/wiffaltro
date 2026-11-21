@@ -1,18 +1,22 @@
 extends SeasonMenu
 const OrdinaryAdmissions=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
 
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
 const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
 const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
 func render() -> void:
 	_screen("home","WIFFALTRO","YOUR CLUB. YOUR SEASON.")
 	if not app.notice.is_empty(): _note(app.notice)
 	if app.d1_check_running():
-		_bound_button(_body,"CANCEL CHAMPIONSHIP CHECK",Callable(app,"cancel_d1_check"))
+		_bound_button(_body,"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK",Callable(app,"cancel_d1_check"))
 		return
 	if app.retained != null:
 		_bound_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
 	if app.season == null:
+		if not Store.standard_d1_slot_kind().is_empty():
+			_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
+			return
 		_label(_body,"PRIVATE CAREER ENGINEERING · common V4 save",18)
 		if app.earned_league_preview(): _earned_leagues()
 		else:

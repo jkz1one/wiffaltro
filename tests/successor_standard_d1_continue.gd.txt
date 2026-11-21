@@ -1,0 +1,102 @@
+extends Node
+## Actual App routing, on a disposable refused D1 candidate. No earned title.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Work=preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
+const PREVIOUS="427deabb3f82a95afe829323955cea7ad39d36067078686d522268cc1bc91293"
+const READ_SENTINEL="d1-continue-does-not-read-on-parent"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool,label: String) -> bool:
+	if ok: return true
+	printerr("STANDARD D1 CONTINUE FAIL ",label)
+	get_tree().quit(1)
+	return false
+
+func _button(node: Node, title: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==title and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var found:=_button(child,title)
+		if found!=null: return found
+	return null
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["refused","stamp","flag-off","unsupported","cancel","stale"]
+			and FileAccess.get_sha256(Store.PATH)==args[1]
+			and FileAccess.get_sha256(Store.PATH+".bak")==PREVIOUS
+			and not FileAccess.file_exists("user://season-v1.json"),"isolated occupied candidate and exact backup"): return
+	var mode: String=args[0]
+	var kind:=Store.standard_d1_slot_kind()
+	var unrelated: RefCounted=Store.Owner.create_ordinary(42,"standard")
+	if not _need(kind==("unsupported" if mode=="unsupported" else "supported")
+			and Store.occupied() and Store.read()==null
+			and Store.fresh_candidate(42,"standard")==null
+			and Store.prepare_and_write(null,unrelated,Store.raw())==null
+			and not Store.save(unrelated,Store.raw()),
+			"no ordinary reader, writer, or fresh candidate can replace the slot"): return
+	if mode=="flag-off":
+		var moved: String=Store.PATH+".qa-hidden"
+		if not _need(DirAccess.rename_absolute(Store.PATH,moved)==OK,"move only disposable primary"): return
+		var ticket:=Store.prepare(null,unrelated,PackedByteArray())
+		if not _need(DirAccess.rename_absolute(moved,Store.PATH)==OK and ticket!=null
+				and not Store.write_prepared(ticket) and Store.written_bytes(ticket).is_empty(),
+				"real old generic ticket cannot write/retry into occupied D1 slot"): return
+		Store._invalidate()
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var button:=_button(app,"CONTINUE SAVED CAREER")
+	if not _need(button!=null and _button(app,"NEW DYNASTY TEST CAREER")==null
+			and _button(app,"ORDINARY CAREER BUILD")==null
+			and _button(app,"PRIVATE STANDARD D1 CHAMPIONSHIP CHECK")==null,"actual occupied menu is read-only"): return
+	Store.last_error=READ_SENTINEL
+	button.pressed.emit()
+	var frames: int=0
+	var started:=Time.get_ticks_msec()
+	if mode in ["flag-off","unsupported"]:
+		if not _need(not app.d1_check_running() and "requires supported" in app.notice,
+				"no fallback or worker when disabled/unsupported"): return
+	else:
+		var cancel:=_button(app,"CANCEL STANDARD D1 VERIFICATION")
+		if not _need(app.d1_check_running() and cancel!=null and "background" in app.notice,
+				"actual App starts child, not synchronous restore"): return
+		var check: Node=app._d1_check
+		if mode=="cancel": cancel.pressed.emit()
+		if mode=="stale":
+			check.set_process(false)
+			while not check._output.get_string_from_utf8().contains(Work.FRAME) and Time.get_ticks_msec()-started<120000:
+				if not _need(check._drain(),"only own child pipe"): return
+				await get_tree().process_frame
+			if not _need(check._output.get_string_from_utf8().contains(Work.FRAME)
+					and DirAccess.rename_absolute(Store.PATH,Store.PATH+".qa-hidden")==OK,"move disposable exact primary after worker result"): return
+			check.set_process(true)
+		while app.d1_check_running() and Time.get_ticks_msec()-started<120000:
+			await get_tree().process_frame
+			frames+=1
+		if mode=="stale" and not _need(DirAccess.rename_absolute(Store.PATH+".qa-hidden",Store.PATH)==OK,
+				"restore disposable exact primary"): return
+		var expected: String="cancelled" if mode=="cancel" else ("changed during" if mode=="stale" else "did not pass validation")
+		if not _need(not app.d1_check_running() and expected in app.notice
+				and (mode=="cancel" or frames>10),"terminal result and live frame heartbeat"): return
+	if not _need(Store.last_error==READ_SENTINEL and app.career_owner==null and app.season==null
+			and app.saved_bytes.is_empty() and app._take_d1_check_proof().is_empty()
+			and FileAccess.get_sha256(Store.PATH)==args[1] and FileAccess.get_sha256(Store.PATH+".bak")==PREVIOUS
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"no parent Store.read, authority, writes or fallback"): return
+	if not _need(_digest_shape_only(),"synthetic pipe shape is not transport authority"): return
+	print("STANDARD_D1_APP_CONTINUE_PASS ",mode," ms=",Time.get_ticks_msec()-started," frames=",frames)
+	get_tree().quit()
+
+func _digest_shape_only() -> bool:
+	var d: String="a".repeat(64)
+	var request: Dictionary={"version":2,"kind":Work.CONTINUE_KIND,"token":"b".repeat(32),"source_sha256":d,"seed":0}
+	var reply: Dictionary={"outcome":"qualified","request":request,"digests":{"stamp":d,"witness":d,"draft":d}}
+	var prefix: String="Godot Engine vTEST - https://godotengine.org\n\n"+Work.FRAME
+	var frame: PackedByteArray=(prefix+Work.canonical(reply)+"\n").to_utf8_buffer()
+	if Work._decode(frame,request,0).is_empty() or not Work._decode(frame,request,Work.REFUSED_EXIT).is_empty(): return false
+	reply.digests["data"]="not transport"
+	return Work._decode((prefix+Work.canonical(reply)+"\n").to_utf8_buffer(),request,0).is_empty()

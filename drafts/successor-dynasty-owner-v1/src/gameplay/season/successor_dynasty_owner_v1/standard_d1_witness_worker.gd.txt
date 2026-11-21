@@ -2,7 +2,6 @@ extends Node
 ## Same-binary, read-only strict cold validation of the exact current slot.
 const Work=preload("standard_d1_witness_process.gd")
 const T=preload("standard_d1_transition.gd")
-const S=preload("owner_store.gd")
 
 func _ready() -> void:
 	call_deferred("_run")
@@ -18,25 +17,39 @@ func _run() -> void:
 	if not Work.request_valid(request) or JSON.stringify(request,"",true,true)!=json:
 		get_tree().quit(2)
 		return
-	var file:=FileAccess.open(S.PATH,FileAccess.READ)
-	if file==null or file.get_length()<1 or file.get_length()>S.MAX_BYTES:
+	var bytes:=Work._bounded_slot(request.kind)
+	if bytes.is_empty() or T._source_digest(bytes)!=request.source_sha256:
 		get_tree().quit(3)
 		return
-	var bytes:=file.get_buffer(file.get_length())
-	file.close()
-	if T._source_digest(bytes)!=request.source_sha256:
-		get_tree().quit(3)
+	if request.kind==Work.CONTINUE_KIND:
+		_continue_exact(request,bytes)
 		return
 	var witness: Dictionary=T._pack_closed_source(bytes)
 	var owner: RefCounted=T._replay_closed_source(witness)
-	if owner==null or Work._revision()!=request.source_sha256:
+	if owner==null or Work._revision(request.kind)!=request.source_sha256:
 		get_tree().quit(3)
 		return
 	var qualified: Dictionary=T.derive(owner,int(request.seed))
 	var result: Dictionary={"request":request,"outcome":"refused" if qualified.is_empty() else "qualified","transition":qualified}
+	_emit(result,not qualified.is_empty())
+
+func _continue_exact(request: Dictionary, bytes: PackedByteArray) -> void:
+	var data:=T._durable_shape(bytes)
+	var verified:=T._cold_durable_checked(data)
+	if Work._revision(request.kind)!=request.source_sha256:
+		get_tree().quit(3)
+		return
+	var digests: Dictionary={}
+	if not verified.is_empty():
+		digests={"stamp":data.stamp,"witness":data.witness.source_sha256,
+			"draft":T._slot_text(data.draft).sha256_text()}
+	_emit({"request":request,"outcome":"refused" if digests.is_empty() else "qualified",
+		"digests":digests},not digests.is_empty())
+
+func _emit(result: Dictionary, qualified: bool) -> void:
 	var frame: String=Work.FRAME+Work.canonical(result)
 	if frame.to_utf8_buffer().size()>Work.MAX_FRAME-1024:
 		get_tree().quit(3)
 		return
 	print(frame)
-	get_tree().quit(Work.REFUSED_EXIT if qualified.is_empty() else 0)
+	get_tree().quit(0 if qualified else Work.REFUSED_EXIT)

@@ -16,6 +16,7 @@ const Page = preload("menu.gd")
 const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
 var _d1_check: Node
 var _d1_close_after_check: bool=false
+var _d1_continuing: bool=false
 var _d1_epoch: int=0
 var _d1_proof_epoch: int=-1
 var _d1_proof_expiry: int=0
@@ -393,7 +394,8 @@ func _sign_paired_visit6_recruit() -> void:
 
 func d1_check_visible() -> bool:
 	return OS.get_environment("WIFFALTRO_STANDARD_D1_CHECK")=="1" and D1Check.supported() \
-		and career_owner==null and season==null and FileAccess.file_exists(Store.PATH)
+		and career_owner==null and season==null and FileAccess.file_exists(Store.PATH) \
+		and Store.standard_d1_slot_kind().is_empty()
 
 func d1_check_running() -> bool:
 	return is_instance_valid(_d1_check)
@@ -448,9 +450,49 @@ func _complete_d1_check(outcome: String, proof: Dictionary, check: Node, epoch: 
 	}.get(outcome,"The championship check could not be verified. Your career is unchanged.")
 	show_season()
 
+func _continue_standard_d1(kind: String) -> void:
+	if kind!="supported" or not D1Check.supported() or OS.get_environment("WIFFALTRO_STANDARD_D1_CHECK")!="1":
+		notice="This Standard D1 career requires supported private Continue. Your save is unchanged."
+		show_season()
+		return
+	var check:=D1Check.new()
+	_d1_check=check
+	_d1_continuing=true
+	add_child(check)
+	check.completed.connect(_complete_d1_continue.bind(check,_d1_epoch),CONNECT_ONE_SHOT)
+	if not check.start(D1Check._revision(D1Check.CONTINUE_KIND),0,D1Check.CONTINUE_KIND):
+		_complete_d1_continue("invalid",{},check,_d1_epoch)
+		return
+	notice="Verifying the Standard D1 career in the background…"
+	show_season()
+
+func _complete_d1_continue(outcome: String, _proof: Dictionary, check: Node, epoch: int) -> void:
+	if _d1_check!=check or epoch!=_d1_epoch: return
+	_d1_check=null
+	_d1_continuing=false
+	_expire_d1_proof()
+	check.queue_free()
+	if _d1_close_after_check:
+		_d1_close_after_check=false
+		_quit_now()
+		return
+	# No admission capability is retained. A qualified digest response can
+	# attest this attempt; it cannot install an owner or enable the draft yet.
+	notice={
+		"qualified":"The Standard D1 career was verified. Loading and drafting remain disabled.",
+		"refused":"This Standard D1 career did not pass validation. Your save is unchanged.",
+		"stale":"The saved career changed during verification. Try Continue again.",
+		"cancelled":"Standard D1 verification cancelled. Your save is unchanged."
+	}.get(outcome,"The Standard D1 career could not be verified. Your save is unchanged.")
+	show_season()
+
 func reload_save() -> void:
 	if not _available(): return
 	_expire_d1_proof()
+	var kind:=Store.standard_d1_slot_kind()
+	if not kind.is_empty():
+		_continue_standard_d1(kind)
+		return
 	_busy = true
 	var before: PackedByteArray = Store.raw()
 	var candidate: RefCounted = Store.read()

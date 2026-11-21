@@ -3,6 +3,7 @@ extends Node
 const Store=preload("owner_store.gd")
 const T=preload("standard_d1_transition.gd")
 const KIND: String="common-standard-d1-witness-worker-v2"
+const CONTINUE_KIND: String="common-standard-d1-continue-worker-v2"
 const FRAME: String="WIFFALTRO_D1_WITNESS_V2 "
 const MAX_FRAME: int=16384
 const MAX_MS: int=300000
@@ -22,27 +23,37 @@ static func supported() -> bool:
 	return OS.has_feature("editor") and OS.get_name()=="Linux" \
 		and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
 
-static func _revision() -> String:
+static func _bounded_slot(kind: String) -> PackedByteArray:
 	var file:=FileAccess.open(Store.PATH,FileAccess.READ)
-	if file==null or file.get_length()<1 or file.get_length()>Store.MAX_BYTES: return ""
+	if file==null: return PackedByteArray()
+	var length:=file.get_length()
+	if length<1 or length>(T.MAX_SLOT if kind==CONTINUE_KIND else Store.MAX_BYTES): return PackedByteArray()
+	var bytes:=file.get_buffer(length)
+	var valid: bool=bytes.size()==length and file.get_length()==length
 	file.close()
-	return FileAccess.get_sha256(Store.PATH)
+	return bytes if valid else PackedByteArray()
+
+static func _revision(kind: String=KIND) -> String:
+	var bytes:=_bounded_slot(kind)
+	return "" if bytes.is_empty() else T._source_digest(bytes)
 
 static func request_valid(value: Variant) -> bool:
 	return value is Dictionary and SeasonOwnership._keys(value,["version","kind","token","source_sha256","seed"]) \
-		and SeasonOwnership._whole(value.version,2,2) and value.kind==KIND \
+		and SeasonOwnership._whole(value.version,2,2) and value.kind in [KIND,CONTINUE_KIND] \
 		and value.token is String and value.token.length()==32 and value.token.is_valid_hex_number(false) \
-		and T.Start.sha(value.source_sha256) and SeasonOwnership._whole(value.seed,0,2147483647)
+		and T.Start.sha(value.source_sha256) and SeasonOwnership._whole(value.seed,0,2147483647) \
+		and (value.kind==KIND or value.seed==0)
 
 # Godot's JSON parser materializes numbers as floats; normalize once before
 # writing so the receiver can check the exact canonical wire representation.
 static func canonical(value: Variant) -> String:
 	return JSON.stringify(JSON.parse_string(JSON.stringify(value,"",true,true)),"",true,true)
 
-func start(source_sha256: String, seed_value: int) -> bool:
+func start(source_sha256: String, seed_value: int, kind: String=KIND) -> bool:
 	if running or not is_inside_tree() or not supported() or not T.Start.sha(source_sha256) \
-			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision()!=source_sha256: return false
-	_request={"version":2,"kind":KIND,"token":Crypto.new().generate_random_bytes(16).hex_encode(),
+			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision(kind)!=source_sha256 \
+			or kind not in [KIND,CONTINUE_KIND] or (kind==CONTINUE_KIND and seed_value!=0): return false
+	_request={"version":2,"kind":kind,"token":Crypto.new().generate_random_bytes(16).hex_encode(),
 		"source_sha256":source_sha256,"seed":seed_value}
 	var worker: String=(get_script() as GDScript).resource_path.get_base_dir().path_join("standard_d1_witness_worker.tscn")
 	var packet: String=Marshalls.utf8_to_base64(canonical(_request))
@@ -105,7 +116,7 @@ func _process(_delta: float) -> void:
 	if not _drain():
 		_finish("invalid")
 		return
-	if _revision()!=_request.source_sha256:
+	if _revision(_request.kind)!=_request.source_sha256:
 		_finish("stale")
 		return
 	var packet:=_decode(_output,_request,exit_code)
@@ -125,8 +136,18 @@ static func _decode(bytes: PackedByteArray, request: Dictionary, exit_code: int)
 			or not lines[2].begins_with(FRAME): return {}
 	var json: String=lines[2].trim_prefix(FRAME)
 	var result: Variant=JSON.parse_string(json)
-	if not result is Dictionary or not SeasonOwnership._keys(result,["request","outcome","transition"]) \
-			or not ClubCareer.same(result.request,request) or JSON.stringify(result,"",true,true)!=json: return {}
+	if not result is Dictionary or not ClubCareer.same(result.get("request"),request) \
+			or JSON.stringify(result,"",true,true)!=json: return {}
+	if request.kind==CONTINUE_KIND:
+		if not SeasonOwnership._keys(result,["request","outcome","digests"]) \
+				or not result.digests is Dictionary: return {}
+		if exit_code==REFUSED_EXIT and result.outcome=="refused" and result.digests.is_empty(): return result
+		if exit_code==0 and result.outcome=="qualified" \
+				and SeasonOwnership._keys(result.digests,["stamp","witness","draft"]) \
+				and T.Start.sha(result.digests.stamp) and T.Start.sha(result.digests.witness) \
+				and T.Start.sha(result.digests.draft): return result
+		return {}
+	if not SeasonOwnership._keys(result,["request","outcome","transition"]): return {}
 	if exit_code==REFUSED_EXIT and result.outcome=="refused" and result.transition is Dictionary and result.transition.is_empty(): return result
 	if exit_code==0 and result.outcome=="qualified" and T.valid(result.transition) \
 			and result.transition.basis.seed==request.seed: return result

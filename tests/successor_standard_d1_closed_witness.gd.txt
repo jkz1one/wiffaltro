@@ -77,7 +77,7 @@ func _durable(mode: String, witness: Dictionary, exact: PackedByteArray) -> bool
 				"durable wire shape retains all original V4 bytes without ordinary admission"): return false
 		var corrupted:=candidate.duplicate(true)
 		corrupted.stamp="0".repeat(64)
-		if not _expect(T._durable_shape(T._slot_text(corrupted).to_utf8_buffer()).is_empty()
+		if not _expect(T._durable_shape((T.SLOT_HEADER+T._slot_text(corrupted)).to_utf8_buffer()).is_empty()
 				and not FileAccess.file_exists(path) and S.raw()==exact,
 				"bad stamp refuses prior to write; original available for retry"): return false
 		var retry:=T._durable_candidate(witness,draft)
