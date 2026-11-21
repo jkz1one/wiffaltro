@@ -683,6 +683,25 @@ static func prepare_standard_d1_witness(owner: RefCounted, expected: PackedByteA
 	if witness.is_empty() or not match_owner(owner,expected): return {}
 	return {"transition":transition,"witness":witness}
 
+# Actual Common CAS preparation: materialize only from an already strict Store
+# admission. No IPC packet, caller's draft, or serialized success grants entry.
+# This intentionally cannot arm a generic ticket while Continue still cannot
+# adopt the witnessed dialect.
+static func _prepare_standard_d1_slot(owner: RefCounted, expected: PackedByteArray,
+		seed_value: int) -> PackedByteArray:
+	var contract=preload("standard_d1_transition.gd")
+	var bundle:=prepare_standard_d1_witness(owner,expected,seed_value)
+	if bundle.is_empty(): return PackedByteArray()
+	var draft: SeasonState=Adapter.OrdinaryRuntime.create_d1_draft(bundle.transition)
+	if draft==null or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty():
+		return PackedByteArray()
+	var snapshot: Dictionary=Owner.Previous.capture_d1_draft(draft)
+	if snapshot.is_empty(): return PackedByteArray()
+	var bytes: PackedByteArray=contract._durable_candidate(bundle.witness,snapshot)
+	if contract._durable_shape(bytes).is_empty() or saving or _ticket!=null or not match_owner(owner,expected):
+		return PackedByteArray()
+	return bytes
+
 # Fresh creation only; copies and existing-slot reads retain their strict native paths.
 static func fresh_candidate(seed_value: int, league: String) -> RefCounted:
 	if occupied() or not LeagueAdmission.guard(league,0,{}): return null

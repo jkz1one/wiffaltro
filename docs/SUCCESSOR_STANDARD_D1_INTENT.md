@@ -575,3 +575,36 @@ Native checkout held the card, changed Cash from 18 to 12, and consumed
 its exact offer. The separate reroll comparison charged 5 game Cash
 instead of the positive ordinary quote of 4; it did not affect the
 purchased branch.
+
+### Exact admitted Store preparation, not shared-slot writing
+
+The private Common Store now has an internal D1 CAS prepare path.
+It accepts only the *already admitted* owner object and its exact current
+slot bytes (no caller draft, title flag or IPC packet). Existing owner,
+disk bytes, raw snapshot and idle-ticket predicates must still match
+after materializing the zero-pick D1 draft. The candidate uses a new
+versioned dialect with the exact compressed prior Common career as its
+sole source of parked state and metadata, and a canonical stamp over
+the witness and draft. The stamp only detects inconsistency; it cannot
+confer title. The cold replay contract independently recovers both the
+prior owner and fresh D1 draft and rederives actual championship rights
+with a single strict prior owner restore. Ordinary Base and legacy reads,
+copies, writes and paths are unchanged.
+
+There is deliberately no generic write ticket or D1 runtime owner binding
+yet. Ordinary Continue rejects this dialect, and the existing raw guard
+is not bound to its witness; replacing the active save now would make it
+unreadable. The next writer
+gate needs an off-frame same-binary strict reopen and safe adoption of
+both verified sides without another strict prior replay on the UI frame,
+plus exact candidate/slot readback and promotion. Compact IPC transition
+data is not sufficient authority. No authentic title has been observed.
+
+On the isolated exact eliminated Base/backup pair, attach the closed
+witness test as before. Run `-- matched`, `-- durable`, and
+`-- durable-cold` in separate processes. The first rejects the exact
+eliminated owner, stale backup and absent owner at the real prepare
+boundary. The latter two test canonical stamp rejection, byte-exact
+retry/readback at a distinct QA path, then strict rejection of a
+correctly stamped but unauthorized witness. Also run the real App
+witness refusal with `WIFFALTRO_STANDARD_D1_CHECK=1`.

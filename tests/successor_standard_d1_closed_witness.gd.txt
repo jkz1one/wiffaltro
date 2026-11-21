@@ -8,7 +8,7 @@ func _run() -> void:
 	var args:=OS.get_cmdline_user_args()
 	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
 			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
-			and args.size()==1 and args[0] in ["replay","matched"],"isolated explicit witness mode"): return
+			and args.size()==1 and args[0] in ["replay","matched","durable","durable-cold"],"isolated explicit witness mode"): return
 	var bytes:=S.raw()
 	var backup:=FileAccess.get_file_as_bytes(S.PATH+".bak")
 	if not _expect(T._source_digest(bytes)==EXACT and not backup.is_empty()
@@ -23,8 +23,14 @@ func _run() -> void:
 		t=Time.get_ticks_msec()
 		if not _expect(S.prepare_standard_d1_witness(owner,bytes,39201).is_empty()
 				and S.prepare_standard_d1_witness(owner,backup,39201).is_empty()
-				and S.prepare_standard_d1_witness(null,bytes,39201).is_empty(),"eliminated, wrong slot revision and absent owner denied"): return
+				and S.prepare_standard_d1_witness(null,bytes,39201).is_empty()
+				and S._prepare_standard_d1_slot(owner,bytes,39201).is_empty()
+				and S._prepare_standard_d1_slot(owner,backup,39201).is_empty()
+				and S._prepare_standard_d1_slot(null,bytes,39201).is_empty(),
+				"eliminated, wrong slot revision and absent owner denied at actual CAS prepare"): return
 		print("STANDARD_D1_WITNESS_MATCHED_PASS cold_store_ms=",cold_ms," warm_matched_denial_ms=",Time.get_ticks_msec()-t)
+	elif args[0].begins_with("durable"):
+		if not _durable(args[0],witness,bytes): return
 	else:
 		var t:=Time.get_ticks_msec()
 		var replay: RefCounted=T._replay_closed_source(witness)
@@ -54,3 +60,46 @@ func _run() -> void:
 	if not _expect(S.raw()==bytes and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup
 			and not FileAccess.file_exists(S.PATH+".tmp"),"primary and backup byte inert"): return
 	get_tree().quit()
+
+
+func _durable(mode: String, witness: Dictionary, exact: PackedByteArray) -> bool:
+	# This fixture intentionally pairs a well-formed, unauthorized draft with
+	# the actual eliminated Base run. Neither the stamp nor shape conveys title.
+	var path: String="user://standard-d1-qa-durable-candidate.json"
+	if mode=="durable":
+		var owner: RefCounted=O.create_ordinary(42,"standard")
+		var season: SeasonState=Runtime.create_d1_draft(_shape_sample(owner))
+		var draft: Dictionary=DraftCodec.capture_d1_draft(season)
+		var bytes:=T._durable_candidate(witness,draft)
+		var candidate:=T._durable_shape(bytes)
+		if not _expect(not candidate.is_empty() and T._unpack_closed_source(candidate.witness)==exact
+				and O.restore(candidate)==null and O.capture(owner).format==O.FORMAT,
+				"durable wire shape retains all original V4 bytes without ordinary admission"): return false
+		var corrupted:=candidate.duplicate(true)
+		corrupted.stamp="0".repeat(64)
+		if not _expect(T._durable_shape(T._slot_text(corrupted).to_utf8_buffer()).is_empty()
+				and not FileAccess.file_exists(path) and S.raw()==exact,
+				"bad stamp refuses prior to write; original available for retry"): return false
+		var retry:=T._durable_candidate(witness,draft)
+		if not _expect(bytes==retry,"retry is byte-exact"): return false
+		if not _expect(not FileAccess.file_exists(path) and not FileAccess.file_exists(path+".tmp"),
+				"no existing isolated receipt"): return false
+		var file:=FileAccess.open(path+".tmp",FileAccess.WRITE)
+		if not _expect(file!=null,"open isolated non-slot path"): return false
+		file.store_buffer(retry)
+		file.flush()
+		var wrote: bool=file.get_error()==OK
+		file.close()
+		if not _expect(wrote and FileAccess.get_file_as_bytes(path+".tmp")==retry
+				and not FileAccess.file_exists(path) and DirAccess.rename_absolute(path+".tmp",path)==OK
+				and FileAccess.get_file_as_bytes(path)==retry,"isolated rename and readback"): return false
+		print("STANDARD_D1_DURABLE_SCHEMA_PASS bytes=",retry.size()," sha=",FileAccess.get_sha256(path))
+	else:
+		var saved:=FileAccess.get_file_as_bytes(path)
+		var stamped:=T._durable_shape(saved)
+		if not _expect(not stamped.is_empty() and T._unpack_closed_source(stamped.witness)==exact
+				and DraftCodec.restore_d1_draft(stamped.draft)!=null
+				and T._cold_durable_candidate(saved).is_empty() and S.raw()==exact,
+				"strict independent replay refuses a correctly stamped eliminated witness"): return false
+		print("STANDARD_D1_DURABLE_COLD_REFUSED ",FileAccess.get_sha256(path))
+	return true

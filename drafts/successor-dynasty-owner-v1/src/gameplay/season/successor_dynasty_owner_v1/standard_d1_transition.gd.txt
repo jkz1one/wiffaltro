@@ -93,3 +93,50 @@ static func restore_witnessed_d1_draft(witness: Variant, draft: Variant) -> Seas
 	var stored: Dictionary=season.career.start_basis
 	var derived:=rederive_from_witness(witness,int(stored.basis.seed))
 	return season if not derived.is_empty() and ClubCareer.same(stored,derived) else null
+
+# A separate candidate dialect until the owner has a strict async Continue route.
+# The entire former Common career (including dormant Dynasty/metadata) sits in
+# the witness; duplicating a caller's parked fields here would add another truth.
+const SLOT_FORMAT: String="wiffaltro-common-career-standard-d1-v1"
+const MAX_SLOT: int=16*1024*1024
+
+static func _durable_candidate(witness: Dictionary, draft: Dictionary) -> PackedByteArray:
+	var body: Dictionary={"version":1,"format":SLOT_FORMAT,"witness":witness,"draft":draft}
+	var canonical:=_slot_text(body)
+	if canonical.is_empty(): return PackedByteArray()
+	body.stamp=canonical.sha256_text()
+	var bytes:=_slot_text(body).to_utf8_buffer()
+	return bytes if bytes.size()<=MAX_SLOT else PackedByteArray()
+
+static func _slot_text(value: Variant) -> String:
+	# Normalize integral JSON values consistently with the strict materialized codec.
+	var engine:=JSON.stringify(value,"",true,true)
+	if engine.length()>MAX_SLOT: return ""
+	return JSON.stringify(JSON.parse_string(engine),"",true,true)
+
+static func _durable_shape(bytes: PackedByteArray) -> Dictionary:
+	if bytes.is_empty() or bytes.size()>MAX_SLOT: return {}
+	var text:=bytes.get_string_from_utf8()
+	var data: Variant=JSON.parse_string(text)
+	if not data is Dictionary or not SeasonOwnership._keys(data,["version","format","witness","draft","stamp"]) \
+			or not SeasonOwnership._whole(data.version,1,1) or data.format!=SLOT_FORMAT \
+			or not data.witness is Dictionary or not data.draft is Dictionary or not Start.sha(data.stamp) \
+			or _slot_text(data)!=text: return {}
+	var body: Dictionary=data.duplicate()
+	body.erase("stamp")
+	return data if _slot_text(body).sha256_text()==data.stamp else {}
+
+# This is the strict background replay contract. It grants no Store binding.
+# On success the caller must separately match exact slot bytes/epoch and adopt
+# the verified owner+draft with its own new raw guard.
+static func _cold_durable_candidate(bytes: PackedByteArray) -> Dictionary:
+	var data:=_durable_shape(bytes)
+	if data.is_empty(): return {}
+	var codec=load("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+	var draft: SeasonState=codec.restore_d1_draft(data.draft)
+	if draft==null or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty(): return {}
+	var owner:=_replay_closed_source(data.witness)
+	if owner==null: return {}
+	var stored: Dictionary=draft.career.start_basis
+	var derived:=derive(owner,int(stored.basis.seed))
+	return {"previous_owner":owner,"draft":draft} if not derived.is_empty() and ClubCareer.same(stored,derived) else {}
