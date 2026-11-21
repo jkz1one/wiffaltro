@@ -333,3 +333,60 @@ duplicate, oversized and wrong-nonce cases. A genuine title must still
 qualify the positive transition in-process before adding the parent-only
 Store CAS. The retained closed witness must be persisted atomically
 with the ensuing private draft and verified again on future cold loads.
+
+### Materialized opening-away physical preview
+
+The isolated D1 QA can draft four authored players through the
+successor runtime, replay that exact draft, and prepare fixture 0
+only when the player club is scheduled away. The live materialized
+match constructor supplies the team builds and successor pitch
+catalog. A separate native venue context derives assignments from the
+retained career ordinal, seed, and authored schedule; the local
+materialized ledger's internal run number is not the venue ordinal.
+The preview mounts the normal Pitch/Bat Lab against that exact
+fixture, and uses the Common human evidence capture with the bound
+venue and pitch catalog rechecked at the actual match outro. Native
+detached report 17 is not used.
+
+For QA, assemble the private Common V4 sources, stage the transition
+QA helper at `res://transition.gd`, and attach
+`successor_standard_d1_opening.gd.txt` to a one-Node scratch scene.
+Use an empty disposable save profile with the isolated and engineering
+flags, Godot 4.6.3, and `--headless --audio-driver Dummy --fixed-fps 60`.
+For this isolated source-only test, copy the exact tracked stock
+`project.godot` into the scratch assembly and select the QA scene
+explicitly; the source gate must pass with no code or pin substitutions.
+The regular additive launcher config changes the raw project bytes and
+its AE-01 mount refused the unchanged native gate. This is not
+qualification for the integrated launcher or exported package.
+
+The prior-title shape is synthetic and cannot authorize or save;
+physics, output score, and evidence are real. The test compares the
+same seed/ordinal/fixture venue key to the independent native CP174
+oracle and rejects Base, wrong fixture, unfinished and wrong-venue
+capture. That oracle had native run ordinal 3, which only the QA
+fixture mirrors; a run-2 preflight correctly produced a different key.
+The adapter derives the ordinal from the validated transition, never
+from that fixture constant. No retired source, slot or public path is changed. The default smoke
+stops at the first completed native plate appearance and checks that
+no result can be captured before the outro; `-- full` is an optional
+long running capture probe. Source-headless step wall time is not
+native frame rate, package timing, or device performance.
+
+First cold/worker bridge: define a distinct Standard D1 Common pending
+format only after a genuine title can admit the prior-witness and
+draft. Bind its captured human row to this exact field/venue and
+catalog. Derive each NPC field from the same venue epoch rather than
+supplying a saved layout. Add a D1 successor request/report dialect for
+venue-bearing NPC reports and independently cold-check the complete
+receipt before the existing transaction settles it. Do not pass the
+native Report17 or venue-bearing data through ordinary Base Report114.
+
+A separately instrumented source run completed this same opening matchup
+5–3 on AE-01, with 168 releases and the Common human evidence hash
+`cce442be3809cbd16b9caaaa18d45def076c6802b462842d555141f07131cc2f`.
+The final recorded sample was 13,700 physics ticks, with about 209 seconds
+of loop time after setup on the headless Linux worker. The test's regular
+bounding mode independently completed the first plate appearance in 353
+ticks. This was source gameplay and capture only: no save, NPC round
+settlement, playable public D1, packaged startup, or Mac performance result.

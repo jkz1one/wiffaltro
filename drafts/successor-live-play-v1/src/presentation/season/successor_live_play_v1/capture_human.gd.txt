@@ -4,10 +4,16 @@ const Codec = preload("res://src/gameplay/season/successor_live_play_v1/codec.gd
 static func capture(app: SeasonApp) -> Array:
 	if app==null or app.season==null or not Codec.scope(app.season) or not is_instance_valid(app.lab):
 		return []
+	return _capture_bound(app,Callable(app,"_played_field_matches"))
+
+
+# Only the guarded Base entry above and the scoped D1 opening adapter call this.
+static func _capture_bound(app: SeasonApp, field_matches: Callable) -> Array:
+	if app==null or app.season==null or not is_instance_valid(app.lab): return []
 	var season: SeasonState = app.season
 	var lab: PitchBatLab = app.lab
 	var _fixture_id: int = app._fixture_id
-	if lab._match_state==null or lab._match_state.phase!=MatchState.Phase.GAME_END or not app._played_field_matches():
+	if lab._match_state==null or lab._match_state.phase!=MatchState.Phase.GAME_END or not field_matches.call():
 		return []
 	if lab._home_run.presentation_pending(lab) or lab._match_presentation_director.mode!=MatchPresentationDirector.Mode.OUTRO_HOLD:
 		return []
@@ -17,7 +23,7 @@ static func capture(app: SeasonApp) -> Array:
 		return []
 	if not PitchBatLabFeelSupport.flush_pending_manual_records(lab):
 		return []
-	if not is_instance_valid(lab) or app.lab!=lab or app.season!=season or lab._match_state!=source_state or app._fixture_id!=_fixture_id or not app._played_field_matches() or not ClubCareer.same(fixture,season.pending_fixture()):
+	if not is_instance_valid(lab) or app.lab!=lab or app.season!=season or lab._match_state!=source_state or app._fixture_id!=_fixture_id or not field_matches.call() or not ClubCareer.same(fixture,season.pending_fixture()):
 		return []
 	var state: MatchState = lab._match_state
 	var human: Array = [

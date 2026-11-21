@@ -77,6 +77,12 @@ static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
 		return null
 	if not season.academy_fixture_ready(fixture):
 		return null
+	return _match_materialized(season,fixture)
+
+
+# Common team creation and successor pitch catalog; the caller owns admission
+# and supplies the expected canonical stadium (empty for the existing Base).
+static func _match_materialized(season: SeasonState, fixture: Dictionary, stadium: Dictionary={}) -> MatchState:
 	var away: TeamMatchState = season._make_team(int(fixture.away), int(fixture.id))
 	var home: TeamMatchState = season._make_team(int(fixture.home), int(fixture.id))
 	if away == null or home == null:
@@ -92,7 +98,7 @@ static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
 		human.field_supply.retired = SeasonInventoryResale.field_retired(
 			season.build._bank, int(fixture.id)
 		)
-	state.stadium = StadiumLayoutSnapshot.for_fixture(season, fixture)
+	state.stadium = StadiumLayoutSnapshot.for_fixture(season, fixture) if stadium.is_empty() else stadium
 	if (
 		StadiumLayoutSnapshot.is_terrain(season.home_property)
 		and fixture.get("home", -1) == 0

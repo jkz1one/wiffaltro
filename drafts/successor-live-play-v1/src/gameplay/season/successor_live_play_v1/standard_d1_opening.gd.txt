@@ -1,0 +1,64 @@
+extends RefCounted
+## Non-authorizing materialized opening-away gameplay. No normal launch/writer.
+const Codec=preload("codec.gd")
+const Physical=preload("physical_fixtures.gd")
+const Human=preload("res://src/presentation/season/successor_live_play_v1/capture_human.gd")
+
+static func _venue_context(season: SeasonState) -> SeasonState:
+	# The materialized ledger is a one-session local ledger. The native venue
+	# seed stream instead uses the retained ordinary career ordinal.
+	var context:=SeasonState.new()
+	context.season_seed=season.season_seed
+	context._npc_replay_run=int(season.career.start_basis.basis.ordinal)
+	context.schedule.assign(season.schedule.duplicate(true))
+	context.npc_venues=SeasonVenues.capture_five(context.season_seed,context._npc_replay_run,1)
+	return context if SeasonVenues.matches_season(context) else null
+
+static func prepare(snapshot: Variant, fixture: Dictionary) -> Dictionary:
+	var season: SeasonState=Codec.restore_d1_draft(snapshot)
+	if season==null or season.picks.size()!=4 or not Codec.same(season.pending_fixture(),fixture) \
+			or fixture.get("id")!=0 or fixture.get("round")!=0 or fixture.get("away")!=0 \
+			or not Codec.whole(fixture.get("home"),1,5) or fixture.get("neutral",false): return {}
+	var context:=_venue_context(season)
+	if context==null: return {}
+	var field: FieldDefinition=SeasonVenues.field_for_fixture(context,fixture)
+	var stadium: Dictionary=SeasonVenues.for_fixture(context,fixture)
+	var key: String=StadiumLayoutSnapshot.key(stadium)
+	if field==null or field.id!=&"field.npc_venue" or key.is_empty(): return {}
+	var state: MatchState=Physical._match_materialized(season,fixture,stadium)
+	if state==null or not state.sure_shot.enable_current_evidence(): return {}
+	return {"season":season,"state":state,"context":context,"field":field,"venue":key,
+		"fixture":fixture.duplicate(true),"snapshot":Codec.capture_d1_draft(season)}
+
+static func lab_for(opening: Dictionary) -> PitchBatLab:
+	if opening.is_empty(): return null
+	var lab:=PitchBatLab.new()
+	lab._configured_match=opening.state
+	lab._npc_season=opening.context
+	lab._field_id=opening.field.id
+	lab._player_home=false
+	lab._managed_match=true
+	return lab
+
+static func _bound(app: SeasonApp, opening: Dictionary) -> bool:
+	if app.season!=opening.season or not is_instance_valid(app.lab) or app.lab._player_home \
+			or app.lab._match_state!=opening.state or app.lab._npc_season!=opening.context \
+			or app._fixture_id!=opening.fixture.id: return false
+	var authored:=_venue_context(app.season)
+	if authored==null or not Codec.same(authored.npc_venues,opening.context.npc_venues) \
+			or authored._npc_replay_run!=opening.context._npc_replay_run: return false
+	var canonical: Dictionary=SeasonVenues.for_fixture(authored,opening.fixture)
+	return not canonical.is_empty() and Codec.same(app.season.pending_fixture(),opening.fixture) \
+		and Codec.same(Codec.capture_d1_draft(app.season),opening.snapshot) \
+		and StadiumLayoutSnapshot.key(canonical)==opening.venue \
+		and Codec.same(app.lab._match_state.stadium,canonical) \
+		and opening.field.id==&"field.npc_venue" \
+		and StadiumPropertyRuntime.npc_installed_bound(app.lab,canonical) \
+		and app.lab._match_state.pitch_catalog==Physical.catalog_for(app.season)
+
+static func capture(app: SeasonApp, opening: Dictionary) -> Dictionary:
+	if opening.is_empty(): return {}
+	var human: Array=Human._capture_bound(app,_bound.bind(app,opening))
+	if human.is_empty(): return {}
+	return {"version":1,"fixture":opening.fixture.duplicate(true),"field":String(opening.field.id),
+		"venue":opening.venue,"pitch_catalog":opening.state.pitch_catalog,"human":human}

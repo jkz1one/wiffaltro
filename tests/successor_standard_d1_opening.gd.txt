@@ -1,0 +1,111 @@
+extends "res://transition.gd"
+## Shape-only authority; real successor four-pick Runtime and physical match.
+const Runtime=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const Draft=preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Opening=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1_opening.gd")
+const Oracle="b15c3eee0c51b007c6281d23bc5371749d3255d632e5e62c036237b8d481c6bf"
+class CaptureHost extends SeasonApp:
+	func _ready() -> void: pass
+	func _process(_delta: float) -> void: pass
+
+func _run() -> void:
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and not S.occupied()
+			and not FileAccess.file_exists("user://season-v1.json"),"isolated no-slot engineering run"): return
+	var authority: RefCounted=O.create_ordinary(42,"standard")
+	var transition: Dictionary=_shape_sample(authority)
+	transition.basis.seed=39201
+	transition.entitlement.seed=39201
+	# CP174's detached native oracle had two prior runs; use its real venue
+	# ordinal so the independent historical stadium key is the exact oracle.
+	transition.basis.ordinal=3
+	transition.basis.common_sequence=2
+	transition.entitlement.from=2
+	transition.entitlement.to=3
+	transition.entitlement.close.id=transition.entitlement.lineage+":2:close"
+	transition.entitlement.close.ordinal=2
+	transition.entitlement.fold.id=transition.entitlement.close.id
+	transition.entitlement.fold.ordinal=2
+	transition.entitlement.fold.sequence=2
+	var d1: SeasonState=Runtime.create_d1_draft(transition)
+	if not _expect(d1!=null,"same materialized D1 runtime as CP176"): return
+	for n in range(4):
+		if not _expect(d1.choose_player(d1.offers()[0]),"native choice "+str(n)): return
+	var checkpoint: Dictionary=Draft.capture_d1_draft(d1)
+	var fixture: Dictionary=d1.pending_fixture()
+	var opening: Dictionary=Opening.prepare(checkpoint,fixture)
+	if opening.is_empty() or opening.venue!=Oracle:
+		printerr("Observed opening descriptor: ",opening.get("venue","none")," fixture=",fixture)
+	if not _expect(not opening.is_empty() and opening.venue==Oracle and opening.field.id==&"field.npc_venue"
+			and fixture.id==0 and fixture.away==0 and fixture.home==5
+			and opening.state.stadium.binding.venue_id=="AE-01"
+			and opening.state.pitch_catalog==d1.build.pitch_catalog_signature()
+			and authority.session.build.pitch_catalog_signature()==opening.state.pitch_catalog
+			and not opening.state.pitch_catalog.is_empty(),"opening matches independent CP174 native venue oracle and Common catalog"): return
+	var wrong: Dictionary=fixture.duplicate()
+	wrong.home=4
+	if not _expect(Opening.prepare(checkpoint,wrong).is_empty()
+			and Opening.prepare(Draft.capture(authority.session),fixture).is_empty()
+			and d1.make_match()==null and not d1.shop_available(),"wrong fixture and Base refused; no ordinary path opened"): return
+	var host:=CaptureHost.new()
+	add_child(host)
+	host.season=opening.season
+	host._fixture_id=int(fixture.id)
+	var lab:=Opening.lab_for(opening)
+	host.lab=lab
+	if not _expect(StadiumNpcPublicRuntime.source_qualified(),"frozen stock source gate passes without any overrides"): return
+	var automation:=MatchAutomation.new()
+	automation.seed=Opening.Physical.seed_for(host.season,fixture)
+	automation.presentation_enabled=true
+	lab._automation=automation
+	host.add_child(lab)
+	for frame in range(900):
+		await get_tree().physics_frame
+		if lab._match_state!=null and not lab._match_presentation_director.blocks_gameplay(): break
+	if not _expect(lab._match_state!=null and not lab._match_presentation_director.blocks_gameplay()
+			and Opening._bound(host,opening) and lab._pitch_actor!=null,
+			"real lab installs canonical away stadium and starts"): return
+	if not _expect(Opening.capture(host,opening).is_empty(),"unfinished match cannot capture"): return
+	var full: bool=OS.get_cmdline_user_args().has("full")
+	var play_ms:=Time.get_ticks_msec()
+	for frame in range(150000 if full else 1200):
+		await get_tree().physics_frame
+		if not full and lab._match_state.plate_appearance_number>1:
+			if not _expect(lab._match_state.phase!=MatchState.Phase.GAME_END and automation.releases.size()>0
+					and Opening._bound(host,opening) and Opening.capture(host,opening).is_empty()
+					and host.season.results.is_empty() and host.season.physical.pending.is_empty()
+					and not S.occupied() and not FileAccess.file_exists("user://season-v1.json"),
+					"completed native plate appearance; exact mounted field and no save"): return
+			print("STANDARD_D1_MATERIALIZED_OPENING_PA_PASS ",JSON.stringify({"fixture":fixture,
+				"field":opening.field.id,"venue":opening.venue,"pitch_catalog":lab._match_state.pitch_catalog,
+				"pa":lab._match_state.plate_appearance_number,"releases":automation.releases.size(),
+				"frames":frame+1,"play_ms":Time.get_ticks_msec()-play_ms}))
+			await _finish_host(host)
+			return
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode not in [MatchPresentationDirector.Mode.OUTRO,MatchPresentationDirector.Mode.OUTRO_HOLD] and not lab._home_run.presentation_pending(lab):
+			# The QA driver requests the normal presentation after automation is
+			# done; no physics tick sees a changed binding or controller.
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+			lab._automation=automation
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD: break
+	if not _expect(full,"bounded preview completed its first native PA"): return
+	var row: Dictionary=Opening.capture(host,opening)
+	if not _expect(not row.is_empty() and row.venue==Oracle and row.pitch_catalog==opening.state.pitch_catalog
+			and row.human[0]==0 and row.human[1]!=row.human[2] and not row.human[3].is_empty(),
+			"real outro captured through Common human evidence"): return
+	var changed: Dictionary=opening.duplicate()
+	changed.venue="0".repeat(64)
+	if not _expect(Opening.capture(host,changed).is_empty() and host.season.results.is_empty()
+			and host.season.physical.pending.is_empty() and Draft.restore_common(checkpoint)==null
+			and not S.occupied() and not FileAccess.file_exists("user://season-v1.json"),"wrong venue refused; no settlement, slot or Base change"): return
+	print("STANDARD_D1_MATERIALIZED_OPENING_PASS ",JSON.stringify({"fixture":row.fixture,"field":row.field,
+		"venue":row.venue,"pitch_catalog":row.pitch_catalog,"away":row.human[1],"home":row.human[2],
+		"evidence_sha256":JSON.stringify(row,"",true,true).sha256_text()}))
+	await _finish_host(host)
+
+func _finish_host(host: SeasonApp) -> void:
+	host.queue_free()
+	await get_tree().process_frame
+	await TestAudioDrain.finish(get_tree())
+	get_tree().quit()
