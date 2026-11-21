@@ -19,6 +19,19 @@ func _run() -> void:
 	if request.kind==Work.CROSS_READ_KIND:
 		_continue_cross_draft(request,bytes)
 		return
+	if request.kind==Work.ARCHIVE_ACTIVATE_KIND:
+		if not Work.Store.cross_league_preview():
+			get_tree().quit(2)
+			return
+		# Pin the same authored content roots as App through both full replays.
+		var content_roots: Array[Resource]=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+		Work.Store.Codec.Catalog.game_signature()
+		Work.Store.Codec.Catalog.player_signature()
+		var owner: RefCounted=Work.Store.Owner.restore(Work.Store.Owner._bytes_value(bytes))
+		var prepared: Dictionary=Work.Store._archived_dugout_candidate(owner,bytes)
+		_stage_cross(request,prepared.get("data",{}))
+		content_roots.clear()
+		return
 	if request.kind in [Work.CROSS_KIND,Work.ACTIVATE_KIND]:
 		_review_cross(request,bytes)
 		return

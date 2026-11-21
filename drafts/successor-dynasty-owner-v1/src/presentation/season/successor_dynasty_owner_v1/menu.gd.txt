@@ -172,7 +172,7 @@ func render() -> void:
 		_workshop_draft()
 		_closed()
 		if app.cross_review_visible():
-			_bound_button(_body,"ACTIVATE DUGOUT BASE",Callable(app,"begin_cross_review"))
+			_bound_button(_body,("ACTIVATE NEXT DUGOUT SEASON" if app._third_activation() else "ACTIVATE DUGOUT BASE"),Callable(app,"begin_cross_review"))
 		if not archived: _session_controls()
 		if app.earned_league_preview(): _earned_leagues(false)
 		return

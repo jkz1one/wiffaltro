@@ -789,17 +789,10 @@ static func activate_archived_dugout_next_and_write(owner: RefCounted,expected: 
 	if saving or _ticket!=null or not cross_league_preview() or not match_owner(owner,expected) \
 			or not _write_revision_matches(expected,true) \
 			or owner.ordinary_state.proposal.get("kind")!=Owner.Common.ARCHIVED_NEXT_KIND: return null
-	var candidate: RefCounted=Owner.new()
-	candidate.session=owner.session
-	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) \
-			or not Owner.Common._install_archive_chain(candidate,expected): return null
-	var data: Dictionary=Owner.capture(candidate)
-	if data.is_empty(): return null
-	var bytes: PackedByteArray=JSON.stringify(data,"",true,true).to_utf8_buffer()
-	if bytes.is_empty() or bytes.size()>Owner.Common.CHAIN_MAX: return null
-	var checked: RefCounted=Owner.restore(Owner._bytes_value(bytes))
-	if checked==null or not Codec.same(checked.ordinary_state,candidate.ordinary_state) \
-			or not match_owner(owner,expected) or not _write_revision_matches(expected,true): return null
+	var prepared:=_archived_dugout_candidate(owner,expected)
+	if prepared.is_empty() or not match_owner(owner,expected) or not _write_revision_matches(expected,true): return null
+	var candidate: RefCounted=prepared.owner
+	var data: Dictionary=prepared.data
 	var snapshot: Dictionary=RawGuard.capture(candidate)
 	if snapshot.is_empty(): return null
 	_ticket=RefCounted.new()
@@ -807,6 +800,23 @@ static func activate_archived_dugout_next_and_write(owner: RefCounted,expected: 
 	_expected=expected.duplicate();_written=PackedByteArray()
 	_write_admitted()
 	return _ticket
+
+# Pure child-compatible projection. It neither installs authority nor writes
+# the slot. Strictly replay the two retained histories and the native draft.
+static func _archived_dugout_candidate(owner: RefCounted,expected: PackedByteArray) -> Dictionary:
+	if owner==null or owner.ordinary_state.get("proposal",{}).get("kind")!=Owner.Common.ARCHIVED_NEXT_KIND:
+		return {}
+	var candidate: RefCounted=Owner.new()
+	candidate.session=owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) \
+			or not Owner.Common._install_archive_chain(candidate,expected): return {}
+	var data: Dictionary=Owner.capture(candidate)
+	if data.is_empty(): return {}
+	var bytes: PackedByteArray=JSON.stringify(data,"",true,true).to_utf8_buffer()
+	if bytes.is_empty() or bytes.size()>Owner.Common.CHAIN_MAX: return {}
+	var checked: RefCounted=Owner.restore(Owner._bytes_value(bytes))
+	if checked==null or not Codec.same(checked.ordinary_state,candidate.ordinary_state): return {}
+	return {"owner":candidate,"data":data}
 
 # Exact native rollover, off the App menu until a bounded async path.
 static func commit_cross_league_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
@@ -895,7 +905,10 @@ static func accept_cross_activation(owner: RefCounted,expected: PackedByteArray,
 	if not cross_league_preview() or child==null or child.get_script()!=process_script or not _cross_pending.is_empty():
 		return "refused"
 	if not _cross_bound(owner,expected): return "stale"
-	var bytes: PackedByteArray=child.take_cross_bytes(Owner._hash(expected))
+	var kind: String=process_script.ACTIVATE_KIND
+	if owner.ordinary_state.get("proposal",{}).get("kind")==Owner.Common.ARCHIVED_NEXT_KIND:
+		kind=process_script.ARCHIVE_ACTIVATE_KIND
+	var bytes: PackedByteArray=child.take_cross_bytes(Owner._hash(expected),kind)
 	if bytes.is_empty(): return "refused"
 	_cross_pending=bytes
 	_cross_owner=owner

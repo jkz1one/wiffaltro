@@ -14,7 +14,7 @@ func _button(n: Node,label: String) -> Button:
 func _run() -> void:
 	var args:=OS.get_cmdline_user_args()
 	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
-			and args[0] in ["activate","pick","cold","tamper","flag-off"]
+			and args[0] in ["activate","async","cancel","stale","pick","cold","tamper","flag-off"]
 			and FileAccess.get_sha256(INPUT)==EXACT and FileAccess.get_sha256(S.PATH)==args[1],
 			"exact generated CP236 ordinal-three lineage"): return
 	var before:=S.raw()
@@ -29,7 +29,7 @@ func _run() -> void:
 	print("ARCHIVE_CHAIN_LOAD_MS ",Time.get_ticks_msec()-started)
 	if not need(app._owned() and _exact(before,backup),"strict admitted owner; initial save unchanged"): return
 	if args[0]=="flag-off":
-		if need(S.activate_archived_dugout_next_and_write(app.career_owner,before)==null and _exact(before,backup),
+		if need(not app.cross_review_visible() and S.activate_archived_dugout_next_and_write(app.career_owner,before)==null and _exact(before,backup),
 				"flag-off exact proposal cannot activate"): get_tree().quit()
 		return
 	if args[0]=="activate":
@@ -45,6 +45,52 @@ func _run() -> void:
 				and S.activate_archived_dugout_next_and_write(app.career_owner,after)==null
 				and _exact(after,before),"active native 0/4 draft, exact once-only predecessor and no duplicate activation"):
 			print("ARCHIVE_CHAIN_ACTIVATED_PASS ",FileAccess.get_sha256(S.PATH));get_tree().quit()
+		return
+	if args[0] in ["async","cancel","stale"]:
+		var control:=_button(app,"ACTIVATE NEXT DUGOUT SEASON")
+		if not need(control!=null and app.cross_review_visible() and args[1]==EXACT,
+				"actual opted-in ordinal-three activation control"): return
+		started=Time.get_ticks_msec()
+		control.pressed.emit()
+		var click:=Time.get_ticks_msec()-started
+		if not need(app.d1_check_running() and _exact(before,backup),"worker launched; no eager write"): return
+		var completed: Array=[]
+		app._d1_check.completed.connect(func(outcome: String, proof: Dictionary)->void: completed.append([outcome,proof]))
+		if args[0]=="cancel":
+			var cancel:=_button(app,"CANCEL LEAGUE TRANSITION CHECK")
+			if not need(cancel!=null,"actual cancel button"): return
+			cancel.pressed.emit()
+		elif args[0]=="stale":
+			var f:=FileAccess.open(S.PATH,FileAccess.WRITE)
+			f.store_buffer(before+PackedByteArray([32]))
+			f.close()
+		var gap:=0
+		var ticks:=0
+		var last:=Time.get_ticks_msec()
+		while app.d1_check_running() and Time.get_ticks_msec()-started<75000:
+			await get_tree().process_frame
+			var now:=Time.get_ticks_msec()
+			if app.d1_check_running(): gap=maxi(gap,now-last)
+			last=now
+			ticks+=1
+		print("ARCHIVE_CHAIN_ASYNC_MS ",Time.get_ticks_msec()-started," click=",click," wait_gap=",gap,
+				" frames=",ticks," parent_cas=",app._cross_write_ms," child=",completed," notice=",app.notice)
+		if not need(completed.size()==1 and completed[0][1].is_empty(),"one terminal private child with no exposed proof"): return
+		if args[0]=="cancel":
+			if need(app.notice.contains("cancelled") and _exact(before,backup),"cancel leaves both exact"):
+				print("ARCHIVE_CHAIN_CANCEL_PASS");get_tree().quit()
+			return
+		if args[0]=="stale":
+			if need(app.notice.contains("changed") and _exact(before+PackedByteArray([32]),backup),
+					"stale refuses and retains externally changed primary and exact backup"):
+				print("ARCHIVE_CHAIN_STALE_PASS");get_tree().quit()
+			return
+		var after:=S.raw()
+		if not need(app.career_owner==null and app.notice.contains("activated") and after!=before
+				and _exact(after,before) and ticks>8,"only parent committed then dropped old owner authority"): return
+		app.begin_cross_review()
+		if need(not app.d1_check_running() and _exact(after,before),"duplicate activation cannot run"):
+			print("ARCHIVE_CHAIN_ASYNC_PASS ",FileAccess.get_sha256(S.PATH));get_tree().quit()
 		return
 	if args[0]=="pick":
 		if not need(_valid(app,previous_bytes,previous,0),"independent native 0/4 draft and both exact predecessors"): return

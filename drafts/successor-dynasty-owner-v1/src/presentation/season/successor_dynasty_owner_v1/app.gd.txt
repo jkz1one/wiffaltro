@@ -19,6 +19,7 @@ var _d1_close_after_check: bool=false
 var _pair_settling: bool=false
 var _pair_settle_write_ms: int=0
 var _cross_reviewing: bool=false
+var _cross_third_write: bool=false
 var _cross_reading: bool=false
 var _cross_read_ms: int=0
 var _cross_retry: bool=false
@@ -681,11 +682,14 @@ func _sign_paired_visit6_recruit() -> void:
 	var ticket: RefCounted=Store._prepare_paired_visit6_sign(career_owner,expected)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+func _third_activation() -> bool:
+	return career_owner!=null and career_owner.ordinary_state.get("proposal",{}).get("kind")==Owner.Common.ARCHIVED_NEXT_KIND
+
 func cross_review_visible() -> bool:
 	return Store.cross_league_preview() and D1Check.supported() and career_owner!=null \
 		and career_owner.session==season and not saved_bytes.is_empty() \
 		and career_owner.active=="ordinary" and career_owner.lifecycle_status()=="closed" \
-		and career_owner.ordinary_state.get("proposal",{}).get("kind")==Owner.Common.CROSS_KIND
+		and career_owner.ordinary_state.get("proposal",{}).get("kind")in [Owner.Common.CROSS_KIND,Owner.Common.ARCHIVED_NEXT_KIND]
 
 func begin_cross_review() -> void:
 	if not _available() or not cross_review_visible(): return
@@ -695,7 +699,9 @@ func begin_cross_review() -> void:
 	_cross_reviewing=true
 	add_child(check)
 	check.completed.connect(_complete_cross_review.bind(check,_d1_epoch),CONNECT_ONE_SHOT)
-	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.ACTIVATE_KIND):
+	_cross_third_write=_third_activation()
+	var kind: String=D1Check.ARCHIVE_ACTIVATE_KIND if _cross_third_write else D1Check.ACTIVATE_KIND
+	if not check.start(D1Check.T._source_digest(saved_bytes),0,kind):
 		_complete_cross_review("invalid",{},check,_d1_epoch)
 		return
 	notice="Preparing the exact Dugout Base draft in the background…"
@@ -741,7 +747,7 @@ func _finish_cross_activation(outcome: String) -> void:
 	_cross_retry=outcome=="obstructed"
 	if outcome in ["saved","renamed_unverified"]:
 		career_owner=null; season=null; saved_bytes=PackedByteArray()
-		notice="Dugout Base activated. Use Private Continue Archived Dugout Draft to draft your club." if outcome=="saved" else (
+		notice=("Dugout Base activated. Use Continue to draft your club." if _cross_third_write else "Dugout Base activated. Use Private Continue Archived Dugout Draft to draft your club.") if outcome=="saved" else (
 			"The save was replaced, but its contents could not be verified. Use Continue to check the saved career before playing.")
 	elif _cross_retry:
 		notice="The exact Dugout draft could not be saved. Resolve the save obstruction, then retry."

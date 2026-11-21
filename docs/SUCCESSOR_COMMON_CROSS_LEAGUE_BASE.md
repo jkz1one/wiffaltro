@@ -352,11 +352,10 @@ season simulation or activation runs.
 ### Private ordinal-three activation and flat two-source archive
 
 The exact saved Dugout proposal can now activate a native ordinal-three
-Dugout Base draft at the private Store boundary. There is no menu action
-for activation: the synchronous preflight consumes CPU and requires
-a later interactive transport. Ordinary native draft controls are
-available after activation. Completing or abandoning this third season,
-another rollover, mode switches and public earned entry remain held.
+Dugout Base draft at the private Store boundary. Ordinary native draft
+controls are available after activation. Completing or abandoning this
+third season, another rollover, mode switches and public earned entry
+remain held.
 
 The two ordered entries retain the exact original Standard source once
 and the exact CP236 closed Dugout/proposal source in two raw text
@@ -382,3 +381,37 @@ run `activate`, `pick` via an actual native draft button, then
 primary-only `cold`. `tamper` and `flag-off` are separate tests.
 No games are simulated. Banked Common Club Bucks remain 72; the new
 season starts at 0 seasonal Cash.
+
+
+### Private asynchronous ordinal-three activation
+
+With the existing private cross-league preview enabled in the Linux
+source/editor path, **Activate Next Dugout Season** now shows on the
+closed, exact archived Dugout proposal. This uses a separate worker
+kind from Standard → Dugout. The same executable reconstructs and
+strictly checks both original histories and the actual native 0/4
+draft. It stages a bounded candidate in a per-launch directory and
+returns only the exact revision-bound size and digest over its private
+pipe. The main App alone consumes the one-shot completion, rechecks
+the live primary, rotates the exact backup and promotes the candidate.
+Cancel or a stale primary cannot authorize the write. A successful
+rename followed by failed readback retains the existing unknown-outcome
+handling: no retry or local owner publication until strict Continue.
+
+After success use normal strict Continue and the native draft menu.
+The existing private fast Continue is for ordinal two, not this save.
+On an x86-64 Linux AMD EPYC 9V74 cloud host (official Godot 4.6.3
+headless, fixed 60 simulation FPS), the exact CP236→CP237 reference
+activation took 39.058 s wall in the App (92 ms launch, worst active
+child-wait frame gap 130 ms, 108 ms parent stage-read/hash/CAS/readback).
+The previous closed-owner strict Continue took 12.342 s separately.
+The point is moving the multi-second replay off the App frame, not
+reducing total elapsed time, making Continue fast, or proving native
+Mac/packaged behavior. The pinned authored content roots keep the
+same replay state as the live App and prior paired workers.
+
+The same isolated ordinal-three QA scene accepts `async`, `cancel` and
+`stale` on separate exact CP236 copies in addition to `pick`, primary-only
+`cold` and `flag-off`. Its same-binary positive output is compared to
+the independent synchronous CP237 native reference, including the
+predecessor backup. No new game or rollover beyond ordinal three.
