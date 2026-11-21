@@ -51,8 +51,8 @@ func render() -> void:
 		_bound_button(_body,"CANCEL DUGOUT ACTIVATION",Callable(app,"cancel_cross_retry"))
 		return
 	if app.d1_check_running():
-		var cancel_label: String="CANCEL LEAGUE TRANSITION CHECK" if app._cross_reviewing else (
-			"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK")
+		var cancel_label: String="CANCEL DUGOUT DRAFT CHECK" if app._cross_reading else ("CANCEL LEAGUE TRANSITION CHECK" if app._cross_reviewing else (
+			"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK"))
 		_bound_button(_body,cancel_label,Callable(app,"cancel_d1_check"))
 		return
 	if app.retained != null:
@@ -70,6 +70,8 @@ func render() -> void:
 				_bound_button(_body,("SELECTED · " if app.selected_league==league else "SELECT · ")+league.to_upper(),Callable(app,"select_league").bind(league))
 		_bound_button(_body,"NEW "+app.selected_league.to_upper()+" TEST CAREER",Callable(app,"create_fresh"))
 		_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
+		if app.private_cross_draft_continue_visible():
+			_bound_button(_body,"PRIVATE CONTINUE ARCHIVED DUGOUT DRAFT",Callable(app,"continue_cross_draft"))
 		if app.d1_check_visible():
 			_bound_button(_body,"PRIVATE STANDARD D1 CHAMPIONSHIP CHECK",Callable(app,"begin_d1_check"))
 		if FileAccess.file_exists("user://wiffaltro-common-career-v3.json"):

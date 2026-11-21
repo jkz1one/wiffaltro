@@ -21,6 +21,9 @@ func _run() -> void:
 	if bytes.is_empty() or T._source_digest(bytes)!=request.source_sha256:
 		get_tree().quit(3)
 		return
+	if request.kind==Work.CROSS_READ_KIND:
+		_continue_cross_draft(request,bytes)
+		return
 	if request.kind in [Work.CROSS_KIND,Work.ACTIVATE_KIND]:
 		_review_cross(request,bytes)
 		return
@@ -92,6 +95,24 @@ func _stage_cross(request: Dictionary,candidate: Dictionary) -> void:
 		return
 	result.merge({"outcome":"qualified","size":bytes.size(),"candidate_sha256":T._source_digest(bytes)},true)
 	_emit(result,true)
+
+func _continue_cross_draft(request: Dictionary,bytes: PackedByteArray) -> void:
+	if not Work.Store.cross_league_preview():
+		get_tree().quit(2)
+		return
+	var value: Variant=Work.Store.Owner._bytes_value(bytes)
+	var rebuilt: RefCounted=Work.Store._cross_draft_owner(value)
+	var strict: RefCounted=Work.Store.Owner.restore(value) if rebuilt!=null else null
+	var identity: String=""
+	if strict!=null:
+		var current: Dictionary=Work.Store.Adapter.capture("ordinary",rebuilt.session)
+		if not current.is_empty() and Work.Store.Codec.same(current,value.ordinary):
+			identity=Work.Store._cross_draft_identity(Work.Store.RawGuard.capture_session(rebuilt.session,"ordinary"))
+	if Work._revision(request.kind)!=request.source_sha256:
+		get_tree().quit(3)
+		return
+	_emit({"request":request,"outcome":"refused" if identity.is_empty() else "qualified",
+		"draft_sha256":identity},not identity.is_empty())
 
 func _continue_exact(request: Dictionary, bytes: PackedByteArray) -> void:
 	var data:=T._durable_shape(bytes)

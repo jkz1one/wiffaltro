@@ -262,3 +262,28 @@ is reported separately from a pre-rename failure. The retained candidate
 and old owner authority are dropped, and the player must use strict
 Continue; no automatic retry or success/no-write claim is made in that
 case. This does not change stock save failure behavior.
+
+## Private asynchronous Continue for the marked draft
+
+The separate **Private Continue Archived Dugout Draft** action supports
+an active marked Standard-to-Dugout Base rollover before any game, with
+zero or one native pick and no parked Dynasty, workshop, or migration.
+Normal Continue is unchanged and remains the fallback for all other
+owners. The existing same-engine worker reads the exact revision,
+strictly replays the owner and its archived Standard predecessor,
+reconstructs the draft from the canonical start and optional actual
+pick, and matches the complete native capture. Its live private pipe
+only returns a normalized native identity; no decision is persisted.
+
+The parent consumes that source-bound identity once, reconstructs the
+small draft with the same native path, compares its full RawGuard
+identity and exact disk revision, then installs the standard Store
+read admission. Continue writes neither file. Subsequent real picks
+use the existing native guarded save path independently of the child.
+
+The scratch harness `tests/successor_common_cross_draft_continue.gd.txt`
+runs `zero`, `pick`, `cold`, `cancel`, `stale`, `refused` and
+`flag-off` on isolated known pairs. Only `pick` performs a normal
+draft write; `stale` simulates a revision change with the verified
+backup bytes in its throwaway profile. Normal cold independently checks
+the resulting two-pick slot without the special admission path.

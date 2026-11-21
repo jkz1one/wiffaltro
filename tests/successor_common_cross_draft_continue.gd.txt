@@ -1,0 +1,100 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const ZERO="9163ba693e67b9fb401a9f5ee745bc24b61aafbc5fb693aa15570529e5f457f7"
+const ONE="6ed3202baa25d35808a200eca6737e42ed1cf989b4507c588618a6eb71fc1dfe"
+const PLAYED="d3fdb27a6138174baf752499c5b9b3864b71433eae76fad438c61e1d97217896"
+const PREDECESSOR="b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+const BUTTON="PRIVATE CONTINUE ARCHIVED DUGOUT DRAFT"
+const CANCEL="CANCEL DUGOUT DRAFT CHECK"
+func _ready() -> void: call_deferred("_run")
+func need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func find_button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=find_button(child,label)
+		if hit!=null: return hit
+	return null
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["zero","pick","cold","cancel","stale","refused","flag-off"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
+			"explicit isolated generated profile"): return
+	var hash: String=args[1]
+	if not need(hash==({"zero":ZERO,"pick":ONE,"cancel":ZERO,"stale":ONE,"refused":PLAYED,"flag-off":ZERO}.get(args[0],hash)),
+			"exact approved fixture for this action"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	if args[0]=="cold":
+		app.reload_save()
+		if need(_valid(app,2) and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+				"independent strict normal Continue retains exact two native picks and archive"): get_tree().quit()
+		return
+	var button:=find_button(app,BUTTON)
+	if args[0]=="flag-off":
+		app.continue_cross_draft()
+		if need(button==null and not app.d1_check_running() and app.career_owner==null and Store.raw()==before,
+				"private opt-in disabled; normal Continue still visible"):
+			if not need(find_button(app,"CONTINUE SAVED CAREER")!=null,"generic Continue unchanged"): return
+			get_tree().quit()
+		return
+	if not need(button!=null,"visible explicit private Continue"): return
+	var forged:=App.D1Check.new()
+	if not need(Store.accept_cross_draft_read(before,forged)==null,"idle same-script worker has no admission seal"): return
+	forged.free()
+	var t:=Time.get_ticks_msec()
+	button.pressed.emit()
+	var launch:=Time.get_ticks_msec()-t
+	if not need(app.d1_check_running() and find_button(app,CANCEL)!=null,"worker launched with responsive cancel control"): return
+	var check: Node=app._d1_check
+	var completions: Array=[]
+	check.completed.connect(func(outcome: String, proof: Dictionary)->void: completions.append([outcome,proof]))
+	if args[0]=="cancel": find_button(app,CANCEL).pressed.emit()
+	if args[0]=="stale":
+		var writer:=FileAccess.open(Store.PATH,FileAccess.WRITE)
+		writer.store_buffer(backup)
+		writer.close()
+	var frames:=0
+	var wait_gap:=0
+	var all_gap:=0
+	var last:=Time.get_ticks_usec()
+	while app.d1_check_running() and Time.get_ticks_msec()-t<120000:
+		await get_tree().process_frame
+		var now:=Time.get_ticks_usec()
+		all_gap=maxi(all_gap,now-last)
+		if app.d1_check_running(): wait_gap=maxi(wait_gap,now-last)
+		last=now
+		frames+=1
+	if not need(not app.d1_check_running() and completions.size()==1 and completions[0][1].is_empty()
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup
+			and Store.raw()==(backup if args[0]=="stale" else before),"terminal one-shot outcome; Continue never writes"): return
+	if args[0] in ["zero","pick"]:
+		var picks: int=0 if args[0]=="zero" else 1
+		if not need(completions[0][0]=="qualified" and frames>30 and _valid(app,picks),"native playable draft installed through exact seal and stock RawGuard"): return
+		if picks==1:
+			var next: String=app.season.offers()[0]
+			app.draft(next)
+			if not need(_valid(app,2) and app.season.picks[1]==next and Store.raw()!=before
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"actual next authored pick uses stock durable write"): return
+	else:
+		if not need(completions[0][0]=={"cancel":"cancelled","stale":"stale","refused":"refused"}[args[0]]
+				and app.career_owner==null and app.season==null and Store._owner==null,"unsupported/stale/cancelled result never admits owner"): return
+	print("CROSS_DRAFT_ASYNC_PASS ",args[0]," hash=",FileAccess.get_sha256(Store.PATH),
+		" frames=",frames," launch_ms=",launch," wait_gap_us=",wait_gap,
+		" all_gap_us=",all_gap," admission_ms=",app._cross_read_ms," elapsed_ms=",Time.get_ticks_msec()-t)
+	get_tree().quit()
+func _valid(app: App,picks: int) -> bool:
+	return app._owned() and app.career_owner.playable() and app.career_owner.current_ordinal()==2 \
+		and app.season.phase==SeasonState.Phase.DRAFT and app.season.picks.size()==picks \
+		and app.season.league_rules.get("league")=="dugout" and app.season.league_rules.get("tier")==0 \
+		and app.season.season_seed==1002 and app.season.build.cash()==0 and app.season.results.is_empty() \
+		and app.career_owner.common.aggregate.currency==72 \
+		and app.career_owner.ordinary_state.archive.sha256==PREDECESSOR

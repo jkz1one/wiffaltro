@@ -17,6 +17,8 @@ const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/st
 var _d1_check: Node
 var _d1_close_after_check: bool=false
 var _cross_reviewing: bool=false
+var _cross_reading: bool=false
+var _cross_read_ms: int=0
 var _cross_retry: bool=false
 var _cross_write_ms: int=0
 var _d1_continuing: bool=false
@@ -464,7 +466,7 @@ func _finish_cross_activation(outcome: String) -> void:
 	_cross_retry=outcome=="obstructed"
 	if outcome in ["saved","renamed_unverified"]:
 		career_owner=null; season=null; saved_bytes=PackedByteArray()
-		notice="Dugout Base activated. Continue the saved career to draft your club." if outcome=="saved" else (
+		notice="Dugout Base activated. Use Private Continue Archived Dugout Draft to draft your club." if outcome=="saved" else (
 			"The save was replaced, but its contents could not be verified. Use Continue to check the saved career before playing.")
 	elif _cross_retry:
 		notice="The exact Dugout draft could not be saved. Resolve the save obstruction, then retry."
@@ -569,6 +571,51 @@ func _complete_d1_continue(outcome: String, _proof: Dictionary, check: Node, epo
 		"stale":"The saved career changed during verification. Try Continue again.",
 		"cancelled":"Standard D1 verification cancelled. Your save is unchanged."
 	}.get(outcome,"The Standard D1 career could not be verified. Your save is unchanged.")
+	show_season()
+
+func private_cross_draft_continue_visible() -> bool:
+	return Store.cross_league_preview() and D1Check.supported() and career_owner==null \
+		and season==null and FileAccess.file_exists(Store.PATH) and Store.standard_d1_slot_kind().is_empty()
+
+func continue_cross_draft() -> void:
+	if not _available() or not private_cross_draft_continue_visible(): return
+	_expire_d1_proof()
+	var check:=D1Check.new()
+	var source:=D1Check._bounded_slot(D1Check.CROSS_READ_KIND)
+	_d1_check=check
+	_cross_reading=true
+	add_child(check)
+	check.completed.connect(_complete_cross_read.bind(check,_d1_epoch,source),CONNECT_ONE_SHOT)
+	if source.is_empty() or not check.start(Owner._hash(source),0,D1Check.CROSS_READ_KIND):
+		_complete_cross_read("invalid",{},check,_d1_epoch,source)
+		return
+	notice="Checking the saved archived Dugout draft in the background…"
+	show_season()
+
+func _complete_cross_read(outcome: String,_proof: Dictionary,check: Node,epoch: int,source: PackedByteArray) -> void:
+	if _d1_check!=check or epoch!=_d1_epoch: return
+	_d1_check=null
+	_cross_reading=false
+	check.queue_free()
+	if _d1_close_after_check:
+		_d1_close_after_check=false
+		_quit_now()
+		return
+	if outcome=="qualified":
+		var start:=Time.get_ticks_msec()
+		var owner:=Store.accept_cross_draft_read(source,check)
+		_cross_read_ms=Time.get_ticks_msec()-start
+		if owner!=null:
+			career_owner=owner;season=owner.session;saved_bytes=source
+			notice="Archived Dugout draft ready."
+			show_season()
+			return
+		outcome="invalid"
+	notice={
+		"refused":"This slot is outside the private Dugout draft route. Use normal Continue for other careers.",
+		"cancelled":"Dugout draft check cancelled. Your save is unchanged.",
+		"stale":"The saved career changed during verification. Try Continue again."
+	}.get(outcome,"The archived Dugout draft could not be verified. No save was changed.")
 	show_season()
 
 func reload_save() -> void:

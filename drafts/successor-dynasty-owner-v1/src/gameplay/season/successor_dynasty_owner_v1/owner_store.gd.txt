@@ -96,6 +96,7 @@ static func read() -> RefCounted:
 	_paused = season.paused.duplicate(true); _active = season.active
 	_metadata = Codec.data_fields(season,Owner.META_FIELDS); _imported_sha256 = season.imported_sha256
 	return season
+
 static func save(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary = {}) -> bool:
 	forget_projection()
 	if saving: return false
@@ -660,6 +661,59 @@ static func commit_cross_league_and_write(owner: RefCounted, expected: PackedByt
 	_expected=expected.duplicate();_written=PackedByteArray()
 	_write_admitted()
 	return _ticket
+
+# Deterministic reconstruction only; this helper never installs Store authority.
+# The child separately compares the full serialized current session to this
+# native result after strict archive replay. No other phases or modes enter.
+static func _cross_draft_owner(value: Variant) -> RefCounted:
+	if not value is Dictionary or value.get("format")!=Owner.FORMAT or value.get("version")!=4 \
+		or value.get("active")!="ordinary" or value.get("dynasty")!={}:
+		return null
+	var state: Variant=value.get("ordinary_state")
+	var current: Variant=value.get("ordinary")
+	if not state is Dictionary or not current is Dictionary \
+		or state.get("status")!="active" or state.get("ordinal")!=2 or state.get("last_close")!={} \
+		or state.get("proposal")!={} or not state.get("last_transition") is Dictionary:
+		return null
+	var t: Dictionary=state.last_transition
+	var basis: Variant=t.get("basis")
+	if t.get("kind")!=Owner.Common.ARCHIVE_TRANSITION or t.get("league")!="dugout" \
+		or not basis is Dictionary or basis.get("version")!=2 or not Owner.Common.Start.valid(basis): return null
+	var view: Variant=current.get("state")
+	if not view is Dictionary or view.get("phase")!=SeasonState.Phase.DRAFT \
+		or not view.get("picks") is Array or view.picks.size()>1: return null
+	for name: String in ["workshop_draft","workshop_close_history","workshop_chair_purchase","workshop_applied","migration_v3"]:
+		if value.get(name,{})!={}: return null
+	var owner: RefCounted=Owner.new()
+	var fields: Dictionary={}
+	for name: String in Owner.META_FIELDS: fields[name]=value.get(name,{})
+	if not Codec.install_fields(owner,Owner.META_FIELDS,fields) or not Owner._missing_dynasty(owner): return null
+	owner.active="ordinary"
+	owner.session=Adapter.OrdinaryRuntime.create_common(basis,"dugout")
+	if owner.session==null or (view.picks.size()==1 and (not view.picks[0] is String or not owner.session.choose_player(view.picks[0]))):
+		return null
+	return owner if Owner.Common.valid(owner) and Owner.Common.archive_play_scope(owner.session) else null
+
+static func _cross_draft_identity(session_raw: Dictionary) -> String:
+	return "" if session_raw.is_empty() else Owner._hash(var_to_bytes(session_raw))
+
+static func accept_cross_draft_read(expected: PackedByteArray,child: Node) -> RefCounted:
+	var process_script: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
+	if not cross_league_preview() or saving or _owner!=null or _ticket!=null \
+		or child==null or child.get_script()!=process_script or expected.is_empty() \
+		or expected.size()>process_script.CROSS_MAX or not _write_revision_matches(expected,true): return null
+	var identity: String=child.take_cross_read_seal(Owner._hash(expected))
+	if identity.is_empty(): return null
+	var owner:=_cross_draft_owner(Owner._bytes_value(expected))
+	if owner==null: return null
+	var snapshot:=RawGuard.capture(owner)
+	if snapshot.is_empty() or _cross_draft_identity(snapshot.session)!=identity \
+		or not _write_revision_matches(expected,true): return null
+	_invalidate()
+	_owner=owner; _owner_session=owner.session; _owner_raw=snapshot; _owner_bytes=expected.duplicate()
+	_paused=owner.paused.duplicate(true); _active=owner.active
+	_metadata=Codec.data_fields(owner,Owner.META_FIELDS); _imported_sha256=owner.imported_sha256
+	return owner
 
 # Only a live validated child completion can stage candidate bytes here.
 # The child prepared the native state; this parent owns compare and write.

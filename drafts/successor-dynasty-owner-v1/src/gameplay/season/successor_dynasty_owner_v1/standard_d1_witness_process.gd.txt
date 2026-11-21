@@ -4,6 +4,7 @@ const Store=preload("owner_store.gd")
 const T=preload("standard_d1_transition.gd")
 const View=preload("standard_d1_view.gd")
 const KIND: String="common-standard-d1-witness-worker-v2"
+const CROSS_READ_KIND: String="common-cross-league-draft-read-worker-v1"
 const ACTIVATE_KIND: String="common-cross-league-activate-worker-v1"
 const CROSS_FILE: String="candidate.json"
 const CROSS_MAX: int=24*1024*1024
@@ -25,6 +26,7 @@ var _last_poll: int=0
 var _stopping: String=""
 var _completed_view: RefCounted
 var _completed_cross: Dictionary={}
+var _completed_cross_read: Dictionary={}
 var _cross_dir: String=""
 
 static func supported() -> bool:
@@ -35,7 +37,7 @@ static func _bounded_slot(kind: String) -> PackedByteArray:
 	var file:=FileAccess.open(Store.PATH,FileAccess.READ)
 	if file==null: return PackedByteArray()
 	var length:=file.get_length()
-	if length<1 or length>(T.MAX_SLOT if kind==CONTINUE_KIND else Store.MAX_BYTES): return PackedByteArray()
+	if length<1 or length>(T.MAX_SLOT if kind==CONTINUE_KIND else (CROSS_MAX if kind==CROSS_READ_KIND else Store.MAX_BYTES)): return PackedByteArray()
 	var bytes:=file.get_buffer(length)
 	var valid: bool=bytes.size()==length and file.get_length()==length
 	file.close()
@@ -47,7 +49,7 @@ static func _revision(kind: String=KIND) -> String:
 
 static func request_valid(value: Variant) -> bool:
 	return value is Dictionary and SeasonOwnership._keys(value,["version","kind","token","source_sha256","seed"]) \
-		and SeasonOwnership._whole(value.version,2,2) and value.kind in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND] \
+		and SeasonOwnership._whole(value.version,2,2) and value.kind in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND] \
 		and value.token is String and value.token.length()==32 and value.token.is_valid_hex_number(false) \
 		and T.Start.sha(value.source_sha256) and SeasonOwnership._whole(value.seed,0,2147483647) \
 		and (value.kind==KIND or value.seed==0)
@@ -60,8 +62,8 @@ static func canonical(value: Variant) -> String:
 func start(source_sha256: String, seed_value: int, kind: String=KIND) -> bool:
 	if running or not is_inside_tree() or not supported() or not T.Start.sha(source_sha256) \
 			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision(kind)!=source_sha256 \
-			or kind not in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND] or (kind!=KIND and seed_value!=0) \
-			or (kind in [CROSS_KIND,ACTIVATE_KIND] and not Store.cross_league_preview()): return false
+			or kind not in [KIND,CONTINUE_KIND,CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND] or (kind!=KIND and seed_value!=0) \
+			or (kind in [CROSS_KIND,ACTIVATE_KIND,CROSS_READ_KIND] and not Store.cross_league_preview()): return false
 	_request={"version":2,"kind":kind,"token":Crypto.new().generate_random_bytes(16).hex_encode(),
 		"source_sha256":source_sha256,"seed":seed_value}
 	if kind==ACTIVATE_KIND:
@@ -110,6 +112,7 @@ func _finish(outcome: String, proof: Dictionary={}, emit_result: bool=true) -> v
 	_clear()
 	if emit_result: completed.emit(outcome,proof)
 	_completed_cross={}
+	_completed_cross_read={}
 	_clean_cross()
 
 static func _activation_dir(token: String) -> String:
@@ -139,6 +142,11 @@ func take_cross_bytes(source_sha256: String) -> PackedByteArray:
 	var b:=f.get_buffer(int(proof.size))
 	f.close()
 	return b if b.size()==int(proof.size) and T._source_digest(b)==proof.candidate_sha256 else PackedByteArray()
+
+func take_cross_read_seal(source_sha256: String) -> String:
+	var proof: Dictionary=_completed_cross_read
+	_completed_cross_read={}
+	return proof.draft_sha256 if not proof.is_empty() and proof.request.source_sha256==source_sha256 else ""
 
 # The view is obtainable once, synchronously while this exact private child
 # emits completion. No caller-supplied payload can populate the handoff.
@@ -183,6 +191,9 @@ func _process(_delta: float) -> void:
 		_completed_view=view
 		_finish("qualified")
 		_completed_view=null
+	elif _request.kind==CROSS_READ_KIND and packet.outcome=="qualified":
+		_completed_cross_read=packet
+		_finish("qualified")
 	elif _request.kind==ACTIVATE_KIND and packet.outcome=="qualified":
 		_completed_cross=packet
 		_finish("qualified")
@@ -208,7 +219,7 @@ static func _decode(bytes: PackedByteArray, request: Dictionary, exit_code: int)
 		if exit_code==0 and result.outcome=="qualified" and SeasonOwnership._whole(result.size,1,CROSS_MAX) \
 			and T.Start.sha(result.candidate_sha256): return result
 		return {}
-	if request.kind==CROSS_KIND:
+	if request.kind in [CROSS_KIND,CROSS_READ_KIND]:
 		if not SeasonOwnership._keys(result,["request","outcome","draft_sha256"]) \
 			or not result.draft_sha256 is String: return {}
 		if exit_code==REFUSED_EXIT and result.outcome=="refused" and result.draft_sha256.is_empty(): return result
