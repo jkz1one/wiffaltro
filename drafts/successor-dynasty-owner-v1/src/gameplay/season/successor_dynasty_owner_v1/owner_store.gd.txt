@@ -117,6 +117,11 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 	if FileAccess.file_exists(PATH+".tmp") or (expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
 	# Unbound legacy writes cannot create, replace, or erase workshop metadata.
 	var previous: Variant=Owner._bytes_value(expected)
+	# The unbound writer cannot erase or manufacture a typed career proposal.
+	if season.ordinary_state.get("proposal",{}).get("kind")==Owner.Common.CROSS_KIND: return false
+	if previous is Dictionary and previous.get("ordinary_state") is Dictionary:
+		var prior_proposal: Variant=previous.ordinary_state.get("proposal")
+		if prior_proposal is Dictionary and prior_proposal.get("kind")==Owner.Common.CROSS_KIND: return false
 	if not season.workshop_draft.is_empty() or not season.workshop_close_history.is_empty() or not season.workshop_chair_purchase.is_empty() or not season.workshop_applied.is_empty(): return false
 	if previous is Dictionary and (previous.has("workshop_draft") or previous.has("workshop_close_history") or previous.has("workshop_chair_purchase") or previous.has("workshop_applied")): return false
 	var data: Dictionary = Owner.capture(season)
@@ -579,6 +584,38 @@ static func _prepare_paired_metadata(owner: RefCounted, expected: PackedByteArra
 	_write_admitted()
 	return _ticket
 
+static func cross_league_preview() -> bool:
+	return LeagueAdmission.enabled() and OS.get_environment("WIFFALTRO_CROSS_LEAGUE_PREVIEW")=="1"
+
+# Retain the complete admitted terminal Ordinary payload in place. This
+# versioned proposal does not attach an ordinal-two season or rely on .bak.
+static func prepare_cross_league_proposal_and_write(owner: RefCounted, expected: PackedByteArray,
+		league: String, seed_value: int) -> RefCounted:
+	forget_projection()
+	last_error=""
+	if saving or _ticket!=null or not cross_league_preview() or not match_owner(owner,expected) \
+		or not Owner.Common.cross_target_open(owner,league): return null
+	var input: Variant=Owner._bytes_value(expected)
+	if not input is Dictionary or input.get("active")!="ordinary" or not input.get("ordinary") is Dictionary:
+		return null
+	var current: Dictionary=input.ordinary
+	var candidate: RefCounted=Owner.new()
+	candidate.session=owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) \
+		or not Owner.Common._prepare_cross_proposal(candidate,current,league,seed_value): return null
+	var data: Dictionary=Owner.pack_current(candidate,current)
+	if data.is_empty() or not match_owner(owner,expected): return null
+	var budget: Array=[RawGuard.MAX_NODES,true]
+	var snapshot: Dictionary=RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)
+	if not budget[1] or snapshot.is_empty(): return null
+	snapshot.session=_owner_raw.session
+	if not _matches_raw(candidate,snapshot): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.
 static func prepare_workshop_draft_and_write(owner: RefCounted, expected: PackedByteArray, paid: bool=false) -> RefCounted:
@@ -743,6 +780,8 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	last_error=league_block(owner,operation,league)
 	if not last_error.is_empty(): return null
 	if operation in ["resume","create","attach119"] and not switch_available(owner): return null
+	if operation in ["propose","next"] and owner.active=="ordinary" \
+		and owner.ordinary_state.proposal.get("kind")==Owner.Common.CROSS_KIND: return null
 	if operation not in ["create","propose"] and seed_value!=0: return null
 	if operation!="create" and not league.is_empty(): return null
 	if (operation=="close" and reason not in ["complete","abandon"]) or (operation!="close" and not reason.is_empty()): return null

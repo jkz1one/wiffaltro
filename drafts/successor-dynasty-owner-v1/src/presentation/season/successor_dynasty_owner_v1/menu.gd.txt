@@ -201,6 +201,10 @@ func _closed() -> void:
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
 	_note("Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")
 	var proposal: Dictionary=owner.proposal if owner.active=="dynasty" else owner.ordinary_state.proposal
+	if proposal.get("kind")=="common-ordinary-league-proposal-v1":
+		_label(_body,"DUGOUT BASE · SEASON %d · PROPOSAL SAVED"%int(proposal.basis.ordinal),20)
+		_note("Your completed season and banked rights remain intact. Starting Dugout from this proposal is not available yet.")
+		return
 	var access_block: String=app.next_league_block()
 	if not access_block.is_empty():
 		_note(access_block+" Return or Continue preserves this saved season.")

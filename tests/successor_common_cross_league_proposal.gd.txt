@@ -1,0 +1,113 @@
+extends Node
+## Trust the actual isolated completed Standard pair, never a fabricated title.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Common=preload("res://src/gameplay/season/successor_dynasty_owner_v1/common_lifecycle.gd")
+const EXACT="1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+const PRIOR="427deabb3f82a95afe829323955cea7ad39d36067078686d522268cc1bc91293"
+const BUTTON="PREPARE DUGOUT BASE (PROPOSAL ONLY)"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _button(node: Node, title: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==title and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var found:=_button(child,title)
+		if found!=null: return found
+	return null
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==2 and args[0] in ["propose","cold","flag-off","preclose","legacy"]
+			and FileAccess.get_sha256(Store.PATH)==args[1]
+			and not FileAccess.file_exists("user://season-v1.json"),"authorized generated fixture in disposable profile"): return
+	var mode: String=args[0]
+	var before:=Store.raw()
+	var predecessor:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var original: Dictionary=JSON.parse_string(before.get_string_from_utf8())
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not _need(app.career_owner!=null and app._owned() and app.career_owner.active=="ordinary"
+			and app.season.league_rules.is_empty() and app.season.results.size()==33,
+			"native exact Standard terminal owner"): return
+	if mode=="preclose":
+		if not _need(args[1]==PRIOR and app.career_owner.lifecycle_status()=="active" and _button(app,BUTTON)==null
+				and Store.prepare_cross_league_proposal_and_write(app.career_owner,before,"dugout",77)==null
+				and Store.raw()==before,"actual terminal but not closed owner refuses"): return
+		get_tree().quit()
+		return
+	if not _need(app.career_owner.lifecycle_status()=="closed","real complete closed Standard"): return
+	if mode=="cold":
+		if not _need(not _button(app,BUTTON) and _valid(app,JSON.parse_string(predecessor.get_string_from_utf8())) and not _button(app,"START NEXT SEASON…")
+				and FileAccess.get_sha256(Store.PATH+".bak")==EXACT,"exact cross proposal cold, activation unavailable"): return
+		app.commit_next()
+		app.propose_next(int(app.career_owner.ordinary_state.proposal.basis.seed))
+		if not _need(Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==predecessor,
+				"old repeat/next refused after cold"): return
+		print("CROSS_LEAGUE_APP_COLD_PASS ",args[1])
+	elif mode=="flag-off":
+		if not _need(_button(app,BUTTON)==null and Store.prepare_cross_league_proposal_and_write(app.career_owner,before,"dugout",77)==null
+				and Store.raw()==before,"opt-in disabled at actual UI and writer"): return
+	elif mode=="legacy":
+		var old_button:=_button(app,"PREPARE NEXT SEASON")
+		if not _need(old_button!=null,"original same-league path still offered"): return
+		old_button.pressed.emit()
+		var p: Dictionary=app.career_owner.ordinary_state.proposal
+		if not _need(not p.is_empty() and not p.has("kind") and p.league=="standard"
+				and app.career_owner.next_preview().kind=="ordinary"
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"original Standard same-league proposal unchanged"): return
+		print("CROSS_LEAGUE_LEGACY_PASS ",FileAccess.get_sha256(Store.PATH))
+	else:
+		if not _need(args[1]==EXACT and FileAccess.get_sha256(Store.PATH+".bak")==PRIOR
+				and _button(app,BUTTON)==null and app.career_owner.ordinary_state.proposal.is_empty(),
+				"original genuine closed CP170 pair; no expensive menu action"): return
+		for target: String in ["standard","sponsorship","dynasty","doubleheader","dugout-d1"]:
+			if not _need(Store.prepare_cross_league_proposal_and_write(app.career_owner,before,target,77)==null,
+					"unqualified target refused "+target): return
+		if not _need(Store.prepare_cross_league_proposal_and_write(app.career_owner,predecessor,"dugout",77)==null
+				and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==predecessor,
+				"real stale bytes cannot write a proposal"): return
+		var obstruction: String=Store.PATH+".tmp"
+		if not _need(DirAccess.make_dir_absolute(obstruction)==OK,"own harmless temporary obstruction"): return
+		var start:=Time.get_ticks_msec()
+		var ticket:=Store.prepare_cross_league_proposal_and_write(app.career_owner,before,"dugout",1002)
+		if not _need(ticket!=null and Store.written_bytes(ticket).is_empty()
+				and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==predecessor,
+				"real prepared ticket retained after refused write"): return
+		var prepared:=Store.prepared_candidate(ticket)
+		if not _need(prepared!=null and DirAccess.remove_absolute(obstruction)==OK and Store.write_prepared(ticket),
+				"same exact admission ticket retries after removing own obstruction"): return
+		app._retain_prepared(ticket,prepared,before)
+		var elapsed:=Time.get_ticks_msec()-start
+		if not _need(app.retained==null and _valid(app,original)
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"real native proposal atomically retained, no reset"): return
+		var proposed:=Store.raw()
+		app.close_current("complete")
+		app.commit_next()
+		if not _need(Store.prepare_cross_league_proposal_and_write(app.career_owner,proposed,"dugout",1002)==null
+				and not Store.save(Store.Owner.create_ordinary(42,"standard"),proposed)
+				and Store.raw()==proposed and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,
+				"duplicate proposal/close and legacy commit all byte-inert"): return
+		print("CROSS_LEAGUE_APP_PROPOSE_PASS ",FileAccess.get_sha256(Store.PATH)," ms=",elapsed)
+	get_tree().quit()
+
+func _valid(app: App, original: Dictionary) -> bool:
+	var out: Dictionary=JSON.parse_string(Store.raw().get_string_from_utf8())
+	var p: Dictionary=app.career_owner.ordinary_state.proposal
+	if p.get("kind")!=Common.CROSS_KIND or p.get("league")!="dugout" or p.tier!=0 or p.basis.ordinal!=2 \
+			or p.basis.seed!=1002 or p.close_id!=original.ordinary_state.last_close.id or p.source!=original.ordinary_state.last_close.session_sha256: return false
+	out.ordinary_state.proposal=original.ordinary_state.proposal
+	return Store.Codec.same(out,original) and app.career_owner.current_ordinal()==1 and app.season.results.size()==33 \
+		and (not original.common.aggregate.titles.get("0",false))
