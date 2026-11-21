@@ -51,3 +51,60 @@ Every write preserved the previous primary as backup and left both
 other game slots untouched. The complete-round ZIP contains only the
 two synthetic slots and a hash manifest. Remaining rounds, the terminal
 payout and the purchase flow have not been run by this checkpoint.
+
+## Actual Season 2 completion, payout and purchase
+
+The pinned Linux headless journey reached 33 physical results: 12 managed
+player-side games driven by native input automation and 21 CPU reports. No
+score or Club Bucks were supplied to the save. The club went 6–4, earned the
+top seed, won the semifinal 4–3 and lost the neutral-site final 3–4. The
+read-only end-to-end check confirms all 66 club/game reward events, one per
+participating club for each physical result with exact win/loss parity.
+
+Using the actual App, the 33-game active owner closed as runner-up for 104
+Club Bucks: 95 for the finish and 9 for the six regular wins, with no title
+bonus. Its archive includes one new completed receipt and the preceding
+abandoned zero-credit opening. Cold reopening preserved the exact receipt
+and both slots; a repeated close was refused without a write. The prior
+terminal save was retained as the exact backup. Both terminal and closed
+synthetic pairs were backed up privately and independently downloaded and
+verified.
+
+An isolated CP166 copy of that closed save then passed the existing
+Workshop buy and cold modes: Cancel did not write, Confirm encountered a
+deliberately blocked save, Retry promoted the same candidate and debited
+35 Club Bucks once (104 → 69). The native journal created one extra ST-079
+copy; no new field layout was applied. Repeated purchase was refused and a
+fresh process reopened the purchase and refused forged purchase metadata.
+No Original Game save or parked Ordinary payload was changed.
+
+The read-only tool `verify_successor_dynasty_paid_completion.py` compares
+the independently retained synthetic terminal, closed, paid and optional
+carried stages, including exact backup parity and all 66 per-club results.
+Run with `--synthetic-test-only` and `--help` for exact paired arguments.
+The tool does not run gameplay or grant money. Preserve raw game evidence
+only in the approved private project tree, not the repo.
+
+This covers the native headless earned purchase, not a rendered controller
+playthrough, a player-driven full season, or all difficulties. The separate
+free starter-chair layout and native collision proof remain distinct from
+the paid copy. Do not infer a verified Pool purchase in Dynasty or native
+Mac behavior from this qualification.
+
+An actual confirmed **Next** carried that same paid copy, the completed
+receipt and the remaining 69 Club Bucks into Season 3. The active season
+starts with zero results. Cold reopen did not rotate either slot, charge
+again, or change the parked Ordinary payload. The prior Next proposal is
+exactly the later backup. The chair remains owned, not placed.
+
+For the separate native carry check, attach
+`tests/successor_dynasty_paid_chair_next.gd.txt` to an isolated Node scene
+of the CP166 assembly. Run the actual closed-and-paid pair with
+`-- next <paid-primary-sha> <absolute-immutable-paid-primary>`, then use its
+confirmed successor in a fresh process with
+`-- cold <carried-primary-sha> <absolute-immutable-paid-primary>`.
+Both require the engineering and isolated flags. Keep archives separate
+from the active disposable profile. The source paid primary is
+`30ca1ee00572a2ab90c58c6f38ed38f1bd1bbf33ff362c94b57a199cfcbc6bee`;
+the observed Season 3 primary is
+`380c36d8e16adec04f8a14625fcb71da88c4a58c65ff6a65dc04dc7cfecce598`.

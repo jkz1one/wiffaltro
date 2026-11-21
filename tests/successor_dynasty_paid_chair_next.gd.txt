@@ -1,0 +1,65 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Purchase=preload("res://src/gameplay/season/successor_dynasty_owner_v1/workshop_purchase.gd")
+const ORIGINAL="user://season-v1.json"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func check(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func untouched(wire: Dictionary, original: Array, paid: Dictionary) -> bool:
+	var current: Dictionary=JSON.parse_string(Store.raw().get_string_from_utf8())
+	return Owner.Codec.same(wire.ordinary,current.ordinary) 		and Owner.Codec.same(paid.workshop_chair_purchase,current.workshop_chair_purchase) 		and Owner.Codec.same(paid.workshop_close_history,current.workshop_close_history) 		and _original_slots()==original
+
+func _original_slots() -> Array:
+	var result:Array=[]
+	for suffix: String in ["",".bak",".tmp"]:
+		var path: String=ORIGINAL+suffix
+		result.append([FileAccess.file_exists(path),DirAccess.dir_exists_absolute(path),FileAccess.get_file_as_bytes(path)])
+	return result
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" 		and args.size()==3 and args[0] in ["next","cold"] and args[1].length()==64 and args[2].is_absolute_path(),"isolated exact purchase persistence request"): return
+	var raw:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if not check(FileAccess.get_sha256(Store.PATH)==args[1] and not backup.is_empty(),"expected disposable primary and intact backup present"): return
+	var original:=_original_slots()
+	var wire: Dictionary=JSON.parse_string(raw.get_string_from_utf8())
+	var paid_value: Variant=JSON.parse_string(FileAccess.get_file_as_string(args[2]))
+	var paid_owner=Owner.restore(paid_value)
+	if not check(paid_owner!=null and paid_owner.status=="closed" and not paid_owner.workshop_chair_purchase.is_empty() and Purchase.valid(paid_owner),"exact completed paid predecessor admitted independently"): return
+	var paid: Dictionary=paid_value
+	var archive: Dictionary=paid.workshop_close_history
+	if not check(not archive.is_empty() and archive.rows[-1].reason=="complete" and int(archive.rows[-1].receipt.total)>=35,"authentic completion receipt at paid predecessor"): return
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(app.career_owner!=null and app._owned() and app.career_owner.active=="dynasty" 		and untouched(wire,original,paid) and raw==Store.raw() and backup==FileAccess.get_file_as_bytes(Store.PATH+".bak"),"cold App owner read and both slots unchanged"): return
+	var balance:int=Purchase.available_balance(paid_owner)
+	if args[0]=="next":
+		if not check(app.career_owner.status=="closed" and app.career_owner.ordinal==paid_owner.ordinal and app.career_owner.next_supported(),"real saved Next eligibility: "+app.career_owner.next_block_reason()): return
+		const NEXT_SEED: int=843291
+		app.propose_next(NEXT_SEED)
+		if not check(app.career_owner.proposal.get("seed")==NEXT_SEED and untouched(wire,original,paid),"Next proposal does not rewrite paid state or parked Ordinary"): return
+		for player: String in Owner.Life.overflow(app.career_owner.last_close.profiles["club:0"]):
+			var options: Array=Owner.Life.overflow(app.career_owner.last_close.profiles["club:0"])[player]
+			var ids: Array=options.map(func(row:Dictionary)->String:return row.id); ids.sort()
+			app.choose_overflow(player,ids[-1])
+			if not check(app.career_owner.proposal.choices["club:0"][player].forget==ids[-1] and untouched(wire,original,paid),"explicit overflow choice preserves paid state"): return
+		var previous:=Store.raw()
+		app.request_lifecycle("next")
+		if not check(is_instance_valid(app._lifecycle_dialog) and app._lifecycle_dialog.visible,"actual Next confirmation dialog"): return
+		app._lifecycle_dialog.confirmed.emit()
+		if not check(previous!=Store.raw() and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"Next commits with exact predecessor backup"): return
+	if not check(app.career_owner.status=="active" and app.career_owner.ordinal==int(paid_owner.ordinal)+1 		and app.season.results.is_empty() and app.season.physical.pending.is_empty() and Purchase.valid(app.career_owner) 		and Purchase.available_balance(app.career_owner)==balance and untouched(wire,original,paid),"new season keeps exact paid chair, archive, balance and parked/Original slots"): return
+	if args[0]=="cold" and not check(raw==Store.raw() and backup==FileAccess.get_file_as_bytes(Store.PATH+".bak"),"later cold reopen is write-free"): return
+	print("DYNASTY_WORKSHOP_AUTHENTIC_CHAIR_NEXT_",args[0].to_upper()," balance=",balance," primary=",FileAccess.get_sha256(Store.PATH)," backup=",FileAccess.get_sha256(Store.PATH+".bak"))
+	get_tree().quit()

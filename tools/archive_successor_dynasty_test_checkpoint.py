@@ -28,7 +28,7 @@ def archive(source: Path, output: Path, commit: str) -> None:
         raise ValueError("The source must be a local checkpoint directory")
     if output.suffix != ".zip" or output.exists() or output.is_symlink():
         raise ValueError("Use a new .zip output; existing files are never overwritten")
-    match = re.fullmatch(r"(human-\d+|npc-\d+|settle-\d+|close)-([0-9a-f]{64})", source.name)
+    match = re.fullmatch(r"(human-\d+|npc-\d+|settle-\d+|close|paid-chair|next)-([0-9a-f]{64})", source.name)
     if match is None:
         raise ValueError("Expected a hash-pinned local synthetic test step")
     names = sorted(p.name for p in source.iterdir())
