@@ -136,3 +136,42 @@ func _close() -> void:
 func _close_retained() -> void:
 	if not _origin_matches(): hide();queue_free();return
 	super._close_retained()
+
+
+func _held(receipts: Array) -> void:
+	var build: SeasonBuild=app.season.build
+	if build._league_rules.get("league")=="dugout":
+		_dugout_capacity(build)
+	super._held(receipts)
+
+
+# Discovery only. Current quotes and the original sponsor/overflow controls
+# remain the sole mutation path, with their exact receipt/nomination proof.
+func _dugout_capacity(build: SeasonBuild) -> void:
+	var base: Dictionary=LeagueRules.capacities(build._league_rules)
+	var catalog: Dictionary=SeasonSponsorCatalog.ownership_catalog()
+	var small: Dictionary=catalog["G02"]
+	var major: Dictionary=catalog["F09"]
+	var held: int=int(base.held)
+	var raised: int=held+int(small.held_delta)
+	var lowered: int=held+int(major.held_delta)
+	var combined: int=raised+int(major.held_delta)
+	_label("DUGOUT SHARED BAG • %d base places for development cards and tactical supplies" % held)
+	_label("Small Batch: %d held (up to %d sponsors). Double Major: %d held. Both: %d held." %
+		[raised,int(small.sponsor_cap),lowered,combined])
+	var shop: Dictionary=build.view().shop
+	var wallet: Dictionary=build._bank.view()
+	var pool: Dictionary=SeasonEarnedSponsors.eligible(build)
+	var used: Array=[] if build._batch_start==null else SeasonSmallBatch.combine(build._batch_start,build._batch_used)
+	_label("Small Batch Supply • %s · %d / %d required types" %
+		[_dugout_modifier_state("G02",wallet,shop,pool),used.size(),SeasonSmallBatch.TYPES.size()])
+	_label("Use Grip Tape, Recovery Pack and Swing Plan in completed games.")
+	_label("Double Major Academy • %s" % _dugout_modifier_state("F09",wallet,shop,pool))
+	_label("One Primary Fielder must make a clean ground out and a clean air catch in the same completed game.")
+	_label("Earned access adds future shop eligibility, not a free copy or guaranteed offer. Resolve any capacity decrease before confirming.")
+
+
+func _dugout_modifier_state(id: String, wallet: Dictionary, shop: Dictionary, pool: Dictionary) -> String:
+	if wallet.sponsors.any(func(receipt: Dictionary)->bool: return receipt.item==id): return "ACTIVE"
+	if id in shop.offers.values(): return "OFFERED THIS VISIT"
+	return "ELIGIBLE FOR FUTURE OFFERS" if pool.has(id) else "LOCKED"

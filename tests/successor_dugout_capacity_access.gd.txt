@@ -1,0 +1,69 @@
+extends Node
+## Actual Common App control, no earned sponsor claims injected.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const DUGOUT="5791b095c5c84997bcc916124d5f332c96a6faea36f91622a829046634d82550"
+const DUGOUT_BACKUP="e1c210f8ecbc027cf6ed2de4b242b0d0ad88e9f0e676d7fde2bbe7692bf7f68d"
+const STANDARD="2592c2da63d9ebbaf593d586343d88fc84f459009da4f06eb1994dc67ecf6172"
+const STANDARD_BACKUP="d3f8e33dfde6de061a15cb727ef1177f76329be35c033f333e95e1204593e621"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==1 and args[0] in ["dugout","standard"]
+			and not FileAccess.file_exists("user://season-v1.json"),"isolated authored App only"): return
+	var dugout: bool=args[0]=="dugout"
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if not _need(FileAccess.get_sha256(Store.PATH)==(DUGOUT if dugout else STANDARD)
+			and FileAccess.get_sha256(Store.PATH+".bak")== (DUGOUT_BACKUP if dugout else STANDARD_BACKUP),
+			"pinned genuine pair"): return
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not _need(app.career_owner!=null and app._owned() and app.season.round_index==1
+			and app.season.league_rules.get("league","standard")==args[0]
+			and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+			"cold exact native owner"): return
+	app.open_shop()
+	await get_tree().process_frame
+	var window: SeasonShopWindow
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow and not child.is_queued_for_deletion(): window=child
+	if not _need(window!=null and window.visible,"actual Common shop opens"): return
+	var all: Array[String]=[]
+	for child: Node in window.find_children("*","Label",true,false):
+		if child is Label and child.is_visible_in_tree(): all.append(child.text)
+	var labels: String="\n".join(all)
+	if dugout:
+		var build: SeasonBuild=app.season.build
+		var native: Dictionary=SeasonEarnedSponsors.eligible(build)
+		if not _need(not native.has("G02") and not native.has("F09") and build._batch_used.is_empty()
+				and not build._major.earned and build.cash()==3 and build._bank.view().held.size()==2,
+				"no modifier earned or bought in the exact genuine round"): return
+		if not _need("Held 2 / 3 • Sponsors 0 / 5" in labels
+				and "DUGOUT SHARED BAG • 3" in labels and "Small Batch: 4 held (up to 3 sponsors)" in labels
+				and "Double Major: 2 held. Both: 3 held" in labels
+				and "Small Batch Supply • LOCKED · 0 / 3" in labels
+				and "Double Major Academy • LOCKED" in labels
+				and "Grip Tape, Recovery Pack and Swing Plan" in labels and "same completed game" in labels,
+				"native display distinguishes live balance/capacity and both exact earned requirements"): return
+		if not _need(Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+				"actual already-open shop leaves CP194 primary, market and backup exact"): return
+	else:
+		if not _need("Held 0 / 2 • Sponsors 0 / 5" in labels and not "DUGOUT SHARED BAG" in labels
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,
+				"ordinary Standard unchanged; its isolated first normal shop open only"): return
+	print("DUGOUT_CAPACITY_APP_PASS ",args[0]," ",FileAccess.get_sha256(Store.PATH))
+	get_tree().quit()

@@ -70,3 +70,22 @@ Reuse the source-preserving assembly and disposable profile clone. Attach
 `-- cold 5791b095c5c84997bcc916124d5f332c96a6faea36f91622a829046634d82550 2 3`.
 The test accepts neither normal player saves nor any synthetic reward or
 stock injection.
+
+## Capacity rules in the Common Dugout shop
+
+The Common Dugout shop's held inventory now exposes the authored Small Batch
+and Double Major rules. It reads the current native sponsor pool, exact
+offers and owned copies to distinguish locked, eligible for future offers,
+offered now and active. It displays the current wallet separately from the
+rules: base 3 held/5 sponsors, Small Batch +1 held with its native three-sponsor
+cap, Double Major −1 held, and both together 3 held. Their existing earned
+conditions are shown beside the current Small Batch count. No shop price,
+offer generation, unlock, confirmation or overflow rule changed.
+
+`tests/successor_dugout_capacity_access.gd.txt` checks the actual Common App
+on the exact CP194 shop pair from cold Continue. It requires both sponsors to
+be shown locked on this real owner and the primary/backup to be unchanged.
+A separate exact Standard opening-round control still displays the original
+two-place bag and receives no Dugout instructions. The isolated Standard
+control opens its first shop once; no normal player save is used. No earned
+modifier purchase is asserted for this fixture.
