@@ -410,6 +410,11 @@ static func accept_private_pair_settlement(owner: RefCounted,expected: PackedByt
 	return "unverified_io" if _write_revision_matches(expected,true) else "stale"
 
 ## Fixed private routes; every effect still belongs to the frozen General Build.
+static func _prepare_optional_pair_browse(owner: RefCounted,expected: PackedByteArray) -> RefCounted:
+	if not private_pair_settlement_preview() or owner==null or owner.session==null: return null
+	var visit: int=owner.session.round_index
+	return _prepare_paired_shop(owner,expected,Adapter.Ordinary.optional_pair_browse(visit,owner.session.build.revision()),visit)
+
 static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteArray, command: Dictionary) -> RefCounted:
 	return _prepare_paired_shop(owner,expected,command,1)
 
@@ -434,11 +439,16 @@ static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, c
 	var session: SeasonState=owner.session
 	const General=preload("res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd")
 	var late: Dictionary=Adapter.Ordinary.late_shop_open(visit)
-	if (visit not in [1,6] and late.is_empty()) or session.round_index!=visit or not General._source_public_shop_available(session): return null
+	if (visit not in [1,3,6] and late.is_empty()) or session.round_index!=visit or not General._source_public_shop_available(session): return null
 	var sign_visit6: bool=visit==6 and Adapter.Ordinary.visit6_sign_command(command)
 	if visit==1:
 		var step: int=session.build.revision()-2
 		if not Adapter.Ordinary.first_shop_command(session.build,command,step): return null
+	elif visit==3:
+		var kind: String=Adapter.Ordinary.unpurchased_next_reverse_kind(session)
+		if not private_pair_settlement_preview() or not owner.paused.is_empty() or not Owner._missing_dynasty(owner) \
+				or owner.current_ordinal()!=1 or owner.lifecycle_status()!="active" or kind not in ["unopened","browsed"] \
+				or not Codec.same(command,Adapter.Ordinary.optional_pair_browse(visit,session.build.revision())): return null
 	elif not late.is_empty():
 		var played: Dictionary=Adapter.Ordinary.PairSchedule.authored_phase(visit-1)
 		if played.is_empty() or not Adapter.Ordinary.late_shop_open_command(command,visit) or session.player_results[-1].get("id")!=played.human.id or session.build.revision()!=int(late.rev) or session.build._visit.get("open")!=false: return null

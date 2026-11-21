@@ -361,8 +361,26 @@ func resume_private_unpurchased_next_reverse() -> void:
 		projection={"fixture":next}
 		show_season()
 
+var _paired_market_preview: bool=false
+
+func show_private_later_pair_market() -> void:
+	if not private_unpurchased_next_reverse() or not _available() or not _owned() \
+			or not season.physical.pending.is_empty(): return
+	if season.build._visit.get("open")!=true:
+		var expected: PackedByteArray=saved_bytes.duplicate()
+		var ticket: RefCounted=Store._prepare_optional_pair_browse(career_owner,expected)
+		if ticket==null: return
+		_retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+		if retained!=null or season.build._visit.get("open")!=true: return
+	_paired_market_preview=true
+	show_season()
+
+func hide_private_later_pair_market() -> void:
+	_paired_market_preview=false
+	show_season()
+
 func play_private_unpurchased_next_reverse() -> void:
-	if not private_unpurchased_next_reverse() or not season.physical.pending.is_empty() or not _available(): return
+	if not private_unpurchased_next_reverse() or _paired_market_preview or not season.physical.pending.is_empty() or not _available(): return
 	_play_paired_next_return()
 	if is_instance_valid(lab) and _paired_first_pin.get("lab")==lab: _paired_menu_lab=lab
 

@@ -128,7 +128,11 @@ func render() -> void:
 		elif app.private_unpurchased_next_reverse():
 			if app.season.physical.pending.is_empty():
 				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT RETURN LEG",22)
-				_bound_button(_body,"PLAY NEXT DOUBLEHEADER RETURN WITHOUT PURCHASE",Callable(app,"play_private_unpurchased_next_reverse"))
+				if app._paired_market_preview:
+					_private_later_pair_market()
+				else:
+					_bound_button(_body,"PLAY NEXT DOUBLEHEADER RETURN WITHOUT PURCHASE",Callable(app,"play_private_unpurchased_next_reverse"))
+					_bound_button(_body,"BROWSE OPTIONAL MARKET",Callable(app,"show_private_later_pair_market"))
 			elif app.season.physical.pending.reports.size()<2:
 				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT RETURN LEG",22)
 				_round_resume=_bound_button(_body,"RESUME NEXT DOUBLEHEADER RETURN",Callable(app,"resume_private_unpurchased_next_reverse"))
@@ -191,6 +195,18 @@ func render() -> void:
 
 	if not archived: _session_controls()
 	if app.earned_league_preview(): _earned_leagues(false)
+
+func _private_later_pair_market() -> void:
+	var build: SeasonBuild=app.season.build
+	_label(_body,"Market preview · Visit %d · %d game Cash"%[int(build._visit.number),build.cash()],20)
+	_note("Browsing costs nothing. Purchases are not enabled for this visit in this preview.")
+	for offer: String in build.view().shop.offers:
+		var id: String=build.view().shop.offers[offer]
+		var item: Dictionary=SeasonGearCatalog.item(id)
+		if item.is_empty(): item=SeasonSponsorCatalog.item(id)
+		if item.is_empty(): item=PitchCatalogPresentation.display_item(id)
+		_label(_body,str(item.get("name",id)),18)
+	_bound_button(_body,"LEAVE OPTIONAL MARKET",Callable(app,"hide_private_later_pair_market"))
 
 func _private_paired_development() -> void:
 	var step: int=app.private_paired_development_step()

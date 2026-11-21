@@ -1,0 +1,70 @@
+extends "res://tests/successor_private_doubleheader_unpurchased_next_reverse.gd"
+const BROWSE="BROWSE OPTIONAL MARKET"
+const LEAVE="LEAVE OPTIONAL MARKET"
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["unopened","browse","cold","flag-off"]
+			and FileAccess.get_sha256(BASELINE)==EXACT and FileAccess.get_sha256(Store.PATH)==args[1],
+			"exact isolated CP227 optional market lineage"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var baseline: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BASELINE))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and exact(before,backup) and _stable(app,baseline),"strict prior results, reports, wallet and Common"): return
+	var button:=_button(app,BROWSE)
+	if args[0]=="flag-off":
+		app.show_private_later_pair_market()
+		if need(button==null and not app._paired_market_preview and exact(before,backup),"flag off menu and direct refusal"): get_tree().quit()
+		return
+	if not need(button!=null and _button(app,BUTTON)!=null,"browse optional; genuine direct no-buy return visible"): return
+	if args[0]=="unopened":
+		if need(args[1]==EXACT and app.season.build._visit.open==false,"no forced browse"):
+			_pregame(app,before,backup,"browsed")
+		return
+	if args[0]=="browse":
+		var fixture: Dictionary=Pair._round_fixtures(3).human
+		if not need(args[1]==EXACT and fixture.id==9 and Live.optional_pair_browse(2,app.season.build.revision()).is_empty()
+				and Store._prepare_paired_shop(app.career_owner,before,{"id":"foreign","rev":app.season.build.revision(),"op":"open"},3)==null
+				and exact(before,backup),"reject foreign request and unsupported visit at native boundary"): return
+		button.pressed.emit()
+		var browsed:=Store.raw()
+		if not need(browsed!=before and exact(browsed,before) and _stable(app,baseline),"actual free browse commits once from native exact owner"): return
+		if not need(app._paired_market_preview and _button(app,LEAVE)!=null and _button(app,BUTTON)==null
+				and app.season.build._visit.get("open")==true and not app.season.build.view().shop.offers.is_empty()
+				and not app.season.build.pack_pending(),"actual native stocked preview, no charged pack or play from market"): return
+		app.show_private_later_pair_market()
+		if not need(Store._prepare_optional_pair_browse(app.career_owner,browsed)==null and exact(browsed,before),"re-enter and direct duplicate do not write"): return
+		_button(app,LEAVE).pressed.emit()
+		if need(_button(app,BUTTON)!=null and not app._paired_market_preview and exact(browsed,before),"leave restores return without any purchase"):
+			print("LATER_MARKET_BROWSE_PASS ",FileAccess.get_sha256(Store.PATH)," offers=",app.season.build.view().shop.offers)
+			get_tree().quit()
+		return
+	if not need(backup.is_empty() and args[1]!=EXACT and app.season.build._visit.get("open")==true,"primary-only cold native market visit"): return
+	button.pressed.emit()
+	if not need(app._paired_market_preview and _button(app,LEAVE)!=null and exact(before,backup),"reopen actual native stock without new write"):
+		return
+	_button(app,LEAVE).pressed.emit()
+	_pregame(app,before,backup,"browsed-visit3-browsed")
+
+func _stable(app: App,b: Dictionary) -> bool:
+	var s: SeasonState=app.season
+	var current: Dictionary=Store.Owner._bytes_value(Store.raw())
+	return s.round_index==3 and s.build.cash()==60 and s.physical.pending.is_empty() \
+		and Live.same(current.ordinary.state,b.ordinary.state) and Live.same(current.ordinary.physical,b.ordinary.physical) \
+		and Live.same(current.ordinary.build.bank._events,b.ordinary.build.bank._events) and Live.same(current.common,b.common)
+
+func _pregame(app: App,before: PackedByteArray,backup: PackedByteArray,kind: String) -> void:
+	var factory: Dictionary=Pair.start(app.season)
+	if not need(not factory.is_empty() and Live.unpurchased_next_reverse_kind(app.season)==kind,"exact separate optional visit request provenance"): return
+	var button:=_button(app,BUTTON)
+	if not need(button!=null,"native return remains available after browse or without it"): return
+	button.pressed.emit()
+	var lab: PitchBatLab=app.lab
+	if need(is_instance_valid(lab) and lab._field_id==factory.field.id and _reverse_debt(app.season,lab._match_state,factory.fixture,[])
+			and exact(before,backup),"actual native pregame with identical both-team carry and no sale or write"):
+		print("LATER_MARKET_RETURN_PREGAME_PASS ",kind," request=",factory.binding.request)
+		get_tree().quit()

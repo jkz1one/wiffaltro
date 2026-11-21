@@ -246,14 +246,17 @@ static func unpurchased_next_pair_kind(season: SeasonState) -> String:
 static func unpurchased_next_reverse_kind(season: SeasonState) -> String:
 	if season==null or season.round_index!=3 or season.phase!=SeasonState.Phase.REGULAR \
 			or not LeagueRules.doubleheader(season.league_rules) or season.build==null \
-			or season.build.pack_pending() or not whole(season.build._visit.get("number"),3,3) \
-			or season.build._visit.get("open")!=false: return ""
+			or season.build.pack_pending() or not whole(season.build._visit.get("number"),3,3): return ""
 	var opening: Dictionary=PairSchedule.authored_phase(2)
 	var reverse: Dictionary=PairSchedule.authored_phase(3)
 	if opening.is_empty() or reverse.is_empty() or not same(season.pending_fixture(),reverse.human) \
 			or SeasonDoubleheaderRules.first(reverse.human.id)!=opening.human.id \
 			or reverse.human.home!=opening.human.away or reverse.human.away!=opening.human.home: return ""
-	return _unpurchased_completed_legs(season.build,3)
+	var journal: Dictionary=_unpurchased_journal(season.build,3)
+	if journal.is_empty(): return ""
+	var opened: bool=journal.browsed.has(3)
+	if season.build._visit.get("open")!=opened or (opened and season.build._visit.get("pack_status")!="sealed"): return ""
+	return _unpurchased_dialect(journal)
 
 # Authored paid prefix plus only the individually qualified pending lane.
 # Report-capable rounds may queue only the authored suffix in a detached fork.
@@ -490,26 +493,46 @@ static func unpurchased_settled_pair_kind(build: SeasonBuild) -> String:
 # All events are independently replayed; this additionally forbids paid or
 # unexpected actions between the authored reward/exotic pairs.
 static func _unpurchased_completed_legs(build: SeasonBuild, legs: int) -> String:
-	if legs not in [2,3,4] or build==null or build._bank==null: return ""
+	return _unpurchased_dialect(_unpurchased_journal(build,legs))
+
+static func _unpurchased_dialect(journal: Dictionary) -> String:
+	if journal.is_empty(): return ""
+	var initial: String="browsed" if journal.browsed.has(1) else "unopened"
+	return initial+"-visit3-browsed" if journal.browsed.has(3) else initial
+
+static func optional_pair_browse(visit: int,revision: int) -> Dictionary:
+	# Later previews must be explicitly authorized; no arbitrary revision offsets.
+	if visit!=3 or revision<0: return {}
+	return {"id":"optional-pair-browse:%d:%d"%[visit,revision],"rev":revision,"op":"open"}
+
+static func _unpurchased_journal(build: SeasonBuild, legs: int) -> Dictionary:
+	if legs not in [2,3,4] or build==null or build._bank==null: return {}
 	var size: int=build._events.size()
-	if size not in [2*legs,2*legs+1] or build.revision()!=size: return ""
-	var browsed: bool=size==2*legs+1
-	if not _first_shop_journal(build,1 if browsed else 0): return ""
+	if size<2*legs or size>2*legs+2 or build.revision()!=size: return {}
 	var bank: Array=build._bank._events
-	if bank.size()!=legs: return ""
-	var offset: int=0
+	if bank.size()!=legs: return {}
+	var cursor: int=0
+	var browsed: Array[int]=[]
 	for index: int in range(legs):
 		var authored: Dictionary=PairSchedule.authored_phase(index)
-		if authored.is_empty(): return ""
+		if authored.is_empty() or cursor+1>=size: return {}
 		var game: int=int(authored.human.id)
-		if index==1 and browsed: offset=1
-		var reward: Dictionary=build._events[2*index+offset]
-		var exotic: Dictionary=build._events[2*index+offset+1]
+		var reward: Dictionary=build._events[cursor]
+		var exotic: Dictionary=build._events[cursor+1]
 		if reward.get("op")!="successor_reward" or reward.get("id")!="game:%d"%game \
-				or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:%d"%game: return ""
+				or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:%d"%game: return {}
 		if not same(bank[index],{"id":"game:%d"%game,"op":"reward","rev":index,"game":game,"win":bank[index].get("win")}) \
-				or not bank[index].get("win") is bool: return ""
-	return "browsed" if browsed else "unopened"
+				or not bank[index].get("win") is bool: return {}
+		cursor+=2
+		var visit: int=index+1
+		if cursor>=size: continue
+		if visit==1 and first_shop_command(build,build._events[cursor],0):
+			browsed.append(visit)
+			cursor+=1
+		elif visit==3 and same(build._events[cursor],optional_pair_browse(visit,cursor)):
+			browsed.append(visit)
+			cursor+=1
+	return {"browsed":browsed} if cursor==size else {}
 
 static func return_human_ready(build: SeasonBuild) -> bool:
 	return build.revision()==5 or not unpurchased_return_kind(build).is_empty()

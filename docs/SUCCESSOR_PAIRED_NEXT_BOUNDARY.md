@@ -324,3 +324,30 @@ exact CP229 primary as `user://exact-next-reverse-npc11.json` and
 the original CP228/CP227 references. Use `settle`, independent
 primary-only `cold`, and a separate `cancel` from the original pair.
 No games or third-pair actions run.
+
+## Optional later Market browse
+
+In the private no-spend lane, the player may now open visit 3 after
+fixture 6 and its two opponents' games settle. The native Build opens
+and stocks its normal seeded Market. This preview lists that stock,
+but it does not offer a purchase, reveal a paid pack, or debit game
+Cash. The player can leave at any time or skip browsing altogether.
+Re-entering an already-open Market does not write a second event.
+
+The journal recognizes only an exact browse command at an explicitly
+allowed visit, with revision derived from the ordered native results.
+It continues to check the unchanged reward and exotic pairs, previously
+allowed first browse, exact shop state, and original bank events.
+The unbrowsed fixture 9 request stays unchanged; the free visit has its
+own request identity and derives starting stamina from the exact same
+archived fixture 6 workload for both teams. The grammar recognizes
+this free browse through a later return or settlement, but this QA
+exercises only real opening, leave/reopen, and real pregame before or
+after the optional browse. No new game is simulated.
+
+For isolated checks, attach
+`tests/successor_private_doubleheader_later_market.gd.txt` to the
+prior private reverse QA parents. Use the exact CP227 settled primary
+as `user://exact-before-next-reverse.json`. Run `browse`, then
+`cold` using the browsed primary alone. Separate `unopened` and
+`flag-off` profiles start from the untouched CP227 pair.
