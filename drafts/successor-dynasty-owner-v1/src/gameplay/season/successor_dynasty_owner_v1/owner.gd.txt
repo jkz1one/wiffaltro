@@ -12,13 +12,15 @@ const Ledger = preload("ledger.gd")
 const Life = preload("lifecycle.gd")
 const WorkshopHistory = preload("workshop_close_history.gd")
 const WorkshopPurchase = preload("workshop_purchase.gd")
+const WorkshopApply = preload("workshop_apply.gd")
 const FORMAT: String="wiffaltro-common-career-v4"
 const DYNASTY_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration"]
-const META_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration","imported_sha256","migration_v2","common","ordinary_state","migration_v3","workshop_draft","workshop_close_history","workshop_chair_purchase"]
-const DATA_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration","imported_sha256","migration_v2","common","ordinary_state","migration_v3","workshop_draft","workshop_close_history","workshop_chair_purchase","active","paused"]
+const META_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration","imported_sha256","migration_v2","common","ordinary_state","migration_v3","workshop_draft","workshop_close_history","workshop_chair_purchase","workshop_applied"]
+const DATA_FIELDS: Array[String]=["birth_seed","ordinal","status","ledger","last_close","proposal","last_transition","migration","imported_sha256","migration_v2","common","ordinary_state","migration_v3","workshop_draft","workshop_close_history","workshop_chair_purchase","workshop_applied","active","paused"]
 var workshop_draft: Dictionary={}
 var workshop_close_history: Dictionary={}
 var workshop_chair_purchase: Dictionary={}
+var workshop_applied: Dictionary={}
 var common: Dictionary={}
 var ordinary_state: Dictionary={}
 var migration_v3: Dictionary={}
@@ -178,7 +180,7 @@ static func starter_workshop_draft(owner) -> Dictionary:
 static func workshop_window(owner) -> bool:
 	if owner==null or owner.active!="dynasty" or owner.session==null or not Adapter.scope("dynasty",owner.session): return false
 	var current: SeasonState=owner.session
-	if not current.home_property.is_empty() or not current.physical.pending.is_empty() or not current.physical.needed.is_empty() or current.physical.projecting or current.build.pack_pending(): return false
+	if not WorkshopApply.matches_season(owner,current) or not current.physical.pending.is_empty() or not current.physical.needed.is_empty() or current.physical.projecting or current.build.pack_pending(): return false
 	return (owner.status=="active" and owner.ordinal==1 and current.phase==SeasonState.Phase.DRAFT and current.picks.is_empty()) or (owner.status=="closed" and owner.proposal.is_empty())
 
 static func _base_valid(owner) -> bool:
@@ -192,11 +194,11 @@ static func _base_valid(owner) -> bool:
 		if not Codec.keys(owner.migration_v3,["format","sha256","bytes"]) or owner.migration_v3.format!=PreviousOwner.FORMAT or not _digest(owner.migration_v3.sha256) or not Codec.whole(owner.migration_v3.bytes,1,64*1024*1024): return false
 	if not owner.workshop_draft.is_empty() and not Codec.same(owner.workshop_draft,starter_workshop_draft(owner)): return false
 	if not Common.valid(owner): return false
-	return (owner.workshop_close_history.is_empty() or WorkshopHistory.valid_history(owner.workshop_close_history,owner.ledger,Life.lineage(owner),owner.last_close)) and WorkshopPurchase.valid(owner)
+	return (owner.workshop_close_history.is_empty() or WorkshopHistory.valid_history(owner.workshop_close_history,owner.ledger,Life.lineage(owner),owner.last_close)) and WorkshopPurchase.valid(owner) and WorkshopApply.valid(owner)
 static func _missing_dynasty(owner) -> bool:
 	return owner.imported_sha256.is_empty() and owner.birth_seed==0 and owner.ordinal==0 and owner.status=="absent" and owner.ledger.is_empty() and owner.last_close.is_empty() and owner.proposal.is_empty() and owner.last_transition.is_empty() and owner.migration.is_empty() and owner.migration_v2.is_empty()
 static func _dynasty_valid(owner, season: SeasonState, current: Dictionary) -> bool:
-	if not WorkshopHistory.matches_current(owner.workshop_close_history,season,owner.last_close): return false
+	if not WorkshopApply.matches_season(owner,season) or not WorkshopHistory.matches_current(owner.workshop_close_history,season,owner.last_close): return false
 	var view=Legacy.new();view.session=season
 	for name: String in DYNASTY_FIELDS: view.set(name,owner.get(name))
 	# Ordinary import provenance is common-owner metadata, not a second copy in
@@ -216,6 +218,7 @@ static func pack_current(owner, current: Dictionary) -> Dictionary:
 	if owner.workshop_draft.is_empty(): result.erase("workshop_draft")
 	if owner.workshop_close_history.is_empty(): result.erase("workshop_close_history")
 	if owner.workshop_chair_purchase.is_empty(): result.erase("workshop_chair_purchase")
+	if owner.workshop_applied.is_empty(): result.erase("workshop_applied")
 	result.merge({"version":4,"format":FORMAT,"active":owner.active,"dynasty":current if owner.active=="dynasty" else owner.paused.duplicate(true),"ordinary":current if owner.active=="ordinary" else owner.paused.duplicate(true)})
 	return result
 static func capture(owner) -> Dictionary:
@@ -231,7 +234,7 @@ static func capture(owner) -> Dictionary:
 static func restore(value: Variant):
 	var names: Array=META_FIELDS+["version","format","active","dynasty","ordinary"]
 	if value is Dictionary:
-		for field: String in ["workshop_draft","workshop_close_history","workshop_chair_purchase"]:
+		for field: String in ["workshop_draft","workshop_close_history","workshop_chair_purchase","workshop_applied"]:
 			if not value.has(field): names.erase(field)
 	if not Codec.primitive(value) or not Codec.keys(value,names) or value.version!=4 or value.format!=FORMAT or not value.active is String or not Adapter.side(value.active): return null
 	if not value.dynasty is Dictionary or not value.ordinary is Dictionary: return null

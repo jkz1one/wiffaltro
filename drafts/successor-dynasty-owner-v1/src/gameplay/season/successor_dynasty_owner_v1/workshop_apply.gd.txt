@@ -1,0 +1,66 @@
+extends RefCounted
+## One exact free starter-chair application, independent of paid inventory.
+const Life = preload("lifecycle.gd")
+
+static func snapshot(seed: int) -> Dictionary:
+	var ledger:=ClubAssetLedger.new(seed,[0],[],{})
+	var layout:=StadiumStarterLayout.empty()
+	layout.receiver="starter-v1:ST-079"
+	if not StadiumStarterLayout.validate(layout,ledger.construction()).ok: return {}
+	if not ledger.commit({"id":"stadium-draft:0","rev":0,"op":"stadium_draft","layout":layout}).ok: return {}
+	if not ledger.commit({"id":"stadium-apply:1","rev":1,"op":"stadium_apply","layout":layout,
+		"geometry":StadiumOwnedLayout.geometry("backyard",layout)}).ok: return {}
+	var result:=StadiumLayoutSnapshot.capture(ledger)
+	if result.is_empty() or not StadiumLayoutSnapshot.matches(result,ledger) or ledger.balance()!=0: return {}
+	return result
+
+static func issue(owner) -> Dictionary:
+	if owner.active!="dynasty" or owner.status!="closed" or owner.workshop_draft.is_empty() or not owner.workshop_applied.is_empty(): return {}
+	return _record(owner,owner.ordinal)
+
+static func _record(owner, ordinal: int) -> Dictionary:
+	var history: Dictionary=owner.workshop_close_history
+	if history.is_empty() or ordinal>=ClubCareer.MAX_RUNS: return {}
+	var index: int=ordinal-int(history.opening.closed)-1
+	if index<0 or index>=history.rows.size(): return {}
+	var row: Dictionary=history.rows[index]
+	if row.ordinal!=ordinal: return {}
+	var frozen:=snapshot(owner.birth_seed)
+	if frozen.is_empty() or not ClubCareer.same(frozen.layout,owner.workshop_draft.get("layout")): return {}
+	return {"version":1,"lineage":Life.lineage(owner),"closed_ordinal":ordinal,
+		"source":row.source,"snapshot":frozen}
+
+static func valid(owner) -> bool:
+	var saved: Dictionary=owner.workshop_applied
+	if saved.is_empty(): return true
+	if not SeasonOwnership._keys(saved,["version","lineage","closed_ordinal","source","snapshot"]) \
+		or not SeasonOwnership._whole(saved.closed_ordinal,1,int(owner.ledger.get("closed",0))): return false
+	var expected:=_record(owner,int(saved.closed_ordinal))
+	return not expected.is_empty() and ClubCareer.same(saved,expected)
+
+static func matches_season(owner, season: SeasonState) -> bool:
+	var expected: Dictionary={}
+	if not owner.workshop_applied.is_empty() and owner.ordinal>int(owner.workshop_applied.closed_ordinal):
+		expected=owner.workshop_applied.snapshot
+	return ClubCareer.same(season.home_property,expected)
+
+static func native_season_valid(season: SeasonState) -> bool:
+	if season.home_property.is_empty(): return true
+	var start: Dictionary=season._dynasty_start
+	var basis: Dictionary=season.career.start_basis
+	if basis.get("kind")!="dynasty-carried-start-v2" or not SeasonOwnership._whole(basis.get("birth_seed"),0,2147483647) \
+		or not SeasonOwnership._whole(start.get("season_ordinal"),2,ClubCareer.MAX_RUNS): return false
+	var expected:=snapshot(int(basis.birth_seed))
+	return not expected.is_empty() and ClubCareer.same(season.home_property,expected)
+
+static func fixture(season: SeasonState, row: Dictionary) -> Dictionary:
+	if season.home_property.is_empty() or row.get("home",-1)!=0 or row.get("neutral",false): return {}
+	return StadiumLayoutSnapshot.for_fixture(season,row)
+
+static func property_key(season: SeasonState, row: Dictionary) -> String:
+	return StadiumLayoutSnapshot.key(fixture(season,row))
+
+static func pending_property_valid(season: SeasonState, pending: Dictionary) -> bool:
+	var key:=property_key(season,season.pending_fixture())
+	if key.is_empty(): return not pending.has("property")
+	return pending.get("property") is String and pending.property==key

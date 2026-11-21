@@ -118,3 +118,50 @@ Dynasty save with at least 35 recorded Club Bucks is needed for `buy`, followed
 by separate-process `cold` on the same isolated copy. These check Cancel,
 obstructed write, exact retry, one debit/copy, repeat refusal and cold
 validation. They are not proof of a playable stadium or later purchases.
+
+## Apply the free starter chair to future Dynasty home games
+
+Save the existing free starter draft, then Apply after closing Dynasty and
+before preparing Next. Apply changes only the Dynasty owner's optional layout
+metadata, not the closed season, parked Ordinary season, receipt history,
+purchases or balance. Next freezes that one exact layout into future Dynasty
+seasons. The first supported layout is the granted ST-079 in its primary
+receiver slot, with no purchased copies, Pool, away or neutral installation.
+
+The actual managed home lab requires the native starter-backyard field, exact
+owned snapshot and installed pitch receiver. A home game adds a named property
+key to the pending checkpoint, keeping all thirteen human evidence arguments
+unchanged. The projector feeds the same key to the original settlement
+validator, and the cold reader requires the corresponding settled row's field
+key. Ordinary, old/no-layout Dynasty and away pending wires remain unchanged;
+NPC games retain the same report120 evidence with no owned stadium content.
+This field key is not proof that any particular ball struck the chair.
+
+`tests/successor_dynasty_workshop_apply.gd.txt` provides per-process checks
+for the actual abandoned-close Apply/Next, cold reopen, reuse of exact
+authenticated away evidence, and the new home checkpoint. Copy it into an
+isolated project as a Node scene script. Its away reuse needs the genuine
+prior season-two away pending file, and verifies exact full projected session
+parity (apart from the new home property and prior pending data) before
+presenting the previous results to the current App settlement gate.
+
+In isolated Godot 4.6.3, Apply and Next preserved the closed season and parked
+Ordinary payload. The exact previous away-game evidence settled unchanged
+through the native App after restoring full fixture-request parity. The real
+managed home fixture 3 then finished 8–6, using the installed starter chair.
+Its pending checkpoint retained thirteen human arguments with a separate field
+key; cold restore rejected a wrong key, missing key and removed Apply
+provenance. Two fresh original NPC games (fixtures 4 and 5) settled with that
+human result through the ordinary App boundary. A separate process reopened
+six results and four report120 NPC receipts, with fixture 6 up next; it refused
+an altered settled field key. The exact SHA-256 digests were:
+
+- Home pending: `1f8390e3971f4e37b7ab782dfb06ba37fedebbcbc6df5e47e4971c3048d57939`
+- Settled: `cc49a045253aa16a636966bf0d22cf9e96d6b0beb81898a7b6af5fa73bfd1dd0`
+- Settled backup (the prior two-report pending state): `9e5c8c290fe14e2fd987d883bbc8f3625784e25481383abcd33ba1194acb3667`
+
+The older genuine V4 away checkpoint still restored without changes. No
+authenticated legacy V2 or V3 raw save was available for an import run; their
+previous no-stadium restriction stays explicit. This was a headless,
+automated managed game, not a rendered manual playtest, confirmed chair
+collision, purchased-copy placement or Pool support.

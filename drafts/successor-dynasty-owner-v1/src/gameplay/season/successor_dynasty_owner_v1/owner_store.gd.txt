@@ -100,8 +100,8 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 	if FileAccess.file_exists(PATH+".tmp") or (expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
 	# Unbound legacy writes cannot create, replace, or erase workshop metadata.
 	var previous: Variant=Owner._bytes_value(expected)
-	if not season.workshop_draft.is_empty() or not season.workshop_close_history.is_empty() or not season.workshop_chair_purchase.is_empty(): return false
-	if previous is Dictionary and (previous.has("workshop_draft") or previous.has("workshop_close_history") or previous.has("workshop_chair_purchase")): return false
+	if not season.workshop_draft.is_empty() or not season.workshop_close_history.is_empty() or not season.workshop_chair_purchase.is_empty() or not season.workshop_applied.is_empty(): return false
+	if previous is Dictionary and (previous.has("workshop_draft") or previous.has("workshop_close_history") or previous.has("workshop_chair_purchase") or previous.has("workshop_applied")): return false
 	var data: Dictionary = Owner.capture(season)
 	if data.is_empty() or (not expected_snapshot.is_empty() and not Codec.same(data,expected_snapshot)):
 		last_error = "This candidate is inconsistent with the materialized save contract."
@@ -149,7 +149,7 @@ static func _matches_raw(value: RefCounted, snapshot: Dictionary) -> bool:
 static func _routine_pins(candidate: RefCounted) -> bool:
 	if candidate.active!=_active or not RawGuard.same(candidate.paused,_paused) or candidate.imported_sha256!=_imported_sha256: return false
 	if not RawGuard.same(candidate.migration_v2,_metadata.get("migration_v2")): return false
-	for name: String in ["common","ordinary_state","migration_v3","workshop_draft","workshop_close_history","workshop_chair_purchase"]:
+	for name: String in ["common","ordinary_state","migration_v3","workshop_draft","workshop_close_history","workshop_chair_purchase","workshop_applied"]:
 		if not RawGuard.same(candidate.get(name),_metadata.get(name)): return false
 	if _active=="ordinary": return RawGuard.same(Codec.data_fields(candidate,Owner.META_FIELDS),_metadata)
 	return candidate.birth_seed==_metadata.get("birth_seed")
@@ -165,7 +165,7 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 	if saving or _ticket != null or candidate == null or candidate == owner or _paired_settled(owner): return null
 	if candidate.get_script()!=Owner or candidate.session==null or _paired_settled(candidate): return null
 	if owner == null:
-		if not expected.is_empty() or not _matches(expected) or not candidate.workshop_draft.is_empty() or not candidate.workshop_close_history.is_empty() or not candidate.workshop_chair_purchase.is_empty(): return null
+		if not expected.is_empty() or not _matches(expected) or not candidate.workshop_draft.is_empty() or not candidate.workshop_close_history.is_empty() or not candidate.workshop_chair_purchase.is_empty() or not candidate.workshop_applied.is_empty(): return null
 	else:
 		if not match_owner(owner,expected) or candidate.session==owner.session: return null
 	# Only this private boundary creates the writer's canonical payload. Callers
@@ -606,6 +606,33 @@ static func prepare_workshop_chair_and_write(owner: RefCounted, expected: Packed
 	var data: Dictionary=Owner.pack_current(candidate,decoded.dynasty)
 	var unchanged: Dictionary=data.duplicate()
 	unchanged.erase("workshop_chair_purchase")
+	if data.is_empty() or not Codec.same(unchanged,decoded) or not _matches_raw(owner,_owner_raw): return null
+	var budget: Array=[RawGuard.MAX_NODES,true]
+	var snapshot: Dictionary=RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)
+	if not budget[1] or snapshot.is_empty(): return null
+	snapshot.session=_owner_raw.session
+	if not _matches_raw(candidate,snapshot): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+static func prepare_workshop_apply_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	forget_projection()
+	last_error=""
+	if saving or _ticket!=null or not match_owner(owner,expected): return null
+	if not owner.workshop_applied.is_empty() or owner.status!="closed" or not Owner.workshop_window(owner): return null
+	var decoded: Variant=Owner._bytes_value(expected)
+	if not decoded is Dictionary or decoded.get("active")!="dynasty" or not decoded.get("dynasty") is Dictionary or decoded.has("workshop_applied"): return null
+	var candidate: RefCounted=Owner.new()
+	candidate.session=owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+	candidate.workshop_applied=Owner.WorkshopApply.issue(owner)
+	if candidate.workshop_applied.is_empty(): return null
+	var data: Dictionary=Owner.pack_current(candidate,decoded.dynasty)
+	var unchanged: Dictionary=data.duplicate()
+	unchanged.erase("workshop_applied")
 	if data.is_empty() or not Codec.same(unchanged,decoded) or not _matches_raw(owner,_owner_raw): return null
 	var budget: Array=[RawGuard.MAX_NODES,true]
 	var snapshot: Dictionary=RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)

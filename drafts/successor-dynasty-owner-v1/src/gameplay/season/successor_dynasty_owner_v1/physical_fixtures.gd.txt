@@ -56,7 +56,7 @@ static func seed_for(season: SeasonState, fixture: Dictionary) -> int:
 
 static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
 	if not load("res://src/gameplay/season/successor_dynasty_owner_v1/codec.gd").scope(season): return null
-	for key: String in ["inventory_rules","home_property","owned_surface_night","npc_venues","final_venue","_league_home_context"]:
+	for key: String in ["inventory_rules","owned_surface_night","npc_venues","final_venue","_league_home_context"]:
 		if not season.get(key).is_empty(): return null
 	if not SeasonOwnership._whole(fixture.get("away"),0,5) \
 		or not SeasonOwnership._whole(fixture.get("home"),0,5) \
@@ -75,7 +75,9 @@ static func match_for(season: SeasonState, fixture: Dictionary) -> MatchState:
 	state.ai_tactical_quality=clampf(0.15+season.difficulty*0.25+minf(int(fixture.round),9)*0.025,0.0,1.0)
 	if away.dynasty_start.get("owner_id")!="club:%d"%int(fixture.away) \
 		or home.dynasty_start.get("owner_id")!="club:%d"%int(fixture.home): return null
-	return state if Report.context_valid(state) else null
+	if not Report.context_valid(state): return null
+	state.stadium=preload("workshop_apply.gd").fixture(season,fixture)
+	return state
 
 
 static func request_key(season: SeasonState, fixture: Dictionary) -> String:
@@ -133,6 +135,7 @@ static func request_key(season: SeasonState, fixture: Dictionary) -> String:
 		"fixture": fixture,
 		"teams": rows
 	}
+	if not state.stadium.is_empty(): request["property"]=StadiumLayoutSnapshot.key(state.stadium)
 	request["league_rules"] = state.league_rules.duplicate(true)
 	request["pitch_catalog"] = state.pitch_catalog
 	return JSON.stringify(request,"",true,true).sha256_text()

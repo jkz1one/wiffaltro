@@ -78,6 +78,11 @@ func _workshop_draft() -> void:
 		_bound_button(_body,"SAVE STARTER STADIUM DRAFT",Callable(app,"save_workshop_draft"))
 
 	if owner.status!="closed": return
+	if not owner.workshop_applied.is_empty():
+		_note("Starter chair applied for subsequent Dynasty home games. This season's record stays unchanged.")
+	elif not owner.workshop_draft.is_empty() and not owner.workshop_close_history.is_empty() \
+		and owner.get_script().workshop_window(owner):
+		_bound_button(_body,"APPLY STARTER DRAFT FOR NEXT SEASON",Callable(app,"apply_workshop_draft"))
 	var purchase: Script=owner.get_script().WorkshopPurchase
 	var balance: int=purchase.available_balance(owner)
 	_note("Workshop balance from recorded Dynasty seasons: %d Club Bucks."%balance)

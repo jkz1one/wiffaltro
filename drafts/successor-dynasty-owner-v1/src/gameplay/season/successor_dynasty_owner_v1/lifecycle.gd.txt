@@ -105,6 +105,8 @@ static func advance(owner) -> bool:
 	next.teams[0].roster=owner.session.teams[0].roster.duplicate()
 	next.starter_index=owner.session.starter_index
 	next.fielder_index=owner.session.fielder_index
+	if not owner.workshop_applied.is_empty():
+		next.home_property=owner.workshop_applied.snapshot.duplicate(true)
 	if C.capture(next).is_empty(): return false
 	owner.last_transition={"id":owner.proposal.id,"from":owner.ordinal,"to":owner.ordinal+1,"seed":owner.proposal.seed,"profiles_before":owner.last_close.profiles.duplicate(true),"proposal":owner.proposal.duplicate(true),"profiles_after":digest(carried),"ledger_sha256":digest(owner.ledger)}
 	owner.session=next;owner.ordinal+=1;owner.status="active";owner.last_close={};owner.proposal={}

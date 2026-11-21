@@ -7,6 +7,7 @@ const MAX_PENDING_REPORTS: int = 5
 static var project_calls: int = 0
 static func shape(season: SeasonState) -> bool:
 	return season != null and Codec.scope(season) and not season.physical.pending.is_empty() \
+		and preload("workshop_apply.gd").pending_property_valid(season,season.physical.pending) \
 		and _shape(season.physical.pending,Codec.Catalog.game_signature())
 static func project(owner: SeasonState) -> Dictionary:
 	project_calls += 1
@@ -41,7 +42,9 @@ static func stage_report(owner: SeasonState, raw: Dictionary) -> Dictionary:
 # Current-only envelope: preserve the established human13 settlement arguments,
 # but admit only this family's carried-profile physical reports.
 static func _shape(value: Variant, catalog: String) -> bool:
-	if not value is Dictionary or not SeasonOwnership._keys(value,["human","reports"]) \
+	var fields: Array=["human","reports"]
+	if value is Dictionary and value.has("property"): fields.append("property")
+	if not value is Dictionary or not SeasonOwnership._keys(value,fields) \
 		or not value.reports is Array or value.reports.size()>MAX_PENDING_REPORTS: return false
 	# Pure human argument shape; no historical report envelope reaches this helper.
 	if not Original._shape({"human":value.human,"reports":[]},true,false,false,false,catalog): return false
@@ -54,7 +57,9 @@ static func _shape(value: Variant, catalog: String) -> bool:
 static func _project_candidate(candidate: SeasonState, pending: Dictionary) -> Dictionary:
 	candidate.physical.reports.append_array(pending.reports.duplicate(true))
 	candidate.physical.projecting = true
-	var ok: bool = candidate.callv("record_player_result",pending.human)
+	var human: Array=pending.human.duplicate()
+	if pending.has("property"): human.append_array([[],pending.property])
+	var ok: bool = candidate.callv("record_player_result",human)
 	if candidate.physical.cursor != candidate.physical.reports.size():
 		return {"error":"The pending round contains an unexpected physical fixture."}
 	if ok:

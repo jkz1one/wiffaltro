@@ -1,0 +1,102 @@
+extends Node
+## Isolated real owned Dynasty Close -> free Apply -> Next, never edits score evidence.
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_fixtures.gd")
+const Original = "user://season-v1.json"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func need(ok: bool, detail: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+detail)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and args.size()==1 and args[0] in ["apply","checked","reuse-away","home-cold","settled-cold"],"isolated explicit mode"): return
+	var original:=FileAccess.get_file_as_bytes(Original)
+	var baseline:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var before: Dictionary=JSON.parse_string(baseline.get_string_from_utf8())
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app.career_owner!=null and app.career_owner.active=="dynasty" and app._owned() and Store.raw()==baseline,"real isolated Dynasty restore"): return
+	if args[0]=="apply":
+		if app.career_owner.status=="active": app.close_current("abandon")
+		before=JSON.parse_string(Store.raw().get_string_from_utf8())
+		if not need(app.career_owner.status=="closed" and app.career_owner.workshop_applied.is_empty() and app.season.home_property.is_empty(),"actual abandoned closed Dynasty before free Apply"): return
+		if app.career_owner.workshop_draft.is_empty(): app.save_workshop_draft()
+		var draft_bytes:=Store.raw()
+		app.apply_workshop_draft()
+		var applied: Dictionary=app.career_owner.workshop_applied
+		var saved: Dictionary=JSON.parse_string(Store.raw().get_string_from_utf8())
+		if not need(not applied.is_empty() and app.season.home_property.is_empty() and FileAccess.get_file_as_bytes(Store.PATH+".bak")==draft_bytes and Owner.Codec.same(saved.ordinary,before.ordinary) and Owner.Codec.same(saved.dynasty,before.dynasty),"free Apply changes only owner metadata; exact prior backup"): return
+		var tamper: Dictionary=saved.duplicate(true)
+		tamper.workshop_applied.source="forged"
+		if not need(Owner.restore(tamper)==null,"mismatched applied Close source rejected"): return
+		var written:=Store.raw()
+		app.apply_workshop_draft()
+		if not need(Store.raw()==written,"repeat Apply is inert"): return
+		app.propose_next(1982165675)
+		app.commit_next()
+		if not need(app.career_owner.status=="active" and app.career_owner.ordinal==2 and Owner.Codec.same(app.season.home_property,applied.snapshot),"real Next freezes free applied starter yard"): return
+	else:
+		if not need(app.career_owner.ordinal==2 and Owner.Codec.same(app.season.home_property,app.career_owner.workshop_applied.snapshot) and Store.raw()==baseline and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"cold native Apply replay without slot writes"): return
+	var home: Dictionary={}
+	var away: Dictionary={}
+	for row: Dictionary in app.season.schedule:
+		if row.home==0 and (home.is_empty() or int(row.id)<int(home.id)): home=row
+		if row.away==0 and (away.is_empty() or int(row.id)<int(away.id)): away=row
+	var home_state: MatchState=Fixtures.match_for(app.season,home)
+	var away_state: MatchState=Fixtures.match_for(app.season,away)
+	if not need(home_state!=null and away_state!=null and StadiumLayoutSnapshot.valid(home_state.stadium) and away_state.stadium.is_empty() and app.season.field_for_fixture(home,app.season).id==PitchBatLab.FIELD_ID,"native owned snapshot only for genuine club home fixture"): return
+	if args[0]=="reuse-away":
+		if not _resume_proven_away(app): return
+	if args[0]=="home-cold":
+		var pending: Dictionary=app.season.physical.pending
+		if not need(app.season.pending_fixture().home==0 and pending.get("property")==Owner.WorkshopApply.property_key(app.season,app.season.pending_fixture()) and pending.human.size()==13,"actual managed home pending binds named layout and retains thirteen human args"): return
+		var forged: Dictionary=before.duplicate(true)
+		forged.dynasty.physical.pending.property="wrong"
+		if not need(Owner.restore(forged)==null,"cold owner refuses forged pending field"): return
+		forged=before.duplicate(true)
+		forged.dynasty.physical.pending.erase("property")
+		if not need(Owner.restore(forged)==null,"cold owner refuses missing pending field"): return
+		forged=before.duplicate(true)
+		forged.erase("workshop_applied")
+		if not need(Owner.restore(forged)==null,"cold owner refuses detached field without Apply provenance"): return
+	if args[0]=="settled-cold":
+		var season: SeasonState=app.season
+		var records: Array=season.player_results.filter(func(row: Dictionary) -> bool: return row.id==home.id)
+		var reports: Array=season.physical.reports
+		if not need(season.results.size()==6 and season.player_results.size()==2 and records.size()==1 and records[0].property==Owner.WorkshopApply.property_key(season,home) and season.physical.pending.is_empty(),"one owned home game plus separate exact original round settlement"): return
+		if not need(reports.size()==4 and reports.all(func(row: Dictionary) -> bool: return row.report.version==120 and not row.report.has("property")),"all four NPC report120 receipts retained without stadium fields"): return
+		var malformed: Dictionary=before.duplicate(true)
+		for row: Dictionary in malformed.dynasty.state.results:
+			if row.id==home.id: row.property="wrong"
+		if not need(Owner.restore(malformed)==null,"cold owner rejects altered settled field key"): return
+	if not need(FileAccess.get_file_as_bytes(Original)==original,"Original Game slot untouched"): return
+	print("DYNASTY_WORKSHOP_FREE_APPLY ",args[0]," home=",home.id," current=",app.season.pending_fixture().id)
+	get_tree().quit()
+
+
+func _resume_proven_away(app) -> bool:
+	var source: Variant=JSON.parse_string(FileAccess.get_file_as_string("user://proven-away.json"))
+	if not need(source is Dictionary and Owner.restore(source)!=null and source.active=="dynasty","retained old Dynasty save independently admits unchanged"): return false
+	var pending: Dictionary=source.dynasty.physical.pending
+	var actual: Dictionary=Owner.capture(app.career_owner).dynasty
+	var expected: Dictionary=source.dynasty.duplicate(true)
+	expected.physical.pending.clear()
+	actual.state.home_property.clear()
+	var row: Dictionary=app.season.pending_fixture()
+	if not need(Owner.Codec.same(actual,expected) and row.home!=0 and row.away==0 and pending.human.size()==13 and pending.human[0]==row.id and pending.reports.size()==2,"full away predecessor identical except owned home layout and exact prior pending"): return false
+	var candidate: SeasonState=app.season.fork_live()
+	candidate.physical.pending=pending.duplicate(true)
+	app._retain(candidate,app.saved_bytes)
+	if not need(app.retained==null and not app.season.physical.pending.is_empty(),"old human13 and actual worker reports admitted without changes"): return false
+	app.resume_round()
+	return need(app.retained==null and not is_instance_valid(app.ai_runner) and app.season.results.size()==3 and app.season.physical.pending.is_empty() and app.season.pending_fixture().home==0,"unchanged away reports settle the real first round, next fixture owned-home")

@@ -127,7 +127,8 @@ static func scope(season: SeasonState) -> bool:
 static func _structural_valid(season: SeasonState) -> bool:
 	if not scope(season) or not known_variables(season,FIELDS+OBJECTS) or not known_variables(season.career,CAREER_FIELDS): return false
 	if season._heat_replay_team != null or season._doubleheader_replay_build != null or season._pool_replay_ledger != null or season._npc_replay_run != -1: return false
-	for name: String in ["inventory_rules","home_property","owned_surface_night","npc_venues","final_venue","_closed_access","_dynasty_owner_binding","_league_home_context","_standard_live_context","_standard_bound_grant","_dynasty_career_session"]:
+	if not preload("workshop_apply.gd").native_season_valid(season): return false
+	for name: String in ["inventory_rules","owned_surface_night","npc_venues","final_venue","_closed_access","_dynasty_owner_binding","_league_home_context","_standard_live_context","_standard_bound_grant","_dynasty_career_session"]:
 		if not season.get(name).is_empty(): return false
 	if not whole(season.phase,0,4) or not whole(season.round_index,0,12) or not whole(season.difficulty,0,2) or not whole(season.starter_index,0,3) or not whole(season.fielder_index,0,3): return false
 	if _basis_seed != season.season_seed:
@@ -241,11 +242,16 @@ static func _results_valid(season: SeasonState) -> bool:
 	var seen: Dictionary = {}
 	for row: Dictionary in season.results:
 		for key: Variant in row:
-			if key not in ["id","round","home","away","neutral","away_runs","home_runs","club_roster","performance","used_gear","tactics","batting","stances","field_supply","pitching_current","pitching","fielding","frozen","ai_tactics"]: return false
+			if key not in ["id","round","home","away","neutral","away_runs","home_runs","club_roster","performance","used_gear","tactics","batting","stances","field_supply","pitching_current","pitching","fielding","frozen","ai_tactics","property"]: return false
 		if not whole(row.get("id"),0,32) or seen.has(int(row.id)) or not fixtures.has(int(row.id)): return false
 		var fixture: Dictionary = fixtures[int(row.id)]
 		for key: String in fixture:
 			if not row.has(key) or not same(row[key],fixture[key]): return false
+		var is_human: bool=fixture.away==0 or fixture.home==0
+		if is_human and not season.home_property.is_empty():
+			if row.has("neutral")!=fixture.has("neutral") or not row.get("property") is String \
+				or row.property!=preload("workshop_apply.gd").property_key(season,fixture): return false
+		elif row.has("property"): return false
 		if not whole(row.get("away_runs"),0,100000) or not whole(row.get("home_runs"),0,100000) or row.away_runs == row.home_runs: return false
 		seen[int(row.id)] = row
 	var humans: Dictionary = {}
@@ -292,7 +298,10 @@ static func _physical_valid(season: SeasonState) -> bool:
 	for id: int in settled:
 		if settled[id].home!=0 and settled[id].away!=0 and not seen.has(id): return false
 	if physical.pending.is_empty(): return true
-	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or not keys(physical.pending,["human","reports"]) or not physical.pending.human is Array or not physical.pending.reports is Array or physical.pending.reports.size()>5: return false
+	if not preload("workshop_apply.gd").pending_property_valid(season,physical.pending): return false
+	var fields: Array=["human","reports"]
+	if physical.pending.has("property"): fields.append("property")
+	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or not keys(physical.pending,fields) or not physical.pending.human is Array or not physical.pending.reports is Array or physical.pending.reports.size()>5: return false
 	var human: Array = physical.pending.human
 	if human.size()!=13 or not whole(human[0],0,32) or not whole(human[1],0,100000) or not whole(human[2],0,100000) or human[1]==human[2]: return false
 	for index in [3,6,9,10,12]:
@@ -417,7 +426,7 @@ static func _restore(value: Variant, legacy: bool) -> SeasonState:
 		club.build = Builds.restore(club.build)
 		if club.build == null: return null
 		result.opponents.clubs[id] = club
-	if legacy and result.career.start_basis.get("kind") in ["dynasty-carried-start-v2",CommonBirth.KIND]: return null
+	if legacy and (not result.home_property.is_empty() or result.career.start_basis.get("kind") in ["dynasty-carried-start-v2",CommonBirth.KIND]): return null
 	var captured: Dictionary = capture(result)
 	if legacy and not captured.is_empty():
 		captured.erase("session")

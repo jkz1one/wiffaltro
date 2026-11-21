@@ -125,6 +125,7 @@ static func _base_valid(owner) -> bool:
 static func _missing_dynasty(owner) -> bool:
 	return owner.imported_sha256.is_empty() and owner.birth_seed==0 and owner.ordinal==0 and owner.status=="absent" and owner.ledger.is_empty() and owner.last_close.is_empty() and owner.proposal.is_empty() and owner.last_transition.is_empty() and owner.migration.is_empty() and owner.migration_v2.is_empty()
 static func _dynasty_valid(owner, season: SeasonState, current: Dictionary) -> bool:
+	if not season.home_property.is_empty(): return false
 	var view=Legacy.new();view.session=season
 	for name: String in DYNASTY_FIELDS: view.set(name,owner.get(name))
 	# Ordinary import provenance is common-owner metadata, not a second copy in

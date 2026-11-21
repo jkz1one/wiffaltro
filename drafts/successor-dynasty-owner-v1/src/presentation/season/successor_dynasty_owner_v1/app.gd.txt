@@ -424,6 +424,15 @@ func _confirm_workshop_chair() -> void:
 		return
 	_retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+func apply_workshop_draft() -> void:
+	if not _available() or not _scope() or not _owned() or not Owner.workshop_window(career_owner): return
+	var ticket: RefCounted=Store.prepare_workshop_apply_and_write(career_owner,saved_bytes)
+	if ticket==null:
+		notice="The stadium draft was not applied. Your career is unchanged."
+		show_season()
+		return
+	_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+
 func draft(id: String) -> void:
 	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or season == null or season.phase != SeasonState.Phase.DRAFT or not season.offers().has(id): return
@@ -624,7 +633,7 @@ func play_next() -> void:
 	var fixture: Dictionary = season.pending_fixture()
 	var state: MatchState = season.make_match()
 	var field: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
-	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence():
+	if state==null or field==null or not ClubCareer.same(state.stadium,_expected_stadium(fixture)) or not state.sure_shot.enable_current_evidence():
 		notice = "This fixture could not be prepared."
 		show_season()
 		return
@@ -632,14 +641,29 @@ func play_next() -> void:
 	_result_recorded = false
 	_result_saved = false
 	_open_match(state,int(fixture.home)==0,true,field.id)
+	if not state.stadium.is_empty() and not _played_field_matches():
+		_close_match()
+		notice="The saved home layout could not be installed. Your career is unchanged."
+		show_season()
 
+
+func _expected_stadium(fixture: Dictionary) -> Dictionary:
+	return Owner.WorkshopApply.fixture(season,fixture) if _active_side()=="dynasty" else {}
 
 func _played_field_matches() -> bool:
 	if season==null or not _scope() or not is_instance_valid(lab) or lab._match_state==null:
 		return false
 	var fixture: Dictionary = season.pending_fixture()
 	var expected: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
-	return expected!=null and lab._field_definition==expected and lab._field_id==expected.id and lab._match_state.stadium.is_empty() and ClubCareer.same(lab._match_state.league_rules, season.league_rules) and _fixture_id==int(fixture.get("id",-1)) and lab._match_state.pitch_catalog==season.build.pitch_catalog_signature()
+	var stadium:=_expected_stadium(fixture)
+	if not ClubCareer.same(lab._match_state.stadium,stadium): return false
+	if not stadium.is_empty():
+		if not ClubCareer.same(lab.get_meta("stadium_snapshot",{}),stadium) or not lab._player_home: return false
+		var property: Variant=lab.get_meta("stadium_property",null)
+		if not is_instance_valid(property) or not property is StadiumPropertyGeometry or not property.objects.has(stadium.layout.receiver): return false
+		var receiver: StadiumPitchReceiver=property.get_node_or_null("PitchReceiverPresentation")
+		if receiver==null or receiver.chair!=property.objects[stadium.layout.receiver] or lab._pitch_actor.receiver_router!=receiver.route: return false
+	return expected!=null and lab._field_definition==expected and lab._field_id==expected.id and ClubCareer.same(lab._match_state.league_rules, season.league_rules) and _fixture_id==int(fixture.get("id",-1)) and lab._match_state.pitch_catalog==season.build.pitch_catalog_signature()
 
 
 func finish_game() -> void:
@@ -657,6 +681,8 @@ func finish_game() -> void:
 	if candidate==null:
 		return
 	candidate.physical.pending = {"human":human.duplicate(true),"reports":[]}
+	var key:=StadiumLayoutSnapshot.key(_expected_stadium(season.pending_fixture()))
+	if not key.is_empty(): candidate.physical.pending["property"]=key
 	retained_human = human.duplicate(true)
 	_retain(candidate,saved_bytes)
 

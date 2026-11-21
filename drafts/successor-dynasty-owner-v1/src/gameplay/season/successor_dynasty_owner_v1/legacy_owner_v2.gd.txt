@@ -171,7 +171,7 @@ static func pack_current(owner, current: Dictionary) -> Dictionary:
 	result.merge({"version":2,"format":FORMAT,"active":"dynasty","dynasty":current})
 	return result
 static func capture(owner) -> Dictionary:
-	if owner==null or owner.session==null: return {}
+	if owner==null or owner.session==null or not owner.session.home_property.is_empty(): return {}
 	var current: Dictionary=Codec.capture(owner.session)
 	if current.is_empty() or (not owner.alternate.is_empty() and Previous.restore(owner.alternate)==null): return {}
 	return pack_current(owner,current)
@@ -184,7 +184,7 @@ static func restore(value: Variant):
 	# Consume only the fixed codec producer's fresh checked output in this call.
 	# No input API accepts a caller-created admission pair or trusted payload.
 	var current: Dictionary=Codec._hydrate_current_checked(value.dynasty)
-	if current.is_empty(): return null
+	if current.is_empty() or not current.season.home_property.is_empty(): return null
 	result.session=current.season
 	if not result.alternate.is_empty() and Previous.restore(result.alternate)==null: return null
 	var checked: Dictionary=pack_current(result,current.captured)
