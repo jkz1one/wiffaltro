@@ -41,3 +41,32 @@ and exact predecessor
 `954e9bf5c9f75eb1cb6b987b79f8416bcbd433f4d7fac124bdefa8da5ac28706`
 stayed unchanged after independent cold Continue. This is a QA-only
 checkpoint; no gameplay, allocation or pricing rules were changed.
+
+## Actual opening shop and detached shared-bag boundary
+
+The exact settled pair above funds this test; no game was rerun. In the
+actual Common App, seed 42's first visit offered one holdable tactical item,
+Extra Heat (5 Cash). Cancelling its native confirmation preserved both
+files; confirming bought it once. A native reroll cost 4 and exposed one
+holdable development card, Batting Cage (6 Cash). The final wallet held
+both items in the same pool and had 3 of its initial 18 Cash left. There was
+no further hold offer and the next reroll cost 6, so this actual opening
+visit did not acquire a third held item or reach a fourth purchase. The
+six first-round rewards remained once each after independent cold Continue.
+
+A separately labeled in-memory test reused those two exact receipts to
+probe the normal field-delivery allocation boundary. Standard's two-place
+bag rejects the supplied third Tape; Dugout lets it occupy the third place.
+A separate already-full Dugout delivery refuses a fourth and preserves the
+existing copies. This controls the delivery trigger (no sponsor earned or
+game/score simulated); it neither acquires a third item in the career nor
+changes its Cash or slots. Native shop source shows a full held purchase
+as disabled with explicit “use or discard” guidance, not a one-step
+replacement dialog; no real full-bag interaction is established here.
+
+Reuse the source-preserving assembly and disposable profile clone. Attach
+`tests/successor_dugout_base_shop.gd.txt` to its scratch scene. Use
+`-- buy` on the exact opening pair, then
+`-- cold 5791b095c5c84997bcc916124d5f332c96a6faea36f91622a829046634d82550 2 3`.
+The test accepts neither normal player saves nor any synthetic reward or
+stock injection.

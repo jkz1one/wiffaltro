@@ -1,0 +1,176 @@
+extends Node
+## Native Common App shop from the exact genuine CP193 opening reward only.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const OPENING="030b791edf6dd3e20687044accb83f9983555ffd488a8558f12f9e41c0cb196f"
+const BACKUP="954e9bf5c9f75eb1cb6b987b79f8416bcbd433f4d7fac124bdefa8da5ac28706"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and ((args.size()==1 and args[0]=="buy") or (args.size()==4 and args[0]=="cold" and args[2].is_valid_int()
+				and args[3].is_valid_int()))
+			and not FileAccess.file_exists("user://season-v1.json"),"isolated Common shop only"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if not _need(FileAccess.get_sha256(Store.PATH)==(OPENING if args[0]=="buy" else args[1])
+			and not backup.is_empty() and (args[0]!="buy" or FileAccess.get_sha256(Store.PATH+".bak")==BACKUP),
+			"exact generated primary and predecessor"): return
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not _need(app.career_owner!=null and app._owned() and app.career_owner.active=="ordinary"
+			and app.season.league_rules.get("league")=="dugout" and app.season.round_index==1
+			and app.season.results.size()==3 and app.season.physical.pending.is_empty()
+			and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+			"actual App cold Continue of exact settled Dugout"): return
+	if args[0]=="cold":
+		var cold: Dictionary=app.season.build._bank.view()
+		if not _need(cold.capacity=={"held":3,"sponsors":5} and cold.held.size()==int(args[2])
+				and cold.cash==int(args[3]) and _rewards_once(app),"cold holds exact inventory, Cash and six original rewards"): return
+		if not _need(_detached_delivery(cold) and Store.raw()==before
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+				"detached allocation contrast only; no earned or saved third item"): return
+		print("DUGOUT_SHOP_COLD ",args[1]," held=",cold.held.size()," cash=",cold.cash)
+		get_tree().quit()
+		return
+	var initial: Dictionary=app.season.build._bank.view()
+	if not _need(initial.cash==18 and initial.held.is_empty() and _rewards_once(app),"earned 18 and empty bag"): return
+	app.open_shop()
+	await get_tree().process_frame
+	var window:=_shop(app)
+	if not _need(window!=null and app.season.build._visit.open and app.season.build.cash()==18
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"actual shop opens with no debit"): return
+	print("DUGOUT_SHOP_STOCK ",JSON.stringify(app.season.build._visit.offers))
+	var bought: int=0
+	var rerolls: int=0
+	while bought<3:
+		window=_shop(app)
+		var buy:=_best(window)
+		if buy==null:
+			if rerolls<2 and bought>0 and app.season.build.cash()>=app.season.build.reroll_price()+3:
+				var reroll:=_button(window,"reroll")
+				if not _need(reroll!=null and _confirm(window,reroll),"native reroll only while a held item could still be affordable"): return
+				rerolls+=1
+				print("DUGOUT_SHOP_REROLL ",JSON.stringify(app.season.build._visit.offers))
+				continue
+			break
+		var original:=Store.raw()
+		var original_backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+		var command: Dictionary=buy.get_meta("shop_command")
+		var offer: String=app.season.build._visit.offers[command.offer]
+		var cash: int=app.season.build.cash()
+		var after: int=buy.get_meta("shop_quote").after.wallet.cash
+		if bought==0:
+			buy.pressed.emit()
+			if not _need(window._confirm.visible and not window._pending.is_empty(),"native confirmation opens before purchasing"): return
+			window._confirm.canceled.emit()
+			window._confirm.hide()
+			if not _need(window._pending.is_empty() and Store.raw()==original
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==original_backup,"native cancel keeps exact pair"): return
+		if not _need(_confirm(window,buy) and Store.raw()!=original
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==original,"native confirm writes once with exact predecessor"): return
+		bought+=1
+		var wallet: Dictionary=app.season.build._bank.view()
+		var purchased:=Store.raw()
+		if not _need(wallet.held.size()==bought and wallet.held[-1].item==offer and wallet.cash==after
+				and wallet.held[-1].paid==cash-after and not app.commit_shop(command)
+				and Store.raw()==purchased and _rewards_once(app),"paid authored receipt, replay inert"): return
+		print("DUGOUT_SHOP_ACTUAL_HELD ",bought," item=",offer," paid=",cash-after," cash=",after)
+	var final: Dictionary=app.season.build._bank.view()
+	if not _need(bought>0 and final.capacity.held==3 and _rewards_once(app),"native held checkout persists without extra rewards"): return
+	for action: Node in _shop(app).find_children("*","Button",true,false):
+		if action.has_meta("shop_command") and _held_purchase(action.get_meta("shop_command")):
+			print("DUGOUT_SHOP_REMAINING ",action.disabled," ",action.get_meta("shop_quote_message"))
+	print("DUGOUT_SHOP_FINAL ",FileAccess.get_sha256(Store.PATH)," held=",bought," cash=",final.cash)
+	get_tree().quit()
+
+func _shop(app: App) -> SeasonShopWindow:
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow and not child.is_queued_for_deletion(): return child
+	return null
+
+func _best(window: SeasonShopWindow) -> Button:
+	var best: Button
+	if window==null: return null
+	var highest: int=-1
+	for child: Node in window.find_children("*","Button",true,false):
+		if child is Button and not child.is_queued_for_deletion() and not child.disabled and child.has_meta("shop_command"):
+			var command: Dictionary=child.get_meta("shop_command")
+			if not _held_purchase(command): continue
+			var cash: int=child.get_meta("shop_quote").after.wallet.cash
+			if cash>highest:
+				best=child
+				highest=cash
+	return best
+
+func _held_purchase(command: Dictionary) -> bool:
+	return command.get("op")=="tactical_buy" or (command.get("op")=="buy" and command.get("mode")=="hold")
+
+func _button(window: SeasonShopWindow, op: String) -> Button:
+	if window==null: return null
+	for child: Node in window.find_children("*","Button",true,false):
+		if child is Button and not child.is_queued_for_deletion() and not child.disabled and child.has_meta("shop_command") \
+				and child.get_meta("shop_command").op==op: return child
+	return null
+
+func _confirm(window: SeasonShopWindow, button: Button) -> bool:
+	button.pressed.emit()
+	if not window._confirm.visible or window._pending.is_empty(): return false
+	window._confirm.confirmed.emit()
+	window._confirm.hide()
+	return window._pending.is_empty() and window.app.retained==null
+
+func _rewards_once(app: App) -> bool:
+	var season: SeasonState=app.season
+	if season.opponents.clubs.size()!=5: return false
+	for i in range(6):
+		var build: SeasonBuild=season.build if i==0 else season.opponents.clubs[str(i)].build
+		var events: Array=build._bank._events.filter(func(event: Dictionary)->bool: return event.op=="reward")
+		if events.size()!=1: return false
+	return true
+
+
+func _detached_delivery(earned_wallet: Dictionary) -> bool:
+	# Standalone allocation exercise, not a simulated sponsor or game result.
+	# Reuse the two really bought held receipts, and probe the delivery branch
+	# after a controlled pending delivery with unchanged ownership and Cash.
+	if earned_wallet.held.size()!=2: return false
+	var receipts: Array=earned_wallet.held
+	if receipts[0].item!="tactical.extra_heat" or receipts[1].item!="development.contact": return false
+	for league: String in ["standard","dugout"]:
+		var wallet:=earned_wallet.duplicate(true)
+		wallet.capacity=LeagueRules.capacities(LeagueRules.capture(league,0))
+		var team:=TeamMatchState.new()
+		team.tactics.held.assign(SeasonTacticalCatalog.held(wallet))
+		MatchFieldSupply.sync_capacity(team,wallet)
+		if team.tactics.held.size()!=1 or team.field_supply.reserved!=1: return false
+		team.field_supply._pending=3
+		team.field_supply.deliver(MatchState.new(),team)
+		var third: bool=league=="dugout"
+		if team.field_supply.evidence().get("outcome")!=("granted" if third else "full"):
+			return false
+		if team.tactics.held.size()!=(2 if third else 1) or team.tactics.held[0].id!=receipts[0].id:
+			return false
+		if third:
+			var existing: Array=team.tactics.held.duplicate(true)
+			var next_attempt:=MatchFieldSupply.new()
+			next_attempt.capacity=team.field_supply.capacity
+			next_attempt.reserved=team.field_supply.reserved
+			next_attempt._pending=4
+			next_attempt.deliver(MatchState.new(),team)
+			if next_attempt.evidence().get("outcome")!="full" or not ClubCareer.same(existing,team.tactics.held):
+				return false
+	print("DUGOUT_DETACHED_DELIVERY third=granted fourth=full standard_third=full no_writes")
+	return true
