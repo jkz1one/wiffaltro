@@ -41,3 +41,55 @@ static func valid(value: Variant) -> bool:
 			or ClubSeasonRecord.analyze(proof).get("finish")!="champion": return false
 	var receipt: Dictionary=ClubSeasonRecord.receipt(proof,close.first_title,0)
 	return not receipt.is_empty() and ClubCareer.same(receipt,close.receipt) and ClubCareer.same(receipt,fold.receipt)
+
+# Retain the exact admitted Common V4 bytes, not the rotating backup or only
+# the compact score projection. The digest is an integrity check, not authority.
+const WITNESS_KIND: String="common-standard-d1-closed-source-v1"
+const MAX_SOURCE: int=64*1024*1024
+const MAX_ENCODED: int=8*1024*1024
+
+static func _pack_closed_source(bytes: PackedByteArray) -> Dictionary:
+	if bytes.is_empty() or bytes.size()>MAX_SOURCE: return {}
+	var encoded: String=Marshalls.raw_to_base64(bytes.compress(FileAccess.COMPRESSION_DEFLATE))
+	if encoded.is_empty() or encoded.length()>MAX_ENCODED: return {}
+	return {"version":1,"kind":WITNESS_KIND,"source_bytes":bytes.size(),
+		"source_sha256":_source_digest(bytes),"deflate_base64":encoded}
+
+static func _source_digest(bytes: PackedByteArray) -> String:
+	var digest:=HashingContext.new()
+	if digest.start(HashingContext.HASH_SHA256)!=OK or digest.update(bytes)!=OK: return ""
+	return digest.finish().hex_encode()
+
+static func _unpack_closed_source(value: Variant) -> PackedByteArray:
+	if not value is Dictionary or not SeasonOwnership._keys(value,["version","kind","source_bytes","source_sha256","deflate_base64"]) \
+			or not SeasonOwnership._whole(value.version,1,1) or value.kind!=WITNESS_KIND \
+			or not SeasonOwnership._whole(value.source_bytes,1,MAX_SOURCE) or not Start.sha(value.source_sha256) \
+			or not value.deflate_base64 is String or value.deflate_base64.is_empty() \
+			or value.deflate_base64.length()>MAX_ENCODED: return PackedByteArray()
+	var compressed:=Marshalls.base64_to_raw(value.deflate_base64)
+	if compressed.is_empty() or Marshalls.raw_to_base64(compressed)!=value.deflate_base64: return PackedByteArray()
+	var bytes:=compressed.decompress(int(value.source_bytes),FileAccess.COMPRESSION_DEFLATE)
+	return bytes if bytes.size()==int(value.source_bytes) and _source_digest(bytes)==value.source_sha256 else PackedByteArray()
+
+static func _replay_closed_source(value: Variant) -> RefCounted:
+	var bytes:=_unpack_closed_source(value)
+	if bytes.is_empty(): return null
+	var parser:=JSON.new()
+	if parser.parse(bytes.get_string_from_utf8())!=OK: return null
+	# Same strict Common V4 production restore as Store.read. Normal restore
+	# does not recognize this witness or the D1 draft dialect.
+	var restore=load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+	return restore.restore(parser.data)
+
+static func rederive_from_witness(value: Variant, seed_value: int) -> Dictionary:
+	if not SeasonOwnership._whole(seed_value,0,2147483647): return {}
+	var owner:=_replay_closed_source(value)
+	return derive(owner,seed_value) if owner!=null else {}
+
+static func restore_witnessed_d1_draft(witness: Variant, draft: Variant) -> SeasonState:
+	var codec=load("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+	var season: SeasonState=codec.restore_d1_draft(draft)
+	if season==null: return null
+	var stored: Dictionary=season.career.start_basis
+	var derived:=rederive_from_witness(witness,int(stored.basis.seed))
+	return season if not derived.is_empty() and ClubCareer.same(stored,derived) else null

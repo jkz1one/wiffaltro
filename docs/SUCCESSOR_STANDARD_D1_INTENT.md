@@ -191,3 +191,52 @@ fabricated and wrong-lineage proof on read/write and independently verify
 the same closed source across the real four-pick saved successor. Only
 after this establishes real custody should the previously documented
 D1-specific venue/report path enable the first physical round.
+
+### Exact closed-source witness
+
+The private Store proof builder verifies the admitted in-memory owner and
+the exact current bytes (including a second match after compression). It
+returns only a proof bundle, never a write ticket. The bundle carries a
+versioned Base64 DEFLATE frame with the exact closed Common V4 source, its
+byte length, and its SHA-256. The reader caps the encoded field at 8 MiB
+and output at 64 MiB before decoding/inflation, verifies exact decoded
+size and digest, replays through the same strict `Owner.restore` used by
+the normal Store, and rederives the title, receipt, lineage and next-start
+basis. A witnessed D1 draft is accepted only if its whole transition
+exactly matches that result. A valid digest is not evidence of a title.
+
+The next Store increment can write this witness and D1 draft together as
+one private, versioned CAS transition. It must call this strict witnessed
+draft reader, not the draft-only QA reader, for cold admission and retain
+the exact witness alongside later active drafts. No path reads a backup
+as the witness, creates a Store slot with a witness, or adds a selector
+here. A genuine Standard Base champion is still needed to qualify
+positive end-to-end custody. During cold replay, both current and any
+parked session in the retained source receive the original strict
+validation; no performance claims about a title or paused side follow
+from the semifinal control.
+
+To reproduce the negative control, assemble Common V4 and stage
+`successor_standard_d1_transition.gd.txt` at `res://transition.gd`; attach
+`successor_standard_d1_closed_witness.gd.txt` to a one-Node scratch scene.
+Use only a copy of the audited CP170 generated closed Base pair in an
+isolated profile. Run the scene in separate processes with `-- replay`
+and `-- matched`, with isolated and engineering flags. The first reports
+exact source size, witness size and strict cold replay milliseconds. The
+second reports separate normal Store cold and already-admitted match
+denial timings; neither run modifies the source or predecessor.
+
+Measured on the Linux x86_64 cloud sandbox (reported AMD EPYC 9V74,
+9 available logical CPUs), Godot 4.6.3 official headless: the exact
+7,701,400-byte closed semifinal source produced an 889,044-byte witness
+JSON. Strict cold witness replay took 24,452 ms; the separate fresh
+process normal Store read of the same source took 26,425 ms. The three
+warm matched/incorrect-request denial probes together took 805 ms.
+These are single runs on a non-champion fixture, not a production target.
+
+Keep this replay off the interactive UI frame. Admit once per exact
+profile/slot revision at cold load and reuse only an in-process object
+admission invalidated by a changed primary, failed CAS, or changed
+candidate; do not persist or accept a replay-success flag. Future
+performance work can separately qualify a versioned smaller replay
+source against the authoritative full cold path before changing it.

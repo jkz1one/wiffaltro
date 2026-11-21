@@ -673,6 +673,16 @@ static func matches_standard_d1_transition(owner: RefCounted, expected: PackedBy
 	var authored:=prepare_standard_d1_transition(owner,expected,int(value.basis.seed))
 	return not authored.is_empty() and ClubCareer.same(value,authored)
 
+# A proof bundle, never a write ticket. Live creation can only originate from
+# this exact admitted slot and ordinary Base championship.
+static func prepare_standard_d1_witness(owner: RefCounted, expected: PackedByteArray, seed_value: int) -> Dictionary:
+	var transition:=prepare_standard_d1_transition(owner,expected,seed_value)
+	if transition.is_empty(): return {}
+	var contract=preload("standard_d1_transition.gd")
+	var witness: Dictionary=contract._pack_closed_source(expected)
+	if witness.is_empty() or not match_owner(owner,expected): return {}
+	return {"transition":transition,"witness":witness}
+
 # Fresh creation only; copies and existing-slot reads retain their strict native paths.
 static func fresh_candidate(seed_value: int, league: String) -> RefCounted:
 	if occupied() or not LeagueAdmission.guard(league,0,{}): return null

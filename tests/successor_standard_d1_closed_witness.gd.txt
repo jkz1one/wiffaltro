@@ -1,0 +1,56 @@
+extends "res://transition.gd"
+## Isolated actual played Base knockout: viable replay, no title or D1 rights.
+const DraftCodec=preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Runtime=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const EXACT="1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and args.size()==1 and args[0] in ["replay","matched"],"isolated explicit witness mode"): return
+	var bytes:=S.raw()
+	var backup:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	if not _expect(T._source_digest(bytes)==EXACT and not backup.is_empty()
+			and not FileAccess.file_exists("user://season-v1.json"),"actual closed Base and predecessor only"): return
+	var witness: Dictionary=T._pack_closed_source(bytes)
+	if not _expect(not witness.is_empty() and T._unpack_closed_source(witness)==bytes,"exact compressed lossless roundtrip"): return
+	if args[0]=="matched":
+		var t:=Time.get_ticks_msec()
+		var owner:=S.read()
+		if not _expect(owner!=null and S.match_owner(owner,bytes),"exact admitted Store owner"): return
+		var cold_ms:=Time.get_ticks_msec()-t
+		t=Time.get_ticks_msec()
+		if not _expect(S.prepare_standard_d1_witness(owner,bytes,39201).is_empty()
+				and S.prepare_standard_d1_witness(owner,backup,39201).is_empty()
+				and S.prepare_standard_d1_witness(null,bytes,39201).is_empty(),"eliminated, wrong slot revision and absent owner denied"): return
+		print("STANDARD_D1_WITNESS_MATCHED_PASS cold_store_ms=",cold_ms," warm_matched_denial_ms=",Time.get_ticks_msec()-t)
+	else:
+		var t:=Time.get_ticks_msec()
+		var replay: RefCounted=T._replay_closed_source(witness)
+		var cold_ms:=Time.get_ticks_msec()-t
+		if not _expect(replay!=null and replay.session.results.size()==33 and replay.lifecycle_status()=="closed"
+				and T.derive(replay,39201).is_empty(),"strict replay of real closed Base rejects D1"): return
+		replay=null
+		for field: String in ["source_sha256","source_bytes","deflate_base64","kind"]:
+			var bad: Dictionary=witness.duplicate()
+			bad[field]=null
+			if not _expect(T.rederive_from_witness(bad,39201).is_empty(),"malformed witness "+field): return
+		var bad: Dictionary=witness.duplicate()
+		bad.deflate_base64=Marshalls.raw_to_base64(PackedByteArray([1,2,3,4]))
+		if not _expect(T.rederive_from_witness(bad,39201).is_empty(),"invalid deflate refused"): return
+		var payload: Dictionary=JSON.parse_string(bytes.get_string_from_utf8())
+		payload.ordinary.state.results.reverse()
+		bad=T._pack_closed_source(JSON.stringify(payload,"",true,true).to_utf8_buffer())
+		if not _expect(not bad.is_empty() and T._replay_closed_source(bad)==null,"reordered settled rows refused even after repacking and rehashing"): return
+		var seed_owner: RefCounted=O.create_ordinary(42,"standard")
+		var synthetic: SeasonState=Runtime.create_d1_draft(_shape_sample(seed_owner))
+		var draft: Dictionary=DraftCodec.capture_d1_draft(synthetic)
+		var fresh: Dictionary=T._pack_closed_source(JSON.stringify(O.capture(seed_owner),"",true,true).to_utf8_buffer())
+		if not _expect(not draft.is_empty() and not fresh.is_empty()
+				and T.restore_witnessed_d1_draft(fresh,draft)==null,"valid draft shape and wrong unearned slot do not confer rights"): return
+		print("STANDARD_D1_WITNESS_REPLAY_PASS source_bytes=",bytes.size(),
+			" witness_json_bytes=",JSON.stringify(witness).to_utf8_buffer().size()," cold_replay_ms=",cold_ms)
+	if not _expect(S.raw()==bytes and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup
+			and not FileAccess.file_exists(S.PATH+".tmp"),"primary and backup byte inert"): return
+	get_tree().quit()
