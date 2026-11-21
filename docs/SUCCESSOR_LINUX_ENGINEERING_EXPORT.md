@@ -137,3 +137,32 @@ PCK replay using new isolated profiles. It checks six single receipts,
 unchanged reports, strict validation, altered catalog/pitching/report
 refusals, byte-identical output, and a distinct cold process. It does not
 start physics workers, derive a save from hashes, or accept player saves.
+
+## Packaged Dynasty Season 2: resume and settle
+
+This is a separate mode and save from Original Game. In the same audited
+Linux ELF/PCK, the normal installed launcher continued an isolated copy of
+the existing Season 2 Dynasty with a completed human game and both original
+NPC reports still pending. The source-side play and close/carry proofs are
+recorded in checkpoint `2fecdd69722815e2665df8e82ff49ab0b3b0d506` and its
+parent. Unlike the earlier shop test, this starts on the active carried
+Dynasty side, with the ordinary career parked.
+
+In the live window, Resume Saved Round advanced to Round 2 and showed the
+9–6 human win. The saved round contained all three completed results and
+exactly one reward for each club. The final primary matched the prior
+independent source settlement byte-for-byte; the backup matched the exact
+unsettled input. The two NPC reports, parked ordinary season, and banked
+career were unchanged. No match needed to run again. After stopping the
+isolated process once its save was on disk, a new process continued at
+Dynasty Season 2, Round 2, 1–0, with the same 9–6 result and no writes to
+either slot. This is a cold reopen, not an in-game Dynasty quit test.
+
+`tools/verify_successor_packaged_dynasty_round.py` is a read-only comparison
+of those two exact package files, the prior source slots, and the separate
+rendered slots. Use only the generated synthetic checkpoint from the
+recorded source proof. It checks report parity, payouts, and immutable
+non-Dynasty data; it does not launch the window or provide new gameplay.
+The rendering host used software OpenGL and dummy audio. This is not
+qualification of native Mac, supported audio, target performance, or the
+closed-season title path.
