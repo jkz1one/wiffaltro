@@ -326,6 +326,14 @@ func _close_paired_complete() -> void:
 	var ticket: RefCounted=Store._prepare_paired_close(career_owner,expected)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+# Unbound private Next preview. The closed archive remains current and no
+# commit/season-start capability is linked through this proposal.
+func _propose_paired_next(seed_value: int) -> void:
+	if not _available() or not _owned() or not career_owner.paired_draft_only() or career_owner.lifecycle_status()!="closed" or not retained_report.is_empty() or is_instance_valid(ai_runner): return
+	var expected: PackedByteArray=saved_bytes.duplicate()
+	var ticket: RefCounted=Store._prepare_paired_next_proposal(career_owner,expected,seed_value)
+	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+
 # Unbound private earned-pack continuation; normal shop remains inaccessible.
 func _paired_first_shop(command: Dictionary) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return

@@ -515,15 +515,25 @@ static func prepare_settlement_and_write(owner: RefCounted, expected: PackedByte
 	var ticket: RefCounted = prepare_and_write(owner,envelope,expected)
 	return {"ticket":ticket} if ticket != null else {"error":"The settled candidate could not be admitted."}
 
-# Fixed private Close producer. No caller-selected candidate or report.
+# Fixed private standalone producers. No caller-selected candidate or report.
 static func _prepare_paired_close(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _prepare_paired_metadata(owner,expected,"close")
+
+static func _prepare_paired_next_proposal(owner: RefCounted, expected: PackedByteArray, seed_value: int) -> RefCounted:
+	return _prepare_paired_metadata(owner,expected,"proposal",seed_value)
+
+static func _prepare_paired_metadata(owner: RefCounted, expected: PackedByteArray, action: String, seed_value: int=-1) -> RefCounted:
 	forget_projection()
 	last_error=""
-	if saving or _ticket!=null or not _paired_owner(owner) or owner.lifecycle_status()!="active" or not match_owner(owner,expected): return null
-	# match_owner binds expected bytes, disk CAS, exact previously admitted
-	# native owner and its unchanged raw graph. Close does not change a single
-	# session field. Carry that exact io representation within this operation
-	# rather than replaying physical history for an unchanged fork.
+	if saving or _ticket!=null or not _paired_owner(owner): return null
+	if action=="close":
+		if seed_value!=-1 or owner.lifecycle_status()!="active": return null
+	elif action=="proposal":
+		if not Codec.whole(seed_value,0,2147483647) or owner.lifecycle_status()!="closed" or not owner.ordinary_state.proposal.is_empty(): return null
+	else: return null
+	if not match_owner(owner,expected): return null
+	# match_owner pins exact previously admitted native owner, disk CAS and
+	# its unchanged raw graph. Neither fold changes any session field.
 	var decoded: Variant=JSON.parse_string(expected.get_string_from_utf8())
 	if not decoded is Dictionary or decoded.get("active")!="ordinary" or not decoded.get("ordinary") is Dictionary: return null
 	var current: Dictionary=decoded.ordinary
@@ -533,7 +543,8 @@ static func _prepare_paired_close(owner: RefCounted, expected: PackedByteArray) 
 	var candidate: RefCounted=Owner.new()
 	candidate.session=owner.session
 	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
-	if not Owner.Common._close_paired_complete(candidate,current): return null
+	var changed: bool=Owner.Common._close_paired_complete(candidate,current) if action=="close" else Owner.Common._propose_paired_next(candidate,current,seed_value)
+	if not changed: return null
 	var data: Dictionary=Owner.pack_current(candidate,current)
 	if data.is_empty() or not _matches_raw(owner,_owner_raw): return null
 	var budget: Array=[RawGuard.MAX_NODES,true]

@@ -123,7 +123,7 @@ static func _paired_complete_scope(owner, season: SeasonState) -> bool:
 static func _paired_closed_valid(owner, season: SeasonState, current: Dictionary, birth: Dictionary) -> bool:
 	if birth.is_empty() or not _paired_complete_scope(owner,season): return false
 	var state: Dictionary=owner.ordinary_state
-	if not state.proposal.is_empty() or not state.last_transition.is_empty(): return false
+	if not state.last_transition.is_empty() or not _ordinary_proposal_valid(owner): return false
 	if owner.common.sequence!=1 or not C.same(owner.common.cursors,{"ordinary":1,"dynasty":0}) \
 		or not C.same(owner.common.baseline,{"dynasty_closed":0,"ledger_sha256":Life.digest({})}): return false
 	# This first ordinal may only originate from the deterministic private draft,
@@ -211,11 +211,35 @@ static func dynasty_birth_bound(owner, basis: Dictionary) -> bool:
 		if not C.same(rights,expected): return false
 	return true
 
+# Only the active private first closed season may freeze a proposal for
+# ordinal two. Its current ordinary payload remains the complete source archive
+# until an independently qualified flat archive rollover can consume it.
+static func _paired_proposal_valid(owner, row: Dictionary) -> bool:
+	var state: Dictionary=owner.ordinary_state
+	if not owner.paired_draft_only() or state.ordinal!=1 or state.status!="closed" or owner.common.sequence!=1: return false
+	if not _paired_complete_scope(owner,owner.session) or row.league!="doubleheader" or row.tier!=0: return false
+	if row.id!="%s:1:next"%state.lineage or not owner._digest(row.source) or row.source!=state.last_close.get("session_sha256"): return false
+	if not Start.valid(row.basis): return false
+	var basis: Dictionary=Start.make(int(row.basis.seed),state.lineage,2,1,Life.digest(owner.common.aggregate),projection(owner))
+	return not basis.is_empty() and C.same(row.basis,basis)
+
+static func _propose_paired_next(owner, current: Dictionary, seed_value: int) -> bool:
+	if not C.whole(seed_value,0,2147483647) or not valid(owner) or owner.ordinary_state.status!="closed" or not owner.ordinary_state.proposal.is_empty(): return false
+	if not _paired_complete_scope(owner,owner.session) or current.is_empty(): return false
+	var state: Dictionary=owner.ordinary_state
+	var source: String=Life.digest(current)
+	if source!=state.last_close.get("session_sha256"): return false
+	var basis: Dictionary=Start.make(seed_value,state.lineage,2,1,Life.digest(owner.common.aggregate),projection(owner))
+	if basis.is_empty(): return false
+	state.proposal={"id":"%s:1:next"%state.lineage,"source":source,"league":"doubleheader","tier":0,"basis":basis}
+	return valid(owner)
+
 static func _ordinary_proposal_valid(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	var row: Dictionary=state.proposal
 	if row.is_empty(): return true
 	if state.status!="closed" or state.ordinal>=ClubCareer.MAX_RUNS or not C.keys(row,["id","source","league","tier","basis"]): return false
+	if owner.paired_draft_only(): return _paired_proposal_valid(owner,row)
 	if row.id!="%s:%d:next"%[state.lineage,state.ordinal] or row.source!=state.last_close.get("session_sha256") or row.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or row.tier!=0: return false
 	if not Start.valid(row.basis) or row.basis.lineage!=state.lineage or row.basis.ordinal!=state.ordinal+1 or row.basis.common_sequence>owner.common.sequence: return false
 	# A proposal is frozen at creation. While that aggregate is still current,

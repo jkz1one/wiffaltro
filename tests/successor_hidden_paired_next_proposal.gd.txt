@@ -1,0 +1,89 @@
+extends "res://tests/successor_hidden_paired_complete_close.gd"
+
+const NEXT_SEED: int=1002
+
+func run() -> void:
+ var args=OS.get_cmdline_user_args()
+ if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=1:get_tree().quit(2);return
+ var mode:String=args[0]
+ var app=Game10ObservedApp.new()
+ get_tree().root.add_child(app)
+ var primary:PackedByteArray=Store.raw()
+ var backup:PackedByteArray=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+ var gates:int=Live.paired_history_calls
+ var replays:int=PairHistory.Collector.replay_calls
+ var started:int=Time.get_ticks_msec()
+ print("CP127_STAGE cold")
+ app.reload_save()
+ print("PROPOSAL_READ_MS=",Time.get_ticks_msec()-started," GATES=",Live.paired_history_calls-gates," REPLAYS=",PairHistory.Collector.replay_calls-replays)
+ if mode.begins_with("tamper"):
+  check(app.season==null and exact(primary,backup),"corrupt "+mode+" refused; both slots unchanged")
+ elif check(app.season!=null and app._owned() and exact(primary,backup),"new process owns exact input"):
+  if mode=="standard":
+   check(not app.career_owner.paired_draft_only() and Live.paired_history_calls-gates==0,"Standard owner unchanged; zero paired capture")
+   app._propose_paired_next(NEXT_SEED)
+   check(app.retained==null and Store._prepare_paired_next_proposal(app.career_owner,primary,NEXT_SEED)==null and exact(primary,backup),"paired proposal refuses Standard")
+  else:
+   var canonical:String=source_digest(primary)
+   check(Live.paired_history_calls-gates==2 and PairHistory.Collector.replay_calls-replays==6 and postseason_paid(app.season) and native_closed(app.career_owner,canonical),"cold independently authenticates every prior paid row and exact original close/77 balance")
+   if mode=="propose":
+    propose_once(app,primary,backup,canonical)
+   elif mode=="proposal":
+    check(proposal_matches(app.career_owner,canonical),"exact frozen same-Base proposal and native inherited rights; no new season exists")
+    blocked(app,primary,backup)
+   else:check(false,"unknown mode")
+ app.free()
+ if failures==0:print("CP127_PASS")
+ get_tree().quit(0 if failures==0 else 1)
+
+func proposal_matches(owner,canonical:String) -> bool:
+ var state:Dictionary=owner.ordinary_state
+ var p:Dictionary=state.proposal
+ if p.is_empty() or not state.last_transition.is_empty() or not native_closed(owner,canonical):return false
+ if p.id!=state.lineage+":1:next" or p.source!=canonical or p.league!="doubleheader" or p.tier!=0:return false
+ var basis:Dictionary=Owner.Common.Start.make(NEXT_SEED,state.lineage,2,1,Owner.Common.Life.digest(owner.common.aggregate),Owner.Common.projection(owner))
+ return not basis.is_empty() and Live.same(p.basis,basis) and Live.same(basis.exotic_rights,["pitch.corkscrew","pitch.switchback"]) \
+  and Live.same(owner.next_preview(),{"kind":"ordinary","league":"doubleheader","tier":0,"seed":NEXT_SEED,"ordinal":2,"player_access":basis.player_access,"starts":basis.starts,"exotic_rights":basis.exotic_rights}) and owner.session.season_seed!=NEXT_SEED
+
+func propose_once(app,primary:PackedByteArray,backup:PackedByteArray,canonical:String) -> void:
+ var owner=app.career_owner
+ var source:SeasonState=app.season
+ var foreign=Owner.new();foreign.session=source;foreign.active="ordinary"
+ check(owner.ordinary_state.proposal.is_empty() and owner.next_preview().is_empty(),"no existing preview")
+ check(Store._prepare_paired_next_proposal(foreign,primary,NEXT_SEED)==null and Store._prepare_paired_next_proposal(owner,backup,NEXT_SEED)==null,"foreign/stale proposal refuse")
+ check(Store._prepare_paired_next_proposal(owner,primary,-1)==null and Store._prepare_paired_next_proposal(owner,primary,2147483648)==null,"invalid seed bounds refuse")
+ app.propose_next(NEXT_SEED)
+ check(app.retained==null and exact(primary,backup),"public proposal route remains sealed")
+ var obstruction:String=ProjectSettings.globalize_path(Store.PATH+".tmp")
+ if not check(DirAccess.make_dir_absolute(obstruction)==OK,"hold isolated writer"):return
+ var anchors:int=Live.paired_history_calls
+ print("CP127_STAGE candidate")
+ var started:int=Time.get_ticks_msec()
+ app._propose_paired_next(NEXT_SEED)
+ print("PROPOSAL_CANDIDATE_MS=",Time.get_ticks_msec()-started)
+ if not check(app.retained_envelope!=null,"exact private proposed owner retained"):return
+ var held=app.retained_envelope
+ check(held.session==source and proposal_matches(held,canonical) and Live.paired_history_calls-anchors==1,"owns native frozen proposal; no expensive history replay, separate deterministic lineage")
+ app._propose_paired_next(NEXT_SEED+1)
+ app.commit_next()
+ check(app.retained_envelope==held and app.career_owner==owner and owner.ordinary_state.proposal.is_empty() and Store.match_owner(owner,primary) and exact(primary,backup),"alternate seed/commit attempt keeps held proposal, original owner and exact slots unchanged")
+ if not check(DirAccess.remove_absolute(obstruction)==OK,"release only isolated obstacle"):return
+ held.ordinary_state.proposal.tier=1
+ check(not Store.write_prepared(app._save_ticket) and exact(primary,backup),"changed retained proposal refuses without writes")
+ held.ordinary_state.proposal.tier=0
+ anchors=Live.paired_history_calls
+ print("CP127_STAGE retry")
+ started=Time.get_ticks_msec()
+ app.retry_save()
+ print("PROPOSAL_RETRY_MS=",Time.get_ticks_msec()-started)
+ if not check(app.career_owner==held and app.retained==null and app.season==source and owner.ordinary_state.proposal.is_empty() and Live.paired_history_calls==anchors and exact(app.saved_bytes,primary),"held retry writes the exact proposal once without replay or aliasing outer metadata"):return
+ blocked(app,Store.raw(),primary)
+
+func blocked(app,primary:PackedByteArray,backup:PackedByteArray) -> void:
+ var owner=app.career_owner
+ app._propose_paired_next(NEXT_SEED)
+ app._propose_paired_next(NEXT_SEED+1)
+ app.propose_next(NEXT_SEED)
+ app.commit_next()
+ check(Store._prepare_paired_next_proposal(owner,primary,NEXT_SEED)==null and not owner.propose_next(NEXT_SEED) and not owner.commit_next() and not Store.switch_available(owner) and not app.session_switch_allowed(),"duplicate, generic Next/alternate and public routes sealed")
+ check(owner.current_ordinal()==1 and owner.lifecycle_status()=="closed" and app.career_owner==owner and app.retained==null and exact(primary,backup),"proposal does not start season, duplicate receipt, change archives or touch either slot")
