@@ -374,3 +374,32 @@ succeeded; the two exact slot files remained unchanged at cold reopen.
 This is native Linux UI settlement of already captured physical results,
 not a packaged worker launch, a new full manual round, hardware timing,
 audio, native macOS, or public-beta qualification.
+
+### Fresh NPC simulation in the exact native package
+
+A separate rendered run used the same ELF/PCK and a disposable copy of the
+Dugout QA **human-only** stage (primary
+`be94a7f098bbc82ed56f906dbd035438f67581d4628b6b6c71c06d14df2e0de6`,
+backup `49060938c619df4a1d0f96f87072d60fbafabdf89a841695cd958859a3c7c395`).
+There was no NPC report in either input, and the human result was not replayed.
+One click on **Resume Saved Round** started the normal Common App's
+in-process match in its SubViewport, not Original Game's legacy subprocess.
+
+The actual NPC fixture 1 finished 9–10 with a new Report114 and 192 play
+records. The request
+`2894ddee59892a2b5bfe4b1aa0847ed26ca531299c095b94faac23981001402d`
+matched the independently recorded source case. The newly decoded career
+matched it except for the report's physical elapsed field (235.53618 s in
+this rendered software run, 236.73333 s for the earlier headless test).
+The raw primary became
+`e0a7782eea7f1446c31cee4c08746977b0a5e4f3bf2ac61be762216ffd76bca4`;
+the backup was the exact human-only primary. The original human receipt
+and all rewards and Cash stayed unchanged: the round was still pending,
+with one NPC report and no settled results. Native Quit and a fresh native
+Continue retained exactly those two files and the pending report.
+
+The software-rendered window stayed responsive while Resume was disabled,
+but it showed no progress for the running simulation. A new report was
+observed after about four minutes on this test host. This is not a target
+performance, second fixture, full round, separate child process, named
+stadium, or native macOS test.
