@@ -1,0 +1,34 @@
+extends RefCounted
+## Native Standard projection only. Not a Common V4 session or save authority.
+const Bound = preload("res://src/gameplay/season/dynasty_standard_save.gd")
+const Grant = preload("res://src/gameplay/season/dynasty_standard_grant.gd")
+const Live = preload("res://src/gameplay/season/dynasty_standard_live.gd")
+const Replay = preload("res://src/gameplay/season/dynasty_standard_replay.gd")
+
+static func create(native_admission: Dictionary, raw_binding: Dictionary, profile: Dictionary) -> SeasonState:
+	# The caller supplies replayable native owner history, not a raw grant claim.
+	# An eventual Common V4 entry must independently qualify its genuine title.
+	if not ClubCareer.same(profile,Replay.profile(1)): return null
+	var binding: Dictionary=Bound.binding(raw_binding)
+	if binding.is_empty() or binding.tier!=1 or binding.get("format")!=Bound.LIVE_VERSION \
+			or binding.has("starting_profile"): return null
+	var grant: Dictionary=Grant.capture(native_admission)
+	if grant.is_empty(): return null
+	var season: SeasonState=Live.create(grant,binding)
+	return season if matches(season,profile) else null
+
+static func matches(season: SeasonState, profile: Dictionary) -> bool:
+	if not ClubCareer.same(profile,Replay.profile(1)) or not Live.matches(season): return false
+	var binding: Dictionary=Bound.binding(season._standard_live_context.session)
+	if binding.is_empty() or binding.tier!=1 or binding.get("format")!=Bound.LIVE_VERSION \
+			or binding.has("starting_profile") or not season._dynasty_owner_binding.is_empty() \
+			or season.home_property.is_empty() or not SeasonFinalVenue.standard_d1_context(season): return false
+	var away: Dictionary=SeasonVenues.capture_five(season.season_seed,season._npc_replay_run,1)
+	# capture_standard_d1 itself is a first-birth writer of the native descriptor.
+	# Here the native season is already detached; rederive the same Grand I row.
+	var final: Dictionary=SeasonFinalVenue.capture_grand_i(season.season_seed,season._npc_replay_run)
+	if final.is_empty(): return false
+	final.selection=SeasonFinalVenue.STANDARD_D1_SELECTION
+	final=SeasonFinalVenue.normalized(final,season.season_seed,season._npc_replay_run)
+	return not away.is_empty() and not final.is_empty() and ClubCareer.same(season.npc_venues,away) \
+		and ClubCareer.same(season.final_venue,final)

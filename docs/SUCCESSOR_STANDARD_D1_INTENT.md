@@ -57,3 +57,32 @@ an entitlement; do not seed scores or substitute a native synthetic unit
 fixture. Once that title exists, qualify intent, private four-pick
 birth/Next and cold reopen before doing a full real D1 round/shop and D1
 completion. No new D1 selector access is enabled here.
+
+## Detached native D1 reference
+
+The additive `standard_d1_detached.gd` adapter constructs an in-memory
+Standard D1 session through the existing native Standard live factory. It
+derives its grant by strictly normalizing a native admission history; it
+does not accept a raw grant, a title flag, or a caller-selected alternative
+profile. No runtime entry, Common V4 writer, selector or Next code calls it.
+A native detached session is not a Common V4 admission record or save.
+The genuine Common V4 Standard Base title remains the gate for future entry.
+
+The isolated test supplies a clearly synthetic native history only inside
+`tests/successor_standard_d1_detached.gd.txt`. To reproduce, materialize the
+source as above, copy the test to `detached.gd` in the scratch project and
+attach it to a one-Node scene. Launch the scene with Godot 4.6.3 headless,
+Dummy audio, isolated HOME/XDG roots and `WIFFALTRO_ISOLATED_TEST=1`.
+Expect `STANDARD_D1_DETACHED_PASS`. No Common V4 or Original Game slot
+should be present before or after.
+
+The sample seed 39201 uses the same owned Backyard home descriptor as its
+native Base counterpart. D1's separately assigned five NPC venues are
+AC-02, AY-02, AY-03, AC-01 and AE-01 by club index 1–5 (two backyard,
+one expanded, two club). The neutral-final recipe is Grand I with the exact
+`standard-d1-season` selection, distinct from Base's selection (not a
+different Grand stadium level). It checks four native draft choices,
+human market 0 and all five NPC market 12 D1 pricing policies, unchanged
+tactical difficulty, and refusal of no-title/wrong-profile/foreign-grant
+cases. This is a detached native reference, not a rendered match,
+Common V4 D1 start/persistence, shop purchase or unlock proof.
