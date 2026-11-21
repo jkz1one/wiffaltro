@@ -78,11 +78,28 @@ def prune_tests(project, reviewed):
     return keep
 
 
-def qualify(repo, root, editor, templates, paid, backup):
+def qualify(repo, root, editor, templates, paid=None, backup=None):
+    no_save = paid is None
+    assert no_save == (backup is None)
+    revision = subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
+    if no_save:
+        assert not subprocess.check_output(['git','status','--porcelain','--untracked-files=no','--',
+                                            'src','project.godot','drafts'],cwd=repo,text=True), 'tracked source differs from revision'
+
+    def build_environment(path):
+        env = environment(path)
+        if no_save:
+            for name in list(env):
+                if name.startswith('WIFFALTRO_') and name not in {
+                    'WIFFALTRO_DYNASTY_ENGINEERING','WIFFALTRO_ISOLATED_TEST',
+                }:
+                    env.pop(name)
+        return env
     assert digest(editor) == EDITOR_SHA
     project, package, empty = (root/x for x in ('project','package','empty'))
     package.mkdir(); empty.mkdir()
-    audited = assemble_successor.assemble(repo, project, dynasty_owner=True)
+    audited = assemble_successor.assemble(repo, project, dynasty_owner=True,
+                                           preserve_authored_project=no_save)
     config = project/'project.godot'
     original = (repo/'project.godot').read_bytes()
     assert hashlib.sha256(original).hexdigest() == PINNED_CONFIG_SHA
@@ -94,7 +111,7 @@ def qualify(repo, root, editor, templates, paid, backup):
     template = root/'linux_release.x86_64'
     extract(templates, template)
     engine = [str(editor), '--headless', '--audio-driver', 'Dummy']
-    env = environment(root/'build-home')
+    env = build_environment(root/'build-home')
     env['WIFFALTRO_PACK_PINNED_PROJECT'] = str(pinned)
     assert subprocess.check_output([*engine,'--version'],env=env,text=True,timeout=30).strip() == VERSION
     project_engine = [*engine,'--path',str(project)]
@@ -169,6 +186,11 @@ binary_format/architecture="x86_64"
         assert (PINNED_CONFIG_SHA if name=='res://project.godot' else inventory.get(name)) == sha
     for p in (bootstrap_script,bootstrap_scene):
         inventory['res://'+p.relative_to(project).as_posix()] = digest(p)
+    if no_save:
+        bootstrap_uid=bootstrap_script.with_suffix('.gd.uid')
+        uid=bootstrap_uid.read_text().strip()
+        assert re.fullmatch(r'uid://[a-z0-9]+',uid) and uid not in uids
+        inventory['res://'+bootstrap_uid.relative_to(project).as_posix()]=digest(bootstrap_uid)
     expected = root/'expected.json'
     expected.write_text(json.dumps({'source':inventory,'broad_sha256':profile['broad_sha256']},sort_keys=True))
     exe, pack = package/'Wiffaltro.x86_64', package/'Wiffaltro.pck'
@@ -177,11 +199,11 @@ binary_format/architecture="x86_64"
     with exe.open('rb') as f: header=f.read(20)
     assert header[:6]==b'\x7fELF\x02\x01' and int.from_bytes(header[18:20],'little')==62
     assert digest(exe) == digest(template)
-    gate_env=environment(root/'no-gate-home')
+    gate_env=build_environment(root/'no-gate-home')
     gate_env.pop('WIFFALTRO_DYNASTY_ENGINEERING',None)
     boot = [str(exe),'--headless','--audio-driver','Dummy','--verbose','--quit-after','60']
     run(boot,empty,gate_env,root/'gate.log','Private Dynasty engineering route not admitted.',expected=2)
-    boot_env=environment(root/'standalone-home')
+    boot_env=build_environment(root/'standalone-home')
     run([*boot,'--log-file','user://engineering-boot.log'],empty,boot_env,root/'standalone.log',
         'Loading resource: '+audited['launcher'])
     assert (Path(boot_env['XDG_DATA_HOME'])/USER_DIR/'engineering-boot.log').is_file()
@@ -190,21 +212,49 @@ binary_format/architecture="x86_64"
     assert 'WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE' not in denied and audited['launcher'] not in denied
     assert not (Path(boot_env['XDG_DATA_HOME'])/'godot/app_userdata/Wiffaltro').exists()
     assert not list(Path(boot_env['XDG_DATA_HOME']).rglob('wiffaltro-common-career-v4.json'))
-    inspect_env=environment(root/'inspect-home')
+    inspect_env=build_environment(root/'inspect-home')
     target=Path(inspect_env['XDG_DATA_HOME'])/USER_DIR
     target.mkdir()
-    slot=target/'wiffaltro-common-career-v4.json'
-    bak=slot.with_suffix('.json.bak')
-    slot.write_bytes(paid); bak.write_bytes(backup)
-    result=run([*engine,'--path',str(empty),'--main-pack',str(pack),'--script',str(audit),'--','pack',str(expected)],
-        empty,inspect_env,root/'pack-audit.log',f'PACKED_REVIEWED_PROFILE_AND_EARNED_SAVE_PASS {len(inventory)}')
-    assert slot.read_bytes()==paid and bak.read_bytes()==backup and not slot.with_suffix('.json.tmp').exists()
+    if no_save:
+        result=run([*engine,'--path',str(empty),'--main-pack',str(pack),'--script',str(audit),'--','pack-no-save',str(expected)],
+            empty,inspect_env,root/'pack-audit.log',f'PACKED_REVIEWED_PROFILE_NO_SAVE_PASS {len(inventory)}')
+        # Conservative refusal: a new broad digest must not appear as any exact
+        # digest literal in the execution source. This covers frozen broad
+        # allowlists without adding or refreshing a runtime stadium pin.
+        observed=re.search(r'PACK_BROAD_SHA256 ([0-9a-f]{64})',result)[1]
+        for path in (project/'src').rglob('*.gd'):
+            assert not re.search(r'["\']'+observed+r'["\']',path.read_text()), f'broad identity already pinned: {path}'
+        for stage in ('build-home','no-gate-home','standalone-home','inspect-home'):
+            data=root/stage/'data'
+            for path in data.rglob('*'):
+                if path.is_dir() and not path.is_symlink():
+                    continue
+                name=path.relative_to(data).as_posix()
+                log_dir='(?:godot/app_userdata/Wiffaltro|'+USER_DIR+')' if stage=='build-home' else USER_DIR
+                safe_log=path.is_file() and not path.is_symlink() and re.fullmatch(
+                    log_dir+r'/logs/godot[^/]*\.log',name)
+                boot_log=stage=='standalone-home' and name==USER_DIR+'/engineering-boot.log' and not path.is_symlink()
+                assert safe_log or boot_log, f'unexpected data file in {stage}: {name}'
+        assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()==revision
+        assert not subprocess.check_output(['git','status','--porcelain','--untracked-files=no','--',
+                                            'src','project.godot','drafts'],cwd=repo,text=True), 'source changed during packaging'
+    else:
+        slot=target/'wiffaltro-common-career-v4.json'
+        bak=slot.with_suffix('.json.bak')
+        slot.write_bytes(paid); bak.write_bytes(backup)
+        result=run([*engine,'--path',str(empty),'--main-pack',str(pack),'--script',str(audit),'--','pack',str(expected)],
+            empty,inspect_env,root/'pack-audit.log',f'PACKED_REVIEWED_PROFILE_AND_EARNED_SAVE_PASS {len(inventory)}')
+        assert slot.read_bytes()==paid and bak.read_bytes()==backup and not slot.with_suffix('.json.tmp').exists()
     metadata={'engine':VERSION,'elf':digest(exe),'pck':digest(pack),'raw_files':len(inventory),
               'reviewed_files':len(reviewed),'reviewed_profile_sha256':PROFILE_SHA,
               'source_broad_sha256':profile['broad_sha256'],
               'pack_broad_sha256':re.search(r'PACK_BROAD_SHA256 ([0-9a-f]{64})',result)[1],
               'scope':'headless Linux engineering; no rendered input, native Mac, legacy worker or broad-stadium qualification'}
-    assert metadata['pack_broad_sha256'] == PACK_BROAD_SHA
+    if no_save:
+        metadata['revision']=revision
+        metadata['scope']='headless Linux engineering; no saves, rendered input, native Mac, worker gameplay or stadium qualification'
+    else:
+        assert metadata['pack_broad_sha256'] == PACK_BROAD_SHA
     (root/'result.json').write_text(json.dumps(metadata,indent=2)+'\n')
     print(json.dumps(metadata),flush=True)
 
@@ -212,11 +262,15 @@ binary_format/architecture="x86_64"
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True,help='New scratch directory for the engineering package and isolated proof')
-    parser.add_argument('--evidence',type=Path,required=True,help='Already backed, exact generated cp88 evidence')
+    mode=parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--evidence',type=Path,help='Already backed, exact generated cp88 evidence')
+    mode.add_argument('--no-save',action='store_true',help='Current clean source, package/boot checks only; never loads a save')
     parser.add_argument('--templates',type=Path,required=True,help='Verified vendor non-Mono 4.6.3 release template archive')
     parser.add_argument('--godot',type=Path,required=True,help='Verified vendor x86_64 Godot 4.6.3 editor binary')
     o=parser.parse_args()
-    paid,backup=evidence(o.evidence)
+    if o.no_save and (not sys.platform.startswith("linux") or sys.flags.optimize):
+        parser.error("use ordinary Python 3 on Linux with the pinned x86-64 editor")
+    paid,backup=(None,None) if o.no_save else evidence(o.evidence)
     root=o.output.resolve()
     root.mkdir(mode=0o700)
     qualify(Path(__file__).resolve().parents[1],root,o.godot.resolve(),o.templates.resolve(),paid,backup)

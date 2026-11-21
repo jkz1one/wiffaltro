@@ -45,7 +45,8 @@ func _check() -> void:
 		output.store_string(JSON.stringify({"reviewed":paths,"broad_sha256":broad_sha},"",true,true))
 		output.close()
 		print("REVIEWED_SOURCE_PROFILE_PASS ", paths.size())
-	elif args[0] == "pack":
+	elif args[0] in ["pack","pack-no-save"]:
+		var no_save: bool = args[0] == "pack-no-save"
 		if ProjectSettings.get_setting("application/run/main_scene") != ENTRY \
 				or OS.get_user_data_dir().get_file() != "WiffaltroEngineeringQA-v1":
 			_fail("incorrect effective packaged entry or isolated data directory"); return
@@ -57,11 +58,25 @@ func _check() -> void:
 			if not FileAccess.file_exists(path) or FileAccess.get_sha256(path) != stock_paths[path]:
 				_fail("missing or changed packaged source " + path); return
 		for path: String in _files("res://"):
+			if no_save and (path.begins_with("res://src/") or path.begins_with("res://engineering_bootstrap/")) \
+					and not stock_paths.has(path):
+				_fail("undeclared source or bootstrap entry " + path); return
 			if (path.begins_with("res://src/tests/") and not stock_paths.has(path)) \
 					or path.begins_with("res://addons/") or path.begins_with("res://tests/") or path.begins_with("res://drafts/") \
 					or path.ends_with(".log") or path.ends_with(".json.bak") or path.ends_with(".zip") \
 					or path.ends_with(".pem") or "wiffaltro-common-career" in path:
 				_fail("unintended content in package " + path); return
+		if broad_sha == expected.broad_sha256:
+			_fail("unexpectedly identical broad source/package footprint"); return
+		if no_save:
+			# No witness/profile readers run in this branch.
+			for path: String in _files("user://"):
+				if not (path.begins_with("user://logs/godot") and path.ends_with(".log")):
+					_fail("unexpected file in mounted no-save profile " + path); return
+			print("PACK_BROAD_SHA256 ", broad_sha)
+			print("PACKED_REVIEWED_PROFILE_NO_SAVE_PASS ", stock_paths.size())
+			quit()
+			return
 		var store = load("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
 		var before: PackedByteArray = store.raw()
 		var owner = store.read()
@@ -72,8 +87,6 @@ func _check() -> void:
 			_fail("strict backed earned save admission or custody failed"); return
 		# A distinct whole-tree hash authorizes certain stadiums. Matching the
 		# reviewed literal set does not entitle this package to a new broad pin.
-		if broad_sha == expected.broad_sha256:
-			_fail("unexpectedly identical broad source/package footprint"); return
 		print("PACK_BROAD_SHA256 ", broad_sha)
 		print("PACKED_REVIEWED_PROFILE_AND_EARNED_SAVE_PASS ", stock_paths.size())
 	else:

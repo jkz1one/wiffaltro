@@ -1,5 +1,35 @@
 # Standalone Linux integrated engineering candidate
 
+## Current checkpoint, no-save build
+
+From an exact clean tracked source checkpoint use the pinned official Linux
+editor and template with a new scratch directory:
+
+```sh
+python3 -B tools/build_successor_engineering_linux.py --no-save \
+  --godot /absolute/path/to/Godot_v4.6.3-stable_linux.x86_64 \
+  --templates /absolute/path/to/Godot_v4.6.3-stable_export_templates.tpz \
+  --output /new/scratch/wiffaltro-linux-engineering
+```
+
+This mode reads no save, strips extra Wiffaltro preview flags, and keeps the
+private engineering launch gate. The current revision, ELF/PCK hashes and
+raw inventory are reported after the release executable passes ungated and
+malformed-worker refusal and an isolated gated boot. A separate matching
+editor mounts the PCK, checks the raw authored project and all 1,246 frozen
+reviewed paths, verifies the declared manifest and vetted bootstrap, and
+refuses saved data. The independently observed broad stadium digest must
+differ from the assembled source digest and must not be a frozen literal
+in execution source. No stadium allowlist is changed; this is no new
+stadium qualification.
+
+Only the Linux ELF and adjacent PCK under `package/` are candidate artifacts.
+Nothing else from the scratch directory is deliverable. This proves
+headless release boot and independent pack inspection, not rendered Linux,
+Mac execution, public Standard D1, actual worker gameplay, or a public beta.
+The existing `--evidence` mode below still requires its exact paired archive
+and historical broad digest.
+
 This is a headless qualification of the current integrated common career entry,
 not the beta, a user-facing package, or proof of rendered playback. It uses the
 official Godot 4.6.3 Linux x86-64 release template and keeps
