@@ -1,0 +1,43 @@
+extends RefCounted
+## Versioned Common V4 start envelope. Shape alone confers no rights or writes.
+const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
+const Common=preload("common_lifecycle.gd")
+const Intent=preload("standard_d1_intent.gd")
+const Life=preload("lifecycle.gd")
+const KIND: String="common-standard-d1-transition-v1"
+
+static func derive(owner: RefCounted, seed_value: int) -> Dictionary:
+	var title: Dictionary=Intent.qualify(owner,seed_value)
+	if title.is_empty(): return {}
+	var basis: Dictionary=Start.make(seed_value,title.lineage,title.to,int(owner.common.sequence),
+		Life.digest(owner.common.aggregate),Common.projection(owner))
+	var row: Dictionary={"version":1,"kind":KIND,"basis":basis,"entitlement":title}
+	return row if valid(row) else {}
+
+static func valid(value: Variant) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value,["version","kind","basis","entitlement"]) \
+			or not SeasonOwnership._whole(value.version,1,1) or value.kind!=KIND or not Start.valid(value.basis): return false
+	var basis: Dictionary=value.basis
+	var title: Variant=value.entitlement
+	if not title is Dictionary or not SeasonOwnership._keys(title,["kind","profile","lineage","from","to","seed","close","fold","proof","title_key"]) \
+			or title.kind!=Intent.KIND or not ClubCareer.same(title.profile,Intent.Replay.profile(1)) \
+			or title.title_key!=Intent.ClubLeagueCareer.title_key("standard",0) \
+			or not SeasonOwnership._whole(title.from,1,ClubCareer.MAX_RUNS-1) \
+			or not SeasonOwnership._whole(title.to,int(title.from)+1,int(title.from)+1) or title.to!=basis.ordinal \
+			or title.lineage!=basis.lineage or not SeasonOwnership._whole(title.seed,int(basis.seed),int(basis.seed)): return false
+	var close: Variant=title.close
+	var fold: Variant=title.fold
+	if not close is Dictionary or not fold is Dictionary or not SeasonOwnership._keys(close,["id","ordinal","reason","session_sha256","receipt","first_title","league","tier"]) \
+			or not SeasonOwnership._keys(fold,["id","side","ordinal","sequence","source","aggregate_sha256","receipt"]): return false
+	var id: String="%s:%d:close"%[title.lineage,int(title.from)]
+	if close.id!=id or not SeasonOwnership._whole(close.ordinal,int(title.from),int(title.from)) or close.reason!="complete" or close.league!="standard" \
+			or not SeasonOwnership._whole(close.tier,0,0) or not close.first_title is bool or not Start.sha(close.session_sha256) \
+			or fold.id!=id or fold.side!="ordinary" \
+			or not SeasonOwnership._whole(fold.ordinal,int(title.from),int(title.from)) or fold.sequence!=basis.common_sequence \
+			or not SeasonOwnership._whole(fold.sequence,int(title.from),ClubCareer.MAX_RUNS*2) \
+			or fold.aggregate_sha256!=basis.common_sha256 or fold.source!=close.session_sha256: return false
+	var proof: Variant=title.proof
+	if not proof is Dictionary or not SeasonOwnership._keys(proof,["draws","scores"]) or not proof.scores is Array or proof.scores.size()!=33 \
+			or ClubSeasonRecord.analyze(proof).get("finish")!="champion": return false
+	var receipt: Dictionary=ClubSeasonRecord.receipt(proof,close.first_title,0)
+	return not receipt.is_empty() and ClubCareer.same(receipt,close.receipt) and ClubCareer.same(receipt,fold.receipt)

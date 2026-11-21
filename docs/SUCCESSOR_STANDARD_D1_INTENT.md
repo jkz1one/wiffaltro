@@ -112,3 +112,40 @@ older detached native request digest as a fallback. Verify a genuine D1
 draft and strict cold reopen, then actual human and worker games, one
 shop price and exact settlement/cold. Keep Base, legacy reads and public
 selector closed to D1 until those gates pass.
+
+## Authoritative Common V4 transition envelope, still write-closed
+
+`OwnerStore.prepare_standard_d1_transition` is read-only. It requires the
+exact admitted live owner, current slot bytes and no retained write, then
+uses the Standard D1 intent's same-lineage championship verification. It
+freezes the ordinary Common V4 projected start together with a versioned
+entitlement: prior close ID, fold, exact native championship receipt and
+proof, new ordinal, seed and authored Standard D1 profile. The nested
+start digest and sequence must match the retained fold. The CP174 Base
+start schema and normal next-season operation are unchanged.
+
+An envelope can be shape-valid without being authorized. The Store
+comparison rederives it from the actual matched owner, never from a
+caller claim. A synthetic, structurally valid champion sample is tested
+as a non-authoritative input; direct proposal/capture/write still fail.
+The current Common V4 ordinary codec admits no such start and no Next
+transition has been enabled. Positive authority still requires an actual
+same-lineage Standard Base championship.
+
+To reproduce the boundary, copy
+`tests/successor_standard_d1_transition.gd.txt` to a scratch Node scene
+in the Common V4 assembly. Run with Godot 4.6.3 and the same isolated
+flags as the intent test. Expect
+`STANDARD_D1_TRANSITION_SHAPE_AND_NO_WRITE_PASS`. The only created save
+is an ordinary Base draft; the synthetic D1 envelope never writes.
+
+For the later physical adoption, the Common App must expect the authored
+D1 venue rather than empty ordinary stadium, and pass the season into its
+worker field lookup. The General physical request builder still rejects
+nonempty stadium. Report114 wrap can produce a venue entry that its
+validator rejects, and the ordinary cold report shape still requires
+no-venue keys. Keep existing Base114 exactly unchanged: use a separately
+versioned D1 successor request/report/cold path binding field and
+canonical venue. The native `src/tests/standard_d1_physical_pending.gd`
+away-yard assertions are a field oracle, not authority to accept native
+Report17 as Common V4 evidence.

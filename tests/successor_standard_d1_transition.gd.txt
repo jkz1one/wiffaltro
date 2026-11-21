@@ -1,0 +1,65 @@
+extends Node
+## Shape-positive sample only; it must never enter the real owner/writer.
+const Fixture=preload("res://src/tests/league_unlock_fixture.gd")
+const G="res://src/gameplay/season/successor_dynasty_owner_v1/"
+const T=preload(G+"standard_d1_transition.gd")
+const S=preload(G+"owner_store.gd")
+const O=preload(G+"owner.gd")
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _expect(ok: bool,label: String) -> bool:
+	if ok: return true
+	printerr("D1 TRANSITION FAIL: ",label)
+	get_tree().quit(1)
+	return false
+
+func _run() -> void:
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" and not S.occupied(),"isolated empty V4 slot"): return
+	var app=load("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn").instantiate()
+	add_child(app)
+	await get_tree().process_frame
+	app.select_league("standard")
+	app.create_fresh(42)
+	var owner: RefCounted=app.career_owner
+	var exact: PackedByteArray=S.raw()
+	if not _expect(owner!=null and S.match_owner(owner,exact) and not exact.is_empty(),"real Standard Base owner admitted"): return
+	var row: Dictionary=_shape_sample(owner)
+	if not _expect(T.valid(row) and T.valid(JSON.parse_string(JSON.stringify(row,"",true,true)))
+			and not T.Start.valid(row),"exact transport shape but not a Base start"): return
+	for key: String in ["seed","profile","lineage","to","title_key","fold","proof","close"]:
+		var forged: Dictionary=row.duplicate(true)
+		forged.entitlement[key]=null
+		if not _expect(not T.valid(forged),"reject wrong "+key): return
+	var forged: Dictionary=row.duplicate(true)
+	forged.entitlement.fold.aggregate_sha256="f".repeat(64)
+	if not _expect(not T.valid(forged),"receipt fold cannot swap aggregate"): return
+	forged=row.duplicate(true)
+	forged.entitlement.close.receipt.total+=25
+	if not _expect(not T.valid(forged),"exact native receipt enforced"): return
+	if not _expect(S.prepare_standard_d1_transition(owner,exact,43).is_empty()
+			and not S.matches_standard_d1_transition(owner,exact,row)
+			and not S.matches_standard_d1_transition(owner,exact+" ".to_utf8_buffer(),row),
+			"native owner cannot authorize synthetic proof or a stale owner pin"): return
+	var candidate=owner.fork()
+	candidate.ordinary_state.proposal={"id":row.entitlement.close.id,"source":row.entitlement.close.session_sha256,
+		"league":"standard","tier":1,"basis":row}
+	if not _expect(O.capture(candidate).is_empty() and S.prepare_and_write(owner,candidate,exact)==null
+			and S.raw()==exact and not FileAccess.file_exists(S.PATH+".bak"),"direct forged D1 proposal cannot write"): return
+	print("STANDARD_D1_TRANSITION_SHAPE_AND_NO_WRITE_PASS")
+	get_tree().quit()
+
+func _shape_sample(owner: RefCounted) -> Dictionary:
+	var lineage: String=owner.ordinary_state.lineage
+	var proof: Dictionary=Fixture.proof("standard",0)
+	var receipt: Dictionary=ClubSeasonRecord.receipt(proof,true,0)
+	var close: Dictionary={"id":lineage+":1:close","ordinal":1,"reason":"complete","session_sha256":"a".repeat(64),
+		"receipt":receipt,"first_title":true,"league":"standard","tier":0}
+	var fold: Dictionary={"id":close.id,"side":"ordinary","ordinal":1,"sequence":1,"source":close.session_sha256,
+		"aggregate_sha256":"b".repeat(64),"receipt":receipt}
+	var title: Dictionary={"kind":T.Intent.KIND,"profile":T.Intent.Replay.profile(1),"lineage":lineage,"from":1,
+		"to":2,"seed":43,"close":close,"fold":fold,"proof":proof,"title_key":"0"}
+	var basis: Dictionary=T.Start.make(43,lineage,2,1,fold.aggregate_sha256,T.Common.projection(owner))
+	return {"version":1,"kind":T.KIND,"basis":basis,"entitlement":title}

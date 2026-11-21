@@ -661,6 +661,18 @@ static func qualify_standard_d1(owner: RefCounted, expected: PackedByteArray, se
 	if saving or _ticket!=null or not match_owner(owner,expected): return {}
 	return preload("standard_d1_intent.gd").qualify(owner,seed_value)
 
+# Bound to the admitted Common V4 owner and bytes. The new envelope is not
+# a write ticket; current Next and the ordinary codec do not accept its kind.
+static func prepare_standard_d1_transition(owner: RefCounted, expected: PackedByteArray, seed_value: int) -> Dictionary:
+	if saving or _ticket!=null or not match_owner(owner,expected): return {}
+	return preload("standard_d1_transition.gd").derive(owner,seed_value)
+
+static func matches_standard_d1_transition(owner: RefCounted, expected: PackedByteArray, value: Variant) -> bool:
+	var transition=preload("standard_d1_transition.gd")
+	if not transition.valid(value): return false
+	var authored:=prepare_standard_d1_transition(owner,expected,int(value.basis.seed))
+	return not authored.is_empty() and ClubCareer.same(value,authored)
+
 # Fresh creation only; copies and existing-slot reads retain their strict native paths.
 static func fresh_candidate(seed_value: int, league: String) -> RefCounted:
 	if occupied() or not LeagueAdmission.guard(league,0,{}): return null
