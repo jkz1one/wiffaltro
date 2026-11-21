@@ -1,0 +1,65 @@
+extends "res://transition.gd"
+## Shape-only prior-title fixture; actual isolated worker evidence.
+const Runtime=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const Npc=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1_npc.gd")
+const Worker="res://src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.tscn"
+const BaseReport=preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+
+func _run() -> void:
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and not S.occupied()
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and not FileAccess.file_exists("user://season-v1.json"),"empty private isolated source profile"): return
+	var t: Dictionary=_shape_sample(O.create_ordinary(42,"standard"))
+	t.basis.seed=39201;t.entitlement.seed=39201
+	t.basis.ordinal=3;t.basis.common_sequence=2;t.entitlement.from=2;t.entitlement.to=3
+	t.entitlement.close.id=t.entitlement.lineage+":2:close";t.entitlement.close.ordinal=2
+	t.entitlement.fold.id=t.entitlement.close.id;t.entitlement.fold.ordinal=2;t.entitlement.fold.sequence=2
+	var season: SeasonState=Runtime.create_d1_draft(t)
+	if not _expect(season!=null,"actual D1 draft runtime"): return
+	for i in range(4):
+		if not _expect(season.choose_player(season.offers()[0]),"native draft choice"): return
+	var draft: Dictionary=Npc.Draft.capture_d1_draft(season)
+	var job: Dictionary=Npc.prepare(draft)
+	if not _expect(not job.is_empty() and job.fixture.id==1 and job.fixture.away==4 and job.fixture.home==1
+			and job.state.stadium.binding.venue_id=="AC-02" and job.binding.field=="field.npc_venue"
+			and StadiumNpcPublicRuntime.source_qualified(),"independent authored fixture/venue and intact source gate"): return
+	var token:=Crypto.new().generate_random_bytes(16).hex_encode()
+	var folder:=PhysicalJobFiles.directory(token)
+	var packet: Dictionary={"token":token,"draft":draft,"binding":job.binding}
+	var request: String=Npc.canonical(packet).sha256_text()
+	if not _expect(DirAccess.make_dir_recursive_absolute(folder)==OK
+			and PhysicalJobFiles.write(folder.path_join("request.json"),packet),"bounded exact local request"): return
+	var started:=Time.get_ticks_msec()
+	var pid:=OS.create_process(OS.get_executable_path(),["--headless","--audio-driver","Dummy","--fixed-fps","60","--path",
+		ProjectSettings.globalize_path("res://"),"--log-file",folder.path_join("worker.log"),Worker,"--","--common-d1-npc="+token+":"+request])
+	if not _expect(pid>0,"actual same-binary child starts"): return
+	var frames: int=0
+	while OS.is_process_running(pid) and Time.get_ticks_msec()-started<650000:
+		await get_tree().create_timer(0.1).timeout
+		frames+=1
+	if Time.get_ticks_msec()-started>=650000:
+		OS.kill(pid)
+		_expect(false,"child over wall budget; isolated job retained")
+		return
+	var rc:=OS.get_process_exit_code(pid)
+	if not _expect(rc==0,"worker exit status "+str(rc)+"; job "+folder): return
+	var response: Variant=PhysicalJobFiles.read(folder.path_join("response.json"))
+	if not _expect(response is Dictionary and SeasonOwnership._keys(response,["token","request_sha256","report"])
+			and response.token==token and response.request_sha256==request and Npc.valid(response.report,job),
+			"finished real NPC evidence with exact job and full validator"): return
+	var bad: Dictionary=response.report.duplicate(true)
+	bad.binding.venue="0".repeat(64)
+	var stale: Dictionary=response.report.duplicate(true)
+	stale.binding.draft_sha256="9".repeat(64)
+	var old: Dictionary=response.report.duplicate(true)
+	old.version=114
+	if not _expect(not Npc.valid(bad,job) and not Npc.valid(stale,job) and not Npc.valid(old,job)
+			and not BaseReport.valid(response.report,job.binding.pitch_catalog)
+			and not Npc.valid(response.report.physical,job) and season.results.is_empty()
+			and not S.occupied() and not FileAccess.file_exists("user://season-v1.json"),
+			"wrong venue/stale/old rejected, cannot settle or use Base114"): return
+	print("STANDARD_D1_NPC_WORKER_PASS ",JSON.stringify({"binding":job.binding,"away":response.report.physical.away_runs,
+		"home":response.report.physical.home_runs,"surfaces":response.report.surfaces.size(),
+		"evidence_sha256":Npc.canonical(response.report).sha256_text(),"wall_ms":Time.get_ticks_msec()-started,
+		"parent_polls":frames,"isolated_evidence":folder}))
+	get_tree().quit()

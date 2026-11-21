@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.gd" id="1"]
+
+[node name="StandardD1NpcWorker" type="Node"]
+script = ExtResource("1")

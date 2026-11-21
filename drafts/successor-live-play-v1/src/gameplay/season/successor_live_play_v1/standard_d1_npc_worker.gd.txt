@@ -1,0 +1,78 @@
+extends Node
+## Private explicit child scene. Stock physical controller and lab; never writes a save.
+const Protocol=preload("standard_d1_npc.gd")
+const PREFIX: String="--common-d1-npc="
+const BACKUP_PIN: String="9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _stop(reason: String) -> void:
+	printerr("COMMON_D1_NPC_WORKER_REFUSED ",reason)
+	get_tree().quit(2)
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not OS.has_feature("editor") or OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1" \
+			or OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" \
+			or FileAccess.get_sha256("res://project.godot")!=BACKUP_PIN \
+			or args.size()!=1 or not args[0].begins_with(PREFIX):
+		_stop("private source project required")
+		return
+	var raw: String=args[0].trim_prefix(PREFIX)
+	var parts:=raw.split(":")
+	if parts.size()!=2 or parts[1].length()!=64:
+		_stop("bad request identifier")
+		return
+	var folder:=PhysicalJobFiles.directory(parts[0])
+	if folder.is_empty():
+		_stop("bad request token")
+		return
+	var packet: Variant=PhysicalJobFiles.read(folder.path_join("request.json"))
+	if not packet is Dictionary or not SeasonOwnership._keys(packet,["token","draft","binding"]) \
+			or packet.token!=parts[0] or Protocol.canonical(packet).sha256_text()!=parts[1]:
+		_stop("request does not match fixed revision")
+		return
+	var job:=Protocol.prepare(packet.draft)
+	if job.is_empty() or not Protocol.Draft.same(packet.binding,job.binding):
+		_stop("stale or unauthored fixture")
+		return
+	var lab:=PitchBatLab.new()
+	lab._configured_match=job.state
+	lab._npc_season=job.context
+	lab._field_id=StringName(job.binding.field)
+	lab._sky_backdrop_enabled=false
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=int(job.binding.seed)
+	add_child(lab)
+	if not StadiumPropertyRuntime.npc_installed_bound(lab,job.state.stadium):
+		_stop("native field installation rejected")
+		return
+	print("COMMON_D1_NPC_ACTIVE fixture=",job.fixture.id," venue=",job.state.stadium.binding.venue_id)
+	var start:=Time.get_ticks_msec()
+	for i in range(150000):
+		await get_tree().physics_frame
+		if i%2400==0:
+			print("COMMON_D1_NPC_PROGRESS frames=",i," pa=",job.state.plate_appearance_number,
+				" releases=",lab._automation.releases.size()," ms=",Time.get_ticks_msec()-start)
+		if job.state.phase==MatchState.Phase.GAME_END: break
+		if Time.get_ticks_msec()-start>570000: break
+	var report:=Protocol.capture(lab,job)
+	if report.is_empty():
+		_stop("completed evidence did not balance")
+		return
+	# Existing atomic local transport. An isolated validator must rederive the
+	# exact request before accepting this as evidence. No Store consumes it.
+	var response: Dictionary={"token":parts[0],"request_sha256":parts[1],"report":report}
+	if not PhysicalJobFiles.write(folder.path_join("response.json"),response):
+		_stop("could not retain isolated evidence")
+		return
+	print("COMMON_D1_NPC_WORKER_CAPTURE ",report.physical.away_runs,":",report.physical.home_runs,
+		" releases=",report.physical.releases.size(), " ms=",Time.get_ticks_msec()-start)
+	lab.queue_free()
+	await get_tree().process_frame
+	OS.delay_msec(50)
+	await get_tree().process_frame
+	OS.delay_msec(50)
+	await get_tree().process_frame
+	get_tree().quit()

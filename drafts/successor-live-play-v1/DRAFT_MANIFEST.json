@@ -224,6 +224,24 @@
       "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_opening.gd",
       "bytes": 3624,
       "sha256": "37b5364777981961d06e6534991ff643c3da4a6d5fa531743ba70d550b1e627a"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_npc.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_npc.gd",
+      "bytes": 4886,
+      "sha256": "ec0f77bb7960c8e8f8887db864e915997fdb3cf2b9cac89c9612afec9c84787d"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.gd.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.gd",
+      "bytes": 3286,
+      "sha256": "4e795ec21bf8447e2cf806805b7d5785d70b4a8103f12d416d699e64b0fe670d"
+    },
+    {
+      "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.tscn.txt",
+      "restore_path": "src/gameplay/season/successor_live_play_v1/standard_d1_npc_worker.tscn",
+      "bytes": 225,
+      "sha256": "dff46417e84a4229bb28edaea7e5a2b71142be50c36cd97c524ee1e68b62ca15"
     }
   ],
   "additions": [

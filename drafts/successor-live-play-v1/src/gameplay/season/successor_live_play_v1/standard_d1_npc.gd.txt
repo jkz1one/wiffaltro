@@ -1,0 +1,79 @@
+extends RefCounted
+## One D1 opening-round NPC fixture. No owner/settlement/public admission.
+const Opening=preload("standard_d1_opening.gd")
+const Draft=preload("codec.gd")
+const Physical=preload("physical_fixtures.gd")
+const General=preload("res://src/gameplay/season/successor_league_general_v2/physical_core.gd")
+const REQUEST: String="common-standard-d1-npc-request-v1"
+const REPORT: String="common-standard-d1-npc-report-v1"
+
+static func canonical(value: Variant) -> String:
+	return JSON.stringify(JSON.parse_string(JSON.stringify(value,"",true,true)),"",true,true)
+
+static func prepare(snapshot: Variant) -> Dictionary:
+	var season: SeasonState=Draft.restore_d1_draft(snapshot)
+	if season==null or season.picks.size()!=4 or season.pending_fixture().get("id")!=0: return {}
+	var fixture: Dictionary=SeasonVenues.fixture_for_id(season,1)
+	if fixture.get("round")!=0 or not Draft.whole(fixture.get("away"),1,5) \
+			or not Draft.whole(fixture.get("home"),1,5) or fixture.away==fixture.home: return {}
+	var context:=Opening._venue_context(season)
+	if context==null: return {}
+	var stadium: Dictionary=SeasonVenues.for_fixture(context,fixture)
+	var field: FieldDefinition=SeasonVenues.field_for_fixture(context,fixture)
+	if field==null or field.id!=&"field.npc_venue" or not StadiumNpcPublicContacts.matches(stadium): return {}
+	var state: MatchState=Physical._match_materialized(season,fixture,stadium)
+	if state==null or state.pitch_catalog.is_empty() or not state.league_rules.is_empty(): return {}
+	var seed: int=Physical.seed_for(season,fixture)
+	var venue: String=StadiumLayoutSnapshot.key(stadium)
+	if venue.is_empty() or stadium.binding.match_seed!=seed: return {}
+	return {"state":state,"context":context,"fixture":fixture,"binding":{"version":1,"kind":REQUEST,
+		"draft_sha256":canonical(snapshot).sha256_text(),"fixture":fixture.duplicate(true),
+		"seed":seed,"field":String(field.id),"venue":venue,"pitch_catalog":state.pitch_catalog}}
+
+static func capture(lab: PitchBatLab, job: Dictionary) -> Dictionary:
+	var state: MatchState=job.state
+	var binding: Dictionary=job.binding
+	if lab._match_state!=state or lab._npc_season!=job.context or lab._automation==null \
+			or lab._automation.seed!=binding.seed or state.phase!=MatchState.Phase.GAME_END \
+			or StadiumLayoutSnapshot.key(state.stadium)!=binding.venue \
+			or not StadiumPropertyRuntime.npc_installed_bound(lab,state.stadium): return {}
+	var property: StadiumNpcPublicProperty=StadiumNpcPublicRuntime._property(lab)
+	if not is_instance_valid(property): return {}
+	var body: Dictionary=General._capture_core(lab)
+	body.current_pitch_bound=state.pitch_catalog
+	body.field=binding.field
+	var report: Dictionary={"version":1,"kind":REPORT,"binding":binding.duplicate(true),
+		"physical":body,"surfaces":PhysicalStadiumContacts.capture(lab._play_records),
+		"yard":property.provenance.duplicate(true)}
+	return report if valid(report,job) else {}
+
+static func valid(report: Variant, job: Dictionary) -> bool:
+	if job.is_empty() or not report is Dictionary \
+			or not SeasonOwnership._keys(report,["version","kind","binding","physical","surfaces","yard"]) \
+			or not Draft.whole(report.version,1,1) or report.kind!=REPORT \
+			or not Draft.same(report.binding,job.binding) or not report.physical is Dictionary: return false
+	var state: MatchState=job.state
+	var body: Dictionary=report.physical
+	var binding: Dictionary=job.binding
+	if StadiumLayoutSnapshot.key(state.stadium)!=binding.venue or state.pitch_catalog!=binding.pitch_catalog \
+			or body.get("field")!=binding.field or not Draft.whole(body.get("seed"),int(binding.seed),int(binding.seed)) \
+			or body.get("version")!=General.BASE_VERSION or not body.get("plays") is Array: return false
+	# The shared baseball-core validator is intentionally field-neutral for
+	# venue reports. The actual public field and contacts are checked here;
+	# no native outer report or Base114 envelope is reinterpreted.
+	var baseball: Dictionary=body.duplicate()
+	baseball.field=String(PitchBatLab.FIELD_ID)
+	if not General._valid_core(baseball,{},[],false,state.pitch_catalog): return false
+	if not StadiumNpcPublicContacts.evidence(report.surfaces,body.plays,report.yard,state.stadium): return false
+	for index in range(2):
+		var team: TeamMatchState=state.away_team if index==0 else state.home_team
+		var row: Dictionary=body.teams[index]
+		var ids: Array[String]=[]
+		for player: PlayerMatchState in team.roster:
+			var id: String=String(player.definition.id)
+			ids.append(id)
+			var recipes: Array=player.definition.starting_pitches.map(func(pitch: PitchDefinition)->String: return String(pitch.id))
+			if not Draft.same(row.recipes.get(id),recipes) or not row.workload.has(id) \
+					or not PhysicalRecoveryFlow.near(row.workload[id].capacity,player.stamina_max): return false
+		if row.name!=team.display_name or not Draft.same(row.roster,ids): return false
+	return true

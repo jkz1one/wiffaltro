@@ -423,3 +423,40 @@ Common App scene and verifies its live menu, then finishes the first
 real AE-01 plate appearance against the unchanged gate. Launch the QA
 scene explicitly under the same engine/project with the headless flags
 above; do not rewrite the project after assembly.
+
+### One venue-bearing NPC worker
+
+A separate D1 source-engineering request/report dialect covers only
+opening-round NPC fixture 1 from an exact replayable four-pick D1
+draft. The same-binary child launches its explicit scene in the
+source-preserving project. It independently restores the draft and
+rederives the scheduled clubs, native venue epoch/field/key, engine
+seed, and successor pitch catalog from that input. No arbitrary scene,
+stadium snapshot, or match-state override is part of the request.
+
+At actual game end the child uses the successor baseball core and
+validates native mounted geometry, contact rows, body provenance,
+rosters, pitch recipes and workload capacity, with the full request
+binding retained in the separate D1 report. The shared core validator
+checks the baseball facts using its existing field-neutral convention;
+the outer D1 contract independently validates the actual public field
+and authored geometry. No native report17 or ordinary Base114
+envelope is emitted, accepted, or changed.
+
+Assemble with `--dynasty-owner --preserve-authored-project`; mount
+`successor_standard_d1_npc.gd.txt` as a scratch QA scene with the
+existing transition fixture staged at `res://transition.gd`. Use the
+source editor executable and an empty disposable profile. The parent
+uses the existing bounded local job transport and checks the exact
+request digest, worker exit, and report independently; these files are
+evidence only, not writable or persistent game authority. No Common
+slot, title entitlement, pending save, settlement, or selector.
+
+The isolated child finished Comets 9–2 over Rivets at AC-02. The
+accepted report contains 154 releases and aligned surface rows; eight
+rows contain recorded stadium events. Its canonical evidence SHA-256
+is `dcbcbf9e7a8d7c101e6cf533d7e2c17c172ce0bef0f9ef649fba429e8d741374`.
+The headless Linux child took about 411 seconds including setup;
+its physical loop took about 356 seconds. No target device frame rate
+was measured. Altered venue, stale draft, and old/relabelled report
+formats did not pass validation.
