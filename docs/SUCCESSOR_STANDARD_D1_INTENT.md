@@ -546,3 +546,32 @@ For QA, assemble with the source-preserving flags and attach
 `-- settle <exact CP185 pending>`, then `-- cold <exact CP185 pending>`
 and `-- repeat <exact CP185 pending>` in separate processes with the
 same disposable profile. The input remains read-only throughout.
+
+### Detached opening market and checkout
+
+The exact prior CP185 pending input and CP186 settled receipt must both
+replay before the detached shop can run. Settlement leaves visit 1 closed;
+the shop invokes the normal eligibility rule and the native zero-cost
+`open` transaction before deriving authored offers and pricing. The
+bounded checkout accepts an exact reviewed eligible loose development card
+and uses native Buy and Hold, not a new cart, a general shop API, or a
+change to the Common public gate. Stale revisions, changed quotes and
+same-state repeat purchases do not apply; cancellation discards the
+detached candidate. Only the QA test writes an isolated receipt.
+Cold replays both prior inputs, the verified native opening and the
+single checkout, and compares the entire journal-backed result. All
+six pre-shop reward events remain exactly once; the archived reward
+balances are historical, not post-purchase balances.
+
+Use the source-preserving assembly with a scratch scene attached to
+`tests/successor_standard_d1_shop.gd.txt`. Run
+`-- buy <exact CP185 pending> <exact CP186 settled>`, then independently
+`-- cold <same pending> <same settled>`, with isolated and engineering
+flags. No matches, native cabinet/cart UI interaction or shared slot
+writes are part of this test.
+
+The exact opening market exposed Pitching Development at 6 game Cash.
+Native checkout held the card, changed Cash from 18 to 12, and consumed
+its exact offer. The separate reroll comparison charged 5 game Cash
+instead of the positive ordinary quote of 4; it did not affect the
+purchased branch.

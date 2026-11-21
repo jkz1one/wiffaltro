@@ -1,0 +1,106 @@
+extends Node
+const Shop=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1_shop.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const PENDING="15875cdcf9de0c580634252c10f50449628ece090f3c1d52fa2f420e2157708e"
+const SETTLED="0006c57ce4b7183ab5649e7fca90931551e4d8db7df418c51e194e14d39f2fc5"
+const FILE="user://d1-qa-opening-shop-v1.json"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool,label: String) -> bool:
+	if ok: return true
+	printerr("STANDARD D1 SHOP FAIL ",label)
+	get_tree().quit(1)
+	return false
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and args.size()==3 and args[0] in ["buy","cold"]
+			and FileAccess.get_sha256(args[1])==PENDING and FileAccess.get_sha256(args[2])==SETTLED
+			and not Store.occupied() and not FileAccess.file_exists("user://season-v1.json"),
+			"exact checkpoints and isolated slot"): return
+	var pending:=FileAccess.get_file_as_bytes(args[1])
+	var settled:=FileAccess.get_file_as_bytes(args[2])
+	if args[0]=="cold":
+		var saved:=FileAccess.get_file_as_bytes(FILE)
+		var cold:=Shop.restore(saved,pending,settled)
+		if not _need(_actual(cold) and Shop.restore(saved,pending,saved).is_empty()
+				and FileAccess.get_file_as_bytes(FILE)==saved,"cold exact checkout, prior receipt required"): return
+		var edited:=cold.duplicate(true)
+		edited.post_market.cash+=1
+		if not _need(Shop.restore(Shop.Settle.Npc.canonical(edited).to_utf8_buffer(),pending,settled).is_empty(),
+				"forged post-purchase cash rejected"): return
+		print("STANDARD_D1_OPENING_SHOP_COLD_PASS ",FileAccess.get_sha256(FILE))
+	else:
+		var exact:=Shop.Settle._verified(settled,pending)
+		if not _need(not exact.is_empty() and not FileAccess.file_exists(FILE),"fresh detached prior"): return
+		var season: SeasonState=exact.season
+		if not _need(Shop._open(season),"eligible native visit opens with no debit"): return
+		var reviewed:=Shop._market(season)
+		print("STANDARD_D1_OPENING_SHOP_QUOTE ",JSON.stringify(reviewed))
+		if not _need(not reviewed.is_empty() and reviewed.cash==18
+				and reviewed.ordinary_reroll==4 and reviewed.reroll==5,
+				"genuine visit and positive D1 surcharge"): return
+		var build:=season.build
+		var original:=Shop.Settle.Npc.canonical(build.to_data())
+		var reroll:=build.candidate({"id":"d1-reroll-comparison","rev":build.revision(),"op":"reroll"})
+		if not _need(reroll!=null and reroll.cash()==13 and reroll._visit.rerolls==1
+				and Shop.Settle.Npc.canonical(build.to_data())==original,
+				"native D1 5 cash reroll only on detached counterfactual"): return
+		var keys: Array=reviewed.offers.keys()
+		keys.sort()
+		var offer: String=""
+		for key: String in keys:
+			if reviewed.offers[key].price>0 and reviewed.offers[key].price<=reviewed.cash:
+				offer=key
+				break
+		if not _need(not offer.is_empty(),"an authored loose card is available and affordable"): return
+		var command: Dictionary={"id":"d1-opening-shop:%d" % build.revision(),"rev":build.revision(),
+			"op":"buy","offer":offer,"mode":"hold","player":"","pitch":"","replace":""}
+		var stale:=command.duplicate(true)
+		stale.rev-=1
+		var transplanted:=reviewed.duplicate(true)
+		transplanted.offers[offer].price-=1
+		if not _need(not Shop._checkout(season,reviewed,stale)
+				and not Shop._checkout(season,transplanted,command)
+				and Shop.Settle.Npc.canonical(build.to_data())==original,
+				"stale revision and forged quote leave original alone"): return
+		var cancelled:=Shop._project_exact(exact,SETTLED,reviewed,command)
+		if not _need(_actual(cancelled) and not Shop._checkout(season,reviewed,command)
+				and not FileAccess.file_exists(FILE),"discard detached purchase; repeat rejected"): return
+		exact={}
+		season=null
+		var retry:=Shop.project(pending,settled,reviewed,command)
+		if not _need(_actual(retry) and Shop.Settle.Codec.same(cancelled,retry)
+				and _write_new(Shop.Settle.Npc.canonical(retry)) and not _write_new("duplicate"),
+				"identical retry records a single isolated purchase"): return
+		print("STANDARD_D1_OPENING_SHOP_WRITE_PASS ",FileAccess.get_sha256(FILE)," item=",
+			reviewed.offers[offer].item," paid=",reviewed.offers[offer].price,
+			" cash=",retry.post_market.cash," rev=",retry.post_market.rev)
+	if not _need(FileAccess.get_file_as_bytes(args[1])==pending and FileAccess.get_file_as_bytes(args[2])==settled
+			and not Store.occupied(),"prior inputs unchanged and no shared slots"): return
+	get_tree().quit()
+
+func _actual(row: Dictionary) -> bool:
+	if row.is_empty() or row.settled_sha256!=SETTLED or row.pending_sha256!=PENDING or row.rewards.size()!=6 \
+			or row.build.pricing_rule!="standard-d1-reroll-v1" or row.reviewed.cash!=18: return false
+	var item: Dictionary=row.reviewed.offers[row.command.offer]
+	var paid: int=int(item.price)
+	var bought: Array=row.wallet.events.filter(func(event: Dictionary)->bool: return event.get("op")=="buy")
+	var rewarded: Array=row.wallet.events.filter(func(event: Dictionary)->bool: return event.get("op")=="reward")
+	return paid>0 and row.post_market.cash==18-paid and row.post_market.rev==row.reviewed.rev+1 \
+			and bought.size()==1 and rewarded.size()==1 and not row.post_market.offers.has(row.command.offer)
+
+func _write_new(text: String) -> bool:
+	if FileAccess.file_exists(FILE) or FileAccess.file_exists(FILE+".tmp") \
+			or text.to_utf8_buffer().size()>Shop.Settle.LIMIT: return false
+	var f:=FileAccess.open(FILE+".tmp",FileAccess.WRITE)
+	if f==null: return false
+	f.store_string(text)
+	f.flush()
+	var ok: bool=f.get_error()==OK
+	f.close()
+	return ok and not FileAccess.file_exists(FILE) and DirAccess.rename_absolute(FILE+".tmp",FILE)==OK

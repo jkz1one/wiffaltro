@@ -1,0 +1,88 @@
+extends RefCounted
+## One detached opening market branch; no entitlement, App, or Store writer.
+const Settle=preload("standard_d1_settlement.gd")
+const NativeSeason=preload("res://src/gameplay/season/season_state_operations_2.gd")
+const KIND="common-standard-d1-opening-shop-v1"
+
+static func _open(season: SeasonState) -> bool:
+	var build:=season.build
+	if not NativeSeason._source_public_shop_available(season) or season.round_index!=1 \
+			or season.phase!=SeasonState.Phase.REGULAR or not build.d1_pricing_valid() \
+			or build._visit.get("open") or build._visit.get("number")!=1: return false
+	var next:=build.candidate({"id":"d1-opening-market:%d" % build.revision(),
+		"rev":build.revision(),"op":"open"})
+	if next==null or next.revision()!=build.revision()+1 or next.cash()!=build.cash(): return false
+	return _adopt_unchanged_roster(season,next)
+
+static func _market(season: SeasonState) -> Dictionary:
+	var build:=season.build
+	if not NativeSeason._source_public_shop_available(season) or season.round_index!=1 \
+			or season.phase!=SeasonState.Phase.REGULAR or not build.d1_pricing_valid() \
+			or not build._visit.get("open") or build._visit.get("number")!=1: return {}
+	var offers: Dictionary={}
+	for offer: String in build._visit.offers:
+		var item: String=build._visit.offers[offer]
+		if DevelopmentShopCatalog.CARDS.has(item) and not build.targets(item).is_empty():
+			offers[offer]={"item":item,"price":int(build.shop_item(item).price)}
+	var ordinary:=SeasonReclamation.price(build._visit)
+	return {"cash":build.cash(),"rev":build.revision(),"reroll":build.reroll_price(),
+		"ordinary_reroll":ordinary,"offers":offers}
+
+static func _adopt_unchanged_roster(season: SeasonState, next: SeasonBuild) -> bool:
+	if next==null or next.roster()!=season.build.roster(): return false
+	# The Common public adopter intentionally refuses D1. Only these already
+	# reviewed, non-roster commands reach the original detached adopter.
+	NativeSeason._source_public_adopt_build(season,next)
+	return season.build==next
+
+static func _checkout(season: SeasonState, reviewed: Dictionary, command: Dictionary) -> bool:
+	if reviewed.is_empty() or not Settle.Codec.same(reviewed,_market(season)) \
+			or not Settle.Codec.primitive(command): return false
+	var offer: Variant=command.get("offer")
+	if not offer is String or not reviewed.offers.has(offer): return false
+	var build:=season.build
+	var exact: Dictionary={"id":"d1-opening-shop:%d" % build.revision(),"rev":build.revision(),
+		"op":"buy","offer":offer,"mode":"hold","player":"","pitch":"","replace":""}
+	if not Settle.Codec.same(command,exact) or build._requests.has(exact.id): return false
+	var next:=build.candidate(exact)
+	if next==null or next.revision()!=build.revision()+1 or not next.d1_pricing_valid() \
+			or next.cash()!=build.cash()-int(reviewed.offers[offer].price): return false
+	return _adopt_unchanged_roster(season,next)
+
+static func quote(pending: PackedByteArray, settled: PackedByteArray) -> Dictionary:
+	var exact:=Settle._verified(settled,pending)
+	return {} if exact.is_empty() or not _open(exact.season) else _market(exact.season)
+
+static func project(pending: PackedByteArray, settled: PackedByteArray, reviewed: Dictionary,
+		command: Dictionary) -> Dictionary:
+	var exact:=Settle._verified(settled,pending)
+	if exact.is_empty() or not _open(exact.season): return {}
+	return _project_exact(exact,Settle.Contract._source_digest(settled),reviewed,command)
+
+static func _project_exact(exact: Dictionary, settled_sha: String, reviewed: Dictionary,
+		command: Dictionary) -> Dictionary:
+	var season: SeasonState=exact.season
+	var before: Dictionary={}
+	for club: String in exact.receipt.rewards: before[club]=exact.receipt.rewards[club].opening_cash
+	if not _checkout(season,reviewed,command): return {}
+	var rewards:=Settle._rewards(season,before)
+	if rewards.size()!=6: return {}
+	for club: String in rewards:
+		var prior: Dictionary=exact.receipt.rewards[club].duplicate(true)
+		if club=="0": prior.closing_cash=season.build.cash()
+		if not Settle.Codec.same(prior,rewards[club]): return {}
+	# The settlement's reward receipt remains historical, not a post-shop balance.
+	return {"version":1,"kind":KIND,"settled_sha256":settled_sha,
+		"pending_sha256":exact.receipt.pending_sha256,"reviewed":reviewed.duplicate(true),
+		"command":command.duplicate(true),"post_market":_market(season),"build":season.build.to_data(),
+		"wallet":season.build._bank.to_data(),"rewards":exact.receipt.rewards.duplicate(true)}
+
+static func restore(bytes: PackedByteArray, pending: PackedByteArray, settled: PackedByteArray) -> Dictionary:
+	if bytes.is_empty() or bytes.size()>Settle.LIMIT: return {}
+	var source:=bytes.get_string_from_utf8()
+	var row: Variant=JSON.parse_string(source)
+	if not row is Dictionary or row.get("kind")!=KIND or not row.get("reviewed") is Dictionary \
+			or not row.get("command") is Dictionary or not Settle.Codec.primitive(row) \
+			or Settle.Npc.canonical(row)!=source: return {}
+	var expected:=project(pending,settled,row.reviewed,row.command)
+	return expected if not expected.is_empty() and Settle.Codec.same(expected,row) else {}

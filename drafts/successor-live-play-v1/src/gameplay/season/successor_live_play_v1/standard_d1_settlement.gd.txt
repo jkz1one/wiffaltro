@@ -62,7 +62,7 @@ static func _rewards(season: SeasonState, before: Dictionary) -> Dictionary:
 static func project(bytes: PackedByteArray) -> Dictionary:
 	var checked:=Pending._checked(bytes)
 	if checked.is_empty(): return {}
-	return _project_checked(checked,Contract._source_digest(bytes))
+	return _project_checked(checked,Contract._source_digest(bytes)).get("receipt",{})
 
 static func _project_checked(checked: Dictionary, pending_sha: String) -> Dictionary:
 	var prior: Dictionary=checked.pending
@@ -96,17 +96,22 @@ static func _project_checked(checked: Dictionary, pending_sha: String) -> Dictio
 			or candidate.player_results.size()!=1 or not candidate.career.sync(candidate): return {}
 	var rewards:=_rewards(candidate,before)
 	if rewards.is_empty() or candidate.career.active_tier()!=1: return {}
-	return {"version":1,"kind":KIND,"pending_sha256":pending_sha,"draft_sha256":context.sha,
+	return {"season":candidate,"receipt":{"version":1,"kind":KIND,"pending_sha256":pending_sha,"draft_sha256":context.sha,
 		"human_sha256":prior.human_sha256,"human_venue":prior.human.venue,"round_index":candidate.round_index,
 		"results":candidate.results.duplicate(true),"player_results":candidate.player_results.duplicate(true),
 		"build":candidate.build.to_data(),"opponents":candidate.opponents.to_data(),
-		"career":candidate.career.runs[0].duplicate(true),"rewards":rewards}
+		"career":candidate.career.runs[0].duplicate(true),"rewards":rewards}}
 
 static func restore(bytes: PackedByteArray, pending_bytes: PackedByteArray) -> Dictionary:
+	return _verified(bytes,pending_bytes).get("receipt",{})
+
+static func _verified(bytes: PackedByteArray, pending_bytes: PackedByteArray) -> Dictionary:
 	if bytes.is_empty() or bytes.size()>LIMIT: return {}
 	var text:=bytes.get_string_from_utf8()
 	var value: Variant=JSON.parse_string(text)
 	if not value is Dictionary or value.get("kind")!=KIND or not Codec.primitive(value) \
 			or Npc.canonical(value)!=text: return {}
-	var replay:=project(pending_bytes)
-	return value if not replay.is_empty() and Codec.same(value,replay) else {}
+	var checked:=Pending._checked(pending_bytes)
+	if checked.is_empty(): return {}
+	var replay:=_project_checked(checked,Contract._source_digest(pending_bytes))
+	return replay if not replay.is_empty() and Codec.same(value,replay.receipt) else {}
