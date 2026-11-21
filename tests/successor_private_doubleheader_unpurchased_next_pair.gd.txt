@@ -1,0 +1,142 @@
+extends "res://tests/successor_hidden_first_settlement.gd"
+const Pair=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const Capture=preload("res://src/presentation/season/successor_live_play_v1/capture_human.gd")
+const Work=preload("res://src/gameplay/season/successor_league_general_v2/physical_workload.gd")
+const EXACT="54270f94b3b00b5b5a43b64bee45c6f2e2a6256238ef6fe74d9f98303bf1c3f8"
+const PAID="7f544c926d547ef0372e7cf1810ff2f2557f27f79818b17ed4d8cbb1189a2ba9"
+const BASELINE="user://exact-settled-pair.json"
+const BUTTON="PLAY NEXT DOUBLEHEADER PAIR"
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func need(ok: bool,label: String) -> bool:
+	if check(ok,label): return true
+	get_tree().quit(1)
+	return false
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["play","cold","paid","flag-off"] and FileAccess.get_sha256(BASELINE)==EXACT
+			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
+			"explicit generated CP215 family only"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var original: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BASELINE))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	var button:=_button(app,BUTTON)
+	if args[0]=="paid":
+		var authored: Dictionary=Pair.start(app.season)
+		if need(args[1]==PAID and app._owned() and button==null and Live.unpurchased_next_pair_kind(app.season).is_empty()
+				and not authored.is_empty() and authored.binding.request=="92895ac547ea020d32f8a51f96063bb020c0ca916206a3f4e07a2e6b6dbf6538"
+				and exact(before,backup),"existing paid return start binding and slot unchanged"): get_tree().quit()
+		return
+	if not need(app._owned() and exact(before,backup) and _prior(app,original),"strict exact earlier pair and all journals carried intact"): return
+	if args[0]=="flag-off":
+		app.play_private_unpurchased_next_pair()
+		if need(button==null and not is_instance_valid(app.lab) and exact(before,backup),"flag-off holds visible and direct entry"): get_tree().quit()
+		return
+	if args[0]=="cold":
+		if not need(backup.is_empty() and button==null and _pending(app),"independent primary-only cold next-pair human pending with no payout"): return
+		var prior: SeasonState=app.season.fork_live()
+		prior.physical.pending.clear()
+		var opening: Dictionary=Pair.start(prior)
+		if not need(not opening.is_empty() and Live.same(opening.binding,app.season.physical.pending.binding)
+				and _fresh_pair(prior,opening.state,opening.fixture,app.season.physical.pending.human[13]),
+				"cold same exact bound field, opponent and both first-leg full stamina budgets"): return
+		app.play_private_unpurchased_next_pair()
+		app._run_paired_npc(7)
+		app._settle_paired_next_first_leg()
+		if need(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(before,backup),
+				"duplicate, future NPC and settlement held"):
+			print("UNPURCHASED_NEXT_PAIR_COLD_PASS ",args[1])
+			get_tree().quit()
+		return
+	if not need(args[1]==EXACT and button!=null and app.season.physical.pending.is_empty(),"exact completed opening pair offers native new opener"): return
+	var fixture: Dictionary=app.season.pending_fixture()
+	var baseline: Dictionary=Pair.start(app.season)
+	if not need(fixture.get("id")==6 and SeasonDoubleheaderRules.first(fixture.id)==-1 and not baseline.is_empty(),"new authored opponent and no old pair link"): return
+	app.play_next()
+	app._play_paired_first()
+	app._play_paired_return()
+	if not need(not is_instance_valid(app.lab) and exact(before,backup),"general play and completed pair cannot relaunch"): return
+	var probe: SeasonState=Pair._detached(app.season,Pair.PrivateFollowupFork)
+	if not need(probe!=null,"exact detached pre-ingest check"): return
+	probe.physical.projecting=true
+	if not need(probe.league_context_consistent() and not Live.scope(probe),"authorized detached human context, not a persistable candidate"): return
+	button.pressed.emit()
+	var lab: PitchBatLab=app.lab
+	if not need(is_instance_valid(lab) and Live.same(app._paired_first_pin.binding,baseline.binding)
+			and _fresh_pair(app.season,lab._match_state,fixture,[]) and exact(before,backup),
+			"native next pair starts with both exact full stamina budgets; no shop or write"): return
+	for frame in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not need(not lab._match_presentation_director.blocks_gameplay(),"native intro completed"): return
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=Physical.seed_for(app.season,fixture)
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	var started:=Time.get_ticks_msec()
+	var finished:=false
+	for frame in range(150000):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+			finished=true
+			break
+		if frame%12000==0: print("UNPURCHASED_NEXT_PAIR_PHYSICS frame=",frame," PA=",lab._match_state.plate_appearance_number)
+	if not need(finished,"one actual next-pair game, no replay or fabricated score"): return
+	var result:=Vector2i(lab._match_state.away_team.runs,lab._match_state.home_team.runs)
+	var capture: Array=Capture.capture(app)
+	var witness_path: String="user://fixture6-native-pre-return.json"
+	if not need(capture.size()==14 and capture[0]==6 and not FileAccess.file_exists(witness_path),
+			"exact native raw fixture six capture before Return"): return
+	var file:=FileAccess.open(witness_path,FileAccess.WRITE)
+	if not need(file!=null,"isolated pre-return evidence file"): return
+	file.store_string(JSON.stringify({"source":args[1],"binding":baseline.binding,"human":capture},"",true,true))
+	file.flush()
+	var ok: bool=file.get_error()==OK
+	file.close()
+	if not need(ok and not FileAccess.get_file_as_bytes(witness_path).is_empty(),"preserve raw native capture before write"): return
+	print("UNPURCHASED_NEXT_PAIR_RAW_SHA ",FileAccess.get_sha256(witness_path))
+	lab.match_return_requested.emit()
+	if not need(not Live.same(before,Store.raw()),"Return durable checkpoint; App status: "+app.notice): return
+	if need(not is_instance_valid(app.lab) and _pending(app) and _prior(app,original)
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before and Live.same(app.season.physical.pending.binding,baseline.binding),
+			"actual Return saves only fixture 6 pending; no debit or award"):
+		print("UNPURCHASED_NEXT_PAIR_PENDING_PASS ",FileAccess.get_sha256(Store.PATH)," away=",result.x," home=",result.y,
+			" elapsed_ms=",Time.get_ticks_msec()-started)
+		get_tree().quit()
+func _prior(app: App,original: Dictionary) -> bool:
+	var s: SeasonState=app.season
+	return s.round_index==2 and s.build.cash()==42 and Live.unpurchased_next_pair_kind(s)=="browsed" \
+		and Live.same(s.build._bank.view().rewards,{"0":true,"3":true}) and Live.same(s.results,original.ordinary.state.results) \
+		and Live.same(s.player_results,original.ordinary.state.player_results) and Live.same(s.physical.reports,original.ordinary.physical.reports) \
+		and Live.same(app.career_owner.common,original.common)
+func _pending(app: App) -> bool:
+	var pending: Dictionary=app.season.physical.pending
+	return Pair.bound_shape(pending) and pending.human[0]==6 and pending.reports.is_empty()
+func _fresh_pair(season: SeasonState,state: MatchState,fixture: Dictionary,proof: Array) -> bool:
+	var old_human: Dictionary=season.player_results[1]
+	var previous: Dictionary=old_human.doubleheader_evidence[0 if old_human.away==0 else 1]
+	if not Work.net_debt(previous.proof,previous.pair.debt).values().any(func(value): return float(value)>0.0): return false
+	var teams: Array=[state.away_team,state.home_team]
+	for side: int in range(2):
+		var team: TeamMatchState=teams[side]
+		if not Live.same(team.league_pair,{"game":fixture.id,"first":-1,"debt":{}}): return false
+		for player: PlayerMatchState in team.roster:
+			if player.pitch_count!=0 or player.pitching_finished or player.stamina_max<=0.0 \
+					or not is_equal_approx(player.stamina_remaining,player.stamina_max): return false
+			if not proof.is_empty():
+				var entry: Dictionary=proof[side].proof.initial[player.definition.id]
+				if not is_equal_approx(entry.initial,player.stamina_max) or not is_equal_approx(entry.capacity,player.stamina_max): return false
+	return true

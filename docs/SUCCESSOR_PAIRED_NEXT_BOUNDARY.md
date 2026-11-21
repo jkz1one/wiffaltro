@@ -142,3 +142,36 @@ Run `npc4`, `npc5`, then copy that exact final pending primary as
 `cold` uses the settled primary only (no rotating backup) and the
 two QA references for byte comparisons. Separate clones exercise
 `flag-off`, forged journal rejection, and the old exact paid binding.
+
+## Start the next pair without a purchase
+
+The same private preview allows the exact completed no-purchase
+opening pair to start the human side of the next pair. The control
+uses the authored fixture 6 and the existing market/field/lineup
+materializer. An opening-pair no-spend journal (untouched or exact
+optional browse) has its own derived next-pair binding; it does not
+stand in for any paid revision. Native pair semantics reset both
+clubs' pitch counts and stamina at the new first leg.
+
+Normal Return records only the actual fixture 6 pending result.
+It preserves the prior six results and four reports, and cannot
+pay a new reward, replay the opener, launch an NPC, or start a
+shop. The prior paid request representation is unchanged.
+
+Use `tests/successor_private_doubleheader_unpurchased_next_pair.gd.txt`
+with the same first-settlement QA parent. Clone CP215's exact settled
+pair and save its primary as `user://exact-settled-pair.json`. Run
+`play`, then verify with `cold` loading the new primary alone in
+another throwaway profile. Separate clones exercise `flag-off`
+and the existing paid request control.
+
+Future private rounds should consume a single replay-authenticated
+regular history cursor. Derive the cursor from the authored fixture
+partner, exact result and reward/exotic pairs, and the explicitly
+validated native optional shop prefix for that visit; keep any
+authoritative dialect identity separate from revision count. A
+prepare/save boundary should verify its next actual fixture,
+prefix/order, required NPC count and native reset before binding
+pending evidence. Do not offset the older fixed paid revision table
+or infer a purchase that did not occur. This increment admits no
+additional later action.

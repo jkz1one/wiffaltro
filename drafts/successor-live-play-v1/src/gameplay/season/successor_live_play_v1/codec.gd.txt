@@ -228,9 +228,22 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 	var build: SeasonBuild=season.build
 	if not whole(build._visit.get("number"),2,2) or build._visit.get("open")!=false: return false
 	if _paid_pair_journal(build,2): return true
-	# This separate exact journal is terminal for this private slice, not a
-	# relaxed paid-pair prefix or permission to launch the next pair.
-	return not detached and physical.pending.is_empty() and not unpurchased_settled_pair_kind(build).is_empty()
+	# The separate exact journal permits only the next human pending proof,
+	# not the next two reports or a later settlement.
+	if unpurchased_next_pair_kind(season).is_empty(): return false
+	# General's detached human ingestion checks this context after setting
+	# projecting. Admit only the exact original four archived reports there,
+	# never a follow-up NPC queue. The detached type still cannot pass scope().
+	if detached: return physical.reports.size()==4 and physical.pending.is_empty()
+	return physical.pending.is_empty() or physical.pending.reports.is_empty()
+
+# Derive the optional no-spend start from the authenticated journal, not a
+# shifted paid revision. Geometry still comes from the authored schedule.
+static func unpurchased_next_pair_kind(season: SeasonState) -> String:
+	if season==null or season.round_index!=2 or season.phase!=SeasonState.Phase.REGULAR \
+		or not LeagueRules.doubleheader(season.league_rules) or season.build==null \
+		or season.build.pack_pending() or season.pending_fixture().get("id")!=6: return ""
+	return unpurchased_settled_pair_kind(season.build)
 
 # Authored paid prefix plus only the individually qualified pending lane.
 # Report-capable rounds may queue only the authored suffix in a detached fork.

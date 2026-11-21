@@ -64,7 +64,8 @@ static func start(source: SeasonState) -> Dictionary:
 		if not Live._sealed_regular_end_shape(source): return {}
 	elif source.phase!=SeasonState.Phase.REGULAR: return {}
 	if source.round_index==1 and not Live.return_human_ready(source.build): return {}
-	if source.round_index==2 and not Live._paid_pair_journal(source.build,2): return {}
+	if source.round_index==2 and not Live._paid_pair_journal(source.build,2) \
+		and Live.unpurchased_next_pair_kind(source).is_empty(): return {}
 	if source.round_index==6 and not Live._signed_visit6_journal(source.build): return {}
 	if LATE_REGULAR.has(source.round_index) and not Live._paired_late_start(source): return {}
 	# Saved JSON hydrates whole IDs as floats. Bind to the semantically equal
@@ -83,6 +84,9 @@ static func start(source: SeasonState) -> Dictionary:
 	if source.round_index==1:
 		var unpurchased: String=Live.unpurchased_return_kind(source.build)
 		if not unpurchased.is_empty(): format="private-unpurchased-return-"+unpurchased+"-v1"
+	if source.round_index==2:
+		var unpurchased: String=Live.unpurchased_next_pair_kind(source)
+		if not unpurchased.is_empty(): format="private-unpurchased-next-first-"+unpurchased+"-v1"
 	var live: Dictionary={"format":format,"request":hash,"equipped":state.gear_usage.equipped,"held":club.tactics.held,"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,"track_walks":club.tactics.track_walks}
 	return {"state":state,"field":field,"fixture":fixture.duplicate(true),"binding":{"version":1,"request":JSON.stringify(live,"",true,true).sha256_text()}}
 
@@ -92,6 +96,7 @@ static func verify_bound(source: SeasonState) -> bool:
 # Read only the exact next slot. Job and Store admission independently replay it.
 static func next_npc_fixture(source: SeasonState) -> Dictionary:
 	if not Live.scope(source) or report_limit(source.round_index)==0 or not bound_shape(source.physical.pending): return {}
+	if source.round_index==2 and not Live.unpurchased_next_pair_kind(source).is_empty(): return {}
 	if source.round_index==10:
 		var playoff: Dictionary=_semifinal_fixtures(source)
 		if playoff.is_empty(): return {}
@@ -360,6 +365,8 @@ static func _unplayed_bracket(candidate: SeasonState) -> bool:
 # producers may materialize a paid owner only after exact terminal replay.
 static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if source.round_index<2 or not human_enabled(source.round_index): return {}
+	if source.round_index==2 and not Live.unpurchased_next_pair_kind(source).is_empty() \
+		and (preview_job or produce_settlement or not pending.reports.is_empty()): return {}
 	if produce_settlement and not settlement_enabled(source.round_index): return {}
 	var limit: int=report_limit(source.round_index)
 	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}

@@ -111,9 +111,12 @@ func render() -> void:
 			_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_refresh_round_progress()
-		elif app.season.round_index==2 and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
-				and not Store.Adapter.Ordinary.unpurchased_settled_pair_kind(app.season.build).is_empty():
-			_note("Opening pair settled. The next pair and shop are not exposed in this preview.")
+		elif app.private_unpurchased_next_pair():
+			if app.season.physical.pending.is_empty():
+				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT PAIR",22)
+				_bound_button(_body,"PLAY NEXT DOUBLEHEADER PAIR",Callable(app,"play_private_unpurchased_next_pair"))
+			else:
+				_note("Next pair opener saved. Its NPC fixtures and settlement are not exposed in this preview.")
 		elif app.private_paired_development_step()>=0:
 			_private_paired_development()
 		else:
