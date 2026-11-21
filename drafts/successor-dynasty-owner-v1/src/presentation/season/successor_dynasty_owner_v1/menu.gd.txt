@@ -54,7 +54,7 @@ func render() -> void:
 	if app.d1_check_running():
 		var cancel_label: String="CANCEL DUGOUT DRAFT CHECK" if app._cross_reading else ("CANCEL LEAGUE TRANSITION CHECK" if app._cross_reviewing else (
 			"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK"))
-		_bound_button(_body,cancel_label,Callable(app,"cancel_d1_check"))
+		_bound_button(_body,"CANCEL DOUBLEHEADER SETTLEMENT" if app._pair_settling else cancel_label,Callable(app,"cancel_d1_check"))
 		return
 	if app.retained != null:
 		_bound_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))

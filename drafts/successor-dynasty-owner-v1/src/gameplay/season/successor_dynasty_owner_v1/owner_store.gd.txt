@@ -344,25 +344,63 @@ static func _prepare_paired_settlement(owner: RefCounted, expected: PackedByteAr
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if not projection.settlement_enabled(leg) or saving or _ticket!=null or not match_owner(owner,expected): return null
 	if not owner.paired_draft_only() or not Adapter.scope(owner.active,owner.session) or owner.session.round_index!=leg: return null
+	var prepared:=_build_paired_settlement(owner,leg,projection)
+	if prepared.is_empty() or not match_owner(owner,expected): return null
+	_ticket=RefCounted.new()
+	_candidate=prepared.owner; _candidate_session=prepared.owner.session
+	_candidate_raw=prepared.raw; _candidate_data=prepared.data
+	_expected=expected.duplicate(); _written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+static func _build_paired_settlement(owner: RefCounted,leg: int,projection: Script) -> Dictionary:
 	var started: int=Time.get_ticks_msec()
 	var current: SeasonState=projection.materialize_settlement(owner.session,leg)
 	paired_candidate_ms=Time.get_ticks_msec()-started
-	if current==null: return null
+	if current==null: return {}
 	var envelope: RefCounted=Owner.new()
 	envelope.session=current
-	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) or not _routine_pins(envelope): return null
+	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) or not _routine_pins(envelope): return {}
 	started=Time.get_ticks_msec()
 	var captured: Dictionary=Adapter.capture(owner.active,current)
 	paired_admission_ms=Time.get_ticks_msec()-started
 	var data: Dictionary=Owner.pack_current(envelope,captured) if not captured.is_empty() else {}
-	if data.is_empty(): return null
+	if data.is_empty(): return {}
 	var snapshot: Dictionary=RawGuard.capture(envelope)
-	if snapshot.is_empty() or not match_owner(owner,expected): return null
-	_ticket=RefCounted.new()
-	_candidate=envelope; _candidate_session=current; _candidate_raw=snapshot; _candidate_data=data
-	_expected=expected.duplicate(); _written=PackedByteArray()
-	_write_admitted()
-	return _ticket
+	return {} if snapshot.is_empty() else {"owner":envelope,"raw":snapshot,"data":data}
+
+static func private_pair_settlement_preview() -> bool:
+	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
+		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1"
+
+# Quick UI and CAS gate only; the child still restores and validates everything.
+static func eligible_private_pair_settlement(owner: RefCounted) -> bool:
+	if not private_pair_settlement_preview() or owner==null or not owner.paired_draft_only() \
+		or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.current_ordinal()!=1 \
+		or not Owner._missing_dynasty(owner) or not owner.paused.is_empty() or owner.session.round_index!=1: return false
+	var pending: Dictionary=owner.session.physical.pending
+	var projection: Script=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	return projection.bound_shape(pending) and pending.human[0]==3 and pending.reports.size()==2 \
+		and not Adapter.Ordinary.unpurchased_return_kind(owner.session.build).is_empty()
+
+static func accept_private_pair_settlement(owner: RefCounted,expected: PackedByteArray,child: Node) -> String:
+	var process_script: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
+	if child==null or child.get_script()!=process_script or not eligible_private_pair_settlement(owner): return "refused"
+	if not _cross_bound(owner,expected): return "stale"
+	var bytes: PackedByteArray=child.take_pair_settled_bytes(Owner._hash(expected))
+	if bytes.is_empty(): return "refused"
+	var dir:=DirAccess.open("user://")
+	if dir==null: return "obstructed"
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if dir.is_link((PATH+suffix).get_file()) or DirAccess.dir_exists_absolute(PATH+suffix): return "obstructed"
+	if FileAccess.file_exists(PATH+".tmp"): return "obstructed"
+	saving=true
+	var outcome: String=_write_exact_result(bytes,expected,true)
+	saving=false
+	if outcome in ["saved","renamed_unverified"]:
+		_invalidate()
+		return outcome
+	return "unverified_io" if _write_revision_matches(expected,true) else "stale"
 
 ## Fixed private routes; every effect still belongs to the frozen General Build.
 static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteArray, command: Dictionary) -> RefCounted:

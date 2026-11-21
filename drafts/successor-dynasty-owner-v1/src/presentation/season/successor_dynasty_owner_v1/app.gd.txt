@@ -16,6 +16,8 @@ const Page = preload("menu.gd")
 const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
 var _d1_check: Node
 var _d1_close_after_check: bool=false
+var _pair_settling: bool=false
+var _pair_settle_write_ms: int=0
 var _cross_reviewing: bool=false
 var _cross_reading: bool=false
 var _cross_read_ms: int=0
@@ -248,14 +250,60 @@ func resume_private_unpurchased_return() -> void:
 		return
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 	if not factory.bound_shape(season.physical.pending) or season.physical.pending.human[0]!=3: return
+	if season.physical.pending.reports.size()==2:
+		_begin_private_pair_settlement()
+		return
 	var next: Dictionary=factory.next_npc_fixture(season)
 	if next.get("id") in [4,5]:
 		_run_paired_npc(int(next.id))
 		if is_instance_valid(ai_runner):
 			projection={"fixture":next}
 			show_season()
-	elif season.physical.pending.reports.size()==2:
-		_settle_paired_return_leg()
+
+
+func _begin_private_pair_settlement() -> void:
+	if not _available() or not Store.eligible_private_pair_settlement(career_owner): return
+	if not D1Check.supported():
+		notice="Background settlement is not supported by this engineering build. Nothing was written."
+		show_season()
+		return
+	_expire_d1_proof()
+	var check:=D1Check.new()
+	_d1_check=check
+	_pair_settling=true
+	add_child(check)
+	check.completed.connect(_complete_private_pair_settlement.bind(check,_d1_epoch,saved_bytes),CONNECT_ONE_SHOT)
+	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.PAIR_SETTLE_KIND):
+		_complete_private_pair_settlement("invalid",{},check,_d1_epoch,saved_bytes)
+		return
+	notice="Settling the exact Doubleheader return leg in the background…"
+	show_season()
+
+func _complete_private_pair_settlement(outcome: String,_proof: Dictionary,check: Node,epoch: int,expected: PackedByteArray) -> void:
+	if _d1_check!=check or epoch!=_d1_epoch: return
+	_d1_check=null
+	_pair_settling=false
+	check.queue_free()
+	if _d1_close_after_check:
+		_d1_close_after_check=false
+		_quit_now()
+		return
+	if outcome=="qualified":
+		var started:=Time.get_ticks_msec()
+		outcome=Store.accept_private_pair_settlement(career_owner,expected,check) if expected==saved_bytes else "stale"
+		_pair_settle_write_ms=Time.get_ticks_msec()-started
+	if outcome in ["saved","renamed_unverified","unverified_io","stale"]:
+		career_owner=null; season=null; saved_bytes=PackedByteArray()
+	notice={
+		"saved":"Doubleheader return leg settled. Use Continue Saved Career to verify and reopen the save.",
+		"renamed_unverified":"The save was replaced, but its contents could not be verified. Use Continue to check it before playing.",
+		"unverified_io":"Settlement could not be verified after a save error. Use Continue to check the save before retrying.",
+		"obstructed":"Save path blocked before writing. Resolve the obstruction, then retry settlement.",
+		"cancelled":"Settlement cancelled before writing.",
+		"stale":"The saved career changed. No settlement was written by this action.",
+		"refused":"The pending return leg did not qualify. Nothing was written."
+	}.get(outcome,"The pending return leg could not be verified. Nothing was written.")
+	show_season()
 
 func private_unpurchased_next_pair() -> bool:
 	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \

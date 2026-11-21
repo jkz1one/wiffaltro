@@ -175,3 +175,31 @@ prefix/order, required NPC count and native reset before binding
 pending evidence. Do not offset the older fixed paid revision table
 or infer a purchase that did not occur. This increment admits no
 additional later action.
+
+## Background settlement of the first no-purchase return leg
+
+Only the existing source-editor Linux engineering route can settle this
+particular return leg in the background. Resume does not recompute the next
+fixture once both native CPU reports are present. A same-binary child strictly
+loads the exact saved revision, then runs the normal paired settlement and
+canonical capture. It cannot replace the save. Its only handoff is a bounded
+candidate in a unique disposable stage and a request-bound size/digest on the
+child's private pipe. The parent rechecks the exact primary revision and owns
+the existing temporary write, backup, final rename and exact readback. An
+unverified result after rename clears the loaded career and requires Continue;
+it is not considered a refusal or safe automatic retry. Cancel before the
+handoff writes nothing. No new save format, eligibility, payout, or paid
+request was introduced. Strict Continue is a separate operation and can still
+block; other round phases keep their existing paths.
+
+The child retains the same authored resource roots as the Common App during
+strict replay. The exact same NPC5 checkpoint initially hit the existing
+300-second worker deadline before producing any candidate without those
+roots; no file changed. Retaining the roots does not cache career results or
+skip validation. An exact Linux headless run returned stock CP215 settled
+bytes after 126.388 seconds with 18,215 waiting frames (worst 47 ms between
+those frames); start took 224 ms and the parent handoff plus write/readback
+took 310 ms. These two synchronous costs are not hidden in the waiting-frame
+metric. The earlier warm synchronous settlement took 59.643 seconds with the
+menu blocked. The new route trades an additional strict process read for
+responsiveness, not a reduction in total CPU or elapsed time.

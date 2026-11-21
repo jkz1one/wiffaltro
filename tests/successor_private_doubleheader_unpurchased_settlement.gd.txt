@@ -5,6 +5,9 @@ const BASELINE="user://exact-human-return.json"
 const FINISH_INPUT="user://exact-npc-complete-return.json"
 const EXACT="048f5b0c23b7fef731687e841668fc05fccaea673e1f1f39fdcd20bafbfe6e5c"
 const PAID="7f544c926d547ef0372e7cf1810ff2f2557f27f79818b17ed4d8cbb1189a2ba9"
+const SETTLED="54270f94b3b00b5b5a43b64bee45c6f2e2a6256238ef6fe74d9f98303bf1c3f8"
+const NPC5="ea45536e192cb26c4b9c987036004aec819d8ff16977968eb10858a776fb2240"
+const CANCEL="CANCEL DOUBLEHEADER SETTLEMENT"
 const BUTTON="RESUME DOUBLEHEADER RETURN LEG"
 func _button(node: Node,label: String) -> Button:
 	if node.is_queued_for_deletion(): return null
@@ -20,7 +23,7 @@ func need(ok: bool,label: String) -> bool:
 func run() -> void:
 	var args:=OS.get_cmdline_user_args()
 	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
-			and args[0] in ["npc4","npc5","settle","cold","tamper","flag-off","paid"] and FileAccess.get_sha256(BASELINE)==EXACT
+			and args[0] in ["npc4","npc5","settle","cold","tamper","flag-off","paid","cancel","stale","obstruct"] and FileAccess.get_sha256(BASELINE)==EXACT
 			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
 			"isolated exact CP214 human return"): return
 	var before:=Store.raw()
@@ -29,7 +32,9 @@ func run() -> void:
 	var app:=App.new()
 	add_child(app)
 	await get_tree().process_frame
+	var cold_start:=Time.get_ticks_msec()
 	app.reload_save()
+	print("PAIR_STRICT_CONTINUE_MS ",Time.get_ticks_msec()-cold_start)
 	if args[0]=="tamper":
 		if need(app.career_owner==null and exact(before,backup),"strict cold rejects forged no-charge journal/result proof with no write"): get_tree().quit()
 		return
@@ -44,7 +49,8 @@ func run() -> void:
 		return
 	if args[0]=="flag-off":
 		app.resume_private_unpurchased_return()
-		if need(control==null and not is_instance_valid(app.ai_runner) and exact(before,backup),"flag off blocks UI and direct resume"): get_tree().quit()
+		app._begin_private_pair_settlement()
+		if need(not app.d1_check_running() and control==null and not is_instance_valid(app.ai_runner) and exact(before,backup),"flag off blocks UI and direct resume"): get_tree().quit()
 		return
 	if args[0]=="cold":
 		if not need(backup.is_empty() and control==null and _settled(app,original)
@@ -52,16 +58,18 @@ func run() -> void:
 				"fresh primary-only strict six games, full proofs, and twelve native rewards"): return
 		app.resume_private_unpurchased_return()
 		app._settle_paired_return_leg()
-		app._play_paired_next_first()
 		app.open_shop()
 		if need(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(before,backup),
-				"repeat settlement, next match and shop cannot write"):
+				"repeat settlement and held shop cannot write; CP216 next playable leg remains separate"):
 			print("UNPURCHASED_DH_PAIR_COLD_PASS ",args[1])
 			get_tree().quit()
 		return
-	var count: int={"npc4":0,"npc5":1,"settle":2}[args[0]]
+	var count: int={"npc4":0,"npc5":1}.get(args[0],2)
 	if not need(control!=null and _pending(app,original,count) and (count!=0 or args[1]==EXACT),
 			"original both humans and carried first-leg physical evidence stay exact; no return reward yet"): return
+	if count==2:
+		await _async_settle(app,control,before,backup,args[0])
+		return
 	var start:=Time.get_ticks_msec()
 	control.pressed.emit()
 	if count<2:
@@ -75,15 +83,66 @@ func run() -> void:
 			if not app._busy: break
 		if not need(not app._busy and app.retained==null and app.retained_report.is_empty() and _pending(app,original,count+1)
 				and app.season.physical.pending.reports[count].fixture==count+4,"real NPC durable pending; Cash remains 18"): return
-	else:
-		if not need(_settled(app,original) and PairHistory.checked_sides==12 and PairHistory.checked_reports==4,
-				"settles exact six results and native receipts with one sweep for qualifying clubs"): return
-		var settled_bytes:=Store.raw()
-		app.resume_private_unpurchased_return()
-		if not need(exact(settled_bytes,before) and _button(app,BUTTON)==null,"duplicate cannot award or rotate again"): return
 	if need(Store.raw()!=before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"exact prior revision rotated once"):
 		print("UNPURCHASED_DH_PAIR_STEP ",args[0]," ",FileAccess.get_sha256(Store.PATH)," elapsed_ms=",Time.get_ticks_msec()-start)
 		get_tree().quit()
+func _async_settle(app: App,control: Button,before: PackedByteArray,backup: PackedByteArray,mode: String) -> void:
+	if not need(FileAccess.get_sha256(Store.PATH)==NPC5,"exact CP215 NPC5 raw, no game reruns"): return
+	if mode=="obstruct" and not need(DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"isolated path obstruction"): return
+	var start:=Time.get_ticks_msec()
+	control.pressed.emit()
+	var start_ms:=Time.get_ticks_msec()-start
+	var check_node: Node=app._d1_check
+	app.resume_private_unpurchased_return()
+	if not need(is_instance_valid(check_node) and app._d1_check==check_node and exact(before,backup),
+			"one child, no duplicate or early file write"): return
+	var cancel:=_button(app,CANCEL)
+	if not need(cancel!=null,"visible cancellation during worker"): return
+	var expected:=before
+	if mode=="stale":
+		expected=before+" ".to_utf8_buffer()
+		var out:=FileAccess.open(Store.PATH,FileAccess.WRITE)
+		out.store_buffer(expected)
+		out.close()
+	if mode=="cancel": cancel.pressed.emit()
+	var max_gap:=0
+	var ticks:=0
+	var prior:=Time.get_ticks_msec()
+	while app.d1_check_running() and Time.get_ticks_msec()-start<310000:
+		await get_tree().process_frame
+		var now:=Time.get_ticks_msec()
+		if app.d1_check_running(): max_gap=maxi(max_gap,now-prior)
+		prior=now
+		ticks+=1
+	print("PAIR_ASYNC mode=",mode," total_ms=",Time.get_ticks_msec()-start," click_ms=",start_ms,
+		" wait_gap_ms=",max_gap," frames=",ticks," parent_ms=",app._pair_settle_write_ms)
+	if not need(not app.d1_check_running() and _no_staged_pairs(),"worker ended and disposable stage removed"): return
+	if mode=="settle":
+		if not need(app.season==null and app.career_owner==null and app.notice.begins_with("Doubleheader return leg settled.")
+				and FileAccess.get_sha256(Store.PATH)==SETTLED and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before and ticks>100,
+				"exact stock settled bytes, one backup rotation, no parent owner hydration"): return
+		app.resume_private_unpurchased_return()
+		if not need(FileAccess.get_sha256(Store.PATH)==SETTLED and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,
+				"direct repeat cannot write"): return
+	elif mode=="cancel":
+		if not need(exact(expected,backup) and app.notice=="Settlement cancelled before writing." and app._owned(),
+				"cancel before CAS preserves both files and admitted owner"): return
+	elif mode=="stale":
+		if not need(exact(expected,backup) and app.notice.begins_with("The saved career changed.") and app.career_owner==null,
+				"stale exact revision preserves replacement and backup, clears obsolete authority"): return
+	elif mode=="obstruct":
+		if not need(exact(expected,backup) and app.notice.begins_with("Save path blocked before writing.") and app._owned(),
+				"external obstruction before write preserves both saves and admitted owner"): return
+		DirAccess.remove_absolute(Store.PATH+".tmp")
+	print("PAIR_ASYNC_PASS ",mode)
+	get_tree().quit()
+
+func _no_staged_pairs() -> bool:
+	var dir:=DirAccess.open("user://")
+	if dir==null: return false
+	for name: String in dir.get_directories():
+		if name.begins_with(".pair-settle-"): return false
+	return true
 func _old_exact(s: SeasonState,original: Dictionary) -> bool:
 	return Live.same(s.results.slice(0,3),original.ordinary.state.results) and Live.same(s.player_results[0],original.ordinary.state.player_results[0]) \
 		and Live.same(s.physical.reports.slice(0,2),original.ordinary.physical.reports)

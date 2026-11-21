@@ -27,6 +27,9 @@ func _run() -> void:
 	if request.kind in [Work.CROSS_KIND,Work.ACTIVATE_KIND]:
 		_review_cross(request,bytes)
 		return
+	if request.kind==Work.PAIR_SETTLE_KIND:
+		_settle_private_return(request,bytes)
+		return
 	if request.kind==Work.CONTINUE_KIND:
 		_continue_exact(request,bytes)
 		return
@@ -61,6 +64,27 @@ func _review_cross(request: Dictionary, bytes: PackedByteArray) -> void:
 	_emit({"request":request,"outcome":"refused" if digest.is_empty() else "qualified",
 		"draft_sha256":digest},not digest.is_empty())
 
+func _settle_private_return(request: Dictionary,bytes: PackedByteArray) -> void:
+	if not Work.Store.private_pair_settlement_preview():
+		get_tree().quit(2)
+		return
+	# Keep the same pinned authored resources as the live App across strict
+	# history replay; allowing them to drop reloads the catalog per Build.
+	var content_roots: Array[Resource]=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	Work.Store.Codec.Catalog.game_signature()
+	Work.Store.Codec.Catalog.player_signature()
+	var owner: RefCounted=Work.Store.read()
+	if not Work.Store._cross_bound(owner,bytes):
+		get_tree().quit(3)
+		return
+	var prepared: Dictionary={}
+	if Work.Store.eligible_private_pair_settlement(owner) and Work.Store.Adapter.scope(owner.active,owner.session):
+		var projection: Script=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+		if projection.settlement_enabled(1):
+			prepared=Work.Store._build_paired_settlement(owner,1,projection)
+	_stage_cross(request,prepared.get("data",{}))
+	content_roots.clear()
+
 func _stage_cross(request: Dictionary,candidate: Dictionary) -> void:
 	var result: Dictionary={"request":request,"outcome":"refused","size":0,"candidate_sha256":""}
 	if candidate.is_empty():
@@ -71,7 +95,7 @@ func _stage_cross(request: Dictionary,candidate: Dictionary) -> void:
 		or not Work.Store.Codec.same(JSON.parse_string(bytes.get_string_from_utf8()),candidate):
 		get_tree().quit(3)
 		return
-	var path:=Work._activation_dir(request.token)
+	var path:=Work._stage_dir(request.token,request.kind)
 	var root:=DirAccess.open("user://")
 	var target:=path.path_join(Work.CROSS_FILE)
 	if root==null or root.is_link(path.get_file()) or not DirAccess.dir_exists_absolute(path) \
