@@ -112,12 +112,10 @@ func render() -> void:
 		_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		_refresh_round_progress()
-	elif archived and app.season.round_index==1:
-		_note("Archived Dugout opening complete. Shop is available; later rounds and season actions are held.")
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
 		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
-	else:
+	elif not archived:
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty():
 		_bound_button(_body,"SHOP",Callable(app,"open_pitch_shop"))

@@ -1,0 +1,57 @@
+extends "res://opening.gd"
+const OPENING="0d880066a81baaa666b4dd133a1255cf7bfcb8694842c69b7d515cdb69ef0379"
+const BASELINE="user://audited-opening.json"
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and Store.cross_league_preview()
+			and args.size()==2 and args[0] in ["step","cold"] and FileAccess.get_sha256(Store.PATH)==args[1]
+			and FileAccess.get_sha256(BASELINE)==OPENING and not FileAccess.file_exists(ORIGINAL),"exact generated lane and opening baseline"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var opening: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BASELINE))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(_pinned(app,opening) and Store.raw()==before,"strict archive and original round retained before action"): return
+	if args[0]=="cold":
+		if not check(_second_settled(app),"actual second round cold; twelve native reward events"): return
+		app.close_current("abandon")
+		app.close_current("complete")
+		app.propose_next(1003)
+		if not check(Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"later Close and Next held"): return
+		var bad: Dictionary=Store.Owner._bytes_value(before)
+		bad.ordinary.state.results[3].away_runs=int(bad.ordinary.state.results[3].away_runs)+1
+		if not check(Store.Owner.restore(bad)==null and Store.raw()==before,"tampered later score fails strict cold"): return
+		print("ARCHIVED_ONGOING_COLD_PASS ",args[1]," cash=",app.season.build.cash())
+		await _finish(app)
+		return
+	if not check(app.season.round_index==1 and app.season.results.size()==3 and app.season.build.cash()==18,"real round two; no pending reward"): return
+	var idle: bool=app.season.physical.pending.is_empty()
+	if idle and not check(app.season.pending_fixture().get("home")==0,"actual next home fixture"): return
+	var action: String=await _play(app) if idle else await _resume(app)
+	if action.is_empty(): return
+	if not check(_pinned(app,opening) and Store.raw()!=before
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"archive, first results and exact immediate backup"): return
+	if action.begins_with("settle"):
+		if not check(_second_settled(app),"second round settles all six native rewards exactly once"): return
+	elif not check(app.season.results.size()==3 and app.season.build.cash()==18,"pending result does not pay rewards"): return
+	if _archive(action):
+		print("ARCHIVED_ONGOING_STEP ",action," ",FileAccess.get_sha256(Store.PATH)," cash=",app.season.build.cash())
+		await _finish(app)
+func _pinned(app: App,opening: Dictionary) -> bool:
+	if not _admitted_archive(app) or not _capacities(app.season) or app.season.results.size()<3: return false
+	return Store.Codec.same(app.career_owner.ordinary_state.archive,opening.ordinary_state.archive) and Store.Codec.same(app.career_owner.common,opening.common) and Store.Codec.same(app.season.results.slice(0,3),opening.ordinary.state.results) and Store.Codec.same(app.season.physical.reports.slice(0,2),opening.ordinary.physical.reports)
+func _second_settled(app: App) -> bool:
+	var season: SeasonState=app.season
+	if season.round_index!=2 or season.results.size()!=6 or season.player_results.size()!=2 or season.physical.reports.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty(): return false
+	for club: int in range(6):
+		var build: SeasonBuild=season.build if club==0 else season.opponents.clubs[str(club)].build
+		var awards: Array=build._bank._events.filter(func(event: Dictionary)->bool: return event.op=="reward")
+		var results: Array=season.results.filter(func(game: Dictionary)->bool: return club in [int(game.away),int(game.home)])
+		if results.size()!=2 or awards.size()!=2: return false
+		for i: int in range(2):
+			if awards[i].game!=results[i].id or awards[i].win!=(SeasonState._winner(results[i])==club): return false
+	for row: Dictionary in season.physical.reports:
+		if not GENERAL.valid(row.report,season.build.pitch_catalog_signature()): return false
+	return season.build.cash()==18+(18 if SeasonState._winner(season.player_results[1])==0 else 12)

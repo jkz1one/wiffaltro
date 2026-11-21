@@ -61,7 +61,7 @@ func fork():
 	if not Codec.install_fields(result,DATA_FIELDS,Codec.data_fields(self,DATA_FIELDS)): return null
 	return result if result.session!=null else null
 func playable() -> bool:
-	if ordinary_state.has("archive"): return active=="ordinary" and ordinary_state.status=="active" and Common.archive_opening_scope(session)
+	if ordinary_state.has("archive"): return active=="ordinary" and ordinary_state.status=="active" and Common.archive_play_scope(session)
 	if paired_draft_only(): return ordinary_state.get("status")=="active" and session.phase==SeasonState.Phase.DRAFT
 	return (active=="ordinary" and ordinary_state.get("status")=="active") or (active=="dynasty" and status=="active")
 func lifecycle_status() -> String: return str(ordinary_state.get("status","absent")) if active=="ordinary" else status

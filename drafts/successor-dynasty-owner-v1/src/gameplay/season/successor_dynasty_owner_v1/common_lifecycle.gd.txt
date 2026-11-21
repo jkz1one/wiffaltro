@@ -132,16 +132,15 @@ static func _activate_cross(owner, raw: PackedByteArray) -> bool:
 	owner.session=next
 	return valid(owner)
 
-# The named archive lane admits only replayed stock opening proof, not a
-# second fixture launch, second archive, mode changes or unrelated modes.
-static func archive_opening_scope(season: SeasonState) -> bool:
-	if season==null or season.league_rules.get("league")!="dugout" \
-		or season.league_rules.get("tier")!=0 or season.phase not in [SeasonState.Phase.DRAFT,SeasonState.Phase.REGULAR]:
-		return false
-	if season.round_index==0:
-		return season.results.is_empty() and season.player_results.is_empty() and season.physical.reports.is_empty() \
-			and (season.phase==SeasonState.Phase.REGULAR or season.physical.pending.is_empty())
-	return season.round_index==1 and season.phase==SeasonState.Phase.REGULAR \
+# Exact schedule, report and reward validation remain with the stock Ordinary
+# runtime and codec. This owner only limits the archive family to its own league.
+static func archive_play_scope(season: SeasonState) -> bool:
+	return season!=null and season.league_rules.get("league")=="dugout" \
+		and season.league_rules.get("tier")==0 and not season.career.start_basis.is_empty()
+
+# Only the previously proven opening Abandon can produce a second fold.
+static func archive_close_scope(season: SeasonState) -> bool:
+	return archive_play_scope(season) and season.round_index==1 and season.phase==SeasonState.Phase.REGULAR \
 		and season.results.size()==3 and season.player_results.size()==1 and season.physical.reports.size()==2 \
 		and season.physical.pending.is_empty() and season.physical.needed.is_empty()
 
@@ -154,8 +153,8 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 		var birth: Dictionary=Progress.birth({},season,season.player_access)
 		if state.status=="closed": return _paired_closed_valid(owner,season,current,birth)
 		if state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,birth): return false
-	if state.has("archive") and (not archive_opening_scope(season) \
-		or (state.status=="closed" and season.round_index!=1)): return false
+	if state.has("archive") and (not archive_play_scope(season) \
+		or (state.status=="closed" and not archive_close_scope(season))): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false
@@ -210,7 +209,7 @@ static func _close_paired_complete(owner, current: Dictionary) -> bool:
 
 static func close(owner, reason: String) -> bool:
 	if owner.ordinary_state.has("archive") and (reason!="abandon" or owner.active!="ordinary" \
-		or not archive_opening_scope(owner.session) or owner.session.round_index!=1): return false
+		or not archive_close_scope(owner.session)): return false
 	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
 	var season: SeasonState=owner.session
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false

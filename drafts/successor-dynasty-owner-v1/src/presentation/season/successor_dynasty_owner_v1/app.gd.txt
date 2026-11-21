@@ -782,7 +782,6 @@ func _open_match(state: MatchState, player_home: bool, season_game: bool,
 
 
 func play_next() -> void:
-	if career_owner!=null and career_owner.ordinary_state.has("archive") and season.round_index!=0: return
 	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or not _owned() or not _scope() or not season.physical.pending.is_empty():
 		return

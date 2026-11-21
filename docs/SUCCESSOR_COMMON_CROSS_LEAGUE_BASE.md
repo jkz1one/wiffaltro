@@ -191,3 +191,24 @@ Run the existing cross-league commit test's `commit`, `pick`, and
 backward compatibility, the existing archived Abandon test's `cold`
 phase can read the exact CP205 pair without changing the primary or
 backup. No games need to be played.
+
+## Ongoing archived Dugout play
+
+An active archived Dugout Base uses the ordinary App's authored schedule
+after the opening. Human games, pending NPC work, round settlement and
+the shop use the same stock rules and validators as before; no archive
+state relaxes those checks. Both the existing private v1 archive and
+the archive-required v2 transition are supported. Further Close,
+rollover and parking remain held; the previously verified first-round
+Abandon still uses its exact scope. No public admission was added.
+
+For independent verification, assemble the authored project byte-for-byte
+and attach `tests/successor_common_cross_league_ongoing.gd.txt` as a scratch
+Node scene, with the same opening, Dugout and Standard journey parents
+as the opening test. Clone the exact CP204 open-shop pair; copy the
+primary as `user://audited-opening.json` to compare the original proof.
+Under the isolated engineering flags, run `-- step <current SHA>` in a new
+process for each of home play, NPC1, NPC2, and settlement. Then run
+`-- cold <settled SHA>`. The harness checks both rounds' exact report
+carriage, twelve once-only league rewards, verbatim archived predecessor,
+separate 72 Club Bucks, and refusal of a tampered later-game score.
