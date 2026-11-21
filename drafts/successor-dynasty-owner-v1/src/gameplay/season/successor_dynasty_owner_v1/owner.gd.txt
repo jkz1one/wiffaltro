@@ -272,6 +272,7 @@ static func _archive_fold_matches(owner, predecessor, current: Dictionary) -> bo
 	expected.common=predecessor.common.duplicate(true)
 	expected.ordinary_state.status="active"
 	expected.ordinary_state.last_close={}
+	expected.ordinary_state.proposal={}
 	return Common._apply_close(expected,"abandon",current) \
 		and Codec.same(expected.common,owner.common) and Codec.same(expected.ordinary_state.last_close,owner.ordinary_state.last_close)
 

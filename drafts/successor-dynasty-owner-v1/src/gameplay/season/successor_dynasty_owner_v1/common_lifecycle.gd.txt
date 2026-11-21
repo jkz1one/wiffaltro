@@ -13,6 +13,7 @@ const ARCHIVE_MAX: int=16*1024*1024
 const SPONSOR_PROPOSAL: String="common-standard-to-sponsorship-proposal-v1"
 const SPONSOR_TRANSITION: String="common-standard-to-sponsorship-archive-v1"
 const CROSS_KIND: String="common-ordinary-league-proposal-v1"
+const ARCHIVED_NEXT_KIND: String="common-ordinary-archived-dugout-next-proposal-v1"
 const ORDINARY_FIELDS: Array[String]=["lineage","ordinal","status","last_close","proposal","last_transition","start_basis_sha256"]
 
 static func initialize(owner) -> bool:
@@ -111,7 +112,8 @@ static func _archive_shape(owner) -> bool:
 	return C.keys(a,["kind","sha256","source"]) and a.kind==ARCHIVE_KIND \
 		and a.source is String and not a.source.is_empty() and a.source.length()<=ARCHIVE_MAX \
 		and owner._digest(a.sha256) and owner.active=="ordinary" and state.ordinal==2 \
-		and state.proposal.is_empty() and t.get("league") in ["dugout","sponsorship"] \
+		and (state.proposal.is_empty() or state.proposal.get("kind")==ARCHIVED_NEXT_KIND) \
+		and t.get("league") in ["dugout","sponsorship"] \
 		and (t.get("league")=="dugout" or (t.get("kind")==SPONSOR_TRANSITION and state.status=="active")) \
 		and (not t.has("kind") or (t.basis.archive_origin.sha256==a.sha256 \
 			and t.basis.archive_origin.kind==Start.archive_origin_kind(t.league))) \
@@ -386,11 +388,49 @@ static func _cross_proposal_valid(owner, row: Dictionary) -> bool:
 		if not C.same(row.basis,exact): return false
 	return true
 
+# A staged ordinal-three proposal points to two independently retained
+# predecessors, never nests or replaces either. No matching advance exists.
+static func _archived_next_descriptor(owner,seed_value: int) -> Dictionary:
+	if owner==null or owner.active!="ordinary" or not owner.paused.is_empty() \
+			or not owner._missing_dynasty(owner) or not C.whole(seed_value,0,2147483647): return {}
+	var state: Dictionary=owner.ordinary_state
+	if not state.has("archive") or state.ordinal!=2 or state.status!="closed" \
+			or not archive_close_scope(owner.session): return {}
+	var close: Dictionary=state.last_close
+	var fold: Dictionary=owner.common.last_fold
+	if close.get("reason")!="abandon" or close.get("league")!="dugout" or close.get("tier")!=0 \
+			or not owner._digest(close.get("session_sha256")) or not C.same(close.get("receipt"),{}) \
+			or fold.get("side")!="ordinary" or fold.get("ordinal")!=2 or fold.get("sequence")!=owner.common.sequence \
+			or fold.get("id")!=close.get("id") or fold.get("source")!=close.get("session_sha256") \
+			or fold.get("aggregate_sha256")!=Life.digest(owner.common.aggregate) \
+			or not C.same(fold.get("receipt"),{}): return {}
+	var basis: Dictionary=Start.make(seed_value,state.lineage,3,int(owner.common.sequence),
+		Life.digest(owner.common.aggregate),projection(owner))
+	if basis.is_empty(): return {}
+	return {"kind":ARCHIVED_NEXT_KIND,"id":"%s:2:next"%state.lineage,"league":"dugout","tier":0,
+		"prior_archive_sha256":state.archive.sha256,"source":close.session_sha256,"close_id":close.id,
+		"source_fold_sha256":Life.digest(fold),"basis":basis}
+
+static func _prepare_archived_next(owner,current: Dictionary,seed_value: int) -> bool:
+	if not valid(owner) or not owner.ordinary_state.proposal.is_empty() \
+			or not ordinary_current_valid(owner,owner.session,current): return false
+	var descriptor: Dictionary=_archived_next_descriptor(owner,seed_value)
+	if descriptor.is_empty(): return false
+	var draft: SeasonState=Adapter.OrdinaryRuntime.create_common(descriptor.basis,descriptor.league)
+	if draft==null or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty() \
+			or draft.build.cash()!=0 or not Adapter.scope("ordinary",draft): return false
+	owner.ordinary_state.proposal=descriptor
+	return valid(owner)
+
 static func _ordinary_proposal_valid(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	var row: Dictionary=state.proposal
 	if row.is_empty(): return true
 	if cross_proposal_kind(row.get("kind")): return _cross_proposal_valid(owner,row)
+	if row.get("kind")==ARCHIVED_NEXT_KIND:
+		if not row.get("basis") is Dictionary or not C.whole(row.basis.get("seed"),0,2147483647): return false
+		var exact: Dictionary=_archived_next_descriptor(owner,int(row.basis.seed))
+		return not exact.is_empty() and C.same(row,exact)
 	if state.status!="closed" or state.ordinal>=ClubCareer.MAX_RUNS or not C.keys(row,["id","source","league","tier","basis"]): return false
 	if owner.paired_draft_only(): return _paired_proposal_valid(owner,row)
 	if row.id!="%s:%d:next"%[state.lineage,state.ordinal] or row.source!=state.last_close.get("session_sha256") or row.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or row.league!=state.last_close.get("league") or row.tier!=0: return false

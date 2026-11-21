@@ -314,3 +314,37 @@ original archived-Abandon QA parent and exact CP207 primary saved as
 payout, `flag-off` on the original active pair, and `draft-held` on
 the exact marked draft. The original opening-Abandon cold check is
 separate. No games or later lifecycle actions are run.
+
+### Persisted third-season Dugout proposal, not activation
+
+The private Store can now record a typed ordinal-three Dugout Base
+proposal from the exact admitted closed archived ordinal-two Dugout
+owner. It records the earlier Standard archive digest, current Dugout
+session digest and matching Abandon/fold identity, plus the native fresh
+Start basis. Cold admission derives the descriptor again from both
+strict native predecessors and the actual matching Common fold. The
+producer checks a real detached native four-pick draft start at 0
+seasonal Cash before recording the proposal. No championship is needed
+for Dugout Base; no title is issued.
+
+This step adds only the descriptor. The flat Standard raw archive
+stays in place and the six-result Dugout payload remains current,
+closed and unmodified. Common still has 72 Club Bucks, and the closed
+Dugout season retains 36 game Cash. Nothing auto-promotes: normal Next,
+public UI and native ordinal-three Store admission are held.
+
+Activation will need a separately qualified, bounded ordered archive:
+keep the exact Standard predecessor source once, then the full native
+Dugout checkpoint and its close/fold metadata referencing that first
+digest, not another outer Common owner with the first archive nested
+inside. Validate both predecessors with native replay, then derive
+and bind the next live owner. Per-source and total serialized bounds
+must fit the existing stage transport before any activation write.
+
+To verify this slice, use
+`tests/successor_common_archived_dugout_next_proposal.gd.txt` with the
+original archived-Abandon QA parent. Retain exact CP235 closed primary as
+`user://exact-cp235-closed.json`. Run `prepare`, independent primary-only
+`cold`, `tamper` (first archive digest, later fold or locked destination),
+`flag-off`, and `active-held` on exact CP207 before Abandon. No game,
+season simulation or activation runs.

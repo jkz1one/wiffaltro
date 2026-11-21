@@ -1,0 +1,83 @@
+extends "res://tests/successor_common_cross_league_abandon.gd"
+const CLOSED="12fb4e42c46b6433dceaf3c49e513eec365e8ebbc3098c17a90bc3044b48374b"
+const ACTIVE="d3fdb27a6138174baf752499c5b9b3864b71433eae76fad438c61e1d97217896"
+const SOURCE_PATH="user://exact-cp235-closed.json"
+const SEED=1003
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["prepare","cold","flag-off","active-held","tamper"]
+			and FileAccess.get_sha256(SOURCE_PATH)==CLOSED and FileAccess.get_sha256(S.PATH)==args[1],
+			"exact generated CP235 lineage"): return
+	var before:=S.raw()
+	var backup:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var reference: Dictionary=S.Owner._bytes_value(FileAccess.get_file_as_bytes(SOURCE_PATH))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var started:=Time.get_ticks_msec()
+	app.reload_save()
+	print("ARCHIVED_NEXT_STRICT_READ_MS ",Time.get_ticks_msec()-started)
+	if not need(app._owned() and S.raw()==before and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup,
+			"strict native owner, exact source unchanged"): return
+	var owner: RefCounted=app.career_owner
+	if args[0] in ["active-held","flag-off"]:
+		if need(S.prepare_archived_dugout_next_and_write(owner,before,SEED)==null and S.raw()==before
+				and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup,"active or flag-off proposal refusal"): get_tree().quit()
+		return
+	if args[0]=="tamper":
+		var forged: Dictionary=S.Owner._bytes_value(before)
+		forged.ordinary_state.proposal.prior_archive_sha256="0".repeat(64)
+		if not need(S.Owner.restore(forged)==null and S.raw()==before,"changed first predecessor binding refused"): return
+		forged=S.Owner._bytes_value(before)
+		forged.ordinary_state.proposal.source_fold_sha256="0".repeat(64)
+		if not need(S.Owner.restore(forged)==null and S.raw()==before,"changed current fold binding refused"): return
+		forged=S.Owner._bytes_value(before)
+		forged.ordinary_state.proposal.league="sponsorship"
+		if need(S.Owner.restore(forged)==null and S.raw()==before
+				and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup,"locked destination substituted; both files unchanged"): get_tree().quit()
+		return
+	if args[0]=="cold":
+		if need(backup.is_empty() and _preserved(app,reference) and _blocked(app,before)
+				and S.raw()==before,"primary-only strict two predecessors and proposal; no Next or second write"):
+			print("ARCHIVED_NEXT_PROPOSAL_COLD_PASS ",args[1]);get_tree().quit()
+		return
+	if not need(args[1]==CLOSED and owner.lifecycle_status()=="closed" and owner.lifecycle_reason()=="abandon"
+			and owner.ordinary_state.proposal.is_empty() and S.prepare_archived_dugout_next_and_write(owner,backup,SEED)==null
+			and not owner.next_supported() and S.raw()==before,"exact old Abandon, stale backup refused before proposal"): return
+	started=Time.get_ticks_msec()
+	var ticket: RefCounted=S.prepare_archived_dugout_next_and_write(owner,before,SEED)
+	print("ARCHIVED_NEXT_PREPARE_MS ",Time.get_ticks_msec()-started)
+	if not need(ticket!=null and not S.written_bytes(ticket).is_empty(),"typed proposal saved at actual owned Store boundary"): return
+	app._retain_prepared(ticket,S.prepared_candidate(ticket),before)
+	var current:=S.raw()
+	if need(current!=before and current.size()-before.size()<16384 and FileAccess.get_file_as_bytes(S.PATH+".bak")==before
+			and _preserved(app,reference) and _blocked(app,current) and S.raw()==current,"same owner remains closed, exactly two flat sources, no duplicated archive"):
+		print("ARCHIVED_NEXT_PROPOSAL_WRITE_PASS ",FileAccess.get_sha256(S.PATH)," added_bytes=",current.size()-before.size())
+		get_tree().quit()
+
+func _blocked(app: App,bytes: PackedByteArray) -> bool:
+	var o: RefCounted=app.career_owner
+	app.request_lifecycle("next")
+	app.commit_next()
+	return not app._lifecycle_dialog.visible and not o.next_supported() and not o.commit_next() \
+		and S.prepare_session_and_write(o,bytes,"next")==null \
+		and S.prepare_archived_dugout_next_and_write(o,bytes,SEED+1)==null
+
+func _preserved(app: App,ref: Dictionary) -> bool:
+	var o: RefCounted=app.career_owner
+	var encoded: Dictionary=S.Owner._bytes_value(S.raw())
+	var p: Dictionary=o.ordinary_state.proposal
+	if p.get("kind")!=S.Owner.Common.ARCHIVED_NEXT_KIND or p.prior_archive_sha256!=ARCHIVE \
+			or p.source!=ref.ordinary_state.last_close.session_sha256 or p.close_id!=ref.ordinary_state.last_close.id \
+			or p.source_fold_sha256!=S.Owner.Life.digest(ref.common.last_fold) or p.basis.ordinal!=3 or p.basis.seed!=SEED \
+			or p.league!="dugout" or p.tier!=0 or p.basis.common_sequence!=2 or o.common.aggregate.currency!=72 \
+			or not o.common.aggregate.titles.is_empty() or o.lifecycle_status()!="closed" or app.season.build.cash()!=36: return false
+	encoded.ordinary_state.proposal={}
+	if not S.Codec.same(encoded,ref): return false
+	var old: Dictionary=JSON.parse_string(o.ordinary_state.archive.source)
+	if old.ordinary.state.results.size()!=33 or encoded.ordinary.state.results.size()!=6: return false
+	var draft: SeasonState=S.Adapter.OrdinaryRuntime.create_common(p.basis,p.league)
+	return draft!=null and draft.phase==SeasonState.Phase.DRAFT and draft.picks.is_empty() \
+		and draft.build.cash()==0 and S.Adapter.scope("ordinary",draft)
