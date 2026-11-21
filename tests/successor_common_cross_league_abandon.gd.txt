@@ -1,0 +1,95 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const OPEN="0d880066a81baaa666b4dd133a1255cf7bfcb8694842c69b7d515cdb69ef0379"
+const SETTLED="13793c82fee362742eb03592fb0e3ef75ee0a35aa0c418f0e1135b761f270aa3"
+const ARCHIVE="b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and args.size()==2 and args[0] in ["flag-off","abandon","cold"]
+			and FileAccess.get_sha256(S.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
+			"explicit generated fixture only"): return
+	var before:=S.raw()
+	var prior:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and app.career_owner.current_ordinal()==2 and app.season.results.size()==3
+			and app.season.league_rules.get("league")=="dugout" and app.season.build.cash()==18
+			and S.raw()==before,"real archived opening native cold Continue"): return
+	var owner: RefCounted=app.career_owner
+	if args[0]=="flag-off":
+		if not need(not S.cross_league_preview()
+				and S.prepare_session_and_write(owner,before,"close",0,"","abandon")==null
+				and S.raw()==before and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,
+				"opt-out cannot abandon archived season"): return
+	elif args[0]=="abandon":
+		if not need(S.cross_league_preview() and args[1]==OPEN and FileAccess.get_sha256(S.PATH+".bak")==SETTLED
+				and owner.playable() and owner.common.aggregate.currency==72 and owner.common.sequence==1,
+				"exact genuine opening pair and adopted bank"): return
+		if not need(S.prepare_session_and_write(owner,prior,"close",0,"","abandon")==null
+				and S.prepare_session_and_write(owner,before,"close",0,"","complete")==null
+				and S.prepare_session_and_write(owner,before,"resume")==null
+				and S.prepare_session_and_write(owner,before,"create",0,"dynasty")==null
+				and S.raw()==before,"stale, nonterminal completion, other mode, and unsupported mutation refused"): return
+		var block: String=S.PATH+".tmp"
+		if not need(DirAccess.make_dir_absolute(block)==OK,"isolated own obstruction"): return
+		var t:=S.prepare_session_and_write(owner,before,"close",0,"","abandon")
+		if not need(t!=null and S.written_bytes(t).is_empty() and S.raw()==before
+				and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,"native Close ticket held, exact pair unchanged"): return
+		var candidate:=S.prepared_candidate(t)
+		if not need(DirAccess.remove_absolute(block)==OK and S.write_prepared(t),"exact same retry writes"): return
+		app._retain_prepared(t,candidate,before)
+		var committed:=S.raw()
+		if not need(FileAccess.get_file_as_bytes(S.PATH+".bak")==before and _closed(app)
+				and _inert(app) and S.raw()==committed,
+				"abandon retains the full round, banks one human game without payout; duplicate/Next held"): return
+		print("ARCHIVED_ABANDON_PASS ",FileAccess.get_sha256(S.PATH))
+	else:
+		if not need(_closed(app) and _inert(app) and S.raw()==before
+				and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,
+				"cold native Abandon and exact archived prior Standard proof"): return
+		var forged: Dictionary=S.Owner._bytes_value(before)
+		# Alter the bank and update the last-fold hash so a shape check alone cannot catch it.
+		forged.common.aggregate.currency+=1
+		forged.common.last_fold.aggregate_sha256=S.Owner.Life.digest(forged.common.aggregate)
+		if not need(S.Owner.restore(forged)==null and S.raw()==before,"cold native re-fold refuses recomputed false payout"): return
+		print("ARCHIVED_ABANDON_COLD_PASS ",args[1])
+	get_tree().quit()
+
+func _closed(app: App) -> bool:
+	var owner: RefCounted=app.career_owner
+	var state: Dictionary=owner.ordinary_state
+	var archive: Dictionary=state.archive
+	if archive.sha256!=ARCHIVE or S.Owner._hash(archive.source.to_utf8_buffer())!=ARCHIVE: return false
+	var old: Dictionary=JSON.parse_string(archive.source)
+	var now: Dictionary=owner.common
+	var prior: Dictionary=old.common
+	return old.ordinary.state.results.size()==33 and old.ordinary_state.last_close.reason=="complete" \
+		and owner.lifecycle_status()=="closed" and owner.lifecycle_reason()=="abandon" and not owner.playable() \
+		and state.last_close.receipt.is_empty() and state.last_close.league=="dugout" and state.last_close.tier==0 \
+		and now.sequence==prior.sequence+1 and now.cursors.ordinary==2 and now.last_fold.id==state.last_close.id \
+		and now.last_fold.source==state.last_close.session_sha256 and now.last_fold.receipt.is_empty() \
+		and now.aggregate.currency==72 and prior.aggregate.currency==72 and app.season.build.cash()==18 \
+		and now.aggregate.games==prior.aggregate.games+1 and now.aggregate.closed==prior.aggregate.closed+1 \
+		and now.aggregate.abandoned==prior.aggregate.abandoned+1 and now.aggregate.completed==prior.aggregate.completed \
+		and S.Codec.same(now.aggregate.titles,prior.aggregate.titles) and S.Codec.same(owner.paused,old.dynasty)
+
+func _inert(app: App) -> bool:
+	var bytes:=S.raw()
+	return S.prepare_session_and_write(app.career_owner,bytes,"close",0,"","abandon")==null \
+		and S.prepare_session_and_write(app.career_owner,bytes,"propose",1003)==null \
+		and S.prepare_session_and_write(app.career_owner,bytes,"next")==null \
+		and not app.career_owner.next_supported()

@@ -798,6 +798,8 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	last_error=""
 	if saving or _ticket!=null or operation not in ["resume","create","attach119","close","propose","next"]: return null
 	if not match_owner(owner,expected): return null
+	if owner.ordinary_state.has("archive") and (operation!="close" or reason!="abandon" or not cross_league_preview()):
+		return null
 	last_error=league_block(owner,operation,league)
 	if not last_error.is_empty(): return null
 	if operation in ["resume","create","attach119"] and not switch_available(owner): return null

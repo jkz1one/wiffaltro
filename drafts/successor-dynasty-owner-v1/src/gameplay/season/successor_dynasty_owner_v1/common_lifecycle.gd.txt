@@ -96,7 +96,8 @@ static func _archive_shape(owner) -> bool:
 	return C.keys(a,["kind","sha256","source"]) and a.kind==ARCHIVE_KIND \
 		and a.source is String and not a.source.is_empty() and a.source.length()<=ARCHIVE_MAX \
 		and owner._digest(a.sha256) and owner.active=="ordinary" and state.ordinal==2 \
-		and state.status=="active" and state.proposal.is_empty() and state.last_transition.get("league")=="dugout"
+		and state.proposal.is_empty() and state.last_transition.get("league")=="dugout" \
+		and (state.status=="active" or (state.status=="closed" and state.last_close.get("reason")=="abandon"))
 
 static func cross_commit_ready(owner) -> bool:
 	if owner==null or owner.active!="ordinary" or owner.ordinary_state.has("archive"): return false
@@ -125,7 +126,7 @@ static func _activate_cross(owner, raw: PackedByteArray) -> bool:
 	return valid(owner)
 
 # The named archive lane admits only replayed stock opening proof, not a
-# second fixture launch, further folds, mode changes or unrelated modes.
+# second fixture launch, second archive, mode changes or unrelated modes.
 static func archive_opening_scope(season: SeasonState) -> bool:
 	if season==null or season.league_rules.get("league")!="dugout" \
 		or season.league_rules.get("tier")!=0 or season.phase not in [SeasonState.Phase.DRAFT,SeasonState.Phase.REGULAR]:
@@ -146,7 +147,8 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 		var birth: Dictionary=Progress.birth({},season,season.player_access)
 		if state.status=="closed": return _paired_closed_valid(owner,season,current,birth)
 		if state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,birth): return false
-	if state.has("archive") and not archive_opening_scope(season): return false
+	if state.has("archive") and (not archive_opening_scope(season) \
+		or (state.status=="closed" and season.round_index!=1)): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false
@@ -200,7 +202,8 @@ static func _close_paired_complete(owner, current: Dictionary) -> bool:
 	return ordinary_current_valid(owner,owner.session,current) and _apply_close(owner,"complete",current)
 
 static func close(owner, reason: String) -> bool:
-	if owner.ordinary_state.has("archive"): return false
+	if owner.ordinary_state.has("archive") and (reason!="abandon" or owner.active!="ordinary" \
+		or not archive_opening_scope(owner.session) or owner.session.round_index!=1): return false
 	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
 	var season: SeasonState=owner.session
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false
@@ -355,7 +358,7 @@ static func _ordinary_proposal_valid(owner) -> bool:
 	return true
 
 static func next_block_reason(owner) -> String:
-	if owner.ordinary_state.has("archive"): return "This archived first rollover is draft-only."
+	if owner.ordinary_state.has("archive"): return "Further seasons from this archived rollover are not available."
 	if owner.active=="dynasty":
 		return "" if dynasty_next_supported(owner) else "Shared earned rights are retained. Applying differing common rights to Dynasty Next is not yet available; Return keeps both saved seasons intact."
 	if owner.ordinary_state.get("proposal",{}).get("kind")==CROSS_KIND:
@@ -378,6 +381,7 @@ static func dynasty_next_supported(owner) -> bool:
 	return aggregate.pennants.is_empty() and C.same(awards(owner),owner.ledger.plaques)
 
 static func propose(owner, seed_value: int) -> bool:
+	if owner.ordinary_state.has("archive"): return false
 	if owner.paired_draft_only(): return false
 	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.propose(owner,seed_value)
 	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.ordinal>=ClubCareer.MAX_RUNS or not C.whole(seed_value,0,2147483647): return false
@@ -400,6 +404,7 @@ static func preview(owner) -> Dictionary:
 	return {"kind":p.get("kind","ordinary"),"league":p.league,"tier":p.tier,"seed":b.seed,"ordinal":b.ordinal,"player_access":b.player_access.duplicate(),"starts":b.starts.duplicate(true),"exotic_rights":b.exotic_rights.duplicate()}
 
 static func advance(owner) -> bool:
+	if owner.ordinary_state.has("archive"): return false
 	if owner.paired_draft_only(): return false
 	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.advance(owner)
 	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.proposal.is_empty(): return false

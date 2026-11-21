@@ -103,7 +103,7 @@ func render() -> void:
 	if app.career_owner.lifecycle_status()=="closed":
 		_workshop_draft()
 		_closed()
-		_session_controls()
+		if not archived: _session_controls()
 		if app.earned_league_preview(): _earned_leagues(false)
 		return
 	if not app.season.physical.pending.is_empty():

@@ -134,3 +134,36 @@ and settled predecessor
 were byte-inert after fresh cold Continue. A separate raw audit matched
 the embedded full CP202 predecessor and unchanged Common state through
 all staged pairs. Further play and lifecycle remain unqualified.
+
+## Bounded archived Abandon
+
+The ordinary native rule permits Abandon after the real opening round:
+four picks, regular season, three settled games, no pending report and
+no unresolved pack. It does not permit a completion award. For this
+isolated archive family the existing Store Close producer accepts only
+that case, with the cross-league engineering opt-in and exact matched
+owner. Further Next, switches and additional archive depth are held.
+There is no new interactive command.
+
+Cold opening authenticates the exact nonrecursive Standard predecessor
+and the current strict Dugout snapshot. With those already-validated
+inputs it replays the native Abandon contribution from the predecessor
+Common bank and checks the exact newer fold and close receipt. A
+recomputed digest on a claimed payout does not confer funds. The older
+complete Standard proof remains byte-identical inside the archive,
+ordinary seasonal Cash stays in its old journal for review, and the
+actual bank in the newer closed owner gains no completion payout.
+
+To reproduce, attach `tests/successor_common_cross_league_abandon.gd.txt`
+to a scratch source-preserving Node scene and clone the exact CP204
+opened-shop primary and settled predecessor into a new isolated profile.
+Run `-- flag-off <opening SHA>`, then `-- abandon <opening SHA>` and
+`-- cold <closed SHA>` in independent processes. The native Store's
+own isolated temp obstruction won't modify either input file. The same
+ticket then retries, after which duplicate Close, other modes, ordinary
+Next and forced fake currency are rejected. No match is replayed.
+
+The Common bank's game counter counts human completed games, not all
+league fixtures. This owned Dugout round adds one (11 to 12) while
+retaining all three Dugout match rows. No championship, payout or
+second archive is created.
