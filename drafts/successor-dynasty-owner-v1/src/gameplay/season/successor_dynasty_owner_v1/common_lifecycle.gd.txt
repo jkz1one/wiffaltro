@@ -152,11 +152,17 @@ static func archive_play_scope(season: SeasonState) -> bool:
 	return season!=null and season.league_rules.get("league") in ["dugout","sponsorship"] \
 		and season.league_rules.get("tier")==0 and not season.career.start_basis.is_empty()
 
-# Only the previously proven opening Abandon can produce a second fold.
+# No Abandon during a draft, open physical round or playoffs. The stock
+# Ordinary codec remains responsible for exact fixtures, proofs and rewards.
 static func archive_close_scope(season: SeasonState) -> bool:
-	return archive_play_scope(season) and season.league_rules.get("league")=="dugout" and season.round_index==1 and season.phase==SeasonState.Phase.REGULAR \
-		and season.results.size()==3 and season.player_results.size()==1 and season.physical.reports.size()==2 \
-		and season.physical.pending.is_empty() and season.physical.needed.is_empty()
+	if not archive_play_scope(season) or season.league_rules.get("league")!="dugout" \
+			or season.phase!=SeasonState.Phase.REGULAR or season.round_index<=0 or season.physical==null \
+			or season.picks.size()!=4 or season.build==null or season.build.pack_pending(): return false
+	var settled: int=season.round_index
+	return season.results.size()==3*settled and season.player_results.size()==settled \
+		and season.physical.reports.size()==2*settled and season.physical.cursor==2*settled \
+		and season.physical.pending.is_empty() and season.physical.needed.is_empty() \
+		and season.physical.error.is_empty() and not season.physical.projecting
 
 static func ordinary_current_valid(owner, season: SeasonState, current: Dictionary) -> bool:
 	if not Adapter.scope("ordinary",season) or current.is_empty() or owner.ordinary_state.is_empty(): return false

@@ -1,0 +1,102 @@
+extends "res://tests/successor_common_cross_league_abandon.gd"
+const LATER="d3fdb27a6138174baf752499c5b9b3864b71433eae76fad438c61e1d97217896"
+const SOURCE_PATH="user://exact-cp207-round2.json"
+const ABANDON="ABANDON CURRENT SEASON…"
+
+func _button(node: Node, title: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==title and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var result:=_button(child,title)
+		if result!=null: return result
+	return null
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["live","cold","flag-off","tamper","draft-held"]
+			and FileAccess.get_sha256(SOURCE_PATH)==LATER and FileAccess.get_sha256(S.PATH)==args[1],
+			"explicit generated archive contract"): return
+	var prior:=S.raw()
+	var bak:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var original: Dictionary=S.Owner._bytes_value(FileAccess.get_file_as_bytes(SOURCE_PATH))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var started:=Time.get_ticks_msec()
+	app.reload_save()
+	print("ARCHIVED_LATER_STRICT_READ_MS ",Time.get_ticks_msec()-started)
+	if args[0]=="tamper":
+		var forged: Dictionary=S.Owner._bytes_value(prior)
+		forged.common.aggregate.currency+=1
+		forged.common.last_fold.aggregate_sha256=S.Owner.Life.digest(forged.common.aggregate)
+		if need(app._owned() and S.Owner.restore(forged)==null and _exact(prior,bak),
+				"rehashed false fold refused; exact primary and backup unchanged"): get_tree().quit()
+		return
+	if not need(app._owned() and _exact(prior,bak),"strict owner loaded, source unchanged"): return
+	var control:=_button(app,ABANDON)
+	if args[0]=="draft-held":
+		app.request_lifecycle("abandon")
+		if need(app.season.phase==SeasonState.Phase.DRAFT and app.career_owner.ordinary_state.last_transition.has("kind")
+				and control==null and not app._lifecycle_dialog.visible and _exact(prior,bak),"marked ordinal2 draft cannot abandon"): get_tree().quit()
+		return
+	if args[0]=="flag-off":
+		app.request_lifecycle("abandon")
+		if need(control==null and S.prepare_session_and_write(app.career_owner,prior,"close",0,"","abandon")==null
+				and not app._lifecycle_dialog.visible and _exact(prior,bak),"flag-off UI and Store refuse exact active archive"): get_tree().quit()
+		return
+	if args[0]=="cold":
+		if need(bak.is_empty() and control==null and _closed_later(app,original) and _inert(app)
+				and _exact(prior,bak),"fresh primary-only cold exact six results, prior archive and once-only native fold"):
+			print("ARCHIVED_LATER_COLD_PASS ",args[1]);get_tree().quit()
+		return
+	if not need(args[1]==LATER and control!=null and app.season.round_index==2
+			and app.season.results.size()==6 and app.season.player_results.size()==2 and app.season.build.cash()==36,
+			"actual archived Dugout round 2 menu and native Cash 36"): return
+	if not need(S.prepare_session_and_write(app.career_owner,bak,"close",0,"","abandon")==null
+			and S.prepare_session_and_write(app.career_owner,prior,"close",0,"","complete")==null
+			and S.prepare_session_and_write(app.career_owner,prior,"resume")==null and _exact(prior,bak),
+			"stale, unsupported completion and other mode refuse"): return
+	control.pressed.emit()
+	if not need(app._lifecycle_dialog.visible and app._lifecycle_action=="abandon" and _exact(prior,bak),
+			"actual native confirmation, no early write"): return
+	app._lifecycle_dialog.canceled.emit()
+	if not need(not app._lifecycle_dialog.visible and _exact(prior,bak),"cancel leaves both exact files"): return
+	_button(app,ABANDON).pressed.emit()
+	started=Time.get_ticks_msec()
+	app._lifecycle_dialog.confirmed.emit()
+	print("ARCHIVED_LATER_CONFIRM_MS ",Time.get_ticks_msec()-started)
+	var written:=S.raw()
+	if need(written!=prior and _exact(written,prior) and _closed_later(app,original) and _inert(app)
+			and _exact(written,prior),"confirmed native Abandon banks two human games once, exact predecessor preserved"):
+		print("ARCHIVED_LATER_ABANDON_PASS ",FileAccess.get_sha256(S.PATH));get_tree().quit()
+
+func _exact(main: PackedByteArray, backup: PackedByteArray) -> bool:
+	return S.raw()==main and FileAccess.get_file_as_bytes(S.PATH+".bak")==backup
+
+func _closed_later(app: App,original: Dictionary) -> bool:
+	var owner: RefCounted=app.career_owner
+	var state: Dictionary=owner.ordinary_state
+	var archive: Dictionary=state.archive
+	if archive.sha256!=ARCHIVE or S.Owner._hash(archive.source.to_utf8_buffer())!=ARCHIVE \
+			or not S.Codec.same(archive,original.ordinary_state.archive): return false
+	var record: Dictionary=S.Owner._bytes_value(S.raw())
+	var before: Dictionary=original.common
+	var after: Dictionary=owner.common
+	if not S.Codec.same(record.ordinary,original.ordinary) or not S.Codec.same(record.dynasty,original.dynasty) \
+			or not S.Codec.same(state.last_transition,original.ordinary_state.last_transition): return false
+	var row: Dictionary=state.last_close
+	var fold: Dictionary=S.Owner.Common.Progress.fold(before.aggregate,"ordinary",app.season,row.id,int(before.sequence)+1,"abandon")
+	if fold.is_empty() or not S.Codec.same(after.aggregate,fold.aggregate) or not S.Codec.same(row.receipt,fold.receipt): return false
+	return owner.lifecycle_status()=="closed" and owner.lifecycle_reason()=="abandon" and not owner.playable() \
+		and app.season.results.size()==6 and app.season.player_results.size()==2 and app.season.build.cash()==36 \
+		and row.receipt.is_empty() and row.league=="dugout" and row.tier==0 \
+		and row.first_title==(not before.aggregate.titles.get(S.Owner.Common.ClubLeagueCareer.title_key("dugout",0),false)) \
+		and after.sequence==before.sequence+1 and after.cursors.ordinary==2 and after.last_fold.id==row.id \
+		and after.last_fold.source==row.session_sha256 and after.last_fold.receipt.is_empty() \
+		and after.aggregate.currency==72 and before.aggregate.currency==72 \
+		and after.aggregate.games==before.aggregate.games+2 and after.aggregate.wins==before.aggregate.wins+2 \
+		and after.aggregate.runs_for==before.aggregate.runs_for+6 and after.aggregate.runs_against==before.aggregate.runs_against+4 \
+		and after.aggregate.closed==before.aggregate.closed+1 \
+		and after.aggregate.abandoned==before.aggregate.abandoned+1 and after.aggregate.completed==before.aggregate.completed \
+		and S.Codec.same(after.aggregate.titles,before.aggregate.titles) and S.Codec.same(after.cursors.dynasty,before.cursors.dynasty)

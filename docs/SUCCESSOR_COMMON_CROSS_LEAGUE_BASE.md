@@ -287,3 +287,30 @@ runs `zero`, `pick`, `cold`, `cancel`, `stale`, `refused` and
 draft write; `stale` simulates a revision change with the verified
 backup bytes in its throwaway profile. Normal cold independently checks
 the resulting two-pick slot without the special admission path.
+
+### Private archived Dugout Abandon after a later settled round
+
+An owned archived Dugout Base season can now use the actual Abandon
+confirmation between fully settled regular rounds in the private
+cross-league preview. Draft, pending games, playoffs, unresolved packs,
+flag-off, unsupported completion, mode change and Next remain held.
+The action needs the original strict native season/report codec and
+guarded Store write, not just the visible menu predicate. The prior
+Standard archive and both current-session payloads are preserved.
+
+The generated legacy-marker CP207 ordinal-two example keeps six native
+results and four NPC reports. Only its two human wins enter the new
+Common fold (+2 games, +2 wins, +6 runs scored, +4 allowed, +1 abandon).
+The bank remains 72 Club Bucks and the closed season still holds its
+36 game Cash. There is no completion payout or title. Other earned
+metrics/rights use the native fold; a primary-only cold read replays
+that fold against the exact archived Standard predecessor. The newer
+marked draft is an explicit negative, not evidence of played v2 history.
+
+Use `tests/successor_common_cross_league_later_abandon.gd.txt` with the
+original archived-Abandon QA parent and exact CP207 primary saved as
+`user://exact-cp207-round2.json`. Exercise `live` (cancel, then confirm),
+`cold` on the resulting primary alone, `tamper` for rehashed false
+payout, `flag-off` on the original active pair, and `draft-held` on
+the exact marked draft. The original opening-Abandon cold check is
+separate. No games or later lifecycle actions are run.

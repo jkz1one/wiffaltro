@@ -192,7 +192,7 @@ func render() -> void:
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty() and not app.academy_pack_choice_pending():
 		_bound_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
-	if not archived and app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
+	if app.archived_abandon_visible() or (not archived and app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty()):
 		_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
 
 	if not archived: _session_controls()
@@ -333,7 +333,8 @@ func _career_records() -> void:
 func _closed() -> void:
 	var owner=app.career_owner
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
-	_note("Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")
+	_note("Earned progress is banked. The previous season archive is preserved. No completion payout or next season." if owner.ordinary_state.has("archive") else
+		"Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")
 	var proposal: Dictionary=owner.proposal if owner.active=="dynasty" else owner.ordinary_state.proposal
 	if proposal.get("kind")=="common-ordinary-league-proposal-v1":
 		_label(_body,"DUGOUT BASE · SEASON %d · PROPOSAL SAVED"%int(proposal.basis.ordinal),20)

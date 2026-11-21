@@ -1488,8 +1488,15 @@ func import_previous_dynasty() -> void:
 		notice="Previous Dynasty save could not be copied consistently. Originals are unchanged.";show_season();return
 	_retain_envelope(candidate,PackedByteArray())
 
-func _lifecycle_ready() -> bool:
-	if career_owner!=null and career_owner.ordinary_state.has("archive"): return false
+func archived_abandon_visible() -> bool:
+	return career_owner!=null and season!=null and career_owner.session==season \
+		and career_owner.ordinary_state.has("archive") and Store.cross_league_preview() \
+		and career_owner.active=="ordinary" and career_owner.lifecycle_status()=="active" \
+		and Owner.Common.archive_close_scope(season)
+
+func _lifecycle_ready(action: String) -> bool:
+	if career_owner!=null and career_owner.ordinary_state.has("archive") \
+			and (action!="abandon" or not archived_abandon_visible()): return false
 	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or is_instance_valid(ai_runner): return false
 	if not _exit_mode.is_empty() or not retained_human.is_empty() or not retained_report.is_empty(): return false
@@ -1500,7 +1507,7 @@ func _lifecycle_ready() -> bool:
 	return true
 
 func _lifecycle_commit(operation: String, seed_value: int=0, reason: String="") -> void:
-	if not _lifecycle_ready(): return
+	if not _lifecycle_ready(reason if operation=="close" else operation): return
 	var expected: PackedByteArray=saved_bytes.duplicate()
 	var ticket: RefCounted=Store.prepare_session_and_write(career_owner,expected,operation,seed_value,"",reason)
 	if ticket==null:
@@ -1532,7 +1539,7 @@ func commit_next() -> void:
 	_lifecycle_commit("next")
 
 func request_lifecycle(action: String) -> void:
-	if not _lifecycle_ready() or not _owned() or action not in ["abandon","complete","next"]: return
+	if action not in ["abandon","complete","next"] or not _lifecycle_ready(action) or not _owned(): return
 	var dynasty: bool=career_owner.active=="dynasty"
 	if action=="next":
 		if career_owner.lifecycle_status()!="closed" or not next_league_block().is_empty(): return
@@ -1544,7 +1551,7 @@ func request_lifecycle(action: String) -> void:
 	if action=="next":
 		_lifecycle_dialog.dialog_text="Start the next season with all six carried rosters? The provisional rule removes up to 2 above-authored points per stat and 1 mastery per known pitch, paid growth first. Seasonal Cash, items and sponsors reset. This happens only once on confirmation." if dynasty else "Start a new ordinary season with a fresh four-player draft? Shared earned access and progression starts apply. Previous ordinary player development does not carry over. Seasonal Cash, items and sponsors reset; the other saved session stays unchanged."
 	elif action=="abandon":
-		_lifecycle_dialog.dialog_text="Abandon this season? Completed-game stats and earned progress are banked once. There is no completion payout. The saved season remains available for review or Return; no next season or Dynasty decay occurs."
+		_lifecycle_dialog.dialog_text="Abandon this season? Completed-game stats and earned progress are banked once. No completion payout or next season. The previous season archive is preserved." if archived_abandon_visible() else "Abandon this season? Completed-game stats and earned progress are banked once. There is no completion payout. The saved season remains available for review or Return; no next season or Dynasty decay occurs."
 	else:
 		_lifecycle_dialog.dialog_text="Close this completed season and bank its verified career contribution once? The saved season remains available for review or Return. No next season or Dynasty decay occurs."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
