@@ -241,6 +241,22 @@ func private_unpurchased_return_pending() -> bool:
 		and not Adapter.Ordinary.unpurchased_return_kind(season.build).is_empty() \
 		and not season.physical.pending.is_empty()
 
+func resume_private_unpurchased_return() -> void:
+	if not private_unpurchased_return_pending() or not _available() or not _owned() or is_instance_valid(ai_runner): return
+	if not retained_report.is_empty():
+		_checkpoint_report()
+		return
+	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if not factory.bound_shape(season.physical.pending) or season.physical.pending.human[0]!=3: return
+	var next: Dictionary=factory.next_npc_fixture(season)
+	if next.get("id") in [4,5]:
+		_run_paired_npc(int(next.id))
+		if is_instance_valid(ai_runner):
+			projection={"fixture":next}
+			show_season()
+	elif season.physical.pending.reports.size()==2:
+		_settle_paired_return_leg()
+
 # Unbound human first/return fixtures. Normal play/finish/resume remains closed.
 var _paired_first_pin: Dictionary={}
 func _play_paired_first() -> void:

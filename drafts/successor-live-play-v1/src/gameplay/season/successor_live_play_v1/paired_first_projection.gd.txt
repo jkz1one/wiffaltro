@@ -64,6 +64,7 @@ static func start(source: SeasonState) -> Dictionary:
 		if not Live._sealed_regular_end_shape(source): return {}
 	elif source.phase!=SeasonState.Phase.REGULAR: return {}
 	if source.round_index==1 and not Live.return_human_ready(source.build): return {}
+	if source.round_index==2 and not Live._paid_pair_journal(source.build,2): return {}
 	if source.round_index==6 and not Live._signed_visit6_journal(source.build): return {}
 	if LATE_REGULAR.has(source.round_index) and not Live._paired_late_start(source): return {}
 	# Saved JSON hydrates whole IDs as floats. Bind to the semantically equal
@@ -91,7 +92,6 @@ static func verify_bound(source: SeasonState) -> bool:
 # Read only the exact next slot. Job and Store admission independently replay it.
 static func next_npc_fixture(source: SeasonState) -> Dictionary:
 	if not Live.scope(source) or report_limit(source.round_index)==0 or not bound_shape(source.physical.pending): return {}
-	if source.round_index==1 and not Live.unpurchased_return_kind(source.build).is_empty(): return {}
 	if source.round_index==10:
 		var playoff: Dictionary=_semifinal_fixtures(source)
 		if playoff.is_empty(): return {}
@@ -415,8 +415,6 @@ static func return_projection(season: SeasonState) -> bool:
 static func _inspect_return(source: SeasonState, human: Array, reports: Array, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	if not Live.scope(source) or source.round_index!=1 or not Live.return_human_ready(source.build) \
 		or not source.physical.pending.is_empty() or reports.size()>2: return {}
-	if not Live.unpurchased_return_kind(source.build).is_empty() \
-		and (not reports.is_empty() or preview_job or produce_settlement): return {}
 	var shape: Dictionary={"human":human.duplicate(true),"reports":reports.duplicate(true)}
 	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()) or human[0]!=3: return {}
 	if Live._capture_structural(source).is_empty() or not Live._first_human_score(source) or not PairedHistory.validate_settled(source): return {}

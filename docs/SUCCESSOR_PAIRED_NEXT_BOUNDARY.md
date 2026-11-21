@@ -117,3 +117,28 @@ pending slot for independent `cold`; keep the exact free-browsed primary
 as `user://exact-browsed-opening.json` in that isolate. `paid`,
 `revealed`, and `flag-off` use their own exact profiles. Only the
 `play` case simulates a game; it does not replay the original opener.
+
+## Complete the opening pair without a purchase
+
+Under the same private flag, **Resume Doubleheader Return Leg** resumes
+the exact saved no-purchase human result. Each press advances one
+bound native NPC fixture (4, then 5), then the next press settles.
+Reports alone never award cash. At settlement the normal reward
+command pays the per-game income and, for a club that won both legs,
+the authored six-Cash bonus. It is not a second reward event.
+
+The settled no-purchase dialect is derived from exactly two native
+reward/exotic pairs, with at most the single original free-open event
+between them. Both native bank rewards must be present without a shop
+charge. This is separately validated via full physical history, and
+neither starts a third game nor joins the pre-existing paid journal.
+The existing paid route and source binding are unchanged.
+
+To verify, use `tests/successor_private_doubleheader_unpurchased_settlement.gd.txt`
+with the existing private first-settlement parent. Clone the CP214
+pending pair and exact primary as `user://exact-human-return.json`.
+Run `npc4`, `npc5`, then copy that exact final pending primary as
+`user://exact-npc-complete-return.json` before `settle`. Independent
+`cold` uses the settled primary only (no rotating backup) and the
+two QA references for byte comparisons. Separate clones exercise
+`flag-off`, forged journal rejection, and the old exact paid binding.

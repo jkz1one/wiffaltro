@@ -198,7 +198,6 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or (not detached and physical.reports.size()!=2): return false
 	if not physical.pending.is_empty():
 		if not return_human_ready(season.build) or not projection.bound_shape(physical.pending) or physical.pending.human[0]!=3: return false
-		if not unpurchased_return_kind(season.build).is_empty() and not physical.pending.reports.is_empty(): return false
 	for index: int in range(2):
 		if physical.reports[index].get("fixture")!=index+1: return false
 	var build: SeasonBuild=season.build
@@ -227,7 +226,11 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 	for index: int in range(4):
 		if physical.reports[index].get("fixture")!=[1,2,4,5][index]: return false
 	var build: SeasonBuild=season.build
-	return _paid_pair_journal(build,2) and whole(build._visit.get("number"),2,2) and build._visit.get("open")==false
+	if not whole(build._visit.get("number"),2,2) or build._visit.get("open")!=false: return false
+	if _paid_pair_journal(build,2): return true
+	# This separate exact journal is terminal for this private slice, not a
+	# relaxed paid-pair prefix or permission to launch the next pair.
+	return not detached and physical.pending.is_empty() and not unpurchased_settled_pair_kind(build).is_empty()
 
 # Authored paid prefix plus only the individually qualified pending lane.
 # Report-capable rounds may queue only the authored suffix in a detached fork.
@@ -449,6 +452,26 @@ static func unpurchased_return_kind(build: SeasonBuild) -> String:
 	var reward: Dictionary=build._bank._events[0]
 	if reward.get("id")!="game:0" or reward.get("game")!=0 or not reward.get("win") is bool: return ""
 	return "unopened" if rev==2 else "browsed"
+
+# Accepted only on the rederived, fully replayed six-game snapshot.
+# Both variants have two native rewards and two native exotic admissions.
+# A browsed profile may have the exact free-open command before the return.
+static func unpurchased_settled_pair_kind(build: SeasonBuild) -> String:
+	var size: int=build._events.size()
+	if size not in [4,5] or build.revision()!=size or build._bank==null: return ""
+	var browsed: bool=size==5
+	if not _first_shop_journal(build,1 if browsed else 0): return ""
+	var reward: Dictionary=build._events[size-2]
+	var exotic: Dictionary=build._events[size-1]
+	if reward.get("op")!="successor_reward" or reward.get("id")!="game:3" \
+		or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:3": return ""
+	var bank: Array=build._bank._events
+	if bank.size()!=2: return ""
+	for index: int in range(2):
+		var game: int=index*3
+		if not same(bank[index],{"id":"game:%d"%game,"op":"reward","rev":index,"game":game,"win":bank[index].get("win")}) \
+			or not bank[index].get("win") is bool: return ""
+	return "browsed" if browsed else "unopened"
 
 static func return_human_ready(build: SeasonBuild) -> bool:
 	return build.revision()==5 or not unpurchased_return_kind(build).is_empty()

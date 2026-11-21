@@ -1,0 +1,146 @@
+extends "res://tests/successor_hidden_first_settlement.gd"
+const Pair=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const Work=preload("res://src/gameplay/season/successor_league_general_v2/physical_workload.gd")
+const BASELINE="user://exact-human-return.json"
+const FINISH_INPUT="user://exact-npc-complete-return.json"
+const EXACT="048f5b0c23b7fef731687e841668fc05fccaea673e1f1f39fdcd20bafbfe6e5c"
+const PAID="7f544c926d547ef0372e7cf1810ff2f2557f27f79818b17ed4d8cbb1189a2ba9"
+const BUTTON="RESUME DOUBLEHEADER RETURN LEG"
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func need(ok: bool,label: String) -> bool:
+	if check(ok,label): return true
+	get_tree().quit(1)
+	return false
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["npc4","npc5","settle","cold","tamper","flag-off","paid"] and FileAccess.get_sha256(BASELINE)==EXACT
+			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
+			"isolated exact CP214 human return"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var original: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BASELINE))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if args[0]=="tamper":
+		if need(app.career_owner==null and exact(before,backup),"strict cold rejects forged no-charge journal/result proof with no write"): get_tree().quit()
+		return
+	if not need(app._owned() and exact(before,backup) and Live.same(app.career_owner.common,original.common),
+			"strict current, prior backup, and separate Common aggregate remain exact"): return
+	var control:=_button(app,BUTTON)
+	if args[0]=="paid":
+		var authored: Dictionary=Pair.start(app.season)
+		if need(args[1]==PAID and control==null and app.season.build.cash()==10 and not authored.is_empty()
+				and authored.binding.request=="92895ac547ea020d32f8a51f96063bb020c0ca916206a3f4e07a2e6b6dbf6538"
+				and exact(before,backup),"exact old paid request and bytes untouched; not admitted by this route"): get_tree().quit()
+		return
+	if args[0]=="flag-off":
+		app.resume_private_unpurchased_return()
+		if need(control==null and not is_instance_valid(app.ai_runner) and exact(before,backup),"flag off blocks UI and direct resume"): get_tree().quit()
+		return
+	if args[0]=="cold":
+		if not need(backup.is_empty() and control==null and _settled(app,original)
+				and PairHistory.checked_sides==12 and PairHistory.checked_reports==4,
+				"fresh primary-only strict six games, full proofs, and twelve native rewards"): return
+		app.resume_private_unpurchased_return()
+		app._settle_paired_return_leg()
+		app._play_paired_next_first()
+		app.open_shop()
+		if need(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(before,backup),
+				"repeat settlement, next match and shop cannot write"):
+			print("UNPURCHASED_DH_PAIR_COLD_PASS ",args[1])
+			get_tree().quit()
+		return
+	var count: int={"npc4":0,"npc5":1,"settle":2}[args[0]]
+	if not need(control!=null and _pending(app,original,count) and (count!=0 or args[1]==EXACT),
+			"original both humans and carried first-leg physical evidence stay exact; no return reward yet"): return
+	var start:=Time.get_ticks_msec()
+	control.pressed.emit()
+	if count<2:
+		if not need(is_instance_valid(app.ai_runner) and app._busy and app._paired_npc_binding.get("fixture")==count+4
+				and app._npc_expected==before and _button(app,BUTTON).disabled,"one native bound worker and no duplicate start"): return
+		var runner: Node=app.ai_runner
+		app.resume_private_unpurchased_return()
+		if not need(app.ai_runner==runner and exact(before,backup),"repeat in-flight is byte-inert"): return
+		for i: int in range(150000):
+			await get_tree().physics_frame
+			if not app._busy: break
+		if not need(not app._busy and app.retained==null and app.retained_report.is_empty() and _pending(app,original,count+1)
+				and app.season.physical.pending.reports[count].fixture==count+4,"real NPC durable pending; Cash remains 18"): return
+	else:
+		if not need(_settled(app,original) and PairHistory.checked_sides==12 and PairHistory.checked_reports==4,
+				"settles exact six results and native receipts with one sweep for qualifying clubs"): return
+		var settled_bytes:=Store.raw()
+		app.resume_private_unpurchased_return()
+		if not need(exact(settled_bytes,before) and _button(app,BUTTON)==null,"duplicate cannot award or rotate again"): return
+	if need(Store.raw()!=before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"exact prior revision rotated once"):
+		print("UNPURCHASED_DH_PAIR_STEP ",args[0]," ",FileAccess.get_sha256(Store.PATH)," elapsed_ms=",Time.get_ticks_msec()-start)
+		get_tree().quit()
+func _old_exact(s: SeasonState,original: Dictionary) -> bool:
+	return Live.same(s.results.slice(0,3),original.ordinary.state.results) and Live.same(s.player_results[0],original.ordinary.state.player_results[0]) \
+		and Live.same(s.physical.reports.slice(0,2),original.ordinary.physical.reports)
+func _pending(app: App,original: Dictionary,count: int) -> bool:
+	var s: SeasonState=app.season
+	var p: Dictionary=s.physical.pending
+	return s.round_index==1 and s.results.size()==3 and _old_exact(s,original) and s.build.cash()==18 \
+		and Binding_shape(p) and p.reports.size()==count and Live.same(p.human,original.ordinary.physical.pending.human) \
+		and Live.same(p.binding,original.ordinary.physical.pending.binding) and Live.same(s.build._bank.view().rewards,{"0":true})
+func Binding_shape(p: Dictionary) -> bool:
+	return Pair.bound_shape(p) and p.human[0]==3
+func _settled(app: App,original: Dictionary) -> bool:
+	var s: SeasonState=app.season
+	if s.round_index!=2 or s.results.size()!=6 or s.player_results.size()!=2 or not s.physical.pending.is_empty() \
+		or s.physical.reports.size()!=4 or s.build.cash()!=42 or Live.unpurchased_settled_pair_kind(s.build)!="browsed" \
+		or not Live.same(app.career_owner.common,original.common) or not _old_exact(s,original):
+		print("PAIR CHECK base scope",s.round_index," ",s.build.cash()," ",Live.unpurchased_settled_pair_kind(s.build))
+		return false
+	var finish: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(FINISH_INPUT))
+	var p: Dictionary=finish.ordinary.physical.pending
+	var human: Dictionary=s.player_results[1]
+	if not Live.same(s.physical.reports.slice(2),p.reports) or not Live.same([human.id,human.away_runs,human.home_runs],p.human.slice(0,3)) \
+		or not Live.same(human.pitching_current,p.human[9]) or not Live.same(human.doubleheader_evidence,p.human[13]):
+		print("PAIR CHECK payload comparison")
+		return false
+	var sweeps: Array=[]
+	for club: int in range(6):
+		var build: SeasonBuild=s.build if club==0 else s.opponents.clubs[str(club)].build
+		var expected: Dictionary={}
+		for row: Dictionary in s.results:
+			if row.away!=club and row.home!=club: continue
+			expected[str(int(row.id))]=(row.away_runs>row.home_runs)==(row.away==club)
+			if row.id>=3:
+				var prior: Dictionary=s.results[SeasonDoubleheaderRules.first(row.id)]
+				var a: Dictionary=prior.doubleheader_evidence[0 if prior.away==club else 1]
+				var b: Dictionary=row.doubleheader_evidence[0 if row.away==club else 1]
+				if not ClubCareer.same(b.pair,{"game":row.id,"first":prior.id,"debt":Work.net_debt(a.proof,a.pair.debt)}):
+					print("PAIR CHECK pair debt club ",club)
+					return false
+		var bank: SeasonOwnership=build._bank.empty_fork()
+		var count:=0
+		for event: Dictionary in build._bank._events:
+			var cash: int=bank.cash()
+			var prior: Dictionary=bank.view().rewards.duplicate(true)
+			var receipt: Dictionary=bank.commit(event)
+			if not receipt.ok or receipt.replayed:
+				print("PAIR CHECK replay club ",club," ",event.op," ",receipt.get("error"))
+				return false
+			if event.op!="reward": continue
+			var bonus: int=SeasonDoubleheaderRules.bonus(s.league_rules,event.game,event.win,prior)
+			if expected.get(str(int(event.game)))!=event.win or bank.cash()-cash!=(18 if event.win else 12)+bonus:
+				print("PAIR CHECK reward club ",club," ",event.game," ",bank.cash()-cash," ",bonus)
+				return false
+			if bonus>0: sweeps.append([club,int(event.game),bonus])
+			count+=1
+		if count!=2 or not ClubCareer.same(bank.view(),build._bank.view()) or not Live.same(bank.view().rewards,expected):
+			print("PAIR CHECK final bank club ",club," count ",count)
+			return false
+	print("NATIVE_UNPURCHASED_SWEEPS ",sweeps)
+	return [0,3,6] in sweeps

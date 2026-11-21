@@ -39,7 +39,7 @@ func _refresh_round_progress() -> void:
 		message="Checking the saved round. %d NPC results saved."%saved
 	else:
 		message="%d NPC results saved. %s to continue."%[saved,
-			"Resume Opening Doubleheader Leg" if _round_resume.text=="RESUME OPENING DOUBLEHEADER LEG" else "Resume Saved Round"]
+			_round_resume.text.capitalize() if _round_resume.text.begins_with("RESUME ") else "Resume Saved Round"]
 	if _round_progress.text!=message: _round_progress.text=message
 
 func render() -> void:
@@ -105,7 +105,15 @@ func render() -> void:
 			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_refresh_round_progress()
 		elif app.private_unpurchased_return_pending():
-			_note("The return leg is saved. Return-leg NPC fixtures and settlement are not exposed in this preview.")
+			_label(_body,"PRIVATE DOUBLEHEADER BASE · RETURN LEG",22)
+			_round_resume=_bound_button(_body,"RESUME DOUBLEHEADER RETURN LEG",Callable(app,"resume_private_unpurchased_return"))
+			_round_progress=_label(_footer,"",16)
+			_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			_refresh_round_progress()
+		elif app.season.round_index==2 and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+				and not Store.Adapter.Ordinary.unpurchased_settled_pair_kind(app.season.build).is_empty():
+			_note("Opening pair settled. The next pair and shop are not exposed in this preview.")
 		elif app.private_paired_development_step()>=0:
 			_private_paired_development()
 		else:
