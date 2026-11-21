@@ -43,3 +43,26 @@ as its parent under `res://tests`. Run `draft new`, then use the actual
 primary hash for `flag-off` (separate profile, private option unset) and
 `play` (normal native physics and Return). Run `cold <pending SHA>`
 in a new process. No NPC fixture, second leg, or settlement is run.
+
+## Resume and settle the opening leg
+
+The same private flag now exposes **Resume Opening Doubleheader Leg**
+only at the exact first-leg pending stage. Each press starts at most one
+native bound NPC fixture (1 then 2); the next press settles the opening
+leg. Each actual report is checkpointed independently, and the menu
+reports how many are saved. No action replays the human game or lets
+opening-leg controls launch the return leg.
+
+All fixtures remain unpaid while pending. Native settlement records
+one normal game reward per club, with no first-leg sweep bonus. It
+preserves the exact first-leg workload used to derive the reversed
+return fixture's stamina debt. The authored rules allow a shop between legs, but
+its UI and the actual second human leg remain held in this slice.
+
+The isolated scratch test
+`tests/successor_private_doubleheader_settlement_menu.gd.txt` extends
+the prior first-settlement harness. Clone the exact CP211 pending pair
+and copy the primary as `user://exact-opening-pending.json` inside the
+same throwaway profile. Run `npc1`, `npc2`, `settle`, then `cold` in
+separate processes with each exact current SHA. Check `flag-off` in a
+separate clone. The only games simulated are the two actual NPC games.

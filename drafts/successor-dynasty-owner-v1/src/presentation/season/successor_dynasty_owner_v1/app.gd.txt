@@ -182,7 +182,7 @@ func _create_paired_draft(seed_value: int) -> void:
 # Only fixture zero in an already-generated standalone owner. This does
 # not grant entry, bypass the paired factory, or expose general resume.
 var _paired_menu_lab: PitchBatLab
-func private_paired_opening_visible() -> bool:
+func _private_paired_opening_scope() -> bool:
 	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
 		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
 		and career_owner!=null and season!=null and career_owner.session==season \
@@ -190,8 +190,31 @@ func private_paired_opening_visible() -> bool:
 		and career_owner.lifecycle_status()=="active" and career_owner.paused.is_empty() \
 		and Owner._missing_dynasty(career_owner) and season.league_rules.get("tier")==0 \
 		and season.phase==SeasonState.Phase.REGULAR and season.round_index==0 and season.picks.size()==4 \
-		and season.results.is_empty() and season.physical.pending.is_empty() and season.physical.reports.is_empty() \
+		and season.results.is_empty() and season.physical.reports.is_empty() \
 		and season.pending_fixture().get("id")==0
+
+func private_paired_opening_visible() -> bool:
+	return _private_paired_opening_scope() and season.physical.pending.is_empty()
+
+func private_paired_resume_visible() -> bool:
+	if not _private_paired_opening_scope() or season.physical.pending.is_empty(): return false
+	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	return factory.bound_shape(season.physical.pending) and season.physical.pending.human[0]==0
+
+func resume_private_paired_opening() -> void:
+	if not private_paired_resume_visible() or not _available() or not _owned() or is_instance_valid(ai_runner): return
+	if not retained_report.is_empty():
+		_checkpoint_report()
+		return
+	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	var next: Dictionary=factory.next_npc_fixture(season)
+	if next.get("id") in [1,2]:
+		_run_paired_npc(int(next.id))
+		if is_instance_valid(ai_runner):
+			projection={"fixture":next}
+			show_season()
+	elif season.physical.pending.reports.size()==2:
+		_settle_paired_first_leg()
 
 func play_private_paired_opening() -> void:
 	if not private_paired_opening_visible() or not _available(): return

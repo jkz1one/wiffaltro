@@ -1,0 +1,105 @@
+extends "res://tests/successor_hidden_first_settlement.gd"
+const Binding=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const BuildPair=preload("res://src/gameplay/season/successor_league_general_v2/doubleheader_build.gd")
+const Workload=preload("res://src/gameplay/season/successor_league_general_v2/physical_workload.gd")
+const OPENING="591b7f090da7548c7c897d979e1d1859f6dc5fe920749acb40f4c4672c128e16"
+const BASELINE="user://exact-opening-pending.json"
+const BUTTON="RESUME OPENING DOUBLEHEADER LEG"
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func need(ok: bool,label: String) -> bool:
+	if check(ok,label): return true
+	get_tree().quit(1)
+	return false
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["npc1","npc2","settle","cold","flag-off"] and FileAccess.get_sha256(BASELINE)==OPENING
+			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
+			"isolated exact CP211 human proof and native frontier"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var opening: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BASELINE))
+	var original: Dictionary=opening.ordinary.physical.pending
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and exact(before,backup) and app.career_owner.paired_draft_only() and app.career_owner.current_ordinal()==1,
+			"admitted standalone native owner without a new write"): return
+	var control:=_button(app,BUTTON)
+	if args[0]=="flag-off":
+		app.resume_private_paired_opening()
+		if need(control==null and not is_instance_valid(app.ai_runner) and exact(before,backup),"flag off holds both direct and visible route"): get_tree().quit()
+		return
+	if args[0]=="cold":
+		if not need(control==null and _settled_menu(app,original),"fresh strict cold: 3 native results, six rewards, exact paired carry"): return
+		app.resume_private_paired_opening()
+		app.play_next()
+		app.resume_round()
+		app.open_shop()
+		if need(not is_instance_valid(app.ai_runner) and not is_instance_valid(app.lab) and exact(before,backup),
+				"duplicate, general resume, second leg and shop held"):
+			print("PRIVATE_DH_OPENING_SETTLED_COLD_PASS ",args[1])
+			get_tree().quit()
+		return
+	var incoming: int={"npc1":0,"npc2":1,"settle":2}[args[0]]
+	if not need(control!=null and _pending_menu(app,original,incoming),"exact human proof, zero results and no reward before selected action"): return
+	if args[0]=="npc1" and not need(args[1]==OPENING,"first native worker uses unchanged CP211 primary"): return
+	var start:=Time.get_ticks_msec()
+	control.pressed.emit()
+	if incoming<2:
+		if not need(is_instance_valid(app.ai_runner) and app._busy and app._paired_npc_binding.get("fixture")==incoming+1
+				and app._npc_expected==before and _button(app,BUTTON).disabled,"native worker binds exact NPC fixture and duplicate action disabled"): return
+		var runner: Node=app.ai_runner
+		app.resume_private_paired_opening()
+		app._request_quit()
+		if not need(app.ai_runner==runner and app._busy and exact(before,backup),"duplicate and Quit while in flight do not skip/checkpoint"): return
+		for i: int in range(150000):
+			await get_tree().physics_frame
+			if not app._busy: break
+		if not need(not app._busy and app.retained==null and app.retained_report.is_empty() and _pending_menu(app,original,incoming+1)
+				and app.season.physical.pending.reports[incoming].fixture==incoming+1,
+				"authentic NPC completion admitted once, human stays unchanged, still unpaid"): return
+	else:
+		if not need(_settled_menu(app,original) and PairHistory.checked_sides==6 and PairHistory.checked_reports==2
+				and _button(app,BUTTON)==null,"native first-leg settlement only: exact six sides and two bound reports"): return
+		var primary:=Store.raw()
+		app.resume_private_paired_opening()
+		if not need(Store.raw()==primary,"repeat does not pay or rotate again"): return
+	if need(Store.raw()!=before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,"exact preceding bytes retained"):
+		print("PRIVATE_DH_OPENING_MENU_STEP ",args[0]," ",FileAccess.get_sha256(Store.PATH)," elapsed_ms=",Time.get_ticks_msec()-start)
+		get_tree().quit()
+func _pending_menu(app: App,original: Dictionary,count: int) -> bool:
+	var s: SeasonState=app.season
+	var pending: Dictionary=s.physical.pending
+	return s.round_index==0 and Binding.bound_shape(pending) and Live.same(pending.human,original.human) \
+		and Live.same(pending.binding,original.binding) and pending.reports.size()==count and s.results.is_empty() \
+		and s.build.cash()==0 and s.build._bank.view().rewards.is_empty() and s.physical.reports.is_empty()
+func _settled_menu(app: App,original: Dictionary) -> bool:
+	var s: SeasonState=app.season
+	if not settled(s) or s.build.cash()!=18 or app.career_owner.common.aggregate.currency!=0 \
+			or app.career_owner.common.sequence!=0 or s.shop_available(): return false
+	var human: Dictionary=s.player_results[0]
+	if not Live.same([human.id,human.away_runs,human.home_runs],original.human.slice(0,3)) \
+			or not Live.same(human.pitching_current,original.human[9]): return false
+	var opener: Dictionary=s.results[0]
+	var reciprocal: Dictionary=s.pending_fixture()
+	if reciprocal.get("id")!=3 or opener.away!=reciprocal.home or opener.home!=reciprocal.away: return false
+	for result: Dictionary in s.results:
+		for club: int in [int(result.away),int(result.home)]:
+			var build: SeasonBuild=s.build if club==0 else s.opponents.clubs[str(club)].build
+			var event: Array=build._events.filter(func(row: Dictionary)->bool: return row.get("op")=="successor_reward")
+			if event.size()!=1: return false
+			var command: Dictionary=Reward.unwrap(event[0])
+			var prior: Dictionary=command.get("doubleheader_workload",{})
+			var debt: Dictionary=Workload.net_debt(prior.proof,prior.pair.debt)
+			var carry: Dictionary=BuildPair.pair_for(build,int(result.id)+3)
+			if debt.is_empty() or not Live.same(carry,{"game":int(result.id)+3,"first":result.id,"debt":debt}) \
+					or SeasonDoubleheaderRules.bonus(s.league_rules,result.id,command.win,build._bank.view().rewards)!=0: return false
+	return true

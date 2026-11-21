@@ -38,7 +38,8 @@ func _refresh_round_progress() -> void:
 	elif app._busy:
 		message="Checking the saved round. %d NPC results saved."%saved
 	else:
-		message="%d NPC results saved. Resume Saved Round to continue."%saved
+		message="%d NPC results saved. %s to continue."%[saved,
+			"Resume Opening Doubleheader Leg" if _round_resume.text=="RESUME OPENING DOUBLEHEADER LEG" else "Resume Saved Round"]
 	if _round_progress.text!=message: _round_progress.text=message
 
 func render() -> void:
@@ -96,9 +97,16 @@ func render() -> void:
 		if app.private_paired_opening_visible():
 			_label(_body,"PRIVATE DOUBLEHEADER BASE · OPENING LEG",22)
 			_bound_button(_body,"PLAY OPENING DOUBLEHEADER LEG",Callable(app,"play_private_paired_opening"))
-		elif app.season.round_index==0 and not app.season.physical.pending.is_empty() \
-				and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1":
-			_note("Opening leg saved. Remaining fixtures and settlement are not exposed in this preview.")
+		elif app.private_paired_resume_visible():
+			_label(_body,"PRIVATE DOUBLEHEADER BASE · ROUND 1 OPENING LEG",22)
+			_round_resume=_bound_button(_body,"RESUME OPENING DOUBLEHEADER LEG",Callable(app,"resume_private_paired_opening"))
+			_round_progress=_label(_footer,"",16)
+			_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			_refresh_round_progress()
+		elif OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+				and app.season.round_index==1 and app.season.results.size()==3:
+			_note("Opening leg settled. The return leg and shops are not exposed in this preview.")
 		else:
 			_note("Private draft verification complete. Matches, shop and career actions are unavailable.")
 		return
