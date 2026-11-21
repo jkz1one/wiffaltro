@@ -1,0 +1,86 @@
+extends Node
+## Generated rendered Standard roster only, never a player save.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const PRIMARY="022c03187bd5d96b75d222b8cbe5f8bc4a2b143c014671271d107f7bf5fe419c"
+const BACKUP="6676761338eb58095b93b9151cc79de7f79b9ab64d37418f85669126a0f19d3c"
+const ORIGINAL="user://season-v1.json"
+
+class Probe extends App:
+	var before_quit: Callable
+	func _quit_now() -> void:
+		if before_quit.is_valid() and before_quit.call():
+			super._quit_now()
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _need(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _same_slots() -> bool:
+	return FileAccess.get_sha256(Store.PATH)==PRIMARY and FileAccess.get_sha256(Store.PATH+".bak")==BACKUP \
+		and not FileAccess.file_exists(ORIGINAL)
+
+func _button(node: Node) -> Button:
+	for child: Node in node.find_children("*","Button",true,false):
+		if child is Button and child.text=="QUIT GAME" and not child.is_queued_for_deletion():
+			return child
+	return null
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and args.size()==1 and args[0] in ["match","clubhouse","cold"] and _same_slots(),
+			"isolated exact generated roster pair"): return
+	var app:=Probe.new()
+	add_child(app)
+	await get_tree().process_frame
+	var entry:=_button(app.menu)
+	if not _need(entry!=null and entry.get_parent()==app.menu._footer,"visible launcher footer control"): return
+	app.reload_save()
+	if not _need(app.career_owner!=null and app._owned() and app.season.round_index==0
+			and app.season.results.is_empty() and app.season.picks.size()==4 and _same_slots(),"strict unchanged cold roster"): return
+	var clubhouse:=_button(app.menu)
+	if not _need(clubhouse!=null and clubhouse.get_parent()==app.menu._footer,
+			"visible Common clubhouse footer control"): return
+	if args[0]=="cold":
+		print("COMMON_QUIT_COLD_PASS")
+		get_tree().quit()
+		return
+	var owner: RefCounted=app.career_owner
+	var season: SeasonState=app.season
+	app.before_quit=func() -> bool:
+		var ok: bool=_need(app.career_owner==owner and app.season==season and not is_instance_valid(app.lab)
+			and not get_tree().paused and app._exit_mode.is_empty() and _same_slots(),
+			"existing final Quit guard reached, no save write")
+		if ok: print("COMMON_QUIT_NORMAL_PASS ",args[0])
+		return ok
+	if args[0]=="clubhouse":
+		clubhouse.pressed.emit()
+		return
+	app.play_next()
+	if not _need(is_instance_valid(app.lab) and app.lab._managed_match and app._played_field_matches(),
+			"real managed match installed"): return
+	var lab: PitchBatLab=app.lab
+	var quit_button:=_button(lab._pause_menu)
+	if not _need(quit_button!=null and quit_button.get_parent()==lab._pause_menu._main,
+			"Common-only pause menu control"): return
+	PitchBatLabFeelSupport.toggle_debug_pause(lab)
+	if not _need(get_tree().paused and quit_button.is_visible_in_tree(),"real paused control visible"): return
+	# A retained writer/report must keep the existing exit guard.
+	app.retained_report={"qa_exit_block_only":true}
+	quit_button.pressed.emit()
+	if not _need(app._exit_mode.is_empty() and not app._exit_dialog.visible and app.lab==lab and _same_slots(),
+			"uncommitted evidence blocks Quit"): return
+	app.retained_report={}
+	quit_button.pressed.emit()
+	if not _need(app._exit_mode=="quit" and app._exit_dialog.visible
+			and app._exit_dialog.title=="Quit unfinished game","native unfinished-game Quit confirmation"): return
+	app._exit_dialog.canceled.emit()
+	if not _need(app._exit_mode.is_empty() and not app._exit_dialog.visible and app.lab==lab
+			and get_tree().paused and _same_slots(),"Cancel preserves exact live match and disk"): return
+	quit_button.pressed.emit()
+	app._exit_dialog.confirmed.emit()

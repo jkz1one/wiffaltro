@@ -6,6 +6,8 @@ const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecyc
 const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
 func render() -> void:
 	_screen("home","WIFFALTRO","YOUR CLUB. YOUR SEASON.")
+	if app.retained == null:
+		_bound_button(_footer,"QUIT GAME",Callable(app,"_request_quit"))
 	if not app.notice.is_empty(): _note(app.notice)
 	if app.d1_check_running():
 		_bound_button(_body,"CANCEL STANDARD D1 VERIFICATION" if app._d1_continuing else "CANCEL CHAMPIONSHIP CHECK",Callable(app,"cancel_d1_check"))

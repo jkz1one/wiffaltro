@@ -311,3 +311,30 @@ XDG data, config, and cache; launch the ELF with
 `WIFFALTRO_DYNASTY_ENGINEERING=1` and `--resolution 1100x680 --verbose`.
 Leave earned-preview and D1 flags unset for the Standard control. Test
 through the in-game controls rather than copying a player save.
+
+### Follow-up manual contact and Common Quit
+
+On the same exact previously audited ELF/PCK, the cold-continued Standard
+fixture produced a real manual **double** in the top of the first. Space
+started Jules Moss's at-bat. A timed left-click contact swing connected with
+the Overhand Four-Seam and the rendered score box showed a runner on second.
+The native single-play record confirms `swing.contact`, `double`, and
+`bounce_to_back_wall` at about 43 mph exit velocity; SHA-256
+`14e4521ae8c5c1c049e4b7022401ded7381d795da43e276f2021c57cd0b4bc6b`.
+This was keyboard/mouse play in Commons Park, not a scripted score, a full
+round, or a paid-layout test. Timing is specific to this test environment.
+
+That original package had no Common Quit button: Leave Game worked, but
+the window manager did not send a normal close request. The follow-up
+Common controls add **QUIT GAME** to the clubhouse footer and the managed
+match pause menu. Both use the existing quit request, including the
+unfinished-match Cancel/Confirm dialog and retained-save refusal.
+Original Game's shared menu and save path are not changed.
+
+`tests/successor_common_quit_control.gd.txt` checks the exact generated
+Standard roster pair above under isolated HOME/XDG in a source-preserving
+assembly. Attach it as a Node scratch scene and run `match`,
+`clubhouse`, and `cold` in separate Godot processes with the engineering
+and isolated-test flags. The source probe proves the native quit handler,
+slot-inert cleanup, and cold admission. Physical clicks and any newly
+exported runtime must be qualified separately.

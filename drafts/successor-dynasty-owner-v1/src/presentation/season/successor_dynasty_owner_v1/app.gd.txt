@@ -728,6 +728,7 @@ func _request_exit(mode: String) -> void:
 	_exit_envelope = career_owner
 	_exit_lab = lab
 	_exit_state = lab._match_state
+	_exit_dialog.title = "Quit unfinished game" if mode == "quit" else "Leave unfinished game"
 	_exit_dialog.dialog_text = "Quit? This unfinished game will restart. Saved progress stays." if mode == "quit" else "Leave this unfinished game? It will restart. Saved progress stays."
 	_exit_dialog.popup_centered(Vector2i(560, 180))
 	_exit_dialog.get_cancel_button().grab_focus()
@@ -767,6 +768,17 @@ func _confirm_exit() -> void:
 func _quit_now() -> void:
 	# Sole final OS action; tests may spy on it without bypassing any exit guard.
 	get_tree().quit()
+
+
+func _open_match(state: MatchState, player_home: bool, season_game: bool,
+		field_id: StringName = PitchBatLab.FIELD_ID) -> void:
+	super._open_match(state,player_home,season_game,field_id)
+	# Common-only entry to the same guarded window-close route. Original
+	# Game and shared pause controls keep their authored layout.
+	if is_instance_valid(lab) and is_instance_valid(lab._pause_menu):
+		var opened: PitchBatLab = lab
+		PitchBatLabPauseMenu._button(opened._pause_menu._main,"QUIT GAME",func() -> void:
+			if lab==opened: _request_quit())
 
 
 func play_next() -> void:
