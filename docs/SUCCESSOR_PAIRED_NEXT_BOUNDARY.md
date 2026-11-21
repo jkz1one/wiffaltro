@@ -254,3 +254,29 @@ Run `settle` with the CP226 primary, `cold` from the resulting primary
 alone in a separate profile, and `cancel` from an independent original
 pair. These stages pay no additional sweep bonus, do not launch new
 games, and keep Common funds separate from the native season bank.
+
+## Play the next reversed leg without a purchase
+
+On the exact closed three-leg no-spend journal, the same private menu
+can launch the reversed human fixture 9. The native authored schedule
+must link it to fixture 6 and swap the same clubs. A distinct request
+domain binds this return to the no-spend journal without changing the
+old paid revision or request keys. Both teams' normal remaining
+stamina starts at the current roster capacity minus the matching
+fixture 6 workload debt, floored at zero.
+
+The match Return saves only the actual human proof as pending.
+Earlier scores and reports, all eighteen native reward events and
+the separate Common aggregate remain unchanged. This path cannot pay,
+start an NPC, open the Market, or settle fixture 9.
+
+In an isolated profile, use the scratch test
+`tests/successor_private_doubleheader_unpurchased_next_reverse.gd.txt`
+with the prior hidden-first-settlement parent and the exact CP227
+settled primary saved as `user://exact-before-next-reverse.json`.
+Run `play` with the exact source hash. The harness independently
+retains and hashes the native fixture 9 capture before pressing
+Return. Use the resulting primary alone for `cold` in a second
+profile, then run `flag-off` and the exact original paid start
+`paid` control in their own profiles. Only the fixture 9 human game
+is simulated.

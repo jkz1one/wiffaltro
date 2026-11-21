@@ -336,6 +336,19 @@ func play_private_unpurchased_next_pair() -> void:
 	if is_instance_valid(lab) and _paired_first_pin.get("lab")==lab:
 		_paired_menu_lab=lab
 
+func private_unpurchased_next_reverse() -> bool:
+	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
+		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+		and career_owner!=null and season!=null and career_owner.session==season \
+		and career_owner.paired_draft_only() and career_owner.current_ordinal()==1 \
+		and career_owner.lifecycle_status()=="active" and Owner._missing_dynasty(career_owner) \
+		and career_owner.paused.is_empty() and not Adapter.Ordinary.unpurchased_next_reverse_kind(season).is_empty()
+
+func play_private_unpurchased_next_reverse() -> void:
+	if not private_unpurchased_next_reverse() or not season.physical.pending.is_empty() or not _available(): return
+	_play_paired_next_return()
+	if is_instance_valid(lab) and _paired_first_pin.get("lab")==lab: _paired_menu_lab=lab
+
 # Unbound human first/return fixtures. Normal play/finish/resume remains closed.
 var _paired_first_pin: Dictionary={}
 func _play_paired_first() -> void:
@@ -362,6 +375,8 @@ func _play_paired_fourth_first() -> void:
 func _play_paired_human(round_index: int) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or season.round_index!=round_index: return
 	var factory=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if round_index==3 and not Adapter.Ordinary.unpurchased_next_reverse_kind(season).is_empty() \
+			and not private_unpurchased_next_reverse(): return
 	var opening: Dictionary=factory.start(season)
 	if opening.is_empty(): return
 	_fixture_id=int(opening.fixture.id)
@@ -1180,11 +1195,12 @@ func _played_field_matches() -> bool:
 func finish_game() -> void:
 	if is_instance_valid(_paired_menu_lab) and lab==_paired_menu_lab:
 		if not (private_paired_opening_visible() or private_unpurchased_return_visible() \
-			or (private_unpurchased_next_pair() and season.physical.pending.is_empty())): return
+			or ((private_unpurchased_next_pair() or private_unpurchased_next_reverse()) and season.physical.pending.is_empty())): return
 		if retained!=null: retry_save()
 		elif season.round_index==0: _finish_paired_first()
 		elif season.round_index==1: _finish_paired_return()
-		else: _finish_paired_next_first()
+		elif season.round_index==2: _finish_paired_next_first()
+		else: _finish_paired_next_return()
 		return
 	if not _scope() or not career_owner.playable(): return
 	if _busy or is_instance_valid(_loadout_modal):

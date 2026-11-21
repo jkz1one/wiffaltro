@@ -125,6 +125,12 @@ func render() -> void:
 			else:
 				_note("All three next-pair opener games are saved. Settle to pay game rewards.")
 				_bound_button(_body,"SETTLE NEXT DOUBLEHEADER OPENER",Callable(app,"resume_private_unpurchased_next_opener"))
+		elif app.private_unpurchased_next_reverse():
+			if app.season.physical.pending.is_empty():
+				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT RETURN LEG",22)
+				_bound_button(_body,"PLAY NEXT DOUBLEHEADER RETURN WITHOUT PURCHASE",Callable(app,"play_private_unpurchased_next_reverse"))
+			else:
+				_note("Next return leg saved. Its NPC games and settlement are not enabled in this preview.")
 		elif app.private_paired_development_step()>=0:
 			_private_paired_development()
 		else:

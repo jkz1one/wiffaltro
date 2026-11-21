@@ -557,7 +557,9 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 	if session.build.revision()!=revision:
 		var unpurchased_return: bool=round_index==1 and not Adapter.Ordinary.unpurchased_return_kind(session.build).is_empty()
 		var unpurchased_next: bool=round_index==2 and not Adapter.Ordinary.unpurchased_next_pair_kind(session).is_empty()
-		if not (unpurchased_return or unpurchased_next): return null
+		var unpurchased_reverse: bool=round_index==3 and not Adapter.Ordinary.unpurchased_next_reverse_kind(session).is_empty() \
+			and session.physical.pending.is_empty() and pending.get("reports",[])==[]
+		if not (unpurchased_return or unpurchased_next or unpurchased_reverse): return null
 	if round_index==6 and not Adapter.Ordinary._signed_visit6_journal(session.build): return null
 	if round_index==10 and not Adapter.Ordinary._semifinal_checkpoint_shape(session): return null
 	if round_index in [7,8,9] and not Adapter.Ordinary._paired_late_start(session): return null
