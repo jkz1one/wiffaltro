@@ -1,0 +1,142 @@
+extends "res://tests/successor_dynasty_post_purchase.gd"
+## Real Dynasty abandonment and carried Next from the same previously paid save.
+const Life = preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
+const Profile = preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
+const Fixtures = preload("res://src/gameplay/season/successor_dynasty_owner_v1/physical_fixtures.gd")
+
+func _open(app, text: String) -> Button:
+	var node := _button(app.menu, text)
+	if not _pass(node != null and not node.disabled, "actual control " + text): return null
+	return node
+
+func _confirm_with_retry(app, label: String, action: String) -> bool:
+	var before: Array = _disk()
+	var owner = app.career_owner
+	var current: SeasonState = app.season
+	var control := _open(app, label)
+	if control == null: return false
+	control.pressed.emit()
+	if not _pass(app._lifecycle_dialog.visible and app._lifecycle_action == action, "actual confirmation " + action): return false
+	app._lifecycle_dialog.canceled.emit()
+	if not _pass(not app._lifecycle_dialog.visible and app._lifecycle_action.is_empty() 			and app.career_owner == owner and app.season == current and _disk() == before, "Cancel preserves owner, preview and both slots"): return false
+	control = _open(app, label)
+	if control == null: return false
+	if not _pass(DirAccess.make_dir_absolute(Store.PATH + ".tmp") == OK, "own isolated .tmp obstruction"): return false
+	control.pressed.emit()
+	app._lifecycle_dialog.confirmed.emit()
+	var retained = app.retained_envelope
+	if not _pass(app.retained != null and retained != null and app.career_owner == owner 			and app.season == current and _disk() == before, "held " + action + " does not alter current owner or files"): return false
+	app._lifecycle_dialog.confirmed.emit()
+	if not _pass(app.retained_envelope == retained and _disk() == before, "duplicate confirmation cannot write or replace retained owner"): return false
+	if not _pass(DirAccess.remove_absolute(Store.PATH + ".tmp") == OK, "remove only test-owned obstruction"): return false
+	var retry := _open(app, "RETRY EXACT SAVE")
+	if retry == null: return false
+	retry.pressed.emit()
+	var stable: Array = _disk()
+	if is_instance_valid(retry): retry.pressed.emit()
+	return _pass(app.retained == null and app.career_owner == retained and app._owned() 		and stable[0] != before[0] and stable[1] == before[0] and _disk() == stable, "Retry promotes exactly one candidate with original as backup")
+
+func _banked(owner) -> bool:
+	var common: Dictionary = owner.common
+	var a: Dictionary = common.aggregate
+	var local: Dictionary = owner.ledger
+	return owner.active == "dynasty" and common.sequence == 2 and common.cursors.ordinary == 1 		and common.cursors.dynasty == 1 and common.last_fold.side == "dynasty" and common.last_fold.receipt.is_empty() 		and local.closed == 1 and local.abandoned == 1 and local.completed == 0 and local.games == 1 		and local.wins == 0 and local.runs_for == 4 and local.runs_against == 5 		and a.closed == 2 and a.abandoned == 2 and a.completed == 0 and a.games == 2 and a.wins == 0 		and a.runs_for == 7 and a.runs_against == 20 and a.currency == 0 and local.currency == 0 		and a.titles.is_empty() and local.titles.is_empty() and a.pennants.is_empty() and a.plaques.is_empty()
+
+func _closed(app) -> bool:
+	var owner = app.career_owner
+	if not _pass(_state(app, "dynasty") == false and owner != null, "closed owner assessed separately from first-season cursor"): return false
+	if not _pass(owner.status == "closed" and owner.ordinal == 1 and _banked(owner) 			and owner.last_close.reason == "abandon" and owner.last_close.receipt.is_empty() 			and owner.last_close.id == owner.common.last_fold.id and owner.last_close.session_sha256 == owner.common.last_fold.source 			and owner.last_close.profiles.size() == 6 and app.season.results.size() == 3 and _pack(app, false), 			"one genuine 4–5 loss banked once; no completion payout and no season reset"): return false
+	if not _pass(owner.next_supported(), "actual shared-rights guard accepts the backed abandoned owner"): return false
+	for club: String in owner.last_close.profiles:
+		if not _pass(Life.overflow(owner.last_close.profiles[club]).is_empty(), "no earned Fielding overflow " + club): return false
+	return true
+
+func _decay(before: Dictionary, after: Dictionary) -> int:
+	if not Codec.same(before.active, after.active) or not Codec.same(before.known_origin, after.known_origin) 			or not Codec.same(before.active_learning, after.active_learning): return -1
+	var actual := 0
+	for stat: String in SeasonPlayerCatalog.STATS:
+		var drop: int = mini(2, int(before.trained[stat]) + int(before.catchup.stats[stat]))
+		var paid: int = mini(drop, int(before.trained[stat]))
+		if after.stats[stat] != before.stats[stat] - drop or after.stats[stat] < after.authored.stats[stat] 				or after.trained[stat] != before.trained[stat] - paid 				or after.catchup.stats[stat] != before.catchup.stats[stat] - (drop - paid): return -1
+		actual += drop
+	if before.mastery.size() != after.mastery.size(): return -1
+	for pitch: String in before.mastery:
+		var drop: int = mini(1, int(before.earned_mastery[pitch]) + int(before.catchup.mastery[pitch]))
+		var paid: int = mini(drop, int(before.earned_mastery[pitch]))
+		if not after.mastery.has(pitch) or after.mastery[pitch] != before.mastery[pitch] - drop 				or after.mastery[pitch] < after.authored.mastery.get(pitch, 1) 				or after.earned_mastery[pitch] != before.earned_mastery[pitch] - paid 				or after.catchup.mastery[pitch] != before.catchup.mastery[pitch] - (drop - paid): return -1
+		actual += drop
+	return actual
+
+func _carried(app) -> bool:
+	var owner = app.career_owner
+	var season: SeasonState = app.season
+	var t: Dictionary = owner.last_transition
+	if not _pass(owner.status == "active" and owner.ordinal == 2 and owner.last_close.is_empty() 			and owner.proposal.is_empty() and _banked(owner) and t.from == 1 and t.to == 2 and t.seed == season.season_seed 			and t.ledger_sha256 == Life.digest(owner.ledger) and Life.digest_matches(t.proposal.source,t.profiles_before) 			and season.phase == SeasonState.Phase.REGULAR and season.round_index == 0 			and season.picks.size() == 4 and season.results.is_empty() and season.player_results.is_empty() 			and season.physical.pending.is_empty() and season.physical.needed.is_empty(), 			"carried ordinal two starts round one without draft, replay, or duplicate bank"): return false
+	var profiles: Dictionary = {}
+	var total_drop := 0
+	for index in range(6):
+		var club: String = "club:%d" % index
+		var build: SeasonBuild = season.build if index == 0 else season.opponents.clubs[str(index)].build
+		var before: Dictionary = t.profiles_before[club]
+		var after: Dictionary = build._dynasty_start
+		profiles[club] = after
+		var expected: Dictionary = Profile.advance(before, (int(t.seed) + index * 92821) & 0x7fffffff, t.proposal.choices[club])
+		if not _pass(not expected.is_empty() and Codec.same(expected.profile, after) and Codec.same(before.roster, after.roster) 				and Codec.same(before.exotic_rights, after.exotic_rights) and build._events.is_empty() 				and build._book._events.is_empty() and build._bank._events.is_empty() and build.cash() == 0 				and build._bank.view().rewards.is_empty() and not build.pack_pending(), 				"carry exact roster, rights and reset seasonal economy " + club): return false
+		for player: String in before.roster:
+			var drop := _decay(before.players[player], after.players[player])
+			if not _pass(drop >= 0, "authored-floor and paid-first decay " + club): return false
+			total_drop += drop
+	var built := 0
+	for fixture: Dictionary in season.schedule:
+		if fixture.round != 0: continue
+		if not _pass(Fixtures.match_for(season,fixture) != null and not Fixtures.request_key(season,fixture).is_empty(), 				"real new-round request constructs without playing"): return false
+		built += 1
+	return _pass(total_drop > 0 and built == 3 and Life.digest_matches(t.profiles_after,profiles), 		"nonzero earned decay once across six profiles and three fresh fixture requests")
+
+func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	if not _pass(OS.get_environment("WIFFALTRO_ISOLATED_TEST") == "1" 			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING") == "1" and args.size() == 1 			and args[0] in ["pending", "abandon", "propose", "next", "cold"], "isolated actual backed Dynasty case"): return
+	var mode: String = args[0]
+	var before := _disk()
+	var app = App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var control := _open(app, "CONTINUE SAVED CAREER")
+	if control == null: return
+	control.pressed.emit()
+	if not _pass(app.career_owner != null and app.career_owner.active == "dynasty" and app._owned() 			and _disk() == before, "actual fresh Continue owns the original bytes"): return
+	if mode == "pending":
+		if not _pass(_state(app,"dynasty") and _pack(app,true), "original paid unresolved source"): return
+		var shown := _button(app.menu,"ABANDON CURRENT SEASON…")
+		if shown != null: shown.pressed.emit()
+		app.request_lifecycle("abandon")
+		if not _pass(not app._lifecycle_dialog.visible and app._lifecycle_action.is_empty() 				and Store.prepare_session_and_write(app.career_owner, before[0], "close", 0, "", "abandon") == null 				and _disk() == before and app.retained == null, "paid unresolved source refuses abandon in App and Store, no writes"): return
+	elif mode == "abandon":
+		if not _pass(_state(app,"dynasty") and _pack(app,false), "original resolved earned source"): return
+		if not _confirm_with_retry(app, "ABANDON CURRENT SEASON…", "abandon") or not _closed(app): return
+		var closed := _disk()
+		app.request_lifecycle("abandon")
+		if not _pass(app._lifecycle_action.is_empty() and _disk() == closed, "closed season cannot be banked twice"): return
+	elif mode == "propose":
+		if not _closed(app): return
+		var seed_value: int = ("dynasty:%s:2:nextseed" % str(app.career_owner.birth_seed)).hash() & 0x7fffffff
+		control = _open(app, "PREPARE NEXT SEASON")
+		if control == null: return
+		control.pressed.emit()
+		var p: Dictionary = app.career_owner.proposal
+		if not _pass(app.retained == null and p.seed == seed_value and p.choices.size() == 6 				and Codec.same(p.rule, Profile.rule()) and app.career_owner.next_preview().size() == 6 				and _disk()[1] == before[0] and _pack(app,false), "native proposal saves fixed seed without decay/reset"): return
+		for choice: Dictionary in p.choices.values():
+			if not _pass(choice.is_empty(), "no automatic ability loss"): return
+	elif mode == "next":
+		if not _closed(app): return
+		var line: Array = app.season.teams[0].roster.duplicate()
+		var starter: int = app.season.starter_index
+		var fielder: int = app.season.fielder_index
+		var preview: Dictionary = app.career_owner.next_preview()
+		if not _pass(preview.size() == 6, "fresh proposal still available with exact six previews"): return
+		if not _confirm_with_retry(app, "START NEXT SEASON…", "next") or not _carried(app): return
+		if not _pass(Codec.same(line, app.season.teams[0].roster) and starter == app.season.starter_index 				and fielder == app.season.fielder_index, "saved human batting order/starter/defense carries"): return
+	else:
+		if not _carried(app) or not _pass(_disk() == before, "fresh carried reopen makes no write or repeat decay"): return
+	print("DYNASTY_ABANDON_CARRY_PASS ", mode)
+	get_tree().quit()
