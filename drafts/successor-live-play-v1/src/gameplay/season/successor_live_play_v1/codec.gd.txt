@@ -21,6 +21,8 @@ static var _basis: Dictionary = {}
 static var _draws: Array[float] = []
 static var _schedule: Array = []
 const CommonStart = preload("common_start.gd")
+const D1_DRAFT_FORMAT: String="wiffaltro-common-standard-d1-draft-v1"
+const D1_TRANSITION_KIND: String="common-standard-d1-transition-v1"
 const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/genesis.gd")
 const Progress = preload("progress.gd")
 const Settlement = preload("res://src/gameplay/season/successor_owner_career_v1/settlement.gd")
@@ -125,7 +127,10 @@ static func scope(season: SeasonState) -> bool:
 
 # Context checks are not persistence authority; only scope admits the exact
 # live runtime. The detached projection type cannot pass scope.
-static func _runtime_context(season: SeasonState) -> bool:
+static func d1_draft_scope(season: SeasonState) -> bool:
+	return season!=null and season.get_script()==Runtime and _runtime_context(season,true)
+
+static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 	if season == null or season.build == null or season.build.get_script() != GameBuild \
 		or season.career == null or season.career.get_script() != Career or not season.league_career \
 		or season.opponents == null or season.opponents.get_script() != Opponents or season.opponents._format != 13 \
@@ -133,6 +138,27 @@ static func _runtime_context(season: SeasonState) -> bool:
 	if not whole(season.season_seed,0,2147483647) or season.career.current != 1 or season.career.runs.size() != 1: return false
 	var expected: Dictionary = Admissions.expected(season.league_rules,season.season_seed)
 	if not same(season.league_rules,expected) or season.league_live != (not expected.is_empty()) or not same(season.build._league_rules,expected): return false
+	var d1_basis: bool=season.career.start_basis.get("kind")==D1_TRANSITION_KIND
+	if d1!=d1_basis: return false
+	# No D1-priced Standard build can masquerade as an existing Base dialect.
+	if not d1 and season.league_rules.is_empty() and season.build.d1_pricing_valid(): return false
+	if d1:
+		var contract=load("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_transition.gd")
+		if not contract.valid(season.career.start_basis) or season.career.start_basis.basis.seed!=season.season_seed \
+				or not season.league_rules.is_empty() or not season.build.d1_pricing_valid() or season.build._market!=0 \
+				or season.build.d3_sponsors_valid() or season.build.d4_sponsors_valid() \
+				or not _draft_journal_only(season.build) or not season.opponents.draft_rule.is_empty(): return false
+		if season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() \
+				or not season.semifinals.is_empty() or not season.playoff_seeds.is_empty() \
+				or not season.final_fixture.is_empty() or season.champion!=-1 or not season.physical.pending.is_empty() \
+				or not season.physical.reports.is_empty() or not season.physical.needed.is_empty() \
+				or season.physical.projecting or not season.ownership._events.is_empty(): return false
+		if not (season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4 and season.opponents.clubs.is_empty()) \
+				and not (season.phase==SeasonState.Phase.REGULAR and season.picks.size()==4 and season.opponents.clubs.size()==5): return false
+		for club: Variant in season.opponents.clubs.values():
+			if not club is Dictionary or not club.get("build") is SeasonBuild or not _draft_journal_only(club.build) \
+					or not club.build.d1_pricing_valid() or club.build._market!=12: return false
+		return true
 	if Admissions.paired_draft_only(season):
 		if season.career.start_basis.get("kind")==CommonStart.KIND or not season.ownership._events.is_empty(): return false
 		if season.round_index==10:
@@ -434,8 +460,8 @@ static func _human_score(season: SeasonState, row: Dictionary) -> bool:
 	return PhysicalBaseFlow.valid(ai.base,[season.teams[int(row.away)].roster,season.teams[int(row.home)].roster],performance)
 
 
-static func _structural_valid(season: SeasonState) -> bool:
-	if not scope(season) or not known_variables(season,FIELDS+OBJECTS) or not known_variables(season.career,CAREER_FIELDS): return false
+static func _structural_valid(season: SeasonState, d1: bool=false) -> bool:
+	if not (d1_draft_scope(season) if d1 else scope(season)) or not known_variables(season,FIELDS+OBJECTS) or not known_variables(season.career,CAREER_FIELDS): return false
 	if season._heat_replay_team != null or season._doubleheader_replay_build != null or season._pool_replay_ledger != null or season._npc_replay_run != -1: return false
 	for name: String in ["inventory_rules","home_property","owned_surface_night","npc_venues","final_venue","_dynasty_start","_closed_access","_dynasty_owner_binding","_league_home_context","_standard_live_context","_standard_bound_grant","_dynasty_career_session"]:
 		if not season.get(name).is_empty(): return false
@@ -448,8 +474,8 @@ static func _structural_valid(season: SeasonState) -> bool:
 		ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
 		_draws.clear()
 		for i in range(6): _draws.append(rng.randf())
-	var earned: bool=season.career.start_basis.get("kind")==CommonStart.KIND
-	var basis: Dictionary=season.career.start_basis if earned else _basis
+	var earned: bool=d1 or season.career.start_basis.get("kind")==CommonStart.KIND
+	var basis: Dictionary=season.career.start_basis.basis if d1 else (season.career.start_basis if earned else _basis)
 	if earned and (not CommonStart.valid(basis) or not CommonStart.matches(season.build,basis) or not same(season.build._pool,basis.player_access)): return false
 	if earned:
 		var proof: Dictionary=preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd").capture(season)
@@ -457,7 +483,7 @@ static func _structural_valid(season: SeasonState) -> bool:
 		if season.build._book._exotic_current.is_empty():
 			if not proof.games.is_empty(): return false
 		elif not same(season.build._book._exotic_current,proof): return false
-	if basis.is_empty() or not same(season.career.start_basis,basis) or not same(season.player_access,basis.player_access): return false
+	if basis.is_empty() or (not d1 and not same(season.career.start_basis,basis)) or not same(season.player_access,basis.player_access): return false
 	var pennants: Dictionary=basis.pennants if earned else Settlement.birth_pennants(basis)
 	if not same(season.career._assets,basis.assets) or not same(season.career._pennants,pennants) or not same(season.career._plaques,basis.plaques) or season.career._pitch_catalog != Catalog.game_signature(): return false
 	if not same(season.career.runs[0],Progress.row(season)): return false
@@ -604,12 +630,15 @@ static func capture(season: SeasonState) -> Dictionary:
 
 # Canonical equality checks use this internal structural path; neither is a
 # publication or trust boundary. Exactly one history gate follows restore.
-static func _capture_structural(season: SeasonState) -> Dictionary:
+static func _capture_structural(season: SeasonState, d1: bool=false) -> Dictionary:
 	capture_calls += 1
-	if not _structural_valid(season): return {}
-	return _payload(season)
+	if not _structural_valid(season,d1): return {}
+	return _payload(season,d1)
 
-static func _payload(season: SeasonState) -> Dictionary:
+static func capture_d1_draft(season: SeasonState) -> Dictionary:
+	return _capture_structural(season,true)
+
+static func _payload(season: SeasonState, d1: bool=false) -> Dictionary:
 	var build: Dictionary = Builds.capture(season.build)
 	var bank: Dictionary = Builds.capture_bank(season.ownership)
 	if build.is_empty() or bank.is_empty(): return {}
@@ -621,7 +650,7 @@ static func _payload(season: SeasonState) -> Dictionary:
 		clubs[id] = club
 	var earned: bool=season.career.start_basis.get("kind")==CommonStart.KIND
 	var named: bool=_named_profile(season.league_rules)
-	var data: Dictionary = {"version":1 if earned or named else Catalog.VERSION,"format":CommonStart.FORMAT if earned else (NAMED_LEAGUE_FORMAT if named else Catalog.FORMAT),"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
+	var data: Dictionary = {"version":1 if d1 or earned or named else Catalog.VERSION,"format":D1_DRAFT_FORMAT if d1 else (CommonStart.FORMAT if earned else (NAMED_LEAGUE_FORMAT if named else Catalog.FORMAT)),"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
 		"state":data_fields(season,FIELDS),"ownership":bank,"build":build,"career":data_fields(season.career,CAREER_FIELDS),
 		"opponents":{"draft_order":season.opponents.draft_order.duplicate(),"draft_rule":season.opponents.draft_rule,"format":season.opponents._format,"clubs":clubs},
 		"physical":data_fields(season.physical,PHYSICAL_FIELDS)}
@@ -640,11 +669,18 @@ static func restore(value: Variant) -> SeasonState:
 	return restore_common(value)
 
 static func restore_common(value: Variant) -> SeasonState:
+	return _restore(value,false)
+
+static func restore_d1_draft(value: Variant) -> SeasonState:
+	return _restore(value,true)
+
+static func _restore(value: Variant,d1: bool) -> SeasonState:
 	restore_calls += 1
+	if d1 and (not value is Dictionary or value.get("format")!=D1_DRAFT_FORMAT): return null
 	var earned: bool=value is Dictionary and value.get("format")==CommonStart.FORMAT
 	var named: bool=value is Dictionary and value.get("format")==NAMED_LEAGUE_FORMAT
 	if not primitive(value) or not keys(value,["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]) \
-		or ((earned or named) and not whole(value.version,1,1)) or (not earned and not named and (not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT)) \
+		or ((d1 or earned or named) and not whole(value.version,1,1)) or (not d1 and not earned and not named and (not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT)) \
 		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
 	var result: SeasonState = Runtime.new()
 	if not install_fields(result,FIELDS,value.state): return null
@@ -653,7 +689,8 @@ static func restore_common(value: Variant) -> SeasonState:
 	result.ownership = Builds.restore_bank(value.ownership)
 	result.career = Career.new()
 	if not install_fields(result.career,CAREER_FIELDS,value.career): return null
-	if earned!=(result.career.start_basis.get("kind")==CommonStart.KIND): return null
+	if earned!=(result.career.start_basis.get("kind")==CommonStart.KIND) \
+			or d1!=(result.career.start_basis.get("kind")==D1_TRANSITION_KIND): return null
 	result.physical = Physical.new()
 	if not install_fields(result.physical,PHYSICAL_FIELDS,value.physical): return null
 	var opponents: Variant = value.opponents
@@ -669,8 +706,16 @@ static func restore_common(value: Variant) -> SeasonState:
 		club.build = Builds.restore(club.build)
 		if club.build == null: return null
 		result.opponents.clubs[id] = club
-	var captured: Dictionary = _capture_structural(result)
+	var captured: Dictionary = _capture_structural(result,d1)
 	if captured.is_empty() or not same(captured,value): return null
+	if d1:
+		# No physical history is admitted by this version. Replaying at most four
+		# native offers binds prices, allocations, ranks and drafts to the basis.
+		var replay: SeasonState=Runtime.create_d1_draft(result.career.start_basis)
+		if replay==null: return null
+		for id: String in result.picks:
+			if not replay.choose_player(id): return null
+		return result if same(_capture_structural(replay,true),captured) else null
 	if not result.league_rules.is_empty():
 		# Frozen gameplay compares these native context Dictionaries directly.
 		# Hydrated JSON numbers must agree with newly authored fourth-pick builds.

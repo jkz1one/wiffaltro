@@ -22,6 +22,19 @@ static func _create_paired_draft(seed_value: int) -> SeasonState:
 static func create_common(basis: Dictionary, league: String = "standard") -> SeasonState:
 	return _create_named(int(basis.get("seed",-1)),league,basis) if league in COMMON_ORDINARY_LEAGUES and CommonStart.valid(basis) else null
 
+# Private draft construction only. Store will later derive the envelope from
+# the exact admitted championship; callers may not publish a draft payload.
+static func create_d1_draft(transition: Dictionary) -> SeasonState:
+	var contract=load("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_transition.gd")
+	if not contract.valid(transition): return null
+	var result: SeasonState=create_common(transition.basis,"standard")
+	if result==null or not result.build.enable_d1_pricing(): return null
+	result.career.start_basis=transition.duplicate(true)
+	return result if result.career.sync(result) else null
+
+func _d1_draft() -> bool:
+	return career!=null and career.start_basis.get("kind")=="common-standard-d1-transition-v1"
+
 static func _create_named(seed_value: int, league: String, basis: Dictionary) -> SeasonState:
 	var earned: bool=basis.get("kind")==CommonStart.KIND
 	if (earned and (not CommonStart.valid(basis) or basis.seed!=seed_value)) or (not earned and (not Genesis.valid_basis(basis) or basis.genesis.seed!=seed_value)): return null
@@ -51,7 +64,8 @@ static func _create_named(seed_value: int, league: String, basis: Dictionary) ->
 	return result if ledger.sync(result) else null
 
 func league_context_consistent() -> bool:
-	return load("res://src/gameplay/season/successor_live_play_v1/codec.gd").scope(self)
+	var codec=load("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+	return codec.d1_draft_scope(self) if _d1_draft() else codec.scope(self)
 func _league_inventory_context_consistent() -> bool:
 	return league_context_consistent()
 func choose_player(id: String) -> bool:
@@ -59,11 +73,14 @@ func choose_player(id: String) -> bool:
 	# gameplay operation, not117's historical clone/choose/capture path.
 	if not league_context_consistent() or not super.choose_player(id): return false
 	if picks.size() == 4:
-		if career.start_basis.get("kind")==CommonStart.KIND:
+		if _d1_draft():
+			if not CommonStart.install(build,career.start_basis.basis): return false
+		elif career.start_basis.get("kind")==CommonStart.KIND:
 			if not CommonStart.install(build,career.start_basis): return false
 		elif not Starts._install(build,career.start_basis): return false
 	return career.sync(self)
 func adopt_build(next: SeasonBuild) -> void:
+	if _d1_draft(): return
 	if next == null or not league_context_consistent(): return
 	super.adopt_build(next)
 	career.sync(self)
@@ -92,10 +109,10 @@ func fork_live() -> SeasonState:
 	return result
 
 func make_match() -> MatchState:
-	return null if Admissions.paired_draft_only(self) else super.make_match()
+	return null if _d1_draft() or Admissions.paired_draft_only(self) else super.make_match()
 
 func shop_available() -> bool:
-	return not Admissions.paired_draft_only(self) and super.shop_available()
+	return not _d1_draft() and not Admissions.paired_draft_only(self) and super.shop_available()
 
 func record_player_result(
 	fixture_id: int,
@@ -116,13 +133,13 @@ func record_player_result(
 	pool_evidence: Variant = null,
 	yard_evidence: Variant = null
 ) -> bool:
-	if Admissions.paired_draft_only(self) or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
+	if _d1_draft() or Admissions.paired_draft_only(self) or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
 	var ok: bool = super.record_player_result(fixture_id,away_runs,home_runs,performance,used_gear,tactics,batting,stances,fielding,pitching,field_supply,frozen,ai_tactics,replayed_tactics,property_key,pool_evidence,yard_evidence)
 	return ok and career.sync(self)
 
 
 func record_doubleheader_result(human: Array) -> bool:
-	if Admissions.paired_draft_only(self) or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
+	if _d1_draft() or Admissions.paired_draft_only(self) or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
 	return super.record_doubleheader_result(human) and career.sync(self)
 
 

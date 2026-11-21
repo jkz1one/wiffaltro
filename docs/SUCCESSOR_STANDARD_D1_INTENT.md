@@ -149,3 +149,45 @@ versioned D1 successor request/report/cold path binding field and
 canonical venue. The native `src/tests/standard_d1_physical_pending.gd`
 away-yard assertions are a field oracle, not authority to accept native
 Report17 as Common V4 evidence.
+
+## Materialized Standard D1 draft, production admission still closed
+
+The real materialized ordinary Runtime now constructs and drafts the D1
+successor build under the versioned transition envelope. It records the
+career tier in the existing progress row, while Standard's league-rules
+dictionary stays empty and tactical difficulty stays unchanged. The
+ordinary codec has a separate, explicit draft format with the same
+canonical state/build reader and a bounded replay of up to four visible
+draft picks. It retains the complete transition envelope and rejects
+changed proof, foreign draft order, and any game history. It also refuses
+a D1-priced Standard build relabeled as an ordinary Base envelope.
+
+This version is deliberately playable only as a draft in the isolated QA
+driver. The normal Common V4 reader/scope, legacy reader, save writer,
+match start, physical settlement and shop reject it; no selector or
+Next path calls the new factory. Native venues remain a separate physical
+adoption step and this draft does not assert rendered field behavior.
+
+For the smoke, assemble Common V4, stage
+`tests/successor_standard_d1_transition.gd.txt` at `res://transition.gd`,
+and attach `tests/successor_standard_d1_materialized_draft.gd.txt`
+(as `res://materialized.gd`) to a scratch one-Node scene. Run Godot 4.6.3
+headless with the isolated and engineering flags. Invoke `-- draft`
+then `-- cold` in a separate process with the same disposable profile.
+Both report the exact test JSON digest. The QA JSON is separate from the
+game slot; the synthetic history is used only to test deterministic draft
+serialization. It never writes a Common V4 or Original Game save.
+
+**Store adoption:** once a genuine same-lineage championship can be
+admitted, the native Next producer must obtain the transition from the
+matched Store owner and write the D1 draft plus its versioned lineage
+transition as one CAS operation. Strict cold must requalify the archived,
+authoritative Standard Base championship evidence before invoking the new
+draft reader; the embedded shape-valid score summary and digest are not
+sufficient, and the rotating `.bak` is not a durable proof store.
+Carry only the validated proof required to replay that admission (retain the
+canonical closed source until a smaller exact proof is validated). Reject
+fabricated and wrong-lineage proof on read/write and independently verify
+the same closed source across the real four-pick saved successor. Only
+after this establishes real custody should the previously documented
+D1-specific venue/report path enable the first physical round.

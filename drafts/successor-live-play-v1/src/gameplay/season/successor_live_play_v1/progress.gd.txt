@@ -214,7 +214,7 @@ static func row(season: SeasonState) -> Dictionary:
 			"id": season.career.current,
 			"seed": season.season_seed,
 			"league": season.league_rules.get("league", "standard"),
-			"tier": int(season.league_rules.get("tier",0)),
+			"tier": 1 if season.career.start_basis.get("kind")=="common-standard-d1-transition-v1" else int(season.league_rules.get("tier",0)),
 			"status": "active",
 			"proof": ClubSeasonRecord.capture(season),
 			"receipt": {},

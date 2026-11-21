@@ -1,0 +1,72 @@
+extends "res://transition.gd"
+## Isolated materialized draft mechanics; never an earned entitlement.
+const Codec=preload("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+const Runtime=preload("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+const QA_PATH="user://standard-d1-qa-draft.json"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and args.size()==1 and args[0] in ["draft","cold"] and not S.occupied(),"explicit isolated mode with no Common slot"): return
+	if args[0]=="cold":
+		var bytes:=FileAccess.get_file_as_bytes(QA_PATH)
+		var data: Variant=JSON.parse_string(bytes.get_string_from_utf8())
+		var cold: SeasonState=Codec.restore_d1_draft(data)
+		if not _expect(cold!=null and cold.picks.size()==4 and _closed_to_gameplay(cold)
+				and ClubCareer.same(Codec.capture_d1_draft(cold),data)
+				and Codec.restore_common(data)==null and Codec.restore(data)==null
+				and not S.occupied() and bytes==FileAccess.get_file_as_bytes(QA_PATH),"separate process exactly reads only QA draft format"): return
+		print("STANDARD_D1_MATERIALIZED_COLD_PASS ",FileAccess.get_sha256(QA_PATH))
+		get_tree().quit();return
+	if not _expect(not FileAccess.file_exists(QA_PATH),"fresh QA evidence path"): return
+	var seed_owner: RefCounted=O.create_ordinary(42,"standard")
+	if not _expect(seed_owner!=null,"native Common V4 Base owner context"): return
+	var transition: Dictionary=_shape_sample(seed_owner)
+	var season: SeasonState=Runtime.create_d1_draft(transition)
+	if not _expect(season!=null and _closed_to_gameplay(season)
+			and ClubCareer.same(season.career.start_basis,transition)
+			and season.career.active_tier()==1 and season.league_rules.is_empty()
+			and season.difficulty==seed_owner.session.difficulty,"materialized D1 birth uses separate career tier only"): return
+	for count: int in range(5):
+		var snapshot: Dictionary=Codec.capture_d1_draft(season)
+		var replay: SeasonState=Codec.restore_d1_draft(JSON.parse_string(JSON.stringify(snapshot,"",true,true)))
+		if not _expect(replay!=null and replay.picks.size()==count and _closed_to_gameplay(replay)
+				and ClubCareer.same(Codec.capture_d1_draft(replay),snapshot)
+				and ClubCareer.same(replay.career.start_basis,transition),"native draft checkpoint "+str(count)): return
+		season=replay
+		if count<4 and not _expect(season.choose_player(season.offers()[0]),"native visible pick "+str(count)): return
+	if not _expect(season.opponents.clubs.size()==5,"five native NPC drafts"): return
+	for id: String in season.opponents.clubs:
+		var cpu: SeasonBuild=season.opponents.clubs[id].build
+		if not _expect(cpu.d1_pricing_valid() and cpu._market==12,"D1 economics "+id): return
+	var data: Dictionary=Codec.capture_d1_draft(season)
+	for key: String in ["profile","lineage","seed","proof"]:
+		var bad: Dictionary=data.duplicate(true)
+		bad.career.start_basis.entitlement[key]=null
+		if not _expect(Codec.restore_d1_draft(bad)==null,"retained proof tamper refused: "+key): return
+	var bad: Dictionary=data.duplicate(true)
+	bad.opponents.draft_order.reverse()
+	if not _expect(Codec.restore_d1_draft(bad)==null,"a well-shaped foreign opponent draft order does not replay"): return
+	bad=data.duplicate(true)
+	bad.format=Codec.CommonStart.FORMAT
+	bad.career.start_basis=data.career.start_basis.basis.duplicate(true)
+	bad.career.runs[0].tier=0
+	if not _expect(Codec.restore_common(bad)==null,"priced D1 build cannot masquerade as Base"): return
+	bad=data.duplicate(true)
+	bad.state.round_index=1
+	if not _expect(Codec.restore_d1_draft(bad)==null and Codec.restore_common(data)==null and Codec.restore(data)==null,
+			"not a live round or normal resume"): return
+	seed_owner.session=season
+	if not _expect(O.capture(seed_owner).is_empty() and S.prepare_and_write(null,seed_owner,PackedByteArray())==null
+			and not S.occupied(),"actual V4 writer refuses synthetic materialized draft"): return
+	var file:=FileAccess.open(QA_PATH,FileAccess.WRITE)
+	if not _expect(file!=null,"open isolated QA data path"): return
+	file.store_string(JSON.stringify(data,"",true,true))
+	file.close()
+	print("STANDARD_D1_MATERIALIZED_DRAFT_PASS ",FileAccess.get_sha256(QA_PATH))
+	get_tree().quit()
+
+func _closed_to_gameplay(season: SeasonState) -> bool:
+	return not Codec.scope(season) and Codec.capture(season).is_empty() \
+		and season.build.d1_pricing_valid() and not season.shop_available() and season.make_match()==null
