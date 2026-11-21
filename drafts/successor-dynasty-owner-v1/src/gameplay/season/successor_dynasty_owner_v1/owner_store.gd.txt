@@ -655,6 +655,12 @@ static func switch_available(owner: RefCounted) -> bool:
 		and (current.phase!=SeasonState.Phase.COMPLETE or closed) and current.physical.pending.is_empty() \
 		and current.physical.needed.is_empty() and not current.physical.projecting and not current.build.pack_pending()
 
+# Detached qualification only. Keep off the menu and out of all writers until
+# the native D1 start/restore, venues and physical reports are qualified.
+static func qualify_standard_d1(owner: RefCounted, expected: PackedByteArray, seed_value: int) -> Dictionary:
+	if saving or _ticket!=null or not match_owner(owner,expected): return {}
+	return preload("standard_d1_intent.gd").qualify(owner,seed_value)
+
 # Fresh creation only; copies and existing-slot reads retain their strict native paths.
 static func fresh_candidate(seed_value: int, league: String) -> RefCounted:
 	if occupied() or not LeagueAdmission.guard(league,0,{}): return null

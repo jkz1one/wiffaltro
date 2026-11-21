@@ -1,0 +1,39 @@
+extends RefCounted
+## Qualification only. No detached descriptor authorizes birth, IO, or save restore.
+const Adapter = preload("session_adapter.gd")
+const Common = preload("common_lifecycle.gd")
+const Life = preload("lifecycle.gd")
+const Replay = preload("res://src/gameplay/season/dynasty_standard_replay.gd")
+const ClubLeagueCareer = preload("res://src/gameplay/season/club_league_career.gd")
+const KIND := "common-standard-d1-intent-v1"
+
+static func qualify(owner: RefCounted, seed_value: int) -> Dictionary:
+	if owner.active!="ordinary" or not SeasonOwnership._whole(seed_value,0,2147483647): return {}
+	var state: Dictionary=owner.ordinary_state
+	var season: SeasonState=owner.session
+	if season==null or season.phase!=SeasonState.Phase.COMPLETE or not season.league_rules.is_empty() \
+			or season.build==null or season.build.d1_pricing_valid() or not season.league_career: return {}
+	if state.get("status")!="closed" or not state.get("proposal",{}).is_empty() \
+			or not SeasonOwnership._whole(state.get("ordinal"),1,ClubCareer.MAX_RUNS-1): return {}
+	if season.picks.size()!=4 or season.results.size()!=33 or not season.physical.pending.is_empty() \
+			or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return {}
+	var common: Dictionary=owner.common
+	var aggregate: Dictionary=common.aggregate
+	var key: String=ClubLeagueCareer.title_key("standard",0)
+	if aggregate.titles.get(key)!=true: return {}
+	var close: Dictionary=state.last_close
+	var fold: Dictionary=common.last_fold
+	if close.get("reason")!="complete" or close.get("league")!="standard" or close.get("tier")!=0 \
+			or fold.get("side")!="ordinary" or fold.get("id")!=close.get("id") \
+			or fold.get("ordinal")!=state.ordinal or fold.get("sequence")!=common.sequence \
+			or fold.get("source")!=close.get("session_sha256") \
+			or not ClubCareer.same(fold.get("receipt"),close.get("receipt")): return {}
+	var current: Dictionary=Adapter.capture("ordinary",season)
+	if current.is_empty() or not Common.valid(owner) or not Common.ordinary_current_valid(owner,season,current): return {}
+	var proof: Dictionary=ClubSeasonRecord.capture(season)
+	if ClubSeasonRecord.analyze(proof).get("finish")!="champion": return {}
+	var receipt: Dictionary=ClubSeasonRecord.receipt(proof,close.first_title,0)
+	if receipt.is_empty() or not ClubCareer.same(receipt,close.receipt): return {}
+	return {"kind":KIND,"profile":Replay.profile(1),"lineage":state.lineage,"from":state.ordinal,
+		"to":int(state.ordinal)+1,"seed":seed_value,"close":close.duplicate(true),
+		"fold":fold.duplicate(true),"proof":proof,"title_key":key}

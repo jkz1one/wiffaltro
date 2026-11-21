@@ -1,0 +1,45 @@
+extends SceneTree
+## Synthetic pricing and no-write qualification controls, never title evidence.
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _expect(ok: bool, label: String) -> bool:
+	if ok: return true
+	printerr("D1 INTENT FAIL: ",label)
+	quit(1)
+	return false
+
+func _run() -> void:
+	if not _expect(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1","isolated profile"): return
+	var S=load("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+	var Runtime=load("res://src/gameplay/season/successor_live_play_v1/runtime.gd")
+	if not _expect(S!=null and Runtime!=null and not S.occupied(),"empty isolated slot only"): return
+	var scene=load("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+	var app=scene.instantiate()
+	root.add_child(app)
+	await process_frame
+	app.select_league("standard")
+	app.create_fresh(123)
+	var owner=app.career_owner
+	if not _expect(owner!=null and owner.active=="ordinary","original app Base writer"): return
+	var bytes: PackedByteArray=S.raw()
+	if not _expect(S.match_owner(owner,bytes) and S.qualify_standard_d1(owner,bytes,321).is_empty(),"admitted Standard Base draft cannot qualify"): return
+	owner.common.aggregate.titles["0"]=true
+	if not _expect(S.qualify_standard_d1(owner,bytes,321).is_empty() and not S.match_owner(owner,bytes),"caller-injected title is not authority"): return
+	var reopened=S.read()
+	if not _expect(reopened!=null and S.raw()==bytes and not FileAccess.file_exists(S.PATH+".bak")
+			and not FileAccess.file_exists(S.PATH+".tmp"),"strict original Base bytes unchanged and no auxiliary writes"): return
+	var season=Runtime.create_fresh(123,"standard")
+	if not _expect(season!=null and season.league_rules.is_empty() and not season.build.d1_pricing_valid(),"detached native Standard Build starts Base"): return
+	var tactical:=int(season.difficulty)
+	if not _expect(season.build.enable_d1_pricing(),"native successor Build allows pristine D1 prices"): return
+	for index: int in range(4):
+		if not _expect(not season.offers().is_empty() and season.choose_player(season.offers()[0]),"detached draft pick %d"%index): return
+	if not _expect(season.league_rules.is_empty() and season.difficulty==tactical and season.build.d1_pricing_valid()
+			and season.build._market==0 and season.opponents.clubs.size()==5,"same Standard/tactical rules, distinct human price profile"): return
+	for id: String in season.opponents.clubs:
+		var build=season.opponents.clubs[id].build
+		if not _expect(build.d1_pricing_valid() and build._market==12,"native D1 NPC market "+id): return
+	print("STANDARD_D1_INTENT_NEGATIVE_AND_PRICING_PASS")
+	quit()
