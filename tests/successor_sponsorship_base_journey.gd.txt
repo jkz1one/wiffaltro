@@ -1,0 +1,189 @@
+extends "res://qa.gd"
+## Actual Common V4 Sponsorship Base opening, using the pre-existing private engineering factory; not earned admission.
+const RULES=preload("res://src/gameplay/season/league_rules.gd")
+const GENERAL=preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+const SPONSORSHIP_ARCHIVE="user://sponsorship-base-steps"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and (OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1")== (args.size()==2 and args[0] in ["denied","cold","cold-shop"])
+			and args.size()==2 and args[0] in ["denied","birth","step","cold","cold-shop","shop"]
+			and not FileAccess.file_exists(ORIGINAL),"isolated exact Sponsorship Common profile"): return
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var action: String=""
+	if args[0]=="denied":
+		if not check(not Store.occupied() and app.earned_league_preview() and app.league_entry_state("sponsorship")=="locked"
+				and app.league_entry_reason("sponsorship")=="Win a championship in Standard.","zero title Sponsorship locked at actual launcher"): return
+		app.select_league("sponsorship")
+		if not check(app.selected_league=="standard" and Store.fresh_candidate(42,"sponsorship")==null,"actual selector and fresh candidate refuse entitlement"): return
+		app.selected_league="sponsorship"
+		app.create_fresh(42)
+		if not check(app.career_owner==null and app.season==null and not Store.occupied(),"direct launcher attempt writes nothing"): return
+		print("SPONSORSHIP_EARNED_DENIAL_PASS")
+		await _finish(app)
+		return
+	if args[0]=="birth":
+		if not check(args[1].is_valid_int() and not Store.occupied()
+				and not app.earned_league_preview(),"explicit private named engineering lane, no prior title"): return
+		app.select_league("sponsorship")
+		app.create_fresh(int(args[1]))
+		if not check(_owned_sponsorship(app) and app.season.picks.is_empty()
+				and app.career_owner.common.aggregate.titles.is_empty(),"actual Sponsorship Base Common App birth"): return
+		for index in range(4):
+			var previous:=Store.raw()
+			app.draft(app.season.offers()[0])
+			if not check(_owned_sponsorship(app) and app.season.picks.size()==index+1
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"native Sponsorship draft picks and backup"): return
+		if not check(_capacities(app.season),"Sponsorship slots allocated to the human and all five opponents"): return
+		action="birth"
+	else:
+		var prior:=Store.raw()
+		var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+		if not check(args[1].length()==64 and FileAccess.get_sha256(Store.PATH)==args[1] and not backup.is_empty(),
+				"exact current generated slot and archive custody"): return
+		app.reload_save()
+		if not check(_owned_sponsorship(app) and _capacities(app.season)
+				and Store.raw()==prior and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"strict cold reopen preserves all six capacities"): return
+		if args[0]=="shop":
+			if not check(_settled(app),"exact settled round and replayed season earnings before opening"): return
+			await _shop_test(app)
+			return
+		if args[0] in ["cold","cold-shop"]:
+			if not check(_settled(app),"independent cold first-round scores, physical reports, and six rewards once"): return
+			var wallet: Dictionary=app.season.build._bank.view()
+			if args[0]=="cold-shop" and not check(wallet.cash==11 and wallet.sponsors.is_empty()
+					and wallet.held.size()==1 and wallet.held[0].item=="tactical.extra_heat" and wallet.held[0].paid==5
+					and app.league_entry_state("sponsorship")=="locked"
+					and app.career_owner.common.aggregate.titles.is_empty(),
+					"strict earned-on Continue preserves actual receipt without conferring Sponsorship title unlock"): return
+			print("SPONSORSHIP_BASE_COLD ",args[1]," cash=",app.season.build.cash(), " sponsors=",app.season.build._bank.view().sponsors.size()," held=",app.season.build._bank.view().held.size(), " earned_state=",app.league_entry_state("sponsorship"))
+			await _finish(app)
+			return
+		if not check(app.season.round_index==0,"bounded to opening round"): return
+		action=await _play(app) if app.season.physical.pending.is_empty() else await _resume(app)
+		if action.is_empty(): return
+		if not check(app.retained==null and _owned_sponsorship(app) and Store.raw()!=prior
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==prior,"one real operation and exact backup"): return
+		if action.begins_with("settle") and not check(_settled(app),"all three games and six awards settle"): return
+	if _archive(action):
+		print("SPONSORSHIP_BASE_STEP ",action," ",FileAccess.get_sha256(Store.PATH))
+		await _finish(app)
+
+func _shop_test(app) -> void:
+	var raw:=Store.raw()
+	var initial: Dictionary=app.season.build._bank.view()
+	app.open_shop()
+	await get_tree().process_frame
+	var window: SeasonShopWindow
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow and not child.is_queued_for_deletion(): window=child
+	if not check(window!=null and window.visible and app.season.build._visit.open
+			and initial.cash==app.season.build.cash() and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw,
+			"native Common full shop opens with original Cash"): return
+	var cap_label:=false
+	var sponsor_buttons: int=0
+	var purchase: Button
+	var fallback: Button
+	for label: Node in window.find_children("*","Label",true,false):
+		if label is Label and label.text.begins_with("ACTIVE SPONSORS • 0 / 6"): cap_label=true
+	for node: Node in window.find_children("*","Button",true,false):
+		if not node is Button or node.is_queued_for_deletion(): continue
+		if node.has_meta("sponsor_offer") and node.get_meta("sponsor_replace","")=="":
+			sponsor_buttons+=1
+		if node.disabled or not node.has_meta("shop_command") or not node.get_meta("shop_quote",{}).get("ok",false): continue
+		var command: Dictionary=node.get_meta("shop_command")
+		if command.op=="sponsor_buy" and command.replace=="": purchase=node
+		elif fallback==null and (command.op=="tactical_buy" or (command.op=="buy" and command.get("mode")=="hold")): fallback=node
+	if not check(cap_label and initial.capacity=={"held":2,"sponsors":6},"real Common shop displays authored sixth active slot"): return
+	print("SPONSORSHIP_NATIVE_STOCK ",JSON.stringify(app.season.build._visit.offers)," sponsor_actions=",sponsor_buttons)
+	var action: Button=purchase if purchase!=null else fallback
+	if action==null:
+		print("SPONSORSHIP_NO_AFFORDABLE_NATIVE_CHECKOUT")
+		if _archive("shop-open"): await _finish(app)
+		return
+	var before:=Store.raw()
+	var prior:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var cmd: Dictionary=action.get_meta("shop_command")
+	var item: String=app.season.build._visit.offers[cmd.offer]
+	var quoted: Dictionary=action.get_meta("shop_quote").after.wallet
+	action.pressed.emit()
+	if not check(window._confirm.visible and not window._pending.is_empty(),"normal offer confirmation needed before debit"): return
+	window._confirm.canceled.emit(); window._confirm.hide()
+	if not check(Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==prior
+			and window._pending.is_empty(),"cancel before checkout preserves exact save pair"): return
+	action.pressed.emit()
+	if not check(window._confirm.visible and not window._pending.is_empty(),"reselect same native offer"): return
+	window._confirm.confirmed.emit(); window._confirm.hide()
+	var actual: Dictionary=app.season.build._bank.view()
+	var paid:=Store.raw()
+	if not check(paid!=before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before
+			and ClubCareer.same(quoted,actual) and initial.cash>actual.cash and _settled(app)
+			and not app.commit_shop(cmd) and Store.raw()==paid,
+			"actual native checkout charges once and all six actual rewards stay exact"): return
+	if purchase!=null and not check(actual.sponsors.size()==1 and actual.sponsors[0].item==item,
+			"actual sponsor receipt becomes active immediately"): return
+	print("SPONSORSHIP_NATIVE_CHECKOUT op=",cmd.op," item=",item," before=",initial.cash," after=",actual.cash)
+	if _archive("shop-paid"): await _finish(app)
+
+func _owned_sponsorship(app) -> bool:
+	return app.career_owner!=null and app.career_owner.active=="ordinary" and app.career_owner.paused.is_empty() \
+		and app._owned() and app.season.league_live and ClubCareer.same(app.season.league_rules,RULES.capture("sponsorship",0))
+
+func _capacities(season: SeasonState) -> bool:
+	if season.opponents.clubs.size()!=5: return false
+	for build: SeasonBuild in [season.build]+season.opponents.clubs.values().map(func(club: Dictionary)->SeasonBuild: return club.build):
+		var expected: Dictionary=RULES.capacities(RULES.capture("sponsorship",0))
+		if expected!={"held":2,"sponsors":6} or not ClubCareer.same(build._league_rules,season.league_rules) or not ClubCareer.same(build._bank.view().capacity,expected): return false
+	return true
+
+func _before_automated_play(lab: PitchBatLab, fixture: Dictionary) -> void:
+	var state:=lab._match_state
+	var caps: Dictionary=RULES.capacities(RULES.capture("sponsorship",0))
+	check(ClubCareer.same(state.league_rules,RULES.capture("sponsorship",0))
+		and ClubCareer.same(PhysicalLeagueReport.wallet(state.league_rules,state.away_team.league_ownership).get("capacity"),caps)
+		and ClubCareer.same(PhysicalLeagueReport.wallet(state.league_rules,state.home_team.league_ownership).get("capacity"),caps)
+		and not state.pitch_catalog.is_empty() and state.stadium.is_empty(),
+		"actual human match consumes equal 2 held/6 sponsors, successor pitch catalog and ordinary field")
+	print("SPONSORSHIP_FIELD fixture=",fixture.id," catalog=",state.pitch_catalog," named_venue=",not state.stadium.is_empty())
+
+func _settled(app) -> bool:
+	var season: SeasonState=app.season
+	if season.round_index!=1 or season.results.size()!=3 or season.player_results.size()!=1 \
+			or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() \
+			or season.physical.reports.size()!=2: return false
+	var seen: Dictionary={}
+	for game: Dictionary in season.results:
+		for i: int in [int(game.away),int(game.home)]:
+			if seen.has(i): return false
+			var build: SeasonBuild=season.build if i==0 else season.opponents.clubs[str(i)].build
+			var award: Array=build._bank._events.filter(func(e: Dictionary)->bool: return e.op=="reward")
+			var win: bool=SeasonState._winner(game)==i
+			if award.size()!=1 or award[0].game!=game.id or award[0].win!=win: return false
+			var cursor: SeasonOwnership=build._bank.empty_fork()
+			var paid: int=0
+			for e: Dictionary in build._bank._events:
+				var before: int=cursor.cash()
+				var native: Dictionary=cursor.commit(e)
+				if not native.get("ok",false) or native.get("replayed",true): return false
+				if e.op=="reward": paid=cursor.cash()-before
+			if paid!=(16 if win else 10) or not ClubCareer.same(cursor.view(),build._bank.view()): return false
+			print("SPONSORSHIP_NATIVE_REWARD team=",i," game=",game.id," win=",win," cash=",paid)
+			seen[i]=true
+	for row: Dictionary in season.physical.reports:
+		if not GENERAL.valid(row.report,season.build.pitch_catalog_signature()): return false
+	return seen.size()==6 and _capacities(season)
+
+func _archive(action: String) -> bool:
+	var sha:=FileAccess.get_sha256(Store.PATH)
+	var path:=SPONSORSHIP_ARCHIVE.path_join(action+"-"+sha)
+	if not check(sha.length()==64 and not DirAccess.dir_exists_absolute(path)
+			and DirAccess.make_dir_recursive_absolute(path)==OK,"unique generated Sponsorship stage"): return false
+	for suffix: String in ["",".bak"]:
+		var dest:=path.path_join("owner.json"+suffix)
+		if not check(DirAccess.copy_absolute(Store.PATH+suffix,dest)==OK
+				and FileAccess.get_sha256(dest)==FileAccess.get_sha256(Store.PATH+suffix),"byte-exact Sponsorship stage "+suffix): return false
+	return true
