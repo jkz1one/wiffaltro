@@ -418,6 +418,47 @@ func _propose_paired_next(seed_value: int) -> void:
 	var ticket: RefCounted=Store._prepare_paired_next_proposal(career_owner,expected,seed_value)
 	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
 
+# Optional and deliberately narrower than the real shop: this preview uses
+# the already-qualified development-pack commands, never buys on entry.
+var _paired_development_showing: bool=false
+
+func private_paired_development_step() -> int:
+	if OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1" \
+		or OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")!="1" \
+		or career_owner==null or season==null or career_owner.session!=season \
+		or not career_owner.paired_draft_only() or career_owner.current_ordinal()!=1 \
+		or career_owner.lifecycle_status()!="active" or not Owner._missing_dynasty(career_owner) \
+		or not career_owner.paused.is_empty() or season.phase!=SeasonState.Phase.REGULAR \
+		or season.round_index!=1 or season.picks.size()!=4 or season.results.size()!=3 \
+		or season.physical.reports.size()!=2 or not season.physical.pending.is_empty(): return -1
+	var step: int=season.build.revision()-2
+	return step if step in [0,1,2,3] else -1
+
+func show_private_paired_development() -> void:
+	var step:=private_paired_development_step()
+	if step<0 or not _available() or not _owned(): return
+	_paired_development_showing=true
+	if step==0:
+		_paired_first_shop({"id":Adapter.Ordinary.first_shop_id(step),"rev":2,"op":"open"})
+	show_season()
+
+func hide_private_paired_development() -> void:
+	_paired_development_showing=false
+	show_season()
+
+func pay_private_paired_development(quoted_cash: int,quoted_cost: int) -> void:
+	var step:=private_paired_development_step()
+	if not _paired_development_showing or step!=1 or season.build.cash()!=quoted_cash \
+		or season.build.pack_price()!=quoted_cost or quoted_cost<=0 or quoted_cash<quoted_cost: return
+	_paired_first_shop({"id":Adapter.Ordinary.first_shop_id(step),"rev":3,"op":"pack_open"})
+
+func pick_private_paired_development(item: String,target: Dictionary) -> void:
+	var step:=private_paired_development_step()
+	if not _paired_development_showing or step!=2 or item not in season.build._pack_choices() \
+		or season.build.shop_item(item).get("op")!="stat" or target not in season.build.targets(item): return
+	_paired_first_shop({"id":Adapter.Ordinary.first_shop_id(step),"rev":4,"op":"pack_pick",
+		"item":item,"player":target.player,"pitch":target.pitch,"replace":target.replace})
+
 # Unbound private earned-pack continuation; normal shop remains inaccessible.
 func _paired_first_shop(command: Dictionary) -> void:
 	if not _available() or not _owned() or not career_owner.paired_draft_only() or not retained_report.is_empty() or is_instance_valid(ai_runner): return

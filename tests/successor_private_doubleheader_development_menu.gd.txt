@@ -1,0 +1,117 @@
+extends "res://tests/successor_hidden_first_settlement.gd"
+const OPENING="bf7a233d75a42b9a34f1d02fc73afa6f2f627a0fef9b6cbfa36baf8933a84109"
+const BASELINE="user://exact-settled-opening.json"
+const VIEW="OPTIONAL DEVELOPMENT PACK"
+const LEAVE="LEAVE DEVELOPMENT PACK"
+const PAY="PAY 8 GAME CASH · REVEAL PACK"
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var hit:=_button(child,label)
+		if hit!=null: return hit
+	return null
+func need(ok: bool,label: String) -> bool:
+	if check(ok,label): return true
+	get_tree().quit(1)
+	return false
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["open","pay","pick","cold","flag-off"] and FileAccess.get_sha256(BASELINE)==OPENING
+			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),"exact generated CP212 family"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var opening: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BASELINE))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and _same_leg(app,opening) and exact(before,backup),"strict cold preserved exact results, reports and rewards"): return
+	var view:=_button(app,VIEW)
+	match args[0]:
+		"flag-off":
+			app.show_private_paired_development()
+			if need(view==null and not app._paired_development_showing and exact(before,backup),"flag off removes optional pack route, no writes"): get_tree().quit()
+			return
+		"open":
+			if not need(args[1]==OPENING and _wallet(app,18,0) and view!=null,"exact unopened earned opener"): return
+			view.pressed.emit()
+			if not need(app.season.build._visit.pack_status=="sealed" and _wallet(app,18,0) and _button(app,PAY)!=null,
+					"open optional visit for free; exact balance and eight-Cash cost offered"): return
+			var opened:=Store.raw()
+			_button(app,LEAVE).pressed.emit()
+			app.pay_private_paired_development(18,8)
+			if not need(_wallet(app,18,0) and not app._paired_development_showing and exact(opened,before),
+					"leave without purchase; invisible payment refused, both files unchanged"): return
+		"pay":
+			if not need(view!=null and _wallet(app,18,0),"earned open sealed pack survives cold"): return
+			view.pressed.emit()
+			app.pay_private_paired_development(18,0)
+			if not need(exact(before,backup) and _button(app,PAY)!=null,"tampered zero quote never writes"): return
+			_button(app,PAY).pressed.emit()
+			if not need(_wallet(app,10,1) and app.season.build.pack_pending(),"explicit purchase reveals actual cards and pays once"): return
+			var paid:=Store.raw()
+			app.pay_private_paired_development(18,8)
+			if not need(exact(paid,before),"duplicate reveal never charges or rotates again"): return
+		"pick":
+			if not need(view!=null and _wallet(app,10,1) and app.season.build.pack_pending(),"real paid pack authorities cold reopen"): return
+			view.pressed.emit()
+			var build: SeasonBuild=app.season.build
+			var selected: String=""
+			var chosen: Dictionary={}
+			var choice: Button
+			for item: String in build._pack_choices():
+				var card: Dictionary=build.shop_item(item)
+				if card.get("op")!="stat": continue
+				for target: Dictionary in build.targets(item):
+					var player: PlayerDefinition=build.definition(target.player)
+					var found:=_button(app,"%s · %s"%[str(card.family).capitalize(),player.display_name])
+					if found!=null:
+						selected=item;chosen=target;choice=found
+						break
+				if choice!=null: break
+			if not need(choice!=null,"actual revealed stat choice and eligible current roster recipient"): return
+			var rejected:=chosen.duplicate(true)
+			rejected.player="player.not_a_roster_member"
+			app.pick_private_paired_development(selected,rejected)
+			if not need(exact(before,backup),"invalid recipient cannot select or debit"): return
+			choice.pressed.emit()
+			if not need(_upgraded(app,opening) and _wallet(app,10,1),"actual UI choice applies one stat, no second charge"): return
+			var picked:=Store.raw()
+			app.pick_private_paired_development(selected,chosen)
+			if not need(exact(picked,before),"duplicate choice never changes a second stat or rotates backup"): return
+		"cold":
+			if not need(_upgraded(app,opening) and _wallet(app,10,1) and view!=null,"strict cold exact selected upgrade and single charge"): return
+			app.play_next()
+			app.resume_round()
+			if need(not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) and exact(before,backup),
+					"public routes and actual return remain held"):
+				print("PRIVATE_DH_DEVELOPMENT_COLD_PASS ",args[1])
+				get_tree().quit()
+			return
+	if need(_same_leg(app,opening) and Store.raw()!=before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before,
+			"native operation leaves historical evidence exact and previous bytes in backup"):
+		print("PRIVATE_DH_DEVELOPMENT_STEP ",args[0]," ",FileAccess.get_sha256(Store.PATH)," cash=",app.season.build.cash())
+		get_tree().quit()
+func _same_leg(app: App,opening: Dictionary) -> bool:
+	return settled(app.season) and Live.same(app.season.results,opening.ordinary.state.results) \
+		and Live.same(app.season.player_results,opening.ordinary.state.player_results) \
+		and Live.same(app.season.physical.reports,opening.ordinary.physical.reports) \
+		and Live.same(app.career_owner.common,opening.common)
+func _wallet(app: App,cash: int,charges: int) -> bool:
+	var build: SeasonBuild=app.season.build
+	var spent: Array=build._bank._events.filter(func(row: Dictionary)->bool: return row.get("op")=="charge")
+	return build.cash()==cash and spent.size()==charges and (charges==0 or spent[0].amount==8)
+func _upgraded(app: App,opening: Dictionary) -> bool:
+	var build: SeasonBuild=app.season.build
+	if build._visit.pack_status!="used" or build.pack_pending() or build._events.size()!=5: return false
+	var command: Dictionary=build._events[-1]
+	if command.get("op")!="pack_pick": return false
+	var stat: String=build.shop_item(command.item).family
+	var prior: Dictionary=opening.ordinary.build.book._players[command.player].stats
+	var actual: Dictionary=build.player(command.player).stats
+	for field: String in SeasonPlayerCatalog.STATS:
+		if actual[field]!=prior[field]+(1 if field==stat else 0): return false
+	print("ACTUAL_PRIVATE_DH_DEVELOPMENT ",command.player," ",stat," ",prior[stat],"→",actual[stat])
+	return true

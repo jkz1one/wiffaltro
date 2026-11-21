@@ -66,3 +66,28 @@ and copy the primary as `user://exact-opening-pending.json` inside the
 same throwaway profile. Run `npc1`, `npc2`, `settle`, then `cold` in
 separate processes with each exact current SHA. Check `flag-off` in a
 separate clone. The only games simulated are the two actual NPC games.
+
+## Optional opening-leg development pack
+
+The same private opening preview may show the existing narrow native
+development-pack route. Entering it opens the authored visit for free.
+It shows game Cash and the quoted pack price before the separate Pay
+action. A player can leave without purchasing. After explicit reveal,
+only the actual revealed stat cards and their currently eligible player
+targets appear. Applying a selected card does not charge again. The
+fixed producer rechecks the exact owner, revision, quote, revealed
+card and live eligible target before the normal guarded Store write.
+
+This is not the general Doubleheader shop. It does not expose the
+return leg after purchase or require spending to qualify for any public
+mode. The current private return proof expects the old exact paid
+development journal. An unpurchased return still needs a separate
+strict branch for both the untouched revision 2 and free-open revision
+3 states; do not turn the optional pack into a gameplay prerequisite.
+
+In an isolated clone of the exact CP212 opening settlement, attach
+`tests/successor_private_doubleheader_development_menu.gd.txt` with the
+earlier settlement/draft parents. Keep the exact CP212 primary as
+`user://exact-settled-opening.json`, then run `open`, `pay`, `pick`,
+and `cold` separately, plus `flag-off` in an independent initial clone.
+Nothing in this test launches a match or edits the previous settlement.

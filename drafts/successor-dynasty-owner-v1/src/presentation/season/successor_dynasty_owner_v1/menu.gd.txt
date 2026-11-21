@@ -104,9 +104,8 @@ func render() -> void:
 			_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_refresh_round_progress()
-		elif OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
-				and app.season.round_index==1 and app.season.results.size()==3:
-			_note("Opening leg settled. The return leg and shops are not exposed in this preview.")
+		elif app.private_paired_development_step()>=0:
+			_private_paired_development()
 		else:
 			_note("Private draft verification complete. Matches, shop and career actions are unavailable.")
 		return
@@ -149,6 +148,35 @@ func render() -> void:
 
 	if not archived: _session_controls()
 	if app.earned_league_preview(): _earned_leagues(false)
+
+func _private_paired_development() -> void:
+	var step: int=app.private_paired_development_step()
+	_label(_body,"DOUBLEHEADER · OPENING LEG SETTLED",22)
+	_note("Development pack is optional. The return leg is not enabled in this preview, with or without a purchase.")
+	if not app._paired_development_showing:
+		_bound_button(_body,"OPTIONAL DEVELOPMENT PACK",Callable(app,"show_private_paired_development"))
+		return
+	var build: SeasonBuild=app.season.build
+	var balance: int=build.cash()
+	_label(_body,"%d game Cash"%balance,20)
+	if step==1:
+		var cost: int=build.pack_price()
+		_note("Reveal the development pack for %d game Cash. Choosing an upgrade after reveal does not charge again."%cost)
+		var pay:=_bound_button(_body,"PAY %d GAME CASH · REVEAL PACK"%cost,
+			Callable(app,"pay_private_paired_development").bind(balance,cost))
+		pay.disabled=balance<cost
+	elif step==2:
+		for item: String in build._pack_choices():
+			var card: Dictionary=build.shop_item(item)
+			if card.get("op")!="stat": continue
+			for target: Dictionary in build.targets(item):
+				var player: PlayerDefinition=build.definition(target.player)
+				if player==null: continue
+				_bound_button(_body,"%s · %s"%[str(card.family).capitalize(),player.display_name],
+					Callable(app,"pick_private_paired_development").bind(item,target.duplicate(true)))
+	elif step==3:
+		_note("Development pack applied. No further purchase is available here.")
+	_bound_button(_body,"LEAVE DEVELOPMENT PACK",Callable(app,"hide_private_paired_development"))
 
 func _workshop_draft() -> void:
 	var owner=app.career_owner
