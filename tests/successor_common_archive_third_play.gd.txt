@@ -1,0 +1,115 @@
+extends "res://tests/successor_dugout_base_journey.gd"
+## A real Common App game from the exact ordinal-three archive. QA only.
+const PICKED="7a0028d28da71db811c706c3796df34aa76a7d04b52fdd5124644e7eeed8c31e"
+const DRAFTED="6c0e2114d9e9e4b8769a301513d4f42abfc48e6826ee82cc3f51cea03cbb79aa"
+const STANDARD="b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+const DUGOUT="00b1debe8958bf7f198df2cc0027a618890d426acabae43da54ff3e8e9ea7ffc"
+const RAW="user://ordinal3-human-pre-return.json"
+const PRIOR="user://exact-cp236-proposal.json"
+const C=Store.Owner.Common
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and Store.cross_league_preview()
+			and args.size()==2 and args[0] in ["play","cold"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and FileAccess.get_sha256(PRIOR)==DUGOUT
+			and not FileAccess.file_exists(ORIGINAL),"isolated exact ordinal-three lineage"): return
+	var start:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var timer:=Time.get_ticks_msec()
+	app.reload_save()
+	print("ORDINAL3_STRICT_CONTINUE_MS ",Time.get_ticks_msec()-timer)
+	if not check(_intact(app) and Store.raw()==start and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+			"strict saved owner with exact histories and separate bank"): return
+	if args[0]=="cold":
+		if check(backup.is_empty() and _pending(app) and Store.raw()==start,"primary-only cold validates actual pending and never awards"):
+			print("ORDINAL3_PLAY_COLD_PASS ",args[1])
+			await _finish(app)
+		return
+	if args[1]==PICKED:
+		if not check(app.season.picks==["player.emery_lane"]
+				and app.season.physical.pending.is_empty() and not FileAccess.file_exists(RAW),"exact Emery opener; game never run here"): return
+		for index: int in range(1,4):
+			var previous:=Store.raw()
+			var id: String=app.season.offers()[0]
+			var control:=_button(app,app.season.build.definition(id).display_name)
+			if not check(control!=null,"native visible offered draft button"): return
+			control.pressed.emit()
+			if not check(app.season.picks.size()==index+1 and app.season.picks[index]==id and _intact(app)
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"native draft identity and previous revision"): return
+			print("ORDINAL3_PICK ",id)
+	if not check(FileAccess.get_sha256(Store.PATH)==DRAFTED and app.season.picks==[
+			"player.emery_lane","player.finley_brooks","player.jules_moss","player.remy_cruz"]
+			and app.season.physical.pending.is_empty() and not FileAccess.file_exists(RAW),
+			"exact completed archive draft; no human game played here"): return
+	if not check(_capacities(app.season),"authored Dugout capacity on all six builds"): return
+	var before:=Store.raw()
+	var fixture: Dictionary=app.season.pending_fixture()
+	var play:=_button(app,"PLAY NEXT GAME")
+	if not check(play!=null and fixture.get("id")==0 and (fixture.away==0 or fixture.home==0),"visible native opening fixture"): return
+	play.pressed.emit()
+	var lab: PitchBatLab=app.lab
+	if not check(lab!=null and lab._match_state!=null,"actual pitch/bat lab started"): return
+	for frame: int in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not check(not lab._match_presentation_director.blocks_gameplay(),"native first game intro is ready"): return
+	_before_automated_play(lab,fixture)
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=Adapter.fixtures("ordinary").seed_for(app.season,fixture)
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	timer=Time.get_ticks_msec()
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD: break
+		if frame%12000==0:
+			print("ORDINAL3_PHYSICS frame=",frame," pa=",lab._match_state.plate_appearance_number)
+	var human: Array=Adapter.human_capture("ordinary").capture(app)
+	if not check(human.size()>=12 and human[0]==0 and Store.raw()==before,"actual native final capture before Return; no eager write"): return
+	var file:=FileAccess.open(RAW,FileAccess.WRITE)
+	if not check(file!=null,"isolated raw human evidence file"): return
+	file.store_string(JSON.stringify({"source":Store.Owner._hash(before),"fixture":0,"human":human},"",true,true))
+	file.flush()
+	var ok:=file.get_error()==OK
+	file.close()
+	if not check(ok and not FileAccess.get_file_as_bytes(RAW).is_empty(),"native raw evidence flushed before Return"): return
+	print("ORDINAL3_RAW_SHA ",FileAccess.get_sha256(RAW)," away=",human[1]," home=",human[2]," elapsed_ms=",Time.get_ticks_msec()-timer)
+	for frame: int in range(4):
+		await get_tree().process_frame
+		if app._continue.visible: break
+	if not check(app._continue.visible and not app._continue.disabled,"actual native Return control"): return
+	app._continue.pressed.emit()
+	if check(not is_instance_valid(app.lab) and app.retained==null and Store.raw()!=before
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before and _pending(app),
+			"native Return stores exact pending without award; both archived seasons unchanged"):
+		print("ORDINAL3_PLAY_PENDING_PASS ",FileAccess.get_sha256(Store.PATH))
+		await _finish(app)
+
+func _intact(app: Node) -> bool:
+	if not _owned_dugout(app) or app.career_owner.current_ordinal()!=3 or app.season.season_seed!=1003: return false
+	var owner: RefCounted=app.career_owner
+	var archive: Dictionary=owner.ordinary_state.get("archive",{})
+	var raw:=FileAccess.get_file_as_bytes(PRIOR)
+	var prior: Dictionary=Store.Owner._bytes_value(raw)
+	return archive.kind==C.ARCHIVE_CHAIN and archive.entries[0]==prior.ordinary_state.archive 		and archive.entries[0].sha256==STANDARD and C._chain_second_bytes(archive)==raw 		and Store.Codec.same(owner.common,prior.common) and owner.common.aggregate.currency==72 		and app.season.career.start_basis.version==3 and app.season.build.cash()==0 		and not owner.next_supported() and not app.archived_abandon_visible()
+
+func _pending(app: Node) -> bool:
+	if not _intact(app) or app.season.picks.size()!=4 or app.season.round_index!=0 			or not app.season.results.is_empty() or not app.season.player_results.is_empty() 			or not app.season.physical.reports.is_empty() or app.season.physical.cursor!=0: return false
+	var p: Dictionary=app.season.physical.pending
+	var witness: Variant=JSON.parse_string(FileAccess.get_file_as_string(RAW))
+	return witness is Dictionary and p.get("reports")==[] and witness.fixture==0 		and Store.Codec.same(witness.human,JSON.parse_string(JSON.stringify(p.get("human"),"",true,true)))
+
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var result:=_button(child,label)
+		if result!=null: return result
+	return null

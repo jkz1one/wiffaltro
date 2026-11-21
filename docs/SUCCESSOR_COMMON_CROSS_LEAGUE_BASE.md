@@ -415,3 +415,35 @@ The same isolated ordinal-three QA scene accepts `async`, `cancel` and
 `cold` and `flag-off`. Its same-binary positive output is compared to
 the independent synchronous CP237 native reference, including the
 predecessor backup. No new game or rollover beyond ordinal three.
+
+### Ordinal-three native opening
+
+The two-history archive uses the existing Common App draft and physical
+match, not a separate stadium or result writer. The isolated QA scene
+`tests/successor_common_archive_third_play.gd.txt` starts from the exact
+CP237/238 one-pick Emery profile (seed 1003). It selects the next three
+actual offered players through the native buttons, then starts fixture 0
+through **Play Next Game**. The stock MatchAutomation supplies inputs;
+the live lab produces the score and capture. QA stores the exact native
+capture separately before pressing the real Return control.
+
+Assemble the exact authored Common source with `--dynasty-owner
+--preserve-authored-project`. Copy the QA script and
+`successor_dugout_base_journey.gd.txt` into `res://tests/` as `.gd`, and
+`successor_standard_base_journey.gd.txt` as `res://qa.gd`. Attach the new
+script to a plain Node scene and use the existing private flags and
+isolated profile. Supply the exact CP236 proposal as
+`user://exact-cp236-proposal.json`. Pass `play <primary SHA>` starting
+from the exact one-pick or its exact already drafted checkpoint. To run
+`cold <pending SHA>` in a separate process and profile, copy only the
+pending primary, the exact CP236 reference and
+`ordinal3-human-pre-return.json`. No backup is needed to reopen.
+
+The actual opening finished 4–5 (Dugout away) in the stock ordinary
+field with the successor pitch catalog and authored Dugout capacities
+on both teams. Return preserved the original 33-game Standard and
+six-game Dugout sources byte for byte. Independent primary-only
+Continue retained pending fixture 0 without NPC reports, settled
+results or a reward. Common remained 72 Club Bucks and new seasonal
+Cash remained 0. This qualifies gameplay through durable human pending,
+not the remaining NPC fixtures or settlement. No product source changed.
