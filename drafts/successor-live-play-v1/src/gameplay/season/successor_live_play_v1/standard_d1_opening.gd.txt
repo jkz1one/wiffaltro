@@ -16,11 +16,13 @@ static func _venue_context(season: SeasonState) -> SeasonState:
 
 static func prepare(snapshot: Variant, fixture: Dictionary) -> Dictionary:
 	var season: SeasonState=Codec.restore_d1_draft(snapshot)
-	if season==null or season.picks.size()!=4 or not Codec.same(season.pending_fixture(),fixture) \
+	return _prepare_owned(season,_venue_context(season),fixture) if season!=null else {}
+
+# Constructs only a detached match projection, not an evidence admission API.
+static func _prepare_owned(season: SeasonState, context: SeasonState, fixture: Dictionary) -> Dictionary:
+	if season==null or context==null or season.picks.size()!=4 or not Codec.same(season.pending_fixture(),fixture) \
 			or fixture.get("id")!=0 or fixture.get("round")!=0 or fixture.get("away")!=0 \
 			or not Codec.whole(fixture.get("home"),1,5) or fixture.get("neutral",false): return {}
-	var context:=_venue_context(season)
-	if context==null: return {}
 	var field: FieldDefinition=SeasonVenues.field_for_fixture(context,fixture)
 	var stadium: Dictionary=SeasonVenues.for_fixture(context,fixture)
 	var key: String=StadiumLayoutSnapshot.key(stadium)

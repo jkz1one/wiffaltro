@@ -3,6 +3,7 @@ const Shop=preload("res://src/gameplay/season/successor_live_play_v1/standard_d1
 const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
 const PENDING="15875cdcf9de0c580634252c10f50449628ece090f3c1d52fa2f420e2157708e"
 const SETTLED="0006c57ce4b7183ab5649e7fca90931551e4d8db7df418c51e194e14d39f2fc5"
+const CHECKOUT="b9a4e778c7082199574bd7dce569031b7cfeccc73781d75deb8e3278452395ba"
 const FILE="user://d1-qa-opening-shop-v1.json"
 
 func _ready() -> void:
@@ -18,13 +19,24 @@ func _run() -> void:
 	var args:=OS.get_cmdline_user_args()
 	if not _need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
 			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
-			and args.size()==3 and args[0] in ["buy","cold"]
+			and args.size()==3 and args[0] in ["buy","cold","cold-one"]
 			and FileAccess.get_sha256(args[1])==PENDING and FileAccess.get_sha256(args[2])==SETTLED
 			and not Store.occupied() and not FileAccess.file_exists("user://season-v1.json"),
 			"exact checkpoints and isolated slot"): return
 	var pending:=FileAccess.get_file_as_bytes(args[1])
 	var settled:=FileAccess.get_file_as_bytes(args[2])
-	if args[0]=="cold":
+	if args[0]=="cold-one":
+		var saved:=FileAccess.get_file_as_bytes(FILE)
+		var restores: int=Shop.Settle.Pending.Codec.restore_calls
+		var started:=Time.get_ticks_msec()
+		var exact:=Shop.restore(saved,pending,settled)
+		var elapsed:=Time.get_ticks_msec()-started
+		var count: int=Shop.Settle.Pending.Codec.restore_calls-restores
+		if not _need(FileAccess.get_sha256(FILE)==CHECKOUT and _actual(exact)
+				and Shop.Settle.Npc.canonical(exact).to_utf8_buffer()==saved and count==1,
+				"one strict draft restore; CP187 checkout byte-identical"): return
+		print("STANDARD_D1_OPENING_SHOP_COLD_ONE_PASS ms=",elapsed," restores=",count)
+	elif args[0]=="cold":
 		var saved:=FileAccess.get_file_as_bytes(FILE)
 		var cold:=Shop.restore(saved,pending,settled)
 		if not _need(_actual(cold) and Shop.restore(saved,pending,saved).is_empty()

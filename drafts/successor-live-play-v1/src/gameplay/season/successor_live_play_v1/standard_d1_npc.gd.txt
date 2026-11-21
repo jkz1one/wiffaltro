@@ -13,12 +13,14 @@ static func canonical(value: Variant) -> String:
 static func prepare(snapshot: Variant, fixture_id: int=1) -> Dictionary:
 	if fixture_id not in [1,2]: return {}
 	var season: SeasonState=Draft.restore_d1_draft(snapshot)
-	if season==null or season.picks.size()!=4 or season.pending_fixture().get("id")!=0: return {}
+	return _prepare_owned(season,Opening._venue_context(season),fixture_id,canonical(snapshot).sha256_text()) if season!=null else {}
+
+# Fresh match and binding projection. Raw report admission still happens in valid().
+static func _prepare_owned(season: SeasonState, context: SeasonState, fixture_id: int, draft_sha256: String) -> Dictionary:
+	if fixture_id not in [1,2] or season==null or context==null or season.picks.size()!=4 or season.pending_fixture().get("id")!=0: return {}
 	var fixture: Dictionary=SeasonVenues.fixture_for_id(season,fixture_id)
 	if fixture.get("round")!=0 or not Draft.whole(fixture.get("away"),1,5) \
 			or not Draft.whole(fixture.get("home"),1,5) or fixture.away==fixture.home: return {}
-	var context:=Opening._venue_context(season)
-	if context==null: return {}
 	var stadium: Dictionary=SeasonVenues.for_fixture(context,fixture)
 	var field: FieldDefinition=SeasonVenues.field_for_fixture(context,fixture)
 	if field==null or field.id!=&"field.npc_venue": return {}
@@ -32,7 +34,7 @@ static func prepare(snapshot: Variant, fixture_id: int=1) -> Dictionary:
 	var venue: String=StadiumLayoutSnapshot.key(stadium)
 	if venue.is_empty() or stadium.binding.match_seed!=seed: return {}
 	return {"state":state,"context":context,"fixture":fixture,"binding":{"version":1,"kind":REQUEST,
-		"draft_sha256":canonical(snapshot).sha256_text(),"fixture":fixture.duplicate(true),
+		"draft_sha256":draft_sha256,"fixture":fixture.duplicate(true),
 		"seed":seed,"field":String(field.id),"venue":venue,"pitch_catalog":state.pitch_catalog}}
 
 static func capture(lab: PitchBatLab, job: Dictionary) -> Dictionary:

@@ -17,12 +17,22 @@ static func prepare(draft: Variant) -> Dictionary:
 			if not selected.is_empty(): return {}
 			selected=row
 	if selected.is_empty(): return {}
-	var human:=Opening.prepare(draft,selected)
+	# Own one freshly validated native draft and venue context for this call.
+	# Each projection constructs distinct MatchStates; reports are checked below
+	# against them before settlement ever mutates the candidate.
+	var season: SeasonState=Codec.restore_d1_draft(draft)
+	if season==null: return {}
+	var venues:=Opening._venue_context(season)
+	if venues==null: return {}
+	var human:=Opening._prepare_owned(season,venues,selected)
 	if human.is_empty(): return {}
-	var first:=Npc.prepare(draft,1)
-	var second:=Npc.prepare(draft,2)
-	if first.is_empty() or second.is_empty() or first.binding.draft_sha256!=second.binding.draft_sha256: return {}
-	return {"draft":human.snapshot,"sha":first.binding.draft_sha256,"human":human,"jobs":[first,second]}
+	# The human recapture must match the input independently of the hash.
+	if not Codec.same(human.snapshot,draft): return {}
+	var sha:=Npc.canonical(draft).sha256_text()
+	var first:=Npc._prepare_owned(season,venues,1,sha)
+	var second:=Npc._prepare_owned(season,venues,2,sha)
+	if first.is_empty() or second.is_empty(): return {}
+	return {"draft":human.snapshot,"sha":sha,"human":human,"jobs":[first,second]}
 
 static func _valid_human(row: Variant, human: Dictionary) -> bool:
 	if not row is Dictionary or not SeasonOwnership._keys(row,["version","fixture","field","venue","pitch_catalog","human"]) \
