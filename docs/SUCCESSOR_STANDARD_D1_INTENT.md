@@ -86,3 +86,29 @@ human market 0 and all five NPC market 12 D1 pricing policies, unchanged
 tactical difficulty, and refusal of no-title/wrong-profile/foreign-grant
 cases. This is a detached native reference, not a rendered match,
 Common V4 D1 start/persistence, shop purchase or unlock proof.
+
+### Exact native fixture identity and the Common V4 bridge
+
+The detached adapter can now observe one versioned identity for an exact
+native scheduled fixture: the schedule row, field ID, canonical venue
+key, and native request key. It verifies the detached context and
+reconstructs those values from the native runtime. A JSON round trip,
+a self-consistent caller hash, or the detached grant cannot qualify
+Common V4. The test checks actual authored home and away fixtures, rejects
+changed version/field/venue/request/fixture/tier, and confirms a substituted
+detached SeasonState is refused by the existing Common V4 capture and
+writer. A not-yet-scheduled neutral final is refused, not treated as a
+playoff fixture. No legacy stadium or request dialect was changed.
+
+The next integration should be a **new Standard D1 Common V4 draft/first
+round envelope**, not another detached descriptor. Bind its tier and prior
+championship to the exact matched Common V4 owner at normal Next, retain
+the proof at ordinal transition, and reconstruct the admitted home/away/
+final venue policy from that frozen start. Admit only this new envelope
+in the materialized ordinary codec. The existing Common V4 request builder
+must consume the same canonical field and venue when issuing the successor
+pitch-catalog request and when matching the worker report; do not use the
+older detached native request digest as a fallback. Verify a genuine D1
+draft and strict cold reopen, then actual human and worker games, one
+shop price and exact settlement/cold. Keep Base, legacy reads and public
+selector closed to D1 until those gates pass.

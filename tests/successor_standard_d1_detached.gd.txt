@@ -85,6 +85,14 @@ func _run() -> void:
 	var match_state: MatchState=d1.make_match()
 	if not _expect(field!=null and match_state!=null and match_state.league_rules.is_empty()
 			and d1.results.is_empty(),"native D1 fixture/field constructs without simulating"): return
+	if not _fixture_contract(d1,base,profile,fixture): return
+	var CommonOwner=load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+	var common_candidate=CommonOwner.create_ordinary(39201,"standard")
+	if not _expect(common_candidate!=null,"original Common V4 Base candidate still builds"): return
+	common_candidate.session=d1
+	if not _expect(CommonOwner.capture(common_candidate).is_empty()
+			and Common.prepare_and_write(null,common_candidate,PackedByteArray())==null
+			and not Common.occupied(),"detached synthetic D1 cannot enter Common V4 capture or writer"): return
 	var final: Dictionary=d1.final_venue
 	d1.final_venue=base.final_venue.duplicate(true)
 	if not _expect(not Detached.matches(d1,profile),"Base-venue substitution refused"): return
@@ -94,3 +102,33 @@ func _run() -> void:
 	print("STANDARD_D1_DETACHED_PASS ",JSON.stringify({"home":d1.home_property.tier,
 		"away_ids":venue_ids,"final":d1.final_venue.selection,"opening_field":field.id,"draft":d1.picks}))
 	get_tree().quit()
+
+func _fixture_contract(d1: SeasonState, base: SeasonState, profile: Dictionary, away: Dictionary) -> bool:
+	var home: Dictionary={}
+	for row: Dictionary in d1.schedule:
+		if row.home==0 and home.is_empty(): home=row
+	var a: Dictionary=Detached.fixture_identity(d1,away,profile)
+	var h: Dictionary=Detached.fixture_identity(d1,home,profile)
+	if not _expect(not a.is_empty() and not h.is_empty() and a.field=="field.npc_venue"
+			and h.field!="field.npc_venue" and a.venue!=h.venue and a.native_request!=h.native_request,
+			"actual scheduled home and away use distinct native fixture descriptors"): return false
+	var persisted: Variant=JSON.parse_string(JSON.stringify(a,"",true,true))
+	if not _expect(Detached.matches_fixture(d1,away,profile,persisted)
+			and not Detached.matches_fixture(d1,home,profile,persisted)
+			and Detached.fixture_identity(base,away,profile).is_empty()
+			and Detached.fixture_identity(d1,{"id":32,"away":0,"home":1,"round":11,"neutral":true},profile).is_empty(),
+			"transported exact identity is reproducible; foreign fixture, Base and unearned final refused"): return false
+	for key: String in ["version","field","venue","native_request"]:
+		var invalid: Dictionary=a.duplicate(true)
+		invalid[key]=2 if key=="version" else "forged"
+		if not _expect(not Detached.matches_fixture(d1,away,profile,invalid),"wrong "+key+" refused"): return false
+	var spoof: Dictionary=away.duplicate(true)
+	spoof.home=1 if away.home!=1 else 2
+	var saved: Variant=d1._standard_live_context.session.tier
+	d1._standard_live_context.session.tier=0
+	var wrong: bool=Detached.fixture_identity(d1,away,profile).is_empty()
+	d1._standard_live_context.session.tier=saved
+	if not _expect(wrong and Detached.fixture_identity(d1,spoof,profile).is_empty(),
+			"foreign native tier or fixture opponent refused"): return false
+	print("STANDARD_D1_NATIVE_FIXTURE_IDENTITY_PASS ",JSON.stringify({"away":a,"home":h}))
+	return true

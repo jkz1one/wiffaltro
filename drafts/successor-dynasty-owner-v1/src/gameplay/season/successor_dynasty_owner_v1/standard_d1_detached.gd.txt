@@ -32,3 +32,21 @@ static func matches(season: SeasonState, profile: Dictionary) -> bool:
 	final=SeasonFinalVenue.normalized(final,season.season_seed,season._npc_replay_run)
 	return not away.is_empty() and not final.is_empty() and ClubCareer.same(season.npc_venues,away) \
 		and ClubCareer.same(season.final_venue,final)
+
+# A read-only native observation, not a Common V4 request or admission token.
+static func fixture_identity(season: SeasonState, fixture: Dictionary, profile: Dictionary) -> Dictionary:
+	if not matches(season,profile) or not SeasonOwnership._whole(fixture.get("id"),0,32): return {}
+	var scheduled: Dictionary=SeasonVenues.fixture_for_id(season,int(fixture.id))
+	if scheduled.is_empty() or not ClubCareer.same(fixture,scheduled): return {}
+	var field: FieldDefinition=SeasonState.field_for_fixture(scheduled,season)
+	var state: MatchState=SeasonPhysicalFixtures.match_for(season,scheduled)
+	if field==null or state==null or state.stadium.is_empty(): return {}
+	var venue: String=StadiumLayoutSnapshot.key(state.stadium)
+	var request: String=SeasonPhysicalFixtures.request_key(season,scheduled)
+	if venue.is_empty() or request.length()!=64: return {}
+	return {"version":1,"fixture":scheduled.duplicate(true),"field":String(field.id),
+		"venue":venue,"native_request":request}
+
+static func matches_fixture(season: SeasonState, fixture: Dictionary, profile: Dictionary, value: Variant) -> bool:
+	var expected: Dictionary=fixture_identity(season,fixture,profile)
+	return not expected.is_empty() and ClubCareer.same(value,expected)
