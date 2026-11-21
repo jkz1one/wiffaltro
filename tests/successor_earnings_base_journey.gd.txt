@@ -1,0 +1,164 @@
+extends "res://qa.gd"
+## Actual Common V4 Earnings Base opening, using the pre-existing private engineering factory; not earned admission.
+const RULES=preload("res://src/gameplay/season/league_rules.gd")
+const GENERAL=preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+const EARNINGS_ARCHIVE="user://earnings-base-steps"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and (OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1")== (args.size()==2 and args[0] in ["cold","other"])
+			and args.size()==2 and args[0] in ["birth","step","cold","other"]
+			and not FileAccess.file_exists(ORIGINAL),"isolated exact Earnings Common profile"): return
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	if args[0]=="other":
+		var bytes:=Store.raw()
+		var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+		app.reload_save()
+		if not check(app._owned() and FileAccess.get_sha256(Store.PATH)==args[1]
+				and app.season.league_rules.get("league")=="equipment" and app.season.build.cash()==8
+				and app.earnings_income_rule().is_empty() and app.earnings_paid_result(app.season.player_results[0]).is_empty()
+				and Store.raw()==bytes and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+				"actual other-league Continue receives no Earnings copy or write"): return
+		print("EARNINGS_OTHER_LEAGUE_CONTROL_PASS ",args[1])
+		await _finish(app)
+		return
+	var action: String=""
+	if args[0]=="birth":
+		if not check(args[1].is_valid_int() and not Store.occupied()
+				and not app.earned_league_preview(),"explicit private named engineering lane, no prior title"): return
+		app.select_league("earnings")
+		app.create_fresh(int(args[1]))
+		if not check(_owned_earnings(app) and app.season.picks.is_empty()
+				and app.career_owner.common.aggregate.titles.is_empty(),"actual Earnings Base Common App birth"): return
+		for index in range(4):
+			var previous:=Store.raw()
+			app.draft(app.season.offers()[0])
+			if not check(_owned_earnings(app) and app.season.picks.size()==index+1
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"native Earnings draft picks and backup"): return
+		if not check(_capacities(app.season),"Earnings slots allocated to the human and all five opponents"): return
+		action="birth"
+	else:
+		var prior:=Store.raw()
+		var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+		if not check(args[1].length()==64 and FileAccess.get_sha256(Store.PATH)==args[1] and not backup.is_empty(),
+				"exact current generated slot and archive custody"): return
+		app.reload_save()
+		if not check(_owned_earnings(app) and _capacities(app.season)
+				and Store.raw()==prior and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"strict cold reopen preserves all six capacities"): return
+		if args[0]=="cold":
+			if not check(_settled(app) and app.league_entry_state("earnings")=="locked",
+					"real margin-paid Common round, no public entitlement"): return
+			if not await _visible_income(app,prior,backup): return
+			print("EARNINGS_BASE_COLD ",args[1]," cash=",app.season.build.cash())
+			await _finish(app)
+			return
+		if not check(app.season.round_index==0,"bounded to opening round"): return
+		action=await _play(app) if app.season.physical.pending.is_empty() else await _resume(app)
+		if action.is_empty(): return
+		if not check(app.retained==null and _owned_earnings(app) and Store.raw()!=prior
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==prior,"one real operation and exact backup"): return
+		if action.begins_with("settle") and not check(_settled(app),"all three games and six awards settle"): return
+	if _archive(action):
+		print("EARNINGS_BASE_STEP ",action," ",FileAccess.get_sha256(Store.PATH))
+		await _finish(app)
+
+func _visible_income(app: App,settled: PackedByteArray,previous: PackedByteArray) -> bool:
+	var result: Dictionary=app.season.player_results[0]
+	var line: String=app.earnings_paid_result(result)
+	var rule: String=app.earnings_income_rule()
+	var native_award: Array=app.season.build._bank._events.filter(func(e: Dictionary)->bool: return e.op=="reward")
+	var won: bool=native_award[0].win
+	var delta: int=int(native_award[0].own_runs-native_award[0].opponent_runs)
+	var cash: int=clampi(15+delta,10,24)
+	var not_committed:=result.duplicate(true)
+	not_committed.id=99
+	if not check(line=="%d base game Cash paid • %s%d run margin" % [cash,"+" if delta>0 else "",delta]
+			and _mentions(app.menu,line) and _mentions(app.menu,rule) and "Sponsor effects are separate" in rule
+			and app.season.build.cash()==cash and app.earnings_paid_result(not_committed).is_empty(),
+			"actual Common hub shows committed base payment, not ordinary win/loss, balance or an unplayed prediction"): return false
+	var authored:=RULES.capture("earnings",0)
+	if not check(RULES.game_income(authored,true,16,1)==24 and RULES.game_income(authored,false,1,16)==10
+			and RULES.game_income(authored,true,1,1)==-1 and RULES.game_income(authored,won,native_award[0].own_runs,native_award[0].opponent_runs)==cash
+			and Store.raw()==settled and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,
+			"separate detached upper/lower clamp and invalid tied-score math; actual save unchanged"): return false
+	app.open_shop()
+	await get_tree().process_frame
+	for child: Node in app.menu.get_children():
+		if child is SeasonShopWindow and not child.is_queued_for_deletion():
+			return check(child.visible and _mentions(child,rule) and child._balance.text=="%d Cash"%cash
+				and app.season.build.cash()==cash and FileAccess.get_file_as_bytes(Store.PATH+".bak")==settled
+				and _settled(app),"actual Shop explains source of funds; open costs zero and original paid wages remain once")
+	return check(false,"actual Common full shop visible")
+
+func _mentions(root: Node,token: String) -> bool:
+	if token.is_empty(): return false
+	for n: Node in root.find_children("*","Label",true,false):
+		if n is Label and not n.is_queued_for_deletion() and n.text==token and n.is_visible_in_tree(): return true
+	return false
+
+func _owned_earnings(app) -> bool:
+	return app.career_owner!=null and app.career_owner.active=="ordinary" and app.career_owner.paused.is_empty() \
+		and app._owned() and app.season.league_live and ClubCareer.same(app.season.league_rules,RULES.capture("earnings",0))
+
+func _capacities(season: SeasonState) -> bool:
+	if season.opponents.clubs.size()!=5: return false
+	for build: SeasonBuild in [season.build]+season.opponents.clubs.values().map(func(club: Dictionary)->SeasonBuild: return club.build):
+		var expected: Dictionary=RULES.capacities(RULES.capture("earnings",0))
+		if expected!={"held":2,"sponsors":5} or not ClubCareer.same(build._league_rules,season.league_rules) or not ClubCareer.same(build._bank.view().capacity,expected): return false
+	return true
+
+func _before_automated_play(lab: PitchBatLab, fixture: Dictionary) -> void:
+	var state:=lab._match_state
+	var caps: Dictionary=RULES.capacities(RULES.capture("earnings",0))
+	check(ClubCareer.same(state.league_rules,RULES.capture("earnings",0))
+		and ClubCareer.same(PhysicalLeagueReport.wallet(state.league_rules,state.away_team.league_ownership).get("capacity"),caps)
+		and ClubCareer.same(PhysicalLeagueReport.wallet(state.league_rules,state.home_team.league_ownership).get("capacity"),caps)
+		and not state.pitch_catalog.is_empty() and state.stadium.is_empty(),
+		"actual human match consumes equal 2 held/5 sponsors, successor pitch catalog and ordinary field")
+	print("EARNINGS_FIELD fixture=",fixture.id," catalog=",state.pitch_catalog," named_venue=",not state.stadium.is_empty())
+
+func _settled(app) -> bool:
+	var season: SeasonState=app.season
+	if season.round_index!=1 or season.results.size()!=3 or season.player_results.size()!=1 \
+			or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() \
+			or season.physical.reports.size()!=2: return false
+	var seen: Dictionary={}
+	for game: Dictionary in season.results:
+		for i: int in [int(game.away),int(game.home)]:
+			if seen.has(i): return false
+			var build: SeasonBuild=season.build if i==0 else season.opponents.clubs[str(i)].build
+			var award: Array=build._bank._events.filter(func(e: Dictionary)->bool: return e.op=="reward")
+			var win: bool=SeasonState._winner(game)==i
+			if award.size()!=1 or award[0].game!=game.id or award[0].win!=win: return false
+			var cursor: SeasonOwnership=build._bank.empty_fork()
+			var paid: int=0
+			for e: Dictionary in build._bank._events:
+				var before: int=cursor.cash()
+				var native: Dictionary=cursor.commit(e)
+				if not native.get("ok",false) or native.get("replayed",true): return false
+				if e.op=="reward": paid=cursor.cash()-before
+			var home: bool=game.home==i
+			var own: int=int(game.home_runs if home else game.away_runs)
+			var opp: int=int(game.away_runs if home else game.home_runs)
+			if award[0].own_runs!=own or award[0].opponent_runs!=opp: return false
+			if paid!=clampi(15+own-opp,10,24) or not ClubCareer.same(cursor.view(),build._bank.view()): return false
+			print("EARNINGS_NATIVE_REWARD team=",i," game=",game.id," score=",own,"-",opp," signed_margin=",own-opp," Cash=",paid)
+			seen[i]=true
+	for row: Dictionary in season.physical.reports:
+		if not GENERAL.valid(row.report,season.build.pitch_catalog_signature()): return false
+	return seen.size()==6 and _capacities(season)
+
+func _archive(action: String) -> bool:
+	var sha:=FileAccess.get_sha256(Store.PATH)
+	var path:=EARNINGS_ARCHIVE.path_join(action+"-"+sha)
+	if not check(sha.length()==64 and not DirAccess.dir_exists_absolute(path)
+			and DirAccess.make_dir_recursive_absolute(path)==OK,"unique generated Earnings stage"): return false
+	for suffix: String in ["",".bak"]:
+		var dest:=path.path_join("owner.json"+suffix)
+		if not check(DirAccess.copy_absolute(Store.PATH+suffix,dest)==OK
+				and FileAccess.get_sha256(dest)==FileAccess.get_sha256(Store.PATH+suffix),"byte-exact Earnings stage "+suffix): return false
+	return true

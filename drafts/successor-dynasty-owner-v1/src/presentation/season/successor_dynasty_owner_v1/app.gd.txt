@@ -1086,6 +1086,29 @@ func _open_match(state: MatchState, player_home: bool, season_game: bool,
 			if lab==opened: _request_quit())
 
 
+func earnings_income_rule() -> String:
+	if career_owner==null or career_owner.active!="ordinary" or career_owner.session!=season \
+		or season==null or not LeagueRules.earnings(season.league_rules): return ""
+	return "Earnings game Cash replaces normal win/loss Cash: 15 plus your final run margin, bounded to 10–24. Sponsor effects are separate."
+
+func earnings_paid_result(result: Dictionary) -> String:
+	if earnings_income_rule().is_empty(): return ""
+	if result.get("away")!=0 and result.get("home")!=0: return ""
+	var home: bool=result.get("home")==0
+	var own: Variant=result.get("home_runs" if home else "away_runs")
+	var opponent: Variant=result.get("away_runs" if home else "home_runs")
+	for event: Dictionary in season.build._bank._events:
+		if event.get("op")!="reward" or event.get("game")!=result.get("id") \
+			or event.get("own_runs")!=own or event.get("opponent_runs")!=opponent \
+			or not LeagueRules.final_scores_valid(own,opponent,event.get("win")): continue
+		var game: String=str(int(event.game))
+		if season.build._bank.view().rewards.get(game)!=event.win: return ""
+		var amount: int=LeagueRules.game_income(season.league_rules,event.win,own,opponent)
+		var margin: int=int(own)-int(opponent)
+		return "%d base game Cash paid • %s%d run margin" % [amount,"+" if margin>0 else "",margin]
+	return ""
+
+
 func academy_pack_choice_pending() -> bool:
 	return career_owner!=null and career_owner.active=="ordinary" and career_owner.session==season \
 		and season!=null and LeagueRules.academy(season.league_rules) and season.build.pack_pending()

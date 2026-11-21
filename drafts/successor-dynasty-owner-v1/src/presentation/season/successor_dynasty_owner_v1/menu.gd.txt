@@ -127,8 +127,13 @@ func render() -> void:
 	var fixture: Dictionary = app.season.pending_fixture()
 	if not fixture.is_empty(): _label(_body,"NEXT: "+_matchup(fixture),20)
 	_standings()
+	var rule: String=app.earnings_income_rule()
+	if not rule.is_empty(): _note(rule)
 	for result: Dictionary in app.season.player_results:
 		_label(_body,"%s · %d–%d"%[_matchup(result),result.away_runs,result.home_runs],18)
+		if not rule.is_empty():
+			var paid: String=app.earnings_paid_result(result)
+			if not paid.is_empty(): _label(_body,paid,16)
 	_label(_body,"YOUR ROSTER",28)
 	for id: String in app.season.teams[0].roster:
 		var player: PlayerDefinition = app.season.build.definition(id)

@@ -41,6 +41,11 @@ func _refresh() -> void:
 		_quote_revision = _quote_source.revision()
 		_quote_active = true
 	super._refresh()
+	if generation == _quote_generation and _origin_matches() and app.get("retained")==null:
+		var rule: String=app.call("earnings_income_rule")
+		if not rule.is_empty():
+			var explanation: Label=_label(rule)
+			_body.move_child(explanation,0)
 	if generation == _quote_generation:
 		_clear_quote_scope()
 
