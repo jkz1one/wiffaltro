@@ -1,0 +1,24 @@
+@tool
+extends EditorPlugin
+
+class ExactConfigExport extends EditorExportPlugin:
+	func _get_name() -> String:
+		return "WiffaltroExactConfiguration"
+
+	func _export_begin(_features: PackedStringArray, _debug: bool, _out: String, _flags: int) -> void:
+		var source := OS.get_environment("WIFFALTRO_PACK_PINNED_PROJECT")
+		if FileAccess.get_sha256(source) != "9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd":
+			push_error("Reviewed source configuration unavailable or changed.")
+			return
+		add_file("res://project.godot", FileAccess.get_file_as_bytes(source), false)
+		print("REVIEWED_RAW_CONFIG_ADDED")
+
+var export_wrapper: ExactConfigExport
+
+func _enter_tree() -> void:
+	export_wrapper = ExactConfigExport.new()
+	add_export_plugin(export_wrapper)
+
+func _exit_tree() -> void:
+	if export_wrapper != null:
+		remove_export_plugin(export_wrapper)

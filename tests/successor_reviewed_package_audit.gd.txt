@@ -1,0 +1,81 @@
+extends SceneTree
+## Runs from the matching editor binary; never included in exported resources.
+const ENTRY := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
+const RAW_CONFIG_SHA := "9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd"
+
+func _initialize() -> void:
+	call_deferred("_check")
+
+func _fail(message: String) -> void:
+	printerr("PACKAGE AUDIT: ", message)
+	quit(1)
+
+func _files(root_path: String) -> Array[String]:
+	var out: Array[String] = []
+	for name: String in DirAccess.get_files_at(root_path):
+		out.append(root_path.path_join(name))
+	for name: String in DirAccess.get_directories_at(root_path):
+		out.append_array(_files(root_path.path_join(name)))
+	return out
+
+func _check() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or args.size() != 2:
+		_fail("unisolated or invalid invocation"); return
+	if root.get_node_or_null("ContentDB") == null:
+		_fail("project autoload is absent"); return
+	# Preloading dependent scripts before the project autoload is registered
+	# would not exercise the same catalog as the packaged App.
+	var runtime = load("res://src/presentation/stadium/stadium_npc_public_runtime.gd")
+	var broad = load("res://src/gameplay/stadium/stadium_pool_party_asset_integrity.gd")
+	if runtime == null or broad == null or FileAccess.get_sha256("res://project.godot") != RAW_CONFIG_SHA \
+			or not runtime.source_qualified():
+		_fail("native reviewed raw-source gate rejected"); return
+	var broad_sha: String = broad.source_sha256()
+	if broad_sha.length() != 64:
+		_fail("recursive Pool Party digest unavailable"); return
+	if args[0] == "source":
+		var profile = load("res://src/presentation/stadium/stadium_npc_current_source_profile.gd")
+		var paths: Dictionary = runtime.SOURCE_PINS.duplicate()
+		paths.merge(profile.REPLACEMENTS,true)
+		paths.merge(profile.DEPENDENCIES,true)
+		var output := FileAccess.open(args[1],FileAccess.WRITE)
+		if output == null:
+			_fail("cannot record verified source inventory"); return
+		output.store_string(JSON.stringify({"reviewed":paths,"broad_sha256":broad_sha},"",true,true))
+		output.close()
+		print("REVIEWED_SOURCE_PROFILE_PASS ", paths.size())
+	elif args[0] == "pack":
+		if ProjectSettings.get_setting("application/run/main_scene") != ENTRY \
+				or OS.get_user_data_dir().get_file() != "WiffaltroEngineeringQA-v1":
+			_fail("incorrect effective packaged entry or isolated data directory"); return
+		var expected: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[1]))
+		if not expected is Dictionary or not expected.source is Dictionary:
+			_fail("invalid external source inventory"); return
+		var stock_paths: Dictionary = expected.source
+		for path: String in stock_paths:
+			if not FileAccess.file_exists(path) or FileAccess.get_sha256(path) != stock_paths[path]:
+				_fail("missing or changed packaged source " + path); return
+		for path: String in _files("res://"):
+			if (path.begins_with("res://src/tests/") and not stock_paths.has(path)) \
+					or path.begins_with("res://addons/") or path.begins_with("res://tests/") or path.begins_with("res://drafts/") \
+					or path.ends_with(".log") or path.ends_with(".json.bak") or path.ends_with(".zip") \
+					or path.ends_with(".pem") or "wiffaltro-common-career" in path:
+				_fail("unintended content in package " + path); return
+		var store = load("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+		var before: PackedByteArray = store.raw()
+		var owner = store.read()
+		if owner == null or owner.active != "dynasty" or owner.session.results.size() != 3 \
+				or owner.paused.state.results.size() != 3 or owner.session.build.cash() != 4 \
+				or owner.session.build.pack_pending() or owner.session.build._visit.pack_status != "used" \
+				or store.raw() != before:
+			_fail("strict backed earned save admission or custody failed"); return
+		# A distinct whole-tree hash authorizes certain stadiums. Matching the
+		# reviewed literal set does not entitle this package to a new broad pin.
+		if broad_sha == expected.broad_sha256:
+			_fail("unexpectedly identical broad source/package footprint"); return
+		print("PACK_BROAD_SHA256 ", broad_sha)
+		print("PACKED_REVIEWED_PROFILE_AND_EARNED_SAVE_PASS ", stock_paths.size())
+	else:
+		_fail("unrecognized qualification mode"); return
+	quit()
