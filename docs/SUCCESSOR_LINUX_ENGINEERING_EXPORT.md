@@ -208,3 +208,38 @@ controller, native macOS, or the integrated V4 Dynasty stadium route.
 The Linux desktop emitted Godot popup signal warnings when choosing the
 receiver; the selection and transactions completed. The long catalog scroll
 is also visible UX debt; no UI redesign is included in this checkpoint.
+
+### Owned Pool on a scheduled home field
+
+A separate native diagnostic mounted the exact same engineering PCK in Godot
+4.6.3 with Dummy audio. It restored copies of the paid workshop slots above,
+selected four first offers in memory only, and used the actual schedule's
+first non-neutral home fixture (15, match seed 1796809828). The away fixture
+(0) did not inherit paid home authority. The normal runner rejected a missing
+ledger before creating a lab, accepted the genuine paid ledger, and installed
+the Pool on the starter backyard. One ordinary automated physical game then
+completed without a controlled launch. Its version-14 report matched the real
+fixture and paid copy. The game reported zero water outcomes; it cannot
+qualify naturally hit Pool water contact. This diagnostic selected a scheduled
+fixture directly, so it does not prove chronological progression or settlement.
+
+Two separate bounded scoring controls started from the same paid fixture and
+observed the unmodified live collider, water controller and resolver at 60 Hz.
+After the first real pitch release, the foul control supplied the swept input
+from the existing `stadium_pool_owned_contact_v64_test.gd` resolver fixture.
+The fair control instead placed a test ball above the Pool. Each produced
+exactly one ordinary play record and one water commit: foul and ground-rule
+double, respectively. The first foul attempt launched before the production
+physics callback and went foul on the ground; the final probe runs its
+observer after the normal callback as the existing authored fixture requires.
+The committed water witnesses agreed with their respective play records.
+Both controls retained paid authority and left both copied slots unchanged.
+
+To reproduce, use the same isolated native launch as above with the unchanged
+paid synthetic workshop slots. Substitute
+`tests/successor_packaged_owned_pool_match.gd.txt` (arguments: save path) or
+`tests/successor_packaged_owned_pool_scoring.gd.txt` (save path and `foul` or
+`double`), copied into scratch as a `.gd` script. Allow up to six minutes for
+the real-time unaltered match. These are mounted-pack headless diagnostics, not
+a rendered contact playtest, a player-driven swing-to-water result, solid
+Pool collision qualification, a native Mac check, or Dynasty stadium wiring.

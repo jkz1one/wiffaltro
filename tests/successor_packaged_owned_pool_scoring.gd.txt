@@ -1,0 +1,144 @@
+extends SceneTree
+## Controlled scoring observations on the genuine paid fixture, not pitched-contact proof.
+
+class LatePhysics extends Node:
+	signal observed
+	func _physics_process(_delta: float) -> void:
+		observed.emit()
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or args.size() != 2 or not args[0].is_absolute_path() or args[1] not in ["foul", "double"]:
+		quit(2)
+		return
+	var path: String = args[0]
+	var primary := FileAccess.get_sha256(path)
+	var backup := FileAccess.get_sha256(path + ".bak")
+	var save: Variant = load("res://src/gameplay/season/season_save.gd")
+	var players: Variant = load("res://src/gameplay/season/club_players.gd")
+	var fixtures: Variant = load("res://src/gameplay/season/season_physical_fixtures.gd")
+	var state_model: Variant = load("res://src/gameplay/season/season_state.gd")
+	var authority: Variant = load("res://src/gameplay/stadium/stadium_pool_owned_authority.gd")
+	var extension: Variant = load("res://src/presentation/stadium/stadium_pool_owned_extension.gd")
+	save.path = path
+	var season: Variant = save.restore()
+	if season == null or not save.last_error.is_empty() or not season.picks.is_empty() or not season.results.is_empty():
+		quit(3)
+		return
+	for index: int in range(4):
+		var offered: Array = season.offers()
+		if offered.is_empty() or not season.choose_player(offered[0]) or season.picks.size() != index + 1:
+			quit(4)
+			return
+	var home: Dictionary = {}
+	var away: Dictionary = {}
+	for fixture: Dictionary in season.schedule:
+		if home.is_empty() and fixture.home == 0 and not fixture.get("neutral", false):
+			home = fixture
+		if away.is_empty() and fixture.away == 0:
+			away = fixture
+	if home.is_empty() or away.is_empty():
+		quit(5)
+		return
+	var state: Variant = fixtures.match_for(season, home)
+	var away_state: Variant = fixtures.match_for(season, away)
+	var ledger: Variant = players.assets(season.career)
+	var field: Variant = state_model.field_for_fixture(home, season)
+	var seed_value: int = fixtures.seed_for(season, home)
+	if state == null or away_state == null or field == null or not authority.exact_owned(state.stadium, ledger) or authority.exact_owned(away_state.stadium, ledger):
+		print("OWNED_PROBE_ISSUANCE_REFUSED home=", home, " away=", away)
+		quit(6)
+		return
+	var runner: Variant = load("res://src/gameplay/simulation/physical_match_runner.gd").new()
+	root.add_child(runner)
+	if runner.start(state, seed_value, field.id) or runner._lab != null or not runner.start(state, seed_value, field.id, ledger):
+		quit(7)
+		return
+	var lab: Variant = runner._lab
+	var prop: Variant = extension.current(lab)
+	if prop == null or not prop.valid_owner(lab):
+		print("OWNED_PROBE_INSTALL_REFUSED")
+		quit(8)
+		return
+	print("OWNED_PROBE_INSTALLED fixture=", home.id, " seed=", seed_value, " field=", field.id, " away_control=", away.id, " paid_copy=", state.stadium.layout.pool.copy)
+	var observer := LatePhysics.new()
+	observer.process_physics_priority = 1000
+	root.add_child(observer)
+	var cadence: Variant = load("res://src/labs/pitch_bat_lab/at_bat_cadence_controller.gd")
+	var clock_start := Engine.get_physics_frames()
+	var pitch_born := false
+	for frame: int in range(1800):
+		await observer.observed
+		if lab._automation.releases.size() == 1 and lab._pitch_actor.running and lab._pitch_actor.state != null \
+			and lab._at_bat_cadence.state != cadence.State.DELIVERY \
+			and lab._active_play_record != null and lab._play_records.is_empty():
+			pitch_born = true
+			break
+	if not pitch_born or not prop.valid_owner_full_ledger(lab):
+		runner.cancel()
+		quit(11)
+		return
+	var scenario: String = args[1]
+	var launch: Variant = _controlled_launch(scenario)
+	if launch == null:
+		runner.cancel()
+		quit(12)
+		return
+	lab._start_ball_in_play(launch)
+	var ball: Variant = lab._batted_ball
+	var play: Variant = lab._ball_play_resolver.state
+	var adapter: Variant = lab.pool_controller_active
+	if ball == null or play == null or play.dead or adapter._ball != ball \
+		or adapter.commits != 0 or not adapter.decline.is_empty():
+		print("OWNED_CONTROLLED_START_REFUSED")
+		runner.cancel()
+		quit(13)
+		return
+	for frame: int in range(180):
+		await observer.observed
+		if play.dead:
+			break
+	var row: Variant = lab._play_records[0] if lab._play_records.size() == 1 else null
+	var exact: bool = play.dead and row != null and adapter.commits == 1 \
+		and String(row.result) == scenario \
+		and String(row.resolution_reason) == "owned_pool_controller_water_" + scenario \
+		and adapter.last_commit.get("position") == row.resolution_position \
+		and prop.valid_owner_full_ledger(lab) \
+		and FileAccess.get_sha256(path) == primary and FileAccess.get_sha256(path + ".bak") == backup
+	print("OWNED_CONTROLLED_END pass=", exact, " records=", lab._play_records.size(),
+		" reason=", row.resolution_reason if row != null else "", " commits=", adapter.commits,
+		" decline=", adapter.decline, " commit=", adapter.last_commit, " frames=", Engine.get_physics_frames() - clock_start)
+	runner.cancel()
+	await process_frame
+	quit(0 if exact else 14)
+
+
+func _controlled_launch(scenario: String) -> Variant:
+	if scenario == "double":
+		# Start just above the paid Pool center to isolate the fair scoring rule.
+		var launch: Variant = load("res://src/gameplay/batting/batted_ball_launch.gd").new()
+		launch.position = Vector3(12, 2, 18)
+		launch.velocity = Vector3(0, -3, 0)
+		return launch
+	# Exact resolver fixture from stadium_pool_owned_contact_v64_test.gd.
+	# Only the swept pitch segment is controlled; production flight is unchanged.
+	var profile: Variant = load("res://src/content/swings/power_swing.tres")
+	var intent: Variant = load("res://src/gameplay/batting/swing_intent.gd").new()
+	intent.profile_id = profile.id
+	intent.aim_point = Vector2(-0.020532, 1.2394542983688768)
+	intent.handedness_left = true
+	intent.start_time_seconds = 0.8763333333333333
+	var pitch: Variant = load("res://src/gameplay/pitching/pitch_state.gd").new()
+	pitch.position = Vector3(0, 1.5, 0.25)
+	pitch.velocity = Vector3(0, 0, -12)
+	pitch.elapsed_time = 1.0166666666666666
+	pitch.orientation = Quaternion(0, 0, -0.8660254037844386, 0.5)
+	var contact: Variant = load("res://src/gameplay/batting/contact_resolver.gd").resolve_swept_segment(
+		Vector3(0, 1.5, 0.45), 1.0, pitch, intent, profile, 10, 10)
+	var contact_type: Variant = load("res://src/gameplay/batting/contact_result.gd")
+	if contact == null or contact.outcome != contact_type.Outcome.FOUL:
+		return null
+	return load("res://src/gameplay/batting/batted_ball_launch.gd").from_contact(contact, pitch)

@@ -1,0 +1,69 @@
+extends SceneTree
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or args.size() != 1 or not args[0].is_absolute_path():
+		quit(2)
+		return
+	var path: String = args[0]
+	var primary := FileAccess.get_sha256(path)
+	var backup := FileAccess.get_sha256(path + ".bak")
+	var save: Variant = load("res://src/gameplay/season/season_save.gd")
+	var players: Variant = load("res://src/gameplay/season/club_players.gd")
+	var fixtures: Variant = load("res://src/gameplay/season/season_physical_fixtures.gd")
+	var state_model: Variant = load("res://src/gameplay/season/season_state.gd")
+	var authority: Variant = load("res://src/gameplay/stadium/stadium_pool_owned_authority.gd")
+	var extension: Variant = load("res://src/presentation/stadium/stadium_pool_owned_extension.gd")
+	var reports: Variant = load("res://src/gameplay/simulation/stadium_pool_owned_report.gd")
+	save.path = path
+	var season: Variant = save.restore()
+	if season == null or not save.last_error.is_empty() or not season.picks.is_empty() or not season.results.is_empty():
+		quit(3)
+		return
+	for index: int in range(4):
+		var offered: Array = season.offers()
+		if offered.is_empty() or not season.choose_player(offered[0]) or season.picks.size() != index + 1:
+			quit(4)
+			return
+	var home: Dictionary = {}
+	var away: Dictionary = {}
+	for fixture: Dictionary in season.schedule:
+		if home.is_empty() and fixture.home == 0 and not fixture.get("neutral", false):
+			home = fixture
+		if away.is_empty() and fixture.away == 0:
+			away = fixture
+	if home.is_empty() or away.is_empty():
+		quit(5)
+		return
+	var state: Variant = fixtures.match_for(season, home)
+	var away_state: Variant = fixtures.match_for(season, away)
+	var ledger: Variant = players.assets(season.career)
+	var field: Variant = state_model.field_for_fixture(home, season)
+	var seed_value: int = fixtures.seed_for(season, home)
+	if state == null or away_state == null or field == null or not authority.exact_owned(state.stadium, ledger) or authority.exact_owned(away_state.stadium, ledger):
+		print("OWNED_PROBE_ISSUANCE_REFUSED home=", home, " away=", away)
+		quit(6)
+		return
+	var runner: Variant = load("res://src/gameplay/simulation/physical_match_runner.gd").new()
+	root.add_child(runner)
+	if runner.start(state, seed_value, field.id) or runner._lab != null or not runner.start(state, seed_value, field.id, ledger):
+		quit(7)
+		return
+	var lab: Variant = runner._lab
+	var prop: Variant = extension.current(lab)
+	if prop == null or not prop.valid_owner(lab):
+		print("OWNED_PROBE_INSTALL_REFUSED")
+		quit(8)
+		return
+	print("OWNED_PROBE_INSTALLED fixture=", home.id, " seed=", seed_value, " field=", field.id, " away_control=", away.id, " paid_copy=", state.stadium.layout.pool.copy)
+	runner.failed.connect(func(reason: String) -> void:
+		print("OWNED_PROBE_RUNNER_REFUSED ", reason)
+		quit(9))
+	runner.finished.connect(func(report: Dictionary) -> void:
+		var unchanged: bool = FileAccess.get_sha256(path) == primary and FileAccess.get_sha256(path + ".bak") == backup
+		var matched: bool = reports.matches(report, state.stadium, ledger)
+		print("OWNED_PROBE_COMPLETE matched=", matched, " slots_unchanged=", unchanged, " outcome_keys=", report.keys(), " pool=", report.get("pool", {}))
+		quit(0 if matched and unchanged else 10))
