@@ -360,17 +360,54 @@ static func _build_paired_settlement(owner: RefCounted,leg: int,projection: Scri
 	var started: int=Time.get_ticks_msec()
 	var current: SeasonState=projection.materialize_settlement(owner.session,leg)
 	paired_candidate_ms=Time.get_ticks_msec()-started
-	if current==null: return {}
+	var envelope: RefCounted=_paired_settlement_envelope(owner,current)
+	if envelope==null or not _routine_pins(envelope): return {}
+	return _capture_paired_settlement(envelope)
+
+static var paired_fused_input_ms: int=0
+static var paired_pack_guard_ms: int=0
+
+static func _paired_settlement_envelope(owner: RefCounted,current: SeasonState) -> RefCounted:
+	if current==null: return null
 	var envelope: RefCounted=Owner.new()
 	envelope.session=current
-	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) or not _routine_pins(envelope): return {}
-	started=Time.get_ticks_msec()
-	var captured: Dictionary=Adapter.capture(owner.active,current)
+	return envelope if Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) else null
+
+static func _capture_paired_settlement(envelope: RefCounted) -> Dictionary:
+	var started: int=Time.get_ticks_msec()
+	var captured: Dictionary=Adapter.capture(envelope.active,envelope.session)
 	paired_admission_ms=Time.get_ticks_msec()-started
+	started=Time.get_ticks_msec()
 	var data: Dictionary=Owner.pack_current(envelope,captured) if not captured.is_empty() else {}
 	if data.is_empty(): return {}
 	var snapshot: Dictionary=RawGuard.capture(envelope)
+	paired_pack_guard_ms=Time.get_ticks_msec()-started
 	return {} if snapshot.is_empty() else {"owner":envelope,"raw":snapshot,"data":data}
+
+# Private child-only fixed next-return producer. Structural source objects
+# do not escape or enter Store admission. The one concrete native projection
+# is also the mandatory pending history gate, not a caller-supplied result.
+static func _fused_next_return_settlement(expected: PackedByteArray) -> Dictionary:
+	if not private_pair_settlement_preview() or expected.is_empty() or expected.size()>MAX_BYTES \
+			or not _write_revision_matches(expected,true): return {}
+	var started: int=Time.get_ticks_msec()
+	var value: Variant=Owner._bytes_value(expected)
+	var source: RefCounted=Owner._restore_metadata(value)
+	if source==null or source.active!="ordinary" or not source.paused.is_empty() \
+			or source.ordinary_state.has("archive") or not Owner._missing_dynasty(source): return {}
+	source.session=Adapter.Ordinary._restore_shape(value.ordinary,false)
+	if source.session==null or source.session.round_index!=3 or not eligible_private_pair_settlement(source): return {}
+	var packed: Dictionary=Owner.pack_current(source,value.ordinary)
+	if packed.is_empty() or not Codec.same(packed,value) or RawGuard.capture(source).is_empty(): return {}
+	paired_fused_input_ms=Time.get_ticks_msec()-started
+	var projection: Script=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	started=Time.get_ticks_msec()
+	var current: SeasonState=projection.materialize_settlement(source.session,3)
+	paired_candidate_ms=Time.get_ticks_msec()-started
+	var envelope: RefCounted=_paired_settlement_envelope(source,current)
+	if envelope==null or not RawGuard.same(Codec.data_fields(envelope,Owner.DATA_FIELDS),Codec.data_fields(source,Owner.DATA_FIELDS)): return {}
+	var cooked: Dictionary=_capture_paired_settlement(envelope)
+	return cooked.get("data",{}) if not cooked.is_empty() and _write_revision_matches(expected,true) else {}
 
 static func private_pair_settlement_preview() -> bool:
 	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \

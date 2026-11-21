@@ -4,7 +4,7 @@ const REFERENCE="user://exact-next-reverse-npc11.json"
 func run() -> void:
 	var args:=OS.get_cmdline_user_args()
 	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
-			and args[0] in ["settle","cold","cancel"] and FileAccess.get_sha256(REFERENCE)==SOURCE
+			and args[0] in ["settle","cold","cancel","stale"] and FileAccess.get_sha256(REFERENCE)==SOURCE
 			and FileAccess.get_sha256(Store.PATH)==args[1],"exact isolated CP229 input"): return
 	var before:=Store.raw()
 	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
@@ -34,7 +34,14 @@ func run() -> void:
 	var cancel:=_button(app,"CANCEL DOUBLEHEADER SETTLEMENT")
 	app.resume_private_unpurchased_next_reverse()
 	if not need(is_instance_valid(worker) and app._d1_check==worker and cancel!=null and exact(before,backup),"one exact child with cancel, no early write"): return
+	var changed:=before
 	if args[0]=="cancel": cancel.pressed.emit()
+	if args[0]=="stale":
+		changed=before+" ".to_utf8_buffer()
+		var f:=FileAccess.open(Store.PATH,FileAccess.WRITE)
+		if not need(f!=null,"isolated revision challenge writable"): return
+		f.store_buffer(changed)
+		f.close()
 	var last:=Time.get_ticks_msec()
 	var max_gap:=0
 	var frames:=0
@@ -46,6 +53,10 @@ func run() -> void:
 		frames+=1
 	print("NEXT_REVERSE_SETTLE_TIMING wall=",Time.get_ticks_msec()-started," start=",start_ms,
 		" gap=",max_gap," frames=",frames," write=",app._pair_settle_write_ms," notice=",app.notice)
+	if args[0]=="stale":
+		if need(not app.d1_check_running() and exact(changed,backup) and not app._owned(),"externally changed exact revision never replaced"):
+			get_tree().quit()
+		return
 	if args[0]=="cancel":
 		if need(not app.d1_check_running() and exact(before,backup),"cancel leaves bytes intact"): get_tree().quit()
 		return

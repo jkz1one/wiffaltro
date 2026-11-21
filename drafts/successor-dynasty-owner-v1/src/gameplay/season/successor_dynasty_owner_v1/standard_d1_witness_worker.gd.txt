@@ -68,6 +68,10 @@ func _settle_private_pair(request: Dictionary,bytes: PackedByteArray) -> void:
 	var content_roots: Array[Resource]=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
 	Work.Store.Codec.Catalog.game_signature()
 	Work.Store.Codec.Catalog.player_signature()
+	if request.kind==Work.NEXT_REVERSE_SETTLE_KIND:
+		_stage_cross(request,Work.Store._fused_next_return_settlement(bytes))
+		content_roots.clear()
+		return
 	var owner: RefCounted=Work.Store.read()
 	if not Work.Store._cross_bound(owner,bytes):
 		get_tree().quit(3)

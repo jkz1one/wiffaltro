@@ -395,3 +395,45 @@ The pending proof keeps both teams' workload, the original visit-3 payment,
 54 game Cash, nine prior results, all prior rewards, and the unchanged
 Common account. Neither this test nor the checkout grants a new reward
 or replays either the no-purchase fixture or the previous games.
+
+## Profiled next-return settlement
+
+The existing private next-return worker now uses a single complete
+native pending projection. Its verified fixed request reads the exact
+bounded primary bytes. It shares canonical named-session hydration and
+Common envelope validation with Continue, requires the full ordered
+two-report eligible next-return scope, and refuses dormant or archived
+owners. The concrete projection runs the original settled-prefix,
+score, workload, and report checks. It validates the pending result and
+produces the native candidate in the same invocation. No source owner
+or reusable admission flag survives. Independent full settled capture,
+Common envelope assembly and exact staged/primary revision checks remain.
+The parent alone installs the result. Normal Continue and the previous
+settlement-worker kinds do not use the fused path.
+
+With the same pinned authored Resource roots and exact CP229 input in
+isolated fresh Linux Godot 4.6.3 processes, the old source-equivalent probe
+spent 89.972s on strict read, 97.548s on the second pending projection,
+61.035s on independent settled capture, 469ms on pack/guard, and 191ms
+on serialization. The fused probe spent 6.223s on canonical input,
+84.696s on the single pending validation and materialization, 53.327s
+on separate settled capture, 404ms on pack/guard, 603ms on encoding,
+reparsing and hashing, and 81ms on an isolated equivalent staged
+write/readback. These measurements apply only to this named cloud
+fixture, not to every save or target hardware. Both outputs match the
+original CP230 primary exactly; this does not optimize normal strict
+Continue or remove the existing child deadline. The actual private
+worker/parent run on the same AMD EPYC 9V74 x86-64 cloud host took
+163.945s from request through write instead of the previous 262.476s.
+The click took 455ms, the maximum waiting-frame gap was 88ms, and the
+parent write/check took 113ms. Initial strict Continue separately took
+82.580s. These are named-fixture observations, not an FPS claim.
+
+Use `tests/successor_private_doubleheader_pair_performance.gd.txt`
+in a scratch scene with the exact CP229 primary and `fused` to log
+these phases and the projected call count. `baseline` uses the
+unoptimized Store route for a same-input diagnostic comparison.
+`tamper` uses an isolated copy with one changed report or request.
+Use the native next-return settlement harness for exact parent/child
+commit, an independent primary-only `cold`, and separate `cancel` and
+`stale` controls. No game simulation is part of these checks.

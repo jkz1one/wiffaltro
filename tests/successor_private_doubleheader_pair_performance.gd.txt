@@ -1,0 +1,63 @@
+extends Node
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Pair=preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+const SOURCE="2e2b88cfa2c494ca2589a0386eae5aeb4e8041e5a0c263f6eb290c7a6afe5a23"
+const SETTLED="f0cde80def4e550c0ec290e993fcb4ae309c83e8893a89090cd41c7edb649b8d"
+func _ready() -> void:
+	var args:=OS.get_cmdline_user_args()
+	var exact:=FileAccess.get_file_as_bytes(Store.PATH)
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or args.size()!=2 \
+			or FileAccess.get_sha256(Store.PATH)!=args[1] or not args[0] in ["baseline","fused","tamper"]:
+		get_tree().quit(2);return
+	var roots: Array[Resource]=preload("res://src/gameplay/season/successor_owner_general_v1/codec.gd")._operation_content_roots()
+	Store.Codec.Catalog.game_signature()
+	Store.Codec.Catalog.player_signature()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var started:=Time.get_ticks_msec()
+	var output: Dictionary={}
+	var input_ms:=0
+	var produce_ms:=0
+	var projected_before: int=Pair.projection_calls
+	if args[0]=="baseline":
+		var old:=Store.read()
+		input_ms=Time.get_ticks_msec()-started
+		started=Time.get_ticks_msec()
+		if not Store._cross_bound(old,exact) or not Store.eligible_private_pair_settlement(old): get_tree().quit(3);return
+		output=Store._build_paired_settlement(old,3,Pair).get("data",{})
+		produce_ms=Time.get_ticks_msec()-started
+	else:
+		output=Store._fused_next_return_settlement(exact)
+		input_ms=Store.paired_fused_input_ms
+		produce_ms=Time.get_ticks_msec()-started-input_ms
+	if Store.raw()!=exact or FileAccess.get_file_as_bytes(Store.PATH+".bak")!=backup:
+		get_tree().quit(4);return
+	if args[0]=="tamper":
+		if args[1]==SOURCE or not output.is_empty(): get_tree().quit(5);return
+		print("PAIR_FUSED_TAMPER_PASS ",args[1])
+		get_tree().quit();return
+	if args[1]!=SOURCE or output.is_empty(): get_tree().quit(6);return
+	started=Time.get_ticks_msec()
+	var encoded:=JSON.stringify(output,"",true,true).to_utf8_buffer()
+	var hash:=Store.Owner._hash(encoded)
+	if hash!=SETTLED or not Store.Codec.same(JSON.parse_string(encoded.get_string_from_utf8()),output): get_tree().quit(7);return
+	var serialize_ms:=Time.get_ticks_msec()-started
+	started=Time.get_ticks_msec()
+	var counter:String="user://isolated-pair-profile-stage.json"
+	if FileAccess.file_exists(counter): get_tree().quit(9);return
+	var f:=FileAccess.open(counter,FileAccess.WRITE)
+	if f==null: get_tree().quit(9);return
+	f.store_buffer(encoded)
+	f.flush()
+	var ok: bool=f.get_error()==OK
+	f.close()
+	ok=ok and FileAccess.get_file_as_bytes(counter)==encoded
+	DirAccess.remove_absolute(counter)
+	if not ok: get_tree().quit(9);return
+	var stage_ms:=Time.get_ticks_msec()-started
+	var projection_count: int=Pair.projection_calls-projected_before
+	print("PAIR_PROFILE ",args[0]," input_ms=",input_ms," produce_ms=",produce_ms,
+		" materialize_ms=",Store.paired_candidate_ms," settled_capture_ms=",Store.paired_admission_ms,
+		" pack_guard_ms=",Store.paired_pack_guard_ms," serialize_digest_check_ms=",serialize_ms,
+		" staged_write_check_ms=",stage_ms," projections=",projection_count," sha=",hash)
+	roots.clear()
+	get_tree().quit(0 if projection_count==(2 if args[0]=="baseline" else 1) else 8)

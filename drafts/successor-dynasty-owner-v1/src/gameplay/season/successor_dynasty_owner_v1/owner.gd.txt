@@ -275,7 +275,8 @@ static func _archive_fold_matches(owner, predecessor, current: Dictionary) -> bo
 	return Common._apply_close(expected,"abandon",current) \
 		and Codec.same(expected.common,owner.common) and Codec.same(expected.ordinary_state.last_close,owner.ordinary_state.last_close)
 
-static func restore(value: Variant):
+# No current-session object or write authority is restored here.
+static func _restore_metadata(value: Variant) -> RefCounted:
 	var names: Array=META_FIELDS+["version","format","active","dynasty","ordinary"]
 	if value is Dictionary:
 		for field: String in ["workshop_draft","workshop_close_history","workshop_chair_purchase","workshop_applied"]:
@@ -286,6 +287,11 @@ static func restore(value: Variant):
 	for name: String in META_FIELDS: fields[name]=value.get(name,{})
 	if not Codec.install_fields(result,META_FIELDS,fields): return null
 	result.active=value.active;result.paused=value[Adapter.other(value.active)].duplicate(true)
+	return result
+
+static func restore(value: Variant):
+	var result: RefCounted=_restore_metadata(value)
+	if result==null: return null
 	var current: Dictionary=Adapter.checked_restore(result.active,value[result.active])
 	if current.is_empty(): return null
 	result.session=current.season

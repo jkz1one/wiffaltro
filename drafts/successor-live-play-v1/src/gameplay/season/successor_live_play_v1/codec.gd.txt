@@ -814,7 +814,9 @@ static func restore_common(value: Variant) -> SeasonState:
 static func restore_d1_draft(value: Variant) -> SeasonState:
 	return _restore(value,true)
 
-static func _restore(value: Variant,d1: bool) -> SeasonState:
+# Internal hydration only: callers must independently run the required
+# history gate. This never grants owner or write authority.
+static func _restore_shape(value: Variant,d1: bool) -> SeasonState:
 	restore_calls += 1
 	if d1 and (not value is Dictionary or value.get("format")!=D1_DRAFT_FORMAT): return null
 	var earned: bool=value is Dictionary and value.get("format")==CommonStart.FORMAT
@@ -864,7 +866,11 @@ static func _restore(value: Variant,d1: bool) -> SeasonState:
 		if not _canonical_named_context(result): return null
 		var canonical: Dictionary=_capture_structural(result)
 		if canonical.is_empty() or not same(canonical,captured): return null
-	return result if _history_valid(result) else null
+	return result
+
+static func _restore(value: Variant,d1: bool) -> SeasonState:
+	var result: SeasonState=_restore_shape(value,d1)
+	return result if result!=null and (d1 or _history_valid(result)) else null
 
 # The privately admitted Base scopes use one full history gate per operation.
 static func _history_valid(season: SeasonState) -> bool:
