@@ -240,3 +240,36 @@ admission invalidated by a changed primary, failed CAS, or changed
 candidate; do not persist or accept a replay-success flag. Future
 performance work can separately qualify a versioned smaller replay
 source against the authoritative full cold path before changing it.
+
+### Off-frame source-engineering process
+
+The private Common V4 source-engineering controller can run the same
+strict current-slot proof replay in a separate headless process. It
+reuses the fixed per-token JSON job transport and the same Godot
+executable; no Godot API is called from a new thread. The controller
+supplies the exact current primary digest and a seed, not an arbitrary
+path. The worker reads that same fixed slot read-only, checks the digest,
+builds the bounded witness, runs strict replay and rederives eligibility.
+The controller polls while the parent loop stays live, matches the exact
+versioned request, checks the current slot revision again and requires
+the expected child exit status. Cancellation and timeout discard the
+result and stop the child; completed/cancelled jobs clean transient files.
+
+This checkpoint exposes only a diagnostic refusal after a valid strict
+replay of an ineligible source. It has no code that publishes a
+successful eligibility grant, reads an archived future D1 owner slot,
+or mutates a career. It rejects a positive JSON claim even if the
+envelope shape is plausible. Do not treat editable job files as
+authoritative evidence or use this as a trusted-cache mechanism.
+A later private positive Store path needs a genuine title and a reviewed
+successful child result channel bound to the exact request and input
+revision; the parent must remain the only writer. The source-only worker
+has no packaged launch dispatch or public menu binding.
+
+For QA, assemble Common V4 and attach
+`successor_standard_d1_witness_process.gd.txt` to a scratch scene. Use
+separate process invocations with the isolated and engineering flags
+and an isolated copy of the generated CP170 closed semifinal pair.
+The QA modes are `-- replay`, `-- cancel`, `-- forged`, and `-- stale`.
+The stale case temporarily moves only the disposable test primary and
+restores it before the final hash checks.

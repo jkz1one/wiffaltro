@@ -1,0 +1,108 @@
+extends Node
+## Private editor-only proof transport. Never writes a slot or returns a grant.
+const Store=preload("owner_store.gd")
+const T=preload("standard_d1_transition.gd")
+const KIND: String="common-standard-d1-witness-worker-v1"
+const REFUSED_EXIT: int=23
+const MAX_MS: int=300000
+signal completed(outcome: String)
+var running: bool=false
+var _pid: int=-1
+var _token: String=""
+var _folder: String=""
+var _request: Dictionary={}
+var _started: int=0
+var _last_poll: int=0
+var _stopping: String=""
+
+static func supported() -> bool:
+	return OS.has_feature("editor") and PhysicalRoundProcess.supported() \
+		and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+
+static func _revision() -> String:
+	var file:=FileAccess.open(Store.PATH,FileAccess.READ)
+	if file==null or file.get_length()<1 or file.get_length()>Store.MAX_BYTES: return ""
+	file.close()
+	return FileAccess.get_sha256(Store.PATH)
+
+static func request_valid(value: Variant, token: String) -> bool:
+	return value is Dictionary and SeasonOwnership._keys(value,["version","kind","token","source_sha256","seed"]) \
+		and SeasonOwnership._whole(value.version,1,1) and value.kind==KIND and value.token==token \
+		and T.Start.sha(value.source_sha256) and SeasonOwnership._whole(value.seed,0,2147483647)
+
+func start(source_sha256: String, seed_value: int) -> bool:
+	if running or not is_inside_tree() or not supported() or not T.Start.sha(source_sha256) \
+			or not SeasonOwnership._whole(seed_value,0,2147483647) or _revision()!=source_sha256: return false
+	_token=Crypto.new().generate_random_bytes(16).hex_encode()
+	_folder=PhysicalJobFiles.directory(_token)
+	if _folder.is_empty() or DirAccess.dir_exists_absolute(_folder) \
+			or DirAccess.make_dir_recursive_absolute(_folder)!=OK: return false
+	_request={"version":1,"kind":KIND,"token":_token,"source_sha256":source_sha256,"seed":seed_value}
+	if not PhysicalJobFiles.write(_folder.path_join("request.json"),_request):
+		_clear()
+		return false
+	var worker: String=(get_script() as GDScript).resource_path.get_base_dir().path_join("standard_d1_witness_worker.tscn")
+	_pid=OS.create_process(OS.get_executable_path(),["--headless","--path",ProjectSettings.globalize_path("res://"),
+		"--log-file",_folder.path_join("worker.log"),worker,"--","--d1-witness="+_token])
+	if _pid<=0:
+		_clear()
+		return false
+	process_mode=Node.PROCESS_MODE_ALWAYS
+	_started=Time.get_ticks_msec()
+	_last_poll=_started
+	running=true
+	return true
+
+func cancel() -> void:
+	if not running: return
+	_stopping="cancelled"
+	_stop()
+
+func _exit_tree() -> void:
+	if running:
+		_stopping="cancelled"
+		_stop(false)
+
+func _stop(emit_result: bool=true) -> void:
+	if OS.is_process_running(_pid) and OS.kill(_pid)!=OK: return
+	_finish(_stopping,emit_result)
+
+func _clear() -> void:
+	PhysicalJobFiles.clean(_token)
+	running=false
+	_token="";_folder="";_request={};_pid=-1;_stopping=""
+
+func _finish(outcome: String, emit_result: bool=true) -> void:
+	_clear()
+	if emit_result: completed.emit(outcome)
+
+func _process(_delta: float) -> void:
+	if not running or Time.get_ticks_msec()-_last_poll<100: return
+	_last_poll=Time.get_ticks_msec()
+	if not _stopping.is_empty():
+		_stop()
+		return
+	if _last_poll-_started>MAX_MS:
+		_stopping="timeout"
+		_stop()
+		return
+	if OS.is_process_running(_pid): return
+	var exit_code:=OS.get_process_exit_code(_pid)
+	var result: Variant=PhysicalJobFiles.read(_folder.path_join("response.json"))
+	var log:=FileAccess.open(_folder.path_join("worker.log"),FileAccess.READ)
+	if log==null or log.get_length()>1048576:
+		_finish("invalid")
+		return
+	var clean:=not log.get_as_text().contains("ERROR:")
+	log.close()
+	if _revision()!=_request.source_sha256:
+		_finish("stale")
+	elif exit_code!=REFUSED_EXIT or not clean or not _matches_refusal(result,_request):
+		_finish("invalid")
+	else:
+		_finish("refused")
+
+static func _matches_refusal(value: Variant, request: Dictionary) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value,["request","outcome"]) \
+			or value.outcome!="refused" or not value.request is Dictionary: return false
+	return request_valid(value.request,request.token) and ClubCareer.same(value.request,request)

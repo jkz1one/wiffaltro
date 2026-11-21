@@ -1,0 +1,48 @@
+extends Node
+## Same-binary, read-only strict cold validation of the exact current slot.
+const Work=preload("standard_d1_witness_process.gd")
+const T=preload("standard_d1_transition.gd")
+const S=preload("owner_store.gd")
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	var prefix: String="--d1-witness="
+	if not Work.supported() or args.size()!=1 or not args[0].begins_with(prefix):
+		get_tree().quit(2)
+		return
+	var token: String=args[0].trim_prefix(prefix)
+	var folder:=PhysicalJobFiles.directory(token)
+	if folder.is_empty():
+		get_tree().quit(2)
+		return
+	var request: Variant=PhysicalJobFiles.read(folder.path_join("request.json"))
+	if not Work.request_valid(request,token):
+		get_tree().quit(2)
+		return
+	var file:=FileAccess.open(S.PATH,FileAccess.READ)
+	if file==null or file.get_length()<1 or file.get_length()>S.MAX_BYTES:
+		get_tree().quit(3)
+		return
+	var bytes:=file.get_buffer(file.get_length())
+	file.close()
+	if T._source_digest(bytes)!=request.source_sha256:
+		get_tree().quit(3)
+		return
+	var witness: Dictionary=T._pack_closed_source(bytes)
+	var owner: RefCounted=T._replay_closed_source(witness)
+	if owner==null or Work._revision()!=request.source_sha256:
+		get_tree().quit(3)
+		return
+	var qualified: Dictionary=T.derive(owner,int(request.seed))
+	# Do not publish successful qualification through file IPC: this increment
+	# has no witnessed store consumer, and no genuine title QA fixture.
+	if not qualified.is_empty():
+		get_tree().quit(4)
+		return
+	if not PhysicalJobFiles.write(folder.path_join("response.json"),{"request":request,"outcome":"refused"}):
+		get_tree().quit(3)
+		return
+	get_tree().quit(Work.REFUSED_EXIT)
