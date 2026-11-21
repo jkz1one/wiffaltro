@@ -89,3 +89,29 @@ A separate exact Standard opening-round control still displays the original
 two-place bag and receives no Dugout instructions. The isolated Standard
 control opens its first shop once; no normal player save is used. No earned
 modifier purchase is asserted for this fixture.
+
+## Round progress while an NPC game runs
+
+The Common clubhouse footer stays visible while a pending round finishes.
+It shows the actual NPC matchup, half-inning, completed plate appearances,
+and the number of NPC results already saved. The Resume button is disabled
+while the real match runs. After the report is retained, the saved count
+updates and Resume becomes available for the next step. Nothing here
+predicts an ETA or changes the existing write and quit rules.
+
+The isolated source test `tests/successor_common_npc_progress.gd.txt` used the
+exact generated CP193 human-only pair. It observed Comets at Rivets from Top
+1 through Bottom 1, with no slot writes while the game ran. The first NPC
+fixture finished 9–10 and produced the exact prior CP193 report114 primary
+`279aba29ebc52d7329edc991df0657afc580a45af62ea94ba7a747e8a759edd2`.
+The unchanged human-only checkpoint became its backup. A separate process
+showed one saved NPC result and an enabled Resume, with no second fixture,
+round settlement, or new rewards. This exercised the source App controls
+and real match, not a new rendered Linux package or target-device timings.
+
+To repeat, attach the test to a Node scene in a source-preserving Common
+assembly and copy the CP193 human-only primary and backup into a fresh
+isolated HOME/XDG profile. Use the engineering, earned-preview and
+isolated-test flags and run `-- run <absolute CP193 npc-1 primary>` with Godot
+4.6.3 `--headless --audio-driver Dummy --fixed-fps 60`, then run
+`-- cold <same absolute CP193 npc-1 primary>` in a separate process.

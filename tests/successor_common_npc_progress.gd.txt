@@ -1,0 +1,85 @@
+extends Node
+## Real one-job presentation test, using only the generated CP193 Dugout inputs.
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const INPUT="be94a7f098bbc82ed56f906dbd035438f67581d4628b6b6c71c06d14df2e0de6"
+const PRIOR="49060938c619df4a1d0f96f87072d60fbafabdf89a841695cd958859a3c7c395"
+const EXPECTED="279aba29ebc52d7329edc991df0657afc580a45af62ea94ba7a747e8a759edd2"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and args.size()==2 and args[0] in ["run","cold"] and FileAccess.get_sha256(args[1])==EXPECTED
+			and not FileAccess.file_exists("user://season-v1.json"),"exact generated isolated inputs"): return
+	var primary:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app.career_owner!=null and app._owned() and app.season.round_index==0
+			and app.season.league_rules.get("league")=="dugout" and app.season.results.is_empty(),
+			"strict Common Dugout opening admission"): return
+	if args[0]=="run":
+		if not need(FileAccess.get_sha256(Store.PATH)==INPUT and FileAccess.get_sha256(Store.PATH+".bak")==PRIOR
+				and app.menu._round_progress.is_visible_in_tree() and not app.menu._round_resume.disabled
+				and "0 NPC results saved." in app.menu._round_progress.text,"enabled Resume and zero stored reports"): return
+		app.menu._round_resume.pressed.emit()
+		if not need(is_instance_valid(app.ai_runner) and app._busy,"actual native NPC runner starts"): return
+		var runner: Node=app.ai_runner
+		var initial: String=""
+		var progress: String=""
+		var half: String=""
+		for frame: int in range(150000):
+			await get_tree().physics_frame
+			if not is_instance_valid(app.ai_runner): break
+			var message: String=app.menu._round_progress.text
+			if initial.is_empty() and message.begins_with("Simulating"):
+				initial=message
+				if not need(app.menu._round_resume.disabled and "Top 1" in initial and "0 NPC results saved." in initial
+						and app.menu._round_progress.get_parent()==app.menu._footer and app.ai_runner==runner
+						and app._exit_blocked() and Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+						"live fixture name is visible and duplicate Resume/quit are guarded; disk unchanged"): return
+				print("COMMON_NPC_STATUS_START ",initial)
+			elif not initial.is_empty() and progress.is_empty() and message.begins_with("Simulating") and message!=initial:
+				progress=message
+				if not need(Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+						"live progress is not a write or a saved result"): return
+				print("COMMON_NPC_STATUS_PROGRESS ",progress)
+			elif half.is_empty() and "Bottom 1" in message:
+				half=message
+				print("COMMON_NPC_STATUS_HALF ",half)
+		if not need(not initial.is_empty() and not progress.is_empty() and not half.is_empty()
+				and not app._busy and not is_instance_valid(app.ai_runner)
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==primary,
+				"exactly one real runner completed and retained predecessor"): return
+	elif not need(Store.raw()==primary and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+			"separate cold process does not write"): return
+	if not need(app.menu._round_progress.is_visible_in_tree() and not app.menu._round_resume.disabled
+			and "1 NPC results saved." in app.menu._round_progress.text and app.season.build.cash()==0
+			and app.season.results.is_empty() and app.season.physical.pending.reports.size()==1,
+			"one result saved; Resume enabled, no new fixture or rewards"): return
+	var expected: Dictionary=JSON.parse_string(FileAccess.get_file_as_string(args[1]))
+	var actual: Dictionary=JSON.parse_string(Store.raw().get_string_from_utf8())
+	var report: Dictionary=actual.ordinary.physical.pending.reports[0]
+	if not need(report.fixture==1 and report.report.version==114
+			and report.report.physical.away_runs==9 and report.report.physical.home_runs==10,
+			"actual fixture 1 report114 and 9–10"): return
+	report.report.physical.erase("elapsed")
+	expected.ordinary.physical.pending.reports[0].report.physical.erase("elapsed")
+	if not need(Owner.Codec.same(actual,expected)
+			and FileAccess.get_sha256(Store.PATH+".bak")==INPUT and not FileAccess.file_exists("user://season-v1.json"),
+			"historical report and owner identical except elapsed; original slots untouched"): return
+	print("COMMON_NPC_VISIBLE_PROGRESS_PASS ",args[0]," ",FileAccess.get_sha256(Store.PATH))
+	get_tree().quit()

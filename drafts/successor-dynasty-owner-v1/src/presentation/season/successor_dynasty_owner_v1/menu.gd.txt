@@ -4,6 +4,43 @@ const OrdinaryAdmissions=preload("res://src/gameplay/season/successor_live_play_
 const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
 const Life=preload("res://src/gameplay/season/successor_dynasty_owner_v1/lifecycle.gd")
 const Profile=preload("res://src/gameplay/season/successor_dynasty_owner_v1/dynasty_profile.gd")
+var _round_resume: Button
+var _round_progress: Label
+var _next_round_refresh: int = 0
+
+func _process(_delta: float) -> void:
+	if not is_instance_valid(_round_progress) or not is_visible_in_tree(): return
+	var now: int=Time.get_ticks_msec()
+	if now<_next_round_refresh: return
+	_next_round_refresh=now+250
+	_refresh_round_progress()
+
+func _refresh_round_progress() -> void:
+	# Presentation only: the bound native runner owns its clock, evidence,
+	# result validation and save. Never mutate the runner or projected fixture.
+	var saved: int=app.season.physical.pending.get("reports",[]).size()
+	var runner: Node=app.ai_runner
+	var running: bool=is_instance_valid(runner)
+	_round_resume.disabled=app._busy or running
+	var message: String
+	if running:
+		var fixture: Dictionary=app.projection.get("fixture",{})
+		var match_label: String=_matchup(fixture) if fixture.has("away") and fixture.has("home") else "NPC fixture"
+		var live: PitchBatLab=runner._lab
+		var state: MatchState=live._match_state if is_instance_valid(live) else null
+		if state==null:
+			message="Preparing %s. %d NPC results saved."%[match_label,saved]
+		else:
+			message="Simulating %s · %s %d · %d plate appearances complete. %d NPC results saved."%[
+				match_label,"Top" if state.top_half else "Bottom",state.inning,maxi(0,state.plate_appearance_number-1),saved]
+	elif not app.retained_report.is_empty():
+		message="NPC game complete, but its result is not saved yet. Resume to retry the checkpoint."
+	elif app._busy:
+		message="Checking the saved round. %d NPC results saved."%saved
+	else:
+		message="%d NPC results saved. Resume Saved Round to continue."%saved
+	if _round_progress.text!=message: _round_progress.text=message
+
 func render() -> void:
 	_screen("home","WIFFALTRO","YOUR CLUB. YOUR SEASON.")
 	if app.retained == null:
@@ -69,7 +106,11 @@ func render() -> void:
 		if app.earned_league_preview(): _earned_leagues(false)
 		return
 	if not app.season.physical.pending.is_empty():
-		_bound_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
+		_round_resume=_bound_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
+		_round_progress=_label(_footer,"",16)
+		_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		_refresh_round_progress()
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
 		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
@@ -302,6 +343,9 @@ func show_lineup_blocked() -> void:
 var _render_token: RefCounted
 func _screen(key: String,title: String,subtitle: String) -> void:
 	_render_token=RefCounted.new()
+	_round_resume=null
+	_round_progress=null
+	_next_round_refresh=0
 	super._screen(key,title,subtitle)
 func _bound_button(parent: Node,text: String,action: Callable) -> Button:
 	var token: RefCounted=_render_token
