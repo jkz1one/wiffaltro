@@ -1,0 +1,86 @@
+extends "res://dugout.gd"
+## No score/player/report fixture, only the exact previously qualified first pick.
+const PICKED="8d2a9ff27c4f8e2ee94031b85f91af238f35f383f5c6c53ea7518aa5df44d00f"
+const SOURCE="b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+const ARCHIVED_STEPS="user://archived-dugout-opening-steps"
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+			and OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW")=="1"
+			and OS.get_environment("WIFFALTRO_CROSS_LEAGUE_PREVIEW")=="1"
+			and args.size()==2 and args[0] in ["draft","step","shop","cold"]
+			and FileAccess.get_sha256(Store.PATH)==args[1] and not FileAccess.file_exists(ORIGINAL),
+			"exact isolated archived lane"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(_admitted_archive(app) and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+			"authentic archive and banked rights survive native cold"): return
+	var action: String=""
+	match args[0]:
+		"draft":
+			if not check(args[1]==PICKED and app.season.picks.size()==1
+					and app.season.picks[0]=="player.indy_shaw","exact verified draft start"): return
+			for index in range(1,4):
+				var previous:=Store.raw()
+				app.draft(app.season.offers()[0])
+				if not check(_admitted_archive(app) and app.season.picks.size()==index+1
+						and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous,"actual visible pick "+str(index+1)): return
+			if not check(_capacities(app.season),"all six stock Dugout capacities after drafted activation"): return
+			action="draft-complete"
+		"step":
+			if not check(app.season.round_index==0 and app.season.picks.size()==4 and app.season.build.cash()==0,
+					"stock first fixture only, no pending payout"): return
+			action=await _play(app) if app.season.physical.pending.is_empty() else await _resume(app)
+			if action.is_empty(): return
+			if not check(_admitted_archive(app),"actual operation keeps predecessor and 72 banked Bucks"): return
+			if action.begins_with("settle"):
+				if not check(_settled(app),"native six first-round rewards and physical evidence"): return
+			elif not check(app.season.results.is_empty() and app.season.build.cash()==0,
+					"pending checkpoints cannot pay rewards"): return
+		"shop", "cold":
+			if not check(_settled(app) and app.season.shop_available(),"only settled archived opening admits normal shop"): return
+			var cash: int=app.season.build.cash()
+			app.play_next()
+			app.close_current("abandon")
+			app.propose_next(1003)
+			if not check(app.lab==null and app.career_owner.lifecycle_status()=="active" and Store.raw()==before
+					and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"next fixture, Close, and Next held byte-inert"): return
+			if args[0]=="cold":
+				if not check(app.season.build._visit.open and _admitted_archive(app),"fresh cold exact open shop and prior archive"): return
+				print("CROSS_OPENING_COLD_PASS ",args[1]," cash=",cash)
+				await _finish(app)
+				return
+			app.open_shop()
+			if not check(app.season.build._visit.open and _admitted_archive(app) and app.season.build.cash()==cash
+					and app.season.build._visit.offers.size()>0,"native zero-debit authored stock from actual reward"): return
+			action="shop-open"
+	if not check(_admitted_archive(app) and Store.raw()!=before and
+			(args[0]=="draft" or FileAccess.get_file_as_bytes(Store.PATH+".bak")==before),
+			"archived successor checkpoint retains exact preceding bytes"): return
+	if _archive(action):
+		print("CROSS_OPENING_STEP ",action," ",FileAccess.get_sha256(Store.PATH)," cash=",app.season.build.cash())
+		await _finish(app)
+
+func _admitted_archive(app: App) -> bool:
+	if not _owned_dugout(app) or app.career_owner.current_ordinal()!=2 or app.season.season_seed!=1002: return false
+	var owner: RefCounted=app.career_owner
+	var archive: Dictionary=owner.ordinary_state.get("archive",{})
+	return archive.get("sha256")==SOURCE and Store.Owner._hash(archive.source.to_utf8_buffer())==SOURCE \
+		and owner.common.aggregate.currency==72 and owner.common.sequence==1 and not owner.common.aggregate.titles.get("0",false)
+
+func _archive(action: String) -> bool:
+	var hash:=FileAccess.get_sha256(Store.PATH)
+	var folder:=ARCHIVED_STEPS.path_join(action+"-"+hash)
+	if not check(not DirAccess.dir_exists_absolute(folder) and DirAccess.make_dir_recursive_absolute(folder)==OK,
+			"unique local checkpoint"): return false
+	for suffix: String in ["",".bak"]:
+		var output:=folder.path_join("owner.json"+suffix)
+		if not check(DirAccess.copy_absolute(Store.PATH+suffix,output)==OK
+				and FileAccess.get_sha256(output)==FileAccess.get_sha256(Store.PATH+suffix),"exact archived pair "+suffix): return false
+	return true

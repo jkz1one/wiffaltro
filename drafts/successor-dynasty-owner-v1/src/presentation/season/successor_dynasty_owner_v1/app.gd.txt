@@ -782,6 +782,7 @@ func _open_match(state: MatchState, player_home: bool, season_game: bool,
 
 
 func play_next() -> void:
+	if career_owner!=null and career_owner.ordinary_state.has("archive") and season.round_index!=0: return
 	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or not _owned() or not _scope() or not season.physical.pending.is_empty():
 		return
@@ -1049,6 +1050,7 @@ func import_previous_dynasty() -> void:
 	_retain_envelope(candidate,PackedByteArray())
 
 func _lifecycle_ready() -> bool:
+	if career_owner!=null and career_owner.ordinary_state.has("archive"): return false
 	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or is_instance_valid(ai_runner): return false
 	if not _exit_mode.is_empty() or not retained_human.is_empty() or not retained_report.is_empty(): return false

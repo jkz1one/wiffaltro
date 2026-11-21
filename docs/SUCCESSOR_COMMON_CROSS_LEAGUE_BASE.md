@@ -100,3 +100,37 @@ archive and produced
 which independently continued from a primary-only profile. Native cold
 precedence and tamper checks passed; no field/NPC/shop/calendar progress
 belongs to this increment.
+
+## Native archived Dugout opening
+
+The archived Common lane now admits the stock Dugout Base opening only:
+normal draft choices, native game 0 and its two General114 NPC reports,
+one actual settlement, and then the existing shop. The archive's prior
+Common proof is unchanged in every checked write and is still strictly
+replayed on cold Continue. Opening scope distinguishes unsettled and
+settled evidence, and the App and menu hold the second fixture, Close,
+Next, alternate-mode switching and further history. No inherited Club
+Bucks can fund seasonal shop charges.
+
+Use the exact CP203 one-pick pair in a new isolated directory. In the
+source-preserving assembly, attach
+`tests/successor_common_cross_league_opening.gd.txt` to a scratch Node;
+stage the existing Dugout and Standard journey scripts at
+`res://dugout.gd` and `res://qa.gd` respectively so it uses the
+unmodified real-physics test driver. With the existing engineering,
+earned, cross-league and isolated QA flags, run `-- draft <picked SHA>`,
+then four successive `-- step <current primary SHA>` (human, two NPCs,
+settlement), then `-- shop <settled SHA>` and
+`-- cold <open-shop SHA>` in separate fixed-60 headless processes.
+The source fixture remains untouched; each operation is archived locally.
+
+Seed 1002's actual results were human 2–1, NPC 8–5 and NPC 3–13.
+Settlement paid all six clubs once, with the human earning 18 seasonal
+Cash and retaining 72 banked Club Bucks. The native shop opened with
+no debit. The opened primary
+`0d880066a81baaa666b4dd133a1255cf7bfcb8694842c69b7d515cdb69ef0379`
+and settled predecessor
+`13793c82fee362742eb03592fb0e3ef75ee0a35aa0c418f0e1135b761f270aa3`
+were byte-inert after fresh cold Continue. A separate raw audit matched
+the embedded full CP202 predecessor and unchanged Common state through
+all staged pairs. Further play and lifecycle remain unqualified.

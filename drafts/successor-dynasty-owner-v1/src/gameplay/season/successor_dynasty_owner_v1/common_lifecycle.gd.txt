@@ -124,6 +124,19 @@ static func _activate_cross(owner, raw: PackedByteArray) -> bool:
 	owner.session=next
 	return valid(owner)
 
+# The named archive lane admits only replayed stock opening proof, not a
+# second fixture launch, further folds, mode changes or unrelated modes.
+static func archive_opening_scope(season: SeasonState) -> bool:
+	if season==null or season.league_rules.get("league")!="dugout" \
+		or season.league_rules.get("tier")!=0 or season.phase not in [SeasonState.Phase.DRAFT,SeasonState.Phase.REGULAR]:
+		return false
+	if season.round_index==0:
+		return season.results.is_empty() and season.player_results.is_empty() and season.physical.reports.is_empty() \
+			and (season.phase==SeasonState.Phase.REGULAR or season.physical.pending.is_empty())
+	return season.round_index==1 and season.phase==SeasonState.Phase.REGULAR \
+		and season.results.size()==3 and season.player_results.size()==1 and season.physical.reports.size()==2 \
+		and season.physical.pending.is_empty() and season.physical.needed.is_empty()
+
 static func ordinary_current_valid(owner, season: SeasonState, current: Dictionary) -> bool:
 	if not Adapter.scope("ordinary",season) or current.is_empty() or owner.ordinary_state.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
@@ -133,9 +146,7 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 		var birth: Dictionary=Progress.birth({},season,season.player_access)
 		if state.status=="closed": return _paired_closed_valid(owner,season,current,birth)
 		if state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,birth): return false
-	if state.has("archive") and (season.league_rules.get("league")!="dugout" or season.league_rules.get("tier")!=0 \
-		or season.phase not in [SeasonState.Phase.DRAFT,SeasonState.Phase.REGULAR] or season.round_index!=0 \
-		or not season.results.is_empty() or not season.physical.pending.is_empty()): return false
+	if state.has("archive") and not archive_opening_scope(season): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false

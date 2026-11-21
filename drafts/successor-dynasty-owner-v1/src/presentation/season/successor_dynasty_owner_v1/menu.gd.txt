@@ -83,9 +83,7 @@ func render() -> void:
 			_bound_button(_body,player.display_name,Callable(app,"draft").bind(id))
 			_player_summary(player)
 		return
-	if app.career_owner.ordinary_state.has("archive"):
-		_note("Archived Dugout rollover: drafting is qualified here; play and further lifecycle actions are held.")
-		return
+	var archived: bool=app.career_owner.ordinary_state.has("archive")
 	if app.career_owner.paired_draft_only():
 		_note("Private draft verification complete. Matches, shop and career actions are unavailable.")
 		return
@@ -114,6 +112,8 @@ func render() -> void:
 		_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		_refresh_round_progress()
+	elif archived and app.season.round_index==1:
+		_note("Archived Dugout opening complete. Shop is available; later rounds and season actions are held.")
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
 		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
@@ -121,10 +121,10 @@ func render() -> void:
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty():
 		_bound_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
-	if app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
+	if not archived and app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty():
 		_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
 
-	_session_controls()
+	if not archived: _session_controls()
 	if app.earned_league_preview(): _earned_leagues(false)
 
 func _workshop_draft() -> void:
