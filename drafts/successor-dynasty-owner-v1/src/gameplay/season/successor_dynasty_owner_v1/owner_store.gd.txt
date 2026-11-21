@@ -415,6 +415,12 @@ static func _prepare_optional_pair_browse(owner: RefCounted,expected: PackedByte
 	var visit: int=owner.session.round_index
 	return _prepare_paired_shop(owner,expected,Adapter.Ordinary.optional_pair_browse(visit,owner.session.build.revision()),visit)
 
+static func _prepare_optional_pair_pitch(owner: RefCounted,expected: PackedByteArray,offer: String,player: String,quoted: Dictionary) -> RefCounted:
+	if not _paired_settled(owner) or not match_owner(owner,expected): return null
+	var quote: Dictionary=Adapter.Ordinary.optional_pair_pitch_quote(owner.session.build,offer,player)
+	if quote.is_empty() or not Codec.same(quote,quoted): return null
+	return _prepare_paired_shop(owner,expected,quote.command,3)
+
 static func _prepare_paired_first_shop(owner: RefCounted, expected: PackedByteArray, command: Dictionary) -> RefCounted:
 	return _prepare_paired_shop(owner,expected,command,1)
 
@@ -447,8 +453,15 @@ static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, c
 	elif visit==3:
 		var kind: String=Adapter.Ordinary.unpurchased_next_reverse_kind(session)
 		if not private_pair_settlement_preview() or not owner.paused.is_empty() or not Owner._missing_dynasty(owner) \
-				or owner.current_ordinal()!=1 or owner.lifecycle_status()!="active" or kind not in ["unopened","browsed"] \
-				or not Codec.same(command,Adapter.Ordinary.optional_pair_browse(visit,session.build.revision())): return null
+				or owner.current_ordinal()!=1 or owner.lifecycle_status()!="active": return null
+		if command.get("op")=="open":
+			if kind not in ["unopened","browsed"] or not Codec.same(command,Adapter.Ordinary.optional_pair_browse(visit,session.build.revision())): return null
+		elif command.get("op")=="buy":
+			if kind not in ["unopened-visit3-browsed","browsed-visit3-browsed"] \
+					or not command.get("offer") is String or not command.get("player") is String: return null
+			var quote: Dictionary=Adapter.Ordinary.optional_pair_pitch_quote(session.build,command.offer,command.player)
+			if quote.is_empty() or not Codec.same(command,quote.command): return null
+		else: return null
 	elif not late.is_empty():
 		var played: Dictionary=Adapter.Ordinary.PairSchedule.authored_phase(visit-1)
 		if played.is_empty() or not Adapter.Ordinary.late_shop_open_command(command,visit) or session.player_results[-1].get("id")!=played.human.id or session.build.revision()!=int(late.rev) or session.build._visit.get("open")!=false: return null
@@ -465,6 +478,9 @@ static func _prepare_paired_shop(owner: RefCounted, expected: PackedByteArray, c
 	if build==null: return null
 	current.adopt_build(build)
 	if current.build!=build: return null
+	if visit==3 and command.op=="buy":
+		var paired: Script=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+		if paired.start(current).is_empty(): return null # Never write a checkout that loses native Continue.
 	paired_shop_candidate_ms=Time.get_ticks_msec()-started
 	var envelope: RefCounted=Owner.new()
 	envelope.session=current

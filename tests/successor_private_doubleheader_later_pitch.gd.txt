@@ -1,0 +1,104 @@
+extends "res://tests/successor_private_doubleheader_later_market.gd"
+const FROM="a5a2e5812255c3e6bbf84edb9719b81df2dd2624fa33997b743cf7140f426fdf"
+const BROWSED="user://exact-visit3-browsed.json"
+const PREPAID="PLAY NEXT DOUBLEHEADER RETURN"
+const CONFIRM="CONFIRM PITCHING UPGRADE"
+const CANCEL="CANCEL PITCHING UPGRADE"
+
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["buy","cold"] and FileAccess.get_sha256(BROWSED)==FROM
+			and FileAccess.get_sha256(BASELINE)==EXACT and FileAccess.get_sha256(Store.PATH)==args[1],
+			"explicit generated visit3 checkout lineage"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var original: Dictionary=Store.Owner._bytes_value(FileAccess.get_file_as_bytes(BROWSED))
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and exact(before,backup) and _carried_history(app,original),"strict retained native prior history and Common"): return
+	if args[0]=="cold":
+		if not need(backup.is_empty() and _charged(app,original) and _button(app,PREPAID)!=null,"cold native committed stat and exact charge, return available"): return
+		var baseline: RefCounted=Store.Owner.restore(original)
+		var old: Dictionary=Pair.start(baseline.session) if baseline!=null else {}
+		var factory: Dictionary=Pair.start(app.season)
+		if not need(not old.is_empty() and not factory.is_empty() and factory.binding.request!=old.binding.request,"distinct reviewed checkout return context"): return
+		_button(app,PREPAID).pressed.emit()
+		var lab: PitchBatLab=app.lab
+		if need(is_instance_valid(lab) and lab._field_id==old.field.id and _reverse_debt(app.season,lab._match_state,factory.fixture,[])
+				and _same_absolute_debt(old.state,lab._match_state) and exact(before,backup),"actual native paid pregame carries both teams' debt and exact capacity difference; no write"):
+			print("LATER_PITCH_COLD_PASS ",args[1]," request=",factory.binding.request);get_tree().quit()
+		return
+	if not need(args[1]==FROM and _button(app,BROWSE)!=null,"actual already-browsed market available"): return
+	_button(app,BROWSE).pressed.emit()
+	var offer: String=""
+	for id: String in app.season.build.view().shop.offers:
+		if app.season.build.view().shop.offers[id]==Live.OPTIONAL_PAIR_CARD: offer=id
+	var target: String="player.mika_reed"
+	var quote: Dictionary=Live.optional_pair_pitch_quote(app.season.build,offer,target)
+	if not need(not quote.is_empty() and quote.balance==60 and quote.price==6
+			and Live.optional_pair_pitch_quote(app.season.build,offer,"unknown").is_empty(),"actual natural eligible Pitching offer and price"): return
+	var label: String="BULLPEN COACH · %s · 6 CASH"%app.season.build.definition(target).display_name
+	if not need(_button(app,label)!=null,"actual named recipient and price control"): return
+	_button(app,label).pressed.emit()
+	if not need(_button(app,CONFIRM)!=null and _button(app,CANCEL)!=null and exact(before,backup),"preview costs nothing"): return
+	_button(app,CANCEL).pressed.emit()
+	app.confirm_private_pair_pitch()
+	if not need(exact(before,backup),"cancel and stale confirm inert"): return
+	var invalid: Dictionary=quote.duplicate(true)
+	invalid.price=5
+	if not need(Store._prepare_optional_pair_pitch(app.career_owner,before,offer,target,invalid)==null
+			and exact(before,backup),"forged quote refused"): return
+	_button(app,label).pressed.emit()
+	var started:=Time.get_ticks_msec()
+	_button(app,CONFIRM).pressed.emit()
+	var after:=Store.raw()
+	if not need(after!=before and exact(after,before) and _carried_history(app,original) and _charged(app,original),"actual native checkout one charge and exact archived backup"): return
+	app.confirm_private_pair_pitch()
+	app.preview_private_pair_pitch(offer,target)
+	_button(app,LEAVE).pressed.emit()
+	if need(_button(app,PREPAID)!=null and _button(app,BUTTON)==null and exact(after,before),"duplicate checkout inert; normal return button remains"):
+		print("LATER_PITCH_BUY_PASS ",FileAccess.get_sha256(Store.PATH)," checkout_ms=",Time.get_ticks_msec()-started)
+		get_tree().quit()
+
+func _carried_history(app: App,original: Dictionary) -> bool:
+	var raw: Dictionary=Store.Owner._bytes_value(Store.raw())
+	return app.season.round_index==3 and app.season.physical.pending.is_empty() \
+		and Live.same(raw.common,original.common) and Live.same(raw.ordinary.state,original.ordinary.state) \
+		and Live.same(raw.ordinary.physical,original.ordinary.physical) and Live.same(raw.ordinary.opponents,original.ordinary.opponents)
+
+func _charged(app: App,original: Dictionary) -> bool:
+	var build: SeasonBuild=app.season.build
+	var orig_build: Dictionary=original.ordinary.build
+	var old: Array=orig_build.bank._events
+	var events: Array=build._bank._events
+	var command: Dictionary=build._events[-1]
+	var q: Dictionary=Live._unpurchased_journal(build,3)
+	if not q.get("purchased",false) or command.player!="player.mika_reed" or build.cash()!=54 \
+			or events.size()!=old.size()+1 or not Live.same(events.slice(0,old.size()),old) \
+			or not Live.same(events[-1],{"id":"charge:8","rev":3,"op":"charge","amount":6}) \
+			or build._visit.offers.has(command.offer): return false
+	var prior: RefCounted=Store.Owner.restore(original)
+	if prior==null: return false
+	for id: String in build.roster():
+		var expected: Dictionary=prior.session.build.player(id).duplicate(true)
+		if id==command.player: expected.stats.pitching+=1
+		if not Live.same(expected,build.player(id)): return false
+	return true
+
+func _same_absolute_debt(old: MatchState,current: MatchState) -> bool:
+	if not Live.same(old.away_team.league_pair,current.away_team.league_pair) \
+			or not Live.same(old.home_team.league_pair,current.home_team.league_pair): return false
+	var changed:=0
+	for idx in range(old.away_team.roster.size()):
+		var a: PlayerMatchState=old.away_team.roster[idx]
+		var b: PlayerMatchState=current.away_team.roster[idx]
+		if a.definition.id!=b.definition.id: return false
+		if a.stamina_max!=b.stamina_max:
+			if b.definition.id!=&"player.mika_reed" or b.stamina_max<=a.stamina_max: return false
+			changed+=1
+	for idx in range(old.home_team.roster.size()):
+		if old.home_team.roster[idx].stamina_max!=current.home_team.roster[idx].stamina_max: return false
+	return changed==1

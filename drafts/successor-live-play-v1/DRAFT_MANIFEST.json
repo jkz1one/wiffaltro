@@ -24,8 +24,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 57749,
-      "sha256": "37b558797b05ababa617ac0a8a706a307fda4dfb392a3ae4feca56bba60dd4fd"
+      "bytes": 60415,
+      "sha256": "43e45e17ae86b77698887ce82955d0cf684432cfa822026ee1b10d07a27032a5"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",

@@ -131,7 +131,9 @@ func render() -> void:
 				if app._paired_market_preview:
 					_private_later_pair_market()
 				else:
-					_bound_button(_body,"PLAY NEXT DOUBLEHEADER RETURN WITHOUT PURCHASE",Callable(app,"play_private_unpurchased_next_reverse"))
+					var bought: bool=Store.Adapter.Ordinary.unpurchased_next_reverse_kind(app.season).ends_with("-pitching-bought")
+					_bound_button(_body,"PLAY NEXT DOUBLEHEADER RETURN" if bought else "PLAY NEXT DOUBLEHEADER RETURN WITHOUT PURCHASE",
+						Callable(app,"play_private_unpurchased_next_reverse"))
 					_bound_button(_body,"BROWSE OPTIONAL MARKET",Callable(app,"show_private_later_pair_market"))
 			elif app.season.physical.pending.reports.size()<2:
 				_label(_body,"PRIVATE DOUBLEHEADER BASE · NEXT RETURN LEG",22)
@@ -199,13 +201,30 @@ func render() -> void:
 func _private_later_pair_market() -> void:
 	var build: SeasonBuild=app.season.build
 	_label(_body,"Market preview · Visit %d · %d game Cash"%[int(build._visit.number),build.cash()],20)
-	_note("Browsing costs nothing. Purchases are not enabled for this visit in this preview.")
-	for offer: String in build.view().shop.offers:
-		var id: String=build.view().shop.offers[offer]
-		var item: Dictionary=SeasonGearCatalog.item(id)
-		if item.is_empty(): item=SeasonSponsorCatalog.item(id)
-		if item.is_empty(): item=PitchCatalogPresentation.display_item(id)
-		_label(_body,str(item.get("name",id)),18)
+	_note("Browsing is free. The optional Bullpen Coach is the only checkout enabled in this preview.")
+	var review: Dictionary=app._paired_market_quote
+	if not review.is_empty():
+		var quote: Dictionary=review.quote
+		_label(_body,"Bullpen Coach · %s · Pitching %d → %d"%[
+			build.definition(review.player).display_name,quote.before,quote.before+1],18)
+		_note("%d game Cash. Balance %d → %d. Existing workload debt does not reset."%[
+			quote.price,quote.balance,quote.balance-quote.price])
+		_bound_button(_body,"CONFIRM PITCHING UPGRADE",Callable(app,"confirm_private_pair_pitch"))
+		_bound_button(_body,"CANCEL PITCHING UPGRADE",Callable(app,"cancel_private_pair_pitch"))
+	else:
+		var offers: Dictionary=build.view().shop.offers
+		for offer: String in offers:
+			var id: String=offers[offer]
+			var item: Dictionary=SeasonGearCatalog.item(id)
+			if item.is_empty(): item=SeasonSponsorCatalog.item(id)
+			if item.is_empty(): item=PitchCatalogPresentation.display_item(id)
+			_label(_body,str(item.get("name",id)),18)
+			if id!=Store.Adapter.Ordinary.OPTIONAL_PAIR_CARD: continue
+			for target: Dictionary in build.targets(id):
+				var native: Dictionary=Store.Adapter.Ordinary.optional_pair_pitch_quote(build,offer,target.player)
+				if not native.is_empty():
+					_bound_button(_body,"BULLPEN COACH · %s · %d CASH"%[build.definition(target.player).display_name,native.price],
+						Callable(app,"preview_private_pair_pitch").bind(offer,target.player))
 	_bound_button(_body,"LEAVE OPTIONAL MARKET",Callable(app,"hide_private_later_pair_market"))
 
 func _private_paired_development() -> void:

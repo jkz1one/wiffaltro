@@ -362,6 +362,28 @@ func resume_private_unpurchased_next_reverse() -> void:
 		show_season()
 
 var _paired_market_preview: bool=false
+var _paired_market_quote: Dictionary={}
+
+func preview_private_pair_pitch(offer: String,player: String) -> void:
+	if not _paired_market_preview or not private_unpurchased_next_reverse() or not _available() or not _owned() \
+			or not season.physical.pending.is_empty(): return
+	var quote: Dictionary=Adapter.Ordinary.optional_pair_pitch_quote(season.build,offer,player)
+	if quote.is_empty(): return
+	_paired_market_quote={"offer":offer,"player":player,"quote":quote,"expected":saved_bytes.duplicate()}
+	show_season()
+
+func cancel_private_pair_pitch() -> void:
+	_paired_market_quote={}
+	show_season()
+
+func confirm_private_pair_pitch() -> void:
+	if not _paired_market_preview or not private_unpurchased_next_reverse() or not _available() or not _owned() \
+			or not season.physical.pending.is_empty() or _paired_market_quote.is_empty(): return
+	var reviewed: Dictionary=_paired_market_quote
+	_paired_market_quote={}
+	var ticket: RefCounted=Store._prepare_optional_pair_pitch(career_owner,reviewed.expected,reviewed.offer,reviewed.player,reviewed.quote)
+	if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),reviewed.expected)
+	else: show_season()
 
 func show_private_later_pair_market() -> void:
 	if not private_unpurchased_next_reverse() or not _available() or not _owned() \
@@ -377,6 +399,7 @@ func show_private_later_pair_market() -> void:
 
 func hide_private_later_pair_market() -> void:
 	_paired_market_preview=false
+	_paired_market_quote={}
 	show_season()
 
 func play_private_unpurchased_next_reverse() -> void:

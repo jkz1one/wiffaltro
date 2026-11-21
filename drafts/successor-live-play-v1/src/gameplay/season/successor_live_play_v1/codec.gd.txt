@@ -498,6 +498,7 @@ static func _unpurchased_completed_legs(build: SeasonBuild, legs: int) -> String
 static func _unpurchased_dialect(journal: Dictionary) -> String:
 	if journal.is_empty(): return ""
 	var initial: String="browsed" if journal.browsed.has(1) else "unopened"
+	if journal.purchased: return initial+"-visit3-pitching-bought"
 	return initial+"-visit3-browsed" if journal.browsed.has(3) else initial
 
 static func optional_pair_browse(visit: int,revision: int) -> Dictionary:
@@ -505,13 +506,46 @@ static func optional_pair_browse(visit: int,revision: int) -> Dictionary:
 	if visit!=3 or revision<0: return {}
 	return {"id":"optional-pair-browse:%d:%d"%[visit,revision],"rev":revision,"op":"open"}
 
+const OPTIONAL_PAIR_CARD: String="development.pitching"
+
+static func optional_pair_pitch_command(revision: int,offer: String,player: String) -> Dictionary:
+	return {"id":"optional-pair-pitch:3:%d"%revision,"rev":revision,"op":"buy","offer":offer,
+		"mode":"use","player":player,"pitch":"","replace":""}
+
+static func optional_pair_pitch_quote(build: SeasonBuild,offer: String,player: String) -> Dictionary:
+	var journal: Dictionary=_unpurchased_journal(build,3)
+	if journal.is_empty() or journal.purchased or not journal.browsed.has(3) \
+			or build._visit.get("number")!=3 or build._visit.get("open")!=true \
+			or build._visit.get("offers",{}).get(offer)!=OPTIONAL_PAIR_CARD \
+			or {"player":player,"pitch":"","replace":""} not in build.targets(OPTIONAL_PAIR_CARD): return {}
+	var command: Dictionary=optional_pair_pitch_command(build.revision(),offer,player)
+	var item: Dictionary=build.shop_item(OPTIONAL_PAIR_CARD)
+	var concession: Dictionary=SeasonSchoolSponsors.discount(build,OPTIONAL_PAIR_CARD,command)
+	if concession.error!="" or concession.amount!=0 or item.get("price",0)<=0 or build.cash()<item.price: return {}
+	var before: int=int(build.player(player).stats.pitching)
+	return {"command":command,"price":int(item.price),"balance":build.cash(),"before":before}
+
+static func _optional_pitch_receipt(build: SeasonBuild,command: Dictionary,cursor: int,bank: Dictionary,bank_cursor: int) -> bool:
+	if not command.get("offer") is String or not command.get("player") is String \
+			or not command.offer.begins_with("visit:3:roll:0:") or not build.roster().has(command.player) \
+			or not same(command,optional_pair_pitch_command(cursor,command.offer,command.player)): return false
+	var price: int=int(build.shop_item(OPTIONAL_PAIR_CARD).price)
+	if not same(bank,{"id":"charge:%d"%cursor,"rev":bank_cursor,"op":"charge","amount":price}): return false
+	for growth: Dictionary in build._book._events:
+		if growth.get("id")=="growth:%d"%cursor:
+			return keys(growth,["id","rev","player","op","target"]) and growth.get("player")==command.player \
+				and growth.get("op")=="stat" and growth.get("target")=="pitching"
+	return false
+
 static func _unpurchased_journal(build: SeasonBuild, legs: int) -> Dictionary:
 	if legs not in [2,3,4] or build==null or build._bank==null: return {}
 	var size: int=build._events.size()
-	if size<2*legs or size>2*legs+2 or build.revision()!=size: return {}
+	if size<2*legs or size>2*legs+3 or build.revision()!=size: return {}
 	var bank: Array=build._bank._events
-	if bank.size()!=legs: return {}
+	if bank.size() not in [legs,legs+1]: return {}
 	var cursor: int=0
+	var bank_cursor: int=0
+	var purchased: bool=false
 	var browsed: Array[int]=[]
 	for index: int in range(legs):
 		var authored: Dictionary=PairSchedule.authored_phase(index)
@@ -521,8 +555,11 @@ static func _unpurchased_journal(build: SeasonBuild, legs: int) -> Dictionary:
 		var exotic: Dictionary=build._events[cursor+1]
 		if reward.get("op")!="successor_reward" or reward.get("id")!="game:%d"%game \
 				or exotic.get("op")!="exotic_admit" or exotic.get("id")!="exotic:%d"%game: return {}
-		if not same(bank[index],{"id":"game:%d"%game,"op":"reward","rev":index,"game":game,"win":bank[index].get("win")}) \
-				or not bank[index].get("win") is bool: return {}
+		if bank_cursor>=bank.size(): return {}
+		var receipt: Dictionary=bank[bank_cursor]
+		if not same(receipt,{"id":"game:%d"%game,"op":"reward","rev":bank_cursor,"game":game,"win":receipt.get("win")}) \
+				or not receipt.get("win") is bool: return {}
+		bank_cursor+=1
 		cursor+=2
 		var visit: int=index+1
 		if cursor>=size: continue
@@ -532,7 +569,12 @@ static func _unpurchased_journal(build: SeasonBuild, legs: int) -> Dictionary:
 		elif visit==3 and same(build._events[cursor],optional_pair_browse(visit,cursor)):
 			browsed.append(visit)
 			cursor+=1
-	return {"browsed":browsed} if cursor==size else {}
+			if cursor<size and build._events[cursor].get("op")=="buy":
+				if bank_cursor>=bank.size() or not _optional_pitch_receipt(build,build._events[cursor],cursor,bank[bank_cursor],bank_cursor): return {}
+				bank_cursor+=1
+				cursor+=1
+				purchased=true
+	return {"browsed":browsed,"purchased":purchased} if cursor==size and bank_cursor==bank.size() else {}
 
 static func return_human_ready(build: SeasonBuild) -> bool:
 	return build.revision()==5 or not unpurchased_return_kind(build).is_empty()

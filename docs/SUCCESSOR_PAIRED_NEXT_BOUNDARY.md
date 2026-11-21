@@ -351,3 +351,28 @@ prior private reverse QA parents. Use the exact CP227 settled primary
 as `user://exact-before-next-reverse.json`. Run `browse`, then
 `cold` using the browsed primary alone. Separate `unopened` and
 `flag-off` profiles start from the untouched CP227 pair.
+
+## Optional later Bullpen Coach checkout
+
+A naturally stocked Bullpen Coach may be bought and used once on an
+eligible current player at visit 3. The private menu shows the recipient,
+Pitching increment and exact game-Cash quote, and requires a separate
+confirmation. Cancel, stale quotes and reused checkout do not write.
+Other offers remain previews only. No pack is revealed or made mandatory.
+
+The ordered optional-visit grammar binds this one native purchase to its
+exact stock command, pitching growth and wallet charge. Complete native
+Build replay still proves the original offer and the entire prior
+history. The Store also checks that the resulting owner can construct
+the native reverse match before it accepts a checkout. Retained absolute
+pitching debt is unchanged: the updated capacity of an upgraded player
+is reduced by the original fixture 6 debt, with a floor at zero. The
+paid route has its own context and leaves the established unbrowsed
+and free-browse request identities alone.
+
+Use `tests/successor_private_doubleheader_later_pitch.gd.txt` with the
+existing Market QA parent and exact CP231 stock as
+`user://exact-visit3-browsed.json`. Run `buy`, then `cold` from the
+resulting primary alone in an isolated profile. The evidence is actual
+checkout, cold native receipt and real pregame, not paid return physics
+or a new settlement.
