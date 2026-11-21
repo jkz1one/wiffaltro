@@ -1,0 +1,94 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const S=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const PROPOSED="b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+const PRIOR="1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+func _ready() -> void:
+	call_deferred("_run")
+func need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and S.cross_league_preview()
+			and args.size()==2 and args[0] in ["commit","pick","cold"]
+			and FileAccess.get_sha256(S.PATH)==args[1] and not FileAccess.file_exists("user://season-v1.json"),
+			"explicit generated fixture only"): return
+	var before:=S.raw()
+	var prior:=FileAccess.get_file_as_bytes(S.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not need(app._owned() and S.raw()==before,"strict cold owner retains exact slot"): return
+	if args[0]=="commit":
+		if not need(args[1]==PROPOSED and FileAccess.get_sha256(S.PATH+".bak")==PRIOR,
+				"exact actual CP202 proposal and predecessor"): return
+		var owner: RefCounted=app.career_owner
+		var wrong: RefCounted=S.Owner.new()
+		wrong.session=owner.session
+		if not need(S.Codec.install_fields(wrong,S.Owner.DATA_FIELDS,S.Codec.data_fields(owner,S.Owner.DATA_FIELDS)),
+				"detached stale-fold control"): return
+		wrong.common.last_fold.side="dynasty"
+		if not need(not S.Owner.Common.cross_commit_ready(wrong) and
+				S.commit_cross_league_and_write(owner,prior)==null and S.raw()==before,
+				"synthetic later-mode fold and genuine stale disk revision refused"): return
+		wrong.common.last_fold.side="ordinary"
+		wrong.ordinary_state.proposal.league="sponsorship"
+		if not need(not S.Owner.Common.cross_commit_ready(wrong),"synthetic locked target refused"): return
+		var obstruction: String=S.PATH+".tmp"
+		if not need(DirAccess.make_dir_absolute(obstruction)==OK,"own test-only obstruction"): return
+		var started:=Time.get_ticks_msec()
+		var t:=S.commit_cross_league_and_write(owner,before)
+		if not need(t!=null and S.written_bytes(t).is_empty() and S.raw()==before
+				and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,"exact commit prepared; obstruction byte-inert"): return
+		var candidate:=S.prepared_candidate(t)
+		if not need(DirAccess.remove_absolute(obstruction)==OK and S.write_prepared(t),"same exact ticket retries"): return
+		app._retain_prepared(t,candidate,before)
+		var current:=S.raw()
+		if not need(_valid(app,0) and FileAccess.get_file_as_bytes(S.PATH+".bak")==before
+				and S.commit_cross_league_and_write(app.career_owner,current)==null
+				and not S.save(S.Owner.create_ordinary(42,"standard"),current) and S.raw()==current,
+				"actual new Dugout draft, duplicate/old writer denied"): return
+		print("CROSS_COMMIT_PASS ",FileAccess.get_sha256(S.PATH)," ms=",Time.get_ticks_msec()-started)
+	elif args[0]=="pick":
+		if not need(_valid(app,0),"actual ordinal two pre-pick"): return
+		var offer: String=app.season.offers()[0]
+		app.draft(offer)
+		if not need(_valid(app,1) and app.season.picks[0]==offer
+				and FileAccess.get_file_as_bytes(S.PATH+".bak")==before,"normal authored pick preserves archive and old bytes"): return
+		print("CROSS_DRAFT_PICK_PASS ",FileAccess.get_sha256(S.PATH)," player=",offer)
+	else:
+		if not need(_valid(app,1) and S.raw()==before
+				and FileAccess.get_file_as_bytes(S.PATH+".bak")==prior,"one real pick and full predecessor authenticated cold"): return
+		if prior.is_empty():
+			var held: String=S.PATH+".qa-held"
+			if not need(DirAccess.rename_absolute(S.PATH,held)==OK,"isolate archived owner from primary"):
+				return
+			var rejected: bool=S.prepare(null,app.career_owner,PackedByteArray())==null
+			if not need(DirAccess.rename_absolute(held,S.PATH)==OK and rejected,
+					"generic first writer cannot mint an archive on an empty slot"): return
+		var old: Dictionary=S.Owner._bytes_value(before)
+		old.ordinary_state.archive.sha256="0".repeat(64)
+		if not need(S.Owner.restore(old)==null and S.raw()==before,"tampered archived SHA denied"): return
+		var a: Dictionary=old.ordinary_state.archive
+		var nested: Dictionary=JSON.parse_string(a.source)
+		nested.ordinary_state.archive={}
+		a.source=JSON.stringify(nested,"",true,true)
+		a.sha256=S.Owner._hash(a.source.to_utf8_buffer())
+		if not need(S.Owner.restore(old)==null and S.raw()==before,"rehash cannot permit nested archive"): return
+		print("CROSS_DRAFT_COLD_PASS ",args[1])
+	get_tree().quit()
+func _valid(app: App,picks: int) -> bool:
+	var owner: RefCounted=app.career_owner
+	var season: SeasonState=app.season
+	var a: Dictionary=owner.ordinary_state.get("archive",{})
+	if a.is_empty() or a.sha256!=PROPOSED or S.Owner._hash(a.source.to_utf8_buffer())!=PROPOSED: return false
+	var old: Dictionary=JSON.parse_string(a.source)
+	return app._owned() and owner.current_ordinal()==2 and owner.playable() and owner.lifecycle_status()=="active" \
+		and season.league_rules.get("league")=="dugout" and season.league_rules.get("tier")==0 \
+		and not season.build.d1_pricing_valid() and season.season_seed==1002 and season.picks.size()==picks \
+		and season.build.cash()==0 and season.results.is_empty() and old.ordinary.state.results.size()==33 \
+		and S.Codec.same(owner.common,old.common) and S.Codec.same(owner.paused,old.dynasty) \
+		and S.Codec.same(season.career.start_basis,old.ordinary_state.proposal.basis)

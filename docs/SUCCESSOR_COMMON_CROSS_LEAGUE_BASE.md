@@ -56,3 +56,47 @@ whole-value spelling on the native writer, but all values and rights
 outside the proposal are identical. The obstruction plus exact-ticket
 retry and handoff measured about 9.4 seconds in headless Linux, not a
 target-hardware or interactive response claim.
+
+## Guarded activation and retained predecessor
+
+The private Store can now consume the exact CP202 proposal off the App menu.
+It rechecks the matched Owner/raw/primary, target admission, latest native
+ordinary Close/fold receipt and unchanged Common sequence. In particular,
+a newer Dynasty fold cannot authorize the older proposal. The destination
+is a native Dugout Base season-two draft with the proposed seed, zero
+picks and fresh Zero Cash; already banked Club Bucks and earned start
+rights remain separate and unchanged.
+
+The active Ordinary metadata carries one bounded, nonrecursive archive of
+the exact proposed Common source bytes, including the complete Standard
+snapshot, its native Close/fold and provenance. Archive data is literal
+UTF-8 with exact SHA-256, not a rotating backup, and is pinned on ordinary
+draft writes. Cold opening strictly replays the complete archived prior
+owner once and compares its earned basis and exact current Common,
+Dynasty and Workshop fields. Nested, tampered and unsupported history
+fail closed. The fixture is genuinely complete but has no parked
+Dynasty; non-empty parked parity has not been independently qualified.
+Unsupported further rollover, switching and games from this archived
+draft remain held, rather than losing the archive. The existing draft
+choices are available, starting with the original authored offer list.
+
+On a separate generated clone of the exact CP202 proposal pair, attach
+`tests/successor_common_cross_league_commit.gd.txt` to a scratch Node in
+the same source-preserving Godot assembly. Run `-- commit <CP202 SHA>`
+and `-- pick <new SHA>` separately; the first test obstructs its own temp
+sidecar, retries the same Store ticket and verifies the exact predecessor.
+The second exercises the real first App draft choice, not an injected player.
+Finally use a new disposable profile with only the exact picked primary
+and run `-- cold <picked SHA>` to verify the archive without any .bak.
+No matches run. This strictly replaying cold path is not mounted by a
+packaged/public activation button and does not claim responsive
+interactive loading.
+
+The exact activated zero-pick primary was
+`e92a19d73f018fe110f16446d4d54bdd96e849c76f8f8f10154cfd9f1952bd4b`.
+The first authored choice, Indy Shaw, preserved the same full source
+archive and produced
+`8d2a9ff27c4f8e2ee94031b85f91af238f35f383f5c6c53ea7518aa5df44d00f`,
+which independently continued from a primary-only profile. Native cold
+precedence and tamper checks passed; no field/NPC/shop/calendar progress
+belongs to this increment.

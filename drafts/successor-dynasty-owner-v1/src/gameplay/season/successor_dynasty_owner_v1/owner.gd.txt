@@ -61,6 +61,7 @@ func fork():
 	if not Codec.install_fields(result,DATA_FIELDS,Codec.data_fields(self,DATA_FIELDS)): return null
 	return result if result.session!=null else null
 func playable() -> bool:
+	if ordinary_state.has("archive"): return active=="ordinary" and session.phase==SeasonState.Phase.DRAFT
 	if paired_draft_only(): return ordinary_state.get("status")=="active" and session.phase==SeasonState.Phase.DRAFT
 	return (active=="ordinary" and ordinary_state.get("status")=="active") or (active=="dynasty" and status=="active")
 func lifecycle_status() -> String: return str(ordinary_state.get("status","absent")) if active=="ordinary" else status
@@ -126,14 +127,14 @@ func import_119(bytes: PackedByteArray) -> bool:
 	paused=checked.captured; imported_sha256=_hash(bytes)
 	return not imported_sha256.is_empty() and Common.initialize_ordinary(self,checked.season)
 func switch_existing() -> bool:
-	if paired_draft_only() or paused.is_empty(): return false
+	if paired_draft_only() or ordinary_state.has("archive") or paused.is_empty(): return false
 	var outgoing: Dictionary=Adapter.capture(active,session)
 	var next: Dictionary=Adapter.checked_restore(Adapter.other(active),paused)
 	if outgoing.is_empty() or next.is_empty(): return false
 	session=next.season;paused=outgoing;active=Adapter.other(active)
 	return true
 func create_missing(seed_value: int, league: String) -> bool:
-	if paired_draft_only() or not paused.is_empty(): return false
+	if paired_draft_only() or ordinary_state.has("archive") or not paused.is_empty(): return false
 	var outgoing: Dictionary=Adapter.capture(active,session)
 	if outgoing.is_empty(): return false
 	if active=="dynasty":
@@ -233,6 +234,32 @@ static func capture(owner) -> Dictionary:
 		if owner.active=="ordinary" and not _dynasty_valid(owner,dormant.season,dormant.captured): return {}
 		if owner.active=="dynasty" and not Common.ordinary_current_valid(owner,dormant.season,dormant.captured): return {}
 	return pack_current(owner,current)
+# Cold-only strict predecessor replay. Refuse recursion before calling
+# the original Common reader; never use the rotating backup as authority.
+static func _archive_valid(owner) -> bool:
+	if not owner.ordinary_state.has("archive"): return true
+	if not Common._archive_shape(owner): return false
+	var archive: Dictionary=owner.ordinary_state.archive
+	var bytes: PackedByteArray=archive.source.to_utf8_buffer()
+	if bytes.size()>Common.ARCHIVE_MAX or _hash(bytes)!=archive.sha256: return false
+	var old: Variant=_bytes_value(bytes)
+	if not old is Dictionary or not old.get("ordinary_state") is Dictionary \
+		or old.ordinary_state.has("archive"): return false
+	var predecessor: RefCounted=load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd").restore(old)
+	if not Common.cross_commit_ready(predecessor): return false
+	var p: Dictionary=predecessor.ordinary_state.proposal
+	var state: Dictionary=owner.ordinary_state
+	return state.lineage==predecessor.ordinary_state.lineage and state.last_transition.source==p.source \
+		and Codec.same(state.last_transition.basis,p.basis) \
+		and Codec.same(owner.common,predecessor.common) and Codec.same(owner.paused,predecessor.paused) \
+		and Codec.same(owner.dynasty_metadata(),predecessor.dynasty_metadata()) \
+		and Codec.same(owner.workshop_draft,predecessor.workshop_draft) \
+		and Codec.same(owner.workshop_close_history,predecessor.workshop_close_history) \
+		and Codec.same(owner.workshop_chair_purchase,predecessor.workshop_chair_purchase) \
+		and Codec.same(owner.workshop_applied,predecessor.workshop_applied) \
+		and owner.imported_sha256==predecessor.imported_sha256 \
+		and Codec.same(owner.migration_v2,predecessor.migration_v2) and Codec.same(owner.migration_v3,predecessor.migration_v3)
+
 static func restore(value: Variant):
 	var names: Array=META_FIELDS+["version","format","active","dynasty","ordinary"]
 	if value is Dictionary:
@@ -253,4 +280,4 @@ static func restore(value: Variant):
 		if result.active=="ordinary" and not _dynasty_valid(result,dormant.season,dormant.captured): return null
 		if result.active=="dynasty" and not Common.ordinary_current_valid(result,dormant.season,dormant.captured): return null
 	var checked: Dictionary=pack_current(result,current.captured)
-	return result if not checked.is_empty() and Codec.same(checked,value) else null
+	return result if not checked.is_empty() and Codec.same(checked,value) and _archive_valid(result) else null
