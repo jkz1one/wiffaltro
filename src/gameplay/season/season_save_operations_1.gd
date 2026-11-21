@@ -545,6 +545,9 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 	for result: Variant in data["results"]:
 		if not result is Dictionary:
 			return null
+		if (pitch_admission == WorkingPitchCareerSave.VERSION and result.has("pitching")
+			and not result.pitching is Dictionary):
+			return null
 		if result.has("pitching_current") and (pitch_catalog.is_empty()
 			or not result.get("pitching") is Dictionary
 			or not SeasonPitchProof.accepts(restored, result.pitching_current,
@@ -695,7 +698,14 @@ static func _ac02_passive_15_private_decode_payload_terrain(
 			{},
 			[],
 			[],
-			{},
+			# Save98 needs the recorded pitching evidence for the same Exotic
+			# admission as live settlement. The called sidecar, when present,
+			# already passed the exact catalog and legacy projection above.
+			(
+				result.get("pitching_current", result.get("pitching", {}))
+				if pitch_admission == WorkingPitchCareerSave.VERSION
+				else {}
+			),
 			{},
 			[],
 			ai_tactics,

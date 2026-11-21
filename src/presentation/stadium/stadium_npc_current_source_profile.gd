@@ -431,8 +431,8 @@ _C+"_pitch_exchange.gd":"6a9f74576eb2411cf15ce6f4b71a3f0694d95604a032d66f5b2dc7b
 "heck.gd":"03f965624cea6fe451376baf04616970df942e5ef4a1fb209307683434d1419a",_C+"_reclamation.gd":
 "4d261f5650719a820a93bbcf7e9be18165f7ca8f6af8531d87dcf304683ddd34",_C+"_retraining.gd":"ff64d50dec"+
 "be465559eea0eabce8b97150f4ef0c2d25299ca78118ba2a936c89",_C+"_round_settlement.gd":"37de6c2f43de6d"+
-"cccc67fd0ae1d74cd5f453e1a0aec5eaea5fd335aa09d588dc",_C+"_save_operations_1.gd":"85827e951df146253"+
-"4a05071d1996db47a48fb470a5a2f93ecf5be0a1a3fa5bc",_C+"_save_operations_2.gd":"822ffa3d5789034ace55"+
+"cccc67fd0ae1d74cd5f453e1a0aec5eaea5fd335aa09d588dc",_C+"_save_operations_1.gd":"628d6a0540b89d73d"+
+"19efac1a0aa83fe17759b1bc83590c76510618b2ec7206a",_C+"_save_operations_2.gd":"822ffa3d5789034ace55"+
 "6afbf48281fb6d45688fed85152f189dbe100baff63a",_C+"_save_operations_3.gd":"92708c6ad56d72a7263a974"+
 "ae88f0dd52945a3b5076b99fe1d7f63ddb08465d4",_C+"_school_sponsors.gd":"49b7522b442ebab32c1cf06930cc"+
 "c2bc790c4872a19962f6644e35550a15b43f",_C+"_scramble.gd":"30e655e37a54a688a81b8f2d1027d239409f0aa7"+

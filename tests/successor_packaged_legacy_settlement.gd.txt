@@ -1,0 +1,104 @@
+extends SceneTree
+
+const PENDING_SHA := "a13bfe2f5f902506bf502443b9887d82b1b246a32b038e4de4c3416a77cd6a3d"
+const ONE_REPORT_SHA := "3af97047d4e21b6103179c9206e659b0a45d5f534a17c0d294bef5eba501df51"
+const SLOT := "user://cp155-generated-season.json"
+
+func _initialize() -> void:
+	call_deferred("_audit")
+
+func _fail(reason: String) -> void:
+	push_error(reason)
+	quit(1)
+
+func _paid(state: Variant) -> bool:
+	if state == null or state.results.size() != 3 or state.physical.reports.size() != 2 \
+		or not state.physical.pending.is_empty() or state.physical.cursor != 2:
+		return false
+	var seen := {}
+	var reward_ids := {}
+	for fixture: Dictionary in state.results:
+		var id := str(int(fixture.id))
+		if reward_ids.has(id):
+			return false
+		reward_ids[id] = true
+		var winner: int = int(fixture.home) if fixture.home_runs > fixture.away_runs else int(fixture.away)
+		for club: int in [int(fixture.home), int(fixture.away)]:
+			if seen.has(club):
+				return false
+			var build: Variant = state.build if club == 0 else state.opponents.clubs[str(club)].build
+			if build._bank.view().rewards != {id: winner == club}:
+				return false
+			seen[club] = true
+	return seen.size() == 6
+
+func _audit() -> void:
+	var args := OS.get_cmdline_user_args()
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST") != "1" or args.size() != 2 \
+		or root.get_node_or_null("ContentDB") == null:
+		_fail("Missing explicit isolated test harness")
+		return
+	var save: Variant = load("res://src/gameplay/season/season_save.gd")
+	var settlement: Variant = load("res://src/gameplay/season/season_round_settlement.gd")
+	save.path = SLOT
+	var state: Variant = save.restore()
+	if args[0] == "cold":
+		if not save.last_error.is_empty() or not _paid(state) \
+			or not settlement.project(state).has("error") \
+			or FileAccess.get_sha256(SLOT + ".bak") != PENDING_SHA:
+			_fail("Cold settlement, original backup or duplicate rejection failed")
+			return
+		var disk: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[1]))
+		if not disk is Dictionary or disk.get("version") != 98 or JSON.stringify(
+			state.physical.reports, "", true, true
+		) != JSON.stringify(disk.checkpoint.physical.reports, "", true, true):
+			_fail("Cold replay did not retain the accepted worker reports")
+			return
+		print("COLD_LEGACY_ROUND_SIX_PAID_ONCE")
+		quit()
+		return
+	if args[0] != "project" or FileAccess.get_sha256(SLOT) != PENDING_SHA \
+		or FileAccess.get_sha256(SLOT + ".bak") != ONE_REPORT_SHA or state == null \
+		or not save.last_error.is_empty() or state.results.size() != 0 \
+		or state.physical.pending.get("reports", []).size() != 2:
+		_fail("Exact original unpaid checkpoint and archive required")
+		return
+	var projection: Dictionary = settlement.project(state)
+	var candidate: Variant = projection.get("candidate")
+	if projection.has("error") or projection.has("fixture") or not _paid(candidate):
+		_fail("Completed evidence must settle without another fixture")
+		return
+	var terminal: Dictionary = save.snapshot(candidate)
+	if terminal.get("version") != 98 or not _paid(save._decode(terminal)):
+		_fail("Native strict terminal replay refused")
+		return
+	var old_reports: Array = state.physical.pending.reports
+	if JSON.stringify(candidate.physical.reports, "", true, true) != JSON.stringify(old_reports, "", true, true):
+		_fail("Original accepted reports were altered")
+		return
+	print("LEGACY_ROUND_SIX_PAID_ONCE_WITH_ORIGINAL_REPORTS")
+	for kind: String in ["legacy_mismatch", "non_dictionary", "removed_report", "swapped_reports", "catalog"]:
+		var corrupt: Dictionary = terminal.duplicate(true)
+		match kind:
+			"legacy_mismatch":
+				corrupt.checkpoint.results[0].pitching = {}
+			"non_dictionary":
+				corrupt.checkpoint.results[0].erase("pitching_current")
+				corrupt.checkpoint.results[0].pitching = []
+			"removed_report":
+				corrupt.checkpoint.physical.reports.pop_back()
+			"swapped_reports":
+				corrupt.checkpoint.physical.reports.reverse()
+			"catalog":
+				corrupt.pitch_catalog = "not-the-authored-catalog"
+		if save._decode(corrupt) != null:
+			_fail("Altered terminal evidence accepted: " + kind)
+			return
+	var output := FileAccess.open(args[1], FileAccess.WRITE)
+	if output == null:
+		_fail("Could not write the isolated projected save")
+		return
+	output.store_string(JSON.stringify(terminal, "", true, true))
+	output.close()
+	print("LEGACY_ROUND_CORRUPT_EVIDENCE_REJECTED")
+	quit()

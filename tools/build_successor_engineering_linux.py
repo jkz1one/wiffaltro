@@ -18,12 +18,12 @@ from test_successor_schedule_wiring import environment
 VERSION = '4.6.3.stable.official.7d41c59c4'
 EDITOR_SHA = 'f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3'
 TEMPLATE_ARCHIVE_SHA = 'da606b61c10157844f8300172df374472665f95015495cb1a7cd132c40ede404faa96cc1016a4b9662db9909ddea69632c4948b2cd11163438dad4808881fb68'
-PROFILE_SHA = '43f050bfacdccb5a305c0351bdaf8371a339fa9a77ae3fb608e74ced4f2757c4'
+PROFILE_SHA = 'c519442994b2ec1f2defc18dac5534b5c74b1823493efc104fb6eda39e3199fe'
 PINNED_CONFIG_SHA = '9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd'
 TEMPLATE = 'templates/linux_release.x86_64'
 USER_DIR = 'WiffaltroEngineeringQA-v1'
 BOOTSTRAP = 'res://engineering_bootstrap/entry.tscn'
-PACK_BROAD_SHA = '5ec5f67d30845abaa1558c2d0e97e449b117d1de1635b9860e15db301e016364'
+PACK_BROAD_SHA = '106b8a4ad667984a89d2333505f884a4f98d271e0ca93fe0da5d8827172f9a52'
 TITLE = 'Wiffaltro Linux Engineering'
 EXTRA_SUPPORT = {
     'src/tests/helpers/pool_active_receipt.gd',

@@ -99,3 +99,41 @@ test and an independent native report check, **not** a claim that the
 packaged parent UI launched it, both fixtures settled, or that the separate
 broader stadium authority passed. The previous rendered shop evidence
 belongs to its original exact package, not this updated worker package.
+
+## Original-game Save98 round recovery
+
+The packaged parent window launched both AI fixtures and kept both validated
+reports. It then failed to commit the round: the original Save98 generic
+replay called the native result recorder with no pitching evidence, while
+live settlement had used the retained human report. This was a save replay
+bug, not a failed worker or a GPU issue. The unchanged original and mounted
+package both projected the same final snapshot and both refused to decode it.
+
+The fix feeds the already-validated current pitching sidecar (or the saved
+legacy pitching dictionary when no sidecar exists) back into that same native
+replay only for Save98. Existing catalog, projection, journal, and report
+validation remains in place. Other version-specific replay paths are
+unchanged. The fixed stadium provenance manifest changes only the exact
+digest of this one reviewed dependency; the historical broad allowlists are
+unchanged. The new Linux engineering pack compares every raw file, rechecks
+all 1,246 reviewed paths, and reads the previously earned, independent
+Dynasty and ordinary save without changing its slots.
+
+With the exact two-report synthetic copy, the rebuilt official Linux ELF in
+a normal window advanced from Round Waiting to an 11–5 win, paid 18 in-game
+Cash, and showed Game 2 of 10 with a 1–0 record. The window logged two
+retained fixtures and started no new worker. The atomic save contains the
+same two reports, one journal reward for each of the six clubs, and no
+unsettled fixture. After an in-game Quit, a newly launched window reopened
+at Game 2 with the same 1–0 record and no new retry. The two on-disk slots
+were unchanged by the reopen. The original one-report backup and two-report
+input remain unmodified outside the disposable profile. This tests recovery of the
+original-game path, not a round played through the integrated Dynasty UI
+or distribution on macOS.
+
+Given the exact local synthetic pending checkpoint and its sibling backup,
+`tools/test_successor_packaged_legacy_settlement.py` runs source and mounted
+PCK replay using new isolated profiles. It checks six single receipts,
+unchanged reports, strict validation, altered catalog/pitching/report
+refusals, byte-identical output, and a distinct cold process. It does not
+start physics workers, derive a save from hashes, or accept player saves.
