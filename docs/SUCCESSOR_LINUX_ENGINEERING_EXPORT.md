@@ -518,3 +518,28 @@ engine with isolated home/data/config/cache, headless fixed 60 FPS,
 profile must not contain a Common V4 slot. The receipt includes the small
 scratch-only instrumentation diff for reproducing the nested timing.
 No Continue route, worker, save-admission rule, or production code changed.
+
+### Single recapture for named Doubleheader hydration
+
+The existing named Doubleheader shape restore now checks all native rule
+holders against the authored context before normalizing its detached
+candidate, then runs one complete structural capture against the
+original data. This replaces the previous capture both before and
+after normalizing only those already-equivalent rule holders. Missing
+or mismatched rules still refuse. The caller's parsed input is not
+updated. Normal save admission, native history replay, serialization,
+and non-Doubleheader paths are unchanged.
+
+Using the same fixture-bounded probe and inputs as CP245, CP229 parent
+reconstruction went from 5.577 to 3.662 s and CP230 from 6.594 to 4.435 s
+on the Linux cloud host. The normalized RawGuard identities matched
+both before/after. These are observed caller-side costs, not full
+Continue or target machine measurements; a multi-second call still
+cannot be considered responsive. There is no new Continue route.
+
+`tests/successor_doubleheader_single_recapture.gd.txt` independently
+opens exact CP229 and CP230 generated slot copies through native App
+Continue and checks the strict history gate and unchanged slot and
+backup. Its detached negative cases change individual rule holders;
+a separate malformed-primary profile checks actual Store refusal.
+No game, economy, package, or admission change is exercised.

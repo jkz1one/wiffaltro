@@ -1,0 +1,82 @@
+extends Node
+## Exact already-authenticated generated controls, no game, write or simulation.
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const CP229="2e2b88cfa2c494ca2589a0386eae5aeb4e8041e5a0c263f6eb290c7a6afe5a23"
+const CP230="f0cde80def4e550c0ec290e993fcb4ae309c83e8893a89090cd41c7edb649b8d"
+const EXACT=[CP229,CP230]
+const O=Store.Adapter.Ordinary
+const ID={
+	CP229:"5fef1280fd5181522e25704bc11e258b75d950dd9dc611151f37c8598f0bfff4",
+	CP230:"9d06afdfa650ee7f53faa5978f5101c095da6cfd2d2d84f53570476ca13ccb53",
+}
+
+func _ready() -> void: call_deferred("_run")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not need(args.size()==2 and OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1"
+			and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1",
+			"isolated exact Doubleheader recapture QA"): return
+	var before:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	if args[0]=="malformed":
+		if need(not before.is_empty() and Store.Owner._hash(before)==args[1] and Store.read()==null
+				and Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+				"malformed primary refused without changing either file"):
+			get_tree().quit()
+		return
+	if not need(args[1] in EXACT and Store.Owner._hash(before)==args[1],"exact pending or settled input"): return
+	if args[0]=="strict":
+		var started:=Time.get_ticks_msec()
+		var replay:=O.paired_history_calls
+		app.reload_save()
+		print("CP246_STRICT_MS ",Time.get_ticks_msec()-started)
+		if need(app._owned() and O.paired_history_calls==replay+1 and Store.raw()==before
+				and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup
+				and _identity(app.career_owner)==ID[args[1]],
+				"cold native authority, one history gate, exact prior owner identity and both files unchanged"):
+			print("CP246_STRICT_PASS ",args[1]); get_tree().quit()
+		return
+	if not need(args[0]=="negative" and args[1]==CP229,"staged exact pending negative controls"): return
+	var value: Dictionary=Store.Owner._bytes_value(before)
+	var source: Dictionary=value.ordinary
+	var copy:=source.duplicate(true)
+	var captures:=O.capture_calls
+	var history:=O.paired_history_calls
+	var good: SeasonState=O._restore_shape(source,false)
+	if not need(good!=null and O.capture_calls==captures+1 and O.paired_history_calls==history
+			and Store.Codec.same(source,copy),"one structural recapture, no history in shape and no input mutation"): return
+	var wrong:=LeagueRules.capture("dugout")
+	for label: String in ["season","build","bank","book","npc-build","npc-bank","npc-book","owner-bank"]:
+		var changed:=source.duplicate(true)
+		var npc: Dictionary=changed.opponents.clubs["1"].build
+		match label:
+			"season": changed.state.league_rules=wrong
+			"build": changed.build.build._league_rules=wrong
+			"bank": changed.build.bank._league_rules=wrong
+			"book": changed.build.book._league_rules=wrong
+			"npc-build": npc.build._league_rules=wrong
+			"npc-bank": npc.bank._league_rules=wrong
+			"npc-book": npc.book._league_rules=wrong
+			"owner-bank":
+				changed.ownership.data._format=SeasonOwnership.LEAGUE_VERSION
+				changed.ownership.data._league_rules=wrong
+		var exact:=changed.duplicate(true)
+		if not need(O._restore_shape(changed,false)==null and Store.Codec.same(changed,exact),"malformed "+label+" rule holder was not normalized away"): return
+	if need(Store.raw()==before and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup
+			and O.paired_history_calls==history,"all invalid variants stay detached, on-disk pair and history unchanged"):
+		print("CP246_GUARDS_PASS"); get_tree().quit()
+
+func _identity(owner: RefCounted) -> String:
+	if owner==null: return ""
+	var snapshot:=Store.RawGuard.capture(owner)
+	return Store.Owner._hash(var_to_bytes(snapshot)) if not snapshot.is_empty() else ""
+
+func need(ok: bool,label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	if not ok: get_tree().quit(1)
+	return ok

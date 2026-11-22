@@ -848,6 +848,12 @@ static func _restore_shape(value: Variant,d1: bool) -> SeasonState:
 		club.build = Builds.restore(club.build)
 		if club.build == null: return null
 		result.opponents.clubs[id] = club
+	# Named Doubleheader's detached rules are the only changed fields.
+	# Check all existing holders against the authored context before
+	# normalizing, and still compare the full capture against the original.
+	var paired_canonical: bool=not d1 and not earned and named and result.league_rules.get("league")=="doubleheader"
+	if paired_canonical:
+		if result.build==null or result.ownership==null or not _canonical_named_context(result): return null
 	var captured: Dictionary = _capture_structural(result,d1)
 	if captured.is_empty() or not same(captured,value): return null
 	if d1:
@@ -858,7 +864,7 @@ static func _restore_shape(value: Variant,d1: bool) -> SeasonState:
 		for id: String in result.picks:
 			if not replay.choose_player(id): return null
 		return result if same(_capture_structural(replay,true),captured) else null
-	if not result.league_rules.is_empty():
+	if not paired_canonical and not result.league_rules.is_empty():
 		# Frozen gameplay compares these native context Dictionaries directly.
 		# Hydrated JSON numbers must agree with newly authored fourth-pick builds.
 		# Normalize ONLY known rule holders after strict semantic admission, then
