@@ -1,7 +1,8 @@
 extends Node
-## Fixed Starter App and one read-only internal opening NPC worker.
+## Fixed Starter App and explicitly bounded read-only workers.
 const Admission = preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
 const Npc = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
+const Review = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_dugout_review.gd")
 const INTEGRATED := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 
 func _ready() -> void:
@@ -11,6 +12,12 @@ func _ready() -> void:
 		return
 	var args: PackedStringArray=OS.get_cmdline_user_args()
 	if not args.is_empty():
+		var review: Dictionary=Review.parse(args) if Review.supported() else {}
+		if not review.is_empty():
+			var read_only: Node=Review.new()
+			add_child(read_only)
+			read_only.call_deferred("worker",review)
+			return
 		var job: Dictionary=Npc.parse(args) if Admission.starter_fast_worker() else {}
 		if job.is_empty():
 			push_error("Starter Beta launch mode refused.")

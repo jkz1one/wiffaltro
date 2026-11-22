@@ -239,7 +239,8 @@ binary_format/architecture="x86_64"
             'WIFFALTRO_PACKAGED_ARCHIVED_DUGOUT_ACTIVATION',
             'WIFFALTRO_PACKAGED_DOUBLEHEADER_NEXT_RETURN_SETTLEMENT',
         ),'1')}
-        for index, arg in enumerate(('--physical-job='+'a'*32, '--d1-witness=x', '--physical-probes', '--test')):
+        for index, arg in enumerate(('--physical-job='+'a'*32, '--d1-witness=x', '--physical-probes', '--test',
+                                     '--starter-dugout-review-v1=x')):
             denied=run([*boot,'--',arg],empty,spoof,root/f'starter-refused-{index}.log',
                        'Starter Beta launch mode refused.',expected=3)
             assert 'WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE' not in denied and audited['launcher'] not in denied

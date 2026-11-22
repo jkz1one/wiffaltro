@@ -129,7 +129,56 @@ func _ready() -> void:
 	add_child(loadout)
 	show_season()
 
+const StarterDugoutReview = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_dugout_review.gd")
+var _starter_dugout_review: Node
+
+func starter_dugout_review_running() -> bool:
+	return is_instance_valid(_starter_dugout_review)
+
+func starter_dugout_review_visible() -> bool:
+	return StarterDugoutReview.supported() and _available() and career_owner!=null \
+		and career_owner.session==season and not saved_bytes.is_empty() \
+		and not career_owner.ordinary_state.has("archive") \
+		and Owner.Common.cross_target_open(career_owner,"dugout")
+
+func begin_starter_dugout_review() -> void:
+	if not starter_dugout_review_visible() or not _owned(): return
+	var child:=StarterDugoutReview.new()
+	_starter_dugout_review=child
+	add_child(child)
+	child.completed.connect(_finish_starter_dugout_review.bind(child,career_owner,saved_bytes),CONNECT_ONE_SHOT)
+	if not child.start(saved_bytes):
+		_finish_starter_dugout_review("refused",child,career_owner,saved_bytes)
+		return
+	notice="Checking the saved Standard season and preparing a Dugout Base preview. Nothing will be saved."
+	show_season()
+
+func _finish_starter_dugout_review(outcome: String, child: Node, owner: RefCounted, revision: PackedByteArray) -> void:
+	if _starter_dugout_review!=child: return
+	_drop_starter_dugout_review()
+	if career_owner!=owner or saved_bytes!=revision or outcome=="stale":
+		notice="The saved career changed. Continue again before reviewing. Nothing was saved."
+	elif outcome=="verified":
+		notice="Dugout Base preview verified: Season 2, a fresh draft and season Cash, with banked career progress retained. Starting it is not available here. Nothing was saved."
+	else:
+		notice="The Dugout Base preview could not be verified. Nothing was saved."
+	show_season()
+
+func _drop_starter_dugout_review() -> void:
+	var child: Node=_starter_dugout_review
+	_starter_dugout_review=null
+	if not is_instance_valid(child): return
+	child.cancel()
+	child.queue_free()
+
+func cancel_starter_dugout_review() -> void:
+	if not starter_dugout_review_running(): return
+	_drop_starter_dugout_review()
+	notice="Dugout Base review canceled. Nothing was saved."
+	show_season()
+
 func _exit_tree() -> void:
+	_drop_starter_dugout_review()
 	Store.cancel_cross_activation(career_owner)
 	_expire_d1_proof()
 	var checking: Node=_d1_check
@@ -160,7 +209,7 @@ func show_season() -> void:
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
-	return not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+	return not starter_dugout_review_running() and not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func starter_player() -> bool: return Store.LeagueAdmission.starter_player()
 func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
 func league_entry_state(league: String, tier: int = 0) -> String:
@@ -1147,6 +1196,7 @@ func leave_game() -> void:
 
 
 func _request_quit() -> void:
+	_drop_starter_dugout_review()
 	if starter_npc_running(): starter_npc_cancel()
 	if _cross_retry:
 		Store.cancel_cross_activation(career_owner)

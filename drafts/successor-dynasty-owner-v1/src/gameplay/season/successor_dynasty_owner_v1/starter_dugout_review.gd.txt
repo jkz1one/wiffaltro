@@ -1,0 +1,144 @@
+extends Node
+## Fixed read-only Starter child. Neither side emits or consumes save authority.
+signal completed(outcome: String)
+
+const Store = preload("owner_store.gd")
+const ARG := "--starter-dugout-review-v1="
+const FRAME := "WIFFALTRO_STARTER_DUGOUT_REVIEW_V1 "
+const MAX_FRAME := 4096
+const MAX_MS := 120000
+
+var _job: Dictionary
+var _pid: int=-1
+var _out: FileAccess
+var _err: FileAccess
+var _output: PackedByteArray
+var _started: int
+var _next_poll: int
+
+static func supported() -> bool:
+	var exe:=OS.get_executable_path()
+	return Store.LeagueAdmission.starter_fast_worker() and exe.is_absolute_path() \
+		and FileAccess.file_exists(exe.get_basename()+".pck")
+
+static func _hex(value: Variant) -> bool:
+	if not value is String or value.length()!=64: return false
+	for token: String in value:
+		if not "0123456789abcdef".contains(token): return false
+	return true
+
+static func _canonical(value: Dictionary) -> String:
+	return JSON.stringify(value,"",true,true)
+
+static func _valid(value: Variant) -> bool:
+	return value is Dictionary and SeasonOwnership._keys(value,["revision","nonce"]) \
+		and _hex(value.revision) and _hex(value.nonce) and value.revision!=value.nonce
+
+static func parse(args: PackedStringArray) -> Dictionary:
+	if args.size()!=1 or args[0].length()>256 or not args[0].begins_with(ARG): return {}
+	var encoded:=args[0].trim_prefix(ARG)
+	var serialized:=Marshalls.base64_to_utf8(encoded)
+	if serialized.is_empty() or Marshalls.utf8_to_base64(serialized)!=encoded: return {}
+	var job: Variant=JSON.parse_string(serialized)
+	return job if _valid(job) and _canonical(job)==serialized else {}
+
+static func _slot() -> PackedByteArray:
+	if Store._starter_slot_linked(): return PackedByteArray()
+	var f:=FileAccess.open(Store.PATH,FileAccess.READ)
+	if f==null: return PackedByteArray()
+	var n:=f.get_length()
+	if n<1 or n>Store.Owner.Common.ARCHIVE_MAX: return PackedByteArray()
+	var raw:=f.get_buffer(n)
+	var exact: bool=raw.size()==n and f.get_length()==n
+	f.close()
+	return raw if exact and not Store._starter_slot_linked() else PackedByteArray()
+
+static func _revision() -> String:
+	var raw:=_slot()
+	return "" if raw.is_empty() else Store.Owner._hash(raw)
+
+static func packet(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictionary:
+	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return {}
+	var text:=bytes.get_string_from_utf8()
+	var lines:=text.split("\n")
+	if text.to_utf8_buffer()!=bytes or lines.size()!=4 or not lines[0].begins_with("Godot Engine v") \
+		or (not lines[1].is_empty() and lines[1]!=" ") or not lines[2].begins_with(FRAME) \
+		or not lines[3].is_empty(): return {}
+	var serialized:=lines[2].trim_prefix(FRAME)
+	var value: Variant=JSON.parse_string(serialized)
+	if not value is Dictionary or not SeasonOwnership._keys(value,["job","proposal","draft"]) \
+		or value.job!=job or _canonical(value)!=serialized or not _hex(value.proposal) or not _hex(value.draft) \
+		or value.proposal in [value.draft,job.revision,job.nonce] or value.draft in [job.revision,job.nonce]:
+		return {}
+	return value
+
+func start(expected: PackedByteArray) -> bool:
+	if _pid>0 or not supported() or expected.is_empty() or expected.size()>Store.Owner.Common.ARCHIVE_MAX \
+		or Store._starter_slot_linked() or not Store._write_revision_matches(expected,true): return false
+	_job={"revision":Store.Owner._hash(expected),"nonce":Crypto.new().generate_random_bytes(32).hex_encode()}
+	if not _valid(_job): return false
+	var arg:=ARG+Marshalls.utf8_to_base64(_canonical(_job))
+	var child:=OS.execute_with_pipe(OS.get_executable_path(),["--headless","--audio-driver","Dummy","--",arg],false)
+	_pid=int(child.get("pid",-1))
+	_out=child.get("stdio")
+	_err=child.get("stderr")
+	if _pid<1 or _out==null or _err==null:
+		cancel()
+		return false
+	process_mode=PROCESS_MODE_ALWAYS
+	_started=Time.get_ticks_msec()
+	set_process(true)
+	return true
+
+func cancel() -> void:
+	if _pid>0 and OS.is_process_running(_pid): OS.kill(_pid)
+	_pid=-1
+	_out=null
+	_err=null
+	_job={}
+	_output.clear()
+	set_process(false)
+
+func _exit_tree() -> void:
+	cancel()
+
+func _drain() -> bool:
+	if _out==null or _err==null or _err.get_length()!=0: return false
+	var size:=_out.get_length()
+	if size<0 or size>MAX_FRAME-_output.size(): return false
+	if size>0: _output.append_array(_out.get_buffer(size))
+	return true
+
+func _process(_delta: float) -> void:
+	if _pid<1: return
+	var now:=Time.get_ticks_msec()
+	if now<_next_poll: return
+	_next_poll=now+50
+	if now-_started>MAX_MS or not _drain():
+		cancel()
+		completed.emit("refused")
+		return
+	if OS.is_process_running(_pid): return
+	var code:=OS.get_process_exit_code(_pid)
+	var result:=packet(_output,_job,code) if _drain() else {}
+	var outcome: String="stale" if _revision()!=_job.revision else ("refused" if result.is_empty() else "verified")
+	cancel()
+	completed.emit(outcome)
+
+# Only the fixed Starter bootstrap calls this. No arbitrary paths or writes.
+func worker(job: Dictionary) -> void:
+	if not supported() or not _valid(job) or DisplayServer.get_name()!="headless" \
+		or not OS.get_cmdline_args().is_empty():
+		get_tree().quit(3)
+		return
+	var raw:=_slot()
+	if raw.is_empty() or Store.Owner._hash(raw)!=job.revision:
+		get_tree().quit(3)
+		return
+	var review:=Store.review_starter_dugout(raw)
+	if review.is_empty() or _slot()!=raw:
+		get_tree().quit(3)
+		return
+	var value: Dictionary={"job":job,"proposal":Store.Owner._hash(review.proposal),"draft":Store.Owner._hash(review.draft)}
+	print(FRAME+_canonical(value))
+	get_tree().quit(0)

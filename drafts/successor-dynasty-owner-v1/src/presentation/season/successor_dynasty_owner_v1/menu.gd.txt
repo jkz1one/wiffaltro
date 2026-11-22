@@ -191,6 +191,10 @@ func render() -> void:
 	if app.career_owner.lifecycle_status()=="closed":
 		_workshop_draft()
 		_closed()
+		if app.starter_dugout_review_running():
+			_bound_button(_body,"CANCEL DUGOUT REVIEW",Callable(app,"cancel_starter_dugout_review"))
+		elif app.starter_dugout_review_visible():
+			_bound_button(_body,"REVIEW DUGOUT BASE",Callable(app,"begin_starter_dugout_review"))
 		if app.cross_review_visible():
 			_bound_button(_body,("ACTIVATE NEXT DUGOUT SEASON" if app._third_activation() else "ACTIVATE DUGOUT BASE"),Callable(app,"begin_cross_review"))
 		if not archived: _session_controls()
