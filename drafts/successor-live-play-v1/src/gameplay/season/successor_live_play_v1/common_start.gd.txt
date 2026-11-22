@@ -8,6 +8,9 @@ const ARCHIVED: String="standard-to-dugout-archive-v1"
 const CHAIN_ARCHIVED: String="standard-dugout-to-dugout-chain-v1"
 const STANDARD_CHAIN: String="standard-base-third-archive-v1"
 const STANDARD_CHAIN_OPENING: String="standard-base-third-opening-v1"
+const STANDARD_FLAT: String="standard-base-flat-archive-v1"
+const STANDARD_FLAT_VERSION: int=4
+const STANDARD_FLAT_ROOTS: int=3
 const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
@@ -30,11 +33,19 @@ static func valid(value: Variant) -> bool:
 	if not value is Dictionary or not Builds._primitive(value) or value.get("kind")!=KIND: return false
 	var archived: bool=value.has("archive_origin")
 	if not SeasonOwnership._keys(value,FIELDS+(["archive_origin"] if archived else [])) \
-		or not SeasonOwnership._whole(value.version,2 if archived else 1,3 if archived else 1): return false
+		or not SeasonOwnership._whole(value.version,2 if archived else 1,STANDARD_FLAT_VERSION if archived else 1): return false
 	if archived:
 		var origin: Variant=value.archive_origin
 		if not origin is Dictionary: return false
-		if value.version==2:
+		if value.version==STANDARD_FLAT_VERSION:
+			if not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind!=STANDARD_FLAT \
+					or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=STANDARD_FLAT_ROOTS \
+					or value.ordinal!=origin.ordered_sha256.size()+1 or value.common_sequence!=origin.ordered_sha256.size(): return false
+			var unique: Dictionary={}
+			for digest: Variant in origin.ordered_sha256:
+				if not sha(digest) or unique.has(digest): return false
+				unique[digest]=true
+		elif value.version==2:
 			if not SeasonOwnership._keys(origin,["kind","sha256"]) or origin.kind not in [ARCHIVED,SPONSOR_ARCHIVED,STANDARD_REPEAT] \
 					or not sha(origin.sha256) or value.ordinal!=2: return false
 		elif not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind not in [CHAIN_ARCHIVED,STANDARD_CHAIN,STANDARD_CHAIN_OPENING] \
@@ -108,10 +119,24 @@ static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
 	if not basis.has("archive_origin"): return true
 	if basis.archive_origin.kind in [STANDARD_CHAIN,STANDARD_CHAIN_OPENING]:
 		return basis.version==3 and build._league_rules.is_empty() and not build.d1_pricing_valid()
+	if basis.archive_origin.kind==STANDARD_FLAT:
+		return detached_standard_flat(basis) and build._league_rules.is_empty() and not build.d1_pricing_valid()
 	if basis.archive_origin.kind==STANDARD_REPEAT:
 		return basis.version==2 and build._league_rules.is_empty() and not build.d1_pricing_valid()
 	var league: Variant=build._league_rules.get("league")
 	return league=="dugout" if basis.version==3 else basis.archive_origin.kind==archive_origin_kind(league)
+
+# Only native draft mechanics recognize this dialect in the first increment.
+# The shared production session adapter rejects its capture and hydration.
+static func detached_standard_flat(basis: Dictionary) -> bool:
+	return basis.get("kind")==KIND and basis.get("version")==STANDARD_FLAT_VERSION
+
+static func bind_standard_flat(basis: Dictionary, ordered: Array[String]) -> Dictionary:
+	if not valid(basis) or basis.version!=1 or basis.ordinal!=ordered.size()+1: return {}
+	var result: Dictionary=basis.duplicate(true)
+	result.version=STANDARD_FLAT_VERSION
+	result.archive_origin={"kind":STANDARD_FLAT,"ordered_sha256":ordered.duplicate()}
+	return result if valid(result) else {}
 
 static func bind_archive_chain(basis: Dictionary,first: String,second: String) -> Dictionary:
 	if not valid(basis) or basis.version!=1 or basis.ordinal!=3: return {}

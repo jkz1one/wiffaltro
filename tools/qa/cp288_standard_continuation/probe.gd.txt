@@ -1,0 +1,114 @@
+extends Node
+
+const Continue = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_standard_continuation.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Start = Owner.Common.Start
+const HASH: Array[String] = ["c964f1eb24f35811506de876958d2846892a21075a4ccd4f472637c28d7262e9",
+	"9e37cd51e8613d360a7849df0aa1bc35225cf51ba3a8a855a52822feccf79acd",
+	"6d62bc30775faec6cf941b8d87353e55c0663ce6a96148572826511efe00416a"]
+var failed := false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP288 ", "PASS" if ok else "FAIL", " ", name)
+	failed = failed or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var raw := Store.raw()
+	if not check(raw.size()==2490421 and Owner._hash(raw)==HASH[-1] and Store.private_standard_chain_opening()
+			and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),"exact isolated source"): get_tree().quit(1); return
+	var old: Dictionary=Owner._bytes_value(raw)
+	var state: Dictionary=old.ordinary_state
+	check(Continue.draft_from_closed(raw,HASH[1])==null,"wrong prior digest refused")
+	var changed := raw.duplicate()
+	changed.append(32)
+	check(Continue.draft_from_closed(changed,HASH[-1])==null,"stale-byte pin refused")
+	var stamp := Time.get_ticks_msec()
+	var result := Continue.draft_from_closed(raw,HASH[-1])
+	if not check(result!=null,"one old native restore, exact bound roots and real draft"): get_tree().quit(1); return
+	print("CP288 constructor ms ",Time.get_ticks_msec()-stamp)
+	var basis: Dictionary=result.basis()
+	var archive: Dictionary=result.archive()
+	check(Owner.Codec.same(result.common(),old.common) and result.common().aggregate.currency==72
+		and result.common().sequence==3 and result.common().aggregate.titles.is_empty()
+		and result.common().last_fold.receipt.is_empty() and result.source().close.receipt.is_empty()
+		and result.source().close.reason=="abandon","unchanged close/fold/Common72 with no title or receipt")
+	check(result.source().sha256==HASH[-1] and result.source().lineage==state.lineage
+		and result.source().ordinal==3 and archive.lineage==state.lineage and Continue.matches_detached(result,basis,archive),"detached basis tied to exact source and lineage")
+	check(Owner.Codec.same(archive.rows.map(func(row): return row.source_sha256),HASH)
+		and Owner.Codec.same(basis.archive_origin.ordered_sha256,HASH) and basis.version==4
+		and basis.ordinal==archive.rows.size()+1 and basis.common_sequence==3
+		and basis.archive_origin.kind==Start.STANDARD_FLAT,"ordered origin and ordinal derived from actual roots")
+	var season: SeasonState=result.season
+	check(season.phase==SeasonState.Phase.DRAFT and season.picks.is_empty() and season.league_rules.is_empty()
+		and not season.league_live and season.round_index==0 and season.results.is_empty()
+		and season.physical.cursor==0 and season.physical.reports.is_empty()
+		and not season.build.d1_pricing_valid(),"genuine fresh Base draft only")
+	var seed_value: int=("ordinary:%s:4:nextseed"%str(state.lineage)).hash() & 0x7fffffff
+	check(basis.seed==seed_value and season.season_seed==seed_value,"authored seed "+str(seed_value))
+	var w = Owner.Common.StandardWorkshop
+	check(Owner.Codec.same(result.workshop(),state[w.FIELD]) and not old.ordinary.state.home_property.is_empty()
+		and season.home_property.is_empty() and not result.workshop().has(w.OPENING)
+		and not result.workshop().has(w.APPLIED),"saved Workshop draft carried; no stale installation or choice")
+	var oracle: RefCounted = Owner._new()
+	oracle.common=old.common.duplicate(true)
+	oracle.session=season
+	var projection: Dictionary=Owner.Common.projection(oracle)
+	var native: Dictionary=Start.make(seed_value,state.lineage,4,3,Owner.Common.Life.digest(old.common.aggregate),projection)
+	var expectation: Dictionary=Start.bind_standard_flat(native,HASH)
+	check(basis.starts.sides and Owner.Codec.same(basis.starts,old.common.aggregate.starts) and season.build._sides_start
+		and Start.matches(season.build,basis) and Owner.Codec.same(basis,expectation),"full native projection and earned Sides installed")
+	var wrong: Dictionary=basis.duplicate(true)
+	wrong.archive_origin.ordered_sha256.reverse()
+	check(Start.valid(wrong) and not Continue.matches_detached(result,wrong,archive),"reordered valid-shape basis is not the genuine start")
+	wrong=basis.duplicate(true)
+	wrong.archive_origin.ordered_sha256[0]=HASH[-1]
+	check(not Start.valid(wrong),"duplicate root rejected before construction")
+	wrong=basis.duplicate(true)
+	wrong.ordinal+=1
+	check(not Start.valid(wrong),"further ordinal rejected")
+	wrong=archive.duplicate(true)
+	var altered: PackedByteArray=Continue.Custody.unpack(archive)[0].duplicate()
+	altered.append(32)
+	wrong.rows[0].body=Owner.Common.StandardArchive._pack(altered)
+	wrong.rows[0].source_bytes=altered.size()
+	wrong.rows[0].source_sha256=Owner._hash(altered)
+	check(not Continue.matches_detached(result,basis,wrong),"rehashed substituted root fails actual detached binding")
+	basis.archive_origin.ordered_sha256.clear()
+	check(result.basis().archive_origin.ordered_sha256==HASH,"basis getter not aliased")
+	basis=result.basis()
+	var native_codec = Owner.Adapter.Ordinary
+	var encoded: Dictionary=native_codec.capture(season)
+	check(not encoded.is_empty() and native_codec.scope(season) and Owner.Adapter.capture("ordinary",season).is_empty()
+		and Owner.Adapter.checked_restore("ordinary",encoded).is_empty(),"productive native draft; production adapter refuses real v4")
+	# Deliberately present a detached genuine season in the exact old common
+	# envelope, with transition metadata suitable for common metadata checks.
+	var forged: RefCounted = Owner._new()
+	var fields: Dictionary={}
+	for field: String in Owner.DATA_FIELDS: fields[field]=old.get(field,{})
+	fields.erase("session")
+	if not check(Owner.Codec.install_fields(forged,Owner.DATA_FIELDS,fields),"outer owner negative initialized"): get_tree().quit(1); return
+	forged.session=season
+	forged.ordinary_state.erase("archive")
+	forged.ordinary_state.erase(w.OPENING)
+	forged.ordinary_state.erase(w.APPLIED)
+	forged.ordinary_state.ordinal=4
+	forged.ordinary_state.status="active"
+	forged.ordinary_state.last_close={}
+	forged.ordinary_state.last_transition={"id":state.lineage+":3:next","source":state.last_close.session_sha256,
+		"from":3,"to":4,"league":"standard","basis":basis}
+	forged.ordinary_state.start_basis_sha256=Owner.Common.Life.digest(basis)
+	var envelope: Dictionary=old.duplicate(true)
+	envelope.ordinary=encoded
+	envelope.ordinary_state=forged.ordinary_state
+	check(Owner.Common.valid(forged) and not Owner._base_valid(forged) and Owner.capture(forged).is_empty() and Owner._restore_metadata(envelope)!=null
+		and Owner._restore_canonical(envelope)==null,"otherwise valid production envelope refuses this real v4 capture and cold read")
+	var id: String=season.draft_pool[0]
+	check(season.choose_player(id) and season.picks==[id] and season.phase==SeasonState.Phase.DRAFT
+		and season.home_property.is_empty() and Continue.matches_detached(result,result.basis(),archive),"one genuine native pick "+id)
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),"no save writes")
+	get_tree().quit(1 if failed else 0)

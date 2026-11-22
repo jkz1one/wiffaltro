@@ -4,6 +4,12 @@
   "scope": "Increment92: closed shared Base Equipment admission using original Equipment and full Shop policies. Short owner and detached active/spare smoke checks; earned full gameplay remains pending.",
   "files": [
     {
+      "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_standard_continuation.gd.txt",
+      "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_standard_continuation.gd",
+      "bytes": 4129,
+      "sha256": "312930f4d5926dcd8e5f0baadf42ddc6bfa94cc863c4cb61f4ca1c67d91c63ec"
+    },
+    {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd",
       "bytes": 23497,
@@ -180,8 +186,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd",
-      "bytes": 2960,
-      "sha256": "a873621e9a6a44e8b26de00efe75e6009853ff7faefc7ff8d1b7b0ab2ae1395c"
+      "bytes": 3350,
+      "sha256": "862f17b83eb43311c2abd3dd43a8f66fa2df6ca0cd5118d9ccbff0ab554667e7"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",

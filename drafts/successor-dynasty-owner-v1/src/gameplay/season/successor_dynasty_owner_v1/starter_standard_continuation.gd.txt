@@ -1,0 +1,78 @@
+extends RefCounted
+## Isolated native draft continuation. Never returns a production Owner or
+## writes to a slot; CP287's flat byte custody is not a substitute for restore.
+const Custody = preload("starter_standard_custody.gd")
+
+class Draft:
+	extends RefCounted
+	var season: SeasonState
+	var _basis: Dictionary
+	var _archive: Dictionary
+	var _common: Dictionary
+	var _workshop: Dictionary
+	var _source: Dictionary
+	func basis() -> Dictionary: return _basis.duplicate(true)
+	func archive() -> Dictionary: return _archive.duplicate(true)
+	func common() -> Dictionary: return _common.duplicate(true)
+	func workshop() -> Dictionary: return _workshop.duplicate(true)
+	func source() -> Dictionary: return _source.duplicate(true)
+
+static func _api() -> Script:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+
+static func _scope(owner: RefCounted) -> bool:
+	var api := _api()
+	var work = api.Common.StandardWorkshop
+	return owner!=null and owner.active=="ordinary" and owner.ordinary_state.get("status")=="closed" \
+		and api.Common.StandardChain.tagged_abandon_scope(owner,owner.session) \
+		and work.valid(owner.ordinary_state) and owner.ordinary_state.has(work.FIELD)
+
+# No descriptor/rights/basis may be supplied by a caller. The source digest
+# pins exact bytes; Owner.restore remains the sole native evidentiary gate.
+static func draft_from_closed(raw: PackedByteArray, expected_sha256: String) -> Draft:
+	var api := _api()
+	if raw.is_empty() or raw.size()>api.Common.StandardArchive.MAX_SOURCE \
+			or not api._digest(expected_sha256) or api._hash(raw)!=expected_sha256: return null
+	var value: Variant=api._bytes_value(raw)
+	var owner: RefCounted=api.restore(value)
+	if not _scope(owner): return null
+	var archive: Dictionary=Custody.migrate_legacy_closed(raw)
+	if archive.is_empty(): return null
+	var state: Dictionary=owner.ordinary_state
+	var ordinal: int=archive.rows.size()+1
+	if archive.lineage!=state.lineage or state.ordinal!=ordinal-1 or owner.common.sequence!=ordinal-1 \
+			or archive.rows[-1].source_sha256!=expected_sha256: return null
+	var ordered: Array[String]=[]
+	for row: Dictionary in archive.rows: ordered.append(row.source_sha256)
+	var common = api.Common
+	if ordered.size()!=common.Start.STANDARD_FLAT_ROOTS: return null
+	# Same authored ordinary Next seed derivation. No user-supplied seed,
+	# alternate league/tier, title, receipt or currency operation.
+	var seed_value: int=("ordinary:%s:%d:nextseed"%[state.lineage,ordinal]).hash() & 0x7fffffff
+	var native: Dictionary=common.Start.make(seed_value,state.lineage,ordinal,int(owner.common.sequence),
+		common.Life.digest(owner.common.aggregate),common.projection(owner))
+	var basis: Dictionary=common.Start.bind_standard_flat(native,ordered)
+	var next: SeasonState=api.Adapter.OrdinaryRuntime.create_common(basis,"standard")
+	if next==null or next.phase!=SeasonState.Phase.DRAFT or not next.picks.is_empty() \
+			or next.season_seed!=seed_value or not next.league_rules.is_empty() or next.league_live \
+			or not next.home_property.is_empty() or not api.Codec.same(next.career.start_basis,basis): return null
+	var result := Draft.new()
+	result.season=next
+	result._basis=basis
+	result._archive=archive
+	result._common=owner.common.duplicate(true)
+	# Keep only the authored saved draft, not old opening/installed state.
+	result._workshop=state[common.StandardWorkshop.FIELD].duplicate(true)
+	result._source={"sha256":expected_sha256,"lineage":state.lineage,"ordinal":int(state.ordinal),
+		"close":state.last_close.duplicate(true)}
+	return result
+
+# Comparison for a detached view/test only, never admission. Re-derive
+# custody from exact source again at any future production writer boundary.
+static func matches_detached(result: Draft, basis: Variant, archive: Variant) -> bool:
+	var api := _api()
+	if result==null or result.season==null or result.season.phase!=SeasonState.Phase.DRAFT \
+			or not result.season.home_property.is_empty() \
+			or not api.Codec.same(result.season.career.start_basis,result._basis) \
+			or not api.Codec.same(basis,result._basis): return false
+	return api.Codec.same(archive,result._archive)
