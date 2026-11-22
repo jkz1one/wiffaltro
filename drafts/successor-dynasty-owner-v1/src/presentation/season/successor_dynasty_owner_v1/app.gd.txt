@@ -939,8 +939,12 @@ func save_standard_workshop_draft() -> void:
 		return
 	_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
 
+func standard_opening_enabled() -> bool:
+	return starter_player() or (Store.private_standard_chain_opening() and career_owner!=null \
+		and Owner.Common.StandardWorkshop.Home.opening_chain(season))
+
 func choose_standard_opening(choice: String) -> void:
-	if not starter_player() or not _available() or not _scope() or not _owned(): return
+	if not standard_opening_enabled() or not _available() or not _scope() or not _owned(): return
 	var ticket: RefCounted=Store.prepare_starter_opening_and_write(career_owner,saved_bytes,choice)
 	if ticket==null:
 		notice="The Opening Day layout was not locked. Your game did not start."
@@ -1330,7 +1334,7 @@ func play_next() -> void:
 	if career_owner!=null and not career_owner.playable(): return
 	var workshop=Owner.Common.StandardWorkshop
 	if workshop.opening_unlocked(career_owner):
-		if starter_player() and _available() and _owned() and workshop.player_opening_window(career_owner):
+		if standard_opening_enabled() and _available() and _owned() and workshop.player_opening_window(career_owner):
 			menu.call("show_standard_opening_review")
 		return
 	if not _available() or not _owned() or not _scope() or not season.physical.pending.is_empty():

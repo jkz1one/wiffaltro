@@ -7,6 +7,7 @@ const FORMAT: String="wiffaltro-common-ordinary-session-v1"
 const ARCHIVED: String="standard-to-dugout-archive-v1"
 const CHAIN_ARCHIVED: String="standard-dugout-to-dugout-chain-v1"
 const STANDARD_CHAIN: String="standard-base-third-archive-v1"
+const STANDARD_CHAIN_OPENING: String="standard-base-third-opening-v1"
 const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
@@ -36,7 +37,7 @@ static func valid(value: Variant) -> bool:
 		if value.version==2:
 			if not SeasonOwnership._keys(origin,["kind","sha256"]) or origin.kind not in [ARCHIVED,SPONSOR_ARCHIVED,STANDARD_REPEAT] \
 					or not sha(origin.sha256) or value.ordinal!=2: return false
-		elif not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind not in [CHAIN_ARCHIVED,STANDARD_CHAIN] \
+		elif not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind not in [CHAIN_ARCHIVED,STANDARD_CHAIN,STANDARD_CHAIN_OPENING] \
 				or value.ordinal!=3 or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=2 \
 				or not sha(origin.ordered_sha256[0]) or not sha(origin.ordered_sha256[1]) \
 				or origin.ordered_sha256[0]==origin.ordered_sha256[1]: return false
@@ -105,7 +106,7 @@ static func archive_origin_kind(league: Variant) -> String:
 
 static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
 	if not basis.has("archive_origin"): return true
-	if basis.archive_origin.kind==STANDARD_CHAIN:
+	if basis.archive_origin.kind in [STANDARD_CHAIN,STANDARD_CHAIN_OPENING]:
 		return basis.version==3 and build._league_rules.is_empty() and not build.d1_pricing_valid()
 	if basis.archive_origin.kind==STANDARD_REPEAT:
 		return basis.version==2 and build._league_rules.is_empty() and not build.d1_pricing_valid()
@@ -124,6 +125,12 @@ static func bind_standard_chain(basis: Dictionary,first: String,second: String) 
 	var result: Dictionary=basis.duplicate(true)
 	result.version=3
 	result.archive_origin={"kind":STANDARD_CHAIN,"ordered_sha256":[first,second]}
+	return result if valid(result) else {}
+
+static func bind_standard_chain_opening(basis: Dictionary,first: String,second: String) -> Dictionary:
+	var result:=bind_standard_chain(basis,first,second)
+	if result.is_empty(): return {}
+	result.archive_origin.kind=STANDARD_CHAIN_OPENING
 	return result if valid(result) else {}
 
 static func bind_archive(basis: Dictionary,digest: String,league: String="dugout") -> Dictionary:

@@ -135,7 +135,15 @@ static func standard_d1_slot_kind() -> String:
 # The starter build must not own a copied engineering/paused/import slot.
 # This is an additional product boundary after strict native restore, not
 # a change to historical codec validation or a migration path.
+static func private_standard_chain_opening() -> bool:
+	return not LeagueAdmission.starter_feature() and OS.has_feature("editor") \
+		and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
+		and OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" \
+		and OS.get_environment("WIFFALTRO_STANDARD_CHAIN_OPENING")=="1"
+
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
+	if owner!=null and Owner.Common.StandardWorkshop.Home.opening_chain(owner.session):
+		return private_standard_chain_opening() and _starter_opening_owner(owner)
 	if not LeagueAdmission.starter_feature(): return true
 	if not LeagueAdmission.starter_player() or owner==null or owner.get_script()!=Owner \
 		or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
@@ -157,8 +165,11 @@ static func _starter_owner_allowed(owner: RefCounted) -> bool:
 		and current.league_rules.get("tier",-1)==0
 
 static func _starter_opening_owner(owner: RefCounted) -> bool:
-	return owner!=null and Owner.Common.StandardArchive.shape(owner) \
-		and Owner.Common.StandardWorkshop.player_opening_allowed(owner)
+	if owner==null: return false
+	var w = Owner.Common.StandardWorkshop
+	var scoped: bool=Owner.Common.StandardChain.shape(owner) if w.Home.opening_chain(owner.session) \
+		else Owner.Common.StandardArchive.shape(owner)
+	return scoped and w.player_opening_allowed(owner)
 
 static func read() -> RefCounted:
 	forget_projection()
@@ -1161,7 +1172,9 @@ static func _prepare_private_standard_opening(owner: RefCounted, expected: Packe
 	return _write_standard_opening_candidate(owner,expected,candidate)
 
 static func prepare_starter_opening_and_write(owner: RefCounted, expected: PackedByteArray, choice: String) -> RefCounted:
-	if not LeagueAdmission.starter_player() or not _starter_owner_allowed(owner): return null
+	if owner==null or not _starter_owner_allowed(owner): return null
+	if not LeagueAdmission.starter_player() and not (private_standard_chain_opening() \
+		and Owner.Common.StandardWorkshop.Home.opening_chain(owner.session)): return null
 	return _prepare_standard_player_opening(owner,expected,choice)
 
 static func _prepare_standard_player_opening(owner: RefCounted, expected: PackedByteArray, choice: String) -> RefCounted:
@@ -1177,7 +1190,7 @@ static func _prepare_standard_player_opening(owner: RefCounted, expected: Packed
 	if choice=="chair":
 		candidate.session.home_property=workshop.Home.snapshot(state.lineage)
 		if candidate.session.home_property.is_empty(): return null
-	state[workshop.OPENING]=workshop.opening_record(state,choice,true,2)
+	state[workshop.OPENING]=workshop.opening_record(state,choice,true,int(state[workshop.OPENING].version))
 	return _write_standard_opening_candidate(owner,expected,candidate)
 
 static func _write_standard_opening_candidate(owner: RefCounted, expected: PackedByteArray, candidate: RefCounted) -> RefCounted:
@@ -1428,6 +1441,14 @@ static func _prepare_standard_archive_birth(owner: RefCounted, expected: PackedB
 # Fixed same-league Season 3 producer. The public route supplies the
 # Starter gate; neither a caller archive nor a caller candidate is accepted.
 static func _prepare_starter_standard_chain(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int) -> RefCounted:
+	return _prepare_standard_chain(owner,expected,operation,seed_value,false)
+
+# Never called by the product Start path; only exact owned prepared bytes.
+static func prepare_private_standard_chain_opening(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	if not private_standard_chain_opening(): return null
+	return _prepare_standard_chain(owner,expected,"next",0,true)
+
+static func _prepare_standard_chain(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int, opening: bool) -> RefCounted:
 	if saving or _ticket!=null or not match_owner(owner,expected) or not Owner.Common.StandardChain.eligible(owner):
 		return null
 	var candidate: RefCounted
@@ -1435,7 +1456,8 @@ static func _prepare_starter_standard_chain(owner: RefCounted, expected: PackedB
 		candidate=owner.fork()
 		if candidate==null or not candidate.propose_next(seed_value): return null
 	elif operation=="next" and seed_value==0:
-		candidate=Owner.Common.StandardChain.candidate(owner,expected)
+		candidate=Owner.Common.StandardChain.opening_candidate(owner,expected) if opening \
+			else Owner.Common.StandardChain.candidate(owner,expected)
 	else: return null
 	if candidate==null or not _starter_owner_allowed(candidate): return null
 	var data: Dictionary=Owner.capture(candidate)

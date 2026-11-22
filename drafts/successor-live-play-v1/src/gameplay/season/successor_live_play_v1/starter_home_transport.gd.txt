@@ -10,6 +10,16 @@ static func base(season: SeasonState) -> bool:
 	return basis.get("kind")==Start.KIND and basis.get("version")==2 and basis.get("ordinal")==2 \
 		and basis.get("archive_origin",{}).get("kind")==Start.STANDARD_REPEAT
 
+# This origin is a new between-season choice, not the historical late Apply lane.
+static func opening_chain(season: SeasonState) -> bool:
+	if season==null or season.career==null or not season.league_rules.is_empty() or season.league_live: return false
+	var basis: Dictionary=season.career.start_basis
+	return basis.get("version")==3 and basis.get("ordinal")==3 \
+		and basis.get("archive_origin",{}).get("kind")==Start.STANDARD_CHAIN_OPENING and Start.valid(basis)
+
+static func opening_base(season: SeasonState) -> bool:
+	return base(season) or opening_chain(season)
+
 static func snapshot(lineage: String) -> Dictionary:
 	# Use the shared zero-cost *geometry constructor*, not any Dynasty
 	# purchase, close-history record, authorization or positive grant.
@@ -19,7 +29,7 @@ static func snapshot(lineage: String) -> Dictionary:
 
 static func valid(season: SeasonState) -> bool:
 	if season.home_property.is_empty(): return true
-	if not base(season) or season.phase==SeasonState.Phase.DRAFT: return false
+	if not opening_base(season) or season.phase==SeasonState.Phase.DRAFT: return false
 	var authored:=snapshot(season.career.start_basis.lineage)
 	return not authored.is_empty() and ClubCareer.same(season.home_property,authored)
 

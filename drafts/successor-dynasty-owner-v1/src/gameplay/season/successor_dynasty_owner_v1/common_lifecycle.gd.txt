@@ -101,7 +101,7 @@ static func valid(owner) -> bool:
 		if stamped!=(t.basis.version==2 or t.basis.version==3) or (stamped and not state.has("archive")): return false
 		if t.basis.version==3:
 			if t.get("kind")==StandardChain.TRANSITION:
-				if t.league!="standard" or t.basis.archive_origin.kind!=Start.STANDARD_CHAIN: return false
+				if t.league!="standard" or t.basis.archive_origin.kind not in [Start.STANDARD_CHAIN,Start.STANDARD_CHAIN_OPENING]: return false
 			elif t.get("kind")!=CHAIN_TRANSITION or t.league!="dugout" or t.basis.archive_origin.kind!=Start.CHAIN_ARCHIVED: return false
 		elif stamped and t.kind!=_archive_transition(t.league): return false
 		if t.basis.lineage!=state.lineage or t.basis.ordinal!=state.ordinal or Life.digest(t.basis)!=state.start_basis_sha256 or t.basis.common_sequence>value.sequence: return false

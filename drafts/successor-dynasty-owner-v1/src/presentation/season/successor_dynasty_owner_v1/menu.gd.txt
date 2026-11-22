@@ -331,7 +331,7 @@ func _show_standard_workshop(placement: bool = false) -> void:
 func show_standard_opening_review() -> void:
 	var workshop=Store.Owner.Common.StandardWorkshop
 	var owner: RefCounted=app.career_owner
-	if not app.starter_player() or not app._available() or not app._owned() or not workshop.player_opening_window(owner): return
+	if not app.standard_opening_enabled() or not app._available() or not app._owned() or not workshop.player_opening_window(owner): return
 	_screen("standard_opening","OPENING DAY LAYOUT","STANDARD BASE · YOUR HOME FIELD")
 	_note("Confirm your home layout before the first game. It stays locked for this season. Your opener is away. No Club Bucks will be spent.")
 	_bound_button(_footer,"CANCEL",render)
