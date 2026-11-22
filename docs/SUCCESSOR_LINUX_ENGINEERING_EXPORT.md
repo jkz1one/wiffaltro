@@ -464,3 +464,19 @@ The ordinal-three activation flag, first activation flag and dedicated
 reader flag are independent. None widens admission for the other two,
 for D1, or for Doubleheader settlement. The closed-season menu describes
 the available next activation only when the exact worker kind is supported.
+
+
+### Private Doubleheader next-return settlement export transport
+
+The Linux engineering package independently admits only the second
+no-purchase Doubleheader return settlement worker when launched with
+`WIFFALTRO_DYNASTY_ENGINEERING=1`,
+`WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW=1`, and
+`WIFFALTRO_PACKAGED_DOUBLEHEADER_NEXT_RETURN_SETTLEMENT=1`. No cross-league
+or earned-league opt-in is needed. Load the exact pending return with
+normal Continue, then use **Settle Next Doubleheader Return**. The worker
+uses the existing strict fused replay and stages only the exact candidate;
+only the live parent can perform the guarded compare and replacement.
+Afterward use normal Continue to reopen the settled save, with or without
+the worker flag. This does not export sibling settlements, title
+admission or public access, and it does not make strict Continue faster.

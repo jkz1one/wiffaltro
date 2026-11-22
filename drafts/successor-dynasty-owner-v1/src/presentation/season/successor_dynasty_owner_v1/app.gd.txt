@@ -264,7 +264,8 @@ func resume_private_unpurchased_return() -> void:
 
 func _begin_private_pair_settlement() -> void:
 	if not _available() or not Store.eligible_private_pair_settlement(career_owner): return
-	if not D1Check.supported():
+	var kind: String=D1Check.pair_settlement_kind(season.round_index)
+	if not D1Check.supported(kind):
 		notice="Background settlement is not supported by this engineering build. Nothing was written."
 		show_season()
 		return
@@ -274,7 +275,7 @@ func _begin_private_pair_settlement() -> void:
 	_pair_settling=true
 	add_child(check)
 	check.completed.connect(_complete_private_pair_settlement.bind(check,_d1_epoch,saved_bytes),CONNECT_ONE_SHOT)
-	if not check.start(D1Check.T._source_digest(saved_bytes),0,D1Check.pair_settlement_kind(season.round_index)):
+	if not check.start(D1Check.T._source_digest(saved_bytes),0,kind):
 		_complete_private_pair_settlement("invalid",{},check,_d1_epoch,saved_bytes)
 		return
 	notice="Settling the exact Doubleheader leg in the background…"

@@ -19,6 +19,7 @@ const PACK_BOOTSTRAP: String="res://engineering_bootstrap/entry.tscn"
 const PACK_WITNESS_FLAG: String="WIFFALTRO_PACKAGED_CROSS_DRAFT"
 const PACK_FIRST_DUGOUT_FLAG: String="WIFFALTRO_PACKAGED_FIRST_DUGOUT_ACTIVATION"
 const PACK_ARCHIVED_DUGOUT_FLAG: String="WIFFALTRO_PACKAGED_ARCHIVED_DUGOUT_ACTIVATION"
+const PACK_NEXT_REVERSE_SETTLE_FLAG: String="WIFFALTRO_PACKAGED_DOUBLEHEADER_NEXT_RETURN_SETTLEMENT"
 const ARG: String="--d1-witness="
 const FRAME: String="WIFFALTRO_D1_WITNESS_V2 "
 const MAX_FRAME: int=16384
@@ -42,8 +43,11 @@ var _cross_dir: String=""
 static func supported(kind: String=KIND) -> bool:
 	if OS.get_name()!="Linux" or OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1": return false
 	if OS.has_feature("editor"): return true
-	if not Store.cross_league_preview() or not OS.has_feature(PACK_FEATURE) \
+	if not OS.has_feature(PACK_FEATURE) \
 			or ProjectSettings.get_setting("application/run/main_scene")!=PACK_BOOTSTRAP: return false
+	if kind==NEXT_REVERSE_SETTLE_KIND:
+		return Store.private_pair_settlement_preview() and OS.get_environment(PACK_NEXT_REVERSE_SETTLE_FLAG)=="1"
+	if not Store.cross_league_preview(): return false
 	return (kind==CROSS_READ_KIND and OS.get_environment(PACK_WITNESS_FLAG)=="1") \
 		or (kind==ACTIVATE_KIND and OS.get_environment(PACK_FIRST_DUGOUT_FLAG)=="1") \
 		or (kind==ARCHIVE_ACTIVATE_KIND and OS.get_environment(PACK_ARCHIVED_DUGOUT_FLAG)=="1")
