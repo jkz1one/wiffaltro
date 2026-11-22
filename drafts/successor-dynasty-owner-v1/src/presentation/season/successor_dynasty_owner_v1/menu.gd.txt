@@ -101,9 +101,6 @@ func render() -> void:
 		_standard_workshop_link()
 		_workshop_draft()
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
-		if Store.Owner.Mixed.marked_state(app.career_owner.ordinary_state) and not app.season.picks.is_empty():
-			_note("Your first pick is saved. This preview does not open the remaining draft or games.")
-			return
 		for id: String in app.season.offers():
 			var player: PlayerDefinition = app.season.build.definition(id)
 			_bound_button(_body,player.display_name,Callable(app,"draft").bind(id))
@@ -218,7 +215,10 @@ func render() -> void:
 		_bound_button(_body,"RESUME PAID ACADEMY PACK",Callable(app,"open_pitch_shop"))
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
-		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
+		if Store.Owner.Mixed.marked_state(app.career_owner.ordinary_state) and not Store.Owner.Mixed.game_entry_scope(app.career_owner):
+			_note("Your opening round is saved. Later games are not in this preview.")
+		else:
+			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 	elif not archived or standard_repeat or app.starter_dugout_complete_visible():
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty() and not app.academy_pack_choice_pending():

@@ -1,0 +1,175 @@
+extends "res://qa.gd"
+## Only physical native input operations; never authors scores, reports or awards.
+const Mixed=Store.Owner.Mixed
+const Custody=Mixed.Custody
+const INPUT := "954661fe7b1ed5f1dee43097781d0a61ce0427e2dfd6884520525792eacb618b"
+const WIRE := "6db193e8d0e55c2aae15b4d76ab859dd3d26574ca0f0ef52d8d1d5d6a9a3a487"
+const CUSTODY := "user://cp309-pins"
+var _qa_app
+var _witness_ok: bool=true
+
+func _pin(app) -> bool:
+	if not Mixed.opener_owner_scope(app.career_owner) or not app._owned() or app.season!=app.career_owner.session:
+		return false
+	var b: Dictionary=app.season.career.start_basis
+	return b.ordinal==4 and b.common_sequence==3 and app.career_owner.common.aggregate.currency==183 \
+		and app.career_owner.common.aggregate.titles.is_empty() and app.league_entry_state("equipment")=="locked" \
+		and b.archive_origin.manifest_sha256==WIRE \
+		and Custody._hash(app.career_owner.ordinary_state.archive.wire.to_utf8_buffer())==WIRE
+
+func _run() -> void:
+	var a:=OS.get_cmdline_user_args()
+	if not check(a.size()==2 and a[0]=="cp309" and a[1] in ["hot","cold"]
+			and Store.LeagueAdmission.starter_player() and not Store.cross_league_preview()
+			and not OS.has_feature("editor") and not FileAccess.file_exists(ORIGINAL)
+			and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+			"actual no-env Starter, isolated primary only"): return
+	var starting:=Store.raw()
+	var native: Script=Store.Owner.Adapter.Ordinary
+	var before: int=native.restore_calls
+	var app:=App.new()
+	add_child(app)
+	_qa_app=app
+	await get_tree().process_frame
+	var tick:=Time.get_ticks_usec()
+	app.reload_save()
+	if not check(_pin(app) and Store.raw()==starting and not FileAccess.file_exists(Store.PATH+".bak"),
+			"actual App Continue with exact unbroken owner pins"): return
+	print("CP309 APP_READ_USEC=",Time.get_ticks_usec()-tick," RESTORES=",native.restore_calls-before)
+	if a[1]=="cold":
+		if not check(native.restore_calls-before==3 and _paid(app) and app.season.build._visit.open,
+				"three historical native reads; independently replayed current real opener and exact earned open visit"): return
+		var history:=Store.standard_history(app.career_owner,starting)
+		if not check(history.size()==3 and history.map(func(x): return x.results.size())==[33,33,33] \
+				and history.map(func(x): return x.receipt.total)==[72,39,72],"all 99 unchanged historical scores remain owned"): return
+		var fake: Variant=Store.Owner._bytes_value(starting)
+		fake.ordinary.state.round_index=2
+		if not check(Store.Owner.restore(fake)==null and native.restore_calls-before==3 \
+				and Store.raw()==starting and not FileAccess.file_exists(Store.PATH+".bak"),"wrong raw epoch rejected, primary-only cold byte unchanged"): return
+		if not _negative_current(app,starting): return
+		await _finish(app)
+		return
+	if not check(native.restore_calls-before==3 and Store.Owner._hash(starting)==INPUT and app.season.picks==["player.kit_rowan"] \
+			and app.season.phase==SeasonState.Phase.DRAFT and app.season.cash()==0,
+			"exact CP308 first pick without prior gameplay replay"): return
+	if not check(DirAccess.make_dir_recursive_absolute(CUSTODY)==OK,"isolated evidence directory"): return
+	for i in range(2,5):
+		var previous:=Store.raw()
+		var id: String=app.season.offers()[0]
+		app.draft(id)
+		if not check(app.season.picks.size()==i,"real saved draft pick "+str(i)) or not _stage(app,previous,"pick-%d"%i,false): return
+	if not check(Mixed.game_entry_scope(app.career_owner) and app.season.pending_fixture().id==0 \
+			and app.season.cash()==0 and not app.season.shop_available()
+			and app.season.make_match()==null and native.capture(app.season).is_empty(),
+			"only bound native opener; no unearned shop or generic v5 capture/play"): return
+	for step in 4:
+		var previous:=Store.raw()
+		var label: String=await _play(app) if step==0 else await _resume_witness(app)
+		if not check(not label.is_empty() and _witness_ok,"native physical boundary "+str(step)) \
+				or not _stage(app,previous,label,true): return
+		if step<3 and not check(app.season.round_index==0 and app.season.results.is_empty() \
+				and app.season.cash()==0 and app.season.physical.pending.reports.size()==step,
+				"unpaid exact pending phase "+str(step)): return
+	if not check(_paid(app) and native.restore_calls-before==3,"once-only native three-game opener; no extra historical replay"): return
+	var settled:=Store.raw()
+	var original_backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if not check(original_backup==FileAccess.get_file_as_bytes(CUSTODY.path_join("npc-2.json")) \
+			and settled==FileAccess.get_file_as_bytes(CUSTODY.path_join("settle-3.json")),"exact retained actual paid and terminal-unpaid owner bytes"): return
+	app.play_next()
+	app.resume_round()
+	if not check(not is_instance_valid(app.lab) and Store.raw()==settled \
+			and Store.prepare_session_and_write(app.career_owner,settled,"next")==null \
+			and Store.prepare_session_and_write(app.career_owner,settled,"close",0,"","complete")==null,
+			"next game, duplicate settlement, complete and Next left off"): return
+	var cash: int=app.season.cash()
+	if not check(cash>0 and app.season.shop_available(),"authored opener funds normal shop"): return
+	app.open_pitch_shop()
+	if not check(app.season.build._visit.open and app.season.cash()==cash \
+			and _stage(app,settled,"shop-open",true),"real earned shop opens without a purchase/charge"): return
+	await _finish(app)
+
+func _negative_current(app, actual: PackedByteArray) -> bool:
+	var api: Script=Store.Owner
+	var fake: Variant=api._bytes_value(actual)
+	var report: Dictionary=fake.ordinary.physical.reports[0]
+	report.request="f".repeat(64)
+	var bad: PackedByteArray=Store._native_encoded(fake)
+	if not check(not bad.is_empty() and api._hash(bad)!=api._hash(actual),
+			"rehashed exact candidate with only first CPU request substituted"): return false
+	var start: SeasonState=Adapter.OrdinaryRuntime.create_common(app.season.career.start_basis,"dugout")
+	if start==null: return false
+	for id: String in app.season.picks:
+		if not start.choose_player(id): return false
+	if not check(Mixed._replay_current(start,api._bytes_value(bad).ordinary)==null \
+			and Store.raw()==actual and not FileAccess.file_exists(Store.PATH+".bak"),
+			"the same independent native current replay refuses altered request; no full historical repeat or writes"): return false
+	var rev: int=app.season.build.revision()
+	return check(Store.prepare_shop_and_write(app.career_owner,actual,{"id":"shop-open:%d"%rev,"rev":rev,
+		"op":"pack_open"})==null and Store.raw()==actual,"no browse-to-checkout or write authority")
+
+func _paid(app) -> bool:
+	return _pin(app) and app.season.picks.size()==4 and app.season.round_index==1 \
+		and app.season.results.size()==3 and app.season.player_results.size()==1 \
+		and app.season.physical.reports.size()==2 and app.season.physical.pending.is_empty() \
+		and app.season.physical.cursor==2 and Store.Owner.Common._starter_dugout_rewards_match(app.season)
+
+func _stage(app, before: PackedByteArray, name: String, keep: bool) -> bool:
+	var raw:=Store.raw()
+	if not check(_pin(app) and app.retained==null and raw!=before \
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before \
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"native exact primary, .bak and no .tmp "+name): return false
+	if keep:
+		var file: String=CUSTODY.path_join(name+".json")
+		if not check(not FileAccess.file_exists(file) and DirAccess.copy_absolute(Store.PATH,file)==OK \
+				and FileAccess.get_sha256(file)==Store.Owner._hash(raw),"immutable synthetic boundary "+name): return false
+	var path := "user://cp309-phases.tsv"
+	var log:=FileAccess.open(path,FileAccess.READ_WRITE if FileAccess.file_exists(path) else FileAccess.WRITE)
+	if not check(log!=null,"local phase pin ledger"): return false
+	log.seek_end()
+	var line: String="%s\t%s\t%s\t%d\t%d\n"%[name,Store.Owner._hash(raw),Store.Owner._hash(before),raw.size(),app.season.cash()]
+	log.store_string(line)
+	log.flush()
+	log.close()
+	print("CP309 STEP ",line.strip_edges())
+	return true
+
+func _native_witness(name: String, value: Variant) -> void:
+	var path: String=CUSTODY.path_join(name+".witness.json")
+	var bytes:=JSON.stringify(value,"",true,true).to_utf8_buffer()
+	if FileAccess.file_exists(path):
+		_witness_ok=false
+		return
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null:
+		_witness_ok=false
+		return
+	f.store_buffer(bytes)
+	f.flush()
+	f.close()
+	_witness_ok=_witness_ok and FileAccess.get_sha256(path)==Store.Owner._hash(bytes)
+	print("CP309 WITNESS ",name," sha=",Store.Owner._hash(bytes)," bytes=",bytes.size())
+
+func _after_automated_play(lab: PitchBatLab, fixture: Dictionary) -> void:
+	var human: Array=Adapter.OrdinaryCapture.capture(_qa_app)
+	_witness_ok=_witness_ok and lab==_qa_app.lab and human.size()==13 and human[0]==fixture.id
+	if _witness_ok: _native_witness("human-0",human)
+
+func _resume_witness(app) -> String:
+	var count: int=app.season.physical.pending.reports.size()
+	var parent: SeasonState=app.season
+	var previous: int=app.season.results.size()
+	app.resume_round()
+	if not is_instance_valid(app.ai_runner):
+		return "settle-%d"%app.season.results.size() if check(app.season.results.size()>previous and app.season.physical.pending.is_empty(),
+			"actual native App settlement consumes report set") else ""
+	var fixture: int=int(app.projection.get("fixture",{}).get("id",-1))
+	if not check(fixture==count+1 and app._busy and app.season==parent,"one exact original NPC runner"): return ""
+	var record:=func(report: Dictionary) -> void: _native_witness("npc-%d"%fixture,report)
+	app.ai_runner.finished.connect(record)
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if not app._busy: break
+		if frame>0 and frame%12000==0: print("CP309 NPC_ACTIVE fixture=",fixture," frames=",frame)
+	if not check(not app._busy and app.retained==null and app.season.physical.pending.reports.size()==count+1,
+			"native physical report admitted only in position "+str(fixture)+": "+app.notice): return ""
+	return "npc-%d"%fixture

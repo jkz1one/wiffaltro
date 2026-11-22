@@ -62,7 +62,7 @@ func fork():
 	if not Codec.install_fields(result,DATA_FIELDS,Codec.data_fields(self,DATA_FIELDS)): return null
 	return result if result.session!=null else null
 func playable() -> bool:
-	if Mixed.marked_state(ordinary_state): return Mixed.draft_owner_scope(self) and session.picks.is_empty()
+	if Mixed.marked_state(ordinary_state): return Mixed.opener_owner_scope(self)
 	if ordinary_state.has("archive"): return active=="ordinary" and ordinary_state.status=="active" and Common.archive_play_scope(session)
 	if paired_draft_only(): return ordinary_state.get("status")=="active" and session.phase==SeasonState.Phase.DRAFT
 	return (active=="ordinary" and ordinary_state.get("status")=="active") or (active=="dynasty" and status=="active")

@@ -1387,6 +1387,8 @@ func _play_private_standard_flat_opening() -> void:
 
 func play_next() -> void:
 	if career_owner!=null and not career_owner.playable(): return
+	var mixed: bool=career_owner!=null and Owner.Mixed.marked_state(career_owner.ordinary_state)
+	if mixed and not Owner.Mixed.game_entry_scope(career_owner): return
 	var workshop=Owner.Common.StandardWorkshop
 	if workshop.opening_unlocked(career_owner):
 		if standard_opening_enabled() and _available() and _owned() and workshop.player_opening_window(career_owner):
@@ -1399,7 +1401,7 @@ func play_next() -> void:
 		show_season()
 		return
 	var fixture: Dictionary = season.pending_fixture()
-	var state: MatchState = season.make_match()
+	var state: MatchState = season._make_mixed_opener() if mixed else season.make_match()
 	var field: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
 	if state==null or field==null or not ClubCareer.same(state.stadium,_expected_stadium(fixture)) or not state.sure_shot.enable_current_evidence():
 		notice = "This fixture could not be prepared."
@@ -1462,6 +1464,11 @@ func finish_game() -> void:
 		return
 	if retained!=null:
 		retry_save()
+		return
+	if Owner.Mixed.marked_state(career_owner.ordinary_state):
+		var ticket: RefCounted=Store.prepare_mixed_opener_human(self)
+		if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+		else: notice="The verified opener could not be saved. The game remains open."
 		return
 	var human: Array = Adapter.human_capture(_active_side()).capture(self)
 	if human.is_empty():
@@ -1968,7 +1975,8 @@ func loadout_allowed(ui: SeasonLoadoutUI) -> bool:
 func _active_side() -> String:
 	return career_owner.active if career_owner!=null else ""
 func _scope() -> bool:
-	return career_owner!=null and career_owner.session==season and Adapter.scope(career_owner.active,season)
+	return career_owner!=null and career_owner.session==season \
+		and (Adapter.scope(career_owner.active,season) or Store.mixed_session_scope(career_owner))
 
 func import_previous_common() -> void:
 	if Store.LeagueAdmission.starter_feature(): return

@@ -1,5 +1,11 @@
 extends "res://src/presentation/season/successor_league_general_v2/shop_window.gd"
 ## Keep the full original shop; do not imply ordinary recruiting works in Dynasty.
+const Mixed = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_projection.gd")
+
+func _browse_only_mixed() -> bool:
+	var owner: RefCounted=app.get("career_owner") if app!=null else null
+	return owner!=null and Mixed.marked_state(owner.ordinary_state)
+
 func _recruit(_shop: Dictionary) -> void:
 	if app.get("career_owner")!=null and app.career_owner.active=="ordinary":
 		super._recruit(_shop);return
@@ -42,6 +48,9 @@ func _refresh() -> void:
 		_quote_active = true
 	super._refresh()
 	if generation == _quote_generation and _origin_matches() and app.get("retained")==null:
+		if _browse_only_mixed():
+			var preview: Label=_label("The opening-round shop is open for browsing. Purchases and roster changes are not available in this preview.")
+			_body.move_child(preview,0)
 		var rule: String=app.call("earnings_income_rule")
 		if not rule.is_empty():
 			var explanation: Label=_label(rule)
@@ -74,7 +83,9 @@ func _purchase(
 		# and confirmation still uses App.commit_shop and the strict Store path.
 		_clear_quote_scope()
 		quote_build = app.season.build._fork()
-	return IsolatedQuote.button(self, quote_build, text, command, description, context)
+	var button: Button=IsolatedQuote.button(self, quote_build, text, command, description, context)
+	if _browse_only_mixed(): button.disabled=true
+	return button
 
 
 const ManagedLoadout = preload("loadout_ui.gd")
@@ -114,7 +125,7 @@ func _button(text: String,action: Callable) -> Button:
 		if not visible or generation!=_view_generation or not _origin_matches(): return
 		action.call())
 func _preview(command: Dictionary,description: String) -> void:
-	if not visible or not _origin_matches(): return
+	if not visible or not _origin_matches() or _browse_only_mixed(): return
 	super._preview(command,description)
 func _commit() -> void:
 	if not visible or not _origin_matches(): return

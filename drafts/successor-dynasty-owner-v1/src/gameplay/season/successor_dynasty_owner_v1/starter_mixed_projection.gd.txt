@@ -93,9 +93,9 @@ const TRANSITION := "common-starter-dugout-compact-draft-v1"
 static func marked_state(state: Variant) -> bool:
 	return state is Dictionary and state.get("archive") is Dictionary and state.archive.get("kind")==Custody.KIND
 
-# A shape check is never native custody or write authority. This dialect is
-# deliberately limited to the exact generated draft and one native pick.
-static func draft_owner_scope(owner: RefCounted) -> bool:
+# A scope condition is never native custody or write authority. The
+# currently verified epoch ends at one paid ordinary opening round.
+static func opener_owner_scope(owner: RefCounted) -> bool:
 	var api:=_api()
 	if owner==null or owner.get_script()!=api or owner.active!="ordinary" or not owner.paused.is_empty() \
 			or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
@@ -104,11 +104,9 @@ static func draft_owner_scope(owner: RefCounted) -> bool:
 	var s: SeasonState=owner.session
 	var state: Dictionary=owner.ordinary_state
 	if s==null or s.get_script()!=api.Adapter.OrdinaryRuntime or s.career==null or s.build==null \
-			or s.phase!=SeasonState.Phase.DRAFT or s.round_index!=0 or s.picks.size()>1 \
-			or not s.results.is_empty() or not s.player_results.is_empty() or s.physical==null \
-			or not s.physical.pending.is_empty() or not s.physical.reports.is_empty() or s.physical.cursor!=0 \
+			or s.physical==null or not s.physical.needed.is_empty() or not s.physical.error.is_empty() or s.physical.projecting \
 			or not s.home_property.is_empty() or not s.league_live or s.league_rules.get("league")!="dugout" \
-			or s.league_rules.get("tier")!=0 or s.cash()!=0: return false
+			or s.league_rules.get("tier")!=0 or not _opener_phase(s): return false
 	if not api.Codec.keys(state,api.Common.ORDINARY_FIELDS+["archive"]) or not marked_state(state) \
 			or state.status!="active" or state.ordinal!=4 or state.proposal!={} or state.last_close!={} \
 			or not api.Codec.keys(state.archive,["kind","wire"]) or not state.archive.wire is String \
@@ -123,6 +121,40 @@ static func draft_owner_scope(owner: RefCounted) -> bool:
 		and api.Codec.same(t.basis,s.career.start_basis) \
 		and owner.common.get("sequence")==3 and api.Codec.same(owner.common.get("cursors"),{"ordinary":3,"dynasty":0})
 
+static func draft_owner_scope(owner: RefCounted) -> bool:
+	return opener_owner_scope(owner) and owner.session.phase==SeasonState.Phase.DRAFT
+
+static func _opener_phase(s: SeasonState) -> bool:
+	var api:=_api()
+	if s.phase==SeasonState.Phase.DRAFT:
+		return s.picks.size()<4 and s.cash()==0 and s.round_index==0 and s.results.is_empty() \
+			and s.player_results.is_empty() and s.physical.pending.is_empty() and s.physical.reports.is_empty() \
+			and s.physical.cursor==0
+	if s.phase!=SeasonState.Phase.REGULAR or s.picks.size()!=4: return false
+	if s.round_index==1:
+		var proof: Dictionary=api.Common.StandardArchive.settled_regular_prefix(s.results,1)
+		return not proof.is_empty() and s.physical.pending.is_empty() and s.physical.cursor==2 \
+			and api.Codec.same(s.physical.reports.map(func(row): return row.get("fixture")),proof.cpu) \
+			and api.Codec.same(s.player_results.map(func(row): return row.get("id")),proof.human) \
+			and api.Common._starter_dugout_rewards_match(s)
+	if s.round_index!=0 or s.cash()!=0 or not s.results.is_empty() or not s.player_results.is_empty() \
+			or not s.physical.reports.is_empty() or s.physical.cursor!=0 \
+			or not api.Common._starter_dugout_rewards_match(s): return false
+	if s.physical.pending.is_empty(): return true
+	var pending: Dictionary=s.physical.pending
+	var human: Variant=pending.get("human")
+	var reports: Variant=pending.get("reports")
+	if not api.Codec.keys(pending,["human","reports"]) or not human is Array or human.size()!=13 \
+			or not api.Codec.whole(human[0],0,0) or not reports is Array or reports.size()>2: return false
+	for i: int in reports.size():
+		if not reports[i] is Dictionary or not api.Codec.whole(reports[i].get("fixture"),i+1,i+1): return false
+	return true
+
+static func game_entry_scope(owner: RefCounted) -> bool:
+	return opener_owner_scope(owner) and owner.session.phase==SeasonState.Phase.REGULAR \
+		and owner.session.round_index==0 and owner.session.physical.pending.is_empty() \
+		and owner.session.pending_fixture().get("id")==0
+
 static func _owned_draft(prior: RefCounted, draft: Draft) -> RefCounted:
 	if draft==null: return null
 	var api:=_api()
@@ -135,7 +167,7 @@ static func _owned_draft(prior: RefCounted, draft: Draft) -> RefCounted:
 		"last_transition":{"kind":TRANSITION,"id":"%s:3:next"%lineage,"source":draft._source.close.session_sha256,
 			"from":3,"to":4,"league":"dugout","basis":draft.basis()},
 		"archive":{"kind":Custody.KIND,"wire":draft._manifest.get_string_from_utf8()}}
-	return next if draft_owner_scope(next) else null
+	return next if opener_owner_scope(next) else null
 
 static func _owned_from_pinned(prior: RefCounted, raw: PackedByteArray) -> RefCounted:
 	if not closed_scope(prior): return null
@@ -145,21 +177,21 @@ static func _owned_from_pinned(prior: RefCounted, raw: PackedByteArray) -> RefCo
 # This explicit pure envelope assembly is not a general v5 session codec.
 # All writes still originate in fixed Store producers.
 static func compact_payload(owner: RefCounted) -> Dictionary:
-	if not draft_owner_scope(owner): return {}
+	if not opener_owner_scope(owner): return {}
 	var api:=_api()
 	var native: Script=api.Adapter.Ordinary
 	if not native._structural_valid(owner.session): return {}
 	var current: Dictionary=native._payload(owner.session)
 	return api._pack_fields(owner,current) if not current.is_empty() else {}
 
-static func first_pick_payload(owner: RefCounted, candidate: RefCounted) -> Dictionary:
-	if not draft_owner_scope(owner) or not draft_owner_scope(candidate) \
-			or not owner.session.picks.is_empty() or candidate.session.picks.size()!=1: return {}
+static func draft_pick_payload(owner: RefCounted, candidate: RefCounted) -> Dictionary:
+	if not draft_owner_scope(owner) or not opener_owner_scope(candidate) \
+			or candidate.session.picks.size()!=owner.session.picks.size()+1: return {}
 	var api:=_api()
 	# Confirm the App fork against one independently derived native choice
 	# from the exact admitted active session without rereading predecessors.
 	var replay: SeasonState=owner.session.fork_live()
-	var id: String=candidate.session.picks[0]
+	var id: String=candidate.session.picks[-1]
 	if replay==null or not replay.offers().has(id) or not replay.choose_player(id): return {}
 	var native: Script=api.Adapter.Ordinary
 	var data:=compact_payload(candidate)
@@ -177,8 +209,12 @@ static func restore_owned(value: Variant) -> RefCounted:
 			or archive.wire.length()>Custody.MAX_WIRE or not transition is Dictionary \
 			or not api.Common.Start.valid(transition.get("basis")) or not api.Common.Start.detached_mixed_flat(transition.basis) \
 			or not current is Dictionary or not current.get("state") is Dictionary \
-			or current.state.get("phase")!=SeasonState.Phase.DRAFT or not current.state.get("picks") is Array \
-			or current.state.picks.size()>1: return null
+			or not current.state.get("picks") is Array: return null
+	var phase: Variant=current.state.get("phase")
+	if phase==SeasonState.Phase.DRAFT:
+		if current.state.picks.size()>=4: return null
+	elif phase!=SeasonState.Phase.REGULAR or current.state.picks.size()!=4 \
+			or not api.Codec.whole(current.state.get("round_index"),0,1): return null
 	var wire: PackedByteArray=archive.wire.to_utf8_buffer()
 	var manifest:=Custody.manifest_fields(wire)
 	if manifest.is_empty() or Custody._hash(wire)!=transition.basis.archive_origin.manifest_sha256 \
@@ -194,11 +230,66 @@ static func restore_owned(value: Variant) -> RefCounted:
 	var prior: RefCounted=api.restore(api._bytes_value(last[0]))
 	var candidate:=_owned_draft(prior,_draft(prior,wire,manifest.rows[2].raw_sha256))
 	if candidate==null: return null
-	if not current.state.picks.is_empty():
-		var id: Variant=current.state.picks[0]
+	for id: Variant in current.state.picks:
 		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
+	if phase==SeasonState.Phase.REGULAR:
+		candidate.session=_replay_current(candidate.session,current)
+		if candidate.session==null or not opener_owner_scope(candidate): return null
 	var rebuilt:=compact_payload(candidate)
 	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
+
+# Dugout stored its original native H13 arguments in the player row,
+# including the exact per-opponent physical evidence. No new data or source
+# compression schema is required to reissue it on the authored draft.
+static func _paid_human(raw: Variant, fixture: Dictionary) -> Array:
+	var api:=_api()
+	if not raw is Array or raw.size()!=1 or not raw[0] is Dictionary: return []
+	var row: Dictionary=raw[0]
+	if not api.Codec.whole(row.get("id"),0,0) or not api.Codec.whole(row.get("away_runs"),0,9999) \
+			or not api.Codec.whole(row.get("home_runs"),0,9999) or not row.get("pitching_current") is Dictionary: return []
+	var opponent: String=str(int(fixture.away if fixture.home==0 else fixture.home))
+	var ai: Variant=row.get("ai_tactics")
+	if not api.Codec.keys(ai,[opponent]) or not ai[opponent] is Dictionary: return []
+	return [row.id,row.away_runs,row.home_runs,row.get("performance",{}),row.get("used_gear",[]),
+		row.get("tactics",[]),row.get("batting",{}),row.get("stances",[]),row.get("fielding",[]),
+		row.pitching_current,row.get("field_supply",{}),row.get("frozen",[]),ai[opponent]]
+
+# Source is a newly reconstructed, fully drafted native session. Inputs
+# are evidence only; every serialized field is compared to the independent
+# authorized result. The compact archive never authenticates current play.
+static func _replay_current(source: SeasonState, current: Variant) -> SeasonState:
+	var api:=_api()
+	if source==null or source.round_index!=0 or source.picks.size()!=4 or not source.physical.pending.is_empty() \
+			or source.pending_fixture().get("id")!=0 or not current is Dictionary or not current.get("state") is Dictionary \
+			or not current.get("physical") is Dictionary or not current.physical.get("pending") is Dictionary \
+			or not current.physical.get("reports") is Array or not current.get("build") is Dictionary \
+			or not current.build.get("build") is Dictionary or not current.build.build.get("_visit") is Dictionary:
+		return null
+	var round: Variant=current.state.get("round_index")
+	if not api.Codec.whole(round,0,1): return null
+	var next: SeasonState=source
+	if round==0:
+		next.physical.pending=current.physical.pending.duplicate(true)
+		if not _opener_phase(next) or (not next.physical.pending.is_empty() and api.Adapter.OrdinaryPending.project(next).has("error")):
+			return null
+	else:
+		if not current.physical.pending.is_empty() or current.physical.reports.size()!=2: return null
+		var human:=_paid_human(current.state.get("player_results"),next.pending_fixture())
+		if human.is_empty(): return null
+		next.physical.pending={"human":human,"reports":current.physical.reports.duplicate(true)}
+		if not _opener_phase(next): return null
+		var projected: Dictionary=api.Adapter.OrdinaryPending.project(next)
+		next=projected.get("candidate")
+		if projected.has("error") or projected.has("fixture") or next==null or not _opener_phase(next): return null
+		if current.build.build._visit.get("open")==true:
+			if next.cash()<=0 or not next.shop_available() or next.build._visit.get("open"): return null
+			var rev: int=next.build.revision()
+			var bought: SeasonBuild=next.build.candidate({"id":"shop-open:%d"%rev,"rev":rev,"op":"open"})
+			if bought==null: return null
+			next.adopt_build(bought)
+			if next.build!=bought: return null
+	var native: Script=api.Adapter.Ordinary
+	return next if native._structural_valid(next) and api.Codec.same(native._payload(next),current) else null
 
 # Display only; Store admits and pins the exact slot before calling this.
 static func display(archive: Dictionary) -> Array:
