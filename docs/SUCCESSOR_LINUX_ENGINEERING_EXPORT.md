@@ -594,3 +594,26 @@ This proves one human game and cold pending restoration in the Starter
 flavor, not round settlement, shop entry, league advancement or a
 distributable beta. The live HUD still exposes inherited developer
 shortcut labels. No such shortcuts were invoked in this playthrough.
+
+### First rendered Starter round, completed and reopened
+
+From the exact preserved human-only Starter save above, a new no-env
+process of the same package used the actual **Resume Saved Round** control.
+The two local CPU matchups were independently saved: Comets 3–4 Rivets,
+then Kites 11–7 Lanterns. Neither pending checkpoint paid a reward. The
+actual third Resume settled once, preserving the human 0–4 loss and
+showing Round 2 with **Play Next Game**.
+
+A separate audit replayed the six expected reward entries, one per club,
+with Yard Club at 12 seasonal Cash and Common unchanged. The settled
+primary was 769,529 bytes, SHA-256
+`9e344b6552f4bf8b3e847a451acc3eefb6a3e730937b23027b00c1ce660b9ed3`;
+the rotating backup was the exact pending two-NPC checkpoint. A separate
+fresh no-env Continue reopened Round 2. Native Quit left both exact files
+unchanged, with no settlement or reward repeated.
+
+Both real simulations showed inning and plate-appearance progress. The
+software-rendered Linux test observed about 196 and 282 seconds to their
+completion; those are not a target-device benchmark. No shop purchase,
+next human game, season rollover, championship unlock or Mac build was
+exercised in this slice.
