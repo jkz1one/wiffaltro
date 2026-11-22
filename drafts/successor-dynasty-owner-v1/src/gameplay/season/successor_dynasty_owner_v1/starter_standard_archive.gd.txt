@@ -121,6 +121,10 @@ static func candidate(owner: RefCounted, raw: PackedByteArray) -> RefCounted:
 	state.proposal = {}
 	state.start_basis_sha256 = api.Common.Life.digest(basis)
 	state.archive = row
+	# The new epoch is unplayed by construction. Never create this record
+	# while reading an older phase-zero regular save.
+	var workshop=api.Common.StandardWorkshop
+	state[workshop.OPENING]=workshop.opening_record(state,"pending",false,2)
 	return result if api.Common.valid(result) else null
 
 class FirstFacts extends RefCounted:

@@ -28,23 +28,45 @@ static func opening_window(owner: RefCounted) -> bool:
 	return _standard(owner) and owner.paused.is_empty() and not owner.ordinary_state.has(APPLIED) \
 		and _unplayed_opener(owner.session)
 
-static func opening_record(state: Dictionary, choice: String, locked: bool) -> Dictionary:
-	return {"version":1,"lineage":state.lineage,"ordinal":state.ordinal,"start":state.start_basis_sha256,
+static func opening_record(state: Dictionary, choice: String, locked: bool, version: int = 1) -> Dictionary:
+	return {"version":version,"lineage":state.lineage,"ordinal":state.ordinal,"start":state.start_basis_sha256,
 		"opener":0,"first_home":3,"choice":choice,"locked":locked}
 
 static func opening_valid(state: Dictionary, season: SeasonState) -> bool:
-	if not state.has(OPENING) or state.has(APPLIED) or not _opening_schedule(season) \
-		or season.phase==SeasonState.Phase.DRAFT or season.picks.size()!=4 or state.get("ordinal")!=2:
+	if not state.has(OPENING) or state.has(APPLIED) or not _opening_schedule(season) or state.get("ordinal")!=2:
 		return false
 	var row: Variant=state[OPENING]
-	if not row is Dictionary or row.get("choice") not in ["chair","stock"] or not row.get("locked") is bool \
-		or not ClubCareer.same(row,opening_record(state,row.choice,row.locked)):
+	if not row is Dictionary or not row.get("locked") is bool or not row.get("choice") is String \
+		or not SeasonOwnership._whole(row.get("version"),1,2) \
+		or not ClubCareer.same(row,opening_record(state,row.get("choice",""),row.locked,int(row.version))):
 		return false
+	if row.version==2 and row.choice=="pending":
+		return not row.locked and season.home_property.is_empty() \
+			and ((season.phase==SeasonState.Phase.DRAFT and season.round_index==0) or _unplayed_opener(season))
+	if season.phase==SeasonState.Phase.DRAFT or season.picks.size()!=4: return false
+	if row.choice not in ["chair","stock"] or (row.version==2 and not row.locked): return false
 	if row.choice=="chair":
 		if not state.has(FIELD): return false
 		if row.locked: return not season.home_property.is_empty() and Home.valid(season)
 		return season.home_property.is_empty() and _unplayed_opener(season)
 	return row.locked and season.home_property.is_empty()
+
+# Only new, authored v2 births get player choice. A round-zero legacy file
+# could be the unchanged primary after leaving an unfinished first game.
+static func player_opening_window(owner: RefCounted) -> bool:
+	if not opening_window(owner): return false
+	var state: Dictionary=owner.ordinary_state
+	var row: Variant=state.get(OPENING)
+	return row is Dictionary and row.get("version")==2 and row.get("choice")=="pending" \
+		and opening_valid(state,owner.session)
+
+static func player_opening_allowed(owner: RefCounted) -> bool:
+	var state: Dictionary=owner.ordinary_state
+	if not opening_valid(state,owner.session) or not valid(state): return false
+	var row: Dictionary=state[OPENING]
+	# The already locked pre-opening rehearsal uses the same authored
+	# snapshot; it is readable, but never authorizes a new player choice.
+	return row.version==2 or row.locked
 
 static func opening_unlocked(owner: RefCounted) -> bool:
 	if owner==null or not owner.ordinary_state.has(OPENING): return false
@@ -81,6 +103,7 @@ static func visible(owner: RefCounted) -> bool:
 
 static func editable(owner: RefCounted) -> bool:
 	if not _standard(owner) or not owner.paused.is_empty() or owner.ordinary_state.has(FIELD): return false
+	if player_opening_window(owner): return true
 	var season: SeasonState = owner.session
 	return season.phase==SeasonState.Phase.DRAFT and season.round_index==0 and season.picks.is_empty() \
 		and season.home_property.is_empty() and season.results.is_empty() and season.build!=null \

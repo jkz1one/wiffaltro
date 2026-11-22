@@ -301,8 +301,19 @@ func _show_standard_workshop(placement: bool = false) -> void:
 	if record.is_empty():
 		_note("This layout could not be previewed. Nothing was changed.")
 		return
-	_label(_body,"SAVED DRAFT · PRIMARY RECEIVER" if saved else "UNSAVED PREVIEW · PRIMARY RECEIVER",21)
-	_note("This layout is for the Workshop only. It is not installed in games and costs no Club Bucks.")
+	var opening: Dictionary=owner.ordinary_state.get(workshop.OPENING,{})
+	if opening.get("locked",false):
+		_label(_body,"OPENING DAY · HOME CHAIR LOCKED" if opening.choice=="chair" else "OPENING DAY · DEFAULT FIELD LOCKED",21)
+		if opening.choice=="chair":
+			_note("The chair is installed for your home games this season. Away games are unchanged.")
+		elif saved:
+			_note("The chair below is a saved draft preview only. This season uses the default field.")
+		else:
+			_note("This season uses the default field. No draft was saved.")
+			return
+	else:
+		_label(_body,"SAVED DRAFT · PRIMARY RECEIVER" if saved else "UNSAVED PREVIEW · PRIMARY RECEIVER",21)
+		_note("Preview only. This draft does not change the playing field and costs no Club Bucks.")
 	var preview: StadiumDraftPreview = StadiumDraftPreview.new()
 	_body.add_child(preview)
 	var ledger: ClubAssetLedger = workshop.ledger(owner.ordinary_state.lineage)
@@ -314,6 +325,21 @@ func _show_standard_workshop(placement: bool = false) -> void:
 	_bound_button(_footer,"FIELD VIEW",preview.overview)
 	if not saved and workshop.editable(owner):
 		_bound_button(_footer,"SAVE DRAFT",Callable(app,"save_standard_workshop_draft"))
+	elif workshop.player_opening_window(owner):
+		_bound_button(_footer,"OPENING DAY LAYOUT",show_standard_opening_review)
+
+func show_standard_opening_review() -> void:
+	var workshop=Store.Owner.Common.StandardWorkshop
+	var owner: RefCounted=app.career_owner
+	if not app.starter_player() or not app._available() or not app._owned() or not workshop.player_opening_window(owner): return
+	_screen("standard_opening","OPENING DAY LAYOUT","STANDARD BASE · YOUR HOME FIELD")
+	_note("Confirm your home layout before the first game. It stays locked for this season. Your opener is away. No Club Bucks will be spent.")
+	_bound_button(_footer,"CANCEL",render)
+	if owner.ordinary_state.has(workshop.FIELD):
+		_bound_button(_body,"USE SAVED LAYOUT",Callable(app,"choose_standard_opening").bind("chair"))
+	else:
+		_note("No layout draft is saved. You can return to the Workshop before the opener.")
+	_bound_button(_body,"KEEP DEFAULT",Callable(app,"choose_standard_opening").bind("stock"))
 
 func _workshop_draft() -> void:
 	var owner=app.career_owner
