@@ -1,0 +1,254 @@
+extends RefCounted
+## Byte transport only, never a career validator or Store admission. The v1
+## cut order describes exactly the existing Standard/Dugout/Dugout dialect.
+const KIND := "starter-standard-dugout-flat-custody-v1"
+const OWNER := "wiffaltro-common-career-v4"
+const FIRST := "starter-standard-to-dugout-predecessor-v1"
+const SECOND := "common-ordinary-second-fragments-v1"
+const CHAIN := "starter-dugout-two-completed-predecessors-v1"
+const ORIGIN_TWO := "standard-to-dugout-archive-v1"
+const ORIGIN_THREE := "standard-dugout-to-dugout-chain-v1"
+const MAX_MEMBER := 32 * 1024 * 1024
+const MAX_RAW := 56 * 1024 * 1024
+const MAX_B64 := 4 * 1024 * 1024
+const MAX_TOTAL_B64 := 9 * 1024 * 1024
+const MAX_WIRE := MAX_TOTAL_B64 + 4096
+const DEFLATE := FileAccess.COMPRESSION_DEFLATE
+
+static func _keys(value: Variant, names: Array) -> bool:
+	if not value is Dictionary or value.size()!=names.size(): return false
+	for name: String in names:
+		if not value.has(name): return false
+	return true
+
+static func _whole(value: Variant, lo: int, hi: int) -> bool:
+	return (value is int or value is float) and value>=lo and value<=hi and value==floor(value)
+
+static func _sha(value: Variant) -> bool:
+	return value is String and value.length()==64 and value==value.to_lower() and value.is_valid_hex_number(false)
+
+static func _hash(bytes: PackedByteArray) -> String:
+	var ctx := HashingContext.new()
+	return ctx.finish().hex_encode() if ctx.start(HashingContext.HASH_SHA256)==OK and ctx.update(bytes)==OK else ""
+
+static func _json(raw: PackedByteArray) -> Variant:
+	if raw.is_empty(): return null
+	var text := raw.get_string_from_utf8()
+	if text.to_utf8_buffer()!=raw: return null
+	var reader := JSON.new()
+	return reader.data if reader.parse(text)==OK else null
+
+static func _lineage(value: Variant) -> bool:
+	return value is String and value.begins_with("ordinary:") and _sha(value.substr(9))
+
+static func _source_state(value: Variant, ordinal: int, lineage: String) -> Dictionary:
+	if not value is Dictionary or value.get("version")!=4 or value.get("format")!=OWNER \
+			or value.get("active")!="ordinary" or value.get("dynasty")!={} \
+			or not value.get("ordinary_state") is Dictionary: return {}
+	var state: Dictionary=value.ordinary_state
+	var close: Variant=state.get("last_close")
+	var league: String="standard" if ordinal==1 else "dugout"
+	if not _lineage(lineage) or state.get("lineage")!=lineage or state.get("ordinal")!=ordinal \
+			or state.get("status")!="closed" or not close is Dictionary or close.get("ordinal")!=ordinal \
+			or close.get("league")!=league or close.get("tier")!=0 or close.get("reason")!="complete" \
+			or not _sha(close.get("session_sha256")): return {}
+	if ordinal==1:
+		var p: Variant=state.get("proposal")
+		return state if not state.has("archive") and state.get("last_transition")=={} and p is Dictionary \
+			and p.get("kind")=="common-ordinary-league-proposal-v1" and p.get("league")=="dugout" else {}
+	var t: Variant=state.get("last_transition")
+	if state.get("proposal")!={} or not t is Dictionary or t.get("league")!="dugout" \
+			or t.get("from")!=ordinal-1 or t.get("to")!=ordinal or not t.get("basis") is Dictionary \
+			or t.basis.get("lineage")!=lineage or t.basis.get("ordinal")!=ordinal \
+			or t.basis.get("version")!=ordinal or not t.basis.get("archive_origin") is Dictionary: return {}
+	return state
+
+static func _first_shape(row: Variant) -> bool:
+	return _keys(row,["kind","sha256","source"]) and row.kind==FIRST and _sha(row.sha256) \
+		and row.source is String and not row.source.is_empty() and row.source.length()<=MAX_MEMBER
+
+static func _second_shape(row: Variant) -> bool:
+	return _keys(row,["kind","sha256","prefix","suffix"]) and row.kind==SECOND and _sha(row.sha256) \
+		and row.prefix is String and not row.prefix.is_empty() and row.suffix is String and not row.suffix.is_empty() \
+		and row.prefix.length()+row.suffix.length()<=MAX_MEMBER
+
+static func _chain_shape(value: Variant) -> bool:
+	return _keys(value,["kind","entries"]) and value.kind==CHAIN and value.entries is Array \
+		and value.entries.size()==2 and _first_shape(value.entries[0]) and _second_shape(value.entries[1]) \
+		and value.entries[0].sha256!=value.entries[1].sha256
+
+static func _bound(state: Dictionary, previous_close_sha: String, kind: String, pins: Variant) -> bool:
+	if state.is_empty() or not _sha(previous_close_sha): return false
+	var t: Dictionary=state.last_transition
+	var origin: Dictionary=t.basis.archive_origin
+	return origin.get("kind")==kind and t.get("source")==previous_close_sha \
+		and (origin.get("sha256")==pins if kind==ORIGIN_TWO else origin.get("ordered_sha256")==pins)
+
+# Tokens are the exact native serialized STRING literals, not the old raw
+# owner objects. Surrounding bytes, including all float spelling, survive.
+static func _cut(raw: PackedByteArray, keys: Array, values: Array) -> Dictionary:
+	var text := raw.get_string_from_utf8()
+	if text.to_utf8_buffer()!=raw or keys.size()!=values.size(): return {}
+	var body := PackedByteArray()
+	var offsets: Array[int]=[]
+	var start: int=0
+	for i in keys.size():
+		var tag: String='"'+keys[i]+'":'
+		var literal: String=JSON.stringify(values[i])
+		var token: String=tag+literal
+		var at: int=text.find(token)
+		if at<start or text.find(token,at+token.length())!=-1: return {}
+		at += tag.length()
+		body.append_array(text.substr(start,at-start).to_utf8_buffer())
+		offsets.append(body.size())
+		start=at+literal.length()
+	body.append_array(text.substr(start).to_utf8_buffer())
+	return {"body":body,"offsets":offsets}
+
+static func _row(raw: PackedByteArray, ordinal: int, cut: Dictionary) -> Dictionary:
+	if cut.is_empty() or raw.size()>MAX_MEMBER: return {}
+	var body: PackedByteArray=cut.body
+	if body.is_empty(): return {}
+	var packed: PackedByteArray=body.compress(DEFLATE)
+	if packed.is_empty(): return {}
+	return {"ordinal":ordinal,"raw_bytes":raw.size(),"raw_sha256":_hash(raw),
+		"body_bytes":body.size(),"offsets":cut.offsets,"deflate_base64":Marshalls.raw_to_base64(packed)}
+
+# Normalize bounded numeric fields to their exact integer spelling. Canonical
+# sorted JSON must match on read, rejecting whitespace, duplicate keys,
+# floats/fractions, and alternative key ordering in the transport itself.
+static func _canonical(wire: Variant) -> Dictionary:
+	if not _keys(wire,["kind","lineage","rows"]) or wire.kind!=KIND or not _lineage(wire.lineage) \
+			or not wire.rows is Array or wire.rows.size()!=3: return {}
+	var raw_total: int=0
+	var encoded_total: int=0
+	var shas: Array[String]=[]
+	var rows: Array[Dictionary]=[]
+	for i in wire.rows.size():
+		var r: Variant=wire.rows[i]
+		if not _keys(r,["ordinal","raw_bytes","raw_sha256","body_bytes","offsets","deflate_base64"]) \
+				or not _whole(r.ordinal,i+1,i+1) or not _whole(r.raw_bytes,1,MAX_MEMBER) \
+				or not _sha(r.raw_sha256) or r.raw_sha256 in shas or not _whole(r.body_bytes,1,int(r.raw_bytes)) \
+				or not r.offsets is Array or r.offsets.size()!=[0,1,3][i] or not r.deflate_base64 is String \
+				or r.deflate_base64.is_empty() or r.deflate_base64.length()>MAX_B64: return {}
+		var offsets: Array[int]=[]
+		var last: int=0
+		for at: Variant in r.offsets:
+			if not _whole(at,last+1,int(r.body_bytes)-1): return {}
+			offsets.append(int(at))
+			last=int(at)
+		raw_total+=int(r.raw_bytes)
+		encoded_total+=r.deflate_base64.length()
+		if raw_total>MAX_RAW or encoded_total>MAX_TOTAL_B64: return {}
+		shas.append(r.raw_sha256)
+		rows.append({"ordinal":i+1,"raw_bytes":int(r.raw_bytes),"raw_sha256":r.raw_sha256,
+			"body_bytes":int(r.body_bytes),"offsets":offsets,"deflate_base64":r.deflate_base64})
+	return {"kind":KIND,"lineage":wire.lineage,"rows":rows}
+
+static func _wire(value: Dictionary) -> PackedByteArray:
+	return JSON.stringify(value,"",true,true).to_utf8_buffer()
+
+static func _reinstate(r: Dictionary, keys: Array, values: Array) -> PackedByteArray:
+	var needed: int=int(r.body_bytes)
+	var literals: Array[PackedByteArray]=[]
+	for value: String in values:
+		var literal:=JSON.stringify(value).to_utf8_buffer()
+		needed+=literal.size()
+		if needed>r.raw_bytes: return PackedByteArray()
+		literals.append(literal)
+	if needed!=r.raw_bytes: return PackedByteArray()
+	var b64: String=r.deflate_base64
+	var alphabet:=RegEx.new()
+	if b64.length()%4!=0 or alphabet.compile("^[A-Za-z0-9+/]+={0,2}$")!=OK \
+			or alphabet.search(b64)==null: return PackedByteArray()
+	var packed:=Marshalls.base64_to_raw(b64)
+	if packed.is_empty() or Marshalls.raw_to_base64(packed)!=r.deflate_base64: return PackedByteArray()
+	var body:=packed.decompress(int(r.body_bytes),DEFLATE)
+	# V1 uses native deterministic DEFLATE, also rejecting injected/trailing streams.
+	if body.size()!=r.body_bytes or body.compress(DEFLATE)!=packed: return PackedByteArray()
+	var raw:=PackedByteArray()
+	var start: int=0
+	for i in r.offsets.size():
+		var at: int=r.offsets[i]
+		raw.append_array(body.slice(start,at))
+		raw.append_array(literals[i])
+		start=at
+	raw.append_array(body.slice(start))
+	if raw.size()!=r.raw_bytes or _hash(raw)!=r.raw_sha256: return PackedByteArray()
+	var check:=_cut(raw,keys,values)
+	return raw if not check.is_empty() and check.body==body and check.offsets==r.offsets else PackedByteArray()
+
+# Restore the exact legacy carrier, which was only a one-literal cut of S2.
+static func _derived_fragments(second: PackedByteArray, first_text: String) -> Dictionary:
+	var parts:=_cut(second,["source"],[first_text])
+	if parts.is_empty(): return {}
+	var body: PackedByteArray=parts.body
+	var off: int=parts.offsets[0]
+	return {"kind":SECOND,"sha256":_hash(second),"prefix":body.slice(0,off).get_string_from_utf8(),
+		"suffix":body.slice(off).get_string_from_utf8()}
+
+# Convenience projection for exact audits. It never releases a partial
+# array. An eventual native reader can use the bounded per-root worker
+# below and stage ephemeral native verdicts until the complete walk passes.
+static func decode(raw_wire: PackedByteArray) -> Array[PackedByteArray]:
+	var result: Array[PackedByteArray]=[]
+	var collect:=func(_ordinal: int, raw: PackedByteArray) -> bool:
+		result.append(raw)
+		return true
+	if not _walk(raw_wire,collect): result.clear()
+	return result
+
+# Visit is synchronous. A successful visit of an early root is not proof of
+# a valid chain. The visitor must not write or publish any authority.
+static func _walk(raw_wire: PackedByteArray, visit: Callable) -> bool:
+	if not visit.is_valid() or raw_wire.is_empty() or raw_wire.size()>MAX_WIRE: return false
+	var manifest:=_canonical(_json(raw_wire))
+	if manifest.is_empty() or _wire(manifest)!=raw_wire: return false
+	var lineage: String=manifest.lineage
+	var first:=_reinstate(manifest.rows[0],[],[])
+	var s1:=_source_state(_json(first),1,lineage)
+	if s1.is_empty() or visit.call(1,first)!=true: return false
+	var source: String=first.get_string_from_utf8()
+	var first_close_sha: String=s1.last_close.session_sha256
+	first=PackedByteArray()
+	s1={}
+	var first_row: Dictionary={"kind":FIRST,"sha256":manifest.rows[0].raw_sha256,"source":source}
+	var second:=_reinstate(manifest.rows[1],["source"],[source])
+	var s2:=_source_state(_json(second),2,lineage)
+	if not _bound(s2,first_close_sha,ORIGIN_TWO,first_row.sha256) or s2.get("archive")!=first_row \
+			or visit.call(2,second)!=true: return false
+	var second_close_sha: String=s2.last_close.session_sha256
+	s2={}
+	var fragments:=_derived_fragments(second,source)
+	if fragments.is_empty(): return false
+	second=PackedByteArray()
+	var third:=_reinstate(manifest.rows[2],["source","prefix","suffix"],[source,fragments.prefix,fragments.suffix])
+	var s3:=_source_state(_json(third),3,lineage)
+	return _bound(s3,second_close_sha,ORIGIN_THREE,[first_row.sha256,fragments.sha256]) \
+		and s3.get("archive")=={"kind":CHAIN,"entries":[first_row,fragments]} and visit.call(3,third)==true
+
+static func migrate_closed(third: PackedByteArray, expected_lineage: String) -> PackedByteArray:
+	if third.is_empty() or third.size()>MAX_MEMBER or not _lineage(expected_lineage): return PackedByteArray()
+	var s3:=_source_state(_json(third),3,expected_lineage)
+	if s3.is_empty() or not _chain_shape(s3.get("archive")): return PackedByteArray()
+	var first_row: Dictionary=s3.archive.entries[0]
+	var fragments: Dictionary=s3.archive.entries[1]
+	# Refuse an oversized S2 BEFORE concatenating even known legacy pieces.
+	var first: PackedByteArray=first_row.source.to_utf8_buffer()
+	var literal:=JSON.stringify(first_row.source).to_utf8_buffer()
+	var prefix: PackedByteArray=fragments.prefix.to_utf8_buffer()
+	var suffix: PackedByteArray=fragments.suffix.to_utf8_buffer()
+	var second_size: int=prefix.size()+literal.size()+suffix.size()
+	if first.size()>MAX_MEMBER or second_size>MAX_MEMBER \
+			or first.size()+second_size+third.size()>MAX_RAW or _hash(first)!=first_row.sha256: return PackedByteArray()
+	var second:=prefix.duplicate()
+	second.append_array(literal)
+	second.append_array(suffix)
+	if _hash(second)!=fragments.sha256 or _derived_fragments(second,first_row.source)!=fragments: return PackedByteArray()
+	var rows: Array=[_row(first,1,{"body":first,"offsets":[]}),
+		_row(second,2,_cut(second,["source"],[first_row.source])),
+		_row(third,3,_cut(third,["source","prefix","suffix"],[first_row.source,fragments.prefix,fragments.suffix]))]
+	var manifest:=_canonical({"kind":KIND,"lineage":expected_lineage,"rows":rows})
+	if manifest.is_empty(): return PackedByteArray()
+	var raw_wire:=_wire(manifest)
+	return raw_wire if decode(raw_wire)==[first,second,third] else PackedByteArray()

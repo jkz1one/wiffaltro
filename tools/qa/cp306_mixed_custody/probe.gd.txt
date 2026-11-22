@@ -1,0 +1,100 @@
+extends SceneTree
+const Codec=preload("res://codec.gd")
+const LINEAGE := "ordinary:9729875028a3f3061bddb97fda75e0fcde0512194647c7972db9bf61a835615b"
+const PINS: Array[String] = [
+	"8894317a3e9b862b41714a6e69eca4948702f7c7da5c272b715501da03f45cdb",
+	"3f34084c98b630b4f5fa9d5023fb325ef426c7d41defb3283aa07547a18bc36d",
+	"8549fcded318686355e1b0177f6186804f85438dbb832bbf0bda128d06c82dd5"]
+const SIZES: Array[int] = [7706483,16372283,25182871]
+
+func want(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	return ok
+
+func _initialize() -> void:
+	quit(0 if run() else 1)
+
+func run() -> bool:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=1: return false
+	var path: String=args[0]
+	if not want(FileAccess.get_sha256(path)==PINS[2],"exact read-only CP305 closed input"): return false
+	var raw:=FileAccess.get_file_as_bytes(path)
+	if not want(Codec.migrate_closed(raw,"ordinary:"+"f".repeat(64)).is_empty(),"caller lineage mismatch"): return false
+	var clock:=Time.get_ticks_usec()
+	var wire:=Codec.migrate_closed(raw,LINEAGE)
+	var migration_usec:=Time.get_ticks_usec()-clock
+	if not want(not wire.is_empty(),"canonical bounded v1 migration; no Store or player path"): return false
+	clock=Time.get_ticks_usec()
+	var sources:=Codec.decode(wire)
+	var decode_usec:=Time.get_ticks_usec()-clock
+	if not want(sources.size()==3 and sources[2]==raw,"separate native decode retains exact old outer bytes"): return false
+	var m: Dictionary=Codec._json(wire)
+	var total: int=0
+	var b64total: int=0
+	var bodytotal: int=0
+	for i in 3:
+		var row: Dictionary=m.rows[i]
+		if not want(Codec._hash(sources[i])==PINS[i] and sources[i].size()==SIZES[i],"ordinal "+str(i+1)+" original exact SHA and raw bytes"): return false
+		total+=sources[i].size()
+		b64total+=row.deflate_base64.length()
+		bodytotal+=int(row.body_bytes)
+		print("CP306 row=",i+1," raw=",sources[i].size()," body=",int(row.body_bytes),
+			" b64=",row.deflate_base64.length()," offsets=",row.offsets)
+	print("CP306 wire=",wire.size()," raw_total=",total," cut_total=",bodytotal," b64_total=",b64total,
+		" migrate_usec=",migration_usec," decode_usec=",decode_usec," wire_sha=",Codec._hash(wire))
+	sources.clear()
+	var w: Dictionary=m.duplicate(true)
+	w.rows[0].raw_bytes=Codec.MAX_MEMBER+1
+	if not want(Codec._canonical(w).is_empty(),"individual raw cap before inflate"): return false
+	w=m.duplicate(true)
+	w.rows[2].raw_bytes=Codec.MAX_MEMBER
+	w.rows[1].raw_bytes=Codec.MAX_MEMBER
+	if not want(Codec._canonical(w).is_empty(),"cumulative raw cap before inflate"): return false
+	w=m.duplicate(true)
+	w.rows[0].deflate_base64="A".repeat(Codec.MAX_B64+1)
+	if not want(Codec._canonical(w).is_empty(),"individual encoded cap before Base64"): return false
+	w=m.duplicate(true)
+	var bounded_member: String="A".repeat(int(Codec.MAX_TOTAL_B64/3)+4)
+	for row: Dictionary in w.rows: row.deflate_base64=bounded_member
+	if not want(Codec._canonical(w).is_empty(),"cumulative encoded cap before Base64"): return false
+	w=m.duplicate(true)
+	w.rows[2].offsets[1]=w.rows[2].offsets[0]
+	if not want(Codec._canonical(w).is_empty(),"duplicate and overlapping byte cuts refused before inflate"): return false
+	w=m.duplicate(true)
+	w.rows[2].offsets[0]+=1
+	if not want(not Codec._canonical(w).is_empty() and Codec.decode(Codec._wire(Codec._canonical(w))).is_empty(),"shifted cut whose bounds still fit"): return false
+	w=m.duplicate(true)
+	w.rows.reverse()
+	if not want(Codec._canonical(w).is_empty(),"swapped ordinal rows"): return false
+	w=m.duplicate(true)
+	w.rows[1].raw_sha256=w.rows[0].raw_sha256
+	if not want(Codec._canonical(w).is_empty(),"duplicate source pin"): return false
+	w=m.duplicate(true)
+	w.rows[0].raw_sha256="f".repeat(64)
+	if not want(Codec.decode(Codec._wire(Codec._canonical(w))).is_empty(),"independent digest mismatch"): return false
+	w=m.duplicate(true)
+	w.rows[0].deflate_base64+="$"
+	if not want(Codec.decode(Codec._wire(Codec._canonical(w))).is_empty(),"noncanonical Base64"): return false
+	w=m.duplicate(true)
+	var truncated:=Marshalls.base64_to_raw(w.rows[0].deflate_base64)
+	w.rows[0].deflate_base64=Marshalls.raw_to_base64(truncated.slice(0,truncated.size()/2))
+	if not want(Codec.decode(Codec._wire(Codec._canonical(w))).is_empty(),"truncated compression"): return false
+	w=m.duplicate(true)
+	var with_trailer:=Marshalls.base64_to_raw(w.rows[0].deflate_base64)
+	with_trailer.append(0)
+	w.rows[0].deflate_base64=Marshalls.raw_to_base64(with_trailer)
+	if not want(Codec.decode(Codec._wire(Codec._canonical(w))).is_empty(),"trailing compressed byte is not a canonical stream"): return false
+	w=m.duplicate(true)
+	w.lineage="ordinary:"+"f".repeat(64)
+	if not want(Codec.decode(Codec._wire(Codec._canonical(w))).is_empty(),"wrong manifest lineage"): return false
+	if not want(Codec.decode(("{\"kind\":\"trash\","+wire.get_string_from_utf8().substr(1)).to_utf8_buffer()).is_empty(),
+			"duplicate input keys cannot be canonical"): return false
+	var checked: Array[int]=[]
+	var stop:=func(ordinal: int, _bytes: PackedByteArray) -> bool:
+		checked.append(ordinal)
+		return ordinal==1
+	if not want(not Codec._walk(wire,stop) and checked==[1,2],"bounded staged visitor may stop; never signals full acceptance"): return false
+	var repeated: PackedByteArray='{ "source":"old", "source":"old" }'.to_utf8_buffer()
+	if not want(Codec._cut(repeated,["source"],["old"]).is_empty(),"ambiguous repeated old literal"): return false
+	return want(FileAccess.get_sha256(path)==PINS[2],"original exact input unchanged")
