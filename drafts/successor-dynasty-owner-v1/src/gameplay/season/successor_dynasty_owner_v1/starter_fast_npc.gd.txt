@@ -1,5 +1,5 @@
 extends Node
-## Narrow Starter Standard opener. Caller receives a report, never save authority.
+## Narrow Starter Standard/Dugout Base opener. Reports confer no save authority.
 signal finished(report: Dictionary)
 signal failed(reason: String)
 
@@ -28,14 +28,24 @@ static func scoped(owner: RefCounted) -> bool:
 	if owner==null or not Store._starter_owner_allowed(owner) or owner.active!="ordinary":
 		return false
 	var season: SeasonState = owner.session
-	if season==null or season.league_live or not season.league_rules.is_empty() \
-		or season.career==null or season.career.current!=1 or season.round_index!=0 \
+	if season==null or season.career==null or season.career.current!=1 or season.round_index!=0 \
 		or season.phase!=SeasonState.Phase.REGULAR or not season.results.is_empty():
 		return false
 	var native: Array=season.career.runs
 	if owner.ordinary_state.get("ordinal")!=1 or native.size()!=1 or native[0].get("id")!=1 \
-		or native[0].get("league")!="standard" or native[0].get("tier")!=0:
+		or native[0].get("tier")!=0:
 		return false
+	match native[0].get("league"):
+		"standard":
+			if season.league_live or not season.league_rules.is_empty(): return false
+		"dugout":
+			# Named Base uses its exact authored live rule envelope. A
+			# registry key, missing rules, or a different tier is not Base.
+			if not season.league_live or not ClubCareer.same(
+					season.league_rules,LeagueRules.capture("dugout",0)):
+				return false
+		_:
+			return false
 	var pending: Dictionary=season.physical.pending
 	var human: Variant=pending.get("human")
 	var reports: Variant=pending.get("reports")
