@@ -1,6 +1,6 @@
 extends RefCounted
-## Exact Starter Standard Season 3, following the settled first round and
-## native Abandon of a marked Standard Season 2. Two ordered sources only.
+## Exact Starter Standard Season 3 after a native Abandon at either of
+## the first two settled rounds of marked Season 2. Two ordered sources only.
 const KIND: String = "common-standard-base-two-predecessors-v1"
 const CUT_KIND: String = "common-standard-base-second-cutout-v1"
 const TRANSITION: String = "common-standard-base-third-transition-v1"
@@ -27,16 +27,16 @@ static func eligible(owner: RefCounted) -> bool:
 	var close: Dictionary = state.get("last_close",{})
 	var season: SeasonState = owner.session
 	var physical = season.physical
+	var prefix: Dictionary = api.Common.StandardArchive.settled_regular_prefix(season.results,season.round_index)
 	return state.get("ordinal") == 2 and state.get("status") == "closed" \
 		and close.get("reason") == "abandon" and close.get("league") == "standard" \
 		and close.get("tier") == 0 and close.get("receipt") == {} \
 		and owner.common.get("sequence") == 2 and api.Codec.same(owner.common.get("cursors"),{"ordinary":2,"dynasty":0}) \
-		and season.phase == SeasonState.Phase.REGULAR and season.round_index == 1 \
+		and season.phase == SeasonState.Phase.REGULAR and not prefix.is_empty() \
 		and season.picks.size() == 4 and season.build != null and not season.build.pack_pending() \
-		and season.results.map(func(r): return int(r.id)) == [0,1,2] \
-		and season.player_results.size() == 1 and season.player_results[0].get("id") == 0 \
-		and physical != null and physical.cursor == 2 and physical.reports.size() == 2 \
-		and physical.reports[0].get("fixture") == 1 and physical.reports[1].get("fixture") == 2 \
+		and api.Codec.same(season.player_results.map(func(r): return r.get("id")),prefix.human) \
+		and physical != null and physical.cursor == prefix.cpu.size() \
+		and api.Codec.same(physical.reports.map(func(r): return r.get("fixture")),prefix.cpu) \
 		and physical.pending.is_empty() and physical.needed.is_empty() and physical.error.is_empty() \
 		and not physical.projecting
 
@@ -201,6 +201,11 @@ static func validate(owner: RefCounted) -> bool:
 	var basis: Dictionary = api.Common.Start.bind_standard_chain(p.basis,first.source_sha256,second.source_sha256)
 	if t.id != p.id or t.source != p.source or owner.ordinary_state.lineage != previous.ordinary_state.lineage \
 		or not api.Codec.same(basis,t.basis): return false
+	# Existing ownership was carried by the fixed producer. An older source
+	# without a draft still permits creating its first one in Season 3.
+	var field: String = api.Common.StandardWorkshop.FIELD
+	if previous.ordinary_state.has(field) \
+			and not api.Codec.same(owner.ordinary_state.get(field),previous.ordinary_state[field]): return false
 	var metadata: Dictionary = api.Codec.data_fields(owner,api.META_FIELDS)
 	var old_metadata: Dictionary = api.Codec.data_fields(previous,api.META_FIELDS)
 	metadata.erase("ordinary_state")

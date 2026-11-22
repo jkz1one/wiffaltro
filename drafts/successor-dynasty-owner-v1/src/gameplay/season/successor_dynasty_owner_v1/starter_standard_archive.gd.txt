@@ -189,6 +189,30 @@ static func _validate_checked_first(owner: RefCounted, restored_current: Diction
 		and api.Codec.same(folded.common,owner.common) \
 		and api.Codec.same(folded.ordinary_state.last_close,close)
 
+# Detached shape only. Native capture/restore, exact archive custody and
+# the common close fold still authenticate the underlying season.
+static func settled_regular_prefix(results: Variant, rounds: Variant) -> Dictionary:
+	var codec = _owner().Codec
+	if not codec.whole(rounds,1,2) or not results is Array or results.size()!=3*int(rounds): return {}
+	var authored := SeasonState.new()
+	authored._build_schedule()
+	var fixtures: Dictionary = {}
+	for fixture: Dictionary in authored.schedule:
+		if fixture.round<int(rounds): fixtures[int(fixture.id)] = fixture
+	var human: Array = []
+	var cpu: Array = []
+	for id: int in range(results.size()):
+		var row: Variant = results[id]
+		if not row is Dictionary or not fixtures.has(id): return {}
+		var fixture: Dictionary = fixtures[id]
+		for key: String in fixture:
+			if not codec.same(row.get(key),fixture[key]): return {}
+		if not codec.whole(row.get("away_runs"),0,9999) or not codec.whole(row.get("home_runs"),0,9999) \
+				or row.away_runs==row.home_runs: return {}
+		if 0 in [fixture.away,fixture.home]: human.append(id)
+		else: cpu.append(id)
+	return {"human":human,"cpu":cpu}
+
 # Display projection only, called with the Store's already-admitted archive.
 # No Build, Owner restore, current-season state or lifecycle authority.
 static func display(row: Dictionary) -> Dictionary:
@@ -208,7 +232,11 @@ static func _display_scores(value: Variant, completed: bool) -> Dictionary:
 	var close: Variant = value.ordinary_state.get("last_close")
 	if not state is Dictionary or not close is Dictionary or not close.get("receipt") is Dictionary \
 		or not state.get("teams") is Array or state.teams.size() != 6 \
-		or not state.get("results") is Array or state.results.size() != (33 if completed else 3): return {}
+		or not state.get("results") is Array: return {}
+	if completed:
+		if state.results.size()!=33: return {}
+	elif state.get("phase")!=SeasonState.Phase.REGULAR \
+			or settled_regular_prefix(state.results,state.get("round_index")).is_empty(): return {}
 	# The native Standard standings rule uses only scores and each club's draw.
 	var scores := SeasonState.new()
 	var names: Array[String] = []
