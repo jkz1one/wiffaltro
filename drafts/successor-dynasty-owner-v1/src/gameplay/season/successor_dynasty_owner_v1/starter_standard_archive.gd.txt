@@ -194,14 +194,17 @@ static func display(row: Dictionary) -> Dictionary:
 		or row.deflate_base64.length() > MAX_ENCODED: return {}
 	var raw := _unpack(row)
 	if raw.is_empty(): return {}
-	var value: Variant = _owner()._bytes_value(raw)
+	return _display_scores(api._bytes_value(raw),true)
+
+static func _display_scores(value: Variant, completed: bool) -> Dictionary:
+	var api := _owner()
 	if not value is Dictionary or not value.get("ordinary") is Dictionary \
 		or not value.get("ordinary_state") is Dictionary: return {}
 	var state: Variant = value.ordinary.get("state")
 	var close: Variant = value.ordinary_state.get("last_close")
 	if not state is Dictionary or not close is Dictionary or not close.get("receipt") is Dictionary \
 		or not state.get("teams") is Array or state.teams.size() != 6 \
-		or not state.get("results") is Array or state.results.size() != 33: return {}
+		or not state.get("results") is Array or state.results.size() != (33 if completed else 3): return {}
 	# The native Standard standings rule uses only scores and each club's draw.
 	var scores := SeasonState.new()
 	var names: Array[String] = []
@@ -220,7 +223,11 @@ static func display(row: Dictionary) -> Dictionary:
 	scores.results.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return a.id<b.id)
 	var proof := ClubSeasonRecord.capture(scores)
 	var summary := ClubSeasonRecord.analyze(proof)
-	var receipt := ClubSeasonRecord.receipt(proof,close.first_title,0)
-	if summary.is_empty() or receipt.is_empty() or not api.Codec.same(receipt,close.receipt): return {}
+	if summary.is_empty(): return {}
+	var receipt: Dictionary = {}
+	if completed:
+		receipt = ClubSeasonRecord.receipt(proof,close.first_title,0)
+		if receipt.is_empty() or not api.Codec.same(receipt,close.receipt): return {}
+	elif not close.receipt.is_empty() or summary.finish != "unfinished": return {}
 	return {"ordinal":int(close.ordinal),"teams":names,"summary":summary,
 		"standings":scores.standings(),"results":scores.results.duplicate(true),"receipt":receipt}

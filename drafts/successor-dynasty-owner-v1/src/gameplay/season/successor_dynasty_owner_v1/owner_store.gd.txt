@@ -68,6 +68,34 @@ static func previous_standard_season(owner: RefCounted, expected: PackedByteArra
 		_previous_standard_view = view
 	return _previous_standard_view.duplicate(true)
 
+# The two-record memo is likewise display-only. Its admitted archive pin
+# survives a retained exact lineage's draft picks, but not Store invalidation.
+static var _standard_history_pin: Dictionary = {}
+static var _standard_history_view: Array = []
+static var standard_history_projection_calls: int = 0
+
+static func standard_history_available(owner: RefCounted, expected: PackedByteArray) -> bool:
+	if saving or _ticket!=null or owner==null or owner!=_owner or owner.session!=_owner_session \
+		or expected.is_empty() or expected!=_owner_bytes or not Owner.Common.StandardChain.marked(owner.session):
+		return false
+	var pin: Variant = _metadata.get("ordinary_state",{}).get("archive")
+	return pin is Dictionary and Owner.Common.StandardChain.shape(owner) \
+		and RawGuard.same(owner.ordinary_state.archive,pin)
+
+static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
+	if not standard_history_available(owner,expected) or _starter_slot_linked() \
+		or not _write_revision_matches(expected,true): return []
+	var pin: Dictionary = _metadata.ordinary_state.archive
+	if not RawGuard.same(pin,_standard_history_pin):
+		standard_history_projection_calls += 1
+		var view: Array = Owner.Common.StandardChain.display(pin)
+		if view.size()!=2 or not standard_history_available(owner,expected) \
+			or not RawGuard.same(pin,_metadata.ordinary_state.archive) or not _write_revision_matches(expected,true):
+			return []
+		_standard_history_pin = pin.duplicate(true)
+		_standard_history_view = view
+	return _standard_history_view.duplicate(true)
+
 # Clear-only invalidation has no admission/write authority.
 static func forget_projection() -> void:
 	_projection_ticket = null; _projection_checkpoint = null; _projection_owner = null
@@ -245,6 +273,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 
 static func _invalidate() -> void:
 	_previous_standard_pin = {}; _previous_standard_view = {}
+	_standard_history_pin = {}; _standard_history_view = []
 	forget_projection()
 	_discard_cross_activation()
 	_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = PackedByteArray()

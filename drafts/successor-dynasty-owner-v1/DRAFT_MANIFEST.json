@@ -126,8 +126,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 81135,
-      "sha256": "740c2e748cd8f960c6a2d5b30414c691508eb1fb48714a8320dbb5274f836145"
+      "bytes": 82754,
+      "sha256": "9b5688046e5d4d6d99f43175885d9b3fd83d98265e2a87aa2366b19326f1b514"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -210,8 +210,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/menu.gd",
-      "bytes": 34823,
-      "sha256": "dda5f160ef7e5d18a8b2361a537a7ea25d6ede0ab6e642f8f36b93f6889ad1f1"
+      "bytes": 35999,
+      "sha256": "0d497d6b31a3bf3d0c349beb778b4f0af6c9f11182ff6b01fb0ccb88f9ef0a5e"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd.txt",
@@ -768,14 +768,14 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_standard_archive.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_standard_archive.gd",
-      "bytes": 12168,
-      "sha256": "eef7775eeaf598c84217daaaba7cc807f0230ed81c5ff34dca62dfaebce69d7e"
+      "bytes": 12425,
+      "sha256": "1a1194fb126366937b55b2595459ec31d3dc1156c28d6e2e6430f29734f154c1"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_standard_chain.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_standard_chain.gd",
-      "bytes": 10200,
-      "sha256": "885c81c8577478581d5e9eca0ede55abbecdfb5869174f0c4542c2bb031b0c61"
+      "bytes": 11353,
+      "sha256": "017e5d7c1ba1073960d9a35f1e3e2c2b47e7cde9a5192de2ecc3a94a9b923d07"
     }
   ],
   "additions": [

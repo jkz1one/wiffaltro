@@ -123,6 +123,27 @@ static func _unpack_second(row: Dictionary, first: Dictionary) -> PackedByteArra
 	var check := _cut(raw,first)
 	return raw if check.get("offset") == at and check.get("parts") == cut else PackedByteArray()
 
+# Read-only score projection of an already-admitted pinned Store archive.
+# Each exact predecessor is decompressed once; no career or owner is restored.
+static func display(row: Dictionary) -> Array:
+	var api := _owner()
+	var first: Dictionary = row.entries[0]
+	var complete: Dictionary = api.Common.StandardArchive.display(first)
+	if complete.is_empty() or complete.ordinal != 1: return []
+	var raw := _unpack_second(row.entries[1],first)
+	if raw.is_empty(): return []
+	var previous: Variant = api._bytes_value(raw)
+	if not previous is Dictionary or not previous.get("ordinary_state") is Dictionary: return []
+	var state: Dictionary = previous.ordinary_state
+	var close: Variant = state.get("last_close")
+	if state.get("status") != "closed" or state.get("ordinal") != 2 or not close is Dictionary \
+		or close.get("ordinal") != 2 or close.get("reason") != "abandon" \
+		or close.get("tier") != 0 or close.get("league") != "standard" \
+		or not api.Codec.same(state.get("archive"),first): return []
+	var abandoned: Dictionary = api.Common.StandardArchive._display_scores(previous,false)
+	if abandoned.is_empty(): return []
+	return [complete,abandoned]
+
 static func candidate(owner: RefCounted, raw: PackedByteArray) -> RefCounted:
 	var api := _owner()
 	if not ready(owner) or not api.Common.StandardArchive.shape(owner): return null
