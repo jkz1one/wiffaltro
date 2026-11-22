@@ -160,3 +160,43 @@ static func validate(owner: RefCounted, restored_current: Dictionary) -> bool:
 	return api.Common._apply_close(folded,close.reason,restored_current) \
 		and api.Codec.same(folded.common,owner.common) \
 		and api.Codec.same(folded.ordinary_state.last_close,close)
+
+# Display projection only, called with the Store's already-admitted archive.
+# No Build, Owner restore, current-season state or lifecycle authority.
+static func display(row: Dictionary) -> Dictionary:
+	var api := _owner()
+	if not api.Codec.whole(row.get("source_bytes"),1,MAX_SOURCE) \
+		or not row.get("source_sha256") is String or not row.get("deflate_base64") is String \
+		or row.deflate_base64.length() > MAX_ENCODED: return {}
+	var raw := _unpack(row)
+	if raw.is_empty(): return {}
+	var value: Variant = _owner()._bytes_value(raw)
+	if not value is Dictionary or not value.get("ordinary") is Dictionary \
+		or not value.get("ordinary_state") is Dictionary: return {}
+	var state: Variant = value.ordinary.get("state")
+	var close: Variant = value.ordinary_state.get("last_close")
+	if not state is Dictionary or not close is Dictionary or not close.get("receipt") is Dictionary \
+		or not state.get("teams") is Array or state.teams.size() != 6 \
+		or not state.get("results") is Array or state.results.size() != 33: return {}
+	# The native Standard standings rule uses only scores and each club's draw.
+	var scores := SeasonState.new()
+	var names: Array[String] = []
+	for team: Variant in state.teams:
+		if not team is Dictionary or not team.get("name") is String \
+			or not (team.get("draw") is float or team.get("draw") is int): return {}
+		names.append(team.name)
+		scores.teams.append({"draw":float(team.draw)})
+	for result: Variant in state.results:
+		if not result is Dictionary or not api.Codec.whole(result.get("id"),0,32) \
+			or not api.Codec.whole(result.get("away"),0,5) or not api.Codec.whole(result.get("home"),0,5) \
+			or not api.Codec.whole(result.get("away_runs"),0,9999) \
+			or not api.Codec.whole(result.get("home_runs"),0,9999): return {}
+		scores.results.append({"id":int(result.id),"away":int(result.away),"home":int(result.home),
+			"away_runs":int(result.away_runs),"home_runs":int(result.home_runs)})
+	scores.results.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return a.id<b.id)
+	var proof := ClubSeasonRecord.capture(scores)
+	var summary := ClubSeasonRecord.analyze(proof)
+	var receipt := ClubSeasonRecord.receipt(proof,close.first_title,0)
+	if summary.is_empty() or receipt.is_empty() or not api.Codec.same(receipt,close.receipt): return {}
+	return {"ordinal":int(close.ordinal),"teams":names,"summary":summary,
+		"standings":scores.standings(),"results":scores.results.duplicate(true),"receipt":receipt}

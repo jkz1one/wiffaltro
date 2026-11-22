@@ -42,6 +42,32 @@ static var _projection_owner: RefCounted
 static var _projection_value: RefCounted
 static var _projection_raw: Dictionary = {}
 
+# A display-only memo for one admitted archive. Never consulted by a save,
+# restore, league gate or the pending-result projection.
+static var _previous_standard_pin: Dictionary = {}
+static var _previous_standard_view: Dictionary = {}
+static var previous_standard_projection_calls: int = 0
+
+static func previous_standard_available(owner: RefCounted, expected: PackedByteArray) -> bool:
+	if saving or _ticket!=null or owner==null or owner!=_owner or owner.session!=_owner_session \
+		or expected.is_empty() or expected!=_owner_bytes or not Owner.Common.StandardArchive.marked(owner.session):
+		return false
+	var pin: Variant = _metadata.get("ordinary_state",{}).get("archive")
+	return pin is Dictionary and Owner.Common.StandardArchive.shape(owner) \
+		and RawGuard.same(owner.ordinary_state.archive,pin)
+
+static func previous_standard_season(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
+	if not previous_standard_available(owner,expected) or _starter_slot_linked() \
+		or not _write_revision_matches(expected,true): return {}
+	var pin: Dictionary = _metadata.ordinary_state.archive
+	if not RawGuard.same(pin,_previous_standard_pin):
+		previous_standard_projection_calls += 1
+		var view: Dictionary = Owner.Common.StandardArchive.display(pin)
+		if not previous_standard_available(owner,expected) or not _write_revision_matches(expected,true): return {}
+		_previous_standard_pin = pin.duplicate(true)
+		_previous_standard_view = view
+	return _previous_standard_view.duplicate(true)
+
 # Clear-only invalidation has no admission/write authority.
 static func forget_projection() -> void:
 	_projection_ticket = null; _projection_checkpoint = null; _projection_owner = null
@@ -217,6 +243,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 	return same
 
 static func _invalidate() -> void:
+	_previous_standard_pin = {}; _previous_standard_view = {}
 	forget_projection()
 	_discard_cross_activation()
 	_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = PackedByteArray()

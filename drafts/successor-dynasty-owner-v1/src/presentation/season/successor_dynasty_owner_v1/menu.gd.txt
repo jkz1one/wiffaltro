@@ -97,6 +97,7 @@ func render() -> void:
 		_note("Previous V3, V2 and ordinary saves stay separate. Explicit copying writes only the new V4 slot. Higher-tier play and replacement economics remain planned.")
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
+		_previous_standard_link()
 		_workshop_draft()
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
 		for id: String in app.season.offers():
@@ -327,6 +328,7 @@ func _career_records() -> void:
 	_label(_body,"BANKED CAREER · %d closed · %d completed · %d abandoned · %d games"%[aggregate.closed,aggregate.completed,aggregate.abandoned,aggregate.games],18)
 	_label(_body,"Banked career currency: %d · Current-season Cash stays separate"%aggregate.currency,16)
 	_note("Banked totals include only explicitly closed seasons. The current live season is not added again.")
+	_previous_standard_link()
 	var discoveries: Array=owner.discovery_ids()
 	if not discoveries.is_empty():
 		var names: Array[String]=[]
@@ -347,6 +349,39 @@ func _career_records() -> void:
 	for id: String in aggregate.pennants:
 		var record: Dictionary=aggregate.pennants[id].record
 		_label(_body,"OWNED CAREER PENNANT · Standard season %d · %s"%[int(record.season_number),record.era.name],18)
+func _previous_standard_link() -> void:
+	if app.starter_player() and Store.previous_standard_available(app.career_owner,app.saved_bytes):
+		_bound_button(_body,"PREVIOUS SEASON",_show_previous_standard)
+
+func _show_previous_standard() -> void:
+	if not app.starter_player() or not app._available(): return
+	var history: Dictionary = Store.previous_standard_season(app.career_owner,app.saved_bytes)
+	if history.is_empty():
+		render()
+		return
+	_screen("previous_standard","PREVIOUS SEASON","STANDARD BASE · SEASON %d"%history.ordinal)
+	_bound_button(_footer,"BACK",render)
+	var finish: String = {"missed":"Missed playoffs","semifinal":"Eliminated in semifinals",
+		"runner_up":"Runner-up","champion":"Champion"}.get(history.summary.finish,"")
+	_label(_body,"%d–%d regular season · %s"%[history.summary.wins,
+		history.summary.games-history.summary.wins,finish],22)
+	var receipt: Dictionary = history.receipt
+	_note("%d Club Bucks earned · %d finish + %d record + %d first title"%[
+		receipt.total,receipt.finish_award,receipt.record_bonus,receipt.first_bonus])
+	_label(_body,"FINAL REGULAR-SEASON STANDINGS",19)
+	var rank: int = 0
+	for row: Dictionary in history.standings:
+		rank += 1
+		var line: Label = _label(_body,"%d. %s  ·  %d–%d  ·  %d scored / %d allowed"%[
+			rank,history.teams[row.team],row.wins,row.losses,row.rf,row.ra],16)
+		if row.team==0: line.add_theme_color_override("font_color",ClubhouseTheme.GOLD)
+	_label(_body,"SEASON SCORES",19)
+	for row: Dictionary in history.results:
+		var round_label: String = "Round %d"%(int(row.id/3.0)+1) if row.id<30 else ("Semifinal" if row.id<32 else "Final")
+		var line: Label = _label(_body,"%s  ·  %s  %d–%d  %s"%[round_label,
+			history.teams[row.away],row.away_runs,row.home_runs,history.teams[row.home]],16)
+		if row.away==0 or row.home==0: line.add_theme_color_override("font_color",ClubhouseTheme.GOLD)
+
 func _closed() -> void:
 	var owner=app.career_owner
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
