@@ -113,22 +113,70 @@ static func _local_owner(source: RefCounted, draft: Draft) -> RefCounted:
 	state.erase(work.APPLIED)
 	return owner
 
+const OPENING_VERSION: int=4
+
+static func _preopening(season: SeasonState) -> bool:
+	if season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
+	var opener: Dictionary=season.pending_fixture()
+	if opener.get("id")!=0 or opener.get("round")!=0 or opener.get("away")!=0 \
+			or opener.get("home",0)==0 or opener.get("neutral",false): return false
+	var first_home_id: int=99
+	for row: Dictionary in season.schedule:
+		if row.get("home")==0 and not row.get("neutral",false): first_home_id=mini(first_home_id,int(row.id))
+	return first_home_id==3
+
+static func _opening_valid(state: Dictionary, season: SeasonState) -> bool:
+	var api := _api()
+	var work = api.Common.StandardWorkshop
+	var marker: Variant=state.get(work.OPENING)
+	if not marker is Dictionary or not marker.get("locked") is bool: return false
+	var choice: Variant=marker.get("choice")
+	if choice not in ["pending","stock","chair"] or marker.locked!=(choice!="pending") \
+			or not api.Codec.same(marker,work.opening_record(state,choice,marker.locked,OPENING_VERSION)): return false
+	if choice!="chair": return season.home_property.is_empty()
+	return not season.home_property.is_empty() and work.Home.opening_flat(season) and work.Home.valid(season)
+
 static func _draft_scope(owner: RefCounted) -> bool:
 	var api := _api()
-	if not is_flat(owner) or owner.get_script()!=api or owner.active!="ordinary" \
+	if not is_flat(owner) or owner.active!="ordinary" \
 			or not owner.paused.is_empty() or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
 	var season: SeasonState=owner.session
 	var work = api.Common.StandardWorkshop
 	var basis: Dictionary=season.career.start_basis
-	return state.get("status")=="active" and state.get("ordinal")==basis.get("ordinal") \
-		and state.get("archive",{}).get("kind")==Custody.KIND and state.get("last_transition",{}).get("kind")==TRANSITION \
-		and work.valid(state) and state.has(work.FIELD) and not state.has(work.OPENING) and not state.has(work.APPLIED) \
-		and season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4 and season.round_index==0 \
-		and season.results.is_empty() and season.player_results.is_empty() and season.home_property.is_empty() \
-		and season.physical!=null and season.physical.cursor==0 and season.physical.pending.is_empty() \
-		and season.physical.reports.is_empty() and season.physical.needed.is_empty() \
-		and season.physical.error.is_empty() and not season.physical.projecting
+	if state.get("status")!="active" or state.get("ordinal")!=basis.get("ordinal") \
+			or state.get("archive",{}).get("kind")!=Custody.KIND or state.get("last_transition",{}).get("kind")!=TRANSITION \
+			or not work.valid(state) or not state.has(work.FIELD) or state.has(work.APPLIED) \
+			or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() \
+			or season.physical==null or season.physical.cursor!=0 or not season.physical.pending.is_empty() \
+			or not season.physical.reports.is_empty() or not season.physical.needed.is_empty() \
+			or not season.physical.error.is_empty() or season.physical.projecting: return false
+	if season.phase==SeasonState.Phase.DRAFT:
+		return season.picks.size()<4 and not state.has(work.OPENING) and season.home_property.is_empty()
+	return _preopening(season) and _opening_valid(state,season)
+
+# Only the actual native fourth choice is allowed to enter the opening window.
+static func _enter_opening(owner: RefCounted) -> bool:
+	var work = _api().Common.StandardWorkshop
+	var state: Dictionary=owner.ordinary_state
+	if state.has(work.OPENING) or not owner.session.home_property.is_empty() or not _preopening(owner.session):
+		return false
+	state[work.OPENING]=work.opening_record(state,"pending",false,OPENING_VERSION)
+	return _draft_scope(owner)
+
+static func _lock_opening(owner: RefCounted, choice: String) -> bool:
+	if choice not in ["stock","chair"] or not _draft_scope(owner): return false
+	var work = _api().Common.StandardWorkshop
+	var state: Dictionary=owner.ordinary_state
+	if state.get(work.OPENING,{}).get("choice")!="pending": return false
+	if choice=="chair":
+		owner.session.home_property=work.Home.snapshot(state.lineage)
+		if owner.session.home_property.is_empty(): return false
+	state[work.OPENING]=work.opening_record(state,choice,true,OPENING_VERSION)
+	return _draft_scope(owner)
+
+static func _locked(owner: RefCounted) -> bool:
+	return _draft_scope(owner) and owner.ordinary_state.get(_api().Common.StandardWorkshop.OPENING,{}).get("locked",false)
 
 # Used only on a newly derived owner or a fork of a privately admitted owner.
 # The generic Owner/Adapter persistence routes continue to reject this dialect.
@@ -161,7 +209,13 @@ static func _restore_private(value: Variant) -> RefCounted:
 	if not api.Codec.same(digests,transition.basis.archive_origin.ordered_sha256) \
 			or archive.lineage!=transition.basis.lineage or not value.ordinary.get("state") is Dictionary: return null
 	var picks: Variant=value.ordinary.state.get("picks")
-	if not picks is Array or picks.size()>=4: return null
+	if not picks is Array or picks.size()>4: return null
+	var work = api.Common.StandardWorkshop
+	var opening: Variant=state.get(work.OPENING)
+	if picks.size()==4:
+		if not opening is Dictionary or opening.get("version")!=OPENING_VERSION \
+				or opening.get("choice") not in ["pending","stock","chair"]: return null
+	elif state.has(work.OPENING): return null
 	var raw: PackedByteArray
 	var roots:=Custody.unpack(archive)
 	if roots.is_empty(): return null
@@ -174,4 +228,6 @@ static func _restore_private(value: Variant) -> RefCounted:
 	if owner==null: return null
 	for id: Variant in picks:
 		if not id is String or not owner.session.choose_player(id): return null
+	if picks.size()==4 and (not _enter_opening(owner) \
+			or (opening.choice!="pending" and not _lock_opening(owner,opening.choice))): return null
 	return owner if api.Codec.same(value,_capture_local(owner)) else null

@@ -1,0 +1,165 @@
+extends Node
+
+const Launcher = preload("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Flat = Store.Flat
+const W = Owner.Common.StandardWorkshop
+const H = W.Home
+const ONE := "434ec44278b2081a6630899f6225560cefd027f33548fc8c9d641db0ec032727"
+const THREE := "18a7f3a16a28206eb08db6598671e8cea6282939ddd7f53046c55992149f351f"
+const TWO := "88615cfafc05eb252320fcc885fd42c07ab453eb7eda4d486ac3a82a93741607"
+const ZERO := "fdefe58cbe91b5aac24158f477baad7a1b257ef77ca592877305af6577f892cb"
+var failed := false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP290 ", "PASS" if ok else "FAIL"," ",name)
+	failed=failed or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func write_fixture(path: String, raw: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(raw)
+	f.flush()
+	var ok:=f.get_error()==OK
+	f.close()
+	return ok
+
+func backup() -> PackedByteArray: return FileAccess.get_file_as_bytes(Store.PATH+".bak")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=3: get_tree().quit(2); return
+	var raw:=Store.raw()
+	if not check(Store.private_standard_chain_opening() and Owner._hash(raw)==args[1]
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"isolated exact primary"): get_tree().quit(1); return
+	if args[0]=="chair" and not check(Owner._hash(raw)==ONE and Owner._hash(backup())==ZERO,"exact CP289 one/zero originals"):
+		get_tree().quit(1); return
+	if args[0]=="chair-resume" and not check(Owner._hash(raw)==THREE and Owner._hash(backup())==TWO,"exact already proven three/two picks"):
+		get_tree().quit(1); return
+	if args[0] not in ["chair","chair-resume"] and not check(not FileAccess.file_exists(Store.PATH+".bak"),"primary-only process"):
+		get_tree().quit(1); return
+	var stamp:=Time.get_ticks_msec()
+	var owner:RefCounted=Store.read_private_standard_flat()
+	if not check(owner!=null,"fresh private strict native read"): get_tree().quit(1); return
+	print("CP290 cold ms ",Time.get_ticks_msec()-stamp)
+	if args[0] in ["chair","chair-resume"]:
+		_chair(owner,raw,args[2])
+	elif args[0]=="stock":
+		_stock(owner,raw,args[2])
+	elif args[0]=="launch":
+		await _launch(owner,raw)
+	else: failed=true
+	get_tree().quit(1 if failed else 0)
+
+func _chair(owner: RefCounted, original: PackedByteArray, output: String) -> void:
+	var raw:=original
+	var initial: Dictionary=Owner._bytes_value(raw)
+	var loop_order: Array[String]=[]
+	check(Store.prepare_private_standard_flat_opening(owner,raw,"chair")==null and Store.private_standard_flat_opening_play(owner,raw)==null,"partial draft can't equip or play")
+	for size: int in range(owner.session.picks.size()+1,5):
+		var id: String=owner.session.offers()[0]
+		var ticket: RefCounted=Store.prepare_private_standard_flat_pick(owner,raw,id)
+		if not check(ticket!=null,"native pick ticket "+str(size)+" "+id): return
+		var next: RefCounted=Store.prepared_candidate(ticket)
+		if not check(next!=null and Store.promote(ticket,owner,next,raw) and backup()==raw
+				and next.session.picks.size()==size and next.session.picks[-1]==id,"promoted exact pick "+str(size)): return
+		loop_order.append(id)
+		owner=next
+		raw=Store.raw()
+	if not check(owner.session.phase==SeasonState.Phase.REGULAR and owner.session.picks.size()==4
+			and owner.session.pending_fixture().id==0 and owner.session.home_property.is_empty()
+			and owner.ordinary_state[W.OPENING].choice=="pending" and not owner.ordinary_state[W.OPENING].locked,
+			"actual four picks reach pending Opening Day without geometry"): return
+	check(write_fixture(output.path_join("pending.json"),raw),"retain exact four-pick pending")
+	print("CP290 pending ",raw.size()," ",Owner._hash(raw)," ",loop_order)
+	check(Store.private_standard_flat_opening_play(owner,raw)==null
+		and Store.prepare_private_standard_flat_pick(owner,raw,"player.invalid")==null
+		and Store.prepare_starter_opening_and_write(owner,raw,"chair")==null,"pending no launch; no fifth pick or public choice")
+	check(Store.prepare_private_standard_flat_opening(owner,original,"chair")==null,"stale exact choice refusal")
+	var last:=backup()
+	if not check(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,
+			"isolated held-choice obstruction"): return
+	var t:RefCounted=Store.prepare_private_standard_flat_opening(owner,raw,"chair")
+	if not check(t!=null and Store.written_bytes(t).is_empty() and backup()==last and Store.raw()==raw
+			and Store.private_standard_flat_opening_play(owner,raw)==null,"held choice cannot start the match"): return
+	if not check(DirAccess.remove_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"release isolated obstruction"): return
+	var next:RefCounted=Store.prepared_candidate(t)
+	if not check(Store.write_prepared(t) and Store.promote(t,owner,next,raw) and backup()==raw
+			and not Store.write_prepared(t),"exact atomic chair retry/adoption once"): return
+	var chair:=Store.raw()
+	check(write_fixture(output.path_join("chair.json"),chair),"retain exact locked chair")
+	print("CP290 chair ",chair.size()," ",Owner._hash(chair))
+	check(_locked_facts(next,chair,"chair") and Owner.Codec.same(next.common,initial.common)
+		and Owner.Codec.same(next.ordinary_state.archive,initial.ordinary_state.archive)
+		and Owner.Codec.same(next.ordinary_state[W.FIELD],initial.ordinary_state[W.FIELD]),
+		"authored home-only chair; exact archive/Common72/Sides and saved layout")
+	check(Store.prepare_private_standard_flat_opening(next,chair,"stock")==null and Store.raw()==chair,
+		"already locked choice cannot flip")
+
+func _stock(owner: RefCounted, pending: PackedByteArray, output: String) -> void:
+	if not check(owner.ordinary_state[W.OPENING].choice=="pending" and Store.private_standard_flat_opening_play(owner,pending)==null,
+			"fresh independent unplayed four-pick branch"): return
+	var ticket: RefCounted=Store.prepare_private_standard_flat_opening(owner,pending,"stock")
+	if not check(ticket!=null and not Store.written_bytes(ticket).is_empty(),"real fixed stock choice written"): return
+	var next: RefCounted=Store.prepared_candidate(ticket)
+	if not check(Store.promote(ticket,owner,next,pending) and backup()==pending,"stock exact promotion and .bak"): return
+	var raw:=Store.raw()
+	var pre: Dictionary=Owner._bytes_value(pending)
+	check(_locked_facts(next,raw,"stock") and Owner.Codec.same(next.ordinary_state[W.FIELD],pre.ordinary_state[W.FIELD])
+		and Owner.Codec.same(next.common,pre.common) and Owner.Codec.same(next.ordinary_state.archive,pre.ordinary_state.archive),
+		"stock locks empty geometry without discarding saved layout or rights")
+	check(Store.prepare_private_standard_flat_opening(next,raw,"chair")==null
+		and Store.private_standard_flat_opening_play(next,raw)!=null and Store.raw()==raw,
+		"locked stock can't flip and has genuine unowned away request")
+	check(write_fixture(output.path_join("stock.json"),raw),"retain exact locked stock")
+	print("CP290 stock ",raw.size()," ",Owner._hash(raw))
+
+func _locked_facts(owner: RefCounted, raw: PackedByteArray, choice: String) -> bool:
+	var season: SeasonState=owner.session
+	var home: Dictionary=season.schedule.filter(func(f): return f.id==3)[0]
+	var cpu: Dictionary=season.schedule.filter(func(f): return f.id==1)[0]
+	var neutral: Dictionary=home.duplicate(true)
+	neutral.neutral=true
+	return (Flat._locked(owner) and owner.ordinary_state[W.OPENING].choice==choice
+		and H.fixture(season,home).is_empty()==(choice=="stock") and H.fixture(season,cpu).is_empty()
+		and H.fixture(season,neutral).is_empty() and H.fixture(season,season.pending_fixture()).is_empty()
+		and owner.common.aggregate.currency==72 and owner.common.last_fold.receipt.is_empty()
+		and season.build._sides_start and Store.raw()==raw)
+
+func _launch(owner: RefCounted, raw: PackedByteArray) -> void:
+	if not check(_locked_facts(owner,raw,"chair") and Store.read()==null and not Store.save(owner,raw),
+			"fresh locked chair exact; generic Continue/write closed"): return
+	var altered: Dictionary=Owner._bytes_value(raw)
+	altered.ordinary_state.erase(W.OPENING)
+	check(Flat._restore_private(altered)==null,"missing marker rejected without fallback")
+	altered=Owner._bytes_value(raw)
+	altered.ordinary_state[W.OPENING].version=3
+	check(Flat._restore_private(altered)==null,"legacy opening version cannot retrofit")
+	var play := Store.private_standard_flat_opening_play(owner,raw)
+	if not check(play!=null and play.match_state.stadium.is_empty(),"owned explicit fixed fixture0 real MatchState with clean away field"): return
+	var app=Launcher.instantiate()
+	add_child(app)
+	await get_tree().process_frame
+	# QA-only binding of the private owner, not a production launch path.
+	app.career_owner=owner
+	app.season=owner.session
+	app.saved_bytes=raw
+	app._fixture_id=0
+	app.play_next()
+	if not check(not is_instance_valid(app.lab),"generic App Play refuses flat owner"): return
+	app._open_match(play.match_state,false,true,play.field_id)
+	if not check(is_instance_valid(app.lab) and app.lab._managed_match and app.lab._match_state==play.match_state
+			and app.lab._match_state.stadium.is_empty(),"actual native managed away match scene entered"): return
+	app._request_exit("leave")
+	if not check(app._exit_dialog.visible,"real unfinished-match exit modal"): return
+	app._exit_dialog.confirmed.emit()
+	check(not is_instance_valid(app.lab) and Store.raw()==raw and owner.session.results.is_empty()
+		and owner.session.physical.pending.is_empty() and not FileAccess.file_exists(Store.PATH+".bak")
+		and not FileAccess.file_exists(Store.PATH+".tmp"),"actual leave with no game result or disk change")
+	app.queue_free()
+	await get_tree().process_frame
