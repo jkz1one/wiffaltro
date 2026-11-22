@@ -4,10 +4,16 @@
   "scope": "Increment92: closed shared Base Equipment admission using original Equipment and full Shop policies. Short owner and detached active/spare smoke checks; earned full gameplay remains pending.",
   "files": [
     {
+      "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_flat_npc_runner.gd.txt",
+      "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_flat_npc_runner.gd",
+      "bytes": 737,
+      "sha256": "546f5d5214ae146eac88448e77f6d214de1c626aacf6ed1738601a1656d6e80f"
+    },
+    {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_standard_continuation.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_standard_continuation.gd",
-      "bytes": 13972,
-      "sha256": "ebbba40a6919575ea62efd3f63d5e98c4148a5afa8040bd4d899dd95de45f425"
+      "bytes": 16999,
+      "sha256": "a122365307222e1d7c257d4a2377b898cda2c31d55ded8c014ec20f25e748dc0"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/build_codec.gd.txt",
@@ -132,8 +138,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 102723,
-      "sha256": "c5456208365bc1e8914ff2b09dd25826a08bf64e9c170eb7814fb2c16ab83de0"
+      "bytes": 108248,
+      "sha256": "4957fcf55685f3e350e2a38e09dba45d7ea09e491518cb5a688813461b054cc6"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -192,8 +198,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/app.gd",
-      "bytes": 95880,
-      "sha256": "f56f73a2165aa1e83c273c1f141714155257cea1f19c3bbad2eb1de4ecf2227b"
+      "bytes": 96725,
+      "sha256": "2aad1a9805f09f2d195440a0e4dee97fc1e88f4dda83611bd164b3b82d20d773"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/capture_human.gd.txt",

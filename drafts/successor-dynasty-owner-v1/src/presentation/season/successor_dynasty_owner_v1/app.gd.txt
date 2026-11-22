@@ -1436,6 +1436,25 @@ func _checkpoint() -> bool:
 	return false # No inherited legacy transaction may write a new-domain season.
 
 
+# Explicit isolated native handoff only. Generic Resume still uses _owned().
+func _resume_private_standard_flat_round() -> void:
+	if not _available() or is_instance_valid(lab) or is_instance_valid(ai_runner): return
+	var ticket: RefCounted=Store.prepare_private_standard_flat_settle(self)
+	if ticket!=null:
+		_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+	else:
+		Store.start_private_standard_flat_npc(self)
+
+func _private_flat_native_npc_finished(runner: Node, ticket: RefCounted) -> void:
+	if not is_instance_valid(runner) or runner!=ai_runner or not _busy: return
+	if ticket==null:
+		_ai_failed("The private native result was not admitted; the previous checkpoint is unchanged.",runner)
+		return
+	_busy=false
+	ai_runner=null
+	runner.queue_free()
+	_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+
 func resume_round() -> void:
 	_resume_round_native(false)
 

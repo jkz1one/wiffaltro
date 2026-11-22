@@ -1,0 +1,186 @@
+extends Node
+
+const Launcher = preload("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Flat = Store.Flat
+const Adapter = Owner.Adapter
+const Work = Owner.Common.StandardWorkshop
+const H = Work.Home
+const HUMAN := "07a05fa464e81b7c31661c9de551b6ece32340259f2c44aa366d42e9e6de6c6f"
+const CHAIR := "71ad2e613b0cfb56a29229d0166a0f6311fb9205fba040b140676c86306fc793"
+const FRAME_LIMIT := 150000
+var failed := false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP292 ", "PASS" if ok else "FAIL"," ",name)
+	failed=failed or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func write_fixture(path: String, raw: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(raw)
+	f.flush()
+	var ok:=f.get_error()==OK
+	f.close()
+	return ok
+
+func backup() -> PackedByteArray: return FileAccess.get_file_as_bytes(Store.PATH+".bak")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=4: get_tree().quit(2); return
+	var mode:String=args[0]
+	var raw:=Store.raw()
+	if not check(Store.private_standard_chain_opening() and Owner._hash(raw)==args[1]
+			and not FileAccess.file_exists(Store.PATH+".tmp") and not FileAccess.file_exists(Store.PATH+".bak"),
+			"isolated exact primary only"): get_tree().quit(1); return
+	if mode=="npc1" and not check(args[1]==HUMAN,"exact CP291 human source"):
+		get_tree().quit(1); return
+	var stamp:=Time.get_ticks_msec()
+	var owner:RefCounted=Store.read_private_standard_flat()
+	if not check(owner!=null,"fresh strict private native read"): get_tree().quit(1); return
+	print("CP292 cold ",mode," ms ",Time.get_ticks_msec()-stamp)
+	if mode=="paid-cold":
+		_paid(owner,raw,args[3])
+	else:
+		var app=Launcher.instantiate()
+		add_child(app)
+		await get_tree().process_frame
+		app.career_owner=owner
+		app.season=owner.session
+		app.saved_bytes=raw
+		if mode=="npc1" or mode=="npc2": await _npc(app,owner,raw,args[2],1 if mode=="npc1" else 2)
+		elif mode=="settle": _settle(app,owner,raw,args[2])
+		else: failed=true
+		app.queue_free()
+		await get_tree().process_frame
+	get_tree().quit(1 if failed else 0)
+
+func _unpaid(owner: RefCounted) -> bool:
+	var s:SeasonState=owner.session
+	return (Flat._locked(owner) and s.round_index==0 and s.results.is_empty() and s.player_results.is_empty()
+		and s.physical.cursor==0 and s.physical.reports.is_empty() and s.cash()==0 and s.build._sides_start
+		and owner.common.aggregate.currency==72 and owner.common.last_fold.receipt.is_empty()
+		and owner.ordinary_state.has(Work.FIELD) and not s.home_property.is_empty())
+
+func _npc(app: Node, owner: RefCounted, raw: PackedByteArray, output: String, expected: int) -> void:
+	if not check(_unpaid(owner) and owner.session.physical.pending.reports.size()==expected-1
+			and Store.prepare_private_standard_flat_settle(app)==null,"correct unpaid exact current roster and no early settle"): return
+	app.resume_round()
+	if not check(not is_instance_valid(app.ai_runner) and Store.raw()==raw,"generic Resume refused"): return
+	var stamp:=Time.get_ticks_msec()
+	app._resume_private_standard_flat_round()
+	var runner: Node=app.ai_runner
+	var binding:=Store.private_flat_npc_details(app)
+	if not check(is_instance_valid(runner) and runner.get_script()==Store.FlatRunner and app._busy and binding.get("fixture")==expected,
+			"actual authored runner on fixture "+str(expected)): return
+	print("CP292 start ",expected," request=",binding.request," scene ms=",Time.get_ticks_msec()-stamp)
+	runner.finished.emit({"fake":true})
+	check(runner.native_report().is_empty() and Store.raw()==raw and Store.prepared_candidate(null)==null,"caller signal cannot mint native report")
+	var staged:Dictionary={}
+	runner.native_ready.connect(func():
+		var report:Dictionary=runner.native_report()
+		var note:Dictionary=binding.duplicate(true)
+		note.report=report
+		var evidence:=JSON.stringify(note,"",true,true).to_utf8_buffer()
+		staged.report=report
+		staged.pinned=write_fixture(output.path_join("npc%d-report.json"%expected),evidence)
+		print("CP292 retained native ",expected," SHA=",Owner._hash(evidence)," score=",report.get("physical",{}).get("away_runs"),":",report.get("physical",{}).get("home_runs")," runner ms=",Time.get_ticks_msec()-stamp))
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if not app._busy: break
+		if frame%4000==0: print("CP292 runner active fixture=",expected," frame=",frame)
+	if not check(staged.get("pinned",false) and not app._busy and app.retained==null and app.career_owner!=owner,
+			"native output retained before durable actual App promotion: "+app.notice): return
+	var next:RefCounted=app.career_owner
+	var pending:Dictionary=next.session.physical.pending
+	var saved:=Store.raw()
+	if not check(_unpaid(next) and backup()==raw and pending.reports.size()==expected and pending.reports[-1].fixture==expected
+			and pending.reports[-1].request==binding.request and Owner.Codec.same(pending.reports[-1].report,staged.report)
+			and Owner.Codec.same(next.common,owner.common) and Owner.Codec.same(next.ordinary_state,owner.ordinary_state)
+			and Owner.Codec.same(pending.human,owner.session.physical.pending.human)
+			and Owner.Codec.same(pending.reports.slice(0,expected-1),owner.session.physical.pending.reports),
+			"native report/request durable with exact old H13, archive, receipt-free checkpoint"): return
+	check(write_fixture(output.path_join("npc%d-unpaid.json"%expected),saved),"retain proof checkpoint "+str(expected))
+	print("CP292 saved unpaid ",expected," ",saved.size()," ",Owner._hash(saved))
+
+func _settle(app: Node, owner: RefCounted, raw: PackedByteArray, output: String) -> void:
+	if not check(_unpaid(owner) and owner.session.physical.pending.reports.size()==2,"genuine two CPU reports are unpaid before explicit settle"): return
+	var before:Dictionary=owner.session.physical.pending.duplicate(true)
+	if not check(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,
+			"isolated held settlement obstruction"): return
+	var stamp:=Time.get_ticks_msec()
+	app._resume_private_standard_flat_round()
+	if not check(app.retained!=null and not is_instance_valid(app.ai_runner) and app.career_owner==owner
+			and Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and _unpaid(owner),
+			"settlement intent holds exact ticket; no premature reward or write"): return
+	print("CP292 settle admission ms ",Time.get_ticks_msec()-stamp)
+	if not check(DirAccess.remove_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"release isolated obstruction"): return
+	app.retry_save()
+	var next:RefCounted=app.career_owner
+	var saved:=Store.raw()
+	if not check(app.retained==null and next!=owner and backup()==raw and next.session.physical.pending.is_empty()
+			and Owner.Codec.same(next.ordinary_state[Flat.ROUND1].human,before.human)
+			and Owner.Codec.same(next.session.physical.reports,before.reports),"explicit native settle writes once with preserved original H13 and report rows"): return
+	var after_meta:Dictionary=next.ordinary_state.duplicate(true)
+	after_meta.erase(Flat.ROUND1)
+	check(Owner.Codec.same(after_meta,owner.ordinary_state) and Owner.Codec.same(next.common,owner.common),
+		"sidecar is the only ordinary owner metadata change; all prior archives/Common preserved")
+	check(_paid_facts(next,saved),"actual opening round rewards/three results and exact next owned home prospect")
+	app._resume_private_standard_flat_round()
+	app.resume_round()
+	check(Store.raw()==saved and backup()==raw and not is_instance_valid(app.ai_runner),"repeat settle/resume inert")
+	check(write_fixture(output.path_join("away-settled.json"),saved),"retain paid native primary")
+	print("CP292 paid ",saved.size()," ",Owner._hash(saved)," cash ",next.session.cash())
+	for row:Dictionary in next.session.results:
+		print("CP292 true result ",row.id," ",row.away,"@",row.home," ",row.away_runs,":",row.home_runs)
+
+func _paid_facts(owner:RefCounted, raw:PackedByteArray) -> bool:
+	var s:SeasonState=owner.session
+	if not Flat._storage_scope(owner) or not Flat._settled_day(s) or not s.build._sides_start or owner.common.aggregate.currency!=72:
+		return false
+	var day:Dictionary={}
+	for row:Dictionary in s.results:
+		if row.away_runs==row.home_runs: return false
+		day[int(row.away)]={"id":row.id,"won":row.away_runs>row.home_runs}
+		day[int(row.home)]={"id":row.id,"won":row.home_runs>row.away_runs}
+	if day.size()!=6: return false
+	for club:int in range(6):
+		var build:SeasonBuild=s.build if club==0 else s.opponents.clubs[str(club)].build
+		var reward:Dictionary=build._bank.view().rewards
+		if reward.size()!=1 or reward.get(str(int(day[club].id)))!=day[club].won: return false
+	var f:Dictionary=s.pending_fixture()
+	var state:MatchState=s.make_match()
+	var field:FieldDefinition=Adapter.OrdinaryRuntime.field_for_fixture(f,s)
+	var key:String=Adapter.OrdinaryFixtures.request_key(s,f)
+	var nc:Dictionary={}
+	var away:Dictionary={}
+	for row:Dictionary in s.schedule:
+		if row.id==4: nc=row
+		if row.id==6: away=row
+	var nf:Dictionary=f.duplicate(true)
+	nf.neutral=true
+	return (state!=null and field!=null and f.id==3 and f.home==0 and not key.is_empty()
+		and not state.stadium.is_empty() and state.stadium.layout.receiver==H.COPY
+		and Owner.Codec.same(state.stadium,H.fixture(s,f)) and H.fixture(s,nc).is_empty()
+		and H.fixture(s,away).is_empty() and H.fixture(s,nf).is_empty() and Store.raw()==raw)
+
+func _paid(owner:RefCounted, raw:PackedByteArray, complete_path:String) -> void:
+	check(_paid_facts(owner,raw) and Store.read()==null and not Store.save(owner,raw),
+		"independent paid native rederive; generic routes closed; actual planned home request")
+	var pending_raw:=FileAccess.get_file_as_bytes(complete_path)
+	var prior:Dictionary=Owner._bytes_value(pending_raw)
+	var paid:Dictionary=Owner._bytes_value(raw)
+	check(Owner.Codec.same(prior.common,paid.common) and Owner.Codec.same(prior.ordinary_state.archive,paid.ordinary_state.archive)
+		and Owner.Codec.same(prior.ordinary.physical.pending.human,paid.ordinary_state[Flat.ROUND1].human),
+		"three roots, Common and exact original pending H13 preserved")
+	var wrong:Dictionary=paid.duplicate(true)
+	wrong.ordinary.physical.reports.reverse()
+	check(Flat._restore_private(wrong)==null,"reordered receipt/report rejected")
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"paid cold has no writes")

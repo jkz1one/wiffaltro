@@ -114,6 +114,7 @@ static func _local_owner(source: RefCounted, draft: Draft) -> RefCounted:
 	return owner
 
 const OPENING_VERSION: int=4
+const ROUND1: String="starter_flat_round1"
 
 static func _preopening(season: SeasonState) -> bool:
 	if season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
@@ -158,22 +159,57 @@ static func _draft_scope(owner: RefCounted) -> bool:
 
 static func _human_pending_shape(pending: Variant, opening: Variant) -> bool:
 	var api := _api()
-	return opening is Dictionary and opening.get("choice")=="chair" and opening.get("locked")==true \
-		and api.Codec.keys(pending,["human","reports"]) and pending.human is Array and pending.human.size()==13 \
-		and api.Codec.whole(pending.human[0],0,0) and pending.reports is Array and pending.reports.is_empty()
+	if not opening is Dictionary or opening.get("choice")!="chair" or opening.get("locked")!=true \
+			or not api.Codec.keys(pending,["human","reports"]) or not pending.human is Array or pending.human.size()!=13 \
+			or not api.Codec.whole(pending.human[0],0,0) or not pending.reports is Array or pending.reports.size()>2: return false
+	for i: int in pending.reports.size():
+		var row: Variant=pending.reports[i]
+		if not api.Codec.keys(row,["fixture","request","report"]) or not api.Codec.whole(row.fixture,i+1,i+1) \
+				or not api._digest(row.request) or not row.report is Dictionary: return false
+	return true
+
+static func project_opening(owner: RefCounted) -> Dictionary:
+	if not _draft_scope(owner) or owner.session.physical.pending.is_empty(): return {}
+	var api := _api()
+	# Full detached native replay of actual supplied evidence, never a physical rerun.
+	var checked: Dictionary=api.Adapter.OrdinaryPending.project(owner.session)
+	var day: Variant=checked.get("candidate")
+	if checked.has("error") or not day is SeasonState or day==owner.session: return {}
+	var count: int=owner.session.physical.pending.reports.size()
+	if count==2:
+		return checked if not checked.has("fixture") and _settled_day(day) else {}
+	var fixture: Variant=checked.get("fixture")
+	return checked if fixture is Dictionary and fixture.get("id")==count+1 \
+		and 0 not in [fixture.get("away"),fixture.get("home")] and day.physical.cursor==count \
+		and day.physical.reports.size()==count else {}
 
 static func _validate_human_pending(owner: RefCounted) -> bool:
-	if not _draft_scope(owner) or owner.session.physical.pending.is_empty(): return false
-	var api := _api()
-	# Validate via the full native detached opening projection. It must stop
-	# before game 1; detached human reward never enters the saved owner.
-	var checked: Dictionary=api.Adapter.OrdinaryPending.project(owner.session)
-	var fixture: Variant=checked.get("fixture")
-	var day: Variant=checked.get("candidate")
-	return not checked.has("error") and fixture is Dictionary and fixture.get("id")==1 \
-		and 0 not in [fixture.get("away"),fixture.get("home")] and day is SeasonState \
-		and day!=owner.session and day.physical.cursor==0 and day.physical.reports.is_empty()
+	return not project_opening(owner).is_empty()
 
+static func _settled_day(season: SeasonState) -> bool:
+	if season.phase!=SeasonState.Phase.REGULAR or season.round_index!=1 or season.picks.size()!=4 \
+			or season.physical==null or season.physical.projecting or not season.physical.pending.is_empty() \
+			or not season.physical.needed.is_empty() or not season.physical.error.is_empty(): return false
+	var api := _api()
+	var prefix: Dictionary=api.Common.StandardArchive.settled_regular_prefix(season.results,1)
+	var next: Dictionary=season.pending_fixture()
+	return not prefix.is_empty() and api.Codec.same(season.player_results.map(func(r): return r.id),[0]) \
+		and season.physical.cursor==2 and api.Codec.same(season.physical.reports.map(func(r): return r.fixture),[1,2]) \
+		and next.get("id")==3 and next.get("home")==0 and not next.get("neutral",false)
+
+static func _storage_scope(owner: RefCounted) -> bool:
+	if _draft_scope(owner): return true
+	if not is_flat(owner) or not _settled_day(owner.session): return false
+	var api := _api()
+	var work = api.Common.StandardWorkshop
+	var state: Dictionary=owner.ordinary_state
+	var history: Variant=state.get(ROUND1)
+	return owner.active=="ordinary" and owner.paused.is_empty() and api._missing_dynasty(owner) \
+		and owner.migration_v3.is_empty() and state.get("status")=="active" and state.get("ordinal")==4 \
+		and state.get("archive",{}).get("kind")==Custody.KIND and state.get("last_transition",{}).get("kind")==TRANSITION \
+		and work.valid(state) and state.has(work.FIELD) and not state.has(work.APPLIED) \
+		and _opening_valid(state,owner.session) and api.Codec.keys(history,["version","human"]) \
+		and history.version==1 and _human_pending_shape({"human":history.human,"reports":owner.session.physical.reports},state[work.OPENING])
 
 # Only the actual native fourth choice is allowed to enter the opening window.
 static func _enter_opening(owner: RefCounted) -> bool:
@@ -201,7 +237,7 @@ static func _locked(owner: RefCounted) -> bool:
 # Used only on a newly derived owner or a fork of a privately admitted owner.
 # The generic Owner/Adapter persistence routes continue to reject this dialect.
 static func _capture_local(owner: RefCounted) -> Dictionary:
-	if not _draft_scope(owner): return {}
+	if not _storage_scope(owner): return {}
 	var api := _api()
 	var current: Dictionary=api.Adapter.Ordinary.capture(owner.session)
 	if current.is_empty(): return {}
@@ -240,6 +276,11 @@ static func _restore_private(value: Variant) -> RefCounted:
 	var pending: Variant=value.ordinary.physical.get("pending")
 	if not pending is Dictionary or (not pending.is_empty() \
 			and (picks.size()!=4 or not _human_pending_shape(pending,opening))): return null
+	var paid: bool=state.has(ROUND1)
+	var history: Variant=state.get(ROUND1)
+	if paid and (picks.size()!=4 or not pending.is_empty() or not api.Codec.keys(history,["version","human"]) \
+			or history.version!=1 or not _human_pending_shape({"human":history.human,"reports":value.ordinary.physical.get("reports")},opening) \
+			or value.ordinary.physical.reports.size()!=2): return null
 	var raw: PackedByteArray
 	var roots:=Custody.unpack(archive)
 	if roots.is_empty(): return null
@@ -254,7 +295,13 @@ static func _restore_private(value: Variant) -> RefCounted:
 		if not id is String or not owner.session.choose_player(id): return null
 	if picks.size()==4 and (not _enter_opening(owner) \
 			or (opening.choice!="pending" and not _lock_opening(owner,opening.choice))): return null
-	if not pending.is_empty():
+	if paid:
+		owner.session.physical.pending={"human":history.human.duplicate(true),"reports":value.ordinary.physical.reports.duplicate(true)}
+		var projection:=project_opening(owner)
+		if projection.is_empty(): return null
+		owner.session=projection.candidate
+		owner.ordinary_state[ROUND1]=history.duplicate(true)
+	elif not pending.is_empty():
 		owner.session.physical.pending=pending.duplicate(true)
 		if not _validate_human_pending(owner): return null
 	return owner if api.Codec.same(value,_capture_local(owner)) else null

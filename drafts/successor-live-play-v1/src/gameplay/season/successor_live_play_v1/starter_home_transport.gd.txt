@@ -35,9 +35,10 @@ static func snapshot(lineage: String) -> Dictionary:
 
 static func valid(season: SeasonState) -> bool:
 	if season.home_property.is_empty(): return true
-	var flat_preopener: bool=opening_flat(season) and season.phase==SeasonState.Phase.REGULAR \
-		and season.round_index==0 and season.picks.size()==4 and season.results.is_empty()
-	if not (opening_base(season) or flat_preopener) or season.phase==SeasonState.Phase.DRAFT: return false
+	var flat_opening: bool=opening_flat(season) and season.phase==SeasonState.Phase.REGULAR \
+		and season.picks.size()==4 and ((season.round_index==0 and season.results.is_empty()) \
+			or (season.round_index==1 and season.results.size()==3))
+	if not (opening_base(season) or flat_opening) or season.phase==SeasonState.Phase.DRAFT: return false
 	var authored:=snapshot(season.career.start_basis.lineage)
 	return not authored.is_empty() and ClubCareer.same(season.home_property,authored)
 

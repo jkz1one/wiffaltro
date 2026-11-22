@@ -4,6 +4,7 @@ const Codec = preload("codec.gd")
 const Owner = preload("owner.gd")
 const Adapter = preload("session_adapter.gd")
 const Flat = preload("starter_standard_continuation.gd")
+const FlatRunner = preload("starter_flat_npc_runner.gd")
 const RawGuard = preload("raw_guard.gd")
 const LeagueAdmission = preload("league_admission.gd")
 const PATH: String = "user://wiffaltro-common-career-v4.json"
@@ -29,6 +30,11 @@ static var _owner_bytes: PackedByteArray = PackedByteArray()
 static var _flat_play: PrivateFlatOpeningPlay
 static var _flat_play_app: WeakRef
 static var _flat_play_lab: WeakRef
+static var _flat_npc: Node
+static var _flat_npc_app: WeakRef
+static var _flat_npc_expected: PackedByteArray
+static var _flat_npc_fixture: int=-1
+static var _flat_npc_request: String=""
 static var _flat_ticket: RefCounted
 static var _ticket: RefCounted
 static var _candidate: RefCounted
@@ -317,6 +323,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 
 static func _invalidate() -> void:
 	_clear_private_flat_play()
+	_clear_private_flat_npc()
 	_previous_standard_pin = {}; _previous_standard_view = {}
 	_standard_history_pin = {}; _standard_history_view = []
 	forget_projection()
@@ -1525,6 +1532,30 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 		if not argument.is_empty() or not Flat._scope(owner): return null
 		var draft:=Flat._from_authenticated(owner,expected,Owner._hash(expected))
 		candidate=Flat._local_owner(owner,draft)
+	elif op in ["npc","settle"]:
+		if not argument.is_empty() or not Flat._draft_scope(owner) or owner.session.physical.pending.is_empty(): return null
+		var pending: Dictionary=owner.session.physical.pending
+		var current: SeasonState
+		if op=="npc":
+			if not _private_flat_npc_matches(app,owner,expected) or pending.reports.size()>=2: return null
+			var report: Dictionary=_flat_npc.native_report()
+			if report.is_empty(): return null
+			var staged: Dictionary=Adapter.OrdinaryPending.stage_report(owner.session,report)
+			current=staged.get("candidate")
+			if current==null or not _private_flat_npc_matches(app,owner,expected): return null
+			var row: Dictionary=current.physical.pending.reports[-1]
+			if row.get("fixture")!=_flat_npc_fixture or row.get("request")!=_flat_npc_request: return null
+		else:
+			if not _private_flat_app(app) or app.career_owner!=owner or app.season!=owner.session \
+					or app.saved_bytes!=expected or pending.reports.size()!=2 or is_instance_valid(_flat_npc): return null
+			var settled:=Flat.project_opening(owner)
+			if settled.is_empty(): return null
+			current=settled.candidate
+		candidate=Owner.new()
+		if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+		candidate.session=current
+		if op=="settle":
+			candidate.ordinary_state[Flat.ROUND1]={"version":1,"human":pending.human.duplicate(true)}
 	elif op in ["pick","opening","human"]:
 		if not Flat._draft_scope(owner): return null
 		var next: SeasonState=owner.session.fork_live()
@@ -1634,6 +1665,68 @@ static func prepare_private_standard_flat_human(app: Variant) -> RefCounted:
 	if not _private_flat_app(app) or not _private_flat_play_matches(app,app.career_owner,app.saved_bytes): return null
 	return _prepare_private_standard_flat(app.career_owner,app.saved_bytes,"human","",app)
 
+static func _clear_private_flat_npc() -> void:
+	_flat_npc=null; _flat_npc_app=null; _flat_npc_expected=PackedByteArray()
+	_flat_npc_fixture=-1; _flat_npc_request=""
+
+static func _private_flat_npc_matches(app: Variant, owner: RefCounted, expected: PackedByteArray) -> bool:
+	return private_standard_chain_opening() and _private_flat_app(app) and is_instance_valid(_flat_npc) \
+		and _flat_npc.get_script()==FlatRunner and _flat_npc_app.get_ref()==app and _flat_npc.get_parent()==app \
+		and app.ai_runner==_flat_npc and app._busy and not is_instance_valid(app.lab) \
+		and app.career_owner==owner and app.season==owner.session and app.saved_bytes==expected \
+		and _flat_npc_expected==expected and _match_bound_owner(owner,expected)
+
+static func private_flat_npc_details(app: Variant) -> Dictionary:
+	if not _private_flat_app(app) or not _private_flat_npc_matches(app,app.career_owner,app.saved_bytes): return {}
+	return {"fixture":_flat_npc_fixture,"request":_flat_npc_request,"source":Owner._hash(_flat_npc_expected)}
+
+# Construct the native job here. The completion callback takes runner
+# identity only; an external report argument cannot reach the ticket.
+static func start_private_standard_flat_npc(app: Variant) -> bool:
+	if not private_standard_chain_opening() or not _private_flat_app(app) or saving or _ticket!=null \
+			or is_instance_valid(_flat_npc) or app._busy or is_instance_valid(app.lab) or is_instance_valid(app.ai_runner): return false
+	var owner: RefCounted=app.career_owner
+	var expected: PackedByteArray=app.saved_bytes
+	if not _match_bound_owner(owner,expected) or app.season!=owner.session or not Flat._draft_scope(owner) \
+			or owner.session.physical.pending.is_empty() or owner.session.physical.pending.reports.size()>=2: return false
+	var projected:=Flat.project_opening(owner)
+	if projected.is_empty() or not projected.has("fixture"): return false
+	var fixture: Dictionary=projected.fixture
+	var day: SeasonState=projected.candidate
+	var state: MatchState=Adapter.OrdinaryFixtures.match_for(day,fixture)
+	var field: FieldDefinition=Adapter.OrdinaryRuntime.field_for_fixture(fixture,day)
+	var request: String=Adapter.OrdinaryFixtures.request_key(day,fixture)
+	if state==null or not state.stadium.is_empty() or field==null or request.is_empty() \
+			or not _match_bound_owner(owner,expected): return false
+	var runner:=FlatRunner.new()
+	app.add_child(runner)
+	_flat_npc=runner; _flat_npc_app=weakref(app); _flat_npc_expected=expected.duplicate()
+	_flat_npc_fixture=int(fixture.id); _flat_npc_request=request
+	app.ai_runner=runner; app._busy=true
+	runner.native_ready.connect(_finish_private_flat_npc.bind(runner),CONNECT_DEFERRED)
+	runner.failed.connect(_fail_private_flat_npc.bind(runner))
+	if runner.start(state,Adapter.OrdinaryFixtures.seed_for(day,fixture),field.id): return true
+	_fail_private_flat_npc("The authored private native fixture could not start.",runner)
+	return false
+
+static func _finish_private_flat_npc(runner: Node) -> void:
+	if not is_instance_valid(runner) or runner!=_flat_npc: return
+	var app: Variant=_flat_npc_app.get_ref()
+	if not _private_flat_app(app): return
+	var ticket: RefCounted=_prepare_private_standard_flat(app.career_owner,app.saved_bytes,"npc","",app)
+	_clear_private_flat_npc()
+	app._private_flat_native_npc_finished(runner,ticket)
+
+static func _fail_private_flat_npc(reason: String, runner: Node) -> void:
+	if not is_instance_valid(runner) or runner!=_flat_npc: return
+	var app: Variant=_flat_npc_app.get_ref()
+	_clear_private_flat_npc()
+	if _private_flat_app(app): app._ai_failed(reason,runner)
+
+static func prepare_private_standard_flat_settle(app: Variant) -> RefCounted:
+	if not _private_flat_app(app) or app._busy or is_instance_valid(app.ai_runner) or is_instance_valid(app.lab): return null
+	return _prepare_private_standard_flat(app.career_owner,app.saved_bytes,"settle","",app)
+
 # Identity handoff only. Later retry/promotion still authenticate this exact
 # live candidate against the private snapshot; no returned value authorizes IO.
 static func prepared_candidate(ticket: RefCounted) -> RefCounted:
@@ -1664,7 +1757,7 @@ static func write_prepared(ticket: RefCounted) -> bool:
 # fully checked write_prepared retry. Disk CAS/readback remain in every write.
 static func _write_admitted() -> bool:
 	if _flat_ticket!=null and _flat_ticket==_ticket:
-		if not private_standard_chain_opening() or not Flat._draft_scope(_candidate): return false
+		if not private_standard_chain_opening() or not Flat._storage_scope(_candidate): return false
 	elif not _starter_owner_allowed(_candidate): return false
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(_expected):

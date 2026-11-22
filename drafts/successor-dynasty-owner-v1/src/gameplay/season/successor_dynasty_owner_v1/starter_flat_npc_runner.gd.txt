@@ -1,0 +1,22 @@
+extends "res://src/gameplay/season/successor_league_general_v2/physical_runner.gd"
+## Same native runner and cadence. Only captures its own terminal synchronous
+## emission from inside its native tick, never an App/caller report argument.
+signal native_ready
+var _native_tick: bool=false
+var _terminal: Dictionary={}
+
+func _ready() -> void:
+	finished.connect(_seal)
+
+func _process(delta: float) -> void:
+	_native_tick=true
+	super._process(delta)
+	_native_tick=false
+
+func _seal(report: Dictionary) -> void:
+	if not _native_tick or _running or _lab!=null or not _terminal.is_empty() or report.is_empty(): return
+	_terminal=report.duplicate(true)
+	native_ready.emit()
+
+func native_report() -> Dictionary:
+	return _terminal.duplicate(true)
