@@ -1536,6 +1536,9 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 		elif Owner.Common.StandardArchive.marked(owner.session):
 			if operation!="close" and (not LeagueAdmission.starter_player() or operation not in ["propose","next"] \
 				or not Owner.Common.StandardChain.eligible(owner)): return null
+		elif LeagueAdmission.starter_player() and Owner.Common.starter_dugout_chain_custody(owner):
+			if operation!="close" or reason!="complete" \
+					or not Owner.Common.starter_dugout_complete_scope(owner,owner.session): return null
 		elif LeagueAdmission.starter_player() and Owner.Common.starter_dugout_archive(owner):
 			if operation!="close" or (reason!="abandon" and (reason!="complete" \
 					or not Owner.Common.starter_dugout_complete_scope(owner,owner.session))): return null

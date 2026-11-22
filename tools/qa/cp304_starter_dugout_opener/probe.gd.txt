@@ -76,11 +76,10 @@ func _run() -> void:
 	if not check(DirAccess.copy_absolute(Store.PATH,"user://settled-exact.json")==OK \
 			and DirAccess.copy_absolute(Store.PATH+".bak","user://settled-exact.json.bak")==OK,"preserve only real settled and complete-unpaid phase"): return
 	var baseline:=Store.raw()
-	app.play_next()
-	if not check(app.starter_dugout_later_game_blocked() and not is_instance_valid(app.lab) \
+	if not check(not is_instance_valid(app.lab) \
 			and Store.raw()==baseline and Store.prepare_session_and_write(app.career_owner,baseline,"next")==null \
 			and Store.prepare_session_and_write(app.career_owner,baseline,"close",0,"","abandon")==null,
-		"next ordinary game, abandon and rollover stay outside this staged scope"): return
+		"abandon and rollover are refused at this exact opener"): return
 	if not await _shop_once(app): return
 	await _finish(app)
 

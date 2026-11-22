@@ -166,7 +166,7 @@ static func starter_dugout_chain_custody(owner) -> bool:
 	var t: Variant=state.get("last_transition")
 	var season: SeasonState=owner.session
 	return _two_archive_shape(a,STARTER_DUGOUT_CHAIN,STARTER_DUGOUT_ARCHIVE) \
-		and state.get("ordinal")==3 and state.get("status")=="active" and state.get("proposal")=={} \
+		and state.get("ordinal")==3 and state.get("status") in ["active","closed"] and state.get("proposal")=={} \
 		and t is Dictionary and t.get("kind")==CHAIN_TRANSITION and t.get("league")=="dugout" \
 		and t.get("basis") is Dictionary and t.basis.get("version")==3 \
 		and t.basis.get("archive_origin") is Dictionary and t.basis.archive_origin.get("kind")==Start.CHAIN_ARCHIVED \
@@ -174,36 +174,36 @@ static func starter_dugout_chain_custody(owner) -> bool:
 		and season.league_live and season.league_rules.get("league")=="dugout" and season.league_rules.get("tier")==0 \
 		and season.home_property.is_empty()
 
-# Only the authored opening round is qualified, including exact pending
-# reports and legal shop writes after settlement. The native codec remains
-# responsible for exact game evidence, build and pending shape.
+# Compact archive custody changes neither the authored Dugout calendar nor
+# the game evidence. Exact regular/semifinal/final and pending projection
+# still go through the existing Ordinary codec and native Store.
 static func starter_dugout_chain_scope(owner) -> bool:
 	if not starter_dugout_chain_custody(owner): return false
 	var season: SeasonState=owner.session
 	var physical:=season.physical
 	if physical==null or season.build==null or physical.projecting \
-			or not physical.needed.is_empty() or not physical.error.is_empty(): return false
+			or not physical.needed.is_empty() or not physical.error.is_empty() \
+			or physical.cursor!=physical.reports.size(): return false
+	var state: Dictionary=owner.ordinary_state
+	if state.status=="closed" and (state.last_close.get("reason")!="complete" \
+			or season.phase!=SeasonState.Phase.COMPLETE): return false
 	if season.phase==SeasonState.Phase.DRAFT:
 		return season.picks.size()<4 and season.round_index==0 and season.build.cash()==0 \
 			and season.results.is_empty() and season.player_results.is_empty() \
-			and physical.pending.is_empty() and physical.reports.is_empty() and physical.cursor==0
-	if season.phase!=SeasonState.Phase.REGULAR or season.picks.size()!=4: return false
-	if season.round_index==0:
-		if not season.results.is_empty() or not season.player_results.is_empty() \
-				or not physical.reports.is_empty() or physical.cursor!=0: return false
-		var human: Variant=physical.pending.get("human")
-		var reports: Variant=physical.pending.get("reports")
-		if physical.pending.is_empty(): return true
-		if not human is Array or human.size()!=13 or not C.whole(human[0],0,0) \
-				or not reports is Array or reports.size()>2: return false
-		for i in range(reports.size()):
-			if not reports[i] is Dictionary or not C.whole(reports[i].get("fixture"),i+1,i+1): return false
-		return true
-	if season.round_index!=1 or not physical.pending.is_empty() or physical.cursor!=2: return false
-	var proof: Dictionary=StandardArchive.settled_regular_prefix(season.results,1)
-	return not proof.is_empty() and C.same(physical.reports.map(func(row): return row.get("fixture")),proof.cpu) \
-		and C.same(season.player_results.map(func(row): return row.get("id")),proof.human) \
-		and _starter_dugout_rewards_match(season)
+			and physical.pending.is_empty() and physical.reports.is_empty()
+	if season.picks.size()!=4: return false
+	match season.phase:
+		SeasonState.Phase.REGULAR:
+			if not C.whole(season.round_index,0,9) or season.results.size()!=3*season.round_index \
+					or season.player_results.size()!=season.round_index \
+					or physical.reports.size()!=2*season.round_index: return false
+		SeasonState.Phase.SEMIFINAL, SeasonState.Phase.FINAL:
+			if season.round_index!=10 or season.results.size() not in [30,31,32]: return false
+		SeasonState.Phase.COMPLETE:
+			return starter_dugout_complete_scope(owner,season) and _starter_dugout_paid_terminal(season)
+		_:
+			return false
+	return _starter_dugout_rewards_match(season)
 
 static func _archive_shape(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
@@ -408,7 +408,7 @@ static func archived_abandon_scope(owner, season: SeasonState) -> bool:
 # record derive the bracket, then require every actual participating club's
 # independent paid-game bank to agree with all 33 result winners.
 static func starter_dugout_complete_scope(owner, season: SeasonState) -> bool:
-	return starter_dugout_archive(owner) and season==owner.session \
+	return (starter_dugout_archive(owner) or starter_dugout_chain_custody(owner)) and season==owner.session \
 		and season.phase==SeasonState.Phase.COMPLETE and season.round_index==10 \
 		and season.picks.size()==4 and season.results.size()==33 and season.build!=null \
 		and not season.build.pack_pending() and season.physical!=null \
@@ -467,7 +467,8 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 	if summary.is_empty() or (row.reason=="complete")!=(summary.finish!="unfinished"): return false
 	if (row.reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return false
 	var expected: Dictionary=ClubSeasonRecord.receipt(proof,row.first_title,tier) if row.reason=="complete" else {}
-	if row.reason=="complete" and starter_dugout_archive(owner) and not _starter_dugout_paid_terminal(season): return false
+	if row.reason=="complete" and starter_dugout_complete_scope(owner,season) \
+			and not _starter_dugout_paid_terminal(season): return false
 	return C.same(row.receipt,expected)
 
 # Only the already-qualified private eliminated semifinal COMPLETE can close.
