@@ -42,8 +42,25 @@ static func draft_from_closed(raw: PackedByteArray, expected_sha256: String) -> 
 static func _from_authenticated(owner: RefCounted, raw: PackedByteArray, expected_sha256: String) -> Draft:
 	var api := _api()
 	if not _scope(owner): return null
-	var archive: Dictionary=Custody.migrate_legacy_closed(raw)
+	return _draft_from_archive(owner,Custody.migrate_legacy_closed(raw),expected_sha256)
+
+# Detached only: a byte pin is a selector, not authorization. Full existing
+# native cold read replays both paid rounds, past closes and the actual fold.
+static func draft_from_flat_closed(raw: PackedByteArray, expected_sha256: String) -> Draft:
+	var api := _api()
+	if raw.is_empty() or raw.size()>api.Common.StandardArchive.MAX_SOURCE \
+			or not api._digest(expected_sha256) or api._hash(raw)!=expected_sha256: return null
+	var value: Variant=api._bytes_value(raw)
+	if not value is Dictionary or not value.get("ordinary_state") is Dictionary: return null
+	var state: Dictionary=value.ordinary_state
+	if state.get("status")!="closed" or not _closed_shape(state,value.get("common")): return null
+	var prior:=_restore_private(value)
+	if prior==null: return null
+	return _draft_from_archive(prior,Custody.append_flat_closed(raw,prior.ordinary_state.lineage),expected_sha256)
+
+static func _draft_from_archive(owner: RefCounted, archive: Dictionary, expected_sha256: String) -> Draft:
 	if archive.is_empty(): return null
+	var api := _api()
 	var state: Dictionary=owner.ordinary_state
 	var ordinal: int=archive.rows.size()+1
 	if archive.lineage!=state.lineage or state.ordinal!=ordinal-1 or owner.common.sequence!=ordinal-1 \
@@ -51,7 +68,6 @@ static func _from_authenticated(owner: RefCounted, raw: PackedByteArray, expecte
 	var ordered: Array[String]=[]
 	for row: Dictionary in archive.rows: ordered.append(row.source_sha256)
 	var common = api.Common
-	if ordered.size()!=common.Start.STANDARD_FLAT_ROOTS: return null
 	# Same authored ordinary Next seed derivation. No user-supplied seed,
 	# alternate league/tier, title, receipt or currency operation.
 	var seed_value: int=("ordinary:%s:%d:nextseed"%[state.lineage,ordinal]).hash() & 0x7fffffff
@@ -146,7 +162,10 @@ static func _draft_scope(owner: RefCounted) -> bool:
 	var season: SeasonState=owner.session
 	var work = api.Common.StandardWorkshop
 	var basis: Dictionary=season.career.start_basis
-	if state.get("status")!="active" or state.get("ordinal")!=basis.get("ordinal") \
+	# Existing Store scope stops at three predecessors. An appended native
+	# detached draft has no private or public capture/Continue route.
+	if state.get("status")!="active" or state.get("ordinal")!=api.Common.Start.STANDARD_FLAT_ROOTS+1 \
+			or state.get("ordinal")!=basis.get("ordinal") \
 			or state.get("archive",{}).get("kind")!=Custody.KIND or state.get("last_transition",{}).get("kind")!=TRANSITION \
 			or not work.valid(state) or not state.has(work.FIELD) or state.has(work.APPLIED) or state.has(ROUND1) or state.has(ROUND2) \
 			or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() \

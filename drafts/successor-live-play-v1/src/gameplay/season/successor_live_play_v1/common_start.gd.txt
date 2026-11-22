@@ -10,7 +10,8 @@ const STANDARD_CHAIN: String="standard-base-third-archive-v1"
 const STANDARD_CHAIN_OPENING: String="standard-base-third-opening-v1"
 const STANDARD_FLAT: String="standard-base-flat-archive-v1"
 const STANDARD_FLAT_VERSION: int=4
-const STANDARD_FLAT_ROOTS: int=3
+const STANDARD_FLAT_ROOTS: int=3 # Existing private Store scope, unchanged.
+const STANDARD_FLAT_MAX_ROOTS: int=4 # Detached append only.
 const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
@@ -39,7 +40,9 @@ static func valid(value: Variant) -> bool:
 		if not origin is Dictionary: return false
 		if value.version==STANDARD_FLAT_VERSION:
 			if not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind!=STANDARD_FLAT \
-					or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=STANDARD_FLAT_ROOTS \
+					or not origin.ordered_sha256 is Array \
+					or origin.ordered_sha256.size()<STANDARD_FLAT_ROOTS \
+					or origin.ordered_sha256.size()>STANDARD_FLAT_MAX_ROOTS \
 					or value.ordinal!=origin.ordered_sha256.size()+1 or value.common_sequence!=origin.ordered_sha256.size(): return false
 			var unique: Dictionary={}
 			for digest: Variant in origin.ordered_sha256:

@@ -1,0 +1,7 @@
+# Standard flat append (detached native proof)
+
+Run `bash tools/qa/cp298_standard_flat_append/run.sh <official Godot 4.6.3> <exact synthetic CP295 closed primary>`. This takes one full stock native validation of the existing Season 4 close. It performs no matches and no writes or reads in an original/user profile. All setup, copied input and logs use a fresh temporary XDG profile; the input copy remains read-only and neither a backup nor a temp slot may appear.
+
+The first three authored archive rows remain intact; the fourth row carries the exact CP295 bytes but cuts all previous flat carrier values. Reconstruction verifies ordered distinct roots, cumulative and row bounds, exact bytes, lexical cut offsets, and lineage. The transport is not authority: a rehashed close still must pass the independent native Season 4 reader, including the original paid rounds, prior archive reads and the exact Common fold. The detached draft derives its seed/ordinal, exact Common progress and saved Workshop draft from that checked source. It resets seasonal play and does not install the old layout. Existing private and production Owner/Store still refuse this new fifth-season dialect; it supports no durable birth, public exposure, further append or title award.
+
+The earlier three-root reader and Store caps intentionally remain unchanged. Next integration needs its own isolated tape-to-native-current validation and fixed Store custody/adoption before any public route.

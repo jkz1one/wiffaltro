@@ -2,7 +2,7 @@ extends RefCounted
 ## Inactive Standard archive byte transport. Neither this format nor its
 ## checks authenticate an owner, restore career facts, or authorize a write.
 const KIND := "standard-base-flat-custody-v1"
-const MAX_ROWS := 3 # The only supported legacy migration; no ordinal-4 reader.
+const MAX_ROWS := 3 # Exact legacy migration and existing private reader.
 const MAX_DECODED := 24 * 1024 * 1024
 const MAX_ENCODED := 12 * 1024 * 1024
 const TAG := '"deflate_base64":'
@@ -63,7 +63,14 @@ static func _owner_shape(raw: PackedByteArray, ordinal: int, lineage: String, ca
 	if not origin is Dictionary: return false
 	if ordinal == 2:
 		return origin.get("kind") == api.Common.StandardArchive.ORIGIN and origin.get("sha256") == earlier[0]
-	return origin.get("kind") == api.Common.Start.STANDARD_CHAIN_OPENING \
+	if ordinal == MAX_ROWS:
+		return origin.get("kind") == api.Common.Start.STANDARD_CHAIN_OPENING \
+			and api.Codec.same(origin.get("ordered_sha256"),earlier)
+	# A reconstructed flat-era row must bind its own predecessor manifest,
+	# rather than merely carrying a list of matching hashes in a new wrapper.
+	return api.Common.Start.valid(transition.basis) \
+		and api.Common.Start.detached_standard_flat(transition.basis) \
+		and transition.basis.ordinal == ordinal and transition.basis.lineage == lineage \
 		and api.Codec.same(origin.get("ordered_sha256"),earlier)
 
 # Carrier derivation for the legacy paths only. No codec migration in-place;
@@ -93,10 +100,14 @@ static func _row_shape(row: Variant, ordinal: int) -> bool:
 	return true
 
 static func _budget(row: Variant) -> bool:
+	return _bounded(row,MAX_ROWS)
+
+static func _bounded(row: Variant, count: int) -> bool:
 	var api := _api()
+	if count < MAX_ROWS or count > api.Common.Start.STANDARD_FLAT_MAX_ROOTS: return false
 	if not api.Codec.keys(row,["kind","lineage","rows"]) or row.kind != KIND \
 			or not row.lineage is String or not row.lineage.begins_with("ordinary:") \
-			or not api._digest(row.lineage.substr(9)) or not row.rows is Array or row.rows.size() != MAX_ROWS: return false
+			or not api._digest(row.lineage.substr(9)) or not row.rows is Array or row.rows.size() != count: return false
 	var decoded: int = 0
 	var encoded: int = 0
 	var seen: Array[String] = []
@@ -144,11 +155,23 @@ static func _decode(row: Dictionary, carrier: Carrier) -> PackedByteArray:
 # Structural only. The next integration must independently carry native
 # owner/close/fold/proposal proof across ordered rows before adoption.
 static func unpack(manifest: Variant) -> Array[PackedByteArray]:
-	if not _budget(manifest): return []
+	return _unpack_ordered(manifest,MAX_ROWS)
+
+static func unpack_appended(manifest: Variant) -> Array[PackedByteArray]:
+	return _unpack_ordered(manifest,MAX_ROWS+1)
+
+static func _flat_carrier(lineage: String, previous: Array) -> Carrier:
+	var strings: Array[String] = []
+	for row: Dictionary in previous: strings.append(row.body.deflate_base64)
+	return Carrier.new({"kind":KIND,"lineage":lineage,"rows":previous},strings)
+
+static func _unpack_ordered(manifest: Variant, count: int) -> Array[PackedByteArray]:
+	if not _bounded(manifest,count): return []
 	var decoded: Array[PackedByteArray] = []
 	var earlier: Array[String] = []
 	for row: Dictionary in manifest.rows:
-		var carrier := _legacy_carrier(decoded,manifest.rows)
+		var carrier: Carrier = _legacy_carrier(decoded,manifest.rows) if decoded.size() < MAX_ROWS \
+			else _flat_carrier(manifest.lineage,manifest.rows.slice(0,decoded.size()))
 		if carrier == null: return []
 		var raw := _decode(row,carrier)
 		if raw.is_empty() or not _owner_shape(raw,int(row.ordinal),manifest.lineage,carrier,earlier): return []
@@ -191,3 +214,28 @@ static func migrate_legacy_closed(raw: PackedByteArray) -> Dictionary:
 		earlier.append(row.source_sha256)
 	var manifest := {"kind":KIND,"lineage":lineage,"rows":rows}
 	return manifest if unpack(manifest) == raws else {}
+
+# Structural transport only. This does not establish native close/earnings
+# authority. Callers wanting continuation must authenticate the real source.
+static func append_flat_closed(raw: PackedByteArray, expected_lineage: String) -> Dictionary:
+	var api := _api()
+	if raw.is_empty() or raw.size() > api.Common.StandardArchive.MAX_SOURCE: return {}
+	var v: Variant = api._bytes_value(raw)
+	if not v is Dictionary or not v.get("ordinary_state") is Dictionary: return {}
+	var prefix: Variant = v.ordinary_state.get("archive")
+	if not _budget(prefix) or prefix.lineage != expected_lineage: return {}
+	var previous: Array = prefix.rows
+	var earlier: Array[String] = []
+	var decoded_total: int = raw.size()
+	for prior: Dictionary in previous:
+		earlier.append(prior.source_sha256)
+		decoded_total += int(prior.source_bytes)
+	if decoded_total > MAX_DECODED: return {}
+	var ordinal: int = previous.size()+1
+	var row := _encode(raw,ordinal,expected_lineage,_flat_carrier(expected_lineage,previous),earlier)
+	if row.is_empty() or row.source_sha256 in earlier: return {}
+	var rows: Array = previous.duplicate()
+	rows.append(row)
+	var result := {"kind":KIND,"lineage":expected_lineage,"rows":rows}
+	var reconstructed := unpack_appended(result)
+	return result if reconstructed.size()==ordinal and reconstructed[-1]==raw else {}

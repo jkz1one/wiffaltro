@@ -1,0 +1,140 @@
+extends Node
+
+const Flat = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_standard_continuation.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Start = Owner.Common.Start
+const Custody = Flat.Custody
+const HASH: Array[String] = ["c964f1eb24f35811506de876958d2846892a21075a4ccd4f472637c28d7262e9",
+	"9e37cd51e8613d360a7849df0aa1bc35225cf51ba3a8a855a52822feccf79acd",
+	"6d62bc30775faec6cf941b8d87353e55c0663ce6a96148572826511efe00416a",
+	"5aa288a193cc438b37100c02773d308558b0ea1987d36bfa8421a87f26ed6d57"]
+var failures := 0
+
+func check(ok: bool, label: String) -> bool:
+	print("CP298 ", "PASS" if ok else "FAIL", " ", label)
+	if not ok: failures+=1
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var raw:=Store.raw()
+	if not check(raw.size()==2750375 and Owner._hash(raw)==HASH[-1] and Store.private_standard_chain_opening()
+			and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),"exact isolated native CP295 input"):
+		get_tree().quit(1); return
+	var old: Dictionary=Owner._bytes_value(raw)
+	var state: Dictionary=old.ordinary_state
+	var previous: Dictionary=state.archive
+	var altered:=raw.duplicate()
+	altered.append(32)
+	var wrong_fold: Dictionary=old.duplicate(true)
+	wrong_fold.common.sequence=5
+	var bad_fold:=JSON.stringify(wrong_fold,"",true,true).to_utf8_buffer()
+	var wrong_provenance: Dictionary=old.duplicate(true)
+	wrong_provenance.ordinary_state.last_transition.basis.archive_origin.ordered_sha256.reverse()
+	var bad_pin:=JSON.stringify(wrong_provenance,"",true,true).to_utf8_buffer()
+	check(Flat.draft_from_flat_closed(raw,HASH[2])==null and Flat.draft_from_flat_closed(altered,HASH[-1])==null
+		and Flat.draft_from_flat_closed(bad_fold,Owner._hash(bad_fold))==null
+		and Flat.draft_from_flat_closed(bad_pin,Owner._hash(bad_pin))==null
+		and Custody.append_flat_closed(raw,"ordinary:"+HASH[0]).is_empty(),"stale source, rehashed wrong close sequence, reordered source basis, wrong lineage rejected")
+
+	var tick:=Time.get_ticks_msec()
+	print("CP298 STAGE deep native input read + detached append/birth")
+	var result:=Flat.draft_from_flat_closed(raw,HASH[-1])
+	if not check(result!=null,"one strict native closed adjudication and real detached draft"):
+		get_tree().quit(1); return
+	print("CP298 elapsed constructor ms=",Time.get_ticks_msec()-tick)
+	var season: SeasonState=result.season
+	var basis: Dictionary=result.basis()
+	var archive: Dictionary=result.archive()
+	var roots:=Custody.unpack_appended(archive)
+	var prior_roots:=Custody.unpack(previous)
+	if not check(roots.size()==4 and prior_roots.size()==3 and roots[-1]==raw
+			and Owner.Codec.same(archive.rows.slice(0,3),previous.rows)
+			and Owner.Codec.same(roots.map(Owner._hash),HASH),"exact ordered roots and unchanged previous carrier rows"):
+		get_tree().quit(1); return
+	check(roots.slice(0,3)==prior_roots and Custody.unpack(archive).is_empty()
+		and Custody.unpack_appended(previous).is_empty(),"old three-root reader remains exact; no compatibility reinterpretation")
+	var cut: PackedByteArray=Owner.Common.StandardArchive._unpack(archive.rows[-1].body)
+	var cut_text:=cut.get_string_from_utf8()
+	var no_repeat: bool= archive.rows[-1].offsets.size()==previous.rows.size() and cut.size()<raw.size()
+	for row: Dictionary in previous.rows:
+		no_repeat=no_repeat and not cut_text.contains(row.body.deflate_base64)
+	check(no_repeat,"deterministic carrier cut physically omits every prior compressed root body")
+	print("CP298 transport raw=",raw.size()," cut=",cut.size()," appended_payload=",archive.rows[-1].body.deflate_base64.length())
+	var wrong: Dictionary=archive.duplicate(true)
+	wrong.rows.reverse()
+	check(Custody.unpack_appended(wrong).is_empty(),"swapped rows refused")
+	wrong=archive.duplicate(true)
+	wrong.rows.append(wrong.rows[-1])
+	check(Custody.unpack_appended(wrong).is_empty(),"extra row refused")
+	wrong=archive.duplicate(true)
+	wrong.rows[-1].source_bytes+=1
+	check(Custody.unpack_appended(wrong).is_empty(),"wrong exact source size refused")
+	wrong=archive.duplicate(true)
+	for row: Dictionary in wrong.rows: row.source_bytes=Owner.Common.StandardArchive.MAX_SOURCE
+	check(not Custody._bounded(wrong,4) and Custody.unpack_appended(wrong).is_empty(),"aggregate excessive decoded budget refused before decompress")
+	wrong=archive.duplicate(true)
+	wrong.lineage="ordinary:"+HASH[0]
+	check(Custody.unpack_appended(wrong).is_empty(),"different lineage refused")
+	wrong=archive.duplicate(true)
+	altered=roots[0].duplicate()
+	altered.append(32)
+	wrong.rows[0].body=Owner.Common.StandardArchive._pack(altered)
+	wrong.rows[0].source_bytes=altered.size()
+	wrong.rows[0].source_sha256=Owner._hash(altered)
+	check(Custody.unpack_appended(wrong).is_empty(),"recompressed and rehashed substituted earlier root refused")
+	wrong=basis.duplicate(true)
+	wrong.archive_origin.ordered_sha256.append("a".repeat(64))
+	wrong.ordinal+=1
+	wrong.common_sequence+=1
+	check(not Start.valid(wrong),"a fifth archive root and further ordinal are not admitted")
+
+	var seed_value: int=("ordinary:%s:%d:nextseed"%[state.lineage,archive.rows.size()+1]).hash() & 0x7fffffff
+	var w=Owner.Common.StandardWorkshop
+	var oracle: RefCounted=Owner._new()
+	oracle.common=old.common.duplicate(true)
+	oracle.session=season
+	var expectation: Dictionary=Start.bind_standard_flat(Start.make(seed_value,state.lineage,5,4,
+		Owner.Common.Life.digest(old.common.aggregate),Owner.Common.projection(oracle)),HASH)
+	check(not expectation.is_empty() and Owner.Codec.same(basis,expectation) and Start.matches(season.build,basis)
+		and basis.starts.sides and season.build._sides_start and season.season_seed==seed_value
+		and result.source().ordinal==4 and Owner.Codec.same(result.source().close,state.last_close)
+		and Flat.matches_detached(result,basis,archive),"authored next seed, full native progression and exact close, earned Sides")
+	check(Owner.Codec.same(result.common(),old.common) and result.common().aggregate.currency==72
+		and result.common().aggregate.titles.is_empty() and result.common().last_fold.receipt.is_empty()
+		and result.source().close.reason=="abandon" and result.source().close.receipt.is_empty()
+		and old.common.sequence==4,"exact Common72 without title, close replay payment or receipt")
+	check(season.phase==SeasonState.Phase.DRAFT and season.picks.is_empty() and season.round_index==0
+		and season.results.is_empty() and season.physical.cursor==0 and season.physical.pending.is_empty()
+		and season.physical.reports.is_empty() and season.league_rules.is_empty() and not season.league_live
+		and not season.build.d1_pricing_valid() and season.cash()==0,"native Base fifth draft and reset seasonal Cash")
+	check(Owner.Codec.same(result.workshop(),state[w.FIELD]) and not old.ordinary.state.home_property.is_empty()
+		and season.home_property.is_empty() and not result.workshop().has(w.OPENING) and not result.workshop().has(w.APPLIED),
+		"actual Workshop draft carried but never installed")
+	print("CP298 native draft seed=",season.season_seed," seasonal Cash=",season.cash()," career Club Credits=",result.common().aggregate.currency)
+
+	var outer: RefCounted=Owner._restore_metadata(old)
+	var next_owner:=Flat._local_owner(outer,result)
+	if not check(next_owner!=null,"full detached owner-shaped negative constructed"):
+		get_tree().quit(1); return
+	var encoded: Dictionary=Owner.Adapter.Ordinary.capture(season)
+	var envelope: Dictionary=old.duplicate(true)
+	envelope.ordinary=encoded
+	envelope.ordinary_state=next_owner.ordinary_state
+	check(not encoded.is_empty() and Owner.Adapter.capture("ordinary",season).is_empty()
+		and Owner.Adapter.checked_restore("ordinary",encoded).is_empty() and Owner.capture(next_owner).is_empty()
+		and Owner.restore(envelope)==null and Flat._restore_private(envelope)==null
+		and Flat._capture_local(next_owner).is_empty() and Store.prepare_private_standard_flat_birth(next_owner,raw)==null
+		and not Store.save(next_owner,raw),"the real native detached carrier is denied by generic and old private readers/writers")
+	var id: String=season.draft_pool[0]
+	check(season.choose_player(id) and season.picks==[id] and Flat.matches_detached(result,basis,archive)
+		and season.home_property.is_empty(),"one actual detached native pick")
+	basis.archive_origin.ordered_sha256.clear()
+	archive.rows.clear()
+	check(result.basis().archive_origin.ordered_sha256==HASH and result.archive().rows.size()==4
+		and Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".tmp")
+		and not FileAccess.file_exists(Store.PATH+".bak"),"detached projections and unchanged primary, no writes")
+	get_tree().quit(1 if failures else 0)
