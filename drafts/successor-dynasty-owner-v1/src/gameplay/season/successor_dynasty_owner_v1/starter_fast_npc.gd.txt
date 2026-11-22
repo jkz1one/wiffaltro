@@ -25,7 +25,7 @@ static func _canonical(data: Dictionary) -> String:
 	return JSON.stringify(data,"",true,true)
 
 static func scoped(owner: RefCounted) -> bool:
-	return _next_fixture(owner)>0
+	return Store.LeagueAdmission.starter_fast_worker() and _next_fixture(owner)>0
 
 static func _next_fixture(owner: RefCounted) -> int:
 	if owner==null or not Store._starter_owner_allowed(owner) or owner.active!="ordinary":
@@ -90,7 +90,7 @@ static func parse(args: PackedStringArray) -> Dictionary:
 
 static func _package() -> bool:
 	var exe: String=OS.get_executable_path()
-	return Store.LeagueAdmission.starter_player() and exe.is_absolute_path() \
+	return Store.LeagueAdmission.starter_fast_worker() and exe.is_absolute_path() \
 		and FileAccess.file_exists(exe.get_basename()+".pck")
 
 static func _slot() -> PackedByteArray:

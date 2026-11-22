@@ -7,17 +7,25 @@ const Titles = preload("res://src/gameplay/season/club_league_career.gd")
 const STARTER_FEATURE: String="wiffaltro_starter_beta"
 const STARTER_MAIN: String="res://starter_bootstrap/entry.tscn"
 const STARTER_USER_DIR: String="WiffaltroStarterBeta-v1"
+const STARTER_MAC_USER_DIR: String="WiffaltroStarterBeta-Mac-v1"
 const STARTER_LEAGUES: Array[String]=["standard","dugout"]
 
 static func starter_feature() -> bool:
 	return OS.has_feature(STARTER_FEATURE)
 
 static func starter_player() -> bool:
-	return starter_feature() and OS.get_name()=="Linux" and not OS.has_feature("editor") \
+	var leaf: String=ProjectSettings.get_setting("application/config/custom_user_dir_name","")
+	return starter_feature() and starter_platform_profile(OS.get_name(),leaf) and not OS.has_feature("editor") \
 		and not OS.has_feature("wiffaltro_engineering_export") \
 		and ProjectSettings.get_setting("application/run/main_scene")==STARTER_MAIN \
-		and ProjectSettings.get_setting("application/config/use_custom_user_dir",false)==true \
-		and ProjectSettings.get_setting("application/config/custom_user_dir_name","")==STARTER_USER_DIR
+		and ProjectSettings.get_setting("application/config/use_custom_user_dir",false)==true
+
+static func starter_platform_profile(platform: String, leaf: String) -> bool:
+	return (platform=="Linux" and leaf==STARTER_USER_DIR) \
+		or (platform=="macOS" and leaf==STARTER_MAC_USER_DIR)
+
+static func starter_fast_worker() -> bool:
+	return OS.get_name()=="Linux" and starter_player()
 
 static func enabled() -> bool:
 	return starter_feature() or OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW") == "1"

@@ -26,10 +26,27 @@ func _check() -> void:
 	var value: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[0]))
 	if not value is Dictionary or not value.get("source") is Dictionary:
 		_fail("missing external source inventory"); return
-	if ProjectSettings.get_setting("application/run/main_scene") != "res://engineering_bootstrap/entry.tscn" \
+	var starter: bool = value.get("starter", false)
+	var entry: String = "res://starter_bootstrap/entry.tscn" if starter else "res://engineering_bootstrap/entry.tscn"
+	var user_dir: String = "WiffaltroStarterBeta-Mac-v1" if starter else "WiffaltroEngineeringQA-v1"
+	if ProjectSettings.get_setting("application/run/main_scene") != entry \
 			or not ProjectSettings.get_setting("application/config/use_custom_user_dir") \
-			or OS.get_user_data_dir().get_file() != "WiffaltroEngineeringQA-v1":
-		_fail("effective entry or engineering user directory mismatch"); return
+			or ProjectSettings.get_setting("application/config/custom_user_dir_name") != user_dir \
+			or OS.get_user_data_dir().get_file() != user_dir:
+		_fail("effective entry or isolated Mac user directory mismatch"); return
+	if starter:
+		var admission = load("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
+		if OS.get_name() != "Linux" or admission == null or not admission.starter_feature() \
+				or OS.has_feature("wiffaltro_engineering_export") or admission.starter_player() \
+				or admission.starter_fast_worker() or load(entry) == null:
+			_fail("Mac package feature/scope accepted on wrong host or failed to load"); return
+		if not admission.starter_platform_profile("macOS", user_dir) \
+				or not admission.starter_platform_profile("Linux", "WiffaltroStarterBeta-v1") \
+				or admission.starter_platform_profile("Linux", user_dir) \
+				or admission.starter_platform_profile("macOS", "WiffaltroStarterBeta-v1") \
+				or admission.starter_platform_profile("macOS", "WiffaltroEngineeringQA-v1") \
+				or admission.starter_platform_profile("Windows", user_dir):
+			_fail("starter platform/profile matrix mismatch"); return
 	var stadium = load("res://src/presentation/stadium/stadium_npc_public_runtime.gd")
 	var broad = load("res://src/gameplay/stadium/stadium_pool_party_asset_integrity.gd")
 	if stadium == null or broad == null or not stadium.source_qualified():
@@ -42,10 +59,16 @@ func _check() -> void:
 				or path.begins_with("res://addons/") or path.begins_with("res://tests/") \
 				or path.begins_with("res://drafts/") or path.ends_with(".log") \
 				or path.ends_with(".bak") or path.ends_with(".zip") or path.ends_with(".pem") \
+				or (starter and path.begins_with("res://engineering_bootstrap/")) \
+				or (starter and path.begins_with(entry.get_base_dir() + "/") and not value.source.has(path)) \
 				or "wiffaltro-common-career" in path:
 			_fail("unexpected package resource " + path); return
+	if starter:
+		for path: String in _paths("user://"):
+			if not (path.begins_with("user://logs/godot") and path.ends_with(".log")):
+				_fail("unexpected Mac inspection profile file " + path); return
 	var measured: String = broad.source_sha256()
-	if measured.length() != 64:
+	if measured.length() != 64 or (starter and measured == value.get("source_broad_sha256")):
 		_fail("broad runtime identity unavailable"); return
 	print("MAC_PACK_STATIC_PASS ", value.source.size(), " ", measured)
 	quit()

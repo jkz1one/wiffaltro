@@ -762,8 +762,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd",
-      "bytes": 10752,
-      "sha256": "554fe2165701e32897144dce3e32917ac2ee977259cf8aec52d7c1ba60ce7b05"
+      "bytes": 10805,
+      "sha256": "bf844325d7679d38b464d27d380943fd1e99d4729e7a5d7cf7293c269c5cefdc"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_standard_archive.gd.txt",
@@ -866,8 +866,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd",
-      "bytes": 2340,
-      "sha256": "dd75dc7aa1925559fd320be08d06e56de936a2a5907212e934563eeeebec434d"
+      "bytes": 2707,
+      "sha256": "b7967d53ce98769e7efa79c0e2bd015ed2003d8e0dd73477a3380e7deba9c66f"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/standard_d1_intent.gd.txt",
