@@ -140,6 +140,7 @@ static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if not LeagueAdmission.starter_player() or owner==null or owner.get_script()!=Owner \
 		or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
 		or not Owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+		or owner.ordinary_state.has(Owner.Common.StandardWorkshop.APPLIED) \
 		or (owner.ordinary_state.has("archive") and not Owner.Common.StandardArchive.shape(owner) \
 			and not Owner.Common.StandardChain.shape(owner)) \
 		or Owner.Common.cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")): return false
@@ -1060,7 +1061,17 @@ static func prepare_standard_workshop_and_write(owner: RefCounted, expected: Pac
 
 static func _prepare_standard_workshop_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
 	var workshop = Owner.Common.StandardWorkshop
-	if saving or _ticket!=null or not workshop.editable(owner) or not match_owner(owner,expected): return null
+	if not workshop.editable(owner): return null
+	return _prepare_standard_workshop_plan(owner,expected)
+
+static func _prepare_private_standard_home_draft(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	var workshop = Owner.Common.StandardWorkshop
+	if LeagueAdmission.starter_feature() or not workshop.first_home(owner) or owner.ordinary_state.has(workshop.FIELD): return null
+	return _prepare_standard_workshop_plan(owner,expected)
+
+static func _prepare_standard_workshop_plan(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	var workshop = Owner.Common.StandardWorkshop
+	if saving or _ticket!=null or not match_owner(owner,expected): return null
 	var decoded: Variant = Owner._bytes_value(expected)
 	if not decoded is Dictionary or decoded.get("active")!="ordinary" or not decoded.get("ordinary") is Dictionary: return null
 	var candidate: RefCounted = Owner.new()
@@ -1080,6 +1091,35 @@ static func _prepare_standard_workshop_and_write(owner: RefCounted, expected: Pa
 	if not budget[1] or snapshot.is_empty(): return null
 	snapshot.session = _owner_raw.session
 	if not _matches_raw(candidate,snapshot): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+# Engineering-only fixed Apply; no exposed input, arbitrary placement or fee.
+static func _prepare_private_standard_home_apply(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	forget_projection()
+	last_error=""
+	var workshop = Owner.Common.StandardWorkshop
+	if LeagueAdmission.starter_feature() or saving or _ticket!=null or not workshop.first_home(owner) \
+		or not owner.ordinary_state.has(workshop.FIELD) or not match_owner(owner,expected): return null
+	var candidate: RefCounted=owner.fork()
+	if candidate==null: return null
+	var placement: Dictionary=workshop.placement(candidate.ordinary_state,candidate.session)
+	var native: Dictionary=workshop.Home.snapshot(candidate.ordinary_state.lineage)
+	if placement.is_empty() or native.is_empty(): return null
+	candidate.session.home_property=native
+	candidate.ordinary_state[workshop.APPLIED]=placement
+	var data: Dictionary=Owner.capture(candidate)
+	if data.is_empty(): return null
+	var snapshot: Dictionary=RawGuard.capture(candidate)
+	if snapshot.is_empty() or not match_owner(owner,expected): return null
+	var prior: Variant=Owner._bytes_value(expected)
+	var unchanged: Dictionary=data.duplicate(true)
+	unchanged.ordinary.state.home_property={}
+	unchanged.ordinary_state.erase(workshop.APPLIED)
+	if not Codec.same(unchanged,prior): return null
 	_ticket=RefCounted.new()
 	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
 	_expected=expected.duplicate();_written=PackedByteArray()

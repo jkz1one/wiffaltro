@@ -1328,7 +1328,9 @@ func play_next() -> void:
 
 
 func _expected_stadium(fixture: Dictionary) -> Dictionary:
-	return Owner.WorkshopApply.fixture(season,fixture) if _active_side()=="dynasty" else {}
+	if _active_side()=="dynasty": return Owner.WorkshopApply.fixture(season,fixture)
+	# Installed Ordinary owners are admitted only in the private lane.
+	return Owner.Common.StandardWorkshop.Home.fixture(season,fixture)
 
 func _played_field_matches() -> bool:
 	if season==null or not _scope() or not is_instance_valid(lab) or lab._match_state==null:

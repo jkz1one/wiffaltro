@@ -112,6 +112,7 @@ static func known_variables(object: Object, names: Array) -> bool:
 
 const NAMED_LEAGUE_FORMAT: String = "wiffaltro-common-ordinary-named-league-session-v1"
 const PairSchedule = preload("res://src/gameplay/season/successor_request_composition_v1/request_key.gd")
+const StarterHome = preload("starter_home_transport.gd")
 const ScheduleSelector = preload("res://src/gameplay/season/successor_doubleheader_selector_v1/schedule_selector.gd")
 const Admissions = preload("ordinary_admission.gd")
 const NEW_LEAGUES = Admissions.NEW_LEAGUES
@@ -603,7 +604,8 @@ static func _human_score(season: SeasonState, row: Dictionary) -> bool:
 static func _structural_valid(season: SeasonState, d1: bool=false) -> bool:
 	if not (d1_draft_scope(season) if d1 else scope(season)) or not known_variables(season,FIELDS+OBJECTS) or not known_variables(season.career,CAREER_FIELDS): return false
 	if season._heat_replay_team != null or season._doubleheader_replay_build != null or season._pool_replay_ledger != null or season._npc_replay_run != -1: return false
-	for name: String in ["inventory_rules","home_property","owned_surface_night","npc_venues","final_venue","_dynasty_start","_closed_access","_dynasty_owner_binding","_league_home_context","_standard_live_context","_standard_bound_grant","_dynasty_career_session"]:
+	if not StarterHome.valid(season): return false
+	for name: String in ["inventory_rules","owned_surface_night","npc_venues","final_venue","_dynasty_start","_closed_access","_dynasty_owner_binding","_league_home_context","_standard_live_context","_standard_bound_grant","_dynasty_career_session"]:
 		if not season.get(name).is_empty(): return false
 	if not whole(season.phase,0,4) or not whole(season.round_index,0,12) or not whole(season.difficulty,0,2) or not whole(season.starter_index,0,3) or not whole(season.fielder_index,0,3): return false
 	if _basis_seed != season.season_seed:
@@ -695,9 +697,10 @@ static func _results_valid(season: SeasonState) -> bool:
 		fixtures[32] = season.final_fixture
 	var seen: Dictionary = {}
 	for row: Dictionary in season.results:
-		if not Evidence.result_fields(row,season.league_rules): return false
 		if not whole(row.get("id"),0,32) or seen.has(int(row.id)) or not fixtures.has(int(row.id)): return false
 		var fixture: Dictionary = fixtures[int(row.id)]
+		var property:=StarterHome.key(season,fixture)
+		if not Evidence.result_fields(row,season.league_rules,property): return false
 		for key: String in fixture:
 			if not row.has(key) or not same(row[key],fixture[key]): return false
 		if not whole(row.get("away_runs"),0,100000) or not whole(row.get("home_runs"),0,100000) or row.away_runs == row.home_runs: return false
@@ -746,7 +749,7 @@ static func _physical_valid(season: SeasonState) -> bool:
 	for id: int in settled:
 		if settled[id].home!=0 and settled[id].away!=0 and not seen.has(id): return false
 	if physical.pending.is_empty(): return true
-	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or (not Admissions.paired_draft_only(season) and not keys(physical.pending,["human","reports"])) or not physical.pending.human is Array or not physical.pending.reports is Array or physical.pending.reports.size()>5: return false
+	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or (not Admissions.paired_draft_only(season) and not StarterHome.pending_shape(season)) or not physical.pending.human is Array or not physical.pending.reports is Array or physical.pending.reports.size()>5: return false
 	var human: Array = physical.pending.human
 	if not Evidence.codec_human_shape(human,season.league_rules,Catalog.game_signature()): return false
 	var fixture: Dictionary = season.pending_fixture()
@@ -880,6 +883,10 @@ static func _restore(value: Variant,d1: bool) -> SeasonState:
 
 # The privately admitted Base scopes use one full history gate per operation.
 static func _history_valid(season: SeasonState) -> bool:
+	if not season.home_property.is_empty() and season.physical.pending.has("property"):
+		# A property-bound human13 is meaningful only if the original
+		# native validation can consume it from this exact live prefix.
+		return not load("res://src/gameplay/season/successor_live_play_v1/pending.gd").project(season).has("error")
 	if season.league_rules.get("league","")!="doubleheader": return true
 	if not same(season.league_rules,LeagueRules.capture("doubleheader")): return false
 	paired_history_calls+=1

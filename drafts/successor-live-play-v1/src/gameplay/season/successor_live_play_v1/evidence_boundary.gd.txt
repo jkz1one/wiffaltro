@@ -23,10 +23,12 @@ static func codec_human_shape(human: Variant, rules: Dictionary, catalog: String
 		if not human[index] is Array: return false
 	return true
 
-static func result_fields(row: Dictionary, rules: Dictionary) -> bool:
+static func result_fields(row: Dictionary, rules: Dictionary, property: String = "") -> bool:
 	var paired: bool = LeagueRules.doubleheader(rules)
+	if not property.is_empty() and (paired or row.get("property")!=property): return false
 	for key: Variant in row:
-		if key not in RESULT_FIELDS and not (paired and key=="doubleheader_evidence"): return false
+		if key not in RESULT_FIELDS and not (paired and key=="doubleheader_evidence") \
+			and not (not property.is_empty() and key=="property"): return false
 	if not paired: return true
 	# Only outer structure is admitted here. Authentic General result validation
 	# must still prove both workload envelopes against the exact historical clubs.

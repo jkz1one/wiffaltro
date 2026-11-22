@@ -1,8 +1,9 @@
 extends RefCounted
 ## Draft custody only. Never equips the chair in MatchState or changes Cash.
 const FIELD: String = "starter_workshop"
-const COPY: String = "starter-v1:ST-079"
-const Apply = preload("workshop_apply.gd")
+const Home = preload("res://src/gameplay/season/successor_live_play_v1/starter_home_transport.gd")
+const COPY: String = Home.COPY
+const APPLIED: String = "starter_workshop_applied"
 
 static func stock_seed(lineage: String) -> int:
 	return int(lineage.trim_prefix("ordinary:").left(8).hex_to_int()) & 0x7fffffff
@@ -13,7 +14,7 @@ static func ledger(lineage: String) -> ClubAssetLedger:
 static func record(lineage: String) -> Dictionary:
 	# Reuse the original zero-cost native freeze as the layout validation
 	# oracle, not as a persisted Apply record or a gameplay permission.
-	var snapshot: Dictionary = Apply.snapshot(stock_seed(lineage))
+	var snapshot: Dictionary = Home.snapshot(lineage)
 	var layout: Variant = snapshot.get("layout")
 	if not layout is Dictionary or layout.get("receiver") != COPY or layout.get("obstacles") != []: return {}
 	return {"version":1,"lineage":lineage,"layout":layout}
@@ -39,3 +40,44 @@ static func editable(owner: RefCounted) -> bool:
 	return season.phase==SeasonState.Phase.DRAFT and season.round_index==0 and season.picks.is_empty() \
 		and season.home_property.is_empty() and season.results.is_empty() and season.build!=null \
 		and not season.build.pack_pending() and season.physical!=null and season.physical.pending.is_empty()
+
+
+# Hidden first-home family. The application window is an already admitted
+# and settled away opener, never a substituted schedule, draft or paid item.
+static func first_home(owner: RefCounted) -> bool:
+	if not _standard(owner) or not owner.paused.is_empty() or owner.ordinary_state.has(APPLIED): return false
+	var season: SeasonState = owner.session
+	var f: Dictionary=season.pending_fixture()
+	return Home.base(season) and season.phase==SeasonState.Phase.REGULAR and season.round_index==1 \
+		and season.results.size()==3 and season.player_results.size()==1 and season.home_property.is_empty() \
+		and f.get("home")==0 and f.get("id")==3 and season.picks.size()==4 \
+		and season.build!=null and not season.build.pack_pending() and season.physical!=null \
+		and season.physical.cursor==2 and season.physical.reports.size()==2 and season.physical.pending.is_empty() \
+		and season.physical.needed.is_empty() and season.physical.error.is_empty() and not season.physical.projecting \
+		and not opening_digest(season).is_empty()
+
+static func opening_digest(season: SeasonState) -> String:
+	if season.results.size()<3 or season.player_results.is_empty() or season.physical.reports.size()<2: return ""
+	var games: Array=season.results.slice(0,3)
+	var reports: Array=season.physical.reports.slice(0,2)
+	if games[0].get("id")!=0 or games[0].get("away")!=0 or games[0].has("property") \
+		or games[1].get("id")!=1 or games[2].get("id")!=2 or season.player_results[0].get("id")!=0 \
+		or reports[0].get("fixture")!=1 or reports[1].get("fixture")!=2: return ""
+	# Normalize known emitted whole numbers across the JSON hydration boundary.
+	# Compare the entire already-authoritative settled opening, not just scores.
+	var text:=JSON.stringify([games,reports],"",true,true)
+	var value: Variant=JSON.parse_string(text)
+	return JSON.stringify(value,"",true,true).sha256_text() if value is Array else ""
+
+static func placement(state: Dictionary, season: SeasonState) -> Dictionary:
+	if not Home.base(season) or not state.has(FIELD): return {}
+	var proof:=opening_digest(season)
+	if proof.is_empty(): return {}
+	return {"version":1,"lineage":state.lineage,"ordinal":state.ordinal,
+		"start":state.start_basis_sha256,"first_home":3,"opening":proof}
+
+static func placement_valid(state: Dictionary, season: SeasonState) -> bool:
+	if not state.has(APPLIED): return season.home_property.is_empty()
+	if season.home_property.is_empty() or not Home.valid(season): return false
+	var expected:=placement(state,season)
+	return not expected.is_empty() and ClubCareer.same(state[APPLIED],expected)

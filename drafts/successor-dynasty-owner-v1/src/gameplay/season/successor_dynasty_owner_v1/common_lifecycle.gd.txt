@@ -89,7 +89,7 @@ static func valid(owner) -> bool:
 	var has_ordinary: bool=owner.active=="ordinary" or not owner.paused.is_empty()
 	if not has_ordinary: return owner.ordinary_state.is_empty() and value.cursors.ordinary==0
 	var state: Dictionary=owner.ordinary_state
-	if not C.keys(state,ORDINARY_FIELDS+(["archive"] if state.has("archive") else [])+([StandardWorkshop.FIELD] if state.has(StandardWorkshop.FIELD) else [])) or not state.lineage is String or not state.lineage.begins_with("ordinary:") or not owner._digest(state.lineage.trim_prefix("ordinary:")) or not C.whole(state.ordinal,1,ClubCareer.MAX_RUNS) or state.status not in ["active","closed"]: return false
+	if not C.keys(state,ORDINARY_FIELDS+(["archive"] if state.has("archive") else [])+([StandardWorkshop.FIELD] if state.has(StandardWorkshop.FIELD) else [])+([StandardWorkshop.APPLIED] if state.has(StandardWorkshop.APPLIED) else [])) or not state.lineage is String or not state.lineage.begins_with("ordinary:") or not owner._digest(state.lineage.trim_prefix("ordinary:")) or not C.whole(state.ordinal,1,ClubCareer.MAX_RUNS) or state.status not in ["active","closed"]: return false
 	if not owner._digest(state.start_basis_sha256) or not state.last_close is Dictionary or not state.proposal is Dictionary or not state.last_transition is Dictionary: return false
 	if value.cursors.ordinary!=int(state.ordinal)-int(state.status=="active"): return false
 	if state.status=="active" and (not state.last_close.is_empty() or not state.proposal.is_empty()): return false
@@ -270,6 +270,7 @@ static func archived_abandon_scope(owner, season: SeasonState) -> bool:
 static func ordinary_current_valid(owner, season: SeasonState, current: Dictionary) -> bool:
 	if not Adapter.scope("ordinary",season) or current.is_empty() or owner.ordinary_state.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
+	if not StandardWorkshop.placement_valid(state,season): return false
 	if season.league_rules.get("league","")=="doubleheader":
 		if owner.active!="ordinary" or not owner.paused.is_empty() or not owner.migration_v3.is_empty() or not owner._missing_dynasty(owner): return false
 		if state.ordinal!=1: return false

@@ -1,0 +1,37 @@
+extends RefCounted
+## Exact free-chair transport on the archived Standard Base lane. The Common
+## owner separately authenticates the actual placement. No standalone writer.
+const Start = preload("common_start.gd")
+const COPY: String = "starter-v1:ST-079"
+
+static func base(season: SeasonState) -> bool:
+	if season==null or season.career==null or not season.league_rules.is_empty() or season.league_live: return false
+	var basis: Dictionary = season.career.start_basis
+	return basis.get("kind")==Start.KIND and basis.get("version")==2 and basis.get("ordinal")==2 \
+		and basis.get("archive_origin",{}).get("kind")==Start.STANDARD_REPEAT
+
+static func snapshot(lineage: String) -> Dictionary:
+	# Use the shared zero-cost *geometry constructor*, not any Dynasty
+	# purchase, close-history record, authorization or positive grant.
+	var native=load("res://src/gameplay/season/successor_dynasty_owner_v1/workshop_apply.gd")
+	var stock_seed: int = int(lineage.trim_prefix("ordinary:").left(8).hex_to_int()) & 0x7fffffff
+	return native.snapshot(stock_seed) if native!=null else {}
+
+static func valid(season: SeasonState) -> bool:
+	if season.home_property.is_empty(): return true
+	if not base(season) or season.phase==SeasonState.Phase.DRAFT or season.round_index<1: return false
+	var authored:=snapshot(season.career.start_basis.lineage)
+	return not authored.is_empty() and ClubCareer.same(season.home_property,authored)
+
+static func fixture(season: SeasonState, row: Dictionary) -> Dictionary:
+	if season.home_property.is_empty() or row.get("home")!=0 or row.get("neutral",false): return {}
+	return StadiumLayoutSnapshot.for_fixture(season,row)
+
+static func key(season: SeasonState, row: Dictionary) -> String:
+	return StadiumLayoutSnapshot.key(fixture(season,row))
+
+static func pending_shape(season: SeasonState) -> bool:
+	var value: Dictionary=season.physical.pending
+	var property:=key(season,season.pending_fixture())
+	if property.is_empty(): return SeasonOwnership._keys(value,["human","reports"])
+	return SeasonOwnership._keys(value,["human","reports","property"]) and value.property==property

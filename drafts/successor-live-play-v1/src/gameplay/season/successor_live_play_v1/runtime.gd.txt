@@ -135,6 +135,12 @@ func record_player_result(
 ) -> bool:
 	if _d1_draft() or Admissions.paired_draft_only(self) or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] or not league_context_consistent(): return false
 	var ok: bool = super.record_player_result(fixture_id,away_runs,home_runs,performance,used_gear,tactics,batting,stances,fielding,pitching,field_supply,frozen,ai_tactics,replayed_tactics,property_key,pool_evidence,yard_evidence)
+	# The native commit adds an empty key to an away/neutral human row
+	# when a home snapshot exists. Keep those Ordinary wires unchanged.
+	if ok and not home_property.is_empty() and property_key.is_empty():
+		for rows: Array in [results,player_results]:
+			for row: Dictionary in rows:
+				if row.id==fixture_id and row.get("property")=="": row.erase("property")
 	return ok and career.sync(self)
 
 

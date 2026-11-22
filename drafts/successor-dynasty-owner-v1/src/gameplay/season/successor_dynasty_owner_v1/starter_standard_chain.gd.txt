@@ -163,6 +163,9 @@ static func candidate(owner: RefCounted, raw: PackedByteArray) -> RefCounted:
 	state.last_transition = {"kind":TRANSITION,"id":p.id,"source":p.source,"from":2,"to":3,
 		"league":"standard","basis":basis}
 	state.ordinal = 3
+	# The layout draft is lineage-level. No old installation is applied
+	# to a new season; the authenticated predecessor still holds it.
+	state.erase(api.Common.StandardWorkshop.APPLIED)
 	state.status = "active"
 	state.last_close = {}
 	state.proposal = {}
