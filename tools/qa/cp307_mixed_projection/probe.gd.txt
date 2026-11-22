@@ -1,0 +1,108 @@
+extends Node
+const Owner=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+const MixedProjection=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_projection.gd")
+const Custody=MixedProjection.Custody
+const Admission=preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
+const SHA := "8549fcded318686355e1b0177f6186804f85438dbb832bbf0bda128d06c82dd5"
+const PINS: Array[String]=["8894317a3e9b862b41714a6e69eca4948702f7c7da5c272b715501da03f45cdb",
+	"3f34084c98b630b4f5fa9d5023fb325ef426c7d41defb3283aa07547a18bc36d",SHA]
+
+func want(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	return ok
+
+func _ready() -> void:
+	call_deferred("go")
+func go() -> void:
+	get_tree().quit(0 if run() else 1)
+
+func run() -> bool:
+	var args:=OS.get_cmdline_user_args()
+	if args.size() not in [1,2] or (args.size()==2 and args[1]!="negative"): return false
+	var raw:=FileAccess.get_file_as_bytes(args[0])
+	var start=Owner.Common.Start
+	var native=Owner.Adapter.Ordinary
+	if not want(Owner._hash(raw)==SHA,"exact CP305 closed primary"): return false
+	if args.size()==2: return _negative(raw,args[0])
+	var restore_before: int=native.restore_calls
+	if not want(MixedProjection.draft_from_closed(raw,PINS[1])==null and native.restore_calls==restore_before,
+			"stale source digest rejected before any native replay"): return false
+	var t:=Time.get_ticks_usec()
+	var draft:=MixedProjection.draft_from_closed(raw,SHA)
+	var total_usec:=Time.get_ticks_usec()-t
+	var restored: int=native.restore_calls-restore_before
+	if not want(draft!=null and restored==3,"real native projection, one ordinary restore per exact prior owner"): return false
+	var b: Dictionary=draft.basis()
+	var past: Dictionary=draft.common()
+	var s: SeasonState=draft.season
+	if not want(b.ordinal==4 and b.common_sequence==3 and b.version==5 and b.archive_origin.ordered_sha256==PINS \
+			and b.archive_origin.manifest_sha256==Owner._hash(draft.manifest()) \
+			and b.seed==Owner.Common.starter_dugout_seed(b.lineage,4) and b.seed==s.season_seed,
+			"typed real Next seed, sequence, custody pins"): return false
+	if not want(past.aggregate.currency==183 and past.aggregate.titles.is_empty() \
+			and Admission.state("equipment",0,past.aggregate.titles)=="locked" \
+			and b.common_sha256==Owner.Common.Life.digest(past.aggregate) \
+			and Owner.Codec.same(b.starts,past.aggregate.starts) and Owner.Codec.same(b.player_access,past.aggregate.player_access) \
+			and start.matches(s.build,b) and s.phase==SeasonState.Phase.DRAFT \
+			and s.picks.is_empty() and s.cash()==0 and s.results.is_empty(),
+			"183 actual credits, no title, Equipment locked, exact full start rights and fresh Dugout draft"): return false
+	t=Time.get_ticks_usec()
+	var totals: Array[int]=[]
+	var old_score_digests: Array[String]=[]
+	var check_old:=func(i: int, member: PackedByteArray) -> bool:
+		var prior: Variant=Owner._bytes_value(member)
+		var rows: Array=prior.ordinary.state.results
+		if Owner._hash(member)!=PINS[i-1] or rows.size()!=33: return false
+		var ids: Array=rows.map(func(row): return int(row.id))
+		ids.sort()
+		if ids!=range(33): return false
+		totals.append(rows.size())
+		old_score_digests.append(Owner.Common.Life.digest(rows))
+		return true
+	if not want(Custody._walk(draft.manifest(),check_old) and totals==[33,33,33],"99 original scores, ordered raw digests"): return false
+	print("CP307 total_projection_usec=",total_usec," native_restore_calls=",restored," stock_owner_usec=",draft._native_usec,
+		" canonical_transport_usec=",draft._transport_usec,
+		" independent_transport_plus_scores_usec=",Time.get_ticks_usec()-t," score_digests=",old_score_digests)
+	if not want(native.capture(s).is_empty() and Owner.Adapter.capture("ordinary",s).is_empty()
+			and Owner.Adapter.OrdinaryRuntime.create_common(b,"standard")==null and s.make_match()==null,
+			"no native save, shared adapter, wrong league or play from detached projection"): return false
+	var forbidden_owner=Owner._new()
+	forbidden_owner.active="ordinary"
+	forbidden_owner.session=s
+	if not want(Owner.capture(forbidden_owner).is_empty(),"production Owner also refuses detached mixed draft"): return false
+	var snap: Dictionary=native._payload(s)
+	if not want(not snap.is_empty() and native.restore_common(snap)==null,"direct production codec cannot open even exact projected native payload"): return false
+	var picked: String=s.offers()[0]
+	if not want(s.choose_player(picked) and s.picks==[picked] and s.cash()==0,"native authored first pick"): return false
+	var restored_draft: SeasonState=Owner.Adapter.OrdinaryRuntime.create_common(b,"dugout")
+	var picked_snap: Dictionary=native._payload(s)
+	if not want(restored_draft!=null and restored_draft.choose_player(picked) and not picked_snap.is_empty() \
+			and Owner.Codec.same(picked_snap,native._payload(restored_draft)) \
+			and native.restore_common(picked_snap)==null,"exact detached first pick reprojection; production reader still denied"): return false
+	var manifest: Dictionary=Custody.manifest_fields(draft.manifest())
+	manifest.rows.reverse()
+	if not want(not MixedProjection.matches_detached(draft,b,Custody._wire(manifest)) \
+			and Custody.decode(Custody._wire(manifest)).is_empty(),"reordered custody neither matches nor decodes"): return false
+	var altered: Dictionary=b.duplicate(true)
+	altered.archive_origin.manifest_sha256="f".repeat(64)
+	if not want(not MixedProjection.matches_detached(draft,altered,draft.manifest()),"altered basis/manifest pin denied"): return false
+	return want(FileAccess.get_sha256(args[0])==SHA,"real source unchanged")
+
+func _negative(raw: PackedByteArray, path: String) -> bool:
+	var prior: Variant=Owner._bytes_value(raw)
+	var receipt: Dictionary=prior.ordinary_state.last_close.receipt
+	# The native writer produced compact integer receipt amounts. Recover that
+	# exact lexical token instead of re-encoding the rest of the genuine save.
+	for key: String in ["finish_award","first_bonus","record_bonus","total","version","wins"]:
+		receipt[key]=int(receipt[key])
+	var literal: String=JSON.stringify(receipt,"",true,true)
+	var text:=raw.get_string_from_utf8()
+	if not want(text.count(literal)==2,"exact two outer native receipt literals"): return false
+	receipt.total=int(receipt.total)+25
+	var bad:=text.replace(literal,JSON.stringify(receipt,"",true,true)).to_utf8_buffer()
+	var value: Variant=Owner._bytes_value(bad)
+	if not want(bad!=raw and value.ordinary_state.last_close.receipt.total==97 \
+			and value.common.last_fold.receipt.total==97,"only two false receipt totals selected before native admission"): return false
+	if not want(MixedProjection.draft_from_closed(bad,Owner._hash(bad))==null,
+			"self-rehashed false payout fails native closed-source admission"): return false
+	return want(FileAccess.get_sha256(path)==SHA,"real source unchanged")

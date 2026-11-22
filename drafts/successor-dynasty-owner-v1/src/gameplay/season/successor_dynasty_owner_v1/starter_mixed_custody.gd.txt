@@ -148,6 +148,12 @@ static func _canonical(wire: Variant) -> Dictionary:
 static func _wire(value: Dictionary) -> PackedByteArray:
 	return JSON.stringify(value,"",true,true).to_utf8_buffer()
 
+# Canonical transport metadata only; not a validation of compressed rows.
+static func manifest_fields(raw_wire: PackedByteArray) -> Dictionary:
+	if raw_wire.is_empty() or raw_wire.size()>MAX_WIRE: return {}
+	var fields:=_canonical(_json(raw_wire))
+	return fields if not fields.is_empty() and _wire(fields)==raw_wire else {}
+
 static func _reinstate(r: Dictionary, keys: Array, values: Array) -> PackedByteArray:
 	var needed: int=int(r.body_bytes)
 	var literals: Array[PackedByteArray]=[]
@@ -202,8 +208,8 @@ static func decode(raw_wire: PackedByteArray) -> Array[PackedByteArray]:
 # a valid chain. The visitor must not write or publish any authority.
 static func _walk(raw_wire: PackedByteArray, visit: Callable) -> bool:
 	if not visit.is_valid() or raw_wire.is_empty() or raw_wire.size()>MAX_WIRE: return false
-	var manifest:=_canonical(_json(raw_wire))
-	if manifest.is_empty() or _wire(manifest)!=raw_wire: return false
+	var manifest:=manifest_fields(raw_wire)
+	if manifest.is_empty(): return false
 	var lineage: String=manifest.lineage
 	var first:=_reinstate(manifest.rows[0],[],[])
 	var s1:=_source_state(_json(first),1,lineage)

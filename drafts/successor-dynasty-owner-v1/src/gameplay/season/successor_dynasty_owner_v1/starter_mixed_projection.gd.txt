@@ -1,0 +1,74 @@
+extends RefCounted
+## Authenticated detached next draft. This creates neither a Common owner,
+## a Store ticket, a launch option, nor a persistent archive reader.
+const Custody=preload("starter_mixed_custody.gd")
+
+class Draft:
+	extends RefCounted
+	var season: SeasonState
+	var _basis: Dictionary
+	var _common: Dictionary
+	var _manifest: PackedByteArray
+	var _source: Dictionary
+	var _native_usec: int
+	var _transport_usec: int
+	func basis() -> Dictionary: return _basis.duplicate(true)
+	func common() -> Dictionary: return _common.duplicate(true)
+	func manifest() -> PackedByteArray: return _manifest
+	func source() -> Dictionary: return _source.duplicate(true)
+
+static func _api() -> Script:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+
+static func draft_from_closed(raw: PackedByteArray, expected_sha256: String) -> Draft:
+	var api:=_api()
+	if raw.is_empty() or raw.size()>Custody.MAX_MEMBER \
+			or not Custody._sha(expected_sha256) or api._hash(raw)!=expected_sha256: return null
+	var parsed: Variant=api._bytes_value(raw)
+	if not parsed is Dictionary or not parsed.get("ordinary_state") is Dictionary: return null
+	var state: Dictionary=parsed.ordinary_state
+	if state.get("ordinal")!=3 or state.get("status")!="closed" \
+			or not state.get("last_close") is Dictionary or state.last_close.get("reason")!="complete" \
+			or not Custody._chain_shape(state.get("archive")): return null
+	# The existing cold reader authenticates each predecessor and the native
+	# S3 completion fold recursively, once. Hash, shape, caller pins and the
+	# structural custody transport alone have no authority to derive starts.
+	var tick:=Time.get_ticks_usec()
+	var owner: RefCounted=api.restore(parsed)
+	var native_usec:=Time.get_ticks_usec()-tick
+	if owner==null or not api.Common.starter_dugout_chain_scope(owner) \
+			or owner.common.sequence!=3 or not api.Codec.same(owner.common.cursors,{"ordinary":3,"dynasty":0}): return null
+	var lineage: String=owner.ordinary_state.lineage
+	tick=Time.get_ticks_usec()
+	var wire:=Custody.migrate_closed(raw,lineage)
+	var manifest: Dictionary=Custody.manifest_fields(wire)
+	var transport_usec:=Time.get_ticks_usec()-tick
+	if manifest.is_empty() or manifest.rows[2].raw_sha256!=expected_sha256: return null
+	var ordered: Array[String]=[]
+	for row: Dictionary in manifest.rows: ordered.append(row.raw_sha256)
+	var ordinal: int=ordered.size()+1
+	var seed: int=api.Common.starter_dugout_seed(lineage,ordinal)
+	var native: Dictionary=api.Common.Start.make(seed,lineage,ordinal,int(owner.common.sequence),
+		api.Common.Life.digest(owner.common.aggregate),api.Common.projection(owner))
+	var basis: Dictionary=api.Common.Start.bind_mixed_flat(native,ordered,api._hash(wire))
+	var next: SeasonState=api.Adapter.OrdinaryRuntime.create_common(basis,"dugout")
+	if next==null or next.phase!=SeasonState.Phase.DRAFT or next.round_index!=0 or not next.picks.is_empty() \
+			or not next.results.is_empty() or not next.player_results.is_empty() or next.season_seed!=seed \
+			or not next.league_live or next.league_rules.get("league")!="dugout" or next.league_rules.get("tier")!=0 \
+			or not next.home_property.is_empty() or next.cash()!=0 or not api.Codec.same(next.career.start_basis,basis): return null
+	var result:=Draft.new()
+	result.season=next
+	result._native_usec=native_usec
+	result._transport_usec=transport_usec
+	result._basis=basis
+	result._manifest=wire
+	result._common=owner.common.duplicate(true)
+	result._source={"sha256":expected_sha256,"lineage":lineage,"ordinal":int(state.ordinal),
+		"close":state.last_close.duplicate(true)}
+	return result
+
+# Comparison only; this accepts no candidate as authority to write.
+static func matches_detached(draft: Draft, basis: Variant, wire: PackedByteArray) -> bool:
+	return draft!=null and draft.season!=null and draft.season.phase==SeasonState.Phase.DRAFT \
+		and _api().Codec.same(draft.season.career.start_basis,draft._basis) \
+		and _api().Codec.same(basis,draft._basis) and wire==draft._manifest

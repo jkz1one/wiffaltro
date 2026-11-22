@@ -12,6 +12,9 @@ const STANDARD_FLAT: String="standard-base-flat-archive-v1"
 const STANDARD_FLAT_VERSION: int=4
 const STANDARD_FLAT_ROOTS: int=3 # Existing private Store scope, unchanged.
 const STANDARD_FLAT_MAX_ROOTS: int=4 # Detached append only.
+const MIXED_FLAT: String="starter-dugout-flat-archive-v1"
+const MIXED_FLAT_VERSION: int=5
+const MIXED_FLAT_ROOTS: int=3 # Detached native draft only.
 const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
@@ -34,11 +37,20 @@ static func valid(value: Variant) -> bool:
 	if not value is Dictionary or not Builds._primitive(value) or value.get("kind")!=KIND: return false
 	var archived: bool=value.has("archive_origin")
 	if not SeasonOwnership._keys(value,FIELDS+(["archive_origin"] if archived else [])) \
-		or not SeasonOwnership._whole(value.version,2 if archived else 1,STANDARD_FLAT_VERSION if archived else 1): return false
+		or not SeasonOwnership._whole(value.version,2 if archived else 1,MIXED_FLAT_VERSION if archived else 1): return false
 	if archived:
 		var origin: Variant=value.archive_origin
 		if not origin is Dictionary: return false
-		if value.version==STANDARD_FLAT_VERSION:
+		if value.version==MIXED_FLAT_VERSION:
+			if not SeasonOwnership._keys(origin,["kind","ordered_sha256","manifest_sha256"]) \
+					or origin.kind!=MIXED_FLAT or not sha(origin.manifest_sha256) \
+					or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=MIXED_FLAT_ROOTS \
+					or value.ordinal!=MIXED_FLAT_ROOTS+1 or value.common_sequence!=MIXED_FLAT_ROOTS: return false
+			var unique: Dictionary={}
+			for digest: Variant in origin.ordered_sha256:
+				if not sha(digest) or unique.has(digest): return false
+				unique[digest]=true
+		elif value.version==STANDARD_FLAT_VERSION:
 			if not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind!=STANDARD_FLAT \
 					or not origin.ordered_sha256 is Array \
 					or origin.ordered_sha256.size()<STANDARD_FLAT_ROOTS \
@@ -122,6 +134,9 @@ static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
 	if not basis.has("archive_origin"): return true
 	if basis.archive_origin.kind in [STANDARD_CHAIN,STANDARD_CHAIN_OPENING]:
 		return basis.version==3 and build._league_rules.is_empty() and not build.d1_pricing_valid()
+	if basis.archive_origin.kind==MIXED_FLAT:
+		return detached_mixed_flat(basis) and build._league_rules.get("league")=="dugout" \
+			and build._league_rules.get("tier")==0
 	if basis.archive_origin.kind==STANDARD_FLAT:
 		return detached_standard_flat(basis) and build._league_rules.is_empty() and not build.d1_pricing_valid()
 	if basis.archive_origin.kind==STANDARD_REPEAT:
@@ -139,6 +154,18 @@ static func bind_standard_flat(basis: Dictionary, ordered: Array[String]) -> Dic
 	var result: Dictionary=basis.duplicate(true)
 	result.version=STANDARD_FLAT_VERSION
 	result.archive_origin={"kind":STANDARD_FLAT,"ordered_sha256":ordered.duplicate()}
+	return result if valid(result) else {}
+
+# Only the isolated mixed projection binds this basis. Production
+# Ordinary capture/hydration and the owner adapter still refuse it.
+static func detached_mixed_flat(basis: Dictionary) -> bool:
+	return basis.get("kind")==KIND and basis.get("version")==MIXED_FLAT_VERSION
+
+static func bind_mixed_flat(basis: Dictionary, ordered: Array[String], manifest_sha256: String) -> Dictionary:
+	if not valid(basis) or basis.version!=1 or basis.ordinal!=ordered.size()+1: return {}
+	var result: Dictionary=basis.duplicate(true)
+	result.version=MIXED_FLAT_VERSION
+	result.archive_origin={"kind":MIXED_FLAT,"ordered_sha256":ordered.duplicate(),"manifest_sha256":manifest_sha256}
 	return result if valid(result) else {}
 
 static func bind_archive_chain(basis: Dictionary,first: String,second: String) -> Dictionary:

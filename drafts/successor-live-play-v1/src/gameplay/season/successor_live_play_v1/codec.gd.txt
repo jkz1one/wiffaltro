@@ -775,6 +775,7 @@ static func capture(season: SeasonState) -> Dictionary:
 # publication or trust boundary. Exactly one history gate follows restore.
 static func _capture_structural(season: SeasonState, d1: bool=false) -> Dictionary:
 	capture_calls += 1
+	if season!=null and season.career!=null and CommonStart.detached_mixed_flat(season.career.start_basis): return {}
 	if not _structural_valid(season,d1): return {}
 	return _payload(season,d1)
 
@@ -821,6 +822,8 @@ static func restore_d1_draft(value: Variant) -> SeasonState:
 # history gate. This never grants owner or write authority.
 static func _restore_shape(value: Variant,d1: bool) -> SeasonState:
 	restore_calls += 1
+	if value is Dictionary and value.get("career") is Dictionary and value.career.get("start_basis") is Dictionary \
+			and CommonStart.detached_mixed_flat(value.career.start_basis): return null
 	if d1 and (not value is Dictionary or value.get("format")!=D1_DRAFT_FORMAT): return null
 	var earned: bool=value is Dictionary and value.get("format")==CommonStart.FORMAT
 	var named: bool=value is Dictionary and value.get("format")==NAMED_LEAGUE_FORMAT

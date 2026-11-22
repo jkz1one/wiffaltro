@@ -109,6 +109,7 @@ func fork_live() -> SeasonState:
 	return result
 
 func make_match() -> MatchState:
+	if career!=null and CommonStart.detached_mixed_flat(career.start_basis): return null
 	return null if _d1_draft() or Admissions.paired_draft_only(self) else super.make_match()
 
 func shop_available() -> bool:
