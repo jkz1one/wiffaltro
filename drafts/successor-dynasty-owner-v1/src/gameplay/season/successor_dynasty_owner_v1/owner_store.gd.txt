@@ -47,14 +47,28 @@ static func forget_projection() -> void:
 	_projection_ticket = null; _projection_checkpoint = null; _projection_owner = null
 	_projection_value = null; _projection_raw = {}
 
+static func _starter_slot_linked() -> bool:
+	if not LeagueAdmission.starter_feature(): return false
+	var root: String=OS.get_user_data_dir().trim_suffix("/")
+	var parent:=DirAccess.open(root.get_base_dir())
+	if parent==null or parent.is_link(root.get_file()): return true
+	var dir:=DirAccess.open("user://")
+	if dir==null: return true
+	for suffix: String in ["", ".bak", ".tmp"]:
+		if dir.is_link((PATH+suffix).get_file()): return true
+	return false
+
 static func raw() -> PackedByteArray:
+	if _starter_slot_linked(): return PackedByteArray()
 	return FileAccess.get_file_as_bytes(PATH) if FileAccess.file_exists(PATH) else PackedByteArray()
 static func occupied() -> bool:
+	if _starter_slot_linked(): return true
 	for suffix: String in ["", ".bak", ".tmp"]:
 		if FileAccess.file_exists(PATH+suffix) or DirAccess.dir_exists_absolute(PATH+suffix): return true
 	return false
 # Bounded prefix probe; unsupported family versions remain protected.
 static func standard_d1_slot_kind() -> String:
+	if _starter_slot_linked(): return ""
 	var contract=preload("standard_d1_transition.gd")
 	var file:=FileAccess.open(PATH,FileAccess.READ)
 	if file==null: return ""
@@ -64,11 +78,34 @@ static func standard_d1_slot_kind() -> String:
 	if not prefix.begins_with(contract.SLOT_FAMILY): return ""
 	return "supported" if prefix==contract.SLOT_HEADER and size<=contract.MAX_SLOT else "unsupported"
 
+# The starter build must not own a copied engineering/paused/import slot.
+# This is an additional product boundary after strict native restore, not
+# a change to historical codec validation or a migration path.
+static func _starter_owner_allowed(owner: RefCounted) -> bool:
+	if not LeagueAdmission.starter_feature(): return true
+	if not LeagueAdmission.starter_player() or owner==null or owner.get_script()!=Owner \
+		or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
+		or not Owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+		or owner.ordinary_state.has("archive") \
+		or Owner.Common.cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")): return false
+	var current: SeasonState=owner.session
+	# Standard Base's authored envelope has no named league rules. This is
+	# not a fallback for missing fields; the strict native codec took priority.
+	if current.league_rules.is_empty():
+		return not current.league_live and current.career!=null \
+			and current.career.start_basis.get("kind")!="common-standard-d1-transition-v1"
+	return current.league_live and current.league_rules.get("league")=="dugout" \
+		and current.league_rules.get("tier",-1)==0
+
 static func read() -> RefCounted:
 	forget_projection()
 	last_error = ""
+	if _starter_slot_linked():
+		last_error="This Starter Beta slot points outside its own files. No files were changed."
+		return null
 	if not standard_d1_slot_kind().is_empty():
-		last_error="This Standard D1 slot requires private Continue. No files were changed."
+		last_error="This save is outside the Starter Beta slot. No files were changed." if LeagueAdmission.starter_feature() else \
+			"This Standard D1 slot requires private Continue. No files were changed."
 		return null
 	if not FileAccess.file_exists(PATH):
 		last_error = "No common career is saved in this slot. Earlier saves are unchanged."
@@ -86,6 +123,9 @@ static func read() -> RefCounted:
 	var season: RefCounted = Owner.restore(parser.data)
 	if season == null:
 		last_error = "This common career has an unsupported version or inconsistent state. No files were changed."
+		return null
+	if not _starter_owner_allowed(season):
+		last_error="This save is outside the Starter Beta slot. No files were changed."
 		return null
 	var snapshot: Dictionary = RawGuard.capture(season)
 	if snapshot.is_empty() or raw() != bytes:
@@ -106,12 +146,14 @@ static func save(season: RefCounted, expected: PackedByteArray, expected_snapsho
 	if result: _invalidate()
 	return result
 static func _matches(expected: PackedByteArray) -> bool:
+	if _starter_slot_linked(): return false
 	# Generic read/admission/write/retry paths never own the D1 dialect.
 	if not standard_d1_slot_kind().is_empty(): return false
 	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw() == expected))
 static func _write(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary) -> bool:
 	# Legacy unbound writer never modifies the private paired slot.
 	if season==null or season.get_script()!=Owner or _paired_owner(season) or _paired_settled(_owner): return false
+	if not _starter_owner_allowed(season): return false
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(expected):
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
@@ -211,6 +253,7 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 	forget_projection()
 	if saving or _ticket != null or candidate == null or candidate == owner or _paired_settled(owner): return null
 	if candidate.get_script()!=Owner or candidate.session==null or _paired_settled(candidate): return null
+	if not _starter_owner_allowed(candidate): return null
 	if owner == null:
 		if candidate.ordinary_state.has("archive") or Owner.Common.cross_proposal_kind(
 				candidate.ordinary_state.get("proposal",{}).get("kind")): return null
@@ -410,7 +453,7 @@ static func _fused_next_return_settlement(expected: PackedByteArray) -> Dictiona
 	return cooked.get("data",{}) if not cooked.is_empty() and _write_revision_matches(expected,true) else {}
 
 static func private_pair_settlement_preview() -> bool:
-	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
+	return not LeagueAdmission.starter_feature() and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
 		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1"
 
 # Quick UI and CAS gate only; the child still restores and validates everything.
@@ -723,7 +766,7 @@ static func _prepare_paired_metadata(owner: RefCounted, expected: PackedByteArra
 	return _ticket
 
 static func cross_league_preview() -> bool:
-	return LeagueAdmission.enabled() and OS.get_environment("WIFFALTRO_CROSS_LEAGUE_PREVIEW")=="1"
+	return not LeagueAdmission.starter_feature() and LeagueAdmission.enabled() and OS.get_environment("WIFFALTRO_CROSS_LEAGUE_PREVIEW")=="1"
 
 # Retain the complete admitted terminal Ordinary payload in place. This
 # versioned proposal does not attach an ordinal-two season or rely on .bak.
@@ -1110,6 +1153,7 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	forget_projection()
 	last_error=""
 	if saving or _ticket!=null or operation not in ["resume","create","attach119","close","propose","next"]: return null
+	if LeagueAdmission.starter_feature() and operation in ["resume","create","attach119"]: return null
 	if not match_owner(owner,expected): return null
 	if owner.ordinary_state.has("archive") and (operation!="close" or reason!="abandon" or not cross_league_preview()):
 		return null
@@ -1180,6 +1224,7 @@ static func write_prepared(ticket: RefCounted) -> bool:
 # Private immediate continuation only; callers use prepare_and_write or the
 # fully checked write_prepared retry. Disk CAS/readback remain in every write.
 static func _write_admitted() -> bool:
+	if not _starter_owner_allowed(_candidate): return false
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(_expected):
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."

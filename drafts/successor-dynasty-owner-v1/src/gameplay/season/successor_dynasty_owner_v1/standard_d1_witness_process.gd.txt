@@ -41,6 +41,7 @@ var _completed_cross_read: Dictionary={}
 var _cross_dir: String=""
 
 static func supported(kind: String=KIND) -> bool:
+	if Store.LeagueAdmission.starter_feature(): return false
 	if OS.get_name()!="Linux" or OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1": return false
 	if OS.has_feature("editor"): return true
 	if not OS.has_feature(PACK_FEATURE) \

@@ -543,3 +543,29 @@ Continue and checks the strict history gate and unchanged slot and
 backup. Its detached negative cases change individual rule holders;
 a separate malformed-primary profile checks actual Store refusal.
 No game, economy, package, or admission change is exercised.
+
+
+### Separate Linux Starter Beta candidate
+
+For a clean private starter-player package, use the same pinned builder and
+vendor inputs with `--starter-beta` instead of `--no-save`. The ordinary
+Linux executable and same-named PCK are still adjacent. The compiled
+`wiffaltro_starter_beta` feature, fixed Starter bootstrap and isolated
+`WiffaltroStarterBeta-v1` user directory must agree. Open the executable
+without developer environment variables or user arguments. The Starter
+bootstrap does not route physical jobs, diagnostics or proof workers. Its
+ordinary NPC jobs still run in the native in-process runner.
+
+The entry scope is Standard Base and Dugout Base. The same validated title
+requirements remain for other leagues and difficulties; earned but
+unsupported entries are not enabled in this package. A strict, unlinked
+single ordinary starter career slot can reopen normally. Original, legacy,
+alternate-session, private engineering and archived imports are not offered
+in this flavor. Missing or rejected saves are not overwritten or imported
+automatically. The same-league native draft, shop, gameplay and lifecycle
+are not replaced. Original project defaults and the existing engineering
+bootstrap/worker allowlist are unaffected.
+
+This is a private candidate, not a distribution approval or qualification
+of a full named-league/Difficulty/Dynasty beta, title unlocks, current
+stadium profiles, target Mac hardware or packaged performance.

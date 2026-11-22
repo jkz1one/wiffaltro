@@ -1,6 +1,7 @@
 extends SceneTree
 ## Runs from the matching editor binary; never included in exported resources.
 const ENTRY := "res://engineering_bootstrap/entry.tscn"
+const STARTER_ENTRY := "res://starter_bootstrap/entry.tscn"
 const RAW_CONFIG_SHA := "9650ccc2ce6957eda9f088663597bd754098dc05d42d0a00c9fa25c7085e35fd"
 
 func _initialize() -> void:
@@ -45,10 +46,14 @@ func _check() -> void:
 		output.store_string(JSON.stringify({"reviewed":paths,"broad_sha256":broad_sha},"",true,true))
 		output.close()
 		print("REVIEWED_SOURCE_PROFILE_PASS ", paths.size())
-	elif args[0] in ["pack","pack-no-save"]:
-		var no_save: bool = args[0] == "pack-no-save"
-		if ProjectSettings.get_setting("application/run/main_scene") != ENTRY \
-				or OS.get_user_data_dir().get_file() != "WiffaltroEngineeringQA-v1":
+	elif args[0] in ["pack","pack-no-save","starter-pack-no-save"]:
+		var starter: bool=args[0]=="starter-pack-no-save"
+		var no_save: bool=args[0]!="pack"
+		var entry: String=STARTER_ENTRY if starter else ENTRY
+		var user_dir: String="WiffaltroStarterBeta-v1" if starter else "WiffaltroEngineeringQA-v1"
+		var bootstrap_root: String=entry.get_base_dir()+"/"
+		if ProjectSettings.get_setting("application/run/main_scene") != entry \
+				or OS.get_user_data_dir().get_file() != user_dir:
 			_fail("incorrect effective packaged entry or isolated data directory"); return
 		var expected: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[1]))
 		if not expected is Dictionary or not expected.source is Dictionary:
@@ -58,7 +63,7 @@ func _check() -> void:
 			if not FileAccess.file_exists(path) or FileAccess.get_sha256(path) != stock_paths[path]:
 				_fail("missing or changed packaged source " + path); return
 		for path: String in _files("res://"):
-			if no_save and (path.begins_with("res://src/") or path.begins_with("res://engineering_bootstrap/")) \
+			if no_save and (path.begins_with("res://src/") or path.begins_with(bootstrap_root)) \
 					and not stock_paths.has(path):
 				_fail("undeclared source or bootstrap entry " + path); return
 			if (path.begins_with("res://src/tests/") and not stock_paths.has(path)) \

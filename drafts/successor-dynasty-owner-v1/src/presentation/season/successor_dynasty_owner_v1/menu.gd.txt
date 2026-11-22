@@ -60,6 +60,15 @@ func render() -> void:
 		_bound_button(_body,"RETRY EXACT SAVE",Callable(app,"retry_save"))
 		return
 	if app.season == null:
+		if app.starter_player():
+			_label(_body,"STARTER BETA",18)
+			_earned_leagues(not Store.occupied())
+			if Store.occupied():
+				_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
+			else:
+				_bound_button(_body,"NEW "+app.selected_league.to_upper()+" BASE CAREER",Callable(app,"create_fresh"))
+			_note("Starter Beta careers are saved separately from other Wiffaltro builds.")
+			return
 		if not Store.standard_d1_slot_kind().is_empty():
 			if app._d1_sealed_view!=null: _label(_body,app._d1_sealed_view.title(),24)
 			_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
@@ -500,7 +509,7 @@ func _bound_button(parent: Node,text: String,action: Callable) -> Button:
 		action.call())
 const EarnedUnlocks = preload("res://src/gameplay/season/league_unlocks.gd")
 func _earned_leagues(selectable: bool = true) -> void:
-	_label(_body,"LEAGUE ACCESS PREVIEW",20)
+	_label(_body,"LEAGUES" if app.starter_player() else "LEAGUE ACCESS PREVIEW",20)
 	for league: String in EarnedUnlocks.IDS:
 		var state: String=app.league_entry_state(league)
 		if state=="playable" and selectable:

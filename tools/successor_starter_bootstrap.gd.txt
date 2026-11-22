@@ -1,0 +1,16 @@
+extends Node
+## This package owns only the normal starter player route, never a worker.
+const Admission = preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
+const INTEGRATED := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
+
+func _ready() -> void:
+	if not Admission.starter_player() or not OS.get_cmdline_user_args().is_empty():
+		push_error("Starter Beta launch mode refused.")
+		get_tree().quit(3)
+		return
+	call_deferred("_launch")
+
+func _launch() -> void:
+	if get_tree().change_scene_to_file(INTEGRATED) != OK:
+		push_error("The Starter Beta entry could not be loaded.")
+		get_tree().quit(4)

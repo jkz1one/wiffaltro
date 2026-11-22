@@ -76,7 +76,9 @@ func _enter_tree() -> void:
 	_prior_auto_quit = get_tree().auto_accept_quit
 	get_tree().auto_accept_quit = false
 func _ready() -> void:
-	if OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING") != "1":
+	var admitted: bool=starter_player() if Store.LeagueAdmission.starter_feature() else \
+		OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
+	if not admitted:
 		set_process(false) # Refusal does not construct the frame-loop controls.
 		push_error("Private Dynasty engineering route not admitted.")
 		get_tree().quit(2); return
@@ -146,6 +148,7 @@ func show_season() -> void:
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
 	return not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+func starter_player() -> bool: return Store.LeagueAdmission.starter_player()
 func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
 func league_entry_state(league: String, tier: int = 0) -> String:
 	var titles: Dictionary={} if career_owner==null else career_owner.common.aggregate.titles
@@ -176,6 +179,7 @@ func create_fresh(seed_value: int = -1) -> void:
 	_retain_envelope(candidate,PackedByteArray())
 # Unbound engineering entry. Never linked by select_league or a menu control.
 func _create_paired_draft(seed_value: int) -> void:
+	if Store.LeagueAdmission.starter_feature(): return
 	if not _available() or season!=null or Store.occupied(): return
 	_busy=true
 	var candidate: RefCounted=Owner._create_paired_draft(seed_value)
@@ -186,8 +190,7 @@ func _create_paired_draft(seed_value: int) -> void:
 # not grant entry, bypass the paired factory, or expose general resume.
 var _paired_menu_lab: PitchBatLab
 func _private_paired_opening_scope() -> bool:
-	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
-		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+	return Store.private_pair_settlement_preview() \
 		and career_owner!=null and season!=null and career_owner.session==season \
 		and career_owner.paired_draft_only() and career_owner.current_ordinal()==1 \
 		and career_owner.lifecycle_status()=="active" and career_owner.paused.is_empty() \
@@ -237,8 +240,7 @@ func play_private_unpurchased_return() -> void:
 		_paired_menu_lab=lab
 
 func private_unpurchased_return_pending() -> bool:
-	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
-		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+	return Store.private_pair_settlement_preview() \
 		and career_owner!=null and season!=null and career_owner.session==season \
 		and career_owner.paired_draft_only() and season.round_index==1 \
 		and not Adapter.Ordinary.unpurchased_return_kind(season.build).is_empty() \
@@ -308,8 +310,7 @@ func _complete_private_pair_settlement(outcome: String,_proof: Dictionary,check:
 	show_season()
 
 func private_unpurchased_next_pair() -> bool:
-	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
-		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+	return Store.private_pair_settlement_preview() \
 		and career_owner!=null and season!=null and career_owner.session==season \
 		and career_owner.paired_draft_only() and career_owner.current_ordinal()==1 \
 		and career_owner.lifecycle_status()=="active" and Owner._missing_dynasty(career_owner) \
@@ -339,8 +340,7 @@ func play_private_unpurchased_next_pair() -> void:
 		_paired_menu_lab=lab
 
 func private_unpurchased_next_reverse() -> bool:
-	return OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
-		and OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")=="1" \
+	return Store.private_pair_settlement_preview() \
 		and career_owner!=null and season!=null and career_owner.session==season \
 		and career_owner.paired_draft_only() and career_owner.current_ordinal()==1 \
 		and career_owner.lifecycle_status()=="active" and Owner._missing_dynasty(career_owner) \
@@ -616,8 +616,7 @@ func _propose_paired_next(seed_value: int) -> void:
 var _paired_development_showing: bool=false
 
 func private_paired_development_step() -> int:
-	if OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1" \
-		or OS.get_environment("WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW")!="1" \
+	if not Store.private_pair_settlement_preview() \
 		or career_owner==null or season==null or career_owner.session!=season \
 		or not career_owner.paired_draft_only() or career_owner.current_ordinal()!=1 \
 		or career_owner.lifecycle_status()!="active" or not Owner._missing_dynasty(career_owner) \
@@ -908,7 +907,7 @@ func reload_save() -> void:
 	if not _available(): return
 	_expire_d1_proof()
 	var kind:=Store.standard_d1_slot_kind()
-	if not kind.is_empty():
+	if not kind.is_empty() and not Store.LeagueAdmission.starter_feature():
 		_continue_standard_d1(kind)
 		return
 	_busy = true
@@ -1080,9 +1079,11 @@ func _finish_save() -> void:
 	notice = ""; _busy = false; show_season()
 
 func open_previous() -> void:
+	if Store.LeagueAdmission.starter_feature(): return
 	if not d1_check_running(): _expire_d1_proof()
 	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/successor_live_play_v1/launcher.tscn")
 func open_legacy() -> void:
+	if Store.LeagueAdmission.starter_feature(): return
 	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")
 
 func _exit_blocked() -> bool:
@@ -1488,6 +1489,7 @@ func import_draft() -> void:
 
 # Private lifecycle handlers. Menu exposure follows corresponding save/cold gates.
 func import_previous_dynasty() -> void:
+	if Store.LeagueAdmission.starter_feature(): return
 	if not d1_check_running(): _expire_d1_proof()
 	if not _available() or season!=null or Store.occupied(): return
 	var path: String="user://wiffaltro-dynasty-owner-v1.json"
@@ -1691,6 +1693,7 @@ func _scope() -> bool:
 	return career_owner!=null and career_owner.session==season and Adapter.scope(career_owner.active,season)
 
 func import_previous_common() -> void:
+	if Store.LeagueAdmission.starter_feature(): return
 	if not d1_check_running(): _expire_d1_proof()
 	if not _available() or season!=null or Store.occupied(): return
 	var path: String="user://wiffaltro-common-career-v3.json"
@@ -1703,6 +1706,7 @@ func import_previous_common() -> void:
 	_retain_envelope(candidate,PackedByteArray())
 
 func import_previous_career() -> void:
+	if Store.LeagueAdmission.starter_feature(): return
 	if not d1_check_running(): _expire_d1_proof()
 	if not _available() or season!=null or Store.occupied(): return
 	var path: String="user://wiffaltro-dynasty-career-v2.json"
@@ -1721,6 +1725,7 @@ var _session_bytes: PackedByteArray=PackedByteArray()
 func _clear_session_ticket() -> void:
 	_session_ticket=null;_session_owner=null;_session_state=null;_session_bytes=PackedByteArray()
 func session_switch_allowed() -> bool:
+	if Store.LeagueAdmission.starter_feature(): return false
 	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or career_owner.lifecycle_status() not in ["active","closed"] or is_instance_valid(ai_runner): return false
 	if not retained_human.is_empty() or not retained_report.is_empty() or not projection.is_empty() and _busy: return false

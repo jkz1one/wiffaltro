@@ -29,6 +29,8 @@ USER_DIR = 'WiffaltroEngineeringQA-v1'
 BOOTSTRAP = 'res://engineering_bootstrap/entry.tscn'
 PACK_BROAD_SHA = '106b8a4ad667984a89d2333505f884a4f98d271e0ca93fe0da5d8827172f9a52'
 TITLE = 'Wiffaltro Linux Engineering'
+STARTER_DIR = 'WiffaltroStarterBeta-v1'
+STARTER_BOOTSTRAP = 'res://starter_bootstrap/entry.tscn'
 EXTRA_SUPPORT = {
     'src/tests/helpers/pool_active_receipt.gd',
     'src/tests/helpers/pool_controller_writer_ledger.gd',
@@ -94,18 +96,23 @@ def clean_identity(repo):
     return revision, tree, ancestry[1]
 
 
-def qualify(repo, root, editor, templates, paid=None, backup=None):
+def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False):
     no_save = paid is None
-    assert no_save == (backup is None)
+    assert no_save == (backup is None) and (not starter or no_save)
     identity = clean_identity(repo) if no_save else None
+    user_dir = STARTER_DIR if starter else USER_DIR
+    bootstrap = STARTER_BOOTSTRAP if starter else BOOTSTRAP
+    bootstrap_folder = 'starter_bootstrap' if starter else 'engineering_bootstrap'
+    app_name = 'Wiffaltro Starter Beta' if starter else 'Wiffaltro Engineering QA'
+    feature = 'wiffaltro_starter_beta' if starter else 'wiffaltro_engineering_export'
 
     def build_environment(path):
         env = environment(path)
         if no_save:
             for name in list(env):
-                if name.startswith('WIFFALTRO_') and name not in {
+                if name.startswith('WIFFALTRO_') and (starter or name not in {
                     'WIFFALTRO_DYNASTY_ENGINEERING','WIFFALTRO_ISOLATED_TEST',
-                }:
+                }):
                     env.pop(name)
         return env
     assert digest(editor) == EDITOR_SHA
@@ -126,6 +133,7 @@ def qualify(repo, root, editor, templates, paid=None, backup=None):
     assert digest(exe) == LINUX_RELEASE_SHA
     engine = [str(editor), '--headless', '--audio-driver', 'Dummy']
     env = build_environment(root/'build-home')
+    env['WIFFALTRO_ISOLATED_TEST'] = '1'  # Editor audit only, not release boot.
     env['WIFFALTRO_PACK_PINNED_PROJECT'] = str(pinned)
     assert subprocess.check_output([*engine,'--version'],env=env,text=True,timeout=30).strip() == VERSION
     project_engine = [*engine,'--path',str(project)]
@@ -150,30 +158,32 @@ author="Wiffaltro"
 version="1"
 script="plugin.gd"
 ''')
-    bootstrap_dir = project/'engineering_bootstrap'
+    bootstrap_dir = project/bootstrap_folder
     bootstrap_dir.mkdir()
     bootstrap_script = bootstrap_dir/'entry.gd'
-    bootstrap_script.write_bytes((repo/'tools/successor_engineering_bootstrap.gd.txt').read_bytes())
+    script_name = 'successor_starter_bootstrap.gd.txt' if starter else 'successor_engineering_bootstrap.gd.txt'
+    bootstrap_script.write_bytes((repo/'tools'/script_name).read_bytes())
     bootstrap_scene = bootstrap_dir/'entry.tscn'
     bootstrap_scene.write_text('[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" '
-                               'path="res://engineering_bootstrap/entry.gd" id="1"]\n'
-                               '[node name="EngineeringBootstrap" type="Node"]\nscript = ExtResource("1")\n')
+                               f'path="res://{bootstrap_folder}/entry.gd" id="1"]\n'
+                               f'[node name="{"StarterBootstrap" if starter else "EngineeringBootstrap"}" type="Node"]\n'
+                               'script = ExtResource("1")\n')
     active = original.decode()
     entry = 'run/main_scene="res://src/presentation/season/season_app.tscn"'
     name = 'config/name="Wiffaltro"'
     assert active.count(entry)==1 and active.count(name)==1 and '[editor]' not in active and '[editor_plugins]' not in active
-    active = active.replace(entry, f'run/main_scene="{BOOTSTRAP}"')
-    active = active.replace(name, f'config/name="Wiffaltro Engineering QA"\nconfig/use_custom_user_dir=true\n'
-                                  f'config/custom_user_dir_name="{USER_DIR}"')
+    active = active.replace(entry, f'run/main_scene="{bootstrap}"')
+    active = active.replace(name, f'config/name="{app_name}"\nconfig/use_custom_user_dir=true\n'
+                                  f'config/custom_user_dir_name="{user_dir}"')
     config.write_text(active+'\n[editor]\nexport/convert_text_resources_to_binary=false\n\n[editor_plugins]\n'
                        'enabled=PackedStringArray("res://addons/wiffaltro_exact_export/plugin.cfg")\n')
     (project/'export_presets.cfg').write_text(f'''[preset.0]
 name="{TITLE}"
 platform="Linux"
 runnable=true
-custom_features="wiffaltro_engineering_export"
+custom_features="{feature}"
 export_filter="all_resources"
-include_filter="src/*,engineering_bootstrap/*"
+include_filter="src/*,{bootstrap_folder}/*"
 exclude_filter="addons/wiffaltro_exact_export/*"
 export_path=""
 script_export_mode=0
@@ -215,25 +225,50 @@ binary_format/architecture="x86_64"
     gate_env=build_environment(root/'no-gate-home')
     gate_env.pop('WIFFALTRO_DYNASTY_ENGINEERING',None)
     boot = [str(exe),'--headless','--audio-driver','Dummy','--verbose','--quit-after','60']
-    run(boot,empty,gate_env,root/'gate.log','Private Dynasty engineering route not admitted.',expected=2)
-    boot_env=build_environment(root/'standalone-home')
-    run([*boot,'--log-file','user://engineering-boot.log'],empty,boot_env,root/'standalone.log',
-        'Loading resource: '+audited['launcher'])
-    assert (Path(boot_env['XDG_DATA_HOME'])/USER_DIR/'engineering-boot.log').is_file()
-    denied = run([*boot,'--','--physical-job=x'],empty,boot_env,root/'malformed-worker.log',
-                 'Private packaged worker request refused.',expected=3)
-    assert 'WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE' not in denied and audited['launcher'] not in denied
-    denied_cross = run([*boot,'--','--d1-witness=x','--scene=res://wrong.tscn'],
-                       empty,boot_env,root/'malformed-cross-worker.log',
-                       'Private packaged archived Dugout worker request refused.',expected=3)
-    assert audited['launcher'] not in denied_cross
-    assert not (Path(boot_env['XDG_DATA_HOME'])/'godot/app_userdata/Wiffaltro').exists()
-    assert not list(Path(boot_env['XDG_DATA_HOME']).rglob('wiffaltro-common-career-v4.json'))
+    if starter:
+        boot_env=build_environment(root/'standalone-home')
+        assert not any(name.startswith('WIFFALTRO_') for name in boot_env)
+        run([*boot,'--log-file','user://starter-boot.log'],empty,boot_env,root/'standalone.log',
+            'Loading resource: '+audited['launcher'])
+        assert (Path(boot_env['XDG_DATA_HOME'])/user_dir/'starter-boot.log').is_file()
+        spoof={**gate_env, **dict.fromkeys((
+            'WIFFALTRO_DYNASTY_ENGINEERING', 'WIFFALTRO_EARNED_LEAGUES_PREVIEW',
+            'WIFFALTRO_CROSS_LEAGUE_PREVIEW', 'WIFFALTRO_STANDARD_D1_CHECK',
+            'WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW', 'WIFFALTRO_PACKAGED_CROSS_DRAFT',
+            'WIFFALTRO_PACKAGED_FIRST_DUGOUT_ACTIVATION',
+            'WIFFALTRO_PACKAGED_ARCHIVED_DUGOUT_ACTIVATION',
+            'WIFFALTRO_PACKAGED_DOUBLEHEADER_NEXT_RETURN_SETTLEMENT',
+        ),'1')}
+        for index, arg in enumerate(('--physical-job='+'a'*32, '--d1-witness=x', '--physical-probes', '--test')):
+            denied=run([*boot,'--',arg],empty,spoof,root/f'starter-refused-{index}.log',
+                       'Starter Beta launch mode refused.',expected=3)
+            assert 'WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE' not in denied and audited['launcher'] not in denied
+        for directory in (root/'standalone-home',root/'no-gate-home'):
+            data=directory/'data'
+            assert not (data/USER_DIR).exists() and not (data/'godot/app_userdata/Wiffaltro').exists()
+            assert not list(data.rglob('wiffaltro-common-career-v4.json'))
+    else:
+        run(boot,empty,gate_env,root/'gate.log','Private Dynasty engineering route not admitted.',expected=2)
+        boot_env=build_environment(root/'standalone-home')
+        run([*boot,'--log-file','user://engineering-boot.log'],empty,boot_env,root/'standalone.log',
+            'Loading resource: '+audited['launcher'])
+        assert (Path(boot_env['XDG_DATA_HOME'])/USER_DIR/'engineering-boot.log').is_file()
+        denied = run([*boot,'--','--physical-job=x'],empty,boot_env,root/'malformed-worker.log',
+                     'Private packaged worker request refused.',expected=3)
+        assert 'WIFFALTRO_PACKAGED_LEGACY_WORKER_ROUTE' not in denied and audited['launcher'] not in denied
+        denied_cross = run([*boot,'--','--d1-witness=x','--scene=res://wrong.tscn'],
+                           empty,boot_env,root/'malformed-cross-worker.log',
+                           'Private packaged archived Dugout worker request refused.',expected=3)
+        assert audited['launcher'] not in denied_cross
+        assert not (Path(boot_env['XDG_DATA_HOME'])/'godot/app_userdata/Wiffaltro').exists()
+        assert not list(Path(boot_env['XDG_DATA_HOME']).rglob('wiffaltro-common-career-v4.json'))
     inspect_env=build_environment(root/'inspect-home')
-    target=Path(inspect_env['XDG_DATA_HOME'])/USER_DIR
+    inspect_env['WIFFALTRO_ISOLATED_TEST']='1'  # Mounted audit, not release boot.
+    target=Path(inspect_env['XDG_DATA_HOME'])/user_dir
     target.mkdir()
     if no_save:
-        result=run([*engine,'--path',str(empty),'--main-pack',str(pack),'--script',str(audit),'--','pack-no-save',str(expected)],
+        audit_mode='starter-pack-no-save' if starter else 'pack-no-save'
+        result=run([*engine,'--path',str(empty),'--main-pack',str(pack),'--script',str(audit),'--',audit_mode,str(expected)],
             empty,inspect_env,root/'pack-audit.log',f'PACKED_REVIEWED_PROFILE_NO_SAVE_PASS {len(inventory)}')
         # Conservative refusal: a new broad digest must not appear as any exact
         # digest literal in the execution source. This covers frozen broad
@@ -247,10 +282,10 @@ binary_format/architecture="x86_64"
                 if path.is_dir() and not path.is_symlink():
                     continue
                 name=path.relative_to(data).as_posix()
-                log_dir='(?:godot/app_userdata/Wiffaltro|'+USER_DIR+')' if stage=='build-home' else USER_DIR
+                log_dir='(?:godot/app_userdata/Wiffaltro|'+user_dir+')' if stage=='build-home' else user_dir
                 safe_log=path.is_file() and not path.is_symlink() and re.fullmatch(
                     log_dir+r'/logs/godot[^/]*\.log',name)
-                boot_log=stage=='standalone-home' and name==USER_DIR+'/engineering-boot.log' and not path.is_symlink()
+                boot_log=stage=='standalone-home' and name==user_dir+('/starter-boot.log' if starter else '/engineering-boot.log') and not path.is_symlink()
                 assert safe_log or boot_log, f'unexpected data file in {stage}: {name}'
         if clean_identity(repo) != identity:
             raise ValueError('exact packaging checkout identity changed')
@@ -269,6 +304,9 @@ binary_format/architecture="x86_64"
     if no_save:
         metadata['revision'], metadata['tree'], metadata['parent'] = identity
         metadata['scope']='headless Linux engineering; no saves, rendered input, native Mac, worker gameplay or stadium qualification'
+        if starter:
+            metadata['scope']='headless Linux starter candidate; no saves, rendered input, native Mac or stadium qualification'
+            metadata['starter_profile']={'feature':feature,'bootstrap':bootstrap,'user_dir':user_dir}
     else:
         assert metadata['pack_broad_sha256'] == PACK_BROAD_SHA
     (root/'result.json').write_text(json.dumps(metadata,indent=2)+'\n')
@@ -280,16 +318,17 @@ def main():
     parser.add_argument('--output',type=Path,required=True,help='New scratch directory for the engineering package and isolated proof')
     mode=parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--evidence',type=Path,help='Already backed, exact generated cp88 evidence')
-    mode.add_argument('--no-save',action='store_true',help='Current clean source, package/boot checks only; never loads a save')
+    mode.add_argument('--no-save',action='store_true',help='Current clean engineering source and boot checks; never loads a save')
+    mode.add_argument('--starter-beta',action='store_true',help='Separate clean Linux starter-player build and no-save boot checks')
     parser.add_argument('--templates',type=Path,required=True,help='Verified vendor non-Mono 4.6.3 release template archive')
     parser.add_argument('--godot',type=Path,required=True,help='Verified vendor x86_64 Godot 4.6.3 editor binary')
     o=parser.parse_args()
-    if o.no_save and (not sys.platform.startswith("linux") or sys.flags.optimize):
+    if (o.no_save or o.starter_beta) and (not sys.platform.startswith("linux") or sys.flags.optimize):
         parser.error("use ordinary Python 3 on Linux with the pinned x86-64 editor")
-    paid,backup=(None,None) if o.no_save else evidence(o.evidence)
+    paid,backup=(None,None) if o.no_save or o.starter_beta else evidence(o.evidence)
     root=o.output.resolve()
     root.mkdir(mode=0o700)
-    qualify(Path(__file__).resolve().parents[1],root,o.godot.resolve(),o.templates.resolve(),paid,backup)
+    qualify(Path(__file__).resolve().parents[1],root,o.godot.resolve(),o.templates.resolve(),paid,backup,starter=o.starter_beta)
 
 
 if __name__=='__main__':
