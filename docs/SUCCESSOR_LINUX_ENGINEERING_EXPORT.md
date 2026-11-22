@@ -656,3 +656,24 @@ human-only primary and pregame backup untouched and showed **Simulate at
 Normal Speed**. The fallback was not run. No additional human play,
 purchase or result was injected. This qualifies the first Starter
 Standard Base round only, not later rounds, other leagues or Mac.
+
+### Starter Standard second human game after development
+
+The no-env Linux Starter artifact continued the exact earlier purchased
+Standard save, with 2 seasonal Cash. Dakota's live Bullpen details showed
+Soft Hands under Learned This Season before ordinary play. The real next
+game was Comets at Yard Club, fixture 3. The actual completed score was
+Comets 12, Yard Club 0. This establishes availability of the purchased
+ability in the next game's player details, not an isolated fielding
+effect.
+
+Ordinary Return preserved the first three results, their rewards, the
+purchase, both existing NPC reports, and Common progress. The only new
+persistent result was the human-only fixture 3 pending checkpoint:
+812,641 bytes with SHA-256
+`3594d3197bb035862359a7a5bcce3c31de1d854f4b0d3e36b3bf40bb30b7d89a`.
+The exact purchased predecessor became the backup. An early NPC start
+after the end/return controls were crossed was stopped before recording
+any report. A fresh native primary-only Continue again showed zero NPC
+results and wrote nothing. No later-round simulation, rewards or
+settlement is qualified here.
