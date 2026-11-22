@@ -569,3 +569,28 @@ bootstrap/worker allowlist are unaffected.
 This is a private candidate, not a distribution approval or qualification
 of a full named-league/Difficulty/Dynasty beta, title unlocks, current
 stadium profiles, target Mac hardware or packaged performance.
+
+### First rendered Starter Standard game, through human save
+
+The exact CP248 Linux player artifact, without engineering environment
+flags, was used without rebuilding. A separate native profile continued
+the existing synthetic Standard draft with Dakota Wells and selected Indy
+Shaw, Ash Cole and Casey Rivers through the normal buttons. **Play Next
+Game** opened the real season opener at Commons Park. Normal rendered
+pitching, batting and bullpen controls carried the game to the fifth
+inning; Dakota's used status and Ash's substitution were visible.
+The actual final was Yard Club 0, Switches 4.
+
+The real end-screen Continue saved the human result and showed zero
+NPC results, with no reward or settled result. The native primary was
+175,762 bytes, SHA-256
+`7a361b19f3ce56d8ef280e86765be5377c4daab88622a2598ddabece4ce2b6e8`;
+its backup was the exact four-pick pregame record. A fresh ordinary
+Continue in the same player artifact reopened pending fixture 0 and
+offered **Resume Saved Round**. No NPC was started. Native Quit left both
+save files identical.
+
+This proves one human game and cold pending restoration in the Starter
+flavor, not round settlement, shop entry, league advancement or a
+distributable beta. The live HUD still exposes inherited developer
+shortcut labels. No such shortcuts were invoked in this playthrough.
