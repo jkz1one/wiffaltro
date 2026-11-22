@@ -96,6 +96,21 @@ static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Ar
 		_standard_history_view = view
 	return _standard_history_view.duplicate(true)
 
+# Current closed record only. The earlier two entries keep their own cache.
+static func standard_closed_scores_available(owner: RefCounted, expected: PackedByteArray) -> bool:
+	return not saving and _ticket==null and owner!=null and owner==_owner and owner.session==_owner_session \
+		and not expected.is_empty() and expected==_owner_bytes and owner.lifecycle_status()=="closed" \
+		and (LeagueAdmission.starter_player() or private_standard_chain_opening()) \
+		and Owner.Common.StandardChain.tagged_abandon_scope(owner,owner.session)
+
+static func standard_closed_scores(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
+	if not standard_closed_scores_available(owner,expected) or _starter_slot_linked() \
+			or not match_owner(owner,expected) or not _write_revision_matches(expected,true): return {}
+	var view: Dictionary=Owner.Common.StandardArchive._display_scores(Owner._bytes_value(expected),false)
+	if view.is_empty() or view.ordinal!=3 or view.results.size()!=6 \
+			or not standard_closed_scores_available(owner,expected) or not _write_revision_matches(expected,true): return {}
+	return view
+
 # Clear-only invalidation has no admission/write authority.
 static func forget_projection() -> void:
 	_projection_ticket = null; _projection_checkpoint = null; _projection_owner = null
@@ -1373,8 +1388,10 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	if LeagueAdmission.starter_feature() and operation in ["resume","create","attach119"]: return null
 	if not match_owner(owner,expected): return null
 	if owner.ordinary_state.has("archive"):
-		if Owner.Common.StandardChain.marked(owner.session): return null
-		if Owner.Common.StandardArchive.marked(owner.session):
+		if Owner.Common.StandardChain.marked(owner.session):
+			if operation!="close" or reason!="abandon" or not (LeagueAdmission.starter_player() or private_standard_chain_opening()) \
+					or not Owner.Common.StandardChain.tagged_abandon_scope(owner,owner.session): return null
+		elif Owner.Common.StandardArchive.marked(owner.session):
 			if operation!="close" and (not LeagueAdmission.starter_player() or operation not in ["propose","next"] \
 				or not Owner.Common.StandardChain.eligible(owner)): return null
 		elif operation!="close" or reason!="abandon" or not cross_league_preview(): return null

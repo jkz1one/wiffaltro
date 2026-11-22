@@ -264,6 +264,7 @@ static func archive_close_scope(season: SeasonState) -> bool:
 # Ordinal three supports only the qualified settled opening. No draft,
 # pending game, later round or extra rollover is admitted by this slice.
 static func archived_abandon_scope(owner, season: SeasonState) -> bool:
+	if StandardChain.marked(season): return StandardChain.tagged_abandon_scope(owner,season)
 	return archive_close_scope(season) and (owner.ordinary_state.archive.get("kind")!=ARCHIVE_CHAIN \
 		or season.round_index==1)
 

@@ -168,7 +168,9 @@ func render() -> void:
 	_label(_body,("DYNASTY · SEASON %d"%app.career_owner.ordinal) if app.career_owner.active=="dynasty" else ("ORDINARY · "+str(app.season.league_rules.get("league","standard")).to_upper()+" · SEASON %d"%app.career_owner.current_ordinal()),22)
 	_label(_body,"ROUND %d · %s"%[app.season.round_index+1,SeasonState.Phase.keys()[app.season.phase]],24)
 	var fixture: Dictionary = app.season.pending_fixture()
-	if not fixture.is_empty(): _label(_body,"NEXT: "+_matchup(fixture),20)
+	var standard_chain: bool=Store.Owner.Common.StandardChain.marked(app.season)
+	if not fixture.is_empty() and not (standard_chain and app.career_owner.lifecycle_status()=="closed"):
+		_label(_body,"NEXT: "+_matchup(fixture),20)
 	_standings()
 	var rule: String=app.earnings_income_rule()
 	if not rule.is_empty(): _note(rule)
@@ -183,8 +185,9 @@ func render() -> void:
 		_label(_body,player.display_name,22)
 		_player_summary(player)
 	_career_records()
-	if app.starter_player() and Store.Owner.Common.StandardChain.marked(app.season):
-		_note("Both earlier seasons are in Season History. Closing this season is not available yet.")
+	if app.starter_player() and standard_chain and app.career_owner.lifecycle_status()=="active":
+		_note("Both earlier seasons are in Season History." if app.archived_abandon_visible() else \
+			"Both earlier seasons are in Season History. This season cannot be closed at this stage.")
 	if app.career_owner.lifecycle_status()=="closed":
 		_workshop_draft()
 		_closed()
@@ -448,6 +451,16 @@ func _show_previous_standard() -> void:
 	_bound_button(_footer,"BACK",render)
 	_display_standard_record(history)
 
+func _show_standard_closed_scores() -> void:
+	if not app._available(): return
+	var history: Dictionary=Store.standard_closed_scores(app.career_owner,app.saved_bytes)
+	if history.is_empty():
+		render()
+		return
+	_screen("closed_standard_scores","SEASON 3 SCORES","STANDARD BASE · SEASON 3")
+	_bound_button(_footer,"BACK",render)
+	_display_standard_record(history)
+
 func _display_standard_record(history: Dictionary) -> void:
 	var receipt: Dictionary = history.receipt
 	var abandoned: bool = receipt.is_empty()
@@ -479,6 +492,11 @@ func _closed() -> void:
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
 	if app.cross_review_visible():
 		_note("Your saved season and earned progress stay intact. Activate Dugout Base below when you are ready to draft your new club.")
+		return
+	if Store.Owner.Common.StandardChain.marked(app.season):
+		_note("Season 3 earned progress is banked. Both earlier seasons remain in Season History. No completion payout. Season 4 is not available.")
+		if Store.standard_closed_scores_available(owner,app.saved_bytes):
+			_bound_button(_body,"SEASON 3 SCORES",_show_standard_closed_scores)
 		return
 	if app.standard_repeat_archive():
 		if not app.standard_chain_next_visible():

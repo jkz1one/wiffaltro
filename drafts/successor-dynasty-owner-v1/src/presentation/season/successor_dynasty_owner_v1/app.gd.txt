@@ -1669,10 +1669,12 @@ func standard_chain_next_visible() -> bool:
 		and Owner.Common.StandardChain.eligible(career_owner)
 
 func archived_abandon_visible() -> bool:
-	return career_owner!=null and season!=null and career_owner.session==season \
-		and career_owner.ordinary_state.has("archive") and Store.cross_league_preview() \
-		and career_owner.active=="ordinary" and career_owner.lifecycle_status()=="active" \
-		and Owner.Common.archived_abandon_scope(career_owner,season)
+	if career_owner==null or season==null or career_owner.session!=season or not career_owner.ordinary_state.has("archive") \
+		or career_owner.active!="ordinary" or career_owner.lifecycle_status()!="active": return false
+	if Owner.Common.StandardChain.marked(season):
+		return (starter_player() or Store.private_standard_chain_opening()) \
+			and Owner.Common.StandardChain.tagged_abandon_scope(career_owner,season)
+	return Store.cross_league_preview() and Owner.Common.archived_abandon_scope(career_owner,season)
 
 func _lifecycle_ready(action: String) -> bool:
 	if career_owner!=null and career_owner.ordinary_state.has("archive"):
@@ -1734,7 +1736,8 @@ func request_lifecycle(action: String) -> void:
 	if action=="next":
 		_lifecycle_dialog.dialog_text="Start the next season with all six carried rosters? The provisional rule removes up to 2 above-authored points per stat and 1 mastery per known pitch, paid growth first. Seasonal Cash, items and sponsors reset. This happens only once on confirmation." if dynasty else "Start a new ordinary season with a fresh four-player draft? Shared earned access and progression starts apply. Previous ordinary player development does not carry over. Seasonal Cash, items and sponsors reset; the other saved session stays unchanged."
 	elif action=="abandon":
-		_lifecycle_dialog.dialog_text="Abandon this season? Completed-game stats and earned progress are banked once. No completion payout or next season. The previous season archive is preserved." if archived_abandon_visible() else "Abandon this season? Completed-game stats and earned progress are banked once. There is no completion payout. The saved season remains available for review or Return; no next season or Dynasty decay occurs."
+		_lifecycle_dialog.dialog_text="Abandon this season? Completed-game stats and earned progress are banked once. Both earlier seasons stay available. No completion payout or Season 4." if Owner.Common.StandardChain.marked(season) else \
+			"Abandon this season? Completed-game stats and earned progress are banked once. No completion payout or next season. The previous season archive is preserved." if archived_abandon_visible() else "Abandon this season? Completed-game stats and earned progress are banked once. There is no completion payout. The saved season remains available for review or Return; no next season or Dynasty decay occurs."
 	else:
 		_lifecycle_dialog.dialog_text="Close this completed season and bank its verified career contribution once? The saved season remains available for review or Return. No next season or Dynasty decay occurs."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()

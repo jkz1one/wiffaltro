@@ -26,19 +26,43 @@ static func eligible(owner: RefCounted) -> bool:
 	var state: Dictionary = owner.ordinary_state
 	var close: Dictionary = state.get("last_close",{})
 	var season: SeasonState = owner.session
-	var physical = season.physical
-	var prefix: Dictionary = api.Common.StandardArchive.settled_regular_prefix(season.results,season.round_index)
 	return state.get("ordinal") == 2 and state.get("status") == "closed" \
 		and close.get("reason") == "abandon" and close.get("league") == "standard" \
 		and close.get("tier") == 0 and close.get("receipt") == {} \
 		and owner.common.get("sequence") == 2 and api.Codec.same(owner.common.get("cursors"),{"ordinary":2,"dynasty":0}) \
-		and season.phase == SeasonState.Phase.REGULAR and not prefix.is_empty() \
+		and _settled_regular(season)
+
+static func _settled_regular(season: SeasonState) -> bool:
+	var api := _owner()
+	var physical = season.physical
+	var prefix: Dictionary = api.Common.StandardArchive.settled_regular_prefix(season.results,season.round_index)
+	return season.phase == SeasonState.Phase.REGULAR and not prefix.is_empty() \
 		and season.picks.size() == 4 and season.build != null and not season.build.pack_pending() \
 		and api.Codec.same(season.player_results.map(func(r): return r.get("id")),prefix.human) \
 		and physical != null and physical.cursor == prefix.cpu.size() \
 		and api.Codec.same(physical.reports.map(func(r): return r.get("fixture")),prefix.cpu) \
 		and physical.pending.is_empty() and physical.needed.is_empty() and physical.error.is_empty() \
 		and not physical.projecting
+
+# Only the new tagged Season 3 may end early at this native frontier.
+# Full current capture/restore and both authenticated archives stay in charge.
+static func tagged_abandon_scope(owner: RefCounted, season: SeasonState) -> bool:
+	var api := _owner()
+	var w = api.Common.StandardWorkshop
+	if owner==null or owner.active!="ordinary" or owner.session!=season or not w.Home.opening_chain(season) \
+			or not owner.paused.is_empty() or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty(): return false
+	var state: Dictionary=owner.ordinary_state
+	if state.get("ordinal")!=3 or not state.get("proposal",{}).is_empty() or not w.opening_valid(state,season) \
+			or not state[w.OPENING].locked or season.round_index!=2 or not _settled_regular(season): return false
+	var close: Dictionary=state.get("last_close",{})
+	var closed: bool=state.get("status")=="closed"
+	if closed:
+		if close.get("reason")!="abandon" or close.get("league")!="standard" or close.get("tier")!=0 or close.get("receipt")!={}: return false
+	elif state.get("status")!="active" or not close.is_empty(): return false
+	var sequence: int=3 if closed else 2
+	return owner.common.get("sequence")==sequence \
+		and api.Codec.same(owner.common.get("cursors"),{"ordinary":sequence,"dynasty":0})
+
 
 static func seed_for(owner: RefCounted) -> int:
 	# Identical to the native ordinary Next button's fixed lineage seed.
@@ -85,7 +109,8 @@ static func shape(owner: RefCounted) -> bool:
 		or first.deflate_base64.length()+second.cut.deflate_base64.length() > MAX_ENCODED:
 		return false
 	return owner.active == "ordinary" and owner.paused.is_empty() and api._missing_dynasty(owner) \
-		and owner.migration_v3.is_empty() and state.ordinal == 3 and state.status == "active" \
+		and owner.migration_v3.is_empty() and state.ordinal == 3 \
+		and (state.status == "active" or (state.status == "closed" and tagged_abandon_scope(owner,owner.session))) \
 		and state.proposal.is_empty() and t.get("kind") == TRANSITION and t.get("league") == "standard" \
 		and t.basis.get("version") == 3 \
 		and t.basis.archive_origin.kind in [ORIGIN,api.Common.Start.STANDARD_CHAIN_OPENING] \
@@ -191,7 +216,7 @@ static func _candidate(owner: RefCounted, raw: PackedByteArray, opening: bool) -
 		state[w.OPENING]=w.opening_record(state,"pending",false,3)
 	return result if api.Common.valid(result) else null
 
-static func validate(owner: RefCounted) -> bool:
+static func validate(owner: RefCounted, current: Dictionary) -> bool:
 	if not shape(owner) or not marked(owner.session): return false
 	var api := _owner()
 	var rows: Array = owner.ordinary_state.archive.entries
@@ -228,6 +253,7 @@ static func validate(owner: RefCounted) -> bool:
 			and not api.Codec.same(owner.ordinary_state.get(field),previous.ordinary_state[field]): return false
 	var metadata: Dictionary = api.Codec.data_fields(owner,api.META_FIELDS)
 	var old_metadata: Dictionary = api.Codec.data_fields(previous,api.META_FIELDS)
-	metadata.erase("ordinary_state")
-	old_metadata.erase("ordinary_state")
-	return api.Codec.same(metadata,old_metadata)
+	for name: String in ["ordinary_state","common"]:
+		metadata.erase(name)
+		old_metadata.erase(name)
+	return api.Codec.same(metadata,old_metadata) and api._archive_fold_matches(owner,previous,current)
