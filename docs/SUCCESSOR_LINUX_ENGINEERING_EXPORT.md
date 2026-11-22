@@ -677,3 +677,31 @@ after the end/return controls were crossed was stopped before recording
 any report. A fresh native primary-only Continue again showed zero NPC
 results and wrote nothing. No later-round simulation, rewards or
 settlement is qualified here.
+
+### Starter Standard second round, completed and reopened
+
+The same no-env Linux Starter player artifact used the exact human-only
+Round 2 checkpoint. Ordinary Resume saved Switches 8–7 Lanterns
+(fixture 4, 175 plays), then Kites 6–1 Rivets (fixture 5, 153 plays).
+Their native elapsed diagnostics were 268.807 and 185.478 seconds at
+normal speed on the software-rendered Linux test machine. Neither
+pending write advanced the season or paid additional rewards.
+
+Native settlement preserved both rounds and the entire Soft Hands
+purchase, advanced to Round 3, and posted one award per club for the
+completed round. The two completed rounds contain six games and twelve
+rewards; Yard Club had 14 seasonal Cash, up from 2. Common progression
+did not change. Fresh primary-only Continue showed Round 3 and the same
+standings; native Quit created no backup or temporary save and changed
+neither the cold primary nor the active save pair.
+
+Generated checkpoints for repeatable parity, in order:
+
+| State | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Fixture 4 saved, fixture 5 pending | 971455 | `ea2451a94e597ac32fc9a608e46b4e4e261384be18392114201456155a57383d` |
+| Both NPC reports saved, settlement pending | 1110684 | `75f937f6de6dfb86816b45a13655afcbd2b05b63d718988b91667e17295fbe6c` |
+| Round 3 ready after settlement | 1424827 | `07445babe5cfa66a1d6c2742f7bf9f2030d45c7a7d7312922d0fa8b2baecc1b7` |
+
+No next human game, second purchase, rollover, fast later-round path
+or native Mac build was exercised in this slice.
