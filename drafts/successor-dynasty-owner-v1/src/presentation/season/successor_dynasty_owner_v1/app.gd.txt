@@ -1181,9 +1181,36 @@ func _quit_now() -> void:
 	get_tree().quit()
 
 
+class StarterMatchControls extends Node:
+	# The inherited lab sees these in _unhandled_input. Keep this input stage
+	# alive even while normal play is paused; do not intercept any game actions.
+	func _input(event: InputEvent) -> void:
+		if not event is InputEventKey: return
+		if event.keycode in [KEY_F1, KEY_F2, KEY_F3, KEY_BRACKETLEFT, KEY_BRACKETRIGHT] \
+			or event.physical_keycode in [KEY_F1, KEY_F2, KEY_F3, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]:
+			get_viewport().set_input_as_handled()
+
+	func install(opened: PitchBatLab) -> void:
+		name = "StarterMatchControls"
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		opened.add_child(self)
+		var stock: Label = opened._controls_label
+		if not is_instance_valid(stock): return
+		# Native presentation rewrites stock text and visibility during play.
+		# Retain native visibility, position and style without rendering its text.
+		var player_help: Label = stock.duplicate(0) as Label
+		player_help.name = "StarterPlayerHelp"
+		player_help.text = "Esc PAUSE   V CAMERA\nBAT: pointer + click Contact/Power • T timeout before windup   •   PITCH: aim + hold/release"
+		stock.self_modulate.a = 0.0
+		stock.get_parent().add_child(player_help)
+		stock.visibility_changed.connect(func() -> void: player_help.visible = stock.visible)
+
+
 func _open_match(state: MatchState, player_home: bool, season_game: bool,
 		field_id: StringName = PitchBatLab.FIELD_ID) -> void:
 	super._open_match(state,player_home,season_game,field_id)
+	if starter_player() and is_instance_valid(lab) and not lab.has_node("StarterMatchControls"):
+		StarterMatchControls.new().install(lab)
 	# Common-only entry to the same guarded window-close route. Original
 	# Game and shared pause controls keep their authored layout.
 	if is_instance_valid(lab) and is_instance_valid(lab._pause_menu):
