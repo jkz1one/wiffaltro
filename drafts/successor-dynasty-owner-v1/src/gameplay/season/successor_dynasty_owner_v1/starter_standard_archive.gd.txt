@@ -28,7 +28,8 @@ static func shape(owner: RefCounted) -> bool:
 		and owner.migration_v3.is_empty() and state.ordinal == 2 \
 		and (state.status == "active" or (state.status == "closed" \
 			and state.last_close.get("reason") in ["complete","abandon"])) \
-		and state.proposal.is_empty() and t.get("kind") == TRANSITION and t.get("league") == "standard" \
+		and (state.proposal.is_empty() or _owner().Common.StandardChain.proposal_scope(owner)) \
+		and t.get("kind") == TRANSITION and t.get("league") == "standard" \
 		and t.get("basis", {}).get("archive_origin", {}).get("kind") == ORIGIN \
 		and row.kind == KIND and _owner().Codec.whole(row.version,1,1) \
 		and _owner().Codec.whole(row.source_bytes,1,MAX_SOURCE) \
@@ -122,38 +123,61 @@ static func candidate(owner: RefCounted, raw: PackedByteArray) -> RefCounted:
 	state.archive = row
 	return result if api.Common.valid(result) else null
 
-static func validate(owner: RefCounted, restored_current: Dictionary) -> bool:
-	if not shape(owner) or not marked(owner.session): return false
+class FirstFacts extends RefCounted:
+	var basis: Dictionary
+	var common: Dictionary
+	var metadata: Dictionary
+	var id: String
+	var source: String
+	var archive_sha256: String
+
+static func _checked_first(row: Dictionary) -> FirstFacts:
 	var api := _owner()
-	var row: Dictionary = owner.ordinary_state.archive
 	var raw := _unpack(row)
-	if raw.is_empty(): return false
+	if raw.is_empty(): return null
 	var value: Variant = api._bytes_value(raw)
 	if not value is Dictionary or not value.get("ordinary_state") is Dictionary \
 		or value.ordinary_state.has("archive") or not value.get("ordinary") is Dictionary:
-		return false
+		return null
 	var predecessor: RefCounted = api.restore(value)
-	if predecessor == null: return false
+	if predecessor == null: return null
 	var prior: Dictionary = _derived(predecessor,value.ordinary)
-	if prior.is_empty(): return false
+	if prior.is_empty(): return null
+	var facts := FirstFacts.new()
+	facts.basis=prior
+	facts.common=predecessor.common.duplicate(true)
+	facts.metadata=api.Codec.data_fields(predecessor,api.META_FIELDS)
+	facts.metadata.erase("ordinary_state")
+	facts.metadata.erase("common")
+	facts.id=predecessor.ordinary_state.proposal.id
+	facts.source=predecessor.ordinary_state.proposal.source
+	facts.archive_sha256=row.source_sha256
+	return facts
+
+static func validate(owner: RefCounted, restored_current: Dictionary) -> bool:
+	if not shape(owner) or not marked(owner.session): return false
+	return _validate_checked_first(owner,restored_current,_checked_first(owner.ordinary_state.archive))
+
+static func _validate_checked_first(owner: RefCounted, restored_current: Dictionary, facts: FirstFacts) -> bool:
+	if facts==null or not shape(owner) or not marked(owner.session): return false
+	var api := _owner()
+	var row: Dictionary = owner.ordinary_state.archive
 	var t: Dictionary = owner.ordinary_state.last_transition
-	var basis: Dictionary = api.Common.Start.bind_archive(prior,row.source_sha256,"standard")
-	var p: Dictionary = predecessor.ordinary_state.proposal
-	if t.id != p.id or t.source != p.source or not api.Codec.same(t.basis,basis): return false
+	if facts.archive_sha256!=row.source_sha256: return false
+	var basis: Dictionary = api.Common.Start.bind_archive(facts.basis,row.source_sha256,"standard")
+	if t.id != facts.id or t.source != facts.source or not api.Codec.same(t.basis,basis): return false
 	var current: Dictionary = api.Codec.data_fields(owner,api.META_FIELDS)
-	var previous: Dictionary = api.Codec.data_fields(predecessor,api.META_FIELDS)
 	for field: String in ["common","ordinary_state"]:
 		current.erase(field)
-		previous.erase(field)
-	if not api.Codec.same(current,previous): return false
+	if not api.Codec.same(current,facts.metadata): return false
 	if owner.ordinary_state.status == "active":
-		return api.Codec.same(owner.common,predecessor.common)
+		return api.Codec.same(owner.common,facts.common)
 	var folded: RefCounted = api._new()
 	if not api.Codec.install_fields(folded,api.META_FIELDS,api.Codec.data_fields(owner,api.META_FIELDS)):
 		return false
 	folded.active = "ordinary"
 	folded.session = owner.session
-	folded.common = predecessor.common.duplicate(true)
+	folded.common = facts.common.duplicate(true)
 	folded.ordinary_state.status = "active"
 	var close: Dictionary = folded.ordinary_state.last_close
 	folded.ordinary_state.last_close = {}

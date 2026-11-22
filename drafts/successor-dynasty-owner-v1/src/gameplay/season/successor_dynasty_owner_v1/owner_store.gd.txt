@@ -112,7 +112,8 @@ static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if not LeagueAdmission.starter_player() or owner==null or owner.get_script()!=Owner \
 		or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
 		or not Owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
-		or (owner.ordinary_state.has("archive") and not Owner.Common.StandardArchive.shape(owner)) \
+		or (owner.ordinary_state.has("archive") and not Owner.Common.StandardArchive.shape(owner) \
+			and not Owner.Common.StandardChain.shape(owner)) \
 		or Owner.Common.cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")): return false
 	var current: SeasonState=owner.session
 	# Standard Base's authored envelope has no named league rules. This is
@@ -1183,8 +1184,10 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	if LeagueAdmission.starter_feature() and operation in ["resume","create","attach119"]: return null
 	if not match_owner(owner,expected): return null
 	if owner.ordinary_state.has("archive"):
+		if Owner.Common.StandardChain.marked(owner.session): return null
 		if Owner.Common.StandardArchive.marked(owner.session):
-			if operation!="close": return null
+			if operation!="close" and (not LeagueAdmission.starter_player() or operation not in ["propose","next"] \
+				or not Owner.Common.StandardChain.eligible(owner)): return null
 		elif operation!="close" or reason!="abandon" or not cross_league_preview(): return null
 	last_error=league_block(owner,operation,league)
 	if not last_error.is_empty(): return null
@@ -1201,6 +1204,8 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 		var source: FileAccess=FileAccess.open(SOURCE119,FileAccess.READ)
 		if source==null or source.get_length()>MAX_BYTES: return null
 		imported=source.get_buffer(source.get_length());source.close()
+	if LeagueAdmission.starter_player() and operation in ["propose","next"] and Owner.Common.StandardChain.eligible(owner):
+		return _prepare_starter_standard_chain(owner,expected,operation,seed_value)
 	if LeagueAdmission.starter_player() and operation=="next" and Owner.Common.StandardArchive.first_next(owner):
 		return _prepare_starter_standard_next(owner,expected)
 	var candidate: RefCounted=owner.fork()
@@ -1230,6 +1235,28 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 static func _prepare_starter_standard_next(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
 	if saving or _ticket!=null or not LeagueAdmission.starter_player() or not match_owner(owner,expected): return null
 	var candidate: RefCounted=Owner.Common.StandardArchive.candidate(owner,expected)
+	if candidate==null or not _starter_owner_allowed(candidate): return null
+	var data: Dictionary=Owner.capture(candidate)
+	var snapshot: Dictionary=RawGuard.capture(candidate)
+	if data.is_empty() or snapshot.is_empty() or not match_owner(owner,expected): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+# Fixed same-league Season 3 producer. The public route supplies the
+# Starter gate; neither a caller archive nor a caller candidate is accepted.
+static func _prepare_starter_standard_chain(owner: RefCounted, expected: PackedByteArray, operation: String, seed_value: int) -> RefCounted:
+	if saving or _ticket!=null or not match_owner(owner,expected) or not Owner.Common.StandardChain.eligible(owner):
+		return null
+	var candidate: RefCounted
+	if operation=="propose" and owner.ordinary_state.proposal.is_empty():
+		candidate=owner.fork()
+		if candidate==null or not candidate.propose_next(seed_value): return null
+	elif operation=="next" and seed_value==0:
+		candidate=Owner.Common.StandardChain.candidate(owner,expected)
+	else: return null
 	if candidate==null or not _starter_owner_allowed(candidate): return null
 	var data: Dictionary=Owner.capture(candidate)
 	var snapshot: Dictionary=RawGuard.capture(candidate)

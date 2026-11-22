@@ -1620,6 +1620,10 @@ func import_previous_dynasty() -> void:
 func standard_repeat_archive() -> bool:
 	return career_owner!=null and Owner.Common.StandardArchive.marked(season)
 
+func standard_chain_next_visible() -> bool:
+	return starter_player() and career_owner!=null and career_owner.session==season \
+		and Owner.Common.StandardChain.eligible(career_owner)
+
 func archived_abandon_visible() -> bool:
 	return career_owner!=null and season!=null and career_owner.session==season \
 		and career_owner.ordinary_state.has("archive") and Store.cross_league_preview() \
@@ -1629,7 +1633,8 @@ func archived_abandon_visible() -> bool:
 func _lifecycle_ready(action: String) -> bool:
 	if career_owner!=null and career_owner.ordinary_state.has("archive"):
 		if standard_repeat_archive():
-			if action not in ["abandon","complete"]: return false
+			if action not in ["abandon","complete"] and (action not in ["propose","next"] \
+				or not standard_chain_next_visible()): return false
 		elif action!="abandon" or not archived_abandon_visible(): return false
 	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or is_instance_valid(ai_runner): return false

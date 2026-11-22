@@ -241,6 +241,7 @@ static func _archive_valid(owner, current: Dictionary) -> bool:
 	if not Common._archive_shape(owner): return false
 	var archive: Dictionary=owner.ordinary_state.archive
 	if archive.get("kind")==Common.StandardArchive.KIND: return Common.StandardArchive.validate(owner,current)
+	if archive.get("kind")==Common.StandardChain.KIND: return Common.StandardChain.validate(owner)
 	if archive.get("kind")==Common.ARCHIVE_CHAIN: return _archive_chain_valid(owner,current)
 	var bytes: PackedByteArray=archive.source.to_utf8_buffer()
 	if bytes.size()>Common.ARCHIVE_MAX or _hash(bytes)!=archive.sha256: return false
@@ -319,7 +320,13 @@ static func _restore_metadata(value: Variant) -> RefCounted:
 	result.active=value.active;result.paused=value[Adapter.other(value.active)].duplicate(true)
 	return result
 
-static func restore(value: Variant):
+class CanonicalRestore extends RefCounted:
+	var owner: RefCounted
+	var current: Dictionary
+
+# No archive authority on its own. Only native restore and the fixed ordered
+# Standard archive reader (which verifies both predecessors) consume this.
+static func _restore_canonical(value: Variant) -> CanonicalRestore:
 	var result: RefCounted=_restore_metadata(value)
 	if result==null: return null
 	var current: Dictionary=Adapter.checked_restore(result.active,value[result.active])
@@ -331,4 +338,12 @@ static func restore(value: Variant):
 		if result.active=="ordinary" and not _dynasty_valid(result,dormant.season,dormant.captured): return null
 		if result.active=="dynasty" and not Common.ordinary_current_valid(result,dormant.season,dormant.captured): return null
 	var checked: Dictionary=pack_current(result,current.captured)
-	return result if not checked.is_empty() and Codec.same(checked,value) and _archive_valid(result,current.captured) else null
+	if checked.is_empty() or not Codec.same(checked,value): return null
+	var native := CanonicalRestore.new()
+	native.owner=result
+	native.current=current.captured
+	return native
+
+static func restore(value: Variant):
+	var native := _restore_canonical(value)
+	return native.owner if native!=null and _archive_valid(native.owner,native.current) else null

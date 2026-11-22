@@ -182,6 +182,8 @@ func render() -> void:
 		_label(_body,player.display_name,22)
 		_player_summary(player)
 	_career_records()
+	if app.starter_player() and Store.Owner.Common.StandardChain.marked(app.season):
+		_note("Both earlier seasons are retained. Earlier-season review and closing this season are not available yet.")
 	if app.career_owner.lifecycle_status()=="closed":
 		_workshop_draft()
 		_closed()
@@ -389,10 +391,13 @@ func _closed() -> void:
 		_note("Your saved season and earned progress stay intact. Activate Dugout Base below when you are ready to draft your new club.")
 		return
 	if app.standard_repeat_archive():
-		_note("Earned progress is banked. The previous season is retained. Starting a third season with this archive is not available yet.")
-		return
-	_note("Earned progress is banked. The previous season archive is preserved. No completion payout or next season." if owner.ordinary_state.has("archive") else
-		"Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")
+		if not app.standard_chain_next_visible():
+			_note("Earned progress is banked. The previous season is retained. This close is not eligible for archived rollover yet.")
+			return
+		_note("Season 2 was abandoned without a completion payout. Starting Season 3 keeps both prior seasons and banked progress.")
+	else:
+		_note("Earned progress is banked. The previous season archive is preserved. No completion payout or next season." if owner.ordinary_state.has("archive") else
+			"Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")
 	var proposal: Dictionary=owner.proposal if owner.active=="dynasty" else owner.ordinary_state.proposal
 	if proposal.get("kind")=="common-ordinary-league-proposal-v1":
 		_label(_body,"DUGOUT BASE · SEASON %d · PROPOSAL SAVED"%int(proposal.basis.ordinal),20)

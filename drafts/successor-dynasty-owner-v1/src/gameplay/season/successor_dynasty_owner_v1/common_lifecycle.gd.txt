@@ -8,6 +8,7 @@ const WorkshopHistory = preload("workshop_close_history.gd")
 const Progress = preload("common_progress.gd")
 const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
 const StandardArchive = preload("starter_standard_archive.gd")
+const StandardChain = preload("starter_standard_chain.gd")
 const ARCHIVE_KIND: String="common-ordinary-predecessor-v1"
 const ARCHIVE_CHAIN: String="common-ordinary-two-predecessors-v1"
 const CHAIN_FRAGMENT: String="common-ordinary-second-fragments-v1"
@@ -98,7 +99,9 @@ static func valid(owner) -> bool:
 		if not C.keys(t,["id","source","from","to","league","basis"]+(["kind"] if stamped else [])) or t.to!=state.ordinal or t.from!=state.ordinal-1 or t.id!="%s:%d:next"%[state.lineage,t.from] or not owner._digest(t.source) or t.league not in Adapter.OrdinaryRuntime.COMMON_ORDINARY_LEAGUES or not Start.valid(t.basis): return false
 		if stamped!=(t.basis.version==2 or t.basis.version==3) or (stamped and not state.has("archive")): return false
 		if t.basis.version==3:
-			if t.get("kind")!=CHAIN_TRANSITION or t.league!="dugout": return false
+			if t.get("kind")==StandardChain.TRANSITION:
+				if t.league!="standard" or t.basis.archive_origin.kind!=Start.STANDARD_CHAIN: return false
+			elif t.get("kind")!=CHAIN_TRANSITION or t.league!="dugout" or t.basis.archive_origin.kind!=Start.CHAIN_ARCHIVED: return false
 		elif stamped and t.kind!=_archive_transition(t.league): return false
 		if t.basis.lineage!=state.lineage or t.basis.ordinal!=state.ordinal or Life.digest(t.basis)!=state.start_basis_sha256 or t.basis.common_sequence>value.sequence: return false
 	return _archive_shape(owner) and _ordinary_proposal_valid(owner)
@@ -119,6 +122,7 @@ static func _archive_shape(owner) -> bool:
 	var a: Variant=state.archive
 	var t: Dictionary=state.last_transition
 	if a is Dictionary and a.get("kind")==StandardArchive.KIND: return StandardArchive.shape(owner)
+	if a is Dictionary and a.get("kind")==StandardChain.KIND: return StandardChain.shape(owner)
 	if a is Dictionary and a.get("kind")==ARCHIVE_CHAIN:
 		return owner.active=="ordinary" and owner.paused.is_empty() and owner._missing_dynasty(owner) \
 			and state.ordinal==3 and state.proposal.is_empty() \
@@ -240,7 +244,7 @@ static func _activate_cross(owner, raw: PackedByteArray, target: String="dugout"
 # Exact schedule, report and reward validation remain with the stock Ordinary
 # runtime and codec. This owner only limits the archive family to its own league.
 static func archive_play_scope(season: SeasonState) -> bool:
-	if StandardArchive.marked(season): return true
+	if StandardArchive.marked(season) or StandardChain.marked(season): return true
 	return season!=null and season.league_rules.get("league") in ["dugout","sponsorship"] \
 		and season.league_rules.get("tier")==0 and not season.career.start_basis.is_empty()
 
@@ -276,7 +280,9 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 			and not archived_abandon_scope(owner,season))): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
-	if StandardArchive.marked(season)!=(state.get("archive",{}).get("kind")==StandardArchive.KIND): return false
+	var kind: Variant=state.get("archive",{}).get("kind")
+	if StandardArchive.marked(season)!=(kind==StandardArchive.KIND): return false
+	if StandardChain.marked(season)!=(kind==StandardChain.KIND): return false
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false
 	if state.ordinal>1 and not C.same(season.career.start_basis,state.last_transition.basis): return false
 	if state.status=="active": return state.last_close.is_empty()
@@ -549,7 +555,9 @@ static func _ordinary_proposal_valid(owner) -> bool:
 
 static func next_block_reason(owner) -> String:
 	if owner.ordinary_state.has("archive"):
-		return "Season 3 is not available for this archived career yet." if StandardArchive.marked(owner.session) else "Further seasons from this archived rollover are not available."
+		if StandardChain.eligible(owner): return ""
+		if StandardChain.marked(owner.session): return "Season 4 is not available for this archived career yet."
+		return "This Season 2 close is not eligible for archived rollover yet." if StandardArchive.marked(owner.session) else "Further seasons from this archived rollover are not available."
 	if owner.active=="dynasty":
 		return "" if dynasty_next_supported(owner) else "Shared earned rights are retained. Applying differing common rights to Dynasty Next is not yet available; Return keeps both saved seasons intact."
 	if cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")):
@@ -572,7 +580,7 @@ static func dynasty_next_supported(owner) -> bool:
 	return aggregate.pennants.is_empty() and C.same(awards(owner),owner.ledger.plaques)
 
 static func propose(owner, seed_value: int) -> bool:
-	if owner.ordinary_state.has("archive"): return false
+	if owner.ordinary_state.has("archive") and (not StandardChain.eligible(owner) or seed_value!=StandardChain.seed_for(owner)): return false
 	if owner.paired_draft_only(): return false
 	if owner.active=="dynasty": return dynasty_next_supported(owner) and Life.propose(owner,seed_value)
 	if not valid(owner) or owner.ordinary_state.status!="closed" or owner.ordinary_state.ordinal>=ClubCareer.MAX_RUNS or not C.whole(seed_value,0,2147483647): return false
