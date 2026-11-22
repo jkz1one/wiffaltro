@@ -1533,7 +1533,7 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 		var draft:=Flat._from_authenticated(owner,expected,Owner._hash(expected))
 		candidate=Flat._local_owner(owner,draft)
 	elif op in ["npc","settle"]:
-		if not argument.is_empty() or not Flat._draft_scope(owner) or owner.session.physical.pending.is_empty(): return null
+		if not argument.is_empty() or not Flat._storage_scope(owner) or owner.session.physical.pending.is_empty(): return null
 		var pending: Dictionary=owner.session.physical.pending
 		var current: SeasonState
 		if op=="npc":
@@ -1548,14 +1548,20 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 		else:
 			if not _private_flat_app(app) or app.career_owner!=owner or app.season!=owner.session \
 					or app.saved_bytes!=expected or pending.reports.size()!=2 or is_instance_valid(_flat_npc): return null
-			var settled:=Flat.project_opening(owner)
+			var settled:=Flat.project_regular(owner)
 			if settled.is_empty(): return null
 			current=settled.candidate
 		candidate=Owner.new()
 		if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
 		candidate.session=current
 		if op=="settle":
-			candidate.ordinary_state[Flat.ROUND1]={"version":1,"human":pending.human.duplicate(true)}
+			var record: Dictionary={"version":1,"human":pending.human.duplicate(true)}
+			if owner.session.round_index==0:
+				candidate.ordinary_state[Flat.ROUND1]=record
+			elif owner.session.round_index==1:
+				record["property"]=pending.property
+				candidate.ordinary_state[Flat.ROUND2]=record
+			else: return null
 	elif op in ["pick","opening","human"]:
 		var fixture: Dictionary=Flat.human_fixture(owner) if op=="human" else {}
 		if (fixture.is_empty() if op=="human" else not Flat._draft_scope(owner)): return null
@@ -1717,9 +1723,9 @@ static func start_private_standard_flat_npc(app: Variant) -> bool:
 			or is_instance_valid(_flat_npc) or app._busy or is_instance_valid(app.lab) or is_instance_valid(app.ai_runner): return false
 	var owner: RefCounted=app.career_owner
 	var expected: PackedByteArray=app.saved_bytes
-	if not _match_bound_owner(owner,expected) or app.season!=owner.session or not Flat._draft_scope(owner) \
+	if not _match_bound_owner(owner,expected) or app.season!=owner.session or not Flat._storage_scope(owner) \
 			or owner.session.physical.pending.is_empty() or owner.session.physical.pending.reports.size()>=2: return false
-	var projected:=Flat.project_opening(owner)
+	var projected:=Flat.project_regular(owner)
 	if projected.is_empty() or not projected.has("fixture"): return false
 	var fixture: Dictionary=projected.fixture
 	var day: SeasonState=projected.candidate
