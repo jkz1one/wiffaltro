@@ -436,7 +436,7 @@ func _show_standard_history(index: int = 1) -> void:
 		render()
 		return
 	var history: Dictionary = entries[index]
-	_screen("standard_history","SEASON HISTORY","STANDARD BASE · SEASON %d"%history.ordinal)
+	_screen("standard_history","SEASON HISTORY","%s BASE · SEASON %d"%[str(history.get("league","standard")).to_upper(),history.ordinal])
 	_bound_button(_footer,"BACK",render)
 	var selector: HBoxContainer = HBoxContainer.new()
 	_body.add_child(selector)

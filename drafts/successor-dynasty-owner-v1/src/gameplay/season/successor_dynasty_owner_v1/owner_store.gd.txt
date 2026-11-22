@@ -90,11 +90,12 @@ static var standard_history_projection_calls: int = 0
 
 static func standard_history_available(owner: RefCounted, expected: PackedByteArray) -> bool:
 	if saving or _ticket!=null or owner==null or owner!=_owner or owner.session!=_owner_session \
-		or expected.is_empty() or expected!=_owner_bytes or not Owner.Common.StandardChain.marked(owner.session):
+		or expected.is_empty() or expected!=_owner_bytes:
 		return false
 	var pin: Variant = _metadata.get("ordinary_state",{}).get("archive")
-	return pin is Dictionary and Owner.Common.StandardChain.shape(owner) \
-		and RawGuard.same(owner.ordinary_state.archive,pin)
+	return pin is Dictionary and RawGuard.same(owner.ordinary_state.archive,pin) \
+		and ((Owner.Common.StandardChain.marked(owner.session) and Owner.Common.StandardChain.shape(owner)) \
+			or (LeagueAdmission.starter_player() and Owner.Common.starter_dugout_chain_scope(owner)))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -102,13 +103,26 @@ static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Ar
 	var pin: Dictionary = _metadata.ordinary_state.archive
 	if not RawGuard.same(pin,_standard_history_pin):
 		standard_history_projection_calls += 1
-		var view: Array = Owner.Common.StandardChain.display(pin)
+		var view: Array = _starter_dugout_history(pin) if pin.get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN \
+			else Owner.Common.StandardChain.display(pin)
 		if view.size()!=2 or not standard_history_available(owner,expected) \
 			or not RawGuard.same(pin,_metadata.ordinary_state.archive) or not _write_revision_matches(expected,true):
 			return []
 		_standard_history_pin = pin.duplicate(true)
 		_standard_history_view = view
 	return _standard_history_view.duplicate(true)
+
+# Display only: the two exact members were natively admitted on cold
+# Continue or a fixed Store promotion. No write path consumes these views.
+static func _starter_dugout_history(pin: Dictionary) -> Array:
+	var second:=Owner.Common.starter_dugout_second_bytes(pin)
+	if second.is_empty(): return []
+	var first:=Owner.Common.StandardArchive._display_scores(Owner._bytes_value(pin.entries[0].source.to_utf8_buffer()),true)
+	var latest:=Owner.Common.StandardArchive._display_scores(Owner._bytes_value(second),true)
+	if first.get("ordinal")!=1 or latest.get("ordinal")!=2: return []
+	first["league"]="standard"
+	latest["league"]="dugout"
+	return [first,latest]
 
 # Current closed record only. The earlier two entries keep their own cache.
 static func standard_closed_scores_available(owner: RefCounted, expected: PackedByteArray) -> bool:
@@ -174,6 +188,8 @@ static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if Flat.is_flat(owner): return false
 	if owner!=null and owner.ordinary_state.get("archive",{}).get("kind")==Owner.Common.STARTER_DUGOUT_ARCHIVE:
 		return LeagueAdmission.starter_player() and Owner.Common.starter_dugout_archive(owner) and Owner.Common._archive_shape(owner)
+	if owner!=null and owner.ordinary_state.get("archive",{}).get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN:
+		return LeagueAdmission.starter_player() and Owner.Common.starter_dugout_chain_scope(owner)
 	if owner!=null and Owner.Common.StandardWorkshop.Home.opening_chain(owner.session):
 		return (LeagueAdmission.starter_player() or private_standard_chain_opening()) and _starter_opening_owner(owner)
 	if not LeagueAdmission.starter_feature(): return true
@@ -1040,6 +1056,26 @@ static func commit_starter_dugout(owner: RefCounted, expected: PackedByteArray) 
 	if not _starter_owner_allowed(candidate): return "refused"
 	var data: Dictionary=Owner.pack_current(candidate,projected.data.ordinary)
 	var bytes:=_native_encoded(data) if not data.is_empty() else PackedByteArray()
+	return _arm_starter_dugout(owner,expected,bytes)
+
+# No App/menu entry: only the existing bound native close can produce the
+# new Draft. No staged proposal, caller archive, seed, or destination.
+static func commit_starter_dugout_next(owner: RefCounted, expected: PackedByteArray) -> String:
+	if not LeagueAdmission.starter_player() or _starter_slot_linked() or not _cross_pending.is_empty() \
+			or not _cross_bound(owner,expected) or not _matches_raw(owner,_owner_raw) \
+			or not Owner.Common.starter_dugout_archive(owner) or owner.lifecycle_status()!="closed": return "refused"
+	if expected.size()>Owner.Common.CHAIN_MAX: return "refused"
+	var candidate: RefCounted=Owner.new()
+	candidate.session=owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) \
+			or not Owner.Common._install_starter_dugout_chain(candidate,expected) or not _starter_owner_allowed(candidate):
+		return "refused"
+	var data: Dictionary=Owner.capture(candidate)
+	var bytes:=_native_encoded(data) if not data.is_empty() else PackedByteArray()
+	if bytes.is_empty() or bytes.size()>Owner.Common.CHAIN_MAX: return "refused"
+	return _arm_starter_dugout(owner,expected,bytes)
+
+static func _arm_starter_dugout(owner: RefCounted, expected: PackedByteArray, bytes: PackedByteArray) -> String:
 	if bytes.is_empty() or not _cross_bound(owner,expected) or not _matches_raw(owner,_owner_raw): return "stale"
 	_cross_starter=true
 	_cross_pending=bytes

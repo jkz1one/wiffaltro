@@ -1,0 +1,141 @@
+extends Node
+
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Common = Owner.Common
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const CLOSED := "3f34084c98b630b4f5fa9d5023fb325ef426c7d41defb3283aa07547a18bc36d"
+const TERMINAL := "5592b694feb28909905b97bd4efa19c8bab9b77d0c8ab69cba3d05f4dd2213a6"
+const STANDARD := "8894317a3e9b862b41714a6e69eca4948702f7c7da5c272b715501da03f45cdb"
+var okay := true
+
+func check(test: bool, label: String) -> bool:
+	print("CP303 ", "PASS " if test else "FAIL ", label)
+	okay=okay and test
+	return test
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var argv:=OS.get_cmdline_user_args()
+	if not check(argv.size()==2 and argv[0]=="cp303" and Store.LeagueAdmission.starter_player()
+		and not Store.cross_league_preview() and not OS.has_feature("editor")
+		and OS.get_environment("WIFFALTRO_ISOLATED_TEST").is_empty(),"official no-env Starter only"):
+		get_tree().quit(1); return
+	match argv[1]:
+		"hot": _hot()
+		"cold": _cold()
+		"refuse": _refuse()
+		_: okay=false
+	get_tree().quit(0 if okay else 1)
+
+func _write_fixture(path: String, bytes: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(bytes)
+	var result:=f.get_error()==OK
+	f.close()
+	return result
+
+func _hot() -> void:
+	var raw:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if not check(raw.size()==16372283 and Owner._hash(raw)==CLOSED
+		and Owner._hash(backup)==TERMINAL and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"exact genuine CP302 closed/active COMPLETE pair"): return
+	var stamp:=Time.get_ticks_msec()
+	var owner: RefCounted=Store.read()
+	if not check(owner!=null and owner.lifecycle_status()=="closed"
+		and Common.starter_dugout_archive(owner) and owner.session.results.size()==33
+		and owner.ordinary_state.last_close.receipt.total==39 and owner.common.aggregate.currency==111
+		and owner.common.aggregate.titles.is_empty(),"strict closed Base predecessor, no title"): return
+	print("CP303 source cold ms=",Time.get_ticks_msec()-stamp)
+	check(Store.prepare_session_and_write(owner,raw,"next")==null
+		and Store.raw()==raw and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+		"legacy next cannot reach internal Starter producer")
+	check(DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"isolated held-write fixture")
+	stamp=Time.get_ticks_msec()
+	if not check(Store.commit_starter_dugout_next(owner,raw)=="obstructed" and Store.raw()==raw
+		and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"fixed draft held without intermediate writes"):
+		return
+	print("CP303 source derivation + hold ms=",Time.get_ticks_msec()-stamp)
+	var expected:=Store._cross_pending
+	var value: Dictionary=Owner._bytes_value(expected)
+	var archive: Dictionary=value.ordinary_state.archive
+	check(archive.kind==Common.STARTER_DUGOUT_CHAIN and archive.entries[0].sha256==STANDARD
+		and archive.entries[1].sha256==CLOSED and Common.starter_dugout_second_bytes(archive)==raw
+		and Common._chain_second_bytes(archive).is_empty(),"two exact new-type predecessors; legacy transport remains separate")
+	var token:=JSON.stringify(archive.entries[0].source,"",true,true)
+	var full:=raw.get_string_from_utf8()
+	check(full.count(token)==1 and archive.entries[1].prefix+token+archive.entries[1].suffix==full
+		and not archive.entries[1].prefix.contains(token) and not archive.entries[1].suffix.contains(token),
+		"one unique lexical cut and byte-exact reinsert; no nested Standard copy")
+	check(DirAccess.remove_absolute(Store.PATH+".tmp")==OK,"remove isolated obstruction")
+	var external:=raw.duplicate()
+	external.append(32)
+	if not check(_write_fixture(Store.PATH,external),"change only isolated primary before final CAS"): return
+	check(Store.retry_cross_activation(owner,raw)=="stale" and Store.raw()==external
+		and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"actual stale at final CAS, no promotion or backup rotation")
+	if not check(_write_fixture(Store.PATH,raw),"restore exact disposable CP302 only"): return
+	check(DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"isolated success-retry fixture")
+	if not check(Store.commit_starter_dugout_next(owner,raw)=="obstructed" and Store._cross_pending==expected,
+		"deterministic held draft reconstructed byte-exact"): return
+	if not check(DirAccess.remove_absolute(Store.PATH+".tmp")==OK
+		and Store.retry_cross_activation(owner,raw)=="saved" and Store.raw()==expected
+		and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"one exact retry; primary once, backup exact CP302"): return
+	print("CP303 BORN sha=",Owner._hash(expected)," bytes=",expected.size(),
+		" archive stored chars=",archive.entries[0].source.length()+archive.entries[1].prefix.length()+archive.entries[1].suffix.length())
+	check(Store.retry_cross_activation(owner,raw)=="refused" and Store.commit_starter_dugout_next(owner,raw)=="refused"
+		and Store.raw()==expected,"one-use producer consumed; stale owner cannot continue again")
+
+func _cold() -> void:
+	var raw:=Store.raw()
+	if not check(not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"fresh primary-only isolated native case"): return
+	var stamp:=Time.get_ticks_msec()
+	var app:=App.new()
+	add_child(app)
+	app.reload_save()
+	var owner: RefCounted=app.career_owner
+	if not check(owner!=null and Common.starter_dugout_chain_scope(owner) and owner.current_ordinal()==3
+		and owner.session.picks.is_empty() and owner.session.cash()==0 and owner.session.results.is_empty()
+		and owner.common.aggregate.currency==111 and owner.common.aggregate.titles.is_empty() and owner.common.sequence==2
+		and app.league_entry_state("dugout")=="playable" and app.league_entry_state("equipment")=="locked",
+		"actual App Continue revalidates native fresh Base, 111, no title, Equipment locked"): return
+	print("CP303 destination cold ms=",Time.get_ticks_msec()-stamp)
+	var archive: Dictionary=owner.ordinary_state.archive
+	var basis: Dictionary=owner.session.career.start_basis
+	check(Owner._hash(Common.starter_dugout_second_bytes(archive))==CLOSED
+		and Owner._hash(archive.entries[0].source.to_utf8_buffer())==STANDARD
+		and basis.archive_origin.ordered_sha256==[STANDARD,CLOSED]
+		and basis.seed==Common.starter_dugout_seed(basis.lineage,3),"native ordered provenance and deterministic start")
+	var v:=Store.standard_history(owner,raw)
+	check(v.size()==2 and v[0].league=="standard" and v[0].ordinal==1 and v[0].results.size()==33
+		and v[0].summary.finish=="semifinal" and v[1].league=="dugout" and v[1].ordinal==2
+		and v[1].results.size()==33 and v[1].summary.finish=="missed" and v[1].receipt.total==39,
+		"66 actual prior scores with distinct league histories and payout")
+	app.menu._show_standard_history(1)
+	check(app.menu.page=="standard_history" and Store.raw()==raw,"existing history UI route works without writes")
+	app.show_season()
+	var choice: String=owner.session.offers()[0]
+	app.draft(choice)
+	var next: RefCounted=app.career_owner
+	check(next!=null and next!=owner and next.session.picks==[choice]
+		and Common.starter_dugout_chain_scope(next) and Store.standard_history(next,Store.raw()).size()==2
+		and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"actual native draft pick saved, still exact same custody")
+	check(not app.has_method("commit_starter_dugout_next") and Store.prepare_session_and_write(next,Store.raw(),"next")==null
+		and Store.prepare_session_and_write(next,Store.raw(),"close",0,"","complete")==null,
+		"no public Next or faux season-three close")
+
+func _refuse() -> void:
+	var raw:=Store.raw()
+	var app:=App.new()
+	add_child(app)
+	app.reload_save()
+	check(raw.size()>0 and app.career_owner==null and Store.raw()==raw
+		and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"independent malformed successor cold refused without writes")

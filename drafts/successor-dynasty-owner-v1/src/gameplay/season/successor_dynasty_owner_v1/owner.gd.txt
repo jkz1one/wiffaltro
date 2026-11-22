@@ -243,6 +243,7 @@ static func _archive_valid(owner, current: Dictionary) -> bool:
 	if archive.get("kind")==Common.StandardArchive.KIND: return Common.StandardArchive.validate(owner,current)
 	if archive.get("kind")==Common.StandardChain.KIND: return Common.StandardChain.validate(owner,current)
 	if archive.get("kind")==Common.ARCHIVE_CHAIN: return _archive_chain_valid(owner,current)
+	if archive.get("kind")==Common.STARTER_DUGOUT_CHAIN: return _starter_dugout_chain_valid(owner)
 	var bytes: PackedByteArray=archive.source.to_utf8_buffer()
 	if bytes.size()>Common.ARCHIVE_MAX or _hash(bytes)!=archive.sha256: return false
 	var old: Variant=_bytes_value(bytes)
@@ -265,6 +266,30 @@ static func _archive_valid(owner, current: Dictionary) -> bool:
 		and Codec.same(owner.workshop_applied,predecessor.workshop_applied) \
 		and owner.imported_sha256==predecessor.imported_sha256 \
 		and Codec.same(owner.migration_v2,predecessor.migration_v2) and Codec.same(owner.migration_v3,predecessor.migration_v3)
+
+static func _starter_dugout_chain_valid(owner) -> bool:
+	var state: Dictionary=owner.ordinary_state
+	var archive: Dictionary=state.archive
+	var raw:=Common.starter_dugout_second_bytes(archive)
+	if raw.is_empty(): return false
+	var old: Variant=_bytes_value(raw)
+	if not old is Dictionary or not old.get("ordinary_state") is Dictionary: return false
+	var prior: Dictionary=old.ordinary_state
+	if prior.get("ordinal")!=2 or prior.get("status")!="closed" \
+			or not Codec.same(prior.get("archive"),archive.entries[0]): return false
+	# Restore the exact closed season once. Its strict reader replays and
+	# authenticates the earlier Standard root and both native career folds.
+	var predecessor: RefCounted=load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd").restore(old)
+	if predecessor==null or not Codec.same(Common._make_starter_dugout_chain(predecessor,raw),archive): return false
+	var basis:=Common.starter_dugout_next_basis(predecessor,archive)
+	if basis.is_empty() or state.last_transition.source!=predecessor.ordinary_state.last_close.session_sha256 \
+			or not Codec.same(state.last_transition.basis,basis) or not Codec.same(owner.common,predecessor.common) \
+			or not Codec.same(owner.paused,predecessor.paused): return false
+	var saved: Dictionary=Codec.data_fields(owner,META_FIELDS)
+	var previous: Dictionary=Codec.data_fields(predecessor,META_FIELDS)
+	for name: String in ["ordinary_state","common"]:
+		saved.erase(name);previous.erase(name)
+	return Codec.same(saved,previous)
 
 static func _archive_chain_valid(owner, current: Dictionary) -> bool:
 	var state: Dictionary=owner.ordinary_state

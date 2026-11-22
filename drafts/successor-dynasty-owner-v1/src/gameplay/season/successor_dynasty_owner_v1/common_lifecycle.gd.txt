@@ -13,6 +13,7 @@ const StandardWorkshop = preload("starter_standard_workshop.gd")
 const ARCHIVE_KIND: String="common-ordinary-predecessor-v1"
 const STARTER_DUGOUT_ARCHIVE: String="starter-standard-to-dugout-predecessor-v1"
 const ARCHIVE_CHAIN: String="common-ordinary-two-predecessors-v1"
+const STARTER_DUGOUT_CHAIN: String="starter-dugout-two-completed-predecessors-v1"
 const CHAIN_FRAGMENT: String="common-ordinary-second-fragments-v1"
 const CHAIN_TRANSITION: String="common-ordinary-archived-dugout-third-transition-v1"
 const CHAIN_MAX: int=20*1024*1024
@@ -153,6 +154,29 @@ static func starter_dugout_standard_scope(owner) -> bool:
 		and not current.league_live and current.league_rules.is_empty() and current.home_property.is_empty() \
 		and owner.common.sequence==1 and C.same(owner.common.cursors,{"ordinary":1,"dynasty":0})
 
+# Only the first new draft is qualified. Do not let the fourth pick write
+# an unqualified live Season 3 or treat a predecessor as permission to close.
+static func starter_dugout_chain_scope(owner) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
+			or not owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+			or not owner.workshop_draft.is_empty() or not owner.workshop_close_history.is_empty() \
+			or not owner.workshop_chair_purchase.is_empty() or not owner.workshop_applied.is_empty(): return false
+	var state: Dictionary=owner.ordinary_state
+	var a: Variant=state.get("archive")
+	var t: Variant=state.get("last_transition")
+	var season: SeasonState=owner.session
+	return _two_archive_shape(a,STARTER_DUGOUT_CHAIN,STARTER_DUGOUT_ARCHIVE) \
+		and state.get("ordinal")==3 and state.get("status")=="active" and state.get("proposal")=={} \
+		and t is Dictionary and t.get("kind")==CHAIN_TRANSITION and t.get("league")=="dugout" \
+		and t.get("basis") is Dictionary and t.basis.get("version")==3 \
+		and t.basis.get("archive_origin") is Dictionary and t.basis.archive_origin.get("kind")==Start.CHAIN_ARCHIVED \
+		and C.same(t.basis.archive_origin.get("ordered_sha256"),[a.entries[0].sha256,a.entries[1].sha256]) \
+		and season.league_live and season.league_rules.get("league")=="dugout" and season.league_rules.get("tier")==0 \
+		and season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4 and season.round_index==0 \
+		and season.build.cash()==0 and season.results.is_empty() and season.player_results.is_empty() \
+		and season.home_property.is_empty() and season.physical!=null and season.physical.pending.is_empty() \
+		and season.physical.reports.is_empty() and season.physical.cursor==0
+
 static func _archive_shape(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	if not state.has("archive"): return true
@@ -160,6 +184,7 @@ static func _archive_shape(owner) -> bool:
 	var t: Dictionary=state.last_transition
 	if a is Dictionary and a.get("kind")==StandardArchive.KIND: return StandardArchive.shape(owner)
 	if a is Dictionary and a.get("kind")==StandardChain.KIND: return StandardChain.shape(owner)
+	if a is Dictionary and a.get("kind")==STARTER_DUGOUT_CHAIN: return starter_dugout_chain_scope(owner)
 	if a is Dictionary and a.get("kind")==ARCHIVE_CHAIN:
 		return owner.active=="ordinary" and owner.paused.is_empty() and owner._missing_dynasty(owner) \
 			and state.ordinal==3 and state.proposal.is_empty() \
@@ -181,11 +206,14 @@ static func _archive_shape(owner) -> bool:
 # Previous owner may be reconstructed in memory, but only these two
 # ordered flat entries are stored. The Standard raw bytes appear once.
 static func _chain_archive_shape(value: Variant) -> bool:
-	if not C.keys(value,["kind","entries"]) or value.kind!=ARCHIVE_CHAIN or not value.entries is Array \
+	return _two_archive_shape(value,ARCHIVE_CHAIN,ARCHIVE_KIND)
+
+static func _two_archive_shape(value: Variant, kind: String, first_kind: String) -> bool:
+	if not C.keys(value,["kind","entries"]) or value.kind!=kind or not value.entries is Array \
 			or value.entries.size()!=2: return false
 	var first: Variant=value.entries[0]
 	var second: Variant=value.entries[1]
-	if not C.keys(first,["kind","sha256","source"]) or first.kind!=ARCHIVE_KIND or not Start.sha(first.sha256) \
+	if not C.keys(first,["kind","sha256","source"]) or first.kind!=first_kind or not Start.sha(first.sha256) \
 			or not first.source is String or first.source.is_empty() or first.source.length()>ARCHIVE_MAX: return false
 	if not C.keys(second,["kind","sha256","prefix","suffix"]) or second.kind!=CHAIN_FRAGMENT or not Start.sha(second.sha256) \
 			or second.sha256==first.sha256 or not second.prefix is String or not second.suffix is String \
@@ -198,7 +226,13 @@ static func _chain_hash(bytes: PackedByteArray) -> String:
 	return digest.finish().hex_encode()
 
 static func _chain_second_bytes(archive: Dictionary) -> PackedByteArray:
-	if not _chain_archive_shape(archive): return PackedByteArray()
+	return _two_archive_second_bytes(archive,ARCHIVE_CHAIN,ARCHIVE_KIND)
+
+static func starter_dugout_second_bytes(archive: Dictionary) -> PackedByteArray:
+	return _two_archive_second_bytes(archive,STARTER_DUGOUT_CHAIN,STARTER_DUGOUT_ARCHIVE)
+
+static func _two_archive_second_bytes(archive: Dictionary, kind: String, first_kind: String) -> PackedByteArray:
+	if not _two_archive_shape(archive,kind,first_kind): return PackedByteArray()
 	var first: Dictionary=archive.entries[0]
 	var second: Dictionary=archive.entries[1]
 	var raw_first: PackedByteArray=first.source.to_utf8_buffer()
@@ -221,18 +255,53 @@ static func _flat_chain_encoding(fragments: Dictionary,value: Dictionary) -> boo
 	return tokens.sub(raw,"$1@",true)==tokens.sub(authored,"$1@",true)
 
 static func _make_archive_chain(owner,raw: PackedByteArray) -> Dictionary:
-	if raw.is_empty() or raw.size()>CHAIN_MAX or owner.ordinary_state.archive.get("kind")!=ARCHIVE_KIND: return {}
-	var first: Dictionary=owner.ordinary_state.archive
+	if owner.ordinary_state.archive.get("kind")!=ARCHIVE_KIND: return {}
+	return _make_two_archive(owner.ordinary_state.archive,raw,ARCHIVE_CHAIN,ARCHIVE_KIND)
+
+static func _make_starter_dugout_chain(owner,raw: PackedByteArray) -> Dictionary:
+	if not starter_dugout_archive(owner): return {}
+	return _make_two_archive(owner.ordinary_state.archive,raw,STARTER_DUGOUT_CHAIN,STARTER_DUGOUT_ARCHIVE)
+
+static func _make_two_archive(first: Dictionary, raw: PackedByteArray, kind: String, first_kind: String) -> Dictionary:
+	if raw.is_empty() or raw.size()>CHAIN_MAX: return {}
 	var text: String=raw.get_string_from_utf8()
 	var literal: String=JSON.stringify(first.source,"",true,true)
 	var offset: int=text.find(literal)
-	var tag: String='"archive":{"kind":"%s","sha256":"%s","source":'%[ARCHIVE_KIND,first.sha256]
+	var tag: String='"archive":{"kind":"%s","sha256":"%s","source":'%[first_kind,first.sha256]
 	if offset<tag.length() or text.find(literal,offset+literal.length())!=-1 \
 			or not text.left(offset).ends_with(tag): return {}
 	var second: Dictionary={"kind":CHAIN_FRAGMENT,"sha256":_chain_hash(raw),"prefix":text.left(offset),
 		"suffix":text.substr(offset+literal.length())}
-	var chain: Dictionary={"kind":ARCHIVE_CHAIN,"entries":[first.duplicate(true),second]}
-	return chain if _chain_second_bytes(chain)==raw else {}
+	var chain: Dictionary={"kind":kind,"entries":[first.duplicate(true),second]}
+	return chain if _two_archive_second_bytes(chain,kind,first_kind)==raw else {}
+
+# Uses only the strict closed CP302-class owner supplied by Store, or the
+# independent native cold reader. No title is required for the same Base.
+static func starter_dugout_next_basis(owner, archive: Dictionary) -> Dictionary:
+	if not starter_dugout_complete_scope(owner,owner.session) or not _starter_dugout_paid_terminal(owner.session) \
+			or owner.ordinary_state.get("status")!="closed" or owner.ordinary_state.last_close.get("reason")!="complete" \
+			or owner.common.sequence!=2 or not C.same(owner.common.cursors,{"ordinary":2,"dynasty":0}) \
+			or not _two_archive_shape(archive,STARTER_DUGOUT_CHAIN,STARTER_DUGOUT_ARCHIVE) \
+			or not C.same(archive.entries[0],owner.ordinary_state.archive): return {}
+	var ordinal: int=int(owner.ordinary_state.ordinal)+1
+	var lineage: String=owner.ordinary_state.lineage
+	var basis:=Start.make(starter_dugout_seed(lineage,ordinal),lineage,ordinal,int(owner.common.sequence),
+		Life.digest(owner.common.aggregate),projection(owner))
+	return Start.bind_archive_chain(basis,archive.entries[0].sha256,archive.entries[1].sha256)
+
+static func _install_starter_dugout_chain(owner,raw: PackedByteArray) -> bool:
+	if not starter_dugout_archive(owner) or owner.ordinary_state.get("status")!="closed": return false
+	var archive:=_make_starter_dugout_chain(owner,raw)
+	var basis:=starter_dugout_next_basis(owner,archive)
+	var next: SeasonState=Adapter.OrdinaryRuntime.create_common(basis,"dugout") if not basis.is_empty() else null
+	if next==null or next.phase!=SeasonState.Phase.DRAFT or not next.picks.is_empty() or next.build.cash()!=0: return false
+	var s: Dictionary=owner.ordinary_state
+	s.last_transition={"kind":CHAIN_TRANSITION,"id":"%s:2:next"%s.lineage,
+		"source":s.last_close.session_sha256,"from":2,"to":3,"league":"dugout","basis":basis.duplicate(true)}
+	s.ordinal=3;s.status="active";s.last_close={};s.proposal={}
+	s.start_basis_sha256=Life.digest(basis);s.archive=archive
+	owner.session=next
+	return valid(owner)
 
 static func _install_archive_chain(owner,raw: PackedByteArray) -> bool:
 	if owner==null or owner.ordinary_state.get("proposal",{}).get("kind")!=ARCHIVED_NEXT_KIND or not valid(owner): return false
