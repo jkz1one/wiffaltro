@@ -281,15 +281,18 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 		return false
 	return _write_data(data,expected)
 
-static func _write_data(data: Dictionary, expected: PackedByteArray) -> bool:
+static func _native_encoded(data: Dictionary) -> PackedByteArray:
 	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
-	if bytes.is_empty() or bytes.size() > MAX_BYTES: return false
-	# Validate the actual encoded primitive representation against this exact
-	# same-call consistent candidate. Cold hydration is independently qualified;
-	# do not rerun it and recapture six clubs again inside every button handler.
+	if bytes.is_empty() or bytes.size() > MAX_BYTES: return PackedByteArray()
+	# Validate the encoded representation against the consistent native value.
 	var parser: JSON = JSON.new()
-	if parser.parse(bytes.get_string_from_utf8()) != OK or not Codec.same(parser.data,data): return false
-	return _write_exact_bytes(bytes,expected)
+	if parser.parse(bytes.get_string_from_utf8()) != OK or not Codec.same(parser.data,data):
+		return PackedByteArray()
+	return bytes
+
+static func _write_data(data: Dictionary, expected: PackedByteArray) -> bool:
+	var bytes := _native_encoded(data)
+	return not bytes.is_empty() and _write_exact_bytes(bytes,expected)
 
 static func _write_exact_bytes(bytes: PackedByteArray, expected: PackedByteArray) -> bool:
 	return _write_exact_result(bytes,expected,false)=="saved"
@@ -880,24 +883,64 @@ static func _prepare_paired_metadata(owner: RefCounted, expected: PackedByteArra
 static func cross_league_preview() -> bool:
 	return not LeagueAdmission.starter_feature() and LeagueAdmission.enabled() and OS.get_environment("WIFFALTRO_CROSS_LEAGUE_PREVIEW")=="1"
 
+# Native detached projection shared by the private writer and fixed review.
+# This does not admit an owner, arm a Store ticket, or write any file.
+static func _cross_proposal_projection(owner: RefCounted, expected: PackedByteArray,
+		league: String, seed_value: int) -> Dictionary:
+	if not Owner.Common.cross_target_open(owner,league): return {}
+	var input: Variant=Owner._bytes_value(expected)
+	if not input is Dictionary or input.get("active")!="ordinary" or not input.get("ordinary") is Dictionary:
+		return {}
+	var current: Dictionary=input.ordinary
+	var candidate: RefCounted=Owner.new()
+	candidate.session=owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) \
+		or not Owner.Common._prepare_cross_proposal(candidate,current,league,seed_value): return {}
+	var data: Dictionary=Owner.pack_current(candidate,current)
+	return {} if data.is_empty() else {"owner":candidate,"data":data}
+
+# Narrow read-only worker prerequisite; neither caller data nor the returned
+# bytes authorize writing. The ordinary lineage/ordinal derives a fixed
+# seed; the private engineering writer still accepts its existing seed.
+static func review_starter_dugout(closed_bytes: PackedByteArray) -> Dictionary:
+	if closed_bytes.is_empty() or closed_bytes.size()>Owner.Common.ARCHIVE_MAX: return {}
+	if closed_bytes.get_string_from_utf8().to_utf8_buffer()!=closed_bytes: return {}
+	var input: Variant=Owner._bytes_value(closed_bytes)
+	var owner: RefCounted=Owner.restore(input)
+	if owner==null or owner.active!="ordinary" or not owner.paused.is_empty() or not Owner._missing_dynasty(owner) \
+		or not owner.migration_v3.is_empty() or not owner.workshop_draft.is_empty() \
+		or not owner.workshop_applied.is_empty() or not owner.workshop_chair_purchase.is_empty() \
+		or not owner.workshop_close_history.is_empty() or owner.ordinary_state.has("archive"):
+		return {}
+	var state: Dictionary=owner.ordinary_state
+	if state.get("ordinal")!=1 or not state.get("lineage") is String: return {}
+	var next_ordinal: int=int(state.ordinal)+1
+	var seed: int=("ordinary:%s:%d:nextseed"%[state.lineage,next_ordinal]).hash() & 0x7fffffff
+	var proposal:=_cross_proposal_projection(owner,closed_bytes,"dugout",seed)
+	if proposal.is_empty(): return {}
+	var proposed:=_native_encoded(proposal.data)
+	if proposed.is_empty() or proposed.size()>Owner.Common.ARCHIVE_MAX: return {}
+	var projected:=_cross_activation_projection(proposal.owner,proposed,"dugout")
+	if projected.is_empty(): return {}
+	var draft:=_native_encoded(projected.data)
+	if draft.is_empty(): return {}
+	# Check the actual future persisted bytes, not the detached object alone.
+	var restored: RefCounted=Owner.restore(Owner._bytes_value(draft))
+	if restored==null or restored.current_ordinal()!=2 or not restored.session.picks.is_empty():
+		return {}
+	return {"proposal":proposed,"draft":draft}
+
 # Retain the complete admitted terminal Ordinary payload in place. This
 # versioned proposal does not attach an ordinal-two season or rely on .bak.
 static func prepare_cross_league_proposal_and_write(owner: RefCounted, expected: PackedByteArray,
 		league: String, seed_value: int) -> RefCounted:
 	forget_projection()
 	last_error=""
-	if saving or _ticket!=null or not cross_league_preview() or not match_owner(owner,expected) \
-		or not Owner.Common.cross_target_open(owner,league): return null
-	var input: Variant=Owner._bytes_value(expected)
-	if not input is Dictionary or input.get("active")!="ordinary" or not input.get("ordinary") is Dictionary:
-		return null
-	var current: Dictionary=input.ordinary
-	var candidate: RefCounted=Owner.new()
-	candidate.session=owner.session
-	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) \
-		or not Owner.Common._prepare_cross_proposal(candidate,current,league,seed_value): return null
-	var data: Dictionary=Owner.pack_current(candidate,current)
-	if data.is_empty() or not match_owner(owner,expected): return null
+	if saving or _ticket!=null or not cross_league_preview() or not match_owner(owner,expected): return null
+	var projected:=_cross_proposal_projection(owner,expected,league,seed_value)
+	if projected.is_empty() or not match_owner(owner,expected): return null
+	var data: Dictionary=projected.data
+	var candidate: RefCounted=projected.owner
 	var budget: Array=[RawGuard.MAX_NODES,true]
 	var snapshot: Dictionary=RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)
 	if not budget[1] or snapshot.is_empty(): return null
@@ -986,12 +1029,10 @@ static func _commit_exact_cross_league(owner: RefCounted,expected: PackedByteArr
 	last_error=""
 	if saving or _ticket!=null or not cross_league_preview() or not match_owner(owner,expected) \
 		or not Owner.Common.cross_commit_ready(owner) or owner.ordinary_state.proposal.league!=target: return null
-	var candidate: RefCounted=Owner.new()
-	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
-	candidate.session=owner.session
-	if not Owner.Common._activate_cross(candidate,expected,target): return null
-	var current: Dictionary=Adapter.capture("ordinary",candidate.session)
-	var data: Dictionary=Owner.pack_current(candidate,current)
+	var projected:=_cross_activation_projection(owner,expected,target)
+	if projected.is_empty(): return null
+	var candidate: RefCounted=projected.owner
+	var data: Dictionary=projected.data
 	var snapshot: Dictionary=RawGuard.capture(candidate)
 	if data.is_empty() or snapshot.is_empty() or not match_owner(owner,expected): return null
 	_ticket=RefCounted.new()
@@ -999,6 +1040,17 @@ static func _commit_exact_cross_league(owner: RefCounted,expected: PackedByteArr
 	_expected=expected.duplicate();_written=PackedByteArray()
 	_write_admitted()
 	return _ticket
+
+# Same native activation used by immediate private commit and future review.
+static func _cross_activation_projection(owner: RefCounted, expected: PackedByteArray,
+		target: String) -> Dictionary:
+	var candidate: RefCounted=Owner.new()
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return {}
+	candidate.session=owner.session
+	if not Owner.Common._activate_cross(candidate,expected,target): return {}
+	var current: Dictionary=Adapter.capture("ordinary",candidate.session)
+	var data: Dictionary=Owner.pack_current(candidate,current)
+	return {} if data.is_empty() else {"owner":candidate,"data":data}
 
 # Deterministic reconstruction only; this helper never installs Store authority.
 # The child separately compares the full serialized current session to this

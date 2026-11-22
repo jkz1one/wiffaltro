@@ -1,0 +1,62 @@
+extends Node
+
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const CLOSED := "1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+const PROPOSAL := "b6727d56f89e723c3b7c73a25ba3ed198a707997ef5f000eb7b5c92945aa0acb"
+const DRAFT := "79b5f3a63e687c736bd2a3c3860f865686d5e4b35c42fbd8a31cf7de893d9aff"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func check(ok: bool, label: String) -> bool:
+	print("CP299 ","PASS" if ok else "FAIL"," ",label)
+	if not ok: get_tree().quit(1)
+	return ok
+
+func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and Store.cross_league_preview() \
+		and args.size()==2 and FileAccess.get_sha256(Store.PATH)==CLOSED \
+		and FileAccess.get_sha256(args[0])==PROPOSAL and FileAccess.get_sha256(args[1])==DRAFT \
+		and not FileAccess.file_exists(Store.PATH+".bak"),"exact synthetic source and independent oracles"): return
+	var closed := Store.raw()
+	var stamp:=Time.get_ticks_msec()
+	var review := Store.review_starter_dugout(closed)
+	print("CP299 review ms ",Time.get_ticks_msec()-stamp)
+	if not check(not review.is_empty(),"strict native review reopens destination"): return
+	var proposal:=FileAccess.get_file_as_bytes(args[0])
+	var draft:=FileAccess.get_file_as_bytes(args[1])
+	print("CP299 produced proposal ",Store.Owner._hash(review.proposal)," draft ",Store.Owner._hash(review.draft))
+	if not check(Store.raw()==closed and not FileAccess.file_exists(Store.PATH+".bak") \
+		and not FileAccess.file_exists(Store.PATH+".tmp") and Store._ticket==null and Store._owner==null,
+		"strict review conferred no authority and wrote nothing"): return
+	if not check(Store.review_starter_dugout(PackedByteArray()).is_empty() \
+		and Store.review_starter_dugout("[]".to_utf8_buffer()).is_empty() \
+		and Store.review_starter_dugout(proposal).is_empty(),
+		"empty, malformed, and genuine already-proposed source refused"): return
+	var owner: RefCounted=Store.read()
+	if not check(owner!=null, "native source admitted in disposable profile"): return
+	var seed: int=("ordinary:%s:2:nextseed"%owner.ordinary_state.lineage).hash() & 0x7fffffff
+	var expected := Store._cross_proposal_projection(owner,closed,"dugout",seed)
+	var expected_proposal := Store._native_encoded(expected.data)
+	var activation := Store._cross_activation_projection(expected.owner,expected_proposal,"dugout")
+	var expected_draft := Store._native_encoded(activation.data)
+	if not check(expected.owner.ordinary_state.proposal.basis.seed==seed \
+		and activation.owner.session.season_seed==seed \
+		and review.proposal==expected_proposal and review.draft==expected_draft \
+		and activation.owner.ordinary_state.archive.source.to_utf8_buffer()==expected_proposal \
+		and not activation.owner.common.aggregate.titles.has("0"),
+		"lineage-seeded review matches exact native proposal, draft and archived predecessor"): return
+	if not check(owner!=null and Store.prepare_cross_league_proposal_and_write(owner,proposal,"dugout",1002)==null \
+		and Store.prepare_cross_league_proposal_and_write(owner,closed,"sponsorship",1002)==null \
+		and Store.raw()==closed,"stale and unearned target remain refused"): return
+	var ticket:=Store.prepare_cross_league_proposal_and_write(owner,closed,"dugout",1002)
+	var projected:=Store.prepared_candidate(ticket)
+	if not check(ticket!=null and Store.promote(ticket,owner,projected,closed) and Store.raw()==proposal \
+		and FileAccess.get_file_as_bytes(Store.PATH+".bak")==closed,"private writer unchanged exact proposal and predecessor"): return
+	ticket=Store.commit_cross_league_and_write(projected,proposal)
+	var activated:=Store.prepared_candidate(ticket)
+	if not check(ticket!=null and Store.promote(ticket,projected,activated,proposal) and Store.raw()==draft \
+		and FileAccess.get_file_as_bytes(Store.PATH+".bak")==proposal \
+		and not FileAccess.file_exists(Store.PATH+".tmp"),"private writer unchanged exact activation and predecessor"): return
+	get_tree().quit()
