@@ -170,3 +170,48 @@ either save. The exact generated pilot pair is:
 
 Do not advance this separate title candidate without first verifying its
 settled checkpoint. Its opening win supplies no earned D1 access.
+
+### One bounded fixture-31 Contact selection fork
+
+The retained alternate CP172 Round10 profile already contains all 30
+native regular results, no pending report, and the authored away
+semifinal 31 at the Comets. The isolated
+`tests/successor_standard_semifinal_contact_policy.gd.txt` driver opens
+only those exact primary and backup bytes through Common App and starts
+the visible Play Next Game control. It does not replay the regular
+season or any other game.
+
+Only the human away batting plan changes. When the native controller
+has already elected to swing and selected Power, keep Power only with
+fewer than two strikes and a clearly centered existing read
+(`abs(x) <= 0.19`, `abs(y - 1.05) <= 0.23`); otherwise submit Contact.
+The estimate is based on observed ball motion, not true future
+crossing, target or outcome. Authored swing locks take precedence.
+Swing/take, aim, timing estimate, native profile scheduling, all
+defense, and the opponent remain stock. The test observes the returned
+native decisions and writes standalone raw match evidence before
+pressing the actual Return button. It never settles the semifinal or
+awards a title.
+
+Reproduce with the exact source assembly and Common private flag.
+Copy the Standard journey QA base as `res://qa.gd`, this fork as
+`res://cp247_qa.gd`, and attach it to a plain Node test scene. Use a new
+isolated profile with the exact CP172 Round10 primary as both the Common
+slot and `user://exact-CP172-fixture31-source.json`, and the exact archived
+backup. Pass `-- play <exact primary SHA-256>`. For an independent
+primary-only reopen, use a separate profile with the generated pending
+primary, the untouched CP172 reference and
+`user://fixture31-native-pre-return.json`, and pass
+`-- cold <generated pending SHA-256>`. This is a QA recipe, not a
+player-facing eligibility exception.
+
+The one actual bounded fork lost 9–10, compared with the earlier stock
+10–11 semifinal. Of 16 selected Power swings, eight centered Power
+plans were kept and eight were converted and delivered as Contact.
+There were 73 delivered swing decisions, 35 human plate appearances,
+19 hits, eight strikeouts, one walk, and no home runs. The matched prior
+recap had 38 plate appearances, 19 hits, nine strikeouts and one walk.
+The change was material but did not yield a title. Real Return wrote
+only the new pending result, and fresh primary-only Continue preserved
+all 30 previous results. No second attempt, NPC replay, settlement,
+final, Close, or entitlement change was made.

@@ -1,0 +1,145 @@
+extends "res://qa.gd"
+## One predeclared fixture-31 fork. Stock controls except visible swing selection.
+const START="f54c3ee3b99bbd419cf614630b49f0bb06af53eb87c9d3ffaf090b21bab43330"
+const BACKUP="0662570d79c6e8993be0e5a0fdc4a636bb9dcc6b29cf26a93e09fc0479f3768b"
+const RAW="user://fixture31-native-pre-return.json"
+const REFERENCE="user://exact-CP172-fixture31-source.json"
+
+class SelectiveContact extends BatterApproachModel:
+	var native_power:int=0
+	var centered_power:int=0
+	var locked_power:int=0
+	var converted:int=0
+	var delivered_conversions:int=0
+	var delivered_swings:int=0
+	var changed_plan:bool=false
+
+	func plan_swing(pitch: PitchDefinition,position: Vector3,velocity: Vector3,
+			batter: PlayerDefinition,balls: int,strikes: int,decision_seed: int,
+			batting_hand: int,elapsed: float) -> Dictionary:
+		var intent: Dictionary=super.plan_swing(pitch,position,velocity,batter,balls,strikes,decision_seed,batting_hand,elapsed)
+		changed_plan=false
+		if not intent.swing or not intent.use_power: return intent
+		native_power+=1
+		# Existing estimate derived from current/past visible motion. No
+		# target, outcome, umpire, future solver state or opponent inputs.
+		var read: Vector2=intent.plate_read
+		if locked_swing!=&"":
+			locked_power+=1
+		elif strikes<2 and absf(read.x)<=0.19 and absf(read.y-ZONE_CENTER_Y_M)<=0.23:
+			centered_power+=1
+		else:
+			intent.use_power=false
+			changed_plan=true
+			converted+=1
+		return intent
+
+	func track_pitch(pitch: PitchDefinition,state: PitchState,batter: PlayerDefinition,balls: int,strikes: int,
+			decision_seed: int,batting_hand: int,contact_profile: SwingProfileDefinition,power_profile: SwingProfileDefinition,
+			disclosed: Dictionary={}) -> Dictionary:
+		var decision: Dictionary=super.track_pitch(pitch,state,batter,balls,strikes,decision_seed,batting_hand,
+			contact_profile,power_profile,disclosed)
+		# Observational only. Controller still submits the native decision.
+		if not decision.is_empty() and decision.swing:
+			delivered_swings+=1
+			if changed_plan and not decision.use_power: delivered_conversions+=1
+		return decision
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" and args.size()==2
+			and args[0] in ["play","cold"] and FileAccess.get_sha256(Store.PATH)==args[1]
+			and not FileAccess.file_exists(ORIGINAL),"isolated exact semifinal fork"): return
+	var raw:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var t:=Time.get_ticks_msec()
+	app.reload_save()
+	print("CP247_CONTINUE_MS ",Time.get_ticks_msec()-t)
+	if not check(_owned_standard(app) and app.season.phase==SeasonState.Phase.SEMIFINAL and app.season.round_index==10
+			and app.season.results.size()==30 and Store.raw()==raw
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"strict native semifinal, 30 unchanged settled games"): return
+	if args[0]=="cold":
+		if check(backup.is_empty() and FileAccess.get_sha256(REFERENCE)==START and _pending(app),"independent primary-only strict pending and exact 30-game history"):
+			print("CP247_COLD_PASS ",args[1]); await _finish(app)
+		return
+	if not check(args[1]==START and Store.Owner._hash(backup)==BACKUP and app.season.physical.pending.is_empty()
+			and not FileAccess.file_exists(RAW),"exact untouched alternate Round10 pair, no prior run in profile"): return
+	var fixture: Dictionary=app.season.pending_fixture()
+	var play:=_button(app,"PLAY NEXT GAME")
+	if not check(play!=null and fixture.get("id")==31 and fixture.get("away")==0 and fixture.get("home")==4,
+			"native schedule selects away Yard Club at Comets, semifinal 31"): return
+	play.pressed.emit()
+	var lab: PitchBatLab=app.lab
+	if not check(lab!=null and not lab._player_home and lab._match_state!=null,"real away fixture entered through native App"): return
+	for frame: int in range(600):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not check(not lab._match_presentation_director.blocks_gameplay(),"native match intro finished"): return
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=Adapter.fixtures("ordinary").seed_for(app.season,fixture)
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	var policy:=SelectiveContact.new()
+	if not check(lab._automation.approaches[1].get_script()==BatterApproachModel,"home offense and both defenses retain stock automation"): return
+	lab._automation.approaches[0]=policy
+	lab._automation.select_offense(lab)
+	policy.reset(lab._match_state.plate_appearance_number)
+	t=Time.get_ticks_msec()
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD: break
+		if frame%12000==0:
+			print("CP247_PHYSICS frame=",frame," pa=",lab._match_state.plate_appearance_number)
+	var human: Array=Adapter.human_capture("ordinary").capture(app)
+	if not check(human.size()>=12 and human[0]==31 and Store.raw()==raw,"native terminal capture before any new save"): return
+	var stat: Dictionary={"native_power":policy.native_power,"centered_power":policy.centered_power,
+		"locked_power":policy.locked_power,"converted":policy.converted,"delivered_conversions":policy.delivered_conversions,
+		"delivered_swings":policy.delivered_swings}
+	var roster: Array=app.season.teams[0].roster
+	for label: String in ["pa","h","k","bb","hr"]:
+		stat[label]=0
+		for id: String in roster: stat[label]+=int(human[3].get(id,{}).get(label,0))
+	var file:=FileAccess.open(RAW,FileAccess.WRITE)
+	if not check(file!=null,"isolated native evidence destination"): return
+	file.store_string(JSON.stringify({"source":START,"human":human,"observed":stat},"",true,true))
+	file.flush()
+	var ok:=file.get_error()==OK
+	file.close()
+	if not check(ok and not FileAccess.get_file_as_bytes(RAW).is_empty(),"native pre-Return raw evidence flushed"): return
+	print("CP247_ACTUAL_SCORE ",human[1],"–",human[2]," elapsed_ms=",Time.get_ticks_msec()-t,
+		" raw_sha=",FileAccess.get_sha256(RAW)," stats=",JSON.stringify(stat))
+	for frame: int in range(4):
+		await get_tree().process_frame
+		if app._continue.visible: break
+	if not check(app._continue.visible and not app._continue.disabled,"actual Return button"): return
+	app._continue.pressed.emit()
+	if check(not is_instance_valid(app.lab) and app.retained==null and Store.raw()!=raw
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw and _pending(app),
+			"only the real fixture 31 pending result was written; no settlement/title"):
+		print("CP247_PENDING_PASS ",FileAccess.get_sha256(Store.PATH)); await _finish(app)
+
+func _pending(app: Node) -> bool:
+	var reference:=FileAccess.get_file_as_bytes(REFERENCE)
+	var witness: Variant=JSON.parse_string(FileAccess.get_file_as_string(RAW))
+	if Store.Owner._hash(reference)!=START or not witness is Dictionary or witness.source!=START: return false
+	var a: Dictionary=Store.Owner._bytes_value(reference)
+	var after: Dictionary=Store.Owner._bytes_value(Store.raw())
+	var pending: Dictionary=after.ordinary.physical.pending
+	if pending.get("reports")!=[] or not Store.Codec.same(JSON.parse_string(JSON.stringify(app.season.physical.pending.get("human"),"",true,true)),witness.human) or pending.human[0]!=31:
+		return false
+	after.ordinary.physical.pending={}
+	return app.season.results.size()==30 and Store.Codec.same(a,after)
+
+func _button(node: Node,label: String) -> Button:
+	if node.is_queued_for_deletion(): return null
+	if node is Button and node.text==label and node.is_visible_in_tree(): return node
+	for child: Node in node.get_children():
+		var found:=_button(child,label)
+		if found!=null: return found
+	return null
