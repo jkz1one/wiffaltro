@@ -1,0 +1,41 @@
+extends RefCounted
+## Draft custody only. Never equips the chair in MatchState or changes Cash.
+const FIELD: String = "starter_workshop"
+const COPY: String = "starter-v1:ST-079"
+const Apply = preload("workshop_apply.gd")
+
+static func stock_seed(lineage: String) -> int:
+	return int(lineage.trim_prefix("ordinary:").left(8).hex_to_int()) & 0x7fffffff
+
+static func ledger(lineage: String) -> ClubAssetLedger:
+	return ClubAssetLedger.new(stock_seed(lineage),[0],[],{})
+
+static func record(lineage: String) -> Dictionary:
+	# Reuse the original zero-cost native freeze as the layout validation
+	# oracle, not as a persisted Apply record or a gameplay permission.
+	var snapshot: Dictionary = Apply.snapshot(stock_seed(lineage))
+	var layout: Variant = snapshot.get("layout")
+	if not layout is Dictionary or layout.get("receiver") != COPY or layout.get("obstacles") != []: return {}
+	return {"version":1,"lineage":lineage,"layout":layout}
+
+static func valid(state: Dictionary) -> bool:
+	if not state.has(FIELD): return true
+	var authored := record(state.lineage)
+	return not authored.is_empty() and ClubCareer.same(state[FIELD],authored)
+
+static func _standard(owner: RefCounted) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.session==null: return false
+	var season: SeasonState = owner.session
+	return not season.league_live and season.league_rules.is_empty() and season.career!=null \
+		and season.career.start_basis.get("kind")=="common-ordinary-start-v1" \
+		and owner.ordinary_state.get("status")=="active"
+
+static func visible(owner: RefCounted) -> bool:
+	return _standard(owner) and (owner.ordinary_state.has(FIELD) or editable(owner))
+
+static func editable(owner: RefCounted) -> bool:
+	if not _standard(owner) or not owner.paused.is_empty() or owner.ordinary_state.has(FIELD): return false
+	var season: SeasonState = owner.session
+	return season.phase==SeasonState.Phase.DRAFT and season.round_index==0 and season.picks.is_empty() \
+		and season.home_property.is_empty() and season.results.is_empty() and season.build!=null \
+		and not season.build.pack_pending() and season.physical!=null and season.physical.pending.is_empty()

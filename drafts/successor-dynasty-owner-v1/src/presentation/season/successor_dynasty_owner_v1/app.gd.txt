@@ -930,6 +930,15 @@ func reload_save() -> void:
 		career_owner = candidate; season = career_owner.session; saved_bytes = before; notice = ""
 	else: notice = Store.last_error
 	_busy = false; show_season()
+func save_standard_workshop_draft() -> void:
+	if not starter_player() or not _available() or not _scope() or not _owned(): return
+	var ticket: RefCounted = Store.prepare_standard_workshop_and_write(career_owner,saved_bytes)
+	if ticket==null:
+		notice="The stadium draft was not saved. Your career is unchanged."
+		show_season()
+		return
+	_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+
 func save_workshop_draft(paid: bool=false) -> void:
 	if not _available() or not _scope() or not _owned() or not Owner.workshop_window(career_owner): return
 	var ticket: RefCounted=Store.prepare_workshop_draft_and_write(career_owner,saved_bytes,paid)

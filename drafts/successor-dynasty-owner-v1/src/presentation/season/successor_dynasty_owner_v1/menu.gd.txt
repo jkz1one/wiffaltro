@@ -98,6 +98,7 @@ func render() -> void:
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
 		_standard_history_link()
+		_standard_workshop_link()
 		_workshop_draft()
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
 		for id: String in app.season.offers():
@@ -278,6 +279,42 @@ func _private_paired_development() -> void:
 		_note("Development pack applied. No further purchase is available here.")
 	_bound_button(_body,"LEAVE DEVELOPMENT PACK",Callable(app,"hide_private_paired_development"))
 
+func _standard_workshop_link() -> void:
+	if app.starter_player() and Store.Owner.Common.StandardWorkshop.visible(app.career_owner):
+		_bound_button(_body,"STADIUM WORKSHOP",_show_standard_workshop)
+
+func _show_standard_workshop(placement: bool = false) -> void:
+	if not app.starter_player() or not app._available() or not app._owned(): return
+	var workshop = Store.Owner.Common.StandardWorkshop
+	var owner: RefCounted = app.career_owner
+	if not workshop.visible(owner): return
+	var record: Dictionary = owner.ordinary_state.get(workshop.FIELD,{})
+	var saved: bool = not record.is_empty()
+	_screen("standard_workshop","STADIUM WORKSHOP","STANDARD BASE · BACKYARD DRAFT")
+	_bound_button(_footer,"BACK" if saved else "CANCEL",render)
+	if not saved and not placement:
+		_label(_body,"STARTER BACKSTOP CHAIR",24)
+		_note("Place your free chair at Primary Receiver to preview the backyard draft. Nothing is saved until you confirm.")
+		_bound_button(_body,"PREVIEW STARTER CHAIR",_show_standard_workshop.bind(true))
+		return
+	if not saved: record = workshop.record(owner.ordinary_state.lineage)
+	if record.is_empty():
+		_note("This layout could not be previewed. Nothing was changed.")
+		return
+	_label(_body,"SAVED DRAFT · PRIMARY RECEIVER" if saved else "UNSAVED PREVIEW · PRIMARY RECEIVER",21)
+	_note("This layout is for the Workshop only. It is not installed in games and costs no Club Bucks.")
+	var preview: StadiumDraftPreview = StadiumDraftPreview.new()
+	_body.add_child(preview)
+	var ledger: ClubAssetLedger = workshop.ledger(owner.ordinary_state.lineage)
+	preview.build(record.layout,ledger.construction(),false)
+	if not preview.positions.has(workshop.COPY):
+		_note("The native preview could not build this layout. Nothing was changed.")
+		return
+	preview.focus_copy(workshop.COPY)
+	_bound_button(_footer,"FIELD VIEW",preview.overview)
+	if not saved and workshop.editable(owner):
+		_bound_button(_footer,"SAVE DRAFT",Callable(app,"save_standard_workshop_draft"))
+
 func _workshop_draft() -> void:
 	var owner=app.career_owner
 	if owner.active!="dynasty": return
@@ -331,6 +368,7 @@ func _career_records() -> void:
 	_label(_body,"Banked career currency: %d · Current-season Cash stays separate"%aggregate.currency,16)
 	_note("Banked totals include only explicitly closed seasons. The current live season is not added again.")
 	_standard_history_link()
+	_standard_workshop_link()
 	var discoveries: Array=owner.discovery_ids()
 	if not discoveries.is_empty():
 		var names: Array[String]=[]

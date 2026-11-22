@@ -1052,6 +1052,40 @@ static func retry_cross_activation(owner: RefCounted,expected: PackedByteArray) 
 
 ## Explicit session boundary producer. Routine candidate APIs above cannot
 ## alter selector/dormant identity. No caller candidate, payload or callback.
+# Ordinary Starter has its own narrow fixed draft producer. Generic moves
+# cannot alter this metadata; no caller layout, copy ID or purchase is accepted.
+static func prepare_standard_workshop_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	if not LeagueAdmission.starter_player(): return null
+	return _prepare_standard_workshop_and_write(owner,expected)
+
+static func _prepare_standard_workshop_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	var workshop = Owner.Common.StandardWorkshop
+	if saving or _ticket!=null or not workshop.editable(owner) or not match_owner(owner,expected): return null
+	var decoded: Variant = Owner._bytes_value(expected)
+	if not decoded is Dictionary or decoded.get("active")!="ordinary" or not decoded.get("ordinary") is Dictionary: return null
+	var candidate: RefCounted = Owner.new()
+	candidate.session = owner.session
+	if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+	var plan: Dictionary = workshop.record(candidate.ordinary_state.lineage)
+	if plan.is_empty(): return null
+	candidate.ordinary_state[workshop.FIELD] = plan
+	var data: Dictionary = Owner.pack_current(candidate,decoded.ordinary)
+	if data.is_empty(): return null
+	var unchanged: Dictionary = data.duplicate()
+	unchanged.ordinary_state = data.ordinary_state.duplicate(false)
+	unchanged.ordinary_state.erase(workshop.FIELD)
+	if not Codec.same(unchanged,decoded) or not _matches_raw(owner,_owner_raw): return null
+	var budget: Array = [RawGuard.MAX_NODES,true]
+	var snapshot: Dictionary = RawGuard._object(candidate,Owner,Owner.DATA_FIELDS,["session"],budget)
+	if not budget[1] or snapshot.is_empty(): return null
+	snapshot.session = _owner_raw.session
+	if not _matches_raw(candidate,snapshot): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
 static func prepare_workshop_draft_and_write(owner: RefCounted, expected: PackedByteArray, paid: bool=false) -> RefCounted:
 	forget_projection()
 	last_error=""
