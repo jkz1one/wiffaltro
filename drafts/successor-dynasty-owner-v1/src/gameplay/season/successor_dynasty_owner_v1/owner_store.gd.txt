@@ -141,6 +141,7 @@ static func _starter_owner_allowed(owner: RefCounted) -> bool:
 		or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
 		or not Owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
 		or owner.ordinary_state.has(Owner.Common.StandardWorkshop.APPLIED) \
+		or owner.ordinary_state.has(Owner.Common.StandardWorkshop.OPENING) \
 		or (owner.ordinary_state.has("archive") and not Owner.Common.StandardArchive.shape(owner) \
 			and not Owner.Common.StandardChain.shape(owner)) \
 		or Owner.Common.cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")): return false
@@ -1119,6 +1120,47 @@ static func _prepare_private_standard_home_apply(owner: RefCounted, expected: Pa
 	var unchanged: Dictionary=data.duplicate(true)
 	unchanged.ordinary.state.home_property={}
 	unchanged.ordinary_state.erase(workshop.APPLIED)
+	if not Codec.same(unchanged,prior): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+# Dark until both the opening away round and the first home are qualified.
+# Owns the choice/lock transition; accepts no snapshot or fixture from callers.
+static func _prepare_private_standard_opening(owner: RefCounted, expected: PackedByteArray, operation: String) -> RefCounted:
+	forget_projection()
+	last_error=""
+	var workshop = Owner.Common.StandardWorkshop
+	if LeagueAdmission.starter_feature() or saving or _ticket!=null or operation not in ["choose_chair","lock"] \
+		or not workshop.opening_window(owner) or not Owner.Common.StandardArchive.shape(owner) or not match_owner(owner,expected):
+		return null
+	var choice: Dictionary=owner.ordinary_state.get(workshop.OPENING,{})
+	if choice.get("locked",false) or (operation=="choose_chair" and not choice.is_empty()): return null
+	var candidate: RefCounted=owner.fork()
+	if candidate==null: return null
+	var state: Dictionary=candidate.ordinary_state
+	var picked: String="chair" if operation=="choose_chair" else choice.get("choice","stock")
+	var locked: bool=operation=="lock"
+	if picked=="chair":
+		if not state.has(workshop.FIELD):
+			state[workshop.FIELD]=workshop.record(state.lineage)
+			if state[workshop.FIELD].is_empty(): return null
+		if locked:
+			candidate.session.home_property=workshop.Home.snapshot(state.lineage)
+			if candidate.session.home_property.is_empty(): return null
+	state[workshop.OPENING]=workshop.opening_record(state,picked,locked)
+	var prior: Variant=Owner._bytes_value(expected)
+	if not prior is Dictionary: return null
+	var data: Dictionary=Owner.capture(candidate)
+	var snapshot: Dictionary=RawGuard.capture(candidate)
+	if data.is_empty() or snapshot.is_empty() or not match_owner(owner,expected): return null
+	var unchanged: Dictionary=data.duplicate(true)
+	unchanged.ordinary.state.home_property={}
+	unchanged.ordinary_state.erase(workshop.OPENING)
+	if not owner.ordinary_state.has(workshop.FIELD): unchanged.ordinary_state.erase(workshop.FIELD)
+	if owner.ordinary_state.has(workshop.OPENING): unchanged.ordinary_state[workshop.OPENING]=prior.ordinary_state[workshop.OPENING]
 	if not Codec.same(unchanged,prior): return null
 	_ticket=RefCounted.new()
 	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data

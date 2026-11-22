@@ -166,6 +166,7 @@ static func candidate(owner: RefCounted, raw: PackedByteArray) -> RefCounted:
 	# The layout draft is lineage-level. No old installation is applied
 	# to a new season; the authenticated predecessor still holds it.
 	state.erase(api.Common.StandardWorkshop.APPLIED)
+	state.erase(api.Common.StandardWorkshop.OPENING)
 	state.status = "active"
 	state.last_close = {}
 	state.proposal = {}

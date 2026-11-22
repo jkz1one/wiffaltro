@@ -3,7 +3,52 @@ extends RefCounted
 const FIELD: String = "starter_workshop"
 const Home = preload("res://src/gameplay/season/successor_live_play_v1/starter_home_transport.gd")
 const COPY: String = Home.COPY
-const APPLIED: String = "starter_workshop_applied"
+const APPLIED: String = "starter_workshop_applied" # Retained private late-proof dialect only.
+const OPENING: String = "starter_workshop_opening"
+
+static func _opening_schedule(season: SeasonState) -> bool:
+	if not Home.base(season): return false
+	var away:=false
+	var first_home_id:=99
+	for fixture: Dictionary in season.schedule:
+		if fixture.id==0 and fixture.round==0 and fixture.away==0 and fixture.home!=0 and not fixture.get("neutral",false):
+			away=true
+		if fixture.home==0 and not fixture.get("neutral",false): first_home_id=mini(first_home_id,int(fixture.id))
+	return away and first_home_id==3
+
+static func _unplayed_opener(season: SeasonState) -> bool:
+	if not _opening_schedule(season) or season.phase!=SeasonState.Phase.REGULAR or season.round_index!=0 \
+		or season.picks.size()!=4 or season.build==null or season.build.pack_pending() or season.physical==null:
+		return false
+	return season.pending_fixture().get("id")==0 and season.results.is_empty() and season.player_results.is_empty() \
+		and season.physical.cursor==0 and season.physical.reports.is_empty() and season.physical.pending.is_empty() \
+		and season.physical.needed.is_empty() and season.physical.error.is_empty() and not season.physical.projecting
+
+static func opening_window(owner: RefCounted) -> bool:
+	return _standard(owner) and owner.paused.is_empty() and not owner.ordinary_state.has(APPLIED) \
+		and _unplayed_opener(owner.session)
+
+static func opening_record(state: Dictionary, choice: String, locked: bool) -> Dictionary:
+	return {"version":1,"lineage":state.lineage,"ordinal":state.ordinal,"start":state.start_basis_sha256,
+		"opener":0,"first_home":3,"choice":choice,"locked":locked}
+
+static func opening_valid(state: Dictionary, season: SeasonState) -> bool:
+	if not state.has(OPENING) or state.has(APPLIED) or not _opening_schedule(season) \
+		or season.phase==SeasonState.Phase.DRAFT or season.picks.size()!=4 or state.get("ordinal")!=2:
+		return false
+	var row: Variant=state[OPENING]
+	if not row is Dictionary or row.get("choice") not in ["chair","stock"] or not row.get("locked") is bool \
+		or not ClubCareer.same(row,opening_record(state,row.choice,row.locked)):
+		return false
+	if row.choice=="chair":
+		if not state.has(FIELD): return false
+		if row.locked: return not season.home_property.is_empty() and Home.valid(season)
+		return season.home_property.is_empty() and _unplayed_opener(season)
+	return row.locked and season.home_property.is_empty()
+
+static func opening_unlocked(owner: RefCounted) -> bool:
+	if owner==null or not owner.ordinary_state.has(OPENING): return false
+	return not owner.ordinary_state[OPENING].get("locked",false)
 
 static func stock_seed(lineage: String) -> int:
 	return int(lineage.trim_prefix("ordinary:").left(8).hex_to_int()) & 0x7fffffff
@@ -45,7 +90,8 @@ static func editable(owner: RefCounted) -> bool:
 # Hidden first-home family. The application window is an already admitted
 # and settled away opener, never a substituted schedule, draft or paid item.
 static func first_home(owner: RefCounted) -> bool:
-	if not _standard(owner) or not owner.paused.is_empty() or owner.ordinary_state.has(APPLIED): return false
+	if not _standard(owner) or not owner.paused.is_empty() or owner.ordinary_state.has(APPLIED) \
+		or owner.ordinary_state.has(OPENING): return false
 	var season: SeasonState = owner.session
 	var f: Dictionary=season.pending_fixture()
 	return Home.base(season) and season.phase==SeasonState.Phase.REGULAR and season.round_index==1 \
@@ -77,6 +123,7 @@ static func placement(state: Dictionary, season: SeasonState) -> Dictionary:
 		"start":state.start_basis_sha256,"first_home":3,"opening":proof}
 
 static func placement_valid(state: Dictionary, season: SeasonState) -> bool:
+	if state.has(OPENING): return opening_valid(state,season)
 	if not state.has(APPLIED): return season.home_property.is_empty()
 	if season.home_property.is_empty() or not Home.valid(season): return false
 	var expected:=placement(state,season)

@@ -19,7 +19,7 @@ static func snapshot(lineage: String) -> Dictionary:
 
 static func valid(season: SeasonState) -> bool:
 	if season.home_property.is_empty(): return true
-	if not base(season) or season.phase==SeasonState.Phase.DRAFT or season.round_index<1: return false
+	if not base(season) or season.phase==SeasonState.Phase.DRAFT: return false
 	var authored:=snapshot(season.career.start_basis.lineage)
 	return not authored.is_empty() and ClubCareer.same(season.home_property,authored)
 

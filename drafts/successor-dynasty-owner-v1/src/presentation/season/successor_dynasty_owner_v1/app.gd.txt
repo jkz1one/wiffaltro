@@ -1302,8 +1302,23 @@ func academy_pack_choice_pending() -> bool:
 		and season!=null and LeagueRules.academy(season.league_rules) and season.build.pack_pending()
 
 
+# Intentionally not connected to the Starter UI yet. The exact save
+# is promoted before any native fixture can start (even the stock choice).
+func _play_private_standard_opening() -> void:
+	var workshop = Owner.Common.StandardWorkshop
+	if starter_player() or Store.LeagueAdmission.starter_feature() or not _available() or not _owned() \
+		or not workshop.opening_window(career_owner): return
+	var choice: Dictionary=career_owner.ordinary_state.get(workshop.OPENING,{})
+	if not choice.get("locked",false):
+		var ticket: RefCounted=Store._prepare_private_standard_opening(career_owner,saved_bytes,"lock")
+		if ticket==null: return
+		_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+		if retained!=null or not career_owner.ordinary_state.get(workshop.OPENING,{}).get("locked",false): return
+	play_next()
+
 func play_next() -> void:
 	if career_owner!=null and not career_owner.playable(): return
+	if Owner.Common.StandardWorkshop.opening_unlocked(career_owner): return
 	if not _available() or not _owned() or not _scope() or not season.physical.pending.is_empty():
 		return
 	if academy_pack_choice_pending():
