@@ -839,3 +839,26 @@ The backup was the exact preceding settled primary.
 A fresh primary-only Continue reopened the same Abandoned state.
 Native Quit did not change the exact primary or create a backup
 or temporary save. No third season was created.
+
+### Fixed-step parity on the archived Standard opener (QA only)
+
+Using the exact human-only and independent one-opponent checkpoints
+above, a source-only fixed-step native Godot 4.6.3 test ran both
+physical matchups. No human game or ordinary-speed reference was
+replayed. The two saved scores, 2–3 and 9–12, and all 137/170 plays
+matched exactly, with only the physics elapsed diagnostic permitted
+to differ. The stock report path accepted each detached candidate in
+memory. Neither isolated authoritative save or its slot directory was
+changed. See the CP270 QA probe under `tools/qa/`.
+
+| Fixture | Strict read | Projection | Fixed simulation | In-memory report stage | Process wall |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1, CP265 human-only | 61.315 s | 11.197 s | 11.659 s | 21.064 s | 116.530 s |
+| 2, CP266 first NPC | 61.271 s | 13.010 s | 15.366 s | 58.443 s | 159.889 s |
+
+The physics replay is substantially shorter than before, but the
+second report's validation includes preparation of the settlement
+candidate and still dominates the later part of the flow. Each source
+input exceeds the current 1 MiB worker ceiling, and the archived
+ordinal is independently outside the release worker's scope. This
+does not widen the worker or claim a packaged speedup or Mac timing.

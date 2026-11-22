@@ -1,0 +1,104 @@
+extends Node
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Fast=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
+const Cap=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_standard_archive.gd")
+var active: Node
+var authoritative: SeasonState
+var input_bytes: PackedByteArray
+var actual_job: Dictionary
+var oracle_job: Dictionary
+var simulation_started: int
+var admission_ms: int
+var project_ms: int
+
+func _ready() -> void: _run.call_deferred()
+
+func _stop(ok: bool, label: String) -> void:
+	print("CP270 ", "PASS " if ok else "FAIL ",label)
+	get_tree().quit(0 if ok else 1)
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=3 or Engine.physics_ticks_per_second!=60 or Engine.time_scale!=1.0 \
+		or DisplayServer.get_name()!="headless" or AudioServer.get_driver_name()!="Dummy":
+		return _stop(false,"engine settings")
+	for frame: int in range(3):
+		await get_tree().process_frame
+		if absf(get_process_delta_time()-1.0/60.0)>0.000001: return _stop(false,"fixed FPS cadence")
+	input_bytes = Store.raw()
+	if input_bytes.is_empty() or FileAccess.get_sha256(Store.PATH)!=args[1] \
+		or FileAccess.file_exists(Store.PATH+".bak") or FileAccess.file_exists(Store.PATH+".tmp"):
+		return _stop(false,"exact primary-only input")
+	var start: int=Time.get_ticks_msec()
+	var owner: RefCounted=Store.read()
+	admission_ms=Time.get_ticks_msec()-start
+	print("CP270 strict archive admission ms=",admission_ms," primary=",args[1])
+	if owner==null or owner.active!="ordinary" or not owner.playable() \
+		or not Cap.marked(owner.session) or owner.current_ordinal()!=2 \
+		or owner.session.phase!=SeasonState.Phase.REGULAR or owner.session.round_index!=0 \
+		or not owner.session.results.is_empty() or not owner.session.league_rules.is_empty() \
+		or owner.ordinary_state.archive.source_sha256!="c964f1eb24f35811506de876958d2846892a21075a4ccd4f472637c28d7262e9" \
+		or owner.common.aggregate.currency!=72 or owner.session.build.cash()!=0 \
+		or Fast.scoped(owner) or Store.raw()!=input_bytes:
+		return _stop(false,"entirely qualified archived ordinal2 owner")
+	var source: Variant=JSON.parse_string(FileAccess.get_file_as_string(args[2]))
+	if not source is Dictionary or source.ordinary.physical.pending.reports.is_empty():
+		return _stop(false,"native saved oracle")
+	oracle_job=source.ordinary.physical.pending.reports.back()
+	authoritative=owner.session
+	start=Time.get_ticks_msec()
+	var pending: Script=Store.Adapter.pending("ordinary")
+	var fixtures: Script=Store.Adapter.fixtures("ordinary")
+	var view: Dictionary=pending.project(authoritative)
+	var fixture: Dictionary=view.get("fixture",{})
+	var projected: SeasonState=view.get("candidate")
+	if fixture.is_empty() or projected==null:
+		return _stop(false,"native pending projection")
+	var request: String=fixtures.request_key(projected,fixture)
+	var seed: int=fixtures.seed_for(projected,fixture)
+	var field: FieldDefinition=Store.Adapter.runtime("ordinary").field_for_fixture(fixture,projected)
+	var state: MatchState=fixtures.match_for(projected,fixture)
+	if state==null or field==null or fixture.id!=int(args[0]) \
+		or oracle_job.fixture!=fixture.id or oracle_job.request!=request:
+		return _stop(false,"exact native fixture/field/request")
+	project_ms=Time.get_ticks_msec()-start
+	actual_job={"fixture":int(fixture.id),"request":request,"seed":seed,"field":str(field.id)}
+	print("CP270 exact projected ",JSON.stringify(actual_job)," ms=",project_ms)
+	active=Store.Adapter.runner("ordinary").new()
+	add_child(active)
+	active.failed.connect(func(reason: String) -> void: _stop(false,"native runner "+reason))
+	active.finished.connect(_finished)
+	simulation_started=Time.get_ticks_msec()
+	if not active.start(state,seed,field.id): _stop(false,"native runner start")
+
+func _finished(native: Dictionary) -> void:
+	var simulation: int=Time.get_ticks_msec()-simulation_started
+	print("CP270 finished original fixed-step simulation ms=",simulation)
+	# Same stock report validator/projector as the Store producer, but no
+	# authority methods, ticket, CAS, or save are called.
+	var start: int=Time.get_ticks_msec()
+	var admitted: Dictionary=Store.Adapter.pending("ordinary").stage_report(authoritative,native)
+	var adoption: int=Time.get_ticks_msec()-start
+	var staged: SeasonState=admitted.get("candidate")
+	if staged==null or admitted.has("error"):
+		return _stop(false,"native report refused "+str(admitted.get("error","")))
+	var retained: Dictionary=staged.physical.pending.reports.back()
+	if retained.fixture!=actual_job.fixture or retained.request!=actual_job.request \
+		or retained.report!=native or staged.build.cash()!=0 or not staged.results.is_empty():
+		return _stop(false,"exact detached checkpoint identity")
+	start=Time.get_ticks_msec()
+	var compare: Dictionary=JSON.parse_string(JSON.stringify(native,"",true,true))
+	var expected: Dictionary=oracle_job.report.duplicate(true)
+	var old_elapsed: float=expected.physical.elapsed
+	var new_elapsed: float=compare.physical.elapsed
+	expected.physical.elapsed=new_elapsed
+	var equal: bool=JSON.stringify(expected,"",true,true)==JSON.stringify(compare,"",true,true)
+	var parity_ms: int=Time.get_ticks_msec()-start
+	var report: Dictionary=compare.physical
+	print("CP270 result ",report.away_runs,"–",report.home_runs," plays=",report.plays.size(), \
+		" elapsed old=",old_elapsed," fixed=",new_elapsed," report_equal_except_elapsed=",equal, \
+		" in_memory_adoption_ms=",adoption," compare_ms=",parity_ms)
+	if not equal: return _stop(false,"whole report differs beyond elapsed")
+	if Store.raw()!=input_bytes or FileAccess.file_exists(Store.PATH+".bak") or FileAccess.file_exists(Store.PATH+".tmp"):
+		return _stop(false,"authoritative primary changed")
+	_stop(true,"actual native physical report and detached admission; authoritative slot byte-identical, no writer")
