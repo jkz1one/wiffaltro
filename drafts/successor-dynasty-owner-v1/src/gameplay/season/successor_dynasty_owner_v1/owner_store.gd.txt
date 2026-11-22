@@ -95,7 +95,8 @@ static func standard_history_available(owner: RefCounted, expected: PackedByteAr
 	var pin: Variant = _metadata.get("ordinary_state",{}).get("archive")
 	return pin is Dictionary and RawGuard.same(owner.ordinary_state.archive,pin) \
 		and ((Owner.Common.StandardChain.marked(owner.session) and Owner.Common.StandardChain.shape(owner)) \
-			or (LeagueAdmission.starter_player() and Owner.Common.starter_dugout_chain_scope(owner)))
+			or (LeagueAdmission.starter_player() and (Owner.Common.starter_dugout_chain_scope(owner) \
+				or Owner.Mixed.draft_owner_scope(owner))))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -103,9 +104,11 @@ static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Ar
 	var pin: Dictionary = _metadata.ordinary_state.archive
 	if not RawGuard.same(pin,_standard_history_pin):
 		standard_history_projection_calls += 1
-		var view: Array = _starter_dugout_history(pin) if pin.get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN \
-			else Owner.Common.StandardChain.display(pin)
-		if view.size()!=2 or not standard_history_available(owner,expected) \
+		var mixed: bool=Owner.Mixed.marked_state(owner.ordinary_state)
+		var view: Array = Owner.Mixed.display(pin) if mixed else (
+			_starter_dugout_history(pin) if pin.get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN
+			else Owner.Common.StandardChain.display(pin))
+		if view.size()!=(3 if mixed else 2) or not standard_history_available(owner,expected) \
 			or not RawGuard.same(pin,_metadata.ordinary_state.archive) or not _write_revision_matches(expected,true):
 			return []
 		_standard_history_pin = pin.duplicate(true)
@@ -186,6 +189,8 @@ static func private_standard_chain_opening() -> bool:
 
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if Flat.is_flat(owner): return false
+	if owner!=null and Owner.Mixed.marked_state(owner.ordinary_state):
+		return LeagueAdmission.starter_player() and Owner.Mixed.draft_owner_scope(owner)
 	if owner!=null and owner.ordinary_state.get("archive",{}).get("kind")==Owner.Common.STARTER_DUGOUT_ARCHIVE:
 		return LeagueAdmission.starter_player() and Owner.Common.starter_dugout_archive(owner) and Owner.Common._archive_shape(owner)
 	if owner!=null and owner.ordinary_state.get("archive",{}).get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN:
@@ -403,9 +408,12 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 		if not _routine_pins(candidate): return null
 		# Dormant alternate was strictly admitted on read/promotion. Exact live raw
 		# owner pins were checked above; no caller validation flag or payload.
-		var current: Dictionary = Adapter.capture(candidate.active,candidate.session)
-		if not current.is_empty():
-			data = Owner.pack_current(candidate,current)
+		if Owner.Mixed.marked_state(candidate.ordinary_state):
+			data=Owner.Mixed.first_pick_payload(owner,candidate)
+		else:
+			var current: Dictionary = Adapter.capture(candidate.active,candidate.session)
+			if not current.is_empty():
+				data = Owner.pack_current(candidate,current)
 	else:
 		data = Owner.capture(candidate)
 	if data.is_empty(): return null
@@ -1074,6 +1082,19 @@ static func commit_starter_dugout_next(owner: RefCounted, expected: PackedByteAr
 	var bytes:=_native_encoded(data) if not data.is_empty() else PackedByteArray()
 	if bytes.is_empty() or bytes.size()>Owner.Common.CHAIN_MAX: return "refused"
 	return _arm_starter_dugout(owner,expected,bytes)
+
+# Fixed internal continuation: no caller draft, bytes, seed or target.
+# The live admitted owner and exact primary must agree before and after
+# projection. The existing held transaction owns the sole final rename.
+static func commit_starter_dugout_compact_next(owner: RefCounted, expected: PackedByteArray) -> String:
+	if not LeagueAdmission.starter_player() or _starter_slot_linked() or not _cross_pending.is_empty() \
+			or not _cross_bound(owner,expected) or not _matches_raw(owner,_owner_raw) \
+			or not Owner.Mixed.closed_scope(owner): return "refused"
+	var candidate: RefCounted=Owner.Mixed._owned_from_pinned(owner,expected)
+	if candidate==null or not _starter_owner_allowed(candidate): return "refused"
+	var data: Dictionary=Owner.Mixed.compact_payload(candidate)
+	if data.is_empty(): return "refused"
+	return _arm_starter_dugout(owner,expected,_native_encoded(data))
 
 static func _arm_starter_dugout(owner: RefCounted, expected: PackedByteArray, bytes: PackedByteArray) -> String:
 	if bytes.is_empty() or not _cross_bound(owner,expected) or not _matches_raw(owner,_owner_raw): return "stale"

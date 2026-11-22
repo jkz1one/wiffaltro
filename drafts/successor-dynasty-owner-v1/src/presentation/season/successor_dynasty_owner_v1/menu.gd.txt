@@ -101,6 +101,9 @@ func render() -> void:
 		_standard_workshop_link()
 		_workshop_draft()
 		_label(_body,"DRAFT · %d / 4 selected"%app.season.picks.size(),24)
+		if Store.Owner.Mixed.marked_state(app.career_owner.ordinary_state) and not app.season.picks.is_empty():
+			_note("Your first pick is saved. This preview does not open the remaining draft or games.")
+			return
 		for id: String in app.season.offers():
 			var player: PlayerDefinition = app.season.build.definition(id)
 			_bound_button(_body,player.display_name,Callable(app,"draft").bind(id))
@@ -432,7 +435,7 @@ func _standard_history_link() -> void:
 func _show_standard_history(index: int = 1) -> void:
 	if not app.starter_player() or not app._available(): return
 	var entries: Array = Store.standard_history(app.career_owner,app.saved_bytes)
-	if entries.size()!=2 or index<0 or index>=entries.size():
+	if entries.size() not in [2,3] or index<0 or index>=entries.size():
 		render()
 		return
 	var history: Dictionary = entries[index]

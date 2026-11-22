@@ -1,0 +1,154 @@
+extends Node
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner=Store.Owner
+const Mixed=Owner.Mixed
+const Custody=Mixed.Custody
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const CLOSED := "8549fcded318686355e1b0177f6186804f85438dbb832bbf0bda128d06c82dd5"
+const MANIFEST := "6db193e8d0e55c2aae15b4d76ab859dd3d26574ca0f0ef52d8d1d5d6a9a3a487"
+const PINS: Array[String] = ["8894317a3e9b862b41714a6e69eca4948702f7c7da5c272b715501da03f45cdb",
+	"3f34084c98b630b4f5fa9d5023fb325ef426c7d41defb3283aa07547a18bc36d",CLOSED]
+const ZLIB_KEY := "compression/formats/zlib/compression_level"
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func want(ok: bool, label: String) -> bool:
+	print(("PASS " if ok else "FAIL ")+label)
+	return ok
+
+func _run() -> void:
+	var a:=OS.get_cmdline_user_args()
+	if not want(a.size()==2 and a[0]=="cp308" and Store.LeagueAdmission.starter_player() \
+			and not Store.cross_league_preview() and not OS.has_feature("editor") \
+			and not FileAccess.file_exists("user://season-v1.json"),"official native no-env Starter only"):
+		get_tree().quit(1)
+		return
+	var passed: bool=_hot() if a[1]=="hot" else (a[1]=="cold" and _cold())
+	get_tree().quit(0 if passed else 1)
+
+func _write_fixture(bytes: PackedByteArray) -> bool:
+	var f:=FileAccess.open(Store.PATH,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(bytes)
+	var ok: bool=f.get_error()==OK
+	f.close()
+	return ok
+
+func _hot() -> bool:
+	var raw:=Store.raw()
+	var native: Script=Owner.Adapter.Ordinary
+	if not want(raw.size()==25182871 and Owner._hash(raw)==CLOSED \
+			and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+			"exact generated CP305 primary-only starter"): return false
+	var t:=Time.get_ticks_usec()
+	var before: int=native.restore_calls
+	var owner:=Store.read()
+	if not want(Mixed.closed_scope(owner) and native.restore_calls-before==3
+			and owner.common.aggregate.currency==183 and owner.common.aggregate.titles.is_empty(),
+			"strict stock CP305 owned read through three historical predecessors"): return false
+	print("CP308 HOT_SOURCE_READ_USEC=",Time.get_ticks_usec()-t)
+	before=native.restore_calls
+	if not want(Store.prepare_session_and_write(owner,raw,"next")==null \
+			and DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,"generic Next remains closed; isolated held rename"): return false
+	t=Time.get_ticks_usec()
+	if not want(Store.commit_starter_dugout_compact_next(owner,raw)=="obstructed" \
+			and Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") \
+			and native.restore_calls==before,"fixed derived draft held without a write or a second native replay"): return false
+	print("CP308 DERIVE_HOLD_USEC=",Time.get_ticks_usec()-t)
+	var expected:=Store._cross_pending
+	var initial: Variant=Owner._bytes_value(expected)
+	var archive: Dictionary=initial.ordinary_state.archive
+	if not want(archive.kind==Custody.KIND and Owner._hash(archive.wire.to_utf8_buffer())==MANIFEST \
+			and initial.ordinary.state.picks.is_empty() and DirAccess.remove_absolute(Store.PATH+".tmp")==OK,
+			"only the pinned compact canonical draft is held"): return false
+	var external:=raw.duplicate()
+	external.append(32)
+	if not want(_write_fixture(external),"change only isolated primary before final compare"): return false
+	if not want(Store.retry_cross_activation(owner,raw)=="stale" and Store.raw()==external \
+			and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+			"real stale primary CAS; no rotation or intermediate primary"): return false
+	if not want(_write_fixture(raw) and DirAccess.make_dir_absolute(Store.PATH+".tmp")==OK,
+			"return exact disposable closed source for guarded deterministic retry"): return false
+	if not want(Store.commit_starter_dugout_compact_next(owner,raw)=="obstructed" and Store._cross_pending==expected
+			and native.restore_calls==before,"held re-derivation identical; old native owner reused only while pinned"): return false
+	t=Time.get_ticks_usec()
+	if not want(DirAccess.remove_absolute(Store.PATH+".tmp")==OK and Store.retry_cross_activation(owner,raw)=="saved" \
+			and Store.raw()==expected and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw \
+			and not FileAccess.file_exists(Store.PATH+".tmp"),
+			"one atomic native draft replacement and exact original .bak"): return false
+	print("CP308 PROMOTE_USEC=",Time.get_ticks_usec()-t," BORN_BYTES=",expected.size()," BORN_SHA=",Owner._hash(expected))
+	return want(Store.retry_cross_activation(owner,raw)=="refused" \
+		and Store.commit_starter_dugout_compact_next(owner,raw)=="refused" and Store.raw()==expected \
+		and native.restore_calls==before,"one use; consumed old owner and no subsequent write")
+
+func _cold() -> bool:
+	var raw:=Store.raw()
+	if not want(not raw.is_empty() and not FileAccess.file_exists(Store.PATH+".bak") \
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"separate fresh primary-only official slot"): return false
+	var app:=App.new()
+	add_child(app)
+	var native: Script=Owner.Adapter.Ordinary
+	var before: int=native.restore_calls
+	var t:=Time.get_ticks_usec()
+	app.reload_save()
+	var owner: RefCounted=app.career_owner
+	if not want(Mixed.draft_owner_scope(owner) and native.restore_calls-before==3 and owner.current_ordinal()==4 \
+			and owner.session.picks.is_empty() and owner.session.cash()==0 and owner.session.results.is_empty() \
+			and owner.common.aggregate.currency==183 and owner.common.aggregate.titles.is_empty() \
+			and app.league_entry_state("equipment")=="locked" and app.league_entry_state("dugout")=="playable" \
+			and Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak"),
+			"actual App Continue, three strict source restores; exact zero-pick native draft, 183 and Equipment locked"): return false
+	print("CP308 APP_COLD_USEC=",Time.get_ticks_usec()-t)
+	before=native.restore_calls
+	var basis: Dictionary=owner.session.career.start_basis
+	var archive: Dictionary=owner.ordinary_state.archive
+	var wire: PackedByteArray=archive.wire.to_utf8_buffer()
+	var collected: Array[String]=[]
+	var check_root:=func(i: int, member: PackedByteArray) -> bool:
+		var sha: String=Owner._hash(member)
+		collected.append(sha)
+		return sha==PINS[i-1]
+	t=Time.get_ticks_usec()
+	if not want(wire.size()==2697265 and Owner._hash(wire)==MANIFEST \
+			and basis.archive_origin.manifest_sha256==MANIFEST and basis.archive_origin.ordered_sha256==PINS \
+			and Custody._walk(wire,check_root) and collected==PINS,
+			"independent read-only pinned CP306 canonical recompress and all raw pins"): return false
+	print("CP308 TRANSPORT_READ_USEC=",Time.get_ticks_usec()-t," ZLIB_SETTING=",ProjectSettings.get_setting(ZLIB_KEY,"unregistered"),
+		" ENGINE=",Engine.get_version_info().get("string")," OS=",OS.get_name())
+	var forged: Variant=Owner._bytes_value(raw)
+	forged.ordinary_state.archive.wire=""
+	if not want(Owner.restore(forged)==null and native.restore_calls==before and Store.raw()==raw,
+			"missing compact source refused by native owner before a deep replay; still no write"): return false
+	t=Time.get_ticks_usec()
+	var history:=Store.standard_history(owner,raw)
+	if not want(history.size()==3,"three exactly admitted read-only history entries"): return false
+	for i in 3:
+		if not want(history[i].ordinal==i+1 and history[i].results.size()==33 \
+				and history[i].league==("standard" if i==0 else "dugout"),"exact archived score rows in order "+str(i+1)): return false
+	if not want(history[0].receipt.total==72 and history[1].receipt.total==39 and history[2].receipt.total==72,
+			"prior real semifinal/missed/semifinal credits intact"): return false
+	history[2].results.clear()
+	if not want(Store.standard_history(owner,raw)[2].results.size()==33,"view copies cannot mutate custody"):
+		return false
+	app.menu._show_standard_history(2)
+	if not want(app.menu.page=="standard_history" and Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak"),
+			"third source history route read-only in actual headless App"): return false
+	print("CP308 HISTORY_USEC=",Time.get_ticks_usec()-t)
+	app.show_season()
+	var id: String=app.season.offers()[0]
+	t=Time.get_ticks_usec()
+	app.draft(id)
+	var picked:=Store.raw()
+	if not want(app.career_owner!=owner and Mixed.draft_owner_scope(app.career_owner) \
+			and app.season.picks==[id] and picked!=raw and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw \
+			and not FileAccess.file_exists(Store.PATH+".tmp") and native.restore_calls==before,
+			"first normal App draft action saved and promoted; no predecessor replay"): return false
+	print("CP308 PICK_USEC=",Time.get_ticks_usec()-t," PLAYER=",id," SHA=",Owner._hash(picked))
+	app.draft(app.season.offers()[0])
+	app.play_next()
+	return want(not app.has_method("commit_starter_dugout_compact_next") and not is_instance_valid(app.lab) \
+		and app.season.picks==[id] and Store.raw()==picked \
+		and Store.prepare_session_and_write(app.career_owner,picked,"next")==null \
+		and Store.prepare_session_and_write(app.career_owner,picked,"close",0,"","complete")==null,
+		"further draft, Play, Complete and Next stay closed")

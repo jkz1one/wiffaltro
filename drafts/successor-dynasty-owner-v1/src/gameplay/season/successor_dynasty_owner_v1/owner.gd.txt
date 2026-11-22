@@ -7,6 +7,7 @@ const Previous = preload("res://src/gameplay/season/successor_live_play_v1/codec
 const Legacy = preload("legacy_owner_v2.gd")
 const PreviousOwner = preload("legacy_owner_v3.gd")
 const Common = preload("common_lifecycle.gd")
+const Mixed = preload("starter_mixed_projection.gd")
 const Adapter = preload("session_adapter.gd")
 const Ledger = preload("ledger.gd")
 const Life = preload("lifecycle.gd")
@@ -61,6 +62,7 @@ func fork():
 	if not Codec.install_fields(result,DATA_FIELDS,Codec.data_fields(self,DATA_FIELDS)): return null
 	return result if result.session!=null else null
 func playable() -> bool:
+	if Mixed.marked_state(ordinary_state): return Mixed.draft_owner_scope(self) and session.picks.is_empty()
 	if ordinary_state.has("archive"): return active=="ordinary" and ordinary_state.status=="active" and Common.archive_play_scope(session)
 	if paired_draft_only(): return ordinary_state.get("status")=="active" and session.phase==SeasonState.Phase.DRAFT
 	return (active=="ordinary" and ordinary_state.get("status")=="active") or (active=="dynasty" and status=="active")
@@ -217,6 +219,9 @@ static func pack_current(owner, current: Dictionary) -> Dictionary:
 	if owner.active=="dynasty" and not _dynasty_valid(owner,owner.session,current): return {}
 	if owner.active=="ordinary" and not Common.ordinary_current_valid(owner,owner.session,current): return {}
 	if owner.active=="ordinary" and owner.paused.is_empty() and not _missing_dynasty(owner): return {}
+	return _pack_fields(owner,current)
+
+static func _pack_fields(owner,current: Dictionary) -> Dictionary:
 	var result: Dictionary=Codec.data_fields(owner,META_FIELDS)
 	if owner.workshop_draft.is_empty(): result.erase("workshop_draft")
 	if owner.workshop_close_history.is_empty(): result.erase("workshop_close_history")
@@ -375,5 +380,6 @@ static func _restore_canonical(value: Variant) -> CanonicalRestore:
 	return native
 
 static func restore(value: Variant):
+	if value is Dictionary and Mixed.marked_state(value.get("ordinary_state")): return Mixed.restore_owned(value)
 	var native := _restore_canonical(value)
 	return native.owner if native!=null and _archive_valid(native.owner,native.current) else null

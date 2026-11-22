@@ -132,14 +132,14 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner.gd",
-      "bytes": 25217,
-      "sha256": "0d0c6d520c8612ca09aeb2f20c38c8553a2df974399e3600fd4d5c8584971bb8"
+      "bytes": 25591,
+      "sha256": "26153b9fcba18c5f429383a11655e5dea3079ddfc2b4da6163de059bca77414b"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 119783,
-      "sha256": "e1807cbee0c90dcfb1aed1e3246bb3aa2ff7d2a020a0da19fc7d4870f02f8fc1"
+      "bytes": 121111,
+      "sha256": "12cd937de9c922a58e5e0cd5fa997f0976c6f2d9ab719d123ed706d6522fe648"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -222,8 +222,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/menu.gd",
-      "bytes": 40884,
-      "sha256": "52b27a4f24c37e7600c7c523a29e0ce2683f466c4604be122f872286a3b17208"
+      "bytes": 41105,
+      "sha256": "993663a3ad270fa0ef74b347eae4a3e9a8a28db58d458cd1eb4c47f78f8e19a7"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd.txt",
@@ -810,8 +810,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_projection.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_projection.gd",
-      "bytes": 3999,
-      "sha256": "07045ac14f560a7e9286ab29cad62439600c57003c237dd5ab7bcedcedfaf838"
+      "bytes": 12289,
+      "sha256": "8429cec4a68bfc10256c11ecf1661890221d1113f28ce03588d2ccc2a9172df8"
     }
   ],
   "additions": [
