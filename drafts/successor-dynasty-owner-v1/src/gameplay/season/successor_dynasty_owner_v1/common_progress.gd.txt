@@ -141,6 +141,20 @@ static func _earned(build: SeasonBuild, side: String) -> Dictionary:
 
 static func fold(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String) -> Dictionary:
 	if not valid(before) or not Adapter.scope(side,season) or not _close_id(close_id) or fold_index!=before.closed+1 or reason not in ["complete","abandon"]: return {}
+	return _fold_native(before,side,season,close_id,fold_index,reason)
+
+# This named contribution is not a public adapter scope: only the exact
+# private two-round Standard close can derive its own native fold inputs.
+static func fold_private_flat_abandon(owner: RefCounted) -> Dictionary:
+	var flat:=load("res://src/gameplay/season/successor_dynasty_owner_v1/starter_standard_continuation.gd")
+	if not flat.can_abandon(owner) or not Adapter.Ordinary.scope(owner.session): return {}
+	var before: Dictionary=owner.common.aggregate
+	var id: String="%s:%d:close"%[owner.ordinary_state.lineage,owner.ordinary_state.ordinal]
+	var index: int=int(owner.common.sequence)+1
+	if not valid(before) or not _close_id(id) or index!=before.closed+1: return {}
+	return _fold_native(before,"ordinary",owner.session,id,index,"abandon")
+
+static func _fold_native(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String) -> Dictionary:
 	var proof: Dictionary=ClubSeasonRecord.capture(season)
 	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
 	if summary.is_empty() or (reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE) or (reason=="complete")!=(summary.finish!="unfinished"): return {}

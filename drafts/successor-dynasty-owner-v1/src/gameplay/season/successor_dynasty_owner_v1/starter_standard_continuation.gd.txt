@@ -241,7 +241,7 @@ static func _storage_scope(owner: RefCounted) -> bool:
 	var history: Variant=state.get(ROUND1)
 	var rows: Array=season.physical.reports
 	if not (owner.active=="ordinary" and owner.paused.is_empty() and api._missing_dynasty(owner) \
-		and owner.migration_v3.is_empty() and state.get("status")=="active" and state.get("ordinal")==4 \
+		and owner.migration_v3.is_empty() and _round_lifecycle(owner,count) and state.get("ordinal")==4 \
 		and state.get("archive",{}).get("kind")==Custody.KIND and state.get("last_transition",{}).get("kind")==TRANSITION \
 		and work.valid(state) and state.has(work.FIELD) and not state.has(work.APPLIED) \
 		and _opening_valid(state,season) and api.Codec.keys(history,["version","human"]) \
@@ -254,6 +254,43 @@ static func _storage_scope(owner: RefCounted) -> bool:
 	return pending.is_empty() and api.Codec.keys(second,["version","human","property"]) and second.version==1 \
 		and _home_pending_shape({"human":second.human,"reports":rows.slice(2),"property":second.property}) \
 		and second.property==work.Home.key(season,SeasonVenues.fixture_for_id(season,3))
+
+static func _closed_shape(state: Dictionary, common: Variant) -> bool:
+	var api := _api()
+	var close: Variant=state.get("last_close")
+	if not api.Codec.keys(close,["id","ordinal","reason","session_sha256","receipt","first_title","league","tier"]) \
+			or close.get("id")!="%s:4:close"%state.get("lineage","") or not api.Codec.whole(close.ordinal,4,4) \
+			or close.reason!="abandon" or close.league!="standard" or not api.Codec.whole(close.tier,0,0) \
+			or close.receipt!={} or not close.first_title is bool or not api._digest(close.session_sha256):
+		return false
+	return common is Dictionary and api.Codec.whole(common.get("sequence"),4,4) \
+		and api.Codec.same(common.get("cursors"),{"ordinary":4,"dynasty":0}) \
+		and state.get("proposal")=={}
+
+static func _round_lifecycle(owner: RefCounted, count: int) -> bool:
+	var api := _api()
+	var state: Dictionary=owner.ordinary_state
+	if state.get("status")=="closed": return count==2 and _closed_shape(state,owner.common)
+	return state.get("status")=="active" and state.get("last_close")=={} and state.get("proposal")=={} \
+		and api.Codec.whole(owner.common.get("sequence"),3,3) \
+		and api.Codec.same(owner.common.get("cursors"),{"ordinary":3,"dynasty":0})
+
+static func can_abandon(owner: RefCounted) -> bool:
+	return _storage_scope(owner) and owner.ordinary_state.get("status")=="active" \
+		and owner.session.round_index==2 and owner.session.physical.pending.is_empty() \
+		and not owner.session.build.pack_pending()
+
+# Called on a newly derived candidate after native current capture. No
+# season mutation here; only Common and the native close metadata change.
+static func capture_abandon(owner: RefCounted, active: Dictionary) -> Dictionary:
+	var api := _api()
+	if not can_abandon(owner) or not active.get("ordinary") is Dictionary \
+			or not api.Codec.same(active.get("common"),owner.common) \
+			or not api.Codec.same(active.get("ordinary_state"),owner.ordinary_state): return {}
+	if not api.Common._fold_close_state(owner,"abandon",active.ordinary) or not _storage_scope(owner): return {}
+	active["common"]=owner.common.duplicate(true)
+	active["ordinary_state"]=owner.ordinary_state.duplicate(true)
+	return active
 
 # One regular human selector, driven by the admitted current authored fixture
 # and its exact previous round. No intervening shop/playoffs/other lanes.
@@ -328,6 +365,8 @@ static func _restore_private(value: Variant) -> RefCounted:
 	var pending: Variant=value.ordinary.physical.get("pending")
 	var paid: bool=state.has(ROUND1)
 	var paid_home: bool=state.has(ROUND2)
+	var closed: bool=state.get("status")=="closed"
+	if closed and (not paid_home or not _closed_shape(state,value.get("common"))): return null
 	if not pending is Dictionary or (not pending.is_empty() and (picks.size()!=4 \
 			or (not _home_pending_shape(pending) if paid else not _human_pending_shape(pending,opening)))): return null
 	var history: Variant=state.get(ROUND1)
@@ -369,4 +408,6 @@ static func _restore_private(value: Variant) -> RefCounted:
 	elif not pending.is_empty():
 		owner.session.physical.pending=pending.duplicate(true)
 		if not _validate_human_pending(owner): return null
-	return owner if api.Codec.same(value,_capture_local(owner)) else null
+	var canonical:=_capture_local(owner)
+	if closed: canonical=capture_abandon(owner,canonical)
+	return owner if not canonical.is_empty() and api.Codec.same(value,canonical) else null

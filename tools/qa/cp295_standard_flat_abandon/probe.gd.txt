@@ -1,0 +1,141 @@
+extends Node
+
+const Launcher = preload("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Flat = Store.Flat
+const Work = Owner.Common.StandardWorkshop
+const PAID := "2b63d632ca9583022d3a47e132d0026595bb6efe80ce3e929f467e4af94353fe"
+const PRE := "86beed465b9c1037a6e07c9a1d80bd87fca321243ee2b99ca3a2b35e53eea43c"
+var failed := false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP295 ", "PASS" if ok else "FAIL"," ",name)
+	failed=failed or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func write_fixture(path: String, raw: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(raw)
+	f.flush()
+	var ok:=f.get_error()==OK
+	f.close()
+	return ok
+
+func backup() -> PackedByteArray: return FileAccess.get_file_as_bytes(Store.PATH+".bak")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=4: get_tree().quit(2); return
+	var raw:=Store.raw()
+	if not check(Store.private_standard_chain_opening() and Owner._hash(raw)==args[1]
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"isolated exact primary"): get_tree().quit(1); return
+	if args[0]=="hot" and not check(Owner._hash(raw)==PAID and Owner._hash(backup())==PRE,"exact CP294 paid and preceding complete backup"):
+		get_tree().quit(1); return
+	if args[0]=="cold" and not check(not FileAccess.file_exists(Store.PATH+".bak"),"primary-only cold process"):
+		get_tree().quit(1); return
+	var stamp:=Time.get_ticks_msec()
+	var owner:RefCounted=Store.read_private_standard_flat()
+	if not check(owner!=null,"fresh strict private native read"): get_tree().quit(1); return
+	print("CP295 read ",args[0]," ms ",Time.get_ticks_msec()-stamp)
+	if args[0]=="hot": await _hot(owner,raw,args[2])
+	elif args[0]=="cold": _cold(owner,raw,args[3])
+	else: failed=true
+	get_tree().quit(1 if failed else 0)
+
+func _hot(owner: RefCounted, raw: PackedByteArray, output: String) -> void:
+	var old_bak:=backup()
+	var value:Dictionary=Owner._bytes_value(raw)
+	var app=Launcher.instantiate()
+	add_child(app)
+	await get_tree().process_frame
+	app.career_owner=owner
+	app.season=owner.session
+	app.saved_bytes=raw
+	if not check(Flat.can_abandon(owner) and Store.private_standard_flat_close_available(app),"exact active two paid rounds qualify"): return
+	app.request_lifecycle("abandon")
+	app.close_current("complete")
+	if not check(not app._lifecycle_dialog.visible and Store.raw()==raw,"ordinary generic actions and fake Complete refused"): return
+	app._request_private_standard_flat_abandon()
+	if not check(app._lifecycle_dialog.visible and Store.raw()==raw,"actual private native abandon confirmation"): return
+	app._lifecycle_dialog.canceled.emit()
+	if not check(not app._lifecycle_dialog.visible and app.retained==null and Store.raw()==raw and backup()==old_bak,"actual Cancel leaves both save slots unchanged"): return
+	app._request_private_standard_flat_abandon()
+	var shifted:=raw.duplicate()
+	shifted.append(32)
+	app.saved_bytes=shifted
+	app._lifecycle_dialog.confirmed.emit()
+	if not check(app.retained==null and Store.raw()==raw and backup()==old_bak,"stale confirmation cannot close"): return
+	app.saved_bytes=raw
+	var wrong:RefCounted=Owner._restore_metadata(value)
+	wrong.session=owner.session.fork_live()
+	wrong.session.physical.pending={"human":owner.ordinary_state[Flat.ROUND2].human,"reports":[],"property":owner.ordinary_state[Flat.ROUND2].property}
+	var ordinary:RefCounted=Owner.create_ordinary(123,"standard")
+	check(not Flat.can_abandon(wrong) and ordinary!=null and not Flat.can_abandon(ordinary),"pending and nonflat profiles refused")
+	if not check(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"isolated held writer"): return
+	app._request_private_standard_flat_abandon()
+	var stamp:=Time.get_ticks_msec()
+	app._lifecycle_dialog.confirmed.emit()
+	if not check(app.retained!=null and app.career_owner==owner and Store.raw()==raw and backup()==old_bak
+			and owner.ordinary_state.status=="active" and owner.common.sequence==3,"confirmed exact close held without write or early fold"): return
+	print("CP295 close stage ms ",Time.get_ticks_msec()-stamp)
+	if not check(DirAccess.remove_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"release isolated obstruction"): return
+	app.retry_save()
+	var saved:=Store.raw()
+	var next:RefCounted=app.career_owner
+	if not check(next!=owner and next.ordinary_state.status=="closed" and app.retained==null and backup()==raw,
+			"actual Retry promotes one native abandoned close"): return
+	var out:Dictionary=Owner._bytes_value(saved)
+	check(_full_close(next,value,out),"complete native fold, current season unchanged and no completion reward")
+	app._request_private_standard_flat_abandon()
+	app.request_lifecycle("next")
+	app.propose_next()
+	app.commit_next()
+	check(not app._lifecycle_dialog.visible and not Flat.can_abandon(next)
+		and Store.prepare_private_standard_flat_abandon(app)==null and Store.raw()==saved and backup()==raw,
+		"duplicate close, Next and Prepare refused")
+	check(write_fixture(output.path_join("closed.json"),saved),"retain exact native closed primary")
+	print("CP295 closed ",saved.size()," ",Owner._hash(saved))
+	app.queue_free()
+	await get_tree().process_frame
+
+func _full_close(owner:RefCounted, before:Dictionary, out:Dictionary) -> bool:
+	var a:Dictionary=before.common.aggregate
+	var b:Dictionary=out.common.aggregate
+	var close:Dictionary=out.ordinary_state.last_close
+	var stable:Dictionary=out.ordinary_state.duplicate(true)
+	stable.status="active";stable.last_close={}
+	var tot:bool=b.games-a.games==2 and b.wins-a.wins==1 and b.runs_for-a.runs_for==12 and b.runs_against-a.runs_against==19
+	var ever:bool=b.abandoned-a.abandoned==1 and b.closed-a.closed==1 and b.completed==a.completed
+	var progress:Dictionary=Owner.Common.projection(owner)
+	return (Flat._storage_scope(owner) and Owner.Codec.same(stable,before.ordinary_state)
+		and Owner.Codec.same(out.ordinary,before.ordinary) and out.common.sequence==4
+		and Owner.Codec.same(out.common.cursors,{"ordinary":4,"dynasty":0}) and tot and ever
+		and close.reason=="abandon" and close.receipt=={} and out.common.last_fold.receipt=={}
+		and close.session_sha256==Owner.Common.Life.digest(out.ordinary) and out.common.last_fold.source==close.session_sha256
+		and b.currency==72 and Owner.Codec.same(b.titles,a.titles)
+		and owner.session.cash()==30 and owner.session.build._sides_start and progress.starts.sides
+		and Owner.Codec.same(progress.starts,b.starts) and Owner.Codec.same(progress.player_access,b.player_access)
+		and progress.common_pennants==b.pennants and out.ordinary_state.proposal=={})
+
+func _cold(owner: RefCounted, raw: PackedByteArray, before_path:String) -> void:
+	var value:Dictionary=Owner._bytes_value(raw)
+	var prior:Dictionary=Owner._bytes_value(FileAccess.get_file_as_bytes(before_path))
+	check(_full_close(owner,prior,value),"independent from native prior rounds and full new Common fold; rights and state exact")
+	check(Store.read()==null and not Store.save(owner,raw) and Store.private_standard_flat_opening_play(owner,raw)==null,
+		"generic continue/writer and new play stay inaccessible")
+	var changed:Dictionary=value.duplicate(true)
+	changed.ordinary_state.last_close.reason="complete"
+	check(Flat._restore_private(changed)==null,"invented completion refused before deep replay")
+	changed=value.duplicate(true)
+	changed.ordinary_state.last_close.receipt={"total":72}
+	check(Flat._restore_private(changed)==null,"invented payout refused before deep replay")
+	changed=value.duplicate(true)
+	changed.common.sequence=3
+	check(Flat._restore_private(changed)==null,"wrong close sequence refused before deep replay")
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"cold proof/refusals do not change any slot bytes")

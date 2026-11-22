@@ -1528,10 +1528,19 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 	if not private_standard_chain_opening() or saving or _ticket!=null or not _match_bound_owner(owner,expected):
 		return null
 	var candidate: RefCounted
+	var close_data: Dictionary={}
 	if op=="birth":
 		if not argument.is_empty() or not Flat._scope(owner): return null
 		var draft:=Flat._from_authenticated(owner,expected,Owner._hash(expected))
 		candidate=Flat._local_owner(owner,draft)
+	elif op=="abandon":
+		if not argument.is_empty() or not private_standard_flat_close_available(app) or app.career_owner!=owner: return null
+		candidate=Owner.new()
+		if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+		candidate.session=owner.session.fork_live()
+		if candidate.session==null: return null
+		close_data=Flat.capture_abandon(candidate,Flat._capture_local(candidate))
+		if close_data.is_empty(): return null
 	elif op in ["npc","settle"]:
 		if not argument.is_empty() or not Flat._storage_scope(owner) or owner.session.physical.pending.is_empty(): return null
 		var pending: Dictionary=owner.session.physical.pending
@@ -1589,7 +1598,7 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 			# Codec.capture below, exactly once. No trusted evidence flag.
 			if not _private_flat_play_matches(app,owner,expected): return null
 	else: return null
-	var data:=Flat._capture_local(candidate)
+	var data:=close_data if op=="abandon" else Flat._capture_local(candidate)
 	if data.is_empty() or not _match_bound_owner(owner,expected): return null
 	var snapshot:=RawGuard.capture(candidate)
 	if snapshot.is_empty(): return null
@@ -1762,6 +1771,16 @@ static func _fail_private_flat_npc(reason: String, runner: Node) -> void:
 static func prepare_private_standard_flat_settle(app: Variant) -> RefCounted:
 	if not _private_flat_app(app) or app._busy or is_instance_valid(app.ai_runner) or is_instance_valid(app.lab): return null
 	return _prepare_private_standard_flat(app.career_owner,app.saved_bytes,"settle","",app)
+
+static func private_standard_flat_close_available(app: Variant) -> bool:
+	if not private_standard_chain_opening() or not _private_flat_app(app) or saving or _ticket!=null \
+			or app._busy or app.retained!=null or is_instance_valid(app.ai_runner) or is_instance_valid(app.lab) \
+			or is_instance_valid(_flat_npc) or app.career_owner==null or app.season!=app.career_owner.session: return false
+	return _match_bound_owner(app.career_owner,app.saved_bytes) and Flat.can_abandon(app.career_owner)
+
+static func prepare_private_standard_flat_abandon(app: Variant) -> RefCounted:
+	if not private_standard_flat_close_available(app): return null
+	return _prepare_private_standard_flat(app.career_owner,app.saved_bytes,"abandon","",app)
 
 # Identity handoff only. Later retry/promotion still authenticate this exact
 # live candidate against the private snapshot; no returned value authorizes IO.

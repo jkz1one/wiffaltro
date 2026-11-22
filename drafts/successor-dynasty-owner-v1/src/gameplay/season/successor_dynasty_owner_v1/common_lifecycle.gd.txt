@@ -347,13 +347,21 @@ static func close(owner, reason: String) -> bool:
 	return not source.is_empty() and _apply_close(owner,reason,source)
 
 static func _apply_close(owner, reason: String, source: Dictionary) -> bool:
+	return _fold_close_state(owner,reason,source) and valid(owner)
+
+# Native fold/metadata calculation only; callers must impose their own
+# admission and canonical comparison. The ordinary public path still uses valid.
+static func _fold_close_state(owner, reason: String, source: Dictionary) -> bool:
 	var season: SeasonState=owner.session
 	var ordinal: int=owner.ordinal if owner.active=="dynasty" else int(owner.ordinary_state.ordinal)
 	var lineage: String=Life.lineage(owner) if owner.active=="dynasty" else owner.ordinary_state.lineage
 	var id: String="%s:%d:close"%[lineage,ordinal]
 	if owner.common.cursors[owner.active]!=ordinal-1: return false
 	var sequence: int=int(owner.common.sequence)+1
-	var folded: Dictionary=Progress.fold(owner.common.aggregate,owner.active,season,id,sequence,reason)
+	var flat: bool=owner.active=="ordinary" and reason=="abandon" and season.career!=null \
+		and Start.detached_standard_flat(season.career.start_basis)
+	var folded: Dictionary=Progress.fold_private_flat_abandon(owner) if flat \
+		else Progress.fold(owner.common.aggregate,owner.active,season,id,sequence,reason)
 	if folded.is_empty(): return false
 	if owner.active=="dynasty":
 		if not Life.close(owner,reason) or not WorkshopHistory.append_close(owner): return false
@@ -366,7 +374,7 @@ static func _apply_close(owner, reason: String, source: Dictionary) -> bool:
 	owner.common.aggregate=folded.aggregate
 	owner.common.cursors[owner.active]=ordinal;owner.common.sequence=sequence
 	owner.common.last_fold={"id":id,"side":owner.active,"ordinal":ordinal,"sequence":sequence,"source":Life.digest(source),"aggregate_sha256":Life.digest(folded.aggregate),"receipt":folded.receipt.duplicate(true)}
-	return valid(owner)
+	return true
 
 static func projection(owner, source: SeasonState=null) -> Dictionary:
 	var aggregate: Dictionary=owner.common.aggregate
