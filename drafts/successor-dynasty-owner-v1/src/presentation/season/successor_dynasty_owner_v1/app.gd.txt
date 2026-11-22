@@ -685,8 +685,11 @@ func _sign_paired_visit6_recruit() -> void:
 func _third_activation() -> bool:
 	return career_owner!=null and career_owner.ordinary_state.get("proposal",{}).get("kind")==Owner.Common.ARCHIVED_NEXT_KIND
 
+func _cross_activation_kind() -> String:
+	return D1Check.ARCHIVE_ACTIVATE_KIND if _third_activation() else D1Check.ACTIVATE_KIND
+
 func cross_review_visible() -> bool:
-	return Store.cross_league_preview() and D1Check.supported() and career_owner!=null \
+	return Store.cross_league_preview() and D1Check.supported(_cross_activation_kind()) and career_owner!=null \
 		and career_owner.session==season and not saved_bytes.is_empty() \
 		and career_owner.active=="ordinary" and career_owner.lifecycle_status()=="closed" \
 		and career_owner.ordinary_state.get("proposal",{}).get("kind")in [Owner.Common.CROSS_KIND,Owner.Common.ARCHIVED_NEXT_KIND]
@@ -700,7 +703,7 @@ func begin_cross_review() -> void:
 	add_child(check)
 	check.completed.connect(_complete_cross_review.bind(check,_d1_epoch),CONNECT_ONE_SHOT)
 	_cross_third_write=_third_activation()
-	var kind: String=D1Check.ARCHIVE_ACTIVATE_KIND if _cross_third_write else D1Check.ACTIVATE_KIND
+	var kind: String=_cross_activation_kind()
 	if not check.start(D1Check.T._source_digest(saved_bytes),0,kind):
 		_complete_cross_review("invalid",{},check,_d1_epoch)
 		return

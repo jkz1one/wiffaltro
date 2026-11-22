@@ -1,5 +1,5 @@
 extends Node
-## Same-binary, read-only strict cold validation of the exact current slot.
+## Same-binary strict validation. Activation may stage bytes, never write the slot.
 const Work=preload("standard_d1_witness_process.gd")
 const T=preload("standard_d1_transition.gd")
 
@@ -9,7 +9,7 @@ func _ready() -> void:
 func _run() -> void:
 	var request:=Work.parse_args(OS.get_cmdline_user_args())
 	if request.is_empty() or not Work.supported(request.kind) \
-		or (not OS.has_feature("editor") and not Work.take_packaged_read(request)):
+		or (not OS.has_feature("editor") and not Work.take_packaged_worker(request)):
 		get_tree().quit(2)
 		return
 	var bytes:=Work._bounded_slot(request.kind)

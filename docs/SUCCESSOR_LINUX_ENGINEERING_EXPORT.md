@@ -411,9 +411,8 @@ archived Dugout zero/one-pick Continue worker. It uses the official release
 executable and its adjacent PCK, with the compiled engineering export
 feature and the existing engineering, earned-leagues and cross-league flags
 plus `WIFFALTRO_PACKAGED_CROSS_DRAFT=1`. Without the new flag the package
-does not expose this private reader. This does not enable exported D1,
-cross-league activation, Doubleheader settlement or ordinary worker scene
-selection.
+does not expose this private reader. This reader flag alone does not enable exported D1, cross-league activation,
+Doubleheader settlement or ordinary worker scene selection.
 
 The parent starts only itself, headless, with the bounded canonical
 archived-draft packet and a fresh random nonce; no scene, project or pack
@@ -426,3 +425,25 @@ still validates the exact current source bytes, native draft reconstruction
 and standard Store authority. The old packaged Original worker remains
 separately routed and guarded. This is not protection from arbitrary local
 code or replacement of the audited executable/PCK.
+
+
+### Private ordinal-three Dugout activation export transport
+
+Only the Linux engineering release can additionally opt in to
+`WIFFALTRO_PACKAGED_ARCHIVED_DUGOUT_ACTIVATION=1`, on top of the existing
+engineering, earned-leagues and cross-league flags. With an exact closed
+ordinal-three proposal loaded by normal Continue, **Activate Next Dugout
+Season** uses the same fixed executable and worker scene as the editor
+implementation. The worker can stage a bounded candidate bound to the
+source revision and a fresh token; only the live parent may validate the
+completion and compare and replace the career slot. Normal Continue reopens
+the resulting draft. The ordinal-two activation kind, D1, settlement and
+public unlocks are unchanged. The separate CP223 draft reader flag still
+admits only its own read kind.
+
+The no-save build checks the whole checkout (including packaging tools,
+audit and ignored files) before and after packaging and records the exact
+commit, tree and sole parent. The verified vendor ZIP streams the fixed
+release ELF directly into the package; the reviewed preset exports only
+the adjacent PCK. The two-file inventory, exact ELF pin, raw PCK profile
+audit, isolated startup, and malformed worker refusals still apply.

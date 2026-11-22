@@ -17,6 +17,7 @@ const CONTINUE_KIND: String="common-standard-d1-continue-worker-v2"
 const PACK_FEATURE: String="wiffaltro_engineering_export"
 const PACK_BOOTSTRAP: String="res://engineering_bootstrap/entry.tscn"
 const PACK_WITNESS_FLAG: String="WIFFALTRO_PACKAGED_CROSS_DRAFT"
+const PACK_ARCHIVED_DUGOUT_FLAG: String="WIFFALTRO_PACKAGED_ARCHIVED_DUGOUT_ACTIVATION"
 const ARG: String="--d1-witness="
 const FRAME: String="WIFFALTRO_D1_WITNESS_V2 "
 const MAX_FRAME: int=16384
@@ -40,9 +41,10 @@ var _cross_dir: String=""
 static func supported(kind: String=KIND) -> bool:
 	if OS.get_name()!="Linux" or OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")!="1": return false
 	if OS.has_feature("editor"): return true
-	return kind==CROSS_READ_KIND and Store.cross_league_preview() and OS.has_feature(PACK_FEATURE) \
-		and OS.get_environment(PACK_WITNESS_FLAG)=="1" \
-		and ProjectSettings.get_setting("application/run/main_scene")==PACK_BOOTSTRAP
+	if not Store.cross_league_preview() or not OS.has_feature(PACK_FEATURE) \
+			or ProjectSettings.get_setting("application/run/main_scene")!=PACK_BOOTSTRAP: return false
+	return (kind==CROSS_READ_KIND and OS.get_environment(PACK_WITNESS_FLAG)=="1") \
+		or (kind==ARCHIVE_ACTIVATE_KIND and OS.get_environment(PACK_ARCHIVED_DUGOUT_FLAG)=="1")
 
 # Both fixed routers decode the same canonical bounded capsule. It chooses a
 # contract and exact revision, never a resource, executable, output or slot.
@@ -53,17 +55,17 @@ static func parse_args(args: PackedStringArray) -> Dictionary:
 	return request if request_valid(request) and JSON.stringify(request,"",true,true)==json else {}
 
 # A directly loaded scene cannot arm itself. Only the compiled packaging
-# bootstrap installs this read-only, one-shot in-process boot lease.
+# bootstrap installs this fixed, one-shot in-process boot lease.
 static var _packed_admission: Dictionary={}
 
-static func arm_packaged_read(request: Dictionary) -> bool:
+static func arm_packaged_worker(request: Dictionary) -> bool:
 	if not _packed_admission.is_empty() or not request_valid(request) \
-		or request.kind!=CROSS_READ_KIND or OS.has_feature("editor") \
-		or not supported(CROSS_READ_KIND) or DisplayServer.get_name()!="headless": return false
+		or OS.has_feature("editor") or not supported(request.kind) \
+		or DisplayServer.get_name()!="headless": return false
 	_packed_admission=request.duplicate(true)
 	return true
 
-static func take_packaged_read(request: Dictionary) -> bool:
+static func take_packaged_worker(request: Dictionary) -> bool:
 	var admitted: Dictionary=_packed_admission
 	_packed_admission={}
 	return not admitted.is_empty() and ClubCareer.same(admitted,request)

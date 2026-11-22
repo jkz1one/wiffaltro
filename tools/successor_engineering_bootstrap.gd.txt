@@ -2,7 +2,7 @@ extends Node
 ## Packaging-only scene selection. The original App/worker enforce authority.
 const PHYSICAL = preload("res://src/gameplay/simulation/physical_job_entry.gd")
 const Witness = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
-const CROSS_DRAFT_WORKER := "res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_worker.tscn"
+const ARCHIVED_DUGOUT_WORKER := "res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_worker.tscn"
 const INTEGRATED := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 const LEGACY := "res://src/presentation/season/season_app.tscn"
 
@@ -14,11 +14,11 @@ func _ready() -> void:
 	var args:=OS.get_cmdline_user_args()
 	if _witness_requested(args):
 		var request:=Witness.parse_args(args)
-		if not Witness.arm_packaged_read(request):
-			push_error("Private packaged archived draft worker request refused.")
+		if not Witness.arm_packaged_worker(request):
+			push_error("Private packaged archived Dugout worker request refused.")
 			get_tree().quit(3)
 			return
-		call_deferred("_transition",CROSS_DRAFT_WORKER)
+		call_deferred("_transition",ARCHIVED_DUGOUT_WORKER)
 		return
 	var mode: int = PHYSICAL.route(args)
 	if mode == PHYSICAL.NORMAL:
