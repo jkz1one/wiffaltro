@@ -1,0 +1,211 @@
+extends "res://qa.gd"
+## The existing native driver supplies only batting/pitching inputs.
+const Common = Store.Owner.Common
+const Progression = preload("res://src/gameplay/season/successor_league_general_v2/progression.gd")
+const SHOP_OPEN := "12656514faabb02c1796062fbaba0e0c72f05f19c08f67b9e7cbf1c510005714"
+const PICK := "1f1c6ef8c34cd3a73153ea4c4b1e7e7bd6c8a793121f872ac3b8216a6e6651d2"
+const BORN := "a482f2f7874df269b55529d73d3785cf77cd0e19f7fc098bbad4637a44b2dede"
+const STANDARD := "8894317a3e9b862b41714a6e69eca4948702f7c7da5c272b715501da03f45cdb"
+const DUGOUT := "3f34084c98b630b4f5fa9d5023fb325ef426c7d41defb3283aa07547a18bc36d"
+
+func _pin(app) -> bool:
+	if app.career_owner==null or not app._owned() or app.career_owner.current_ordinal()!=3 \
+		or not Common.starter_dugout_chain_scope(app.career_owner): return false
+	var a: Dictionary=app.career_owner.ordinary_state.archive
+	return a.entries[0].sha256==STANDARD and a.entries[1].sha256==DUGOUT \
+		and app.career_owner.common.aggregate.currency==111 and app.career_owner.common.aggregate.titles.is_empty()
+
+func _stage(app, previous: PackedByteArray, label: String) -> bool:
+	var raw:=Store.raw()
+	if not check(_pin(app) and raw!=previous and FileAccess.get_file_as_bytes(Store.PATH+".bak")==previous \
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"exact owned primary and backup "+label): return false
+	var line: String="%s %s %s %d\n"%[label,Store.Owner._hash(raw),Store.Owner._hash(previous),raw.size()]
+	var log:=FileAccess.open("user://cp304-phases.tsv",FileAccess.READ_WRITE) if FileAccess.file_exists("user://cp304-phases.tsv") \
+		else FileAccess.open("user://cp304-phases.tsv",FileAccess.WRITE)
+	if log==null: return false
+	log.seek_end()
+	log.store_string(line)
+	log.flush()
+	log.close()
+	print("CP304 STEP ",line.strip_edges())
+	return true
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if not check(args.size()==2 and args[0]=="cp304" and args[1] in ["hot","cold","pack","paid-cold"] \
+		and Store.LeagueAdmission.starter_player() and not Store.cross_league_preview() \
+		and not FileAccess.file_exists(ORIGINAL) and not OS.has_feature("editor"),"actual no-env Starter isolated only"): return
+	var old:=Store.raw()
+	var backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var tick:=Time.get_ticks_msec()
+	app.reload_save()
+	if not check(_pin(app) and Store.raw()==old and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,
+		"independent native App Continue holds exact old archive and 111"):
+		return
+	print("CP304 native read ms=",Time.get_ticks_msec()-tick)
+	if args[1]=="pack":
+		if not check(Store.Owner._hash(old)==SHOP_OPEN and _settled(app) and app.season.build._visit.open,
+				"only exact natural CP304 shop-open state for paid continuation"): return
+		if not await _pay_pack(app): return
+		await _finish(app); return
+	if args[1] in ["cold","paid-cold"]:
+		if args[1]=="paid-cold" and not check(app.season.build._visit.pack_status=="used" and app.season.cash()==4,
+				"reopened completed real development pack and exact post-choice Cash"): return
+		var h:=Store.standard_history(app.career_owner,old)
+		if not check(backup.is_empty() and _settled(app) and _holds_published_checkout(app) \
+			and h.size()==2 and h[0].results.size()==33 and h[1].results.size()==33 \
+			and app.league_entry_state("equipment")=="locked" and Store.raw()==old \
+			and not FileAccess.file_exists(Store.PATH+".bak"),"primary-only cold verifies earned shop, 3 current and 66 prior scores, no title or writes"): return
+		await _finish(app); return
+	if not check(Store.Owner._hash(old)==PICK and Store.Owner._hash(backup)==BORN and app.season.picks.size()==1,
+		"only exact CP303 native picked input and birth backup"): return
+	for i in range(2,5):
+		var before:=Store.raw()
+		var choice: String=app.season.offers()[0]
+		app.draft(choice)
+		if not check(app.season.picks.size()==i,"real native pick "+str(i)) or not _stage(app,before,"pick-%d"%i): return
+	if not check(app.season.phase==SeasonState.Phase.REGULAR and app.season.pending_fixture().id==0 			and app.season.cash()==0 and not app.season.shop_available(),"actual authored opener; no pre-earned Cash or shop"): return
+	for i in range(4):
+		var before:=Store.raw()
+		var action: String=await _play(app) if i==0 else await _resume(app)
+		if action.is_empty() or not _stage(app,before,action): return
+	if not check(_settled(app),"actual once-only paid opener: 3 results and two native reports"): return
+	if not check(DirAccess.copy_absolute(Store.PATH,"user://settled-exact.json")==OK \
+			and DirAccess.copy_absolute(Store.PATH+".bak","user://settled-exact.json.bak")==OK,"preserve only real settled and complete-unpaid phase"): return
+	var baseline:=Store.raw()
+	app.play_next()
+	if not check(app.starter_dugout_later_game_blocked() and not is_instance_valid(app.lab) \
+			and Store.raw()==baseline and Store.prepare_session_and_write(app.career_owner,baseline,"next")==null \
+			and Store.prepare_session_and_write(app.career_owner,baseline,"close",0,"","abandon")==null,
+		"next ordinary game, abandon and rollover stay outside this staged scope"): return
+	if not await _shop_once(app): return
+	await _finish(app)
+
+func _before_automated_play(lab: PitchBatLab, _fixture: Dictionary) -> void:
+	var s:=lab._match_state
+	var cap:=LeagueRules.capacities(LeagueRules.capture("dugout",0))
+	check(cap=={"held":3,"sponsors":5} and s.league_rules.get("league")=="dugout" \
+		and PhysicalLeagueReport.wallet(s.league_rules,s.away_team.league_ownership).get("capacity")==cap \
+		and PhysicalLeagueReport.wallet(s.league_rules,s.home_team.league_ownership).get("capacity")==cap,
+		"native both-sided Dugout match capacities")
+
+func _settled(app) -> bool:
+	var season: SeasonState=app.season
+	return season.round_index==1 and season.results.size()==3 and season.player_results.size()==1 \
+		and season.physical.reports.size()==2 and season.physical.cursor==2 and season.physical.pending.is_empty() \
+		and Common._starter_dugout_rewards_match(season)
+
+func _shop_once(app) -> bool:
+	var before:=Store.raw()
+	var cash:int=app.season.cash()
+	if not check(cash>0 and _settled(app),"real earned seasonal wallet funds initial shop"): return false
+	app.open_shop()
+	await get_tree().process_frame
+	var window: SeasonShopWindow
+	for child in app.menu.get_children():
+		if child is SeasonShopWindow and not child.is_queued_for_deletion(): window=child; break
+	if not check(window!=null and app.season.build._visit.open and app.season.cash()==cash,"actual legal shop opens without charge") \
+			or not _stage(app,before,"shop-open"): return false
+	var buy: Button
+	for node: Node in window.find_children("*","Button",true,false):
+		if not node is Button or node.disabled or node.is_queued_for_deletion() or not node.has_meta("shop_command") \
+				or not node.has_meta("shop_quote"): continue
+		var cmd: Dictionary=node.get_meta("shop_command")
+		var quote: Dictionary=node.get_meta("shop_quote")
+		var quoted_cash: int=int(quote.get("after",{}).get("wallet",{}).get("cash",cash))
+		if cmd.get("op") in ["buy","tactical_buy","sponsor","pitch_buy","lesson"] \
+				and quoted_cash>=0 and quoted_cash<cash:
+			buy=node
+			break
+	if buy==null:
+		print("CP304 SHOP no offered supported affordable direct purchase; real stock only")
+		return _holds_published_checkout(app)
+	var command: Dictionary=buy.get_meta("shop_command").duplicate(true)
+	var price: int=cash-int(buy.get_meta("shop_quote").after.wallet.cash)
+	var original:=Store.raw()
+	var original_backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	buy.pressed.emit()
+	if not check(window._confirm.visible and not window._pending.is_empty(),"actual native purchase confirmation"): return false
+	window._confirm.canceled.emit()
+	window._confirm.hide()
+	if not check(Store.raw()==original and FileAccess.get_file_as_bytes(Store.PATH+".bak")==original_backup,
+			"cancel touches neither slot"): return false
+	buy.pressed.emit()
+	window._confirm.confirmed.emit()
+	window._confirm.hide()
+	if not check(app.season.cash()==cash-price and _settled(app) and app.retained==null \
+			and app.season.build._requests.has(command.id),"one naturally offered purchase debits exact quote"): return false
+	if not _stage(app,original,"paid-shop"): return false
+	var after:=Store.raw()
+	if not check(not app.commit_shop(command) and Store.raw()==after,"same purchase replay refused"): return false
+	print("CP304 SHOP actual op=",command.op," paid=",price," remaining=",app.season.cash())
+	return _holds_published_checkout(app)
+
+func _holds_published_checkout(app) -> bool:
+	return app.season.build._visit.open and _settled(app) and app.season.cash()>=0
+
+func _pay_pack(app) -> bool:
+	var initial:=Store.raw()
+	var cash: int=app.season.cash()
+	var price: int=app.season.build.pack_price()
+	if not check(price==8 and cash==12 and cash>=price and app.season.build._visit.pack_status=="sealed",
+			"real earned Cash12 funds the actual native Cash8 quote"): return false
+	app.open_shop()
+	await get_tree().process_frame
+	var window: SeasonShopWindow
+	for child in app.menu.get_children():
+		if child is SeasonShopWindow and not child.is_queued_for_deletion(): window=child; break
+	if not check(window!=null and Store.raw()==initial,"same native visit reopens without charge"): return false
+	var purchase:=_stock_button(window,"Open fixed development pack","")
+	if not check(purchase!=null and purchase.get_meta("shop_command").op=="pack_open",
+			"real stock development-pack action"): return false
+	var before_backup:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	purchase.pressed.emit()
+	if not check(window._confirm.visible and window._pending.get("op")=="pack_open","native pack confirmation"): return false
+	window._confirm.get_cancel_button().pressed.emit()
+	if not check(window._pending.is_empty() and Store.raw()==initial and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before_backup,
+			"native cancel leaves exact pair"): return false
+	purchase.pressed.emit()
+	var buy: Dictionary=window._pending.duplicate(true)
+	window._confirm.get_ok_button().pressed.emit()
+	if not check(app.season.build.pack_pending() and app.season.cash()==cash-price and app.retained==null
+			and _settled(app),"actual paid reveal costs exactly once"): return false
+	if not _stage(app,initial,"pack-paid"): return false
+	var paid:=Store.raw()
+	if not check(not app.commit_shop(buy) and Store.raw()==paid,"repeat pack request inert"): return false
+	var chosen: String=""
+	for item: String in app.season.build._pack_choices():
+		if not app.season.build.targets(item).is_empty():
+			chosen=item
+			break
+	if not check(not chosen.is_empty(),"real usable card from authored paid reveal"): return false
+	var choice:=_stock_button(window,str(Progression.display_item(chosen).name),"")
+	if not check(choice!=null,"visible authored card"): return false
+	choice.pressed.emit()
+	var target:=_stock_button(window,"","target")
+	if not check(target!=null,"visible authored eligible recipient"): return false
+	target.pressed.emit()
+	var command: Dictionary=window._pending.duplicate(true)
+	if not check(window._confirm.visible and command.get("op")=="pack_pick" and command.get("item")==chosen,
+			"native recipient confirmation"): return false
+	var old_player: Dictionary=app.season.build.player(str(command.player)).duplicate(true)
+	window._confirm.get_ok_button().pressed.emit()
+	if not check(_settled(app) and app.retained==null and app.season.cash()==cash-price
+			and app.season.build._visit.pack_status=="used" and not app.season.build.pack_pending()
+			and not ClubCareer.same(old_player,app.season.build.player(str(command.player))),
+			"actual native card applied with no recharge and all six rewards intact"): return false
+	if not _stage(app,paid,"pack-choice"): return false
+	var after:=Store.raw()
+	if not check(not app.commit_shop(command) and Store.raw()==after,"repeat paid choice inert"): return false
+	print("CP304 PACK actual paid=",price," remaining=",app.season.cash()," card=",chosen," player=",command.player)
+	return true
+
+func _stock_button(window: SeasonShopWindow, text: String, meta: String) -> Button:
+	for node: Node in window.find_children("*","Button",true,false):
+		if node is Button and not node.is_queued_for_deletion() and node.is_visible_in_tree() and not node.disabled \
+				and (node.has_meta(meta) if not meta.is_empty() else node.text.begins_with(text)):
+			return node
+	return null

@@ -1385,8 +1385,12 @@ func _play_private_standard_flat_opening() -> void:
 	if _available() and not is_instance_valid(lab):
 		Store.open_private_standard_flat_human(self)
 
+func starter_dugout_later_game_blocked() -> bool:
+	return career_owner!=null and season!=null and season==career_owner.session \
+		and Owner.Common.starter_dugout_chain_custody(career_owner) and season.round_index>=1
+
 func play_next() -> void:
-	if career_owner!=null and not career_owner.playable(): return
+	if (career_owner!=null and not career_owner.playable()) or starter_dugout_later_game_blocked(): return
 	var workshop=Owner.Common.StandardWorkshop
 	if workshop.opening_unlocked(career_owner):
 		if standard_opening_enabled() and _available() and _owned() and workshop.player_opening_window(career_owner):
