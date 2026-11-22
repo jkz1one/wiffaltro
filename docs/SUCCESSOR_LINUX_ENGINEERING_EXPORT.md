@@ -437,9 +437,8 @@ Season** uses the same fixed executable and worker scene as the editor
 implementation. The worker can stage a bounded candidate bound to the
 source revision and a fresh token; only the live parent may validate the
 completion and compare and replace the career slot. Normal Continue reopens
-the resulting draft. The ordinal-two activation kind, D1, settlement and
-public unlocks are unchanged. The separate CP223 draft reader flag still
-admits only its own read kind.
+the resulting draft. D1, settlement and public unlocks are unchanged.
+The separate CP223 draft reader flag still admits only its own read kind.
 
 The no-save build checks the whole checkout (including packaging tools,
 audit and ignored files) before and after packaging and records the exact
@@ -447,3 +446,21 @@ commit, tree and sole parent. The verified vendor ZIP streams the fixed
 release ELF directly into the package; the reviewed preset exports only
 the adjacent PCK. The two-file inventory, exact ELF pin, raw PCK profile
 audit, isolated startup, and malformed worker refusals still apply.
+
+
+### Private first Standard-to-Dugout activation export transport
+
+The same fixed Linux engineering worker can separately opt in to
+`WIFFALTRO_PACKAGED_FIRST_DUGOUT_ACTIVATION=1`, in addition to the existing
+engineering, earned-leagues and cross-league flags. That flag admits only
+the first Standard-to-Dugout archived activation kind. Use normal Continue
+on the exact closed Standard proposal, then **Activate Dugout Base**.
+The worker stages the exact draft outside the career slot; only the parent
+can promote it after slot and proof comparison. Continue can reopen the
+result without any packaged worker flag. If independently enabled, the
+existing dedicated draft reader remains an optional background route.
+
+The ordinal-three activation flag, first activation flag and dedicated
+reader flag are independent. None widens admission for the other two,
+for D1, or for Doubleheader settlement. The closed-season menu describes
+the available next activation only when the exact worker kind is supported.

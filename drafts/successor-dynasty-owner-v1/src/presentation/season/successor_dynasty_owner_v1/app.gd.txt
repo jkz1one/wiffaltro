@@ -750,7 +750,8 @@ func _finish_cross_activation(outcome: String) -> void:
 	_cross_retry=outcome=="obstructed"
 	if outcome in ["saved","renamed_unverified"]:
 		career_owner=null; season=null; saved_bytes=PackedByteArray()
-		notice=("Dugout Base activated. Use Continue to draft your club." if _cross_third_write else "Dugout Base activated. Use Private Continue Archived Dugout Draft to draft your club.") if outcome=="saved" else (
+		var use_private_reader: bool=not _cross_third_write and D1Check.supported(D1Check.CROSS_READ_KIND)
+		notice=("Dugout Base activated. Use Private Continue Archived Dugout Draft to draft your club." if use_private_reader else "Dugout Base activated. Use Continue to draft your club.") if outcome=="saved" else (
 			"The save was replaced, but its contents could not be verified. Use Continue to check the saved career before playing.")
 	elif _cross_retry:
 		notice="The exact Dugout draft could not be saved. Resolve the save obstruction, then retry."

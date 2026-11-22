@@ -333,6 +333,9 @@ func _career_records() -> void:
 func _closed() -> void:
 	var owner=app.career_owner
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
+	if app.cross_review_visible():
+		_note("Your saved season and earned progress stay intact. Activate Dugout Base below when you are ready to draft your new club.")
+		return
 	_note("Earned progress is banked. The previous season archive is preserved. No completion payout or next season." if owner.ordinary_state.has("archive") else
 		"Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")
 	var proposal: Dictionary=owner.proposal if owner.active=="dynasty" else owner.ordinary_state.proposal
