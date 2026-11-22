@@ -638,3 +638,21 @@ neither file. The receipt and ability were present in the exact save;
 the ordinary roster overview did not display that ability. This proves
 purchase and persistence, not the on-field effect, later carry, another
 purchase, or a new round.
+
+### Consecutive fast Starter Standard round
+
+On the exact CP255 player package, ordinary Resume from the retained first
+accelerated NPC checkpoint saved the second native report by 44.4 seconds
+(observed bound). The full human and first accelerated report were
+unchanged. Native settlement then advanced to Round 2 by 13.7 seconds,
+with scores 0–4, 3–4 and 11–7, one reward for each club, 12 seasonal
+Cash for Yard Club, and unchanged Common progress. Compared with the
+original rendered round, both recorded physics elapsed-time diagnostics
+differed; all other decoded data matched exactly.
+
+Fresh primary-only Continue showed the same standings and did not create
+or change a file. Separately, actual **Cancel NPC Check** left the precise
+human-only primary and pregame backup untouched and showed **Simulate at
+Normal Speed**. The fallback was not run. No additional human play,
+purchase or result was injected. This qualifies the first Starter
+Standard Base round only, not later rounds, other leagues or Mac.
