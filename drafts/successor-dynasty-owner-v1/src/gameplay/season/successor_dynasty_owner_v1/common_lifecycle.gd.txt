@@ -7,6 +7,7 @@ const Life = preload("lifecycle.gd")
 const WorkshopHistory = preload("workshop_close_history.gd")
 const Progress = preload("common_progress.gd")
 const Start=preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
+const StandardArchive = preload("starter_standard_archive.gd")
 const ARCHIVE_KIND: String="common-ordinary-predecessor-v1"
 const ARCHIVE_CHAIN: String="common-ordinary-two-predecessors-v1"
 const CHAIN_FRAGMENT: String="common-ordinary-second-fragments-v1"
@@ -109,6 +110,7 @@ static func _proposal_kind_for(league: Variant) -> String:
 	return SPONSOR_PROPOSAL if league=="sponsorship" else (CROSS_KIND if league=="dugout" else "")
 
 static func _archive_transition(league: Variant) -> String:
+	if league=="standard": return StandardArchive.TRANSITION
 	return SPONSOR_TRANSITION if league=="sponsorship" else (ARCHIVE_TRANSITION if league=="dugout" else "")
 
 static func _archive_shape(owner) -> bool:
@@ -116,6 +118,7 @@ static func _archive_shape(owner) -> bool:
 	if not state.has("archive"): return true
 	var a: Variant=state.archive
 	var t: Dictionary=state.last_transition
+	if a is Dictionary and a.get("kind")==StandardArchive.KIND: return StandardArchive.shape(owner)
 	if a is Dictionary and a.get("kind")==ARCHIVE_CHAIN:
 		return owner.active=="ordinary" and owner.paused.is_empty() and owner._missing_dynasty(owner) \
 			and state.ordinal==3 and state.proposal.is_empty() \
@@ -237,6 +240,7 @@ static func _activate_cross(owner, raw: PackedByteArray, target: String="dugout"
 # Exact schedule, report and reward validation remain with the stock Ordinary
 # runtime and codec. This owner only limits the archive family to its own league.
 static func archive_play_scope(season: SeasonState) -> bool:
+	if StandardArchive.marked(season): return true
 	return season!=null and season.league_rules.get("league") in ["dugout","sponsorship"] \
 		and season.league_rules.get("tier")==0 and not season.career.start_basis.is_empty()
 
@@ -268,9 +272,11 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 		if state.status=="closed": return _paired_closed_valid(owner,season,current,birth)
 		if state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,birth): return false
 	if state.has("archive") and (not archive_play_scope(season) \
-		or (state.status=="closed" and not archived_abandon_scope(owner,season))): return false
+		or (state.status=="closed" and not StandardArchive.marked(season) \
+			and not archived_abandon_scope(owner,season))): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
+	if StandardArchive.marked(season)!=(state.get("archive",{}).get("kind")==StandardArchive.KIND): return false
 	if basis.get("kind")==Start.KIND and (basis.lineage!=state.lineage or basis.ordinal!=state.ordinal): return false
 	if state.ordinal>1 and not C.same(season.career.start_basis,state.last_transition.basis): return false
 	if state.status=="active": return state.last_close.is_empty()
@@ -322,8 +328,8 @@ static func _close_paired_complete(owner, current: Dictionary) -> bool:
 	return ordinary_current_valid(owner,owner.session,current) and _apply_close(owner,"complete",current)
 
 static func close(owner, reason: String) -> bool:
-	if owner.ordinary_state.has("archive") and (reason!="abandon" or owner.active!="ordinary" \
-		or not archived_abandon_scope(owner,owner.session)): return false
+	if owner.ordinary_state.has("archive") and not StandardArchive.marked(owner.session) \
+		and (reason!="abandon" or owner.active!="ordinary" or not archived_abandon_scope(owner,owner.session)): return false
 	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
 	var season: SeasonState=owner.session
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false
@@ -542,7 +548,8 @@ static func _ordinary_proposal_valid(owner) -> bool:
 	return true
 
 static func next_block_reason(owner) -> String:
-	if owner.ordinary_state.has("archive"): return "Further seasons from this archived rollover are not available."
+	if owner.ordinary_state.has("archive"):
+		return "Season 3 is not available for this archived career yet." if StandardArchive.marked(owner.session) else "Further seasons from this archived rollover are not available."
 	if owner.active=="dynasty":
 		return "" if dynasty_next_supported(owner) else "Shared earned rights are retained. Applying differing common rights to Dynasty Next is not yet available; Return keeps both saved seasons intact."
 	if cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")):

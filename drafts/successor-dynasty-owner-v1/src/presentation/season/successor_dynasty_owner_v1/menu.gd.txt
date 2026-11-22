@@ -105,6 +105,7 @@ func render() -> void:
 			_player_summary(player)
 		return
 	var archived: bool=app.career_owner.ordinary_state.has("archive")
+	var standard_repeat: bool=app.standard_repeat_archive()
 	if app.career_owner.paired_draft_only():
 		if app.private_paired_opening_visible():
 			_label(_body,"PRIVATE DOUBLEHEADER BASE · OPENING LEG",22)
@@ -204,11 +205,11 @@ func render() -> void:
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
 		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
-	elif not archived:
+	elif not archived or standard_repeat:
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty() and not app.academy_pack_choice_pending():
 		_bound_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
-	if app.archived_abandon_visible() or (not archived and app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty()):
+	if app.archived_abandon_visible() or ((not archived or standard_repeat) and app.season.phase!=SeasonState.Phase.COMPLETE and app.season.physical.pending.is_empty()):
 		_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
 
 	if not archived: _session_controls()
@@ -351,6 +352,9 @@ func _closed() -> void:
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
 	if app.cross_review_visible():
 		_note("Your saved season and earned progress stay intact. Activate Dugout Base below when you are ready to draft your new club.")
+		return
+	if app.standard_repeat_archive():
+		_note("Earned progress is banked. The previous season is retained. Starting a third season with this archive is not available yet.")
 		return
 	_note("Earned progress is banked. The previous season archive is preserved. No completion payout or next season." if owner.ordinary_state.has("archive") else
 		"Earned progress is banked. Return to the other saved session without starting Next. Abandonment earns no completion payout.")

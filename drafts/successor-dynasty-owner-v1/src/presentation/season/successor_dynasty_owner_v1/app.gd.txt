@@ -1617,6 +1617,9 @@ func import_previous_dynasty() -> void:
 		notice="Previous Dynasty save could not be copied consistently. Originals are unchanged.";show_season();return
 	_retain_envelope(candidate,PackedByteArray())
 
+func standard_repeat_archive() -> bool:
+	return career_owner!=null and Owner.Common.StandardArchive.marked(season)
+
 func archived_abandon_visible() -> bool:
 	return career_owner!=null and season!=null and career_owner.session==season \
 		and career_owner.ordinary_state.has("archive") and Store.cross_league_preview() \
@@ -1624,8 +1627,10 @@ func archived_abandon_visible() -> bool:
 		and Owner.Common.archived_abandon_scope(career_owner,season)
 
 func _lifecycle_ready(action: String) -> bool:
-	if career_owner!=null and career_owner.ordinary_state.has("archive") \
-			and (action!="abandon" or not archived_abandon_visible()): return false
+	if career_owner!=null and career_owner.ordinary_state.has("archive"):
+		if standard_repeat_archive():
+			if action not in ["abandon","complete"]: return false
+		elif action!="abandon" or not archived_abandon_visible(): return false
 	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or is_instance_valid(ai_runner): return false
 	if not _exit_mode.is_empty() or not retained_human.is_empty() or not retained_report.is_empty(): return false

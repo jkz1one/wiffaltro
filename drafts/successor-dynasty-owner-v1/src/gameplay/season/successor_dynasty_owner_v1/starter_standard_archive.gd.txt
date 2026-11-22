@@ -1,0 +1,162 @@
+extends RefCounted
+## One exact previous Standard Base season; never a source for other leagues.
+const KIND: String = "common-standard-base-predecessor-v1"
+const TRANSITION: String = "common-standard-base-second-transition-v1"
+const ORIGIN: String = "standard-base-repeat-archive-v1"
+const MAX_SOURCE: int = 16 * 1024 * 1024
+const MAX_ENCODED: int = 8 * 1024 * 1024
+
+static func _owner() -> Script:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+
+static func _hash(bytes: PackedByteArray) -> String:
+	return _owner()._hash(bytes)
+
+static func marked(season: SeasonState) -> bool:
+	return season != null and season.career != null and season.league_rules.is_empty() \
+		and not season.league_live and season.career.start_basis.get("version") == 2 \
+		and season.career.start_basis.get("ordinal") == 2 \
+		and season.career.start_basis.get("archive_origin", {}).get("kind") == ORIGIN
+
+static func shape(owner: RefCounted) -> bool:
+	var state: Dictionary = owner.ordinary_state
+	var row: Variant = state.get("archive")
+	var t: Dictionary = state.last_transition
+	if not _owner().Codec.keys(row, ["kind","version","source_bytes","source_sha256","deflate_base64"]):
+		return false
+	return owner.active == "ordinary" and owner.paused.is_empty() and owner._missing_dynasty(owner) \
+		and owner.migration_v3.is_empty() and state.ordinal == 2 \
+		and (state.status == "active" or (state.status == "closed" \
+			and state.last_close.get("reason") in ["complete","abandon"])) \
+		and state.proposal.is_empty() and t.get("kind") == TRANSITION and t.get("league") == "standard" \
+		and t.get("basis", {}).get("archive_origin", {}).get("kind") == ORIGIN \
+		and row.kind == KIND and _owner().Codec.whole(row.version,1,1) \
+		and _owner().Codec.whole(row.source_bytes,1,MAX_SOURCE) \
+		and owner._digest(row.source_sha256) and t.basis.archive_origin.sha256 == row.source_sha256 \
+		and row.deflate_base64 is String and not row.deflate_base64.is_empty() \
+		and row.deflate_base64.length() <= MAX_ENCODED
+
+static func _pack(raw: PackedByteArray) -> Dictionary:
+	if raw.is_empty() or raw.size() > MAX_SOURCE: return {}
+	var encoded := Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))
+	if encoded.is_empty() or encoded.length() > MAX_ENCODED: return {}
+	return {"kind":KIND,"version":1,"source_bytes":raw.size(),
+		"source_sha256":_hash(raw),"deflate_base64":encoded}
+
+static func _unpack(row: Dictionary) -> PackedByteArray:
+	var compressed := Marshalls.base64_to_raw(row.deflate_base64)
+	if compressed.is_empty() or Marshalls.raw_to_base64(compressed) != row.deflate_base64:
+		return PackedByteArray()
+	var raw := compressed.decompress(int(row.source_bytes), FileAccess.COMPRESSION_DEFLATE)
+	return raw if raw.size() == int(row.source_bytes) and _hash(raw) == row.source_sha256 else PackedByteArray()
+
+# This dispatch predicate deliberately does not return legacy success when
+# the exact first Starter Standard transition is in scope but proof fails.
+static func first_next(owner: RefCounted) -> bool:
+	return owner != null and owner.active == "ordinary" and owner.ordinary_state.get("ordinal") == 1 \
+		and owner.session != null and owner.session.league_rules.is_empty() \
+		and owner.ordinary_state.get("last_close", {}).get("reason") == "complete"
+
+static func _derived(owner: RefCounted, current: Dictionary) -> Dictionary:
+	var api := _owner()
+	var common = api.Common
+	if not first_next(owner) or not owner._missing_dynasty(owner) or not owner.paused.is_empty() \
+		or not owner.migration_v3.is_empty() or not owner.workshop_draft.is_empty() \
+		or not owner.workshop_close_history.is_empty() or not owner.workshop_chair_purchase.is_empty() \
+		or not owner.workshop_applied.is_empty() or owner.ordinary_state.has("archive"):
+		return {}
+	var state: Dictionary = owner.ordinary_state
+	var season: SeasonState = owner.session
+	var close: Dictionary = state.get("last_close", {})
+	var p: Dictionary = state.get("proposal", {})
+	var basis: Variant = p.get("basis")
+	if state.get("status") != "closed" or close.get("reason") != "complete" \
+		or close.get("league") != "standard" or close.get("tier") != 0 \
+		or season.phase != SeasonState.Phase.COMPLETE or season.results.size() != 33 \
+		or season.league_live or not common.valid(owner) or not common.ordinary_current_valid(owner,season,current) \
+		or not basis is Dictionary or basis.get("version") != 1 or not api.Codec.whole(basis.get("seed"),0,2147483647):
+		return {}
+	var genesis: RefCounted = api.create_ordinary(season.season_seed,"standard")
+	if genesis == null or genesis.ordinary_state.lineage != state.lineage \
+		or not api.Codec.same(genesis.session.career.start_basis,season.career.start_basis):
+		return {}
+	genesis.session = season
+	if not common._apply_close(genesis,"complete",current) \
+		or not api.Codec.same(genesis.common,owner.common) \
+		or not api.Codec.same(genesis.ordinary_state.last_close,close):
+		return {}
+	var regenerated: Dictionary = common.Start.make(int(basis.seed), state.lineage, 2, 1,
+		common.Life.digest(genesis.common.aggregate), common.projection(genesis))
+	var expected: Dictionary = {"id":"%s:1:next" % state.lineage,"source":close.session_sha256,
+		"league":"standard","tier":0,"basis":regenerated}
+	return regenerated if not regenerated.is_empty() and api.Codec.same(expected,p) else {}
+
+# Called only by the exact matched Store producer. The raw request is the live
+# primary, not a caller archive or the rotating backup. No historical alias.
+static func candidate(owner: RefCounted, raw: PackedByteArray) -> RefCounted:
+	if raw.is_empty() or raw.size() > MAX_SOURCE: return null
+	var api := _owner()
+	var value: Variant = api._bytes_value(raw)
+	if not value is Dictionary or not value.get("ordinary") is Dictionary: return null
+	var prior: Dictionary = _derived(owner,value.ordinary)
+	if prior.is_empty(): return null
+	var row: Dictionary = _pack(raw)
+	if row.is_empty(): return null
+	var basis: Dictionary = api.Common.Start.bind_archive(prior,row.source_sha256,"standard")
+	var next: SeasonState = api.Adapter.OrdinaryRuntime.create_common(basis,"standard")
+	if next == null or not marked(next) or next.phase != SeasonState.Phase.DRAFT or not next.picks.is_empty():
+		return null
+	var result: RefCounted = api._new()
+	if not api.Codec.install_fields(result,api.DATA_FIELDS,api.Codec.data_fields(owner,api.DATA_FIELDS)):
+		return null
+	result.session = next
+	var state: Dictionary = result.ordinary_state
+	var p: Dictionary = state.proposal
+	state.last_transition = {"kind":TRANSITION,"id":p.id,"source":p.source,"from":1,"to":2,
+		"league":"standard","basis":basis}
+	state.ordinal = 2
+	state.status = "active"
+	state.last_close = {}
+	state.proposal = {}
+	state.start_basis_sha256 = api.Common.Life.digest(basis)
+	state.archive = row
+	return result if api.Common.valid(result) else null
+
+static func validate(owner: RefCounted, restored_current: Dictionary) -> bool:
+	if not shape(owner) or not marked(owner.session): return false
+	var api := _owner()
+	var row: Dictionary = owner.ordinary_state.archive
+	var raw := _unpack(row)
+	if raw.is_empty(): return false
+	var value: Variant = api._bytes_value(raw)
+	if not value is Dictionary or not value.get("ordinary_state") is Dictionary \
+		or value.ordinary_state.has("archive") or not value.get("ordinary") is Dictionary:
+		return false
+	var predecessor: RefCounted = api.restore(value)
+	if predecessor == null: return false
+	var prior: Dictionary = _derived(predecessor,value.ordinary)
+	if prior.is_empty(): return false
+	var t: Dictionary = owner.ordinary_state.last_transition
+	var basis: Dictionary = api.Common.Start.bind_archive(prior,row.source_sha256,"standard")
+	var p: Dictionary = predecessor.ordinary_state.proposal
+	if t.id != p.id or t.source != p.source or not api.Codec.same(t.basis,basis): return false
+	var current: Dictionary = api.Codec.data_fields(owner,api.META_FIELDS)
+	var previous: Dictionary = api.Codec.data_fields(predecessor,api.META_FIELDS)
+	for field: String in ["common","ordinary_state"]:
+		current.erase(field)
+		previous.erase(field)
+	if not api.Codec.same(current,previous): return false
+	if owner.ordinary_state.status == "active":
+		return api.Codec.same(owner.common,predecessor.common)
+	var folded: RefCounted = api._new()
+	if not api.Codec.install_fields(folded,api.META_FIELDS,api.Codec.data_fields(owner,api.META_FIELDS)):
+		return false
+	folded.active = "ordinary"
+	folded.session = owner.session
+	folded.common = predecessor.common.duplicate(true)
+	folded.ordinary_state.status = "active"
+	var close: Dictionary = folded.ordinary_state.last_close
+	folded.ordinary_state.last_close = {}
+	return api.Common._apply_close(folded,close.reason,restored_current) \
+		and api.Codec.same(folded.common,owner.common) \
+		and api.Codec.same(folded.ordinary_state.last_close,close)

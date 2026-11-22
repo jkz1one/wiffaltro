@@ -6,6 +6,7 @@ const KIND: String="common-ordinary-start-v1"
 const FORMAT: String="wiffaltro-common-ordinary-session-v1"
 const ARCHIVED: String="standard-to-dugout-archive-v1"
 const CHAIN_ARCHIVED: String="standard-dugout-to-dugout-chain-v1"
+const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
 const FIELDS: Array[String]=["kind","version","seed","lineage","ordinal","common_sequence","common_sha256","player_access","starts","exotic_rights","assets","pennants","plaques","common_pennants","common_plaques"]
@@ -32,7 +33,7 @@ static func valid(value: Variant) -> bool:
 		var origin: Variant=value.archive_origin
 		if not origin is Dictionary: return false
 		if value.version==2:
-			if not SeasonOwnership._keys(origin,["kind","sha256"]) or origin.kind not in [ARCHIVED,SPONSOR_ARCHIVED] \
+			if not SeasonOwnership._keys(origin,["kind","sha256"]) or origin.kind not in [ARCHIVED,SPONSOR_ARCHIVED,STANDARD_REPEAT] \
 					or not sha(origin.sha256) or value.ordinal!=2: return false
 		elif not SeasonOwnership._keys(origin,["kind","ordered_sha256"]) or origin.kind!=CHAIN_ARCHIVED \
 				or value.ordinal!=3 or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=2 \
@@ -99,10 +100,12 @@ static func make(seed_value: int, lineage: String, ordinal: int, sequence: int, 
 	result.merge({"kind":KIND,"version":1,"seed":seed_value,"lineage":lineage,"ordinal":ordinal,"common_sequence":sequence,"common_sha256":common_sha})
 	return result if valid(result) else {}
 static func archive_origin_kind(league: Variant) -> String:
-	return ARCHIVED if league=="dugout" else (SPONSOR_ARCHIVED if league=="sponsorship" else "")
+	return ARCHIVED if league=="dugout" else (SPONSOR_ARCHIVED if league=="sponsorship" else (STANDARD_REPEAT if league=="standard" else ""))
 
 static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
 	if not basis.has("archive_origin"): return true
+	if basis.archive_origin.kind==STANDARD_REPEAT:
+		return basis.version==2 and build._league_rules.is_empty() and not build.d1_pricing_valid()
 	var league: Variant=build._league_rules.get("league")
 	return league=="dugout" if basis.version==3 else basis.archive_origin.kind==archive_origin_kind(league)
 
