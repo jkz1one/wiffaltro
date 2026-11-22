@@ -187,8 +187,11 @@ static func _validate_human_pending(owner: RefCounted) -> bool:
 	return not project_opening(owner).is_empty()
 
 static func _settled_day(season: SeasonState) -> bool:
+	return _opening_paid_prefix(season) and season.physical.pending.is_empty()
+
+static func _opening_paid_prefix(season: SeasonState) -> bool:
 	if season.phase!=SeasonState.Phase.REGULAR or season.round_index!=1 or season.picks.size()!=4 \
-			or season.physical==null or season.physical.projecting or not season.physical.pending.is_empty() \
+			or season.physical==null or season.physical.projecting \
 			or not season.physical.needed.is_empty() or not season.physical.error.is_empty(): return false
 	var api := _api()
 	var prefix: Dictionary=api.Common.StandardArchive.settled_regular_prefix(season.results,1)
@@ -199,7 +202,7 @@ static func _settled_day(season: SeasonState) -> bool:
 
 static func _storage_scope(owner: RefCounted) -> bool:
 	if _draft_scope(owner): return true
-	if not is_flat(owner) or not _settled_day(owner.session): return false
+	if not is_flat(owner) or not _opening_paid_prefix(owner.session): return false
 	var api := _api()
 	var work = api.Common.StandardWorkshop
 	var state: Dictionary=owner.ordinary_state
@@ -209,7 +212,23 @@ static func _storage_scope(owner: RefCounted) -> bool:
 		and state.get("archive",{}).get("kind")==Custody.KIND and state.get("last_transition",{}).get("kind")==TRANSITION \
 		and work.valid(state) and state.has(work.FIELD) and not state.has(work.APPLIED) \
 		and _opening_valid(state,owner.session) and api.Codec.keys(history,["version","human"]) \
-		and history.version==1 and _human_pending_shape({"human":history.human,"reports":owner.session.physical.reports},state[work.OPENING])
+		and history.version==1 and _human_pending_shape({"human":history.human,"reports":owner.session.physical.reports},state[work.OPENING]) \
+		and (owner.session.physical.pending.is_empty() \
+			or (_home_pending_shape(owner.session.physical.pending) and work.Home.pending_shape(owner.session)))
+
+static func _home_pending_shape(pending: Variant) -> bool:
+	var api := _api()
+	return api.Codec.keys(pending,["human","reports","property"]) \
+		and pending.human is Array and pending.human.size()==13 and api.Codec.whole(pending.human[0],3,3) \
+		and pending.reports is Array and pending.reports.is_empty() and api._digest(pending.property)
+
+# One regular human selector, driven by the admitted current authored fixture
+# and its exact previous round. No intervening shop/playoffs/other lanes.
+static func human_fixture(owner: RefCounted) -> Dictionary:
+	if not _storage_scope(owner) or not owner.session.physical.pending.is_empty(): return {}
+	if _locked(owner) or _settled_day(owner.session):
+		return owner.session.pending_fixture()
+	return {}
 
 # Only the actual native fourth choice is allowed to enter the opening window.
 static func _enter_opening(owner: RefCounted) -> bool:
@@ -274,11 +293,11 @@ static func _restore_private(value: Variant) -> RefCounted:
 	elif state.has(work.OPENING): return null
 	if not value.ordinary.get("physical") is Dictionary: return null
 	var pending: Variant=value.ordinary.physical.get("pending")
-	if not pending is Dictionary or (not pending.is_empty() \
-			and (picks.size()!=4 or not _human_pending_shape(pending,opening))): return null
 	var paid: bool=state.has(ROUND1)
+	if not pending is Dictionary or (not pending.is_empty() and (picks.size()!=4 \
+			or (not _home_pending_shape(pending) if paid else not _human_pending_shape(pending,opening)))): return null
 	var history: Variant=state.get(ROUND1)
-	if paid and (picks.size()!=4 or not pending.is_empty() or not api.Codec.keys(history,["version","human"]) \
+	if paid and (picks.size()!=4 or not api.Codec.keys(history,["version","human"]) \
 			or history.version!=1 or not _human_pending_shape({"human":history.human,"reports":value.ordinary.physical.get("reports")},opening) \
 			or value.ordinary.physical.reports.size()!=2): return null
 	var raw: PackedByteArray
@@ -301,6 +320,7 @@ static func _restore_private(value: Variant) -> RefCounted:
 		if projection.is_empty(): return null
 		owner.session=projection.candidate
 		owner.ordinary_state[ROUND1]=history.duplicate(true)
+		if not pending.is_empty(): owner.session.physical.pending=pending.duplicate(true)
 	elif not pending.is_empty():
 		owner.session.physical.pending=pending.duplicate(true)
 		if not _validate_human_pending(owner): return null

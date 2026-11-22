@@ -1,0 +1,183 @@
+extends Node
+
+const Launcher = preload("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Flat = Store.Flat
+const Adapter = Owner.Adapter
+const Work = Owner.Common.StandardWorkshop
+const H = Work.Home
+const PAID := "c40635c9b28777ffb814f63bd99f02c822f112bc3d4245356bb343d421da649f"
+const PRE := "9fae035b05b20eca514298e8efc9813ddc126f73e1d65471ba5f73f4c73f1f93"
+const FRAME_LIMIT := 150000
+var failed := false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP293 ", "PASS" if ok else "FAIL"," ",name)
+	failed=failed or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func write_fixture(path: String, raw: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(raw)
+	f.flush()
+	var ok:=f.get_error()==OK
+	f.close()
+	return ok
+
+func backup() -> PackedByteArray: return FileAccess.get_file_as_bytes(Store.PATH+".bak")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=4: get_tree().quit(2); return
+	var raw:=Store.raw()
+	if not check(Store.private_standard_chain_opening() and Owner._hash(raw)==args[1]
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"isolated exact primary"): get_tree().quit(1); return
+	if args[0]=="home" and not check(Owner._hash(raw)==PAID and Owner._hash(backup())==PRE,"exact CP292 paid/backup"):
+		get_tree().quit(1); return
+	if args[0]=="cold" and not check(not FileAccess.file_exists(Store.PATH+".bak"),"primary-only cold process"):
+		get_tree().quit(1); return
+	var stamp:=Time.get_ticks_msec()
+	var owner:RefCounted=Store.read_private_standard_flat()
+	if not check(owner!=null,"fresh private strict native read"): get_tree().quit(1); return
+	print("CP293 cold ms ",Time.get_ticks_msec()-stamp)
+	if args[0]=="home": await _home(owner,raw,args[2])
+	elif args[0]=="cold": _cold(owner,raw,args[3])
+	else: failed=true
+	get_tree().quit(1 if failed else 0)
+
+func _home(owner: RefCounted, raw: PackedByteArray, output: String) -> void:
+	var old_bak:=backup()
+	var old: Dictionary=Owner._bytes_value(raw)
+	var app=Launcher.instantiate()
+	add_child(app)
+	await get_tree().process_frame
+	app.career_owner=owner
+	app.season=owner.session
+	app.saved_bytes=raw
+	app.play_next()
+	if not check(not is_instance_valid(app.lab) and Store.prepare_private_standard_flat_human(app)==null,
+			"generic Play denied; Return has no unbound match"): return
+	var fixture: Dictionary=Flat.human_fixture(owner)
+	if not check(fixture.get("id")==3 and fixture.get("home")==0 and not fixture.get("neutral",false)
+			and _paid_prefix(owner),"actual first owned nonneutral home after exact existing payout"): return
+	var key: String=Adapter.OrdinaryFixtures.request_key(owner.session,fixture)
+	var property: String=H.key(owner.session,fixture)
+	var seed_value: int=Adapter.OrdinaryFixtures.seed_for(owner.session,fixture)
+	app._play_private_standard_flat_opening()
+	var lab:PitchBatLab=app.lab
+	if not check(is_instance_valid(lab) and lab._managed_match and lab._player_home
+			and Store._private_flat_play_matches(app,owner,raw) and Store.observe_private_standard_flat_human(app).is_empty(),
+			"true home App/Lab with bound receiver/router; unfinished evidence refused"): return
+	var geometry: StadiumPropertyGeometry=lab.get_meta("stadium_property")
+	var receiver: StadiumPitchReceiver=geometry.get_node_or_null("PitchReceiverPresentation")
+	if not check(receiver!=null and receiver.chair==geometry.objects[H.COPY] and lab._pitch_actor.receiver_router==receiver.route
+			and StadiumLayoutSnapshot.key(lab._match_state.stadium)==property,"exact installed real ST079 chair/receiver path"): return
+	print("CP293 physical start fixture=",fixture.id," away=",fixture.away," home=",fixture.home,
+		" field=",lab._field_id," seed=",seed_value," request=",key," property=",property)
+	for frame: int in range(700):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not check(not lab._match_presentation_director.blocks_gameplay(),"native intro complete"): return
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=seed_value
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	var stamp:=Time.get_ticks_msec()
+	var ended:=false
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+			ended=true
+			break
+		if frame%6000==0: print("CP293 physical active frame=",frame," PA=",lab._match_state.plate_appearance_number)
+	if not check(ended,"true completed native home match and Outro Hold"): return
+	var native: Array=Store.observe_private_standard_flat_human(app)
+	if not check(native.size()==13 and native[0]==3 and Store.raw()==raw and backup()==old_bak,
+			"authentic home H13 captured in unchanged paid slot"): return
+	var evidence:Dictionary={"source":PAID,"fixture":3,"request":key,"property":property,
+		"field":str(lab._field_id),"seed":seed_value,"human":native}
+	var evidence_bytes:=JSON.stringify(evidence,"",true,true).to_utf8_buffer()
+	if not check(write_fixture(output.path_join("native-home-human.json"),evidence_bytes),"retain original home H13 pre-Return"): return
+	print("CP293 raw H13 ",native[1],":",native[2]," SHA=",Owner._hash(evidence_bytes)," simulation ms=",Time.get_ticks_msec()-stamp)
+	for frame: int in range(10):
+		await get_tree().process_frame
+		if app._continue.visible: break
+	if not check(app._continue.visible and not app._continue.disabled,"actual native Return control"): return
+	var shifted:=raw.duplicate()
+	shifted.append(32)
+	app.saved_bytes=shifted
+	check(Store.prepare_private_standard_flat_human(app)==null and Store.raw()==raw,"stale App owner bytes refused")
+	app.saved_bytes=raw
+	app._fixture_id=0
+	check(Store.prepare_private_standard_flat_human(app)==null and Store.raw()==raw,"substituted away fixture refused")
+	app._fixture_id=3
+	lab._player_home=false
+	check(Store.prepare_private_standard_flat_human(app)==null and Store.raw()==raw,"substituted visitor role refused")
+	lab._player_home=true
+	if not check(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"isolated held writer"): return
+	stamp=Time.get_ticks_msec()
+	app._continue.pressed.emit()
+	if not check(app.retained!=null and app.career_owner==owner and app.lab==lab and Store.raw()==raw
+			and backup()==old_bak,"held native Return does not write or clean up the live home field"): return
+	print("CP293 Return stage ms ",Time.get_ticks_msec()-stamp)
+	if not check(DirAccess.remove_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"release isolated obstruction"): return
+	app.retry_save()
+	var saved:=Store.raw()
+	var next:RefCounted=app.career_owner
+	var pending: Dictionary=next.session.physical.pending
+	if not check(not is_instance_valid(app.lab) and app.retained==null and next!=owner and saved!=raw and backup()==raw
+			and Owner.Codec.same(pending.human,native) and pending.reports.is_empty() and pending.property==property
+			and _paid_prefix(next),"actual home H13/property durable after one Retry; prior paid unchanged"): return
+	var out: Dictionary=Owner._bytes_value(saved)
+	check(_only_pending(old,out),"three old archives, old paid native rows and exact ledgers remain unchanged")
+	app.finish_game()
+	app._resume_private_standard_flat_round()
+	check(Store.raw()==saved and backup()==raw and Store.private_standard_flat_opening_play(next,saved)==null
+		and not is_instance_valid(app.ai_runner),"duplicate Return/relaunch/CPU are inert")
+	check(write_fixture(output.path_join("home-pending.json"),saved),"retain exact native home pending")
+	print("CP293 pending ",saved.size()," ",Owner._hash(saved))
+	app.queue_free()
+	await get_tree().process_frame
+
+func _paid_prefix(owner: RefCounted) -> bool:
+	var s:SeasonState=owner.session
+	return (Flat._storage_scope(owner) and Flat._opening_paid_prefix(s) and s.round_index==1
+		and s.results.size()==3 and s.player_results.size()==1 and s.physical.cursor==2
+		and s.physical.reports.size()==2 and s.cash()==18 and s.build._sides_start
+		and owner.common.aggregate.currency==72 and owner.common.last_fold.receipt.is_empty()
+		and owner.ordinary_state.has(Work.FIELD) and not s.home_property.is_empty())
+
+func _only_pending(old:Dictionary, new:Dictionary) -> bool:
+	var apart:Dictionary=new.duplicate(true)
+	apart.ordinary.physical.pending={}
+	return Owner.Codec.same(old,apart)
+
+func _cold(owner: RefCounted, raw: PackedByteArray, before_path:String) -> void:
+	var value:Dictionary=Owner._bytes_value(raw)
+	var old:Dictionary=Owner._bytes_value(FileAccess.get_file_as_bytes(before_path))
+	var pending:Dictionary=owner.session.physical.pending
+	check(_paid_prefix(owner) and _only_pending(old,value)
+		and Owner.Codec.same(pending,value.ordinary.physical.pending) and pending.human.size()==13
+		and pending.human[0]==3 and H.pending_shape(owner.session),"strict full home pending restored with byte-pinned prior paid state")
+	check(Store.read()==null and not Store.save(owner,raw) and Store.private_standard_flat_opening_play(owner,raw)==null,
+		"generic continue/writer and duplicate launch refused")
+	var changed:Dictionary=value.duplicate(true)
+	changed.ordinary.physical.pending.human[0]=0
+	check(Flat._restore_private(changed)==null,"wrong human fixture rejected before any deep replay")
+	changed=value.duplicate(true)
+	changed.ordinary.physical.pending.reports.append({})
+	check(Flat._restore_private(changed)==null,"injected CPU report refused before any deep replay")
+	var wrong:RefCounted=Owner._restore_metadata(value)
+	wrong.session=owner.session.fork_live()
+	wrong.session.physical.pending.property="a".repeat(64)
+	check(Flat._capture_local(wrong).is_empty(),"shape-valid wrong property refused on already authenticated state")
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"fresh proof and refusals leave all slot bytes unchanged")

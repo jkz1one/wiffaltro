@@ -1557,7 +1557,8 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 		if op=="settle":
 			candidate.ordinary_state[Flat.ROUND1]={"version":1,"human":pending.human.duplicate(true)}
 	elif op in ["pick","opening","human"]:
-		if not Flat._draft_scope(owner): return null
+		var fixture: Dictionary=Flat.human_fixture(owner) if op=="human" else {}
+		if (fixture.is_empty() if op=="human" else not Flat._draft_scope(owner)): return null
 		var next: SeasonState=owner.session.fork_live()
 		if next==null: return null
 		candidate=Owner._new()
@@ -1571,10 +1572,16 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 		else:
 			if not argument.is_empty() or not _private_flat_play_matches(app,owner,expected): return null
 			var human:=observe_private_standard_flat_human(app)
-			if human.size()!=13: return null
+			if human.size()!=13 or human[0]!=fixture.id: return null
 			candidate.session.physical.pending={"human":human.duplicate(true),"reports":[]}
-			if not Flat._validate_human_pending(candidate) \
-					or not _private_flat_play_matches(app,owner,expected): return null
+			var property: String=Owner.Common.StandardWorkshop.Home.key(owner.session,fixture)
+			if fixture.home==0:
+				if property.is_empty(): return null
+				candidate.session.physical.pending["property"]=property
+			elif not property.is_empty() or not Flat._validate_human_pending(candidate): return null
+			# Property-bound human proof is independently replayed by ordinary
+			# Codec.capture below, exactly once. No trusted evidence flag.
+			if not _private_flat_play_matches(app,owner,expected): return null
 	else: return null
 	var data:=Flat._capture_local(candidate)
 	if data.is_empty() or not _match_bound_owner(owner,expected): return null
@@ -1592,25 +1599,29 @@ class PrivateFlatOpeningPlay:
 	var _field: FieldDefinition
 	var _fixture: Dictionary
 	var _request: String
+	var _stadium: Dictionary
 
 # Unbound/private launch data only. The normal App/Return writers still
 # refuse this owner. No report, game result or disk change can be supplied.
 static func private_standard_flat_opening_play(owner: RefCounted, expected: PackedByteArray) -> PrivateFlatOpeningPlay:
 	if not private_standard_chain_opening() or saving or _ticket!=null \
-			or not _match_bound_owner(owner,expected) or not Flat._locked(owner) \
-			or not owner.session.physical.pending.is_empty(): return null
+			or not _match_bound_owner(owner,expected): return null
+	var fixture:=Flat.human_fixture(owner)
+	if fixture.is_empty(): return null
 	var detached: SeasonState=owner.session.fork_live()
 	if detached==null: return null
-	var fixture: Dictionary=detached.pending_fixture()
 	var state: MatchState=detached.make_match()
 	var field: FieldDefinition=Adapter.OrdinaryRuntime.field_for_fixture(fixture,detached)
-	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence() \
+	var stadium: Dictionary=Owner.Common.StandardWorkshop.Home.fixture(detached,fixture)
+	if state==null or field==null or not Codec.same(state.stadium,stadium) \
+			or stadium.is_empty()!=(fixture.home!=0) or not state.sure_shot.enable_current_evidence() \
 			or not _match_bound_owner(owner,expected): return null
 	var result := PrivateFlatOpeningPlay.new()
 	result.match_state=state
 	result.field_id=field.id
 	result._field=field
 	result._fixture=fixture.duplicate(true)
+	result._stadium=stadium.duplicate(true)
 	result._request=Adapter.OrdinaryFixtures.request_key(detached,fixture)
 	return result if not result._request.is_empty() else null
 
@@ -1631,29 +1642,48 @@ static func open_private_standard_flat_human(app: Variant) -> bool:
 	var play:=private_standard_flat_opening_play(owner,app.saved_bytes)
 	if play==null: return false
 	_clear_private_flat_play()
-	app._fixture_id=0
+	app._fixture_id=int(play._fixture.id)
 	app._result_recorded=false
 	app._result_saved=false
-	app._open_match(play.match_state,false,true,play.field_id)
+	app._open_match(play.match_state,play._fixture.home==0,true,play.field_id)
 	if not is_instance_valid(app.lab): return false
 	_flat_play=play
 	_flat_play_app=weakref(app)
 	_flat_play_lab=weakref(app.lab)
-	return _private_flat_play_matches(app,owner,app.saved_bytes)
+	if _private_flat_play_matches(app,owner,app.saved_bytes): return true
+	_clear_private_flat_play()
+	app._close_match(false)
+	app.notice="The private authored field could not be verified. Saved progress was unchanged."
+	return false
 
 static func _private_flat_play_matches(app: Variant, owner: RefCounted, expected: PackedByteArray) -> bool:
 	if not private_standard_chain_opening() or not _private_flat_app(app) or _flat_play==null \
 			or _flat_play_app.get_ref()!=app or not is_instance_valid(app.lab) or _flat_play_lab.get_ref()!=app.lab \
 			or not _match_bound_owner(owner,expected) or app.career_owner!=owner or app.season!=owner.session \
-			or app.saved_bytes!=expected or app._fixture_id!=0 or not owner.session.physical.pending.is_empty(): return false
+			or app.saved_bytes!=expected or app._fixture_id!=_flat_play._fixture.id: return false
 	var lab: PitchBatLab=app.lab
 	var state: MatchState=lab._match_state
-	var fixture: Dictionary=owner.session.pending_fixture()
-	return lab._managed_match and lab._match_mode and not lab._player_home and state==_flat_play.match_state \
-		and lab._field_definition==_flat_play._field and lab._field_id==_flat_play.field_id and state.stadium.is_empty() \
-		and not lab.has_meta("stadium_property") and Codec.same(state.league_rules,owner.session.league_rules) \
-		and state.pitch_catalog==owner.session.build.pitch_catalog_signature() and Codec.same(fixture,_flat_play._fixture) \
+	var fixture:=Flat.human_fixture(owner)
+	return Codec.same(fixture,_flat_play._fixture) and lab._managed_match and lab._match_mode \
+		and lab._player_home==(fixture.home==0) and state==_flat_play.match_state \
+		and lab._field_definition==_flat_play._field and lab._field_id==_flat_play.field_id \
+		and Codec.same(state.league_rules,owner.session.league_rules) and state.pitch_catalog==owner.session.build.pitch_catalog_signature() \
+		and _private_flat_geometry(lab,owner.session,fixture) \
 		and Adapter.OrdinaryFixtures.request_key(owner.session,fixture)==_flat_play._request
+
+static func _private_flat_geometry(lab: PitchBatLab, season: SeasonState, fixture: Dictionary) -> bool:
+	var workshop = Owner.Common.StandardWorkshop
+	var native: Dictionary=workshop.Home.fixture(season,fixture)
+	if not Codec.same(native,_flat_play._stadium) or not Codec.same(lab._match_state.stadium,native): return false
+	if native.is_empty(): return not lab.has_meta("stadium_property")
+	if fixture.home!=0 or fixture.get("neutral",false) or not lab._player_home \
+			or not Codec.same(lab.get_meta("stadium_snapshot",{}),native): return false
+	var property: Variant=lab.get_meta("stadium_property",null)
+	if not is_instance_valid(property) or not property is StadiumPropertyGeometry \
+			or native.layout.receiver!=workshop.COPY or not property.objects.has(native.layout.receiver): return false
+	var receiver: StadiumPitchReceiver=property.get_node_or_null("PitchReceiverPresentation")
+	return receiver!=null and receiver.chair==property.objects[native.layout.receiver] \
+		and lab._pitch_actor.receiver_router==receiver.route
 
 # Read-only native observation for custody or fixed Return. No public replay
 # input exists: the writer invokes this on the same still-bound Lab itself.
