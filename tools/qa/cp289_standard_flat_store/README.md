@@ -1,0 +1,5 @@
+# Private Standard flat-owner draft ticket proof
+
+From the repository root, run `bash tools/qa/cp289_standard_flat_store/run.sh GODOT CP286_PRIMARY CP280_BACKUP` with the official Godot 4.6.3 executable and the exact audited **synthetic** fixtures whose SHA-256 values are pinned in the probe. Never substitute existing player slots. The runner stages its own XDG homes, writes through the actual fixed Store, and independently cold-opens a copied primary without its backup. Only the exact synthetic stages and local proof logs are retained.
+
+The parked legacy reader stays unchanged semantically: normal Owner/Store reads/writes do not admit the flat v4 draft. The fixed private writer reuses the exact admitted predecessor and stock ticket, retry, CAS and backup; it never takes a caller draft or serialized envelope. Private cold revalidates the old native folds and recreates the full new native draft and exact picks. This checkpoint deliberately does not admit four picks, gameplay or another rollover, and has no player-facing routes.

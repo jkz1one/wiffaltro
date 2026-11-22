@@ -35,6 +35,12 @@ static func draft_from_closed(raw: PackedByteArray, expected_sha256: String) -> 
 			or not api._digest(expected_sha256) or api._hash(raw)!=expected_sha256: return null
 	var value: Variant=api._bytes_value(raw)
 	var owner: RefCounted=api.restore(value)
+	return _from_authenticated(owner,raw,expected_sha256)
+
+# Store hot birth passes only its exact RawGuard/CAS-pinned admitted owner.
+# This method has no admission or IO and cannot mint a Store ticket.
+static func _from_authenticated(owner: RefCounted, raw: PackedByteArray, expected_sha256: String) -> Draft:
+	var api := _api()
 	if not _scope(owner): return null
 	var archive: Dictionary=Custody.migrate_legacy_closed(raw)
 	if archive.is_empty(): return null
@@ -76,3 +82,96 @@ static func matches_detached(result: Draft, basis: Variant, archive: Variant) ->
 			or not api.Codec.same(result.season.career.start_basis,result._basis) \
 			or not api.Codec.same(basis,result._basis): return false
 	return api.Codec.same(archive,result._archive)
+
+
+const TRANSITION: String="common-standard-base-flat-transition-v1"
+
+static func is_flat(owner: RefCounted) -> bool:
+	return owner!=null and owner.get_script()==_api() and owner.session!=null and owner.session.career!=null \
+		and _api().Common.Start.detached_standard_flat(owner.session.career.start_basis)
+
+static func _local_owner(source: RefCounted, draft: Draft) -> RefCounted:
+	var api := _api()
+	if draft==null: return null
+	var owner: RefCounted=api._new()
+	if not api.Codec.install_fields(owner,api.DATA_FIELDS,api.Codec.data_fields(source,api.DATA_FIELDS)):
+		return null
+	owner.session=draft.season
+	var state: Dictionary=owner.ordinary_state
+	var work = api.Common.StandardWorkshop
+	var basis:=draft.basis()
+	var close: Dictionary=state.last_close
+	state.last_transition={"kind":TRANSITION,"id":"%s:%d:next"%[state.lineage,state.ordinal],
+		"source":close.session_sha256,"from":state.ordinal,"to":basis.ordinal,"league":"standard","basis":basis}
+	state.ordinal=basis.ordinal
+	state.status="active"
+	state.last_close={}
+	state.proposal={}
+	state.start_basis_sha256=api.Common.Life.digest(basis)
+	state.archive=draft.archive()
+	state.erase(work.OPENING)
+	state.erase(work.APPLIED)
+	return owner
+
+static func _draft_scope(owner: RefCounted) -> bool:
+	var api := _api()
+	if not is_flat(owner) or owner.get_script()!=api or owner.active!="ordinary" \
+			or not owner.paused.is_empty() or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty(): return false
+	var state: Dictionary=owner.ordinary_state
+	var season: SeasonState=owner.session
+	var work = api.Common.StandardWorkshop
+	var basis: Dictionary=season.career.start_basis
+	return state.get("status")=="active" and state.get("ordinal")==basis.get("ordinal") \
+		and state.get("archive",{}).get("kind")==Custody.KIND and state.get("last_transition",{}).get("kind")==TRANSITION \
+		and work.valid(state) and state.has(work.FIELD) and not state.has(work.OPENING) and not state.has(work.APPLIED) \
+		and season.phase==SeasonState.Phase.DRAFT and season.picks.size()<4 and season.round_index==0 \
+		and season.results.is_empty() and season.player_results.is_empty() and season.home_property.is_empty() \
+		and season.physical!=null and season.physical.cursor==0 and season.physical.pending.is_empty() \
+		and season.physical.reports.is_empty() and season.physical.needed.is_empty() \
+		and season.physical.error.is_empty() and not season.physical.projecting
+
+# Used only on a newly derived owner or a fork of a privately admitted owner.
+# The generic Owner/Adapter persistence routes continue to reject this dialect.
+static func _capture_local(owner: RefCounted) -> Dictionary:
+	if not _draft_scope(owner): return {}
+	var api := _api()
+	var current: Dictionary=api.Adapter.Ordinary.capture(owner.session)
+	if current.is_empty(): return {}
+	var data: Dictionary=api.Codec.data_fields(owner,api.META_FIELDS)
+	for field: String in ["workshop_draft","workshop_close_history","workshop_chair_purchase","workshop_applied"]:
+		if not data[field].is_empty(): return {}
+		data.erase(field)
+	data.merge({"version":4,"format":api.FORMAT,"active":"ordinary","dynasty":{},"ordinary":current})
+	return data
+
+# No portable trust flag. Exact ordered roots must reconstruct the old primary;
+# stock Owner.restore verifies its two preceding folds, current and all history.
+# Then the whole destination is rederived from that raw and checked native picks.
+static func _restore_private(value: Variant) -> RefCounted:
+	if not value is Dictionary or not value.get("ordinary_state") is Dictionary \
+			or not value.get("ordinary") is Dictionary: return null
+	var api := _api()
+	var state: Dictionary=value.ordinary_state
+	var transition: Variant=state.get("last_transition")
+	var archive: Variant=state.get("archive")
+	if not transition is Dictionary or transition.get("kind")!=TRANSITION \
+			or not api.Common.Start.valid(transition.get("basis")) \
+			or not api.Common.Start.detached_standard_flat(transition.basis) or not Custody._budget(archive): return null
+	var digests: Array=archive.rows.map(func(row): return row.source_sha256)
+	if not api.Codec.same(digests,transition.basis.archive_origin.ordered_sha256) \
+			or archive.lineage!=transition.basis.lineage or not value.ordinary.get("state") is Dictionary: return null
+	var picks: Variant=value.ordinary.state.get("picks")
+	if not picks is Array or picks.size()>=4: return null
+	var raw: PackedByteArray
+	var roots:=Custody.unpack(archive)
+	if roots.is_empty(): return null
+	raw=roots[-1]
+	roots.clear()
+	var prior: RefCounted=api.restore(api._bytes_value(raw))
+	var draft:=_from_authenticated(prior,raw,digests[-1])
+	if not matches_detached(draft,transition.basis,archive): return null
+	var owner:=_local_owner(prior,draft)
+	if owner==null: return null
+	for id: Variant in picks:
+		if not id is String or not owner.session.choose_player(id): return null
+	return owner if api.Codec.same(value,_capture_local(owner)) else null

@@ -3,6 +3,7 @@ extends RefCounted
 const Codec = preload("codec.gd")
 const Owner = preload("owner.gd")
 const Adapter = preload("session_adapter.gd")
+const Flat = preload("starter_standard_continuation.gd")
 const RawGuard = preload("raw_guard.gd")
 const LeagueAdmission = preload("league_admission.gd")
 const PATH: String = "user://wiffaltro-common-career-v4.json"
@@ -25,6 +26,7 @@ static var _imported_sha256: String = ""
 static var _owner: RefCounted
 static var _owner_raw: Dictionary = {}
 static var _owner_bytes: PackedByteArray = PackedByteArray()
+static var _flat_ticket: RefCounted
 static var _ticket: RefCounted
 static var _candidate: RefCounted
 static var _candidate_raw: Dictionary = {}
@@ -157,6 +159,7 @@ static func private_standard_chain_opening() -> bool:
 		and OS.get_environment("WIFFALTRO_STANDARD_CHAIN_OPENING")=="1"
 
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
+	if Flat.is_flat(owner): return false
 	if owner!=null and Owner.Common.StandardWorkshop.Home.opening_chain(owner.session):
 		return (LeagueAdmission.starter_player() or private_standard_chain_opening()) and _starter_opening_owner(owner)
 	if not LeagueAdmission.starter_feature(): return true
@@ -187,6 +190,10 @@ static func _starter_opening_owner(owner: RefCounted) -> bool:
 	return scoped and w.player_opening_allowed(owner)
 
 static func read() -> RefCounted:
+	return _read_common_slot(false)
+
+static func _read_common_slot(flat: bool) -> RefCounted:
+	if flat and (saving or _ticket!=null or not private_standard_chain_opening()): return null
 	forget_projection()
 	last_error = ""
 	if _starter_slot_linked():
@@ -209,11 +216,11 @@ static func read() -> RefCounted:
 	if parser.parse(bytes.get_string_from_utf8()) != OK:
 		last_error = "The save is unreadable. Original and backup are preserved."
 		return null
-	var season: RefCounted = Owner.restore(parser.data)
+	var season: RefCounted = Flat._restore_private(parser.data) if flat else Owner.restore(parser.data)
 	if season == null:
 		last_error = "This common career has an unsupported version or inconsistent state. No files were changed."
 		return null
-	if not _starter_owner_allowed(season):
+	if not flat and not _starter_owner_allowed(season):
 		last_error="This save is outside the Starter Beta slot. No files were changed."
 		return null
 	var snapshot: Dictionary = RawGuard.capture(season)
@@ -312,10 +319,13 @@ static func _invalidate() -> void:
 	_discard_cross_activation()
 	_owner = null; _owner_session = null; _owner_raw = {}; _owner_bytes = PackedByteArray()
 	_paused = {}; _active = ""; _metadata = {}; _imported_sha256 = ""
-	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
+	_flat_ticket = null; _ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 
 static func match_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
+	return not Flat.is_flat(owner) and _match_bound_owner(owner,expected)
+
+static func _match_bound_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
 	var valid: bool = owner != null and owner == _owner and owner.session == _owner_session and expected == _owner_bytes \
 		and _matches(expected) and _matches_raw(owner,_owner_raw)
 	if not valid: forget_projection()
@@ -1489,6 +1499,42 @@ static func _prepare_standard_chain(owner: RefCounted, expected: PackedByteArray
 	_write_admitted()
 	return _ticket
 
+# Private, explicit editor-only lane; no Starter/App Continue or proposal
+# uses these calls. Neither writer accepts an archive, envelope, or a draft.
+static func read_private_standard_flat() -> RefCounted:
+	return _read_common_slot(true)
+
+static func prepare_private_standard_flat_birth(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
+	return _prepare_private_standard_flat(owner,expected,true,"")
+
+static func prepare_private_standard_flat_pick(owner: RefCounted, expected: PackedByteArray, id: String) -> RefCounted:
+	return _prepare_private_standard_flat(owner,expected,false,id)
+
+static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedByteArray, birth: bool, id: String) -> RefCounted:
+	if not private_standard_chain_opening() or saving or _ticket!=null or not _match_bound_owner(owner,expected):
+		return null
+	var candidate: RefCounted
+	if birth:
+		if not id.is_empty() or not Flat._scope(owner): return null
+		var draft:=Flat._from_authenticated(owner,expected,Owner._hash(expected))
+		candidate=Flat._local_owner(owner,draft)
+	else:
+		if not Flat._draft_scope(owner) or owner.session.picks.size()>=3: return null
+		var next: SeasonState=owner.session.fork_live()
+		if next==null or not next.choose_player(id): return null
+		candidate=Owner._new()
+		if not Codec.install_fields(candidate,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)): return null
+		candidate.session=next
+	var data:=Flat._capture_local(candidate)
+	if data.is_empty() or not _match_bound_owner(owner,expected): return null
+	var snapshot:=RawGuard.capture(candidate)
+	if snapshot.is_empty(): return null
+	_ticket=RefCounted.new();_flat_ticket=_ticket
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
 # Identity handoff only. Later retry/promotion still authenticate this exact
 # live candidate against the private snapshot; no returned value authorizes IO.
 static func prepared_candidate(ticket: RefCounted) -> RefCounted:
@@ -1518,7 +1564,9 @@ static func write_prepared(ticket: RefCounted) -> bool:
 # Private immediate continuation only; callers use prepare_and_write or the
 # fully checked write_prepared retry. Disk CAS/readback remain in every write.
 static func _write_admitted() -> bool:
-	if not _starter_owner_allowed(_candidate): return false
+	if _flat_ticket!=null and _flat_ticket==_ticket:
+		if not private_standard_chain_opening() or not Flat._draft_scope(_candidate): return false
+	elif not _starter_owner_allowed(_candidate): return false
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(_expected):
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
@@ -1536,6 +1584,7 @@ static func written_bytes(ticket: RefCounted) -> PackedByteArray:
 	return _written.duplicate() if ticket != null and ticket == _ticket else PackedByteArray()
 
 static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
+	if ticket!=null and ticket==_flat_ticket and not private_standard_chain_opening(): return false
 	if _written.is_empty() or raw() != _written or not prepared_matches(ticket,owner,candidate,expected):
 		forget_projection(); return false
 	var arm: bool = _projection_ticket == ticket and _projection_checkpoint == candidate and _projection_value != null
@@ -1545,6 +1594,6 @@ static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted
 	_owner = _candidate; _owner_session = _candidate_session; _owner_raw = _candidate_raw; _owner_bytes = _written.duplicate()
 	_paused = _candidate.paused.duplicate(true); _active = _candidate.active
 	_metadata = Codec.data_fields(_candidate,Owner.META_FIELDS); _imported_sha256 = _candidate.imported_sha256
-	_ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
+	_flat_ticket = null; _ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 	return true

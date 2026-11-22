@@ -1,0 +1,135 @@
+extends Node
+
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Flat = Store.Flat
+const OLD := "6d62bc30775faec6cf941b8d87353e55c0663ce6a96148572826511efe00416a"
+const OLD_BACK := "195cbe066e790ce2ee970668dcd1e893f9382a3f969feba530ee8757c3df9492"
+const ROOTS := ["c964f1eb24f35811506de876958d2846892a21075a4ccd4f472637c28d7262e9",
+	"9e37cd51e8613d360a7849df0aa1bc35225cf51ba3a8a855a52822feccf79acd",OLD]
+const ENV := "WIFFALTRO_STANDARD_CHAIN_OPENING"
+var failed := false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP289 ", "PASS" if ok else "FAIL"," ",name)
+	failed=failed or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func write_fixture(path: String, raw: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(raw)
+	f.flush()
+	var ok:=f.get_error()==OK
+	f.close()
+	return ok
+
+func _raw_backup() -> PackedByteArray: return FileAccess.get_file_as_bytes(Store.PATH+".bak")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=3: get_tree().quit(2); return
+	var raw:=Store.raw()
+	if not check(Store.private_standard_chain_opening() and Owner._hash(raw)==args[1] and not FileAccess.file_exists(Store.PATH+".tmp"),"exact isolated primary"):
+		get_tree().quit(1); return
+	if args[0]=="write": _write(raw,args[2])
+	elif args[0]=="cold": _cold(raw)
+	elif args[0]=="classifier": _classifier(raw)
+	else: failed=true
+	get_tree().quit(1 if failed else 0)
+
+func _write(raw: PackedByteArray, output: String) -> void:
+	if not check(Owner._hash(raw)==OLD and Owner._hash(_raw_backup())==OLD_BACK,"exact native CP286 and predecessor backup"): return
+	var backup:=_raw_backup()
+	var stamp:=Time.get_ticks_msec()
+	var prior: RefCounted=Store.read()
+	if not check(prior!=null and Store.match_owner(prior,raw),"old native Store strict read"): return
+	print("CP289 old native read ms ",Time.get_ticks_msec()-stamp)
+	var shifted:=raw.duplicate()
+	shifted.append(32)
+	check(Store.prepare_private_standard_flat_birth(prior,shifted)==null,"stale source witness refused")
+	if not check(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"isolated file obstruction"): return
+	stamp=Time.get_ticks_msec()
+	var ticket: RefCounted=Store.prepare_private_standard_flat_birth(prior,raw)
+	if not check(ticket!=null and Store.written_bytes(ticket).is_empty() and Store.raw()==raw and _raw_backup()==backup,"held exact real birth ticket; no slot mutation"): return
+	print("CP289 birth staging ms ",Time.get_ticks_msec()-stamp)
+	var draft: RefCounted=Store.prepared_candidate(ticket)
+	if not check(draft!=null and draft.session.picks.is_empty() and draft.session.phase==SeasonState.Phase.DRAFT,"native zero-pick birth"): return
+	if not check(DirAccess.remove_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK and
+			write_fixture(Store.PATH,shifted),"isolated stale raw CAS control"): return
+	check(not Store.write_prepared(ticket) and Store.raw()==shifted and _raw_backup()==backup,"stale primary write refusal")
+	if not check(write_fixture(Store.PATH,raw),"restore exact disposable raw for retry"): return
+	OS.unset_environment(ENV)
+	check(not Store.write_prepared(ticket) and Store.raw()==raw and _raw_backup()==backup,"held writer denies closed private gate")
+	OS.set_environment(ENV,"1")
+	if not check(Store.write_prepared(ticket) and not Store.write_prepared(ticket) and
+			Store.promote(ticket,prior,draft,raw) and _raw_backup()==raw,"retry/promotion once; .bak exact old primary"): return
+	var zero:=Store.raw()
+	if not check(write_fixture(output.path_join("zero.json"),zero),"retain exact native zero boundary"): return
+	print("CP289 zero ",zero.size()," ",Owner._hash(zero))
+	var w = Owner.Common.StandardWorkshop
+	check(Owner.Codec.same(draft.common,prior.common) and draft.common.aggregate.currency==72
+		and draft.common.aggregate.titles.is_empty() and draft.common.last_fold.receipt.is_empty()
+		and draft.session.build._sides_start and Owner.Codec.same(draft.ordinary_state[w.FIELD],prior.ordinary_state[w.FIELD])
+		and draft.session.home_property.is_empty() and not draft.ordinary_state.has(w.OPENING) and not draft.ordinary_state.has(w.APPLIED),"full Common/earned rights and draft carry only")
+	check(Owner.Codec.same(draft.ordinary_state.archive.rows.map(func(row): return row.source_sha256),ROOTS)
+		and Owner.Codec.same(draft.session.career.start_basis.archive_origin.ordered_sha256,ROOTS),"three exact ordered origins")
+	check(Store.read()==null and not Store.save(draft,zero) and not Store.match_owner(draft,zero)
+		and Store.raw()==zero and _raw_backup()==raw,"generic Continue and writer refuse native private draft")
+	check(Store.prepare_private_standard_flat_pick(draft,zero,"not.an.offer")==null and Store.raw()==zero,"non-offer refused")
+	var id: String=draft.session.offers()[0]
+	ticket=Store.prepare_private_standard_flat_pick(draft,zero,id)
+	if not check(ticket!=null and not Store.written_bytes(ticket).is_empty(),"real native pick written"): return
+	var picked: RefCounted=Store.prepared_candidate(ticket)
+	var one:=Store.raw()
+	check(Store.promote(ticket,draft,picked,zero) and picked.session.picks==[id] and draft.session.picks.is_empty()
+		and picked.session.home_property.is_empty() and _raw_backup()==zero,"real native pick adopted; prior zero saved as backup")
+	var z: Dictionary=Owner._bytes_value(zero)
+	var o: Dictionary=Owner._bytes_value(one)
+	check(Owner.Codec.same(o.ordinary_state,z.ordinary_state) and Owner.Codec.same(o.common,z.common),"pick changes no owner/archive/progression")
+	check(write_fixture(output.path_join("one.json"),one) and not FileAccess.file_exists(Store.PATH+".tmp"),"retain exact picked boundary")
+	print("CP289 one ",one.size()," ",Owner._hash(one)," ",id)
+
+func _cold(raw: PackedByteArray) -> void:
+	if not check(not FileAccess.file_exists(Store.PATH+".bak"),"fresh primary-only XDG"): return
+	var value: Dictionary=Owner._bytes_value(raw)
+	var tampered:=value.duplicate(true)
+	tampered.ordinary_state.archive.rows[-1].source_sha256="a".repeat(64)
+	check(Flat._restore_private(tampered)==null,"altered archive pin rejected cheaply")
+	tampered=value.duplicate(true)
+	tampered.ordinary.state.picks=["player.a","player.b","player.c","player.d"]
+	check(Flat._restore_private(tampered)==null,"four picks refused by private cold dialect")
+	OS.unset_environment(ENV)
+	check(Store.read_private_standard_flat()==null and Store.read()==null,"disabled private and generic Continue refusal")
+	OS.set_environment(ENV,"1")
+	var stamp:=Time.get_ticks_msec()
+	var picked: RefCounted=Store.read_private_standard_flat()
+	if not check(picked!=null and picked.session.picks.size()==1 and picked.session.phase==SeasonState.Phase.DRAFT
+			and Owner.Codec.same(picked.session.picks,value.ordinary.state.picks),"fresh strict native one-pick private Continue"): return
+	print("CP289 private cold ms ",Time.get_ticks_msec()-stamp)
+	var w = Owner.Common.StandardWorkshop
+	check(Owner.Codec.same(Flat._capture_local(picked),value) and picked.session.home_property.is_empty()
+		and picked.session.build._sides_start and picked.common.aggregate.currency==72
+		and picked.common.last_fold.receipt.is_empty() and picked.ordinary_state.has(w.FIELD),"whole canonical rederive; exact rights and no installation")
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),"no cold writes")
+
+# Isolate the owner-type guard cheaply; does not admit this local object or
+# stand in for the preceding independent native private cold read.
+func _classifier(raw: PackedByteArray) -> void:
+	var plain:=RefCounted.new()
+	check(not Flat.is_flat(plain) and not Store.match_owner(plain,raw),"foreign RefCounted refusal")
+	var ordinary: RefCounted=Owner.create_ordinary(123,"standard")
+	check(ordinary!=null and not Flat.is_flat(ordinary),"old native ordinary is not flat")
+	var value: Dictionary=Owner._bytes_value(raw)
+	var local: RefCounted=Owner._restore_metadata(value)
+	if not check(local!=null,"flat typed outer metadata"): return
+	local.session=Owner.Adapter.Ordinary.restore_common(value.ordinary)
+	check(local.session!=null and Flat.is_flat(local) and Flat._draft_scope(local)
+		and not Store.match_owner(local,raw) and Store.read()==null,"exact native flat classification; no generic ownership")
+	value.ordinary_state.archive.rows[-1].source_sha256="a".repeat(64)
+	check(Flat._restore_private(value)==null,"wrapped private parser rejects wrong archive pin")
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak")
+		and not FileAccess.file_exists(Store.PATH+".tmp"),"classifier no writes")
