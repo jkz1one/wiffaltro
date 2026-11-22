@@ -752,3 +752,43 @@ save was Jo Lane's selection. No title was added.
 This did not exercise a Season 2 fixture, any new title, a developed
 stadium, or Dynasty. The new save carries the transition and earned
 career projection, not browsable results from the previous season.
+
+### Standard Season 2 with full previous history retained
+
+The current Starter Standard Base Next path from a completed first
+season retains the exact closed-with-proposal predecessor in the new
+primary, not merely in a rotating backup. Native Start, all four
+picks and fresh Continue retained the exact compressed history. The
+retained snapshot includes all 33 actual scores and prior season Cash;
+the new season starts with zero Cash and keeps the shared career record
+and 72 Club Bucks without awarding or paying anything again. Existing
+unmarked saves still reopen.
+
+**Previous Season** opens from both the draft and clubhouse. From the
+admitted archive it showed six standings, 5–5 in the regular season,
+semifinal elimination, 72 Club Bucks earned, and the prior match scores.
+Back returned to the same current state. Exact source verification
+compared all 33 scores, and native read-only visits did not change
+either save. A later strict-load change reuses an already computed
+pitching proof but still checks it, replays the native fold, and
+rejects invalid or falsely rehashed predecessors. This does not yet
+support a third archived season.
+
+### First human match of archived Standard Season 2
+
+A fresh ordinary Linux Starter profile opened the exact archived
+four-pick primary and started Yard Club at Switches at Commons Park.
+Native batting, aimed pitch releases and between-batter relief were
+used through the real game over. The result was Switches 12, Yard Club
+0. The normal result control returned to the saved round with no NPC
+matches recorded and no new reward. The prior archive, all career
+totals, present seasonal Cash and settled standings remained exact.
+
+The only new state was the native pending human result for fixture 0.
+The primary was 1,075,298 bytes, SHA-256
+`4b8377d041ef9e58e33a4ac346ddcdf9a515209bb25c488b4d3b8d439f5f88b2`.
+The backup was the exact preceding four-pick save; an independent
+native primary-only Continue restored the pending result and zero
+saved NPC reports, and Quit wrote nothing. No later game, NPC
+simulation, round settlement, second-season close, or award was
+started in this slice.
