@@ -1,0 +1,231 @@
+extends Node
+## Narrow Starter Standard opener. Caller receives a report, never save authority.
+signal finished(report: Dictionary)
+signal failed(reason: String)
+
+const Store = preload("owner_store.gd")
+const Report = preload("res://src/gameplay/season/successor_league_general_v2/physical_report.gd")
+const ARG: String = "--starter-npc-v1="
+const FRAME: String = "WIFFALTRO_STARTER_NPC_V1 "
+const MAX_SLOT: int = 1024 * 1024
+const MAX_REPORT: int = 1024 * 1024
+const MAX_FRAME: int = 2 * 1024 * 1024
+const MAX_MS: int = 120000
+
+var _job: Dictionary
+var _pid: int = -1
+var _stdout: FileAccess
+var _stderr: FileAccess
+var _output: PackedByteArray
+var _launched: int
+var _next_poll: int
+var _runner: Node
+
+static func _canonical(data: Dictionary) -> String:
+	return JSON.stringify(data,"",true,true)
+
+static func scoped(owner: RefCounted) -> bool:
+	if owner==null or not Store._starter_owner_allowed(owner) or owner.active!="ordinary":
+		return false
+	var season: SeasonState = owner.session
+	if season==null or season.league_live or not season.league_rules.is_empty() \
+		or season.career==null or season.career.current!=1 or season.round_index!=0 \
+		or season.phase!=SeasonState.Phase.REGULAR or not season.results.is_empty():
+		return false
+	var native: Array=season.career.runs
+	if owner.ordinary_state.get("ordinal")!=1 or native.size()!=1 or native[0].get("id")!=1 \
+		or native[0].get("league")!="standard" or native[0].get("tier")!=0:
+		return false
+	var pending: Dictionary=season.physical.pending
+	var human: Variant=pending.get("human")
+	var reports: Variant=pending.get("reports")
+	return human is Array and not human.is_empty() and human[0]==0 \
+		and reports is Array and reports.size()<=1 \
+		and (reports.is_empty() or reports[0].get("fixture")==1)
+
+static func _hex(value: Variant) -> bool:
+	if not value is String or value.length()!=64: return false
+	for character: String in value:
+		if not "0123456789abcdef".contains(character): return false
+	return true
+
+static func _valid(job: Dictionary) -> bool:
+	return SeasonOwnership._keys(job,["fixture","nonce","raw","request"]) \
+		and job.fixture is String and job.fixture in ["1","2"] \
+		and _hex(job.raw) and _hex(job.request) and _hex(job.nonce)
+
+static func parse(args: PackedStringArray) -> Dictionary:
+	if args.size()!=1 or args[0].length()>480 or not args[0].begins_with(ARG): return {}
+	var encoded: String=args[0].trim_prefix(ARG)
+	var text: String=Marshalls.base64_to_utf8(encoded)
+	if text.is_empty() or Marshalls.utf8_to_base64(text)!=encoded: return {}
+	var job: Variant=JSON.parse_string(text)
+	return job if job is Dictionary and _valid(job) and _canonical(job)==text else {}
+
+static func _package() -> bool:
+	var exe: String=OS.get_executable_path()
+	return Store.LeagueAdmission.starter_player() and exe.is_absolute_path() \
+		and FileAccess.file_exists(exe.get_basename()+".pck")
+
+static func _slot() -> PackedByteArray:
+	# Reuse Starter's no-link policy before opening any suspect namespace
+	# (including backup/temp). This is not OS-level filesystem locking.
+	if Store._starter_slot_linked(): return PackedByteArray()
+	var file: FileAccess=FileAccess.open(Store.PATH,FileAccess.READ)
+	if file==null: return PackedByteArray()
+	var length: int=file.get_length()
+	if length<1 or length>MAX_SLOT: return PackedByteArray()
+	var bytes: PackedByteArray=file.get_buffer(length)
+	if bytes.size()!=length or file.get_length()!=length or Store._starter_slot_linked():
+		return PackedByteArray()
+	return bytes
+
+static func _hash(bytes: PackedByteArray) -> String:
+	var sha:=HashingContext.new()
+	if sha.start(HashingContext.HASH_SHA256)!=OK or sha.update(bytes)!=OK: return ""
+	return sha.finish().hex_encode()
+
+static func request(owner: RefCounted, expected: PackedByteArray, projection: Dictionary) -> Dictionary:
+	if not _package() or not scoped(owner) or expected.is_empty() or expected.size()>MAX_SLOT \
+		or not projection.get("fixture") is Dictionary or not projection.get("candidate") is SeasonState:
+		return {}
+	var fixture: Dictionary=projection.fixture
+	var next: int=owner.session.physical.pending.reports.size()+1
+	if fixture.get("id")!=next: return {}
+	var key: String=Store.Adapter.fixtures("ordinary").request_key(projection.candidate,fixture)
+	var nonce: String=Crypto.new().generate_random_bytes(32).hex_encode()
+	var job: Dictionary={"fixture":str(next),"nonce":nonce,"raw":_hash(expected),"request":key}
+	return job if _valid(job) else {}
+
+func start(job: Dictionary) -> bool:
+	if _pid>0 or not _package() or not _valid(job) or _hash(_slot())!=job.raw: return false
+	_job=job.duplicate()
+	var arg: String=ARG+Marshalls.utf8_to_base64(_canonical(_job))
+	var launched:=OS.execute_with_pipe(OS.get_executable_path(),["--headless","--fixed-fps","60","--",arg],false)
+	_pid=int(launched.get("pid",-1))
+	_stdout=launched.get("stdio")
+	_stderr=launched.get("stderr")
+	if _pid<=0 or _stdout==null or _stderr==null:
+		cancel()
+		return false
+	process_mode=Node.PROCESS_MODE_ALWAYS
+	_launched=Time.get_ticks_msec()
+	set_process(true)
+	return true
+
+func cancel() -> void:
+	if _pid>0 and OS.is_process_running(_pid): OS.kill(_pid)
+	_pid=-1
+	_stdout=null
+	_stderr=null
+	_output.clear()
+	set_process(false)
+
+func _exit_tree() -> void:
+	cancel()
+
+func _drain() -> bool:
+	if _stdout==null or _stderr==null or _stderr.get_length()>0: return false
+	var size: int=_stdout.get_length()
+	if size<0 or size>MAX_FRAME-_output.size(): return false
+	if size>0: _output.append_array(_stdout.get_buffer(size))
+	return true
+
+func _process(_delta: float) -> void:
+	if _pid<=0: return
+	var now: int=Time.get_ticks_msec()
+	if now<_next_poll: return
+	_next_poll=now+40
+	if now-_launched>MAX_MS or not _drain():
+		cancel()
+		failed.emit("The accelerated check did not finish. No new result was saved.")
+		return
+	if OS.is_process_running(_pid): return
+	var exit_code: int=OS.get_process_exit_code(_pid)
+	var report: Dictionary=decode(_output,_job,exit_code) if _drain() and _hash(_slot())==_job.raw else {}
+	cancel()
+	if report.is_empty(): failed.emit("The accelerated report could not be verified. No new result was saved.")
+	else: finished.emit(report)
+
+static func decode(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictionary:
+	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return {}
+	var text: String=bytes.get_string_from_utf8()
+	var lines: PackedStringArray=text.split("\n")
+	if not text.ends_with("\n") or lines.size()<4 or not lines[0].begins_with("Godot Engine v"): return {}
+	var frame: String=""
+	for line: String in lines:
+		if line.begins_with(FRAME):
+			if not frame.is_empty(): return {}
+			frame=line.trim_prefix(FRAME)
+	if frame.is_empty() or lines[lines.size()-2]!=FRAME+frame: return {}
+	var result: Variant=JSON.parse_string(frame)
+	if not result is Dictionary or not SeasonOwnership._keys(result,["job","report_json","report_bytes"]) \
+		or result.job!=job or not result.report_json is String or not result.report_bytes is String \
+		or _canonical(result)!=frame: return {}
+	var length: int=result.report_json.to_utf8_buffer().size()
+	if length<1 or length>MAX_REPORT or str(length)!=result.report_bytes: return {}
+	# Keep the native report's JSON inside a string. Godot represents JSON
+	# numbers as floats; re-stringifying a parsed inner report is not exact.
+	var report: Variant=JSON.parse_string(result.report_json)
+	if not report is Dictionary or report.get("version")!=Report.VERSION \
+		or report.get("resolver")!=Report.RESOLVER or not report.get("physical") is Dictionary:
+		return {}
+	return report
+
+# Called only from the fixed Starter bootstrap. No arbitrary paths/scenes,
+# no access to original saves, and no writer/ticket API used by the child.
+func worker(job: Dictionary) -> void:
+	set_process(false)
+	if not _package() or not _valid(job) or DisplayServer.get_name()!="headless" \
+		or not OS.get_cmdline_args().is_empty() or Engine.time_scale!=1.0 \
+		or Engine.physics_ticks_per_second!=60:
+		get_tree().quit(3)
+		return
+	# Godot consumes its own --fixed-fps option before get_cmdline_args().
+	# Require the expected frame cadence as well as the engine simulation rate.
+	for frame: int in range(3):
+		await get_tree().process_frame
+		if absf(get_process_delta_time()-1.0/60.0)>0.000001:
+			get_tree().quit(3)
+			return
+	var bytes: PackedByteArray=_slot()
+	if _hash(bytes)!=job.raw:
+		get_tree().quit(3)
+		return
+	var owner: RefCounted=Store.read()
+	if not scoped(owner) or _slot()!=bytes:
+		get_tree().quit(3)
+		return
+	var view: Dictionary=Store.Adapter.pending("ordinary").project(owner.session)
+	var fixture: Dictionary=view.get("fixture",{})
+	var candidate: SeasonState=view.get("candidate")
+	if fixture.is_empty() or candidate==null or str(int(fixture.id))!=job.fixture \
+		or Store.Adapter.fixtures("ordinary").request_key(candidate,fixture)!=job.request:
+		get_tree().quit(3)
+		return
+	var state: MatchState=Store.Adapter.fixtures("ordinary").match_for(candidate,fixture)
+	var field: FieldDefinition=Store.Adapter.runtime("ordinary").field_for_fixture(fixture,candidate)
+	if state==null or field==null:
+		get_tree().quit(3)
+		return
+	_runner=Store.Adapter.runner("ordinary").new()
+	add_child(_runner)
+	_runner.failed.connect(func(_reason: String) -> void: get_tree().quit(3))
+	_runner.finished.connect(_worker_report.bind(job))
+	if not _runner.start(state,Store.Adapter.fixtures("ordinary").seed_for(candidate,fixture),field.id): get_tree().quit(3)
+
+func _worker_report(report: Dictionary, job: Dictionary) -> void:
+	if report.is_empty() or _hash(_slot())!=job.raw:
+		get_tree().quit(3)
+		return
+	var native: String=_canonical(report)
+	var length: int=native.to_utf8_buffer().size()
+	if length<1 or length>MAX_REPORT:
+		get_tree().quit(3)
+		return
+	var frame: String=FRAME+_canonical({"job":job,"report_json":native,"report_bytes":str(length)})
+	if frame.to_utf8_buffer().size()>=MAX_FRAME-16384:
+		get_tree().quit(3)
+		return
+	print(frame)
+	get_tree().quit(0)

@@ -41,6 +41,19 @@ var retained_saved_bytes: PackedByteArray = PackedByteArray()
 var retained_lab: PitchBatLab
 var retained_state: MatchState
 var ai_runner: Node
+const StarterNpc = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
+var _starter_slow: PackedByteArray
+
+func starter_npc_running() -> bool:
+	return is_instance_valid(ai_runner) and ai_runner.get_script()==StarterNpc
+
+func starter_npc_slow_available() -> bool:
+	return not _starter_slow.is_empty() and _starter_slow==saved_bytes
+
+func starter_npc_cancel() -> void:
+	if not starter_npc_running(): return
+	ai_runner.cancel()
+	_ai_failed("The accelerated check was cancelled. Your saved round is unchanged.",ai_runner)
 var projection: Dictionary = {}
 var _npc_owner: SeasonState
 var _npc_before: Dictionary = {}
@@ -1111,6 +1124,7 @@ func leave_game() -> void:
 
 
 func _request_quit() -> void:
+	if starter_npc_running(): starter_npc_cancel()
 	if _cross_retry:
 		Store.cancel_cross_activation(career_owner)
 		_cross_retry=false
@@ -1363,6 +1377,12 @@ func _checkpoint() -> bool:
 
 
 func resume_round() -> void:
+	_resume_round_native(false)
+
+func resume_starter_npc_slow() -> void:
+	if starter_npc_slow_available(): _resume_round_native(true)
+
+func _resume_round_native(slow: bool) -> void:
 	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or not _owned() or season.physical.pending.is_empty():
 		return
@@ -1393,6 +1413,23 @@ func resume_round() -> void:
 	if _npc_before.is_empty():
 		_clear_npc_pins()
 		return
+	if not slow and starter_player() and StarterNpc.scoped(career_owner):
+		var job: Dictionary=StarterNpc.request(career_owner,saved_bytes,projection)
+		if job.is_empty():
+			_starter_slow=saved_bytes.duplicate()
+			_clear_npc_pins()
+			notice="The accelerated job could not be prepared. Your saved round is unchanged."
+			show_season()
+			return
+		ai_runner=StarterNpc.new()
+		add_child(ai_runner)
+		ai_runner.finished.connect(_starter_npc_finished.bind(ai_runner))
+		ai_runner.failed.connect(_ai_failed.bind(ai_runner))
+		_busy=true
+		if ai_runner.start(job): show_season()
+		else: _ai_failed("The accelerated check could not start. Your saved round is unchanged.",ai_runner)
+		return
+	_starter_slow.clear()
 	ai_runner = Adapter.runner(_active_side()).new()
 	add_child(ai_runner)
 	ai_runner.finished.connect(_ai_finished.bind(ai_runner))
@@ -1419,6 +1456,24 @@ func _clear_npc_pins() -> void:
 	_npc_state = null
 
 
+func _starter_npc_finished(report: Dictionary, runner: Node) -> void:
+	if not starter_npc_running() or runner!=ai_runner or not _busy: return
+	if not _npc_owner_matches():
+		_ai_failed("The saved round changed. No accelerated result was written.",runner)
+		return
+	# The private pipe does not authorize a checkpoint. The exact live Store
+	# admits the native report and is still the only writer/CAS.
+	var ticket: RefCounted=Store.prepare_report_and_write(career_owner,_npc_expected,report)
+	if ticket==null:
+		_ai_failed("The accelerated report could not be admitted. No new result was saved.",runner)
+		return
+	_busy=false
+	runner.queue_free()
+	ai_runner=null
+	_starter_slow.clear()
+	_retain_prepared(ticket,Store.prepared_candidate(ticket),_npc_expected)
+
+
 func _ai_finished(report: Dictionary, runner: Node = null) -> void:
 	# Only the currently bound runner may complete this job. Foreign or repeated
 	# callbacks must not clear busy state, stop a newer runner or replace evidence.
@@ -1440,6 +1495,8 @@ func _ai_failed(reason: String, runner: Node = null) -> void:
 		return
 	_busy = false
 	notice = reason
+	if starter_npc_running():
+		_starter_slow = saved_bytes.duplicate() if _npc_owner_matches() else PackedByteArray()
 	ai_runner.queue_free()
 	ai_runner = null
 	_clear_npc_pins()

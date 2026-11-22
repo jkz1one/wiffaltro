@@ -1,12 +1,24 @@
 extends Node
-## This package owns only the normal starter player route, never a worker.
+## Fixed Starter App and one read-only internal opening NPC worker.
 const Admission = preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
+const Npc = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
 const INTEGRATED := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 
 func _ready() -> void:
-	if not Admission.starter_player() or not OS.get_cmdline_user_args().is_empty():
+	if not Admission.starter_player():
 		push_error("Starter Beta launch mode refused.")
 		get_tree().quit(3)
+		return
+	var args: PackedStringArray=OS.get_cmdline_user_args()
+	if not args.is_empty():
+		var job: Dictionary=Npc.parse(args)
+		if job.is_empty():
+			push_error("Starter Beta launch mode refused.")
+			get_tree().quit(3)
+			return
+		var worker: Node=Npc.new()
+		add_child(worker)
+		worker.call_deferred("worker",job)
 		return
 	call_deferred("_launch")
 

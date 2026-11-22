@@ -26,6 +26,9 @@ func _refresh_round_progress() -> void:
 	if running:
 		var fixture: Dictionary=app.projection.get("fixture",{})
 		var match_label: String=_matchup(fixture) if fixture.has("away") and fixture.has("home") else "NPC fixture"
+		if app.starter_npc_running():
+			_round_progress.text="Checking %s in the background. %d NPC results saved." % [match_label,saved]
+			return
 		var live: PitchBatLab=runner._lab
 		var state: MatchState=live._match_state if is_instance_valid(live) else null
 		if state==null:
@@ -187,6 +190,10 @@ func render() -> void:
 		return
 	if not app.season.physical.pending.is_empty():
 		_round_resume=_bound_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
+		if app.starter_npc_running():
+			_bound_button(_body,"CANCEL NPC CHECK",Callable(app,"starter_npc_cancel"))
+		elif app.starter_npc_slow_available():
+			_bound_button(_body,"SIMULATE AT NORMAL SPEED",Callable(app,"resume_starter_npc_slow"))
 		_round_progress=_label(_footer,"",16)
 		_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
