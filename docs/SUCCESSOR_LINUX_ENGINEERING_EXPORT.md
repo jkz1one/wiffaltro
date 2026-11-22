@@ -818,3 +818,24 @@ seasonal Cash. The archived first season, shared 72 Club Bucks and
 absence of a title were unchanged. Fresh primary-only Continue
 restored the same Round 2 standings; native Quit wrote nothing and
 created no backup or temporary save.
+
+### Archived Standard Season 2, early season close
+
+In a separate disposable clone of the exact settled Round 2
+checkpoint, native **Abandon Current Season** first opened a real
+confirmation. Cancel did not write. A single subsequent confirmation
+closed Standard Season 2 as abandoned and showed the current limit:
+no third season from this archive yet. This was an isolated career
+test; no ordinary player profile or ongoing test save was abandoned.
+
+The scenario keeps all three played results and six existing round
+rewards, plus the complete exact Season 1 archive. It adds one
+abandonment and only the real human game's career contribution, with
+no completion payout, no title, and no change to 12 seasonal Cash or
+72 Club Bucks. The closed primary was 1,634,068 bytes, SHA-256
+`363b754aa728829c69003eb95cc0c037896efa7702a8d85c07dbce28f870e5ff`.
+The backup was the exact preceding settled primary.
+
+A fresh primary-only Continue reopened the same Abandoned state.
+Native Quit did not change the exact primary or create a backup
+or temporary save. No third season was created.
