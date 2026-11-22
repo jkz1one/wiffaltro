@@ -705,3 +705,50 @@ Generated checkpoints for repeatable parity, in order:
 
 No next human game, second purchase, rollover, fast later-round path
 or native Mac build was exercised in this slice.
+
+### Faster Standard Round 2 CPU and native settlement
+
+From the exact real Round 2 predecessors above, the no-env Linux
+Starter build performed each new CPU check through the normal Resume
+control. The completed saves were observed by 46.8 and 56.3 seconds.
+The independent direct children ran in 37.889 and 36.044 seconds. Scores,
+all plays, workload, and the entire decoded save matched the previous
+normal-speed outcomes except the new report's elapsed-time diagnostic.
+Fresh primary-only Continue read each exact pending state without a
+write. The old first NPC plus the accelerated second NPC then settled
+once, preserving the same 14 Cash, twelve total rewards, Soft Hands
+and Common progress through another cold reopen. These are Linux test
+host measurements, not a native Mac benchmark.
+
+### Standard Base Season 2 rollover and first draft pick
+
+The same ordinary package opened a separate exact copy of the already
+closed Standard Base test season. It retained all 33 results during
+preparation; the human club lost in the semifinal, had 11 completed
+games, had banked 72 Club Bucks and had no title. It was not closed or
+paid again.
+
+The native Prepare saved a Standard Base proposal for Season 2 and
+left the exact previous closed save as backup. Primary-only Continue
+reopened the same proposal and Cancel did not write a file. One native
+Start created the new four-player draft at zero picks. Fresh Continue
+reopened that draft; one actual Jo Lane selection advanced it to one
+of four, and a separate fresh Continue restored that pick without a
+write. The backup after picking was the exact zero-pick draft.
+
+An independent decoded audit matched the proposal and new draft to the
+same ordinary lineage, all 72 Club Bucks, 22 eligible players and the
+exact earned starting rights. New seasonal Cash was zero, down from
+162 in the closed season, with no spent inventory or results carried
+into the new season. The only change from the new draft to its next
+save was Jo Lane's selection. No title was added.
+
+| Generated state | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Prepared proposal | 7706296 | `c964f1eb24f35811506de876958d2846892a21075a4ccd4f472637c28d7262e9` |
+| Season 2, zero picks | 42020 | `3ac5a54c57de7f1e091eaf1c4a5d46f4114ed21ab870337663afc8e1e7769ead` |
+| Season 2, Jo Lane picked | 42036 | `b8c89fddb7dfc250da1cb5434d5912b08f81a56ce5851c9b28a5395b89f2e2c9` |
+
+This did not exercise a Season 2 fixture, any new title, a developed
+stadium, or Dynasty. The new save carries the transition and earned
+career projection, not browsable results from the previous season.
