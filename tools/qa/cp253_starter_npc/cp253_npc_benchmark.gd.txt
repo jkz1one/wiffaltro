@@ -1,0 +1,66 @@
+extends Node
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const Slot: String = "user://wiffaltro-common-career-v4.json"
+
+func _ready() -> void: run.call_deferred()
+func stop(reason: String) -> void:
+	push_error("CP253_FAIL "+reason)
+	get_tree().quit(1)
+
+func run() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if args.size()!=5 or Engine.time_scale!=1.0 or Engine.physics_ticks_per_second!=60:
+		return stop("argument/engine rate")
+	var mode: String = args[0]
+	var fixture: int = args[1].to_int()
+	var input_hash: String = args[2]
+	var expected_request: String = args[3]
+	var prior_n: int = args[4].to_int()
+	var before: PackedByteArray = FileAccess.get_file_as_bytes(Slot)
+	if FileAccess.get_sha256(Slot)!=input_hash or before.is_empty() or FileAccess.file_exists(Slot+".bak"):
+		return stop("no exact primary-only input")
+	var app = App.new()
+	add_child(app)
+	var open_started: int = Time.get_ticks_msec()
+	app.reload_save()
+	var owner = app.career_owner
+	var reload_ms: int = Time.get_ticks_msec()-open_started
+	if owner==null or owner.active!="ordinary" or app.saved_bytes!=before or FileAccess.get_file_as_bytes(Slot)!=before \
+		or app.season.physical.pending.is_empty() or app.season.physical.pending.reports.size()!=prior_n:
+		return stop("strict primary Continue")
+	print("CP253_LOAD mode=",mode," fixture=",fixture," ms=",reload_ms," sha=",input_hash)
+	if mode=="cold":
+		var row: Dictionary = app.season.physical.pending.reports.back()
+		if row.fixture!=fixture or row.request!=expected_request or FileAccess.file_exists(Slot+".bak"):
+			return stop("strict cold native row/request")
+		print("CP253_COLD_PASSED fixture=",fixture," plays=",row.report.physical.plays.size())
+		get_tree().quit(0)
+		return
+	if mode!="run": return stop("unknown mode")
+	var start: int = Time.get_ticks_msec()
+	var frame: int = Engine.get_physics_frames()
+	app.resume_round()
+	var launch_ms: int = Time.get_ticks_msec()-start
+	if not is_instance_valid(app.ai_runner) or not app._busy:
+		return stop("native App failed launch "+app.notice)
+	print("CP253_LAUNCH fixture=",fixture," launch_ms=",launch_ms)
+	while app.saved_bytes==before and Time.get_ticks_msec()-start<420000:
+		await get_tree().process_frame
+		if not app._busy and not is_instance_valid(app.ai_runner) and app.retained==null \
+			and app.saved_bytes==before:
+			return stop("native App failed commit "+app.notice)
+	var elapsed: int = Time.get_ticks_msec()-start
+	var pending: Dictionary = app.season.physical.pending
+	if app.saved_bytes==before or app.saved_bytes!=FileAccess.get_file_as_bytes(Slot) \
+		or FileAccess.get_file_as_bytes(Slot+".bak")!=before \
+		or pending.reports.size()!=prior_n+1:
+		return stop("no exact native checkpoint/backup")
+	var row: Dictionary = pending.reports.back()
+	if row.fixture!=fixture or row.request!=expected_request:
+		return stop("unexpected exact fixture/request")
+	var report: Dictionary = row.report.physical
+	print("CP253_RUN_PASSED fixture=",fixture," wall_ms=",elapsed," loop_ms=",elapsed-launch_ms, \
+		" engine_physics_frame_delta=",Engine.get_physics_frames()-frame," report_elapsed=",report.elapsed, \
+		" plays=",report.plays.size()," away=",report.away_runs," home=",report.home_runs, \
+		" request=",row.request," primary=",FileAccess.get_sha256(Slot))
+	get_tree().quit(0)
