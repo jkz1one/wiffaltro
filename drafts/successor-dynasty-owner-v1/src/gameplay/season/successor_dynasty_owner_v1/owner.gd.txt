@@ -293,7 +293,8 @@ static func _archive_chain_valid(owner, current: Dictionary) -> bool:
 		saved.erase(name);previous.erase(name)
 	return Codec.same(saved,previous) and _archive_fold_matches(owner,prev,current)
 
-# Reconstruct the one supported native Abandon from the exact earlier fold.
+# Reconstruct the native close from the exact earlier fold. Legacy kinds
+# remain Abandon-only; only the strict Starter Dugout custody can complete.
 # The current snapshot already passed full ordinary restore; reuse it.
 static func _archive_fold_matches(owner, predecessor, current: Dictionary) -> bool:
 	if owner.ordinary_state.status=="active": return Codec.same(owner.common,predecessor.common)
@@ -305,7 +306,9 @@ static func _archive_fold_matches(owner, predecessor, current: Dictionary) -> bo
 	expected.ordinary_state.status="active"
 	expected.ordinary_state.last_close={}
 	expected.ordinary_state.proposal={}
-	return Common._apply_close(expected,"abandon",current) \
+	var reason: String="complete" if owner.ordinary_state.last_close.get("reason")=="complete" \
+		and Common.starter_dugout_complete_scope(owner,owner.session) else "abandon"
+	return Common._apply_close(expected,reason,current) \
 		and Codec.same(expected.common,owner.common) and Codec.same(expected.ordinary_state.last_close,owner.ordinary_state.last_close)
 
 # No current-session object or write authority is restored here.

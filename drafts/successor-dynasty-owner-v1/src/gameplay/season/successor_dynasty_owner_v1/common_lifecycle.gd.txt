@@ -175,7 +175,8 @@ static func _archive_shape(owner) -> bool:
 		and (t.get("league")=="dugout" or (t.get("kind")==SPONSOR_TRANSITION and state.status=="active")) \
 		and (not t.has("kind") or (t.basis.archive_origin.sha256==a.sha256 \
 			and t.basis.archive_origin.kind==Start.archive_origin_kind(t.league))) \
-		and (state.status=="active" or (state.status=="closed" and state.last_close.get("reason")=="abandon"))
+		and (state.status=="active" or (state.status=="closed" and (state.last_close.get("reason")=="abandon" \
+			or (state.last_close.get("reason")=="complete" and starter_dugout_complete_scope(owner,owner.session)))))
 
 # Previous owner may be reconstructed in memory, but only these two
 # ordered flat entries are stored. The Standard raw bytes appear once.
@@ -304,6 +305,34 @@ static func archived_abandon_scope(owner, season: SeasonState) -> bool:
 	return archive_close_scope(season) and (owner.ordinary_state.archive.get("kind")!=ARCHIVE_CHAIN \
 		or season.round_index==1)
 
+# Unlike the exact private Doubleheader proof, Dugout can reach COMPLETE
+# after a missed playoff, a semifinal loss, or a human final. Let the native
+# record derive the bracket, then require every actual participating club's
+# independent paid-game bank to agree with all 33 result winners.
+static func starter_dugout_complete_scope(owner, season: SeasonState) -> bool:
+	return starter_dugout_archive(owner) and season==owner.session \
+		and season.phase==SeasonState.Phase.COMPLETE and season.round_index==10 \
+		and season.picks.size()==4 and season.results.size()==33 and season.build!=null \
+		and not season.build.pack_pending() and season.physical!=null \
+		and season.physical.pending.is_empty() and season.physical.needed.is_empty() \
+		and season.physical.error.is_empty() and not season.physical.projecting
+
+static func _starter_dugout_paid_terminal(season: SeasonState) -> bool:
+	if season.opponents==null or season.opponents.clubs.size()!=5: return false
+	var by_club: Array[Dictionary]=[{}, {}, {}, {}, {}, {}]
+	for result: Dictionary in season.results:
+		if not C.whole(result.get("away"),0,5) or not C.whole(result.get("home"),0,5) \
+				or not C.whole(result.get("id"),0,32) or result.away==result.home: return false
+		var winner: int=SeasonState._winner(result)
+		for index: int in [int(result.away),int(result.home)]:
+			by_club[index][str(int(result.id))]=winner==index
+	var seeds: Array=season.standings().slice(0,4).map(func(row: Dictionary): return row.team)
+	if not C.same(season.playoff_seeds,seeds): return false
+	for index in range(6):
+		var build: SeasonBuild=season.build if index==0 else season.opponents.clubs.get(str(index),{}).get("build")
+		if build==null or build._bank==null or not C.same(build._bank.view().rewards,by_club[index]): return false
+	return true
+
 static func ordinary_current_valid(owner, season: SeasonState, current: Dictionary) -> bool:
 	if not Adapter.scope("ordinary",season) or current.is_empty() or owner.ordinary_state.is_empty(): return false
 	var state: Dictionary=owner.ordinary_state
@@ -316,7 +345,8 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 		if state.status!="active" or owner.common.sequence!=0 or not C.same(owner.common.aggregate,birth): return false
 	if state.has("archive") and (not archive_play_scope(season) \
 		or (state.status=="closed" and not StandardArchive.marked(season) \
-			and not archived_abandon_scope(owner,season))): return false
+			and not (starter_dugout_complete_scope(owner,season) if state.last_close.get("reason")=="complete" \
+				else archived_abandon_scope(owner,season)))): return false
 	if state.start_basis_sha256!=Life.digest(season.career.start_basis): return false
 	var basis: Dictionary=season.career.start_basis
 	var kind: Variant=state.get("archive",{}).get("kind")
@@ -336,6 +366,7 @@ static func ordinary_current_valid(owner, season: SeasonState, current: Dictiona
 	if summary.is_empty() or (row.reason=="complete")!=(summary.finish!="unfinished"): return false
 	if (row.reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE): return false
 	var expected: Dictionary=ClubSeasonRecord.receipt(proof,row.first_title,tier) if row.reason=="complete" else {}
+	if row.reason=="complete" and starter_dugout_archive(owner) and not _starter_dugout_paid_terminal(season): return false
 	return C.same(row.receipt,expected)
 
 # Only the already-qualified private eliminated semifinal COMPLETE can close.
@@ -373,8 +404,10 @@ static func _close_paired_complete(owner, current: Dictionary) -> bool:
 	return ordinary_current_valid(owner,owner.session,current) and _apply_close(owner,"complete",current)
 
 static func close(owner, reason: String) -> bool:
-	if owner.ordinary_state.has("archive") and not StandardArchive.marked(owner.session) \
-		and (reason!="abandon" or owner.active!="ordinary" or not archived_abandon_scope(owner,owner.session)): return false
+	if owner.ordinary_state.has("archive") and not StandardArchive.marked(owner.session):
+		if reason=="complete":
+			if not starter_dugout_complete_scope(owner,owner.session) or not _starter_dugout_paid_terminal(owner.session): return false
+		elif reason!="abandon" or owner.active!="ordinary" or not archived_abandon_scope(owner,owner.session): return false
 	if not valid(owner) or not owner.playable() or reason not in ["complete","abandon"]: return false
 	var season: SeasonState=owner.session
 	if season.picks.size()!=4 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting or season.build.pack_pending(): return false

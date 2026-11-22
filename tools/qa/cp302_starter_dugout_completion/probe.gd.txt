@@ -1,0 +1,99 @@
+extends "res://qa.gd"
+## Native physical input driver; this test must never author a result or payment.
+const Common = Store.Owner.Common
+const LeagueCareer = preload("res://src/gameplay/season/club_league_career.gd")
+const PREDECESSOR := "8894317a3e9b862b41714a6e69eca4948702f7c7da5c272b715501da03f45cdb"
+const BIRTH := "30fdf4c927abc4ff37014f410ed628b6691e0c118da84a0c6ed0f2676115a2df"
+const PICK := "f0a5e19a1adc83ce87cd47ce333cd1e66593617a2fc0fe83be0e1c9f48fe205c"
+const CUSTODY := "user://starter-dugout-steps"
+
+func _scope_app(app) -> bool:
+	return app.career_owner!=null and app._owned() and Common.starter_dugout_archive(app.career_owner) 		and app.career_owner.ordinary_state.archive.sha256==PREDECESSOR 		and app.career_owner.current_ordinal()==2 and app.season==app.career_owner.session
+
+func _run() -> void:
+	var a:=OS.get_cmdline_user_args()
+	if not check(a.size()==3 and a[0]=="cp302" and a[1] in ["round","close","cold"] 			and Store.LeagueAdmission.starter_player() and not Store.cross_league_preview() 			and OS.get_environment("WIFFALTRO_ISOLATED_TEST").is_empty() 			and not FileAccess.file_exists(ORIGINAL) and not FileAccess.file_exists(Store.PATH+".tmp"),"official no-env disposable Starter only"): return
+	var raw:=Store.raw()
+	var bak:=FileAccess.get_file_as_bytes(Store.PATH+".bak")
+	if not check(a[2].length()==64 and Store.Owner._hash(raw)==a[2],"exact current primary pin"): return
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	app.reload_save()
+	if not check(_scope_app(app) and Store.raw()==raw and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bak,
+		"strict App Continue with exact predecessor"): return
+	if a[1]=="cold":
+		if not check(app.career_owner.lifecycle_status()=="closed" and _terminal(app)
+				and _summary(app) and Store.raw()==raw and FileAccess.get_file_as_bytes(Store.PATH+".bak")==bak,
+			"strict fresh complete Close, exact archive and native receipt"): return
+		await _finish(app); return
+	if not check(app.career_owner.lifecycle_status()=="active","active owned lane"): return
+	if a[1]=="close":
+		if not check(_terminal(app) and app.starter_dugout_complete_visible(),"genuine complete; native Close visible"): return
+		app.close_current("complete")
+		if not check(app.career_owner.lifecycle_status()=="closed" and _terminal(app) and _summary(app),"actual native complete Close and banked receipt"): return
+		if not _record(app,"closed",raw): return
+		var closed:=Store.raw()
+		app.close_current("complete")
+		if not check(Store.raw()==closed and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw 				and Store.prepare_session_and_write(app.career_owner,closed,"close",0,"","complete")==null,
+			"duplicate close inert; exact previous primary"): return
+		await _finish(app); return
+	if app.season.phase==SeasonState.Phase.DRAFT:
+		if not check(Store.Owner._hash(raw) in [BIRTH,PICK] or (app.season.picks.size() in [2,3] \
+				and app.season.picks[0]=="player.jo_lane"),"native CP301 draft lineage before remaining picks"): return
+		while app.season.picks.size()<4:
+			var before:=Store.raw()
+			var pick_id: String=app.season.offers()[0]
+			app.draft(pick_id)
+			if not _record(app,"pick-%d"%app.season.picks.size(),before): return
+	if app.season.phase==SeasonState.Phase.COMPLETE:
+		if not check(_terminal(app),"native terminal reached"): return
+		await _finish(app); return
+	var checkpoint_round: int=app.season.round_index
+	var checkpoint_phase: int=app.season.phase
+	for attempt in range(7):
+		var before:=Store.raw()
+		var label: String=await _play(app) if app.season.physical.pending.is_empty() else await _resume(app)
+		if not check(not label.is_empty(),"actual phase advanced"): return
+		if not _record(app,label,before): return
+		if app.season.physical.pending.is_empty() and (app.season.round_index!=checkpoint_round or app.season.phase!=checkpoint_phase):
+			if not _retain(app): return
+			print("CP302 SETTLED round=",app.season.round_index," phase=",app.season.phase,
+				" standings=",JSON.stringify(app.season.standings())," sha=",Store.Owner._hash(Store.raw()))
+			break
+	if not check(app.season.physical.pending.is_empty(),"one native boundary settled"): return
+	await _finish(app)
+
+func _record(app, label: String, before: PackedByteArray) -> bool:
+	var now:=Store.raw()
+	if not check(_scope_app(app) and app.retained==null and now!=before 			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==before 			and not FileAccess.file_exists(Store.PATH+".tmp"),"exact staged primary/backup "+label): return false
+	print("CP302 STEP ",label," results=",app.season.results.size()," human=",app.season.player_results.size(),
+		" reports=",app.season.physical.reports.size()," phase=",app.season.phase,
+		" primary=",Store.Owner._hash(now)," backup=",Store.Owner._hash(before))
+	if label=="closed": return _retain(app)
+	return true
+
+func _retain(app) -> bool:
+	var path:=CUSTODY.path_join(FileAccess.get_sha256(Store.PATH))
+	if not check(DirAccess.make_dir_recursive_absolute(path)==OK,"isolated settled custody directory"): return false
+	for s: String in ["",".bak"]:
+		var dest:=path.path_join("owner.json"+s)
+		if not check(not FileAccess.file_exists(dest) and DirAccess.copy_absolute(Store.PATH+s,dest)==OK
+			and FileAccess.get_sha256(dest)==FileAccess.get_sha256(Store.PATH+s),"pin immutable boundary "+s): return false
+	var history:=Store.previous_standard_season(app.career_owner,Store.raw())
+	return check(history.results.size()==33 and history.summary.finish=="semifinal","earlier 33 real Standard results preserved")
+
+func _terminal(app) -> bool:
+	var season: SeasonState=app.season
+	return Common.starter_dugout_complete_scope(app.career_owner,season) 		and Common._starter_dugout_paid_terminal(season) and season.physical.cursor==season.physical.reports.size() 		and season.player_results.size()+season.physical.reports.size()==33
+
+func _summary(app) -> bool:
+	var season: SeasonState=app.season
+	var native:=ClubSeasonRecord.capture(season)
+	var summary:=ClubSeasonRecord.analyze(native)
+	var receipt:=ClubSeasonRecord.receipt(native,true,0)
+	var common: Dictionary=app.career_owner.common
+	var closed: Dictionary=app.career_owner.ordinary_state.last_close
+	var title: String=LeagueCareer.title_key("dugout",0)
+	print("CP302 CLOSE finish=",summary.get("finish")," title=",common.aggregate.titles.has(title), 		" cash=",common.aggregate.currency," receipt=", JSON.stringify(receipt))
+	return not receipt.is_empty() and common.sequence==2 and common.cursors.ordinary==2 		and ClubCareer.same(closed.receipt,receipt) and ClubCareer.same(common.last_fold.receipt,receipt) 		and common.aggregate.titles.has(title)==(season.champion==0) 		and common.aggregate.currency==72+int(receipt.get("total",0)) 		and Store.previous_standard_season(app.career_owner,Store.raw()).results.size()==33

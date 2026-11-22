@@ -1762,12 +1762,17 @@ func archived_abandon_visible() -> bool:
 	return (Store.cross_league_preview() or (starter_player() and Owner.Common.starter_dugout_archive(career_owner))) \
 		and Owner.Common.archived_abandon_scope(career_owner,season)
 
+func starter_dugout_complete_visible() -> bool:
+	return starter_player() and career_owner!=null and season!=null and career_owner.session==season \
+		and career_owner.lifecycle_status()=="active" and Owner.Common.starter_dugout_complete_scope(career_owner,season)
+
 func _lifecycle_ready(action: String) -> bool:
 	if career_owner!=null and career_owner.ordinary_state.has("archive"):
 		if standard_repeat_archive():
 			if action not in ["abandon","complete"] and (action not in ["propose","next"] \
 				or not standard_chain_next_visible()): return false
-		elif action!="abandon" or not archived_abandon_visible(): return false
+		elif not ((action=="abandon" and archived_abandon_visible()) \
+			or (action=="complete" and starter_dugout_complete_visible())): return false
 	if career_owner!=null and career_owner.paired_draft_only(): return false
 	if not _available() or not _scope() or is_instance_valid(ai_runner): return false
 	if not _exit_mode.is_empty() or not retained_human.is_empty() or not retained_report.is_empty(): return false

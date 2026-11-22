@@ -216,7 +216,7 @@ func render() -> void:
 	elif app.season.phase != SeasonState.Phase.COMPLETE:
 		if app.career_owner.active=="dynasty": _bound_button(_body,"LINEUP & DEFENSE",Callable(app,"open_lineup"))
 		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
-	elif not archived or standard_repeat:
+	elif not archived or standard_repeat or app.starter_dugout_complete_visible():
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty() and not app.academy_pack_choice_pending():
 		_bound_button(_body,"SHOP",Callable(app,"open_pitch_shop"))
