@@ -208,7 +208,15 @@ static func fold(before: Dictionary, side: String, season: SeasonState, close_id
 		if not result.player_access.has(id): result.player_access.append(id)
 	result.player_access.sort()
 	var eligibility=preload("exotic_eligibility.gd") if side=="dynasty" else preload("res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd")
-	var proof_rights: Dictionary=eligibility.capture(season)
+	var proof_rights: Dictionary
+	if side=="ordinary" and league=="standard" and tier==0 and reason=="complete":
+		# The just-completed Ordinary.capture above already authenticated the
+		# same SeasonState's rewards, roster and pitching against the catalog.
+		# Reuse only its local result and still recheck the catalog/proof here.
+		if not details.get("exotic") is Dictionary or not eligibility.valid(details.exotic): return {}
+		proof_rights=details.exotic
+	else:
+		proof_rights=eligibility.capture(season)
 	if proof_rights.is_empty(): return {}
 	for id: String in eligibility.eligible_ids(proof_rights):
 		if not result.exotic_rights.has(id): result.exotic_rights[id]={"origin":close_id,"source":JSON.stringify(proof_rights,"",true,true).sha256_text()}

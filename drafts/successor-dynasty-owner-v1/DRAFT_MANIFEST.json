@@ -42,8 +42,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/common_progress.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/common_progress.gd",
-      "bytes": 17868,
-      "sha256": "832d982cbd6d6a11118e1cee648bc1017ddbf55674360e9b1136bc484ebdf6db"
+      "bytes": 18316,
+      "sha256": "937bac5cc5277bf03bb676a6f8b3347ebfc42fb7e25d46c56d2dfde44886e8e2"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/contribution.gd.txt",
