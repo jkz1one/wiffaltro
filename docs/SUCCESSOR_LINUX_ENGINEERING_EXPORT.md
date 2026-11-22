@@ -792,3 +792,29 @@ native primary-only Continue restored the pending result and zero
 saved NPC reports, and Quit wrote nothing. No later game, NPC
 simulation, round settlement, second-season close, or award was
 started in this slice.
+
+### Archived Standard Season 2, first round settlement
+
+The same no-env Starter build resumed the exact human-only checkpoint
+once per opponent match, with no repeat of the human game. Both used
+the ordinary simulation path: Comets 2–3 Rivets (137 plays) and Kites
+9–12 Lanterns (170 plays). Their recorded elapsed diagnostics were
+169.408 and 243.957 seconds on the cloud Linux test host. Only the
+third Resume settled the completed round, posting the human loss and
+those two scores and showing Round 2, with Comets at Yard Club next.
+
+| Generated state | Bytes | SHA-256 |
+| --- | ---: | --- |
+| First NPC report pending | 1196963 | `5294924691ba83df926d2b166cf499f9f81daccc23b1f5f52c935a9b7b090875` |
+| Both NPC reports, before settlement | 1355770 | `fde4bd06dd4000ee9a9313279c350215d335cf5060054097e4741b50cc984a17` |
+| Season 2, Round 2 ready | 1633666 | `e132c6f66ba1761a9b34abd102edf45405452a46dcf715077d78f7db72700534` |
+
+This was the existing normal-speed path, not the accelerator for
+early first-season saves. No next game or shop action was started.
+
+Independent checks found no payout before settlement and exactly one
+round reward for each of the six clubs afterward. Yard Club had 12
+seasonal Cash. The archived first season, shared 72 Club Bucks and
+absence of a title were unchanged. Fresh primary-only Continue
+restored the same Round 2 standings; native Quit wrote nothing and
+created no backup or temporary save.
