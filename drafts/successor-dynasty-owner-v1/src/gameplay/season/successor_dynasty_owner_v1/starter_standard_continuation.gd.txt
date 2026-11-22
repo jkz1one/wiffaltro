@@ -148,12 +148,32 @@ static func _draft_scope(owner: RefCounted) -> bool:
 			or state.get("archive",{}).get("kind")!=Custody.KIND or state.get("last_transition",{}).get("kind")!=TRANSITION \
 			or not work.valid(state) or not state.has(work.FIELD) or state.has(work.APPLIED) \
 			or season.round_index!=0 or not season.results.is_empty() or not season.player_results.is_empty() \
-			or season.physical==null or season.physical.cursor!=0 or not season.physical.pending.is_empty() \
+			or season.physical==null or season.physical.cursor!=0 \
 			or not season.physical.reports.is_empty() or not season.physical.needed.is_empty() \
 			or not season.physical.error.is_empty() or season.physical.projecting: return false
 	if season.phase==SeasonState.Phase.DRAFT:
-		return season.picks.size()<4 and not state.has(work.OPENING) and season.home_property.is_empty()
-	return _preopening(season) and _opening_valid(state,season)
+		return season.picks.size()<4 and season.physical.pending.is_empty() and not state.has(work.OPENING) and season.home_property.is_empty()
+	return _preopening(season) and _opening_valid(state,season) \
+		and (season.physical.pending.is_empty() or _human_pending_shape(season.physical.pending,state[work.OPENING]))
+
+static func _human_pending_shape(pending: Variant, opening: Variant) -> bool:
+	var api := _api()
+	return opening is Dictionary and opening.get("choice")=="chair" and opening.get("locked")==true \
+		and api.Codec.keys(pending,["human","reports"]) and pending.human is Array and pending.human.size()==13 \
+		and api.Codec.whole(pending.human[0],0,0) and pending.reports is Array and pending.reports.is_empty()
+
+static func _validate_human_pending(owner: RefCounted) -> bool:
+	if not _draft_scope(owner) or owner.session.physical.pending.is_empty(): return false
+	var api := _api()
+	# Validate via the full native detached opening projection. It must stop
+	# before game 1; detached human reward never enters the saved owner.
+	var checked: Dictionary=api.Adapter.OrdinaryPending.project(owner.session)
+	var fixture: Variant=checked.get("fixture")
+	var day: Variant=checked.get("candidate")
+	return not checked.has("error") and fixture is Dictionary and fixture.get("id")==1 \
+		and 0 not in [fixture.get("away"),fixture.get("home")] and day is SeasonState \
+		and day!=owner.session and day.physical.cursor==0 and day.physical.reports.is_empty()
+
 
 # Only the actual native fourth choice is allowed to enter the opening window.
 static func _enter_opening(owner: RefCounted) -> bool:
@@ -216,6 +236,10 @@ static func _restore_private(value: Variant) -> RefCounted:
 		if not opening is Dictionary or opening.get("version")!=OPENING_VERSION \
 				or opening.get("choice") not in ["pending","stock","chair"]: return null
 	elif state.has(work.OPENING): return null
+	if not value.ordinary.get("physical") is Dictionary: return null
+	var pending: Variant=value.ordinary.physical.get("pending")
+	if not pending is Dictionary or (not pending.is_empty() \
+			and (picks.size()!=4 or not _human_pending_shape(pending,opening))): return null
 	var raw: PackedByteArray
 	var roots:=Custody.unpack(archive)
 	if roots.is_empty(): return null
@@ -230,4 +254,7 @@ static func _restore_private(value: Variant) -> RefCounted:
 		if not id is String or not owner.session.choose_player(id): return null
 	if picks.size()==4 and (not _enter_opening(owner) \
 			or (opening.choice!="pending" and not _lock_opening(owner,opening.choice))): return null
+	if not pending.is_empty():
+		owner.session.physical.pending=pending.duplicate(true)
+		if not _validate_human_pending(owner): return null
 	return owner if api.Codec.same(value,_capture_local(owner)) else null

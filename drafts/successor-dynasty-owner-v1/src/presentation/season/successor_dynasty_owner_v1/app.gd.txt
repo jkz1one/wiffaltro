@@ -1330,6 +1330,11 @@ func _play_private_standard_opening() -> void:
 		if retained!=null or not career_owner.ordinary_state.get(workshop.OPENING,{}).get("locked",false): return
 	play_next()
 
+# Explicit isolated route only; no player menu or generic Play points here.
+func _play_private_standard_flat_opening() -> void:
+	if _available() and not is_instance_valid(lab):
+		Store.open_private_standard_flat_human(self)
+
 func play_next() -> void:
 	if career_owner!=null and not career_owner.playable(): return
 	var workshop=Owner.Common.StandardWorkshop
@@ -1382,6 +1387,17 @@ func _played_field_matches() -> bool:
 
 
 func finish_game() -> void:
+	if Store.Flat.is_flat(career_owner):
+		if not Store.private_standard_chain_opening() or _busy or is_instance_valid(_loadout_modal): return
+		if retained!=null:
+			retry_save()
+			return
+		var ticket: RefCounted=Store.prepare_private_standard_flat_human(self)
+		if ticket!=null:
+			_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+		else:
+			notice="The private opening game could not be saved. It remains open."
+		return
 	if is_instance_valid(_paired_menu_lab) and lab==_paired_menu_lab:
 		if not (private_paired_opening_visible() or private_unpurchased_return_visible() \
 			or ((private_unpurchased_next_pair() or private_unpurchased_next_reverse()) and season.physical.pending.is_empty())): return

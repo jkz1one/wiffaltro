@@ -26,6 +26,9 @@ static var _imported_sha256: String = ""
 static var _owner: RefCounted
 static var _owner_raw: Dictionary = {}
 static var _owner_bytes: PackedByteArray = PackedByteArray()
+static var _flat_play: PrivateFlatOpeningPlay
+static var _flat_play_app: WeakRef
+static var _flat_play_lab: WeakRef
 static var _flat_ticket: RefCounted
 static var _ticket: RefCounted
 static var _candidate: RefCounted
@@ -313,6 +316,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 	return same
 
 static func _invalidate() -> void:
+	_clear_private_flat_play()
 	_previous_standard_pin = {}; _previous_standard_view = {}
 	_standard_history_pin = {}; _standard_history_view = []
 	forget_projection()
@@ -1513,7 +1517,7 @@ static func prepare_private_standard_flat_pick(owner: RefCounted, expected: Pack
 static func prepare_private_standard_flat_opening(owner: RefCounted, expected: PackedByteArray, choice: String) -> RefCounted:
 	return _prepare_private_standard_flat(owner,expected,"opening",choice)
 
-static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedByteArray, op: String, argument: String) -> RefCounted:
+static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedByteArray, op: String, argument: String, app: Variant=null) -> RefCounted:
 	if not private_standard_chain_opening() or saving or _ticket!=null or not _match_bound_owner(owner,expected):
 		return null
 	var candidate: RefCounted
@@ -1521,7 +1525,7 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 		if not argument.is_empty() or not Flat._scope(owner): return null
 		var draft:=Flat._from_authenticated(owner,expected,Owner._hash(expected))
 		candidate=Flat._local_owner(owner,draft)
-	elif op in ["pick","opening"]:
+	elif op in ["pick","opening","human"]:
 		if not Flat._draft_scope(owner): return null
 		var next: SeasonState=owner.session.fork_live()
 		if next==null: return null
@@ -1531,7 +1535,15 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 		if op=="pick":
 			if next.phase!=SeasonState.Phase.DRAFT or not next.choose_player(argument): return null
 			if next.picks.size()==4 and not Flat._enter_opening(candidate): return null
-		elif not Flat._lock_opening(candidate,argument): return null
+		elif op=="opening":
+			if not Flat._lock_opening(candidate,argument): return null
+		else:
+			if not argument.is_empty() or not _private_flat_play_matches(app,owner,expected): return null
+			var human:=observe_private_standard_flat_human(app)
+			if human.size()!=13: return null
+			candidate.session.physical.pending={"human":human.duplicate(true),"reports":[]}
+			if not Flat._validate_human_pending(candidate) \
+					or not _private_flat_play_matches(app,owner,expected): return null
 	else: return null
 	var data:=Flat._capture_local(candidate)
 	if data.is_empty() or not _match_bound_owner(owner,expected): return null
@@ -1546,12 +1558,16 @@ static func _prepare_private_standard_flat(owner: RefCounted, expected: PackedBy
 class PrivateFlatOpeningPlay:
 	var match_state: MatchState
 	var field_id: StringName
+	var _field: FieldDefinition
+	var _fixture: Dictionary
+	var _request: String
 
 # Unbound/private launch data only. The normal App/Return writers still
 # refuse this owner. No report, game result or disk change can be supplied.
 static func private_standard_flat_opening_play(owner: RefCounted, expected: PackedByteArray) -> PrivateFlatOpeningPlay:
 	if not private_standard_chain_opening() or saving or _ticket!=null \
-			or not _match_bound_owner(owner,expected) or not Flat._locked(owner): return null
+			or not _match_bound_owner(owner,expected) or not Flat._locked(owner) \
+			or not owner.session.physical.pending.is_empty(): return null
 	var detached: SeasonState=owner.session.fork_live()
 	if detached==null: return null
 	var fixture: Dictionary=detached.pending_fixture()
@@ -1562,7 +1578,61 @@ static func private_standard_flat_opening_play(owner: RefCounted, expected: Pack
 	var result := PrivateFlatOpeningPlay.new()
 	result.match_state=state
 	result.field_id=field.id
-	return result
+	result._field=field
+	result._fixture=fixture.duplicate(true)
+	result._request=Adapter.OrdinaryFixtures.request_key(detached,fixture)
+	return result if not result._request.is_empty() else null
+
+static func _clear_private_flat_play() -> void:
+	_flat_play=null; _flat_play_app=null; _flat_play_lab=null
+
+static func _private_flat_app(app: Variant) -> bool:
+	return app is SeasonApp and app.get_script()!=null and app.get_script().resource_path=="res://src/presentation/season/successor_dynasty_owner_v1/app.gd"
+
+# Fixed native App-only launch. Store drives the scene from the exact own
+# request and records the actual Lab it opened, not caller-supplied tokens.
+static func open_private_standard_flat_human(app: Variant) -> bool:
+	if not _private_flat_app(app) or is_instance_valid(app.lab) or app.career_owner==null \
+			or app.season!=app.career_owner.session: return false
+	var owner: RefCounted=app.career_owner
+	var choice: Dictionary=owner.ordinary_state.get(Owner.Common.StandardWorkshop.OPENING,{})
+	if choice.get("choice")!="chair": return false
+	var play:=private_standard_flat_opening_play(owner,app.saved_bytes)
+	if play==null: return false
+	_clear_private_flat_play()
+	app._fixture_id=0
+	app._result_recorded=false
+	app._result_saved=false
+	app._open_match(play.match_state,false,true,play.field_id)
+	if not is_instance_valid(app.lab): return false
+	_flat_play=play
+	_flat_play_app=weakref(app)
+	_flat_play_lab=weakref(app.lab)
+	return _private_flat_play_matches(app,owner,app.saved_bytes)
+
+static func _private_flat_play_matches(app: Variant, owner: RefCounted, expected: PackedByteArray) -> bool:
+	if not private_standard_chain_opening() or not _private_flat_app(app) or _flat_play==null \
+			or _flat_play_app.get_ref()!=app or not is_instance_valid(app.lab) or _flat_play_lab.get_ref()!=app.lab \
+			or not _match_bound_owner(owner,expected) or app.career_owner!=owner or app.season!=owner.session \
+			or app.saved_bytes!=expected or app._fixture_id!=0 or not owner.session.physical.pending.is_empty(): return false
+	var lab: PitchBatLab=app.lab
+	var state: MatchState=lab._match_state
+	var fixture: Dictionary=owner.session.pending_fixture()
+	return lab._managed_match and lab._match_mode and not lab._player_home and state==_flat_play.match_state \
+		and lab._field_definition==_flat_play._field and lab._field_id==_flat_play.field_id and state.stadium.is_empty() \
+		and not lab.has_meta("stadium_property") and Codec.same(state.league_rules,owner.session.league_rules) \
+		and state.pitch_catalog==owner.session.build.pitch_catalog_signature() and Codec.same(fixture,_flat_play._fixture) \
+		and Adapter.OrdinaryFixtures.request_key(owner.session,fixture)==_flat_play._request
+
+# Read-only native observation for custody or fixed Return. No public replay
+# input exists: the writer invokes this on the same still-bound Lab itself.
+static func observe_private_standard_flat_human(app: Variant) -> Array:
+	if not _private_flat_app(app) or not _private_flat_play_matches(app,app.career_owner,app.saved_bytes): return []
+	return Adapter.OrdinaryCapture._capture_bound(app,func(): return _private_flat_play_matches(app,app.career_owner,app.saved_bytes))
+
+static func prepare_private_standard_flat_human(app: Variant) -> RefCounted:
+	if not _private_flat_app(app) or not _private_flat_play_matches(app,app.career_owner,app.saved_bytes): return null
+	return _prepare_private_standard_flat(app.career_owner,app.saved_bytes,"human","",app)
 
 # Identity handoff only. Later retry/promotion still authenticate this exact
 # live candidate against the private snapshot; no returned value authorizes IO.
@@ -1623,6 +1693,7 @@ static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted
 	_owner = _candidate; _owner_session = _candidate_session; _owner_raw = _candidate_raw; _owner_bytes = _written.duplicate()
 	_paused = _candidate.paused.duplicate(true); _active = _candidate.active
 	_metadata = Codec.data_fields(_candidate,Owner.META_FIELDS); _imported_sha256 = _candidate.imported_sha256
+	_clear_private_flat_play()
 	_flat_ticket = null; _ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 	return true

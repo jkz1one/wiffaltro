@@ -1,0 +1,163 @@
+extends Node
+
+const Launcher = preload("res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Flat = Store.Flat
+const Adapter = Owner.Adapter
+const Work = Owner.Common.StandardWorkshop
+const CHAIR := "71ad2e613b0cfb56a29229d0166a0f6311fb9205fba040b140676c86306fc793"
+const PRE := "fbf8995fc988850b7b602c37cddc1c4b63db66b5d00e3b765aeac889af468ede"
+const FRAME_LIMIT := 150000
+var failed := false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP291 ", "PASS" if ok else "FAIL"," ",name)
+	failed=failed or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func write_fixture(path: String, raw: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(raw)
+	f.flush()
+	var ok:=f.get_error()==OK
+	f.close()
+	return ok
+
+func backup() -> PackedByteArray: return FileAccess.get_file_as_bytes(Store.PATH+".bak")
+
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=3: get_tree().quit(2); return
+	var raw:=Store.raw()
+	if not check(Store.private_standard_chain_opening() and Owner._hash(raw)==args[1]
+			and not FileAccess.file_exists(Store.PATH+".tmp"),"isolated exact primary"): get_tree().quit(1); return
+	if args[0]=="human" and not check(Owner._hash(raw)==CHAIR and Owner._hash(backup())==PRE,"exact CP290 locked chair/backup"):
+		get_tree().quit(1); return
+	if args[0]=="cold" and not check(not FileAccess.file_exists(Store.PATH+".bak"),"primary-only cold process"):
+		get_tree().quit(1); return
+	var stamp:=Time.get_ticks_msec()
+	var owner:RefCounted=Store.read_private_standard_flat()
+	if not check(owner!=null,"fresh private strict native read"): get_tree().quit(1); return
+	print("CP291 cold ms ",Time.get_ticks_msec()-stamp)
+	if args[0]=="human": await _human(owner,raw,args[2])
+	elif args[0]=="cold": _cold(owner,raw)
+	else: failed=true
+	get_tree().quit(1 if failed else 0)
+
+func _human(owner: RefCounted, raw: PackedByteArray, output: String) -> void:
+	var old_bak:=backup()
+	var old: Dictionary=Owner._bytes_value(raw)
+	var app=Launcher.instantiate()
+	add_child(app)
+	await get_tree().process_frame
+	app.career_owner=owner
+	app.season=owner.session
+	app.saved_bytes=raw
+	app.play_next()
+	if not check(not is_instance_valid(app.lab) and Store.prepare_private_standard_flat_human(app)==null,
+			"generic Play denied; Return has no unbound match"): return
+	var fixture: Dictionary=owner.session.pending_fixture()
+	var key: String=Adapter.OrdinaryFixtures.request_key(owner.session,fixture)
+	var seed_value: int=Adapter.OrdinaryFixtures.seed_for(owner.session,fixture)
+	app._play_private_standard_flat_opening()
+	var lab:PitchBatLab=app.lab
+	if not check(is_instance_valid(lab) and lab._managed_match and not lab._player_home and lab._match_state.stadium.is_empty()
+			and Store._private_flat_play_matches(app,owner,raw) and Store.observe_private_standard_flat_human(app).is_empty(),
+			"fixed true opening Lab and request; unfinished result refused"): return
+	print("CP291 physical start fixture=",fixture.id," away=",fixture.away," home=",fixture.home,
+		" field=",lab._field_id," seed=",seed_value," request=",key)
+	for frame: int in range(700):
+		await get_tree().physics_frame
+		if not lab._match_presentation_director.blocks_gameplay(): break
+	if not check(not lab._match_presentation_director.blocks_gameplay(),"native intro complete"): return
+	lab._automation=MatchAutomation.new()
+	lab._automation.seed=seed_value
+	lab._automation.presentation_enabled=true
+	lab._automation.begin(lab)
+	var stamp:=Time.get_ticks_msec()
+	var ended:=false
+	for frame: int in range(FRAME_LIMIT):
+		await get_tree().physics_frame
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._automation!=null and not lab._home_run.presentation_pending(lab):
+			lab._automation=null
+			PitchBatLabFeelSupport.begin_match_outro(lab)
+		if lab._match_state.phase==MatchState.Phase.GAME_END and lab._match_presentation_director.mode==MatchPresentationDirector.Mode.OUTRO_HOLD:
+			ended=true
+			break
+		if frame%6000==0: print("CP291 physical active frame=",frame," PA=",lab._match_state.plate_appearance_number)
+	if not check(ended,"true completed native match and Outro Hold"): return
+	var native: Array=Store.observe_private_standard_flat_human(app)
+	if not check(native.size()==13 and native[0]==0 and Store.raw()==raw and backup()==old_bak,
+			"authentic H13 captured in current Lab without a write"): return
+	var evidence:Dictionary={"source":CHAIR,"fixture":0,"request":key,"field":str(lab._field_id),"seed":seed_value,"human":native}
+	var evidence_bytes:=JSON.stringify(evidence,"",true,true).to_utf8_buffer()
+	if not check(write_fixture(output.path_join("native-human.json"),evidence_bytes),"retain original H13 before Return"): return
+	print("CP291 raw H13 ",native[1],":",native[2]," SHA=",Owner._hash(evidence_bytes)," simulation ms=",Time.get_ticks_msec()-stamp)
+	for frame: int in range(10):
+		await get_tree().process_frame
+		if app._continue.visible: break
+	if not check(app._continue.visible and not app._continue.disabled,"actual native Return control"): return
+	var shifted:=raw.duplicate()
+	shifted.append(32)
+	app.saved_bytes=shifted
+	check(Store.prepare_private_standard_flat_human(app)==null and Store.raw()==raw,"stale App owner bytes refused")
+	app.saved_bytes=raw
+	app._fixture_id=1
+	check(Store.prepare_private_standard_flat_human(app)==null and Store.raw()==raw,"wrong fixture identity refused")
+	app._fixture_id=0
+	if not check(DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"isolated held writer"): return
+	stamp=Time.get_ticks_msec()
+	app._continue.pressed.emit()
+	if not check(app.retained!=null and app.career_owner==owner and app.lab==lab and Store.raw()==raw
+			and backup()==old_bak,"actual Return holds one exact ticket without write or cleanup"): return
+	print("CP291 Return stage ms ",Time.get_ticks_msec()-stamp)
+	if not check(DirAccess.remove_absolute(ProjectSettings.globalize_path(Store.PATH+".tmp"))==OK,"release isolated obstruction"): return
+	app.retry_save()
+	var saved:=Store.raw()
+	var next:RefCounted=app.career_owner
+	var pending: Dictionary=next.session.physical.pending
+	if not check(not is_instance_valid(app.lab) and app.retained==null and next!=owner and saved!=raw and backup()==raw
+			and Owner.Codec.same(pending.human,native) and pending.reports.is_empty() and not pending.has("property")
+			and _unpaid(next),"exact actual H13 durable after one Retry; no results/reward/CPU"): return
+	var out: Dictionary=Owner._bytes_value(saved)
+	check(Owner.Codec.same(out.common,old.common) and Owner.Codec.same(out.ordinary_state,old.ordinary_state),
+		"all three old archives, Common, lock and Workshop metadata unchanged")
+	app.finish_game()
+	check(Store.raw()==saved and backup()==raw and Store.private_standard_flat_opening_play(next,saved)==null
+		and not is_instance_valid(app.ai_runner),"duplicate Return/relaunch/NPC are inert")
+	check(write_fixture(output.path_join("away-pending.json"),saved),"retain exact durable pending")
+	print("CP291 pending ",saved.size()," ",Owner._hash(saved))
+	app.queue_free()
+	await get_tree().process_frame
+
+func _unpaid(owner: RefCounted) -> bool:
+	var s:SeasonState=owner.session
+	return (Flat._locked(owner) and s.round_index==0 and s.results.is_empty() and s.player_results.is_empty()
+		and s.physical.cursor==0 and s.physical.reports.is_empty() and s.cash()==0 and s.build._sides_start
+		and owner.common.aggregate.currency==72 and owner.common.last_fold.receipt.is_empty()
+		and owner.ordinary_state.has(Work.FIELD) and not s.home_property.is_empty())
+
+func _cold(owner: RefCounted, raw: PackedByteArray) -> void:
+	var value:Dictionary=Owner._bytes_value(raw)
+	check(_unpaid(owner) and Owner.Codec.same(owner.session.physical.pending,value.ordinary.physical.pending)
+		and owner.session.physical.pending.human.size()==13 and owner.session.physical.pending.human[0]==0,
+		"strict exact human pending restored unpaid")
+	check(Store.read()==null and not Store.save(owner,raw) and Store.private_standard_flat_opening_play(owner,raw)==null,
+		"generic continue/writer and relaunch stay unavailable")
+	var changed:Dictionary=value.duplicate(true)
+	changed.ordinary.physical.pending.human[0]=1
+	check(Flat._restore_private(changed)==null,"wrong human fixture rejected before deep replay")
+	changed=value.duplicate(true)
+	changed.ordinary.physical.pending.reports.append({})
+	check(Flat._restore_private(changed)==null,"injected NPC report refused before deep replay")
+	var wrong:RefCounted=Owner._restore_metadata(value)
+	wrong.session=owner.session.fork_live()
+	wrong.session.physical.pending.human[1]+=1
+	check(not Flat._validate_human_pending(wrong),"authentic native projection rejects tampered score with same shape")
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"fresh proof and refusals do not change any slot")
