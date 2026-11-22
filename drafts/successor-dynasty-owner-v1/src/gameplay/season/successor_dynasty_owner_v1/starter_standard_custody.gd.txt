@@ -1,0 +1,193 @@
+extends RefCounted
+## Inactive Standard archive byte transport. Neither this format nor its
+## checks authenticate an owner, restore career facts, or authorize a write.
+const KIND := "standard-base-flat-custody-v1"
+const MAX_ROWS := 3 # The only supported legacy migration; no ordinal-4 reader.
+const MAX_DECODED := 24 * 1024 * 1024
+const MAX_ENCODED := 12 * 1024 * 1024
+const TAG := '"deflate_base64":'
+
+class Carrier:
+	var value: Dictionary
+	var strings: Array[String] = []
+	func _init(data: Dictionary = {}, blobs: Array[String] = []) -> void:
+		value = data
+		strings = blobs
+
+class Cut:
+	var body: PackedByteArray
+	var offsets: Array[int] = []
+
+static func _api() -> Script:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+
+# Remove only unique exact JSON string values in the known carrier, leaving
+# all surrounding bytes (including historical number spelling) untouched.
+static func _cut(raw: PackedByteArray, carrier: Carrier) -> Cut:
+	var text := raw.get_string_from_utf8()
+	if text.to_utf8_buffer() != raw: return null
+	var ranges: Array[Vector2i] = []
+	for i: int in carrier.strings.size():
+		var token: String = TAG+JSON.stringify(carrier.strings[i])
+		var at := text.find(token)
+		if at < 0 or text.find(token,at+token.length()) >= 0: return null
+		ranges.append(Vector2i(at+TAG.length(),i))
+	ranges.sort_custom(func(a: Vector2i,b: Vector2i): return a.x < b.x)
+	var result := Cut.new()
+	result.offsets.resize(ranges.size())
+	var start: int = 0
+	for r: Vector2i in ranges:
+		if r.x < start: return null
+		result.body.append_array(text.substr(start,r.x-start).to_utf8_buffer())
+		result.offsets[r.y] = result.body.size()
+		start = r.x+carrier.strings[r.y].length()+2
+	result.body.append_array(text.substr(start).to_utf8_buffer())
+	return result
+
+static func _owner_shape(raw: PackedByteArray, ordinal: int, lineage: String, carrier: Carrier, earlier: Array[String]) -> bool:
+	var api := _api()
+	var v: Variant = api._bytes_value(raw)
+	if not v is Dictionary or v.get("format") != api.FORMAT or v.get("active") != "ordinary" \
+			or not v.get("ordinary_state") is Dictionary: return false
+	var state: Dictionary = v.ordinary_state
+	var close: Variant = state.get("last_close")
+	if not close is Dictionary or state.get("lineage") != lineage or state.get("status") != "closed" \
+			or state.get("ordinal") != ordinal or close.get("league") != "standard" \
+			or close.get("ordinal") != ordinal or close.get("tier") != 0 \
+			or close.get("reason") != ("complete" if ordinal == 1 else "abandon"): return false
+	if ordinal == 1: return not state.has("archive")
+	if not api.Codec.same(state.get("archive"),carrier.value): return false
+	var transition: Variant = state.get("last_transition")
+	if not transition is Dictionary or not transition.get("basis") is Dictionary: return false
+	var origin: Variant = transition.basis.get("archive_origin")
+	if not origin is Dictionary: return false
+	if ordinal == 2:
+		return origin.get("kind") == api.Common.StandardArchive.ORIGIN and origin.get("sha256") == earlier[0]
+	return origin.get("kind") == api.Common.Start.STANDARD_CHAIN_OPENING \
+		and api.Codec.same(origin.get("ordered_sha256"),earlier)
+
+# Carrier derivation for the legacy paths only. No codec migration in-place;
+# any toolchain compression difference makes reconstruction fail closed.
+static func _legacy_carrier(decoded: Array[PackedByteArray], rows: Array) -> Carrier:
+	if decoded.is_empty(): return Carrier.new()
+	var api := _api()
+	var first: Dictionary = rows[0].body
+	var strings: Array[String] = [first.deflate_base64]
+	if decoded.size() == 1: return Carrier.new(first,strings)
+	var second: Dictionary = api.Common.StandardChain._pack_second(decoded[1],first)
+	if second.is_empty(): return null
+	strings.append(second.cut.deflate_base64)
+	return Carrier.new({"kind":api.Common.StandardChain.KIND,"entries":[first,second]},strings)
+
+static func _row_shape(row: Variant, ordinal: int) -> bool:
+	var api := _api()
+	if not api.Codec.keys(row,["ordinal","source_bytes","source_sha256","offsets","body"]) \
+			or not api.Codec.whole(row.ordinal,ordinal,ordinal) or not api._digest(row.source_sha256) \
+			or not api.Codec.whole(row.source_bytes,1,api.Common.StandardArchive.MAX_SOURCE) \
+			or not api.Common.StandardChain._blob_shape(row.body) or not row.offsets is Array \
+			or row.offsets.size() != ordinal-1 or row.body.source_bytes > row.source_bytes: return false
+	var seen: Array[int] = []
+	for at: Variant in row.offsets:
+		if not api.Codec.whole(at,1,int(row.body.source_bytes)-1) or int(at) in seen: return false
+		seen.append(int(at))
+	return true
+
+static func _budget(row: Variant) -> bool:
+	var api := _api()
+	if not api.Codec.keys(row,["kind","lineage","rows"]) or row.kind != KIND \
+			or not row.lineage is String or not row.lineage.begins_with("ordinary:") \
+			or not api._digest(row.lineage.substr(9)) or not row.rows is Array or row.rows.size() != MAX_ROWS: return false
+	var decoded: int = 0
+	var encoded: int = 0
+	var seen: Array[String] = []
+	for i: int in row.rows.size():
+		var v: Variant = row.rows[i]
+		if not _row_shape(v,i+1) or v.source_sha256 in seen: return false
+		seen.append(v.source_sha256)
+		decoded += int(v.source_bytes)
+		encoded += v.body.deflate_base64.length()
+		if decoded > MAX_DECODED or encoded > MAX_ENCODED: return false
+	return true
+
+static func _encode(raw: PackedByteArray, ordinal: int, lineage: String, carrier: Carrier, earlier: Array[String]) -> Dictionary:
+	if not _owner_shape(raw,ordinal,lineage,carrier,earlier): return {}
+	var cut := _cut(raw,carrier)
+	if cut == null: return {}
+	var api := _api()
+	var body: Dictionary = api.Common.StandardArchive._pack(cut.body)
+	if body.is_empty(): return {}
+	return {"ordinal":ordinal,"source_bytes":raw.size(),"source_sha256":api._hash(raw),
+		"offsets":cut.offsets,"body":body}
+
+static func _decode(row: Dictionary, carrier: Carrier) -> PackedByteArray:
+	var real_size: int = int(row.body.source_bytes)
+	for s: String in carrier.strings: real_size += s.length()+2
+	if real_size != row.source_bytes: return PackedByteArray()
+	var api := _api()
+	var body: PackedByteArray = api.Common.StandardArchive._unpack(row.body)
+	if body.is_empty(): return PackedByteArray()
+	var order: Array[int] = []
+	for i: int in row.offsets.size(): order.append(i)
+	order.sort_custom(func(a: int,b: int): return row.offsets[a] < row.offsets[b])
+	var raw := PackedByteArray()
+	var start: int = 0
+	for i: int in order:
+		var at: int = int(row.offsets[i])
+		raw.append_array(body.slice(start,at))
+		raw.append_array(JSON.stringify(carrier.strings[i]).to_utf8_buffer())
+		start = at
+	raw.append_array(body.slice(start))
+	if raw.size() != real_size or api._hash(raw) != row.source_sha256: return PackedByteArray()
+	var check := _cut(raw,carrier)
+	return raw if check != null and check.body == body and api.Codec.same(check.offsets,row.offsets) else PackedByteArray()
+
+# Structural only. The next integration must independently carry native
+# owner/close/fold/proposal proof across ordered rows before adoption.
+static func unpack(manifest: Variant) -> Array[PackedByteArray]:
+	if not _budget(manifest): return []
+	var decoded: Array[PackedByteArray] = []
+	var earlier: Array[String] = []
+	for row: Dictionary in manifest.rows:
+		var carrier := _legacy_carrier(decoded,manifest.rows)
+		if carrier == null: return []
+		var raw := _decode(row,carrier)
+		if raw.is_empty() or not _owner_shape(raw,int(row.ordinal),manifest.lineage,carrier,earlier): return []
+		decoded.append(raw)
+		earlier.append(row.source_sha256)
+	return decoded
+
+static func migrate_legacy_closed(raw: PackedByteArray) -> Dictionary:
+	var api := _api()
+	var prefix = api.Common.StandardChain
+	if raw.is_empty() or raw.size() > api.Common.StandardArchive.MAX_SOURCE: return {}
+	var v: Variant = api._bytes_value(raw)
+	if not v is Dictionary or not v.get("ordinary_state") is Dictionary: return {}
+	var state: Dictionary = v.ordinary_state
+	var archive: Variant = state.get("archive")
+	var lineage: Variant = state.get("lineage")
+	if not lineage is String or not api.Codec.keys(archive,["kind","entries"]) or archive.kind != prefix.KIND \
+			or not archive.entries is Array or archive.entries.size() != 2: return {}
+	var first: Variant = archive.entries[0]
+	var second: Variant = archive.entries[1]
+	if not prefix._blob_shape(first) or not api.Codec.keys(second,["kind","source_bytes","source_sha256","offset","cut"]) \
+			or second.kind != prefix.CUT_KIND or not prefix._blob_shape(second.cut) or not api._digest(second.source_sha256) \
+			or not api.Codec.whole(second.source_bytes,1,api.Common.StandardArchive.MAX_SOURCE) \
+			or not api.Codec.whole(second.offset,1,int(second.cut.source_bytes)-1) \
+			or second.source_bytes != second.cut.source_bytes+first.deflate_base64.length()+2 \
+			or first.source_bytes+second.source_bytes+raw.size() > MAX_DECODED \
+			or first.deflate_base64.length()+second.cut.deflate_base64.length() > MAX_ENCODED: return {}
+	var raws: Array[PackedByteArray] = [api.Common.StandardArchive._unpack(first),prefix._unpack_second(second,first),raw]
+	if raws[0].is_empty() or raws[1].is_empty(): return {}
+	var decoded: Array[PackedByteArray] = []
+	var earlier: Array[String] = []
+	var rows: Array[Dictionary] = []
+	for source: PackedByteArray in raws:
+		var carrier := _legacy_carrier(decoded,rows)
+		if carrier == null: return {}
+		var row := _encode(source,decoded.size()+1,lineage,carrier,earlier)
+		if row.is_empty(): return {}
+		rows.append(row)
+		decoded.append(source)
+		earlier.append(row.source_sha256)
+	var manifest := {"kind":KIND,"lineage":lineage,"rows":rows}
+	return manifest if unpack(manifest) == raws else {}

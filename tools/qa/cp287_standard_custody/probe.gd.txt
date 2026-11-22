@@ -1,0 +1,83 @@
+extends Node
+
+const Flat = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_standard_custody.gd")
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const HASH := [
+	"c964f1eb24f35811506de876958d2846892a21075a4ccd4f472637c28d7262e9",
+	"9e37cd51e8613d360a7849df0aa1bc35225cf51ba3a8a855a52822feccf79acd",
+	"6d62bc30775faec6cf941b8d87353e55c0663ce6a96148572826511efe00416a"]
+const SIZE := [7706296,2287877,2490421]
+var error: bool = false
+
+func check(ok: bool, name: String) -> bool:
+	print("CP287 ", "PASS" if ok else "FAIL"," ",name)
+	error = error or not ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	var raw := Store.raw()
+	if not check(Owner._hash(raw)==HASH[2] and raw.size()==SIZE[2] and Store.private_standard_chain_opening() \
+			and not FileAccess.file_exists(Store.PATH+".tmp") and not FileAccess.file_exists(Store.PATH+".bak"),"exact primary-only input"): get_tree().quit(1); return
+	var stamp := Time.get_ticks_msec()
+	var owner: RefCounted = Owner.restore(Owner._bytes_value(raw))
+	if not check(owner!=null and owner.ordinary_state.status=="closed" and owner.common.sequence==3 \
+			and owner.common.aggregate.currency==72 and owner.session.results.size()==6,"unchanged strict native closed read"): get_tree().quit(1); return
+	print("CP287 native restore ms ",Time.get_ticks_msec()-stamp)
+	owner = null
+	stamp = Time.get_ticks_msec()
+	var manifest := Flat.migrate_legacy_closed(raw)
+	if not check(not manifest.is_empty(),"legacy structural migration"): get_tree().quit(1); return
+	var parsed: Variant = JSON.parse_string(JSON.stringify(manifest,"",true,true))
+	var roots := Flat.unpack(parsed)
+	if not check(roots.size()==3 and roots[2]==raw,"flat wire roundtrip to exact primary"): get_tree().quit(1); return
+	var sizes: Array[int]=[]
+	var encoded: Array[int]=[]
+	for i: int in roots.size():
+		var bytes: PackedByteArray = roots[i]
+		var v: Dictionary = Owner._bytes_value(bytes)
+		sizes.append(int(parsed.rows[i].body.source_bytes))
+		encoded.append(parsed.rows[i].body.deflate_base64.length())
+		check(bytes.size()==SIZE[i] and Owner._hash(bytes)==HASH[i] and v.ordinary_state.ordinal==i+1 \
+			and v.ordinary.state.results.size()==[33,6,6][i],"exact ordinal "+str(i+1))
+		check(sizes[i]<SIZE[i] if i>0 else sizes[i]==SIZE[i],"only carrier leaves cut at ordinal "+str(i+1))
+	print("CP287 transport ms ",Time.get_ticks_msec()-stamp," body sizes ",sizes," encoded lengths ",encoded)
+	var wrong: Dictionary = parsed.duplicate(true)
+	wrong.rows.reverse()
+	check(Flat.unpack(wrong).is_empty(),"swapped order")
+	wrong = parsed.duplicate(true)
+	wrong.rows[1].source_sha256 = wrong.rows[0].source_sha256
+	check(Flat.unpack(wrong).is_empty(),"duplicate source digest")
+	wrong = parsed.duplicate(true)
+	wrong.rows[2].offsets[0] = wrong.rows[2].offsets[1]
+	check(Flat.unpack(wrong).is_empty(),"duplicate cut offset")
+	wrong = parsed.duplicate(true)
+	wrong.rows[2].source_sha256 = "a".repeat(64)
+	check(Flat.unpack(wrong).is_empty(),"raw digest mismatch")
+	wrong = parsed.duplicate(true)
+	wrong.rows[2].body = parsed.rows[1].body.duplicate(true)
+	wrong.rows[2].source_bytes = wrong.rows[2].body.source_bytes+encoded[0]+2 \
+		+ Owner.Common.StandardChain._pack_second(roots[1],parsed.rows[0].body).cut.deflate_base64.length()+2
+	wrong.rows[2].offsets = [10,20]
+	check(Flat._budget(wrong) and Flat.unpack(wrong).is_empty(),"real swapped checked/rehashed cut body")
+	wrong = parsed.duplicate(true)
+	wrong.rows[0].body = parsed.rows[1].body.duplicate(true)
+	wrong.rows[0].source_bytes = wrong.rows[0].body.source_bytes
+	wrong.rows[0].source_sha256 = wrong.rows[0].body.source_sha256
+	check(Flat._budget(wrong) and Flat.unpack(wrong).is_empty(),"swapped body with matching whole root digest, wrong owner shape")
+	wrong = parsed.duplicate(true)
+	wrong.rows[2].source_bytes = 16*1024*1024
+	check(Flat._row_shape(wrong.rows[2],3) and not Flat._budget(wrong) \
+		and Flat.unpack(wrong).is_empty(),"cumulative decoded cap before allocation")
+	wrong = parsed.duplicate(true)
+	wrong.rows.pop_back()
+	check(Flat.unpack(wrong).is_empty(),"wrong count")
+	wrong = parsed.duplicate(true)
+	wrong.lineage = "ordinary:"+ "a".repeat(64)
+	check(Flat.unpack(wrong).is_empty(),"wrong lineage")
+	check(Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".tmp") \
+		and not FileAccess.file_exists(Store.PATH+".bak"),"no primary/backup/temp writes")
+	get_tree().quit(1 if error else 0)
