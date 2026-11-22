@@ -762,8 +762,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd",
-      "bytes": 10223,
-      "sha256": "7ac621af18edf1c387e81ee58ec355b1b802279f1b6e8d25a4d6aec7224fdb88"
+      "bytes": 10752,
+      "sha256": "554fe2165701e32897144dce3e32917ac2ee977259cf8aec52d7c1ba60ce7b05"
     }
   ],
   "additions": [
