@@ -1181,6 +1181,32 @@ func _quit_now() -> void:
 	get_tree().quit()
 
 
+class StarterLocalRecords extends PlayRecordExport:
+	var _lab: WeakRef
+	var _state: MatchState
+
+	static func ordinary_live(opened: PitchBatLab, state: MatchState) -> bool:
+		return is_instance_valid(opened) and opened.get_script()==PitchBatLab \
+			and opened._managed_match and opened._match_mode and state!=null \
+			and opened._match_state==state and opened._automation==null \
+			and state.stadium.is_empty() and opened.get_meta("stadium_snapshot",{})=={} \
+			and not opened.ac02_startup_pending() and not opened._ac02_issued_history \
+			and opened._ac02_issued_owner==null
+
+	func bind(opened: PitchBatLab, state: MatchState) -> void:
+		_lab = weakref(opened)
+		_state = state
+
+	func save(records: Array[PlayRecord], _field: FieldDefinition, stadium: Dictionary = {}) -> Error:
+		var opened: PitchBatLab = _lab.get_ref() as PitchBatLab if _lab!=null else null
+		if not ordinary_live(opened,_state) or opened._record_export!=self \
+			or not is_same(records,opened._play_records) or not stadium.is_empty():
+			return ERR_UNAUTHORIZED
+		# Native finish_record already committed these records in memory. The
+		# non-issued path has no QC journal or disk receipt to acknowledge.
+		return OK
+
+
 class StarterMatchControls extends Node:
 	# The inherited lab sees these in _unhandled_input. Keep this input stage
 	# alive even while normal play is paused; do not intercept any game actions.
@@ -1211,6 +1237,12 @@ func _open_match(state: MatchState, player_home: bool, season_game: bool,
 	super._open_match(state,player_home,season_game,field_id)
 	if starter_player() and is_instance_valid(lab) and not lab.has_node("StarterMatchControls"):
 		StarterMatchControls.new().install(lab)
+		if season_game and career_owner!=null and career_owner.session==season \
+			and Store._starter_owner_allowed(career_owner) and StarterLocalRecords.ordinary_live(lab,state) \
+			and lab._record_export!=null and lab._record_export.get_script()==PlayRecordExport:
+			var exporter := StarterLocalRecords.new()
+			exporter.bind(lab,state)
+			lab._record_export = exporter
 	# Common-only entry to the same guarded window-close route. Original
 	# Game and shared pause controls keep their authored layout.
 	if is_instance_valid(lab) and is_instance_valid(lab._pause_menu):
