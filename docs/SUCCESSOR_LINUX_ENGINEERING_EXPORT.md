@@ -617,3 +617,24 @@ software-rendered Linux test observed about 196 and 282 seconds to their
 completion; those are not a target-device benchmark. No shop purchase,
 next human game, season rollover, championship unlock or Mac build was
 exercised in this slice.
+
+### Starter shop purchase and cold receipt
+
+The same no-env player package loaded the exact settled Round 2 copy at
+12 seasonal Cash. Its native shop offered **Soft Hands** at 10 Cash.
+The real confirmation identified Dakota Wells, the empty Fielding slot,
+the season-only award, and the 12-to-2 Cash debit. The first Cancel
+left the opened-shop primary and backup unchanged. One subsequent
+confirmation consumed that offer, assigned one ability, and posted one
+bank debit. Other unaffordable actions were disabled; no second
+transaction was attempted.
+
+Keeping the full played round and all reward entries unchanged, the
+purchased save was 770,392 bytes, SHA-256
+`cb2698407ac34cfd0a6e9f62493731a9dd4703bcd6fe39e53e927dc5927c4689`.
+The backup was the exact pre-purchase opened-shop revision. Fresh
+ordinary Continue displayed the same 2 Cash, and native Quit wrote
+neither file. The receipt and ability were present in the exact save;
+the ordinary roster overview did not display that ability. This proves
+purchase and persistence, not the on-field effect, later carry, another
+purchase, or a new round.
