@@ -1,0 +1,42 @@
+extends Node
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const EXACT = [
+	"2e2b88cfa2c494ca2589a0386eae5aeb4e8041e5a0c263f6eb290c7a6afe5a23",
+	"f0cde80def4e550c0ec290e993fcb4ae309c83e8893a89090cd41c7edb649b8d",
+]
+const App=preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+func _ready() -> void:
+	call_deferred("_run")
+func _run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=3 or args[0]!="parent" or not args[2] in EXACT \
+			or OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or FileAccess.file_exists(Store.PATH):
+		get_tree().quit(2);return
+	var p: String=args[1]
+	var raw:=FileAccess.get_file_as_bytes(p)
+	if Store.Owner._hash(raw)!=args[2]:
+		get_tree().quit(3);return
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var start:=Time.get_ticks_usec()
+	var value: Variant=Store.Owner._bytes_value(raw)
+	var t1:=Time.get_ticks_usec()
+	var o: RefCounted=Store.Owner._restore_metadata(value)
+	if o==null: get_tree().quit(5);return
+	var t2:=Time.get_ticks_usec()
+	o.session=Store.Adapter.Ordinary._restore_shape(value.ordinary,false)
+	if o.session==null: get_tree().quit(6);return
+	var t3:=Time.get_ticks_usec()
+	var packed: Dictionary=Store.Owner.pack_current(o,value.ordinary)
+	if packed.is_empty() or not Store.Codec.same(packed,value): get_tree().quit(7);return
+	var t4:=Time.get_ticks_usec()
+	var snap:=Store.RawGuard.capture(o)
+	if snap.is_empty(): get_tree().quit(8);return
+	var t5:=Time.get_ticks_usec()
+	var digest: String=Store.Owner._hash(var_to_bytes(snap))
+	var t6:=Time.get_ticks_usec()
+	print("CP245 parse/meta/shape/pack+same/rawguard/digest/total_ms ",
+		[t1-start,t2-t1,t3-t2,t4-t3,t5-t4,t6-t5,t6-start].map(func(n:int):return n/1000.0))
+	print("CP245 parent_identity ",digest)
+	get_tree().quit(0)

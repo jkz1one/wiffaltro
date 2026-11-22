@@ -480,3 +480,41 @@ only the live parent can perform the guarded compare and replacement.
 Afterward use normal Continue to reopen the settled save, with or without
 the worker flag. This does not export sibling settlements, title
 admission or public access, and it does not make strict Continue faster.
+
+
+### Doubleheader Continue measurement (not a runtime change)
+
+CP244's rendered ordinary Continue reached the exact CP229 pending menu
+by 100.9 s and the settled CP230 menu by 62.7 s. Both were observations,
+not CPU timings. A full replay in a worker would not by itself make
+Continue responsive: a separate caller-side native reconstruction probe
+on Godot 4.6.3 Linux x86-64 (AMD EPYC 9V74 cloud, headless) measured:
+
+| Caller step | CP229 pending | CP230 settled |
+| --- | ---: | ---: |
+| Parse and owner metadata | 342 ms | 395 ms |
+| Ordinary `_restore_shape(false)` | 4,652 ms | 5,684 ms |
+| Canonical owner pack/equality | 187 ms | 211 ms |
+| RawGuard capture and digest | 425 ms | 489 ms |
+| Total, excluding App publication | 5,606 ms | 6,779 ms |
+
+Scratch-only timers split the two required structural recaptures:
+first 1.94 / 2.50 s and second 1.81 / 2.26 s (pending / settled).
+Each comprises roughly 0.79–1.20 s of structural validation and
+0.85–1.09 s of payload construction, plus equality. The six native
+Build restores cost 55–135 ms / 71–153 ms individually; rule-holder
+normalization itself was under 0.3 ms. Simply yielding between Builds or
+removing one recapture would still leave a multi-second frame stall.
+These are measurements of candidate **parent** work only, not an
+additional strict history replay or a claim of performance improvement.
+
+For reproduction, assemble with `--dynasty-owner --preserve-authored-project`
+and copy `tests/successor_doubleheader_continue_hydration_profile.gd.txt`
+as `res://cp245_probe.gd`, attached to a plain Node scene. Run the source
+engine with isolated home/data/config/cache, headless fixed 60 FPS,
+`WIFFALTRO_ISOLATED_TEST=1`, `WIFFALTRO_DYNASTY_ENGINEERING=1`, and
+`WIFFALTRO_DOUBLEHEADER_OPENING_PREVIEW=1`; arguments are
+`-- parent <exact read-only CP229 or CP230 path> <SHA-256>`. The existing
+profile must not contain a Common V4 slot. The receipt includes the small
+scratch-only instrumentation diff for reproducing the nested timing.
+No Continue route, worker, save-admission rule, or production code changed.
