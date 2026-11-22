@@ -11,6 +11,7 @@ const StandardArchive = preload("starter_standard_archive.gd")
 const StandardChain = preload("starter_standard_chain.gd")
 const StandardWorkshop = preload("starter_standard_workshop.gd")
 const ARCHIVE_KIND: String="common-ordinary-predecessor-v1"
+const STARTER_DUGOUT_ARCHIVE: String="starter-standard-to-dugout-predecessor-v1"
 const ARCHIVE_CHAIN: String="common-ordinary-two-predecessors-v1"
 const CHAIN_FRAGMENT: String="common-ordinary-second-fragments-v1"
 const CHAIN_TRANSITION: String="common-ordinary-archived-dugout-third-transition-v1"
@@ -117,6 +118,41 @@ static func _archive_transition(league: Variant) -> String:
 	if league=="standard": return StandardArchive.TRANSITION
 	return SPONSOR_TRANSITION if league=="sponsorship" else (ARCHIVE_TRANSITION if league=="dugout" else "")
 
+# Structural product scope only. Native replay of the embedded typed Standard
+# proposal and its completed predecessor remains mandatory in Owner.restore.
+static func starter_dugout_archive(owner) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
+			or not owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+			or not owner.workshop_draft.is_empty() or not owner.workshop_close_history.is_empty() \
+			or not owner.workshop_chair_purchase.is_empty() or not owner.workshop_applied.is_empty(): return false
+	var s: Dictionary=owner.ordinary_state
+	var a: Variant=s.get("archive")
+	var t: Variant=s.get("last_transition")
+	return a is Dictionary and a.get("kind")==STARTER_DUGOUT_ARCHIVE and t is Dictionary \
+		and t.get("kind")==ARCHIVE_TRANSITION and t.get("league")=="dugout" \
+		and s.get("ordinal")==2 and s.get("proposal")=={} \
+		and owner.session.league_live and owner.session.league_rules.get("league")=="dugout" \
+		and owner.session.league_rules.get("tier")==0 and owner.session.home_property.is_empty()
+
+static func starter_dugout_seed(lineage: String, ordinal: int) -> int:
+	return ("ordinary:%s:%d:nextseed"%[lineage,ordinal]).hash() & 0x7fffffff
+
+# May be called on an authenticated unproposed close or its exact restored
+# typed proposal. Structural checks are not a substitute for that admission.
+static func starter_dugout_standard_scope(owner) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
+			or not owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+			or not owner.workshop_draft.is_empty() or not owner.workshop_close_history.is_empty() \
+			or not owner.workshop_chair_purchase.is_empty() or not owner.workshop_applied.is_empty(): return false
+	var s: Dictionary=owner.ordinary_state
+	var close: Dictionary=s.get("last_close",{})
+	var current: SeasonState=owner.session
+	return not s.has("archive") and s.get("ordinal")==1 and s.get("status")=="closed" \
+		and close.get("reason")=="complete" and close.get("league")=="standard" and close.get("tier")==0 \
+		and current.phase==SeasonState.Phase.COMPLETE and current.results.size()==33 and current.picks.size()==4 \
+		and not current.league_live and current.league_rules.is_empty() and current.home_property.is_empty() \
+		and owner.common.sequence==1 and C.same(owner.common.cursors,{"ordinary":1,"dynasty":0})
+
 static func _archive_shape(owner) -> bool:
 	var state: Dictionary=owner.ordinary_state
 	if not state.has("archive"): return true
@@ -131,7 +167,7 @@ static func _archive_shape(owner) -> bool:
 			and t.get("kind")==CHAIN_TRANSITION and t.get("league")=="dugout" and t.basis.version==3 \
 			and _chain_archive_shape(a) and C.same(t.basis.archive_origin.ordered_sha256,
 				[a.entries[0].sha256,a.entries[1].sha256])
-	return C.keys(a,["kind","sha256","source"]) and a.kind==ARCHIVE_KIND \
+	return C.keys(a,["kind","sha256","source"]) and (a.kind==ARCHIVE_KIND or starter_dugout_archive(owner)) \
 		and a.source is String and not a.source.is_empty() and a.source.length()<=ARCHIVE_MAX \
 		and owner._digest(a.sha256) and owner.active=="ordinary" and state.ordinal==2 \
 		and (state.proposal.is_empty() or state.proposal.get("kind")==ARCHIVED_NEXT_KIND) \

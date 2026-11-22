@@ -1759,7 +1759,8 @@ func archived_abandon_visible() -> bool:
 	if Owner.Common.StandardChain.marked(season):
 		return (starter_player() or Store.private_standard_chain_opening()) \
 			and Owner.Common.StandardChain.tagged_abandon_scope(career_owner,season)
-	return Store.cross_league_preview() and Owner.Common.archived_abandon_scope(career_owner,season)
+	return (Store.cross_league_preview() or (starter_player() and Owner.Common.starter_dugout_archive(career_owner))) \
+		and Owner.Common.archived_abandon_scope(career_owner,season)
 
 func _lifecycle_ready(action: String) -> bool:
 	if career_owner!=null and career_owner.ordinary_state.has("archive"):

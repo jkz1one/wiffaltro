@@ -252,6 +252,8 @@ static func _archive_valid(owner, current: Dictionary) -> bool:
 	if not Common.cross_commit_ready(predecessor): return false
 	var p: Dictionary=predecessor.ordinary_state.proposal
 	var state: Dictionary=owner.ordinary_state
+	if archive.kind==Common.STARTER_DUGOUT_ARCHIVE and (not Common.starter_dugout_standard_scope(predecessor) \
+			or p.league!="dugout" or p.basis.seed!=Common.starter_dugout_seed(state.lineage,int(state.ordinal))): return false
 	var basis: Dictionary=p.basis if not state.last_transition.has("kind") else Common.Start.bind_archive(p.basis,archive.sha256,p.league)
 	return state.lineage==predecessor.ordinary_state.lineage and state.last_transition.source==p.source and state.last_transition.league==p.league \
 		and Codec.same(state.last_transition.basis,basis) \

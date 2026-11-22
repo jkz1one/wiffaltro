@@ -1,0 +1,133 @@
+extends Node
+
+const Store = preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Owner = Store.Owner
+const Common = Owner.Common
+const App = preload("res://src/presentation/season/successor_dynasty_owner_v1/app.gd")
+const SOURCE := "1a226548fad8932770868dcb286d1466a30976d571c2238ed78964fefb02b082"
+const PROPOSAL := "8894317a3e9b862b41714a6e69eca4948702f7c7da5c272b715501da03f45cdb"
+const REVIEW_DRAFT := "3252c4df9f4f16b26d0470db14624df09f58bd4770924b552cba12c46d38801f"
+var good := true
+
+func check(ok: bool, label: String) -> bool:
+	print("CP301 ", "PASS " if ok else "FAIL ", label)
+	good=good and ok
+	return ok
+
+func _ready() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	for k: String in ["WIFFALTRO_DYNASTY_ENGINEERING","WIFFALTRO_EARNED_LEAGUES_PREVIEW",
+			"WIFFALTRO_CROSS_LEAGUE_PREVIEW","WIFFALTRO_ISOLATED_TEST"]:
+		if not OS.get_environment(k).is_empty(): good=false
+	if not check(good and Store.LeagueAdmission.starter_player() and not Store.cross_league_preview()
+			and not Store.private_standard_chain_opening() and not OS.has_feature("editor"),"official no-env Starter profile only"):
+		get_tree().quit(1); return
+	var argv:=OS.get_cmdline_user_args()
+	if argv.size()==1 and argv[0]=="hot": _hot()
+	elif argv.size()==1 and argv[0]=="cold": _cold()
+	else: good=false
+	get_tree().quit(0 if good else 1)
+
+func _write_fixture(path: String, bytes: PackedByteArray) -> bool:
+	var f:=FileAccess.open(path,FileAccess.WRITE)
+	if f==null: return false
+	f.store_buffer(bytes)
+	var ok: bool=f.get_error()==OK
+	f.close()
+	return ok
+
+func _hot() -> void:
+	var original:=Store.raw()
+	if not check(original.size()==7701400 and Owner._hash(original)==SOURCE,"exact completed native CP170"):
+		return
+	var before:=Time.get_ticks_msec()
+	var closed: RefCounted=Store.read()
+	if not check(closed!=null and closed.lifecycle_status()=="closed" and closed.session.results.size()==33
+		and closed.common.aggregate.currency==72 and closed.common.aggregate.titles.is_empty(),
+		"actual closed Standard with 33 results and 72 Club Credits, no title"): return
+	print("CP301 source cold ms=",Time.get_ticks_msec()-before)
+	var app:=App.new()
+	check(not app.has_method("start_starter_dugout") and not app.has_method("commit_starter_dugout"),
+		"App has no public adoption route")
+	app.free()
+
+	var tmp:=Store.PATH+".tmp"
+	var backup:=Store.PATH+".bak"
+	# Force a Store-level final write hold, not an error during construction.
+	if not check(DirAccess.make_dir_absolute(tmp)==OK,"isolated held-write fixture"): return
+	before=Time.get_ticks_msec()
+	if not check(Store.commit_starter_dugout(closed,original)=="obstructed" and Store.raw()==original
+			and not FileAccess.file_exists(backup),"native candidate held; no intermediate proposal or backup"): return
+	print("CP301 projection/hold ms=",Time.get_ticks_msec()-before)
+	var expected:=Store._cross_pending
+	var old_payload: Dictionary=Owner._bytes_value(original)
+	var draft: Variant=Owner._bytes_value(expected)
+	if not check(draft is Dictionary and draft.ordinary_state.archive.kind==Common.STARTER_DUGOUT_ARCHIVE,
+		"held payload has exact native Starter archive kind"): return
+	var archive: Dictionary=draft.ordinary_state.archive
+	var proposal: Dictionary=Owner._bytes_value(archive.source.to_utf8_buffer())
+	check(Owner._hash(archive.source.to_utf8_buffer())==PROPOSAL and archive.sha256==PROPOSAL
+		and Owner.Codec.same(proposal.ordinary,old_payload.ordinary)
+		and Owner.Codec.same(proposal.common,old_payload.common)
+		and Owner.Codec.same(proposal.ordinary_state.last_close,old_payload.ordinary_state.last_close)
+		and proposal.ordinary.state.results.size()==33,"exact reviewed typed in-memory predecessor carries actual 33 rows/close")
+	var exact_text:=expected.get_string_from_utf8()
+	var marker: String='"kind":'+JSON.stringify(Common.STARTER_DUGOUT_ARCHIVE)
+	var original_marker: String='"kind":'+JSON.stringify(Common.ARCHIVE_KIND)
+	check(exact_text.to_utf8_buffer()==expected and exact_text.count(marker)==1 \
+		and Owner._hash(exact_text.replace(marker,original_marker).to_utf8_buffer())==REVIEW_DRAFT,
+		"only new custody kind differs from exact previously reviewed destination")
+	check(DirAccess.remove_absolute(tmp)==OK,"remove isolated obstruction")
+	var stale:=original.duplicate()
+	stale.append(32)
+	if not check(_write_fixture(Store.PATH,stale),"isolated external changed revision"): return
+	check(Store.retry_cross_activation(closed,original)=="stale" and Store.raw()==stale
+		and not FileAccess.file_exists(tmp) and not FileAccess.file_exists(backup)
+		and Store._cross_pending.is_empty(),"final CAS stale refusal before any replacement or backup")
+	if not check(_write_fixture(Store.PATH,original),"restore exact test starter bytes only"): return
+	before=Time.get_ticks_msec()
+	var status:=Store.commit_starter_dugout(closed,original)
+	if not check(status=="saved" and Store.raw()==expected and FileAccess.get_file_as_bytes(backup)==original
+			and not FileAccess.file_exists(tmp),"single actual atomic replacement; backup exact unproposed CP170"): return
+	print("CP301 adopt ms=",Time.get_ticks_msec()-before," draft_sha=",Owner._hash(expected)," bytes=",expected.size())
+	check(Store.retry_cross_activation(closed,original)=="refused" and Store.raw()==expected
+		and not Store.match_owner(closed,original),"one-use authority consumed and old typed owner invalidated")
+
+func _cold() -> void:
+	var raw:=Store.raw()
+	if not check(not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp"),
+		"fresh primary-only Starter profile"): return
+	var stamp:=Time.get_ticks_msec()
+	var app:=App.new()
+	add_child(app)
+	app.reload_save()
+	var owner: RefCounted=app.career_owner
+	if not check(owner!=null and owner.current_ordinal()==2 and owner.lifecycle_status()=="active"
+			and owner.session.phase==SeasonState.Phase.DRAFT and owner.session.picks.is_empty()
+			and owner.session.league_rules.get("league")=="dugout" and owner.session.league_rules.get("tier")==0
+			and owner.session.cash()==0 and owner.common.aggregate.currency==72 and owner.common.aggregate.titles.is_empty(),
+			"strict normal Store Continue opens real Dugout Base draft"): return
+	print("CP301 destination cold ms=",Time.get_ticks_msec()-stamp)
+	var history:=Store.previous_standard_season(owner,raw)
+	check(not history.is_empty() and history.results.size()==33 and history.summary.finish=="semifinal"
+		and history.ordinal==1 and history.standings.size()==6 and Store.raw()==raw
+		and not FileAccess.file_exists(Store.PATH+".bak"),"admitted previous Standard scoreboard via read-only history")
+	var bad: RefCounted=owner.fork()
+	if not check(bad!=null,"detached candidate for cheap product negative checks"): return
+	bad.ordinary_state.archive.kind=Common.ARCHIVE_KIND
+	check(not Store._starter_owner_allowed(bad),"legacy cross provenance denied by Starter")
+	bad.ordinary_state.archive.kind=Common.STARTER_DUGOUT_ARCHIVE
+	bad.ordinary_state.last_transition.league="sponsorship"
+	check(not Store._starter_owner_allowed(bad),"mixed target provenance denied by Starter")
+	check(Store.commit_starter_dugout(owner,raw)=="refused" and Store.raw()==raw,
+		"current Dugout and repeat transition refused")
+	var id: String=owner.session.offers()[0]
+	app.draft(id)
+	var candidate: RefCounted=app.career_owner
+	check(candidate!=null and candidate!=owner and app.season==candidate.session
+		and Store.match_owner(candidate,Store.raw()) and candidate.session.picks==[id]
+		and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw
+		and Store.previous_standard_season(candidate,Store.raw()).results.size()==33
+		and not FileAccess.file_exists(Store.PATH+".tmp"),"normal Starter draft save path and immutable predecessor history")

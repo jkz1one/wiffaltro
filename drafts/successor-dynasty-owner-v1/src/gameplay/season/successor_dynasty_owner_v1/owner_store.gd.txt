@@ -45,6 +45,7 @@ static var _written: PackedByteArray = PackedByteArray()
 # One unarmed report-ticket result, or one promoted same-owner terminal result.
 # No serialized trust marker, cross-process cache, or caller registration API.
 static var _cross_pending: PackedByteArray
+static var _cross_starter: bool=false
 static var _cross_owner: RefCounted
 static var _cross_expected: PackedByteArray
 static var _projection_ticket: RefCounted
@@ -61,11 +62,12 @@ static var previous_standard_projection_calls: int = 0
 
 static func previous_standard_available(owner: RefCounted, expected: PackedByteArray) -> bool:
 	if saving or _ticket!=null or owner==null or owner!=_owner or owner.session!=_owner_session \
-		or expected.is_empty() or expected!=_owner_bytes or not Owner.Common.StandardArchive.marked(owner.session):
+		or expected.is_empty() or expected!=_owner_bytes:
 		return false
 	var pin: Variant = _metadata.get("ordinary_state",{}).get("archive")
-	return pin is Dictionary and Owner.Common.StandardArchive.shape(owner) \
-		and RawGuard.same(owner.ordinary_state.archive,pin)
+	return pin is Dictionary and RawGuard.same(owner.ordinary_state.archive,pin) \
+		and ((Owner.Common.StandardArchive.marked(owner.session) and Owner.Common.StandardArchive.shape(owner)) \
+			or (LeagueAdmission.starter_player() and Owner.Common.starter_dugout_archive(owner)))
 
 static func previous_standard_season(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
 	if not previous_standard_available(owner,expected) or _starter_slot_linked() \
@@ -73,7 +75,8 @@ static func previous_standard_season(owner: RefCounted, expected: PackedByteArra
 	var pin: Dictionary = _metadata.ordinary_state.archive
 	if not RawGuard.same(pin,_previous_standard_pin):
 		previous_standard_projection_calls += 1
-		var view: Dictionary = Owner.Common.StandardArchive.display(pin)
+		var view: Dictionary = Owner.Common.StandardArchive._display_scores(Owner._bytes_value(pin.source.to_utf8_buffer()),true) \
+			if pin.get("kind")==Owner.Common.STARTER_DUGOUT_ARCHIVE else Owner.Common.StandardArchive.display(pin)
 		if not previous_standard_available(owner,expected) or not _write_revision_matches(expected,true): return {}
 		_previous_standard_pin = pin.duplicate(true)
 		_previous_standard_view = view
@@ -169,6 +172,8 @@ static func private_standard_chain_opening() -> bool:
 
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if Flat.is_flat(owner): return false
+	if owner!=null and owner.ordinary_state.get("archive",{}).get("kind")==Owner.Common.STARTER_DUGOUT_ARCHIVE:
+		return LeagueAdmission.starter_player() and Owner.Common.starter_dugout_archive(owner) and Owner.Common._archive_shape(owner)
 	if owner!=null and Owner.Common.StandardWorkshop.Home.opening_chain(owner.session):
 		return (LeagueAdmission.starter_player() or private_standard_chain_opening()) and _starter_opening_owner(owner)
 	if not LeagueAdmission.starter_feature(): return true
@@ -1016,6 +1021,32 @@ static func _archived_dugout_candidate(owner: RefCounted,expected: PackedByteArr
 	if checked==null or not Codec.same(checked.ordinary_state,candidate.ordinary_state): return {}
 	return {"owner":candidate,"data":data}
 
+# Fixed Starter producer, intentionally not reachable from the App menu yet.
+# Builds the proposal in memory and accepts no worker bytes, preview hashes,
+# caller candidate, target, seed, or path. Only the final draft can be written.
+static func commit_starter_dugout(owner: RefCounted, expected: PackedByteArray) -> String:
+	if not LeagueAdmission.starter_player() or _starter_slot_linked() or not _cross_pending.is_empty() \
+			or not _cross_bound(owner,expected) or not _matches_raw(owner,_owner_raw) \
+			or not Owner.Common.starter_dugout_standard_scope(owner): return "refused"
+	var seed: int=Owner.Common.starter_dugout_seed(owner.ordinary_state.lineage,int(owner.ordinary_state.ordinal)+1)
+	var proposed:=_cross_proposal_projection(owner,expected,"dugout",seed)
+	if proposed.is_empty(): return "refused"
+	var proposal_bytes:=_native_encoded(proposed.data)
+	if proposal_bytes.is_empty() or proposal_bytes.size()>Owner.Common.ARCHIVE_MAX: return "refused"
+	var projected:=_cross_activation_projection(proposed.owner,proposal_bytes,"dugout")
+	if projected.is_empty(): return "refused"
+	var candidate: RefCounted=projected.owner
+	candidate.ordinary_state.archive.kind=Owner.Common.STARTER_DUGOUT_ARCHIVE
+	if not _starter_owner_allowed(candidate): return "refused"
+	var data: Dictionary=Owner.pack_current(candidate,projected.data.ordinary)
+	var bytes:=_native_encoded(data) if not data.is_empty() else PackedByteArray()
+	if bytes.is_empty() or not _cross_bound(owner,expected) or not _matches_raw(owner,_owner_raw): return "stale"
+	_cross_starter=true
+	_cross_pending=bytes
+	_cross_owner=owner
+	_cross_expected=expected.duplicate()
+	return retry_cross_activation(owner,expected)
+
 # Exact native rollover, off the App menu until a bounded async path.
 static func commit_cross_league_and_write(owner: RefCounted, expected: PackedByteArray) -> RefCounted:
 	return _commit_exact_cross_league(owner,expected,"dugout")
@@ -1128,6 +1159,7 @@ static func _cross_bound(owner: RefCounted,expected: PackedByteArray) -> bool:
 		and _write_revision_matches(expected,true)
 
 static func _discard_cross_activation() -> void:
+	_cross_starter=false
 	_cross_pending=PackedByteArray()
 	_cross_owner=null
 	_cross_expected=PackedByteArray()
@@ -1137,7 +1169,8 @@ static func cancel_cross_activation(owner: RefCounted) -> void:
 
 static func retry_cross_activation(owner: RefCounted,expected: PackedByteArray) -> String:
 	if _cross_pending.is_empty() or owner!=_cross_owner or expected!=_cross_expected: return "refused"
-	if not cross_league_preview() or not _cross_bound(owner,expected):
+	var enabled: bool=LeagueAdmission.starter_player() if _cross_starter else cross_league_preview()
+	if not enabled or not _cross_bound(owner,expected) or (_cross_starter and (_starter_slot_linked() or not _matches_raw(owner,_owner_raw))):
 		_discard_cross_activation()
 		return "stale"
 	var dir:=DirAccess.open("user://")
@@ -1467,7 +1500,8 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 		elif Owner.Common.StandardArchive.marked(owner.session):
 			if operation!="close" and (not LeagueAdmission.starter_player() or operation not in ["propose","next"] \
 				or not Owner.Common.StandardChain.eligible(owner)): return null
-		elif operation!="close" or reason!="abandon" or not cross_league_preview(): return null
+		elif operation!="close" or reason!="abandon" or not (cross_league_preview() \
+				or (LeagueAdmission.starter_player() and Owner.Common.starter_dugout_archive(owner))): return null
 	last_error=league_block(owner,operation,league)
 	if not last_error.is_empty(): return null
 	if operation in ["resume","create","attach119"] and not switch_available(owner): return null
