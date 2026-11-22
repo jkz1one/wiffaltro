@@ -143,7 +143,7 @@ static func private_standard_chain_opening() -> bool:
 
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if owner!=null and Owner.Common.StandardWorkshop.Home.opening_chain(owner.session):
-		return private_standard_chain_opening() and _starter_opening_owner(owner)
+		return (LeagueAdmission.starter_player() or private_standard_chain_opening()) and _starter_opening_owner(owner)
 	if not LeagueAdmission.starter_feature(): return true
 	if not LeagueAdmission.starter_player() or owner==null or owner.get_script()!=Owner \
 		or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
@@ -1456,7 +1456,10 @@ static func _prepare_standard_chain(owner: RefCounted, expected: PackedByteArray
 		candidate=owner.fork()
 		if candidate==null or not candidate.propose_next(seed_value): return null
 	elif operation=="next" and seed_value==0:
-		candidate=Owner.Common.StandardChain.opening_candidate(owner,expected) if opening \
+		# Choose exactly once from the already-owned predecessor. A failed
+		# tagged birth must not silently start its untagged counterpart.
+		var choose_opening: bool=opening or Owner.Common.StandardChain._opening_predecessor(owner)
+		candidate=Owner.Common.StandardChain.opening_candidate(owner,expected) if choose_opening \
 			else Owner.Common.StandardChain.candidate(owner,expected)
 	else: return null
 	if candidate==null or not _starter_owner_allowed(candidate): return null
