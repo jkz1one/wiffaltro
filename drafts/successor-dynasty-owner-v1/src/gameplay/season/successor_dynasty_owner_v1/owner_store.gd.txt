@@ -111,7 +111,8 @@ static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Ar
 		var view: Array = Owner.MixedAppend.display(owner) if appended else (Owner.Mixed.display(pin) if mixed else (
 			_starter_dugout_history(pin) if pin.get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN
 			else Owner.Common.StandardChain.display(pin)))
-		if view.size()!=(4 if appended else (3 if mixed else 2)) or not standard_history_available(owner,expected) \
+		var expected_count: int=(5 if owner.current_ordinal()==Owner.MixedAppend.ROLLOVER_ORDINAL else 4) if appended else (3 if mixed else 2)
+		if view.size()!=expected_count or not standard_history_available(owner,expected) \
 			or not RawGuard.same(pin,_metadata.ordinary_state.archive) or not _write_revision_matches(expected,true):
 			return []
 		_standard_history_pin = pin.duplicate(true)
@@ -1815,8 +1816,8 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 # provide a seed, a transition, an archive, or an alternate candidate.
 static func prepare_mixed_append_next_and_write(owner: RefCounted,expected: PackedByteArray) -> RefCounted:
 	if not private_mixed_append() or saving or _ticket!=null or _starter_slot_linked() \
-			or not Owner.Mixed.closed_complete_scope(owner) or not match_owner(owner,expected) \
-			or not league_block(owner,"next").is_empty(): return null
+			or not (Owner.Mixed.closed_complete_scope(owner) or Owner.MixedAppend.closed_complete_scope(owner)) \
+			or not match_owner(owner,expected) or not league_block(owner,"next").is_empty(): return null
 	var candidate: RefCounted=Owner.MixedAppend.from_bound_close(owner,expected)
 	var data: Dictionary=Owner.MixedAppend.payload(candidate)
 	if data.is_empty() or not _starter_owner_allowed(candidate) or not match_owner(owner,expected): return null

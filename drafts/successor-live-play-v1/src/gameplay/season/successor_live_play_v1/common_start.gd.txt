@@ -17,7 +17,10 @@ const MIXED_FLAT_VERSION: int=5
 const MIXED_FLAT_ROOTS: int=3 # Detached native draft only.
 const MIXED_APPEND: String="starter-dugout-append-archive-v1"
 const MIXED_APPEND_VERSION: int=6
-const MIXED_APPEND_ROOTS: int=4 # Qualified successor owner; later ordinals need native replay.
+const MIXED_APPEND_ROOTS: int=4 # Published private Season 5 shape, unchanged.
+const MIXED_ROLLOVER: String="starter-dugout-season-six-archive-v1"
+const MIXED_ROLLOVER_VERSION: int=7
+const MIXED_ROLLOVER_ROOTS: int=5
 const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
@@ -40,7 +43,7 @@ static func valid(value: Variant) -> bool:
 	if not value is Dictionary or not Builds._primitive(value) or value.get("kind")!=KIND: return false
 	var archived: bool=value.has("archive_origin")
 	if not SeasonOwnership._keys(value,FIELDS+(["archive_origin"] if archived else [])) \
-		or not SeasonOwnership._whole(value.version,2 if archived else 1,MIXED_APPEND_VERSION if archived else 1): return false
+		or not SeasonOwnership._whole(value.version,2 if archived else 1,MIXED_ROLLOVER_VERSION if archived else 1): return false
 	if archived:
 		var origin: Variant=value.archive_origin
 		if not origin is Dictionary: return false
@@ -58,6 +61,15 @@ static func valid(value: Variant) -> bool:
 					or origin.kind!=MIXED_APPEND or not sha(origin.manifest_sha256) \
 					or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=MIXED_APPEND_ROOTS \
 					or value.ordinal!=MIXED_APPEND_ROOTS+1 or value.common_sequence!=MIXED_APPEND_ROOTS: return false
+			var unique: Dictionary={}
+			for digest: Variant in origin.ordered_sha256:
+				if not sha(digest) or unique.has(digest): return false
+				unique[digest]=true
+		elif value.version==MIXED_ROLLOVER_VERSION:
+			if not SeasonOwnership._keys(origin,["kind","ordered_sha256","manifest_sha256"]) \
+					or origin.kind!=MIXED_ROLLOVER or not sha(origin.manifest_sha256) \
+					or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=MIXED_ROLLOVER_ROOTS \
+					or value.ordinal!=MIXED_ROLLOVER_ROOTS+1 or value.common_sequence!=MIXED_ROLLOVER_ROOTS: return false
 			var unique: Dictionary={}
 			for digest: Variant in origin.ordered_sha256:
 				if not sha(digest) or unique.has(digest): return false
@@ -146,8 +158,8 @@ static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
 	if not basis.has("archive_origin"): return true
 	if basis.archive_origin.kind in [STANDARD_CHAIN,STANDARD_CHAIN_OPENING]:
 		return basis.version==3 and build._league_rules.is_empty() and not build.d1_pricing_valid()
-	if basis.archive_origin.kind in [MIXED_FLAT,MIXED_APPEND]:
-		return (detached_mixed_flat(basis) or detached_mixed_append(basis)) and build._league_rules.get("league")=="dugout" \
+	if basis.archive_origin.kind in [MIXED_FLAT,MIXED_APPEND,MIXED_ROLLOVER]:
+		return (detached_mixed_flat(basis) or private_mixed_append_basis(basis)) and build._league_rules.get("league")=="dugout" \
 			and build._league_rules.get("tier")==0
 	if basis.archive_origin.kind==STANDARD_FLAT:
 		return detached_standard_flat(basis) and build._league_rules.is_empty() and not build.d1_pricing_valid()
@@ -175,6 +187,20 @@ static func detached_mixed_flat(basis: Dictionary) -> bool:
 
 static func detached_mixed_append(basis: Dictionary) -> bool:
 	return basis.get("kind")==KIND and basis.get("version")==MIXED_APPEND_VERSION
+
+static func detached_mixed_rollover(basis: Dictionary) -> bool:
+	return basis.get("kind")==KIND and basis.get("version")==MIXED_ROLLOVER_VERSION
+
+# A refusal in generic readers/play routes, not any admission authority.
+static func private_mixed_append_basis(basis: Dictionary) -> bool:
+	return detached_mixed_append(basis) or detached_mixed_rollover(basis)
+
+static func bind_mixed_rollover(basis: Dictionary, ordered: Array[String], manifest_sha256: String) -> Dictionary:
+	if not valid(basis) or basis.version!=1 or ordered.size()!=MIXED_ROLLOVER_ROOTS: return {}
+	var result: Dictionary=basis.duplicate(true)
+	result.version=MIXED_ROLLOVER_VERSION
+	result.archive_origin={"kind":MIXED_ROLLOVER,"ordered_sha256":ordered.duplicate(),"manifest_sha256":manifest_sha256}
+	return result if valid(result) else {}
 
 static func bind_mixed_append(basis: Dictionary, ordered: Array[String], manifest_sha256: String) -> Dictionary:
 	if not valid(basis) or basis.version!=1 or ordered.size()!=MIXED_APPEND_ROOTS: return {}

@@ -127,6 +127,8 @@ func render() -> void:
 			_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_refresh_round_progress()
+		elif app.career_owner.current_ordinal()==Store.Owner.MixedAppend.ROLLOVER_ORDINAL:
+			_note("The new draft is saved. The first match is not part of this private test.")
 		elif app.season.phase==SeasonState.Phase.COMPLETE:
 			if app.starter_dugout_complete_visible():
 				_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
@@ -467,7 +469,7 @@ func _standard_history_link() -> void:
 func _show_standard_history(index: int = 1) -> void:
 	if not app.starter_player() or not app._available(): return
 	var entries: Array = Store.standard_history(app.career_owner,app.saved_bytes)
-	if entries.size() not in [2,3,4] or index<0 or index>=entries.size():
+	if entries.size() not in [2,3,4,5] or index<0 or index>=entries.size():
 		render()
 		return
 	var history: Dictionary = entries[index]
@@ -532,6 +534,8 @@ func _closed() -> void:
 	if Store.Owner.MixedAppend.closed_complete_scope(owner):
 		var credits: int=int(owner.ordinary_state.last_close.receipt.total)
 		_note("Completion payout: %d Club Credits. This season and its prior history remain saved."%credits)
+		if app.mixed_append_next_visible():
+			_bound_button(_body,"START NEXT DUGOUT BASE SEASON",Callable(app,"request_lifecycle").bind("next"))
 		return
 	if Store.Owner.Mixed.closed_complete_scope(owner):
 		var payout:int=int(owner.ordinary_state.last_close.receipt.total)

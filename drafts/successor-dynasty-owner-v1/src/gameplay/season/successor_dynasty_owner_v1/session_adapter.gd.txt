@@ -24,7 +24,7 @@ static func scope(value: String, session: SeasonState) -> bool:
 	return side(value) and session!=null and session.get_script()==runtime(value) and codec(value).scope(session) \
 		and not (value=="ordinary" and (OrdinaryRuntime.CommonStart.detached_standard_flat(session.career.start_basis) \
 			or OrdinaryRuntime.CommonStart.detached_mixed_flat(session.career.start_basis) \
-			or OrdinaryRuntime.CommonStart.detached_mixed_append(session.career.start_basis)))
+			or OrdinaryRuntime.CommonStart.private_mixed_append_basis(session.career.start_basis)))
 static func capture(value: String, session: SeasonState) -> Dictionary:
 	return codec(value).capture(session) if scope(value,session) else {}
 static func checked_restore(value: String, data: Variant) -> Dictionary:

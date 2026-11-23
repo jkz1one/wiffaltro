@@ -4,6 +4,8 @@ extends RefCounted
 const Custody=preload("starter_mixed_append_custody.gd")
 const Base=preload("starter_mixed_custody.gd")
 const ORDINAL: int=5
+const ROLLOVER_ORDINAL: int=6
+const ROLLOVER_TRANSITION: String="common-starter-dugout-season-six-draft-v1"
 
 static func _api() -> Script:
 	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
@@ -47,16 +49,32 @@ static func _archive_state(state: Dictionary, closed: bool=false) -> bool:
 		and api.Common.Start.valid(t.basis) and api.Common.Start.detached_mixed_append(t.basis) \
 		and t.basis.lineage==state.lineage and api.Common.Life.digest(t.basis)==state.start_basis_sha256
 
+static func _rollover_archive_state(state: Dictionary) -> bool:
+	var api:=_api()
+	if not api.Codec.keys(state,api.Common.ORDINARY_FIELDS+["archive"]) or not marked_state(state) \
+			or state.status!="active" or state.ordinal!=ROLLOVER_ORDINAL or not state.lineage is String \
+			or state.proposal!={} or state.last_close!={} or not api.Codec.keys(state.archive,["kind","wire"]) \
+			or not state.archive.wire is String or state.archive.wire.is_empty() \
+			or state.archive.wire.length()>Custody.MAX_WIRE: return false
+	var t: Variant=state.last_transition
+	return api.Codec.keys(t,["kind","id","source","from","to","league","basis"]) \
+		and t.kind==ROLLOVER_TRANSITION and t.league=="dugout" and t.from==ORDINAL and t.to==ROLLOVER_ORDINAL \
+		and t.id=="%s:%d:next"%[state.lineage,ORDINAL] and Base._sha(t.source) \
+		and api.Common.Start.valid(t.basis) and api.Common.Start.detached_mixed_rollover(t.basis) \
+		and t.basis.lineage==state.lineage and api.Common.Life.digest(t.basis)==state.start_basis_sha256
+
 # Detached structural scope only. Producing or publishing always requires the
 # exact Store bound owner, and cold restore independently compares everything.
-static func _native_owner_scope(owner: RefCounted, closed: bool=false) -> bool:
+static func _native_owner_scope(owner: RefCounted, closed: bool=false, rollover: bool=false) -> bool:
 	var api:=_api()
-	var previous: int=ORDINAL if closed else ORDINAL-1
+	if rollover and closed: return false
+	var previous: int=ORDINAL if closed or rollover else ORDINAL-1
 	if owner==null or owner.get_script()!=api or owner.active!="ordinary" or not owner.paused.is_empty() \
 			or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
 			or not owner.workshop_draft.is_empty() or not owner.workshop_close_history.is_empty() \
 			or not owner.workshop_chair_purchase.is_empty() or not owner.workshop_applied.is_empty() \
-			or not _archive_state(owner.ordinary_state,closed) or owner.common.get("sequence")!=previous \
+			or not (_rollover_archive_state(owner.ordinary_state) if rollover else _archive_state(owner.ordinary_state,closed)) \
+			or owner.common.get("sequence")!=previous \
 			or not api.Codec.same(owner.common.get("cursors"),{"ordinary":previous,"dynasty":0}): return false
 	var s: SeasonState=owner.session
 	var b: Dictionary=owner.ordinary_state.last_transition.basis
@@ -68,7 +86,7 @@ static func _native_owner_scope(owner: RefCounted, closed: bool=false) -> bool:
 	return true
 
 static func draft_scope(owner: RefCounted) -> bool:
-	if not _native_owner_scope(owner): return false
+	if not _native_owner_scope(owner) and not _native_owner_scope(owner,false,true): return false
 	var s: SeasonState=owner.session
 	if s.round_index!=0 or not s.results.is_empty() or not s.player_results.is_empty() \
 			or not s.physical.pending.is_empty() or not s.physical.reports.is_empty() or s.physical.cursor!=0 \
@@ -194,32 +212,37 @@ static func payload(owner: RefCounted) -> Dictionary:
 	var current: Dictionary=native._payload(owner.session)
 	return api._pack_fields(owner,current) if not current.is_empty() else {}
 
-static func _next(prior: RefCounted, wire: PackedByteArray, ordered: Array[String]) -> RefCounted:
+static func _next(prior: RefCounted, wire: PackedByteArray, ordered: Array[String], rollover: bool=false) -> RefCounted:
 	var api:=_api()
-	if not api.Mixed.closed_complete_scope(prior) or ordered.size()!=ORDINAL-1 \
+	var ordinal:int=ROLLOVER_ORDINAL if rollover else ORDINAL
+	if not (closed_complete_scope(prior) if rollover else api.Mixed.closed_complete_scope(prior)) \
+			or ordered.size()!=ordinal-1 \
 			or wire.is_empty() or wire.size()>Custody.MAX_WIRE: return null
 	var state: Dictionary=prior.ordinary_state
 	var lineage: String=state.lineage
-	var seed: int=api.Common.starter_dugout_seed(lineage,ORDINAL)
-	var native: Dictionary=api.Common.Start.make(seed,lineage,ORDINAL,int(prior.common.sequence),
+	var seed: int=api.Common.starter_dugout_seed(lineage,ordinal)
+	var native: Dictionary=api.Common.Start.make(seed,lineage,ordinal,int(prior.common.sequence),
 		api.Common.Life.digest(prior.common.aggregate),api.Common.projection(prior))
-	var basis: Dictionary=api.Common.Start.bind_mixed_append(native,ordered,Base._hash(wire))
+	var pin:=Base._hash(wire)
+	var basis: Dictionary=api.Common.Start.bind_mixed_rollover(native,ordered,pin) if rollover \
+		else api.Common.Start.bind_mixed_append(native,ordered,pin)
 	var session: SeasonState=api.Adapter.OrdinaryRuntime.create_common(basis,"dugout")
 	if session==null: return null
 	var next: RefCounted=api._new()
 	if not api.Codec.install_fields(next,api.DATA_FIELDS,api.Codec.data_fields(prior,api.DATA_FIELDS)): return null
 	next.session=session
-	next.ordinary_state={"status":"active","ordinal":ORDINAL,"lineage":lineage,"last_close":{},"proposal":{},
+	next.ordinary_state={"status":"active","ordinal":ordinal,"lineage":lineage,"last_close":{},"proposal":{},
 		"start_basis_sha256":api.Common.Life.digest(basis),
-		"last_transition":{"kind":Custody.TRANSITION,"id":"%s:%d:next"%[lineage,ORDINAL-1],
-			"source":state.last_close.session_sha256,"from":ORDINAL-1,"to":ORDINAL,"league":"dugout","basis":basis},
+		"last_transition":{"kind":ROLLOVER_TRANSITION if rollover else Custody.TRANSITION,"id":"%s:%d:next"%[lineage,ordinal-1],
+			"source":state.last_close.session_sha256,"from":ordinal-1,"to":ordinal,"league":"dugout","basis":basis},
 		"archive":{"kind":Custody.KIND,"wire":wire.get_string_from_utf8()}}
 	return next if draft_scope(next) and session.phase==SeasonState.Phase.DRAFT and session.picks.is_empty() else null
 
 # Called only by fixed Store CAS with the actual admitted closed owner/raw.
 static func from_bound_close(prior: RefCounted, raw: PackedByteArray) -> RefCounted:
 	var api:=_api()
-	if not api.Mixed.closed_complete_scope(prior) or raw.is_empty() or raw.size()>Base.MAX_MEMBER: return null
+	var rollover:=closed_complete_scope(prior)
+	if not (rollover or api.Mixed.closed_complete_scope(prior)) or raw.is_empty() or raw.size()>Base.MAX_MEMBER: return null
 	var value: Variant=api._bytes_value(raw)
 	var native: Script=api.Adapter.Ordinary
 	if not native._structural_valid(prior.session) \
@@ -232,7 +255,7 @@ static func from_bound_close(prior: RefCounted, raw: PackedByteArray) -> RefCoun
 	var digest:=Base._hash(raw)
 	var wire:=Custody.append(prefix,pin,raw,digest)
 	ordered.append(digest)
-	return _next(prior,wire,ordered)
+	return _next(prior,wire,ordered,rollover)
 
 static func _one_tail(wire: PackedByteArray, sha256: String) -> PackedByteArray:
 	if not Base._sha(sha256) or Base._hash(wire)!=sha256: return PackedByteArray()
@@ -245,12 +268,51 @@ static func _one_tail(wire: PackedByteArray, sha256: String) -> PackedByteArray:
 		return true
 	return tail[0] if not Custody._walk(manifest,collect).is_empty() and tail.size()==1 else PackedByteArray()
 
+# Obtain row five only after the entire exact two-row ordered transport
+# succeeds. Transport visitors do not confer native authority.
+static func _rollover_tail(wire: PackedByteArray, sha256: String) -> PackedByteArray:
+	if not Base._sha(sha256) or Base._hash(wire)!=sha256: return PackedByteArray()
+	var manifest:=Custody._manifest(wire)
+	if manifest.is_empty() or manifest.rows.size()!=2: return PackedByteArray()
+	var tail: Array[PackedByteArray]=[]
+	var seen: Array[int]=[]
+	var collect:=func(ordinal:int,raw:PackedByteArray) -> bool:
+		if ordinal!=4+seen.size() or ordinal not in [4,5]: return false
+		seen.append(ordinal)
+		if ordinal==5: tail.append(raw)
+		return true
+	return tail[0] if not Custody._walk(manifest,collect).is_empty() and seen==[4,5] and tail.size()==1 else PackedByteArray()
+
+static func _restore_rollover(value: Dictionary, state: Dictionary) -> RefCounted:
+	if not _rollover_archive_state(state): return null
+	var current: Variant=value.get("ordinary")
+	if not _current_shape(current) or not current.state.results.is_empty() \
+			or current.state.round_index!=0 or not current.physical.pending.is_empty(): return null
+	var api:=_api()
+	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
+	var raw:=_rollover_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
+	if raw.is_empty(): return null
+	# The bounded Season 5 reader authenticates S1–S4 and rederives S5's
+	# complete Close exactly once. Do not replay S4 separately here.
+	var prior:=restore_owned(api._bytes_value(raw))
+	if not closed_complete_scope(prior): return null
+	var ordered: Array[String]=[]
+	ordered.assign(prior.ordinary_state.last_transition.basis.archive_origin.ordered_sha256)
+	ordered.append(Base._hash(raw))
+	var candidate:=_next(prior,wire,ordered,true)
+	if candidate==null: return null
+	for id: Variant in current.state.picks:
+		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
+	var rebuilt:=payload(candidate)
+	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
+
 static func restore_owned(value: Variant) -> RefCounted:
 	var api:=_api()
 	# Inspect outer types first; neither an incoming basis nor a receipt is a
 	# trust root. The transport is bounded before accessing its native tail.
 	var state: Variant=value.get("ordinary_state") if value is Dictionary else null
 	if not state is Dictionary: return null
+	if state.get("ordinal")==ROLLOVER_ORDINAL: return _restore_rollover(value,state)
 	var closed: bool=state.get("status")=="closed"
 	if not _archive_state(state,closed): return null
 	var current: Variant=value.get("ordinary")
@@ -300,7 +362,25 @@ static func display(owner: RefCounted) -> Array:
 	var api:=_api()
 	var state: Dictionary=owner.ordinary_state
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
-	var raw:=_one_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
+	var pin: String=state.last_transition.basis.archive_origin.manifest_sha256
+	if state.ordinal==ROLLOVER_ORDINAL:
+		var fifth_raw:=_rollover_tail(wire,pin)
+		if fifth_raw.is_empty(): return []
+		var fifth_owner: Variant=api._bytes_value(fifth_raw)
+		if not fifth_owner is Dictionary: return []
+		var archive5: Dictionary=fifth_owner.ordinary_state.archive
+		var pin5: String=fifth_owner.ordinary_state.last_transition.basis.archive_origin.manifest_sha256
+		var rows5:=_display_four(archive5.wire.to_utf8_buffer(),pin5)
+		var fifth: Dictionary=api.Common.StandardArchive._display_scores(fifth_owner,true)
+		if rows5.size()!=4 or fifth.get("ordinal")!=ORDINAL or fifth.results.size()!=33: return []
+		fifth["league"]="dugout"
+		rows5.append(fifth)
+		return rows5
+	return _display_four(wire,pin)
+
+static func _display_four(wire: PackedByteArray, pin: String) -> Array:
+	var api:=_api()
+	var raw:=_one_tail(wire,pin)
 	if raw.is_empty(): return []
 	var prior: Variant=api._bytes_value(raw)
 	var rows: Array=api.Mixed.display(prior.ordinary_state.archive)

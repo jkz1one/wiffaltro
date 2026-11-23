@@ -1895,7 +1895,8 @@ func _request_private_standard_flat_abandon() -> void:
 
 func mixed_append_next_visible() -> bool:
 	return Store.private_mixed_append() and career_owner!=null and career_owner.session==season \
-		and Owner.Mixed.closed_complete_scope(career_owner) and next_league_block().is_empty()
+		and (Owner.Mixed.closed_complete_scope(career_owner) or Owner.MixedAppend.closed_complete_scope(career_owner)) \
+		and next_league_block().is_empty()
 
 func _mixed_append_next_ready() -> bool:
 	if not mixed_append_next_visible() or not _available() or not _owned() or is_instance_valid(ai_runner) \
@@ -1908,8 +1909,10 @@ func _mixed_append_next_ready() -> bool:
 func _request_mixed_append_next() -> void:
 	if not _lifecycle_action.is_empty() or not _mixed_append_next_ready(): return
 	_lifecycle_action="mixed_append_next";_lifecycle_owner=career_owner;_lifecycle_season=season;_lifecycle_bytes=saved_bytes.duplicate()
-	_lifecycle_dialog.title="Start Dugout Base Season 5"
-	_lifecycle_dialog.dialog_text="Start a fresh four-player draft? Prior season history and earned Club Credits stay. Seasonal Cash and items reset. This private build ends after the draft."
+	_lifecycle_dialog.title="Start Dugout Base Season %d"%(career_owner.current_ordinal()+1)
+	_lifecycle_dialog.dialog_text="Start a fresh four-player draft? Prior season history and earned Club Credits stay. Seasonal Cash and items reset."
+	if Owner.MixedAppend.closed_complete_scope(career_owner):
+		_lifecycle_dialog.dialog_text+=" This private Season 6 test ends after the draft."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
 
 func request_lifecycle(action: String) -> void:
