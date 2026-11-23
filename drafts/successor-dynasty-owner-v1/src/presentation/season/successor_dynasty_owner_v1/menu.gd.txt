@@ -225,8 +225,8 @@ func render() -> void:
 			_note("This game is unavailable in the current career.")
 		else:
 			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
-	elif Store.Owner.Mixed.marked_state(app.career_owner.ordinary_state):
-		_note("All season games are saved. Closing this season is not enabled in this build.")
+	elif Store.Owner.Mixed.marked_state(app.career_owner.ordinary_state) and not app.starter_dugout_complete_visible():
+		_note("All season games are saved. The completed checkpoint must be verified before it can close.")
 	elif not archived or standard_repeat or app.starter_dugout_complete_visible():
 		_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 	if app.season.shop_available() and app.season.physical.pending.is_empty() and not app.academy_pack_choice_pending():
@@ -505,6 +505,10 @@ func _display_standard_record(history: Dictionary) -> void:
 func _closed() -> void:
 	var owner=app.career_owner
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
+	if Store.Owner.Mixed.closed_complete_scope(owner):
+		var payout:int=int(owner.ordinary_state.last_close.receipt.total)
+		_note("Completion payout: %d Club Credits. Season results and previous season history are preserved. Next season is not available here."%payout)
+		return
 	if app.cross_review_visible():
 		_note("Your saved season and earned progress stay intact. Activate Dugout Base below when you are ready to draft your new club.")
 		return

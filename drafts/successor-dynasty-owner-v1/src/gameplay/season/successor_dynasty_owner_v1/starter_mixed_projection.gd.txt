@@ -93,9 +93,11 @@ const TRANSITION := "common-starter-dugout-compact-draft-v1"
 static func marked_state(state: Variant) -> bool:
 	return state is Dictionary and state.get("archive") is Dictionary and state.archive.get("kind")==Custody.KIND
 
-# A scope condition is never native custody or write authority. The active
-# epoch covers Stock Dugout through play; close/rollover remain separate.
+# Scope never grants custody or write authority.
 static func season_owner_scope(owner: RefCounted) -> bool:
+	return _season_owner_scope(owner,false)
+
+static func _season_owner_scope(owner: RefCounted,closed: bool) -> bool:
 	var api:=_api()
 	if owner==null or owner.get_script()!=api or owner.active!="ordinary" or not owner.paused.is_empty() \
 			or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
@@ -108,7 +110,8 @@ static func season_owner_scope(owner: RefCounted) -> bool:
 			or not s.home_property.is_empty() or not s.league_live or s.league_rules.get("league")!="dugout" \
 			or s.league_rules.get("tier")!=0 or not _season_phase(s): return false
 	if not api.Codec.keys(state,api.Common.ORDINARY_FIELDS+["archive"]) or not marked_state(state) \
-			or state.status!="active" or state.ordinal!=4 or state.proposal!={} or state.last_close!={} \
+			or state.status!=("closed" if closed else "active") or state.ordinal!=4 or state.proposal!={} \
+			or (not closed and state.last_close!={}) \
 			or not api.Codec.keys(state.archive,["kind","wire"]) or not state.archive.wire is String \
 			or state.archive.wire.is_empty() or state.archive.wire.length()>Custody.MAX_WIRE: return false
 	var t: Variant=state.last_transition
@@ -119,7 +122,47 @@ static func season_owner_scope(owner: RefCounted) -> bool:
 	return t.basis.lineage==state.lineage and s.season_seed==t.basis.seed \
 		and state.start_basis_sha256==api.Common.Life.digest(t.basis) \
 		and api.Codec.same(t.basis,s.career.start_basis) \
-		and owner.common.get("sequence")==3 and api.Codec.same(owner.common.get("cursors"),{"ordinary":3,"dynasty":0})
+		and owner.common.get("sequence")==int(state.ordinal)-int(not closed) \
+		and api.Codec.same(owner.common.get("cursors"),{"ordinary":int(state.ordinal)-int(not closed),"dynasty":0})
+
+static func complete_scope(owner: RefCounted) -> bool:
+	return season_owner_scope(owner) and owner.session.phase==SeasonState.Phase.COMPLETE
+
+static func closed_complete_scope(owner: RefCounted) -> bool:
+	if not _season_owner_scope(owner,true) or owner.session.phase!=SeasonState.Phase.COMPLETE: return false
+	var state: Dictionary=owner.ordinary_state
+	var row: Variant=owner.common.get("last_fold")
+	var close: Variant=state.last_close
+	var api:=_api()
+	if not api.Codec.keys(close,["id","ordinal","reason","session_sha256","receipt","first_title","league","tier"]) \
+			or not api.Codec.keys(row,["id","side","ordinal","sequence","source","aggregate_sha256","receipt"]): return false
+	var id: String="%s:%d:close"%[state.lineage,state.ordinal]
+	return close.id==id and close.ordinal==state.ordinal and close.reason=="complete" and close.league=="dugout" \
+		and close.tier==0 and close.first_title is bool and close.receipt is Dictionary and not close.receipt.is_empty() \
+		and Custody._sha(close.session_sha256) and row.id==id and row.side=="ordinary" and row.ordinal==state.ordinal \
+		and row.sequence==owner.common.sequence and row.source==close.session_sha256 \
+		and row.aggregate_sha256==api.Common.Life.digest(owner.common.aggregate) and api.Codec.same(row.receipt,close.receipt)
+
+static func fold_complete(owner: RefCounted, id: String, sequence: int) -> Dictionary:
+	if not complete_scope(owner): return {}
+	var api:=_api()
+	var before: Dictionary=owner.common.aggregate
+	if not api.Common.Progress.valid(before) or not api.Common.Progress._close_id(id) \
+			or id!="%s:%d:close"%[owner.ordinary_state.lineage,owner.ordinary_state.ordinal] \
+			or sequence!=before.closed+1 or sequence!=owner.common.sequence+1: return {}
+	return api.Common.Progress._fold_native(before,"ordinary",owner.session,id,sequence,"complete")
+
+# Pure duplicate metadata over the existing authenticated native session.
+# Fixed Store admission and the strict compact reader are its only callers.
+static func completed_close(owner: RefCounted,current: Dictionary) -> RefCounted:
+	if not complete_scope(owner) or current.is_empty(): return null
+	var api:=_api()
+	var candidate: RefCounted=api._new()
+	candidate.session=owner.session
+	if not api.Codec.install_fields(candidate,api.DATA_FIELDS,api.Codec.data_fields(owner,api.DATA_FIELDS)) \
+			or not api.Common._fold_close_state(candidate,"complete",current) \
+			or not closed_complete_scope(candidate): return null
+	return candidate
 
 static func draft_owner_scope(owner: RefCounted) -> bool:
 	return season_owner_scope(owner) and owner.session.phase==SeasonState.Phase.DRAFT
@@ -255,7 +298,12 @@ static func restore_owned(value: Variant) -> RefCounted:
 		candidate.session=_replay_current(candidate.session,current)
 		if candidate.session==null or not season_owner_scope(candidate): return null
 	var rebuilt:=compact_payload(candidate)
-	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
+	if rebuilt.is_empty(): return null
+	if meta.ordinary_state.get("status")=="closed":
+		if not api.Codec.same(rebuilt.ordinary,current): return null
+		candidate=completed_close(candidate,rebuilt.ordinary)
+		return candidate if candidate!=null and api.Codec.same(api._pack_fields(candidate,rebuilt.ordinary),value) else null
+	return candidate if api.Codec.same(rebuilt,value) else null
 
 # Dugout stored its original native H13 arguments in the player row,
 # including the exact per-opponent physical evidence. No new data or source

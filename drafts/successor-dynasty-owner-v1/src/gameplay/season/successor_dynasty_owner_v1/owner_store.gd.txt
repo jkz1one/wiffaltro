@@ -96,7 +96,7 @@ static func standard_history_available(owner: RefCounted, expected: PackedByteAr
 	return pin is Dictionary and RawGuard.same(owner.ordinary_state.archive,pin) \
 		and ((Owner.Common.StandardChain.marked(owner.session) and Owner.Common.StandardChain.shape(owner)) \
 			or (LeagueAdmission.starter_player() and (Owner.Common.starter_dugout_chain_scope(owner) \
-				or Owner.Mixed.season_owner_scope(owner))))
+				or Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -190,7 +190,7 @@ static func private_standard_chain_opening() -> bool:
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if Flat.is_flat(owner): return false
 	if owner!=null and Owner.Mixed.marked_state(owner.ordinary_state):
-		return LeagueAdmission.starter_player() and Owner.Mixed.season_owner_scope(owner)
+		return LeagueAdmission.starter_player() and (Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))
 	if owner!=null and owner.ordinary_state.get("archive",{}).get("kind")==Owner.Common.STARTER_DUGOUT_ARCHIVE:
 		return LeagueAdmission.starter_player() and Owner.Common.starter_dugout_archive(owner) and Owner.Common._archive_shape(owner)
 	if owner!=null and owner.ordinary_state.get("archive",{}).get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN:
@@ -227,7 +227,8 @@ static func _starter_opening_owner(owner: RefCounted) -> bool:
 # Routing only: the child and Store separately prove the exact bounded bytes.
 static func _mixed_continue_shape(value: Variant) -> bool:
 	return value is Dictionary and value.get("version")==4 and value.get("active")=="ordinary" \
-		and Owner.Mixed.marked_state(value.get("ordinary_state")) and value.get("ordinary") is Dictionary
+		and Owner.Mixed.marked_state(value.get("ordinary_state")) and value.ordinary_state.get("status")=="active" \
+		and value.get("ordinary") is Dictionary
 
 static func mixed_continue_source(expected: PackedByteArray) -> bool:
 	return LeagueAdmission.starter_fast_worker() and not expected.is_empty() and expected.size()<=MAX_BYTES \
@@ -1700,6 +1701,9 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	if saving or _ticket!=null or operation not in ["resume","create","attach119","close","propose","next"]: return null
 	if LeagueAdmission.starter_feature() and operation in ["resume","create","attach119"]: return null
 	if not match_owner(owner,expected): return null
+	if Owner.Mixed.marked_state(owner.ordinary_state):
+		if operation!="close" or reason!="complete" or seed_value!=0 or not league.is_empty(): return null
+		return _prepare_mixed_completed_close(owner,expected)
 	if owner.ordinary_state.has("archive"):
 		if Owner.Common.StandardChain.marked(owner.session):
 			if operation!="close" or reason!="abandon" or not (LeagueAdmission.starter_player() or private_standard_chain_opening()) \
@@ -1750,6 +1754,25 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	var snapshot: Dictionary=RawGuard.capture(candidate)
 	if snapshot.is_empty(): return null
 	if operation=="attach119" and FileAccess.get_file_as_bytes(SOURCE119)!=imported: return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
+# Exact paid current session stays in place. Only the existing confirmed
+# lifecycle route can promote this fixed narrow metadata-only candidate.
+static func _prepare_mixed_completed_close(owner: RefCounted,expected: PackedByteArray) -> RefCounted:
+	if saving or _ticket!=null or not mixed_session_scope(owner) or not Owner.Mixed.complete_scope(owner) \
+			or not match_owner(owner,expected): return null
+	var active: Variant=Owner._bytes_value(expected)
+	var current: Dictionary=Owner.Mixed.compact_payload(owner)
+	if current.is_empty() or not Codec.same(active,current): return null
+	var candidate: RefCounted=Owner.Mixed.completed_close(owner,current.ordinary)
+	if candidate==null or not match_owner(owner,expected): return null
+	var data: Dictionary=Owner._pack_fields(candidate,active.ordinary)
+	var snapshot: Dictionary=RawGuard.capture(candidate)
+	if snapshot.is_empty() or not _matches_raw(candidate,snapshot) or not match_owner(owner,expected): return null
 	_ticket=RefCounted.new()
 	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
 	_expected=expected.duplicate();_written=PackedByteArray()

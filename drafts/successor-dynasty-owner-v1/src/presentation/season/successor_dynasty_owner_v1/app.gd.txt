@@ -1823,7 +1823,8 @@ func archived_abandon_visible() -> bool:
 
 func starter_dugout_complete_visible() -> bool:
 	return starter_player() and career_owner!=null and season!=null and career_owner.session==season \
-		and career_owner.lifecycle_status()=="active" and Owner.Common.starter_dugout_complete_scope(career_owner,season)
+		and career_owner.lifecycle_status()=="active" and (Owner.Common.starter_dugout_complete_scope(career_owner,season) \
+			or (Store.mixed_session_scope(career_owner) and Owner.Mixed.complete_scope(career_owner)))
 
 func _lifecycle_ready(action: String) -> bool:
 	if career_owner!=null and career_owner.ordinary_state.has("archive"):
