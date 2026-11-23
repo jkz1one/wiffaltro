@@ -14,6 +14,13 @@ static func shape(season: SeasonState) -> bool:
 	elif not season.home_property.is_empty() and not Codec.StarterHome.pending_shape(season): return false
 	return Evidence.pending_shape(value,season.league_rules,Codec.Catalog.game_signature())
 static func project(owner: SeasonState) -> Dictionary:
+	return _project(owner,false)
+
+# Used only by mixed cold replay. No validation outcome can be supplied here.
+static func _project_for_mixed_restore(owner: SeasonState) -> Dictionary:
+	return _project(owner,true)
+
+static func _project(owner: SeasonState, observe_mismatch: bool) -> Dictionary:
 	project_calls += 1
 	if not shape(owner): return {"error":"The saved current round is inconsistent."}
 	var candidate: SeasonState = owner.fork_live()
@@ -26,7 +33,15 @@ static func project(owner: SeasonState) -> Dictionary:
 		var human: Array = pending.human
 		human.append_array([[],pending.property])
 		pending.erase("property")
-	return Original._project_candidate(candidate,pending)
+	if not observe_mismatch: return Original._project_candidate(candidate,pending)
+	# Metadata is transient on this one fork; the native save schema is exact.
+	var mismatch: Dictionary={}
+	candidate.physical.set_meta("_mixed_request_observation",mismatch)
+	var projected: Dictionary=Original._project_candidate(candidate,pending)
+	candidate.physical.remove_meta("_mixed_request_observation")
+	if projected.has("error") and mismatch.get("cursor")==candidate.physical.cursor:
+		projected["_mixed_request_mismatch"]=mismatch
+	return projected
 static func stage_report(owner: SeasonState, raw: Dictionary) -> Dictionary:
 	var result: Dictionary = project(owner)
 	if result.has("error") or not result.get("fixture") is Dictionary: return {"error":"No matching physical job remains in this round."}

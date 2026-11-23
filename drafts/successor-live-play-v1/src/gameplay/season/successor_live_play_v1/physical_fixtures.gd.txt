@@ -332,11 +332,19 @@ func _resolve(season: SeasonState, fixture: Dictionary, allow_reuse: bool = true
 	if (
 		header.is_empty()
 		or row.fixture != fixture.id
-		or row.request != expected_request
+		or (row.request != expected_request and not has_meta("_mixed_request_observation"))
 		or header.seed != seed_for(season, fixture)
 		or (row.report.venue.field if not catalog_for(season).is_empty()
 			and row.report.has("venue") else header.field) != String(field.id)
 	):
+		error = "Saved physical fixture does not match its scheduled clubs and committed build."
+		return {}
+	if row.request != expected_request:
+		if has_meta("_mixed_request_observation") and projecting and error.is_empty() \
+				and not expected_request.is_empty():
+			var observed: Dictionary=get_meta("_mixed_request_observation")
+			if observed.is_empty():
+				observed.merge({"cursor":cursor,"fixture":fixture.id,"saved":row.request,"expected":expected_request})
 		error = "Saved physical fixture does not match its scheduled clubs and committed build."
 		return {}
 	var state: MatchState = match_for(season, fixture) if authored_return.is_empty() else return_state

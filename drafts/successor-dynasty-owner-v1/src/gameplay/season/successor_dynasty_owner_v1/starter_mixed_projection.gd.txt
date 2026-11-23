@@ -316,28 +316,24 @@ static func _replay_shop(s: SeasonState, journal: Array) -> bool:
 static func _project_mixed_round(source: SeasonState) -> Dictionary:
 	var api:=_api()
 	var pending: Dictionary=source.physical.pending
-	var original: Dictionary=api.Adapter.OrdinaryPending.project(source)
+	var eligible: bool=source.phase==SeasonState.Phase.REGULAR and pending.get("reports") is Array \
+			and not pending.reports.is_empty() and pending.reports.size()<=2
+	var original: Dictionary=api.Adapter.OrdinaryPending._project_for_mixed_restore(source) \
+			if eligible else api.Adapter.OrdinaryPending.project(source)
+	var mismatch: Dictionary=original.get("_mixed_request_mismatch",{})
+	original.erase("_mixed_request_mismatch")
 	var stock: Dictionary={"projection":original,"source":source}
-	if original.get("error")!="The pending round contains an unexpected physical fixture." \
-			or source.phase!=SeasonState.Phase.REGULAR or not pending.get("reports") is Array \
-			or pending.reports.is_empty() or pending.reports.size()>2: return stock
-	var mismatch:=false
-	for i: int in pending.reports.size():
-		var row: Variant=pending.reports[i]
-		if not row is Dictionary or not row.get("request") is String \
-				or row.request.length()!=64 or not row.request.is_valid_hex_number(false): return stock
-		var probe: SeasonState=source.fork_live()
-		if probe==null: return stock
-		probe.physical.pending["reports"]=pending.reports.slice(0,i)
-		var observed: Dictionary=api.Adapter.OrdinaryPending.project(probe)
-		if observed.has("error") or not observed.get("fixture") is Dictionary \
-				or row.get("fixture")!=observed.fixture.id: return stock
-		var expected: String=api.Adapter.fixtures("ordinary").request_key(observed.candidate,observed.fixture)
-		if expected.is_empty(): return stock
-		if expected!=row.request:
-			mismatch=true
-			break
-	if not mismatch: return stock
+	if not eligible or mismatch.is_empty() \
+			or original.get("error")!="The pending round contains an unexpected physical fixture.": return stock
+	var index: int=mismatch.cursor-source.physical.cursor
+	if index<0 or index>=pending.reports.size(): return stock
+	var row: Variant=pending.reports[index]
+	if not row is Dictionary or row.get("fixture")!=mismatch.fixture \
+			or not row.get("request") is String or row.request.length()!=64 \
+			or not row.request.is_valid_hex_number(false) or row.request!=mismatch.saved \
+			or row.request==mismatch.expected: return stock
+	# This records only why the stock candidate failed. The exact typed image
+	# and the complete stock projector below still decide admission.
 	var core: SeasonState=source.fork_live()
 	if core==null: return stock
 	core.physical.pending.clear()
