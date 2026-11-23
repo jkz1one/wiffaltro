@@ -11,12 +11,35 @@ static func _api() -> Script:
 static func marked_state(state: Variant) -> bool:
 	return state is Dictionary and state.get("archive") is Dictionary and state.archive.get("kind")==Custody.KIND
 
-static func _archive_state(state: Dictionary) -> bool:
+# Reject impossible Base receipts before replaying older history. This is
+# a refusal only: matching these public numbers never admits a closed owner.
+static func _base_close_receipt_shape(value: Variant, first_title: bool) -> bool:
+	var api:=_api()
+	if not api.Codec.keys(value,["version","finish","wins","finish_award","record_bonus","first_bonus","total"]) \
+		or value.version!=1 or not value.finish is String or not api.Codec.whole(value.wins,0,10): return false
+	var awards: Dictionary={"missed":35,"semifinal":65,"runner_up":95,"champion":180}
+	if not awards.has(value.finish): return false
+	var award:int=awards[value.finish]
+	var record:int=floori(1.5*int(value.wins))
+	var bonus:int=25 if value.finish=="champion" and first_title else 0
+	return value.finish_award==award and value.record_bonus==record and value.first_bonus==bonus \
+		and value.total==award+record+bonus
+
+static func _close_meta_shape(state: Dictionary, close: Variant) -> bool:
+	var api:=_api()
+	return api.Codec.keys(close,["id","ordinal","reason","session_sha256","receipt","first_title","league","tier"]) \
+		and close.id=="%s:%d:close"%[state.lineage,ORDINAL] and close.ordinal==ORDINAL \
+		and close.reason=="complete" and close.league=="dugout" and close.tier==0 \
+		and close.first_title is bool and _base_close_receipt_shape(close.receipt,close.first_title) \
+		and Base._sha(close.session_sha256)
+
+static func _archive_state(state: Dictionary, closed: bool=false) -> bool:
 	var api:=_api()
 	if not api.Codec.keys(state,api.Common.ORDINARY_FIELDS+["archive"]) or not marked_state(state) \
-			or state.status!="active" or state.ordinal!=ORDINAL or not state.lineage is String or state.proposal!={} \
-			or state.last_close!={} or not api.Codec.keys(state.archive,["kind","wire"]) \
+			or state.status!=("closed" if closed else "active") or state.ordinal!=ORDINAL or not state.lineage is String or state.proposal!={} \
+			or not api.Codec.keys(state.archive,["kind","wire"]) \
 			or not state.archive.wire is String or state.archive.wire.is_empty() or state.archive.wire.length()>Custody.MAX_WIRE: return false
+	if not (_close_meta_shape(state,state.last_close) if closed else state.last_close=={}): return false
 	var t: Variant=state.last_transition
 	return api.Codec.keys(t,["kind","id","source","from","to","league","basis"]) \
 		and t.kind==Custody.TRANSITION and t.league=="dugout" and t.from==ORDINAL-1 and t.to==ORDINAL \
@@ -26,14 +49,15 @@ static func _archive_state(state: Dictionary) -> bool:
 
 # Detached structural scope only. Producing or publishing always requires the
 # exact Store bound owner, and cold restore independently compares everything.
-static func _native_owner_scope(owner: RefCounted) -> bool:
+static func _native_owner_scope(owner: RefCounted, closed: bool=false) -> bool:
 	var api:=_api()
+	var previous: int=ORDINAL if closed else ORDINAL-1
 	if owner==null or owner.get_script()!=api or owner.active!="ordinary" or not owner.paused.is_empty() \
 			or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
 			or not owner.workshop_draft.is_empty() or not owner.workshop_close_history.is_empty() \
 			or not owner.workshop_chair_purchase.is_empty() or not owner.workshop_applied.is_empty() \
-			or not _archive_state(owner.ordinary_state) or owner.common.get("sequence")!=ORDINAL-1 \
-			or not api.Codec.same(owner.common.get("cursors"),{"ordinary":ORDINAL-1,"dynasty":0}): return false
+			or not _archive_state(owner.ordinary_state,closed) or owner.common.get("sequence")!=previous \
+			or not api.Codec.same(owner.common.get("cursors"),{"ordinary":previous,"dynasty":0}): return false
 	var s: SeasonState=owner.session
 	var b: Dictionary=owner.ordinary_state.last_transition.basis
 	if s==null or s.get_script()!=api.Adapter.OrdinaryRuntime or s.career==null or s.build==null or s.physical==null \
@@ -71,6 +95,43 @@ static func season_scope(owner: RefCounted) -> bool:
 	var s: SeasonState=owner.session
 	return s.phase!=SeasonState.Phase.DRAFT and _api().Mixed._season_phase(s) \
 		and _shop_journal(s.build._events)
+
+static func complete_scope(owner: RefCounted) -> bool:
+	return season_scope(owner) and owner.session.phase==SeasonState.Phase.COMPLETE
+
+# Closed display/admission grants no round, Shop or next-season authority.
+static func closed_complete_scope(owner: RefCounted) -> bool:
+	if not _native_owner_scope(owner,true) or owner.session.phase!=SeasonState.Phase.COMPLETE: return false
+	var api:=_api()
+	var s: SeasonState=owner.session
+	if not api.Mixed._season_phase(s) or not _shop_journal(s.build._events): return false
+	var c: Dictionary=owner.ordinary_state.last_close
+	var row: Variant=owner.common.get("last_fold")
+	return api.Codec.keys(row,["id","side","ordinal","sequence","source","aggregate_sha256","receipt"]) \
+		and row.id==c.id and row.side=="ordinary" and row.ordinal==ORDINAL and row.sequence==ORDINAL \
+		and row.source==c.session_sha256 and api.Common.Progress.valid(owner.common.aggregate) \
+		and row.aggregate_sha256==api.Common.Life.digest(owner.common.aggregate) and api.Codec.same(row.receipt,c.receipt)
+
+static func fold_complete(owner: RefCounted, id: String, sequence: int) -> Dictionary:
+	if not complete_scope(owner): return {}
+	var api:=_api()
+	var before: Dictionary=owner.common.aggregate
+	if not api.Common.Progress.valid(before) or not api.Common.Progress._close_id(id) \
+		or id!="%s:%d:close"%[owner.ordinary_state.lineage,ORDINAL] \
+		or sequence!=ORDINAL or sequence!=before.closed+1 or sequence!=owner.common.sequence+1: return {}
+	return api.Common.Progress._fold_native(before,"ordinary",owner.session,id,sequence,"complete")
+
+# Only the fixed Store producer and strict replay-backed reader call this.
+# Reuse the exact authenticated current without accepting a caller payout.
+static func completed_close(owner: RefCounted,current: Dictionary) -> RefCounted:
+	if not complete_scope(owner) or current.is_empty(): return null
+	var api:=_api()
+	var candidate: RefCounted=api._new()
+	candidate.session=owner.session
+	if not api.Codec.install_fields(candidate,api.DATA_FIELDS,api.Codec.data_fields(owner,api.DATA_FIELDS)) \
+		or not api.Common._fold_close_state(candidate,"complete",current) \
+		or not closed_complete_scope(candidate): return null
+	return candidate
 
 static func _active_play_phase(owner: RefCounted) -> bool:
 	return season_scope(owner) and owner.session.phase in \
@@ -189,10 +250,13 @@ static func restore_owned(value: Variant) -> RefCounted:
 	# Inspect outer types first; neither an incoming basis nor a receipt is a
 	# trust root. The transport is bounded before accessing its native tail.
 	var state: Variant=value.get("ordinary_state") if value is Dictionary else null
-	if not state is Dictionary or not _archive_state(state): return null
+	if not state is Dictionary: return null
+	var closed: bool=state.get("status")=="closed"
+	if not _archive_state(state,closed): return null
 	var current: Variant=value.get("ordinary")
 	if not _current_shape(current): return null
 	var drafted: bool=current.state.picks.size()==4
+	if closed and (not drafted or current.state.phase!=SeasonState.Phase.COMPLETE): return null
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
 	var raw:=_one_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
 	if raw.is_empty(): return null
@@ -205,6 +269,15 @@ static func restore_owned(value: Variant) -> RefCounted:
 	if candidate==null: return null
 	for id: Variant in current.state.picks:
 		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
+	if closed:
+		# Recreate and authenticate the active terminal session from its own
+		# predecessor, then derive the Close metadata and compare the whole
+		# envelope. Incoming close/receipt/aggregate are not inputs to the fold.
+		var replay: RefCounted=api.Mixed._replay_current_image(candidate.session,current)
+		if replay==null: return null
+		candidate.session=replay.session
+		var folded:=completed_close(candidate,replay.image)
+		return folded if folded!=null and api.Codec.same(api._pack_fields(folded,replay.image),value) else null
 	if drafted:
 		candidate.session=api.Mixed._replay_current(candidate.session,current)
 		if not season_scope(candidate): return null
@@ -223,7 +296,7 @@ static func pick_payload(owner: RefCounted, candidate: RefCounted) -> Dictionary
 
 # Display projection only from Store's previously authenticated archive pin.
 static func display(owner: RefCounted) -> Array:
-	if not draft_scope(owner) and not season_scope(owner): return []
+	if not draft_scope(owner) and not season_scope(owner) and not closed_complete_scope(owner): return []
 	var api:=_api()
 	var state: Dictionary=owner.ordinary_state
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
