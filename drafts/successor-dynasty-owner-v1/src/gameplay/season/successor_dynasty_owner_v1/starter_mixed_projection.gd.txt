@@ -309,6 +309,48 @@ static func _replay_shop(s: SeasonState, journal: Array) -> bool:
 		if s.build!=bought or s.build.revision()!=index: return false
 	return _journal_prefix(s,journal,first)
 
+# The marked mixed reader has already reconstructed this pre-round
+# source. Older responsive Continue can give otherwise equal fixture and
+# ownership journal numbers their JSON types. Use only the exact, detached
+# native image, never a supplied digest or a relaxed report validator.
+static func _project_mixed_round(source: SeasonState) -> Dictionary:
+	var api:=_api()
+	var pending: Dictionary=source.physical.pending
+	var original: Dictionary=api.Adapter.OrdinaryPending.project(source)
+	var stock: Dictionary={"projection":original,"source":source}
+	if original.get("error")!="The pending round contains an unexpected physical fixture." \
+			or source.phase!=SeasonState.Phase.REGULAR or not pending.get("reports") is Array \
+			or pending.reports.is_empty() or pending.reports.size()>2: return stock
+	var mismatch:=false
+	for i: int in pending.reports.size():
+		var row: Variant=pending.reports[i]
+		if not row is Dictionary or not row.get("request") is String \
+				or row.request.length()!=64 or not row.request.is_valid_hex_number(false): return stock
+		var probe: SeasonState=source.fork_live()
+		if probe==null: return stock
+		probe.physical.pending["reports"]=pending.reports.slice(0,i)
+		var observed: Dictionary=api.Adapter.OrdinaryPending.project(probe)
+		if observed.has("error") or not observed.get("fixture") is Dictionary \
+				or row.get("fixture")!=observed.fixture.id: return stock
+		var expected: String=api.Adapter.fixtures("ordinary").request_key(observed.candidate,observed.fixture)
+		if expected.is_empty(): return stock
+		if expected!=row.request:
+			mismatch=true
+			break
+	if not mismatch: return stock
+	var core: SeasonState=source.fork_live()
+	if core==null: return stock
+	core.physical.pending.clear()
+	var native: Script=api.Adapter.Ordinary
+	var earned: Dictionary=native._payload(core)
+	if earned.is_empty(): return stock
+	var typed: SeasonState=native._hydrate_current_shape(earned,false)
+	if typed==null or not native._canonical_named_context(typed) \
+			or not api.Codec.same(native._payload(typed),earned): return stock
+	typed.physical.pending=pending.duplicate(true)
+	var checked: Dictionary=api.Adapter.OrdinaryPending.project(typed)
+	return stock if checked.has("error") else {"projection":checked,"source":typed}
+
 # The input session only comes from the genuine authored seed and picks when
 # used for admission. Each settled boundary is projected once by the original
 # native path. Current pending is validated but not adopted as a paid result.
@@ -337,7 +379,7 @@ static func _replay_current(source: SeasonState, current: Variant) -> SeasonStat
 		if human.is_empty(): return null
 		var revision: int=next.build.revision()
 		next.physical.pending={"human":human,"reports":reports.slice(cursor,cursor+count)}
-		var projected: Dictionary=api.Adapter.OrdinaryPending.project(next)
+		var projected: Dictionary=_project_mixed_round(next).projection
 		next=projected.get("candidate")
 		cursor+=count
 		if projected.has("error") or projected.has("fixture") or next==null \
@@ -345,8 +387,11 @@ static func _replay_current(source: SeasonState, current: Variant) -> SeasonStat
 				or not _journal_prefix(next,journal,revision) or not _replay_shop(next,journal): return null
 	if cursor!=reports.size() or next.build.revision()!=journal.size(): return null
 	next.physical.pending=current.physical.pending.duplicate(true)
-	if not _season_phase(next) or (not next.physical.pending.is_empty() and api.Adapter.OrdinaryPending.project(next).has("error")):
-		return null
+	if not _season_phase(next): return null
+	if not next.physical.pending.is_empty():
+		var pending_read:=_project_mixed_round(next)
+		if pending_read.projection.has("error"): return null
+		next=pending_read.source
 	var native: Script=api.Adapter.Ordinary
 	return next if native._structural_valid(next) and api.Codec.same(native._payload(next),current) else null
 
