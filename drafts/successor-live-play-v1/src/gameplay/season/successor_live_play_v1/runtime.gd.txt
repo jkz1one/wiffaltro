@@ -112,12 +112,14 @@ func make_match() -> MatchState:
 	if career!=null and CommonStart.detached_mixed_flat(career.start_basis): return null
 	return null if _d1_draft() or Admissions.paired_draft_only(self) else super.make_match()
 
-# Called only by the bound compact opener App route; the detached
+# Called only by the bound compact native App route; the detached
 # generic match entry above still rejects this versioned origin.
-func _make_mixed_opener() -> MatchState:
+func _make_mixed_round() -> MatchState:
 	if career==null or not CommonStart.detached_mixed_flat(career.start_basis) \
-			or not CommonStart.valid(career.start_basis) or phase!=SeasonState.Phase.REGULAR \
-			or round_index!=0 or not physical.pending.is_empty() or pending_fixture().get("id")!=0: return null
+			or not CommonStart.valid(career.start_basis) or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] \
+			or not physical.pending.is_empty() or build.pack_pending(): return null
+	var fixture:=pending_fixture()
+	if fixture.is_empty() or (fixture.home!=0 and fixture.away!=0): return null
 	return super.make_match()
 
 func shop_available() -> bool:

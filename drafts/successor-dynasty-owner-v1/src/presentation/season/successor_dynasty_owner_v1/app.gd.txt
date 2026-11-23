@@ -1401,7 +1401,7 @@ func play_next() -> void:
 		show_season()
 		return
 	var fixture: Dictionary = season.pending_fixture()
-	var state: MatchState = season._make_mixed_opener() if mixed else season.make_match()
+	var state: MatchState = season._make_mixed_round() if mixed else season.make_match()
 	var field: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
 	if state==null or field==null or not ClubCareer.same(state.stadium,_expected_stadium(fixture)) or not state.sure_shot.enable_current_evidence():
 		notice = "This fixture could not be prepared."
@@ -1466,9 +1466,9 @@ func finish_game() -> void:
 		retry_save()
 		return
 	if Owner.Mixed.marked_state(career_owner.ordinary_state):
-		var ticket: RefCounted=Store.prepare_mixed_opener_human(self)
+		var ticket: RefCounted=Store.prepare_mixed_round_human(self)
 		if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
-		else: notice="The verified opener could not be saved. The game remains open."
+		else: notice="The completed game could not be saved. The game remains open."
 		return
 	var human: Array = Adapter.human_capture(_active_side()).capture(self)
 	if human.is_empty():
