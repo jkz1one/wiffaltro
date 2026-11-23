@@ -294,16 +294,20 @@ static func restore_owned(value: Variant) -> RefCounted:
 	if candidate==null: return null
 	for id: Variant in current.state.picks:
 		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
+	if meta.ordinary_state.get("status")=="closed":
+		# A closed owner can only be replayed from its genuine terminal session.
+		# Use the regenerated image from this invocation, never the saved subtree.
+		if phase!=SeasonState.Phase.COMPLETE: return null
+		var replay:=_replay_current_image(candidate.session,current)
+		if replay==null: return null
+		candidate.session=replay.session
+		candidate=completed_close(candidate,replay.image)
+		return candidate if candidate!=null and api.Codec.same(api._pack_fields(candidate,replay.image),value) else null
 	if phase!=SeasonState.Phase.DRAFT:
 		candidate.session=_replay_current(candidate.session,current)
 		if candidate.session==null or not season_owner_scope(candidate): return null
 	var rebuilt:=compact_payload(candidate)
-	if rebuilt.is_empty(): return null
-	if meta.ordinary_state.get("status")=="closed":
-		if not api.Codec.same(rebuilt.ordinary,current): return null
-		candidate=completed_close(candidate,rebuilt.ordinary)
-		return candidate if candidate!=null and api.Codec.same(api._pack_fields(candidate,rebuilt.ordinary),value) else null
-	return candidate if api.Codec.same(rebuilt,value) else null
+	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
 
 # Dugout stored its original native H13 arguments in the player row,
 # including the exact per-opponent physical evidence. No new data or source
@@ -398,7 +402,15 @@ static func _project_mixed_round(source: SeasonState) -> Dictionary:
 # The input session only comes from the genuine authored seed and picks when
 # used for admission. Each settled boundary is projected once by the original
 # native path. Current pending is validated but not adopted as a paid result.
+class _ReplayedCurrent:
+	var session: SeasonState
+	var image: Dictionary
+
 static func _replay_current(source: SeasonState, current: Variant) -> SeasonState:
+	var replay:=_replay_current_image(source,current)
+	return replay.session if replay!=null else null
+
+static func _replay_current_image(source: SeasonState, current: Variant) -> _ReplayedCurrent:
 	var api:=_api()
 	if source==null or source.round_index!=0 or source.picks.size()!=4 or not source.physical.pending.is_empty() \
 			or not source.results.is_empty() or source.pending_fixture().get("id")!=0 \
@@ -437,7 +449,13 @@ static func _replay_current(source: SeasonState, current: Variant) -> SeasonStat
 		if pending_read.projection.has("error"): return null
 		next=pending_read.source
 	var native: Script=api.Adapter.Ordinary
-	return next if native._structural_valid(next) and api.Codec.same(native._payload(next),current) else null
+	if not native._structural_valid(next): return null
+	var image: Dictionary=native._payload(next)
+	if image.is_empty() or not api.Codec.same(image,current): return null
+	var replay:=_ReplayedCurrent.new()
+	replay.session=next
+	replay.image=image
+	return replay
 
 # Display only; Store admits and pins the exact slot before calling this.
 static func display(archive: Dictionary) -> Array:
