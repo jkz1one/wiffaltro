@@ -116,10 +116,14 @@ func make_match() -> MatchState:
 # Called only by the bound compact native App route; the detached
 # generic match entry above still rejects this versioned origin.
 func _make_mixed_round() -> MatchState:
-	if career==null or not (CommonStart.detached_mixed_flat(career.start_basis) \
-			or CommonStart.detached_mixed_append(career.start_basis)) \
-			or not CommonStart.valid(career.start_basis) or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] \
+	if career==null or not CommonStart.valid(career.start_basis) \
+			or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] \
 			or not physical.pending.is_empty() or build.pack_pending(): return null
+	var basis: Dictionary=career.start_basis
+	if CommonStart.detached_mixed_rollover(basis):
+		if phase!=Phase.REGULAR or round_index!=0 or not results.is_empty() or picks.size()!=4: return null
+	elif not CommonStart.detached_mixed_flat(basis) and not CommonStart.detached_mixed_append(basis):
+		return null
 	var fixture:=pending_fixture()
 	if fixture.is_empty() or (fixture.home!=0 and fixture.away!=0): return null
 	return super.make_match()

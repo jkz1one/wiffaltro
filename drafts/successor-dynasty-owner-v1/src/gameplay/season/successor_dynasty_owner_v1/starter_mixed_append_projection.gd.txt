@@ -114,6 +114,24 @@ static func season_scope(owner: RefCounted) -> bool:
 	return s.phase!=SeasonState.Phase.DRAFT and _api().Mixed._season_phase(s) \
 		and _shop_journal(s.build._events)
 
+# Season 6 can own its opening checkpoint and the exact paid record.
+# Keep this separate from season_scope, which grants v6 Shop and Close.
+static func rollover_play_scope(owner: RefCounted) -> bool:
+	if not _native_owner_scope(owner,false,true): return false
+	var s: SeasonState=owner.session
+	return s.phase==SeasonState.Phase.REGULAR and not s.build.pack_pending() \
+		and _rollover_opener_shape(s.round_index,s.physical.pending,s.build._events) \
+		and _api().Mixed._season_phase(s)
+
+static func _rollover_opener_shape(round_index: Variant,pending: Dictionary,events: Variant) -> bool:
+	if not _api().Codec.whole(round_index,0,1) or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return false
+	for command: Variant in events:
+		if not command is Dictionary or SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return false
+	# Each regular round holds only its two CPU reports before one settlement.
+	if pending.is_empty(): return true
+	var reports: Variant=pending.get("reports")
+	return round_index==0 and reports is Array and reports.size()<=2
+
 static func complete_scope(owner: RefCounted) -> bool:
 	return season_scope(owner) and owner.session.phase==SeasonState.Phase.COMPLETE
 
@@ -156,7 +174,8 @@ static func _active_play_phase(owner: RefCounted) -> bool:
 		[SeasonState.Phase.REGULAR,SeasonState.Phase.SEMIFINAL,SeasonState.Phase.FINAL]
 
 static func round_scope(owner: RefCounted) -> bool:
-	return _active_play_phase(owner) and not owner.session.build.pack_pending()
+	return (_active_play_phase(owner) and not owner.session.build.pack_pending()) \
+		or (rollover_play_scope(owner) and owner.session.round_index==0)
 
 static func shop_scope(owner: RefCounted) -> bool:
 	return _active_play_phase(owner) and owner.session.physical.pending.is_empty() \
@@ -205,7 +224,7 @@ static func _current_shape(current: Variant) -> bool:
 	return false
 
 static func payload(owner: RefCounted) -> Dictionary:
-	if not draft_scope(owner) and not season_scope(owner): return {}
+	if not draft_scope(owner) and not season_scope(owner) and not rollover_play_scope(owner): return {}
 	var api:=_api()
 	var native: Script=api.Adapter.Ordinary
 	if not native._structural_valid(owner.session): return {}
@@ -286,8 +305,10 @@ static func _rollover_tail(wire: PackedByteArray, sha256: String) -> PackedByteA
 static func _restore_rollover(value: Dictionary, state: Dictionary) -> RefCounted:
 	if not _rollover_archive_state(state): return null
 	var current: Variant=value.get("ordinary")
-	if not _current_shape(current) or not current.state.results.is_empty() \
-			or current.state.round_index!=0 or not current.physical.pending.is_empty(): return null
+	if not _current_shape(current): return null
+	var played: bool=not current.state.results.is_empty() or not current.physical.pending.is_empty()
+	if current.state.picks.size()==4 and (current.state.phase!=SeasonState.Phase.REGULAR \
+			or not _rollover_opener_shape(current.state.round_index,current.physical.pending,current.build.build._events)): return null
 	var api:=_api()
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
 	var raw:=_rollover_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
@@ -303,6 +324,14 @@ static func _restore_rollover(value: Dictionary, state: Dictionary) -> RefCounte
 	if candidate==null: return null
 	for id: Variant in current.state.picks:
 		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
+	if played:
+		# Reuse the already compared current image; never accept caller-supplied
+		# results or advance an authenticated but still-unpaid pending round.
+		var replay: RefCounted=api.Mixed._replay_current_image(candidate.session,current)
+		if replay==null: return null
+		candidate.session=replay.session
+		return candidate if rollover_play_scope(candidate) \
+			and api.Codec.same(api._pack_fields(candidate,replay.image),value) else null
 	var rebuilt:=payload(candidate)
 	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
 
@@ -358,7 +387,8 @@ static func pick_payload(owner: RefCounted, candidate: RefCounted) -> Dictionary
 
 # Display projection only from Store's previously authenticated archive pin.
 static func display(owner: RefCounted) -> Array:
-	if not draft_scope(owner) and not season_scope(owner) and not closed_complete_scope(owner): return []
+	if not draft_scope(owner) and not season_scope(owner) and not closed_complete_scope(owner) \
+			and not rollover_play_scope(owner): return []
 	var api:=_api()
 	var state: Dictionary=owner.ordinary_state
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
