@@ -1,10 +1,11 @@
 extends "res://src/presentation/season/successor_league_general_v2/shop_window.gd"
 ## Keep the full original shop; do not imply ordinary recruiting works in Dynasty.
 const Mixed = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_projection.gd")
+const MixedAppend = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_append_projection.gd")
 
 func _mixed_career() -> bool:
 	var owner: RefCounted=app.get("career_owner") if app!=null else null
-	return owner!=null and Mixed.marked_state(owner.ordinary_state)
+	return owner!=null and (Mixed.marked_state(owner.ordinary_state) or MixedAppend.marked_state(owner.ordinary_state))
 
 func _recruit(_shop: Dictionary) -> void:
 	if app.get("career_owner")!=null and app.career_owner.active=="ordinary":

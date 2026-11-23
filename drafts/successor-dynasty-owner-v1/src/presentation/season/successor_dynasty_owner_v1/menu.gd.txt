@@ -112,6 +112,10 @@ func render() -> void:
 	if Store.Owner.MixedAppend.marked_state(app.career_owner.ordinary_state):
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
 		_career_records()
+		if Store.mixed_append_shop_scope(app.career_owner):
+			var pending_pack: bool=app.season.build.pack_pending()
+			_bound_button(_body,"RESUME PAID DEVELOPMENT PACK" if pending_pack else "OPEN PRIVATE DEVELOPMENT SHOP", \
+				Callable(app,"open_shop"))
 		if Store.mixed_round_entry(app.career_owner):
 			_bound_button(_body,"PLAY NEXT PRIVATE GAME",Callable(app,"play_next"))
 		elif Store.mixed_append_round_scope(app.career_owner) and not app.season.physical.pending.is_empty():

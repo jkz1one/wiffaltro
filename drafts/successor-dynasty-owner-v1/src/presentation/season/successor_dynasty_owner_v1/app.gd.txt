@@ -1697,9 +1697,13 @@ func open_pitch_shop() -> void:
 	open_shop()
 
 
+func _append_shop_scope() -> bool:
+	return career_owner!=null and career_owner.session==season and Store.mixed_append_shop_scope(career_owner)
+
 func open_shop() -> void:
-	if career_owner!=null and not career_owner.playable(): return
-	if not _available() or season==null or not _scope() or not season.physical.pending.is_empty() or not season.shop_available():
+	var appended: bool=_append_shop_scope()
+	if career_owner!=null and not career_owner.playable() and not appended: return
+	if not _available() or season==null or (not _scope() and not appended) or not season.physical.pending.is_empty() or not season.shop_available():
 		return
 	if not season.build._visit.open:
 		var revision: int = season.build.revision()
@@ -1761,9 +1765,11 @@ func _checkpoint_report() -> void:
 
 func commit_shop(command: Dictionary) -> bool:
 	if not Codec.primitive(command): return false
-	if career_owner==null or not career_owner.playable(): return false
-	if not _available() or season == null or not _scope() or not season.physical.pending.is_empty() or not season.shop_available(): return false
-	if not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return false
+	var appended: bool=_append_shop_scope()
+	if career_owner==null or (not career_owner.playable() and not appended): return false
+	if not _available() or season == null or (not _scope() and not appended) or not season.physical.pending.is_empty() or not season.shop_available(): return false
+	if not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))) \
+			or (appended and not Store.SHOP_PRODUCER_OPS.has(str(command.get("op","")))): return false
 	var request_id: Variant = command.get("id")
 	if request_id is String and not request_id.is_empty() and season.build._requests.has(request_id): return false
 	# Choose the fixed producer before any transaction. Never fall back after it

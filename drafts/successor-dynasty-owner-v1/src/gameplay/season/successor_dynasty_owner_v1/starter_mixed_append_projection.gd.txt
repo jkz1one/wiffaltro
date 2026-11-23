@@ -52,12 +52,16 @@ static func draft_scope(owner: RefCounted) -> bool:
 	return (s.phase==SeasonState.Phase.DRAFT and s.picks.size()<4 and s.cash()==0) \
 		or (s.phase==SeasonState.Phase.REGULAR and s.picks.size()==4)
 
-# Explicit not-yet-qualified operations (including stock Shop events) are
-# excluded both before native cold replay and at hot writer admission.
-static func _no_shop(events: Variant) -> bool:
+# Bound the disclosed journal and refuse unrelated Shop operations up
+# front. Existing native chronological replay still must regenerate each
+# game event and replay each approved command from its exact cash/visit.
+static func _shop_journal(events: Variant) -> bool:
 	if not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return false
+	var admitted: Array[String]=_api().Mixed.SHOP_OPS
 	for command: Variant in events:
-		if not command is Dictionary or _api().Mixed.SHOP_OPS.has(str(command.get("op",""))): return false
+		if not command is Dictionary: return false
+		var op: String=str(command.get("op",""))
+		if SeasonBuild.SHOP_OPS.has(op) and not admitted.has(op): return false
 	return true
 
 # Native state shape is reusable at every authored phase, separate from
@@ -65,12 +69,19 @@ static func _no_shop(events: Variant) -> bool:
 static func season_scope(owner: RefCounted) -> bool:
 	if not _native_owner_scope(owner): return false
 	var s: SeasonState=owner.session
-	return s.phase!=SeasonState.Phase.DRAFT and not s.build.pack_pending() \
-		and _api().Mixed._season_phase(s) and _no_shop(s.build._events)
+	return s.phase!=SeasonState.Phase.DRAFT and _api().Mixed._season_phase(s) \
+		and _shop_journal(s.build._events)
 
-static func round_scope(owner: RefCounted) -> bool:
+static func _active_play_phase(owner: RefCounted) -> bool:
 	return season_scope(owner) and owner.session.phase in \
 		[SeasonState.Phase.REGULAR,SeasonState.Phase.SEMIFINAL,SeasonState.Phase.FINAL]
+
+static func round_scope(owner: RefCounted) -> bool:
+	return _active_play_phase(owner) and not owner.session.build.pack_pending()
+
+static func shop_scope(owner: RefCounted) -> bool:
+	return _active_play_phase(owner) and owner.session.physical.pending.is_empty() \
+		and owner.session.shop_available()
 
 static func game_entry_scope(owner: RefCounted) -> bool:
 	return round_scope(owner) and owner.session.physical.pending.is_empty()
@@ -92,7 +103,7 @@ static func _current_shape(current: Variant) -> bool:
 			or c.get("current")!=1 or not c.get("runs") is Array or c.runs.size()!=1 \
 			or not c.runs[0] is Dictionary or c.runs[0].get("id")!=1 \
 			or not current.get("build") is Dictionary or not current.build.get("build") is Dictionary \
-			or not _no_shop(current.build.build.get("_events")): return false
+			or not _shop_journal(current.build.build.get("_events")): return false
 	var phase: Variant=s.get("phase")
 	var round_index: Variant=s.get("round_index")
 	if s.picks.size()<4:

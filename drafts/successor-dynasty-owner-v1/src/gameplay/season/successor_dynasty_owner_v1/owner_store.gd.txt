@@ -479,6 +479,11 @@ static func mixed_append_round_scope(owner: RefCounted) -> bool:
 	return private_mixed_append() and owner!=null and owner==_owner and owner.session==_owner_session \
 		and Owner.MixedAppend.round_scope(owner)
 
+# Separate private Shop authority, never the general session/register guard.
+static func mixed_append_shop_scope(owner: RefCounted) -> bool:
+	return private_mixed_append() and owner!=null and owner==_owner and owner.session==_owner_session \
+		and Owner.MixedAppend.shop_scope(owner)
+
 static func mixed_round_scope(owner: RefCounted) -> bool:
 	return mixed_session_scope(owner) or mixed_append_round_scope(owner)
 
@@ -572,9 +577,10 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 	if not match_owner(owner,expected): return null
 	var session: SeasonState = owner.session
 	var mixed:=mixed_session_scope(owner)
-	if not owner.playable() or (not Adapter.scope(owner.active,session) and not mixed) \
+	var appended:=mixed_append_shop_scope(owner)
+	if (not owner.playable() and not appended) or (not Adapter.scope(owner.active,session) and not mixed and not appended) \
 			or not session.physical.pending.is_empty() or not session.shop_available(): return null
-	if mixed and not Owner.Mixed.shop_command_allowed(session,command): return null
+	if (mixed or appended) and not Owner.Mixed.shop_command_allowed(session,command): return null
 	var request_id: Variant = command.get("id")
 	if request_id is String and not request_id.is_empty() and session.build._requests.has(request_id): return null
 	var next_session: SeasonState = session.fork_live()
@@ -591,9 +597,10 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 	# Keep this registration inside the checked producer, rather than exposing
 	# an unchecked owner/candidate helper (underscore methods are callable).
 	if not _routine_pins(envelope): return null
-	var current: Dictionary = {} if mixed else Adapter.capture(envelope.active,next_session)
-	var data: Dictionary = Owner.Mixed.compact_payload(envelope) if mixed else (
-		Owner.pack_current(envelope,current) if not current.is_empty() else {})
+	var current: Dictionary = {} if mixed or appended else Adapter.capture(envelope.active,next_session)
+	var data: Dictionary = Owner.MixedAppend.payload(envelope) if appended else (
+		Owner.Mixed.compact_payload(envelope) if mixed else (
+			Owner.pack_current(envelope,current) if not current.is_empty() else {}))
 	if data.is_empty():
 		last_error = "The candidate could not be represented consistently. Saved progress is unchanged."
 		return null
