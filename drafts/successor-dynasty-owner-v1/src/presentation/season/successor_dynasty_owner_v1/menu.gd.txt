@@ -128,7 +128,7 @@ func render() -> void:
 			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_refresh_round_progress()
 		elif app.career_owner.current_ordinal()==Store.Owner.MixedAppend.ROLLOVER_ORDINAL:
-			_note("The opening round is saved. Later rounds are not available in this private test.")
+			_note("Progress is saved. This private test stops before the last regular-season game.")
 		elif app.season.phase==SeasonState.Phase.COMPLETE:
 			if app.starter_dugout_complete_visible():
 				_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
