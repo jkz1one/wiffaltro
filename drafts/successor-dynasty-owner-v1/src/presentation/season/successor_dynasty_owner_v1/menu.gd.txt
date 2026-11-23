@@ -110,10 +110,18 @@ func render() -> void:
 			_player_summary(player)
 		return
 	if Store.Owner.MixedAppend.marked_state(app.career_owner.ordinary_state):
-		_standard_history_link()
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
-		_note("Four players drafted. The first game is not available in this private build. Season History and earned progress are retained.")
 		_career_records()
+		if Store.mixed_round_entry(app.career_owner):
+			_bound_button(_body,"PLAY PRIVATE SEASON OPENER",Callable(app,"play_next"))
+		elif Store.mixed_append_round_scope(app.career_owner) and not app.season.physical.pending.is_empty():
+			_round_resume=_bound_button(_body,"RESUME SAVED ROUND",Callable(app,"resume_round"))
+			_round_progress=_label(_footer,"",16)
+			_round_progress.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			_refresh_round_progress()
+		elif app.season.results.size()==3:
+			_note("Opening round settled. Later games are not available in this private build.")
 		return
 	var archived: bool=app.career_owner.ordinary_state.has("archive")
 	var standard_repeat: bool=app.standard_repeat_archive()

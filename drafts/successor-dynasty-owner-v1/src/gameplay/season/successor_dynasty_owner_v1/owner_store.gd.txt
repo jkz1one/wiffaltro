@@ -97,7 +97,7 @@ static func standard_history_available(owner: RefCounted, expected: PackedByteAr
 		and ((Owner.Common.StandardChain.marked(owner.session) and Owner.Common.StandardChain.shape(owner)) \
 			or (LeagueAdmission.starter_player() and (Owner.Common.starter_dugout_chain_scope(owner) \
 				or Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner) \
-				or (private_mixed_append() and Owner.MixedAppend.draft_scope(owner)))))
+				or (private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.opening_scope(owner))))))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -199,7 +199,7 @@ static func private_mixed_append() -> bool:
 
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if owner!=null and Owner.MixedAppend.marked_state(owner.ordinary_state):
-		return private_mixed_append() and Owner.MixedAppend.draft_scope(owner)
+		return private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.opening_scope(owner))
 	if Flat.is_flat(owner): return false
 	if owner!=null and Owner.Mixed.marked_state(owner.ordinary_state):
 		return LeagueAdmission.starter_player() and (Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))
@@ -473,6 +473,19 @@ static func mixed_session_scope(owner: RefCounted) -> bool:
 	return LeagueAdmission.starter_player() and owner!=null and owner==_owner \
 		and owner.session==_owner_session and Owner.Mixed.season_owner_scope(owner)
 
+# This separate round-only scope grants nothing to generic Shop, lifecycle,
+# normal Ordinary persistence, or the old responsive Continue worker.
+static func mixed_append_round_scope(owner: RefCounted) -> bool:
+	return private_mixed_append() and owner!=null and owner==_owner and owner.session==_owner_session \
+		and Owner.MixedAppend.opening_scope(owner) and owner.session.round_index==0
+
+static func mixed_round_scope(owner: RefCounted) -> bool:
+	return mixed_session_scope(owner) or mixed_append_round_scope(owner)
+
+static func mixed_round_entry(owner: RefCounted) -> bool:
+	return (mixed_session_scope(owner) and Owner.Mixed.game_entry_scope(owner)) \
+		or (mixed_append_round_scope(owner) and Owner.MixedAppend.game_entry_scope(owner))
+
 static func match_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
 	return not Flat.is_flat(owner) and _match_bound_owner(owner,expected)
 
@@ -595,13 +608,13 @@ static func prepare_shop_and_write(owner: RefCounted, expected: PackedByteArray,
 static func prepare_mixed_round_human(app: Variant) -> RefCounted:
 	if not is_instance_valid(app) or app.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd"): return null
 	var owner: RefCounted=app.career_owner
-	if not Owner.Mixed.game_entry_scope(owner) or app.season!=owner.session \
+	if not mixed_round_entry(owner) or app.season!=owner.session \
 			or app._busy or app.retained!=null or not is_instance_valid(app.lab): return null
 	return _prepare_mixed_round(owner,app.saved_bytes,"human",app).get("ticket")
 
 static func _prepare_mixed_round(owner: RefCounted, expected: PackedByteArray, op: String, native_input: Variant=null) -> Dictionary:
 	forget_projection()
-	if saving or _ticket!=null or not mixed_session_scope(owner) or not match_owner(owner,expected): return {}
+	if saving or _ticket!=null or not mixed_round_scope(owner) or not match_owner(owner,expected): return {}
 	var current: SeasonState=owner.session
 	if current.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE] or current.build.pack_pending(): return {}
 	var next: SeasonState
@@ -610,7 +623,7 @@ static func _prepare_mixed_round(owner: RefCounted, expected: PackedByteArray, o
 			if not native_input is Object or not is_instance_valid(native_input) \
 					or native_input.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 					or native_input.career_owner!=owner or native_input.season!=current or native_input.saved_bytes!=expected \
-					or not Owner.Mixed.game_entry_scope(owner): return {}
+					or not mixed_round_entry(owner): return {}
 			var human: Array=Adapter.OrdinaryCapture.capture(native_input)
 			if human.size()!=13 or human[0]!=current.pending_fixture().get("id"): return {}
 			next=current.fork_live()
@@ -631,7 +644,8 @@ static func _prepare_mixed_round(owner: RefCounted, expected: PackedByteArray, o
 	envelope.session=next
 	if not Codec.install_fields(envelope,Owner.DATA_FIELDS,Codec.data_fields(owner,Owner.DATA_FIELDS)) \
 			or not _routine_pins(envelope): return {}
-	var data: Dictionary=Owner.Mixed.compact_payload(envelope)
+	var data: Dictionary=Owner.MixedAppend.payload(envelope) if Owner.MixedAppend.marked_state(owner.ordinary_state) \
+		else Owner.Mixed.compact_payload(envelope)
 	var snapshot: Dictionary=RawGuard.capture(envelope) if not data.is_empty() else {}
 	if snapshot.is_empty() or not match_owner(owner,expected): return {}
 	_ticket=RefCounted.new()
@@ -644,7 +658,7 @@ static func _prepare_mixed_round(owner: RefCounted, expected: PackedByteArray, o
 ## terminal result is retained only after this exact immediate checkpoint write.
 ## A failed write/retry keeps the ordinary ticket, but deliberately loses reuse.
 static func prepare_report_and_write(owner: RefCounted, expected: PackedByteArray, report: Dictionary) -> RefCounted:
-	if mixed_session_scope(owner): return _prepare_mixed_round(owner,expected,"report",report).get("ticket")
+	if mixed_round_scope(owner): return _prepare_mixed_round(owner,expected,"report",report).get("ticket")
 	forget_projection()
 	if saving or _ticket != null or not match_owner(owner,expected): return null
 	if not owner.playable() or not Adapter.scope(owner.active,owner.session) or owner.session.physical.pending.is_empty(): return null
@@ -1010,7 +1024,7 @@ static func _prepare_paired_human_checkpoint(owner: RefCounted, expected: Packed
 ## Partial projections are returned solely to construct the next real runner.
 ## Terminal candidates still cross the existing full semantic prepare boundary.
 static func prepare_settlement_and_write(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
-	if mixed_session_scope(owner):
+	if mixed_round_scope(owner):
 		var result:=_prepare_mixed_round(owner,expected,"settle")
 		return result if not result.is_empty() else {"error":"The saved round could not advance."}
 	if saving or _ticket != null:

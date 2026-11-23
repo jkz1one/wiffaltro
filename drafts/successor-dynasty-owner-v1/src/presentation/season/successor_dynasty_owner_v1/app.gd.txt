@@ -1439,14 +1439,15 @@ func _play_private_standard_flat_opening() -> void:
 
 func play_next() -> void:
 	if career_owner!=null and not career_owner.playable(): return
-	var mixed: bool=career_owner!=null and Owner.Mixed.marked_state(career_owner.ordinary_state)
-	if mixed and not Owner.Mixed.game_entry_scope(career_owner): return
+	var mixed: bool=career_owner!=null and (Owner.Mixed.marked_state(career_owner.ordinary_state) \
+		or Owner.MixedAppend.marked_state(career_owner.ordinary_state))
+	if mixed and not Store.mixed_round_entry(career_owner): return
 	var workshop=Owner.Common.StandardWorkshop
 	if workshop.opening_unlocked(career_owner):
 		if standard_opening_enabled() and _available() and _owned() and workshop.player_opening_window(career_owner):
 			menu.call("show_standard_opening_review")
 		return
-	if not _available() or not _owned() or not _scope() or not season.physical.pending.is_empty():
+	if not _available() or not _owned() or not _round_scope() or not season.physical.pending.is_empty():
 		return
 	if academy_pack_choice_pending():
 		notice="Choose or explicitly skip the remaining paid Academy upgrade before playing."
@@ -1475,7 +1476,7 @@ func _expected_stadium(fixture: Dictionary) -> Dictionary:
 	return Owner.Common.StandardWorkshop.Home.fixture(season,fixture)
 
 func _played_field_matches() -> bool:
-	if season==null or not _scope() or not is_instance_valid(lab) or lab._match_state==null:
+	if season==null or not _round_scope() or not is_instance_valid(lab) or lab._match_state==null:
 		return false
 	var fixture: Dictionary = season.pending_fixture()
 	var expected: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
@@ -1511,13 +1512,13 @@ func finish_game() -> void:
 		elif season.round_index==2: _finish_paired_next_first()
 		else: _finish_paired_next_return()
 		return
-	if not _scope() or not career_owner.playable(): return
+	if not _round_scope() or not career_owner.playable(): return
 	if _busy or is_instance_valid(_loadout_modal):
 		return
 	if retained!=null:
 		retry_save()
 		return
-	if Owner.Mixed.marked_state(career_owner.ordinary_state):
+	if Store.mixed_round_scope(career_owner):
 		var ticket: RefCounted=Store.prepare_mixed_round_human(self)
 		if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
 		else: notice="The completed game could not be saved. The game remains open."
@@ -2057,6 +2058,9 @@ func loadout_allowed(ui: SeasonLoadoutUI) -> bool:
 
 func _active_side() -> String:
 	return career_owner.active if career_owner!=null else ""
+func _round_scope() -> bool:
+	return _scope() or (career_owner!=null and career_owner.session==season and Store.mixed_append_round_scope(career_owner))
+
 func _scope() -> bool:
 	return career_owner!=null and career_owner.session==season \
 		and (Adapter.scope(career_owner.active,season) or Store.mixed_session_scope(career_owner))
