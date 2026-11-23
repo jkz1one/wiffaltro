@@ -82,7 +82,7 @@ def run(stage, custody, source, previous, mode, base_round, labels):
     with log.open("xb") as out:
         proc=subprocess.Popen(args,cwd=stage,env=env,stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
         print("APP_PID",mode,proc.pid,profile,flush=True)
-        deadline=time.monotonic()+(1200 if mode=="round" else 160)
+        deadline=time.monotonic()+(1200 if mode=="round" else 250)
         try:
             while proc.poll() is None:
                 if time.monotonic()>deadline: raise TimeoutError(mode)

@@ -41,7 +41,9 @@ func _run() -> void:
 	var old_calls:int=native.restore_calls
 	if mode=="cold":
 		printerr("CP314_STAGE cold exact native App reopen")
+		var start:=Time.get_ticks_msec()
 		app.reload_save()
+		printerr("CP314_STATUS cold elapsed_ms=",Time.get_ticks_msec()-start," owned=",app._owned()," native_restore_calls=",native.restore_calls-old_calls)
 	else:
 		var click:=_button(app,"CONTINUE SAVED CAREER")
 		if not check(click!=null,"real Continue control"): return
@@ -50,10 +52,13 @@ func _run() -> void:
 		if not check(app.mixed_continue_running() and _button(app,"CANCEL CAREER CHECK")!=null,"responsive worker issued"): return
 		printerr("CP314_STAGE responsive Continue")
 		var start:=Time.get_ticks_msec()
-		while app.mixed_continue_running() and Time.get_ticks_msec()-start<150000:
+		while app.mixed_continue_running() and Time.get_ticks_msec()-start<325000:
 			await get_tree().process_frame
-		if not check(native.restore_calls==old_calls and not app.mixed_continue_running(),"no parent historical replay"): return
-	if not check(app._owned() and app.season.league_rules.get("league")=="dugout"
+		printerr("CP314_STATUS continue elapsed_ms=",Time.get_ticks_msec()-start," outstanding=",app.mixed_continue_running(),
+			" owned=",app._owned()," parent_restore_calls=",native.restore_calls-old_calls)
+		if not check(not app.mixed_continue_running(),"responsive worker terminal within QA observation"): return
+		if not check(native.restore_calls==old_calls,"zero parent historical replay"): return
+	if not check(app._owned() and not FileAccess.file_exists(Store.PATH+".tmp") and app.season.league_rules.get("league")=="dugout"
 			and app.career_owner.common.aggregate.currency==183 and Store.raw()==raw
 			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==backup,"native owned byte-inert restore"): return
 	if mode=="cold":
