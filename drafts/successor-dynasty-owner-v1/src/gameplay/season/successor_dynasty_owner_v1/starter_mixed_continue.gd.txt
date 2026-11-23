@@ -5,7 +5,14 @@ signal completed(outcome: String)
 const Store = preload("owner_store.gd")
 const ARG := "--starter-mixed-continue-v1="
 const FRAME := "WIFFALTRO_STARTER_MIXED_CONTINUE_V1 "
-const MAX_FRAME := 4096
+# At most seven banks: two masks per MAX_EVENTS and bounded held rows.
+# The canonical Base64 packet bound includes full job, digest and framing.
+const MAX_FRAME := 80 * 1024
+const MAX_HELD := 64
+const BANK_COUNT := 7
+const EVENT_FIELDS := ["rev","game","amount"]
+const PAID_FIELDS := ["paid"]
+const MAX_WHOLE := 2147483647
 const MAX_MS := 300000
 
 var _job: Dictionary
@@ -60,6 +67,136 @@ static func _revision() -> String:
 	var raw:=bounded_slot()
 	return "" if raw.is_empty() else Store.Owner._hash(raw)
 
+# The fixed worker contributes only the int/whole-float representation of
+# existing bank leaves from the already strictly restored native owner.
+# Values, row ids, paths, and save authority never cross in this witness.
+static func _banks(season: SeasonState) -> Array[SeasonOwnership]:
+	var banks: Array[SeasonOwnership]=[]
+	if season==null or season.build==null or season.ownership==null or season.opponents==null \
+			or not SeasonOwnership._keys(season.opponents.clubs,["1","2","3","4","5"]): return banks
+	banks.assign([season.ownership,season.build._bank])
+	for id: String in ["1","2","3","4","5"]:
+		var club: Variant=season.opponents.clubs[id]
+		if not club is Dictionary or not club.get("build") is SeasonBuild: return []
+		banks.append(club.build._bank)
+	for bank: SeasonOwnership in banks:
+		if bank==null or bank.get_script()!=SeasonOwnership: return []
+	return banks
+
+static func _counts(n: int, r: int, h: int) -> String:
+	return "%d:%d:%d"%[n,r,h]
+
+static func _unpack(bank: Variant) -> Dictionary:
+	if not bank is String or bank.length()>MAX_FRAME: return {}
+	var parts: PackedStringArray=bank.split(":")
+	if parts.size()!=4: return {}
+	var counts: Array[int]=[]
+	for i: int in range(3):
+		if not parts[i].is_valid_int(): return {}
+		counts.append(int(parts[i]))
+	var n: int=counts[0]
+	var r: int=counts[1]
+	var h: int=counts[2]
+	if n<0 or n>SeasonOwnership.MAX_EVENTS or r!=n or h<0 or h>MAX_HELD \
+			or _counts(n,r,h)!=":".join(parts.slice(0,3)): return {}
+	# Godot reports an error to stderr when asked to encode an empty byte array.
+	# Empty is a canonical, explicit shape here, never a decoder bypass.
+	var bytes: PackedByteArray=PackedByteArray()
+	if n+r+h==0:
+		if not parts[3].is_empty(): return {}
+	else:
+		# Reject invalid text before calling Godot's logging decoder.
+		var encoded: String=parts[3]
+		var size: int=n+r+h
+		var pad: int=(3-size%3)%3
+		if encoded.length()!=4*ceili(float(size)/3.0): return {}
+		for i: int in encoded.length():
+			var token: String=encoded[i]
+			if i>=encoded.length()-pad:
+				if token!="=": return {}
+			elif not "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".contains(token): return {}
+		bytes=Marshalls.base64_to_raw(encoded)
+		if bytes.size()!=n+r+h or Marshalls.raw_to_base64(bytes)!=parts[3]: return {}
+	for i: int in bytes.size():
+		if bytes[i]>(7 if i<n+r else 1): return {}
+	return {"events":n,"requests":r,"held":h,"mask":bytes}
+
+static func _wire_valid(value: Variant) -> bool:
+	if not value is Array or value.size()!=BANK_COUNT: return false
+	for bank: Variant in value:
+		if _unpack(bank).is_empty(): return false
+	return true
+
+static func _typed_row(row: Dictionary, fields: Array, mask: int=-1) -> int:
+	var bits: int=0
+	for i: int in fields.size():
+		var field: String=fields[i]
+		var bit: int=1<<i
+		if not row.has(field):
+			if mask>=0 and mask&bit: return -1 # No bit outside the existing leaves.
+			continue
+		var value: Variant=row[field]
+		if not SeasonOwnership._whole(value,0,MAX_WHOLE): return -1
+		if mask>=0:
+			row[field]=int(value) if mask&bit else float(value)
+		if typeof(row[field])==TYPE_INT: bits|=bit
+	return bits
+
+static func _bank_mask(bank: SeasonOwnership, supplied: Dictionary={}) -> String:
+	var events: Array[Dictionary]=bank._events
+	var requests: Dictionary=bank._requests
+	var held: Variant=bank._state.get("held")
+	if events.size()>SeasonOwnership.MAX_EVENTS or not held is Array or held.size()>MAX_HELD: return "!"
+	var ids: Array[String]=[]
+	var unique: Dictionary={}
+	for row: Dictionary in events:
+		var id: Variant=row.get("id")
+		if not id is String or id.is_empty() or unique.has(id) or not requests.get(id) is Dictionary \
+				or requests[id].get("id")!=id: return "!"
+		unique[id]=true
+		ids.append(id)
+	ids.sort()
+	if not supplied.is_empty() and (events.size()!=supplied.events or ids.size()!=supplied.requests \
+			or held.size()!=supplied.held): return "!"
+	var mask: PackedByteArray=supplied.get("mask",PackedByteArray())
+	var out: PackedByteArray=PackedByteArray()
+	for row: Dictionary in events:
+		var b:=_typed_row(row,EVENT_FIELDS,-1 if supplied.is_empty() else mask[out.size()])
+		if b<0: return "!"
+		out.append(b)
+	for id: String in ids:
+		var b:=_typed_row(requests[id],EVENT_FIELDS,-1 if supplied.is_empty() else mask[out.size()])
+		if b<0: return "!"
+		out.append(b)
+	for row: Variant in held:
+		if not row is Dictionary or not row.has("paid"): return "!"
+		var b:=_typed_row(row,PAID_FIELDS,-1 if supplied.is_empty() else mask[out.size()])
+		if b<0: return "!"
+		out.append(b)
+	return _counts(events.size(),ids.size(),held.size())+":"+("" if out.is_empty() else Marshalls.raw_to_base64(out))
+
+static func bank_witness(season: SeasonState) -> Array:
+	var banks:=_banks(season)
+	if banks.size()!=BANK_COUNT: return []
+	var wire: Array=[]
+	for bank: SeasonOwnership in banks:
+		var mask:=_bank_mask(bank)
+		if mask=="!": return []
+		wire.append(mask)
+	return wire
+
+static func apply_bank_witness(season: SeasonState, witness: Variant) -> bool:
+	if not _wire_valid(witness): return false
+	var banks:=_banks(season)
+	if banks.size()!=BANK_COUNT: return false
+	for i: int in banks.size():
+		if _bank_mask(banks[i],_unpack(witness[i]))!=witness[i]: return false
+	# Re-emit the parent-applied representation before canonical recapture.
+	return bank_witness(season)==witness
+
+static func _seal(job: Dictionary,current: String,banks: Array) -> String:
+	return _canonical({"job":job,"current":current,"banks":banks}).sha256_text()
+
 static func packet(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictionary:
 	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return {}
 	var text:=bytes.get_string_from_utf8()
@@ -69,8 +206,10 @@ static func packet(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictio
 		or not lines[3].is_empty(): return {}
 	var serialized:=lines[2].trim_prefix(FRAME)
 	var value: Variant=JSON.parse_string(serialized)
-	if not value is Dictionary or not SeasonOwnership._keys(value,["job","current"]) \
-		or value.job!=job or _canonical(value)!=serialized or not _hex(value.current) or value.current in [job.revision,job.nonce]:
+	if not value is Dictionary or not SeasonOwnership._keys(value,["job","current","banks","seal"]) \
+		or value.job!=job or _canonical(value)!=serialized or not _hex(value.current) or value.current in [job.revision,job.nonce] \
+			or not _wire_valid(value.banks) or not _hex(value.seal) \
+			or value.seal!=_seal(job,value.current,value.banks):
 		return {}
 	return value
 
@@ -109,7 +248,7 @@ func take_current_seal(revision: String) -> Dictionary:
 	_completed={}
 	if packet_value.is_empty() or packet_value.job.revision!=revision: return {}
 	_binding=packet_value.job
-	return {"current":packet_value.current,"nonce":packet_value.job.nonce}
+	return {"current":packet_value.current,"nonce":packet_value.job.nonce,"banks":packet_value.banks}
 
 func binding_live(nonce: String,revision: String,consume: bool=false) -> bool:
 	if is_queued_for_deletion() or not is_inside_tree() or _binding.is_empty() \
@@ -172,5 +311,14 @@ func worker(job: Dictionary) -> void:
 	if owner==null or not Store.Owner.Mixed.season_owner_scope(owner) or bounded_slot()!=raw:
 		get_tree().quit(3)
 		return
-	print(FRAME+_canonical({"job":job,"current":current_digest(value.ordinary)}))
+	var banks:=bank_witness(owner.session)
+	if not _wire_valid(banks):
+		get_tree().quit(3)
+		return
+	var current:=current_digest(value.ordinary)
+	var frame:=FRAME+_canonical({"job":job,"current":current,"banks":banks,"seal":_seal(job,current,banks)})
+	if frame.length()>MAX_FRAME-256:
+		get_tree().quit(3)
+		return
+	print(frame)
 	get_tree().quit(0)
