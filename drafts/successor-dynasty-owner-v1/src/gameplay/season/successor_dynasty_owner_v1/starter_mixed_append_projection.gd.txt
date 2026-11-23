@@ -1,5 +1,5 @@
 extends RefCounted
-## Only the first append has an authored native replay. Transport shape never
+## Only the first append has a qualified owner lineage. Transport shape never
 ## grants authority: a cold read reconstructs exact v5 Close and all its roots.
 const Custody=preload("starter_mixed_append_custody.gd")
 const Base=preload("starter_mixed_custody.gd")
@@ -39,7 +39,8 @@ static func _native_owner_scope(owner: RefCounted) -> bool:
 	if s==null or s.get_script()!=api.Adapter.OrdinaryRuntime or s.career==null or s.build==null or s.physical==null \
 			or not s.physical.error.is_empty() or not s.physical.needed.is_empty() or s.physical.projecting \
 			or not s.home_property.is_empty() or not s.league_live or s.league_rules.get("league")!="dugout" \
-			or s.league_rules.get("tier")!=0 or s.season_seed!=b.seed or not api.Codec.same(s.career.start_basis,b): return false
+			or s.league_rules.get("tier")!=0 or s.season_seed!=b.seed or not api.Codec.same(s.career.start_basis,b) \
+			or s.career.current!=1 or s.career.runs.size()!=1 or s.career.runs[0].get("id")!=1: return false
 	return true
 
 static func draft_scope(owner: RefCounted) -> bool:
@@ -59,22 +60,62 @@ static func _no_shop(events: Variant) -> bool:
 		if not command is Dictionary or _api().Mixed.SHOP_OPS.has(str(command.get("op",""))): return false
 	return true
 
-# Qualification frontier: one Regular round, later expand here without
-# changing v6 custody, authoritative draft projection or native round replay.
-static func opening_scope(owner: RefCounted) -> bool:
+# Native state shape is reusable at every authored phase, separate from
+# Store's physical writer and from any future Shop/Close authorization.
+static func season_scope(owner: RefCounted) -> bool:
 	if not _native_owner_scope(owner): return false
 	var s: SeasonState=owner.session
-	if s.phase!=SeasonState.Phase.REGULAR or s.round_index not in [0,1] or s.build.pack_pending() \
-			or not _api().Mixed._season_phase(s) or not _no_shop(s.build._events): return false
-	if s.round_index==0:
-		return s.pending_fixture().get("id")==0
-	return s.physical.pending.is_empty() and s.results.size()==3 and s.physical.cursor==2
+	return s.phase!=SeasonState.Phase.DRAFT and not s.build.pack_pending() \
+		and _api().Mixed._season_phase(s) and _no_shop(s.build._events)
+
+static func round_scope(owner: RefCounted) -> bool:
+	return season_scope(owner) and owner.session.phase in \
+		[SeasonState.Phase.REGULAR,SeasonState.Phase.SEMIFINAL,SeasonState.Phase.FINAL]
 
 static func game_entry_scope(owner: RefCounted) -> bool:
-	return opening_scope(owner) and owner.session.round_index==0 and owner.session.physical.pending.is_empty()
+	return round_scope(owner) and owner.session.physical.pending.is_empty()
+
+# Cheap typed bounds ahead of decompressing prior history. These reject
+# inconsistent shape but never authenticate a result; chronological replay
+# and complete recomputed envelope equality below are the authority.
+static func _current_shape(current: Variant) -> bool:
+	if not current is Dictionary or not current.get("state") is Dictionary \
+			or not current.get("physical") is Dictionary or not current.get("career") is Dictionary: return false
+	var s: Dictionary=current.state
+	var p: Dictionary=current.physical
+	var c: Dictionary=current.career
+	var codec: Script=_api().Codec
+	if not s.get("picks") is Array or s.picks.size()>4 or not s.get("results") is Array or s.results.size()>33 \
+			or not s.get("player_results") is Array or s.player_results.size()>12 \
+			or not p.get("reports") is Array or p.reports.size()>23 or p.get("cursor")!=p.reports.size() \
+			or not p.get("pending") is Dictionary or p.get("needed")!={} or p.get("error")!="" or p.get("projecting")!=false \
+			or c.get("current")!=1 or not c.get("runs") is Array or c.runs.size()!=1 \
+			or not c.runs[0] is Dictionary or c.runs[0].get("id")!=1 \
+			or not current.get("build") is Dictionary or not current.build.get("build") is Dictionary \
+			or not _no_shop(current.build.build.get("_events")): return false
+	var phase: Variant=s.get("phase")
+	var round_index: Variant=s.get("round_index")
+	if s.picks.size()<4:
+		return phase==SeasonState.Phase.DRAFT and round_index==0 and s.results.is_empty() \
+			and s.player_results.is_empty() and p.reports.is_empty() and p.pending.is_empty()
+	if not codec.whole(phase,SeasonState.Phase.REGULAR,SeasonState.Phase.COMPLETE) \
+			or not codec.whole(round_index,0,10) or s.results.size()!=s.player_results.size()+p.reports.size(): return false
+	if not p.pending.is_empty() and (phase==SeasonState.Phase.COMPLETE or not codec.keys(p.pending,["human","reports"]) \
+			or not p.pending.human is Array or p.pending.human.size()!=13 \
+			or not p.pending.reports is Array or p.pending.reports.size()>5): return false
+	match int(phase):
+		SeasonState.Phase.REGULAR:
+			return round_index<10 and s.results.size()==3*round_index and s.player_results.size()==round_index
+		SeasonState.Phase.SEMIFINAL:
+			return round_index==10 and s.results.size()==30 and s.player_results.size()==10
+		SeasonState.Phase.FINAL:
+			return round_index==10 and s.results.size()==32 and s.player_results.size()==11
+		SeasonState.Phase.COMPLETE:
+			return round_index==10 and s.results.size()==33 and s.player_results.size() in [10,11,12]
+	return false
 
 static func payload(owner: RefCounted) -> Dictionary:
-	if not draft_scope(owner) and not opening_scope(owner): return {}
+	if not draft_scope(owner) and not season_scope(owner): return {}
 	var api:=_api()
 	var native: Script=api.Adapter.Ordinary
 	if not native._structural_valid(owner.session): return {}
@@ -139,14 +180,8 @@ static func restore_owned(value: Variant) -> RefCounted:
 	var state: Variant=value.get("ordinary_state") if value is Dictionary else null
 	if not state is Dictionary or not _archive_state(state): return null
 	var current: Variant=value.get("ordinary")
-	if not current is Dictionary or not current.get("state") is Dictionary or not current.state.get("picks") is Array \
-			or current.state.picks.size()>4 \
-			or current.state.get("phase")!=(SeasonState.Phase.REGULAR if current.state.picks.size()==4 else SeasonState.Phase.DRAFT): return null
-	var round_index: Variant=current.state.get("round_index")
+	if not _current_shape(current): return null
 	var drafted: bool=current.state.picks.size()==4
-	if not api.Codec.whole(round_index,0,1 if drafted else 0): return null
-	if drafted and (not current.get("build") is Dictionary or not current.build.get("build") is Dictionary \
-			or not _no_shop(current.build.build.get("_events"))): return null
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
 	var raw:=_one_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
 	if raw.is_empty(): return null
@@ -161,7 +196,7 @@ static func restore_owned(value: Variant) -> RefCounted:
 		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
 	if drafted:
 		candidate.session=api.Mixed._replay_current(candidate.session,current)
-		if not opening_scope(candidate): return null
+		if not season_scope(candidate): return null
 	var rebuilt:=payload(candidate)
 	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
 
@@ -177,7 +212,7 @@ static func pick_payload(owner: RefCounted, candidate: RefCounted) -> Dictionary
 
 # Display projection only from Store's previously authenticated archive pin.
 static func display(owner: RefCounted) -> Array:
-	if not draft_scope(owner) and not opening_scope(owner): return []
+	if not draft_scope(owner) and not season_scope(owner): return []
 	var api:=_api()
 	var state: Dictionary=owner.ordinary_state
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()

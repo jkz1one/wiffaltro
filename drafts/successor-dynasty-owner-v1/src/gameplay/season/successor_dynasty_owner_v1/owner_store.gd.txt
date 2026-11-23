@@ -97,7 +97,7 @@ static func standard_history_available(owner: RefCounted, expected: PackedByteAr
 		and ((Owner.Common.StandardChain.marked(owner.session) and Owner.Common.StandardChain.shape(owner)) \
 			or (LeagueAdmission.starter_player() and (Owner.Common.starter_dugout_chain_scope(owner) \
 				or Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner) \
-				or (private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.opening_scope(owner))))))
+				or (private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner))))))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -199,7 +199,7 @@ static func private_mixed_append() -> bool:
 
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if owner!=null and Owner.MixedAppend.marked_state(owner.ordinary_state):
-		return private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.opening_scope(owner))
+		return private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner))
 	if Flat.is_flat(owner): return false
 	if owner!=null and Owner.Mixed.marked_state(owner.ordinary_state):
 		return LeagueAdmission.starter_player() and (Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))
@@ -477,7 +477,7 @@ static func mixed_session_scope(owner: RefCounted) -> bool:
 # normal Ordinary persistence, or the old responsive Continue worker.
 static func mixed_append_round_scope(owner: RefCounted) -> bool:
 	return private_mixed_append() and owner!=null and owner==_owner and owner.session==_owner_session \
-		and Owner.MixedAppend.opening_scope(owner) and owner.session.round_index==0
+		and Owner.MixedAppend.round_scope(owner)
 
 static func mixed_round_scope(owner: RefCounted) -> bool:
 	return mixed_session_scope(owner) or mixed_append_round_scope(owner)
@@ -1733,6 +1733,7 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 	if saving or _ticket!=null or operation not in ["resume","create","attach119","close","propose","next"]: return null
 	if LeagueAdmission.starter_feature() and operation in ["resume","create","attach119"]: return null
 	if not match_owner(owner,expected): return null
+	if Owner.MixedAppend.marked_state(owner.ordinary_state): return null
 	if Owner.Mixed.marked_state(owner.ordinary_state):
 		if operation!="close" or reason!="complete" or seed_value!=0 or not league.is_empty(): return null
 		return _prepare_mixed_completed_close(owner,expected)
