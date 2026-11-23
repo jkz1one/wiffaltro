@@ -1,0 +1,94 @@
+extends "res://qa.gd"
+
+const BEFORE := "6cff977a06ce5271bb245ef3747bb4ce26d9d2d3d0cf00d5914112072d7392da"
+const PAID_CHOICE := "00f180ededc6be402aee91494da1d89dad02e308097074073f56a6b1ac46ecf2"
+
+func _button_in(parent: Node,title: String) -> Button:
+	if parent is Button and parent.text==title and parent.is_visible_in_tree(): return parent
+	for node: Node in parent.get_children():
+		var found:=_button_in(node,title)
+		if found!=null: return found
+	return null
+
+func _untouched(raw: PackedByteArray) -> bool:
+	return Store.raw()==raw and not FileAccess.file_exists(Store.PATH+".bak") and not FileAccess.file_exists(Store.PATH+".tmp")
+
+func _run() -> void:
+	Engine.max_fps=60
+	var raw:=Store.raw()
+	if not check(Store.Owner._hash(raw)==BEFORE and _untouched(raw)
+			and Store.LeagueAdmission.starter_fast_worker(),"genuine primary only (no environment feature overrides)"): return
+	var native: Script=Adapter.Ordinary
+	var previous: int=native.restore_calls
+	var app:=App.new()
+	add_child(app)
+	await get_tree().process_frame
+	var start:=Time.get_ticks_usec()
+	var click:=_button_in(app,"CONTINUE SAVED CAREER")
+	if not check(click!=null,"real Continue button"): return
+	click.pressed.emit()
+	await get_tree().process_frame
+	var control:=_button_in(app,"CANCEL CAREER CHECK")
+	var progress:=Time.get_ticks_usec()-start
+	if not check(control!=null and progress<250000 and app.mixed_continue_running()
+			and app.career_owner==null and _untouched(raw),"responsive progress and Cancel while verification runs"): return
+	printerr("CP311_STAGE first_progress_usec=",progress)
+	var discarded: Node=app._mixed_continue
+	control.pressed.emit()
+	if not check(not app.mixed_continue_running() and app.career_owner==null
+			and discarded.take_current_seal(BEFORE).is_empty() and _untouched(raw),"Cancel invalidates lease and preserves exact primary"): return
+	var refused: RefCounted=await Store.accept_mixed_continue(raw,discarded)
+	if not check(refused==null and _untouched(raw),"retired worker cannot reinstall owner"): return
+
+	var stale:=raw.duplicate()
+	stale.append(32)
+	_button_in(app,"CONTINUE SAVED CAREER").pressed.emit()
+	var f:=FileAccess.open(Store.PATH,FileAccess.WRITE)
+	f.store_buffer(stale)
+	f.close()
+	start=Time.get_ticks_usec()
+	while app.mixed_continue_running() and Time.get_ticks_usec()-start<180000000:
+		await get_tree().process_frame
+	if not check(app.career_owner==null and not app.mixed_continue_running() and _untouched(stale)
+			and app.notice.contains("changed"),"different revision cannot bind or write"): return
+	f=FileAccess.open(Store.PATH,FileAccess.WRITE)
+	f.store_buffer(raw)
+	f.close()
+
+	start=Time.get_ticks_usec()
+	_button_in(app,"CONTINUE SAVED CAREER").pressed.emit()
+	var last:=Time.get_ticks_usec()
+	var gaps: Array[int]=[]
+	var stage_max: Dictionary={}
+	while app.mixed_continue_running() and Time.get_ticks_usec()-start<180000000:
+		await get_tree().process_frame
+		var now:=Time.get_ticks_usec()
+		gaps.append(now-last)
+		var stage: String=app._mixed_continue.binding_stage if app.mixed_continue_running() else "done"
+		stage_max[stage]=maxi(stage_max.get(stage,0),now-last)
+		last=now
+	gaps.sort()
+	var p99:=gaps[int(gaps.size()*0.99)] if not gaps.is_empty() else 999999
+	var longest:=gaps.back() if not gaps.is_empty() else 999999
+	printerr("CP311_STAGE playable_usec=",Time.get_ticks_usec()-start,
+		" frames=",gaps.size()," p99_frame_usec=",p99," max_frame_usec=",longest," stages_usec=",stage_max)
+	var owned: bool=app._owned()
+	printerr("CP311_STAGE bound=",app.career_owner!=null," owned=",owned," intact=",_untouched(raw),
+		" restores_before=",previous," restores_after=",native.restore_calls," notice=",app.notice)
+	if app.season!=null: printerr("CP311_STAGE session_cash=",app.season.cash()," pending=",app.season.build.pack_pending(),
+		" results=",app.season.results.size()," career_credits=",app.career_owner.common.aggregate.currency)
+	if not check(owned and _untouched(raw)
+			and native.restore_calls==previous and app.season.cash()==10
+			and app.season.build.pack_pending() and app.season.results.size()==3
+			and app.career_owner.common.aggregate.currency==183,"gameplay-ready typed binding, no parent historical replay, exact unresolved pack"): return
+	if not check(p99<75000 and longest<350000,"bounded parent/UI frame latency while readying saved career"): return
+
+	var pack:=_button_in(app,"RESUME PAID PACK")
+	if not check(pack!=null,"real Resume Paid Pack button"): return
+	pack.pressed.emit()
+	if not check(_untouched(raw),"opening retained paid pack cannot debit or write"): return
+	var pick: Dictionary={"id":"shop:4","item":"development.fielding","op":"pack_pick","pitch":"","player":"player.kit_rowan","replace":"","rev":4}
+	if not check(app.commit_shop(pick) and app.season.cash()==10 and not app.season.build.pack_pending()
+			and Store.Owner._hash(Store.raw())==PAID_CHOICE
+			and FileAccess.get_file_as_bytes(Store.PATH+".bak")==raw,"legitimate resolution exactly matches previous paid choice, no second debit"): return
+	await _finish(app)

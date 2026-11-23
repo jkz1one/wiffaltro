@@ -50,6 +50,9 @@ func render() -> void:
 	if app.retained == null:
 		_bound_button(_footer,"QUIT GAME",Callable(app,"_request_quit"))
 	if not app.notice.is_empty(): _note(app.notice)
+	if app.mixed_continue_running():
+		_bound_button(_body,"CANCEL CAREER CHECK",Callable(app,"cancel_mixed_continue"))
+		return
 	if app._cross_retry:
 		_bound_button(_body,"RETRY EXACT DUGOUT ACTIVATION",Callable(app,"retry_cross_activation"))
 		_bound_button(_body,"CANCEL DUGOUT ACTIVATION",Callable(app,"cancel_cross_retry"))
@@ -67,7 +70,7 @@ func render() -> void:
 			_label(_body,"STARTER BETA",18)
 			_earned_leagues(not Store.occupied())
 			if Store.occupied():
-				_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"reload_save"))
+				_bound_button(_body,"CONTINUE SAVED CAREER",Callable(app,"continue_saved_career"))
 			else:
 				_bound_button(_body,"NEW "+app.selected_league.to_upper()+" BASE CAREER",Callable(app,"create_fresh"))
 			_note("Starter Beta careers are saved separately from other Wiffaltro builds.")

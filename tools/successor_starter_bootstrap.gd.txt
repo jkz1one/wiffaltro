@@ -3,6 +3,7 @@ extends Node
 const Admission = preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
 const Npc = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
 const Review = preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_dugout_review.gd")
+const MixedContinue=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_continue.gd")
 const INTEGRATED := "res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 
 func _ready() -> void:
@@ -12,6 +13,12 @@ func _ready() -> void:
 		return
 	var args: PackedStringArray=OS.get_cmdline_user_args()
 	if not args.is_empty():
+		var resume: Dictionary=MixedContinue.parse(args) if MixedContinue.supported() else {}
+		if not resume.is_empty():
+			var resume_worker: Node=MixedContinue.new()
+			add_child(resume_worker)
+			resume_worker.call_deferred("worker",resume)
+			return
 		var review: Dictionary=Review.parse(args) if Review.supported() else {}
 		if not review.is_empty():
 			var read_only: Node=Review.new()

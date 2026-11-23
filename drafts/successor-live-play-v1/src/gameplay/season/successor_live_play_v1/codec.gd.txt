@@ -792,12 +792,18 @@ static func _payload(season: SeasonState, d1: bool=false) -> Dictionary:
 		club.build = Builds.capture(club.build)
 		if club.build.is_empty(): return {}
 		clubs[id] = club
+	return _payload_from_builds(season,d1,build,bank,clubs)
+
+static func _current_image(season: SeasonState,d1: bool,build: Dictionary,bank: Dictionary,clubs: Dictionary) -> Dictionary:
 	var earned: bool=season.career.start_basis.get("kind")==CommonStart.KIND
 	var named: bool=_named_profile(season.league_rules)
-	var data: Dictionary = {"version":1 if d1 or earned or named else Catalog.VERSION,"format":D1_DRAFT_FORMAT if d1 else (CommonStart.FORMAT if earned else (NAMED_LEAGUE_FORMAT if named else Catalog.FORMAT)),"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
+	return {"version":1 if d1 or earned or named else Catalog.VERSION,"format":D1_DRAFT_FORMAT if d1 else (CommonStart.FORMAT if earned else (NAMED_LEAGUE_FORMAT if named else Catalog.FORMAT)),"game_catalog":Catalog.game_signature(),"player_catalog":Catalog.player_signature(),
 		"state":data_fields(season,FIELDS),"ownership":bank,"build":build,"career":data_fields(season.career,CAREER_FIELDS),
 		"opponents":{"draft_order":season.opponents.draft_order.duplicate(),"draft_rule":season.opponents.draft_rule,"format":season.opponents._format,"clubs":clubs},
 		"physical":data_fields(season.physical,PHYSICAL_FIELDS)}
+
+static func _payload_from_builds(season: SeasonState,d1: bool,build: Dictionary,bank: Dictionary,clubs: Dictionary) -> Dictionary:
+	var data:=_current_image(season,d1,build,bank,clubs)
 	# One detached serialization boundary for all admitted primitive evidence.
 	# Match positions/stamina, authored draws and journal copies use the same
 	# JSON representation; never mutate live objects or relax numeric equality.
@@ -824,36 +830,10 @@ static func _restore_shape(value: Variant,d1: bool) -> SeasonState:
 	restore_calls += 1
 	if value is Dictionary and value.get("career") is Dictionary and value.career.get("start_basis") is Dictionary \
 			and CommonStart.detached_mixed_flat(value.career.start_basis): return null
-	if d1 and (not value is Dictionary or value.get("format")!=D1_DRAFT_FORMAT): return null
-	var earned: bool=value is Dictionary and value.get("format")==CommonStart.FORMAT
-	var named: bool=value is Dictionary and value.get("format")==NAMED_LEAGUE_FORMAT
-	if not primitive(value) or not keys(value,["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]) \
-		or ((d1 or earned or named) and not whole(value.version,1,1)) or (not d1 and not earned and not named and (not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT)) \
-		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
-	var result: SeasonState = Runtime.new()
-	if not install_fields(result,FIELDS,value.state): return null
-	if not earned and named!=_named_profile(result.league_rules): return null
-	result.build = Builds.restore(value.build)
-	result.ownership = Builds.restore_bank(value.ownership)
-	result.career = Career.new()
-	if not install_fields(result.career,CAREER_FIELDS,value.career): return null
-	if earned!=(result.career.start_basis.get("kind")==CommonStart.KIND) \
-			or d1!=(result.career.start_basis.get("kind")==D1_TRANSITION_KIND): return null
-	result.physical = Physical.new()
-	if not install_fields(result.physical,PHYSICAL_FIELDS,value.physical): return null
-	var opponents: Variant = value.opponents
-	if not keys(opponents,["draft_order","draft_rule","format","clubs"]) or not opponents.draft_order is Array or not opponents.draft_rule is String or not whole(opponents.format,13,13) or not opponents.clubs is Dictionary: return null
-	result.opponents = Opponents.new(); result.opponents._format = 13
-	for id: Variant in opponents.draft_order:
-		if not whole(id,1,5): return null
-	result.opponents.draft_order.assign(opponents.draft_order)
-	result.opponents.draft_rule = opponents.draft_rule
-	for id: String in opponents.clubs:
-		if id not in ["1","2","3","4","5"] or not opponents.clubs[id] is Dictionary or not opponents.clubs[id].has("build"): return null
-		var club: Dictionary = opponents.clubs[id].duplicate(true)
-		club.build = Builds.restore(club.build)
-		if club.build == null: return null
-		result.opponents.clubs[id] = club
+	var result:=_hydrate_current_shape(value,d1)
+	if result==null: return null
+	var earned: bool=value.get("format")==CommonStart.FORMAT
+	var named: bool=value.get("format")==NAMED_LEAGUE_FORMAT
 	# Named Doubleheader's detached rules are the only changed fields.
 	# Check all existing holders against the authored context before
 	# normalizing, and still compare the full capture against the original.
@@ -879,6 +859,105 @@ static func _restore_shape(value: Variant,d1: bool) -> SeasonState:
 		var canonical: Dictionary=_capture_structural(result)
 		if canonical.is_empty() or not same(canonical,captured): return null
 	return result
+
+# Fixed current-only materializer for the Store's private read lease.
+# Does not admit a save or rerun any archived career or current games.
+static func _lease_live(lease: Node,valid_binding: Callable) -> bool:
+	return is_instance_valid(lease) and not lease.is_queued_for_deletion() and lease.is_inside_tree() \
+		and valid_binding.is_valid() and valid_binding.call()
+
+static func _hydrate_mixed_continue(value: Variant,lease: Node,valid_binding: Callable) -> SeasonState:
+	if not _lease_live(lease,valid_binding) or not value is Dictionary or value.get("format")!=CommonStart.FORMAT \
+			or not value.get("career") is Dictionary or not value.career.get("start_basis") is Dictionary \
+			or not CommonStart.detached_mixed_flat(value.career.start_basis): return null
+	var tree: SceneTree=lease.get_tree()
+	var result:=_hydrate_current_head(value,false)
+	if result==null: return null
+	for id: String in value.opponents.clubs:
+		await tree.process_frame
+		if not _lease_live(lease,valid_binding) or not _hydrate_club(result,value.opponents,id): return null
+	return result if result.build!=null and result.ownership!=null \
+		and result.league_rules.get("league")=="dugout" and _canonical_named_context(result) else null
+
+# Each authored build uses the same capture functions as the stock codec.
+# The parent does not run historical replay while inspecting the current shape.
+static func _recapture_mixed_continue(season: SeasonState,lease: Node,valid_binding: Callable) -> Dictionary:
+	# The exact same-build worker already checked the complete native shape
+	# and authored histories on these bytes. This remains a detached typed
+	# recapture for full-value equality, never a standalone save admission.
+	if not _lease_live(lease,valid_binding) or season==null or season.get_script()!=Runtime: return {}
+	var tree: SceneTree=lease.get_tree()
+	await tree.process_frame
+	if not _lease_live(lease,valid_binding): return {}
+	lease.binding_stage="capture builds"
+	var build:=Builds.capture(season.build)
+	var bank:=Builds.capture_bank(season.ownership)
+	if build.is_empty() or bank.is_empty(): return {}
+	var clubs: Dictionary={}
+	for id: String in season.opponents.clubs:
+		await tree.process_frame
+		if not _lease_live(lease,valid_binding): return {}
+		var club: Dictionary=season.opponents.clubs[id].duplicate(true)
+		club.build=Builds.capture(club.build)
+		if club.build.is_empty(): return {}
+		clubs[id]=club
+	await tree.process_frame
+	if not _lease_live(lease,valid_binding): return {}
+	lease.binding_stage="capture image"
+	var image:=_current_image(season,false,build,bank,clubs)
+	# Normalize each complete field with the unchanged admitted JSON rules.
+	# Full field equality against the worker-verified primitive payload follows.
+	var data: Dictionary={}
+	for field: String in image:
+		await tree.process_frame
+		if not _lease_live(lease,valid_binding) or not primitive(image[field]): return {}
+		lease.binding_stage="capture image: "+field
+		var parser:=JSON.new()
+		if parser.parse(JSON.stringify(image[field],"",true,true))!=OK or not primitive(parser.data): return {}
+		data[field]=parser.data
+	return data
+
+static func _hydrate_current_shape(value: Variant,d1: bool) -> SeasonState:
+	var result:=_hydrate_current_head(value,d1)
+	if result==null: return null
+	for id: String in value.opponents.clubs:
+		if not _hydrate_club(result,value.opponents,id): return null
+	return result
+
+static func _hydrate_current_head(value: Variant,d1: bool) -> SeasonState:
+	if d1 and (not value is Dictionary or value.get("format")!=D1_DRAFT_FORMAT): return null
+	var earned: bool=value is Dictionary and value.get("format")==CommonStart.FORMAT
+	var named: bool=value is Dictionary and value.get("format")==NAMED_LEAGUE_FORMAT
+	if not primitive(value) or not keys(value,["version","format","game_catalog","player_catalog","state","ownership","build","career","opponents","physical"]) \
+		or ((d1 or earned or named) and not whole(value.version,1,1)) or (not d1 and not earned and not named and (not whole(value.version,Catalog.VERSION,Catalog.VERSION) or value.format != Catalog.FORMAT)) \
+		or value.game_catalog != Catalog.game_signature() or value.player_catalog != Catalog.player_signature(): return null
+	var result: SeasonState = Runtime.new()
+	if not install_fields(result,FIELDS,value.state): return null
+	if not earned and named!=_named_profile(result.league_rules): return null
+	result.build = Builds.restore(value.build)
+	result.ownership = Builds.restore_bank(value.ownership)
+	result.career = Career.new()
+	if not install_fields(result.career,CAREER_FIELDS,value.career): return null
+	if earned!=(result.career.start_basis.get("kind")==CommonStart.KIND) \
+			or d1!=(result.career.start_basis.get("kind")==D1_TRANSITION_KIND): return null
+	result.physical = Physical.new()
+	if not install_fields(result.physical,PHYSICAL_FIELDS,value.physical): return null
+	var opponents: Variant = value.opponents
+	if not keys(opponents,["draft_order","draft_rule","format","clubs"]) or not opponents.draft_order is Array or not opponents.draft_rule is String or not whole(opponents.format,13,13) or not opponents.clubs is Dictionary: return null
+	result.opponents = Opponents.new(); result.opponents._format = 13
+	for id: Variant in opponents.draft_order:
+		if not whole(id,1,5): return null
+	result.opponents.draft_order.assign(opponents.draft_order)
+	result.opponents.draft_rule = opponents.draft_rule
+	return result
+
+static func _hydrate_club(result: SeasonState,opponents: Dictionary,id: String) -> bool:
+	if id not in ["1","2","3","4","5"] or not opponents.clubs[id] is Dictionary or not opponents.clubs[id].has("build"): return false
+	var club: Dictionary=opponents.clubs[id].duplicate(true)
+	club.build=Builds.restore(club.build)
+	if club.build==null: return false
+	result.opponents.clubs[id]=club
+	return true
 
 static func _restore(value: Variant,d1: bool) -> SeasonState:
 	var result: SeasonState=_restore_shape(value,d1)

@@ -35,19 +35,63 @@ static func capture_session(season: SeasonState, side: String = "dynasty") -> Di
 	if season.opponents.clubs.is_typed(): return {}
 	var clubs: Dictionary = {}
 	for key: Variant in season.opponents.clubs:
-		if not key is String or not season.opponents.clubs[key] is Dictionary: return {}
-		var original: Dictionary = season.opponents.clubs[key]
-		if original.is_typed() or not original.has("build"): return {}
-		var club: Dictionary = {}
-		for field: Variant in original:
-			if not field is String: return {}
-			if field != "build": club[field] = _copy(original[field], 0, budget)
-		club.build = _build(original.build, budget,side)
-		if original.is_read_only(): club.make_read_only()
-		clubs[key] = club
+		var club:=_club(season,key,budget,side)
+		if club.is_empty(): return {}
+		clubs[key]=club
 	if season.opponents.clubs.is_read_only(): clubs.make_read_only()
 	result.opponents["clubs"] = clubs
 	return result if budget[1] else {}
+
+# New admission has an entirely detached owner until this typed snapshot
+# finishes. The normal synchronous writer guard stays exactly the same.
+static func capture_mixed_continue(owner: RefCounted,lease: Node,valid_binding: Callable) -> Dictionary:
+	if not Ordinary._lease_live(lease,valid_binding) or owner.active!="ordinary": return {}
+	var tree: SceneTree=lease.get_tree()
+	var owner_budget: Array=[MAX_NODES,true]
+	var result:=_object(owner,Owner,Owner.DATA_FIELDS,["session"],owner_budget)
+	if result.is_empty() or not owner_budget[1]: return {}
+	var season: SeasonState=owner.session
+	var budget: Array=[MAX_NODES,true]
+	await tree.process_frame
+	if not Ordinary._lease_live(lease,valid_binding): return {}
+	var current:=_object(season,Ordinary.Runtime,Ordinary.FIELDS,Ordinary.OBJECTS,budget)
+	if not budget[1]: return {}
+	for name: String in ["_heat_replay_team","_doubleheader_replay_build","_pool_replay_ledger"]:
+		if season.get(name)!=null: return {}
+		current[name]=null
+	await tree.process_frame
+	if not Ordinary._lease_live(lease,valid_binding): return {}
+	current.ownership=_bank(season.ownership,budget,"ordinary")
+	current.build=_build(season.build,budget,"ordinary")
+	current.career=_object(season.career,Ordinary.Career,Ordinary.CAREER_FIELDS,[],budget)
+	await tree.process_frame
+	if not Ordinary._lease_live(lease,valid_binding): return {}
+	current.physical=_object(season.physical,Ordinary.Physical,Ordinary.PHYSICAL_FIELDS,[],budget)
+	current.opponents=_object(season.opponents,Ordinary.Opponents,["draft_order","draft_rule","_format"],["clubs"],budget)
+	if not budget[1] or season.opponents.clubs.is_typed(): return {}
+	var clubs: Dictionary={}
+	for key: Variant in season.opponents.clubs:
+		await tree.process_frame
+		if not Ordinary._lease_live(lease,valid_binding): return {}
+		var club:=_club(season,key,budget,"ordinary")
+		if club.is_empty(): return {}
+		clubs[key]=club
+	if season.opponents.clubs.is_read_only(): clubs.make_read_only()
+	current.opponents["clubs"]=clubs
+	result.session=current
+	return result if budget[1] else {}
+
+static func _club(season: SeasonState,key: Variant,budget: Array,side: String) -> Dictionary:
+	if not key is String or not season.opponents.clubs[key] is Dictionary: return {}
+	var original: Dictionary=season.opponents.clubs[key]
+	if original.is_typed() or not original.has("build"): return {}
+	var club: Dictionary={}
+	for field: Variant in original:
+		if not field is String: return {}
+		if field!="build": club[field]=_copy(original[field],0,budget)
+	club.build=_build(original.build,budget,side)
+	if original.is_read_only(): club.make_read_only()
+	return club
 
 static func _build(build: Variant, budget: Array, side: String = "dynasty") -> Dictionary:
 	if not Adapter.side(side): budget[1]=false; return {}

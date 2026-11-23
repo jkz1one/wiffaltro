@@ -178,6 +178,7 @@ func cancel_starter_dugout_review() -> void:
 	show_season()
 
 func _exit_tree() -> void:
+	_drop_mixed_continue()
 	_drop_starter_dugout_review()
 	Store.cancel_cross_activation(career_owner)
 	_expire_d1_proof()
@@ -209,7 +210,7 @@ func show_season() -> void:
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
-	return not starter_dugout_review_running() and not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
+	return not mixed_continue_running() and not starter_dugout_review_running() and not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func starter_player() -> bool: return Store.LeagueAdmission.starter_player()
 func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
 func league_entry_state(league: String, tier: int = 0) -> String:
@@ -965,6 +966,56 @@ func _complete_cross_read(outcome: String,_proof: Dictionary,check: Node,epoch: 
 	}.get(outcome,"The archived Dugout draft could not be verified. No save was changed.")
 	show_season()
 
+const MixedContinue=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_continue.gd")
+var _mixed_continue: Node
+var _mixed_continue_epoch: int=0
+
+func mixed_continue_running() -> bool:
+	return is_instance_valid(_mixed_continue)
+
+func continue_saved_career() -> void:
+	if not _available(): return
+	var expected:=MixedContinue.bounded_slot() if season==null and MixedContinue.supported() else PackedByteArray()
+	if not Store.mixed_continue_source(expected):
+		reload_save()
+		return
+	_mixed_continue_epoch+=1
+	var process_node:=MixedContinue.new()
+	_mixed_continue=process_node
+	add_child(process_node)
+	process_node.completed.connect(_complete_mixed_continue.bind(process_node,_mixed_continue_epoch,expected),CONNECT_ONE_SHOT)
+	notice="Checking your saved career in the background. Nothing is being written."
+	show_season()
+	if not process_node.start(expected): _complete_mixed_continue("refused",process_node,_mixed_continue_epoch,expected)
+
+func _drop_mixed_continue() -> void:
+	_mixed_continue_epoch+=1
+	var process_node:=_mixed_continue
+	_mixed_continue=null
+	if is_instance_valid(process_node):
+		process_node.cancel()
+		process_node.queue_free()
+
+func cancel_mixed_continue() -> void:
+	if not mixed_continue_running(): return
+	_drop_mixed_continue()
+	notice="Career check canceled. Nothing was saved."
+	show_season()
+
+func _complete_mixed_continue(outcome: String,process_node: Node,epoch: int,expected: PackedByteArray) -> void:
+	if process_node!=_mixed_continue or epoch!=_mixed_continue_epoch: return
+	var candidate: RefCounted
+	if outcome=="verified": candidate=await Store.accept_mixed_continue(expected,process_node)
+	if process_node!=_mixed_continue or epoch!=_mixed_continue_epoch: return
+	_drop_mixed_continue()
+	if candidate!=null:
+		career_owner=candidate; season=candidate.session; saved_bytes=expected; notice=""
+	elif outcome=="stale" or not Store._write_revision_matches(expected,true):
+		notice="The saved career changed during verification. Try Continue again."
+	else:
+		notice="The saved career could not be verified. Nothing was saved."
+	show_season()
+
 func reload_save() -> void:
 	if not _available(): return
 	_expire_d1_proof()
@@ -1196,6 +1247,7 @@ func leave_game() -> void:
 
 
 func _request_quit() -> void:
+	_drop_mixed_continue()
 	_drop_starter_dugout_review()
 	if starter_npc_running(): starter_npc_cancel()
 	if _cross_retry:

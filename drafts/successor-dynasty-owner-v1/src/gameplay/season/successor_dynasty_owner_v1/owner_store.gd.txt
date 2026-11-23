@@ -224,6 +224,90 @@ static func _starter_opening_owner(owner: RefCounted) -> bool:
 		else Owner.Common.StandardArchive.shape(owner)
 	return scoped and w.player_opening_allowed(owner)
 
+# Routing only: the child and Store separately prove the exact bounded bytes.
+static func _mixed_continue_shape(value: Variant) -> bool:
+	return value is Dictionary and value.get("version")==4 and value.get("active")=="ordinary" \
+		and Owner.Mixed.marked_state(value.get("ordinary_state")) and value.get("ordinary") is Dictionary
+
+static func mixed_continue_source(expected: PackedByteArray) -> bool:
+	return LeagueAdmission.starter_fast_worker() and not expected.is_empty() and expected.size()<=MAX_BYTES \
+		and _mixed_continue_shape(Owner._bytes_value(expected))
+
+# The strict worker authenticates these fields before the parent sees
+# the seal. JSON has erased the distinction between integer and whole float;
+# rebuild the same explicitly authored metadata numerics as the native birth
+# so the first normal write matches a cold native owner byte for byte.
+static func _mixed_continue_authored_metadata(owner: RefCounted) -> bool:
+	var state: Dictionary=owner.ordinary_state
+	var transition: Variant=state.get("last_transition")
+	if not transition is Dictionary or not transition.get("basis") is Dictionary: return false
+	var basis: Dictionary=transition.basis
+	if not Owner.Common.Start.valid(basis) or not Owner.Common.Start.detached_mixed_flat(basis) \
+			or not basis.get("pennants") is Dictionary: return false
+	var pennants: Dictionary=basis.pennants
+	for row: Array in [[state,["ordinal"]],[transition,["from","to"]],
+			[basis,["common_sequence","ordinal","seed","version"]],
+			[pennants,["from_season","mastery_from","version"]]]:
+		var target: Dictionary=row[0]
+		for field: String in row[1]:
+			if not Codec.whole(target.get(field),0,2147483647): return false
+			target[field]=int(target[field])
+	return true
+
+static func accept_mixed_continue(expected: PackedByteArray,child: Node) -> RefCounted:
+	var process_script: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_continue.gd")
+	if not LeagueAdmission.starter_fast_worker() or saving or _owner!=null or _ticket!=null \
+			or child==null or child.get_script()!=process_script or expected.is_empty() \
+			or expected.size()>MAX_BYTES or _starter_slot_linked() or not _write_revision_matches(expected,true): return null
+	var revision:=Owner._hash(expected)
+	var seal: Dictionary=child.take_current_seal(revision)
+	if seal.is_empty(): return null
+	var valid_binding: Callable = func() -> bool:
+		return is_instance_valid(child) and child.binding_live(seal.nonce,revision) \
+			and not saving and _owner==null and _ticket==null
+	if not valid_binding.call(): return null
+	var tree:=child.get_tree()
+	child.binding_stage="revision"
+	var payload: Variant=Owner._bytes_value(expected)
+	if not _mixed_continue_shape(payload) or process_script.current_digest(payload.ordinary)!=seal.current: return null
+	await tree.process_frame
+	if not valid_binding.call(): return null
+	child.binding_stage="metadata"
+	var owner:=Owner._restore_metadata(payload)
+	if owner==null or not _mixed_continue_authored_metadata(owner): return null
+	await tree.process_frame
+	if not valid_binding.call(): return null
+	child.binding_stage="typed"
+	owner.session=await Adapter.Ordinary._hydrate_mixed_continue(payload.ordinary,child,valid_binding)
+	if owner.session==null or not valid_binding.call() \
+			or not Owner.Mixed.season_owner_scope(owner): return null
+	await tree.process_frame
+	if not valid_binding.call(): return null
+	child.binding_stage="capture"
+	var current: Dictionary=await Adapter.Ordinary._recapture_mixed_continue(owner.session,child,valid_binding)
+	if current.is_empty() or not valid_binding.call(): return null
+	child.binding_stage="compare"
+	var rebuilt:=Owner._pack_fields(owner,current)
+	if not Codec.keys(payload,rebuilt.keys()) or not Codec.keys(payload.ordinary,current.keys()): return null
+	for field: String in rebuilt:
+		if field!="ordinary" and not Codec.same(rebuilt[field],payload[field]): return null
+	for field: String in current:
+		await tree.process_frame
+		if not valid_binding.call() \
+				or not Codec.same(current[field],payload.ordinary[field]): return null
+	await tree.process_frame
+	if not valid_binding.call(): return null
+	child.binding_stage="raw guard"
+	var snapshot: Dictionary=await RawGuard.capture_mixed_continue(owner,child,valid_binding)
+	if not valid_binding.call(): return null
+	if snapshot.is_empty() or saving or _owner!=null or _ticket!=null or _starter_slot_linked() \
+			or not _write_revision_matches(expected,true) or not child.binding_live(seal.nonce,revision,true): return null
+	_invalidate()
+	_owner=owner; _owner_session=owner.session; _owner_raw=snapshot; _owner_bytes=expected.duplicate()
+	_paused=owner.paused.duplicate(true); _active=owner.active
+	_metadata=Codec.data_fields(owner,Owner.META_FIELDS); _imported_sha256=owner.imported_sha256
+	return owner
+
 static func read() -> RefCounted:
 	return _read_common_slot(false)
 
