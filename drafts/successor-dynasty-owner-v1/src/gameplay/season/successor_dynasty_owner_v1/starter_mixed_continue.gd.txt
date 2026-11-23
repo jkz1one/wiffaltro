@@ -12,6 +12,8 @@ const MAX_HELD := 64
 const BANK_COUNT := 7
 const EVENT_FIELDS := ["rev","game","amount"]
 const PAID_FIELDS := ["paid"]
+const BRACKET_FIELDS := ["id","round","away","home"]
+const MASK_TOKENS := "0123456789abcdef"
 const MAX_WHOLE := 2147483647
 const MAX_MS := 300000
 
@@ -194,8 +196,59 @@ static func apply_bank_witness(season: SeasonState, witness: Variant) -> bool:
 	# Re-emit the parent-applied representation before canonical recapture.
 	return bank_witness(season)==witness
 
-static func _seal(job: Dictionary,current: String,banks: Array) -> String:
-	return _canonical({"job":job,"current":current,"banks":banks}).sha256_text()
+# Exact fixed postseason slots only. Stock semifinals omit neutral; the
+# authored final carries true. No fixture values or arbitrary paths travel.
+static func _bracket_wire_valid(value: Variant) -> bool:
+	if not value is String or value.length() not in [0,4,6]: return false
+	for base: int in range(0,value.length(),2):
+		if not MASK_TOKENS.contains(value[base]) or value[base+1]!=("t" if base==4 else "-"): return false
+	return true
+
+static func _bracket_frame(row: Dictionary,index: int,mask: int=-1) -> String:
+	var final_slot: bool=index==2
+	var fields: Array=BRACKET_FIELDS.duplicate()
+	if final_slot: fields.append("neutral")
+	if not SeasonOwnership._keys(row,fields) \
+			or not SeasonOwnership._whole(row.id,30+index,30+index) \
+			or not SeasonOwnership._whole(row.round,11 if final_slot else 10,11 if final_slot else 10) \
+			or not SeasonOwnership._whole(row.away,0,5) or not SeasonOwnership._whole(row.home,0,5) \
+			or row.away==row.home or (final_slot and (not row.neutral is bool or not row.neutral)): return "!"
+	var bits:=_typed_row(row,BRACKET_FIELDS,mask)
+	return "!" if bits<0 else MASK_TOKENS[bits]+("t" if final_slot else "-")
+
+static func _bracket_rows(season: SeasonState) -> Array:
+	if season==null: return [null]
+	var rows: Array=[]
+	if season.phase in [SeasonState.Phase.DRAFT,SeasonState.Phase.REGULAR]:
+		return rows if season.semifinals.is_empty() and season.final_fixture.is_empty() else [null]
+	if season.semifinals.size()!=2: return [null]
+	rows.assign(season.semifinals)
+	if season.phase==SeasonState.Phase.SEMIFINAL:
+		return rows if season.final_fixture.is_empty() else [null]
+	if season.phase not in [SeasonState.Phase.FINAL,SeasonState.Phase.COMPLETE] or season.final_fixture.is_empty(): return [null]
+	rows.append(season.final_fixture)
+	return rows
+
+static func bracket_witness(season: SeasonState) -> String:
+	var rows:=_bracket_rows(season)
+	var wire: String=""
+	for i: int in rows.size():
+		if not rows[i] is Dictionary: return "!"
+		var frame:=_bracket_frame(rows[i],i)
+		if frame=="!": return "!"
+		wire+=frame
+	return wire
+
+static func apply_bracket_witness(season: SeasonState,witness: Variant) -> bool:
+	if not _bracket_wire_valid(witness): return false
+	var rows:=_bracket_rows(season)
+	if rows.size()*2!=witness.length() or bracket_witness(season)=="!": return false
+	for i: int in rows.size():
+		if _bracket_frame(rows[i],i,MASK_TOKENS.find(witness[2*i]))!=witness.substr(2*i,2): return false
+	return bracket_witness(season)==witness
+
+static func _seal(job: Dictionary,current: String,banks: Array,bracket: String) -> String:
+	return _canonical({"job":job,"current":current,"banks":banks,"bracket":bracket}).sha256_text()
 
 static func packet(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictionary:
 	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return {}
@@ -206,10 +259,10 @@ static func packet(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictio
 		or not lines[3].is_empty(): return {}
 	var serialized:=lines[2].trim_prefix(FRAME)
 	var value: Variant=JSON.parse_string(serialized)
-	if not value is Dictionary or not SeasonOwnership._keys(value,["job","current","banks","seal"]) \
+	if not value is Dictionary or not SeasonOwnership._keys(value,["job","current","banks","bracket","seal"]) \
 		or value.job!=job or _canonical(value)!=serialized or not _hex(value.current) or value.current in [job.revision,job.nonce] \
-			or not _wire_valid(value.banks) or not _hex(value.seal) \
-			or value.seal!=_seal(job,value.current,value.banks):
+			or not _wire_valid(value.banks) or not _bracket_wire_valid(value.bracket) or not _hex(value.seal) \
+			or value.seal!=_seal(job,value.current,value.banks,value.bracket):
 		return {}
 	return value
 
@@ -248,7 +301,7 @@ func take_current_seal(revision: String) -> Dictionary:
 	_completed={}
 	if packet_value.is_empty() or packet_value.job.revision!=revision: return {}
 	_binding=packet_value.job
-	return {"current":packet_value.current,"nonce":packet_value.job.nonce,"banks":packet_value.banks}
+	return {"current":packet_value.current,"nonce":packet_value.job.nonce,"banks":packet_value.banks,"bracket":packet_value.bracket}
 
 func binding_live(nonce: String,revision: String,consume: bool=false) -> bool:
 	if is_queued_for_deletion() or not is_inside_tree() or _binding.is_empty() \
@@ -312,11 +365,12 @@ func worker(job: Dictionary) -> void:
 		get_tree().quit(3)
 		return
 	var banks:=bank_witness(owner.session)
-	if not _wire_valid(banks):
+	var bracket:=bracket_witness(owner.session)
+	if not _wire_valid(banks) or not _bracket_wire_valid(bracket):
 		get_tree().quit(3)
 		return
 	var current:=current_digest(value.ordinary)
-	var frame:=FRAME+_canonical({"job":job,"current":current,"banks":banks,"seal":_seal(job,current,banks)})
+	var frame:=FRAME+_canonical({"job":job,"current":current,"banks":banks,"bracket":bracket,"seal":_seal(job,current,banks,bracket)})
 	if frame.length()>MAX_FRAME-256:
 		get_tree().quit(3)
 		return

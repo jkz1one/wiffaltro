@@ -283,6 +283,8 @@ static func accept_mixed_continue(expected: PackedByteArray,child: Node) -> RefC
 			or not Owner.Mixed.season_owner_scope(owner): return null
 	child.binding_stage="native bank representation"
 	if not process_script.apply_bank_witness(owner.session,seal.banks) or not valid_binding.call(): return null
+	child.binding_stage="native bracket representation"
+	if not process_script.apply_bracket_witness(owner.session,seal.bracket) or not valid_binding.call(): return null
 	await tree.process_frame
 	if not valid_binding.call(): return null
 	child.binding_stage="capture"
