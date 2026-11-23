@@ -1,0 +1,246 @@
+extends RefCounted
+## Detached v6 byte custody only. No owner admission, launch, or write.
+## A successful walk is transport evidence, not native proof of a fold.
+const Legacy = preload("starter_mixed_custody.gd")
+const VERSION: int = 6
+const KIND: String = "starter-mixed-append-custody-v1"
+const ORIGIN: String = "starter-dugout-append-archive-v1"
+const TRANSITION: String = "common-starter-dugout-compact-draft-v2"
+const MAX_APPEND_ROWS: int = 8
+const MAX_TOTAL_RAW: int = 128 * 1024 * 1024
+const MAX_WIRE: int = 43 * 1024 * 1024
+const MAX_TOKENS: int = 3000000
+const MAX_DEPTH: int = 96
+
+static func _encode(value: Dictionary) -> PackedByteArray:
+	return JSON.stringify(value,"",true,true).to_utf8_buffer()
+
+# Godot's parser can accept duplicate object keys. Never use its last-key
+# result to locate an exact byte token without also verifying the key stream.
+# The native parser checks primitive syntax; this scan keeps only maps for
+# the current nesting path and skips a multi-megabyte string in one match.
+static func _scan(text: String) -> Dictionary:
+	var lexer:=RegEx.new()
+	if lexer.compile('"(?:[^"\\\\]++|\\\\.)*"|[{}\\[\\],]')!=OK: return {}
+	var containers: Array[Dictionary]=[]
+	var pos: int=0
+	var token_count: int=0
+	var wire_at: int=-1
+	while pos<text.length():
+		var token:=lexer.search(text,pos)
+		if token==null: return {}
+		pos=token.get_end()
+		token_count+=1
+		if token_count>MAX_TOKENS: return {}
+		var lead:String=text[token.get_start()]
+		match lead:
+			"{","[":
+				if containers.size()>=MAX_DEPTH: return {}
+				var rank: int=-1
+				if containers.is_empty():
+					if lead!="{": return {}
+					rank=0
+				elif lead=="{" and containers[-1].kind=="{":
+					var parent: Dictionary=containers[-1]
+					if parent.rank==0 and parent.field=="ordinary_state": rank=1
+					elif parent.rank==1 and parent.field=="archive": rank=2
+				containers.append({"kind":lead,"key":lead=="{","names":{},"rank":rank,"field":""})
+			"}","]":
+				if containers.is_empty() or containers[-1].kind!=("{" if lead=="}" else "["): return {}
+				containers.pop_back()
+				if containers.is_empty(): return {"wire_at":wire_at} if pos==text.length() else {}
+			",":
+				if containers.is_empty(): return {}
+				containers[-1].key=containers[-1].kind=="{"
+				containers[-1].field=""
+			'"':
+				if containers.is_empty(): return {}
+				if not containers[-1].key:
+					if containers[-1].rank==2 and containers[-1].field=="wire":
+						wire_at=text.substr(0,token.get_start()).to_utf8_buffer().size()
+					continue
+				var raw:String=token.get_string()
+				var key:Variant=JSON.parse_string(raw) if raw.contains("\\") else raw.substr(1,raw.length()-2)
+				if not key is String or containers[-1].names.has(key): return {}
+				containers[-1].names[key]=true
+				containers[-1].key=false
+				containers[-1].field=key
+	return {}
+
+static func _canonical(value: Variant) -> Dictionary:
+	if not Legacy._keys(value,["kind","version","lineage","base_wire","rows"]) \
+			or value.kind!=KIND or not Legacy._whole(value.version,VERSION,VERSION) \
+			or not Legacy._lineage(value.lineage) or not value.base_wire is String \
+			or value.base_wire.is_empty() or value.base_wire.length()>Legacy.MAX_WIRE \
+			or not value.rows is Array or value.rows.is_empty() or value.rows.size()>MAX_APPEND_ROWS: return {}
+	# A carrier embedded as a string was not structurally scanned by the
+	# outer envelope scanner. Guard it before the unchanged v1 JSON reader.
+	if _scan(value.base_wire).is_empty(): return {}
+	var base:=Legacy.manifest_fields(value.base_wire.to_utf8_buffer())
+	if base.is_empty() or base.lineage!=value.lineage: return {}
+	var raws: Dictionary={}
+	var total: int=0
+	for old: Dictionary in base.rows:
+		raws[old.raw_sha256]=true
+		total+=int(old.raw_bytes)
+	var encoded_total:int=value.base_wire.length()
+	var rows: Array[Dictionary]=[]
+	for i:int in value.rows.size():
+		var row:Variant=value.rows[i]
+		if not Legacy._keys(row,["ordinal","raw_bytes","raw_sha256","body_bytes","offsets","deflate_base64","prefix_sha256","prior_close_sha256"]) \
+				or not Legacy._whole(row.ordinal,4+i,4+i) or not Legacy._whole(row.raw_bytes,1,Legacy.MAX_MEMBER) \
+				or not Legacy._whole(row.body_bytes,1,int(row.raw_bytes)-1) \
+				or not Legacy._sha(row.raw_sha256) or raws.has(row.raw_sha256) \
+				or not Legacy._sha(row.prefix_sha256) or not Legacy._sha(row.prior_close_sha256) \
+				or not row.offsets is Array or row.offsets.size()!=1 \
+				or not Legacy._whole(row.offsets[0],1,int(row.body_bytes)-1) or not row.deflate_base64 is String \
+				or row.deflate_base64.is_empty() or row.deflate_base64.length()>Legacy.MAX_B64: return {}
+		raws[row.raw_sha256]=true
+		total+=int(row.raw_bytes)
+		encoded_total+=row.deflate_base64.length()
+		if total>MAX_TOTAL_RAW or encoded_total>MAX_WIRE-8192: return {}
+		rows.append({"ordinal":4+i,"raw_bytes":int(row.raw_bytes),"raw_sha256":row.raw_sha256,"body_bytes":int(row.body_bytes),
+			"offsets":[int(row.offsets[0])],"deflate_base64":row.deflate_base64,
+			"prefix_sha256":row.prefix_sha256,"prior_close_sha256":row.prior_close_sha256})
+	return {"kind":KIND,"version":VERSION,"lineage":value.lineage,"base_wire":value.base_wire,"rows":rows}
+
+static func _scanned_text(wire:PackedByteArray) -> String:
+	if wire.is_empty() or wire.size()>MAX_WIRE: return ""
+	var text:=wire.get_string_from_utf8()
+	return "" if text.to_utf8_buffer()!=wire or _scan(text).is_empty() else text
+
+static func _manifest_from_scanned(wire:PackedByteArray,text:String) -> Dictionary:
+	var data:=_canonical(JSON.parse_string(text))
+	return data if not data.is_empty() and _encode(data)==wire else {}
+
+static func _manifest(wire: PackedByteArray) -> Dictionary:
+	var text:=_scanned_text(wire)
+	return {} if text.is_empty() else _manifest_from_scanned(wire,text)
+
+static func _base_info(wire: PackedByteArray) -> Dictionary:
+	var base:=Legacy.manifest_fields(wire)
+	if base.is_empty(): return {}
+	var last:Array[String]=[]
+	var verify:=func(ordinal:int,raw:PackedByteArray) -> bool:
+		if ordinal==3:
+			var parsed:Variant=Legacy._json(raw)
+			if not parsed is Dictionary: return false
+			last.append(parsed.ordinary_state.last_close.session_sha256)
+		return true
+	if not Legacy._walk(wire,verify) or last.size()!=1: return {}
+	return {"lineage":base.lineage,"pins":base.rows.map(func(row): return row.raw_sha256),"close":last[0]}
+
+# Shape and linkage only, never substitute this check for native replay.
+static func _closed(raw: PackedByteArray,ordinal:int,lineage:String,prior_close:String,
+		prefix:PackedByteArray,pins:Array) -> Dictionary:
+	if raw.is_empty() or raw.size()>Legacy.MAX_MEMBER: return {}
+	var text:=raw.get_string_from_utf8()
+	if text.to_utf8_buffer()!=raw: return {}
+	var structural:=_scan(text)
+	if structural.is_empty() or structural.wire_at<0: return {}
+	var owner:Variant=Legacy._json(raw)
+	if not owner is Dictionary or owner.get("format")!=Legacy.OWNER or owner.get("version")!=4 \
+			or owner.get("active")!="ordinary" or owner.get("dynasty")!={} \
+			or not owner.get("ordinary_state") is Dictionary or not owner.get("common") is Dictionary \
+			or not owner.get("ordinary") is Dictionary: return {}
+	var state:Dictionary=owner.ordinary_state
+	var common:Dictionary=owner.common
+	var archive:Variant=state.get("archive")
+	var close:Variant=state.get("last_close")
+	var t:Variant=state.get("last_transition")
+	var fold:Variant=common.get("last_fold")
+	var expected_id:String="%s:%d:close"%[lineage,ordinal]
+	if state.get("lineage")!=lineage or state.get("ordinal")!=ordinal or state.get("status")!="closed" \
+			or state.get("proposal")!={} or not Legacy._keys(archive,["kind","wire"]) \
+			or archive.kind!=(Legacy.KIND if ordinal==4 else KIND) or archive.wire!=prefix.get_string_from_utf8() \
+			or not close is Dictionary or close.get("id")!=expected_id or close.get("ordinal")!=ordinal \
+			or close.get("league")!="dugout" or close.get("tier")!=0 or close.get("reason")!="complete" \
+			or not Legacy._sha(close.get("session_sha256")) or not close.get("receipt") is Dictionary \
+			or not t is Dictionary or t.get("kind")!=("common-starter-dugout-compact-draft-v1" if ordinal==4 else TRANSITION) \
+			or t.get("id")!="%s:%d:next"%[lineage,ordinal-1] or t.get("from")!=ordinal-1 or t.get("to")!=ordinal \
+			or t.get("league")!="dugout" or t.get("source")!=prior_close or not t.get("basis") is Dictionary: return {}
+	var basis:Dictionary=t.basis
+	var origin:Variant=basis.get("archive_origin")
+	var current:Dictionary=owner.ordinary
+	var native:Variant=current.get("state")
+	var career:Variant=current.get("career")
+	if basis.get("version")!=(5 if ordinal==4 else VERSION) or basis.get("lineage")!=lineage or basis.get("ordinal")!=ordinal \
+			or basis.get("common_sequence")!=ordinal-1 or not Legacy._keys(origin,["kind","ordered_sha256","manifest_sha256"]) \
+			or origin.kind!=("starter-dugout-flat-archive-v1" if ordinal==4 else ORIGIN) \
+			or origin.ordered_sha256!=pins or origin.manifest_sha256!=Legacy._hash(prefix) \
+			or common.get("sequence")!=ordinal or not Legacy._keys(common.get("cursors"),["ordinary","dynasty"]) \
+			or common.cursors.ordinary!=ordinal or common.cursors.dynasty!=0 \
+			or not fold is Dictionary or fold.get("id")!=expected_id or fold.get("side")!="ordinary" \
+			or fold.get("ordinal")!=ordinal or fold.get("sequence")!=ordinal \
+			or fold.get("source")!=close.session_sha256 or fold.get("receipt")!=close.receipt \
+			or not native is Dictionary or native.get("phase")!=SeasonState.Phase.COMPLETE \
+			or not native.get("results") is Array or native.results.size()!=33 or not career is Dictionary \
+			or career.get("start_basis")!=basis: return {}
+	# Confirm location by parsed structural archive key and by the exact
+	# unique token being cut/reinstated. Never cut an arbitrary caller path.
+	var cut:=Legacy._cut(raw,["wire"],[archive.wire])
+	return {} if cut.is_empty() or cut.offsets!=[structural.wire_at] else {"close":close.session_sha256,"cut":cut}
+
+# Iterate one appended raw at a time. Only the old immutable wire and a
+# bounded ordered row list remain; the reconstructed owner's embedded wire
+# is never serialized inside a row body. A visitor may stage read-only
+# observations but must only use them after a successful full traversal.
+static func _walk(data:Dictionary,visit:Callable) -> Dictionary:
+	var prefix:PackedByteArray=data.base_wire.to_utf8_buffer()
+	var info:=_base_info(prefix)
+	if info.is_empty() or info.lineage!=data.lineage: return {}
+	var seen:Array=[]
+	for row:Dictionary in data.rows:
+		if row.prefix_sha256!=Legacy._hash(prefix) or row.prior_close_sha256!=info.close: return {}
+		var raw:=Legacy._reinstate(row,["wire"],[prefix.get_string_from_utf8()])
+		var check:=_closed(raw,row.ordinal,info.lineage,info.close,prefix,info.pins)
+		if check.is_empty() or (visit.is_valid() and visit.call(row.ordinal,raw)!=true): return {}
+		info.close=check.close
+		info.pins.append(row.raw_sha256)
+		seen.append(row)
+		prefix=_encode({"kind":KIND,"version":VERSION,"lineage":data.lineage,"base_wire":data.base_wire,"rows":seen})
+		if prefix.size()>MAX_WIRE: return {}
+	return info
+
+static func walk(wire:PackedByteArray,expected_sha256:String,visit:Callable) -> bool:
+	if not visit.is_valid() or wire.is_empty() or wire.size()>MAX_WIRE \
+			or not Legacy._sha(expected_sha256) or Legacy._hash(wire)!=expected_sha256: return false
+	var data:=_manifest(wire)
+	return not data.is_empty() and not _walk(data,visit).is_empty()
+
+# Both expected digests come from external authenticated admission; a hash
+# match from this transport alone does not authenticate a caller's save.
+static func append(previous:PackedByteArray,expected_prefix_sha256:String,raw:PackedByteArray,
+		expected_raw_sha256:String) -> PackedByteArray:
+	if previous.is_empty() or previous.size()>MAX_WIRE or raw.is_empty() or raw.size()>Legacy.MAX_MEMBER \
+			or not Legacy._sha(expected_prefix_sha256) or not Legacy._sha(expected_raw_sha256) \
+			or Legacy._hash(previous)!=expected_prefix_sha256 or Legacy._hash(raw)!=expected_raw_sha256: return PackedByteArray()
+	# Refuse before either the v6 parser or the v1 fallback. A scanner
+	# failure is never evidence that the input belongs to the legacy codec.
+	var previous_text:=_scanned_text(previous)
+	if previous_text.is_empty(): return PackedByteArray()
+	var data:=_manifest_from_scanned(previous,previous_text)
+	var info:Dictionary
+	if data.is_empty():
+		info=_base_info(previous)
+		if info.is_empty(): return PackedByteArray()
+		data={"kind":KIND,"version":VERSION,"lineage":info.lineage,
+			"base_wire":previous.get_string_from_utf8(),"rows":[]}
+	else:
+		if data.rows.size()>=MAX_APPEND_ROWS: return PackedByteArray()
+		info=_walk(data,Callable())
+		if info.is_empty(): return PackedByteArray()
+	var ordinal:int=4+data.rows.size()
+	var check:=_closed(raw,ordinal,info.lineage,info.close,previous,info.pins)
+	if check.is_empty(): return PackedByteArray()
+	var row:=Legacy._row(raw,ordinal,check.cut)
+	if row.is_empty(): return PackedByteArray()
+	row["prefix_sha256"]=expected_prefix_sha256
+	row["prior_close_sha256"]=info.close
+	data.rows.append(row)
+	var canonical:=_canonical(data)
+	if canonical.is_empty(): return PackedByteArray()
+	var wire:=_encode(canonical)
+	if wire.size()>MAX_WIRE: return PackedByteArray()
+	# Roundtrip the newly compressed row before releasing the transport.
+	return wire if Legacy._reinstate(row,["wire"],[previous.get_string_from_utf8()])==raw else PackedByteArray()
