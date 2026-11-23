@@ -1,0 +1,156 @@
+extends RefCounted
+## Only the first append has an authored native replay. Transport shape never
+## grants authority: a cold read reconstructs exact v5 Close and all its roots.
+const Custody=preload("starter_mixed_append_custody.gd")
+const Base=preload("starter_mixed_custody.gd")
+const ORDINAL: int=5
+
+static func _api() -> Script:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+
+static func marked_state(state: Variant) -> bool:
+	return state is Dictionary and state.get("archive") is Dictionary and state.archive.get("kind")==Custody.KIND
+
+static func _archive_state(state: Dictionary) -> bool:
+	var api:=_api()
+	if not api.Codec.keys(state,api.Common.ORDINARY_FIELDS+["archive"]) or not marked_state(state) \
+			or state.status!="active" or state.ordinal!=ORDINAL or not state.lineage is String or state.proposal!={} \
+			or state.last_close!={} or not api.Codec.keys(state.archive,["kind","wire"]) \
+			or not state.archive.wire is String or state.archive.wire.is_empty() or state.archive.wire.length()>Custody.MAX_WIRE: return false
+	var t: Variant=state.last_transition
+	return api.Codec.keys(t,["kind","id","source","from","to","league","basis"]) \
+		and t.kind==Custody.TRANSITION and t.league=="dugout" and t.from==ORDINAL-1 and t.to==ORDINAL \
+		and t.id=="%s:%d:next"%[state.lineage,ORDINAL-1] and Base._sha(t.source) \
+		and api.Common.Start.valid(t.basis) and api.Common.Start.detached_mixed_append(t.basis) \
+		and t.basis.lineage==state.lineage and api.Common.Life.digest(t.basis)==state.start_basis_sha256
+
+# Detached structural scope only. Producing or publishing always requires the
+# exact Store bound owner, and cold restore independently compares everything.
+static func draft_scope(owner: RefCounted) -> bool:
+	var api:=_api()
+	if owner==null or owner.get_script()!=api or owner.active!="ordinary" or not owner.paused.is_empty() \
+			or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+			or not owner.workshop_draft.is_empty() or not owner.workshop_close_history.is_empty() \
+			or not owner.workshop_chair_purchase.is_empty() or not owner.workshop_applied.is_empty() \
+			or not _archive_state(owner.ordinary_state) or owner.common.get("sequence")!=ORDINAL-1 \
+			or not api.Codec.same(owner.common.get("cursors"),{"ordinary":ORDINAL-1,"dynasty":0}): return false
+	var s: SeasonState=owner.session
+	var b: Dictionary=owner.ordinary_state.last_transition.basis
+	if s==null or s.get_script()!=api.Adapter.OrdinaryRuntime or s.career==null or s.build==null or s.physical==null \
+			or not s.physical.error.is_empty() or not s.physical.pending.is_empty() or not s.physical.needed.is_empty() \
+			or not s.physical.reports.is_empty() or s.physical.cursor!=0 or s.physical.projecting or s.build.pack_pending() \
+			or not s.home_property.is_empty() or not s.league_live or s.league_rules.get("league")!="dugout" \
+			or s.league_rules.get("tier")!=0 or s.season_seed!=b.seed or not api.Codec.same(s.career.start_basis,b) \
+			or s.round_index!=0 or not s.results.is_empty() or not s.player_results.is_empty(): return false
+	return (s.phase==SeasonState.Phase.DRAFT and s.picks.size()<4 and s.cash()==0) \
+		or (s.phase==SeasonState.Phase.REGULAR and s.picks.size()==4)
+
+static func payload(owner: RefCounted) -> Dictionary:
+	if not draft_scope(owner): return {}
+	var api:=_api()
+	var native: Script=api.Adapter.Ordinary
+	if not native._structural_valid(owner.session): return {}
+	var current: Dictionary=native._payload(owner.session)
+	return api._pack_fields(owner,current) if not current.is_empty() else {}
+
+static func _next(prior: RefCounted, wire: PackedByteArray, ordered: Array[String]) -> RefCounted:
+	var api:=_api()
+	if not api.Mixed.closed_complete_scope(prior) or ordered.size()!=ORDINAL-1 \
+			or wire.is_empty() or wire.size()>Custody.MAX_WIRE: return null
+	var state: Dictionary=prior.ordinary_state
+	var lineage: String=state.lineage
+	var seed: int=api.Common.starter_dugout_seed(lineage,ORDINAL)
+	var native: Dictionary=api.Common.Start.make(seed,lineage,ORDINAL,int(prior.common.sequence),
+		api.Common.Life.digest(prior.common.aggregate),api.Common.projection(prior))
+	var basis: Dictionary=api.Common.Start.bind_mixed_append(native,ordered,Base._hash(wire))
+	var session: SeasonState=api.Adapter.OrdinaryRuntime.create_common(basis,"dugout")
+	if session==null: return null
+	var next: RefCounted=api._new()
+	if not api.Codec.install_fields(next,api.DATA_FIELDS,api.Codec.data_fields(prior,api.DATA_FIELDS)): return null
+	next.session=session
+	next.ordinary_state={"status":"active","ordinal":ORDINAL,"lineage":lineage,"last_close":{},"proposal":{},
+		"start_basis_sha256":api.Common.Life.digest(basis),
+		"last_transition":{"kind":Custody.TRANSITION,"id":"%s:%d:next"%[lineage,ORDINAL-1],
+			"source":state.last_close.session_sha256,"from":ORDINAL-1,"to":ORDINAL,"league":"dugout","basis":basis},
+		"archive":{"kind":Custody.KIND,"wire":wire.get_string_from_utf8()}}
+	return next if draft_scope(next) and session.phase==SeasonState.Phase.DRAFT and session.picks.is_empty() else null
+
+# Called only by fixed Store CAS with the actual admitted closed owner/raw.
+static func from_bound_close(prior: RefCounted, raw: PackedByteArray) -> RefCounted:
+	var api:=_api()
+	if not api.Mixed.closed_complete_scope(prior) or raw.is_empty() or raw.size()>Base.MAX_MEMBER: return null
+	var value: Variant=api._bytes_value(raw)
+	var native: Script=api.Adapter.Ordinary
+	if not native._structural_valid(prior.session) \
+			or not api.Codec.same(api._pack_fields(prior,native._payload(prior.session)),value): return null
+	var state: Dictionary=prior.ordinary_state
+	var prefix: PackedByteArray=state.archive.wire.to_utf8_buffer()
+	var pin: String=state.last_transition.basis.archive_origin.manifest_sha256
+	var ordered: Array[String]=[]
+	ordered.assign(state.last_transition.basis.archive_origin.ordered_sha256)
+	var digest:=Base._hash(raw)
+	var wire:=Custody.append(prefix,pin,raw,digest)
+	ordered.append(digest)
+	return _next(prior,wire,ordered)
+
+static func _one_tail(wire: PackedByteArray, sha256: String) -> PackedByteArray:
+	if not Base._sha(sha256) or Base._hash(wire)!=sha256: return PackedByteArray()
+	var manifest:=Custody._manifest(wire)
+	if manifest.is_empty() or manifest.rows.size()!=1: return PackedByteArray()
+	var tail: Array[PackedByteArray]=[]
+	var collect:=func(ordinal:int,raw:PackedByteArray) -> bool:
+		if ordinal!=ORDINAL-1: return false
+		tail.append(raw)
+		return true
+	return tail[0] if not Custody._walk(manifest,collect).is_empty() and tail.size()==1 else PackedByteArray()
+
+static func restore_owned(value: Variant) -> RefCounted:
+	var api:=_api()
+	# Inspect outer types first; neither an incoming basis nor a receipt is a
+	# trust root. The transport is bounded before accessing its native tail.
+	var state: Variant=value.get("ordinary_state") if value is Dictionary else null
+	if not state is Dictionary or not _archive_state(state): return null
+	var current: Variant=value.get("ordinary")
+	if not current is Dictionary or not current.get("state") is Dictionary or not current.state.get("picks") is Array \
+			or current.state.picks.size()>4 or current.state.get("round_index")!=0 \
+			or current.state.get("phase")!=(SeasonState.Phase.REGULAR if current.state.picks.size()==4 else SeasonState.Phase.DRAFT): return null
+	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
+	var raw:=_one_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
+	if raw.is_empty(): return null
+	var prior: RefCounted=api.Mixed.restore_owned(api._bytes_value(raw))
+	if not api.Mixed.closed_complete_scope(prior): return null
+	var ordered: Array[String]=[]
+	ordered.assign(prior.ordinary_state.last_transition.basis.archive_origin.ordered_sha256)
+	ordered.append(Base._hash(raw))
+	var candidate:=_next(prior,wire,ordered)
+	if candidate==null: return null
+	for id: Variant in current.state.picks:
+		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
+	var rebuilt:=payload(candidate)
+	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
+
+static func pick_payload(owner: RefCounted, candidate: RefCounted) -> Dictionary:
+	if not draft_scope(owner) or not draft_scope(candidate) or owner.session.phase!=SeasonState.Phase.DRAFT \
+			or candidate.session.picks.size()!=owner.session.picks.size()+1: return {}
+	var replay: SeasonState=owner.session.fork_live()
+	var id: String=candidate.session.picks[-1]
+	if replay==null or not replay.offers().has(id) or not replay.choose_player(id): return {}
+	var api:=_api()
+	var data:=payload(candidate)
+	return data if not data.is_empty() and api.Codec.same(api.Adapter.Ordinary._payload(replay),data.ordinary) else {}
+
+# Display projection only from Store's previously authenticated archive pin.
+static func display(owner: RefCounted) -> Array:
+	if not draft_scope(owner): return []
+	var api:=_api()
+	var state: Dictionary=owner.ordinary_state
+	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
+	var raw:=_one_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
+	if raw.is_empty(): return []
+	var prior: Variant=api._bytes_value(raw)
+	var rows: Array=api.Mixed.display(prior.ordinary_state.archive)
+	var fourth: Dictionary=api.Common.StandardArchive._display_scores(prior,true)
+	if rows.size()!=3 or fourth.get("ordinal")!=ORDINAL-1 or fourth.results.size()!=33: return []
+	fourth["league"]="dugout"
+	rows.append(fourth)
+	return rows

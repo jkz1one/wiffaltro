@@ -1884,7 +1884,29 @@ func _request_private_standard_flat_abandon() -> void:
 	_lifecycle_dialog.dialog_text="Bank completed-game stats and earned progress once? There is no completion payout. This checkpoint cannot start another season."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
 
+func mixed_append_next_visible() -> bool:
+	return Store.private_mixed_append() and career_owner!=null and career_owner.session==season \
+		and Owner.Mixed.closed_complete_scope(career_owner) and next_league_block().is_empty()
+
+func _mixed_append_next_ready() -> bool:
+	if not mixed_append_next_visible() or not _available() or not _owned() or is_instance_valid(ai_runner) \
+			or not _exit_mode.is_empty() or not retained_human.is_empty() or not retained_report.is_empty() \
+			or menu==null or not menu.visible or menu.page!="home": return false
+	for node: Node in find_children("*","Window",true,false):
+		if node.visible and not node.is_queued_for_deletion(): return false
+	return true
+
+func _request_mixed_append_next() -> void:
+	if not _lifecycle_action.is_empty() or not _mixed_append_next_ready(): return
+	_lifecycle_action="mixed_append_next";_lifecycle_owner=career_owner;_lifecycle_season=season;_lifecycle_bytes=saved_bytes.duplicate()
+	_lifecycle_dialog.title="Start Dugout Base Season 5"
+	_lifecycle_dialog.dialog_text="Start a fresh four-player draft? Prior season history and earned Club Credits stay. Seasonal Cash and items reset. This private build ends after the draft."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
+
 func request_lifecycle(action: String) -> void:
+	if action=="next" and mixed_append_next_visible():
+		_request_mixed_append_next()
+		return
 	if action not in ["abandon","complete","next"] or not _lifecycle_ready(action) or not _owned(): return
 	var dynasty: bool=career_owner.active=="dynasty"
 	if action=="next":
@@ -1914,6 +1936,14 @@ func _confirm_lifecycle() -> void:
 	if private_flat:
 		var ticket: RefCounted=Store.prepare_private_standard_flat_abandon(self)
 		if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
+	elif action=="mixed_append_next":
+		if not _mixed_append_next_ready(): return
+		var expected:=saved_bytes.duplicate()
+		var ticket: RefCounted=Store.prepare_mixed_append_next_and_write(career_owner,expected)
+		if ticket!=null: _retain_prepared(ticket,Store.prepared_candidate(ticket),expected)
+		else:
+			notice="The next season was not saved. Your closed career is unchanged."
+			show_season()
 	elif action=="next": commit_next()
 	else: close_current(action)
 

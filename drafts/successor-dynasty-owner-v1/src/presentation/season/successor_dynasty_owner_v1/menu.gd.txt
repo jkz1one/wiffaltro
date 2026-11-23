@@ -109,6 +109,12 @@ func render() -> void:
 			_bound_button(_body,player.display_name,Callable(app,"draft").bind(id))
 			_player_summary(player)
 		return
+	if Store.Owner.MixedAppend.marked_state(app.career_owner.ordinary_state):
+		_standard_history_link()
+		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
+		_note("Four players drafted. The first game is not available in this private build. Season History and earned progress are retained.")
+		_career_records()
+		return
 	var archived: bool=app.career_owner.ordinary_state.has("archive")
 	var standard_repeat: bool=app.standard_repeat_archive()
 	if app.career_owner.paired_draft_only():
@@ -443,7 +449,7 @@ func _standard_history_link() -> void:
 func _show_standard_history(index: int = 1) -> void:
 	if not app.starter_player() or not app._available(): return
 	var entries: Array = Store.standard_history(app.career_owner,app.saved_bytes)
-	if entries.size() not in [2,3] or index<0 or index>=entries.size():
+	if entries.size() not in [2,3,4] or index<0 or index>=entries.size():
 		render()
 		return
 	var history: Dictionary = entries[index]
@@ -507,7 +513,11 @@ func _closed() -> void:
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
 	if Store.Owner.Mixed.closed_complete_scope(owner):
 		var payout:int=int(owner.ordinary_state.last_close.receipt.total)
-		_note("Completion payout: %d Club Credits. Season results and previous season history are preserved. Next season is not available here."%payout)
+		if app.mixed_append_next_visible():
+			_note("Completion payout: %d Club Credits. Season results and previous season history are preserved."%payout)
+			_bound_button(_body,"START NEXT DUGOUT BASE SEASON",Callable(app,"request_lifecycle").bind("next"))
+		else:
+			_note("Completion payout: %d Club Credits. Season results and previous season history are preserved. Next season is not available here."%payout)
 		return
 	if app.cross_review_visible():
 		_note("Your saved season and earned progress stay intact. Activate Dugout Base below when you are ready to draft your new club.")

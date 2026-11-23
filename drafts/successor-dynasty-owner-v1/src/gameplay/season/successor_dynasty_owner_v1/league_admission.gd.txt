@@ -6,6 +6,8 @@ const Titles = preload("res://src/gameplay/season/club_league_career.gd")
 
 const STARTER_FEATURE: String="wiffaltro_starter_beta"
 const STARTER_MAIN: String="res://starter_bootstrap/entry.tscn"
+const MIXED_APPEND_QA_FEATURE: String="wiffaltro_private_mixed_append_qa"
+const MIXED_APPEND_QA_DIR: String="WiffaltroPrivateMixedAppendQA-v1"
 const STARTER_USER_DIR: String="WiffaltroStarterBeta-v1"
 const STARTER_MAC_USER_DIR: String="WiffaltroStarterBeta-Mac-v1"
 const STARTER_LEAGUES: Array[String]=["standard","dugout"]
@@ -15,10 +17,16 @@ static func starter_feature() -> bool:
 
 static func starter_player() -> bool:
 	var leaf: String=ProjectSettings.get_setting("application/config/custom_user_dir_name","")
-	return starter_feature() and starter_platform_profile(OS.get_name(),leaf) and not OS.has_feature("editor") \
+	return starter_feature() and (starter_platform_profile(OS.get_name(),leaf) or mixed_append_qa_profile()) and not OS.has_feature("editor") \
 		and not OS.has_feature("wiffaltro_engineering_export") \
 		and ProjectSettings.get_setting("application/run/main_scene")==STARTER_MAIN \
 		and ProjectSettings.get_setting("application/config/use_custom_user_dir",false)==true
+
+# This compiled feature and fixed Linux-only save leaf are NEVER set by
+# a public package. An environment variable alone cannot select this profile.
+static func mixed_append_qa_profile() -> bool:
+	return OS.has_feature(MIXED_APPEND_QA_FEATURE) and OS.get_name()=="Linux" \
+		and ProjectSettings.get_setting("application/config/custom_user_dir_name","")==MIXED_APPEND_QA_DIR
 
 static func starter_platform_profile(platform: String, leaf: String) -> bool:
 	return (platform=="Linux" and leaf==STARTER_USER_DIR) \

@@ -109,7 +109,8 @@ func fork_live() -> SeasonState:
 	return result
 
 func make_match() -> MatchState:
-	if career!=null and CommonStart.detached_mixed_flat(career.start_basis): return null
+	if career!=null and (CommonStart.detached_mixed_flat(career.start_basis) \
+			or CommonStart.detached_mixed_append(career.start_basis)): return null
 	return null if _d1_draft() or Admissions.paired_draft_only(self) else super.make_match()
 
 # Called only by the bound compact native App route; the detached

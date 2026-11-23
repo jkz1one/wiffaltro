@@ -96,7 +96,8 @@ static func standard_history_available(owner: RefCounted, expected: PackedByteAr
 	return pin is Dictionary and RawGuard.same(owner.ordinary_state.archive,pin) \
 		and ((Owner.Common.StandardChain.marked(owner.session) and Owner.Common.StandardChain.shape(owner)) \
 			or (LeagueAdmission.starter_player() and (Owner.Common.starter_dugout_chain_scope(owner) \
-				or Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))))
+				or Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner) \
+				or (private_mixed_append() and Owner.MixedAppend.draft_scope(owner)))))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -105,10 +106,11 @@ static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Ar
 	if not RawGuard.same(pin,_standard_history_pin):
 		standard_history_projection_calls += 1
 		var mixed: bool=Owner.Mixed.marked_state(owner.ordinary_state)
-		var view: Array = Owner.Mixed.display(pin) if mixed else (
+		var appended: bool=Owner.MixedAppend.marked_state(owner.ordinary_state)
+		var view: Array = Owner.MixedAppend.display(owner) if appended else (Owner.Mixed.display(pin) if mixed else (
 			_starter_dugout_history(pin) if pin.get("kind")==Owner.Common.STARTER_DUGOUT_CHAIN
-			else Owner.Common.StandardChain.display(pin))
-		if view.size()!=(3 if mixed else 2) or not standard_history_available(owner,expected) \
+			else Owner.Common.StandardChain.display(pin)))
+		if view.size()!=(4 if appended else (3 if mixed else 2)) or not standard_history_available(owner,expected) \
 			or not RawGuard.same(pin,_metadata.ordinary_state.archive) or not _write_revision_matches(expected,true):
 			return []
 		_standard_history_pin = pin.duplicate(true)
@@ -187,7 +189,17 @@ static func private_standard_chain_opening() -> bool:
 		and OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" \
 		and OS.get_environment("WIFFALTRO_STANDARD_CHAIN_OPENING")=="1"
 
+# Temporary native qualification: no normal Starter UI exposes a draft
+# whose first playable fixture has not yet been admitted.
+static func private_mixed_append() -> bool:
+	return LeagueAdmission.starter_player() and LeagueAdmission.mixed_append_qa_profile() \
+		and OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1" \
+		and OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" \
+		and OS.get_environment("WIFFALTRO_STARTER_MIXED_APPEND_DRAFT")=="1"
+
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
+	if owner!=null and Owner.MixedAppend.marked_state(owner.ordinary_state):
+		return private_mixed_append() and Owner.MixedAppend.draft_scope(owner)
 	if Flat.is_flat(owner): return false
 	if owner!=null and Owner.Mixed.marked_state(owner.ordinary_state):
 		return LeagueAdmission.starter_player() and (Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))
@@ -339,6 +351,10 @@ static func _read_common_slot(flat: bool) -> RefCounted:
 	var parser: JSON = JSON.new()
 	if parser.parse(bytes.get_string_from_utf8()) != OK:
 		last_error = "The save is unreadable. Original and backup are preserved."
+		return null
+	if parser.data is Dictionary and Owner.MixedAppend.marked_state(parser.data.get("ordinary_state")) \
+			and not private_mixed_append():
+		last_error="This test career requires its isolated qualification build. No files were changed."
 		return null
 	var season: RefCounted = Flat._restore_private(parser.data) if flat else Owner.restore(parser.data)
 	if season == null:
@@ -503,7 +519,9 @@ static func prepare(owner: RefCounted, candidate: RefCounted, expected: PackedBy
 		if not _routine_pins(candidate): return null
 		# Dormant alternate was strictly admitted on read/promotion. Exact live raw
 		# owner pins were checked above; no caller validation flag or payload.
-		if Owner.Mixed.marked_state(candidate.ordinary_state):
+		if Owner.MixedAppend.marked_state(candidate.ordinary_state):
+			data=Owner.MixedAppend.pick_payload(owner,candidate)
+		elif Owner.Mixed.marked_state(candidate.ordinary_state):
 			data=Owner.Mixed.draft_pick_payload(owner,candidate)
 		else:
 			var current: Dictionary = Adapter.capture(candidate.active,candidate.session)
@@ -1762,6 +1780,23 @@ static func prepare_session_and_write(owner: RefCounted, expected: PackedByteArr
 
 # Exact paid current session stays in place. Only the existing confirmed
 # lifecycle route can promote this fixed narrow metadata-only candidate.
+# Only the qualified fixed rollover writes a v6 birth. Callers cannot
+# provide a seed, a transition, an archive, or an alternate candidate.
+static func prepare_mixed_append_next_and_write(owner: RefCounted,expected: PackedByteArray) -> RefCounted:
+	if not private_mixed_append() or saving or _ticket!=null or _starter_slot_linked() \
+			or not Owner.Mixed.closed_complete_scope(owner) or not match_owner(owner,expected) \
+			or not league_block(owner,"next").is_empty(): return null
+	var candidate: RefCounted=Owner.MixedAppend.from_bound_close(owner,expected)
+	var data: Dictionary=Owner.MixedAppend.payload(candidate)
+	if data.is_empty() or not _starter_owner_allowed(candidate) or not match_owner(owner,expected): return null
+	var snapshot: Dictionary=RawGuard.capture(candidate)
+	if snapshot.is_empty() or not _matches_raw(candidate,snapshot) or not match_owner(owner,expected): return null
+	_ticket=RefCounted.new()
+	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
+	_expected=expected.duplicate();_written=PackedByteArray()
+	_write_admitted()
+	return _ticket
+
 static func _prepare_mixed_completed_close(owner: RefCounted,expected: PackedByteArray) -> RefCounted:
 	if saving or _ticket!=null or not mixed_session_scope(owner) or not Owner.Mixed.complete_scope(owner) \
 			or not match_owner(owner,expected): return null
