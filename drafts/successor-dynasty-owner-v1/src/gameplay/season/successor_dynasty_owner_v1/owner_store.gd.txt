@@ -33,6 +33,7 @@ const BASE_ARCHIVE_SEMI_HUMAN_GENERATION := "starter-base-marked-semifinal-human
 const BASE_ARCHIVE_SEMI_REPORT_GENERATION := "starter-base-marked-semifinal-reports-v1"
 const BASE_ARCHIVE_SEMI_SETTLED_GENERATION := "starter-base-marked-semifinal-settled-v1"
 const BASE_ARCHIVE_COMPLETED_GENERATION := "starter-base-marked-completed-closed-v1"
+const BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION := "starter-base-marked-completed-prepared-v1"
 const BASE_ARCHIVE_ABANDONED_GENERATION := "starter-base-marked-abandoned-v1"
 const BASE_ARCHIVE_PREPARED_GENERATION := "starter-base-marked-prepared-v1"
 const BASE_ARCHIVE_NEXT_BIRTH_GENERATION := "starter-base-marked-next-birth-v1"
@@ -2590,7 +2591,7 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 				BASE_ARCHIVE_REGULAR_SETTLED_GENERATION,BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,
 				BASE_ARCHIVE_POSTSEASON_GENERATION,BASE_ARCHIVE_SEMI_HUMAN_GENERATION,
 				BASE_ARCHIVE_SEMI_REPORT_GENERATION,BASE_ARCHIVE_SEMI_SETTLED_GENERATION,BASE_ARCHIVE_COMPLETED_GENERATION,
-				BASE_ARCHIVE_ABANDONED_GENERATION,
+				BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION,
 				BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
@@ -2661,6 +2662,8 @@ static func _base_archive_load(reader: bool=false) -> Dictionary:
 				if not _base_archive_shop_image(result): return {}
 			BASE_ARCHIVE_COMPLETED_GENERATION:
 				if not _base_archive_completed_closed(result): return {}
+			BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION:
+				if not _base_archive_completed_closed(result,true): return {}
 			BASE_ARCHIVE_ABANDONED_GENERATION:
 				if not _base_archive_abandoned_image(result,false): return {}
 			BASE_ARCHIVE_PREPARED_GENERATION:
@@ -2729,7 +2732,7 @@ static func _base_archive_related_role(generation: String) -> bool:
 		BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION,
 		BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,BASE_ARCHIVE_POSTSEASON_GENERATION,
 		BASE_ARCHIVE_SEMI_HUMAN_GENERATION,BASE_ARCHIVE_SEMI_REPORT_GENERATION,BASE_ARCHIVE_SEMI_SETTLED_GENERATION,
-		BASE_ARCHIVE_COMPLETED_GENERATION]
+		BASE_ARCHIVE_COMPLETED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION]
 
 # A rotating sibling is evidence of the last single native offer, not proof
 # of the archive. The caller has already restored the primary/page strictly.
@@ -2740,7 +2743,8 @@ static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrappe
 	if wrapped.generation==BASE_ARCHIVE_NEXT_BIRTH_GENERATION:
 		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages,related)
 	if not Codec.same(prior.head,wrapped.head): return false
-	if wrapped.generation in [BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_COMPLETED_GENERATION]:
+	if wrapped.generation in [BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION,
+			BASE_ARCHIVE_COMPLETED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION]:
 		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages,related)
 	if wrapped.generation in [BASE_ARCHIVE_SEMI_HUMAN_GENERATION,BASE_ARCHIVE_SEMI_REPORT_GENERATION,
 			BASE_ARCHIVE_SEMI_SETTLED_GENERATION]:
@@ -2852,7 +2856,7 @@ static func _read_base_archive_live_source(allow_human: bool) -> RefCounted:
 			or (allow_human and (_base_archive_report_count(proof.owner)>=0 or _base_archive_settled_image(proof.owner)
 				or _base_archive_next_human_image(proof.owner) or _base_archive_regular_settled_image(proof.owner)
 				or _base_archive_postseason_image(proof.owner) or _base_archive_semifinal_settled(proof.owner)
-				or _base_archive_completed_closed(proof.owner)
+				or _base_archive_completed_closed(proof.owner) or _base_archive_completed_closed(proof.owner,true)
 				or _base_archive_abandoned_image(proof.owner,false) or _base_archive_abandoned_image(proof.owner,true)))): return null
 	proof.session=proof.owner.session
 	proof.snapshot=RawGuard.capture(proof.owner)
@@ -3421,12 +3425,16 @@ static func _base_archive_abandoned_image(owner: RefCounted, prepared: bool) -> 
 
 # Narrow proof for the real completed semifinal-loss season. The existing
 # archive graph reader replays and verifies the native fold before this role.
-static func _base_archive_completed_closed(owner: RefCounted) -> bool:
+static func _base_archive_completed_closed(owner: RefCounted, prepared: bool=false) -> bool:
 	if not _base_archive_semifinal_settled(owner,true) or owner.session.phase!=SeasonState.Phase.COMPLETE:
 		return false
 	var close: Dictionary=owner.ordinary_state.last_close
-	if close.get("reason")!="complete" or not close.get("first_title") is bool \
-			or not owner.ordinary_state.proposal.is_empty(): return false
+	if close.get("reason")!="complete" or not close.get("first_title") is bool: return false
+	var proposal: Dictionary=owner.ordinary_state.proposal
+	if prepared:
+		if proposal.get("league")!="dugout" or proposal.get("tier")!=0 or proposal.get("source")!=close.get("session_sha256") \
+				or proposal.get("basis",{}).get("seed")!=BaseArchive._default_next_seed(owner): return false
+	elif not proposal.is_empty(): return false
 	var receipt: Dictionary=ClubSeasonRecord.receipt(ClubSeasonRecord.capture(owner.session),close.first_title,0)
 	return not receipt.is_empty() and Codec.same(close.get("receipt"),receipt) \
 		and Codec.same(owner.common.last_fold.get("receipt"),receipt)
@@ -3445,6 +3453,12 @@ static func _base_archive_lifecycle_candidate(owner: RefCounted, action: String)
 		"prepare":
 			if not _base_archive_abandoned_image(owner,false) or not next.propose_next(BaseArchive._default_next_seed(owner)) \
 					or not _base_archive_abandoned_image(next,true): return null
+		"prepare_completed":
+			if not _base_archive_completed_closed(owner) or not next.propose_next(BaseArchive._default_next_seed(owner)) \
+					or not _base_archive_completed_closed(next,true): return null
+		"next_completed":
+			if not _base_archive_completed_closed(owner,true) or not next.commit_next() \
+					or not _base_archive_draft_image(next,0) or not next.session.picks.is_empty(): return null
 		"next":
 			if not _base_archive_abandoned_image(owner,true) or not next.commit_next() \
 					or not _base_archive_draft_image(next,0) or not next.session.picks.is_empty(): return null
@@ -3466,10 +3480,14 @@ static func _base_archive_read_lifecycle_sibling(prior: Dictionary, wrapped: Dic
 		BASE_ARCHIVE_PREPARED_GENERATION:
 			if prior.get("generation")!=BASE_ARCHIVE_ABANDONED_GENERATION: return false
 			action="prepare"
+		BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION:
+			if prior.get("generation")!=BASE_ARCHIVE_COMPLETED_GENERATION: return false
+			action="prepare_completed"
 		BASE_ARCHIVE_NEXT_BIRTH_GENERATION:
-			if prior.get("generation")!=BASE_ARCHIVE_PREPARED_GENERATION or pages.size()<2: return false
+			if prior.get("generation") not in [BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION] \
+					or pages.size()<2: return false
 			if BaseArchive.append_head(BaseArchive._wire(prior.head),pages.back())!=head_bytes: return false
-			action="next"
+			action="next_completed" if prior.generation==BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION else "next"
 		_: return false
 	if action=="abandon":
 		if prior.generation==BASE_ARCHIVE_SETTLED_GENERATION and not _base_archive_unshopped_settled_image(previous):
@@ -3477,7 +3495,7 @@ static func _base_archive_read_lifecycle_sibling(prior: Dictionary, wrapped: Dic
 		if prior.generation==BASE_ARCHIVE_SHOP_GENERATION and not _base_archive_shop_image(previous): return false
 		if prior.generation==BASE_ARCHIVE_REGULAR_SETTLED_GENERATION and not _base_archive_regular_settled_image(previous):
 			return false
-	if action=="next":
+	if action in ["next","next_completed"]:
 		var page: Dictionary=BaseArchive._page(pages.back(),prior.head,previous.current_ordinal())
 		if page.is_empty() or not Codec.same(page.image,prior.current.ordinary) \
 				or not Codec.same(page.close,previous.ordinary_state.last_close): return false
@@ -3493,8 +3511,12 @@ static func base_archive_lifecycle_available(owner: RefCounted, expected: Packed
 	if _base_archive_draft_pin.pages.size()>=BASE_ARCHIVE_QA_MAX_PAGES: return false
 	match action:
 		"abandon": return _base_archive_paid_regular(owner) and owner.session.physical.pending.is_empty()
-		"prepare": return _base_archive_abandoned_image(owner,false)
-		"next": return _base_archive_abandoned_image(owner,true)
+		"prepare":
+			return _base_archive_abandoned_image(owner,false) or (_base_archive_completed_closed(owner) \
+				and _base_archive_wrapper(expected).get("generation")==BASE_ARCHIVE_COMPLETED_GENERATION)
+		"next":
+			return _base_archive_abandoned_image(owner,true) or (_base_archive_completed_closed(owner,true) \
+				and _base_archive_wrapper(expected).get("generation")==BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION)
 	return false
 
 static func write_base_archive_lifecycle(app: Variant, ticket: RefCounted) -> bool:
@@ -3505,10 +3527,14 @@ static func write_base_archive_lifecycle(app: Variant, ticket: RefCounted) -> bo
 	var owner: RefCounted=app.career_owner
 	var expected: PackedByteArray=app.saved_bytes
 	if not base_archive_lifecycle_available(owner,expected,action): return false
-	var candidate: RefCounted=_base_archive_lifecycle_candidate(owner,action)
+	var native_action: String=action
+	if action=="prepare" and _base_archive_completed_closed(owner): native_action="prepare_completed"
+	if action=="next" and _base_archive_completed_closed(owner,true): native_action="next_completed"
+	var candidate: RefCounted=_base_archive_lifecycle_candidate(owner,native_action)
 	if candidate==null: return false
 	var generation: String=BASE_ARCHIVE_ABANDONED_GENERATION if action=="abandon" else BASE_ARCHIVE_PREPARED_GENERATION
 	if action=="complete": generation=BASE_ARCHIVE_COMPLETED_GENERATION
+	if native_action=="prepare_completed": generation=BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION
 	var appended: PackedByteArray
 	var head: Dictionary={}
 	if action=="next":

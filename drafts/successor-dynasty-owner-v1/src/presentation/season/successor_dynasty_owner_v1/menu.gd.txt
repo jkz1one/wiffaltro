@@ -117,10 +117,14 @@ func render() -> void:
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
 		_bound_button(_body,"SEASON HISTORY",_show_base_archive_history)
 		if app.career_owner.lifecycle_status()=="closed":
-			if Store._base_archive_completed_closed(app.career_owner):
+			if Store._base_archive_completed_closed(app.career_owner) or Store._base_archive_completed_closed(app.career_owner,true):
 				var close: Dictionary=app.career_owner.ordinary_state.last_close
 				_note("Season complete. Career stats and %d Club Credits were banked once."%int(close.receipt.total))
-				_note("The completed season is saved. Starting the next season is outside this check.")
+				if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"prepare") \
+						or Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"next"):
+					_note("The completed season is saved. Starting the next season adds its complete results and receipt to History.")
+				else:
+					_note("The completed season is saved. No further season is available in this check.")
 			else:
 				_note("Season abandoned. Completed-game stats were banked; no completion payout.")
 			if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"prepare"):
