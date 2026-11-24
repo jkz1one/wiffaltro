@@ -114,10 +114,15 @@ func render() -> void:
 		return
 	if app.base_archive_qualification_view():
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
-		if app.season.physical.pending.is_empty():
+		if app.season.round_index==1:
+			_note("Opening round settled · Cash %d. Later play is not part of this private check."%app.season.cash())
+		elif app.season.physical.pending.is_empty():
 			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 		else:
-			_note("Your managed game is saved. This private opening check does not yet settle the round.")
+			var count: int=app.season.physical.pending.reports.size()
+			_note("Managed game saved · CPU games %d / 2 · Rewards unpaid."%count)
+			if not is_instance_valid(app.ai_runner):
+				_bound_button(_body,"SETTLE SAVED ROUND" if count==2 else "RESUME SAVED ROUND",Callable(app,"resume_round"))
 		return
 	if Store.Owner.MixedAppend.marked_state(app.career_owner.ordinary_state):
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)

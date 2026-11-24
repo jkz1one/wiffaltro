@@ -181,6 +181,7 @@ func cancel_starter_dugout_review() -> void:
 	show_season()
 
 func _exit_tree() -> void:
+	Store.cancel_base_archive_cpu(self)
 	_drop_mixed_continue()
 	_drop_starter_dugout_review()
 	Store.cancel_cross_activation(career_owner)
@@ -1621,6 +1622,9 @@ func _private_flat_native_npc_finished(runner: Node, ticket: RefCounted) -> void
 	_retain_prepared(ticket,Store.prepared_candidate(ticket),saved_bytes)
 
 func resume_round() -> void:
+	if base_archive_qualification_view():
+		_resume_base_archive_round()
+		return
 	_resume_round_native(false)
 
 func resume_starter_npc_slow() -> void:
@@ -2242,4 +2246,36 @@ func _finish_base_archive_game() -> void:
 		return
 	if career_owner!=source or season!=prior or not _adopt_base_archive_view(candidate,expected):
 		notice="The game is saved. Use Continue to verify the checkpoint."
+	show_season()
+
+func _resume_base_archive_round() -> void:
+	if not _available() or not Store.base_archive_app_binding(career_owner,saved_bytes): return
+	var count: int=Store._base_archive_report_count(career_owner)
+	if count<0: return
+	if count<2:
+		ai_runner=Store.start_base_archive_cpu(self)
+		if not is_instance_valid(ai_runner):
+			notice="The saved round could not start its next CPU game."
+			show_season()
+			return
+		_busy=true
+		notice="Simulating the next CPU game. No rewards have been paid."
+		show_season()
+		return
+	_busy=true
+	var settled: bool=Store.settle_base_archive_opening(self)
+	_busy=false
+	_adopt_base_archive_progress(settled,"The round could not be verified for settlement.")
+
+func _base_archive_cpu_result(runner: Node, committed: bool, message: String) -> void:
+	if not is_instance_valid(runner) or runner!=ai_runner or not _busy: return
+	ai_runner=null
+	_busy=false
+	runner.queue_free()
+	_adopt_base_archive_progress(committed,message)
+
+func _adopt_base_archive_progress(committed: bool, message: String) -> void:
+	var written: Dictionary=Store.base_archive_app_result(saved_bytes) if committed else {}
+	if written.is_empty() or not _adopt_base_archive_view(written.owner,written.bytes):
+		notice=message if not committed else "The replacement could not be verified. Use Continue."
 	show_season()

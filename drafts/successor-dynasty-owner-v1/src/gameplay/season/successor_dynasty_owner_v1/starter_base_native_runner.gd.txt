@@ -1,0 +1,55 @@
+extends "res://src/gameplay/season/successor_league_general_v2/physical_runner.gd"
+## Isolated marked Base adds a sealed receipt without touching the signed
+## General runner, any authored frame, report capture, validation, or cleanup.
+const Core = preload("res://src/gameplay/season/successor_league_general_v2/physical_core.gd")
+var _base_cookie: RefCounted
+var _base_issued: RefCounted
+var _base_failed: RefCounted
+var _base_report: Dictionary={}
+var _inside_native_tick: bool=false
+
+func arm_base_archive_receipt(cookie: RefCounted) -> bool:
+	if cookie==null or _running or _viewport!=null or _base_cookie!=null: return false
+	_base_cookie=cookie
+	return true
+
+func take_base_archive_receipt(cookie: RefCounted) -> Dictionary:
+	if cookie==null or cookie!=_base_issued or _running or not _inside_native_tick: return {}
+	_base_issued=null
+	var report: Dictionary=_base_report
+	_base_report={}
+	return report
+
+func base_archive_failure_ready(cookie: RefCounted) -> bool:
+	return cookie!=null and cookie==_base_failed and _inside_native_tick and not _running
+
+func _process(delta: float) -> void:
+	_inside_native_tick=true
+	# The only specialized branch is the end of this exclusive ordinary job.
+	# The stock _process drives every nonterminal frame and its timeout limits.
+	if _base_cookie!=null and _running and is_instance_valid(_lab) and _lab._match_state!=null \
+			and _lab._match_state.phase==MatchState.Phase.GAME_END and _pool_options.is_empty():
+		var cookie: RefCounted=_base_cookie
+		var state: MatchState=_lab._match_state
+		var report: Dictionary=Core.capture(_lab)
+		if not Core.accepted(report,state.pitch_catalog):
+			_fail("Physical match evidence did not balance.")
+		else:
+			cancel()
+			if not _running and _lab==null:
+				_base_failed=null
+				_base_issued=cookie
+				_base_report=report
+				finished.emit(report)
+	else:
+		super._process(delta)
+	_inside_native_tick=false
+
+func cancel() -> void:
+	var failed_cookie: RefCounted=_base_cookie if _inside_native_tick and _running else null
+	_base_cookie=null
+	_base_issued=null
+	_base_failed=null
+	_base_report={}
+	super.cancel()
+	if not _running: _base_failed=failed_cookie

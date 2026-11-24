@@ -4,6 +4,7 @@ const Codec = preload("codec.gd")
 const Owner = preload("owner.gd")
 const Adapter = preload("session_adapter.gd")
 const BaseArchive = preload("starter_base_archive.gd")
+const BaseArchiveRunner = preload("starter_base_native_runner.gd")
 const Flat = preload("starter_standard_continuation.gd")
 const FlatRunner = preload("starter_flat_npc_runner.gd")
 const RawGuard = preload("raw_guard.gd")
@@ -16,6 +17,8 @@ const BASE_ARCHIVE_PAGES := "user://wiffaltro-base-archive-pages-v1"
 const BASE_ARCHIVE_BACKUP_STAGE := ".archive-bak.tmp"
 const BASE_ARCHIVE_DRAFT_GENERATION := "starter-base-marked-draft-v1"
 const BASE_ARCHIVE_HUMAN_GENERATION := "starter-base-marked-human-v1"
+const BASE_ARCHIVE_REPORT_GENERATION := "starter-base-marked-reports-v1"
+const BASE_ARCHIVE_SETTLED_GENERATION := "starter-base-marked-settled-v1"
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
 static var last_error: String = ""
@@ -38,6 +41,8 @@ static var _base_archive_source_pair: Dictionary = {}
 static var _base_archive_draft_pin: Dictionary = {}
 static var _base_archive_write_ticket: RefCounted
 static var _base_archive_live_op: RefCounted
+static var _base_archive_cpu_job: Dictionary={}
+static var _base_archive_settle_pin: Dictionary={}
 static var _flat_play: PrivateFlatOpeningPlay
 static var _flat_play_app: WeakRef
 static var _flat_play_lab: WeakRef
@@ -502,6 +507,8 @@ static func _invalidate() -> void:
 	_base_archive_draft_pin={}
 	_base_archive_write_ticket=null
 	_base_archive_live_op=null
+	_base_archive_cpu_job={}
+	_base_archive_settle_pin={}
 	_clear_private_flat_play()
 	_clear_private_flat_npc()
 	_previous_standard_pin = {}; _previous_standard_view = {}
@@ -2541,7 +2548,8 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 	var wrapped: Dictionary=BaseArchive._decode(bytes.slice(BASE_ARCHIVE_HEADER.length()),MAX_BYTES)
 	var fields: Array[String]=["head","current","prior_primary_sha256"]
 	if wrapped.has("generation"):
-		if wrapped.generation not in [BASE_ARCHIVE_DRAFT_GENERATION,BASE_ARCHIVE_HUMAN_GENERATION]: return {}
+		if wrapped.generation not in [BASE_ARCHIVE_DRAFT_GENERATION,BASE_ARCHIVE_HUMAN_GENERATION,
+				BASE_ARCHIVE_REPORT_GENERATION,BASE_ARCHIVE_SETTLED_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
 			or not BaseArchive._digest(wrapped.prior_primary_sha256): return {}
@@ -2568,10 +2576,16 @@ static func _base_archive_load() -> Dictionary:
 	var result: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(wrapped.current),pages)
 	if result==null: return {}
 	if draft:
-		if wrapped.generation==BASE_ARCHIVE_HUMAN_GENERATION:
-			if not _base_archive_human_image(result): return {}
-		elif not _base_archive_draft_image(result,1): return {}
-		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result): return {}
+		match wrapped.generation:
+			BASE_ARCHIVE_HUMAN_GENERATION:
+				if not _base_archive_human_image(result): return {}
+			BASE_ARCHIVE_REPORT_GENERATION:
+				if _base_archive_report_count(result)<1: return {}
+			BASE_ARCHIVE_SETTLED_GENERATION:
+				if not _base_archive_settled_image(result): return {}
+			_:
+				if not _base_archive_draft_image(result,1): return {}
+		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result,head_bytes,pages): return {}
 	elif not _base_archive_previous_matches(pair.backup.bytes,data.bytes,wrapped.current): return {}
 	if not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
 			or not _base_archive_draft_page_live(head.pages[0],data.bytes): return {}
@@ -2596,10 +2610,33 @@ static func _base_archive_human_image(owner: RefCounted) -> bool:
 
 # A rotating sibling is evidence of the last single native offer, not proof
 # of the archive. The caller has already restored the primary/page strictly.
-static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrapped: Dictionary, current: RefCounted) -> bool:
+static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrapped: Dictionary, current: RefCounted,
+		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
 	var prior: Dictionary=_base_archive_wrapper(bytes)
 	if prior.is_empty() or not Codec.same(prior.head,wrapped.head): return false
+	if wrapped.generation==BASE_ARCHIVE_SETTLED_GENERATION:
+		if prior.get("generation")!=BASE_ARCHIVE_REPORT_GENERATION: return false
+		# Establish the exact typed old checkpoint from the same authenticated
+		# head/pages, not from the plain V4 snapshot hydrator. Neither the
+		# sibling nor its type restoration supplies authority to the primary.
+		var checkpoint: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
+		if _base_archive_report_count(checkpoint)!=2: return false
+		var stock: Dictionary=Adapter.OrdinaryPending.project(checkpoint.session)
+		if stock.has("error") or stock.has("fixture") or not stock.get("candidate") is SeasonState: return false
+		checkpoint.session=stock.candidate
+		return _base_archive_settled_image(checkpoint) and Codec.same(Owner.capture(checkpoint),wrapped.current)
 	var previous: RefCounted=Owner.restore(prior.current)
+	if wrapped.generation==BASE_ARCHIVE_REPORT_GENERATION:
+		var old_count: int=_base_archive_report_count(previous)
+		if old_count<0 or _base_archive_report_count(current)!=old_count+1 \
+				or prior.get("generation")!=(BASE_ARCHIVE_HUMAN_GENERATION if old_count==0 else BASE_ARCHIVE_REPORT_GENERATION):
+			return false
+		var next_pending: Dictionary=current.session.physical.pending
+		if not Codec.same(previous.session.physical.pending.human,next_pending.human) \
+				or not Codec.same(previous.session.physical.pending.reports,next_pending.reports.slice(0,old_count)):
+			return false
+		previous.session.physical.pending=next_pending.duplicate(true)
+		return Codec.same(Owner.capture(previous),wrapped.current)
 	if not _base_archive_draft_image(previous,1 if prior.has("generation") else 0): return false
 	var count: int=previous.session.picks.size()
 	if wrapped.generation==BASE_ARCHIVE_HUMAN_GENERATION:
@@ -2649,7 +2686,7 @@ static func _read_base_archive_live_source(allow_human: bool) -> RefCounted:
 	_base_archive_draft_pin={}
 	var proof: Dictionary=_base_archive_load()
 	if proof.is_empty() or not (_base_archive_draft_image(proof.owner,0) \
-			or (allow_human and _base_archive_human_image(proof.owner))): return null
+			or (allow_human and (_base_archive_report_count(proof.owner)>=0 or _base_archive_settled_image(proof.owner)))): return null
 	proof.session=proof.owner.session
 	proof.snapshot=RawGuard.capture(proof.owner)
 	if proof.snapshot.is_empty() or not _base_archive_draft_pin_live(proof): return null
@@ -2746,3 +2783,141 @@ static func write_base_archive_human(app: Variant) -> bool:
 	_base_archive_draft_pin={}
 	_base_archive_live_op=RefCounted.new()
 	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,BASE_ARCHIVE_HUMAN_GENERATION)
+
+static func _base_archive_report_count(owner: RefCounted) -> int:
+	if not _base_archive_draft_image(owner,4,true): return -1
+	var s: SeasonState=owner.session
+	var pending: Dictionary=s.physical.pending
+	if not Codec.keys(pending,["human","reports"]) or not pending.reports is Array or pending.reports.size()>2 \
+			or s.pending_fixture().get("id",-1)!=0 or not Adapter.OrdinaryPending.shape(s): return -1
+	return pending.reports.size()
+
+static func _base_archive_settled_image(owner: RefCounted) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.session==null: return false
+	var s: SeasonState=owner.session
+	return s.phase==SeasonState.Phase.REGULAR and s.round_index==1 and s.picks.size()==4 \
+		and s.results.size()==3 and s.player_results.size()==1 and s.player_results[0].get("id") == 0 \
+		and s.physical.pending.is_empty() and s.physical.reports.size()==2 and s.physical.cursor==2
+
+static func _base_archive_app_valid(app: Variant) -> bool:
+	return is_instance_valid(app) and app.get_script()==load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
+		and app.base_archive_qualification_view() and not is_instance_valid(app.lab) \
+		and app.season==app.career_owner.session and base_archive_app_binding(app.career_owner,app.saved_bytes)
+
+static func start_base_archive_cpu(app: Variant) -> Node:
+	if not _base_archive_cpu_job.is_empty() or not _base_archive_app_valid(app) or is_instance_valid(app.ai_runner): return null
+	var proof: Dictionary=_base_archive_draft_pin
+	var count: int=_base_archive_report_count(proof.owner)
+	if count<0 or count>=2: return null
+	var p: Dictionary=Adapter.OrdinaryPending.project(proof.session)
+	if p.has("error") or not p.get("fixture") is Dictionary or not p.get("candidate") is SeasonState: return null
+	var fixture: Dictionary=p.fixture
+	var projected: SeasonState=p.candidate
+	var request: String=Adapter.OrdinaryFixtures.request_key(projected,fixture)
+	var field: FieldDefinition=Adapter.OrdinaryRuntime.field_for_fixture(fixture,projected)
+	var state: MatchState=Adapter.OrdinaryFixtures.match_for(projected,fixture)
+	var seed: int=Adapter.OrdinaryFixtures.seed_for(projected,fixture)
+	if not BaseArchive._digest(request) or fixture.get("id")!=count+1 or field==null or state==null \
+			or not _base_archive_app_valid(app): return null
+	var runner: Node=BaseArchiveRunner.new()
+	var cookie:=RefCounted.new()
+	app.add_child(runner)
+	if not runner.arm_base_archive_receipt(cookie):
+		runner.queue_free()
+		return null
+	var job: Dictionary={"app":app,"runner":runner,"cookie":cookie,"proof":proof,
+		"count":count,"fixture":int(fixture.id),"request":request}
+	_base_archive_cpu_job=job
+	runner.finished.connect(func(_untrusted): _base_archive_cpu_signal(job))
+	runner.failed.connect(func(reason): _base_archive_cpu_failed(job,reason))
+	if runner.start(state,seed,field.id): return runner
+	_base_archive_cpu_job={}
+	runner.queue_free()
+	return null
+
+static func _base_archive_cpu_live(job: Dictionary) -> bool:
+	return not job.is_empty() and not _base_archive_cpu_job.is_empty() \
+		and _base_archive_cpu_job.cookie==job.cookie and is_instance_valid(job.app) \
+		and is_instance_valid(job.runner) and job.app.ai_runner==job.runner
+
+static func _base_archive_cpu_failed(job: Dictionary, reason: String) -> void:
+	if not _base_archive_cpu_live(job) or not job.runner.base_archive_failure_ready(job.cookie): return
+	_base_archive_cpu_job={}
+	job.app._base_archive_cpu_result(job.runner,false,reason)
+
+static func _base_archive_cpu_signal(job: Dictionary) -> void:
+	if not _base_archive_cpu_live(job): return
+	# A forged signal at any time has no usable report. Only actual terminal
+	# runner capture populates this one-use receipt before signalling.
+	var report: Dictionary=job.runner.take_base_archive_receipt(job.cookie)
+	if report.is_empty(): return
+	var proof: Dictionary=job.proof
+	var app: Variant=job.app
+	var runner: Node=job.runner
+	_base_archive_cpu_job={}
+	# This builder is not callable with a supplied report; it closes only over
+	# the consumed engine receipt above.
+	var commit:=func() -> bool:
+		if not _base_archive_app_valid(app) or not _base_archive_draft_pin_live(proof) \
+				or _base_archive_draft_pin.owner!=proof.owner or _base_archive_report_count(proof.owner)!=job.count:
+			return false
+		var staged: Dictionary=Adapter.OrdinaryPending.stage_report(proof.session,report)
+		if not staged.get("candidate") is SeasonState: return false
+		var candidate: RefCounted=proof.owner.fork()
+		if candidate==null: return false
+		candidate.session=staged.candidate
+		if _base_archive_report_count(candidate)!=job.count+1: return false
+		var row: Dictionary=candidate.session.physical.pending.reports.back()
+		if row.get("fixture")!=job.fixture or row.get("request")!=job.request or not Codec.same(row.get("report"),report):
+			return false
+		var terminal: RefCounted
+		var terminal_raw: Dictionary={}
+		if job.count==0:
+			if staged.has("settled"): return false
+		else:
+			if not staged.get("settled") is SeasonState: return false
+			terminal=proof.owner.fork()
+			if terminal==null: return false
+			terminal.session=staged.settled
+			if not _base_archive_settled_image(terminal): return false
+			terminal_raw=RawGuard.capture(terminal)
+			if terminal_raw.is_empty(): return false
+		if not _base_archive_app_valid(app) or not _base_archive_draft_pin_live(proof): return false
+		_base_archive_draft_pin={}
+		_base_archive_live_op=RefCounted.new()
+		if not _base_archive_commit_current(_base_archive_live_op,proof,candidate,app.saved_bytes,BASE_ARCHIVE_REPORT_GENERATION):
+			return false
+		if terminal!=null:
+			_base_archive_settle_pin={"owner":candidate,"bytes":_base_archive_draft_pin.pair.primary.bytes,
+				"terminal":terminal,"raw":terminal_raw}
+		return true
+	var committed: bool=commit.call()
+	app._base_archive_cpu_result(runner,committed,
+		"Saved the CPU game. No rewards were paid." if committed else "The CPU game could not be verified against this save.")
+
+static func cancel_base_archive_cpu(app: Variant) -> void:
+	if _base_archive_cpu_job.is_empty() or _base_archive_cpu_job.app!=app: return
+	var runner: Node=_base_archive_cpu_job.runner
+	_base_archive_cpu_job={}
+	if is_instance_valid(runner): runner.cancel()
+
+static func settle_base_archive_opening(app: Variant) -> bool:
+	if not _base_archive_cpu_job.is_empty() or not _base_archive_app_valid(app) \
+			or is_instance_valid(app.ai_runner) or _base_archive_report_count(app.career_owner)!=2: return false
+	var proof: Dictionary=_base_archive_draft_pin
+	var next: RefCounted
+	var cache: Dictionary=_base_archive_settle_pin
+	_base_archive_settle_pin={}
+	if not cache.is_empty() and cache.owner==proof.owner and cache.bytes==app.saved_bytes:
+		if not RawGuard.matches(cache.terminal,cache.raw): return false
+		next=cache.terminal
+	else:
+		var p: Dictionary=Adapter.OrdinaryPending.project(proof.session)
+		if p.has("error") or p.has("fixture") or not p.get("candidate") is SeasonState: return false
+		next=proof.owner.fork()
+		if next==null: return false
+		next.session=p.candidate
+	if not _base_archive_settled_image(next) or not _base_archive_app_valid(app): return false
+	_base_archive_draft_pin={}
+	_base_archive_live_op=RefCounted.new()
+	return _base_archive_commit_current(_base_archive_live_op,proof,next,app.saved_bytes,BASE_ARCHIVE_SETTLED_GENERATION)
