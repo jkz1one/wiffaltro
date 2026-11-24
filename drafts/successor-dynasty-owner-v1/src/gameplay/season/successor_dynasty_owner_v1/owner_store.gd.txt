@@ -14,6 +14,7 @@ const BASE_ARCHIVE_FAMILY := "WIFFALTRO-BASE-ARCHIVE-"
 const BASE_ARCHIVE_HEADER := "WIFFALTRO-BASE-ARCHIVE-V1\n"
 const BASE_ARCHIVE_PAGES := "user://wiffaltro-base-archive-pages-v1"
 const BASE_ARCHIVE_BACKUP_STAGE := ".archive-bak.tmp"
+const BASE_ARCHIVE_DRAFT_GENERATION := "starter-base-marked-draft-v1"
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
 static var last_error: String = ""
@@ -33,6 +34,7 @@ static var _owner: RefCounted
 static var _owner_raw: Dictionary = {}
 static var _owner_bytes: PackedByteArray = PackedByteArray()
 static var _base_archive_source_pair: Dictionary = {}
+static var _base_archive_draft_pin: Dictionary = {}
 static var _base_archive_write_ticket: RefCounted
 static var _flat_play: PrivateFlatOpeningPlay
 static var _flat_play_app: WeakRef
@@ -495,6 +497,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 
 static func _invalidate() -> void:
 	_base_archive_source_pair={}
+	_base_archive_draft_pin={}
 	_base_archive_write_ticket=null
 	_clear_private_flat_play()
 	_clear_private_flat_npc()
@@ -2484,11 +2487,11 @@ static func write_base_archive_next(owner: RefCounted, expected: PackedByteArray
 	return committed
 
 static func _base_archive_install(ticket: RefCounted, pair: Dictionary, page: PackedByteArray,
-		marked: PackedByteArray) -> bool:
+		marked: PackedByteArray, create_page: bool=true) -> bool:
 	if ticket==null or ticket!=_base_archive_write_ticket: return false
 	_base_archive_write_ticket=null
 	if not saving or not _base_archive_qa() or not Codec.same(_base_archive_pair(),pair) \
-			or not _base_archive_temps_clear() or not _base_archive_page_root(true): return false
+			or not _base_archive_temps_clear() or not _base_archive_page_root(create_page): return false
 	var final_page: String=_base_archive_page_path(BaseArchive._hash(page))
 	if final_page.is_empty(): return false
 	# Closed over fixed derived names. No caller-supplied path writer.
@@ -2503,7 +2506,7 @@ static func _base_archive_install(ticket: RefCounted, pair: Dictionary, page: Pa
 		return ok and _base_archive_member(path).get("bytes",PackedByteArray())==bytes
 	var existing:=_base_archive_member(final_page)
 	var page_tmp: String=final_page+".tmp"
-	if existing.is_empty() or not _base_archive_absent(page_tmp): return false
+	if existing.is_empty() or (not create_page and not existing.present) or not _base_archive_absent(page_tmp): return false
 	last_error="The archive transaction was not verified. No interruption file was removed."
 	if existing.present:
 		if existing.bytes!=page: return false
@@ -2527,32 +2530,131 @@ static func _base_archive_install(ticket: RefCounted, pair: Dictionary, page: Pa
 	return true
 
 static func read_base_archive_qualification() -> RefCounted:
-	if saving or _ticket!=null or not _base_archive_qa(): return null
-	var pair:=_base_archive_pair()
-	if pair.is_empty() or not pair.primary.present or not _base_archive_temps_clear(): return null
-	var bytes: PackedByteArray=pair.primary.bytes
-	if bytes.slice(0,BASE_ARCHIVE_HEADER.length()).get_string_from_ascii()!=BASE_ARCHIVE_HEADER: return null
+	return _base_archive_load().get("owner")
+
+static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
+	if bytes.size()>MAX_BYTES or bytes.slice(0,BASE_ARCHIVE_HEADER.length()).get_string_from_ascii()!=BASE_ARCHIVE_HEADER:
+		return {}
 	var wrapped: Dictionary=BaseArchive._decode(bytes.slice(BASE_ARCHIVE_HEADER.length()),MAX_BYTES)
-	if not Codec.keys(wrapped,["head","current","prior_primary_sha256"]) or not wrapped.head is Dictionary \
-			or not wrapped.current is Dictionary or not pair.backup.present \
-			or not BaseArchive._digest(wrapped.prior_primary_sha256) \
-			or BaseArchive._hash(pair.backup.bytes)!=wrapped.prior_primary_sha256: return null
+	var fields: Array[String]=["head","current","prior_primary_sha256"]
+	if wrapped.has("generation"):
+		if wrapped.generation!=BASE_ARCHIVE_DRAFT_GENERATION: return {}
+		fields.append("generation")
+	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
+			or not BaseArchive._digest(wrapped.prior_primary_sha256): return {}
+	return wrapped
+
+static func _base_archive_load() -> Dictionary:
+	if saving or _ticket!=null or not _base_archive_qa(): return {}
+	var pair:=_base_archive_pair()
+	if pair.is_empty() or not pair.primary.present or not _base_archive_temps_clear(): return {}
+	var wrapped: Dictionary=_base_archive_wrapper(pair.primary.bytes)
+	if wrapped.is_empty(): return {}
+	var draft: bool=wrapped.has("generation")
+	if (not draft and not pair.backup.present) or (pair.backup.present \
+			and BaseArchive._hash(pair.backup.bytes)!=wrapped.prior_primary_sha256): return {}
 	var head_bytes: PackedByteArray=BaseArchive._wire(wrapped.head)
 	var head: Dictionary=BaseArchive._head(head_bytes)
-	# This explicit QA entry bounds the raw-page vector. Later public storage
-	# needs controlled streaming and reader/backup generation coordination.
-	if head.is_empty() or head.pages.size()!=1 or not _base_archive_page_root(false): return null
+	# Explicit one-page qualification only; do not load larger private graphs.
+	if head.is_empty() or head.pages.size()!=1 or not _base_archive_page_root(false): return {}
 	var page_path: String=_base_archive_page_path(head.pages[0])
-	if page_path.is_empty() or not _base_archive_absent(page_path+".tmp"): return null
+	if page_path.is_empty() or not _base_archive_absent(page_path+".tmp"): return {}
 	var data:=_base_archive_member(page_path)
-	if data.is_empty() or not data.present: return null
+	if data.is_empty() or not data.present: return {}
 	var pages: Array[PackedByteArray]=[data.bytes]
 	var result: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(wrapped.current),pages)
-	if result==null or not _base_archive_previous_matches(pair.backup.bytes,data.bytes,wrapped.current) \
-			or not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
-			or not _base_archive_page_root(false) or not _base_archive_absent(page_path+".tmp") \
-			or _base_archive_member(page_path).get("bytes",PackedByteArray())!=data.bytes: return null
-	return result
+	if result==null: return {}
+	if draft:
+		if not _base_archive_draft_image(result,1): return {}
+		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result): return {}
+	elif not _base_archive_previous_matches(pair.backup.bytes,data.bytes,wrapped.current): return {}
+	if not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
+			or not _base_archive_draft_page_live(head.pages[0],data.bytes): return {}
+	return {"owner":result,"head":wrapped.head,"pair":pair,"pin":head.pages[0],"page":data.bytes}
+
+static func _base_archive_draft_image(owner: RefCounted, minimum_picks: int) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.session==null:
+		return false
+	var s: SeasonState=owner.session
+	var count: int=s.picks.size()
+	return count>=minimum_picks and count<=4 and s.round_index==0 \
+		and s.phase==(SeasonState.Phase.DRAFT if count<4 else SeasonState.Phase.REGULAR) \
+		and s.results.is_empty() and s.player_results.is_empty() and s.physical.pending.is_empty() \
+		and s.physical.reports.is_empty() and s.physical.cursor==0 and not s.build.pack_pending()
+
+# A rotating sibling is evidence of the last single native offer, not proof
+# of the archive. The caller has already restored the primary/page strictly.
+static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrapped: Dictionary, current: RefCounted) -> bool:
+	var prior: Dictionary=_base_archive_wrapper(bytes)
+	if prior.is_empty() or not Codec.same(prior.head,wrapped.head): return false
+	var previous: RefCounted=Owner.restore(prior.current)
+	if not _base_archive_draft_image(previous,1 if prior.has("generation") else 0): return false
+	var count: int=previous.session.picks.size()
+	if (not prior.has("generation") and count!=0) or count+1!=current.session.picks.size(): return false
+	var id: String=current.session.picks.back()
+	return previous.session.offers().has(id) and previous.session.choose_player(id) \
+		and Codec.same(Owner.capture(previous),wrapped.current)
+
+static func _base_archive_draft_page_live(pin: String, page: PackedByteArray) -> bool:
+	var path: String=_base_archive_page_path(pin)
+	return not path.is_empty() and _base_archive_page_root(false) and _base_archive_absent(path+".tmp") \
+		and _base_archive_member(path).get("bytes",PackedByteArray())==page
+
+static func _base_archive_draft_pin_live(pin: Dictionary) -> bool:
+	return not pin.is_empty() and _base_archive_qa() and _base_archive_temps_clear() \
+		and Codec.same(_base_archive_pair(),pin.pair) and pin.owner.session==pin.session \
+		and RawGuard.matches(pin.owner,pin.snapshot) and _base_archive_draft_page_live(pin.pin,pin.page)
+
+# Explicit separate qualification authority. Never installs generic Store
+# _owner/_owner_bytes or an App play ticket for a marked career.
+static func read_base_archive_draft_source() -> RefCounted:
+	if saving or _ticket!=null or not _base_archive_qa(): return null
+	if _base_archive_draft_pin_live(_base_archive_draft_pin): return _base_archive_draft_pin.owner
+	_base_archive_draft_pin={}
+	var proof: Dictionary=_base_archive_load()
+	if proof.is_empty() or not _base_archive_draft_image(proof.owner,0): return null
+	proof.session=proof.owner.session
+	proof.snapshot=RawGuard.capture(proof.owner)
+	if proof.snapshot.is_empty() or not _base_archive_draft_pin_live(proof): return null
+	_base_archive_draft_pin=proof
+	return proof.owner
+
+static func write_base_archive_pick(owner: RefCounted, expected: PackedByteArray, id: String) -> bool:
+	if saving or _ticket!=null or _base_archive_draft_pin.is_empty() or not _base_archive_qa(): return false
+	var proof: Dictionary=_base_archive_draft_pin
+	if owner!=proof.owner or expected!=proof.pair.primary.bytes: return false
+	if not _base_archive_draft_pin_live(proof):
+		_base_archive_draft_pin={}
+		return false
+	if not _base_archive_draft_image(owner,0) or owner.session.phase!=SeasonState.Phase.DRAFT \
+			or not owner.session.offers().has(id): return false
+	_base_archive_draft_pin={}
+	var candidate: RefCounted=owner.fork()
+	if candidate==null or not candidate.session.choose_player(id): return false
+	var data: Dictionary=Owner.capture(candidate)
+	var snapshot: Dictionary=RawGuard.capture(candidate)
+	if data.is_empty() or snapshot.is_empty() or not _base_archive_draft_image(candidate,1): return false
+	var previous: String=BaseArchive._hash(expected)
+	if not BaseArchive._digest(previous): return false
+	var bytes: PackedByteArray=BASE_ARCHIVE_HEADER.to_utf8_buffer()
+	bytes.append_array(BaseArchive._wire({"head":proof.head,"current":data,
+		"prior_primary_sha256":previous,"generation":BASE_ARCHIVE_DRAFT_GENERATION}))
+	if bytes.size()>MAX_BYTES or not _base_archive_draft_pin_live(proof): return false
+	saving=true
+	_base_archive_write_ticket=RefCounted.new()
+	var committed: bool=_base_archive_install(_base_archive_write_ticket,proof.pair,proof.page,bytes,false)
+	saving=false
+	_invalidate()
+	if not committed: return false
+	proof.owner=candidate
+	proof.session=candidate.session
+	proof.snapshot=snapshot
+	proof.pair={"primary":{"present":true,"bytes":bytes},"backup":{"present":true,"bytes":expected}}
+	if not _base_archive_draft_pin_live(proof):
+		last_error="The draft save was replaced but could not be verified. Use the strict qualification reader."
+		return false
+	_base_archive_draft_pin=proof
+	return true
 
 # This previous primary has no admission power. The caller first strictly
 # replayed the archive, and we bind the exact backup image/Close to that
