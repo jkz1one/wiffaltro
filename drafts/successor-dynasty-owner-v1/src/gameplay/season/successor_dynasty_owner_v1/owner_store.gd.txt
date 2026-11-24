@@ -2592,7 +2592,21 @@ static func _base_archive_load() -> Dictionary:
 		var data: Dictionary=_base_archive_member(path)
 		if data.is_empty() or not data.present or BaseArchive._hash(data.bytes)!=pin: return {}
 		pages.append(data.bytes)
-	var result: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(wrapped.current),pages)
+	var result: RefCounted
+	var related: RefCounted
+	if pair.backup.present and _base_archive_related_role(wrapped.get("generation","")):
+		var prior: Dictionary=_base_archive_wrapper(pair.backup.bytes)
+		if prior.is_empty(): return {}
+		var prior_head: PackedByteArray=BaseArchive._wire(prior.head)
+		if wrapped.generation!=BASE_ARCHIVE_NEXT_BIRTH_GENERATION and prior_head!=head_bytes: return {}
+		if wrapped.generation==BASE_ARCHIVE_NEXT_BIRTH_GENERATION and prior_head==head_bytes: return {}
+		var verified: Dictionary=BaseArchive.restore_related_pages(head_bytes,BaseArchive._wire(wrapped.current),pages,
+			prior_head,BaseArchive._wire(prior.current))
+		if verified.is_empty(): return {}
+		result=verified.primary
+		related=verified.sibling
+	else:
+		result=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(wrapped.current),pages)
 	if result==null: return {}
 	if draft:
 		match wrapped.generation:
@@ -2618,7 +2632,7 @@ static func _base_archive_load() -> Dictionary:
 				if not _base_archive_draft_image(result,0) or not result.session.picks.is_empty() or pages.size()<2: return {}
 			_:
 				if not _base_archive_draft_image(result,1): return {}
-		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result,head_bytes,pages): return {}
+		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result,head_bytes,pages,related): return {}
 	elif not _base_archive_previous_matches(pair.backup.bytes,pages[0],wrapped.current): return {}
 	if not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
 			or not _base_archive_pages_live(head,pages): return {}
@@ -2671,21 +2685,26 @@ static func _base_archive_next_human_image(owner: RefCounted) -> bool:
 		and pending.human.size()==13 and pending.human[0]==s.pending_fixture().get("id") \
 		and Adapter.OrdinaryPending.shape(s)
 
+static func _base_archive_related_role(generation: String) -> bool:
+	return generation in [BASE_ARCHIVE_NEXT_HUMAN_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
+		BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_REGULAR_REPORT_GENERATION,BASE_ARCHIVE_REGULAR_SETTLED_GENERATION,
+		BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION]
+
 # A rotating sibling is evidence of the last single native offer, not proof
 # of the archive. The caller has already restored the primary/page strictly.
 static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrapped: Dictionary, current: RefCounted,
-		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
+		head_bytes: PackedByteArray, pages: Array[PackedByteArray], related: RefCounted) -> bool:
 	var prior: Dictionary=_base_archive_wrapper(bytes)
 	if prior.is_empty(): return false
 	if wrapped.generation==BASE_ARCHIVE_NEXT_BIRTH_GENERATION:
-		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages)
+		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages,related)
 	if not Codec.same(prior.head,wrapped.head): return false
 	if wrapped.generation in [BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION]:
-		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages)
+		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages,related)
 	if wrapped.generation==BASE_ARCHIVE_NEXT_HUMAN_GENERATION:
 		if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
 				BASE_ARCHIVE_REGULAR_SETTLED_GENERATION]: return false
-		var checkpoint: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
+		var checkpoint: RefCounted=related
 		if not _base_archive_paid_regular(checkpoint) or not checkpoint.session.physical.pending.is_empty() \
 				or not Codec.same(checkpoint.session.pending_fixture(),current.session.pending_fixture()): return false
 		if prior.generation==BASE_ARCHIVE_SETTLED_GENERATION and not _base_archive_unshopped_settled_image(checkpoint):
@@ -2698,10 +2717,10 @@ static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrappe
 		checkpoint.session.physical.pending=current.session.physical.pending.duplicate(true)
 		return Codec.same(Owner.capture(checkpoint),wrapped.current)
 	if wrapped.generation in [BASE_ARCHIVE_REGULAR_REPORT_GENERATION,BASE_ARCHIVE_REGULAR_SETTLED_GENERATION]:
-		return _base_archive_regular_sibling(prior,wrapped,current,head_bytes,pages)
+		return _base_archive_regular_sibling(prior,wrapped,current,related)
 	if wrapped.generation==BASE_ARCHIVE_SHOP_GENERATION:
 		if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION]: return false
-		var checkpoint: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
+		var checkpoint: RefCounted=related
 		if not _base_archive_shop_scope(checkpoint): return false
 		if prior.generation==BASE_ARCHIVE_SETTLED_GENERATION and not _base_archive_unshopped_settled_image(checkpoint):
 			return false
@@ -2716,7 +2735,7 @@ static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrappe
 		# Establish the exact typed old checkpoint from the same authenticated
 		# head/pages, not from the plain V4 snapshot hydrator. Neither the
 		# sibling nor its type restoration supplies authority to the primary.
-		var checkpoint: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
+		var checkpoint: RefCounted=related
 		if _base_archive_opening_report_count(checkpoint)!=2: return false
 		var stock: Dictionary=Adapter.OrdinaryPending.project(checkpoint.session)
 		if stock.has("error") or stock.has("fixture") or not stock.get("candidate") is SeasonState: return false
@@ -2949,10 +2968,9 @@ static func _base_archive_settled_after(before: RefCounted, after: RefCounted) -
 	return true
 
 static func _base_archive_regular_sibling(prior: Dictionary, wrapped: Dictionary, current: RefCounted,
-		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
+		previous: RefCounted) -> bool:
 	var prior_kind: Variant=prior.get("generation")
 	if prior_kind not in [BASE_ARCHIVE_NEXT_HUMAN_GENERATION,BASE_ARCHIVE_REGULAR_REPORT_GENERATION]: return false
-	var previous: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
 	var old_count: int=_base_archive_regular_report_count(previous)
 	if old_count<0 or prior_kind!=(BASE_ARCHIVE_NEXT_HUMAN_GENERATION if old_count==0 else BASE_ARCHIVE_REGULAR_REPORT_GENERATION):
 		return false
@@ -3208,10 +3226,9 @@ static func _base_archive_lifecycle_candidate(owner: RefCounted, action: String)
 	return next
 
 static func _base_archive_read_lifecycle_sibling(prior: Dictionary, wrapped: Dictionary,
-		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
+		head_bytes: PackedByteArray, pages: Array[PackedByteArray], previous: RefCounted) -> bool:
+	if previous==null: return false
 	var action: String
-	var proof_pages: Array[PackedByteArray]=pages
-	var prior_head: PackedByteArray=head_bytes
 	match wrapped.generation:
 		BASE_ARCHIVE_ABANDONED_GENERATION:
 			if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
@@ -3222,14 +3239,9 @@ static func _base_archive_read_lifecycle_sibling(prior: Dictionary, wrapped: Dic
 			action="prepare"
 		BASE_ARCHIVE_NEXT_BIRTH_GENERATION:
 			if prior.get("generation")!=BASE_ARCHIVE_PREPARED_GENERATION or pages.size()<2: return false
-			prior_head=BaseArchive._wire(prior.head)
-			if BaseArchive.append_head(prior_head,pages.back())!=head_bytes: return false
-			proof_pages=[]
-			proof_pages.assign(pages.slice(0,pages.size()-1))
+			if BaseArchive.append_head(BaseArchive._wire(prior.head),pages.back())!=head_bytes: return false
 			action="next"
 		_: return false
-	var previous: RefCounted=BaseArchive.restore_pages(prior_head,BaseArchive._wire(prior.current),proof_pages)
-	if previous==null: return false
 	if action=="abandon":
 		if prior.generation==BASE_ARCHIVE_SETTLED_GENERATION and not _base_archive_unshopped_settled_image(previous):
 			return false

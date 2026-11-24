@@ -95,25 +95,21 @@ static func append_head(head: PackedByteArray, page: PackedByteArray) -> PackedB
 static func _default_next_seed(native: RefCounted) -> int:
 	return ("ordinary:%s:%d:nextseed"%[native.ordinary_state.lineage,native.current_ordinal()+1]).hash() & 0x7fffffff
 
-# Caller provides an ordered vector of immutable page bytes, not paths/scripts/
-# callbacks. Only one decoded history page is needed at a time. The individual
-# native file size guard applies to every page, never to all 1024 as one JSON.
-static func restore_pages(head: PackedByteArray, current: PackedByteArray, pages: Array[PackedByteArray]) -> RefCounted:
-	var h: Dictionary=_head(head)
-	if h.is_empty() or pages.size()!=h.pages.size() or current.is_empty() or current.size()>MAX_PAGE: return null
-	for raw: PackedByteArray in pages:
-		if raw.is_empty() or raw.size()>MAX_PAGE: return null
+static func _current_image(current: PackedByteArray, ordinal: int) -> Dictionary:
+	if current.is_empty() or current.size()>MAX_PAGE: return {}
 	var value: Variant=_owner()._bytes_value(current)
 	if not value is Dictionary or not value.get("ordinary_state") is Dictionary \
-			or not value.get("ordinary") is Dictionary or value.ordinary_state.get("ordinal")!=h.ordinal: return null
-	var native: RefCounted=Core.root(int(h.seed),h.league)
-	if native==null: return null
-	for i: int in pages.size():
-		if _hash(pages[i])!=h.pages[i]: return null
-		var page: Dictionary=_page(pages[i],h,i+1)
-		if page.is_empty() or native.current_ordinal()!=i+1 \
-				or not Core._apply_closed(native,page.image,page.close) \
-				or not native.propose_next(_default_next_seed(native)) or not native.commit_next(): return null
+			or not value.get("ordinary") is Dictionary or value.ordinary_state.get("ordinal")!=ordinal: return {}
+	return value
+
+static func _advance_closed_page(native: RefCounted, raw: PackedByteArray, h: Dictionary, i: int) -> bool:
+	if _hash(raw)!=h.pages[i]: return false
+	var page: Dictionary=_page(raw,h,i+1)
+	return not page.is_empty() and native.current_ordinal()==i+1 \
+		and Core._apply_closed(native,page.image,page.close) \
+		and native.propose_next(_default_next_seed(native)) and native.commit_next()
+
+static func _restore_current(native: RefCounted, value: Dictionary) -> RefCounted:
 	var phase: Dictionary=value.ordinary_state
 	var resumed: SeasonState=Core._replay(native.session,value.ordinary)
 	if resumed==null: return null
@@ -125,3 +121,70 @@ static func restore_pages(head: PackedByteArray, current: PackedByteArray, pages
 			return null
 	var rebuilt: Dictionary=_owner().pack_current(native,value.ordinary)
 	return native if not rebuilt.is_empty() and C.same(rebuilt,value) else null
+
+# Caller provides an ordered vector of immutable page bytes, not paths/scripts/
+# callbacks. Only one decoded history page is needed at a time. The individual
+# native file size guard applies to every page, never to all 1024 as one JSON.
+static func restore_pages(head: PackedByteArray, current: PackedByteArray, pages: Array[PackedByteArray]) -> RefCounted:
+	var h: Dictionary=_head(head)
+	if h.is_empty() or pages.size()!=h.pages.size() or current.is_empty() or current.size()>MAX_PAGE: return null
+	for raw: PackedByteArray in pages:
+		if raw.is_empty() or raw.size()>MAX_PAGE: return null
+	var value: Dictionary=_current_image(current,int(h.ordinal))
+	if value.is_empty(): return null
+	var native: RefCounted=Core.root(int(h.seed),h.league)
+	if native==null: return null
+	for i: int in pages.size():
+		if not _advance_closed_page(native,pages[i],h,i): return null
+	return _restore_current(native,value)
+
+static func _detached_birth(native: RefCounted) -> RefCounted:
+	if native.session==null or native.session.phase!=SeasonState.Phase.DRAFT or not native.session.picks.is_empty():
+		return null
+	var branch: RefCounted=native.fork()
+	if branch==null or branch==native or branch.session==native.session or is_same(branch.common,native.common) \
+			or is_same(branch.ordinary_state,native.ordinary_state): return null
+	var source: SeasonState=native.session
+	var fork: SeasonState=branch.session
+	if fork.ownership==source.ownership or fork.build==source.build or fork.build._bank==source.build._bank \
+			or fork.build._book==source.build._book or fork.career==source.career or fork.opponents==source.opponents \
+			or fork.physical==source.physical or not fork.opponents.clubs.is_empty() \
+			or not source.opponents.clubs.is_empty(): return null
+	return branch
+
+# One synchronous related proof, no token or cache. Authenticate the common
+# physical history once, then fully replay each current from its own birth.
+# The only differing-head case is appending one exact next page.
+static func restore_related_pages(head: PackedByteArray, current: PackedByteArray, pages: Array[PackedByteArray],
+		sibling_head: PackedByteArray,sibling_current: PackedByteArray) -> Dictionary:
+	var h: Dictionary=_head(head)
+	var sibling: Dictionary=_head(sibling_head)
+	if h.is_empty() or sibling.is_empty() or pages.size()!=h.pages.size() \
+			or current.is_empty() or current.size()>MAX_PAGE or sibling_current.is_empty() \
+			or sibling_current.size()>MAX_PAGE: return {}
+	for raw: PackedByteArray in pages:
+		if raw.is_empty() or raw.size()>MAX_PAGE: return {}
+	var depth: int=sibling.pages.size()
+	if head!=sibling_head and (depth+1!=pages.size() or append_head(sibling_head,pages.back())!=head): return {}
+	var value: Dictionary=_current_image(current,int(h.ordinal))
+	var sibling_value: Dictionary=_current_image(sibling_current,int(sibling.ordinal))
+	if value.is_empty() or sibling_value.is_empty(): return {}
+	var native: RefCounted=Core.root(int(h.seed),h.league)
+	if native==null: return {}
+	var guard: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+	var branch: RefCounted
+	var branch_before: Dictionary={}
+	for i: int in range(pages.size()+1):
+		if i==depth:
+			branch=_detached_birth(native)
+			if branch==null: return {}
+			branch_before=guard.capture(native)
+			if branch_before.is_empty() or not guard.matches(branch,branch_before): return {}
+		if i<pages.size() and not _advance_closed_page(native,pages[i],h,i): return {}
+	var primary: RefCounted=_restore_current(native,value)
+	if primary==null or branch==null or not guard.matches(branch,branch_before): return {}
+	var primary_before: Dictionary=guard.capture(primary)
+	if primary_before.is_empty(): return {}
+	var previous: RefCounted=_restore_current(branch,sibling_value)
+	if previous==null or not guard.matches(primary,primary_before): return {}
+	return {"primary":primary,"sibling":previous}
