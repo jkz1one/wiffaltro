@@ -6,6 +6,8 @@ const VERSION: int = 6
 const KIND: String = "starter-mixed-append-custody-v1"
 const ORIGIN: String = "starter-dugout-append-archive-v1"
 const TRANSITION: String = "common-starter-dugout-compact-draft-v2"
+const SEASON_SIX_TRANSITION: String = "common-starter-dugout-season-six-draft-v1"
+const SEASON_SIX_ORIGIN: String = "starter-dugout-season-six-archive-v1"
 const MAX_APPEND_ROWS: int = 8
 const MAX_TOTAL_RAW: int = 128 * 1024 * 1024
 const MAX_WIRE: int = 43 * 1024 * 1024
@@ -149,6 +151,12 @@ static func _closed(raw: PackedByteArray,ordinal:int,lineage:String,prior_close:
 	var close:Variant=state.get("last_close")
 	var t:Variant=state.get("last_transition")
 	var fold:Variant=common.get("last_fold")
+	# Explicit archived member contracts; transport caps do not license
+	# prospective owner/basis versions.
+	if ordinal not in [4,5,6]: return {}
+	var transition:String="common-starter-dugout-compact-draft-v1" if ordinal==4 else (TRANSITION if ordinal==5 else SEASON_SIX_TRANSITION)
+	var basis_version:int=5 if ordinal==4 else (VERSION if ordinal==5 else 7)
+	var origin_kind:String="starter-dugout-flat-archive-v1" if ordinal==4 else (ORIGIN if ordinal==5 else SEASON_SIX_ORIGIN)
 	var expected_id:String="%s:%d:close"%[lineage,ordinal]
 	if state.get("lineage")!=lineage or state.get("ordinal")!=ordinal or state.get("status")!="closed" \
 			or state.get("proposal")!={} or not Legacy._keys(archive,["kind","wire"]) \
@@ -156,7 +164,7 @@ static func _closed(raw: PackedByteArray,ordinal:int,lineage:String,prior_close:
 			or not close is Dictionary or close.get("id")!=expected_id or close.get("ordinal")!=ordinal \
 			or close.get("league")!="dugout" or close.get("tier")!=0 or close.get("reason")!="complete" \
 			or not Legacy._sha(close.get("session_sha256")) or not close.get("receipt") is Dictionary \
-			or not t is Dictionary or t.get("kind")!=("common-starter-dugout-compact-draft-v1" if ordinal==4 else TRANSITION) \
+			or not t is Dictionary or t.get("kind")!=transition \
 			or t.get("id")!="%s:%d:next"%[lineage,ordinal-1] or t.get("from")!=ordinal-1 or t.get("to")!=ordinal \
 			or t.get("league")!="dugout" or t.get("source")!=prior_close or not t.get("basis") is Dictionary: return {}
 	var basis:Dictionary=t.basis
@@ -164,9 +172,9 @@ static func _closed(raw: PackedByteArray,ordinal:int,lineage:String,prior_close:
 	var current:Dictionary=owner.ordinary
 	var native:Variant=current.get("state")
 	var career:Variant=current.get("career")
-	if basis.get("version")!=(5 if ordinal==4 else VERSION) or basis.get("lineage")!=lineage or basis.get("ordinal")!=ordinal \
+	if basis.get("version")!=basis_version or basis.get("lineage")!=lineage or basis.get("ordinal")!=ordinal \
 			or basis.get("common_sequence")!=ordinal-1 or not Legacy._keys(origin,["kind","ordered_sha256","manifest_sha256"]) \
-			or origin.kind!=("starter-dugout-flat-archive-v1" if ordinal==4 else ORIGIN) \
+			or origin.kind!=origin_kind \
 			or origin.ordered_sha256!=pins or origin.manifest_sha256!=Legacy._hash(prefix) \
 			or common.get("sequence")!=ordinal or not Legacy._keys(common.get("cursors"),["ordinary","dynasty"]) \
 			or common.cursors.ordinary!=ordinal or common.cursors.dynasty!=0 \
