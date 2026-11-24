@@ -117,7 +117,12 @@ func render() -> void:
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
 		_bound_button(_body,"SEASON HISTORY",_show_base_archive_history)
 		if app.career_owner.lifecycle_status()=="closed":
-			_note("Season abandoned. Completed-game stats were banked; no completion payout.")
+			if Store._base_archive_completed_closed(app.career_owner):
+				var close: Dictionary=app.career_owner.ordinary_state.last_close
+				_note("Season complete. Career stats and %d Club Credits were banked once."%int(close.receipt.total))
+				_note("The completed season is saved. Starting the next season is outside this check.")
+			else:
+				_note("Season abandoned. Completed-game stats were banked; no completion payout.")
 			if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"prepare"):
 				_bound_button(_body,"PREPARE NEXT SEASON",Callable(app,"propose_next"))
 			elif Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"next"):
@@ -136,7 +141,9 @@ func render() -> void:
 		elif Store._base_archive_semifinal_settled(app.career_owner):
 			_note("Semifinal paid. Your club reached the final. Final play is outside this check." \
 				if app.season.phase==SeasonState.Phase.FINAL else \
-				"Your club was eliminated in the semifinal. The CPU final is complete. Season Close is outside this check.")
+				"Your club was eliminated in the semifinal. The CPU final is complete.")
+			if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"complete"):
+				_bound_button(_body,"CLOSE COMPLETED SEASON…",Callable(app,"request_lifecycle").bind("complete"))
 		elif Store._base_archive_postseason_image(app.career_owner):
 			_note("Your club missed the playoffs. The CPU bracket is complete. Season Close is outside this check.")
 		elif regular_count>=0:
