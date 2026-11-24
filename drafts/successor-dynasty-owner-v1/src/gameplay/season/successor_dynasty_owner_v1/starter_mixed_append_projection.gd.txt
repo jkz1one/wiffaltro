@@ -114,25 +114,32 @@ static func season_scope(owner: RefCounted) -> bool:
 	return s.phase!=SeasonState.Phase.DRAFT and _api().Mixed._season_phase(s) \
 		and _shop_journal(s.build._events)
 
-# Season 6 owns interior regular rounds through their exact paid checkpoints.
-# Keep this separate from season_scope, which grants v6 Shop and Close.
+# Season 6 owns all regular rounds and the two paid bracket landings. Keep
+# this separate from season_scope (v6 Shop/Close) and round_scope (launch).
 static func rollover_play_scope(owner: RefCounted) -> bool:
 	if not _native_owner_scope(owner,false,true): return false
 	var s: SeasonState=owner.session
-	return s.phase==SeasonState.Phase.REGULAR and not s.build.pack_pending() \
-		and _rollover_regular_shape(s.round_index,s.physical.pending,s.build._events) \
+	return not s.build.pack_pending() \
+		and _rollover_phase_shape(s.phase,s.round_index,s.player_results.size(),s.physical.pending,s.build._events) \
 		and _api().Mixed._season_phase(s)
 
-static func _rollover_regular_shape(round_index: Variant,pending: Dictionary,events: Variant) -> bool:
+static func _rollover_phase_shape(phase: Variant,index: Variant,managed_count: int,pending: Dictionary,events: Variant) -> bool:
 	var api:=_api()
-	var stop: int=api.Adapter.OrdinaryRuntime.MIXED_ROLLOVER_REGULAR_STOP
-	if not api.Codec.whole(round_index,0,stop) or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return false
+	var runtime: Script=api.Adapter.OrdinaryRuntime
+	var regular_rounds: int=runtime.MIXED_ROLLOVER_REGULAR_ROUNDS
+	if not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return false
 	for command: Variant in events:
 		if not command is Dictionary or SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return false
-	# Each regular round holds only its two CPU reports before one settlement.
-	if pending.is_empty(): return true
-	var reports: Variant=pending.get("reports")
-	return round_index<stop and reports is Array and reports.size()<=2
+	if phase==SeasonState.Phase.REGULAR:
+		if not api.Codec.whole(index,0,regular_rounds-1): return false
+		if pending.is_empty(): return true
+		var reports: Variant=pending.get("reports")
+		return reports is Array and reports.size()<=runtime.mixed_rollover_regular_report_cap(int(index))
+	# Ten managed games distinguishes regular elimination from any paid
+	# playoff loss or victory. No pending playoff job is admitted here.
+	return api.Codec.whole(phase,SeasonState.Phase.SEMIFINAL,SeasonState.Phase.COMPLETE) \
+		and int(phase) in [SeasonState.Phase.SEMIFINAL,SeasonState.Phase.COMPLETE] \
+		and index==regular_rounds and managed_count==regular_rounds and pending.is_empty()
 
 static func complete_scope(owner: RefCounted) -> bool:
 	return season_scope(owner) and owner.session.phase==SeasonState.Phase.COMPLETE
@@ -177,8 +184,7 @@ static func _active_play_phase(owner: RefCounted) -> bool:
 
 static func round_scope(owner: RefCounted) -> bool:
 	return (_active_play_phase(owner) and not owner.session.build.pack_pending()) \
-		or (rollover_play_scope(owner) \
-			and owner.session.round_index<_api().Adapter.OrdinaryRuntime.MIXED_ROLLOVER_REGULAR_STOP)
+		or (rollover_play_scope(owner) and owner.session.phase==SeasonState.Phase.REGULAR)
 
 static func shop_scope(owner: RefCounted) -> bool:
 	return _active_play_phase(owner) and owner.session.physical.pending.is_empty() \
@@ -310,8 +316,8 @@ static func _restore_rollover(value: Dictionary, state: Dictionary) -> RefCounte
 	var current: Variant=value.get("ordinary")
 	if not _current_shape(current): return null
 	var played: bool=not current.state.results.is_empty() or not current.physical.pending.is_empty()
-	if current.state.picks.size()==4 and (current.state.phase!=SeasonState.Phase.REGULAR \
-			or not _rollover_regular_shape(current.state.round_index,current.physical.pending,current.build.build._events)): return null
+	if current.state.picks.size()==4 and not _rollover_phase_shape(current.state.phase,current.state.round_index, \
+			current.state.player_results.size(),current.physical.pending,current.build.build._events): return null
 	var api:=_api()
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
 	var raw:=_rollover_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)

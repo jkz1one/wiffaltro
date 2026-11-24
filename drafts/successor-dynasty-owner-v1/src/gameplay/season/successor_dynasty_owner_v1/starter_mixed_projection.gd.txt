@@ -368,8 +368,11 @@ static func _replay_shop(s: SeasonState, journal: Array) -> bool:
 static func _project_mixed_round(source: SeasonState) -> Dictionary:
 	var api:=_api()
 	var pending: Dictionary=source.physical.pending
+	var cap:=2
+	if source.career!=null and api.Common.Start.detached_mixed_rollover(source.career.start_basis):
+		cap=api.Adapter.OrdinaryRuntime.mixed_rollover_regular_report_cap(source.round_index)
 	var eligible: bool=source.phase==SeasonState.Phase.REGULAR and pending.get("reports") is Array \
-			and not pending.reports.is_empty() and pending.reports.size()<=2
+			and not pending.reports.is_empty() and pending.reports.size()<=cap
 	var original: Dictionary=api.Adapter.OrdinaryPending._project_for_mixed_restore(source) \
 			if eligible else api.Adapter.OrdinaryPending.project(source)
 	var mismatch: Dictionary=original.get("_mixed_request_mismatch",{})

@@ -12,9 +12,12 @@ const Genesis = preload("res://src/gameplay/season/successor_owner_career_v1/gen
 const ScheduleSelector = preload("res://src/gameplay/season/successor_doubleheader_selector_v1/schedule_selector.gd")
 const Admissions = preload("ordinary_admission.gd")
 const COMMON_ORDINARY_LEAGUES = Admissions.LEAGUES
-# The last regular fixture can atomically land in the postseason or COMPLETE.
-# Admit interior rounds only until those two landings are qualified for v7.
-const MIXED_ROLLOVER_REGULAR_STOP: int=9
+const MIXED_ROLLOVER_REGULAR_ROUNDS: int=10
+
+# The last managed regular game can also resolve both CPU semifinals and
+# the CPU final if the managed club doesn't qualify.
+static func mixed_rollover_regular_report_cap(index: int) -> int:
+	return 5 if index==MIXED_ROLLOVER_REGULAR_ROUNDS-1 else 2
 
 static func create_fresh(seed_value: int, league: String = "standard") -> SeasonState:
 	return _create_named(seed_value,league,Genesis.derive(seed_value)) if league in COMMON_ORDINARY_LEAGUES else null
@@ -124,7 +127,7 @@ func _make_mixed_round() -> MatchState:
 			or not physical.pending.is_empty() or build.pack_pending(): return null
 	var basis: Dictionary=career.start_basis
 	if CommonStart.detached_mixed_rollover(basis):
-		if phase!=Phase.REGULAR or round_index<0 or round_index>=MIXED_ROLLOVER_REGULAR_STOP \
+		if phase!=Phase.REGULAR or round_index<0 or round_index>=MIXED_ROLLOVER_REGULAR_ROUNDS \
 				or results.size()!=round_index*3 or player_results.size()!=round_index or picks.size()!=4: return null
 	elif not CommonStart.detached_mixed_flat(basis) and not CommonStart.detached_mixed_append(basis):
 		return null
