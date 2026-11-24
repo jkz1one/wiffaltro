@@ -27,10 +27,10 @@ static func _base_close_receipt_shape(value: Variant, first_title: bool) -> bool
 	return value.finish_award==award and value.record_bonus==record and value.first_bonus==bonus \
 		and value.total==award+record+bonus
 
-static func _close_meta_shape(state: Dictionary, close: Variant) -> bool:
+static func _close_meta_shape(state: Dictionary, close: Variant, ordinal: int=ORDINAL) -> bool:
 	var api:=_api()
 	return api.Codec.keys(close,["id","ordinal","reason","session_sha256","receipt","first_title","league","tier"]) \
-		and close.id=="%s:%d:close"%[state.lineage,ORDINAL] and close.ordinal==ORDINAL \
+		and close.id=="%s:%d:close"%[state.lineage,ordinal] and close.ordinal==ordinal \
 		and close.reason=="complete" and close.league=="dugout" and close.tier==0 \
 		and close.first_title is bool and _base_close_receipt_shape(close.receipt,close.first_title) \
 		and Base._sha(close.session_sha256)
@@ -49,13 +49,16 @@ static func _archive_state(state: Dictionary, closed: bool=false) -> bool:
 		and api.Common.Start.valid(t.basis) and api.Common.Start.detached_mixed_append(t.basis) \
 		and t.basis.lineage==state.lineage and api.Common.Life.digest(t.basis)==state.start_basis_sha256
 
-static func _rollover_archive_state(state: Dictionary) -> bool:
+static func _rollover_archive_state(state: Dictionary, closed: bool=false) -> bool:
 	var api:=_api()
 	if not api.Codec.keys(state,api.Common.ORDINARY_FIELDS+["archive"]) or not marked_state(state) \
-			or state.status!="active" or state.ordinal!=ROLLOVER_ORDINAL or not state.lineage is String \
-			or state.proposal!={} or state.last_close!={} or not api.Codec.keys(state.archive,["kind","wire"]) \
+			or state.status!=("closed" if closed else "active") or state.ordinal!=ROLLOVER_ORDINAL or not state.lineage is String \
+			or state.proposal!={} or not api.Codec.keys(state.archive,["kind","wire"]) \
 			or not state.archive.wire is String or state.archive.wire.is_empty() \
 			or state.archive.wire.length()>Custody.MAX_WIRE: return false
+	if closed:
+		if not _close_meta_shape(state,state.last_close,ROLLOVER_ORDINAL) or state.last_close.receipt.finish!="missed": return false
+	elif state.last_close!={}: return false
 	var t: Variant=state.last_transition
 	return api.Codec.keys(t,["kind","id","source","from","to","league","basis"]) \
 		and t.kind==ROLLOVER_TRANSITION and t.league=="dugout" and t.from==ORDINAL and t.to==ROLLOVER_ORDINAL \
@@ -67,13 +70,12 @@ static func _rollover_archive_state(state: Dictionary) -> bool:
 # exact Store bound owner, and cold restore independently compares everything.
 static func _native_owner_scope(owner: RefCounted, closed: bool=false, rollover: bool=false) -> bool:
 	var api:=_api()
-	if rollover and closed: return false
-	var previous: int=ORDINAL if closed or rollover else ORDINAL-1
+	var previous: int=ROLLOVER_ORDINAL if rollover and closed else (ORDINAL if closed or rollover else ORDINAL-1)
 	if owner==null or owner.get_script()!=api or owner.active!="ordinary" or not owner.paused.is_empty() \
 			or not api._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
 			or not owner.workshop_draft.is_empty() or not owner.workshop_close_history.is_empty() \
 			or not owner.workshop_chair_purchase.is_empty() or not owner.workshop_applied.is_empty() \
-			or not (_rollover_archive_state(owner.ordinary_state) if rollover else _archive_state(owner.ordinary_state,closed)) \
+			or not (_rollover_archive_state(owner.ordinary_state,closed) if rollover else _archive_state(owner.ordinary_state,closed)) \
 			or owner.common.get("sequence")!=previous \
 			or not api.Codec.same(owner.common.get("cursors"),{"ordinary":previous,"dynasty":0}): return false
 	var s: SeasonState=owner.session
@@ -157,6 +159,38 @@ static func closed_complete_scope(owner: RefCounted) -> bool:
 		and row.source==c.session_sha256 and api.Common.Progress.valid(owner.common.aggregate) \
 		and row.aggregate_sha256==api.Common.Life.digest(owner.common.aggregate) and api.Codec.same(row.receipt,c.receipt)
 
+# The v7 closed scope is intentionally NOT the prior-version Next authority.
+static func _rollover_eliminated_session(s: SeasonState) -> bool:
+	if s.phase!=SeasonState.Phase.COMPLETE or s.build.pack_pending() \
+		or not _rollover_phase_shape(s.phase,s.round_index,s.player_results.size(),s.physical.pending,s.build._events) \
+		or not _api().Mixed._season_phase(s) or s.results.size()!=33 \
+		or s.physical.reports.size()!=23 or s.physical.cursor!=23: return false
+	for result: Dictionary in s.results:
+		if result.id>=30 and (result.away==0 or result.home==0): return false
+	return true
+
+static func rollover_complete_scope(owner: RefCounted) -> bool:
+	return _native_owner_scope(owner,false,true) and _rollover_eliminated_session(owner.session)
+
+static func rollover_closed_complete_scope(owner: RefCounted) -> bool:
+	if not _native_owner_scope(owner,true,true) or not _rollover_eliminated_session(owner.session): return false
+	var api:=_api()
+	var c: Dictionary=owner.ordinary_state.last_close
+	var row: Variant=owner.common.get("last_fold")
+	return api.Codec.keys(row,["id","side","ordinal","sequence","source","aggregate_sha256","receipt"]) \
+		and row.id==c.id and row.side=="ordinary" and row.ordinal==ROLLOVER_ORDINAL and row.sequence==ROLLOVER_ORDINAL \
+		and row.source==c.session_sha256 and api.Common.Progress.valid(owner.common.aggregate) \
+		and row.aggregate_sha256==api.Common.Life.digest(owner.common.aggregate) and api.Codec.same(row.receipt,c.receipt)
+
+static func fold_rollover_complete(owner: RefCounted, id: String, sequence: int) -> Dictionary:
+	if not rollover_complete_scope(owner): return {}
+	var api:=_api()
+	var before: Dictionary=owner.common.aggregate
+	if not api.Common.Progress.valid(before) or not api.Common.Progress._close_id(id) \
+		or id!="%s:%d:close"%[owner.ordinary_state.lineage,ROLLOVER_ORDINAL] \
+		or sequence!=ROLLOVER_ORDINAL or sequence!=before.closed+1 or sequence!=owner.common.sequence+1: return {}
+	return api.Common.Progress._fold_native(before,"ordinary",owner.session,id,sequence,"complete")
+
 static func fold_complete(owner: RefCounted, id: String, sequence: int) -> Dictionary:
 	if not complete_scope(owner): return {}
 	var api:=_api()
@@ -169,13 +203,14 @@ static func fold_complete(owner: RefCounted, id: String, sequence: int) -> Dicti
 # Only the fixed Store producer and strict replay-backed reader call this.
 # Reuse the exact authenticated current without accepting a caller payout.
 static func completed_close(owner: RefCounted,current: Dictionary) -> RefCounted:
-	if not complete_scope(owner) or current.is_empty(): return null
+	var rollover:=rollover_complete_scope(owner)
+	if not (rollover or complete_scope(owner)) or current.is_empty(): return null
 	var api:=_api()
 	var candidate: RefCounted=api._new()
 	candidate.session=owner.session
 	if not api.Codec.install_fields(candidate,api.DATA_FIELDS,api.Codec.data_fields(owner,api.DATA_FIELDS)) \
 		or not api.Common._fold_close_state(candidate,"complete",current) \
-		or not closed_complete_scope(candidate): return null
+		or not (rollover_closed_complete_scope(candidate) if rollover else closed_complete_scope(candidate)): return null
 	return candidate
 
 static func _active_play_phase(owner: RefCounted) -> bool:
@@ -312,10 +347,12 @@ static func _rollover_tail(wire: PackedByteArray, sha256: String) -> PackedByteA
 	return tail[0] if not Custody._walk(manifest,collect).is_empty() and seen==[4,5] and tail.size()==1 else PackedByteArray()
 
 static func _restore_rollover(value: Dictionary, state: Dictionary) -> RefCounted:
-	if not _rollover_archive_state(state): return null
+	var closed: bool=state.get("status")=="closed"
+	if not _rollover_archive_state(state,closed): return null
 	var current: Variant=value.get("ordinary")
 	if not _current_shape(current): return null
 	var played: bool=not current.state.results.is_empty() or not current.physical.pending.is_empty()
+	if closed and (not played or current.state.picks.size()!=4 or current.state.phase!=SeasonState.Phase.COMPLETE): return null
 	if current.state.picks.size()==4 and not _rollover_phase_shape(current.state.phase,current.state.round_index, \
 			current.state.player_results.size(),current.physical.pending,current.build.build._events): return null
 	var api:=_api()
@@ -339,6 +376,9 @@ static func _restore_rollover(value: Dictionary, state: Dictionary) -> RefCounte
 		var replay: RefCounted=api.Mixed._replay_current_image(candidate.session,current)
 		if replay==null: return null
 		candidate.session=replay.session
+		if closed:
+			var folded:=completed_close(candidate,replay.image)
+			return folded if folded!=null and api.Codec.same(api._pack_fields(folded,replay.image),value) else null
 		return candidate if rollover_play_scope(candidate) \
 			and api.Codec.same(api._pack_fields(candidate,replay.image),value) else null
 	var rebuilt:=payload(candidate)
@@ -397,7 +437,7 @@ static func pick_payload(owner: RefCounted, candidate: RefCounted) -> Dictionary
 # Display projection only from Store's previously authenticated archive pin.
 static func display(owner: RefCounted) -> Array:
 	if not draft_scope(owner) and not season_scope(owner) and not closed_complete_scope(owner) \
-			and not rollover_play_scope(owner): return []
+			and not rollover_play_scope(owner) and not rollover_closed_complete_scope(owner): return []
 	var api:=_api()
 	var state: Dictionary=owner.ordinary_state
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()

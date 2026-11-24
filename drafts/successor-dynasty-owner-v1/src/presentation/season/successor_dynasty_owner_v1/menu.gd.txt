@@ -112,7 +112,8 @@ func render() -> void:
 	if Store.Owner.MixedAppend.marked_state(app.career_owner.ordinary_state):
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
 		_career_records()
-		if Store.Owner.MixedAppend.closed_complete_scope(app.career_owner):
+		if Store.Owner.MixedAppend.closed_complete_scope(app.career_owner) \
+			or Store.Owner.MixedAppend.rollover_closed_complete_scope(app.career_owner):
 			_closed()
 			return
 		if Store.mixed_append_shop_scope(app.career_owner):
@@ -132,6 +133,8 @@ func render() -> void:
 				_note("Regular season complete. Your club qualified. Playoff games are not available in this private test.")
 			elif app.season.phase==SeasonState.Phase.COMPLETE:
 				_note("Season results are saved. Your club did not qualify for the playoffs.")
+				if app.starter_dugout_complete_visible():
+					_bound_button(_body,"CLOSE COMPLETED SEASON",Callable(app,"request_lifecycle").bind("complete"))
 			else:
 				_note("Progress is saved. No round is available.")
 		elif app.season.phase==SeasonState.Phase.COMPLETE:
@@ -536,6 +539,10 @@ func _display_standard_record(history: Dictionary) -> void:
 func _closed() -> void:
 	var owner=app.career_owner
 	_label(_body,"SEASON CLOSED · "+owner.lifecycle_reason().to_upper(),24)
+	if Store.Owner.MixedAppend.rollover_closed_complete_scope(owner):
+		var payout:int=int(owner.ordinary_state.last_close.receipt.total)
+		_note("Completion payout: %d Club Credits. Season results and previous season history are preserved. Next season is not available here."%payout)
+		return
 	if Store.Owner.MixedAppend.closed_complete_scope(owner):
 		var credits: int=int(owner.ordinary_state.last_close.receipt.total)
 		_note("Completion payout: %d Club Credits. This season and its prior history remain saved."%credits)

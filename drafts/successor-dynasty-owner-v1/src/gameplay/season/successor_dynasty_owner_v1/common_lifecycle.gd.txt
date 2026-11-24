@@ -535,8 +535,13 @@ static func _fold_close_state(owner, reason: String, source: Dictionary) -> bool
 		and Start.detached_mixed_flat(season.career.start_basis)
 	var appended: bool=owner.active=="ordinary" and reason=="complete" and season.career!=null \
 		and Start.detached_mixed_append(season.career.start_basis)
+	var rollover: bool=owner.active=="ordinary" and reason=="complete" and season.career!=null \
+		and Start.detached_mixed_rollover(season.career.start_basis)
 	var folded: Dictionary
-	if appended:
+	if rollover:
+		var projection:=load("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_append_projection.gd")
+		folded=projection.fold_rollover_complete(owner,id,sequence)
+	elif appended:
 		var projection:=load("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_append_projection.gd")
 		folded=projection.fold_complete(owner,id,sequence)
 	elif mixed:

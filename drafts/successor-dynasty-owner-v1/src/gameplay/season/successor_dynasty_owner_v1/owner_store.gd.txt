@@ -98,7 +98,8 @@ static func standard_history_available(owner: RefCounted, expected: PackedByteAr
 			or (LeagueAdmission.starter_player() and (Owner.Common.starter_dugout_chain_scope(owner) \
 				or Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner) \
 				or (private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner) \
-					or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner))))))
+					or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner) \
+					or Owner.MixedAppend.rollover_closed_complete_scope(owner))))))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -202,7 +203,8 @@ static func private_mixed_append() -> bool:
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if owner!=null and Owner.MixedAppend.marked_state(owner.ordinary_state):
 		return private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner) \
-			or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner))
+			or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner) \
+			or Owner.MixedAppend.rollover_closed_complete_scope(owner))
 	if Flat.is_flat(owner): return false
 	if owner!=null and Owner.Mixed.marked_state(owner.ordinary_state):
 		return LeagueAdmission.starter_player() and (Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))
@@ -482,10 +484,10 @@ static func mixed_append_round_scope(owner: RefCounted) -> bool:
 	return private_mixed_append() and owner!=null and owner==_owner and owner.session==_owner_session \
 		and Owner.MixedAppend.round_scope(owner)
 
-# A completed active v6 slot is eligible only for its own confirmed Close.
+# Completed active v6 and eliminated v7 slots are eligible only for their confirmed Close.
 static func mixed_append_complete_scope(owner: RefCounted) -> bool:
 	return private_mixed_append() and owner!=null and owner==_owner and owner.session==_owner_session \
-		and Owner.MixedAppend.complete_scope(owner)
+		and (Owner.MixedAppend.complete_scope(owner) or Owner.MixedAppend.rollover_complete_scope(owner))
 
 # Separate private Shop authority, never the general session/register guard.
 static func mixed_append_shop_scope(owner: RefCounted) -> bool:
