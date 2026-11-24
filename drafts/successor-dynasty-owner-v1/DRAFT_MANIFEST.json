@@ -840,8 +840,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_base_chain.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_base_chain.gd",
-      "bytes": 8746,
-      "sha256": "3315e66a5c5d01f5773d8c967019172d081b04483af0ca4d15371ee7ad18c095"
+      "bytes": 8437,
+      "sha256": "555f235a4c0bb51bc40db094ae4a956297ec4a63455f9093d7173189ec77c51e"
     }
   ],
   "additions": [

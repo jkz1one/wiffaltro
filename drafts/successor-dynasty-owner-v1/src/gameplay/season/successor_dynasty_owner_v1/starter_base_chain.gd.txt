@@ -8,7 +8,6 @@ const KIND := "starter-base-contiguous-v1"
 const VERSION := 1
 const MAX_REPORTS := 23
 const MAX_MANAGED := 12
-const SHOP_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 
 static func _owner() -> Script:
 	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
@@ -21,14 +20,8 @@ static func root(seed: int, league: String) -> RefCounted:
 	if not C.whole(seed,0,2147483647) or league!="dugout": return null
 	return _owner().create_ordinary(seed,league)
 
-# Narrow plain postgame commands. Native candidate() still issues all quotes,
-# payments and held receipts. "Buy and Use" and other stock operations stay
-# out of this inactive witness until their effects are qualified separately.
-static func _shop_proof_command(command: Dictionary) -> bool:
-	var op: String = str(command.get("op",""))
-	return SHOP_OPS.has(op) or op in ["tactical_buy","reroll"] \
-		or (op=="buy" and command.get("mode")=="hold")
-
+# Match the ordinary App's native vocabulary and transaction gates. Non-Shop
+# events are not replayed here: native settlement must emit their exact prefix.
 static func _shop(session: SeasonState, journal: Array, first: int) -> bool:
 	var events: Array=session.build._events
 	if first<0 or first>events.size() or events.size()>journal.size() \
@@ -37,7 +30,8 @@ static func _shop(session: SeasonState, journal: Array, first: int) -> bool:
 	while i<journal.size():
 		var cmd: Variant=journal[i]
 		if not cmd is Dictionary: return false
-		if not _shop_proof_command(cmd): break
+		if not SeasonBuild.SHOP_OPS.has(str(cmd.get("op",""))): break
+		if not C.primitive(cmd): return false
 		if not session.physical.pending.is_empty() or not session.shop_available(): return false
 		var id: Variant=cmd.get("id")
 		if id is String and not id.is_empty() and session.build._requests.has(id): return false
