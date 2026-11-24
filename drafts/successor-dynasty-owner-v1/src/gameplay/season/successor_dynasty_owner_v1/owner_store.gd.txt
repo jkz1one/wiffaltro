@@ -42,6 +42,8 @@ static var _candidate_raw: Dictionary = {}
 static var _candidate_data: Dictionary = {}
 static var _expected: PackedByteArray = PackedByteArray()
 static var _written: PackedByteArray = PackedByteArray()
+static var _ordinary_encoded_ticket: RefCounted
+static var _ordinary_encoded: PackedByteArray = PackedByteArray()
 # One unarmed report-ticket result, or one promoted same-owner terminal result.
 # No serialized trust marker, cross-process cache, or caller registration API.
 static var _cross_pending: PackedByteArray
@@ -471,6 +473,7 @@ static func _invalidate() -> void:
 	_paused = {}; _active = ""; _metadata = {}; _imported_sha256 = ""
 	_flat_ticket = null; _ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
+	_ordinary_encoded_ticket = null; _ordinary_encoded = PackedByteArray()
 
 # Only the actual native Starter Store-admitted owner gains compact native routing.
 # Each writer still checks exact raw bytes and its native producer.
@@ -2215,6 +2218,9 @@ static func write_prepared(ticket: RefCounted) -> bool:
 	if not prepared_matches(ticket,_owner,_candidate,_expected): return false
 	return _write_admitted()
 
+static func _ordinary_prepared_revision() -> bool:
+	return _ticket!=null and _ticket!=_flat_ticket and _candidate!=null and _candidate.active=="ordinary"
+
 # Private immediate continuation only; callers use prepare_and_write or the
 # fully checked write_prepared retry. Disk CAS/readback remain in every write.
 static func _write_admitted() -> bool:
@@ -2228,18 +2234,36 @@ static func _write_admitted() -> bool:
 	for suffix: String in ["", ".bak", ".tmp"]:
 		if DirAccess.dir_exists_absolute(PATH+suffix): return false
 	if FileAccess.file_exists(PATH+".tmp") or (_expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
+	if _ordinary_prepared_revision():
+		if _ordinary_encoded_ticket!=_ticket:
+			_ordinary_encoded_ticket = _ticket
+			_ordinary_encoded = _native_encoded(_candidate_data)
+		if _ordinary_encoded.is_empty(): return false
+		saving = true
+		var result: String = _write_exact_result(_ordinary_encoded,_expected,false)
+		saving = false
+		if result!="saved": return false
+		# Keep precisely the bytes whose immediate readback passed, not a
+		# second unbound sample from a possibly replaced slot.
+		_written = _ordinary_encoded.duplicate()
+		return true
 	saving = true
-	var result: bool = _write_data(_candidate_data,_expected)
+	var legacy_result: bool = _write_data(_candidate_data,_expected)
 	saving = false
-	if result: _written = raw()
-	return result
+	if legacy_result: _written = raw()
+	return legacy_result
 
 static func written_bytes(ticket: RefCounted) -> PackedByteArray:
 	return _written.duplicate() if ticket != null and ticket == _ticket else PackedByteArray()
 
 static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
 	if ticket!=null and ticket==_flat_ticket and not private_standard_chain_opening(): return false
-	if _written.is_empty() or raw() != _written or not prepared_matches(ticket,owner,candidate,expected):
+	if _ordinary_prepared_revision():
+		# Raw snapshots may be expensive. Check the same pinned revision only
+		# after all of them pass, just before promoting native ownership.
+		if _written.is_empty() or not prepared_matches(ticket,owner,candidate,expected) or raw()!=_written:
+			forget_projection(); return false
+	elif _written.is_empty() or raw()!=_written or not prepared_matches(ticket,owner,candidate,expected):
 		forget_projection(); return false
 	var arm: bool = _projection_ticket == ticket and _projection_checkpoint == candidate and _projection_value != null
 	if arm:
@@ -2251,4 +2275,5 @@ static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted
 	_clear_private_flat_play()
 	_flat_ticket = null; _ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
+	_ordinary_encoded_ticket = null; _ordinary_encoded = PackedByteArray()
 	return true
