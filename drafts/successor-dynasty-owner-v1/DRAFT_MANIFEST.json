@@ -836,6 +836,12 @@
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd",
       "bytes": 3257,
       "sha256": "e804e18890a47afd022a9759aa0fe448636d8314dd20d1f157abf18bf71b6146"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_base_chain.gd.txt",
+      "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_base_chain.gd",
+      "bytes": 8308,
+      "sha256": "58e2c712dc2560a1c663ddd055a80c09a7358571be2503c1160548efaa10fc9e"
     }
   ],
   "additions": [

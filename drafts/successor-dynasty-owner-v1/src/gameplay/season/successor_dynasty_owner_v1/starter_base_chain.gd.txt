@@ -1,0 +1,152 @@
+extends RefCounted
+## Strict proof primitives for a fresh direct Starter Base lineage. No Store
+## authority, writer, legacy migration, or launch routing is granted here.
+const Adapter = preload("session_adapter.gd")
+const C = preload("codec.gd")
+const MixedProof = preload("starter_mixed_projection.gd")
+const KIND := "starter-base-contiguous-v1"
+const VERSION := 1
+const MAX_REPORTS := 23
+const MAX_MANAGED := 12
+const SHOP_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
+
+static func _owner() -> Script:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+
+static func _league(session: SeasonState) -> String:
+	return str(session.league_rules.get("league", "standard"))
+
+# Use the authored direct birth, not a snapshot-supplied runtime or seed override.
+static func root(seed: int, league: String) -> RefCounted:
+	if not C.whole(seed,0,2147483647) or league!="dugout": return null
+	return _owner().create_ordinary(seed,league)
+
+static func _shop(session: SeasonState, journal: Array, first: int) -> bool:
+	var events: Array=session.build._events
+	if first<0 or first>events.size() or events.size()>journal.size() \
+			or not C.same(events.slice(first),journal.slice(first,events.size())): return false
+	var i: int=events.size()
+	while i<journal.size():
+		var cmd: Variant=journal[i]
+		if not cmd is Dictionary: return false
+		if not SHOP_OPS.has(str(cmd.get("op",""))): break
+		if not session.physical.pending.is_empty() or not session.shop_available(): return false
+		var id: Variant=cmd.get("id")
+		if id is String and not id.is_empty() and session.build._requests.has(id): return false
+		var build: SeasonBuild=session.build.candidate(cmd.duplicate(true))
+		if build==null: return false
+		session.adopt_build(build)
+		i+=1
+		if session.build!=build or session.build.revision()!=i \
+				or not C.same(session.build._events[i-1],cmd): return false
+	return true
+
+static func _human(row: Variant, fixture: Dictionary) -> Array:
+	if not row is Dictionary or fixture.is_empty() or row.get("id")!=fixture.id \
+			or not C.whole(row.get("away_runs"),0,100000) or not C.whole(row.get("home_runs"),0,100000): return []
+	var opponent: String=str(int(fixture.away if fixture.home==0 else fixture.home))
+	var ai: Variant=row.get("ai_tactics")
+	if not C.keys(ai,[opponent]) or not ai[opponent] is Dictionary: return []
+	return [row.id,row.away_runs,row.home_runs,row.get("performance",{}),row.get("used_gear",[]),
+		row.get("tactics",[]),row.get("batting",{}),row.get("stances",[]),row.get("fielding",[]),
+		row.get("pitching_current"),row.get("field_supply",{}),row.get("frozen",[]),ai[opponent]]
+
+# Fixture schedule bounds where to cut the native evidence for a transaction.
+# The native projector validates scope, report request binding and what actually
+# settles; the declared final phase never authorizes a result or a playoff win.
+static func _report_count(s: SeasonState, last: bool, target: int) -> int:
+	match s.phase:
+		SeasonState.Phase.REGULAR:
+			return 5 if s.round_index==9 and last and target==SeasonState.Phase.COMPLETE else 2
+		SeasonState.Phase.SEMIFINAL:
+			return 2 if last and target==SeasonState.Phase.COMPLETE else 1
+		SeasonState.Phase.FINAL:
+			return 0
+	return -1
+
+# The supplied birth is internal: it must come from root or native Next.
+# It is never hydrated from the incoming session. The existing exact mixed
+# projector may materialize equivalent native types from this rederived source;
+# it never substitutes a report request or accepts an unvalidated physical row.
+static func _replay(birth: SeasonState, image: Variant) -> SeasonState:
+	if birth==null or birth.phase!=SeasonState.Phase.DRAFT or not birth.picks.is_empty() \
+			or _league(birth)!="dugout" or birth.league_rules.get("tier")!=0 \
+			or not image is Dictionary or not image.get("state") is Dictionary \
+			or not image.get("physical") is Dictionary or not image.get("build") is Dictionary \
+			or not image.build.get("build") is Dictionary: return null
+	var picks: Variant=image.state.get("picks")
+	var people: Variant=image.state.get("player_results")
+	var reports: Variant=image.physical.get("reports")
+	var pending: Variant=image.physical.get("pending")
+	var journal: Variant=image.build.build.get("_events")
+	var target: Variant=image.state.get("phase")
+	if not picks is Array or picks.size()>4 or not people is Array or people.size()>MAX_MANAGED \
+			or not reports is Array or reports.size()>MAX_REPORTS or not pending is Dictionary \
+			or not journal is Array or journal.size()>SeasonBuild.MAX_EVENTS \
+			or not C.whole(target,SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE): return null
+	var next: SeasonState=birth
+	for id: Variant in picks:
+		if not id is String or not next.choose_player(id): return null
+	if not _shop(next,journal,0): return null
+	var cursor := 0
+	for i: int in people.size():
+		if next.build.pack_pending(): return null
+		var count := _report_count(next,i+1==people.size(),int(target))
+		var human := _human(people[i],next.pending_fixture())
+		if human.is_empty() or count<0 or cursor+count>reports.size(): return null
+		var revision: int=next.build.revision()
+		next.physical.pending={"human":human,"reports":reports.slice(cursor,cursor+count)}
+		var projected: Dictionary=MixedProof._project_mixed_round(next).projection
+		if projected.has("error") or projected.has("fixture"): return null
+		next=projected.get("candidate")
+		cursor+=count
+		if next==null or next.player_results.size()!=i+1 or next.physical.cursor!=cursor \
+				or not C.same(next.player_results.back(),people[i]) \
+				or not _shop(next,journal,revision): return null
+	if cursor!=reports.size() or next.build.revision()!=journal.size(): return null
+	if not pending.is_empty():
+		if next.build.pack_pending(): return null
+		next.physical.pending=pending.duplicate(true)
+		var checked: Dictionary=MixedProof._project_mixed_round(next)
+		if checked.projection.has("error"): return null
+		# Pending checkpoints never adopt the settled candidate.
+		next=checked.source
+	var rebuilt: Dictionary=Adapter.capture("ordinary",next)
+	return next if not rebuilt.is_empty() and C.same(rebuilt,image) else null
+
+# Flat candidate proof. Each entry carries this season only. No nested archive,
+# no supplied common aggregate, next basis or title is a trusted input. Compare
+# native fold at each row and derive the next native birth in the same pass.
+# Versioned envelope validation does not install or write any Store owner.
+static func restore_bytes(bytes: PackedByteArray) -> RefCounted:
+	return _restore_value(_owner()._bytes_value(bytes))
+
+static func _restore_value(value: Variant) -> RefCounted:
+	if not C.keys(value,["kind","version","seed","league","closed","owner"]) \
+			or value.kind!=KIND or value.version!=VERSION or not C.whole(value.seed,0,2147483647) \
+			or value.league!="dugout" or not value.closed is Array or value.closed.size()>=ClubCareer.MAX_RUNS \
+			or not value.owner is Dictionary or not value.owner.get("ordinary") is Dictionary: return null
+	var native := root(int(value.seed),value.league)
+	if native==null: return null
+	for row: Variant in value.closed:
+		if not C.keys(row,["image","close","next_seed"]) or not C.whole(row.next_seed,0,2147483647) \
+				or not _apply_closed(native,row.image,row.close) \
+				or not native.propose_next(int(row.next_seed)) or not native.commit_next(): return null
+	var current: Dictionary=value.owner.ordinary
+	var resumed:=_replay(native.session,current)
+	if resumed==null: return null
+	native.session=resumed
+	var declared: Variant=value.owner.get("ordinary_state")
+	if not declared is Dictionary: return null
+	if declared.get("status")=="closed" and not _apply_closed(native,current,declared.get("last_close"),true):
+		return null
+	var rebuilt: Dictionary=_owner().pack_current(native,current)
+	return native if not rebuilt.is_empty() and C.same(rebuilt,value.owner) else null
+
+static func _apply_closed(native: RefCounted,image: Variant,close: Variant,already_replayed: bool=false) -> bool:
+	if not close is Dictionary or close.get("reason") not in ["complete","abandon"]: return false
+	if not already_replayed:
+		var resumed:=_replay(native.session,image)
+		if resumed==null: return false
+		native.session=resumed
+	return native.close_current(close.reason) and C.same(native.ordinary_state.last_close,close)
