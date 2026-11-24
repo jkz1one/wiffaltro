@@ -46,11 +46,15 @@ func _check() -> void:
 		output.store_string(JSON.stringify({"reviewed":paths,"broad_sha256":broad_sha},"",true,true))
 		output.close()
 		print("REVIEWED_SOURCE_PROFILE_PASS ", paths.size())
-	elif args[0] in ["pack","pack-no-save","starter-pack-no-save"]:
+	elif args[0] in ["pack","pack-no-save","starter-pack-no-save","archive-read-pack-no-save"]:
 		var starter: bool=args[0]=="starter-pack-no-save"
+		var archive_read: bool=args[0]=="archive-read-pack-no-save"
 		var no_save: bool=args[0]!="pack"
 		var entry: String=STARTER_ENTRY if starter else ENTRY
 		var user_dir: String="WiffaltroStarterBeta-v1" if starter else "WiffaltroEngineeringQA-v1"
+		if archive_read:
+			entry="res://archive_read_bootstrap/entry.tscn"
+			user_dir="WiffaltroArchiveReadPlaytest-v1"
 		var bootstrap_root: String=entry.get_base_dir()+"/"
 		if ProjectSettings.get_setting("application/run/main_scene") != entry \
 				or OS.get_user_data_dir().get_file() != user_dir:
@@ -69,7 +73,7 @@ func _check() -> void:
 			if (path.begins_with("res://src/tests/") and not stock_paths.has(path)) \
 					or path.begins_with("res://addons/") or path.begins_with("res://tests/") or path.begins_with("res://drafts/") \
 					or path.ends_with(".log") or path.ends_with(".json.bak") or path.ends_with(".zip") \
-					or path.ends_with(".pem") or "wiffaltro-common-career" in path:
+					or path.ends_with(".pem") or "wiffaltro-common-career" in path or (archive_read and "wiffaltro-archive-playtest" in path):
 				_fail("unintended content in package " + path); return
 		if broad_sha == expected.broad_sha256:
 			_fail("unexpectedly identical broad source/package footprint"); return

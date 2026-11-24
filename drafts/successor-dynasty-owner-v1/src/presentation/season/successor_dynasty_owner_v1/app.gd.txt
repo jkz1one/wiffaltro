@@ -97,7 +97,7 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	var admitted: bool=starter_player() if Store.LeagueAdmission.starter_feature() else \
 		OS.get_environment("WIFFALTRO_DYNASTY_ENGINEERING")=="1"
-	if not admitted:
+	if not admitted or OS.has_feature(Store.BASE_ARCHIVE_READER_FEATURE):
 		set_process(false) # Refusal does not construct the frame-loop controls.
 		push_error("Private Dynasty engineering route not admitted.")
 		get_tree().quit(2); return

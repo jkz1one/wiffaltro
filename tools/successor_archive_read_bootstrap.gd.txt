@@ -1,0 +1,47 @@
+extends Control
+## Fixed compiled archive viewer. It has no live career or save actions.
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+
+var _continue: Button
+var _status: Label
+var _history: RichTextLabel
+
+func _ready() -> void:
+	if not Store.base_archive_reader_profile() or scene_file_path!=Store.BASE_ARCHIVE_READER_ENTRY:
+		push_error("Archive read playtest launch mode refused.")
+		get_tree().quit(3)
+		return
+	var screen:=VBoxContainer.new()
+	add_child(screen)
+	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT,Control.PRESET_MODE_MINSIZE,24)
+	var title:=Label.new()
+	title.text="Wiffaltro • Archive Read Playtest"
+	screen.add_child(title)
+	_continue=Button.new()
+	_continue.text="Continue"
+	_continue.pressed.connect(_continue_archive)
+	screen.add_child(_continue)
+	_status=Label.new()
+	_status.text="Read only. No new saves or gameplay."
+	screen.add_child(_status)
+	_history=RichTextLabel.new()
+	_history.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	screen.add_child(_history)
+
+func _continue_archive() -> void:
+	_continue.disabled=true
+	_history.clear()
+	_status.text="Verifying saved career and History…"
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var view: Dictionary=Store.base_archive_read_playtest()
+	_continue.disabled=false
+	if view.is_empty():
+		_status.text="No marked archive could be verified. No save files were changed."
+		return
+	_status.text="Season %d  •  %d rounds posted  •  Cash %d  •  Read only" % [view.season,view.round,view.cash]
+	_history.add_text("History\n")
+	for record: Dictionary in view.history:
+		_history.add_text("\nSeason %d  •  %s\n" % [record.ordinal, String(record.close.reason).capitalize()])
+		for row: Dictionary in record.results:
+			_history.add_text("%s %d – %d %s\n" % [record.teams[row.away],row.away_runs,row.home_runs,record.teams[row.home]])

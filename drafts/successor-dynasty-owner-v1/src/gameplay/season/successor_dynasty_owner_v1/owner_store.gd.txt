@@ -11,6 +11,10 @@ const RawGuard = preload("raw_guard.gd")
 const LeagueAdmission = preload("league_admission.gd")
 const PATH: String = "user://wiffaltro-common-career-v4.json"
 const MAX_BYTES: int = 64 * 1024 * 1024
+const BASE_ARCHIVE_READER_FEATURE := "wiffaltro_base_archive_read_playtest"
+const BASE_ARCHIVE_READER_ENTRY := "res://archive_read_bootstrap/entry.tscn"
+const BASE_ARCHIVE_READER_DIR := "WiffaltroArchiveReadPlaytest-v1"
+const BASE_ARCHIVE_READER_SLOT := "user://wiffaltro-archive-playtest-v1.json"
 const BASE_ARCHIVE_FAMILY := "WIFFALTRO-BASE-ARCHIVE-"
 const BASE_ARCHIVE_HEADER := "WIFFALTRO-BASE-ARCHIVE-V1\n"
 const BASE_ARCHIVE_PAGES := "user://wiffaltro-base-archive-pages-v1"
@@ -485,6 +489,7 @@ static func _write_exact_bytes(bytes: PackedByteArray, expected: PackedByteArray
 	return _write_exact_result(bytes,expected,false)=="saved"
 
 static func _write_exact_result(bytes: PackedByteArray, expected: PackedByteArray, bounded: bool) -> String:
+	if OS.has_feature(BASE_ARCHIVE_READER_FEATURE): return "not_renamed"
 	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.WRITE)
 	if file == null: return "not_renamed"
 	file.store_buffer(bytes); file.flush()
@@ -2372,10 +2377,19 @@ static func _base_archive_qa() -> bool:
 static func _base_archive_family(bytes: PackedByteArray) -> bool:
 	return bytes.slice(0,BASE_ARCHIVE_FAMILY.length()).get_string_from_ascii()==BASE_ARCHIVE_FAMILY
 
-static func _base_archive_root_ok() -> bool:
-	if not _base_archive_qa(): return false
+static func base_archive_reader_profile() -> bool:
+	return OS.has_feature(BASE_ARCHIVE_READER_FEATURE) and OS.get_name()=="Linux" \
+		and not OS.has_feature("editor") and not LeagueAdmission.starter_feature() \
+		and not OS.has_feature("wiffaltro_engineering_export") \
+		and ProjectSettings.get_setting("application/config/use_custom_user_dir",false)==true \
+		and ProjectSettings.get_setting("application/config/custom_user_dir_name","")==BASE_ARCHIVE_READER_DIR \
+		and ProjectSettings.get_setting("application/run/main_scene","")==BASE_ARCHIVE_READER_ENTRY \
+		and OS.get_cmdline_user_args().is_empty()
+
+static func _base_archive_root_ok(reader: bool=false) -> bool:
+	if not (base_archive_reader_profile() if reader else _base_archive_qa()): return false
 	var path: String=OS.get_user_data_dir().trim_suffix("/")
-	if path.get_file()!="WiffaltroPrivateBaseArchiveQA-v1": return false
+	if path.get_file()!=(BASE_ARCHIVE_READER_DIR if reader else "WiffaltroPrivateBaseArchiveQA-v1"): return false
 	while path!="" and path!="/":
 		var parent: String=path.get_base_dir()
 		var directory: DirAccess=DirAccess.open(parent)
@@ -2396,18 +2410,20 @@ static func _base_archive_member(path: String) -> Dictionary:
 	if bytes.size()!=size or file.get_length()!=size: return {}
 	return {"present":true,"bytes":bytes}
 
-static func _base_archive_pair() -> Dictionary:
-	if not _base_archive_root_ok(): return {}
-	var primary:=_base_archive_member(PATH)
-	var backup:=_base_archive_member(PATH+".bak")
+static func _base_archive_pair(reader: bool=false) -> Dictionary:
+	if not _base_archive_root_ok(reader): return {}
+	var slot: String=BASE_ARCHIVE_READER_SLOT if reader else PATH
+	var primary:=_base_archive_member(slot)
+	var backup:=_base_archive_member(slot+".bak")
 	if primary.is_empty() or backup.is_empty(): return {}
 	return {"primary":primary,"backup":backup}
 
 static func _base_archive_absent(path: String) -> bool:
 	return _base_archive_member(path).get("present",true)==false
 
-static func _base_archive_temps_clear() -> bool:
-	return _base_archive_absent(PATH+".tmp") and _base_archive_absent(PATH+BASE_ARCHIVE_BACKUP_STAGE)
+static func _base_archive_temps_clear(reader: bool=false) -> bool:
+	var slot: String=BASE_ARCHIVE_READER_SLOT if reader else PATH
+	return _base_archive_absent(slot+".tmp") and _base_archive_absent(slot+BASE_ARCHIVE_BACKUP_STAGE)
 
 static func _base_archive_source_valid(owner: RefCounted, pair: Dictionary) -> bool:
 	if owner==null or pair.is_empty() or not pair.primary.present or owner!=_owner \
@@ -2572,10 +2588,10 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 			or not BaseArchive._digest(wrapped.prior_primary_sha256): return {}
 	return wrapped
 
-static func _base_archive_load() -> Dictionary:
-	if saving or _ticket!=null or not _base_archive_qa(): return {}
-	var pair:=_base_archive_pair()
-	if pair.is_empty() or not pair.primary.present or not _base_archive_temps_clear(): return {}
+static func _base_archive_load(reader: bool=false) -> Dictionary:
+	if saving or _ticket!=null or not (base_archive_reader_profile() if reader else _base_archive_qa()): return {}
+	var pair:=_base_archive_pair(reader)
+	if pair.is_empty() or not pair.primary.present or not _base_archive_temps_clear(reader): return {}
 	var wrapped: Dictionary=_base_archive_wrapper(pair.primary.bytes)
 	if wrapped.is_empty(): return {}
 	var draft: bool=wrapped.has("generation")
@@ -2634,7 +2650,7 @@ static func _base_archive_load() -> Dictionary:
 				if not _base_archive_draft_image(result,1): return {}
 		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result,head_bytes,pages,related): return {}
 	elif not _base_archive_previous_matches(pair.backup.bytes,pages[0],wrapped.current): return {}
-	if not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
+	if not Codec.same(_base_archive_pair(reader),pair) or not _base_archive_temps_clear(reader) \
 			or not _base_archive_pages_live(head,pages): return {}
 	return {"owner":result,"head":wrapped.head,"pair":pair,"pages":pages}
 
@@ -3290,17 +3306,34 @@ static func write_base_archive_lifecycle(app: Variant, ticket: RefCounted) -> bo
 	_base_archive_live_op=RefCounted.new()
 	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,generation,head,appended)
 
+# The compiled reader returns presentation data only; it must never retain a
+# live Store owner, enter a play transaction, consume .bak as primary, or write.
+static func base_archive_read_playtest() -> Dictionary:
+	if not base_archive_reader_profile(): return {}
+	var proof: Dictionary=_base_archive_load(true)
+	if proof.is_empty(): return {}
+	var history: Array[Dictionary]=_base_archive_history_pages(proof)
+	if history.size()!=proof.pages.size() or not Codec.same(_base_archive_pair(true),proof.pair) \
+			or not _base_archive_temps_clear(true) or not _base_archive_pages_live(proof.head,proof.pages):
+		return {}
+	var owner: RefCounted=proof.owner
+	return {"season":proof.pages.size()+1,"round":int(owner.session.round_index),
+		"cash":int(owner.session.build.cash()),"history":history}
+
 static func base_archive_history(owner: RefCounted, expected: PackedByteArray) -> Array[Dictionary]:
+	if not base_archive_app_binding(owner,expected): return []
+	var history: Array[Dictionary]=_base_archive_history_pages(_base_archive_draft_pin)
+	return history if base_archive_app_binding(owner,expected) else []
+
+static func _base_archive_history_pages(proof: Dictionary) -> Array[Dictionary]:
 	var history: Array[Dictionary]=[]
-	if not base_archive_app_binding(owner,expected): return history
-	var proof: Dictionary=_base_archive_draft_pin
 	for i: int in proof.pages.size():
 		var page: Dictionary=BaseArchive._page(proof.pages[i],proof.head,i+1)
 		if page.is_empty(): return []
 		var native: Dictionary=_base_archive_history_record(page)
 		if native.is_empty(): return []
 		history.append(native)
-	return history if base_archive_app_binding(owner,expected) else []
+	return history
 
 # Display-only projection from an already independently replayed archive page.
 # Native score proof validates the contiguous authored schedule and standings
