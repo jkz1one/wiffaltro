@@ -2278,16 +2278,20 @@ func _resume_base_archive_round() -> void:
 	if not _available() or not Store.base_archive_app_binding(career_owner,saved_bytes): return
 	var count: int=Store._base_archive_report_count(career_owner)
 	if count<0: return
-	if count<2:
-		ai_runner=Store.start_base_archive_cpu(self)
-		if not is_instance_valid(ai_runner):
-			notice="The saved round could not start its next CPU game."
+	var last_regular: bool=Store._base_archive_last_regular(career_owner)
+	if last_regular or count<2:
+		var decision: Dictionary=Store.resume_base_archive_last_regular(self) if last_regular \
+			else {"runner":Store.start_base_archive_cpu(self)}
+		ai_runner=decision.get("runner")
+		if is_instance_valid(ai_runner):
+			_busy=true
+			notice="Simulating the next CPU game. No rewards have been paid."
 			show_season()
 			return
-		_busy=true
-		notice="Simulating the next CPU game. No rewards have been paid."
-		show_season()
-		return
+		if decision.get("settle")!=true:
+			notice="The saved round could not verify or start its next CPU game. No rewards were paid."
+			show_season()
+			return
 	_busy=true
 	var settled: bool=Store.settle_base_archive_opening(self)
 	_busy=false

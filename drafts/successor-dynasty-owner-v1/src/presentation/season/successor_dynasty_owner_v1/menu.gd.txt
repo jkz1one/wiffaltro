@@ -124,10 +124,22 @@ func render() -> void:
 				_bound_button(_body,"START NEXT DUGOUT BASE SEASON",Callable(app,"request_lifecycle").bind("next"))
 			return
 		var regular_count: int=Store._base_archive_regular_report_count(app.career_owner)
-		if regular_count>=0:
-			_note("Managed game saved · CPU games %d / 2 · Rewards unpaid · Cash %d."%[regular_count,app.season.cash()])
+		if Store._base_archive_postseason_image(app.career_owner):
+			var qualified: bool=app.season.phase==SeasonState.Phase.SEMIFINAL
+			_note("Regular season paid. Your club qualified; the semifinal is ready. Playoff play is outside this check." \
+				if qualified else "Your club missed the playoffs. The CPU bracket is complete. Season Close is outside this check.")
+		elif regular_count>=0:
+			var last_regular: bool=Store._base_archive_last_regular(app.career_owner)
+			var status: String="CPU games %d / 2"%regular_count
+			if last_regular:
+				status="CPU regular games %d / 2"%mini(regular_count,2)
+				if regular_count>2: status+=" · CPU bracket games %d / 3"%(regular_count-2)
+			_note("Managed game saved · %s · Rewards unpaid · Cash %d."%[status,app.season.cash()])
 			if not is_instance_valid(app.ai_runner):
-				_bound_button(_body,"SETTLE SAVED ROUND" if regular_count==2 else "RESUME SAVED ROUND",Callable(app,"resume_round"))
+				var action: String="SETTLE SAVED ROUND" if regular_count==2 else "RESUME SAVED ROUND"
+				if last_regular and regular_count>=2:
+					action="SETTLE SAVED ROUND" if regular_count==5 else "CONTINUE SAVED FINAL ROUND"
+				_bound_button(_body,action,Callable(app,"resume_round"))
 		elif Store._base_archive_next_human_image(app.career_owner):
 			_note("Managed game saved · Rewards unpaid. This private check does not settle this fixture.")
 		elif app.season.round_index>0:
