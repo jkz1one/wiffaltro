@@ -1,0 +1,127 @@
+extends RefCounted
+## Inactive canonical page transport. This module grants no Store or filesystem authority.
+const C = preload("codec.gd")
+const Core = preload("starter_base_chain.gd")
+const Life = preload("lifecycle.gd")
+const HEAD := "starter-base-head-v1"
+const PAGE := "starter-base-page-v1"
+const VERSION := 1
+const MAX_HEAD := 128 * 1024
+const MAX_PAGE := 64 * 1024 * 1024
+
+static func _owner() -> Script:
+	return load("res://src/gameplay/season/successor_dynasty_owner_v1/owner.gd")
+
+static func _wire(value: Dictionary) -> PackedByteArray:
+	return JSON.stringify(Life._canonical_numbers(value),"",true,true).to_utf8_buffer()
+
+static func _hash(raw: PackedByteArray) -> String:
+	var context := HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256)!=OK or context.update(raw)!=OK: return ""
+	return context.finish().hex_encode()
+
+static func _digest(value: Variant) -> bool:
+	if not value is String or value.length()!=64: return false
+	for i: int in 64:
+		var code: int=value.unicode_at(i)
+		if not ((code>=48 and code<=57) or (code>=97 and code<=102)): return false
+	return true
+
+static func _decode(raw: PackedByteArray, cap: int) -> Dictionary:
+	if raw.is_empty() or raw.size()>cap: return {}
+	var decoded: Variant=_owner()._bytes_value(raw)
+	return decoded if decoded is Dictionary and C.primitive(decoded) and _wire(decoded)==raw else {}
+
+static func _root(seed: int, league: String) -> String:
+	return _hash(_wire({"kind":HEAD,"version":VERSION,"seed":seed,"league":league}))
+
+static func make_head(seed: int, league: String) -> PackedByteArray:
+	if not C.whole(seed,0,2147483647) or league!="dugout": return PackedByteArray()
+	return _wire({"kind":HEAD,"version":VERSION,"seed":seed,"league":league,
+		"root":_root(seed,league),"ordinal":1,"pages":[]})
+
+static func _head(raw: PackedByteArray) -> Dictionary:
+	var h: Dictionary=_decode(raw,MAX_HEAD)
+	if not C.keys(h,["kind","version","seed","league","root","ordinal","pages"]) \
+			or h.kind!=HEAD or h.version!=VERSION or h.league!="dugout" \
+			or not C.whole(h.seed,0,2147483647) or not C.whole(h.ordinal,1,ClubCareer.MAX_RUNS) \
+			or not h.pages is Array or h.pages.size()!=int(h.ordinal)-1 \
+			or not _digest(h.root) or h.root!=_root(int(h.seed),h.league): return {}
+	var seen: Dictionary={}
+	for id: Variant in h.pages:
+		if not _digest(id) or id==h.root or seen.has(id): return {}
+		seen[id]=true
+	return h
+
+static func _previous(h: Dictionary, ordinal: int) -> String:
+	return h.root if ordinal==1 else h.pages[ordinal-2]
+
+static func _page(raw: PackedByteArray, h: Dictionary, ordinal: int) -> Dictionary:
+	var p: Dictionary=_decode(raw,MAX_PAGE)
+	if not C.keys(p,["kind","version","root","ordinal","previous","image","close"]) \
+			or p.kind!=PAGE or p.version!=VERSION or p.root!=h.root or p.ordinal!=ordinal \
+			or p.previous!=_previous(h,ordinal) or not p.image is Dictionary or not p.close is Dictionary \
+			or p.close.get("ordinal")!=ordinal or p.close.get("reason") not in ["complete","abandon"] \
+			or not _digest(p.close.get("session_sha256")): return {}
+	if p.close.session_sha256!=Life.digest(p.image): return {}
+	return p
+
+# Pure candidate construction, not authority. An exact but fabricated Close can
+# never pass restore_pages: the normal native round/Close path is rederived there.
+static func make_page(head: PackedByteArray, image: Dictionary, close: Dictionary) -> PackedByteArray:
+	var h: Dictionary=_head(head)
+	if h.is_empty() or int(h.ordinal)>=ClubCareer.MAX_RUNS: return PackedByteArray()
+	if not C.primitive(image) or not C.primitive(close): return PackedByteArray()
+	var ordinal: int=int(h.ordinal)
+	var raw: PackedByteArray=_wire({"kind":PAGE,"version":VERSION,"root":h.root,
+		"ordinal":ordinal,"previous":_previous(h,ordinal),"image":image,"close":close})
+	return raw if not _page(raw,h,ordinal).is_empty() else PackedByteArray()
+
+# Appending creates a new head value. It changes neither predecessor bytes nor
+# the caller's filesystem, and cannot install an owner.
+static func append_head(head: PackedByteArray, page: PackedByteArray) -> PackedByteArray:
+	var h: Dictionary=_head(head)
+	if h.is_empty() or int(h.ordinal)>=ClubCareer.MAX_RUNS or _page(page,h,int(h.ordinal)).is_empty():
+		return PackedByteArray()
+	var pin: String=_hash(page)
+	if not _digest(pin) or pin==h.root or h.pages.has(pin): return PackedByteArray()
+	h.pages.append(pin)
+	h.ordinal=int(h.ordinal)+1
+	var raw: PackedByteArray=_wire(h)
+	return raw if raw.size()<=MAX_HEAD else PackedByteArray()
+
+# Same ordinary no-argument seed as App.propose_next. No caller-supplied archive
+# seed or transition is permitted to change authored progression.
+static func _default_next_seed(native: RefCounted) -> int:
+	return ("ordinary:%s:%d:nextseed"%[native.ordinary_state.lineage,native.current_ordinal()+1]).hash() & 0x7fffffff
+
+# Caller provides an ordered vector of immutable page bytes, not paths/scripts/
+# callbacks. Only one decoded history page is needed at a time. The individual
+# native file size guard applies to every page, never to all 1024 as one JSON.
+static func restore_pages(head: PackedByteArray, current: PackedByteArray, pages: Array[PackedByteArray]) -> RefCounted:
+	var h: Dictionary=_head(head)
+	if h.is_empty() or pages.size()!=h.pages.size() or current.is_empty() or current.size()>MAX_PAGE: return null
+	for raw: PackedByteArray in pages:
+		if raw.is_empty() or raw.size()>MAX_PAGE: return null
+	var value: Variant=_owner()._bytes_value(current)
+	if not value is Dictionary or not value.get("ordinary_state") is Dictionary \
+			or not value.get("ordinary") is Dictionary or value.ordinary_state.get("ordinal")!=h.ordinal: return null
+	var native: RefCounted=Core.root(int(h.seed),h.league)
+	if native==null: return null
+	for i: int in pages.size():
+		if _hash(pages[i])!=h.pages[i]: return null
+		var page: Dictionary=_page(pages[i],h,i+1)
+		if page.is_empty() or native.current_ordinal()!=i+1 \
+				or not Core._apply_closed(native,page.image,page.close) \
+				or not native.propose_next(_default_next_seed(native)) or not native.commit_next(): return null
+	var phase: Dictionary=value.ordinary_state
+	var resumed: SeasonState=Core._replay(native.session,value.ordinary)
+	if resumed==null: return null
+	native.session=resumed
+	if phase.get("status")=="closed":
+		if not Core._apply_closed(native,value.ordinary,phase.get("last_close"),true): return null
+		var proposal: Variant=phase.get("proposal")
+		if not proposal is Dictionary or (not proposal.is_empty() and not native.propose_next(_default_next_seed(native))):
+			return null
+	var rebuilt: Dictionary=_owner().pack_current(native,value.ordinary)
+	return native if not rebuilt.is_empty() and C.same(rebuilt,value) else null
