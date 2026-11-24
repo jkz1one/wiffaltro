@@ -152,8 +152,46 @@ static func _detached_birth(native: RefCounted) -> RefCounted:
 			or not source.opponents.clubs.is_empty(): return null
 	return branch
 
+# Only used after an exact full-page replay and native Close. Ordinary
+# fork_live deep-copies primitives; ensure every native mutable build/ledger
+# (including drafted CPU clubs) is actually distinct on this closed branch.
+static func _detached_closed(native: RefCounted) -> RefCounted:
+	var other: RefCounted=native.fork()
+	if other==null or other==native or other.session==null or other.session==native.session \
+			or is_same(other.common,native.common) or is_same(other.ordinary_state,native.ordinary_state): return null
+	var source: SeasonState=native.session
+	var fork: SeasonState=other.session
+	if fork.ownership==source.ownership or fork.career==source.career or fork.opponents==source.opponents \
+			or fork.physical==source.physical or not _distinct_build(fork.build,source.build) \
+			or fork.opponents.clubs.size()!=source.opponents.clubs.size(): return null
+	for id: String in source.opponents.clubs:
+		var club: Dictionary=source.opponents.clubs[id]
+		var copied: Dictionary=fork.opponents.clubs.get(id,{})
+		if copied.is_empty() or is_same(club,copied) or not _distinct_build(copied.get("build"),club.get("build")):
+			return null
+	return other
+
+static func _distinct_build(a: SeasonBuild,b: SeasonBuild) -> bool:
+	return a!=null and b!=null and a!=b and a._bank!=b._bank and a._book!=b._book
+
+# A differing-head prepared sibling can carry the identical final archived
+# image and Close receipt. Only byte-equal canonical full images qualify;
+# the verified native Close result is used once, not a saved result/token.
+static func _exact_closed_sibling(page: Dictionary,value: Dictionary) -> bool:
+	if page.is_empty(): return false
+	var phase: Dictionary=value.ordinary_state
+	var close: Variant=phase.get("last_close")
+	var proposal: Variant=phase.get("proposal")
+	return phase.get("status")=="closed" and close is Dictionary and proposal is Dictionary \
+		and not proposal.is_empty() and _wire(value.ordinary)==_wire(page.image) and _wire(close)==_wire(page.close)
+
+static func _restore_closed_sibling(native: RefCounted,value: Dictionary) -> RefCounted:
+	if native.lifecycle_status()!="closed" or not native.propose_next(_default_next_seed(native)): return null
+	var rebuilt: Dictionary=_owner().pack_current(native,value.ordinary)
+	return native if not rebuilt.is_empty() and C.same(rebuilt,value) else null
+
 # One synchronous related proof, no token or cache. Authenticate the common
-# physical history once, then fully replay each current from its own birth.
+# physical history once, then replay each distinct current from its own birth.
 # The only differing-head case is appending one exact next page.
 static func restore_related_pages(head: PackedByteArray, current: PackedByteArray, pages: Array[PackedByteArray],
 		sibling_head: PackedByteArray,sibling_current: PackedByteArray) -> Dictionary:
@@ -169,12 +207,24 @@ static func restore_related_pages(head: PackedByteArray, current: PackedByteArra
 	var value: Dictionary=_current_image(current,int(h.ordinal))
 	var sibling_value: Dictionary=_current_image(sibling_current,int(sibling.ordinal))
 	if value.is_empty() or sibling_value.is_empty(): return {}
+	var shared_close: Dictionary={}
+	if head!=sibling_head and _hash(pages.back())==h.pages.back():
+		var page: Dictionary=_page(pages.back(),h,pages.size())
+		if _exact_closed_sibling(page,sibling_value): shared_close=page
 	var native: RefCounted=Core.root(int(h.seed),h.league)
 	if native==null: return {}
 	var guard: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
 	var branch: RefCounted
 	var branch_before: Dictionary={}
 	for i: int in range(pages.size()+1):
+		if i==depth and not shared_close.is_empty():
+			if native.current_ordinal()!=i+1 or not Core._apply_closed(native,shared_close.image,shared_close.close): return {}
+			branch=_detached_closed(native)
+			if branch==null: return {}
+			branch_before=guard.capture(native)
+			if branch_before.is_empty() or not guard.matches(branch,branch_before) \
+					or not native.propose_next(_default_next_seed(native)) or not native.commit_next(): return {}
+			continue
 		if i==depth:
 			branch=_detached_birth(native)
 			if branch==null: return {}
@@ -185,6 +235,7 @@ static func restore_related_pages(head: PackedByteArray, current: PackedByteArra
 	if primary==null or branch==null or not guard.matches(branch,branch_before): return {}
 	var primary_before: Dictionary=guard.capture(primary)
 	if primary_before.is_empty(): return {}
-	var previous: RefCounted=_restore_current(branch,sibling_value)
+	var previous: RefCounted=_restore_current(branch,sibling_value) if shared_close.is_empty() \
+		else _restore_closed_sibling(branch,sibling_value)
 	if previous==null or not guard.matches(primary,primary_before): return {}
 	return {"primary":primary,"sibling":previous}
