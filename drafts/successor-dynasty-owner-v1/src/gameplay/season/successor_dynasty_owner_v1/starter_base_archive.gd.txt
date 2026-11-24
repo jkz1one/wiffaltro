@@ -110,10 +110,13 @@ static func _advance_closed_page(native: RefCounted, raw: PackedByteArray, h: Di
 		and native.propose_next(_default_next_seed(native)) and native.commit_next()
 
 static func _restore_current(native: RefCounted, value: Dictionary) -> RefCounted:
-	var phase: Dictionary=value.ordinary_state
 	var resumed: SeasonState=Core._replay(native.session,value.ordinary)
 	if resumed==null: return null
 	native.session=resumed
+	return _complete_current(native,value)
+
+static func _complete_current(native: RefCounted,value: Dictionary) -> RefCounted:
+	var phase: Dictionary=value.ordinary_state
 	if phase.get("status")=="closed":
 		if not Core._apply_closed(native,value.ordinary,phase.get("last_close"),true): return null
 		var proposal: Variant=phase.get("proposal")
@@ -152,10 +155,10 @@ static func _detached_birth(native: RefCounted) -> RefCounted:
 			or not source.opponents.clubs.is_empty(): return null
 	return branch
 
-# Only used after an exact full-page replay and native Close. Ordinary
+# Used only after an exact full native replay (active or closed). Ordinary
 # fork_live deep-copies primitives; ensure every native mutable build/ledger
 # (including drafted CPU clubs) is actually distinct on this closed branch.
-static func _detached_closed(native: RefCounted) -> RefCounted:
+static func _detached_populated(native: RefCounted) -> RefCounted:
 	var other: RefCounted=native.fork()
 	if other==null or other==native or other.session==null or other.session==native.session \
 			or is_same(other.common,native.common) or is_same(other.ordinary_state,native.ordinary_state): return null
@@ -190,6 +193,57 @@ static func _restore_closed_sibling(native: RefCounted,value: Dictionary) -> Ref
 	var rebuilt: Dictionary=_owner().pack_current(native,value.ordinary)
 	return native if not rebuilt.is_empty() and C.same(rebuilt,value) else null
 
+# Same authored birth, same complete ordinary image; only the deterministic
+# lifecycle tail differs. This information is merely a preflight. No wire
+# status, Close receipt or proposed seed is accepted without the native tail.
+static func _same_completed_ordinary(value: Dictionary,previous: Dictionary) -> bool:
+	var primary: Dictionary=value.ordinary_state
+	var sibling: Dictionary=previous.ordinary_state
+	var close: Variant=primary.get("last_close")
+	var proposal: Variant=primary.get("proposal")
+	if primary.get("status")!="closed" or not close is Dictionary or close.get("reason")!="complete" \
+			or not proposal is Dictionary or not C.same(sibling.get("proposal"),{}): return false
+	if proposal.is_empty():
+		if sibling.get("status")!="active" or not C.same(sibling.get("last_close"),{}): return false
+	elif sibling.get("status")!="closed" or not sibling.get("last_close") is Dictionary \
+			or _wire(close)!=_wire(sibling.last_close): return false
+	if not value.ordinary.get("state") is Dictionary or value.ordinary.state.get("phase")!=SeasonState.Phase.COMPLETE:
+		return false
+	return _wire(value.ordinary)==_wire(previous.ordinary)
+
+# Only Store's two exact same-head completed generation pairs use this
+# entry. It performs the full native authored replay once, then each
+# independently detached owner runs its original Close / Prepare / pack tail.
+static func restore_completed_related_pages(head: PackedByteArray,current: PackedByteArray,pages: Array[PackedByteArray],
+		sibling_current: PackedByteArray) -> Dictionary:
+	var h: Dictionary=_head(head)
+	if h.is_empty() or pages.size()!=h.pages.size() or current.is_empty() or current.size()>MAX_PAGE \
+			or sibling_current.is_empty() or sibling_current.size()>MAX_PAGE: return {}
+	for raw: PackedByteArray in pages:
+		if raw.is_empty() or raw.size()>MAX_PAGE: return {}
+	var value: Dictionary=_current_image(current,int(h.ordinal))
+	var previous: Dictionary=_current_image(sibling_current,int(h.ordinal))
+	if value.is_empty() or previous.is_empty() or not _same_completed_ordinary(value,previous): return {}
+	var active: RefCounted=Core.root(int(h.seed),h.league)
+	if active==null: return {}
+	for i: int in pages.size():
+		if not _advance_closed_page(active,pages[i],h,i): return {}
+	var resumed: SeasonState=Core._replay(active.session,value.ordinary)
+	if resumed==null or resumed.phase!=SeasonState.Phase.COMPLETE or active.lifecycle_status()!="active": return {}
+	active.session=resumed
+	var detached: RefCounted=_detached_populated(active)
+	if detached==null: return {}
+	var guard: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/raw_guard.gd")
+	var active_snapshot: Dictionary=guard.capture(active)
+	if active_snapshot.is_empty() or not guard.matches(detached,active_snapshot): return {}
+	var primary: RefCounted=_complete_current(active,value)
+	if primary==null or not guard.matches(detached,active_snapshot): return {}
+	var primary_snapshot: Dictionary=guard.capture(primary)
+	if primary_snapshot.is_empty(): return {}
+	var sibling: RefCounted=_complete_current(detached,previous)
+	if sibling==null or not guard.matches(primary,primary_snapshot): return {}
+	return {"primary":primary,"sibling":sibling}
+
 # One synchronous related proof, no token or cache. Authenticate the common
 # physical history once, then replay each distinct current from its own birth.
 # The only differing-head case is appending one exact next page.
@@ -219,7 +273,7 @@ static func restore_related_pages(head: PackedByteArray, current: PackedByteArra
 	for i: int in range(pages.size()+1):
 		if i==depth and not shared_close.is_empty():
 			if native.current_ordinal()!=i+1 or not Core._apply_closed(native,shared_close.image,shared_close.close): return {}
-			branch=_detached_closed(native)
+			branch=_detached_populated(native)
 			if branch==null: return {}
 			branch_before=guard.capture(native)
 			if branch_before.is_empty() or not guard.matches(branch,branch_before) \
