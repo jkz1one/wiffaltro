@@ -36,6 +36,7 @@ var retained_before: Dictionary = {} # Detached diagnostics only, never writer a
 var _save_ticket: RefCounted
 var _base_archive_view: bool=false
 var _base_archive_return: PackedByteArray
+var _base_archive_shop_open: RefCounted
 var _rollover_close_recovery: PackedByteArray = PackedByteArray()
 var retained_human: Array = []
 var retained_report: Dictionary = {}
@@ -1761,12 +1762,19 @@ func _append_shop_scope() -> bool:
 
 func open_shop() -> void:
 	var appended: bool=_append_shop_scope()
+	if base_archive_qualification_view() and (not Store._base_archive_shop_scope(career_owner) \
+			or not Store.base_archive_app_binding(career_owner,saved_bytes)): return
 	if career_owner!=null and not career_owner.playable() and not appended: return
 	if not _available() or season==null or (not _scope() and not appended) or not season.physical.pending.is_empty() or not season.shop_available():
 		return
 	if not season.build._visit.open:
 		var revision: int = season.build.revision()
-		if not commit_shop({"id":"shop-open:%d"%revision,"rev":revision,"op":"open"}):
+		if base_archive_qualification_view():
+			_base_archive_shop_open=RefCounted.new()
+			var opened: bool=Store.open_base_archive_shop(self,_base_archive_shop_open)
+			_base_archive_shop_open=null
+			if not _adopt_base_archive_shop(opened): return
+		elif not commit_shop({"id":"shop-open:%d"%revision,"rev":revision,"op":"open"}):
 			return
 	for child: Node in menu.get_children():
 		if child is SeasonShopWindow and not child.is_queued_for_deletion() and child.call("_origin_matches"):
@@ -1824,6 +1832,7 @@ func _checkpoint_report() -> void:
 
 func commit_shop(command: Dictionary) -> bool:
 	if not Codec.primitive(command): return false
+	if base_archive_qualification_view(): return false # Actual widget owns this marked write.
 	var appended: bool=_append_shop_scope()
 	if career_owner==null or (not career_owner.playable() and not appended): return false
 	if not _available() or season == null or (not _scope() and not appended) or not season.physical.pending.is_empty() or not season.shop_available(): return false
@@ -2110,7 +2119,7 @@ func commit_inventory(_command: Dictionary) -> bool:
 	return false
 
 func loadout_allowed(ui: SeasonLoadoutUI) -> bool:
-	if not _scope(): return false
+	if base_archive_qualification_view() or not _scope(): return false
 	if ui == null or _busy or Store.saving or retained != null or is_instance_valid(ai_runner): return false
 	if ui.shop != null and (not is_instance_valid(ui.shop) or not ui.shop.visible or ui.shop.is_queued_for_deletion()): return false
 	if is_instance_valid(_loadout_modal) and _loadout_modal != ui: return false
@@ -2279,3 +2288,23 @@ func _adopt_base_archive_progress(committed: bool, message: String) -> void:
 	if written.is_empty() or not _adopt_base_archive_view(written.owner,written.bytes):
 		notice=message if not committed else "The replacement could not be verified. Use Continue."
 	show_season()
+
+func take_base_archive_shop_open(ticket: RefCounted) -> bool:
+	if ticket==null or ticket!=_base_archive_shop_open or not base_archive_qualification_view(): return false
+	_base_archive_shop_open=null
+	return true
+
+func commit_base_archive_window(window: Node, ticket: RefCounted) -> bool:
+	if not base_archive_qualification_view() or not _available(): return false
+	_busy=true
+	var committed: bool=Store.write_base_archive_shop(self,window,ticket)
+	_busy=false
+	return _adopt_base_archive_shop(committed)
+
+func _adopt_base_archive_shop(committed: bool) -> bool:
+	var written: Dictionary=Store.base_archive_app_result(saved_bytes) if committed else {}
+	var adopted: bool=not written.is_empty() and _adopt_base_archive_view(written.owner,written.bytes)
+	if not adopted:
+		notice="The purchase could not be verified for this saved visit. Use Continue if the slot changed."
+	# Existing window rebinds its exact owner/revision and refreshes.
+	return adopted

@@ -52,6 +52,9 @@ func _refresh() -> void:
 		if _mixed_career():
 			var preview: Label=_label("Development packs are available. Other purchases and roster changes are not enabled for this career yet.")
 			_body.move_child(preview,0)
+		if _base_archive_marked():
+			var scope: Label=_label("The separate Loadout overlay is not part of this private Shop check. Use this shop’s own reviewed controls.")
+			_body.move_child(scope,0)
 		var rule: String=app.call("earnings_income_rule")
 		if not rule.is_empty():
 			var explanation: Label=_label(rule)
@@ -93,6 +96,15 @@ const ManagedLoadout = preload("loadout_ui.gd")
 func _ready() -> void:
 	_bind_origin()
 	super._ready()
+	if _base_archive_marked():
+		if _confirm.confirmed.is_connected(_commit): _confirm.confirmed.disconnect(_commit)
+		_confirm.confirmed.connect(_base_archive_confirm_signal)
+		_confirm.canceled.connect(_base_archive_cancel_quote)
+		_confirm.close_requested.connect(_base_archive_cancel_quote)
+		if _back.pressed.is_connected(_close): _back.pressed.disconnect(_close)
+		_back.pressed.connect(_base_archive_close_signal)
+		if close_requested.is_connected(_close): close_requested.disconnect(_close)
+		close_requested.connect(_base_archive_close_signal)
 	# The inherited shop creates its own utility. Replace it synchronously before
 	# any input dispatch, not just the separate App entry.
 	for child: Node in get_children():
@@ -119,24 +131,48 @@ func _origin_matches() -> bool:
 		and _origin_owner.get("session")==_origin_session and app.get("saved_bytes")==_origin_bytes
 func _clear() -> void:
 	_view_generation+=1
+	_base_archive_cancel_quote()
 	super._clear()
 func _button(text: String,action: Callable) -> Button:
 	var generation: int=_view_generation
-	return super._button(text,func() -> void:
+	var control: Array[Button]=[]
+	var button: Button=super._button(text,func() -> void:
 		if not visible or generation!=_view_generation or not _origin_matches(): return
-		action.call())
+		if _base_archive_marked():
+			if control.is_empty() or not is_instance_valid(control[0]) or control[0].disabled \
+					or not control[0].is_visible_in_tree() or _confirm.visible: return
+			_base_archive_cancel_quote()
+			_base_archive_action=RefCounted.new()
+		action.call()
+		if _base_archive_action!=null and not _confirm.visible and not _base_archive_nested_visible():
+			_base_archive_cancel_quote())
+	control.append(button)
+	return button
 func _preview(command: Dictionary,description: String) -> void:
 	if not visible or not _origin_matches(): return
 	if _mixed_career() and not Mixed.SHOP_OPS.has(str(command.get("op",""))): return
+	if _base_archive_marked() and _base_archive_action==null: return
 	super._preview(command,description)
+	if _base_archive_visible() and _base_archive_action!=null and _confirm.visible and not _pending.is_empty():
+		_base_archive_quote=_pending.duplicate(true)
 func _commit() -> void:
 	if not visible or not _origin_matches(): return
 	var departing: bool=_pending.get("op")=="reserve_offer"
-	var ok: bool=app.commit_shop(_pending)
+	var ok: bool
+	var marked: bool=_base_archive_marked()
+	if marked:
+		if not _base_archive_confirming or not ClubCareer.same(_base_archive_quote,_pending): return
+		var command: Dictionary=_base_archive_quote.duplicate(true)
+		_base_archive_cancel_quote()
+		ok=_base_archive_dispatch(command)
+	else:
+		ok=app.commit_shop(_pending)
 	_pending.clear()
 	if ok: _bind_origin()
 	if ok and departing:
-		_close();return
+		if marked: _base_archive_close_signal()
+		else: _close()
+		return
 	_notice="Saved. Your build is ready for the next game." if ok else app.notice
 	if ok and LeagueRules.academy(app.season.league_rules) and app.season.build.pack_pending():
 		_notice="Saved. Choose or skip the remaining Academy pack choices before the next game."
@@ -150,6 +186,17 @@ func _retry_checkpoint() -> void:
 	_refresh()
 func _close() -> void:
 	if not _origin_matches(): hide();queue_free();return
+	if _base_archive_marked():
+		if not _base_archive_closing: return
+		_base_archive_cancel_quote()
+		if SeasonSchoolSponsors.has_credit(app.season.build.view().shop) \
+				and not _base_archive_dispatch(_request("leave_shop")):
+			_notice=app.notice
+			_refresh()
+			return
+		app.show_season()
+		queue_free()
+		return
 	super._close()
 func _close_retained() -> void:
 	if not _origin_matches(): hide();queue_free();return
@@ -193,3 +240,56 @@ func _dugout_modifier_state(id: String, wallet: Dictionary, shop: Dictionary, po
 	if wallet.sponsors.any(func(receipt: Dictionary)->bool: return receipt.item==id): return "ACTIVE"
 	if id in shop.offers.values(): return "OFFERED THIS VISIT"
 	return "ELIGIBLE FOR FUTURE OFFERS" if pool.has(id) else "LOCKED"
+
+# Only an actual visible stock control can begin a bound marked preview.
+# Nested native recipient/offer resolution may complete the same preview.
+var _base_archive_action: RefCounted
+var _base_archive_quote: Dictionary={}
+var _base_archive_confirming: bool=false
+var _base_archive_closing: bool=false
+var _base_archive_ticket: RefCounted
+var _base_archive_command: Dictionary={}
+
+func _base_archive_marked() -> bool:
+	return app!=null and app.base_archive_qualification_view()
+
+func _base_archive_visible() -> bool:
+	return _base_archive_marked() and visible and _origin_matches() and get_parent()==app.menu
+
+func _base_archive_nested_visible() -> bool:
+	for child: Node in find_children("*","Window",true,false):
+		if child!=_confirm and child.visible and not child.is_queued_for_deletion(): return true
+	return false
+
+func _base_archive_cancel_quote() -> void:
+	_base_archive_action=null
+	_base_archive_quote={}
+
+func _base_archive_confirm_signal() -> void:
+	if not _base_archive_visible() or _base_archive_action==null or _base_archive_quote.is_empty(): return
+	_base_archive_confirming=true
+	_commit()
+	_base_archive_confirming=false
+
+func _base_archive_close_signal() -> void:
+	if not _base_archive_visible(): return
+	_base_archive_closing=true
+	_close()
+	_base_archive_closing=false
+
+func _base_archive_dispatch(command: Dictionary) -> bool:
+	if not _base_archive_visible() or (not _base_archive_confirming and not _base_archive_closing): return false
+	_base_archive_ticket=RefCounted.new()
+	_base_archive_command=command.duplicate(true)
+	var saved: bool=app.commit_base_archive_window(self,_base_archive_ticket)
+	_base_archive_ticket=null
+	_base_archive_command={}
+	return saved
+
+func take_base_archive_shop(ticket: RefCounted) -> Dictionary:
+	if ticket==null or ticket!=_base_archive_ticket or not _base_archive_visible() \
+			or (not _base_archive_confirming and not _base_archive_closing): return {}
+	_base_archive_ticket=null
+	var result: Dictionary=_base_archive_command
+	_base_archive_command={}
+	return result

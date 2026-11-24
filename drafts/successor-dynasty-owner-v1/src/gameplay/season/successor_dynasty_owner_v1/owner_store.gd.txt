@@ -19,6 +19,7 @@ const BASE_ARCHIVE_DRAFT_GENERATION := "starter-base-marked-draft-v1"
 const BASE_ARCHIVE_HUMAN_GENERATION := "starter-base-marked-human-v1"
 const BASE_ARCHIVE_REPORT_GENERATION := "starter-base-marked-reports-v1"
 const BASE_ARCHIVE_SETTLED_GENERATION := "starter-base-marked-settled-v1"
+const BASE_ARCHIVE_SHOP_GENERATION := "starter-base-marked-shop-v1"
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
 static var last_error: String = ""
@@ -43,6 +44,7 @@ static var _base_archive_write_ticket: RefCounted
 static var _base_archive_live_op: RefCounted
 static var _base_archive_cpu_job: Dictionary={}
 static var _base_archive_settle_pin: Dictionary={}
+static var _base_archive_shop_op: RefCounted
 static var _flat_play: PrivateFlatOpeningPlay
 static var _flat_play_app: WeakRef
 static var _flat_play_lab: WeakRef
@@ -509,6 +511,7 @@ static func _invalidate() -> void:
 	_base_archive_live_op=null
 	_base_archive_cpu_job={}
 	_base_archive_settle_pin={}
+	_base_archive_shop_op=null
 	_clear_private_flat_play()
 	_clear_private_flat_npc()
 	_previous_standard_pin = {}; _previous_standard_view = {}
@@ -2549,7 +2552,7 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 	var fields: Array[String]=["head","current","prior_primary_sha256"]
 	if wrapped.has("generation"):
 		if wrapped.generation not in [BASE_ARCHIVE_DRAFT_GENERATION,BASE_ARCHIVE_HUMAN_GENERATION,
-				BASE_ARCHIVE_REPORT_GENERATION,BASE_ARCHIVE_SETTLED_GENERATION]: return {}
+				BASE_ARCHIVE_REPORT_GENERATION,BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
 			or not BaseArchive._digest(wrapped.prior_primary_sha256): return {}
@@ -2582,7 +2585,9 @@ static func _base_archive_load() -> Dictionary:
 			BASE_ARCHIVE_REPORT_GENERATION:
 				if _base_archive_report_count(result)<1: return {}
 			BASE_ARCHIVE_SETTLED_GENERATION:
-				if not _base_archive_settled_image(result): return {}
+				if not _base_archive_unshopped_settled_image(result): return {}
+			BASE_ARCHIVE_SHOP_GENERATION:
+				if not _base_archive_shop_image(result): return {}
 			_:
 				if not _base_archive_draft_image(result,1): return {}
 		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result,head_bytes,pages): return {}
@@ -2614,6 +2619,18 @@ static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrappe
 		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
 	var prior: Dictionary=_base_archive_wrapper(bytes)
 	if prior.is_empty() or not Codec.same(prior.head,wrapped.head): return false
+	if wrapped.generation==BASE_ARCHIVE_SHOP_GENERATION:
+		if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION]: return false
+		var checkpoint: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
+		if not _base_archive_shop_scope(checkpoint): return false
+		if prior.generation==BASE_ARCHIVE_SETTLED_GENERATION and not _base_archive_unshopped_settled_image(checkpoint):
+			return false
+		if prior.generation==BASE_ARCHIVE_SHOP_GENERATION and not _base_archive_shop_image(checkpoint): return false
+		var before: Array=checkpoint.session.build._events
+		var after: Array=current.session.build._events
+		if after.size()!=before.size()+1 or not Codec.same(after.slice(0,before.size()),before): return false
+		var operation: RefCounted=_base_archive_shop_candidate(checkpoint,after.back())
+		return operation!=null and Codec.same(Owner.capture(operation),wrapped.current)
 	if wrapped.generation==BASE_ARCHIVE_SETTLED_GENERATION:
 		if prior.get("generation")!=BASE_ARCHIVE_REPORT_GENERATION: return false
 		# Establish the exact typed old checkpoint from the same authenticated
@@ -2921,3 +2938,67 @@ static func settle_base_archive_opening(app: Variant) -> bool:
 	_base_archive_draft_pin={}
 	_base_archive_live_op=RefCounted.new()
 	return _base_archive_commit_current(_base_archive_live_op,proof,next,app.saved_bytes,BASE_ARCHIVE_SETTLED_GENERATION)
+
+static func _base_archive_unshopped_settled_image(owner: RefCounted) -> bool:
+	if not _base_archive_settled_image(owner): return false
+	for event: Variant in owner.session.build._events:
+		if not event is Dictionary or SeasonBuild.SHOP_OPS.has(str(event.get("op",""))): return false
+	return true
+
+static func _base_archive_shop_scope(owner: RefCounted) -> bool:
+	return _base_archive_settled_image(owner) and owner.session.shop_available()
+
+static func _base_archive_shop_image(owner: RefCounted) -> bool:
+	if not _base_archive_shop_scope(owner): return false
+	var events: Array=owner.session.build._events
+	return not events.is_empty() and events.back() is Dictionary \
+		and SeasonBuild.SHOP_OPS.has(str(events.back().get("op","")))
+
+# Native quote/payment/ownership/revision semantics remain in Build. This
+# detached helper cannot grant authority, save anything, or install an owner.
+static func _base_archive_shop_candidate(owner: RefCounted, command: Dictionary) -> RefCounted:
+	if not _base_archive_shop_scope(owner) or not Codec.primitive(command) \
+			or not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return null
+	var id: Variant=command.get("id")
+	if id is String and not id.is_empty() and owner.session.build._requests.has(id): return null
+	var candidate: RefCounted=owner.fork()
+	if candidate==null: return null
+	var build: SeasonBuild=candidate.session.build.candidate(command.duplicate(true))
+	if build==null: return null
+	candidate.session.adopt_build(build)
+	if candidate.session.build!=build or not _base_archive_shop_image(candidate): return null
+	var previous: Array=owner.session.build._events
+	var events: Array=build._events
+	if events.size()!=previous.size()+1 or not Codec.same(events.slice(0,previous.size()),previous) \
+			or not Codec.same(events.back(),command): return null
+	return candidate
+
+static func open_base_archive_shop(app: Variant, ticket: RefCounted) -> bool:
+	if not _base_archive_app_valid(app) or not app.take_base_archive_shop_open(ticket) \
+			or not _base_archive_shop_scope(app.career_owner) or app.season.build._visit.open: return false
+	var revision: int=app.season.build.revision()
+	_base_archive_shop_op=RefCounted.new()
+	return _write_base_archive_shop(_base_archive_shop_op,app,{"id":"shop-open:%d"%revision,"rev":revision,"op":"open"})
+
+static func write_base_archive_shop(app: Variant, window: Variant, ticket: RefCounted) -> bool:
+	if not _base_archive_app_valid(app) or not is_instance_valid(window) \
+			or window.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/shop_window.gd") \
+			or window.app!=app or window.get_parent()!=app.menu or not window.visible or not window._origin_matches():
+		return false
+	var command: Dictionary=window.take_base_archive_shop(ticket)
+	if command.is_empty() or command.get("op")=="open": return false
+	_base_archive_shop_op=RefCounted.new()
+	return _write_base_archive_shop(_base_archive_shop_op,app,command)
+
+static func _write_base_archive_shop(op: RefCounted, app: Variant, command: Dictionary) -> bool:
+	if op==null or op!=_base_archive_shop_op: return false
+	_base_archive_shop_op=null
+	if not _base_archive_cpu_job.is_empty() or not _base_archive_app_valid(app) \
+			or is_instance_valid(app.ai_runner): return false
+	var proof: Dictionary=_base_archive_draft_pin
+	var expected: PackedByteArray=app.saved_bytes
+	var candidate: RefCounted=_base_archive_shop_candidate(proof.owner,command)
+	if candidate==null or not _base_archive_app_valid(app) or not _base_archive_draft_pin_live(proof): return false
+	_base_archive_draft_pin={}
+	_base_archive_live_op=RefCounted.new()
+	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,BASE_ARCHIVE_SHOP_GENERATION)

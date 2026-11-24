@@ -116,6 +116,8 @@ func render() -> void:
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
 		if app.season.round_index==1:
 			_note("Opening round settled · Cash %d. Later play is not part of this private check."%app.season.cash())
+			if Store._base_archive_shop_scope(app.career_owner):
+				_bound_button(_body,"RESUME PAID PACK" if app.season.build.pack_pending() else "SHOP",Callable(app,"open_pitch_shop"))
 		elif app.season.physical.pending.is_empty():
 			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 		else:
