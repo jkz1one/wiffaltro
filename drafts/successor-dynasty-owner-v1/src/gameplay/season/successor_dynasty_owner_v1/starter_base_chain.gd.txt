@@ -21,6 +21,14 @@ static func root(seed: int, league: String) -> RefCounted:
 	if not C.whole(seed,0,2147483647) or league!="dugout": return null
 	return _owner().create_ordinary(seed,league)
 
+# Narrow plain postgame commands. Native candidate() still issues all quotes,
+# payments and held receipts. "Buy and Use" and other stock operations stay
+# out of this inactive witness until their effects are qualified separately.
+static func _shop_proof_command(command: Dictionary) -> bool:
+	var op: String = str(command.get("op",""))
+	return SHOP_OPS.has(op) or op in ["tactical_buy","reroll"] \
+		or (op=="buy" and command.get("mode")=="hold")
+
 static func _shop(session: SeasonState, journal: Array, first: int) -> bool:
 	var events: Array=session.build._events
 	if first<0 or first>events.size() or events.size()>journal.size() \
@@ -29,7 +37,7 @@ static func _shop(session: SeasonState, journal: Array, first: int) -> bool:
 	while i<journal.size():
 		var cmd: Variant=journal[i]
 		if not cmd is Dictionary: return false
-		if not SHOP_OPS.has(str(cmd.get("op",""))): break
+		if not _shop_proof_command(cmd): break
 		if not session.physical.pending.is_empty() or not session.shop_available(): return false
 		var id: Variant=cmd.get("id")
 		if id is String and not id.is_empty() and session.build._requests.has(id): return false
