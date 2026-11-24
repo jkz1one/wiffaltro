@@ -44,6 +44,9 @@ static var _expected: PackedByteArray = PackedByteArray()
 static var _written: PackedByteArray = PackedByteArray()
 static var _ordinary_encoded_ticket: RefCounted
 static var _ordinary_encoded: PackedByteArray = PackedByteArray()
+static var _rollover_close_ticket: RefCounted
+static var _rollover_close_unverified: bool = false
+static var _rollover_recovery_expected: PackedByteArray = PackedByteArray()
 # One unarmed report-ticket result, or one promoted same-owner terminal result.
 # No serialized trust marker, cross-process cache, or caller registration API.
 static var _cross_pending: PackedByteArray
@@ -275,6 +278,7 @@ static func _mixed_continue_authored_metadata(owner: RefCounted) -> bool:
 	return true
 
 static func accept_mixed_continue(expected: PackedByteArray,child: Node) -> RefCounted:
+	if _rollover_close_unverified or not _rollover_recovery_expected.is_empty(): return null
 	var process_script: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_continue.gd")
 	if not LeagueAdmission.starter_fast_worker() or saving or _owner!=null or _ticket!=null \
 			or child==null or child.get_script()!=process_script or expected.is_empty() \
@@ -335,7 +339,17 @@ static func accept_mixed_continue(expected: PackedByteArray,child: Node) -> RefC
 static func read() -> RefCounted:
 	return _read_common_slot(false)
 
-static func _read_common_slot(flat: bool) -> RefCounted:
+static func read_rollover_close_recovery(expected: PackedByteArray) -> RefCounted:
+	if expected.is_empty() or expected!=_rollover_recovery_expected or saving or _ticket!=null or _owner!=null \
+		or not private_mixed_append(): return null
+	return _read_common_slot(false,expected)
+
+static func _read_common_slot(flat: bool, recovery_expected: PackedByteArray=PackedByteArray()) -> RefCounted:
+	if (_rollover_close_unverified or not _rollover_recovery_expected.is_empty()) and recovery_expected.is_empty():
+		last_error="Use Continue to verify the replacement season save."
+		return null
+	if not recovery_expected.is_empty() and (flat or _rollover_close_unverified \
+		or recovery_expected!=_rollover_recovery_expected): return null
 	if flat and (saving or _ticket!=null or not private_standard_chain_opening()): return null
 	forget_projection()
 	last_error = ""
@@ -355,6 +369,9 @@ static func _read_common_slot(flat: bool) -> RefCounted:
 		return null
 	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
+	if not recovery_expected.is_empty() and bytes!=recovery_expected:
+		last_error="The replacement save does not match the pending Close. No files were changed."
+		return null
 	var parser: JSON = JSON.new()
 	if parser.parse(bytes.get_string_from_utf8()) != OK:
 		last_error = "The save is unreadable. Original and backup are preserved."
@@ -369,6 +386,9 @@ static func _read_common_slot(flat: bool) -> RefCounted:
 		return null
 	if not flat and not _starter_owner_allowed(season):
 		last_error="This save is outside the Starter Beta slot. No files were changed."
+		return null
+	if not recovery_expected.is_empty() and not Owner.MixedAppend.rollover_closed_complete_scope(season):
+		last_error="The replacement does not verify as a closed Season 6. No files were changed."
 		return null
 	var snapshot: Dictionary = RawGuard.capture(season)
 	if snapshot.is_empty() or raw() != bytes:
@@ -396,7 +416,7 @@ static func _matches(expected: PackedByteArray) -> bool:
 static func _write(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary) -> bool:
 	# Legacy unbound writer never modifies the private paired slot.
 	if season==null or season.get_script()!=Owner or _paired_owner(season) or _paired_settled(_owner): return false
-	if not _starter_owner_allowed(season): return false
+	if not _starter_owner_allowed(season) or _rollover_close_unverified or not _rollover_recovery_expected.is_empty(): return false
 	last_error = "The exact candidate is retained. Resolve the save obstruction, then retry."
 	if not _matches(expected):
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
@@ -474,6 +494,8 @@ static func _invalidate() -> void:
 	_flat_ticket = null; _ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 	_ordinary_encoded_ticket = null; _ordinary_encoded = PackedByteArray()
+	_rollover_close_ticket = null; _rollover_close_unverified = false
+	_rollover_recovery_expected = PackedByteArray()
 
 # Only the actual native Starter Store-admitted owner gains compact native routing.
 # Each writer still checks exact raw bytes and its native producer.
@@ -508,6 +530,7 @@ static func match_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
 	return not Flat.is_flat(owner) and _match_bound_owner(owner,expected)
 
 static func _match_bound_owner(owner: RefCounted, expected: PackedByteArray) -> bool:
+	if _rollover_close_unverified or not _rollover_recovery_expected.is_empty(): return false
 	var valid: bool = owner != null and owner == _owner and owner.session == _owner_session and expected == _owner_bytes \
 		and _matches(expected) and _matches_raw(owner,_owner_raw)
 	if not valid: forget_projection()
@@ -1848,6 +1871,8 @@ static func _prepare_mixed_append_completed_close(owner: RefCounted,expected: Pa
 	_ticket=RefCounted.new()
 	_candidate=candidate;_candidate_session=candidate.session;_candidate_raw=snapshot;_candidate_data=data
 	_expected=expected.duplicate();_written=PackedByteArray()
+	if Owner.MixedAppend.rollover_closed_complete_scope(candidate):
+		_rollover_close_ticket = _ticket
 	_write_admitted()
 	return _ticket
 
@@ -2212,9 +2237,21 @@ static func prepared_matches(ticket: RefCounted, owner: RefCounted, candidate: R
 static func prepared_snapshot(ticket: RefCounted) -> Dictionary:
 	return _candidate_data.duplicate(true) if ticket != null and ticket == _ticket else {}
 
+# A renamed-but-unverified ticket is never promoted or retried. Only its
+# original App handoff may release stale native authority and hand on the pin.
+static func take_rollover_close_recovery(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> PackedByteArray:
+	if saving or not private_mixed_append() or not _rollover_close_unverified or ticket==null \
+		or ticket!=_rollover_close_ticket or ticket!=_ordinary_encoded_ticket \
+		or not prepared_binding(ticket,owner,candidate,expected): return PackedByteArray()
+	var revision:=_ordinary_encoded.duplicate()
+	if revision.is_empty(): return revision
+	_invalidate()
+	_rollover_recovery_expected = revision
+	return revision.duplicate()
+
 static func write_prepared(ticket: RefCounted) -> bool:
 	forget_projection()
-	if saving or ticket == null or ticket != _ticket or not _written.is_empty(): return false
+	if saving or ticket == null or ticket != _ticket or not _written.is_empty() or _rollover_close_unverified: return false
 	if not prepared_matches(ticket,_owner,_candidate,_expected): return false
 	return _write_admitted()
 
@@ -2224,6 +2261,7 @@ static func _ordinary_prepared_revision() -> bool:
 # Private immediate continuation only; callers use prepare_and_write or the
 # fully checked write_prepared retry. Disk CAS/readback remain in every write.
 static func _write_admitted() -> bool:
+	if _rollover_close_unverified or not _rollover_recovery_expected.is_empty(): return false
 	if _flat_ticket!=null and _flat_ticket==_ticket:
 		if not private_standard_chain_opening() or not Flat._storage_scope(_candidate): return false
 	elif not _starter_owner_allowed(_candidate): return false
@@ -2242,6 +2280,10 @@ static func _write_admitted() -> bool:
 		saving = true
 		var result: String = _write_exact_result(_ordinary_encoded,_expected,false)
 		saving = false
+		if result=="renamed_unverified" and _rollover_close_ticket==_ticket:
+			_rollover_close_unverified = true
+			forget_projection()
+			last_error="The season save was replaced, but its contents could not be verified. Use Continue to check it."
 		if result!="saved": return false
 		# Keep precisely the bytes whose immediate readback passed, not a
 		# second unbound sample from a possibly replaced slot.
@@ -2257,6 +2299,7 @@ static func written_bytes(ticket: RefCounted) -> PackedByteArray:
 	return _written.duplicate() if ticket != null and ticket == _ticket else PackedByteArray()
 
 static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted, expected: PackedByteArray) -> bool:
+	if _rollover_close_unverified or not _rollover_recovery_expected.is_empty(): return false
 	if ticket!=null and ticket==_flat_ticket and not private_standard_chain_opening(): return false
 	if _ordinary_prepared_revision():
 		# Raw snapshots may be expensive. Check the same pinned revision only
@@ -2276,4 +2319,6 @@ static func promote(ticket: RefCounted, owner: RefCounted, candidate: RefCounted
 	_flat_ticket = null; _ticket = null; _candidate = null; _candidate_session = null; _candidate_raw = {}; _candidate_data = {}
 	_expected = PackedByteArray(); _written = PackedByteArray()
 	_ordinary_encoded_ticket = null; _ordinary_encoded = PackedByteArray()
+	_rollover_close_ticket = null; _rollover_close_unverified = false
+	_rollover_recovery_expected = PackedByteArray()
 	return true

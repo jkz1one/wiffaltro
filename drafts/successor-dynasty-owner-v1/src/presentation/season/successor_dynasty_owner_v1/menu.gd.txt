@@ -50,6 +50,9 @@ func render() -> void:
 	if app.retained == null:
 		_bound_button(_footer,"QUIT GAME",Callable(app,"_request_quit"))
 	if not app.notice.is_empty(): _note(app.notice)
+	if app.rollover_close_recovery_pending():
+		_bound_button(_body,"CONTINUE TO VERIFY SEASON SAVE",Callable(app,"recover_rollover_close"))
+		return
 	if app.mixed_continue_running():
 		_bound_button(_body,"CANCEL CAREER CHECK",Callable(app,"cancel_mixed_continue"))
 		return

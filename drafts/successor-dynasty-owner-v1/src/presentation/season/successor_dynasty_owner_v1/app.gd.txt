@@ -34,6 +34,7 @@ var _d1_proof: Dictionary={}
 const D1_PROOF_MS: int=30000
 var retained_before: Dictionary = {} # Detached diagnostics only, never writer authority.
 var _save_ticket: RefCounted
+var _rollover_close_recovery: PackedByteArray = PackedByteArray()
 var retained_human: Array = []
 var retained_report: Dictionary = {}
 var retained_saved: bool = false
@@ -210,6 +211,7 @@ func show_season() -> void:
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
+	if rollover_close_recovery_pending(): return false
 	return not mixed_continue_running() and not starter_dugout_review_running() and not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func starter_player() -> bool: return Store.LeagueAdmission.starter_player()
 func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
@@ -1176,8 +1178,36 @@ func retry_save() -> void:
 		if retained_saved: retained_saved_bytes = Store.written_bytes(_save_ticket)
 	_finish_save()
 
+func rollover_close_recovery_pending() -> bool:
+	return not _rollover_close_recovery.is_empty()
+
+func recover_rollover_close() -> void:
+	if not rollover_close_recovery_pending() or _busy or Store.saving or is_instance_valid(lab) \
+		or is_instance_valid(ai_runner) or career_owner!=null or season!=null: return
+	_busy = true
+	var candidate: RefCounted=Store.read_rollover_close_recovery(_rollover_close_recovery)
+	if candidate==null:
+		notice=Store.last_error
+	else:
+		career_owner=candidate; season=candidate.session; saved_bytes=_rollover_close_recovery
+		_rollover_close_recovery=PackedByteArray()
+		notice=""
+	_busy = false
+	show_season()
+
 func _finish_save() -> void:
 	if not retained_saved:
+		var replacement:=Store.take_rollover_close_recovery(_save_ticket,retained_owner_envelope,retained_envelope,retained_expected)
+		if not replacement.is_empty():
+			_rollover_close_recovery=replacement
+			_save_ticket=null
+			career_owner=null; season=null; saved_bytes=PackedByteArray()
+			retained_envelope=null; retained_owner_envelope=null
+			retained=null; retained_owner=null; retained_lab=null; retained_state=null
+			retained_expected=PackedByteArray(); retained_before={}
+			retained_saved_bytes=PackedByteArray()
+			notice="The season save was replaced, but its contents could not be verified. Use Continue to check it."
+			_busy=false; show_season(); return
 		Store.forget_projection()
 		notice = Store.last_error; _busy = false; show_season(); return
 	if Store.raw() != retained_saved_bytes:
