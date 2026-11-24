@@ -124,10 +124,21 @@ func render() -> void:
 				_bound_button(_body,"START NEXT DUGOUT BASE SEASON",Callable(app,"request_lifecycle").bind("next"))
 			return
 		var regular_count: int=Store._base_archive_regular_report_count(app.career_owner)
-		if Store._base_archive_postseason_image(app.career_owner):
-			var qualified: bool=app.season.phase==SeasonState.Phase.SEMIFINAL
-			_note("Regular season paid. Your club qualified; the semifinal is ready. Playoff play is outside this check." \
-				if qualified else "Your club missed the playoffs. The CPU bracket is complete. Season Close is outside this check.")
+		var semifinal_count: int=Store._base_archive_semifinal_count(app.career_owner)
+		if Store._base_archive_semifinal_ready(app.career_owner):
+			_note("Regular season paid. Your club qualified for the semifinal.")
+			_bound_button(_body,"PLAY SEMIFINAL",Callable(app,"play_next"))
+		elif semifinal_count>=0:
+			_note("Managed semifinal saved · CPU reports %d · Rewards unpaid · Cash %d."%[semifinal_count,app.season.cash()])
+			if not is_instance_valid(app.ai_runner):
+				var action: String=["RESUME SAVED SEMIFINAL","CONTINUE SAVED SEMIFINAL","SETTLE SAVED SEMIFINAL"][semifinal_count]
+				_bound_button(_body,action,Callable(app,"resume_round"))
+		elif Store._base_archive_semifinal_settled(app.career_owner):
+			_note("Semifinal paid. Your club reached the final. Final play is outside this check." \
+				if app.season.phase==SeasonState.Phase.FINAL else \
+				"Your club was eliminated in the semifinal. The CPU final is complete. Season Close is outside this check.")
+		elif Store._base_archive_postseason_image(app.career_owner):
+			_note("Your club missed the playoffs. The CPU bracket is complete. Season Close is outside this check.")
 		elif regular_count>=0:
 			var last_regular: bool=Store._base_archive_last_regular(app.career_owner)
 			var status: String="CPU games %d / 2"%regular_count

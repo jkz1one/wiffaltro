@@ -2279,9 +2279,12 @@ func _resume_base_archive_round() -> void:
 	var count: int=Store._base_archive_report_count(career_owner)
 	if count<0: return
 	var last_regular: bool=Store._base_archive_last_regular(career_owner)
-	if last_regular or count<2:
-		var decision: Dictionary=Store.resume_base_archive_last_regular(self) if last_regular \
-			else {"runner":Store.start_base_archive_cpu(self)}
+	var semifinal: bool=Store._base_archive_semifinal_count(career_owner)>=0
+	if semifinal or last_regular or count<2:
+		var decision: Dictionary
+		if semifinal: decision=Store.resume_base_archive_semifinal(self)
+		elif last_regular: decision=Store.resume_base_archive_last_regular(self)
+		else: decision={"runner":Store.start_base_archive_cpu(self)}
 		ai_runner=decision.get("runner")
 		if is_instance_valid(ai_runner):
 			_busy=true

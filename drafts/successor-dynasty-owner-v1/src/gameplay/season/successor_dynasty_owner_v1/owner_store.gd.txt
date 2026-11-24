@@ -29,6 +29,9 @@ const BASE_ARCHIVE_REGULAR_REPORT_GENERATION := "starter-base-marked-regular-rep
 const BASE_ARCHIVE_REGULAR_SETTLED_GENERATION := "starter-base-marked-regular-settled-v1"
 const BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION := "starter-base-marked-last-regular-reports-v1"
 const BASE_ARCHIVE_POSTSEASON_GENERATION := "starter-base-marked-postseason-v1"
+const BASE_ARCHIVE_SEMI_HUMAN_GENERATION := "starter-base-marked-semifinal-human-v1"
+const BASE_ARCHIVE_SEMI_REPORT_GENERATION := "starter-base-marked-semifinal-reports-v1"
+const BASE_ARCHIVE_SEMI_SETTLED_GENERATION := "starter-base-marked-semifinal-settled-v1"
 const BASE_ARCHIVE_ABANDONED_GENERATION := "starter-base-marked-abandoned-v1"
 const BASE_ARCHIVE_PREPARED_GENERATION := "starter-base-marked-prepared-v1"
 const BASE_ARCHIVE_NEXT_BIRTH_GENERATION := "starter-base-marked-next-birth-v1"
@@ -2584,7 +2587,8 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 				BASE_ARCHIVE_REPORT_GENERATION,BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
 				BASE_ARCHIVE_NEXT_HUMAN_GENERATION,BASE_ARCHIVE_REGULAR_REPORT_GENERATION,
 				BASE_ARCHIVE_REGULAR_SETTLED_GENERATION,BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,
-				BASE_ARCHIVE_POSTSEASON_GENERATION,BASE_ARCHIVE_ABANDONED_GENERATION,
+				BASE_ARCHIVE_POSTSEASON_GENERATION,BASE_ARCHIVE_SEMI_HUMAN_GENERATION,
+				BASE_ARCHIVE_SEMI_REPORT_GENERATION,BASE_ARCHIVE_SEMI_SETTLED_GENERATION,BASE_ARCHIVE_ABANDONED_GENERATION,
 				BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
@@ -2641,6 +2645,12 @@ static func _base_archive_load(reader: bool=false) -> Dictionary:
 				if not _base_archive_last_regular(result) or _base_archive_regular_report_count(result)<1: return {}
 			BASE_ARCHIVE_POSTSEASON_GENERATION:
 				if not _base_archive_postseason_image(result): return {}
+			BASE_ARCHIVE_SEMI_HUMAN_GENERATION:
+				if _base_archive_semifinal_count(result)!=0: return {}
+			BASE_ARCHIVE_SEMI_REPORT_GENERATION:
+				if _base_archive_semifinal_count(result)<1: return {}
+			BASE_ARCHIVE_SEMI_SETTLED_GENERATION:
+				if not _base_archive_semifinal_settled(result): return {}
 			BASE_ARCHIVE_REGULAR_SETTLED_GENERATION:
 				if not _base_archive_regular_settled_image(result): return {}
 			BASE_ARCHIVE_SETTLED_GENERATION:
@@ -2697,7 +2707,7 @@ static func _base_archive_paid_regular(owner: RefCounted, allow_closed: bool=fal
 		and (fixture.get("home",-1)==0 or fixture.get("away",-1)==0)
 
 static func _base_archive_managed_ready(owner: RefCounted) -> bool:
-	return _base_archive_draft_image(owner,4) or (_base_archive_paid_regular(owner) \
+	return _base_archive_semifinal_ready(owner) or _base_archive_draft_image(owner,4) or (_base_archive_paid_regular(owner) \
 		and owner.session.physical.pending.is_empty() and (_base_archive_last_regular(owner) \
 			or _base_archive_has_later_regular(owner.session)))
 
@@ -2713,7 +2723,8 @@ static func _base_archive_related_role(generation: String) -> bool:
 	return generation in [BASE_ARCHIVE_NEXT_HUMAN_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
 		BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_REGULAR_REPORT_GENERATION,BASE_ARCHIVE_REGULAR_SETTLED_GENERATION,
 		BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION,
-		BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,BASE_ARCHIVE_POSTSEASON_GENERATION]
+		BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,BASE_ARCHIVE_POSTSEASON_GENERATION,
+		BASE_ARCHIVE_SEMI_HUMAN_GENERATION,BASE_ARCHIVE_SEMI_REPORT_GENERATION,BASE_ARCHIVE_SEMI_SETTLED_GENERATION]
 
 # A rotating sibling is evidence of the last single native offer, not proof
 # of the archive. The caller has already restored the primary/page strictly.
@@ -2726,6 +2737,9 @@ static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrappe
 	if not Codec.same(prior.head,wrapped.head): return false
 	if wrapped.generation in [BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION]:
 		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages,related)
+	if wrapped.generation in [BASE_ARCHIVE_SEMI_HUMAN_GENERATION,BASE_ARCHIVE_SEMI_REPORT_GENERATION,
+			BASE_ARCHIVE_SEMI_SETTLED_GENERATION]:
+		return _base_archive_semifinal_sibling(prior,wrapped,current,related)
 	if wrapped.generation==BASE_ARCHIVE_NEXT_HUMAN_GENERATION:
 		if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
 				BASE_ARCHIVE_REGULAR_SETTLED_GENERATION]: return false
@@ -2832,7 +2846,7 @@ static func _read_base_archive_live_source(allow_human: bool) -> RefCounted:
 	if proof.is_empty() or not (_base_archive_draft_image(proof.owner,0) \
 			or (allow_human and (_base_archive_report_count(proof.owner)>=0 or _base_archive_settled_image(proof.owner)
 				or _base_archive_next_human_image(proof.owner) or _base_archive_regular_settled_image(proof.owner)
-				or _base_archive_postseason_image(proof.owner)
+				or _base_archive_postseason_image(proof.owner) or _base_archive_semifinal_settled(proof.owner)
 				or _base_archive_abandoned_image(proof.owner,false) or _base_archive_abandoned_image(proof.owner,true)))): return null
 	proof.session=proof.owner.session
 	proof.snapshot=RawGuard.capture(proof.owner)
@@ -2932,12 +2946,16 @@ static func write_base_archive_human(app: Variant) -> bool:
 	if candidate==null: return false
 	candidate.session.physical.pending={"human":human.duplicate(true),"reports":[]}
 	var opening: bool=_base_archive_draft_image(owner,4)
-	if not (_base_archive_human_image(candidate) if opening else _base_archive_next_human_image(candidate)): return false
+	var semifinal: bool=_base_archive_semifinal_ready(owner)
+	if semifinal:
+		if _base_archive_semifinal_count(candidate)!=0: return false
+	elif not (_base_archive_human_image(candidate) if opening else _base_archive_next_human_image(candidate)): return false
 	var projection: Dictionary=Adapter.OrdinaryPending.project(candidate.session)
 	if projection.has("error") or not projection.has("fixture") or not base_archive_app_binding(owner,expected): return false
 	_base_archive_draft_pin={}
 	_base_archive_live_op=RefCounted.new()
 	var generation: String=BASE_ARCHIVE_HUMAN_GENERATION if opening else BASE_ARCHIVE_NEXT_HUMAN_GENERATION
+	if semifinal: generation=BASE_ARCHIVE_SEMI_HUMAN_GENERATION
 	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,generation)
 
 static func _base_archive_opening_report_count(owner: RefCounted) -> int:
@@ -2964,11 +2982,14 @@ static func _base_archive_last_regular(owner: RefCounted) -> bool:
 	return s.round_index==9 and s.schedule.size()==30 and not _base_archive_has_later_regular(s)
 
 static func _base_archive_postseason_image(owner: RefCounted) -> bool:
+	return _base_archive_postseason_shape(owner,false)
+
+static func _base_archive_postseason_shape(owner: RefCounted, semifinal_pending: bool) -> bool:
 	if owner==null or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.session==null: return false
 	var s: SeasonState=owner.session
 	if not Adapter.scope("ordinary",s) or s.league_rules.get("league")!="dugout" or s.league_rules.get("tier")!=0 \
 			or s.round_index!=10 or s.picks.size()!=4 or s.player_results.size()!=10 \
-			or not s.physical.pending.is_empty() or not s.physical.needed.is_empty() or not s.physical.error.is_empty() \
+			or (not semifinal_pending and not s.physical.pending.is_empty()) or not s.physical.needed.is_empty() or not s.physical.error.is_empty() \
 			or s.physical.projecting or s.build.pack_pending() or s.physical.cursor!=s.physical.reports.size() \
 			or s.playoff_seeds.size()!=4 or s.semifinals.size()!=2: return false
 	var summary: Dictionary=ClubSeasonRecord.analyze(ClubSeasonRecord.capture(s))
@@ -2978,8 +2999,75 @@ static func _base_archive_postseason_image(owner: RefCounted) -> bool:
 		return summary.finish=="unfinished" and s.playoff_seeds.has(0) and s.results.size()==30 \
 			and s.physical.cursor==20 and s.champion==-1 and s.final_fixture.is_empty() \
 			and next in s.semifinals and 0 in [next.get("home"),next.get("away")]
-	return s.phase==SeasonState.Phase.COMPLETE and summary.finish=="missed" and not s.playoff_seeds.has(0) \
+	return not semifinal_pending and s.phase==SeasonState.Phase.COMPLETE and summary.finish=="missed" and not s.playoff_seeds.has(0) \
 		and s.results.size()==33 and s.physical.cursor==23 and s.champion>0 and s.pending_fixture().is_empty()
+
+static func _base_archive_semifinal_ready(owner: RefCounted) -> bool:
+	return owner!=null and owner.session!=null and owner.session.phase==SeasonState.Phase.SEMIFINAL \
+		and _base_archive_postseason_image(owner)
+
+static func _base_archive_semifinal_count(owner: RefCounted) -> int:
+	if owner==null or owner.session==null or owner.session.phase!=SeasonState.Phase.SEMIFINAL \
+			or not _base_archive_postseason_shape(owner,true): return -1
+	var s: SeasonState=owner.session
+	var pending: Dictionary=s.physical.pending
+	if not Codec.keys(pending,["human","reports"]) or not pending.human is Array or pending.human.size()!=13 \
+			or pending.human[0]!=s.pending_fixture().get("id") or not pending.reports is Array \
+			or pending.reports.size()>2 or not Adapter.OrdinaryPending.shape(s): return -1
+	if not pending.reports.is_empty():
+		var opponent_fixture: int=-1
+		for fixture: Dictionary in s.semifinals:
+			if fixture.get("id")!=pending.human[0] and 0 not in [fixture.get("home"),fixture.get("away")]:
+				opponent_fixture=int(fixture.get("id",-1))
+		if opponent_fixture not in [30,31] or pending.reports[0].fixture!=opponent_fixture: return -1
+	if pending.reports.size()==2 and pending.reports[1].fixture!=32: return -1
+	return pending.reports.size()
+
+static func _base_archive_semifinal_settled(owner: RefCounted) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.session==null: return false
+	var s: SeasonState=owner.session
+	if not Adapter.scope("ordinary",s) or s.league_rules.get("league")!="dugout" or s.league_rules.get("tier")!=0 \
+			or s.round_index!=10 or s.picks.size()!=4 or s.player_results.size()!=11 \
+			or not s.physical.pending.is_empty() or not s.physical.needed.is_empty() or not s.physical.error.is_empty() \
+			or s.physical.projecting or s.build.pack_pending() or s.physical.cursor!=s.physical.reports.size() \
+			or s.playoff_seeds.size()!=4 or not s.playoff_seeds.has(0) or s.semifinals.size()!=2: return false
+	var human: Dictionary=s.player_results.back()
+	if human.get("id") not in [30,31] or 0 not in [human.get("away"),human.get("home")]: return false
+	var summary: Dictionary=ClubSeasonRecord.analyze(ClubSeasonRecord.capture(s))
+	if summary.get("games")!=10: return false
+	var won: bool=SeasonState._winner(human)==0
+	if won:
+		var next: Dictionary=s.pending_fixture()
+		return s.phase==SeasonState.Phase.FINAL and summary.finish=="unfinished" and s.results.size()==32 \
+			and s.physical.cursor==21 and s.champion==-1 and Codec.same(next,s.final_fixture) \
+			and next.get("id")==32 and next.get("round")==11 and next.get("neutral")==true \
+			and 0 in [next.get("away"),next.get("home")]
+	return s.phase==SeasonState.Phase.COMPLETE and summary.finish=="semifinal" and s.results.size()==33 \
+		and s.physical.cursor==22 and s.champion>0 and s.pending_fixture().is_empty()
+
+static func _base_archive_semifinal_sibling(prior: Dictionary, wrapped: Dictionary, current: RefCounted,
+		previous: RefCounted) -> bool:
+	if wrapped.generation==BASE_ARCHIVE_SEMI_HUMAN_GENERATION:
+		if prior.get("generation")!=BASE_ARCHIVE_POSTSEASON_GENERATION or not _base_archive_semifinal_ready(previous):
+			return false
+	else:
+		var count: int=_base_archive_semifinal_count(previous)
+		if count<0 or prior.get("generation")!=(BASE_ARCHIVE_SEMI_HUMAN_GENERATION if count==0 else BASE_ARCHIVE_SEMI_REPORT_GENERATION):
+			return false
+		if wrapped.generation==BASE_ARCHIVE_SEMI_SETTLED_GENERATION:
+			if count<1: return false
+			var stock: Dictionary=Adapter.OrdinaryPending.project(previous.session)
+			if stock.has("error") or stock.has("fixture") or not stock.get("candidate") is SeasonState: return false
+			var settled: RefCounted=previous.fork()
+			if settled==null: return false
+			settled.session=stock.candidate
+			return _base_archive_settled_after(previous,settled) and Codec.same(Owner.capture(settled),wrapped.current)
+		var before: Dictionary=previous.session.physical.pending
+		var after: Dictionary=current.session.physical.pending
+		if _base_archive_semifinal_count(current)!=count+1 or not Codec.same(before.human,after.human) \
+				or not Codec.same(before.reports,after.reports.slice(0,count)): return false
+	previous.session.physical.pending=current.session.physical.pending.duplicate(true)
+	return Codec.same(Owner.capture(previous),wrapped.current)
 
 static func _base_archive_regular_roles(owner: RefCounted) -> Dictionary:
 	return {"reports":BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,"settled":BASE_ARCHIVE_POSTSEASON_GENERATION} \
@@ -2999,7 +3087,9 @@ static func _base_archive_regular_report_count(owner: RefCounted) -> int:
 
 static func _base_archive_report_count(owner: RefCounted) -> int:
 	var opening: int=_base_archive_opening_report_count(owner)
-	return opening if opening>=0 else _base_archive_regular_report_count(owner)
+	if opening>=0: return opening
+	var semifinal: int=_base_archive_semifinal_count(owner)
+	return semifinal if semifinal>=0 else _base_archive_regular_report_count(owner)
 
 static func _base_archive_regular_settled_image(owner: RefCounted) -> bool:
 	if not _base_archive_paid_regular(owner) or _base_archive_settled_image(owner) \
@@ -3010,16 +3100,21 @@ static func _base_archive_regular_settled_image(owner: RefCounted) -> bool:
 
 static func _base_archive_settled_after(before: RefCounted, after: RefCounted) -> bool:
 	if _base_archive_opening_report_count(before)==2: return _base_archive_settled_image(after)
-	var count: int=_base_archive_regular_report_count(before)
-	if _base_archive_last_regular(before):
-		if not _base_archive_postseason_image(after) or count!=(2 if after.session.phase==SeasonState.Phase.SEMIFINAL else 5):
+	var semifinal: int=_base_archive_semifinal_count(before)
+	if semifinal>=0:
+		if not _base_archive_semifinal_settled(after) or semifinal!=(1 if after.session.phase==SeasonState.Phase.FINAL else 2):
 			return false
-	elif count!=2 or not _base_archive_regular_settled_image(after): return false
+	else:
+		var count: int=_base_archive_regular_report_count(before)
+		if _base_archive_last_regular(before):
+			if not _base_archive_postseason_image(after) or count!=(2 if after.session.phase==SeasonState.Phase.SEMIFINAL else 5):
+				return false
+		elif count!=2 or not _base_archive_regular_settled_image(after): return false
 	var old: SeasonState=before.session
 	var new: SeasonState=after.session
 	var events: Array=new.build._events
 	var old_events: Array=old.build._events
-	if new.round_index!=old.round_index+1 or not Codec.same(new.results.slice(0,old.results.size()),old.results) \
+	if new.round_index!=old.round_index+(0 if semifinal>=0 else 1) or not Codec.same(new.results.slice(0,old.results.size()),old.results) \
 			or not Codec.same(new.player_results.slice(0,old.player_results.size()),old.player_results) \
 			or not Codec.same(new.physical.reports.slice(0,old.physical.cursor),old.physical.reports) \
 			or not Codec.same(new.physical.reports.slice(old.physical.cursor),old.physical.pending.reports) \
@@ -3066,6 +3161,13 @@ static func _base_archive_app_valid(app: Variant) -> bool:
 
 static func _base_archive_cpu_fixture(owner: RefCounted, projected: SeasonState, fixture: Dictionary, count: int) -> bool:
 	if not (fixture.get("home",-1)>0 and fixture.get("away",-1)>0): return false
+	if _base_archive_semifinal_count(owner)>=0:
+		if count==0:
+			var managed: Dictionary=owner.session.pending_fixture()
+			return projected.phase==SeasonState.Phase.SEMIFINAL and fixture in owner.session.semifinals \
+				and fixture.get("id")!=managed.get("id") and fixture.get("round")==10
+		return count==1 and projected.phase==SeasonState.Phase.FINAL and fixture.get("id")==32 \
+			and fixture.get("round")==11 and fixture.get("neutral")==true and Codec.same(fixture,projected.final_fixture)
 	if count<2: return fixture.get("round")==owner.session.round_index
 	# Stock lockstep order for an eliminated club only: CPUs finish both
 	# semifinals and their final. The exact projector supplies the fixture.
@@ -3077,20 +3179,27 @@ static func _base_archive_cpu_fixture(owner: RefCounted, projected: SeasonState,
 		and fixture.get("id")==32 and Codec.same(fixture,projected.final_fixture)
 
 static func start_base_archive_cpu(app: Variant) -> Node:
-	return _base_archive_resume_projection(app,false).get("runner")
+	return _base_archive_resume_projection(app,"regular").get("runner")
 
 static func resume_base_archive_last_regular(app: Variant) -> Dictionary:
-	return _base_archive_resume_projection(app,true)
+	return _base_archive_resume_projection(app,"last_regular")
 
-static func _base_archive_resume_projection(app: Variant, final_round: bool) -> Dictionary:
+static func resume_base_archive_semifinal(app: Variant) -> Dictionary:
+	return _base_archive_resume_projection(app,"semifinal")
+
+static func _base_archive_resume_projection(app: Variant, lane: String) -> Dictionary:
 	if not _base_archive_cpu_job.is_empty() or not _base_archive_app_valid(app) or is_instance_valid(app.ai_runner): return {}
 	var proof: Dictionary=_base_archive_draft_pin
 	var count: int=_base_archive_report_count(proof.owner)
-	if count<0 or final_round!=_base_archive_last_regular(proof.owner) or count>(5 if final_round else 1): return {}
+	var semifinal: bool=_base_archive_semifinal_count(proof.owner)>=0
+	var final_round: bool=_base_archive_last_regular(proof.owner)
+	var exact_lane: String="semifinal" if semifinal else ("last_regular" if final_round else "regular")
+	var cap: int=2 if semifinal else (5 if final_round else 1)
+	if count<0 or lane!=exact_lane or count>cap: return {}
 	var p: Dictionary=Adapter.OrdinaryPending.project(proof.session)
 	if p.has("error") or not p.get("candidate") is SeasonState: return {}
 	if not p.has("fixture"):
-		if not final_round or count<2: return {}
+		if (not semifinal and not final_round) or count<(1 if semifinal else 2): return {}
 		var terminal: RefCounted=proof.owner.fork()
 		if terminal==null: return {}
 		terminal.session=p.candidate
@@ -3099,7 +3208,7 @@ static func _base_archive_resume_projection(app: Variant, final_round: bool) -> 
 		if snapshot.is_empty(): return {}
 		_base_archive_settle_pin={"owner":proof.owner,"bytes":app.saved_bytes,"terminal":terminal,"raw":snapshot}
 		return {"settle":true}
-	if not p.fixture is Dictionary or count>=5: return {}
+	if not p.fixture is Dictionary or (semifinal and count>=2) or count>=5: return {}
 	var fixture: Dictionary=p.fixture
 	var projected: SeasonState=p.candidate
 	var request: String=Adapter.OrdinaryFixtures.request_key(projected,fixture)
@@ -3163,20 +3272,22 @@ static func _base_archive_cpu_signal(job: Dictionary) -> void:
 		var terminal: RefCounted
 		var terminal_raw: Dictionary={}
 		var is_last: bool=_base_archive_last_regular(proof.owner)
+		var semifinal: bool=_base_archive_semifinal_count(proof.owner)>=0
 		if staged.has("settled"):
-			if job.count==0 or not staged.get("settled") is SeasonState: return false
+			if (job.count==0 and not semifinal) or not staged.get("settled") is SeasonState: return false
 			terminal=proof.owner.fork()
 			if terminal==null: return false
 			terminal.session=staged.settled
 			if not _base_archive_settled_after(candidate,terminal): return false
 			terminal_raw=RawGuard.capture(terminal)
 			if terminal_raw.is_empty(): return false
-		elif job.count>0 and (not is_last or job.count>=4): return false
+		elif job.count>0 and (semifinal or not is_last or job.count>=4): return false
 		if not _base_archive_app_valid(app) or not _base_archive_draft_pin_live(proof): return false
 		_base_archive_draft_pin={}
 		_base_archive_live_op=RefCounted.new()
 		var generation: String=BASE_ARCHIVE_REPORT_GENERATION if _base_archive_opening_report_count(proof.owner)>=0 \
 			else _base_archive_regular_roles(proof.owner).reports
+		if semifinal: generation=BASE_ARCHIVE_SEMI_REPORT_GENERATION
 		if not _base_archive_commit_current(_base_archive_live_op,proof,candidate,app.saved_bytes,generation):
 			return false
 		if terminal!=null:
@@ -3195,7 +3306,9 @@ static func cancel_base_archive_cpu(app: Variant) -> void:
 
 static func settle_base_archive_opening(app: Variant) -> bool:
 	if not _base_archive_cpu_job.is_empty() or not _base_archive_app_valid(app) \
-			or is_instance_valid(app.ai_runner) or _base_archive_report_count(app.career_owner)<2: return false
+			or is_instance_valid(app.ai_runner): return false
+	var semifinal: bool=_base_archive_semifinal_count(app.career_owner)>=0
+	if _base_archive_report_count(app.career_owner)<(1 if semifinal else 2): return false
 	var proof: Dictionary=_base_archive_draft_pin
 	var next: RefCounted
 	var cache: Dictionary=_base_archive_settle_pin
@@ -3212,6 +3325,7 @@ static func settle_base_archive_opening(app: Variant) -> bool:
 	if not _base_archive_settled_after(proof.owner,next) or not _base_archive_app_valid(app): return false
 	var generation: String=BASE_ARCHIVE_SETTLED_GENERATION if _base_archive_opening_report_count(proof.owner)==2 \
 		else _base_archive_regular_roles(proof.owner).settled
+	if semifinal: generation=BASE_ARCHIVE_SEMI_SETTLED_GENERATION
 	_base_archive_draft_pin={}
 	_base_archive_live_op=RefCounted.new()
 	return _base_archive_commit_current(_base_archive_live_op,proof,next,app.saved_bytes,generation)
