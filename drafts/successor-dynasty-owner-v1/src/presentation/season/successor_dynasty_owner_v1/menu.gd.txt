@@ -112,6 +112,13 @@ func render() -> void:
 			_bound_button(_body,player.display_name,Callable(app,"draft").bind(id))
 			_player_summary(player)
 		return
+	if app.base_archive_qualification_view():
+		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
+		if app.season.physical.pending.is_empty():
+			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
+		else:
+			_note("Your managed game is saved. This private opening check does not yet settle the round.")
+		return
 	if Store.Owner.MixedAppend.marked_state(app.career_owner.ordinary_state):
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
 		_career_records()

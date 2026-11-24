@@ -34,6 +34,8 @@ var _d1_proof: Dictionary={}
 const D1_PROOF_MS: int=30000
 var retained_before: Dictionary = {} # Detached diagnostics only, never writer authority.
 var _save_ticket: RefCounted
+var _base_archive_view: bool=false
+var _base_archive_return: PackedByteArray
 var _rollover_close_recovery: PackedByteArray = PackedByteArray()
 var retained_human: Array = []
 var retained_report: Dictionary = {}
@@ -1027,9 +1029,15 @@ func reload_save() -> void:
 		return
 	_busy = true
 	var before: PackedByteArray = Store.raw()
+	if Store._base_archive_qa() and Store._base_archive_family(before):
+		if not _adopt_base_archive_view(Store.read_base_archive_app_source(),before):
+			notice="The marked career could not be verified. No files were changed."
+		_busy=false; show_season()
+		return
 	var candidate: RefCounted = Store.read()
 	if candidate != null and Store.raw() == before:
 		career_owner = candidate; season = career_owner.session; saved_bytes = before; notice = ""
+		_base_archive_view=false
 	else: notice = Store.last_error
 	_busy = false; show_season()
 func save_standard_workshop_draft() -> void:
@@ -1117,6 +1125,14 @@ func apply_workshop_draft() -> void:
 func draft(id: String) -> void:
 	if career_owner!=null and not career_owner.playable(): return
 	if not _available() or season == null or season.phase != SeasonState.Phase.DRAFT or not season.offers().has(id): return
+	if base_archive_qualification_view():
+		_busy=true
+		var committed: bool=Store.write_base_archive_pick(career_owner,saved_bytes,id)
+		var written: Dictionary=Store.base_archive_app_result(saved_bytes) if committed else {}
+		if written.is_empty() or not _adopt_base_archive_view(written.owner,written.bytes):
+			notice="This choice could not be saved. Use Continue to verify the marked career."
+		_busy=false; show_season()
+		return
 	if not _owned():
 		notice = "The save changed outside this view. Reload before drafting."
 		show_season(); return
@@ -1477,7 +1493,12 @@ func play_next() -> void:
 		if standard_opening_enabled() and _available() and _owned() and workshop.player_opening_window(career_owner):
 			menu.call("show_standard_opening_review")
 		return
-	if not _available() or not _owned() or not _round_scope() or not season.physical.pending.is_empty():
+	var marked: bool=base_archive_qualification_view()
+	if not _available() or season==null or not season.physical.pending.is_empty(): return
+	if marked:
+		if not Store.base_archive_app_binding(career_owner,saved_bytes) or not Store._base_archive_draft_image(career_owner,4):
+			return
+	elif not _owned() or not _round_scope():
 		return
 	if academy_pack_choice_pending():
 		notice="Choose or explicitly skip the remaining paid Academy upgrade before playing."
@@ -1506,7 +1527,8 @@ func _expected_stadium(fixture: Dictionary) -> Dictionary:
 	return Owner.Common.StandardWorkshop.Home.fixture(season,fixture)
 
 func _played_field_matches() -> bool:
-	if season==null or not _round_scope() or not is_instance_valid(lab) or lab._match_state==null:
+	if season==null or (not _round_scope() and not base_archive_qualification_view()) \
+			or not is_instance_valid(lab) or lab._match_state==null:
 		return false
 	var fixture: Dictionary = season.pending_fixture()
 	var expected: FieldDefinition = Adapter.runtime(_active_side()).field_for_fixture(fixture,season)
@@ -1522,6 +1544,9 @@ func _played_field_matches() -> bool:
 
 
 func finish_game() -> void:
+	if base_archive_qualification_view():
+		_finish_base_archive_game()
+		return
 	if Store.Flat.is_flat(career_owner):
 		if not Store.private_standard_chain_opening() or _busy or is_instance_valid(_loadout_modal): return
 		if retained!=null:
@@ -2176,3 +2201,45 @@ func create_session(seed_value: int=-1,league: String="standard",ticket: RefCoun
 	if not _session_current(ticket): return
 	if seed_value<0: seed_value=int(Time.get_unix_time_from_system()) & 0x7fffffff
 	_change_session("create",seed_value,league,ticket)
+
+func base_archive_qualification_view() -> bool:
+	return _base_archive_view and Store._base_archive_qa() and career_owner!=null and career_owner.session==season
+
+func _adopt_base_archive_view(candidate: RefCounted, expected: PackedByteArray) -> bool:
+	if candidate==null or not Store.base_archive_app_binding(candidate,expected): return false
+	career_owner=candidate; season=candidate.session; saved_bytes=expected
+	_base_archive_view=true; _base_archive_return=PackedByteArray()
+	_result_recorded=false; _result_saved=false; notice=""
+	return true
+
+func _finish_base_archive_game() -> void:
+	if _busy or Store.saving or retained!=null or is_instance_valid(_loadout_modal) or not is_instance_valid(lab): return
+	var source: RefCounted=career_owner
+	var prior: SeasonState=season
+	if _base_archive_return.is_empty():
+		_busy=true
+		var committed: bool=Store.write_base_archive_human(self)
+		_busy=false
+		if not committed:
+			notice="The completed game could not be saved. It remains open."
+			return
+		var written: Dictionary=Store.base_archive_app_result(saved_bytes)
+		if written.is_empty():
+			notice="The saved game could not be verified. The match remains open."
+			return
+		_base_archive_return=written.bytes
+	var expected: PackedByteArray=_base_archive_return
+	var next: Dictionary=Store.base_archive_app_result(saved_bytes)
+	var candidate: RefCounted=next.get("owner")
+	if next.is_empty() or next.bytes!=expected:
+		notice="The saved game changed. The match has not been closed."
+		return
+	_busy=true
+	var closed: bool=_close_match()
+	_busy=false
+	if not closed or is_instance_valid(lab):
+		notice="The game is saved. Return again to close this match."
+		return
+	if career_owner!=source or season!=prior or not _adopt_base_archive_view(candidate,expected):
+		notice="The game is saved. Use Continue to verify the checkpoint."
+	show_season()
