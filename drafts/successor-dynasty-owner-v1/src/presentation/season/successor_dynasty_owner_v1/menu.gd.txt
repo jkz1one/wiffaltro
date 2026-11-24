@@ -103,6 +103,7 @@ func render() -> void:
 		_note("Previous V3, V2 and ordinary saves stay separate. Explicit copying writes only the new V4 slot. Higher-tier play and replacement economics remain planned.")
 		return
 	if app.season.phase == SeasonState.Phase.DRAFT:
+		if app.base_archive_qualification_view(): _bound_button(_body,"SEASON HISTORY",_show_base_archive_history)
 		_standard_history_link()
 		_standard_workshop_link()
 		_workshop_draft()
@@ -114,6 +115,14 @@ func render() -> void:
 		return
 	if app.base_archive_qualification_view():
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
+		_bound_button(_body,"SEASON HISTORY",_show_base_archive_history)
+		if app.career_owner.lifecycle_status()=="closed":
+			_note("Season abandoned. Completed-game stats were banked; no completion payout.")
+			if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"prepare"):
+				_bound_button(_body,"PREPARE NEXT SEASON",Callable(app,"propose_next"))
+			elif Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"next"):
+				_bound_button(_body,"START NEXT DUGOUT BASE SEASON",Callable(app,"request_lifecycle").bind("next"))
+			return
 		var regular_count: int=Store._base_archive_regular_report_count(app.career_owner)
 		if regular_count>=0:
 			_note("Managed game saved · CPU games %d / 2 · Rewards unpaid · Cash %d."%[regular_count,app.season.cash()])
@@ -127,6 +136,8 @@ func render() -> void:
 				_bound_button(_body,"RESUME PAID PACK" if app.season.build.pack_pending() else "SHOP",Callable(app,"open_pitch_shop"))
 			if Store._base_archive_managed_ready(app.career_owner):
 				_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
+			if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"abandon"):
+				_bound_button(_body,"ABANDON CURRENT SEASON…",Callable(app,"request_lifecycle").bind("abandon"))
 		elif app.season.physical.pending.is_empty():
 			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_next"))
 		else:
@@ -807,3 +818,17 @@ func _session_controls() -> void:
 	elif app.earned_league_preview(): _earned_create("dynasty",ticket)
 	else:
 		_bound_button(_body,"CREATE DYNASTY TEST SESSION",Callable(app,"create_session").bind(-1,"dynasty",ticket))
+
+func _show_base_archive_history(index: int=0) -> void:
+	if not app.base_archive_qualification_view() or not app._available(): return
+	var rows: Array[Dictionary]=Store.base_archive_history(app.career_owner,app.saved_bytes)
+	if index<0 or index>=rows.size(): return
+	var record: Dictionary=rows[index]
+	_screen("base_archive_history","SEASON HISTORY","DUGOUT BASE · SEASON %d"%record.ordinal)
+	_bound_button(_footer,"BACK",render)
+	var selector:=HBoxContainer.new()
+	_body.add_child(selector)
+	for i: int in rows.size():
+		var tab: Button=_bound_button(selector,"SEASON %d"%rows[i].ordinal,_show_base_archive_history.bind(i))
+		tab.disabled=i==index
+	_display_standard_record(record)

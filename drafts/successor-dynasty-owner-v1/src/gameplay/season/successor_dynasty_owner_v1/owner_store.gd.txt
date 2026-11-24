@@ -23,6 +23,10 @@ const BASE_ARCHIVE_SHOP_GENERATION := "starter-base-marked-shop-v1"
 const BASE_ARCHIVE_NEXT_HUMAN_GENERATION := "starter-base-marked-next-human-v1"
 const BASE_ARCHIVE_REGULAR_REPORT_GENERATION := "starter-base-marked-regular-reports-v1"
 const BASE_ARCHIVE_REGULAR_SETTLED_GENERATION := "starter-base-marked-regular-settled-v1"
+const BASE_ARCHIVE_ABANDONED_GENERATION := "starter-base-marked-abandoned-v1"
+const BASE_ARCHIVE_PREPARED_GENERATION := "starter-base-marked-prepared-v1"
+const BASE_ARCHIVE_NEXT_BIRTH_GENERATION := "starter-base-marked-next-birth-v1"
+const BASE_ARCHIVE_QA_MAX_PAGES := 2
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
 static var last_error: String = ""
@@ -2503,11 +2507,13 @@ static func write_base_archive_next(owner: RefCounted, expected: PackedByteArray
 	return committed
 
 static func _base_archive_install(ticket: RefCounted, pair: Dictionary, page: PackedByteArray,
-		marked: PackedByteArray, create_page: bool=true) -> bool:
+		marked: PackedByteArray, create_page: bool=true,
+		old_head: Dictionary={}, old_pages: Array[PackedByteArray]=[]) -> bool:
 	if ticket==null or ticket!=_base_archive_write_ticket: return false
 	_base_archive_write_ticket=null
 	if not saving or not _base_archive_qa() or not Codec.same(_base_archive_pair(),pair) \
-			or not _base_archive_temps_clear() or not _base_archive_page_root(create_page): return false
+			or not _base_archive_temps_clear() or not _base_archive_pages_live(old_head,old_pages) \
+			or not _base_archive_page_root(create_page): return false
 	var final_page: String=_base_archive_page_path(BaseArchive._hash(page))
 	if final_page.is_empty(): return false
 	# Closed over fixed derived names. No caller-supplied path writer.
@@ -2530,7 +2536,8 @@ static func _base_archive_install(ticket: RefCounted, pair: Dictionary, page: Pa
 		if not stage.call(page_tmp,page) or not _base_archive_absent(final_page) \
 				or DirAccess.rename_absolute(page_tmp,final_page)!=OK: return false
 	if _base_archive_member(final_page).get("bytes",PackedByteArray())!=page \
-			or not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear(): return false
+			or not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
+			or not _base_archive_pages_live(old_head,old_pages): return false
 	var backup_tmp: String=PATH+BASE_ARCHIVE_BACKUP_STAGE
 	if not stage.call(PATH+".tmp",marked) or not stage.call(backup_tmp,pair.primary.bytes) \
 			or not Codec.same(_base_archive_pair(),pair): return false
@@ -2539,6 +2546,7 @@ static func _base_archive_install(ticket: RefCounted, pair: Dictionary, page: Pa
 	var rotated: Dictionary={"primary":pair.primary,"backup":pair.primary}
 	if not Codec.same(_base_archive_pair(),rotated) or _base_archive_member(PATH+".tmp").get("bytes",PackedByteArray())!=marked \
 			or _base_archive_member(final_page).get("bytes",PackedByteArray())!=page \
+			or not _base_archive_pages_live(old_head,old_pages) \
 			or DirAccess.rename_absolute(PATH+".tmp",PATH)!=OK: return false
 	var final: Dictionary=_base_archive_pair()
 	if final.is_empty() or final.primary.get("bytes")!=marked or final.backup.get("bytes")!=pair.primary.bytes: return false
@@ -2557,7 +2565,8 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 		if wrapped.generation not in [BASE_ARCHIVE_DRAFT_GENERATION,BASE_ARCHIVE_HUMAN_GENERATION,
 				BASE_ARCHIVE_REPORT_GENERATION,BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
 				BASE_ARCHIVE_NEXT_HUMAN_GENERATION,BASE_ARCHIVE_REGULAR_REPORT_GENERATION,
-				BASE_ARCHIVE_REGULAR_SETTLED_GENERATION]: return {}
+				BASE_ARCHIVE_REGULAR_SETTLED_GENERATION,BASE_ARCHIVE_ABANDONED_GENERATION,
+				BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
 			or not BaseArchive._digest(wrapped.prior_primary_sha256): return {}
@@ -2574,13 +2583,15 @@ static func _base_archive_load() -> Dictionary:
 			and BaseArchive._hash(pair.backup.bytes)!=wrapped.prior_primary_sha256): return {}
 	var head_bytes: PackedByteArray=BaseArchive._wire(wrapped.head)
 	var head: Dictionary=BaseArchive._head(head_bytes)
-	# Explicit one-page qualification only; do not load larger private graphs.
-	if head.is_empty() or head.pages.size()!=1 or not _base_archive_page_root(false): return {}
-	var page_path: String=_base_archive_page_path(head.pages[0])
-	if page_path.is_empty() or not _base_archive_absent(page_path+".tmp"): return {}
-	var data:=_base_archive_member(page_path)
-	if data.is_empty() or not data.present: return {}
-	var pages: Array[PackedByteArray]=[data.bytes]
+	if head.is_empty() or head.pages.is_empty() or head.pages.size()>BASE_ARCHIVE_QA_MAX_PAGES \
+			or (not draft and head.pages.size()!=1) or not _base_archive_page_root(false): return {}
+	var pages: Array[PackedByteArray]=[]
+	for pin: String in head.pages:
+		var path: String=_base_archive_page_path(pin)
+		if path.is_empty() or not _base_archive_absent(path+".tmp"): return {}
+		var data: Dictionary=_base_archive_member(path)
+		if data.is_empty() or not data.present or BaseArchive._hash(data.bytes)!=pin: return {}
+		pages.append(data.bytes)
 	var result: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(wrapped.current),pages)
 	if result==null: return {}
 	if draft:
@@ -2599,13 +2610,19 @@ static func _base_archive_load() -> Dictionary:
 				if not _base_archive_unshopped_settled_image(result): return {}
 			BASE_ARCHIVE_SHOP_GENERATION:
 				if not _base_archive_shop_image(result): return {}
+			BASE_ARCHIVE_ABANDONED_GENERATION:
+				if not _base_archive_abandoned_image(result,false): return {}
+			BASE_ARCHIVE_PREPARED_GENERATION:
+				if not _base_archive_abandoned_image(result,true): return {}
+			BASE_ARCHIVE_NEXT_BIRTH_GENERATION:
+				if not _base_archive_draft_image(result,0) or not result.session.picks.is_empty() or pages.size()<2: return {}
 			_:
 				if not _base_archive_draft_image(result,1): return {}
 		if pair.backup.present and not _base_archive_marked_previous_matches(pair.backup.bytes,wrapped,result,head_bytes,pages): return {}
-	elif not _base_archive_previous_matches(pair.backup.bytes,data.bytes,wrapped.current): return {}
+	elif not _base_archive_previous_matches(pair.backup.bytes,pages[0],wrapped.current): return {}
 	if not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
-			or not _base_archive_draft_page_live(head.pages[0],data.bytes): return {}
-	return {"owner":result,"head":wrapped.head,"pair":pair,"pin":head.pages[0],"page":data.bytes}
+			or not _base_archive_pages_live(head,pages): return {}
+	return {"owner":result,"head":wrapped.head,"pair":pair,"pages":pages}
 
 static func _base_archive_draft_image(owner: RefCounted, minimum_picks: int, human: bool=false) -> bool:
 	if owner==null or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.session==null:
@@ -2627,8 +2644,9 @@ static func _base_archive_human_image(owner: RefCounted) -> bool:
 # Stock regular phase and fixture define the next managed game. The
 # qualification still loads only the previous admitted settled/Shop
 # generations; these predicates do not give authority to other saved roles.
-static func _base_archive_paid_regular(owner: RefCounted) -> bool:
-	if owner==null or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.session==null:
+static func _base_archive_paid_regular(owner: RefCounted, allow_closed: bool=false) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.session==null \
+			or (owner.lifecycle_status()!="active" and (not allow_closed or owner.lifecycle_status()!="closed")):
 		return false
 	var s: SeasonState=owner.session
 	var n: int=s.round_index
@@ -2658,7 +2676,12 @@ static func _base_archive_next_human_image(owner: RefCounted) -> bool:
 static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrapped: Dictionary, current: RefCounted,
 		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
 	var prior: Dictionary=_base_archive_wrapper(bytes)
-	if prior.is_empty() or not Codec.same(prior.head,wrapped.head): return false
+	if prior.is_empty(): return false
+	if wrapped.generation==BASE_ARCHIVE_NEXT_BIRTH_GENERATION:
+		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages)
+	if not Codec.same(prior.head,wrapped.head): return false
+	if wrapped.generation in [BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION]:
+		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages)
 	if wrapped.generation==BASE_ARCHIVE_NEXT_HUMAN_GENERATION:
 		if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
 				BASE_ARCHIVE_REGULAR_SETTLED_GENERATION]: return false
@@ -2711,13 +2734,15 @@ static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrappe
 			return false
 		previous.session.physical.pending=next_pending.duplicate(true)
 		return Codec.same(Owner.capture(previous),wrapped.current)
-	if not _base_archive_draft_image(previous,1 if prior.has("generation") else 0): return false
+	var prior_birth: bool=not prior.has("generation") or prior.generation==BASE_ARCHIVE_NEXT_BIRTH_GENERATION
+	if prior.get("generation")==BASE_ARCHIVE_NEXT_BIRTH_GENERATION and pages.size()<2: return false
+	if not _base_archive_draft_image(previous,0 if prior_birth else 1): return false
 	var count: int=previous.session.picks.size()
 	if wrapped.generation==BASE_ARCHIVE_HUMAN_GENERATION:
 		if prior.get("generation")!=BASE_ARCHIVE_DRAFT_GENERATION or count!=4: return false
 		previous.session.physical.pending=current.session.physical.pending.duplicate(true)
 		return Codec.same(Owner.capture(previous),wrapped.current)
-	if (not prior.has("generation") and count!=0) or count+1!=current.session.picks.size(): return false
+	if (prior_birth and count!=0) or count+1!=current.session.picks.size(): return false
 	var id: String=current.session.picks.back()
 	return previous.session.offers().has(id) and previous.session.choose_player(id) \
 		and Codec.same(Owner.capture(previous),wrapped.current)
@@ -2730,7 +2755,7 @@ static func _base_archive_draft_page_live(pin: String, page: PackedByteArray) ->
 static func _base_archive_draft_pin_live(pin: Dictionary) -> bool:
 	return not pin.is_empty() and _base_archive_qa() and _base_archive_temps_clear() \
 		and Codec.same(_base_archive_pair(),pin.pair) and pin.owner.session==pin.session \
-		and RawGuard.matches(pin.owner,pin.snapshot) and _base_archive_draft_page_live(pin.pin,pin.page)
+		and RawGuard.matches(pin.owner,pin.snapshot) and _base_archive_pages_live(pin.head,pin.pages)
 
 # Explicit separate qualification authority. Never installs generic Store
 # _owner/_owner_bytes or an App play ticket for a marked career.
@@ -2761,7 +2786,8 @@ static func _read_base_archive_live_source(allow_human: bool) -> RefCounted:
 	var proof: Dictionary=_base_archive_load()
 	if proof.is_empty() or not (_base_archive_draft_image(proof.owner,0) \
 			or (allow_human and (_base_archive_report_count(proof.owner)>=0 or _base_archive_settled_image(proof.owner)
-				or _base_archive_next_human_image(proof.owner) or _base_archive_regular_settled_image(proof.owner)))): return null
+				or _base_archive_next_human_image(proof.owner) or _base_archive_regular_settled_image(proof.owner)
+				or _base_archive_abandoned_image(proof.owner,false) or _base_archive_abandoned_image(proof.owner,true)))): return null
 	proof.session=proof.owner.session
 	proof.snapshot=RawGuard.capture(proof.owner)
 	if proof.snapshot.is_empty() or not _base_archive_draft_pin_live(proof): return null
@@ -2785,7 +2811,8 @@ static func write_base_archive_pick(owner: RefCounted, expected: PackedByteArray
 	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,BASE_ARCHIVE_DRAFT_GENERATION)
 
 static func _base_archive_commit_current(op: RefCounted, proof: Dictionary, candidate: RefCounted,
-		expected: PackedByteArray, generation: String) -> bool:
+		expected: PackedByteArray, generation: String, next_head: Dictionary={},
+		new_page: PackedByteArray=PackedByteArray()) -> bool:
 	if op==null or op!=_base_archive_live_op: return false
 	_base_archive_live_op=null
 	var data: Dictionary=Owner.capture(candidate)
@@ -2793,16 +2820,22 @@ static func _base_archive_commit_current(op: RefCounted, proof: Dictionary, cand
 	if data.is_empty() or snapshot.is_empty(): return false
 	var previous: String=BaseArchive._hash(expected)
 	if not BaseArchive._digest(previous): return false
+	var extending: bool=not next_head.is_empty()
+	if extending!=(not new_page.is_empty()): return false
 	var bytes: PackedByteArray=BASE_ARCHIVE_HEADER.to_utf8_buffer()
-	bytes.append_array(BaseArchive._wire({"head":proof.head,"current":data,
+	bytes.append_array(BaseArchive._wire({"head":next_head if extending else proof.head,"current":data,
 		"prior_primary_sha256":previous,"generation":generation}))
 	if bytes.size()>MAX_BYTES or not _base_archive_draft_pin_live(proof): return false
 	saving=true
 	_base_archive_write_ticket=RefCounted.new()
-	var committed: bool=_base_archive_install(_base_archive_write_ticket,proof.pair,proof.page,bytes,false)
+	var committed: bool=_base_archive_install(_base_archive_write_ticket,proof.pair,
+		new_page if extending else proof.pages.back(),bytes,extending,proof.head,proof.pages)
 	saving=false
 	_invalidate()
 	if not committed: return false
+	if extending:
+		proof.head=next_head
+		proof.pages.append(new_page)
 	proof.owner=candidate
 	proof.session=candidate.session
 	proof.snapshot=snapshot
@@ -3138,3 +3171,158 @@ static func _write_base_archive_shop(op: RefCounted, app: Variant, command: Dict
 	_base_archive_draft_pin={}
 	_base_archive_live_op=RefCounted.new()
 	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,BASE_ARCHIVE_SHOP_GENERATION)
+
+# Private profile bound, not a career ordinal. CP364 qualifies two ordered
+# immutable members only; the pure archive format retains its native bounds.
+static func _base_archive_pages_live(head: Dictionary, pages: Array[PackedByteArray]) -> bool:
+	if head.is_empty(): return pages.is_empty()
+	if not head.get("pages") is Array or head.pages.size()!=pages.size(): return false
+	for i: int in pages.size():
+		if not _base_archive_draft_page_live(head.pages[i],pages[i]): return false
+	return true
+
+static func _base_archive_abandoned_image(owner: RefCounted, prepared: bool) -> bool:
+	if not _base_archive_paid_regular(owner,true) or owner.lifecycle_status()!="closed" \
+			or not owner.session.physical.pending.is_empty(): return false
+	var state: Dictionary=owner.ordinary_state
+	var close: Dictionary=state.last_close
+	if close.get("reason")!="abandon" or close.get("receipt")!={}: return false
+	return state.proposal.get("basis",{}).get("seed")==BaseArchive._default_next_seed(owner) \
+		if prepared else state.proposal.is_empty()
+
+static func _base_archive_lifecycle_candidate(owner: RefCounted, action: String) -> RefCounted:
+	if owner==null: return null
+	var next: RefCounted=owner.fork()
+	if next==null: return null
+	match action:
+		"abandon":
+			if not _base_archive_paid_regular(owner) or not owner.session.physical.pending.is_empty() \
+					or not next.close_current("abandon") or not _base_archive_abandoned_image(next,false): return null
+		"prepare":
+			if not _base_archive_abandoned_image(owner,false) or not next.propose_next(BaseArchive._default_next_seed(owner)) \
+					or not _base_archive_abandoned_image(next,true): return null
+		"next":
+			if not _base_archive_abandoned_image(owner,true) or not next.commit_next() \
+					or not _base_archive_draft_image(next,0) or not next.session.picks.is_empty(): return null
+		_: return null
+	return next
+
+static func _base_archive_read_lifecycle_sibling(prior: Dictionary, wrapped: Dictionary,
+		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
+	var action: String
+	var proof_pages: Array[PackedByteArray]=pages
+	var prior_head: PackedByteArray=head_bytes
+	match wrapped.generation:
+		BASE_ARCHIVE_ABANDONED_GENERATION:
+			if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
+					BASE_ARCHIVE_REGULAR_SETTLED_GENERATION]: return false
+			action="abandon"
+		BASE_ARCHIVE_PREPARED_GENERATION:
+			if prior.get("generation")!=BASE_ARCHIVE_ABANDONED_GENERATION: return false
+			action="prepare"
+		BASE_ARCHIVE_NEXT_BIRTH_GENERATION:
+			if prior.get("generation")!=BASE_ARCHIVE_PREPARED_GENERATION or pages.size()<2: return false
+			prior_head=BaseArchive._wire(prior.head)
+			if BaseArchive.append_head(prior_head,pages.back())!=head_bytes: return false
+			proof_pages=[]
+			proof_pages.assign(pages.slice(0,pages.size()-1))
+			action="next"
+		_: return false
+	var previous: RefCounted=BaseArchive.restore_pages(prior_head,BaseArchive._wire(prior.current),proof_pages)
+	if previous==null: return false
+	if action=="abandon":
+		if prior.generation==BASE_ARCHIVE_SETTLED_GENERATION and not _base_archive_unshopped_settled_image(previous):
+			return false
+		if prior.generation==BASE_ARCHIVE_SHOP_GENERATION and not _base_archive_shop_image(previous): return false
+		if prior.generation==BASE_ARCHIVE_REGULAR_SETTLED_GENERATION and not _base_archive_regular_settled_image(previous):
+			return false
+	if action=="next":
+		var page: Dictionary=BaseArchive._page(pages.back(),prior.head,previous.current_ordinal())
+		if page.is_empty() or not Codec.same(page.image,prior.current.ordinary) \
+				or not Codec.same(page.close,previous.ordinary_state.last_close): return false
+	var result: RefCounted=_base_archive_lifecycle_candidate(previous,action)
+	return result!=null and Codec.same(Owner.capture(result),wrapped.current)
+
+static func base_archive_lifecycle_available(owner: RefCounted, expected: PackedByteArray, action: String) -> bool:
+	if not base_archive_app_binding(owner,expected) or _base_archive_draft_pin.pages.size()>=BASE_ARCHIVE_QA_MAX_PAGES:
+		return false
+	match action:
+		"abandon": return _base_archive_paid_regular(owner) and owner.session.physical.pending.is_empty()
+		"prepare": return _base_archive_abandoned_image(owner,false)
+		"next": return _base_archive_abandoned_image(owner,true)
+	return false
+
+static func write_base_archive_lifecycle(app: Variant, ticket: RefCounted) -> bool:
+	if not _base_archive_app_valid(app) or not _base_archive_cpu_job.is_empty() or is_instance_valid(app.ai_runner):
+		return false
+	var action: String=app.take_base_archive_lifecycle(ticket)
+	var proof: Dictionary=_base_archive_draft_pin
+	var owner: RefCounted=app.career_owner
+	var expected: PackedByteArray=app.saved_bytes
+	if not base_archive_lifecycle_available(owner,expected,action): return false
+	var candidate: RefCounted=_base_archive_lifecycle_candidate(owner,action)
+	if candidate==null: return false
+	var generation: String=BASE_ARCHIVE_ABANDONED_GENERATION if action=="abandon" else BASE_ARCHIVE_PREPARED_GENERATION
+	var appended: PackedByteArray
+	var head: Dictionary={}
+	if action=="next":
+		generation=BASE_ARCHIVE_NEXT_BIRTH_GENERATION
+		var source: Dictionary=Owner.capture(owner)
+		if source.is_empty(): return false
+		var old_head: PackedByteArray=BaseArchive._wire(proof.head)
+		appended=BaseArchive.make_page(old_head,source.ordinary,owner.ordinary_state.last_close)
+		head=BaseArchive._head(BaseArchive.append_head(old_head,appended))
+		if head.is_empty() or head.pages.size()>BASE_ARCHIVE_QA_MAX_PAGES: return false
+	if not _base_archive_app_valid(app) or not _base_archive_draft_pin_live(proof): return false
+	_base_archive_draft_pin={}
+	_base_archive_live_op=RefCounted.new()
+	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,generation,head,appended)
+
+static func base_archive_history(owner: RefCounted, expected: PackedByteArray) -> Array[Dictionary]:
+	var history: Array[Dictionary]=[]
+	if not base_archive_app_binding(owner,expected): return history
+	var proof: Dictionary=_base_archive_draft_pin
+	for i: int in proof.pages.size():
+		var page: Dictionary=BaseArchive._page(proof.pages[i],proof.head,i+1)
+		if page.is_empty(): return []
+		var native: Dictionary=_base_archive_history_record(page)
+		if native.is_empty(): return []
+		history.append(native)
+	return history if base_archive_app_binding(owner,expected) else []
+
+# Display-only projection from an already independently replayed archive page.
+# Native score proof validates the contiguous authored schedule and standings
+# for the whole regular season; do not use Standard's bounded preview helper.
+static func _base_archive_history_record(page: Dictionary) -> Dictionary:
+	var state: Variant=page.image.get("state")
+	var close: Dictionary=page.close
+	if not state is Dictionary or not state.get("teams") is Array or state.teams.size()!=6 \
+			or not state.get("results") is Array or not state.get("league_rules") is Dictionary: return {}
+	var completed: bool=close.reason=="complete"
+	if not completed and (state.get("phase")!=SeasonState.Phase.REGULAR \
+			or not Codec.whole(state.get("round_index"),1,10) or state.results.size()!=3*int(state.round_index)):
+		return {}
+	var scores:=SeasonState.new()
+	scores.league_rules=LeagueRules.normalized(state.league_rules)
+	if scores.league_rules.get("league")!="dugout" or scores.league_rules.get("tier")!=0: return {}
+	var names: Array[String]=[]
+	for team: Variant in state.teams:
+		if not team is Dictionary or not team.get("name") is String \
+				or not (team.get("draw") is float or team.get("draw") is int): return {}
+		names.append(team.name)
+		scores.teams.append({"draw":float(team.draw)})
+	for row: Variant in state.results:
+		if not row is Dictionary or not Codec.whole(row.get("id"),0,32) \
+				or not Codec.whole(row.get("away"),0,5) or not Codec.whole(row.get("home"),0,5) \
+				or not Codec.whole(row.get("away_runs"),0,9999) or not Codec.whole(row.get("home_runs"),0,9999):
+			return {}
+		scores.results.append({"id":int(row.id),"away":int(row.away),"home":int(row.home),
+			"away_runs":int(row.away_runs),"home_runs":int(row.home_runs)})
+	scores.results.sort_custom(func(a: Dictionary,b: Dictionary) -> bool: return a.id<b.id)
+	var proof: Dictionary=ClubSeasonRecord.capture(scores)
+	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
+	if summary.is_empty() or (summary.finish!="unfinished")!=completed: return {}
+	var receipt: Dictionary=ClubSeasonRecord.receipt(proof,close.first_title,0) if completed else {}
+	if (completed and receipt.is_empty()) or not Codec.same(receipt,close.receipt): return {}
+	return {"ordinal":int(page.ordinal),"teams":names,"summary":summary,"standings":scores.standings(),
+		"results":scores.results,"receipt":receipt,"close":close.duplicate(true)}

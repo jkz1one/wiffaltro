@@ -37,6 +37,8 @@ var _save_ticket: RefCounted
 var _base_archive_view: bool=false
 var _base_archive_return: PackedByteArray
 var _base_archive_shop_open: RefCounted
+var _base_archive_lifecycle_ticket: RefCounted
+var _base_archive_lifecycle_action: String=""
 var _rollover_close_recovery: PackedByteArray = PackedByteArray()
 var retained_human: Array = []
 var retained_report: Dictionary = {}
@@ -1936,6 +1938,9 @@ func close_current(reason: String) -> void:
 	_lifecycle_commit("close",0,reason)
 
 func propose_next(seed_value: int=-1) -> void:
+	if base_archive_qualification_view():
+		if seed_value<0 and _lifecycle_ready("propose"): _run_base_archive_lifecycle("prepare")
+		return
 	if career_owner==null or career_owner.lifecycle_status()!="closed": return
 	if seed_value<0:
 		var lineage: String=str(career_owner.birth_seed) if career_owner.active=="dynasty" else career_owner.ordinary_state.lineage
@@ -1988,6 +1993,9 @@ func _request_mixed_append_next() -> void:
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
 
 func request_lifecycle(action: String) -> void:
+	if base_archive_qualification_view():
+		if action in ["abandon","next"]: _request_base_archive_lifecycle(action)
+		return
 	if action=="next" and mixed_append_next_visible():
 		_request_mixed_append_next()
 		return
@@ -2013,6 +2021,13 @@ func _cancel_lifecycle() -> void:
 	if is_instance_valid(_lifecycle_dialog): _lifecycle_dialog.hide()
 func _confirm_lifecycle() -> void:
 	var action: String=_lifecycle_action
+	if action in ["base_archive_abandon","base_archive_next"]:
+		var bound: bool=base_archive_qualification_view() and career_owner==_lifecycle_owner \
+			and season==_lifecycle_season and saved_bytes==_lifecycle_bytes
+		_cancel_lifecycle()
+		var operation: String=action.trim_prefix("base_archive_")
+		if bound and _lifecycle_ready(operation): _run_base_archive_lifecycle(operation)
+		return
 	var private_flat: bool=action=="private_flat_abandon"
 	var valid: bool=not action.is_empty() and career_owner==_lifecycle_owner and season==_lifecycle_season and career_owner!=null and career_owner.session==season and saved_bytes==_lifecycle_bytes and (Store.private_standard_flat_close_available(self) if private_flat else _owned())
 	_cancel_lifecycle()
@@ -2310,3 +2325,33 @@ func _adopt_base_archive_shop(committed: bool) -> bool:
 		notice="The purchase could not be verified for this saved visit. Use Continue if the slot changed."
 	# Existing window rebinds its exact owner/revision and refreshes.
 	return adopted
+
+func _request_base_archive_lifecycle(action: String) -> void:
+	if not _lifecycle_ready(action) or not Store.base_archive_lifecycle_available(career_owner,saved_bytes,action):
+		return
+	_lifecycle_action="base_archive_"+action
+	_lifecycle_owner=career_owner; _lifecycle_season=season; _lifecycle_bytes=saved_bytes.duplicate()
+	_lifecycle_dialog.title="Start next season" if action=="next" else "Close current season"
+	_lifecycle_dialog.dialog_text=(
+		"Start a new Dugout season with a fresh four-player draft? Previous season history and banked progress stay saved. Seasonal Cash and items reset."
+		if action=="next" else
+		"Abandon this season? Completed-game stats and earned progress are banked once. There is no completion payout. When you start the next season, this one will appear in History.")
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+func _run_base_archive_lifecycle(action: String) -> void:
+	if not Store.base_archive_lifecycle_available(career_owner,saved_bytes,action): return
+	_busy=true
+	_base_archive_lifecycle_ticket=RefCounted.new()
+	_base_archive_lifecycle_action=action
+	var committed: bool=Store.write_base_archive_lifecycle(self,_base_archive_lifecycle_ticket)
+	_base_archive_lifecycle_ticket=null; _base_archive_lifecycle_action=""
+	_busy=false
+	_adopt_base_archive_progress(committed,"The career action could not be verified for this save.")
+
+func take_base_archive_lifecycle(ticket: RefCounted) -> String:
+	if ticket==null or ticket!=_base_archive_lifecycle_ticket or not base_archive_qualification_view(): return ""
+	_base_archive_lifecycle_ticket=null
+	var action: String=_base_archive_lifecycle_action
+	_base_archive_lifecycle_action=""
+	return action
