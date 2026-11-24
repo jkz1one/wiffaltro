@@ -114,8 +114,13 @@ func render() -> void:
 		return
 	if app.base_archive_qualification_view():
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
-		if Store._base_archive_next_human_image(app.career_owner):
-			_note("Managed game saved · Cash %d · Rewards unpaid. CPU settlement for this round is not part of this private check."%app.season.cash())
+		var regular_count: int=Store._base_archive_regular_report_count(app.career_owner)
+		if regular_count>=0:
+			_note("Managed game saved · CPU games %d / 2 · Rewards unpaid · Cash %d."%[regular_count,app.season.cash()])
+			if not is_instance_valid(app.ai_runner):
+				_bound_button(_body,"SETTLE SAVED ROUND" if regular_count==2 else "RESUME SAVED ROUND",Callable(app,"resume_round"))
+		elif Store._base_archive_next_human_image(app.career_owner):
+			_note("Managed game saved · Rewards unpaid. This private check does not settle this fixture.")
 		elif app.season.round_index>0:
 			_note("Round %d settled · Cash %d."%[app.season.round_index,app.season.cash()])
 			if Store._base_archive_shop_scope(app.career_owner):
