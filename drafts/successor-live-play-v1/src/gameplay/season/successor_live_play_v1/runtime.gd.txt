@@ -126,7 +126,10 @@ func _make_mixed_round() -> MatchState:
 			or phase not in [Phase.REGULAR,Phase.SEMIFINAL,Phase.FINAL] \
 			or not physical.pending.is_empty() or build.pack_pending(): return null
 	var basis: Dictionary=career.start_basis
-	if CommonStart.detached_mixed_rollover(basis):
+	if CommonStart.detached_mixed_seven(basis):
+		if phase!=Phase.REGULAR or round_index!=0 or not results.is_empty() or not player_results.is_empty() \
+				or picks.size()!=4 or pending_fixture().get("id")!=0: return null
+	elif CommonStart.detached_mixed_rollover(basis):
 		if phase!=Phase.REGULAR or round_index<0 or round_index>=MIXED_ROLLOVER_REGULAR_ROUNDS \
 				or results.size()!=round_index*3 or player_results.size()!=round_index or picks.size()!=4: return null
 	elif not CommonStart.detached_mixed_flat(basis) and not CommonStart.detached_mixed_append(basis):

@@ -132,7 +132,10 @@ func render() -> void:
 			_round_progress.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_refresh_round_progress()
 		elif app.career_owner.current_ordinal()==Store.Owner.MixedAppend.SEVEN_ORDINAL:
-			_note("Season 7 draft complete. Your roster and history are saved. Games are not available in this private test.")
+			if app.season.round_index==1:
+				_note("Season 7 opening round saved. Later games are not available in this private test.")
+			else:
+				_note("Season 7 roster and history are saved. No round is available.")
 		elif app.career_owner.current_ordinal()==Store.Owner.MixedAppend.ROLLOVER_ORDINAL:
 			if app.season.phase==SeasonState.Phase.SEMIFINAL:
 				_note("Regular season complete. Your club qualified. Playoff games are not available in this private test.")

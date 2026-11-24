@@ -144,6 +144,27 @@ static func rollover_play_scope(owner: RefCounted) -> bool:
 		and _rollover_phase_shape(s.phase,s.round_index,s.player_results.size(),s.physical.pending,s.build._events) \
 		and _api().Mixed._season_phase(s)
 
+# v8 opening only: an unpaid round zero (including its two staged reports)
+# or the exact paid landing at round one. Landing is admission, never Play.
+static func _seven_opening_shape(phase: Variant,index: Variant,results: Array,players: Array, \
+		reports: Array,pending: Dictionary,events: Variant) -> bool:
+	if phase!=SeasonState.Phase.REGULAR or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return false
+	for command: Variant in events:
+		if not command is Dictionary or SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return false
+	if index==0:
+		if not results.is_empty() or not players.is_empty() or not reports.is_empty(): return false
+		if pending.is_empty(): return true
+		var human: Variant=pending.get("human")
+		var staged: Variant=pending.get("reports")
+		return human is Array and human.size()==13 and human[0]==0 and staged is Array and staged.size()<=2
+	return index==1 and results.size()==3 and players.size()==1 and reports.size()==2 and pending.is_empty()
+
+static func seven_opening_scope(owner: RefCounted) -> bool:
+	if not _native_owner_scope(owner,false,false,true): return false
+	var s: SeasonState=owner.session
+	return not s.build.pack_pending() and _seven_opening_shape(s.phase,s.round_index,s.results,s.player_results, \
+		s.physical.reports,s.physical.pending,s.build._events) and _api().Mixed._season_phase(s)
+
 static func _rollover_phase_shape(phase: Variant,index: Variant,managed_count: int,pending: Dictionary,events: Variant) -> bool:
 	var api:=_api()
 	var runtime: Script=api.Adapter.OrdinaryRuntime
@@ -238,7 +259,8 @@ static func _active_play_phase(owner: RefCounted) -> bool:
 
 static func round_scope(owner: RefCounted) -> bool:
 	return (_active_play_phase(owner) and not owner.session.build.pack_pending()) \
-		or (rollover_play_scope(owner) and owner.session.phase==SeasonState.Phase.REGULAR)
+		or (rollover_play_scope(owner) and owner.session.phase==SeasonState.Phase.REGULAR) \
+		or (seven_opening_scope(owner) and owner.session.round_index==0)
 
 static func shop_scope(owner: RefCounted) -> bool:
 	return _active_play_phase(owner) and owner.session.physical.pending.is_empty() \
@@ -287,7 +309,8 @@ static func _current_shape(current: Variant) -> bool:
 	return false
 
 static func payload(owner: RefCounted) -> Dictionary:
-	if not draft_scope(owner) and not season_scope(owner) and not rollover_play_scope(owner): return {}
+	if not draft_scope(owner) and not season_scope(owner) and not rollover_play_scope(owner) \
+			and not seven_opening_scope(owner): return {}
 	var api:=_api()
 	var native: Script=api.Adapter.Ordinary
 	if not native._structural_valid(owner.session): return {}
@@ -429,10 +452,16 @@ static func _seven_tail(wire: PackedByteArray, pin: String) -> PackedByteArray:
 static func _restore_seven(value: Dictionary,state: Dictionary) -> RefCounted:
 	if not _seven_archive_state(state): return null
 	var current: Variant=value.get("ordinary")
-	if not _current_shape(current) or current.state.get("round_index")!=0 \
-			or current.state.get("phase")!=(SeasonState.Phase.DRAFT if current.state.picks.size()<4 else SeasonState.Phase.REGULAR) \
-			or not current.state.results.is_empty() or not current.state.player_results.is_empty() \
-			or not current.physical.pending.is_empty() or not current.physical.reports.is_empty(): return null
+	if not _current_shape(current): return null
+	var s: Dictionary=current.state
+	var p: Dictionary=current.physical
+	var opening: bool=s.picks.size()==4
+	if opening:
+		if not _seven_opening_shape(s.get("phase"),s.get("round_index"),s.results,s.player_results,p.reports, \
+				p.pending,current.build.build._events): return null
+	elif s.get("round_index")!=0 or s.get("phase")!=SeasonState.Phase.DRAFT \
+			or not s.results.is_empty() or not s.player_results.is_empty() \
+			or not p.pending.is_empty() or not p.reports.is_empty(): return null
 	var api:=_api()
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()
 	var raw:=_seven_tail(wire,state.last_transition.basis.archive_origin.manifest_sha256)
@@ -446,8 +475,14 @@ static func _restore_seven(value: Dictionary,state: Dictionary) -> RefCounted:
 	ordered.append(Base._hash(raw))
 	var candidate:=_next(prior,wire,ordered,SEVEN_ORDINAL)
 	if candidate==null: return null
-	for id: Variant in current.state.picks:
+	for id: Variant in s.picks:
 		if not id is String or not candidate.session.offers().has(id) or not candidate.session.choose_player(id): return null
+	if opening and (not s.results.is_empty() or not p.pending.is_empty()):
+		var replay: RefCounted=api.Mixed._replay_current_image(candidate.session,current)
+		if replay==null: return null
+		candidate.session=replay.session
+		return candidate if seven_opening_scope(candidate) \
+			and api.Codec.same(api._pack_fields(candidate,replay.image),value) else null
 	var rebuilt:=payload(candidate)
 	return candidate if not rebuilt.is_empty() and api.Codec.same(rebuilt,value) else null
 
@@ -512,7 +547,8 @@ static func history_count(owner: RefCounted) -> int:
 
 static func display(owner: RefCounted) -> Array:
 	if not draft_scope(owner) and not season_scope(owner) and not closed_complete_scope(owner) \
-			and not rollover_play_scope(owner) and not rollover_closed_complete_scope(owner): return []
+			and not rollover_play_scope(owner) and not rollover_closed_complete_scope(owner) \
+			and not seven_opening_scope(owner): return []
 	var api:=_api()
 	var state: Dictionary=owner.ordinary_state
 	var wire: PackedByteArray=state.archive.wire.to_utf8_buffer()

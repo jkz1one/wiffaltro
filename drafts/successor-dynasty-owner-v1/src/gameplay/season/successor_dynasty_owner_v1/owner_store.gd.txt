@@ -104,7 +104,8 @@ static func standard_history_available(owner: RefCounted, expected: PackedByteAr
 				or Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner) \
 				or (private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner) \
 					or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner) \
-					or Owner.MixedAppend.rollover_closed_complete_scope(owner))))))
+					or Owner.MixedAppend.rollover_closed_complete_scope(owner) \
+					or Owner.MixedAppend.seven_opening_scope(owner))))))
 
 static func standard_history(owner: RefCounted, expected: PackedByteArray) -> Array:
 	if not standard_history_available(owner,expected) or _starter_slot_linked() \
@@ -209,7 +210,7 @@ static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if owner!=null and Owner.MixedAppend.marked_state(owner.ordinary_state):
 		return private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner) \
 			or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner) \
-			or Owner.MixedAppend.rollover_closed_complete_scope(owner))
+			or Owner.MixedAppend.rollover_closed_complete_scope(owner) or Owner.MixedAppend.seven_opening_scope(owner))
 	if Flat.is_flat(owner): return false
 	if owner!=null and Owner.Mixed.marked_state(owner.ordinary_state):
 		return LeagueAdmission.starter_player() and (Owner.Mixed.season_owner_scope(owner) or Owner.Mixed.closed_complete_scope(owner))

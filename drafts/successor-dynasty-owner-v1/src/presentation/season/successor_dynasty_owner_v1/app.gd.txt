@@ -1942,7 +1942,7 @@ func _request_mixed_append_next() -> void:
 	_lifecycle_dialog.title="Start Dugout Base Season %d"%(career_owner.current_ordinal()+1)
 	_lifecycle_dialog.dialog_text="Start a fresh four-player draft? Prior season history and earned Club Credits stay. Seasonal Cash and items reset."
 	if Owner.MixedAppend.rollover_closed_complete_scope(career_owner):
-		_lifecycle_dialog.dialog_text+=" This private Season 7 test ends after the draft."
+		_lifecycle_dialog.dialog_text+=" This private Season 7 test supports the opening round."
 	elif Owner.MixedAppend.closed_complete_scope(career_owner):
 		_lifecycle_dialog.dialog_text+=" This private Season 6 test ends after the draft."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
