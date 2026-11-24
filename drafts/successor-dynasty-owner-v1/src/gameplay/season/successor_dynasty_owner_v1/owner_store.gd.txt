@@ -20,6 +20,7 @@ const BASE_ARCHIVE_HUMAN_GENERATION := "starter-base-marked-human-v1"
 const BASE_ARCHIVE_REPORT_GENERATION := "starter-base-marked-reports-v1"
 const BASE_ARCHIVE_SETTLED_GENERATION := "starter-base-marked-settled-v1"
 const BASE_ARCHIVE_SHOP_GENERATION := "starter-base-marked-shop-v1"
+const BASE_ARCHIVE_NEXT_HUMAN_GENERATION := "starter-base-marked-next-human-v1"
 const SHOP_PRODUCER_OPS: Array[String] = ["open", "pack_open", "pack_pick", "pack_skip"]
 static var saving: bool = false
 static var last_error: String = ""
@@ -2552,7 +2553,8 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 	var fields: Array[String]=["head","current","prior_primary_sha256"]
 	if wrapped.has("generation"):
 		if wrapped.generation not in [BASE_ARCHIVE_DRAFT_GENERATION,BASE_ARCHIVE_HUMAN_GENERATION,
-				BASE_ARCHIVE_REPORT_GENERATION,BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION]: return {}
+				BASE_ARCHIVE_REPORT_GENERATION,BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION,
+				BASE_ARCHIVE_NEXT_HUMAN_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
 			or not BaseArchive._digest(wrapped.prior_primary_sha256): return {}
@@ -2582,6 +2584,8 @@ static func _base_archive_load() -> Dictionary:
 		match wrapped.generation:
 			BASE_ARCHIVE_HUMAN_GENERATION:
 				if not _base_archive_human_image(result): return {}
+			BASE_ARCHIVE_NEXT_HUMAN_GENERATION:
+				if not _base_archive_next_human_image(result): return {}
 			BASE_ARCHIVE_REPORT_GENERATION:
 				if _base_archive_report_count(result)<1: return {}
 			BASE_ARCHIVE_SETTLED_GENERATION:
@@ -2613,12 +2617,52 @@ static func _base_archive_human_image(owner: RefCounted) -> bool:
 	return Codec.keys(pending,["human","reports"]) and pending.reports==[] \
 		and s.pending_fixture().get("id",-1)==0 and Adapter.OrdinaryPending.shape(s)
 
+# Stock regular phase and fixture define the next managed game. The
+# qualification still loads only the previous admitted settled/Shop
+# generations; these predicates do not give authority to other saved roles.
+static func _base_archive_paid_regular(owner: RefCounted) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.lifecycle_status()!="active" or owner.session==null:
+		return false
+	var s: SeasonState=owner.session
+	var n: int=s.round_index
+	if not Adapter.scope("ordinary",s) or s.phase!=SeasonState.Phase.REGULAR or n<1 or s.picks.size()!=4 \
+			or s.league_rules.get("league")!="dugout" or s.league_rules.get("tier")!=0 \
+			or s.results.size()!=3*n or s.player_results.size()!=n or s.physical.reports.size()!=2*n \
+			or s.physical.cursor!=s.physical.reports.size() or not s.physical.needed.is_empty() \
+			or not s.physical.error.is_empty() or s.physical.projecting or s.build.pack_pending(): return false
+	var fixture: Dictionary=s.pending_fixture()
+	return not fixture.is_empty() and fixture.get("round")==n \
+		and (fixture.get("home",-1)==0 or fixture.get("away",-1)==0)
+
+static func _base_archive_managed_ready(owner: RefCounted) -> bool:
+	return _base_archive_draft_image(owner,4) or (_base_archive_paid_regular(owner) and owner.session.physical.pending.is_empty())
+
+static func _base_archive_next_human_image(owner: RefCounted) -> bool:
+	if not _base_archive_paid_regular(owner): return false
+	var s: SeasonState=owner.session
+	var pending: Dictionary=s.physical.pending
+	return Codec.keys(pending,["human","reports"]) and pending.reports==[] and pending.human is Array \
+		and pending.human.size()==13 and pending.human[0]==s.pending_fixture().get("id") \
+		and Adapter.OrdinaryPending.shape(s)
+
 # A rotating sibling is evidence of the last single native offer, not proof
 # of the archive. The caller has already restored the primary/page strictly.
 static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrapped: Dictionary, current: RefCounted,
 		head_bytes: PackedByteArray, pages: Array[PackedByteArray]) -> bool:
 	var prior: Dictionary=_base_archive_wrapper(bytes)
 	if prior.is_empty() or not Codec.same(prior.head,wrapped.head): return false
+	if wrapped.generation==BASE_ARCHIVE_NEXT_HUMAN_GENERATION:
+		if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION]: return false
+		var checkpoint: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
+		if not _base_archive_paid_regular(checkpoint) or not checkpoint.session.physical.pending.is_empty() \
+				or not Codec.same(checkpoint.session.pending_fixture(),current.session.pending_fixture()): return false
+		if prior.generation==BASE_ARCHIVE_SETTLED_GENERATION and not _base_archive_unshopped_settled_image(checkpoint):
+			return false
+		if prior.generation==BASE_ARCHIVE_SHOP_GENERATION and not _base_archive_shop_image(checkpoint): return false
+		# The primary's H13 already passed strict native projection. Verify it
+		# is the only difference from the exact independently restored sibling.
+		checkpoint.session.physical.pending=current.session.physical.pending.duplicate(true)
+		return Codec.same(Owner.capture(checkpoint),wrapped.current)
 	if wrapped.generation==BASE_ARCHIVE_SHOP_GENERATION:
 		if prior.get("generation") not in [BASE_ARCHIVE_SETTLED_GENERATION,BASE_ARCHIVE_SHOP_GENERATION]: return false
 		var checkpoint: RefCounted=BaseArchive.restore_pages(head_bytes,BaseArchive._wire(prior.current),pages)
@@ -2703,7 +2747,8 @@ static func _read_base_archive_live_source(allow_human: bool) -> RefCounted:
 	_base_archive_draft_pin={}
 	var proof: Dictionary=_base_archive_load()
 	if proof.is_empty() or not (_base_archive_draft_image(proof.owner,0) \
-			or (allow_human and (_base_archive_report_count(proof.owner)>=0 or _base_archive_settled_image(proof.owner)))): return null
+			or (allow_human and (_base_archive_report_count(proof.owner)>=0 or _base_archive_settled_image(proof.owner)
+				or _base_archive_next_human_image(proof.owner)))): return null
 	proof.session=proof.owner.session
 	proof.snapshot=RawGuard.capture(proof.owner)
 	if proof.snapshot.is_empty() or not _base_archive_draft_pin_live(proof): return null
@@ -2783,7 +2828,7 @@ static func write_base_archive_human(app: Variant) -> bool:
 	var owner: RefCounted=proof.owner
 	var expected: PackedByteArray=proof.pair.primary.bytes
 	var session: SeasonState=proof.session
-	if app.season!=session or not _base_archive_draft_image(owner,4): return false
+	if app.season!=session or not _base_archive_managed_ready(owner): return false
 	var lab: PitchBatLab=app.lab
 	if not is_instance_valid(lab): return false
 	var match_state: MatchState=lab._match_state
@@ -2794,12 +2839,14 @@ static func write_base_archive_human(app: Variant) -> bool:
 	var candidate: RefCounted=owner.fork()
 	if candidate==null: return false
 	candidate.session.physical.pending={"human":human.duplicate(true),"reports":[]}
-	if not _base_archive_human_image(candidate): return false
+	var opening: bool=_base_archive_draft_image(owner,4)
+	if not (_base_archive_human_image(candidate) if opening else _base_archive_next_human_image(candidate)): return false
 	var projection: Dictionary=Adapter.OrdinaryPending.project(candidate.session)
 	if projection.has("error") or not projection.has("fixture") or not base_archive_app_binding(owner,expected): return false
 	_base_archive_draft_pin={}
 	_base_archive_live_op=RefCounted.new()
-	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,BASE_ARCHIVE_HUMAN_GENERATION)
+	var generation: String=BASE_ARCHIVE_HUMAN_GENERATION if opening else BASE_ARCHIVE_NEXT_HUMAN_GENERATION
+	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,generation)
 
 static func _base_archive_report_count(owner: RefCounted) -> int:
 	if not _base_archive_draft_image(owner,4,true): return -1

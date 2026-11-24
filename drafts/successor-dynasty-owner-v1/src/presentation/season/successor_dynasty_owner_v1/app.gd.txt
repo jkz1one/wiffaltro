@@ -1498,8 +1498,10 @@ func play_next() -> void:
 	var marked: bool=base_archive_qualification_view()
 	if not _available() or season==null or not season.physical.pending.is_empty(): return
 	if marked:
-		if not Store.base_archive_app_binding(career_owner,saved_bytes) or not Store._base_archive_draft_image(career_owner,4):
+		if not Store.base_archive_app_binding(career_owner,saved_bytes) or not Store._base_archive_managed_ready(career_owner):
 			return
+		for window: Node in find_children("*","Window",true,false):
+			if window.visible and not window.is_queued_for_deletion(): return
 	elif not _owned() or not _round_scope():
 		return
 	if academy_pack_choice_pending():
