@@ -2943,6 +2943,15 @@ static func base_archive_app_binding(owner: RefCounted, bytes: PackedByteArray) 
 	return owner!=null and not saving and _ticket==null and not proof.is_empty() \
 		and owner==proof.owner and bytes==proof.pair.primary.bytes and _base_archive_draft_pin_live(proof)
 
+# Detached option only; no proposal is stored and no new writer or public
+# difficulty is admitted before that same source can be preserved at rollover.
+static func earned_dugout_d1_offer(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
+	if not base_archive_app_binding(owner,expected) or not _base_archive_final_closed(owner): return {}
+	var wrapped:=_base_archive_wrapper(expected)
+	if wrapped.get("generation")!=BASE_ARCHIVE_FINAL_CLOSED_GENERATION: return {}
+	var offer:=preload("earned_dugout_d1.gd").from_closed_image(wrapped.current,wrapped.head)
+	return offer if not offer.is_empty() and base_archive_app_binding(owner,expected) else {}
+
 # Exact process-verified writer readback, not a resample or external admission.
 static func base_archive_app_result(previous: PackedByteArray) -> Dictionary:
 	var proof: Dictionary=_base_archive_draft_pin

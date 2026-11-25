@@ -1,0 +1,74 @@
+extends RefCounted
+## Pure derived offer. It is not independently admissible, a save schema, or
+## permission to launch a season. Store must bind it to its authenticated Close.
+const Life = preload("lifecycle.gd")
+const Archive = preload("starter_base_archive.gd")
+const Titles = preload("res://src/gameplay/season/club_league_career.gd")
+const KIND := "earned-dugout-d1-offer-v1"
+
+static func from_closed_image(image: Dictionary, head: Dictionary) -> Dictionary:
+	if image.get("active")!="ordinary" or not image.get("ordinary_state") is Dictionary \
+		or not image.get("ordinary") is Dictionary or not image.get("common") is Dictionary: return {}
+	var state: Dictionary=image.ordinary_state
+	var session: Dictionary=image.ordinary
+	var common: Dictionary=image.common
+	if state.get("status")!="closed" or state.get("proposal")!={} \
+		or not state.get("last_close") is Dictionary or not state.get("lineage") is String \
+		or not session.get("state") is Dictionary or not common.get("aggregate") is Dictionary \
+		or not common.get("last_fold") is Dictionary or not common.get("cursors") is Dictionary: return {}
+	var close: Dictionary=state.last_close
+	var fold: Dictionary=common.last_fold
+	var aggregate: Dictionary=common.aggregate
+	var ordinal: Variant=state.get("ordinal")
+	var sequence: Variant=common.get("sequence")
+	var title: String=Titles.title_key("dugout",0)
+	# Exact preceding championship, not a previously earned badge, a runner-up
+	# receipt, a different league's title, or an asserted target difficulty.
+	if not SeasonOwnership._whole(ordinal,1,ClubCareer.MAX_RUNS-1) \
+		or not SeasonOwnership._whole(sequence,int(ordinal),ClubCareer.MAX_RUNS*2) \
+		or common.cursors.get("ordinary")!=ordinal or aggregate.get("closed")!=sequence \
+		or not state.lineage.begins_with("ordinary:") or not Archive._digest(state.lineage.trim_prefix("ordinary:")) \
+		or not aggregate.get("titles") is Dictionary or aggregate.titles.get(title)!=true: return {}
+	if close.get("id")!="%s:%d:close"%[state.lineage,int(ordinal)] or close.get("ordinal")!=ordinal \
+		or close.get("reason")!="complete" or close.get("league")!="dugout" or close.get("tier")!=0 \
+		or not close.get("first_title") is bool or not Archive._digest(close.get("session_sha256")) \
+		or close.session_sha256!=Life.digest(session): return {}
+	var aggregate_hash: String=Life.digest(aggregate)
+	if fold.get("id")!=close.id or fold.get("source")!=close.session_sha256 or fold.get("side")!="ordinary" \
+		or fold.get("ordinal")!=ordinal or fold.get("sequence")!=sequence \
+		or fold.get("aggregate_sha256")!=aggregate_hash: return {}
+	var stock: Dictionary=session.state
+	if stock.get("phase")!=SeasonState.Phase.COMPLETE or stock.get("champion")!=0 \
+		or stock.get("league_live")!=true \
+		or not ClubCareer.same(stock.get("league_rules"),LeagueRules.capture("dugout")): return {}
+	var scores: Dictionary=_score_proof(stock)
+	var receipt: Dictionary=ClubSeasonRecord.receipt(scores,close.first_title,0)
+	if receipt.get("finish")!="champion" or not ClubCareer.same(receipt,close.get("receipt")) \
+		or not ClubCareer.same(receipt,fold.get("receipt")): return {}
+	var head_bytes: PackedByteArray=Archive._wire(head)
+	var checked_head: Dictionary=Archive._head(head_bytes)
+	if checked_head.is_empty() or checked_head.ordinal!=ordinal: return {}
+	var page: PackedByteArray=Archive.make_page(head_bytes,session,close)
+	var successor_head: PackedByteArray=Archive.append_head(head_bytes,page)
+	var rules: Dictionary=LeagueRules.capture_tier("dugout",1)
+	if page.is_empty() or successor_head.is_empty() or rules.is_empty(): return {}
+	var next_ordinal: int=int(ordinal)+1
+	var next_seed: int=("ordinary:%s:%d:nextseed"%[state.lineage,next_ordinal]).hash() & 0x7fffffff
+	return {"kind":KIND,"version":1,"source_close":close.id,"source_session_sha256":close.session_sha256,
+		"source_head_sha256":Archive._hash(head_bytes),"archived_page_sha256":Archive._hash(page),
+		"target_head_sha256":Archive._hash(successor_head),"lineage":state.lineage,"next_ordinal":next_ordinal,
+		"seed":next_seed,"common_sequence":int(sequence),"common_sha256":aggregate_hash,"title":title,"rules":rules}
+
+static func _score_proof(state: Dictionary) -> Dictionary:
+	if not state.get("results") is Array or state.results.size()!=33 \
+		or not state.get("teams") is Array or state.teams.size()!=6: return {}
+	var draws: Array = []
+	for team: Variant in state.teams:
+		if not team is Dictionary or not team.has("draw"): return {}
+		draws.append(team.draw)
+	var scores: Array = []
+	for row: Variant in state.results:
+		if not row is Dictionary or not SeasonOwnership._whole(row.get("id"),0,32): return {}
+		scores.append([row.id,row.get("away"),row.get("home"),row.get("away_runs"),row.get("home_runs")])
+	scores.sort_custom(func(a: Array,b: Array) -> bool: return a[0]<b[0])
+	return {"draws":draws,"scores":scores,"version":ClubSeasonRecord.LEAGUE_VERSION,"league_rules":state.league_rules}
