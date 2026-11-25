@@ -2967,6 +2967,20 @@ static func earned_dugout_d1_offer(owner: RefCounted, expected: PackedByteArray)
 	return offer if not offer.is_empty() and base_archive_app_binding(owner,expected) else {}
 
 # Kept off both the normal Store writer and the public launch route.
+# Native installed-only read. The pure title stage remains detached and
+# never serves as a Store ticket or a caller-supplied unlock assertion.
+static func inspect_installed_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
+	if not OS.has_feature(LeagueAdmission.CAREER_FORWARD_FEATURE) \
+			or not LeagueAdmission.installed_career_owned() or not installed_owner_shape(owner) \
+			or owner.lifecycle_status()!="closed" or owner.lifecycle_reason()!="complete" \
+			or owner.session.phase!=SeasonState.Phase.COMPLETE or owner.session.champion!=0 \
+			or not match_owner(owner,expected): return {}
+	var earned=preload("earned_dugout_d1.gd")
+	var source: Dictionary=earned.first_installed_source(owner)
+	if source.is_empty(): return {}
+	var offer: Dictionary=earned.from_closed_image(source.image,source.head)
+	return offer if not offer.is_empty() and match_owner(owner,expected) else {}
+
 static func stage_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
 	var offer:=earned_dugout_d1_offer(owner,expected)
 	if offer.is_empty(): return {}

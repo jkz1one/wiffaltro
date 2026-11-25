@@ -6,6 +6,29 @@ const Archive = preload("starter_base_archive.gd")
 const Titles = preload("res://src/gameplay/season/club_league_career.gd")
 const KIND := "earned-dugout-d1-offer-v1"
 
+# Derive the first archive root from the actual native installed life.
+# This is a pure head candidate, not Store authority or an earned title.
+static func first_installed_source(owner: RefCounted) -> Dictionary:
+	var api:=Archive._owner()
+	if owner==null or owner.get_script()!=api or owner.active!="ordinary" or owner.session==null \
+			or not owner.paused.is_empty() or not api._missing_dynasty(owner) \
+			or owner.current_ordinal()!=1 or owner.ordinary_state.has("archive") \
+			or not owner.ordinary_state.get("last_transition") is Dictionary \
+			or not owner.ordinary_state.last_transition.is_empty() \
+			or not owner.ordinary_state.get("proposal") is Dictionary \
+			or not owner.ordinary_state.proposal.is_empty(): return {}
+	var current: SeasonState=owner.session
+	if not current.league_live or current.career==null \
+			or not ClubCareer.same(current.league_rules,LeagueRules.capture("dugout")): return {}
+	var native: RefCounted=Archive.Core.root(current.season_seed,"dugout")
+	if native==null or native.session==null or native.current_ordinal()!=1 \
+			or owner.ordinary_state.lineage!=native.ordinary_state.lineage \
+			or owner.ordinary_state.start_basis_sha256!=native.ordinary_state.start_basis_sha256 \
+			or not ClubCareer.same(current.career.start_basis,native.session.career.start_basis): return {}
+	var image: Dictionary=api.capture(owner)
+	var head: Dictionary=Archive._head(Archive.make_head(current.season_seed,"dugout"))
+	return {} if image.is_empty() or head.is_empty() else {"image":image,"head":head}
+
 static func from_closed_image(image: Dictionary, head: Dictionary) -> Dictionary:
 	if image.get("active")!="ordinary" or not image.get("ordinary_state") is Dictionary \
 		or not image.get("ordinary") is Dictionary or not image.get("common") is Dictionary: return {}
