@@ -53,6 +53,44 @@ static func _human(row: Variant, fixture: Dictionary) -> Array:
 		row.get("tactics",[]),row.get("batting",{}),row.get("stances",[]),row.get("fielding",[]),
 		row.get("pitching_current"),row.get("field_supply",{}),row.get("frozen",[]),ai[opponent]]
 
+# club_roster stores sorted membership. The opponent proof records the Club's
+# actual ordered MatchState roster. Use that order only as a proposal; native
+# projection still validates every plate appearance, score and report.
+static func _forward_game_order(row: Variant, fixture: Dictionary) -> Array:
+	if not row is Dictionary or fixture.is_empty() or (fixture.home!=0 and fixture.away!=0): return []
+	var rival: String=str(int(fixture.away if fixture.home==0 else fixture.home))
+	var ai: Variant=row.get("ai_tactics")
+	if not C.keys(ai,[rival]) or not ai[rival] is Dictionary: return []
+	var opposition: Variant=ai[rival].get("opposition")
+	if not opposition is Dictionary or not opposition.get("roster") is Array: return []
+	return opposition.roster
+
+# Native swaps preserve player identity and the other side's lineup.
+
+static func _restore_forward_batting_order(s: SeasonState, order: Variant) -> bool:
+	if not Adapter.Ordinary.installed_forward_base_lineup(s) or not order is Array \
+			or not Adapter.Ordinary._lineup_members(order,s.build.roster()): return false
+	var live: Array=s.teams[0].roster
+	for i: int in order.size():
+		if live[i]!=order[i]:
+			var position: int=live.find(order[i])
+			if position<0: return false
+			s.swap_batters(i,position)
+	return C.same(live,order)
+
+# The current lineup roles are editable choices, not earned stats. Restore
+# those bounded choices only after exact history and payouts were replayed.
+static func _restore_forward_current_lineup(s: SeasonState, state: Dictionary) -> bool:
+	var teams: Variant=state.get("teams")
+	var starter: Variant=state.get("starter_index")
+	var fielder: Variant=state.get("fielder_index")
+	if not teams is Array or teams.size()!=6 or not teams[0] is Dictionary \
+			or not C.whole(starter,0,3) or not C.whole(fielder,0,3) or starter==fielder \
+			or not _restore_forward_batting_order(s,teams[0].get("roster")): return false
+	s.select_starter(int(starter))
+	s.fielder_index=int(fielder)
+	return s.starter_index==int(starter) and s.fielder_index==int(fielder)
+
 # Fixture schedule bounds where to cut the native evidence for a transaction.
 # The native projector validates scope, report request binding and what actually
 # settles; the declared final phase never authorizes a result or a playoff win.
@@ -86,6 +124,7 @@ static func _replay(birth: SeasonState, image: Variant, installed_forward_first:
 			or not reports is Array or reports.size()>MAX_REPORTS or not pending is Dictionary \
 			or not journal is Array or journal.size()>SeasonBuild.MAX_EVENTS \
 			or not C.whole(target,SeasonState.Phase.DRAFT,SeasonState.Phase.COMPLETE): return null
+	if installed_forward_first and (int(target)!=SeasonState.Phase.COMPLETE or people.size()!=12 or not pending.is_empty()): return null
 	var next: SeasonState=birth
 	for id: Variant in picks:
 		if not id is String or not next.choose_player(id): return null
@@ -94,7 +133,9 @@ static func _replay(birth: SeasonState, image: Variant, installed_forward_first:
 	for i: int in people.size():
 		if next.build.pack_pending(): return null
 		var count := _report_count(next,i+1==people.size(),int(target))
-		var human := _human(people[i],next.pending_fixture())
+		var fixture:=next.pending_fixture()
+		if installed_forward_first and not _restore_forward_batting_order(next,_forward_game_order(people[i],fixture)): return null
+		var human := _human(people[i],fixture)
 		if human.is_empty() or count<0 or cursor+count>reports.size(): return null
 		var revision: int=next.build.revision()
 		next.physical.pending={"human":human,"reports":reports.slice(cursor,cursor+count)}
@@ -117,6 +158,7 @@ static func _replay(birth: SeasonState, image: Variant, installed_forward_first:
 		if checked.projection.has("error"): return null
 		# Pending checkpoints never adopt the settled candidate.
 		next=checked.source
+	if installed_forward_first and not _restore_forward_current_lineup(next,image.state): return null
 	var rebuilt: Dictionary=Adapter.capture("ordinary",next)
 	return next if not rebuilt.is_empty() and C.same(rebuilt,image) else null
 
