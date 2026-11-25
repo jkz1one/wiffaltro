@@ -185,9 +185,42 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 	return staged
 
 
-# Only a draft derived above can be used for the public read. The separate
-# function keeps typed pick validation pure and issues no filesystem authority.
-static func _restore_after_picks(staged: Dictionary, value: Dictionary) -> SeasonState:
+# Only the installed first-title lane admits gameplay. Independently recreate
+# the native season from its archive and picks, then verify exactly the real
+# opening-round evidence. A pending save remains unpaid even if two reports
+# already prove that it is ready to settle.
+static func _restore_opening_round(draft: SeasonState, expected: Dictionary, value: Dictionary) -> SeasonState:
+	var api:=Archive._owner()
+	var image: Dictionary=value.ordinary
+	if draft.phase!=SeasonState.Phase.REGULAR or draft.picks.size()!=4 \
+			or draft.round_index!=0 or draft.pending_fixture().get("id")!=0 \
+			or not image.get("physical") is Dictionary or not image.physical.get("pending") is Dictionary \
+			or not image.physical.get("reports") is Array or not image.state.get("player_results") is Array \
+			or not image.state.get("results") is Array: return null
+	var pending: Dictionary=image.physical.pending
+	var paid: bool=pending.is_empty()
+	if paid:
+		if image.physical.reports.size()!=2 or image.state.player_results.size()!=1 \
+				or image.state.results.size()!=3 or image.state.get("round_index")!=1: return null
+		var human:=Archive.Core._human(image.state.player_results[0],draft.pending_fixture())
+		if human.is_empty(): return null
+		pending={"human":human,"reports":image.physical.reports}
+	elif not api.Codec.keys(pending,["human","reports"]) or not pending.reports is Array or pending.reports.size()>2 \
+			or not image.physical.reports.is_empty() or not image.state.results.is_empty() \
+			or not image.state.player_results.is_empty() or image.state.get("round_index")!=0: return null
+	draft.physical.pending=pending.duplicate(true)
+	var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(draft)
+	var projection: Dictionary=checked.projection
+	if projection.has("error") or not projection.get("candidate") is SeasonState: return null
+	if projection.has("fixture")!=(pending.reports.size()<2): return null
+	var proven: SeasonState=projection.candidate if paid else checked.source
+	if proven==null: return null
+	expected.ordinary=api.Adapter.Ordinary.capture(proven)
+	return proven if not expected.ordinary.is_empty() and api.Codec.same(expected,value) else null
+
+# Earlier archive readers remain draft-only. Exact equality includes all
+# inherited Club Credits and title rights, with no fallback to a predecessor.
+static func _restore_after_picks(staged: Dictionary, value: Dictionary, installed_forward_first: bool=false) -> SeasonState:
 	var api:=Archive._owner()
 	if not staged.get("current") is Dictionary or not value.get("ordinary") is Dictionary: return null
 	var expected: Dictionary=staged.current.duplicate(true)
@@ -198,14 +231,12 @@ static func _restore_after_picks(staged: Dictionary, value: Dictionary) -> Seaso
 	if draft==null or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty(): return null
 	for id: Variant in picks:
 		if not id is String or not draft.choose_player(id): return null
-	# This checkpoint is only draft progress, never a history shortcut for
-	# exposed matches or any Shop changes. Full equality includes Common rights.
-	if not draft.results.is_empty() or not draft.player_results.is_empty() \
-			or not draft.physical.pending.is_empty() or not draft.physical.reports.is_empty(): return null
 	expected.ordinary=api.Adapter.Ordinary.capture(draft)
-	return draft if not expected.ordinary.is_empty() and api.Codec.same(expected,value) else null
+	if expected.ordinary.is_empty(): return null
+	if api.Codec.same(expected,value): return draft
+	return _restore_opening_round(draft,expected,value) if installed_forward_first else null
 
 
 static func restore_draft_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], value: Dictionary, installed_forward_first: bool=false) -> SeasonState:
 	var staged:=_draft_birth_from_pages(head,pages,installed_forward_first)
-	return null if staged.is_empty() else _restore_after_picks(staged,value)
+	return null if staged.is_empty() else _restore_after_picks(staged,value,installed_forward_first)

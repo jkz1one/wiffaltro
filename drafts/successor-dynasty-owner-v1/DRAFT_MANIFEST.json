@@ -974,8 +974,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d1.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d1.gd",
-      "bytes": 13516,
-      "sha256": "2f048894d11a6e1cbfd8f099214b0303d6afbbc387a832d6b5291f45a2594c77"
+      "bytes": 15522,
+      "sha256": "09ab9fdc2d1d02d50049605e3795e0e11753249642f49a8bfa613da0d6f4da88"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd.txt",
