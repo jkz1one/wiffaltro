@@ -1122,6 +1122,45 @@ func _finish_installed_dugout_d1_game() -> void:
 	_open_installed_dugout_d1(checked)
 	show_season()
 
+func installed_dugout_d1_cpu_running() -> bool:
+	return installed_dugout_d1_draft.get("state")=="unpaid" and is_instance_valid(ai_runner)
+
+func _installed_dugout_d1_round_menu(expected: PackedByteArray) -> bool:
+	return not _busy and not is_instance_valid(ai_runner) and not installed_dugout_d1_reading() \
+		and installed_dugout_d1_draft.get("state")=="unpaid" and saved_bytes==expected \
+		and menu!=null and menu.visible and menu.page=="home"
+
+func play_installed_dugout_d1_cpu(expected: PackedByteArray) -> void:
+	if not _installed_dugout_d1_round_menu(expected): return
+	_busy=true
+	if Store.start_installed_dugout_d1_cpu(self):
+		notice=""
+	else:
+		_busy=false
+		notice="The next CPU game could not start. Your saved round is unchanged."
+	show_season()
+
+func cancel_installed_dugout_d1_cpu() -> void:
+	if installed_dugout_d1_cpu_running(): Store.cancel_installed_dugout_d1_cpu(self)
+
+func _installed_dugout_d1_cpu_done(runner: Node,view: Dictionary,problem: String) -> void:
+	if not is_instance_valid(runner) or runner!=ai_runner or not _busy: return
+	ai_runner=null
+	runner.queue_free()
+	_busy=false
+	if view.is_empty(): notice=problem
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
+func settle_installed_dugout_d1(expected: PackedByteArray) -> void:
+	if not _installed_dugout_d1_round_menu(expected): return
+	_busy=true
+	var view:=Store.settle_installed_dugout_d1_round(self)
+	_busy=false
+	if view.is_empty(): notice="The round could not be paid. Your saved results are unchanged."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
 func leave_installed_dugout_d1_view() -> void:
 	if _busy or is_instance_valid(lab) or installed_dugout_d1_draft.is_empty(): return
 	_open_installed_dugout_d1({})
