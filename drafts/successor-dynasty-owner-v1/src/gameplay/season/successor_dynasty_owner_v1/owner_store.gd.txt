@@ -2952,6 +2952,14 @@ static func earned_dugout_d1_offer(owner: RefCounted, expected: PackedByteArray)
 	var offer:=preload("earned_dugout_d1.gd").from_closed_image(wrapped.current,wrapped.head)
 	return offer if not offer.is_empty() and base_archive_app_binding(owner,expected) else {}
 
+# Kept off both the normal Store writer and the public launch route.
+static func stage_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
+	var offer:=earned_dugout_d1_offer(owner,expected)
+	if offer.is_empty(): return {}
+	var wrapped:=_base_archive_wrapper(expected)
+	var staged:=preload("earned_dugout_d1.gd").stage_birth(wrapped.current,wrapped.head,offer)
+	return staged if not staged.is_empty() and base_archive_app_binding(owner,expected) else {}
+
 # Exact process-verified writer readback, not a resample or external admission.
 static func base_archive_app_result(previous: PackedByteArray) -> Dictionary:
 	var proof: Dictionary=_base_archive_draft_pin

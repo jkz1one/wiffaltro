@@ -72,3 +72,59 @@ static func _score_proof(state: Dictionary) -> Dictionary:
 		scores.append([row.id,row.get("away"),row.get("home"),row.get("away_runs"),row.get("home_runs")])
 	scores.sort_custom(func(a: Array,b: Array) -> bool: return a[0]<b[0])
 	return {"draws":draws,"scores":scores,"version":ClubSeasonRecord.LEAGUE_VERSION,"league_rules":state.league_rules}
+
+# A pure exact write candidate, never Store authority. A caller still has
+# to prove source custody, atomically publish the page/head and reopen it.
+static func stage_birth(image: Dictionary, head: Dictionary, expected_offer: Dictionary) -> Dictionary:
+	var offer: Dictionary=from_closed_image(image,head)
+	if offer.is_empty() or not ClubCareer.same(offer,expected_offer): return {}
+	var owner_class: Script=Archive._owner()
+	var view: RefCounted=owner_class.new()
+	for key: String in owner_class.META_FIELDS:
+		if image.has(key):
+			if view.get(key) is Dictionary and image[key] is Dictionary:
+				view.set(key,image[key].duplicate(true))
+			elif view.get(key) is int and SeasonOwnership._whole(image[key],0,2147483647):
+				view.set(key,int(image[key]))
+			elif view.get(key) is String and image[key] is String:
+				view.set(key,image[key])
+			else: return {}
+	view.active="ordinary"
+	if not owner_class.Common.valid(view) or not owner_class._missing_dynasty(view) \
+		or image.get("dynasty")!={} or not view.migration_v3.is_empty() \
+		or not view.workshop_draft.is_empty() or not view.workshop_close_history.is_empty() \
+		or not view.workshop_chair_purchase.is_empty() or not view.workshop_applied.is_empty() \
+		or not image.ordinary.get("career") is Dictionary \
+		or not image.ordinary.career.get("start_basis") is Dictionary \
+		or not ClubCareer.same(owner_class._pack_fields(view,image.ordinary),image): return {}
+	var runtime: Script=owner_class.Adapter.OrdinaryRuntime
+	var start: Script=runtime.CommonStart
+	# Only the existing Common rights projection is allowed to seed the draft.
+	view.session=SeasonState.new()
+	view.session.career=runtime.LiveCareer.new()
+	view.session.career.start_basis=image.ordinary.career.start_basis.duplicate(true)
+	var seed_basis: Dictionary=start.make(int(offer.seed),offer.lineage,int(offer.next_ordinal),
+		int(offer.common_sequence),offer.common_sha256,owner_class.Common.projection(view))
+	var previous_head: PackedByteArray=Archive._wire(head)
+	var page: PackedByteArray=Archive.make_page(previous_head,image.ordinary,image.ordinary_state.last_close)
+	var successor: PackedByteArray=Archive.append_head(previous_head,page)
+	var new_head: Dictionary=Archive._head(successor)
+	if new_head.is_empty() or Archive._hash(successor)!=offer.target_head_sha256 \
+		or Archive._hash(page)!=offer.archived_page_sha256: return {}
+	var basis: Dictionary=start.bind_earned_dugout_d1(seed_basis,offer,new_head.pages)
+	if basis.is_empty(): return {}
+	var draft: SeasonState=runtime.create_earned_dugout_d1_draft(basis)
+	if draft==null or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty() \
+		or draft.build.cash()!=0 or not draft.build.d1_pricing_valid(): return {}
+	var ordinal: int=int(view.ordinary_state.ordinal)
+	view.ordinary_state.last_transition={"id":"%s:%d:next"%[offer.lineage,ordinal],
+		"source":offer.source_session_sha256,"from":ordinal,"to":offer.next_ordinal,"league":"dugout","basis":basis}
+	view.ordinary_state.ordinal=offer.next_ordinal
+	view.ordinary_state.start_basis_sha256=Life.digest(basis)
+	view.ordinary_state.status="active"
+	view.ordinary_state.last_close={}
+	view.session=draft
+	var packed: Dictionary=owner_class.Adapter.Ordinary.capture(draft)
+	if packed.is_empty() or not owner_class.Common.valid(view) or not owner_class.capture(view).is_empty(): return {}
+	var candidate: Dictionary=owner_class._pack_fields(view,packed)
+	return {"head":new_head,"page":page,"current":candidate}
