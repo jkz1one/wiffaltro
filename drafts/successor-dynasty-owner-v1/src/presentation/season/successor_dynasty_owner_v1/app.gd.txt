@@ -14,6 +14,11 @@ const Loadout = preload("loadout_ui.gd")
 var _loadout_modal: SeasonLoadoutUI
 const Page = preload("menu.gd")
 const D1Check = preload("res://src/gameplay/season/successor_dynasty_owner_v1/standard_d1_witness_process.gd")
+const InstalledD1Reader=preload("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd")
+var _installed_dugout_d1_reader: Node
+var _installed_dugout_d1_epoch: int=0
+var installed_dugout_d1_draft: Dictionary={}
+
 var _d1_check: Node
 var _d1_close_after_check: bool=false
 var _pair_settling: bool=false
@@ -217,7 +222,7 @@ func show_season() -> void:
 	_clear_lineup_ticket()
 	if is_instance_valid(menu): menu.call("render")
 func _available() -> bool:
-	if rollover_close_recovery_pending(): return false
+	if rollover_close_recovery_pending() or installed_dugout_d1_reading() or not installed_dugout_d1_draft.is_empty(): return false
 	return not mixed_continue_running() and not starter_dugout_review_running() and not _cross_retry and not is_instance_valid(_d1_check) and not is_instance_valid(_loadout_modal) and _lifecycle_action.is_empty() and not _busy and not Store.saving and retained == null and not is_instance_valid(lab)
 func starter_player() -> bool: return Store.LeagueAdmission.starter_player()
 func earned_league_preview() -> bool: return Store.LeagueAdmission.enabled()
@@ -983,6 +988,7 @@ func mixed_continue_running() -> bool:
 
 func continue_saved_career() -> void:
 	if not _available(): return
+	if _continue_installed_dugout_d1(): return
 	var expected:=MixedContinue.bounded_slot() if season==null and MixedContinue.supported() else PackedByteArray()
 	if not Store.mixed_continue_source(expected):
 		reload_save()
@@ -995,6 +1001,97 @@ func continue_saved_career() -> void:
 	notice="Checking your saved career in the background. Nothing is being written."
 	show_season()
 	if not process_node.start(expected): _complete_mixed_continue("refused",process_node,_mixed_continue_epoch,expected)
+
+func installed_dugout_d1_reading() -> bool:
+	return is_instance_valid(_installed_dugout_d1_reader)
+
+func installed_dugout_d1_available() -> bool:
+	return Store._installed_dugout_d1_lane() and career_owner!=null and career_owner.session==season \
+		and career_owner.current_ordinal()==1 and career_owner.lifecycle_status()=="closed" \
+		and career_owner.lifecycle_reason()=="complete" and season.phase==SeasonState.Phase.COMPLETE \
+		and season.champion==0 and season.league_rules.get("league")=="dugout" \
+		and season.league_rules.get("tier")==0 and career_owner.common.aggregate.titles.get("dugout:0",false)
+
+func request_installed_dugout_d1() -> void:
+	if not _available() or not installed_dugout_d1_available() or not _owned(): return
+	_lifecycle_action="installed_dugout_d1"
+	_lifecycle_owner=career_owner; _lifecycle_season=season; _lifecycle_bytes=saved_bytes.duplicate()
+	_lifecycle_dialog.title="Start Dugout D1?"
+	_lifecycle_dialog.dialog_text="Start a fresh four-player draft. Your Dugout Base championship and Club Credits are kept. Seasonal Cash, items and sponsors reset."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+func _start_installed_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> void:
+	if not _available() or owner!=career_owner or not installed_dugout_d1_available() or not _owned(): return
+	_busy=true
+	var written: bool=Store.write_installed_dugout_d1_birth(owner,expected)
+	var view:=Store.installed_dugout_d1_view(Store.raw()) if written else {}
+	_busy=false
+	if written:
+		_open_installed_dugout_d1(view)
+		if view.is_empty(): notice="The draft was saved. Use Continue to check it before picking."
+	else: notice="The draft could not be saved. Reload before retrying."
+	show_season()
+
+func _continue_installed_dugout_d1() -> bool:
+	if season!=null or not Store._installed_dugout_d1_lane(): return false
+	var expected:=Store.raw()
+	var value: Dictionary=Owner._bytes_value(expected)
+	if value.get("kind")!=Store.INSTALLED_DUGOUT_D1_KIND: return false
+	_installed_dugout_d1_epoch+=1
+	var reader:=InstalledD1Reader.new()
+	_installed_dugout_d1_reader=reader
+	add_child(reader)
+	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
+	notice="Verifying your saved Dugout D1 draft in the background. Nothing is being written."
+	show_season()
+	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
+	return true
+
+func _finish_installed_dugout_d1(outcome: String,reader: Node,epoch: int,expected: PackedByteArray) -> void:
+	if reader!=_installed_dugout_d1_reader or epoch!=_installed_dugout_d1_epoch: return
+	var view:=Store.adopt_installed_dugout_d1_read(reader,expected) if outcome=="verified" else {}
+	_drop_installed_dugout_d1()
+	if view.is_empty():
+		notice="The saved Dugout D1 draft could not be verified. No files changed."
+	else:
+		_open_installed_dugout_d1(view)
+	show_season()
+
+func _drop_installed_dugout_d1() -> void:
+	_installed_dugout_d1_epoch+=1
+	var reader:=_installed_dugout_d1_reader
+	_installed_dugout_d1_reader=null
+	if is_instance_valid(reader):
+		reader.cancel()
+		reader.queue_free()
+
+func cancel_installed_dugout_d1_read() -> void:
+	if not installed_dugout_d1_reading(): return
+	_drop_installed_dugout_d1()
+	notice="Draft check canceled. No files changed."
+	show_season()
+
+func _open_installed_dugout_d1(view: Dictionary) -> void:
+	career_owner=null; season=null
+	saved_bytes=view.get("bytes",PackedByteArray())
+	installed_dugout_d1_draft=view
+	notice=""
+
+func pick_installed_dugout_d1(id: String,expected: PackedByteArray) -> void:
+	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.is_empty() \
+			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home": return
+	_busy=true
+	var view:=Store.pick_installed_dugout_d1(expected,id)
+	_busy=false
+	if view.is_empty(): notice="That pick was not saved. Return to Continue before retrying."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
+func leave_installed_dugout_d1_view() -> void:
+	if _busy or installed_dugout_d1_draft.is_empty(): return
+	_open_installed_dugout_d1({})
+	show_season()
 
 func _drop_mixed_continue() -> void:
 	_mixed_continue_epoch+=1
@@ -1297,6 +1394,7 @@ func leave_game() -> void:
 
 
 func _request_quit() -> void:
+	_drop_installed_dugout_d1()
 	_drop_mixed_continue()
 	_drop_starter_dugout_review()
 	if starter_npc_running(): starter_npc_cancel()
@@ -2021,6 +2119,13 @@ func _cancel_lifecycle() -> void:
 	if is_instance_valid(_lifecycle_dialog): _lifecycle_dialog.hide()
 func _confirm_lifecycle() -> void:
 	var action: String=_lifecycle_action
+	if action=="installed_dugout_d1":
+		var before:=_lifecycle_bytes.duplicate()
+		var owner:=_lifecycle_owner
+		var bound: bool=owner==career_owner and _lifecycle_season==season and saved_bytes==before
+		_cancel_lifecycle()
+		if bound: _start_installed_dugout_d1(owner,before)
+		return
 	if action in ["base_archive_abandon","base_archive_complete","base_archive_next"]:
 		var bound: bool=base_archive_qualification_view() and career_owner==_lifecycle_owner \
 			and season==_lifecycle_season and saved_bytes==_lifecycle_bytes

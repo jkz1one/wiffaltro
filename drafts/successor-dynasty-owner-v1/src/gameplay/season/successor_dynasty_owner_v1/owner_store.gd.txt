@@ -66,6 +66,7 @@ static var _imported_sha256: String = ""
 static var _owner: RefCounted
 static var _owner_raw: Dictionary = {}
 static var _owner_bytes: PackedByteArray = PackedByteArray()
+static var _installed_dugout_d1_bound: Dictionary={}
 static var _base_archive_source_pair: Dictionary = {}
 static var _base_archive_draft_pin: Dictionary = {}
 static var _base_archive_write_ticket: RefCounted
@@ -617,6 +618,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 	return same
 
 static func _invalidate() -> void:
+	_installed_dugout_d1_bound={}
 	_base_archive_source_pair={}
 	_base_archive_draft_pin={}
 	_base_archive_write_ticket=null
@@ -3043,8 +3045,8 @@ static func _keep_installed_dugout_d1_page(page: PackedByteArray) -> bool:
 			or not _base_archive_absent(path) or DirAccess.rename_absolute(tmp,path)!=OK: return false
 	return _base_archive_member(path).get("bytes",PackedByteArray())==page
 
-# This Store route is not connected to the generic App or menu. Never
-# authorize a new installed head from a file-supplied Champion assertion.
+# Only the dedicated installed draft view uses this. Never authorize a new
+# installed head from a file-supplied Champion assertion.
 static func write_installed_dugout_d1_birth(owner: RefCounted, expected: PackedByteArray) -> bool:
 	if saving or _ticket!=null or not _installed_dugout_d1_lane(): return false
 	var offer:=inspect_installed_earned_dugout_d1(owner,expected)
@@ -3056,13 +3058,16 @@ static func write_installed_dugout_d1_birth(owner: RefCounted, expected: PackedB
 	if staged.is_empty(): return false
 	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":1,"head":staged.head,"current":staged.current}
 	if _installed_dugout_d1_parts(value).is_empty(): return false
+	var draft:=_installed_dugout_d1_local_draft(staged.current.ordinary)
 	var body:=_native_encoded(value)
-	if body.is_empty() or not match_owner(owner,expected): return false
+	if draft==null or body.is_empty() or not match_owner(owner,expected): return false
 	saving=true
 	var wrote_page:=_keep_installed_dugout_d1_page(staged.page)
 	var saved: bool=wrote_page and _installed_dugout_d1_lane() and _matches(expected) and _write_exact_bytes(body,expected)
 	saving=false
-	if saved: _invalidate()
+	if saved:
+		_invalidate()
+		_installed_dugout_d1_bound={"bytes":body,"page":staged.head.pages[0],"draft":draft}
 	return saved
 
 # Fixed read-only child. It cannot enter raw(), any writer, or become
@@ -3104,6 +3109,71 @@ static func read_installed_dugout_d1_draft() -> Dictionary:
 	var again:=_installed_dugout_d1_source()
 	if again.is_empty() or again.bytes!=source.bytes or again.page!=source.page: return {}
 	return {"bytes":source.bytes,"head":source.head,"current":source.current,"session":restored}
+
+# Only the no-game native draft dialect may use the warm draft binding.
+# A held view never carries a mutable SeasonState or grants general play.
+static func _installed_dugout_d1_local_draft(image: Dictionary) -> SeasonState:
+	var draft: SeasonState=Adapter.Ordinary.restore_common(image)
+	if draft==null or not Codec.same(draft.league_rules,LeagueRules.capture_tier("dugout",1)) \
+			or not Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d1(draft.career.start_basis) \
+			or draft.round_index!=0 or not draft.results.is_empty() or not draft.player_results.is_empty() \
+			or not draft.physical.pending.is_empty() or not draft.physical.reports.is_empty() \
+			or not Codec.same(Adapter.Ordinary.capture(draft),image): return null
+	if draft.phase==SeasonState.Phase.DRAFT and draft.picks.size()<4: return draft
+	return draft if draft.phase==SeasonState.Phase.REGULAR and draft.picks.size()==4 else null
+
+static func _bound_installed_dugout_d1(expected: PackedByteArray) -> Dictionary:
+	if _installed_dugout_d1_bound.is_empty() or expected.is_empty() \
+			or _installed_dugout_d1_bound.bytes!=expected: return {}
+	var source:=_installed_dugout_d1_source()
+	if source.is_empty() or source.bytes!=expected or source.head.pages[0]!=_installed_dugout_d1_bound.page: return {}
+	var draft: SeasonState=_installed_dugout_d1_bound.draft
+	if draft==null or not Codec.same(Adapter.Ordinary.capture(draft),source.current.ordinary): return {}
+	return source
+
+static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
+	var source:=_bound_installed_dugout_d1(expected)
+	if source.is_empty(): return {}
+	var draft: SeasonState=_installed_dugout_d1_bound.draft
+	return {"bytes":expected.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
+		"credits":int(source.current.common.aggregate.currency),"cash":draft.cash()}
+
+# The menu cannot supply a child result, an archive path, or a saved session.
+static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArray) -> Dictionary:
+	if not is_instance_valid(reader) or reader.get_script()!=load("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd") \
+			or not reader.verified_revision(expected): return {}
+	var source:=_installed_dugout_d1_source()
+	if source.is_empty() or source.bytes!=expected: return {}
+	var draft:=_installed_dugout_d1_local_draft(source.current.ordinary)
+	if draft==null or not reader.verified_revision(expected): return {}
+	_invalidate()
+	_installed_dugout_d1_bound={"bytes":expected.duplicate(),"page":source.head.pages[0],"draft":draft}
+	return installed_dugout_d1_view(expected)
+
+static func pick_installed_dugout_d1(expected: PackedByteArray,id: String) -> Dictionary:
+	var source:=_bound_installed_dugout_d1(expected)
+	if source.is_empty(): return {}
+	var old: SeasonState=_installed_dugout_d1_bound.draft
+	if old.phase!=SeasonState.Phase.DRAFT or old.picks.size()>=4 or not old.offers().has(id): return {}
+	var candidate: SeasonState=old.fork_live()
+	if candidate==null or not candidate.choose_player(id) or candidate.picks.size()!=old.picks.size()+1 \
+			or candidate.picks.back()!=id or not Codec.same(old.picks,candidate.picks.slice(0,-1)): return {}
+	var recorded: Dictionary=Adapter.Ordinary.capture(candidate)
+	if recorded.is_empty(): return {}
+	var current: Dictionary=source.current.duplicate(true)
+	current.ordinary=recorded
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":1,"head":source.head,"current":current}
+	if _installed_dugout_d1_parts(value).is_empty() or _installed_dugout_d1_local_draft(recorded)==null: return {}
+	var body:=_native_encoded(value)
+	var again:=_installed_dugout_d1_source()
+	if body.is_empty() or again.is_empty() or again.bytes!=expected or again.page!=source.page: return {}
+	saving=true
+	var saved: bool=_write_exact_bytes(body,expected)
+	saving=false
+	if not saved: return {}
+	_invalidate()
+	_installed_dugout_d1_bound={"bytes":body,"page":source.head.pages[0],"draft":candidate}
+	return installed_dugout_d1_view(body)
 
 static func stage_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
 	var offer:=earned_dugout_d1_offer(owner,expected)
