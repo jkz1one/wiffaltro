@@ -210,14 +210,101 @@ static func semifinal_pair(session: SeasonState) -> Dictionary:
 			or not ClubCareer.same(club,session.pending_fixture()): return {}
 	return {"club":club,"cpu":cpu}
 
-# First managed semifinal ingress, before its CPU sibling or payoff.
-static func semifinal_pending(session: SeasonState) -> bool:
+# The managed score determines how many other jobs remain, but neither it
+# nor the target phase can waive the native proof or its fixture binding.
+static func semifinal_jobs(session: SeasonState) -> int:
 	var pair:=semifinal_pair(session)
-	if pair.is_empty(): return false
+	if pair.is_empty(): return 0
 	var pending: Dictionary=session.physical.pending
-	return SeasonOwnership._keys(pending,["human","reports"]) and pending.get("human") is Array \
-		and pending.human.size()==13 and pending.human[0]==pair.club.id \
-		and pending.get("reports") is Array and pending.reports.is_empty()
+	if not SeasonOwnership._keys(pending,["human","reports"]) or not pending.get("human") is Array \
+			or pending.human.size()!=13 or pending.human[0]!=pair.club.id or not pending.get("reports") is Array:
+		return 0
+	var h: Array=pending.human
+	if not SeasonOwnership._whole(h[1],0,100000) or not SeasonOwnership._whole(h[2],0,100000) or h[1]==h[2]: return 0
+	var count: int=1 if (h[1]>h[2] if pair.club.away==0 else h[2]>h[1]) else 2
+	if pending.reports.size()>count: return 0
+	for i: int in pending.reports.size():
+		var report: Variant=pending.reports[i]
+		if not report is Dictionary or report.get("fixture")!=(pair.cpu.id if i==0 else 32): return 0
+	return count
+
+static func semifinal_pending(session: SeasonState) -> bool:
+	return semifinal_jobs(session)>0
+
+# Never derives progression rights. It recognizes native semifinal settlement
+# only, with no active pending transaction or already played managed final.
+static func settled_semifinal(session: SeasonState) -> String:
+	if session==null or session.round_index!=10 or session.picks.size()!=4 \
+			or session.player_results.size()!=11 or not session.physical.pending.is_empty() \
+			or session.semifinals.size()!=2 or session.playoff_seeds.size()!=4 \
+			or not session.playoff_seeds.any(func(seed: Variant) -> bool: return SeasonOwnership._whole(seed,0,0)):
+		return ""
+	var managed: Dictionary=session.player_results.back()
+	if not SeasonOwnership._whole(managed.get("id"),30,31) or managed.away_runs==managed.home_runs \
+			or (managed.away!=0 and managed.home!=0): return ""
+	var pair_matches: bool=session.semifinals.any(func(f: Dictionary) -> bool:
+		return f.get("id")==managed.id and f.get("away")==managed.away and f.get("home")==managed.home)
+	if not pair_matches or session.physical.reports.size()<21: return ""
+	var sibling: int=31 if managed.id==30 else 30
+	if session.physical.reports[20].get("fixture")!=sibling: return ""
+	var club_won: bool=managed.away_runs>managed.home_runs if managed.away==0 else managed.home_runs>managed.away_runs
+	if session.phase==SeasonState.Phase.FINAL and club_won and session.results.size()==32 \
+			and session.physical.reports.size()==21 and session.champion==-1:
+		var final: Dictionary=session.pending_fixture()
+		if final.get("id")==32 and final.get("round")==11 and (final.get("away")==0 or final.get("home")==0):
+			return "final_ready"
+	if session.phase==SeasonState.Phase.COMPLETE and not club_won and session.results.size()==33 \
+			and session.physical.reports.size()==22 and session.physical.reports[21].get("fixture")==32 \
+			and session.champion in [1,2,3,4,5] and session.pending_fixture().is_empty():
+		return "semifinal_exit"
+	return ""
+
+# Same checked native projector for a live pending request and a cold replay.
+static func project_semifinal(session: SeasonState, cold_materialized_retry: bool=false) -> Dictionary:
+	var total:=semifinal_jobs(session)
+	if total==0: return {}
+	var pair:=semifinal_pair(session)
+	var pending: Dictionary=session.physical.pending
+	var count: int=pending.reports.size()
+	var source: SeasonState=session
+	var projected: Dictionary=Archive._owner().Adapter.OrdinaryPending.project(source)
+	if cold_materialized_retry and count>0 \
+			and projected.get("error")=="The pending round contains an unexpected physical fixture.":
+		source=_materialized_semifinal_fixture_types(session)
+		if source==null: return {}
+		projected=Archive._owner().Adapter.OrdinaryPending.project(source)
+	if projected.has("error") or not projected.get("candidate") is SeasonState: return {}
+	if count==total:
+		if projected.has("fixture") or settled_semifinal(projected.candidate)!=("final_ready" if total==1 else "semifinal_exit"): return {}
+	else:
+		if not projected.get("fixture") is Dictionary: return {}
+		var fixture: Dictionary=projected.fixture
+		if count==0 and not ClubCareer.same(fixture,pair.cpu): return {}
+		if count==1 and (total!=2 or fixture.get("id")!=32 or fixture.get("round")!=11 \
+				or fixture.get("away")==0 or fixture.get("home")==0): return {}
+	return {"projection":projected,"fixture":pair.club,"count":count,"total":total,"source":source}
+
+# The installed cold replay creates integer bracket fields, while the live
+# parent may have reloaded those four fields through JSON before signing the
+# CPU request. Try only that exact materialized representation of the
+# locally rederived bracket. The original digest and evidence still have to
+# pass the same native projector; neither the save nor its reports change.
+static func _materialized_semifinal_fixture_types(session: SeasonState) -> SeasonState:
+	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not semifinal_pending(session) \
+			or not Archive._owner().Codec.same(session.league_rules,LeagueRules.capture_tier("dugout",1)):
+		return null
+	var shape: Array[String]=["id","round","away","home"]
+	for row: Dictionary in session.semifinals:
+		if not SeasonOwnership._keys(row,shape): return null
+		for key: String in shape:
+			if not row[key] is int: return null
+	var alternative: SeasonState=session.fork_live()
+	if alternative==null: return null
+	for row: Dictionary in alternative.semifinals:
+		for key: String in shape:
+			row[key]=float(row[key])
+	return alternative if ClubCareer.same(alternative.semifinals,session.semifinals) else null
+
 
 static func final_regular_destination(session: SeasonState) -> String:
 	if session==null or session.round_index!=LAST_INSTALLED_REGULAR_ROUND \
@@ -249,7 +336,7 @@ const WALLET_TYPES_MAX: int=1536
 static func needs_wallet_types(session: SeasonState) -> bool:
 	if session==null: return false
 	return (session.phase==SeasonState.Phase.REGULAR and session.round_index==LAST_INSTALLED_REGULAR_ROUND-1) \
-		or not semifinal_pair(session).is_empty()
+		or not semifinal_pair(session).is_empty() or settled_semifinal(session)=="final_ready"
 
 static func valid_wallet_types(witness: String) -> bool:
 	var parts: PackedStringArray=witness.split(".")
@@ -358,12 +445,16 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 	var reports: Array=image.physical.reports
 	var humans: Array=image.state.player_results
 	var events: Variant=image.build.build.get("_events")
-	var visited: int=humans.size()
-	if visited>LAST_INSTALLED_REGULAR_ROUND or (visited==0 and pending.is_empty()) \
+	var managed_count: int=humans.size()
+	var visited: int=mini(managed_count,LAST_INSTALLED_REGULAR_ROUND)
+	var paid_semifinal: bool=managed_count==LAST_INSTALLED_REGULAR_ROUND+1
+	if managed_count>LAST_INSTALLED_REGULAR_ROUND+1 or (visited==0 and pending.is_empty()) \
 			or image.state.get("round_index")!=visited \
 			or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return null
 	var final_regular: bool=visited==LAST_INSTALLED_REGULAR_ROUND
-	if final_regular:
+	if paid_semifinal:
+		if not pending.is_empty() or not [[32,21],[33,22]].has([image.state.results.size(),reports.size()]): return null
+	elif final_regular:
 		if not [[30,20],[33,23]].has([image.state.results.size(),reports.size()]): return null
 		if not pending.is_empty() and image.state.get("phase")!=SeasonState.Phase.SEMIFINAL: return null
 	elif image.state.results.size()!=visited*3 or reports.size()!=visited*2: return null
@@ -373,7 +464,7 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 		if fixture.get("id")!=index*3: return null
 		var human:=Archive.Core._human(humans[index],fixture)
 		if human.is_empty(): return null
-		var end_report: int=reports.size() if index==LAST_INSTALLED_REGULAR_ROUND-1 else 2*index+2
+		var end_report: int=reports.size() if index==LAST_INSTALLED_REGULAR_ROUND-1 and not paid_semifinal else 2*index+2
 		proven.physical.pending={"human":human,"reports":reports.slice(2*index,end_report)}
 		var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(proven)
 		var result: Dictionary=checked.projection
@@ -383,13 +474,21 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 		# can be replayed before constructing the following managed fixture.
 		if proven.round_index!=index+1 or not Archive.Core._shop(proven,events,0): return null
 		if index==LAST_INSTALLED_REGULAR_ROUND-1 and final_regular_destination(proven).is_empty(): return null
-	if not pending.is_empty() and final_regular:
+	if paid_semifinal:
 		var pair:=semifinal_pair(proven)
 		if pair.is_empty(): return null
+		var human:=Archive.Core._human(humans[10],pair.club)
+		if human.is_empty(): return null
+		proven.physical.pending={"human":human,"reports":reports.slice(20)}
+		var checked:=project_semifinal(proven,true)
+		if checked.is_empty() or checked.projection.has("fixture"): return null
+		proven=checked.projection.candidate
+		if not Archive.Core._shop(proven,events,0): return null
+	elif not pending.is_empty() and final_regular:
 		proven.physical.pending=pending.duplicate(true)
-		if not semifinal_pending(proven): return null
-		var preview: Dictionary=api.Adapter.OrdinaryPending.project(proven)
-		if preview.has("error") or not ClubCareer.same(preview.get("fixture",{}),pair.cpu): return null
+		var checked:=project_semifinal(proven,true)
+		if checked.is_empty(): return null
+		proven=checked.source
 	elif not pending.is_empty():
 		if visited>=LAST_INSTALLED_REGULAR_ROUND or not api.Codec.keys(pending,["human","reports"]) \
 				or not pending.reports is Array or pending.reports.size()>regular_report_cap(visited) \

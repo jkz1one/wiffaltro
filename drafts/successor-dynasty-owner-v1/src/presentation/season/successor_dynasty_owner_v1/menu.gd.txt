@@ -638,7 +638,8 @@ func _installed_dugout_d1() -> void:
 	var state: String=draft.state
 	var title: String="DUGOUT D1 · ROUND %d"%draft.round
 	if state=="draft": title="DUGOUT D1 · DRAFT %d / 4"%draft.picks.size()
-	elif state=="semifinal_unpaid": title="DUGOUT D1 · SEMIFINAL"
+	elif state=="semifinal_unpaid" or draft.finish=="semifinal_exit": title="DUGOUT D1 · SEMIFINAL"
+	elif draft.finish=="final_ready": title="DUGOUT D1 · FINAL"
 	_label(_body,title,24)
 	_note("Dugout Base championship kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
@@ -646,9 +647,10 @@ func _installed_dugout_d1() -> void:
 		_label(_body,player.display_name if player!=null else id,20)
 	if state=="ready":
 		_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
-	elif state=="unpaid":
-		_note("Your Club game is saved. The round has not been paid.")
-		if draft.round==10 and draft.cpu_reports<2:
+	elif state in ["unpaid","semifinal_unpaid"]:
+		var playoff: bool=state=="semifinal_unpaid"
+		_note("Your semifinal is saved. The playoff payout is pending." if playoff else "Your Club game is saved. The round has not been paid.")
+		if not playoff and draft.round==10 and draft.cpu_reports<2:
 			_note("Two regular-season CPU games first. Standings decide whether more are needed.")
 		_note("CPU games saved: %d / %d"%[draft.cpu_reports,draft.cpu_total])
 		if app.installed_dugout_d1_cpu_running():
@@ -658,15 +660,17 @@ func _installed_dugout_d1() -> void:
 			_bound_button(_body,"PLAY CPU GAME %d OF %d"%[int(draft.cpu_reports+1),draft.cpu_total],
 				Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 		else:
-			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
-	elif state=="semifinal_unpaid":
-		_note("Your semifinal is saved. The CPU result and playoff payout are pending.")
+			_bound_button(_body,"SETTLE PLAYOFFS" if playoff else "SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="paid":
 		if draft.finish=="semifinal":
 			_note("Round 10 has paid. Your Club qualified for the semifinal.")
 			_bound_button(_body,"PLAY SEMIFINAL",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		elif draft.finish=="missed":
 			_note("Round 10 has paid. Your Club missed the playoffs; the CPU bracket is complete.")
+		elif draft.finish=="semifinal_exit":
+			_note("Your Club was eliminated in the semifinal. The playoff results and payout are saved.")
+		elif draft.finish=="final_ready":
+			_note("The semifinal has paid. Your Club advanced to the final.")
 		else:
 			_note("Round %d has already paid. All three results are saved."%draft.round)
 		if draft.next_available:
@@ -677,7 +681,7 @@ func _installed_dugout_d1() -> void:
 			var id: int=int(row[0])
 			var within_round: int=id%3
 			var score_label: String="Club game" if within_round==0 else "CPU game %d"%within_round
-			if id>=30: score_label="CPU semifinal %d"%(id-29) if id<32 else "CPU final"
+			if id>=30: score_label="Club semifinal" if id==draft.playoff_club_id else ("CPU semifinal %d"%(id-29) if id<32 else "CPU final")
 			_note("%s: %d away – %d home"%[score_label,row[1],row[2]])
 	else:
 		for id: String in draft.offers:
