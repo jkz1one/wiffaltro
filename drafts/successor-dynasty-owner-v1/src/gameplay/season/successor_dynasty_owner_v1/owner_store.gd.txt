@@ -37,6 +37,7 @@ const BASE_ARCHIVE_SEMI_REPORT_GENERATION := "starter-base-marked-semifinal-repo
 const BASE_ARCHIVE_SEMI_SETTLED_GENERATION := "starter-base-marked-semifinal-settled-v1"
 const BASE_ARCHIVE_FINAL_HUMAN_GENERATION := "starter-base-marked-final-human-v1"
 const BASE_ARCHIVE_FINAL_SETTLED_GENERATION := "starter-base-marked-final-settled-v1"
+const BASE_ARCHIVE_EARNED_D1_GENERATION := "starter-base-archive-earned-dugout-d1-v1"
 const BASE_ARCHIVE_FINAL_CLOSED_GENERATION := "starter-base-marked-final-closed-v1"
 const BASE_ARCHIVE_COMPLETED_GENERATION := "starter-base-marked-completed-closed-v1"
 const BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION := "starter-base-marked-completed-prepared-v1"
@@ -2677,7 +2678,7 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 				BASE_ARCHIVE_SEMI_REPORT_GENERATION,BASE_ARCHIVE_SEMI_SETTLED_GENERATION,BASE_ARCHIVE_COMPLETED_GENERATION,
 				BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION,
 				BASE_ARCHIVE_FINAL_HUMAN_GENERATION,BASE_ARCHIVE_FINAL_SETTLED_GENERATION,BASE_ARCHIVE_FINAL_CLOSED_GENERATION,
-				BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION]: return {}
+				BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION,BASE_ARCHIVE_EARNED_D1_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
 			or not BaseArchive._digest(wrapped.prior_primary_sha256): return {}
@@ -2689,6 +2690,9 @@ static func _base_archive_load(reader: bool=false) -> Dictionary:
 	if pair.is_empty() or not pair.primary.present or not _base_archive_temps_clear(reader): return {}
 	var wrapped: Dictionary=_base_archive_wrapper(pair.primary.bytes)
 	if wrapped.is_empty(): return {}
+	# The new tier has a dedicated related reader. No birth enters the
+	# legacy archive App or ordinary save writer through this path.
+	if wrapped.get("generation")==BASE_ARCHIVE_EARNED_D1_GENERATION: return {}
 	var draft: bool=wrapped.has("generation")
 	if (not draft and not pair.backup.present) or (pair.backup.present \
 			and BaseArchive._hash(pair.backup.bytes)!=wrapped.prior_primary_sha256): return {}
@@ -2714,9 +2718,13 @@ static func _base_archive_load(reader: bool=false) -> Dictionary:
 		var current_bytes: PackedByteArray=BaseArchive._wire(wrapped.current)
 		var prior_current_bytes: PackedByteArray=BaseArchive._wire(prior.current)
 		var verified: Dictionary
-		if wrapped.generation in [BASE_ARCHIVE_COMPLETED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION]:
-			var required_prior: String=BASE_ARCHIVE_SEMI_SETTLED_GENERATION if wrapped.generation==BASE_ARCHIVE_COMPLETED_GENERATION \
-				else BASE_ARCHIVE_COMPLETED_GENERATION
+		if wrapped.generation in [BASE_ARCHIVE_COMPLETED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION,
+				BASE_ARCHIVE_FINAL_CLOSED_GENERATION]:
+			var required_prior: String=BASE_ARCHIVE_COMPLETED_GENERATION
+			if wrapped.generation==BASE_ARCHIVE_COMPLETED_GENERATION:
+				required_prior=BASE_ARCHIVE_SEMI_SETTLED_GENERATION
+			elif wrapped.generation==BASE_ARCHIVE_FINAL_CLOSED_GENERATION:
+				required_prior=BASE_ARCHIVE_FINAL_SETTLED_GENERATION
 			if prior.get("generation")!=required_prior: return {}
 			# Same-head equality is mandatory above. Do not fall back if the
 			# exact full images or either native completed-state tail disagree.
@@ -2959,6 +2967,64 @@ static func stage_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray)
 	var wrapped:=_base_archive_wrapper(expected)
 	var staged:=preload("earned_dugout_d1.gd").stage_birth(wrapped.current,wrapped.head,offer)
 	return staged if not staged.is_empty() and base_archive_app_binding(owner,expected) else {}
+
+# Qualification-side transaction only. Ordinary installed play remains closed
+# until its own authenticated rollover and draft checkpoints are wired.
+static func write_base_archive_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> bool:
+	var staged:=stage_earned_dugout_d1(owner,expected)
+	if staged.is_empty(): return false
+	var pin: Dictionary=_base_archive_draft_pin
+	if not base_archive_app_binding(owner,expected) or staged.head.pages.size()>BASE_ARCHIVE_QA_MAX_PAGES: return false
+	var wire: PackedByteArray=BASE_ARCHIVE_HEADER.to_utf8_buffer()
+	wire.append_array(BaseArchive._wire({"head":staged.head,"current":staged.current,
+		"prior_primary_sha256":BaseArchive._hash(expected),"generation":BASE_ARCHIVE_EARNED_D1_GENERATION}))
+	if wire.size()>MAX_BYTES: return false
+	saving=true
+	_base_archive_write_ticket=RefCounted.new()
+	var saved: bool=_base_archive_install(_base_archive_write_ticket,pin.pair,staged.page,wire,true,pin.head,pin.pages)
+	saving=false
+	_invalidate()
+	return saved
+
+# Separate read-only validation. A literal predecessor is required for this
+# first-generation witness; never silently fall back to another career.
+static func read_base_archive_earned_dugout_d1() -> Dictionary:
+	if saving or _ticket!=null or not _base_archive_qa() or not _base_archive_temps_clear(): return {}
+	var pair:=_base_archive_pair()
+	if pair.is_empty() or not pair.primary.present or not pair.backup.present: return {}
+	var result:=_base_archive_wrapper(pair.primary.bytes)
+	var source:=_base_archive_wrapper(pair.backup.bytes)
+	if result.get("generation")!=BASE_ARCHIVE_EARNED_D1_GENERATION \
+		or source.get("generation")!=BASE_ARCHIVE_FINAL_CLOSED_GENERATION \
+		or result.prior_primary_sha256!=BaseArchive._hash(pair.backup.bytes): return {}
+	var current_head:=BaseArchive._head(BaseArchive._wire(result.head))
+	var prior_head:=BaseArchive._head(BaseArchive._wire(source.head))
+	if current_head.is_empty() or prior_head.is_empty() or prior_head.pages.is_empty() \
+		or current_head.pages.size()!=prior_head.pages.size()+1 \
+		or current_head.pages.size()>BASE_ARCHIVE_QA_MAX_PAGES \
+		or current_head.pages.slice(0,-1)!=prior_head.pages or not _base_archive_page_root(false): return {}
+	var full: Array[PackedByteArray]=[]
+	var prefix: Array[PackedByteArray]=[]
+	for index: int in current_head.pages.size():
+		var name: String=_base_archive_page_path(current_head.pages[index])
+		var item:=_base_archive_member(name)
+		if item.is_empty() or not item.present or BaseArchive._hash(item.bytes)!=current_head.pages[index] \
+			or not _base_archive_absent(name+".tmp"): return {}
+		full.append(item.bytes)
+		if index<prior_head.pages.size(): prefix.append(item.bytes)
+	if BaseArchive.append_head(BaseArchive._wire(source.head),full.back())!=BaseArchive._wire(result.head): return {}
+	var verified: RefCounted=BaseArchive.restore_pages(BaseArchive._wire(source.head),BaseArchive._wire(source.current),prefix)
+	if not _base_archive_final_closed(verified): return {}
+	var contract=preload("earned_dugout_d1.gd")
+	var offer: Dictionary=contract.from_closed_image(source.current,source.head)
+	var staged: Dictionary=contract.stage_birth(source.current,source.head,offer)
+	if staged.is_empty() or staged.page!=full.back() or not Codec.same(staged.current,result.current) \
+		or not Codec.same(staged.head,result.head) or not Codec.same(result.current.common,verified.common): return {}
+	var native: SeasonState=Adapter.Ordinary.restore_common(result.current.ordinary)
+	if native==null or not Codec.same(Adapter.Ordinary.capture(native),result.current.ordinary) \
+		or not _base_archive_temps_clear() or not Codec.same(_base_archive_pair(),pair) \
+		or not _base_archive_pages_live(current_head,full): return {}
+	return {"current":result.current,"head":current_head,"offer":offer}
 
 # Exact process-verified writer readback, not a resample or external admission.
 static func base_archive_app_result(previous: PackedByteArray) -> Dictionary:
