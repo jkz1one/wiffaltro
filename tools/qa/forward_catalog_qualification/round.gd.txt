@@ -1,0 +1,80 @@
+extends Node
+const C=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_base_chain.gd")
+const Archive=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_base_archive.gd")
+const Premises=preload("res://src/gameplay/season/successor_league_general_v2/catalog_context.gd")
+const Expected: String="f0e1e064f71e27798927db1a0e582a8742cb8dddbecd70224963f5a63edd6ba5"
+func _ready() -> void: call_deferred("_run")
+func _fail(label: String) -> void:
+	printerr("FRESH ROUND REFUSED ",label)
+	get_tree().quit(8)
+
+func _without_context(value: Variant, context: String) -> Variant:
+	if value is Dictionary:
+		var result: Dictionary={}
+		for k: Variant in value: result[k]=_without_context(value[k],context)
+		return result
+	if value is Array:
+		return value.map(func(v: Variant) -> Variant: return _without_context(v,context))
+	return "native-bound-catalog" if value is String and value==context else value
+
+func _run() -> void:
+	if OS.get_environment("WIFFALTRO_ISOLATED_TEST")!="1" or DisplayServer.get_name()!="headless": _fail("scope"); return
+	var bytes:=FileAccess.get_file_as_bytes("user://first-archive-page.json")
+	if Archive._hash(bytes)!=Expected: _fail("synthetic archive source"); return
+	var root: Variant=JSON.parse_string(FileAccess.get_file_as_string("user://root.json"))
+	var old: Variant=JSON.parse_string(bytes.get_string_from_utf8())
+	if not root is Dictionary or not old is Dictionary or old.root!=root.root: _fail("synthetic source head"); return
+	var timer:=Time.get_ticks_usec()
+	var owner: RefCounted=C.root(int(root.seed),root.league)
+	if owner==null: _fail("fresh authored start"); return
+	var s: SeasonState=owner.session
+	for id: Variant in old.image.state.picks:
+		if not id is String or not s.choose_player(id): _fail("authored human draft"); return
+	if s.picks.size()!=4 or not s.results.is_empty() or not s.physical.reports.is_empty(): _fail("fresh replay stage"); return
+	var human: Array=C._human(old.image.state.player_results[0],s.pending_fixture())
+	if human.is_empty() or JSON.stringify(human).contains(old.image.game_catalog): _fail("exact detached human packet without old catalog claim"); return
+	var catalog: String=Premises.signature()
+	if catalog.length()!=64: _fail("native context"); return
+	s.physical.pending={"human":human,"reports":[]}
+	var original: SeasonState=s
+	var pending_script: Script=C.Adapter.OrdinaryPending
+	var fixtures: Script=C.Adapter.OrdinaryFixtures
+	var report_values: Array=[]
+	var projection: Dictionary=pending_script.project(s)
+	for expected: int in [1,2]:
+		var row: Dictionary=projection.get("fixture",{})
+		var fork: SeasonState=projection.get("candidate")
+		if row.get("id")!=expected or fork==null: _fail("native pending next fixture"); return
+		var opening: MatchState=fixtures.match_for(fork,row)
+		var field: FieldDefinition=SeasonState.field_for_fixture(row,fork)
+		if opening==null or opening.pitch_catalog!=catalog or field==null: _fail("exact native fixture context"); return
+		var runner: Node=C.Adapter.OrdinaryRunner.new()
+		add_child(runner)
+		runner.failed.connect(func(reason: String) -> void: _fail(reason))
+		if not runner.start(opening,fixtures.seed_for(fork,row),field.id): _fail("fresh real CPU sim runner"); return
+		var raw: Variant=await runner.finished
+		if not raw is Dictionary or raw.get("pitch_catalog")!=catalog: _fail("actual fresh CPU evidence"); return
+		# Keep complete deterministic report semantics apart from recorded runtime.
+		var neutral_report: Dictionary=raw.duplicate(true)
+		neutral_report.physical.erase("elapsed")
+		report_values.append(_without_context(neutral_report,catalog))
+		var accepted: Dictionary=pending_script.stage_report(s,raw)
+		if not accepted.get("candidate") is SeasonState: _fail("authentic CPU report stage"); return
+		s=accepted.candidate
+		projection={"candidate":accepted.settled} if accepted.has("settled") else pending_script.project(s)
+		runner.queue_free()
+	var final: SeasonState=projection.get("candidate")
+	if projection.has("fixture") or final==null or final.round_index!=1 or final.results.size()!=3 			or final.player_results.size()!=1 or final.physical.reports.size()!=2 or not final.physical.pending.is_empty() 			or not C.C.same(original.physical.pending,{"human":human,"reports":[]}) or not original.results.is_empty():
+		_fail("single exact three-game settlement and untouched source"); return
+	var count:=0
+	for event: Dictionary in final.build._events:
+		if event.get("op")=="successor_reward": count+=1
+	if count!=1 or not final.shop_available(): _fail("once-only reward and next shop"); return
+	var proof: Dictionary=C.Adapter.capture("ordinary",final)
+	if proof.is_empty() or proof.get("game_catalog")!=catalog: _fail("full native serialization with distinct context"); return
+	var winner: Array=[]
+	for row: Dictionary in final.results:
+		winner.append([row.id,row.away,row.home,row.away_runs,row.home_runs])
+	var canonical: Array=[winner,final.cash(),report_values,_without_context(final.build._events,catalog),final.player_results]
+	print("FRESH ROUND PASS semantic_sha=", JSON.stringify(canonical,"",true,true).sha256_text(), 		" context=",catalog," cash=",final.cash()," games=",JSON.stringify(winner)," us=",Time.get_ticks_usec()-timer)
+	get_tree().quit()
