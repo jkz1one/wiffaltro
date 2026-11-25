@@ -156,9 +156,11 @@ static func stage_birth(image: Dictionary, head: Dictionary, expected_offer: Dic
 # Cold provenance from ordered immutable pages. The rotating backup is not an
 # input. Reconstruct every completed native boundary and do not grant authority
 # from structural page shape, a stored offer, or a supplied digest alone.
-static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedByteArray]) -> Dictionary:
+static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], installed_forward_first: bool=false) -> Dictionary:
 	var checked: Dictionary=Archive._head(head)
 	if checked.is_empty() or pages.is_empty() or pages.size()!=checked.pages.size(): return {}
+	if installed_forward_first and (checked.ordinal!=2 or pages.size()!=1 \
+			or not OS.has_feature("wiffaltro_catalog_forward_v1")): return {}
 	# Authenticate shape/digests before the expensive native replay.
 	for i: int in pages.size():
 		if Archive._hash(pages[i])!=checked.pages[i] or Archive._page(pages[i],checked,i+1).is_empty(): return {}
@@ -173,7 +175,7 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 	for i: int in final_index:
 		if not Archive._advance_closed_page(authenticated,pages[i],old,i): return {}
 	if authenticated.current_ordinal()!=final_index+1 \
-			or not Archive.Core._apply_closed(authenticated,last.image,last.close): return {}
+			or not Archive.Core._apply_closed(authenticated,last.image,last.close,false,installed_forward_first): return {}
 	var api:=Archive._owner()
 	var real: Dictionary=api.capture(authenticated)
 	if real.is_empty(): return {}
@@ -204,6 +206,6 @@ static func _restore_after_picks(staged: Dictionary, value: Dictionary) -> Seaso
 	return draft if not expected.ordinary.is_empty() and api.Codec.same(expected,value) else null
 
 
-static func restore_draft_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], value: Dictionary) -> SeasonState:
-	var staged:=_draft_birth_from_pages(head,pages)
+static func restore_draft_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], value: Dictionary, installed_forward_first: bool=false) -> SeasonState:
+	var staged:=_draft_birth_from_pages(head,pages,installed_forward_first)
 	return null if staged.is_empty() else _restore_after_picks(staged,value)

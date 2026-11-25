@@ -70,7 +70,7 @@ static func _report_count(s: SeasonState, last: bool, target: int) -> int:
 # It is never hydrated from the incoming session. The existing exact mixed
 # projector may materialize equivalent native types from this rederived source;
 # it never substitutes a report request or accepts an unvalidated physical row.
-static func _replay(birth: SeasonState, image: Variant) -> SeasonState:
+static func _replay(birth: SeasonState, image: Variant, installed_forward_first: bool=false) -> SeasonState:
 	if birth==null or birth.phase!=SeasonState.Phase.DRAFT or not birth.picks.is_empty() \
 			or _league(birth)!="dugout" or birth.league_rules.get("tier")!=0 \
 			or not image is Dictionary or not image.get("state") is Dictionary \
@@ -98,7 +98,11 @@ static func _replay(birth: SeasonState, image: Variant) -> SeasonState:
 		if human.is_empty() or count<0 or cursor+count>reports.size(): return null
 		var revision: int=next.build.revision()
 		next.physical.pending={"human":human,"reports":reports.slice(cursor,cursor+count)}
-		var projected: Dictionary=MixedProof._project_mixed_round(next).projection
+		# Installed first-title admission requires 10 regular games, one semifinal
+		# report and an actual Final. Do not change the generic archive retry.
+		var forward_semifinal: bool=installed_forward_first and i==10 and people.size()==12 and count==1 \
+			and int(target)==SeasonState.Phase.COMPLETE and next.phase==SeasonState.Phase.SEMIFINAL
+		var projected: Dictionary=MixedProof._project_mixed_round(next,forward_semifinal).projection
 		if projected.has("error") or projected.has("fixture"): return null
 		next=projected.get("candidate")
 		cursor+=count
@@ -145,10 +149,10 @@ static func _restore_value(value: Variant) -> RefCounted:
 	var rebuilt: Dictionary=_owner().pack_current(native,current)
 	return native if not rebuilt.is_empty() and C.same(rebuilt,value.owner) else null
 
-static func _apply_closed(native: RefCounted,image: Variant,close: Variant,already_replayed: bool=false) -> bool:
+static func _apply_closed(native: RefCounted,image: Variant,close: Variant,already_replayed: bool=false,installed_forward_first: bool=false) -> bool:
 	if not close is Dictionary or close.get("reason") not in ["complete","abandon"]: return false
 	if not already_replayed:
-		var resumed:=_replay(native.session,image)
+		var resumed:=_replay(native.session,image,installed_forward_first)
 		if resumed==null: return false
 		native.session=resumed
 	return native.close_current(close.reason) and C.same(native.ordinary_state.last_close,close)

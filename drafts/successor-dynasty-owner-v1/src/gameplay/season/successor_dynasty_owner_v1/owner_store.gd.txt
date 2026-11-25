@@ -14,6 +14,8 @@ const INSTALLED_PATH: String = "user://wiffaltro-installed-career-v1.json"
 const INSTALLED_HEADER: String = "WIFFALTRO-INSTALLED-CAREER-V1\n"
 const INSTALLED_FORWARD_HEADER: String = "WIFFALTRO-INSTALLED-CAREER-FORWARD-V1\n"
 const INSTALLED_BACKUP_STAGE: String = ".bak.tmp"
+const INSTALLED_DUGOUT_D1_KIND := "installed-forward-dugout-d1-draft-v1"
+const INSTALLED_DUGOUT_D1_PAGES := "user://wiffaltro-installed-dugout-d1-pages-v1"
 const MAX_BYTES: int = 64 * 1024 * 1024
 const BASE_ARCHIVE_READER_FEATURE := "wiffaltro_base_archive_read_playtest"
 const BASE_ARCHIVE_READER_ENTRY := "res://archive_read_bootstrap/entry.tscn"
@@ -2980,6 +2982,105 @@ static func inspect_installed_earned_dugout_d1(owner: RefCounted, expected: Pack
 	if source.is_empty(): return {}
 	var offer: Dictionary=earned.from_closed_image(source.image,source.head)
 	return offer if not offer.is_empty() and match_owner(owner,expected) else {}
+
+# A new installed-only save shape, distinct from both ordinary Base and
+# the private legacy archive format. A head shape alone confers no authority.
+static func _installed_dugout_d1_parts(value: Variant) -> Dictionary:
+	if not Codec.keys(value,["kind","version","head","current"]) \
+			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,1) \
+			or not value.head is Dictionary or not value.current is Dictionary \
+			or not value.head.get("kind") is String or not value.head.get("league") is String \
+			or not Codec.whole(value.head.get("version"),1,1): return {}
+	var head:=BaseArchive._head(BaseArchive._wire(value.head))
+	var current: Dictionary=value.current
+	if head.is_empty() or head.ordinal!=2 or head.pages.size()!=1 \
+			or not current.get("active") is String or current.get("active")!="ordinary" or not current.get("ordinary_state") is Dictionary \
+			or not Codec.whole(current.ordinary_state.get("ordinal"),2,2) \
+			or not current.ordinary_state.get("status") is String or current.ordinary_state.get("status")!="active" \
+			or not current.get("ordinary") is Dictionary or not current.ordinary.get("career") is Dictionary: return {}
+	var basis: Variant=current.ordinary.career.get("start_basis")
+	var starts: Script=Adapter.OrdinaryRuntime.CommonStart
+	if not basis is Dictionary or not starts.detached_earned_dugout_d1(basis) or not starts.valid(basis) \
+			or basis.ordinal!=2 or not Codec.same(basis.archive_origin.ordered_sha256,head.pages) \
+			or basis.archive_origin.offer.target_head_sha256!=BaseArchive._hash(BaseArchive._wire(head)): return {}
+	return {"head":head,"current":current}
+
+static func _installed_dugout_d1_lane() -> bool:
+	return OS.has_feature(LeagueAdmission.CAREER_FORWARD_FEATURE) \
+		and LeagueAdmission.installed_career_owned() and not _installed_paths_blocked() \
+		and not FileAccess.file_exists(INSTALLED_PATH+".tmp") \
+		and not FileAccess.file_exists(INSTALLED_PATH+INSTALLED_BACKUP_STAGE)
+
+static func _installed_dugout_d1_page_root(create: bool) -> bool:
+	var dir:=DirAccess.open("user://")
+	if dir==null or dir.is_link(INSTALLED_DUGOUT_D1_PAGES.get_file()) \
+			or FileAccess.file_exists(INSTALLED_DUGOUT_D1_PAGES): return false
+	if not DirAccess.dir_exists_absolute(INSTALLED_DUGOUT_D1_PAGES):
+		if not create or DirAccess.make_dir_absolute(INSTALLED_DUGOUT_D1_PAGES)!=OK: return false
+	return not dir.is_link(INSTALLED_DUGOUT_D1_PAGES.get_file()) and DirAccess.open(INSTALLED_DUGOUT_D1_PAGES)!=null
+
+static func _installed_dugout_d1_page_path(id: String) -> String:
+	return INSTALLED_DUGOUT_D1_PAGES.path_join(id+".json") if BaseArchive._digest(id) else ""
+
+# Only the bound installed transaction calls this. Publish an immutable
+# exact page before the mutable head. An interruption can leave an orphan
+# page, never a new head whose required page has not passed full readback.
+static func _keep_installed_dugout_d1_page(page: PackedByteArray) -> bool:
+	if not saving or page.is_empty() or page.size()>BaseArchive.MAX_PAGE \
+			or not _installed_dugout_d1_lane() or not _installed_dugout_d1_page_root(true): return false
+	var path:=_installed_dugout_d1_page_path(BaseArchive._hash(page))
+	var tmp:=path+".tmp"
+	if path.is_empty() or not _base_archive_absent(tmp): return false
+	var prior:=_base_archive_member(path)
+	if prior.is_empty(): return false
+	if prior.present: return prior.bytes==page
+	var file:=FileAccess.open(tmp,FileAccess.WRITE)
+	if file==null: return false
+	file.store_buffer(page); file.flush()
+	var ok: bool=file.get_error()==OK
+	file.close()
+	if not ok or _base_archive_member(tmp).get("bytes",PackedByteArray())!=page \
+			or not _base_archive_absent(path) or DirAccess.rename_absolute(tmp,path)!=OK: return false
+	return _base_archive_member(path).get("bytes",PackedByteArray())==page
+
+# This Store route is not connected to the generic App or menu. Never
+# authorize a new installed head from a file-supplied Champion assertion.
+static func write_installed_dugout_d1_birth(owner: RefCounted, expected: PackedByteArray) -> bool:
+	if saving or _ticket!=null or not _installed_dugout_d1_lane(): return false
+	var offer:=inspect_installed_earned_dugout_d1(owner,expected)
+	if offer.is_empty(): return false
+	var earned=preload("earned_dugout_d1.gd")
+	var source: Dictionary=earned.first_installed_source(owner)
+	if source.is_empty() or not match_owner(owner,expected): return false
+	var staged: Dictionary=earned.stage_birth(source.image,source.head,offer)
+	if staged.is_empty(): return false
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":1,"head":staged.head,"current":staged.current}
+	if _installed_dugout_d1_parts(value).is_empty(): return false
+	var body:=_native_encoded(value)
+	if body.is_empty() or not match_owner(owner,expected): return false
+	saving=true
+	var wrote_page:=_keep_installed_dugout_d1_page(staged.page)
+	var saved: bool=wrote_page and _installed_dugout_d1_lane() and _matches(expected) and _write_exact_bytes(body,expected)
+	saving=false
+	if saved: _invalidate()
+	return saved
+
+# Dedicated read-only native proof. The rotating installed .bak is not
+# used to recover a title, genesis, rights or draft picks.
+static func read_installed_dugout_d1_draft() -> Dictionary:
+	if saving or _ticket!=null or not _installed_dugout_d1_lane(): return {}
+	var before:=raw()
+	var parts:=_installed_dugout_d1_parts(Owner._bytes_value(before))
+	if parts.is_empty() or not _installed_dugout_d1_page_root(false): return {}
+	var path:=_installed_dugout_d1_page_path(parts.head.pages[0])
+	if path.is_empty() or not _base_archive_absent(path+".tmp"): return {}
+	var member:=_base_archive_member(path)
+	if member.is_empty() or not member.present: return {}
+	var pages: Array[PackedByteArray]=[member.bytes]
+	var restored: SeasonState=preload("earned_dugout_d1.gd").restore_draft_from_pages(BaseArchive._wire(parts.head),pages,parts.current,true)
+	if restored==null or not _installed_dugout_d1_lane() or before!=raw() \
+			or not _base_archive_absent(path+".tmp") or not Codec.same(member,_base_archive_member(path)): return {}
+	return {"bytes":before,"head":parts.head,"current":parts.current,"session":restored}
 
 static func stage_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
 	var offer:=earned_dugout_d1_offer(owner,expected)

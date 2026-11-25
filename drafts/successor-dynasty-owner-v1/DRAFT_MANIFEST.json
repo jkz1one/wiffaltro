@@ -138,8 +138,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 240029,
-      "sha256": "822192357d9b21d78f04d6c2725e3ad58f11797e93c87ebe0d394cda93b5ad84"
+      "bytes": 246345,
+      "sha256": "b57e9914f5a9b8939777b54e3c03dce71d861400691c1dabc3d58b24794665fb"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -810,8 +810,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_projection.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_projection.gd",
-      "bytes": 26874,
-      "sha256": "7010c807a2969c1c761b53ba5696866cb0630403d785324dc3b568a3863d6bfb"
+      "bytes": 27413,
+      "sha256": "6d0430774cfc1d4ac090f2d1b3cb76d6d75d6f2b3f9151843355e8b131a200db"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_mixed_continue.gd.txt",
@@ -840,8 +840,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_base_chain.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/starter_base_chain.gd",
-      "bytes": 8437,
-      "sha256": "555f235a4c0bb51bc40db094ae4a956297ec4a63455f9093d7173189ec77c51e"
+      "bytes": 8894,
+      "sha256": "fb7d749716b8da1f1aa2721c2cbe7f7925a1850187eedfede26afc38a0527c7a"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/starter_base_archive.gd.txt",
@@ -974,8 +974,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d1.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d1.gd",
-      "bytes": 13246,
-      "sha256": "677deb4d9e526bb494abd03b23991ccd6b55b81a3a99de4c786eae6df853ce6b"
+      "bytes": 13516,
+      "sha256": "2f048894d11a6e1cbfd8f099214b0303d6afbbc387a832d6b5291f45a2594c77"
     }
   ]
 }

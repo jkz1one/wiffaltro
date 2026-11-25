@@ -365,13 +365,19 @@ static func _replay_shop(s: SeasonState, journal: Array) -> bool:
 # source. Older responsive Continue can give otherwise equal fixture and
 # ownership journal numbers their JSON types. Use only the exact, detached
 # native image, never a supplied digest or a relaxed report validator.
-static func _project_mixed_round(source: SeasonState) -> Dictionary:
+static func _project_mixed_round(source: SeasonState, installed_forward_base_semifinal: bool=false) -> Dictionary:
 	var api:=_api()
 	var pending: Dictionary=source.physical.pending
 	var cap:=2
 	if source.career!=null and api.Common.Start.detached_mixed_rollover(source.career.start_basis):
 		cap=api.Adapter.OrdinaryRuntime.mixed_rollover_regular_report_cap(source.round_index)
-	var eligible: bool=source.phase==SeasonState.Phase.REGULAR and pending.get("reports") is Array \
+	# A first installed forward title can include a semifinal played after
+	# reopening. Its request still has to match the same strict projector.
+	var forward_first: bool=installed_forward_base_semifinal and OS.has_feature("wiffaltro_catalog_forward_v1") \
+		and source.phase==SeasonState.Phase.SEMIFINAL and source.round_index==10 \
+		and api.Codec.same(source.league_rules,LeagueRules.capture("dugout")) \
+		and pending.get("reports") is Array and pending.reports.size()==1
+	var eligible: bool=(source.phase==SeasonState.Phase.REGULAR or forward_first) and pending.get("reports") is Array \
 			and not pending.reports.is_empty() and pending.reports.size()<=cap
 	var original: Dictionary=api.Adapter.OrdinaryPending._project_for_mixed_restore(source) \
 			if eligible else api.Adapter.OrdinaryPending.project(source)
