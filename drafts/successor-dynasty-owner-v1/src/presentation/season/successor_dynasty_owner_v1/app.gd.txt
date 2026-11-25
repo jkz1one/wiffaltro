@@ -2276,6 +2276,12 @@ func _finish_base_archive_game() -> void:
 
 func _resume_base_archive_round() -> void:
 	if not _available() or not Store.base_archive_app_binding(career_owner,saved_bytes): return
+	if Store._base_archive_final_human(career_owner):
+		_busy=true
+		var final_settled: bool=Store.settle_base_archive_final(self)
+		_busy=false
+		_adopt_base_archive_progress(final_settled,"The final could not be verified for settlement.")
+		return
 	var count: int=Store._base_archive_report_count(career_owner)
 	if count<0: return
 	var last_regular: bool=Store._base_archive_last_regular(career_owner)

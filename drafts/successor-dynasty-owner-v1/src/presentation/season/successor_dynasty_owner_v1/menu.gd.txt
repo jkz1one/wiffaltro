@@ -117,9 +117,12 @@ func render() -> void:
 		_label(_body,"DUGOUT BASE · SEASON %d"%app.career_owner.current_ordinal(),22)
 		_bound_button(_body,"SEASON HISTORY",_show_base_archive_history)
 		if app.career_owner.lifecycle_status()=="closed":
-			if Store._base_archive_completed_closed(app.career_owner) or Store._base_archive_completed_closed(app.career_owner,true):
+			if Store._base_archive_final_closed(app.career_owner) or Store._base_archive_completed_closed(app.career_owner) \
+					or Store._base_archive_completed_closed(app.career_owner,true):
 				var close: Dictionary=app.career_owner.ordinary_state.last_close
 				_note("Season complete. Career stats and %d Club Credits were banked once."%int(close.receipt.total))
+				if Store._base_archive_final_closed(app.career_owner):
+					_note("Championship · Dugout Base title earned." if close.receipt.finish=="champion" else "Runner-up · No title earned.")
 				if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"prepare") \
 						or Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"next"):
 					_note("The completed season is saved. Starting the next season adds its complete results and receipt to History.")
@@ -142,10 +145,19 @@ func render() -> void:
 			if not is_instance_valid(app.ai_runner):
 				var action: String=["RESUME SAVED SEMIFINAL","CONTINUE SAVED SEMIFINAL","SETTLE SAVED SEMIFINAL"][semifinal_count]
 				_bound_button(_body,action,Callable(app,"resume_round"))
+		elif Store._base_archive_final_ready(app.career_owner):
+			_note("Semifinal paid. Your club reached the neutral final.")
+			_bound_button(_body,"PLAY FINAL",Callable(app,"play_next"))
+		elif Store._base_archive_final_human(app.career_owner):
+			_note("Final saved. Career and match rewards are still unpaid.")
+			_bound_button(_body,"SETTLE SAVED FINAL",Callable(app,"resume_round"))
+		elif Store._base_archive_final_settled(app.career_owner):
+			_note("Final paid. Your club won the championship." if app.season.champion==0 else \
+				"Final paid. Your club finished runner-up.")
+			if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"complete"):
+				_bound_button(_body,"CLOSE COMPLETED SEASON…",Callable(app,"request_lifecycle").bind("complete"))
 		elif Store._base_archive_semifinal_settled(app.career_owner):
-			_note("Semifinal paid. Your club reached the final. Final play is outside this check." \
-				if app.season.phase==SeasonState.Phase.FINAL else \
-				"Your club was eliminated in the semifinal. The CPU final is complete.")
+			_note("Your club was eliminated in the semifinal. The CPU final is complete.")
 			if Store.base_archive_lifecycle_available(app.career_owner,app.saved_bytes,"complete"):
 				_bound_button(_body,"CLOSE COMPLETED SEASON…",Callable(app,"request_lifecycle").bind("complete"))
 		elif Store._base_archive_postseason_image(app.career_owner):

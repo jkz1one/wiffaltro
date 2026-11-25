@@ -32,6 +32,9 @@ const BASE_ARCHIVE_POSTSEASON_GENERATION := "starter-base-marked-postseason-v1"
 const BASE_ARCHIVE_SEMI_HUMAN_GENERATION := "starter-base-marked-semifinal-human-v1"
 const BASE_ARCHIVE_SEMI_REPORT_GENERATION := "starter-base-marked-semifinal-reports-v1"
 const BASE_ARCHIVE_SEMI_SETTLED_GENERATION := "starter-base-marked-semifinal-settled-v1"
+const BASE_ARCHIVE_FINAL_HUMAN_GENERATION := "starter-base-marked-final-human-v1"
+const BASE_ARCHIVE_FINAL_SETTLED_GENERATION := "starter-base-marked-final-settled-v1"
+const BASE_ARCHIVE_FINAL_CLOSED_GENERATION := "starter-base-marked-final-closed-v1"
 const BASE_ARCHIVE_COMPLETED_GENERATION := "starter-base-marked-completed-closed-v1"
 const BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION := "starter-base-marked-completed-prepared-v1"
 const BASE_ARCHIVE_ABANDONED_GENERATION := "starter-base-marked-abandoned-v1"
@@ -2592,6 +2595,7 @@ static func _base_archive_wrapper(bytes: PackedByteArray) -> Dictionary:
 				BASE_ARCHIVE_POSTSEASON_GENERATION,BASE_ARCHIVE_SEMI_HUMAN_GENERATION,
 				BASE_ARCHIVE_SEMI_REPORT_GENERATION,BASE_ARCHIVE_SEMI_SETTLED_GENERATION,BASE_ARCHIVE_COMPLETED_GENERATION,
 				BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION,
+				BASE_ARCHIVE_FINAL_HUMAN_GENERATION,BASE_ARCHIVE_FINAL_SETTLED_GENERATION,BASE_ARCHIVE_FINAL_CLOSED_GENERATION,
 				BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION]: return {}
 		fields.append("generation")
 	if not Codec.keys(wrapped,fields) or not wrapped.head is Dictionary or not wrapped.current is Dictionary \
@@ -2664,6 +2668,12 @@ static func _base_archive_load(reader: bool=false) -> Dictionary:
 				if _base_archive_semifinal_count(result)<1: return {}
 			BASE_ARCHIVE_SEMI_SETTLED_GENERATION:
 				if not _base_archive_semifinal_settled(result): return {}
+			BASE_ARCHIVE_FINAL_HUMAN_GENERATION:
+				if not _base_archive_final_human(result): return {}
+			BASE_ARCHIVE_FINAL_SETTLED_GENERATION:
+				if not _base_archive_final_settled(result): return {}
+			BASE_ARCHIVE_FINAL_CLOSED_GENERATION:
+				if not _base_archive_final_closed(result): return {}
 			BASE_ARCHIVE_REGULAR_SETTLED_GENERATION:
 				if not _base_archive_regular_settled_image(result): return {}
 			BASE_ARCHIVE_SETTLED_GENERATION:
@@ -2724,7 +2734,7 @@ static func _base_archive_paid_regular(owner: RefCounted, allow_closed: bool=fal
 		and (fixture.get("home",-1)==0 or fixture.get("away",-1)==0)
 
 static func _base_archive_managed_ready(owner: RefCounted) -> bool:
-	return _base_archive_semifinal_ready(owner) or _base_archive_draft_image(owner,4) or (_base_archive_paid_regular(owner) \
+	return _base_archive_final_ready(owner) or _base_archive_semifinal_ready(owner) or _base_archive_draft_image(owner,4) or (_base_archive_paid_regular(owner) \
 		and owner.session.physical.pending.is_empty() and (_base_archive_last_regular(owner) \
 			or _base_archive_has_later_regular(owner.session)))
 
@@ -2742,7 +2752,8 @@ static func _base_archive_related_role(generation: String) -> bool:
 		BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION,BASE_ARCHIVE_NEXT_BIRTH_GENERATION,
 		BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,BASE_ARCHIVE_POSTSEASON_GENERATION,
 		BASE_ARCHIVE_SEMI_HUMAN_GENERATION,BASE_ARCHIVE_SEMI_REPORT_GENERATION,BASE_ARCHIVE_SEMI_SETTLED_GENERATION,
-		BASE_ARCHIVE_COMPLETED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION]
+		BASE_ARCHIVE_COMPLETED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION,
+		BASE_ARCHIVE_FINAL_HUMAN_GENERATION,BASE_ARCHIVE_FINAL_SETTLED_GENERATION,BASE_ARCHIVE_FINAL_CLOSED_GENERATION]
 
 # A rotating sibling is evidence of the last single native offer, not proof
 # of the archive. The caller has already restored the primary/page strictly.
@@ -2756,6 +2767,9 @@ static func _base_archive_marked_previous_matches(bytes: PackedByteArray, wrappe
 	if wrapped.generation in [BASE_ARCHIVE_ABANDONED_GENERATION,BASE_ARCHIVE_PREPARED_GENERATION,
 			BASE_ARCHIVE_COMPLETED_GENERATION,BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION]:
 		return _base_archive_read_lifecycle_sibling(prior,wrapped,head_bytes,pages,related)
+	if wrapped.generation in [BASE_ARCHIVE_FINAL_HUMAN_GENERATION,BASE_ARCHIVE_FINAL_SETTLED_GENERATION,
+			BASE_ARCHIVE_FINAL_CLOSED_GENERATION]:
+		return _base_archive_final_sibling(prior,wrapped,current,related)
 	if wrapped.generation in [BASE_ARCHIVE_SEMI_HUMAN_GENERATION,BASE_ARCHIVE_SEMI_REPORT_GENERATION,
 			BASE_ARCHIVE_SEMI_SETTLED_GENERATION]:
 		return _base_archive_semifinal_sibling(prior,wrapped,current,related)
@@ -2867,6 +2881,8 @@ static func _read_base_archive_live_source(allow_human: bool) -> RefCounted:
 				or _base_archive_next_human_image(proof.owner) or _base_archive_regular_settled_image(proof.owner)
 				or _base_archive_postseason_image(proof.owner) or _base_archive_semifinal_settled(proof.owner)
 				or _base_archive_completed_closed(proof.owner) or _base_archive_completed_closed(proof.owner,true)
+				or _base_archive_final_human(proof.owner) or _base_archive_final_settled(proof.owner)
+				or _base_archive_final_closed(proof.owner)
 				or _base_archive_abandoned_image(proof.owner,false) or _base_archive_abandoned_image(proof.owner,true)))): return null
 	proof.session=proof.owner.session
 	proof.snapshot=RawGuard.capture(proof.owner)
@@ -2967,15 +2983,23 @@ static func write_base_archive_human(app: Variant) -> bool:
 	candidate.session.physical.pending={"human":human.duplicate(true),"reports":[]}
 	var opening: bool=_base_archive_draft_image(owner,4)
 	var semifinal: bool=_base_archive_semifinal_ready(owner)
-	if semifinal:
+	var final: bool=_base_archive_final_ready(owner)
+	if final:
+		if _base_archive_wrapper(expected).get("generation")!=BASE_ARCHIVE_SEMI_SETTLED_GENERATION \
+				or not _base_archive_final_human(candidate): return false
+	elif semifinal:
 		if _base_archive_semifinal_count(candidate)!=0: return false
 	elif not (_base_archive_human_image(candidate) if opening else _base_archive_next_human_image(candidate)): return false
 	var projection: Dictionary=Adapter.OrdinaryPending.project(candidate.session)
-	if projection.has("error") or not projection.has("fixture") or not base_archive_app_binding(owner,expected): return false
+	if projection.has("error") or not base_archive_app_binding(owner,expected): return false
+	if final:
+		if _base_archive_projected_final(candidate,projection)==null: return false
+	elif not projection.has("fixture"): return false
 	_base_archive_draft_pin={}
 	_base_archive_live_op=RefCounted.new()
 	var generation: String=BASE_ARCHIVE_HUMAN_GENERATION if opening else BASE_ARCHIVE_NEXT_HUMAN_GENERATION
 	if semifinal: generation=BASE_ARCHIVE_SEMI_HUMAN_GENERATION
+	if final: generation=BASE_ARCHIVE_FINAL_HUMAN_GENERATION
 	return _base_archive_commit_current(_base_archive_live_op,proof,candidate,expected,generation)
 
 static func _base_archive_opening_report_count(owner: RefCounted) -> int:
@@ -3043,13 +3067,13 @@ static func _base_archive_semifinal_count(owner: RefCounted) -> int:
 	if pending.reports.size()==2 and pending.reports[1].fixture!=32: return -1
 	return pending.reports.size()
 
-static func _base_archive_semifinal_settled(owner: RefCounted, closed: bool=false) -> bool:
+static func _base_archive_semifinal_settled(owner: RefCounted, closed: bool=false, final_pending: bool=false) -> bool:
 	if owner==null or owner.active!="ordinary" or owner.session==null \
 			or owner.lifecycle_status()!=("closed" if closed else "active"): return false
 	var s: SeasonState=owner.session
 	if not Adapter.scope("ordinary",s) or s.league_rules.get("league")!="dugout" or s.league_rules.get("tier")!=0 \
 			or s.round_index!=10 or s.picks.size()!=4 or s.player_results.size()!=11 \
-			or not s.physical.pending.is_empty() or not s.physical.needed.is_empty() or not s.physical.error.is_empty() \
+			or (not final_pending and not s.physical.pending.is_empty()) or not s.physical.needed.is_empty() or not s.physical.error.is_empty() \
 			or s.physical.projecting or s.build.pack_pending() or s.physical.cursor!=s.physical.reports.size() \
 			or s.playoff_seeds.size()!=4 or not s.playoff_seeds.has(0) or s.semifinals.size()!=2: return false
 	var human: Dictionary=s.player_results.back()
@@ -3063,7 +3087,7 @@ static func _base_archive_semifinal_settled(owner: RefCounted, closed: bool=fals
 			and s.physical.cursor==21 and s.champion==-1 and Codec.same(next,s.final_fixture) \
 			and next.get("id")==32 and next.get("round")==11 and next.get("neutral")==true \
 			and 0 in [next.get("away"),next.get("home")]
-	return s.phase==SeasonState.Phase.COMPLETE and summary.finish=="semifinal" and s.results.size()==33 \
+	return not final_pending and s.phase==SeasonState.Phase.COMPLETE and summary.finish=="semifinal" and s.results.size()==33 \
 		and s.physical.cursor==22 and s.champion>0 and s.pending_fixture().is_empty()
 
 static func _base_archive_semifinal_sibling(prior: Dictionary, wrapped: Dictionary, current: RefCounted,
@@ -3089,6 +3113,91 @@ static func _base_archive_semifinal_sibling(prior: Dictionary, wrapped: Dictiona
 				or not Codec.same(before.reports,after.reports.slice(0,count)): return false
 	previous.session.physical.pending=current.session.physical.pending.duplicate(true)
 	return Codec.same(Owner.capture(previous),wrapped.current)
+
+static func _base_archive_final_fixture(season: SeasonState) -> bool:
+	var fixture: Dictionary=season.final_fixture
+	return fixture.get("id")==32 and fixture.get("round")==11 and fixture.get("neutral")==true \
+		and 0 in [fixture.get("home"),fixture.get("away")] and fixture.get("home")!=fixture.get("away")
+
+static func _base_archive_final_ready(owner: RefCounted) -> bool:
+	return _base_archive_semifinal_settled(owner) and owner.session.phase==SeasonState.Phase.FINAL \
+		and _base_archive_final_fixture(owner.session)
+
+static func _base_archive_final_human(owner: RefCounted) -> bool:
+	if owner==null or owner.session==null or owner.session.phase!=SeasonState.Phase.FINAL \
+			or not _base_archive_semifinal_settled(owner,false,true) or not _base_archive_final_fixture(owner.session):
+		return false
+	var s: SeasonState=owner.session
+	var pending: Dictionary=s.physical.pending
+	return Codec.keys(pending,["human","reports"]) and pending.human is Array and pending.human.size()==13 \
+		and pending.human[0]==32 and pending.reports==[] and Adapter.OrdinaryPending.shape(s)
+
+static func _base_archive_final_settled(owner: RefCounted,closed: bool=false) -> bool:
+	if owner==null or owner.active!="ordinary" or owner.session==null \
+			or owner.lifecycle_status()!=("closed" if closed else "active"): return false
+	var s: SeasonState=owner.session
+	if not Adapter.scope("ordinary",s) or s.league_rules.get("league")!="dugout" or s.league_rules.get("tier")!=0 \
+			or s.phase!=SeasonState.Phase.COMPLETE or s.round_index!=10 or s.picks.size()!=4 \
+			or s.results.size()!=33 or s.player_results.size()!=12 or s.physical.reports.size()!=21 \
+			or s.physical.cursor!=21 or not s.physical.pending.is_empty() or not s.physical.needed.is_empty() \
+			or not s.physical.error.is_empty() or s.physical.projecting or s.build.pack_pending() \
+			or not _base_archive_final_fixture(s) or not s.pending_fixture().is_empty(): return false
+	var human: Dictionary=s.player_results.back()
+	if human.get("id")!=32 or human.get("round")!=11 or human.get("home")!=s.final_fixture.home \
+			or human.get("away")!=s.final_fixture.away or s.champion!=SeasonState._winner(human): return false
+	var summary: Dictionary=ClubSeasonRecord.analyze(ClubSeasonRecord.capture(s))
+	return summary.get("games")==10 and summary.get("finish")==("champion" if s.champion==0 else "runner_up")
+
+# The terminal FINAL projection consumes the human evidence, not a CPU row.
+# The Store never receives a result from the caller and no projection is
+# retained between Return/Settle or accepted as a serialized proof.
+static func _base_archive_projected_final(source: RefCounted,projection: Dictionary) -> RefCounted:
+	if not _base_archive_final_human(source) or projection.has("error") or projection.has("fixture") \
+			or not projection.get("candidate") is SeasonState: return null
+	var result: RefCounted=source.fork()
+	if result==null: return null
+	result.session=projection.candidate
+	if not _base_archive_final_settled(result) or not _base_archive_settlement_prefix(source,result,0): return null
+	var h: Array=source.session.physical.pending.human
+	var final: Dictionary=result.session.player_results.back()
+	return result if Codec.same([final.id,final.away_runs,final.home_runs],h.slice(0,3)) else null
+
+static func _base_archive_final_closed(owner: RefCounted) -> bool:
+	return _base_archive_final_settled(owner,true) and _base_archive_complete_receipt(owner) \
+		and owner.ordinary_state.proposal.is_empty()
+
+static func _base_archive_final_sibling(prior: Dictionary,wrapped: Dictionary,current: RefCounted,
+		previous: RefCounted) -> bool:
+	if previous==null: return false
+	match wrapped.generation:
+		BASE_ARCHIVE_FINAL_HUMAN_GENERATION:
+			if prior.get("generation")!=BASE_ARCHIVE_SEMI_SETTLED_GENERATION or not _base_archive_final_ready(previous):
+				return false
+			previous.session.physical.pending=current.session.physical.pending.duplicate(true)
+			return Codec.same(Owner.capture(previous),wrapped.current)
+		BASE_ARCHIVE_FINAL_SETTLED_GENERATION:
+			if prior.get("generation")!=BASE_ARCHIVE_FINAL_HUMAN_GENERATION or not _base_archive_final_human(previous): return false
+			var result: RefCounted=_base_archive_projected_final(previous,Adapter.OrdinaryPending.project(previous.session))
+			return result!=null and Codec.same(Owner.capture(result),wrapped.current)
+		BASE_ARCHIVE_FINAL_CLOSED_GENERATION:
+			if prior.get("generation")!=BASE_ARCHIVE_FINAL_SETTLED_GENERATION: return false
+			var result: RefCounted=_base_archive_lifecycle_candidate(previous,"complete_final")
+			return result!=null and Codec.same(Owner.capture(result),wrapped.current)
+	return false
+
+static func settle_base_archive_final(app: Variant) -> bool:
+	if not _base_archive_app_valid(app) or not _base_archive_cpu_job.is_empty() or is_instance_valid(app.ai_runner):
+		return false
+	var proof: Dictionary=_base_archive_draft_pin
+	var source: RefCounted=proof.owner
+	if not _base_archive_final_human(source) \
+			or _base_archive_wrapper(proof.pair.primary.bytes).get("generation")!=BASE_ARCHIVE_FINAL_HUMAN_GENERATION:
+		return false
+	var result: RefCounted=_base_archive_projected_final(source,Adapter.OrdinaryPending.project(proof.session))
+	if result==null or not _base_archive_app_valid(app): return false
+	_base_archive_draft_pin={}
+	_base_archive_live_op=RefCounted.new()
+	return _base_archive_commit_current(_base_archive_live_op,proof,result,app.saved_bytes,BASE_ARCHIVE_FINAL_SETTLED_GENERATION)
 
 static func _base_archive_regular_roles(owner: RefCounted) -> Dictionary:
 	return {"reports":BASE_ARCHIVE_LAST_REGULAR_REPORT_GENERATION,"settled":BASE_ARCHIVE_POSTSEASON_GENERATION} \
@@ -3131,11 +3240,14 @@ static func _base_archive_settled_after(before: RefCounted, after: RefCounted) -
 			if not _base_archive_postseason_image(after) or count!=(2 if after.session.phase==SeasonState.Phase.SEMIFINAL else 5):
 				return false
 		elif count!=2 or not _base_archive_regular_settled_image(after): return false
+	return _base_archive_settlement_prefix(before,after,0 if semifinal>=0 else 1)
+
+static func _base_archive_settlement_prefix(before: RefCounted,after: RefCounted,round_delta: int) -> bool:
 	var old: SeasonState=before.session
 	var new: SeasonState=after.session
 	var events: Array=new.build._events
 	var old_events: Array=old.build._events
-	if new.round_index!=old.round_index+(0 if semifinal>=0 else 1) or not Codec.same(new.results.slice(0,old.results.size()),old.results) \
+	if new.round_index!=old.round_index+round_delta or not Codec.same(new.results.slice(0,old.results.size()),old.results) \
 			or not Codec.same(new.player_results.slice(0,old.player_results.size()),old.player_results) \
 			or not Codec.same(new.physical.reports.slice(0,old.physical.cursor),old.physical.reports) \
 			or not Codec.same(new.physical.reports.slice(old.physical.cursor),old.physical.pending.reports) \
@@ -3438,13 +3550,18 @@ static func _base_archive_abandoned_image(owner: RefCounted, prepared: bool) -> 
 static func _base_archive_completed_closed(owner: RefCounted, prepared: bool=false) -> bool:
 	if not _base_archive_semifinal_settled(owner,true) or owner.session.phase!=SeasonState.Phase.COMPLETE:
 		return false
+	if not _base_archive_complete_receipt(owner): return false
 	var close: Dictionary=owner.ordinary_state.last_close
-	if close.get("reason")!="complete" or not close.get("first_title") is bool: return false
 	var proposal: Dictionary=owner.ordinary_state.proposal
 	if prepared:
 		if proposal.get("league")!="dugout" or proposal.get("tier")!=0 or proposal.get("source")!=close.get("session_sha256") \
 				or proposal.get("basis",{}).get("seed")!=BaseArchive._default_next_seed(owner): return false
 	elif not proposal.is_empty(): return false
+	return true
+
+static func _base_archive_complete_receipt(owner: RefCounted) -> bool:
+	var close: Dictionary=owner.ordinary_state.last_close
+	if close.get("reason")!="complete" or not close.get("first_title") is bool: return false
 	var receipt: Dictionary=ClubSeasonRecord.receipt(ClubSeasonRecord.capture(owner.session),close.first_title,0)
 	return not receipt.is_empty() and Codec.same(close.get("receipt"),receipt) \
 		and Codec.same(owner.common.last_fold.get("receipt"),receipt)
@@ -3460,6 +3577,9 @@ static func _base_archive_lifecycle_candidate(owner: RefCounted, action: String)
 		"complete":
 			if not _base_archive_semifinal_settled(owner) or owner.session.phase!=SeasonState.Phase.COMPLETE \
 					or not next.close_current("complete") or not _base_archive_completed_closed(next): return null
+		"complete_final":
+			if not _base_archive_final_settled(owner) or not next.close_current("complete") \
+					or not _base_archive_final_closed(next): return null
 		"prepare":
 			if not _base_archive_abandoned_image(owner,false) or not next.propose_next(BaseArchive._default_next_seed(owner)) \
 					or not _base_archive_abandoned_image(next,true): return null
@@ -3516,6 +3636,8 @@ static func base_archive_lifecycle_available(owner: RefCounted, expected: Packed
 	if not base_archive_app_binding(owner,expected): return false
 	if action=="complete":
 		var source: Dictionary=_base_archive_wrapper(expected)
+		if source.get("generation")==BASE_ARCHIVE_FINAL_SETTLED_GENERATION:
+			return _base_archive_final_settled(owner)
 		return source.get("generation")==BASE_ARCHIVE_SEMI_SETTLED_GENERATION \
 			and _base_archive_semifinal_settled(owner) and owner.session.phase==SeasonState.Phase.COMPLETE
 	if _base_archive_draft_pin.pages.size()>=BASE_ARCHIVE_QA_MAX_PAGES: return false
@@ -3538,12 +3660,14 @@ static func write_base_archive_lifecycle(app: Variant, ticket: RefCounted) -> bo
 	var expected: PackedByteArray=app.saved_bytes
 	if not base_archive_lifecycle_available(owner,expected,action): return false
 	var native_action: String=action
+	if action=="complete" and _base_archive_final_settled(owner): native_action="complete_final"
 	if action=="prepare" and _base_archive_completed_closed(owner): native_action="prepare_completed"
 	if action=="next" and _base_archive_completed_closed(owner,true): native_action="next_completed"
 	var candidate: RefCounted=_base_archive_lifecycle_candidate(owner,native_action)
 	if candidate==null: return false
 	var generation: String=BASE_ARCHIVE_ABANDONED_GENERATION if action=="abandon" else BASE_ARCHIVE_PREPARED_GENERATION
 	if action=="complete": generation=BASE_ARCHIVE_COMPLETED_GENERATION
+	if native_action=="complete_final": generation=BASE_ARCHIVE_FINAL_CLOSED_GENERATION
 	if native_action=="prepare_completed": generation=BASE_ARCHIVE_COMPLETED_PREPARED_GENERATION
 	var appended: PackedByteArray
 	var head: Dictionary={}
