@@ -185,6 +185,9 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 	return staged
 
 
+# Round 10 commits a playoff transition, a different native boundary.
+const LAST_INSTALLED_REGULAR_ROUND: int=9
+
 # Rebuild the separately authorized installed first-title history in order.
 # A later Club game uses the exact authored build after earlier rewards and
 # Shop actions. Never promote a current pending snapshot into a paid result.
@@ -202,9 +205,8 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 	var humans: Array=image.state.player_results
 	var events: Variant=image.build.build.get("_events")
 	var visited: int=humans.size()
-	# This installed slice admits round 1 paid and the next Club game unpaid.
-	# Subsequent CPU outcomes remain outside this checkpoint.
-	if visited>1 or (visited==0 and pending.is_empty()) or image.state.get("round_index")!=visited \
+	if visited>LAST_INSTALLED_REGULAR_ROUND or (visited==0 and pending.is_empty()) \
+			or image.state.get("round_index")!=visited \
 			or image.state.results.size()!=visited*3 or reports.size()!=visited*2 \
 			or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return null
 	var proven:=draft
@@ -222,9 +224,9 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 		# can be replayed before constructing the following managed fixture.
 		if proven.round_index!=index+1 or not Archive.Core._shop(proven,events,0): return null
 	if not pending.is_empty():
-		var cap: int=2 if visited==0 else 0
-		if not api.Codec.keys(pending,["human","reports"]) or not pending.reports is Array \
-				or pending.reports.size()>cap or proven.pending_fixture().get("id")!=visited*3: return null
+		if visited>=LAST_INSTALLED_REGULAR_ROUND or not api.Codec.keys(pending,["human","reports"]) \
+				or not pending.reports is Array or pending.reports.size()>2 \
+				or proven.pending_fixture().get("id")!=visited*3: return null
 		proven.physical.pending=pending.duplicate(true)
 		var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(proven)
 		var result: Dictionary=checked.projection

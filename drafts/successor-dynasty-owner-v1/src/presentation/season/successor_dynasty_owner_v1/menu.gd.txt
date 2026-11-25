@@ -655,13 +655,13 @@ func _installed_dugout_d1() -> void:
 		else:
 			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="paid":
-		_note("Round 1 has already paid. All three results are saved.")
-		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+		_note("Round %d has already paid. All three results are saved."%draft.round)
+		if draft.next_available:
+			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 		for row: Array in draft.scores:
-			_note("%s: %d away – %d home"%["Club game" if row[0]==0 else "CPU game %d"%int(row[0]),row[1],row[2]])
-	elif state=="next_unpaid":
-		_note("Your second Club game is saved. The round has not been paid.")
+			var within_round: int=int(row[0])%3
+			_note("%s: %d away – %d home"%["Club game" if within_round==0 else "CPU game %d"%within_round,row[1],row[2]])
 	else:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
