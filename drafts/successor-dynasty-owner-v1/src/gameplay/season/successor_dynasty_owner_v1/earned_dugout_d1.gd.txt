@@ -187,26 +187,52 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 
 const LAST_INSTALLED_REGULAR_ROUND: int=10
 
-# This lane ends at the deterministic last-regular transition. It does not
-# recognize a played semifinal/final or grant season-Close authority.
+# The authoritative bracket chooses the Club and CPU sibling. The Club
+# need not occupy fixture 30; its sibling may have the lower identity.
+static func semifinal_pair(session: SeasonState) -> Dictionary:
+	if session==null or session.phase!=SeasonState.Phase.SEMIFINAL \
+			or session.round_index!=LAST_INSTALLED_REGULAR_ROUND or session.picks.size()!=4 \
+			or session.results.size()!=30 or session.player_results.size()!=10 or session.physical.reports.size()!=20 \
+			or session.playoff_seeds.size()!=4 or session.semifinals.size()!=2 or session.champion!=-1 \
+			or not session.final_fixture.is_empty(): return {}
+	if not session.playoff_seeds.any(func(seed: Variant) -> bool: return SeasonOwnership._whole(seed,0,0)): return {}
+	var club: Dictionary={}
+	var cpu: Dictionary={}
+	for fixture: Dictionary in session.semifinals:
+		if not SeasonOwnership._whole(fixture.get("id"),30,31) or fixture.get("round")!=10: return {}
+		if fixture.get("away")==0 or fixture.get("home")==0:
+			if not club.is_empty(): return {}
+			club=fixture
+		else:
+			if not cpu.is_empty(): return {}
+			cpu=fixture
+	if club.is_empty() or cpu.is_empty() or club.id==cpu.id \
+			or not ClubCareer.same(club,session.pending_fixture()): return {}
+	return {"club":club,"cpu":cpu}
+
+# First managed semifinal ingress, before its CPU sibling or payoff.
+static func semifinal_pending(session: SeasonState) -> bool:
+	var pair:=semifinal_pair(session)
+	if pair.is_empty(): return false
+	var pending: Dictionary=session.physical.pending
+	return SeasonOwnership._keys(pending,["human","reports"]) and pending.get("human") is Array \
+		and pending.human.size()==13 and pending.human[0]==pair.club.id \
+		and pending.get("reports") is Array and pending.reports.is_empty()
+
 static func final_regular_destination(session: SeasonState) -> String:
 	if session==null or session.round_index!=LAST_INSTALLED_REGULAR_ROUND \
 			or session.picks.size()!=4 or session.player_results.size()!=10 \
 			or not session.physical.pending.is_empty() or session.playoff_seeds.size()!=4: return ""
+	if not semifinal_pair(session).is_empty(): return "semifinal"
 	# Godot's Array.has distinguishes 0 from the JSON-decoded 0.0.
 	var club_qualified: bool=session.playoff_seeds.any(
 		func(seed: Variant) -> bool: return SeasonOwnership._whole(seed,0,0))
-	if session.phase==SeasonState.Phase.SEMIFINAL and club_qualified \
-			and session.results.size()==30 and session.physical.reports.size()==20:
-		var fixture: Dictionary=session.pending_fixture()
-		if SeasonOwnership._whole(fixture.get("id"),30,31) \
-				and (fixture.get("away")==0 or fixture.get("home")==0):
-			return "semifinal"
 	if session.phase==SeasonState.Phase.COMPLETE and not club_qualified \
 			and session.results.size()==33 and session.physical.reports.size()==23 \
 			and session.champion in [1,2,3,4,5] and session.pending_fixture().is_empty():
 		return "missed"
 	return ""
+
 
 static func regular_report_cap(index: int) -> int:
 	return 5 if index==LAST_INSTALLED_REGULAR_ROUND-1 else 2
@@ -221,8 +247,9 @@ static func regular_projection_shape(index: int,count: int, needs_cpu: bool) -> 
 const WALLET_TYPES_MAX: int=1536
 
 static func needs_wallet_types(session: SeasonState) -> bool:
-	return session!=null and session.phase==SeasonState.Phase.REGULAR \
-		and session.round_index==LAST_INSTALLED_REGULAR_ROUND-1
+	if session==null: return false
+	return (session.phase==SeasonState.Phase.REGULAR and session.round_index==LAST_INSTALLED_REGULAR_ROUND-1) \
+		or not semifinal_pair(session).is_empty()
 
 static func valid_wallet_types(witness: String) -> bool:
 	var parts: PackedStringArray=witness.split(".")
@@ -337,7 +364,8 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 			or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return null
 	var final_regular: bool=visited==LAST_INSTALLED_REGULAR_ROUND
 	if final_regular:
-		if not pending.is_empty() or not [[30,20],[33,23]].has([image.state.results.size(),reports.size()]): return null
+		if not [[30,20],[33,23]].has([image.state.results.size(),reports.size()]): return null
+		if not pending.is_empty() and image.state.get("phase")!=SeasonState.Phase.SEMIFINAL: return null
 	elif image.state.results.size()!=visited*3 or reports.size()!=visited*2: return null
 	var proven:=draft
 	for index: int in visited:
@@ -355,7 +383,14 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 		# can be replayed before constructing the following managed fixture.
 		if proven.round_index!=index+1 or not Archive.Core._shop(proven,events,0): return null
 		if index==LAST_INSTALLED_REGULAR_ROUND-1 and final_regular_destination(proven).is_empty(): return null
-	if not pending.is_empty():
+	if not pending.is_empty() and final_regular:
+		var pair:=semifinal_pair(proven)
+		if pair.is_empty(): return null
+		proven.physical.pending=pending.duplicate(true)
+		if not semifinal_pending(proven): return null
+		var preview: Dictionary=api.Adapter.OrdinaryPending.project(proven)
+		if preview.has("error") or not ClubCareer.same(preview.get("fixture",{}),pair.cpu): return null
+	elif not pending.is_empty():
 		if visited>=LAST_INSTALLED_REGULAR_ROUND or not api.Codec.keys(pending,["human","reports"]) \
 				or not pending.reports is Array or pending.reports.size()>regular_report_cap(visited) \
 				or proven.pending_fixture().get("id")!=visited*3: return null
