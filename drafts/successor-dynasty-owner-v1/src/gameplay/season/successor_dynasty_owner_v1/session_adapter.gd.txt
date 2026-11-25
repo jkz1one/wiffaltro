@@ -24,7 +24,8 @@ static func scope(value: String, session: SeasonState) -> bool:
 	return side(value) and session!=null and session.get_script()==runtime(value) and codec(value).scope(session) \
 		and not (value=="ordinary" and (OrdinaryRuntime.CommonStart.detached_standard_flat(session.career.start_basis) \
 			or OrdinaryRuntime.CommonStart.detached_mixed_flat(session.career.start_basis) \
-			or OrdinaryRuntime.CommonStart.private_mixed_append_basis(session.career.start_basis)))
+			or OrdinaryRuntime.CommonStart.private_mixed_append_basis(session.career.start_basis) \
+			or OrdinaryRuntime.CommonStart.detached_earned_dugout_d1(session.career.start_basis)))
 static func capture(value: String, session: SeasonState) -> Dictionary:
 	return codec(value).capture(session) if scope(value,session) else {}
 static func checked_restore(value: String, data: Variant) -> Dictionary:
@@ -32,7 +33,8 @@ static func checked_restore(value: String, data: Variant) -> Dictionary:
 	if value!="ordinary": return {}
 	# Local native draft bytes are not a persisted Common-owner dialect.
 	if data is Dictionary and data.get("career") is Dictionary and data.career.get("start_basis") is Dictionary \
-			and OrdinaryRuntime.CommonStart.detached_standard_flat(data.career.start_basis): return {}
+			and (OrdinaryRuntime.CommonStart.detached_standard_flat(data.career.start_basis) \
+			or OrdinaryRuntime.CommonStart.detached_earned_dugout_d1(data.career.start_basis)): return {}
 	var session: SeasonState=Ordinary.restore_common(data)
 	# Ordinary.restore itself captures and compares the complete named schema.
 	# Return a detached copy of that checked input, never a caller admission pair.

@@ -192,8 +192,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/session_adapter.gd",
-      "bytes": 3527,
-      "sha256": "50f4f6ea05c20498103f374c63999e353eb5819de019601169bcc809ad49a428"
+      "bytes": 3706,
+      "sha256": "737289893fdbdb9e80bc7bcb25870cfd11e8f75f736299e7118aae4680da1fb7"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",

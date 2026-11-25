@@ -1,5 +1,5 @@
 extends RefCounted
-## Current materialized named ordinary tier-0 summary, not history admission.
+## Current materialized named ordinary summary, not history admission.
 ## Pure game/legend/row transforms retain the frozen general-career schemas.
 ## Development uses monotone current contracted profiles, never command replay.
 ## Not valid for Dynasty decay. The fixed Scramble start permutes stats only;
@@ -18,7 +18,8 @@ static func _capture_games(season: SeasonState) -> Dictionary:
 		return {}
 	var sponsors: Dictionary = _sponsor_counts(season.build)
 	if sponsors.has("invalid"): return {}
-	var development: Dictionary = _current_development(season.build)
+	var basis: Dictionary=season.career.start_basis if season.career!=null else {}
+	var development: Dictionary = _current_development(season.build,basis)
 	if development.is_empty():
 		return {}
 	var games: Array = []
@@ -180,10 +181,10 @@ static func capture(season: SeasonState) -> Dictionary:
 	return result if Legacy.valid(result, ClubSeasonRecord.capture(season).scores) else {}
 
 
-static func _current_development(build: SeasonBuild) -> Dictionary:
+static func _current_development(build: SeasonBuild,basis: Dictionary={}) -> Dictionary:
 	if build == null or not build.call("pitch_catalog_successor") or build._book == null \
 		or not build._book._dynasty_start.is_empty() \
-		or (not build._league_rules.is_empty() and not ClubCareer.same(build._league_rules, Admissions.expected(build._league_rules,int(build._league_rules.get("season_seed",-1))))):
+		or (not build._league_rules.is_empty() and not ClubCareer.same(build._league_rules, Admissions.expected(build._league_rules,int(build._league_rules.get("season_seed",basis.get("seed",-1))),basis))):
 		return {}
 	# Contracts retain released players. Active count never shrinks; replacements
 	# preserve count, mastery never decreases and forgotten recipes retain mastery.

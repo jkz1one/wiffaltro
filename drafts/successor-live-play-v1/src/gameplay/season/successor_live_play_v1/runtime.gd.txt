@@ -26,7 +26,14 @@ static func _create_paired_draft(seed_value: int) -> SeasonState:
 	return _create_named(seed_value,"doubleheader",Genesis.derive(seed_value))
 
 static func create_common(basis: Dictionary, league: String = "standard") -> SeasonState:
+	if CommonStart.detached_earned_dugout_d1(basis): return null
 	return _create_named(int(basis.get("seed",-1)),league,basis) if league in COMMON_ORDINARY_LEAGUES and CommonStart.valid(basis) else null
+
+# Detached construction only; a separately validated rollover must own the
+# archive, current session, and entitlement before public admission.
+static func create_earned_dugout_d1_draft(basis: Dictionary) -> SeasonState:
+	if not CommonStart.detached_earned_dugout_d1(basis) or not CommonStart.valid(basis): return null
+	return _create_named(int(basis.seed),"dugout",basis)
 
 # Private draft construction only. Store will later derive the envelope from
 # the exact admitted championship; callers may not publish a draft payload.
@@ -47,7 +54,7 @@ static func _create_named(seed_value: int, league: String, basis: Dictionary) ->
 	if not SeasonOwnership._whole(seed_value,0,2147483647) or league not in Admissions.BACKEND_LEAGUES or (earned and league=="doubleheader"): return null
 	var result: SeasonState = load("res://src/gameplay/season/successor_live_play_v1/runtime.gd").new()
 	result.season_seed = seed_value
-	result.league_rules = Admissions.expected({"league":league},seed_value)
+	result.league_rules = Admissions.expected({"league":league},seed_value,basis)
 	result.league_live = league != "standard"
 	result.build = Build.new(seed_value)
 	if not result.build.enable_successor_pitch_catalog() or (result.league_live and not result.build.enable_league_rules(result.league_rules)): return null
