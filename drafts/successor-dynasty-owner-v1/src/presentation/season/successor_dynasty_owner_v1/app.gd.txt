@@ -19,6 +19,7 @@ var _installed_dugout_d1_reader: Node
 var _installed_dugout_d1_epoch: int=0
 var installed_dugout_d1_draft: Dictionary={}
 var _installed_dugout_d1_return: Dictionary={}
+var _installed_dugout_d1_shop: SeasonShopWindow
 
 var _d1_check: Node
 var _d1_close_after_check: bool=false
@@ -1161,8 +1162,50 @@ func settle_installed_dugout_d1(expected: PackedByteArray) -> void:
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
+func installed_dugout_d1_shop_window(window: Node) -> bool:
+	return is_instance_valid(window) and window==_installed_dugout_d1_shop and window.get_parent()==menu \
+		and installed_dugout_d1_draft.get("state")=="paid" and career_owner==null and season!=null
+
+func _adopt_installed_dugout_d1_shop(entry: Dictionary) -> bool:
+	if entry.is_empty() or not entry.get("session") is SeasonState or entry.view.get("state")!="paid": return false
+	season=entry.session
+	saved_bytes=entry.view.bytes
+	installed_dugout_d1_draft=entry.view
+	notice=""
+	return true
+
+func open_installed_dugout_d1_shop(expected: PackedByteArray) -> void:
+	if _busy or saved_bytes!=expected or installed_dugout_d1_draft.get("state")!="paid" \
+			or menu==null or not menu.visible or menu.page!="home" or is_instance_valid(_installed_dugout_d1_shop): return
+	_busy=true
+	var entered:=Store.open_installed_dugout_d1_shop(self)
+	_busy=false
+	if not _adopt_installed_dugout_d1_shop(entered):
+		notice="The Shop could not open. Check the saved career from Continue before retrying."
+		show_season()
+		return
+	var window: SeasonShopWindow=Shop.new()
+	_installed_dugout_d1_shop=window
+	window.app=self
+	menu.add_child(window)
+	window.tree_exiting.connect(_retire_installed_dugout_d1_shop.bind(window),CONNECT_ONE_SHOT)
+	window.popup_centered()
+
+func close_installed_dugout_d1_shop(window: Node) -> void:
+	if window!=_installed_dugout_d1_shop or not is_instance_valid(window) or _busy: return
+	_retire_installed_dugout_d1_shop(window)
+	window.hide()
+	window.queue_free()
+	show_season()
+
+func _retire_installed_dugout_d1_shop(window: Node) -> void:
+	if window!=_installed_dugout_d1_shop: return
+	_installed_dugout_d1_shop=null
+	season=null
+
 func leave_installed_dugout_d1_view() -> void:
-	if _busy or is_instance_valid(lab) or installed_dugout_d1_draft.is_empty(): return
+	if _busy or is_instance_valid(lab) or is_instance_valid(_installed_dugout_d1_shop) \
+			or installed_dugout_d1_draft.is_empty(): return
 	_open_installed_dugout_d1({})
 	show_season()
 
@@ -1443,6 +1486,9 @@ func open_legacy() -> void:
 	if _available() and season == null: get_tree().change_scene_to_file("res://src/presentation/season/season_app.tscn")
 
 func _exit_blocked() -> bool:
+	if is_instance_valid(_installed_dugout_d1_shop) and _installed_dugout_d1_shop.visible:
+		notice="Close the Shop before leaving."
+		return true
 	if is_instance_valid(_chair_dialog) and _chair_dialog.visible: return true
 	if is_instance_valid(_loadout_modal): return true
 	if _busy or Store.saving or is_instance_valid(ai_runner):
@@ -2508,6 +2554,14 @@ func take_base_archive_shop_open(ticket: RefCounted) -> bool:
 	return true
 
 func commit_base_archive_window(window: Node, ticket: RefCounted) -> bool:
+	if installed_dugout_d1_shop_window(window):
+		if _busy: return false
+		_busy=true
+		var written:=Store.write_installed_dugout_d1_shop(self,window,ticket)
+		_busy=false
+		if _adopt_installed_dugout_d1_shop(written): return true
+		notice="That Shop change was not verified. Check the saved career from Continue if it changed."
+		return false
 	if not base_archive_qualification_view() or not _available(): return false
 	_busy=true
 	var committed: bool=Store.write_base_archive_shop(self,window,ticket)

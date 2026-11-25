@@ -215,6 +215,13 @@ static func _restore_opening_round(draft: SeasonState, expected: Dictionary, val
 	if projection.has("fixture")!=(pending.reports.size()<2): return null
 	var proven: SeasonState=projection.candidate if paid else checked.source
 	if proven==null: return null
+	if paid:
+		# The paid projector owns the reward prefix. Shop can extend this
+		# exact first visit, never replace a score, reward, or Club right.
+		if not image.get("build") is Dictionary or not image.build.get("build") is Dictionary: return null
+		var events: Variant=image.build.build.get("_events")
+		if not events is Array or events.size()>SeasonBuild.MAX_EVENTS \
+				or not Archive.Core._shop(proven,events,0): return null
 	expected.ordinary=api.Adapter.Ordinary.capture(proven)
 	return proven if not expected.ordinary.is_empty() and api.Codec.same(expected,value) else null
 

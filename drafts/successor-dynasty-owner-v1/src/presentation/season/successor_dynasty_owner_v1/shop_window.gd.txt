@@ -8,7 +8,7 @@ func _mixed_career() -> bool:
 	return owner!=null and (Mixed.marked_state(owner.ordinary_state) or MixedAppend.marked_state(owner.ordinary_state))
 
 func _recruit(_shop: Dictionary) -> void:
-	if app.get("career_owner")!=null and app.career_owner.active=="ordinary":
+	if _installed_d1_marked() or (app.get("career_owner")!=null and app.career_owner.active=="ordinary"):
 		super._recruit(_shop);return
 	_label("DYNASTY ROSTER")
 	_label("In-season recruiting is unavailable. Between-season replacement remains planned; its cadence and price are not enabled in this engineering build.")
@@ -53,7 +53,8 @@ func _refresh() -> void:
 			var preview: Label=_label("Development packs are available. Other purchases and roster changes are not enabled for this career yet.")
 			_body.move_child(preview,0)
 		if _base_archive_marked():
-			var scope: Label=_label("The separate Loadout overlay is not part of this private Shop check. Use this shop’s own reviewed controls.")
+			var scope: Label=_label("Season Cash and Club Credits are separate." if _installed_d1_marked() else
+				"The separate Loadout overlay is not part of this private Shop check. Use this shop’s own reviewed controls.")
 			_body.move_child(scope,0)
 		var rule: String=app.call("earnings_income_rule")
 		if not rule.is_empty():
@@ -65,9 +66,9 @@ func _refresh() -> void:
 
 func _quote_scope_matches() -> bool:
 	return (
-		_quote_active and app != null and _quote_owner != null
+		_quote_active and app != null
 		and app.get("career_owner") == _quote_owner
-		and _quote_owner.get("session") == _quote_session
+		and (_installed_d1_marked() if _quote_owner==null else _quote_owner.get("session")==_quote_session)
 		and app.season == _quote_session and app.season.build == _quote_source
 		and _quote_source.revision() == _quote_revision
 	)
@@ -126,9 +127,10 @@ func _bind_origin() -> void:
 	_origin_bytes=app.get("saved_bytes").duplicate()
 	_view_generation+=1
 func _origin_matches() -> bool:
-	return not is_queued_for_deletion() and app!=null and _origin_owner!=null \
+	return not is_queued_for_deletion() and app!=null and _origin_session!=null \
 		and app.get("career_owner")==_origin_owner and app.season==_origin_session \
-		and _origin_owner.get("session")==_origin_session and app.get("saved_bytes")==_origin_bytes
+		and (_installed_d1_marked() if _origin_owner==null else _origin_owner.get("session")==_origin_session) \
+		and app.get("saved_bytes")==_origin_bytes
 func _clear() -> void:
 	_view_generation+=1
 	_base_archive_cancel_quote()
@@ -194,8 +196,10 @@ func _close() -> void:
 			_notice=app.notice
 			_refresh()
 			return
-		app.show_season()
-		queue_free()
+		if _installed_d1_marked(): app.call("close_installed_dugout_d1_shop",self)
+		else:
+			app.show_season()
+			queue_free()
 		return
 	super._close()
 func _close_retained() -> void:
@@ -250,8 +254,11 @@ var _base_archive_closing: bool=false
 var _base_archive_ticket: RefCounted
 var _base_archive_command: Dictionary={}
 
+func _installed_d1_marked() -> bool:
+	return app!=null and bool(app.call("installed_dugout_d1_shop_window",self))
+
 func _base_archive_marked() -> bool:
-	return app!=null and app.base_archive_qualification_view()
+	return app!=null and (app.base_archive_qualification_view() or _installed_d1_marked())
 
 func _base_archive_visible() -> bool:
 	return _base_archive_marked() and visible and _origin_matches() and get_parent()==app.menu

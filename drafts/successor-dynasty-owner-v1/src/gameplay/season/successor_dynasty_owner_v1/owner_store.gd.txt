@@ -3387,6 +3387,73 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 	if native==null or native.round_index!=1 or native.cash()!=candidate.cash(): return {}
 	return _write_installed_dugout_d1_opening(round_plan.source,expected,recorded,native)
 
+# First installed D1 visit only. Access stays inside the same archived
+# opening revision and the authored Build, never the generic Common owner.
+static func _installed_dugout_d1_shop_source(expected: PackedByteArray) -> Dictionary:
+	var source:=_bound_installed_dugout_d1(expected)
+	if source.is_empty(): return {}
+	var session: SeasonState=_installed_dugout_d1_bound.draft
+	if session.phase!=SeasonState.Phase.REGULAR or session.round_index!=1 or session.results.size()!=3 \
+			or session.player_results.size()!=1 or not session.physical.pending.is_empty() \
+			or session.physical.reports.size()!=2 or not session.shop_available() or session.build._visit.number!=1: return {}
+	return {"source":source,"session":session}
+
+static func _installed_dugout_d1_shop_app(app: Variant) -> bool:
+	return is_instance_valid(app) and app.get_script()==load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
+		and app.career_owner==null and not is_instance_valid(app.lab) and not is_instance_valid(app.ai_runner) \
+		and not saving and app.installed_dugout_d1_draft.get("state")=="paid"
+
+static func _installed_dugout_d1_shop_view(view: Dictionary) -> Dictionary:
+	if view.is_empty(): return {}
+	var shop_source:=_installed_dugout_d1_shop_source(view.bytes)
+	if shop_source.is_empty(): return {}
+	var copy: SeasonState=shop_source.session.fork_live()
+	return {"view":view,"session":copy} if copy!=null and copy.build._visit.open else {}
+
+static func open_installed_dugout_d1_shop(app: Variant) -> Dictionary:
+	if not _installed_dugout_d1_shop_app(app) or app.season!=null: return {}
+	var expected: PackedByteArray=app.saved_bytes
+	var shop_source:=_installed_dugout_d1_shop_source(expected)
+	if shop_source.is_empty(): return {}
+	var session: SeasonState=shop_source.session
+	if session.build._visit.open: return _installed_dugout_d1_shop_view(installed_dugout_d1_view(expected))
+	var rev: int=session.build.revision()
+	return _write_installed_dugout_d1_shop(shop_source,expected,{"id":"shop-open:%d"%rev,"rev":rev,"op":"open"})
+
+static func write_installed_dugout_d1_shop(app: Variant,window: Variant,ticket: RefCounted) -> Dictionary:
+	if not _installed_dugout_d1_shop_app(app) or app.season==null or not is_instance_valid(window) \
+			or window.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/shop_window.gd") \
+			or not app.installed_dugout_d1_shop_window(window) or not window.visible or not window._origin_matches(): return {}
+	var expected: PackedByteArray=app.saved_bytes
+	var shop_source:=_installed_dugout_d1_shop_source(expected)
+	if shop_source.is_empty() or not Codec.same(Adapter.Ordinary.capture(app.season),shop_source.source.current.ordinary): return {}
+	var command: Dictionary=window.take_base_archive_shop(ticket)
+	if command.is_empty() or command.get("op")=="open": return {}
+	return _write_installed_dugout_d1_shop(shop_source,expected,command)
+
+static func _write_installed_dugout_d1_shop(shop_source: Dictionary,expected: PackedByteArray,command: Dictionary) -> Dictionary:
+	if not Codec.primitive(command) or not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return {}
+	var previous: SeasonState=shop_source.session
+	var id: Variant=command.get("id")
+	if not id is String or id.is_empty() or previous.build._requests.has(id) \
+			or not Codec.whole(command.get("rev"),previous.build.revision(),previous.build.revision()): return {}
+	var candidate: SeasonState=previous.fork_live()
+	if candidate==null: return {}
+	var next: SeasonBuild=candidate.build.candidate(command.duplicate(true))
+	if next==null: return {}
+	candidate.adopt_build(next)
+	var before: Array=previous.build._events
+	if candidate.build!=next or not candidate.build._visit.open or candidate.build._visit.number!=1 \
+			or next.revision()!=before.size()+1 or next._events.size()!=before.size()+1 \
+			or not Codec.same(next._events.slice(0,before.size()),before) or not Codec.same(next._events.back(),command): return {}
+	var image: Dictionary=Adapter.Ordinary.capture(candidate)
+	if image.is_empty() or not Codec.same(image.physical,shop_source.source.current.ordinary.physical) \
+			or not Codec.same(image.state.results,shop_source.source.current.ordinary.state.results) \
+			or not Codec.same(image.state.player_results,shop_source.source.current.ordinary.state.player_results): return {}
+	var native:=_installed_dugout_d1_verified_current(image)
+	if native==null or native.cash()!=next.cash(): return {}
+	return _installed_dugout_d1_shop_view(_write_installed_dugout_d1_opening(shop_source.source,expected,image,native))
+
 static func stage_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
 	var offer:=earned_dugout_d1_offer(owner,expected)
 	if offer.is_empty(): return {}
