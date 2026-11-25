@@ -57,7 +57,7 @@ func render() -> void:
 		_bound_button(_body,"CANCEL CAREER CHECK",Callable(app,"cancel_mixed_continue"))
 		return
 	if app.installed_dugout_d1_reading():
-		_bound_button(_body,"CANCEL DRAFT CHECK",Callable(app,"cancel_installed_dugout_d1_read"))
+		_bound_button(_body,"CANCEL CAREER CHECK",Callable(app,"cancel_installed_dugout_d1_read"))
 		return
 	if not app.installed_dugout_d1_draft.is_empty():
 		_installed_dugout_d1()
@@ -635,13 +635,18 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	_label(_body,"DUGOUT D1 · DRAFT %d / 4"%draft.picks.size(),24)
+	var state: String=draft.state
+	_label(_body,"DUGOUT D1 · DRAFT %d / 4"%draft.picks.size() if state=="draft" else "DUGOUT D1 · ROUND 1",24)
 	_note("Dugout Base championship kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
 		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 		_label(_body,player.display_name if player!=null else id,20)
-	if draft.picks.size()==4:
-		_note("Your roster is saved. D1 games are not available in this qualification build yet.")
+	if state=="ready":
+		_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+	elif state=="unpaid":
+		_note("Your Club game is saved. The round has not been paid.")
+	elif state=="paid":
+		_note("Round 1 has already paid. Your result is saved.")
 	else:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))

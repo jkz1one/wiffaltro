@@ -18,6 +18,7 @@ const InstalledD1Reader=preload("res://src/gameplay/season/successor_dynasty_own
 var _installed_dugout_d1_reader: Node
 var _installed_dugout_d1_epoch: int=0
 var installed_dugout_d1_draft: Dictionary={}
+var _installed_dugout_d1_return: Dictionary={}
 
 var _d1_check: Node
 var _d1_close_after_check: bool=false
@@ -1043,7 +1044,7 @@ func _continue_installed_dugout_d1() -> bool:
 	_installed_dugout_d1_reader=reader
 	add_child(reader)
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
-	notice="Verifying your saved Dugout D1 draft in the background. Nothing is being written."
+	notice="Verifying your Dugout D1 career in the background. Nothing is being written."
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
 	return true
@@ -1053,7 +1054,7 @@ func _finish_installed_dugout_d1(outcome: String,reader: Node,epoch: int,expecte
 	var view:=Store.adopt_installed_dugout_d1_read(reader,expected) if outcome=="verified" else {}
 	_drop_installed_dugout_d1()
 	if view.is_empty():
-		notice="The saved Dugout D1 draft could not be verified. No files changed."
+		notice="The saved Dugout D1 career could not be verified. No files changed."
 	else:
 		_open_installed_dugout_d1(view)
 	show_season()
@@ -1069,13 +1070,14 @@ func _drop_installed_dugout_d1() -> void:
 func cancel_installed_dugout_d1_read() -> void:
 	if not installed_dugout_d1_reading(): return
 	_drop_installed_dugout_d1()
-	notice="Draft check canceled. No files changed."
+	notice="Career check canceled. No files changed."
 	show_season()
 
 func _open_installed_dugout_d1(view: Dictionary) -> void:
 	career_owner=null; season=null
 	saved_bytes=view.get("bytes",PackedByteArray())
 	installed_dugout_d1_draft=view
+	_installed_dugout_d1_return={}
 	notice=""
 
 func pick_installed_dugout_d1(id: String,expected: PackedByteArray) -> void:
@@ -1088,8 +1090,40 @@ func pick_installed_dugout_d1(id: String,expected: PackedByteArray) -> void:
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
+func play_installed_dugout_d1(expected: PackedByteArray) -> void:
+	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state")!="ready" \
+			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home": return
+	_busy=true
+	var opened: bool=Store.open_installed_dugout_d1_match(self)
+	_busy=false
+	if opened: return
+	if is_instance_valid(lab) and not _close_match(false):
+		notice="This fixture could not be prepared. The save is unchanged."
+		return
+	season=null
+	notice="This fixture could not be prepared. The save is unchanged."
+	show_season()
+
+func _finish_installed_dugout_d1_game() -> void:
+	if _busy or not is_instance_valid(lab) or is_instance_valid(_loadout_modal): return
+	_busy=true
+	if _installed_dugout_d1_return.is_empty():
+		_installed_dugout_d1_return=Store.save_installed_dugout_d1_managed(self)
+	if _installed_dugout_d1_return.is_empty():
+		_busy=false
+		notice="The completed game could not be saved. It remains open."
+		return
+	var checked:=Store.installed_dugout_d1_view(_installed_dugout_d1_return.bytes)
+	if checked.is_empty() or not _close_match():
+		_busy=false
+		notice="The game is saved. Use Continue to recheck the checkpoint."
+		return
+	_busy=false
+	_open_installed_dugout_d1(checked)
+	show_season()
+
 func leave_installed_dugout_d1_view() -> void:
-	if _busy or installed_dugout_d1_draft.is_empty(): return
+	if _busy or is_instance_valid(lab) or installed_dugout_d1_draft.is_empty(): return
 	_open_installed_dugout_d1({})
 	show_season()
 
@@ -1446,8 +1480,9 @@ func _confirm_exit() -> void:
 	var mode: String = _exit_mode
 	var exiting_season: SeasonState = _exit_season
 	var envelope: RefCounted = _exit_envelope
+	var d1: bool=not installed_dugout_d1_draft.is_empty() and Store.installed_dugout_d1_match_bound(self)
 	var matches: bool = mode in ["leave", "quit"] and season == _exit_season \
-		and career_owner == envelope and career_owner != null and career_owner.session == season \
+		and career_owner == envelope and (d1 or (career_owner != null and career_owner.session == season)) \
 		and is_instance_valid(lab) and lab == _exit_lab and lab._match_state == _exit_state
 	_cancel_exit() # Consume once before cleanup or any potential callback.
 	if not matches or _exit_blocked():
@@ -1455,8 +1490,9 @@ func _confirm_exit() -> void:
 	if not _close_match(false):
 		notice = "The original match could not close safely. It remains available."
 		return
-	if season != exiting_season or career_owner != envelope or career_owner == null or career_owner.session != season or is_instance_valid(lab) or _exit_blocked():
+	if season != exiting_season or career_owner != envelope or (not d1 and (career_owner == null or career_owner.session != season)) or is_instance_valid(lab) or _exit_blocked():
 		return # Cleanup may have invoked callbacks; never quit a replacement owner.
+	if d1: season=null
 	if mode == "quit":
 		_quit_now()
 	else:
@@ -1648,6 +1684,9 @@ func _played_field_matches() -> bool:
 
 
 func finish_game() -> void:
+	if not installed_dugout_d1_draft.is_empty():
+		_finish_installed_dugout_d1_game()
+		return
 	if base_archive_qualification_view():
 		_finish_base_archive_game()
 		return
