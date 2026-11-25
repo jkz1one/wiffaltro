@@ -151,3 +151,59 @@ static func stage_birth(image: Dictionary, head: Dictionary, expected_offer: Dic
 	if packed.is_empty() or not owner_class.Common.valid(view) or not owner_class.capture(view).is_empty(): return {}
 	var candidate: Dictionary=owner_class._pack_fields(view,packed)
 	return {"head":new_head,"page":page,"current":candidate}
+
+
+# Cold provenance from ordered immutable pages. The rotating backup is not an
+# input. Reconstruct every completed native boundary and do not grant authority
+# from structural page shape, a stored offer, or a supplied digest alone.
+static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedByteArray]) -> Dictionary:
+	var checked: Dictionary=Archive._head(head)
+	if checked.is_empty() or pages.is_empty() or pages.size()!=checked.pages.size(): return {}
+	# Authenticate shape/digests before the expensive native replay.
+	for i: int in pages.size():
+		if Archive._hash(pages[i])!=checked.pages[i] or Archive._page(pages[i],checked,i+1).is_empty(): return {}
+	var final_index: int=pages.size()-1
+	var last: Dictionary=Archive._page(pages[final_index],checked,final_index+1)
+	if last.close.get("reason")!="complete" or last.close.get("league")!="dugout" or last.close.get("tier")!=0: return {}
+	var old: Dictionary=checked.duplicate(true)
+	old.pages.pop_back()
+	old.ordinal=int(old.ordinal)-1
+	var authenticated: RefCounted=Archive.Core.root(int(checked.seed),checked.league)
+	if authenticated==null: return {}
+	for i: int in final_index:
+		if not Archive._advance_closed_page(authenticated,pages[i],old,i): return {}
+	if authenticated.current_ordinal()!=final_index+1 \
+			or not Archive.Core._apply_closed(authenticated,last.image,last.close): return {}
+	var api:=Archive._owner()
+	var real: Dictionary=api.capture(authenticated)
+	if real.is_empty(): return {}
+	var offer:=from_closed_image(real,old)
+	var staged:=stage_birth(real,old,offer)
+	if staged.is_empty() or staged.page!=pages[final_index] or Archive._wire(staged.head)!=head: return {}
+	return staged
+
+
+# Only a draft derived above can be used for the public read. The separate
+# function keeps typed pick validation pure and issues no filesystem authority.
+static func _restore_after_picks(staged: Dictionary, value: Dictionary) -> SeasonState:
+	var api:=Archive._owner()
+	if not staged.get("current") is Dictionary or not value.get("ordinary") is Dictionary: return null
+	var expected: Dictionary=staged.current.duplicate(true)
+	if not expected.get("ordinary") is Dictionary or not value.ordinary.get("state") is Dictionary: return null
+	var picks: Variant=value.ordinary.state.get("picks")
+	if not picks is Array or picks.size()>4: return null
+	var draft: SeasonState=api.Adapter.Ordinary.restore_common(expected.ordinary)
+	if draft==null or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty(): return null
+	for id: Variant in picks:
+		if not id is String or not draft.choose_player(id): return null
+	# This checkpoint is only draft progress, never a history shortcut for
+	# exposed matches or any Shop changes. Full equality includes Common rights.
+	if not draft.results.is_empty() or not draft.player_results.is_empty() \
+			or not draft.physical.pending.is_empty() or not draft.physical.reports.is_empty(): return null
+	expected.ordinary=api.Adapter.Ordinary.capture(draft)
+	return draft if not expected.ordinary.is_empty() and api.Codec.same(expected,value) else null
+
+
+static func restore_draft_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], value: Dictionary) -> SeasonState:
+	var staged:=_draft_birth_from_pages(head,pages)
+	return null if staged.is_empty() else _restore_after_picks(staged,value)
