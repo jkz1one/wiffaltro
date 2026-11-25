@@ -15,6 +15,11 @@ const STARTER_LEAGUES: Array[String]=["standard","dugout"]
 const CAREER_FEATURE: String="wiffaltro_linux_career_qualification"
 const CAREER_MAIN: String="res://career_linux_bootstrap/entry.tscn"
 const CAREER_USER_DIR: String="WiffaltroCareerQualification-v1"
+const CAREER_FORWARD_FEATURE: String="wiffaltro_catalog_forward_v1"
+const CAREER_FORWARD_USER_DIR: String="WiffaltroCareerForwardQualification-v1"
+
+static func installed_career_directory() -> String:
+	return CAREER_FORWARD_USER_DIR if OS.has_feature(CAREER_FORWARD_FEATURE) else CAREER_USER_DIR
 
 static func installed_career_feature() -> bool:
 	return OS.has_feature(CAREER_FEATURE)
@@ -23,7 +28,7 @@ static func _installed_career_profile() -> bool:
 	if not installed_career_feature() or OS.get_name()!="Linux" or OS.has_feature("editor") \
 		or OS.has_feature(STARTER_FEATURE) or OS.has_feature(MIXED_APPEND_QA_FEATURE) \
 		or OS.has_feature("wiffaltro_engineering_export") or OS.has_feature("wiffaltro_base_archive_read_playtest") \
-		or ProjectSettings.get_setting("application/config/custom_user_dir_name","")!=CAREER_USER_DIR \
+		or ProjectSettings.get_setting("application/config/custom_user_dir_name","")!=installed_career_directory() \
 		or ProjectSettings.get_setting("application/run/main_scene","")!=CAREER_MAIN \
 		or ProjectSettings.get_setting("application/config/use_custom_user_dir",false)!=true: return false
 	return true
@@ -31,7 +36,7 @@ static func _installed_career_profile() -> bool:
 static func _installed_career_lock(pid: int, process_dir: String) -> bool:
 	if pid<1: return false
 	var root: String=OS.get_user_data_dir().simplify_path().trim_suffix("/")
-	if root.get_file()!=CAREER_USER_DIR: return false
+	if root.get_file()!=installed_career_directory(): return false
 	var fd:=DirAccess.open(process_dir+"/fd")
 	if fd==null or fd.read_link("198")!=root: return false
 	var info:=FileAccess.open(process_dir+"/fdinfo/198",FileAccess.READ)

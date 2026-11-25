@@ -46,10 +46,11 @@ func _check() -> void:
 		output.store_string(JSON.stringify({"reviewed":paths,"broad_sha256":broad_sha},"",true,true))
 		output.close()
 		print("REVIEWED_SOURCE_PROFILE_PASS ", paths.size())
-	elif args[0] in ["pack","pack-no-save","starter-pack-no-save","archive-read-pack-no-save","career-pack-no-save"]:
+	elif args[0] in ["pack","pack-no-save","starter-pack-no-save","archive-read-pack-no-save","career-pack-no-save","forward-career-pack-no-save"]:
 		var starter: bool=args[0]=="starter-pack-no-save"
 		var archive_read: bool=args[0]=="archive-read-pack-no-save"
-		var career: bool=args[0]=="career-pack-no-save"
+		var forward: bool=args[0]=="forward-career-pack-no-save"
+		var career: bool=args[0]=="career-pack-no-save" or forward
 		var no_save: bool=args[0]!="pack"
 		var entry: String=STARTER_ENTRY if starter else ENTRY
 		var user_dir: String="WiffaltroStarterBeta-v1" if starter else "WiffaltroEngineeringQA-v1"
@@ -58,7 +59,7 @@ func _check() -> void:
 			user_dir="WiffaltroArchiveReadPlaytest-v1"
 		if career:
 			entry="res://career_linux_bootstrap/entry.tscn"
-			user_dir="WiffaltroCareerQualification-v1"
+			user_dir="WiffaltroCareerForwardQualification-v1" if forward else "WiffaltroCareerQualification-v1"
 		var bootstrap_root: String=entry.get_base_dir()+"/"
 		if ProjectSettings.get_setting("application/run/main_scene") != entry \
 				or OS.get_user_data_dir().get_file() != user_dir:

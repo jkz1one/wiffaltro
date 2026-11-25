@@ -12,6 +12,7 @@ const LeagueAdmission = preload("league_admission.gd")
 const PATH: String = "user://wiffaltro-common-career-v4.json"
 const INSTALLED_PATH: String = "user://wiffaltro-installed-career-v1.json"
 const INSTALLED_HEADER: String = "WIFFALTRO-INSTALLED-CAREER-V1\n"
+const INSTALLED_FORWARD_HEADER: String = "WIFFALTRO-INSTALLED-CAREER-FORWARD-V1\n"
 const INSTALLED_BACKUP_STAGE: String = ".bak.tmp"
 const MAX_BYTES: int = 64 * 1024 * 1024
 const BASE_ARCHIVE_READER_FEATURE := "wiffaltro_base_archive_read_playtest"
@@ -206,19 +207,24 @@ static func slot_path() -> String:
 
 # A fixed header and digest bind the native bytes to this profile. This
 # detects corruption and rejects foreign dialects; it is not anti-cheat.
+static func _installed_header() -> String:
+	return INSTALLED_FORWARD_HEADER if OS.has_feature(LeagueAdmission.CAREER_FORWARD_FEATURE) else INSTALLED_HEADER
+
 static func _installed_payload(wire: PackedByteArray) -> PackedByteArray:
-	var start: int=INSTALLED_HEADER.length()+65
+	var header: String=_installed_header()
+	var start: int=header.length()+65
 	if wire.size()<=start or wire.size()>MAX_BYTES \
-		or wire.slice(0,INSTALLED_HEADER.length()).get_string_from_ascii()!=INSTALLED_HEADER \
+		or wire.slice(0,header.length()).get_string_from_ascii()!=header \
 		or wire[start-1]!=10: return PackedByteArray()
 	var body:=wire.slice(start)
-	return body if wire.slice(INSTALLED_HEADER.length(),start-1).get_string_from_ascii()==Owner._hash(body) else PackedByteArray()
+	return body if wire.slice(header.length(),start-1).get_string_from_ascii()==Owner._hash(body) else PackedByteArray()
 
 static func _installed_wire(body: PackedByteArray) -> PackedByteArray:
-	if body.is_empty() or body.size()+INSTALLED_HEADER.length()+65>MAX_BYTES: return PackedByteArray()
+	var header: String=_installed_header()
+	if body.is_empty() or body.size()+header.length()+65>MAX_BYTES: return PackedByteArray()
 	var digest: String=Owner._hash(body)
 	if digest.length()!=64: return PackedByteArray()
-	return (INSTALLED_HEADER+digest+"\n").to_utf8_buffer()+body
+	return (header+digest+"\n").to_utf8_buffer()+body
 
 static func _installed_paths_blocked() -> bool:
 	var path: String=OS.get_user_data_dir().trim_suffix("/")

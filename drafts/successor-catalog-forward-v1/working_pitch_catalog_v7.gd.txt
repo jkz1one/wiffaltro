@@ -1,0 +1,177 @@
+extends RefCounted
+## Detached successor source proposal. Not wired into saves, ownership or gameplay.
+## Exotic offering identity is explicit, never inferred from exotic_shape.
+const VERSION: int = 7
+const Base = preload("res://src/gameplay/pitching/working_pitch_catalog_v6_forward.gd")
+const SELF_PATH: String = "res://src/gameplay/pitching/working_pitch_catalog_v7.gd"
+const RETIRED_ACTIVE: Array[String] = [
+	"pitch.overhand_slow_curve", "pitch.three_quarter_slow_curve",
+	"pitch.sidearm_slide_drop", "pitch.submarine_slide_drop",
+	"pitch.overhand_forkball", "pitch.three_quarter_forkball"]
+const NEW_PATHS: Dictionary = {
+	"pitch.super_curve": "res://src/content/pitches/successor_v7/super_curve.tres",
+	"pitch.gypsy_drop": "res://src/content/pitches/successor_v7/gypsy_drop.tres",
+	"pitch.knuckle_drop": "res://src/content/pitches/successor_v7/knuckle_drop.tres",
+	"pitch.forkball": "res://src/content/pitches/successor_v7/forkball.tres"}
+const RESERVED_EXOTICS: Dictionary = {
+	"Switchback": ["pitch.switchback"], "Corkscrew": ["pitch.corkscrew"],
+	"Trapdoor": ["pitch.trapdoor"], "Super Curve": ["pitch.super_curve"],
+	"Gypsy Drop": ["pitch.gypsy_drop"], "Knuckle-Drop": ["pitch.knuckle_drop"],
+	"Forkball": ["pitch.forkball"]}
+# Proposed paid lesson balancing, not a grant or an eligibility validator.
+# Keys identify existing achievement conditions, NOT proofs or owned recipes.
+const ACQUISITION: Dictionary = {
+	"pitch.switchback": {"condition": "mixed_arm_glove_strikeout", "price": 18},
+	"pitch.corkscrew": {"condition": "four_distinct_strikeout_finishes", "price": 20},
+	"pitch.trapdoor": {"condition": "three_called_drop_finishes", "price": 18},
+	"pitch.super_curve": {"condition": "three_curve_strikeout_finishes", "price": 20},
+	"pitch.gypsy_drop": {"condition": "three_known_swinging_drop_finishes", "price": 18},
+	"pitch.knuckle_drop": {"condition": "three_knuckle_finishes_both_families", "price": 20},
+	"pitch.forkball": {"condition": "three_splitter_finishes_after_hard_setup", "price": 18}}
+
+
+static func recipes() -> Array[PitchDefinition]:
+	var old: Array[PitchDefinition] = Base.recipes()
+	if old.size() != 43:
+		return []
+	var removed: int = 0
+	var result: Array[PitchDefinition] = []
+	var seen: Array[String] = []
+	for pitch: PitchDefinition in old:
+		if pitch == null or seen.has(String(pitch.id)):
+			return []
+		seen.append(String(pitch.id))
+		if RETIRED_ACTIVE.has(String(pitch.id)):
+			removed += 1
+		else:
+			result.append(pitch)
+	if removed != 6:
+		return []
+	for id: String in NEW_PATHS:
+		var pitch: PitchDefinition = _new_recipe(id)
+		if pitch == null or seen.has(id):
+			return []
+		seen.append(id)
+		result.append(pitch)
+	return result if result.size() == 41 else []
+
+
+static func _new_recipe(id: String) -> PitchDefinition:
+	if not NEW_PATHS.has(id):
+		return null
+	var source: PitchDefinition = load(NEW_PATHS[id]) as PitchDefinition
+	if source == null or String(source.id) != id or source.delivery_profile == null \
+		or source.rarity != PitchDefinition.Rarity.EXOTIC:
+		return null
+	return Base.detached_recipe(source)
+
+
+static func ids() -> Array[String]:
+	var result: Array[String] = []
+	for pitch: PitchDefinition in recipes():
+		result.append(String(pitch.id))
+	return result
+
+
+static func known_ids() -> Array[String]:
+	var result: Array[String] = Base.known_ids()
+	if result.size() != 46 or recipes().is_empty():
+		return []
+	for id: String in NEW_PATHS:
+		if result.has(id):
+			return []
+		result.append(id)
+	return result
+
+
+static func get_recipe(id: String) -> PitchDefinition:
+	# Removed active recipes remain exactly readable, not mapped to a new purchase.
+	return _new_recipe(id) if NEW_PATHS.has(id) else Base.get_recipe(id)
+
+
+static func supports(id: String) -> bool:
+	return get_recipe(id) != null
+
+
+static func is_active(id: String) -> bool:
+	return ids().has(id)
+
+
+static func is_exotic(id: String) -> bool:
+	return ACQUISITION.has(id)
+
+
+static func conventional_recipes() -> Array[PitchDefinition]:
+	var result: Array[PitchDefinition] = []
+	for pitch: PitchDefinition in recipes():
+		if not is_exotic(String(pitch.id)):
+			result.append(pitch)
+	return result
+
+
+static func exotic_recipes() -> Array[PitchDefinition]:
+	var result: Array[PitchDefinition] = []
+	for pitch: PitchDefinition in recipes():
+		if is_exotic(String(pitch.id)):
+			result.append(pitch)
+	return result
+
+
+static func lesson_price(id: String) -> int:
+	# All seven Exotics require validated earned access before priced shop generation.
+	if not is_active(id) or is_exotic(id):
+		return -1
+	return Base.lesson_price(id)
+
+
+static func acquisition_design(id: String) -> Dictionary:
+	# UI/planning metadata only. Caller must NOT use this to authorize a purchase.
+	return ACQUISITION[id].duplicate(true) if ACQUISITION.has(id) else {}
+
+
+static func selection_recipe(name: String) -> PitchDefinition:
+	# Selection by name only; never alias historical journal/ownership identifiers.
+	var labels: Dictionary = {"super curve": "pitch.super_curve",
+		"gypsy drop": "pitch.gypsy_drop", "knuckle-drop": "pitch.knuckle_drop",
+		"forkball": "pitch.forkball", "banana ball": "pitch.sidearm_slurve"}
+	var key: String = name.strip_edges().to_lower()
+	return get_recipe(labels[key]) if labels.has(key) else null
+
+
+static func mastered(id: String, level: int) -> PitchDefinition:
+	if level < 1 or level > SeasonDevelopment.PITCH_CAP:
+		return null
+	if not NEW_PATHS.has(id):
+		return Base.mastered(id, level)
+	var result: PitchDefinition = _new_recipe(id)
+	if result == null:
+		return null
+	# Existing non-fastball mastery ladder, with no new category mechanics.
+	result.command_only_quality = true
+	result.mastery_level = level
+	result.mastery_late_bias = PitchMastery.LATE_STEP * (int(level >= 2) + int(level >= 4))
+	result.mastery_movement_scale += PitchMastery.AMPLITUDE_STEP * (int(level >= 3) + int(level >= 5))
+	return result
+
+
+static func signature() -> String:
+	var base_signature: String = Base.signature()
+	if base_signature.is_empty() or ids().size() != 41 or known_ids().size() != 50:
+		return ""
+	var own_digest: String = FileAccess.get_sha256(SELF_PATH)
+	if own_digest.is_empty():
+		return ""
+	var parts: Array[String] = ["working-pitch-successor-v7", base_signature, own_digest]
+	for id: String in NEW_PATHS:
+		# Hash authored inputs, not detached gameplay copies whose resource_path is empty.
+		# recipes()/known_ids() above still validate the public detached catalog.
+		var pitch: PitchDefinition = load(NEW_PATHS[id]) as PitchDefinition
+		if pitch == null or pitch.delivery_profile == null:
+			return ""
+		var recipe_digest: String = FileAccess.get_sha256(NEW_PATHS[id])
+		var delivery_digest: String = FileAccess.get_sha256(pitch.delivery_profile.resource_path)
+		if recipe_digest.is_empty() or delivery_digest.is_empty():
+			return ""
+		parts.append(recipe_digest)
+		parts.append(delivery_digest)
+	return "|".join(parts).sha256_text()

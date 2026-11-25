@@ -37,6 +37,16 @@ ARCHIVE_READ_FEATURE = 'wiffaltro_base_archive_read_playtest'
 CAREER_DIR = 'WiffaltroCareerQualification-v1'
 CAREER_BOOTSTRAP = 'res://career_linux_bootstrap/entry.tscn'
 CAREER_FEATURE = 'wiffaltro_linux_career_qualification'
+FORWARD_CAREER_FEATURE = 'wiffaltro_catalog_forward_v1'
+FORWARD_CAREER_DIR = 'WiffaltroCareerForwardQualification-v1'
+FORWARD_CATALOG_PATHS = {
+    'src/gameplay/pitching/working_pitch_catalog_v6_forward.gd': (
+        'src/gameplay/pitching/working_pitch_catalog_v6.gd', 'working_pitch_catalog_v6.gd.txt'),
+    'src/gameplay/pitching/working_pitch_catalog_v7.gd': (
+        'src/gameplay/pitching/working_pitch_catalog_v7.gd', 'working_pitch_catalog_v7.gd.txt'),
+    'src/gameplay/season/successor_league_general_v2/catalog_context.gd': (
+        'src/gameplay/season/successor_league_general_v2/catalog_context.gd', 'catalog_context.gd.txt'),
+}
 EXTRA_SUPPORT = {
     'src/tests/helpers/pool_active_receipt.gd',
     'src/tests/helpers/pool_controller_writer_ledger.gd',
@@ -102,10 +112,37 @@ def clean_identity(repo):
     return revision, tree, ancestry[1]
 
 
-def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False, archive_read=False, career=False):
+def apply_forward_catalog(repo, project, assembly):
+    # Select a separate profile. Preserve the reviewed V6 file in both
+    # packages, adding a distinctly named provider only to the forward one.
+    origin = repo / 'drafts/successor-catalog-forward-v1'
+    manifest = json.loads((origin / 'OVERLAY.json').read_bytes())
+    assert set(manifest) == {'format', 'feature', 'files'}
+    assert manifest['format'] == 'wiffaltro-catalog-forward-v1' and manifest['feature'] == FORWARD_CAREER_FEATURE
+    rows = manifest['files']
+    assert len(rows) == 3 and {r['path']: (r['stock_path'], r['overlay']) for r in rows} == FORWARD_CATALOG_PATHS
+    replacements = {}
+    for row in rows:
+        assert set(row) == {'path', 'stock_path', 'stock_sha256', 'overlay', 'sha256', 'bytes'}
+        target, overlay, stock = project / row['path'], origin / row['overlay'], project / row['stock_path']
+        assert all(not file.is_symlink() for file in (target, overlay, stock))
+        assert digest(stock) == row['stock_sha256'] == assembly['files'][row['stock_path']]
+        if target != stock:
+            assert not target.exists() and row['path'] not in assembly['files']
+        replacement = overlay.read_bytes()
+        assert len(replacement) == row['bytes'] and hashlib.sha256(replacement).hexdigest() == row['sha256']
+        replacements[target] = (row, replacement)
+    for target, (row, replacement) in replacements.items():
+        target.write_bytes(replacement)
+        assembly['files'][row['path']] = row['sha256']
+    return {row['path']: row['sha256'] for row in rows}
+
+
+def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False, archive_read=False,
+            career=False, career_forward=False):
     no_save = paid is None
     assert no_save == (backup is None) and (not (starter or archive_read or career) or no_save)
-    assert sum((starter, archive_read, career)) <= 1
+    assert sum((starter, archive_read, career)) <= 1 and (not career_forward or career)
     identity = clean_identity(repo) if no_save else None
     user_dir = STARTER_DIR if starter else USER_DIR
     bootstrap = STARTER_BOOTSTRAP if starter else BOOTSTRAP
@@ -121,6 +158,10 @@ def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False
         user_dir, bootstrap, bootstrap_folder, app_name, feature = (
             CAREER_DIR, CAREER_BOOTSTRAP, 'career_linux_bootstrap',
             'Wiffaltro Career Qualification', CAREER_FEATURE)
+    if career_forward:
+        user_dir = FORWARD_CAREER_DIR
+        app_name = 'Wiffaltro Forward Career Qualification'
+        feature = CAREER_FEATURE + ',' + FORWARD_CAREER_FEATURE
 
     def build_environment(path):
         env = environment(path)
@@ -136,6 +177,7 @@ def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False
     package.mkdir(); empty.mkdir()
     audited = assemble_successor.assemble(repo, project, dynasty_owner=True,
                                            preserve_authored_project=no_save)
+    forward_inventory = apply_forward_catalog(repo, project, audited) if career_forward else {}
     config = project/'project.godot'
     original = (repo/'project.godot').read_bytes()
     assert hashlib.sha256(original).hexdigest() == PINNED_CONFIG_SHA
@@ -244,7 +286,8 @@ binary_format/architecture="x86_64"
     run([*project_engine,'--export-pack',TITLE,str(pack)],empty,env,root/'export.log','REVIEWED_RAW_CONFIG_ADDED')
     launcher = package/'Wiffaltro'
     if career:
-        run(['/usr/bin/cc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
+        flags = ['-DWIFFALTRO_FORWARD_CATALOG'] if career_forward else []
+        run(['/usr/bin/cc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', *flags,
              str(repo/'tools/successor_career_linux_launcher.c'), '-o', str(launcher)],
             empty, env, root/'career-launcher-build.log')
         launcher.chmod(0o700)
@@ -304,6 +347,7 @@ binary_format/architecture="x86_64"
     if no_save:
         audit_mode='archive-read-pack-no-save' if archive_read else ('starter-pack-no-save' if starter else 'pack-no-save')
         if career: audit_mode='career-pack-no-save'
+        if career_forward: audit_mode='forward-career-pack-no-save'
         result=run([*engine,'--path',str(empty),'--main-pack',str(pack),'--script',str(audit),'--',audit_mode,str(expected)],
             empty,inspect_env,root/'pack-audit.log',f'PACKED_REVIEWED_PROFILE_NO_SAVE_PASS {len(inventory)}')
         # Conservative refusal: a new broad digest must not appear as any exact
@@ -350,6 +394,9 @@ binary_format/architecture="x86_64"
             metadata['scope']='Linux career qualification compile and mounted content audit only; no run or save evidence'
             metadata['career_profile']={'feature':feature,'bootstrap':bootstrap,'user_dir':user_dir,
                                         'launcher_sha256':digest(launcher)}
+        if career_forward:
+            metadata['scope'] = 'Separate forward Linux qualification; no runtime, legacy migration or release claim'
+            metadata['catalog_overlay'] = forward_inventory
     else:
         assert metadata['pack_broad_sha256'] == PACK_BROAD_SHA
     (root/'result.json').write_text(json.dumps(metadata,indent=2)+'\n')
@@ -365,15 +412,21 @@ def main():
     mode.add_argument('--starter-beta',action='store_true',help='Separate clean Linux starter-player build and no-save boot checks')
     mode.add_argument('--archive-read-playtest',action='store_true',help='Separate clean Linux read-only archive compile and mounted audit; never boots or loads a save')
     mode.add_argument('--career-qualification',action='store_true',help='Build the private writable Linux qualification package; runtime acceptance is separate')
+    mode.add_argument('--career-forward-qualification', action='store_true',
+                      help='Build the separate private forward catalogue package without loading saves')
     parser.add_argument('--templates',type=Path,required=True,help='Verified vendor non-Mono 4.6.3 release template archive')
     parser.add_argument('--godot',type=Path,required=True,help='Verified vendor x86_64 Godot 4.6.3 editor binary')
     o=parser.parse_args()
-    if (o.no_save or o.starter_beta or o.archive_read_playtest or o.career_qualification) and (not sys.platform.startswith("linux") or sys.flags.optimize):
+    no_save = o.no_save or o.starter_beta or o.archive_read_playtest or o.career_qualification or o.career_forward_qualification
+    if no_save and (not sys.platform.startswith("linux") or sys.flags.optimize):
         parser.error("use ordinary Python 3 on Linux with the pinned x86-64 editor")
-    paid,backup=(None,None) if o.no_save or o.starter_beta or o.archive_read_playtest or o.career_qualification else evidence(o.evidence)
+    paid,backup=(None,None) if no_save else evidence(o.evidence)
     root=o.output.resolve()
     root.mkdir(mode=0o700)
-    qualify(Path(__file__).resolve().parents[1],root,o.godot.resolve(),o.templates.resolve(),paid,backup,starter=o.starter_beta,archive_read=o.archive_read_playtest,career=o.career_qualification)
+    qualify(Path(__file__).resolve().parents[1], root, o.godot.resolve(), o.templates.resolve(), paid, backup,
+            starter=o.starter_beta, archive_read=o.archive_read_playtest,
+            career=o.career_qualification or o.career_forward_qualification,
+            career_forward=o.career_forward_qualification)
 
 
 if __name__=='__main__':

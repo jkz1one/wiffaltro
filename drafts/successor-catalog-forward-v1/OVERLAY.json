@@ -1,0 +1,30 @@
+{
+  "format": "wiffaltro-catalog-forward-v1",
+  "feature": "wiffaltro_catalog_forward_v1",
+  "files": [
+    {
+      "path": "src/gameplay/pitching/working_pitch_catalog_v6_forward.gd",
+      "stock_sha256": "0e709f6bda6fa95a8fa7cc666ad31354cc223633c8c0782254adeb8d16820dff",
+      "overlay": "working_pitch_catalog_v6.gd.txt",
+      "sha256": "d37337b522f5613b28bce089f7e7ad96d8c31023084ab09c5a6b31815987aadc",
+      "bytes": 6008,
+      "stock_path": "src/gameplay/pitching/working_pitch_catalog_v6.gd"
+    },
+    {
+      "path": "src/gameplay/season/successor_league_general_v2/catalog_context.gd",
+      "stock_sha256": "d33a97f61a4dc4de5fec3495b40c419de34b1e7dae46d6ee55746a1a8311cfbb",
+      "overlay": "catalog_context.gd.txt",
+      "sha256": "8574d6741a39836a4efb74b966d9662b1b75bf8905783d8aba87df6e86847fe9",
+      "bytes": 17747,
+      "stock_path": "src/gameplay/season/successor_league_general_v2/catalog_context.gd"
+    },
+    {
+      "path": "src/gameplay/pitching/working_pitch_catalog_v7.gd",
+      "stock_path": "src/gameplay/pitching/working_pitch_catalog_v7.gd",
+      "stock_sha256": "e433ea5c2947450451af0af862fd1ec78fc0811c9d3d8d9bef6b2c002d5c1598",
+      "overlay": "working_pitch_catalog_v7.gd.txt",
+      "sha256": "2ec8124c65fa3d5e407a72f7e2f045cd65b19a6e133d0c8d209c38b160b6cad9",
+      "bytes": 6868
+    }
+  ]
+}

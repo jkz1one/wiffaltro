@@ -11,7 +11,13 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 
+#ifdef WIFFALTRO_FORWARD_CATALOG
+#define DATA_LEAF "WiffaltroCareerForwardQualification-v1"
+#define UNSAFE_LEAF_MODE 0077
+#else
 #define DATA_LEAF "WiffaltroCareerQualification-v1"
+#define UNSAFE_LEAF_MODE 0022
+#endif
 #define LOCK_FD 198
 #define WORKER_ARG "--starter-npc-v1="
 
@@ -70,6 +76,10 @@ static int installed_worker(char *game, char *arg, const char *path) {
 }
 
 int main(int argc, char **argv) {
+#ifdef WIFFALTRO_FORWARD_CATALOG
+    /* A separate native profile; keep the original qualification behavior. */
+    umask(0077);
+#endif
     const int worker = argc == 2 && strlen(argv[1]) <= 480 &&
                        !strncmp(argv[1], WORKER_ARG, sizeof WORKER_ARG - 1);
     if (argc != 1 && !worker) {
@@ -93,7 +103,7 @@ int main(int argc, char **argv) {
     if (worker) return installed_worker(game, argv[1], path);
     int fd = open_data_leaf(path);
     struct stat st;
-    if (fd < 0 || fstat(fd, &st) || st.st_uid != geteuid() || (st.st_mode & 0022)) {
+    if (fd < 0 || fstat(fd, &st) || st.st_uid != geteuid() || (st.st_mode & UNSAFE_LEAF_MODE)) {
         fputs("Wiffaltro could not open a private career folder. No save was opened.\n", stderr);
         return 4;
     }

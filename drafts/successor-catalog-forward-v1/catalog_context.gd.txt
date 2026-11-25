@@ -1,0 +1,333 @@
+extends RefCounted
+## Additive fresh-run context. Descriptor is identity, NEVER ownership/proof authority.
+const Provider = preload("res://src/gameplay/pitching/working_pitch_catalog_v7.gd")
+const PURPOSE: String = "general_build_context_v7_r2"
+const VERSION: int = 7
+const RESERVED_EXOTICS: Dictionary = Provider.RESERVED_EXOTICS
+const SAVE_PATH: String = "user://successor-general-build-v7-r2.json"
+const FILES: Array[String] = [
+	"res://src/gameplay/season/successor_league_general_v2/doubleheader.gd",
+	"res://src/gameplay/season/successor_league_general_v2/doubleheader_build.gd",
+	# B2 ordinary snapshot/replay, draft, paid NPC and shop dependencies.
+	"res://src/gameplay/season/season_save.gd",
+	"res://src/gameplay/season/season_save_operations_3.gd",
+	"res://src/gameplay/season/season_state.gd",
+	"res://src/gameplay/season/season_state_operations_1.gd",
+	"res://src/gameplay/season/season_state_operations_2.gd",
+	"res://src/gameplay/season/season_opponents.gd",
+	"res://src/gameplay/season/season_opponent_draft.gd",
+	"res://src/gameplay/season/season_opponent_abilities.gd",
+	"res://src/gameplay/season/season_opponent_budget.gd",
+	"res://src/gameplay/season/season_opponent_gear.gd",
+	"res://src/gameplay/season/season_opponent_mastery.gd",
+	"res://src/gameplay/season/season_opponent_lessons.gd",
+	"res://src/gameplay/season/season_opponent_sponsors.gd",
+	"res://src/gameplay/season/season_player_catalog.gd",
+	"res://src/gameplay/season/club_player_catalog.gd",
+	"res://src/gameplay/season/season_physical_fixtures.gd",
+	"res://src/gameplay/season/season_inventory_rules.gd",
+	"res://src/gameplay/season/season_budget_bites.gd",
+	"res://src/gameplay/season/season_development_purchase.gd",
+	"res://src/gameplay/season/season_equipment.gd",
+	"res://src/gameplay/season/season_film_room.gd",
+	"res://src/gameplay/season/season_legends.gd",
+	"res://src/gameplay/season/season_pitch_exchange.gd",
+	"res://src/gameplay/season/season_school_sponsors.gd",
+	"res://src/gameplay/season/season_sponsor_purchase.gd",
+	"res://src/gameplay/season/season_tactical_purchase.gd",
+	"res://src/gameplay/season/season_wholesale.gd",
+	"res://src/gameplay/season/season_sponsor_set.gd",
+	"res://src/gameplay/season/season_venues.gd",
+	"res://src/gameplay/season/season_doubleheader.gd",
+	"res://src/gameplay/season/season_doubleheader_rules.gd",
+	"res://src/diagnostics/ac02_passive_attribution.gd",
+	"res://src/gameplay/season/season_build_shop.gd",
+	"res://src/gameplay/season/season_build_restore.gd",
+	"res://src/gameplay/season/season_opponent_market.gd",
+	"res://src/gameplay/season/season_association_shop.gd",
+	"res://src/gameplay/season/season_field_sales.gd",
+	"res://src/gameplay/season/season_round_settlement.gd",
+	"res://src/gameplay/season/season_tactical_combo.gd",
+	"res://src/gameplay/season/season_tactical_discard.gd",
+	"res://src/gameplay/season/working_pitch_progression.gd",
+	"res://src/gameplay/season/working_exotic_access.gd",
+	# Dormant career/venue ownership branches remain unadmitted.
+	"res://src/presentation/season/successor_league_general_v2/app.gd",
+	"res://src/presentation/season/successor_league_general_v2/base_app.gd",
+	"res://src/presentation/season/successor_league_general_v2/capture_human.gd",
+	"res://src/presentation/season/successor_league_general_v2/entry.tscn",
+	"res://src/presentation/season/successor_league_general_v2/menu.gd",
+	"res://src/presentation/season/successor_league_general_v2/school_shop_ui.gd",
+	"res://src/presentation/season/successor_league_general_v2/shop_window.gd",
+	"res://src/presentation/season/successor_league_general_v2/transfer_ui.gd",
+	"res://src/gameplay/season/successor_league_general_v2/ordinary_context.gd",
+	# B1 active single-game validator and ordinary physics execution sources.
+	"res://src/content/definitions/field_definition.gd",
+	"res://src/content/definitions/player_definition.gd",
+	"res://src/content/fields/commons_park.tres",
+	"res://src/content/fields/starter_field.tres",
+	"res://src/core/math/coordinate_frame.gd",
+	"res://src/gameplay/ball_in_play/ball_play_outcome.gd",
+	"res://src/gameplay/ball_in_play/ball_play_resolver.gd",
+	"res://src/gameplay/ball_in_play/ball_play_state.gd",
+	"res://src/gameplay/baserunning/base_state.gd",
+	"res://src/gameplay/baserunning/tag_advance_resolver.gd",
+	"res://src/gameplay/baserunning/tag_advance_result.gd",
+	"res://src/gameplay/batting/batted_ball_launch.gd",
+	"res://src/gameplay/batting/batter_approach_model.gd",
+	"res://src/gameplay/batting/contact_resolver.gd",
+	"res://src/gameplay/batting/contact_result.gd",
+	"res://src/gameplay/batting/swing_contact_tracker.gd",
+	"res://src/gameplay/batting/swing_intent.gd",
+	"res://src/gameplay/fielding/defender_spacing.gd",
+	"res://src/gameplay/fielding/deflection_model.gd",
+	"res://src/gameplay/fielding/fielder_plan.gd",
+	"res://src/gameplay/fielding/fielder_planner.gd",
+	"res://src/gameplay/fielding/fielding_resolver.gd",
+	"res://src/gameplay/fielding/pitcher_defense.gd",
+	"res://src/gameplay/match/match_abilities.gd",
+	"res://src/gameplay/match/match_base_flow.gd",
+	"res://src/gameplay/match/match_batting_sides.gd",
+	"res://src/gameplay/match/match_clean_outs.gd",
+	"res://src/gameplay/match/match_cold_streak.gd",
+	"res://src/gameplay/match/match_field_supply.gd",
+	"res://src/gameplay/match/match_gear_usage.gd",
+	"res://src/gameplay/match/match_late_checkout.gd",
+	"res://src/gameplay/match/match_performance.gd",
+	"res://src/gameplay/match/match_pitch_disclosure.gd",
+	"res://src/gameplay/match/match_pitch_ledger.gd",
+	"res://src/gameplay/match/match_recovery_flow.gd",
+	"res://src/gameplay/match/match_state.gd",
+	"res://src/gameplay/match/match_sure_shot.gd",
+	"res://src/gameplay/match/match_tactics.gd",
+	"res://src/gameplay/match/play_record.gd",
+	"res://src/gameplay/match/player_match_state.gd",
+	"res://src/gameplay/match/tactical_base_advance.gd",
+	"res://src/gameplay/match/tactical_base_context.gd",
+	"res://src/gameplay/match/team_match_state.gd",
+	"res://src/gameplay/pitching/pitch_aerodynamics.gd",
+	"res://src/gameplay/pitching/pitch_aim_solver.gd",
+	"res://src/gameplay/pitching/pitch_crossing_result.gd",
+	"res://src/gameplay/pitching/pitch_execution_model.gd",
+	"res://src/gameplay/pitching/pitch_exotic_shape.gd",
+	"res://src/gameplay/pitching/pitch_flight_solver.gd",
+	"res://src/gameplay/pitching/pitch_launch_builder.gd",
+	"res://src/gameplay/pitching/pitch_launch_parameters.gd",
+	"res://src/gameplay/pitching/pitch_release_controller.gd",
+	"res://src/gameplay/pitching/pitch_state.gd",
+	"res://src/gameplay/pitching/pitch_trajectory_simulator.gd",
+	"res://src/gameplay/pitching/pitching_strategy.gd",
+	"res://src/gameplay/season/season_cornerstone.gd",
+	"res://src/gameplay/season/season_encore.gd",
+	"res://src/gameplay/season/season_field_grant.gd",
+	"res://src/gameplay/season/season_gap_commit.gd",
+	"res://src/gameplay/season/season_gap_lane.gd",
+	"res://src/gameplay/season/season_inventory_resale.gd",
+	"res://src/gameplay/season/season_opponent_base.gd",
+	"res://src/gameplay/season/season_opponent_choices.gd",
+	"res://src/gameplay/season/season_opponent_heat.gd",
+	"res://src/gameplay/season/season_opponent_policy.gd",
+	"res://src/gameplay/season/season_opponent_recovery.gd",
+	"res://src/gameplay/season/season_opponent_tactics.gd",
+	"res://src/gameplay/season/season_performance.gd",
+	"res://src/gameplay/season/season_sponsor_effects.gd",
+	"res://src/gameplay/season/season_tactical_exchange.gd",
+	"res://src/gameplay/simulation/match_automation.gd",
+	"res://src/gameplay/simulation/physical_base_bag.gd",
+	"res://src/gameplay/simulation/physical_base_evidence.gd",
+	"res://src/gameplay/simulation/physical_base_flow.gd",
+	"res://src/gameplay/simulation/physical_base_report.gd",
+	"res://src/gameplay/simulation/physical_budget_evidence.gd",
+	"res://src/gameplay/simulation/physical_choice_evidence.gd",
+	"res://src/gameplay/simulation/physical_heat_evidence.gd",
+	"res://src/gameplay/simulation/physical_heat_terminal.gd",
+	"res://src/gameplay/simulation/physical_league_report.gd",
+	"res://src/gameplay/simulation/physical_match_evidence.gd",
+	"res://src/gameplay/simulation/physical_match_report.gd",
+	"res://src/gameplay/simulation/physical_match_request.gd",
+	"res://src/gameplay/simulation/physical_recovery_evidence.gd",
+	"res://src/gameplay/simulation/physical_recovery_flow.gd",
+	"res://src/gameplay/simulation/physical_tactical_evidence.gd",
+	"res://src/labs/pitch_bat_lab/at_bat_cadence_controller.gd",
+	"res://src/labs/pitch_bat_lab/match_lab_support.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_defense_support.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_feel_support.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_feel_support_operations_1.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_gap_support.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_home_run.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_input.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_pitch_call.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_presentation.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_presentation_operations_1.gd",
+	"res://src/labs/pitch_bat_lab/pitch_bat_lab_swing_support.gd",
+	"res://src/labs/pitch_bat_lab/starter_field_lab_geometry.gd",
+	"res://src/presentation/ball/ball_visibility.gd",
+	"res://src/presentation/ball/batted_ball_body.gd",
+	"res://src/presentation/ball/home_run_occlusion_marker.gd",
+	"res://src/presentation/ball/home_run_visual_occlusion.gd",
+	"res://src/presentation/ball/pitch_flight_actor.gd",
+	"res://src/presentation/ball/wiffle_ball_visual.gd",
+	"res://src/presentation/camera/match_camera_director.gd",
+	"res://src/presentation/camera/match_presentation_director.gd",
+	"res://src/presentation/equipment/bat_actor.gd",
+	"res://src/presentation/fielding/fielder_controller.gd",
+	"res://src/presentation/fielding/fielder_first_step.gd",
+	# End B1 source closure; dormant venue/session authority remains unadmitted.
+	"res://src/gameplay/season/successor_league_general_v2/physical_context.gd",
+	"res://src/gameplay/season/season_build.gd",
+	"res://src/gameplay/season/season_reclamation.gd",
+	"res://src/gameplay/season/dynasty_start_profile.gd",
+	"res://src/gameplay/season/dynasty_profile_contract.gd",
+	"res://src/gameplay/season/club_career.gd",
+	"res://src/gameplay/season/club_value_contract.gd",
+	"res://src/gameplay/season/club_asset_journal.gd",
+	"res://src/gameplay/season/recruit_catalog.gd",
+	"res://src/gameplay/season/development_shop_catalog.gd",
+	"res://src/gameplay/season/season_gear_progress.gd",
+	"res://src/gameplay/season/season_sponsor_progress.gd",
+	"res://src/gameplay/season/season_gear_catalog.gd",
+	"res://src/gameplay/season/season_sponsor_catalog.gd",
+	"res://src/gameplay/season/season_tactical_catalog.gd",
+	"res://src/gameplay/season/season_earned_gear.gd",
+	"res://src/gameplay/season/season_earned_sponsors.gd",
+	"res://src/gameplay/season/season_special_order.gd",
+	"res://src/gameplay/season/season_raincheck.gd",
+	"res://src/gameplay/season/season_transfer.gd",
+	"res://src/gameplay/season/season_second_chance.gd",
+	"res://src/gameplay/season/season_late_checkout.gd",
+	"res://src/gameplay/season/season_association.gd",
+	"res://src/gameplay/season/season_freezers.gd",
+	"res://src/gameplay/season/season_left_right.gd",
+	"res://src/gameplay/season/season_jumpstart.gd",
+	"res://src/gameplay/season/season_small_batch.gd",
+	"res://src/gameplay/season/season_sure_shot.gd",
+	"res://src/gameplay/season/season_field_supply.gd",
+	"res://src/gameplay/season/season_carbon_copy.gd",
+	"res://src/gameplay/season/season_abilities.gd",
+	"res://src/gameplay/season/season_double_major.gd",
+	"res://src/gameplay/season/season_retraining.gd",
+	"res://src/gameplay/season/season_alley_gear.gd",
+	"res://src/gameplay/season/season_frozen_rope.gd",
+	"res://src/gameplay/season/successor_career_history_v1/exotic_history.gd",
+	"res://src/gameplay/season/season_build_context.gd",
+	"res://src/gameplay/season/season_development.gd",
+	"res://src/gameplay/season/season_scramble.gd",
+	"res://src/gameplay/season/league_rules.gd",
+	"res://src/gameplay/season/league_tier_economy.gd",
+	"res://src/gameplay/season/season_ownership.gd",
+	"res://src/gameplay/season/successor_league_general_v2/build.gd",
+	"res://src/gameplay/season/successor_league_general_v2/build_restore.gd",
+	"res://src/gameplay/season/successor_league_general_v2/build_shop.gd",
+	"res://src/gameplay/season/successor_league_general_v2/called_proof.gd",
+	"res://src/gameplay/season/successor_league_general_v2/catalog_context.gd",
+	"res://src/gameplay/season/successor_league_general_v2/codec.gd",
+	"res://src/gameplay/season/successor_league_general_v2/decoder.gd",
+	"res://src/gameplay/season/successor_league_general_v2/development.gd",
+	"res://src/gameplay/season/successor_league_general_v2/exotic_access.gd",
+	"res://src/gameplay/season/successor_league_general_v2/exotic_eligibility.gd",
+	"res://src/gameplay/season/successor_league_general_v2/fresh_profiles.gd",
+	"res://src/gameplay/season/successor_league_general_v2/gear_offers.gd",
+	"res://src/gameplay/season/successor_league_general_v2/history.gd",
+	"res://src/gameplay/season/successor_league_general_v2/human_replay.gd",
+	"res://src/gameplay/season/successor_league_general_v2/match_adapter.gd",
+	"res://src/gameplay/season/successor_league_general_v2/opponent_lessons.gd",
+	"res://src/gameplay/season/successor_league_general_v2/opponent_market.gd",
+	"res://src/gameplay/season/successor_league_general_v2/opponent_policy.gd",
+	"res://src/gameplay/season/successor_league_general_v2/opponent_sponsors.gd",
+	"res://src/gameplay/season/successor_league_general_v2/opponents.gd",
+	"res://src/gameplay/season/successor_league_general_v2/pending.gd",
+	"res://src/gameplay/season/successor_league_general_v2/physical_core.gd",
+	"res://src/gameplay/season/successor_league_general_v2/physical_fixtures.gd",
+	"res://src/gameplay/season/successor_league_general_v2/physical_league.gd",
+	"res://src/gameplay/season/successor_league_general_v2/physical_report.gd",
+	"res://src/gameplay/season/successor_league_general_v2/physical_request.gd",
+	"res://src/gameplay/season/successor_league_general_v2/physical_runner.gd",
+	"res://src/gameplay/season/successor_league_general_v2/physical_workload.gd",
+	"res://src/gameplay/season/successor_league_general_v2/pitch_evidence.gd",
+	"res://src/gameplay/season/successor_league_general_v2/progression.gd",
+	"res://src/gameplay/season/successor_league_general_v2/replay_team.gd",
+	"res://src/gameplay/season/successor_league_general_v2/reward.gd",
+	"res://src/gameplay/season/successor_league_general_v2/runtime.gd",
+	"res://src/gameplay/season/successor_league_general_v2/runtime_commit.gd",
+	"res://src/gameplay/season/successor_league_general_v2/runtime_operations.gd",
+	"res://src/gameplay/season/successor_league_general_v2/save.gd",
+	"res://src/gameplay/season/successor_league_general_v2/shop.gd",
+	"res://src/gameplay/pitching/successor_v7/pitch_style_materializer.gd"]
+
+static var _forward_signature: String = ""
+
+static func signature() -> String:
+	# The frozen legacy package has its original reader. Editor/source audits
+	# never rely on a memo for an editable asset tree.
+	if OS.has_feature("editor") or not OS.has_feature("wiffaltro_catalog_forward_v1"):
+		return _fresh_signature()
+	if _forward_signature.is_empty():
+		_forward_signature = _fresh_signature()
+	return _forward_signature
+
+static func _fresh_signature() -> String:
+	var source: String = Provider.signature()
+	if source.is_empty():
+		return ""
+	# Same frozen109 algebra, using the Provider value already checked above.
+	# No identity survives this call; every legacy/current file is freshly hashed.
+	var legacy_catalog = preload("res://src/gameplay/season/successor_league_v1/catalog_context.gd")
+	var legacy_parts: Array[String] = [legacy_catalog.PURPOSE, source]
+	for path: String in legacy_catalog.FILES:
+		var digest: String = FileAccess.get_sha256(path)
+		if digest.is_empty():
+			return ""
+		legacy_parts.append(digest)
+	var legacy: String = "|".join(legacy_parts).sha256_text()
+	if legacy.is_empty():
+		return ""
+	var parts: Array[String] = [PURPOSE, source, legacy]
+	for path: String in FILES:
+		var digest: String = FileAccess.get_sha256(path)
+		if digest.is_empty():
+			return ""
+		parts.append(digest)
+	return "|".join(parts).sha256_text()
+
+static func descriptor() -> Dictionary:
+	var source: String = signature()
+	return {} if source.is_empty() else {"version": VERSION, "purpose": PURPOSE, "signature": source}
+
+static func valid_descriptor(value: Variant) -> bool:
+	if not value is Dictionary or not SeasonOwnership._keys(value, ["version", "purpose", "signature"]):
+		return false
+	return SeasonOwnership._whole(value.version, VERSION, VERSION) \
+		and value.purpose is String and value.purpose == PURPOSE \
+		and value.signature is String and not value.signature.is_empty() \
+		and value.signature == signature()
+
+static func recipes() -> Array[PitchDefinition]:
+	return Provider.recipes()
+
+static func ids() -> Array[String]:
+	return Provider.ids()
+
+static func known_ids() -> Array[String]:
+	return Provider.known_ids()
+
+static func get_recipe(id: String) -> PitchDefinition:
+	return Provider.get_recipe(id)
+
+static func supports(id: String) -> bool:
+	return Provider.supports(id)
+
+static func is_active(id: String) -> bool:
+	return Provider.is_active(id)
+
+static func is_exotic(id: String) -> bool:
+	return Provider.is_exotic(id)
+
+static func lesson_price(id: String) -> int:
+	return Provider.lesson_price(id)
+
+static func mastered(id: String, level: int) -> PitchDefinition:
+	return Provider.mastered(id, level)
+
+static func acquisition_design(id: String) -> Dictionary:
+	return Provider.acquisition_design(id)
