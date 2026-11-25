@@ -1,0 +1,134 @@
+extends Node
+## A fixed read-only child proves the immutable title without stalling the menu.
+## No path, save body, draft choice, or write authority crosses this protocol.
+signal completed(outcome: String)
+
+const Store=preload("owner_store.gd")
+const ARG: String="--dugout-d1-read-v1="
+const FRAME: String="WIFFALTRO_DUGOUT_D1_READ_V1 "
+const MAX_FRAME: int=4096
+const MAX_MS: int=720000
+
+var _job: Dictionary={}
+var _verified: Dictionary={}
+var _pid: int=-1
+var _out: FileAccess
+var _err: FileAccess
+var _buffer: PackedByteArray
+var _start_ms: int
+var _next_poll: int
+
+static func _wire(job: Dictionary) -> String:
+	return JSON.stringify(job,"",true,true)
+
+static func _valid(job: Variant) -> bool:
+	return Store.Codec.keys(job,["revision","page","nonce"]) \
+		and Store.BaseArchive._digest(job.revision) and Store.BaseArchive._digest(job.page) \
+		and Store.BaseArchive._digest(job.nonce) and job.revision!=job.nonce and job.page!=job.nonce
+
+static func parse(args: PackedStringArray) -> Dictionary:
+	if args.size()!=1 or args[0].length()>480 or not args[0].begins_with(ARG): return {}
+	var encoded: String=args[0].trim_prefix(ARG)
+	if encoded.is_empty() or encoded.length()%4!=0: return {}
+	for character: String in encoded:
+		if not "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".contains(character): return {}
+	var raw: String=Marshalls.base64_to_utf8(encoded)
+	if raw.is_empty() or Marshalls.utf8_to_base64(raw)!=encoded: return {}
+	var job: Variant=JSON.parse_string(raw)
+	return job if _valid(job) and raw==_wire(job) else {}
+
+static func _package() -> bool:
+	var exe: String=OS.get_executable_path()
+	return exe.is_absolute_path() and FileAccess.file_exists(exe.get_basename()+".pck")
+
+static func _matches(source: Dictionary, job: Dictionary) -> bool:
+	return not source.is_empty() and Store.BaseArchive._hash(source.bytes)==job.revision \
+		and source.head.pages[0]==job.page
+
+func start(expected: PackedByteArray) -> bool:
+	if _pid>0 or not is_inside_tree() or not Store._installed_dugout_d1_lane() or not _package(): return false
+	var source:=Store._installed_dugout_d1_source()
+	if source.is_empty() or expected.is_empty() or source.bytes!=expected: return false
+	var job: Dictionary={"revision":Store.BaseArchive._hash(expected),"page":source.head.pages[0],
+		"nonce":Crypto.new().generate_random_bytes(32).hex_encode()}
+	if not _valid(job): return false
+	_verified.clear()
+	var path: String=OS.get_executable_path().get_base_dir().path_join("Wiffaltro")
+	var launched:=OS.execute_with_pipe(path,[ARG+Marshalls.utf8_to_base64(_wire(job))],false)
+	_pid=int(launched.get("pid",-1))
+	_out=launched.get("stdio"); _err=launched.get("stderr")
+	if _pid<=0 or _out==null or _err==null:
+		cancel(); return false
+	_job=job
+	_start_ms=Time.get_ticks_msec()
+	_next_poll=_start_ms
+	process_mode=Node.PROCESS_MODE_ALWAYS
+	set_process(true)
+	return true
+
+func cancel() -> void:
+	_stop_child()
+	_verified.clear()
+
+func _stop_child() -> void:
+	if _pid>0 and OS.is_process_running(_pid): OS.kill(_pid)
+	_pid=-1
+	_out=null; _err=null
+	_buffer.clear()
+	_job.clear()
+	set_process(false)
+
+func _exit_tree() -> void: cancel()
+
+func _drain() -> bool:
+	if _out==null or _err==null or _err.get_length()!=0: return false
+	var n: int=_out.get_length()
+	if n<0 or n>MAX_FRAME-_buffer.size(): return false
+	if n>0:
+		var part: PackedByteArray=_out.get_buffer(n)
+		if part.size()!=n: return false
+		_buffer.append_array(part)
+	return true
+
+static func _decode(bytes: PackedByteArray, job: Dictionary, code: int) -> bool:
+	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return false
+	var text: String=bytes.get_string_from_utf8()
+	var lines: PackedStringArray=text.split("\n",false)
+	return text.ends_with("\n") and lines.size()==2 and lines[0].begins_with("Godot Engine v") \
+		and lines[1]==FRAME+_wire(job)
+
+func _process(_delta: float) -> void:
+	if _pid<=0: return
+	var now: int=Time.get_ticks_msec()
+	if now<_next_poll: return
+	_next_poll=now+80
+	if now-_start_ms>MAX_MS or not _drain():
+		cancel(); completed.emit("failed"); return
+	if OS.is_process_running(_pid): return
+	var exit_code: int=OS.get_process_exit_code(_pid)
+	var valid: bool=_drain() and _decode(_buffer,_job,exit_code)
+	var fresh: bool=valid and _matches(Store._installed_dugout_d1_source(),_job)
+	var witness: Dictionary=_job.duplicate() if fresh else {}
+	_stop_child()
+	_verified=witness
+	completed.emit("verified" if fresh else ("stale" if valid else "refused"))
+
+# The parent may consume only its completed matching, still-current job.
+func verified_revision(expected: PackedByteArray) -> bool:
+	if _pid>0 or _verified.is_empty() or not is_inside_tree() \
+		or not Store._installed_dugout_d1_lane() or Store.BaseArchive._hash(expected)!=_verified.revision: return false
+	var source:=Store._installed_dugout_d1_source()
+	return _matches(source,_verified) and source.bytes==expected
+
+func worker(job: Dictionary) -> void:
+	set_process(false)
+	if not _valid(job) or not _package() or not Store._installed_dugout_d1_read_worker():
+		get_tree().quit(3); return
+	var source:=Store._installed_dugout_d1_source(true)
+	if not _matches(source,job) or Store._restore_installed_dugout_d1_source(source)==null:
+		get_tree().quit(8); return
+	var again:=Store._installed_dugout_d1_source(true)
+	if not _matches(again,job) or again.bytes!=source.bytes or again.page!=source.page:
+		get_tree().quit(8); return
+	print(FRAME+_wire(job))
+	get_tree().quit()

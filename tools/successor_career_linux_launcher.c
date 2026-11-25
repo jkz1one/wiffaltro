@@ -80,8 +80,16 @@ int main(int argc, char **argv) {
     /* A separate native profile; keep the original qualification behavior. */
     umask(0077);
 #endif
-    const int worker = argc == 2 && strlen(argv[1]) <= 480 &&
-                       !strncmp(argv[1], WORKER_ARG, sizeof WORKER_ARG - 1);
+    const int npc_worker = argc == 2 && strlen(argv[1]) <= 480 &&
+                           !strncmp(argv[1], WORKER_ARG, sizeof WORKER_ARG - 1);
+#ifdef WIFFALTRO_FORWARD_CATALOG
+    const char d1_read_arg[] = "--dugout-d1-read-v1=";
+    const int d1_worker = argc == 2 && strlen(argv[1]) <= 480 &&
+                          !strncmp(argv[1], d1_read_arg, sizeof d1_read_arg - 1);
+    const int worker = npc_worker || d1_worker;
+#else
+    const int worker = npc_worker;
+#endif
     if (argc != 1 && !worker) {
         fputs("Wiffaltro Career Qualification does not accept launch arguments.\n", stderr);
         return 3;

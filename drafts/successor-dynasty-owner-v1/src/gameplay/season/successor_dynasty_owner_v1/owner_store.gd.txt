@@ -3065,22 +3065,45 @@ static func write_installed_dugout_d1_birth(owner: RefCounted, expected: PackedB
 	if saved: _invalidate()
 	return saved
 
-# Dedicated read-only native proof. The rotating installed .bak is not
-# used to recover a title, genesis, rights or draft picks.
-static func read_installed_dugout_d1_draft() -> Dictionary:
-	if saving or _ticket!=null or not _installed_dugout_d1_lane(): return {}
-	var before:=raw()
+# Fixed read-only child. It cannot enter raw(), any writer, or become
+# the installed owner. Only the named bootstrap dispatches this worker.
+static func _installed_dugout_d1_read_worker() -> bool:
+	return OS.has_feature(LeagueAdmission.CAREER_FORWARD_FEATURE) \
+		and LeagueAdmission.installed_career_worker()
+
+# Snapshot only this fixed revision and its one immutable page. Never fall
+# back to .bak, an unbound path, or another saved-career dialect.
+static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
+	if saving or _ticket!=null: return {}
+	if worker:
+		if not _installed_dugout_d1_read_worker() or _installed_paths_blocked() \
+			or not _base_archive_absent(INSTALLED_PATH+".tmp") \
+			or not _base_archive_absent(INSTALLED_PATH+INSTALLED_BACKUP_STAGE): return {}
+	elif not _installed_dugout_d1_lane(): return {}
+	var stored:=_base_archive_member(INSTALLED_PATH)
+	if stored.is_empty() or not stored.present: return {}
+	var before:=_installed_payload(stored.bytes)
 	var parts:=_installed_dugout_d1_parts(Owner._bytes_value(before))
 	if parts.is_empty() or not _installed_dugout_d1_page_root(false): return {}
 	var path:=_installed_dugout_d1_page_path(parts.head.pages[0])
 	if path.is_empty() or not _base_archive_absent(path+".tmp"): return {}
 	var member:=_base_archive_member(path)
-	if member.is_empty() or not member.present: return {}
-	var pages: Array[PackedByteArray]=[member.bytes]
-	var restored: SeasonState=preload("earned_dugout_d1.gd").restore_draft_from_pages(BaseArchive._wire(parts.head),pages,parts.current,true)
-	if restored==null or not _installed_dugout_d1_lane() or before!=raw() \
-			or not _base_archive_absent(path+".tmp") or not Codec.same(member,_base_archive_member(path)): return {}
-	return {"bytes":before,"head":parts.head,"current":parts.current,"session":restored}
+	if member.is_empty() or not member.present or BaseArchive._hash(member.bytes)!=parts.head.pages[0]: return {}
+	return {"bytes":before,"head":parts.head,"current":parts.current,"page":member.bytes}
+
+static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonState:
+	if source.is_empty(): return null
+	var pages: Array[PackedByteArray]=[source.page]
+	return preload("earned_dugout_d1.gd").restore_draft_from_pages( \
+		BaseArchive._wire(source.head),pages,source.current,true)
+
+static func read_installed_dugout_d1_draft() -> Dictionary:
+	var source:=_installed_dugout_d1_source()
+	var restored:=_restore_installed_dugout_d1_source(source)
+	if restored==null: return {}
+	var again:=_installed_dugout_d1_source()
+	if again.is_empty() or again.bytes!=source.bytes or again.page!=source.page: return {}
+	return {"bytes":source.bytes,"head":source.head,"current":source.current,"session":restored}
 
 static func stage_earned_dugout_d1(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
 	var offer:=earned_dugout_d1_offer(owner,expected)

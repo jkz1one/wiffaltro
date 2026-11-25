@@ -2,6 +2,7 @@ extends Node
 
 const Admission=preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
 const Npc=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
+const EarnedD1=preload("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd")
 const INTEGRATED: String="res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 
 func _ready() -> void:
@@ -10,6 +11,13 @@ func _ready() -> void:
 			call_deferred("_launch")
 			return
 		if Admission.installed_career_worker():
+			if OS.has_feature(Admission.CAREER_FORWARD_FEATURE):
+				var read_job:=EarnedD1.parse(OS.get_cmdline_user_args())
+				if not read_job.is_empty():
+					var reader: Node=EarnedD1.new()
+					add_child(reader)
+					reader.call_deferred("worker",read_job)
+					return
 			var job:=Npc.parse(OS.get_cmdline_user_args())
 			if not job.is_empty():
 				var worker: Node=Npc.new()
