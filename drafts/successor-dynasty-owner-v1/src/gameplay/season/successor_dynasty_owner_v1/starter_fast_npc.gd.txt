@@ -20,20 +20,27 @@ var _output: PackedByteArray
 var _launched: int
 var _next_poll: int
 var _runner: Node
+var _child_watch: int
 
 static func _canonical(data: Dictionary) -> String:
 	return JSON.stringify(data,"",true,true)
 
 static func scoped(owner: RefCounted) -> bool:
-	return Store.LeagueAdmission.starter_fast_worker() and _next_fixture(owner)>0
+	return _parent_profile() and _next_fixture(owner)>0
 
 static func _next_fixture(owner: RefCounted) -> int:
-	if owner==null or not Store._starter_owner_allowed(owner) or owner.active!="ordinary":
+	var allowed: bool=Store.installed_owner_shape(owner) if Store.LeagueAdmission.installed_career_feature() \
+		else Store._starter_owner_allowed(owner)
+	if owner==null or not allowed or owner.active!="ordinary":
 		return -1
 	var season: SeasonState=owner.session
 	if season==null or season.career==null or season.career.current!=1 \
 		or season.phase!=SeasonState.Phase.REGULAR or season.round_index not in [0,1]:
 		return -1
+	# This new installed acceleration is qualified only for the exact
+	# opening Dugout round. Other seasons retain the existing route.
+	if Store.LeagueAdmission.installed_career_feature() and (not season.league_live \
+		or season.league_rules.get("league")!="dugout" or season.round_index!=0): return -1
 	var native: Array=season.career.runs
 	if owner.ordinary_state.get("ordinal")!=1 or native.size()!=1 or native[0].get("id")!=1 \
 		or native[0].get("tier")!=0:
@@ -88,23 +95,35 @@ static func parse(args: PackedStringArray) -> Dictionary:
 	var job: Variant=JSON.parse_string(text)
 	return job if job is Dictionary and _valid(job) and _canonical(job)==text else {}
 
+static func _parent_profile() -> bool:
+	return Store.LeagueAdmission.starter_fast_worker() or Store.LeagueAdmission.installed_career_owned()
+
+static func _worker_profile() -> bool:
+	return Store.LeagueAdmission.starter_fast_worker() or Store.LeagueAdmission.installed_career_worker()
+
 static func _package() -> bool:
 	var exe: String=OS.get_executable_path()
-	return Store.LeagueAdmission.starter_fast_worker() and exe.is_absolute_path() \
+	return (_parent_profile() or _worker_profile()) and exe.is_absolute_path() \
 		and FileAccess.file_exists(exe.get_basename()+".pck")
 
 static func _slot() -> PackedByteArray:
 	# Reuse Starter's no-link policy before opening any suspect namespace
 	# (including backup/temp). This is not OS-level filesystem locking.
-	if Store._starter_slot_linked(): return PackedByteArray()
-	var file: FileAccess=FileAccess.open(Store.PATH,FileAccess.READ)
+	var installed: bool=Store.LeagueAdmission.installed_career_feature()
+	if installed:
+		if not (_parent_profile() or _worker_profile()) or Store._installed_paths_blocked() \
+			or FileAccess.file_exists(Store.INSTALLED_PATH+".tmp") \
+			or FileAccess.file_exists(Store.INSTALLED_PATH+Store.INSTALLED_BACKUP_STAGE): return PackedByteArray()
+	elif Store._starter_slot_linked(): return PackedByteArray()
+	var file: FileAccess=FileAccess.open(Store.slot_path(),FileAccess.READ)
 	if file==null: return PackedByteArray()
 	var length: int=file.get_length()
 	if length<1 or length>MAX_SLOT: return PackedByteArray()
 	var bytes: PackedByteArray=file.get_buffer(length)
-	if bytes.size()!=length or file.get_length()!=length or Store._starter_slot_linked():
-		return PackedByteArray()
-	return bytes
+	if bytes.size()!=length or file.get_length()!=length: return PackedByteArray()
+	if installed:
+		return Store._installed_payload(bytes) if not Store._installed_paths_blocked() else PackedByteArray()
+	return bytes if not Store._starter_slot_linked() else PackedByteArray()
 
 static func _hash(bytes: PackedByteArray) -> String:
 	if bytes.is_empty(): return ""
@@ -114,7 +133,7 @@ static func _hash(bytes: PackedByteArray) -> String:
 
 static func request(owner: RefCounted, expected: PackedByteArray, projection: Dictionary) -> Dictionary:
 	var next: int=_next_fixture(owner)
-	if not _package() or next<1 or expected.is_empty() or expected.size()>MAX_SLOT \
+	if not _parent_profile() or not _package() or next<1 or expected.is_empty() or expected.size()>MAX_SLOT \
 		or not projection.get("fixture") is Dictionary or not projection.get("candidate") is SeasonState:
 		return {}
 	var fixture: Dictionary=projection.fixture
@@ -125,10 +144,14 @@ static func request(owner: RefCounted, expected: PackedByteArray, projection: Di
 	return job if _valid(job) else {}
 
 func start(job: Dictionary) -> bool:
-	if _pid>0 or not _package() or not _valid(job) or _hash(_slot())!=job.raw: return false
+	if _pid>0 or not _parent_profile() or not _package() or not _valid(job) or _hash(_slot())!=job.raw: return false
 	_job=job.duplicate()
 	var arg: String=ARG+Marshalls.utf8_to_base64(_canonical(_job))
-	var launched:=OS.execute_with_pipe(OS.get_executable_path(),["--headless","--fixed-fps","60","--",arg],false)
+	var exe: String=OS.get_executable_path()
+	var installed: bool=Store.LeagueAdmission.installed_career_owned()
+	var program: String=exe.get_base_dir().path_join("Wiffaltro") if installed else exe
+	var options: PackedStringArray=[arg] if installed else ["--headless","--fixed-fps","60","--",arg]
+	var launched:=OS.execute_with_pipe(program,options,false)
 	_pid=int(launched.get("pid",-1))
 	_stdout=launched.get("stdio")
 	_stderr=launched.get("stderr")
@@ -159,7 +182,11 @@ func _drain() -> bool:
 	return true
 
 func _process(_delta: float) -> void:
-	if _pid<=0: return
+	if _pid<=0:
+		if _child_watch>0 and Time.get_ticks_msec()>=_child_watch:
+			if not Store.LeagueAdmission.installed_career_worker(): get_tree().quit(3)
+			_child_watch=Time.get_ticks_msec()+250
+		return
 	var now: int=Time.get_ticks_msec()
 	if now<_next_poll: return
 	_next_poll=now+40
@@ -199,11 +226,11 @@ static func decode(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictio
 		return {}
 	return report
 
-# Called only from the fixed Starter bootstrap. No arbitrary paths/scenes,
+# Called only from the fixed Starter or installed bootstrap. No arbitrary paths/scenes,
 # no access to original saves, and no writer/ticket API used by the child.
 func worker(job: Dictionary) -> void:
 	set_process(false)
-	if not _package() or not _valid(job) or DisplayServer.get_name()!="headless" \
+	if not _worker_profile() or not _package() or not _valid(job) or DisplayServer.get_name()!="headless" \
 		or not OS.get_cmdline_args().is_empty() or Engine.time_scale!=1.0 \
 		or Engine.physics_ticks_per_second!=60:
 		get_tree().quit(3)
@@ -219,7 +246,10 @@ func worker(job: Dictionary) -> void:
 	if _hash(bytes)!=job.raw:
 		get_tree().quit(3)
 		return
-	var owner: RefCounted=Store.read()
+	var installed: bool=Store.LeagueAdmission.installed_career_feature()
+	# The installed child can prove the bounded ordinary candidate, never enter
+	# Store.read() or inherit its in-process save ownership.
+	var owner: RefCounted=Store.Owner.restore(Store.Owner._bytes_value(bytes)) if installed else Store.read()
 	if str(_next_fixture(owner))!=job.fixture or _slot()!=bytes:
 		get_tree().quit(3)
 		return
@@ -235,6 +265,9 @@ func worker(job: Dictionary) -> void:
 	if state==null or field==null:
 		get_tree().quit(3)
 		return
+	if installed:
+		_child_watch=Time.get_ticks_msec()+250
+		set_process(true)
 	_runner=Store.Adapter.runner("ordinary").new()
 	add_child(_runner)
 	_runner.failed.connect(func(_reason: String) -> void: get_tree().quit(3))

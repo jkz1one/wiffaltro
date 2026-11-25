@@ -219,8 +219,7 @@ static func _installed_wire(body: PackedByteArray) -> PackedByteArray:
 	if digest.length()!=64: return PackedByteArray()
 	return (INSTALLED_HEADER+digest+"\n").to_utf8_buffer()+body
 
-static func _installed_blocked() -> bool:
-	if not LeagueAdmission.installed_career_owned(): return true
+static func _installed_paths_blocked() -> bool:
 	var path: String=OS.get_user_data_dir().trim_suffix("/")
 	while path!="" and path!="/":
 		var parent: String=path.get_base_dir()
@@ -235,7 +234,8 @@ static func _installed_blocked() -> bool:
 	return false
 
 static func _starter_slot_linked() -> bool:
-	if LeagueAdmission.installed_career_feature(): return _installed_blocked()
+	if LeagueAdmission.installed_career_feature():
+		return not LeagueAdmission.installed_career_owned() or _installed_paths_blocked()
 	if not LeagueAdmission.starter_feature(): return false
 	var root: String=OS.get_user_data_dir().trim_suffix("/")
 	var parent:=DirAccess.open(root.get_base_dir())
@@ -288,18 +288,20 @@ static func private_mixed_append() -> bool:
 		and OS.get_environment("WIFFALTRO_ISOLATED_TEST")=="1" \
 		and OS.get_environment("WIFFALTRO_STARTER_MIXED_APPEND_DRAFT")=="1"
 
+static func installed_owner_shape(owner: RefCounted) -> bool:
+	if owner==null or owner.get_script()!=Owner or owner.active!="ordinary" or owner.session==null \
+		or not owner.paused.is_empty() or not Owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+		or owner.ordinary_state.has("archive") or Owner.Mixed.marked_state(owner.ordinary_state) \
+		or Owner.MixedAppend.marked_state(owner.ordinary_state) \
+		or Owner.Common.cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")): return false
+	var current: SeasonState=owner.session
+	return (not current.league_live and current.career!=null \
+		and current.career.start_basis.get("kind")!="common-standard-d1-transition-v1") \
+		or (current.league_live and current.league_rules.get("league")=="dugout" and current.league_rules.get("tier",-1)==0)
+
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
 	if LeagueAdmission.installed_career_feature():
-		if not LeagueAdmission.installed_career_owned() or owner==null or owner.get_script()!=Owner \
-			or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
-			or not Owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
-			or owner.ordinary_state.has("archive") or Owner.Mixed.marked_state(owner.ordinary_state) \
-			or Owner.MixedAppend.marked_state(owner.ordinary_state) \
-			or Owner.Common.cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")): return false
-		var current: SeasonState=owner.session
-		return (not current.league_live and current.career!=null \
-			and current.career.start_basis.get("kind")!="common-standard-d1-transition-v1") \
-			or (current.league_live and current.league_rules.get("league")=="dugout" and current.league_rules.get("tier",-1)==0)
+		return LeagueAdmission.installed_career_owned() and installed_owner_shape(owner)
 	if owner!=null and Owner.MixedAppend.marked_state(owner.ordinary_state):
 		return private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner) \
 			or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner) \

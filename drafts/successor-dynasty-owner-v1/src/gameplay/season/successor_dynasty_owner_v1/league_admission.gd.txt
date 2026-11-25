@@ -19,26 +19,50 @@ const CAREER_USER_DIR: String="WiffaltroCareerQualification-v1"
 static func installed_career_feature() -> bool:
 	return OS.has_feature(CAREER_FEATURE)
 
-static func installed_career_owned() -> bool:
+static func _installed_career_profile() -> bool:
 	if not installed_career_feature() or OS.get_name()!="Linux" or OS.has_feature("editor") \
 		or OS.has_feature(STARTER_FEATURE) or OS.has_feature(MIXED_APPEND_QA_FEATURE) \
 		or OS.has_feature("wiffaltro_engineering_export") or OS.has_feature("wiffaltro_base_archive_read_playtest") \
 		or ProjectSettings.get_setting("application/config/custom_user_dir_name","")!=CAREER_USER_DIR \
 		or ProjectSettings.get_setting("application/run/main_scene","")!=CAREER_MAIN \
-		or ProjectSettings.get_setting("application/config/use_custom_user_dir",false)!=true \
-		or not OS.get_cmdline_args().is_empty() or not OS.get_cmdline_user_args().is_empty(): return false
+		or ProjectSettings.get_setting("application/config/use_custom_user_dir",false)!=true: return false
+	return true
+
+static func _installed_career_lock(pid: int, process_dir: String) -> bool:
+	if pid<1: return false
 	var root: String=OS.get_user_data_dir().simplify_path().trim_suffix("/")
 	if root.get_file()!=CAREER_USER_DIR: return false
-	var fd:=DirAccess.open("/proc/self/fd")
+	var fd:=DirAccess.open(process_dir+"/fd")
 	if fd==null or fd.read_link("198")!=root: return false
-	var info:=FileAccess.open("/proc/self/fdinfo/198",FileAccess.READ)
+	var info:=FileAccess.open(process_dir+"/fdinfo/198",FileAccess.READ)
 	if info==null: return false
 	# procfs fdinfo has a nominal size of zero: read the bounded line set.
 	for i in 16:
 		var fields:=info.get_line().replace("\t"," ").split(" ",false)
 		if fields.size()==9 and fields[0]=="lock:" and fields[2]=="FLOCK" and fields[3]=="ADVISORY" \
-			and fields[4]=="WRITE" and fields[5]==str(OS.get_process_id()) and fields[7]=="0" and fields[8]=="EOF": return true
+			and fields[4]=="WRITE" and fields[5]==str(pid) and fields[7]=="0" and fields[8]=="EOF": return true
 		if info.eof_reached(): break
+	return false
+
+static func installed_career_owned() -> bool:
+	return _installed_career_profile() and OS.get_cmdline_args().is_empty() and OS.get_cmdline_user_args().is_empty() \
+		and _installed_career_lock(OS.get_process_id(),"/proc/self")
+
+# Read-only installed CPU worker, never a lock holder or save owner.
+# The native shim closes its inherited copy before entering Godot.
+static func installed_career_worker() -> bool:
+	if not _installed_career_profile() or DisplayServer.get_name()!="headless" \
+		or not OS.get_cmdline_args().is_empty() or OS.get_cmdline_user_args().size()!=1: return false
+	var descriptors:=DirAccess.open("/proc/self/fd")
+	if descriptors==null or not descriptors.read_link("198").is_empty(): return false
+	var status:=FileAccess.open("/proc/self/status",FileAccess.READ)
+	if status==null: return false
+	for i in 24:
+		var line:=status.get_line()
+		if line.begins_with("PPid:"):
+			var pid: String=line.trim_prefix("PPid:").strip_edges()
+			return pid.is_valid_int() and int(pid)>1 and int(pid)!=OS.get_process_id() and _installed_career_lock(int(pid),"/proc/"+str(int(pid)))
+		if status.eof_reached(): break
 	return false
 
 # The qualification inherits the same public controls and tier restrictions,

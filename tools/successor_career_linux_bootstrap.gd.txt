@@ -1,14 +1,26 @@
 extends Node
 
 const Admission=preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
+const Npc=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
 const INTEGRATED: String="res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 
 func _ready() -> void:
-	if scene_file_path!=Admission.CAREER_MAIN or not Admission.installed_career_owned():
-		push_error("Wiffaltro Career Qualification launch refused. Start the Wiffaltro launcher.")
-		get_tree().quit(3)
-		return
-	call_deferred("_launch")
+	if scene_file_path==Admission.CAREER_MAIN:
+		if Admission.installed_career_owned():
+			call_deferred("_launch")
+			return
+		if Admission.installed_career_worker():
+			var job:=Npc.parse(OS.get_cmdline_user_args())
+			if not job.is_empty():
+				var worker: Node=Npc.new()
+				add_child(worker)
+				worker.call_deferred("worker",job)
+				return
+	_refuse()
+
+func _refuse() -> void:
+	push_error("Wiffaltro Career Qualification launch refused. Start the Wiffaltro launcher.")
+	get_tree().quit(3)
 
 func _launch() -> void:
 	if get_tree().change_scene_to_file(INTEGRATED)!=OK:

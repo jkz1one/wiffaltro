@@ -3,14 +3,17 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 #include <unistd.h>
 
 #define DATA_LEAF "WiffaltroCareerQualification-v1"
 #define LOCK_FD 198
+#define WORKER_ARG "--starter-npc-v1="
 
 /* Walk the fixed data path without traversing symlinks. Lock the career
  * directory itself, not a temporary file or a file in the install folder. */
@@ -40,9 +43,36 @@ static int open_data_leaf(const char *path) {
     return fd;
 }
 
+/* A worker is spawned only by the graphical owner and must never keep a
+ * reference to its locked file description. Do not use LOCK_UN here. */
+static int installed_worker(char *game, char *arg, const char *path) {
+    const pid_t parent = getppid();
+    struct stat inherited, target;
+    if (parent <= 1 || fstat(LOCK_FD, &inherited) || lstat(path, &target) ||
+        !S_ISDIR(inherited.st_mode) || inherited.st_dev != target.st_dev ||
+        inherited.st_ino != target.st_ino || inherited.st_uid != geteuid()) return 3;
+    FILE *info = fopen("/proc/self/fdinfo/198", "re");
+    if (!info) return 3;
+    char line[256];
+    int has_lock = 0;
+    for (int i = 0; i < 16 && fgets(line, sizeof(line), info); ++i) {
+        long owner;
+        if (sscanf(line, "lock: %*u: FLOCK ADVISORY WRITE %ld", &owner) == 1 && owner == (long)parent) {
+            has_lock = 1;
+            break;
+        }
+    }
+    fclose(info);
+    if (!has_lock || prctl(PR_SET_PDEATHSIG, SIGKILL) || getppid() != parent || close(LOCK_FD)) return 3;
+    char *const launch[] = {game, "--headless", "--fixed-fps", "60", "--", arg, NULL};
+    execv(game, launch);
+    return 4;
+}
+
 int main(int argc, char **argv) {
-    (void)argv;
-    if (argc != 1) {
+    const int worker = argc == 2 && strlen(argv[1]) <= 480 &&
+                       !strncmp(argv[1], WORKER_ARG, sizeof WORKER_ARG - 1);
+    if (argc != 1 && !worker) {
         fputs("Wiffaltro Career Qualification does not accept launch arguments.\n", stderr);
         return 3;
     }
@@ -60,6 +90,7 @@ int main(int argc, char **argv) {
     int n = data && *data ? snprintf(path, sizeof(path), "%s/" DATA_LEAF, data)
                          : home && *home ? snprintf(path, sizeof(path), "%s/.local/share/" DATA_LEAF, home) : -1;
     if (n < 0 || (size_t)n >= sizeof(path)) return 4;
+    if (worker) return installed_worker(game, argv[1], path);
     int fd = open_data_leaf(path);
     struct stat st;
     if (fd < 0 || fstat(fd, &st) || st.st_uid != geteuid() || (st.st_mode & 0022)) {
