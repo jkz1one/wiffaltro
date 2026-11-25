@@ -636,7 +636,7 @@ func _display_standard_record(history: Dictionary) -> void:
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
 	var state: String=draft.state
-	_label(_body,"DUGOUT D1 · DRAFT %d / 4"%draft.picks.size() if state=="draft" else "DUGOUT D1 · ROUND 1",24)
+	_label(_body,"DUGOUT D1 · DRAFT %d / 4"%draft.picks.size() if state=="draft" else "DUGOUT D1 · ROUND %d"%draft.round,24)
 	_note("Dugout Base championship kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
 		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
@@ -656,9 +656,12 @@ func _installed_dugout_d1() -> void:
 			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="paid":
 		_note("Round 1 has already paid. All three results are saved.")
+		_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 		for row: Array in draft.scores:
 			_note("%s: %d away – %d home"%["Club game" if row[0]==0 else "CPU game %d"%int(row[0]),row[1],row[2]])
+	elif state=="next_unpaid":
+		_note("Your second Club game is saved. The round has not been paid.")
 	else:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))

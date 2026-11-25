@@ -3142,7 +3142,10 @@ static func _installed_dugout_d1_verified_current(image: Dictionary) -> SeasonSt
 		if Codec.keys(pending,["human","reports"]) and pending.human is Array and pending.human.size()==13 \
 				and pending.reports is Array and pending.reports.size()<=2: return current
 	if current.round_index==1 and current.results.size()==3 and current.player_results.size()==1 \
-			and current.physical.pending.is_empty() and current.physical.reports.size()==2: return current
+			and current.physical.reports.size()==2 and current.pending_fixture().get("id")==3:
+		var pending: Dictionary=current.physical.pending
+		if pending.is_empty() or (Codec.keys(pending,["human","reports"]) and pending.human is Array \
+				and pending.human.size()==13 and pending.reports is Array and pending.reports.is_empty()): return current
 	return null
 
 static func _bound_installed_dugout_d1(expected: PackedByteArray) -> Dictionary:
@@ -3158,7 +3161,10 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return {}
 	var draft: SeasonState=_installed_dugout_d1_bound.draft
-	var state: String="draft" if draft.picks.size()<4 else ("paid" if draft.round_index==1 else ("ready" if draft.physical.pending.is_empty() else "unpaid"))
+	var state: String="draft"
+	if draft.picks.size()==4:
+		if draft.round_index==1: state="paid" if draft.physical.pending.is_empty() else "next_unpaid"
+		else: state="ready" if draft.physical.pending.is_empty() else "unpaid"
 	var reports: int=draft.physical.pending.reports.size() if state=="unpaid" else draft.physical.reports.size()
 	var scores: Array=[]
 	if state=="paid":
@@ -3166,7 +3172,7 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 			scores.append([int(row.id),int(row.away_runs),int(row.home_runs)])
 	return {"bytes":expected.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
 		"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),"state":state,
-		"cpu_reports":reports,"scores":scores}
+		"cpu_reports":reports,"scores":scores,"round":2 if state=="next_unpaid" else 1}
 
 # The menu cannot supply a child result, an archive path, or a saved session.
 static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArray) -> Dictionary:
@@ -3214,33 +3220,34 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return false
 	var bound: SeasonState=_installed_dugout_d1_bound.draft
-	if bound.phase!=SeasonState.Phase.REGULAR or bound.picks.size()!=4 or bound.round_index!=0 \
-			or not bound.results.is_empty() or not bound.physical.pending.is_empty(): return false
+	if bound.phase!=SeasonState.Phase.REGULAR or bound.picks.size()!=4 or bound.round_index not in [0,1] \
+			or bound.results.size()!=bound.round_index*3 or bound.player_results.size()!=bound.round_index \
+			or not bound.physical.pending.is_empty(): return false
 	var live: SeasonState=bound.fork_live()
 	if live==null: return false
 	var fixture: Dictionary=live.pending_fixture()
-	if fixture.get("id",-1)!=0 or (fixture.get("away",-1)!=0 and fixture.get("home",-1)!=0): return false
+	if fixture.get("id",-1)!=live.round_index*3 or (fixture.get("away",-1)!=0 and fixture.get("home",-1)!=0): return false
 	var state: MatchState=Adapter.OrdinaryFixtures.match_for(live,fixture)
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,live)
 	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence(): return false
 	app.season=live
-	app._fixture_id=0
+	app._fixture_id=int(fixture.id)
 	app._result_recorded=false
 	app._result_saved=false
 	app._open_match(state,int(fixture.home)==0,true,field.id)
 	if not is_instance_valid(app.lab) or app.lab._match_state!=state or app.season!=live: return false
-	_installed_dugout_d1_play={"app":weakref(app),"bytes":expected.duplicate(),"season":live,"state":state,"lab":weakref(app.lab),"field":field}
+	_installed_dugout_d1_play={"app":weakref(app),"bytes":expected.duplicate(),"season":live,"state":state,"lab":weakref(app.lab),"field":field,"fixture":int(fixture.id)}
 	return installed_dugout_d1_match_bound(app)
 
 static func installed_dugout_d1_match_bound(app: Variant) -> bool:
 	var bind: Dictionary=_installed_dugout_d1_play
 	if bind.is_empty() or not is_instance_valid(app) or bind.app.get_ref()!=app or bind.bytes!=app.saved_bytes \
-			or app.career_owner!=null or app.season!=bind.season or app._fixture_id!=0 \
+			or app.career_owner!=null or app.season!=bind.season or app._fixture_id!=bind.fixture \
 			or not is_instance_valid(app.lab) or bind.lab.get_ref()!=app.lab: return false
 	var lab: PitchBatLab=app.lab
 	var season: SeasonState=bind.season
 	return lab._match_state==bind.state and lab._field_definition==bind.field and lab._field_id==bind.field.id \
-		and lab._player_home==(int(season.pending_fixture().get("home",-1))==0) \
+		and season.pending_fixture().get("id")==bind.fixture and lab._player_home==(int(season.pending_fixture().get("home",-1))==0) \
 		and ClubCareer.same(lab._match_state.league_rules,season.league_rules) \
 		and lab._match_state.pitch_catalog==season.build.pitch_catalog_signature() \
 		and lab._match_state.stadium.is_empty() and season.physical.pending.is_empty()
@@ -3262,7 +3269,10 @@ static func save_installed_dugout_d1_managed(app: Variant) -> Dictionary:
 	if projection.has("error") or not projection.has("fixture") or not checked.get("source") is SeasonState: return {}
 	var recorded: Dictionary=Adapter.Ordinary.capture(checked.source)
 	var native:=_installed_dugout_d1_verified_current(recorded)
-	if native==null or not native.results.is_empty() or not native.physical.pending.reports.is_empty() \
+	if native==null or not native.physical.pending.reports.is_empty() \
+			or not Codec.same(recorded.state.results,source.current.ordinary.state.results) \
+			or not Codec.same(recorded.state.player_results,source.current.ordinary.state.player_results) \
+			or not Codec.same(recorded.physical.reports,source.current.ordinary.physical.reports) \
 			or not Codec.same(recorded.build,source.current.ordinary.build): return {}
 	if not installed_dugout_d1_match_bound(app): return {}
 	return _write_installed_dugout_d1_opening(source,expected,recorded,native)

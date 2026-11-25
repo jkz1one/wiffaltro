@@ -1092,8 +1092,9 @@ func pick_installed_dugout_d1(id: String,expected: PackedByteArray) -> void:
 	show_season()
 
 func play_installed_dugout_d1(expected: PackedByteArray) -> void:
-	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state")!="ready" \
-			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home": return
+	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state") not in ["ready","paid"] \
+			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home" \
+			or is_instance_valid(_installed_dugout_d1_shop): return
 	_busy=true
 	var opened: bool=Store.open_installed_dugout_d1_match(self)
 	_busy=false

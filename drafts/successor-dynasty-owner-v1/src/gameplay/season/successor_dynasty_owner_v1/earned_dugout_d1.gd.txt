@@ -185,43 +185,52 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 	return staged
 
 
-# Only the installed first-title lane admits gameplay. Independently recreate
-# the native season from its archive and picks, then verify exactly the real
-# opening-round evidence. A pending save remains unpaid even if two reports
-# already prove that it is ready to settle.
-static func _restore_opening_round(draft: SeasonState, expected: Dictionary, value: Dictionary) -> SeasonState:
+# Rebuild the separately authorized installed first-title history in order.
+# A later Club game uses the exact authored build after earlier rewards and
+# Shop actions. Never promote a current pending snapshot into a paid result.
+static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, value: Dictionary) -> SeasonState:
 	var api:=Archive._owner()
 	var image: Dictionary=value.ordinary
 	if draft.phase!=SeasonState.Phase.REGULAR or draft.picks.size()!=4 \
 			or draft.round_index!=0 or draft.pending_fixture().get("id")!=0 \
 			or not image.get("physical") is Dictionary or not image.physical.get("pending") is Dictionary \
 			or not image.physical.get("reports") is Array or not image.state.get("player_results") is Array \
-			or not image.state.get("results") is Array: return null
+			or not image.state.get("results") is Array or not image.get("build") is Dictionary \
+			or not image.build.get("build") is Dictionary: return null
 	var pending: Dictionary=image.physical.pending
-	var paid: bool=pending.is_empty()
-	if paid:
-		if image.physical.reports.size()!=2 or image.state.player_results.size()!=1 \
-				or image.state.results.size()!=3 or image.state.get("round_index")!=1: return null
-		var human:=Archive.Core._human(image.state.player_results[0],draft.pending_fixture())
+	var reports: Array=image.physical.reports
+	var humans: Array=image.state.player_results
+	var events: Variant=image.build.build.get("_events")
+	var visited: int=humans.size()
+	# This installed slice admits round 1 paid and the next Club game unpaid.
+	# Subsequent CPU outcomes remain outside this checkpoint.
+	if visited>1 or (visited==0 and pending.is_empty()) or image.state.get("round_index")!=visited \
+			or image.state.results.size()!=visited*3 or reports.size()!=visited*2 \
+			or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return null
+	var proven:=draft
+	for index: int in visited:
+		var fixture:=proven.pending_fixture()
+		if fixture.get("id")!=index*3: return null
+		var human:=Archive.Core._human(humans[index],fixture)
 		if human.is_empty(): return null
-		pending={"human":human,"reports":image.physical.reports}
-	elif not api.Codec.keys(pending,["human","reports"]) or not pending.reports is Array or pending.reports.size()>2 \
-			or not image.physical.reports.is_empty() or not image.state.results.is_empty() \
-			or not image.state.player_results.is_empty() or image.state.get("round_index")!=0: return null
-	draft.physical.pending=pending.duplicate(true)
-	var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(draft)
-	var projection: Dictionary=checked.projection
-	if projection.has("error") or not projection.get("candidate") is SeasonState: return null
-	if projection.has("fixture")!=(pending.reports.size()<2): return null
-	var proven: SeasonState=projection.candidate if paid else checked.source
-	if proven==null: return null
-	if paid:
-		# The paid projector owns the reward prefix. Shop can extend this
-		# exact first visit, never replace a score, reward, or Club right.
-		if not image.get("build") is Dictionary or not image.build.get("build") is Dictionary: return null
-		var events: Variant=image.build.build.get("_events")
-		if not events is Array or events.size()>SeasonBuild.MAX_EVENTS \
-				or not Archive.Core._shop(proven,events,0): return null
+		proven.physical.pending={"human":human,"reports":reports.slice(2*index,2*index+2)}
+		var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(proven)
+		var result: Dictionary=checked.projection
+		if result.has("error") or result.has("fixture") or not result.get("candidate") is SeasonState: return null
+		proven=result.candidate
+		# Only authored Shop operations after the exact native reward prefix
+		# can be replayed before constructing the following managed fixture.
+		if proven.round_index!=index+1 or not Archive.Core._shop(proven,events,0): return null
+	if not pending.is_empty():
+		var cap: int=2 if visited==0 else 0
+		if not api.Codec.keys(pending,["human","reports"]) or not pending.reports is Array \
+				or pending.reports.size()>cap or proven.pending_fixture().get("id")!=visited*3: return null
+		proven.physical.pending=pending.duplicate(true)
+		var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(proven)
+		var result: Dictionary=checked.projection
+		if result.has("error") or not result.get("candidate") is SeasonState \
+				or result.has("fixture")!=(pending.reports.size()<2) or not checked.get("source") is SeasonState: return null
+		proven=checked.source
 	expected.ordinary=api.Adapter.Ordinary.capture(proven)
 	return proven if not expected.ordinary.is_empty() and api.Codec.same(expected,value) else null
 
@@ -241,7 +250,7 @@ static func _restore_after_picks(staged: Dictionary, value: Dictionary, installe
 	expected.ordinary=api.Adapter.Ordinary.capture(draft)
 	if expected.ordinary.is_empty(): return null
 	if api.Codec.same(expected,value): return draft
-	return _restore_opening_round(draft,expected,value) if installed_forward_first else null
+	return _restore_regular_prefix(draft,expected,value) if installed_forward_first else null
 
 
 static func restore_draft_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], value: Dictionary, installed_forward_first: bool=false) -> SeasonState:
