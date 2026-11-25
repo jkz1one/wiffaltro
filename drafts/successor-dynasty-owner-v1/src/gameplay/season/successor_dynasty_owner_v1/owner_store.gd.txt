@@ -3144,17 +3144,32 @@ static func _installed_dugout_d1_verified_current(image: Dictionary) -> SeasonSt
 	var current:=_installed_dugout_d1_local_draft(image)
 	if current!=null: return current
 	current=Adapter.Ordinary.restore_common(image)
-	if current==null or current.phase!=SeasonState.Phase.REGULAR or current.picks.size()!=4 \
+	if current==null or current.picks.size()!=4 \
 			or not Codec.same(current.league_rules,LeagueRules.capture_tier("dugout",1)) \
 			or not Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d1(current.career.start_basis) \
 			or not Codec.same(Adapter.Ordinary.capture(current),image): return null
+	if not preload("earned_dugout_d1.gd").final_regular_destination(current).is_empty(): return current
 	if not _installed_dugout_d1_history_shape(current): return null
 	var pending: Dictionary=current.physical.pending
 	if pending.is_empty(): return current if current.round_index>0 else null
 	if current.round_index>=_installed_dugout_d1_regular_limit(): return null
 	return current if Codec.keys(pending,["human","reports"]) and pending.human is Array \
 		and pending.human.size()==13 and pending.human[0]==current.round_index*3 \
-		and pending.reports is Array and pending.reports.size()<=2 else null
+		and pending.reports is Array and pending.reports.size()<=preload("earned_dugout_d1.gd").regular_report_cap(current.round_index) else null
+
+
+# Keep the request number types from the actual authenticated in-memory
+# producer when it becomes the next warm save binding. Ordinary's materialized
+# image alone cannot retain them, even before a disk round trip.
+static func _installed_dugout_d1_rebind(image: Dictionary, producer: SeasonState) -> SeasonState:
+	var next:=_installed_dugout_d1_verified_current(image)
+	if next==null: return null
+	var earned: Script=preload("earned_dugout_d1.gd")
+	if not earned.needs_wallet_types(next): return next
+	if not earned.restore_wallet_types(next,earned.wallet_types(producer)) \
+			or not Codec.same(Adapter.Ordinary.capture(next),image): return null
+	if not next.physical.pending.is_empty() and _installed_dugout_d1_project_pending(next).is_empty(): return null
+	return next
 
 
 static func _bound_installed_dugout_d1(expected: PackedByteArray) -> Dictionary:
@@ -3175,14 +3190,22 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 		if not draft.physical.pending.is_empty(): state="unpaid"
 		else: state="ready" if draft.round_index==0 else "paid"
 	var reports: int=draft.physical.pending.reports.size() if state=="unpaid" else 0
+	var finish: String=preload("earned_dugout_d1.gd").final_regular_destination(draft)
+	var cpu_total: int=2
+	if state=="unpaid" and draft.round_index==_installed_dugout_d1_regular_limit()-1 and reports>=2:
+		var plan:=_installed_dugout_d1_pending(expected)
+		if plan.is_empty(): return {}
+		if plan.projection.has("fixture") or reports>2: cpu_total=5
 	var scores: Array=[]
 	if state=="paid":
-		for row: Dictionary in draft.results.slice(-3):
+		var start: int=27 if not finish.is_empty() else draft.results.size()-3
+		for row: Dictionary in draft.results.slice(start):
 			scores.append([int(row.id),int(row.away_runs),int(row.home_runs)])
 	return {"bytes":expected.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
 		"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),"state":state,
-		"cpu_reports":reports,"scores":scores,"round":draft.round_index if state=="paid" else draft.round_index+1,
-		"next_available":draft.round_index<_installed_dugout_d1_regular_limit()}
+		"cpu_reports":reports,"cpu_total":cpu_total,"scores":scores,"round":draft.round_index if state=="paid" else draft.round_index+1,
+		"next_available":draft.round_index<_installed_dugout_d1_regular_limit(),"finish":finish,
+		"shop_available":state=="paid" and draft.shop_available()}
 
 # The menu cannot supply a child result, an archive path, or a saved session.
 static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArray) -> Dictionary:
@@ -3191,7 +3214,14 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 	var source:=_installed_dugout_d1_source()
 	if source.is_empty() or source.bytes!=expected: return {}
 	var draft:=_installed_dugout_d1_verified_current(source.current.ordinary)
-	if draft==null or not reader.verified_revision(expected): return {}
+	if draft==null: return {}
+	var earned: Script=preload("earned_dugout_d1.gd")
+	var witness: String=reader.verified_wallets()
+	if earned.needs_wallet_types(draft):
+		if not earned.restore_wallet_types(draft,witness) \
+				or not Codec.same(Adapter.Ordinary.capture(draft),source.current.ordinary): return {}
+	elif not witness.is_empty(): return {}
+	if not reader.verified_revision(expected): return {}
 	_invalidate()
 	_installed_dugout_d1_bound={"bytes":expected.duplicate(),"page":source.head.pages[0],"draft":draft}
 	return installed_dugout_d1_view(expected)
@@ -3277,7 +3307,7 @@ static func save_installed_dugout_d1_managed(app: Variant) -> Dictionary:
 	var projection: Dictionary=checked.projection
 	if projection.has("error") or not projection.has("fixture") or not checked.get("source") is SeasonState: return {}
 	var recorded: Dictionary=Adapter.Ordinary.capture(checked.source)
-	var native:=_installed_dugout_d1_verified_current(recorded)
+	var native:=_installed_dugout_d1_rebind(recorded,checked.source)
 	if native==null or not native.physical.pending.reports.is_empty() \
 			or not Codec.same(recorded.state.results,source.current.ordinary.state.results) \
 			or not Codec.same(recorded.state.player_results,source.current.ordinary.state.player_results) \
@@ -3309,15 +3339,19 @@ static func _write_installed_dugout_d1_opening(source: Dictionary,expected: Pack
 static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionary:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return {}
-	var session: SeasonState=_installed_dugout_d1_bound.draft
+	var plan:=_installed_dugout_d1_project_pending(_installed_dugout_d1_bound.draft)
+	if not plan.is_empty(): plan.source=source
+	return plan
+
+static func _installed_dugout_d1_project_pending(session: SeasonState) -> Dictionary:
 	if not _installed_dugout_d1_history_shape(session) or session.round_index>=_installed_dugout_d1_regular_limit() \
 			or session.physical.pending.is_empty(): return {}
 	var checked: Dictionary=BaseArchive.Core.MixedProof._project_mixed_round(session)
 	var result: Dictionary=checked.projection
 	if result.has("error") or not result.get("candidate") is SeasonState or not checked.get("source") is SeasonState: return {}
 	var count: int=session.physical.pending.reports.size()
-	if count>2 or result.has("fixture")!=(count<2): return {}
-	return {"source":source,"projection":result,"session":checked.source,"count":count,
+	if not preload("earned_dugout_d1.gd").regular_projection_shape(session.round_index,count,result.has("fixture")): return {}
+	return {"projection":result,"session":checked.source,"count":count,
 		"round":session.round_index,"managed_id":session.round_index*3}
 
 static func _installed_dugout_d1_round_app(app: Variant) -> bool:
@@ -3331,10 +3365,12 @@ static func start_installed_dugout_d1_cpu(app: Variant) -> bool:
 	if not _installed_dugout_d1_round_app(app) or not _installed_dugout_d1_cpu.is_empty() or is_instance_valid(app.ai_runner): return false
 	var expected: PackedByteArray=app.saved_bytes
 	var round_plan:=_installed_dugout_d1_pending(expected)
-	if round_plan.is_empty() or round_plan.count>=2: return false
+	if round_plan.is_empty() or not round_plan.projection.get("fixture") is Dictionary: return false
 	var fixture: Dictionary=round_plan.projection.fixture
 	var plan: SeasonState=round_plan.projection.candidate
-	if fixture.get("id")!=round_plan.managed_id+round_plan.count+1 or fixture.get("round")!=round_plan.round \
+	var next_id: int=round_plan.managed_id+round_plan.count+1
+	var next_round: int=int(round_plan.round) if next_id<30 else (10 if next_id<32 else 11)
+	if fixture.get("id")!=next_id or fixture.get("round")!=next_round \
 			or fixture.get("away")==0 or fixture.get("home")==0: return false
 	var state: MatchState=Adapter.OrdinaryFixtures.match_for(plan,fixture)
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,plan)
@@ -3389,7 +3425,7 @@ static func _stage_installed_dugout_d1_cpu(lease: Dictionary,report: Dictionary)
 	if pending.reports.size()!=int(lease.count)+1 or not Codec.same(pending.human,before.physical.pending.human) \
 			or not Codec.same(pending.reports.slice(0,pending.reports.size()-1),before.physical.pending.reports): return {}
 	var recorded: Dictionary=Adapter.Ordinary.capture(candidate)
-	var native:=_installed_dugout_d1_verified_current(recorded)
+	var native:=_installed_dugout_d1_rebind(recorded,candidate)
 	var prior: Dictionary=round_plan.source.current.ordinary
 	if native==null or native.physical.pending.reports.size()!=pending.reports.size() \
 			or not Codec.same(recorded.state.results,prior.state.results) \
@@ -3402,18 +3438,22 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 	if not _installed_dugout_d1_round_app(app) or is_instance_valid(app.ai_runner) or not _installed_dugout_d1_cpu.is_empty(): return {}
 	var expected: PackedByteArray=app.saved_bytes
 	var round_plan:=_installed_dugout_d1_pending(expected)
-	if round_plan.is_empty() or round_plan.count!=2 or round_plan.projection.has("fixture"): return {}
+	if round_plan.is_empty() or round_plan.projection.has("fixture"): return {}
 	var candidate: SeasonState=round_plan.projection.candidate
 	var prior: Dictionary=round_plan.source.current.ordinary
-	if not _installed_dugout_d1_history_shape(candidate) or candidate.round_index!=int(round_plan.round)+1 \
-			or not candidate.physical.pending.is_empty(): return {}
+	var count: int=round_plan.count
+	if candidate.round_index!=int(round_plan.round)+1 or not candidate.physical.pending.is_empty(): return {}
+	if candidate.round_index==_installed_dugout_d1_regular_limit():
+		var finish: String=preload("earned_dugout_d1.gd").final_regular_destination(candidate)
+		if finish.is_empty() or count!=(2 if finish=="semifinal" else 5): return {}
+	elif not _installed_dugout_d1_history_shape(candidate): return {}
 	var recorded: Dictionary=Adapter.Ordinary.capture(candidate)
-	var native:=_installed_dugout_d1_verified_current(recorded)
+	var native:=_installed_dugout_d1_rebind(recorded,candidate)
 	if native==null or native.round_index!=candidate.round_index or native.cash()!=candidate.cash() \
-			or not Codec.same(recorded.state.results.slice(0,-3),prior.state.results) \
+			or not Codec.same(recorded.state.results.slice(0,-(count+1)),prior.state.results) \
 			or not Codec.same(recorded.state.player_results.slice(0,-1),prior.state.player_results) \
-			or not Codec.same(recorded.physical.reports.slice(0,-2),prior.physical.reports) \
-			or not Codec.same(recorded.physical.reports.slice(-2),prior.physical.pending.reports): return {}
+			or not Codec.same(recorded.physical.reports.slice(0,-count),prior.physical.reports) \
+			or not Codec.same(recorded.physical.reports.slice(-count),prior.physical.pending.reports): return {}
 	return _write_installed_dugout_d1_opening(round_plan.source,expected,recorded,native)
 
 # Shop belongs to the current settled regular round. Access stays inside
@@ -3422,8 +3462,8 @@ static func _installed_dugout_d1_shop_source(expected: PackedByteArray) -> Dicti
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return {}
 	var session: SeasonState=_installed_dugout_d1_bound.draft
-	if not _installed_dugout_d1_history_shape(session) or session.round_index<1 \
-			or not session.physical.pending.is_empty() or not session.shop_available() \
+	if (not _installed_dugout_d1_history_shape(session) and preload("earned_dugout_d1.gd").final_regular_destination(session)!="semifinal") \
+			or session.round_index<1 or not session.physical.pending.is_empty() or not session.shop_available() \
 			or session.build._visit.number!=session.round_index: return {}
 	return {"source":source,"session":session}
 
@@ -3479,7 +3519,7 @@ static func _write_installed_dugout_d1_shop(shop_source: Dictionary,expected: Pa
 	if image.is_empty() or not Codec.same(image.physical,shop_source.source.current.ordinary.physical) \
 			or not Codec.same(image.state.results,shop_source.source.current.ordinary.state.results) \
 			or not Codec.same(image.state.player_results,shop_source.source.current.ordinary.state.player_results): return {}
-	var native:=_installed_dugout_d1_verified_current(image)
+	var native:=_installed_dugout_d1_rebind(image,candidate)
 	if native==null or native.cash()!=next.cash(): return {}
 	return _installed_dugout_d1_shop_view(_write_installed_dugout_d1_opening(shop_source.source,expected,image,native))
 

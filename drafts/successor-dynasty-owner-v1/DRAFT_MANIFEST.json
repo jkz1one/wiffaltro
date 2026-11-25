@@ -138,8 +138,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 271616,
-      "sha256": "90d5500a8fb04485cf8f7fc37a5aa3f5aeec0be16b37ce5c9e645d456eed1338"
+      "bytes": 274090,
+      "sha256": "ddd48845fe11c7886a98cdb8b98b6fd2b6e69a130da8f60275e567840df498b7"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -222,8 +222,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/menu.gd",
-      "bytes": 54860,
-      "sha256": "f6e578282e195dd590de616b574f5a79d6d38e40a2281af379e3f4abbf98e8df"
+      "bytes": 55446,
+      "sha256": "7b78f2f8256475b8a71c6424fe041d3350b090773722572fe9361402ea2b3b8a"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd.txt",
@@ -974,14 +974,14 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d1.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d1.gd",
-      "bytes": 16448,
-      "sha256": "a37e05a025fc1a74f00c61d983c74da93811a70ce8d8c87309673549f31c47d1"
+      "bytes": 22461,
+      "sha256": "be22d994a7da969ca5f1327710ef4ae5e8632e3b4cc2d53f69d00aec4bb4f7ac"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd",
-      "bytes": 5448,
-      "sha256": "151bd663eab59b772523d4ea77aaa4dd6183ec640c149de60e2eb09a28480852"
+      "bytes": 6401,
+      "sha256": "335547443ef88eb44aecc486cd2089355a9ad97d8d0fe122168f10906dd43197"
     }
   ]
 }

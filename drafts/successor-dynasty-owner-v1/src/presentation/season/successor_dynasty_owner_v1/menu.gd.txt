@@ -645,23 +645,34 @@ func _installed_dugout_d1() -> void:
 		_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="unpaid":
 		_note("Your Club game is saved. The round has not been paid.")
-		_note("CPU games saved: %d / 2"%draft.cpu_reports)
+		if draft.round==10 and draft.cpu_reports<2:
+			_note("Two regular-season CPU games first. Standings decide whether more are needed.")
+		_note("CPU games saved: %d / %d"%[draft.cpu_reports,draft.cpu_total])
 		if app.installed_dugout_d1_cpu_running():
-			_note("Playing CPU game %d of 2…"%int(draft.cpu_reports+1))
+			_note("Playing CPU game %d of %d…"%[int(draft.cpu_reports+1),draft.cpu_total])
 			_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
-		elif draft.cpu_reports<2:
-			_bound_button(_body,"PLAY CPU GAME %d OF 2"%int(draft.cpu_reports+1),
+		elif draft.cpu_reports<draft.cpu_total:
+			_bound_button(_body,"PLAY CPU GAME %d OF %d"%[int(draft.cpu_reports+1),draft.cpu_total],
 				Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 		else:
 			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="paid":
-		_note("Round %d has already paid. All three results are saved."%draft.round)
+		if draft.finish=="semifinal":
+			_note("Round 10 has paid. Your Club qualified for the semifinal.")
+		elif draft.finish=="missed":
+			_note("Round 10 has paid. Your Club missed the playoffs; the CPU bracket is complete.")
+		else:
+			_note("Round %d has already paid. All three results are saved."%draft.round)
 		if draft.next_available:
 			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
-		_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
+		if draft.shop_available:
+			_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 		for row: Array in draft.scores:
-			var within_round: int=int(row[0])%3
-			_note("%s: %d away – %d home"%["Club game" if within_round==0 else "CPU game %d"%within_round,row[1],row[2]])
+			var id: int=int(row[0])
+			var within_round: int=id%3
+			var title: String="Club game" if within_round==0 else "CPU game %d"%within_round
+			if id>=30: title="CPU semifinal %d"%(id-29) if id<32 else "CPU final"
+			_note("%s: %d away – %d home"%[title,row[1],row[2]])
 	else:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))

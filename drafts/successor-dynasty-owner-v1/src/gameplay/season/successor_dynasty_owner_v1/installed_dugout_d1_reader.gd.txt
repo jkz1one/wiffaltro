@@ -1,16 +1,19 @@
 extends Node
 ## A fixed read-only child proves the immutable title without stalling the menu.
+## Only revision-bound journal number types may accompany a verified read.
 ## No path, save body, draft choice, or write authority crosses this protocol.
 signal completed(outcome: String)
 
 const Store=preload("owner_store.gd")
+const Earned=preload("earned_dugout_d1.gd")
 const ARG: String="--dugout-d1-read-v1="
 const FRAME: String="WIFFALTRO_DUGOUT_D1_READ_V1 "
-const MAX_FRAME: int=4096
+const MAX_FRAME: int=12288
 const MAX_MS: int=720000
 
 var _job: Dictionary={}
 var _verified: Dictionary={}
+var _verified_wallet_types: String=""
 var _pid: int=-1
 var _out: FileAccess
 var _err: FileAccess
@@ -53,6 +56,7 @@ func start(expected: PackedByteArray) -> bool:
 		"nonce":Crypto.new().generate_random_bytes(32).hex_encode()}
 	if not _valid(job): return false
 	_verified.clear()
+	_verified_wallet_types=""
 	var path: String=OS.get_executable_path().get_base_dir().path_join("Wiffaltro")
 	var launched:=OS.execute_with_pipe(path,[ARG+Marshalls.utf8_to_base64(_wire(job))],false)
 	_pid=int(launched.get("pid",-1))
@@ -69,6 +73,7 @@ func start(expected: PackedByteArray) -> bool:
 func cancel() -> void:
 	_stop_child()
 	_verified.clear()
+	_verified_wallet_types=""
 
 func _stop_child() -> void:
 	if _pid>0 and OS.is_process_running(_pid): OS.kill(_pid)
@@ -90,12 +95,16 @@ func _drain() -> bool:
 		_buffer.append_array(part)
 	return true
 
-static func _decode(bytes: PackedByteArray, job: Dictionary, code: int) -> bool:
-	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return false
+static func _decode(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictionary:
+	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return {}
 	var text: String=bytes.get_string_from_utf8()
 	var lines: PackedStringArray=text.split("\n",false)
-	return text.ends_with("\n") and lines.size()==2 and lines[0].begins_with("Godot Engine v") \
-		and lines[1]==FRAME+_wire(job)
+	if not text.ends_with("\n") or lines.size()!=2 or not lines[0].begins_with("Godot Engine v"): return {}
+	var prefix: String=FRAME+_wire(job)
+	if lines[1]==prefix: return {"wallet_types":""}
+	if not lines[1].begins_with(prefix+" "): return {}
+	var wallet: String=lines[1].trim_prefix(prefix+" ")
+	return {"wallet_types":wallet} if Earned.valid_wallet_types(wallet) else {}
 
 func _process(_delta: float) -> void:
 	if _pid<=0: return
@@ -106,12 +115,16 @@ func _process(_delta: float) -> void:
 		cancel(); completed.emit("failed"); return
 	if OS.is_process_running(_pid): return
 	var exit_code: int=OS.get_process_exit_code(_pid)
-	var valid: bool=_drain() and _decode(_buffer,_job,exit_code)
-	var fresh: bool=valid and _matches(Store._installed_dugout_d1_source(),_job)
+	var reply: Dictionary=_decode(_buffer,_job,exit_code) if _drain() else {}
+	var fresh: bool=not reply.is_empty() and _matches(Store._installed_dugout_d1_source(),_job)
 	var witness: Dictionary=_job.duplicate() if fresh else {}
 	_stop_child()
 	_verified=witness
-	completed.emit("verified" if fresh else ("stale" if valid else "refused"))
+	_verified_wallet_types=reply.wallet_types if fresh else ""
+	completed.emit("verified" if fresh else ("stale" if not reply.is_empty() else "refused"))
+
+func verified_wallets() -> String:
+	return _verified_wallet_types if _pid<0 and not _verified.is_empty() else ""
 
 # The parent may consume only its completed matching, still-current job.
 func verified_revision(expected: PackedByteArray) -> bool:
@@ -125,10 +138,18 @@ func worker(job: Dictionary) -> void:
 	if not _valid(job) or not _package() or not Store._installed_dugout_d1_read_worker():
 		get_tree().quit(3); return
 	var source:=Store._installed_dugout_d1_source(true)
-	if not _matches(source,job) or Store._restore_installed_dugout_d1_source(source)==null:
+	if not _matches(source,job):
 		get_tree().quit(8); return
+	var restored: SeasonState=Store._restore_installed_dugout_d1_source(source)
+	if restored==null:
+		get_tree().quit(8); return
+	var wallets: String=""
+	if Earned.needs_wallet_types(restored):
+		wallets=Earned.wallet_types(restored)
+		if wallets.is_empty():
+			get_tree().quit(8); return
 	var again:=Store._installed_dugout_d1_source(true)
 	if not _matches(again,job) or again.bytes!=source.bytes or again.page!=source.page:
 		get_tree().quit(8); return
-	print(FRAME+_wire(job))
+	print(FRAME+_wire(job)+(" "+wallets if not wallets.is_empty() else ""))
 	get_tree().quit()

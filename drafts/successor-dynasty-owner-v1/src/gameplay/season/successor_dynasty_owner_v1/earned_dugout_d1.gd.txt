@@ -185,8 +185,135 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 	return staged
 
 
-# Round 10 commits a playoff transition, a different native boundary.
-const LAST_INSTALLED_REGULAR_ROUND: int=9
+const LAST_INSTALLED_REGULAR_ROUND: int=10
+
+# This lane ends at the deterministic last-regular transition. It does not
+# recognize a played semifinal/final or grant season-Close authority.
+static func final_regular_destination(session: SeasonState) -> String:
+	if session==null or session.round_index!=LAST_INSTALLED_REGULAR_ROUND \
+			or session.picks.size()!=4 or session.player_results.size()!=10 \
+			or not session.physical.pending.is_empty() or session.playoff_seeds.size()!=4: return ""
+	# Godot's Array.has distinguishes 0 from the JSON-decoded 0.0.
+	var club_qualified: bool=session.playoff_seeds.any(
+		func(seed: Variant) -> bool: return SeasonOwnership._whole(seed,0,0))
+	if session.phase==SeasonState.Phase.SEMIFINAL and club_qualified \
+			and session.results.size()==30 and session.physical.reports.size()==20:
+		var fixture: Dictionary=session.pending_fixture()
+		if SeasonOwnership._whole(fixture.get("id"),30,31) \
+				and (fixture.get("away")==0 or fixture.get("home")==0):
+			return "semifinal"
+	if session.phase==SeasonState.Phase.COMPLETE and not club_qualified \
+			and session.results.size()==33 and session.physical.reports.size()==23 \
+			and session.champion in [1,2,3,4,5] and session.pending_fixture().is_empty():
+		return "missed"
+	return ""
+
+static func regular_report_cap(index: int) -> int:
+	return 5 if index==LAST_INSTALLED_REGULAR_ROUND-1 else 2
+
+static func regular_projection_shape(index: int,count: int, needs_cpu: bool) -> bool:
+	var cap:=regular_report_cap(index)
+	return count>=0 and count<=cap and (count<cap if needs_cpu else (count==2 or count==cap))
+
+# Numeric types are part of the native CPU request hash, while the JSON
+# save preserves their values but not their native integer/float distinction.
+# A bounded read witness carries ONLY types from the authenticated replay.
+const WALLET_TYPES_MAX: int=1536
+
+static func needs_wallet_types(session: SeasonState) -> bool:
+	return session!=null and session.phase==SeasonState.Phase.REGULAR \
+		and session.round_index==LAST_INSTALLED_REGULAR_ROUND-1
+
+static func valid_wallet_types(witness: String) -> bool:
+	var parts: PackedStringArray=witness.split(".")
+	if parts.size()!=6: return false
+	for part: String in parts:
+		if part.is_empty() or part.length()>WALLET_TYPES_MAX: return false
+		for digit: String in part:
+			if digit not in ["i","f"]: return false
+	return true
+
+static func _wallets(session: SeasonState) -> Array[SeasonOwnership]:
+	var banks: Array[SeasonOwnership]=[]
+	if not needs_wallet_types(session) or session.build==null or session.opponents==null: return banks
+	banks.append(session.build._bank)
+	for club: int in range(1,6):
+		var item: Variant=session.opponents.clubs.get(str(club))
+		if not item is Dictionary or not item.get("build") is SeasonBuild: return []
+		banks.append(item.build._bank)
+	return banks
+
+static func _type_tree(value: Variant, job: Dictionary, depth: int=0) -> Variant:
+	if not job.ok: return value
+	if depth>12:
+		job.ok=false
+	elif value is Dictionary:
+		var keys: Array=value.keys()
+		for key: Variant in keys:
+			if not key is String:
+				job.ok=false
+				return value
+		keys.sort()
+		for key: String in keys:
+			value[key]=_type_tree(value[key],job,depth+1)
+	elif value is Array:
+		for index: int in value.size():
+			value[index]=_type_tree(value[index],job,depth+1)
+	elif (value is int or value is float) and SeasonOwnership._whole(value,-9007199254740991,9007199254740991):
+		var cursor: int=job.cursor
+		if cursor>=WALLET_TYPES_MAX:
+			job.ok=false
+		elif not job.apply:
+			job.tape+=("i" if value is int else "f")
+		elif cursor>=job.tape.length():
+			job.ok=false
+		else:
+			if job.tape[cursor]=="i": value=int(value)
+			else: value=float(value)
+		job.cursor+=1
+	return value
+
+# The CPU request includes the journal and effective held purchase receipts.
+# Preserve types from both parts; the scalar values already exist locally.
+static func _wallet_number_scope(bank: SeasonOwnership) -> Dictionary:
+	return {"events":bank._events.duplicate(true),"state":bank._state.duplicate(true)}
+
+static func wallet_types(session: SeasonState) -> String:
+	var banks:=_wallets(session)
+	if banks.size()!=6: return ""
+	var out: PackedStringArray=[]
+	for bank: SeasonOwnership in banks:
+		if bank==null: return ""
+		var job: Dictionary={"cursor":0,"tape":"","ok":true,"apply":false}
+		_type_tree(_wallet_number_scope(bank),job)
+		if not job.ok: return ""
+		out.append(job.tape)
+	var witness: String=".".join(out)
+	return witness if valid_wallet_types(witness) else ""
+
+# Change no journal values or saved bytes. Compare the complete native
+# projection before and after this detached, exact source-bound type repair.
+# The original physical verifier still decides whether every CPU report fits.
+static func restore_wallet_types(session: SeasonState, witness: String) -> bool:
+	if not valid_wallet_types(witness): return false
+	var banks:=_wallets(session)
+	if banks.size()!=6: return false
+	var parts: PackedStringArray=witness.split(".")
+	var changed: Array[Dictionary]=[]
+	var codec: Script=Archive._owner().Codec
+	for index: int in banks.size():
+		var bank: SeasonOwnership=banks[index]
+		if bank==null: return false
+		var job: Dictionary={"cursor":0,"tape":parts[index],"ok":true,"apply":true}
+		var typed: Dictionary=_type_tree(_wallet_number_scope(bank),job)
+		if not job.ok or job.cursor!=parts[index].length() \
+				or not codec.same(typed.events,bank._events) or not codec.same(typed.state,bank._state): return false
+		changed.append(typed)
+	for index: int in banks.size():
+		banks[index]._events.assign(changed[index].events)
+		banks[index]._state=changed[index].state
+	return wallet_types(session)==witness
+
 
 # Rebuild the separately authorized installed first-title history in order.
 # A later Club game uses the exact authored build after earlier rewards and
@@ -207,15 +334,19 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 	var visited: int=humans.size()
 	if visited>LAST_INSTALLED_REGULAR_ROUND or (visited==0 and pending.is_empty()) \
 			or image.state.get("round_index")!=visited \
-			or image.state.results.size()!=visited*3 or reports.size()!=visited*2 \
 			or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return null
+	var final_regular: bool=visited==LAST_INSTALLED_REGULAR_ROUND
+	if final_regular:
+		if not pending.is_empty() or not [[30,20],[33,23]].has([image.state.results.size(),reports.size()]): return null
+	elif image.state.results.size()!=visited*3 or reports.size()!=visited*2: return null
 	var proven:=draft
 	for index: int in visited:
 		var fixture:=proven.pending_fixture()
 		if fixture.get("id")!=index*3: return null
 		var human:=Archive.Core._human(humans[index],fixture)
 		if human.is_empty(): return null
-		proven.physical.pending={"human":human,"reports":reports.slice(2*index,2*index+2)}
+		var end_report: int=reports.size() if index==LAST_INSTALLED_REGULAR_ROUND-1 else 2*index+2
+		proven.physical.pending={"human":human,"reports":reports.slice(2*index,end_report)}
 		var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(proven)
 		var result: Dictionary=checked.projection
 		if result.has("error") or result.has("fixture") or not result.get("candidate") is SeasonState: return null
@@ -223,15 +354,17 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 		# Only authored Shop operations after the exact native reward prefix
 		# can be replayed before constructing the following managed fixture.
 		if proven.round_index!=index+1 or not Archive.Core._shop(proven,events,0): return null
+		if index==LAST_INSTALLED_REGULAR_ROUND-1 and final_regular_destination(proven).is_empty(): return null
 	if not pending.is_empty():
 		if visited>=LAST_INSTALLED_REGULAR_ROUND or not api.Codec.keys(pending,["human","reports"]) \
-				or not pending.reports is Array or pending.reports.size()>2 \
+				or not pending.reports is Array or pending.reports.size()>regular_report_cap(visited) \
 				or proven.pending_fixture().get("id")!=visited*3: return null
 		proven.physical.pending=pending.duplicate(true)
 		var checked: Dictionary=Archive.Core.MixedProof._project_mixed_round(proven)
 		var result: Dictionary=checked.projection
 		if result.has("error") or not result.get("candidate") is SeasonState \
-				or result.has("fixture")!=(pending.reports.size()<2) or not checked.get("source") is SeasonState: return null
+				or not regular_projection_shape(visited,pending.reports.size(),result.has("fixture")) \
+				or not checked.get("source") is SeasonState: return null
 		proven=checked.source
 	expected.ordinary=api.Adapter.Ordinary.capture(proven)
 	return proven if not expected.ordinary.is_empty() and api.Codec.same(expected,value) else null
