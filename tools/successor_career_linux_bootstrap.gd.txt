@@ -1,0 +1,16 @@
+extends Node
+
+const Admission=preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
+const INTEGRATED: String="res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
+
+func _ready() -> void:
+	if scene_file_path!=Admission.CAREER_MAIN or not Admission.installed_career_owned():
+		push_error("Wiffaltro Career Qualification launch refused. Start the Wiffaltro launcher.")
+		get_tree().quit(3)
+		return
+	call_deferred("_launch")
+
+func _launch() -> void:
+	if get_tree().change_scene_to_file(INTEGRATED)!=OK:
+		push_error("Wiffaltro Career Qualification could not open the career menu.")
+		get_tree().quit(4)

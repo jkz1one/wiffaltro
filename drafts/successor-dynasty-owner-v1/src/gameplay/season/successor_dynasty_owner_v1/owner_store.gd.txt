@@ -10,6 +10,9 @@ const FlatRunner = preload("starter_flat_npc_runner.gd")
 const RawGuard = preload("raw_guard.gd")
 const LeagueAdmission = preload("league_admission.gd")
 const PATH: String = "user://wiffaltro-common-career-v4.json"
+const INSTALLED_PATH: String = "user://wiffaltro-installed-career-v1.json"
+const INSTALLED_HEADER: String = "WIFFALTRO-INSTALLED-CAREER-V1\n"
+const INSTALLED_BACKUP_STAGE: String = ".bak.tmp"
 const MAX_BYTES: int = 64 * 1024 * 1024
 const BASE_ARCHIVE_READER_FEATURE := "wiffaltro_base_archive_read_playtest"
 const BASE_ARCHIVE_READER_ENTRY := "res://archive_read_bootstrap/entry.tscn"
@@ -197,7 +200,42 @@ static func forget_projection() -> void:
 	_projection_ticket = null; _projection_checkpoint = null; _projection_owner = null
 	_projection_value = null; _projection_raw = {}
 
+static func slot_path() -> String:
+	return INSTALLED_PATH if LeagueAdmission.installed_career_feature() else PATH
+
+# A fixed header and digest bind the native bytes to this profile. This
+# detects corruption and rejects foreign dialects; it is not anti-cheat.
+static func _installed_payload(wire: PackedByteArray) -> PackedByteArray:
+	var start: int=INSTALLED_HEADER.length()+65
+	if wire.size()<=start or wire.size()>MAX_BYTES \
+		or wire.slice(0,INSTALLED_HEADER.length()).get_string_from_ascii()!=INSTALLED_HEADER \
+		or wire[start-1]!=10: return PackedByteArray()
+	var body:=wire.slice(start)
+	return body if wire.slice(INSTALLED_HEADER.length(),start-1).get_string_from_ascii()==Owner._hash(body) else PackedByteArray()
+
+static func _installed_wire(body: PackedByteArray) -> PackedByteArray:
+	if body.is_empty() or body.size()+INSTALLED_HEADER.length()+65>MAX_BYTES: return PackedByteArray()
+	var digest: String=Owner._hash(body)
+	if digest.length()!=64: return PackedByteArray()
+	return (INSTALLED_HEADER+digest+"\n").to_utf8_buffer()+body
+
+static func _installed_blocked() -> bool:
+	if not LeagueAdmission.installed_career_owned(): return true
+	var path: String=OS.get_user_data_dir().trim_suffix("/")
+	while path!="" and path!="/":
+		var parent: String=path.get_base_dir()
+		var directory:=DirAccess.open(parent)
+		if parent==path or directory==null or directory.is_link(path.get_file()): return true
+		path=parent
+	var dir:=DirAccess.open("user://")
+	if dir==null: return true
+	for suffix: String in ["", ".bak", ".tmp", INSTALLED_BACKUP_STAGE]:
+		var member: String=INSTALLED_PATH+suffix
+		if dir.is_link(member.get_file()) or DirAccess.dir_exists_absolute(member): return true
+	return false
+
 static func _starter_slot_linked() -> bool:
+	if LeagueAdmission.installed_career_feature(): return _installed_blocked()
 	if not LeagueAdmission.starter_feature(): return false
 	var root: String=OS.get_user_data_dir().trim_suffix("/")
 	var parent:=DirAccess.open(root.get_base_dir())
@@ -205,22 +243,27 @@ static func _starter_slot_linked() -> bool:
 	var dir:=DirAccess.open("user://")
 	if dir==null: return true
 	for suffix: String in ["", ".bak", ".tmp"]:
-		if dir.is_link((PATH+suffix).get_file()): return true
+		if dir.is_link((slot_path()+suffix).get_file()): return true
 	return false
 
 static func raw() -> PackedByteArray:
 	if _starter_slot_linked(): return PackedByteArray()
-	return FileAccess.get_file_as_bytes(PATH) if FileAccess.file_exists(PATH) else PackedByteArray()
+	if LeagueAdmission.installed_career_feature():
+		var result:=_base_archive_member(slot_path())
+		return _installed_payload(result.get("bytes",PackedByteArray()))
+	return FileAccess.get_file_as_bytes(slot_path()) if FileAccess.file_exists(slot_path()) else PackedByteArray()
 static func occupied() -> bool:
 	if _starter_slot_linked(): return true
+	if LeagueAdmission.installed_career_feature() and FileAccess.file_exists(INSTALLED_PATH+INSTALLED_BACKUP_STAGE): return true
 	for suffix: String in ["", ".bak", ".tmp"]:
-		if FileAccess.file_exists(PATH+suffix) or DirAccess.dir_exists_absolute(PATH+suffix): return true
+		if FileAccess.file_exists(slot_path()+suffix) or DirAccess.dir_exists_absolute(slot_path()+suffix): return true
 	return false
 # Bounded prefix probe; unsupported family versions remain protected.
 static func standard_d1_slot_kind() -> String:
+	if LeagueAdmission.installed_career_feature(): return ""
 	if _starter_slot_linked(): return ""
 	var contract=preload("standard_d1_transition.gd")
-	var file:=FileAccess.open(PATH,FileAccess.READ)
+	var file:=FileAccess.open(slot_path(),FileAccess.READ)
 	if file==null: return ""
 	var prefix: String=file.get_buffer(contract.SLOT_HEADER.length()).get_string_from_ascii()
 	var size:=file.get_length()
@@ -246,6 +289,17 @@ static func private_mixed_append() -> bool:
 		and OS.get_environment("WIFFALTRO_STARTER_MIXED_APPEND_DRAFT")=="1"
 
 static func _starter_owner_allowed(owner: RefCounted) -> bool:
+	if LeagueAdmission.installed_career_feature():
+		if not LeagueAdmission.installed_career_owned() or owner==null or owner.get_script()!=Owner \
+			or owner.active!="ordinary" or owner.session==null or not owner.paused.is_empty() \
+			or not Owner._missing_dynasty(owner) or not owner.migration_v3.is_empty() \
+			or owner.ordinary_state.has("archive") or Owner.Mixed.marked_state(owner.ordinary_state) \
+			or Owner.MixedAppend.marked_state(owner.ordinary_state) \
+			or Owner.Common.cross_proposal_kind(owner.ordinary_state.get("proposal",{}).get("kind")): return false
+		var current: SeasonState=owner.session
+		return (not current.league_live and current.career!=null \
+			and current.career.start_basis.get("kind")!="common-standard-d1-transition-v1") \
+			or (current.league_live and current.league_rules.get("league")=="dugout" and current.league_rules.get("tier",-1)==0)
 	if owner!=null and Owner.MixedAppend.marked_state(owner.ordinary_state):
 		return private_mixed_append() and (Owner.MixedAppend.draft_scope(owner) or Owner.MixedAppend.season_scope(owner) \
 			or Owner.MixedAppend.closed_complete_scope(owner) or Owner.MixedAppend.rollover_play_scope(owner) \
@@ -400,15 +454,23 @@ static func _read_common_slot(flat: bool, recovery_expected: PackedByteArray=Pac
 		last_error="This save is outside the Starter Beta slot. No files were changed." if LeagueAdmission.starter_feature() else \
 			"This Standard D1 slot requires private Continue. No files were changed."
 		return null
-	if not FileAccess.file_exists(PATH):
+	if not FileAccess.file_exists(slot_path()):
 		last_error = "No common career is saved in this slot. Earlier saves are unchanged."
 		return null
-	var file: FileAccess = FileAccess.open(PATH,FileAccess.READ)
+	var file: FileAccess = FileAccess.open(slot_path(),FileAccess.READ)
 	if file == null or file.get_length() > MAX_BYTES:
 		last_error = "The save could not be read safely. It has not been changed."
 		return null
 	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
+	if LeagueAdmission.installed_career_feature():
+		if FileAccess.file_exists(INSTALLED_PATH+".tmp") or FileAccess.file_exists(INSTALLED_PATH+INSTALLED_BACKUP_STAGE):
+			last_error="This career has an unfinished save. No files were changed."
+			return null
+		bytes=_installed_payload(bytes)
+		if bytes.is_empty():
+			last_error="This file is not a verified installed career. No files were changed."
+			return null
 	if not recovery_expected.is_empty() and bytes!=recovery_expected:
 		last_error="The replacement save does not match the pending Close. No files were changed."
 		return null
@@ -455,7 +517,8 @@ static func _matches(expected: PackedByteArray) -> bool:
 	if _base_archive_family(expected) or _starter_slot_linked(): return false
 	# Generic read/admission/write/retry paths never own the D1 dialect.
 	if not standard_d1_slot_kind().is_empty(): return false
-	return not DirAccess.dir_exists_absolute(PATH) and ((expected.is_empty() and not FileAccess.file_exists(PATH)) or (not expected.is_empty() and FileAccess.file_exists(PATH) and raw() == expected))
+	if LeagueAdmission.installed_career_feature() and FileAccess.file_exists(INSTALLED_PATH+INSTALLED_BACKUP_STAGE): return false
+	return not DirAccess.dir_exists_absolute(slot_path()) and ((expected.is_empty() and not FileAccess.file_exists(slot_path())) or (not expected.is_empty() and FileAccess.file_exists(slot_path()) and raw() == expected))
 static func _write(season: RefCounted, expected: PackedByteArray, expected_snapshot: Dictionary) -> bool:
 	# Legacy unbound writer never modifies the private paired slot.
 	if season==null or season.get_script()!=Owner or _paired_owner(season) or _paired_settled(_owner): return false
@@ -465,8 +528,8 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
 		return false
 	for suffix: String in ["", ".bak", ".tmp"]:
-		if DirAccess.dir_exists_absolute(PATH+suffix): return false
-	if FileAccess.file_exists(PATH+".tmp") or (expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
+		if DirAccess.dir_exists_absolute(slot_path()+suffix): return false
+	if FileAccess.file_exists(slot_path()+".tmp") or (expected.is_empty() and FileAccess.file_exists(slot_path()+".bak")): return false
 	# Unbound legacy writes cannot create, replace, or erase workshop metadata.
 	var previous: Variant=Owner._bytes_value(expected)
 	# The unbound writer cannot erase or manufacture a typed career proposal.
@@ -500,15 +563,31 @@ static func _write_exact_bytes(bytes: PackedByteArray, expected: PackedByteArray
 
 static func _write_exact_result(bytes: PackedByteArray, expected: PackedByteArray, bounded: bool) -> String:
 	if OS.has_feature(BASE_ARCHIVE_READER_FEATURE): return "not_renamed"
-	var file: FileAccess = FileAccess.open(PATH+".tmp",FileAccess.WRITE)
+	var installed: bool=LeagueAdmission.installed_career_feature()
+	if installed and not _matches(expected): return "not_renamed"
+	var wire:=_installed_wire(bytes) if installed else bytes
+	if wire.is_empty(): return "not_renamed"
+	var file: FileAccess = FileAccess.open(slot_path()+".tmp",FileAccess.WRITE)
 	if file == null: return "not_renamed"
-	file.store_buffer(bytes); file.flush()
+	file.store_buffer(wire); file.flush()
 	var ok: bool = file.get_error() == OK
 	file.close()
-	if not ok or FileAccess.get_file_as_bytes(PATH+".tmp") != bytes or not _write_revision_matches(expected,bounded): return "not_renamed"
-	if not expected.is_empty() and DirAccess.copy_absolute(PATH,PATH+".bak") != OK: return "not_renamed"
+	if not ok or FileAccess.get_file_as_bytes(slot_path()+".tmp") != wire or not _write_revision_matches(expected,bounded): return "not_renamed"
+	if not expected.is_empty():
+		if installed:
+			# Replace the backup directory entry, never write through an incumbent
+			# backup hardlink. Its payload is the exactly matched prior revision.
+			var stage: String=INSTALLED_PATH+INSTALLED_BACKUP_STAGE
+			var prior_wire:=_installed_wire(expected)
+			var backup:=FileAccess.open(stage,FileAccess.WRITE)
+			if backup==null or prior_wire.is_empty(): return "not_renamed"
+			backup.store_buffer(prior_wire); backup.flush()
+			var staged: bool=backup.get_error()==OK
+			backup.close()
+			if not staged or FileAccess.get_file_as_bytes(stage)!=prior_wire or DirAccess.rename_absolute(stage,INSTALLED_PATH+".bak")!=OK: return "not_renamed"
+		elif DirAccess.copy_absolute(slot_path(),slot_path()+".bak")!=OK: return "not_renamed"
 	if not _write_revision_matches(expected,bounded): return "not_renamed"
-	if DirAccess.rename_absolute(PATH+".tmp",PATH) != OK: return "not_renamed"
+	if DirAccess.rename_absolute(slot_path()+".tmp",slot_path()) != OK: return "not_renamed"
 	var readback_ok: bool=_write_revision_matches(bytes,true) if bounded else raw()==bytes
 	if not readback_ok: return "renamed_unverified"
 	last_error = ""
@@ -517,10 +596,10 @@ static func _write_exact_result(bytes: PackedByteArray, expected: PackedByteArra
 # The bounded cross path never reads a replacement of arbitrary length and
 # refuses linked slot objects. The stock write protocol is otherwise unchanged.
 static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> bool:
-	if not bounded: return _matches(bytes)
+	if not bounded or LeagueAdmission.installed_career_feature(): return _matches(bytes)
 	var dir:=DirAccess.open("user://")
-	if dir==null or dir.is_link(PATH.get_file()): return false
-	var f:=FileAccess.open(PATH,FileAccess.READ)
+	if dir==null or dir.is_link(slot_path().get_file()): return false
+	var f:=FileAccess.open(slot_path(),FileAccess.READ)
 	if f==null or f.get_length()!=bytes.size(): return false
 	var same: bool=f.get_buffer(bytes.size())==bytes and f.get_length()==bytes.size()
 	f.close()
@@ -897,8 +976,8 @@ static func accept_private_pair_settlement(owner: RefCounted,expected: PackedByt
 	var dir:=DirAccess.open("user://")
 	if dir==null: return "obstructed"
 	for suffix: String in ["", ".bak", ".tmp"]:
-		if dir.is_link((PATH+suffix).get_file()) or DirAccess.dir_exists_absolute(PATH+suffix): return "obstructed"
-	if FileAccess.file_exists(PATH+".tmp"): return "obstructed"
+		if dir.is_link((slot_path()+suffix).get_file()) or DirAccess.dir_exists_absolute(slot_path()+suffix): return "obstructed"
+	if FileAccess.file_exists(slot_path()+".tmp"): return "obstructed"
 	saving=true
 	var outcome: String=_write_exact_result(bytes,expected,true)
 	saving=false
@@ -1510,8 +1589,8 @@ static func retry_cross_activation(owner: RefCounted,expected: PackedByteArray) 
 	var dir:=DirAccess.open("user://")
 	if dir==null: return "obstructed"
 	for suffix: String in ["", ".bak", ".tmp"]:
-		if dir.is_link((PATH+suffix).get_file()) or DirAccess.dir_exists_absolute(PATH+suffix): return "obstructed"
-	if FileAccess.file_exists(PATH+".tmp"): return "obstructed"
+		if dir.is_link((slot_path()+suffix).get_file()) or DirAccess.dir_exists_absolute(slot_path()+suffix): return "obstructed"
+	if FileAccess.file_exists(slot_path()+".tmp"): return "obstructed"
 	saving=true
 	var outcome: String=_write_exact_result(_cross_pending,expected,true)
 	saving=false
@@ -2321,8 +2400,8 @@ static func _write_admitted() -> bool:
 		last_error = "The saved file changed. It was not overwritten; your candidate remains retained."
 		return false
 	for suffix: String in ["", ".bak", ".tmp"]:
-		if DirAccess.dir_exists_absolute(PATH+suffix): return false
-	if FileAccess.file_exists(PATH+".tmp") or (_expected.is_empty() and FileAccess.file_exists(PATH+".bak")): return false
+		if DirAccess.dir_exists_absolute(slot_path()+suffix): return false
+	if FileAccess.file_exists(slot_path()+".tmp") or (_expected.is_empty() and FileAccess.file_exists(slot_path()+".bak")): return false
 	if _ordinary_prepared_revision():
 		if _ordinary_encoded_ticket!=_ticket:
 			_ordinary_encoded_ticket = _ticket
@@ -2422,7 +2501,7 @@ static func _base_archive_member(path: String) -> Dictionary:
 
 static func _base_archive_pair(reader: bool=false) -> Dictionary:
 	if not _base_archive_root_ok(reader): return {}
-	var slot: String=BASE_ARCHIVE_READER_SLOT if reader else PATH
+	var slot: String=BASE_ARCHIVE_READER_SLOT if reader else slot_path()
 	var primary:=_base_archive_member(slot)
 	var backup:=_base_archive_member(slot+".bak")
 	if primary.is_empty() or backup.is_empty(): return {}
@@ -2432,7 +2511,7 @@ static func _base_archive_absent(path: String) -> bool:
 	return _base_archive_member(path).get("present",true)==false
 
 static func _base_archive_temps_clear(reader: bool=false) -> bool:
-	var slot: String=BASE_ARCHIVE_READER_SLOT if reader else PATH
+	var slot: String=BASE_ARCHIVE_READER_SLOT if reader else slot_path()
 	return _base_archive_absent(slot+".tmp") and _base_archive_absent(slot+BASE_ARCHIVE_BACKUP_STAGE)
 
 static func _base_archive_source_valid(owner: RefCounted, pair: Dictionary) -> bool:
@@ -2564,16 +2643,16 @@ static func _base_archive_install(ticket: RefCounted, pair: Dictionary, page: Pa
 	if _base_archive_member(final_page).get("bytes",PackedByteArray())!=page \
 			or not Codec.same(_base_archive_pair(),pair) or not _base_archive_temps_clear() \
 			or not _base_archive_pages_live(old_head,old_pages): return false
-	var backup_tmp: String=PATH+BASE_ARCHIVE_BACKUP_STAGE
-	if not stage.call(PATH+".tmp",marked) or not stage.call(backup_tmp,pair.primary.bytes) \
+	var backup_tmp: String=slot_path()+BASE_ARCHIVE_BACKUP_STAGE
+	if not stage.call(slot_path()+".tmp",marked) or not stage.call(backup_tmp,pair.primary.bytes) \
 			or not Codec.same(_base_archive_pair(),pair): return false
-	if DirAccess.rename_absolute(backup_tmp,PATH+".bak")!=OK: return false
+	if DirAccess.rename_absolute(backup_tmp,slot_path()+".bak")!=OK: return false
 	last_error="The prior primary was rotated, but the new archive head was not verified. Inspect the exact surviving files."
 	var rotated: Dictionary={"primary":pair.primary,"backup":pair.primary}
-	if not Codec.same(_base_archive_pair(),rotated) or _base_archive_member(PATH+".tmp").get("bytes",PackedByteArray())!=marked \
+	if not Codec.same(_base_archive_pair(),rotated) or _base_archive_member(slot_path()+".tmp").get("bytes",PackedByteArray())!=marked \
 			or _base_archive_member(final_page).get("bytes",PackedByteArray())!=page \
 			or not _base_archive_pages_live(old_head,old_pages) \
-			or DirAccess.rename_absolute(PATH+".tmp",PATH)!=OK: return false
+			or DirAccess.rename_absolute(slot_path()+".tmp",slot_path())!=OK: return false
 	var final: Dictionary=_base_archive_pair()
 	if final.is_empty() or final.primary.get("bytes")!=marked or final.backup.get("bytes")!=pair.primary.bytes: return false
 	last_error=""

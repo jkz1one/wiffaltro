@@ -34,6 +34,9 @@ STARTER_BOOTSTRAP = 'res://starter_bootstrap/entry.tscn'
 ARCHIVE_READ_DIR = 'WiffaltroArchiveReadPlaytest-v1'
 ARCHIVE_READ_BOOTSTRAP = 'res://archive_read_bootstrap/entry.tscn'
 ARCHIVE_READ_FEATURE = 'wiffaltro_base_archive_read_playtest'
+CAREER_DIR = 'WiffaltroCareerQualification-v1'
+CAREER_BOOTSTRAP = 'res://career_linux_bootstrap/entry.tscn'
+CAREER_FEATURE = 'wiffaltro_linux_career_qualification'
 EXTRA_SUPPORT = {
     'src/tests/helpers/pool_active_receipt.gd',
     'src/tests/helpers/pool_controller_writer_ledger.gd',
@@ -99,9 +102,10 @@ def clean_identity(repo):
     return revision, tree, ancestry[1]
 
 
-def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False, archive_read=False):
+def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False, archive_read=False, career=False):
     no_save = paid is None
-    assert no_save == (backup is None) and (not (starter or archive_read) or no_save) and not (starter and archive_read)
+    assert no_save == (backup is None) and (not (starter or archive_read or career) or no_save)
+    assert sum((starter, archive_read, career)) <= 1
     identity = clean_identity(repo) if no_save else None
     user_dir = STARTER_DIR if starter else USER_DIR
     bootstrap = STARTER_BOOTSTRAP if starter else BOOTSTRAP
@@ -113,12 +117,16 @@ def qualify(repo, root, editor, templates, paid=None, backup=None, starter=False
         user_dir, bootstrap, bootstrap_folder, app_name, feature = (
             ARCHIVE_READ_DIR, ARCHIVE_READ_BOOTSTRAP, 'archive_read_bootstrap',
             'Wiffaltro Archive Read Playtest', ARCHIVE_READ_FEATURE)
+    if career:
+        user_dir, bootstrap, bootstrap_folder, app_name, feature = (
+            CAREER_DIR, CAREER_BOOTSTRAP, 'career_linux_bootstrap',
+            'Wiffaltro Career Qualification', CAREER_FEATURE)
 
     def build_environment(path):
         env = environment(path)
         if no_save:
             for name in list(env):
-                if name.startswith('WIFFALTRO_') and (starter or archive_read or name not in {
+                if name.startswith('WIFFALTRO_') and (starter or archive_read or career or name not in {
                     'WIFFALTRO_DYNASTY_ENGINEERING','WIFFALTRO_ISOLATED_TEST',
                 }):
                     env.pop(name)
@@ -172,11 +180,13 @@ script="plugin.gd"
     script_name = 'successor_starter_bootstrap.gd.txt' if starter else 'successor_engineering_bootstrap.gd.txt'
     if archive_read:
         script_name = 'successor_archive_read_bootstrap.gd.txt'
+    if career:
+        script_name = 'successor_career_linux_bootstrap.gd.txt'
     bootstrap_script.write_bytes((repo/'tools'/script_name).read_bytes())
     bootstrap_scene = bootstrap_dir/'entry.tscn'
     bootstrap_scene.write_text('[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" '
                                f'path="res://{bootstrap_folder}/entry.gd" id="1"]\n'
-                               f'[node name="{"ArchiveReadBootstrap" if archive_read else ("StarterBootstrap" if starter else "EngineeringBootstrap")}" '
+                               f'[node name="{"ArchiveReadBootstrap" if archive_read else ("CareerQualificationBootstrap" if career else ("StarterBootstrap" if starter else "EngineeringBootstrap"))}" '
                                f'type="{"Control" if archive_read else "Node"}"]\n'
                                + ('anchors_preset = 15\nanchor_right = 1.0\nanchor_bottom = 1.0\n'
                                   'grow_horizontal = 2\ngrow_vertical = 2\n' if archive_read else '')
@@ -232,14 +242,20 @@ binary_format/architecture="x86_64"
     expected = root/'expected.json'
     expected.write_text(json.dumps({'source':inventory,'broad_sha256':profile['broad_sha256']},sort_keys=True))
     run([*project_engine,'--export-pack',TITLE,str(pack)],empty,env,root/'export.log','REVIEWED_RAW_CONFIG_ADDED')
-    assert set(p.name for p in package.iterdir()) == {exe.name,pack.name}
+    launcher = package/'Wiffaltro'
+    if career:
+        run(['/usr/bin/cc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
+             str(repo/'tools/successor_career_linux_launcher.c'), '-o', str(launcher)],
+            empty, env, root/'career-launcher-build.log')
+        launcher.chmod(0o700)
+    assert set(p.name for p in package.iterdir()) == ({exe.name,pack.name,launcher.name} if career else {exe.name,pack.name})
     with exe.open('rb') as f: header=f.read(20)
     assert header[:6]==b'\x7fELF\x02\x01' and int.from_bytes(header[18:20],'little')==62
     assert digest(exe) == LINUX_RELEASE_SHA
     gate_env=build_environment(root/'no-gate-home')
     gate_env.pop('WIFFALTRO_DYNASTY_ENGINEERING',None)
     boot = [str(exe),'--headless','--audio-driver','Dummy','--verbose','--quit-after','60']
-    if archive_read:
+    if archive_read or career:
         # A compile/audit artifact only. The separate custody harness owns
         # all standalone launches and fixture provisioning.
         pass
@@ -287,6 +303,7 @@ binary_format/architecture="x86_64"
     target.mkdir()
     if no_save:
         audit_mode='archive-read-pack-no-save' if archive_read else ('starter-pack-no-save' if starter else 'pack-no-save')
+        if career: audit_mode='career-pack-no-save'
         result=run([*engine,'--path',str(empty),'--main-pack',str(pack),'--script',str(audit),'--',audit_mode,str(expected)],
             empty,inspect_env,root/'pack-audit.log',f'PACKED_REVIEWED_PROFILE_NO_SAVE_PASS {len(inventory)}')
         # Conservative refusal: a new broad digest must not appear as any exact
@@ -329,6 +346,10 @@ binary_format/architecture="x86_64"
         if archive_read:
             metadata['scope']='Linux archive read playtest compile and mounted content audit only; no run or save evidence'
             metadata['archive_read_profile']={'feature':feature,'bootstrap':bootstrap,'user_dir':user_dir}
+        if career:
+            metadata['scope']='Linux career qualification compile and mounted content audit only; no run or save evidence'
+            metadata['career_profile']={'feature':feature,'bootstrap':bootstrap,'user_dir':user_dir,
+                                        'launcher_sha256':digest(launcher)}
     else:
         assert metadata['pack_broad_sha256'] == PACK_BROAD_SHA
     (root/'result.json').write_text(json.dumps(metadata,indent=2)+'\n')
@@ -343,15 +364,16 @@ def main():
     mode.add_argument('--no-save',action='store_true',help='Current clean engineering source and boot checks; never loads a save')
     mode.add_argument('--starter-beta',action='store_true',help='Separate clean Linux starter-player build and no-save boot checks')
     mode.add_argument('--archive-read-playtest',action='store_true',help='Separate clean Linux read-only archive compile and mounted audit; never boots or loads a save')
+    mode.add_argument('--career-qualification',action='store_true',help='Build the private writable Linux qualification package; runtime acceptance is separate')
     parser.add_argument('--templates',type=Path,required=True,help='Verified vendor non-Mono 4.6.3 release template archive')
     parser.add_argument('--godot',type=Path,required=True,help='Verified vendor x86_64 Godot 4.6.3 editor binary')
     o=parser.parse_args()
-    if (o.no_save or o.starter_beta or o.archive_read_playtest) and (not sys.platform.startswith("linux") or sys.flags.optimize):
+    if (o.no_save or o.starter_beta or o.archive_read_playtest or o.career_qualification) and (not sys.platform.startswith("linux") or sys.flags.optimize):
         parser.error("use ordinary Python 3 on Linux with the pinned x86-64 editor")
-    paid,backup=(None,None) if o.no_save or o.starter_beta or o.archive_read_playtest else evidence(o.evidence)
+    paid,backup=(None,None) if o.no_save or o.starter_beta or o.archive_read_playtest or o.career_qualification else evidence(o.evidence)
     root=o.output.resolve()
     root.mkdir(mode=0o700)
-    qualify(Path(__file__).resolve().parents[1],root,o.godot.resolve(),o.templates.resolve(),paid,backup,starter=o.starter_beta,archive_read=o.archive_read_playtest)
+    qualify(Path(__file__).resolve().parents[1],root,o.godot.resolve(),o.templates.resolve(),paid,backup,starter=o.starter_beta,archive_read=o.archive_read_playtest,career=o.career_qualification)
 
 
 if __name__=='__main__':

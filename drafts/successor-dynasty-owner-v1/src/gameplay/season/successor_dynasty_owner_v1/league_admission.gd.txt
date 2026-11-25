@@ -12,12 +12,44 @@ const STARTER_USER_DIR: String="WiffaltroStarterBeta-v1"
 const STARTER_MAC_USER_DIR: String="WiffaltroStarterBeta-Mac-v1"
 const STARTER_LEAGUES: Array[String]=["standard","dugout"]
 
+const CAREER_FEATURE: String="wiffaltro_linux_career_qualification"
+const CAREER_MAIN: String="res://career_linux_bootstrap/entry.tscn"
+const CAREER_USER_DIR: String="WiffaltroCareerQualification-v1"
+
+static func installed_career_feature() -> bool:
+	return OS.has_feature(CAREER_FEATURE)
+
+static func installed_career_owned() -> bool:
+	if not installed_career_feature() or OS.get_name()!="Linux" or OS.has_feature("editor") \
+		or OS.has_feature(STARTER_FEATURE) or OS.has_feature(MIXED_APPEND_QA_FEATURE) \
+		or OS.has_feature("wiffaltro_engineering_export") or OS.has_feature("wiffaltro_base_archive_read_playtest") \
+		or ProjectSettings.get_setting("application/config/custom_user_dir_name","")!=CAREER_USER_DIR \
+		or ProjectSettings.get_setting("application/run/main_scene","")!=CAREER_MAIN \
+		or ProjectSettings.get_setting("application/config/use_custom_user_dir",false)!=true \
+		or not OS.get_cmdline_args().is_empty() or not OS.get_cmdline_user_args().is_empty(): return false
+	var root: String=OS.get_user_data_dir().simplify_path().trim_suffix("/")
+	if root.get_file()!=CAREER_USER_DIR: return false
+	var fd:=DirAccess.open("/proc/self/fd")
+	if fd==null or fd.read_link("198")!=root: return false
+	var info:=FileAccess.open("/proc/self/fdinfo/198",FileAccess.READ)
+	if info==null: return false
+	# procfs fdinfo has a nominal size of zero: read the bounded line set.
+	for i in 16:
+		var fields:=info.get_line().replace("\t"," ").split(" ",false)
+		if fields.size()==9 and fields[0]=="lock:" and fields[2]=="FLOCK" and fields[3]=="ADVISORY" \
+			and fields[4]=="WRITE" and fields[5]==str(OS.get_process_id()) and fields[7]=="0" and fields[8]=="EOF": return true
+		if info.eof_reached(): break
+	return false
+
+# The qualification inherits the same public controls and tier restrictions,
+# not the Starter save profile or Starter-only worker processes.
 static func starter_feature() -> bool:
-	return OS.has_feature(STARTER_FEATURE)
+	return OS.has_feature(STARTER_FEATURE) or installed_career_feature()
 
 static func starter_player() -> bool:
+	if installed_career_feature(): return installed_career_owned()
 	var leaf: String=ProjectSettings.get_setting("application/config/custom_user_dir_name","")
-	return starter_feature() and (starter_platform_profile(OS.get_name(),leaf) or mixed_append_qa_profile()) and not OS.has_feature("editor") \
+	return OS.has_feature(STARTER_FEATURE) and (starter_platform_profile(OS.get_name(),leaf) or mixed_append_qa_profile()) and not OS.has_feature("editor") \
 		and not OS.has_feature("wiffaltro_engineering_export") \
 		and ProjectSettings.get_setting("application/run/main_scene")==STARTER_MAIN \
 		and ProjectSettings.get_setting("application/config/use_custom_user_dir",false)==true
@@ -33,7 +65,7 @@ static func starter_platform_profile(platform: String, leaf: String) -> bool:
 		or (platform=="macOS" and leaf==STARTER_MAC_USER_DIR)
 
 static func starter_fast_worker() -> bool:
-	return OS.get_name()=="Linux" and starter_player()
+	return OS.get_name()=="Linux" and OS.has_feature(STARTER_FEATURE) and starter_player()
 
 static func enabled() -> bool:
 	return starter_feature() or OS.get_environment("WIFFALTRO_EARNED_LEAGUES_PREVIEW") == "1"
