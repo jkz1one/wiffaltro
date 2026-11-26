@@ -635,7 +635,7 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done"]:
+	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready"]:
 		_installed_earned_dynasty_draft(draft)
 		return
 	if draft.get("tier",1) in [2,3]:
@@ -720,9 +720,12 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 	var paid: bool=draft.state=="dynasty_paid"
 	var round: int=int(draft.round)
 	var done: bool=draft.state=="dynasty_regular_done"
+	var bracket: bool=draft.state=="dynasty_postseason_ready"
+	var postseason: String=draft.postseason
 	var title: String="DYNASTY · DRAFT %d / 4"%count
 	if pending or paid: title="DYNASTY · ROUND %d"%round
-	if done: title="DYNASTY · REGULAR SEASON COMPLETE"
+	if postseason in ["semifinal","final"]: title="DYNASTY · "+postseason.to_upper()
+	if done: title="DYNASTY · SEASON RESULTS"
 	_label(_body,title,24)
 	_note("Dugout history kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
@@ -737,10 +740,15 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 		for row: Dictionary in draft.results:
 			var match_label: String="Club game" if row.home==0 or row.away==0 else "CPU game %d"%int(row.id)
 			_note("%s: %d away – %d home"%[match_label,row.away_runs,row.home_runs])
+	elif bracket:
+		_note("Your postseason matchup is ready.")
+		_bound_button(_body,"PLAY DYNASTY "+postseason.to_upper(),Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+		if draft.shop_available:
+			_bound_button(_body,"OPEN DYNASTY SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 	elif pending:
-		var match_label: String="Opening Day" if round==1 else ("Home opener" if round==2 else "Club game")
+		var match_label: String=postseason.capitalize() if not postseason.is_empty() else ("Opening Day" if round==1 else ("Home opener" if round==2 else "Club game"))
 		_note("%s is saved: %d away – %d home."%[match_label,draft.score[0],draft.score[1]])
-		_note("CPU results saved: %d / %d. The round is not yet paid."%[int(draft.reports),int(draft.cpu_total)])
+		_note("The final is ready to settle." if draft.cpu_total==0 else "CPU results saved: %d / %d. The round is not yet paid."%[int(draft.reports),int(draft.cpu_total)])
 		if app.installed_dugout_d1_cpu_running():
 			_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
 		elif not draft.settle_available:
@@ -748,7 +756,11 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 		else:
 			_bound_button(_body,"SETTLE DYNASTY ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif done:
-		_note("The playoff bracket is set. Your semifinal is saved as the next game." if draft.postseason=="semifinal" else "The club missed the postseason. The final bracket is saved.")
+		match postseason:
+			"champion": _note("You won the Dynasty championship. All playoff games are paid and saved.")
+			"runner_up": _note("You finished as runner-up. All playoff games are paid and saved.")
+			"semifinal_exit": _note("The club was eliminated in the semifinal. The final bracket is saved.")
+			_: _note("The club missed the postseason. The final bracket is saved.")
 	elif count==4:
 		_note("Your four Dynasty picks and five opposing clubs are saved.")
 		_bound_button(_body,"PLAY DYNASTY OPENING DAY",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
