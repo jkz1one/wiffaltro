@@ -635,7 +635,7 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state")=="dynasty_draft":
+	if draft.get("state") in ["dynasty_draft","dynasty_pending"]:
 		_installed_earned_dynasty_draft(draft)
 		return
 	if draft.get("tier",1) in [2,3]:
@@ -716,13 +716,18 @@ func _installed_dugout_d1() -> void:
 
 func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 	var count: int=draft.picks.size()
-	_label(_body,"DYNASTY · DRAFT %d / 4"%count,24)
+	var pending: bool=draft.state=="dynasty_pending"
+	_label(_body,"DYNASTY · OPENING DAY" if pending else "DYNASTY · DRAFT %d / 4"%count,24)
 	_note("Dugout history kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
 		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 		_label(_body,player.display_name if player!=null else id,20)
-	if count==4:
-		_note("Your four Dynasty picks and five opposing clubs are saved. Opening Day is not enabled in this build.")
+	if pending:
+		_note("Opening Day is saved: %d away – %d home."%[draft.score[0],draft.score[1]])
+		_note("The two CPU games and round payout are still pending.")
+	elif count==4:
+		_note("Your four Dynasty picks and five opposing clubs are saved.")
+		_bound_button(_body,"PLAY DYNASTY OPENING DAY",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	else:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
