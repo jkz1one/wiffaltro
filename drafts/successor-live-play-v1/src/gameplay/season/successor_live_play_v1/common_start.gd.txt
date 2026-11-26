@@ -26,6 +26,8 @@ const MIXED_SEVEN_VERSION: int=8
 const MIXED_SEVEN_ROOTS: int=6
 const EARNED_DUGOUT_D1 := "earned-dugout-d1-archive-v1"
 const EARNED_DUGOUT_D1_VERSION := 9
+const EARNED_DUGOUT_D2 := "earned-dugout-d2-archive-v1"
+const EARNED_DUGOUT_D2_VERSION := 10
 const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
@@ -48,11 +50,13 @@ static func valid(value: Variant) -> bool:
 	if not value is Dictionary or not Builds._primitive(value) or value.get("kind")!=KIND: return false
 	var archived: bool=value.has("archive_origin")
 	if not SeasonOwnership._keys(value,FIELDS+(["archive_origin"] if archived else [])) \
-		or not SeasonOwnership._whole(value.version,2 if archived else 1,EARNED_DUGOUT_D1_VERSION if archived else 1): return false
+		or not SeasonOwnership._whole(value.version,2 if archived else 1,EARNED_DUGOUT_D2_VERSION if archived else 1): return false
 	if archived:
 		var origin: Variant=value.archive_origin
 		if not origin is Dictionary: return false
-		if value.version==EARNED_DUGOUT_D1_VERSION:
+		if value.version==EARNED_DUGOUT_D2_VERSION:
+			if not _earned_dugout_d2_origin(value,origin): return false
+		elif value.version==EARNED_DUGOUT_D1_VERSION:
 			if not _earned_dugout_d1_origin(value,origin): return false
 		elif value.version==MIXED_FLAT_VERSION:
 			if not SeasonOwnership._keys(origin,["kind","ordered_sha256","manifest_sha256"]) \
@@ -147,6 +151,35 @@ static func bind_earned_dugout_d1(basis: Dictionary, offer: Dictionary, ordered:
 	result.archive_origin={"kind":EARNED_DUGOUT_D1,"offer":offer.duplicate(true),"ordered_sha256":ordered.duplicate()}
 	return result if valid(result) else {}
 
+static func detached_earned_dugout_d2(basis: Dictionary) -> bool:
+	return basis.get("version")==EARNED_DUGOUT_D2_VERSION and basis.get("kind")==KIND
+
+static func _earned_dugout_d2_origin(basis: Dictionary, origin: Dictionary) -> bool:
+	if not SeasonOwnership._keys(origin,["kind","ordered_sha256","offer"]) \
+		or origin.kind!=EARNED_DUGOUT_D2 or basis.get("ordinal")!=3 or basis.get("common_sequence")!=2 \
+		or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=2 \
+		or not sha(origin.ordered_sha256[0]) or not sha(origin.ordered_sha256[1]) \
+		or origin.ordered_sha256[0]==origin.ordered_sha256[1] or not origin.offer is Dictionary: return false
+	var offer: Dictionary=origin.offer
+	if not SeasonOwnership._keys(offer,["kind","version","source_close","source_session_sha256", \
+			"source_head_sha256","archived_page_sha256","target_head_sha256","lineage","next_ordinal","seed", \
+			"common_sequence","common_sha256","title","rules"]) \
+		or offer.kind!="earned-dugout-d2-offer-v1" or offer.version!=1 or offer.title!="dugout:1" \
+		or offer.lineage!=basis.lineage or offer.next_ordinal!=3 or offer.seed!=basis.seed \
+		or offer.common_sequence!=2 or offer.common_sha256!=basis.common_sha256 \
+		or offer.source_close!="%s:2:close"%basis.lineage or offer.archived_page_sha256!=origin.ordered_sha256[1] \
+		or not ClubCareer.same(offer.rules,LeagueRules.capture_tier("dugout",2)): return false
+	for key: String in ["source_session_sha256","source_head_sha256","target_head_sha256","archived_page_sha256"]:
+		if not sha(offer[key]): return false
+	return true
+
+static func bind_earned_dugout_d2(basis: Dictionary, offer: Dictionary, ordered: Array) -> Dictionary:
+	if not valid(basis) or basis.version!=1: return {}
+	var result: Dictionary=basis.duplicate(true)
+	result.version=EARNED_DUGOUT_D2_VERSION
+	result.archive_origin={"kind":EARNED_DUGOUT_D2,"offer":offer.duplicate(true),"ordered_sha256":ordered.duplicate()}
+	return result if valid(result) else {}
+
 static func assets_valid(value: Dictionary) -> bool:
 	# The currently admitted materialized families carry an untouched initial
 	# asset ledger. Do not invent credits/runs to replay richer journals.
@@ -207,6 +240,9 @@ static func archive_origin_kind(league: Variant) -> String:
 
 static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
 	if not basis.has("archive_origin"): return true
+	if detached_earned_dugout_d2(basis):
+		return ClubCareer.same(build._league_rules,LeagueRules.capture_tier("dugout",2)) \
+			and build.d1_pricing_valid() and not build.d3_sponsors_valid() and not build.d4_sponsors_valid()
 	if detached_earned_dugout_d1(basis):
 		return ClubCareer.same(build._league_rules,LeagueRules.capture_tier("dugout",1)) \
 			and build.d1_pricing_valid() and not build.d3_sponsors_valid() and not build.d4_sponsors_valid()

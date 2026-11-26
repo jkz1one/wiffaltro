@@ -681,8 +681,10 @@ static func _structural_valid(season: SeasonState, d1: bool=false) -> bool:
 					if not role is String or not build._book._players.has(role): return false
 				if season.results.is_empty() and club.primary != SeasonOpponentMastery.primary(build,club.roles.get("pitcher","")): return false
 				if not same(club.profile,SeasonOpponentPolicy.PROFILES[i]) or build._seed != ((season.season_seed+i*92821)&0x7fffffff) or build._market!=12 or not same(build._league_rules,season.league_rules): return false
-	# Policy13 stores the authored snake-draft club permutation at draft completion.
-	if not season.opponents.draft_rule.is_empty(): return false
+	# Only the named D2 draft dialect admits the authored fitting policy;
+	# an asserted rule flag must not change a legacy/Base roster.
+	var expected_draft_rule: String=SeasonOpponentDraft.D2_RULE if CommonStart.detached_earned_dugout_d2(season.career.start_basis) else ""
+	if season.opponents.draft_rule!=expected_draft_rule: return false
 	if season.phase == SeasonState.Phase.DRAFT:
 		if not season.opponents.draft_order.is_empty(): return false
 	else:

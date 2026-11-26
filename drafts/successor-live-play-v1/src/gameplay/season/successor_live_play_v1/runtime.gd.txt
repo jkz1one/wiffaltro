@@ -26,13 +26,18 @@ static func _create_paired_draft(seed_value: int) -> SeasonState:
 	return _create_named(seed_value,"doubleheader",Genesis.derive(seed_value))
 
 static func create_common(basis: Dictionary, league: String = "standard") -> SeasonState:
-	if CommonStart.detached_earned_dugout_d1(basis): return null
+	if CommonStart.detached_earned_dugout_d1(basis) or CommonStart.detached_earned_dugout_d2(basis): return null
 	return _create_named(int(basis.get("seed",-1)),league,basis) if league in COMMON_ORDINARY_LEAGUES and CommonStart.valid(basis) else null
 
 # Detached construction only; a separately validated rollover must own the
 # archive, current session, and entitlement before public admission.
 static func create_earned_dugout_d1_draft(basis: Dictionary) -> SeasonState:
 	if not CommonStart.detached_earned_dugout_d1(basis) or not CommonStart.valid(basis): return null
+	return _create_named(int(basis.seed),"dugout",basis)
+
+# Only a separately authenticated installed handoff can publish this draft.
+static func create_earned_dugout_d2_draft(basis: Dictionary) -> SeasonState:
+	if not CommonStart.detached_earned_dugout_d2(basis) or not CommonStart.valid(basis): return null
 	return _create_named(int(basis.seed),"dugout",basis)
 
 # Private draft construction only. Store will later derive the envelope from
@@ -59,6 +64,7 @@ static func _create_named(seed_value: int, league: String, basis: Dictionary) ->
 	result.build = Build.new(seed_value)
 	if not result.build.enable_successor_pitch_catalog() or (result.league_live and not result.build.enable_league_rules(result.league_rules)): return null
 	result.opponents = Opponents.new(); result.opponents._format = 13
+	if CommonStart.detached_earned_dugout_d2(basis): result.opponents.draft_rule = SeasonOpponentDraft.D2_RULE
 	result.physical = Physical.new()
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new(); rng.seed = seed_value
 	result.draft_pool = ClubPlayerCatalog.draft_pool(rng,PitchBatLab.DEBUG_PLAYER_ID,false,SeasonState.LEGACY_IDS)
