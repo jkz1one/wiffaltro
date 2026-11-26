@@ -31,6 +31,10 @@ static func first_installed_source(owner: RefCounted) -> Dictionary:
 	return {} if image.is_empty() or head.is_empty() else {"image":image,"head":head}
 
 static func from_closed_image(image: Dictionary, head: Dictionary) -> Dictionary:
+	return _offer_and_page(image,head).get("offer",{})
+
+
+static func _offer_and_page(image: Dictionary, head: Dictionary) -> Dictionary:
 	if image.get("active")!="ordinary" or not image.get("ordinary_state") is Dictionary \
 		or not image.get("ordinary") is Dictionary or not image.get("common") is Dictionary: return {}
 	var state: Dictionary=image.ordinary_state
@@ -72,16 +76,19 @@ static func from_closed_image(image: Dictionary, head: Dictionary) -> Dictionary
 	var head_bytes: PackedByteArray=Archive._wire(head)
 	var checked_head: Dictionary=Archive._head(head_bytes)
 	if checked_head.is_empty() or checked_head.ordinal!=ordinal: return {}
-	var page: PackedByteArray=Archive.make_page(head_bytes,session,close)
-	var successor_head: PackedByteArray=Archive.append_head(head_bytes,page)
+	var link: Dictionary=Archive.make_page_and_head(head_bytes,session,close)
+	if link.is_empty(): return {}
+	var page: PackedByteArray=link.page
+	var successor_head: PackedByteArray=link.head
 	var rules: Dictionary=LeagueRules.capture_tier("dugout",1)
 	if page.is_empty() or successor_head.is_empty() or rules.is_empty(): return {}
 	var next_ordinal: int=int(ordinal)+1
 	var next_seed: int=("ordinary:%s:%d:nextseed"%[state.lineage,next_ordinal]).hash() & 0x7fffffff
-	return {"kind":KIND,"version":1,"source_close":close.id,"source_session_sha256":close.session_sha256,
+	var offer: Dictionary={"kind":KIND,"version":1,"source_close":close.id,"source_session_sha256":close.session_sha256,
 		"source_head_sha256":Archive._hash(head_bytes),"archived_page_sha256":Archive._hash(page),
 		"target_head_sha256":Archive._hash(successor_head),"lineage":state.lineage,"next_ordinal":next_ordinal,
 		"seed":next_seed,"common_sequence":int(sequence),"common_sha256":aggregate_hash,"title":title,"rules":rules}
+	return {"offer":offer,"page":page,"head":successor_head}
 
 static func _score_proof(state: Dictionary) -> Dictionary:
 	if not state.get("results") is Array or state.results.size()!=33 \
@@ -100,8 +107,14 @@ static func _score_proof(state: Dictionary) -> Dictionary:
 # A pure exact write candidate, never Store authority. A caller still has
 # to prove source custody, atomically publish the page/head and reopen it.
 static func stage_birth(image: Dictionary, head: Dictionary, expected_offer: Dictionary) -> Dictionary:
-	var offer: Dictionary=from_closed_image(image,head)
-	if offer.is_empty() or not ClubCareer.same(offer,expected_offer): return {}
+	return _stage_birth(image,head,expected_offer,false)
+
+
+static func _stage_birth(image: Dictionary,head: Dictionary,expected_offer: Dictionary,replayed: bool) -> Dictionary:
+	var basis_link:=_offer_and_page(image,head)
+	if basis_link.is_empty(): return {}
+	var offer: Dictionary=basis_link.offer
+	if not replayed and not ClubCareer.same(offer,expected_offer): return {}
 	var owner_class: Script=Archive._owner()
 	var view: RefCounted=owner_class.new()
 	for key: String in owner_class.META_FIELDS:
@@ -129,9 +142,8 @@ static func stage_birth(image: Dictionary, head: Dictionary, expected_offer: Dic
 	view.session.career.start_basis=image.ordinary.career.start_basis.duplicate(true)
 	var seed_basis: Dictionary=start.make(int(offer.seed),offer.lineage,int(offer.next_ordinal),
 		int(offer.common_sequence),offer.common_sha256,owner_class.Common.projection(view))
-	var previous_head: PackedByteArray=Archive._wire(head)
-	var page: PackedByteArray=Archive.make_page(previous_head,image.ordinary,image.ordinary_state.last_close)
-	var successor: PackedByteArray=Archive.append_head(previous_head,page)
+	var page: PackedByteArray=basis_link.page
+	var successor: PackedByteArray=basis_link.head
 	var new_head: Dictionary=Archive._head(successor)
 	if new_head.is_empty() or Archive._hash(successor)!=offer.target_head_sha256 \
 		or Archive._hash(page)!=offer.archived_page_sha256: return {}
@@ -162,11 +174,15 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 	if checked.is_empty() or pages.is_empty() or pages.size()!=checked.pages.size(): return {}
 	if installed_forward_first and (checked.ordinal!=2 or pages.size()!=1 \
 			or not OS.has_feature("wiffaltro_catalog_forward_v1")): return {}
-	# Authenticate shape/digests before the expensive native replay.
-	for i: int in pages.size():
-		if Archive._hash(pages[i])!=checked.pages[i] or Archive._page(pages[i],checked,i+1).is_empty(): return {}
+	# Authenticate shape/digests before the expensive native replay and keep
+	# only the already checked final page for this same transaction.
 	var final_index: int=pages.size()-1
-	var last: Dictionary=Archive._page(pages[final_index],checked,final_index+1)
+	var last: Dictionary={}
+	for i: int in pages.size():
+		if Archive._hash(pages[i])!=checked.pages[i]: return {}
+		var decoded: Dictionary=Archive._page(pages[i],checked,i+1)
+		if decoded.is_empty(): return {}
+		if i==final_index: last=decoded
 	if last.close.get("reason")!="complete" or last.close.get("league")!="dugout" or last.close.get("tier")!=0: return {}
 	var old: Dictionary=checked.duplicate(true)
 	old.pages.pop_back()
@@ -180,8 +196,9 @@ static func _draft_birth_from_pages(head: PackedByteArray, pages: Array[PackedBy
 	var api:=Archive._owner()
 	var real: Dictionary=api.capture(authenticated)
 	if real.is_empty(): return {}
-	var offer:=from_closed_image(real,old)
-	var staged:=stage_birth(real,old,offer)
+	# Regenerate the offer once from the exact replay, then compare the
+	# entire rebuilt page and head. No outside offer was supplied here.
+	var staged:=_stage_birth(real,old,{},true)
 	if staged.is_empty() or staged.page!=pages[final_index] or Archive._wire(staged.head)!=head: return {}
 	return staged
 

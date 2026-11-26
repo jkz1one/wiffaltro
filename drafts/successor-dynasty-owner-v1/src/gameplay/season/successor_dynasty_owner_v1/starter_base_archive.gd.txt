@@ -83,12 +83,29 @@ static func append_head(head: PackedByteArray, page: PackedByteArray) -> PackedB
 	var h: Dictionary=_head(head)
 	if h.is_empty() or int(h.ordinal)>=ClubCareer.MAX_RUNS or _page(page,h,int(h.ordinal)).is_empty():
 		return PackedByteArray()
+	return _append_checked_page(h,page)
+
+
+# Only the same call that fully validated these exact bytes against this
+# head may reuse that result. Supplied bytes still go through append_head.
+static func _append_checked_page(h: Dictionary,page: PackedByteArray) -> PackedByteArray:
 	var pin: String=_hash(page)
 	if not _digest(pin) or pin==h.root or h.pages.has(pin): return PackedByteArray()
 	h.pages.append(pin)
 	h.ordinal=int(h.ordinal)+1
 	var raw: PackedByteArray=_wire(h)
 	return raw if raw.size()<=MAX_HEAD else PackedByteArray()
+
+# Pure paired construction: make_page already checked the full canonical
+# transport and close digest against this exact head. No caller verdict.
+static func make_page_and_head(head: PackedByteArray,image: Dictionary,close: Dictionary) -> Dictionary:
+	var h: Dictionary=_head(head)
+	if h.is_empty() or int(h.ordinal)>=ClubCareer.MAX_RUNS: return {}
+	var page:=make_page(head,image,close)
+	if page.is_empty(): return {}
+	var linked:=_append_checked_page(h,page)
+	return {"page":page,"head":linked} if not linked.is_empty() else {}
+
 
 # Same ordinary no-argument seed as App.propose_next. No caller-supplied archive
 # seed or transition is permitted to change authored progression.

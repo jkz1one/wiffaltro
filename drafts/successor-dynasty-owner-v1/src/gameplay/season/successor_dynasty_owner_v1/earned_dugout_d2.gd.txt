@@ -105,8 +105,10 @@ static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: S
 	var lineage: String=image.ordinary_state.lineage
 	var source: String=Life.digest(image.ordinary)
 	var old_head: PackedByteArray=Archive._wire(head)
-	var page: PackedByteArray=Archive.make_page(old_head,image.ordinary,image.ordinary_state.last_close)
-	var new_head_raw: PackedByteArray=Archive.append_head(old_head,page)
+	var link: Dictionary=Archive.make_page_and_head(old_head,image.ordinary,image.ordinary_state.last_close)
+	if link.is_empty(): return {}
+	var page: PackedByteArray=link.page
+	var new_head_raw: PackedByteArray=link.head
 	var new_head: Dictionary=Archive._head(new_head_raw)
 	if page.is_empty() or new_head.is_empty() or new_head.ordinal!=ordinal or not c.same(new_head.pages.slice(0,-1),head.pages): return {}
 	var next_seed: int=("ordinary:%s:%d:nextseed"%[lineage,ordinal]).hash() & 0x7fffffff
