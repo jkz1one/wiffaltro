@@ -1,0 +1,69 @@
+extends Node
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+var failed: bool=false
+func _ready():
+	call_deferred("run")
+func load_wrap(path:String,hash:String) -> Dictionary:
+	if FileAccess.get_sha256(path)!=hash: return {}
+	return Store._installed_dugout_d1_parts(JSON.parse_string(FileAccess.get_file_as_string(path).split("\n",true,2)[2]))
+func denied(message: String) -> void:
+	print("FAIL ",message)
+	failed=true
+	get_tree().quit(1)
+func run():
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=4 or Engine.time_scale!=1.0 or Engine.physics_ticks_per_second!=60 or DisplayServer.get_name()!="headless":
+		denied("isolated 60 Hz physics setup"); return
+	for i: int in range(3):
+		await get_tree().process_frame
+		if absf(get_process_delta_time()-1.0/60.0)>0.000001:
+			denied("nonfixed process delta"); return
+	var one:=load_wrap(args[0],"1f66bea4b194fc58a917177867624291d77dec7853c36b6d9b4178174473f9bc")
+	var two:=load_wrap(args[1],"9a2fb35d903a2857b74e066393f29542460be69a543914aa590dcc34f3113196")
+	var last:=load_wrap(args[2],"614fe931fdcb03c0327b5473d3f59dddd0efcad7a5bbbf52f3d22a3e754519e4")
+	if one.is_empty() or two.is_empty() or last.is_empty() or not Store.Codec.same(one.current,two.current):
+		denied("exact pinned predecessor"); return
+	var roots: Array=[]
+	for path: String in preload("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd").REPLAY_ASSET_PATHS:
+		roots.append(load(path))
+	var t:=Time.get_ticks_msec()
+	var ordinary:=Store._installed_dugout_d3_local_draft(one.current.ordinary)
+	if ordinary==null:
+		denied("materializing prequalified D3"); return
+	print("PREQUALIFIED_D3_MS ",Time.get_ticks_msec()-t)
+	var fapi: Script=Store.Adapter.DynastyFixtures
+	for i: int in range(2):
+		var source: Dictionary=[one,two][i]
+		t=Time.get_ticks_msec()
+		var season:=Store._installed_earned_dynasty_draft(source,ordinary)
+		var p:=Store._earned_dynasty_regular_plan(season)
+		var n: int=i+4
+		if p.is_empty() or not p.has("fixture") or p.fixture.get("id")!=n or \
+				fapi.request_key(p.candidate,p.fixture)!=last.dynasty.physical.pending.reports[i].request:
+			denied("exact rendered request %d"%n); return
+		print("CANONICAL_PROJECTION_MS ",n," ",Time.get_ticks_msec()-t)
+		var state: MatchState=fapi.match_for(p.candidate,p.fixture)
+		var field: FieldDefinition=SeasonState.field_for_fixture(p.fixture,p.candidate)
+		if state==null or field==null:
+			denied("projected fixture inputs"); return
+		var runner: Node=Store.Adapter.DynastyRunner.new()
+		add_child(runner)
+		runner.failed.connect(denied,CONNECT_ONE_SHOT)
+		t=Time.get_ticks_msec()
+		if not runner.start(state,fapi.seed_for(p.candidate,p.fixture),field.id):
+			denied("actual engine start"); return
+		var report: Dictionary=await runner.finished
+		var ms: int=Time.get_ticks_msec()-t
+		if failed: return
+		var target: String=args[3].path_join("fixture%d.json"%n)
+		if FileAccess.file_exists(target):
+			denied("the diagnostic never overwrites evidence"); return
+		var f:=FileAccess.open(target,FileAccess.WRITE)
+		if f==null:
+			denied("unable to write the diagnostic report"); return
+		f.store_string(JSON.stringify(report,"",true,true)); f.flush(); f.close()
+		print("FIXED_STEP_SIMULATION_MS ",n," ",ms," scores ",report.physical.away_runs,"-",report.physical.home_runs)
+		runner.queue_free()
+		await get_tree().process_frame
+	print("PASS both real engine fixtures completed with previously rendered request keys; score and full proof comparison is separate.")
+	get_tree().quit()

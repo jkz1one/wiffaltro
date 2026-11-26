@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://dynasty_fixed_step_oracle.gd" id="1"]
+[node name="DynastyFixedStepOracle" type="Node"]
+script = ExtResource("1")

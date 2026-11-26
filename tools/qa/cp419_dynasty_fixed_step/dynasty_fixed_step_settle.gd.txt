@@ -1,0 +1,60 @@
+extends Node
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+var failed: bool=false
+func _ready():
+	call_deferred("run")
+func load_wrap(path:String,hash:String) -> Dictionary:
+	if FileAccess.get_sha256(path)!=hash: return {}
+	return Store._installed_dugout_d1_parts(JSON.parse_string(FileAccess.get_file_as_string(path).split("\n",true,2)[2]))
+func denied(message: String) -> void:
+	print("FAIL ",message)
+	failed=true
+	get_tree().quit(1)
+func run():
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=3 or DisplayServer.get_name()!="headless":
+		denied("isolated validation setup"); return
+	var one:=load_wrap(args[0],"1f66bea4b194fc58a917177867624291d77dec7853c36b6d9b4178174473f9bc")
+	var raw:=load_wrap(args[1],"614fe931fdcb03c0327b5473d3f59dddd0efcad7a5bbbf52f3d22a3e754519e4")
+	if one.is_empty() or raw.is_empty() or not Store.Codec.same(one.current,raw.current):
+		denied("exact pinned predecessors"); return
+	var roots: Array=[]
+	for path: String in preload("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd").REPLAY_ASSET_PATHS:
+		roots.append(load(path))
+	var ordinary:=Store._installed_dugout_d3_local_draft(one.current.ordinary)
+	var baseline:=Store._installed_earned_dynasty_draft(raw,ordinary)
+	var replay:=Store._installed_earned_dynasty_draft(one,ordinary)
+	var native:=Store._earned_dynasty_regular_plan(baseline)
+	if native.is_empty() or native.has("fixture") or replay==null:
+		denied("genuine settlement reference"); return
+	var expected: SeasonState=native.candidate
+	for i: int in range(2):
+		var plan:=Store._earned_dynasty_regular_plan(replay)
+		if plan.is_empty() or not plan.has("fixture") or plan.fixture.get("id")!=i+4:
+			denied("canonical replay progress"); return
+		var request: String=Store.Adapter.DynastyFixtures.request_key(plan.candidate,plan.fixture)
+		if request!=raw.dynasty.physical.pending.reports[i].request:
+			denied("headless report changed subsequent native request"); return
+		var report: Variant=JSON.parse_string(FileAccess.get_file_as_string(args[2].path_join("fixture%d.json"%(i+4))))
+		if not report is Dictionary:
+			denied("generated JSON missing"); return
+		var staged: Dictionary=Store.Adapter.DynastyPending.stage_report(replay,report)
+		if staged.has("error") or not staged.get("candidate") is SeasonState:
+			denied("ordinary acceptance rejects headless report: "+str(staged.get("error",""))); return
+		replay=staged.candidate
+	var settled:=Store._earned_dynasty_regular_plan(replay)
+	if settled.is_empty() or settled.has("fixture"):
+		denied("headed and headless both must settle"); return
+	var got: SeasonState=settled.candidate
+	for i: int in range(6):
+		var ga: SeasonBuild=got.build if i==0 else got.opponents.clubs[str(i)].build
+		var gb: SeasonBuild=expected.build if i==0 else expected.opponents.clubs[str(i)].build
+		if ga.cash()!=gb.cash() or not Store.Codec.same(ga._bank.view().rewards,gb._bank.view().rewards) \
+				or not Store.Codec.same(ga._bank._events,gb._bank._events) or ga.roster()!=gb.roster():
+			denied("club payout, purchases or roster changed: %d"%i); return
+	var arows: Array=got.results.map(func(r:Dictionary)->Array:return [r.id,r.away_runs,r.home_runs])
+	var brows: Array=expected.results.map(func(r:Dictionary)->Array:return [r.id,r.away_runs,r.home_runs])
+	if not Store.Codec.same(arows,brows) or not Store.Codec.same(got.pending_fixture(),expected.pending_fixture()):
+		denied("scores or next fixture changed"); return
+	print("PASS: sequential raw headless reports admitted; both requests, scores, all six cash balances, exact reward and purchase journals, all rosters and next fixture match actual GUI proof.")
+	get_tree().quit()
