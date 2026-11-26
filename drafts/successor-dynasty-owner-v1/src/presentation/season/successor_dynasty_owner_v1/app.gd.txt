@@ -1163,6 +1163,32 @@ func settle_installed_dugout_d1(expected: PackedByteArray) -> void:
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
+func _installed_dugout_d1_close_ready(expected: PackedByteArray) -> bool:
+	# The generic availability guard deliberately excludes this detached view.
+	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
+		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
+		and installed_dugout_d1_draft.get("close_available",false) and saved_bytes==expected \
+		and career_owner==null and season==null and not is_instance_valid(_installed_dugout_d1_shop) \
+		and menu!=null and menu.visible and menu.page=="home"
+
+func request_installed_dugout_d1_close(expected: PackedByteArray) -> void:
+	if not _installed_dugout_d1_close_ready(expected): return
+	_lifecycle_action="installed_dugout_d1_complete"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Close Dugout D1?"
+	_lifecycle_dialog.dialog_text="Bank verified career progress and Club Credits once. Your season results and Season Cash stay saved."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+func _complete_installed_dugout_d1(expected: PackedByteArray) -> void:
+	if not _installed_dugout_d1_close_ready(expected): return
+	_busy=true
+	var view:=Store.complete_installed_dugout_d1(self)
+	_busy=false
+	if view.is_empty(): notice="Season Close could not be confirmed. Use Continue to check the saved career."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
 func installed_dugout_d1_shop_window(window: Node) -> bool:
 	return is_instance_valid(window) and window==_installed_dugout_d1_shop and window.get_parent()==menu \
 		and installed_dugout_d1_draft.get("state")=="paid" and career_owner==null and season!=null
@@ -2244,6 +2270,11 @@ func _cancel_lifecycle() -> void:
 	if is_instance_valid(_lifecycle_dialog): _lifecycle_dialog.hide()
 func _confirm_lifecycle() -> void:
 	var action: String=_lifecycle_action
+	if action=="installed_dugout_d1_complete":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		_complete_installed_dugout_d1(before)
+		return
 	if action=="installed_dugout_d1":
 		var before:=_lifecycle_bytes.duplicate()
 		var owner:=_lifecycle_owner

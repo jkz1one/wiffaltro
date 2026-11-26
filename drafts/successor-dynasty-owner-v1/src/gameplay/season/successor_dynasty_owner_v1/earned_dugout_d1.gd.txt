@@ -4,6 +4,7 @@ extends RefCounted
 const Life = preload("lifecycle.gd")
 const Archive = preload("starter_base_archive.gd")
 const Titles = preload("res://src/gameplay/season/club_league_career.gd")
+const Progress = preload("common_progress.gd")
 const KIND := "earned-dugout-d1-offer-v1"
 
 # Derive the first archive root from the actual native installed life.
@@ -574,3 +575,62 @@ static func _restore_after_picks(staged: Dictionary, value: Dictionary, installe
 static func restore_draft_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], value: Dictionary, installed_forward_first: bool=false) -> SeasonState:
 	var staged:=_draft_birth_from_pages(head,pages,installed_forward_first)
 	return null if staged.is_empty() else _restore_after_picks(staged,value,installed_forward_first)
+
+
+# The active parent must already be bound to its archive and authenticated
+# games. This pure projection is also recomputed after full cold replay.
+static func close_destination(session: SeasonState) -> String:
+	if session==null or session.phase!=SeasonState.Phase.COMPLETE or session.build==null \
+			or session.physical==null or not session.physical.pending.is_empty() \
+			or not session.physical.needed.is_empty() or not session.physical.error.is_empty() \
+			or session.physical.projecting or session.build.pack_pending(): return ""
+	if final_regular_destination(session)=="missed": return "missed"
+	if settled_semifinal(session)=="semifinal_exit": return "semifinal"
+	var finish:=managed_final_destination(session)
+	if finish=="final_runner_up": return "runner_up"
+	return "champion" if finish=="final_champion" else ""
+
+static func completed_current(active: Dictionary, session: SeasonState) -> Dictionary:
+	var finish:=close_destination(session)
+	if finish.is_empty(): return {}
+	var api:=Archive._owner()
+	var c: Script=api.Codec
+	if active.get("active")!="ordinary" or not active.get("ordinary_state") is Dictionary \
+			or not active.get("common") is Dictionary or not active.get("ordinary") is Dictionary: return {}
+	var state: Dictionary=active.ordinary_state
+	var common: Dictionary=active.common
+	if state.get("status")!="active" or not c.whole(state.get("ordinal"),2,2) or state.get("proposal")!={} \
+			or state.get("last_close")!={} or not state.get("lineage") is String \
+			or not c.whole(common.get("sequence"),1,1) or not common.get("aggregate") is Dictionary \
+			or not c.same(common.get("cursors"),{"ordinary":1,"dynasty":0}): return {}
+	if not c.same(api.Adapter.Ordinary.capture(session),active.ordinary) \
+			or not api.Common._starter_dugout_paid_terminal(session): return {}
+	var basis: Dictionary=session.career.start_basis
+	if basis.get("lineage")!=state.lineage or basis.get("ordinal")!=2 or basis.get("common_sequence")!=1 \
+			or state.get("start_basis_sha256")!=Life.digest(basis) \
+			or basis.get("common_sha256")!=Life.digest(common.aggregate): return {}
+	var id: String="%s:2:close"%state.lineage
+	var folded:=Progress.fold_installed_dugout_d1_complete(common.aggregate,session,id,2)
+	if folded.is_empty() or folded.receipt.get("finish")!=finish or folded.receipt.get("version")!=2: return {}
+	var image: Dictionary=active.duplicate(true)
+	var source: String=Life.digest(active.ordinary)
+	var first_title: bool=not common.aggregate.titles.get(Titles.title_key("dugout",1),false)
+	image.ordinary_state.last_close={"id":id,"ordinal":2,"reason":"complete","session_sha256":source,
+		"receipt":folded.receipt,"first_title":first_title,"league":"dugout","tier":1}
+	image.ordinary_state.status="closed"
+	image.common.aggregate=folded.aggregate
+	image.common.cursors.ordinary=2
+	image.common.sequence=2
+	image.common.last_fold={"id":id,"side":"ordinary","ordinal":2,"sequence":2,"source":source,
+		"aggregate_sha256":Life.digest(folded.aggregate),"receipt":folded.receipt.duplicate(true)}
+	return image
+
+static func restore_completed_from_pages(head: PackedByteArray, pages: Array[PackedByteArray], value: Dictionary) -> SeasonState:
+	var staged:=_draft_birth_from_pages(head,pages,true)
+	if staged.is_empty() or not value.get("ordinary") is Dictionary: return null
+	var active: Dictionary=staged.current.duplicate(true)
+	active.ordinary=value.ordinary
+	var proven:=_restore_after_picks(staged,active,true)
+	if proven==null: return null
+	var expected:=completed_current(active,proven)
+	return proven if not expected.is_empty() and Archive._owner().Codec.same(expected,value) else null

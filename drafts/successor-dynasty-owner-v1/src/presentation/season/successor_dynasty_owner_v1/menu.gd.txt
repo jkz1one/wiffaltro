@@ -640,6 +640,7 @@ func _installed_dugout_d1() -> void:
 	if state=="draft": title="DUGOUT D1 · DRAFT %d / 4"%draft.picks.size()
 	elif state=="semifinal_unpaid" or draft.finish=="semifinal_exit": title="DUGOUT D1 · SEMIFINAL"
 	elif state=="final_unpaid" or draft.finish in ["final_ready","final_champion","final_runner_up"]: title="DUGOUT D1 · FINAL"
+	if draft.closed: title="DUGOUT D1 · SEASON CLOSED"
 	_label(_body,title,24)
 	_note("Dugout Base championship kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
@@ -681,6 +682,10 @@ func _installed_dugout_d1() -> void:
 			_note("Your Club finished runner-up. The final and game payout are saved.")
 		else:
 			_note("Round %d has already paid. All three results are saved."%draft.round)
+		if draft.closed:
+			_note("Career progress banked · %d Club Credits earned."%int(draft.completion.total))
+		elif draft.close_available:
+			_bound_button(_body,"CLOSE SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 		if draft.next_available:
 			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		if draft.shop_available:
