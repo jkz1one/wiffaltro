@@ -3941,14 +3941,17 @@ static func start_installed_dugout_d1_cpu(app: Variant) -> bool:
 	var state: MatchState=fixtures.match_for(plan,fixture)
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,plan)
 	if state==null or field==null: return false
-	var runner: Node=Adapter.DynastyRunner.new() if dynasty else Adapter.OrdinaryRunner.new()
+	var worker: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/earned_dynasty_fast_npc.gd") if dynasty else null
+	var accelerated: bool=worker!=null and worker.scoped(round_plan)
+	var runner: Node=worker.new() if accelerated else (Adapter.DynastyRunner.new() if dynasty else Adapter.OrdinaryRunner.new())
 	_installed_dugout_d1_cpu={"app":weakref(app),"runner":weakref(runner),"bytes":expected.duplicate(),"fixture":int(fixture.id),
 		"count":round_plan.count,"dynasty":dynasty}
 	app.ai_runner=runner
 	app.add_child(runner)
 	runner.finished.connect(_finish_installed_dugout_d1_cpu.bind(app,runner),CONNECT_ONE_SHOT)
 	runner.failed.connect(_fail_installed_dugout_d1_cpu.bind(app,runner),CONNECT_ONE_SHOT)
-	if runner.start(state,fixtures.seed_for(plan,fixture),field.id): return true
+	var started: bool=runner.start(expected,round_plan) if accelerated else runner.start(state,fixtures.seed_for(plan,fixture),field.id)
+	if started: return true
 	_installed_dugout_d1_cpu={}
 	app.ai_runner=null
 	runner.queue_free()

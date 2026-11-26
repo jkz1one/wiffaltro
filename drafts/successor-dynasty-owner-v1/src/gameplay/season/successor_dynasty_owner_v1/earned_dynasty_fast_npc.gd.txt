@@ -1,0 +1,196 @@
+extends Node
+## Same authored runner, fixed-step child. Only the bound parent may stage or pay.
+signal finished(report: Dictionary)
+signal failed(reason: String)
+
+const Store=preload("owner_store.gd")
+const Reader=preload("installed_dugout_d1_reader.gd")
+const Report=preload("physical_report.gd")
+const ARG: String="--earned-dynasty-npc-v1="
+const FRAME: String="WIFFALTRO_EARNED_DYNASTY_NPC_V1 "
+const MAX_REPORT: int=1024*1024
+const MAX_FRAME: int=2*1024*1024
+const MAX_MS: int=240000
+
+var _job: Dictionary={}
+var _expected: PackedByteArray
+var _pid: int=-1
+var _out: FileAccess
+var _err: FileAccess
+var _buffer: PackedByteArray
+var _start_ms: int=0
+var _poll: int=0
+var _runner: Node
+
+static func _parent() -> bool:
+	return OS.has_feature(Store.LeagueAdmission.CAREER_FORWARD_FEATURE) and Store.LeagueAdmission.installed_career_owned()
+
+static func _worker() -> bool:
+	return OS.has_feature(Store.LeagueAdmission.CAREER_FORWARD_FEATURE) and Store.LeagueAdmission.installed_career_worker()
+
+static func _wire(data: Dictionary) -> String:
+	return JSON.stringify(data,"",true,true)
+
+static func _valid(job: Variant) -> bool:
+	if not Store.Codec.keys(job,["fixture","nonce","revision","request"]) or not job.fixture is String \
+			or not job.fixture.is_valid_int() or str(int(job.fixture))!=job.fixture: return false
+	return int(job.fixture) in [4,5] and Store.BaseArchive._digest(job.nonce) \
+		and Store.BaseArchive._digest(job.revision) and Store.BaseArchive._digest(job.request) \
+		and job.nonce!=job.revision and job.nonce!=job.request
+
+static func parse(args: PackedStringArray) -> Dictionary:
+	if args.size()!=1 or args[0].length()>480 or not args[0].begins_with(ARG): return {}
+	var encoded: String=args[0].trim_prefix(ARG)
+	if encoded.is_empty() or encoded.length()%4!=0: return {}
+	for character: String in encoded:
+		if not "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".contains(character): return {}
+	var decoded: String=Marshalls.base64_to_utf8(encoded)
+	if decoded.is_empty() or Marshalls.utf8_to_base64(decoded)!=encoded: return {}
+	var job: Variant=JSON.parse_string(decoded)
+	return job if _valid(job) and _wire(job)==decoded else {}
+
+static func scoped(round_plan: Dictionary) -> bool:
+	# Start with the two requests whose real render/fixed-step parity was proven.
+	# All other rounds continue using the same in-process physical engine.
+	return _parent() and round_plan.get("dynasty",false) and round_plan.get("round")==1 \
+		and round_plan.projection.get("fixture",{}).get("id") in [4,5]
+
+func start(expected: PackedByteArray,round_plan: Dictionary) -> bool:
+	var exe: String=OS.get_executable_path()
+	if _pid>0 or not is_inside_tree() or not scoped(round_plan) or expected.is_empty() \
+			or round_plan.source.bytes!=expected or not exe.is_absolute_path() \
+			or not FileAccess.file_exists(exe.get_basename()+".pck"): return false
+	var projection: Dictionary=round_plan.projection
+	var job: Dictionary={"fixture":str(int(projection.fixture.id)),
+		"revision":Store.BaseArchive._hash(expected),
+		"request":Store.Adapter.DynastyFixtures.request_key(projection.candidate,projection.fixture),
+		"nonce":Crypto.new().generate_random_bytes(32).hex_encode()}
+	if not _valid(job): return false
+	var raw: String=ARG+Marshalls.utf8_to_base64(_wire(job))
+	var process:=OS.execute_with_pipe(exe.get_base_dir().path_join("Wiffaltro"),[raw],false)
+	_pid=int(process.get("pid",-1))
+	_out=process.get("stdio")
+	_err=process.get("stderr")
+	if _pid<=0 or _out==null or _err==null:
+		cancel()
+		return false
+	_expected=expected.duplicate()
+	_job=job
+	_start_ms=Time.get_ticks_msec()
+	_poll=_start_ms
+	process_mode=Node.PROCESS_MODE_ALWAYS
+	set_process(true)
+	return true
+
+func cancel() -> void:
+	if _pid>0 and OS.is_process_running(_pid): OS.kill(_pid)
+	_pid=-1
+	_out=null
+	_err=null
+	_buffer.clear()
+	_job={}
+	_expected.clear()
+	set_process(false)
+
+func _exit_tree() -> void: cancel()
+
+func _drain() -> bool:
+	if _out==null or _err==null or _err.get_length()!=0: return false
+	var length: int=_out.get_length()
+	if length<0 or length>MAX_FRAME-_buffer.size(): return false
+	if length>0:
+		var part:=_out.get_buffer(length)
+		if part.size()!=length: return false
+		_buffer.append_array(part)
+	return true
+
+static func decode(bytes: PackedByteArray,job: Dictionary,code: int) -> Dictionary:
+	if code!=0 or not _valid(job) or bytes.is_empty() or bytes.size()>MAX_FRAME: return {}
+	var message: String=bytes.get_string_from_utf8()
+	var lines: PackedStringArray=message.split("\n",false)
+	if not message.ends_with("\n") or lines.size()<2 or not lines[0].begins_with("Godot Engine v"): return {}
+	var frame: String=""
+	for line: String in lines:
+		if line.begins_with(FRAME):
+			if not frame.is_empty(): return {}
+			frame=line.trim_prefix(FRAME)
+	if frame.is_empty() or lines[-1]!=FRAME+frame: return {}
+	var result: Variant=JSON.parse_string(frame)
+	if not Store.Codec.keys(result,["job","report","bytes"]) or not result.job is Dictionary or result.job!=job \
+			or not result.report is String or not result.bytes is String or frame!=_wire(result): return {}
+	var length: int=result.report.to_utf8_buffer().size()
+	if length<1 or length>MAX_REPORT or result.bytes!=str(length): return {}
+	var report: Variant=JSON.parse_string(result.report)
+	if not report is Dictionary or report.get("version")!=Report.VERSION or report.get("resolver")!=Report.RESOLVER \
+			or not report.get("physical") is Dictionary: return {}
+	return report
+
+func _process(_delta: float) -> void:
+	if _pid<=0: return
+	var now: int=Time.get_ticks_msec()
+	if now<_poll: return
+	_poll=now+50
+	if now-_start_ms>MAX_MS or not _drain():
+		cancel()
+		failed.emit("The CPU game did not finish. Your saved round is unchanged.")
+		return
+	if OS.is_process_running(_pid): return
+	var code: int=OS.get_process_exit_code(_pid)
+	var report:=decode(_buffer,_job,code) if _drain() and Store.raw()==_expected else {}
+	cancel()
+	if report.is_empty(): failed.emit("The CPU result could not be verified. Your saved round is unchanged.")
+	else: finished.emit(report)
+
+func worker(job: Dictionary) -> void:
+	set_process(false)
+	var exe: String=OS.get_executable_path()
+	if not _worker() or not _valid(job) or Engine.time_scale!=1.0 or Engine.physics_ticks_per_second!=60 \
+			or not exe.is_absolute_path() or not FileAccess.file_exists(exe.get_basename()+".pck"):
+		get_tree().quit(3); return
+	for i: int in range(3):
+		await get_tree().process_frame
+		if absf(get_process_delta_time()-1.0/60.0)>0.000001:
+			get_tree().quit(3); return
+	var source:=Store._installed_dugout_d1_source(true)
+	if source.is_empty() or Store.BaseArchive._hash(source.bytes)!=job.revision or source.tier!=3 \
+			or source.dynasty.is_empty() or source.dynasty.state.get("round_index")!=1:
+		get_tree().quit(8); return
+	# The parent already verified the three archived pages and current D3
+	# season. Recreate only the same local D3 image and canonical Dynasty
+	# proof for this read-only execution. Generic hydration loses request types.
+	var assets: Array[Resource]=[]
+	for path: String in Reader.REPLAY_ASSET_PATHS:
+		var item: Resource=load(path)
+		if item==null:
+			get_tree().quit(8); return
+		assets.append(item)
+	var ordinary:=Store._installed_dugout_d3_local_draft(source.current.ordinary)
+	var season:=Store._installed_earned_dynasty_draft(source,ordinary)
+	var plan:=Store._earned_dynasty_regular_plan(season)
+	var fixtures: Script=Store.Adapter.DynastyFixtures
+	if plan.is_empty() or not plan.has("fixture") or str(int(plan.fixture.id))!=job.fixture \
+			or fixtures.request_key(plan.candidate,plan.fixture)!=job.request:
+		get_tree().quit(8); return
+	var state: MatchState=fixtures.match_for(plan.candidate,plan.fixture)
+	var field: FieldDefinition=SeasonState.field_for_fixture(plan.fixture,plan.candidate)
+	if state==null or field==null or not _worker():
+		get_tree().quit(8); return
+	_runner=Store.Adapter.DynastyRunner.new()
+	add_child(_runner)
+	_runner.failed.connect(func(_reason: String) -> void: get_tree().quit(8),CONNECT_ONE_SHOT)
+	_runner.finished.connect(_emit_report.bind(job,source,assets),CONNECT_ONE_SHOT)
+	if not _runner.start(state,fixtures.seed_for(plan.candidate,plan.fixture),field.id): get_tree().quit(8)
+
+func _emit_report(report: Dictionary,job: Dictionary,source: Dictionary,_assets: Array[Resource]) -> void:
+	var again:=Store._installed_dugout_d1_source(true)
+	if not _worker() or again.is_empty() or again.bytes!=source.bytes or again.pages!=source.pages:
+		get_tree().quit(8); return
+	var json: String=_wire(report)
+	var length: int=json.to_utf8_buffer().size()
+	if length<1 or length>MAX_REPORT:
+		get_tree().quit(8); return
+	var line: String=FRAME+_wire({"job":job,"report":json,"bytes":str(length)})
+	if line.to_utf8_buffer().size()>=MAX_FRAME-16384:
+		get_tree().quit(8); return
+	print(line)
+	get_tree().quit()

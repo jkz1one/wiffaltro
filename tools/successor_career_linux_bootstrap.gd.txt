@@ -3,6 +3,7 @@ extends Node
 const Admission=preload("res://src/gameplay/season/successor_dynasty_owner_v1/league_admission.gd")
 const Npc=preload("res://src/gameplay/season/successor_dynasty_owner_v1/starter_fast_npc.gd")
 const EarnedD1=preload("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd")
+const DYNASTY_NPC: String="res://src/gameplay/season/successor_dynasty_owner_v1/earned_dynasty_fast_npc.gd"
 const INTEGRATED: String="res://src/presentation/season/successor_dynasty_owner_v1/launcher.tscn"
 
 func _ready() -> void:
@@ -12,6 +13,18 @@ func _ready() -> void:
 			return
 		if Admission.installed_career_worker():
 			if OS.has_feature(Admission.CAREER_FORWARD_FEATURE):
+				var args: PackedStringArray=OS.get_cmdline_user_args()
+				# Legacy and ordinary career workers do not load the pilot script.
+				if args.size()==1 and args[0].begins_with("--earned-dynasty-npc-v1="):
+					var api: Script=load(DYNASTY_NPC)
+					var dynasty_job: Dictionary=api.parse(args) if api!=null else {}
+					if dynasty_job.is_empty():
+						_refuse()
+						return
+					var fast: Node=api.new()
+					add_child(fast)
+					fast.call_deferred("worker",dynasty_job)
+					return
 				var read_job:=EarnedD1.parse(OS.get_cmdline_user_args())
 				if not read_job.is_empty():
 					var reader: Node=EarnedD1.new()

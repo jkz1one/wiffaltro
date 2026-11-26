@@ -86,7 +86,10 @@ int main(int argc, char **argv) {
     const char d1_read_arg[] = "--dugout-d1-read-v1=";
     const int d1_worker = argc == 2 && strlen(argv[1]) <= 480 &&
                           !strncmp(argv[1], d1_read_arg, sizeof d1_read_arg - 1);
-    const int worker = npc_worker || d1_worker;
+    const char dynasty_arg[] = "--earned-dynasty-npc-v1=";
+    const int dynasty_worker = argc == 2 && strlen(argv[1]) <= 480 &&
+                               !strncmp(argv[1], dynasty_arg, sizeof dynasty_arg - 1);
+    const int worker = npc_worker || d1_worker || dynasty_worker;
 #else
     const int worker = npc_worker;
 #endif
