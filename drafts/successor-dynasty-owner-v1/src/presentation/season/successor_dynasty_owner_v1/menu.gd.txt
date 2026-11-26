@@ -635,7 +635,7 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready"]:
+	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready","dynasty_second_ready"]:
 		_installed_earned_dynasty_draft(draft)
 		return
 	if draft.get("tier",1) in [2,3]:
@@ -715,6 +715,15 @@ func _installed_dugout_d1() -> void:
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
+	if draft.state=="dynasty_second_ready":
+		_label(_body,"DYNASTY · SEASON 2",24)
+		_note("%d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
+		for id: String in draft.picks:
+			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+			_label(_body,player.display_name if player!=null else id,20)
+		_note("The same roster carried forward. Season 1 is still saved.")
+		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
+		return
 	var count: int=draft.picks.size()
 	var pending: bool=draft.state=="dynasty_pending"
 	var paid: bool=draft.state=="dynasty_paid"
@@ -763,6 +772,7 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			_: _note("The club missed the postseason. The final bracket is saved.")
 		if draft.dynasty_closed:
 			_note("Banked %d Club Credits. Season Cash and results are unchanged."%int(draft.completion.total))
+			_bound_button(_body,"PREVIEW SEASON 2",Callable(app,"request_installed_dynasty_second").bind(draft.bytes.duplicate()))
 		elif draft.close_available:
 			_bound_button(_body,"CLOSE DYNASTY SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 	elif count==4:

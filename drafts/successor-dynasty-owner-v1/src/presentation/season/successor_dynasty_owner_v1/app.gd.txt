@@ -1196,6 +1196,38 @@ func _complete_installed_dugout_d1(expected: PackedByteArray) -> void:
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
+func _installed_dynasty_second_ready(expected: PackedByteArray) -> bool:
+	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
+		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
+		and career_owner==null and season==null and saved_bytes==expected and menu!=null and menu.visible and menu.page=="home" \
+		and installed_dugout_d1_draft.get("dynasty_closed",false)
+
+
+func request_installed_dynasty_second(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected): return
+	var preview:=Store.preview_installed_earned_dynasty_second(self)
+	if not preview.has("stat_loss"):
+		notice=preview.get("blocked","The Season 2 preview could not be prepared. Season 1 has not changed.")
+		show_season()
+		return
+	_lifecycle_action="installed_dynasty_second"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Keep this roster for Season 2?"
+	_lifecycle_dialog.dialog_text="This roster would lose %d stat levels and %d pitch mastery levels under the current upkeep rule. Your earned pitch access is kept. Season Cash resets to 0. Cancel changes nothing."%[int(preview.stat_loss),int(preview.pitch_loss)]
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+
+func _start_installed_dynasty_second(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected): return
+	_busy=true
+	var view:=Store.start_installed_earned_dynasty_second(self)
+	_busy=false
+	if view.is_empty(): notice="Season 2 could not be committed. Use Continue to check your saved career."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
+
 func _installed_dugout_d2_birth_ready(expected: PackedByteArray) -> bool:
 	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
 		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
@@ -2329,6 +2361,11 @@ func _cancel_lifecycle() -> void:
 	if is_instance_valid(_lifecycle_dialog): _lifecycle_dialog.hide()
 func _confirm_lifecycle() -> void:
 	var action: String=_lifecycle_action
+	if action=="installed_dynasty_second":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		_start_installed_dynasty_second(before)
+		return
 	if action=="installed_earned_dynasty_birth":
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()
