@@ -722,6 +722,7 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_label(_body,player.display_name if player!=null else id,20)
 		_note("The same roster carried forward. Season 1 is still saved.")
+		_bound_button(_body,"PLAY SEASON 2 OPENING DAY",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 		return
 	var count: int=draft.picks.size()
@@ -732,7 +733,7 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 	var bracket: bool=draft.state=="dynasty_postseason_ready"
 	var postseason: String=draft.postseason
 	var title: String="DYNASTY · DRAFT %d / 4"%count
-	if pending or paid: title="DYNASTY · ROUND %d"%round
+	if pending or paid: title=("DYNASTY · SEASON 2 · ROUND %d" if draft.get("ordinal",1)==2 else "DYNASTY · ROUND %d")%round
 	if postseason in ["semifinal","final"]: title="DYNASTY · "+postseason.to_upper()
 	if done: title="DYNASTY · SEASON CLOSED" if draft.dynasty_closed else "DYNASTY · SEASON RESULTS"
 	_label(_body,title,24)
@@ -743,7 +744,8 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 	if paid:
 		_note("Round %d is paid. All three games are saved."%round)
 		var play: String="PLAY DYNASTY HOME OPENER" if round==1 else "PLAY DYNASTY ROUND %d"%(round+1)
-		_bound_button(_body,play,Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+		if draft.get("allow_play_next",true):
+			_bound_button(_body,play,Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		if draft.shop_available:
 			_bound_button(_body,"OPEN DYNASTY SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 		for row: Dictionary in draft.results:
