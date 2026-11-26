@@ -712,21 +712,43 @@ func _installed_dugout_d1() -> void:
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _installed_dugout_d2_draft(draft: Dictionary) -> void:
-	var complete: bool=draft.state=="draft_complete"
-	_label(_body,"DUGOUT D2 · DRAFT COMPLETE" if complete else "DUGOUT D2 · DRAFT %d / 4"%draft.picks.size(),24)
+	var state: String=draft.state
+	var title: String="DUGOUT D2 · DRAFT %d / 4"%draft.picks.size()
+	if state=="ready": title="DUGOUT D2 · DRAFT COMPLETE"
+	elif state in ["unpaid","paid"]: title="DUGOUT D2 · ROUND 1"
+	_label(_body,title,24)
 	_note("Base and D1 seasons kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
 		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 		_label(_body,player.display_name if player!=null else id,20)
-	if complete:
+	if state=="ready":
 		_note("Your four picks and five opposing clubs are saved.")
+		_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+	elif state=="unpaid":
+		_note("Your Club game is saved. The round has not been paid.")
+		_note("CPU games saved: %d / %d"%[draft.cpu_reports,draft.cpu_total])
+		if app.installed_dugout_d1_cpu_running():
+			_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
+		elif draft.cpu_reports<draft.cpu_total:
+			_bound_button(_body,"PLAY CPU GAME %d OF %d"%[int(draft.cpu_reports+1),draft.cpu_total],
+				Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
+		else:
+			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
+	elif state=="paid":
+		_note("Round 1 has already paid. All three results are saved.")
+		if draft.shop_available:
+			_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
+		for row: Array in draft.scores:
+			var score_label: String="Club game" if row[0]==0 else "CPU game %d"%int(row[0])
+			_note("%s: %d away – %d home"%[score_label,row[1],row[2]])
 	else:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			if player==null: continue
 			_bound_button(_body,player.display_name,Callable(app,"pick_installed_dugout_d1").bind(id,draft.bytes.duplicate()))
 			_player_summary(player)
-	_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
+	if not app.installed_dugout_d1_cpu_running():
+		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _closed() -> void:
 	var owner=app.career_owner
