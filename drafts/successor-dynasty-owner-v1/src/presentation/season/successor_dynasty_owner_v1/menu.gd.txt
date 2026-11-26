@@ -635,6 +635,9 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
+	if draft.get("tier",1)==3:
+		_installed_dugout_d3_draft(draft)
+		return
 	if draft.get("tier",1)==2:
 		_installed_dugout_d2_draft(draft)
 		return
@@ -761,6 +764,8 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 			_note("Round %d has already paid. All three results are saved."%draft.round)
 		if draft.closed:
 			_note("Career progress banked · %d Club Credits earned."%int(draft.completion.total))
+			if draft.start_d3_available:
+				_bound_button(_body,"START DUGOUT D3 DRAFT",Callable(app,"request_installed_dugout_d2").bind(draft.bytes.duplicate()))
 		elif draft.close_available:
 			_bound_button(_body,"CLOSE SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 		if draft.next_available:
@@ -783,6 +788,24 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 			_player_summary(player)
 	if not app.installed_dugout_d1_cpu_running():
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
+
+func _installed_dugout_d3_draft(draft: Dictionary) -> void:
+	var paid: bool=draft.state=="ready"
+	_label(_body,"DUGOUT D3 · DRAFT COMPLETE" if paid else "DUGOUT D3 · DRAFT %d / 4"%draft.picks.size(),24)
+	_note("Base, D1 and D2 seasons kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
+	_note("Some sponsor offers in D3 have no refund. The Shop will identify those terms before purchase.")
+	for id: String in draft.picks:
+		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+		_label(_body,player.display_name if player!=null else id,20)
+	if paid:
+		_note("Your four picks and five opposing clubs are saved. Opening Day is not enabled in this build.")
+	else:
+		for id: String in draft.offers:
+			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+			if player==null: continue
+			_bound_button(_body,player.display_name,Callable(app,"pick_installed_dugout_d1").bind(id,draft.bytes.duplicate()))
+			_player_summary(player)
+	_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _closed() -> void:
 	var owner=app.career_owner

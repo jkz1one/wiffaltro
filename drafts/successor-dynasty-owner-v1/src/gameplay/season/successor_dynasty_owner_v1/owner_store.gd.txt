@@ -2993,12 +2993,12 @@ static func inspect_installed_earned_dugout_d1(owner: RefCounted, expected: Pack
 # the private legacy archive format. A head shape alone confers no authority.
 static func _installed_dugout_d1_parts(value: Variant) -> Dictionary:
 	if not Codec.keys(value,["kind","version","head","current"]) \
-			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,4) \
+			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,5) \
 			or not value.head is Dictionary or not value.current is Dictionary \
 			or not value.head.get("kind") is String or not value.head.get("league") is String \
 			or not Codec.whole(value.head.get("version"),1,1): return {}
 	var closed: bool=value.version==2 or value.version==4
-	var tier: int=2 if value.version==3 or value.version==4 else 1
+	var tier: int=3 if value.version==5 else (2 if value.version==3 or value.version==4 else 1)
 	var ordinal: int=tier+1
 	var head_bytes: PackedByteArray=BaseArchive._wire(value.head)
 	var head:=BaseArchive._head(head_bytes)
@@ -3010,9 +3010,9 @@ static func _installed_dugout_d1_parts(value: Variant) -> Dictionary:
 			or not current.get("ordinary") is Dictionary or not current.ordinary.get("career") is Dictionary: return {}
 	var basis: Variant=current.ordinary.career.get("start_basis")
 	var starts: Script=Adapter.OrdinaryRuntime.CommonStart
-	if not basis is Dictionary or not starts.valid(basis) or basis.ordinal!=ordinal \
-			or (not starts.detached_earned_dugout_d2(basis) if tier==2 else not starts.detached_earned_dugout_d1(basis)) \
-			or not Codec.same(basis.archive_origin.ordered_sha256,head.pages) \
+	if not basis is Dictionary or not starts.valid(basis) or basis.ordinal!=ordinal: return {}
+	var matches_tier: bool=starts.detached_earned_dugout_d1(basis) if tier==1 else (starts.detached_earned_dugout_d2(basis) if tier==2 else starts.detached_earned_dugout_d3(basis))
+	if not matches_tier or not Codec.same(basis.archive_origin.ordered_sha256,head.pages) \
 			or basis.archive_origin.offer.target_head_sha256!=BaseArchive._hash(BaseArchive._wire(head)): return {}
 	var pin: String=head.pages[0] if tier==1 else BaseArchive._hash(BaseArchive._wire(head))
 	return {"head":head,"current":current,"closed":closed,"tier":tier,"pin":pin}
@@ -3114,6 +3114,7 @@ static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonSta
 	if source.is_empty(): return null
 	var pages: Array[PackedByteArray]=source.pages
 	var head: PackedByteArray=BaseArchive._wire(source.head)
+	if source.tier==3: return preload("earned_dugout_d2.gd").restore_d3_draft(head,pages,source.current)
 	if source.tier==2:
 		var d2: Script=preload("earned_dugout_d2.gd")
 		if source.closed: return d2.restore_completed_from_pages(head,pages,source.current)
@@ -3208,10 +3209,21 @@ static func _installed_dugout_d2_local_draft(image: Dictionary) -> SeasonState:
 			or not Codec.same(Adapter.Ordinary.capture(draft),image): return null
 	return draft
 
+static func _installed_dugout_d3_local_draft(image: Dictionary) -> SeasonState:
+	var draft: SeasonState=Adapter.Ordinary.restore_common(image)
+	var earned: Script=preload("earned_dugout_d2.gd")
+	if not earned.draft_boundary_for_tier(draft,3) or not Codec.same(Adapter.Ordinary.capture(draft),image): return null
+	return draft
+
 static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return {}
 	var draft: SeasonState=_installed_dugout_d1_bound.draft
+	if source.tier==3:
+		if source.closed or not preload("earned_dugout_d2.gd").draft_boundary_for_tier(draft,3): return {}
+		return {"bytes":expected.duplicate(),"tier":3,"picks":draft.picks.duplicate(),"offers":draft.offers(),
+			"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),
+			"state":"ready" if draft.picks.size()==4 else "draft","closed":false}
 	if source.tier==2:
 		var d2_state: String="draft" if draft.picks.size()<4 else preload("earned_dugout_d2.gd").installed_boundary(draft)
 		if d2_state.is_empty(): return {}
@@ -3240,6 +3252,7 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 		return {"bytes":expected.duplicate(),"tier":2,"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),"state":d2_state,"closed":source.closed,
 			"close_available":not source.closed and not close_d2.is_empty(),"completion":completion_d2,
+			"start_d3_available":source.closed and close_d2=="champion" and completion_d2.get("finish")=="champion",
 			"cpu_reports":count_d2,"cpu_total":total_d2,"finish":finish_d2,
 			"scores":d2_scores,"shop_available":d2_state=="paid" and not source.closed and draft.shop_available(),
 			"round":draft.round_index+int(d2_state in ["unpaid","ready"]),
@@ -3288,7 +3301,10 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 			or not reader.verified_revision(expected): return {}
 	var source:=_installed_dugout_d1_source()
 	if source.is_empty() or source.bytes!=expected: return {}
-	var draft:=_installed_dugout_d2_local_draft(source.current.ordinary) if source.tier==2 else _installed_dugout_d1_verified_current(source.current.ordinary)
+	var draft: SeasonState
+	if source.tier==3: draft=_installed_dugout_d3_local_draft(source.current.ordinary)
+	elif source.tier==2: draft=_installed_dugout_d2_local_draft(source.current.ordinary)
+	else: draft=_installed_dugout_d1_verified_current(source.current.ordinary)
 	if draft==null: return {}
 	var earned: Script=preload("earned_dugout_d1.gd")
 	var witness: String=reader.verified_wallets()
@@ -3325,29 +3341,35 @@ static func complete_installed_dugout_d1(app: Variant) -> Dictionary:
 	_installed_dugout_d1_bound={"bytes":body,"page":source.pin,"draft":native}
 	return installed_dugout_d1_view(body)
 
-# Bound warm champion only. The previously verified Base stays immutable;
-# write and read back D1 before rotating the sole mutable installed primary.
+# Bound warm champion only. Keep each previously verified page immutable;
+# write and reread the new page before rotating the sole installed primary.
 static func write_installed_dugout_d2_birth(app: Variant) -> Dictionary:
-	if not _installed_dugout_d1_shop_app(app) or app.season!=null or not app.installed_dugout_d1_draft.get("start_d2_available",false): return {}
+	if not _installed_dugout_d1_shop_app(app) or app.season!=null: return {}
 	var expected: PackedByteArray=app.saved_bytes
 	var source:=_bound_installed_dugout_d1(expected)
-	if source.is_empty() or not source.closed or source.tier!=1: return {}
+	if source.is_empty() or not source.closed or source.tier not in [1,2]: return {}
+	var tier: int=int(source.tier)+1
+	if not app.installed_dugout_d1_draft.get("start_d%d_available"%tier,false): return {}
 	var session: SeasonState=_installed_dugout_d1_bound.draft
-	var staged: Dictionary=preload("earned_dugout_d2.gd").prepare_next(source.current,source.head,session)
+	var earned: Script=preload("earned_dugout_d2.gd")
+	var staged: Dictionary=earned.prepare_next(source.current,source.head,session) if tier==2 else earned.prepare_d3(source.current,source.head,session)
 	if staged.is_empty(): return {}
-	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":3,"head":staged.head,"current":staged.current}
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":3 if tier==2 else 5,"head":staged.head,"current":staged.current}
 	var parts:=_installed_dugout_d1_parts(value)
-	if parts.is_empty() or _installed_dugout_d2_local_draft(staged.current.ordinary)==null: return {}
+	var native: SeasonState=_installed_dugout_d2_local_draft(staged.current.ordinary) if tier==2 else _installed_dugout_d3_local_draft(staged.current.ordinary)
+	if parts.is_empty() or native==null: return {}
 	var body:=_native_encoded(value)
 	if body.is_empty(): return {}
 	var again:=_bound_installed_dugout_d1(expected)
 	if again.is_empty() or again.pages!=source.pages or again.pin!=source.pin: return {}
 	saving=true
 	var kept: bool=_keep_installed_dugout_d1_page(staged.page)
-	var base_path:=_installed_dugout_d1_page_path(source.head.pages[0])
-	var saved: bool=kept and _installed_dugout_d1_lane() and _matches(expected) \
-		and _base_archive_member(base_path).get("bytes",PackedByteArray())==source.pages[0] \
-		and _write_exact_bytes(body,expected)
+	for i: int in source.pages.size():
+		var path:=_installed_dugout_d1_page_path(source.head.pages[i])
+		if _base_archive_member(path).get("bytes",PackedByteArray())!=source.pages[i]:
+			kept=false
+			break
+	var saved: bool=kept and _installed_dugout_d1_lane() and _matches(expected) and _write_exact_bytes(body,expected)
 	saving=false
 	if not saved: return {}
 	_invalidate()
@@ -3366,8 +3388,12 @@ static func pick_installed_dugout_d1(expected: PackedByteArray,id: String) -> Di
 	if recorded.is_empty(): return {}
 	var current: Dictionary=source.current.duplicate(true)
 	current.ordinary=recorded
-	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":3 if source.tier==2 else 1,"head":source.head,"current":current}
-	var native:=_installed_dugout_d2_local_draft(recorded) if source.tier==2 else _installed_dugout_d1_local_draft(recorded)
+	var version: int=5 if source.tier==3 else (3 if source.tier==2 else 1)
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":version,"head":source.head,"current":current}
+	var native: SeasonState
+	if source.tier==3: native=_installed_dugout_d3_local_draft(recorded)
+	elif source.tier==2: native=_installed_dugout_d2_local_draft(recorded)
+	else: native=_installed_dugout_d1_local_draft(recorded)
 	if _installed_dugout_d1_parts(value).is_empty() or native==null: return {}
 	var body:=_native_encoded(value)
 	var again:=_installed_dugout_d1_source()
@@ -3389,7 +3415,7 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return false
 	var bound: SeasonState=_installed_dugout_d1_bound.draft
-	if source.closed or not bound.physical.pending.is_empty(): return false
+	if source.closed or source.tier==3 or not bound.physical.pending.is_empty(): return false
 	if source.tier==2 and not preload("earned_dugout_d2.gd").next_installed_available(bound): return false
 	var earned: Script=preload("earned_dugout_d1.gd")
 	var semifinal: bool=earned.final_regular_destination(bound)=="semifinal"

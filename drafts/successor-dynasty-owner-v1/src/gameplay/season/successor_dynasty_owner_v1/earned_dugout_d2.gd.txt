@@ -7,8 +7,8 @@ const Life=preload("lifecycle.gd")
 const KIND := "earned-dugout-d2-offer-v1"
 const LAST_REGULAR_ROUND: int=10
 
-static func _champion_source(image: Dictionary, head: Dictionary, proven: SeasonState) -> Dictionary:
-	if D1.close_destination(proven)!="champion" or image.get("active")!="ordinary" \
+static func _champion_source(image: Dictionary, head: Dictionary, proven: SeasonState, tier: int) -> Dictionary:
+	if tier not in [1,2] or D1.close_destination(proven)!="champion" or proven.career==null or image.get("active")!="ordinary" \
 			or not image.get("ordinary") is Dictionary or not image.get("ordinary_state") is Dictionary \
 			or not image.get("common") is Dictionary: return {}
 	var api:=Archive._owner()
@@ -17,37 +17,45 @@ static func _champion_source(image: Dictionary, head: Dictionary, proven: Season
 	var common: Dictionary=image.common
 	var start: Dictionary=proven.career.start_basis
 	var starts: Script=api.Adapter.OrdinaryRuntime.CommonStart
-	if not starts.detached_earned_dugout_d1(start) or not starts.valid(start) \
+	var ordinal: int=tier+1
+	if not (starts.detached_earned_dugout_d1(start) if tier==1 else starts.detached_earned_dugout_d2(start)) or not starts.valid(start) \
 			or not c.same(api.Adapter.Ordinary.capture(proven),image.ordinary): return {}
 	var checked: Dictionary=Archive._head(Archive._wire(head))
-	if checked.is_empty() or checked.ordinal!=2 or checked.pages.size()!=1 \
+	if checked.is_empty() or checked.ordinal!=ordinal or checked.pages.size()!=tier \
 			or not c.same(checked.pages,start.archive_origin.ordered_sha256) \
 			or Archive._hash(Archive._wire(checked))!=start.archive_origin.offer.target_head_sha256: return {}
-	if state.get("ordinal")!=2 or state.get("status")!="closed" or state.get("proposal")!={} \
+	if state.get("ordinal")!=ordinal or state.get("status")!="closed" or state.get("proposal")!={} \
 			or state.get("lineage")!=start.lineage or state.get("start_basis_sha256")!=Life.digest(start) \
-			or not state.get("last_close") is Dictionary or common.get("sequence")!=2 \
-			or not c.same(common.get("cursors"),{"dynasty":0,"ordinary":2}) \
+			or not state.get("last_close") is Dictionary or common.get("sequence")!=ordinal \
+			or not c.same(common.get("cursors"),{"dynasty":0,"ordinary":ordinal}) \
 			or not common.get("aggregate") is Dictionary or not common.get("last_fold") is Dictionary: return {}
 	var close: Dictionary=state.last_close
 	var fold: Dictionary=common.last_fold
 	var aggregate: Dictionary=common.aggregate
-	if not aggregate.get("titles") is Dictionary or aggregate.titles.get("dugout:0")!=true \
-			or aggregate.titles.get("dugout:1")!=true or close.get("first_title")!=true: return {}
-	var id: String="%s:2:close"%start.lineage
-	var receipt: Dictionary=ClubSeasonRecord.receipt(ClubSeasonRecord.capture(proven),true,1)
+	if not aggregate.get("titles") is Dictionary or close.get("first_title")!=true: return {}
+	for earned: int in ordinal:
+		if aggregate.titles.get("dugout:%d"%earned)!=true: return {}
+	var id: String="%s:%d:close"%[start.lineage,ordinal]
+	var receipt: Dictionary=ClubSeasonRecord.receipt(ClubSeasonRecord.capture(proven),true,tier)
 	var session_sha: String=Life.digest(image.ordinary)
-	if receipt.get("finish")!="champion" or not c.same(close,{"id":id,"ordinal":2,"reason":"complete",
-			"session_sha256":session_sha,"receipt":receipt,"first_title":true,"league":"dugout","tier":1}) \
-			or not c.same(fold,{"id":id,"side":"ordinary","ordinal":2,"sequence":2,"source":session_sha,
+	if receipt.get("finish")!="champion" or not c.same(close,{"id":id,"ordinal":ordinal,"reason":"complete",
+			"session_sha256":session_sha,"receipt":receipt,"first_title":true,"league":"dugout","tier":tier}) \
+			or not c.same(fold,{"id":id,"side":"ordinary","ordinal":ordinal,"sequence":ordinal,"source":session_sha,
 				"aggregate_sha256":Life.digest(aggregate),"receipt":receipt}): return {}
 	return checked
 
 static func prepare_next(image: Dictionary, head: Dictionary, proven: SeasonState) -> Dictionary:
-	var checked:=_champion_source(image,head,proven)
+	var checked:=_champion_source(image,head,proven,1)
 	if checked.is_empty(): return {}
-	return _prepare_next_checked(image,checked,proven)
+	return _prepare_next_checked(image,checked,proven,2)
 
-static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: SeasonState) -> Dictionary:
+static func prepare_d3(image: Dictionary, head: Dictionary, proven: SeasonState) -> Dictionary:
+	var checked:=_champion_source(image,head,proven,2)
+	return {} if checked.is_empty() else _prepare_next_checked(image,checked,proven,3)
+
+static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: SeasonState, tier: int) -> Dictionary:
+	if tier not in [2,3] or head.ordinal!=tier or head.pages.size()!=tier-1: return {}
+	var ordinal: int=tier+1
 	var api:=Archive._owner()
 	var c: Script=api.Codec
 	var common: Dictionary=image.common
@@ -57,13 +65,13 @@ static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: S
 	var page: PackedByteArray=Archive.make_page(old_head,image.ordinary,image.ordinary_state.last_close)
 	var new_head_raw: PackedByteArray=Archive.append_head(old_head,page)
 	var new_head: Dictionary=Archive._head(new_head_raw)
-	if page.is_empty() or new_head.is_empty() or new_head.ordinal!=3 or new_head.pages[0]!=head.pages[0]: return {}
-	var next_seed: int=("ordinary:%s:3:nextseed"%lineage).hash() & 0x7fffffff
-	var offer: Dictionary={"kind":KIND,"version":1,"source_close":image.ordinary_state.last_close.id,
+	if page.is_empty() or new_head.is_empty() or new_head.ordinal!=ordinal or not c.same(new_head.pages.slice(0,-1),head.pages): return {}
+	var next_seed: int=("ordinary:%s:%d:nextseed"%[lineage,ordinal]).hash() & 0x7fffffff
+	var offer: Dictionary={"kind":KIND if tier==2 else "earned-dugout-d3-offer-v1","version":1,"source_close":image.ordinary_state.last_close.id,
 		"source_session_sha256":source,"source_head_sha256":Archive._hash(old_head),
 		"archived_page_sha256":Archive._hash(page),"target_head_sha256":Archive._hash(new_head_raw),
-		"lineage":lineage,"next_ordinal":3,"seed":next_seed,"common_sequence":2,"common_sha256":Life.digest(common.aggregate),
-		"title":"dugout:1","rules":LeagueRules.capture_tier("dugout",2)}
+		"lineage":lineage,"next_ordinal":ordinal,"seed":next_seed,"common_sequence":tier,"common_sha256":Life.digest(common.aggregate),
+		"title":"dugout:%d"%(tier-1),"rules":LeagueRules.capture_tier("dugout",tier)}
 	var carrier: RefCounted=api.new()
 	carrier.active="ordinary"
 	carrier.common=common.duplicate(true)
@@ -72,17 +80,17 @@ static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: S
 	if not api.Common.valid(carrier): return {}
 	var live: Script=api.Adapter.OrdinaryRuntime
 	var starts: Script=live.CommonStart
-	var basis: Dictionary=starts.make(next_seed,lineage,3,2,offer.common_sha256,api.Common.projection(carrier))
-	basis=starts.bind_earned_dugout_d2(basis,offer,new_head.pages)
+	var basis: Dictionary=starts.make(next_seed,lineage,ordinal,tier,offer.common_sha256,api.Common.projection(carrier))
+	basis=starts.bind_earned_dugout_d2(basis,offer,new_head.pages) if tier==2 else starts.bind_earned_dugout_d3(basis,offer,new_head.pages)
 	if basis.is_empty(): return {}
-	var draft: SeasonState=live.create_earned_dugout_d2_draft(basis)
-	if not draft_boundary(draft) or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty(): return {}
+	var draft: SeasonState=live.create_earned_dugout_d2_draft(basis) if tier==2 else live.create_earned_dugout_d3_draft(basis)
+	if not draft_boundary_for_tier(draft,tier) or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty(): return {}
 	var packed: Dictionary=api.Adapter.Ordinary.capture(draft)
 	if packed.is_empty() or not api.Adapter.capture("ordinary",draft).is_empty(): return {}
 	var current: Dictionary=image.duplicate(true)
 	var state: Dictionary=current.ordinary_state
-	state.last_transition={"id":"%s:2:next"%lineage,"source":source,"from":2,"to":3,"league":"dugout","basis":basis}
-	state.ordinal=3; state.start_basis_sha256=Life.digest(basis); state.status="active"; state.last_close={}
+	state.last_transition={"id":"%s:%d:next"%[lineage,tier],"source":source,"from":tier,"to":ordinal,"league":"dugout","basis":basis}
+	state.ordinal=ordinal; state.start_basis_sha256=Life.digest(basis); state.status="active"; state.last_close={}
 	current.ordinary=packed
 	carrier.session=draft
 	carrier.ordinary_state=state
@@ -90,13 +98,17 @@ static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: S
 	return {"head":new_head,"page":page,"current":current,"offer":offer,"season":draft}
 
 static func draft_boundary(draft: SeasonState) -> bool:
-	if draft==null or draft.build==null or draft.career==null or draft.physical==null or draft.opponents==null \
-			or not Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(draft.career.start_basis) \
-			or not ClubCareer.same(draft.league_rules,LeagueRules.capture_tier("dugout",2)) \
+	return draft_boundary_for_tier(draft,2)
+
+static func draft_boundary_for_tier(draft: SeasonState, tier: int) -> bool:
+	if tier not in [2,3] or draft==null or draft.build==null or draft.career==null or draft.physical==null or draft.opponents==null \
+			or not ClubCareer.same(draft.league_rules,LeagueRules.capture_tier("dugout",tier)) \
 			or draft.opponents.draft_rule!=SeasonOpponentDraft.D2_RULE or not draft.build.d1_pricing_valid() \
-			or draft.build.d3_sponsors_valid() or draft.build.d4_sponsors_valid() or draft.cash()!=0 \
+			or draft.build.d3_sponsors_valid()!=(tier==3) or draft.build.d4_sponsors_valid() or draft.cash()!=0 \
 			or draft.round_index!=0 or not draft.results.is_empty() or not draft.player_results.is_empty() \
 			or not draft.physical.reports.is_empty() or not draft.physical.pending.is_empty(): return false
+	var starts: Script=Archive._owner().Adapter.OrdinaryRuntime.CommonStart
+	if not (starts.detached_earned_dugout_d2(draft.career.start_basis) if tier==2 else starts.detached_earned_dugout_d3(draft.career.start_basis)): return false
 	return (draft.phase==SeasonState.Phase.DRAFT and draft.picks.size()<4 and draft.opponents.clubs.is_empty()) \
 		or (draft.phase==SeasonState.Phase.REGULAR and draft.picks.size()==4 and draft.opponents.clubs.size()==5)
 
@@ -165,28 +177,33 @@ static func draft_from_ordered_pages(head_bytes: PackedByteArray,pages: Array[Pa
 static func restore_completed_from_pages(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary) -> SeasonState:
 	return _restore_ordered_current(head_bytes,pages,value,true)
 
-static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary,expect_closed: bool) -> SeasonState:
+static func _birth_from_two_pages(head_bytes: PackedByteArray,pages: Array[PackedByteArray]) -> Dictionary:
 	var h: Dictionary=Archive._head(head_bytes)
 	if h.is_empty() or h.ordinal!=3 or pages.size()!=2 \
-			or Archive._hash(pages[0])!=h.pages[0] or Archive._hash(pages[1])!=h.pages[1] \
-			or not value.get("ordinary") is Dictionary or not value.ordinary.get("state") is Dictionary: return null
+			or Archive._hash(pages[0])!=h.pages[0] or Archive._hash(pages[1])!=h.pages[1]: return {}
 	var last: Dictionary=Archive._page(pages[1],h,2)
 	if last.is_empty() or last.close.get("reason")!="complete" or last.close.get("league")!="dugout" \
 			or last.close.get("tier")!=1 or not last.close.get("receipt") is Dictionary \
-			or last.close.receipt.get("finish")!="champion": return null
+			or last.close.receipt.get("finish")!="champion": return {}
 	var old: Dictionary=h.duplicate(true)
 	old.ordinal=2; old.pages.pop_back()
 	var first: Array[PackedByteArray]=[pages[0]]
 	var birth: Dictionary=D1._draft_birth_from_pages(Archive._wire(old),first,true)
-	if birth.is_empty(): return null
+	if birth.is_empty(): return {}
 	var played: Dictionary=birth.current.duplicate(true)
 	played.ordinary=last.image
 	var verified: SeasonState=D1._restore_after_picks(birth,played,true)
-	if verified==null: return null
+	if verified==null: return {}
 	var closed: Dictionary=D1.completed_current(played,verified)
-	if closed.is_empty() or not ClubCareer.same(closed.ordinary_state.last_close,last.close): return null
+	if closed.is_empty() or not ClubCareer.same(closed.ordinary_state.last_close,last.close): return {}
 	var staged:=prepare_next(closed,old,verified)
-	if staged.is_empty() or staged.page!=pages[1] or Archive._wire(staged.head)!=head_bytes: return null
+	if staged.is_empty() or staged.page!=pages[1] or Archive._wire(staged.head)!=head_bytes: return {}
+	return staged
+
+static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary,expect_closed: bool) -> SeasonState:
+	if not value.get("ordinary") is Dictionary or not value.ordinary.get("state") is Dictionary: return null
+	var staged:=_birth_from_two_pages(head_bytes,pages)
+	if staged.is_empty(): return null
 	var draft: SeasonState=staged.season
 	var picks: Variant=value.ordinary.state.get("picks")
 	if not picks is Array or picks.size()>4: return null
@@ -215,3 +232,47 @@ static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[Pa
 		var folded:=D1.completed_current_for_tier(active,reopened,2)
 		return reopened if not folded.is_empty() and Archive._owner().Codec.same(folded,value) else null
 	return reopened if boundary in ["paid","unpaid","semifinal_unpaid","final_unpaid"] else null
+
+# A D3 draft proves the third sealed page by replaying its season and fold;
+# the installed head, seed, and treasury cannot grant their own admission.
+static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary) -> SeasonState:
+	var h: Dictionary=Archive._head(head_bytes)
+	if h.is_empty() or h.ordinal!=4 or pages.size()!=3 or Archive._hash(pages[2])!=h.pages[2] \
+			or not value.get("ordinary") is Dictionary or not value.ordinary.get("state") is Dictionary: return null
+	var last: Dictionary=Archive._page(pages[2],h,3)
+	if last.is_empty() or last.close.get("reason")!="complete" or last.close.get("league")!="dugout" \
+			or last.close.get("tier")!=2 or not last.close.get("receipt") is Dictionary or last.close.receipt.get("finish")!="champion": return null
+	var old: Dictionary=h.duplicate(true)
+	old.ordinal=3
+	old.pages.pop_back()
+	var earlier: Array[PackedByteArray]=[pages[0],pages[1]]
+	var old_head: PackedByteArray=Archive._wire(old)
+	var source:=_birth_from_two_pages(old_head,earlier)
+	if source.is_empty(): return null
+	var stored: Dictionary=source.current.duplicate(true)
+	stored.ordinary=last.image
+	var state: Variant=last.image.get("state")
+	if not state is Dictionary: return null
+	var picks: Variant=state.get("picks")
+	var d2: SeasonState=source.season
+	if not picks is Array or picks.size()!=4: return null
+	for id: Variant in picks:
+		if not id is String or not d2.choose_player(id): return null
+	if not draft_boundary(d2): return null
+	var expected: Dictionary=source.current
+	expected.ordinary=Archive._owner().Adapter.Ordinary.capture(d2)
+	var proven:=D1._restore_regular_prefix(d2,expected,stored)
+	if installed_boundary(proven)!="paid": return null
+	var closed:=D1.completed_current_for_tier(stored,proven,2)
+	if closed.is_empty() or not Archive._owner().Codec.same(closed.ordinary_state.last_close,last.close): return null
+	var staged:=prepare_d3(closed,old,proven)
+	if staged.is_empty() or staged.page!=pages[2] or Archive._wire(staged.head)!=head_bytes: return null
+	var draft: SeasonState=staged.season
+	var got: Variant=value.ordinary.state.get("picks")
+	if not got is Array or got.size()>4: return null
+	for id: Variant in got:
+		if not id is String or not draft.choose_player(id): return null
+	if not draft_boundary_for_tier(draft,3): return null
+	expected=staged.current
+	expected.ordinary=Archive._owner().Adapter.Ordinary.capture(draft)
+	return draft if not expected.ordinary.is_empty() and Archive._owner().Codec.same(expected,value) else null

@@ -24,14 +24,14 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/codec.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/codec.gd",
-      "bytes": 67439,
-      "sha256": "b108a70a72bf33a1c6390ff2ed6006ec73d37380bd6662c08b5afe9e7bd794b2"
+      "bytes": 67506,
+      "sha256": "a8038e55163c69b6cac81b84c16422c179431d7355629e282593e8dbd0233486"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/common_start.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/common_start.gd",
-      "bytes": 26483,
-      "sha256": "e54fd4b479ceafb0b426870ca8d0ef0b2996a5e4766b9b09c4f178a514cd0357"
+      "bytes": 27622,
+      "sha256": "b3350568d735dbf730f32933c20a4a6356cbbf9f2d8d60d96d769364f6863a4d"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/import_draft.gd.txt",
@@ -60,8 +60,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/progress.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/progress.gd",
-      "bytes": 12471,
-      "sha256": "ccd3de655610f110fb3c508b0d05e3ae3a26c17d88bb3413c439e5f0c959c412"
+      "bytes": 12749,
+      "sha256": "549d5ef44acace9724ab8aea662e46299e0ca431e4b5362036dd93037d2d79f2"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/raw_guard.gd.txt",
@@ -72,8 +72,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/runtime.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/runtime.gd",
-      "bytes": 11465,
-      "sha256": "101a1d6e2ea1fad545396d8954db4115f3cd85559bbccb1fb42b85b2a239b192"
+      "bytes": 11791,
+      "sha256": "12d159e5b00784de6d8578f5229e7cb42b6f134ebebec770a7cb3e2108c113c1"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/starter_home_transport.gd.txt",
@@ -272,8 +272,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/ordinary_admission.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/ordinary_admission.gd",
-      "bytes": 1372,
-      "sha256": "2ee9455197155a1f5fa076f01002f16c4fe9b841e448fa2afc8e2f12250e5609"
+      "bytes": 1563,
+      "sha256": "0411f56a92b805296ef2fb0c3cf1421b33aa8a0ee5d4e0c3aa54182bf1092896"
     }
   ]
 }

@@ -249,9 +249,16 @@ static func row(season: SeasonState) -> Dictionary:
 static func _sponsor_counts(build: SeasonBuild) -> Dictionary:
 	# Read-only bounded receipt projection. No wallet reconstruction, prices,
 	# rewards, or ownership commands execute here. Their admitted journal remains
-	# unchanged. Standard/Dugout have no sponsor expiry or inherited sponsors.
+	# unchanged. Dugout D3 changes refunds, not active counts or expiry.
+	# Keep all other terms contexts (including D4 expiry) outside this reader.
 	var bank: SeasonOwnership = build._bank
-	if bank == null or not bank._sponsor_rule.is_empty() or bank._events.size() > SeasonOwnership.MAX_EVENTS:
+	if bank == null or bank._events.size() > SeasonOwnership.MAX_EVENTS:
+		return {"invalid": true}
+	if not bank._sponsor_rule.is_empty() and not (
+		bank._sponsor_rule == SeasonSponsorCatalog.D3_RULE
+		and ClubCareer.same(build._league_rules, LeagueRules.capture_tier("dugout",3))
+		and build.d3_sponsors_valid()
+	):
 		return {"invalid": true}
 	var stock: Dictionary = {}
 	var active: Dictionary = {}

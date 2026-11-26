@@ -1045,7 +1045,8 @@ func _continue_installed_dugout_d1() -> bool:
 	_installed_dugout_d1_reader=reader
 	add_child(reader)
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
-	notice="Verifying your Dugout D%d career in the background. Nothing is being written."%(2 if value.get("version")==3 else 1)
+	var tier: int=3 if value.get("version")==5 else (2 if value.get("version")==3 or value.get("version")==4 else 1)
+	notice="Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
 	return true
@@ -1192,7 +1193,7 @@ func _complete_installed_dugout_d1(expected: PackedByteArray) -> void:
 func _installed_dugout_d2_birth_ready(expected: PackedByteArray) -> bool:
 	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
 		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
-		and installed_dugout_d1_draft.get("start_d2_available",false) and saved_bytes==expected \
+		and (installed_dugout_d1_draft.get("start_d2_available",false) or installed_dugout_d1_draft.get("start_d3_available",false)) and saved_bytes==expected \
 		and career_owner==null and season==null and not is_instance_valid(_installed_dugout_d1_shop) \
 		and menu!=null and menu.visible and menu.page=="home"
 
@@ -1200,8 +1201,9 @@ func request_installed_dugout_d2(expected: PackedByteArray) -> void:
 	if not _installed_dugout_d2_birth_ready(expected): return
 	_lifecycle_action="installed_dugout_d2_birth"
 	_lifecycle_bytes=expected.duplicate()
-	_lifecycle_dialog.title="Start Dugout D2?"
-	_lifecycle_dialog.dialog_text="Your Base and D1 titles, season history and Club Credits carry forward. D2 starts a new four-player draft and a fresh Season Cash balance."
+	var tier: int=3 if installed_dugout_d1_draft.get("start_d3_available",false) else 2
+	_lifecycle_dialog.title="Start Dugout D%d?"%tier
+	_lifecycle_dialog.dialog_text="Your earned titles, season history and Club Credits carry forward. D%d starts a new four-player draft and a fresh Season Cash balance."%tier
 	_lifecycle_dialog.popup_centered(Vector2i(640,240))
 	_lifecycle_dialog.get_cancel_button().grab_focus()
 
