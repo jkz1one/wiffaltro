@@ -2993,14 +2993,14 @@ static func inspect_installed_earned_dugout_d1(owner: RefCounted, expected: Pack
 # the private legacy archive format. A head shape alone confers no authority.
 static func _installed_dugout_d1_parts(value: Variant) -> Dictionary:
 	if not Codec.keys(value,["kind","version","head","current"]) \
-			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,16) \
+			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,17) \
 			or not value.head is Dictionary or not value.current is Dictionary \
 			or not value.head.get("kind") is String or not value.head.get("league") is String \
 			or not Codec.whole(value.head.get("version"),1,1): return {}
 	var format: int=int(value.version)
 	# The paired shapes reuse the exact v6 authority while keeping the
 	# Dynasty draft or its first unpaid game separate.
-	if format in [7,8,9,10,11,12,13,14,15,16]:
+	if format in [7,8,9,10,11,12,13,14,15,16,17]:
 		var linked: Dictionary=value.current
 		var keys: Array=["ordinary_origin","dynasty","active"]
 		if format>=9: keys.append("round_one")
@@ -3036,13 +3036,18 @@ static func _installed_dugout_d1_parts(value: Variant) -> Dictionary:
 					or not linked.dynasty_close.ledger is Dictionary or not linked.dynasty_close.workshop is Dictionary: return {}
 		if format>=15:
 			var next: Variant=linked.dynasty_next
-			if not Codec.keys(next,["event","season","opening"] if format==16 else ["event","season"]) or not next.season is Dictionary \
+			var next_keys: Array=["event","season"]
+			if format>=16: next_keys.append("opening")
+			if format==17: next_keys.append("shop")
+			if not Codec.keys(next,next_keys) or not next.season is Dictionary \
 					or not Codec.keys(next.event,["id","from","to","seed","close","before","after","destination"]) \
 					or not next.event.id is String or not next.event.close is String \
 					or not Codec.whole(next.event.from,1,1) or not Codec.whole(next.event.to,2,2) \
 					or not Codec.whole(next.event.seed,0,2147483647) or not BaseArchive._digest(next.event.before) \
 					or not BaseArchive._digest(next.event.after) or not BaseArchive._digest(next.event.destination): return {}
-			if format==16 and not _earned_dynasty_second_round_wire(next): return {}
+			if format>=16 and not _earned_dynasty_second_round_wire(next): return {}
+			if format==17 and (next.opening.is_empty() or not next.shop is Array \
+					or next.shop.is_empty() or next.shop.size()>128): return {}
 		origin.dynasty=linked.dynasty
 		origin.dynasty_next=linked.get("dynasty_next",{})
 		origin.dynasty_close=linked.get("dynasty_close",{})
@@ -3472,6 +3477,12 @@ static func _earned_dynasty_verified_second(source: Dictionary,first: SeasonStat
 	var opening:=_earned_dynasty_opening_plan(base)
 	if opening.is_empty(): return null
 	var result: SeasonState=base if next.opening.is_empty() else opening.candidate
+	# The same native Shop reducer accepts one command at a time; no
+	# materialized buyer, cost, inventory, wallet or visit is authoritative.
+	for operation: Variant in next.get("shop",[]):
+		if not operation is Dictionary: return null
+		result=_installed_earned_dynasty_shop_step(result,operation)
+		if result==null: return null
 	return result if Codec.same(Adapter.capture("dynasty",result),next.season) else null
 
 
@@ -3483,11 +3494,17 @@ static func _write_installed_earned_dynasty_second_round(source: Dictionary,expe
 	value.version=16
 	value.current.dynasty_next.season=image
 	value.current.dynasty_next.opening=opening
+	return _commit_installed_earned_dynasty_second(source,expected,value)
+
+
+static func _commit_installed_earned_dynasty_second(source: Dictionary,expected: PackedByteArray,
+		value: Dictionary) -> Dictionary:
 	var body:=_native_encoded(value)
 	if body.is_empty(): return {}
 	var checked:=_installed_dugout_d1_parts(JSON.parse_string(body.get_string_from_utf8()))
 	if checked.is_empty() or not Codec.same(checked.dynasty_next.event,source.dynasty_next.event) \
-			or not Codec.same(checked.dynasty_close,source.dynasty_close): return {}
+			or not Codec.same(checked.dynasty,source.dynasty) or not Codec.same(checked.dynasty_close,source.dynasty_close) \
+			or not Codec.same(checked.current,source.current) or not Codec.same(checked.head,source.head): return {}
 	var first: SeasonState=_installed_dugout_d1_bound.dynasty
 	var second:=_earned_dynasty_verified_second(checked,first)
 	if second==null: return {}
@@ -3746,7 +3763,7 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 			var state_second: String="dynasty_paid" if paid_second else ("dynasty_second_ready" if pending_second.is_empty() else "dynasty_pending")
 			return {"bytes":expected.duplicate(),"state":state_second,"picks":second.picks.duplicate(),
 				"credits":int(source.dynasty_close.common.aggregate.currency),"cash":second.cash(),"ordinal":2,
-				"round":1,"postseason":"","allow_play_next":false,"shop_available":false,"reports":count_second,
+				"round":1,"postseason":"","allow_play_next":false,"shop_available":paid_second and _installed_earned_dynasty_shop_window(second),"reports":count_second,
 				"results":second.results.duplicate(true) if paid_second else [],"cpu_total":2,"settle_available":count_second==2,
 				"score":pending_second.human.slice(1,3) if not pending_second.is_empty() else []}
 		var waiting: bool=not dynasty.physical.pending.is_empty()
@@ -4564,7 +4581,10 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 static func _installed_dugout_d1_shop_source(expected: PackedByteArray) -> Dictionary:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return {}
-	if not source.dynasty_next.is_empty(): return {}
+	if not source.dynasty_next.is_empty():
+		var carried: SeasonState=_installed_dugout_d1_bound.dynasty_next
+		return {"source":source,"session":carried,"dynasty":true,"carried":true} \
+			if not source.dynasty_next.get("opening",{}).is_empty() and _installed_earned_dynasty_shop_window(carried) else {}
 	if not source.dynasty_round_one.is_empty():
 		var dynasty: SeasonState=_installed_dugout_d1_bound.dynasty
 		return {"source":source,"session":dynasty,"dynasty":true} if _installed_earned_dynasty_shop_window(dynasty) else {}
@@ -4610,7 +4630,8 @@ static func write_installed_dugout_d1_shop(app: Variant,window: Variant,ticket: 
 	var shop_source:=_installed_dugout_d1_shop_source(expected)
 	if shop_source.is_empty(): return {}
 	if shop_source.get("dynasty",false):
-		if not Codec.same(Adapter.capture("dynasty",app.season),shop_source.source.dynasty): return {}
+		var active: Dictionary=shop_source.source.dynasty_next.season if shop_source.get("carried",false) else shop_source.source.dynasty
+		if not Codec.same(Adapter.capture("dynasty",app.season),active): return {}
 	elif not Codec.same(Adapter.Ordinary.capture(app.season),shop_source.source.current.ordinary): return {}
 	var command: Dictionary=window.take_base_archive_shop(ticket)
 	if command.is_empty() or command.get("op")=="open": return {}
@@ -4666,15 +4687,27 @@ static func _installed_earned_dynasty_shop_step(previous: SeasonState,command: D
 
 static func _write_installed_earned_dynasty_shop(shop_source: Dictionary,expected: PackedByteArray,command: Dictionary) -> Dictionary:
 	var source: Dictionary=shop_source.source
-	if shop_source.session.round_index==1 and source.dynasty_shop.size()>=128: return {}
+	var carried: bool=shop_source.get("carried",false)
+	var prior: Dictionary=source.dynasty_next.season if carried else source.dynasty
+	var first_shop: Array=source.dynasty_next.get("shop",[]) if carried else source.dynasty_shop
+	if shop_source.session.round_index==1 and first_shop.size()>=128: return {}
 	var candidate:=_installed_earned_dynasty_shop_step(shop_source.session,command)
 	if candidate==null: return {}
 	var image:=Adapter.capture("dynasty",candidate)
-	var prior: Dictionary=source.dynasty
 	# A private player purchase cannot change an opponent, result, fixture,
 	# field placement or the source of a prior reward.
 	for field: String in ["state","opponents","physical","ownership"]:
 		if image.is_empty() or not Codec.same(image.get(field),prior.get(field)): return {}
+	if carried:
+		if candidate.round_index!=1 or candidate.phase!=SeasonState.Phase.REGULAR: return {}
+		var value: Dictionary=Owner._bytes_value(expected)
+		if not Codec.whole(value.get("version"),16,17): return {}
+		var history: Array=first_shop.duplicate(true)
+		history.append(command.duplicate(true))
+		value.version=17
+		value.current.dynasty_next.season=image
+		value.current.dynasty_next.shop=history
+		return _installed_dugout_d1_shop_view(_commit_installed_earned_dynasty_second(source,expected,value))
 	if candidate.phase==SeasonState.Phase.FINAL:
 		var bracket: Array=source.dynasty_playoffs.duplicate(true)
 		if bracket.size()!=1 or bracket.back().shop.size()>=128: return {}
