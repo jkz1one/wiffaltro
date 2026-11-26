@@ -765,6 +765,8 @@ func _installed_fitted_dugout(draft: Dictionary) -> void:
 			_note("Round %d has already paid. All three results are saved."%draft.round)
 		if draft.closed:
 			_note("Career progress banked · %d Club Credits earned."%int(draft.completion.total))
+			if draft.get("d3_title_banked",false):
+				_note("Dugout D4 and Dynasty eligibility earned. New starts are not yet enabled in this build.")
 			if draft.start_d3_available:
 				_bound_button(_body,"START DUGOUT D3 DRAFT",Callable(app,"request_installed_dugout_d2").bind(draft.bytes.duplicate()))
 		elif draft.close_available:

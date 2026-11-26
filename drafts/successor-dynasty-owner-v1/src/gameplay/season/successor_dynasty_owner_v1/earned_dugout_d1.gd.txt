@@ -604,7 +604,7 @@ static func completed_current(active: Dictionary, session: SeasonState) -> Dicti
 
 # Reuse the exact completion reducer only for these installed ordered careers.
 static func completed_current_for_tier(active: Dictionary, session: SeasonState, tier: int) -> Dictionary:
-	if tier not in [1,2]: return {}
+	if tier not in [1,2,3]: return {}
 	var ordinal: int=tier+1
 	var finish:=close_destination(session)
 	if finish.is_empty() or session.career==null: return {}

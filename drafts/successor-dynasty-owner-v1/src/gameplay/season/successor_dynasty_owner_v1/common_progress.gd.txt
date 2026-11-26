@@ -157,14 +157,16 @@ static func fold_private_flat_abandon(owner: RefCounted) -> Dictionary:
 # A dedicated native completion reducer, not a generic adapter admission.
 # Installed custody must authenticate the exact career before using this fold.
 static func fold_installed_dugout_complete(before: Dictionary, season: SeasonState, close_id: String, fold_index: int, tier: int) -> Dictionary:
-	if tier not in [1,2] or season==null or season.career==null or not valid(before) or not _close_id(close_id) \
+	if tier not in [1,2,3] or season==null or season.career==null or not valid(before) or not _close_id(close_id) \
 			or fold_index!=tier+1 or fold_index!=int(before.closed)+1 \
 			or not before.titles.get(ClubLeagueCareer.title_key("dugout",0),false) \
 			or not before.titles.get(ClubLeagueCareer.title_key("dugout",tier-1),false) \
 			or not C.same(season.league_rules,LeagueRules.capture_tier("dugout",tier)): return {}
 	var starts: Script=Adapter.OrdinaryRuntime.CommonStart
 	var basis: Dictionary=season.career.start_basis
-	if not (starts.detached_earned_dugout_d1(basis) if tier==1 else starts.detached_earned_dugout_d2(basis)): return {}
+	var source_matches: bool=starts.detached_earned_dugout_d1(basis) if tier==1 else (starts.detached_earned_dugout_d2(basis) if tier==2 else starts.detached_earned_dugout_d3(basis))
+	if not source_matches: return {}
+	if tier==3 and not before.titles.get(ClubLeagueCareer.title_key("dugout",1),false): return {}
 	return _fold_native(before,"ordinary",season,close_id,fold_index,"complete",tier)
 
 static func _fold_native(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String, installed_dugout_tier: int=0) -> Dictionary:

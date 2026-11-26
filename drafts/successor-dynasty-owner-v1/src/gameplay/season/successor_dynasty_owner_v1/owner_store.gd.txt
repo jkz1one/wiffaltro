@@ -2993,12 +2993,13 @@ static func inspect_installed_earned_dugout_d1(owner: RefCounted, expected: Pack
 # the private legacy archive format. A head shape alone confers no authority.
 static func _installed_dugout_d1_parts(value: Variant) -> Dictionary:
 	if not Codec.keys(value,["kind","version","head","current"]) \
-			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,5) \
+			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,6) \
 			or not value.head is Dictionary or not value.current is Dictionary \
 			or not value.head.get("kind") is String or not value.head.get("league") is String \
 			or not Codec.whole(value.head.get("version"),1,1): return {}
-	var closed: bool=value.version==2 or value.version==4
-	var tier: int=3 if value.version==5 else (2 if value.version==3 or value.version==4 else 1)
+	var format: int=int(value.version)
+	var closed: bool=format in [2,4,6]
+	var tier: int=3 if format in [5,6] else (2 if format in [3,4] else 1)
 	var ordinal: int=tier+1
 	var head_bytes: PackedByteArray=BaseArchive._wire(value.head)
 	var head:=BaseArchive._head(head_bytes)
@@ -3114,7 +3115,7 @@ static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonSta
 	if source.is_empty(): return null
 	var pages: Array[PackedByteArray]=source.pages
 	var head: PackedByteArray=BaseArchive._wire(source.head)
-	if source.tier==3: return preload("earned_dugout_d2.gd").restore_d3_draft(head,pages,source.current)
+	if source.tier==3: return preload("earned_dugout_d2.gd").restore_d3_draft(head,pages,source.current,source.closed)
 	if source.tier==2:
 		var d2: Script=preload("earned_dugout_d2.gd")
 		if source.closed: return d2.restore_completed_from_pages(head,pages,source.current)
@@ -3257,7 +3258,10 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 				d2_scores.append([int(row.id),int(row.away_runs),int(row.home_runs)])
 		return {"bytes":expected.duplicate(),"tier":source.tier,"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),"state":d2_state,"closed":source.closed,
-			"close_available":source.tier==2 and not source.closed and not close_d2.is_empty(),"completion":completion_d2,
+			"close_available":not source.closed and not close_d2.is_empty(),"completion":completion_d2,
+			"d3_title_banked":source.tier==3 and source.closed and close_d2=="champion" and completion_d2.get("finish")=="champion" \
+				and source.current.common.aggregate.titles.get("dugout:3")==true \
+				and preload("res://src/gameplay/season/league_unlocks.gd").from_titles(source.current.common.aggregate.titles).has("dynasty"),
 			"start_d3_available":source.tier==2 and source.closed and close_d2=="champion" and completion_d2.get("finish")=="champion",
 			"cpu_reports":count_d2,"cpu_total":total_d2,"finish":finish_d2,
 			"scores":d2_scores,"shop_available":d2_state=="paid" and not source.closed and draft.shop_available(),
@@ -3344,7 +3348,7 @@ static func complete_installed_dugout_d1(app: Variant) -> Dictionary:
 	var native: SeasonState=_installed_dugout_d1_bound.draft
 	var completed: Dictionary=preload("earned_dugout_d1.gd").completed_current_for_tier(source.current,native,source.tier)
 	if completed.is_empty(): return {}
-	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":4 if source.tier==2 else 2,"head":source.head,"current":completed}
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":6 if source.tier==3 else (4 if source.tier==2 else 2),"head":source.head,"current":completed}
 	if _installed_dugout_d1_parts(value).is_empty(): return {}
 	var body:=_native_encoded(value)
 	var again:=_bound_installed_dugout_d1(expected)

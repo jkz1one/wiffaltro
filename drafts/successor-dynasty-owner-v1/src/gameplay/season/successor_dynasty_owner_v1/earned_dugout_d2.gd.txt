@@ -249,7 +249,7 @@ static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[Pa
 
 # A D3 run proves the third sealed page by replaying its season and fold;
 # the installed head, seed, and treasury cannot grant their own admission.
-static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary) -> SeasonState:
+static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary,expect_closed: bool=false) -> SeasonState:
 	var h: Dictionary=Archive._head(head_bytes)
 	if h.is_empty() or h.ordinal!=4 or pages.size()!=3 or Archive._hash(pages[2])!=h.pages[2] \
 			or not value.get("ordinary") is Dictionary or not value.ordinary.get("state") is Dictionary: return null
@@ -291,7 +291,7 @@ static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByte
 	expected.ordinary=Archive._owner().Adapter.Ordinary.capture(draft)
 	var c: Script=Archive._owner().Codec
 	if expected.ordinary.is_empty(): return null
-	if c.same(expected,value): return draft
+	if not expect_closed and c.same(expected,value): return draft
 	var target: Dictionary=value.ordinary
 	if got.size()!=4 or not target.get("physical") is Dictionary or not target.physical.get("pending") is Dictionary \
 		or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_REGULAR_ROUND+2 \
@@ -300,5 +300,12 @@ static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByte
 		or not SeasonOwnership._whole(target.state.get("round_index"),0,LAST_REGULAR_ROUND): return null
 	if target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty() \
 		and not _postseason_pending_shape(target.state): return null
-	var reopened:=D1._restore_regular_prefix(draft,expected,value)
-	return reopened if installed_boundary(reopened) in ["paid","unpaid","semifinal_unpaid","final_unpaid"] else null
+	var active: Dictionary=expected.duplicate(true) if expect_closed else value
+	if expect_closed: active.ordinary=target
+	var reopened:=D1._restore_regular_prefix(draft,expected,active)
+	var boundary:=installed_boundary(reopened)
+	if expect_closed:
+		if boundary!="paid": return null
+		var folded:=D1.completed_current_for_tier(active,reopened,3)
+		return reopened if not folded.is_empty() and c.same(folded,value) else null
+	return reopened if boundary in ["paid","unpaid","semifinal_unpaid","final_unpaid"] else null
