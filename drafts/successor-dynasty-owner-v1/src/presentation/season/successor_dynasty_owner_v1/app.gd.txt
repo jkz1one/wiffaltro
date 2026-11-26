@@ -1047,7 +1047,8 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var version: Variant=value.get("version")
 	var tier: int=3 if version==5 or version==6 else (2 if version==3 or version==4 else 1)
-	notice="Verifying your Dugout D%d career in the background. Nothing is being written."%tier
+	notice="Verifying your Dynasty draft and Dugout career. Nothing is being written." if version==7 else \
+		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
 	return true
@@ -1214,6 +1215,31 @@ func _start_installed_dugout_d2(expected: PackedByteArray) -> void:
 	var view:=Store.write_installed_dugout_d2_birth(self)
 	_busy=false
 	if view.is_empty(): notice="The new draft could not be confirmed. Use Continue to check the saved career."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
+func _installed_earned_dynasty_birth_ready(expected: PackedByteArray) -> bool:
+	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
+		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
+		and installed_dugout_d1_draft.get("d3_title_banked",false) and saved_bytes==expected \
+		and career_owner==null and season==null and not is_instance_valid(_installed_dugout_d1_shop) \
+		and menu!=null and menu.visible and menu.page=="home"
+
+func request_installed_earned_dynasty(expected: PackedByteArray) -> void:
+	if not _installed_earned_dynasty_birth_ready(expected): return
+	_lifecycle_action="installed_earned_dynasty_birth"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Start Dynasty?"
+	_lifecycle_dialog.dialog_text="Draft your first four-player Dynasty club. Your closed Dugout seasons and shared Club Credits stay in this career. Dynasty has its own Season Cash."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+func _start_installed_earned_dynasty(expected: PackedByteArray) -> void:
+	if not _installed_earned_dynasty_birth_ready(expected): return
+	_busy=true
+	var view:=Store.write_installed_earned_dynasty_birth(self)
+	_busy=false
+	if view.is_empty(): notice="The Dynasty draft could not be confirmed. Use Continue to check the saved career."
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
@@ -2298,6 +2324,11 @@ func _cancel_lifecycle() -> void:
 	if is_instance_valid(_lifecycle_dialog): _lifecycle_dialog.hide()
 func _confirm_lifecycle() -> void:
 	var action: String=_lifecycle_action
+	if action=="installed_earned_dynasty_birth":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		_start_installed_earned_dynasty(before)
+		return
 	if action=="installed_dugout_d2_birth":
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()

@@ -63,9 +63,16 @@ static func authenticated_dynasty_birth(head_bytes: PackedByteArray,pages: Array
 			or not current.common.aggregate.get("titles") is Dictionary or current.common.aggregate.titles.get("dugout:3")!=true \
 			or not preload("res://src/gameplay/season/league_unlocks.gd").from_titles(current.common.aggregate.titles).has("dynasty"): return {}
 	var ordinary:=restore_d3_draft(head_bytes,pages,current,true)
-	if ordinary==null: return {}
-	var head: Dictionary=_champion_source(current,Archive._head(head_bytes),ordinary,3)
-	if head.is_empty(): return {}
+	var draft:=dynasty_draft_from_verified(current,Archive._head(head_bytes),ordinary,[])
+	if draft.is_empty(): return {}
+	draft.erase("season")
+	return draft
+
+# Requires the replay-proven Ordinary session from the installed worker or
+# its exact live Store binding. No caller-supplied start basis is consumed.
+static func dynasty_draft_from_verified(current: Dictionary, head: Dictionary, ordinary: SeasonState,picks: Array) -> Dictionary:
+	if ordinary==null or picks.size()>4 or _champion_source(current,head,ordinary,3).is_empty() \
+			or not preload("res://src/gameplay/season/league_unlocks.gd").from_titles(current.common.aggregate.titles).has("dynasty"): return {}
 	var api:=Archive._owner()
 	var carrier: RefCounted=api.new()
 	carrier.active="ordinary"
@@ -81,9 +88,13 @@ static func authenticated_dynasty_birth(head_bytes: PackedByteArray,pages: Array
 			or not dynasty.results.is_empty() or not api.Codec.same(dynasty.career.start_basis,basis): return {}
 	var ledger: Dictionary=api.Ledger.birth(dynasty)
 	if not api.Ledger.valid(ledger) or ledger.closed!=0: return {}
+	for pick: Variant in picks:
+		if not pick is String or not dynasty.choose_player(pick): return {}
+	var phase: int=SeasonState.Phase.REGULAR if picks.size()==4 else SeasonState.Phase.DRAFT
+	if dynasty.phase!=phase or not api.Codec.same(dynasty.picks,picks) or not dynasty.results.is_empty(): return {}
 	var image: Dictionary=api.Adapter.capture("dynasty",dynasty)
 	if image.is_empty(): return {}
-	return {"source_close":id,"source_head_sha256":Archive._hash(head_bytes),"basis":basis,"ledger":ledger,"dynasty":image}
+	return {"source_close":id,"source_head_sha256":Archive._hash(Archive._wire(head)),"basis":basis,"ledger":ledger,"dynasty":image,"season":dynasty}
 
 static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: SeasonState, tier: int) -> Dictionary:
 	if tier not in [2,3] or head.ordinal!=tier or head.pages.size()!=tier-1: return {}
