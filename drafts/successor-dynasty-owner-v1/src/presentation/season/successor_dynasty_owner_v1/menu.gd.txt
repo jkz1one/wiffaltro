@@ -715,7 +715,7 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 	var state: String=draft.state
 	var title: String="DUGOUT D2 · DRAFT %d / 4"%draft.picks.size()
 	if state=="ready": title="DUGOUT D2 · DRAFT COMPLETE"
-	elif state in ["unpaid","paid"]: title="DUGOUT D2 · ROUND 1"
+	elif state in ["unpaid","paid"]: title="DUGOUT D2 · ROUND %d"%draft.round
 	_label(_body,title,24)
 	_note("Base and D1 seasons kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
@@ -735,11 +735,14 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 		else:
 			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="paid":
-		_note("Round 1 has already paid. All three results are saved.")
+		_note("Round %d has already paid. All three results are saved."%draft.round)
+		if draft.next_available:
+			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		if draft.shop_available:
 			_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 		for row: Array in draft.scores:
-			var score_label: String="Club game" if row[0]==0 else "CPU game %d"%int(row[0])
+			var position: int=int(row[0])%3
+			var score_label: String="Club game" if position==0 else "CPU game %d"%position
 			_note("%s: %d away – %d home"%[score_label,row[1],row[2]])
 	else:
 		for id: String in draft.offers:

@@ -5,6 +5,7 @@ const Archive=preload("starter_base_archive.gd")
 const D1=preload("earned_dugout_d1.gd")
 const Life=preload("lifecycle.gd")
 const KIND := "earned-dugout-d2-offer-v1"
+const LAST_NONTERMINAL_SETTLED_ROUND: int=9
 
 static func _champion_source(image: Dictionary, head: Dictionary, proven: SeasonState) -> Dictionary:
 	if D1.close_destination(proven)!="champion" or image.get("active")!="ordinary" \
@@ -99,27 +100,33 @@ static func draft_boundary(draft: SeasonState) -> bool:
 	return (draft.phase==SeasonState.Phase.DRAFT and draft.picks.size()<4 and draft.opponents.clubs.is_empty()) \
 		or (draft.phase==SeasonState.Phase.REGULAR and draft.picks.size()==4 and draft.opponents.clubs.size()==5)
 
-# Round one only. Positions count native chronological rows; this is not
-# a direct-save admission and carries no proof without authored replay.
-static func opening_boundary(session: SeasonState) -> String:
+# The ordinary ten-round schedule has nine nonterminal paid boundaries.
+# A last-regular bracket decision is separate; never infer it by row count.
+static func next_regular_available(session: SeasonState) -> bool:
+	var stage:=regular_boundary(session)
+	return stage=="ready" or (stage=="paid" and session.round_index<LAST_NONTERMINAL_SETTLED_ROUND)
+
+static func regular_boundary(session: SeasonState) -> String:
 	if session==null or session.career==null or session.build==null or session.physical==null \
 			or not Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(session.career.start_basis) \
 			or not ClubCareer.same(session.league_rules,LeagueRules.capture_tier("dugout",2)) \
 			or session.phase!=SeasonState.Phase.REGULAR or session.picks.size()!=4: return ""
+	var visited: int=session.round_index
+	if visited<0 or visited>LAST_NONTERMINAL_SETTLED_ROUND or session.pending_fixture().get("id")!=visited*3 \
+			or session.results.size()!=visited*3 or session.player_results.size()!=visited \
+			or session.physical.reports.size()!=visited*2 or session.build._visit.number!=visited: return ""
+	for i: int in visited:
+		if session.player_results[i].id!=i*3 or session.physical.reports[2*i].fixture!=i*3+1 \
+				or session.physical.reports[2*i+1].fixture!=i*3+2: return ""
+	if visited==0 and session.cash()!=0: return ""
 	var pending: Dictionary=session.physical.pending
-	if session.round_index==0 and session.pending_fixture().get("id")==0 and session.results.is_empty() \
-			and session.player_results.is_empty() and session.physical.reports.is_empty() and session.cash()==0:
-		if pending.is_empty(): return "ready"
-		if SeasonOwnership._keys(pending,["human","reports"]) and pending.human is Array \
-				and pending.human.size()==13 and pending.human[0]==0 and pending.reports is Array and pending.reports.size()<=2:
-			for i: int in pending.reports.size():
-				if not pending.reports[i] is Dictionary or pending.reports[i].get("fixture")!=i+1: return ""
-			return "unpaid"
-	if session.round_index==1 and pending.is_empty() and session.pending_fixture().get("id")==3 \
-			and session.results.size()==3 and session.player_results.size()==1 and session.physical.reports.size()==2 \
-			and session.player_results[0].id==0 and session.physical.reports[0].fixture==1 and session.physical.reports[1].fixture==2 \
-			and session.build._visit.number==1: return "paid"
-	return ""
+	if pending.is_empty(): return "ready" if visited==0 else "paid"
+	if visited>=LAST_NONTERMINAL_SETTLED_ROUND or not SeasonOwnership._keys(pending,["human","reports"]) \
+			or not pending.human is Array or pending.human.size()!=13 or pending.human[0]!=visited*3 \
+			or not pending.reports is Array or pending.reports.size()>2: return ""
+	for i: int in pending.reports.size():
+		if not pending.reports[i] is Dictionary or pending.reports[i].get("fixture")!=visited*3+i+1: return ""
+	return "unpaid"
 
 # Rebuild the title and credit bank from the two archived native seasons.
 # The D2 payload is not a source of title, permission, or career credit.
@@ -157,9 +164,10 @@ static func draft_from_ordered_pages(head_bytes: PackedByteArray,pages: Array[Pa
 	if Archive._owner().Codec.same(expected,value): return draft
 	var target: Dictionary=value.ordinary
 	if picks.size()!=4 or not target.get("physical") is Dictionary or not target.physical.get("pending") is Dictionary \
-			or not target.state.get("player_results") is Array or target.state.player_results.size()>1 \
-			or not target.state.get("results") is Array or target.state.results.size()>3 \
-			or not target.physical.get("reports") is Array or target.physical.reports.size()>2 \
-			or not SeasonOwnership._whole(target.state.get("round_index"),0,1): return null
+			or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_NONTERMINAL_SETTLED_ROUND \
+			or not target.state.get("results") is Array or target.state.results.size()>LAST_NONTERMINAL_SETTLED_ROUND*3 \
+			or not target.physical.get("reports") is Array or target.physical.reports.size()>LAST_NONTERMINAL_SETTLED_ROUND*2 \
+			or not SeasonOwnership._whole(target.state.get("round_index"),0,LAST_NONTERMINAL_SETTLED_ROUND): return null
+	if target.state.get("round_index")==LAST_NONTERMINAL_SETTLED_ROUND and not target.physical.pending.is_empty(): return null
 	var reopened:=D1._restore_regular_prefix(draft,expected,value)
-	return reopened if opening_boundary(reopened) in ["paid","unpaid"] else null
+	return reopened if regular_boundary(reopened) in ["paid","unpaid"] else null
