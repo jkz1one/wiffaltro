@@ -560,13 +560,17 @@ static func _write(season: RefCounted, expected: PackedByteArray, expected_snaps
 	return _write_data(data,expected)
 
 static func _native_encoded(data: Dictionary) -> PackedByteArray:
-	var bytes: PackedByteArray = JSON.stringify(data,"",true,true).to_utf8_buffer()
-	if bytes.is_empty() or bytes.size() > MAX_BYTES: return PackedByteArray()
-	# Validate the encoded representation against the consistent native value.
-	var parser: JSON = JSON.new()
-	if parser.parse(bytes.get_string_from_utf8()) != OK or not Codec.same(parser.data,data):
-		return PackedByteArray()
-	return bytes
+	return _native_materialize(data).get("bytes",PackedByteArray())
+
+
+static func _native_materialize(data: Dictionary) -> Dictionary:
+	var bytes: PackedByteArray=JSON.stringify(data,"",true,true).to_utf8_buffer()
+	if bytes.is_empty() or bytes.size()>MAX_BYTES: return {}
+	# The checked native JSON object and bytes come from this one parse. A
+	# caller that also needs the materialization must not parse it again.
+	var parser:=JSON.new()
+	if parser.parse(bytes.get_string_from_utf8())!=OK or not Codec.same(parser.data,data): return {}
+	return {"bytes":bytes,"value":parser.data}
 
 static func _write_data(data: Dictionary, expected: PackedByteArray) -> bool:
 	var bytes := _native_encoded(data)
@@ -3507,7 +3511,7 @@ static func _write_installed_earned_dynasty_second_round(source: Dictionary,expe
 # Preserve the original birth, opener and first Shop while advancing only
 # the active carried regular history. Every record replays through v18.
 static func _write_installed_earned_dynasty_second_regular(source: Dictionary,expected: PackedByteArray,
-		image: Dictionary,regular: Array) -> Dictionary:
+		image: Dictionary,regular: Array,shop_op: Dictionary={}) -> Dictionary:
 	var next: Dictionary=source.dynasty_next
 	if next.is_empty() or next.get("opening",{}).is_empty(): return {}
 	var value: Dictionary=Owner._bytes_value(expected)
@@ -3516,21 +3520,60 @@ static func _write_installed_earned_dynasty_second_regular(source: Dictionary,ex
 	value.current.dynasty_next.season=image
 	value.current.dynasty_next.shop=next.get("shop",[])
 	value.current.dynasty_next.regular=regular
-	return _commit_installed_earned_dynasty_second(source,expected,value)
+	return _commit_installed_earned_dynasty_second(source,expected,value,shop_op)
+
+
+# Shop is the only warm incremental proof here. The current revision and
+# all earlier rounds were already authenticated before opening the shop.
+# The cold reader still reconstructs the whole history, including this op.
+static func _verify_carried_shop_append(before: Dictionary,after: Dictionary,
+		prior: SeasonState,command: Dictionary) -> SeasonState:
+	if prior==null or not _installed_earned_dynasty_shop_window(prior) \
+			or not Codec.same(before.event,after.event) or not Codec.same(before.opening,after.opening): return null
+	var old_log: Array
+	var new_log: Array
+	if prior.round_index==1:
+		if before.has("regular") or after.has("regular"): return null
+		old_log=before.get("shop",[])
+		new_log=after.shop
+	else:
+		if not before.has("regular") or not after.has("regular") or not Codec.same(before.shop,after.shop): return null
+		var old_rounds: Array=before.regular
+		var new_rounds: Array=after.regular
+		if old_rounds.size()!=prior.round_index-1 or new_rounds.size()!=old_rounds.size() \
+				or not Codec.same(old_rounds.slice(0,-1),new_rounds.slice(0,-1)): return null
+		var old_row: Dictionary=old_rounds.back()
+		var new_row: Dictionary=new_rounds.back()
+		if not Codec.same(old_row.human,new_row.human) or old_row.cpu!=new_row.cpu: return null
+		old_log=old_row.shop
+		new_log=new_row.shop
+	if new_log.size()!=old_log.size()+1 or not Codec.same(new_log.slice(0,-1),old_log) \
+			or not Codec.same(new_log.back(),command): return null
+	var replay:=_installed_earned_dynasty_shop_step(prior,new_log.back())
+	if replay==null: return null
+	var captured:=Adapter.capture("dynasty",replay)
+	if captured.is_empty() or not Codec.same(captured,after.season): return null
+	for field: String in ["state","opponents","physical","ownership"]:
+		if not Codec.same(captured.get(field),before.season.get(field)): return null
+	return replay
 
 
 static func _commit_installed_earned_dynasty_second(source: Dictionary,expected: PackedByteArray,
-		value: Dictionary) -> Dictionary:
-	var body:=_native_encoded(value)
-	if body.is_empty(): return {}
-	var checked:=_installed_dugout_d1_parts(JSON.parse_string(body.get_string_from_utf8()))
+		value: Dictionary,shop_op: Dictionary={}) -> Dictionary:
+	var encoded:=_native_materialize(value)
+	if encoded.is_empty(): return {}
+	var body: PackedByteArray=encoded.bytes
+	var checked:=_installed_dugout_d1_parts(encoded.value)
 	if checked.is_empty() or not Codec.same(checked.dynasty_next.event,source.dynasty_next.event) \
 			or not Codec.same(checked.dynasty,source.dynasty) or not Codec.same(checked.dynasty_close,source.dynasty_close) \
 			or not Codec.same(checked.current,source.current) or not Codec.same(checked.head,source.head): return {}
 	if value.version==18 and (not Codec.same(checked.dynasty_next.opening,source.dynasty_next.opening) \
 			or not Codec.same(checked.dynasty_next.shop,source.dynasty_next.get("shop",[]))): return {}
 	var first: SeasonState=_installed_dugout_d1_bound.dynasty
-	var second:=_earned_dynasty_verified_second(checked,first)
+	var second: SeasonState
+	if shop_op.is_empty(): second=_earned_dynasty_verified_second(checked,first)
+	else: second=_verify_carried_shop_append(source.dynasty_next,checked.dynasty_next,
+		_installed_dugout_d1_bound.dynasty_next,shop_op)
 	if second==null: return {}
 	var again:=_bound_installed_dugout_d1(expected)
 	if again.is_empty() or again.pages!=source.pages: return {}
@@ -4758,7 +4801,7 @@ static func _write_installed_earned_dynasty_shop(shop_source: Dictionary,expecte
 			var regular: Array=source.dynasty_next.get("regular",[]).duplicate(true)
 			if regular.size()!=candidate.round_index-1 or regular.back().shop.size()>=128: return {}
 			regular.back().shop.append(command.duplicate(true))
-			return _installed_dugout_d1_shop_view(_write_installed_earned_dynasty_second_regular(source,expected,image,regular))
+			return _installed_dugout_d1_shop_view(_write_installed_earned_dynasty_second_regular(source,expected,image,regular,command))
 		var value: Dictionary=Owner._bytes_value(expected)
 		if not Codec.whole(value.get("version"),16,17): return {}
 		var history: Array=first_shop.duplicate(true)
@@ -4766,7 +4809,7 @@ static func _write_installed_earned_dynasty_shop(shop_source: Dictionary,expecte
 		value.version=17
 		value.current.dynasty_next.season=image
 		value.current.dynasty_next.shop=history
-		return _installed_dugout_d1_shop_view(_commit_installed_earned_dynasty_second(source,expected,value))
+		return _installed_dugout_d1_shop_view(_commit_installed_earned_dynasty_second(source,expected,value,command))
 	if candidate.phase==SeasonState.Phase.FINAL:
 		var bracket: Array=source.dynasty_playoffs.duplicate(true)
 		if bracket.size()!=1 or bracket.back().shop.size()>=128: return {}
