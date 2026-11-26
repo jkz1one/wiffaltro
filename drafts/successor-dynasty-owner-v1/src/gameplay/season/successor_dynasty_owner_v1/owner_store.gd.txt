@@ -3891,19 +3891,28 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 		if draft==null or _installed_dugout_d1_project_pending(draft).is_empty() \
 			or not Codec.same(Adapter.Ordinary.capture(draft),source.current.ordinary): return {}
 	var dynasty: SeasonState
+	var live_carried: SeasonState
 	if not source.dynasty.is_empty():
-		dynasty=_installed_earned_dynasty_draft(source,draft)
-		if dynasty==null: return {}
+		# The exact revision-bound native child already replayed this history.
+		# For the paid carried opener, hydrate ONLY the parked terminal season.
+		# The active season still comes from the native transition and opening
+		# replay; direct JSON hydration changes physical request number types.
+		if not source.dynasty_next.is_empty() and not source.dynasty_next.get("opening",{}).is_empty():
+			var parked: SeasonState=Adapter.restore("dynasty",source.dynasty)
+			if _earned_dynasty_close_boundary(parked):
+				live_carried=_earned_dynasty_verified_second(source,parked)
+				if live_carried!=null: dynasty=parked
+		if dynasty==null:
+			dynasty=_installed_earned_dynasty_draft(source,draft)
+			if dynasty==null: return {}
+	if not source.dynasty_next.is_empty() and live_carried==null:
+		live_carried=_earned_dynasty_verified_second(source,dynasty)
+		if live_carried==null: return {}
 	if not reader.verified_revision(expected): return {}
 	_invalidate()
 	_installed_dugout_d1_bound={"bytes":expected.duplicate(),"page":source.pin,"draft":draft}
 	if dynasty!=null: _installed_dugout_d1_bound.dynasty=dynasty
-	if not source.dynasty_next.is_empty():
-		var second:=_earned_dynasty_verified_second(source,dynasty)
-		if second==null:
-			_invalidate()
-			return {}
-		_installed_dugout_d1_bound.dynasty_next=second
+	if live_carried!=null: _installed_dugout_d1_bound.dynasty_next=live_carried
 	return installed_dugout_d1_view(expected)
 
 # Called only by the installed bound App after its complete-only prompt.
