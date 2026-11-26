@@ -46,13 +46,13 @@ static func _package() -> bool:
 
 static func _matches(source: Dictionary, job: Dictionary) -> bool:
 	return not source.is_empty() and Store.BaseArchive._hash(source.bytes)==job.revision \
-		and source.head.pages[0]==job.page
+		and source.pin==job.page
 
 func start(expected: PackedByteArray) -> bool:
 	if _pid>0 or not is_inside_tree() or not Store._installed_dugout_d1_lane() or not _package(): return false
 	var source:=Store._installed_dugout_d1_source()
 	if source.is_empty() or expected.is_empty() or source.bytes!=expected: return false
-	var job: Dictionary={"revision":Store.BaseArchive._hash(expected),"page":source.head.pages[0],
+	var job: Dictionary={"revision":Store.BaseArchive._hash(expected),"page":source.pin,
 		"nonce":Crypto.new().generate_random_bytes(32).hex_encode()}
 	if not _valid(job): return false
 	_verified.clear()
@@ -149,7 +149,7 @@ func worker(job: Dictionary) -> void:
 		if wallets.is_empty():
 			get_tree().quit(8); return
 	var again:=Store._installed_dugout_d1_source(true)
-	if not _matches(again,job) or again.bytes!=source.bytes or again.page!=source.page:
+	if not _matches(again,job) or again.bytes!=source.bytes or again.pages!=source.pages:
 		get_tree().quit(8); return
 	print(FRAME+_wire(job)+(" "+wallets if not wallets.is_empty() else ""))
 	get_tree().quit()

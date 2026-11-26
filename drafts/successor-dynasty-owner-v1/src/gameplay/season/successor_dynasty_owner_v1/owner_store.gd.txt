@@ -2993,24 +2993,29 @@ static func inspect_installed_earned_dugout_d1(owner: RefCounted, expected: Pack
 # the private legacy archive format. A head shape alone confers no authority.
 static func _installed_dugout_d1_parts(value: Variant) -> Dictionary:
 	if not Codec.keys(value,["kind","version","head","current"]) \
-			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,2) \
+			or not value.kind is String or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,1,3) \
 			or not value.head is Dictionary or not value.current is Dictionary \
 			or not value.head.get("kind") is String or not value.head.get("league") is String \
 			or not Codec.whole(value.head.get("version"),1,1): return {}
 	var closed: bool=value.version==2
-	var head:=BaseArchive._head(BaseArchive._wire(value.head))
+	var tier: int=2 if value.version==3 else 1
+	var ordinal: int=tier+1
+	var head_bytes: PackedByteArray=BaseArchive._wire(value.head)
+	var head:=BaseArchive._head(head_bytes)
 	var current: Dictionary=value.current
-	if head.is_empty() or head.ordinal!=2 or head.pages.size()!=1 \
+	if head.is_empty() or head.ordinal!=ordinal or head.pages.size()!=tier \
 			or not current.get("active") is String or current.get("active")!="ordinary" or not current.get("ordinary_state") is Dictionary \
-			or not Codec.whole(current.ordinary_state.get("ordinal"),2,2) \
+			or not Codec.whole(current.ordinary_state.get("ordinal"),ordinal,ordinal) \
 			or not current.ordinary_state.get("status") is String or current.ordinary_state.get("status")!=("closed" if closed else "active") \
 			or not current.get("ordinary") is Dictionary or not current.ordinary.get("career") is Dictionary: return {}
 	var basis: Variant=current.ordinary.career.get("start_basis")
 	var starts: Script=Adapter.OrdinaryRuntime.CommonStart
-	if not basis is Dictionary or not starts.detached_earned_dugout_d1(basis) or not starts.valid(basis) \
-			or basis.ordinal!=2 or not Codec.same(basis.archive_origin.ordered_sha256,head.pages) \
+	if not basis is Dictionary or not starts.valid(basis) or basis.ordinal!=ordinal \
+			or (not starts.detached_earned_dugout_d2(basis) if tier==2 else not starts.detached_earned_dugout_d1(basis)) \
+			or not Codec.same(basis.archive_origin.ordered_sha256,head.pages) \
 			or basis.archive_origin.offer.target_head_sha256!=BaseArchive._hash(BaseArchive._wire(head)): return {}
-	return {"head":head,"current":current,"closed":closed}
+	var pin: String=head.pages[0] if tier==1 else BaseArchive._hash(BaseArchive._wire(head))
+	return {"head":head,"current":current,"closed":closed,"tier":tier,"pin":pin}
 
 static func _installed_dugout_d1_lane() -> bool:
 	return OS.has_feature(LeagueAdmission.CAREER_FORWARD_FEATURE) \
@@ -3095,17 +3100,22 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 	var before:=_installed_payload(stored.bytes)
 	var parts:=_installed_dugout_d1_parts(Owner._bytes_value(before))
 	if parts.is_empty() or not _installed_dugout_d1_page_root(false): return {}
-	var path:=_installed_dugout_d1_page_path(parts.head.pages[0])
-	if path.is_empty() or not _base_archive_absent(path+".tmp"): return {}
-	var member:=_base_archive_member(path)
-	if member.is_empty() or not member.present or BaseArchive._hash(member.bytes)!=parts.head.pages[0]: return {}
-	return {"bytes":before,"head":parts.head,"current":parts.current,"page":member.bytes,"closed":parts.closed}
+	var pages: Array[PackedByteArray]=[]
+	for id: String in parts.head.pages:
+		var path:=_installed_dugout_d1_page_path(id)
+		if path.is_empty() or not _base_archive_absent(path+".tmp"): return {}
+		var member:=_base_archive_member(path)
+		if member.is_empty() or not member.present or BaseArchive._hash(member.bytes)!=id: return {}
+		pages.append(member.bytes)
+	return {"bytes":before,"head":parts.head,"current":parts.current,"pages":pages,"closed":parts.closed,
+		"tier":parts.tier,"pin":parts.pin}
 
 static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonState:
 	if source.is_empty(): return null
-	var pages: Array[PackedByteArray]=[source.page]
-	var earned: Script=preload("earned_dugout_d1.gd")
+	var pages: Array[PackedByteArray]=source.pages
 	var head: PackedByteArray=BaseArchive._wire(source.head)
+	if source.tier==2: return preload("earned_dugout_d2.gd").draft_from_ordered_pages(head,pages,source.current)
+	var earned: Script=preload("earned_dugout_d1.gd")
 	if source.closed: return earned.restore_completed_from_pages(head,pages,source.current)
 	return earned.restore_draft_from_pages(head,pages,source.current,true)
 
@@ -3114,7 +3124,7 @@ static func read_installed_dugout_d1_draft() -> Dictionary:
 	var restored:=_restore_installed_dugout_d1_source(source)
 	if restored==null: return {}
 	var again:=_installed_dugout_d1_source()
-	if again.is_empty() or again.bytes!=source.bytes or again.page!=source.page: return {}
+	if again.is_empty() or again.bytes!=source.bytes or again.pages!=source.pages: return {}
 	return {"bytes":source.bytes,"head":source.head,"current":source.current,"session":restored}
 
 # Only the no-game native draft dialect may use the warm draft binding.
@@ -3182,15 +3192,24 @@ static func _bound_installed_dugout_d1(expected: PackedByteArray) -> Dictionary:
 	if _installed_dugout_d1_bound.is_empty() or expected.is_empty() \
 			or _installed_dugout_d1_bound.bytes!=expected: return {}
 	var source:=_installed_dugout_d1_source()
-	if source.is_empty() or source.bytes!=expected or source.head.pages[0]!=_installed_dugout_d1_bound.page: return {}
+	if source.is_empty() or source.bytes!=expected or source.pin!=_installed_dugout_d1_bound.page: return {}
 	var draft: SeasonState=_installed_dugout_d1_bound.draft
 	if draft==null or not Codec.same(Adapter.Ordinary.capture(draft),source.current.ordinary): return {}
 	return source
+
+static func _installed_dugout_d2_local_draft(image: Dictionary) -> SeasonState:
+	var draft: SeasonState=Adapter.Ordinary.restore_common(image)
+	if not preload("earned_dugout_d2.gd").draft_boundary(draft) or not Codec.same(Adapter.Ordinary.capture(draft),image): return null
+	return draft
 
 static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return {}
 	var draft: SeasonState=_installed_dugout_d1_bound.draft
+	if source.tier==2:
+		return {"bytes":expected.duplicate(),"tier":2,"picks":draft.picks.duplicate(),"offers":draft.offers(),
+			"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),
+			"state":"draft" if draft.picks.size()<4 else "draft_complete","closed":false}
 	var state: String="draft"
 	if draft.picks.size()==4:
 		if not draft.physical.pending.is_empty(): state="unpaid"
@@ -3225,7 +3244,8 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 		"next_available":draft.round_index<_installed_dugout_d1_regular_limit(),"finish":finish,"playoff_club_id":playoff_club_id,
 		"shop_available":state=="paid" and not source.closed and draft.shop_available(),"closed":source.closed,
 		"close_available":not source.closed and state=="paid" and not earned.close_destination(draft).is_empty(),
-		"completion":completion}
+		"completion":completion,"tier":1,
+		"start_d2_available":source.closed and finish=="final_champion" and completion.get("finish")=="champion"}
 
 # The menu cannot supply a child result, an archive path, or a saved session.
 static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArray) -> Dictionary:
@@ -3233,7 +3253,7 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 			or not reader.verified_revision(expected): return {}
 	var source:=_installed_dugout_d1_source()
 	if source.is_empty() or source.bytes!=expected: return {}
-	var draft:=_installed_dugout_d1_verified_current(source.current.ordinary)
+	var draft:=_installed_dugout_d2_local_draft(source.current.ordinary) if source.tier==2 else _installed_dugout_d1_verified_current(source.current.ordinary)
 	if draft==null: return {}
 	var earned: Script=preload("earned_dugout_d1.gd")
 	var witness: String=reader.verified_wallets()
@@ -3243,7 +3263,7 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 	elif not witness.is_empty(): return {}
 	if not reader.verified_revision(expected): return {}
 	_invalidate()
-	_installed_dugout_d1_bound={"bytes":expected.duplicate(),"page":source.head.pages[0],"draft":draft}
+	_installed_dugout_d1_bound={"bytes":expected.duplicate(),"page":source.pin,"draft":draft}
 	return installed_dugout_d1_view(expected)
 
 # Called only by the installed bound App after its complete-only prompt.
@@ -3261,13 +3281,42 @@ static func complete_installed_dugout_d1(app: Variant) -> Dictionary:
 	if _installed_dugout_d1_parts(value).is_empty(): return {}
 	var body:=_native_encoded(value)
 	var again:=_bound_installed_dugout_d1(expected)
-	if body.is_empty() or again.is_empty() or again.closed or again.page!=source.page: return {}
+	if body.is_empty() or again.is_empty() or again.closed or again.pages!=source.pages: return {}
 	saving=true
 	var saved: bool=_write_exact_bytes(body,expected)
 	saving=false
 	if not saved: return {}
 	_invalidate()
-	_installed_dugout_d1_bound={"bytes":body,"page":source.head.pages[0],"draft":native}
+	_installed_dugout_d1_bound={"bytes":body,"page":source.pin,"draft":native}
+	return installed_dugout_d1_view(body)
+
+# Bound warm champion only. The previously verified Base stays immutable;
+# write and read back D1 before rotating the sole mutable installed primary.
+static func write_installed_dugout_d2_birth(app: Variant) -> Dictionary:
+	if not _installed_dugout_d1_shop_app(app) or app.season!=null or not app.installed_dugout_d1_draft.get("start_d2_available",false): return {}
+	var expected: PackedByteArray=app.saved_bytes
+	var source:=_bound_installed_dugout_d1(expected)
+	if source.is_empty() or not source.closed or source.tier!=1: return {}
+	var session: SeasonState=_installed_dugout_d1_bound.draft
+	var staged: Dictionary=preload("earned_dugout_d2.gd").prepare_next(source.current,source.head,session)
+	if staged.is_empty(): return {}
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":3,"head":staged.head,"current":staged.current}
+	var parts:=_installed_dugout_d1_parts(value)
+	if parts.is_empty() or _installed_dugout_d2_local_draft(staged.current.ordinary)==null: return {}
+	var body:=_native_encoded(value)
+	if body.is_empty(): return {}
+	var again:=_bound_installed_dugout_d1(expected)
+	if again.is_empty() or again.pages!=source.pages or again.pin!=source.pin: return {}
+	saving=true
+	var kept: bool=_keep_installed_dugout_d1_page(staged.page)
+	var base_path:=_installed_dugout_d1_page_path(source.head.pages[0])
+	var saved: bool=kept and _installed_dugout_d1_lane() and _matches(expected) \
+		and _base_archive_member(base_path).get("bytes",PackedByteArray())==source.pages[0] \
+		and _write_exact_bytes(body,expected)
+	saving=false
+	if not saved: return {}
+	_invalidate()
+	_installed_dugout_d1_bound={"bytes":body,"page":parts.pin,"draft":staged.season}
 	return installed_dugout_d1_view(body)
 
 static func pick_installed_dugout_d1(expected: PackedByteArray,id: String) -> Dictionary:
@@ -3282,17 +3331,18 @@ static func pick_installed_dugout_d1(expected: PackedByteArray,id: String) -> Di
 	if recorded.is_empty(): return {}
 	var current: Dictionary=source.current.duplicate(true)
 	current.ordinary=recorded
-	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":1,"head":source.head,"current":current}
-	if _installed_dugout_d1_parts(value).is_empty() or _installed_dugout_d1_local_draft(recorded)==null: return {}
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":3 if source.tier==2 else 1,"head":source.head,"current":current}
+	var native:=_installed_dugout_d2_local_draft(recorded) if source.tier==2 else _installed_dugout_d1_local_draft(recorded)
+	if _installed_dugout_d1_parts(value).is_empty() or native==null: return {}
 	var body:=_native_encoded(value)
 	var again:=_installed_dugout_d1_source()
-	if body.is_empty() or again.is_empty() or again.bytes!=expected or again.page!=source.page: return {}
+	if body.is_empty() or again.is_empty() or again.bytes!=expected or again.pages!=source.pages: return {}
 	saving=true
 	var saved: bool=_write_exact_bytes(body,expected)
 	saving=false
 	if not saved: return {}
 	_invalidate()
-	_installed_dugout_d1_bound={"bytes":body,"page":source.head.pages[0],"draft":candidate}
+	_installed_dugout_d1_bound={"bytes":body,"page":source.pin,"draft":candidate}
 	return installed_dugout_d1_view(body)
 
 # Only the exact installed App can open the authored opening fixture. The
@@ -3304,7 +3354,7 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return false
 	var bound: SeasonState=_installed_dugout_d1_bound.draft
-	if source.closed or not bound.physical.pending.is_empty(): return false
+	if source.closed or source.tier!=1 or not bound.physical.pending.is_empty(): return false
 	var earned: Script=preload("earned_dugout_d1.gd")
 	var semifinal: bool=earned.final_regular_destination(bound)=="semifinal"
 	var managed_final: bool=earned.settled_semifinal(bound)=="final_ready"
@@ -3378,20 +3428,20 @@ static func save_installed_dugout_d1_managed(app: Variant) -> Dictionary:
 # No command formats enter here. Each fixed producer has already proved the
 # exact gameplay transition and independently materialized its canonical save.
 static func _write_installed_dugout_d1_opening(source: Dictionary,expected: PackedByteArray,recorded: Dictionary,native: SeasonState) -> Dictionary:
-	if source.closed or native==null or not Codec.same(Adapter.Ordinary.capture(native),recorded): return {}
+	if source.closed or source.tier!=1 or native==null or not Codec.same(Adapter.Ordinary.capture(native),recorded): return {}
 	var current: Dictionary=source.current.duplicate(true)
 	current.ordinary=recorded
 	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":1,"head":source.head,"current":current}
 	if _installed_dugout_d1_parts(value).is_empty(): return {}
 	var body:=_native_encoded(value)
 	var again:=_bound_installed_dugout_d1(expected)
-	if body.is_empty() or again.is_empty() or again.bytes!=source.bytes or again.page!=source.page: return {}
+	if body.is_empty() or again.is_empty() or again.bytes!=source.bytes or again.pages!=source.pages: return {}
 	saving=true
 	var saved: bool=_write_exact_bytes(body,expected)
 	saving=false
 	if not saved: return {}
 	_invalidate()
-	_installed_dugout_d1_bound={"bytes":body,"page":source.head.pages[0],"draft":native}
+	_installed_dugout_d1_bound={"bytes":body,"page":source.pin,"draft":native}
 	return installed_dugout_d1_view(body)
 
 
