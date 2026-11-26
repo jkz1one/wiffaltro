@@ -1129,7 +1129,7 @@ func installed_dugout_d1_cpu_running() -> bool:
 
 func _installed_dugout_d1_round_menu(expected: PackedByteArray) -> bool:
 	return not _busy and not is_instance_valid(ai_runner) and not installed_dugout_d1_reading() \
-		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid"] and saved_bytes==expected \
+		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid"] and saved_bytes==expected \
 		and menu!=null and menu.visible and menu.page=="home"
 
 func play_installed_dugout_d1_cpu(expected: PackedByteArray) -> void:

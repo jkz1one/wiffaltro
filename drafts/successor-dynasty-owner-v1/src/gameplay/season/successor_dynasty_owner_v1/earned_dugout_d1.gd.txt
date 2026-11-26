@@ -233,9 +233,10 @@ static func semifinal_pending(session: SeasonState) -> bool:
 
 # Never derives progression rights. It recognizes native semifinal settlement
 # only, with no active pending transaction or already played managed final.
-static func settled_semifinal(session: SeasonState) -> String:
+static func settled_semifinal(session: SeasonState, allow_final_pending: bool=false) -> String:
 	if session==null or session.round_index!=10 or session.picks.size()!=4 \
-			or session.player_results.size()!=11 or not session.physical.pending.is_empty() \
+			or session.player_results.size()!=11 \
+			or (not session.physical.pending.is_empty() and (not allow_final_pending or session.phase!=SeasonState.Phase.FINAL)) \
 			or session.semifinals.size()!=2 or session.playoff_seeds.size()!=4 \
 			or not session.playoff_seeds.any(func(seed: Variant) -> bool: return SeasonOwnership._whole(seed,0,0)):
 		return ""
@@ -251,7 +252,8 @@ static func settled_semifinal(session: SeasonState) -> String:
 	if session.phase==SeasonState.Phase.FINAL and club_won and session.results.size()==32 \
 			and session.physical.reports.size()==21 and session.champion==-1:
 		var final: Dictionary=session.pending_fixture()
-		if final.get("id")==32 and final.get("round")==11 and (final.get("away")==0 or final.get("home")==0):
+		if final.get("id")==32 and final.get("round")==11 and final.get("neutral")==true \
+				and (final.get("away")==0 or final.get("home")==0):
 			return "final_ready"
 	if session.phase==SeasonState.Phase.COMPLETE and not club_won and session.results.size()==33 \
 			and session.physical.reports.size()==22 and session.physical.reports[21].get("fixture")==32 \
@@ -306,6 +308,37 @@ static func _materialized_semifinal_fixture_types(session: SeasonState) -> Seaso
 	return alternative if ClubCareer.same(alternative.semifinals,session.semifinals) else null
 
 
+# A managed Final is one authentic human game. There is no CPU job and
+# no entitlement fold at this boundary.
+static func managed_final_pending(session: SeasonState) -> bool:
+	if settled_semifinal(session,true)!="final_ready": return false
+	var pending: Dictionary=session.physical.pending
+	return SeasonOwnership._keys(pending,["human","reports"]) and pending.get("human") is Array \
+		and pending.human.size()==13 and pending.human[0]==32 and pending.get("reports") is Array and pending.reports.is_empty()
+
+static func managed_final_destination(session: SeasonState) -> String:
+	if session==null or session.phase!=SeasonState.Phase.COMPLETE or session.round_index!=10 \
+			or session.picks.size()!=4 or not session.physical.pending.is_empty() or session.results.size()!=33 \
+			or session.player_results.size()!=12 or session.physical.reports.size()!=21 or not session.pending_fixture().is_empty():
+		return ""
+	var final: Dictionary=session.final_fixture
+	var row: Dictionary=session.player_results.back()
+	if final.get("id")!=32 or final.get("round")!=11 or final.get("neutral")!=true \
+			or row.get("id")!=32 or row.get("away")!=final.get("away") or row.get("home")!=final.get("home") \
+			or (row.get("away")!=0 and row.get("home")!=0) or row.away_runs==row.home_runs:
+		return ""
+	var winner: int=int(row.away if row.away_runs>row.home_runs else row.home)
+	if session.champion!=winner: return ""
+	return "final_champion" if winner==0 else "final_runner_up"
+
+static func project_managed_final(session: SeasonState) -> Dictionary:
+	if not managed_final_pending(session): return {}
+	var result: Dictionary=Archive._owner().Adapter.OrdinaryPending.project(session)
+	if result.has("error") or result.has("fixture") or not result.get("candidate") is SeasonState \
+			or managed_final_destination(result.candidate).is_empty(): return {}
+	return result
+
+
 static func final_regular_destination(session: SeasonState) -> String:
 	if session==null or session.round_index!=LAST_INSTALLED_REGULAR_ROUND \
 			or session.picks.size()!=4 or session.player_results.size()!=10 \
@@ -336,7 +369,7 @@ const WALLET_TYPES_MAX: int=1536
 static func needs_wallet_types(session: SeasonState) -> bool:
 	if session==null: return false
 	return (session.phase==SeasonState.Phase.REGULAR and session.round_index==LAST_INSTALLED_REGULAR_ROUND-1) \
-		or not semifinal_pair(session).is_empty() or settled_semifinal(session)=="final_ready"
+		or not semifinal_pair(session).is_empty() or settled_semifinal(session,true)=="final_ready"
 
 static func valid_wallet_types(witness: String) -> bool:
 	var parts: PackedStringArray=witness.split(".")
@@ -447,13 +480,18 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 	var events: Variant=image.build.build.get("_events")
 	var managed_count: int=humans.size()
 	var visited: int=mini(managed_count,LAST_INSTALLED_REGULAR_ROUND)
-	var paid_semifinal: bool=managed_count==LAST_INSTALLED_REGULAR_ROUND+1
-	if managed_count>LAST_INSTALLED_REGULAR_ROUND+1 or (visited==0 and pending.is_empty()) \
+	var paid_semifinal: bool=managed_count>=LAST_INSTALLED_REGULAR_ROUND+1
+	var paid_final: bool=managed_count==LAST_INSTALLED_REGULAR_ROUND+2
+	if managed_count>LAST_INSTALLED_REGULAR_ROUND+2 or (visited==0 and pending.is_empty()) \
 			or image.state.get("round_index")!=visited \
 			or not events is Array or events.size()>SeasonBuild.MAX_EVENTS: return null
 	var final_regular: bool=visited==LAST_INSTALLED_REGULAR_ROUND
-	if paid_semifinal:
-		if not pending.is_empty() or not [[32,21],[33,22]].has([image.state.results.size(),reports.size()]): return null
+	if paid_final:
+		if not pending.is_empty() or image.state.results.size()!=33 or reports.size()!=21 \
+				or image.state.get("phase")!=SeasonState.Phase.COMPLETE: return null
+	elif paid_semifinal:
+		if not [[32,21],[33,22]].has([image.state.results.size(),reports.size()]): return null
+		if not pending.is_empty() and image.state.get("phase")!=SeasonState.Phase.FINAL: return null
 	elif final_regular:
 		if not [[30,20],[33,23]].has([image.state.results.size(),reports.size()]): return null
 		if not pending.is_empty() and image.state.get("phase")!=SeasonState.Phase.SEMIFINAL: return null
@@ -484,6 +522,17 @@ static func _restore_regular_prefix(draft: SeasonState, expected: Dictionary, va
 		if checked.is_empty() or checked.projection.has("fixture"): return null
 		proven=checked.projection.candidate
 		if not Archive.Core._shop(proven,events,0): return null
+		if paid_final:
+			var final_human:=Archive.Core._human(humans[11],proven.pending_fixture())
+			if final_human.is_empty(): return null
+			proven.physical.pending={"human":final_human,"reports":[]}
+			var last:=project_managed_final(proven)
+			if last.is_empty(): return null
+			proven=last.candidate
+			if not Archive.Core._shop(proven,events,0): return null
+		elif not pending.is_empty():
+			proven.physical.pending=pending.duplicate(true)
+			if project_managed_final(proven).is_empty(): return null
 	elif not pending.is_empty() and final_regular:
 		proven.physical.pending=pending.duplicate(true)
 		var checked:=project_semifinal(proven,true)

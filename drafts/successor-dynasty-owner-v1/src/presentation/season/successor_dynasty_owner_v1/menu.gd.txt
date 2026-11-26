@@ -639,7 +639,7 @@ func _installed_dugout_d1() -> void:
 	var title: String="DUGOUT D1 · ROUND %d"%draft.round
 	if state=="draft": title="DUGOUT D1 · DRAFT %d / 4"%draft.picks.size()
 	elif state=="semifinal_unpaid" or draft.finish=="semifinal_exit": title="DUGOUT D1 · SEMIFINAL"
-	elif draft.finish=="final_ready": title="DUGOUT D1 · FINAL"
+	elif state=="final_unpaid" or draft.finish in ["final_ready","final_champion","final_runner_up"]: title="DUGOUT D1 · FINAL"
 	_label(_body,title,24)
 	_note("Dugout Base championship kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
@@ -647,6 +647,9 @@ func _installed_dugout_d1() -> void:
 		_label(_body,player.display_name if player!=null else id,20)
 	if state=="ready":
 		_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+	elif state=="final_unpaid":
+		_note("Your final is saved. Its payout is pending.")
+		_bound_button(_body,"SETTLE FINAL",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state in ["unpaid","semifinal_unpaid"]:
 		var playoff: bool=state=="semifinal_unpaid"
 		_note("Your semifinal is saved. The playoff payout is pending." if playoff else "Your Club game is saved. The round has not been paid.")
@@ -671,6 +674,11 @@ func _installed_dugout_d1() -> void:
 			_note("Your Club was eliminated in the semifinal. The playoff results and payout are saved.")
 		elif draft.finish=="final_ready":
 			_note("The semifinal has paid. Your Club advanced to the final.")
+			_bound_button(_body,"PLAY FINAL",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+		elif draft.finish=="final_champion":
+			_note("Your Club won the final. The result and game payout are saved.")
+		elif draft.finish=="final_runner_up":
+			_note("Your Club finished runner-up. The final and game payout are saved.")
 		else:
 			_note("Round %d has already paid. All three results are saved."%draft.round)
 		if draft.next_available:
@@ -682,6 +690,7 @@ func _installed_dugout_d1() -> void:
 			var within_round: int=id%3
 			var score_label: String="Club game" if within_round==0 else "CPU game %d"%within_round
 			if id>=30: score_label="Club semifinal" if id==draft.playoff_club_id else ("CPU semifinal %d"%(id-29) if id<32 else "CPU final")
+			if id==32 and draft.finish in ["final_champion","final_runner_up"]: score_label="Club final"
 			_note("%s: %d away – %d home"%[score_label,row[1],row[2]])
 	else:
 		for id: String in draft.offers:
