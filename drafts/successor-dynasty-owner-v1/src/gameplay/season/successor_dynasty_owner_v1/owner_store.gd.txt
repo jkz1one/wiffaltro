@@ -3212,13 +3212,22 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 	if source.tier==2:
 		var d2_state: String="draft" if draft.picks.size()<4 else preload("earned_dugout_d2.gd").regular_boundary(draft)
 		if d2_state.is_empty(): return {}
+		var earned_d1: Script=preload("earned_dugout_d1.gd")
+		var finish_d2: String=earned_d1.final_regular_destination(draft)
+		var count_d2: int=draft.physical.pending.reports.size() if d2_state=="unpaid" else 0
+		var total_d2: int=2
+		if d2_state=="unpaid" and draft.round_index==_installed_dugout_d1_regular_limit()-1 and count_d2>=2:
+			var pending_d2:=_installed_dugout_d1_pending(expected)
+			if pending_d2.is_empty(): return {}
+			if pending_d2.projection.has("fixture") or count_d2>2: total_d2=5
 		var d2_scores: Array=[]
 		if d2_state=="paid":
-			for row: Dictionary in draft.results.slice(-3):
+			var start_d2: int=draft.results.size()-3 if finish_d2.is_empty() else 27
+			for row: Dictionary in draft.results.slice(start_d2):
 				d2_scores.append([int(row.id),int(row.away_runs),int(row.home_runs)])
 		return {"bytes":expected.duplicate(),"tier":2,"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),"state":d2_state,"closed":false,
-			"cpu_reports":draft.physical.pending.reports.size() if d2_state=="unpaid" else 0,"cpu_total":2,
+			"cpu_reports":count_d2,"cpu_total":total_d2,"finish":finish_d2,
 			"scores":d2_scores,"shop_available":d2_state=="paid" and draft.shop_available(),
 			"round":draft.round_index+int(d2_state!="paid"),
 			"next_available":preload("earned_dugout_d2.gd").next_regular_available(draft)}
@@ -3582,7 +3591,7 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 	var prior: Dictionary=round_plan.source.current.ordinary
 	var count: int=round_plan.count
 	if not candidate.physical.pending.is_empty(): return {}
-	if round_plan.source.tier==2 and (count!=2 or preload("earned_dugout_d2.gd").regular_boundary(candidate)!="paid"): return {}
+	if round_plan.source.tier==2 and preload("earned_dugout_d2.gd").regular_boundary(candidate)!="paid": return {}
 	if round_plan.get("managed_final",false):
 		if count!=0 or preload("earned_dugout_d1.gd").managed_final_destination(candidate).is_empty(): return {}
 	elif round_plan.get("semifinal",false):

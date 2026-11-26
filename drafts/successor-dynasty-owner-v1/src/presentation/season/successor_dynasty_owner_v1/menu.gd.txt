@@ -735,7 +735,13 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 		else:
 			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="paid":
-		_note("Round %d has already paid. All three results are saved."%draft.round)
+		var terminal: String=draft.get("finish","")
+		if terminal=="semifinal":
+			_note("Round 10 has already paid. Your club qualified for the semifinals.")
+		elif terminal=="missed":
+			_note("Round 10 has already paid. Your club missed the playoffs; the bracket results are saved.")
+		else:
+			_note("Round %d has already paid. All three results are saved."%draft.round)
 		if draft.next_available:
 			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		if draft.shop_available:
@@ -743,6 +749,7 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 		for row: Array in draft.scores:
 			var position: int=int(row[0])%3
 			var score_label: String="Club game" if position==0 else "CPU game %d"%position
+			if row[0]>=30: score_label="CPU final" if row[0]==32 else "CPU semifinal %d"%(int(row[0])-29)
 			_note("%s: %d away – %d home"%[score_label,row[1],row[2]])
 	else:
 		for id: String in draft.offers:

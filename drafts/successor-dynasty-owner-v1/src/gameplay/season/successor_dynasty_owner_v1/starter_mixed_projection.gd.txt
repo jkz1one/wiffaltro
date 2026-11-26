@@ -371,6 +371,12 @@ static func _project_mixed_round(source: SeasonState, installed_forward_base_sem
 	var cap:=2
 	if source.career!=null and api.Common.Start.detached_mixed_rollover(source.career.start_basis):
 		cap=api.Adapter.OrdinaryRuntime.mixed_rollover_regular_report_cap(source.round_index)
+	elif source.career!=null and source.round_index==9 \
+			and api.Common.Start.detached_earned_dugout_d2(source.career.start_basis) \
+			and api.Codec.same(source.league_rules,LeagueRules.capture_tier("dugout",2)):
+		# A missed bracket keeps the remaining three native CPU fixtures in
+		# Round 10. Extend only the exact-number retry, not report admission.
+		cap=5
 	# A first installed forward title can include a semifinal played after
 	# reopening. Its request still has to match the same strict projector.
 	var forward_first: bool=installed_forward_base_semifinal and OS.has_feature("wiffaltro_catalog_forward_v1") \
