@@ -156,14 +156,18 @@ static func fold_private_flat_abandon(owner: RefCounted) -> Dictionary:
 
 # A dedicated native completion reducer, not a generic adapter admission.
 # Installed custody must authenticate the exact career before using this fold.
-static func fold_installed_dugout_d1_complete(before: Dictionary, season: SeasonState, close_id: String, fold_index: int) -> Dictionary:
-	if season==null or season.career==null or not valid(before) or not _close_id(close_id) \
-			or fold_index!=int(before.closed)+1 or not before.titles.get(ClubLeagueCareer.title_key("dugout",0),false) \
-			or not C.same(season.league_rules,LeagueRules.capture_tier("dugout",1)) \
-			or not Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d1(season.career.start_basis): return {}
-	return _fold_native(before,"ordinary",season,close_id,fold_index,"complete",true)
+static func fold_installed_dugout_complete(before: Dictionary, season: SeasonState, close_id: String, fold_index: int, tier: int) -> Dictionary:
+	if tier not in [1,2] or season==null or season.career==null or not valid(before) or not _close_id(close_id) \
+			or fold_index!=tier+1 or fold_index!=int(before.closed)+1 \
+			or not before.titles.get(ClubLeagueCareer.title_key("dugout",0),false) \
+			or not before.titles.get(ClubLeagueCareer.title_key("dugout",tier-1),false) \
+			or not C.same(season.league_rules,LeagueRules.capture_tier("dugout",tier)): return {}
+	var starts: Script=Adapter.OrdinaryRuntime.CommonStart
+	var basis: Dictionary=season.career.start_basis
+	if not (starts.detached_earned_dugout_d1(basis) if tier==1 else starts.detached_earned_dugout_d2(basis)): return {}
+	return _fold_native(before,"ordinary",season,close_id,fold_index,"complete",tier)
 
-static func _fold_native(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String, installed_dugout_d1: bool=false) -> Dictionary:
+static func _fold_native(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String, installed_dugout_tier: int=0) -> Dictionary:
 	var proof: Dictionary=ClubSeasonRecord.capture(season)
 	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
 	if summary.is_empty() or (reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE) or (reason=="complete")!=(summary.finish!="unfinished"): return {}
@@ -173,8 +177,8 @@ static func _fold_native(before: Dictionary, side: String, season: SeasonState, 
 	var tier: int=int(season.league_rules.get("tier",0))
 	# Current factories admit only these Base modes; never broaden119's guard.
 	var paired_complete: bool=side=="ordinary" and league=="doubleheader" and reason=="complete" and summary.finish=="semifinal" and Adapter.Ordinary._completed_postseason_shape(season)
-	if installed_dugout_d1:
-		if side!="ordinary" or league!="dugout" or tier!=1 or reason!="complete": return {}
+	if installed_dugout_tier!=0:
+		if side!="ordinary" or league!="dugout" or tier!=installed_dugout_tier or reason!="complete": return {}
 	elif tier!=0 or (side=="ordinary" and league not in OrdinaryAdmissions.COMMON_ORDINARY_LEAGUES and not paired_complete): return {}
 	var result: Dictionary=before.duplicate(true)
 	result.closed+=1;result.completed+=int(reason=="complete");result.abandoned+=int(reason=="abandon")

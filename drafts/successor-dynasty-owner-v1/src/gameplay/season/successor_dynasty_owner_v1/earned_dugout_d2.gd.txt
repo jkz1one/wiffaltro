@@ -160,6 +160,12 @@ static func next_installed_available(session: SeasonState) -> bool:
 # Rebuild the title and credit bank from the two archived native seasons.
 # The D2 payload is not a source of title, permission, or career credit.
 static func draft_from_ordered_pages(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary) -> SeasonState:
+	return _restore_ordered_current(head_bytes,pages,value,false)
+
+static func restore_completed_from_pages(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary) -> SeasonState:
+	return _restore_ordered_current(head_bytes,pages,value,true)
+
+static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary,expect_closed: bool) -> SeasonState:
 	var h: Dictionary=Archive._head(head_bytes)
 	if h.is_empty() or h.ordinal!=3 or pages.size()!=2 \
 			or Archive._hash(pages[0])!=h.pages[0] or Archive._hash(pages[1])!=h.pages[1] \
@@ -190,7 +196,7 @@ static func draft_from_ordered_pages(head_bytes: PackedByteArray,pages: Array[Pa
 	var expected: Dictionary=staged.current
 	expected.ordinary=Archive._owner().Adapter.Ordinary.capture(draft)
 	if expected.ordinary.is_empty(): return null
-	if Archive._owner().Codec.same(expected,value): return draft
+	if not expect_closed and Archive._owner().Codec.same(expected,value): return draft
 	var target: Dictionary=value.ordinary
 	if picks.size()!=4 or not target.get("physical") is Dictionary or not target.physical.get("pending") is Dictionary \
 			or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_REGULAR_ROUND+2 \
@@ -200,5 +206,12 @@ static func draft_from_ordered_pages(head_bytes: PackedByteArray,pages: Array[Pa
 	if target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty() \
 			and not [[SeasonState.Phase.SEMIFINAL,LAST_REGULAR_ROUND], \
 				[SeasonState.Phase.FINAL,LAST_REGULAR_ROUND+1]].has([target.state.get("phase"),target.state.player_results.size()]): return null
-	var reopened:=D1._restore_regular_prefix(draft,expected,value)
-	return reopened if installed_boundary(reopened) in ["paid","unpaid","semifinal_unpaid","final_unpaid"] else null
+	var active: Dictionary=expected.duplicate(true) if expect_closed else value
+	if expect_closed: active.ordinary=target
+	var reopened:=D1._restore_regular_prefix(draft,expected,active)
+	var boundary:=installed_boundary(reopened)
+	if expect_closed:
+		if boundary!="paid": return null
+		var folded:=D1.completed_current_for_tier(active,reopened,2)
+		return reopened if not folded.is_empty() and Archive._owner().Codec.same(folded,value) else null
+	return reopened if boundary in ["paid","unpaid","semifinal_unpaid","final_unpaid"] else null

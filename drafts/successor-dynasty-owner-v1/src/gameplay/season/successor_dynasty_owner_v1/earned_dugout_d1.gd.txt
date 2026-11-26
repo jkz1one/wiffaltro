@@ -594,37 +594,43 @@ static func close_destination(session: SeasonState) -> String:
 	return "champion" if finish=="final_champion" else ""
 
 static func completed_current(active: Dictionary, session: SeasonState) -> Dictionary:
+	return completed_current_for_tier(active,session,1)
+
+# Reuse the exact completion reducer only for these installed ordered careers.
+static func completed_current_for_tier(active: Dictionary, session: SeasonState, tier: int) -> Dictionary:
+	if tier not in [1,2]: return {}
+	var ordinal: int=tier+1
 	var finish:=close_destination(session)
-	if finish.is_empty(): return {}
+	if finish.is_empty() or session.career==null: return {}
 	var api:=Archive._owner()
 	var c: Script=api.Codec
 	if active.get("active")!="ordinary" or not active.get("ordinary_state") is Dictionary \
 			or not active.get("common") is Dictionary or not active.get("ordinary") is Dictionary: return {}
 	var state: Dictionary=active.ordinary_state
 	var common: Dictionary=active.common
-	if state.get("status")!="active" or not c.whole(state.get("ordinal"),2,2) or state.get("proposal")!={} \
+	if state.get("status")!="active" or not c.whole(state.get("ordinal"),ordinal,ordinal) or state.get("proposal")!={} \
 			or state.get("last_close")!={} or not state.get("lineage") is String \
-			or not c.whole(common.get("sequence"),1,1) or not common.get("aggregate") is Dictionary \
-			or not c.same(common.get("cursors"),{"ordinary":1,"dynasty":0}): return {}
+			or not c.whole(common.get("sequence"),tier,tier) or not common.get("aggregate") is Dictionary \
+			or not c.same(common.get("cursors"),{"ordinary":tier,"dynasty":0}): return {}
 	if not c.same(api.Adapter.Ordinary.capture(session),active.ordinary) \
 			or not api.Common._starter_dugout_paid_terminal(session): return {}
 	var basis: Dictionary=session.career.start_basis
-	if basis.get("lineage")!=state.lineage or basis.get("ordinal")!=2 or basis.get("common_sequence")!=1 \
+	if basis.get("lineage")!=state.lineage or basis.get("ordinal")!=ordinal or basis.get("common_sequence")!=tier \
 			or state.get("start_basis_sha256")!=Life.digest(basis) \
 			or basis.get("common_sha256")!=Life.digest(common.aggregate): return {}
-	var id: String="%s:2:close"%state.lineage
-	var folded:=Progress.fold_installed_dugout_d1_complete(common.aggregate,session,id,2)
-	if folded.is_empty() or folded.receipt.get("finish")!=finish or folded.receipt.get("version")!=2: return {}
+	var id: String="%s:%d:close"%[state.lineage,ordinal]
+	var folded:=Progress.fold_installed_dugout_complete(common.aggregate,session,id,ordinal,tier)
+	if folded.is_empty() or folded.receipt.get("finish")!=finish or folded.receipt.get("version")!=ordinal: return {}
 	var image: Dictionary=active.duplicate(true)
 	var source: String=Life.digest(active.ordinary)
-	var first_title: bool=not common.aggregate.titles.get(Titles.title_key("dugout",1),false)
-	image.ordinary_state.last_close={"id":id,"ordinal":2,"reason":"complete","session_sha256":source,
-		"receipt":folded.receipt,"first_title":first_title,"league":"dugout","tier":1}
+	var first_title: bool=not common.aggregate.titles.get(Titles.title_key("dugout",tier),false)
+	image.ordinary_state.last_close={"id":id,"ordinal":ordinal,"reason":"complete","session_sha256":source,
+		"receipt":folded.receipt,"first_title":first_title,"league":"dugout","tier":tier}
 	image.ordinary_state.status="closed"
 	image.common.aggregate=folded.aggregate
-	image.common.cursors.ordinary=2
-	image.common.sequence=2
-	image.common.last_fold={"id":id,"side":"ordinary","ordinal":2,"sequence":2,"source":source,
+	image.common.cursors.ordinary=ordinal
+	image.common.sequence=ordinal
+	image.common.last_fold={"id":id,"side":"ordinary","ordinal":ordinal,"sequence":ordinal,"source":source,
 		"aggregate_sha256":Life.digest(folded.aggregate),"receipt":folded.receipt.duplicate(true)}
 	return image
 
