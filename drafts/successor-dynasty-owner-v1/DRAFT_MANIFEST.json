@@ -198,8 +198,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/app.gd",
-      "bytes": 131197,
-      "sha256": "2168564713df84894c8fcdfc9e129e5e8682d83579a0f6a105b9ffcf4ee2f34c"
+      "bytes": 131215,
+      "sha256": "8199291d29aa1eb34d643dbc8979639f61855ac9724d3b307974c6a64992a08c"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/capture_human.gd.txt",
@@ -860,8 +860,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d2.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_dugout_d2.gd",
-      "bytes": 20040,
-      "sha256": "6cce9794cc22f0bc9f45e8987930a47ee325dbba70e96d9ce3c0a2044e7c85ab"
+      "bytes": 22203,
+      "sha256": "e3cff103e65835f5195bb20ad05041f0ff84f2cf30894f22c8098260ea8b127e"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/common_birth.gd.txt",

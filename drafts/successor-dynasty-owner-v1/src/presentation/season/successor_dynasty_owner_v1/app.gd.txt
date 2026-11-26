@@ -1045,7 +1045,8 @@ func _continue_installed_dugout_d1() -> bool:
 	_installed_dugout_d1_reader=reader
 	add_child(reader)
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
-	var tier: int=3 if value.get("version")==5 else (2 if value.get("version")==3 or value.get("version")==4 else 1)
+	var version: Variant=value.get("version")
+	var tier: int=3 if version==5 or version==6 else (2 if version==3 or version==4 else 1)
 	notice="Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)

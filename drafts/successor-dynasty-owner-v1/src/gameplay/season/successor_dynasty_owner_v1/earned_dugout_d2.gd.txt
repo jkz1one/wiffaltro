@@ -8,7 +8,7 @@ const KIND := "earned-dugout-d2-offer-v1"
 const LAST_REGULAR_ROUND: int=10
 
 static func _champion_source(image: Dictionary, head: Dictionary, proven: SeasonState, tier: int) -> Dictionary:
-	if tier not in [1,2] or D1.close_destination(proven)!="champion" or proven.career==null or image.get("active")!="ordinary" \
+	if tier not in [1,2,3] or D1.close_destination(proven)!="champion" or proven.career==null or image.get("active")!="ordinary" \
 			or not image.get("ordinary") is Dictionary or not image.get("ordinary_state") is Dictionary \
 			or not image.get("common") is Dictionary: return {}
 	var api:=Archive._owner()
@@ -18,7 +18,8 @@ static func _champion_source(image: Dictionary, head: Dictionary, proven: Season
 	var start: Dictionary=proven.career.start_basis
 	var starts: Script=api.Adapter.OrdinaryRuntime.CommonStart
 	var ordinal: int=tier+1
-	if not (starts.detached_earned_dugout_d1(start) if tier==1 else starts.detached_earned_dugout_d2(start)) or not starts.valid(start) \
+	var matched_tier: bool=starts.detached_earned_dugout_d1(start) if tier==1 else (starts.detached_earned_dugout_d2(start) if tier==2 else starts.detached_earned_dugout_d3(start))
+	if not matched_tier or not starts.valid(start) \
 			or not c.same(api.Adapter.Ordinary.capture(proven),image.ordinary): return {}
 	var checked: Dictionary=Archive._head(Archive._wire(head))
 	if checked.is_empty() or checked.ordinal!=ordinal or checked.pages.size()!=tier \
@@ -52,6 +53,37 @@ static func prepare_next(image: Dictionary, head: Dictionary, proven: SeasonStat
 static func prepare_d3(image: Dictionary, head: Dictionary, proven: SeasonState) -> Dictionary:
 	var checked:=_champion_source(image,head,proven,2)
 	return {} if checked.is_empty() else _prepare_next_checked(image,checked,proven,3)
+
+# This read-only boundary is separate from owner admission and all writers.
+# A title field or the rotating backup alone cannot authorize this start.
+static func authenticated_dynasty_birth(head_bytes: PackedByteArray,pages: Array[PackedByteArray],current: Dictionary) -> Dictionary:
+	if current.get("active")!="ordinary" or current.get("dynasty")!={} \
+			or not current.get("ordinary_state") is Dictionary or current.ordinary_state.get("status")!="closed" \
+			or not current.get("common") is Dictionary or not current.common.get("aggregate") is Dictionary \
+			or not current.common.aggregate.get("titles") is Dictionary or current.common.aggregate.titles.get("dugout:3")!=true \
+			or not preload("res://src/gameplay/season/league_unlocks.gd").from_titles(current.common.aggregate.titles).has("dynasty"): return {}
+	var ordinary:=restore_d3_draft(head_bytes,pages,current,true)
+	if ordinary==null: return {}
+	var head: Dictionary=_champion_source(current,Archive._head(head_bytes),ordinary,3)
+	if head.is_empty(): return {}
+	var api:=Archive._owner()
+	var carrier: RefCounted=api.new()
+	carrier.active="ordinary"
+	carrier.session=ordinary
+	carrier.ordinary_state=current.ordinary_state.duplicate(true)
+	carrier.common=current.common.duplicate(true)
+	var id: String=carrier.ordinary_state.last_close.id
+	var seed_value: int=("dynasty:first:"+id).hash() & 0x7fffffff
+	var basis: Dictionary=api.Common.dynasty_birth_basis(carrier,seed_value)
+	if basis.is_empty(): return {}
+	var dynasty: SeasonState=api.Session.create_common_birth(basis)
+	if dynasty==null or dynasty.phase!=SeasonState.Phase.DRAFT or not dynasty.picks.is_empty() \
+			or not dynasty.results.is_empty() or not api.Codec.same(dynasty.career.start_basis,basis): return {}
+	var ledger: Dictionary=api.Ledger.birth(dynasty)
+	if not api.Ledger.valid(ledger) or ledger.closed!=0: return {}
+	var image: Dictionary=api.Adapter.capture("dynasty",dynasty)
+	if image.is_empty(): return {}
+	return {"source_close":id,"source_head_sha256":Archive._hash(head_bytes),"basis":basis,"ledger":ledger,"dynasty":image}
 
 static func _prepare_next_checked(image: Dictionary, head: Dictionary, proven: SeasonState, tier: int) -> Dictionary:
 	if tier not in [2,3] or head.ordinal!=tier or head.pages.size()!=tier-1: return {}
