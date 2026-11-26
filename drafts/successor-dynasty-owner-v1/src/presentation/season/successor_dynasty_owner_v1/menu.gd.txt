@@ -725,7 +725,7 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 	var title: String="DYNASTY · DRAFT %d / 4"%count
 	if pending or paid: title="DYNASTY · ROUND %d"%round
 	if postseason in ["semifinal","final"]: title="DYNASTY · "+postseason.to_upper()
-	if done: title="DYNASTY · SEASON RESULTS"
+	if done: title="DYNASTY · SEASON CLOSED" if draft.dynasty_closed else "DYNASTY · SEASON RESULTS"
 	_label(_body,title,24)
 	_note("Dugout history kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
@@ -761,6 +761,10 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			"runner_up": _note("You finished as runner-up. All playoff games are paid and saved.")
 			"semifinal_exit": _note("The club was eliminated in the semifinal. The final bracket is saved.")
 			_: _note("The club missed the postseason. The final bracket is saved.")
+		if draft.dynasty_closed:
+			_note("Banked %d Club Credits. Season Cash and results are unchanged."%int(draft.completion.total))
+		elif draft.close_available:
+			_bound_button(_body,"CLOSE DYNASTY SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 	elif count==4:
 		_note("Your four Dynasty picks and five opposing clubs are saved.")
 		_bound_button(_body,"PLAY DYNASTY OPENING DAY",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
