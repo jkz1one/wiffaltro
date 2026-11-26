@@ -293,9 +293,12 @@ static func project_semifinal(session: SeasonState, cold_materialized_retry: boo
 # locally rederived bracket. The original digest and evidence still have to
 # pass the same native projector; neither the save nor its reports change.
 static func _materialized_semifinal_fixture_types(session: SeasonState) -> SeasonState:
-	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not semifinal_pending(session) \
-			or not Archive._owner().Codec.same(session.league_rules,LeagueRules.capture_tier("dugout",1)):
-		return null
+	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not semifinal_pending(session): return null
+	var api:=Archive._owner()
+	var d1: bool=api.Codec.same(session.league_rules,LeagueRules.capture_tier("dugout",1))
+	var d2: bool=session.career!=null and api.Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(session.career.start_basis) \
+		and api.Codec.same(session.league_rules,LeagueRules.capture_tier("dugout",2))
+	if not d1 and not d2: return null
 	var shape: Array[String]=["id","round","away","home"]
 	for row: Dictionary in session.semifinals:
 		if not SeasonOwnership._keys(row,shape): return null

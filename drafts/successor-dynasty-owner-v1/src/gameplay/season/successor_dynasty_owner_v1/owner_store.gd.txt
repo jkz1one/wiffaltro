@@ -3201,7 +3201,7 @@ static func _bound_installed_dugout_d1(expected: PackedByteArray) -> Dictionary:
 static func _installed_dugout_d2_local_draft(image: Dictionary) -> SeasonState:
 	var draft: SeasonState=Adapter.Ordinary.restore_common(image)
 	var d2: Script=preload("earned_dugout_d2.gd")
-	if (not d2.draft_boundary(draft) and d2.regular_boundary(draft).is_empty()) \
+	if (not d2.draft_boundary(draft) and d2.installed_boundary(draft).is_empty()) \
 			or not Codec.same(Adapter.Ordinary.capture(draft),image): return null
 	return draft
 
@@ -3210,27 +3210,31 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 	if source.is_empty(): return {}
 	var draft: SeasonState=_installed_dugout_d1_bound.draft
 	if source.tier==2:
-		var d2_state: String="draft" if draft.picks.size()<4 else preload("earned_dugout_d2.gd").regular_boundary(draft)
+		var d2_state: String="draft" if draft.picks.size()<4 else preload("earned_dugout_d2.gd").installed_boundary(draft)
 		if d2_state.is_empty(): return {}
 		var earned_d1: Script=preload("earned_dugout_d1.gd")
 		var finish_d2: String=earned_d1.final_regular_destination(draft)
-		var count_d2: int=draft.physical.pending.reports.size() if d2_state=="unpaid" else 0
-		var total_d2: int=2
+		if finish_d2.is_empty(): finish_d2=earned_d1.settled_semifinal(draft)
+		var semi_d2: bool=d2_state=="semifinal_unpaid"
+		var post_d2: bool=finish_d2 in ["final_ready","semifinal_exit"]
+		var count_d2: int=draft.physical.pending.reports.size() if d2_state in ["unpaid","semifinal_unpaid"] else 0
+		var total_d2: int=earned_d1.semifinal_jobs(draft) if semi_d2 else 2
 		if d2_state=="unpaid" and draft.round_index==_installed_dugout_d1_regular_limit()-1 and count_d2>=2:
 			var pending_d2:=_installed_dugout_d1_pending(expected)
 			if pending_d2.is_empty(): return {}
 			if pending_d2.projection.has("fixture") or count_d2>2: total_d2=5
 		var d2_scores: Array=[]
 		if d2_state=="paid":
-			var start_d2: int=draft.results.size()-3 if finish_d2.is_empty() else 27
+			var start_d2: int=30 if post_d2 else (draft.results.size()-3 if finish_d2.is_empty() else 27)
 			for row: Dictionary in draft.results.slice(start_d2):
 				d2_scores.append([int(row.id),int(row.away_runs),int(row.home_runs)])
 		return {"bytes":expected.duplicate(),"tier":2,"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"credits":int(source.current.common.aggregate.currency),"cash":draft.cash(),"state":d2_state,"closed":false,
 			"cpu_reports":count_d2,"cpu_total":total_d2,"finish":finish_d2,
 			"scores":d2_scores,"shop_available":d2_state=="paid" and draft.shop_available(),
-			"round":draft.round_index+int(d2_state!="paid"),
-			"next_available":preload("earned_dugout_d2.gd").next_regular_available(draft)}
+			"round":draft.round_index+int(d2_state in ["unpaid","ready"]),
+			"managed_semifinal_id":int(draft.player_results[10].id) if post_d2 else -1,
+			"next_available":preload("earned_dugout_d2.gd").next_installed_available(draft)}
 	var state: String="draft"
 	if draft.picks.size()==4:
 		if not draft.physical.pending.is_empty(): state="unpaid"
@@ -3376,7 +3380,7 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	if source.is_empty(): return false
 	var bound: SeasonState=_installed_dugout_d1_bound.draft
 	if source.closed or not bound.physical.pending.is_empty(): return false
-	if source.tier==2 and not preload("earned_dugout_d2.gd").next_regular_available(bound): return false
+	if source.tier==2 and not preload("earned_dugout_d2.gd").next_installed_available(bound): return false
 	var earned: Script=preload("earned_dugout_d1.gd")
 	var semifinal: bool=earned.final_regular_destination(bound)=="semifinal"
 	var managed_final: bool=earned.settled_semifinal(bound)=="final_ready"
@@ -3451,7 +3455,7 @@ static func save_installed_dugout_d1_managed(app: Variant) -> Dictionary:
 # exact gameplay transition and independently materialized its canonical save.
 static func _write_installed_dugout_d1_opening(source: Dictionary,expected: PackedByteArray,recorded: Dictionary,native: SeasonState) -> Dictionary:
 	if source.closed or native==null or not Codec.same(Adapter.Ordinary.capture(native),recorded): return {}
-	if source.tier==2 and preload("earned_dugout_d2.gd").regular_boundary(native) not in ["unpaid","paid"]: return {}
+	if source.tier==2 and preload("earned_dugout_d2.gd").installed_boundary(native) not in ["unpaid","paid","semifinal_unpaid"]: return {}
 	var current: Dictionary=source.current.duplicate(true)
 	current.ordinary=recorded
 	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":3 if source.tier==2 else 1,"head":source.head,"current":current}
@@ -3488,7 +3492,7 @@ static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionar
 
 static func _installed_dugout_d1_project_pending(session: SeasonState) -> Dictionary:
 	if session!=null and session.career!=null and Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(session.career.start_basis) \
-			and preload("earned_dugout_d2.gd").regular_boundary(session)!="unpaid": return {}
+			and preload("earned_dugout_d2.gd").installed_boundary(session) not in ["unpaid","semifinal_unpaid"]: return {}
 	if session!=null and session.phase==SeasonState.Phase.SEMIFINAL: return _installed_dugout_d1_semifinal_projection(session)
 	if session!=null and session.phase==SeasonState.Phase.FINAL: return _installed_dugout_d1_final_projection(session)
 	if not _installed_dugout_d1_history_shape(session) or session.round_index>=_installed_dugout_d1_regular_limit() \
@@ -3591,7 +3595,7 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 	var prior: Dictionary=round_plan.source.current.ordinary
 	var count: int=round_plan.count
 	if not candidate.physical.pending.is_empty(): return {}
-	if round_plan.source.tier==2 and preload("earned_dugout_d2.gd").regular_boundary(candidate)!="paid": return {}
+	if round_plan.source.tier==2 and preload("earned_dugout_d2.gd").installed_boundary(candidate)!="paid": return {}
 	if round_plan.get("managed_final",false):
 		if count!=0 or preload("earned_dugout_d1.gd").managed_final_destination(candidate).is_empty(): return {}
 	elif round_plan.get("semifinal",false):
@@ -3620,7 +3624,7 @@ static func _installed_dugout_d1_shop_source(expected: PackedByteArray) -> Dicti
 	var source:=_bound_installed_dugout_d1(expected)
 	if source.is_empty(): return {}
 	var session: SeasonState=_installed_dugout_d1_bound.draft
-	if source.tier==2 and preload("earned_dugout_d2.gd").regular_boundary(session)!="paid": return {}
+	if source.tier==2 and preload("earned_dugout_d2.gd").installed_boundary(session)!="paid": return {}
 	var earned: Script=preload("earned_dugout_d1.gd")
 	var final_ready: bool=earned.settled_semifinal(session)=="final_ready"
 	if (not final_ready and not _installed_dugout_d1_history_shape(session) and earned.final_regular_destination(session)!="semifinal") \

@@ -100,17 +100,19 @@ static func draft_boundary(draft: SeasonState) -> bool:
 	return (draft.phase==SeasonState.Phase.DRAFT and draft.picks.size()<4 and draft.opponents.clubs.is_empty()) \
 		or (draft.phase==SeasonState.Phase.REGULAR and draft.picks.size()==4 and draft.opponents.clubs.size()==5)
 
-# The last regular game still uses the same player-game receipt. Postseason
-# is not a playable D2 route until its separate fixture guards are wired.
+# The last regular game still uses the same player-game receipt. The
+# semifinal is a separate, bracket-bound transition.
 static func next_regular_available(session: SeasonState) -> bool:
 	var stage:=regular_boundary(session)
 	return stage=="ready" or (stage=="paid" and session.round_index<LAST_REGULAR_ROUND)
 
+static func _playing_scope(session: SeasonState) -> bool:
+	return session!=null and session.career!=null and session.build!=null and session.physical!=null \
+		and Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(session.career.start_basis) \
+		and ClubCareer.same(session.league_rules,LeagueRules.capture_tier("dugout",2)) and session.picks.size()==4
+
 static func regular_boundary(session: SeasonState) -> String:
-	if session==null or session.career==null or session.build==null or session.physical==null \
-			or not Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(session.career.start_basis) \
-			or not ClubCareer.same(session.league_rules,LeagueRules.capture_tier("dugout",2)) \
-			or session.picks.size()!=4: return ""
+	if not _playing_scope(session): return ""
 	var visited: int=session.round_index
 	if visited<0 or visited>LAST_REGULAR_ROUND or session.player_results.size()!=visited \
 			or session.build._visit.number!=visited: return ""
@@ -132,6 +134,24 @@ static func regular_boundary(session: SeasonState) -> String:
 	for i: int in pending.reports.size():
 		if not pending.reports[i] is Dictionary or pending.reports[i].get("fixture")!=visited*3+i+1: return ""
 	return "unpaid"
+
+# The normal round boundary does not authorize a playoff game. Admit only
+# this tier's rederived bracket and the exact pre/post-semifinal visit.
+static func installed_boundary(session: SeasonState) -> String:
+	var regular:=regular_boundary(session)
+	if not regular.is_empty(): return regular
+	if not _playing_scope(session) or session.round_index!=LAST_REGULAR_ROUND \
+			or session.player_results.size()<LAST_REGULAR_ROUND or session.physical.reports.size()<20: return ""
+	for i: int in LAST_REGULAR_ROUND:
+		if session.player_results[i].id!=3*i or session.physical.reports[2*i].fixture!=3*i+1 \
+				or session.physical.reports[2*i+1].fixture!=3*i+2: return ""
+	if session.build._visit.number==LAST_REGULAR_ROUND and D1.semifinal_pending(session): return "semifinal_unpaid"
+	if session.build._visit.number==LAST_REGULAR_ROUND+1 and not D1.settled_semifinal(session).is_empty(): return "paid"
+	return ""
+
+static func next_installed_available(session: SeasonState) -> bool:
+	return next_regular_available(session) or (_playing_scope(session) and regular_boundary(session)=="paid" \
+		and D1.final_regular_destination(session)=="semifinal")
 
 # Rebuild the title and credit bank from the two archived native seasons.
 # The D2 payload is not a source of title, permission, or career credit.
@@ -169,10 +189,11 @@ static func draft_from_ordered_pages(head_bytes: PackedByteArray,pages: Array[Pa
 	if Archive._owner().Codec.same(expected,value): return draft
 	var target: Dictionary=value.ordinary
 	if picks.size()!=4 or not target.get("physical") is Dictionary or not target.physical.get("pending") is Dictionary \
-			or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_REGULAR_ROUND \
+			or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_REGULAR_ROUND+1 \
 			or not target.state.get("results") is Array or target.state.results.size()>33 \
 			or not target.physical.get("reports") is Array or target.physical.reports.size()>23 \
 			or not SeasonOwnership._whole(target.state.get("round_index"),0,LAST_REGULAR_ROUND): return null
-	if target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty(): return null
+	if target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty() \
+			and (target.state.get("phase")!=SeasonState.Phase.SEMIFINAL or target.state.player_results.size()!=LAST_REGULAR_ROUND): return null
 	var reopened:=D1._restore_regular_prefix(draft,expected,value)
-	return reopened if regular_boundary(reopened) in ["paid","unpaid"] else null
+	return reopened if installed_boundary(reopened) in ["paid","unpaid","semifinal_unpaid"] else null

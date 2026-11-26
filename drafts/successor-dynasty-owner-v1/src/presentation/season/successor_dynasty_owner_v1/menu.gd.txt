@@ -715,6 +715,8 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 	var state: String=draft.state
 	var title: String="DUGOUT D2 · DRAFT %d / 4"%draft.picks.size()
 	if state=="ready": title="DUGOUT D2 · DRAFT COMPLETE"
+	elif state=="semifinal_unpaid" or draft.get("finish","") in ["semifinal_exit","final_ready"]:
+		title="DUGOUT D2 · SEMIFINAL"
 	elif state in ["unpaid","paid"]: title="DUGOUT D2 · ROUND %d"%draft.round
 	_label(_body,title,24)
 	_note("Base and D1 seasons kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
@@ -724,8 +726,9 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 	if state=="ready":
 		_note("Your four picks and five opposing clubs are saved.")
 		_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
-	elif state=="unpaid":
-		_note("Your Club game is saved. The round has not been paid.")
+	elif state in ["unpaid","semifinal_unpaid"]:
+		var semifinal: bool=state=="semifinal_unpaid"
+		_note("Your semifinal is saved. The round has not been paid." if semifinal else "Your Club game is saved. The round has not been paid.")
 		_note("CPU games saved: %d / %d"%[draft.cpu_reports,draft.cpu_total])
 		if app.installed_dugout_d1_cpu_running():
 			_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
@@ -733,23 +736,28 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 			_bound_button(_body,"PLAY CPU GAME %d OF %d"%[int(draft.cpu_reports+1),draft.cpu_total],
 				Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 		else:
-			_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
+			_bound_button(_body,"SETTLE SEMIFINAL" if semifinal else "SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif state=="paid":
 		var terminal: String=draft.get("finish","")
 		if terminal=="semifinal":
 			_note("Round 10 has already paid. Your club qualified for the semifinals.")
 		elif terminal=="missed":
 			_note("Round 10 has already paid. Your club missed the playoffs; the bracket results are saved.")
+		elif terminal=="semifinal_exit":
+			_note("The semifinal has paid. Your club was eliminated; the bracket results are saved.")
+		elif terminal=="final_ready":
+			_note("The semifinal has paid. Your club earned a spot in the final.")
 		else:
 			_note("Round %d has already paid. All three results are saved."%draft.round)
 		if draft.next_available:
-			_bound_button(_body,"PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+			_bound_button(_body,"PLAY SEMIFINAL" if terminal=="semifinal" else "PLAY NEXT GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		if draft.shop_available:
 			_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 		for row: Array in draft.scores:
 			var position: int=int(row[0])%3
 			var score_label: String="Club game" if position==0 else "CPU game %d"%position
 			if row[0]>=30: score_label="CPU final" if row[0]==32 else "CPU semifinal %d"%(int(row[0])-29)
+			if row[0]==draft.get("managed_semifinal_id",-1): score_label="Club semifinal"
 			_note("%s: %d away – %d home"%[score_label,row[1],row[2]])
 	else:
 		for id: String in draft.offers:
