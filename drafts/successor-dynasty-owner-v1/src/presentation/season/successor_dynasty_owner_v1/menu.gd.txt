@@ -743,7 +743,7 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 		_label(_body,player.display_name if player!=null else id,20)
 	if paid:
 		_note("Round %d is paid. All three games are saved."%round)
-		var play: String="PLAY DYNASTY HOME OPENER" if round==1 else "PLAY DYNASTY ROUND %d"%(round+1)
+		var play: String="PLAY DYNASTY HOME OPENER" if round==1 and draft.get("ordinal",1)==1 else "PLAY DYNASTY ROUND %d"%(round+1)
 		if draft.get("allow_play_next",true):
 			_bound_button(_body,play,Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		if draft.shop_available:
@@ -771,6 +771,7 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			"champion": _note("You won the Dynasty championship. All playoff games are paid and saved.")
 			"runner_up": _note("You finished as runner-up. All playoff games are paid and saved.")
 			"semifinal_exit": _note("The club was eliminated in the semifinal. The final bracket is saved.")
+			"qualified_unwired": _note("The club qualified for the semifinal. The regular season is saved; this build cannot start the carried postseason yet.")
 			_: _note("The club missed the postseason. The final bracket is saved.")
 		if draft.dynasty_closed:
 			_note("Banked %d Club Credits. Season Cash and results are unchanged."%int(draft.completion.total))

@@ -52,8 +52,8 @@ static func parse(args: PackedStringArray) -> Dictionary:
 static func scoped(round_plan: Dictionary) -> bool:
 	# Start with the two requests whose real render/fixed-step parity was proven.
 	# All other rounds continue using the same in-process physical engine.
-	return _parent() and round_plan.get("dynasty",false) and round_plan.get("round")==1 \
-		and round_plan.projection.get("fixture",{}).get("id") in [4,5]
+	return _parent() and round_plan.get("dynasty",false) and not round_plan.get("carried",false) \
+		and round_plan.get("round")==1 and round_plan.projection.get("fixture",{}).get("id") in [4,5]
 
 func start(expected: PackedByteArray,round_plan: Dictionary) -> bool:
 	var exe: String=OS.get_executable_path()
