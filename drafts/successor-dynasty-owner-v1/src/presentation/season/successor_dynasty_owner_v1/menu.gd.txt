@@ -635,11 +635,8 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("tier",1)==3:
-		_installed_dugout_d3_draft(draft)
-		return
-	if draft.get("tier",1)==2:
-		_installed_dugout_d2_draft(draft)
+	if draft.get("tier",1) in [2,3]:
+		_installed_fitted_dugout(draft)
 		return
 	var state: String=draft.state
 	var title: String="DUGOUT D1 · ROUND %d"%draft.round
@@ -714,18 +711,22 @@ func _installed_dugout_d1() -> void:
 	if not app.installed_dugout_d1_cpu_running():
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
-func _installed_dugout_d2_draft(draft: Dictionary) -> void:
+func _installed_fitted_dugout(draft: Dictionary) -> void:
 	var state: String=draft.state
-	var title: String="DUGOUT D2 · DRAFT %d / 4"%draft.picks.size()
-	if state=="ready": title="DUGOUT D2 · DRAFT COMPLETE"
+	var heading: String="DUGOUT D%d"%int(draft.tier)
+	var title: String="%s · DRAFT %d / 4"%[heading,draft.picks.size()]
+	if state=="ready": title=heading+" · DRAFT COMPLETE"
 	elif state=="semifinal_unpaid" or draft.get("finish","")=="semifinal_exit":
-		title="DUGOUT D2 · SEMIFINAL"
+		title=heading+" · SEMIFINAL"
 	elif state=="final_unpaid" or draft.get("finish","") in ["final_ready","final_champion","final_runner_up"]:
-		title="DUGOUT D2 · FINAL"
-	elif state in ["unpaid","paid"]: title="DUGOUT D2 · ROUND %d"%draft.round
-	if draft.closed: title="DUGOUT D2 · SEASON CLOSED"
+		title=heading+" · FINAL"
+	elif state in ["unpaid","paid"]: title="%s · ROUND %d"%[heading,draft.round]
+	if draft.closed: title=heading+" · SEASON CLOSED"
 	_label(_body,title,24)
-	_note("Base and D1 seasons kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
+	var past: String="Base and D1" if draft.tier==2 else "Base, D1 and D2"
+	_note("%s seasons kept · %d Club Credits · %d Cash"%[past,draft.credits,draft.cash])
+	if draft.tier==3 and state in ["draft","ready"]:
+		_note("Some sponsor offers in D3 have no refund. The Shop identifies those terms before purchase.")
 	for id: String in draft.picks:
 		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 		_label(_body,player.display_name if player!=null else id,20)
@@ -788,24 +789,6 @@ func _installed_dugout_d2_draft(draft: Dictionary) -> void:
 			_player_summary(player)
 	if not app.installed_dugout_d1_cpu_running():
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
-
-func _installed_dugout_d3_draft(draft: Dictionary) -> void:
-	var paid: bool=draft.state=="ready"
-	_label(_body,"DUGOUT D3 · DRAFT COMPLETE" if paid else "DUGOUT D3 · DRAFT %d / 4"%draft.picks.size(),24)
-	_note("Base, D1 and D2 seasons kept · %d Club Credits · %d Cash"%[draft.credits,draft.cash])
-	_note("Some sponsor offers in D3 have no refund. The Shop will identify those terms before purchase.")
-	for id: String in draft.picks:
-		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
-		_label(_body,player.display_name if player!=null else id,20)
-	if paid:
-		_note("Your four picks and five opposing clubs are saved. Opening Day is not enabled in this build.")
-	else:
-		for id: String in draft.offers:
-			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
-			if player==null: continue
-			_bound_button(_body,player.display_name,Callable(app,"pick_installed_dugout_d1").bind(id,draft.bytes.duplicate()))
-			_player_summary(player)
-	_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _closed() -> void:
 	var owner=app.career_owner

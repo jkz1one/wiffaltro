@@ -118,10 +118,16 @@ static func next_regular_available(session: SeasonState) -> bool:
 	var stage:=regular_boundary(session)
 	return stage=="ready" or (stage=="paid" and session.round_index<LAST_REGULAR_ROUND)
 
+static func installed_fitted_tier(session: SeasonState) -> int:
+	if session==null or session.career==null or session.build==null or session.physical==null: return 0
+	var starts: Script=Archive._owner().Adapter.OrdinaryRuntime.CommonStart
+	var basis: Dictionary=session.career.start_basis
+	var tier: int=2 if starts.detached_earned_dugout_d2(basis) else (3 if starts.detached_earned_dugout_d3(basis) else 0)
+	if tier==0 or not ClubCareer.same(session.league_rules,LeagueRules.capture_tier("dugout",tier)): return 0
+	return tier
+
 static func _playing_scope(session: SeasonState) -> bool:
-	return session!=null and session.career!=null and session.build!=null and session.physical!=null \
-		and Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(session.career.start_basis) \
-		and ClubCareer.same(session.league_rules,LeagueRules.capture_tier("dugout",2)) and session.picks.size()==4
+	return installed_fitted_tier(session)>0 and session.picks.size()==4
 
 static func regular_boundary(session: SeasonState) -> String:
 	if not _playing_scope(session): return ""
@@ -152,7 +158,7 @@ static func regular_boundary(session: SeasonState) -> String:
 static func installed_boundary(session: SeasonState) -> String:
 	var regular:=regular_boundary(session)
 	if not regular.is_empty(): return regular
-	if not _playing_scope(session) or session.round_index!=LAST_REGULAR_ROUND \
+	if installed_fitted_tier(session)!=2 or session.picks.size()!=4 or session.round_index!=LAST_REGULAR_ROUND \
 			or session.player_results.size()<LAST_REGULAR_ROUND or session.physical.reports.size()<20: return ""
 	for i: int in LAST_REGULAR_ROUND:
 		if session.player_results[i].id!=3*i or session.physical.reports[2*i].fixture!=3*i+1 \
@@ -165,9 +171,10 @@ static func installed_boundary(session: SeasonState) -> String:
 	return ""
 
 static func next_installed_available(session: SeasonState) -> bool:
-	return next_regular_available(session) or (_playing_scope(session) and regular_boundary(session)=="paid" \
-		and D1.final_regular_destination(session)=="semifinal") or (_playing_scope(session) \
-		and session.build._visit.number==LAST_REGULAR_ROUND+1 and D1.settled_semifinal(session)=="final_ready")
+	if next_regular_available(session): return true
+	if installed_fitted_tier(session)!=2 or session.picks.size()!=4: return false
+	return (regular_boundary(session)=="paid" and D1.final_regular_destination(session)=="semifinal") \
+		or (session.build._visit.number==LAST_REGULAR_ROUND+1 and D1.settled_semifinal(session)=="final_ready")
 
 # Rebuild the title and credit bank from the two archived native seasons.
 # The D2 payload is not a source of title, permission, or career credit.
@@ -233,7 +240,7 @@ static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[Pa
 		return reopened if not folded.is_empty() and Archive._owner().Codec.same(folded,value) else null
 	return reopened if boundary in ["paid","unpaid","semifinal_unpaid","final_unpaid"] else null
 
-# A D3 draft proves the third sealed page by replaying its season and fold;
+# A D3 run proves the third sealed page by replaying its season and fold;
 # the installed head, seed, and treasury cannot grant their own admission.
 static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary) -> SeasonState:
 	var h: Dictionary=Archive._head(head_bytes)
@@ -275,4 +282,15 @@ static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByte
 	if not draft_boundary_for_tier(draft,3): return null
 	expected=staged.current
 	expected.ordinary=Archive._owner().Adapter.Ordinary.capture(draft)
-	return draft if not expected.ordinary.is_empty() and Archive._owner().Codec.same(expected,value) else null
+	var c: Script=Archive._owner().Codec
+	if expected.ordinary.is_empty(): return null
+	if c.same(expected,value): return draft
+	var target: Dictionary=value.ordinary
+	if got.size()!=4 or not target.get("physical") is Dictionary or not target.physical.get("pending") is Dictionary \
+		or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_REGULAR_ROUND \
+		or not target.state.get("results") is Array or target.state.results.size()>33 \
+		or not target.physical.get("reports") is Array or target.physical.reports.size()>23 \
+		or not SeasonOwnership._whole(target.state.get("round_index"),0,LAST_REGULAR_ROUND) \
+		or (target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty()): return null
+	var reopened:=D1._restore_regular_prefix(draft,expected,value)
+	return reopened if regular_boundary(reopened) in ["paid","unpaid"] else null
