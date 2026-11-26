@@ -3190,8 +3190,13 @@ static func _installed_dugout_d1_rebind(image: Dictionary, producer: SeasonState
 	if next==null: return null
 	var earned: Script=preload("earned_dugout_d1.gd")
 	if not earned.needs_wallet_types(next): return next
-	if not earned.restore_wallet_types(next,earned.wallet_types(producer)) \
-			or not Codec.same(Adapter.Ordinary.capture(next),image): return null
+	if not earned.restore_wallet_types(next,earned.wallet_types(producer)): return null
+	# The physical request also hashes bracket number types. Only this exact
+	# authenticated producer can preserve them across materialization.
+	if fitted==3 and earned.semifinal_pending(next) and not next.physical.pending.reports.is_empty():
+		if not earned.semifinal_pending(producer) or not Codec.same(next.semifinals,producer.semifinals): return null
+		next.semifinals.assign(producer.semifinals.duplicate(true))
+	if not Codec.same(Adapter.Ordinary.capture(next),image): return null
 	if not next.physical.pending.is_empty() and _installed_dugout_d1_project_pending(next).is_empty(): return null
 	return next
 
@@ -3215,7 +3220,7 @@ static func _installed_dugout_d2_local_draft(image: Dictionary) -> SeasonState:
 static func _installed_dugout_d3_local_draft(image: Dictionary) -> SeasonState:
 	var draft: SeasonState=Adapter.Ordinary.restore_common(image)
 	var earned: Script=preload("earned_dugout_d2.gd")
-	if earned.installed_fitted_tier(draft)!=3 or (not earned.draft_boundary_for_tier(draft,3) and earned.regular_boundary(draft).is_empty()) \
+	if earned.installed_fitted_tier(draft)!=3 or (not earned.draft_boundary_for_tier(draft,3) and earned.installed_boundary(draft).is_empty()) \
 		or not Codec.same(Adapter.Ordinary.capture(draft),image): return null
 	return draft
 
@@ -3313,6 +3318,16 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 		if not earned.restore_wallet_types(draft,witness) \
 				or not Codec.same(Adapter.Ordinary.capture(draft),source.current.ordinary): return {}
 	elif not witness.is_empty(): return {}
+	# The exact child already proved these receipts from the ordered pages.
+	# The parent may materialize integer brackets as floats. Try only the
+	# other exact representation, accepting it only if the original request
+	# and complete canonical image still pass; never rewrite a saved receipt.
+	if source.tier==3 and earned.semifinal_pending(draft) and not draft.physical.pending.reports.is_empty():
+		var projected: Dictionary=Adapter.OrdinaryPending.project(draft)
+		if projected.get("error")=="The pending round contains an unexpected physical fixture.":
+			draft=earned._materialized_semifinal_fixture_types(draft,false)
+		if draft==null or _installed_dugout_d1_project_pending(draft).is_empty() \
+			or not Codec.same(Adapter.Ordinary.capture(draft),source.current.ordinary): return {}
 	if not reader.verified_revision(expected): return {}
 	_invalidate()
 	_installed_dugout_d1_bound={"bytes":expected.duplicate(),"page":source.pin,"draft":draft}

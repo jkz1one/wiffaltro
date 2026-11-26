@@ -158,7 +158,7 @@ static func regular_boundary(session: SeasonState) -> String:
 static func installed_boundary(session: SeasonState) -> String:
 	var regular:=regular_boundary(session)
 	if not regular.is_empty(): return regular
-	if installed_fitted_tier(session)!=2 or session.picks.size()!=4 or session.round_index!=LAST_REGULAR_ROUND \
+	if installed_fitted_tier(session) not in [2,3] or session.picks.size()!=4 or session.round_index!=LAST_REGULAR_ROUND \
 			or session.player_results.size()<LAST_REGULAR_ROUND or session.physical.reports.size()<20: return ""
 	for i: int in LAST_REGULAR_ROUND:
 		if session.player_results[i].id!=3*i or session.physical.reports[2*i].fixture!=3*i+1 \
@@ -172,7 +172,7 @@ static func installed_boundary(session: SeasonState) -> String:
 
 static func next_installed_available(session: SeasonState) -> bool:
 	if next_regular_available(session): return true
-	if installed_fitted_tier(session)!=2 or session.picks.size()!=4: return false
+	if installed_fitted_tier(session) not in [2,3] or session.picks.size()!=4: return false
 	return (regular_boundary(session)=="paid" and D1.final_regular_destination(session)=="semifinal") \
 		or (session.build._visit.number==LAST_REGULAR_ROUND+1 and D1.settled_semifinal(session)=="final_ready")
 
@@ -207,6 +207,14 @@ static func _birth_from_two_pages(head_bytes: PackedByteArray,pages: Array[Packe
 	if staged.is_empty() or staged.page!=pages[1] or Archive._wire(staged.head)!=head_bytes: return {}
 	return staged
 
+# Parsed JSON represents integral numbers as floats, while a native phase is
+# an enum integer. Match only the two exact phase/count pairs by value.
+static func _postseason_pending_shape(state: Dictionary) -> bool:
+	var phase: Variant=state.get("phase")
+	var count: int=state.player_results.size()
+	return (count==LAST_REGULAR_ROUND and SeasonOwnership._whole(phase,SeasonState.Phase.SEMIFINAL,SeasonState.Phase.SEMIFINAL)) \
+		or (count==LAST_REGULAR_ROUND+1 and SeasonOwnership._whole(phase,SeasonState.Phase.FINAL,SeasonState.Phase.FINAL))
+
 static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[PackedByteArray],value: Dictionary,expect_closed: bool) -> SeasonState:
 	if not value.get("ordinary") is Dictionary or not value.ordinary.get("state") is Dictionary: return null
 	var staged:=_birth_from_two_pages(head_bytes,pages)
@@ -228,8 +236,7 @@ static func _restore_ordered_current(head_bytes: PackedByteArray,pages: Array[Pa
 			or not target.physical.get("reports") is Array or target.physical.reports.size()>23 \
 			or not SeasonOwnership._whole(target.state.get("round_index"),0,LAST_REGULAR_ROUND): return null
 	if target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty() \
-			and not [[SeasonState.Phase.SEMIFINAL,LAST_REGULAR_ROUND], \
-				[SeasonState.Phase.FINAL,LAST_REGULAR_ROUND+1]].has([target.state.get("phase"),target.state.player_results.size()]): return null
+			and not _postseason_pending_shape(target.state): return null
 	var active: Dictionary=expected.duplicate(true) if expect_closed else value
 	if expect_closed: active.ordinary=target
 	var reopened:=D1._restore_regular_prefix(draft,expected,active)
@@ -287,10 +294,11 @@ static func restore_d3_draft(head_bytes: PackedByteArray,pages: Array[PackedByte
 	if c.same(expected,value): return draft
 	var target: Dictionary=value.ordinary
 	if got.size()!=4 or not target.get("physical") is Dictionary or not target.physical.get("pending") is Dictionary \
-		or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_REGULAR_ROUND \
+		or not target.state.get("player_results") is Array or target.state.player_results.size()>LAST_REGULAR_ROUND+2 \
 		or not target.state.get("results") is Array or target.state.results.size()>33 \
 		or not target.physical.get("reports") is Array or target.physical.reports.size()>23 \
-		or not SeasonOwnership._whole(target.state.get("round_index"),0,LAST_REGULAR_ROUND) \
-		or (target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty()): return null
+		or not SeasonOwnership._whole(target.state.get("round_index"),0,LAST_REGULAR_ROUND): return null
+	if target.state.get("round_index")==LAST_REGULAR_ROUND and not target.physical.pending.is_empty() \
+		and not _postseason_pending_shape(target.state): return null
 	var reopened:=D1._restore_regular_prefix(draft,expected,value)
-	return reopened if regular_boundary(reopened) in ["paid","unpaid"] else null
+	return reopened if installed_boundary(reopened) in ["paid","unpaid","semifinal_unpaid","final_unpaid"] else null

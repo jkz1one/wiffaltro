@@ -292,23 +292,29 @@ static func project_semifinal(session: SeasonState, cold_materialized_retry: boo
 # CPU request. Try only that exact materialized representation of the
 # locally rederived bracket. The original digest and evidence still have to
 # pass the same native projector; neither the save nor its reports change.
-static func _materialized_semifinal_fixture_types(session: SeasonState) -> SeasonState:
+# The reverse is confined to the installed D3 parent after its child has
+# proven the complete ordered replay with the authentic integer bracket.
+static func _materialized_semifinal_fixture_types(session: SeasonState,to_float: bool=true) -> SeasonState:
 	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not semifinal_pending(session): return null
 	var api:=Archive._owner()
 	var d1: bool=api.Codec.same(session.league_rules,LeagueRules.capture_tier("dugout",1))
-	var d2: bool=session.career!=null and api.Adapter.OrdinaryRuntime.CommonStart.detached_earned_dugout_d2(session.career.start_basis) \
+	var starts: Script=api.Adapter.OrdinaryRuntime.CommonStart
+	var basis: Dictionary=session.career.start_basis if session.career!=null else {}
+	var d2: bool=starts.detached_earned_dugout_d2(basis) \
 		and api.Codec.same(session.league_rules,LeagueRules.capture_tier("dugout",2))
-	if not d1 and not d2: return null
+	var d3: bool=starts.detached_earned_dugout_d3(basis) \
+		and api.Codec.same(session.league_rules,LeagueRules.capture_tier("dugout",3))
+	if (not to_float and not d3) or (not d1 and not d2 and not d3): return null
 	var shape: Array[String]=["id","round","away","home"]
 	for row: Dictionary in session.semifinals:
 		if not SeasonOwnership._keys(row,shape): return null
 		for key: String in shape:
-			if not row[key] is int: return null
+			if (to_float and not row[key] is int) or (not to_float and not row[key] is float): return null
 	var alternative: SeasonState=session.fork_live()
 	if alternative==null: return null
 	for row: Dictionary in alternative.semifinals:
 		for key: String in shape:
-			row[key]=float(row[key])
+			row[key]=float(row[key]) if to_float else int(row[key])
 	return alternative if ClubCareer.same(alternative.semifinals,session.semifinals) else null
 
 
