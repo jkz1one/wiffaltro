@@ -1047,7 +1047,7 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var version: Variant=value.get("version")
 	var tier: int=3 if version==5 or version==6 else (2 if version==3 or version==4 else 1)
-	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if version==7 or version==8 else \
+	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if version==7 or version==8 or version==9 else \
 		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
@@ -1130,11 +1130,11 @@ func _finish_installed_dugout_d1_game() -> void:
 	show_season()
 
 func installed_dugout_d1_cpu_running() -> bool:
-	return installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid"] and is_instance_valid(ai_runner)
+	return installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","dynasty_pending"] and is_instance_valid(ai_runner)
 
 func _installed_dugout_d1_round_menu(expected: PackedByteArray) -> bool:
 	return not _busy and not is_instance_valid(ai_runner) and not installed_dugout_d1_reading() \
-		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid"] and saved_bytes==expected \
+		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending"] and saved_bytes==expected \
 		and menu!=null and menu.visible and menu.page=="home"
 
 func play_installed_dugout_d1_cpu(expected: PackedByteArray) -> void:

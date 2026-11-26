@@ -635,7 +635,7 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state") in ["dynasty_draft","dynasty_pending"]:
+	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid"]:
 		_installed_earned_dynasty_draft(draft)
 		return
 	if draft.get("tier",1) in [2,3]:
@@ -717,14 +717,26 @@ func _installed_dugout_d1() -> void:
 func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 	var count: int=draft.picks.size()
 	var pending: bool=draft.state=="dynasty_pending"
-	_label(_body,"DYNASTY · OPENING DAY" if pending else "DYNASTY · DRAFT %d / 4"%count,24)
+	var paid: bool=draft.state=="dynasty_paid"
+	_label(_body,"DYNASTY · ROUND 1" if paid else ("DYNASTY · OPENING DAY" if pending else "DYNASTY · DRAFT %d / 4"%count),24)
 	_note("Dugout history kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 	for id: String in draft.picks:
 		var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 		_label(_body,player.display_name if player!=null else id,20)
-	if pending:
+	if paid:
+		_note("Round 1 is paid. All three games are saved.")
+		for row: Dictionary in draft.results:
+			var match_label: String="Club game" if row.id==0 else "CPU game %d"%int(row.id)
+			_note("%s: %d away – %d home"%[match_label,row.away_runs,row.home_runs])
+	elif pending:
 		_note("Opening Day is saved: %d away – %d home."%[draft.score[0],draft.score[1]])
-		_note("The two CPU games and round payout are still pending.")
+		_note("CPU results saved: %d / 2. The round is not yet paid."%int(draft.reports))
+		if app.installed_dugout_d1_cpu_running():
+			_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
+		elif draft.reports<2:
+			_bound_button(_body,"PLAY CPU GAME %d OF 2"%int(draft.reports+1),Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
+		else:
+			_bound_button(_body,"SETTLE DYNASTY ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 	elif count==4:
 		_note("Your four Dynasty picks and five opposing clubs are saved.")
 		_bound_button(_body,"PLAY DYNASTY OPENING DAY",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
@@ -734,7 +746,8 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			if player==null: continue
 			_bound_button(_body,player.display_name,Callable(app,"pick_installed_dugout_d1").bind(id,draft.bytes.duplicate()))
 			_player_summary(player)
-	_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
+	if not app.installed_dugout_d1_cpu_running():
+		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _installed_fitted_dugout(draft: Dictionary) -> void:
 	var state: String=draft.state
