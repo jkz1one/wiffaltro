@@ -10,6 +10,23 @@ const ARG: String="--dugout-d1-read-v1="
 const FRAME: String="WIFFALTRO_DUGOUT_D1_READ_V1 "
 const MAX_FRAME: int=12288
 const MAX_MS: int=720000
+# Exported replay repeatedly asks ResourceLoader for these authored inputs.
+# Retain them only in the one-shot worker, with no report or verdict caching.
+const REPLAY_ASSET_PATHS: Array[String]=[
+	"res://src/content/manifest/content_manifest.tres",
+	"res://src/content/manifest/working_pitch_manifest.tres",
+	"res://src/content/manifest/working_pitch_manifest_v6.tres",
+	"res://src/content/pitches/exotic/corkscrew.tres",
+	"res://src/content/pitches/exotic/sidearm_corkscrew.tres",
+	"res://src/content/pitches/exotic/sidearm_switchback.tres",
+	"res://src/content/pitches/exotic/sidearm_trapdoor.tres",
+	"res://src/content/pitches/exotic/switchback.tres",
+	"res://src/content/pitches/exotic/trapdoor.tres",
+	"res://src/content/pitches/successor_v7/forkball.tres",
+	"res://src/content/pitches/successor_v7/gypsy_drop.tres",
+	"res://src/content/pitches/successor_v7/knuckle_drop.tres",
+	"res://src/content/pitches/successor_v7/super_curve.tres",
+]
 
 var _job: Dictionary={}
 var _verified: Dictionary={}
@@ -140,6 +157,13 @@ func worker(job: Dictionary) -> void:
 	var source:=Store._installed_dugout_d1_source(true)
 	if not _matches(source,job):
 		get_tree().quit(8); return
+	# Hold strong references for the existing replay. The same catalog and
+	# archive checks still run against the same bytes; no paths come from saves.
+	var assets: Array[Resource]=[]
+	for path: String in REPLAY_ASSET_PATHS:
+		if ResourceLoader.exists(path):
+			var asset: Resource=ResourceLoader.load(path)
+			if asset!=null: assets.append(asset)
 	var restored: SeasonState=Store._restore_installed_dugout_d1_source(source)
 	if restored==null:
 		get_tree().quit(8); return
@@ -151,5 +175,6 @@ func worker(job: Dictionary) -> void:
 	var again:=Store._installed_dugout_d1_source(true)
 	if not _matches(again,job) or again.bytes!=source.bytes or again.pages!=source.pages:
 		get_tree().quit(8); return
+	assets.clear()
 	print(FRAME+_wire(job)+(" "+wallets if not wallets.is_empty() else ""))
 	get_tree().quit()
