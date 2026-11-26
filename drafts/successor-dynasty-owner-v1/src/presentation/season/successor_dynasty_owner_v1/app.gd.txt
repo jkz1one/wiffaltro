@@ -1047,7 +1047,7 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var version: Variant=value.get("version")
 	var tier: int=3 if version==5 or version==6 else (2 if version==3 or version==4 else 1)
-	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if version==7 or version==8 or version==9 or version==10 else \
+	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if Codec.whole(version,7,11) else \
 		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
@@ -1096,7 +1096,7 @@ func pick_installed_dugout_d1(id: String,expected: PackedByteArray) -> void:
 
 func play_installed_dugout_d1(expected: PackedByteArray) -> void:
 	var state: String=installed_dugout_d1_draft.get("state","")
-	var dynasty_ready: bool=state=="dynasty_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4
+	var dynasty_ready: bool=state=="dynasty_paid" or (state=="dynasty_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4)
 	if _busy or installed_dugout_d1_reading() or (state not in ["ready","paid"] and not dynasty_ready) \
 			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home" \
 			or is_instance_valid(_installed_dugout_d1_shop): return
