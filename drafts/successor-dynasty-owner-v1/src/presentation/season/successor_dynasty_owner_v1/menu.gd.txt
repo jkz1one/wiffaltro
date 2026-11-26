@@ -725,6 +725,7 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 		_label(_body,player.display_name if player!=null else id,20)
 	if paid:
 		_note("Round 1 is paid. All three games are saved.")
+		_bound_button(_body,"OPEN DYNASTY SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 		for row: Dictionary in draft.results:
 			var match_label: String="Club game" if row.id==0 else "CPU game %d"%int(row.id)
 			_note("%s: %d away – %d home"%[match_label,row.away_runs,row.home_runs])

@@ -1047,7 +1047,7 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var version: Variant=value.get("version")
 	var tier: int=3 if version==5 or version==6 else (2 if version==3 or version==4 else 1)
-	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if version==7 or version==8 or version==9 else \
+	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if version==7 or version==8 or version==9 or version==10 else \
 		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
@@ -1247,10 +1247,10 @@ func _start_installed_earned_dynasty(expected: PackedByteArray) -> void:
 
 func installed_dugout_d1_shop_window(window: Node) -> bool:
 	return is_instance_valid(window) and window==_installed_dugout_d1_shop and window.get_parent()==menu \
-		and installed_dugout_d1_draft.get("state")=="paid" and career_owner==null and season!=null
+		and installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid"] and career_owner==null and season!=null
 
 func _adopt_installed_dugout_d1_shop(entry: Dictionary) -> bool:
-	if entry.is_empty() or not entry.get("session") is SeasonState or entry.view.get("state")!="paid": return false
+	if entry.is_empty() or not entry.get("session") is SeasonState or entry.view.get("state") not in ["paid","dynasty_paid"]: return false
 	season=entry.session
 	saved_bytes=entry.view.bytes
 	installed_dugout_d1_draft=entry.view
@@ -1258,7 +1258,7 @@ func _adopt_installed_dugout_d1_shop(entry: Dictionary) -> bool:
 	return true
 
 func open_installed_dugout_d1_shop(expected: PackedByteArray) -> void:
-	if _busy or saved_bytes!=expected or installed_dugout_d1_draft.get("state")!="paid" \
+	if _busy or saved_bytes!=expected or installed_dugout_d1_draft.get("state") not in ["paid","dynasty_paid"] \
 			or menu==null or not menu.visible or menu.page!="home" or is_instance_valid(_installed_dugout_d1_shop): return
 	_busy=true
 	var entered:=Store.open_installed_dugout_d1_shop(self)
