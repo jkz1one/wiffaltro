@@ -1097,7 +1097,7 @@ func pick_installed_dugout_d1(id: String,expected: PackedByteArray) -> void:
 func play_installed_dugout_d1(expected: PackedByteArray) -> void:
 	var state: String=installed_dugout_d1_draft.get("state","")
 	var dynasty_ready: bool=(state in ["dynasty_paid","dynasty_postseason_ready"] and installed_dugout_d1_draft.get("allow_play_next",true)) \
-		or state=="dynasty_second_ready" or (state=="dynasty_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4)
+		or state in ["dynasty_second_ready","dynasty_third_ready"] or (state=="dynasty_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4)
 	if _busy or installed_dugout_d1_reading() or (state not in ["ready","paid"] and not dynasty_ready) \
 			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home" \
 			or is_instance_valid(_installed_dugout_d1_shop): return
@@ -1228,6 +1228,29 @@ func _start_installed_dynasty_second(expected: PackedByteArray) -> void:
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
+
+func request_installed_dynasty_third(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected) or installed_dugout_d1_draft.get("ordinal")!=2: return
+	var preview:=Store.preview_installed_earned_dynasty_third(self)
+	if not preview.has("stat_loss"):
+		notice=preview.get("blocked","Season 3 could not be prepared. Season 2 has not changed.")
+		show_season()
+		return
+	_lifecycle_action="installed_dynasty_third"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Keep this roster for Season 3?"
+	_lifecycle_dialog.dialog_text="Upkeep removes %d stat levels and %d pitch mastery levels. Earned pitch access, plaques, Club Credits and prior results carry forward. Season Cash starts at 0. Cancel changes nothing."%[int(preview.stat_loss),int(preview.pitch_loss)]
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+func _start_installed_dynasty_third(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected) or installed_dugout_d1_draft.get("ordinal")!=2: return
+	_busy=true
+	var view:=Store.start_installed_earned_dynasty_third(self)
+	_busy=false
+	if view.is_empty(): notice="Season 3 could not be confirmed. Use Continue to check your saved career."
+	else: _open_installed_dugout_d1(view)
+	show_season()
 
 func _installed_dugout_d2_birth_ready(expected: PackedByteArray) -> bool:
 	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
@@ -2366,6 +2389,11 @@ func _confirm_lifecycle() -> void:
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()
 		_start_installed_dynasty_second(before)
+		return
+	if action=="installed_dynasty_third":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		_start_installed_dynasty_third(before)
 		return
 	if action=="installed_earned_dynasty_birth":
 		var before:=_lifecycle_bytes.duplicate()

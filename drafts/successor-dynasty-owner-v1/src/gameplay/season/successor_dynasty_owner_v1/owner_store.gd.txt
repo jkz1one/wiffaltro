@@ -3220,7 +3220,7 @@ static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonSta
 			if first==null: return null
 			if not source.dynasty_third.is_empty():
 				var plan:=_earned_dynasty_third_verified(source,first,verified.get("second"))
-				if not plan.has("wire") or not Codec.same(plan.wire,source.dynasty_third): return null
+				if _earned_dynasty_third_current(plan,source.dynasty_third)==null: return null
 		return ordinary
 	if source.tier==2:
 		var d2: Script=preload("earned_dugout_d2.gd")
@@ -3586,6 +3586,8 @@ static func _earned_dynasty_third_verified(source: Dictionary, first: SeasonStat
 			or not Codec.same(carrier.common,close.common) or not Codec.same(carrier.ledger,close.ledger) \
 			or not Codec.same(carrier.workshop_close_history,close.workshop): return {}
 	var profiles: Dictionary={}
+	var stat_loss: int=0
+	var pitch_loss: int=0
 	for i: int in range(6):
 		var club: String="club:%d"%i
 		var profile: Dictionary=prepared[club].profile
@@ -3593,10 +3595,16 @@ static func _earned_dynasty_third_verified(source: Dictionary, first: SeasonStat
 				or not Codec.same(profile.roster,close.local.profiles[club].roster) \
 				or not Codec.same(profile.exotic_rights,close.local.profiles[club].exotic_rights): return {}
 		profiles[club]=profile
+		if i==0:
+			for id: String in profile.roster:
+				var old: Dictionary=close.local.profiles[club].players[id]
+				var now: Dictionary=profile.players[id]
+				for key: String in old.stats: stat_loss+=int(old.stats[key])-int(now.stats[key])
+				for key: String in old.mastery: pitch_loss+=int(old.mastery[key])-int(now.mastery[key])
 	var body:=Adapter.capture("dynasty",next)
 	var tx: Dictionary=carrier.last_transition
 	if body.is_empty() or tx.profiles_after!=Owner.Life.digest(profiles): return {}
-	return {"season":next,"previous":second,"wire":{"season":body,"event":{"id":tx.id,"from":2,"to":3,"seed":seed_value,
+	return {"season":next,"previous":second,"stat_loss":stat_loss,"pitch_loss":pitch_loss,"wire":{"season":body,"event":{"id":tx.id,"from":2,"to":3,"seed":seed_value,
 		"binding":binding,"before":Owner.Life.digest(close.local.profiles),"after":tx.profiles_after,
 		"destination":Owner.Life.digest(body)}}}
 
@@ -3616,12 +3624,14 @@ static func _earned_dynasty_third_head(value: Variant) -> Dictionary:
 			or not Codec.whole(archive[0].ordinal,2,2) or not Codec.whole(archive[0].format,20,20) \
 			or not BaseArchive._digest(archive[0].sha256) or not Codec.whole(archive[0].bytes,1,MAX_BYTES): return {}
 	var third: Variant=value.current.third
-	if not Codec.keys(third,["event","season"]) or not third.season is Dictionary \
+	if not third is Dictionary or not Codec.keys(third,["event","season","opening"] if third.has("opening") else ["event","season"]) \
+			or not third.season is Dictionary \
 			or not Codec.keys(third.event,["id","from","to","seed","binding","before","after","destination"]) \
 			or not third.event.id is String or not Codec.whole(third.event.from,2,2) \
 			or not Codec.whole(third.event.to,3,3) or not Codec.whole(third.event.seed,0,2147483647) \
 			or not BaseArchive._digest(third.event.before) or not BaseArchive._digest(third.event.after) \
 			or not BaseArchive._digest(third.event.destination) or not third.event.binding is Dictionary: return {}
+	if third.has("opening") and not _earned_dynasty_second_round_wire(third): return {}
 	return value
 
 static func _earned_dynasty_third_prior(payload: PackedByteArray) -> Dictionary:
@@ -3635,7 +3645,9 @@ static func _earned_dynasty_third_prior(payload: PackedByteArray) -> Dictionary:
 static func _earned_dynasty_third_stage(payload: PackedByteArray,first: SeasonState) -> Dictionary:
 	var previous:=_earned_dynasty_third_prior(payload)
 	if previous.is_empty(): return {}
-	var plan:=_earned_dynasty_prepare_third(previous,first)
+	return _earned_dynasty_third_frame(payload,previous,_earned_dynasty_prepare_third(previous,first))
+
+static func _earned_dynasty_third_frame(payload: PackedByteArray,previous: Dictionary,plan: Dictionary) -> Dictionary:
 	if not plan.has("wire"): return {}
 	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":21,"head":previous.head,
 		"current":{"active":"dynasty","ordinal":3,
@@ -3655,9 +3667,21 @@ static func _earned_dynasty_third_restore(head: Variant,prior: PackedByteArray,f
 	if prior.size()!=page.bytes or BaseArchive._hash(prior)!=page.sha256: return null
 	var previous:=_earned_dynasty_third_prior(prior)
 	if previous.is_empty() or not Codec.same(value.head,previous.head): return null
-	var plan:=_earned_dynasty_prepare_third(previous,first)
-	if not plan.has("wire") or not Codec.same(value.current.third,plan.wire): return null
-	return plan.season
+	return _earned_dynasty_third_current(_earned_dynasty_prepare_third(previous,first),value.current.third)
+
+static func _earned_dynasty_third_current(plan: Dictionary, wire: Dictionary) -> SeasonState:
+	if not plan.has("wire") or not Codec.same(wire.event,plan.wire.event): return null
+	if not wire.has("opening"):
+		return plan.season if Codec.same(wire.season,plan.wire.season) else null
+	if not _earned_dynasty_second_round_wire(wire): return null
+	var base: SeasonState=plan.season
+	var witness: Dictionary=wire.season.physical.pending if wire.opening.is_empty() else wire.opening
+	base.physical.pending=witness.duplicate(true)
+	var opening:=_earned_dynasty_opening_plan(base)
+	if opening.is_empty(): return null
+	var current: SeasonState=base if wire.opening.is_empty() else opening.candidate
+	if not wire.opening.is_empty() and not _earned_dynasty_opening_settled(current,wire.opening): return null
+	return current if Codec.same(Adapter.capture("dynasty",current),wire.season) else null
 
 
 # v16 stores one opener witness. The transition's destination still commits
@@ -4056,9 +4080,15 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 	if not source.dynasty_third.is_empty():
 		var third: SeasonState=_installed_dugout_d1_bound.dynasty_third
 		var close: Dictionary=source.dynasty_next.close
-		return {"bytes":expected.duplicate(),"state":"dynasty_third_readonly","ordinal":3,
+		var pending: Dictionary=third.physical.pending
+		var reports: int=pending.get("reports",[]).size()
+		var state: String="dynasty_pending" if not pending.is_empty() else ("dynasty_third_ready" if third.round_index==0 else "dynasty_paid")
+		return {"bytes":expected.duplicate(),"state":state,"ordinal":3,
 			"picks":third.picks.duplicate(),"credits":int(close.common.aggregate.currency),
-			"cash":third.cash(),"plaques":close.common.aggregate.plaques.size()}
+			"cash":third.cash(),"plaques":close.common.aggregate.plaques.size(),"round":1,"postseason":"",
+			"score":pending.human.slice(1,3) if not pending.is_empty() else [],"reports":reports,"cpu_total":2,
+			"settle_available":reports==2,"allow_play_next":false,"shop_available":false,
+			"results":third.results.duplicate(true)}
 	var draft: SeasonState=_installed_dugout_d1_bound.draft
 	if not source.dynasty.is_empty():
 		var dynasty: SeasonState=_installed_dugout_d1_bound.dynasty
@@ -4266,9 +4296,9 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 	if not source.dynasty_next.is_empty() and live_carried==null: return {}
 	var live_third: SeasonState
 	if not source.dynasty_third.is_empty():
-		var third:=_earned_dynasty_third_verified(source,dynasty,live_carried)
-		if not third.has("wire") or not Codec.same(third.wire,source.dynasty_third): return {}
-		live_third=third.season
+		var plan:=_earned_dynasty_third_verified(source,dynasty,live_carried)
+		live_third=_earned_dynasty_third_current(plan,source.dynasty_third)
+		if live_third==null: return {}
 	if not reader.verified_revision(expected): return {}
 	_invalidate()
 	_installed_dugout_d1_bound={"bytes":expected.duplicate(),"page":source.pin,"draft":draft}
@@ -4393,6 +4423,69 @@ static func start_installed_earned_dynasty_second(app: Variant) -> Dictionary:
 		"dynasty_next":plan.season}
 	return installed_dugout_d1_view(body)
 
+static func _earned_dynasty_third_source(app: Variant) -> Dictionary:
+	if not _installed_dugout_d1_entry_app(app) or app.season!=null \
+			or app.installed_dugout_d1_draft.get("ordinal")!=2 \
+			or not app.installed_dugout_d1_draft.get("dynasty_closed",false): return {}
+	var source:=_bound_installed_dugout_d1(app.saved_bytes)
+	if source.is_empty() or not source.dynasty_next.has("close"): return {}
+	return source
+
+static func preview_installed_earned_dynasty_third(app: Variant) -> Dictionary:
+	var source:=_earned_dynasty_third_source(app)
+	if source.is_empty(): return {}
+	var plan:=_earned_dynasty_third_verified(source,_installed_dugout_d1_bound.dynasty,_installed_dugout_d1_bound.dynasty_next)
+	if plan.has("blocked"): return {"blocked":plan.blocked}
+	if not plan.has("wire"): return {}
+	return {"stat_loss":plan.stat_loss,"pitch_loss":plan.pitch_loss}
+
+static func start_installed_earned_dynasty_third(app: Variant) -> Dictionary:
+	var source:=_earned_dynasty_third_source(app)
+	if source.is_empty(): return {}
+	var expected: PackedByteArray=app.saved_bytes
+	if _earned_dynasty_third_prior(expected).is_empty(): return {}
+	var prior: Dictionary=_installed_dugout_d1_bound.duplicate()
+	var plan:=_earned_dynasty_third_verified(source,prior.dynasty,prior.dynasty_next)
+	var staged:=_earned_dynasty_third_frame(expected,source,plan)
+	if staged.is_empty(): return {}
+	var again:=_earned_dynasty_third_source(app)
+	if again.is_empty() or again.pages!=source.pages or again.pin!=source.pin: return {}
+	var body: PackedByteArray=staged.encoded
+	# Preserve the exact v20 page before rotating the active head. If
+	# interrupted, an exact inert archive may remain, not a dangling head.
+	saving=true
+	var saved: bool=_keep_installed_dugout_d1_page(expected) and _write_exact_bytes(body,expected)
+	saving=false
+	if not saved: return {}
+	return _bind_installed_earned_dynasty_third(body,prior,staged.season)
+
+static func _bind_installed_earned_dynasty_third(body: PackedByteArray,prior: Dictionary,third: SeasonState) -> Dictionary:
+	_invalidate()
+	_installed_dugout_d1_bound={"bytes":body,"page":prior.page,"draft":prior.draft,
+		"dynasty":prior.dynasty,"dynasty_next":prior.dynasty_next,"dynasty_third":third}
+	return installed_dugout_d1_view(body)
+
+static func _write_installed_earned_dynasty_third_opening(source: Dictionary,expected: PackedByteArray,
+		image: Dictionary,opening: Dictionary={}) -> Dictionary:
+	if saving or source.dynasty_third.is_empty(): return {}
+	var value:=_earned_dynasty_third_head(Owner._bytes_value(expected))
+	if value.is_empty() or not Codec.same(value.current.third,source.dynasty_third): return {}
+	var prior: Dictionary=_installed_dugout_d1_bound.duplicate()
+	var plan:=_earned_dynasty_third_verified(source,prior.dynasty,prior.dynasty_next)
+	value.current.third.season=image
+	value.current.third.opening=opening
+	var staged:=_native_materialize(value)
+	if staged.is_empty() or _earned_dynasty_third_head(staged.value).is_empty(): return {}
+	var current:=_earned_dynasty_third_current(plan,staged.value.current.third)
+	if current==null: return {}
+	var again:=_bound_installed_dugout_d1(expected,true)
+	if again.is_empty() or again.pages!=source.pages or not Codec.same(again.dynasty_third,source.dynasty_third): return {}
+	saving=true
+	var saved: bool=_write_exact_bytes(staged.bytes,expected)
+	saving=false
+	if not saved: return {}
+	return _bind_installed_earned_dynasty_third(staged.bytes,prior,current)
+
 # Bound warm champion only. Keep each previously verified page immutable;
 # write and reread the new page before rotating the sole installed primary.
 static func write_installed_dugout_d2_birth(app: Variant) -> Dictionary:
@@ -4516,7 +4609,7 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	if not is_instance_valid(app) or app.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 			or app.career_owner!=null or app.season!=null or is_instance_valid(app.lab): return false
 	var expected: PackedByteArray=app.saved_bytes
-	var source:=_bound_installed_dugout_d1(expected)
+	var source:=_bound_installed_dugout_d1(expected,true)
 	if source.is_empty(): return false
 	if not source.dynasty.is_empty(): return _open_installed_earned_dynasty(app,source,expected)
 	var bound: SeasonState=_installed_dugout_d1_bound.draft
@@ -4549,10 +4642,20 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	_installed_dugout_d1_play={"app":weakref(app),"bytes":expected.duplicate(),"season":live,"state":state,"lab":weakref(app.lab),"field":field,"fixture":int(fixture.id)}
 	return installed_dugout_d1_match_bound(app)
 
+static func _installed_active_dynasty(source: Dictionary) -> SeasonState:
+	var key: String="dynasty_third" if not source.dynasty_third.is_empty() else ("dynasty_next" if not source.dynasty_next.is_empty() else "dynasty")
+	return _installed_dugout_d1_bound.get(key)
+
+static func _installed_active_dynasty_image(source: Dictionary) -> Dictionary:
+	if not source.dynasty_third.is_empty(): return source.dynasty_third.season
+	return source.dynasty_next.season if not source.dynasty_next.is_empty() else source.dynasty
+
 static func _open_installed_earned_dynasty(app: Variant,source: Dictionary,expected: PackedByteArray) -> bool:
 	var carried: bool=not source.dynasty_next.is_empty()
-	var bound: SeasonState=_installed_dugout_d1_bound.dynasty_next if carried else _installed_dugout_d1_bound.dynasty
-	if carried and bound.round_index==0 and not _earned_dynasty_second_opener(bound): return false
+	var third: bool=not source.dynasty_third.is_empty()
+	var bound:=_installed_active_dynasty(source)
+	if bound==null or (third and source.dynasty_third.has("opening")): return false
+	if carried and not third and bound.round_index==0 and not _earned_dynasty_second_opener(bound): return false
 	var later: bool=bound.round_index>0
 	var postseason: bool=bound.phase in [SeasonState.Phase.SEMIFINAL,SeasonState.Phase.FINAL]
 	if carried and bound.build.pack_pending(): return false
@@ -4582,11 +4685,11 @@ static func installed_earned_dynasty_match_bound(app: Variant) -> bool:
 
 static func _save_installed_earned_dynasty(app: Variant,source: Dictionary,expected: PackedByteArray) -> Dictionary:
 	var carried: bool=not source.dynasty_next.is_empty()
-	var original: Dictionary=source.dynasty_next.season if carried else source.dynasty
+	var original:=_installed_active_dynasty_image(source)
 	if not installed_earned_dynasty_match_bound(app) or source.dynasty_pending or source.dynasty_home_pending \
 			or not Codec.same(Adapter.capture("dynasty",app.season),original): return {}
-	var previous: SeasonState=_installed_dugout_d1_bound.dynasty_next if carried else _installed_dugout_d1_bound.dynasty
-	if not previous.physical.pending.is_empty(): return {}
+	var previous:=_installed_active_dynasty(source)
+	if previous==null or not previous.physical.pending.is_empty(): return {}
 	var later: bool=previous.round_index>0
 	var human: Array=Adapter.DynastyCapture.capture(app)
 	if human.size()!=13 or not installed_earned_dynasty_match_bound(app): return {}
@@ -4601,6 +4704,8 @@ static func _save_installed_earned_dynasty(app: Variant,source: Dictionary,expec
 	var opening: Dictionary=checked.duplicate(true)
 	opening.physical.pending={}
 	if not Codec.same(opening,original) or not installed_earned_dynasty_match_bound(app): return {}
+	if not source.dynasty_third.is_empty():
+		return _write_installed_earned_dynasty_third_opening(source,expected,checked) if not later else {}
 	if carried:
 		if postseason: return _write_installed_earned_dynasty_second_playoffs(source,expected,checked,source.dynasty_next.get("playoffs",[]))
 		return _write_installed_earned_dynasty_second_regular(source,expected,checked,source.dynasty_next.get("regular",[])) if later \
@@ -4632,7 +4737,7 @@ static func installed_dugout_d1_match_bound(app: Variant) -> bool:
 static func save_installed_dugout_d1_managed(app: Variant) -> Dictionary:
 	if not installed_dugout_d1_match_bound(app): return {}
 	var expected: PackedByteArray=app.saved_bytes
-	var source:=_bound_installed_dugout_d1(expected)
+	var source:=_bound_installed_dugout_d1(expected,true)
 	if source.is_empty(): return {}
 	if not source.dynasty.is_empty(): return _save_installed_earned_dynasty(app,source,expected)
 	var previous: SeasonState=_installed_dugout_d1_bound.draft
@@ -4696,11 +4801,12 @@ static func _installed_dugout_d1_final_projection(session: SeasonState) -> Dicti
 		"count":0,"managed_id":32,"managed_final":true}
 
 static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionary:
-	var source:=_bound_installed_dugout_d1(expected)
+	var source:=_bound_installed_dugout_d1(expected,true)
 	if source.is_empty(): return {}
 	if not source.dynasty.is_empty():
 		var carried: bool=not source.dynasty_next.is_empty()
-		var dynasty: SeasonState=_installed_dugout_d1_bound.dynasty_next if carried else _installed_dugout_d1_bound.dynasty
+		var dynasty:=_installed_active_dynasty(source)
+		if dynasty==null or (not source.dynasty_third.is_empty() and dynasty.round_index!=0): return {}
 		var round: int=dynasty.round_index
 		var post: bool=round==10
 		var projection:=_earned_dynasty_playoff_plan(dynasty) if post else (_earned_dynasty_opening_plan(dynasty) if round==0 else _earned_dynasty_regular_plan(dynasty))
@@ -4824,13 +4930,15 @@ static func _stage_installed_earned_dynasty_cpu(round_plan: Dictionary,expected:
 	if after.is_empty(): return {}
 	var pending: Dictionary=after.physical.pending
 	var carried: bool=round_plan.get("carried",false)
-	var original: Dictionary=source.dynasty_next.season if carried else source.dynasty
+	var original:=_installed_active_dynasty_image(source)
 	var before: Dictionary=original.physical.pending
 	if pending.reports.size()!=before.reports.size()+1 or not Codec.same(pending.human,before.human) \
 			or not Codec.same(pending.reports.slice(0,-1),before.reports): return {}
 	var same_history: Dictionary=after.duplicate(true)
 	same_history.physical.pending=before
 	if not Codec.same(same_history,original): return {}
+	if not source.dynasty_third.is_empty():
+		return _write_installed_earned_dynasty_third_opening(source,expected,after)
 	if carried:
 		if round_plan.round==10:
 			return _write_installed_earned_dynasty_second_playoffs(source,expected,after,source.dynasty_next.get("playoffs",[]))
@@ -4851,15 +4959,22 @@ static func _settle_installed_earned_dynasty(round_plan: Dictionary,expected: Pa
 	var prior: SeasonState=round_plan.session
 	var warm: SeasonState=round_plan.projection.candidate
 	var carried: bool=round_plan.get("carried",false)
-	var witness: Dictionary=(source.dynasty_next.season if carried else source.dynasty).physical.pending
+	var witness: Dictionary=_installed_active_dynasty_image(source).physical.pending
 	if round_plan.count!=2 or not Codec.same(witness,prior.physical.pending) \
 			or not _earned_dynasty_opening_settled(warm,witness): return {}
 	# Re-execute the exact saved v8 payload with its serialized numeric types.
 	# The settled writer and the cold verifier must derive the same receipt
 	# journal. A warm report object is not the canonical payment input.
 	var ordinary: SeasonState=_installed_dugout_d1_bound.draft
-	var materialized:=_earned_dynasty_verified_second(source,_installed_dugout_d1_bound.dynasty) if carried \
-		else _installed_earned_dynasty_draft(source,ordinary)
+	var third: bool=not source.dynasty_third.is_empty()
+	var materialized: SeasonState
+	if third:
+		var birth:=_earned_dynasty_third_verified(source,_installed_dugout_d1_bound.dynasty,_installed_dugout_d1_bound.dynasty_next)
+		materialized=_earned_dynasty_third_current(birth,source.dynasty_third)
+	else:
+		materialized=_earned_dynasty_verified_second(source,_installed_dugout_d1_bound.dynasty) if carried \
+			else _installed_earned_dynasty_draft(source,ordinary)
+	if materialized==null: return {}
 	var plan:=_earned_dynasty_opening_plan(materialized)
 	if plan.is_empty() or plan.has("fixture"): return {}
 	var next: SeasonState=plan.candidate
@@ -4872,6 +4987,7 @@ static func _settle_installed_earned_dynasty(round_plan: Dictionary,expected: Pa
 			var a: SeasonBuild=next.build if id==0 else next.opponents.clubs[str(id)].build
 			var b: SeasonBuild=warm.build if id==0 else warm.opponents.clubs[str(id)].build
 			if a.cash()!=b.cash() or not Codec.same(a._bank.view().rewards,b._bank.view().rewards): return {}
+		if third: return _write_installed_earned_dynasty_third_opening(source,expected,after,witness)
 		return _write_installed_earned_dynasty_second_round(source,expected,after,witness)
 	var proposed: Dictionary=source.duplicate()
 	proposed.dynasty=JSON.parse_string(_native_encoded(after).get_string_from_utf8())

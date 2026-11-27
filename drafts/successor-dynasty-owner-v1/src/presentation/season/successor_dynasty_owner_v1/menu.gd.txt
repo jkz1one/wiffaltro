@@ -635,7 +635,7 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready","dynasty_second_ready","dynasty_third_readonly"]:
+	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready","dynasty_second_ready","dynasty_third_ready"]:
 		_installed_earned_dynasty_draft(draft)
 		return
 	if draft.get("tier",1) in [2,3]:
@@ -715,10 +715,14 @@ func _installed_dugout_d1() -> void:
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
-	if draft.state=="dynasty_third_readonly":
+	if draft.state=="dynasty_third_ready":
 		_label(_body,"DYNASTY · SEASON 3",24)
 		_note("%d Club Credits · %d Season Cash · %d earned plaques"%[draft.credits,draft.cash,draft.plaques])
-		_note("Season 2 remains saved. Opening Day is not available in this engineering build.")
+		_note("Season 2 remains saved.")
+		for id: String in draft.picks:
+			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+			_label(_body,player.display_name if player!=null else id,20)
+		_bound_button(_body,"PLAY SEASON 3 OPENING DAY",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 		return
 	if draft.state=="dynasty_second_ready":
@@ -739,7 +743,9 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 	var bracket: bool=draft.state=="dynasty_postseason_ready"
 	var postseason: String=draft.postseason
 	var title: String="DYNASTY · DRAFT %d / 4"%count
-	if pending or paid: title=("DYNASTY · SEASON 2 · ROUND %d" if draft.get("ordinal",1)==2 else "DYNASTY · ROUND %d")%round
+	if pending or paid:
+		var ordinal: int=int(draft.get("ordinal",1))
+		title=("DYNASTY · ROUND %d"%round) if ordinal==1 else ("DYNASTY · SEASON %d · ROUND %d"%[ordinal,round])
 	if postseason in ["semifinal","final"]: title="DYNASTY · "+postseason.to_upper()
 	if done: title="DYNASTY · SEASON CLOSED" if draft.dynasty_closed else "DYNASTY · SEASON RESULTS"
 	_label(_body,title,24)
@@ -783,6 +789,8 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			_note("Banked %d Club Credits. Season Cash and results are unchanged."%int(draft.completion.total))
 			if draft.get("ordinal",1)==1:
 				_bound_button(_body,"PREVIEW SEASON 2",Callable(app,"request_installed_dynasty_second").bind(draft.bytes.duplicate()))
+			elif draft.get("ordinal",1)==2:
+				_bound_button(_body,"PREVIEW SEASON 3",Callable(app,"request_installed_dynasty_third").bind(draft.bytes.duplicate()))
 		elif draft.close_available:
 			_bound_button(_body,"CLOSE DYNASTY SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 	elif count==4:
