@@ -1047,7 +1047,7 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var parts:=Store._installed_dugout_d1_parts(value)
 	var tier: int=int(parts.get("tier",1))
-	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if not parts.get("dynasty",{}).is_empty() or not Store._earned_dynasty_third_head(value).is_empty() else \
+	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if not parts.get("dynasty",{}).is_empty() or not Store._earned_dynasty_compact_head(value).is_empty() else \
 		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
@@ -1230,25 +1230,27 @@ func _start_installed_dynasty_second(expected: PackedByteArray) -> void:
 
 
 func request_installed_dynasty_third(expected: PackedByteArray) -> void:
-	if not _installed_dynasty_second_ready(expected) or installed_dugout_d1_draft.get("ordinal")!=2: return
+	var previous: int=int(installed_dugout_d1_draft.get("ordinal",0))
+	if not _installed_dynasty_second_ready(expected) or previous<2 or previous>=ClubCareer.MAX_RUNS: return
 	var preview:=Store.preview_installed_earned_dynasty_third(self)
 	if not preview.has("stat_loss"):
-		notice=preview.get("blocked","Season 3 could not be prepared. Season 2 has not changed.")
+		notice=preview.get("blocked","Season %d could not be prepared. Season %d has not changed."%[previous+1,previous])
 		show_season()
 		return
 	_lifecycle_action="installed_dynasty_third"
 	_lifecycle_bytes=expected.duplicate()
-	_lifecycle_dialog.title="Keep this roster for Season 3?"
+	_lifecycle_dialog.title="Keep this roster for Season %d?"%(previous+1)
 	_lifecycle_dialog.dialog_text="Upkeep removes %d stat levels and %d pitch mastery levels. Earned pitch access, plaques, Club Credits and prior results carry forward. Season Cash starts at 0. Cancel changes nothing."%[int(preview.stat_loss),int(preview.pitch_loss)]
 	_lifecycle_dialog.popup_centered(Vector2i(640,240))
 	_lifecycle_dialog.get_cancel_button().grab_focus()
 
 func _start_installed_dynasty_third(expected: PackedByteArray) -> void:
-	if not _installed_dynasty_second_ready(expected) or installed_dugout_d1_draft.get("ordinal")!=2: return
+	var previous: int=int(installed_dugout_d1_draft.get("ordinal",0))
+	if not _installed_dynasty_second_ready(expected) or previous<2 or previous>=ClubCareer.MAX_RUNS: return
 	_busy=true
 	var view:=Store.start_installed_earned_dynasty_third(self)
 	_busy=false
-	if view.is_empty(): notice="Season 3 could not be confirmed. Use Continue to check your saved career."
+	if view.is_empty(): notice="Season %d could not be confirmed. Use Continue to check your saved career."%(previous+1)
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
