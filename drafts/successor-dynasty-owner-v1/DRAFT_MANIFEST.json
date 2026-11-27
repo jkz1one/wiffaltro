@@ -858,8 +858,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_dynasty_fast_npc.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_dynasty_fast_npc.gd",
-      "bytes": 8845,
-      "sha256": "8d6f6fbbe2842c73a791f8a7800e0a4f42c99f4b61772da0dc6deb92ef9f4254"
+      "bytes": 9347,
+      "sha256": "90bf1e779114d4293de96dd9a0c1ee623335197c5a52bc4ec4bfc64e5d98df10"
     }
   ],
   "additions": [

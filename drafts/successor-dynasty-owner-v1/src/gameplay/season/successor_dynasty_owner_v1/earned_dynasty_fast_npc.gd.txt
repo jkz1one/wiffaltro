@@ -50,9 +50,9 @@ static func parse(args: PackedStringArray) -> Dictionary:
 	return job if _valid(job) and _wire(job)==decoded else {}
 
 static func scoped(round_plan: Dictionary) -> bool:
-	# Start with the two requests whose real render/fixed-step parity was proven.
-	# All other rounds continue using the same in-process physical engine.
-	return _parent() and round_plan.get("dynasty",false) and not round_plan.get("carried",false) \
+	# The installed first and carried seasons both passed Round 2 parity.
+	# Other rounds still use the same in-process physical engine.
+	return _parent() and round_plan.get("dynasty",false) \
 		and round_plan.get("round")==1 and round_plan.projection.get("fixture",{}).get("id") in [4,5]
 
 func start(expected: PackedByteArray,round_plan: Dictionary) -> bool:
@@ -153,19 +153,32 @@ func worker(job: Dictionary) -> void:
 			get_tree().quit(3); return
 	var source:=Store._installed_dugout_d1_source(true)
 	if source.is_empty() or Store.BaseArchive._hash(source.bytes)!=job.revision or source.tier!=3 \
-			or source.dynasty.is_empty() or source.dynasty.state.get("round_index")!=1:
+			or source.dynasty.is_empty():
 		get_tree().quit(8); return
-	# The parent already verified the three archived pages and current D3
-	# season. Recreate only the same local D3 image and canonical Dynasty
-	# proof for this read-only execution. Generic hydration loses request types.
+	var carried: bool=not source.dynasty_next.is_empty()
+	var image: Dictionary=source.dynasty_next.season if carried else source.dynasty
+	if image.state.get("round_index")!=1:
+		get_tree().quit(8); return
+	# The live parent already verified the three archived pages and exact
+	# career before launching. This process cannot become that owner or save.
+	# Never hydrate the active Dynasty image: canonical request types differ.
 	var assets: Array[Resource]=[]
 	for path: String in Reader.REPLAY_ASSET_PATHS:
 		var item: Resource=load(path)
 		if item==null:
 			get_tree().quit(8); return
 		assets.append(item)
-	var ordinary:=Store._installed_dugout_d3_local_draft(source.current.ordinary)
-	var season:=Store._installed_earned_dynasty_draft(source,ordinary)
+	var season: SeasonState
+	if carried:
+		# Only the parked terminal season is hydrated. The active carried
+		# season is reconstructed through the existing verified transition.
+		var parked: SeasonState=Store.Adapter.restore("dynasty",source.dynasty)
+		if not Store._earned_dynasty_close_boundary(parked):
+			get_tree().quit(8); return
+		season=Store._earned_dynasty_verified_second(source,parked)
+	else:
+		var ordinary:=Store._installed_dugout_d3_local_draft(source.current.ordinary)
+		season=Store._installed_earned_dynasty_draft(source,ordinary)
 	var plan:=Store._earned_dynasty_regular_plan(season)
 	var fixtures: Script=Store.Adapter.DynastyFixtures
 	if plan.is_empty() or not plan.has("fixture") or str(int(plan.fixture.id))!=job.fixture \
