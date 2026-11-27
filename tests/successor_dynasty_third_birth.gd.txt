@@ -1,0 +1,87 @@
+extends Node
+# Detached QA only. Each invocation runs a single pinned synthetic specimen
+# in a new process. This scene never writes a slot or any evidence to disk.
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Reader=preload("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd")
+const LOSS: String="1ec6fd31f976fde3e0d7f70c00ed640f272ad7c0598774f3527905b6147af637"
+const TITLE: String="2b6c0cf36c5d9e9d5298cef11141390759e26f738d409e107cffa796b6af1b53"
+var assets: Array[Resource]=[]
+
+func _ready() -> void:
+	call_deferred("run")
+
+func fail(reason: String) -> void:
+	print("FAIL: ",reason)
+	get_tree().quit(1)
+
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=1 or DisplayServer.get_name()!="headless" or FileAccess.file_exists(Store.INSTALLED_PATH):
+		fail("explicit detached synthetic fixture only");return
+	var fixture: String=FileAccess.get_sha256(args[0])
+	if fixture not in [LOSS,TITLE]:
+		fail("not an exact pinned terminal");return
+	for path: String in Reader.REPLAY_ASSET_PATHS:
+		var asset: Resource=load(path)
+		if asset==null:
+			fail("reviewed asset missing");return
+		assets.append(asset)
+	var prior: PackedByteArray=FileAccess.get_file_as_bytes(args[0])
+	var parts: PackedStringArray=prior.get_string_from_utf8().split("\n",true,2)
+	if parts.size()!=3 or parts[0]+"\n"!=Store.INSTALLED_FORWARD_HEADER \
+			or parts[1]!=parts[2].sha256_text():
+		fail("pinned wrapper framing");return
+	var value: Variant=JSON.parse_string(parts[2])
+	var recipe:=Store._installed_dugout_d1_parts(value)
+	if recipe.is_empty() or value.get("version")!=20:
+		fail("reviewed v20 terminal shape");return
+	var first:=Store.Adapter.restore("dynasty",recipe.dynasty)
+	if not Store._earned_dynasty_close_boundary(first):
+		fail("immutable first season");return
+	var plan:=Store._earned_dynasty_prepare_third(recipe,first)
+	if not plan.has("wire"):
+		fail("third birth not prepared");return
+	var previous: Dictionary=recipe.dynasty_next.close
+	var binding: Dictionary=plan.wire.event.binding
+	var aggregate: Dictionary=previous.common.aggregate
+	if binding.from!=2 or binding.to!=3 or binding.sequence!=6 \
+			or not Store.Codec.same(binding.plaques,aggregate.plaques) or binding.plaques.size()!=2 \
+			or not Store.Codec.same(binding.pennants,aggregate.pennants) \
+			or binding.aggregate_sha256!=Store.Owner.Life.digest(aggregate) \
+			or int(aggregate.currency)!=(1054 if fixture==LOSS else 1194):
+		fail("credits and both compact awards must be bound");return
+	var detached:=Store.Adapter.restore("dynasty",plan.wire.season)
+	if detached==null or detached._dynasty_start.season_ordinal!=3 or detached.cash()!=0 \
+			or detached.pending_fixture().get("id")!=0 or not Store.Codec.same(detached.picks,first.picks) \
+			or not Store.Codec.same(plan.wire.season,Store.Adapter.capture("dynasty",detached)):
+		fail("independent restore of the carried season image");return
+	# The old path still refuses to drop compact awards. Check a matching
+	# receipt, a missing plaque, an injected field and a changed close identity.
+	var owner: RefCounted=Store.Owner._new()
+	owner.active="dynasty";owner.ordinal=2;owner.status="closed"
+	owner.session=plan.previous
+	owner.birth_seed=int(first.career.start_basis.genesis.genesis.seed)
+	owner.last_close=previous.local.duplicate(true);owner.ledger=previous.ledger.duplicate(true)
+	owner.common=previous.common.duplicate(true)
+	var changed: Dictionary=binding.duplicate(true)
+	changed.plaques.erase(changed.plaques.keys()[0])
+	var extra: Dictionary=binding.duplicate(true)
+	extra.unreviewed=true
+	if Store.Owner.Common.dynasty_next_supported(owner) \
+			or not Store.Owner.Common.dynasty_carry_binding_matches(owner,binding) \
+			or Store.Owner.Common.dynasty_carry_binding_matches(owner,changed) \
+			or Store.Owner.Common.dynasty_carry_binding_matches(owner,extra):
+		fail("compact award omission or receipt rewrite");return
+	owner.session=detached
+	if Store.Owner.Common.dynasty_carry_binding_matches(owner,binding):
+		fail("successor cannot impersonate its own predecessor");return
+	owner.session=plan.previous
+	owner.last_close.id="dynasty:0:2:close"
+	if Store.Owner.Common.dynasty_carry_binding_matches(owner,binding):
+		fail("foreign predecessor must not match");return
+	if FileAccess.get_file_as_bytes(args[0])!=prior or FileAccess.file_exists(Store.INSTALLED_PATH):
+		fail("probe changed a source or save");return
+	print("PASS: detached Season 3 birth ",("loss" if fixture==LOSS else "champion"),
+		" credits=",int(aggregate.currency)," plaques=",binding.plaques.size(),
+		" birth_sha256=",plan.wire.event.destination)
+	get_tree().quit(0)

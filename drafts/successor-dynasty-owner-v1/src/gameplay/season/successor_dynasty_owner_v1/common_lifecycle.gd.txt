@@ -778,6 +778,47 @@ static func dynasty_next_supported(owner) -> bool:
 	# future carried descriptor. Do not silently omit them at an apparent Next.
 	return aggregate.pennants.is_empty() and C.same(awards(owner),owner.ledger.plaques)
 
+# Read-only boundary for a replay-verified Dynasty Close. The generic legacy
+# gate stays intact. Compact common awards belong to this separate receipt;
+# they are never inserted into the old local career or its carried rights.
+static func dynasty_carry_binding(owner) -> Dictionary:
+	if owner.active!="dynasty" or owner.status!="closed" or owner.session==null \
+			or not C.whole(owner.ordinal,2,ClubCareer.MAX_RUNS-1) \
+			or owner.session._dynasty_start.get("season_ordinal")!=owner.ordinal: return {}
+	var common: Dictionary=owner.common
+	var aggregate: Variant=common.get("aggregate")
+	var row: Variant=common.get("last_fold")
+	var close: Dictionary=owner.last_close
+	var lineage: String=Life.lineage(owner)
+	var close_id: String="%s:%d:close"%[lineage,owner.ordinal]
+	if not Progress.valid(aggregate) or not Life.Ledger.valid(owner.ledger) \
+			or owner.ledger.closed!=owner.ordinal or close.get("id")!=close_id or close.get("ordinal")!=owner.ordinal \
+			or not C.keys(row,["id","side","ordinal","sequence","source","aggregate_sha256","receipt"]) \
+			or row.side!="dynasty" or row.id!=close_id or row.ordinal!=owner.ordinal \
+			or common.get("cursors",{}).get("dynasty")!=owner.ordinal \
+			or not C.whole(common.get("sequence"),owner.ordinal,ClubCareer.MAX_RUNS*2) \
+			or row.sequence!=common.sequence or aggregate.closed!=common.sequence \
+			or not owner._digest(row.source) or not C.same(row.receipt,close.get("receipt")): return {}
+	var aggregate_sha: String=Life.digest(aggregate)
+	if row.aggregate_sha256!=aggregate_sha: return {}
+	var local: Dictionary=Life.rights(owner)
+	if not C.same(local.starts,aggregate.starts) or not C.same(local.player_access,aggregate.player_access) \
+			or not C.same(aggregate.legacy_plaques,owner.ledger.plaques): return {}
+	var profile: Dictionary=close.get("profiles",{}).get("club:0",{})
+	for id: String in aggregate.exotic_rights:
+		if id not in profile.get("exotic_rights",[]): return {}
+	return {"kind":"dynasty-common-carry-v1","lineage":lineage,"from":owner.ordinal,"to":owner.ordinal+1,
+		"close":close_id,"close_sha256":Life.digest(close),"source":row.source,"sequence":common.sequence,
+		"aggregate_sha256":aggregate_sha,"local_rights_sha256":Life.digest(local),
+		"pennants":aggregate.pennants.duplicate(true),"plaques":aggregate.plaques.duplicate(true)}
+
+# A receipt from a save or a caller is not permission. Compare the entire
+# receipt to one re-derived from the replay-verified predecessor.
+static func dynasty_carry_binding_matches(owner, binding: Variant) -> bool:
+	if not binding is Dictionary or binding.is_empty(): return false
+	var canonical:=dynasty_carry_binding(owner)
+	return not canonical.is_empty() and C.same(canonical,binding)
+
 static func propose(owner, seed_value: int) -> bool:
 	if owner.ordinary_state.has("archive") and (not StandardChain.eligible(owner) or seed_value!=StandardChain.seed_for(owner)): return false
 	if owner.paired_draft_only(): return false

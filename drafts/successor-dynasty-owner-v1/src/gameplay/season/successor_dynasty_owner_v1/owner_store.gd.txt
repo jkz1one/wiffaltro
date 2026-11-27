@@ -3513,6 +3513,57 @@ static func _earned_dynasty_prepare_second(source: Dictionary,first: SeasonState
 			"before":Owner.Life.digest(close.local.profiles),"after":tx.profiles_after,"destination":Owner.Life.digest(body)}}}
 
 
+# Pure plan only. The replayed v20 predecessor stays in custody, with the
+# common ledger and Workshop history separate from the older local payload.
+# Do not attach to a live action before a versioned reader can revalidate it.
+static func _earned_dynasty_prepare_third(source: Dictionary,first: SeasonState) -> Dictionary:
+	if not _earned_dynasty_close_boundary(first): return {}
+	var second:=_earned_dynasty_verified_second(source,first)
+	if not _earned_dynasty_close_boundary(second) or not source.dynasty_next.has("close"): return {}
+	var close: Dictionary=source.dynasty_next.close
+	var carrier: RefCounted=Owner._new()
+	carrier.active="dynasty";carrier.session=second;carrier.ordinal=2;carrier.status="closed"
+	carrier.birth_seed=int(first.career.start_basis.genesis.genesis.seed)
+	carrier.last_close=close.local.duplicate(true)
+	carrier.ledger=close.ledger.duplicate(true)
+	carrier.common=close.common.duplicate(true)
+	carrier.workshop_close_history=close.workshop.duplicate(true)
+	var binding:=Owner.Common.dynasty_carry_binding(carrier)
+	if binding.is_empty(): return {}
+	if not Owner.Life.overflow(carrier.last_close.profiles["club:0"]).is_empty():
+		return {"blocked":"Choose which Fielding ability to keep before starting the next season."}
+	var seed_value: int=("installed-dynasty:next:"+str(close.local.id)).hash() & 0x7fffffff
+	if not Owner.Life.propose(carrier,seed_value) or not Owner.Common.dynasty_carry_binding_matches(carrier,binding): return {}
+	var prepared: Dictionary=Owner.Life.preview(carrier)
+	if prepared.size()!=6 or not Owner.Life.advance(carrier): return {}
+	var next: SeasonState=carrier.session
+	if not Adapter.scope("dynasty",next) or carrier.ordinal!=3 or next.phase!=SeasonState.Phase.REGULAR \
+			or not Codec.whole(next._dynasty_start.get("season_ordinal"),3,3) or next.round_index!=0 \
+			or next.cash()!=0 or not next.results.is_empty() or not next.player_results.is_empty() \
+			or next.physical.cursor!=0 or not next.physical.reports.is_empty() or not next.physical.pending.is_empty() \
+			or next.pending_fixture().get("id")!=0 or not Codec.same(second.picks,next.picks) \
+			or not Codec.same(second.player_access,next.player_access) \
+			or not Codec.same(second.career._assets,next.career._assets) \
+			or not Codec.same(second.career._pennants,next.career._pennants) \
+			or not Codec.same(second.career._plaques,next.career._plaques) \
+			or not Codec.same(carrier.common,close.common) or not Codec.same(carrier.ledger,close.ledger) \
+			or not Codec.same(carrier.workshop_close_history,close.workshop): return {}
+	var profiles: Dictionary={}
+	for i: int in range(6):
+		var club: String="club:%d"%i
+		var profile: Dictionary=prepared[club].profile
+		if not Codec.same(second.teams[i].roster,next.teams[i].roster) \
+				or not Codec.same(profile.roster,close.local.profiles[club].roster) \
+				or not Codec.same(profile.exotic_rights,close.local.profiles[club].exotic_rights): return {}
+		profiles[club]=profile
+	var body:=Adapter.capture("dynasty",next)
+	var tx: Dictionary=carrier.last_transition
+	if body.is_empty() or tx.profiles_after!=Owner.Life.digest(profiles): return {}
+	return {"season":next,"previous":second,"wire":{"season":body,"event":{"id":tx.id,"from":2,"to":3,"seed":seed_value,
+		"binding":binding,"before":Owner.Life.digest(close.local.profiles),"after":tx.profiles_after,
+		"destination":Owner.Life.digest(body)}}}
+
+
 # v16 stores one opener witness. The transition's destination still commits
 # to the original immutable, zero-game v15 birth before any baseball is played.
 static func _earned_dynasty_second_round_wire(next: Dictionary) -> bool:
