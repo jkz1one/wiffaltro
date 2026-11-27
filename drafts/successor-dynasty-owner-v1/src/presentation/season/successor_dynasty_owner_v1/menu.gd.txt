@@ -793,9 +793,13 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 				_label(_body,"STADIUM WORKSHOP",18)
 				_note("%d Club Credits available from verified Dynasty seasons."%int(workshop.balance))
 				if workshop.owned:
-					_note("Extra backstop chair owned; it is not placed on the field.")
-					if workshop.drafted:
-						_note("Backstop layout draft saved. It does not change the field.")
+					if workshop.applied:
+						_note("Backstop layout applied for future Dynasty home games.")
+					else:
+						_note("Extra backstop chair owned; it is not placed on the field.")
+					if workshop.can_apply:
+						_note("Backstop layout draft saved. It does not change the field until applied.")
+						_bound_button(_body,"APPLY BACKSTOP FOR NEXT SEASON",Callable(app,"request_apply_installed_workshop_layout").bind(draft.bytes.duplicate()))
 					elif workshop.can_draft:
 						_bound_button(_body,"SAVE BACKSTOP LAYOUT DRAFT",Callable(app,"save_installed_workshop_layout").bind(draft.bytes.duplicate()))
 				elif workshop.can_buy:

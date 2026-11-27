@@ -1234,6 +1234,28 @@ func save_installed_workshop_layout(expected: PackedByteArray) -> void:
 	show_season()
 
 
+func request_apply_installed_workshop_layout(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected) \
+		or not installed_dugout_d1_draft.get("workshop",{}).get("can_apply",false): return
+	_lifecycle_action="installed_workshop_apply"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Apply your backstop layout?"
+	_lifecycle_dialog.dialog_text="Use the paid backstop chair at your home park starting next season. Away and neutral parks, prior games, and balances stay unchanged."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+
+func _apply_installed_workshop_layout(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected) \
+		or not installed_dugout_d1_draft.get("workshop",{}).get("can_apply",false): return
+	_busy=true
+	var view:=Store.apply_installed_earned_dynasty_workshop_layout(self)
+	_busy=false
+	if view.is_empty(): notice="The backstop was not applied. Use Continue to check your saved career."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
+
 func _installed_dynasty_second_ready(expected: PackedByteArray) -> bool:
 	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
 		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
@@ -1932,7 +1954,7 @@ func _expected_stadium(fixture: Dictionary) -> Dictionary:
 	return Owner.Common.StandardWorkshop.Home.fixture(season,fixture)
 
 func _played_field_matches() -> bool:
-	if Store.installed_earned_dynasty_match_bound(self): return true
+	if Store.installed_earned_dynasty_match_bound(self): return Store.installed_earned_dynasty_field_mounted(self)
 	if season==null or (not _round_scope() and not base_archive_qualification_view()) \
 			or not is_instance_valid(lab) or lab._match_state==null:
 		return false
@@ -2427,6 +2449,11 @@ func _cancel_lifecycle() -> void:
 		if chair: _lifecycle_dialog.get_ok_button().text=_installed_workshop_ok_text
 func _confirm_lifecycle() -> void:
 	var action: String=_lifecycle_action
+	if action=="installed_workshop_apply":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		_apply_installed_workshop_layout(before)
+		return
 	if action=="installed_workshop_chair":
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()

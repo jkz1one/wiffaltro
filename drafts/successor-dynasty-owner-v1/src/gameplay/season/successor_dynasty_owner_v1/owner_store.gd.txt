@@ -3180,6 +3180,7 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 	var history: Array[Dictionary]=[]
 	var inherited_chair: Dictionary={}
 	var inherited_layout: Dictionary={}
+	var inherited_application: Dictionary={}
 	var ordinal: int=0
 	if not _installed_dugout_d1_page_root(false): return {}
 	if parts.is_empty():
@@ -3202,6 +3203,10 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 			if not layout.is_empty():
 				if not inherited_layout.is_empty() or third.has("workshop_layout"): return {}
 				inherited_layout=layout
+			var applied: Dictionary=_earned_dynasty_compact_wire(previous).get("workshop_applied",{})
+			if not applied.is_empty():
+				if not inherited_application.is_empty() or third.has("workshop_applied"): return {}
+				inherited_application=applied
 			history.push_front(parent_link)
 			ancestor=previous
 		var link: Dictionary=ancestor.current.archive[0]
@@ -3227,7 +3232,8 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 		"dynasty_postseason":parts.get("dynasty_postseason",false),"dynasty_playoffs":parts.get("dynasty_playoffs",[]),
 		"dynasty_close":parts.get("dynasty_close",{}),"dynasty_next":parts.get("dynasty_next",{}),
 		"dynasty_third":third,"dynasty_compact_history":history,"dynasty_compact_ordinal":ordinal,
-		"dynasty_inherited_chair":inherited_chair,"dynasty_inherited_layout":inherited_layout}
+		"dynasty_inherited_chair":inherited_chair,"dynasty_inherited_layout":inherited_layout,
+		"dynasty_inherited_application":inherited_application}
 
 static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonState:
 	if source.is_empty(): return null
@@ -3629,7 +3635,7 @@ static func _earned_dynasty_third_verified(source: Dictionary, first: SeasonStat
 # A later host must authenticate the paid predecessor before invoking this
 # pure planner. Nothing here reads a path, writes a head or grants a start.
 static func _earned_dynasty_carried_plan(first: SeasonState,previous: SeasonState,
-		close: Dictionary,ordinal: int) -> Dictionary:
+		close: Dictionary,ordinal: int,applied: Dictionary={}) -> Dictionary:
 	if not Codec.whole(ordinal,3,ClubCareer.MAX_RUNS) or not _earned_dynasty_close_boundary(first) \
 			or not _earned_dynasty_close_boundary(previous) \
 			or not Codec.whole(previous._dynasty_start.get("season_ordinal"),ordinal-1,ordinal-1) \
@@ -3646,6 +3652,7 @@ static func _earned_dynasty_carried_plan(first: SeasonState,previous: SeasonStat
 	carrier.ledger=close.ledger.duplicate(true)
 	carrier.common=close.common.duplicate(true)
 	carrier.workshop_close_history=close.workshop.duplicate(true)
+	carrier.workshop_applied=applied.duplicate(true)
 	var binding:=Owner.Common.dynasty_carry_binding(carrier,ordinal>3)
 	if binding.is_empty(): return {}
 	if not Owner.Life.overflow(carrier.last_close.profiles["club:0"]).is_empty():
@@ -3720,6 +3727,9 @@ static func _earned_dynasty_third_head(value: Variant) -> Dictionary:
 	if third.has("workshop_layout"):
 		if value.version!=22 or not _earned_dynasty_workshop_layout_shape(third.workshop_layout): return {}
 		fields.append("workshop_layout")
+	if third.has("workshop_applied"):
+		if value.version!=22 or not _earned_dynasty_workshop_application_shape(third.workshop_applied,3): return {}
+		fields.append("workshop_applied")
 	if not Codec.keys(third,fields) or not third.season is Dictionary \
 			or not Codec.keys(third.event,["id","from","to","seed","binding","before","after","destination"]) \
 			or not third.event.id is String or not Codec.whole(third.event.from,2,2) \
@@ -3769,7 +3779,7 @@ static func _earned_dynasty_fourth_stage(payload: PackedByteArray, source: Dicti
 	if head.is_empty() or head.version!=22 or not Codec.same(head.head,source.get("head",{})): return {}
 	var previous:=_earned_dynasty_third_current(_earned_dynasty_third_verified(source,first,second),head.current.third)
 	if previous==null: return {}
-	var plan:=_earned_dynasty_carried_plan(first,previous,head.current.third.close,4)
+	var plan:=_earned_dynasty_carried_plan(first,previous,head.current.third.close,4,head.current.third.get("workshop_applied",{}))
 	return _earned_dynasty_later_birth_frame(payload,head,plan)
 
 
@@ -3816,6 +3826,9 @@ static func _earned_dynasty_later_head(value: Variant) -> Dictionary:
 	if wire.has("workshop_layout"):
 		if not wire.has("close") or not _earned_dynasty_workshop_layout_shape(wire.workshop_layout): return {}
 		fields.append("workshop_layout")
+	if wire.has("workshop_applied"):
+		if not wire.has("close") or not _earned_dynasty_workshop_application_shape(wire.workshop_applied,ordinal): return {}
+		fields.append("workshop_applied")
 	if not Codec.keys(wire,fields) or not wire.season is Dictionary \
 			or not Codec.keys(wire.event,["id","from","to","seed","binding","before","after","destination"]) \
 			or not wire.event.id is String or not Codec.whole(wire.event.from,ordinal-1,ordinal-1) \
@@ -3858,6 +3871,24 @@ static func _earned_dynasty_workshop_layout(close: Dictionary,birth_seed: int,se
 	if carrier==null: return {}
 	carrier.workshop_chair_purchase=chair
 	return Owner.WorkshopApply.paid_draft(carrier)
+
+
+static func _earned_dynasty_workshop_application_shape(record: Variant,ordinal: int) -> bool:
+	return Codec.keys(record,["version","lineage","closed_ordinal","source","snapshot"]) \
+		and Codec.whole(record.version,2,2) and Codec.whole(record.closed_ordinal,ordinal,ordinal) \
+		and record.lineage is String and BaseArchive._digest(record.source) and record.snapshot is Dictionary
+
+
+static func _earned_dynasty_workshop_application(close: Dictionary,birth_seed: int,season: SeasonState,
+		chair: Dictionary,layout: Dictionary) -> Dictionary:
+	if chair.is_empty() or layout.is_empty(): return {}
+	var carrier:=_earned_dynasty_workshop_owner(close,birth_seed,season)
+	if carrier==null: return {}
+	carrier.workshop_chair_purchase=chair
+	var authored: Dictionary=Owner.WorkshopApply.paid_draft(carrier)
+	if authored.is_empty() or not Codec.same(authored,layout): return {}
+	carrier.workshop_draft=authored
+	return Owner.WorkshopApply.issue(carrier)
 
 
 static func _earned_dynasty_workshop_owner(close: Dictionary,birth_seed: int,season: SeasonState) -> RefCounted:
@@ -3909,10 +3940,12 @@ static func _earned_dynasty_replay_predecessors(source: Dictionary,first: Season
 		if previous==null: return {}
 		var bought: Dictionary=wire.get("workshop_chair",plan.get("inherited_chair",{}))
 		var layout: Dictionary=wire.get("workshop_layout",plan.get("inherited_layout",{}))
-		plan=_earned_dynasty_carried_plan(first,previous,wire.close,int(archived.current.ordinal)+1)
+		var applied: Dictionary=wire.get("workshop_applied",plan.get("inherited_application",{}))
+		plan=_earned_dynasty_carried_plan(first,previous,wire.close,int(archived.current.ordinal)+1,applied)
 		if not plan.has("wire"): return {}
 		plan.inherited_chair=bought
 		plan.inherited_layout=layout
+		plan.inherited_application=applied
 	return plan
 
 
@@ -3927,10 +3960,12 @@ static func _earned_dynasty_native_active_plan(source: Dictionary,first: SeasonS
 	var wire:=_earned_dynasty_compact_wire(archived)
 	var previous:=Adapter.restore("dynasty",wire.season)
 	if not _earned_dynasty_close_boundary(previous) or not Codec.same(Adapter.capture("dynasty",previous),wire.season): return {}
-	var plan:=_earned_dynasty_carried_plan(first,previous,wire.close,source.dynasty_compact_ordinal)
+	var applied: Dictionary=source.get("dynasty_inherited_application",{})
+	var plan:=_earned_dynasty_carried_plan(first,previous,wire.close,source.dynasty_compact_ordinal,applied)
 	if plan.has("wire"):
 		plan.inherited_chair=source.get("dynasty_inherited_chair",{})
 		plan.inherited_layout=source.get("dynasty_inherited_layout",{})
+		plan.inherited_application=applied
 	return plan
 
 
@@ -3999,12 +4034,18 @@ static func _earned_dynasty_third_current(plan: Dictionary, wire: Dictionary) ->
 		if close.is_empty() or not Codec.same(close,wire.close): return null
 		if wire.has("workshop_chair") and (not plan.get("inherited_chair",{}).is_empty() \
 				or not _earned_dynasty_workshop_receipt_valid(close,plan.birth_seed,current,wire.workshop_chair)): return null
-		if wire.has("workshop_layout"):
-			if not plan.get("inherited_layout",{}).is_empty(): return null
+		if wire.has("workshop_layout") or wire.has("workshop_applied"):
 			var chair: Dictionary=wire.get("workshop_chair",plan.get("inherited_chair",{}))
-			var layout:=_earned_dynasty_workshop_layout(close,plan.birth_seed,current,chair)
-			if layout.is_empty() or not Codec.same(layout,wire.workshop_layout): return null
-	elif wire.has("workshop_chair") or wire.has("workshop_layout"): return null
+			if wire.has("workshop_layout"):
+				if not plan.get("inherited_layout",{}).is_empty(): return null
+				var layout:=_earned_dynasty_workshop_layout(close,plan.birth_seed,current,chair)
+				if layout.is_empty() or not Codec.same(layout,wire.workshop_layout): return null
+			if wire.has("workshop_applied"):
+				if not plan.get("inherited_application",{}).is_empty(): return null
+				var saved_layout: Dictionary=wire.get("workshop_layout",plan.get("inherited_layout",{}))
+				var apply:=_earned_dynasty_workshop_application(close,plan.birth_seed,current,chair,saved_layout)
+				if apply.is_empty() or not Codec.same(apply,wire.workshop_applied): return null
+	elif wire.has("workshop_chair") or wire.has("workshop_layout") or wire.has("workshop_applied"): return null
 	return current
 
 
@@ -4193,6 +4234,20 @@ static func _earned_dynasty_regular_wire(rows: Variant,image: Dictionary,pending
 	return round<10 and _earned_dynasty_regular_pending(pending,round)
 
 
+static func _earned_dynasty_pending_fields(pending: Dictionary) -> bool:
+	if not pending.has("property"): return Codec.keys(pending,["human","reports"])
+	return Codec.keys(pending,["human","reports","property"]) and BaseArchive._digest(pending.property)
+
+
+# The settled journal stores no second copy of the stadium or its key.
+# Reconstruct it from the already proved season and exact scheduled fixture.
+static func _earned_dynasty_pending_witness(season: SeasonState,human: Array,reports: Array) -> Dictionary:
+	var pending: Dictionary={"human":human.duplicate(true),"reports":reports.duplicate(true)}
+	var key: String=Owner.WorkshopApply.property_key(season,season.pending_fixture())
+	if not key.is_empty(): pending.property=key
+	return pending
+
+
 # Postseason uses the saved bracket, not regular fixture arithmetic. A
 # losing semifinal may need a separate neutral CPU final before payment.
 static func _earned_dynasty_playoff_wire(rows: Variant,image: Dictionary,pending: Dictionary) -> bool:
@@ -4206,7 +4261,7 @@ static func _earned_dynasty_playoff_wire(rows: Variant,image: Dictionary,pending
 	# Serialized native JSON numbers restore as floats; strict array
 	# membership tests against integer enums do not accept those values.
 	if pending.is_empty(): return Codec.whole(phase,SeasonState.Phase.FINAL,SeasonState.Phase.COMPLETE)
-	if rows.size()>1 or not Codec.keys(pending,["human","reports"]) or not pending.human is Array \
+	if rows.size()>1 or not _earned_dynasty_pending_fields(pending) or not pending.human is Array \
 			or pending.human.size()!=13 or not pending.reports is Array: return false
 	return (rows.is_empty() and phase==SeasonState.Phase.SEMIFINAL and Codec.whole(pending.human[0],30,31) and pending.reports.size()<=2) \
 		or (rows.size()==1 and phase==SeasonState.Phase.FINAL and Codec.whole(pending.human[0],32,32) and pending.reports.is_empty())
@@ -4228,7 +4283,7 @@ static func _earned_dynasty_playoff_plan(season: SeasonState) -> Dictionary:
 	if not _earned_dynasty_playoff_ready(season): return {}
 	var f: Dictionary=season.pending_fixture()
 	var pending: Dictionary=season.physical.pending
-	if not Codec.keys(pending,["human","reports"]) or not pending.human is Array or pending.human.size()!=13 \
+	if not _earned_dynasty_pending_fields(pending) or not pending.human is Array or pending.human.size()!=13 \
 			or not Codec.whole(pending.human[0],int(f.id),int(f.id)) or not pending.reports is Array: return {}
 	var semi: bool=season.phase==SeasonState.Phase.SEMIFINAL
 	var count: int=pending.reports.size()
@@ -4263,7 +4318,7 @@ static func _earned_dynasty_replay_playoffs(start: SeasonState,source: Dictionar
 	var stored: Array=source.dynasty.physical.reports
 	for row: Dictionary in source.dynasty_playoffs:
 		var offset: int=current.physical.reports.size()
-		current.physical.pending={"human":row.human.duplicate(true),"reports":stored.slice(offset,offset+int(row.cpu)).duplicate(true)}
+		current.physical.pending=_earned_dynasty_pending_witness(current,row.human,stored.slice(offset,offset+int(row.cpu)))
 		var plan:=_earned_dynasty_playoff_plan(current)
 		if plan.is_empty() or plan.has("fixture"): return null
 		current=plan.candidate
@@ -4279,7 +4334,7 @@ static func _earned_dynasty_replay_playoffs(start: SeasonState,source: Dictionar
 
 static func _earned_dynasty_regular_pending(pending: Dictionary,round: int) -> bool:
 	var id: int=round*3
-	if not Codec.keys(pending,["human","reports"]) or not pending.human is Array or pending.human.size()!=13 \
+	if not _earned_dynasty_pending_fields(pending) or not pending.human is Array or pending.human.size()!=13 \
 			or not Codec.whole(pending.human[0],id,id) or not pending.reports is Array \
 			or pending.reports.size()>(5 if round==9 else 2): return false
 	for i: int in pending.reports.size():
@@ -4334,7 +4389,7 @@ static func _earned_dynasty_replay_regular(start: SeasonState,source: Dictionary
 	var stored: Array=source.dynasty.physical.reports
 	for row: Dictionary in source.dynasty_regular:
 		var offset: int=current.physical.reports.size()
-		current.physical.pending={"human":row.human.duplicate(true),"reports":stored.slice(offset,offset+int(row.cpu)).duplicate(true)}
+		current.physical.pending=_earned_dynasty_pending_witness(current,row.human,stored.slice(offset,offset+int(row.cpu)))
 		var plan:=_earned_dynasty_regular_plan(current)
 		if plan.is_empty() or plan.has("fixture"): return null
 		current=plan.candidate
@@ -4362,7 +4417,7 @@ static func _earned_dynasty_home_plan(season: SeasonState) -> Dictionary:
 	return plan if not plan.has("error") and plan.get("fixture") is Dictionary and plan.fixture.get("id")==4 else {}
 
 static func _earned_dynasty_opening_pending(pending: Dictionary) -> bool:
-	if not Codec.keys(pending,["human","reports"]) or not pending.human is Array or pending.human.size()!=13 \
+	if not _earned_dynasty_pending_fields(pending) or not pending.human is Array or pending.human.size()!=13 \
 			or not Codec.whole(pending.human[0],0,0) or not pending.reports is Array or pending.reports.size()>2: return false
 	for i: int in pending.reports.size():
 		var row: Variant=pending.reports[i]
@@ -4442,9 +4497,11 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 			owner.workshop_chair_purchase=chair
 			var balance: int=Owner.WorkshopPurchase.available_balance(owner)
 			var drafted: bool=source.dynasty_third.has("workshop_layout") or not source.dynasty_inherited_layout.is_empty()
+			var applied: bool=source.dynasty_third.has("workshop_applied") or not source.dynasty_inherited_application.is_empty()
 			workshop={"balance":balance,"owned":not chair.is_empty(),"price":Owner.WorkshopPurchase.PRICE,
 				"can_buy":chair.is_empty() and balance>=Owner.WorkshopPurchase.PRICE,
-				"drafted":drafted,"can_draft":not chair.is_empty() and not drafted}
+				"drafted":drafted,"can_draft":not chair.is_empty() and not drafted,"applied":applied,
+				"can_apply":drafted and not applied and owner.ordinal<ClubCareer.MAX_RUNS}
 		return {"bytes":expected.duplicate(),"state":state,"ordinal":source.dynasty_compact_ordinal,
 			"picks":third.picks.duplicate(),"credits":int(close.common.aggregate.currency)-(0 if chair.is_empty() else Owner.WorkshopPurchase.PRICE),
 			"workshop":workshop,
@@ -4862,6 +4919,43 @@ static func save_installed_earned_dynasty_workshop_layout(app: Variant) -> Dicti
 	return _bind_installed_earned_dynasty_third(staged.bytes,prior,current) if saved else {}
 
 
+# Apply is free and next-season only. The exact paid ledger authorizes a
+# single frozen receiver; no claim or arbitrary layout comes from the menu.
+static func apply_installed_earned_dynasty_workshop_layout(app: Variant) -> Dictionary:
+	if not _installed_dugout_d1_entry_app(app) or app.season!=null \
+		or not app.installed_dugout_d1_draft.get("dynasty_closed",false): return {}
+	var expected: PackedByteArray=app.saved_bytes
+	var source:=_bound_installed_dugout_d1(expected,true)
+	if source.is_empty() or not source.dynasty_third.has("close") \
+		or source.dynasty_third.has("workshop_applied") or not source.dynasty_inherited_application.is_empty(): return {}
+	var prior: Dictionary=_installed_dugout_d1_bound.duplicate()
+	var first: SeasonState=prior.dynasty
+	var current: SeasonState=prior.dynasty_third
+	var chair: Dictionary=source.dynasty_third.get("workshop_chair",source.dynasty_inherited_chair)
+	var layout: Dictionary=source.dynasty_third.get("workshop_layout",source.dynasty_inherited_layout)
+	var seed_value: int=int(first.career.start_basis.genesis.genesis.seed)
+	var application:=_earned_dynasty_workshop_application(source.dynasty_third.close,seed_value,current,chair,layout)
+	if application.is_empty(): return {}
+	var value:=_earned_dynasty_compact_head(Owner._bytes_value(expected))
+	if value.is_empty(): return {}
+	var wire:=_earned_dynasty_compact_wire(value)
+	if not Codec.same(wire,source.dynasty_third): return {}
+	wire.workshop_applied=application
+	var staged:=_native_materialize(value)
+	if staged.is_empty() or _earned_dynasty_compact_head(staged.value).is_empty(): return {}
+	var unchanged:=_earned_dynasty_compact_wire(staged.value).duplicate()
+	if not Codec.same(unchanged.workshop_applied,application): return {}
+	unchanged.erase("workshop_applied")
+	if not Codec.same(unchanged,source.dynasty_third): return {}
+	var again:=_bound_installed_dugout_d1(expected,true)
+	if again.is_empty() or again.pages!=source.pages or again.pin!=source.pin \
+		or not Codec.same(again.dynasty_compact_history,source.dynasty_compact_history): return {}
+	saving=true
+	var saved: bool=_write_exact_bytes(staged.bytes,expected)
+	saving=false
+	return _bind_installed_earned_dynasty_third(staged.bytes,prior,current) if saved else {}
+
+
 static func _earned_dynasty_second_source(app: Variant) -> Dictionary:
 	if not _installed_dugout_d1_entry_app(app) or app.season!=null \
 			or not app.installed_dugout_d1_draft.get("dynasty_closed",false): return {}
@@ -4964,8 +5058,9 @@ static func _earned_dynasty_later_source(app: Variant) -> Dictionary:
 
 static func _installed_earned_dynasty_later_plan(source: Dictionary) -> Dictionary:
 	var previous: SeasonState=_installed_dugout_d1_bound.dynasty_third
+	var applied: Dictionary=source.dynasty_third.get("workshop_applied",source.dynasty_inherited_application)
 	return _earned_dynasty_carried_plan(_installed_dugout_d1_bound.dynasty,previous,source.dynasty_third.close, \
-		int(source.dynasty_compact_ordinal)+1)
+		int(source.dynasty_compact_ordinal)+1,applied)
 
 
 static func _start_installed_earned_dynasty_later(app: Variant) -> Dictionary:
@@ -5228,7 +5323,8 @@ static func _open_installed_earned_dynasty(app: Variant,source: Dictionary,expec
 	if not carried and bound.round_index==1 and (fixture.get("home")!=0 or fixture.get("away")!=4): return false
 	var state: MatchState=Adapter.DynastyFixtures.match_for(live,fixture)
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,live)
-	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence(): return false
+	if state==null or field==null or not Codec.same(state.stadium,Owner.WorkshopApply.fixture(live,fixture)) \
+		or not state.sure_shot.enable_current_evidence(): return false
 	app.season=live
 	app._fixture_id=int(fixture.id)
 	app._result_recorded=false
@@ -5242,6 +5338,20 @@ static func _open_installed_earned_dynasty(app: Variant,source: Dictionary,expec
 static func installed_earned_dynasty_match_bound(app: Variant) -> bool:
 	return _installed_dugout_d1_play.get("dynasty",false) and installed_dugout_d1_match_bound(app)
 
+
+static func installed_earned_dynasty_field_mounted(app: Variant) -> bool:
+	if not installed_earned_dynasty_match_bound(app): return false
+	var lab: PitchBatLab=app.lab
+	var stadium: Dictionary=lab._match_state.stadium
+	if stadium.is_empty(): return true
+	if not lab._player_home or not Codec.same(lab.get_meta("stadium_snapshot",{}),stadium): return false
+	var property: Variant=lab.get_meta("stadium_property",null)
+	if not is_instance_valid(property) or not property is StadiumPropertyGeometry \
+		or not property.objects.has(stadium.layout.receiver): return false
+	var receiver: StadiumPitchReceiver=property.get_node_or_null("PitchReceiverPresentation")
+	return receiver!=null and receiver.chair==property.objects[stadium.layout.receiver] \
+		and lab._pitch_actor.receiver_router==receiver.route
+
 static func _save_installed_earned_dynasty(app: Variant,source: Dictionary,expected: PackedByteArray) -> Dictionary:
 	var carried: bool=not source.dynasty_next.is_empty()
 	var original:=_installed_active_dynasty_image(source)
@@ -5254,7 +5364,7 @@ static func _save_installed_earned_dynasty(app: Variant,source: Dictionary,expec
 	if human.size()!=13 or not installed_earned_dynasty_match_bound(app): return {}
 	var candidate: SeasonState=previous.fork_live()
 	if candidate==null: return {}
-	candidate.physical.pending={"human":human.duplicate(true),"reports":[]}
+	candidate.physical.pending=_earned_dynasty_pending_witness(candidate,human,[])
 	var postseason: bool=candidate.phase in [SeasonState.Phase.SEMIFINAL,SeasonState.Phase.FINAL]
 	var plan:=_earned_dynasty_playoff_plan(candidate) if postseason else (_earned_dynasty_regular_plan(candidate) if later else _earned_dynasty_opening_plan(candidate))
 	if plan.is_empty(): return {}
@@ -5293,7 +5403,8 @@ static func installed_dugout_d1_match_bound(app: Variant) -> bool:
 		and season.pending_fixture().get("id")==bind.fixture and lab._player_home==(int(season.pending_fixture().get("home",-1))==0) \
 		and ClubCareer.same(lab._match_state.league_rules,season.league_rules) \
 		and lab._match_state.pitch_catalog==season.build.pitch_catalog_signature() \
-		and lab._match_state.stadium.is_empty() and season.physical.pending.is_empty()
+		and (Codec.same(lab._match_state.stadium,Owner.WorkshopApply.fixture(season,season.pending_fixture())) \
+			if bind.get("dynasty",false) else lab._match_state.stadium.is_empty()) and season.physical.pending.is_empty()
 
 static func save_installed_dugout_d1_managed(app: Variant) -> Dictionary:
 	if not installed_dugout_d1_match_bound(app): return {}
