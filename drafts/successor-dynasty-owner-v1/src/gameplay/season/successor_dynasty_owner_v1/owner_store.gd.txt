@@ -5255,8 +5255,8 @@ static func start_installed_dugout_d1_cpu(app: Variant) -> bool:
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,plan)
 	if state==null or field==null: return false
 	var worker: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/earned_dynasty_fast_npc.gd") if dynasty else null
-	# The earlier worker has only qualified the older save dialects.
-	var accelerated: bool=worker!=null and round_plan.source.dynasty_third.is_empty() and worker.scoped(round_plan)
+	# The worker's scope admits only explicitly qualified journal stages.
+	var accelerated: bool=worker!=null and worker.scoped(round_plan)
 	var runner: Node=worker.new() if accelerated else (Adapter.DynastyRunner.new() if dynasty else Adapter.OrdinaryRunner.new())
 	_installed_dugout_d1_cpu={"app":weakref(app),"runner":weakref(runner),"bytes":expected.duplicate(),"fixture":int(fixture.id),
 		"count":round_plan.count,"dynasty":dynasty}

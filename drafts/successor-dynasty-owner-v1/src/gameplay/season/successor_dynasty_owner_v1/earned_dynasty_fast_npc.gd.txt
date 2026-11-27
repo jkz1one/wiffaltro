@@ -34,7 +34,7 @@ static func _wire(data: Dictionary) -> String:
 static func _valid(job: Variant) -> bool:
 	if not Store.Codec.keys(job,["fixture","nonce","revision","request"]) or not job.fixture is String \
 			or not job.fixture.is_valid_int() or str(int(job.fixture))!=job.fixture: return false
-	return int(job.fixture) in [4,5] and Store.BaseArchive._digest(job.nonce) \
+	return int(job.fixture) in [1,2,4,5] and Store.BaseArchive._digest(job.nonce) \
 		and Store.BaseArchive._digest(job.revision) and Store.BaseArchive._digest(job.request) \
 		and job.nonce!=job.revision and job.nonce!=job.request
 
@@ -50,10 +50,17 @@ static func parse(args: PackedStringArray) -> Dictionary:
 	return job if _valid(job) and _wire(job)==decoded else {}
 
 static func scoped(round_plan: Dictionary) -> bool:
-	# The installed first and carried seasons both passed Round 2 parity.
-	# Other rounds still use the same in-process physical engine.
-	return _parent() and round_plan.get("dynasty",false) \
-		and round_plan.get("round")==1 and round_plan.projection.get("fixture",{}).get("id") in [4,5]
+	if not _parent() or not round_plan.get("dynasty",false): return false
+	var source: Dictionary=round_plan.source
+	var fixture_id: Variant=round_plan.projection.get("fixture",{}).get("id")
+	if source.dynasty_third.is_empty():
+		# The installed first and second seasons keep the proved Round 2 path.
+		return round_plan.get("round")==1 and fixture_id in [4,5]
+	# Only v23 Opening Day is admitted by the separate downstream parity
+	# tests. Do not infer qualification for other rounds or the older v21.
+	return source.dynasty_compact_ordinal>=4 and not source.dynasty_compact_history.is_empty() \
+		and round_plan.get("round")==0 and round_plan.count in [0,1] \
+		and fixture_id==1+round_plan.count
 
 func start(expected: PackedByteArray,round_plan: Dictionary) -> bool:
 	var exe: String=OS.get_executable_path()
@@ -155,9 +162,14 @@ func worker(job: Dictionary) -> void:
 	if source.is_empty() or Store.BaseArchive._hash(source.bytes)!=job.revision or source.tier!=3 \
 			or source.dynasty.is_empty():
 		get_tree().quit(8); return
+	var compact: bool=not source.dynasty_third.is_empty()
+	var later_opener: bool=compact and source.dynasty_compact_ordinal>=4 \
+		and not source.dynasty_compact_history.is_empty() and int(job.fixture) in [1,2]
+	if compact!=later_opener or (not compact and int(job.fixture) not in [4,5]):
+		get_tree().quit(8); return
 	var carried: bool=not source.dynasty_next.is_empty()
-	var image: Dictionary=source.dynasty_next.season if carried else source.dynasty
-	if image.state.get("round_index")!=1:
+	var image: Dictionary=Store._installed_active_dynasty_image(source)
+	if image.state.get("round_index")!=(0 if later_opener else 1):
 		get_tree().quit(8); return
 	# The live parent already verified the three archived pages and exact
 	# career before launching. This process cannot become that owner or save.
@@ -169,7 +181,15 @@ func worker(job: Dictionary) -> void:
 			get_tree().quit(8); return
 		assets.append(item)
 	var season: SeasonState
-	if carried:
+	if later_opener:
+		var first:=Store.Adapter.restore("dynasty",source.dynasty)
+		if not Store._earned_dynasty_close_boundary(first):
+			get_tree().quit(8); return
+		var birth:=Store._earned_dynasty_native_active_plan(source,first,null)
+		season=Store._earned_dynasty_third_current(birth,source.dynasty_third)
+		if season==null or season.physical.pending.get("reports",[]).size()!=int(job.fixture)-1:
+			get_tree().quit(8); return
+	elif carried:
 		# Only the parked terminal season is hydrated. The active carried
 		# season is reconstructed through the existing verified transition.
 		var parked: SeasonState=Store.Adapter.restore("dynasty",source.dynasty)
@@ -179,7 +199,7 @@ func worker(job: Dictionary) -> void:
 	else:
 		var ordinary:=Store._installed_dugout_d3_local_draft(source.current.ordinary)
 		season=Store._installed_earned_dynasty_draft(source,ordinary)
-	var plan:=Store._earned_dynasty_regular_plan(season)
+	var plan:=Store._earned_dynasty_opening_plan(season) if later_opener else Store._earned_dynasty_regular_plan(season)
 	var fixtures: Script=Store.Adapter.DynastyFixtures
 	if plan.is_empty() or not plan.has("fixture") or str(int(plan.fixture.id))!=job.fixture \
 			or fixtures.request_key(plan.candidate,plan.fixture)!=job.request:
@@ -196,7 +216,8 @@ func worker(job: Dictionary) -> void:
 
 func _emit_report(report: Dictionary,job: Dictionary,source: Dictionary,_assets: Array[Resource]) -> void:
 	var again:=Store._installed_dugout_d1_source(true)
-	if not _worker() or again.is_empty() or again.bytes!=source.bytes or again.pages!=source.pages:
+	if not _worker() or again.is_empty() or again.bytes!=source.bytes or again.pages!=source.pages \
+			or not Store.Codec.same(again.dynasty_compact_history,source.dynasty_compact_history):
 		get_tree().quit(8); return
 	var json: String=_wire(report)
 	var length: int=json.to_utf8_buffer().size()
