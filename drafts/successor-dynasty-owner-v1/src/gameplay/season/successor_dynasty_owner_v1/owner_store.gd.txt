@@ -3598,32 +3598,49 @@ static func _earned_dynasty_third_verified(source: Dictionary, first: SeasonStat
 		second: SeasonState) -> Dictionary:
 	if not _earned_dynasty_close_boundary(first) or not _earned_dynasty_close_boundary(second) \
 			or not source.dynasty_next.has("close"): return {}
-	var close: Dictionary=source.dynasty_next.close
+	return _earned_dynasty_carried_plan(first,second,source.dynasty_next.close,3)
+
+
+# All carried seasons use the same departure, ability and upkeep policies.
+# A later host must authenticate the paid predecessor before invoking this
+# pure planner. Nothing here reads a path, writes a head or grants a start.
+static func _earned_dynasty_carried_plan(first: SeasonState,previous: SeasonState,
+		close: Dictionary,ordinal: int) -> Dictionary:
+	if not Codec.whole(ordinal,3,ClubCareer.MAX_RUNS) or not _earned_dynasty_close_boundary(first) \
+			or not _earned_dynasty_close_boundary(previous) \
+			or not Codec.whole(previous._dynasty_start.get("season_ordinal"),ordinal-1,ordinal-1) \
+			or not Codec.keys(close,["common","local","ledger","workshop"]) \
+			or not close.local is Dictionary or not close.ledger is Dictionary \
+			or not close.common is Dictionary or not close.workshop is Dictionary \
+			or not Codec.whole(close.local.get("ordinal"),ordinal-1,ordinal-1): return {}
+	if ordinal>3 and close.local.get("session_sha256")!=Owner.Life.digest(Adapter.capture("dynasty",previous)):
+		return {}
 	var carrier: RefCounted=Owner._new()
-	carrier.active="dynasty";carrier.session=second;carrier.ordinal=2;carrier.status="closed"
+	carrier.active="dynasty";carrier.session=previous;carrier.ordinal=ordinal-1;carrier.status="closed"
 	carrier.birth_seed=int(first.career.start_basis.genesis.genesis.seed)
 	carrier.last_close=close.local.duplicate(true)
 	carrier.ledger=close.ledger.duplicate(true)
 	carrier.common=close.common.duplicate(true)
 	carrier.workshop_close_history=close.workshop.duplicate(true)
-	var binding:=Owner.Common.dynasty_carry_binding(carrier)
+	var binding:=Owner.Common.dynasty_carry_binding(carrier,ordinal>3)
 	if binding.is_empty(): return {}
 	if not Owner.Life.overflow(carrier.last_close.profiles["club:0"]).is_empty():
 		return {"blocked":"Choose which Fielding ability to keep before starting the next season."}
 	var seed_value: int=("installed-dynasty:next:"+str(close.local.id)).hash() & 0x7fffffff
-	if not Owner.Life.propose(carrier,seed_value) or not Owner.Common.dynasty_carry_binding_matches(carrier,binding): return {}
+	if not Owner.Life.propose(carrier,seed_value) or not Owner.Common.dynasty_carry_binding_matches(carrier,binding,ordinal>3): return {}
 	var prepared: Dictionary=Owner.Life.preview(carrier)
+	var access: Array=previous.player_access if ordinal==3 else Owner.Life.rights(carrier).player_access
 	if prepared.size()!=6 or not Owner.Life.advance(carrier): return {}
 	var next: SeasonState=carrier.session
-	if not Adapter.scope("dynasty",next) or carrier.ordinal!=3 or next.phase!=SeasonState.Phase.REGULAR \
-			or not Codec.whole(next._dynasty_start.get("season_ordinal"),3,3) or next.round_index!=0 \
+	if not Adapter.scope("dynasty",next) or carrier.ordinal!=ordinal or next.phase!=SeasonState.Phase.REGULAR \
+			or not Codec.whole(next._dynasty_start.get("season_ordinal"),ordinal,ordinal) or next.round_index!=0 \
 			or next.cash()!=0 or not next.results.is_empty() or not next.player_results.is_empty() \
 			or next.physical.cursor!=0 or not next.physical.reports.is_empty() or not next.physical.pending.is_empty() \
-			or next.pending_fixture().get("id")!=0 or not Codec.same(second.picks,next.picks) \
-			or not Codec.same(second.player_access,next.player_access) \
-			or not Codec.same(second.career._assets,next.career._assets) \
-			or not Codec.same(second.career._pennants,next.career._pennants) \
-			or not Codec.same(second.career._plaques,next.career._plaques) \
+			or next.pending_fixture().get("id")!=0 or not Codec.same(previous.picks,next.picks) \
+			or not Codec.same(access,next.player_access) \
+			or not Codec.same(previous.career._assets,next.career._assets) \
+			or not Codec.same(previous.career._pennants,next.career._pennants) \
+			or not Codec.same(previous.career._plaques,next.career._plaques) \
 			or not Codec.same(carrier.common,close.common) or not Codec.same(carrier.ledger,close.ledger) \
 			or not Codec.same(carrier.workshop_close_history,close.workshop): return {}
 	var profiles: Dictionary={}
@@ -3632,7 +3649,7 @@ static func _earned_dynasty_third_verified(source: Dictionary, first: SeasonStat
 	for i: int in range(6):
 		var club: String="club:%d"%i
 		var profile: Dictionary=prepared[club].profile
-		if not Codec.same(second.teams[i].roster,next.teams[i].roster) \
+		if not Codec.same(previous.teams[i].roster,next.teams[i].roster) \
 				or not Codec.same(profile.roster,close.local.profiles[club].roster) \
 				or not Codec.same(profile.exotic_rights,close.local.profiles[club].exotic_rights): return {}
 		profiles[club]=profile
@@ -3645,8 +3662,8 @@ static func _earned_dynasty_third_verified(source: Dictionary, first: SeasonStat
 	var body:=Adapter.capture("dynasty",next)
 	var tx: Dictionary=carrier.last_transition
 	if body.is_empty() or tx.profiles_after!=Owner.Life.digest(profiles): return {}
-	return {"season":next,"previous":second,"close_prior":close,"birth_seed":carrier.birth_seed,
-		"stat_loss":stat_loss,"pitch_loss":pitch_loss,"wire":{"season":body,"event":{"id":tx.id,"from":2,"to":3,"seed":seed_value,
+	return {"season":next,"previous":previous,"close_prior":close,"birth_seed":carrier.birth_seed,
+		"stat_loss":stat_loss,"pitch_loss":pitch_loss,"wire":{"season":body,"event":{"id":tx.id,"from":ordinal-1,"to":ordinal,"seed":seed_value,
 		"binding":binding,"before":Owner.Life.digest(close.local.profiles),"after":tx.profiles_after,
 		"destination":Owner.Life.digest(body)}}}
 
@@ -3691,6 +3708,58 @@ static func _earned_dynasty_third_head(value: Variant) -> Dictionary:
 				or not third.close.common is Dictionary or not third.close.local is Dictionary \
 				or not third.close.ledger is Dictionary or not third.close.workshop is Dictionary: return {}
 	return value
+
+# Later carried birth framing is intentionally detached in this increment.
+# v21/v22 remain the only live readers; v23 links to a sealed predecessor
+# rather than embedding it or treating the proposed destination as authority.
+static func _earned_dynasty_later_birth_frame(payload: PackedByteArray,origin: Dictionary,plan: Dictionary) -> Dictionary:
+	if payload.is_empty() or payload.size()>MAX_BYTES or not plan.has("wire"): return {}
+	var ordinal: int=int(plan.wire.event.get("to",0))
+	if not Codec.whole(ordinal,4,ClubCareer.MAX_RUNS) \
+			or not Codec.whole(plan.wire.event.get("from"),ordinal-1,ordinal-1) \
+			or not Codec.keys(origin,["kind","version","head","current"]) \
+			or origin.kind!=INSTALLED_DUGOUT_D1_KIND \
+			or not origin.current is Dictionary or not Codec.whole(origin.current.get("ordinal"),ordinal-1,ordinal-1) \
+			or not Codec.whole(origin.version,22 if ordinal==4 else 23,22 if ordinal==4 else 23): return {}
+	if not Codec.same(Owner._bytes_value(payload),origin): return {}
+	var data: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":23,"head":origin.head,
+		"current":{"active":"dynasty","ordinal":ordinal,"carried":plan.wire,
+			"archive":[{"ordinal":ordinal-1,"format":int(origin.version),
+				"sha256":BaseArchive._hash(payload),"bytes":payload.size()}]}}
+	var staged:=_native_materialize(data)
+	if staged.is_empty() or not Codec.same(staged.value.current.carried,plan.wire): return {}
+	return {"encoded":staged.bytes,"staged":staged.value,"season":plan.season}
+
+
+# A verified v22 terminal, plus the unchanged v20 chain and replayed first two
+# seasons, is the only way to derive the first v23 birth during qualification.
+static func _earned_dynasty_fourth_stage(payload: PackedByteArray, source: Dictionary,
+		first: SeasonState,second: SeasonState) -> Dictionary:
+	var head:=_earned_dynasty_third_head(Owner._bytes_value(payload))
+	if head.is_empty() or head.version!=22 or not Codec.same(head.head,source.get("head",{})): return {}
+	var previous:=_earned_dynasty_third_current(_earned_dynasty_third_verified(source,first,second),head.current.third)
+	if previous==null: return {}
+	var plan:=_earned_dynasty_carried_plan(first,previous,head.current.third.close,4)
+	return _earned_dynasty_later_birth_frame(payload,head,plan)
+
+
+# Detect stale or mismatched predecessor links before the full authenticated
+# replay. Construction and admission independently derive the same birth.
+static func _earned_dynasty_fourth_restore(value: Variant,payload: PackedByteArray,source: Dictionary,
+		first: SeasonState,second: SeasonState) -> SeasonState:
+	if not Codec.keys(value,["kind","version","head","current"]) \
+			or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,23,23) \
+			or not Codec.keys(value.current,["active","ordinal","carried","archive"]) \
+			or value.current.active!="dynasty" or not Codec.whole(value.current.ordinal,4,4) \
+			or not value.current.archive is Array or value.current.archive.size()!=1: return null
+	var link: Variant=value.current.archive[0]
+	if not Codec.keys(link,["ordinal","format","sha256","bytes"]) \
+			or not Codec.whole(link.ordinal,3,3) or not Codec.whole(link.format,22,22) \
+			or not Codec.whole(link.bytes,1,MAX_BYTES) or link.bytes!=payload.size() \
+			or link.sha256!=BaseArchive._hash(payload): return null
+	var replay:=_earned_dynasty_fourth_stage(payload,source,first,second)
+	return replay.season if not replay.is_empty() and Codec.same(replay.staged,value) else null
+
 
 static func _earned_dynasty_third_prior(payload: PackedByteArray) -> Dictionary:
 	if payload.is_empty() or payload.size()>MAX_BYTES: return {}

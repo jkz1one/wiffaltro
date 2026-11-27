@@ -781,10 +781,11 @@ static func dynasty_next_supported(owner) -> bool:
 # Read-only boundary for a replay-verified Dynasty Close. The generic legacy
 # gate stays intact. Compact common awards belong to this separate receipt;
 # they are never inserted into the old local career or its carried rights.
-static func dynasty_carry_binding(owner) -> Dictionary:
+static func dynasty_carry_binding(owner,dual_legend_custody: bool=false) -> Dictionary:
 	if owner.active!="dynasty" or owner.status!="closed" or owner.session==null \
 			or not C.whole(owner.ordinal,2,ClubCareer.MAX_RUNS-1) \
-			or owner.session._dynasty_start.get("season_ordinal")!=owner.ordinal: return {}
+			or owner.session._dynasty_start.get("season_ordinal")!=owner.ordinal \
+			or (dual_legend_custody and owner.ordinal<3): return {}
 	var common: Dictionary=owner.common
 	var aggregate: Variant=common.get("aggregate")
 	var row: Variant=common.get("last_fold")
@@ -802,21 +803,34 @@ static func dynasty_carry_binding(owner) -> Dictionary:
 	var aggregate_sha: String=Life.digest(aggregate)
 	if row.aggregate_sha256!=aggregate_sha: return {}
 	var local: Dictionary=Life.rights(owner)
-	if not C.same(local.starts,aggregate.starts) or not C.same(local.player_access,aggregate.player_access) \
-			or not C.same(aggregate.legacy_plaques,owner.ledger.plaques): return {}
+	if not C.same(local.starts,aggregate.starts) or not C.same(local.player_access,aggregate.player_access): return {}
+	var local_plaques: Dictionary=owner.ledger.plaques
+	if dual_legend_custody:
+		# The two reducers can now award the same player in their different
+		# schemas. No row is converted, merged, guessed, or removed.
+		for id: String in aggregate.legacy_plaques:
+			if not C.same(aggregate.legacy_plaques[id],local_plaques.get(id)): return {}
+		for id: String in local_plaques:
+			if not aggregate.legacy_plaques.has(id) and not aggregate.plaques.has(id): return {}
+	elif not C.same(aggregate.legacy_plaques,local_plaques): return {}
 	var profile: Dictionary=close.get("profiles",{}).get("club:0",{})
 	for id: String in aggregate.exotic_rights:
 		if id not in profile.get("exotic_rights",[]): return {}
-	return {"kind":"dynasty-common-carry-v1","lineage":lineage,"from":owner.ordinal,"to":owner.ordinal+1,
+	var result: Dictionary={"kind":"dynasty-common-carry-v2" if dual_legend_custody else "dynasty-common-carry-v1",
+		"lineage":lineage,"from":owner.ordinal,"to":owner.ordinal+1,
 		"close":close_id,"close_sha256":Life.digest(close),"source":row.source,"sequence":common.sequence,
 		"aggregate_sha256":aggregate_sha,"local_rights_sha256":Life.digest(local),
 		"pennants":aggregate.pennants.duplicate(true),"plaques":aggregate.plaques.duplicate(true)}
+	if dual_legend_custody:
+		result.local_legend_ledger_sha256=Life.digest(local_plaques)
+		result.legacy_plaques_sha256=Life.digest(aggregate.legacy_plaques)
+	return result
 
 # A receipt from a save or a caller is not permission. Compare the entire
 # receipt to one re-derived from the replay-verified predecessor.
-static func dynasty_carry_binding_matches(owner, binding: Variant) -> bool:
+static func dynasty_carry_binding_matches(owner, binding: Variant,dual_legend_custody: bool=false) -> bool:
 	if not binding is Dictionary or binding.is_empty(): return false
-	var canonical:=dynasty_carry_binding(owner)
+	var canonical:=dynasty_carry_binding(owner,dual_legend_custody)
 	return not canonical.is_empty() and C.same(canonical,binding)
 
 static func propose(owner, seed_value: int) -> bool:
