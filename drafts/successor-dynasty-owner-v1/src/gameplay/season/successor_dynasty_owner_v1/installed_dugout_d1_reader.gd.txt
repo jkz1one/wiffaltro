@@ -231,7 +231,10 @@ func worker(job: Dictionary) -> void:
 	if not part.is_empty() and not _split_shape(source):
 		get_tree().quit(8); return
 	var wallets: String=""
-	if source.has("equipment"):
+	if source.has("named_base"):
+		if not part.is_empty() or Store.EarnedNamedBase.replay(source.named_base,source.pages).is_empty():
+			get_tree().quit(8); return
+	elif source.has("equipment"):
 		if not part.is_empty() or Store.EquipmentBase.replay_draft(source.equipment,source.pages[0]).is_empty():
 			get_tree().quit(8); return
 	elif part=="dynasty":

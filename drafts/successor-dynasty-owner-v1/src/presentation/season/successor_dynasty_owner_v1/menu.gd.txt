@@ -636,6 +636,18 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
+	if draft.get("state")=="earnings_draft":
+		_label(_body,"EARNINGS BASE · DRAFT %d / 4"%draft.picks.size(),24)
+		_note("Dugout and Equipment titles kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
+		_note("Equipment title banked: %d Club Credits."%draft.equipment_award)
+		for id: String in draft.picks:
+			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+			_label(_body,player.display_name if player!=null else id,20)
+		for id: String in draft.offers:
+			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_earnings").bind(id,draft.bytes.duplicate()))
+		if draft.picks.size()==4: _note("The Earnings roster is saved.")
+		return
 	if draft.get("state") in ["equipment_draft","equipment_held","equipment_paid"]:
 		var label: String="EQUIPMENT BASE · ROUND %d"%mini(10,int(draft.round)+int(draft.get("state")!="equipment_paid"))
 		if draft.picks.size()<4: label="EQUIPMENT BASE · DRAFT %d / 4"%draft.picks.size()
@@ -661,7 +673,9 @@ func _installed_dugout_d1() -> void:
 			if draft.finish=="semifinal": _note("The Club qualified for the semifinal.")
 			elif draft.finish=="missed": _note("The Club did not qualify for the postseason.")
 			elif draft.finish=="semifinal_exit": _note("The Club was eliminated in the semifinal.")
-			elif draft.finish=="final_champion": _note("The Club won the Equipment championship.")
+			elif draft.finish=="final_champion":
+				_note("The Club won the Equipment championship.")
+				_bound_button(_body,"BANK TITLE AND START EARNINGS",Callable(app,"request_installed_earnings").bind(draft.bytes.duplicate()))
 			elif draft.finish=="final_runner_up": _note("The Club finished as Equipment runner-up.")
 			for row: Dictionary in draft.results:
 				_note("%d–%d · %s at %s"%[int(row.away_runs),int(row.home_runs),SeasonState.TEAM_NAMES[int(row.away)],SeasonState.TEAM_NAMES[int(row.home)]])

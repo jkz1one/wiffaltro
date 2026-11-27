@@ -67,7 +67,9 @@ static var _owner: RefCounted
 static var _owner_raw: Dictionary = {}
 static var _owner_bytes: PackedByteArray = PackedByteArray()
 const EquipmentBase = preload("earned_equipment_base.gd")
+const EarnedNamedBase = preload("earned_named_base.gd")
 static var _installed_equipment_bound: PackedByteArray
+static var _installed_named_base_bound: PackedByteArray
 static var _installed_dugout_d1_bound: Dictionary={}
 static var _installed_dugout_d1_play: Dictionary={}
 static var _installed_dugout_d1_cpu: Dictionary={}
@@ -627,6 +629,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 
 static func _invalidate() -> void:
 	_installed_equipment_bound=PackedByteArray()
+	_installed_named_base_bound=PackedByteArray()
 	_installed_dugout_d1_bound={}
 	_installed_dugout_d1_play={}
 	_installed_dugout_d1_cpu={}
@@ -3179,6 +3182,71 @@ static func start_installed_equipment(owner: RefCounted, expected: PackedByteArr
 	_installed_equipment_bound=body
 	return _installed_equipment_view(body,value,draft)
 
+# The exact admitted CP463 result is the only writer for this bridge.
+# A settled score alone does not award or expose Earnings.
+static func start_installed_earnings(app: Variant, expected: PackedByteArray) -> Dictionary:
+	if saving or _ticket!=null or not is_instance_valid(app) or not _installed_dugout_d1_lane() \
+			or app.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
+			or app.career_owner!=null or app.season!=null or is_instance_valid(app.lab) or app.saved_bytes!=expected:
+		return {}
+	var source:=_bound_installed_equipment(expected,true)
+	if source.is_empty() or EquipmentBase.finish(source.draft)!="final_champion": return {}
+	var staged:=EarnedNamedBase.stage(source.equipment,source.draft,source.pages[0])
+	if staged.is_empty(): return {}
+	var normalized:=_native_materialize(staged.value)
+	if normalized.is_empty(): return {}
+	var draft:=EarnedNamedBase.local_draft(normalized.value)
+	var again:=_installed_dugout_d1_source()
+	if draft==null or again.is_empty() or again.bytes!=expected or again.pages!=source.pages or not _matches(expected): return {}
+	saving=true
+	var kept:=_keep_installed_dugout_d1_page(staged.page)
+	var saved: bool=kept and _installed_dugout_d1_lane() and _matches(expected) and _write_exact_bytes(normalized.bytes,expected)
+	saving=false
+	if not saved: return {}
+	_invalidate()
+	_installed_named_base_bound=normalized.bytes
+	return _installed_named_base_view(normalized.bytes,normalized.value,draft)
+
+static func _installed_named_base_source(body: PackedByteArray,value: Dictionary) -> Dictionary:
+	if body.is_empty() or not EarnedNamedBase._route_value(value) or not _installed_dugout_d1_page_root(false): return {}
+	var head_bytes:=BaseArchive._wire(value.head)
+	var head:=BaseArchive._head(head_bytes)
+	if head.is_empty() or head.ordinal!=3 or head.pages.size()!=2 \
+			or head.pages!=[value.offer.get("origin_page_sha256"),value.offer.get("close_page_sha256")] \
+			or BaseArchive._hash(head_bytes)!=value.offer.get("head_sha256"): return {}
+	var pages: Array[PackedByteArray]=[]
+	for pin: String in head.pages:
+		var path:=_installed_dugout_d1_page_path(pin)
+		if path.is_empty() or not _base_archive_absent(path+".tmp"): return {}
+		var member:=_base_archive_member(path)
+		if member.is_empty() or not member.present or BaseArchive._hash(member.bytes)!=pin: return {}
+		pages.append(member.bytes)
+	return {"bytes":body,"pin":head.pages[1],"pages":pages,"named_base":value}
+
+static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
+	return {"state":"earnings_draft","bytes":body,"picks":draft.picks.duplicate(),"offers":draft.offers(),
+		"credits":int(value.aggregate.currency),"cash":draft.build.cash(),"equipment_award":int(value.receipt.total)}
+
+static func pick_installed_earnings(expected: PackedByteArray,id: String) -> Dictionary:
+	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_named_base_bound \
+			or not _installed_dugout_d1_lane() or not _matches(expected): return {}
+	var source:=_installed_dugout_d1_source()
+	if source.is_empty() or not source.has("named_base") or source.bytes!=expected: return {}
+	var draft:=EarnedNamedBase.local_draft(source.named_base)
+	if draft==null or draft.picks.size()>=4 or not draft.choose_player(id): return {}
+	var value: Dictionary=source.named_base.duplicate(true)
+	value.current=Adapter.capture("ordinary",draft)
+	var materialized:=_native_materialize(value)
+	if value.current.is_empty() or materialized.is_empty(): return {}
+	var again:=_installed_dugout_d1_source()
+	if again.is_empty() or again.bytes!=expected or again.pages!=source.pages or not _matches(expected): return {}
+	saving=true
+	var saved:=_write_exact_bytes(materialized.bytes,expected)
+	saving=false
+	if not saved: return {}
+	_installed_named_base_bound=materialized.bytes
+	return _installed_named_base_view(materialized.bytes,materialized.value,draft)
+
 static func _installed_equipment_source(body: PackedByteArray,value: Dictionary) -> Dictionary:
 	if body.is_empty() or not value.get("head") is Dictionary or not value.get("offer") is Dictionary \
 			or not _installed_dugout_d1_page_root(false): return {}
@@ -3263,6 +3331,8 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 	var decoded: Variant=Owner._bytes_value(before)
 	if decoded is Dictionary and decoded.get("kind")==EquipmentBase.DRAFT_KIND:
 		return _installed_equipment_source(before,decoded)
+	if decoded is Dictionary and decoded.get("kind")==EarnedNamedBase.KIND:
+		return _installed_named_base_source(before,decoded)
 	var parts:=_installed_dugout_d1_parts(decoded)
 	var third: Dictionary={}
 	var history: Array[Dictionary]=[]
@@ -4779,6 +4849,12 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 			or not reader.verified_revision(expected): return {}
 	var source:=_installed_dugout_d1_source()
 	if source.is_empty() or source.bytes!=expected: return {}
+	if source.has("named_base"):
+		var named_draft:=EarnedNamedBase.local_draft(source.named_base)
+		if named_draft==null or not _matches(expected): return {}
+		_invalidate()
+		_installed_named_base_bound=expected.duplicate()
+		return _installed_named_base_view(expected,source.named_base,named_draft)
 	if source.has("equipment"):
 		var equipment_draft:=EquipmentBase.local_draft(source.equipment,true)
 		if equipment_draft==null or not _matches(expected): return {}

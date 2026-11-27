@@ -1023,6 +1023,31 @@ func request_installed_equipment() -> void:
 	_lifecycle_dialog.popup_centered(Vector2i(640,240))
 	_lifecycle_dialog.get_cancel_button().grab_focus()
 
+func _installed_earnings_entry_ready(expected: PackedByteArray) -> bool:
+	return not _busy and not installed_dugout_d1_reading() and _lifecycle_action.is_empty() \
+		and installed_dugout_d1_draft.get("state")=="equipment_paid" \
+		and installed_dugout_d1_draft.get("finish")=="final_champion" and saved_bytes==expected \
+		and menu!=null and menu.visible and menu.page=="home"
+
+func request_installed_earnings(expected: PackedByteArray) -> void:
+	if not _installed_earnings_entry_ready(expected): return
+	_lifecycle_action="installed_earnings"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Bank the Equipment title and start Earnings?"
+	_lifecycle_dialog.dialog_text="The completed Equipment season is kept in your career. Its championship awards are banked once. Start Earnings Base with a new four-player draft and fresh Season Cash."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+func pick_installed_earnings(id: String,expected: PackedByteArray) -> void:
+	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state")!="earnings_draft" \
+			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home": return
+	_busy=true
+	var view:=Store.pick_installed_earnings(expected,id)
+	_busy=false
+	if view.is_empty(): notice="That pick was not saved. Continue before retrying."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
 func pick_installed_equipment(id: String,expected: PackedByteArray) -> void:
 	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state")!="equipment_draft" \
 			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home": return
@@ -1059,7 +1084,8 @@ func _continue_installed_dugout_d1() -> bool:
 	var expected:=Store.raw()
 	var value: Dictionary=Owner._bytes_value(expected)
 	var equipment: bool=value.get("kind")==Store.EquipmentBase.DRAFT_KIND
-	if not equipment and value.get("kind")!=Store.INSTALLED_DUGOUT_D1_KIND: return false
+	var earnings: bool=value.get("kind")==Store.EarnedNamedBase.KIND
+	if not equipment and not earnings and value.get("kind")!=Store.INSTALLED_DUGOUT_D1_KIND: return false
 	_installed_dugout_d1_epoch+=1
 	var reader:=InstalledD1Reader.new()
 	_installed_dugout_d1_reader=reader
@@ -1067,7 +1093,8 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var parts:=Store._installed_dugout_d1_parts(value)
 	var tier: int=int(parts.get("tier",1))
-	if equipment: notice="Checking your Equipment draft and Dugout championship. Nothing is being written."
+	if earnings: notice="Checking the Equipment and Dugout titles and your Earnings draft. Nothing is being written."
+	elif equipment: notice="Checking your Equipment draft and Dugout championship. Nothing is being written."
 	else: notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if not parts.get("dynasty",{}).is_empty() or not Store._earned_dynasty_compact_head(value).is_empty() else \
 		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
@@ -2570,6 +2597,17 @@ func _confirm_lifecycle() -> void:
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()
 		_complete_installed_dugout_d1(before)
+		return
+	if action=="installed_earnings":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		if not _installed_earnings_entry_ready(before): return
+		_busy=true
+		var view:=Store.start_installed_earnings(self,before)
+		_busy=false
+		if view.is_empty(): notice="The Earnings draft was not confirmed. Your saved Equipment season is unchanged."
+		else: _open_installed_dugout_d1(view)
+		show_season()
 		return
 	if action=="installed_equipment":
 		var before:=_lifecycle_bytes.duplicate()
