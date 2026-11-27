@@ -48,6 +48,7 @@ static func draft_value(staged: Dictionary) -> Dictionary:
 	var value: Dictionary = {"kind": DRAFT_KIND, "version": 1, "head": staged.head,
 		"offer": staged.offer, "current": staged.current, "aggregate": staged.aggregate}
 	if staged.has("opening_paid"): value.opening_paid = staged.opening_paid
+	if staged.has("opening_shop"): value.opening_shop = staged.opening_shop
 	return value
 
 # Cold reconstruction is intentionally separate from file or Store authority.
@@ -56,7 +57,13 @@ static func draft_value(staged: Dictionary) -> Dictionary:
 static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not value is Dictionary: return {}
 	var paid: bool = value.has("opening_paid")
-	if not Archive.C.keys(value, ["kind", "version", "head", "offer", "current", "aggregate"] + (["opening_paid"] if paid else [])) \
+	var has_shop: bool = value.has("opening_shop")
+	var fields: Array = ["kind", "version", "head", "offer", "current", "aggregate"]
+	if paid: fields.append("opening_paid")
+	if has_shop:
+		if not paid or not value.opening_shop is Array or value.opening_shop.is_empty() or value.opening_shop.size() > 128: return {}
+		fields.append("opening_shop")
+	if not Archive.C.keys(value, fields) \
 		or value.kind != DRAFT_KIND or not Archive.C.whole(value.version, 1, 1) \
 		or not value.head is Dictionary or not value.offer is Dictionary or not value.current is Dictionary \
 		or page.is_empty() or page.size() > Archive.MAX_PAGE:
@@ -100,6 +107,12 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 			if projection.has("fixture"): return {}
 			draft = projection.candidate
 			computed.opening_paid = witness.duplicate(true)
+			if has_shop:
+				for command: Variant in value.opening_shop:
+					if not command is Dictionary: return {}
+					draft = shop_step(draft, witness, command)
+					if draft == null: return {}
+				computed.opening_shop = value.opening_shop.duplicate(true)
 	computed.current = Archive._owner().Adapter.capture("ordinary", draft)
 	if computed.current.is_empty() or not Archive.C.same(draft_value(computed), value): return {}
 	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
@@ -129,6 +142,34 @@ static func _paid_opening(draft: SeasonState, witness: Dictionary) -> bool:
 		and draft.results.size() == 3 and draft.player_results.size() == 1 and draft.physical.pending.is_empty() \
 		and Archive.C.keys(witness, ["human", "reports"]) and witness.reports is Array and witness.reports.size() == 2 \
 		and Archive.C.same(draft.physical.reports, witness.reports)
+
+static func shop_window(season: SeasonState, witness: Dictionary) -> bool:
+	return season != null and LeagueRules.equipment(season.league_rules) and season.league_rules.get("tier") == 0 \
+		and _paid_opening(season, witness) and season.shop_available() and season.build._visit.number == 1
+
+# One original native shop command, during the same earned first visit.
+# Cold uses this exact reducer to replay the authored cash and gear state.
+static func shop_step(previous: SeasonState, witness: Dictionary, command: Dictionary) -> SeasonState:
+	if not shop_window(previous, witness) or not Archive.C.primitive(command) \
+		or not SeasonBuild.SHOP_OPS.has(str(command.get("op", ""))): return null
+	var op: String = command.op
+	var id: Variant = command.get("id")
+	if not id is String or id.is_empty() or previous.build._requests.has(id) \
+		or not Archive.C.whole(command.get("rev"), previous.build.revision(), previous.build.revision()) \
+		or previous.build._visit.open == (op == "open"): return null
+	if op == "open" and (not Archive.C.keys(command, ["id", "rev", "op"]) or id != "shop-open:%d"%previous.build.revision()):
+		return null
+	var candidate: SeasonState = previous.fork_live()
+	if candidate == null: return null
+	var next: SeasonBuild = candidate.build.candidate(command.duplicate(true))
+	if next == null: return null
+	candidate.adopt_build(next)
+	var before: Array = previous.build._events
+	if candidate.build != next or not shop_window(candidate, witness) or not next._visit.open \
+		or next.revision() != before.size()+1 or next._events.size() != before.size()+1 \
+		or not Archive.C.same(next._events.slice(0, -1), before) or not Archive.C.same(next._events.back(), command):
+		return null
+	return candidate
 
 # Only materialize bytes already bound by the producer or native child.
 # This is not, by itself, a proof of earned progression.

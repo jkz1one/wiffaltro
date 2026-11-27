@@ -5801,11 +5801,13 @@ static func _stage_installed_equipment_cpu(plan: Dictionary,expected: PackedByte
 	if not Codec.same(unchanged,prior): return {}
 	return _write_installed_equipment_opening(plan.source,expected,current,{})
 
-static func _write_installed_equipment_opening(source: Dictionary,expected: PackedByteArray,current: Dictionary,witness: Dictionary) -> Dictionary:
+static func _write_installed_equipment_opening(source: Dictionary,expected: PackedByteArray,current: Dictionary,
+		witness: Dictionary,shop_log: Array=[]) -> Dictionary:
 	if saving or _ticket!=null or expected!=_installed_equipment_bound or not _installed_dugout_d1_lane(): return {}
 	var value: Dictionary=source.equipment.duplicate(true)
 	value.current=current
 	if not witness.is_empty(): value.opening_paid=witness.duplicate(true)
+	if not shop_log.is_empty(): value.opening_shop=shop_log.duplicate(true)
 	var body:=_native_encoded(value)
 	var parsed: Variant=Owner._bytes_value(body)
 	if not parsed is Dictionary: return {}
@@ -5994,6 +5996,12 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 # Shop belongs to the current settled regular round. Access stays inside
 # the same archived career and authored Build, never the generic Common owner.
 static func _installed_dugout_d1_shop_source(expected: PackedByteArray) -> Dictionary:
+	if not expected.is_empty() and expected==_installed_equipment_bound:
+		var equipment:=_bound_installed_equipment(expected,true)
+		if equipment.is_empty() or not equipment.equipment.has("opening_paid"): return {}
+		var draft: SeasonState=equipment.draft
+		return {"source":equipment,"session":draft,"equipment":true} \
+			if EquipmentBase.shop_window(draft,equipment.equipment.opening_paid) else {}
 	var source:=_bound_installed_dugout_d1(expected,true)
 	if source.is_empty(): return {}
 	if not source.dynasty_third.is_empty():
@@ -6022,7 +6030,7 @@ static func _installed_dugout_d1_entry_app(app: Variant) -> bool:
 
 static func _installed_dugout_d1_shop_app(app: Variant) -> bool:
 	return _installed_dugout_d1_entry_app(app) \
-		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready"]
+		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid"]
 
 static func _installed_dugout_d1_shop_view(view: Dictionary) -> Dictionary:
 	if view.is_empty(): return {}
@@ -6051,12 +6059,29 @@ static func write_installed_dugout_d1_shop(app: Variant,window: Variant,ticket: 
 	if shop_source.get("dynasty",false):
 		var active:=_installed_active_dynasty_image(shop_source.source)
 		if not Codec.same(Adapter.capture("dynasty",app.season),active): return {}
+	elif shop_source.get("equipment",false):
+		if not Codec.same(Adapter.capture("ordinary",app.season),shop_source.source.equipment.current): return {}
 	elif not Codec.same(Adapter.Ordinary.capture(app.season),shop_source.source.current.ordinary): return {}
 	var command: Dictionary=window.take_base_archive_shop(ticket)
 	if command.is_empty() or command.get("op")=="open": return {}
 	return _write_installed_dugout_d1_shop(shop_source,expected,command)
 
 static func _write_installed_dugout_d1_shop(shop_source: Dictionary,expected: PackedByteArray,command: Dictionary) -> Dictionary:
+	if shop_source.get("equipment",false):
+		var source: Dictionary=shop_source.source
+		var previous: Dictionary=source.equipment.current
+		var journal: Array=source.equipment.get("opening_shop",[]).duplicate(true)
+		if journal.size()>=128: return {}
+		var candidate:=EquipmentBase.shop_step(shop_source.session,source.equipment.opening_paid,command)
+		if candidate==null: return {}
+		var current:=Adapter.capture("ordinary",candidate)
+		if current.is_empty(): return {}
+		for name: String in ["opponents","ownership","physical"]:
+			if not Codec.same(current[name],previous[name]): return {}
+		for name: String in ["results","player_results","picks","round_index","schedule","league_rules"]:
+			if not Codec.same(current.state[name],previous.state[name]): return {}
+		journal.append(command.duplicate(true))
+		return _installed_dugout_d1_shop_view(_write_installed_equipment_opening(source,expected,current,{},journal))
 	if shop_source.get("dynasty",false): return _write_installed_earned_dynasty_shop(shop_source,expected,command)
 	if not Codec.primitive(command) or not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return {}
 	var previous: SeasonState=shop_source.session
