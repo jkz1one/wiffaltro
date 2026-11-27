@@ -753,7 +753,8 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			_note("%s: %d away – %d home"%[match_label,row.away_runs,row.home_runs])
 	elif bracket:
 		_note("Your postseason matchup is ready.")
-		_bound_button(_body,"PLAY DYNASTY "+postseason.to_upper(),Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+		if draft.get("allow_play_next",true):
+			_bound_button(_body,"PLAY DYNASTY "+postseason.to_upper(),Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		if draft.shop_available:
 			_bound_button(_body,"OPEN DYNASTY SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 	elif pending:
@@ -771,7 +772,6 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			"champion": _note("You won the Dynasty championship. All playoff games are paid and saved.")
 			"runner_up": _note("You finished as runner-up. All playoff games are paid and saved.")
 			"semifinal_exit": _note("The club was eliminated in the semifinal. The final bracket is saved.")
-			"qualified_unwired": _note("The club qualified for the semifinal. The regular season is saved; this build cannot start the carried postseason yet.")
 			_: _note("The club missed the postseason. The final bracket is saved.")
 		if draft.dynasty_closed:
 			_note("Banked %d Club Credits. Season Cash and results are unchanged."%int(draft.completion.total))
