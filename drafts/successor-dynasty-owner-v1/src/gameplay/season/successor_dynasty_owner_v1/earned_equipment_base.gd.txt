@@ -1,0 +1,42 @@
+extends RefCounted
+## Native Equipment Base draft derived from an exact closed Dugout Base source.
+## This projection is not Store authority. It does not read or write a save.
+const Archive = preload("starter_base_archive.gd")
+const DugoutTitle = preload("earned_dugout_d1.gd")
+const Life = preload("lifecycle.gd")
+const Unlocks = preload("res://src/gameplay/season/league_unlocks.gd")
+const KIND: String = "earned-equipment-base-offer-v1"
+
+# Use the existing native championship proof and archive bytes. The D1
+# destination is deliberately not carried into this independent Base route.
+# The caller still has to bind this owner to its exact installed revision.
+static func stage(owner: RefCounted) -> Dictionary:
+	var source: Dictionary = DugoutTitle.first_installed_source(owner)
+	if source.is_empty() or not ("equipment" in Unlocks.from_titles(owner.common.aggregate.titles)):
+		return {}
+	var proof: Dictionary = DugoutTitle._offer_and_page(source.image, source.head)
+	if proof.is_empty(): return {}
+	var origin: Dictionary = proof.offer
+	var api: Script = Archive._owner()
+	var runtime: Script = api.Adapter.OrdinaryRuntime
+	var basis: Dictionary = runtime.CommonStart.make(int(origin.seed), origin.lineage, int(origin.next_ordinal),
+		int(origin.common_sequence), origin.common_sha256, api.Common.projection(owner))
+	if basis.is_empty(): return {}
+	var draft: SeasonState = runtime.create_common(basis, "equipment")
+	var rules: Dictionary = LeagueRules.capture("equipment")
+	if draft == null or not draft.league_live or not LeagueRules.equipment(draft.league_rules) \
+		or not ClubCareer.same(draft.league_rules, rules) or not ClubCareer.same(draft.career.start_basis, basis) \
+		or draft.phase != SeasonState.Phase.DRAFT or not draft.picks.is_empty() or draft.build.cash() != 0:
+		return {}
+	var current: Dictionary = api.Adapter.capture("ordinary", draft)
+	var head: Dictionary = Archive._head(proof.head)
+	if current.is_empty() or head.is_empty() or head.pages != [origin.archived_page_sha256] \
+		or Archive._hash(proof.head) != origin.target_head_sha256:
+		return {}
+	var offer: Dictionary = {
+		"kind": KIND, "source_close": origin.source_close, "source_session_sha256": origin.source_session_sha256,
+		"previous_head_sha256": origin.source_head_sha256, "head_sha256": origin.target_head_sha256,
+		"page_sha256": origin.archived_page_sha256, "source_league": "dugout", "source_tier": 0,
+		"league": "equipment", "tier": 0, "basis_sha256": Life.digest(basis),
+	}
+	return {"offer": offer, "head": head, "page": proof.page, "current": current}

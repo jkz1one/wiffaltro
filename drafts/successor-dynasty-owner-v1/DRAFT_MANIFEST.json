@@ -860,6 +860,12 @@
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_dynasty_fast_npc.gd",
       "bytes": 10893,
       "sha256": "8c02a8924161337c0c3ea16dc8b4129d339f1a7c731b6a7ba27652b129e260f3"
+    },
+    {
+      "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_equipment_base.gd.txt",
+      "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_equipment_base.gd",
+      "bytes": 2554,
+      "sha256": "f96dc4181eca894f10bb30109d64b1d9c9b0459629fbe25131dacb121e5ee38e"
     }
   ],
   "additions": [
