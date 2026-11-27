@@ -1119,7 +1119,7 @@ func play_installed_dugout_d1(expected: PackedByteArray) -> void:
 	var state: String=installed_dugout_d1_draft.get("state","")
 	var dynasty_ready: bool=(state in ["dynasty_paid","dynasty_postseason_ready"] and installed_dugout_d1_draft.get("allow_play_next",true)) \
 		or state in ["dynasty_second_ready","dynasty_third_ready"] or (state=="dynasty_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4)
-	var equipment_ready: bool=state=="equipment_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4
+	var equipment_ready: bool=state in ["equipment_draft","equipment_paid"] and installed_dugout_d1_draft.get("can_play",false)
 	if _busy or installed_dugout_d1_reading() or (state not in ["ready","paid"] and not dynasty_ready and not equipment_ready) \
 			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home" \
 			or is_instance_valid(_installed_dugout_d1_shop): return

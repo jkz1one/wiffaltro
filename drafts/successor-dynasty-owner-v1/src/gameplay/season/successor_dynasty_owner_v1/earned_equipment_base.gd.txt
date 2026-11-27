@@ -7,6 +7,7 @@ const Life = preload("lifecycle.gd")
 const Unlocks = preload("res://src/gameplay/season/league_unlocks.gd")
 const KIND: String = "earned-equipment-base-offer-v1"
 const DRAFT_KIND: String = "installed-earned-equipment-base-draft-v1"
+const REGULAR_LIMIT: int = 10
 
 # Use the existing native championship proof and archive bytes. The D1
 # destination is deliberately not carried into this independent Base route.
@@ -49,6 +50,7 @@ static func draft_value(staged: Dictionary) -> Dictionary:
 		"offer": staged.offer, "current": staged.current, "aggregate": staged.aggregate}
 	if staged.has("opening_paid"): value.opening_paid = staged.opening_paid
 	if staged.has("opening_shop"): value.opening_shop = staged.opening_shop
+	if staged.has("regular"): value.regular = staged.regular
 	return value
 
 # Cold reconstruction is intentionally separate from file or Store authority.
@@ -63,6 +65,10 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 	if has_shop:
 		if not paid or not value.opening_shop is Array or value.opening_shop.is_empty() or value.opening_shop.size() > 128: return {}
 		fields.append("opening_shop")
+	var has_regular: bool = value.has("regular")
+	if has_regular:
+		if not paid or not value.regular is Array or value.regular.is_empty() or value.regular.size() >= REGULAR_LIMIT: return {}
+		fields.append("regular")
 	if not Archive.C.keys(value, fields) \
 		or value.kind != DRAFT_KIND or not Archive.C.whole(value.version, 1, 1) \
 		or not value.head is Dictionary or not value.offer is Dictionary or not value.current is Dictionary \
@@ -97,7 +103,7 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 		if not pick is String or not draft.choose_player(pick): return {}
 	var physical: Variant = value.current.get("physical")
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
-	if paid and (not value.opening_paid is Dictionary or not physical.pending.is_empty()): return {}
+	if paid and not value.opening_paid is Dictionary: return {}
 	var witness: Dictionary = value.opening_paid if paid else physical.pending
 	if paid or not witness.is_empty():
 		draft.physical.pending = witness.duplicate(true)
@@ -113,6 +119,22 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 					draft = shop_step(draft, witness, command)
 					if draft == null: return {}
 				computed.opening_shop = value.opening_shop.duplicate(true)
+			if has_regular:
+				for row: Variant in value.regular:
+					if not Archive.C.keys(row, ["pending", "shop"]) or not row.pending is Dictionary \
+						or not row.shop is Array or row.shop.size() > 128: return {}
+					draft.physical.pending = row.pending.duplicate(true)
+					var checked := regular_job(draft)
+					if checked.is_empty() or checked.has("fixture"): return {}
+					draft = checked.candidate
+					for command: Variant in row.shop:
+						if not command is Dictionary: return {}
+						draft = shop_step(draft, row.pending, command)
+						if draft == null: return {}
+				computed.regular = value.regular.duplicate(true)
+			if not physical.pending.is_empty():
+				draft.physical.pending = physical.pending.duplicate(true)
+				if regular_job(draft).is_empty(): return {}
 	computed.current = Archive._owner().Adapter.capture("ordinary", draft)
 	if computed.current.is_empty() or not Archive.C.same(draft_value(computed), value): return {}
 	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
@@ -143,9 +165,43 @@ static func _paid_opening(draft: SeasonState, witness: Dictionary) -> bool:
 		and Archive.C.keys(witness, ["human", "reports"]) and witness.reports is Array and witness.reports.size() == 2 \
 		and Archive.C.same(draft.physical.reports, witness.reports)
 
+static func regular_job(season: SeasonState) -> Dictionary:
+	if season == null: return {}
+	var index: int = season.round_index
+	if index == 0: return opening_job(season)
+	if index >= REGULAR_LIMIT or not _regular_boundary(season, index) or not LeagueRules.equipment(season.league_rules) \
+		or not Archive.C.keys(season.physical.pending, ["human", "reports"]): return {}
+	var witness: Dictionary = season.physical.pending
+	if not witness.human is Array or witness.human.size() != 13 or witness.human[0] != index * 3 \
+		or not witness.reports is Array or witness.reports.size() > DugoutTitle.regular_report_cap(index): return {}
+	var count: int = witness.reports.size()
+	for i: int in count:
+		if not witness.reports[i] is Dictionary or witness.reports[i].get("fixture") != index * 3 + i + 1: return {}
+	var native: Dictionary = Archive.Core.MixedProof._project_mixed_round(season).get("projection", {})
+	if native.is_empty() or native.has("error") or not native.get("candidate") is SeasonState \
+		or not DugoutTitle.regular_projection_shape(index, count, native.has("fixture")): return {}
+	if native.has("fixture"):
+		if not native.fixture is Dictionary or native.fixture.get("id") != index * 3 + count + 1: return {}
+	else:
+		var next: SeasonState = native.candidate
+		if not _regular_boundary(next, index+1) or not next.physical.pending.is_empty() \
+			or not Archive.C.same(next.physical.reports, season.physical.reports + witness.reports) \
+			or not Archive.C.same(next.results.slice(0, season.results.size()), season.results) \
+			or not Archive.C.same(next.player_results.slice(0, index), season.player_results): return {}
+	return native
+
+static func _regular_boundary(season: SeasonState, completed: int) -> bool:
+	if season == null or completed < 1 or completed > REGULAR_LIMIT or season.round_index != completed \
+		or season.picks.size() != 4 or season.player_results.size() != completed: return false
+	if completed == REGULAR_LIMIT: return not DugoutTitle.final_regular_destination(season).is_empty()
+	return season.phase == SeasonState.Phase.REGULAR and season.results.size() == 3*completed \
+		and season.physical.reports.size() == 2*completed
+
 static func shop_window(season: SeasonState, witness: Dictionary) -> bool:
-	return season != null and LeagueRules.equipment(season.league_rules) and season.league_rules.get("tier") == 0 \
-		and _paid_opening(season, witness) and season.shop_available() and season.build._visit.number == 1
+	if season == null or not LeagueRules.equipment(season.league_rules) or season.league_rules.get("tier") != 0 \
+		or season.phase != SeasonState.Phase.REGULAR or not season.physical.pending.is_empty() \
+		or not season.shop_available() or season.build._visit.number != season.round_index: return false
+	return _paid_opening(season, witness) if season.round_index == 1 else _regular_boundary(season, season.round_index)
 
 # One original native shop command, during the same earned first visit.
 # Cold uses this exact reducer to replay the authored cash and gear state.
@@ -177,18 +233,21 @@ static func local_draft(value: Dictionary, allow_held: bool = false) -> SeasonSt
 	if not value.get("current") is Dictionary or not value.get("aggregate") is Dictionary \
 		or not value.get("offer") is Dictionary: return null
 	var draft: SeasonState = Archive._owner().Adapter.restore("ordinary", value.current)
-	if draft == null or draft.picks.size() > 4 \
-		or draft.phase != (SeasonState.Phase.DRAFT if draft.picks.size() < 4 else SeasonState.Phase.REGULAR) \
-		or not LeagueRules.equipment(draft.league_rules) or draft.league_rules.get("tier") != 0:
+	if draft == null or draft.picks.size() > 4 or not LeagueRules.equipment(draft.league_rules) \
+		or draft.league_rules.get("tier") != 0: return null
+	if draft.round_index < REGULAR_LIMIT and draft.phase != (SeasonState.Phase.DRAFT if draft.picks.size() < 4 else SeasonState.Phase.REGULAR):
 		return null
 	if value.has("opening_paid"):
-		if not allow_held or not value.opening_paid is Dictionary or not _paid_opening(draft, value.opening_paid): return null
+		if not allow_held or not value.opening_paid is Dictionary: return null
+		var regular: Variant = value.get("regular", [])
+		if not regular is Array or regular.size()+1 != draft.round_index or not _regular_boundary(draft, draft.round_index): return null
+		if regular.is_empty() and draft.physical.pending.is_empty() and not _paid_opening(draft, value.opening_paid): return null
 	elif draft.round_index != 0 or not draft.results.is_empty() or draft.build.cash() != 0:
 		return null
 	var basis: Dictionary = draft.career.start_basis
 	if basis.get("common_sha256") != Life.digest(value.aggregate) \
 		or Life.digest(basis) != value.offer.get("basis_sha256") \
 		or not Archive.C.whole(value.aggregate.get("currency"), 0, 2147483647): return null
-	if not draft.physical.pending.is_empty() and (not allow_held or opening_job(draft).is_empty()):
+	if not draft.physical.pending.is_empty() and (not allow_held or regular_job(draft).is_empty()):
 		return null
 	return draft
