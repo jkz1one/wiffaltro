@@ -51,6 +51,7 @@ static func draft_value(staged: Dictionary) -> Dictionary:
 	if staged.has("opening_paid"): value.opening_paid = staged.opening_paid
 	if staged.has("opening_shop"): value.opening_shop = staged.opening_shop
 	if staged.has("regular"): value.regular = staged.regular
+	if staged.has("playoffs"): value.playoffs = staged.playoffs
 	return value
 
 # Cold reconstruction is intentionally separate from file or Store authority.
@@ -69,6 +70,11 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 	if has_regular:
 		if not paid or not value.regular is Array or value.regular.is_empty() or value.regular.size() >= REGULAR_LIMIT: return {}
 		fields.append("regular")
+	var has_playoffs: bool = value.has("playoffs")
+	if has_playoffs:
+		if not has_regular or value.regular.size() != REGULAR_LIMIT-1 \
+			or not value.playoffs is Array or value.playoffs.is_empty() or value.playoffs.size()>2: return {}
+		fields.append("playoffs")
 	if not Archive.C.keys(value, fields) \
 		or value.kind != DRAFT_KIND or not Archive.C.whole(value.version, 1, 1) \
 		or not value.head is Dictionary or not value.offer is Dictionary or not value.current is Dictionary \
@@ -124,7 +130,7 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 					if not Archive.C.keys(row, ["pending", "shop"]) or not row.pending is Dictionary \
 						or not row.shop is Array or row.shop.size() > 128: return {}
 					draft.physical.pending = row.pending.duplicate(true)
-					var checked := regular_job(draft)
+					var checked := regular_job(draft, true)
 					if checked.is_empty() or checked.has("fixture"): return {}
 					draft = checked.candidate
 					for command: Variant in row.shop:
@@ -132,9 +138,17 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 						draft = shop_step(draft, row.pending, command)
 						if draft == null: return {}
 				computed.regular = value.regular.duplicate(true)
+			if has_playoffs:
+				for playoff: Variant in value.playoffs:
+					if not playoff is Dictionary or play_slot(draft) not in ["semifinal", "final"]: return {}
+					draft.physical.pending = playoff.duplicate(true)
+					var checked := pending_plan(draft, true)
+					if checked.is_empty() or checked.projection.has("fixture"): return {}
+					draft = checked.projection.candidate
+				computed.playoffs = value.playoffs.duplicate(true)
 			if not physical.pending.is_empty():
 				draft.physical.pending = physical.pending.duplicate(true)
-				if regular_job(draft).is_empty(): return {}
+				if pending_plan(draft, true).is_empty(): return {}
 	computed.current = Archive._owner().Adapter.capture("ordinary", draft)
 	if computed.current.is_empty() or not Archive.C.same(draft_value(computed), value): return {}
 	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
@@ -165,10 +179,49 @@ static func _paid_opening(draft: SeasonState, witness: Dictionary) -> bool:
 		and Archive.C.keys(witness, ["human", "reports"]) and witness.reports is Array and witness.reports.size() == 2 \
 		and Archive.C.same(draft.physical.reports, witness.reports)
 
-static func regular_job(season: SeasonState) -> Dictionary:
+static func regular_job(season: SeasonState, cold: bool=false) -> Dictionary:
+	return _regular_plan(season,cold).get("projection", {})
+
+static func _regular_plan(season: SeasonState, cold: bool=false) -> Dictionary:
+	var original:=_regular_native_plan(season)
+	if not original.is_empty() or not cold or not _materialization_scope(season) \
+			or season.round_index>=REGULAR_LIMIT or season.phase!=SeasonState.Phase.REGULAR \
+			or not season.physical.pending.get("reports") is Array or season.physical.pending.reports.is_empty():
+		return original
+	# A live installed operation signs its native CPU request after loading
+	# canonical save JSON. A continuous cold replay can still hold a different
+	# native number representation. Recreate that one exact persisted boundary,
+	# then repeat every ordinary request, evidence and payout check unchanged.
+	var rebound:=_round_materialized_exact(season)
+	return {} if rebound==null else _regular_native_plan(rebound)
+
+static func _materialization_scope(season: SeasonState) -> bool:
+	return season!=null and season.career!=null and OS.has_feature("wiffaltro_catalog_forward_v1") \
+		and season.round_index>=1 and season.round_index<=REGULAR_LIMIT \
+		and LeagueRules.equipment(season.league_rules) and season.league_rules.get("tier")==0 \
+		and season.career.start_basis.get("ordinal")==2 and season.career.start_basis.get("common_sequence")==1
+
+static func _round_materialized_exact(season: SeasonState) -> SeasonState:
+	var api:=Archive._owner()
+	var base: SeasonState=season.fork_live()
+	if base==null: return null
+	var pending: Dictionary=season.physical.pending.duplicate(true)
+	base.physical.pending.clear()
+	var image: Dictionary=api.Adapter.capture("ordinary",base)
+	if image.is_empty(): return null
+	var parsed: Variant=api._bytes_value(JSON.stringify(image,"",true,true).to_utf8_buffer())
+	if not Archive.C.same(image,parsed): return null
+	var rebound: SeasonState=api.Adapter.restore("ordinary",parsed)
+	if rebound==null or not Archive.C.same(api.Adapter.capture("ordinary",rebound),image): return null
+	rebound.physical.pending=pending
+	return rebound
+
+static func _regular_native_plan(season: SeasonState) -> Dictionary:
 	if season == null: return {}
 	var index: int = season.round_index
-	if index == 0: return opening_job(season)
+	if index == 0:
+		var opening:=opening_job(season)
+		return {} if opening.is_empty() else {"projection":opening,"session":season}
 	if index >= REGULAR_LIMIT or not _regular_boundary(season, index) or not LeagueRules.equipment(season.league_rules) \
 		or not Archive.C.keys(season.physical.pending, ["human", "reports"]): return {}
 	var witness: Dictionary = season.physical.pending
@@ -177,8 +230,10 @@ static func regular_job(season: SeasonState) -> Dictionary:
 	var count: int = witness.reports.size()
 	for i: int in count:
 		if not witness.reports[i] is Dictionary or witness.reports[i].get("fixture") != index * 3 + i + 1: return {}
-	var native: Dictionary = Archive.Core.MixedProof._project_mixed_round(season).get("projection", {})
+	var original: Dictionary = Archive.Core.MixedProof._project_mixed_round(season)
+	var native: Dictionary = original.get("projection", {})
 	if native.is_empty() or native.has("error") or not native.get("candidate") is SeasonState \
+		or not original.get("source") is SeasonState \
 		or not DugoutTitle.regular_projection_shape(index, count, native.has("fixture")): return {}
 	if native.has("fixture"):
 		if not native.fixture is Dictionary or native.fixture.get("id") != index * 3 + count + 1: return {}
@@ -188,7 +243,49 @@ static func regular_job(season: SeasonState) -> Dictionary:
 			or not Archive.C.same(next.physical.reports, season.physical.reports + witness.reports) \
 			or not Archive.C.same(next.results.slice(0, season.results.size()), season.results) \
 			or not Archive.C.same(next.player_results.slice(0, index), season.player_results): return {}
-	return native
+	# The original native projector may rederive an exact typed source after
+	# materialization. Later CPU admission must use that same source.
+	return {"projection":native,"session":original.source}
+
+# Each transaction consumes only the fixture chosen by the real season.
+# It is never inferred from the caller's score or from a title flag.
+static func play_slot(season: SeasonState) -> String:
+	if season == null or season.picks.size()!=4 or season.build.pack_pending(): return ""
+	if season.round_index < REGULAR_LIMIT and season.phase==SeasonState.Phase.REGULAR: return "regular"
+	if season.round_index!=REGULAR_LIMIT: return ""
+	if not DugoutTitle.semifinal_pair(season).is_empty(): return "semifinal"
+	return "final" if DugoutTitle.settled_semifinal(season,true)=="final_ready" else ""
+
+static func pending_plan(season: SeasonState, cold: bool=false) -> Dictionary:
+	if season == null or season.physical.pending.is_empty() or not LeagueRules.equipment(season.league_rules): return {}
+	var slot := play_slot(season)
+	if slot in ["semifinal","final"]:
+		var plan:=_postseason_plan(season,slot)
+		if not plan.is_empty() or not cold or not _materialization_scope(season): return plan
+		var rebound:=_round_materialized_exact(season)
+		return {} if rebound==null or play_slot(rebound)!=slot else _postseason_plan(rebound,slot)
+	if slot!="regular": return {}
+	var regular:=_regular_plan(season,cold)
+	if regular.is_empty(): return {}
+	regular.merge({"managed_id":3*season.round_index,"total":DugoutTitle.regular_report_cap(season.round_index)})
+	return regular
+
+static func _postseason_plan(season: SeasonState, slot: String) -> Dictionary:
+	if slot=="semifinal":
+		var checked:=DugoutTitle.project_semifinal(season)
+		return {} if checked.is_empty() else {"projection":checked.projection,"session":checked.source,
+			"managed_id":checked.fixture.id,"semifinal":true,"total":checked.total}
+	if slot=="final":
+		var checked:=DugoutTitle.project_managed_final(season)
+		return {} if checked.is_empty() else {"projection":checked,"session":season,"managed_id":32,"managed_final":true,"total":0}
+	return {}
+
+static func finish(season: SeasonState) -> String:
+	if season==null or season.round_index!=REGULAR_LIMIT: return ""
+	var initial := DugoutTitle.final_regular_destination(season)
+	if not initial.is_empty(): return initial
+	var semifinal := DugoutTitle.settled_semifinal(season,true)
+	return DugoutTitle.managed_final_destination(season) if semifinal.is_empty() else semifinal
 
 static func _regular_boundary(season: SeasonState, completed: int) -> bool:
 	if season == null or completed < 1 or completed > REGULAR_LIMIT or season.round_index != completed \
@@ -240,7 +337,17 @@ static func local_draft(value: Dictionary, allow_held: bool = false) -> SeasonSt
 	if value.has("opening_paid"):
 		if not allow_held or not value.opening_paid is Dictionary: return null
 		var regular: Variant = value.get("regular", [])
-		if not regular is Array or regular.size()+1 != draft.round_index or not _regular_boundary(draft, draft.round_index): return null
+		if not regular is Array or regular.size()+1 != draft.round_index: return null
+		var playoffs: Variant=value.get("playoffs",[])
+		if not playoffs is Array or (value.has("playoffs") and playoffs.is_empty()) or playoffs.size()>2: return null
+		if playoffs.is_empty():
+			if draft.round_index==REGULAR_LIMIT and draft.phase==SeasonState.Phase.SEMIFINAL:
+				if DugoutTitle.semifinal_pair(draft).is_empty(): return null
+			elif not _regular_boundary(draft,draft.round_index): return null
+		elif draft.round_index!=REGULAR_LIMIT \
+			or (playoffs.size()==1 and finish(draft) not in ["final_ready","semifinal_exit"]) \
+			or (playoffs.size()==2 and finish(draft) not in ["final_champion","final_runner_up"]):
+			return null
 		if regular.is_empty() and draft.physical.pending.is_empty() and not _paid_opening(draft, value.opening_paid): return null
 	elif draft.round_index != 0 or not draft.results.is_empty() or draft.build.cash() != 0:
 		return null
@@ -248,6 +355,6 @@ static func local_draft(value: Dictionary, allow_held: bool = false) -> SeasonSt
 	if basis.get("common_sha256") != Life.digest(value.aggregate) \
 		or Life.digest(basis) != value.offer.get("basis_sha256") \
 		or not Archive.C.whole(value.aggregate.get("currency"), 0, 2147483647): return null
-	if not draft.physical.pending.is_empty() and (not allow_held or regular_job(draft).is_empty()):
+	if not draft.physical.pending.is_empty() and (not allow_held or pending_plan(draft).is_empty()):
 		return null
 	return draft
