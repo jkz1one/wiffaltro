@@ -1,6 +1,7 @@
 extends RefCounted
 ## Inactive settled workload/payment and NPC report linkage. Not pending or save admission.
 const Collector = preload("res://src/gameplay/season/successor_paired_history_v1/collector.gd")
+const Starts = preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
 const D = "res://src/gameplay/season/successor_league_general_v2/"
 const Pair = preload(D + "doubleheader.gd")
 const BuildRules = preload(D + "doubleheader_build.gd")
@@ -67,7 +68,12 @@ static func _validate_settled(season: SeasonState, require_historical_humans: bo
 		var first: int=SeasonDoubleheaderRules.first(game)
 		if first>=0 and (not rows.has(first) or rows[first].away!=rows[game].home or rows[first].home!=rows[game].away): return false
 	var started: int=Time.get_ticks_msec()
-	var snapshots: Dictionary=Collector.collect(builds,targets)
+	var authored_start: Dictionary={}
+	if season.career!=null and Starts.detached_earned_doubleheader(season.career.start_basis):
+		if not OS.has_feature("wiffaltro_catalog_forward_v1") or not Starts.valid(season.career.start_basis) \
+				or not Starts.matches(season.build,season.career.start_basis): return false
+		authored_start=season.career.start_basis
+	var snapshots: Dictionary=Collector.collect(builds,targets,authored_start)
 	collection_ms=Time.get_ticks_msec()-started
 	if snapshots.is_empty(): return false
 	started=Time.get_ticks_msec()

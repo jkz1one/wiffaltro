@@ -3258,9 +3258,11 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
 	if EarnedNamedBase.target(value)=="doubleheader":
 		var pending: Dictionary=draft.physical.pending
-		return {"state":"doubleheader_draft" if pending.is_empty() else "doubleheader_held",
-			"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
-			"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size()}
+		var state: String="doubleheader_paid" if draft.round_index==1 else ("doubleheader_draft" if pending.is_empty() else "doubleheader_held")
+		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
+			"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
+			"can_shop":state=="doubleheader_paid" and EarnedNamedBase.paired_shop_window(draft),
+			"results":draft.results.duplicate(true) if state=="doubleheader_paid" else []}
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
 	if EarnedNamedBase.target(value)=="scramble":
@@ -5635,14 +5637,24 @@ static func _save_installed_doubleheader_managed(app: Variant,expected: PackedBy
 	return _write_installed_doubleheader_held(source,expected,candidate)
 
 static func _write_installed_doubleheader_held(source: Dictionary,expected: PackedByteArray,candidate: SeasonState) -> Dictionary:
-	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_named_base_bound or not _installed_dugout_d1_lane(): return {}
+	if candidate==null or candidate.round_index!=0 or candidate.physical.pending.is_empty(): return {}
+	return _write_installed_doubleheader_checkpoint(source,expected,candidate,[])
+
+static func _write_installed_doubleheader_checkpoint(source: Dictionary,expected: PackedByteArray,candidate: SeasonState,rounds: Array) -> Dictionary:
+	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_named_base_bound or not _installed_dugout_d1_lane() \
+			or candidate==null or rounds.size()!=candidate.round_index: return {}
 	var value: Dictionary=source.named_base.duplicate(true)
+	if not rounds.is_empty(): value.rounds=rounds.duplicate(true)
 	value.current=EarnedNamedBase.capture_current(value,candidate)
 	if value.current.is_empty(): return {}
 	var materialized:=_native_materialize(value)
 	if materialized.is_empty(): return {}
 	var native:=EarnedNamedBase.local_draft(materialized.value,true)
-	if native==null or native.physical.pending.is_empty(): return {}
+	# Compare only the single captured native image, already checked against
+	# the signed physical source and the same typed archive. A live float
+	# (for example, exit speed) need not be bit-identical after Godot's
+	# exact materialization boundary. Do not change the binding or verifier.
+	if native==null or not Codec.same(native.physical.pending,materialized.value.current.physical.pending): return {}
 	var again:=_installed_dugout_d1_source()
 	if again.is_empty() or again.bytes!=expected or again.pages!=source.pages or not _matches(expected): return {}
 	saving=true
@@ -5878,6 +5890,13 @@ static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionar
 		var source_equipment:=_bound_installed_named_game(expected)
 		if source_equipment.is_empty(): return {}
 		var draft: SeasonState=source_equipment.draft
+		if source_equipment.has("named_base") and EarnedNamedBase.target(source_equipment.named_base)=="doubleheader":
+			if draft.round_index!=0 or draft.physical.pending.is_empty(): return {}
+			var pending: Dictionary=draft.physical.pending
+			var next:=EarnedNamedBase.Paired.next_npc_fixture(draft)
+			if next.is_empty()!=(pending.reports.size()==2): return {}
+			return {"source":source_equipment,"session":draft,"projection":{} if next.is_empty() else {"fixture":next},
+				"round":0,"count":pending.reports.size(),"managed_id":0,"paired_game":true}
 		var job:=EquipmentBase.pending_plan(draft)
 		if job.is_empty(): return {}
 		job.merge({"source":source_equipment,"round":draft.round_index,
@@ -5917,7 +5936,7 @@ static func _installed_dugout_d1_project_pending(session: SeasonState) -> Dictio
 static func _installed_dugout_d1_round_app(app: Variant) -> bool:
 	return is_instance_valid(app) and app.get_script()==load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 		and app.career_owner==null and app.season==null and not is_instance_valid(app.lab) \
-		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held"]
+		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held"]
 
 # Only the actual OrdinaryRunner's completion for the projected fixture can
 # append one receipt. No score/fixture selector or fallback save is exposed.
@@ -5927,7 +5946,10 @@ static func start_installed_dugout_d1_cpu(app: Variant) -> bool:
 	var round_plan:=_installed_dugout_d1_pending(expected)
 	if round_plan.is_empty() or not round_plan.projection.get("fixture") is Dictionary: return false
 	var fixture: Dictionary=round_plan.projection.fixture
-	var plan: SeasonState=round_plan.projection.candidate
+	var paired: bool=round_plan.get("paired_game",false)
+	var pair_job: Dictionary=EarnedNamedBase.Paired.npc_job(round_plan.session,int(fixture.id)) if paired else {}
+	if paired and pair_job.is_empty(): return false
+	var plan: SeasonState=round_plan.projection.get("candidate")
 	if fixture.get("away")==0 or fixture.get("home")==0: return false
 	if not round_plan.get("semifinal",false):
 		var next_id: int=round_plan.managed_id+round_plan.count+1
@@ -5935,20 +5957,22 @@ static func start_installed_dugout_d1_cpu(app: Variant) -> bool:
 		if fixture.get("id")!=next_id or fixture.get("round")!=next_round: return false
 	var dynasty: bool=round_plan.get("dynasty",false)
 	var fixtures: Script=Adapter.DynastyFixtures if dynasty else Adapter.OrdinaryFixtures
-	var state: MatchState=fixtures.match_for(plan,fixture)
-	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,plan)
+	var state: MatchState=pair_job.state if paired else fixtures.match_for(plan,fixture)
+	var field: FieldDefinition=pair_job.field if paired else SeasonState.field_for_fixture(fixture,plan)
 	if state==null or field==null: return false
 	var worker: Script=load("res://src/gameplay/season/successor_dynasty_owner_v1/earned_dynasty_fast_npc.gd") if dynasty else null
 	# The worker's scope admits only explicitly qualified journal stages.
 	var accelerated: bool=worker!=null and worker.scoped(round_plan)
 	var runner: Node=worker.new() if accelerated else (Adapter.DynastyRunner.new() if dynasty else Adapter.OrdinaryRunner.new())
 	_installed_dugout_d1_cpu={"app":weakref(app),"runner":weakref(runner),"bytes":expected.duplicate(),"fixture":int(fixture.id),
-		"count":round_plan.count,"dynasty":dynasty,"named_game":round_plan.get("named_game",false)}
+		"count":round_plan.count,"dynasty":dynasty,"named_game":round_plan.get("named_game",false),"paired_game":paired,
+		"pair_request":pair_job.get("binding",{}).get("request","")}
 	app.ai_runner=runner
 	app.add_child(runner)
 	runner.finished.connect(_finish_installed_dugout_d1_cpu.bind(app,runner),CONNECT_ONE_SHOT)
 	runner.failed.connect(_fail_installed_dugout_d1_cpu.bind(app,runner),CONNECT_ONE_SHOT)
-	var started: bool=runner.start(expected,round_plan) if accelerated else runner.start(state,fixtures.seed_for(plan,fixture),field.id)
+	var seed: int=int(pair_job.seed) if paired else (0 if accelerated else fixtures.seed_for(plan,fixture))
+	var started: bool=runner.start(expected,round_plan) if accelerated else runner.start(state,seed,field.id)
 	if started: return true
 	_installed_dugout_d1_cpu={}
 	app.ai_runner=null
@@ -5985,7 +6009,8 @@ static func _stage_installed_dugout_d1_cpu(lease: Dictionary,report: Dictionary)
 	var round_plan:=_installed_dugout_d1_pending(lease.bytes)
 	if round_plan.is_empty() or round_plan.count!=lease.count or not round_plan.projection.get("fixture") is Dictionary \
 			or round_plan.projection.fixture.id!=lease.fixture or lease.get("dynasty",false)!=round_plan.get("dynasty",false): return {}
-	if lease.get("named_game",false)!=round_plan.get("named_game",false): return {}
+	if lease.get("named_game",false)!=round_plan.get("named_game",false) or lease.get("paired_game",false)!=round_plan.get("paired_game",false): return {}
+	if round_plan.get("paired_game",false): return _stage_installed_doubleheader_cpu(round_plan,lease,report)
 	if round_plan.get("named_game",false): return _stage_installed_equipment_cpu(round_plan,lease.bytes,report)
 	if round_plan.get("dynasty",false): return _stage_installed_earned_dynasty_cpu(round_plan,lease.bytes,report)
 	var admitted: Dictionary=Adapter.OrdinaryPending.stage_report(round_plan.session,report)
@@ -6004,6 +6029,18 @@ static func _stage_installed_dugout_d1_cpu(lease: Dictionary,report: Dictionary)
 			or not Codec.same(recorded.physical.reports,prior.physical.reports) \
 			or not Codec.same(recorded.build,prior.build): return {}
 	return _write_installed_dugout_d1_opening(round_plan.source,lease.bytes,recorded,native)
+
+# The NPC result is from the bound native runner and the original paired
+# projection regenerates the exact request independently before appending.
+static func _stage_installed_doubleheader_cpu(plan: Dictionary,lease: Dictionary,report: Dictionary) -> Dictionary:
+	var source: SeasonState=plan.session
+	var job:=EarnedNamedBase.Paired.npc_job(source,int(lease.fixture))
+	if job.is_empty() or job.binding.request!=lease.pair_request: return {}
+	var candidate: SeasonState=source.fork_live()
+	if candidate==null: return {}
+	candidate.physical.pending.reports.append({"fixture":int(lease.fixture),"request":job.binding.request,"report":report.duplicate(true)})
+	if candidate.physical.pending.reports.size()!=int(lease.count)+1: return {}
+	return _write_installed_doubleheader_held(plan.source,lease.bytes,candidate)
 
 # CPU reports enter only through the exact native runner lease. Payment
 # is separate and replays the whole held opening with both saved reports.
@@ -6202,6 +6239,12 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 	var expected: PackedByteArray=app.saved_bytes
 	var round_plan:=_installed_dugout_d1_pending(expected)
 	if round_plan.is_empty() or round_plan.projection.has("fixture"): return {}
+	if round_plan.get("paired_game",false):
+		var source: SeasonState=round_plan.session
+		var paid: SeasonState=EarnedNamedBase.Paired.materialize_settlement(source,0)
+		if paid==null or not EarnedNamedBase._paired_current(paid): return {}
+		return _write_installed_doubleheader_checkpoint(round_plan.source,expected,paid,
+			[{"pending":source.physical.pending.duplicate(true),"shop":[]}])
 	if round_plan.get("named_game",false):
 		var witness: Dictionary=_installed_named_snapshot(round_plan.source).current.physical.pending
 		var equipment_paid: SeasonState=round_plan.projection.candidate
@@ -6248,6 +6291,8 @@ static func _installed_dugout_d1_shop_source(expected: PackedByteArray) -> Dicti
 		if equipment.is_empty(): return {}
 		var witness:=_installed_named_witness(_installed_named_snapshot(equipment))
 		var draft: SeasonState=equipment.draft
+		if equipment.has("named_base") and EarnedNamedBase.target(equipment.named_base)=="doubleheader":
+			return {"source":equipment,"session":draft,"paired_game":true} if EarnedNamedBase.paired_shop_window(draft) else {}
 		return {"source":equipment,"session":draft,"named_game":true} \
 			if not witness.is_empty() and EquipmentBase.shop_window(draft,witness) else {}
 	var source:=_bound_installed_dugout_d1(expected,true)
@@ -6278,7 +6323,7 @@ static func _installed_dugout_d1_entry_app(app: Variant) -> bool:
 
 static func _installed_dugout_d1_shop_app(app: Variant) -> bool:
 	return _installed_dugout_d1_entry_app(app) \
-		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid","scramble_paid"]
+		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid","scramble_paid","doubleheader_paid"]
 
 static func _installed_dugout_d1_shop_view(view: Dictionary) -> Dictionary:
 	if view.is_empty(): return {}
@@ -6307,6 +6352,9 @@ static func write_installed_dugout_d1_shop(app: Variant,window: Variant,ticket: 
 	if shop_source.get("dynasty",false):
 		var active:=_installed_active_dynasty_image(shop_source.source)
 		if not Codec.same(Adapter.capture("dynasty",app.season),active): return {}
+	elif shop_source.get("paired_game",false):
+		var value: Dictionary=shop_source.source.named_base
+		if not Codec.same(EarnedNamedBase.capture_current(value,app.season),value.current): return {}
 	elif shop_source.get("named_game",false):
 		if not Codec.same(Adapter.capture("ordinary",app.season),_installed_named_snapshot(shop_source.source).current): return {}
 	elif not Codec.same(Adapter.Ordinary.capture(app.season),shop_source.source.current.ordinary): return {}
@@ -6315,6 +6363,21 @@ static func write_installed_dugout_d1_shop(app: Variant,window: Variant,ticket: 
 	return _write_installed_dugout_d1_shop(shop_source,expected,command)
 
 static func _write_installed_dugout_d1_shop(shop_source: Dictionary,expected: PackedByteArray,command: Dictionary) -> Dictionary:
+	if shop_source.get("paired_game",false):
+		var source: Dictionary=shop_source.source
+		var prior: Dictionary=source.named_base
+		var rounds: Array=prior.rounds.duplicate(true)
+		if rounds.size()!=1 or rounds[0].shop.size()>=128: return {}
+		var candidate:=EarnedNamedBase.paired_shop_step(shop_source.session,command)
+		if candidate==null: return {}
+		var after:=EarnedNamedBase.capture_current(prior,candidate)
+		if after.is_empty(): return {}
+		for field: String in ["opponents","ownership","physical"]:
+			if not Codec.same(after[field],prior.current[field]): return {}
+		for field: String in ["results","player_results","picks","round_index","schedule","league_rules"]:
+			if not Codec.same(after.state[field],prior.current.state[field]): return {}
+		rounds[0].shop.append(command.duplicate(true))
+		return _installed_dugout_d1_shop_view(_write_installed_doubleheader_checkpoint(source,expected,candidate,rounds))
 	if shop_source.get("named_game",false):
 		var source: Dictionary=shop_source.source
 		var snapshot:=_installed_named_snapshot(source)

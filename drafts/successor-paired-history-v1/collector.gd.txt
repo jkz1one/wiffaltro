@@ -4,9 +4,11 @@ extends RefCounted
 const Build = preload("res://src/gameplay/season/successor_league_general_v2/build.gd")
 const Reward = preload("res://src/gameplay/season/successor_league_general_v2/reward.gd")
 const Materialized = preload("res://src/gameplay/season/successor_live_play_v1/build_codec.gd")
+const Starts = preload("res://src/gameplay/season/successor_live_play_v1/common_start.gd")
 static var replay_calls: int = 0 # Diagnostic count only, never authority.
 
-static func collect(builds: Dictionary, games: Dictionary) -> Dictionary:
+static func collect(builds: Dictionary, games: Dictionary, authored_human_start: Dictionary={}) -> Dictionary:
+ if not authored_human_start.is_empty() and (not OS.has_feature("wiffaltro_catalog_forward_v1") or not Starts.detached_earned_doubleheader(authored_human_start) or not Starts.valid(authored_human_start) or not builds.has("0")): return {}
  if builds.is_empty() or builds.size()!=games.size() or builds.size()>6: return {}
  var result: Dictionary = {}
  for club: Variant in builds:
@@ -45,6 +47,11 @@ static func collect(builds: Dictionary, games: Dictionary) -> Dictionary:
   var snapshots: Dictionary={}
   var observer: Callable=func(prefix: SeasonBuild) -> bool:
    var revision: int=prefix._events.size()
+   # The normal build replay omits inherited compact pitch rights. Restore
+   # those from the authenticated paired draft basis before any event, only
+   # for the human club; the complete journal/equality checks still follow.
+   if revision==0 and club=="0" and not authored_human_start.is_empty():
+    if not Starts.install(prefix,authored_human_start): return false
    if at.has(revision):
     for destination: Array in at[revision]:
      if not snapshots.has(destination[0]): snapshots[destination[0]]={}

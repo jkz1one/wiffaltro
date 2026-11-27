@@ -138,8 +138,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 458029,
-      "sha256": "39907addbdba394ba6c379847d468495b17cf3d0c8dedb441123ab8303a52cc3"
+      "bytes": 462813,
+      "sha256": "5edf106a9256fc3ed17842dbdc7f4fbaad27ce38b8a07a364b192481e08d6b82"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -198,8 +198,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/app.gd",
-      "bytes": 151201,
-      "sha256": "81abc326f8c950f94ba24c9d830b5f903d3be0ef269b7f4f43d4c8397d42a583"
+      "bytes": 151165,
+      "sha256": "bd0bde4a5599bc41c6e777fad2253cc48005645a0b39ec5e2dba523459a91634"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/capture_human.gd.txt",
@@ -222,8 +222,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/menu.gd",
-      "bytes": 75897,
-      "sha256": "b8829b73bc44674459ae1880a9f210ce7b6038f3b3eee2d894908cec810bf288"
+      "bytes": 76825,
+      "sha256": "04319d58ac7f175ca8c2162e61d23fc58b0c5c7947819e92ecb4991a6551b674"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd.txt",
@@ -1004,8 +1004,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_named_base.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_named_base.gd",
-      "bytes": 20441,
-      "sha256": "a32925083bb393161fa889fd21b3c066b44038d93b7b0545cdaddbd8d8980d67"
+      "bytes": 22745,
+      "sha256": "64f882cfdf8b74d5d6e3580fb37949ebbfa699841d470d5422a390dc6ffaa43f"
     }
   ]
 }

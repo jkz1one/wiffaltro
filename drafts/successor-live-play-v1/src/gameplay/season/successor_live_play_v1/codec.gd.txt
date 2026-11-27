@@ -167,8 +167,10 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 		# Only the installed opening leg is admitted. Its held evidence still
 		# crosses the full paired verifier; the detached projector has no
 		# independent persistence authority.
-		if paired_earned and season.get_script()==Runtime and (season.round_index!=0 \
-				or not season.physical.reports.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting): return false
+		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1] \
+				or (season.round_index==0 and not season.physical.reports.is_empty()) \
+				or (season.round_index==1 and not season.physical.pending.is_empty()) \
+				or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
 			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
 		elif season.round_index in [3,4,5,6,7,8,9]:
@@ -209,7 +211,25 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	for index: int in range(2):
 		if physical.reports[index].get("fixture")!=index+1: return false
 	var build: SeasonBuild=season.build
+	if CommonStart.detached_earned_doubleheader(season.career.start_basis):
+		return _earned_pair_first_shop_prefix(build)
 	return _first_shop_prefix(build)
+
+# The installed owner cold replays every shop command through the original
+# build reducer. This shape must not freeze the private QA purchase pattern.
+static func _earned_pair_first_shop_prefix(build: SeasonBuild) -> bool:
+	if build==null or build._bank==null or build._events.size()<2 or build._events.size()>130 \
+			or not _first_shop_journal(build,0) or build._visit.get("number")!=1: return false
+	var events: Array=build._events
+	if events.size()==2: return not build._visit.get("open",false)
+	if not build._visit.get("open",false): return false
+	for index: int in range(2,events.size()):
+		var cmd: Dictionary=events[index]
+		if not whole(cmd.get("rev"),index,index) or not SeasonBuild.SHOP_OPS.has(cmd.get("op","")): return false
+		if index==2:
+			if not same(cmd,{"id":"shop-open:2","rev":2,"op":"open"}): return false
+		elif cmd.op=="open": return false
+	return true
 
 # The completed pair stays immutable. Only the next authored pending
 # evidence is admitted; paid progress, later rounds and shop remain closed.
@@ -1005,7 +1025,7 @@ static func _history_valid(season: SeasonState) -> bool:
 	paired_history_calls+=1
 	if not season.physical.pending.is_empty():
 		return load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").verify_bound(season)
-	if CommonStart.detached_earned_doubleheader(season.career.start_basis):
+	if season.round_index==0 and CommonStart.detached_earned_doubleheader(season.career.start_basis):
 		# The Genesis prefix replays only a plain opening bank. An earned
 		# draft can carry authored starts (including previously earned
 		# pitch rights). Reconstruct the entire no-game state with those

@@ -6,8 +6,8 @@
     {
       "backup_path": "drafts/successor-paired-history-v1/collector.gd.txt",
       "restore_path": "src/gameplay/season/successor_paired_history_v1/collector.gd",
-      "bytes": 3350,
-      "sha256": "0a928f37a3ba728accffb67c70eb76c354a7ee5de50bbd020f6aef709a9bd6c3"
+      "bytes": 4085,
+      "sha256": "dd46487b6e032f22c6b6ba1f500696485ff3a8d37fc7466a5aeb4f706955894c"
     }
   ]
 }

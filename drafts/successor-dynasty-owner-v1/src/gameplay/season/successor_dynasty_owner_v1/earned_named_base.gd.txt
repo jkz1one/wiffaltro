@@ -178,15 +178,49 @@ static func _paired_opening(session: SeasonState) -> bool:
 		and Archive.C.same(session.schedule,SeasonDoubleheaderRules.schedule()) \
 		and Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_doubleheader(session.career.start_basis)
 
+static func _paired_current(session: SeasonState) -> bool:
+	if _paired_opening(session): return true
+	if session==null or session.career==null or session.phase!=SeasonState.Phase.REGULAR \
+			or session.round_index!=1 or session.results.size()!=3 or session.player_results.size()!=1 \
+			or session.physical.reports.size()!=2 or not session.physical.pending.is_empty(): return false
+	return Archive.C.same(session.league_rules,LeagueRules.capture("doubleheader")) \
+		and Archive.C.same(session.schedule,SeasonDoubleheaderRules.schedule()) \
+		and Paired.Live.CommonStart.detached_earned_doubleheader(session.career.start_basis) \
+		and Paired.Live._earned_pair_first_shop_prefix(session.build)
+
+static func paired_shop_window(session: SeasonState) -> bool:
+	return session!=null and session.round_index==1 and _paired_current(session) and not session.pending_fixture().is_empty()
+
+static func paired_shop_step(previous: SeasonState,command: Dictionary) -> SeasonState:
+	if not paired_shop_window(previous) or not Archive.C.primitive(command) \
+			or not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return null
+	var op: String=command.op
+	var id: Variant=command.get("id")
+	var rev: int=previous.build.revision()
+	if not id is String or id.is_empty() or previous.build._requests.has(id) \
+			or not Archive.C.whole(command.get("rev"),rev,rev) or previous.build._visit.open==(op=="open"): return null
+	if op=="open" and (rev!=2 or not Archive.C.same(command,{"id":"shop-open:2","rev":2,"op":"open"})): return null
+	var candidate: SeasonState=previous.fork_live()
+	if candidate==null: return null
+	var build: SeasonBuild=candidate.build.candidate(command.duplicate(true))
+	if build==null: return null
+	candidate.adopt_build(build)
+	var before: Array=previous.build._events
+	if candidate.build!=build or not paired_shop_window(candidate) or not build._visit.open \
+			or build.revision()!=rev+1 or not Archive.C.same(build._events.slice(0,-1),before) \
+			or not Archive.C.same(build._events.back(),command): return null
+	return candidate
+
 static func capture_current(value: Dictionary,session: SeasonState) -> Dictionary:
 	var adapter: Script=Archive._owner().Adapter
 	if target(value)=="doubleheader":
-		return adapter.Ordinary.capture(session) if _paired_opening(session) else {}
+		return adapter.Ordinary.capture(session) if _paired_current(session) else {}
 	return adapter.capture("ordinary",session)
 
 static func _route_value(value: Variant) -> bool:
 	if not value is Dictionary: return false
-	if target(value)=="doubleheader" and (value.has("rounds") or value.has("playoffs")): return false
+	if target(value)=="doubleheader" and (value.has("playoffs") \
+			or (value.has("rounds") and (not value.rounds is Array or value.rounds.size()!=1))): return false
 	var fields: Array=["kind","version","head","offer","current","aggregate","receipt"]
 	if value.has("rounds"):
 		if not value.rounds is Array or value.rounds.is_empty() or value.rounds.size()>Equipment.REGULAR_LIMIT: return false
@@ -214,7 +248,7 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 	var adapter: Script=Archive._owner().Adapter
 	var paired: bool=goal=="doubleheader"
 	var session: SeasonState=adapter.Ordinary.restore_common(value.current) if paired else adapter.restore("ordinary",value.current)
-	if session==null or not (_paired_opening(session) if paired else Equipment.named_runtime(session)) \
+	if session==null or not (_paired_current(session) if paired else Equipment.named_runtime(session)) \
 			or session.picks.size()>4 or session.league_rules.get("league")!=goal: return null
 	if paired:
 		var origin: Dictionary=session.career.start_basis.archive_origin
@@ -228,7 +262,7 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 	elif playoffs.is_empty():
 		if session.phase==SeasonState.Phase.SEMIFINAL:
 			if Equipment.DugoutTitle.semifinal_pair(session).is_empty(): return null
-		elif not Equipment._regular_boundary(session,rounds.size()): return null
+		elif not paired and not Equipment._regular_boundary(session,rounds.size()): return null
 	else:
 		var destination:=Equipment.finish(session)
 		if (playoffs.size()==1 and destination not in ["final_ready","semifinal_exit"]) \
@@ -287,12 +321,16 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 		if not Archive.C.keys(row,["pending","shop"]) or not row.pending is Dictionary \
 				or not row.shop is Array or row.shop.size()>128: return {}
 		draft.physical.pending=row.pending.duplicate(true)
-		var plan:=Equipment.pending_plan(draft,true)
-		if plan.is_empty() or plan.projection.has("fixture") or plan.get("semifinal",false) or plan.get("managed_final",false): return {}
-		draft=plan.projection.candidate
+		if paired:
+			draft=Paired.materialize_settlement(draft,0)
+			if draft==null or not _paired_current(draft): return {}
+		else:
+			var plan:=Equipment.pending_plan(draft,true)
+			if plan.is_empty() or plan.projection.has("fixture") or plan.get("semifinal",false) or plan.get("managed_final",false): return {}
+			draft=plan.projection.candidate
 		for command: Variant in row.shop:
 			if not command is Dictionary: return {}
-			draft=Equipment.shop_step(draft,row.pending,command)
+			draft=paired_shop_step(draft,command) if paired else Equipment.shop_step(draft,row.pending,command)
 			if draft==null: return {}
 	if value.has("rounds"): computed.value.rounds=journal.duplicate(true)
 	var playoffs: Array=value.get("playoffs",[])
