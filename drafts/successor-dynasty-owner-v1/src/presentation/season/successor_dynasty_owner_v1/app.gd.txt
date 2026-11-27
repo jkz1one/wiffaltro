@@ -1014,6 +1014,25 @@ func installed_dugout_d1_available() -> bool:
 		and season.champion==0 and season.league_rules.get("league")=="dugout" \
 		and season.league_rules.get("tier")==0 and career_owner.common.aggregate.titles.get("dugout:0",false)
 
+func request_installed_equipment() -> void:
+	if not _available() or not installed_dugout_d1_available() or not _owned(): return
+	_lifecycle_action="installed_equipment"
+	_lifecycle_owner=career_owner; _lifecycle_season=season; _lifecycle_bytes=saved_bytes.duplicate()
+	_lifecycle_dialog.title="Start Equipment Base?"
+	_lifecycle_dialog.dialog_text="Start a new four-player draft. Your Dugout championship and Club Credits carry over. Season Cash starts over."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+func pick_installed_equipment(id: String,expected: PackedByteArray) -> void:
+	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state")!="equipment_draft" \
+			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home": return
+	_busy=true
+	var view:=Store.pick_installed_equipment(expected,id)
+	_busy=false
+	if view.is_empty(): notice="That pick was not saved. Continue before retrying."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
 func request_installed_dugout_d1() -> void:
 	if not _available() or not installed_dugout_d1_available() or not _owned(): return
 	_lifecycle_action="installed_dugout_d1"
@@ -1039,7 +1058,8 @@ func _continue_installed_dugout_d1() -> bool:
 	if season!=null or not Store._installed_dugout_d1_lane(): return false
 	var expected:=Store.raw()
 	var value: Dictionary=Owner._bytes_value(expected)
-	if value.get("kind")!=Store.INSTALLED_DUGOUT_D1_KIND: return false
+	var equipment: bool=value.get("kind")==Store.EquipmentBase.DRAFT_KIND
+	if not equipment and value.get("kind")!=Store.INSTALLED_DUGOUT_D1_KIND: return false
 	_installed_dugout_d1_epoch+=1
 	var reader:=InstalledD1Reader.new()
 	_installed_dugout_d1_reader=reader
@@ -1047,7 +1067,8 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var parts:=Store._installed_dugout_d1_parts(value)
 	var tier: int=int(parts.get("tier",1))
-	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if not parts.get("dynasty",{}).is_empty() or not Store._earned_dynasty_compact_head(value).is_empty() else \
+	if equipment: notice="Checking your Equipment draft and Dugout championship. Nothing is being written."
+	else: notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if not parts.get("dynasty",{}).is_empty() or not Store._earned_dynasty_compact_head(value).is_empty() else \
 		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)
@@ -1058,7 +1079,7 @@ func _finish_installed_dugout_d1(outcome: String,reader: Node,epoch: int,expecte
 	var view:=Store.adopt_installed_dugout_d1_read(reader,expected) if outcome=="verified" else {}
 	_drop_installed_dugout_d1()
 	if view.is_empty():
-		notice="The saved Dugout career could not be verified. No files changed."
+		notice="The saved career could not be verified. No files changed."
 	else:
 		_open_installed_dugout_d1(view)
 	show_season()
@@ -2548,6 +2569,19 @@ func _confirm_lifecycle() -> void:
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()
 		_complete_installed_dugout_d1(before)
+		return
+	if action=="installed_equipment":
+		var before:=_lifecycle_bytes.duplicate()
+		var owner:=_lifecycle_owner
+		var bound: bool=owner==career_owner and _lifecycle_season==season and saved_bytes==before
+		_cancel_lifecycle()
+		if not bound or not _available() or not installed_dugout_d1_available() or not _owned(): return
+		_busy=true
+		var view:=Store.start_installed_equipment(owner,before)
+		_busy=false
+		if view.is_empty(): notice="The Equipment draft was not confirmed. Reload the career before retrying."
+		else: _open_installed_dugout_d1(view)
+		show_season()
 		return
 	if action=="installed_dugout_d1":
 		var before:=_lifecycle_bytes.duplicate()

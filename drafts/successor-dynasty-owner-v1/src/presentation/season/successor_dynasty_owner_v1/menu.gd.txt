@@ -111,6 +111,7 @@ func render() -> void:
 	if app.installed_dugout_d1_available():
 		_label(_body,"DUGOUT BASE CHAMPION",24)
 		_bound_button(_body,"START DUGOUT D1…",Callable(app,"request_installed_dugout_d1"))
+		_bound_button(_body,"START EQUIPMENT BASE…",Callable(app,"request_installed_equipment"))
 	if app.season.phase == SeasonState.Phase.DRAFT:
 		if app.base_archive_qualification_view(): _bound_button(_body,"SEASON HISTORY",_show_base_archive_history)
 		_standard_history_link()
@@ -635,6 +636,16 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
+	if draft.get("state")=="equipment_draft":
+		_label(_body,"EQUIPMENT BASE · DRAFT %d / 4"%draft.picks.size(),24)
+		_note("Dugout championship kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
+		for id: String in draft.picks:
+			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+			_label(_body,player.display_name if player!=null else id,20)
+		for id: String in draft.offers:
+			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
+			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_equipment").bind(id,draft.bytes.duplicate()))
+		return
 	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready","dynasty_second_ready","dynasty_third_ready"]:
 		_installed_earned_dynasty_draft(draft)
 		return

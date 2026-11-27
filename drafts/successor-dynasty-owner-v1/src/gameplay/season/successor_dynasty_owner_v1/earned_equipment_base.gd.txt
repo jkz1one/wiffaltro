@@ -40,20 +40,20 @@ static func stage(owner: RefCounted) -> Dictionary:
 		"page_sha256": origin.archived_page_sha256, "source_league": "dugout", "source_tier": 0,
 		"league": "equipment", "tier": 0, "basis_sha256": Life.digest(basis),
 	}
-	return {"offer": offer, "head": head, "page": proof.page, "current": current}
+	return {"offer": offer, "head": head, "page": proof.page, "current": current, "aggregate": owner.common.aggregate.duplicate(true)}
 
 # The archive remains content addressed. The current draft is a separate
 # native payload, not a second copy of the title or a writable Common owner.
 static func draft_value(staged: Dictionary) -> Dictionary:
 	return {"kind": DRAFT_KIND, "version": 1, "head": staged.head,
-		"offer": staged.offer, "current": staged.current}
+		"offer": staged.offer, "current": staged.current, "aggregate": staged.aggregate}
 
 # Cold reconstruction is intentionally separate from file or Store authority.
 # A successful result authorizes nothing until the owning process rechecks
 # the same unchanged revision and page. Forward is the only supported mode.
 static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not value is Dictionary \
-		or not Archive.C.keys(value, ["kind", "version", "head", "offer", "current"]) \
+		or not Archive.C.keys(value, ["kind", "version", "head", "offer", "current", "aggregate"]) \
 		or value.kind != DRAFT_KIND or not Archive.C.whole(value.version, 1, 1) \
 		or not value.head is Dictionary or not value.offer is Dictionary or not value.current is Dictionary \
 		or page.is_empty() or page.size() > Archive.MAX_PAGE:
@@ -79,8 +79,29 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 	if native == null or not Archive.Core._apply_closed(native, original.image, original.close, false, true):
 		return {}
 	var computed: Dictionary = stage(native)
-	if computed.is_empty() or computed.page != page or not Archive.C.same(draft_value(computed), value):
-		return {}
+	if computed.is_empty() or computed.page != page: return {}
 	var draft: SeasonState = Archive._owner().Adapter.restore("ordinary", computed.current)
-	if draft == null: return {}
+	var picks: Variant = value.current.get("state", {}).get("picks") if value.current.get("state") is Dictionary else null
+	if draft == null or not picks is Array or picks.size() > 4: return {}
+	for pick: Variant in picks:
+		if not pick is String or not draft.choose_player(pick): return {}
+	computed.current = Archive._owner().Adapter.capture("ordinary", draft)
+	if computed.current.is_empty() or not Archive.C.same(draft_value(computed), value): return {}
 	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
+
+# This check may materialize only a previously bound producer or child result.
+# It must not be used by itself as a proof of earned progression.
+static func local_draft(value: Dictionary) -> SeasonState:
+	if not value.get("current") is Dictionary or not value.get("aggregate") is Dictionary \
+		or not value.get("offer") is Dictionary: return null
+	var draft: SeasonState = Archive._owner().Adapter.restore("ordinary", value.current)
+	if draft == null or draft.round_index != 0 or draft.picks.size() > 4 \
+		or draft.phase != (SeasonState.Phase.DRAFT if draft.picks.size() < 4 else SeasonState.Phase.REGULAR) \
+		or not LeagueRules.equipment(draft.league_rules) or draft.league_rules.get("tier") != 0 \
+		or not draft.results.is_empty() or draft.build.cash() != 0:
+		return null
+	var basis: Dictionary = draft.career.start_basis
+	if basis.get("common_sha256") != Life.digest(value.aggregate) \
+		or Life.digest(basis) != value.offer.get("basis_sha256") \
+		or not Archive.C.whole(value.aggregate.get("currency"), 0, 2147483647): return null
+	return draft

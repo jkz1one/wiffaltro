@@ -66,6 +66,8 @@ static var _imported_sha256: String = ""
 static var _owner: RefCounted
 static var _owner_raw: Dictionary = {}
 static var _owner_bytes: PackedByteArray = PackedByteArray()
+const EquipmentBase = preload("earned_equipment_base.gd")
+static var _installed_equipment_bound: PackedByteArray
 static var _installed_dugout_d1_bound: Dictionary={}
 static var _installed_dugout_d1_play: Dictionary={}
 static var _installed_dugout_d1_cpu: Dictionary={}
@@ -624,6 +626,7 @@ static func _write_revision_matches(bytes: PackedByteArray,bounded: bool) -> boo
 	return same
 
 static func _invalidate() -> void:
+	_installed_equipment_bound=PackedByteArray()
 	_installed_dugout_d1_bound={}
 	_installed_dugout_d1_play={}
 	_installed_dugout_d1_cpu={}
@@ -3156,6 +3159,63 @@ static func write_installed_dugout_d1_birth(owner: RefCounted, expected: PackedB
 		_installed_dugout_d1_bound={"bytes":body,"page":staged.head.pages[0],"draft":draft}
 	return saved
 
+# The real installed career remains the sole writer. The origin comes
+# from the Store-admitted final, never from arguments or a display badge.
+static func start_installed_equipment(owner: RefCounted, expected: PackedByteArray) -> Dictionary:
+	if saving or _ticket!=null or not _installed_dugout_d1_lane() \
+			or not installed_owner_shape(owner) or not match_owner(owner,expected): return {}
+	var staged:=EquipmentBase.stage(owner)
+	if staged.is_empty() or not match_owner(owner,expected): return {}
+	var value:=EquipmentBase.draft_value(staged)
+	var draft:=EquipmentBase.local_draft(value)
+	var body:=_native_encoded(value)
+	if draft==null or body.is_empty() or not match_owner(owner,expected): return {}
+	saving=true
+	var kept:=_keep_installed_dugout_d1_page(staged.page)
+	var saved: bool=kept and _installed_dugout_d1_lane() and _matches(expected) and _write_exact_bytes(body,expected)
+	saving=false
+	if not saved: return {}
+	_invalidate()
+	_installed_equipment_bound=body
+	return _installed_equipment_view(body,value,draft)
+
+static func _installed_equipment_source(body: PackedByteArray,value: Dictionary) -> Dictionary:
+	if body.is_empty() or not value.get("head") is Dictionary or not value.get("offer") is Dictionary \
+			or not _installed_dugout_d1_page_root(false): return {}
+	var head:=BaseArchive._head(BaseArchive._wire(value.head))
+	if head.is_empty() or head.ordinal!=2: return {}
+	var pin: String=head.pages[0]
+	if value.offer.get("page_sha256")!=pin: return {}
+	var path:=_installed_dugout_d1_page_path(pin)
+	if path.is_empty() or not _base_archive_absent(path+".tmp"): return {}
+	var member:=_base_archive_member(path)
+	if member.is_empty() or not member.present or BaseArchive._hash(member.bytes)!=pin: return {}
+	return {"bytes":body,"pin":pin,"pages":[member.bytes],"equipment":value}
+
+static func _installed_equipment_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
+	return {"state":"equipment_draft","bytes":body,"picks":draft.picks.duplicate(),"offers":draft.offers(),
+		"credits":int(value.aggregate.currency),"cash":draft.build.cash()}
+
+static func pick_installed_equipment(expected: PackedByteArray,id: String) -> Dictionary:
+	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_equipment_bound \
+			or not _installed_dugout_d1_lane() or not _matches(expected): return {}
+	var value: Variant=Owner._bytes_value(expected)
+	if not value is Dictionary or value.get("kind")!=EquipmentBase.DRAFT_KIND: return {}
+	var source:=_installed_equipment_source(expected,value)
+	if source.is_empty(): return {}
+	var draft:=EquipmentBase.local_draft(value)
+	if draft==null or draft.picks.size()>=4 or not draft.choose_player(id): return {}
+	value.current=Owner.Adapter.capture("ordinary",draft)
+	var body:=_native_encoded(value)
+	if value.current.is_empty() or body.is_empty() or not _matches(expected) \
+			or _installed_equipment_source(expected,value).get("pages")!=source.pages: return {}
+	saving=true
+	var saved:=_write_exact_bytes(body,expected)
+	saving=false
+	if not saved: return {}
+	_installed_equipment_bound=body
+	return _installed_equipment_view(body,value,draft)
+
 # Fixed read-only child. It cannot enter raw(), any writer, or become
 # the installed owner. Only the named bootstrap dispatches this worker.
 static func _installed_dugout_d1_read_worker() -> bool:
@@ -3175,6 +3235,8 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 	if stored.is_empty() or not stored.present: return {}
 	var before:=_installed_payload(stored.bytes)
 	var decoded: Variant=Owner._bytes_value(before)
+	if decoded is Dictionary and decoded.get("kind")==EquipmentBase.DRAFT_KIND:
+		return _installed_equipment_source(before,decoded)
 	var parts:=_installed_dugout_d1_parts(decoded)
 	var third: Dictionary={}
 	var history: Array[Dictionary]=[]
@@ -3236,7 +3298,7 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 		"dynasty_inherited_application":inherited_application}
 
 static func _restore_installed_dugout_d1_source(source: Dictionary,dugout_only: bool=false) -> SeasonState:
-	if source.is_empty(): return null
+	if source.is_empty() or source.has("equipment"): return null
 	var pages: Array[PackedByteArray]=source.pages
 	var head: PackedByteArray=BaseArchive._wire(source.head)
 	if source.tier==3:
@@ -4688,6 +4750,12 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 			or not reader.verified_revision(expected): return {}
 	var source:=_installed_dugout_d1_source()
 	if source.is_empty() or source.bytes!=expected: return {}
+	if source.has("equipment"):
+		var equipment_draft:=EquipmentBase.local_draft(source.equipment)
+		if equipment_draft==null or not _matches(expected): return {}
+		_invalidate()
+		_installed_equipment_bound=expected.duplicate()
+		return _installed_equipment_view(expected,source.equipment,equipment_draft)
 	var draft: SeasonState
 	if source.tier==3: draft=_installed_dugout_d3_local_draft(source.current.ordinary)
 	elif source.tier==2: draft=_installed_dugout_d2_local_draft(source.current.ordinary)

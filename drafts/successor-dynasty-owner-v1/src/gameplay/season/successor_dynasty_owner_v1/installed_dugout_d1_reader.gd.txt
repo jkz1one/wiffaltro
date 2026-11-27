@@ -70,7 +70,7 @@ static func _matches(source: Dictionary, job: Dictionary) -> bool:
 # jobs. The stock route stays serial for older or memory-constrained profiles.
 static func _split_shape(source: Dictionary) -> bool:
 	return OS.has_feature(Store.LeagueAdmission.CAREER_FORWARD_FEATURE) and not source.is_empty() \
-		and source.tier==3 and source.closed and source.dynasty_compact_ordinal>=4 \
+		and source.get("tier")==3 and source.closed and source.dynasty_compact_ordinal>=4 \
 		and not source.dynasty_compact_history.is_empty() and not source.dynasty_third.is_empty()
 
 static func _split_headroom() -> bool:
@@ -231,7 +231,10 @@ func worker(job: Dictionary) -> void:
 	if not part.is_empty() and not _split_shape(source):
 		get_tree().quit(8); return
 	var wallets: String=""
-	if part=="dynasty":
+	if source.has("equipment"):
+		if not part.is_empty() or Store.EquipmentBase.replay_draft(source.equipment,source.pages[0]).is_empty():
+			get_tree().quit(8); return
+	elif part=="dynasty":
 		var provisional:=Store._installed_dugout_d3_local_draft(source.current.ordinary)
 		if not Store._verify_installed_dugout_dynasty(source,provisional):
 			# No success frame; let the parent perform the strict serial route.
