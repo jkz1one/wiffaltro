@@ -5123,15 +5123,43 @@ static func _write_installed_earned_dynasty_third_opening(source: Dictionary,exp
 	if not saved: return {}
 	return _bind_installed_earned_dynasty_third(staged.bytes,prior,current)
 
+# The payment producer has already reconstructed the exact pending wire and
+# settled it independently of the live projection. For this single append we
+# can compare the staged materialization without replaying the same history
+# again in the writer. Cold admission always performs the complete replay.
+static func _verified_carried_round2_append(source: Dictionary,after: Dictionary,paid: SeasonState) -> SeasonState:
+	if paid==null or source.dynasty_compact_ordinal<4 or source.dynasty_compact_history.is_empty() \
+			or paid.round_index!=2 or paid.phase!=SeasonState.Phase.REGULAR: return null
+	var before: Dictionary=source.dynasty_third
+	if not before.has("regular") or not before.regular.is_empty() or before.has("playoffs") \
+			or before.has("close") or not after.has("regular") or after.regular.size()!=1: return null
+	var witness: Dictionary=before.season.physical.pending
+	var row: Variant=after.regular[0]
+	if witness.is_empty() or not witness.human is Array or witness.human.size()!=13 \
+			or witness.human[0]!=3 or not witness.reports is Array or witness.reports.size()!=2 \
+			or not Codec.keys(row,["human","cpu","shop"]) or not Codec.same(row.human,witness.human) \
+			or row.cpu!=2 or not row.shop is Array or not row.shop.is_empty(): return null
+	for i: int in 2:
+		var record: Variant=witness.reports[i]
+		if not record is Dictionary or record.get("fixture")!=4+i: return null
+	var unchanged: Dictionary=after.duplicate()
+	unchanged.season=before.season; unchanged.regular=before.regular
+	if not Codec.same(unchanged,before): return null
+	var image: Dictionary=after.season
+	if not image.physical.pending.is_empty() or before.season.physical.reports.size()!=2 \
+			or not Codec.same(image.physical.reports,before.season.physical.reports+witness.reports): return null
+	var captured:=Adapter.capture("dynasty",paid)
+	return paid if not captured.is_empty() and Codec.same(captured,image) else null
+
 static func _write_installed_earned_dynasty_third_regular(source: Dictionary,expected: PackedByteArray,
-		image: Dictionary, regular: Array, playoffs: Variant=null) -> Dictionary:
+		image: Dictionary, regular: Array, playoffs: Variant=null,
+		verified_paid: SeasonState=null) -> Dictionary:
 	if saving or source.dynasty_third.get("opening",{}).is_empty(): return {}
 	var value:=_earned_dynasty_compact_head(Owner._bytes_value(expected))
 	if value.is_empty(): return {}
 	var active:=_earned_dynasty_compact_wire(value)
 	if active.has("close") or not Codec.same(active,source.dynasty_third): return {}
 	var prior: Dictionary=_installed_dugout_d1_bound.duplicate()
-	var plan:=_earned_dynasty_native_active_plan(source,prior.dynasty,prior.dynasty_next)
 	active.season=image
 	active.regular=regular
 	if playoffs!=null:
@@ -5140,7 +5168,11 @@ static func _write_installed_earned_dynasty_third_regular(source: Dictionary,exp
 	elif source.dynasty_third.has("playoffs"): return {}
 	var staged:=_native_materialize(value)
 	if staged.is_empty() or _earned_dynasty_compact_head(staged.value).is_empty(): return {}
-	var current:=_earned_dynasty_third_current(plan,_earned_dynasty_compact_wire(staged.value))
+	var wire:=_earned_dynasty_compact_wire(staged.value)
+	var current:=_verified_carried_round2_append(source,wire,verified_paid)
+	if current==null:
+		var plan:=_earned_dynasty_native_active_plan(source,prior.dynasty,prior.dynasty_next)
+		current=_earned_dynasty_third_current(plan,wire)
 	if current==null: return {}
 	var again:=_bound_installed_dugout_d1(expected,true)
 	if again.is_empty() or again.pages!=source.pages or not Codec.same(again.dynasty_third,source.dynasty_third): return {}
@@ -5718,7 +5750,7 @@ static func _settle_installed_earned_dynasty_regular(round_plan: Dictionary,expe
 			return _write_installed_earned_dynasty_third_regular(source,expected,image,source.dynasty_third.regular,bracket)
 		var regular: Array=source.dynasty_third.get("regular",[]).duplicate(true)
 		regular.append(row)
-		return _write_installed_earned_dynasty_third_regular(source,expected,image,regular)
+		return _write_installed_earned_dynasty_third_regular(source,expected,image,regular,null,next)
 	if carried:
 		if post:
 			var bracket: Array=source.dynasty_next.get("playoffs",[]).duplicate(true)
