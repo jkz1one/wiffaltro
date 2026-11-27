@@ -6,6 +6,7 @@ const DugoutTitle = preload("earned_dugout_d1.gd")
 const Life = preload("lifecycle.gd")
 const Unlocks = preload("res://src/gameplay/season/league_unlocks.gd")
 const KIND: String = "earned-equipment-base-offer-v1"
+const DRAFT_KIND: String = "installed-earned-equipment-base-draft-v1"
 
 # Use the existing native championship proof and archive bytes. The D1
 # destination is deliberately not carried into this independent Base route.
@@ -40,3 +41,46 @@ static func stage(owner: RefCounted) -> Dictionary:
 		"league": "equipment", "tier": 0, "basis_sha256": Life.digest(basis),
 	}
 	return {"offer": offer, "head": head, "page": proof.page, "current": current}
+
+# The archive remains content addressed. The current draft is a separate
+# native payload, not a second copy of the title or a writable Common owner.
+static func draft_value(staged: Dictionary) -> Dictionary:
+	return {"kind": DRAFT_KIND, "version": 1, "head": staged.head,
+		"offer": staged.offer, "current": staged.current}
+
+# Cold reconstruction is intentionally separate from file or Store authority.
+# A successful result authorizes nothing until the owning process rechecks
+# the same unchanged revision and page. Forward is the only supported mode.
+static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
+	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not value is Dictionary \
+		or not Archive.C.keys(value, ["kind", "version", "head", "offer", "current"]) \
+		or value.kind != DRAFT_KIND or not Archive.C.whole(value.version, 1, 1) \
+		or not value.head is Dictionary or not value.offer is Dictionary or not value.current is Dictionary \
+		or page.is_empty() or page.size() > Archive.MAX_PAGE:
+		return {}
+	var offer: Dictionary = value.offer
+	if not Archive.C.keys(offer, ["kind", "source_close", "source_session_sha256", "previous_head_sha256",
+		"head_sha256", "page_sha256", "source_league", "source_tier", "league", "tier", "basis_sha256"]) \
+		or offer.kind != KIND or offer.source_league != "dugout" or offer.league != "equipment" \
+		or not Archive.C.whole(offer.source_tier, 0, 0) or not Archive.C.whole(offer.tier, 0, 0):
+		return {}
+	var head_bytes: PackedByteArray = Archive._wire(value.head)
+	var head: Dictionary = Archive._head(head_bytes)
+	if head.is_empty() or head.ordinal != 2 or head.pages != [offer.page_sha256] \
+		or offer.page_sha256 != Archive._hash(page) or offer.head_sha256 != Archive._hash(head_bytes):
+		return {}
+	var original: Dictionary = Archive._page(page, head, 1)
+	if original.is_empty() or original.close.get("league") != "dugout" \
+		or original.close.get("tier") != 0 or original.close.get("reason") != "complete" \
+		or not original.close.get("receipt") is Dictionary \
+		or original.close.receipt.get("finish") != "champion":
+		return {}
+	var native: RefCounted = Archive.Core.root(int(head.seed), head.league)
+	if native == null or not Archive.Core._apply_closed(native, original.image, original.close, false, true):
+		return {}
+	var computed: Dictionary = stage(native)
+	if computed.is_empty() or computed.page != page or not Archive.C.same(draft_value(computed), value):
+		return {}
+	var draft: SeasonState = Archive._owner().Adapter.restore("ordinary", computed.current)
+	if draft == null: return {}
+	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
