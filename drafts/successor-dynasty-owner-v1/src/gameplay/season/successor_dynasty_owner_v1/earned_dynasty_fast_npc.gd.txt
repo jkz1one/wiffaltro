@@ -56,11 +56,12 @@ static func scoped(round_plan: Dictionary) -> bool:
 	if source.dynasty_third.is_empty():
 		# The installed first and second seasons keep the proved Round 2 path.
 		return round_plan.get("round")==1 and fixture_id in [4,5]
-	# Only v23 Opening Day is admitted by the separate downstream parity
-	# tests. Do not infer qualification for other rounds or the older v21.
-	return source.dynasty_compact_ordinal>=4 and not source.dynasty_compact_history.is_empty() \
-		and round_plan.get("round")==0 and round_plan.count in [0,1] \
-		and fixture_id==1+round_plan.count
+	# The carried v23 path covers only the authored opener and next two CPU
+	# games. Keep all later rounds and v21 on their original physical route.
+	if source.dynasty_compact_ordinal<4 or source.dynasty_compact_history.is_empty() or round_plan.count not in [0,1]: return false
+	var round_number: int=round_plan.get("round",-1)
+	return (round_number==0 and fixture_id==1+round_plan.count) \
+		or (round_number==1 and fixture_id==4+round_plan.count)
 
 func start(expected: PackedByteArray,round_plan: Dictionary) -> bool:
 	var exe: String=OS.get_executable_path()
@@ -163,10 +164,12 @@ func worker(job: Dictionary) -> void:
 			or source.dynasty.is_empty():
 		get_tree().quit(8); return
 	var compact: bool=not source.dynasty_third.is_empty()
-	var later_opener: bool=compact and source.dynasty_compact_ordinal>=4 \
-		and not source.dynasty_compact_history.is_empty() and int(job.fixture) in [1,2]
-	if compact!=later_opener or (not compact and int(job.fixture) not in [4,5]):
+	var fixture_id: int=int(job.fixture)
+	var carried_v23: bool=compact and source.dynasty_compact_ordinal>=4 \
+		and not source.dynasty_compact_history.is_empty()
+	if compact!=carried_v23 or (not compact and fixture_id not in [4,5]):
 		get_tree().quit(8); return
+	var later_opener: bool=carried_v23 and fixture_id in [1,2]
 	var carried: bool=not source.dynasty_next.is_empty()
 	var image: Dictionary=Store._installed_active_dynasty_image(source)
 	if image.state.get("round_index")!=(0 if later_opener else 1):
@@ -181,13 +184,14 @@ func worker(job: Dictionary) -> void:
 			get_tree().quit(8); return
 		assets.append(item)
 	var season: SeasonState
-	if later_opener:
+	if carried_v23:
 		var first:=Store.Adapter.restore("dynasty",source.dynasty)
 		if not Store._earned_dynasty_close_boundary(first):
 			get_tree().quit(8); return
 		var birth:=Store._earned_dynasty_native_active_plan(source,first,null)
 		season=Store._earned_dynasty_third_current(birth,source.dynasty_third)
-		if season==null or season.physical.pending.get("reports",[]).size()!=int(job.fixture)-1:
+		var first_cpu: int=1 if later_opener else 4
+		if season==null or season.physical.pending.get("reports",[]).size()!=fixture_id-first_cpu:
 			get_tree().quit(8); return
 	elif carried:
 		# Only the parked terminal season is hydrated. The active carried
