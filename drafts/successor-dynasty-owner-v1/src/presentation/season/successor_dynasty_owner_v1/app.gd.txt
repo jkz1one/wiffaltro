@@ -1052,8 +1052,22 @@ func request_installed_scramble(expected: PackedByteArray) -> void:
 	_lifecycle_dialog.popup_centered(Vector2i(640,240))
 	_lifecycle_dialog.get_cancel_button().grab_focus()
 
+func _installed_doubleheader_entry_ready(expected: PackedByteArray) -> bool:
+	return not _busy and not installed_dugout_d1_reading() and _lifecycle_action.is_empty() \
+		and installed_dugout_d1_draft.get("start_doubleheader_available",false) and saved_bytes==expected \
+		and menu!=null and menu.visible and menu.page=="home"
+
+func request_installed_doubleheader(expected: PackedByteArray) -> void:
+	if not _installed_doubleheader_entry_ready(expected): return
+	_lifecycle_action="installed_doubleheader"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Start Doubleheader Base?"
+	_lifecycle_dialog.dialog_text="Keep your Dugout championships and banked Club Credits. Start a four-player draft with new Season Cash. Each pair has two games, with pitching workload carrying into the second game."
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
 func pick_installed_named_base(id: String,expected: PackedByteArray) -> void:
-	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state") not in ["earnings_draft","scramble_draft"] \
+	if _busy or installed_dugout_d1_reading() or installed_dugout_d1_draft.get("state") not in ["earnings_draft","scramble_draft","doubleheader_draft"] \
 			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home": return
 	_busy=true
 	var view:=Store.pick_installed_named_base(expected,id)
@@ -2611,6 +2625,17 @@ func _confirm_lifecycle() -> void:
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()
 		_complete_installed_dugout_d1(before)
+		return
+	if action=="installed_doubleheader":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		if not _installed_doubleheader_entry_ready(before): return
+		_busy=true
+		var view:=Store.start_installed_doubleheader(self,before)
+		_busy=false
+		if view.is_empty(): notice="Doubleheader could not start. Your banked Dugout season is unchanged."
+		else: _open_installed_dugout_d1(view)
+		show_season()
 		return
 	if action=="installed_scramble":
 		var before:=_lifecycle_bytes.duplicate()

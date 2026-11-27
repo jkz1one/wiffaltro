@@ -6,6 +6,8 @@ const NEW_LEAGUES: Array[String] = ["sponsorship","earnings","academy","scramble
 
 static func expected(rules: Dictionary, seed_value: int=-1, basis: Dictionary={}) -> Dictionary:
 	var league: Variant=rules.get("league","")
+	if basis.get("version")==12 and basis.get("kind")=="common-ordinary-start-v1":
+		return LeagueRules.capture("doubleheader") if league=="doubleheader" and basis.get("seed",-1)==seed_value else {}
 	if basis.get("version")==11 and basis.get("kind")=="common-ordinary-start-v1":
 		return LeagueRules.capture_tier("dugout",3) if league=="dugout" and basis.get("seed",-1)==seed_value else {}
 	if basis.get("version")==10 and basis.get("kind")=="common-ordinary-start-v1":

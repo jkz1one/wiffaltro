@@ -9,6 +9,7 @@ const Unlocks = preload("res://src/gameplay/season/league_unlocks.gd")
 const KIND := "installed-earned-named-base-v1"
 const EQUIPMENT_TO_EARNINGS := "equipment:0>earnings:0"
 const DUGOUT_D2_TO_SCRAMBLE := "dugout:2>scramble:0"
+const DUGOUT_D1_TO_DOUBLEHEADER := "dugout:1>doubleheader:0"
 const FITTED_DUGOUT_KIND := "installed-forward-dugout-d1-draft-v1"
 const DugoutD2 = preload("earned_dugout_d2.gd")
 
@@ -16,13 +17,14 @@ static func target(value: Dictionary) -> String:
 	match value.get("offer",{}).get("route","") if value.get("offer") is Dictionary else "":
 		EQUIPMENT_TO_EARNINGS: return "earnings"
 		DUGOUT_D2_TO_SCRAMBLE: return "scramble"
+		DUGOUT_D1_TO_DOUBLEHEADER: return "doubleheader"
 		_: return ""
 
 static func page_ids(value: Dictionary) -> Array:
 	var goal:=target(value)
 	if goal.is_empty(): return []
 	var offer: Dictionary=value.offer
-	if goal=="earnings": return [offer.get("origin_page_sha256"),offer.get("close_page_sha256")]
+	if goal in ["earnings","doubleheader"]: return [offer.get("origin_page_sha256"),offer.get("close_page_sha256")]
 	return [offer.get("origin_page_sha256"),offer.get("prior_title_page_sha256"),offer.get("close_page_sha256")]
 
 # Only this authored pair is installed. Other named legs must supply their
@@ -125,8 +127,65 @@ static func stage_scramble(source: Dictionary, season: SeasonState, previous_pag
 		"aggregate":common.aggregate.duplicate(true),"receipt":close.receipt.duplicate(true)}
 	return {"value":value,"draft":draft,"page":linked.page}
 
+# The existing D1 validator proves the close. The earned paired descriptor
+# is made only after we pin the exact origin and append the locked D1 page.
+static func stage_doubleheader(source: Dictionary,season: SeasonState,previous: Array) -> Dictionary:
+	if not Archive.C.keys(source,["kind","version","head","current"]) or source.kind!=FITTED_DUGOUT_KIND \
+			or not Archive.C.whole(source.version,2,2) or not source.head is Dictionary \
+			or not source.current is Dictionary or previous.size()!=1 or not previous[0] is PackedByteArray: return {}
+	var verified:=DugoutD2._champion_source(source.current,source.head,season,1)
+	if verified.is_empty() or verified.pages!=[Archive._hash(previous[0])]: return {}
+	var common: Dictionary=source.current.common
+	var native_close: Dictionary=source.current.ordinary_state.last_close
+	if not Progress.valid(common.aggregate) or common.aggregate.closed!=2 \
+			or common.aggregate.titles!={"dugout:0":true,"dugout:1":true} \
+			or not Unlocks.from_titles(common.aggregate.titles).has("doubleheader"): return {}
+	var old_head:=Archive._wire(verified)
+	var close: Dictionary={"reason":"complete","ordinal":2,"id":native_close.id,"league":"dugout","tier":1,
+		"session_sha256":Life.digest(source),"native_session_sha256":native_close.session_sha256,
+		"aggregate_sha256":Life.digest(common.aggregate),"receipt":native_close.receipt}
+	var linked:=Archive.make_page_and_head(old_head,source,close)
+	if linked.is_empty(): return {}
+	var head:=Archive._head(linked.head)
+	var next_head_sha:=Archive._hash(linked.head)
+	if head.is_empty() or head.ordinal!=3 or head.pages.slice(0,1)!=verified.pages \
+			or head.pages[1]!=Archive._hash(linked.page): return {}
+	var api:=Archive._owner()
+	var lineage: String=source.current.ordinary_state.lineage
+	var seed: int=("ordinary:%s:3:nextseed"%lineage).hash() & 0x7fffffff
+	var runtime: Script=api.Adapter.OrdinaryRuntime
+	var detached: Dictionary={"common":common,"session":season}
+	var base: Dictionary=runtime.CommonStart.make(seed,lineage,3,2,close.aggregate_sha256,api.Common.projection(detached,season))
+	var basis: Dictionary=runtime.CommonStart.bind_earned_doubleheader(base,head.pages,close.id,next_head_sha)
+	var draft: SeasonState=null if basis.is_empty() else runtime.create_earned_doubleheader_draft(basis)
+	if not _paired_draft(draft) or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty() \
+			or not Archive.C.same(draft.career.start_basis,basis): return {}
+	var current: Dictionary=api.Adapter.Ordinary.capture(draft)
+	if current.is_empty(): return {}
+	var offer: Dictionary={"route":DUGOUT_D1_TO_DOUBLEHEADER,"source_close":close.id,
+		"source_session_sha256":close.native_session_sha256,"previous_head_sha256":Archive._hash(old_head),
+		"origin_page_sha256":head.pages[0],"close_page_sha256":head.pages[1],
+		"head_sha256":next_head_sha,"basis_sha256":Life.digest(basis)}
+	var value: Dictionary={"kind":KIND,"version":1,"head":head,"offer":offer,
+		"current":current,"aggregate":common.aggregate.duplicate(true),"receipt":close.receipt.duplicate(true)}
+	return {"value":value,"draft":draft,"page":linked.page}
+
+static func _paired_draft(session: SeasonState) -> bool:
+	if session==null or session.career==null or session.round_index!=0 or not session.results.is_empty() \
+			or not session.physical.pending.is_empty() or session.build.cash()!=0: return false
+	return Archive.C.same(session.league_rules,LeagueRules.capture("doubleheader")) \
+		and Archive.C.same(session.schedule,SeasonDoubleheaderRules.schedule()) \
+		and Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_doubleheader(session.career.start_basis)
+
+static func capture_current(value: Dictionary,session: SeasonState) -> Dictionary:
+	var adapter: Script=Archive._owner().Adapter
+	if target(value)=="doubleheader":
+		return adapter.Ordinary.capture(session) if _paired_draft(session) else {}
+	return adapter.capture("ordinary",session)
+
 static func _route_value(value: Variant) -> bool:
 	if not value is Dictionary: return false
+	if target(value)=="doubleheader" and (value.has("rounds") or value.has("playoffs")): return false
 	var fields: Array=["kind","version","head","offer","current","aggregate","receipt"]
 	if value.has("rounds"):
 		if not value.rounds is Array or value.rounds.is_empty() or value.rounds.size()>Equipment.REGULAR_LIMIT: return false
@@ -145,12 +204,21 @@ static func _route_value(value: Variant) -> bool:
 static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 	if not _route_value(value) or not Progress.valid(value.aggregate) or value.receipt.get("finish")!="champion": return null
 	var goal:=target(value)
-	var closed: int=2 if goal=="earnings" else 3
-	var titles: Dictionary={"dugout:0":true,"equipment:0":true} if closed==2 else {"dugout:0":true,"dugout:1":true,"dugout:2":true}
+	var closed: int=3 if goal=="scramble" else 2
+	var titles: Dictionary={"dugout:0":true}
+	if goal=="earnings": titles["equipment:0"]=true
+	else: titles["dugout:1"]=true
+	if goal=="scramble": titles["dugout:2"]=true
 	if value.aggregate.closed!=closed or value.aggregate.titles!=titles: return null
-	var session:=Archive._owner().Adapter.restore("ordinary",value.current) as SeasonState
-	if session==null or not Equipment.named_runtime(session) or session.picks.size()>4 \
-			or session.league_rules.get("league")!=goal: return null
+	var adapter: Script=Archive._owner().Adapter
+	var paired: bool=goal=="doubleheader"
+	var session: SeasonState=adapter.Ordinary.restore_common(value.current) if paired else adapter.restore("ordinary",value.current)
+	if session==null or not (_paired_draft(session) if paired else Equipment.named_runtime(session)) \
+			or session.picks.size()>4 or session.league_rules.get("league")!=goal: return null
+	if paired:
+		var origin: Dictionary=session.career.start_basis.archive_origin
+		if origin.ordered_sha256!=page_ids(value) or origin.target_head_sha256!=value.offer.get("head_sha256") \
+				or origin.source_close!=value.offer.get("source_close"): return null
 	var rounds: Array=value.get("rounds",[])
 	var playoffs: Array=value.get("playoffs",[])
 	if rounds.size()!=session.round_index or (not live and (not rounds.is_empty() or not session.physical.pending.is_empty())): return null
@@ -176,7 +244,7 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 static func replay(value: Variant, pages: Array) -> Dictionary:
 	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not _route_value(value): return {}
 	var goal:=target(value)
-	var expected: int=2 if goal=="earnings" else 3
+	var expected: int=3 if goal=="scramble" else 2
 	if pages.size()!=expected: return {}
 	var digests: Array=[]
 	for page: Variant in pages:
@@ -192,6 +260,13 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 		var recognized:=Equipment.replay_draft(closing.image,pages[0])
 		if recognized.is_empty(): return {}
 		computed=stage(closing.image,recognized.draft,pages[0])
+	elif goal=="doubleheader":
+		if closing.close.get("league")!="dugout" or closing.close.get("tier")!=1 \
+				or not closing.image.get("head") is Dictionary or not closing.image.get("current") is Dictionary: return {}
+		var prefix: Array[PackedByteArray]=[pages[0]]
+		var proved:=DugoutD2.D1.restore_completed_from_pages(Archive._wire(closing.image.head),prefix,closing.image.current)
+		if proved==null: return {}
+		computed=stage_doubleheader(closing.image,proved,prefix)
 	else:
 		if closing.close.get("league")!="dugout" or closing.close.get("tier")!=2 \
 				or not closing.image.get("head") is Dictionary or not closing.image.get("current") is Dictionary: return {}
@@ -231,6 +306,6 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	if not physical.pending.is_empty():
 		draft.physical.pending=physical.pending.duplicate(true)
 		if Equipment.pending_plan(draft,true).is_empty(): return {}
-	computed.value.current=Archive._owner().Adapter.capture("ordinary",draft)
+	computed.value.current=capture_current(computed.value,draft)
 	if computed.value.current.is_empty() or not Archive.C.same(computed.value,value): return {}
 	return {"draft":draft,"aggregate":computed.value.aggregate.duplicate(true)}

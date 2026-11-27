@@ -30,6 +30,8 @@ const EARNED_DUGOUT_D2 := "earned-dugout-d2-archive-v1"
 const EARNED_DUGOUT_D2_VERSION := 10
 const EARNED_DUGOUT_D3 := "earned-dugout-d3-archive-v1"
 const EARNED_DUGOUT_D3_VERSION := 11
+const EARNED_DOUBLEHEADER := "earned-doubleheader-base-archive-v1"
+const EARNED_DOUBLEHEADER_VERSION := 12
 const STANDARD_REPEAT: String="standard-base-repeat-archive-v1"
 const SPONSOR_ARCHIVED: String="standard-to-sponsorship-archive-v1"
 const FLAGS: Array[String]=["rain","transfer","checkout","association","freezer","sides","jump","sure","major","copy","order","field"]
@@ -52,11 +54,13 @@ static func valid(value: Variant) -> bool:
 	if not value is Dictionary or not Builds._primitive(value) or value.get("kind")!=KIND: return false
 	var archived: bool=value.has("archive_origin")
 	if not SeasonOwnership._keys(value,FIELDS+(["archive_origin"] if archived else [])) \
-		or not SeasonOwnership._whole(value.version,2 if archived else 1,EARNED_DUGOUT_D3_VERSION if archived else 1): return false
+		or not SeasonOwnership._whole(value.version,2 if archived else 1,EARNED_DOUBLEHEADER_VERSION if archived else 1): return false
 	if archived:
 		var origin: Variant=value.archive_origin
 		if not origin is Dictionary: return false
-		if value.version==EARNED_DUGOUT_D3_VERSION:
+		if value.version==EARNED_DOUBLEHEADER_VERSION:
+			if not _earned_doubleheader_origin(value,origin): return false
+		elif value.version==EARNED_DUGOUT_D3_VERSION:
 			if not _earned_dugout_continuation_origin(value,origin,3): return false
 		elif value.version==EARNED_DUGOUT_D2_VERSION:
 			if not _earned_dugout_continuation_origin(value,origin,2): return false
@@ -197,6 +201,27 @@ static func bind_earned_dugout_d3(basis: Dictionary, offer: Dictionary, ordered:
 	result.archive_origin={"kind":EARNED_DUGOUT_D3,"offer":offer.duplicate(true),"ordered_sha256":ordered.duplicate()}
 	return result if valid(result) else {}
 
+# This native basis is detached. The installed archive reader, not the
+# marker or the pins by themselves, proves the real D1 championship.
+static func detached_earned_doubleheader(basis: Dictionary) -> bool:
+	return basis.get("version")==EARNED_DOUBLEHEADER_VERSION and basis.get("kind")==KIND
+
+static func _earned_doubleheader_origin(basis: Dictionary, origin: Dictionary) -> bool:
+	if not SeasonOwnership._keys(origin,["kind","ordered_sha256","source_close","target_head_sha256"]) \
+			or origin.kind!=EARNED_DOUBLEHEADER or basis.get("ordinal")!=3 or basis.get("common_sequence")!=2 \
+			or not origin.ordered_sha256 is Array or origin.ordered_sha256.size()!=2 \
+			or not sha(origin.ordered_sha256[0]) or not sha(origin.ordered_sha256[1]) \
+			or origin.ordered_sha256[0]==origin.ordered_sha256[1] or not sha(origin.target_head_sha256): return false
+	return origin.source_close=="%s:2:close"%basis.get("lineage","")
+
+static func bind_earned_doubleheader(basis: Dictionary,ordered: Array,source_close: String,head_sha: String) -> Dictionary:
+	if not valid(basis) or basis.version!=1: return {}
+	var result: Dictionary=basis.duplicate(true)
+	result.version=EARNED_DOUBLEHEADER_VERSION
+	result.archive_origin={"kind":EARNED_DOUBLEHEADER,"ordered_sha256":ordered.duplicate(),
+		"source_close":source_close,"target_head_sha256":head_sha}
+	return result if valid(result) else {}
+
 static func assets_valid(value: Dictionary) -> bool:
 	# The currently admitted materialized families carry an untouched initial
 	# asset ledger. Do not invent credits/runs to replay richer journals.
@@ -257,6 +282,9 @@ static func archive_origin_kind(league: Variant) -> String:
 
 static func _archive_target(basis: Dictionary,build: SeasonBuild) -> bool:
 	if not basis.has("archive_origin"): return true
+	if detached_earned_doubleheader(basis):
+		return ClubCareer.same(build._league_rules,LeagueRules.capture("doubleheader")) \
+			and not build.d1_pricing_valid() and not build.d3_sponsors_valid() and not build.d4_sponsors_valid()
 	if detached_earned_dugout_d3(basis):
 		return ClubCareer.same(build._league_rules,LeagueRules.capture_tier("dugout",3)) \
 			and build.d1_pricing_valid() and build.d3_sponsors_valid() and not build.d4_sponsors_valid()

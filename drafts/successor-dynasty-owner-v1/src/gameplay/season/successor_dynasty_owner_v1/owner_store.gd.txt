@@ -3206,6 +3206,18 @@ static func start_installed_scramble(app: Variant,expected: PackedByteArray) -> 
 	var staged:=EarnedNamedBase.stage_scramble(original,_installed_dugout_d1_bound.draft,source.pages)
 	return _commit_installed_named_base(staged,source,expected)
 
+# A banked D1 title cannot be awarded a second time. The exact installed
+# read lease proves the source; the still-available D2 route is unchanged.
+static func start_installed_doubleheader(app: Variant,expected: PackedByteArray) -> Dictionary:
+	if saving or _ticket!=null or not _installed_dugout_d1_shop_app(app) or app.season!=null \
+			or app.saved_bytes!=expected or not app.installed_dugout_d1_draft.get("start_doubleheader_available",false): return {}
+	var source:=_bound_installed_dugout_d1(expected)
+	if source.is_empty() or not source.closed or source.tier!=1: return {}
+	var original: Variant=Owner._bytes_value(expected)
+	if not original is Dictionary: return {}
+	var staged:=EarnedNamedBase.stage_doubleheader(original,_installed_dugout_d1_bound.draft,source.pages)
+	return _commit_installed_named_base(staged,source,expected)
+
 static func _commit_installed_named_base(staged: Dictionary, source: Dictionary, expected: PackedByteArray) -> Dictionary:
 	if staged.is_empty() or saving or _ticket!=null or not _installed_dugout_d1_lane(): return {}
 	var normalized:=_native_materialize(staged.value)
@@ -3244,6 +3256,9 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 	return {"bytes":body,"pin":head.pages.back(),"pages":pages,"named_base":value}
 
 static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
+	if EarnedNamedBase.target(value)=="doubleheader":
+		return {"state":"doubleheader_draft","bytes":body.duplicate(),"picks":draft.picks.duplicate(),
+			"offers":draft.offers(),"credits":int(value.aggregate.currency),"cash":draft.cash()}
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
 	if EarnedNamedBase.target(value)=="scramble":
@@ -3266,7 +3281,7 @@ static func pick_installed_named_base(expected: PackedByteArray,id: String) -> D
 	var draft:=EarnedNamedBase.local_draft(source.named_base)
 	if draft==null or draft.picks.size()>=4 or not draft.choose_player(id): return {}
 	var value: Dictionary=source.named_base.duplicate(true)
-	value.current=Adapter.capture("ordinary",draft)
+	value.current=EarnedNamedBase.capture_current(value,draft)
 	var materialized:=_native_materialize(value)
 	if value.current.is_empty() or materialized.is_empty(): return {}
 	var again:=_installed_dugout_d1_source()
@@ -4879,7 +4894,9 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 		"shop_available":state=="paid" and not source.closed and draft.shop_available(),"closed":source.closed,
 		"close_available":not source.closed and state=="paid" and not earned.close_destination(draft).is_empty(),
 		"completion":completion,"tier":1,
-		"start_d2_available":source.closed and finish=="final_champion" and completion.get("finish")=="champion"}
+		"start_d2_available":source.closed and finish=="final_champion" and completion.get("finish")=="champion",
+		"start_doubleheader_available":source.closed and finish=="final_champion" and completion.get("finish")=="champion" \
+			and "doubleheader" in EarnedNamedBase.Unlocks.from_titles(source.current.common.aggregate.titles)}
 
 # The menu cannot supply a child result, an archive path, or a saved session.
 static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArray) -> Dictionary:

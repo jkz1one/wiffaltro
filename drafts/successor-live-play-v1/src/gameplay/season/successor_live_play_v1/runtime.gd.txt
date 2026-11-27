@@ -26,7 +26,8 @@ static func _create_paired_draft(seed_value: int) -> SeasonState:
 	return _create_named(seed_value,"doubleheader",Genesis.derive(seed_value))
 
 static func create_common(basis: Dictionary, league: String = "standard") -> SeasonState:
-	if CommonStart.detached_earned_dugout_d1(basis) or CommonStart.detached_earned_dugout_d2(basis) or CommonStart.detached_earned_dugout_d3(basis): return null
+	if CommonStart.detached_earned_doubleheader(basis) or CommonStart.detached_earned_dugout_d1(basis) \
+			or CommonStart.detached_earned_dugout_d2(basis) or CommonStart.detached_earned_dugout_d3(basis): return null
 	return _create_named(int(basis.get("seed",-1)),league,basis) if league in COMMON_ORDINARY_LEAGUES and CommonStart.valid(basis) else null
 
 # Detached construction only; a separately validated rollover must own the
@@ -44,6 +45,12 @@ static func create_earned_dugout_d3_draft(basis: Dictionary) -> SeasonState:
 	if not CommonStart.detached_earned_dugout_d3(basis) or not CommonStart.valid(basis): return null
 	return _create_named(int(basis.seed),"dugout",basis)
 
+# Detached paired birth for the installed, archive-authorized route only.
+static func create_earned_doubleheader_draft(basis: Dictionary) -> SeasonState:
+	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not CommonStart.detached_earned_doubleheader(basis) \
+			or not CommonStart.valid(basis): return null
+	return _create_named(int(basis.seed),"doubleheader",basis)
+
 # Private draft construction only. Store will later derive the envelope from
 # the exact admitted championship; callers may not publish a draft payload.
 static func create_d1_draft(transition: Dictionary) -> SeasonState:
@@ -60,7 +67,10 @@ func _d1_draft() -> bool:
 static func _create_named(seed_value: int, league: String, basis: Dictionary) -> SeasonState:
 	var earned: bool=basis.get("kind")==CommonStart.KIND
 	if (earned and (not CommonStart.valid(basis) or basis.seed!=seed_value)) or (not earned and (not Genesis.valid_basis(basis) or basis.genesis.seed!=seed_value)): return null
-	if not SeasonOwnership._whole(seed_value,0,2147483647) or league not in Admissions.BACKEND_LEAGUES or (earned and league=="doubleheader"): return null
+	var paired_earned: bool=CommonStart.detached_earned_doubleheader(basis)
+	if paired_earned and (league!="doubleheader" or not OS.has_feature("wiffaltro_catalog_forward_v1")): return null
+	if not SeasonOwnership._whole(seed_value,0,2147483647) or league not in Admissions.BACKEND_LEAGUES \
+			or (earned and league=="doubleheader" and not paired_earned): return null
 	var result: SeasonState = load("res://src/gameplay/season/successor_live_play_v1/runtime.gd").new()
 	result.season_seed = seed_value
 	result.league_rules = Admissions.expected({"league":league},seed_value,basis)
