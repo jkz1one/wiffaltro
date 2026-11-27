@@ -788,6 +788,14 @@ func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
 			_: _note("The club missed the postseason. The final bracket is saved.")
 		if draft.dynasty_closed:
 			_note("Banked %d Club Credits. Season Cash and results are unchanged."%int(draft.completion.total))
+			var workshop: Dictionary=draft.get("workshop",{})
+			if not workshop.is_empty():
+				_label(_body,"STADIUM WORKSHOP",18)
+				_note("%d Club Credits available from verified Dynasty seasons."%int(workshop.balance))
+				if workshop.owned:
+					_note("Extra backstop chair owned; it is not placed on the field.")
+				elif workshop.can_buy:
+					_bound_button(_body,"BUY BACKSTOP CHAIR · %d CLUB CREDITS"%int(workshop.price),Callable(app,"request_installed_workshop_chair").bind(draft.bytes.duplicate()))
 			if draft.get("ordinal",1)==1:
 				_bound_button(_body,"PREVIEW SEASON 2",Callable(app,"request_installed_dynasty_second").bind(draft.bytes.duplicate()))
 			elif int(draft.get("ordinal",1))<ClubCareer.MAX_RUNS:

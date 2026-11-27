@@ -1197,6 +1197,32 @@ func _complete_installed_dugout_d1(expected: PackedByteArray) -> void:
 	else: _open_installed_dugout_d1(view)
 	show_season()
 
+var _installed_workshop_ok_text: String
+
+func request_installed_workshop_chair(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected) \
+			or not installed_dugout_d1_draft.get("workshop",{}).get("can_buy",false): return
+	_lifecycle_action="installed_workshop_chair"
+	_lifecycle_bytes=expected.duplicate()
+	_lifecycle_dialog.title="Buy an extra backstop chair?"
+	_lifecycle_dialog.dialog_text="Spend %d earned Club Credits. The chair will be owned, not placed."%int(installed_dugout_d1_draft.workshop.price)
+	_installed_workshop_ok_text=_lifecycle_dialog.get_ok_button().text
+	_lifecycle_dialog.get_ok_button().text="Buy chair"
+	_lifecycle_dialog.popup_centered(Vector2i(640,240))
+	_lifecycle_dialog.get_cancel_button().grab_focus()
+
+
+func _buy_installed_workshop_chair(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected) \
+			or not installed_dugout_d1_draft.get("workshop",{}).get("can_buy",false): return
+	_busy=true
+	var view:=Store.buy_installed_earned_dynasty_workshop_chair(self)
+	_busy=false
+	if view.is_empty(): notice="The chair was not purchased. Use Continue to check your saved career."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
+
 func _installed_dynasty_second_ready(expected: PackedByteArray) -> bool:
 	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
 		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
@@ -2383,10 +2409,18 @@ func request_lifecycle(action: String) -> void:
 		_lifecycle_dialog.dialog_text="Close this completed season and bank its verified career contribution once? The saved season remains available for review or Return. No next season or Dynasty decay occurs."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240));_lifecycle_dialog.get_cancel_button().grab_focus()
 func _cancel_lifecycle() -> void:
+	var chair: bool=_lifecycle_action=="installed_workshop_chair"
 	_lifecycle_action="";_lifecycle_owner=null;_lifecycle_season=null;_lifecycle_bytes=PackedByteArray()
-	if is_instance_valid(_lifecycle_dialog): _lifecycle_dialog.hide()
+	if is_instance_valid(_lifecycle_dialog):
+		_lifecycle_dialog.hide()
+		if chair: _lifecycle_dialog.get_ok_button().text=_installed_workshop_ok_text
 func _confirm_lifecycle() -> void:
 	var action: String=_lifecycle_action
+	if action=="installed_workshop_chair":
+		var before:=_lifecycle_bytes.duplicate()
+		_cancel_lifecycle()
+		_buy_installed_workshop_chair(before)
+		return
 	if action=="installed_dynasty_second":
 		var before:=_lifecycle_bytes.duplicate()
 		_cancel_lifecycle()
