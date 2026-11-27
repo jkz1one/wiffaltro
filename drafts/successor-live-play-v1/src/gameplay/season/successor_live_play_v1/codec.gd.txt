@@ -164,9 +164,10 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 	if paired_earned and (not OS.has_feature("wiffaltro_catalog_forward_v1") or not Admissions.paired_draft_only(season)): return false
 	if Admissions.paired_draft_only(season):
 		if (season.career.start_basis.get("kind")==CommonStart.KIND and not paired_earned) or not season.ownership._events.is_empty(): return false
-		# Private Genesis and the installed paired draft remain distinct. This
-		# new route does not yet admit a paid or pending leg as a draft.
-		if paired_earned and (season.round_index!=0 or not season.physical.pending.is_empty() \
+		# Only the installed opening leg is admitted. Its held evidence still
+		# crosses the full paired verifier; the detached projector has no
+		# independent persistence authority.
+		if paired_earned and season.get_script()==Runtime and (season.round_index!=0 \
 				or not season.physical.reports.is_empty() or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
 			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
@@ -1002,20 +1003,20 @@ static func _history_valid(season: SeasonState) -> bool:
 	if season.league_rules.get("league","")!="doubleheader": return true
 	if not same(season.league_rules,LeagueRules.capture("doubleheader")): return false
 	paired_history_calls+=1
+	if not season.physical.pending.is_empty():
+		return load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").verify_bound(season)
 	if CommonStart.detached_earned_doubleheader(season.career.start_basis):
 		# The Genesis prefix replays only a plain opening bank. An earned
 		# draft can carry authored starts (including previously earned
 		# pitch rights). Reconstruct the entire no-game state with those
 		# same starts and the actual picks; compare every native field.
-		# Scope still refuses paid and pending legs on this draft route.
+		# Pending physical evidence was already routed to its bound verifier.
 		var replay:=Runtime.create_earned_doubleheader_draft(season.career.start_basis)
 		if replay==null: return false
 		for id: String in season.picks:
 			if not replay.choose_player(id): return false
 		var reproduced:=_payload(replay)
 		return not reproduced.is_empty() and same(reproduced,_payload(season))
-	if not season.physical.pending.is_empty():
-		return load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd").verify_bound(season)
 	return _paid_history_valid(season)
 
 # Also consumes the one paid-prefix batch before private pending projection.

@@ -481,8 +481,10 @@ static func _inspect(source: SeasonState, human: Array, reports: Array, produce_
 			needed=row.duplicate(true)
 			break
 	if reports.size()<2 and (needed.is_empty() or needed.away==0 or needed.home==0): return {}
-	# Full structural+history authentication in this call, not a caller flag.
-	if Live._capture_structural(source).is_empty() or not PairedHistory.validate_settled(source): return {}
+	# The opening is pristine here. Earned starts reconstruct from their
+	# exact authored basis and picks; old Genesis starts use original replay.
+	var earned: bool=Live.CommonStart.detached_earned_doubleheader(source.career.start_basis)
+	if Live._capture_structural(source).is_empty() or not (Live._history_valid(source) if earned else PairedHistory.validate_settled(source)): return {}
 	var candidate: SeasonState=_detached(source,PrivateFirstFork)
 	if candidate==null or not candidate.league_context_consistent() or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return {}
 	detached_calls+=1

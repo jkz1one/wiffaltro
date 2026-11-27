@@ -12,6 +12,7 @@ const DUGOUT_D2_TO_SCRAMBLE := "dugout:2>scramble:0"
 const DUGOUT_D1_TO_DOUBLEHEADER := "dugout:1>doubleheader:0"
 const FITTED_DUGOUT_KIND := "installed-forward-dugout-d1-draft-v1"
 const DugoutD2 = preload("earned_dugout_d2.gd")
+const Paired = preload("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
 
 static func target(value: Dictionary) -> String:
 	match value.get("offer",{}).get("route","") if value.get("offer") is Dictionary else "":
@@ -158,8 +159,8 @@ static func stage_doubleheader(source: Dictionary,season: SeasonState,previous: 
 	var base: Dictionary=runtime.CommonStart.make(seed,lineage,3,2,close.aggregate_sha256,api.Common.projection(detached,season))
 	var basis: Dictionary=runtime.CommonStart.bind_earned_doubleheader(base,head.pages,close.id,next_head_sha)
 	var draft: SeasonState=null if basis.is_empty() else runtime.create_earned_doubleheader_draft(basis)
-	if not _paired_draft(draft) or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty() \
-			or not Archive.C.same(draft.career.start_basis,basis): return {}
+	if not _paired_opening(draft) or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty() \
+			or not draft.physical.pending.is_empty() or not Archive.C.same(draft.career.start_basis,basis): return {}
 	var current: Dictionary=api.Adapter.Ordinary.capture(draft)
 	if current.is_empty(): return {}
 	var offer: Dictionary={"route":DUGOUT_D1_TO_DOUBLEHEADER,"source_close":close.id,
@@ -170,9 +171,9 @@ static func stage_doubleheader(source: Dictionary,season: SeasonState,previous: 
 		"current":current,"aggregate":common.aggregate.duplicate(true),"receipt":close.receipt.duplicate(true)}
 	return {"value":value,"draft":draft,"page":linked.page}
 
-static func _paired_draft(session: SeasonState) -> bool:
+static func _paired_opening(session: SeasonState) -> bool:
 	if session==null or session.career==null or session.round_index!=0 or not session.results.is_empty() \
-			or not session.physical.pending.is_empty() or session.build.cash()!=0: return false
+			or session.build.cash()!=0: return false
 	return Archive.C.same(session.league_rules,LeagueRules.capture("doubleheader")) \
 		and Archive.C.same(session.schedule,SeasonDoubleheaderRules.schedule()) \
 		and Archive._owner().Adapter.OrdinaryRuntime.CommonStart.detached_earned_doubleheader(session.career.start_basis)
@@ -180,7 +181,7 @@ static func _paired_draft(session: SeasonState) -> bool:
 static func capture_current(value: Dictionary,session: SeasonState) -> Dictionary:
 	var adapter: Script=Archive._owner().Adapter
 	if target(value)=="doubleheader":
-		return adapter.Ordinary.capture(session) if _paired_draft(session) else {}
+		return adapter.Ordinary.capture(session) if _paired_opening(session) else {}
 	return adapter.capture("ordinary",session)
 
 static func _route_value(value: Variant) -> bool:
@@ -213,7 +214,7 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 	var adapter: Script=Archive._owner().Adapter
 	var paired: bool=goal=="doubleheader"
 	var session: SeasonState=adapter.Ordinary.restore_common(value.current) if paired else adapter.restore("ordinary",value.current)
-	if session==null or not (_paired_draft(session) if paired else Equipment.named_runtime(session)) \
+	if session==null or not (_paired_opening(session) if paired else Equipment.named_runtime(session)) \
 			or session.picks.size()>4 or session.league_rules.get("league")!=goal: return null
 	if paired:
 		var origin: Dictionary=session.career.start_basis.archive_origin
@@ -232,7 +233,7 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 		var destination:=Equipment.finish(session)
 		if (playoffs.size()==1 and destination not in ["final_ready","semifinal_exit"]) \
 				or (playoffs.size()==2 and destination not in ["final_champion","final_runner_up"]): return null
-	if not session.physical.pending.is_empty() and Equipment.pending_plan(session).is_empty(): return null
+	if not session.physical.pending.is_empty() and not paired and Equipment.pending_plan(session).is_empty(): return null
 	var basis: Dictionary=session.career.start_basis
 	if basis.get("ordinal")!=closed+1 or basis.get("common_sequence")!=closed \
 			or basis.get("common_sha256")!=Life.digest(value.aggregate) \
@@ -244,6 +245,7 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 static func replay(value: Variant, pages: Array) -> Dictionary:
 	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not _route_value(value): return {}
 	var goal:=target(value)
+	var paired: bool=goal=="doubleheader"
 	var expected: int=3 if goal=="scramble" else 2
 	if pages.size()!=expected: return {}
 	var digests: Array=[]
@@ -305,7 +307,7 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
 	if not physical.pending.is_empty():
 		draft.physical.pending=physical.pending.duplicate(true)
-		if Equipment.pending_plan(draft,true).is_empty(): return {}
+		if not paired and Equipment.pending_plan(draft,true).is_empty(): return {}
 	computed.value.current=capture_current(computed.value,draft)
 	if computed.value.current.is_empty() or not Archive.C.same(computed.value,value): return {}
 	return {"draft":draft,"aggregate":computed.value.aggregate.duplicate(true)}

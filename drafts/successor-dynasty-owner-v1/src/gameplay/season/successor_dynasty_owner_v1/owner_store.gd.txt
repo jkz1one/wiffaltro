@@ -3257,8 +3257,10 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 
 static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
 	if EarnedNamedBase.target(value)=="doubleheader":
-		return {"state":"doubleheader_draft","bytes":body.duplicate(),"picks":draft.picks.duplicate(),
-			"offers":draft.offers(),"credits":int(value.aggregate.currency),"cash":draft.cash()}
+		var pending: Dictionary=draft.physical.pending
+		return {"state":"doubleheader_draft" if pending.is_empty() else "doubleheader_held",
+			"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
+			"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size()}
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
 	if EarnedNamedBase.target(value)=="scramble":
@@ -5597,12 +5599,67 @@ static func _save_installed_equipment_managed(app: Variant,expected: PackedByteA
 	# Leave the live lease in place until the original App closes the game.
 	return _write_installed_equipment_opening(source,expected,current,{})
 
+# Dedicated paired endpoint: no ordinary single-game lease or synthetic score.
+static func _open_installed_doubleheader_match(app: Variant,expected: PackedByteArray) -> bool:
+	var source:=_bound_installed_named_game(expected)
+	if source.is_empty() or not source.has("named_base") or EarnedNamedBase.target(source.named_base)!="doubleheader": return false
+	var paired: SeasonState=source.draft
+	var live: SeasonState=paired.fork_live()
+	if live==null: return false
+	var opening: Dictionary=EarnedNamedBase.Paired.start(live)
+	if opening.is_empty() or opening.fixture.get("id")!=0 or opening.fixture.get("round")!=0: return false
+	var state: MatchState=opening.state
+	var field: FieldDefinition=opening.field
+	app.season=live
+	app._fixture_id=int(opening.fixture.id)
+	app._result_recorded=false
+	app._result_saved=false
+	app._open_match(state,int(opening.fixture.home)==0,true,field.id)
+	if not is_instance_valid(app.lab) or app.lab._match_state!=state or app.season!=live: return false
+	_installed_dugout_d1_play={"app":weakref(app),"bytes":expected.duplicate(),"season":live,"state":state,
+		"lab":weakref(app.lab),"field":field,"fixture":int(opening.fixture.id),"pair_binding":opening.binding.duplicate(true)}
+	return installed_dugout_d1_match_bound(app)
+
+static func _save_installed_doubleheader_managed(app: Variant,expected: PackedByteArray) -> Dictionary:
+	if saving or _ticket!=null or not installed_dugout_d1_match_bound(app): return {}
+	var source:=_bound_installed_named_game(expected)
+	if source.is_empty() or not source.has("named_base") or EarnedNamedBase.target(source.named_base)!="doubleheader" \
+			or not source.draft.physical.pending.is_empty() \
+			or not Codec.same(EarnedNamedBase.capture_current(source.named_base,app.season),source.named_base.current): return {}
+	var human: Array=Adapter.OrdinaryCapture._capture_bound(app,func(): return installed_dugout_d1_match_bound(app))
+	if human.size()!=14 or not installed_dugout_d1_match_bound(app): return {}
+	var candidate: SeasonState=source.draft.fork_live()
+	if candidate==null: return {}
+	candidate.physical.pending={"human":human.duplicate(true),"reports":[],
+		"binding":_installed_dugout_d1_play.pair_binding.duplicate(true)}
+	return _write_installed_doubleheader_held(source,expected,candidate)
+
+static func _write_installed_doubleheader_held(source: Dictionary,expected: PackedByteArray,candidate: SeasonState) -> Dictionary:
+	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_named_base_bound or not _installed_dugout_d1_lane(): return {}
+	var value: Dictionary=source.named_base.duplicate(true)
+	value.current=EarnedNamedBase.capture_current(value,candidate)
+	if value.current.is_empty(): return {}
+	var materialized:=_native_materialize(value)
+	if materialized.is_empty(): return {}
+	var native:=EarnedNamedBase.local_draft(materialized.value,true)
+	if native==null or native.physical.pending.is_empty(): return {}
+	var again:=_installed_dugout_d1_source()
+	if again.is_empty() or again.bytes!=expected or again.pages!=source.pages or not _matches(expected): return {}
+	saving=true
+	var saved:=_write_exact_bytes(materialized.bytes,expected)
+	saving=false
+	if not saved: return {}
+	_installed_named_base_bound=materialized.bytes
+	return _installed_named_base_view(materialized.bytes,materialized.value,native)
+
 # Only the exact installed App can open the authored opening fixture. The
 # lease holds the native match and its one lab, not a caller-provided score.
 static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	if not is_instance_valid(app) or app.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 			or app.career_owner!=null or app.season!=null or is_instance_valid(app.lab): return false
 	var expected: PackedByteArray=app.saved_bytes
+	if app.installed_dugout_d1_draft.get("state")=="doubleheader_draft":
+		return _open_installed_doubleheader_match(app,expected)
 	if app.installed_dugout_d1_draft.get("state") in ["equipment_draft","equipment_paid","earnings_draft","earnings_paid","scramble_draft","scramble_paid"]:
 		return _open_installed_equipment_match(app,expected)
 	var source:=_bound_installed_dugout_d1(expected,true)
@@ -5751,6 +5808,7 @@ static func installed_dugout_d1_match_bound(app: Variant) -> bool:
 static func save_installed_dugout_d1_managed(app: Variant) -> Dictionary:
 	if not installed_dugout_d1_match_bound(app): return {}
 	var expected: PackedByteArray=app.saved_bytes
+	if _installed_dugout_d1_play.has("pair_binding"): return _save_installed_doubleheader_managed(app,expected)
 	if _installed_dugout_d1_play.get("named_game",false): return _save_installed_equipment_managed(app,expected)
 	var source:=_bound_installed_dugout_d1(expected,true)
 	if source.is_empty(): return {}

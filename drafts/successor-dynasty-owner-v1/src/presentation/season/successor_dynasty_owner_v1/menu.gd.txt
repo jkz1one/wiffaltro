@@ -637,8 +637,9 @@ func _display_standard_record(history: Dictionary) -> void:
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
 	var lane: String=draft.get("state","")
-	if lane=="doubleheader_draft":
-		_label(_body,"DOUBLEHEADER BASE · DRAFT %d / 4"%draft.picks.size(),24)
+	if lane in ["doubleheader_draft","doubleheader_held"]:
+		var label: String="DOUBLEHEADER BASE · DRAFT %d / 4"%draft.picks.size() if draft.picks.size()<4 else "DOUBLEHEADER BASE · PAIR 1, GAME 1"
+		_label(_body,label,24)
 		_note("Dugout Base and D1 titles kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 		_note("Each pair has two games. Pitching workload carries by player into the second game.")
 		for id: String in draft.picks:
@@ -647,6 +648,10 @@ func _installed_dugout_d1() -> void:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_named_base").bind(id,draft.bytes.duplicate()))
+		if lane=="doubleheader_held":
+			_note("The club game is saved. Results have not been paid.")
+		elif draft.picks.size()==4:
+			_bound_button(_body,"PLAY GAME 1",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		return
 	if lane in ["equipment_draft","equipment_held","equipment_paid","earnings_draft","earnings_held","earnings_paid",
 			"scramble_draft","scramble_held","scramble_paid"]:
