@@ -45,15 +45,18 @@ static func stage(owner: RefCounted) -> Dictionary:
 # The archive remains content addressed. The current draft is a separate
 # native payload, not a second copy of the title or a writable Common owner.
 static func draft_value(staged: Dictionary) -> Dictionary:
-	return {"kind": DRAFT_KIND, "version": 1, "head": staged.head,
+	var value: Dictionary = {"kind": DRAFT_KIND, "version": 1, "head": staged.head,
 		"offer": staged.offer, "current": staged.current, "aggregate": staged.aggregate}
+	if staged.has("opening_paid"): value.opening_paid = staged.opening_paid
+	return value
 
 # Cold reconstruction is intentionally separate from file or Store authority.
 # A successful result authorizes nothing until the owning process rechecks
 # the same unchanged revision and page. Forward is the only supported mode.
 static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
-	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not value is Dictionary \
-		or not Archive.C.keys(value, ["kind", "version", "head", "offer", "current", "aggregate"]) \
+	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not value is Dictionary: return {}
+	var paid: bool = value.has("opening_paid")
+	if not Archive.C.keys(value, ["kind", "version", "head", "offer", "current", "aggregate"] + (["opening_paid"] if paid else [])) \
 		or value.kind != DRAFT_KIND or not Archive.C.whole(value.version, 1, 1) \
 		or not value.head is Dictionary or not value.offer is Dictionary or not value.current is Dictionary \
 		or page.is_empty() or page.size() > Archive.MAX_PAGE:
@@ -87,39 +90,59 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 		if not pick is String or not draft.choose_player(pick): return {}
 	var physical: Variant = value.current.get("physical")
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
-	if not physical.pending.is_empty():
-		draft.physical.pending = physical.pending.duplicate(true)
-		if opening_job(draft).is_empty(): return {}
+	if paid and (not value.opening_paid is Dictionary or not physical.pending.is_empty()): return {}
+	var witness: Dictionary = value.opening_paid if paid else physical.pending
+	if paid or not witness.is_empty():
+		draft.physical.pending = witness.duplicate(true)
+		var projection := opening_job(draft)
+		if projection.is_empty(): return {}
+		if paid:
+			if projection.has("fixture"): return {}
+			draft = projection.candidate
+			computed.opening_paid = witness.duplicate(true)
 	computed.current = Archive._owner().Adapter.capture("ordinary", draft)
 	if computed.current.is_empty() or not Archive.C.same(draft_value(computed), value): return {}
 	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
 
-# This check may materialize only a previously bound producer or child result.
-# It must not be used by itself as a proof of earned progression.
-
-# Authored fixture zero was played in the live pipeline; keep it unpaid
-# until its two native peer games and settlement actually run.
+# Authored fixture zero must be played; only its two native peer reports
+# can advance this held round to the one exact paid continuation.
 static func opening_job(draft: SeasonState) -> Dictionary:
 	if draft == null or not LeagueRules.equipment(draft.league_rules) or draft.round_index != 0 \
 		or draft.phase != SeasonState.Phase.REGULAR or draft.picks.size() != 4 \
 		or not Archive.C.keys(draft.physical.pending, ["human", "reports"]) \
 		or not draft.physical.pending.human is Array or draft.physical.pending.human.size() != 13 \
-		or not draft.physical.pending.reports is Array or not draft.physical.pending.reports.is_empty():
+		or not draft.physical.pending.reports is Array or draft.physical.pending.reports.size() > 2:
 		return {}
+	var reports: Array = draft.physical.pending.reports
+	for i: int in reports.size():
+		if not reports[i] is Dictionary or reports[i].get("fixture") != i + 1: return {}
 	var native: Dictionary = Archive._owner().Adapter.OrdinaryPending.project(draft)
-	if native.has("error") or not native.get("fixture") is Dictionary or native.fixture.get("id") != 1 \
-		or not native.get("candidate") is SeasonState:
+	if native.has("error") or not native.get("candidate") is SeasonState: return {}
+	if reports.size() < 2:
+		if not native.get("fixture") is Dictionary or native.fixture.get("id") != reports.size() + 1: return {}
+	elif native.has("fixture") or not _paid_opening(native.candidate, draft.physical.pending):
 		return {}
 	return native
 
+static func _paid_opening(draft: SeasonState, witness: Dictionary) -> bool:
+	return draft.round_index == 1 and draft.phase == SeasonState.Phase.REGULAR and draft.picks.size() == 4 \
+		and draft.results.size() == 3 and draft.player_results.size() == 1 and draft.physical.pending.is_empty() \
+		and Archive.C.keys(witness, ["human", "reports"]) and witness.reports is Array and witness.reports.size() == 2 \
+		and Archive.C.same(draft.physical.reports, witness.reports)
+
+# Only materialize bytes already bound by the producer or native child.
+# This is not, by itself, a proof of earned progression.
 static func local_draft(value: Dictionary, allow_held: bool = false) -> SeasonState:
 	if not value.get("current") is Dictionary or not value.get("aggregate") is Dictionary \
 		or not value.get("offer") is Dictionary: return null
 	var draft: SeasonState = Archive._owner().Adapter.restore("ordinary", value.current)
-	if draft == null or draft.round_index != 0 or draft.picks.size() > 4 \
+	if draft == null or draft.picks.size() > 4 \
 		or draft.phase != (SeasonState.Phase.DRAFT if draft.picks.size() < 4 else SeasonState.Phase.REGULAR) \
-		or not LeagueRules.equipment(draft.league_rules) or draft.league_rules.get("tier") != 0 \
-		or not draft.results.is_empty() or draft.build.cash() != 0:
+		or not LeagueRules.equipment(draft.league_rules) or draft.league_rules.get("tier") != 0:
+		return null
+	if value.has("opening_paid"):
+		if not allow_held or not value.opening_paid is Dictionary or not _paid_opening(draft, value.opening_paid): return null
+	elif draft.round_index != 0 or not draft.results.is_empty() or draft.build.cash() != 0:
 		return null
 	var basis: Dictionary = draft.career.start_basis
 	if basis.get("common_sha256") != Life.digest(value.aggregate) \

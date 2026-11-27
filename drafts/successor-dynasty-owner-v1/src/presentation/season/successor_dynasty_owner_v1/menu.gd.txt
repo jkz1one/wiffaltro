@@ -636,7 +636,7 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state") in ["equipment_draft","equipment_held"]:
+	if draft.get("state") in ["equipment_draft","equipment_held","equipment_paid"]:
 		_label(_body,"EQUIPMENT BASE · ROUND 1" if draft.picks.size()==4 else "EQUIPMENT BASE · DRAFT %d / 4"%draft.picks.size(),24)
 		_note("Dugout championship kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 		for id: String in draft.picks:
@@ -645,8 +645,21 @@ func _installed_dugout_d1() -> void:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_equipment").bind(id,draft.bytes.duplicate()))
-		if draft.get("state")=="equipment_held":
-			_note("Your Club game is saved. The round has not been paid.")
+		if draft.get("state")=="equipment_paid":
+			_note("Round paid. All three results are saved.")
+			for row: Dictionary in draft.results:
+				_note("%d–%d · %s at %s"%[int(row.away_runs),int(row.home_runs),SeasonState.TEAM_NAMES[int(row.away)],SeasonState.TEAM_NAMES[int(row.home)]])
+		elif draft.get("state")=="equipment_held":
+			_note("Club game saved: %d–%d (away–home). Round unpaid."%[int(draft.club_score[0]),int(draft.club_score[1])])
+			_note("CPU games saved: %d / 2"%draft.cpu_reports)
+			if app.installed_dugout_d1_cpu_running():
+				_note("Playing CPU game %d of 2…"%int(draft.cpu_reports+1))
+				_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
+			elif draft.cpu_reports<2:
+				_bound_button(_body,"PLAY CPU GAME %d OF 2"%int(draft.cpu_reports+1),
+					Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
+			else:
+				_bound_button(_body,"SETTLE ROUND",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		elif draft.picks.size()==4:
 			_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		return

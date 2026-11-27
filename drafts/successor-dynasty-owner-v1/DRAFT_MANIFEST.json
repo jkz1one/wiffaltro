@@ -138,8 +138,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd",
-      "bytes": 437415,
-      "sha256": "fae1845090da4c6e5fe17fd7ffd86731fd513ccae46e617f977fe493cbe3ee8a"
+      "bytes": 441170,
+      "sha256": "9a7746bc135a3d3c367048ab95fb4375ee6568cfc637fa555d414d3308a6e2ab"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/pending.gd.txt",
@@ -198,8 +198,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/app.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/app.gd",
-      "bytes": 145950,
-      "sha256": "b69ad0b9b62097a8f0e2f275d21c3cb79b1931dfae67920c90eefc26ee19a053"
+      "bytes": 145984,
+      "sha256": "63ddf96c4e3512853040048f1fbd953be1540098361af0743b284b92a9368acd"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/capture_human.gd.txt",
@@ -222,8 +222,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/menu.gd.txt",
       "restore_path": "src/presentation/season/successor_dynasty_owner_v1/menu.gd",
-      "bytes": 71004,
-      "sha256": "1a373eacb95c174666519d89947dbeec47d1746ba4b2ee881bfd000aec358999"
+      "bytes": 71922,
+      "sha256": "c867b169789bb7e0e1a783718fe027c7756201c3b3d37ea85f50c82e62d7926c"
     },
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/presentation/season/successor_dynasty_owner_v1/shop_quote.gd.txt",
@@ -864,8 +864,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_equipment_base.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_equipment_base.gd",
-      "bytes": 8142,
-      "sha256": "5590714a8758a22ff7dd808aec990b194d5d87b561fb8d5c12cc689e1f4135a2"
+      "bytes": 9604,
+      "sha256": "5cc3939ff06cdf0d983e29ecd6f00a6b31675506334b8458f354d47234c31450"
     }
   ],
   "additions": [
