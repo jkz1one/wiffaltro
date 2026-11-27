@@ -1047,7 +1047,7 @@ func _continue_installed_dugout_d1() -> bool:
 	reader.completed.connect(_finish_installed_dugout_d1.bind(reader,_installed_dugout_d1_epoch,expected),CONNECT_ONE_SHOT)
 	var parts:=Store._installed_dugout_d1_parts(value)
 	var tier: int=int(parts.get("tier",1))
-	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if not parts.get("dynasty",{}).is_empty() else \
+	notice="Verifying your Dynasty season and Dugout career. Nothing is being written." if not parts.get("dynasty",{}).is_empty() or not Store._earned_dynasty_third_head(value).is_empty() else \
 		"Verifying your Dugout D%d career in the background. Nothing is being written."%tier
 	show_season()
 	if not reader.start(expected): _finish_installed_dugout_d1("refused",reader,_installed_dugout_d1_epoch,expected)

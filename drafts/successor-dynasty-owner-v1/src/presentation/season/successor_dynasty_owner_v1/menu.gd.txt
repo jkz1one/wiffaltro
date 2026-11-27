@@ -635,7 +635,7 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready","dynasty_second_ready"]:
+	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready","dynasty_second_ready","dynasty_third_readonly"]:
 		_installed_earned_dynasty_draft(draft)
 		return
 	if draft.get("tier",1) in [2,3]:
@@ -715,6 +715,12 @@ func _installed_dugout_d1() -> void:
 		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
 
 func _installed_earned_dynasty_draft(draft: Dictionary) -> void:
+	if draft.state=="dynasty_third_readonly":
+		_label(_body,"DYNASTY · SEASON 3",24)
+		_note("%d Club Credits · %d Season Cash · %d earned plaques"%[draft.credits,draft.cash,draft.plaques])
+		_note("Season 2 remains saved. Opening Day is not available in this engineering build.")
+		_bound_button(_body,"RETURN TO MAIN MENU",Callable(app,"leave_installed_dugout_d1_view"))
+		return
 	if draft.state=="dynasty_second_ready":
 		_label(_body,"DYNASTY · SEASON 2",24)
 		_note("%d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
