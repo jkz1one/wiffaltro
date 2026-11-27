@@ -1223,6 +1223,17 @@ func _buy_installed_workshop_chair(expected: PackedByteArray) -> void:
 	show_season()
 
 
+func save_installed_workshop_layout(expected: PackedByteArray) -> void:
+	if not _installed_dynasty_second_ready(expected) \
+		or not installed_dugout_d1_draft.get("workshop",{}).get("can_draft",false): return
+	_busy=true
+	var view:=Store.save_installed_earned_dynasty_workshop_layout(self)
+	_busy=false
+	if view.is_empty(): notice="The layout draft was not saved. Your career is unchanged."
+	else: _open_installed_dugout_d1(view)
+	show_season()
+
+
 func _installed_dynasty_second_ready(expected: PackedByteArray) -> bool:
 	return not _busy and not Store.saving and retained==null and _lifecycle_action.is_empty() \
 		and not installed_dugout_d1_reading() and not is_instance_valid(lab) and not is_instance_valid(ai_runner) \
