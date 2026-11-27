@@ -3564,6 +3564,65 @@ static func _earned_dynasty_prepare_third(source: Dictionary,first: SeasonState)
 		"destination":Owner.Life.digest(body)}}}
 
 
+# The v21 head contains only the active carried season and an immutable
+# predecessor reference, not an embedded v20 save. The existing v1-20 reader
+# intentionally does not accept the new head. No Load/Next action uses it yet.
+static func _earned_dynasty_third_head(value: Variant) -> Dictionary:
+	if not Codec.keys(value,["kind","version","head","current"]) \
+			or value.kind!=INSTALLED_DUGOUT_D1_KIND or not Codec.whole(value.version,21,21) \
+			or not value.head is Dictionary or BaseArchive._head(BaseArchive._wire(value.head)).is_empty() \
+			or not Codec.keys(value.current,["active","ordinal","archive","third"]) \
+			or value.current.active!="dynasty" or not Codec.whole(value.current.ordinal,3,3): return {}
+	var archive: Variant=value.current.archive
+	if not archive is Array or archive.size()!=1 \
+			or not Codec.keys(archive[0],["ordinal","format","sha256","bytes"]) \
+			or not Codec.whole(archive[0].ordinal,2,2) or not Codec.whole(archive[0].format,20,20) \
+			or not BaseArchive._digest(archive[0].sha256) or not Codec.whole(archive[0].bytes,1,MAX_BYTES): return {}
+	var third: Variant=value.current.third
+	if not Codec.keys(third,["event","season"]) or not third.season is Dictionary \
+			or not Codec.keys(third.event,["id","from","to","seed","binding","before","after","destination"]) \
+			or not third.event.id is String or not Codec.whole(third.event.from,2,2) \
+			or not Codec.whole(third.event.to,3,3) or not Codec.whole(third.event.seed,0,2147483647) \
+			or not BaseArchive._digest(third.event.before) or not BaseArchive._digest(third.event.after) \
+			or not BaseArchive._digest(third.event.destination) or not third.event.binding is Dictionary: return {}
+	return value
+
+static func _earned_dynasty_third_prior(payload: PackedByteArray) -> Dictionary:
+	if payload.is_empty() or payload.size()>MAX_BYTES: return {}
+	var value: Variant=Owner._bytes_value(payload)
+	if not value is Dictionary or not Codec.whole(value.get("version"),20,20): return {}
+	return _installed_dugout_d1_parts(value)
+
+# Verification is detached and read-only. Actual file publication belongs to
+# the installed revision-checked transaction, never this framing helper.
+static func _earned_dynasty_third_stage(payload: PackedByteArray,first: SeasonState) -> Dictionary:
+	var previous:=_earned_dynasty_third_prior(payload)
+	if previous.is_empty(): return {}
+	var plan:=_earned_dynasty_prepare_third(previous,first)
+	if not plan.has("wire"): return {}
+	var value: Dictionary={"kind":INSTALLED_DUGOUT_D1_KIND,"version":21,"head":previous.head,
+		"current":{"active":"dynasty","ordinal":3,
+			"archive":[{"ordinal":2,"format":20,"sha256":BaseArchive._hash(payload),"bytes":payload.size()}],
+			"third":plan.wire}}
+	var staged:=_native_materialize(value)
+	if staged.is_empty() or _earned_dynasty_third_head(staged.value).is_empty(): return {}
+	return {"encoded":staged.bytes,"staged":staged.value,"season":plan.season}
+
+# Processing a head is never authority on its own. Even its content hash
+# binds only exact predecessor bytes. Those bytes still have to replay and
+# produce the same transition, with the same durable common awards.
+static func _earned_dynasty_third_restore(head: Variant,prior: PackedByteArray,first: SeasonState) -> SeasonState:
+	var value:=_earned_dynasty_third_head(head)
+	if value.is_empty(): return null
+	var page: Dictionary=value.current.archive[0]
+	if prior.size()!=page.bytes or BaseArchive._hash(prior)!=page.sha256: return null
+	var previous:=_earned_dynasty_third_prior(prior)
+	if previous.is_empty() or not Codec.same(value.head,previous.head): return null
+	var plan:=_earned_dynasty_prepare_third(previous,first)
+	if not plan.has("wire") or not Codec.same(value.current.third,plan.wire): return null
+	return plan.season
+
+
 # v16 stores one opener witness. The transition's destination still commits
 # to the original immutable, zero-game v15 birth before any baseball is played.
 static func _earned_dynasty_second_round_wire(next: Dictionary) -> bool:

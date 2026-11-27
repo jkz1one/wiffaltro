@@ -1,0 +1,82 @@
+extends Node
+# Dedicated detached custody test. The helper never writes a production slot.
+const Store=preload("res://src/gameplay/season/successor_dynasty_owner_v1/owner_store.gd")
+const Birth=preload("res://third_birth.gd")
+const Reader=preload("res://src/gameplay/season/successor_dynasty_owner_v1/installed_dugout_d1_reader.gd")
+const TEST_HEAD: String="user://cp435-synthetic-forward-head-v21.json"
+const TEST_PAGE: String="user://cp435-synthetic-immutable-v20.json"
+var assets: Array[Resource]=[]
+
+func _ready() -> void: call_deferred("run")
+
+func fail(detail: String) -> void:
+	print("FAIL: ",detail)
+	get_tree().quit(1)
+
+func run() -> void:
+	var args:=OS.get_cmdline_user_args()
+	if args.size()!=2 or args[0] not in ["stage","cold"] or DisplayServer.get_name()!="headless" \
+			or FileAccess.file_exists(Store.INSTALLED_PATH) or FileAccess.file_exists(Store.INSTALLED_PATH+".bak"):
+		fail("explicit detached synthetic fixture only");return
+	var fixture:=FileAccess.get_sha256(args[1])
+	if fixture not in [Birth.LOSS,Birth.TITLE]:
+		fail("unknown predecessor specimen");return
+	var wrapper:=FileAccess.get_file_as_bytes(args[1])
+	var frames:=wrapper.get_string_from_utf8().split("\n",true,2)
+	if frames.size()!=3 or frames[0]+"\n"!=Store.INSTALLED_FORWARD_HEADER or frames[1]!=frames[2].sha256_text():
+		fail("invalid specimen framing");return
+	var raw:=frames[2].to_utf8_buffer()
+	var previous:=Store._earned_dynasty_third_prior(raw)
+	if previous.is_empty():
+		fail("legacy v20 did not admit old terminal");return
+	for path: String in Reader.REPLAY_ASSET_PATHS:
+		var asset:=load(path)
+		if asset==null:
+			fail("missing approved authored asset");return
+		assets.append(asset)
+	var first:=Store.Adapter.restore("dynasty",previous.dynasty)
+	if not Store._earned_dynasty_close_boundary(first):
+		fail("exact first season");return
+	var birth: String="2568af1b059e499e27612efa4ed54527065acb9ea7332c694808ae0f68659e4a" \
+			if fixture==Birth.LOSS else "7b2786c73525e066b809344a9ec3000b6bc8ef8a90e337f933874e521f7572dd"
+	if args[0]=="stage":
+		var staged:=Store._earned_dynasty_third_stage(raw,first)
+		if staged.is_empty() or staged.encoded.size()>=raw.size() \
+				or staged.staged.current.third.event.destination!=birth \
+				or not Store._installed_dugout_d1_parts(staged.staged).is_empty():
+			fail("new compact framing, old format remains distinct");return
+		if not write_new(TEST_PAGE,raw) or not write_new(TEST_HEAD,staged.encoded):
+			fail("detached exact page and head writing");return
+		print("PASS: detached Season 3 stage bytes ",staged.encoded.size()," predecessor bytes ",raw.size())
+	else:
+		var wire:=FileAccess.get_file_as_bytes(TEST_HEAD)
+		var page:=FileAccess.get_file_as_bytes(TEST_PAGE)
+		var data: Variant=Store.Owner._bytes_value(wire)
+		if wire.is_empty() or page!=raw or Store._earned_dynasty_third_head(data).is_empty():
+			fail("cold custody input");return
+		var wrong: Dictionary=data.duplicate(true)
+		wrong.current.archive[0].sha256="0".repeat(64)
+		var unknown: Dictionary=data.duplicate(true)
+		unknown.current.archive[0].path="unapproved"
+		if Store._earned_dynasty_third_restore(wrong,page,first)!=null \
+				or Store._earned_dynasty_third_restore(data,PackedByteArray(),first)!=null \
+				or not Store._earned_dynasty_third_head(unknown).is_empty():
+			fail("wrong or missing archive admitted");return
+		var restored:=Store._earned_dynasty_third_restore(data,page,first)
+		if restored==null or Store.Owner.Life.digest(Store.Adapter.capture("dynasty",restored))!=birth \
+				or FileAccess.get_file_as_bytes(TEST_HEAD)!=wire or FileAccess.get_file_as_bytes(TEST_PAGE)!=page:
+			fail("cold transition did not rederive an identical binding");return
+		print("PASS: detached Season 3 cold head ",Store.BaseArchive._hash(wire)," birth ",birth)
+	if FileAccess.get_file_as_bytes(args[1])!=wrapper or FileAccess.file_exists(Store.INSTALLED_PATH):
+		fail("production save or source changed");return
+	get_tree().quit(0)
+
+func write_new(path: String, bytes: PackedByteArray) -> bool:
+	if FileAccess.file_exists(path): return false
+	var file:=FileAccess.open(path,FileAccess.WRITE)
+	if file==null: return false
+	file.store_buffer(bytes)
+	file.flush()
+	var verified: bool=file.get_error()==OK
+	file.close()
+	return verified and FileAccess.get_file_as_bytes(path)==bytes
