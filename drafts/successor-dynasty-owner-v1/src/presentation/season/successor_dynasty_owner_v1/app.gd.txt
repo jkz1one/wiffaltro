@@ -1181,8 +1181,8 @@ func request_installed_dugout_d1_close(expected: PackedByteArray) -> void:
 	if not _installed_dugout_d1_close_ready(expected): return
 	_lifecycle_action="installed_dugout_d1_complete"
 	_lifecycle_bytes=expected.duplicate()
-	_lifecycle_dialog.title="Close Dynasty Season 1?" if installed_dugout_d1_draft.get("state")=="dynasty_regular_done" \
-		else "Close Dugout D%d?"%int(installed_dugout_d1_draft.get("tier",1))
+	_lifecycle_dialog.title=("Close Dynasty Season %d?"%int(installed_dugout_d1_draft.get("ordinal",1))) \
+		if installed_dugout_d1_draft.get("state")=="dynasty_regular_done" else "Close Dugout D%d?"%int(installed_dugout_d1_draft.get("tier",1))
 	_lifecycle_dialog.dialog_text="Bank verified career progress and Club Credits once. Your season results and Season Cash stay saved."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240))
 	_lifecycle_dialog.get_cancel_button().grab_focus()
