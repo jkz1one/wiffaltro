@@ -85,13 +85,34 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 	if draft == null or not picks is Array or picks.size() > 4: return {}
 	for pick: Variant in picks:
 		if not pick is String or not draft.choose_player(pick): return {}
+	var physical: Variant = value.current.get("physical")
+	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
+	if not physical.pending.is_empty():
+		draft.physical.pending = physical.pending.duplicate(true)
+		if opening_job(draft).is_empty(): return {}
 	computed.current = Archive._owner().Adapter.capture("ordinary", draft)
 	if computed.current.is_empty() or not Archive.C.same(draft_value(computed), value): return {}
 	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
 
 # This check may materialize only a previously bound producer or child result.
 # It must not be used by itself as a proof of earned progression.
-static func local_draft(value: Dictionary) -> SeasonState:
+
+# Authored fixture zero was played in the live pipeline; keep it unpaid
+# until its two native peer games and settlement actually run.
+static func opening_job(draft: SeasonState) -> Dictionary:
+	if draft == null or not LeagueRules.equipment(draft.league_rules) or draft.round_index != 0 \
+		or draft.phase != SeasonState.Phase.REGULAR or draft.picks.size() != 4 \
+		or not Archive.C.keys(draft.physical.pending, ["human", "reports"]) \
+		or not draft.physical.pending.human is Array or draft.physical.pending.human.size() != 13 \
+		or not draft.physical.pending.reports is Array or not draft.physical.pending.reports.is_empty():
+		return {}
+	var native: Dictionary = Archive._owner().Adapter.OrdinaryPending.project(draft)
+	if native.has("error") or not native.get("fixture") is Dictionary or native.fixture.get("id") != 1 \
+		or not native.get("candidate") is SeasonState:
+		return {}
+	return native
+
+static func local_draft(value: Dictionary, allow_held: bool = false) -> SeasonState:
 	if not value.get("current") is Dictionary or not value.get("aggregate") is Dictionary \
 		or not value.get("offer") is Dictionary: return null
 	var draft: SeasonState = Archive._owner().Adapter.restore("ordinary", value.current)
@@ -104,4 +125,6 @@ static func local_draft(value: Dictionary) -> SeasonState:
 	if basis.get("common_sha256") != Life.digest(value.aggregate) \
 		or Life.digest(basis) != value.offer.get("basis_sha256") \
 		or not Archive.C.whole(value.aggregate.get("currency"), 0, 2147483647): return null
+	if not draft.physical.pending.is_empty() and (not allow_held or opening_job(draft).is_empty()):
+		return null
 	return draft

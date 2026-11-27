@@ -636,8 +636,8 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state")=="equipment_draft":
-		_label(_body,"EQUIPMENT BASE · DRAFT %d / 4"%draft.picks.size(),24)
+	if draft.get("state") in ["equipment_draft","equipment_held"]:
+		_label(_body,"EQUIPMENT BASE · ROUND 1" if draft.picks.size()==4 else "EQUIPMENT BASE · DRAFT %d / 4"%draft.picks.size(),24)
 		_note("Dugout championship kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 		for id: String in draft.picks:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
@@ -645,6 +645,10 @@ func _installed_dugout_d1() -> void:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_equipment").bind(id,draft.bytes.duplicate()))
+		if draft.get("state")=="equipment_held":
+			_note("Your Club game is saved. The round has not been paid.")
+		elif draft.picks.size()==4:
+			_bound_button(_body,"PLAY OPENING GAME",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		return
 	if draft.get("state") in ["dynasty_draft","dynasty_pending","dynasty_paid","dynasty_regular_done","dynasty_postseason_ready","dynasty_second_ready","dynasty_third_ready"]:
 		_installed_earned_dynasty_draft(draft)
