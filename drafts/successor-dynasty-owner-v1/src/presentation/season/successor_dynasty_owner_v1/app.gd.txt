@@ -1167,14 +1167,24 @@ func _finish_installed_dugout_d1_game() -> void:
 		_busy=false
 		_clear_installed_game_save_status()
 		return
-	if _installed_dugout_d1_return.is_empty():
+	var first_save: bool=_installed_dugout_d1_return.is_empty()
+	if first_save:
 		_installed_dugout_d1_return=Store.save_installed_dugout_d1_managed(self)
 	if _installed_dugout_d1_return.is_empty():
 		_busy=false
 		notice="The completed game could not be saved. It remains open."
 		_installed_game_save_status("Your game is still open. This result was not saved. Choose Continue to try again.")
 		return
-	var checked:=Store.installed_dugout_d1_view(_installed_dugout_d1_return.bytes)
+	var checked: Dictionary={}
+	if first_save and _installed_dugout_d1_return.get("ordinal",0)>=4 \
+			and _installed_dugout_d1_return.get("state")=="dynasty_pending":
+		# The synchronous Store returns this exact view only after the write,
+		# archive check and full bound recapture. Before closing the match,
+		# verify its revision again without repeating the same recapture.
+		if Store.raw()==_installed_dugout_d1_return.bytes: checked=_installed_dugout_d1_return
+	else:
+		# A later retry (or an older save dialect) still gets the full check.
+		checked=Store.installed_dugout_d1_view(_installed_dugout_d1_return.bytes)
 	if checked.is_empty() or not _close_match():
 		_busy=false
 		notice="The game is saved. Use Continue to recheck the checkpoint."
