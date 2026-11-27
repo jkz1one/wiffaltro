@@ -28,13 +28,12 @@ const REPLAY_ASSET_PATHS: Array[String]=[
 	"res://src/content/pitches/successor_v7/super_curve.tres",
 ]
 
-var _job: Dictionary={}
+const MIN_SPLIT_AVAILABLE_KIB: int=6000000
+
+var _children: Array[Dictionary]=[]
+var _expected: PackedByteArray
 var _verified: Dictionary={}
 var _verified_wallet_types: String=""
-var _pid: int=-1
-var _out: FileAccess
-var _err: FileAccess
-var _buffer: PackedByteArray
 var _start_ms: int
 var _next_poll: int
 
@@ -42,8 +41,10 @@ static func _wire(job: Dictionary) -> String:
 	return JSON.stringify(job,"",true,true)
 
 static func _valid(job: Variant) -> bool:
-	return Store.Codec.keys(job,["revision","page","nonce"]) \
-		and Store.BaseArchive._digest(job.revision) and Store.BaseArchive._digest(job.page) \
+	if not Store.Codec.keys(job,["revision","page","nonce"]):
+		if not Store.Codec.keys(job,["revision","page","nonce","part"]) \
+				or not job.part is String or job.part not in ["dugout","dynasty"]: return false
+	return Store.BaseArchive._digest(job.revision) and Store.BaseArchive._digest(job.page) \
 		and Store.BaseArchive._digest(job.nonce) and job.revision!=job.nonce and job.page!=job.nonce
 
 static func parse(args: PackedStringArray) -> Dictionary:
@@ -65,51 +66,89 @@ static func _matches(source: Dictionary, job: Dictionary) -> bool:
 	return not source.is_empty() and Store.BaseArchive._hash(source.bytes)==job.revision \
 		and source.pin==job.page
 
+# Only the installed carried Dynasty lane can use two bounded read-only
+# jobs. The stock route stays serial for older or memory-constrained profiles.
+static func _split_shape(source: Dictionary) -> bool:
+	return OS.has_feature(Store.LeagueAdmission.CAREER_FORWARD_FEATURE) and not source.is_empty() \
+		and source.tier==3 and source.closed and source.dynasty_compact_ordinal>=4 \
+		and not source.dynasty_compact_history.is_empty() and not source.dynasty_third.is_empty()
+
+static func _split_headroom() -> bool:
+	if OS.get_processor_count()<3: return false
+	var info:=FileAccess.open("/proc/meminfo",FileAccess.READ)
+	if info==null: return false
+	for i: int in 8:
+		var row:=info.get_line()
+		if row.begins_with("MemAvailable:"):
+			var value:=row.trim_prefix("MemAvailable:").strip_edges().trim_suffix("kB").strip_edges()
+			return value.is_valid_int() and int(value)>=MIN_SPLIT_AVAILABLE_KIB
+		if info.eof_reached(): break
+	return false
+
 func start(expected: PackedByteArray) -> bool:
-	if _pid>0 or not is_inside_tree() or not Store._installed_dugout_d1_lane() or not _package(): return false
+	return _start_read(expected,true)
+
+func _start_read(expected: PackedByteArray,allow_split: bool) -> bool:
+	if not _children.is_empty() or not is_inside_tree() or not Store._installed_dugout_d1_lane() or not _package(): return false
 	var source:=Store._installed_dugout_d1_source()
 	if source.is_empty() or expected.is_empty() or source.bytes!=expected: return false
-	var job: Dictionary={"revision":Store.BaseArchive._hash(expected),"page":source.pin,
-		"nonce":Crypto.new().generate_random_bytes(32).hex_encode()}
-	if not _valid(job): return false
 	_verified.clear()
 	_verified_wallet_types=""
-	var path: String=OS.get_executable_path().get_base_dir().path_join("Wiffaltro")
-	var launched:=OS.execute_with_pipe(path,[ARG+Marshalls.utf8_to_base64(_wire(job))],false)
-	_pid=int(launched.get("pid",-1))
-	_out=launched.get("stdio"); _err=launched.get("stderr")
-	if _pid<=0 or _out==null or _err==null:
-		cancel(); return false
-	_job=job
+	var job: Dictionary={"revision":Store.BaseArchive._hash(expected),"page":source.pin}
+	if allow_split and _split_shape(source) and _split_headroom():
+		if not _launch_part(job,"dugout") or not _launch_part(job,"dynasty"):
+			_stop_children()
+	if _children.is_empty() and not _launch_part(job,""): return false
+	_expected=expected.duplicate()
 	_start_ms=Time.get_ticks_msec()
 	_next_poll=_start_ms
 	process_mode=Node.PROCESS_MODE_ALWAYS
 	set_process(true)
 	return true
 
+func _launch_part(common: Dictionary,part: String) -> bool:
+	var job:=common.duplicate()
+	job.nonce=Crypto.new().generate_random_bytes(32).hex_encode()
+	if not part.is_empty(): job.part=part
+	if not _valid(job): return false
+	var path: String=OS.get_executable_path().get_base_dir().path_join("Wiffaltro")
+	var launched:=OS.execute_with_pipe(path,[ARG+Marshalls.utf8_to_base64(_wire(job))],false)
+	var pid:=int(launched.get("pid",-1))
+	var out: FileAccess=launched.get("stdio")
+	var err: FileAccess=launched.get("stderr")
+	if pid<=0 or out==null or err==null:
+		if pid>0 and OS.is_process_running(pid): OS.kill(pid)
+		return false
+	_children.append({"pid":pid,"out":out,"err":err,"job":job,"buffer":PackedByteArray(),"reply":{}})
+	return true
+
 func cancel() -> void:
-	_stop_child()
+	_stop_children()
 	_verified.clear()
 	_verified_wallet_types=""
 
-func _stop_child() -> void:
-	if _pid>0 and OS.is_process_running(_pid): OS.kill(_pid)
-	_pid=-1
-	_out=null; _err=null
-	_buffer.clear()
-	_job.clear()
+func _stop_children() -> void:
+	for child: Dictionary in _children:
+		var pid: int=child.pid
+		if pid>0 and OS.is_process_running(pid): OS.kill(pid)
+	_children.clear()
+	_expected=PackedByteArray()
 	set_process(false)
 
 func _exit_tree() -> void: cancel()
 
-func _drain() -> bool:
-	if _out==null or _err==null or _err.get_length()!=0: return false
-	var n: int=_out.get_length()
-	if n<0 or n>MAX_FRAME-_buffer.size(): return false
+func _drain(child: Dictionary) -> bool:
+	var out: FileAccess=child.out
+	var err: FileAccess=child.err
+	if out==null or err==null or err.get_length()!=0: return false
+	var n: int=out.get_length()
+	var buffer: PackedByteArray=child.buffer
+	if n<0 or n>MAX_FRAME-buffer.size(): return false
 	if n>0:
-		var part: PackedByteArray=_out.get_buffer(n)
+		var part: PackedByteArray=out.get_buffer(n)
 		if part.size()!=n: return false
-		_buffer.append_array(part)
+		buffer.append_array(part)
+		child.buffer=buffer
 	return true
 
 static func _decode(bytes: PackedByteArray, job: Dictionary, code: int) -> Dictionary:
@@ -119,34 +158,58 @@ static func _decode(bytes: PackedByteArray, job: Dictionary, code: int) -> Dicti
 	if not text.ends_with("\n") or lines.size()!=2 or not lines[0].begins_with("Godot Engine v"): return {}
 	var prefix: String=FRAME+_wire(job)
 	if lines[1]==prefix: return {"wallet_types":""}
-	if not lines[1].begins_with(prefix+" "): return {}
+	if job.get("part")=="dynasty" or not lines[1].begins_with(prefix+" "): return {}
 	var wallet: String=lines[1].trim_prefix(prefix+" ")
 	return {"wallet_types":wallet} if Earned.valid_wallet_types(wallet) else {}
 
 func _process(_delta: float) -> void:
-	if _pid<=0: return
+	if _children.is_empty(): return
 	var now: int=Time.get_ticks_msec()
 	if now<_next_poll: return
 	_next_poll=now+80
-	if now-_start_ms>MAX_MS or not _drain():
+	if now-_start_ms>MAX_MS:
 		cancel(); completed.emit("failed"); return
-	if OS.is_process_running(_pid): return
-	var exit_code: int=OS.get_process_exit_code(_pid)
-	var reply: Dictionary=_decode(_buffer,_job,exit_code) if _drain() else {}
-	var fresh: bool=not reply.is_empty() and _matches(Store._installed_dugout_d1_source(),_job)
-	var witness: Dictionary=_job.duplicate() if fresh else {}
-	_stop_child()
+	var all_ready: bool=true
+	for child: Dictionary in _children:
+		if not child.reply.is_empty(): continue
+		if not _drain(child):
+			cancel(); completed.emit("failed"); return
+		if OS.is_process_running(child.pid):
+			all_ready=false
+			continue
+		var exit_code: int=OS.get_process_exit_code(child.pid)
+		child.pid=-1
+		if exit_code==9 and child.job.get("part")=="dynasty" and _children.size()==2:
+			# A shape that needs the original native ordinary representation
+			# still gets the original full serial proof. This is never success.
+			var expected:=_expected.duplicate()
+			_stop_children()
+			if not _start_read(expected,false): completed.emit("refused")
+			return
+		child.reply=_decode(child.buffer,child.job,exit_code) if _drain(child) else {}
+		if child.reply.is_empty():
+			cancel(); completed.emit("refused"); return
+	if not all_ready: return
+	# The provisional Dynasty reply alone cannot publish an admitted result.
+	# Both nonces and the same current content-addressed input are required.
+	var source:=Store._installed_dugout_d1_source()
+	var fresh: bool=not source.is_empty() and source.bytes==_expected
+	for child: Dictionary in _children:
+		if not _matches(source,child.job): fresh=false
+	var witness: Dictionary=_children[0].job.duplicate() if fresh else {}
+	var wallets: String=_children[0].reply.wallet_types if fresh else ""
+	_stop_children()
 	_verified=witness
-	_verified_wallet_types=reply.wallet_types if fresh else ""
-	completed.emit("verified" if fresh else ("stale" if not reply.is_empty() else "refused"))
+	_verified_wallet_types=wallets
+	completed.emit("verified" if fresh else "stale")
 
 func verified_wallets() -> String:
-	return _verified_wallet_types if _pid<0 and not _verified.is_empty() else ""
+	return _verified_wallet_types if _children.is_empty() and not _verified.is_empty() else ""
 
 # The parent may consume only its completed matching, still-current job.
 func verified_revision(expected: PackedByteArray) -> bool:
-	if _pid>0 or _verified.is_empty() or not is_inside_tree() \
-		or not Store._installed_dugout_d1_lane() or Store.BaseArchive._hash(expected)!=_verified.revision: return false
+	if not _children.is_empty() or _verified.is_empty() or not is_inside_tree() \
+			or not Store._installed_dugout_d1_lane() or Store.BaseArchive._hash(expected)!=_verified.revision: return false
 	var source:=Store._installed_dugout_d1_source()
 	return _matches(source,_verified) and source.bytes==expected
 
@@ -164,14 +227,23 @@ func worker(job: Dictionary) -> void:
 		if ResourceLoader.exists(path):
 			var asset: Resource=ResourceLoader.load(path)
 			if asset!=null: assets.append(asset)
-	var restored: SeasonState=Store._restore_installed_dugout_d1_source(source)
-	if restored==null:
+	var part: String=job.get("part","")
+	if not part.is_empty() and not _split_shape(source):
 		get_tree().quit(8); return
 	var wallets: String=""
-	if Earned.needs_wallet_types(restored):
-		wallets=Earned.wallet_types(restored)
-		if wallets.is_empty():
+	if part=="dynasty":
+		var provisional:=Store._installed_dugout_d3_local_draft(source.current.ordinary)
+		if not Store._verify_installed_dugout_dynasty(source,provisional):
+			# No success frame; let the parent perform the strict serial route.
+			get_tree().quit(9); return
+	else:
+		var restored:=Store._restore_installed_dugout_d1_source(source,part=="dugout")
+		if restored==null:
 			get_tree().quit(8); return
+		if Earned.needs_wallet_types(restored):
+			wallets=Earned.wallet_types(restored)
+			if wallets.is_empty():
+				get_tree().quit(8); return
 	var again:=Store._installed_dugout_d1_source(true)
 	if not _matches(again,job) or again.bytes!=source.bytes or again.pages!=source.pages:
 		get_tree().quit(8); return

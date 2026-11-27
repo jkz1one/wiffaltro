@@ -3235,7 +3235,7 @@ static func _installed_dugout_d1_source(worker: bool=false) -> Dictionary:
 		"dynasty_inherited_chair":inherited_chair,"dynasty_inherited_layout":inherited_layout,
 		"dynasty_inherited_application":inherited_application}
 
-static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonState:
+static func _restore_installed_dugout_d1_source(source: Dictionary,dugout_only: bool=false) -> SeasonState:
 	if source.is_empty(): return null
 	var pages: Array[PackedByteArray]=source.pages
 	var head: PackedByteArray=BaseArchive._wire(source.head)
@@ -3243,14 +3243,9 @@ static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonSta
 		var earned: Script=preload("earned_dugout_d2.gd")
 		var ordinary: SeasonState=earned.restore_d3_draft(head,pages,source.current,source.closed)
 		if ordinary==null: return null
-		if not source.dynasty.is_empty():
-			var verified: Dictionary={}
-			var first:=_installed_earned_dynasty_draft(source,ordinary,verified)
-			if first==null: return null
-			if not source.dynasty_third.is_empty():
-				var plan:=_earned_dynasty_replay_predecessors(source,first,verified.get("second"))
-				if _earned_dynasty_third_current(plan,source.dynasty_third)==null: return null
+		if not dugout_only and not _verify_installed_dugout_dynasty(source,ordinary): return null
 		return ordinary
+	if dugout_only: return null
 	if source.tier==2:
 		var d2: Script=preload("earned_dugout_d2.gd")
 		if source.closed: return d2.restore_completed_from_pages(head,pages,source.current)
@@ -3258,6 +3253,20 @@ static func _restore_installed_dugout_d1_source(source: Dictionary) -> SeasonSta
 	var earned: Script=preload("earned_dugout_d1.gd")
 	if source.closed: return earned.restore_completed_from_pages(head,pages,source.current)
 	return earned.restore_draft_from_pages(head,pages,source.current,true)
+
+# Both fixed readers use the original Dynasty replay. In a split read, a
+# provisional ordinary image is only an operand; the other job separately
+# proves the same exact ordinary career and supplies any native wallet tape.
+static func _verify_installed_dugout_dynasty(source: Dictionary,ordinary: SeasonState) -> bool:
+	if source.is_empty() or source.tier!=3 or ordinary==null: return false
+	if source.dynasty.is_empty(): return true
+	var verified: Dictionary={}
+	var first:=_installed_earned_dynasty_draft(source,ordinary,verified)
+	if first==null: return false
+	if source.dynasty_third.is_empty(): return true
+	var plan:=_earned_dynasty_replay_predecessors(source,first,verified.get("second"))
+	return _earned_dynasty_third_current(plan,source.dynasty_third)!=null
+
 
 static func read_installed_dugout_d1_draft() -> Dictionary:
 	var source:=_installed_dugout_d1_source()
