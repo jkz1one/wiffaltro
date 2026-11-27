@@ -637,23 +637,31 @@ func _display_standard_record(history: Dictionary) -> void:
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
 	var lane: String=draft.get("state","")
-	if lane in ["equipment_draft","equipment_held","equipment_paid","earnings_draft","earnings_held","earnings_paid"]:
+	if lane in ["equipment_draft","equipment_held","equipment_paid","earnings_draft","earnings_held","earnings_paid",
+			"scramble_draft","scramble_held","scramble_paid"]:
 		var earnings: bool=lane.begins_with("earnings_")
-		var name: String="EARNINGS BASE" if earnings else "EQUIPMENT BASE"
+		var scramble: bool=lane.begins_with("scramble_")
+		var league: String="Scramble" if scramble else ("Earnings" if earnings else "Equipment")
+		var name: String=league.to_upper()+" BASE"
 		var label: String="%s · ROUND %d"%[name,mini(10,int(draft.round)+int(not lane.ends_with("_paid")))]
 		if draft.picks.size()<4: label="%s · DRAFT %d / 4"%[name,draft.picks.size()]
 		if draft.stage=="semifinal" or draft.finish=="semifinal_exit": label=name+" · SEMIFINAL"
 		elif draft.stage=="final" or draft.finish in ["final_champion","final_runner_up"]: label=name+" · FINAL"
 		_label(_body,label,24)
-		var honors: String="Dugout and Equipment titles kept" if earnings else "Dugout championship kept"
+		var honors: String="Dugout Base, D1 and D2 titles kept" if scramble else \
+			("Dugout and Equipment titles kept" if earnings else "Dugout championship kept")
 		_note("%s · %d Club Credits · %d Season Cash"%[honors,draft.credits,draft.cash])
 		if earnings: _note("Game Cash: 15 plus your final run margin, bounded to 10–24.")
+		if scramble: _note("Your players begin with a seeded stat mix. Paid training builds from that baseline.")
 		for id: String in draft.picks:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_label(_body,player.display_name if player!=null else id,20)
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
-			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_earnings" if earnings else "pick_installed_equipment").bind(id,draft.bytes.duplicate()))
+			var display: String=player.display_name if player!=null else id
+			if scramble and draft.get("offer_ratings",{}).has(id):
+				display+=" · "+str(draft.offer_ratings[id])
+			_bound_button(_body,display,Callable(app,"pick_installed_named_base" if earnings or scramble else "pick_installed_equipment").bind(id,draft.bytes.duplicate()))
 		if lane.ends_with("_paid"):
 			if draft.can_play:
 				var next: String="PLAY ROUND %d"%(int(draft.round)+1)
@@ -667,10 +675,10 @@ func _installed_dugout_d1() -> void:
 			elif draft.finish=="missed": _note("The Club did not qualify for the postseason.")
 			elif draft.finish=="semifinal_exit": _note("The Club was eliminated in the semifinal.")
 			elif draft.finish=="final_champion":
-				_note("The Club won the %s championship."%("Earnings" if earnings else "Equipment"))
-				if not earnings:
+				_note("The Club won the %s championship."%league)
+				if not earnings and not scramble:
 					_bound_button(_body,"BANK TITLE AND START EARNINGS",Callable(app,"request_installed_earnings").bind(draft.bytes.duplicate()))
-			elif draft.finish=="final_runner_up": _note("The Club finished as %s runner-up."%("Earnings" if earnings else "Equipment"))
+			elif draft.finish=="final_runner_up": _note("The Club finished as %s runner-up."%league)
 			for row: Dictionary in draft.results:
 				_note("%d–%d · %s at %s"%[int(row.away_runs),int(row.home_runs),SeasonState.TEAM_NAMES[int(row.away)],SeasonState.TEAM_NAMES[int(row.home)]])
 		elif lane.ends_with("_held"):
@@ -937,6 +945,8 @@ func _installed_fitted_dugout(draft: Dictionary) -> void:
 				_bound_button(_body,"START DYNASTY DRAFT",Callable(app,"request_installed_earned_dynasty").bind(draft.bytes.duplicate()))
 			if draft.start_d3_available:
 				_bound_button(_body,"START DUGOUT D3 DRAFT",Callable(app,"request_installed_dugout_d2").bind(draft.bytes.duplicate()))
+			if draft.get("start_scramble_available",false):
+				_bound_button(_body,"START SCRAMBLE BASE",Callable(app,"request_installed_scramble").bind(draft.bytes.duplicate()))
 		elif draft.close_available:
 			_bound_button(_body,"CLOSE SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 		if draft.next_available:

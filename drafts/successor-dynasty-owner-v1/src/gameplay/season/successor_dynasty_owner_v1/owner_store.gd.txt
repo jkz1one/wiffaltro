@@ -3192,7 +3192,22 @@ static func start_installed_earnings(app: Variant, expected: PackedByteArray) ->
 	var source:=_bound_installed_equipment(expected,true)
 	if source.is_empty() or EquipmentBase.finish(source.draft)!="final_champion": return {}
 	var staged:=EarnedNamedBase.stage(source.equipment,source.draft,source.pages[0])
-	if staged.is_empty(): return {}
+	return _commit_installed_named_base(staged,source,expected)
+
+# A banked D2 winner may choose this route or the original D3 route. The
+# original native championship payout is kept exactly once, not folded here.
+static func start_installed_scramble(app: Variant,expected: PackedByteArray) -> Dictionary:
+	if saving or _ticket!=null or not _installed_dugout_d1_shop_app(app) or app.season!=null \
+			or app.saved_bytes!=expected or not app.installed_dugout_d1_draft.get("start_scramble_available",false): return {}
+	var source:=_bound_installed_dugout_d1(expected)
+	if source.is_empty() or not source.closed or source.tier!=2: return {}
+	var original: Variant=Owner._bytes_value(expected)
+	if not original is Dictionary: return {}
+	var staged:=EarnedNamedBase.stage_scramble(original,_installed_dugout_d1_bound.draft,source.pages)
+	return _commit_installed_named_base(staged,source,expected)
+
+static func _commit_installed_named_base(staged: Dictionary, source: Dictionary, expected: PackedByteArray) -> Dictionary:
+	if staged.is_empty() or saving or _ticket!=null or not _installed_dugout_d1_lane(): return {}
 	var normalized:=_native_materialize(staged.value)
 	if normalized.is_empty(): return {}
 	var draft:=EarnedNamedBase.local_draft(normalized.value)
@@ -3200,6 +3215,11 @@ static func start_installed_earnings(app: Variant, expected: PackedByteArray) ->
 	if draft==null or again.is_empty() or again.bytes!=expected or again.pages!=source.pages or not _matches(expected): return {}
 	saving=true
 	var kept:=_keep_installed_dugout_d1_page(staged.page)
+	for bytes: PackedByteArray in source.pages:
+		var path:=_installed_dugout_d1_page_path(BaseArchive._hash(bytes))
+		if _base_archive_member(path).get("bytes",PackedByteArray())!=bytes:
+			kept=false
+			break
 	var saved: bool=kept and _installed_dugout_d1_lane() and _matches(expected) and _write_exact_bytes(normalized.bytes,expected)
 	saving=false
 	if not saved: return {}
@@ -3211,9 +3231,9 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 	if body.is_empty() or not EarnedNamedBase._route_value(value) or not _installed_dugout_d1_page_root(false): return {}
 	var head_bytes:=BaseArchive._wire(value.head)
 	var head:=BaseArchive._head(head_bytes)
-	if head.is_empty() or head.ordinal!=3 or head.pages.size()!=2 \
-			or head.pages!=[value.offer.get("origin_page_sha256"),value.offer.get("close_page_sha256")] \
-			or BaseArchive._hash(head_bytes)!=value.offer.get("head_sha256"): return {}
+	var pins:=EarnedNamedBase.page_ids(value)
+	if head.is_empty() or pins.size() not in [2,3] or head.ordinal!=pins.size()+1 \
+			or head.pages!=pins or BaseArchive._hash(head_bytes)!=value.offer.get("head_sha256"): return {}
 	var pages: Array[PackedByteArray]=[]
 	for pin: String in head.pages:
 		var path:=_installed_dugout_d1_page_path(pin)
@@ -3221,14 +3241,24 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 		var member:=_base_archive_member(path)
 		if member.is_empty() or not member.present or BaseArchive._hash(member.bytes)!=pin: return {}
 		pages.append(member.bytes)
-	return {"bytes":body,"pin":head.pages[1],"pages":pages,"named_base":value}
+	return {"bytes":body,"pin":head.pages.back(),"pages":pages,"named_base":value}
 
 static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
+	if EarnedNamedBase.target(value)=="scramble":
+		var ratings: Dictionary={}
+		for id: String in view.offers:
+			var profile: Dictionary=draft.build.player(id)
+			var details: PackedStringArray=[]
+			if not profile.get("stats") is Dictionary: continue
+			for stat: String in SeasonPlayerCatalog.STATS:
+				details.append("%s: %d"%[stat.capitalize(),int(profile.stats[stat])])
+			ratings[id]=" · ".join(details)
+		view.offer_ratings=ratings
 	return view
 
-static func pick_installed_earnings(expected: PackedByteArray,id: String) -> Dictionary:
+static func pick_installed_named_base(expected: PackedByteArray,id: String) -> Dictionary:
 	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_named_base_bound \
 			or not _installed_dugout_d1_lane() or not _matches(expected): return {}
 	var source:=_installed_dugout_d1_source()
@@ -3262,12 +3292,12 @@ static func _installed_equipment_source(body: PackedByteArray,value: Dictionary)
 	return {"bytes":body,"pin":pin,"pages":[member.bytes],"equipment":value}
 
 static func _installed_equipment_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
-	var earnings: bool=value.kind==EarnedNamedBase.KIND
-	var paid: bool=value.has("rounds") if earnings else value.has("opening_paid")
+	var named: bool=value.kind==EarnedNamedBase.KIND
+	var paid: bool=value.has("rounds") if named else value.has("opening_paid")
 	var pending: Dictionary=draft.physical.pending
 	var held: bool=not pending.is_empty()
 	var round: int=draft.round_index
-	var prefix: String="earnings" if earnings else "equipment"
+	var prefix: String=EarnedNamedBase.target(value) if named else "equipment"
 	var status: String=prefix+("_held" if held else ("_paid" if paid else "_draft"))
 	var human: Array=pending.get("human",[])
 	var reports: int=pending.get("reports",[]).size()
@@ -4806,6 +4836,9 @@ static func installed_dugout_d1_view(expected: PackedByteArray) -> Dictionary:
 				and source.current.common.aggregate.titles.get("dugout:3")==true \
 				and preload("res://src/gameplay/season/league_unlocks.gd").from_titles(source.current.common.aggregate.titles).has("dynasty"),
 			"start_d3_available":source.tier==2 and source.closed and close_d2=="champion" and completion_d2.get("finish")=="champion",
+			"start_scramble_available":source.tier==2 and source.closed and close_d2=="champion" \
+				and completion_d2.get("finish")=="champion" \
+				and "scramble" in EarnedNamedBase.Unlocks.from_titles(source.current.common.aggregate.titles),
 			"cpu_reports":count_d2,"cpu_total":total_d2,"finish":finish_d2,
 			"scores":d2_scores,"shop_available":d2_state=="paid" and not source.closed and draft.shop_available(),
 			"round":draft.round_index+int(d2_state in ["unpaid","ready"]),
@@ -5553,7 +5586,7 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	if not is_instance_valid(app) or app.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 			or app.career_owner!=null or app.season!=null or is_instance_valid(app.lab): return false
 	var expected: PackedByteArray=app.saved_bytes
-	if app.installed_dugout_d1_draft.get("state") in ["equipment_draft","equipment_paid","earnings_draft","earnings_paid"]:
+	if app.installed_dugout_d1_draft.get("state") in ["equipment_draft","equipment_paid","earnings_draft","earnings_paid","scramble_draft","scramble_paid"]:
 		return _open_installed_equipment_match(app,expected)
 	var source:=_bound_installed_dugout_d1(expected,true)
 	if source.is_empty(): return false
@@ -5809,7 +5842,7 @@ static func _installed_dugout_d1_project_pending(session: SeasonState) -> Dictio
 static func _installed_dugout_d1_round_app(app: Variant) -> bool:
 	return is_instance_valid(app) and app.get_script()==load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 		and app.career_owner==null and app.season==null and not is_instance_valid(app.lab) \
-		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held"]
+		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held"]
 
 # Only the actual OrdinaryRunner's completion for the projected fixture can
 # append one receipt. No score/fixture selector or fallback save is exposed.
@@ -6170,7 +6203,7 @@ static func _installed_dugout_d1_entry_app(app: Variant) -> bool:
 
 static func _installed_dugout_d1_shop_app(app: Variant) -> bool:
 	return _installed_dugout_d1_entry_app(app) \
-		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid"]
+		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid","scramble_paid"]
 
 static func _installed_dugout_d1_shop_view(view: Dictionary) -> Dictionary:
 	if view.is_empty(): return {}

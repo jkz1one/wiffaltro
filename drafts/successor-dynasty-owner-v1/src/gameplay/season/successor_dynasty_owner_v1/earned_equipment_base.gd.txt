@@ -158,9 +158,12 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 static func named_runtime(season: SeasonState) -> bool:
 	if season==null or not season.league_live: return false
 	if LeagueRules.equipment(season.league_rules): return season.league_rules.get("tier")==0
-	return season.career!=null and OS.has_feature("wiffaltro_catalog_forward_v1") \
-		and Archive.C.same(season.league_rules,LeagueRules.capture("earnings")) \
-		and season.career.start_basis.get("ordinal")==3 and season.career.start_basis.get("common_sequence")==2
+	if season.career==null or not OS.has_feature("wiffaltro_catalog_forward_v1"): return false
+	var basis: Dictionary=season.career.start_basis
+	if Archive.C.same(season.league_rules,LeagueRules.capture("earnings")):
+		return basis.get("ordinal")==3 and basis.get("common_sequence")==2
+	return Archive.C.same(season.league_rules,LeagueRules.capture("scramble",0,season.season_seed)) \
+		and basis.get("ordinal")==4 and basis.get("common_sequence")==3
 
 # Authored fixture zero must be played; only its two native peer reports
 # can advance this held round to the one exact paid continuation.
@@ -208,7 +211,7 @@ static func _materialization_scope(season: SeasonState) -> bool:
 	return season!=null and season.career!=null and OS.has_feature("wiffaltro_catalog_forward_v1") \
 		and season.round_index>=0 and season.round_index<=REGULAR_LIMIT \
 		and named_runtime(season) \
-		and (LeagueRules.earnings(season.league_rules) or (season.round_index>0 \
+		and (not LeagueRules.equipment(season.league_rules) or (season.round_index>0 \
 			and season.career.start_basis.get("ordinal")==2 and season.career.start_basis.get("common_sequence")==1))
 
 static func _round_materialized_exact(season: SeasonState) -> SeasonState:
