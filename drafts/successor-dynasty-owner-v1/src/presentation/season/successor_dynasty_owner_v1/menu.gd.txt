@@ -636,32 +636,25 @@ func _display_standard_record(history: Dictionary) -> void:
 
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
-	if draft.get("state")=="earnings_draft":
-		_label(_body,"EARNINGS BASE · DRAFT %d / 4"%draft.picks.size(),24)
-		_note("Dugout and Equipment titles kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
-		_note("Equipment title banked: %d Club Credits."%draft.equipment_award)
-		for id: String in draft.picks:
-			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
-			_label(_body,player.display_name if player!=null else id,20)
-		for id: String in draft.offers:
-			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
-			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_earnings").bind(id,draft.bytes.duplicate()))
-		if draft.picks.size()==4: _note("The Earnings roster is saved.")
-		return
-	if draft.get("state") in ["equipment_draft","equipment_held","equipment_paid"]:
-		var label: String="EQUIPMENT BASE · ROUND %d"%mini(10,int(draft.round)+int(draft.get("state")!="equipment_paid"))
-		if draft.picks.size()<4: label="EQUIPMENT BASE · DRAFT %d / 4"%draft.picks.size()
-		if draft.stage=="semifinal" or draft.finish=="semifinal_exit": label="EQUIPMENT BASE · SEMIFINAL"
-		elif draft.stage=="final" or draft.finish in ["final_champion","final_runner_up"]: label="EQUIPMENT BASE · FINAL"
+	var lane: String=draft.get("state","")
+	if lane in ["equipment_draft","equipment_held","equipment_paid","earnings_draft","earnings_held","earnings_paid"]:
+		var earnings: bool=lane.begins_with("earnings_")
+		var name: String="EARNINGS BASE" if earnings else "EQUIPMENT BASE"
+		var label: String="%s · ROUND %d"%[name,mini(10,int(draft.round)+int(not lane.ends_with("_paid")))]
+		if draft.picks.size()<4: label="%s · DRAFT %d / 4"%[name,draft.picks.size()]
+		if draft.stage=="semifinal" or draft.finish=="semifinal_exit": label=name+" · SEMIFINAL"
+		elif draft.stage=="final" or draft.finish in ["final_champion","final_runner_up"]: label=name+" · FINAL"
 		_label(_body,label,24)
-		_note("Dugout championship kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
+		var honors: String="Dugout and Equipment titles kept" if earnings else "Dugout championship kept"
+		_note("%s · %d Club Credits · %d Season Cash"%[honors,draft.credits,draft.cash])
+		if earnings: _note("Game Cash: 15 plus your final run margin, bounded to 10–24.")
 		for id: String in draft.picks:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_label(_body,player.display_name if player!=null else id,20)
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
-			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_equipment").bind(id,draft.bytes.duplicate()))
-		if draft.get("state")=="equipment_paid":
+			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_earnings" if earnings else "pick_installed_equipment").bind(id,draft.bytes.duplicate()))
+		if lane.ends_with("_paid"):
 			if draft.can_play:
 				var next: String="PLAY ROUND %d"%(int(draft.round)+1)
 				if draft.stage=="semifinal": next="PLAY SEMIFINAL"
@@ -674,12 +667,13 @@ func _installed_dugout_d1() -> void:
 			elif draft.finish=="missed": _note("The Club did not qualify for the postseason.")
 			elif draft.finish=="semifinal_exit": _note("The Club was eliminated in the semifinal.")
 			elif draft.finish=="final_champion":
-				_note("The Club won the Equipment championship.")
-				_bound_button(_body,"BANK TITLE AND START EARNINGS",Callable(app,"request_installed_earnings").bind(draft.bytes.duplicate()))
-			elif draft.finish=="final_runner_up": _note("The Club finished as Equipment runner-up.")
+				_note("The Club won the %s championship."%("Earnings" if earnings else "Equipment"))
+				if not earnings:
+					_bound_button(_body,"BANK TITLE AND START EARNINGS",Callable(app,"request_installed_earnings").bind(draft.bytes.duplicate()))
+			elif draft.finish=="final_runner_up": _note("The Club finished as %s runner-up."%("Earnings" if earnings else "Equipment"))
 			for row: Dictionary in draft.results:
 				_note("%d–%d · %s at %s"%[int(row.away_runs),int(row.home_runs),SeasonState.TEAM_NAMES[int(row.away)],SeasonState.TEAM_NAMES[int(row.home)]])
-		elif draft.get("state")=="equipment_held":
+		elif lane.ends_with("_held"):
 			_note("Club game saved: %d–%d (away–home). Round unpaid."%[int(draft.club_score[0]),int(draft.club_score[1])])
 			if draft.cpu_total>0 or draft.stage=="regular":
 				_note(("CPU games saved: %d / %d"%[draft.cpu_reports,draft.cpu_total]) if draft.cpu_total>0 else ("CPU games saved: %d"%draft.cpu_reports))

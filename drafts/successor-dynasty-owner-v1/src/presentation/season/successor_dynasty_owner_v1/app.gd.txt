@@ -1146,7 +1146,7 @@ func play_installed_dugout_d1(expected: PackedByteArray) -> void:
 	var state: String=installed_dugout_d1_draft.get("state","")
 	var dynasty_ready: bool=(state in ["dynasty_paid","dynasty_postseason_ready"] and installed_dugout_d1_draft.get("allow_play_next",true)) \
 		or state in ["dynasty_second_ready","dynasty_third_ready"] or (state=="dynasty_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4)
-	var equipment_ready: bool=state in ["equipment_draft","equipment_paid"] and installed_dugout_d1_draft.get("can_play",false)
+	var equipment_ready: bool=state in ["equipment_draft","equipment_paid","earnings_draft","earnings_paid"] and installed_dugout_d1_draft.get("can_play",false)
 	if _busy or installed_dugout_d1_reading() or (state not in ["ready","paid"] and not dynasty_ready and not equipment_ready) \
 			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home" \
 			or is_instance_valid(_installed_dugout_d1_shop): return
@@ -1225,7 +1225,7 @@ func _finish_installed_dugout_d1_game() -> void:
 		_installed_game_save_status("Your game is still open. This result was not saved. Choose Continue to try again.")
 		return
 	var checked: Dictionary={}
-	if first_save and (_installed_dugout_d1_return.get("state")=="equipment_held" or \
+	if first_save and (_installed_dugout_d1_return.get("state") in ["equipment_held","earnings_held"] or \
 			(_installed_dugout_d1_return.get("ordinal",0)>=4 and _installed_dugout_d1_return.get("state")=="dynasty_pending")):
 		# The synchronous Store returns this exact view only after the write,
 		# archive check and full bound recapture. Before closing the match,
@@ -1245,11 +1245,11 @@ func _finish_installed_dugout_d1_game() -> void:
 	show_season()
 
 func installed_dugout_d1_cpu_running() -> bool:
-	return installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","dynasty_pending","equipment_held"] and is_instance_valid(ai_runner)
+	return installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","dynasty_pending","equipment_held","earnings_held"] and is_instance_valid(ai_runner)
 
 func _installed_dugout_d1_round_menu(expected: PackedByteArray) -> bool:
 	return not _busy and not is_instance_valid(ai_runner) and not installed_dugout_d1_reading() \
-		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held"] and saved_bytes==expected \
+		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held"] and saved_bytes==expected \
 		and menu!=null and menu.visible and menu.page=="home"
 
 func play_installed_dugout_d1_cpu(expected: PackedByteArray) -> void:
@@ -1480,10 +1480,10 @@ func _start_installed_earned_dynasty(expected: PackedByteArray) -> void:
 
 func installed_dugout_d1_shop_window(window: Node) -> bool:
 	return is_instance_valid(window) and window==_installed_dugout_d1_shop and window.get_parent()==menu \
-		and installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid"] and career_owner==null and season!=null
+		and installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid"] and career_owner==null and season!=null
 
 func _adopt_installed_dugout_d1_shop(entry: Dictionary) -> bool:
-	if entry.is_empty() or not entry.get("session") is SeasonState or entry.view.get("state") not in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid"]: return false
+	if entry.is_empty() or not entry.get("session") is SeasonState or entry.view.get("state") not in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid"]: return false
 	season=entry.session
 	saved_bytes=entry.view.bytes
 	installed_dugout_d1_draft=entry.view
@@ -1491,7 +1491,7 @@ func _adopt_installed_dugout_d1_shop(entry: Dictionary) -> bool:
 	return true
 
 func open_installed_dugout_d1_shop(expected: PackedByteArray) -> void:
-	if _busy or saved_bytes!=expected or installed_dugout_d1_draft.get("state") not in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid"] \
+	if _busy or saved_bytes!=expected or installed_dugout_d1_draft.get("state") not in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid"] \
 			or menu==null or not menu.visible or menu.page!="home" or is_instance_valid(_installed_dugout_d1_shop): return
 	_busy=true
 	var entered:=Store.open_installed_dugout_d1_shop(self)

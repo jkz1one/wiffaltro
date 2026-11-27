@@ -153,10 +153,19 @@ static func replay_draft(value: Variant, page: PackedByteArray) -> Dictionary:
 	if computed.current.is_empty() or not Archive.C.same(draft_value(computed), value): return {}
 	return {"draft": draft, "aggregate": native.common.aggregate.duplicate(true)}
 
+# The exact earned profiles share native game, bank and Shop reducers,
+# not admission. Each caller still authenticates its own title archive.
+static func named_runtime(season: SeasonState) -> bool:
+	if season==null or not season.league_live: return false
+	if LeagueRules.equipment(season.league_rules): return season.league_rules.get("tier")==0
+	return season.career!=null and OS.has_feature("wiffaltro_catalog_forward_v1") \
+		and Archive.C.same(season.league_rules,LeagueRules.capture("earnings")) \
+		and season.career.start_basis.get("ordinal")==3 and season.career.start_basis.get("common_sequence")==2
+
 # Authored fixture zero must be played; only its two native peer reports
 # can advance this held round to the one exact paid continuation.
 static func opening_job(draft: SeasonState) -> Dictionary:
-	if draft == null or not LeagueRules.equipment(draft.league_rules) or draft.round_index != 0 \
+	if not named_runtime(draft) or draft.round_index != 0 \
 		or draft.phase != SeasonState.Phase.REGULAR or draft.picks.size() != 4 \
 		or not Archive.C.keys(draft.physical.pending, ["human", "reports"]) \
 		or not draft.physical.pending.human is Array or draft.physical.pending.human.size() != 13 \
@@ -197,9 +206,10 @@ static func _regular_plan(season: SeasonState, cold: bool=false) -> Dictionary:
 
 static func _materialization_scope(season: SeasonState) -> bool:
 	return season!=null and season.career!=null and OS.has_feature("wiffaltro_catalog_forward_v1") \
-		and season.round_index>=1 and season.round_index<=REGULAR_LIMIT \
-		and LeagueRules.equipment(season.league_rules) and season.league_rules.get("tier")==0 \
-		and season.career.start_basis.get("ordinal")==2 and season.career.start_basis.get("common_sequence")==1
+		and season.round_index>=0 and season.round_index<=REGULAR_LIMIT \
+		and named_runtime(season) \
+		and (LeagueRules.earnings(season.league_rules) or (season.round_index>0 \
+			and season.career.start_basis.get("ordinal")==2 and season.career.start_basis.get("common_sequence")==1))
 
 static func _round_materialized_exact(season: SeasonState) -> SeasonState:
 	var api:=Archive._owner()
@@ -222,7 +232,7 @@ static func _regular_native_plan(season: SeasonState) -> Dictionary:
 	if index == 0:
 		var opening:=opening_job(season)
 		return {} if opening.is_empty() else {"projection":opening,"session":season}
-	if index >= REGULAR_LIMIT or not _regular_boundary(season, index) or not LeagueRules.equipment(season.league_rules) \
+	if index >= REGULAR_LIMIT or not _regular_boundary(season, index) or not named_runtime(season) \
 		or not Archive.C.keys(season.physical.pending, ["human", "reports"]): return {}
 	var witness: Dictionary = season.physical.pending
 	if not witness.human is Array or witness.human.size() != 13 or witness.human[0] != index * 3 \
@@ -257,7 +267,7 @@ static func play_slot(season: SeasonState) -> String:
 	return "final" if DugoutTitle.settled_semifinal(season,true)=="final_ready" else ""
 
 static func pending_plan(season: SeasonState, cold: bool=false) -> Dictionary:
-	if season == null or season.physical.pending.is_empty() or not LeagueRules.equipment(season.league_rules): return {}
+	if not named_runtime(season) or season.physical.pending.is_empty(): return {}
 	var slot := play_slot(season)
 	if slot in ["semifinal","final"]:
 		var plan:=_postseason_plan(season,slot)
@@ -295,8 +305,7 @@ static func _regular_boundary(season: SeasonState, completed: int) -> bool:
 		and season.physical.reports.size() == 2*completed
 
 static func shop_window(season: SeasonState, witness: Dictionary) -> bool:
-	if season == null or not LeagueRules.equipment(season.league_rules) or season.league_rules.get("tier") != 0 \
-		or season.phase != SeasonState.Phase.REGULAR or not season.physical.pending.is_empty() \
+	if not named_runtime(season) or season.phase != SeasonState.Phase.REGULAR or not season.physical.pending.is_empty() \
 		or not season.shop_available() or season.build._visit.number != season.round_index: return false
 	return _paid_opening(season, witness) if season.round_index == 1 else _regular_boundary(season, season.round_index)
 

@@ -12,20 +12,31 @@ const EQUIPMENT_TO_EARNINGS := "equipment:0>earnings:0"
 # Only this authored pair is installed. Other named legs must supply their
 # own authenticated source proof, not a caller-selected league or badge.
 static func stage(source: Dictionary, season: SeasonState, origin_page: PackedByteArray) -> Dictionary:
-	if season==null or season.career==null or Equipment.finish(season)!="final_champion" 			or season.champion!=0 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() 			or season.physical.projecting or season.build.pack_pending() 			or not Archive.C.same(season.league_rules,LeagueRules.capture("equipment")): return {}
-	if source.get("kind")!=Equipment.DRAFT_KIND or not source.get("head") is Dictionary 			or not source.get("current") is Dictionary or not source.get("aggregate") is Dictionary 			or not source.get("offer") is Dictionary: return {}
+	if season==null or season.career==null or Equipment.finish(season)!="final_champion" \
+			or season.champion!=0 or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() \
+			or season.physical.projecting or season.build.pack_pending() \
+			or not Archive.C.same(season.league_rules,LeagueRules.capture("equipment")): return {}
+	if source.get("kind")!=Equipment.DRAFT_KIND or not source.get("head") is Dictionary \
+			or not source.get("current") is Dictionary or not source.get("aggregate") is Dictionary \
+			or not source.get("offer") is Dictionary: return {}
 	var api:=Archive._owner()
 	var image: Dictionary=api.Adapter.capture("ordinary",season)
 	var basis: Dictionary=season.career.start_basis
 	var previous: Dictionary=source.aggregate
-	if image.is_empty() or not Archive.C.same(source.current,image) or not Progress.valid(previous) 			or previous.closed!=1 or previous.titles!={"dugout:0":true} 			or basis.get("ordinal")!=2 or basis.get("common_sequence")!=1 			or basis.get("common_sha256")!=Life.digest(previous) or source.offer.get("basis_sha256")!=Life.digest(basis): return {}
+	if image.is_empty() or not Archive.C.same(source.current,image) or not Progress.valid(previous) \
+			or previous.closed!=1 or previous.titles!={"dugout:0":true} \
+			or basis.get("ordinal")!=2 or basis.get("common_sequence")!=1 \
+			or basis.get("common_sha256")!=Life.digest(previous) or source.offer.get("basis_sha256")!=Life.digest(basis): return {}
 	var old_head_bytes:=Archive._wire(source.head)
 	var old_head:=Archive._head(old_head_bytes)
-	if old_head.is_empty() or old_head.ordinal!=2 or Archive._hash(origin_page)!=old_head.pages[0] 			or old_head.pages[0]!=source.offer.get("page_sha256"): return {}
+	if old_head.is_empty() or old_head.ordinal!=2 or Archive._hash(origin_page)!=old_head.pages[0] \
+			or old_head.pages[0]!=source.offer.get("page_sha256"): return {}
 	var lineage: String=basis.get("lineage","")
 	var id: String="%s:2:close"%lineage
 	var folded:=Progress.fold(previous,"ordinary",season,id,2,"complete")
-	if folded.is_empty() or folded.receipt.get("finish")!="champion" or not Progress.valid(folded.aggregate) 			or folded.aggregate.closed!=2 or folded.aggregate.titles!={"dugout:0":true,"equipment:0":true} 			or not "earnings" in Unlocks.from_titles(folded.aggregate.titles): return {}
+	if folded.is_empty() or folded.receipt.get("finish")!="champion" or not Progress.valid(folded.aggregate) \
+			or folded.aggregate.closed!=2 or folded.aggregate.titles!={"dugout:0":true,"equipment:0":true} \
+			or not "earnings" in Unlocks.from_titles(folded.aggregate.titles): return {}
 	var close: Dictionary={"reason":"complete","ordinal":2,"id":id,"league":"equipment","tier":0,
 		"session_sha256":Life.digest(source),"native_session_sha256":Life.digest(image),
 		"aggregate_sha256":Life.digest(folded.aggregate),"receipt":folded.receipt}
@@ -34,14 +45,17 @@ static func stage(source: Dictionary, season: SeasonState, origin_page: PackedBy
 	var chain:=Archive.make_page_and_head(old_head_bytes,source,close)
 	if chain.is_empty(): return {}
 	var head:=Archive._head(chain.head)
-	if head.is_empty() or head.ordinal!=3 or head.pages.size()!=2 or head.pages[0]!=old_head.pages[0] 			or head.pages[1]!=Archive._hash(chain.page): return {}
+	if head.is_empty() or head.ordinal!=3 or head.pages.size()!=2 or head.pages[0]!=old_head.pages[0] \
+			or head.pages[1]!=Archive._hash(chain.page): return {}
 	var seed: int=("ordinary:%s:3:nextseed"%lineage).hash() & 0x7fffffff
 	# Projection only consumes its common aggregate and native source basis.
 	var detached: Dictionary={"common":{"aggregate":folded.aggregate},"session":season}
 	var start: Dictionary=api.Adapter.OrdinaryRuntime.CommonStart.make(seed,lineage,3,2,
 		close.aggregate_sha256,api.Common.projection(detached,season))
 	var draft: SeasonState=null if start.is_empty() else api.Adapter.OrdinaryRuntime.create_common(start,"earnings")
-	if draft==null or not Archive.C.same(draft.league_rules,LeagueRules.capture("earnings")) 			or not Archive.C.same(draft.career.start_basis,start) 			or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty() or draft.build.cash()!=0: return {}
+	if draft==null or not Archive.C.same(draft.league_rules,LeagueRules.capture("earnings")) \
+			or not Archive.C.same(draft.career.start_basis,start) \
+			or draft.phase!=SeasonState.Phase.DRAFT or not draft.picks.is_empty() or draft.build.cash()!=0: return {}
 	var current: Dictionary=api.Adapter.capture("ordinary",draft)
 	if current.is_empty(): return {}
 	var offer: Dictionary={"route":EQUIPMENT_TO_EARNINGS,"source_close":id,
@@ -53,22 +67,54 @@ static func stage(source: Dictionary, season: SeasonState, origin_page: PackedBy
 	return {"value":value,"draft":draft,"page":chain.page}
 
 static func _route_value(value: Variant) -> bool:
-	return Archive.C.keys(value,["kind","version","head","offer","current","aggregate","receipt"]) 		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary 		and value.offer is Dictionary and value.offer.get("route")==EQUIPMENT_TO_EARNINGS 		and value.current is Dictionary and value.aggregate is Dictionary and value.receipt is Dictionary
+	if not value is Dictionary: return false
+	var fields: Array=["kind","version","head","offer","current","aggregate","receipt"]
+	if value.has("rounds"):
+		if not value.rounds is Array or value.rounds.is_empty() or value.rounds.size()>Equipment.REGULAR_LIMIT: return false
+		fields.append("rounds")
+	if value.has("playoffs"):
+		if not value.has("rounds") or value.rounds.size()!=Equipment.REGULAR_LIMIT \
+				or not value.playoffs is Array or value.playoffs.is_empty() or value.playoffs.size()>2: return false
+		fields.append("playoffs")
+	return Archive.C.keys(value,fields) \
+		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary \
+		and value.offer is Dictionary and value.offer.get("route")==EQUIPMENT_TO_EARNINGS \
+		and value.current is Dictionary and value.aggregate is Dictionary and value.receipt is Dictionary
 
 # Cheap rehydration of bytes already proven and pinned by the fixed reader.
 # Never an alternative way to award a championship.
-static func local_draft(value: Variant) -> SeasonState:
-	if not _route_value(value) or not Progress.valid(value.aggregate) or value.aggregate.closed!=2 			or value.aggregate.titles!={"dugout:0":true,"equipment:0":true} 			or value.receipt.get("finish")!="champion": return null
+static func local_draft(value: Variant, live: bool=false) -> SeasonState:
+	if not _route_value(value) or not Progress.valid(value.aggregate) or value.aggregate.closed!=2 \
+			or value.aggregate.titles!={"dugout:0":true,"equipment:0":true} \
+			or value.receipt.get("finish")!="champion": return null
 	var session:=Archive._owner().Adapter.restore("ordinary",value.current) as SeasonState
-	if session==null or session.career==null or session.picks.size()>4 or session.round_index!=0 			or not session.results.is_empty() or not session.physical.pending.is_empty() or session.build.cash()!=0 			or not Archive.C.same(session.league_rules,LeagueRules.capture("earnings")): return null
+	if session==null or not Equipment.named_runtime(session) or session.picks.size()>4 \
+			or not Archive.C.same(session.league_rules,LeagueRules.capture("earnings")): return null
+	var rounds: Array=value.get("rounds",[])
+	var playoffs: Array=value.get("playoffs",[])
+	if rounds.size()!=session.round_index or (not live and (not rounds.is_empty() or not session.physical.pending.is_empty())): return null
+	if rounds.is_empty():
+		if not session.results.is_empty() or session.build.cash()!=0: return null
+	elif playoffs.is_empty():
+		if session.phase==SeasonState.Phase.SEMIFINAL:
+			if Equipment.DugoutTitle.semifinal_pair(session).is_empty(): return null
+		elif not Equipment._regular_boundary(session,rounds.size()): return null
+	else:
+		var destination:=Equipment.finish(session)
+		if (playoffs.size()==1 and destination not in ["final_ready","semifinal_exit"]) \
+				or (playoffs.size()==2 and destination not in ["final_champion","final_runner_up"]): return null
+	if not session.physical.pending.is_empty() and Equipment.pending_plan(session).is_empty(): return null
 	var basis: Dictionary=session.career.start_basis
-	if basis.get("ordinal")!=3 or basis.get("common_sequence")!=2 			or basis.get("common_sha256")!=Life.digest(value.aggregate) 			or Life.digest(basis)!=value.offer.get("basis_sha256"): return null
+	if basis.get("ordinal")!=3 or basis.get("common_sequence")!=2 \
+			or basis.get("common_sha256")!=Life.digest(value.aggregate) \
+			or Life.digest(basis)!=value.offer.get("basis_sha256"): return null
 	return session
 
 # Re-derive both proven seasons and the exact close, then the draft and its
 # original picks. The supplied title, aggregate and page are never authority.
 static func replay(value: Variant, pages: Array) -> Dictionary:
-	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not _route_value(value) or pages.size()!=2 			or not pages[0] is PackedByteArray or not pages[1] is PackedByteArray: return {}
+	if not OS.has_feature("wiffaltro_catalog_forward_v1") or not _route_value(value) or pages.size()!=2 \
+			or not pages[0] is PackedByteArray or not pages[1] is PackedByteArray: return {}
 	var head:=Archive._head(Archive._wire(value.head))
 	if head.is_empty() or head.ordinal!=3 or head.pages!=[Archive._hash(pages[0]),Archive._hash(pages[1])]: return {}
 	var closing:=Archive._page(pages[1],head,2)
@@ -82,6 +128,32 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	var draft: SeasonState=computed.draft
 	for pick: Variant in picks:
 		if not pick is String or not draft.choose_player(pick): return {}
+	var journal: Array=value.get("rounds",[])
+	for row: Variant in journal:
+		if not Archive.C.keys(row,["pending","shop"]) or not row.pending is Dictionary \
+				or not row.shop is Array or row.shop.size()>128: return {}
+		draft.physical.pending=row.pending.duplicate(true)
+		var plan:=Equipment.pending_plan(draft,true)
+		if plan.is_empty() or plan.projection.has("fixture") or plan.get("semifinal",false) or plan.get("managed_final",false): return {}
+		draft=plan.projection.candidate
+		for command: Variant in row.shop:
+			if not command is Dictionary: return {}
+			draft=Equipment.shop_step(draft,row.pending,command)
+			if draft==null: return {}
+	if value.has("rounds"): computed.value.rounds=journal.duplicate(true)
+	var playoffs: Array=value.get("playoffs",[])
+	for row: Variant in playoffs:
+		if not row is Dictionary or Equipment.play_slot(draft) not in ["semifinal","final"]: return {}
+		draft.physical.pending=row.duplicate(true)
+		var plan:=Equipment.pending_plan(draft,true)
+		if plan.is_empty() or plan.projection.has("fixture"): return {}
+		draft=plan.projection.candidate
+	if value.has("playoffs"): computed.value.playoffs=playoffs.duplicate(true)
+	var physical: Variant=value.current.get("physical")
+	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
+	if not physical.pending.is_empty():
+		draft.physical.pending=physical.pending.duplicate(true)
+		if Equipment.pending_plan(draft,true).is_empty(): return {}
 	computed.value.current=Archive._owner().Adapter.capture("ordinary",draft)
 	if computed.value.current.is_empty() or not Archive.C.same(computed.value,value): return {}
 	return {"draft":draft,"aggregate":computed.value.aggregate.duplicate(true)}
