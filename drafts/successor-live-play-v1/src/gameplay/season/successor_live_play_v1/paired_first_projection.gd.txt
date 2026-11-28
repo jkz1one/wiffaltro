@@ -491,10 +491,54 @@ static func _earned_club_semifinals_paid_bound(source: SeasonState,held: Variant
 	elif not Live.same(projected.get("fixture"),final) or not Live.same(candidate.physical.needed,final) or not candidate.physical.projecting: return {}
 	return {"fixture":final,"cash":candidate.cash(),"club_won":club_won,"candidate":candidate}
 
+# A CPU final consumes fixture 32 only after the native two-semifinal
+# projection has proved elimination and emitted the exact final request.
+static func _earned_club_cpu_final_job(paid: Dictionary) -> Dictionary:
+	var candidate: SeasonState=paid.get("candidate")
+	if candidate==null or candidate.get_script()!=PrivateEarnedClubSemifinal or paid.get("club_won",true) \
+			or not paid.get("fixture") is Dictionary or candidate.phase!=SeasonState.Phase.FINAL \
+			or not Live.same(candidate.physical.needed,paid.fixture): return {}
+	var fixture: Dictionary=paid.fixture
+	if _projected_earned_club_cpu_final(candidate,fixture).is_empty() or candidate.physical.reports.size()!=21: return {}
+	var job:=_job(candidate,fixture)
+	if not job.is_empty(): job.fixture=fixture
+	return job
+
+static func _earned_club_cpu_final_result(paid: Dictionary,row: Variant) -> Dictionary:
+	if not _bound_report(row,32): return {}
+	var job:=_earned_club_cpu_final_job(paid)
+	if job.is_empty() or job.job.binding.request!=row.request: return {}
+	var candidate: SeasonState=paid.candidate
+	var fixture: Dictionary=job.fixture
+	var before_results: Array=candidate.results.duplicate(true)
+	var before_player: Array=candidate.player_results.duplicate(true)
+	var before_reports: Array=candidate.physical.reports.duplicate()
+	var before_wallet: Dictionary=candidate.build._bank.view()
+	var before_build: Array=candidate.build._events.duplicate(true)
+	candidate.physical.reports.append(row.duplicate(true))
+	# Native _prepare_final runs only the final. It does not re-settle
+	# either semifinal or grant the eliminated club another game result.
+	if not candidate._prepare_final() or candidate.phase!=SeasonState.Phase.COMPLETE \
+			or candidate.physical.cursor!=22 or not candidate.physical.needed.is_empty() \
+			or not candidate.physical.error.is_empty() or candidate.results.size()!=33 \
+			or not Live.same(candidate.results.slice(0,32),before_results) or not Live.same(candidate.player_results,before_player) \
+			or not Live.same(candidate.physical.reports,before_reports+[row]) or not Live.same(candidate.final_fixture,fixture) \
+			or not Live.same(candidate.build._bank.view(),before_wallet) or not Live.same(candidate.build._events,before_build) \
+			or not GeneralPending._receipts(candidate): return {}
+	var result: Dictionary=candidate.results.back()
+	if not Live.whole(result.get("id"),32,32) or result.get("away")!=fixture.away \
+			or result.get("home")!=fixture.home or result.get("neutral")!=true \
+			or result.get("away_runs")==result.get("home_runs") or candidate.champion!=SeasonState._winner(result) \
+			or (candidate.champion!=fixture.away and candidate.champion!=fixture.home): return {}
+	candidate.physical.projecting=false
+	return {"result":result,"champion":candidate.champion,"candidate":candidate}
+
 static func _projected_earned_club_cpu_final(season: SeasonState,fixture: Dictionary) -> Dictionary:
 	if not season.physical.projecting or not season.physical.pending.is_empty() or season.round_index!=10 \
-			or season.champion!=-1 or season.physical.cursor!=21 or season.physical.reports.size()!=21 \
+			or season.champion!=-1 or season.physical.cursor!=21 or season.physical.reports.size() not in [21,22] \
 			or season.results.size()!=32 or season.player_results.size()!=11: return {}
+	# Match the same request with its one expected resolver row present.
+	if season.physical.reports.size()==22 and not _bound_report(season.physical.reports[21],32): return {}
 	var saved: Dictionary=season.final_fixture
 	if not Live.whole(saved.get("id"),32,32) or not Live.whole(saved.get("round"),11,11) \
 			or not Live.whole(saved.get("home"),1,5) or not Live.whole(saved.get("away"),1,5) \

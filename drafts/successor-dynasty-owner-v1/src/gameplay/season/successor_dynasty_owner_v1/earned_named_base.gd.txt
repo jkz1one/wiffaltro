@@ -278,11 +278,22 @@ static func canonical_club_semifinal(human: Array,binding: Dictionary) -> Dictio
 # derived receipt is independently regenerated from the two played games.
 static func club_semifinal_payment(source: SeasonState,held: Variant,other: Variant) -> Dictionary:
 	var paid:=Paired._earned_club_semifinals_paid_bound(source,held,other)
+	return _club_semifinal_receipt_from_projection(source,held,paid)
+
+static func _club_semifinal_receipt_from_projection(source: SeasonState,held: Variant,paid: Dictionary) -> Dictionary:
 	if paid.is_empty(): return {}
 	var candidate: SeasonState=paid.candidate
 	var receipt: Dictionary={"version":1,"managed":int(held.human[0]),"before":source.cash(),"cash":candidate.cash(),
 		"club_won":paid.club_won,"final":paid.fixture,"wallet":candidate.build._bank.view()}
 	return receipt if _club_semifinal_payment_shape(receipt,held) else {}
+
+# Starting or committing a CPU final always reconstructs—not trusts—the
+# exact paid wallet/geometry. Reuse that same projection for the final.
+static func _club_cpu_final_projection(source: SeasonState,value: Dictionary) -> Dictionary:
+	if not value.has("club_semifinals_paid") or value.club_semifinals_paid.get("club_won",true): return {}
+	var paid:=Paired._earned_club_semifinals_paid_bound(source,value.club_semifinal,value.club_other_semifinal)
+	var checked:=_club_semifinal_receipt_from_projection(source,value.club_semifinal,paid)
+	return paid if not checked.is_empty() and Archive.C.same(checked,value.club_semifinals_paid) else {}
 
 static func _club_semifinal_payment_shape(value: Variant,held: Dictionary) -> bool:
 	if not Archive.C.keys(value,["version","managed","before","cash","club_won","final","wallet"]) \
@@ -329,6 +340,10 @@ static func _route_value(value: Variant) -> bool:
 	if value.has("club_semifinals_paid"):
 		if not fields.has("club_other_semifinal") or not _club_semifinal_payment_shape(value.club_semifinals_paid,value.club_semifinal): return false
 		fields.append("club_semifinals_paid")
+	if value.has("club_cpu_final"):
+		if not fields.has("club_semifinals_paid") or value.club_semifinals_paid.club_won \
+				or not Paired._bound_report(value.club_cpu_final,32): return false
+		fields.append("club_cpu_final")
 	return Archive.C.keys(value,fields) \
 		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary \
 		and value.offer is Dictionary and not target(value).is_empty() \
@@ -384,8 +399,12 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 				if value.has("club_other_semifinal"):
 					if not Paired.Live._paid_history_valid(session): return null
 					if value.has("club_semifinals_paid"):
-						var paid:=club_semifinal_payment(session,value.club_semifinal,value.club_other_semifinal)
-						if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return null
+						if value.has("club_cpu_final"):
+							var checked:=_club_cpu_final_projection(session,value)
+							if checked.is_empty() or Paired._earned_club_cpu_final_result(checked,value.club_cpu_final).is_empty(): return null
+						else:
+							var paid:=club_semifinal_payment(session,value.club_semifinal,value.club_other_semifinal)
+							if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return null
 					elif not Paired._earned_club_other_semifinal_held_bound(session,value.club_semifinal,value.club_other_semifinal): return null
 				elif not Paired.earned_club_semifinal_held(session,value.club_semifinal): return null
 	if rounds.size()!=session.round_index or (not live and (not rounds.is_empty() or not session.physical.pending.is_empty())): return null
@@ -491,9 +510,15 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 		if value.has("club_semifinal"):
 			if value.has("club_other_semifinal"):
 				if value.has("club_semifinals_paid"):
-					var paid:=club_semifinal_payment(actual.draft,value.club_semifinal,value.club_other_semifinal)
-					if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return {}
-					computed.value.club_semifinals_paid=paid
+					if value.has("club_cpu_final"):
+						var checked:=_club_cpu_final_projection(actual.draft,value)
+						if checked.is_empty() or Paired._earned_club_cpu_final_result(checked,value.club_cpu_final).is_empty(): return {}
+						computed.value.club_cpu_final=value.club_cpu_final
+						computed.value.club_semifinals_paid=value.club_semifinals_paid
+					else:
+						var paid:=club_semifinal_payment(actual.draft,value.club_semifinal,value.club_other_semifinal)
+						if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return {}
+						computed.value.club_semifinals_paid=paid
 				elif not Paired._earned_club_other_semifinal_held_bound(actual.draft,value.club_semifinal,value.club_other_semifinal): return {}
 				computed.value.club_other_semifinal=value.club_other_semifinal
 			elif not Paired._earned_club_semifinal_held_bound(actual.draft,value.club_semifinal): return {}
