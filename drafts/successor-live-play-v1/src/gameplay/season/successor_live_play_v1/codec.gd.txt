@@ -164,11 +164,11 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 	if paired_earned and (not OS.has_feature("wiffaltro_catalog_forward_v1") or not Admissions.paired_draft_only(season)): return false
 	if Admissions.paired_draft_only(season):
 		if (season.career.start_basis.get("kind")==CommonStart.KIND and not paired_earned) or not season.ownership._events.is_empty(): return false
-		# Earned installed play admits the signed second pair return, but
-		# no future settlement or unrelated fixture enters this shape.
-		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1,2,3] \
+		# Pair 2 can settle; the new paid boundary does not admit fixture 12.
+		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1,2,3,4] \
 				or (season.round_index==0 and not season.physical.reports.is_empty()) \
 				or (season.round_index==1 and not season.physical.pending.is_empty() and not return_session_ready(season)) \
+				or (season.round_index==4 and not season.physical.pending.is_empty()) \
 				or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
 			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
@@ -282,25 +282,38 @@ static func _earned_round_events(reward: Dictionary, admission: Dictionary, game
 	return reward.get("op")=="successor_reward" and reward.get("id")=="game:%d"%game \
 		and admission.get("op")=="exotic_admit" and admission.get("id")=="exotic:%d"%game
 
-static func _earned_next_first_paid_journal(build: SeasonBuild) -> bool:
-	if build==null or build._bank==null or not whole(build._visit.get("number"),3,3): return false
-	var count: int=build._events.size()
-	var third: int=-1
-	for i: int in range(4,count-1):
-		if _earned_round_events(build._events[i],build._events[i+1],6):
-			if third!=-1: return false
-			third=i
-	if third<0 or not _earned_pair_paid_prefix(build,third): return false
-	var first_shop: int=third+2
-	if count-first_shop>128 or build._visit.get("open",false)!=(count>first_shop): return false
-	for index: int in range(first_shop,count):
-		var cmd: Dictionary=build._events[index]
-		if not whole(cmd.get("rev"),index,index) or not SeasonBuild.SHOP_OPS.has(cmd.get("op","")): return false
-		if index==first_shop:
-			if not same(cmd,{"id":"shop-open:%d"%index,"rev":index,"op":"open"}): return false
-		elif cmd.op=="open": return false
-	var bank: Dictionary=build._bank.view().rewards
-	return keys(bank,["0","3","6"]) and bank["0"] is bool and bank["3"] is bool and bank["6"] is bool
+# The installed earned route uses a bounded sequence of exact reward/exotic
+# pairs and native Shop events, not the fixed private test revisions.
+static func _earned_regular_paid_journal(build: SeasonBuild, paid: int) -> bool:
+	if build==null or build._bank==null or paid<3 or paid>9 or not whole(build._visit.get("number"),paid,paid): return false
+	var events: Array=build._events
+	var count: int=events.size()
+	var cursor: int=-1
+	# Before the third leg, keep the exact already validated first-pair dialect.
+	for i: int in range(4,mini(count-1,133)):
+		if _earned_round_events(events[i],events[i+1],6):
+			if cursor!=-1: return false
+			cursor=i
+	if cursor<0 or not _earned_pair_paid_prefix(build,cursor): return false
+	var rewards: Dictionary=build._bank.view().rewards
+	if rewards.size()!=paid: return false
+	for leg: int in range(paid):
+		if not rewards.get(str(leg*3)) is bool: return false
+	for leg: int in range(2,paid):
+		if cursor+1>=count or not _earned_round_events(events[cursor],events[cursor+1],leg*3): return false
+		cursor+=2
+		var shop_start: int=cursor
+		while cursor<count:
+			var cmd: Dictionary=events[cursor]
+			if not SeasonBuild.SHOP_OPS.has(cmd.get("op","")): break
+			if cursor-shop_start>=128 or not whole(cmd.get("rev"),cursor,cursor): return false
+			if cursor==shop_start:
+				if not same(cmd,{"id":"shop-open:%d"%cursor,"rev":cursor,"op":"open"}): return false
+			elif cmd.op=="open": return false
+			cursor+=1
+		if leg==paid-1:
+			return cursor==count and build._visit.get("open",false)==(cursor>shop_start)
+	return false
 
 # Enter a fresh pair from either the original test dialects or a fully
 # replayed earned first pair with a lawful, arbitrary Visit 1 journal.
@@ -314,7 +327,7 @@ static func next_first_session_ready(season: SeasonState) -> bool:
 static func earned_next_return_ready(season: SeasonState) -> bool:
 	return season!=null and season.round_index==3 and season.career!=null \
 		and CommonStart.detached_earned_doubleheader(season.career.start_basis) \
-		and OS.has_feature("wiffaltro_catalog_forward_v1") and _earned_next_first_paid_journal(season.build) \
+		and OS.has_feature("wiffaltro_catalog_forward_v1") and _earned_regular_paid_journal(season.build,3) \
 		and not season.build.pack_pending()
 
 # Derive the optional no-spend start from the authenticated journal, not a
@@ -365,8 +378,8 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	if not physical.pending.is_empty():
 		if season.round_index==6 and not _signed_visit6_journal(build): return false
 		if projection.late_revision(season.round_index)>=0 and not _paired_late_start(season): return false
-	if season.round_index==3 and CommonStart.detached_earned_doubleheader(season.career.start_basis):
-		return _earned_next_first_paid_journal(build)
+	if season.round_index in [3,4] and CommonStart.detached_earned_doubleheader(season.career.start_basis):
+		return _earned_regular_paid_journal(build,season.round_index)
 	if not unpurchased_next_reverse_kind(season).is_empty(): return true # Physical prefix/order already checked.
 	if season.round_index==4 and not detached and physical.pending.is_empty() \
 			and not _unpurchased_completed_legs(build,4).is_empty():
