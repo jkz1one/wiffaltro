@@ -252,6 +252,14 @@ static func _route_value(value: Variant) -> bool:
 # Cheap rehydration of bytes already proven and pinned by the fixed reader.
 # Never an alternative way to award a championship.
 static func local_draft(value: Variant, live: bool=false) -> SeasonState:
+	return _local_draft(value,live,false)
+
+# Only Store's completed read lease calls this, after the fixed child has
+# proved this exact archive or authenticated a prior same-build proof.
+static func _verified_doubleheader_current(value: Variant) -> SeasonState:
+	return _local_draft(value,true,true) if target(value)=="doubleheader" else null
+
+static func _local_draft(value: Variant,live: bool,verified_current: bool) -> SeasonState:
 	if not _route_value(value) or not Progress.valid(value.aggregate) or value.receipt.get("finish")!="champion": return null
 	var goal:=target(value)
 	var closed: int=3 if goal=="scramble" else 2
@@ -262,7 +270,11 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 	if value.aggregate.closed!=closed or value.aggregate.titles!=titles: return null
 	var adapter: Script=Archive._owner().Adapter
 	var paired: bool=goal=="doubleheader"
-	var session: SeasonState=adapter.Ordinary.restore_common(value.current) if paired else adapter.restore("ordinary",value.current)
+	var session: SeasonState
+	if verified_current and paired:
+		session=adapter.Ordinary._restore_shape(value.current,false)
+	else:
+		session=adapter.Ordinary.restore_common(value.current) if paired else adapter.restore("ordinary",value.current)
 	if session==null or not (_paired_current(session) if paired else Equipment.named_runtime(session)) \
 			or session.picks.size()>4 or session.league_rules.get("league")!=goal: return null
 	if paired:

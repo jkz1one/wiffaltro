@@ -16,6 +16,9 @@ const INSTALLED_FORWARD_HEADER: String = "WIFFALTRO-INSTALLED-CAREER-FORWARD-V1\
 const INSTALLED_BACKUP_STAGE: String = ".bak.tmp"
 const INSTALLED_DUGOUT_D1_KIND := "installed-forward-dugout-d1-draft-v1"
 const INSTALLED_DUGOUT_D1_PAGES := "user://wiffaltro-installed-dugout-d1-pages-v1"
+const DOUBLEHEADER_PROOF_KEY := "user://.wiffaltro-doubleheader-verified-v1.key"
+const DOUBLEHEADER_PROOF_TAG := "user://.wiffaltro-doubleheader-verified-v1.tag"
+const DOUBLEHEADER_PROOF_MODE := FileAccess.UNIX_READ_OWNER|FileAccess.UNIX_WRITE_OWNER
 const MAX_BYTES: int = 64 * 1024 * 1024
 const BASE_ARCHIVE_READER_FEATURE := "wiffaltro_base_archive_read_playtest"
 const BASE_ARCHIVE_READER_ENTRY := "res://archive_read_bootstrap/entry.tscn"
@@ -3255,6 +3258,78 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 		pages.append(member.bytes)
 	return {"bytes":body,"pin":head.pages.back(),"pages":pages,"named_base":value}
 
+# This is a local, disposable validation cache, not a portable save or an
+# anti-cheat key. The existing canonical save and its event history remain
+# authoritative. A missing, copied, stale, partial or damaged cache is a miss.
+static func _doubleheader_proof_input(source: Dictionary) -> PackedByteArray:
+	if OS.get_name()!="Linux" or not OS.has_feature(LeagueAdmission.CAREER_FORWARD_FEATURE) \
+			or _installed_paths_blocked() or not source.has("named_base") \
+			or EarnedNamedBase.target(source.named_base)!="doubleheader" \
+			or source.named_base.get("rounds",[]).is_empty(): return PackedByteArray()
+	var pack: String=FileAccess.get_sha256(OS.get_executable_path().get_basename()+".pck")
+	var revision: String=Owner._hash(source.bytes)
+	var pages: Array=EarnedNamedBase.page_ids(source.named_base)
+	if not BaseArchive._digest(pack) or not BaseArchive._digest(revision) \
+			or pages.size()!=2 or not BaseArchive._digest(pages[0]) or not BaseArchive._digest(pages[1]): return PackedByteArray()
+	return ("wiffaltro:local-verified-doubleheader:v1\n%s\n%s\n%s\n%s"%[pack,revision,pages[0],pages[1]]).to_utf8_buffer()
+
+static func _doubleheader_private_file(path: String) -> bool:
+	var user:=DirAccess.open("user://")
+	return user!=null and not user.is_link(path.get_file()) and not user.dir_exists(path.get_file())
+
+static func _doubleheader_private_read(path: String) -> PackedByteArray:
+	if not _doubleheader_private_file(path) or not FileAccess.file_exists(path) \
+			or FileAccess.get_unix_permissions(path)!=DOUBLEHEADER_PROOF_MODE: return PackedByteArray()
+	var file:=FileAccess.open(path,FileAccess.READ)
+	return file.get_buffer(32) if file!=null and file.get_length()==32 else PackedByteArray()
+
+static func _doubleheader_private_publish(path: String,value: PackedByteArray,replace: bool) -> bool:
+	if value.size()!=32 or not _doubleheader_private_file(path) or (not replace and FileAccess.file_exists(path)): return false
+	var suffix:=Crypto.new().generate_random_bytes(12)
+	if suffix.size()!=12: return false
+	var tmp: String=path+".stage-"+suffix.hex_encode()
+	if not _doubleheader_private_file(tmp) or FileAccess.file_exists(tmp): return false
+	var file:=FileAccess.open(tmp,FileAccess.WRITE)
+	if file==null: return false
+	# Set and check permissions before the key is ever written to disk.
+	var ok: bool=FileAccess.set_unix_permissions(tmp,DOUBLEHEADER_PROOF_MODE)==OK and file.store_buffer(value)
+	if ok:
+		file.flush()
+		ok=file.get_error()==OK
+	file.close()
+	if ok and _doubleheader_private_file(path) and (replace or not FileAccess.file_exists(path)) \
+			and DirAccess.rename_absolute(tmp,path)==OK:
+		return _doubleheader_private_read(path)==value
+	DirAccess.remove_absolute(tmp)
+	return false
+
+static func _doubleheader_snapshot_verified(source: Dictionary) -> bool:
+	var expected:=_doubleheader_private_read(DOUBLEHEADER_PROOF_TAG)
+	if expected.size()!=32: return false
+	var key:=_doubleheader_private_read(DOUBLEHEADER_PROOF_KEY)
+	if key.size()!=32: return false
+	var input:=_doubleheader_proof_input(source)
+	if input.is_empty(): return false
+	var crypto:=Crypto.new()
+	return crypto.constant_time_compare(expected,crypto.hmac_digest(HashingContext.HASH_SHA256,key,input))
+
+# Call only after a successful, revision-bound read lease or a fully
+# admitted native save. Never attest a draft imported from caller data.
+static func _remember_verified_doubleheader(source: Dictionary) -> void:
+	var input:=_doubleheader_proof_input(source)
+	if input.is_empty(): return
+	var crypto:=Crypto.new()
+	var key:=_doubleheader_private_read(DOUBLEHEADER_PROOF_KEY)
+	if key.is_empty():
+		var fresh:=crypto.generate_random_bytes(32)
+		if not _doubleheader_private_publish(DOUBLEHEADER_PROOF_KEY,fresh,false): return
+		key=_doubleheader_private_read(DOUBLEHEADER_PROOF_KEY)
+	if key.size()!=32: return
+	var tag:=crypto.hmac_digest(HashingContext.HASH_SHA256,key,input)
+	var prior:=_doubleheader_private_read(DOUBLEHEADER_PROOF_TAG)
+	if tag.size()==32 and (prior.size()!=32 or not crypto.constant_time_compare(prior,tag)):
+		_doubleheader_private_publish(DOUBLEHEADER_PROOF_TAG,tag,true)
+
 static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
 	if EarnedNamedBase.target(value)=="doubleheader":
 		var pending: Dictionary=draft.physical.pending
@@ -4911,10 +4986,12 @@ static func adopt_installed_dugout_d1_read(reader: Node, expected: PackedByteArr
 	var source:=_installed_dugout_d1_source()
 	if source.is_empty() or source.bytes!=expected: return {}
 	if source.has("named_base"):
-		var named_draft:=EarnedNamedBase.local_draft(source.named_base,true)
+		var paired: bool=EarnedNamedBase.target(source.named_base)=="doubleheader"
+		var named_draft:=EarnedNamedBase._verified_doubleheader_current(source.named_base) if paired else EarnedNamedBase.local_draft(source.named_base,true)
 		if named_draft==null or not _matches(expected): return {}
 		_invalidate()
 		_installed_named_base_bound=expected.duplicate()
+		if paired: _remember_verified_doubleheader(source)
 		return _installed_named_base_view(expected,source.named_base,named_draft)
 	if source.has("equipment"):
 		var equipment_draft:=EquipmentBase.local_draft(source.equipment,true)
@@ -5667,6 +5744,7 @@ static func _write_installed_doubleheader_checkpoint(source: Dictionary,expected
 	saving=false
 	if not saved: return {}
 	_installed_named_base_bound=materialized.bytes
+	_remember_verified_doubleheader({"bytes":materialized.bytes,"named_base":materialized.value})
 	return _installed_named_base_view(materialized.bytes,materialized.value,native)
 
 # Only the exact installed App can open the authored opening fixture. The
